@@ -1,43 +1,234 @@
 import type { InstanceMode } from "@secondlayer/shared/mode";
 import { getInstanceMode } from "@secondlayer/shared/mode";
+import { WEBHOOK_STATUSES } from "@secondlayer/shared/schemas/webhooks";
 import { Hono } from "hono";
 import {
 	HOSTED_OPENAPI_PATHS,
 	WORKLOAD_OPENAPI_PREFIXES,
 } from "../route-manifest.ts";
-import { MAX_LIMIT } from "./subgraph-query-helpers.ts";
-
-/** `contract_id` on the two consume-able feeds accepts a comma-separated set,
- *  so one cursor can follow a whole protocol. */
-const CONTRACT_ID_PARAM = qp(
-	"contract_id",
-	"string",
-	false,
-	"Contract principal, or a comma-separated set of up to 20 (e.g. `SP1.sbtc-token,SP1.sbtc-registry`). Mutually exclusive with `trait`.",
-);
+import { corePaths, coreSchemas } from "./openapi/core.ts";
+import { deploymentsPaths, deploymentsSchemas } from "./openapi/deployments.ts";
+import { indexPaths, indexSchemas } from "./openapi/index.ts";
+import { nodePaths, nodeSchemas } from "./openapi/node.ts";
+import { protocolsPaths, protocolsSchemas } from "./openapi/protocols.ts";
+import {
+	AUTH_DESCRIPTION,
+	ERROR_400,
+	ERROR_401,
+	ERROR_404,
+	ERROR_429,
+	READ_SECURITY,
+	WRITE_SECURITY,
+	json200,
+	jsonBody,
+	jsonError,
+	ok,
+} from "./openapi/shared.ts";
+import { streamsPaths, streamsSchemas } from "./openapi/streams.ts";
+import { subgraphsPaths, subgraphsSchemas } from "./openapi/subgraphs.ts";
+import { webhooksPaths, webhooksSchemas } from "./openapi/webhooks.ts";
 
 /**
- * Auth, as the shipped code enforces it (`src/auth/read-plane.ts`,
- * `src/middleware/auth-modes.ts`, `src/middleware/csrf.ts`).
- *
- * `/v1` reads: `security: [{}, { bearerAuth: [] }]` — anonymous OR bearer.
- * OpenAPI has no way to say "required depending on how the operator bound the
- * socket", and that is exactly the shipped rule: keyless while the API is
- * reachable only over loopback, instance token required once it is published
- * past loopback. Declaring the bearer *required* would describe a 401 that
- * never happens on the default self-host bind; declaring no `security` at all
- * would hide that a token is ever needed. Optional-bearer is the only one of
- * the three that generates a client with an optional token, which is the real
- * surface. The prose says which half of the rule applies when.
+ * Stable operationIds, keyed `METHOD path`. The docs reference turns each into
+ * its `#` anchor (`listPox5Events` → `#list-pox5-events`), so renaming one
+ * breaks every link anyone has shared. `openapi.test.ts` fails on an operation
+ * missing here, a stale key, or a duplicate id.
  */
-const READ_SECURITY = [{}, { bearerAuth: [] }];
+export const OPERATION_IDS: Record<string, string> = {
+	"GET /v1": "discoverSurfaces",
+	"POST /v1/batch": "batchRead",
+	"GET /v1/openapi.json": "getOpenApiSpec",
+	"POST /v1/archive/verify": "verifyArchive",
+	"GET /v1/index": "discoverIndex",
+	"GET /v1/index/events": "listEvents",
+	"GET /v1/index/ft-transfers": "listFtTransfers",
+	"GET /v1/index/nft-transfers": "listNftTransfers",
+	"GET /v1/index/contract-calls": "listContractCalls",
+	"GET /v1/index/canonical": "listCanonicalBlocks",
+	"GET /v1/index/blocks": "listBlocks",
+	"GET /v1/index/blocks/{height_or_hash}": "getBlock",
+	"GET /v1/index/transactions": "listTransactions",
+	"GET /v1/index/transactions/{tx_id}": "getTransaction",
+	"GET /v1/index/transactions/{tx_id}/proof": "getTransactionProof",
+	"GET /v1/index/stacking": "listPox4Stacking",
+	"GET /v1/index/pox/cycles": "listPox4Cycles",
+	"GET /v1/index/pox/cycles/{reward_cycle}": "getPox4Cycle",
+	"GET /v1/index/pox5/events": "listPox5Events",
+	"GET /v1/index/sbtc/events": "listSbtcEvents",
+	"GET /v1/index/sbtc/deposits": "listSbtcDeposits",
+	"GET /v1/index/sbtc/deposits/{bitcoin_txid}": "getSbtcDeposit",
+	"GET /v1/index/sbtc/withdrawals": "listSbtcWithdrawals",
+	"GET /v1/index/sbtc/withdrawals/{request_id}": "getSbtcWithdrawal",
+	"GET /v1/index/sbtc/summary": "getSbtcSummary",
+	"GET /v1/index/mempool": "listMempoolTransactions",
+	"GET /v1/index/mempool/{tx_id}": "getMempoolTransaction",
+	"GET /v1/index/contracts/{contract_id}/print-schema": "getPrintSchema",
+	"GET /v1/streams": "discoverStreams",
+	"GET /v1/streams/events": "listStreamEvents",
+	"GET /v1/streams/events/stream": "tailStreamEvents",
+	"GET /v1/streams/reorgs": "listReorgs",
+	"GET /v1/streams/canonical/{height}": "getStreamsCanonicalBlock",
+	"GET /v1/streams/tip": "getTip",
+	"GET /v1/subgraphs": "listSubgraphs",
+	"GET /v1/subgraphs/{name}": "getSubgraph",
+	"GET /v1/subgraphs/{name}/openapi.json": "getSubgraphOpenApiSpec",
+	"GET /v1/subgraphs/{name}/schema.json": "getSubgraphSchema",
+	"GET /v1/subgraphs/{name}/docs.md": "getSubgraphDocs",
+	"GET /v1/subgraphs/{name}/{table}": "listSubgraphRows",
+	"GET /v1/subgraphs/{name}/{table}/count": "countSubgraphRows",
+	"GET /v1/subgraphs/{name}/{table}/aggregate": "aggregateSubgraphRows",
+	"GET /v1/subgraphs/{name}/{table}/stream": "tailSubgraphRows",
+	"GET /v1/subgraphs/{name}/{table}/{id}": "getSubgraphRow",
+	"GET /v1/instance": "getInstance",
+	"GET /v1/instance/features": "getInstanceFeatures",
+	"GET /v1/instance/metrics": "getInstanceMetrics",
+	"GET /v1/play": "getPlay",
+	"POST /v1/play": "runPlay",
+	"GET /v1/play/estimate": "estimatePlay",
+	"GET /api/subgraphs": "listDeployments",
+	"POST /api/subgraphs": "deploySubgraph",
+	"POST /api/subgraphs/bundle": "bundleSubgraph",
+	"GET /api/subgraphs/{name}": "getDeployment",
+	"DELETE /api/subgraphs/{name}": "deleteDeployment",
+	"POST /api/subgraphs/{name}/reindex": "reindexDeployment",
+	"POST /api/subgraphs/{name}/backfill": "backfillDeployment",
+	"POST /api/subgraphs/{name}/stop": "stopDeployment",
+	"GET /api/subgraphs/{name}/operations": "listDeploymentOperations",
+	"GET /api/subgraphs/{name}/operations/{operation_id}":
+		"getDeploymentOperation",
+	"GET /api/subgraphs/{name}/gaps": "listDeploymentGaps",
+	"GET /api/subgraphs/{name}/violations": "listDeploymentViolations",
+	"GET /api/webhooks": "listWebhooks",
+	"POST /api/webhooks": "createWebhook",
+	"GET /api/webhooks/{id}": "getWebhook",
+	"PATCH /api/webhooks/{id}": "updateWebhook",
+	"DELETE /api/webhooks/{id}": "deleteWebhook",
+	"POST /api/webhooks/{id}/pause": "pauseWebhook",
+	"POST /api/webhooks/{id}/resume": "resumeWebhook",
+	"POST /api/webhooks/{id}/rotate-secret": "rotateWebhookSecret",
+	"POST /api/webhooks/{id}/test": "testWebhook",
+	"GET /api/webhooks/{id}/deliveries": "listWebhookDeliveries",
+	"GET /api/webhooks/{id}/dead": "listDeadWebhookEvents",
+	"POST /api/webhooks/{id}/dead/{outbox_id}/requeue": "requeueDeadWebhookEvent",
+	"POST /api/webhooks/{id}/replay": "replayWebhook",
+	"GET /api/node/contracts/{contract_id}/abi": "getContractAbi",
+	"POST /api/archive/quote": "quoteArchiveFetch",
+	"POST /api/archive/fetch": "fetchArchivePartitions",
+	"POST /api/billing/refill": "refillCredits",
+	"GET /api/billing/status": "getBillingStatus",
+	"POST /api/public/credits/checkout": "createCreditsCheckout",
+};
 
-/** `/api` writes: the instance token is required whenever one is set, and an
- *  instance reachable past loopback refuses to boot without one. */
-const WRITE_SECURITY = [{ bearerAuth: [] }];
+const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
 
-const AUTH_DESCRIPTION =
-	"Auth on this instance is the token minted by `secondlayer init` (`INSTANCE_TOKEN`), sent as `Authorization: Bearer $INSTANCE_TOKEN`. `/v1` reads need no credential while the API is reachable only over loopback and require the token on every request once it is published past loopback: one rule, identical on Index, Streams, and Subgraphs, which is why every read below lists bearer auth as optional. Writes under `/api` require the token whenever one is set, and must send `Content-Type: application/json` (anything else is refused with 415 `UNSUPPORTED_MEDIA_TYPE`). Hosted `api.secondlayer.tools` uses an account key; see https://www.secondlayer.tools/docs/authentication.";
+/** Stamp each operation with its `OPERATION_IDS` entry. An operation missing
+ *  from the map is left bare for `openapi.test.ts` to name. */
+function withOperationIds(
+	paths: Record<string, unknown>,
+): Record<string, unknown> {
+	const out: Record<string, unknown> = {};
+	for (const [path, item] of Object.entries(paths)) {
+		const ops = { ...(item as Record<string, unknown>) };
+		for (const method of HTTP_METHODS) {
+			const op = ops[method];
+			const id = OPERATION_IDS[`${method.toUpperCase()} ${path}`];
+			if (op && id) ops[method] = { operationId: id, ...(op as object) };
+		}
+		out[path] = ops;
+	}
+	return out;
+}
+
+/**
+ * Each tag file's resource schemas, by file. `openapi.test.ts` fails if two
+ * files define the same name, since the spread below would silently keep one.
+ */
+export const SCHEMAS_BY_FILE = {
+	core: coreSchemas,
+	subgraphs: subgraphsSchemas,
+	index: indexSchemas,
+	protocols: protocolsSchemas,
+	streams: streamsSchemas,
+	deployments: deploymentsSchemas,
+	webhooks: webhooksSchemas,
+	node: nodeSchemas,
+} as const;
+
+const TAG_SCHEMAS = Object.assign({}, ...Object.values(SCHEMAS_BY_FILE));
+
+/**
+ * Display names for the objects the reference shows ("The PoX-5 event
+ * object"). Schema names are code identifiers; these are what a reader sees.
+ * `openapi.test.ts` fails if a returned object has no title.
+ */
+const SCHEMA_TITLES: Record<string, string> = {
+	V1Discovery: "API discovery",
+	BatchResponse: "batch response",
+	ArchiveVerifyResult: "archive verification",
+	IndexDiscovery: "Index discovery",
+	IndexEvent: "Index event",
+	FtTransfer: "FT transfer",
+	NftTransfer: "NFT transfer",
+	ContractCall: "contract call",
+	CanonicalBlock: "canonical block",
+	Block: "block",
+	Transaction: "transaction",
+	TransactionProof: "transaction proof",
+	MempoolTransaction: "mempool transaction",
+	PrintSchema: "print schema",
+	StackingAction: "PoX-4 stacking action",
+	PoxCycle: "PoX-4 reward cycle",
+	Pox5Event: "PoX-5 event",
+	SbtcEvent: "sBTC event",
+	SbtcDeposit: "sBTC deposit",
+	SbtcDepositDetail: "sBTC deposit detail",
+	SbtcWithdrawal: "sBTC withdrawal",
+	SbtcWithdrawalLifecycle: "sBTC withdrawal lifecycle",
+	SbtcSummary: "sBTC summary",
+	StreamsDiscovery: "Streams discovery",
+	StreamsEvent: "Streams event",
+	StreamsCanonicalBlock: "Streams canonical block",
+	StreamsTip: "Streams tip",
+	Reorg: "reorg",
+	Tip: "Index tip",
+	SubgraphDirectory: "subgraph directory",
+	Subgraph: "subgraph",
+	SubgraphOpenApiDocument: "subgraph OpenAPI document",
+	SubgraphAgentSchema: "subgraph agent schema",
+	SubgraphRowsPage: "subgraph rows page",
+	SubgraphRow: "subgraph row",
+	SubgraphRowCount: "subgraph row count",
+	SubgraphAggregates: "subgraph aggregates",
+	DeployedSubgraph: "deployed subgraph",
+	DeployedSubgraphDetail: "deployed subgraph detail",
+	SubgraphBundle: "subgraph bundle",
+	SubgraphOperationQueued: "queued operation",
+	SubgraphOperation: "subgraph operation",
+	SubgraphGap: "subgraph gap",
+	SubgraphViolation: "print validation skip",
+	WebhookSummary: "webhook summary",
+	Webhook: "webhook",
+	WebhookWithSecret: "webhook with its signing secret",
+	WebhookTestResult: "webhook test result",
+	WebhookDelivery: "webhook delivery",
+	WebhookDeadEvent: "dead-lettered webhook event",
+	WebhookReplayResult: "webhook replay",
+	ContractAbi: "contract ABI",
+	InstanceCatalog: "instance catalog",
+	InstanceFeatures: "instance feature manifest",
+	InstanceMetrics: "instance metrics",
+};
+
+function withTitles<T extends Record<string, object>>(schemas: T): T {
+	return Object.fromEntries(
+		Object.entries(schemas).map(([name, schema]) => [
+			name,
+			SCHEMA_TITLES[name] && !("title" in schema)
+				? { title: SCHEMA_TITLES[name], ...schema }
+				: schema,
+		]),
+	) as T;
+}
 
 /** The public API description. Exported so the docs site can render it as the
  *  API reference instead of restating it by hand — `bun run openapi` in
@@ -51,6 +242,11 @@ export const OPENAPI_SPEC = {
 	},
 	servers: [{ url: "http://127.0.0.1:3800", description: "Local instance" }],
 	tags: [
+		{
+			name: "general",
+			description:
+				"Discover what this API serves, batch several reads into one request, and fetch this description.",
+		},
 		{
 			name: "index",
 			description:
@@ -95,60 +291,253 @@ export const OPENAPI_SPEC = {
 					"The instance token from `secondlayer init`: 32 random bytes, hex-encoded, read from `INSTANCE_TOKEN`. Optional on `/v1` reads served over a loopback bind, required on every request once the instance is reachable past loopback, and required on every `/api` write whenever a token is set. Hosted `api.secondlayer.tools` uses an account key; see https://www.secondlayer.tools/docs/authentication.",
 			},
 		},
-		schemas: {
+		schemas: withTitles({
 			Tip: {
 				type: "object",
+				description:
+					"The chain tip an Index read was served against (`IndexTip`, `src/index/tip.ts`).",
 				properties: {
-					block_height: { type: "integer" },
-					block_hash: { type: "string" },
-					burn_block_height: { type: "integer" },
-					lag_seconds: { type: "integer" },
+					block_height: {
+						type: "integer",
+						description:
+							"Highest block the decoders have reached. Index rows stop here.",
+					},
+					finalized_height: {
+						type: "integer",
+						description:
+							"Highest block past the finality boundary. Rows at or below it won't be reorged away.",
+					},
+					lag_seconds: {
+						type: "integer",
+						description: "Seconds since that block was produced.",
+					},
+					source_block_height: {
+						type: "integer",
+						description:
+							"Highest block ingested from the node. Runs ahead of `block_height` while decoders catch up.",
+					},
+				},
+				// Heights are a real mainnet snapshot (2026-09-23 14:00 UTC);
+				// lag_seconds is illustrative.
+				example: {
+					block_height: 9048690,
+					finalized_height: 9048457,
+					lag_seconds: 4,
+					source_block_height: 9048692,
 				},
 			},
 			Reorg: {
 				type: "object",
+				description:
+					"A fork the indexer rolled back. Rows inside `orphaned_range` were replaced; undo anything you committed from them.",
 				properties: {
-					detected_at: { type: "string", format: "date-time" },
-					new_canonical_tip: { type: "string", example: "7960000:42" },
-					new_canonical_height: { type: "integer" },
-					new_canonical_event_index: { type: "integer" },
-				},
-			},
-			CursorEnvelope: {
-				type: "object",
-				properties: {
-					events: { type: "array", items: { type: "object" } },
-					next_cursor: { type: ["string", "null"], example: "7960000:42" },
-					tip: { $ref: "#/components/schemas/Tip" },
-					reorgs: {
-						type: "array",
-						items: { $ref: "#/components/schemas/Reorg" },
+					id: { type: "string", description: "Reorg id." },
+					detected_at: {
+						type: "string",
+						format: "date-time",
+						description: "When the indexer saw the fork.",
 					},
-				},
-			},
-			RowsEnvelope: {
-				type: "object",
-				properties: {
-					rows: { type: "array", items: { type: "object" } },
-					next_cursor: { type: ["string", "null"], example: "1042" },
-					tip: {
+					fork_point_height: {
+						type: "integer",
+						description:
+							"First block height the new fork replaced. Undo rows at or above it.",
+					},
+					old_index_block_hash: {
+						type: ["string", "null"],
+						description: "Index block hash of the abandoned tip.",
+					},
+					new_index_block_hash: {
+						type: ["string", "null"],
+						description: "Index block hash of the winning tip.",
+					},
+					orphaned_range: {
 						type: "object",
+						description:
+							"First and last cursor of the rows that were replaced.",
 						properties: {
-							block_height: { type: "integer" },
-							subgraph_height: { type: "integer" },
-							blocks_behind: { type: "integer" },
+							from: { type: "string", example: "7959998:0" },
+							to: { type: "string", example: "7960000:41" },
 						},
 					},
+					new_canonical_tip: {
+						type: "string",
+						description: "Cursor of the new canonical tip.",
+						example: "7960000:42",
+					},
+				},
+				// A real mainnet reorg, 2026-09-15.
+				example: {
+					id: "3f16c2c5-9551-4ae9-adb0-923668e5c65e",
+					detected_at: "2026-09-15T15:39:38.129Z",
+					fork_point_height: 8996511,
+					old_index_block_hash:
+						"0x45ba0195071488eda13afa66d8ce8612558a739f781be5a032d96332797c4174",
+					new_index_block_hash:
+						"0xa686ff58e7c5ccb26c850a7eaffa7e7274fcbc081c706344eb6f1e1446023df0",
+					orphaned_range: { from: "8996511:0", to: "8996512:2701" },
+					new_canonical_tip: "8996511:0",
+				},
+			},
+			...TAG_SCHEMAS,
+			InstanceFeatures: {
+				type: "object",
+				description: "The declared mode and the modules this instance runs.",
+				properties: {
+					mode: {
+						type: "string",
+						enum: ["oss", "platform", "archive"],
+						description: "The mode the operator declared in `INSTANCE_MODE`.",
+					},
+					features: {
+						type: "object",
+						description:
+							"Module flags. `protocolDatasets` says which protocol decoders are on; `signup`, `pricing` and `publicDirectory` are always false here.",
+					},
+				},
+				example: {
+					mode: "oss",
+					features: {
+						rawRest: true,
+						rawSse: true,
+						index: true,
+						subgraphs: true,
+						webhooks: true,
+						contractDiscovery: true,
+						verification: true,
+						protocolDatasets: { sbtc: true, pox: true, bns: false },
+						signup: false,
+						pricing: false,
+						publicDirectory: false,
+						unsignedWebhooks: false,
+					},
+				},
+			},
+			InstanceCatalog: {
+				type: "object",
+				description: "What this instance is and holds.",
+				properties: {
+					mode: {
+						type: "string",
+						enum: ["oss", "platform", "archive"],
+						description: "The mode the operator declared in `INSTANCE_MODE`.",
+					},
+					network: {
+						type: "string",
+						description: "`mainnet`, `testnet` or `devnet`.",
+					},
+					instance_id: {
+						type: ["string", "null"],
+						description: "This instance's id, or `null` before first boot.",
+					},
+					features: {
+						type: "object",
+						description: "Same manifest as `/v1/instance/features`.",
+					},
+					scope: {
+						type: ["object", "null"],
+						description:
+							"The history this instance claims: `start_height`, optional `target_height`, and how it was acquired (`bootstrap.source` is `archive`, `genesis` or `import`, with the archive manifest digest when restored). `null` on an instance older than the scope table.",
+					},
+					subgraphs: {
+						type: "array",
+						description:
+							"Deployed subgraphs: `name`, `status`, `start_block`, `last_processed_block`.",
+						items: { type: "object" },
+					},
+					webhooks: {
+						type: "array",
+						description:
+							"Webhooks: `name`, `status`, `kind` (`subgraph` or `chain`).",
+						items: {
+							type: "object",
+							properties: {
+								name: { type: "string" },
+								status: { type: "string", enum: [...WEBHOOK_STATUSES] },
+								kind: { type: "string", enum: ["subgraph", "chain"] },
+							},
+						},
+					},
+					console: {
+						type: "object",
+						description:
+							"Console flags. Always false on a self-hosted instance.",
+					},
+				},
+				example: {
+					mode: "oss",
+					network: "mainnet",
+					instance_id: "0b6f1c9e-4a52-4f0e-9d8a-2c1e7b3d5a90",
+					features: { index: true, subgraphs: true, webhooks: true },
+					scope: {
+						network: "mainnet",
+						start_height: 8650000,
+						target_height: null,
+						bootstrap: {
+							source: "archive",
+							manifest_digest:
+								"d1db4af398e9a0418095a48beef1c6c595070df3398f92ef16ef0fdb10daed1b",
+							genesis_hash: null,
+						},
+					},
+					subgraphs: [
+						{
+							name: "fastpool-signers",
+							status: "active",
+							start_block: 8665568,
+							last_processed_block: 9048707,
+						},
+					],
+					webhooks: [{ name: "pox5-stakes", status: "active", kind: "chain" }],
+					console: { signup: false, pricing: false, publicDirectory: false },
+				},
+			},
+			InstanceMetrics: {
+				type: "object",
+				description: "Operational vitals.",
+				properties: {
+					uptime_s: {
+						type: "integer",
+						description: "Seconds since the API process started.",
+					},
+					db_size_bytes: {
+						type: ["integer", "null"],
+						description:
+							"Postgres database size, or `null` if it can't be read.",
+					},
+					deliveries_24h: {
+						type: ["object", "null"],
+						description:
+							"Webhook deliveries in the last 24 hours: `total`, `failed` (no status or 400+), and `dlq` (events currently dead-lettered).",
+					},
+					rows_series: {
+						type: "array",
+						description:
+							"Rows processed across all subgraphs, per hour over the last 24 hours: `{ t, rows }`.",
+						items: { type: "object" },
+					},
+				},
+				example: {
+					uptime_s: 86400,
+					db_size_bytes: 61203865600,
+					deliveries_24h: { total: 460, failed: 2, dlq: 0 },
+					rows_series: [{ t: "2026-09-23 13:00:00+00", rows: 3202 }],
 				},
 			},
 			Error: {
 				type: "object",
 				properties: {
-					error: { type: "string" },
-					code: { type: "string" },
+					error: {
+						type: "string",
+						description: "What went wrong, for a person.",
+					},
+					code: {
+						type: "string",
+						description: "Stable machine-readable code to branch on.",
+						example: "VALIDATION_ERROR",
+					},
 				},
 			},
-		},
+		}),
 		parameters: {
 			Limit: {
 				name: "limit",
@@ -156,1269 +545,17 @@ export const OPENAPI_SPEC = {
 				schema: { type: "integer", minimum: 1, maximum: 1000 },
 				description: "Page size; capped at 1000.",
 			},
-			Cursor: {
-				name: "cursor",
-				in: "query",
-				schema: { type: "string", example: "7960000:42" },
-			},
 		},
 	},
 	paths: {
-		"/v1": {
-			get: {
-				summary: "Surface discovery",
-				security: READ_SECURITY,
-				responses: ok(),
-			},
-		},
-		"/v1/batch": {
-			post: {
-				summary: "Batch public reads",
-				description:
-					"Up to 10 `/v1` reads in one round trip. Body: `{ requests: [{ path, params? }] }`. Each item keeps its own auth semantics; a forwarded credential applies to every item; results return in order with per-item status. Read-only, so the `/api` JSON content-type guard does not apply.",
-				security: READ_SECURITY,
-				responses: ok(),
-			},
-		},
-		"/v1/archive/verify": {
-			post: {
-				tags: ["archive"],
-				summary: "Verify this instance against a signed archive",
-				description:
-					"Read-only compare of local chain identity digests against a signed archive manifest. Nothing is uploaded but the manifest URL. Identity/`raw` only — semantic replay is CLI. Without `from_block`/`to_block`, at most 40 ranges are verified. Signature failure is 200 `unanchored`, never 500 and never `clean`.",
-				security: READ_SECURITY,
-				requestBody: jsonBody({
-					type: "object",
-					required: ["against"],
-					properties: {
-						against: {
-							type: "string",
-							format: "uri",
-							description:
-								"https URL of `latest.json` or a snapshot manifest. Local filesystem paths are rejected.",
-						},
-						target: {
-							type: "string",
-							description:
-								"all | raw | decode:<name> | subgraph:<name>. Default raw.",
-						},
-						from_block: {
-							type: "integer",
-							minimum: 0,
-							description:
-								"First height to check. Required (with `to_block`) when the manifest publishes more than 40 matching ranges.",
-						},
-						to_block: {
-							type: "integer",
-							minimum: 0,
-							description: "Last height to check.",
-						},
-						insecure: {
-							type: "boolean",
-							description:
-								"Compare without a verified signature. signature.verified stays false.",
-						},
-						public_key_pem: {
-							type: "string",
-							description:
-								"Pin the archive signing key. When set, the instance does not fetch the hosted key.",
-						},
-					},
-				}),
-				responses: {
-					"200": json200({
-						type: "object",
-						properties: {
-							status: {
-								type: "string",
-								enum: ["clean", "diverged", "unanchored"],
-							},
-							target: { type: "string" },
-							against: { type: "string" },
-							signature: {
-								type: "object",
-								properties: {
-									verified: { type: "boolean" },
-									reason: { type: "string" },
-								},
-							},
-							coverage: {
-								type: "object",
-								properties: {
-									from_block: { type: "integer" },
-									to_block: { type: "integer" },
-								},
-							},
-							ranges: {
-								type: "array",
-								items: {
-									type: "object",
-									properties: {
-										dataset: { type: "string" },
-										from_block: { type: "integer" },
-										to_block: { type: "integer" },
-										status: {
-											type: "string",
-											enum: [
-												"match",
-												"digest-mismatch",
-												"count-mismatch",
-												"missing",
-											],
-										},
-										expected_digest: { type: ["string", "null"] },
-										actual_digest: { type: ["string", "null"] },
-									},
-								},
-							},
-							reason: { type: "string" },
-						},
-					}),
-					"400": jsonError(),
-					"401": jsonError(),
-				},
-			},
-		},
-		"/v1/openapi.json": {
-			get: {
-				summary: "This document",
-				security: READ_SECURITY,
-				responses: ok(),
-			},
-		},
-		"/v1/subgraphs": {
-			get: {
-				tags: ["subgraphs"],
-				summary: "List the subgraphs this instance serves",
-				security: READ_SECURITY,
-				responses: ok(),
-			},
-		},
-		"/v1/subgraphs/{name}": {
-			get: {
-				tags: ["subgraphs"],
-				summary: "Subgraph metadata: tables, columns, sync tip, doc links",
-				security: READ_SECURITY,
-				parameters: [pp("name")],
-				responses: ok(),
-			},
-		},
-		"/v1/subgraphs/{name}/openapi.json": {
-			get: {
-				tags: ["subgraphs"],
-				summary: "Generated OpenAPI spec for one subgraph",
-				security: READ_SECURITY,
-				parameters: [pp("name")],
-				responses: ok(),
-			},
-		},
-		"/v1/subgraphs/{name}/schema.json": {
-			get: {
-				tags: ["subgraphs"],
-				summary: "Generated agent schema for one subgraph",
-				security: READ_SECURITY,
-				parameters: [pp("name")],
-				responses: ok(),
-			},
-		},
-		"/v1/subgraphs/{name}/docs.md": {
-			get: {
-				tags: ["subgraphs"],
-				summary: "Generated markdown docs for one subgraph",
-				security: READ_SECURITY,
-				parameters: [pp("name")],
-				responses: ok(),
-			},
-		},
-		"/v1/subgraphs/{name}/{table}": {
-			get: {
-				tags: ["subgraphs"],
-				summary:
-					"Rows, cursor-paginated by _id, or by _sort/_order ({ rows, next_cursor, tip }). Column filters via col.op=value, _limit, _fields.",
-				security: READ_SECURITY,
-				parameters: [
-					pp("name"),
-					pp("table"),
-					qp(
-						"_limit",
-						"integer",
-						false,
-						`Page size, 1–${MAX_LIMIT}. Non-integers, 0, negatives, and values above ${MAX_LIMIT} are rejected (400), not clamped.`,
-					),
-					qp(
-						"cursor",
-						"string",
-						false,
-						"Opaque; pass back the previous page's next_cursor verbatim. Its shape depends on whether _sort was used to fetch that page — do not hand-construct one, and don't replay a cursor from one _sort/_order under a different _sort/_order (400).",
-					),
-					qp(
-						"_sort",
-						"string",
-						false,
-						"Single column to sort by (no comma list — composite keyset pagination pairs it with the _id tiebreaker, which only works for one column). jsonb columns are rejected (no meaningful ordering). Omit to keep the default _id-only ordering.",
-					),
-					qp(
-						"_order",
-						"string",
-						false,
-						'"asc" or "desc" — direction of the _id scan, or of the _sort column when _sort is present (any other value is rejected).',
-					),
-					qp("_fields", "string"),
-				],
-				responses: rowsEnvelope(),
-			},
-		},
-		"/v1/subgraphs/{name}/{table}/count": {
-			get: {
-				tags: ["subgraphs"],
-				summary: "Count rows matching filters",
-				security: READ_SECURITY,
-				parameters: [pp("name"), pp("table")],
-				responses: ok(),
-			},
-		},
-		"/v1/subgraphs/{name}/{table}/aggregate": {
-			get: {
-				tags: ["subgraphs"],
-				summary:
-					"Scalar aggregates (_count/_countDistinct/_sum/_min/_max) over filtered rows",
-				security: READ_SECURITY,
-				parameters: [pp("name"), pp("table")],
-				responses: ok(),
-			},
-		},
-		"/v1/subgraphs/{name}/{table}/stream": {
-			get: {
-				tags: ["subgraphs"],
-				summary: "SSE tail of new rows (?since=<block> to replay)",
-				security: READ_SECURITY,
-				parameters: [pp("name"), pp("table")],
-				responses: ok(),
-			},
-		},
-		"/v1/index": {
-			get: {
-				tags: ["index"],
-				summary: "Index discovery",
-				security: READ_SECURITY,
-				responses: ok(),
-			},
-		},
-		"/v1/index/events": {
-			get: {
-				tags: ["index"],
-				summary: "Decoded events by event_type",
-				description:
-					"One event_type per request. The vm types (nested_contract_call, var_set, map_set, map_insert, map_delete) are opt-in node traces: rows exist only from the height the instance's node subscribed to the storage / contract_calls observer keys. There is no earlier history and none in the `*`-shaped archive. For these types the cursor's second component is ordinal, a separate ordinal from event_index.",
-				security: READ_SECURITY,
-				parameters: [
-					{
-						name: "event_type",
-						in: "query",
-						required: true,
-						schema: {
-							type: "string",
-							enum: [
-								"ft_transfer",
-								"nft_transfer",
-								"stx_transfer",
-								"stx_mint",
-								"stx_burn",
-								"stx_lock",
-								"ft_mint",
-								"ft_burn",
-								"nft_mint",
-								"nft_burn",
-								"print",
-								"nested_contract_call",
-								"var_set",
-								"map_set",
-								"map_insert",
-								"map_delete",
-							],
-						},
-					},
-					{ $ref: "#/components/parameters/Limit" },
-					{ $ref: "#/components/parameters/Cursor" },
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-					CONTRACT_ID_PARAM,
-					qp("asset_identifier", "string"),
-					qp("sender", "string"),
-					qp("recipient", "string"),
-					qp(
-						"tx_id",
-						"string",
-						false,
-						"Transaction id. VM types only: nested_contract_call, var_set, map_set, map_insert, map_delete.",
-					),
-					qp("function_name", "string", false, "nested_contract_call only."),
-					qp("caller", "string", false, "nested_contract_call only."),
-					qp(
-						"map",
-						"string",
-						false,
-						"map_set, map_insert, map_delete. Matches map_name.",
-					),
-					qp("var_name", "string", false, "var_set only."),
-				],
-				responses: envelope(),
-			},
-		},
-		"/v1/index/ft-transfers": {
-			get: {
-				tags: ["index"],
-				summary: "Fungible token transfers",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{ $ref: "#/components/parameters/Cursor" },
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-					qp("contract_id", "string"),
-					qp("sender", "string"),
-					qp("recipient", "string"),
-				],
-				responses: envelope(),
-			},
-		},
-		"/v1/index/nft-transfers": {
-			get: {
-				tags: ["index"],
-				summary: "NFT transfers",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{ $ref: "#/components/parameters/Cursor" },
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-					qp("contract_id", "string"),
-					qp("asset_identifier", "string"),
-					qp("sender", "string"),
-					qp("recipient", "string"),
-				],
-				responses: envelope(),
-			},
-		},
-		"/v1/index/contract-calls": {
-			get: {
-				tags: ["index"],
-				summary: "Decoded contract-call transactions",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{
-						name: "cursor",
-						in: "query",
-						schema: { type: "string", example: "7960000:3" },
-					},
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-					CONTRACT_ID_PARAM,
-					qp("function_name", "string"),
-					qp("sender", "string"),
-				],
-				responses: envelope("contract_calls"),
-			},
-		},
-		"/v1/index/canonical": {
-			get: {
-				tags: ["index"],
-				summary: "Canonical block-hash map",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{ $ref: "#/components/parameters/Cursor" },
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-				],
-				responses: envelope("canonical"),
-			},
-		},
-		"/v1/index/blocks": {
-			get: {
-				tags: ["index"],
-				summary: "Canonical blocks",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{ $ref: "#/components/parameters/Cursor" },
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-				],
-				responses: envelope("blocks"),
-			},
-		},
-		"/v1/index/blocks/{height_or_hash}": {
-			get: {
-				tags: ["index"],
-				summary: "Block by height or hash",
-				security: READ_SECURITY,
-				parameters: [
-					{
-						name: "height_or_hash",
-						in: "path",
-						required: true,
-						schema: { type: "string", example: "182447" },
-					},
-				],
-				responses: ok(),
-			},
-		},
-		"/v1/index/transactions": {
-			get: {
-				tags: ["index"],
-				summary: "Full transaction documents",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{
-						name: "cursor",
-						in: "query",
-						schema: { type: "string", example: "7960000:3" },
-					},
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-					qp("type", "string"),
-					qp("sender", "string"),
-					qp("contract_id", "string"),
-				],
-				responses: envelope("transactions"),
-			},
-		},
-		"/v1/index/transactions/{tx_id}": {
-			get: {
-				tags: ["index"],
-				summary: "Transaction by tx_id",
-				security: READ_SECURITY,
-				parameters: [
-					{
-						name: "tx_id",
-						in: "path",
-						required: true,
-						schema: { type: "string" },
-					},
-				],
-				responses: ok(),
-			},
-		},
-		"/v1/index/transactions/{tx_id}/proof": {
-			get: {
-				tags: ["index"],
-				summary:
-					"Trustless tx-inclusion proof (raw tx, Nakamoto header, merkle path)",
-				security: READ_SECURITY,
-				parameters: [
-					{
-						name: "tx_id",
-						in: "path",
-						required: true,
-						schema: { type: "string" },
-					},
-				],
-				responses: ok(),
-			},
-		},
-		"/v1/index/stacking": {
-			get: {
-				tags: ["index"],
-				summary: "PoX-4 stacking actions",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{
-						name: "cursor",
-						in: "query",
-						schema: { type: "string", example: "7960000:3" },
-					},
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-					qp("function_name", "string"),
-					qp("stacker", "string"),
-					qp("caller", "string"),
-				],
-				responses: envelope("stacking"),
-			},
-		},
-		"/v1/index/pox/cycles": {
-			get: {
-				tags: ["index"],
-				summary: "PoX-4 reward-cycle aggregates",
-				description:
-					"Per-cycle rollup over pox4_calls: total stacked ustx, unique stackers/delegators, action count, block range, function breakdown. Cursor-paginated by reward_cycle descending; may carry an optional `notes` field (decoder disabled, or PoX-4 era closed at the epoch 4.0 fork).",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{
-						name: "cursor",
-						in: "query",
-						schema: { type: "integer", example: 84 },
-						description: "Reward cycle to page backward from (exclusive).",
-					},
-				],
-				responses: {
-					"200": {
-						description: "Cursor-paginated reward-cycle list",
-						content: {
-							"application/json": {
-								schema: {
-									type: "object",
-									properties: {
-										cycles: { type: "array", items: { type: "object" } },
-										next_cursor: { type: ["integer", "null"], example: 83 },
-										tip: { $ref: "#/components/schemas/Tip" },
-										notes: { type: "string" },
-									},
-								},
-							},
-						},
-					},
-					"400": jsonError(),
-					"401": jsonError(),
-					"429": jsonError(),
-				},
-			},
-		},
-		"/v1/index/pox/cycles/{reward_cycle}": {
-			get: {
-				tags: ["index"],
-				summary: "PoX-4 reward-cycle aggregate by cycle number",
-				security: READ_SECURITY,
-				parameters: [
-					{
-						name: "reward_cycle",
-						in: "path",
-						required: true,
-						schema: { type: "integer", example: 142 },
-					},
-				],
-				responses: {
-					"200": {
-						description: "OK",
-						content: {
-							"application/json": {
-								schema: {
-									type: "object",
-									properties: {
-										cycle: { type: "object" },
-										tip: { $ref: "#/components/schemas/Tip" },
-										notes: { type: "string" },
-									},
-								},
-							},
-						},
-					},
-					"400": {
-						description: "reward_cycle is not a non-negative integer",
-						content: {
-							"application/json": {
-								schema: { $ref: "#/components/schemas/Error" },
-							},
-						},
-					},
-					"404": {
-						description: "No cycle found for reward_cycle",
-						content: {
-							"application/json": {
-								schema: { $ref: "#/components/schemas/Error" },
-							},
-						},
-					},
-				},
-			},
-		},
-		"/v1/index/pox5/events": {
-			get: {
-				tags: ["index"],
-				summary: "PoX-5 boot-contract events (decoded)",
-				description:
-					"Decoded print log of the pox-5 boot contract (SIP-045 Bitcoin Staking) — all 19 topics (stake, stake-update, register-signer, unstake, claim-rewards, etc.), one row per print. Starts at the epoch 4.0 hard fork, where /v1/index/stacking's pox-4 feed ends.",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{
-						name: "cursor",
-						in: "query",
-						schema: { type: "string", example: "7960000:3" },
-					},
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-					qp("confirmed", "boolean"),
-					qp("topic", "string"),
-					qp("staker", "string"),
-					qp("signer", "string"),
-					qp("signer_manager", "string"),
-					qp("bond_index", "integer"),
-					qp("reward_cycle", "integer"),
-					qp("fields", "string"),
-				],
-				responses: envelope("events"),
-			},
-		},
-		"/v1/index/sbtc/events": {
-			get: {
-				tags: ["index"],
-				summary: "sBTC peg events (decoded)",
-				description:
-					"Decoded sBTC peg protocol-state events Hiro declined to filter (SBA #1709): completed-deposit, withdrawal-create/accept/reject, key-rotation, update-protocol-contract.",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{
-						name: "cursor",
-						in: "query",
-						schema: { type: "string", example: "7960000:3" },
-					},
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-					qp("confirmed", "boolean"),
-					qp("topic", "string"),
-					qp("sender", "string"),
-					qp("request_id", "integer"),
-					qp("bitcoin_txid", "string"),
-				],
-				responses: envelope("events"),
-			},
-		},
-		"/v1/index/sbtc/deposits": {
-			get: {
-				tags: ["index"],
-				summary: "sBTC peg-ins (completed deposits)",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{
-						name: "cursor",
-						in: "query",
-						schema: { type: "string", example: "7960000:3" },
-					},
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-					qp("confirmed", "boolean"),
-					qp("sender", "string"),
-					qp("bitcoin_txid", "string"),
-				],
-				responses: envelope("deposits"),
-			},
-		},
-		"/v1/index/sbtc/withdrawals": {
-			get: {
-				tags: ["index"],
-				summary: "sBTC peg-outs (lifecycle, one per request_id)",
-				description:
-					"Peg-outs rolled up per request_id with derived status (REQUESTED→ACCEPTED|REJECTED) and the committed BTC sweep_txid. Never immutably cached (status mutates as later events land).",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{
-						name: "cursor",
-						in: "query",
-						schema: { type: "string", example: "7960000:3" },
-					},
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-					qp("confirmed", "boolean"),
-					qp("status", "string"),
-					qp("sender", "string"),
-					qp("request_id", "integer"),
-					qp("settlement_confirmed", "boolean"),
-				],
-				responses: envelope("withdrawals"),
-			},
-		},
-		"/v1/index/sbtc/withdrawals/{request_id}": {
-			get: {
-				tags: ["index"],
-				summary: "sBTC peg-out lifecycle by request_id",
-				security: READ_SECURITY,
-				parameters: [
-					{
-						name: "request_id",
-						in: "path",
-						required: true,
-						schema: { type: "integer", example: 42 },
-					},
-				],
-				responses: ok(),
-			},
-		},
-		"/v1/index/sbtc/deposits/{bitcoin_txid}": {
-			get: {
-				tags: ["index"],
-				summary: "sBTC peg-in by Bitcoin txid",
-				security: READ_SECURITY,
-				parameters: [
-					{
-						name: "bitcoin_txid",
-						in: "path",
-						required: true,
-						schema: { type: "string" },
-					},
-				],
-				responses: ok(),
-			},
-		},
-		"/v1/index/sbtc/summary": {
-			get: {
-				tags: ["index"],
-				summary: "sBTC peg summary scoreboard",
-				description:
-					"One scalar aggregate over the whole bridge: lifecycle counts, net peg flow, locked sats, and circulating sBTC supply (mints − burns). All-time canonical totals; no params.",
-				security: READ_SECURITY,
-				parameters: [],
-				responses: ok(),
-			},
-		},
-		"/v1/index/mempool": {
-			get: {
-				tags: ["index"],
-				summary: "Pending (unconfirmed) transactions",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{
-						name: "cursor",
-						in: "query",
-						schema: { type: "string", example: "10428" },
-					},
-					qp("from_cursor", "string"),
-					qp("sender", "string"),
-					qp("type", "string"),
-					qp("function_name", "string"),
-				],
-				responses: envelope("mempool"),
-			},
-		},
-		"/v1/index/mempool/{tx_id}": {
-			get: {
-				tags: ["index"],
-				summary: "Pending transaction by tx_id",
-				security: READ_SECURITY,
-				parameters: [
-					{
-						name: "tx_id",
-						in: "path",
-						required: true,
-						schema: { type: "string" },
-					},
-				],
-				responses: ok(),
-			},
-		},
-		"/v1/index/contracts/{contract_id}/print-schema": {
-			get: {
-				tags: ["index"],
-				summary: "Empirical per-topic print payload schemas for a contract",
-				security: READ_SECURITY,
-				parameters: [pp("contract_id")],
-				responses: ok(),
-			},
-		},
-		"/v1/streams": {
-			get: {
-				tags: ["streams"],
-				summary: "Streams discovery",
-				security: READ_SECURITY,
-				responses: ok(),
-			},
-		},
-		"/v1/streams/events": {
-			get: {
-				tags: ["streams"],
-				summary: "Raw event firehose",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{ $ref: "#/components/parameters/Cursor" },
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("to_height", "integer"),
-					qp("types", "string"),
-					qp(
-						"clock",
-						"string",
-						false,
-						"classic (default) is Streams 1.0 on event_index. vm reads opt-in node vm_events on ordinal — a second cursor; rows exist only from the height the node subscribed to storage / contract_calls. types must then be vm types; sender, recipient, asset_identifier and filters are rejected.",
-					),
-					qp("contract_id", "string"),
-				],
-				responses: envelope(),
-			},
-		},
-		"/v1/streams/events/stream": {
-			get: {
-				tags: ["streams"],
-				summary: "SSE tail of the raw event firehose (same filters as /events)",
-				security: READ_SECURITY,
-				parameters: [
-					{ $ref: "#/components/parameters/Cursor" },
-					qp("from_cursor", "string"),
-					qp("from_height", "integer"),
-					qp("types", "string"),
-					qp("contract_id", "string"),
-				],
-				responses: ok(),
-			},
-		},
-		"/v1/streams/reorgs": {
-			get: {
-				tags: ["streams"],
-				summary: "Chain reorg history",
-				security: READ_SECURITY,
-				parameters: [
-					qp("since", "string"),
-					{ $ref: "#/components/parameters/Limit" },
-				],
-				responses: ok(),
-			},
-		},
-		"/v1/streams/canonical/{height}": {
-			get: {
-				tags: ["streams"],
-				summary: "Canonical block by height",
-				security: READ_SECURITY,
-				parameters: [
-					{
-						name: "height",
-						in: "path",
-						required: true,
-						schema: { type: "integer" },
-					},
-				],
-				responses: ok(),
-			},
-		},
-		"/v1/streams/tip": {
-			get: {
-				tags: ["streams"],
-				summary: "Current chain tip",
-				security: READ_SECURITY,
-				responses: ok(),
-			},
-		},
-
-		// ── Write plane (`/api`) ─────────────────────────────────────────────
-		// The documented path for deploying and driving work on an instance.
-		// Mounted in oss only; `openapiSpec("platform")` drops every path under
-		// WORKLOAD_OPENAPI_PREFIXES because the metered archive 404s them.
-		"/api/subgraphs": {
-			get: {
-				tags: ["deployments"],
-				summary:
-					"List deployed subgraphs with status, sync lag, and row counts",
-				security: WRITE_SECURITY,
-				responses: apiReadResponses(),
-			},
-			post: {
-				tags: ["deployments"],
-				summary: "Deploy or redeploy a subgraph",
-				description:
-					"Takes bundled handler code (see `/api/subgraphs/bundle`) plus the schema and sources extracted from it. Redeploying the same name updates in place; the response `action` says what happened (`created`, `unchanged`, `handler_updated`, `updated`, `reindexed`). `dryRun` validates without writing.",
-				security: WRITE_SECURITY,
-				requestBody: jsonBody({
-					type: "object",
-					required: ["name", "sources", "schema", "handlerCode"],
-					properties: {
-						name: {
-							type: "string",
-							maxLength: 63,
-							pattern: "^[a-z0-9-]+$",
-							description: "Lowercase alphanumeric and hyphens.",
-						},
-						sources: {
-							type: "object",
-							description:
-								"At least one event source, keyed by name. Extracted from the handler module.",
-						},
-						schema: { type: "object", description: "Table definitions." },
-						handlerCode: {
-							type: "string",
-							description: "Bundled handler module, 1 MB max.",
-						},
-						startBlock: {
-							type: "integer",
-							minimum: 0,
-							description:
-								"First block to index. Rejected (400 `START_BLOCK_PAST_TIP`) when it is past the chain tip.",
-						},
-						version: { type: "string" },
-						description: { type: "string" },
-						sourceCode: {
-							type: "string",
-							description: "Unbundled source, kept for `sl subgraph source`.",
-						},
-						dryRun: { type: "boolean" },
-					},
-				}),
-				responses: writeResponses(),
-			},
-		},
-		"/api/subgraphs/bundle": {
-			post: {
-				tags: ["deployments"],
-				summary: "Bundle subgraph source into deployable handler code",
-				description:
-					"Compiles a subgraph module and returns `{ name, sources, schema, handlerCode }` ready to POST to `/api/subgraphs`. Deploys nothing.",
-				security: WRITE_SECURITY,
-				requestBody: jsonBody({
-					type: "object",
-					required: ["code"],
-					properties: {
-						code: { type: "string", description: "Subgraph module source." },
-					},
-				}),
-				responses: writeResponses({
-					"413": jsonError(
-						"Bundle exceeds the size limit (`BUNDLE_TOO_LARGE`)",
-					),
-				}),
-			},
-		},
-		"/api/subgraphs/{name}": {
-			get: {
-				tags: ["deployments"],
-				summary: "Deployed subgraph detail: definition, status, operations",
-				security: WRITE_SECURITY,
-				parameters: [pp("name")],
-				responses: apiReadResponses({ "404": jsonError() }),
-			},
-			delete: {
-				tags: ["deployments"],
-				summary: "Delete a subgraph and drop its schema",
-				description:
-					"Cancels any running operation, waits for the processor to release it, then drops the Postgres schema and the registry row. Irreversible.",
-				security: WRITE_SECURITY,
-				parameters: [
-					pp("name"),
-					qp(
-						"force",
-						"boolean",
-						false,
-						"Proceed even when an active operation has not cleared.",
-					),
-				],
-				responses: writeResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/subgraphs/{name}/reindex": {
-			post: {
-				tags: ["deployments"],
-				summary: "Queue a full reindex (drops and rebuilds the schema)",
-				description:
-					"Always rebuilds the whole subgraph from its start block — a `fromBlock`/`toBlock` body is rejected with 400 `REINDEX_RANGE_NOT_SUPPORTED` rather than silently destroying everything outside the range; use `backfill` for a range. Returns an `operationId` to poll on `/api/subgraphs/{name}/operations`.",
-				security: WRITE_SECURITY,
-				parameters: [pp("name")],
-				responses: writeResponses({
-					"404": jsonError(),
-					"409": jsonError(
-						"A reindex or backfill is already running (`OPERATION_IN_PROGRESS`)",
-					),
-				}),
-			},
-		},
-		"/api/subgraphs/{name}/backfill": {
-			post: {
-				tags: ["deployments"],
-				summary: "Queue a non-destructive backfill over a block range",
-				description:
-					"Re-runs handlers over `[fromBlock, toBlock]` without dropping data. Refused with 422 when the handlers apply deltas (`ctx.increment`/`patchOrInsert`/`update`), which would double-count on blocks already processed.",
-				security: WRITE_SECURITY,
-				parameters: [pp("name")],
-				requestBody: jsonBody({
-					type: "object",
-					required: ["fromBlock", "toBlock"],
-					properties: {
-						fromBlock: { type: "integer" },
-						toBlock: { type: "integer" },
-					},
-				}),
-				responses: writeResponses({
-					"404": jsonError(),
-					"409": jsonError(
-						"A reindex or backfill is already running (`OPERATION_IN_PROGRESS`)",
-					),
-					"422": jsonError(
-						"Handlers apply deltas and cannot be replayed (`BACKFILL_NON_REPLAYABLE_HANDLER`)",
-					),
-				}),
-			},
-		},
-		"/api/subgraphs/{name}/stop": {
-			post: {
-				tags: ["deployments"],
-				summary: "Request cancellation of the running reindex or backfill",
-				description:
-					"Body-less. Marks the active operation `cancel_requested`; the processor releases it at its next checkpoint.",
-				security: WRITE_SECURITY,
-				parameters: [pp("name")],
-				responses: writeResponses({
-					"404": jsonError("No active operation (`NO_OPERATION`)"),
-				}),
-			},
-		},
-		"/api/subgraphs/{name}/operations": {
-			get: {
-				tags: ["deployments"],
-				summary: "Reindex/backfill history with queue position and progress",
-				security: WRITE_SECURITY,
-				parameters: [pp("name")],
-				responses: apiReadResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/subgraphs/{name}/operations/{operation_id}": {
-			get: {
-				tags: ["deployments"],
-				summary: "One operation by id (poll a queued reindex or backfill)",
-				security: WRITE_SECURITY,
-				parameters: [pp("name"), pp("operation_id")],
-				responses: apiReadResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/subgraphs/{name}/gaps": {
-			get: {
-				tags: ["deployments"],
-				summary: "Block ranges this subgraph has not processed",
-				security: WRITE_SECURITY,
-				parameters: [
-					pp("name"),
-					qp("_limit", "integer", false, `Page size, 1–${MAX_LIMIT}.`),
-					qp("_offset", "integer"),
-					qp(
-						"resolved",
-						"string",
-						false,
-						'"true" for resolved gaps, "all" for both; unresolved only by default.',
-					),
-				],
-				responses: apiReadResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/subgraphs/{name}/violations": {
-			get: {
-				tags: ["deployments"],
-				summary:
-					"Recent print-validate skips for this subgraph (last 100, newest first)",
-				security: WRITE_SECURITY,
-				parameters: [
-					pp("name"),
-					qp("limit", "integer", false, "Page size, 1–100 (default 50)."),
-				],
-				responses: apiReadResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/webhooks": {
-			get: {
-				tags: ["webhooks"],
-				summary: "List webhooks",
-				security: WRITE_SECURITY,
-				parameters: [
-					qp("_limit", "integer", false, "Page size, 1–200 (default 50)."),
-					qp("_offset", "integer"),
-				],
-				responses: apiReadResponses(),
-			},
-			post: {
-				tags: ["webhooks"],
-				summary: "Create a webhook",
-				description:
-					"Two mutually exclusive modes: a subgraph webhook (`subgraphName` + `tableName`, optional column `filter`) or a chain webhook (`triggers`). Responds 201 with the signing secret — the only time it is returned in full.",
-				security: WRITE_SECURITY,
-				requestBody: jsonBody({
-					type: "object",
-					required: ["name", "url"],
-					properties: {
-						name: { type: "string" },
-						url: { type: "string", description: "HTTPS delivery target." },
-						subgraphName: { type: "string" },
-						tableName: { type: "string" },
-						filter: {
-							type: "object",
-							description: "Column filter on the subgraph table.",
-						},
-						triggers: {
-							type: "array",
-							items: { type: "object" },
-							description:
-								"Chain-event triggers; mutually exclusive with `subgraphName`/`tableName`.",
-						},
-						format: {
-							type: "string",
-							default: "standard-webhooks",
-						},
-						runtime: { type: ["string", "null"] },
-						authConfig: { type: "object" },
-						maxRetries: { type: "integer", minimum: 0, maximum: 100 },
-						timeoutMs: { type: "integer", minimum: 100, maximum: 300000 },
-						concurrency: { type: "integer", minimum: 1, maximum: 100 },
-					},
-				}),
-				responses: writeResponses({
-					"201": {
-						description: "Created; body carries the signing secret once",
-						content: { "application/json": {} },
-					},
-					"409": jsonError("A webhook with that name exists"),
-				}),
-			},
-		},
-		"/api/webhooks/{id}": {
-			get: {
-				tags: ["webhooks"],
-				summary: "Webhook detail",
-				security: WRITE_SECURITY,
-				parameters: [pp("id")],
-				responses: apiReadResponses({ "404": jsonError() }),
-			},
-			patch: {
-				tags: ["webhooks"],
-				summary: "Update a webhook",
-				security: WRITE_SECURITY,
-				parameters: [pp("id")],
-				requestBody: jsonBody({
-					type: "object",
-					properties: {
-						name: { type: "string" },
-						url: { type: "string" },
-						filter: { type: "object" },
-						format: { type: "string" },
-						runtime: { type: ["string", "null"] },
-						authConfig: { type: "object" },
-						maxRetries: { type: "integer" },
-						timeoutMs: { type: "integer" },
-						concurrency: { type: "integer" },
-					},
-				}),
-				responses: writeResponses({ "404": jsonError() }),
-			},
-			delete: {
-				tags: ["webhooks"],
-				summary: "Delete a webhook",
-				security: WRITE_SECURITY,
-				parameters: [pp("id")],
-				responses: writeResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/webhooks/{id}/pause": {
-			post: {
-				tags: ["webhooks"],
-				summary: "Pause delivery (body-less)",
-				security: WRITE_SECURITY,
-				parameters: [pp("id")],
-				responses: writeResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/webhooks/{id}/resume": {
-			post: {
-				tags: ["webhooks"],
-				summary: "Resume delivery (body-less)",
-				security: WRITE_SECURITY,
-				parameters: [pp("id")],
-				responses: writeResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/webhooks/{id}/rotate-secret": {
-			post: {
-				tags: ["webhooks"],
-				summary: "Rotate the signing secret (body-less)",
-				description:
-					"Returns the new secret once. Deliveries signed with the old secret stop verifying immediately.",
-				security: WRITE_SECURITY,
-				parameters: [pp("id")],
-				responses: writeResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/webhooks/{id}/test": {
-			post: {
-				tags: ["webhooks"],
-				summary: "Send a one-off test delivery (body-less)",
-				description:
-					"Builds a sample event in the webhook's format, posts it to the configured URL through the SSRF guard, and records it under deliveries.",
-				security: WRITE_SECURITY,
-				parameters: [pp("id")],
-				responses: writeResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/webhooks/{id}/deliveries": {
-			get: {
-				tags: ["webhooks"],
-				summary: "Last 100 delivery attempts, newest first",
-				security: WRITE_SECURITY,
-				parameters: [pp("id")],
-				responses: apiReadResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/webhooks/{id}/dead": {
-			get: {
-				tags: ["webhooks"],
-				summary: "Dead-letter queue: events that exhausted their retries",
-				security: WRITE_SECURITY,
-				parameters: [pp("id")],
-				responses: apiReadResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/webhooks/{id}/dead/{outbox_id}/requeue": {
-			post: {
-				tags: ["webhooks"],
-				summary: "Requeue one dead event at live priority (body-less)",
-				security: WRITE_SECURITY,
-				parameters: [pp("id"), pp("outbox_id")],
-				responses: writeResponses({ "404": jsonError() }),
-			},
-		},
-		"/api/webhooks/{id}/replay": {
-			post: {
-				tags: ["webhooks"],
-				summary: "Replay a block range through a webhook",
-				description:
-					"Queues historical events for redelivery; replays drain through a 10% share of the outbox so live traffic keeps priority. 202 on accept.",
-				security: WRITE_SECURITY,
-				parameters: [pp("id")],
-				requestBody: jsonBody({
-					type: "object",
-					required: ["fromBlock", "toBlock"],
-					properties: {
-						fromBlock: { type: "integer" },
-						toBlock: { type: "integer" },
-						force: {
-							type: "string",
-							description:
-								"Suffix that makes the replay ids unique, so an already-replayed range can be sent again.",
-						},
-					},
-				}),
-				responses: writeResponses({
-					"202": {
-						description: "Replay queued",
-						content: { "application/json": {} },
-					},
-					"404": jsonError(),
-				}),
-			},
-		},
-		"/api/node/contracts/{contract_id}/abi": {
-			get: {
-				tags: ["node"],
-				summary: "Clarity contract ABI, proxied from the local Stacks node",
-				security: WRITE_SECURITY,
-				parameters: [pp("contract_id")],
-				responses: apiReadResponses({
-					"404": jsonError("Contract not found"),
-					"502": jsonError("The node did not answer"),
-				}),
-			},
-		},
+		...corePaths,
+		...subgraphsPaths,
+		...indexPaths,
+		...protocolsPaths,
+		...streamsPaths,
+		...deploymentsPaths,
+		...webhooksPaths,
+		...nodePaths,
 	},
 };
 
@@ -1530,8 +667,8 @@ function platformMeterPaths(): Record<string, unknown> {
 							sufficient: { type: "boolean" },
 						},
 					}),
-					"400": jsonError(),
-					"401": jsonError(),
+					"400": jsonError(ERROR_400),
+					"401": jsonError(ERROR_401),
 					"503": jsonError("Archive gate is not configured"),
 				},
 			},
@@ -1564,8 +701,8 @@ function platformMeterPaths(): Record<string, unknown> {
 							balance_after_usd_micros: { type: "integer" },
 						},
 					}),
-					"400": jsonError(),
-					"401": jsonError(),
+					"400": jsonError(ERROR_400),
+					"401": jsonError(ERROR_401),
 					"402": jsonError("Insufficient archive credits"),
 					"413": jsonError("Batch exceeds 64 paths"),
 					"503": jsonError("Archive gate is not configured"),
@@ -1595,8 +732,8 @@ function platformMeterPaths(): Record<string, unknown> {
 							webhook: { type: "null" },
 						},
 					}),
-					"401": jsonError(),
-					"404": jsonError(),
+					"401": jsonError(ERROR_401),
+					"404": jsonError(ERROR_404),
 				},
 			},
 		},
@@ -1625,8 +762,8 @@ function platformMeterPaths(): Record<string, unknown> {
 							lastAt: { type: ["string", "null"], format: "date-time" },
 						},
 					}),
-					"400": jsonError(),
-					"401": jsonError(),
+					"400": jsonError(ERROR_400),
+					"401": jsonError(ERROR_401),
 				},
 			},
 		},
@@ -1655,7 +792,7 @@ function platformMeterPaths(): Record<string, unknown> {
 						type: "object",
 						properties: { url: { type: "string" } },
 					}),
-					"400": jsonError(),
+					"400": jsonError(ERROR_400),
 					"503": jsonError("Billing is not configured"),
 				},
 			},
@@ -1697,8 +834,8 @@ function platformMeterPaths(): Record<string, unknown> {
 							},
 						},
 					}),
-					"400": jsonError(),
-					"429": jsonError(),
+					"400": jsonError(ERROR_400),
+					"429": jsonError(ERROR_429),
 				},
 			},
 			get: {
@@ -1730,8 +867,8 @@ function platformMeterPaths(): Record<string, unknown> {
 							},
 						},
 					}),
-					"401": jsonError(),
-					"404": jsonError(),
+					"401": jsonError(ERROR_401),
+					"404": jsonError(ERROR_404),
 				},
 			},
 		},
@@ -1772,8 +909,8 @@ function platformMeterPaths(): Record<string, unknown> {
 							},
 						},
 					}),
-					"400": jsonError(),
-					"404": jsonError(),
+					"400": jsonError(ERROR_400),
+					"404": jsonError(ERROR_404),
 				},
 			},
 		},
@@ -1804,7 +941,10 @@ function keyedOperations(item: unknown): unknown {
 export function openapiSpec(
 	mode: InstanceMode = getInstanceMode(),
 ): typeof OPENAPI_SPEC {
-	if (mode === "platform") return platformSpec();
+	if (mode === "platform") {
+		const spec = platformSpec();
+		return { ...spec, paths: withOperationIds(spec.paths) } as typeof spec;
+	}
 	const paths: Record<string, unknown> = { ...OPENAPI_SPEC.paths };
 	for (const key of HOSTED_OPENAPI_PATHS) {
 		delete paths[key];
@@ -1814,17 +954,44 @@ export function openapiSpec(
 			tags: ["instance"],
 			summary: "Local instance catalog",
 			description:
-				"Instance status, local subgraphs, webhooks, and default features. No signup or pricing.",
+				"What this instance is and holds: its mode and network, the feature manifest, the history it claims, and the subgraphs and webhooks deployed on it. No signup or pricing, ever.",
 			security: READ_SECURITY,
-			responses: ok(),
+			responses: ok(
+				json200(
+					{ $ref: "#/components/schemas/InstanceCatalog" },
+					"The catalog. If the database is unreachable, lists come back empty rather than failing.",
+				),
+			),
 		},
 	};
 	paths["/v1/instance/features"] = {
 		get: {
 			tags: ["instance"],
 			summary: "Default feature manifest",
+			description:
+				"Which modules this instance runs, including which protocol decoders are on.",
 			security: READ_SECURITY,
-			responses: ok(),
+			responses: ok(
+				json200(
+					{ $ref: "#/components/schemas/InstanceFeatures" },
+					"The declared mode and feature manifest.",
+				),
+			),
+		},
+	};
+	paths["/v1/instance/metrics"] = {
+		get: {
+			tags: ["instance"],
+			summary: "Operational vitals",
+			description:
+				"Process uptime, database size, the last 24 hours of webhook delivery outcomes, and rows processed per hour. A value that can't be measured comes back `null` instead of failing the request.",
+			security: READ_SECURITY,
+			responses: ok(
+				json200(
+					{ $ref: "#/components/schemas/InstanceMetrics" },
+					"Current vitals.",
+				),
+			),
 		},
 	};
 	return {
@@ -1844,130 +1011,8 @@ export function openapiSpec(
 			},
 		],
 		components: OPENAPI_SPEC.components,
-		paths,
+		paths: withOperationIds(paths),
 	} as typeof OPENAPI_SPEC;
-}
-
-function qp(
-	name: string,
-	type: string,
-	required = false,
-	description?: string,
-) {
-	return {
-		name,
-		in: "query",
-		required,
-		schema: { type },
-		...(description ? { description } : {}),
-	};
-}
-
-function pp(name: string) {
-	return { name, in: "path", required: true, schema: { type: "string" } };
-}
-
-/** Every `/v1` read can 401: the credential is optional on a loopback bind and
- *  required once the instance is reachable past it. */
-function ok() {
-	return {
-		"200": { description: "OK", content: { "application/json": {} } },
-		"400": jsonError(),
-		"401": jsonError(),
-	};
-}
-
-/** Reads under `/api`. The instance token is required whenever one is set, and
- *  GET is not subject to the JSON content-type guard. */
-function apiReadResponses(extra: Record<string, unknown> = {}) {
-	return {
-		"200": { description: "OK", content: { "application/json": {} } },
-		"401": jsonError(),
-		...extra,
-	};
-}
-
-/**
- * Writes under `/api`. 415 is `middleware/csrf.ts`: a write must declare
- * `Content-Type: application/json`, the one header a browser cannot set
- * cross-origin without a preflight this API's CORS policy gets to refuse.
- * Body-less action writes (`/stop`, `/pause`, `/rotate-secret`) are allowed
- * without the header only when they also carry no `Origin`, so first-party
- * callers should send it unconditionally.
- */
-function writeResponses(extra: Record<string, unknown> = {}) {
-	return {
-		"200": { description: "OK", content: { "application/json": {} } },
-		"400": jsonError(),
-		"401": jsonError(),
-		"415": jsonError(
-			"Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
-		),
-		...extra,
-	};
-}
-
-function jsonBody(schema: Record<string, unknown>) {
-	return {
-		required: true,
-		content: { "application/json": { schema } },
-	};
-}
-
-function json200(schema: Record<string, unknown>, description = "OK") {
-	return {
-		description,
-		content: { "application/json": { schema } },
-	};
-}
-
-function envelope(_arrayKey = "events") {
-	return {
-		"200": {
-			description: "Cursor-paginated envelope",
-			content: {
-				"application/json": {
-					schema: { $ref: "#/components/schemas/CursorEnvelope" },
-				},
-			},
-		},
-		"400": jsonError(),
-		"401": jsonError(),
-		"429": jsonError(),
-		"503": {
-			description: "Tip unavailable",
-			content: { "application/json": {} },
-		},
-	};
-}
-
-function rowsEnvelope() {
-	return {
-		"200": {
-			description:
-				"Row envelope, _id keyset cursor by default (composite with the sort column when _sort is used)",
-			content: {
-				"application/json": {
-					schema: { $ref: "#/components/schemas/RowsEnvelope" },
-				},
-			},
-		},
-		"400": jsonError(),
-		"401": jsonError(),
-		"404": jsonError(),
-		"429": jsonError(),
-	};
-}
-
-function jsonError(description = "Error") {
-	return {
-		description,
-		content: {
-			"application/json": {
-				schema: { $ref: "#/components/schemas/Error" },
-			},
-		},
-	};
 }
 
 export function createOpenApiRouter() {

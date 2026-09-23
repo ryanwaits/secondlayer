@@ -1,0 +1,412 @@
+[
+	{
+		"tag": "general",
+		"endpoints": [
+			{
+				"anchor": "discover-surfaces",
+				"method": "GET",
+				"title": "Surface discovery"
+			},
+			{
+				"anchor": "batch-read",
+				"method": "POST",
+				"title": "Batch public reads"
+			},
+			{
+				"anchor": "get-open-api-spec",
+				"method": "GET",
+				"title": "This document"
+			}
+		]
+	},
+	{
+		"tag": "index",
+		"endpoints": [
+			{
+				"anchor": "discover-index",
+				"method": "GET",
+				"title": "Index discovery"
+			},
+			{
+				"anchor": "list-events",
+				"method": "GET",
+				"title": "Decoded events by event_type"
+			},
+			{
+				"anchor": "list-ft-transfers",
+				"method": "GET",
+				"title": "Fungible token transfers"
+			},
+			{
+				"anchor": "list-nft-transfers",
+				"method": "GET",
+				"title": "NFT transfers"
+			},
+			{
+				"anchor": "list-contract-calls",
+				"method": "GET",
+				"title": "Decoded contract-call transactions"
+			},
+			{
+				"anchor": "list-canonical-blocks",
+				"method": "GET",
+				"title": "Canonical block-hash map"
+			},
+			{
+				"anchor": "list-blocks",
+				"method": "GET",
+				"title": "Canonical blocks"
+			},
+			{
+				"anchor": "get-block",
+				"method": "GET",
+				"title": "Block by height or hash"
+			},
+			{
+				"anchor": "list-transactions",
+				"method": "GET",
+				"title": "Full transaction documents"
+			},
+			{
+				"anchor": "get-transaction",
+				"method": "GET",
+				"title": "Transaction by tx_id"
+			},
+			{
+				"anchor": "get-transaction-proof",
+				"method": "GET",
+				"title": "Trustless tx-inclusion proof (raw tx, Nakamoto header, merkle path)"
+			},
+			{
+				"anchor": "list-mempool-transactions",
+				"method": "GET",
+				"title": "Pending (unconfirmed) transactions"
+			},
+			{
+				"anchor": "get-mempool-transaction",
+				"method": "GET",
+				"title": "Pending transaction by tx_id"
+			},
+			{
+				"anchor": "get-print-schema",
+				"method": "GET",
+				"title": "Empirical per-topic print payload schemas for a contract"
+			},
+			{
+				"anchor": "list-pox4-stacking",
+				"method": "GET",
+				"title": "PoX-4 stacking actions"
+			},
+			{
+				"anchor": "list-pox4-cycles",
+				"method": "GET",
+				"title": "PoX-4 reward-cycle aggregates"
+			},
+			{
+				"anchor": "get-pox4-cycle",
+				"method": "GET",
+				"title": "PoX-4 reward-cycle aggregate by cycle number"
+			},
+			{
+				"anchor": "list-pox5-events",
+				"method": "GET",
+				"title": "PoX-5 boot-contract events (decoded)"
+			},
+			{
+				"anchor": "list-sbtc-events",
+				"method": "GET",
+				"title": "sBTC peg events (decoded)"
+			},
+			{
+				"anchor": "list-sbtc-deposits",
+				"method": "GET",
+				"title": "sBTC peg-ins (completed deposits)"
+			},
+			{
+				"anchor": "get-sbtc-deposit",
+				"method": "GET",
+				"title": "sBTC peg-in by Bitcoin txid"
+			},
+			{
+				"anchor": "list-sbtc-withdrawals",
+				"method": "GET",
+				"title": "sBTC peg-outs (lifecycle, one per request_id)"
+			},
+			{
+				"anchor": "get-sbtc-withdrawal",
+				"method": "GET",
+				"title": "sBTC peg-out lifecycle by request_id"
+			},
+			{
+				"anchor": "get-sbtc-summary",
+				"method": "GET",
+				"title": "sBTC peg summary scoreboard"
+			}
+		]
+	},
+	{
+		"tag": "streams",
+		"endpoints": [
+			{
+				"anchor": "discover-streams",
+				"method": "GET",
+				"title": "Streams discovery"
+			},
+			{
+				"anchor": "list-stream-events",
+				"method": "GET",
+				"title": "Raw event firehose"
+			},
+			{
+				"anchor": "tail-stream-events",
+				"method": "GET",
+				"title": "Tail the event firehose over SSE"
+			},
+			{
+				"anchor": "list-reorgs",
+				"method": "GET",
+				"title": "Chain reorg history"
+			},
+			{
+				"anchor": "get-streams-canonical-block",
+				"method": "GET",
+				"title": "Canonical block by height"
+			},
+			{
+				"anchor": "get-tip",
+				"method": "GET",
+				"title": "Current chain tip"
+			}
+		]
+	},
+	{
+		"tag": "subgraphs",
+		"endpoints": [
+			{
+				"anchor": "list-subgraphs",
+				"method": "GET",
+				"title": "List the subgraphs this instance serves"
+			},
+			{
+				"anchor": "get-subgraph",
+				"method": "GET",
+				"title": "Get one subgraph's tables, columns, and sync tip"
+			},
+			{
+				"anchor": "get-subgraph-open-api-spec",
+				"method": "GET",
+				"title": "Get a subgraph's OpenAPI document"
+			},
+			{
+				"anchor": "get-subgraph-schema",
+				"method": "GET",
+				"title": "Get a subgraph's agent schema"
+			},
+			{
+				"anchor": "get-subgraph-docs",
+				"method": "GET",
+				"title": "Get a subgraph's markdown docs"
+			},
+			{
+				"anchor": "list-subgraph-rows",
+				"method": "GET",
+				"title": "List a table's rows"
+			},
+			{
+				"anchor": "count-subgraph-rows",
+				"method": "GET",
+				"title": "Count a table's rows"
+			},
+			{
+				"anchor": "aggregate-subgraph-rows",
+				"method": "GET",
+				"title": "Aggregate a table's rows"
+			},
+			{
+				"anchor": "tail-subgraph-rows",
+				"method": "GET",
+				"title": "Stream a table's new rows (SSE)"
+			},
+			{
+				"anchor": "get-subgraph-row",
+				"method": "GET",
+				"title": "Get one row by id"
+			}
+		]
+	},
+	{
+		"tag": "archive",
+		"endpoints": [
+			{
+				"anchor": "verify-archive",
+				"method": "POST",
+				"title": "Verify this instance against a signed archive"
+			}
+		]
+	},
+	{
+		"tag": "deployments",
+		"endpoints": [
+			{
+				"anchor": "list-deployments",
+				"method": "GET",
+				"title": "List deployed subgraphs"
+			},
+			{
+				"anchor": "deploy-subgraph",
+				"method": "POST",
+				"title": "Deploy or redeploy a subgraph"
+			},
+			{
+				"anchor": "bundle-subgraph",
+				"method": "POST",
+				"title": "Bundle subgraph source into deployable handler code"
+			},
+			{
+				"anchor": "get-deployment",
+				"method": "GET",
+				"title": "Get a deployed subgraph"
+			},
+			{
+				"anchor": "delete-deployment",
+				"method": "DELETE",
+				"title": "Delete a subgraph"
+			},
+			{
+				"anchor": "reindex-deployment",
+				"method": "POST",
+				"title": "Queue a full reindex"
+			},
+			{
+				"anchor": "backfill-deployment",
+				"method": "POST",
+				"title": "Queue a backfill over a block range"
+			},
+			{
+				"anchor": "stop-deployment",
+				"method": "POST",
+				"title": "Stop the active reindex or backfill"
+			},
+			{
+				"anchor": "list-deployment-operations",
+				"method": "GET",
+				"title": "List a subgraph's operations"
+			},
+			{
+				"anchor": "get-deployment-operation",
+				"method": "GET",
+				"title": "Get an operation"
+			},
+			{
+				"anchor": "list-deployment-gaps",
+				"method": "GET",
+				"title": "List a subgraph's gaps"
+			},
+			{
+				"anchor": "list-deployment-violations",
+				"method": "GET",
+				"title": "List a subgraph's print violations"
+			}
+		]
+	},
+	{
+		"tag": "webhooks",
+		"endpoints": [
+			{
+				"anchor": "list-webhooks",
+				"method": "GET",
+				"title": "List webhooks"
+			},
+			{
+				"anchor": "create-webhook",
+				"method": "POST",
+				"title": "Create a webhook"
+			},
+			{
+				"anchor": "get-webhook",
+				"method": "GET",
+				"title": "Get a webhook"
+			},
+			{
+				"anchor": "update-webhook",
+				"method": "PATCH",
+				"title": "Update a webhook"
+			},
+			{
+				"anchor": "delete-webhook",
+				"method": "DELETE",
+				"title": "Delete a webhook"
+			},
+			{
+				"anchor": "pause-webhook",
+				"method": "POST",
+				"title": "Pause a webhook"
+			},
+			{
+				"anchor": "resume-webhook",
+				"method": "POST",
+				"title": "Resume a webhook"
+			},
+			{
+				"anchor": "rotate-webhook-secret",
+				"method": "POST",
+				"title": "Rotate the signing secret"
+			},
+			{
+				"anchor": "test-webhook",
+				"method": "POST",
+				"title": "Send a test delivery"
+			},
+			{
+				"anchor": "list-webhook-deliveries",
+				"method": "GET",
+				"title": "List delivery attempts"
+			},
+			{
+				"anchor": "list-dead-webhook-events",
+				"method": "GET",
+				"title": "List dead-lettered events"
+			},
+			{
+				"anchor": "requeue-dead-webhook-event",
+				"method": "POST",
+				"title": "Requeue a dead event"
+			},
+			{
+				"anchor": "replay-webhook",
+				"method": "POST",
+				"title": "Replay a block range"
+			}
+		]
+	},
+	{
+		"tag": "node",
+		"endpoints": [
+			{
+				"anchor": "get-contract-abi",
+				"method": "GET",
+				"title": "Clarity contract ABI, proxied from the local Stacks node"
+			}
+		]
+	},
+	{
+		"tag": "instance",
+		"endpoints": [
+			{
+				"anchor": "get-instance",
+				"method": "GET",
+				"title": "Local instance catalog"
+			},
+			{
+				"anchor": "get-instance-features",
+				"method": "GET",
+				"title": "Default feature manifest"
+			},
+			{
+				"anchor": "get-instance-metrics",
+				"method": "GET",
+				"title": "Operational vitals"
+			}
+		]
+	}
+]
