@@ -13,7 +13,6 @@
 // there is no inscription index to join against.
 
 import type { ParsedTx } from "../block.ts";
-import type { BitcoinRpcClient } from "../rpc.ts";
 import { type Artifact, artifactMint } from "./artifact.ts";
 import { type RuneEntry, runeEntryMintable } from "./entry.ts";
 import { type Rune, runeIsReserved, runeReserved } from "./rune.ts";
@@ -53,26 +52,27 @@ export function createFlushPhaseTimers(): FlushPhaseTimers {
 	};
 }
 
+/**
+ * Per-block answer to "is `prevTxid:prevVout` a taproot output confirmed
+ * `>= Runestone::COMMIT_CONFIRMATIONS` blocks before this context's height?"
+ * — the RPC-bound half of ord's `tx_commits_to_rune`, resolved ahead of time
+ * (plan 039 step 5: `backfill.ts`'s fetch worker builds this in parallel,
+ * across every block's candidate commitment inputs, before the sequential
+ * apply loop runs). Pure function of chain data + height, so resolving it
+ * early can't change `txCommitsToRune`'s result — only when the RPC round
+ * trips happen.
+ */
+export interface CommitmentMap {
+	isConfirmedTaprootCommit(prevTxid: string, prevVout: number): boolean;
+}
+
 export interface UpdaterContext {
 	height: number;
 	blockTime: number;
 	/** `Rune::minimum_at_height(Network::Bitcoin, Height(height))`. */
 	minimum: Rune;
-	rpc: BitcoinRpcClient;
+	commitments: CommitmentMap;
 	timers?: FlushPhaseTimers;
-}
-
-/** Times an RPC call into `ctx.timers.commitRpcMs`/`commitRpcCount` — a no-op wrapper when `ctx.timers` is unset. */
-async function timedRpc<T>(
-	ctx: UpdaterContext,
-	fn: () => Promise<T>,
-): Promise<T> {
-	if (!ctx.timers) return fn();
-	const start = performance.now();
-	const result = await fn();
-	ctx.timers.commitRpcMs += performance.now() - start;
-	ctx.timers.commitRpcCount += 1;
-	return result;
 }
 
 const OP_RETURN = 0x6a;
@@ -81,7 +81,8 @@ function isOpReturn(script: Uint8Array): boolean {
 	return script.length > 0 && script[0] === OP_RETURN;
 }
 
-function isP2tr(script: Uint8Array): boolean {
+/** Exported for `backfill.ts`'s fetch-worker commitment resolver (plan 039 step 5). */
+export function isP2tr(script: Uint8Array): boolean {
 	return script.length === 34 && script[0] === 0x51 && script[1] === 0x20;
 }
 
@@ -115,13 +116,19 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
 	return true;
 }
 
-/** `RuneUpdater::tx_commits_to_rune`. */
-async function txCommitsToRune(
+/**
+ * Every `(prevTxid, prevVout)` an input's witness tapscript pushes
+ * `commitRune`'s commitment bytes — the RPC-independent (pure) half of ord's
+ * `tx_commits_to_rune`. Exported so `backfill.ts`'s fetch worker can find the
+ * same candidate inputs ahead of time, before any state (`state.runeToId`)
+ * that only exists at apply time is available (plan 039 step 5).
+ */
+export function candidateCommitmentInputs(
 	tx: ParsedTx,
 	commitRune: Rune,
-	ctx: UpdaterContext,
-): Promise<boolean> {
+): Array<{ prevTxid: string; prevVout: number }> {
 	const commitment = runeCommitmentBytes(commitRune);
+	const candidates: Array<{ prevTxid: string; prevVout: number }> = [];
 
 	for (const input of tx.inputs) {
 		const tapscript = unversionedLeafScriptFromWitness(input.witness);
@@ -132,40 +139,38 @@ async function txCommitsToRune(
 			if (instruction.kind === "error") break;
 			if (instruction.kind !== "push") continue;
 			if (!bytesEqual(instruction.bytes, commitment)) continue;
-
-			const prevTxInfo = await timedRpc(ctx, () =>
-				ctx.rpc.getrawtransaction(input.prevTxid, true),
-			);
-			const prevOut = prevTxInfo.vout[input.prevVout];
-			if (!prevOut) {
-				throw new Error(
-					`can't get input transaction output: ${input.prevTxid}:${input.prevVout}`,
-				);
-			}
-			const taproot = isP2tr(hexToScript(prevOut.scriptPubKey.hex));
-			if (!taproot) continue;
-
-			if (!prevTxInfo.blockhash) {
-				// Unconfirmed commit tx can't have reached COMMIT_CONFIRMATIONS.
-				continue;
-			}
-			const header = await timedRpc(ctx, () =>
-				// biome-ignore lint/style/noNonNullAssertion: guarded by the `!prevTxInfo.blockhash` check above
-				ctx.rpc.getblockheader(prevTxInfo.blockhash!),
-			);
-			const commitTxHeight = header.height;
-
-			const confirmations = ctx.height - commitTxHeight + 1;
-			if (confirmations >= 6 /* Runestone::COMMIT_CONFIRMATIONS */) {
-				return true;
-			}
+			candidates.push({ prevTxid: input.prevTxid, prevVout: input.prevVout });
 		}
 	}
 
+	return candidates;
+}
+
+/**
+ * `RuneUpdater::tx_commits_to_rune`. Synchronous: every candidate input's
+ * confirmation status was already resolved ahead of time into
+ * `ctx.commitments` (plan 039 step 5) — this only replays the same
+ * short-circuiting scan ord's Rust does, now over precomputed answers instead
+ * of live RPC calls.
+ */
+function txCommitsToRune(
+	tx: ParsedTx,
+	commitRune: Rune,
+	ctx: UpdaterContext,
+): boolean {
+	for (const { prevTxid, prevVout } of candidateCommitmentInputs(
+		tx,
+		commitRune,
+	)) {
+		if (ctx.commitments.isConfirmedTaprootCommit(prevTxid, prevVout)) {
+			return true;
+		}
+	}
 	return false;
 }
 
-function hexToScript(hex: string): Uint8Array {
+/** Exported for `backfill.ts`'s fetch-worker commitment resolver (plan 039 step 5). */
+export function hexToScript(hex: string): Uint8Array {
 	const out = new Uint8Array(hex.length / 2);
 	for (let i = 0; i < out.length; i++) {
 		out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
@@ -209,13 +214,13 @@ function mint(
 }
 
 /** `RuneUpdater::etched`. */
-async function etched(
+function etched(
 	state: RuneState,
 	txIndex: number,
 	tx: ParsedTx,
 	artifact: Artifact,
 	ctx: UpdaterContext,
-): Promise<{ id: RuneId; rune: Rune } | undefined> {
+): { id: RuneId; rune: Rune } | undefined {
 	let candidate: Rune | undefined;
 	if (artifact.type === "runestone") {
 		if (!artifact.runestone.etching) return undefined;
@@ -231,7 +236,7 @@ async function etched(
 			candidate.n < ctx.minimum.n ||
 			runeIsReserved(candidate) ||
 			state.runeToId.has(candidate.n.toString()) ||
-			!(await txCommitsToRune(tx, candidate, ctx))
+			!txCommitsToRune(tx, candidate, ctx)
 		) {
 			return undefined;
 		}
@@ -346,7 +351,6 @@ export async function applyTransaction(
 	const artifact = runestoneDecipher(tx);
 	const decipherMs = timers ? performance.now() - txStart : 0;
 	if (timers) timers.decipherMs += decipherMs;
-	const commitRpcMsBefore = timers ? timers.commitRpcMs : 0;
 
 	const unallocatedBalances = unallocated(state, tx);
 	const allocated: Map<string, bigint>[] = tx.outputs.map(() => new Map());
@@ -372,7 +376,7 @@ export async function applyTransaction(
 			}
 		}
 
-		const etchedResult = await etched(state, txIndex, tx, artifact, ctx);
+		const etchedResult = etched(state, txIndex, tx, artifact, ctx);
 
 		if (artifact.type === "runestone") {
 			const runestone = artifact.runestone;
@@ -556,10 +560,14 @@ export async function applyTransaction(
 		});
 	}
 
+	// No RPC happens in this function any more (plan 039 step 5: commitment
+	// resolution moved to the parallel fetch worker), so `applyMs` is simply
+	// the remaining time after `decipherMs` — `commitRpcMs`/`commitRpcCount`
+	// stay at 0 in the optimized profile, which is itself the signal that the
+	// optimization landed.
 	if (timers) {
 		const totalMs = performance.now() - txStart;
-		const commitRpcMsDelta = timers.commitRpcMs - commitRpcMsBefore;
-		timers.applyMs += totalMs - decipherMs - commitRpcMsDelta;
+		timers.applyMs += totalMs - decipherMs;
 	}
 }
 

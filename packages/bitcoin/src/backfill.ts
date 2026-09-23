@@ -8,17 +8,125 @@ import { type ParsedBlock, parseBlock } from "./block.ts";
 import { type FlushStats, flush, loadState } from "./db/store.ts";
 import type { Database } from "./db/types.ts";
 import { verifyBlockIntegrity } from "./integrity/merkle.ts";
-import type { BitcoinRpcClient } from "./rpc.ts";
+import type {
+	BitcoinRpcClient,
+	BlockHeader,
+	RawTransactionVerbose,
+} from "./rpc.ts";
 import { checkInvariant } from "./runes/invariant.ts";
-import { Network, runeMinimumAtHeight } from "./runes/rune.ts";
+import { Network, runeIsReserved, runeMinimumAtHeight } from "./runes/rune.ts";
+import { runestoneDecipher } from "./runes/runestone.ts";
 import { type RuneState, seedGenesis } from "./runes/state.ts";
 import {
+	type CommitmentMap,
 	type FlushPhaseTimers,
 	type UpdaterContext,
 	applyBlockBurns,
 	applyTransaction,
+	candidateCommitmentInputs,
 	createFlushPhaseTimers,
+	hexToScript,
+	isP2tr,
 } from "./runes/updater.ts";
+
+/** `Runestone::COMMIT_CONFIRMATIONS` — mirrors the constant `runes/updater.ts`'s (removed) inline check used. */
+const COMMIT_CONFIRMATIONS = 6;
+
+/**
+ * Resolves, in parallel, every candidate commitment input in `block` — "is
+ * `prevTxid:prevVout` a taproot output confirmed `>= COMMIT_CONFIRMATIONS`
+ * blocks before `height`?" — ahead of the sequential apply loop (plan 039
+ * step 5). This is the RPC-bound half of ord's `tx_commits_to_rune`,
+ * factored out because it is a pure function of chain data + `height`: the
+ * only thing that can gate whether a candidate even needs checking that
+ * ISN'T available yet at fetch time is `state.runeToId` (it only exists,
+ * and keeps changing, in the sequential apply loop) — so this deliberately
+ * runs the same minimum/reserved pre-checks `etched()` does, but never the
+ * `runeToId` one. Skipping that check here only ever produces an unused
+ * (never consulted) extra resolution, never a missing one, since the apply
+ * loop's `etched()` short-circuits on `runeToId` before ever consulting the
+ * map, exactly as it did before this change existed.
+ */
+async function resolveBlockCommitments(
+	rpc: BitcoinRpcClient,
+	block: ParsedBlock,
+	height: number,
+): Promise<CommitmentMap> {
+	const minimum = runeMinimumAtHeight(Network.Bitcoin, height);
+	const resolved = new Map<string, boolean>();
+	const seen = new Set<string>();
+	const txCache = new Map<string, Promise<RawTransactionVerbose>>();
+	const headerCache = new Map<string, Promise<BlockHeader>>();
+	const pending: Promise<void>[] = [];
+
+	function getTx(prevTxid: string): Promise<RawTransactionVerbose> {
+		let p = txCache.get(prevTxid);
+		if (!p) {
+			p = rpc.getrawtransaction(prevTxid, true);
+			txCache.set(prevTxid, p);
+		}
+		return p;
+	}
+	function getHeader(blockhash: string): Promise<BlockHeader> {
+		let p = headerCache.get(blockhash);
+		if (!p) {
+			p = rpc.getblockheader(blockhash);
+			headerCache.set(blockhash, p);
+		}
+		return p;
+	}
+
+	for (const tx of block.txs) {
+		const artifact = runestoneDecipher(tx);
+		if (artifact === undefined) continue;
+		const candidate =
+			artifact.type === "runestone"
+				? artifact.runestone.etching?.rune
+				: artifact.cenotaph.etching;
+		if (candidate === undefined) continue;
+		if (candidate.n < minimum.n || runeIsReserved(candidate)) continue;
+
+		for (const { prevTxid, prevVout } of candidateCommitmentInputs(
+			tx,
+			candidate,
+		)) {
+			const key = `${prevTxid}:${prevVout}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+
+			pending.push(
+				(async () => {
+					const prevTxInfo = await getTx(prevTxid);
+					const prevOut = prevTxInfo.vout[prevVout];
+					if (!prevOut) {
+						throw new Error(
+							`can't get input transaction output: ${prevTxid}:${prevVout}`,
+						);
+					}
+					if (!isP2tr(hexToScript(prevOut.scriptPubKey.hex))) {
+						resolved.set(key, false);
+						return;
+					}
+					if (!prevTxInfo.blockhash) {
+						// Unconfirmed commit tx can't have reached COMMIT_CONFIRMATIONS.
+						resolved.set(key, false);
+						return;
+					}
+					const header = await getHeader(prevTxInfo.blockhash);
+					const confirmations = height - header.height + 1;
+					resolved.set(key, confirmations >= COMMIT_CONFIRMATIONS);
+				})(),
+			);
+		}
+	}
+
+	await Promise.all(pending);
+
+	return {
+		isConfirmedTaprootCommit: (prevTxid, prevVout) =>
+			resolved.get(`${prevTxid}:${prevVout}`) ?? false,
+	};
+}
 
 export const GENESIS_HEIGHT = 840_000;
 export const DEFAULT_FLUSH_INTERVAL = 1_000;
@@ -84,24 +192,36 @@ export interface BackfillOptions {
 	invariantReportDir?: string;
 }
 
-/** Fetches raw blocks `from..to` at `concurrency`, yielding them IN ORDER (a small reorder buffer holds out-of-order completions). */
+interface FetchedBlock {
+	block: ParsedBlock;
+	commitments: CommitmentMap;
+}
+
+/**
+ * Fetches raw blocks `from..to` at `concurrency`, yielding them IN ORDER (a
+ * small reorder buffer holds out-of-order completions). Each fetch also
+ * resolves that block's commitment RPCs in parallel (plan 039 step 5) before
+ * the block is yielded, so the sequential apply loop never awaits an RPC.
+ */
 async function* fetchBlocksInOrder(
 	rpc: BitcoinRpcClient,
 	from: number,
 	to: number,
 	concurrency: number,
-): AsyncGenerator<{ height: number; block: ParsedBlock }> {
+): AsyncGenerator<{ height: number; fetched: FetchedBlock }> {
 	const total = to - from + 1;
 	if (total <= 0) return;
 
-	const results = new Map<number, ParsedBlock>();
+	const results = new Map<number, FetchedBlock>();
 	let nextToFetch = from;
 	let nextToYield = from;
 
 	async function fetchOne(height: number): Promise<void> {
 		const hash = await rpc.getblockhash(height);
 		const hex = await rpc.getblock(hash);
-		results.set(height, parseBlock(hex));
+		const block = parseBlock(hex);
+		const commitments = await resolveBlockCommitments(rpc, block, height);
+		results.set(height, { block, commitments });
 	}
 
 	const inFlight = new Set<Promise<void>>();
@@ -122,9 +242,9 @@ async function* fetchBlocksInOrder(
 			await Promise.race(inFlight)!;
 			continue;
 		}
-		const block = results.get(nextToYield) as ParsedBlock;
+		const fetched = results.get(nextToYield) as FetchedBlock;
 		results.delete(nextToYield);
-		yield { height: nextToYield, block };
+		yield { height: nextToYield, fetched };
 		nextToYield += 1;
 		launchNext();
 	}
@@ -153,12 +273,13 @@ export async function runBackfill(
 	let timers = createFlushPhaseTimers();
 	let fetchWaitStart = performance.now();
 
-	for await (const { height, block } of fetchBlocksInOrder(
+	for await (const { height, fetched } of fetchBlocksInOrder(
 		options.rpc,
 		fromHeight,
 		options.toHeight,
 		options.fetchConcurrency,
 	)) {
+		const { block, commitments } = fetched;
 		timers.fetchWaitMs += performance.now() - fetchWaitStart;
 
 		const integrityStart = performance.now();
@@ -172,7 +293,7 @@ export async function runBackfill(
 			height,
 			blockTime: block.time,
 			minimum,
-			rpc: options.rpc,
+			commitments,
 			timers,
 		};
 

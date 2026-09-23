@@ -4,7 +4,6 @@
 // fail-closed (continuity is backfill.ts's concern — see backfill.test.ts).
 import { describe, expect, test } from "bun:test";
 import type { ParsedTx } from "../block.ts";
-import type { BitcoinRpcClient } from "../rpc.ts";
 import { Flag, flagMask } from "./flag.ts";
 import { InvariantViolationError, checkInvariant } from "./invariant.ts";
 import { rune } from "./rune.ts";
@@ -12,6 +11,7 @@ import { runeIdToString } from "./rune_id.ts";
 import { createRuneState, getBalance, setBalance } from "./state.ts";
 import { Tag } from "./tag.ts";
 import {
+	type CommitmentMap,
 	type UpdaterContext,
 	applyBlockBurns,
 	applyTransaction,
@@ -50,21 +50,9 @@ function bareOpReturn(): Uint8Array {
 	return Uint8Array.from([OP_RETURN]);
 }
 
-const unreachableRpc: BitcoinRpcClient = {
-	getblockcount: () => {
-		throw new Error("unexpected RPC call in this test");
-	},
-	getblockhash: () => {
-		throw new Error("unexpected RPC call in this test");
-	},
-	getblock: () => {
-		throw new Error("unexpected RPC call in this test");
-	},
-	getblockheader: () => {
-		throw new Error("unexpected RPC call in this test");
-	},
-	getrawtransaction: () => {
-		throw new Error("unexpected RPC call in this test");
+const unreachableCommitments: CommitmentMap = {
+	isConfirmedTaprootCommit: () => {
+		throw new Error("unexpected commitment lookup in this test");
 	},
 };
 
@@ -73,7 +61,7 @@ function ctx(height: number): UpdaterContext {
 		height,
 		blockTime: 1_700_000_000,
 		minimum: rune(0n),
-		rpc: unreachableRpc,
+		commitments: unreachableCommitments,
 	};
 }
 
