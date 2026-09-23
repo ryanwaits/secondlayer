@@ -31,6 +31,10 @@ export interface TxOutput {
 export interface ParsedTx {
 	/** Big-endian (display order) txid — double-sha256 of the NON-witness serialization, byte-reversed. */
 	txid: string;
+	/** Internal (natural hash) byte order txid — double-sha256 of the NON-witness serialization, NOT reversed. Used for merkle-root verification (../integrity/merkle.ts). */
+	txidBytes: Uint8Array;
+	/** Internal (natural hash) byte order wtxid — double-sha256 of the FULL serialization (including segwit marker/flag/witness). Equals `txidBytes` for a non-segwit tx. Used for the BIP-141 witness commitment check. */
+	wtxidBytes: Uint8Array;
 	inputs: TxInput[];
 	outputs: TxOutput[];
 }
@@ -40,6 +44,8 @@ export interface ParsedBlock {
 	hash: string;
 	/** Big-endian (display order) previous block hash. */
 	prevHash: string;
+	/** Internal (natural hash) byte order merkle root, straight from the header (NOT reversed). Used for merkle-root verification (../integrity/merkle.ts). */
+	merkleRootBytes: Uint8Array;
 	/** Unix timestamp (block header `time` field, seconds). */
 	time: number;
 	txs: ParsedTx[];
@@ -59,6 +65,11 @@ class ByteReader {
 
 	rewindTo(pos: number): void {
 		this.pos = pos;
+	}
+
+	/** Returns the bytes from `start` up to (not including) the current position. */
+	sliceFrom(start: number): Uint8Array {
+		return this.buf.subarray(start, this.pos);
 	}
 
 	u8(): number {
@@ -170,6 +181,7 @@ interface RawOutput {
 }
 
 function parseTx(r: ByteReader): ParsedTx {
+	const txStart = r.offset;
 	const version = r.u32le();
 
 	let segwit = false;
@@ -246,10 +258,19 @@ function parseTx(r: ByteReader): ParsedTx {
 	}
 	parts.push(u32leBytes(locktime));
 
-	const txid = displayHex(doubleSha256(concatBytes(parts)));
+	const txidBytes = doubleSha256(concatBytes(parts));
+	const txid = displayHex(txidBytes);
+
+	// Full wire serialization (including the segwit marker/flag/witness, when
+	// present) is exactly the bytes just read for this tx — no need to rebuild
+	// it. For a non-segwit tx this span is byte-identical to the non-witness
+	// serialization above, so wtxidBytes == txidBytes, as required.
+	const wtxidBytes = segwit ? doubleSha256(r.sliceFrom(txStart)) : txidBytes;
 
 	return {
 		txid,
+		txidBytes,
+		wtxidBytes,
 		inputs: inputs.map((input) => ({
 			prevTxid: displayHex(input.prevTxidInternal),
 			prevVout: input.prevVout,
@@ -270,7 +291,7 @@ export function parseBlock(hex: string): ParsedBlock {
 	const headerStart = r.offset;
 	r.bytes(4); // version
 	const prevHashInternal = Uint8Array.from(r.bytes(32));
-	r.bytes(32); // merkle root
+	const merkleRootBytes = Uint8Array.from(r.bytes(32));
 	const time = r.u32le();
 	r.bytes(4); // bits
 	r.bytes(4); // nonce
@@ -284,5 +305,5 @@ export function parseBlock(hex: string): ParsedBlock {
 		txs.push(parseTx(r));
 	}
 
-	return { hash, prevHash, time, txs };
+	return { hash, prevHash, merkleRootBytes, time, txs };
 }

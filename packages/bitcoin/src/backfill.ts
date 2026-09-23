@@ -7,6 +7,7 @@ import type { Kysely } from "kysely";
 import { type ParsedBlock, parseBlock } from "./block.ts";
 import { type FlushStats, flush, loadState } from "./db/store.ts";
 import type { Database } from "./db/types.ts";
+import { verifyBlockIntegrity } from "./integrity/merkle.ts";
 import type { BitcoinRpcClient } from "./rpc.ts";
 import { checkInvariant } from "./runes/invariant.ts";
 import { Network, runeMinimumAtHeight } from "./runes/rune.ts";
@@ -153,6 +154,7 @@ export async function runBackfill(
 		options.toHeight,
 		options.fetchConcurrency,
 	)) {
+		verifyBlockIntegrity(block);
 		checkContinuity(height, block, previousHash);
 
 		const minimum = runeMinimumAtHeight(Network.Bitcoin, height);

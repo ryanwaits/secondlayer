@@ -93,6 +93,8 @@ describe("applyTransaction", () => {
 
 		const tx: ParsedTx = {
 			txid: "a".repeat(64),
+			txidBytes: new Uint8Array(32),
+			wtxidBytes: new Uint8Array(32),
 			inputs: [],
 			outputs: [
 				{ value: 0n, script: placeholderScript() },
@@ -131,6 +133,8 @@ describe("applyTransaction", () => {
 
 		const tx: ParsedTx = {
 			txid: "b".repeat(64),
+			txidBytes: new Uint8Array(32),
+			wtxidBytes: new Uint8Array(32),
 			inputs: [],
 			outputs: [
 				{ value: 0n, script: placeholderScript() },
@@ -183,6 +187,8 @@ describe("applyTransaction", () => {
 		]);
 		const mintTx: ParsedTx = {
 			txid: "c".repeat(64),
+			txidBytes: new Uint8Array(32),
+			wtxidBytes: new Uint8Array(32),
 			inputs: [],
 			outputs: [
 				{ value: 0n, script: placeholderScript() },
@@ -200,6 +206,8 @@ describe("applyTransaction", () => {
 		// second mint attempt, same rune — cap already reached, must not increment
 		const mintTx2: ParsedTx = {
 			txid: "d".repeat(64),
+			txidBytes: new Uint8Array(32),
+			wtxidBytes: new Uint8Array(32),
 			inputs: [],
 			outputs: [
 				{ value: 0n, script: placeholderScript() },
@@ -234,6 +242,8 @@ describe("applyTransaction", () => {
 
 		const tx: ParsedTx = {
 			txid: "e".repeat(64),
+			txidBytes: new Uint8Array(32),
+			wtxidBytes: new Uint8Array(32),
 			inputs: [],
 			outputs: [
 				{ value: 0n, script: placeholderScript() }, // 0: default output (unused destination)
@@ -286,6 +296,8 @@ describe("applyTransaction", () => {
 
 		const tx: ParsedTx = {
 			txid: "2".repeat(64),
+			txidBytes: new Uint8Array(32),
+			wtxidBytes: new Uint8Array(32),
 			inputs: [{ prevTxid, prevVout: 0, witness: [] }],
 			outputs: [{ value: 0n, script }],
 		};

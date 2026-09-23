@@ -132,10 +132,13 @@ describe("txidsWithRunestoneMarker", () => {
 		const block: ParsedBlock = {
 			hash: "a".repeat(64),
 			prevHash: "b".repeat(64),
+			merkleRootBytes: new Uint8Array(32),
 			time: 0,
 			txs: [
 				{
 					txid: "1".repeat(64),
+					txidBytes: new Uint8Array(32),
+					wtxidBytes: new Uint8Array(32),
 					inputs: [],
 					outputs: [
 						{
@@ -146,6 +149,8 @@ describe("txidsWithRunestoneMarker", () => {
 				},
 				{
 					txid: "2".repeat(64),
+					txidBytes: new Uint8Array(32),
+					wtxidBytes: new Uint8Array(32),
 					inputs: [],
 					outputs: [{ value: 0n, script: Uint8Array.from([OP_RETURN, 0x00]) }],
 				},
