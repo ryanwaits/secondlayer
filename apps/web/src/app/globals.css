@@ -10212,6 +10212,48 @@ input[type="range"].fig-range {
 }
 body:has(.rh-page) {
 	background: var(--bg);
+	/* the hero wash below runs full-bleed; never let it widen the page */
+	overflow-x: clip;
+}
+/* Hero wash: one soft Robin Neon glow beside the headline, echoing the
+   headline highlight. Full-bleed (past the 1040px column) so it has no
+   visible box edge; it fades out before the round-trip section. Neon is pale
+   on white and loud on dark, so the two themes carry different strengths.
+   Delete this block to drop it. */
+.rh-page {
+	--rh-wash: rgba(204, 255, 0, 0.15);
+	position: relative;
+	isolation: isolate;
+}
+@media (prefers-color-scheme: dark) {
+	.rh-page {
+		--rh-wash: rgba(204, 255, 0, 0.05);
+	}
+}
+html.force-light .rh-page {
+	--rh-wash: rgba(204, 255, 0, 0.15);
+}
+html.force-dark .rh-page {
+	--rh-wash: rgba(204, 255, 0, 0.05);
+}
+.rh-page::before {
+	content: "";
+	position: absolute;
+	z-index: -1;
+	/* Starts under the nav's hairline (64px) so the nav stays on clean
+	   ground; the top edge fades in so there is no seam below the border. */
+	top: 65px;
+	left: 50%;
+	width: 100vw;
+	height: 835px;
+	transform: translateX(-50%);
+	pointer-events: none;
+	background: radial-gradient(
+		760px 560px at min(calc(50% + 360px), 88%) 235px,
+		var(--rh-wash),
+		transparent 70%
+	);
+	mask-image: linear-gradient(to bottom, transparent, #000 120px);
 }
 body:has(.rh-page) .auth-bar {
 	display: none;
@@ -10354,8 +10396,12 @@ html.force-dark .rh-page h1 em {
 	gap: 40px;
 	margin-top: 56px;
 }
+/* Logos sit in a shared 20px row (Robinhood Chain's minimum height) so the
+   shorter Stacks mark and the arrow center on the same line. */
 .rh-route-end {
 	display: grid;
+	grid-template-rows: 20px auto;
+	align-items: center;
 	justify-items: start;
 	gap: 12px;
 }
@@ -10364,7 +10410,7 @@ html.force-dark .rh-page h1 em {
 	color: var(--rh-ink-40);
 }
 .rh-route-arrow {
-	font: 400 20px / 22px var(--font-mono-stack);
+	font: 400 18px / 20px var(--font-mono-stack);
 	color: var(--text-dim);
 }
 @media (max-width: 480px) {
@@ -10559,15 +10605,37 @@ html.force-dark .rh-page h1 em {
 	height: 60px;
 	padding-inline: 18px;
 }
+/* The 1:1 link as marching ants flowing from the locked original down to
+   the minted twin: every other dash in Robin Neon, the rest muted ink.
+   Still for reduced motion. */
 .rh-tok-rail {
 	justify-self: center;
+	/* A whole pixel (no anti-aliased half-pixel) with long dashes, so the
+	   pale lime still has enough length to read on white. */
 	width: 1px;
 	height: 100%;
-	background: repeating-linear-gradient(
+	/* One 14px period per tile, so the seam between tiles always lands on a
+	   period boundary and a moving dash never overlaps the next. */
+	background-image: linear-gradient(
 		to bottom,
-		var(--text-dim) 0 4px,
-		transparent 4px 8px
+		var(--rh-neon) 0 4px,
+		transparent 4px 7px,
+		var(--text-dim) 7px 11px,
+		transparent 11px 14px
 	);
+	background-size: 100% 14px;
+	background-repeat: repeat-y;
+	animation: rh-ants 0.8s linear infinite;
+}
+@keyframes rh-ants {
+	to {
+		background-position: 0 14px;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.rh-tok-rail {
+		animation: none;
+	}
 }
 .rh-tok-link-label {
 	font: 400 12px / 1.4 var(--font-mono-stack);

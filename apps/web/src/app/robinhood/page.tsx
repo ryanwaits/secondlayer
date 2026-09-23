@@ -169,14 +169,15 @@ export default function RobinhoodPage() {
 						aria-label="Route: Stacks to Robinhood Chain and back"
 					>
 						<div className="rh-route-end">
-							<VendorLogo {...STACKS_LOGO} height={22} />
+							<VendorLogo {...STACKS_LOGO} height={17} />
 							<span className="rh-route-cap">SIP-010 · locked</span>
 						</div>
 						<span className="rh-route-arrow" aria-hidden="true">
 							⇄
 						</span>
 						<div className="rh-route-end">
-							<VendorLogo {...ROBINHOOD_CHAIN_LOGO} height={22} />
+							{/* 20px is Robinhood Chain's minimum logo height. */}
+							<VendorLogo {...ROBINHOOD_CHAIN_LOGO} height={20} />
 							<span className="rh-route-cap">ERC-20 · chain 4663</span>
 						</div>
 					</div>
