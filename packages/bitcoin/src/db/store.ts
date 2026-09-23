@@ -42,8 +42,11 @@ function sOpt(value: bigint | undefined): string | null {
 	return value === undefined ? null : value.toString();
 }
 
+/** Postgres's hard limit on bind parameters in a single extended-protocol statement. */
+export const POSTGRES_MAX_PARAMETERS = 65_534;
+
 /** Splits `items` into chunks of at most `size` — keeps every batched statement under Postgres's parameter limit. */
-function chunk<T>(items: T[], size: number): T[][] {
+export function chunk<T>(items: T[], size: number): T[][] {
 	const out: T[][] = [];
 	for (let i = 0; i < items.length; i += size)
 		out.push(items.slice(i, i + size));
@@ -197,10 +200,21 @@ export function computeBalanceChanges(state: RuneState): {
 	return { toUpsert, toDelete };
 }
 
-const DELETE_CHUNK_SIZE = 10_000;
-const UPSERT_CHUNK_SIZE = 5_000;
-const EVENT_CHUNK_SIZE = 5_000;
-const ENTRY_CHUNK_SIZE = 5_000;
+// Postgres's bind-parameter limit (POSTGRES_MAX_PARAMETERS) is per statement.
+// Chunk sizes below are sized per-statement's own column count, with
+// headroom — sizing this wrong crashed a real backfill run (`rune_entries`
+// has 21 columns; 5,000 rows/chunk sent 105,000 params and hit
+// MAX_PARAMETERS_EXCEEDED). See the `chunk sizes stay under the parameter
+// limit` test in store.test.ts, which asserts these constants against their
+// table's real column count so a future column addition fails loudly.
+export const RUNE_BALANCES_PARAMS_PER_ROW = 4; // txid, vout, rune_id, amount
+export const RUNE_EVENTS_PARAMS_PER_ROW = 7; // height, tx_index, txid, kind, rune_id, amount, vout
+export const RUNE_ENTRIES_PARAMS_PER_ROW = 21;
+
+export const DELETE_CHUNK_SIZE = 10_000; // unnest arrays are 1 param each regardless of row count — not parameter-bound, just a sane batch size
+export const UPSERT_CHUNK_SIZE = 5_000; // 4 params/row -> 20,000/chunk
+export const EVENT_CHUNK_SIZE = 5_000; // 7 params/row -> 35,000/chunk
+export const ENTRY_CHUNK_SIZE = 1_000; // 21 params/row -> 21,000/chunk
 
 export interface FlushStats {
 	height: number;

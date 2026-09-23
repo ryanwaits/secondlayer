@@ -6,7 +6,17 @@
 // from in-memory state alone, exactly which rows need a write.
 import { describe, expect, test } from "bun:test";
 import { createRuneState, setBalance } from "../runes/state.ts";
-import { computeBalanceChanges } from "./store.ts";
+import {
+	DELETE_CHUNK_SIZE,
+	ENTRY_CHUNK_SIZE,
+	EVENT_CHUNK_SIZE,
+	POSTGRES_MAX_PARAMETERS,
+	RUNE_BALANCES_PARAMS_PER_ROW,
+	RUNE_ENTRIES_PARAMS_PER_ROW,
+	RUNE_EVENTS_PARAMS_PER_ROW,
+	UPSERT_CHUNK_SIZE,
+	computeBalanceChanges,
+} from "./store.ts";
 
 const U128_MAX = (1n << 128n) - 1n;
 
@@ -96,5 +106,37 @@ describe("computeBalanceChanges", () => {
 		expect(toUpsert).toEqual([
 			{ txid: "e".repeat(64), vout: 4, ruleId, amount: 7n },
 		]);
+	});
+});
+
+// Regression test for the crash a real backfill run hit: `rune_entries` has
+// 21 columns, and the original ENTRY_CHUNK_SIZE (5,000, copied from the
+// balances/events chunk sizes without checking column count) sent 105,000
+// bind parameters in one statement — over Postgres's 65,534 limit
+// (MAX_PARAMETERS_EXCEEDED). This asserts every chunk size against its
+// table's real column count, so bumping either one out of sync fails here
+// instead of mid-backfill.
+describe("flush chunk sizes stay under Postgres's parameter limit", () => {
+	test("rune_balances upsert chunk", () => {
+		expect(
+			UPSERT_CHUNK_SIZE * RUNE_BALANCES_PARAMS_PER_ROW,
+		).toBeLessThanOrEqual(POSTGRES_MAX_PARAMETERS);
+	});
+
+	test("rune_events insert chunk", () => {
+		expect(EVENT_CHUNK_SIZE * RUNE_EVENTS_PARAMS_PER_ROW).toBeLessThanOrEqual(
+			POSTGRES_MAX_PARAMETERS,
+		);
+	});
+
+	test("rune_entries upsert chunk", () => {
+		expect(ENTRY_CHUNK_SIZE * RUNE_ENTRIES_PARAMS_PER_ROW).toBeLessThanOrEqual(
+			POSTGRES_MAX_PARAMETERS,
+		);
+	});
+
+	test("delete batch size is a sane bound (unnest arrays are 1 param each, not per-row)", () => {
+		expect(DELETE_CHUNK_SIZE).toBeGreaterThan(0);
+		expect(3).toBeLessThanOrEqual(POSTGRES_MAX_PARAMETERS);
 	});
 });
