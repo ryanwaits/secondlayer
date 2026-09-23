@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
 type Row = {
@@ -22,11 +23,12 @@ const ROWS: Row[] = [
 ];
 
 /**
- * Primary nav action: an Install pill that drops an in-place menu of install
- * commands — the curl script first, then package managers, then the Claude
- * Code skill. Every row copies its command.
+ * Signed-out primary action: one "Get started" pill with both ways in. Hosted
+ * first (an API key, nothing to install), then self-host: the curl script,
+ * package managers and the Claude Code skill. Every self-host row copies its
+ * command.
  */
-export function InstallMenu() {
+export function GetStartedMenu() {
 	const [open, setOpen] = useState(false);
 	const [copied, setCopied] = useState<string | null>(null);
 	const rootRef = useRef<HTMLDivElement>(null);
@@ -65,7 +67,7 @@ export function InstallMenu() {
 				aria-controls={menuId}
 				onClick={() => setOpen((v) => !v)}
 			>
-				Install
+				Get started
 				<svg
 					className="imenu-chev"
 					width="10"
@@ -83,7 +85,17 @@ export function InstallMenu() {
 			</button>
 			{open ? (
 				<div className="imenu-panel" id={menuId}>
-					<p className="imenu-head">Run secondlayer today · free</p>
+					<p className="imenu-head">Hosted</p>
+					<Link href="/login" className="imenu-row imenu-link">
+						<span className="imenu-row-text">
+							<span className="imenu-row-title">Get an API key</span>
+							<span className="imenu-row-desc">
+								Query our hosted API. The last 24 hours are free.
+							</span>
+						</span>
+					</Link>
+					<div className="imenu-rule" />
+					<p className="imenu-head">Self-host</p>
 					{ROWS.map((row) => (
 						<button
 							key={row.title}

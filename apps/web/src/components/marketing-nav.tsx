@@ -1,6 +1,13 @@
 "use client";
 
-import { InstallMenu } from "@/components/install-menu";
+import { AccountAvatar, AccountMenu } from "@/components/account-menu";
+import { GetStartedMenu } from "@/components/get-started-menu";
+import {
+	clearAccountData,
+	formatUsd,
+	useAccountData,
+} from "@/lib/account-data";
+import { useAuth } from "@/lib/auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -13,9 +20,16 @@ const GITHUB_URL = "https://github.com/ryanwaits/secondlayer";
  * Docs keeps its own chrome — this renders null there. The floating AuthBar
  * is hidden wherever this bar is present (globals.css), so the bar owns the
  * top edge alone.
+ *
+ * The right edge follows the session: signed out gets "Sign in" and the
+ * Get started menu (hosted key or self-host install); signed in gets the
+ * account chip; while the session check is in flight a blank chip holds the
+ * space, so "Sign in" never flashes at someone who is already signed in.
  */
 export function MarketingNav({ stars = null }: { stars?: number | null }) {
 	const pathname = usePathname();
+	const { account, loading, logout } = useAuth();
+	const { billing } = useAccountData();
 	const [open, setOpen] = useState(false);
 
 	// Close the sheet on navigation and on Escape; lock scroll while open.
@@ -72,15 +86,15 @@ export function MarketingNav({ stars = null }: { stars?: number | null }) {
 			>
 				Blog
 			</Link>
-			<Link
-				href="/login"
-				className="mnav-plain"
-				aria-current={
-					pathname === "/login" || pathname === "/account" ? "page" : undefined
-				}
-			>
-				Sign in
-			</Link>
+			{!loading && !account ? (
+				<Link
+					href="/login"
+					className="mnav-plain"
+					aria-current={pathname === "/login" ? "page" : undefined}
+				>
+					Sign in
+				</Link>
+			) : null}
 			<a
 				href={GITHUB_URL}
 				className="mnav-pill line mnav-gh"
@@ -115,7 +129,18 @@ export function MarketingNav({ stars = null }: { stars?: number | null }) {
 					</>
 				) : null}
 			</a>
-			<InstallMenu />
+			{loading ? (
+				<span className="acct-chip-skeleton" aria-hidden="true" />
+			) : account ? (
+				<>
+					<AccountMenu account={account} onSignOut={logout} />
+					<span className="acct-mobile-avatar">
+						<AccountAvatar account={account} size={28} />
+					</span>
+				</>
+			) : (
+				<GetStartedMenu />
+			)}
 			<button
 				type="button"
 				className="mnav-burger"
@@ -144,7 +169,6 @@ export function MarketingNav({ stars = null }: { stars?: number | null }) {
 					<Link href="/archive">Archive</Link>
 					<Link href="/docs">Docs</Link>
 					<Link href="/writing">Blog</Link>
-					<Link href="/login">Sign in</Link>
 					<a
 						href={GITHUB_URL}
 						target="_blank"
@@ -153,6 +177,49 @@ export function MarketingNav({ stars = null }: { stars?: number | null }) {
 					>
 						GitHub{stars !== null ? ` · ★ ${stars}` : ""}
 					</a>
+					{account ? (
+						<div className="mnav-sheet-account">
+							<div className="acct-panel-head">
+								<AccountAvatar account={account} size={36} />
+								<div className="acct-panel-who">
+									<span className="acct-panel-email">{account.email}</span>
+									<span className="acct-muted">
+										{billing
+											? `Balance ${formatUsd(billing.creditsUsdMicros)}`
+											: "Hosted account"}
+									</span>
+								</div>
+							</div>
+							<Link href="/account/keys" className="acct-btn solid full">
+								API keys
+							</Link>
+							<Link href="/account/credits" className="acct-btn line full">
+								Add credits
+							</Link>
+							<button
+								type="button"
+								className="mnav-sheet-quiet"
+								onClick={() => {
+									clearAccountData();
+									logout();
+								}}
+							>
+								Sign out
+							</button>
+						</div>
+					) : loading ? null : (
+						<div className="mnav-sheet-actions">
+							<Link href="/login" className="acct-btn solid full">
+								Get an API key
+							</Link>
+							<Link href="/docs/cli" className="acct-btn line full">
+								Install the CLI
+							</Link>
+							<Link href="/login" className="mnav-sheet-quiet">
+								Already have an account? Sign in
+							</Link>
+						</div>
+					)}
 				</div>
 			) : null}
 		</nav>
