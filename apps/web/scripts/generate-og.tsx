@@ -255,11 +255,13 @@ const NEON = "#ccff00"; // Robin Neon, headline highlight only
 
 function TwinToken({
 	coin,
+	name,
 	meta,
 	state,
 	stateColor,
 }: {
 	coin: React.ReactNode;
+	name: string;
 	meta: string;
 	state: string;
 	stateColor: string;
@@ -297,7 +299,7 @@ function TwinToken({
 							color: INK,
 						}}
 					>
-						DEMO
+						{name}
 					</span>
 					<span
 						style={{
@@ -393,7 +395,8 @@ function ArtRobinhood() {
 						</svg>
 					</div>
 				}
-				meta="SIP-010 · Stacks"
+				name="SIP-010"
+				meta="Stacks"
 				state="locked"
 				stateColor={ACCENT}
 			/>
@@ -447,7 +450,8 @@ function ArtRobinhood() {
 						alt=""
 					/>
 				}
-				meta="ERC-20 · chain 4663"
+				name="ERC-20"
+				meta="chain 4663"
 				state="live"
 				stateColor="#15803d"
 			/>

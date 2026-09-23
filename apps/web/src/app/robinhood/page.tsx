@@ -213,18 +213,18 @@ export default function RobinhoodPage() {
 					</div>
 					<figure
 						className="rh-twins"
-						aria-label="Two token cards: 1,000 DEMO locked on Stacks as a SIP-010, and its twin, 1,000 DEMO live on Robinhood Chain as an ERC-20, linked one to one"
+						aria-label="Two token cards: 1,000 of a SIP-010 token locked on Stacks, and its twin, 1,000 of an ERC-20 live on Robinhood Chain, linked one to one"
 					>
 						<div className="rh-tok">
 							<span className="rh-coin rh-coin-stacks">
 								<StacksSymbol size={18} />
 							</span>
-							<span className="rh-tok-name">DEMO</span>
+							<span className="rh-tok-name">SIP-010</span>
 							<span className="rh-tok-amt">
 								1,000
 								<small className="rh-state is-locked">locked</small>
 							</span>
-							<span className="rh-tok-meta">SIP-010 · Stacks</span>
+							<span className="rh-tok-meta">Stacks</span>
 						</div>
 						<div className="rh-tok-link">
 							<span className="rh-tok-rail" />
@@ -244,12 +244,12 @@ export default function RobinhoodPage() {
 								width={36}
 								height={36}
 							/>
-							<span className="rh-tok-name">DEMO</span>
+							<span className="rh-tok-name">ERC-20</span>
 							<span className="rh-tok-amt">
 								1,000
 								<small className="rh-state is-live">live</small>
 							</span>
-							<span className="rh-tok-meta">ERC-20 · chain 4663</span>
+							<span className="rh-tok-meta">chain 4663</span>
 						</div>
 					</figure>
 				</section>
