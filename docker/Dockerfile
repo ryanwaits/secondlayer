@@ -13,7 +13,7 @@
 # The tag stays alongside the digest so a human can still read the version;
 # Docker resolves by digest and ignores the tag. To bump, resolve the new
 # digest with `docker buildx imagetools inspect oven/bun:<tag>`.
-FROM oven/bun:1.3.10-alpine@sha256:32f1fcccb1523960b254c4f80973bee1a910d60be000a45c20c9129a1efcffee AS base
+FROM oven/bun:1.4.2-alpine@sha256:d888c0ae6c86d7866ff10c5aafdd9077b36aee6455b33dd270fb93c0dd5cef6f AS base
 
 WORKDIR /app
 

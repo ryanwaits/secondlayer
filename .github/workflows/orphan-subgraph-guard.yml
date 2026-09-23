@@ -19,11 +19,11 @@ jobs:
         id: setup-bun
         continue-on-error: true
         with:
-          bun-version: "1.3.10"
+          bun-version: "1.4.2"
       - uses: oven-sh/setup-bun@v2
         if: steps.setup-bun.outcome == 'failure'
         with:
-          bun-version: "1.3.10"
+          bun-version: "1.4.2"
       # No GitHub-hosted runner can reach prod Postgres directly (chain
       # postgres binds 127.0.0.1:5432 on the host; platform postgres exposes
       # no host port at all). The working trust root is SSH — same

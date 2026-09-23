@@ -18,11 +18,11 @@ jobs:
         id: setup-bun
         continue-on-error: true
         with:
-          bun-version: "1.3.10"
+          bun-version: "1.4.2"
       - uses: oven-sh/setup-bun@v2
         if: steps.setup-bun.outcome == 'failure'
         with:
-          bun-version: "1.3.10"
+          bun-version: "1.4.2"
       - name: Run bun audit (fail only on high+ severity)
         run: |
           # bun audit exits 1 on any finding (incl. low/moderate). Capture output
