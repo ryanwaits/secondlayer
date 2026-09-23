@@ -41,8 +41,9 @@ function parseRobinhoodAnswers(body: Record<string, unknown>): Parsed<Answers> {
 	) {
 		return { error: `role must be one of ${ROBINHOOD_ROLES.join(", ")}` };
 	}
-	// Symbols are all caps; store them that way whatever the client sent.
-	const token = text(body.token, 64)?.toUpperCase();
+	// Symbols are all caps with no spaces; store them that way whatever the
+	// client sent, so "stacks memecoins" and "STACKSMEMECOINS" count together.
+	const token = text(body.token, 64)?.replace(/\s+/g, "").toUpperCase();
 	if (!token) return { error: "token is required (64 characters max)" };
 	const contract = text(body.contract, 160);
 	if (contract === undefined) return { error: "contract is too long" };
@@ -112,7 +113,7 @@ app.post("/", async (c) => {
 });
 
 /** A ticker, not free text: what the public board is allowed to print. */
-const SYMBOL_RE = /^[A-Z0-9][A-Z0-9.$-]{0,11}$/;
+const SYMBOL_RE = /^[A-Z0-9][A-Z0-9.$-]{0,15}$/;
 /** A token needs this many different people behind it to be shown. */
 const MIN_REQUESTS = 2;
 const MAX_SHOWN = 8;

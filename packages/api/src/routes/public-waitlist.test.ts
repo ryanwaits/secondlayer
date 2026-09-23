@@ -63,6 +63,11 @@ describe("parseSignup", () => {
 		expect("ok" in parsed && parsed.ok.answers.token).toBe("WELSH");
 	});
 
+	test("removes spaces inside the token symbol", () => {
+		const parsed = parseSignup({ ...valid, token: "Stacks  memecoins" });
+		expect("ok" in parsed && parsed.ok.answers.token).toBe("STACKSMEMECOINS");
+	});
+
 	test("drops fields the list does not ask for", () => {
 		const parsed = parseSignup({ ...valid, admin: true });
 		expect(parsed).not.toHaveProperty("error");
@@ -132,6 +137,15 @@ describe("summarizeDemand", () => {
 		]);
 		expect(out.tokens.map((t) => t.symbol)).toEqual(["PEPE"]);
 		expect(out.others).toBe(2);
+	});
+
+	test("shows tickers up to sixteen characters", () => {
+		const out = summarizeDemand([
+			row("STACKSMEMECOINS", 2),
+			row("X".repeat(17), 2),
+		]);
+		expect(out.tokens.map((t) => t.symbol)).toEqual(["STACKSMEMECOINS"]);
+		expect(out.others).toBe(1);
 	});
 
 	test("ranks by requests, then symbol, and caps the board at eight", () => {
