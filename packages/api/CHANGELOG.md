@@ -1,5 +1,13 @@
 # @secondlayer/api
 
+## 1.36.0
+
+### Minor Changes
+
+- Document every operation in the OpenAPI spec so the API reference renders from it: stable operationIds, described parameters and fields, row schemas with real examples, and correct envelope keys. Unreleased VM event types stay out of the public reference.
+
+  Credited accounts are no longer charged for rows inside the free read window. Signed-in credit top-ups return to the account page. Waitlists serve a public token-demand board at `GET /api/public/waitlist/:list/demand`.
+
 ## 1.35.0
 
 ### Minor Changes
