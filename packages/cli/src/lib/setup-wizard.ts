@@ -207,13 +207,15 @@ export function guardrailPreview(
  * this to decide whether to even attempt the OpenTUI wizard versus falling
  * back to an `@inquirer/prompts` flow that drives the same `runSetup` steps.
  */
-export function isBunRuntime(): boolean {
+export function isBunRuntime(
+	versions: unknown = typeof process !== "undefined"
+		? process.versions
+		: undefined,
+): boolean {
 	return (
-		typeof process !== "undefined" &&
-		typeof process.versions === "object" &&
-		process.versions !== null &&
-		typeof (process.versions as Record<string, string | undefined>).bun ===
-			"string"
+		typeof versions === "object" &&
+		versions !== null &&
+		typeof (versions as Record<string, unknown>).bun === "string"
 	);
 }
 

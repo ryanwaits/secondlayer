@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -33,20 +32,18 @@ describe("isBunRuntime", () => {
 		expect(isBunRuntime()).toBe(true);
 	});
 
-	test("false under node — the exact case OpenTUI can't initialize in", () => {
-		// Published CLI shebang is node. spawnSync defaults stdin to a pipe;
-		// node -e can sit on that until EOF, which is how this test burned
-		// the 5s bun timeout in CI. Ignore stdin and bound the wait.
-		const src =
-			"const v=process.versions;process.stdout.write(String(typeof v==='object'&&v!==null&&typeof v.bun==='string'))";
-		const result = spawnSync("node", ["-e", src], {
-			encoding: "utf8",
-			timeout: 2000,
-			stdio: ["ignore", "pipe", "pipe"],
-		});
-		expect(result.error).toBeUndefined();
-		expect(result.status).toBe(0);
-		expect(result.stdout).toBe("false");
+	// Node's process.versions has no `bun` key — the exact case OpenTUI can't
+	// initialize in. Injected rather than spawning a real node process, which
+	// flaked on slow CI runners (cold node start past the spawn timeout).
+	test("false under node's process.versions shape", () => {
+		expect(isBunRuntime({ node: "22.11.0", v8: "12.4.254.21-node.33" })).toBe(
+			false,
+		);
+	});
+
+	test("false when process.versions is missing or not an object", () => {
+		expect(isBunRuntime(null)).toBe(false);
+		expect(isBunRuntime("22.11.0")).toBe(false);
 	});
 });
 
