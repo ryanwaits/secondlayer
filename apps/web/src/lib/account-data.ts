@@ -4,9 +4,9 @@ import { useSyncExternalStore } from "react";
 import type { ApiKey } from "./types";
 
 /**
- * Account data the nav chip, the sheets and the /account pages all read. One
+ * Account data the nav chip, the floating cards and the /account pages all read. One
  * store, so a top-up that lands on the credits page moves the balance in the
- * nav too, and a key created in the sheet shows up on the keys page.
+ * nav too, and a key created in the card shows up on the keys page.
  */
 
 /** Credit packs the API sells (`CREDIT_PACKS_USD` in packages/api). */

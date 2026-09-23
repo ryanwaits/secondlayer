@@ -8,9 +8,10 @@ import {
 	revokeKey,
 	useAccountData,
 } from "@/lib/account-data";
+import { handOverNewKey } from "@/lib/new-key";
 import type { ApiKey } from "@/lib/types";
 import { useEffect, useState } from "react";
-import { Sheet } from "./sheet";
+import { FloatingCard } from "./floating-card";
 
 /** A new key, shown once, with the one thing to do about it: copy it. */
 export function NewKeyCard({ value }: { value: string }) {
@@ -187,18 +188,18 @@ function NameKeyForm({
 	);
 }
 
-type SheetStep =
+type CardStep =
 	| { step: "list" }
 	| { step: "name" }
 	| { step: "reveal"; key: string; name: string };
 
-/** The keys flow in a sheet: list, then name a key, then show it once. */
-export function KeysSheet({
+/** The keys flow in a floating card: list, then name a key, then show it once. */
+export function KeysCard({
 	open,
 	onClose,
 }: { open: boolean; onClose: () => void }) {
 	const { keys } = useAccountData();
-	const [s, setS] = useState<SheetStep>({ step: "list" });
+	const [s, setS] = useState<CardStep>({ step: "list" });
 
 	useEffect(() => {
 		if (open) {
@@ -209,9 +210,10 @@ export function KeysSheet({
 
 	if (s.step === "name") {
 		return (
-			<Sheet
+			<FloatingCard
 				open={open}
 				onClose={onClose}
+				expandHref="/account/keys"
 				title="Create a key"
 				subtitle="Step 1 of 2"
 			>
@@ -220,25 +222,26 @@ export function KeysSheet({
 					onCancel={() => setS({ step: "list" })}
 					cancelLabel="Back to keys"
 				/>
-			</Sheet>
+			</FloatingCard>
 		);
 	}
 
 	if (s.step === "reveal") {
 		return (
-			<Sheet
+			<FloatingCard
 				open={open}
 				onClose={onClose}
+				expandHref="/account/keys"
+				// The key is shown once: carry it to the page instead of losing it.
+				onExpand={() => handOverNewKey(s.key)}
 				title="Your new key"
 				subtitle="Step 2 of 2"
 				footer={
-					<button
-						type="button"
-						className="acct-btn solid full"
-						onClick={onClose}
-					>
-						Done
-					</button>
+					<div className="acct-card-row">
+						<button type="button" className="acct-btn solid" onClick={onClose}>
+							Done
+						</button>
+					</div>
 				}
 			>
 				<NewKeyCard value={s.key} />
@@ -246,14 +249,15 @@ export function KeysSheet({
 					Named <strong>{s.name}</strong>. Endpoints are in the{" "}
 					<a href="/docs/api-reference">API reference</a>.
 				</p>
-			</Sheet>
+			</FloatingCard>
 		);
 	}
 
 	return (
-		<Sheet
+		<FloatingCard
 			open={open}
 			onClose={onClose}
+			expandHref="/account/keys"
 			title="API keys"
 			subtitle={
 				<>
@@ -261,23 +265,20 @@ export function KeysSheet({
 				</>
 			}
 			footer={
-				<>
+				<div className="acct-card-row">
 					<button
 						type="button"
-						className="acct-btn solid full"
+						className="acct-btn solid"
 						onClick={() => setS({ step: "name" })}
 					>
 						Create a key
 					</button>
-					<p className="acct-fine">
-						Keys read the hosted API. The last 24 hours are free.{" "}
-						<a href="/account/keys">Account page</a>
-					</p>
-				</>
+					<p className="acct-fine">The last 24 hours are free with any key.</p>
+				</div>
 			}
 		>
 			<KeyList keys={keys} />
-		</Sheet>
+		</FloatingCard>
 	);
 }
 

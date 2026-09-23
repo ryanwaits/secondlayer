@@ -1,7 +1,7 @@
 "use client";
 
-import { CreditsSheet } from "@/components/account/credits-panel";
-import { KeysSheet } from "@/components/account/keys-panel";
+import { CreditsCard } from "@/components/account/credits-panel";
+import { KeysCard } from "@/components/account/keys-panel";
 import {
 	activeKeys,
 	clearAccountData,
@@ -55,7 +55,7 @@ function Chevron({ open }: { open: boolean }) {
 
 /**
  * Signed-in nav: an account chip (initial + balance) whose menu holds the
- * account at a glance and opens the keys and credits sheets in place.
+ * account at a glance and opens the keys and credits cards in place.
  */
 export function AccountMenu({
 	account,
@@ -66,7 +66,7 @@ export function AccountMenu({
 }) {
 	const { billing, keys } = useAccountData();
 	const [open, setOpen] = useState(false);
-	const [sheet, setSheet] = useState<"keys" | "credits" | null>(null);
+	const [card, setCard] = useState<"keys" | "credits" | null>(null);
 	const [copied, setCopied] = useState(false);
 	const rootRef = useRef<HTMLDivElement>(null);
 	const menuId = useId();
@@ -96,9 +96,9 @@ export function AccountMenu({
 	const empty = billing !== null && Number(billing.creditsUsdMicros) <= 0;
 	const keyCount = keys === null ? null : activeKeys(keys).length;
 
-	function openSheet(which: "keys" | "credits") {
+	function openCard(which: "keys" | "credits") {
 		setOpen(false);
-		setSheet(which);
+		setCard(which);
 	}
 
 	return (
@@ -134,7 +134,7 @@ export function AccountMenu({
 							<button
 								type="button"
 								className="acct-btn solid full small"
-								onClick={() => openSheet("credits")}
+								onClick={() => openCard("credits")}
 							>
 								Add credits
 							</button>
@@ -158,7 +158,7 @@ export function AccountMenu({
 							<button
 								type="button"
 								className="acct-panel-add"
-								onClick={() => openSheet("credits")}
+								onClick={() => openCard("credits")}
 							>
 								Add credits
 							</button>
@@ -168,7 +168,7 @@ export function AccountMenu({
 					<button
 						type="button"
 						className="acct-item"
-						onClick={() => openSheet("keys")}
+						onClick={() => openCard("keys")}
 					>
 						<span className="t">API keys</span>
 						<span className="d">
@@ -210,10 +210,10 @@ export function AccountMenu({
 					</button>
 				</div>
 			) : null}
-			<KeysSheet open={sheet === "keys"} onClose={() => setSheet(null)} />
-			<CreditsSheet
-				open={sheet === "credits"}
-				onClose={() => setSheet(null)}
+			<KeysCard open={card === "keys"} onClose={() => setCard(null)} />
+			<CreditsCard
+				open={card === "credits"}
+				onClose={() => setCard(null)}
 				email={account.email}
 			/>
 		</div>

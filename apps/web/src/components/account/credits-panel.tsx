@@ -12,7 +12,7 @@ import {
 	useAccountData,
 } from "@/lib/account-data";
 import { useEffect, useId, useState } from "react";
-import { Sheet } from "./sheet";
+import { FloatingCard } from "./floating-card";
 
 export function BalanceStats({ billing }: { billing: Billing | null }) {
 	return (
@@ -42,14 +42,10 @@ function PricingNote() {
 	);
 }
 
-/** Pick an amount and go to Stripe. Stripe brings the reader back after. */
-function AmountPicker({ wide = false }: { wide?: boolean }) {
+function useCheckout() {
 	const [amount, setAmount] = useState<PackUsd>(25);
-	// Its own radio group: the page and the sheet can both be on screen.
-	const group = useId();
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-
 	async function checkout() {
 		setBusy(true);
 		setError(null);
@@ -60,45 +56,61 @@ function AmountPicker({ wide = false }: { wide?: boolean }) {
 			setBusy(false);
 		}
 	}
+	return { amount, setAmount, busy, error, checkout };
+}
 
+type Checkout = ReturnType<typeof useCheckout>;
+
+/** The four amounts the API sells, as one radio group. */
+function AmountPicker({ co, wide = false }: { co: Checkout; wide?: boolean }) {
+	// Its own radio group: the page and the card can both be on screen.
+	const group = useId();
 	return (
-		<div className="acct-picker">
-			<fieldset className={wide ? "acct-packs wide" : "acct-packs"}>
-				<legend>Amount</legend>
-				{PACKS_USD.map((usd) => (
-					<label key={usd} className="acct-pack">
-						<input
-							type="radio"
-							name={group}
-							value={usd}
-							checked={amount === usd}
-							onChange={() => setAmount(usd)}
-						/>
-						<span className="acct-pack-amount">${usd}</span>
-						<span className="acct-pack-dot" aria-hidden="true" />
-					</label>
-				))}
-			</fieldset>
-			<div className={wide ? "acct-checkout wide" : "acct-checkout"}>
-				<button
-					type="button"
-					className={wide ? "acct-btn solid" : "acct-btn solid full"}
-					onClick={checkout}
-					disabled={busy}
-				>
-					{busy ? "Opening checkout..." : `Continue to checkout · $${amount}`}
-				</button>
-				<p className="acct-fine">
-					Stripe takes the payment, then brings you back here.
-				</p>
-			</div>
-			{error ? <p className="acct-error">{error}</p> : null}
-		</div>
+		<fieldset className={wide ? "acct-packs wide" : "acct-packs"}>
+			<legend>Amount</legend>
+			{PACKS_USD.map((usd) => (
+				<label key={usd} className="acct-pack">
+					<input
+						type="radio"
+						name={group}
+						value={usd}
+						checked={co.amount === usd}
+						onChange={() => co.setAmount(usd)}
+					/>
+					<span className="acct-pack-amount">${usd}</span>
+					<span className="acct-pack-dot" aria-hidden="true" />
+				</label>
+			))}
+		</fieldset>
 	);
 }
 
-/** The credits flow in a sheet: balance, amount, then off to Stripe. */
-export function CreditsSheet({
+/** Go to Stripe for the picked amount. Stripe brings the reader back after. */
+function CheckoutAction({ co }: { co: Checkout }) {
+	return (
+		<>
+			<div className="acct-checkout">
+				<button
+					type="button"
+					className="acct-btn solid"
+					onClick={co.checkout}
+					disabled={co.busy}
+				>
+					{co.busy
+						? "Opening checkout..."
+						: `Continue to checkout · $${co.amount}`}
+				</button>
+				<p className="acct-fine">
+					Stripe takes the payment, then brings you back.
+				</p>
+			</div>
+			{co.error ? <p className="acct-error">{co.error}</p> : null}
+		</>
+	);
+}
+
+/** The credits flow in a floating card: balance, amount, then off to Stripe. */
+export function CreditsCard({
 	open,
 	onClose,
 	email,
@@ -108,21 +120,24 @@ export function CreditsSheet({
 	email: string;
 }) {
 	const { billing } = useAccountData();
+	const co = useCheckout();
 	useEffect(() => {
 		if (open) refreshBilling();
 	}, [open]);
 
 	return (
-		<Sheet
+		<FloatingCard
 			open={open}
 			onClose={onClose}
+			expandHref="/account/credits"
 			title="Add credits"
 			subtitle={`Credits go to ${email}`}
+			footer={<CheckoutAction co={co} />}
 		>
 			<BalanceStats billing={billing} />
-			<AmountPicker />
+			<AmountPicker co={co} />
 			<PricingNote />
-		</Sheet>
+		</FloatingCard>
 	);
 }
 
@@ -226,6 +241,7 @@ function ReturnNotice({
 export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
 	const { billing } = useAccountData();
 	const st = useTopupReturn(ret);
+	const co = useCheckout();
 
 	useEffect(() => {
 		refreshBilling();
@@ -236,7 +252,8 @@ export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
 			{st ? <ReturnNotice st={st} billing={billing} /> : null}
 			{st?.kind === "landed" ? null : <BalanceStats billing={billing} />}
 			<h2 className="acct-h2">Add credits</h2>
-			<AmountPicker wide />
+			<AmountPicker co={co} wide />
+			<CheckoutAction co={co} />
 			<PricingNote />
 		</>
 	);
