@@ -9299,6 +9299,51 @@
 						"description": "Receiving principal. Types with a recipient only."
 					},
 					{
+						"name": "tx_id",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Transaction id. VM types only: nested_contract_call, var_set, map_set, map_insert, map_delete."
+					},
+					{
+						"name": "function_name",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "nested_contract_call only."
+					},
+					{
+						"name": "caller",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "nested_contract_call only."
+					},
+					{
+						"name": "map",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "map_set, map_insert, map_delete. Matches map_name."
+					},
+					{
+						"name": "var_name",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "var_set only."
+					},
+					{
 						"name": "tx_context",
 						"in": "query",
 						"required": false,

@@ -240,6 +240,21 @@ export const indexPaths = {
 					"Receiving principal. Types with a recipient only.",
 				),
 				qp(
+					"tx_id",
+					"string",
+					false,
+					"Transaction id. VM types only: nested_contract_call, var_set, map_set, map_insert, map_delete.",
+				),
+				qp("function_name", "string", false, "nested_contract_call only."),
+				qp("caller", "string", false, "nested_contract_call only."),
+				qp(
+					"map",
+					"string",
+					false,
+					"map_set, map_insert, map_delete. Matches map_name.",
+				),
+				qp("var_name", "string", false, "var_set only."),
+				qp(
 					"tx_context",
 					"boolean",
 					false,
