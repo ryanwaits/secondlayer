@@ -87,6 +87,8 @@ CONTROL_TABLES=(
   account_credits
   hosted_meter_days
   archive_fetches
+  waitlists
+  waitlist_signups
 )
 
 src_count() { psql "$SRC" -tAc "SELECT count(*) FROM $1" 2>/dev/null || echo "ERR"; }
