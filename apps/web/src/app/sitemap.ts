@@ -10,6 +10,7 @@ const ROUTES = [
 	"/docs/archive",
 	"/archive",
 	"/writing",
+	"/robinhood",
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
