@@ -1,5 +1,5 @@
 import { CodeBlock } from "@/components/code-block";
-import { HARNESSES, READ_CMD, TABLE_STEP } from "@/lib/home-quickstart";
+import { ASK_STEP, HARNESSES, READ_CMD } from "@/lib/home-quickstart";
 import type { ReactNode } from "react";
 import { HarnessPicker } from "./harness-picker";
 
@@ -33,12 +33,12 @@ export function AgentQuickstart() {
 		<section className="home-qs" aria-labelledby="home-qs-h">
 			<div className="home-qs-in">
 				<h2 id="home-qs-h">
-					From zero to a live table, with your agent driving.
+					From a key to live PoX-5 data, with your agent driving.
 				</h2>
 				<p className="home-sub">
 					The docs ship as a skill. Install it once and your harness knows every
-					command; you describe the table, it does the setup. No account. One
-					token from <code>secondlayer init</code>.
+					endpoint; you ask the question, it makes the calls.{" "}
+					<a href="/login">Get a key</a> and the last 24 hours are free.
 				</p>
 
 				<ol className="home-qs-steps">
@@ -59,7 +59,7 @@ export function AgentQuickstart() {
 
 					<Step>
 						<Window title="">
-							<CodeBlock code={TABLE_STEP} lang="markdown" />
+							<CodeBlock code={ASK_STEP} lang="markdown" />
 						</Window>
 					</Step>
 

@@ -1,8 +1,9 @@
 /**
- * Homepage quickstart — the three steps under the hero, driven by the agent.
+ * Homepage quickstart — the three steps under the hero, driven by the agent,
+ * against the hosted API. The self-host path is the section below it.
  *
- * Commands here are real CLI surface (see packages/cli/src/commands and
- * skills/secondlayer). If a flag or contract id changes, change it here too.
+ * Commands here are real CLI/MCP/API surface (see packages/mcp/src/lib/client.ts
+ * and /v1/index/pox5/events). If an env var or endpoint changes, change it here.
  */
 
 export type HarnessKey = "claude" | "codex" | "cursor";
@@ -18,9 +19,12 @@ export interface Harness {
 	code: string;
 }
 
+const HOSTED_API = "https://api.secondlayer.tools";
+
+/** MCP against the hosted API: the account key, not an instance token. */
 const MCP_ENV = {
-	SL_API_URL: "http://127.0.0.1:3800",
-	INSTANCE_TOKEN: "<from secondlayer init>",
+	SL_API_URL: HOSTED_API,
+	SECONDLAYER_API_KEY: "<sk-sl_ key from /account/keys>",
 };
 
 export const HARNESSES: Harness[] = [
@@ -39,7 +43,7 @@ export const HARNESSES: Harness[] = [
 			"Codex takes the MCP server instead; the tools are the same surface.",
 		file: "terminal",
 		lang: "bash",
-		code: `codex mcp add secondlayer --env SL_API_URL=${MCP_ENV.SL_API_URL} --env INSTANCE_TOKEN=$INSTANCE_TOKEN -- bunx @secondlayer/mcp`,
+		code: `codex mcp add secondlayer --env SL_API_URL=${HOSTED_API} --env SECONDLAYER_API_KEY=$SECONDLAYER_API_KEY -- bunx @secondlayer/mcp`,
 	},
 	{
 		key: "cursor",
@@ -64,8 +68,8 @@ export const HARNESSES: Harness[] = [
 	},
 ];
 
-export const TABLE_STEP =
-	"/secondlayer index sBTC deposits and withdrawals into a table called sbtc-flows";
+export const ASK_STEP =
+	"/secondlayer show who staked into PoX-5 today, grouped by signer";
 
-export const READ_CMD =
-	"curl http://127.0.0.1:3800/v1/subgraphs/sbtc-flows?limit=3";
+export const READ_CMD = `curl -H "Authorization: Bearer $SECONDLAYER_API_KEY" \\
+  "${HOSTED_API}/v1/index/pox5/events?topic=stake&limit=3"`;

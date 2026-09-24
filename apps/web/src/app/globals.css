@@ -10930,6 +10930,15 @@ input[type="range"].fig-range {
 .home-qs .home-sub {
 	margin-top: 16px;
 }
+.home-qs .home-sub a {
+	color: var(--text-main);
+	text-decoration: underline;
+	text-decoration-color: var(--border-hover);
+	text-underline-offset: 3px;
+}
+.home-qs .home-sub a:hover {
+	text-decoration-color: currentColor;
+}
 .home-qs .home-sub code,
 .home-qs-blurb code {
 	font-family: var(--font-mono-stack);
