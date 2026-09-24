@@ -22,8 +22,6 @@ Compose project lives at `/opt/secondlayer/docker` on app-server.
 | `secondlayer-caddy-1` | Load balancer + TLS in front of the api replicas. |
 | `secondlayer-indexer-1` | Chain ingestion (event-observer receiver) + Streams bulk/R2 exports. |
 | `secondlayer-decoder-1` | Decodes raw events → `decoded_events` (the Index plane). Backfills via `packages/indexer/src/decode/BACKFILL.md`. |
-| `secondlayer-subgraph-processor-1` | Subgraph indexing: catch-up follower + operations runner (deploy/reindex/backfill ops). Sparse reindex + boot-time stranded-reindex sweep live here. |
-| `secondlayer-webhook-processor-1/-2` | Webhook delivery plane: leader-elected trigger evaluator + competing-consumer emitters. Replica 2 = failover + throughput. |
 | `secondlayer-worker-1` | Crons: credits refill, spend-cap alerts. |
 | `secondlayer-redis-1` | Rate limits. |
 | `secondlayer-walg-backup-1` | WAL-G postgres backups (chain DB WAL archiving → `/opt/secondlayer/data/wal_archive`). |
@@ -56,10 +54,8 @@ Compose project lives at `/opt/secondlayer/docker` on app-server.
    min/max ranges.
 6. Per-service `environment:` blocks only pass listed vars — adding a key to
    `.env` does nothing until the compose file forwards it.
-7. Subgraph op queue: `SUBGRAPH_OPERATION_CONCURRENCY` (8) total slots;
-   `SUBGRAPH_HEAVY_OP_BUDGET` (2) caps concurrently-running broad/non-sparse
-   syncs so whale genesis jobs can't hold every slot. Both on the
-   subgraph-processor in the hetzner overlay.
+7. No subgraph or webhook processors run in prod. Hosted subgraphs and
+   webhooks are not offered; they run on self-host (`docker/oss/`) only.
 
 ## Quick checks
 

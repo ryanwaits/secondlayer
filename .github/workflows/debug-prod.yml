@@ -12,7 +12,6 @@ on:
         required: true
         type: choice
         options:
-          - subgraph-processor
           - caddy
           - reload-caddy
           - restart-caddy
@@ -26,12 +25,11 @@ on:
           - stop-tenant-postgres
           - all-containers
           - service-heartbeats
-          - subgraphs-state
           - schema
           - env-snapshot
           - sbtc-first-block
           - full
-        default: subgraph-processor
+        default: all-containers
 
 jobs:
   ssh-debug:

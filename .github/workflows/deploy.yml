@@ -116,17 +116,11 @@ jobs:
           - indexer
           - worker
           - decoder
-          - subgraph-processor
-          - webhook-processor
         # Thin targets (FROM api / FROM indexer) reuse the base image's build
         # cache scope so they don't rebuild the whole chain.
         include:
           - service: decoder
             base: indexer
-          - service: subgraph-processor
-            base: api
-          - service: webhook-processor
-            base: api
     steps:
       - uses: actions/checkout@v5
       - name: Compute API source digest
