@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import type { Subgraph } from "@secondlayer/shared/db";
 import { SubgraphRegistryCache } from "./cache.ts";
 
@@ -31,54 +31,14 @@ function sg(overrides: Partial<Subgraph>): Subgraph {
 	} as Subgraph;
 }
 
-describe("SubgraphRegistryCache visibility resolution (platform mode)", () => {
-	let prevMode: string | undefined;
-
-	beforeEach(() => {
-		prevMode = process.env.INSTANCE_MODE;
-		process.env.INSTANCE_MODE = "platform";
-	});
-
-	afterEach(() => {
-		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
-		else process.env.INSTANCE_MODE = prevMode;
-	});
-
-	async function load(subgraphs: Subgraph[]): Promise<SubgraphRegistryCache> {
-		const cache = new SubgraphRegistryCache(async () => subgraphs);
-		await cache.refresh();
-		return cache;
-	}
-
-	it("owner resolution still works for private subgraphs", async () => {
-		const cache = await load([
-			sg({ name: "closed", account_id: "acct-a", visibility: "private" }),
-		]);
-		expect(cache.get("closed", "acct-a")?.name).toBe("closed");
-		expect(cache.get("closed", "acct-b")).toBeUndefined();
-	});
-});
-
-describe("SubgraphRegistryCache local namespace (oss)", () => {
-	let prevMode: string | undefined;
-
-	beforeEach(() => {
-		prevMode = process.env.INSTANCE_MODE;
-		process.env.INSTANCE_MODE = "oss";
-	});
-
-	afterEach(() => {
-		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
-		else process.env.INSTANCE_MODE = prevMode;
-	});
-
-	it("get and getAll key by name, including private rows", async () => {
+describe("SubgraphRegistryCache", () => {
+	it("keys get and getAll by name", async () => {
 		const cache = new SubgraphRegistryCache(async () => [
-			sg({ name: "closed", account_id: "acct-a", visibility: "private" }),
+			sg({ name: "closed", account_id: "acct-a" }),
 		]);
 		await cache.refresh();
 		expect(cache.get("closed")?.name).toBe("closed");
-		expect(cache.get("closed", "acct-b")?.name).toBe("closed");
+		expect(cache.get("missing")).toBeUndefined();
 		expect(cache.getAll().map((s) => s.name)).toEqual(["closed"]);
 	});
 });

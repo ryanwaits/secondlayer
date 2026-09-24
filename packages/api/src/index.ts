@@ -65,13 +65,17 @@ logger.info("Starting API service", {
 	mode,
 });
 
-// Start subgraph registry cache (LISTEN for subgraph_changes) — runs in all
-// modes post shared-rip; subgraphs live on the platform DB too.
-startSubgraphCache().catch((err) => {
-	logger.warn("Failed to start subgraph cache, subgraphs will load on-demand", {
-		error: String(err),
+// Subgraph routes mount on self-host only; hosted runs no subgraphs.
+if (mode !== "platform") {
+	startSubgraphCache().catch((err) => {
+		logger.warn(
+			"Failed to start subgraph cache, subgraphs will load on-demand",
+			{
+				error: String(err),
+			},
+		);
 	});
-});
+}
 
 assertDbSplit();
 const server = Bun.serve({

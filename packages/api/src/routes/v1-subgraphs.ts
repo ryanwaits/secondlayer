@@ -11,7 +11,6 @@ import {
 	missingCredentialError,
 } from "../auth/read-plane.ts";
 import { instanceTokenMatches } from "../instance-bind.ts";
-import { resolveReadableSubgraph } from "../subgraphs/namespace.ts";
 import {
 	SubgraphNotFoundError,
 	handleRowById,
@@ -160,7 +159,7 @@ app.use("*", async (c, next) => {
 // ── Resolution ──────────────────────────────────────────────────────────
 
 function requireReadableSubgraph(name: string): Subgraph {
-	const subgraph = resolveReadableSubgraph(cache, name);
+	const subgraph = cache.get(name);
 	if (!subgraph) throw new SubgraphNotFoundError(name);
 	return subgraph;
 }

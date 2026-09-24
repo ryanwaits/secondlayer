@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
@@ -11,23 +11,17 @@ import subgraphsRouter, {
 
 /**
  * Deploys are open on every instance — authorization never consults a plan,
- * trial, or quota. A bare platform-mode account (accounts carry no plan
- * column at all) deploys from genesis and backfills history without hitting
+ * trial, or quota. A deploy from genesis backfills history without hitting
  * any commerce gate. The only metered surface is archive-data access, which
  * lives elsewhere.
  */
 
 const SKIP = !process.env.DATABASE_URL;
 const NAME = "open-deploy-demo";
-const ACCOUNT = crypto.randomUUID();
 
-function appAs(accountId: string) {
-	const app = new Hono<{ Variables: { accountId: string } }>();
+function createApp() {
+	const app = new Hono();
 	app.onError(errorHandler);
-	app.use("/subgraphs/*", async (c, next) => {
-		c.set("accountId", accountId);
-		await next();
-	});
 	app.route("/subgraphs", subgraphsRouter);
 	return app;
 }
@@ -62,23 +56,10 @@ function deployBody(name: string, startBlock?: number) {
 	};
 }
 
-describe.skipIf(SKIP)("open deploy (platform, no plan gates)", () => {
-	let prevMode: string | undefined;
-	const app = appAs(ACCOUNT);
-
-	beforeAll(async () => {
-		prevMode = process.env.INSTANCE_MODE;
-		process.env.INSTANCE_MODE = "platform";
-		await getDb()
-			.insertInto("accounts")
-			.values({ id: ACCOUNT, email: `${ACCOUNT}@test.local` })
-			.onConflict((oc) => oc.column("id").doNothing())
-			.execute();
-	});
+describe.skipIf(SKIP)("open deploy (no plan gates)", () => {
+	const app = createApp();
 
 	afterAll(async () => {
-		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
-		else process.env.INSTANCE_MODE = prevMode;
 		pruneSubgraphHandlerFiles(
 			join(process.env.DATA_DIR ?? "./data", "subgraphs"),
 			NAME,
@@ -99,7 +80,6 @@ describe.skipIf(SKIP)("open deploy (platform, no plan gates)", () => {
 				db,
 			);
 		}
-		await db.deleteFrom("accounts").where("id", "=", ACCOUNT).execute();
 		await cache.refresh();
 	});
 

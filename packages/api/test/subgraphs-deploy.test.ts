@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { extractSubgraphDefinition } from "@secondlayer/bundler";
 import { getDb } from "@secondlayer/shared/db";
-import { pgSchemaNameFor } from "@secondlayer/shared/db/queries/subgraphs";
+import { pgSchemaName } from "@secondlayer/shared/db/queries/subgraphs";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
 import { sql } from "kysely";
@@ -233,7 +233,7 @@ describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
 			.where("name", "=", LIVE_SUBGRAPH)
 			.execute();
 		await sql`DROP SCHEMA IF EXISTS ${sql.id(
-			pgSchemaNameFor("", LIVE_SUBGRAPH),
+			pgSchemaName(LIVE_SUBGRAPH),
 		)} CASCADE`.execute(db);
 	});
 

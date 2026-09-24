@@ -1,13 +1,10 @@
 import { logger } from "@secondlayer/shared";
 import type { Subgraph } from "@secondlayer/shared/db";
-import { isPlatformMode } from "@secondlayer/shared/mode";
 import postgres from "postgres";
 
 /**
  * In-memory cache of subgraph registry, invalidated via PG NOTIFY.
- *
- * Account-aware in platform mode — subgraphs keyed by (account_id, name).
- * In oss/dedicated modes, keyed by name alone (single-tenant context).
+ * Keyed by name: names are unique per instance.
  *
  * The `subgraph_changes` NOTIFY is fired when the `subgraphs` table changes
  * (see migrations — trigger attached to the subgraphs table on target DB).
@@ -22,16 +19,6 @@ export class SubgraphRegistryCache {
 	private static readonly DEBOUNCE_MS = 500;
 
 	constructor(private loadAll: () => Promise<Subgraph[]>) {}
-
-	/**
-	 * Composite cache key. Platform mode includes accountId to disambiguate
-	 * cross-tenant name collisions; oss/dedicated skip the prefix since there
-	 * is only one tenant.
-	 */
-	private cacheKey(name: string, accountId?: string | null): string {
-		if (!isPlatformMode()) return name;
-		return `${accountId ?? ""}:${name}`;
-	}
 
 	async start(): Promise<void> {
 		await this.refresh();
@@ -66,7 +53,7 @@ export class SubgraphRegistryCache {
 		const allSubgraphs = await this.loadAll();
 		this.subgraphs.clear();
 		for (const v of allSubgraphs) {
-			this.subgraphs.set(this.cacheKey(v.name, v.account_id), v);
+			this.subgraphs.set(v.name, v);
 		}
 		this.loaded = true;
 		logger.info("Subgraph registry cache loaded", {
@@ -74,30 +61,12 @@ export class SubgraphRegistryCache {
 		});
 	}
 
-	/** Get a subgraph by name, optionally scoped to an account */
-	get(name: string, accountId?: string): Subgraph | undefined {
-		// oss/dedicated mode — name alone is unique.
-		if (!isPlatformMode()) return this.subgraphs.get(name);
-
-		if (accountId) {
-			return (
-				this.subgraphs.get(this.cacheKey(name, accountId)) ??
-				this.subgraphs.get(this.cacheKey(name))
-			);
-		}
-		// No accountId (DEV_MODE) — find first subgraph with this name
-		for (const v of this.subgraphs.values()) {
-			if (v.name === name) return v;
-		}
-		return undefined;
+	get(name: string): Subgraph | undefined {
+		return this.subgraphs.get(name);
 	}
 
-	/** Get all subgraphs, optionally filtered by account */
-	getAll(accountId?: string): Subgraph[] {
-		const all = Array.from(this.subgraphs.values());
-		if (!isPlatformMode()) return all;
-		if (!accountId) return all;
-		return all.filter((v) => !v.account_id || v.account_id === accountId);
+	getAll(): Subgraph[] {
+		return Array.from(this.subgraphs.values());
 	}
 
 	get isLoaded(): boolean {

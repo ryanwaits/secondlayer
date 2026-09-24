@@ -21,26 +21,6 @@ export async function getAccountKeyIds(
 	return keys.map((k) => k.id);
 }
 
-/**
- * Assert the authenticated session has visibility into the given subgraph.
- * Post-cutover, subgraph routes only mount in dedicated/oss mode — each tenant
- * DB is its own isolated namespace, so ownership is a no-op (the caller already
- * proved tenant membership via JWT or static key at middleware time). Returns
- * the row if it exists, `null` if not.
- */
-export async function assertSubgraphOwnership(
-	db: Kysely<Database>,
-	subgraphName: string,
-	_accountId: string | undefined,
-) {
-	const subgraph = await db
-		.selectFrom("subgraphs")
-		.selectAll()
-		.where("name", "=", subgraphName)
-		.executeTakeFirst();
-	return subgraph ?? null;
-}
-
 /** Extract api_key_id from Hono context, or undefined in DEV_MODE */
 export function getApiKeyId(c: Context): string | undefined {
 	const apiKey = c.get("apiKey") as { id: string } | undefined;

@@ -27,6 +27,7 @@ import {
 import {
 	getSubgraph,
 	listSubgraphs,
+	pgSchemaName,
 	updateSubgraphStatus,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
@@ -42,11 +43,10 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { sql } from "kysely";
 import { getPrintSchemaBody } from "../index/print-schema.ts";
-import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
+import { getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
 import { hasNonReplayableWrites } from "../subgraphs/handler-replay-safety.ts";
-import { deployAccountId, deploySchemaName } from "../subgraphs/namespace.ts";
 import { classifyOperationWeight } from "../subgraphs/operation-weight.ts";
 import { lintPrintFields } from "../subgraphs/print-lint.ts";
 import {
@@ -281,12 +281,8 @@ function parseProbeTargets(
 	return Array.isArray(parsed) ? parsed : null;
 }
 
-/** Look up a subgraph from cache with account-level ownership check */
-function getOwnedSubgraph(
-	subgraphName: string,
-	accountId: string | undefined,
-): Subgraph {
-	const subgraph = cache.get(subgraphName, accountId);
+function requireSubgraph(subgraphName: string): Subgraph {
+	const subgraph = cache.get(subgraphName);
 	if (!subgraph) {
 		throw new SubgraphNotFoundError(subgraphName);
 	}
@@ -359,14 +355,8 @@ export function hasDeployStartBlockChanged(input: {
 
 app.post("/", (c) => runSubgraphDeploy(c));
 
-/**
- * Deploy handler for the authed `/api/subgraphs` POST. `identity` overrides the
- * request-resolved account.
- */
-export async function runSubgraphDeploy(
-	c: Context,
-	identity?: { accountId: string },
-): Promise<Response> {
+/** Deploy handler for the authed `/api/subgraphs` POST. */
+async function runSubgraphDeploy(c: Context): Promise<Response> {
 	const body = await c.req.json().catch(() => {
 		throw new InvalidJSONError();
 	});
@@ -376,13 +366,12 @@ export async function runSubgraphDeploy(
 		return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
 	}
 
-	return executeSubgraphDeploy(c, parsed.data, identity);
+	return executeSubgraphDeploy(c, parsed.data);
 }
 
 async function executeSubgraphDeploy(
 	c: Context,
 	data: DeploySubgraphRequest,
-	identity?: { accountId: string },
 ): Promise<Response> {
 	const { name, handlerCode } = data;
 	const chainTip = await getChainTip();
@@ -510,9 +499,8 @@ async function executeSubgraphDeploy(
 		);
 	}
 
-	const apiKeyId = identity ? undefined : getApiKeyId(c);
-	const accountId = deployAccountId(identity?.accountId ?? getAccountId(c));
-	const planSchemaName = deploySchemaName(name, accountId);
+	const apiKeyId = getApiKeyId(c);
+	const planSchemaName = pgSchemaName(name);
 
 	const { deploySchema, renderDeployPlan } = await import(
 		"@secondlayer/subgraphs"
@@ -532,8 +520,8 @@ async function executeSubgraphDeploy(
 		});
 	}
 
-	const existing = await getSubgraph(db, name, accountId);
-	const schemaName = deploySchemaName(name, accountId, existing?.schema_name);
+	const existing = await getSubgraph(db, name);
+	const schemaName = existing?.schema_name ?? pgSchemaName(name);
 
 	const deployStartBlock = resolveDeployStartBlock(def);
 	if (chainTip > 0 && deployStartBlock > chainTip) {
@@ -594,7 +582,6 @@ async function executeSubgraphDeploy(
 	}
 	const result = await deploySchema(db, def, handlerPath, {
 		apiKeyId,
-		accountId,
 		schemaName,
 		version: data.version,
 		handlerCode: data.handlerCode,
@@ -645,7 +632,6 @@ async function executeSubgraphDeploy(
 			const op = await createSubgraphOperation(db, {
 				subgraphId: result.subgraphId,
 				subgraphName: name,
-				accountId,
 				kind: "backfill",
 				fromBlock: deployStartBlock ?? 1,
 				toBlock: tipFirstAnchor,
@@ -681,7 +667,6 @@ async function executeSubgraphDeploy(
 			const operation = await createSubgraphOperation(db, {
 				subgraphId: result.subgraphId,
 				subgraphName: name,
-				accountId,
 				kind: "reindex",
 				fromBlock: deployStartBlock,
 				toBlock: chainTip > 0 ? chainTip : undefined,
@@ -751,13 +736,6 @@ function readSubgraphOrigin(c: {
 }
 
 app.post("/bundle", async (c) => {
-	const apiKeyId = getApiKeyId(c);
-	const accountId = getAccountId(c);
-	// Platform mode requires an identity to attribute the bundle to.
-	// oss/dedicated modes are single-tenant; no attribution needed.
-	if (isPlatformMode() && !apiKeyId && !accountId) {
-		return c.json({ error: "Unauthorized" }, 401);
-	}
 	const origin = readSubgraphOrigin(c);
 
 	let body: { code?: unknown };
@@ -837,8 +815,7 @@ app.post("/:subgraphName/reindex", async (c) => {
 		);
 	}
 
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const subgraph = requireSubgraph(subgraphName);
 	const db = getDb();
 	const chainTip = await getChainTip();
 
@@ -851,7 +828,6 @@ app.post("/:subgraphName/reindex", async (c) => {
 		const operation = await createSubgraphOperation(db, {
 			subgraphId: subgraph.id,
 			subgraphName,
-			accountId,
 			kind: "reindex",
 			weight: reindexWeight.weight,
 			estimatedEvents: reindexWeight.estimatedEvents,
@@ -883,8 +859,7 @@ app.post("/:subgraphName/reindex", async (c) => {
 
 app.post("/:subgraphName/stop", async (c) => {
 	const { subgraphName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const subgraph = requireSubgraph(subgraphName);
 
 	const db = getDb();
 	const operation = await requestSubgraphOperationCancel(db, subgraph.id);
@@ -909,8 +884,7 @@ app.post("/:subgraphName/stop", async (c) => {
 
 app.post("/:subgraphName/backfill", async (c) => {
 	const { subgraphName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const subgraph = requireSubgraph(subgraphName);
 
 	const body = await c.req.json().catch(() => ({}));
 	const fromBlock =
@@ -950,7 +924,6 @@ app.post("/:subgraphName/backfill", async (c) => {
 		const operation = await createSubgraphOperation(db, {
 			subgraphId: subgraph.id,
 			subgraphName,
-			accountId,
 			kind: "backfill",
 			fromBlock,
 			toBlock,
@@ -983,8 +956,7 @@ app.post("/:subgraphName/backfill", async (c) => {
 
 app.delete("/:subgraphName", async (c) => {
 	const { subgraphName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const subgraph = requireSubgraph(subgraphName);
 	const force = c.req.query("force") === "true";
 
 	const db = getDb();
@@ -1022,7 +994,7 @@ app.delete("/:subgraphName", async (c) => {
 	const { deleteSubgraph } = await import(
 		"@secondlayer/shared/db/queries/subgraphs"
 	);
-	await deleteSubgraph(db, subgraphName, accountId);
+	await deleteSubgraph(db, subgraphName);
 
 	// Clean up handler file if it exists
 	if (subgraph.handler_path) {
@@ -1040,8 +1012,7 @@ app.delete("/:subgraphName", async (c) => {
 // ── List all subgraphs ──────────────────────────────────────────────────
 
 app.get("/", async (c) => {
-	const accountId = getAccountId(c);
-	const allSubgraphs = cache.getAll(accountId);
+	const allSubgraphs = cache.getAll();
 
 	// Fetch live stats, chain tip, and gap summaries in parallel
 	const db = getDb();
@@ -1070,7 +1041,6 @@ app.get("/", async (c) => {
 			.selectFrom("webhooks")
 			.select("subgraph_name")
 			.select((eb) => eb.fn.count<number>("id").as("count"))
-			.where("account_id", "=", accountId ?? "")
 			.where("subgraph_name", "is not", null)
 			.groupBy("subgraph_name")
 			.execute()
@@ -1207,9 +1177,8 @@ export async function resolveActiveOpInfo(
 
 async function buildSubgraphDetailPayload(
 	subgraphName: string,
-	accountId: string | undefined,
 ): Promise<SubgraphDetail> {
-	return buildSubgraphDetailFromRow(getOwnedSubgraph(subgraphName, accountId));
+	return buildSubgraphDetailFromRow(requireSubgraph(subgraphName));
 }
 
 // Shared with /v1/subgraphs doc routes, which resolve by visibility instead
@@ -1373,10 +1342,7 @@ export function readSpecOptions(c: {
 
 app.get("/:subgraphName/openapi.json", async (c) => {
 	const { subgraphName } = c.req.param();
-	const detail = await buildSubgraphDetailPayload(
-		subgraphName,
-		getAccountId(c),
-	);
+	const detail = await buildSubgraphDetailPayload(subgraphName);
 	const { generateSubgraphOpenApi } = await import(
 		"@secondlayer/shared/subgraphs/spec"
 	);
@@ -1385,10 +1351,7 @@ app.get("/:subgraphName/openapi.json", async (c) => {
 
 app.get("/:subgraphName/schema.json", async (c) => {
 	const { subgraphName } = c.req.param();
-	const detail = await buildSubgraphDetailPayload(
-		subgraphName,
-		getAccountId(c),
-	);
+	const detail = await buildSubgraphDetailPayload(subgraphName);
 	const { generateSubgraphAgentSchema } = await import(
 		"@secondlayer/shared/subgraphs/spec"
 	);
@@ -1397,10 +1360,7 @@ app.get("/:subgraphName/schema.json", async (c) => {
 
 app.get("/:subgraphName/docs.md", async (c) => {
 	const { subgraphName } = c.req.param();
-	const detail = await buildSubgraphDetailPayload(
-		subgraphName,
-		getAccountId(c),
-	);
+	const detail = await buildSubgraphDetailPayload(subgraphName);
 	const { generateSubgraphMarkdown } = await import(
 		"@secondlayer/shared/subgraphs/spec"
 	);
@@ -1412,8 +1372,7 @@ app.get("/:subgraphName/docs.md", async (c) => {
 
 app.get("/:subgraphName", async (c) => {
 	const { subgraphName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const subgraph = requireSubgraph(subgraphName);
 
 	const subgraphSchema = getSubgraphSchema(subgraph);
 	// biome-ignore lint/suspicious/noExplicitAny: dynamic schema shape
@@ -1579,8 +1538,7 @@ app.get("/:subgraphName", async (c) => {
 
 app.get("/:subgraphName/source", async (c) => {
 	const { subgraphName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const subgraph = requireSubgraph(subgraphName);
 
 	const db = getDb();
 	const row = await db
@@ -1613,8 +1571,7 @@ app.get("/:subgraphName/source", async (c) => {
 
 app.get("/:subgraphName/gaps", async (c) => {
 	const { subgraphName } = c.req.param();
-	const accountId = getAccountId(c);
-	getOwnedSubgraph(subgraphName, accountId);
+	requireSubgraph(subgraphName);
 
 	const db = getDb();
 	const params = c.req.query();
@@ -1660,8 +1617,7 @@ app.get("/:subgraphName/gaps", async (c) => {
 
 app.get("/:subgraphName/violations", async (c) => {
 	const { subgraphName } = c.req.param();
-	const accountId = getAccountId(c);
-	getOwnedSubgraph(subgraphName, accountId);
+	requireSubgraph(subgraphName);
 
 	const db = getDb();
 	const limit = Math.min(
@@ -1791,8 +1747,7 @@ function toOperationResponse(
 
 app.get("/:subgraphName/operations", async (c) => {
 	const { subgraphName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const subgraph = requireSubgraph(subgraphName);
 	const db = getDb();
 	const [ops, chainTip] = await Promise.all([
 		listSubgraphOperations(db, subgraph.id),
@@ -1813,8 +1768,7 @@ app.get("/:subgraphName/operations", async (c) => {
 
 app.get("/:subgraphName/operations/:operationId", async (c) => {
 	const { subgraphName, operationId } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const subgraph = requireSubgraph(subgraphName);
 	const db = getDb();
 	const op = await getSubgraphOperation(db, operationId);
 	// Scope to the named subgraph so one account can't read another's op by id.
@@ -1837,7 +1791,7 @@ app.get("/:subgraphName/operations/:operationId", async (c) => {
 
 app.get("/:subgraphName/:tableName/count", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const subgraph = getOwnedSubgraph(subgraphName, getAccountId(c));
+	const subgraph = requireSubgraph(subgraphName);
 	return handleTableCount(c, subgraph, tableName);
 });
 
@@ -1849,7 +1803,7 @@ app.get("/:subgraphName/:tableName/count", async (c) => {
 // `/:id` so the static `aggregate` segment wins over the row-id param.
 app.get("/:subgraphName/:tableName/aggregate", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const subgraph = getOwnedSubgraph(subgraphName, getAccountId(c));
+	const subgraph = requireSubgraph(subgraphName);
 	return handleTableAggregate(c, subgraph, tableName);
 });
 
@@ -1864,14 +1818,14 @@ app.get("/:subgraphName/:tableName/aggregate", async (c) => {
 // row-id param (`return;` does not fall through in Hono).
 app.get("/:subgraphName/:tableName/stream", (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const subgraph = getOwnedSubgraph(subgraphName, getAccountId(c));
+	const subgraph = requireSubgraph(subgraphName);
 	return handleTableStream(c, subgraph, tableName);
 });
 
 app.get("/:subgraphName/:tableName/:id", async (c) => {
 	const { subgraphName, tableName, id } = c.req.param();
 	if (id === "count" || id === "stream" || id === "aggregate") return;
-	const subgraph = getOwnedSubgraph(subgraphName, getAccountId(c));
+	const subgraph = requireSubgraph(subgraphName);
 	return handleRowById(c, subgraph, tableName, id);
 });
 
@@ -1886,8 +1840,7 @@ const COUNT_MODES = new Set(["exact", "estimate", "none"]);
 
 app.get("/:subgraphName/:tableName", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const subgraph = requireSubgraph(subgraphName);
 
 	const subgraphSchema = getSubgraphSchema(subgraph);
 	const tableDef = subgraphSchema[tableName];
