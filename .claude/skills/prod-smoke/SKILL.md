@@ -1,6 +1,6 @@
 ---
 name: prod-smoke
-description: Run a production smoke sweep against secondlayer prod — container health, husk canaries, decoder lags, op queue budgets, public subgraph reads, balance conservation, known-bug regression probes. Use when the user runs "/prod-smoke", asks to "smoke test prod", "check prod health", "is everything running smoothly", or "verify the subgraphs".
+description: Run a production smoke sweep against secondlayer prod — container health, husk canaries, decoder lags, public API surfaces, supply conservation, known-bug regression probes. Use when the user runs "/prod-smoke", asks to "smoke test prod", "check prod health", or "is everything running smoothly".
 ---
 
 # Prod Smoke — secondlayer production sweep
@@ -24,7 +24,9 @@ docker ps -a --format '{{.Names}} {{.Status}}'
 ```
 Expected inventory (see PRODUCTION.md): exactly **2 api replicas** (`secondlayer-api-<N>`,
 N increments per deploy — the suffix value is meaningless), all others singletons,
-`migrate` as `Exited (0)`. Anything else exited/restarting = flag.
+`migrate` as `Exited (0)`. Anything else exited/restarting = flag. Hosted subgraphs and
+webhooks are not offered: a `subgraph-processor` or `webhook-processor` container running
+= flag (stopped leftovers from before 2026-09-23 are cleanup, not a finding).
 
 ```bash
 # Husk canaries — count(*), NEVER min/max (a husk shows plausible ranges).
@@ -75,14 +77,10 @@ because it settles on demand rather than tailing — `status: healthy` with a re
 `last_decoded_at` is the only signal it has. Neither is a finding.
 
 ```bash
-# Op queue + scheduler invariants
+# Hosted subgraphs are not offered: no rows expected. Nonzero = flag.
 docker exec secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_platform -tAc \
-  "SELECT subgraph_name||'|'||kind||'|'||status||'|'||weight||'|'||COALESCE(cursor_block::text,'-') FROM subgraph_operations WHERE status IN ('queued','running') ORDER BY created_at"
+  "SELECT (SELECT count(*) FROM subgraphs), (SELECT count(*) FROM webhooks)"
 ```
-Invariants: running `heavy` ops ≤ **SUBGRAPH_HEAVY_OP_BUDGET (2)** — 3+ = scheduler bug.
-A `running` op whose cursor (subgraph `last_processed_block` for reindex, op `cursor_block`
-for backfill) is frozen across two checks ~15m apart = stuck → check processor logs for
-`halted at block` / `cursor race lost` floods (zombie runner — see PRODUCTION.md runbook).
 
 ## Phase 3 — public API surfaces (no SSH; hosted `/v1` is keyed)
 
@@ -94,39 +92,17 @@ curl -s -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   'https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer&limit=1'   # events[0].block_height near tip
 curl -s -o /dev/null -w '%{http_code}' https://www.secondlayer.tools/llms.txt            # 200
 
-# Leftover hosted subgraphs are not a product. Directory is 401 without a key.
-# If SECONDLAYER_API_KEY is set, the loop below still works; otherwise skip it.
-# Table reads need underscore-prefixed control params (`?_limit=1`); a bare
-# `?limit=1` is 400 VALIDATION_ERROR. (/v1/index/events takes a bare `limit`.)
-curl -s -H "Authorization: Bearer $SECONDLAYER_API_KEY" https://api.secondlayer.tools/v1/subgraphs | python3 -c "
-import sys, json, urllib.request
-for sg in json.load(sys.stdin).get('subgraphs', []):
-    name = sg['name']
-    d = json.load(urllib.request.urlopen(f'https://api.secondlayer.tools/v1/subgraphs/{name}'))
-    behind = d.get('tip', {}).get('blocks_behind', '?')
-    out = []
-    for tb in list((d.get('tables') or {}).keys()):
-        try:
-            t = json.load(urllib.request.urlopen(f'https://api.secondlayer.tools/v1/subgraphs/{name}/{tb}?_limit=1'))
-            out.append(f'{tb}=' + ('rows' if any(isinstance(v, list) and v for v in t.values()) else 'EMPTY'))
-        except Exception as e:
-            out.append(f'{tb}=FAIL {e}')
-    print(f\"{name}: status={d.get('status')} behind={behind} | \" + ' '.join(out))"
+# Hosted subgraphs and play are gone: both must 404 (not 401).
+curl -s -o /dev/null -w '%{http_code}' https://api.secondlayer.tools/v1/subgraphs          # 404
+curl -s -o /dev/null -w '%{http_code}' -X POST https://api.secondlayer.tools/v1/play       # 404
 ```
-Expected public set as of 2026-08 (5): `asset-holdings`, `sbtc-flows`, `contract-deployments`,
-`pox-stacking`, `bns-names`. The balance seeds (`sbtc-balances`, `usdcx-balances`,
-`alex-balances`, `sip10-balances`) were **deliberately removed** — their absence is NOT a
-finding; `scripts/seed-balances/*` still ships them if they are ever redeployed.
-One of the 5 above missing from the public list = flag (unpublished pending verification
-is a known state — check the op queue before calling it a bug).
 
 ## Phase 4 — balance conservation (the gate that has caught four real bugs)
 
-**Currently INAPPLICABLE — no balance subgraphs are deployed** (removed deliberately in
-2026-08; verify with `SELECT schemaname FROM pg_tables WHERE tablename='balances'` on the
-platform DB — empty means skip, and say "N/A, none deployed" in the scorecard rather than
-✓ or ✗). Phase 4b is the load-bearing conservation gate while that holds. Everything below
-applies unchanged the moment a balance subgraph is redeployed from `scripts/seed-balances/`.
+**INAPPLICABLE on prod — hosted subgraphs are not offered** (no balance subgraphs since
+2026-08; hosted subgraphs removed 2026-09-23). Say "N/A, hosted subgraphs not offered" in
+the scorecard rather than ✓ or ✗. Phase 4b is the load-bearing conservation gate. The
+check below still applies to a self-hosted instance running `scripts/seed-balances/`.
 
 For each balance subgraph that is public AND synced (skip mid-reindex):
 `sum(balances) == mints − burns` **EXACTLY**, plus holder-count sanity bands.
@@ -227,8 +203,8 @@ WHERE d.contract_id='<cid>' AND d.canonical AND d.event_type='ft_burn'
 
 ```bash
 # 1. Accumulator guard holds (422, NOT a queued op — needs SL_API_KEY w/ owner rights):
-#    N/A while no balance subgraph is deployed (see Phase 4) — the target 404s, which is
-#    NOT evidence the guard regressed. Skip unless one has been redeployed AND a key exists.
+#    N/A on prod: hosted subgraphs are not offered and /api/subgraphs 404s there. Run it
+#    against a self-hosted instance with a balance subgraph instead.
 curl -s -X POST -H "Authorization: Bearer $SL_API_KEY" -H 'Content-Type: application/json' \
   -d '{"fromBlock":100,"toBlock":200}' https://api.secondlayer.tools/api/subgraphs/sbtc-balances/backfill
 # expect code BACKFILL_NON_REPLAYABLE_HANDLER. Skip if no key provided.
@@ -289,8 +265,8 @@ LEFT JOIN LATERAL (
 ## Prod Smoke — <date>
 
 Infra:        ✓/✗ (containers / canaries / connections / FATALs)
-Data planes:  ✓/✗ (decoder lags / queue budget / stuck ops)
-Public API:   ✓/✗ (N public subgraphs read; surfaces)
+Data planes:  ✓/✗ (decoder lags / zero hosted subgraphs+webhooks)
+Public API:   ✓/✗ (surfaces; /v1/subgraphs + /v1/play 404)
 Conservation: ✓/✗/N-A per token (Phase 4 N/A while no balance subgraphs; chain-truth decoded_net == raw_net at pinned H; exact deltas on ✗)
 Regressions:  ✓/✗/N-A (guard 422 / kill-block markers / watcher / reorg orphans=0)
 

@@ -8,13 +8,13 @@ Operating instructions for AI coding agents working in this repo. Read this and
 ## Repo orientation
 
 Secondlayer is a self-hosted Stacks data runtime. Three capabilities — **Index**
-(decoded chain data over REST), **Subgraphs** (your schema, self-host or hosted),
+(decoded chain data over REST), **Subgraphs** (your schema, self-host only),
 and **Streams** (raw signed firehose + dumps) — plus features (Webhooks,
 subgraph templates, Contract discovery, Verification) and channels (REST/OpenAPI,
 CLI, SDK, MCP). We publish a signed R2 archive and a hosted API at
-api.secondlayer.tools (Index, Streams, Subgraphs, webhook delivery). We
-meter bootstrap/backfill and hosted usage off the same prepaid credits.
-We do not host a public Explore catalog. `STRATEGY.md` wins
+api.secondlayer.tools (Index, Streams). We meter bootstrap/backfill and
+hosted reads off the same prepaid credits. We do not host subgraphs,
+webhook delivery, or a public Explore catalog. `STRATEGY.md` wins
 taxonomy, pricing, and what's frozen.
 
 ```

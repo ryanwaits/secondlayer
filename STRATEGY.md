@@ -9,9 +9,10 @@
 Secondlayer is a self-hosted data runtime for Bitcoin and its L2s, starting
 with Stacks: run it beside your node, bootstrap verified history, query
 decoded data, deploy TypeScript subgraphs. We operate a signed canonical
-archive on R2 and a hosted API at api.secondlayer.tools for Index, Streams,
-hosted Subgraphs, and hosted webhook delivery. Prepaid credits buy archive
-bootstrap/backfill and hosted usage. Same balance. Bitcoin Runes and
+archive on R2 and a hosted API at api.secondlayer.tools for Index and
+Streams. Subgraphs and webhooks run on self-host only; we do not host them.
+Prepaid credits buy archive bootstrap/backfill and hosted reads. Same
+balance. Bitcoin Runes and
 inscriptions are next, gated on demand (see **Bitcoin**).
 
 That sentence is for us. What we say to a reader is in **Voice** below.
@@ -118,8 +119,9 @@ the same primitive on contracts everyone shares, not a catalog. New protocols
 go in the operator's `consume()` loop or a subgraph.
 
 **Decoder tiers** (founder-resolved 2026-09-22). Generic decoding is always
-hosted. It powers hosted Index, Subgraphs (`SUBGRAPH_SOURCE=streams-index`)
-and webhook chain triggers, so it never retires. The test: if reading it
+hosted. It powers hosted Index, and Index-backed subgraphs
+(`SUBGRAPH_SOURCE=streams-index`) and webhook chain triggers on self-host,
+so it never retires. The test: if reading it
 needs only the base standard (one format for every instance, no app rules),
 it is Index. If it needs one app's or community's rules on top, it is a
 protocol decoder, and it earns its place with a tight L2 reason or a named
@@ -128,10 +130,10 @@ grow; pox-4 is off in hosted). Archive stays raw-only; decoded data is always
 re-derivable from it.
 
 **Subgraphs** — your schema. `defineSubgraph()` in one TypeScript file →
-deploy → Postgres tables behind the same `/v1` read API. Self-host on
-your instance, or provision on ours. Hosted subgraphs meter off the
-same prepaid balance as archive and reads. We do not host a public
-Explore catalog of other people's subgraphs.
+deploy → Postgres tables behind the same `/v1` read API. Self-host only.
+Hosted subgraphs are not offered: the accountless hosted path ran
+anonymous handler code beside prod credentials and was removed
+2026-09-23. We do not host a public Explore catalog either.
 
 **Streams** — the raw signed event firehose + parquet dumps. The inputs, not our
 decoding: cursor-paginated REST, SSE tail, signed manifests, replay from any
@@ -144,8 +146,9 @@ is still a *subscription* internally (product noun Webhooks, object
 subscription, the Stripe/Alchemy shape). Renamed from "Subscriptions"
 2026-09-12: that word collides with "not a monthly service" and every
 comparable product says Webhooks. Public rename with aliases:
-`plans/rename-webhooks.md`. We host the matcher and the sender on the prepaid
-meter; they host the receiver.
+`plans/rename-webhooks.md`. Self-host only: the operator's instance runs the
+matcher and the sender; they host the receiver. Hosted delivery is not
+offered.
 
 **Archive** — the signed canonical history Index and Streams bootstrap from.
 `secondlayer verify`, `repair`, `bootstrap`. Free against public manifests;
@@ -234,10 +237,8 @@ Roadmap, decision log, gates, hosting: `docs/internal/bitcoin-runtime.md`.
 `secondlayer subgraphs create` → deploy → curl your table on localhost → attach a
 webhook. Forward-only from your own node is free and skips bootstrap.
 
-Hosted: provision a subgraph and optional webhook on
-api.secondlayer.tools against a $10 play grant, no account. Claim is
-create an account plus the first top-up. Resources transfer. Same
-payload shapes as self-host.
+Hosted: Index and Streams reads on api.secondlayer.tools with an account
+key. Subgraphs and webhooks are not hosted; run them on your instance.
 
 ## Pricing
 
@@ -253,23 +254,16 @@ Contract and prices live in `docs/internal/economics-metered-model.md`
 | --- | --- |
 | Official-archive bootstrap (genesis or a large range) | Self-host runtime, compose, CLI |
 | Data-avail backfill / reindex that reads our archive | Forward-only indexing from the operator's node |
-| Hosted Index / Streams / subgraph table reads | Self-host `/v1` reads |
-| Hosted subgraph running ($3/mo prorated, paused = $0), storage ($0.50/GB-mo), indexing ($1/1M blocks) | `secondlayer verify` / `secondlayer repair` against public manifests |
-| Hosted webhook deliveries ($100/1M attempts, retries metered) | Their webhook receiver |
-| | Play-tier $10 grant (accountless, 30-day expiry) |
-
-Play is the product with a $10 balance. Claim is create an account plus
-the first top-up ($10 min pack). No usage gate beyond that.
+| Hosted Index / Streams reads | Self-host `/v1` reads |
+| | `secondlayer verify` / `secondlayer repair` against public manifests |
+| | Self-host subgraphs and webhooks |
 
 Display unit is dollars. Charge archive bytes at fetch time with a gated
-URL. Charge hosted reads after the page is served. Charge subgraph
-running daily, storage periodically, indexing as blocks process,
-deliveries per attempt. Hosted `/v1` without a key is 401 until the
-accountless play path ships.
+URL. Charge hosted reads after the page is served. Hosted `/v1` without a
+key is 401.
 
-We do not host a public Explore catalog. We do host subgraphs and
-webhook matching/sending on the metered balance. Do not
-reintroduce monthly-plan UX.
+We do not host subgraphs, webhook delivery, or a public Explore catalog.
+Do not reintroduce monthly-plan UX.
 
 ## x402 — deleted
 

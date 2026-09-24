@@ -22,9 +22,9 @@ Secondlayer is one account that sells chain data for Bitcoin and its L2s at two 
 
 **Index and Streams** are the metered primitives. Index is decoded rows (Stacks events today; Runes and inscriptions once shipped). Streams is the signed raw firehose and dumps. An operator can self-host the runtime beside a node, or consume the primitives from us. Either way, this is the atomic layer: enough to build your own subgraphs, your own webhooks, or anything else. We still charge for that usage. SDK and tooling exist so someone can compete with our opinionated products and remain a customer.
 
-**Subgraphs** is a product on that plane: one TypeScript file becomes a schema, tables, and a REST API. We fill it from Index/Streams. Hosted or on their instance.
+**Subgraphs** is a product on that plane: one TypeScript file becomes a schema, tables, and a REST API. We fill it from Index/Streams. Self-host only: it runs on their instance, and we do not host subgraphs.
 
-**Webhooks** is a product on that plane: they register a filter and a URL they run; we match, sign, retry, and POST to that URL. We host the matcher and the sender. They host the receiver. The registered row is a *subscription* internally; the product noun is Webhooks.
+**Webhooks** is a product on that plane: they register a filter and a URL they run; their instance matches, signs, retries, and POSTs to that URL. Self-host only: we do not host delivery. They host the receiver. The registered row is a *subscription* internally; the product noun is Webhooks.
 
 **Archive** is the history primitive under both: the signed canonical archive that Index and Streams bootstrap from. Verify, repair, bootstrap. The only line billed today.
 
@@ -45,8 +45,8 @@ The claim a neighbor cannot copy: the out-of-the-box products and the primitives
 ## Operating Context
 
 - OSS self-host path: `secondlayer setup` beside a node, archive bootstrap, subgraph deploy, subscription against their instance.
-- Hosted path (strategy change, founder-approved in this thread): register subgraphs and webhooks on our infra; they still run the receiver.
-- Meter: archive bootstrap/backfill today; usage of Index/Streams primitives, and of hosted Subgraphs/Webhooks, is the intended charge. SKUs are the meters in `docs/internal/economics-metered-model.md` (founder-resolved 2026-09-11).
+- Hosted path: archive plus keyed Index/Streams reads. Hosted subgraphs and webhooks are not offered (accountless play and hosted meters removed 2026-09-23).
+- Meter: archive bootstrap/backfill today; usage of Index/Streams primitives is the intended charge. SKUs are the meters in `docs/internal/economics-metered-model.md` (founder-resolved 2026-09-11).
 - Golden path for an app team: scaffold their contract → table they query → optional webhook to a URL they own.
 - Docs, CLI, SDK, MCP are channels, not products.
 - `@secondlayer/stacks` is a viem-style chain client in the same org. It is the one thing adopted without a runtime or account, so it is the one thing with its own home: `stacks.secondlayer.tools`. Wallet half frozen except nonce coordination.
@@ -60,7 +60,7 @@ Confirmed:
 - Same payload shapes on hosted and self-host so a team can fork later.
 - OSS loopback `/v1` reads are keyless; hosted `/v1` is keyed (`Authorization: Bearer`, account key `sk-sl_*`). Keys gate hosted reads and all writes.
 - Voice: calm infrastructure. No exclamation points, no emoji, no hype, no competitor naming in public copy.
-- Hosted decoded reads stay. Generic decoders power hosted Index, Subgraphs and webhook triggers. Protocol decoders (sBTC, pox-5 today) earn their place; on Bitcoin, BRC-20, sats names, Alkanes and similar are noted and deferred until a customer asks.
+- Hosted decoded reads stay. Generic decoders power hosted Index, and self-hosted Subgraphs and webhook triggers. Protocol decoders (sBTC, pox-5 today) earn their place; on Bitcoin, BRC-20, sats names, Alkanes and similar are noted and deferred until a customer asks.
 - Bitcoin scope excludes L1 address/UTXO indexing and inscription content serving. `ord` is the parity reference for Runes and inscriptions.
 - Team is 1–2 people. Two Hetzner boxes today (node-server with stacks-node and bitcoind, app-server). Every product noun is a door and a parity tax; the family is five nouns, not a junk drawer.
 - We do not host a public Explore catalog of other people's subgraphs unless a later grant explicitly funds a protocol catalog (sBTC, PoX, BNS) as a public good.
