@@ -70,8 +70,6 @@ export const TABLE_TO_DB = {
 	api_keys: "target",
 	sessions: "target",
 	magic_links: "target",
-	claim_tokens: "target",
-	play_provisions: "target",
 	account_spend_caps: "target",
 	processed_stripe_events: "target",
 	// ── TARGET: webhooks ──
@@ -87,7 +85,6 @@ export const TABLE_TO_DB = {
 	subgraph_violations: "target",
 	subgraph_processing_stats: "target",
 	account_credits: "target",
-	hosted_meter_days: "target",
 	// ── TARGET: archive fetch gate (design-f089) ──
 	archive_fetches: "target",
 	// ── TARGET: public waitlist pages ──

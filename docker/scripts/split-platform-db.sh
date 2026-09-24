@@ -56,8 +56,6 @@ CONTROL_TABLES=(
   api_keys
   sessions
   magic_links
-  claim_tokens
-  play_provisions
   usage_daily
   usage_snapshots
   account_insights
@@ -85,7 +83,6 @@ CONTROL_TABLES=(
   x402_payments
   x402_balances
   account_credits
-  hosted_meter_days
   archive_fetches
   waitlists
   waitlist_signups
