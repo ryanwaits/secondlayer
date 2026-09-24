@@ -12,7 +12,6 @@ import { listen, targetListenerUrl } from "@secondlayer/shared/queue/listener";
 import type { WebhookTestResult } from "@secondlayer/shared/schemas/webhooks";
 import { type Kysely, sql } from "kysely";
 import { buildForFormat } from "./formats/index.ts";
-import { meterDeliveryAttempt } from "./hosted-meter.ts";
 import { refreshMatcher } from "./webhook-state.ts";
 
 /**
@@ -391,8 +390,6 @@ async function dispatchOne(
 			duration_ms: r.durationMs,
 		})
 		.execute();
-
-	await meterDeliveryAttempt(sub.account_id, sub.id);
 
 	return {
 		ok: r.ok,

@@ -9,9 +9,7 @@
 import { assertWebhookSigningConfigured } from "@secondlayer/shared/crypto/secondlayer-webhook";
 import { assertDbSplit, getDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
-import { isPlatformMode } from "@secondlayer/shared/mode";
 import { sql } from "kysely";
-import { setHostedMeterHooks } from "./runtime/hosted-meter.ts";
 import { startWebhookPlane } from "./runtime/webhook-plane.ts";
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -34,31 +32,6 @@ async function writeHeartbeat(): Promise<void> {
 }
 
 assertDbSplit();
-
-if (isPlatformMode()) {
-	try {
-		const spec = "@secondlayer/platform/hosted-meters";
-		const mod = (await import(spec)) as {
-			onBlocksProcessed: (
-				accountId: string,
-				blocks: number,
-				subgraphName: string,
-			) => Promise<boolean>;
-			onDeliveryAttempt: (
-				accountId: string,
-				webhookId: string,
-			) => Promise<boolean>;
-		};
-		setHostedMeterHooks({
-			onBlocksProcessed: mod.onBlocksProcessed,
-			onDeliveryAttempt: mod.onDeliveryAttempt,
-		});
-	} catch (err) {
-		logger.warn("hosted meters not installed; indexing unmetered", {
-			error: err instanceof Error ? err.message : String(err),
-		});
-	}
-}
 
 // Fail loud before delivering anything: this plane's whole job is signed webhook
 // delivery, so refuse to boot in prod if no signing key is configured (else every

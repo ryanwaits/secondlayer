@@ -31,7 +31,6 @@ import type { SubgraphDefinition } from "../types.ts";
 import { invalidateSubgraphRoute } from "./block-processor.ts";
 import { isCatchUpLeader, startCatchUpLeader } from "./catchup-leader.ts";
 import { catchUpSubgraph } from "./catchup.ts";
-import { meterBlocksProcessed } from "./hosted-meter.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";
@@ -64,8 +63,7 @@ async function catchUpAll(
 				if (!sg) break;
 				try {
 					const def = await loadSubgraphDefinition(sg);
-					const processed = await catchUpSubgraph(def, sg.name);
-					await meterBlocksProcessed(sg.account_id, processed, sg.name);
+					await catchUpSubgraph(def, sg.name);
 				} catch (err) {
 					const msg = getErrorMessage(err);
 					if (isHandlerNotFoundError(err)) {
@@ -264,7 +262,6 @@ async function runSubgraphOperation(
 			processed = result.processed;
 		}
 	}
-	await meterBlocksProcessed(subgraph.account_id, processed, subgraph.name);
 	return processed;
 }
 
