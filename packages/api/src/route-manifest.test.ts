@@ -66,7 +66,8 @@ describe("route manifest", () => {
 	});
 
 	// Workload routes (subgraphs, webhooks, node) deploy and execute
-	// customer-authored handler code and drive outbound webhook delivery. The
+	// customer-authored handler code, serve what it indexed, and drive
+	// outbound webhook delivery. The
 	// archive deployment serves data and does not run anyone's workload
 	// (STRATEGY.md, "We do not host public subgraphs"), so these must 404
 	// there — not 401. 404 means the route does not exist, so there is
@@ -94,31 +95,27 @@ describe("route manifest", () => {
 			const body = (await res.json()) as { code: string };
 			expect(body.code).toBe("NOT_FOUND");
 		}
-		// Guard against over-deletion: /v1/subgraphs is the public read path,
-		// a separate router mounted under /v1, and must keep working on the
-		// archive deployment.
-		const v1Res = await app.request("/v1/subgraphs");
-		expect(v1Res.status).not.toBe(404);
 	});
 
-	test("platform rejects INSTANCE_TOKEN hex on /v1/subgraphs", async () => {
-		const prevMode = process.env.INSTANCE_MODE;
+	// Hosted runs no subgraphs, so no credential opens a subgraph read there.
+	test("platform /v1/subgraphs 404s even with an INSTANCE_TOKEN bearer", async () => {
 		const prevToken = process.env.INSTANCE_TOKEN;
 		process.env.INSTANCE_MODE = "platform";
 		process.env.INSTANCE_TOKEN = "deadbeefplatformhex";
 		try {
 			const app = createApiApp("platform");
-			expect((await app.request("/v1/subgraphs")).status).toBe(401);
-			expect(
-				(
-					await app.request("/v1/subgraphs", {
-						headers: { Authorization: "Bearer deadbeefplatformhex" },
-					})
-				).status,
-			).toBe(401);
+			for (const path of ["/v1/subgraphs", "/v1/subgraphs/demo/rows"]) {
+				expect((await app.request(path)).status, path).toBe(404);
+				expect(
+					(
+						await app.request(path, {
+							headers: { Authorization: "Bearer deadbeefplatformhex" },
+						})
+					).status,
+					path,
+				).toBe(404);
+			}
 		} finally {
-			if (prevMode === undefined) delete process.env.INSTANCE_MODE;
-			else process.env.INSTANCE_MODE = prevMode;
 			if (prevToken === undefined) delete process.env.INSTANCE_TOKEN;
 			else process.env.INSTANCE_TOKEN = prevToken;
 		}
@@ -221,7 +218,7 @@ describe("route manifest", () => {
 	// The document describes a self-hosted instance; the metered archive is
 	// derived from it. Two things must differ there, or the archive publishes a
 	// description of endpoints it 404s and an auth rule it does not follow.
-	test("platform OpenAPI drops the workload plane and keys Index/Streams/Subgraphs", () => {
+	test("platform OpenAPI drops the workload plane and keys Index/Streams", () => {
 		const spec = openapiSpec("platform");
 		for (const path of Object.keys(spec.paths)) {
 			if (
@@ -240,9 +237,9 @@ describe("route manifest", () => {
 		expect(spec.paths["/v1/index/events"].get.security).toEqual([
 			{ bearerAuth: [] },
 		]);
-		expect(spec.paths["/v1/subgraphs"].get.security).toEqual([
-			{ bearerAuth: [] },
-		]);
+		expect(
+			Object.keys(spec.paths).filter((p) => p.startsWith("/v1/subgraphs")),
+		).toEqual([]);
 		// Discovery stays optional bearer.
 		expect(spec.paths["/v1/index"].get.security).toEqual([
 			{},

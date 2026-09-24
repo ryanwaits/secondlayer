@@ -9,20 +9,14 @@ import type { SubgraphRegistryCache } from "./cache.ts";
 /**
  * Resolve a subgraph for a read.
  *
- * OSS: name is unique and always readable — no account, tenant, or
- * visibility branch. Platform: owned first, then public-by-name.
+ * Self-host only: the name is unique and always readable — no account,
+ * tenant, or visibility branch. Hosted does not serve subgraph reads.
  */
 export function resolveReadableSubgraph(
 	cache: SubgraphRegistryCache,
 	name: string,
-	accountId?: string,
 ): Subgraph | undefined {
-	if (!isPlatformMode()) return cache.get(name);
-	if (accountId) {
-		const own = cache.get(name, accountId);
-		if (own) return own;
-	}
-	return cache.getPublicByName(name);
+	return cache.get(name);
 }
 
 /** Platform keeps the request account; OSS has no accounts. */

@@ -50,32 +50,12 @@ describe("SubgraphRegistryCache visibility resolution (platform mode)", () => {
 		return cache;
 	}
 
-	it("getPublicByName resolves only public subgraphs, across accounts", async () => {
-		const cache = await load([
-			sg({ name: "open", account_id: "acct-a", visibility: "public" }),
-			sg({ name: "closed", account_id: "acct-a", visibility: "private" }),
-		]);
-		expect(cache.getPublicByName("open")?.account_id).toBe("acct-a");
-		// Private subgraphs never resolve by name alone — anon reads 404.
-		expect(cache.getPublicByName("closed")).toBeUndefined();
-		expect(cache.getPublicByName("missing")).toBeUndefined();
-	});
-
 	it("owner resolution still works for private subgraphs", async () => {
 		const cache = await load([
 			sg({ name: "closed", account_id: "acct-a", visibility: "private" }),
 		]);
 		expect(cache.get("closed", "acct-a")?.name).toBe("closed");
 		expect(cache.get("closed", "acct-b")).toBeUndefined();
-	});
-
-	it("public lookup is account-independent while owned lookup stays scoped", async () => {
-		const cache = await load([
-			sg({ name: "shared-name", account_id: "acct-a", visibility: "public" }),
-		]);
-		// Another account's key still reads the public subgraph via public lookup.
-		expect(cache.get("shared-name", "acct-b")).toBeUndefined();
-		expect(cache.getPublicByName("shared-name")?.account_id).toBe("acct-a");
 	});
 });
 

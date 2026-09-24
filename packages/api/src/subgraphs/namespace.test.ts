@@ -64,19 +64,6 @@ describe("local namespace", () => {
 		expect(resolveReadableSubgraph(cache, "missing")).toBeUndefined();
 	});
 
-	it("platform hides private subgraphs from anon reads", async () => {
-		process.env.INSTANCE_MODE = "platform";
-		const cache = await load([
-			sg({ name: "closed", visibility: "private", account_id: "acct-a" }),
-			sg({ name: "open", visibility: "public", account_id: "acct-a" }),
-		]);
-		expect(resolveReadableSubgraph(cache, "closed")).toBeUndefined();
-		expect(resolveReadableSubgraph(cache, "open")?.name).toBe("open");
-		expect(resolveReadableSubgraph(cache, "closed", "acct-a")?.name).toBe(
-			"closed",
-		);
-	});
-
 	it("OSS deploy drops the request account", () => {
 		process.env.INSTANCE_MODE = "oss";
 		expect(deployAccountId("acct-a")).toBeUndefined();

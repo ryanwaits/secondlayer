@@ -560,15 +560,15 @@ export const OPENAPI_SPEC = {
  * every operator runs. The metered archive deployment is the specialization,
  * so it is derived here rather than the other way round:
  *
- *  - the workload plane is not mounted there (it 404s — `route-manifest.ts`),
- *    so those paths are dropped;
- *  - Index, Streams, and subgraphs are keyed (discovery GET `/v1/index` and
+ *  - the workload plane, subgraph reads included, is not mounted there (it
+ *    404s — `route-manifest.ts`), so those paths are dropped;
+ *  - Index and Streams are keyed (discovery GET `/v1/index` and
  *    `/v1/streams` stay open), so their bearer becomes required rather than
  *    optional;
  *  - the credential there is a minted account key, not an instance token.
  */
 function platformSpec(): typeof OPENAPI_SPEC {
-	const KEYED_PREFIXES = ["/v1/streams", "/v1/index", "/v1/subgraphs"];
+	const KEYED_PREFIXES = ["/v1/streams", "/v1/index"];
 	const paths: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(OPENAPI_SPEC.paths)) {
 		if (isWorkloadPath(key)) continue;
@@ -585,7 +585,7 @@ function platformSpec(): typeof OPENAPI_SPEC {
 		info: {
 			...OPENAPI_SPEC.info,
 			description:
-				"The metered public archive. Index, Streams, and Subgraph reads require an account API key (`sk-sl_*`) as `Authorization: Bearer`. Discovery GET `/v1/index` and `/v1/streams` stay open. The workload plane is not served here.",
+				"The metered public archive. Index and Streams reads require an account API key (`sk-sl_*`) as `Authorization: Bearer`. Discovery GET `/v1/index` and `/v1/streams` stay open. Subgraphs, webhooks and the rest of the workload plane are self-host only and not served here.",
 		},
 		tags: [
 			...OPENAPI_SPEC.tags.filter(
@@ -611,7 +611,7 @@ function platformSpec(): typeof OPENAPI_SPEC {
 					scheme: "bearer",
 					bearerFormat: "sk-sl_*",
 					description:
-						"Account API key minted by the archive. Required on Index, Streams, and Subgraphs.",
+						"Account API key minted by the archive. Required on Index and Streams.",
 				},
 			},
 		},
@@ -786,8 +786,8 @@ function platformMeterPaths(): Record<string, unknown> {
 	};
 }
 
-/** Tags that only exist on the write plane. */
-const WORKLOAD_TAGS = ["deployments", "webhooks", "node"] as const;
+/** Tags that only exist on the workload plane (self-host only). */
+const WORKLOAD_TAGS = ["subgraphs", "deployments", "webhooks", "node"] as const;
 
 function isWorkloadPath(path: string): boolean {
 	return WORKLOAD_OPENAPI_PREFIXES.some((prefix) => path.startsWith(prefix));

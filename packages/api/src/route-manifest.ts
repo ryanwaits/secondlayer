@@ -18,7 +18,7 @@
  *  - RETAINED_ROUTE_FIXTURES — mode-independent surface that stays up
  *    in oss.
  *  - WORKLOAD_ROUTE_FIXTURES — deploying and executing handler code,
- *    delivering webhooks, driving the node. Mounted in oss only; 404s in
+ *    reading subgraph rows, delivering webhooks, driving the node. Mounted in oss only; 404s in
  *    platform/archive, where the box serves data and does not run anyone's
  *    workload. Not a deletion candidate — deletion scans must treat it as
  *    retained.
@@ -82,7 +82,6 @@ export const RETAINED_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/v1/index" },
 	{ method: "POST", path: "/v1/archive/verify" },
 	{ method: "GET", path: "/v1/streams" },
-	{ method: "GET", path: "/v1/subgraphs" },
 	{ method: "GET", path: "/v1/contracts" },
 	{ method: "GET", path: "/v1/instance" },
 	{ method: "GET", path: "/v1/instance/features" },
@@ -90,12 +89,14 @@ export const RETAINED_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/v1/batch" },
 ] as const;
 
-/** Workload surface: deploying and executing handler code, delivering
- *  webhooks, driving the node. Mounted in oss only — the archive deployment
- *  serves data and does not run anyone's workload. 404s in platform/archive.
- *  Not a deletion candidate: deletion scans must treat these as retained. */
+/** Workload surface: deploying and executing handler code, reading what it
+ *  indexed, delivering webhooks, driving the node. Mounted in oss only — the
+ *  archive deployment serves data and does not run anyone's workload. 404s
+ *  in platform/archive. Not a deletion candidate: deletion scans must treat
+ *  these as retained. */
 export const WORKLOAD_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/api/subgraphs" },
+	{ method: "GET", path: "/v1/subgraphs" },
 	{ method: "POST", path: "/api/subgraphs/bundle" },
 	{ method: "GET", path: "/api/webhooks" },
 	{ method: "GET", path: "/api/node" },
@@ -104,13 +105,15 @@ export const WORKLOAD_ROUTE_FIXTURES = [
 export const HOSTED_OPENAPI_PATHS = [] as const;
 
 /**
- * Prefixes of the workload write plane, mirroring `WORKLOAD_PATHS` in
- * `create-app.ts`. The OpenAPI document describes these on a self-hosted
- * instance and drops every path under them in platform/archive mode, where
- * the routes 404 (see WORKLOAD_ROUTE_FIXTURES).
+ * Prefixes of the workload plane, mirroring `WORKLOAD_PATHS` in
+ * `create-app.ts` plus the `/v1/subgraphs` reads. The OpenAPI document
+ * describes these on a self-hosted instance and drops every path under them
+ * in platform/archive mode, where the routes 404 (see
+ * WORKLOAD_ROUTE_FIXTURES).
  */
 export const WORKLOAD_OPENAPI_PREFIXES = [
 	"/api/subgraphs",
+	"/v1/subgraphs",
 	"/api/webhooks",
 	"/api/node",
 ] as const;

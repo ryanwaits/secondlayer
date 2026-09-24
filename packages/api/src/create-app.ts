@@ -158,7 +158,8 @@ export function createApiApp(mode: InstanceMode): Hono {
 	app.route("/v1/streams", streamsRouter);
 	app.route("/v1/index", indexRouter);
 	app.route("/v1/archive", archiveVerifyRouter);
-	app.route("/v1/subgraphs", v1SubgraphsRouter);
+	// Subgraph reads are self-host only: hosted runs no subgraphs.
+	if (mode !== "platform") app.route("/v1/subgraphs", v1SubgraphsRouter);
 	app.route("/v1/contracts", contractsRouter);
 	app.route(
 		"/v1/batch",

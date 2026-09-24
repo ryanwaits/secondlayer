@@ -1,13 +1,9 @@
 import { getDb } from "@secondlayer/shared/db";
 import type { Subgraph } from "@secondlayer/shared/db";
-import { RateLimitError, ValidationError } from "@secondlayer/shared/errors";
-import { isPlatformMode } from "@secondlayer/shared/mode";
+import { ValidationError } from "@secondlayer/shared/errors";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
-import { type Context, Hono } from "hono";
+import { Hono } from "hono";
 import { sql } from "kysely";
-import { getClientIp } from "../auth/http.ts";
-import { hashToken } from "../auth/keys.ts";
-import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import {
 	allowsAnonymousRead,
 	bearerToken,
@@ -15,10 +11,6 @@ import {
 	missingCredentialError,
 } from "../auth/read-plane.ts";
 import { instanceTokenMatches } from "../instance-bind.ts";
-import {
-	debitSubgraphCreditedRead,
-	subgraphCreditsGate,
-} from "../subgraphs/credits-gate.ts";
 import { resolveReadableSubgraph } from "../subgraphs/namespace.ts";
 import {
 	SubgraphNotFoundError,
@@ -137,125 +129,38 @@ function buildSortedKeysetPredicate(
 }
 
 /**
- * Open read surface for subgraphs: /v1/subgraphs.
+ * Open read surface for subgraphs: /v1/subgraphs. Self-host only: hosted
+ * does not run subgraphs, so the platform app does not mount this router.
  *
- * Posture matches the other /v1 surfaces — wildcard CORS, anon reads allowed,
- * cursor envelope. Resolution rules:
- *   - oss           → unique local name; visibility is ignored
- *   - platform anon → public subgraphs only; private names 404 (no existence leak)
- *   - platform key  → the key's account's subgraphs (public or private) first,
- *                     then any public subgraph
+ * Posture matches the other /v1 surfaces — wildcard CORS, anon reads allowed
+ * on a loopback bind, cursor envelope. Names are unique per instance and
+ * visibility is ignored.
  *
- * The authed /api/subgraphs surface (dashboard, deploys, ops) is unchanged.
+ * The authed /api/subgraphs surface (deploys, ops) is unchanged.
  */
 
-export type V1SubgraphsEnv = {
-	Variables: {
-		v1AccountId?: string;
-		credited?: { accountId: string; balance: bigint };
-	};
-};
-
-const app = new Hono<V1SubgraphsEnv>();
+const app = new Hono();
 
 // ── Auth ────────────────────────────────────────────────────────────────
 
 // Same rule as Index and Streams: open on a loopback bind, instance token
-// past it; hosted (`platform`) requires an account key. A credential we
-// don't recognize is ignored rather than fatal wherever anonymous access
-// already works.
+// past it.
 app.use("*", async (c, next) => {
-	const allowAnon = allowsAnonymousRead();
 	const raw = bearerToken(c);
-
-	// OSS only: the operator's own token reads everything this instance holds.
-	// Hosted hex must not authenticate as unmetered internal (auth-005/007).
-	if (raw !== null && !isPlatformMode() && instanceTokenMatches(raw)) {
+	if (raw !== null && instanceTokenMatches(raw)) {
 		await next();
 		return;
 	}
-	if (raw === null && !allowAnon) throw missingCredentialError();
-
-	if (!isPlatformMode()) {
-		if (raw !== null && !allowAnon) throw invalidCredentialError();
-		await next();
-		return;
-	}
-
-	if (raw === null) {
-		await next();
-		return;
-	}
-	// Metered archive: an account key widens the read to that account's
-	// private subgraphs. Anything else reads as anon (public subgraphs only).
-	if (!raw.startsWith("sk-sl_")) {
-		if (allowAnon) {
-			await next();
-			return;
-		}
-		throw invalidCredentialError();
-	}
-	const key = await getDb()
-		.selectFrom("api_keys")
-		.select(["account_id", "status"])
-		.where("key_hash", "=", hashToken(raw))
-		.executeTakeFirst();
-	if (!key || key.status !== "active") {
-		if (allowAnon) {
-			await next();
-			return;
-		}
-		throw invalidCredentialError();
-	}
-	c.set("v1AccountId", key.account_id);
-	await next();
-});
-
-app.use("*", subgraphCreditsGate());
-
-// ── Rate limit ──────────────────────────────────────────────────────────
-
-const ANON_RATE_LIMIT_PER_SECOND = 100;
-const KEYED_RATE_LIMIT_PER_SECOND = 50;
-const WINDOW_MS = 1_000;
-
-app.use("*", async (c, next) => {
-	if (!isPlatformMode()) {
-		await next();
-		return;
-	}
-	if (c.get("credited")) {
-		await next();
-		return;
-	}
-	const accountId = c.get("v1AccountId");
-	const [bucket, limit] = accountId
-		? [`subgraphs:${accountId}`, KEYED_RATE_LIMIT_PER_SECOND]
-		: [`subgraphs:anon:${getClientIp(c)}`, ANON_RATE_LIMIT_PER_SECOND];
-	const result = await getRateLimitStore().check(bucket, limit, WINDOW_MS);
-	c.header("X-RateLimit-Limit", String(limit));
-	c.header("X-RateLimit-Remaining", String(Math.max(0, limit - result.count)));
-	c.header("X-RateLimit-Reset", String(result.resetAt));
-	if (!result.allowed) {
-		c.header("Retry-After", String(result.retryAfter));
-		throw new RateLimitError("Rate limit exceeded");
+	if (!allowsAnonymousRead()) {
+		throw raw === null ? missingCredentialError() : invalidCredentialError();
 	}
 	await next();
 });
-
-async function meterRows(c: Context<V1SubgraphsEnv>, rows: { length: number }) {
-	if (!isPlatformMode()) return;
-	if (!c.get("v1AccountId") || rows.length === 0) return;
-	await debitSubgraphCreditedRead(c, rows.length);
-}
 
 // ── Resolution ──────────────────────────────────────────────────────────
 
-function requireReadableSubgraph(
-	name: string,
-	accountId: string | undefined,
-): Subgraph {
-	const subgraph = resolveReadableSubgraph(cache, name, accountId);
+function requireReadableSubgraph(name: string): Subgraph {
+	const subgraph = resolveReadableSubgraph(cache, name);
 	if (!subgraph) throw new SubgraphNotFoundError(name);
 	return subgraph;
 }
@@ -286,7 +191,6 @@ function extractSources(v: Subgraph): string[] {
 
 function summarize(
 	v: Subgraph,
-	ownedBy: string | undefined,
 	chainTip: number,
 	rowCounts: Map<string, number>,
 ) {
@@ -300,7 +204,8 @@ function summarize(
 				: null,
 		status: v.status,
 		visibility: v.visibility,
-		owned: v.account_id === ownedBy,
+		// Self-host has no accounts; kept for response-shape stability.
+		owned: false,
 		version: v.version,
 		created_at: v.created_at.toISOString(),
 		total_rows: rowCounts.get(subgraphSchemaName(v)) ?? 0,
@@ -341,51 +246,29 @@ export function resetAnonDirectoryCache(): void {
 }
 
 app.get("/", async (c) => {
-	const accountId = c.get("v1AccountId");
-
-	// Anon-cacheable: the keyed view varies on the bearer, so only the anon
-	// list advertises caching (the directory is the hot path). Short TTL
-	// memoization skips the row-count aggregate + tip lookup + summarize pass
-	// (and the ETag hash) on repeat anon hits, including 304 revalidations.
-	if (!accountId) {
-		const now = Date.now();
-		if (
-			anonDirectoryCache &&
-			now - anonDirectoryCache.computedAt < ANON_DIRECTORY_TTL_MS
-		) {
-			c.header("Cache-Control", "public, max-age=30");
-			c.header("ETag", anonDirectoryCache.etag);
-			if (c.req.header("if-none-match") === anonDirectoryCache.etag) {
-				return c.body(null, 304);
-			}
-			c.header("Content-Type", "application/json");
-			return c.body(anonDirectoryCache.body, 200);
+	// The directory does not vary on the bearer, so it is cacheable (the
+	// directory is the hot path). Short TTL memoization skips the row-count
+	// aggregate + tip lookup + summarize pass (and the ETag hash) on repeat
+	// hits, including 304 revalidations.
+	const now = Date.now();
+	if (
+		anonDirectoryCache &&
+		now - anonDirectoryCache.computedAt < ANON_DIRECTORY_TTL_MS
+	) {
+		c.header("Cache-Control", "public, max-age=30");
+		c.header("ETag", anonDirectoryCache.etag);
+		if (c.req.header("if-none-match") === anonDirectoryCache.etag) {
+			return c.body(null, 304);
 		}
+		c.header("Content-Type", "application/json");
+		return c.body(anonDirectoryCache.body, 200);
 	}
 
 	const [chainTip, rowCounts] = await Promise.all([
 		getChainTip(),
 		getRowCounts(),
 	]);
-	const seen = new Set<string>();
-	const out = [];
-	if (!isPlatformMode()) {
-		for (const v of cache.getAll()) {
-			out.push(summarize(v, undefined, chainTip, rowCounts));
-		}
-	} else {
-		if (accountId) {
-			for (const v of cache.getAll(accountId)) {
-				seen.add(`${v.account_id}:${v.name}`);
-				out.push(summarize(v, accountId, chainTip, rowCounts));
-			}
-		}
-		for (const v of cache.getAll()) {
-			if (v.visibility !== "public") continue;
-			if (seen.has(`${v.account_id}:${v.name}`)) continue;
-			out.push(summarize(v, accountId, chainTip, rowCounts));
-		}
-	}
+	const out = cache.getAll().map((v) => summarize(v, chainTip, rowCounts));
 	const body = {
 		subgraphs: out,
 		tip: { block_height: chainTip },
@@ -395,22 +278,20 @@ app.get("/", async (c) => {
 				"_id keyset by default, or ?_sort=<column>&_order=asc|desc for a composite keyset; pass ?cursor=<next_cursor> to resume",
 		},
 	};
-	if (!accountId) {
-		const bodyString = JSON.stringify(body);
-		const etag = `"${Bun.hash(bodyString).toString(16)}"`;
-		anonDirectoryCache = { body: bodyString, etag, computedAt: Date.now() };
-		c.header("Cache-Control", "public, max-age=30");
-		c.header("ETag", etag);
-		if (c.req.header("if-none-match") === etag) {
-			return c.body(null, 304);
-		}
+	const bodyString = JSON.stringify(body);
+	const etag = `"${Bun.hash(bodyString).toString(16)}"`;
+	anonDirectoryCache = { body: bodyString, etag, computedAt: Date.now() };
+	c.header("Cache-Control", "public, max-age=30");
+	c.header("ETag", etag);
+	if (c.req.header("if-none-match") === etag) {
+		return c.body(null, 304);
 	}
 	return c.json(body);
 });
 
 app.get("/:subgraphName", async (c) => {
 	const { subgraphName } = c.req.param();
-	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName);
 	const schema = getSubgraphSchema(subgraph);
 	const chainTip = await getChainTip();
 	const lastProcessed = Number(subgraph.last_processed_block) || 0;
@@ -461,14 +342,13 @@ app.get("/:subgraphName", async (c) => {
 
 // ── Generated docs ──────────────────────────────────────────────────────
 
-// Same generators as /api/subgraphs, but resolved by visibility (anon →
-// public only) and passed the detail incl. visibility so public subgraphs
-// document the /v1 surface. Registered before /:subgraphName/:tableName so
-// the static segments win.
+// Same generators as /api/subgraphs, passed the detail incl. visibility so
+// the docs describe the /v1 surface. Registered before
+// /:subgraphName/:tableName so the static segments win.
 
 app.get("/:subgraphName/openapi.json", async (c) => {
 	const { subgraphName } = c.req.param();
-	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName);
 	const detail = await buildSubgraphDetailFromRow(subgraph);
 	const { generateSubgraphOpenApi } = await import(
 		"@secondlayer/shared/subgraphs/spec"
@@ -478,7 +358,7 @@ app.get("/:subgraphName/openapi.json", async (c) => {
 
 app.get("/:subgraphName/schema.json", async (c) => {
 	const { subgraphName } = c.req.param();
-	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName);
 	const detail = await buildSubgraphDetailFromRow(subgraph);
 	const { generateSubgraphAgentSchema } = await import(
 		"@secondlayer/shared/subgraphs/spec"
@@ -488,7 +368,7 @@ app.get("/:subgraphName/schema.json", async (c) => {
 
 app.get("/:subgraphName/docs.md", async (c) => {
 	const { subgraphName } = c.req.param();
-	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName);
 	const detail = await buildSubgraphDetailFromRow(subgraph);
 	const { generateSubgraphMarkdown } = await import(
 		"@secondlayer/shared/subgraphs/spec"
@@ -502,31 +382,27 @@ app.get("/:subgraphName/docs.md", async (c) => {
 
 app.get("/:subgraphName/:tableName/count", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName);
 	return handleTableCount(c, subgraph, tableName);
 });
 
 app.get("/:subgraphName/:tableName/aggregate", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName);
 	return handleTableAggregate(c, subgraph, tableName);
 });
 
 app.get("/:subgraphName/:tableName/stream", (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
-	return handleTableStream(c, subgraph, tableName, {
-		onBatch: (n) => meterRows(c, { length: n }),
-	});
+	const subgraph = requireReadableSubgraph(subgraphName);
+	return handleTableStream(c, subgraph, tableName);
 });
 
 app.get("/:subgraphName/:tableName/:id", async (c) => {
 	const { subgraphName, tableName, id } = c.req.param();
 	if (id === "count" || id === "stream" || id === "aggregate") return;
-	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
-	const res = await handleRowById(c, subgraph, tableName, id);
-	if (res.status === 200) await meterRows(c, { length: 1 });
-	return res;
+	const subgraph = requireReadableSubgraph(subgraphName);
+	return handleRowById(c, subgraph, tableName, id);
 });
 
 // ── Cursor-paginated rows ───────────────────────────────────────────────
@@ -538,7 +414,7 @@ app.get("/:subgraphName/:tableName/:id", async (c) => {
 // work as on /api.
 app.get("/:subgraphName/:tableName", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName);
 
 	const tableDef = getSubgraphSchema(subgraph)[tableName];
 	if (!tableDef) {
@@ -716,7 +592,6 @@ app.get("/:subgraphName/:tableName", async (c) => {
 					});
 		const lastProcessed = Number(subgraph.last_processed_block) || 0;
 
-		await meterRows(c, emitted);
 		return c.json({
 			rows: emitted,
 			next_cursor: nextCursor,
