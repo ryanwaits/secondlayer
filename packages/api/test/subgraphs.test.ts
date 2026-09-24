@@ -673,7 +673,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		expect(body.code).toBe("SUBGRAPH_NOT_FOUND");
 	});
 
-	// ── GET /subgraphs/:subgraphName/:tableName/:id ─────────────────────────
+	// ── GET /v1/subgraphs/:subgraphName/:tableName/:id ──────────────────────
 
 	test("GET by _id returns single row", async () => {
 		// First get the first row's ID
@@ -684,7 +684,9 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const listBody = (await listRes.json()) as any;
 		const id = listBody.data[0]._id;
 
-		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/${id}`);
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings/${id}`,
+		);
 		expect(res.status).toBe(200);
 		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
@@ -694,7 +696,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 
 	test("GET by _id returns 404 for missing row", async () => {
 		const res = await app.request(
-			`/subgraphs/${SUBGRAPH_NAME}/listings/999999`,
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings/999999`,
 		);
 		expect(res.status).toBe(404);
 		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
@@ -703,7 +705,9 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 	});
 
 	test("GET by non-numeric _id returns 404, not a driver error", async () => {
-		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/abc`);
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings/abc`,
+		);
 		expect(res.status).toBe(404);
 		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
@@ -711,7 +715,9 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 	});
 
 	test("GET by _id with trailing garbage (12abc) returns 404, not treated as 12", async () => {
-		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/12abc`);
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings/12abc`,
+		);
 		expect(res.status).toBe(404);
 		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;

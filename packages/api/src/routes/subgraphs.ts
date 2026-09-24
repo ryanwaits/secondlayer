@@ -54,10 +54,8 @@ import {
 } from "../subgraphs/probeEmptyMapping.ts";
 import {
 	SubgraphNotFoundError,
-	handleRowById,
 	handleTableAggregate,
 	handleTableCount,
-	handleTableStream,
 	querySubgraph as query,
 } from "../subgraphs/read-core.ts";
 import {
@@ -1793,28 +1791,6 @@ app.get("/:subgraphName/:tableName/aggregate", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
 	const subgraph = requireSubgraph(subgraphName);
 	return handleTableAggregate(c, subgraph, tableName);
-});
-
-// ── Get row by ID ───────────────────────────────────────────────────────
-
-// SSE: stream rows as they're indexed. Poll-based v1 — tails the table by a
-// monotonic `_id` cursor every ~1.5s and pushes each new row as an SSE message;
-// reuses the same filter query params as the REST list endpoint. Go-forward by
-// default; `?since=<block>` replays from a block then tails. Open auth (matches
-// the read endpoints). No webhook record is created — this is ephemeral.
-// Registered before the `/:id` route so a static `stream` segment wins over the
-// row-id param (`return;` does not fall through in Hono).
-app.get("/:subgraphName/:tableName/stream", (c) => {
-	const { subgraphName, tableName } = c.req.param();
-	const subgraph = requireSubgraph(subgraphName);
-	return handleTableStream(c, subgraph, tableName);
-});
-
-app.get("/:subgraphName/:tableName/:id", async (c) => {
-	const { subgraphName, tableName, id } = c.req.param();
-	if (id === "count" || id === "stream" || id === "aggregate") return;
-	const subgraph = requireSubgraph(subgraphName);
-	return handleRowById(c, subgraph, tableName, id);
 });
 
 // ── List rows with filters ──────────────────────────────────────────────
