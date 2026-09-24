@@ -7,6 +7,12 @@ instance reads are yours and unmetered. Archive bootstrap/backfill/reindex
 and hosted Index/Streams reads at `api.secondlayer.tools` draw
 [credits](/docs/authentication#archive-credits).
 
+## SDK — September 2026
+
+### Unchanged pages revalidate for free
+
+The SDK caches the last 64 pages it read and sends `If-None-Match` on the next request. A `304` on a finalized page costs nothing on the hosted API. Pass `etagCache` to keep the cache across runs.
+
 ## CLI — September 2026
 
 ### Observer stanzas work on a stock node

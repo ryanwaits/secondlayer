@@ -1,5 +1,13 @@
 # @secondlayer/platform
 
+## 0.2.16
+
+### Patch Changes
+
+- 368378d: Remove hosted subgraphs: accountless play, claim, hosted meters, and hosted subgraph reads. Subgraphs and webhooks run on self-host only.
+- Updated dependencies [368378d]
+  - @secondlayer/shared@11.7.1
+
 ## 0.2.15
 
 ### Patch Changes

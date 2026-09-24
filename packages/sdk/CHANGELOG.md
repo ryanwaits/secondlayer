@@ -1,5 +1,17 @@
 # @secondlayer/sdk
 
+## 10.5.0
+
+### Minor Changes
+
+- Cache ETag pages and revalidate with `If-None-Match`. The client keeps the last 64 pages in memory (`MemoryEtagCache`); pass `etagCache` to keep one across runs. A `304` on a finalized page is free on the hosted API.
+
+### Patch Changes
+
+- Updated dependencies [368378d]
+  - @secondlayer/shared@11.7.1
+  - @secondlayer/subgraphs@4.4.1
+
 ## 10.4.3
 
 ### Patch Changes

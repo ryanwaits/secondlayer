@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 16.0.1
+
+### Patch Changes
+
+- Setup describes `--skip-bootstrap` as indexing from the node's tip. Bootstrap drains the spool past a gap instead of refusing.
+- Updated dependencies [368378d]
+- Updated dependencies
+  - @secondlayer/shared@11.7.1
+  - @secondlayer/subgraphs@4.4.1
+  - @secondlayer/sdk@10.5.0
+
 ## 16.0.0
 
 ### Major Changes
