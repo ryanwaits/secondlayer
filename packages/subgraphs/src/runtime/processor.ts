@@ -11,7 +11,6 @@ import {
 	completeSubgraphOperation,
 	createSubgraphOperation,
 	failSubgraphOperation,
-	findActiveSubgraphOperation,
 	getSubgraphOperation,
 	heartbeatSubgraphOperation,
 	isActiveSubgraphOperationConflict,
@@ -157,39 +156,6 @@ function cleanupCaches(active: Subgraph[]): void {
 	}
 }
 
-async function synthesizeLegacyReindexOperations(): Promise<void> {
-	const db = getTargetDb();
-	const stale = (await listSubgraphs(db)).filter(
-		(sg) => sg.status === "reindexing",
-	);
-
-	for (const sg of stale) {
-		const active = await findActiveSubgraphOperation(db, sg.id);
-		if (active) continue;
-
-		try {
-			await createSubgraphOperation(db, {
-				subgraphId: sg.id,
-				subgraphName: sg.name,
-				accountId: sg.account_id,
-				kind: "reindex",
-				fromBlock:
-					sg.reindex_from_block == null
-						? undefined
-						: Number(sg.reindex_from_block),
-				toBlock:
-					sg.reindex_to_block == null ? undefined : Number(sg.reindex_to_block),
-			});
-			logger.info("Queued legacy reindex resume operation", {
-				subgraph: sg.name,
-			});
-		} catch (err) {
-			if (isActiveSubgraphOperationConflict(err)) continue;
-			throw err;
-		}
-	}
-}
-
 async function runSubgraphOperation(
 	operation: SubgraphOperation,
 	signal: AbortSignal,
@@ -280,17 +246,16 @@ export async function startSubgraphOperationRunner(opts?: {
 
 	// Boot-time resume sweep: a processor restart strands any reindex that was
 	// started inline (deploy-time genesis) or whose op died with the old
-	// instance — the subgraph sits at status='reindexing' with resume metadata
-	// and nothing ever picks it up. Re-enqueue a reindex op for each; the
-	// run path sees the metadata and resumes from last_processed_block + 1.
-	// The active-op partial-unique constraint makes double-enqueue a no-op.
+	// instance — the subgraph sits at status='reindexing' and nothing ever
+	// picks it up. Re-enqueue a reindex op for each; with resume metadata the
+	// run path resumes from last_processed_block + 1, without it the reindex
+	// starts over. The active-op partial-unique constraint makes double-enqueue
+	// a no-op.
 	try {
 		const stranded = await db
 			.selectFrom("subgraphs")
 			.select(["id", "name", "account_id"])
 			.where("status", "=", "reindexing")
-			.where("reindex_from_block", "is not", null)
-			.where("reindex_to_block", "is not", null)
 			.where(({ not, exists, selectFrom }) =>
 				not(
 					exists(
@@ -435,7 +400,6 @@ export async function startSubgraphOperationRunner(opts?: {
 		}
 	};
 
-	await synthesizeLegacyReindexOperations();
 	await drain();
 
 	const stopListening = await listen(
