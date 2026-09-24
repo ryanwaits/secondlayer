@@ -8,9 +8,9 @@
  *  - HOSTED_ROUTE_FIXTURES — hosted-only surface: public waitlist
  *    signups (the x402 pay-per-call rail that once lived here is deleted).
  *  - DELETED_ROUTE_FIXTURES — hosted-control surface removed by gate-g
- *    Slice D, plus the x402 rail and the subgraph public-namespace
- *    (publish/unpublish) claim. Must 404 in EVERY mode, forever —
- *    reappearance is a regression.
+ *    Slice D, plus the x402 rail, the subgraph public-namespace
+ *    (publish/unpublish) claim, and accountless hosted play. Must 404
+ *    in EVERY mode, forever — reappearance is a regression.
  *  - RETAINED_METER_ROUTE_FIXTURES — the kept metered-archive account
  *    surface (gate-g manifest §1/§3). Mounted only in platform/archive
  *    mode, so it also 404s in oss, but it is NOT a deletion candidate —
@@ -51,6 +51,11 @@ export const DELETED_ROUTE_FIXTURES = [
 	// instances have no such namespace, so the verb has nothing to mean.
 	{ method: "POST", path: "/api/subgraphs/:subgraphName/publish" },
 	{ method: "POST", path: "/api/subgraphs/:subgraphName/unpublish" },
+	// Accountless hosted play ran anonymous handler code in-process on the
+	// platform. Hosted subgraphs are not offered.
+	{ method: "POST", path: "/v1/play" },
+	{ method: "GET", path: "/v1/play" },
+	{ method: "GET", path: "/v1/play/estimate" },
 ] as const;
 
 /** Kept meter surface (manifest §3): auth, credits billing, checkout,
@@ -62,9 +67,6 @@ export const RETAINED_METER_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/api/billing/refill" },
 	{ method: "GET", path: "/api/billing/caps" },
 	{ method: "POST", path: "/api/public/credits/checkout" },
-	{ method: "POST", path: "/v1/play" },
-	{ method: "GET", path: "/v1/play" },
-	{ method: "GET", path: "/v1/play/estimate" },
 	{ method: "POST", path: "/api/billing/stripe" },
 	{ method: "GET", path: "/api/keys" },
 	{ method: "GET", path: "/api/accounts/me" },

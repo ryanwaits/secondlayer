@@ -16,7 +16,6 @@ import {
 	ERROR_400,
 	ERROR_401,
 	ERROR_404,
-	ERROR_429,
 	READ_SECURITY,
 	WRITE_SECURITY,
 	json200,
@@ -82,9 +81,6 @@ export const OPERATION_IDS: Record<string, string> = {
 	"GET /v1/instance": "getInstance",
 	"GET /v1/instance/features": "getInstanceFeatures",
 	"GET /v1/instance/metrics": "getInstanceMetrics",
-	"GET /v1/play": "getPlay",
-	"POST /v1/play": "runPlay",
-	"GET /v1/play/estimate": "estimatePlay",
 	"GET /api/subgraphs": "listDeployments",
 	"POST /api/subgraphs": "deploySubgraph",
 	"POST /api/subgraphs/bundle": "bundleSubgraph",
@@ -606,11 +602,6 @@ function platformSpec(): typeof OPENAPI_SPEC {
 				name: "credits",
 				description: "Prepaid archive credits.",
 			},
-			{
-				name: "play",
-				description:
-					"Accountless hosted subgraph provision and claim. POST is unauthenticated; GET uses the play key; GET /v1/play/estimate uses X-Claim-Token.",
-			},
 		],
 		components: {
 			...OPENAPI_SPEC.components,
@@ -780,11 +771,6 @@ function platformMeterPaths(): Record<string, unknown> {
 					properties: {
 						email: { type: "string" },
 						amount: { type: "integer", enum: [10, 25, 50, 100] },
-						claim_token: {
-							type: "string",
-							description:
-								"Raw play claim token. Stored hashed on the Checkout session; never the raw value.",
-						},
 					},
 				}),
 				responses: {
@@ -794,123 +780,6 @@ function platformMeterPaths(): Record<string, unknown> {
 					}),
 					"400": jsonError(ERROR_400),
 					"503": jsonError("Billing is not configured"),
-				},
-			},
-		},
-		"/v1/play": {
-			post: {
-				tags: ["play"],
-				summary: "Provision a play subgraph",
-				description:
-					"Anonymous. Creates one subgraph and an optional webhook on a ghost account. Returns a read-only API key and a claim URL. Three provisions per IP per UTC day.",
-				security: [],
-				requestBody: jsonBody({
-					type: "object",
-					required: ["subgraph"],
-					properties: {
-						subgraph: {
-							type: "object",
-							description: "Same body as POST /api/subgraphs.",
-						},
-						webhook: {
-							type: "object",
-							description: "Optional. Same fields as POST /api/webhooks.",
-						},
-					},
-				}),
-				responses: {
-					"201": json200({
-						type: "object",
-						properties: {
-							key: { type: "string" },
-							claim_url: { type: "string" },
-							claim_expires_at: { type: "string", format: "date-time" },
-							subgraph: {
-								type: "object",
-								properties: {
-									name: { type: "string" },
-									expires_at: { type: "string", format: "date-time" },
-								},
-							},
-						},
-					}),
-					"400": jsonError(ERROR_400),
-					"429": jsonError(ERROR_429),
-				},
-			},
-			get: {
-				tags: ["play"],
-				summary: "Play session status",
-				description:
-					"Bearer must be the play key. Returns 404 after the ghost is claimed.",
-				security: WRITE_SECURITY,
-				responses: {
-					"200": json200({
-						type: "object",
-						properties: {
-							subgraphs: {
-								type: "array",
-								items: {
-									type: "object",
-									properties: {
-										name: { type: "string" },
-										expires_at: {
-											type: ["string", "null"],
-											format: "date-time",
-										},
-									},
-								},
-							},
-							claim_expires_at: {
-								type: ["string", "null"],
-								format: "date-time",
-							},
-						},
-					}),
-					"401": jsonError(ERROR_401),
-					"404": jsonError(ERROR_404),
-				},
-			},
-		},
-		"/v1/play/estimate": {
-			get: {
-				tags: ["play"],
-				summary: "Play session monthly cost estimate",
-				description:
-					"Authenticates with X-Claim-Token. Does not consume the token. Returns dollar strings for the claim page. Play-only; 404 after the ghost is claimed.",
-				security: [],
-				parameters: [
-					{
-						name: "X-Claim-Token",
-						in: "header",
-						required: true,
-						schema: { type: "string" },
-						description:
-							"Unused, unexpired play claim token. Lookup only; used_at is not set.",
-					},
-				],
-				responses: {
-					"200": json200({
-						type: "object",
-						properties: {
-							grant_remaining_usd: { type: "string" },
-							grant_spent_usd: { type: "string" },
-							projected_monthly_usd: { type: "string" },
-							lines: {
-								type: "array",
-								items: {
-									type: "object",
-									properties: {
-										meter: { type: "string" },
-										usd: { type: "string" },
-										one_shot: { type: "boolean" },
-									},
-								},
-							},
-						},
-					}),
-					"400": jsonError(ERROR_400),
-					"404": jsonError(ERROR_404),
 				},
 			},
 		},

@@ -379,7 +379,7 @@ export async function runSubgraphDeploy(
 	return executeSubgraphDeploy(c, parsed.data, identity);
 }
 
-export async function executeSubgraphDeploy(
+async function executeSubgraphDeploy(
 	c: Context,
 	data: DeploySubgraphRequest,
 	identity?: { accountId: string },

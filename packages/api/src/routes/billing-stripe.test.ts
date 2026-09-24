@@ -1,8 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import type Stripe from "stripe";
-import { hashToken } from "../auth/keys.ts";
-import { createClaimToken } from "../play/tokens.ts";
 import { processStripeEvent } from "./billing-stripe.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -11,7 +9,6 @@ const db = HAS_DB ? getDb() : (null as never);
 
 // Track seeded account ids for cleanup
 const seededAccountIds: string[] = [];
-const seededSubgraphNames: string[] = [];
 
 async function makeAccount(email: string): Promise<string> {
 	const row = await db
@@ -38,12 +35,6 @@ async function cleanupEvents(eventId: string): Promise<void> {
 }
 
 afterAll(async () => {
-	if (seededSubgraphNames.length > 0) {
-		await db
-			.deleteFrom("subgraphs")
-			.where("name", "in", seededSubgraphNames)
-			.execute();
-	}
 	for (const id of seededAccountIds) {
 		await db.deleteFrom("accounts").where("id", "=", id).execute();
 	}
@@ -74,7 +65,6 @@ function makeCheckoutEvent(
 	eventId: string,
 	accountId: string,
 	amountTotal: number,
-	claimTokenHash?: string,
 ): Stripe.Event {
 	return {
 		id: eventId,
@@ -86,7 +76,6 @@ function makeCheckoutEvent(
 				metadata: {
 					kind: "credits_topup",
 					secondlayer_account_id: accountId,
-					...(claimTokenHash ? { claim_token_hash: claimTokenHash } : {}),
 				},
 				amount_total: amountTotal,
 			} as unknown as Stripe.Checkout.Session,
@@ -232,103 +221,5 @@ describe.skipIf(!HAS_DB)("processStripeEvent", () => {
 		// Cleanup
 		await cleanupEvents(eventId);
 		await cleanupAccount(accountId);
-	});
-
-	test("top-up webhook resumes paused subgraphs", async () => {
-		const accountId = await makeAccount(
-			`webhook-test-resume-${Date.now()}@test.invalid`,
-		);
-		const eventId = `evt_resume_${crypto.randomUUID()}`;
-		const name = `webhook-resume-${crypto.randomUUID().slice(0, 8)}`;
-		seededSubgraphNames.push(name);
-		await cleanupEvents(eventId);
-		await cleanupAccount(accountId);
-
-		await db
-			.insertInto("subgraphs")
-			.values({
-				name,
-				status: "paused",
-				definition: {},
-				schema_hash: "test",
-				handler_path: "test",
-				schema_name: `subgraph_webhook_${crypto.randomUUID().slice(0, 8)}`,
-				account_id: accountId,
-				last_processed_block: 0,
-			})
-			.execute();
-
-		const outcome = await processStripeEvent(
-			db,
-			makeCheckoutEvent(eventId, accountId, 1000),
-		);
-		expect(outcome).toBe("processed");
-
-		const sg = await db
-			.selectFrom("subgraphs")
-			.select("status")
-			.where("name", "=", name)
-			.where("account_id", "=", accountId)
-			.executeTakeFirstOrThrow();
-		expect(sg.status).toBe("active");
-
-		await cleanupEvents(eventId);
-		await cleanupAccount(accountId);
-	});
-
-	test("claim checkout transfers paused subgraph then resumes it", async () => {
-		const ghost = await db
-			.insertInto("accounts")
-			.values({ email: null, ghost: true })
-			.returning("id")
-			.executeTakeFirstOrThrow();
-		seededAccountIds.push(ghost.id);
-		const destId = await makeAccount(
-			`webhook-test-claim-resume-${Date.now()}@test.invalid`,
-		);
-		const eventId = `evt_claim_resume_${crypto.randomUUID()}`;
-		const name = `webhook-claim-resume-${crypto.randomUUID().slice(0, 8)}`;
-		seededSubgraphNames.push(name);
-		await cleanupEvents(eventId);
-		await cleanupAccount(destId);
-
-		await db
-			.insertInto("subgraphs")
-			.values({
-				name,
-				status: "paused",
-				definition: {},
-				schema_hash: "test",
-				handler_path: "test",
-				schema_name: `subgraph_webhook_${crypto.randomUUID().slice(0, 8)}`,
-				account_id: ghost.id,
-				last_processed_block: 0,
-			})
-			.execute();
-		const claim = await createClaimToken(db, ghost.id);
-
-		const outcome = await processStripeEvent(
-			db,
-			makeCheckoutEvent(eventId, destId, 1000, hashToken(claim.raw)),
-		);
-		expect(outcome).toBe("processed");
-
-		const sg = await db
-			.selectFrom("subgraphs")
-			.select(["account_id", "status"])
-			.where("name", "=", name)
-			.executeTakeFirstOrThrow();
-		expect(sg.account_id).toBe(destId);
-		expect(sg.status).toBe("active");
-
-		const ghostRow = await db
-			.selectFrom("accounts")
-			.select("id")
-			.where("id", "=", ghost.id)
-			.executeTakeFirst();
-		expect(ghostRow).toBeUndefined();
-
-		await cleanupEvents(eventId);
-		await cleanupAccount(destId);
 	});
 });

@@ -17,7 +17,6 @@
  */
 
 import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
-import { resumeHostedResources } from "@secondlayer/platform/hosted-meters";
 import { logger } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db";
 import { getDb } from "@secondlayer/shared/db";
@@ -28,7 +27,6 @@ import {
 	getStripeOrNull,
 	getStripeWebhookSecretOrNull,
 } from "../lib/stripe.ts";
-import { transferPlayClaim } from "../play/claim.ts";
 
 const app = new Hono();
 
@@ -171,11 +169,6 @@ async function onCheckoutCompleted(
 		cents,
 		balanceUsdMicros: balance.toString(),
 	});
-	const tokenHash = session.metadata?.claim_token_hash;
-	if (tokenHash) {
-		await transferPlayClaim(db, { tokenHash, destAccountId: accountId });
-	}
-	await resumeHostedResources(db, accountId);
 }
 
 /** Off-session auto-refill. Checkout top-ups stay on checkout.session.completed. */
@@ -200,7 +193,6 @@ async function onPaymentIntentSucceeded(
 		cents,
 		balanceUsdMicros: balance.toString(),
 	});
-	await resumeHostedResources(db, accountId);
 }
 
 export default app;
