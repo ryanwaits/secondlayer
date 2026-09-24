@@ -12,10 +12,6 @@ bun add @secondlayer/subgraphs
 
 ## Quick Start
 
-For the full hosted beta loop, including project setup, fast deploys with
-`--start-block`, querying, and webhooks, start with
-[QUICKSTART.md](QUICKSTART.md).
-
 ```typescript
 import { defineSubgraph } from "@secondlayer/subgraphs";
 
@@ -57,22 +53,15 @@ Deploy via CLI (`secondlayer subgraphs deploy path/to/definition.ts`), SDK (`sl.
 
 | Subpath | Description |
 | --- | --- |
-| `.` | `defineSubgraph`, `validateSubgraphDefinition`, `deploySchema`, `diffSchema`, `reindexSubgraph`, `backfillSubgraph`, `generateSubgraphSQL`, `pgSchemaName` |
+| `.` | `defineSubgraph`, `validateSubgraphDefinition`, `deploySchema`, `diffSchema`, `generateSubgraphSQL`, `pgSchemaName` |
 | `./types` | All schema + filter + handler types (`SubgraphDefinition`, `SubgraphFilter`, `StxTransferFilter`, etc.) |
 | `./schema` | Generator + deployer internals |
 | `./validate` | Shape + filter validation for deploys |
-| `./triggers` | Typed `on.*` helpers for all `SubgraphFilter` variants |
-| `./runtime/source-matcher` | Pure fn: match txs+events against a `SubgraphFilter` — used by the processor hot path |
 | `./runtime/replay` | `replayWebhook({ accountId, webhookId, fromBlock, toBlock })` — re-enqueue historical rows as outbox entries |
 
-## Runtime components
+## Runtime
 
-The runtime ships behind these entrypoints (import from the package root):
-
-- `startSubgraphProcessor(opts?)` — boots the block processor. LISTENs on `indexer:new_block`, matches sources, runs handlers, flushes writes inside a transaction, and emits outbox rows for matching webhooks. Also boots the emitter worker.
-- `processBlock(subgraph, name, height, opts?)` — single-block entry point used by catch-up, reindex, and tests.
-- `catchUpSubgraph(def, name)` — drains pending blocks up to chain tip.
-- `reindexSubgraph(def, opts)` — drop + rebuild schema tables from a start block. Breaking schema changes trigger this automatically on deploy.
+The processor runs as a service, not a library import: `bun run packages/subgraphs/src/service.ts` (the `subgraph-processor` container in `docker/`). It LISTENs on `indexer:new_block`, matches sources, runs handlers, flushes writes inside a transaction, and emits outbox rows for matching webhooks. Breaking schema changes trigger a reindex on deploy.
 
 ## Webhook emitter
 

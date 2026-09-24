@@ -132,7 +132,7 @@ For deployer/contract addresses, ask the user or check the project's docs — do
 
 ### Filter ↔ Event Payload Reference
 
-The `event` arg the handler receives carries the decoded payload for that filter type. Below: filter interface (verbatim from `src/types.ts`) + the payload your handler will receive (from `src/triggers/index.ts`).
+The `event` arg the handler receives carries the decoded payload for that filter type. Below: filter interface (verbatim from `src/types.ts`) + the payload your handler will receive (from `src/events.ts`).
 
 All event payloads include this shared `tx` field:
 
@@ -517,7 +517,7 @@ export interface PrintEventEvent {
 }
 ```
 
-`topic` is the decoded `topic` field of the printed Clarity tuple (e.g. `"swap"`, `"deposit"`), or `""` when the print has no topic. `data` holds the remaining decoded tuple fields, camelCased — an empty object when the printed value isn't a tuple. Narrow `data` per `topic`, or declare a `prints` map (§7) to type it automatically.
+`topic` is the decoded `topic` field of the printed Clarity tuple (e.g. `"swap"`, `"deposit"`), or `""` when the print has no topic. `data` holds the remaining decoded tuple fields, camelCased — an empty object when the printed value isn't a tuple. Narrow `data` per `topic`, or declare a `prints` map (§8.3) to type it automatically.
 
 ---
 
@@ -636,7 +636,7 @@ Rules:
 - Handler **key must equal a source key** in `sources`, or be `"*"` (catch-all that fires for every matched event).
 - Runs **once per matched event**. Writes are batched and flushed atomically at the end of the block.
 - Can be sync or `async`. Use `async` when calling `ctx.findOne`, `ctx.findMany`, `ctx.count`, etc. — those return promises.
-- The `event` arg is **typed from the source's `type`** (e.g. an `ft_transfer` source → `event.amount` is `bigint`, `event.sender`/`event.recipient` are `string`) — no cast needed. `ctx.insert` is checked against your `schema`. For `print_event` sources, declare a `prints` map to type `event.data` per topic (§7); for `contract_call`, pass a `const` `abi` to type `event.input` (§7).
+- The `event` arg is **typed from the source's `type`** (e.g. an `ft_transfer` source → `event.amount` is `bigint`, `event.sender`/`event.recipient` are `string`) — no cast needed. `ctx.insert` is checked against your `schema`. For `print_event` sources, declare a `prints` map to type `event.data` per topic (§8.3); for `contract_call`, pass a `const` `abi` to type `event.input` (§3.11).
 
 Example:
 
@@ -793,46 +793,7 @@ Reads see **pre-flush state** — writes queued earlier in the same block aren't
 
 ---
 
-## 7. Typed Triggers (`on.*`)
-
-`@secondlayer/subgraphs/triggers` exports phantom-typed event-trigger builders for type inference at the consumer level. The runtime shape is identical to a plain filter; the phantom `__event` carries the payload type.
-
-```ts
-import { on, type EventOf } from "@secondlayer/subgraphs/triggers";
-
-const trigger = on.ftTransfer({ assetIdentifier: "SP3K8...usda-token::usda" });
-type Event = EventOf<typeof trigger>; // → FtTransferEvent
-```
-
-### All 13 helpers
-
-```ts
-export interface TriggerHelpers {
-  stxTransfer:    (f?: Omit<StxTransferFilter,    "type">) => TypedEventTrigger<StxTransferEvent>;
-  stxMint:        (f?: Omit<StxMintFilter,        "type">) => TypedEventTrigger<StxMintEvent>;
-  stxBurn:        (f?: Omit<StxBurnFilter,        "type">) => TypedEventTrigger<StxBurnEvent>;
-  stxLock:        (f?: Omit<StxLockFilter,        "type">) => TypedEventTrigger<StxLockEvent>;
-  ftTransfer:     (f?: Omit<FtTransferFilter,     "type">) => TypedEventTrigger<FtTransferEvent>;
-  ftMint:         (f?: Omit<FtMintFilter,         "type">) => TypedEventTrigger<FtMintEvent>;
-  ftBurn:         (f?: Omit<FtBurnFilter,         "type">) => TypedEventTrigger<FtBurnEvent>;
-  nftTransfer:    (f?: Omit<NftTransferFilter,    "type">) => TypedEventTrigger<NftTransferEvent>;
-  nftMint:        (f?: Omit<NftMintFilter,        "type">) => TypedEventTrigger<NftMintEvent>;
-  nftBurn:        (f?: Omit<NftBurnFilter,        "type">) => TypedEventTrigger<NftBurnEvent>;
-  contractCall:   (f?: Omit<ContractCallFilter,   "type">) => TypedEventTrigger<ContractCallEvent>;
-  contractDeploy: (f?: Omit<ContractDeployFilter, "type">) => TypedEventTrigger<ContractDeployEvent>;
-  printEvent:     (f?: Omit<PrintEventFilter,     "type">) => TypedEventTrigger<PrintEventEvent>;
-}
-```
-
-```ts
-export type EventOf<T> = T extends TypedEventTrigger<infer E> ? E : never;
-```
-
-**Note:** triggers are phantom-typed — they're used for type inference at consumer sites (Webhooks API). For `defineSubgraph` sources you can either pass plain `{ type: "...", ... }` filters or use the triggers' runtime shape; the inference value-add is at the handler payload typing layer in webhook definitions.
-
----
-
-## 8. Type Inference for Query Clients
+## 7. Type Inference for Query Clients
 
 `packages/subgraphs/src/infer.ts` exports inference utilities. The `defineSubgraph` identity function preserves your `schema` as a literal type, which feeds the inference chain:
 
@@ -939,9 +900,9 @@ const client = getSubgraph(mySubgraph, { apiKey: "sl_..." });
 
 ---
 
-## 9. Common Patterns
+## 8. Common Patterns
 
-### 9.1 SIP-010 transfer indexer with per-holder balances
+### 8.1 SIP-010 transfer indexer with per-holder balances
 
 Use `ctx.increment` (atomic deltas) — never findOne+upsert for balances.
 
@@ -1001,7 +962,7 @@ export default defineSubgraph({
 });
 ```
 
-### 9.2 Contract deployment tracker
+### 8.2 Contract deployment tracker
 
 Verbatim from `packages/subgraphs/examples/contract-deployments.ts`:
 
@@ -1046,7 +1007,7 @@ export default defineSubgraph({
 });
 ```
 
-### 9.3 Print-event indexer with topic filter
+### 8.3 Print-event indexer with topic filter
 
 Adapted from `bench/subgraphs/sbtc-flows-bench.ts`. Filters print events from a specific contract on a topic; useful for indexing DEX swaps, vault operations, etc.
 
@@ -1093,7 +1054,7 @@ export default defineSubgraph({
 });
 ```
 
-### 9.4 sBTC deposit tracker
+### 8.4 sBTC deposit tracker
 
 Tracks completed deposits from the sBTC registry contract.
 
@@ -1154,7 +1115,7 @@ export default defineSubgraph({
 
 ---
 
-## 10. Validation
+## 9. Validation
 
 Import from `@secondlayer/subgraphs`:
 
@@ -1184,13 +1145,13 @@ The CLI runs validation on `secondlayer subgraphs deploy` — bad definitions ne
 
 ---
 
-## 11. Don't-Do List
+## 10. Don't-Do List
 
 - **Don't use array sources or `"contract::event"` handler names** — that was the old shape. Sources are a named object `Record<string, SubgraphFilter>` and handlers are keyed by source name (or `"*"`).
 - **Don't omit `uniqueKeys` if you call `upsert`** — the runtime falls back to a non-atomic insert with a warning. For correctness, always declare `uniqueKeys: [[...]]` matching the upsert key.
 - **Don't use `number` for amounts** — Stacks amounts are 128-bit. Use `bigint` literals (`1_000_000n`) and the `uint` column type.
 - **Don't hand-add `_block_height` / `_tx_id` columns** — they're auto-added on every insert. Declaring them yourself will conflict.
 - **Don't reach for `patchOrInsert` if a plain `upsert` works** — `patchOrInsert` is async (it reads existing first). Use it only when you need `(existing) => newValue` merge semantics; otherwise compute the new row inline and call sync `upsert`.
-- **Don't cast `event` — it's already typed.** `defineSubgraph` types `event` per source `type` (e.g. an `ft_transfer` source → `event.amount: bigint`). Declare a `prints` map to type `event.data` per topic, and pass a `const` `abi` to type `event.input` for `contract_call` (§7). No `as` casts needed.
+- **Don't cast `event` — it's already typed.** `defineSubgraph` types `event` per source `type` (e.g. an `ft_transfer` source → `event.amount: bigint`). Declare a `prints` map to type `event.data` per topic, and pass a `const` `abi` to type `event.input` for `contract_call` (§3.11, §8.3). No `as` casts needed.
 - **Don't call `findOne`/`findMany` and expect to see writes from earlier in the same block** — reads return pre-flush state. If you need running totals within a block, accumulate in handler-local state or use `patchOrInsert` with a merge function.
 - **Don't put complex business logic in `"*"` catch-all handlers without a discriminator** — `event` shape varies by source. Inspect `event.type` or branch on the source that matched.

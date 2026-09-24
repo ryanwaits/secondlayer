@@ -68,12 +68,8 @@ export {
 	filterFieldsByType,
 	validateSubgraphDefinition,
 } from "./validate.ts";
+export type { PrintValidationResult } from "./runtime/print-validate.ts";
 export {
-	type PrintValidationResult,
-	validatePrintPayload,
-} from "./runtime/print-validate.ts";
-export {
-	camelizeDataKey,
 	camelizeKeys,
 	inferPrintTopics,
 	type InferredPrintField,
@@ -104,7 +100,6 @@ export {
 } from "./schema/kysely.ts";
 export {
 	generateIndexSchema,
-	INDEX_CODEGEN_TABLES,
 	type IndexCodegenOptions,
 	type IndexCodegenTarget,
 } from "./schema/index-codegen.ts";
@@ -115,12 +110,7 @@ export {
 	hasBreakingChanges,
 	renderDeployPlan,
 } from "./schema/deployer.ts";
-export {
-	reindexSubgraph,
-	resumeReindex,
-	backfillSubgraph,
-	type ReindexOptions,
-} from "./runtime/reindex.ts";
+export type { ReindexOptions } from "./runtime/reindex.ts";
 export {
 	canSparseScan,
 	sparseProbeTargets,

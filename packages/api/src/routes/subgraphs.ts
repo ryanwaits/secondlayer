@@ -1371,14 +1371,6 @@ export function readSpecOptions(c: {
 	return { serverUrl: `${proto}://${url.host}`, forcePublicRead };
 }
 
-// Friendly redirect: /:subgraphName/openapi → /openapi.json (Scalar/Swagger
-// users often type the bare name; without this it falls through to the
-// table handler and 404s as TABLE_NOT_FOUND.
-app.get("/:subgraphName/openapi", (c) => {
-	const { subgraphName } = c.req.param();
-	return c.redirect(`/api/subgraphs/${subgraphName}/openapi.json`, 308);
-});
-
 app.get("/:subgraphName/openapi.json", async (c) => {
 	const { subgraphName } = c.req.param();
 	const detail = await buildSubgraphDetailPayload(

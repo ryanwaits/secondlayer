@@ -78,7 +78,7 @@ describe("on.* factories", () => {
 		expect(f.toIndexParams().eventType).toBe("print");
 		expect(f.toStreamsParams().types).toEqual(["print"]);
 		expect(f.toChainTrigger().type).toBe("print_event");
-		// topic is expressible on subgraphs/triggers, not on Index/Streams reads.
+		// topic is expressible on chain triggers, not on Index/Streams reads.
 		const topical = on.print({ contractId: TOKEN_CONTRACT, topic: "transfer" });
 		expect(() => topical.toIndexParams()).toThrow(/topic/);
 		expect(topical.toChainTrigger()).toEqual({
