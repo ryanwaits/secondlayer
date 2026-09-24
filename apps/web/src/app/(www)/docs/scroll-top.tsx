@@ -15,11 +15,16 @@ import { useEffect } from "react";
  * mid-animation, so it still settles a few px short. Once the smooth scroll ends
  * we snap to true 0 — a no-op on desktop (already there), the final settle on
  * mobile. A timeout backstops `scrollend` for browsers that interrupt it.
+ *
+ * A URL naming an element on the page (`#section`) is left to the browser's
+ * own jump; scrolling to 0 would throw away the link's target.
  */
 export function DocsScrollTop() {
 	const pathname = usePathname();
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — settle scroll on route change
 	useEffect(() => {
+		const hash = decodeURIComponent(location.hash.slice(1));
+		if (hash && document.getElementById(hash)) return;
 		const reduced = window.matchMedia(
 			"(prefers-reduced-motion: reduce)",
 		).matches;
