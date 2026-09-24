@@ -63,7 +63,7 @@ describe("subgraph spec generation", () => {
 
 		expect(schema.schemaHash).toBe("hash-123");
 		expect(schema.tables.listings.endpoint).toBe(
-			"https://tenant.example.test/api/subgraphs/test-subgraph/listings",
+			"https://tenant.example.test/v1/subgraphs/test-subgraph/listings",
 		);
 		expect(schema.tables.listings.query.filters).toContain("price.gte");
 		expect(schema.tables.listings.query.filters).toContain("nft_id.like");
@@ -79,9 +79,9 @@ describe("subgraph spec generation", () => {
 			[key: string]: unknown;
 		};
 
-		expect(spec.paths["/api/subgraphs/test-subgraph/listings"]).toBeDefined();
+		expect(spec.paths["/v1/subgraphs/test-subgraph/listings"]).toBeDefined();
 		expect(
-			spec.paths["/api/subgraphs/test-subgraph/listings/count"],
+			spec.paths["/v1/subgraphs/test-subgraph/listings/count"],
 		).toBeDefined();
 		expect(spec["x-secondlayer-schema-hash"]).toBe("hash-123");
 	});
@@ -95,18 +95,17 @@ describe("subgraph spec generation", () => {
 		expect(markdown).toContain("# test-subgraph Subgraph API");
 		expect(markdown).toContain("`price.gte`");
 		expect(markdown).toContain(
-			"curl 'https://tenant.example.test/api/subgraphs/test-subgraph/listings",
+			"curl 'https://tenant.example.test/v1/subgraphs/test-subgraph/listings",
 		);
 	});
 
-	test("public visibility emits /v1 surface with rows envelope and no _offset/_sort", () => {
-		const publicDetail: SubgraphDetail = { ...detail, visibility: "public" };
+	test("emits the /v1 surface with rows envelope and no _offset/_sort", () => {
 		const options = {
 			serverUrl: "https://tenant.example.test",
 			generatedAt: "2026-01-01T00:00:00.000Z",
 		};
 
-		const schema = generateSubgraphAgentSchema(publicDetail, options);
+		const schema = generateSubgraphAgentSchema(detail, options);
 		expect(schema.tables.listings.endpoint).toBe(
 			"https://tenant.example.test/v1/subgraphs/test-subgraph/listings",
 		);
@@ -127,7 +126,7 @@ describe("subgraph spec generation", () => {
 			"curl 'https://tenant.example.test/v1/subgraphs/test-subgraph/listings?_limit=10&_order=desc'",
 		);
 
-		const spec = generateSubgraphOpenApi(publicDetail, options) as {
+		const spec = generateSubgraphOpenApi(detail, options) as {
 			paths: Record<string, { get: { parameters: { name: string }[] } }>;
 		};
 		const rowsPath = spec.paths["/v1/subgraphs/test-subgraph/listings"];
@@ -146,7 +145,7 @@ describe("subgraph spec generation", () => {
 		expect(envelope).toContain('"tip"');
 		expect(envelope).not.toContain('"offset"');
 
-		const markdown = generateSubgraphMarkdown(publicDetail, options);
+		const markdown = generateSubgraphMarkdown(detail, options);
 		expect(markdown).toContain(
 			"GET https://tenant.example.test/v1/subgraphs/test-subgraph/listings",
 		);

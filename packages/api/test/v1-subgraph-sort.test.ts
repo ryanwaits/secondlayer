@@ -61,11 +61,6 @@ describe.skipIf(SKIP)("/v1 sorted keyset pagination (_sort/_order)", () => {
 		await sql.raw(`DROP SCHEMA IF EXISTS ${PG_SCHEMA} CASCADE`).execute(db);
 
 		await registerSubgraph(db, subgraphDef);
-		await db
-			.updateTable("subgraphs")
-			.set({ visibility: "public" })
-			.where("name", "=", SUBGRAPH_NAME)
-			.execute();
 
 		const client = getRawClient();
 		await client.unsafe(`CREATE SCHEMA IF NOT EXISTS ${PG_SCHEMA}`);

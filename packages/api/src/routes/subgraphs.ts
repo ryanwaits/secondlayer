@@ -30,7 +30,6 @@ import {
 	pgSchemaName,
 	updateSubgraphStatus,
 } from "@secondlayer/shared/db/queries/subgraphs";
-import { isPlatformMode } from "@secondlayer/shared/mode";
 import {
 	type DeploySubgraphRequest,
 	DeploySubgraphRequestSchema,
@@ -1106,7 +1105,6 @@ app.get("/", async (c) => {
 				syncMode: sync.mode,
 				gapCount: gaps?.gapCount ?? 0,
 				integrity: (gaps?.gapCount ?? 0) > 0 ? "gaps_detected" : "complete",
-				visibility: v.visibility as "public" | "private",
 				lastError: live?.last_error ?? null,
 				lastErrorAt: live?.last_error_at?.toISOString() ?? null,
 				updatedAt: (live?.updated_at ?? v.updated_at)?.toISOString() ?? null,
@@ -1181,8 +1179,7 @@ async function buildSubgraphDetailPayload(
 	return buildSubgraphDetailFromRow(requireSubgraph(subgraphName));
 }
 
-// Shared with /v1/subgraphs doc routes, which resolve by visibility instead
-// of ownership.
+// Shared with /v1/subgraphs doc routes.
 export async function buildSubgraphDetailFromRow(
 	subgraph: Subgraph,
 ): Promise<SubgraphDetail> {
@@ -1299,7 +1296,6 @@ export async function buildSubgraphDetailFromRow(
 		version: subgraph.version,
 		schemaHash: subgraph.schema_hash,
 		status: live.status,
-		visibility: subgraph.visibility as "public" | "private",
 		lastProcessedBlock: sync.lastProcessedBlock,
 		...(description && { description }),
 		...(sources && { sources }),
@@ -1327,17 +1323,12 @@ export function readSpecOptions(c: {
 		header(name: string): string | undefined;
 	};
 }): SubgraphSpecOptions {
-	// Self-hosted instances serve /v1/subgraphs reads by the loopback rule,
-	// never by the visibility column (v1-subgraphs.ts ignores it in oss mode),
-	// so the generated examples must point there regardless of what the row
-	// says. Only the metered platform still gates on the column.
-	const forcePublicRead = !isPlatformMode();
 	const server = c.req.query("server");
-	if (server) return { serverUrl: server, forcePublicRead };
+	if (server) return { serverUrl: server };
 	const url = new URL(c.req.url);
 	const proto =
 		c.req.header("x-forwarded-proto") ?? url.protocol.replace(":", "");
-	return { serverUrl: `${proto}://${url.host}`, forcePublicRead };
+	return { serverUrl: `${proto}://${url.host}` };
 }
 
 app.get("/:subgraphName/openapi.json", async (c) => {
@@ -1510,9 +1501,6 @@ app.get("/:subgraphName", async (c) => {
 		version: subgraph.version,
 		schemaHash: subgraph.schema_hash,
 		status: live.status,
-		// Without this the detail page falls back to "private" while the list
-		// (which does return visibility) shows the real value — a mismatch.
-		visibility: subgraph.visibility as "public" | "private",
 		lastProcessedBlock: sync.lastProcessedBlock,
 		...(description && { description }),
 		...(sources && { sources }),

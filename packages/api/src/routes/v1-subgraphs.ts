@@ -132,8 +132,7 @@ function buildSortedKeysetPredicate(
  * does not run subgraphs, so the platform app does not mount this router.
  *
  * Posture matches the other /v1 surfaces — wildcard CORS, anon reads allowed
- * on a loopback bind, cursor envelope. Names are unique per instance and
- * visibility is ignored.
+ * on a loopback bind, cursor envelope. Names are unique per instance.
  *
  * The authed /api/subgraphs surface (deploys, ops) is unchanged.
  */
@@ -202,9 +201,6 @@ function summarize(
 				? ((v.definition as { description: string }).description ?? null)
 				: null,
 		status: v.status,
-		visibility: v.visibility,
-		// Self-host has no accounts; kept for response-shape stability.
-		owned: false,
 		version: v.version,
 		created_at: v.created_at.toISOString(),
 		total_rows: rowCounts.get(subgraphSchemaName(v)) ?? 0,
@@ -303,7 +299,6 @@ app.get("/:subgraphName", async (c) => {
 				: null,
 		version: subgraph.version,
 		status: subgraph.status,
-		visibility: subgraph.visibility,
 		created_at: subgraph.created_at.toISOString(),
 		sources: extractSources(subgraph),
 		start_block: Number(subgraph.start_block) || 0,
@@ -341,8 +336,7 @@ app.get("/:subgraphName", async (c) => {
 
 // ── Generated docs ──────────────────────────────────────────────────────
 
-// Same generators as /api/subgraphs, passed the detail incl. visibility so
-// the docs describe the /v1 surface. Registered before
+// Same generators as /api/subgraphs. Registered before
 // /:subgraphName/:tableName so the static segments win.
 
 app.get("/:subgraphName/openapi.json", async (c) => {

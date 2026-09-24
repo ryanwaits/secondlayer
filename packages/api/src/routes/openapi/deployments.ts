@@ -223,7 +223,6 @@ export const deploymentsPaths = {
 											syncMode: "sync",
 											gapCount: 0,
 											integrity: "complete",
-											visibility: "private",
 											lastError: null,
 											lastErrorAt: null,
 											updatedAt: "2026-09-23T14:02:11.000Z",
@@ -1017,11 +1016,6 @@ export const deploymentsSchemas = {
 				enum: ["complete", "gaps_detected"],
 				description: "`gaps_detected` when any gap is open.",
 			},
-			visibility: {
-				type: "string",
-				enum: ["public", "private"],
-				description: "`public` subgraphs are readable without a key.",
-			},
 			lastError: {
 				type: ["string", "null"],
 				description: "Most recent processing error.",
@@ -1063,7 +1057,6 @@ export const deploymentsSchemas = {
 			syncMode: "sync",
 			gapCount: 0,
 			integrity: "complete",
-			visibility: "private",
 			lastError: null,
 			lastErrorAt: null,
 			updatedAt: "2026-09-23T14:02:11.000Z",
@@ -1214,11 +1207,6 @@ export const deploymentsSchemas = {
 				enum: [...SUBGRAPH_STATUSES],
 				description: "Processor state.",
 			},
-			visibility: {
-				type: "string",
-				enum: ["public", "private"],
-				description: "`public` subgraphs are readable without a key.",
-			},
 			lastProcessedBlock: {
 				type: "integer",
 				description: "Highest block processed.",
@@ -1273,7 +1261,6 @@ export const deploymentsSchemas = {
 			schemaHash:
 				"4b9e1d27c83f0a65e2d7b14c9f06a38e5d21c7b90f4e6a83d15c2b7e09f4a6d1",
 			status: "active",
-			visibility: "private",
 			lastProcessedBlock: EXAMPLE_TIP,
 			sources: EXAMPLE_SOURCES,
 			definition: {

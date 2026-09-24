@@ -18,7 +18,7 @@ import {
 
 // Read primitives shared by the authed /api/subgraphs surface and the open
 // /v1/subgraphs surface. Each handler takes an already-resolved subgraph —
-// ownership/visibility resolution is the caller's concern, never this layer's.
+// subgraph resolution is the caller's concern, never this layer's.
 
 export class SubgraphNotFoundError extends Error {
 	code = "SUBGRAPH_NOT_FOUND";

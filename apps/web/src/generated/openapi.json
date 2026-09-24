@@ -669,18 +669,6 @@
 						"type": "string",
 						"description": "Indexing state: `active` (following the chain), `reindexing`, `paused`, or `error`."
 					},
-					"visibility": {
-						"type": "string",
-						"enum": [
-							"public",
-							"private"
-						],
-						"description": "Who can read it on hosted `api.secondlayer.tools`: `public` is open to anyone, `private` needs the owning account's key. Self-hosted instances ignore it; the bind decides."
-					},
-					"owned": {
-						"type": "boolean",
-						"description": "Hosted: whether your account key owns it. Always `false` self-hosted."
-					},
 					"version": {
 						"type": "string",
 						"description": "Deployed version."
@@ -725,8 +713,6 @@
 					"name": "sbtc-token",
 					"description": null,
 					"status": "active",
-					"visibility": "private",
-					"owned": false,
 					"version": "1.0.0",
 					"created_at": "2026-09-01T12:00:00.000Z",
 					"total_rows": 48138,
@@ -788,8 +774,6 @@
 							"name": "sbtc-token",
 							"description": null,
 							"status": "active",
-							"visibility": "private",
-							"owned": false,
 							"version": "1.0.0",
 							"created_at": "2026-09-01T12:00:00.000Z",
 							"total_rows": 48138,
@@ -836,14 +820,6 @@
 					"status": {
 						"type": "string",
 						"description": "Indexing state: `active` (following the chain), `reindexing`, `paused`, or `error`."
-					},
-					"visibility": {
-						"type": "string",
-						"enum": [
-							"public",
-							"private"
-						],
-						"description": "Who can read it on hosted `api.secondlayer.tools`: `public` is open to anyone, `private` needs the owning account's key. Self-hosted instances ignore it; the bind decides."
 					},
 					"created_at": {
 						"type": "string",
@@ -924,7 +900,6 @@
 					"description": null,
 					"version": "1.0.0",
 					"status": "active",
-					"visibility": "private",
 					"created_at": "2026-09-01T12:00:00.000Z",
 					"sources": [
 						"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token"
@@ -5600,14 +5575,6 @@
 						],
 						"description": "`gaps_detected` when any gap is open."
 					},
-					"visibility": {
-						"type": "string",
-						"enum": [
-							"public",
-							"private"
-						],
-						"description": "`public` subgraphs are readable without a key."
-					},
 					"lastError": {
 						"type": [
 							"string",
@@ -5660,7 +5627,6 @@
 					"syncMode": "sync",
 					"gapCount": 0,
 					"integrity": "complete",
-					"visibility": "private",
 					"lastError": null,
 					"lastErrorAt": null,
 					"updatedAt": "2026-09-23T14:02:11.000Z",
@@ -5881,14 +5847,6 @@
 						],
 						"description": "Processor state."
 					},
-					"visibility": {
-						"type": "string",
-						"enum": [
-							"public",
-							"private"
-						],
-						"description": "`public` subgraphs are readable without a key."
-					},
 					"lastProcessedBlock": {
 						"type": "integer",
 						"description": "Highest block processed."
@@ -5965,7 +5923,6 @@
 					"version": "1.0.2",
 					"schemaHash": "4b9e1d27c83f0a65e2d7b14c9f06a38e5d21c7b90f4e6a83d15c2b7e09f4a6d1",
 					"status": "active",
-					"visibility": "private",
 					"lastProcessedBlock": 9048712,
 					"sources": {
 						"transfers": {
@@ -8402,7 +8359,7 @@
 							"text/markdown": {
 								"schema": {
 									"type": "string",
-									"example": "# sbtc-token Subgraph API\nVersion: 1.0.0\nSchema hash: fffc99aeb7e11b465bf2b91ff67f3b4fcafc7bfbd447fe4d1d36d3bb4b867c2f\nServer: http://127.0.0.1:3800\nVisibility: public — anon reads, no API key. Responses use the `{ rows, next_cursor, tip }` envelope; paginate with `?cursor=<next_cursor>` and `_order=asc|desc` (`_offset`/`_sort` are rejected).\n\n## transfers\n\nGET http://127.0.0.1:3800/v1/subgraphs/sbtc-token/transfers\nGET http://127.0.0.1:3800/v1/subgraphs/sbtc-token/transfers/count\nGET http://127.0.0.1:3800/v1/subgraphs/sbtc-token/transfers/aggregate\nGET http://127.0.0.1:3800/v1/subgraphs/sbtc-token/transfers/stream (SSE)\n\nRows: 48138\n\n### Columns\n\n| Column | Type | Attributes |\n| --- | --- | --- |\n| `sender` | `principal` | - |\n| `recipient` | `principal` | - |\n| `amount` | `uint` | - |\n| `asset_identifier` | `text` | indexed |\n| `_id` | `serial` | system |\n| `_block_height` | `bigint` | system |\n| `_tx_id` | `text` | system |\n| `_created_at` | `timestamp` | system |\n\n### Query\n\nParameters: `_limit`, `cursor`, `_order`, `_fields`\nFilters: `sender`, `sender.neq`, `sender.like`, `recipient`, `recipient.neq`, `recipient.like`, `amount`, `amount.neq`, `amount.gt`, `amount.gte`, `amount.lt`, `amount.lte`, `asset_identifier`, `asset_identifier.neq`, `asset_identifier.like`, `_id`, `_id.neq`, `_id.gt`, `_id.gte`, `_id.lt`, `_id.lte`, `_block_height`, `_block_height.neq`, `_block_height.gt`, `_block_height.gte`, `_block_height.lt`, `_block_height.lte`, `_tx_id`, `_tx_id.neq`, `_tx_id.like`, `_created_at`, `_created_at.neq`, `_created_at.gt`, `_created_at.gte`, `_created_at.lt`, `_created_at.lte`, `_created_at.like`\n\n### Example\n\n```bash\ncurl 'http://127.0.0.1:3800/v1/subgraphs/sbtc-token/transfers?_limit=10&_order=desc'\n```\n"
+									"example": "# sbtc-token Subgraph API\nVersion: 1.0.0\nSchema hash: fffc99aeb7e11b465bf2b91ff67f3b4fcafc7bfbd447fe4d1d36d3bb4b867c2f\nServer: http://127.0.0.1:3800\nResponses use the `{ rows, next_cursor, tip }` envelope; paginate with `?cursor=<next_cursor>` and `_order=asc|desc` (`_offset` is rejected).\n\n## transfers\n\nGET http://127.0.0.1:3800/v1/subgraphs/sbtc-token/transfers\nGET http://127.0.0.1:3800/v1/subgraphs/sbtc-token/transfers/count\nGET http://127.0.0.1:3800/v1/subgraphs/sbtc-token/transfers/aggregate\nGET http://127.0.0.1:3800/v1/subgraphs/sbtc-token/transfers/stream (SSE)\n\nRows: 48138\n\n### Columns\n\n| Column | Type | Attributes |\n| --- | --- | --- |\n| `sender` | `principal` | - |\n| `recipient` | `principal` | - |\n| `amount` | `uint` | - |\n| `asset_identifier` | `text` | indexed |\n| `_id` | `serial` | system |\n| `_block_height` | `bigint` | system |\n| `_tx_id` | `text` | system |\n| `_created_at` | `timestamp` | system |\n\n### Query\n\nParameters: `_limit`, `cursor`, `_order`, `_fields`\nFilters: `sender`, `sender.neq`, `sender.like`, `recipient`, `recipient.neq`, `recipient.like`, `amount`, `amount.neq`, `amount.gt`, `amount.gte`, `amount.lt`, `amount.lte`, `asset_identifier`, `asset_identifier.neq`, `asset_identifier.like`, `_id`, `_id.neq`, `_id.gt`, `_id.gte`, `_id.lt`, `_id.lte`, `_block_height`, `_block_height.neq`, `_block_height.gt`, `_block_height.gte`, `_block_height.lt`, `_block_height.lte`, `_tx_id`, `_tx_id.neq`, `_tx_id.like`, `_created_at`, `_created_at.neq`, `_created_at.gt`, `_created_at.gte`, `_created_at.lt`, `_created_at.lte`, `_created_at.like`\n\n### Example\n\n```bash\ncurl 'http://127.0.0.1:3800/v1/subgraphs/sbtc-token/transfers?_limit=10&_order=desc'\n```\n"
 								}
 							}
 						}
@@ -13483,7 +13440,6 @@
 												"syncMode": "sync",
 												"gapCount": 0,
 												"integrity": "complete",
-												"visibility": "private",
 												"lastError": null,
 												"lastErrorAt": null,
 												"updatedAt": "2026-09-23T14:02:11.000Z",

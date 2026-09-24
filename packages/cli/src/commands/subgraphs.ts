@@ -321,7 +321,7 @@ async function writeOrPrintSubgraphSpec(
 async function specFromLocalFile(
 	absPath: string,
 	format: SubgraphSpecFormat,
-	specOptions: { serverUrl: string; forcePublicRead: boolean } | undefined,
+	specOptions: { serverUrl: string } | undefined,
 ): Promise<unknown> {
 	const { readFile } = await import("node:fs/promises");
 	const { bundleSubgraphCode } = await import("@secondlayer/bundler");
@@ -1596,14 +1596,7 @@ Examples:
 					}
 					const isLocalFile = nameOrFile.endsWith(".ts");
 					const spec = isLocalFile
-						? // A local, undeployed file has no server-known visibility to
-							// branch on, and every deploy target this command can reach
-							// serves subgraph reads by the loopback rule, not that flag —
-							// so the preview should always show the open /v1 path.
-							await specFromLocalFile(absPath, format, {
-								...specOptions,
-								forcePublicRead: true,
-							})
+						? await specFromLocalFile(absPath, format, specOptions)
 						: format === "openapi"
 							? await getSubgraphOpenApi(nameOrFile, specOptions)
 							: format === "agent"

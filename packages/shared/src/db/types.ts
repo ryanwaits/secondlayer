@@ -192,9 +192,6 @@ export interface SubgraphsTable {
 	handler_code: string | null;
 	source_code: string | null;
 	project_id: string | null;
-	// 'public' = anon-readable via /v1/subgraphs (global name namespace,
-	// claim-on-publish); 'private' = reads require the owning account's key.
-	visibility: Generated<string>;
 	/** Paid (wallet-ghost) deploys expire unless renewed or claimed; NULL = no expiry. */
 	expires_at: Date | null;
 	/** (event type, contract) probe pairs persisted at deploy for weight classification. */

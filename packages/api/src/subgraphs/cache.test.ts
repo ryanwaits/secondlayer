@@ -24,7 +24,6 @@ function sg(overrides: Partial<Subgraph>): Subgraph {
 		handler_code: null,
 		source_code: null,
 		project_id: null,
-		visibility: "private",
 		created_at: new Date(),
 		updated_at: new Date(),
 		...overrides,

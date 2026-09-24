@@ -84,7 +84,6 @@ export interface SubgraphSummary {
 	gapCount: number;
 	/** history_filling = expected gaps while a tip-first backfill op runs. */
 	integrity: "complete" | "gaps_detected" | "history_filling";
-	visibility?: "public" | "private";
 	/** Most recent indexing error reason + when it occurred, if any. */
 	lastError?: string | null;
 	lastErrorAt?: string | null;
@@ -144,7 +143,6 @@ export interface SubgraphDetail {
 	version: string;
 	schemaHash?: string;
 	status: string;
-	visibility?: "public" | "private";
 	lastProcessedBlock: number;
 	description?: string;
 	sources?: Record<string, unknown>;

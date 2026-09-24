@@ -205,9 +205,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		await db.deleteFrom("subgraphs").execute();
 		await sql.raw(`DROP SCHEMA IF EXISTS ${PG_SCHEMA} CASCADE`).execute(db);
 
-		// Register subgraph; public so the anon /v1 read surface resolves it too.
 		await registerSubgraph(db, subgraphDef);
-		await db.updateTable("subgraphs").set({ visibility: "public" }).execute();
 
 		// Create PG schema + table
 		const client = getRawClient();

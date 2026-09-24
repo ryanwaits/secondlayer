@@ -74,7 +74,6 @@ const EXAMPLE_DETAIL: SubgraphDetail = {
 	schemaHash:
 		"fffc99aeb7e11b465bf2b91ff67f3b4fcafc7bfbd447fe4d1d36d3bb4b867c2f",
 	status: "active",
-	visibility: "private",
 	lastProcessedBlock: EXAMPLE_TIP.subgraph_height,
 	sources: EXAMPLE_SOURCES,
 	health: {
@@ -117,7 +116,6 @@ const EXAMPLE_DETAIL: SubgraphDetail = {
 const EXAMPLE_SPEC_OPTIONS = {
 	serverUrl: EXAMPLE_SERVER,
 	generatedAt: "2026-09-23T15:12:00.000Z",
-	forcePublicRead: true,
 };
 
 // ── Shared fragments ────────────────────────────────────────────────────
@@ -550,8 +548,6 @@ const EXAMPLE_SUMMARY = {
 	name: EXAMPLE_NAME,
 	description: null,
 	status: "active",
-	visibility: "private",
-	owned: false,
 	version: "1.0.0",
 	created_at: EXAMPLE_DETAIL.createdAt,
 	total_rows: EXAMPLE_ROWS,
@@ -564,12 +560,6 @@ const EXAMPLE_SUMMARY = {
 
 const STATUS_DESCRIPTION =
 	"Indexing state: `active` (following the chain), `reindexing`, `paused`, or `error`.";
-const VISIBILITY = {
-	type: "string",
-	enum: ["public", "private"],
-	description:
-		"Who can read it on hosted `api.secondlayer.tools`: `public` is open to anyone, `private` needs the owning account's key. Self-hosted instances ignore it; the bind decides.",
-};
 const SOURCES_DESCRIPTION =
 	"Contracts the definition reads from: each source's `contractId`, and the contract half of each `assetIdentifier`.";
 
@@ -688,12 +678,6 @@ export const subgraphsSchemas = {
 				description: "The definition's `description`, if it has one.",
 			},
 			status: { type: "string", description: STATUS_DESCRIPTION },
-			visibility: VISIBILITY,
-			owned: {
-				type: "boolean",
-				description:
-					"Hosted: whether your account key owns it. Always `false` self-hosted.",
-			},
 			version: { type: "string", description: "Deployed version." },
 			created_at: {
 				type: "string",
@@ -777,7 +761,6 @@ export const subgraphsSchemas = {
 			},
 			version: { type: "string", description: "Deployed version." },
 			status: { type: "string", description: STATUS_DESCRIPTION },
-			visibility: VISIBILITY,
 			created_at: {
 				type: "string",
 				format: "date-time",
@@ -831,7 +814,6 @@ export const subgraphsSchemas = {
 			description: null,
 			version: "1.0.0",
 			status: "active",
-			visibility: "private",
 			created_at: EXAMPLE_DETAIL.createdAt,
 			sources: EXAMPLE_SUMMARY.sources,
 			start_block: 0,
