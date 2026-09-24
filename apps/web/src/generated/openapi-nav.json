@@ -1,6 +1,16 @@
 [
 	{
 		"tag": "general",
+		"objects": [
+			{
+				"anchor": "v1-discovery-object",
+				"title": "The API discovery object"
+			},
+			{
+				"anchor": "batch-response-object",
+				"title": "The batch response object"
+			}
+		],
 		"endpoints": [
 			{
 				"anchor": "discover-surfaces",
@@ -21,6 +31,76 @@
 	},
 	{
 		"tag": "index",
+		"objects": [
+			{
+				"anchor": "index-discovery-object",
+				"title": "The Index discovery object"
+			},
+			{
+				"anchor": "index-event-object",
+				"title": "The Index event object"
+			},
+			{
+				"anchor": "ft-transfer-object",
+				"title": "The FT transfer object"
+			},
+			{
+				"anchor": "nft-transfer-object",
+				"title": "The NFT transfer object"
+			},
+			{
+				"anchor": "contract-call-object",
+				"title": "The contract call object"
+			},
+			{
+				"anchor": "canonical-block-object",
+				"title": "The canonical block object"
+			},
+			{
+				"anchor": "block-object",
+				"title": "The block object"
+			},
+			{
+				"anchor": "transaction-object",
+				"title": "The transaction object"
+			},
+			{
+				"anchor": "transaction-proof-object",
+				"title": "The transaction proof object"
+			},
+			{
+				"anchor": "mempool-transaction-object",
+				"title": "The mempool transaction object"
+			},
+			{
+				"anchor": "print-schema-object",
+				"title": "The print schema object"
+			},
+			{
+				"anchor": "stacking-action-object",
+				"title": "The PoX-4 stacking action object"
+			},
+			{
+				"anchor": "pox-cycle-object",
+				"title": "The PoX-4 reward cycle object"
+			},
+			{
+				"anchor": "pox5-event-object",
+				"title": "The PoX-5 event object"
+			},
+			{
+				"anchor": "sbtc-event-object",
+				"title": "The sBTC event object"
+			},
+			{
+				"anchor": "sbtc-deposit-object",
+				"title": "The sBTC deposit object"
+			},
+			{
+				"anchor": "sbtc-withdrawal-object",
+				"title": "The sBTC withdrawal object"
+			}
+		],
 		"endpoints": [
 			{
 				"anchor": "discover-index",
@@ -146,6 +226,28 @@
 	},
 	{
 		"tag": "streams",
+		"objects": [
+			{
+				"anchor": "streams-discovery-object",
+				"title": "The Streams discovery object"
+			},
+			{
+				"anchor": "streams-event-object",
+				"title": "The Streams event object"
+			},
+			{
+				"anchor": "reorg-object",
+				"title": "The reorg object"
+			},
+			{
+				"anchor": "streams-canonical-block-object",
+				"title": "The Streams canonical block object"
+			},
+			{
+				"anchor": "streams-tip-object",
+				"title": "The Streams tip object"
+			}
+		],
 		"endpoints": [
 			{
 				"anchor": "discover-streams",
@@ -181,6 +283,36 @@
 	},
 	{
 		"tag": "subgraphs",
+		"objects": [
+			{
+				"anchor": "subgraph-directory-object",
+				"title": "The subgraph directory object"
+			},
+			{
+				"anchor": "subgraph-object",
+				"title": "The subgraph object"
+			},
+			{
+				"anchor": "subgraph-open-api-document-object",
+				"title": "The subgraph OpenAPI document object"
+			},
+			{
+				"anchor": "subgraph-agent-schema-object",
+				"title": "The subgraph agent schema object"
+			},
+			{
+				"anchor": "subgraph-rows-page-object",
+				"title": "The subgraph rows page object"
+			},
+			{
+				"anchor": "subgraph-row-count-object",
+				"title": "The subgraph row count object"
+			},
+			{
+				"anchor": "subgraph-aggregates-object",
+				"title": "The subgraph aggregates object"
+			}
+		],
 		"endpoints": [
 			{
 				"anchor": "list-subgraphs",
@@ -236,6 +368,12 @@
 	},
 	{
 		"tag": "archive",
+		"objects": [
+			{
+				"anchor": "archive-verify-result-object",
+				"title": "The archive verification object"
+			}
+		],
 		"endpoints": [
 			{
 				"anchor": "verify-archive",
@@ -246,6 +384,36 @@
 	},
 	{
 		"tag": "deployments",
+		"objects": [
+			{
+				"anchor": "deployed-subgraph-object",
+				"title": "The deployed subgraph object"
+			},
+			{
+				"anchor": "subgraph-bundle-object",
+				"title": "The subgraph bundle object"
+			},
+			{
+				"anchor": "deployed-subgraph-detail-object",
+				"title": "The deployed subgraph detail object"
+			},
+			{
+				"anchor": "subgraph-operation-queued-object",
+				"title": "The queued operation object"
+			},
+			{
+				"anchor": "subgraph-operation-object",
+				"title": "The subgraph operation object"
+			},
+			{
+				"anchor": "subgraph-gap-object",
+				"title": "The subgraph gap object"
+			},
+			{
+				"anchor": "subgraph-violation-object",
+				"title": "The print validation skip object"
+			}
+		],
 		"endpoints": [
 			{
 				"anchor": "list-deployments",
@@ -311,6 +479,36 @@
 	},
 	{
 		"tag": "webhooks",
+		"objects": [
+			{
+				"anchor": "webhook-summary-object",
+				"title": "The webhook summary object"
+			},
+			{
+				"anchor": "webhook-with-secret-object",
+				"title": "The webhook with its signing secret object"
+			},
+			{
+				"anchor": "webhook-object",
+				"title": "The webhook object"
+			},
+			{
+				"anchor": "webhook-test-result-object",
+				"title": "The webhook test result object"
+			},
+			{
+				"anchor": "webhook-delivery-object",
+				"title": "The webhook delivery object"
+			},
+			{
+				"anchor": "webhook-dead-event-object",
+				"title": "The dead-lettered webhook event object"
+			},
+			{
+				"anchor": "webhook-replay-result-object",
+				"title": "The webhook replay object"
+			}
+		],
 		"endpoints": [
 			{
 				"anchor": "list-webhooks",
@@ -381,6 +579,12 @@
 	},
 	{
 		"tag": "node",
+		"objects": [
+			{
+				"anchor": "contract-abi-object",
+				"title": "The contract ABI object"
+			}
+		],
 		"endpoints": [
 			{
 				"anchor": "get-contract-abi",
@@ -391,6 +595,20 @@
 	},
 	{
 		"tag": "instance",
+		"objects": [
+			{
+				"anchor": "instance-catalog-object",
+				"title": "The instance catalog object"
+			},
+			{
+				"anchor": "instance-features-object",
+				"title": "The instance feature manifest object"
+			},
+			{
+				"anchor": "instance-metrics-object",
+				"title": "The instance metrics object"
+			}
+		],
 		"endpoints": [
 			{
 				"anchor": "get-instance",

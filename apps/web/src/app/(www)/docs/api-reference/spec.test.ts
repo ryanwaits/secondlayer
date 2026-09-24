@@ -7,6 +7,7 @@ import {
 	endpointMarkdown,
 	findEndpoint,
 	kebab,
+	objectTitle,
 	objectsByTag,
 	referenceMarkdown,
 	responseExample,
@@ -39,6 +40,18 @@ describe("anchors", () => {
 			.map((e) => e.anchor)
 			.sort();
 		expect(fromNav).toEqual(fromPage);
+	});
+
+	test("the sidebar's generated tree lists each tag's objects as the page does", () => {
+		const objects = objectsByTag();
+		for (const group of nav) {
+			expect(group.objects).toEqual(
+				(objects.get(group.tag) ?? []).map((o) => ({
+					anchor: o.anchor,
+					title: objectTitle(o.name),
+				})),
+			);
+		}
 	});
 });
 
