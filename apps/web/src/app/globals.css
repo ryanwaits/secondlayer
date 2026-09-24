@@ -7537,6 +7537,11 @@ body:has(.marketing-nav) .auth-bar {
    Docs — API reference (generated from openapi.json)
    Two columns per section: prose + parameters left, request + response right.
    ════════════════════════════════════════════════ */
+/* A 200k px page of highlighted code: a smooth glide to a far anchor paints
+   everything between, so jumps land instantly here (as Stripe's do). */
+html:has(.apiref) {
+	scroll-behavior: auto;
+}
 .docs-shell:has(.apiref) {
 	grid-template-columns: minmax(0, 1fr);
 	max-width: none;
@@ -7585,6 +7590,10 @@ body:has(.marketing-nav) .auth-bar {
 	padding-top: 32px;
 	margin-top: 32px;
 }
+/* The next tag's top border already separates groups. */
+.apiref-section:last-child {
+	border-bottom: 0;
+}
 .docs-article .apiref-tag-title {
 	font-family: var(--font-heading-stack);
 	font-size: 13px;
@@ -7620,10 +7629,10 @@ body:has(.marketing-nav) .auth-bar {
 	gap: 16px;
 	min-width: 0;
 	position: sticky;
+	/* StickyAsides lowers this inline for asides taller than the viewport, so
+	   their tail is reachable without a scroll box of their own. */
 	top: 110px;
 	align-self: start;
-	max-height: calc(100vh - 130px);
-	overflow: auto;
 }
 .apiref-eyebrow {
 	font-size: 12px;
@@ -7947,10 +7956,6 @@ body:has(.marketing-nav) .auth-bar {
 	line-height: 1.7;
 	background: transparent !important;
 }
-.apiref-response .apiref-code pre {
-	max-height: 560px;
-	overflow: auto;
-}
 /* Sidebar: the endpoint tree under "API reference" reuses the nav's item and
    rail classes; only the disclosure needs styling. */
 .apiref-nav-group > summary {
@@ -7967,7 +7972,6 @@ body:has(.marketing-nav) .auth-bar {
 	}
 	.apiref-aside {
 		position: static;
-		max-height: none;
 	}
 }
 

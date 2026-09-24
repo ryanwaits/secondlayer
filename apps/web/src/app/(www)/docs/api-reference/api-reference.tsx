@@ -1,6 +1,11 @@
 import { highlight } from "@/lib/highlight";
-import { Fragment, type ReactNode } from "react";
-import { BaseUrlSwitch, CodeTabs, SectionActions } from "./client";
+import { Fragment, type ReactNode, cache } from "react";
+import {
+	BaseUrlSwitch,
+	CodeTabs,
+	SectionActions,
+	StickyAsides,
+} from "./client";
 import {
 	type Endpoint,
 	type ObjectEntry,
@@ -8,9 +13,8 @@ import {
 	type Schema,
 	bodyFields,
 	curlFor,
-	endpointMarkdown,
+	enumValues,
 	objectAnchor,
-	objectMarkdown,
 	objectName,
 	objectTitle,
 	objectsByTag,
@@ -41,14 +45,50 @@ function Prose({ text }: { text?: string }) {
 	);
 }
 
+/** Token classes already defined in this render. */
+const definedTokens = cache(() => new Set<string>());
+
+/** FNV-1a, base 36: a short name that is the same for the same style. */
+function tokenClass(style: string): string {
+	let h = 0x811c9dc5;
+	for (let i = 0; i < style.length; i++) {
+		h = Math.imul(h ^ style.charCodeAt(i), 0x01000193);
+	}
+	return `tk-${(h >>> 0).toString(36)}`;
+}
+
+/**
+ * Shiki puts a ~100-char inline style on every token: 24k spans here, which
+ * the page then ships twice (HTML and RSC payload) for 9 distinct styles.
+ * Each style becomes a class instead, and the first block to use one emits
+ * its rule. Same custom properties, so the dark-mode `var(--shiki-dark)`
+ * rules apply unchanged.
+ */
+function classifyTokens(html: string): { html: string; css: string } {
+	const defined = definedTokens();
+	const rules: string[] = [];
+	const out = html.replace(/<span style="([^"]*)">/g, (_, style: string) => {
+		const name = tokenClass(style);
+		if (!defined.has(name)) {
+			defined.add(name);
+			rules.push(`.${name}{${style}}`);
+		}
+		return `<span class="${name}">`;
+	});
+	return { html: out, css: rules.join("") };
+}
+
 async function Code({ code, lang }: { code: string; lang: string }) {
-	const html = await highlight(code, lang);
+	const { html, css } = classifyTokens(await highlight(code, lang));
 	return (
-		<div
-			className="apiref-code"
-			// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki output, server-rendered from our own spec
-			dangerouslySetInnerHTML={{ __html: html }}
-		/>
+		<>
+			{css ? <style>{css}</style> : null}
+			<div
+				className="apiref-code"
+				// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki output, server-rendered from our own spec
+				dangerouslySetInnerHTML={{ __html: html }}
+			/>
+		</>
 	);
 }
 
@@ -99,7 +139,9 @@ function FieldRow({
 					<Prose text={description} />
 				</p>
 			) : null}
-			{schema?.enum ? <EnumValues values={schema.enum} /> : null}
+			{enumValues(schema).length ? (
+				<EnumValues values={enumValues(schema)} />
+			) : null}
 		</div>
 	);
 }
@@ -213,11 +255,7 @@ async function EndpointSection({ endpoint }: { endpoint: Endpoint }) {
 				<h3 className="apiref-title">
 					<a href={`#${anchor}`}>{op.summary ?? op.operationId}</a>
 				</h3>
-				<SectionActions
-					anchor={anchor}
-					markdown={endpointMarkdown(endpoint)}
-					mdHref={`/docs/api-reference/${anchor}.md`}
-				/>
+				<SectionActions anchor={anchor} />
 				<Methods endpoint={endpoint} />
 				{op.description ? (
 					<p className="apiref-desc">
@@ -316,7 +354,7 @@ async function ObjectSection({ entry }: { entry: ObjectEntry }) {
 				<h3 className="apiref-title">
 					<a href={`#${anchor}`}>{objectTitle(entry.name)}</a>
 				</h3>
-				<SectionActions anchor={anchor} markdown={objectMarkdown(entry)} />
+				<SectionActions anchor={anchor} />
 				{schema.description ? (
 					<p className="apiref-desc">
 						<Prose text={schema.description} />
@@ -368,6 +406,7 @@ export async function ApiReference() {
 			<div className="apiref-toolbar">
 				<BaseUrlSwitch />
 			</div>
+			<StickyAsides />
 			{groups.map((group) => (
 				<div key={group.name} className="apiref-tag">
 					<h2 id={group.name} className="apiref-tag-title">

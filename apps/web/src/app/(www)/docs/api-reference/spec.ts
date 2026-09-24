@@ -13,7 +13,7 @@ export type Schema = {
 	type?: string | string[];
 	format?: string;
 	description?: string;
-	enum?: readonly string[];
+	enum?: readonly (string | number | boolean | null)[];
 	example?: unknown;
 	minimum?: number;
 	maximum?: number;
@@ -179,12 +179,18 @@ export function paramGroups(op: Operation): ParamGroup[] {
 	].filter((g) => g.params.length > 0);
 }
 
+/** An enum's printable values. `null` is left out: the type label already
+ *  says "nullable", and a bare null would print as an empty chip. */
+export function enumValues(schema: Schema | undefined): string[] {
+	return (schema?.enum ?? []).filter((v) => v !== null).map(String);
+}
+
 /** One schema's type as the reference prints it: `integer · 1 to 1000`. */
 export function typeLabel(schema: Schema | undefined): string {
 	if (!schema) return "string";
 	if (schema.$ref) return refName(schema.$ref);
 	const types = Array.isArray(schema.type) ? schema.type : [schema.type];
-	const nullable = types.includes("null");
+	const nullable = types.includes("null") || !!schema.enum?.includes(null);
 	const base = types.filter((t) => t && t !== "null")[0] ?? "object";
 	const parts = [schema.enum ? "enum" : base];
 	if (schema.type === "array" && schema.items)
@@ -380,10 +386,17 @@ export function sdkSample(op: Operation): string | undefined {
 
 // ── Markdown (Copy as Markdown, /docs/api-reference/<anchor>.md, llms-full) ──
 
+function mdValues(schema: Schema | undefined): string {
+	const values = enumValues(schema);
+	return values.length
+		? ` Values: ${values.map((v) => `\`${v}\``).join(", ")}.`
+		: "";
+}
+
 function mdParams(title: string, params: Param[]): string {
 	const rows = params.map(
 		(p) =>
-			`| \`${p.name}\` | ${typeLabel(p.schema)}${p.required ? ", required" : ""} | ${(p.description ?? "").replace(/\n/g, " ")}${p.schema?.enum ? ` Values: ${p.schema.enum.map((v) => `\`${v}\``).join(", ")}.` : ""} |`,
+			`| \`${p.name}\` | ${typeLabel(p.schema)}${p.required ? ", required" : ""} | ${(p.description ?? "").replace(/\n/g, " ")}${mdValues(p.schema)} |`,
 	);
 	return `### ${title}\n\n| Name | Type | Description |\n| --- | --- | --- |\n${rows.join("\n")}`;
 }
@@ -432,7 +445,7 @@ export function endpointMarkdown(endpoint: Endpoint): string {
 export function objectMarkdown(entry: ObjectEntry): string {
 	const rows = Object.entries(entry.schema.properties ?? {}).map(
 		([name, s]) =>
-			`| \`${name}\` | ${typeLabel(s)} | ${s.description ?? ""}${s.enum ? ` Values: ${s.enum.map((v) => `\`${v}\``).join(", ")}.` : ""} |`,
+			`| \`${name}\` | ${typeLabel(s)} | ${s.description ?? ""}${mdValues(s)} |`,
 	);
 	return [
 		`## ${objectTitle(entry.name)}`,

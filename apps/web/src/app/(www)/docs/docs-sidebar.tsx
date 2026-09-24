@@ -11,46 +11,152 @@ import { DOCS_NAV } from "./nav";
 
 const API_REFERENCE = "/docs/api-reference";
 
-/** Below the fixed top nav: a section counts as read once its top passes here. */
-const ACTIVE_LINE = 140;
+/** A jump's hold ends once the page has sat still for this many frames. */
+const STILL_FRAMES = 6;
+/** How many times a settled jump that missed its section is re-landed. */
+const MAX_CORRECTIONS = 3;
 
 /**
  * The section of the reference being read: the last one whose top has passed
- * the line under the top nav. Recomputed per frame on scroll, and set from the
- * hash on navigation so a clicked link is active before the scroll finishes.
+ * the line where a jump to its anchor lands (the page's scroll-padding plus
+ * the section's scroll-margin, so a clicked section is always the one read).
+ * Recomputed per frame on scroll and mirrored into the URL hash. A clicked
+ * link is active at once and holds through its smooth scroll (until the page
+ * stops moving, or the reader scrolls themselves), so the sections it passes
+ * neither flash in the sidebar nor rewrite the URL. Stillness is watched per
+ * frame rather than via `scrollend`, which Safari lacks and some Chromes fire
+ * mid-animation.
  */
 function useActiveSection(enabled: boolean): string {
 	const [active, setActive] = useState("");
 	useEffect(() => {
 		if (!enabled) return;
 		let frame = 0;
+		let watch = 0;
+		let target = "";
+		// The sections and the line don't change while scrolling; read them
+		// once (the line again on resize, where the mobile scroll-padding
+		// applies), not per frame.
+		const sections = [
+			...document.querySelectorAll<HTMLElement>(".apiref-section"),
+		];
+		const measureLine = () => {
+			const padding = Number.parseFloat(
+				getComputedStyle(document.documentElement).scrollPaddingTop,
+			);
+			const margin = sections[0]
+				? Number.parseFloat(getComputedStyle(sections[0]).scrollMarginTop)
+				: 0;
+			return (padding || 0) + (margin || 0) + 8;
+		};
+		let line = measureLine();
+		const onResize = () => {
+			line = measureLine();
+		};
 		const compute = () => {
 			frame = 0;
-			const sections =
-				document.querySelectorAll<HTMLElement>(".apiref-section");
+			if (target) return;
 			let current = "";
 			for (const section of sections) {
-				if (section.getBoundingClientRect().top - ACTIVE_LINE > 0) break;
+				if (section.getBoundingClientRect().top > line) break;
 				current = section.id;
 			}
+			// At the page's end, a short last section never reaches the line;
+			// the one the URL names wins while it's on screen.
+			const atEnd =
+				window.innerHeight + window.scrollY >=
+				document.documentElement.scrollHeight - 2;
+			const named = document.getElementById(
+				decodeURIComponent(location.hash.slice(1)),
+			);
+			if (atEnd && named?.classList.contains("apiref-section")) {
+				const top = named.getBoundingClientRect().top;
+				if (top >= 0 && top < window.innerHeight) current = named.id;
+			}
 			setActive(current);
-		};
-		const onScroll = () => {
-			if (!frame) frame = requestAnimationFrame(compute);
-		};
-		const onHash = () => {
-			const id = decodeURIComponent(location.hash.slice(1));
-			if (document.getElementById(id)?.classList.contains("apiref-section")) {
-				setActive(id);
+			// Keep the URL on the section being read, so a copied or reloaded
+			// link lands there. replaceState adds no history entries.
+			if (current && location.hash !== `#${current}`) {
+				history.replaceState(history.state, "", `#${current}`);
 			}
 		};
-		compute();
+		const release = () => {
+			cancelAnimationFrame(watch);
+			if (!target) return;
+			target = "";
+			compute();
+		};
+		const onScroll = () => {
+			if (target) return;
+			if (!frame) frame = requestAnimationFrame(compute);
+		};
+		const hold = (id: string) => {
+			const section = document.getElementById(id);
+			if (!section?.classList.contains("apiref-section")) return;
+			setActive(id);
+			target = id;
+			let lastY = window.scrollY;
+			let still = 0;
+			let corrections = 0;
+			cancelAnimationFrame(watch);
+			const tick = () => {
+				still = window.scrollY === lastY ? still + 1 : 0;
+				lastY = window.scrollY;
+				if (still < STILL_FRAMES) {
+					watch = requestAnimationFrame(tick);
+					return;
+				}
+				// A jump aimed before the page finished laying out (a fresh
+				// load's native hash scroll) can settle off target; land it.
+				const top = section.getBoundingClientRect().top;
+				if ((top < 0 || top > line) && corrections < MAX_CORRECTIONS) {
+					corrections++;
+					still = 0;
+					section.scrollIntoView({ behavior: "instant", block: "start" });
+					watch = requestAnimationFrame(tick);
+					return;
+				}
+				release();
+			};
+			watch = requestAnimationFrame(tick);
+		};
+		const onHash = () => hold(decodeURIComponent(location.hash.slice(1)));
+		// The smooth scroll starts on click, a frame or two before hashchange;
+		// holding from the click keeps that first frame from counting.
+		const onClick = (event: MouseEvent) => {
+			const link = (event.target as Element | null)?.closest?.("a");
+			const href = link?.getAttribute("href");
+			if (href?.startsWith("#")) hold(decodeURIComponent(href.slice(1)));
+		};
+		// Arriving on a section's link: land on it at once and hold it, rather
+		// than let the smooth scroll's passing sections rewrite the URL.
+		const arrived = document.getElementById(
+			decodeURIComponent(location.hash.slice(1)),
+		);
+		if (arrived?.classList.contains("apiref-section")) {
+			hold(arrived.id);
+			arrived.scrollIntoView({ behavior: "instant", block: "start" });
+		} else {
+			compute();
+		}
 		window.addEventListener("scroll", onScroll, { passive: true });
+		window.addEventListener("resize", onResize);
 		window.addEventListener("hashchange", onHash);
+		document.addEventListener("click", onClick, true);
+		// The reader taking over ends a jump's hold at once.
+		for (const type of ["wheel", "touchstart", "keydown"]) {
+			window.addEventListener(type, release, { passive: true });
+		}
 		return () => {
 			window.removeEventListener("scroll", onScroll);
+			window.removeEventListener("resize", onResize);
 			window.removeEventListener("hashchange", onHash);
+			document.removeEventListener("click", onClick, true);
+			for (const type of ["wheel", "touchstart", "keydown"]) {
+				window.removeEventListener(type, release);
+			}
 			cancelAnimationFrame(frame);
+			cancelAnimationFrame(watch);
 		};
 	}, [enabled]);
 
@@ -72,13 +178,15 @@ function useActiveSection(enabled: boolean): string {
 	return active;
 }
 
-/** The reference's endpoint tree, shown under its nav item while it's open.
- *  Tags and endpoints reuse the sidebar's own item and rail classes. */
+/** The reference's tree, shown under its nav item while it's open: each tag's
+ *  objects, then its endpoints, in page order. Tags and rows reuse the
+ *  sidebar's own item and rail classes. */
 function ApiReferenceNav({ active }: { active: string }) {
 	return (
 		<div className="docs-nav-children">
 			{apiNav.map((group) => {
-				const open = group.endpoints.some((e) => e.anchor === active);
+				const rows = [...group.objects, ...group.endpoints];
+				const open = rows.some((row) => row.anchor === active);
 				return (
 					<details
 						key={group.tag}
@@ -89,13 +197,13 @@ function ApiReferenceNav({ active }: { active: string }) {
 							{group.tag.charAt(0).toUpperCase() + group.tag.slice(1)}
 						</summary>
 						<div className="docs-nav-children">
-							{group.endpoints.map((e) => (
+							{rows.map((row) => (
 								<a
-									key={e.anchor}
-									href={`#${e.anchor}`}
-									className={`docs-nav-item docs-nav-child${e.anchor === active ? " active" : ""}`}
+									key={row.anchor}
+									href={`#${row.anchor}`}
+									className={`docs-nav-item docs-nav-child${row.anchor === active ? " active" : ""}`}
 								>
-									{e.title}
+									{row.title}
 								</a>
 							))}
 						</div>

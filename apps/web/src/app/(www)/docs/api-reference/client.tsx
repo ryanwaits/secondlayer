@@ -92,13 +92,36 @@ export function CodeTabs({
 	);
 }
 
+/**
+ * Copy text that is fetched on click. The fetch is handed to the clipboard as
+ * a pending item, so Safari still counts the write as part of the click.
+ */
+async function copyFetched(url: string): Promise<void> {
+	const text = () =>
+		fetch(url).then((res) => {
+			if (!res.ok) throw new Error(`${res.status} ${url}`);
+			return res.text();
+		});
+	if (typeof ClipboardItem !== "undefined") {
+		const blob = text().then((t) => new Blob([t], { type: "text/plain" }));
+		await navigator.clipboard.write([
+			new ClipboardItem({ "text/plain": blob }),
+		]);
+		return;
+	}
+	await navigator.clipboard.writeText(await text());
+}
+
 function CopyText({
 	text,
+	fetchFrom,
 	label,
 	className,
 	children,
 }: {
-	text: string;
+	/** The text itself, or (fetchFrom) a URL to fetch it from on click. */
+	text?: string;
+	fetchFrom?: string;
 	label: string;
 	className?: string;
 	children?: ReactNode;
@@ -110,9 +133,13 @@ function CopyText({
 			className={className}
 			aria-label={children ? undefined : label}
 			onClick={() => {
-				navigator.clipboard.writeText(text);
-				setCopied(true);
-				setTimeout(() => setCopied(false), 1400);
+				const write = fetchFrom
+					? copyFetched(fetchFrom)
+					: navigator.clipboard.writeText(text ?? "");
+				write.then(() => {
+					setCopied(true);
+					setTimeout(() => setCopied(false), 1400);
+				});
 			}}
 		>
 			{children ? (
@@ -148,15 +175,10 @@ function CopyText({
 }
 
 /** Copy link · Copy as Markdown · Open .md, for one section. */
-export function SectionActions({
-	anchor,
-	markdown,
-	mdHref,
-}: {
-	anchor: string;
-	markdown: string;
-	mdHref?: string;
-}) {
+export function SectionActions({ anchor }: { anchor: string }) {
+	// The section's markdown twin, served statically by the docs .md route;
+	// fetched on click rather than shipped inline for all ~120 sections.
+	const mdHref = `/docs/api-reference/${anchor}.md`;
 	const [linked, setLinked] = useState(false);
 	return (
 		<div className="apiref-actions">
@@ -165,17 +187,52 @@ export function SectionActions({
 				onClick={() => {
 					const url = `${location.origin}${location.pathname}#${anchor}`;
 					navigator.clipboard.writeText(url);
-					history.replaceState(null, "", `#${anchor}`);
+					history.replaceState(history.state, "", `#${anchor}`);
 					setLinked(true);
 					setTimeout(() => setLinked(false), 1400);
 				}}
 			>
 				{linked ? "Link copied" : "Copy link"}
 			</button>
-			<CopyText text={markdown} label="Copy as Markdown">
+			<CopyText fetchFrom={mdHref} label="Copy as Markdown">
 				Copy as Markdown
 			</CopyText>
-			{mdHref ? <a href={mdHref}>Open .md</a> : null}
+			<a href={mdHref}>Open .md</a>
 		</div>
 	);
+}
+
+const STICK_TOP = 110;
+const STICK_BOTTOM = 24;
+
+/**
+ * Asides stick at the top, but one taller than the viewport would hide its
+ * tail until the section ends. Those get a negative `top`, so they scroll with
+ * the page until their bottom lands, then stick there.
+ *
+ * Sets `top` itself, not an inherited custom property: a custom property would
+ * restyle every highlighted token under each aside (~55ms on this page). All
+ * heights are read before any write, and unchanged values aren't rewritten.
+ */
+export function StickyAsides() {
+	useEffect(() => {
+		const asides = [...document.querySelectorAll<HTMLElement>(".apiref-aside")];
+		const place = () => {
+			const tops = asides.map(
+				(aside) =>
+					`${Math.min(STICK_TOP, window.innerHeight - aside.offsetHeight - STICK_BOTTOM)}px`,
+			);
+			asides.forEach((aside, i) => {
+				if (aside.style.top !== tops[i]) aside.style.top = tops[i];
+			});
+		};
+		const observer = new ResizeObserver(place);
+		for (const aside of asides) observer.observe(aside);
+		window.addEventListener("resize", place);
+		return () => {
+			observer.disconnect();
+			window.removeEventListener("resize", place);
+		};
+	}, []);
+	return null;
 }
