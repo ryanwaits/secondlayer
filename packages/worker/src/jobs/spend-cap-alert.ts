@@ -9,8 +9,8 @@
  *   - Month's credit spend >= threshold_pct (default 80%) → send email + bump
  *     `alert_sent_at` (debounced once per calendar month)
  *   - Month's credit spend >= monthly_cap_cents → set `frozen_at` (display +
- *     email). The hard stop is enforced in real time by
- *     `resolveCreditedAccount` (api/lib/read-credits.ts); this flag mirrors it.
+ *     email). The hard stop is enforced in real time by `meter()`
+ *     (`@secondlayer/platform/billing/meter`); this flag mirrors it.
  *   - Back under cap with a stale freeze (month rolled over) → clear it.
  *
  * Also cleared on `invoice.paid` webhook or when the user raises their cap.
