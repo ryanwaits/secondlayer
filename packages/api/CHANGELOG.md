@@ -1,5 +1,35 @@
 # @secondlayer/api
 
+## 1.37.0
+
+### Minor Changes
+
+- 9040a52: Remove the duplicate `GET /api/subgraphs/:name/:table/stream` and `GET /api/subgraphs/:name/:table/:id` routes. Use the same paths under `/v1/subgraphs`, which the SDK already calls.
+- 124c6b8: Drop the subgraph `visibility` column (migration 0136) and the `visibility` and `owned` fields from subgraph list and detail responses. Nothing read them: publish is gone and self-host decides access by bind and instance token. Generated subgraph specs (`openapi.json`, `schema.json`, `docs.md`) always describe the `/v1/subgraphs` surface; `SubgraphSpecOptions.forcePublicRead` is removed.
+- bc2eae8: Remove unused public surface: the `./triggers` and `./runtime/source-matcher` subpaths, and the root exports `reindexSubgraph`, `resumeReindex`, `backfillSubgraph`, `validatePrintPayload`, `camelizeDataKey` and `INDEX_CODEGEN_TABLES`. The processor runs as a service; import `defineSubgraph` and the types as before. Drop the `/api/subgraphs/:name/openapi` redirect; use `openapi.json`.
+
+  Trim how a subgraph is defined to one way per job:
+
+  - `ctx` write verbs are `insert`, `update`, `upsert`, `delete` and `increment`; reads are `findOne` and `findMany`. Removed: `ctx.patch` (it was `update`), `ctx.patchOrInsert` and the `ComputedValue` type (use `increment` for running totals, or `findOne` then `upsert`), and the handler aggregates `ctx.count`, `sum`, `min`, `max`, `countDistinct` and `ctx.formatUnits` (query the table's REST aggregates instead; `formatUnits` lives in `@secondlayer/stacks/utils`).
+  - Every source needs a handler of the same name. The `"*"` catch-all handler is removed, and so is `materialize`: `--from-contract` now scaffolds a one-line `ctx.insert` handler per topic.
+  - Table `relations` (foreign keys and the Prisma/Drizzle relation codegen) is removed.
+  - The definition `version` field is removed; the server numbers deploys. `DeploySubgraphRequest.version` and the bundle response's `version` are gone with it.
+  - A `contract_call` source with `functionName` no longer needs a hand-pasted `abi`: `secondlayer subgraphs deploy` (and the CLI's bundle, spec and codegen paths) fetch the deployed contract's ABI and write it into the definition. Pass `abi` yourself for wildcard, multi-contract or trait sources, or a local deploy. Bundler adds `injectSourceAbis`.
+  - Tip-first and backfill guards now also refuse handlers that read rows with `findOne`/`findMany`, since a read-modify-write depends on block order.
+
+### Patch Changes
+
+- db19a84: Drop hosted-mode branches from the subgraph routes, which mount on self-host only: the registry cache keys by name, deploys use the plain schema name, the list's webhook counts no longer filter by account, and the hosted API no longer opens a subgraph cache listener. Removes `pgSchemaNameFor` from shared.
+- Updated dependencies [124c6b8]
+- Updated dependencies [bc2eae8]
+- Updated dependencies [3a8267b]
+- Updated dependencies [db19a84]
+  - @secondlayer/shared@11.8.0
+  - @secondlayer/subgraphs@5.0.0
+  - @secondlayer/bundler@0.6.0
+  - @secondlayer/sdk@10.6.0
+  - @secondlayer/platform@0.2.17
+
 ## 1.36.1
 
 ### Patch Changes

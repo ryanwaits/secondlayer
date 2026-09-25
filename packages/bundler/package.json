@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/bundler",
-	"version": "0.5.3",
+	"version": "0.6.0",
 	"description": "Compile a Secondlayer table definition into a deployable artifact.",
 	"license": "MIT",
 	"repository": {
@@ -27,7 +27,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/subgraphs": "^4.3.4",
+		"@secondlayer/subgraphs": "^5.0.0",
 		"esbuild": "^0.28.2",
 		"typescript": "^5"
 	},

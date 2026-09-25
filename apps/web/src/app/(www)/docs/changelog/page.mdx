@@ -7,6 +7,24 @@ instance reads are yours and unmetered. Archive bootstrap/backfill/reindex
 and hosted Index/Streams reads at `api.secondlayer.tools` draw
 [credits](/docs/authentication#archive-credits).
 
+## Subgraphs — September 2026
+
+### One way to write each row
+
+Handlers write with `insert`, `update`, `upsert`, `delete` and `increment`, and read with `findOne` and `findMany`. Every source has a handler of the same name. `ctx.patch`, `ctx.patchOrInsert`, the handler aggregates, `ctx.formatUnits`, the `"*"` catch-all, `materialize`, table `relations` and the definition `version` field are gone. `--from-contract` now scaffolds a one-line `ctx.insert` handler per topic.
+
+### Contract calls find their own ABI
+
+A `contract_call` source with `functionName` no longer needs a pasted `abi`. `secondlayer subgraphs deploy` fetches the deployed contract's ABI and writes it into the definition. Pass `abi` yourself for wildcard, multi-contract or trait sources, and for a local deploy.
+
+### Tip-first refuses handlers that read rows
+
+Tip-first deploys and backfills already refused `update` and `increment`. They now also refuse `findOne` and `findMany`, because a read-then-write depends on the order blocks arrive in. Deploy those handlers in the default mode.
+
+### Subgraph reads live on `/v1`
+
+Rows, streams and aggregates are served from `/v1/subgraphs/*` only. The duplicate `/api` read routes and the subgraph `visibility` setting are removed.
+
 ## SDK — September 2026
 
 ### Unchanged pages revalidate for free
