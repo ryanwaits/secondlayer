@@ -6,6 +6,7 @@ import {
 	matchesIfNoneMatch,
 } from "../http/cache.ts";
 import { type StreamsEventsQuery, parseStreamsEventsQuery } from "./events.ts";
+import type { StreamsTier } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
 /**
@@ -51,8 +52,9 @@ export function isFinalizedHeight(
 export function streamsEventsCachePlan(
 	query: URLSearchParams,
 	tip: StreamsTip,
+	tier?: StreamsTier,
 ): { cacheControl: string; cacheKey: string | null } {
-	const parsed = parseStreamsEventsQuery(query, tip);
+	const parsed = parseStreamsEventsQuery(query, tip, tier);
 	const fullyFinalized =
 		!parsed.cursorPastTip && parsed.toHeight <= tip.finalized_height;
 	const cacheKey = fullyFinalized

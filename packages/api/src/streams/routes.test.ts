@@ -21,6 +21,7 @@ import {
 	STREAMS_BLOCKS_PER_DAY,
 	STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS,
 	STREAMS_TIER_CONFIG,
+	STREAMS_TIP_REORG_MARGIN_BLOCKS,
 } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
@@ -208,6 +209,34 @@ describe("Stacks Streams gateway middleware", () => {
 	test("tier config is metered free vs unmetered internal, no paid ladder", () => {
 		expect(STREAMS_TIER_CONFIG.free.rateLimitPerSecond).toBe(10);
 		expect(STREAMS_TIER_CONFIG.internal.rateLimitPerSecond).toBeNull();
+	});
+
+	test("an internal-tier key's default window reaches the raw tip (D1: margin 0)", async () => {
+		let seenToHeight: number | undefined;
+		const app = createApp(async (p) => {
+			seenToHeight = p.toHeight;
+			return { events: [], next_cursor: null };
+		}, TEST_TOKENS);
+		const res = await app.request("/v1/streams/events", {
+			headers: authHeaders(INTERNAL_KEY),
+		});
+		expect(res.status).toBe(200);
+		expect(seenToHeight).toBe(TEST_TIP.block_height);
+	});
+
+	test("a free-tier key's default window still stops short of the raw tip by the public margin", async () => {
+		let seenToHeight: number | undefined;
+		const app = createApp(async (p) => {
+			seenToHeight = p.toHeight;
+			return { events: [], next_cursor: null };
+		});
+		const res = await app.request("/v1/streams/events", {
+			headers: authHeaders(FREE_KEY),
+		});
+		expect(res.status).toBe(200);
+		expect(seenToHeight).toBe(
+			TEST_TIP.block_height - STREAMS_TIP_REORG_MARGIN_BLOCKS,
+		);
 	});
 
 	test("finalized closed range is cacheable as immutable", async () => {

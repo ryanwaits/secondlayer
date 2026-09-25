@@ -7,6 +7,7 @@ import {
 } from "./events.ts";
 import {
 	STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS,
+	STREAMS_INTERNAL_TIP_REORG_MARGIN_BLOCKS,
 	STREAMS_TIP_REORG_MARGIN_BLOCKS,
 } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
@@ -41,6 +42,38 @@ describe("getClampedStreamsTipHeight", () => {
 		expect(
 			getClampedStreamsTipHeight({ ...TIP, block_height: 1, lag_seconds: 0 }),
 		).toBe(Math.max(0, 1 - STREAMS_TIP_REORG_MARGIN_BLOCKS));
+	});
+
+	test("an internal-tier caller reads at margin 0 (D1)", () => {
+		const tip = { ...TIP, block_height: 10_000, lag_seconds: 0 };
+		expect(getClampedStreamsTipHeight(tip, "internal")).toBe(
+			10_000 - STREAMS_INTERNAL_TIP_REORG_MARGIN_BLOCKS,
+		);
+		expect(getClampedStreamsTipHeight(tip, "internal")).toBe(10_000);
+	});
+
+	test("a free/public-tier caller keeps the default margin, not the internal one", () => {
+		const tip = { ...TIP, block_height: 10_000, lag_seconds: 0 };
+		expect(getClampedStreamsTipHeight(tip, "free")).toBe(
+			10_000 - STREAMS_TIP_REORG_MARGIN_BLOCKS,
+		);
+		expect(getClampedStreamsTipHeight(tip)).toBe(
+			getClampedStreamsTipHeight(tip, "free"),
+		);
+	});
+});
+
+describe("parseStreamsEventsQuery — internal tier margin (D1)", () => {
+	test("an internal reader's default window reaches the raw tip, not tip - margin", () => {
+		const tip = { ...TIP, block_height: 10_000, finalized_height: 9_000 };
+		const parsed = parseStreamsEventsQuery(params(""), tip, "internal");
+		expect(parsed.toHeight).toBe(10_000);
+	});
+
+	test("a public reader's default window still stops margin blocks short", () => {
+		const tip = { ...TIP, block_height: 10_000, finalized_height: 9_000 };
+		const parsed = parseStreamsEventsQuery(params(""), tip);
+		expect(parsed.toHeight).toBe(10_000 - STREAMS_TIP_REORG_MARGIN_BLOCKS);
 	});
 });
 

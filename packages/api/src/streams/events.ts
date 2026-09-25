@@ -23,7 +23,9 @@ import {
 } from "./reorgs.ts";
 import {
 	STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS,
+	STREAMS_INTERNAL_TIP_REORG_MARGIN_BLOCKS,
 	STREAMS_TIP_REORG_MARGIN_BLOCKS,
+	type StreamsTier,
 } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
@@ -290,12 +292,21 @@ function joinFilterValue(value: unknown, name: string): string | undefined {
  * margin suffices. The margin is a block count — NOT `lag_seconds`, which is a
  * wall-clock value and would hold the tip back ~lag_seconds blocks (the bug this
  * replaces). Override via `STREAMS_TIP_REORG_MARGIN_BLOCKS` for ops tuning.
+ *
+ * `tier === "internal"` (the seeded first-party decoder key, or a self-hosted
+ * `INSTANCE_TOKEN`) reads at margin 0 instead (D1, plan-063) — the decoder
+ * already rewinds decoded rows + checkpoints on reorg, so the margin buys it
+ * nothing but latency. Public/account tenants keep the default margin.
  */
-export function getClampedStreamsTipHeight(tip: StreamsTip): number {
-	return Math.max(0, tip.block_height - reorgMarginBlocks());
+export function getClampedStreamsTipHeight(
+	tip: StreamsTip,
+	tier?: StreamsTier,
+): number {
+	return Math.max(0, tip.block_height - reorgMarginBlocks(tier));
 }
 
-function reorgMarginBlocks(): number {
+function reorgMarginBlocks(tier?: StreamsTier): number {
+	if (tier === "internal") return STREAMS_INTERNAL_TIP_REORG_MARGIN_BLOCKS;
 	const raw = process.env.STREAMS_TIP_REORG_MARGIN_BLOCKS;
 	if (raw == null || raw.trim() === "") return STREAMS_TIP_REORG_MARGIN_BLOCKS;
 	const parsed = Number.parseInt(raw, 10);
@@ -307,6 +318,7 @@ function reorgMarginBlocks(): number {
 export function parseStreamsEventsQuery(
 	query: URLSearchParams,
 	tip: StreamsTip,
+	tier?: StreamsTier,
 ): StreamsEventsQuery {
 	const cursorParamRaw = query.get("cursor") ?? undefined;
 	const fromCursorRaw = query.get("from_cursor") ?? undefined;
@@ -330,7 +342,7 @@ export function parseStreamsEventsQuery(
 		query.get("to_height") !== null
 			? parseNonNegativeInteger(query.get("to_height") as string, "to_height")
 			: undefined;
-	const clampedTipHeight = getClampedStreamsTipHeight(tip);
+	const clampedTipHeight = getClampedStreamsTipHeight(tip, tier);
 	const toHeight =
 		requestedToHeight === undefined
 			? clampedTipHeight
@@ -386,10 +398,12 @@ export function parseStreamsEventsQuery(
 export async function getStreamsEventsResponse(opts: {
 	query: URLSearchParams;
 	tip: StreamsTip;
+	/** The requesting tenant's tier — `"internal"` reads at margin 0 (D1). */
+	tier?: StreamsTier;
 	readEvents?: StreamsEventsReader;
 	readReorgs?: StreamsReorgsReader;
 }): Promise<StreamsEventsResponse> {
-	const parsed = parseStreamsEventsQuery(opts.query, opts.tip);
+	const parsed = parseStreamsEventsQuery(opts.query, opts.tip, opts.tier);
 	const readReorgs = opts.readReorgs ?? EMPTY_STREAMS_REORGS_READER;
 	const byHeight = parsed.clock === "vm";
 

@@ -213,7 +213,8 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		const query = new URL(c.req.url).searchParams;
 		validateQueryParams(query, STREAMS_EVENTS_ALLOWED);
 		const tip = c.get("streamsTip");
-		const { cacheControl, cacheKey } = streamsEventsCachePlan(query, tip);
+		const tier = c.get("streamsTenant")?.tier;
+		const { cacheControl, cacheKey } = streamsEventsCachePlan(query, tip, tier);
 		c.header("Cache-Control", cacheControl);
 
 		// Finalized pages are immutable: serve the memoized payload (Postgres skip)
@@ -224,6 +225,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			: await getStreamsEventsResponse({
 					query,
 					tip,
+					tier,
 					readEvents: opts.readEvents,
 					readReorgs,
 				});
@@ -265,6 +267,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		const initialQuery = new URL(c.req.url).searchParams;
 		validateQueryParams(initialQuery, STREAMS_EVENTS_ALLOWED);
 		const accountId = c.get("streamsTenant")?.account_id;
+		const tier = c.get("streamsTenant")?.tier;
 		const signer = getStreamsSigner();
 
 		// Filters carry across polls; the start position (cursor/from_*) is replaced
@@ -286,13 +289,14 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 				if (!initialized) {
 					// No start given → live-tail from the current (reorg-clamped) tip.
 					const q = new URLSearchParams(filterParams);
-					q.set("from_height", String(getClampedStreamsTipHeight(tip)));
+					q.set("from_height", String(getClampedStreamsTipHeight(tip, tier)));
 					pollQuery = q;
 					initialized = true;
 				}
 				const response = await getStreamsEventsResponse({
 					query: pollQuery,
 					tip,
+					tier,
 					readEvents: opts.readEvents,
 					readReorgs,
 				});
