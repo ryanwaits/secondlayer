@@ -1,5 +1,20 @@
 # @secondlayer/cli
 
+## 16.2.0
+
+### Minor Changes
+
+- ca5990a: `secondlayer subgraphs query` reads `/v1` now: `--offset` is replaced by `--cursor`, and the command prints `next_cursor` below the table when a page is full.
+
+### Patch Changes
+
+- Updated dependencies [5897379]
+- Updated dependencies [5897379]
+  - @secondlayer/subgraphs@6.0.0
+  - @secondlayer/sdk@11.0.0
+  - @secondlayer/bundler@0.6.1
+  - @secondlayer/scaffold@1.6.1
+
 ## 16.1.1
 
 ### Patch Changes

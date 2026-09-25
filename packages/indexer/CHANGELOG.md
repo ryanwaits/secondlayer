@@ -1,5 +1,12 @@
 # @secondlayer/indexer
 
+## 1.15.1
+
+### Patch Changes
+
+- Updated dependencies [5897379]
+  - @secondlayer/sdk@11.0.0
+
 ## 1.15.0
 
 ### Minor Changes

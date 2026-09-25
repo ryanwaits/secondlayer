@@ -1,5 +1,12 @@
 # @secondlayer/scaffold
 
+## 1.6.1
+
+### Patch Changes
+
+- Updated dependencies [5897379]
+  - @secondlayer/subgraphs@6.0.0
+
 ## 1.6.0
 
 ### Minor Changes

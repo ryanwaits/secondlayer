@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "10.6.0",
+	"version": "11.0.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -1101,7 +1101,7 @@
 					"summary": "Status of a tracked reindex/backfill operation (poll until terminal).",
 					"signature": null,
 					"file": "src/subgraphs/client.ts",
-					"line": 44
+					"line": 45
 				},
 				{
 					"name": "Subgraphs",
@@ -1109,7 +1109,7 @@
 					"summary": "",
 					"signature": "Subgraphs(options?: object): unknown",
 					"file": "src/subgraphs/client.ts",
-					"line": 146
+					"line": 148
 				},
 				{
 					"name": "SubgraphSpecFormat",

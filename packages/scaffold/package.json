@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/scaffold",
-	"version": "1.6.0",
+	"version": "1.6.1",
 	"description": "Generate a Secondlayer table definition from a deployed Stacks contract.",
 	"license": "MIT",
 	"repository": {
@@ -28,7 +28,7 @@
 	},
 	"dependencies": {
 		"@secondlayer/stacks": "^6.0.0",
-		"@secondlayer/subgraphs": "^5.0.0"
+		"@secondlayer/subgraphs": "^6.0.0"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

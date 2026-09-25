@@ -1,5 +1,20 @@
 # @secondlayer/mcp
 
+## 8.1.0
+
+### Minor Changes
+
+- f188edc: `subgraphs_query` reads `/v1` now: `offset` is replaced by `cursor`, and results carry `nextCursor`/`tip` so a caller can page forward.
+
+### Patch Changes
+
+- Updated dependencies [5897379]
+- Updated dependencies [5897379]
+  - @secondlayer/subgraphs@6.0.0
+  - @secondlayer/sdk@11.0.0
+  - @secondlayer/bundler@0.6.1
+  - @secondlayer/scaffold@1.6.1
+
 ## 8.0.1
 
 ### Patch Changes

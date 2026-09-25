@@ -1,5 +1,18 @@
 # @secondlayer/sdk
 
+## 11.0.0
+
+### Major Changes
+
+- 5897379: Subgraph table reads move onto `/v1` only. `queryTable`, `queryTableCount` and `queryTableAggregate` (the `/api` offset-read client) are removed — `rows`, `count` and `aggregate` read `/v1` instead, and the typed `findMany` does too.
+
+  `findMany` now returns a cursor page, not a bare array: `{ rows, nextCursor, tip }`. `FindManyOptions.offset` is gone; `orderBy` accepts a single-column object only (the array form for multi-column sort is removed) — a second key rejects the returned promise, since `/v1`'s keyset cursor pairs one sort column with `_id` as a tiebreaker. Pass `cursor`/`nextCursor` to page.
+
+### Patch Changes
+
+- Updated dependencies [5897379]
+  - @secondlayer/subgraphs@6.0.0
+
 ## 10.6.0
 
 ### Minor Changes

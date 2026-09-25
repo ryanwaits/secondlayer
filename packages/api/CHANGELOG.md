@@ -1,5 +1,20 @@
 # @secondlayer/api
 
+## 1.39.0
+
+### Minor Changes
+
+- 677f97e: `/api/subgraphs/:name/:table`, `/count` and `/aggregate` (the offset-paginated list route and its count/aggregate siblings) are removed. Subgraph table reads live on `/v1/subgraphs/:name/:table` only — cursor-paginated, one surface for one rule to enforce. `/api/subgraphs` keeps deploy and ops.
+
+### Patch Changes
+
+- Updated dependencies [5897379]
+- Updated dependencies [5897379]
+  - @secondlayer/subgraphs@6.0.0
+  - @secondlayer/sdk@11.0.0
+  - @secondlayer/bundler@0.6.1
+  - @secondlayer/indexer@1.15.1
+
 ## 1.38.0
 
 ### Minor Changes
