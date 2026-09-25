@@ -6,6 +6,7 @@ import {
 import type { MiddlewareHandler } from "hono";
 import { isDevMode } from "../lib/dev-mode.ts";
 import { hashToken } from "./keys.ts";
+import { lookupSession } from "./session.ts";
 
 // Debounce last_used_at updates: tokenHash → last DB write timestamp
 const lastUpdatedMap = new Map<string, number>();
@@ -71,24 +72,19 @@ export function requireAuth(opts?: {
 
 		if (raw.startsWith("ss-sl_")) {
 			// Session token flow
-			const session = await db
-				.selectFrom("sessions")
-				.selectAll()
-				.where("token_hash", "=", tokenHash)
-				.executeTakeFirst();
+			const lookup = await lookupSession(db, tokenHash);
 
-			if (!session) {
+			if (lookup.status === "not_found") {
 				throw new AuthenticationError("Invalid session token");
 			}
-
-			if (session.revoked_at) {
+			if (lookup.status === "revoked") {
 				throw new AuthorizationError("Session has been revoked");
 			}
-
-			if (new Date(session.expires_at) < new Date()) {
+			if (lookup.status === "expired") {
 				throw new AuthenticationError("Session has expired");
 			}
 
+			const session = lookup.session;
 			c.set("accountId", session.account_id);
 			c.set("session", session);
 

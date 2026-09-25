@@ -9,7 +9,7 @@ import {
 import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
-import { hashToken } from "../auth/keys.ts";
+import { generateSessionToken, hashToken } from "../auth/keys.ts";
 import { createApiApp } from "../create-app.ts";
 import { errorHandler } from "../middleware/error.ts";
 import internalIntrospectRouter from "./internal-introspect.ts";
@@ -50,6 +50,25 @@ async function makeApiKey(
 	return raw;
 }
 
+async function makeSession(
+	accountId: string,
+	opts?: { revoked?: boolean; expiresAt?: Date },
+): Promise<string> {
+	const { raw, hash, prefix } = generateSessionToken();
+	await db
+		.insertInto("sessions")
+		.values({
+			token_hash: hash,
+			token_prefix: prefix,
+			account_id: accountId,
+			ip_address: "test",
+			...(opts?.expiresAt ? { expires_at: opts.expiresAt } : {}),
+			...(opts?.revoked ? { revoked_at: new Date() } : {}),
+		})
+		.execute();
+	return raw;
+}
+
 let prevKey: string | undefined;
 
 beforeEach(() => {
@@ -65,6 +84,10 @@ afterEach(async () => {
 afterAll(async () => {
 	if (!HAS_DB) return;
 	if (accountIds.length > 0) {
+		await db
+			.deleteFrom("sessions")
+			.where("account_id", "in", accountIds)
+			.execute();
 		await db
 			.deleteFrom("api_keys")
 			.where("account_id", "in", accountIds)
@@ -119,7 +142,7 @@ describe.skipIf(!HAS_DB)("POST /internal/keys/introspect", () => {
 		expect(res.status).toBe(401);
 	});
 
-	test("body without a sk-sl_ key → 400", async () => {
+	test("body without a sk-sl_ or ss-sl_ credential → 400", async () => {
 		const res = await app().request("/internal/keys/introspect", {
 			method: "POST",
 			headers: {
@@ -237,6 +260,85 @@ describe.skipIf(!HAS_DB)("POST /internal/keys/introspect", () => {
 			body: JSON.stringify({ key: raw }),
 		});
 		expect(revoked.status).toBe(401);
+	});
+
+	test("valid dashboard session → account_id + credits_ok", async () => {
+		const accountId = await makeAccount();
+		const raw = await makeSession(accountId);
+		await creditCredits(db, accountId, 1_000_000n);
+		const res = await app().request("/internal/keys/introspect", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({ key: raw }),
+		});
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			account_id: accountId,
+			credits_ok: true,
+		});
+	});
+
+	test("expired session → 401 invalid_key", async () => {
+		const accountId = await makeAccount();
+		const raw = await makeSession(accountId, {
+			expiresAt: new Date(Date.now() - 1000),
+		});
+		const res = await app().request("/internal/keys/introspect", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({ key: raw }),
+		});
+		expect(res.status).toBe(401);
+		expect(await res.json()).toEqual({ error: "invalid_key" });
+	});
+
+	test("revoked session → 401 invalid_key", async () => {
+		const accountId = await makeAccount();
+		const raw = await makeSession(accountId, { revoked: true });
+		const res = await app().request("/internal/keys/introspect", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({ key: raw }),
+		});
+		expect(res.status).toBe(401);
+		expect(await res.json()).toEqual({ error: "invalid_key" });
+	});
+
+	test("unknown session → 401 invalid_key", async () => {
+		const res = await app().request("/internal/keys/introspect", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({ key: "ss-sl_does_not_exist" }),
+		});
+		expect(res.status).toBe(401);
+		expect(await res.json()).toEqual({ error: "invalid_key" });
+	});
+
+	test("ghost account's session → 401 invalid_key (no anonymous path)", async () => {
+		const accountId = await makeAccount({ ghost: true });
+		const raw = await makeSession(accountId);
+		const res = await app().request("/internal/keys/introspect", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({ key: raw }),
+		});
+		expect(res.status).toBe(401);
+		expect(await res.json()).toEqual({ error: "invalid_key" });
 	});
 });
 
