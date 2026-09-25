@@ -88,23 +88,35 @@ export type SystemOrderByAliases = {
 
 // ── Per-table client ─────────────────────────────────────────────────────
 
-/** Ordered list form for deterministic multi-column sort. */
-export type OrderByList<TRow> = Array<
-	[keyof (TRow & SystemOrderByAliases) & string, "asc" | "desc"]
->;
-
 export interface FindManyOptions<TRow> {
 	where?: WhereInput<TRow> & SystemWhereAliases;
 	/**
-	 * Single-key object (common case) OR an ordered `[column, direction][]` list
-	 * for deterministic multi-column sort (object key order isn't guaranteed).
+	 * Single-column object, e.g. `{ price: "desc" }`. `/v1` sorts by one
+	 * column only (the keyset cursor pairs it with `_id` as a tiebreaker) —
+	 * a second key throws at call time, since a plain object type can't
+	 * reject "more than one key" at compile time.
 	 */
-	orderBy?:
-		| ({ [K in keyof TRow]?: "asc" | "desc" } & SystemOrderByAliases)
-		| OrderByList<TRow>;
+	orderBy?: { [K in keyof TRow]?: "asc" | "desc" } & SystemOrderByAliases;
 	limit?: number;
-	offset?: number;
+	/** Resume from a previous page's `nextCursor`. */
+	cursor?: string;
 	fields?: (keyof TRow & string)[];
+}
+
+/** Wire tip: chain height, subgraph's processed height, and the gap between
+ *  them — same object on every `/v1` row/page response. */
+export interface SubgraphTip {
+	block_height: number;
+	subgraph_height: number;
+	blocks_behind: number;
+}
+
+/** A page of rows from `findMany`, keyset-paginated. `nextCursor` is `null`
+ *  on the last page; pass it back as `cursor` to resume. */
+export interface FindManyPage<TRow> {
+	rows: TRow[];
+	nextCursor: string | null;
+	tip: SubgraphTip;
 }
 
 /** Options for the realtime row stream (SSE). */
@@ -183,7 +195,7 @@ export interface SubgraphTableClient<TRow> {
 			string)[],
 	>(
 		options?: Omit<FindManyOptions<TRow>, "fields"> & { fields?: F },
-	): Promise<Pick<TRow, F[number]>[]>;
+	): Promise<FindManyPage<Pick<TRow, F[number]>>>;
 	count(where?: WhereInput<TRow> & SystemWhereAliases): Promise<number>;
 	/**
 	 * Scalar aggregates over the filtered set. SUM/MIN/MAX accept numeric columns

@@ -42,68 +42,72 @@ describe("Subgraphs", () => {
 		globalThis.fetch = originalFetch;
 	});
 
-	test("queryTable builds correct URL", async () => {
-		globalThis.fetch = mockFetch({ ok: true, status: 200, body: [{ id: 1 }] });
+	test("rows builds correct /v1 URL", async () => {
+		globalThis.fetch = mockFetch({
+			ok: true,
+			status: 200,
+			body: { rows: [{ id: 1 }], next_cursor: null, tip: {} },
+		});
 
-		const result = await subgraphs.queryTable("my-subgraph", "events", {
+		const result = await subgraphs.rows("my-subgraph", "events", {
 			sort: "block_height",
 			order: "desc",
 			limit: 10,
 		});
-		expect(result).toEqual([{ id: 1 }]);
+		expect(result.rows).toEqual([{ id: 1 }]);
 
 		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
 		const calledUrl = fetchMock.mock.calls[0][0] as string;
-		expect(calledUrl).toContain("/api/subgraphs/my-subgraph/events");
+		expect(calledUrl).toContain("/v1/subgraphs/my-subgraph/events");
 		expect(calledUrl).toContain("_sort=block_height");
 		expect(calledUrl).toContain("_order=desc");
 		expect(calledUrl).toContain("_limit=10");
 	});
 
-	test("queryTableCount builds correct URL", async () => {
+	test("count builds correct /v1 URL", async () => {
 		globalThis.fetch = mockFetch({
 			ok: true,
 			status: 200,
 			body: { count: 42 },
 		});
 
-		const result = await subgraphs.queryTableCount("my-subgraph", "events", {
+		const result = await subgraphs.count("my-subgraph", "events", {
 			filters: { sender: "SP123" },
 		});
 		expect(result).toEqual({ count: 42 });
 
 		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
 		const calledUrl = fetchMock.mock.calls[0][0] as string;
-		expect(calledUrl).toContain("/api/subgraphs/my-subgraph/events/count");
+		expect(calledUrl).toContain("/v1/subgraphs/my-subgraph/events/count");
 		expect(calledUrl).toContain("sender=SP123");
 	});
 
-	test("queryTableAggregate builds correct URL", async () => {
+	test("aggregate builds correct /v1 URL", async () => {
 		globalThis.fetch = mockFetch({
 			ok: true,
 			status: 200,
 			body: { count: 4, sum: { amount: "6500000" } },
 		});
 
-		const result = await subgraphs.queryTableAggregate(
-			"my-subgraph",
-			"events",
-			{ filters: { status: "active" }, count: true, sum: ["amount"] },
-		);
+		const result = await subgraphs.aggregate("my-subgraph", "events", {
+			filters: { status: "active" },
+			count: true,
+			sum: ["amount"],
+		});
 		expect(result).toEqual({ count: 4, sum: { amount: "6500000" } });
 
 		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
 		const calledUrl = fetchMock.mock.calls[0][0] as string;
-		expect(calledUrl).toContain("/api/subgraphs/my-subgraph/events/aggregate");
+		expect(calledUrl).toContain("/v1/subgraphs/my-subgraph/events/aggregate");
 		expect(calledUrl).toContain("status=active");
 		expect(calledUrl).toContain("_count=true");
 		expect(calledUrl).toContain("_sum=amount");
 	});
 
-	test("queryTableAggregate comma-joins multi-column aggs", async () => {
+	test("aggregate comma-joins multi-column aggs", async () => {
 		globalThis.fetch = mockFetch({ ok: true, status: 200, body: {} });
 
-		await subgraphs.queryTableAggregate("my-subgraph", "events", {
+		await subgraphs.aggregate("my-subgraph", "events", {
 			min: ["a", "b"],
 			countDistinct: ["c"],
 		});
@@ -114,14 +118,18 @@ describe("Subgraphs", () => {
 		expect(calledUrl).toContain("_countDistinct=c");
 	});
 
-	test("queryTable with no params omits query string", async () => {
-		globalThis.fetch = mockFetch({ ok: true, status: 200, body: [] });
+	test("rows with no params omits query string", async () => {
+		globalThis.fetch = mockFetch({
+			ok: true,
+			status: 200,
+			body: { rows: [], next_cursor: null, tip: {} },
+		});
 
-		await subgraphs.queryTable("my-subgraph", "events");
+		await subgraphs.rows("my-subgraph", "events");
 
 		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
 		const calledUrl = fetchMock.mock.calls[0][0] as string;
-		expect(calledUrl).toBe(`${BASE_URL}/api/subgraphs/my-subgraph/events`);
+		expect(calledUrl).toBe(`${BASE_URL}/v1/subgraphs/my-subgraph/events`);
 	});
 
 	test("deploy sends POST to /api/subgraphs with startBlock", async () => {
@@ -223,6 +231,15 @@ describe("Subgraphs", () => {
 		expect(client.unpublish).toBeUndefined();
 	});
 
+	// The offset-paginated `/api` read surface is gone — reads live on `/v1`
+	// only (cursor pagination). `rows`/`count`/`aggregate` replace it.
+	test("the /api offset-read verbs are gone from the client", () => {
+		const client = subgraphs as unknown as Record<string, unknown>;
+		expect(client.queryTable).toBeUndefined();
+		expect(client.queryTableCount).toBeUndefined();
+		expect(client.queryTableAggregate).toBeUndefined();
+	});
+
 	test("status reads the same detail endpoint as get", async () => {
 		globalThis.fetch = mockFetch({
 			ok: true,
@@ -261,15 +278,17 @@ describe("Subgraphs", () => {
 			const encoded = encodeURIComponent(hostile);
 
 			await subgraphs.status(hostile);
-			await subgraphs.queryTable(hostile, hostile);
 			await subgraphs.rows(hostile, hostile);
+			await subgraphs.count(hostile, hostile);
 			await subgraphs.getOperation(hostile, hostile);
 
 			const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
 			const urls = fetchMock.mock.calls.map((c) => c[0] as string);
 			expect(urls[0]).toBe(`${BASE_URL}/api/subgraphs/${encoded}`);
-			expect(urls[1]).toBe(`${BASE_URL}/api/subgraphs/${encoded}/${encoded}`);
-			expect(urls[2]).toBe(`${BASE_URL}/v1/subgraphs/${encoded}/${encoded}`);
+			expect(urls[1]).toBe(`${BASE_URL}/v1/subgraphs/${encoded}/${encoded}`);
+			expect(urls[2]).toBe(
+				`${BASE_URL}/v1/subgraphs/${encoded}/${encoded}/count`,
+			);
 			expect(urls[3]).toBe(
 				`${BASE_URL}/api/subgraphs/${encoded}/operations/${encoded}`,
 			);
@@ -310,6 +329,63 @@ describe("Subgraphs", () => {
 			const url = new URL(fetchMock.mock.calls[0][0] as string);
 			expect(url.searchParams.get("_id")).toBe("7");
 			expect(url.searchParams.get("id")).toBeNull();
+		});
+	});
+
+	describe("typed() findMany orderBy + cursor", () => {
+		const def = {
+			name: "tokens",
+			schema: {
+				listings: {
+					columns: { seller: { type: "principal" }, price: { type: "uint" } },
+				},
+			},
+		} as const;
+
+		test("single-column orderBy sets _sort/_order", async () => {
+			globalThis.fetch = mockFetch({
+				ok: true,
+				status: 200,
+				body: { rows: [], next_cursor: null, tip: {} },
+			});
+			const typed = subgraphs.typed(def);
+			await typed.listings.findMany({ orderBy: { price: "desc" } });
+			const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+			const url = new URL(fetchMock.mock.calls[0][0] as string);
+			expect(url.searchParams.get("_sort")).toBe("price");
+			expect(url.searchParams.get("_order")).toBe("desc");
+		});
+
+		test("a second orderBy key throws instead of silently sorting by one column", async () => {
+			const typed = subgraphs.typed(def);
+			await expect(
+				typed.listings.findMany({
+					orderBy: { seller: "asc", price: "desc" } as never,
+				}),
+			).rejects.toThrow(/single column/);
+		});
+
+		test("cursor forwards to the request and the page reports nextCursor/tip", async () => {
+			globalThis.fetch = mockFetch({
+				ok: true,
+				status: 200,
+				body: {
+					rows: [{ seller: "SP1", price: "5" }],
+					next_cursor: "abc",
+					tip: { block_height: 10, subgraph_height: 10, blocks_behind: 0 },
+				},
+			});
+			const typed = subgraphs.typed(def);
+			const page = await typed.listings.findMany({ cursor: "start" });
+			const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+			const url = new URL(fetchMock.mock.calls[0][0] as string);
+			expect(url.searchParams.get("cursor")).toBe("start");
+			expect(page.nextCursor).toBe("abc");
+			expect(page.tip).toEqual({
+				block_height: 10,
+				subgraph_height: 10,
+				blocks_behind: 0,
+			});
 		});
 	});
 

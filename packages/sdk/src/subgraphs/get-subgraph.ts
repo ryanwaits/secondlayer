@@ -14,7 +14,7 @@ import { Subgraphs } from "./client.ts";
  * import { getSubgraph } from '@secondlayer/sdk'
  *
  * const client = getSubgraph(mySubgraph, { apiKey: 'sl_...' })
- * const rows = await client.transfers.findMany({ where: { sender: 'SP...' } })
+ * const page = await client.transfers.findMany({ where: { sender: 'SP...' } })
  * ```
  */
 export function getSubgraph<

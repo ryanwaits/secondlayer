@@ -412,7 +412,9 @@ Exported types: `TransactionProof`, `TransactionProofVerifyResult`, `RewardSet`.
 
 Deploy and query app-specific tables.
 
-Subgraphs and webhooks live on the instance API alongside Streams and Index. Everything here except `rows` and the typed `subscribe` calls `/api`, which needs `INSTANCE_TOKEN` once one is configured (init always configures one), loopback included.
+Subgraphs and webhooks live on the instance API alongside Streams and Index. Reads (`rows`, `count`, `aggregate`, typed `findMany`/`count`/`aggregate`, and `subscribe`) all hit the open `/v1` surface — keyless on loopback, `INSTANCE_TOKEN` once the API is bound beyond it. Everything else here (deploy, status, ops) calls `/api`, which needs `INSTANCE_TOKEN` once one is configured (init always configures one), loopback included.
+
+`/v1` paginates by cursor, not offset: `rows`/`count`/`aggregate` take no `offset` param — pass the previous page's `next_cursor` back as `cursor` to resume.
 
 ```typescript
 // List
@@ -421,24 +423,17 @@ const { data } = await sl.subgraphs.list();
 // Get
 const subgraph = await sl.subgraphs.status("my-subgraph");
 
-// Open read (/v1): keyless on loopback; needs the token once the API is bound beyond it
+// Untyped row read (/v1)
 const { rows, next_cursor, tip } = await sl.subgraphs.rows("my-subgraph", "transfers", {
+  sort: "block_height",
   order: "desc",
   limit: 50,
   // cursor: next_cursor — pass back to resume
 });
 
-// Authed control-plane query (/api)
-const page = await sl.subgraphs.queryTable("my-subgraph", "transfers", {
-  sort: "block_height",
-  order: "desc",
-  limit: 50,
+const { count } = await sl.subgraphs.count("my-subgraph", "transfers", {
+  filters: { status: "active" },
 });
-
-const { count } = await sl.subgraphs.queryTableCount(
-  "my-subgraph",
-  "transfers",
-);
 
 const spec = await sl.subgraphs.openapi("my-subgraph");
 const source = await sl.subgraphs.getSource("my-subgraph");
@@ -455,10 +450,21 @@ system column only when your table declares no column of that name; a declared
 `id` column is always your `id`.
 
 Stream rows live with the typed client — each table exposes `subscribe`
-alongside `findMany`/`count`:
+alongside `findMany`/`count`/`aggregate`:
 
 ```typescript
 const subgraph = sl.subgraphs.typed(myDefinition); // { transfers, ... }
+
+// findMany returns a page, not a bare array — `nextCursor` resumes it.
+// `orderBy` sorts one column only (the /v1 keyset cursor pairs it with `_id`
+// as a tiebreaker); a second key throws.
+const page = await subgraph.transfers.findMany({
+  where: { amount: { gte: "1000000" } },
+  orderBy: { blockHeight: "desc" },
+  limit: 50,
+  // cursor: page.nextCursor — pass back to resume
+});
+// page.rows, page.nextCursor, page.tip
 
 const unsubscribe = subgraph.transfers.subscribe(
   (row) => console.log(row),

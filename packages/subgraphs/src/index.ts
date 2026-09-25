@@ -128,6 +128,8 @@ export type {
 	ComparisonFilter,
 	WhereInput,
 	FindManyOptions,
+	FindManyPage,
+	SubgraphTip,
 	SubgraphTableClient,
 	AggregateSpec,
 	AggregateResult,

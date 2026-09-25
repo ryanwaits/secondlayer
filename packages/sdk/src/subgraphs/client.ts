@@ -19,6 +19,7 @@ import type {
 	AggregateResult,
 	AggregateSpec,
 	FindManyOptions,
+	FindManyPage,
 	InferSubgraphClient,
 	SubscribeOptions,
 	WhereInput,
@@ -117,12 +118,13 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 	});
 }
 
-function buildSubgraphQueryString(params: SubgraphQueryParams): string {
+function buildSubgraphQueryString(
+	params: Omit<SubgraphQueryParams, "offset">,
+): string {
 	return buildQuery({
 		_sort: params.sort,
 		_order: params.order,
 		_limit: params.limit,
-		_offset: params.offset,
 		_fields: params.fields,
 		...params.filters,
 	});
@@ -255,7 +257,7 @@ export class Subgraphs extends BaseClient {
 	async rows<T = unknown>(
 		name: string,
 		table: string,
-		params: Omit<SubgraphQueryParams, "offset" | "sort"> & {
+		params: Omit<SubgraphQueryParams, "offset"> & {
 			cursor?: string;
 		} = {},
 	): Promise<SubgraphRowsEnvelope<T>> {
@@ -317,37 +319,29 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
-	async queryTable(
+	/** Open /v1 read: exact row count for a filtered set. Same auth posture as
+	 *  {@link rows}. */
+	async count(
 		name: string,
 		table: string,
-		params: SubgraphQueryParams = {},
-	): Promise<unknown[]> {
-		const result = await this.request<{ data: unknown[] } | unknown[]>(
-			"GET",
-			`/api/subgraphs/${seg(name)}/${seg(table)}${buildSubgraphQueryString(params)}`,
-		);
-		return Array.isArray(result) ? result : result.data;
-	}
-
-	async queryTableCount(
-		name: string,
-		table: string,
-		params: SubgraphQueryParams = {},
+		params: Pick<SubgraphQueryParams, "filters"> = {},
 	): Promise<{ count: number }> {
 		return this.request<{ count: number }>(
 			"GET",
-			`/api/subgraphs/${seg(name)}/${seg(table)}/count${buildSubgraphQueryString(params)}`,
+			`/v1/subgraphs/${seg(name)}/${seg(table)}/count${buildSubgraphQueryString(params)}`,
 		);
 	}
 
-	async queryTableAggregate(
+	/** Open /v1 read: scalar aggregates over a filtered set. Same auth posture
+	 *  as {@link rows}. */
+	async aggregate(
 		name: string,
 		table: string,
 		params: SubgraphAggregateParams = {},
 	): Promise<SubgraphAggregateResponse> {
 		return this.request<SubgraphAggregateResponse>(
 			"GET",
-			`/api/subgraphs/${seg(name)}/${seg(table)}/aggregate${buildAggregateQueryString(params)}`,
+			`/v1/subgraphs/${seg(name)}/${seg(table)}/aggregate${buildAggregateQueryString(params)}`,
 		);
 	}
 
@@ -359,8 +353,9 @@ export class Subgraphs extends BaseClient {
 	 * ```ts
 	 * import mySubgraph from './subgraphs/my-token-subgraph'
 	 * const client = sl.subgraphs.typed(mySubgraph)
-	 * const rows = await client.transfers.findMany({ where: { sender: 'SP...' } })
-	 * // rows: InferTableRow<typeof mySubgraph.schema.transfers>[]
+	 * const page = await client.transfers.findMany({ where: { sender: 'SP...' } })
+	 * // page.rows: InferTableRow<typeof mySubgraph.schema.transfers>[]
+	 * // page.nextCursor: string | null — pass back as `cursor` to resume
 	 * ```
 	 */
 	typed<T extends { name: string; schema: Record<string, unknown> }>(
@@ -398,7 +393,7 @@ export class Subgraphs extends BaseClient {
 				options: Omit<FindManyOptions<TRow>, "fields"> & {
 					fields?: readonly (keyof TRow & string)[];
 				} = {},
-			): Promise<TRow[]> {
+			): Promise<FindManyPage<TRow>> {
 				const filters = options.where
 					? serializeWhere(options.where as Record<string, unknown>, columns)
 					: undefined;
@@ -406,34 +401,38 @@ export class Subgraphs extends BaseClient {
 				let sort: string | undefined;
 				let order: string | undefined;
 				if (options.orderBy) {
-					// Accept the object form `{ col: "asc" }` or the ordered array
-					// form `[[col, "asc"], …]` for deterministic multi-column sort.
-					const entries: [string, "asc" | "desc"][] = Array.isArray(
-						options.orderBy,
-					)
-						? (options.orderBy as [string, "asc" | "desc"][])
-						: (Object.entries(options.orderBy) as [string, "asc" | "desc"][]);
-					if (entries.length > 0) {
-						// Comma-joined parallel lists → `_sort=a,b&_order=asc,desc`.
-						sort = entries
-							.map(([col]) => resolveOrderByColumn(col, columns))
-							.join(",");
-						order = entries.map(([, dir]) => dir ?? "asc").join(",");
+					// Single-column object form only — `/v1`'s keyset cursor pairs one
+					// sort column with `_id`, so a second key can't be served.
+					const entries = Object.entries(options.orderBy) as [
+						string,
+						"asc" | "desc",
+					][];
+					if (entries.length > 1) {
+						throw new Error(
+							`findMany orderBy accepts a single column; got ${entries.length}: ${entries.map(([col]) => col).join(", ")}. Sort one column — the cursor pairs it with _id as a tiebreaker.`,
+						);
+					}
+					const entry = entries[0];
+					if (entry) {
+						const [col, dir] = entry;
+						sort = resolveOrderByColumn(col, columns);
+						order = dir ?? "asc";
 					}
 				}
 
-				const params: SubgraphQueryParams = {
+				const result = await self.rows<TRow>(subgraphName, tableName, {
 					sort,
 					order,
 					limit: options.limit,
-					offset: options.offset,
 					fields: options.fields?.join(","),
 					filters,
+					cursor: options.cursor,
+				});
+				return {
+					rows: result.rows,
+					nextCursor: result.next_cursor,
+					tip: result.tip,
 				};
-
-				return self.queryTable(subgraphName, tableName, params) as Promise<
-					TRow[]
-				>;
 			},
 
 			async count<TRow>(where?: WhereInput<TRow>): Promise<number> {
@@ -441,7 +440,7 @@ export class Subgraphs extends BaseClient {
 					? serializeWhere(where as Record<string, unknown>, columns)
 					: undefined;
 
-				const result = await self.queryTableCount(subgraphName, tableName, {
+				const result = await self.count(subgraphName, tableName, {
 					filters,
 				});
 				return result.count;
@@ -454,7 +453,7 @@ export class Subgraphs extends BaseClient {
 					? serializeWhere(spec.where as Record<string, unknown>, columns)
 					: undefined;
 
-				const result = await self.queryTableAggregate(subgraphName, tableName, {
+				const result = await self.aggregate(subgraphName, tableName, {
 					filters,
 					count: spec.count,
 					countDistinct: spec.countDistinct,
