@@ -364,6 +364,9 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 	retryDelay?: number;
 	onError?: PageRetryOptions["onError"];
 	signal?: AbortSignal;
+	/** Cuts the empty-poll backoff short — see the field doc on
+	 *  {@link StreamsEventsConsumeParams.wake} (same contract). */
+	wake?: () => Promise<void>;
 }): Promise<{ cursor: string | null; pages: number; emptyPolls: number }> {
 	const sleep = opts.sleep ?? defaultSleep;
 	const mode = opts.mode ?? "tail";
@@ -578,7 +581,21 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 			if (mode === "bounded") {
 				return { cursor, pages, emptyPolls };
 			}
-			await sleep(emptyBackoffMs, opts.signal);
+			// The backoff timer always runs underneath — a `wake` that never
+			// resolves, rejects (e.g. a dropped LISTEN connection), or isn't
+			// supplied at all falls back to exactly the old poll-only behavior.
+			// Racing (not replacing) it means a broken wake source degrades to
+			// plain polling, never a stall. A rejection must NOT resolve the
+			// race early — swallowing it into a promise that never settles (not
+			// `.catch(() => {})`, which would resolve immediately and defeat the
+			// backoff entirely) is what makes "wake is broken" behave exactly
+			// like "no wake at all".
+			await (opts.wake
+				? Promise.race([
+						sleep(emptyBackoffMs, opts.signal),
+						opts.wake().catch(() => new Promise<never>(() => {})),
+					])
+				: sleep(emptyBackoffMs, opts.signal));
 			continue;
 		}
 

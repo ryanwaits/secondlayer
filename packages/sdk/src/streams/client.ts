@@ -441,6 +441,7 @@ export function createStreamsClient(
 			retryCount: params.retryCount,
 			retryDelay: params.retryDelay,
 			onError: params.onError,
+			wake: params.wake,
 		});
 	}
 

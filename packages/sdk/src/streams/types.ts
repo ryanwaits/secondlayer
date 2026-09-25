@@ -422,6 +422,17 @@ export type StreamsEventsConsumeParams<
 	maxPages?: number;
 	maxEmptyPolls?: number;
 	signal?: AbortSignal;
+	/**
+	 * Cuts the empty-poll backoff short: on an empty page, the loop races
+	 * `emptyBackoffMs` against this promise instead of sleeping the full
+	 * amount. Pass a function that resolves once when new data MIGHT be
+	 * available (e.g. a Postgres NOTIFY listener) — it is called fresh on
+	 * every empty page, never awaited more than once concurrently per page.
+	 * The backoff timer still runs underneath, so a wake source that never
+	 * resolves (or a `wake` this call omits) degrades to the same polling
+	 * behavior as before.
+	 */
+	wake?: () => Promise<void>;
 };
 
 /**
