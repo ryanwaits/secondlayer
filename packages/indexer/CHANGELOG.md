@@ -1,5 +1,14 @@
 # @secondlayer/indexer
 
+## 1.15.4
+
+### Patch Changes
+
+- Updated dependencies [fd87555]
+- Updated dependencies [fd87555]
+  - @secondlayer/sdk@12.0.0
+  - @secondlayer/shared@11.10.1
+
 ## 1.15.3
 
 ### Patch Changes

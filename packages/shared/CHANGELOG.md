@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.10.1
+
+### Patch Changes
+
+- fd87555: Instance-diagnosis messages name only the canonical `SECONDLAYER_API_KEY` / `SECONDLAYER_API_URL` now that the `SL_*` aliases are no longer read.
+
 ## 11.10.0
 
 ### Minor Changes

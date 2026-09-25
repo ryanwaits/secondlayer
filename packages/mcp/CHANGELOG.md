@@ -1,5 +1,18 @@
 # @secondlayer/mcp
 
+## 9.0.0
+
+### Major Changes
+
+- fd87555: `SL_API_URL` is no longer read. The MCP server and client now resolve the instance base URL through the SDK's `resolveBaseUrl()`, which reads only `SECONDLAYER_API_URL` (falling back to `http://127.0.0.1:3800`). Set the canonical name in your MCP client config.
+
+### Patch Changes
+
+- Updated dependencies [fd87555]
+- Updated dependencies [fd87555]
+  - @secondlayer/sdk@12.0.0
+  - @secondlayer/shared@11.10.1
+
 ## 8.1.0
 
 ### Minor Changes

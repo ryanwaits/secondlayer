@@ -1,5 +1,16 @@
 # @secondlayer/api
 
+## 1.42.1
+
+### Patch Changes
+
+- Updated dependencies [fd87555]
+- Updated dependencies [fd87555]
+  - @secondlayer/sdk@12.0.0
+  - @secondlayer/shared@11.10.1
+  - @secondlayer/indexer@1.15.4
+  - @secondlayer/platform@0.3.4
+
 ## 1.42.0
 
 ### Minor Changes
