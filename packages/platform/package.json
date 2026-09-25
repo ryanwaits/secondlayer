@@ -20,6 +20,18 @@
 			"types": "./dist/db/queries/archive-fetches.d.ts",
 			"import": "./dist/db/queries/archive-fetches.js"
 		},
+		"./db/queries/usage-ledger": {
+			"types": "./dist/db/queries/usage-ledger.d.ts",
+			"import": "./dist/db/queries/usage-ledger.js"
+		},
+		"./billing/prices": {
+			"types": "./dist/billing/prices.d.ts",
+			"import": "./dist/billing/prices.js"
+		},
+		"./billing/meter": {
+			"types": "./dist/billing/meter.d.ts",
+			"import": "./dist/billing/meter.js"
+		},
 		"./schemas/accounts": {
 			"types": "./dist/schemas/accounts.d.ts",
 			"import": "./dist/schemas/accounts.js"

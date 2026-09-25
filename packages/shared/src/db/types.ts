@@ -954,6 +954,7 @@ export interface Database {
 	coverage_segments: CoverageSegmentsTable;
 	stage_failures: StageFailuresTable;
 	archive_fetches: ArchiveFetchesTable;
+	usage_ledger: UsageLedgerTable;
 	waitlists: WaitlistsTable;
 	waitlist_signups: WaitlistSignupsTable;
 }
@@ -1022,6 +1023,32 @@ export interface ArchiveFetchesTable {
 export type ArchiveFetch = Selectable<ArchiveFetchesTable>;
 export type InsertArchiveFetch = Insertable<ArchiveFetchesTable>;
 export type UpdateArchiveFetch = Updateable<ArchiveFetchesTable>;
+
+/**
+ * One metered ledger for every billable unit (archive partitions, hosted
+ * Index/Streams rows, and future hosted-stack meters). Append-only, written
+ * only by `meter()`. `idempotency_key` is UNIQUE so a retried submission
+ * no-ops instead of double-charging. `debited` is false when the balance
+ * (or a spend cap) refused the charge — the row still exists so the gap is
+ * visible, never silently dropped. `usd_micros` is negative for a Stripe
+ * top-up (`unit: "topup"`).
+ */
+export interface UsageLedgerTable {
+	id: Generated<string>;
+	account_id: string;
+	unit: string;
+	quantity: string | number | bigint;
+	usd_micros: string | number | bigint;
+	debited: Generated<boolean>;
+	source: string;
+	idempotency_key: string;
+	occurred_at: Generated<Date>;
+	recorded_at: Generated<Date>;
+}
+
+export type UsageLedgerRow = Selectable<UsageLedgerTable>;
+export type InsertUsageLedgerRow = Insertable<UsageLedgerTable>;
+export type UpdateUsageLedgerRow = Updateable<UsageLedgerTable>;
 
 // ── Convenience types ─────────────────────────────────────────────────
 
