@@ -1,0 +1,158 @@
+import type {
+	DeadRow,
+	DeliveryRow,
+	RotateSecretResponse,
+	WebhookDetail,
+	WebhookSummary,
+	WebhookTestResult,
+} from "@secondlayer/sdk";
+
+/**
+ * Client-only fetchers for /account/webhooks, calling the dashboard's own
+ * `/api/webhooks/*` proxy (never the platform API directly — same style as
+ * `account-data.ts`). Every call maps the proxy's status code to one of a
+ * few outcomes the UI actually branches on, instead of throwing: a starting
+ * delivery service and a zero balance are expected states here, not errors.
+ */
+
+export type WebhooksResult<T> =
+	| { kind: "ok"; data: T }
+	| { kind: "starting"; retryAfter: number }
+	| { kind: "no_credits" }
+	| { kind: "rate_limited"; retryAfter: number }
+	| { kind: "not_found" }
+	| { kind: "error"; message: string };
+
+/** Pure status → result-kind mapping. Returns `null` for a 2xx, meaning the
+ *  caller should read the response body as the success payload. */
+export function resultForStatus(
+	status: number,
+	retryAfterHeader: string | null,
+	errorMessage: string,
+): WebhooksResult<never> | null {
+	if (status >= 200 && status < 300) return null;
+	const retryAfter = retryAfterHeader ? Number(retryAfterHeader) : 30;
+	if (status === 503) return { kind: "starting", retryAfter };
+	if (status === 402) return { kind: "no_credits" };
+	if (status === 429) return { kind: "rate_limited", retryAfter };
+	if (status === 404) return { kind: "not_found" };
+	return { kind: "error", message: errorMessage };
+}
+
+/** A tenant on an older API image can omit `blockTime` from a delivery row
+ *  entirely (plan 064 fixes the auto-upgrade gap) — normalize that absence
+ *  to `null`, same as a row that genuinely has none. */
+export function normalizeDeliveryRow(row: DeliveryRow): DeliveryRow {
+	return { ...row, blockTime: row.blockTime ?? null };
+}
+
+async function request<T>(
+	path: string,
+	init?: RequestInit,
+): Promise<WebhooksResult<T>> {
+	let res: Response;
+	try {
+		res = await fetch(`/api/webhooks${path}`, init);
+	} catch {
+		return { kind: "error", message: "Couldn't reach the dashboard" };
+	}
+	let body: unknown = null;
+	try {
+		body = await res.json();
+	} catch {
+		// Empty body on some error responses; fall through to the status-only message.
+	}
+	const errorMessage =
+		body &&
+		typeof body === "object" &&
+		"error" in body &&
+		typeof (body as { error: unknown }).error === "string"
+			? (body as { error: string }).error
+			: `Request failed (${res.status})`;
+	const mapped = resultForStatus(
+		res.status,
+		res.headers.get("Retry-After"),
+		errorMessage,
+	);
+	if (mapped) return mapped;
+	return { kind: "ok", data: body as T };
+}
+
+async function requestList<T>(path: string): Promise<WebhooksResult<T[]>> {
+	const res = await request<{ data: T[] }>(path);
+	return res.kind === "ok" ? { kind: "ok", data: res.data.data } : res;
+}
+
+export function listWebhooks(): Promise<WebhooksResult<WebhookSummary[]>> {
+	return requestList<WebhookSummary>("");
+}
+
+export function getWebhook(id: string): Promise<WebhooksResult<WebhookDetail>> {
+	return request<WebhookDetail>(`/${encodeURIComponent(id)}`);
+}
+
+export async function getDeliveries(
+	id: string,
+): Promise<WebhooksResult<DeliveryRow[]>> {
+	const res = await requestList<DeliveryRow>(
+		`/${encodeURIComponent(id)}/deliveries`,
+	);
+	return res.kind === "ok"
+		? { kind: "ok", data: res.data.map(normalizeDeliveryRow) }
+		: res;
+}
+
+export function getDead(id: string): Promise<WebhooksResult<DeadRow[]>> {
+	return requestList<DeadRow>(`/${encodeURIComponent(id)}/dead`);
+}
+
+export function testWebhook(
+	id: string,
+): Promise<WebhooksResult<WebhookTestResult>> {
+	return request<WebhookTestResult>(`/${encodeURIComponent(id)}/test`, {
+		method: "POST",
+	});
+}
+
+export function pauseWebhook(
+	id: string,
+): Promise<WebhooksResult<WebhookDetail>> {
+	return request<WebhookDetail>(`/${encodeURIComponent(id)}/pause`, {
+		method: "POST",
+	});
+}
+
+export function resumeWebhook(
+	id: string,
+): Promise<WebhooksResult<WebhookDetail>> {
+	return request<WebhookDetail>(`/${encodeURIComponent(id)}/resume`, {
+		method: "POST",
+	});
+}
+
+export function rotateSecret(
+	id: string,
+): Promise<WebhooksResult<RotateSecretResponse>> {
+	return request<RotateSecretResponse>(
+		`/${encodeURIComponent(id)}/rotate-secret`,
+		{ method: "POST" },
+	);
+}
+
+export function requeue(
+	id: string,
+	outboxId: string,
+): Promise<WebhooksResult<{ ok: true }>> {
+	return request<{ ok: true }>(
+		`/${encodeURIComponent(id)}/dead/${encodeURIComponent(outboxId)}/requeue`,
+		{ method: "POST" },
+	);
+}
+
+export function deleteWebhook(
+	id: string,
+): Promise<WebhooksResult<{ ok: true }>> {
+	return request<{ ok: true }>(`/${encodeURIComponent(id)}`, {
+		method: "DELETE",
+	});
+}
