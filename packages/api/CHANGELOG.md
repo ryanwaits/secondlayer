@@ -1,5 +1,20 @@
 # @secondlayer/api
 
+## 1.42.0
+
+### Minor Changes
+
+- 139ca27: Index `tip.block_height` is now the committed height for the event type a request actually reads, not the ft_transfer decoder's checkpoint applied to every type. `/v1/index/events` (and the `ft-transfers`/`nft-transfers` aliases) now bound `to_height`/pagination by their own decoded type, fixing a gap where a type whose decoder trailed ft_transfer could silently skip rows that decoder hadn't written yet. The tip envelope also carries a new `decoded_heights` map (committed height per classic decoded type); `/v1/index/blocks` and `/v1/index/transactions` are unaffected, staying on the ingest tip.
+
+### Patch Changes
+
+- 9339907: Streams reads from a first-party internal caller (the seeded decoder key, or a self-hosted `INSTANCE_TOKEN`) now serve up to the raw tip instead of holding back the usual 2-block reorg margin: the decoder already rewinds decoded rows and checkpoints on a reorg, so the margin only added latency for that reader. Public/account reads keep the existing `STREAMS_TIP_REORG_MARGIN_BLOCKS` default.
+- Updated dependencies [4fdf331]
+- Updated dependencies [33266de]
+  - @secondlayer/shared@11.10.0
+  - @secondlayer/subgraphs@6.1.3
+  - @secondlayer/platform@0.3.3
+
 ## 1.41.0
 
 ### Minor Changes
