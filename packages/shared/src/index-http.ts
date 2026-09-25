@@ -18,6 +18,13 @@ import {
 
 const PAGE_LIMIT = 1000;
 
+/** Ceiling on the Index long-poll `wait` param (seconds), shared by client and
+ *  server so neither drifts from the other. Kept comfortably under app-server
+ *  Caddy's `reverse_proxy` (no read/write timeout override, so this is a
+ *  self-imposed ceiling, not one it's protecting against) and Bun's own
+ *  90s idleTimeout on the api listener. */
+export const MAX_INDEX_WAIT_SECONDS = 25;
+
 // Transport resilience for the streams-index data plane. The api runs N>1
 // replicas behind Caddy; during a rolling deploy one replica is briefly
 // unreachable, surfacing as a thrown fetch (connection refused/reset) or a
@@ -30,6 +37,20 @@ const RETRYABLE_STATUS = new Set([502, 503, 504]);
 
 const delay = (ms: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(resolve, ms));
+
+/** A non-2xx Index/Streams response, carrying the status so a caller can
+ *  distinguish "the server rejected this request" (e.g. a `wait`/`from_height`
+ *  param an older server's `validateQueryParams` doesn't recognize, HTTP 400)
+ *  from a transient outage — see `getIndexTipEnvelope`'s wait fallback. */
+export class IndexHttpStatusError extends Error {
+	constructor(
+		readonly status: number,
+		message: string,
+	) {
+		super(message);
+		this.name = "IndexHttpStatusError";
+	}
+}
 
 type Envelope<K extends string, T> = {
 	[P in K]: T[];
@@ -189,6 +210,10 @@ export class IndexHttpClient {
 	 *  `getIndexSourceTip`) so `getDecodedHeights()` can read the SAME response
 	 *  synchronously instead of making a second request. */
 	private lastTipEnvelope: IndexTipEnvelope | undefined;
+	/** Flips false the first time a `wait` request 400s — see
+	 *  `getIndexTipEnvelope`'s catch. Per-instance, not global: a fresh client
+	 *  (e.g. against a different/upgraded server) always tries wait again. */
+	private waitSupported = true;
 
 	constructor(opts: IndexHttpOptions) {
 		this.indexBaseUrl = opts.indexBaseUrl.replace(/\/+$/, "");
@@ -227,7 +252,10 @@ export class IndexHttpClient {
 					await delay(RETRY_BASE_MS * 2 ** (attempt - 1));
 					continue;
 				}
-				throw new Error(`GET ${url} → ${res.status} ${await res.text()}`);
+				throw new IndexHttpStatusError(
+					res.status,
+					`GET ${url} → ${res.status} ${await res.text()}`,
+				);
 			}
 			return (await res.json()) as T;
 		}
@@ -391,15 +419,28 @@ export class IndexHttpClient {
 	 * Highest block height the Index data plane can serve (tip is inline in every
 	 * envelope). This is the data-availability bound — a consumer must not
 	 * process past it, even if the Streams clock is ahead.
+	 *
+	 * `opts.wait` (seconds, clamped to `MAX_INDEX_WAIT_SECONDS`) long-polls:
+	 * the server holds the request until a fresher tip than `opts.knownHeight`
+	 * is available or `wait` elapses (plan-063 3.4/3.5). Pass `knownHeight` —
+	 * the last tip THIS caller observed — or `wait` is a no-op (nothing to
+	 * compare against). A caller that only wants the plain tip omits both.
 	 */
-	async getIndexTip(): Promise<number> {
-		const env = await this.getIndexTipEnvelope();
+	async getIndexTip(opts?: {
+		wait?: number;
+		knownHeight?: number;
+	}): Promise<number> {
+		const env = await this.getIndexTipEnvelope(opts);
 		return Number(env.tip?.block_height) || 0;
 	}
 
-	/** Ingest tip. VM rows land with the block; decoded `block_height` can lag. */
-	async getIndexSourceTip(): Promise<number> {
-		const env = await this.getIndexTipEnvelope();
+	/** Ingest tip. VM rows land with the block; decoded `block_height` can lag.
+	 *  Same `wait`/`knownHeight` long-poll contract as {@link getIndexTip}. */
+	async getIndexSourceTip(opts?: {
+		wait?: number;
+		knownHeight?: number;
+	}): Promise<number> {
+		const env = await this.getIndexTipEnvelope(opts);
 		return Number(env.tip?.source_block_height ?? env.tip?.block_height) || 0;
 	}
 
@@ -415,13 +456,60 @@ export class IndexHttpClient {
 		return this.lastTipEnvelope?.tip.decoded_heights;
 	}
 
-	private async getIndexTipEnvelope(): Promise<IndexTipEnvelope> {
-		const env = await this.get<IndexTipEnvelope>(
-			`${this.indexBaseUrl}/v1/index/blocks?limit=1`,
-			this.indexApiKey,
-		);
-		this.lastTipEnvelope = env;
-		return env;
+	/** False once a `wait` request has 400'd on THIS client instance (see the
+	 *  catch in `getIndexTipEnvelope`) — an older server that doesn't recognize
+	 *  the long-poll params. A caller that reuses one client across many calls
+	 *  (the chain evaluator, plan-063 3.5) uses this to stop scheduling itself
+	 *  as if `wait` actually blocked, instead of re-discovering the 400 on
+	 *  every single call. */
+	waitIsSupported(): boolean {
+		return this.waitSupported;
+	}
+
+	private async getIndexTipEnvelope(opts?: {
+		wait?: number;
+		knownHeight?: number;
+	}): Promise<IndexTipEnvelope> {
+		const wantsWait = this.waitSupported && (opts?.wait ?? 0) > 0;
+		const params = new URLSearchParams({ limit: "1" });
+		if (wantsWait) {
+			params.set(
+				"wait",
+				String(Math.min(MAX_INDEX_WAIT_SECONDS, Math.max(0, opts?.wait ?? 0))),
+			);
+			// `from_height` is what makes the wait meaningful here: with no cursor,
+			// `/v1/index/blocks?limit=1` always returns a row (the default window's
+			// oldest block), so the server would never see "nothing new" to wait
+			// on. Anchoring one past the last height THIS caller saw makes the page
+			// empty until a fresher block lands — the same signal the endpoint
+			// already uses for a normal forward walk.
+			if (opts?.knownHeight !== undefined) {
+				params.set("from_height", String(opts.knownHeight + 1));
+			}
+		}
+		try {
+			const env = await this.get<IndexTipEnvelope>(
+				`${this.indexBaseUrl}/v1/index/blocks?${params}`,
+				this.indexApiKey,
+			);
+			this.lastTipEnvelope = env;
+			return env;
+		} catch (err) {
+			// An older server's `validateQueryParams` 400s on `wait`/`from_height`
+			// it doesn't recognize. Treat that ONE status as "this server predates
+			// long-poll", not an outage: disable wait for the rest of this client's
+			// life and retry plainly, so `FallbackBlockSource` never mistakes a
+			// version-skew 400 for the api being down and routes to the DB tap.
+			if (
+				wantsWait &&
+				err instanceof IndexHttpStatusError &&
+				err.status === 400
+			) {
+				this.waitSupported = false;
+				return this.getIndexTipEnvelope(opts);
+			}
+			throw err;
+		}
 	}
 
 	/** Reorgs since a resume token (wall-clock `detected_at`-keyed). */

@@ -10,6 +10,7 @@
  * matrix can abort after each step without simulating a real process kill.
  */
 
+import { sql } from "kysely";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/types.ts";
 import type { FailureClass, FailureUnit, RetryState } from "./constraints.ts";
@@ -135,6 +136,15 @@ async function writeCheckpoint(
 			}),
 		)
 		.execute();
+
+	// Every decoder (classic + protocol) funnels its checkpoint write through
+	// here, so this is the one place a `index:tip` NOTIFY can cover the whole
+	// decoder set. Postgres defers delivery until the transaction commits,
+	// so a rewound/rolled-back commit never fires it. A caller (the Index
+	// API's long-poll wake, plan-063) only needs to know "something committed,
+	// go recheck" — it re-reads the real committed height itself, so the
+	// payload doesn't need to be more specific than the decoder name.
+	await sql`SELECT pg_notify('index:tip', ${decoderName})`.execute(tx);
 }
 
 async function writeReceipts(

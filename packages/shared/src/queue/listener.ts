@@ -60,6 +60,49 @@ export async function listen(
 	};
 }
 
+/** A shareable wake point: any number of callers can `wait()` for the next
+ *  NOTIFY on `channel`, each getting their own promise. One LISTEN connection
+ *  backs every waiter, so a decoder pool or an API replica needs only one
+ *  `createWakeBus` per process per channel, not one per caller. */
+export type WakeBus = {
+	/** Resolves on the next NOTIFY. A fresh promise every call — safe to call
+	 *  again immediately after it resolves. */
+	wait: () => Promise<void>;
+	/** Close the underlying LISTEN connection and resolve every pending waiter
+	 *  (so nothing blocks forever on shutdown). */
+	stop: () => Promise<void>;
+};
+
+/**
+ * Start a `WakeBus` on `channel`. Callers that only need a fallback timer if
+ * this fails should catch the rejection and keep polling — a wake bus is an
+ * optimization, never the only path to progress (see plan-063 D3).
+ */
+export async function createWakeBus(
+	channel: string,
+	opts?: ListenOptions,
+): Promise<WakeBus> {
+	let waiters = new Set<() => void>();
+	const stopListening = await listen(
+		channel,
+		() => {
+			const pending = waiters;
+			waiters = new Set();
+			for (const resolve of pending) resolve();
+		},
+		opts,
+	);
+	return {
+		wait: () => new Promise<void>((resolve) => waiters.add(resolve)),
+		stop: async () => {
+			const pending = waiters;
+			waiters = new Set();
+			for (const resolve of pending) resolve();
+			await stopListening();
+		},
+	};
+}
+
 export async function notify(
 	channel: string,
 	payload?: string,
