@@ -13,6 +13,7 @@ import {
 } from "@/lib/account-data";
 import { useEffect, useId, useState } from "react";
 import { FloatingCard } from "./floating-card";
+import { OutOfCreditsBanner, UsageSection } from "./usage-panel";
 
 export function BalanceStats({ billing }: { billing: Billing | null }) {
 	return (
@@ -36,8 +37,11 @@ export function BalanceStats({ billing }: { billing: Billing | null }) {
 function PricingNote() {
 	return (
 		<p className="acct-pricing">
-			The last 24 hours of data are free with any key. Older history costs{" "}
-			<strong>$5 per 1M rows</strong>, then $2 per 1M past $50 in a month.
+			Every account gets <strong>10M rows free each month</strong>, live or
+			history. After that, <strong>$5 per 1M rows</strong>, then $2 per 1M past
+			$50 in a month. Archive partitions are $0.05 ($0.15 for events); your
+			first six repair downloads each month are free. Self-hosted instances are
+			never metered.
 		</p>
 	);
 }
@@ -253,7 +257,9 @@ export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
 	return (
 		<>
 			{st ? <ReturnNotice st={st} billing={billing} /> : null}
+			<OutOfCreditsBanner billing={billing} />
 			{st?.kind === "landed" ? null : <BalanceStats billing={billing} />}
+			<UsageSection />
 			<h2 className="acct-h2">Add credits</h2>
 			<AmountPicker co={co} wide />
 			<CheckoutAction co={co} wide />

@@ -2578,6 +2578,172 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	display: flex;
 	justify-content: flex-end;
 }
+
+/* /account/credits usage view (plan 052) */
+.use-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 16px;
+}
+.use-head .acct-h2 {
+	margin: 0;
+}
+.use-month {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+.use-month button {
+	width: 30px;
+	height: 30px;
+	border: 0;
+	background: none;
+	color: var(--text-muted);
+	font: inherit;
+	font-size: 15px;
+	cursor: pointer;
+	border-radius: 7px;
+}
+.use-month button:hover:not(:disabled) {
+	color: var(--text-main);
+	background: color-mix(in srgb, var(--text-main) 5%, transparent);
+}
+.use-month button:disabled {
+	color: var(--text-dim);
+	cursor: default;
+}
+.use-month span {
+	min-width: 112px;
+	text-align: center;
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+}
+.use-allow {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 14px 16px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+.use-allow-row {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+.use-allow-k {
+	font-size: 13px;
+}
+.use-allow-v {
+	font-family: var(--font-mono-stack);
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+.use-allow-v span {
+	color: var(--text-muted);
+}
+.use-bar {
+	position: relative;
+	height: 8px;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--text-main) 7%, transparent);
+	overflow: hidden;
+}
+.use-bar i {
+	position: absolute;
+	inset: 0 auto 0 0;
+	border-radius: 999px;
+	background: var(--text-main);
+}
+.use-allow-foot {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+.use-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+.use-table-wrap {
+	overflow-x: auto;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+.use-table th {
+	text-align: left;
+	font-weight: 400;
+	font-size: 11px;
+	color: var(--text-muted);
+	padding: 9px 14px;
+	border-bottom: 1px solid var(--border);
+	white-space: nowrap;
+}
+.use-table td {
+	padding: 11px 14px;
+	border-bottom: 1px solid var(--border);
+	vertical-align: top;
+}
+.use-table tr:last-child td {
+	border-bottom: 0;
+}
+.use-table .use-num {
+	text-align: right;
+	font-family: var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+.use-table .use-sub {
+	display: block;
+	margin-top: 2px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+.use-table .use-credit {
+	color: var(--green);
+}
+.use-table .use-free {
+	color: var(--text-muted);
+}
+.use-table tfoot td {
+	font-weight: 500;
+	background: color-mix(in srgb, var(--text-main) 2%, transparent);
+}
+.use-empty {
+	padding: 20px 16px;
+	border: 1px dashed var(--border-hover);
+	border-radius: 8px;
+	text-align: center;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+.use-stop {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+	padding: 14px 16px;
+	border-radius: 8px;
+	border: 1px solid color-mix(in srgb, var(--red) 35%, var(--border));
+	background: color-mix(in srgb, var(--red) 5%, transparent);
+}
+.use-stop-t {
+	margin: 0;
+	font-weight: 500;
+}
+.use-stop-l {
+	margin: 3px 0 0;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+.use-stop code {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+}
 @media (max-width: 760px) {
 	.acct-page {
 		flex-direction: column;
@@ -2600,6 +2766,10 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	.acct-checkout.wide {
 		flex-direction: column;
 		align-items: stretch;
+	}
+	.use-head {
+		flex-direction: column;
+		align-items: flex-start;
 	}
 }
 @media (max-width: 640px) {

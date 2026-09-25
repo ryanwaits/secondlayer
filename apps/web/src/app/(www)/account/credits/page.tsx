@@ -18,7 +18,10 @@ export default function AccountCreditsPage() {
 	return (
 		<>
 			<h1 className="acct-h1">Credits</h1>
-			<p className="acct-lede">Pay for history older than 24 hours.</p>
+			<p className="acct-lede">
+				Prepaid. Your first 10M rows each month are free; rows past that and
+				archive downloads draw from this balance.
+			</p>
 			<CreditsSection ret={ret} />
 		</>
 	);
