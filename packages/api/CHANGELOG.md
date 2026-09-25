@@ -1,5 +1,18 @@
 # @secondlayer/api
 
+## 1.40.2
+
+### Patch Changes
+
+- 9fe75e7: `GET /public/status`'s `index.decoders[]` now includes `committedBlockHeight` alongside `checkpointBlockHeight` — the same committed-height rule the Subgraphs runtime already applies to a local checkpoint (sentinel cursor = block done, mid-block = floor to H-1). Additive: existing consumers of `checkpointBlockHeight` are unaffected.
+- Updated dependencies [9fe75e7]
+- Updated dependencies [9fe75e7]
+- Updated dependencies [ff2b708]
+  - @secondlayer/indexer@1.15.3
+  - @secondlayer/shared@11.9.0
+  - @secondlayer/subgraphs@6.1.2
+  - @secondlayer/platform@0.3.1
+
 ## 1.40.1
 
 ### Patch Changes

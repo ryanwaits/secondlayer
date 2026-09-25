@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 6.1.2
+
+### Patch Changes
+
+- ff2b708: The chain-webhook evaluator now fills `webhook_outbox.block_time` from the block it matched, and logs one `chain_evaluator_tick` event per tick (raw tip, bound tip, cursor before/after, emitted count, tick duration) for latency measurement. The Index remote-decoder-bound path now prefers a server's `committedBlockHeight` when it sends one, falling back to the older `checkpointBlockHeight - 1` against a server that hasn't shipped it yet.
+- Updated dependencies [9fe75e7]
+  - @secondlayer/shared@11.9.0
+
 ## 6.1.1
 
 ### Patch Changes
