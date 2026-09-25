@@ -2579,7 +2579,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	justify-content: flex-end;
 }
 
-/* /account/credits usage view (plan 052) */
+/* /account/credits usage view */
 .use-head {
 	display: flex;
 	align-items: baseline;
