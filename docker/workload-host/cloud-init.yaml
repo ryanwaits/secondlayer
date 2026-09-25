@@ -9,10 +9,12 @@
 # internet only") and stop a tenant container reaching the HOST itself
 # (the gateway, control Postgres, other tenants' loopback-published ports).
 #
-# The `docker-user-egress.sh` content below MUST match
-# `docker/workload-host/docker-user-egress.sh` exactly — that standalone
-# copy exists only so `bash -n`/shellcheck can validate it outside YAML;
-# cloud-init itself only ever runs the copy inlined here.
+# The `docker-user-egress.sh` content below is a placeholder, not a copy
+# (review fix C — two copies drift): `provision.sh` inlines the ONE source of
+# truth, `docker/workload-host/docker-user-egress.sh`, verbatim at render
+# time, replacing the placeholder line before this file is ever handed to
+# `hcloud server create`. Never hand-edit the placeholder; edit the
+# standalone file and re-render.
 #
 # This file is handed to `hcloud server create --user-data-from-file` by
 # `provision.sh`. It never contains a secret — `WORKLOAD_HOST_KEY` and every
@@ -37,53 +39,7 @@ write_files:
   - path: /opt/workload-host/docker-user-egress.sh
     permissions: "0755"
     content: |
-      #!/usr/bin/env bash
-      # Egress + host-access firewall (plan 044, step 1). Two idempotent rule
-      # sets — see docker/workload-host/docker-user-egress.sh (kept identical)
-      # for the full rationale; short version:
-      #
-      # 1. DOCKER-USER: egress allowlist for every tenant network (only
-      #    app-server:443 + the open internet). `physdev-is-bridged` ACCEPTs a
-      #    tenant's OWN intra-network traffic (api<->postgres) so the RFC1918
-      #    drop below can't cut it; cross-tenant is blocked explicitly by
-      #    interface (`-i br+ -o br+`, routed between two different bridges),
-      #    and the private-range drops are scoped `-i br+` (container-
-      #    originated only).
-      # 2. WORKLOAD-INPUT: DOCKER-USER never sees container-to-HOST traffic
-      #    (that's INPUT, not FORWARD) — this dedicated chain, hooked into
-      #    INPUT for docker-bridge sources, drops every new connection from a
-      #    container to the host itself (the gateway, control Postgres,
-      #    another tenant's loopback-published port via the bridge gateway
-      #    IP), keeping only replies to host-initiated traffic.
-      set -euo pipefail
-
-      APP_SERVER_IP="${APP_SERVER_IP:?set APP_SERVER_IP before running}"
-      METADATA_IP="169.254.169.254"
-
-      iptables -F DOCKER-USER 2>/dev/null || iptables -N DOCKER-USER
-
-      iptables -A DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-      iptables -A DOCKER-USER -m physdev --physdev-is-bridged -j ACCEPT
-      iptables -A DOCKER-USER -d "$APP_SERVER_IP" -p tcp --dport 443 -j ACCEPT
-      iptables -A DOCKER-USER -d "$METADATA_IP" -j DROP
-      iptables -A DOCKER-USER -i br+ -o br+ -j DROP
-
-      for net in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 169.254.0.0/16 127.0.0.0/8; do
-        iptables -A DOCKER-USER -i br+ -d "$net" -j DROP
-      done
-
-      iptables -A DOCKER-USER -j ACCEPT
-
-      iptables -F WORKLOAD-INPUT 2>/dev/null || iptables -N WORKLOAD-INPUT
-      iptables -A WORKLOAD-INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-      iptables -A WORKLOAD-INPUT -j DROP
-
-      iptables -D INPUT -i docker0 -j WORKLOAD-INPUT 2>/dev/null || true
-      iptables -D INPUT -i br+ -j WORKLOAD-INPUT 2>/dev/null || true
-      iptables -I INPUT 1 -i docker0 -j WORKLOAD-INPUT
-      iptables -I INPUT 1 -i br+ -j WORKLOAD-INPUT
-
-      netfilter-persistent save
+      __DOCKER_USER_EGRESS_SCRIPT__
 
   - path: /etc/docker/daemon.json
     permissions: "0644"

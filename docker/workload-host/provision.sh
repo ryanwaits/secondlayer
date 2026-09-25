@@ -57,9 +57,43 @@ APP_SERVER_IP="65.21.135.94/32"
 # for SSH (`hcloud firewall describe stacks-feeder`).
 OPERATOR_IP="136.62.99.163/32"
 
-CLOUD_INIT_TEMPLATE="$(dirname "$0")/cloud-init.yaml"
+SCRIPT_DIR="$(dirname "$0")"
+CLOUD_INIT_TEMPLATE="$SCRIPT_DIR/cloud-init.yaml"
+EGRESS_SCRIPT="$SCRIPT_DIR/docker-user-egress.sh"
 CLOUD_INIT_RENDERED="$(mktemp)"
-trap 'rm -f "$CLOUD_INIT_RENDERED"' EXIT
+# --dry-run keeps the rendered file around (and prints its path) so it can
+# be inspected/diffed without actually provisioning anything; a real run
+# cleans it up on exit since `hcloud` has already consumed it by then.
+if ! $DRY_RUN; then
+	trap 'rm -f "$CLOUD_INIT_RENDERED"' EXIT
+fi
+
+# Review fix C: `docker-user-egress.sh` is the ONE source of truth for the
+# firewall rules — cloud-init.yaml holds only a placeholder line
+# (`__DOCKER_USER_EGRESS_SCRIPT__`) inside its `content: |` block. Inlining
+# it here, instead of hand-copying into the YAML, is what makes drift
+# between the two impossible: there is only ever one copy of the rules.
+#
+# The placeholder's own indentation is preserved (read off the placeholder
+# line itself) so the inlined script stays valid under the YAML block
+# scalar; each line of the standalone file is copied verbatim underneath it
+# — no substitution, so `diff` against the standalone file (after stripping
+# that indentation) is empty by construction.
+render_cloud_init() {
+	local template="$1" egress_script="$2" out="$3"
+	awk -v script_file="$egress_script" '
+		/__DOCKER_USER_EGRESS_SCRIPT__/ {
+			match($0, /^[ \t]*/)
+			indent = substr($0, RSTART, RLENGTH)
+			while ((getline line < script_file) > 0) {
+				print indent line
+			}
+			close(script_file)
+			next
+		}
+		{ print }
+	' "$template" >"$out"
+}
 
 run() {
 	if $DRY_RUN; then
@@ -93,12 +127,20 @@ else
 fi
 
 # 3. Server — idempotent: skip if it already exists. cloud-init is rendered
-#    with APP_SERVER_IP baked in (see cloud-init.yaml's egress script — it
-#    has no other way to receive this at create time).
+#    two ways before it's handed to `hcloud server create`: the egress
+#    script is inlined from its standalone file (review fix C), then
+#    APP_SERVER_IP is baked into the runcmd line that invokes it (cloud-init
+#    has no other way to receive a value at create time without a secrets
+#    store this host doesn't have yet).
 if hcloud server describe "$SERVER_NAME" >/dev/null 2>&1; then
 	echo "server '$SERVER_NAME' already exists, skipping"
 else
-	sed "s/__APP_SERVER_IP__/${APP_SERVER_IP%/*}/" "$CLOUD_INIT_TEMPLATE" >"$CLOUD_INIT_RENDERED"
+	render_cloud_init "$CLOUD_INIT_TEMPLATE" "$EGRESS_SCRIPT" "$CLOUD_INIT_RENDERED"
+	sed -i.bak "s/__APP_SERVER_IP__/${APP_SERVER_IP%/*}/" "$CLOUD_INIT_RENDERED"
+	rm -f "$CLOUD_INIT_RENDERED.bak"
+	if $DRY_RUN; then
+		echo "[dry-run] rendered user-data: $CLOUD_INIT_RENDERED"
+	fi
 	run hcloud server create --name "$SERVER_NAME" --type "$SERVER_TYPE" \
 		--image "$IMAGE" --location "$LOCATION" --ssh-key "$SSH_KEY" \
 		--firewall "$FIREWALL_NAME" --volume "$VOLUME_NAME" --automount \

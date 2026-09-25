@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # Egress + host-access firewall for the workload host (plan 044, step 1).
-# Standalone copy for `bash -n`/shellcheck; the copy cloud-init actually runs
-# is inlined in `cloud-init.yaml`'s `write_files` (cloud-init consumes one
-# YAML document, so it can't `source` this file — keep both in sync).
+# This file is the ONLY copy of these rules (review fix C — two copies used
+# to drift). `cloud-init.yaml`'s `write_files` entry for this same path
+# holds a placeholder (`__DOCKER_USER_EGRESS_SCRIPT__`); `provision.sh`
+# inlines this file verbatim at render time, before `hcloud server create`
+# ever sees it, so cloud-init always runs an exact copy of what's here — no
+# hand-syncing, and `bash -n`/shellcheck can validate this file directly
+# outside the surrounding YAML.
 #
 # Two independent rule sets, both idempotent (flush-then-rebuild, safe to
 # re-run on reboot or re-provision):
