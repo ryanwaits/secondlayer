@@ -20,11 +20,15 @@ loaded. The flip is deliberately a separate change at flip time.
 
 ## This deployment
 
-Not yet provisioned as of this runbook's writing (2026-09-25) — step 1's
-spend gate: `hcloud server create` for the permanent host runs only after
-the founder says go. `docker/workload-host/provision.sh` is the re-runnable
-script; `--dry-run` prints the exact commands without creating anything
-billable.
+Provisioned 2026-09-25 with `docker/workload-host/provision.sh` (re-runnable;
+`--dry-run` prints the exact commands without creating anything billable).
+Server `167363002`, firewall `11677393`, IPv4 `2.28.108.204`, IPv6
+`2a01:4f8:c014:e74e::/64`. Cloud-init done; `runsc` registered. Egress
+verify passed 11/11 on 2026-09-25 (see Verify): metadata, `10/8`, another
+tenant, host gateway `:8080`/`:22`, and another tenant's loopback port (via
+bridge gateway and public IP) all blocked; own tenant, public internet and
+`api.secondlayer.tools` reachable. Gateway not yet deployed; DNS A record
+`workload-host.secondlayer.tools` not yet created.
 
 | | |
 |---|---|
