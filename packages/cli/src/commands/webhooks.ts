@@ -484,7 +484,7 @@ async function representativeRow(
 		};
 	}
 	try {
-		const rows = (await client.subgraphs.queryTable(
+		const { rows } = await client.subgraphs.rows(
 			sub.subgraphName,
 			sub.tableName,
 			{
@@ -492,8 +492,9 @@ async function representativeRow(
 				order: "desc",
 				limit: 1,
 			},
-		)) as Record<string, unknown>[];
-		if (rows[0] && typeof rows[0] === "object") return rows[0];
+		);
+		const row = (rows as Record<string, unknown>[])[0];
+		if (row && typeof row === "object") return row;
 	} catch {}
 	return buildSyntheticRow(subgraph, sub.tableName);
 }

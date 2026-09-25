@@ -35,8 +35,8 @@ import {
 	handleApiError,
 	listSubgraphOperationsApi,
 	listSubgraphsApi,
-	querySubgraphTable,
 	querySubgraphTableCount,
+	querySubgraphTableRows,
 	reindexSubgraphApi,
 	stopSubgraphApi,
 	withErrorHandling,
@@ -1980,7 +1980,7 @@ Examples:
 		.option("--sort <column>", "Sort by column")
 		.option("--order <dir>", "Sort direction (asc|desc)", "asc")
 		.option("--limit <n>", "Max rows to return", "20")
-		.option("--offset <n>", "Skip first N rows")
+		.option("--cursor <token>", "Resume from a previous page's next_cursor")
 		.option("--fields <cols>", "Comma-separated columns to include")
 		.option(
 			"--filter <kv...>",
@@ -2004,7 +2004,7 @@ Examples:
 					sort?: string;
 					order: string;
 					limit: string;
-					offset?: string;
+					cursor?: string;
 					fields?: string;
 					filter?: string[];
 					count?: boolean;
@@ -2020,19 +2020,10 @@ Examples:
 						process.exit(1);
 					}
 
-					const params: SubgraphQueryParams = {
-						sort: options.sort,
-						order: options.sort ? options.order : undefined,
-						limit: Number.parseInt(options.limit, 10),
-						offset: options.offset
-							? Number.parseInt(options.offset, 10)
-							: undefined,
-						fields: options.fields,
-						filters,
-					};
-
 					if (options.count) {
-						const result = await querySubgraphTableCount(name, table, params);
+						const result = await querySubgraphTableCount(name, table, {
+							filters,
+						});
 						if (options.json) {
 							console.log(JSON.stringify(result, null, 2));
 						} else {
@@ -2041,26 +2032,39 @@ Examples:
 						return;
 					}
 
-					const rows = (await querySubgraphTable(
-						name,
-						table,
-						params,
-					)) as Record<string, unknown>[];
+					const params: Omit<SubgraphQueryParams, "offset"> & {
+						cursor?: string;
+					} = {
+						sort: options.sort,
+						order: options.sort ? options.order : undefined,
+						limit: Number.parseInt(options.limit, 10),
+						fields: options.fields,
+						filters,
+						cursor: options.cursor,
+					};
+
+					const { rows: resultRows, next_cursor } =
+						(await querySubgraphTableRows(name, table, params)) as {
+							rows: Record<string, unknown>[];
+							next_cursor: string | null;
+						};
 
 					if (options.json) {
-						console.log(JSON.stringify(rows, null, 2));
+						console.log(
+							JSON.stringify({ rows: resultRows, next_cursor }, null, 2),
+						);
 						return;
 					}
 
-					if (rows.length === 0) {
+					if (resultRows.length === 0) {
 						console.log(dim("No rows found"));
 						return;
 					}
 
-					const firstRow = rows[0];
+					const firstRow = resultRows[0];
 					if (!firstRow) return;
 					const columns = Object.keys(firstRow);
-					const tableRows = rows.map((row) =>
+					const tableRows = resultRows.map((row) =>
 						columns.map((col) => {
 							const val = row[col];
 							if (val === null || val === undefined) return dim("-");
@@ -2070,7 +2074,10 @@ Examples:
 					);
 
 					console.log(formatTable(columns, tableRows));
-					console.log(dim(`\n${rows.length} row(s)`));
+					console.log(dim(`\n${resultRows.length} row(s)`));
+					if (next_cursor) {
+						console.log(dim(`next_cursor: ${next_cursor}`));
+					}
 				} catch (err) {
 					handleApiError(err, "query subgraph");
 				}

@@ -181,24 +181,26 @@ export async function deploySubgraphApi(
 	return (await getPlatformClient()).subgraphs.deploy(data);
 }
 
-export async function querySubgraphTable(
+/** Open `/v1` read: cursor-paginated rows. `params.offset` is not accepted —
+ *  pass `cursor` (the previous page's `next_cursor`) to resume instead. */
+export async function querySubgraphTableRows(
 	name: string,
 	table: string,
-	params: SubgraphQueryParams = {},
-): Promise<unknown[]> {
-	return (await getPlatformClient()).subgraphs.queryTable(name, table, params);
+	params: Omit<SubgraphQueryParams, "offset"> & { cursor?: string } = {},
+): Promise<{
+	rows: unknown[];
+	next_cursor: string | null;
+	tip: { block_height: number; subgraph_height: number; blocks_behind: number };
+}> {
+	return (await getPlatformClient()).subgraphs.rows(name, table, params);
 }
 
 export async function querySubgraphTableCount(
 	name: string,
 	table: string,
-	params: SubgraphQueryParams = {},
+	params: Pick<SubgraphQueryParams, "filters"> = {},
 ): Promise<{ count: number }> {
-	return (await getPlatformClient()).subgraphs.queryTableCount(
-		name,
-		table,
-		params,
-	);
+	return (await getPlatformClient()).subgraphs.count(name, table, params);
 }
 
 export async function getSubgraphGaps(
