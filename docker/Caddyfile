@@ -1,7 +1,8 @@
 # Caddy config — single platform host post 2026-05-14 shared-rip.
 #
 # Backend routing:
-#   api.{BASE_DOMAIN}   →  api:3800   (`/hooks/slack*` → agent:3900)
+#   api.{BASE_DOMAIN}   →  api:3800   (`/hooks/slack*` → agent:3900,
+#                                      `/api/webhooks*` → workload-host, 044)
 {
 	email {$CADDY_ACME_EMAIL:ryan.waits@gmail.com}
 }
@@ -26,6 +27,18 @@ api.{$BASE_DOMAIN:secondlayer.tools} {
 
 	handle /hooks/slack* {
 		reverse_proxy agent:3900
+	}
+	# Hosted chain webhooks (plan 044). The gateway on the workload host is
+	# the only thing that ever sees a customer's sk-sl_* key — it introspects
+	# against `POST /internal/keys/introspect` (below, this same api) before
+	# forwarding into that account's own tenant stack with the stack's own
+	# INSTANCE_TOKEN swapped in. Everything else stays on `api` untouched.
+	handle /api/webhooks* {
+		reverse_proxy {$WORKLOAD_HOST_ADDR:workload-host.secondlayer.tools}:443 {
+			transport http {
+				tls
+			}
+		}
 	}
 	handle {
 		# Load-balance across all `api` replicas. `dynamic a` re-resolves the

@@ -1,0 +1,143 @@
+# One self-host stack per hosted account (plan 044, D1: instance per tenant —
+# no `workload` mode, no account scoping inside the runtime). The provisioner
+# runs this with `docker compose -p tenant-<acct8> -f tenant.compose.yml
+# --env-file <secrets dir>/<acct8>.env up -d`: one compose project per
+# account, its own network, its own Postgres container and volume.
+#
+# Services are the split-stack subset that needs no chain of its own
+# (`docker/oss/docker-compose.split.yml` is the base; `indexer`/`decoder` are
+# NOT included here — a tenant stack reads chain data from the HOSTED
+# Index/Streams API over STREAMS_API_URL/SUBGRAPH_INDEX_API_URL, using that
+# account's own key, D6). `postgres` here holds only this account's own state
+# (webhooks, and later subgraph tables, 046) — never chain data.
+#
+# Images are pulled by tag (`image:`), never built locally — this file never
+# reaches a `docker build`. Digest-pin like `docker/oss/docker-compose.yml`
+# once a tag is chosen for GA; `latest` is fine for phase 1 while the host is
+# hand-verified per deploy.
+#
+# Phase 1 (chain webhooks only, D5): `subgraph-processor` is deliberately
+# absent. 046 adds it back once tenants run subgraph handlers.
+
+services:
+  postgres:
+    image: postgres:17-alpine@sha256:d4bb0a8c1b7bb2e29f976d099e7bfb9a5d8858cffe9e46b35cd302cd1f1f8168
+    environment:
+      POSTGRES_USER: secondlayer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?tenant secret required}
+      POSTGRES_DB: secondlayer
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # No host port publish: only sibling containers on this tenant's own
+    # compose network can reach it. The provisioner never needs to — it talks
+    # to `api`'s health/status endpoints, not this DB directly.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secondlayer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  migrate:
+    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:-latest}
+    platform: linux/amd64
+    command: ["bun", "run", "packages/shared/src/db/migrate.ts"]
+    environment:
+      DATABASE_URL: postgres://secondlayer:${POSTGRES_PASSWORD:?tenant secret required}@postgres:5432/secondlayer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:-latest}
+    platform: linux/amd64
+    environment:
+      INSTANCE_MODE: oss
+      DATABASE_URL: postgres://secondlayer:${POSTGRES_PASSWORD:?tenant secret required}@postgres:5432/secondlayer
+      PORT: 3800
+      LISTEN_HOST: "0.0.0.0"
+      # Never published to the host; the gateway reaches this container by
+      # its compose service name on the tenant's own network.
+      API_PUBLISH_ADDR: "0.0.0.0:3800"
+      # Per-tenant instance credential, generated at provision (never prod's,
+      # never shared across tenants). The gateway swaps the customer's
+      # `sk-sl_*` for this on every proxied request — the customer key never
+      # reaches this container.
+      INSTANCE_TOKEN: ${INSTANCE_TOKEN:?tenant secret required}
+      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY:?tenant secret required}
+      STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:?tenant secret required}
+      SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY: ${SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY:?tenant secret required}
+      ALLOW_UNSIGNED_WEBHOOKS: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+      DATA_DIR: /data
+      # Hosted caps (D2): never let a tenant's own webhooks.create raise
+      # these past what the gateway/pricing model assumes.
+      WEBHOOK_MAX_RETRIES_CEILING: "7"
+      WEBHOOK_TIMEOUT_MS_CEILING: "30000"
+    volumes:
+      - subgraphs_data:/data/subgraphs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3800/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # The chain-trigger evaluator + emitter for this tenant (043's webhook
+  # plane). Reads decoded chain data from the HOSTED Index/Streams API, not a
+  # local indexer/decoder — D6: `INDEX_INTERNAL_API_KEY`/
+  # `STREAMS_INTERNAL_API_KEY` here are a key minted for THIS account, so a
+  # leak only leaks reads the account already owns.
+  webhook-service:
+    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-webhook-processor:${WORKLOAD_IMAGE_TAG:-latest}
+    platform: linux/amd64
+    environment:
+      INSTANCE_MODE: oss
+      DATABASE_URL: postgres://secondlayer:${POSTGRES_PASSWORD:?tenant secret required}@postgres:5432/secondlayer
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+      DATA_DIR: /data
+      SUBGRAPH_SOURCE: streams-index
+      SUBGRAPH_INDEX_API_URL: ${HOSTED_API_URL:?tenant secret required}
+      STREAMS_API_URL: ${HOSTED_API_URL:?tenant secret required}
+      INDEX_INTERNAL_API_KEY: ${TENANT_HOSTED_READ_KEY:?tenant secret required}
+      STREAMS_INTERNAL_API_KEY: ${TENANT_HOSTED_READ_KEY:?tenant secret required}
+      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY:?tenant secret required}
+      STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:?tenant secret required}
+      SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY: ${SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY:?tenant secret required}
+      ALLOW_UNSIGNED_WEBHOOKS: "false"
+      # Meter socket (step 5): mounted into THIS container only — `api`
+      # (customer code deploys into it, 046) never sees it. Delivered-event
+      # counts never touch this tenant's own Postgres, so customer code
+      # can't lower them.
+      WEBHOOK_METER_SOCKET: /var/run/secondlayer/meter.sock
+      WEBHOOK_MAX_RETRIES_CEILING: "7"
+      WEBHOOK_TIMEOUT_MS_CEILING: "30000"
+    volumes:
+      # Bind mount, not a named volume: the provisioner runs on the HOST (not
+      # in this compose project) and needs to `listen()` on the same socket
+      # path this container connects to. One directory per tenant, created by
+      # the provisioner before `up` (root-only — Design).
+      - ${TENANT_SOCKET_DIR:?tenant secret required}:/var/run/secondlayer
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  subgraphs_data:

@@ -1,0 +1,120 @@
+#cloud-config
+# workload-host cloud-init (plan 044, step 1). Ubuntu 24.04 base.
+#
+# Installs Docker + the gVisor `runsc` runtime (registered, not yet the
+# default — 046 flips tenant containers to it once handler code actually
+# runs inside them), applies unattended security upgrades, and installs the
+# DOCKER-USER egress rules that stop a tenant network reaching anything but
+# the public internet and app-server:443 (Design: "egress: app-server :443 +
+# public internet only").
+#
+# This file is handed to `hcloud server create --user-data-from-file` by
+# `provision.sh`. It never contains a secret — `WORKLOAD_HOST_KEY` and every
+# tenant secret are written to disk over SSH after boot, never baked in here.
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - unattended-upgrades
+  - iptables-persistent
+
+write_files:
+  # DOCKER-USER is the hook point Docker leaves empty for operator rules —
+  # anything appended here runs before Docker's own FORWARD rules, so it can
+  # refuse tenant egress Docker would otherwise allow. Applied by the runcmd
+  # step below, once Docker (and its docker0/bridge networks) exists.
+  - path: /opt/workload-host/docker-user-egress.sh
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      # Egress allowlist for every tenant compose network (Design, step 1):
+      # RFC1918, link-local (100.64/10, 169.254/16), loopback, and the cloud
+      # metadata IP are refused outbound from a tenant network; only
+      # app-server:443 and the open internet are allowed. Re-run is
+      # idempotent — it flushes DOCKER-USER before reapplying, so a re-run
+      # (reboot, re-provision) never appends duplicate rules.
+      set -euo pipefail
+
+      APP_SERVER_IP="${APP_SERVER_IP:?set APP_SERVER_IP before running}"
+      METADATA_IP="169.254.169.254"
+
+      iptables -F DOCKER-USER 2>/dev/null || iptables -N DOCKER-USER
+
+      # Let established/related traffic back in (answers to outbound
+      # connections tenants are allowed to make).
+      iptables -A DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+      # Always allow app-server:443 — the gateway's own introspect/meters
+      # calls and any tenant's own outbound webhook-service reads.
+      iptables -A DOCKER-USER -d "$APP_SERVER_IP" -p tcp --dport 443 -j ACCEPT
+
+      # Refuse the metadata IP outright (SSRF-into-cloud-credentials class).
+      iptables -A DOCKER-USER -d "$METADATA_IP" -j DROP
+
+      # Refuse RFC1918 + link-local + loopback — this is what stops one
+      # tenant reaching another tenant's docker network (each is its own
+      # bridge in one of these ranges) and stops any tenant reaching the
+      # host's own control-plane services.
+      for net in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 169.254.0.0/16 127.0.0.0/8; do
+        iptables -A DOCKER-USER -d "$net" -j DROP
+      done
+
+      # Everything else (the public internet) — accepted.
+      iptables -A DOCKER-USER -j ACCEPT
+
+      netfilter-persistent save
+
+  - path: /etc/docker/daemon.json
+    permissions: "0644"
+    content: |
+      {
+        "runtimes": {
+          "runsc": {
+            "path": "/usr/local/bin/runsc"
+          }
+        }
+      }
+
+runcmd:
+  # Docker Engine (official repo — Ubuntu's own `docker.io` package lags).
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - >
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc]
+    https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable"
+    > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+  # gVisor: registered as a docker runtime now (`runsc` in daemon.json,
+  # above), not yet the default — Design's trust line only starts to matter
+  # once 046 runs customer handler code in a tenant's `api` container.
+  - curl -fsSL https://gvisor.dev/archive.key | gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
+  - >
+    echo "deb [signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg]
+    https://storage.googleapis.com/gvisor/releases release main"
+    > /etc/apt/sources.list.d/gvisor.list
+  - apt-get update
+  - apt-get install -y runsc
+  - systemctl restart docker
+
+  # Unattended security upgrades (Design: "unattended upgrades").
+  - dpkg-reconfigure -f noninteractive unattended-upgrades
+
+  # DOCKER-USER egress rules. APP_SERVER_IP is baked in by provision.sh
+  # before this file is handed to `hcloud server create` (see its
+  # `envsubst` step) — cloud-init has no other way to receive a value at
+  # create time without a secrets store this host doesn't have yet.
+  - APP_SERVER_IP="__APP_SERVER_IP__" /opt/workload-host/docker-user-egress.sh
+
+  # Root-only directories the provisioner (`packages/workload`) expects.
+  - mkdir -p /opt/secondlayer-workload/tenants
+  - chmod 700 /opt/secondlayer-workload/tenants
+
+final_message: "workload-host cloud-init complete after $UPTIME seconds"
