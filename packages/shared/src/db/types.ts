@@ -1158,6 +1158,10 @@ export interface WebhookOutboxTable {
 	failed_at: Date | null;
 	locked_by: string | null;
 	locked_until: Date | null;
+	/** Set when a reorg marks an in-flight row `dead` instead of retrying it
+	 *  into an orphaned fork. Null otherwise — delivery failures track their
+	 *  history on `webhooks.last_error`, not per-row. */
+	last_error: string | null;
 	created_at: Generated<Date>;
 }
 

@@ -37,6 +37,7 @@ async function insertApply(
 	height: number,
 	txId: string,
 	status: OutboxStatus,
+	opts?: { attempt?: number; lockedUntil?: Date },
 ): Promise<void> {
 	const row: InsertWebhookOutbox = {
 		webhook_id: webhookId,
@@ -58,6 +59,8 @@ async function insertApply(
 		},
 		dedup_key: `chain:${webhookId}:${txId}:-1:0x${height}`,
 		status,
+		attempt: opts?.attempt,
+		locked_until: opts?.lockedUntil,
 	};
 	await db.insertInto("webhook_outbox").values(row).execute();
 }
@@ -142,5 +145,48 @@ describe("handleChainReorg", () => {
 		await handleChainReorg(100, db);
 		// Cursor < forkHeight → not rewound forward or backward past itself.
 		expect(await cursor()).toBe(50);
+	});
+
+	it("does not delete a claimed-but-unsettled row (locked_until in the future) — rolls it back and marks it dead", async () => {
+		const sub = await makeSub();
+		const lockedUntil = new Date(Date.now() + 5 * 60_000); // emitter claimed it, POST maybe in flight
+		await insertApply(sub, 100, "0xclaimed", "pending", { lockedUntil });
+		await setCursor(105);
+
+		await handleChainReorg(100, db);
+
+		const all = await rows(sub);
+		const row = all.find((r) => r.tx_id === "0xclaimed");
+		// (a) not deleted
+		expect(row).toBeDefined();
+		// (c) marked dead so it never retries into the orphaned fork
+		expect(row?.status).toBe("dead");
+		expect(row?.last_error).toBe("orphaned by reorg at 100");
+		expect(row?.locked_until).toBeNull();
+
+		// (b) rollback envelope includes its tx_id
+		const rollback = all.find((r) => r.event_type === "chain.reorg.rollback");
+		expect(rollback).toBeDefined();
+		const payload = rollback?.payload as { orphaned: { tx_id: string }[] };
+		expect(payload.orphaned.map((o) => o.tx_id)).toEqual(["0xclaimed"]);
+	});
+
+	it("does not delete a row with a prior attempt (attempt=1, unlocked) — rolls it back and marks it dead", async () => {
+		const sub = await makeSub();
+		await insertApply(sub, 100, "0xretried", "pending", { attempt: 1 });
+		await setCursor(105);
+
+		await handleChainReorg(100, db);
+
+		const all = await rows(sub);
+		const row = all.find((r) => r.tx_id === "0xretried");
+		expect(row).toBeDefined();
+		expect(row?.status).toBe("dead");
+		expect(row?.last_error).toBe("orphaned by reorg at 100");
+
+		const rollback = all.find((r) => r.event_type === "chain.reorg.rollback");
+		expect(rollback).toBeDefined();
+		const payload = rollback?.payload as { orphaned: { tx_id: string }[] };
+		expect(payload.orphaned.map((o) => o.tx_id)).toEqual(["0xretried"]);
 	});
 });

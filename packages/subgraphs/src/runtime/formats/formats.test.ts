@@ -61,6 +61,7 @@ function outbox(): WebhookOutbox {
 		failed_at: null,
 		locked_by: null,
 		locked_until: null,
+		last_error: null,
 		created_at: FIXED_CREATED_AT,
 	};
 }

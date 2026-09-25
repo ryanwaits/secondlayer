@@ -9,7 +9,10 @@ import {
 import { getWebhookSigningSecret } from "@secondlayer/shared/db/queries/webhooks";
 import { logger } from "@secondlayer/shared/logger";
 import { listen, targetListenerUrl } from "@secondlayer/shared/queue/listener";
-import type { WebhookTestResult } from "@secondlayer/shared/schemas/webhooks";
+import {
+	type WebhookTestResult,
+	webhookTimeoutMsCeiling,
+} from "@secondlayer/shared/schemas/webhooks";
 import { type Kysely, sql } from "kysely";
 import { buildForFormat } from "./formats/index.ts";
 import { refreshMatcher } from "./webhook-state.ts";
@@ -44,11 +47,14 @@ const CIRCUIT_THRESHOLD = 20;
  * double-dispatch prevention.
  *
  * Must exceed the maximum possible in-flight delivery time so a slow-but-alive
- * receiver's row is never re-claimed mid-delivery (duplicate dispatch). The max
- * webhook timeout is 300_000ms (see shared/schemas/webhooks.ts:307).
+ * receiver's row is never re-claimed mid-delivery (duplicate dispatch). Derived
+ * from the configurable timeout ceiling (`WEBHOOK_TIMEOUT_MS_CEILING`, default
+ * 300_000ms — see `webhookTimeoutMsCeiling` in shared/schemas/webhooks.ts) so a
+ * raised ceiling can never create a delivery window shorter than a webhook's
+ * own timeout.
  */
-export const MAX_WEBHOOK_TIMEOUT_MS = 300_000;
-export const LOCK_WINDOW_MS: number = MAX_WEBHOOK_TIMEOUT_MS + 60_000; // 6 min: max timeout + settle margin
+export const MAX_WEBHOOK_TIMEOUT_MS: number = webhookTimeoutMsCeiling();
+export const LOCK_WINDOW_MS: number = MAX_WEBHOOK_TIMEOUT_MS + 60_000; // ceiling + settle margin
 
 interface RunningState {
 	running: boolean;
@@ -73,14 +79,20 @@ const PRIVATE_V4_PATTERNS = [
 	/^169\.254\./, // link-local
 	/^0\./, // "this" network
 	/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT 100.64/10
+	/^198\.(1[89])\./, // benchmarking 198.18.0.0/15
+	/^(22[4-9]|23[0-9])\./, // multicast 224.0.0.0/4
+	/^(24[0-9]|25[0-5])\./, // reserved 240.0.0.0/4 (incl. 255.255.255.255 broadcast)
 ];
 
 /**
  * Classify a raw IP address literal (v4 or v6, no brackets, already lowercased
  * or not) as private/loopback/link-local/reserved. Covers v4 private ranges +
- * link-local (incl. `169.254.169.254`), `0.0.0.0`, IPv6 loopback (`::1`),
- * unspecified (`::`), unique-local (`fc00::/7`), link-local (`fe80::/10`), and
- * IPv4-mapped IPv6 (`::ffff:127.0.0.1`, `::ffff:7f00:0001`).
+ * link-local (incl. `169.254.169.254`), `0.0.0.0`, benchmarking
+ * (`198.18.0.0/15`), multicast (`224.0.0.0/4`), reserved/broadcast
+ * (`240.0.0.0/4`, incl. `255.255.255.255`), IPv6 loopback (`::1`), unspecified
+ * (`::`), unique-local (`fc00::/7`), link-local (`fe80::/10`), IPv6 multicast
+ * (`ff00::/8`), IPv4-mapped IPv6 (`::ffff:127.0.0.1`, `::ffff:7f00:0001`), and
+ * NAT64 (`64:ff9b::/96`, embedded v4 classified the same as IPv4-mapped).
  *
  * Shared by `isPrivateEgress` (literal-hostname fast-fail) and the resolved-
  * DNS-address check in `checkEgressAllowed` (rebinding mitigation).
@@ -90,9 +102,10 @@ function isPrivateIp(address: string): boolean {
 
 	if (host === "0.0.0.0") return true;
 	if (host === "::" || host === "::1") return true;
-	// Unique-local (fc00::/7) + link-local (fe80::/10)
+	// Unique-local (fc00::/7) + link-local (fe80::/10) + multicast (ff00::/8)
 	if (/^f[cd][0-9a-f]{2}:/.test(host)) return true;
 	if (/^fe[89ab][0-9a-f]:/.test(host)) return true;
+	if (/^ff[0-9a-f]{2}:/.test(host)) return true;
 
 	// IPv4-mapped IPv6 — `::ffff:127.0.0.1` or `::ffff:7f00:0001`
 	const mapped = host.match(/^::ffff:(.+)$/);
@@ -104,6 +117,27 @@ function isPrivateIp(address: string): boolean {
 			for (const p of PRIVATE_V4_PATTERNS) if (p.test(inner)) return true;
 		}
 		// Hex form: 7f00:0001 → 127.0.0.1
+		const hex = inner.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+		if (hex) {
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
+			const a = Number.parseInt(hex[1]!, 16);
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
+			const b = Number.parseInt(hex[2]!, 16);
+			const dotted = `${(a >> 8) & 0xff}.${a & 0xff}.${(b >> 8) & 0xff}.${b & 0xff}`;
+			for (const p of PRIVATE_V4_PATTERNS) if (p.test(dotted)) return true;
+		}
+		return false;
+	}
+
+	// NAT64 (`64:ff9b::/96`) embeds an IPv4 address in the low 32 bits —
+	// classify it exactly like the IPv4-mapped case above (dotted or hex).
+	const nat64 = host.match(/^64:ff9b::(.+)$/);
+	if (nat64) {
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
+		const inner = nat64[1]!;
+		if (/^\d+\.\d+\.\d+\.\d+$/.test(inner)) {
+			for (const p of PRIVATE_V4_PATTERNS) if (p.test(inner)) return true;
+		}
 		const hex = inner.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
 		if (hex) {
 			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
@@ -187,19 +221,22 @@ const ALLOW_HINT = "(set SECONDLAYER_ALLOW_PRIVATE_EGRESS=true to allow)";
  * pinning (resolve once, connect to that literal IP, keep the original `Host`
  * header/SNI) was attempted per plan f053 via a custom undici `Agent` with
  * `connect.lookup` passed as `fetch()`'s `dispatcher` — the standard Node
- * ecosystem pattern for this. Empirically, under Bun 1.3.10, that hook is
+ * ecosystem pattern for this. Empirically, under Bun 1.3.10, that hook was
  * silently never invoked (confirmed with a throwaway smoke test hitting a
  * real local HTTP server: `lookupCalled` stayed `false` and the connection
  * failed even though the dispatcher was passed) — Bun's `fetch()` does not
  * implement undici's `connect.lookup` dispatcher hook, whether reached via
  * the global `fetch` or `import { fetch } from "undici"` (Bun overrides
  * "undici"'s `fetch` export with its own native implementation regardless of
- * an installed real `undici` package). So a second DNS answer between this
- * check and `fetch()`'s own resolution (true rebinding, not just a one-time
- * private answer) could in theory still slip through. This closes the
- * practical rebinding gap (attacker's hostname resolves private at delivery
- * time) without adding a dependency; a network-level egress allowlist/proxy
- * is the recommended defense-in-depth for the remaining TOCTOU sliver.
+ * an installed real `undici` package). Re-tested under Bun 1.4.2 (plan 043):
+ * identical result — `lookupCalled` still stays `false` via both the global
+ * `fetch` and `import { fetch } from "undici"`, so the gap remains unfixed at
+ * this version too. So a second DNS answer between this check and `fetch()`'s
+ * own resolution (true rebinding, not just a one-time private answer) could
+ * in theory still slip through. This closes the practical rebinding gap
+ * (attacker's hostname resolves private at delivery time) without adding a
+ * dependency; a network-level egress allowlist/proxy is the recommended
+ * defense-in-depth for the remaining TOCTOU sliver.
  */
 export async function checkEgressAllowed(url: string): Promise<string | null> {
 	if (isPrivateEgress(url)) {
@@ -431,6 +468,7 @@ function buildTestOutboxRow(sub: Webhook): WebhookOutbox {
 		failed_at: null,
 		locked_by: null,
 		locked_until: null,
+		last_error: null,
 		created_at: now,
 	};
 }
@@ -480,7 +518,7 @@ async function settleDelivered(
 	outboxRow: WebhookOutbox,
 ): Promise<void> {
 	await db.transaction().execute(async (tx) => {
-		await tx
+		const result = await tx
 			.updateTable("webhook_outbox")
 			.set({
 				status: "delivered",
@@ -489,8 +527,21 @@ async function settleDelivered(
 				locked_by: null,
 				locked_until: null,
 			})
+			// Guard against a reorg that marked this row `dead` (orphaned) while
+			// the POST was in flight — settling a delivery outcome must never
+			// resurrect a row the reorg already decided is gone. `status='pending'`
+			// is the only state a claimed row can settle from.
 			.where("id", "=", outboxRow.id)
-			.execute();
+			.where("status", "=", "pending")
+			.executeTakeFirst();
+		if (Number(result.numUpdatedRows ?? 0) === 0) {
+			logger.info("webhook.settle.orphaned", {
+				outboxId: outboxRow.id,
+				webhookId: outboxRow.webhook_id,
+				outcome: "delivered",
+			});
+			return;
+		}
 		await tx
 			.updateTable("webhooks")
 			.set({
@@ -518,7 +569,7 @@ async function settleFailed(
 		: new Date(Date.now() + nextDelaySeconds(outboxRow.attempt) * 1000);
 
 	await db.transaction().execute(async (tx) => {
-		await tx
+		const result = await tx
 			.updateTable("webhook_outbox")
 			.set({
 				attempt,
@@ -528,8 +579,19 @@ async function settleFailed(
 				locked_by: null,
 				locked_until: null,
 			})
+			// Guard against a reorg that marked this row `dead` (orphaned) while
+			// the POST was in flight — see the matching guard in `settleDelivered`.
 			.where("id", "=", outboxRow.id)
-			.execute();
+			.where("status", "=", "pending")
+			.executeTakeFirst();
+		if (Number(result.numUpdatedRows ?? 0) === 0) {
+			logger.info("webhook.settle.orphaned", {
+				outboxId: outboxRow.id,
+				webhookId: outboxRow.webhook_id,
+				outcome: "failed",
+			});
+			return;
+		}
 
 		// Atomic increment — concurrent failures must not clobber each other.
 		// `RETURNING circuit_failures` gives us the post-increment value to

@@ -18,6 +18,73 @@ export const WEBHOOK_RUNTIMES = [
 
 export const WEBHOOK_STATUSES = ["active", "paused", "error"] as const;
 
+/**
+ * Delivery-cap ceilings. Self-host defaults keep today's hardcoded limits
+ * (100 retries, 300s timeout); an operator raises or lowers them per env.
+ * Read live (not baked in at import) so a changed env var takes effect on
+ * the next request without a process restart, and so tests can override
+ * per-case.
+ */
+export const WEBHOOK_MAX_RETRIES_CEILING_DEFAULT = 100;
+export const WEBHOOK_TIMEOUT_MS_CEILING_DEFAULT = 300_000;
+
+function ceilingFromEnv(envVar: string, fallback: number): number {
+	const raw = process.env[envVar];
+	if (raw === undefined) return fallback;
+	const parsed = Number.parseInt(raw, 10);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export function webhookMaxRetriesCeiling(): number {
+	return ceilingFromEnv(
+		"WEBHOOK_MAX_RETRIES_CEILING",
+		WEBHOOK_MAX_RETRIES_CEILING_DEFAULT,
+	);
+}
+
+export function webhookTimeoutMsCeiling(): number {
+	return ceilingFromEnv(
+		"WEBHOOK_TIMEOUT_MS_CEILING",
+		WEBHOOK_TIMEOUT_MS_CEILING_DEFAULT,
+	);
+}
+
+function maxRetriesField() {
+	return z
+		.number()
+		.int()
+		.min(0)
+		.optional()
+		.superRefine((v, ctx) => {
+			if (v === undefined) return;
+			const ceiling = webhookMaxRetriesCeiling();
+			if (v > ceiling) {
+				ctx.addIssue({
+					code: "custom",
+					message: `maxRetries exceeds ceiling (${ceiling})`,
+				});
+			}
+		});
+}
+
+function timeoutMsField() {
+	return z
+		.number()
+		.int()
+		.min(100)
+		.optional()
+		.superRefine((v, ctx) => {
+			if (v === undefined) return;
+			const ceiling = webhookTimeoutMsCeiling();
+			if (v > ceiling) {
+				ctx.addIssue({
+					code: "custom",
+					message: `timeoutMs exceeds ceiling (${ceiling})`,
+				});
+			}
+		});
+}
+
 export const WEBHOOK_FILTER_OPERATORS = [
 	"eq",
 	"neq",
@@ -345,8 +412,8 @@ export const CreateWebhookRequestSchema: z.ZodType<ParsedCreateWebhookRequest> =
 			format: WebhookFormatSchema.default("standard-webhooks"),
 			runtime: WebhookRuntimeSchema.nullable().optional(),
 			authConfig: z.record(z.string(), z.unknown()).optional(),
-			maxRetries: z.number().int().min(0).max(100).optional(),
-			timeoutMs: z.number().int().min(100).max(300_000).optional(),
+			maxRetries: maxRetriesField(),
+			timeoutMs: timeoutMsField(),
 			concurrency: z.number().int().min(1).max(100).optional(),
 		})
 		.refine(
@@ -378,8 +445,8 @@ export const UpdateWebhookRequestSchema: z.ZodType<UpdateWebhookRequest> = z
 		format: WebhookFormatSchema.optional(),
 		runtime: WebhookRuntimeSchema.nullable().optional(),
 		authConfig: z.record(z.string(), z.unknown()).optional(),
-		maxRetries: z.number().int().min(0).max(100).optional(),
-		timeoutMs: z.number().int().min(100).max(300_000).optional(),
+		maxRetries: maxRetriesField(),
+		timeoutMs: timeoutMsField(),
 		concurrency: z.number().int().min(1).max(100).optional(),
 	})
 	.refine((value) => Object.keys(value).length > 0, {

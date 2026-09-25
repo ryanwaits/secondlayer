@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import {
 	CHAIN_TRIGGER_FIELDS,
 	CHAIN_TRIGGER_TYPES,
@@ -8,6 +8,8 @@ import {
 	UpdateWebhookRequestSchema,
 	WebhookFilterSchema,
 	validateWebhookFilterForTable,
+	webhookMaxRetriesCeiling,
+	webhookTimeoutMsCeiling,
 } from "./webhooks.ts";
 
 describe("CHAIN_TRIGGER_FIELDS", () => {
@@ -275,5 +277,90 @@ describe("chain webhooks (direct chain triggers)", () => {
 			filter: { amount: { gte: "1" } },
 		});
 		expect(r.success).toBe(false);
+	});
+});
+
+describe("delivery cap ceilings", () => {
+	afterEach(() => {
+		Reflect.deleteProperty(process.env, "WEBHOOK_MAX_RETRIES_CEILING");
+		Reflect.deleteProperty(process.env, "WEBHOOK_TIMEOUT_MS_CEILING");
+	});
+
+	it("defaults to the self-host ceilings unchanged (100 retries, 300s)", () => {
+		expect(webhookMaxRetriesCeiling()).toBe(100);
+		expect(webhookTimeoutMsCeiling()).toBe(300_000);
+	});
+
+	it("accepts maxRetries/timeoutMs at the default ceiling", () => {
+		const r = CreateWebhookRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			triggers: [{ type: "contract_call" }],
+			maxRetries: 100,
+			timeoutMs: 300_000,
+		});
+		expect(r.success).toBe(true);
+	});
+
+	it("rejects maxRetries above the default ceiling with the ceiling in the message", () => {
+		const r = CreateWebhookRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			triggers: [{ type: "contract_call" }],
+			maxRetries: 101,
+		});
+		expect(r.success).toBe(false);
+		if (!r.success) {
+			expect(r.error.issues[0]?.message).toBe(
+				"maxRetries exceeds ceiling (100)",
+			);
+		}
+	});
+
+	it("rejects timeoutMs above the default ceiling with the ceiling in the message", () => {
+		const r = CreateWebhookRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			triggers: [{ type: "contract_call" }],
+			timeoutMs: 300_001,
+		});
+		expect(r.success).toBe(false);
+		if (!r.success) {
+			expect(r.error.issues[0]?.message).toBe(
+				"timeoutMs exceeds ceiling (300000)",
+			);
+		}
+	});
+
+	it("respects a lower WEBHOOK_MAX_RETRIES_CEILING env override", () => {
+		process.env.WEBHOOK_MAX_RETRIES_CEILING = "7";
+		expect(webhookMaxRetriesCeiling()).toBe(7);
+		const r = CreateWebhookRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			triggers: [{ type: "contract_call" }],
+			maxRetries: 8,
+		});
+		expect(r.success).toBe(false);
+		if (!r.success) {
+			expect(r.error.issues[0]?.message).toBe("maxRetries exceeds ceiling (7)");
+		}
+	});
+
+	it("respects a lower WEBHOOK_TIMEOUT_MS_CEILING env override", () => {
+		process.env.WEBHOOK_TIMEOUT_MS_CEILING = "30000";
+		expect(webhookTimeoutMsCeiling()).toBe(30_000);
+		const r = UpdateWebhookRequestSchema.safeParse({ timeoutMs: 30_001 });
+		expect(r.success).toBe(false);
+		if (!r.success) {
+			expect(r.error.issues[0]?.message).toBe(
+				"timeoutMs exceeds ceiling (30000)",
+			);
+		}
+	});
+
+	it("ignores a non-numeric env override and falls back to the default", () => {
+		process.env.WEBHOOK_MAX_RETRIES_CEILING = "not-a-number";
+		expect(webhookMaxRetriesCeiling()).toBe(100);
 	});
 });
