@@ -18,7 +18,7 @@ type Method = "GET" | "POST" | "DELETE";
 
 /** Matches an allowed (method, path-shape) pair. `segments` excludes the
  *  leading `/api/webhooks`. Anything not matched here is refused with 405,
- *  before it ever reaches the upstream API. */
+ *  before it is forwarded to the platform API. */
 function isAllowed(method: Method, segments: string[]): boolean {
 	if (method === "GET") {
 		if (segments.length === 0) return true; // list
