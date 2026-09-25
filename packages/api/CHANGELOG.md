@@ -1,5 +1,13 @@
 # @secondlayer/api
 
+## 1.40.1
+
+### Patch Changes
+
+- ae8a3eb: Prod api now receives `WORKLOAD_HOST_KEY`, so the workload host's internal routes can authenticate.
+- Updated dependencies [dad7ea9]
+  - @secondlayer/indexer@1.15.2
+
 ## 1.40.0
 
 ### Minor Changes
