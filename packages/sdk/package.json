@@ -48,6 +48,10 @@
 		"./sinks/testing": {
 			"types": "./dist/sinks/testing.d.ts",
 			"import": "./dist/sinks/testing.js"
+		},
+		"./webhooks/doctor": {
+			"types": "./dist/webhooks/doctor.d.ts",
+			"import": "./dist/webhooks/doctor.js"
 		}
 	},
 	"files": ["dist", "AGENTS.md"],

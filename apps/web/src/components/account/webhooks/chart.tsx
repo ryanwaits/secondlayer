@@ -1,7 +1,7 @@
 "use client";
 
-import { isSuccessDelivery } from "@/lib/webhooks-data";
 import type { DeliveryRow } from "@secondlayer/sdk";
+import { isSuccessDelivery } from "@secondlayer/sdk/webhooks/doctor";
 import {
 	type AttemptBar,
 	MonoRoundedBarChart,

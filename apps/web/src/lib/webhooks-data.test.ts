@@ -1,11 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import type { DeliveryRow, WebhookDetail } from "@secondlayer/sdk";
+import type { DeliveryRow } from "@secondlayer/sdk";
 import {
-	buildWebhookIssues,
 	formatRelative,
 	getDeliveries,
 	hostOf,
-	isSuccessDelivery,
 	listWebhooks,
 	normalizeDeliveryRow,
 	resultForStatus,
@@ -60,76 +58,6 @@ const baseRow: DeliveryRow = {
 	dispatchedAt: "2026-09-25T00:00:00.000Z",
 	blockTime: "2026-09-25T00:00:00.000Z",
 };
-
-describe("isSuccessDelivery", () => {
-	test("treats 2xx as success and everything else (including null) as failure", () => {
-		expect(isSuccessDelivery({ ...baseRow, statusCode: 200 })).toBe(true);
-		expect(isSuccessDelivery({ ...baseRow, statusCode: 299 })).toBe(true);
-		expect(isSuccessDelivery({ ...baseRow, statusCode: 300 })).toBe(false);
-		expect(isSuccessDelivery({ ...baseRow, statusCode: 500 })).toBe(false);
-		expect(isSuccessDelivery({ ...baseRow, statusCode: null })).toBe(false);
-	});
-});
-
-const baseWebhook: WebhookDetail = {
-	id: "wh_1",
-	name: "pool-payouts",
-	status: "active",
-	kind: "chain",
-	subgraphName: null,
-	tableName: null,
-	format: "standard-webhooks",
-	runtime: null,
-	url: "https://example.com/webhook",
-	lastDeliveryAt: null,
-	lastSuccessAt: null,
-	createdAt: "2026-09-25T00:00:00.000Z",
-	updatedAt: "2026-09-25T00:00:00.000Z",
-	filter: {},
-	triggers: [{ type: "stx_transfer" }],
-	authConfig: {},
-	maxRetries: 7,
-	timeoutMs: 10_000,
-	concurrency: 4,
-	circuitFailures: 0,
-	circuitOpenedAt: null,
-	lastError: null,
-	warning: null,
-};
-
-describe("buildWebhookIssues", () => {
-	test("a healthy webhook with deliveries has no issues", () => {
-		expect(buildWebhookIssues(baseWebhook, [baseRow], [])).toEqual([]);
-	});
-	test("collects warning, paused, last_error, circuit and dead_letters", () => {
-		const issues = buildWebhookIssues(
-			{
-				...baseWebhook,
-				status: "paused",
-				lastError: "receiver 500",
-				circuitFailures: 2,
-				warning: "evaluator idle",
-			},
-			[baseRow],
-			[{ id: "ob_1" } as never],
-		);
-		expect(issues.map((i) => i.code)).toEqual([
-			"warning",
-			"paused",
-			"last_error",
-			"circuit",
-			"dead_letters",
-		]);
-		expect(issues.find((i) => i.code === "last_error")?.detail).toBe(
-			"receiver 500",
-		);
-	});
-	test("no_deliveries fires only when the delivery list is empty", () => {
-		expect(buildWebhookIssues(baseWebhook, [], []).map((i) => i.code)).toEqual([
-			"no_deliveries",
-		]);
-	});
-});
 
 describe("normalizeDeliveryRow", () => {
 	test("leaves a present blockTime alone", () => {

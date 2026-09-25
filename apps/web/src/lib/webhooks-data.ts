@@ -1,7 +1,6 @@
 import type {
 	DeadRow,
 	DeliveryRow,
-	DoctorIssue,
 	RotateSecretResponse,
 	WebhookDetail,
 	WebhookSummary,
@@ -38,41 +37,6 @@ export function resultForStatus(
 	if (status === 429) return { kind: "rate_limited", retryAfter };
 	if (status === 404) return { kind: "not_found" };
 	return { kind: "error", message: errorMessage };
-}
-
-/** The SDK's own `isSuccessDelivery`, reimplemented (not imported) so the
- *  client bundle never pulls in `@secondlayer/sdk`'s full barrel — it drags
- *  in `@secondlayer/shared`'s Postgres client, which has no browser build.
- *  Every `import type` in this file is free; this one has to be a real
- *  value, so it stays local. */
-export function isSuccessDelivery(row: DeliveryRow): boolean {
-	return (
-		row.statusCode !== null && row.statusCode >= 200 && row.statusCode < 300
-	);
-}
-
-/** The detail page's own issue list — the same conditions as the SDK's
- *  `buildDoctorReport` (also reimplemented rather than imported, for the
- *  bundling reason above), minus the two subgraph issues: the dashboard
- *  never fetches subgraph status, so those can never fire here. */
-export function buildWebhookIssues(
-	webhook: WebhookDetail,
-	deliveries: DeliveryRow[],
-	dead: DeadRow[],
-): DoctorIssue[] {
-	const issues: DoctorIssue[] = [];
-	if (webhook.warning)
-		issues.push({ code: "warning", detail: webhook.warning });
-	if (webhook.status === "paused") issues.push({ code: "paused" });
-	if (webhook.lastError) {
-		issues.push({ code: "last_error", detail: webhook.lastError });
-	}
-	if (webhook.circuitOpenedAt || webhook.circuitFailures > 0) {
-		issues.push({ code: "circuit" });
-	}
-	if (dead.length > 0) issues.push({ code: "dead_letters" });
-	if (deliveries.length === 0) issues.push({ code: "no_deliveries" });
-	return issues;
 }
 
 /** A tenant on an older API image can omit `blockTime` from a delivery row

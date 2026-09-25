@@ -2,13 +2,11 @@
 
 import { formatDate } from "@/lib/account-data";
 import {
-	buildWebhookIssues,
 	deleteWebhook,
 	formatRelative,
 	getDead,
 	getDeliveries,
 	getWebhook,
-	isSuccessDelivery,
 	pauseWebhook,
 	requeue,
 	resumeWebhook,
@@ -23,6 +21,10 @@ import type {
 	WebhookDetail,
 	WebhookFormat,
 } from "@secondlayer/sdk";
+import {
+	buildDoctorReport,
+	isSuccessDelivery,
+} from "@secondlayer/sdk/webhooks/doctor";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -344,7 +346,16 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	const okCount = rows.filter(isSuccessDelivery).length;
 	const median = medianOkDurationMs(rows);
 	const deadRows = dead ?? [];
-	const issues = buildWebhookIssues(webhook, rows, deadRows);
+	// `subgraph: null` — the dashboard never fetches subgraph status, so the
+	// two subgraph issue codes (subgraph_gaps/subgraph_catching_up) never fire
+	// here; the CLI passes the real subgraph status and can see them.
+	const report = buildDoctorReport({
+		webhook,
+		deliveries: rows,
+		dead: deadRows,
+		subgraph: null,
+	});
+	const issues = report.issues;
 	const deadCount = deadRows.length;
 
 	return (
