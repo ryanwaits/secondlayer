@@ -10,6 +10,10 @@
  *                          and /internal/meters guards
  *   TENANT_SECRETS_ROOT    root-only dir, one subdirectory per tenant
  *   TENANT_COMPOSE_FILE    docker/workload/tenant.compose.yml
+ *   WORKLOAD_IMAGE_TAG     deployed main sha `tenant.compose.yml` pins
+ *                          `secondlayer-api` to (required there, no `latest`
+ *                          default); flows through to `docker compose` via
+ *                          spawnCompose's `process.env` merge
  *   GATEWAY_PORT           default 8080
  *
  * Review fix 7: the gateway binds 127.0.0.1 only — a local Caddy
@@ -68,6 +72,10 @@ async function main(): Promise<void> {
 	const workloadHostKey = requireEnv("WORKLOAD_HOST_KEY");
 	const secretsRoot = requireEnv("TENANT_SECRETS_ROOT");
 	const composeFile = requireEnv("TENANT_COMPOSE_FILE");
+	// Not read past this point — validated up front so a missing tag fails
+	// fast at startup instead of at the first `docker compose up` (it reaches
+	// compose via spawnCompose's `process.env` merge, not through this value).
+	requireEnv("WORKLOAD_IMAGE_TAG");
 	const gatewayPort = Number(process.env.GATEWAY_PORT ?? 8080);
 
 	const db = getControlDb(controlDbUrl);

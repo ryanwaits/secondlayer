@@ -12,9 +12,11 @@
 # (webhooks, and later subgraph tables, 046) — never chain data.
 #
 # Images are pulled by tag (`image:`), never built locally — this file never
-# reaches a `docker build`. Digest-pin like `docker/oss/docker-compose.yml`
-# once a tag is chosen for GA; `latest` is fine for phase 1 while the host is
-# hand-verified per deploy.
+# reaches a `docker build`. `WORKLOAD_IMAGE_TAG` is required, not defaulted to
+# `latest`: it must name a commit sha `.github/workflows/deploy.yml` actually
+# built and pushed to `secondlayer-api` on main, so a tenant stack is pinned
+# to a known-good deploy instead of drifting under it. Digest-pin like
+# `docker/oss/docker-compose.yml` once a tag is chosen for GA.
 #
 # Phase 1 (chain webhooks only, D5): `subgraph-processor` is deliberately
 # absent. 046 adds it back once tenants run subgraph handlers.
@@ -39,7 +41,7 @@ services:
     restart: unless-stopped
 
   migrate:
-    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:-latest}
+    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:?set WORKLOAD_IMAGE_TAG to a deployed main sha}
     platform: linux/amd64
     command: ["bun", "run", "packages/shared/src/db/migrate.ts"]
     environment:
@@ -50,7 +52,7 @@ services:
     restart: "no"
 
   api:
-    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:-latest}
+    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:?set WORKLOAD_IMAGE_TAG to a deployed main sha}
     platform: linux/amd64
     environment:
       INSTANCE_MODE: oss
@@ -110,7 +112,14 @@ services:
   # `STREAMS_INTERNAL_API_KEY` here are a key minted for THIS account, so a
   # leak only leaks reads the account already owns.
   webhook-service:
-    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-webhook-processor:${WORKLOAD_IMAGE_TAG:-latest}
+    # `secondlayer-webhook-processor` is only built by `.github/workflows/
+    # oss-images.yml` on `v*` tags, so it goes stale between releases.
+    # `secondlayer-api` rebuilds on every main push (deploy.yml) and its
+    # `webhook-processor` Dockerfile target is just `FROM api` + a different
+    # CMD — same code, always fresh. Run it from the api image instead
+    # (mirrors `docker/oss/docker-compose.split.yml`'s `subgraph-processor`).
+    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:?set WORKLOAD_IMAGE_TAG to a deployed main sha}
+    command: ["bun", "run", "packages/subgraphs/src/webhook-service.ts"]
     platform: linux/amd64
     environment:
       INSTANCE_MODE: oss

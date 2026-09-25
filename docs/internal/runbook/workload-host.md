@@ -114,7 +114,8 @@ not the only line.
    git clone <repo> . && bun install
    # .env: CONTROL_DATABASE_URL, APP_SERVER_URL=https://api.secondlayer.tools,
    #       WORKLOAD_HOST_KEY, TENANT_SECRETS_ROOT=/opt/secondlayer-workload/tenants,
-   #       TENANT_COMPOSE_FILE=docker/workload/tenant.compose.yml, GATEWAY_PORT=8080
+   #       TENANT_COMPOSE_FILE=docker/workload/tenant.compose.yml,
+   #       WORKLOAD_IMAGE_TAG=<deployed main sha>, GATEWAY_PORT=8080
    bun run --filter @secondlayer/workload start
    ```
 5. DNS: add an A record for `workload-host.secondlayer.tools` (or whatever
