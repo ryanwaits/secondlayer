@@ -54,18 +54,12 @@ import {
 } from "../subgraphs/probeEmptyMapping.ts";
 import {
 	SubgraphNotFoundError,
-	handleTableAggregate,
-	handleTableCount,
 	querySubgraph as query,
 } from "../subgraphs/read-core.ts";
 import {
-	InvalidColumnError,
 	MAX_LIMIT,
-	buildWhereConditions,
 	getSubgraphSchema,
-	getValidColumns,
 	ident,
-	parseQueryParams,
 	subgraphSchemaName,
 } from "./subgraph-query-helpers.ts";
 
@@ -1239,10 +1233,10 @@ export async function buildSubgraphDetailFromRow(
 		columns._created_at = { type: "timestamp" };
 
 		tables[tableName] = {
-			endpoint: `/subgraphs/${subgraphName}/${tableName}`,
+			endpoint: `/v1/subgraphs/${subgraphName}/${tableName}`,
 			columns,
 			rowCount,
-			example: `/subgraphs/${subgraphName}/${tableName}?_sort=_block_height&_order=desc&_limit=10`,
+			example: `/v1/subgraphs/${subgraphName}/${tableName}?_sort=_block_height&_order=desc&_limit=10`,
 			...(tableDef.indexes && { indexes: tableDef.indexes }),
 			...(tableDef.uniqueKeys && { uniqueKeys: tableDef.uniqueKeys }),
 		};
@@ -1443,10 +1437,10 @@ app.get("/:subgraphName", async (c) => {
 		columns._created_at = { type: "timestamp" };
 
 		tables[tableName] = {
-			endpoint: `/subgraphs/${subgraphName}/${tableName}`,
+			endpoint: `/v1/subgraphs/${subgraphName}/${tableName}`,
 			columns,
 			rowCount,
-			example: `/subgraphs/${subgraphName}/${tableName}?_sort=_block_height&_order=desc&_limit=10`,
+			example: `/v1/subgraphs/${subgraphName}/${tableName}?_sort=_block_height&_order=desc&_limit=10`,
 			...(tableDef.indexes && { indexes: tableDef.indexes }),
 			...(tableDef.uniqueKeys && { uniqueKeys: tableDef.uniqueKeys }),
 		};
@@ -1769,160 +1763,6 @@ app.get("/:subgraphName/operations/:operationId", async (c) => {
 	const position =
 		op.status === "queued" ? await getOperationQueuePosition(db, op.id) : null;
 	return c.json(toOperationResponse(op, chainTip, position));
-});
-
-// ── Count rows ──────────────────────────────────────────────────────────
-
-app.get("/:subgraphName/:tableName/count", async (c) => {
-	const { subgraphName, tableName } = c.req.param();
-	const subgraph = requireSubgraph(subgraphName);
-	return handleTableCount(c, subgraph, tableName);
-});
-
-// ── Aggregate over rows ─────────────────────────────────────────────────
-
-// Scalar aggregates (_count/_countDistinct/_sum/_min/_max) over the same
-// filtered set as the list/count endpoints. SUM/MIN/MAX return lossless strings
-// (NUMERIC ::text); count/countDistinct return JSON numbers. Registered before
-// `/:id` so the static `aggregate` segment wins over the row-id param.
-app.get("/:subgraphName/:tableName/aggregate", async (c) => {
-	const { subgraphName, tableName } = c.req.param();
-	const subgraph = requireSubgraph(subgraphName);
-	return handleTableAggregate(c, subgraph, tableName);
-});
-
-// ── List rows with filters ──────────────────────────────────────────────
-
-// `_count` controls how `meta.total` is computed: "exact" (default, unchanged)
-// runs COUNT(*) alongside the page query; "none" skips the count entirely
-// (`total: null`); "estimate" uses pg_class.reltuples (no table scan) for
-// unfiltered lists — filtered lists fall back to "exact" since a planner
-// estimate wouldn't reflect the WHERE clause.
-const COUNT_MODES = new Set(["exact", "estimate", "none"]);
-
-app.get("/:subgraphName/:tableName", async (c) => {
-	const { subgraphName, tableName } = c.req.param();
-	const subgraph = requireSubgraph(subgraphName);
-
-	const subgraphSchema = getSubgraphSchema(subgraph);
-	const tableDef = subgraphSchema[tableName];
-	if (!tableDef) {
-		return c.json({ error: "Table not found", code: "TABLE_NOT_FOUND" }, 404);
-	}
-
-	const validColumns = getValidColumns(tableDef);
-
-	const countModeRaw = c.req.query("_count");
-	if (countModeRaw !== undefined && !COUNT_MODES.has(countModeRaw)) {
-		return c.json(
-			{
-				error: `Invalid _count value: "${countModeRaw}". Expected "exact", "estimate", or "none".`,
-				code: "VALIDATION_ERROR",
-			},
-			400,
-		);
-	}
-	const countMode = (countModeRaw ?? "exact") as "exact" | "estimate" | "none";
-
-	try {
-		// Strip `_count` before parseQueryParams — it throws on any unrecognized
-		// `_`-prefixed key (see parseAggregateParams for the same pattern).
-		const { _count: _countParam, ...queryParams } = c.req.query();
-		const parsed = parseQueryParams(
-			queryParams,
-			validColumns,
-			tableDef,
-			tableName,
-		);
-		const sn = subgraphSchemaName(subgraph);
-		const params: unknown[] = [];
-
-		const selectFields = parsed.fields
-			? parsed.fields.map((f) => ident(f)).join(", ")
-			: "*";
-
-		let text = `SELECT ${selectFields} FROM ${ident(sn)}.${ident(tableName)}`;
-
-		const conditions = buildWhereConditions(parsed, params);
-		if (conditions.length > 0) {
-			text += ` WHERE ${conditions.join(" AND ")}`;
-		}
-
-		const orderBy =
-			parsed.sorts.length > 0
-				? parsed.sorts.map((s) => `${ident(s.column)} ${s.order}`).join(", ")
-				: '"_id" ASC';
-		text += ` ORDER BY ${orderBy}`;
-		text += ` LIMIT ${parsed.limit} OFFSET ${parsed.offset}`;
-
-		const meta = { limit: parsed.limit, offset: parsed.offset };
-
-		if (countMode === "none") {
-			const data = await query(subgraph, text, params);
-			return c.json({ data: Array.from(data), meta: { total: null, ...meta } });
-		}
-
-		if (countMode === "estimate" && conditions.length === 0) {
-			const qualifiedName = `${ident(sn)}.${ident(tableName)}`;
-			const [data, estimateResult] = await Promise.all([
-				query(subgraph, text, params),
-				query(
-					subgraph,
-					"SELECT reltuples::bigint AS count FROM pg_class WHERE oid = $1::regclass",
-					[qualifiedName],
-				),
-			]);
-			return c.json({
-				data: Array.from(data),
-				meta: {
-					total: Number.parseInt(String(estimateResult[0]?.count ?? 0), 10),
-					...meta,
-				},
-			});
-		}
-
-		// "exact" (default, unchanged) — and the "estimate" fallback for filtered
-		// lists, where a planner estimate wouldn't reflect the WHERE clause.
-		// Count query uses same params
-		let countText = `SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`;
-		if (conditions.length > 0) {
-			// Rebuild conditions with fresh params array for count query
-			const countParams: unknown[] = [];
-			const countConditions = buildWhereConditions(parsed, countParams);
-			countText += ` WHERE ${countConditions.join(" AND ")}`;
-			// Use countParams for count query
-			const [data, countResult] = await Promise.all([
-				query(subgraph, text, params),
-				query(subgraph, countText, countParams),
-			]);
-
-			return c.json({
-				data: Array.from(data),
-				meta: {
-					total: Number.parseInt(String(countResult[0]?.count ?? 0), 10),
-					...meta,
-				},
-			});
-		}
-
-		const [data, countResult] = await Promise.all([
-			query(subgraph, text, params),
-			query(subgraph, countText),
-		]);
-
-		return c.json({
-			data: Array.from(data),
-			meta: {
-				total: Number.parseInt(String(countResult[0]?.count ?? 0), 10),
-				...meta,
-			},
-		});
-	} catch (e) {
-		if (e instanceof InvalidColumnError) {
-			return c.json({ error: e.message, code: "INVALID_COLUMN" }, 400);
-		}
-		throw e;
-	}
 });
 
 export default app;
