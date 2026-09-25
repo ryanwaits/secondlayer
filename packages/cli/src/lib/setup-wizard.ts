@@ -1,15 +1,15 @@
 /**
- * `secondlayer setup` — the guided self-host onboarding wizard.
+ * `secondlayer setup` — the guided self-host onboarding flow.
  *
  * This file holds every step as a plain, explicit-input function that reports
- * progress through a callback. It is the ONLY place setup logic lives — the
- * TUI (`commands/setup-tui.tsx`) and the non-interactive runner
- * (`commands/setup.ts`) are both thin consumers that call these functions in
- * the same order and render the same `SetupEvent`s differently. Neither one
- * re-implements a step. That split is deliberate: two independently-drifting
- * copies of "how does setup work" is exactly the bug class this file exists to
- * prevent (see the CLI's other credential-resolution helpers for the version
- * of this mistake that has already happened once).
+ * progress through a callback. It is the ONLY place setup logic lives —
+ * `commands/setup.ts` (both its non-interactive and `@inquirer/prompts`
+ * paths) is a thin consumer that calls these functions in the same order and
+ * renders the same `SetupEvent`s. Neither path re-implements a step. That
+ * split is deliberate: two independently-drifting copies of "how does setup
+ * work" is exactly the bug class this file exists to prevent (see the CLI's
+ * other credential-resolution helpers for the version of this mistake that
+ * has already happened once).
  *
  * What each step does and does not own:
  *   - secrets: generated via `instance-init.ts`'s own functions — never
@@ -130,10 +130,12 @@ export function parseSetupNodeMode(value: string): NodeMode {
 
 /**
  * Non-interactive mode has no safe defaults for the decisions that are
- * irreversible-ish or resource-shaped: network, node mode, and (unless the
- * operator explicitly opts out) the archive to bootstrap from. Every other
- * flag has one. Fails fast, naming exactly the missing flag — an autonomous
- * agent driving this command needs that to recover without a human.
+ * irreversible-ish or resource-shaped: network and node mode. Every other
+ * flag has one, including the archive to bootstrap from — it defaults to the
+ * official archive unless the operator explicitly opts out with
+ * `--skip-bootstrap`. Fails fast, naming exactly the missing flag — an
+ * autonomous agent driving this command needs that to recover without a
+ * human.
  */
 export function resolveNonInteractiveConfig(
 	flags: SetupFlags,
@@ -150,16 +152,11 @@ export function resolveNonInteractiveConfig(
 			"Missing --node-mode <external|stacks|full>. Non-interactive setup requires it explicitly — there is no safe default.",
 		);
 	}
-	if (!flags.against && !flags.skipBootstrap) {
-		throw new MissingSetupFlagError(
-			"--against",
-			"Missing --against <manifest-url>. Pass an archive manifest to bootstrap from, or --skip-bootstrap to index only what your node sends from now on.",
-		);
-	}
 
 	const network = parseInstanceNetwork(flags.network);
 	const nodeMode = parseSetupNodeMode(flags.nodeMode);
 	const dir = resolvePath(flags.dir ?? process.cwd());
+	const skipBootstrap = !!flags.skipBootstrap;
 
 	return {
 		network,
@@ -168,8 +165,10 @@ export function resolveNonInteractiveConfig(
 		indexerPort: "127.0.0.1:3700",
 		postgresPort: "127.0.0.1:5432",
 		dir,
-		against: flags.against,
-		skipBootstrap: !!flags.skipBootstrap,
+		against: skipBootstrap
+			? undefined
+			: (flags.against ?? DEFAULT_ARCHIVE_MANIFEST),
+		skipBootstrap,
 		skipVerify: !!flags.skipVerify,
 		yes: !!flags.yes,
 		force: !!flags.force,
@@ -197,26 +196,6 @@ export function guardrailPreview(
 		ramFloorMb: nodeMode === "full" ? FLOORS.fullRamMb : FLOORS.appRamMb,
 		diskFloorGb: diskFloorGb(nodeMode, network),
 	};
-}
-
-/**
- * OpenTUI's native renderer is Bun-only today — its FFI loader throws
- * "OpenTUI native FFI is not available for this runtime yet" under node.
- * The published CLI runs under node via its shebang (see the note on
- * `checkDocker` below for the same constraint), so `commands/setup.ts` uses
- * this to decide whether to even attempt the OpenTUI wizard versus falling
- * back to an `@inquirer/prompts` flow that drives the same `runSetup` steps.
- */
-export function isBunRuntime(
-	versions: unknown = typeof process !== "undefined"
-		? process.versions
-		: undefined,
-): boolean {
-	return (
-		typeof versions === "object" &&
-		versions !== null &&
-		typeof (versions as Record<string, unknown>).bun === "string"
-	);
 }
 
 /**

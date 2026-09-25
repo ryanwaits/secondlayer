@@ -11,7 +11,6 @@ import {
 	type ResolvedSetupConfig,
 	type SetupEvent,
 	type SetupFlags,
-	isBunRuntime,
 	resolveNonInteractiveConfig,
 	runSetup,
 } from "../lib/setup-wizard.ts";
@@ -25,21 +24,18 @@ import {
  * This file owns flag parsing and rendering ONLY. Every actual step —
  * generating secrets, writing compose/.env, bringing docker up, shelling out
  * to bootstrap/verify — lives in `lib/setup-wizard.ts` as plain functions, so
- * none of this file's three ways of driving it (plain non-interactive, the
- * OpenTUI wizard, the `@inquirer/prompts` fallback) can quietly diverge on
- * what "setup" does.
+ * this file's two ways of driving it (plain non-interactive, `@inquirer/prompts`)
+ * can't quietly diverge on what "setup" does.
  *
  * Non-interactive is not a fallback — it is the point. `!isTTY` or `--yes`
  * skips prompting entirely and drives the exact same steps from flags,
  * printing plain progress lines and never blocking on input, so an autonomous
  * agent can drive this command exactly as well as a human at a terminal.
  *
- * The OpenTUI wizard is Bun-only today — its native renderer's FFI loader
- * throws under node, and the published CLI runs under node via its shebang
- * (`cli.ts`). So an interactive session only attempts OpenTUI when actually
- * running under Bun, and falls back to `@inquirer/prompts` otherwise (or if
- * OpenTUI still throws for some other reason) — a real terminal session
- * should never hard-crash just because the fancy renderer isn't available.
+ * A real terminal session with no `--yes` runs `@inquirer/prompts` instead:
+ * it only fills in whatever `network`/`node-mode`/`against` flags didn't
+ * already supply, then hands off to the same `resolveNonInteractiveConfig`
+ * shape and `runSetup`.
  */
 
 function renderProgress(event: SetupEvent): void {
@@ -105,8 +101,8 @@ async function runNonInteractive(flags: SetupFlags): Promise<void> {
 	await executeAndRender(config);
 }
 
-/** `@inquirer/prompts` fallback: gathers the same decisions the OpenTUI
- *  wizard would, then runs through the exact same non-interactive body. */
+/** `@inquirer/prompts` path: gathers whatever `network`/`node-mode`/`against`
+ *  flags left out, then runs through the exact same non-interactive body. */
 async function runPromptedInteractive(flags: SetupFlags): Promise<void> {
 	let config: ResolvedSetupConfig;
 	try {
@@ -139,7 +135,7 @@ export function registerSetupCommand(program: Command): void {
 		.option("--dir <path>", "Target directory for compose + .env", ".")
 		.option(
 			"--against <manifest>",
-			`Archive manifest to bootstrap from (suggested default: ${DEFAULT_ARCHIVE_MANIFEST})`,
+			`Archive manifest to bootstrap from (default: ${DEFAULT_ARCHIVE_MANIFEST})`,
 		)
 		.option(
 			"--skip-bootstrap",
@@ -148,7 +144,7 @@ export function registerSetupCommand(program: Command): void {
 		.option("--skip-verify", "Skip the post-bootstrap verify pass")
 		.option(
 			"--yes",
-			"Non-interactive: skip the TUI, require flags, never prompt",
+			"Non-interactive: skip the prompts, require flags, never ask",
 		)
 		.option(
 			"--force",
@@ -164,12 +160,13 @@ export function registerSetupCommand(program: Command): void {
 
 Examples:
   $ secondlayer setup
-  $ secondlayer setup --yes --network mainnet --node-mode external --against ${DEFAULT_ARCHIVE_MANIFEST}
+  $ secondlayer setup --yes --network mainnet --node-mode external
   $ secondlayer setup --yes --network testnet --node-mode external --skip-bootstrap --skip-verify
 
-Without a TTY (piped, CI, an agent), or with --yes, the TUI is skipped: every
-decision with no safe default (--network, --node-mode, and --against unless
---skip-bootstrap) must come from a flag or the command fails fast naming it.
+Without a TTY (piped, CI, an agent), or with --yes, the prompts are skipped:
+every decision with no safe default (--network, --node-mode) must come from a
+flag or the command fails fast naming it. --against defaults to the official
+archive (${DEFAULT_ARCHIVE_MANIFEST}) unless --skip-bootstrap is set.
 `,
 		)
 		.action(async (opts: SetupFlags) => {
@@ -186,24 +183,6 @@ decision with no safe default (--network, --node-mode, and --against unless
 				await runNonInteractive(flags);
 				return;
 			}
-			if (!isBunRuntime()) {
-				// OpenTUI's renderer can't init under node — don't even attempt it.
-				await runPromptedInteractive(flags);
-				return;
-			}
-			try {
-				const { runSetupTui } = await import("../lib/setup-tui.tsx");
-				// `runSetupTui`'s promise stays pending for the whole interactive
-				// session (not just past mount) — it settles on a clean exit, and
-				// rejects if OpenTUI hits a render/handler error at any point during
-				// the session, so a crash after the welcome screen lands here too,
-				// not just an init-time failure.
-				await runSetupTui(flags);
-			} catch (err) {
-				warn(
-					`Interactive TUI unavailable (${err instanceof Error ? err.message : String(err)}) — falling back to guided prompts.`,
-				);
-				await runPromptedInteractive(flags);
-			}
+			await runPromptedInteractive(flags);
 		});
 }

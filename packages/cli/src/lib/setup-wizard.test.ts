@@ -12,7 +12,6 @@ import {
 	checkDatabaseReachable,
 	composeProfileArgs,
 	guardrailPreview,
-	isBunRuntime,
 	preflightBootstrapDatabase,
 	redactUrl,
 	resolveAvailablePublishSpec,
@@ -26,26 +25,6 @@ import {
 function tmpDir(): string {
 	return mkdtempSync(join(tmpdir(), "sl-setup-"));
 }
-
-describe("isBunRuntime", () => {
-	test("true under bun (this test file's own runtime)", () => {
-		expect(isBunRuntime()).toBe(true);
-	});
-
-	// Node's process.versions has no `bun` key — the exact case OpenTUI can't
-	// initialize in. Injected rather than spawning a real node process, which
-	// flaked on slow CI runners (cold node start past the spawn timeout).
-	test("false under node's process.versions shape", () => {
-		expect(isBunRuntime({ node: "22.11.0", v8: "12.4.254.21-node.33" })).toBe(
-			false,
-		);
-	});
-
-	test("false when process.versions is missing or not an object", () => {
-		expect(isBunRuntime(null)).toBe(false);
-		expect(isBunRuntime("22.11.0")).toBe(false);
-	});
-});
 
 describe("resolveNonInteractiveConfig — flag validation", () => {
 	test("fails fast naming --network when it's missing", () => {
@@ -71,17 +50,15 @@ describe("resolveNonInteractiveConfig — flag validation", () => {
 		}
 	});
 
-	test("fails fast naming --against when bootstrap isn't skipped", () => {
-		try {
-			resolveNonInteractiveConfig({ network: "mainnet", nodeMode: "external" });
-			throw new Error("should have thrown");
-		} catch (err) {
-			expect(err).toBeInstanceOf(MissingSetupFlagError);
-			expect((err as MissingSetupFlagError).flag).toBe("--against");
-		}
+	test("a missing --against defaults to the official archive manifest", () => {
+		const config = resolveNonInteractiveConfig({
+			network: "mainnet",
+			nodeMode: "external",
+		});
+		expect(config.against).toBe(DEFAULT_ARCHIVE_MANIFEST);
 	});
 
-	test("--skip-bootstrap makes --against optional", () => {
+	test("--skip-bootstrap leaves --against unset even without one passed", () => {
 		const config = resolveNonInteractiveConfig({
 			network: "mainnet",
 			nodeMode: "external",

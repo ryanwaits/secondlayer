@@ -1,13 +1,12 @@
 /**
- * The `@inquirer/prompts` fallback for `secondlayer setup`'s interactive
- * mode — used whenever the OpenTUI wizard can't run: not the Bun runtime
- * (its native renderer is Bun-only today), or its native FFI failed to
- * initialize for any other reason. This is the THIRD consumer of
- * `lib/setup-wizard.ts`'s step functions (alongside the OpenTUI TUI and the
- * plain non-interactive runner) — it only ever gathers the same decisions
- * (network, node mode, bootstrap source) through a different prompt library,
- * then hands off to the exact same `resolveNonInteractiveConfig`-shaped
- * config and `runSetup`. Nothing about what setup DOES lives here.
+ * The `@inquirer/prompts` path for `secondlayer setup`'s interactive mode —
+ * used whenever there's a TTY and `--yes` wasn't passed. This is the SECOND
+ * consumer of `lib/setup-wizard.ts`'s step functions (alongside the plain
+ * non-interactive runner) — it only ever gathers the same decisions (network,
+ * node mode, bootstrap source), asking only for whatever a flag didn't
+ * already supply, then hands off to the exact same
+ * `resolveNonInteractiveConfig`-shaped config and `runSetup`. Nothing about
+ * what setup DOES lives here.
  */
 
 import { resolve as resolvePath } from "node:path";
@@ -53,7 +52,7 @@ const NODE_MODE_DESCRIPTIONS: Record<
 	full: "Bundled Stacks node + bitcoind.",
 };
 
-/** Gathers exactly the decisions the OpenTUI wizard would, via `@inquirer/prompts`. */
+/** Gathers whatever `network`/`node-mode`/`against` flags left out, via `@inquirer/prompts`. */
 export async function promptSetupConfig(
 	flags: SetupFlags,
 ): Promise<ResolvedSetupConfig> {
