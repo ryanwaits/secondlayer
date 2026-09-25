@@ -43,7 +43,10 @@ export function workloadHostKeyMatches(
 	return timingSafeEqual(a, b);
 }
 
-function bearerToken(header: string | undefined): string | null {
+/** Exported so `internal-introspect.ts` reuses the exact same parse — one
+ *  `Authorization: Bearer` convention for every first-party workload-host
+ *  route, not a copy that can drift. */
+export function bearerToken(header: string | undefined): string | null {
 	if (!header?.startsWith("Bearer ")) return null;
 	const raw = header.slice(7).trim();
 	return raw.length > 0 ? raw : null;

@@ -20,6 +20,7 @@ import {
 	createInstanceCatalogRouter,
 	renderLocalConsole,
 } from "./routes/instance-catalog.ts";
+import internalIntrospectRouter from "./routes/internal-introspect.ts";
 import internalMetersRouter from "./routes/internal-meters.ts";
 import nodeRouter from "./routes/node.ts";
 import openApiRouter from "./routes/openapi.ts";
@@ -152,6 +153,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 		// `resourceAuth` the ACCOUNT_PATHS above use — this is a first-party
 		// workload host, not an account.
 		app.route("/internal/meters", internalMetersRouter);
+		app.route("/internal/keys/introspect", internalIntrospectRouter);
 	}
 	app.route("/", statusRouter);
 	app.route("/v1/instance", createInstanceCatalogRouter());
