@@ -13,7 +13,7 @@ import {
 	findClarinetProject,
 } from "../lib/devnet-config.ts";
 import { bold, cyan, dim, error, green, red, yellow } from "../lib/output.ts";
-import { resolveEnvKey } from "../lib/resolve-auth.ts";
+import { resolveApiUrl, resolveEnvKey } from "../lib/resolve-auth.ts";
 
 const COMPOSE_REL = join(".secondlayer", "docker-compose.yml");
 
@@ -62,7 +62,7 @@ interface StatusOptions {
 	limit: string;
 }
 
-const API_URL = process.env.SL_API_URL ?? "http://localhost:3800";
+const API_URL = resolveApiUrl();
 const INDEXER_URL = process.env.INDEXER_URL ?? "http://localhost:3700";
 
 const SERVICES = [
@@ -217,7 +217,7 @@ export async function connect(options: ConnectOptions): Promise<void> {
 		`  ${yellow("clarinet devnet start")}   ${dim("# auto-deploys + streams to the indexer")}`,
 	);
 	console.log(
-		`  ${yellow(`SL_API_URL=http://localhost:3800 INSTANCE_TOKEN=${DEV_INSTANCE_TOKEN} secondlayer subgraphs deploy ./subgraph.ts`)}`,
+		`  ${yellow(`SECONDLAYER_API_URL=http://localhost:3800 INSTANCE_TOKEN=${DEV_INSTANCE_TOKEN} secondlayer subgraphs deploy ./subgraph.ts`)}`,
 	);
 	console.log(
 		dim(

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ARCHIVE_ROOT_PUBLIC_KEY_PEM } from "@secondlayer/shared/archive/root-key";
@@ -27,7 +27,6 @@ describe("instance init", () => {
 			},
 		});
 		expect(env.INSTANCE_TOKEN).toBe("tok");
-		expect(env.SL_API_KEY).toBeUndefined();
 		expect(env.SECONDLAYER_API_KEY).toBeUndefined();
 		expect(env.SECONDLAYER_SECRETS_KEY).toBe("a".repeat(64));
 		expect(env.STREAMS_SIGNING_PRIVATE_KEY).toContain("BEGIN PRIVATE KEY");
@@ -43,37 +42,41 @@ describe("instance init", () => {
 		const body = renderInstanceEnv(fresh);
 		expect(body).toContain("INSTANCE_TOKEN=");
 		expect(body).toContain("SECONDLAYER_API_URL=");
-		expect(body).not.toMatch(/SL_API_KEY=[0-9a-f]{64}/);
 		expect(body).not.toMatch(/SECONDLAYER_API_KEY=[0-9a-f]{64}/);
+		expect(body).not.toContain("SL_API_URL=");
 		expect(body).not.toContain("SL_API_KEY=");
 		expect(body).not.toContain("SECONDLAYER_API_KEY=");
 		expect(fresh.INSTANCE_TOKEN).toHaveLength(64);
 	});
 
-	test("recovers INSTANCE_TOKEN from hex SL_API_KEY and stops writing the alias", () => {
-		const hex = "b".repeat(64);
-		const env = buildInstanceEnv({
-			network: "mainnet",
-			existing: { SL_API_KEY: hex },
-		});
-		expect(env.INSTANCE_TOKEN).toBe(hex);
-		expect(env.SL_API_KEY).toBeUndefined();
-		expect(renderInstanceEnv(env)).not.toContain("SL_API_KEY=");
+	test("a legacy SL_API_KEY line in an existing .env is ignored, not recovered as INSTANCE_TOKEN", () => {
+		const dir = mkdtempSync(join(tmpdir(), "sl-init-legacy-"));
+		writeFileSync(
+			join(dir, ".env.local"),
+			`SL_API_KEY=${"b".repeat(64)}\nSL_API_URL=https://api.secondlayer.tools\n`,
+		);
+		const existing = loadExistingInstanceEnv(dir);
+		expect(Object.keys(existing)).not.toContain("SL_API_KEY");
+		expect(Object.keys(existing)).not.toContain("SL_API_URL");
+		const env = buildInstanceEnv({ network: "mainnet", existing });
+		expect(env.INSTANCE_TOKEN).not.toBe("b".repeat(64));
+		expect(env.INSTANCE_TOKEN).toHaveLength(64);
+		expect(env.SECONDLAYER_API_URL).toBe("http://127.0.0.1:3800");
 	});
 
-	test("preserves an existing sk-sl_* hosted key as SECONDLAYER_API_KEY", () => {
+	test("preserves an existing sk-sl_* hosted key as SECONDLAYER_API_KEY, with no SL_API_KEY alias line", () => {
 		const env = buildInstanceEnv({
 			network: "mainnet",
 			existing: {
 				INSTANCE_TOKEN: "tok",
-				SL_API_KEY: "sk-sl_keep",
+				SECONDLAYER_API_KEY: "sk-sl_keep",
 			},
 		});
 		expect(env.INSTANCE_TOKEN).toBe("tok");
 		expect(env.SECONDLAYER_API_KEY).toBe("sk-sl_keep");
 		const body = renderInstanceEnv(env);
 		expect(body).toContain("SECONDLAYER_API_KEY=sk-sl_keep");
-		expect(body).toContain("SL_API_KEY=sk-sl_keep");
+		expect(body).not.toContain("SL_API_KEY=");
 	});
 
 	test("always writes the archive trust key, keeping an operator's own pin across re-runs", () => {

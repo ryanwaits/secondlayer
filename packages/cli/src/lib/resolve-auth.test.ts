@@ -80,11 +80,11 @@ describe("resolveEnvKey credential precedence", () => {
 		expect(resolveEnvKey()).toBe("a".repeat(64));
 	});
 
-	test("sk-sl_* --api-key funnel sets SECONDLAYER_API_KEY, not INSTANCE_TOKEN", () => {
+	test("sk-sl_* --api-key funnel sets SECONDLAYER_API_KEY only, not INSTANCE_TOKEN or SL_API_KEY", () => {
 		process.env.INSTANCE_TOKEN = "exported-token";
 		applyApiKeyFlag("sk-sl_from_flag");
 		expect(process.env.SECONDLAYER_API_KEY).toBe("sk-sl_from_flag");
-		expect(process.env.SL_API_KEY).toBe("sk-sl_from_flag");
+		expect(process.env.SL_API_KEY).toBeUndefined();
 		expect(process.env.INSTANCE_TOKEN).toBe("exported-token");
 		expect(resolveEnvKey()).toBe("exported-token");
 	});

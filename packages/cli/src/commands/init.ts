@@ -25,7 +25,7 @@ export function registerInitCommand(program: Command): void {
 		// of the value the operator passed, and fall back to its own default
 		// every time (that happened here, first for --network, then again for
 		// --api-url). The global `preAction` hook writes the parsed values to
-		// STACKS_NETWORK / SL_API_URL before this action runs; read them from
+		// STACKS_NETWORK / SECONDLAYER_API_URL before this action runs; read them from
 		// there. Same fix `commands/setup.ts` uses.
 		.option("--force", "Overwrite generated values even if .env.local exists")
 		.addHelpText(
@@ -42,7 +42,7 @@ flags (see \`secondlayer --help\`). Defaults: mainnet, http://127.0.0.1:3800.
 			const env = buildInstanceEnv({
 				network,
 				existing,
-				apiUrl: process.env.SL_API_URL ?? DEFAULT_INIT_API_URL,
+				apiUrl: process.env.SECONDLAYER_API_URL ?? DEFAULT_INIT_API_URL,
 				archivePublicKeyPem: await resolveArchivePublicKey({
 					envPem:
 						process.env.ARCHIVE_SIGNING_PUBLIC_KEY ??
@@ -55,7 +55,7 @@ flags (see \`secondlayer --help\`). Defaults: mainnet, http://127.0.0.1:3800.
 			note(
 				formatKeyValue([
 					["network", env.STACKS_NETWORK],
-					["api", env.SL_API_URL],
+					["api", env.SECONDLAYER_API_URL],
 					["env", path],
 				]),
 			);

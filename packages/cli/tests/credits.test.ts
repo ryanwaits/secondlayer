@@ -115,15 +115,21 @@ describe("archive credits bearer", () => {
 	});
 
 	it("uses an sk-sl_ env key when there is no session", async () => {
-		process.env.SL_API_KEY = "sk-sl_ci_key";
+		process.env.SECONDLAYER_API_KEY = "sk-sl_ci_key";
 		await httpArchiveOps("/api/billing/status");
 		expect(seenBearers).toEqual(["sk-sl_ci_key"]);
 		expect((await resolveArchiveOpsBearer()).source).toBe("env");
 	});
 
+	it("SL_API_KEY / SL_ARCHIVE_API_KEY alone are ignored; no session means no bearer", async () => {
+		process.env.SL_API_KEY = "sk-sl_ci_key";
+		process.env.SL_ARCHIVE_API_KEY = "sk-sl_ci_archive_key";
+		expect((await resolveArchiveOpsBearer()).source).toBeNull();
+	});
+
 	it("prefers the session over an sk-sl_ env key", async () => {
 		await writeCreditsSession();
-		process.env.SL_API_KEY = "sk-sl_ci_key";
+		process.env.SECONDLAYER_API_KEY = "sk-sl_ci_key";
 		await httpArchiveOps("/api/billing/status");
 		expect(seenBearers).toEqual(["ss-sl_valid"]);
 	});

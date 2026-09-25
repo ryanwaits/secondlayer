@@ -450,7 +450,7 @@ describe("generated .env carries the database the compose Postgres actually runs
 		expect(env.ARCHIVE_SIGNING_PUBLIC_KEY).toBe(
 			secrets.instance.ARCHIVE_SIGNING_PUBLIC_KEY,
 		);
-		expect(env.SL_API_URL).toBe(secrets.instance.SL_API_URL);
+		expect(env.SECONDLAYER_API_URL).toBe(secrets.instance.SECONDLAYER_API_URL);
 		expect(env.HOME).toBe("/nowhere");
 	});
 

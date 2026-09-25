@@ -54,7 +54,6 @@ program.hook("preAction", (thisCommand) => {
 	if (apiKey) applyApiKeyFlag(apiKey);
 	if (apiUrl) {
 		process.env.SECONDLAYER_API_URL = apiUrl;
-		process.env.SL_API_URL = apiUrl;
 	}
 });
 

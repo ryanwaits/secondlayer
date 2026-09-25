@@ -197,7 +197,7 @@ function applyEnvOverrides(config: Config): Config {
 		}
 	}
 
-	// Note: INSTANCE_TOKEN + SL_API_URL are read by `resolve-auth.ts`
+	// Note: INSTANCE_TOKEN + SECONDLAYER_API_URL are read by `resolve-auth.ts`
 	// (CI/OSS bypass). Not stored in config — env-only.
 
 	// SL_DATA_DIR

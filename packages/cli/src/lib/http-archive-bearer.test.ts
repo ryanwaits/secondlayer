@@ -19,6 +19,14 @@ describe("resolveArchiveOpsBearer", () => {
 		process.env.HOME = `/tmp/sl-archive-bearer-${process.pid}`;
 	});
 
+	test("SL_API_KEY / SL_ARCHIVE_API_KEY alone are ignored", async () => {
+		process.env.SL_API_KEY = "sk-sl_legacy";
+		process.env.SL_ARCHIVE_API_KEY = "sk-sl_legacy_archive";
+		const result = await resolveArchiveOpsBearer();
+		expect(result.bearer).toBeUndefined();
+		expect(result.source).toBeNull();
+	});
+
 	afterEach(() => {
 		for (const [key, value] of Object.entries(originals)) {
 			if (value === undefined) delete process.env[key];

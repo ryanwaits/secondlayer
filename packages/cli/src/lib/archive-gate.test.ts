@@ -154,7 +154,7 @@ describe("quoteArchiveFetch", () => {
 		});
 		const saved = {
 			SL_CREDITS_API_URL: process.env.SL_CREDITS_API_URL,
-			SL_API_KEY: process.env.SL_API_KEY,
+			SECONDLAYER_API_KEY: process.env.SECONDLAYER_API_KEY,
 			INSTANCE_TOKEN: process.env.INSTANCE_TOKEN,
 			HOME: process.env.HOME,
 		};
@@ -162,7 +162,7 @@ describe("quoteArchiveFetch", () => {
 		const home = await mkdtemp(join(tmpdir(), "sl-archive-gate-"));
 		process.env.HOME = home;
 		process.env.SL_CREDITS_API_URL = `http://127.0.0.1:${server.port}`;
-		process.env.SL_API_KEY = "sk-sl_stale";
+		process.env.SECONDLAYER_API_KEY = "sk-sl_stale";
 		Reflect.deleteProperty(process.env, "INSTANCE_TOKEN");
 		try {
 			const result = await quoteArchiveFetch(["a"], "bootstrap");

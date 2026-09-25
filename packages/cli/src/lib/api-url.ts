@@ -8,13 +8,12 @@ export const ARCHIVE_OPS_API_URL = "https://api.secondlayer.tools";
 
 /**
  * Resolve the API endpoint. Independent of the credential: setting only
- * SECONDLAYER_API_URL (or the one-release SL_API_URL fallback) redirects the
- * endpoint while keeping the session token. Default is the local one-box API.
+ * SECONDLAYER_API_URL redirects the endpoint while keeping the session
+ * token. Default is the local one-box API.
  */
 export function resolveApiUrl(): string {
 	return (
 		process.env.SECONDLAYER_API_URL ??
-		process.env.SL_API_URL ??
 		process.env.SL_PLATFORM_API_URL ??
 		LOCAL_API_URL
 	).replace(/\/+$/, "");

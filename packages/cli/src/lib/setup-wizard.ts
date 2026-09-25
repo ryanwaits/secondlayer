@@ -328,9 +328,7 @@ export function resolveSecrets(config: {
 			SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY:
 				existing.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY,
 			SECONDLAYER_API_URL: existing.SECONDLAYER_API_URL,
-			SL_API_URL: existing.SL_API_URL,
 			SECONDLAYER_API_KEY: existing.SECONDLAYER_API_KEY,
-			SL_API_KEY: existing.SL_API_KEY,
 			ARCHIVE_SIGNING_PUBLIC_KEY: existing.ARCHIVE_SIGNING_PUBLIC_KEY,
 		},
 		apiUrl: `http://${normalizeLoopbackHost(config.apiPort)}`,
@@ -458,13 +456,11 @@ function renderSetupEnv(
 		`SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY=${escapeEnvValue(i.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY)}`,
 		`ALLOW_UNSIGNED_WEBHOOKS=${i.ALLOW_UNSIGNED_WEBHOOKS}`,
 		`SECONDLAYER_API_URL=${i.SECONDLAYER_API_URL}`,
-		`SL_API_URL=${i.SL_API_URL}`,
 	];
 	if (i.SECONDLAYER_API_KEY) {
 		lines.push(
 			"# Hosted account key for archive credits (sk-sl_*).",
 			`SECONDLAYER_API_KEY=${i.SECONDLAYER_API_KEY}`,
-			`SL_API_KEY=${i.SL_API_KEY ?? i.SECONDLAYER_API_KEY}`,
 		);
 	}
 	lines.push(
@@ -674,7 +670,7 @@ function cliEntry(): string[] {
 const CHILD_ENV_KEYS = [
 	"DATABASE_URL",
 	"ARCHIVE_SIGNING_PUBLIC_KEY",
-	"SL_API_URL",
+	"SECONDLAYER_API_URL",
 	"INSTANCE_TOKEN",
 ] as const;
 

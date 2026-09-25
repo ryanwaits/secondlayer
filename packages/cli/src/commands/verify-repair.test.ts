@@ -380,7 +380,7 @@ describe("archive reference trust boundary", () => {
 			{
 				env: {
 					...process.env,
-					SL_API_URL: "http://127.0.0.1:1",
+					SECONDLAYER_API_URL: "http://127.0.0.1:1",
 					DATABASE_URL: "",
 				},
 				stdout: "pipe",
@@ -785,7 +785,11 @@ function runRepair(args: string[], publicPem: string) {
 		],
 		{
 			encoding: "utf8",
-			env: { ...process.env, NO_COLOR: "1", SL_API_URL: "http://127.0.0.1:1" },
+			env: {
+				...process.env,
+				NO_COLOR: "1",
+				SECONDLAYER_API_URL: "http://127.0.0.1:1",
+			},
 		},
 	);
 }

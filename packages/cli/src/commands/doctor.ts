@@ -66,7 +66,7 @@ async function runInstanceDoctor(jsonOutput?: boolean): Promise<void> {
 					detail: unreachableError ?? undefined,
 					nextSteps: [
 						"Start the instance from docker/oss: docker compose up -d",
-						`If it runs elsewhere, point the CLI at it: SL_API_URL=<url> (currently ${apiUrl})`,
+						`If it runs elsewhere, point the CLI at it: SECONDLAYER_API_URL=<url> (currently ${apiUrl})`,
 					],
 				},
 			];

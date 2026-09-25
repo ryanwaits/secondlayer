@@ -20,7 +20,7 @@ describe("subgraphs create", () => {
 				],
 				{
 					cwd: dir,
-					env: { ...process.env, SL_API_URL: "http://127.0.0.1:1" },
+					env: { ...process.env, SECONDLAYER_API_URL: "http://127.0.0.1:1" },
 					stdin: "ignore",
 					stdout: "pipe",
 					stderr: "pipe",

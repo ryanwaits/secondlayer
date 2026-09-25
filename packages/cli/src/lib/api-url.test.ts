@@ -66,6 +66,11 @@ describe("isMerchantUrl / assertInstanceUrl / resolveApiUrl", () => {
 		expect(isMerchantUrl()).toBe(false);
 	});
 
+	test("SL_API_URL alone is ignored", () => {
+		process.env.SL_API_URL = "https://api.secondlayer.tools";
+		expect(resolveApiUrl()).toBe(LOCAL_API_URL);
+	});
+
 	test("assertInstanceUrl throws only when resolveApiUrl is merchant", () => {
 		process.env.SECONDLAYER_API_URL = "https://api.secondlayer.tools";
 		expect(() => assertInstanceUrl()).toThrow(/unset SECONDLAYER_API_URL/);

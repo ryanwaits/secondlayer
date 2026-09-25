@@ -135,7 +135,7 @@ function runBootstrap(args: string[], publicPem: string) {
 			env: {
 				...process.env,
 				NO_COLOR: "1",
-				SL_API_URL: "http://127.0.0.1:1",
+				SECONDLAYER_API_URL: "http://127.0.0.1:1",
 				STACKS_NODE_RPC_URL: "http://127.0.0.1:1",
 			},
 		},

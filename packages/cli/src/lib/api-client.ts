@@ -110,7 +110,7 @@ export async function assertOk(res: Response): Promise<void> {
 }
 
 /**
- * SDK client targeting the platform API. Honors SL_API_URL / INSTANCE_TOKEN for
+ * SDK client targeting the platform API. Honors SECONDLAYER_API_URL / INSTANCE_TOKEN for
  * CI/OSS; otherwise uses the active session token.
  */
 async function getPlatformClient(): Promise<SecondLayer> {

@@ -28,18 +28,18 @@ function buildProgram(): Command {
 	program.hook("preAction", (thisCommand) => {
 		const { network, apiUrl } = thisCommand.opts();
 		if (network) process.env.STACKS_NETWORK = network;
-		if (apiUrl) process.env.SL_API_URL = apiUrl;
+		if (apiUrl) process.env.SECONDLAYER_API_URL = apiUrl;
 	});
 	return program;
 }
 
 const originalNetwork = process.env.STACKS_NETWORK;
-const originalApiUrl = process.env.SL_API_URL;
+const originalApiUrl = process.env.SECONDLAYER_API_URL;
 afterEach(() => {
 	if (originalNetwork === undefined) delete process.env.STACKS_NETWORK;
 	else process.env.STACKS_NETWORK = originalNetwork;
-	if (originalApiUrl === undefined) delete process.env.SL_API_URL;
-	else process.env.SL_API_URL = originalApiUrl;
+	if (originalApiUrl === undefined) delete process.env.SECONDLAYER_API_URL;
+	else process.env.SECONDLAYER_API_URL = originalApiUrl;
 });
 
 const CLI_ENTRY = join(import.meta.dir, "../cli.ts");
@@ -68,7 +68,7 @@ describe("global --network reaches `init`, positioned after the subcommand", () 
 		}
 	});
 
-	test("secondlayer init --api-url writes that URL as SL_API_URL instead of the loopback default", async () => {
+	test("secondlayer init --api-url writes that URL as SECONDLAYER_API_URL instead of the loopback default", async () => {
 		const dir = mkdtempSync(join(tmpdir(), "sl-init-api-url-"));
 		const cwd = process.cwd();
 		process.chdir(dir);
@@ -83,8 +83,9 @@ describe("global --network reaches `init`, positioned after the subcommand", () 
 				"http://10.0.0.7:3800",
 			]);
 			const body = readFileSync(join(dir, ".env.local"), "utf8");
-			expect(body).toContain("SL_API_URL=http://10.0.0.7:3800");
-			expect(body).not.toContain("SL_API_URL=http://127.0.0.1:3800");
+			expect(body).toContain("SECONDLAYER_API_URL=http://10.0.0.7:3800");
+			expect(body).not.toContain("SECONDLAYER_API_URL=http://127.0.0.1:3800");
+			expect(body).not.toContain("SL_API_URL=");
 		} finally {
 			process.chdir(cwd);
 			rmSync(dir, { recursive: true, force: true });

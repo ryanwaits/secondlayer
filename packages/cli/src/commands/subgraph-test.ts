@@ -180,7 +180,7 @@ export function indexReadFailure(
 	}
 
 	if (status === 401 || status === 403) {
-		// The credential and endpoint come from INSTANCE_TOKEN / SL_API_URL for
+		// The credential and endpoint come from INSTANCE_TOKEN / SECONDLAYER_API_URL for
 		// this read exactly as they do for `subgraphs deploy`, so say which one
 		// is missing rather than asserting the key is bad.
 		const credential = resolveApiKey()
@@ -188,14 +188,14 @@ export function indexReadFailure(
 			: "no INSTANCE_TOKEN is set in this shell";
 		return {
 			message: `Index read rejected (HTTP ${status}) while ${where}.`,
-			hint: `${credential}. This read uses the same SL_API_URL + INSTANCE_TOKEN pair as \`secondlayer subgraphs deploy\` — confirm both point at the instance you deployed to (\`secondlayer status\`), then retry. ${offlineHint}`,
+			hint: `${credential}. This read uses the same SECONDLAYER_API_URL + INSTANCE_TOKEN pair as \`secondlayer subgraphs deploy\` — confirm both point at the instance you deployed to (\`secondlayer status\`), then retry. ${offlineHint}`,
 		};
 	}
 
 	if (status === 404) {
 		return {
 			message: `Index read returned 404 while ${where}.`,
-			hint: `${ctx.apiUrl} answered but serves no /v1/index/events — check SL_API_URL points at a Secondlayer instance, not a Stacks node.`,
+			hint: `${ctx.apiUrl} answered but serves no /v1/index/events — check SECONDLAYER_API_URL points at a Secondlayer instance, not a Stacks node.`,
 		};
 	}
 

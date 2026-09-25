@@ -51,7 +51,7 @@ function dumpsClient(
 
 /**
  * Where a manifest entry lands on disk. The manifest is signed, but the key
- * that signs it comes from whatever `SL_API_URL` names, so a path in it is
+ * that signs it comes from whatever `SECONDLAYER_API_URL` names, so a path in it is
  * still input: absolute paths, `..` segments, and anything that resolves
  * outside `to` are refused before a byte is written.
  */

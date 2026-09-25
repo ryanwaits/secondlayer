@@ -10,7 +10,7 @@ export { resolveArchiveOpsUrl } from "./api-url.ts";
  *
  * `httpPlatform` resolves auth via `resolveAuth` (env API key or stored session
  * token) and targets `resolveAuth().apiUrl`, so global `--api-key`/`--api-url`
- * and `INSTANCE_TOKEN`/`SL_API_URL` apply uniformly. With a session token the
+ * and `INSTANCE_TOKEN`/`SECONDLAYER_API_URL` apply uniformly. With a session token the
  * server auto-extends the 90d expiry on every request (sliding window in
  * packages/api/src/auth/middleware.ts), so no refresh logic lives here.
  *
@@ -124,7 +124,7 @@ export async function httpAt<T>(
 }
 
 /**
- * Platform API request without auth. Honors SL_API_URL / SL_PLATFORM_API_URL.
+ * Platform API request without auth. Honors SECONDLAYER_API_URL / SL_PLATFORM_API_URL.
  */
 export async function httpPlatformAnon<T>(
 	path: string,

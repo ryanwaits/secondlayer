@@ -12,14 +12,14 @@ secondlayer --version
 
 ## Auth
 
-Default API is `http://127.0.0.1:3800`. Override with `SL_API_URL`.
+Default API is `http://127.0.0.1:3800`. Override with `SECONDLAYER_API_URL`.
 
 Writes against a published bind use `INSTANCE_TOKEN` from `secondlayer init`.
 Loopback reads need no token. Hosted API and archive credits use
 `SECONDLAYER_API_KEY` (`sk-sl_*`).
 
 ```bash
-export SL_API_URL=http://127.0.0.1:3800
+export SECONDLAYER_API_URL=http://127.0.0.1:3800
 export INSTANCE_TOKEN=<from secondlayer init>
 ```
 
@@ -190,9 +190,9 @@ operates on both kinds.
 | Var | Purpose |
 |---|---|
 | `INSTANCE_TOKEN` | From `secondlayer init` for writes. Loopback reads need no token |
-| `SECONDLAYER_API_KEY` | Hosted account key (`sk-sl_*`). `SL_API_KEY` is a one-release hosted fallback |
-| `SL_API_URL` | Instance API. Default `http://127.0.0.1:3800` |
-| `SL_PLATFORM_API_URL` | Alias of `SL_API_URL` |
+| `SECONDLAYER_API_KEY` | Hosted account key (`sk-sl_*`) |
+| `SECONDLAYER_API_URL` | Instance API. Default `http://127.0.0.1:3800` |
+| `SL_PLATFORM_API_URL` | Alias of `SECONDLAYER_API_URL` |
 | `STACKS_NETWORK` | Default network (also via `--network <mainnet\|testnet\|devnet>`) |
 | `DATABASE_URL` | Postgres that `bootstrap`, `verify`, `repair`, and `backup` connect to. `secondlayer setup` writes it into `.env` pointing at the compose Postgres; unset, the shared dev URL `postgres://postgres:postgres@localhost:5432/secondlayer_dev` is used |
 | `HIRO_API_KEY` | Used by `secondlayer codegen contracts` for remote contract fetches |
