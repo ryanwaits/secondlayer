@@ -249,6 +249,9 @@ export function buildDoctorReport(input: {
 		: null;
 
 	const hints: string[] = [];
+	if (input.webhook.warning) {
+		hints.push(input.webhook.warning);
+	}
 	if (input.webhook.status === "paused") {
 		hints.push(
 			`Resume when the receiver is healthy: secondlayer webhooks resume ${input.webhook.id}`,

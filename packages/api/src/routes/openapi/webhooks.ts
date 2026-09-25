@@ -89,6 +89,7 @@ const EXAMPLE_DETAIL = {
 	concurrency: 4,
 	circuitFailures: 0,
 	lastError: null,
+	warning: null,
 };
 
 const EXAMPLE_DEAD = {
@@ -251,6 +252,11 @@ const DETAIL_PROPERTIES = {
 	lastError: {
 		type: ["string", "null"],
 		description: "Error from the last failed delivery.",
+	},
+	warning: {
+		type: ["string", "null"],
+		description:
+			"Set on a `kind=\"chain\"` webhook when this instance's chain-trigger evaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the webhook will never fire until that's fixed. `null` otherwise.",
 	},
 };
 

@@ -781,6 +781,13 @@ export interface WebhookDetail extends WebhookSummary {
 	circuitFailures: number;
 	circuitOpenedAt: string | null;
 	lastError: string | null;
+	/** Set on a `kind="chain"` webhook when this instance's chain-trigger
+	 *  evaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the
+	 *  webhook will never fire until that's fixed. Null otherwise. Surfaced
+	 *  on create (so it's seen immediately) and on every read (so `secondlayer
+	 *  webhooks doctor` reports it for a webhook created before the mismatch,
+	 *  or on an instance whose config changed since). */
+	warning: string | null;
 }
 
 export interface CreateWebhookResponse {

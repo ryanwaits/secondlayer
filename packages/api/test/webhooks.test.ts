@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import { registerSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
+import { __setReplayInFlightForTest } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
 import webhooksRouter from "../src/routes/webhooks.ts";
 
@@ -199,6 +200,78 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		expect(await res.json()).toMatchObject({
 			error: "replay range exceeds 100k blocks",
 		});
+	});
+
+	test("create warns on a chain webhook when the chain-trigger evaluator isn't running", async () => {
+		const originalSubgraphSource = process.env.SUBGRAPH_SOURCE;
+		Reflect.deleteProperty(process.env, "SUBGRAPH_SOURCE");
+		try {
+			const res = await app.request("/webhooks", {
+				method: "POST",
+				body: JSON.stringify({
+					name: "chain-evaluator-idle",
+					triggers: [{ type: "contract_call" }],
+					url: "https://example.com/webhook",
+				}),
+			});
+			expect(res.status).toBe(201);
+			const body = (await res.json()) as {
+				webhook: { warning: string | null };
+			};
+			expect(body.webhook.warning).toContain(
+				"chain-trigger evaluator is not running",
+			);
+		} finally {
+			if (originalSubgraphSource === undefined) {
+				Reflect.deleteProperty(process.env, "SUBGRAPH_SOURCE");
+			} else {
+				process.env.SUBGRAPH_SOURCE = originalSubgraphSource;
+			}
+		}
+	});
+
+	test("create does not warn on a subgraph webhook regardless of SUBGRAPH_SOURCE", async () => {
+		const created = await app.request("/webhooks", {
+			method: "POST",
+			body: JSON.stringify({
+				name: "no-warning-subgraph-webhook",
+				subgraphName: SUBGRAPH_NAME,
+				tableName: "transfers",
+				url: "https://example.com/webhook",
+			}),
+		});
+		expect(created.status).toBe(201);
+		const body = (await created.json()) as {
+			webhook: { warning: string | null };
+		};
+		expect(body.webhook.warning).toBeNull();
+	});
+
+	test("replay returns 409 when a replay is already in progress for the webhook", async () => {
+		const created = await app.request("/webhooks", {
+			method: "POST",
+			body: JSON.stringify({
+				name: "replay-concurrency",
+				subgraphName: SUBGRAPH_NAME,
+				tableName: "transfers",
+				url: "https://example.com/webhook",
+			}),
+		});
+		const body = (await created.json()) as { webhook: { id: string } };
+
+		__setReplayInFlightForTest(body.webhook.id, true);
+		try {
+			const res = await app.request(`/webhooks/${body.webhook.id}/replay`, {
+				method: "POST",
+				body: JSON.stringify({ fromBlock: 0, toBlock: 10 }),
+			});
+			expect(res.status).toBe(409);
+			expect(await res.json()).toMatchObject({
+				error: "replay already in progress for this webhook",
+			});
+		} finally {
+			__setReplayInFlightForTest(body.webhook.id, false);
+		}
 	});
 
 	// f052: replay against a webhook whose schema-declared table has no

@@ -38,6 +38,7 @@ const baseDetail: WebhookDetail = {
 	circuitFailures: 0,
 	circuitOpenedAt: null,
 	lastError: null,
+	warning: null,
 };
 
 const delivery = (statusCode: number | null): DeliveryRow => ({
@@ -174,6 +175,43 @@ describe("webhooks command helpers", () => {
 		expect(report.hints.join("\n")).toContain("Resume");
 		expect(report.hints.join("\n")).toContain("Dead-letter rows");
 		expect(report.hints.join("\n")).toContain("gaps");
+	});
+
+	it("surfaces a chain webhook's evaluator-idle warning as the first doctor hint", () => {
+		const report = buildDoctorReport({
+			webhook: {
+				...baseDetail,
+				kind: "chain",
+				subgraphName: null,
+				tableName: null,
+				triggers: [{ type: "contract_call" }],
+				warning:
+					"This instance's chain-trigger evaluator is not running (SUBGRAPH_SOURCE != \"streams-index\") — this chain webhook will never fire until that's set.",
+			},
+			deliveries: [],
+			dead: [],
+			subgraph: null,
+		});
+
+		expect(report.hints[0]).toContain("chain-trigger evaluator is not running");
+	});
+
+	it("reports no evaluator-idle warning for a healthy chain webhook", () => {
+		const report = buildDoctorReport({
+			webhook: {
+				...baseDetail,
+				kind: "chain",
+				subgraphName: null,
+				tableName: null,
+				triggers: [{ type: "contract_call" }],
+				warning: null,
+			},
+			deliveries: [delivery(200)],
+			dead: [],
+			subgraph: null,
+		});
+
+		expect(report.hints.join("\n")).not.toContain("chain-trigger evaluator");
 	});
 
 	it("builds signed Standard Webhooks test fixtures", () => {

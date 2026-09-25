@@ -6499,7 +6499,8 @@
 					"timeoutMs",
 					"concurrency",
 					"circuitFailures",
-					"lastError"
+					"lastError",
+					"warning"
 				],
 				"properties": {
 					"id": {
@@ -6652,6 +6653,13 @@
 							"null"
 						],
 						"description": "Error from the last failed delivery."
+					},
+					"warning": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Set on a `kind=\"chain\"` webhook when this instance's chain-trigger evaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the webhook will never fire until that's fixed. `null` otherwise."
 					}
 				},
 				"example": {
@@ -6686,7 +6694,8 @@
 					"timeoutMs": 10000,
 					"concurrency": 4,
 					"circuitFailures": 0,
-					"lastError": null
+					"lastError": null,
+					"warning": null
 				}
 			},
 			"WebhookWithSecret": {
@@ -6739,7 +6748,8 @@
 						"timeoutMs": 10000,
 						"concurrency": 4,
 						"circuitFailures": 0,
-						"lastError": null
+						"lastError": null,
+						"warning": null
 					},
 					"signingSecret": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 				}

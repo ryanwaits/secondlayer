@@ -34,6 +34,62 @@ import {
 
 const BATCH_SIZE = 500;
 
+/** Default cap on blocks per replay call — overridable via
+ *  `WEBHOOK_REPLAY_MAX_BLOCKS` for an operator who wants a tighter (or, for a
+ *  trusted self-host, looser) limit. Read live, not baked in at import. */
+const WEBHOOK_REPLAY_MAX_BLOCKS_DEFAULT = 100_000;
+
+function webhookReplayMaxBlocks(): number {
+	const raw = process.env.WEBHOOK_REPLAY_MAX_BLOCKS;
+	if (raw === undefined) return WEBHOOK_REPLAY_MAX_BLOCKS_DEFAULT;
+	const parsed = Number.parseInt(raw, 10);
+	return Number.isFinite(parsed) && parsed > 0
+		? parsed
+		: WEBHOOK_REPLAY_MAX_BLOCKS_DEFAULT;
+}
+
+/** Renders a block count the way the original hardcoded message did
+ *  ("100k blocks") for round thousands, falling back to the raw number for a
+ *  ceiling that isn't a clean multiple of 1000. */
+function formatBlockCount(n: number): string {
+	return n % 1000 === 0 ? `${n / 1000}k` : `${n}`;
+}
+
+/**
+ * One in-flight replay per webhook at a time. Replay is a synchronous scan
+ * (the route awaits it fully before responding), so two concurrent requests
+ * for the same webhook would otherwise interleave their scans against the
+ * same dedup keyspace. In-memory per-process — replay already isn't
+ * horizontally coordinated (see `BATCH_SIZE` keyset pagination above), so
+ * this matches its existing single-process assumption.
+ */
+const inFlightReplays = new Set<string>();
+
+/** Thrown by {@link replayWebhook} when a replay is already running for the
+ *  webhook. The route maps this to 409; `force` does not bypass it — a forced
+ *  re-delivery still has to wait for the previous replay to finish. */
+export class ReplayInProgressError extends Error {
+	constructor() {
+		super("replay already in progress for this webhook");
+		this.name = "ReplayInProgressError";
+	}
+}
+
+/**
+ * Test-only seam: directly mark (or clear) a webhook as having an in-flight
+ * replay. Two real concurrent `replayWebhook` calls race the same DB fetch,
+ * so which one wins the guard isn't deterministic in a test; this lets a test
+ * exercise the guard (and the route's 409 mapping) without that race.
+ * Production code never calls this.
+ */
+export function __setReplayInFlightForTest(
+	webhookId: string,
+	inFlight: boolean,
+): void {
+	if (inFlight) inFlightReplays.add(webhookId);
+	else inFlightReplays.delete(webhookId);
+}
+
 function replayDedupKey(
 	subgraphName: string,
 	tableName: string,
@@ -100,95 +156,108 @@ export async function replayWebhook(input: ReplayInput): Promise<ReplayResult> {
 	if (input.fromBlock > input.toBlock) {
 		throw new Error("fromBlock must be <= toBlock");
 	}
-	if (input.toBlock - input.fromBlock > 100_000) {
-		throw new Error("replay range exceeds 100k blocks");
+	const maxBlocks = webhookReplayMaxBlocks();
+	if (input.toBlock - input.fromBlock > maxBlocks) {
+		throw new Error(
+			`replay range exceeds ${formatBlockCount(maxBlocks)} blocks`,
+		);
 	}
 
 	const db = getTargetDb();
 	const sub = await getWebhook(db, input.accountId, input.webhookId);
 	if (!sub) throw new Error("Webhook not found");
 
-	// Chain subs have no processed table — they react to raw chain events. Replay
-	// re-runs the pure matcher over the canonical block range instead of scanning
-	// rows.
-	if (sub.kind === "chain") {
-		return replayChainWebhook(db, sub, input);
+	if (inFlightReplays.has(sub.id)) {
+		throw new ReplayInProgressError();
 	}
+	inFlightReplays.add(sub.id);
+	try {
+		// Chain subs have no processed table — they react to raw chain events.
+		// Replay re-runs the pure matcher over the canonical block range instead
+		// of scanning rows.
+		if (sub.kind === "chain") {
+			return await replayChainWebhook(db, sub, input);
+		}
 
-	const subgraphName = sub.subgraph_name;
-	const tableName = sub.table_name;
-	if (sub.kind !== "subgraph" || !subgraphName || !tableName) {
-		throw new Error("replay is only supported for subgraph or chain webhooks");
+		const subgraphName = sub.subgraph_name;
+		const tableName = sub.table_name;
+		if (sub.kind !== "subgraph" || !subgraphName || !tableName) {
+			throw new Error(
+				"replay is only supported for subgraph or chain webhooks",
+			);
+		}
+
+		const schema = await resolveSchemaName(db, subgraphName);
+		const replayId = deterministicReplayId(
+			sub.id,
+			input.fromBlock,
+			input.toBlock,
+			input.replayIdSuffix,
+		);
+
+		let scanned = 0;
+		let enqueued = 0;
+		// Keyset pagination, not a positional skip-count: `_created_at` is written
+		// as the literal NOW() (one value per transaction, so identical for every
+		// row in a block), which makes (_block_height, _created_at) non-unique.
+		// Paging by skip-count over a non-unique sort lets tied rows reorder
+		// between pages and drop rows silently. `_id` is BIGSERIAL and total.
+		let lastId = 0n;
+
+		while (true) {
+			const { rows } = await sql<
+				Record<string, unknown>
+			>`SELECT * FROM ${sql.raw(`"${schema}"."${tableName}"`)}
+				WHERE _block_height >= ${sql.lit(input.fromBlock)}
+					AND _block_height <= ${sql.lit(input.toBlock)}
+					AND _id > ${sql.lit(lastId)}
+				ORDER BY _id ASC
+				LIMIT ${sql.lit(BATCH_SIZE)}`.execute(db);
+
+			if (rows.length === 0) break;
+			scanned += rows.length;
+
+			const inserts = rows.map((row) => ({
+				webhook_id: sub.id,
+				subgraph_name: subgraphName,
+				table_name: tableName,
+				block_height: Number(row._block_height),
+				tx_id: (row._tx_id as string | undefined) ?? null,
+				row_pk: {
+					blockHeight: Number(row._block_height),
+					txId: row._tx_id ?? "",
+					replayId,
+				},
+				event_type: `${subgraphName}.${tableName}.replay`,
+				payload: row,
+				dedup_key: replayDedupKey(subgraphName, tableName, row, replayId),
+				is_replay: true,
+			}));
+
+			const result = await db
+				.insertInto("webhook_outbox")
+				.values(inserts)
+				.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
+				.executeTakeFirst();
+			enqueued += Number(result.numInsertedOrUpdatedRows ?? 0);
+
+			lastId = BigInt(String(rows[rows.length - 1]?._id));
+			if (rows.length < BATCH_SIZE) break;
+		}
+
+		logger.info("Replay enqueued", {
+			webhook: sub.name,
+			replayId,
+			scanned,
+			enqueued,
+			fromBlock: input.fromBlock,
+			toBlock: input.toBlock,
+		});
+
+		return { replayId, enqueuedCount: enqueued, scannedCount: scanned };
+	} finally {
+		inFlightReplays.delete(sub.id);
 	}
-
-	const schema = await resolveSchemaName(db, subgraphName);
-	const replayId = deterministicReplayId(
-		sub.id,
-		input.fromBlock,
-		input.toBlock,
-		input.replayIdSuffix,
-	);
-
-	let scanned = 0;
-	let enqueued = 0;
-	// Keyset pagination, not a positional skip-count: `_created_at` is written
-	// as the literal NOW() (one value per transaction, so identical for every
-	// row in a block), which makes (_block_height, _created_at) non-unique.
-	// Paging by skip-count over a non-unique sort lets tied rows reorder
-	// between pages and drop rows silently. `_id` is BIGSERIAL and total.
-	let lastId = 0n;
-
-	while (true) {
-		const { rows } = await sql<
-			Record<string, unknown>
-		>`SELECT * FROM ${sql.raw(`"${schema}"."${tableName}"`)}
-			WHERE _block_height >= ${sql.lit(input.fromBlock)}
-				AND _block_height <= ${sql.lit(input.toBlock)}
-				AND _id > ${sql.lit(lastId)}
-			ORDER BY _id ASC
-			LIMIT ${sql.lit(BATCH_SIZE)}`.execute(db);
-
-		if (rows.length === 0) break;
-		scanned += rows.length;
-
-		const inserts = rows.map((row) => ({
-			webhook_id: sub.id,
-			subgraph_name: subgraphName,
-			table_name: tableName,
-			block_height: Number(row._block_height),
-			tx_id: (row._tx_id as string | undefined) ?? null,
-			row_pk: {
-				blockHeight: Number(row._block_height),
-				txId: row._tx_id ?? "",
-				replayId,
-			},
-			event_type: `${subgraphName}.${tableName}.replay`,
-			payload: row,
-			dedup_key: replayDedupKey(subgraphName, tableName, row, replayId),
-			is_replay: true,
-		}));
-
-		const result = await db
-			.insertInto("webhook_outbox")
-			.values(inserts)
-			.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
-			.executeTakeFirst();
-		enqueued += Number(result.numInsertedOrUpdatedRows ?? 0);
-
-		lastId = BigInt(String(rows[rows.length - 1]?._id));
-		if (rows.length < BATCH_SIZE) break;
-	}
-
-	logger.info("Replay enqueued", {
-		webhook: sub.name,
-		replayId,
-		scanned,
-		enqueued,
-		fromBlock: input.fromBlock,
-		toBlock: input.toBlock,
-	});
-
-	return { replayId, enqueuedCount: enqueued, scannedCount: scanned };
 }
 
 const CHAIN_REPLAY_BATCH = 200;

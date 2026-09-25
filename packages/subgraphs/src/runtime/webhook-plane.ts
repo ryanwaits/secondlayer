@@ -1,3 +1,5 @@
+import { getTargetDb } from "@secondlayer/shared/db";
+import { listActiveChainWebhooks } from "@secondlayer/shared/db/queries/webhooks";
 import { logger } from "@secondlayer/shared/logger";
 import { handleChainReorg } from "./chain-reorg.ts";
 import { startEmitter } from "./emitter.ts";
@@ -20,6 +22,22 @@ import {
  */
 export async function startWebhookPlane(): Promise<() => Promise<void>> {
 	const streamsIndex = process.env.SUBGRAPH_SOURCE === "streams-index";
+
+	// The chain-trigger evaluator only runs under streams-index (below). A
+	// `kind="chain"` webhook on any other instance is silently dead — no
+	// error, it just never fires — so warn loudly once at boot instead of
+	// leaving the operator to notice deliveries never showing up. Mirrored
+	// per-webhook in the API's `toDetail` (create/get responses) and in
+	// `secondlayer webhooks doctor`.
+	if (!streamsIndex) {
+		const activeChainWebhooks = await listActiveChainWebhooks(getTargetDb());
+		if (activeChainWebhooks.length > 0) {
+			logger.warn(
+				"Chain webhooks exist but this instance's chain-trigger evaluator is not running — they will never fire. Set SUBGRAPH_SOURCE=streams-index to enable it.",
+				{ chainWebhookCount: activeChainWebhooks.length },
+			);
+		}
+	}
 
 	// Chain-reorg rewind off the public Streams reorg feed (the streams-index path
 	// has no Postgres NOTIFY). Gated on the evaluator leader so the rewind and the

@@ -23,7 +23,10 @@ import {
 	validateWebhookFilterForTable,
 } from "@secondlayer/shared/schemas/webhooks";
 import { deliverTestEvent } from "@secondlayer/subgraphs/runtime/emitter";
-import { replayWebhook } from "@secondlayer/subgraphs/runtime/replay";
+import {
+	ReplayInProgressError,
+	replayWebhook,
+} from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
 import { getTenantScopedAccountId } from "../lib/request-scope.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
@@ -41,15 +44,20 @@ const app = new Hono();
 // "Webhook not found" sentinel is handled separately (-> 404).
 const KNOWN_REPLAY_ERRORS = [
 	"fromBlock must be <= toBlock",
-	"replay range exceeds 100k blocks",
 	"replay is only supported for subgraph or chain webhooks",
 ];
 const SUBGRAPH_NOT_REGISTERED_RE =
 	/^Subgraph ".*" not registered — cannot replay its rows\. Deploy the subgraph first\.$/;
+// "replay range exceeds Nk blocks" (round thousands) or "replay range exceeds
+// N blocks" (a `WEBHOOK_REPLAY_MAX_BLOCKS` override that isn't a clean
+// multiple of 1000) — see `formatBlockCount` in runtime/replay.ts.
+const REPLAY_RANGE_TOO_LARGE_RE = /^replay range exceeds \d+k? blocks$/;
 
 function isKnownReplayError(msg: string): boolean {
 	return (
-		KNOWN_REPLAY_ERRORS.includes(msg) || SUBGRAPH_NOT_REGISTERED_RE.test(msg)
+		KNOWN_REPLAY_ERRORS.includes(msg) ||
+		SUBGRAPH_NOT_REGISTERED_RE.test(msg) ||
+		REPLAY_RANGE_TOO_LARGE_RE.test(msg)
 	);
 }
 
@@ -74,6 +82,20 @@ function toSummary(sub: Webhook) {
 	};
 }
 
+// The chain-trigger evaluator only runs when `SUBGRAPH_SOURCE=streams-index`
+// (see `startWebhookPlane` in @secondlayer/subgraphs/runtime/webhook-plane).
+// A `kind="chain"` webhook on any other instance is silently dead — no error,
+// it just never fires — so surface it everywhere the webhook is read, not
+// just at creation.
+const CHAIN_EVALUATOR_IDLE_WARNING =
+	"This instance's chain-trigger evaluator is not running (SUBGRAPH_SOURCE != \"streams-index\") — this chain webhook will never fire until that's set.";
+
+function chainEvaluatorWarning(sub: Webhook): string | null {
+	if (sub.kind !== "chain") return null;
+	if (process.env.SUBGRAPH_SOURCE === "streams-index") return null;
+	return CHAIN_EVALUATOR_IDLE_WARNING;
+}
+
 function toDetail(sub: Webhook) {
 	return {
 		...toSummary(sub),
@@ -85,6 +107,7 @@ function toDetail(sub: Webhook) {
 		concurrency: sub.concurrency,
 		circuitFailures: sub.circuit_failures,
 		lastError: sub.last_error,
+		warning: chainEvaluatorWarning(sub),
 	};
 }
 
@@ -493,6 +516,9 @@ app.post("/:id/replay", async (c) => {
 		});
 		return c.json(result, 202);
 	} catch (err) {
+		if (err instanceof ReplayInProgressError) {
+			return c.json({ error: err.message }, 409);
+		}
 		const msg = getErrorMessage(err);
 		if (msg === "Webhook not found") {
 			return c.json({ error: msg }, 404);
