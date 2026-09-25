@@ -312,10 +312,9 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "subgraphs query",
 			sdk: [
-				"subgraphs.queryTable",
-				"subgraphs.queryTableCount",
-				"subgraphs.queryTableAggregate",
 				"subgraphs.rows",
+				"subgraphs.count",
+				"subgraphs.aggregate",
 				"subgraphs.typed",
 				"subgraphs.typed.findMany",
 				"subgraphs.typed.count",
@@ -323,10 +322,6 @@ export const capabilities: Capability[] = [
 			],
 			mcp: "subgraphs_query",
 			http: [
-				"GET /api/subgraphs/:subgraphName/:tableName",
-				"GET /api/subgraphs/:subgraphName/:tableName/:id",
-				"GET /api/subgraphs/:subgraphName/:tableName/count",
-				"GET /api/subgraphs/:subgraphName/:tableName/aggregate",
 				"GET /v1/subgraphs/:subgraphName/:tableName",
 				"GET /v1/subgraphs/:subgraphName/:tableName/:id",
 				"GET /v1/subgraphs/:subgraphName/:tableName/count",
@@ -341,10 +336,7 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: null,
 			sdk: "subgraphs.typed.subscribe",
-			http: [
-				"GET /api/subgraphs/:subgraphName/:tableName/stream",
-				"GET /v1/subgraphs/:subgraphName/:tableName/stream",
-			],
+			http: "GET /v1/subgraphs/:subgraphName/:tableName/stream",
 		},
 		naReason: {
 			mcp: "a tool call cannot hold a stream open; agents poll subgraphs_query",
