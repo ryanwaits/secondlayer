@@ -35,7 +35,7 @@
 	"dependencies": {
 		"@biomejs/js-api": "^0.7.0",
 		"@biomejs/wasm-nodejs": "^1.9.0",
-		"@dsnp/parquetjs": "^1.8.8",
+		"@dsnp/parquetjs": "~1.8.8",
 		"@inquirer/prompts": "^8.2.0",
 		"@opentui/core": "^0.5.3",
 		"@opentui/react": "^0.5.3",

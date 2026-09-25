@@ -115,7 +115,7 @@
       "dependencies": {
         "@biomejs/js-api": "^0.7.0",
         "@biomejs/wasm-nodejs": "^1.9.0",
-        "@dsnp/parquetjs": "^1.8.8",
+        "@dsnp/parquetjs": "~1.8.8",
         "@inquirer/prompts": "^8.2.0",
         "@opentui/core": "^0.5.3",
         "@opentui/react": "^0.5.3",
@@ -154,7 +154,7 @@
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@aws-sdk/lib-storage": "^3.1108.0",
-        "@dsnp/parquetjs": "^1.8.8",
+        "@dsnp/parquetjs": "~1.8.8",
         "@secondlayer/sdk": "^11.0.0",
         "@secondlayer/shared": "^11.7.0",
         "@secondlayer/stacks": "^6.1.0",
