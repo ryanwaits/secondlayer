@@ -3104,10 +3104,55 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	margin-right: 6px;
 	vertical-align: 0;
 }
-.wh-chart svg {
-	display: block;
-	width: 100%;
-	height: 120px;
+.wh-chart-ends {
+	display: flex;
+	justify-content: space-between;
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	color: var(--text-muted);
+}
+
+.wh-chart-tip {
+	padding: 8px 10px;
+	border-radius: 8px;
+	font-size: 12px;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.wh-chart-tip-label {
+	margin-bottom: 5px;
+	padding-bottom: 4px;
+	border-bottom: 1px solid var(--border);
+	font-weight: 500;
+	color: var(--text-muted);
+}
+.wh-chart-tip-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+.wh-chart-tip-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+.wh-chart-tip-k {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--text-muted);
+}
+.wh-chart-tip-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 999px;
+}
+.wh-chart-tip-v {
+	font-family: var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	font-weight: 500;
 }
 
 .wh-tabs {
@@ -3189,6 +3234,57 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 .wh-danger p strong {
 	color: var(--text-main);
 	font-weight: 500;
+}
+
+/* Sonner toasts (account area action feedback), unstyled + themed with our
+   own tokens rather than Sonner's defaults. */
+.wh-toast {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	width: min(360px, calc(100vw - 32px));
+	padding: 12px 14px;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	background: var(--bg-elevated);
+	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+	font-size: 13px;
+	color: var(--text-main);
+}
+.wh-toast-title {
+	font-weight: 500;
+}
+.wh-toast-desc {
+	color: var(--text-muted);
+	font-size: 12.5px;
+}
+.wh-toast-error {
+	border-color: color-mix(in srgb, var(--red) 35%, var(--border));
+}
+.wh-toast-error .wh-toast-title {
+	color: var(--red);
+}
+.wh-toast-success .wh-toast-title {
+	color: var(--green);
+}
+.wh-toast-action {
+	margin-top: 6px;
+	align-self: flex-start;
+	border-radius: 6px;
+	border: 1px solid var(--border);
+	background: var(--bg);
+	color: var(--text-main);
+	padding: 4px 10px;
+	font-size: 12px;
+	cursor: pointer;
+}
+.wh-toast-cancel {
+	background: none;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	font-size: 12px;
+	padding: 0;
 }
 @media (max-width: 760px) {
 	.acct-page {

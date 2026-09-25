@@ -15,6 +15,8 @@ import {
 	rotateSecret,
 	testWebhook,
 } from "@/lib/webhooks-data";
+import type { WebhooksResult } from "@/lib/webhooks-data";
+import NumberFlow from "@number-flow/react";
 import type {
 	DeadRow,
 	DeliveryRow,
@@ -24,9 +26,26 @@ import type {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { AttemptsChart, medianOkDurationMs } from "./chart";
 import { DiagnosisPanel } from "./diagnosis";
 import { CliLine, FiresOn, StatusPill } from "./shared";
+
+/** A one-line, user-facing reason for anything short of `{ kind: "ok" }` —
+ *  shared by every action's error path and its matching toast, so the two
+ *  never say different things. */
+function describeFailure(
+	res: Exclude<WebhooksResult<unknown>, { kind: "ok" }>,
+): string {
+	if (res.kind === "rate_limited") {
+		return `Too many requests — try again in ${res.retryAfter}s.`;
+	}
+	if (res.kind === "starting")
+		return "Your delivery service is still starting.";
+	if (res.kind === "no_credits") return "Add credits to do that.";
+	if (res.kind === "not_found") return "That webhook wasn't found.";
+	return res.message;
+}
 
 const FORMAT_LABEL: Record<WebhookFormat, string> = {
 	"standard-webhooks": "Standard Webhooks, signed with your secret",
@@ -209,54 +228,34 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		setTestBusy(false);
 		if (res.kind === "ok") {
 			const r = res.data;
-			setTestResult({
-				ok: r.ok,
-				text: r.ok
-					? `Test delivered: ${r.statusCode ?? "?"} in ${r.durationMs} ms.`
-					: `Test failed: ${r.error ?? "no response"}.`,
-			});
+			const text = r.ok
+				? `Test delivered: ${r.statusCode ?? "?"} in ${r.durationMs} ms.`
+				: `Test failed: ${r.error ?? "no response"}.`;
+			setTestResult({ ok: r.ok, text });
+			if (r.ok) toast.success("Test event delivered", { description: text });
+			else toast.error("Test event failed", { description: text });
 			reload();
 			return;
 		}
-		if (res.kind === "no_credits") {
-			setTestResult({ ok: false, text: "Add credits to send a test event." });
-			return;
-		}
-		if (res.kind === "starting") {
-			setTestResult({
-				ok: false,
-				text: "Your delivery service is still starting.",
-			});
-			return;
-		}
-		if (res.kind === "rate_limited") {
-			setTestResult({
-				ok: false,
-				text: "Too many test events right now — try again shortly.",
-			});
-			return;
-		}
-		setTestResult({
-			ok: false,
-			text: res.kind === "error" ? res.message : "Couldn't send a test event.",
-		});
+		const text = describeFailure(res);
+		setTestResult({ ok: false, text });
+		toast.error("Couldn't send a test event", { description: text });
 	}
 
 	async function onTogglePause() {
+		const willResume = webhook?.status === "paused";
 		setPauseBusy(true);
 		setActionError(null);
-		const res =
-			webhook?.status === "paused"
-				? await resumeWebhook(id)
-				: await pauseWebhook(id);
+		const res = willResume ? await resumeWebhook(id) : await pauseWebhook(id);
 		setPauseBusy(false);
 		if (res.kind === "ok") {
+			toast.success(willResume ? "Webhook resumed" : "Webhook paused");
 			reload();
 			return;
 		}
-		setActionError(
-			res.kind === "error" ? res.message : "Couldn't change this webhook.",
-		);
+		const text = describeFailure(res);
+		setActionError(text);
+		toast.error("Couldn't change this webhook", { description: text });
 	}
 
 	async function onRotateConfirm() {
@@ -267,12 +266,15 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		if (res.kind === "ok") {
 			setNewSecret(res.data.signingSecret);
 			setRotating("revealed");
+			toast.success("Signing secret rotated", {
+				description: "The old secret stopped working immediately.",
+			});
 			reload();
 			return;
 		}
-		setActionError(
-			res.kind === "error" ? res.message : "Couldn't rotate the secret.",
-		);
+		const text = describeFailure(res);
+		setActionError(text);
+		toast.error("Couldn't rotate the secret", { description: text });
 		setRotating("idle");
 	}
 
@@ -286,19 +288,25 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		const res = await deleteWebhook(id);
 		setDeleteBusy(false);
 		if (res.kind === "ok") {
+			toast.success("Webhook deleted");
 			router.push("/account/webhooks");
 			return;
 		}
-		setDeleteError(
-			res.kind === "error" ? res.message : "Couldn't delete this webhook.",
-		);
+		const text = describeFailure(res);
+		setDeleteError(text);
+		toast.error("Couldn't delete this webhook", { description: text });
 	}
 
 	async function onResendOne(outboxId: string) {
 		const res = await requeue(id, outboxId);
 		if (res.kind === "ok") {
 			setDead((prev) => prev?.filter((r) => r.id !== outboxId) ?? prev);
+			toast.success("Event resent");
+			return;
 		}
+		toast.error("Couldn't resend that event", {
+			description: describeFailure(res),
+		});
 	}
 
 	async function onResendAll() {
@@ -323,6 +331,13 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			}
 		}
 		setResend(null);
+		if (done > 0) {
+			toast.success(`Resent ${done} of ${total}`, {
+				description: resendStop.current ? "Stopped early." : undefined,
+			});
+		} else if (resendStop.current) {
+			toast("Resend stopped");
+		}
 	}
 
 	const rows = deliveries ?? [];
@@ -378,7 +393,8 @@ export function WebhookDetailSection({ id }: { id: string }) {
 				<div className="wh-chart-top">
 					<span>Last 100 attempts</span>
 					<span className="mono">
-						{okCount} ok · median {median} ms
+						<NumberFlow value={okCount} /> ok · median{" "}
+						<NumberFlow value={median} /> ms
 					</span>
 				</div>
 				<AttemptsChart rows={rows} />
@@ -485,6 +501,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 								onClick={() => {
 									navigator.clipboard.writeText(newSecret).catch(() => {});
 									setCopiedSecret(true);
+									toast.success("Signing secret copied");
 									setTimeout(() => setCopiedSecret(false), 1400);
 								}}
 							>

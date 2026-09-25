@@ -4,6 +4,7 @@ import { clearAccountData } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Toaster } from "sonner";
 
 const TABS = [
 	{ href: "/account/keys", label: "API keys" },
@@ -74,6 +75,21 @@ export default function AccountLayout({
 				</button>
 			</nav>
 			<main className="acct-main">{children}</main>
+			<Toaster
+				position="bottom-right"
+				toastOptions={{
+					unstyled: true,
+					classNames: {
+						toast: "wh-toast",
+						title: "wh-toast-title",
+						description: "wh-toast-desc",
+						actionButton: "wh-toast-action",
+						cancelButton: "wh-toast-cancel",
+						error: "wh-toast-error",
+						success: "wh-toast-success",
+					},
+				}}
+			/>
 		</div>
 	);
 }

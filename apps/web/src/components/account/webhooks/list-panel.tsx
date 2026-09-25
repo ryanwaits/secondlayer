@@ -1,18 +1,14 @@
 "use client";
 
 import { formatUsd, refreshUsage, useAccountData } from "@/lib/account-data";
-import {
-	currentUtcMonth,
-	formatRows,
-	monthLabel,
-	monthParam,
-} from "@/lib/usage";
+import { currentUtcMonth, monthLabel, monthParam } from "@/lib/usage";
 import {
 	type WebhooksResult,
 	formatRelative,
 	hostOf,
 	listWebhooks,
 } from "@/lib/webhooks-data";
+import NumberFlow from "@number-flow/react";
 import type { WebhookSummary } from "@secondlayer/sdk";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -187,7 +183,10 @@ export function WebhooksListSection() {
 							Events delivered in {monthLabel(month)}
 						</span>
 						<span className="acct-stat-v">
-							{formatRows(webhookUsage.quantity)}{" "}
+							<NumberFlow
+								value={Number(webhookUsage.quantity)}
+								format={{ notation: "compact", maximumFractionDigits: 2 }}
+							/>{" "}
 							<small>{formatUsd(webhookUsage.usdMicros)}</small>
 						</span>
 					</div>
@@ -195,7 +194,7 @@ export function WebhooksListSection() {
 				<div className="acct-stat">
 					<span className="acct-stat-k">Delivering</span>
 					<span className="acct-stat-v">
-						{delivering} <small>of {rows.length}</small>
+						<NumberFlow value={delivering} /> <small>of {rows.length}</small>
 					</span>
 				</div>
 				<div className="acct-stat">
@@ -204,7 +203,7 @@ export function WebhooksListSection() {
 						className="acct-stat-v"
 						style={attention > 0 ? { color: "var(--red)" } : undefined}
 					>
-						{attention}
+						<NumberFlow value={attention} />
 					</span>
 				</div>
 			</div>
