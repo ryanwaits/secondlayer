@@ -1,5 +1,17 @@
 # @secondlayer/api
 
+## 1.41.0
+
+### Minor Changes
+
+- 9fdc2be: `POST /internal/keys/introspect` now resolves a dashboard session token (`ss-sl_*`) the same way it resolves an account key (`sk-sl_*`), so the web app's own session can manage hosted webhooks through the workload gateway instead of 401ing. `GET /api/webhooks/:id/deliveries` now includes `blockTime` (ISO timestamp of the delivered event's block, `null` when unavailable) on each delivery.
+
+### Patch Changes
+
+- Updated dependencies [9fdc2be]
+  - @secondlayer/shared@11.9.1
+  - @secondlayer/platform@0.3.2
+
 ## 1.40.2
 
 ### Patch Changes

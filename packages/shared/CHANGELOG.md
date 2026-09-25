@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.9.1
+
+### Patch Changes
+
+- 9fdc2be: `DeliveryRow` (webhook schemas) gains `blockTime: string | null`, matching the API's new `GET /api/webhooks/:id/deliveries` field.
+
 ## 11.9.0
 
 ### Minor Changes

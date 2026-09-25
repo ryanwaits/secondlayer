@@ -2039,7 +2039,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 313
+					"line": 317
 				},
 				{
 					"name": "DeliveryRow",
@@ -2055,7 +2055,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 299
+					"line": 303
 				},
 				{
 					"name": "RotateSecretResponse",
@@ -2175,7 +2175,7 @@
 					"summary": "Result of a one-off test delivery (`POST /:id/test`).",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 306
+					"line": 310
 				}
 			]
 		},
