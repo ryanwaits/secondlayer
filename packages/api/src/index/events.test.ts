@@ -377,6 +377,46 @@ describe("Index /events response", () => {
 		expect(response.tip.block_height).toBe(100);
 	});
 
+	test("a lagging stx_transfer decoder bounds stx_transfer reads to its own committed height, not ft_transfer's", async () => {
+		let seenToHeight: number | undefined;
+		const tip: IndexTip = {
+			block_height: 100, // ft_transfer's committed height — the pre-plan-063 default for every type
+			finalized_height: 90,
+			lag_seconds: 0,
+			decoded_heights: { ft_transfer: 100, stx_transfer: 80 },
+		};
+		const response = await getIndexEventsResponse({
+			query: params("?event_type=stx_transfer"),
+			tip,
+			readEvents: async (p) => {
+				seenToHeight = p.toHeight;
+				return { events: [], next_cursor: null };
+			},
+		});
+		expect(seenToHeight).toBe(80);
+		expect(response.tip.block_height).toBe(80);
+	});
+
+	test("a lagging ft_transfer decoder no longer holds back a stx_transfer read that's actually ahead", async () => {
+		let seenToHeight: number | undefined;
+		const tip: IndexTip = {
+			block_height: 80, // the (buggy) shared default: ft_transfer's own committed height
+			finalized_height: 70,
+			lag_seconds: 0,
+			decoded_heights: { ft_transfer: 80, stx_transfer: 100 },
+		};
+		const response = await getIndexEventsResponse({
+			query: params("?event_type=stx_transfer"),
+			tip,
+			readEvents: async (p) => {
+				seenToHeight = p.toHeight;
+				return { events: [], next_cursor: null };
+			},
+		});
+		expect(seenToHeight).toBe(100);
+		expect(response.tip.block_height).toBe(100);
+	});
+
 	test("cursor past tip short-circuits with the raw cursor echoed back", async () => {
 		const response = await getIndexEventsResponse({
 			query: params(

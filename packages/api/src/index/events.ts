@@ -15,7 +15,7 @@ import {
 	readReorgsForEvents,
 	toIsoOrNull,
 } from "./_shared.ts";
-import type { IndexTip } from "./tip.ts";
+import { type IndexTip, committedHeightForEventTypes } from "./tip.ts";
 import {
 	VM_INDEX_EVENT_CONFIG,
 	VM_INDEX_EVENT_TYPES,
@@ -677,16 +677,29 @@ export function parseIndexEventsQuery(
 	};
 }
 
-/** VM Index reads clamp to the source tip: `vm_events` land with the block. */
+/**
+ * Sharpen the envelope tip to what THIS request's event_type can actually
+ * see: `vm_events` land with the block (source tip, no decoder involved);
+ * a classic decoded type reads only as far as ITS OWN decoder has committed
+ * (`tip.decoded_heights`), not the conservative cross-decoder floor every
+ * other classic type shares by default. Fixes the correctness gap where
+ * `to_height`/pagination for e.g. `stx_transfer` was clamped to whatever a
+ * DIFFERENT decoder (ft_transfer) had committed — silently skipping rows a
+ * lagging stx_transfer decoder hadn't written yet, or, if ft_transfer was
+ * the one lagging, needlessly holding stx_transfer back.
+ */
 export function indexReadTip(
 	tip: IndexTip,
 	eventType: IndexEventType | VmEventType,
 ): IndexTip {
-	if (!isVmIndexEventType(eventType) || tip.source_block_height === undefined) {
-		return tip;
+	if (isVmIndexEventType(eventType)) {
+		if (tip.source_block_height === undefined) return tip;
+		if (tip.source_block_height === tip.block_height) return tip;
+		return { ...tip, block_height: tip.source_block_height };
 	}
-	if (tip.source_block_height === tip.block_height) return tip;
-	return { ...tip, block_height: tip.source_block_height };
+	const committed = committedHeightForEventTypes(tip, [eventType]);
+	if (committed === null || committed === tip.block_height) return tip;
+	return { ...tip, block_height: committed };
 }
 
 /** Universal columns every decoded event carries. */

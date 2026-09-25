@@ -1,10 +1,16 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { getDb } from "@secondlayer/shared/db";
 import {
 	type DecodedTipReader,
 	type IndexSourceTipReader,
+	type IndexTip,
+	committedHeightForEventTypes,
 	createIndexTipProvider,
+	getDecoderCommittedHeights,
 	getIndexLagSeconds,
 } from "./tip.ts";
+
+const HAS_DB = !!process.env.DATABASE_URL;
 
 function sourceTip(height: number, ts: Date): IndexSourceTipReader {
 	return async () => ({
@@ -33,6 +39,29 @@ describe("Index tip provider", () => {
 			finalized_height: 29_994,
 			lag_seconds: 3,
 			source_block_height: 30_000,
+			decoded_heights: {},
+		});
+	});
+
+	test("carries the per-type committed-height map from readDecodedHeights", async () => {
+		const provider = createIndexTipProvider({
+			readSourceTip: sourceTip(30_000, new Date(1000)),
+			readDecodedTip: async () => ({
+				block_height: 29_900,
+				ts: new Date(1000),
+			}),
+			readDecodedHeights: async () => ({
+				ft_transfer: 29_900,
+				stx_transfer: 29_850,
+			}),
+			readFinalizedHeight: async () => 29_994,
+			now: () => 4000,
+		});
+
+		const tip = await provider();
+		expect(tip.decoded_heights).toEqual({
+			ft_transfer: 29_900,
+			stx_transfer: 29_850,
 		});
 	});
 
@@ -87,6 +116,7 @@ describe("Index tip provider", () => {
 			finalized_height: 0,
 			lag_seconds: 0,
 			source_block_height: 0,
+			decoded_heights: {},
 		});
 	});
 
@@ -139,5 +169,97 @@ describe("Index tip provider", () => {
 		expect(calls).toBe(2);
 		expect(first.block_height).toBe(1);
 		expect(second.block_height).toBe(2);
+	});
+});
+
+describe("committedHeightForEventTypes", () => {
+	const tip: IndexTip = {
+		block_height: 100,
+		finalized_height: 90,
+		lag_seconds: 0,
+		decoded_heights: { ft_transfer: 100, stx_transfer: 80, print: 95 },
+	};
+
+	test("returns the single type's own committed height", () => {
+		expect(committedHeightForEventTypes(tip, ["stx_transfer"])).toBe(80);
+	});
+
+	test("returns the MIN across several types, not any single one of them", () => {
+		expect(
+			committedHeightForEventTypes(tip, [
+				"ft_transfer",
+				"stx_transfer",
+				"print",
+			]),
+		).toBe(80);
+	});
+
+	test("null when a requested type has no entry in decoded_heights", () => {
+		expect(committedHeightForEventTypes(tip, ["nft_transfer"])).toBeNull();
+	});
+
+	test("null when the tip carries no decoded_heights map at all", () => {
+		const bare: IndexTip = {
+			block_height: 100,
+			finalized_height: 90,
+			lag_seconds: 0,
+		};
+		expect(committedHeightForEventTypes(bare, ["ft_transfer"])).toBeNull();
+	});
+
+	test("null for an empty type list", () => {
+		expect(committedHeightForEventTypes(tip, [])).toBeNull();
+	});
+});
+
+describe.skipIf(!HAS_DB)("getDecoderCommittedHeights (DB)", () => {
+	const db = HAS_DB ? getDb() : null;
+	const DECODER_NAMES = [
+		"decode.ft_transfer.v1",
+		"decode.nft_transfer.v1",
+		"decode.stx_transfer.v1",
+		"decode.stx_mint.v1",
+		"decode.stx_burn.v1",
+		"decode.stx_lock.v1",
+		"decode.ft_mint.v1",
+		"decode.ft_burn.v1",
+		"decode.nft_mint.v1",
+		"decode.nft_burn.v1",
+		"decode.print.v1",
+	];
+
+	beforeEach(async () => {
+		if (!db) return;
+		await db
+			.deleteFrom("decoder_checkpoints")
+			.where("decoder_name", "in", DECODER_NAMES)
+			.execute();
+	});
+
+	test("computes the committed height per decoder from its checkpoint cursor", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("decoder_checkpoints")
+			.values([
+				// Sentinel event_index: block 100 is fully committed.
+				{
+					decoder_name: "decode.ft_transfer.v1",
+					last_cursor: "100:2147483647",
+				},
+				// Mid-block: only up through 79 is committed.
+				{ decoder_name: "decode.stx_transfer.v1", last_cursor: "80:3" },
+			])
+			.execute();
+
+		const heights = await getDecoderCommittedHeights(db);
+		expect(heights.ft_transfer).toBe(100);
+		expect(heights.stx_transfer).toBe(79);
+	});
+
+	test("a decoder with no checkpoint row reports height 0, not missing", async () => {
+		if (!db) throw new Error("missing db");
+		const heights = await getDecoderCommittedHeights(db);
+		expect(heights.ft_transfer).toBe(0);
+		expect(heights.print).toBe(0);
 	});
 });

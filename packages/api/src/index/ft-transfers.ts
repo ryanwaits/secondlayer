@@ -7,7 +7,7 @@ import {
 	parseIndexBaseQuery,
 	readReorgsForEvents,
 } from "./_shared.ts";
-import { readIndexEvents } from "./events.ts";
+import { indexReadTip, readIndexEvents } from "./events.ts";
 import { parseFields } from "./field-projection.ts";
 import type { IndexTip } from "./tip.ts";
 
@@ -102,7 +102,7 @@ export function parseFtTransfersQuery(
 	tip: IndexTip,
 ): FtTransfersQuery {
 	return {
-		...parseIndexBaseQuery(query, tip),
+		...parseIndexBaseQuery(query, indexReadTip(tip, "ft_transfer")),
 		contractId: parseFilter(
 			query.get("contract_id") ?? undefined,
 			"contract_id",
@@ -154,13 +154,14 @@ export async function getFtTransfersResponse(opts: {
 	readTransfers?: FtTransfersReader;
 	readReorgs?: StreamsReorgsReader;
 }): Promise<FtTransfersResponse> {
+	const tip = indexReadTip(opts.tip, "ft_transfer");
 	const parsed = parseFtTransfersQuery(opts.query, opts.tip);
 
 	if (parsed.cursorPastTip) {
 		return {
 			events: [],
 			next_cursor: parsed.cursorRaw ?? null,
-			tip: opts.tip,
+			tip,
 			reorgs: [],
 		};
 	}
@@ -186,7 +187,7 @@ export async function getFtTransfersResponse(opts: {
 	return {
 		events: result.events,
 		next_cursor: result.next_cursor,
-		tip: opts.tip,
+		tip,
 		reorgs,
 	};
 }

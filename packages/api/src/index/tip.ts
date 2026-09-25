@@ -1,4 +1,4 @@
-import { FT_TRANSFER_DECODER_NAME } from "@secondlayer/indexer/decode/decoder";
+import { DECODER_EVENT_TYPES } from "@secondlayer/indexer/decode/health";
 import {
 	type IndexerStreamsTipBlock,
 	getCurrentCanonicalTip,
@@ -6,6 +6,7 @@ import {
 } from "@secondlayer/indexer/streams-tip";
 import {
 	DEFAULT_BTC_CONFIRMATIONS,
+	committedHeight,
 	finalizedBurnHeight,
 } from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
@@ -29,6 +30,16 @@ export type IndexTip = {
 	 * distinguish the two clocks.
 	 */
 	source_block_height?: number;
+	/**
+	 * Committed height per classic decoded-event type (the always-on
+	 * decode.<type>.v1 family — ft/nft transfer, stx transfer/mint/burn/lock,
+	 * ft/nft mint/burn, print). sbtc/pox4/pox5/bns decoders read separate
+	 * tables and are not in this map. `indexReadTip` (index/events.ts) uses it
+	 * to sharpen `block_height` to the SPECIFIC type a request reads, instead
+	 * of the conservative cross-decoder floor below. Absent on a tip built
+	 * without a `readDecodedHeights` reader (e.g. a hand-built test fixture).
+	 */
+	decoded_heights?: DecodedTypeHeights;
 };
 
 /** Zero tip served when no canonical block exists yet (oss/self-host only). */
@@ -37,6 +48,7 @@ const EMPTY_INDEX_TIP: IndexTip = {
 	finalized_height: 0,
 	lag_seconds: 0,
 	source_block_height: 0,
+	decoded_heights: {},
 };
 
 /**
@@ -62,28 +74,67 @@ export type IndexTipProvider = () => IndexTip | Promise<IndexTip>;
 export type IndexSourceTipReader = () => Promise<IndexerStreamsTipBlock | null>;
 export type DecodedTipReader = () => Promise<DecodedTipBlock | null>;
 
-function cursorBlockHeight(cursor: string | null): number | null {
-	if (!cursor) return null;
-	const [height] = cursor.split(":");
-	if (!height || !/^(0|[1-9]\d*)$/.test(height)) return null;
-	return Number(height);
+/** Committed height per classic decoded event_type — see `IndexTip.decoded_heights`. */
+export type DecodedTypeHeights = Record<string, number>;
+export type DecodedHeightsReader = () => Promise<DecodedTypeHeights>;
+
+/**
+ * Committed height (the shared committed-height rule: sentinel cursor = H
+ * done, mid-block = H-1) for every always-on classic decoder, keyed by its
+ * public event_type. One indexed `IN` query over the small, fixed decoder
+ * set — cheap enough to run on every tip refresh (the same 500ms cache as
+ * everything else `createIndexTipProvider` computes).
+ *
+ * A decoder with no checkpoint row yet (fresh instance, nothing decoded)
+ * reports height 0 rather than being omitted — omitting it would make
+ * `Math.min` over the map silently ignore a decoder that hasn't started,
+ * which is the one case the floor most needs to catch.
+ */
+export async function getDecoderCommittedHeights(
+	db: Kysely<Database> = getSourceDb(),
+): Promise<DecodedTypeHeights> {
+	const decoderNames = Object.keys(DECODER_EVENT_TYPES);
+	if (decoderNames.length === 0) return {};
+	const rows = await db
+		.selectFrom("decoder_checkpoints")
+		.select(["decoder_name", "last_cursor"])
+		.where("decoder_name", "in", decoderNames)
+		.execute();
+	const cursorByName = new Map(
+		rows.map((r) => [r.decoder_name, r.last_cursor]),
+	);
+	const heights: DecodedTypeHeights = {};
+	for (const decoderName of decoderNames) {
+		const eventType =
+			DECODER_EVENT_TYPES[decoderName as keyof typeof DECODER_EVENT_TYPES];
+		heights[eventType] =
+			committedHeight(cursorByName.get(decoderName) ?? null) ?? 0;
+	}
+	return heights;
 }
 
-export async function getDecoderCheckpointTipBlock(
+/**
+ * A safe ceiling for ANY subset of classic decoded_events types: the MIN
+ * committed height across every one of them. Min-over-a-superset is always
+ * ≤ min-over-any-subset, so this floor is correct (never over-serves) no
+ * matter which types a given caller actually reads — the property that lets
+ * an HTTP-only reader (the chain evaluator, a hosted subgraph) trust it as
+ * the block source's tip without a second, decoder-status-specific request
+ * (see decoder-bound.ts's remote mode). Event routes that know their own
+ * type sharpen this further via `indexReadTip`/`committedHeightForEventTypes`.
+ */
+async function getDecoderCommittedTipBlock(
 	db: Kysely<Database> = getSourceDb(),
 ): Promise<DecodedTipBlock | null> {
-	const checkpoint = await db
-		.selectFrom("decoder_checkpoints")
-		.select("last_cursor")
-		.where("decoder_name", "=", FT_TRANSFER_DECODER_NAME)
-		.executeTakeFirst();
-	const blockHeight = cursorBlockHeight(checkpoint?.last_cursor ?? null);
-	if (blockHeight === null) return null;
+	const heights = await getDecoderCommittedHeights(db);
+	const values = Object.values(heights);
+	if (values.length === 0) return null;
+	const minHeight = Math.min(...values);
 
 	const block = await db
 		.selectFrom("blocks")
 		.select(["height", "timestamp"])
-		.where("height", "=", blockHeight)
+		.where("height", "=", minHeight)
 		.where("canonical", "=", true)
 		.executeTakeFirst();
 	if (!block) return null;
@@ -94,6 +145,14 @@ export async function getDecoderCheckpointTipBlock(
 	};
 }
 
+/**
+ * Last-resort fallback when NO decoder has a checkpoint row at all (a fresh
+ * instance whose decoders have never run, or a bulk-import that seeded
+ * `decoded_events` without checkpoints). Anchored on ft_transfer specifically
+ * — historical default from before per-type committed heights existed — since
+ * this only matters for the brief first-boot window before every decoder
+ * writes its first checkpoint.
+ */
 export async function getLatestDecodedTipBlock(
 	db: Kysely<Database> = getSourceDb(),
 ): Promise<DecodedTipBlock | null> {
@@ -115,6 +174,30 @@ export async function getLatestDecodedTipBlock(
 	};
 }
 
+/**
+ * Bound for a read spanning several decoded event types at once (a future
+ * multi-type Index read, or a subgraph-style consumer): the MIN over each
+ * type's own committed height, same rule `decoderBoundTip` applies in the
+ * subgraph runtime. `null` when the tip carries no `decoded_heights` map
+ * (a hand-built fixture) or a requested type isn't in it — callers should
+ * treat that as "unknown", not "committed to height 0".
+ */
+export function committedHeightForEventTypes(
+	tip: IndexTip,
+	eventTypes: readonly string[],
+): number | null {
+	if (eventTypes.length === 0) return null;
+	const heights = tip.decoded_heights;
+	if (!heights) return null;
+	const values: number[] = [];
+	for (const eventType of eventTypes) {
+		const height = heights[eventType];
+		if (height === undefined) return null;
+		values.push(height);
+	}
+	return Math.min(...values);
+}
+
 export function getIndexLagSeconds(tipTs: Date, nowMs = Date.now()): number {
 	const lagSeconds = Math.round((nowMs - tipTs.getTime()) / 1000);
 	return Math.max(0, lagSeconds);
@@ -123,6 +206,11 @@ export function getIndexLagSeconds(tipTs: Date, nowMs = Date.now()): number {
 export function createIndexTipProvider(opts?: {
 	readSourceTip?: IndexSourceTipReader;
 	readDecodedTip?: DecodedTipReader;
+	/** Per-type committed heights (see `IndexTip.decoded_heights`). Defaults
+	 *  to `getDecoderCommittedHeights` — override in tests to avoid a real DB
+	 *  read; omitting it there yields `decoded_heights: {}` (unknown), which
+	 *  `indexReadTip` treats as "leave block_height alone". */
+	readDecodedHeights?: DecodedHeightsReader;
 	readFinalizedHeight?: IndexFinalizedHeightReader;
 	btcConfirmations?: number;
 	now?: () => number;
@@ -139,9 +227,11 @@ export function createIndexTipProvider(opts?: {
 	const readDecodedTip =
 		opts?.readDecodedTip ??
 		(async () => {
-			const checkpointTip = await getDecoderCheckpointTipBlock();
-			return checkpointTip ?? (await getLatestDecodedTipBlock());
+			const committedTip = await getDecoderCommittedTipBlock();
+			return committedTip ?? (await getLatestDecodedTipBlock());
 		});
+	const readDecodedHeights =
+		opts?.readDecodedHeights ?? (async () => ({}) as DecodedTypeHeights);
 	const readFinalizedHeight =
 		opts?.readFinalizedHeight ?? getFinalizedStacksHeight;
 	const btcConfirmations = opts?.btcConfirmations ?? DEFAULT_BTC_CONFIRMATIONS;
@@ -171,9 +261,13 @@ export function createIndexTipProvider(opts?: {
 			sourceTip.burn_block_height,
 			btcConfirmations,
 		);
-		const finalized_height = await readFinalizedHeight(finalizedBurn);
-
-		const decodedTip = await readDecodedTip();
+		// Independent reads off the same snapshot — run concurrently rather than
+		// serially stacking three round trips onto every cache-miss tip refresh.
+		const [finalized_height, decodedTip, decoded_heights] = await Promise.all([
+			readFinalizedHeight(finalizedBurn),
+			readDecodedTip(),
+			readDecodedHeights(),
+		]);
 		const tipBlock = decodedTip ?? {
 			block_height: sourceTip.block_height,
 			ts: sourceTip.ts,
@@ -183,6 +277,7 @@ export function createIndexTipProvider(opts?: {
 			finalized_height,
 			lag_seconds: getIndexLagSeconds(tipBlock.ts, nowMs),
 			source_block_height: sourceTip.block_height,
+			decoded_heights,
 		};
 
 		cache = { expiresAt: nowMs + cacheTtlMs, value };
@@ -190,4 +285,6 @@ export function createIndexTipProvider(opts?: {
 	};
 }
 
-export const getIndexTip = createIndexTipProvider();
+export const getIndexTip = createIndexTipProvider({
+	readDecodedHeights: getDecoderCommittedHeights,
+});
