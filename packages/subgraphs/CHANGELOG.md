@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 6.1.1
+
+### Patch Changes
+
+- a7bbd5c: Chain webhooks and subgraph catch-up on an instance that reads Index over a remote API (`SUBGRAPH_INDEX_API_URL`) no longer stall on a missing local decoder checkpoint. Progress now comes from that API's `/public/status`.
+
 ## 6.1.0
 
 ### Minor Changes
