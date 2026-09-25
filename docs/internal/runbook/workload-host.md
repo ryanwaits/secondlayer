@@ -9,6 +9,15 @@ see the plan index if this link 404s). Reversible: the app-server Caddy
 route flips back to 404 and tenant stacks are independent compose projects,
 so removing the host removes hosted webhooks without touching self-host.
 
+**`docker/Caddyfile` stays untouched by plan 044 until the Bring-up
+section's "Flip" step runs.** That file is bind-mounted into app-server's
+live prod Caddy (`docker/docker-compose.hetzner.yml`); landing the
+`/api/webhooks*` route on `main` before the workload host and its CA/DNS
+are actually up would take down all of `api.secondlayer.tools` on the next
+reload (unset `WORKLOAD_HOST_CA_FILE`, no CA file mounted, config fails to
+load), and would route to a host that doesn't exist yet even if it somehow
+loaded. The flip is deliberately a separate change at flip time.
+
 ## This deployment
 
 Not yet provisioned as of this runbook's writing (2026-09-25) — step 1's
@@ -25,15 +34,16 @@ billable.
 | Volume | `workload-data`, 100 GB ext4, automounted. Backs `/opt/secondlayer-workload` (tenant secrets, one dir per acct8) and each tenant's Postgres volume. |
 | Cloud firewall | `workload-host`: TCP 22 from operator `136.62.99.163/32` (same IP `stacks-feeder`'s firewall already allowlists); TCP 443 from app-server `65.21.135.94/32` only. Nothing else inbound. |
 | Runtime | `packages/workload` (`@secondlayer/workload`) — one Bun process, gateway + provisioner + meters, bound `127.0.0.1:8080` only. Not yet deployed to this host. |
-| TLS | `docker/workload-host/Caddyfile` (its own `docker-compose.yml`, `network_mode: host`) terminates :443 with `tls internal` and reverse-proxies to the gateway's `127.0.0.1:8080`. app-server pins that CA (`tls_trust_pool file`, `WORKLOAD_HOST_CA_FILE`) — see Bring-up step 5. |
+| TLS | `docker/workload-host/Caddyfile` (its own `docker-compose.yml`, `network_mode: host`) terminates :443 with `tls internal`, addressed by `{$WORKLOAD_HOST_NAME:workload-host.secondlayer.tools}` (a real hostname, not a bare `:443` — the cert's name has to match the SNI app-server dials), and reverse-proxies to the gateway's `127.0.0.1:8080`. app-server pins that CA (`tls_trust_pool file`, `WORKLOAD_HOST_CA_FILE`) — see Bring-up steps 5–7. |
 | Tenant template | `docker/workload/tenant.compose.yml` — `postgres`, `migrate`, `api`, `webhook-service`. Images `image:`-pulled from GHCR (`ghcr.io/ryanwaits/secondlayer-{api,webhook-processor}`), never built on this host. |
 
 ## Egress model (Design)
 
-Two idempotent iptables rule sets (`cloud-init.yaml`'s
-`docker-user-egress.sh`, safe to re-run after a reboot or re-provision — see
-`docker/workload-host/docker-user-egress.sh` for the standalone,
-`bash -n`-checked copy of the exact same script):
+Two idempotent iptables rule sets, defined once in
+`docker/workload-host/docker-user-egress.sh` (safe to re-run after a reboot
+or re-provision; `bash -n`-checked) and inlined verbatim into
+`cloud-init.yaml` by `provision.sh` at render time — cloud-init never holds
+its own copy, so the two can't drift:
 
 **1. `DOCKER-USER`** (the FORWARD-chain hook Docker leaves empty for
 operator rules) — egress allowlist for every tenant compose network:
@@ -103,27 +113,63 @@ not the only line.
    #       TENANT_COMPOSE_FILE=docker/workload/tenant.compose.yml, GATEWAY_PORT=8080
    bun run --filter @secondlayer/workload start
    ```
-5. Bring up Caddy (review fix 7) and pin its internal CA on app-server —
-   ACME/Let's Encrypt needs a public DNS name this host doesn't have, and
-   the cloud firewall already restricts :443 here to app-server's IP, so
-   `tls internal` (Caddy's own local CA) is the right tool, not a real cert:
+5. DNS: add an A record for `workload-host.secondlayer.tools` (or whatever
+   `WORKLOAD_HOST_NAME` is set to) pointing at this host's public IP. It
+   never needs to be internet-reachable end to end (the cloud firewall
+   still restricts :443 to app-server's IP) — it only needs to *resolve*,
+   because that's the name Caddy issues its `tls internal` certificate for
+   and the SNI app-server's outbound proxy call presents and then verifies
+   the returned cert's name against. An `extra_hosts` entry on app-server's
+   `caddy` service is a workable alternative to a real DNS record (no
+   registrar step), but a DNS record is recommended: it survives app-server
+   being redeployed/recreated, where a compose-file `extra_hosts` entry has
+   to be remembered and re-added by hand.
+6. Bring up Caddy on workload-host and extract its internal CA root — never
+   a real ACME cert: there's no public DNS challenge path to this host
+   (:443 is firewalled to app-server's IP only), so `tls internal` (Caddy's
+   own local CA) is the right tool:
    ```bash
    # On workload-host:
    cd /opt/workload-host && docker compose -f docker/workload-host/docker-compose.yml up -d
-   # First run generates the CA — root cert lands at:
+   # First run issues the cert and generates the CA — root cert lands at:
    docker run --rm -v workload-host_caddy_data:/data alpine \
      cat /data/caddy/pki/authorities/local/root.crt > workload-host-ca.crt
    scp workload-host-ca.crt <app-server>:/opt/secondlayer/workload-host-ca.crt
    ```
+   Verified locally (review fix B): `caddy:2-alpine` with this exact
+   Caddyfile, `--network host`, in front of a dummy `Bun.serve` upstream on
+   `127.0.0.1:8080` — Caddy's own log showed `"certificate obtained
+   successfully","identifier":"workload-host.secondlayer.tools","issuer":"local"`,
+   the root landed at the documented path, and
+   `curl --resolve workload-host.secondlayer.tools:443:127.0.0.1 --cacert
+   root.crt https://workload-host.secondlayer.tools/` printed `ok`.
+7. **Flip** (a separate change, landed as its own commit at flip time — NOT
+   part of plan 044's initial bring-up, so `docker/Caddyfile` stays
+   untouched until this step actually runs): add the hosted-webhooks route
+   to app-server's live `docker/Caddyfile`, inside the
+   `api.{$BASE_DOMAIN...}` block, before the catch-all `handle {}`:
+   ```caddyfile
+   handle /api/webhooks* {
+     reverse_proxy {$WORKLOAD_HOST_ADDR:workload-host.secondlayer.tools}:443 {
+       transport http {
+         tls
+         tls_trust_pool file {$WORKLOAD_HOST_CA_FILE}
+       }
+     }
+   }
+   ```
+   Also at flip time, on app-server: mount `workload-host-ca.crt` (copied in
+   step 6) into the `caddy` service (`docker/docker-compose.hetzner.yml`'s
+   volumes) and set `WORKLOAD_HOST_CA_FILE=/etc/caddy/workload-host-ca.crt`
+   (path inside the container) and `WORKLOAD_HOST_ADDR` (only if the DNS
+   name from step 5 isn't what's resolvable — omit it otherwise, the
+   Caddyfile default already names it). Then:
    ```bash
-   # On app-server: mount that file into the Caddy container and set the env
-   # var docker/Caddyfile reads (WORKLOAD_HOST_ADDR too, if not DNS-resolvable):
-   # WORKLOAD_HOST_CA_FILE=/etc/caddy/workload-host-ca.crt
-   # WORKLOAD_HOST_ADDR=<workload-host-ip>
-   caddy validate --config docker/Caddyfile   # confirm before reloading
+   caddy validate --config docker/Caddyfile   # confirm before reloading — a bad
+                                               # config here is all of api.secondlayer.tools
    docker compose restart caddy               # or however app-server reloads Caddy
    ```
-6. Smoke test end to end (needs a real hosted account + `sk-sl_*` key):
+8. Smoke test end to end (needs a real hosted account + `sk-sl_*` key):
    ```bash
    SECONDLAYER_API_KEY=sk-sl_... secondlayer webhooks create smoke-test \
      --trigger '{"type":"stx_transfer","minAmount":"1000000"}' \
@@ -189,8 +235,9 @@ publish rule for tenant B's port.
 
 ## Teardown
 
-Reversible (plan's Reversible: YES) — flip the Caddy route back to 404,
-then:
+Reversible (plan's Reversible: YES) — revert the Bring-up "Flip" step's
+commit on `docker/Caddyfile` (the route reverts to a 404, same as before
+the flip landed), then:
 
 ```bash
 hcloud server delete workload-host

@@ -1,16 +1,29 @@
-# Caddy on the workload host (review fix 7): terminates :443 so app-server's
-# Caddy (`docker/Caddyfile`'s `/api/webhooks*` route) has a real TLS
-# endpoint to proxy to. The gateway process (`packages/workload`) binds
-# `127.0.0.1:8080` only — it never listens on a public interface itself.
+# Caddy on the workload host: terminates :443 so app-server's Caddy (the
+# `/api/webhooks*` route added at flip time — see the runbook's Bring-up
+# section) has a real TLS endpoint to proxy to. The gateway process
+# (`packages/workload`) binds `127.0.0.1:8080` only — it never listens on a
+# public interface itself.
+#
+# The site address MUST be a real hostname, not a bare `:443` — Caddy's
+# `tls internal` issues a cert for whatever name(s) the site block is
+# addressed by, and app-server dials this host by name
+# (`workload-host.secondlayer.tools`, its SNI), then verifies the
+# certificate's name matches. A bare `:443` block has no name to put on the
+# cert, so app-server's TLS handshake fails the hostname check even with the
+# right CA trusted (review fix B). `WORKLOAD_HOST_NAME` lets a local/manual
+# test point this at something else (see the runbook's local proof).
 #
 # `tls internal` — Caddy's own local CA, not a public CA (ACME/Let's
-# Encrypt needs a public DNS name; this host is addressed by IP from
-# app-server, behind the cloud firewall's 443-from-app-server-only rule,
-# so a public cert buys nothing extra). app-server's Caddyfile pins this
-# CA's root explicitly (`tls_trust_pool file`) rather than trusting the
-# system store, which would never trust a locally-issued cert. See the
-# runbook's Bring-up section for copying the root CA to app-server.
-:443 {
+# Encrypt needs a public DNS name that actually resolves to this host over
+# the open internet for the HTTP-01/TLS-ALPN challenge; this host is
+# firewalled to app-server's IP only on :443, so no CA could ever validate
+# it that way). app-server's Caddyfile pins this CA's root explicitly
+# (`tls_trust_pool file`) rather than trusting the system store, which would
+# never trust a locally-issued cert. See the runbook's Bring-up section for
+# copying the root CA to app-server, and for the DNS record this hostname
+# needs (an A record is enough — it never needs to be internet-reachable,
+# just resolvable from app-server).
+{$WORKLOAD_HOST_NAME:workload-host.secondlayer.tools} {
 	tls internal
 
 	header -Server
