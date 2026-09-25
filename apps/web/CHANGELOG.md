@@ -1,5 +1,12 @@
 # @secondlayer/web
 
+## 0.8.1
+
+### Patch Changes
+
+- Updated dependencies [c62de3e]
+  - @secondlayer/sdk@12.2.0
+
 ## 0.8.0
 
 ### Minor Changes

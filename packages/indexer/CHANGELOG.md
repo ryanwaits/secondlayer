@@ -1,5 +1,15 @@
 # @secondlayer/indexer
 
+## 1.15.5
+
+### Patch Changes
+
+- 606ee53: Block ingest now NOTIFYs `indexer:new_block` on commit, and the L2 decoder service wakes its empty-poll backoff early on it instead of always sleeping the full `DECODER_EMPTY_BACKOFF_MS`. Both fall back to their existing timers if the wake connection never comes up.
+- Updated dependencies [c62de3e]
+- Updated dependencies [201d1fc]
+  - @secondlayer/sdk@12.2.0
+  - @secondlayer/shared@11.11.0
+
 ## 1.15.4
 
 ### Patch Changes

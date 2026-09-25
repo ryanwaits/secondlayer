@@ -1,5 +1,16 @@
 # @secondlayer/subgraphs
 
+## 6.2.0
+
+### Minor Changes
+
+- 8c39950: `BlockSource.getTip()` takes an optional `{ wait, knownHeight }`, used by the chain-trigger evaluator to long-poll the Index tip instead of sleeping a fixed 5s between ticks when it's caught up. A source with no long-poll notion (the Postgres tap) ignores it. `buildChainBlockSource()` also takes an optional `IndexHttpClient` to reuse across calls instead of building a fresh one each time.
+
+### Patch Changes
+
+- Updated dependencies [201d1fc]
+  - @secondlayer/shared@11.11.0
+
 ## 6.1.3
 
 ### Patch Changes

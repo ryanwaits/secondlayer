@@ -1,5 +1,23 @@
 # @secondlayer/api
 
+## 1.43.0
+
+### Minor Changes
+
+- 85201ed: Chain webhooks and Index consumers no longer have to poll blind. Ingest and every decoder checkpoint now NOTIFY Postgres on commit, so the Streams tip cache drops stale entries immediately instead of waiting out its TTL, and `/v1/index/events` and `/v1/index/blocks` accept `wait` (seconds, max 25): an empty page holds the connection open and returns the moment new data commits or `wait` elapses, instead of an immediate empty answer. Omitting `wait` is unchanged. A self-hosted instance from before this shipped rejects the unrecognized param with a 400.
+
+### Patch Changes
+
+- Updated dependencies [606ee53]
+- Updated dependencies [c62de3e]
+- Updated dependencies [201d1fc]
+- Updated dependencies [8c39950]
+  - @secondlayer/indexer@1.15.5
+  - @secondlayer/sdk@12.2.0
+  - @secondlayer/shared@11.11.0
+  - @secondlayer/subgraphs@6.2.0
+  - @secondlayer/platform@0.3.5
+
 ## 1.42.1
 
 ### Patch Changes

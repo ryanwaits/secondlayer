@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "12.1.0",
+	"version": "12.2.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -1466,7 +1466,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 516
+					"line": 527
 				},
 				{
 					"name": "FtTransferEvent",
@@ -1594,7 +1594,7 @@
 					"summary": "One yielded page from {@link StreamsClient.consume} — the `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to `cursor` (the checkpoint to persist and resume from).",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 432
+					"line": 443
 				},
 				{
 					"name": "StreamsBatchContext",
@@ -1618,7 +1618,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 564
+					"line": 575
 				},
 				{
 					"name": "StreamsConsumeParams",
@@ -1626,7 +1626,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 442
+					"line": 453
 				},
 				{
 					"name": "StreamsDumpFile",
@@ -1634,7 +1634,7 @@
 					"summary": "One bulk parquet file in the dumps manifest.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 523
+					"line": 534
 				},
 				{
 					"name": "StreamsDumps",
@@ -1642,7 +1642,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 555
+					"line": 566
 				},
 				{
 					"name": "StreamsDumpsManifest",
@@ -1650,7 +1650,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 536
+					"line": 547
 				},
 				{
 					"name": "StreamsEvent",
@@ -1682,7 +1682,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 462
+					"line": 473
 				},
 				{
 					"name": "StreamsEventsEnvelope",
