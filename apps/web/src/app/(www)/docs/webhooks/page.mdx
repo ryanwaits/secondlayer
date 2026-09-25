@@ -26,6 +26,10 @@ Chain webhooks (triggers on raw events — no subgraph deployed) run either way.
 
 A hosted chain webhook works exactly like a self-host one from the CLI/SDK: set `SECONDLAYER_API_KEY` (`sk-sl_*`) and point at `api.secondlayer.tools` (or leave the default). Delivery semantics — at-least-once, unordered, reorg rollback — are identical on both: [Receiving deliveries](/docs/webhooks/deliveries).
 
+## In the dashboard
+
+[`/account/webhooks`](/account/webhooks) lists a hosted account's webhooks and, per webhook, the last 100 delivery attempts, a diagnosis, and failed events waiting to be resent. From there you can send a test event, pause or resume, rotate the signing secret, resend a failed event (or all of them), and delete. Create and edit stay on the CLI/SDK — the dashboard never writes a webhook definition, only watches and fixes one.
+
 ## Create a webhook
 
 ```bash

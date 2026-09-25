@@ -33,6 +33,10 @@ Chain webhooks run hosted now, at `api.secondlayer.tools` with an `sk-sl_` key a
 
 Delivered events run $10 per 1M; retries are free, never metered. Hosted caps at 7 retries and a 30s timeout per delivery.
 
+### Watch and fix hosted webhooks from the dashboard
+
+[`/account/webhooks`](/account/webhooks) lists your hosted webhooks and, per webhook, the last 100 delivery attempts, a diagnosis, and failed events waiting on you. Send a test event, pause or resume, rotate the signing secret, resend one failed event or all of them, and delete — from the browser. Create and edit still only happen on the CLI/SDK. Opening the page no longer starts (or bills for) a delivery service on an account that's never used webhooks; the credits page link on a `402` also goes somewhere real now.
+
 ### Rollbacks cover everything that may have landed
 
 A reorg now rolls back every delivery your endpoint may have received, including one still in flight or retried, instead of dropping it. Delivery stays at-least-once and unordered.
