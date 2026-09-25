@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "12.0.0",
+	"version": "12.1.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -2478,6 +2478,14 @@
 					"line": 30
 				},
 				{
+					"name": "buildDoctorReport",
+					"kind": "function",
+					"summary": "",
+					"signature": "buildDoctorReport(input: object): DoctorReport",
+					"file": "src/webhooks/doctor.ts",
+					"line": 58
+				},
+				{
 					"name": "consumerHealth",
 					"kind": "function",
 					"summary": "Liveness for a consume loop.",
@@ -2526,6 +2534,30 @@
 					"line": 254
 				},
 				{
+					"name": "DoctorIssue",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/webhooks/doctor.ts",
+					"line": 30
+				},
+				{
+					"name": "DoctorIssueCode",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/webhooks/doctor.ts",
+					"line": 20
+				},
+				{
+					"name": "DoctorReport",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/webhooks/doctor.ts",
+					"line": 35
+				},
+				{
 					"name": "InstanceClient",
 					"kind": "type",
 					"summary": "",
@@ -2564,6 +2596,14 @@
 					"signature": null,
 					"file": "src/archive/instance.ts",
 					"line": 8
+				},
+				{
+					"name": "isSuccessDelivery",
+					"kind": "function",
+					"summary": "Webhook diagnosis, shared by `secondlayer webhooks doctor` and the dashboard's webhook detail page.",
+					"signature": "isSuccessDelivery(row: DeliveryRow): boolean",
+					"file": "src/webhooks/doctor.ts",
+					"line": 14
 				},
 				{
 					"name": "LoadedArchive",

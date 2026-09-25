@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 17.0.1
+
+### Patch Changes
+
+- 46f4326: `secondlayer webhooks doctor` output is unchanged, but its diagnosis logic now comes from `@secondlayer/sdk` (`buildDoctorReport`, `isSuccessDelivery`) instead of a local copy in the CLI.
+- Updated dependencies [46f4326]
+  - @secondlayer/sdk@12.1.0
+
 ## 17.0.0
 
 ### Major Changes
