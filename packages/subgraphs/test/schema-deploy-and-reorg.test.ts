@@ -23,7 +23,6 @@ const PG_SCHEMA = "subgraph_deploy_reorg_test";
 
 const baseDef: SubgraphDefinition = {
 	name: SUBGRAPH_NAME,
-	version: "1.0.0",
 	sources: { handler: { type: "contract_call", contractId: "SP123::test" } },
 	schema: {
 		transfers: {
@@ -81,7 +80,6 @@ describe.skipIf(SKIP)("Deploy with breaking changes", () => {
 		// Remove a column = breaking change
 		const breakingDef: SubgraphDefinition = {
 			...baseDef,
-			version: "2.0.0",
 			schema: {
 				transfers: {
 					columns: {
@@ -123,7 +121,6 @@ describe.skipIf(SKIP)("Deploy with breaking changes", () => {
 		// Deploy with breaking change + forceReindex
 		const breakingDef: SubgraphDefinition = {
 			...baseDef,
-			version: "2.0.0",
 			schema: {
 				transfers: {
 					columns: {
@@ -164,7 +161,6 @@ describe.skipIf(SKIP)("Deploy with breaking changes", () => {
 
 		const additiveDef: SubgraphDefinition = {
 			...baseDef,
-			version: "1.1.0",
 			schema: {
 				transfers: {
 					columns: {
@@ -195,7 +191,6 @@ describe.skipIf(SKIP)("Deploy with breaking changes", () => {
 
 		const additiveDef: SubgraphDefinition = {
 			...baseDef,
-			version: "1.1.0",
 			schema: {
 				transfers: {
 					columns: {
@@ -235,7 +230,6 @@ describe.skipIf(SKIP)("Deploy with breaking changes", () => {
 
 		const indexedOn: SubgraphDefinition = {
 			...baseDef,
-			version: "1.1.0",
 			schema: {
 				transfers: {
 					columns: {
@@ -263,7 +257,6 @@ describe.skipIf(SKIP)("Deploy with breaking changes", () => {
 
 		const indexedOff: SubgraphDefinition = {
 			...baseDef,
-			version: "1.2.0",
 			schema: {
 				transfers: {
 					columns: {

@@ -21,23 +21,6 @@ export interface SubgraphColumn {
 }
 
 /**
- * A foreign-key relation to another table in the same subgraph. Drives DDL FK
- * constraints and ORM codegen (`@relation` in Prisma, `relations()` in Drizzle)
- * so generated clients get typed joins. The referenced columns must form a
- * `uniqueKeys` entry on the target table.
- */
-export interface SubgraphRelation {
-	/** Relation field name on this table's generated model (e.g. "pool"). */
-	name: string;
-	/** Target table name in this subgraph. */
-	references: string;
-	/** Local column(s) holding the foreign key. */
-	fields: string[];
-	/** Target column(s) the fields point at (a uniqueKeys entry on the target). */
-	referencedColumns: string[];
-}
-
-/**
  * Table definition within a subgraph schema.
  *
  * The array fields are `readonly` so a schema literal can be hoisted out of
@@ -53,8 +36,6 @@ export interface SubgraphTable {
 	indexes?: readonly (readonly string[])[];
 	/** Unique key constraints (each entry is an array of column names). Required for upsert. */
 	uniqueKeys?: readonly (readonly string[])[];
-	/** Foreign-key relations to other tables (for typed ORM joins). */
-	relations?: readonly SubgraphRelation[];
 }
 
 /** Subgraph schema — maps table names to table definitions */
@@ -227,9 +208,8 @@ export interface ContractCallFilter extends TraitScope, FactoryScope {
 	/**
 	 * One contract id, or a SET of them (max 20) — the standard DeFi shape is
 	 * a router plus N pools, which used to cost N near-identical sources and
-	 * handlers, or the `"*"` catch-all that erases per-source typing. Payload
-	 * types are identical per `type`, so one handler serves the set and
-	 * `event.contractId` disambiguates.
+	 * handlers. Payload types are identical per `type`, so one handler serves
+	 * the set and `event.contractId` disambiguates.
 	 *
 	 * Supports `*` wildcards (e.g. `"SP1ABC….pool-*"`). Mutually exclusive
 	 * with `trait`, which resolves its own set per block.
@@ -243,8 +223,11 @@ export interface ContractCallFilter extends TraitScope, FactoryScope {
 	 * definition and used at runtime to decode args by name. Omit to keep
 	 * `event.args` as a positional `unknown[]`.
 	 *
-	 * Deploy validation requires `abi` whenever `functionName` is set
-	 * (`normalizeAbi()` from `@secondlayer/stacks/clarity`).
+	 * Required whenever `functionName` is set. `secondlayer subgraphs deploy`
+	 * fills it in from the deployed contract for a single concrete
+	 * `contractId`; pass it yourself for wildcard, multi-contract or trait
+	 * sources, or a local deploy (`normalizeAbi()` from
+	 * `@secondlayer/stacks/clarity`).
 	 */
 	abi?: AbiContract;
 }
@@ -300,28 +283,9 @@ export type PrintField =
  */
 export type PrintEventPrints = Record<string, Record<string, PrintField>>;
 
-/**
- * One column in a static identity map. Literals only — the bundler never
- * executes user code, so `{ from: "tokenX" }` is valid and `from("tokenX")`
- * is not.
- */
-export type MaterializeColumn =
-	| { from: string }
-	| { fromTx: "sender" | "txId" }
-	| { fromBlock: "height" | "hash" | "timestamp" };
-
-/** Static insert from a source event — replaces a 1:1 handler. */
-export interface MaterializeSpec {
-	table: string;
-	/** Keys = schema column names (snake). */
-	columns: Record<string, MaterializeColumn>;
-}
-
 type PrintEventFields = FactoryScope & {
 	type: "print_event";
 	topic?: string;
-	/** Identity map: insert without a handler function. XOR with handlers[name]. */
-	materialize?: MaterializeSpec;
 };
 
 /**
@@ -402,11 +366,6 @@ export type RowValue =
 	| Record<string, unknown>
 	| unknown[];
 
-/** Value or computed function that receives existing row */
-export type ComputedValue =
-	| RowValue
-	| ((existing: Record<string, unknown> | null) => unknown);
-
 import type { ErasedChainReadClient } from "./runtime/chain-read.ts";
 
 /** Context passed to subgraph handlers during event processing */
@@ -447,25 +406,13 @@ export interface SubgraphContext {
 	 * Atomic counter update — the blessed accumulator primitive. Applies
 	 * `col = COALESCE(col, 0) + delta` per column (insert-or-add); deltas may
 	 * be negative. Requires a uniqueKeys constraint matching `key`. Prefer
-	 * this over patchOrInsert with functional updaters for running totals.
+	 * this over read-modify-write handlers for running totals.
 	 */
 	increment(
 		table: string,
 		key: Record<string, unknown>,
 		deltas: Record<string, bigint | number>,
 	): void;
-	/** Partial update — sets only specified fields, preserves others */
-	patch(
-		table: string,
-		where: Record<string, unknown>,
-		set: Record<string, unknown>,
-	): void;
-	/** Find-then-merge-or-insert. Values can be functions: (existing) => newValue */
-	patchOrInsert(
-		table: string,
-		key: Record<string, unknown>,
-		row: Record<string, ComputedValue>,
-	): Promise<void>;
 	findOne(
 		table: string,
 		where: Record<string, unknown>,
@@ -474,34 +421,6 @@ export interface SubgraphContext {
 		table: string,
 		where: Record<string, unknown>,
 	): Promise<Record<string, unknown>[]>;
-	/** Format a bigint amount with decimal places */
-	formatUnits(value: bigint, decimals: number): string;
-	/** Count rows matching filter */
-	count(table: string, where?: Record<string, unknown>): Promise<number>;
-	/** Sum a numeric column */
-	sum(
-		table: string,
-		column: string,
-		where?: Record<string, unknown>,
-	): Promise<bigint>;
-	/** Min of a numeric column */
-	min(
-		table: string,
-		column: string,
-		where?: Record<string, unknown>,
-	): Promise<bigint | null>;
-	/** Max of a numeric column */
-	max(
-		table: string,
-		column: string,
-		where?: Record<string, unknown>,
-	): Promise<bigint | null>;
-	/** Count distinct values in a column */
-	countDistinct(
-		table: string,
-		column: string,
-		where?: Record<string, unknown>,
-	): Promise<number>;
 }
 
 /** Handler function that processes events and writes to the subgraph */
@@ -514,8 +433,6 @@ export type SubgraphHandler = (
 export interface SubgraphDefinition {
 	/** Unique subgraph name (lowercase, alphanumeric + hyphens) */
 	name: string;
-	/** Semantic version */
-	version?: string;
 	/** Human description */
 	description?: string;
 	/** Block height to start indexing from (default: 1) */
@@ -527,6 +444,6 @@ export interface SubgraphDefinition {
 	sources: Record<string, SubgraphFilter>;
 	/** Tables in this subgraph */
 	schema: SubgraphSchema;
-	/** Handler functions — keys must match source names (or "*" for catch-all) */
+	/** Handler functions, one per source, keyed by source name */
 	handlers: Record<string, SubgraphHandler>;
 }

@@ -8,7 +8,7 @@ import { pascalCase, pgSchemaName, snakeToCamel } from "./utils.ts";
 /**
  * Generate a `schema.prisma` from a subgraph definition. Pairs with the BYO data
  * plane: once a subgraph's decoded rows land in the user's own Postgres, this
- * emits the Prisma models so they get a fully-typed ORM (joins, relations,
+ * emits the Prisma models so they get a fully-typed ORM (typed queries,
  * transactions) over their own data — the "Prisma wrapper for Stacks" without us
  * shipping an ORM. Output mirrors the DDL in `generator.ts` so `prisma db pull`
  * against a deployed schema produces a matching model (no drift).
@@ -44,18 +44,7 @@ function quotePrismaDefault(value: string | number | boolean): string {
 	return `@default(${value})`;
 }
 
-/** A back-relation field another table's relation induces on this one. */
-interface BackRelation {
-	field: string;
-	model: string;
-	relationName: string;
-}
-
-function renderTable(
-	tableName: string,
-	table: SubgraphTable,
-	backRelations: BackRelation[],
-): string {
+function renderTable(tableName: string, table: SubgraphTable): string {
 	const lines: string[] = [];
 
 	for (const sys of SYSTEM_FIELDS) {
@@ -75,26 +64,6 @@ function renderTable(
 		);
 	}
 
-	// Forward relations (this table owns the FK).
-	for (const rel of table.relations ?? []) {
-		const optional = rel.fields.some((f) => table.columns[f]?.nullable)
-			? "?"
-			: "";
-		const relName = `${pascalCase(tableName)}_${rel.name}`;
-		const fields = rel.fields.map(snakeToCamel).join(", ");
-		const refs = rel.referencedColumns.map(snakeToCamel).join(", ");
-		lines.push(
-			`  ${rel.name} ${pascalCase(rel.references)}${optional} @relation("${relName}", fields: [${fields}], references: [${refs}])`,
-		);
-	}
-
-	// Back relations (another table points here) — Prisma needs both sides.
-	for (const back of backRelations) {
-		lines.push(
-			`  ${back.field} ${back.model}[] @relation("${back.relationName}")`,
-		);
-	}
-
 	// Block attributes: per-column @@index, composite @@index, @@unique.
 	const block: string[] = [];
 	for (const [colName, col] of Object.entries(table.columns)) {
@@ -109,25 +78,6 @@ function renderTable(
 	block.push(`  @@map("${tableName}")`);
 
 	return `model ${pascalCase(tableName)} {\n${lines.join("\n")}\n\n${block.join("\n")}\n}`;
-}
-
-/** Compute the back-relation field each table receives from others' relations. */
-function computeBackRelations(
-	schema: Record<string, SubgraphTable>,
-): Map<string, BackRelation[]> {
-	const map = new Map<string, BackRelation[]>();
-	for (const [owningTable, table] of Object.entries(schema)) {
-		for (const rel of table.relations ?? []) {
-			const list = map.get(rel.references) ?? [];
-			list.push({
-				field: `${snakeToCamel(owningTable)}${pascalCase(rel.name)}`,
-				model: pascalCase(owningTable),
-				relationName: `${pascalCase(owningTable)}_${rel.name}`,
-			});
-			map.set(rel.references, list);
-		}
-	}
-	return map;
 }
 
 export interface PrismaGenOptions {
@@ -165,13 +115,8 @@ export function generatePrismaSchema(
 	].join("\n");
 
 	// Fold @@schema into each model block (it must live inside the block).
-	const backRelations = computeBackRelations(def.schema);
 	const modelBlocks = Object.entries(def.schema).map(([tableName, table]) => {
-		const body = renderTable(
-			tableName,
-			table,
-			backRelations.get(tableName) ?? [],
-		);
+		const body = renderTable(tableName, table);
 		return body.replace(/\n}$/, `\n  @@schema("${schemaName}")\n}`);
 	});
 

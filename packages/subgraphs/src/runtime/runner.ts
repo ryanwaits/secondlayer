@@ -8,13 +8,11 @@ import {
 import { camelizeKeys } from "../print-schema.ts";
 import type {
 	ContractCallFilter,
-	MaterializeSpec,
 	SubgraphDefinition,
 	SubgraphFilter,
 } from "../types.ts";
 import { decodeClarityValue, decodeEventData } from "./clarity.ts";
 import type { SubgraphContext } from "./context.ts";
-import { applyMaterializeInsert } from "./materialize.ts";
 import { validatePrintPayload } from "./print-validate.ts";
 import { type MatchedTx, printContractId } from "./source-matcher.ts";
 import { recordPrintViolation } from "./violations.ts";
@@ -415,7 +413,7 @@ export function buildEventPayload(
  * Run a subgraph's keyed handlers against all matched transactions/events.
  *
  * Each MatchedTx carries a sourceName from the matcher. The runner looks up
- * the corresponding handler in subgraph.handlers, falling back to "*".
+ * the handler of the same name in subgraph.handlers.
  *
  * Does NOT flush — caller is responsible for flushing ctx after run.
  */
@@ -483,13 +481,8 @@ export async function runHandlers(
 		}
 
 		const filter = filterLookup.get(sourceName);
-		const materialize: MaterializeSpec | undefined =
-			filter && "materialize" in filter && filter.materialize !== undefined
-				? filter.materialize
-				: undefined;
-		const handler =
-			subgraph.handlers[sourceName] ?? subgraph.handlers["*"] ?? null;
-		if (!handler && !materialize) {
+		const handler = subgraph.handlers[sourceName] ?? null;
+		if (!handler) {
 			logger.warn("No handler found for source", {
 				subgraph: subgraph.name,
 				sourceName,
@@ -598,28 +591,8 @@ export async function runHandlers(
 				}
 			}
 
-			if (materialize) {
-				const result = applyMaterializeInsert(
-					materialize,
-					payload,
-					ctx,
-					subgraph.schema,
-				);
-				if (!result.ok) {
-					skipped++;
-					logger.warn("Materialize skipped: required field missing", {
-						subgraph: subgraph.name,
-						sourceName,
-						txId: tx.tx_id,
-						reason: result.reason,
-					});
-					continue;
-				}
-				processed++;
-			} else if (handler) {
-				await handler(payload, ctx);
-				processed++;
-			}
+			await handler(payload, ctx);
+			processed++;
 		} catch (err) {
 			ctx.rollbackTo(checkpoint);
 			errors++;

@@ -37,28 +37,13 @@ export interface BufferedOp {
  * A read reply from the host. `findOne`/`findMany` carry the raw
  * (no-overlay) base-DB row(s) — the worker overlays its own pending ops on
  * top (see `overlay.ts`); the overlay computation never crosses the
- * boundary. The aggregate reads (`count`/`sum`/`min`/`max`/`countDistinct`)
- * are NOT overlaid in production either (`context.ts:71`: "Aggregate reads
- * … remain pre-flush DB state") — the host's raw value crosses unmodified.
- * `amount` for `sum`/`min`/`max` is `string | null` (Bun's structured clone
- * does support BigInt, but the wire type stays a string so the shape
- * doesn't quietly depend on that Bun-specific guarantee); the worker parses
- * back to `bigint`.
+ * boundary.
  */
 export type ReadReply =
 	| { kind: "row"; row: Record<string, unknown> | null }
-	| { kind: "rows"; rows: Record<string, unknown>[] }
-	| { kind: "count"; count: number }
-	| { kind: "amount"; amount: string | null };
+	| { kind: "rows"; rows: Record<string, unknown>[] };
 
-export type ReadMethod =
-	| "findOne"
-	| "findMany"
-	| "count"
-	| "sum"
-	| "min"
-	| "max"
-	| "countDistinct";
+export type ReadMethod = "findOne" | "findMany";
 
 export type HostToWorkerMessage =
 	| {
@@ -97,9 +82,6 @@ export type WorkerToHostMessage =
 			method: ReadMethod;
 			table: string;
 			where: Record<string, unknown>;
-			/** Column argument for count/sum/min/max/countDistinct; unused by
-			 *  findOne/findMany. */
-			column?: string;
 	  }
 	| {
 			type: "blockDone";

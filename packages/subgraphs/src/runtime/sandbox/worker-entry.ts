@@ -55,12 +55,11 @@ function sendRead(
 	method: ReadMethod,
 	table: string,
 	where: Record<string, unknown>,
-	column?: string,
 ): Promise<ReadReply> {
 	const id = ++reqId;
 	return new Promise((resolve) => {
 		pendingReads.set(id, { resolve });
-		post({ type: "readRequest", id, method, table, where, column });
+		post({ type: "readRequest", id, method, table, where });
 	});
 }
 

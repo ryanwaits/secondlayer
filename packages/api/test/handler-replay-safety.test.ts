@@ -29,9 +29,9 @@ describe("non-replayable handler detection", () => {
 		expect(
 			hasNonReplayableWrites("const { increment } = ctx; increment(x);"),
 		).toBe(true);
-		expect(
-			hasNonReplayableWrites('await ctx["patchOrInsert"]("t", row);'),
-		).toBe(true);
+		expect(hasNonReplayableWrites('await ctx["increment"]("t", row);')).toBe(
+			true,
+		);
 		expect(hasNonReplayableWrites("await ctx?.update('t', a, b);")).toBe(true);
 	});
 
@@ -64,22 +64,21 @@ describe("non-replayable handler detection", () => {
 			"insert",
 			"update",
 			"upsert",
-			"patch",
-			"patchOrInsert",
 			"increment",
 			"delete",
+			"findOne",
+			"findMany",
 		] as const;
 		const declared = known.filter((m) =>
 			new RegExp(`^\\s+(async )?${m}\\(`, "m").test(src),
 		);
-		// Delta-applying = everything that modifies prior state non-idempotently.
+		// Non-replayable = deltas on prior state, plus reads that feed a
+		// read-modify-write.
 		const deltaApplying = declared.filter((m) =>
-			["update", "patch", "patchOrInsert", "increment"].includes(m),
+			["update", "increment", "findOne", "findMany"].includes(m),
 		);
+		expect(deltaApplying.length).toBe(4);
 		for (const m of deltaApplying) {
-			// patch is a partial SET (idempotent per-block? a replayed patch SETs
-			// the same values — idempotent), so only assert on the true deltas:
-			if (m === "patch") continue;
 			expect(DELTA_CTX_METHODS).toContain(
 				m as (typeof DELTA_CTX_METHODS)[number],
 			);

@@ -17,7 +17,6 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
   name: "token-transfers",
-  version: "1.0.0",
   sources: {
     // Named event sources — the key becomes the handler name.
     transfer: {
@@ -94,8 +93,8 @@ secondlayer codegen subgraph subgraphs/my.ts --target drizzle -o db/schema.ts
 ```
 
 Prisma and Drizzle have first-class generators (`generatePrismaSchema` /
-`generateDrizzleSchema` are exported); both emit relations/`@relation` from the
-schema's `relations` metadata. For Kysely, run `kysely-codegen` against the DB.
+`generateDrizzleSchema` are exported). For Kysely, run `kysely-codegen`
+against the DB.
 Output mirrors the deployed DDL — `prisma db pull` should be a no-op; treat the
 tables as read-only (the processor owns them) and never `migrate`/`push`.
 `uint`→`Decimal`/`numeric` and the `BigInt` id need `.toString()` for JSON.

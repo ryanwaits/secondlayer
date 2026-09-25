@@ -26,8 +26,7 @@ test("defineSubgraph returns the same definition", () => {
 
 test("defineSubgraph preserves optional fields", () => {
 	const def = defineSubgraph({
-		name: "versioned",
-		version: "2.0.0",
+		name: "described",
 		description: "A test subgraph",
 		sources: {
 			handler: { type: "contract_call", contractId: "SP000::contract" },
@@ -38,7 +37,6 @@ test("defineSubgraph preserves optional fields", () => {
 		handlers: { handler: () => {} },
 	});
 
-	expect(def.version).toBe("2.0.0");
 	expect(def.description).toBe("A test subgraph");
 });
 

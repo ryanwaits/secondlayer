@@ -273,7 +273,7 @@ export type EventForFilter<F extends SubgraphFilter> = F extends {
 																	: MapWritePayload
 																: never;
 
-/** Union of every event payload — the `"*"` catch-all handler receives this. */
+/** Union of every event payload. */
 export type AnyEvent =
 	| FtTransferPayload
 	| FtMintPayload

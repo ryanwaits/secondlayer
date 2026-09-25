@@ -54,10 +54,6 @@ interface EvaluatedDef {
 			contractId: string;
 			topic?: string;
 			prints?: Record<string, Record<string, string>>;
-			materialize?: {
-				table: string;
-				columns: Record<string, { from?: string }>;
-			};
 		}
 	>;
 	schema: Record<
@@ -76,6 +72,20 @@ interface EvaluatedDef {
 			ctx: { insert: (table: string, row: Record<string, unknown>) => void },
 		) => void
 	>;
+}
+
+/** Runs one generated handler and returns the `{ table, row }` it inserted. */
+function runHandler(
+	def: EvaluatedDef,
+	source: string,
+	event: { data: Record<string, unknown>; topic?: string },
+): { table: string; row: Record<string, unknown> } {
+	const inserted: Array<{ table: string; row: Record<string, unknown> }> = [];
+	const handler = def.handlers[source];
+	if (!handler) throw new Error(`no handler for ${source}`);
+	handler(event, { insert: (table, row) => inserted.push({ table, row }) });
+	expect(inserted).toHaveLength(1);
+	return inserted[0] as { table: string; row: Record<string, unknown> };
 }
 
 /** Executes the generated module — proves the emitted code is syntactically valid JS. */
@@ -126,19 +136,30 @@ describe("generatePrintSchemaSubgraph", () => {
 		);
 	});
 
-	test("wide table: materialize maps topic fields + discriminant", () => {
-		const out = generatePrintSchemaSubgraph({
-			contractId: CONTRACT,
-			topics: TOPICS,
+	test("wide table: one insert handler per topic maps fields + discriminant", () => {
+		const def = evalScaffold(
+			generatePrintSchemaSubgraph({ contractId: CONTRACT, topics: TOPICS }),
+		);
+		expect(Object.keys(def.handlers)).toEqual([
+			"completedDeposit",
+			"withdrawalCreate",
+		]);
+		expect(
+			runHandler(def, "completedDeposit", {
+				topic: "completed-deposit",
+				data: { amount: 5n, bitcoinTxid: "ab" },
+			}),
+		).toEqual({
+			table: "sbtc_registry",
+			row: { topic: "completed-deposit", amount: 5n, bitcoin_txid: "ab" },
 		});
-		expect(out).toContain("materialize: {");
-		expect(out).toContain("table: 'sbtc_registry'");
-		expect(out).toContain("topic: { from: 'topic' }");
-		expect(out).toContain("amount: { from: 'amount' }");
-		expect(out).toContain("bitcoin_txid: { from: 'bitcoinTxid' }");
-		expect(out).toContain("sender: { from: 'sender' }");
-		expect(out).not.toContain("ctx.insert");
-		expect(out).toContain("handlers: {");
+		// `sender` is not always present → null when absent.
+		expect(
+			runHandler(def, "withdrawalCreate", {
+				topic: "withdrawal-create",
+				data: { amount: 1n },
+			}).row,
+		).toEqual({ topic: "withdrawal-create", amount: 1n, sender: null });
 	});
 
 	test("tablePerTopic: one table per topic, only its columns", () => {
@@ -154,10 +175,15 @@ describe("generatePrintSchemaSubgraph", () => {
 		expect(out).toContain("sender: { type: 'principal', nullable: true }");
 		// no topic discriminant column in per-topic layout
 		expect(out).not.toContain("topic: { type: 'text'");
-		expect(out).toContain("table: 'completed_deposit'");
-		expect(out).toContain("amount: { from: 'amount' }");
-		expect(out).toContain("bitcoin_txid: { from: 'bitcoinTxid' }");
-		expect(out).not.toContain("ctx.insert");
+		const def = evalScaffold(out);
+		expect(
+			runHandler(def, "completedDeposit", {
+				data: { amount: 5n, bitcoinTxid: "ab" },
+			}),
+		).toEqual({
+			table: "completed_deposit",
+			row: { amount: 5n, bitcoin_txid: "ab" },
+		});
 	});
 
 	test("name override", () => {
@@ -277,15 +303,19 @@ describe("generatePrintSchemaSubgraph", () => {
 			expect(weird?.prints?.[topic]?.["bad'field"]).toBe("uint");
 		}
 		// Wide layout: weird topic also lands in a `// null except on topics:` comment
-		// and the materialize map — evalScaffold above already proves neither broke syntax.
+		// and its handler — evalScaffold above already proves neither broke syntax.
 		const wide = evalScaffold(
 			generatePrintSchemaSubgraph({ contractId: CONTRACT, topics }),
 		);
-		const weirdSrc = Object.values(wide.sources).find((s) => s.topic === topic);
-		expect(weirdSrc?.materialize?.columns.topic).toEqual({ from: "topic" });
-		expect(weirdSrc?.materialize?.columns["bad'field"]).toEqual({
-			from: "bad'field",
+		const weirdKey = Object.keys(wide.sources).find(
+			(k) => wide.sources[k]?.topic === topic,
+		) as string;
+		const { row } = runHandler(wide, weirdKey, {
+			topic,
+			data: { "bad'field": 7n },
 		});
+		expect(row.topic).toBe(topic);
+		expect(Object.values(row)).toContain(7n);
 	});
 
 	test("topics that camelize identically get suffixed source keys", () => {
@@ -297,10 +327,10 @@ describe("generatePrintSchemaSubgraph", () => {
 			generatePrintSchemaSubgraph({ contractId: CONTRACT, topics: collide }),
 		);
 		expect(Object.keys(def.sources)).toEqual(["feeSet", "feeSet_2"]);
-		expect(Object.keys(def.handlers)).toEqual([]);
-		expect(def.sources.feeSet?.materialize?.columns.topic).toEqual({
-			from: "topic",
-		});
+		expect(Object.keys(def.handlers)).toEqual(["feeSet", "feeSet_2"]);
+		expect(
+			runHandler(def, "feeSet", { topic: "fee-set", data: {} }).row,
+		).toEqual({ topic: "fee-set" });
 		expect(def.sources.feeSet?.topic).toBe("fee-set");
 		expect(def.sources.feeSet_2?.topic).toBe("feeSet");
 	});
@@ -356,10 +386,13 @@ describe("generatePrintSchemaSubgraph", () => {
 			const table = Object.values(def.schema)[0];
 			expect(table?.columns.foo_bar?.type).toBe("uint");
 			expect(table?.columns.foo_bar_2?.type).toBe("text");
-			// materialize maps each event.data key to its own (suffixed) column
-			const cols = def.sources.swap?.materialize?.columns ?? {};
-			expect(cols.foo_bar).toEqual({ from: "fooBar" });
-			expect(cols.foo_bar_2).toEqual({ from: "foo_bar" });
+			// the handler maps each event.data key to its own (suffixed) column
+			const { row } = runHandler(def, "swap", {
+				topic: "swap",
+				data: { fooBar: 1n, foo_bar: "x" },
+			});
+			expect(row.foo_bar).toBe(1n);
+			expect(row.foo_bar_2).toBe("x");
 		}
 	});
 
@@ -395,8 +428,11 @@ describe("generatePrintSchemaSubgraph", () => {
 		const cols = def.schema.sbtc_registry?.columns ?? {};
 		expect(cols.topic?.indexed).toBe(true);
 		expect(cols.topic_2?.type).toBe("text");
-		const mat = def.sources.a?.materialize?.columns ?? {};
-		expect(mat.topic).toEqual({ from: "topic" });
-		expect(mat.topic_2).toEqual({ from: "topic" });
+		const { row } = runHandler(def, "a", {
+			topic: "a",
+			data: { topic: "inner" },
+		});
+		expect(row.topic).toBe("a");
+		expect(row.topic_2).toBe("inner");
 	});
 });

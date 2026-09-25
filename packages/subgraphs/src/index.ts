@@ -2,8 +2,6 @@ export type {
 	ColumnType,
 	FactoryScope,
 	PrintField,
-	MaterializeColumn,
-	MaterializeSpec,
 	SubgraphColumn,
 	SubgraphTable,
 	SubgraphSchema,
@@ -31,7 +29,6 @@ export type {
 	ContractCallEvent,
 	TxMeta,
 	RowValue,
-	ComputedValue,
 } from "./types.ts";
 export {
 	defineSchema,

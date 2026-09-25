@@ -502,35 +502,11 @@ async function answerRead(
 	hostCtx: SubgraphContext,
 	msg: Extract<WorkerToHostMessage, { type: "readRequest" }>,
 ): Promise<Extract<HostToWorkerMessage, { type: "readResponse" }>["reply"]> {
-	const { method, table, where, column } = msg;
+	const { method, table, where } = msg;
 	switch (method) {
 		case "findOne":
 			return { kind: "row", row: await hostCtx.findOne(table, where) };
 		case "findMany":
 			return { kind: "rows", rows: await hostCtx.findMany(table, where) };
-		case "count":
-			return { kind: "count", count: await hostCtx.count(table, where) };
-		case "countDistinct": {
-			if (!column) throw new Error("countDistinct read missing column");
-			return {
-				kind: "count",
-				count: await hostCtx.countDistinct(table, column, where),
-			};
-		}
-		case "sum": {
-			if (!column) throw new Error("sum read missing column");
-			const v = await hostCtx.sum(table, column, where);
-			return { kind: "amount", amount: v.toString() };
-		}
-		case "min": {
-			if (!column) throw new Error("min read missing column");
-			const v = await hostCtx.min(table, column, where);
-			return { kind: "amount", amount: v == null ? null : v.toString() };
-		}
-		case "max": {
-			if (!column) throw new Error("max read missing column");
-			const v = await hostCtx.max(table, column, where);
-			return { kind: "amount", amount: v == null ? null : v.toString() };
-		}
 	}
 }

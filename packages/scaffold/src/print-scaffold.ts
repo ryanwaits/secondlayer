@@ -137,27 +137,37 @@ ${handlers}
 `.trimStart();
 }
 
-/** `materialize.columns` entry — `{ from: 'camel' }` literal. */
-function fromCol(camel: string): string {
-	return `{ from: ${str(camel)} }`;
+/** `event.data.x`, or `event.data["x"]` when the key is not an identifier. */
+function dataRef(camel: string): string {
+	return IDENT_RE.test(camel)
+		? `event.data.${camel}`
+		: `event.data[${str(camel)}]`;
 }
 
-function materializeBlock(
+/**
+ * One-line insert handler: each column reads its print field off
+ * `event.data`; the discriminant column (no `camel`) reads `event.topic`.
+ * Fields not always present fall back to null, matching their nullable column.
+ */
+function insertHandler(
+	srcKey: string,
 	table: string,
-	columns: Array<{ snake: string; camel: string }>,
+	columns: Array<{ snake: string; camel?: string; optional: boolean }>,
 ): string {
-	const colLines = columns
-		.map((c) => `          ${key(c.snake)}: ${fromCol(c.camel)}`)
+	const fields = columns
+		.map((c) => {
+			const ref = c.camel === undefined ? "event.topic" : dataRef(c.camel);
+			return `        ${key(c.snake)}: ${ref}${c.optional ? " ?? null" : ""}`;
+		})
 		.join(",\n");
-	return `      materialize: {\n        table: ${str(table)},\n        columns: {\n${colLines}\n        }\n      }`;
+	return `    ${key(srcKey)}: (event, ctx) => {\n      ctx.insert(${str(table)}, {\n${fields}\n      });\n    }`;
 }
 
-/** Source entry: pinned print_event + prints + optional static materialize. */
+/** Source entry: pinned print_event + prints. */
 function sourceEntry(
 	srcKey: string,
 	contractId: string,
 	topic: PrintScaffoldTopic,
-	materialize?: string,
 ): string {
 	const lines = [
 		"      type: 'print_event',",
@@ -187,10 +197,6 @@ function sourceEntry(
 			? `      prints: {\n        ${key(topic.topic)}: {\n${fieldLines.join(",\n")}\n        }\n      }`
 			: `      prints: {\n        ${key(topic.topic)}: {}\n      }`,
 	);
-	if (materialize) {
-		lines[lines.length - 1] += ",";
-		lines.push(materialize);
-	}
 	return `    ${key(srcKey)}: {\n${lines.join("\n")}\n    }`;
 }
 
@@ -275,7 +281,7 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 		sourceKeyByTopic.get(t.topic) as string;
 
 	if (input.tablePerTopic) {
-		// Resolve table + column names once so schema and materialize agree on
+		// Resolve table + column names once so schema and handlers agree on
 		// collision suffixes. Seed with reserved names so `add` does not clobber.
 		const dedupeTable = makeDeduper(input.reservedTableNames ?? []);
 		const perTopic = topics.map((t) => {
@@ -291,21 +297,7 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 		});
 
 		const sources = perTopic
-			.map(({ topic: t, table, snakeFor }) => {
-				// Empty-field topics need a handler (whole `event.data` jsonb) —
-				// materialize cannot express that passthrough.
-				const mat =
-					t.fields.length > 0
-						? materializeBlock(
-								table,
-								[...snakeFor.entries()].map(([camel, snake]) => ({
-									snake,
-									camel,
-								})),
-							)
-						: undefined;
-				return sourceEntry(srcKey(t), input.contractId, t, mat);
-			})
+			.map(({ topic: t }) => sourceEntry(srcKey(t), input.contractId, t))
 			.join(",\n");
 
 		const schema = perTopic
@@ -323,9 +315,21 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 			})
 			.join(",\n");
 		const handlers = perTopic
-			.filter(({ topic: t }) => t.fields.length === 0)
-			.map(({ topic: t, table }) => {
-				return `    ${key(srcKey(t))}: (event, ctx) => {\n      ctx.insert(${str(table)}, { value: event.data ?? null });\n    }`;
+			.map(({ topic: t, table, snakeFor }) => {
+				// Empty-field topics store the whole `event.data` as jsonb.
+				if (t.fields.length === 0) {
+					return `    ${key(srcKey(t))}: (event, ctx) => {\n      ctx.insert(${str(table)}, { value: event.data ?? null });\n    }`;
+				}
+				return insertHandler(
+					srcKey(t),
+					table,
+					[...snakeFor.entries()].map(([camel, snake]) => ({
+						snake,
+						camel,
+						optional: !t.fields.find((f) => f.camel_name === camel)
+							?.always_present,
+					})),
+				);
 			})
 			.join(",\n\n");
 		return wrap(name, sources, schema, handlers, provenanceComment(input));
@@ -377,25 +381,22 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 	const schema = `    ${key(wideTable)}: {\n      columns: {\n${colLines}\n      }\n    }`;
 
 	const sources = topics
+		.map((t) => sourceEntry(srcKey(t), input.contractId, t))
+		.join(",\n");
+	const handlers = topics
 		.map((t) => {
 			const seen = new Set<string>();
-			const matCols: Array<{ snake: string; camel: string }> = [
-				{ snake: "topic", camel: "topic" },
-			];
+			const cols: Array<{ snake: string; camel?: string; optional: boolean }> =
+				[{ snake: "topic", optional: false }];
 			for (const f of t.fields) {
 				if (seen.has(f.camel_name)) continue;
 				seen.add(f.camel_name);
 				const snake = columns.get(f.camel_name)?.snake ?? f.camel_name;
-				matCols.push({ snake, camel: f.camel_name });
+				cols.push({ snake, camel: f.camel_name, optional: !f.always_present });
 			}
-			return sourceEntry(
-				srcKey(t),
-				input.contractId,
-				t,
-				materializeBlock(wideTable, matCols),
-			);
+			return insertHandler(srcKey(t), wideTable, cols);
 		})
-		.join(",\n");
+		.join(",\n\n");
 
-	return wrap(name, sources, schema, "", provenanceComment(input));
+	return wrap(name, sources, schema, handlers, provenanceComment(input));
 }

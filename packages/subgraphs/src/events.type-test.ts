@@ -6,7 +6,6 @@
 import { expectTypeOf } from "expect-type";
 import { defineSubgraph } from "./define.ts";
 import type {
-	AnyEvent,
 	ContractDeployPayload,
 	EventForFilter,
 	FtTransferPayload,
@@ -126,9 +125,6 @@ defineSubgraph({
 		},
 		ftXfer: (event) => {
 			expectTypeOf(event.amount).toEqualTypeOf<bigint>();
-		},
-		"*": (event) => {
-			expectTypeOf(event).toEqualTypeOf<AnyEvent>();
 		},
 	},
 });

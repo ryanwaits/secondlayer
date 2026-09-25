@@ -86,6 +86,20 @@ async function readBalance(address: string): Promise<bigint | null> {
 	return row ? BigInt(row.balance) : null;
 }
 
+/** Read-modify-write through the overlay: findOne sees pending same-block ops. */
+async function addBalance(
+	ctx: SubgraphContext,
+	address: string,
+	delta: bigint,
+): Promise<void> {
+	const existing = await ctx.findOne("balances", { address });
+	ctx.upsert(
+		"balances",
+		{ address },
+		{ address, balance: BigInt(String(existing?.balance ?? 0)) + delta },
+	);
+}
+
 describe("SubgraphContext flush manifest", () => {
 	it("returns FlushManifest describing each write", async () => {
 		const ctx = new SubgraphContext(
@@ -154,26 +168,13 @@ describe("reads observe writes queued earlier in the same block", () => {
 		expect(BigInt(String(row?.balance))).toBe(100n);
 	});
 
-	it("patchOrInsert functional updaters compose within a block", async () => {
+	it("findOne-then-upsert read-modify-writes compose within a block", async () => {
 		const ctx = makeCtx();
 		const addr = `SPOVERLAY2_${Date.now()}`;
-		const toBig = (v: unknown) => BigInt(String(v ?? 0));
 
-		await ctx.patchOrInsert(
-			"balances",
-			{ address: addr },
-			{ address: addr, balance: (e) => toBig(e?.balance) + 500n },
-		);
-		await ctx.patchOrInsert(
-			"balances",
-			{ address: addr },
-			{ address: addr, balance: (e) => toBig(e?.balance) - 200n },
-		);
-		await ctx.patchOrInsert(
-			"balances",
-			{ address: addr },
-			{ address: addr, balance: (e) => toBig(e?.balance) - 300n },
-		);
+		await addBalance(ctx, addr, 500n);
+		await addBalance(ctx, addr, -200n);
+		await addBalance(ctx, addr, -300n);
 		await ctx.flush();
 
 		expect(await readBalance(addr)).toBe(0n);
@@ -181,22 +182,13 @@ describe("reads observe writes queued earlier in the same block", () => {
 
 	it("overlay composes with committed DB state across blocks", async () => {
 		const addr = `SPOVERLAY3_${Date.now()}`;
-		const toBig = (v: unknown) => BigInt(String(v ?? 0));
 
 		const ctx1 = makeCtx(1000);
-		await ctx1.patchOrInsert(
-			"balances",
-			{ address: addr },
-			{ address: addr, balance: (e) => toBig(e?.balance) + 70n },
-		);
+		await addBalance(ctx1, addr, 70n);
 		await ctx1.flush();
 
 		const ctx2 = makeCtx(1001);
-		await ctx2.patchOrInsert(
-			"balances",
-			{ address: addr },
-			{ address: addr, balance: (e) => toBig(e?.balance) + 30n },
-		);
+		await addBalance(ctx2, addr, 30n);
 		const pending = await ctx2.findOne("balances", { address: addr });
 		expect(BigInt(String(pending?.balance))).toBe(100n);
 		await ctx2.flush();

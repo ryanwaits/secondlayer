@@ -4,7 +4,6 @@ import type { SubgraphDefinition } from "../src/types.ts";
 
 const def: SubgraphDefinition = {
 	name: "dex",
-	version: "1.0.0",
 	sources: { t: { type: "contract_call", contractId: "SP.dex" } },
 	schema: {
 		pools: {

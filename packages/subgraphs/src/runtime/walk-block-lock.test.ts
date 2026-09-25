@@ -33,8 +33,8 @@ import { backfillSubgraph } from "./reindex.ts";
  * processes, which is why the in-process mutex alone could not have closed
  * this: the serializing lock has to be the Postgres advisory lock.
  *
- * The corruption is a lost update, not a lost delta: `ctx.patchOrInsert` reads
- * the row, computes from what it read, and writes back at flush. Two
+ * The corruption is a lost update, not a lost delta: a handler that
+ * `findOne`s the row, computes from what it read, and writes back at flush. Two
  * interleaved block transactions both read the pre-state and the second
  * overwrites the first. The increment flush retry does not help here — that
  * guards `ctx.increment`'s additive path only.
@@ -101,7 +101,7 @@ let exit: ((tag: string) => void) | null = null;
 
 /**
  * One read-modify-write of a row shared by every walk in this file. The read
- * is `patchOrInsert`'s `findOne`; the write lands at flush, inside the block's
+ * is `findOne`; the `upsert` lands at flush, inside the block's
  * transaction. Ordering-sensitive by construction.
  */
 function makeDef(name: string, tag: string): SubgraphDefinition {
@@ -113,13 +113,11 @@ function makeDef(name: string, tag: string): SubgraphDefinition {
 		handlers: {
 			mint: (async (_e: unknown, ctx: SubgraphContext) => {
 				await enter?.(tag);
-				await ctx.patchOrInsert(
+				const existing = await ctx.findOne("counters", { id: KEY });
+				ctx.upsert(
 					"counters",
 					{ id: KEY },
-					{
-						total: (existing: Record<string, unknown> | null) =>
-							existing ? BigInt(String(existing.total)) + 1n : 1n,
-					},
+					{ total: existing ? BigInt(String(existing.total)) + 1n : 1n },
 				);
 				exit?.(tag);
 			}) as unknown as SubgraphHandler,
@@ -503,8 +501,9 @@ describe("per-subgraph block lock across walks", () => {
 				schema: ${JSON.stringify(schema)},
 				handlers: {
 					mint: async (_e, ctx) => {
-						await ctx.patchOrInsert("counters", { id: ${JSON.stringify(KEY)} }, {
-							total: (existing) => existing ? BigInt(String(existing.total)) + 1n : 1n,
+						const existing = await ctx.findOne("counters", { id: ${JSON.stringify(KEY)} });
+						ctx.upsert("counters", { id: ${JSON.stringify(KEY)} }, {
+							total: existing ? BigInt(String(existing.total)) + 1n : 1n,
 						});
 					},
 				},

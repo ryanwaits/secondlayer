@@ -1,7 +1,6 @@
 import type { ErasedChainReadClient } from "./runtime/chain-read.ts";
 import type {
 	ColumnType,
-	ComputedValue,
 	SubgraphColumn,
 	SubgraphSchema,
 	SubgraphTable,
@@ -243,13 +242,6 @@ export type WriteRow<T extends SubgraphTable> = {
 		: never]?: WriteColumnType<T["columns"][K]>;
 };
 
-/** Computed-or-value row for `patchOrInsert` — each field may be a function of the existing row. */
-type PatchRow<T extends SubgraphTable> = {
-	[K in keyof WriteRow<T>]?:
-		| WriteRow<T>[K]
-		| ((existing: InferTableRow<T> | null) => unknown);
-};
-
 type TableName<S extends SubgraphSchema> = keyof S & string;
 type ColumnName<
 	S extends SubgraphSchema,
@@ -296,16 +288,6 @@ export interface TypedSubgraphContext<S extends SubgraphSchema> {
 		row: Omit<WriteRow<S[T]>, keyof K> & Partial<WriteRow<S[T]>>,
 	): void;
 	delete<T extends TableName<S>>(table: T, where: RowWhere<S, T>): void;
-	patch<T extends TableName<S>>(
-		table: T,
-		where: RowWhere<S, T>,
-		set: Partial<WriteRow<S[T]>>,
-	): void;
-	patchOrInsert<T extends TableName<S>>(
-		table: T,
-		key: Partial<WriteRow<S[T]>>,
-		row: PatchRow<S[T]> & Record<string, ComputedValue>,
-	): Promise<void>;
 	/**
 	 * Atomic accumulator — `INSERT … ON CONFLICT (key) DO UPDATE SET col =
 	 * COALESCE(col,0) + delta`. Deltas commute, so it's the reorg-safe primitive
@@ -325,31 +307,6 @@ export interface TypedSubgraphContext<S extends SubgraphSchema> {
 		table: T,
 		where: RowWhere<S, T>,
 	): Promise<InferTableRow<S[T]>[]>;
-	formatUnits(value: bigint, decimals: number): string;
-	count<T extends TableName<S>>(
-		table: T,
-		where?: RowWhere<S, T>,
-	): Promise<number>;
-	sum<T extends TableName<S>>(
-		table: T,
-		column: ColumnName<S, T>,
-		where?: RowWhere<S, T>,
-	): Promise<bigint>;
-	min<T extends TableName<S>>(
-		table: T,
-		column: ColumnName<S, T>,
-		where?: RowWhere<S, T>,
-	): Promise<bigint | null>;
-	max<T extends TableName<S>>(
-		table: T,
-		column: ColumnName<S, T>,
-		where?: RowWhere<S, T>,
-	): Promise<bigint | null>;
-	countDistinct<T extends TableName<S>>(
-		table: T,
-		column: ColumnName<S, T>,
-		where?: RowWhere<S, T>,
-	): Promise<number>;
 }
 
 // ── Full subgraph client inference ────────────────────────────────────────

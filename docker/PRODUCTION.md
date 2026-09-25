@@ -90,7 +90,7 @@ transaction as their rows; a resumed/requeued op starts at `cursor_block + 1`.
   benign in isolation (the winner committed the block). A FLOOD of them means
   a zombie runner is replaying a claimed op: check for two processor
   containers / a stale lease.
-- **Accumulator subgraphs (`ctx.increment`/`patchOrInsert`)**: backfill and
+- **Accumulator subgraphs (`ctx.increment`, or `findOne` read-modify-writes)**: backfill and
   tip-first are REJECTED at the API for these (`*_NON_REPLAYABLE_HANDLER`).
   Genuine gaps below a backfill cursor on an accumulator cannot be repaired in
   place — the safe re-run is a full `reindex` (schema-dropping, exactly-once).

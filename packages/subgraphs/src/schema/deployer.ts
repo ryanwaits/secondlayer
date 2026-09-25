@@ -8,7 +8,6 @@ import type {
 import { validateSubgraphDefinition } from "../validate.ts";
 import {
 	TYPE_MAP,
-	emitForeignKeyDDL,
 	emitIndexedColumnIndexDDL,
 	emitTableDDL,
 	generateSubgraphSQL,
@@ -262,7 +261,6 @@ export async function deploySchema(
 		apiKeyId?: string;
 		accountId?: string;
 		schemaName?: string;
-		version?: string;
 		handlerCode?: string;
 		sourceCode?: string;
 	},
@@ -287,16 +285,14 @@ export async function deploySchema(
 
 	const schemaName = opts?.schemaName ?? pgSchemaName(def.name);
 
-	// Server owns versioning: use explicit flag, bump patch from existing, or start at 1.0.0
-	const newVersion =
-		opts?.version ?? (existing ? bumpPatch(existing.version) : "1.0.0");
+	// Server owns versioning: bump patch from existing, or start at 1.0.0
+	const newVersion = existing ? bumpPatch(existing.version) : "1.0.0";
 
 	const regData = {
 		name: def.name,
 		version: newVersion,
 		definition: toJsonSafe({
 			name: def.name,
-			version: def.version,
 			description: def.description,
 			startBlock: def.startBlock,
 			sources: def.sources,
@@ -420,14 +416,6 @@ export async function deploySchema(
 					await sql.raw(stmt).execute(ddlDb);
 				}
 			}
-			// FKs in a second pass so every referenced (new or pre-existing) table
-			// exists first.
-			for (const { tableName, tableDef } of addedDefs) {
-				for (const stmt of emitForeignKeyDDL(schemaName, tableName, tableDef)) {
-					await sql.raw(stmt).execute(ddlDb);
-				}
-			}
-
 			// Add columns to existing tables
 			for (const [tableName, colDiff] of Object.entries(diff.tables)) {
 				if (colDiff.added.length === 0) continue;

@@ -1,16 +1,19 @@
 /**
- * Delta-applying SubgraphContext methods — writes that DOUBLE-APPLY when a
- * block is replayed (at-least-once paths: backfill walks that revisit
- * processed heights, crash-resume overshoot). Insert/upsert with a
- * unique key are replay-safe; these are not.
+ * SubgraphContext methods that make a handler non-replayable. `update` and
+ * `increment` apply deltas that DOUBLE-APPLY when a block is replayed
+ * (at-least-once paths: backfill walks that revisit processed heights,
+ * crash-resume overshoot). `findOne`/`findMany` feed read-modify-writes
+ * (read a row, compute, `upsert` it back), which depend on the order blocks
+ * arrive in. Insert and full-row upsert with a unique key are replay-safe.
  *
  * Single source for every guard (backfill route, tip-first deploy) — the
  * drift test enumerates SubgraphContext to keep this honest.
  */
 export const DELTA_CTX_METHODS = [
 	"update",
-	"patchOrInsert",
 	"increment",
+	"findOne",
+	"findMany",
 ] as const;
 
 const METHODS = DELTA_CTX_METHODS.join("|");

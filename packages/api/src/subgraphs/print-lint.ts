@@ -46,7 +46,7 @@ export async function lintPrintFields(
 		// Trait sources span many contracts and unpinned sources span all of
 		// them — only a single pinned contract has one observable schema.
 		if (!filter.contractId || filter.trait) continue;
-		const handler = def.handlers?.[sourceName] ?? def.handlers?.["*"];
+		const handler = def.handlers?.[sourceName];
 		const source =
 			typeof handler === "function"
 				? handler.toString()

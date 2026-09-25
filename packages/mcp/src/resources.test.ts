@@ -246,8 +246,6 @@ describe("filters ↔ subgraphs SubgraphFilter validator", () => {
 				return { topic: { field: "uint" } };
 			case "factory":
 				return { from: "other", field: "data.pool" };
-			case "materialize":
-				return { table: "rows", columns: { col: { from: "field" } } };
 			case "contractId":
 				return "SP1.contract";
 			default:

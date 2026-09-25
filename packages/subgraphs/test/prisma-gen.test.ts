@@ -4,7 +4,6 @@ import type { SubgraphDefinition } from "../src/types.ts";
 
 const def: SubgraphDefinition = {
 	name: "my-token",
-	version: "1.0.0",
 	sources: { t: { type: "ft_transfer" } },
 	schema: {
 		transfers: {
@@ -64,45 +63,5 @@ describe("generatePrismaSchema", () => {
 		expect(out).toContain("@@index([assetId])");
 		expect(out).toContain("@@index([sender, amount])");
 		expect(out).toContain("@@unique([sender, assetId])");
-	});
-});
-
-describe("generatePrismaSchema relations (A2b)", () => {
-	const def: SubgraphDefinition = {
-		name: "dex",
-		version: "1.0.0",
-		sources: { t: { type: "contract_call", contractId: "SP.dex" } },
-		schema: {
-			pools: {
-				columns: { pool_id: { type: "principal" }, fee: { type: "uint" } },
-				uniqueKeys: [["pool_id"]],
-			},
-			swaps: {
-				columns: {
-					pool: { type: "principal" },
-					amount: { type: "uint" },
-				},
-				relations: [
-					{
-						name: "poolRef",
-						references: "pools",
-						fields: ["pool"],
-						referencedColumns: ["pool_id"],
-					},
-				],
-			},
-		},
-		handlers: { t: async () => {} },
-	};
-	const out = generatePrismaSchema(def, { schemaName: "subgraph_dex" });
-
-	test("forward relation emitted on owning model", () => {
-		expect(out).toContain(
-			'poolRef Pools @relation("Swaps_poolRef", fields: [pool], references: [poolId])',
-		);
-	});
-
-	test("back-relation emitted on referenced model", () => {
-		expect(out).toContain('swapsPoolRef Swaps[] @relation("Swaps_poolRef")');
 	});
 });

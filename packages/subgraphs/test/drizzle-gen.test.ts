@@ -4,7 +4,6 @@ import type { SubgraphDefinition } from "../src/types.ts";
 
 const def: SubgraphDefinition = {
 	name: "dex",
-	version: "1.0.0",
 	sources: { t: { type: "contract_call", contractId: "SP.dex" } },
 	schema: {
 		pools: {
@@ -18,14 +17,6 @@ const def: SubgraphDefinition = {
 				trader: { type: "principal", indexed: true },
 				note: { type: "text", nullable: true },
 			},
-			relations: [
-				{
-					name: "poolRef",
-					references: "pools",
-					fields: ["pool"],
-					referencedColumns: ["pool_id"],
-				},
-			],
 		},
 	},
 	handlers: { t: async () => {} },
@@ -34,13 +25,13 @@ const def: SubgraphDefinition = {
 describe("generateDrizzleSchema", () => {
 	const out = generateDrizzleSchema(def, { schemaName: "subgraph_dex" });
 
-	test("imports only used builders + relations", () => {
+	test("imports only used builders", () => {
 		expect(out).toContain('from "drizzle-orm/pg-core"');
 		expect(out).toContain("bigserial");
 		expect(out).toContain("numeric");
 		expect(out).toContain("index");
 		expect(out).toContain("uniqueIndex");
-		expect(out).toContain('import { relations } from "drizzle-orm";');
+		expect(out).not.toContain('from "drizzle-orm";');
 	});
 
 	test("pgSchema + table with system + mapped columns", () => {
@@ -56,15 +47,6 @@ describe("generateDrizzleSchema", () => {
 	test("indexes + unique constraints in third arg", () => {
 		expect(out).toContain('traderIdx: index("idx_swaps_trader").on(t.trader)');
 		expect(out).toContain('uq0: uniqueIndex("uq_pools_0").on(t.poolId)');
-	});
-
-	test("relations() with one() forward + many() back", () => {
-		expect(out).toContain("export const swapsRelations = relations(swaps");
-		expect(out).toContain(
-			"poolRef: one(pools, { fields: [swaps.pool], references: [pools.poolId] })",
-		);
-		expect(out).toContain("export const poolsRelations = relations(pools");
-		expect(out).toContain("swapsPoolRef: many(swaps)");
 	});
 
 	test("$inferSelect type exports", () => {

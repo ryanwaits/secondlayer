@@ -5,7 +5,6 @@ import type { Database, Event, Transaction } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 import { generateSubgraphSQL } from "../schema/generator.ts";
 import type {
-	ComputedValue,
 	SubgraphDefinition,
 	SubgraphHandler,
 	SubgraphSchema,
@@ -19,7 +18,7 @@ import { handleSubgraphReorg } from "./reorg.ts";
  * Sprint 0 of plans/fix-f040-subgraph-accumulator-correctness.md.
  *
  * Encodes the correctness invariants an accumulator subgraph (running
- * balance via patchOrInsert functional updaters) must satisfy. All three
+ * balance via findOne-then-upsert read-modify-writes) must satisfy. All three
  * groups FAIL on current code by design — Sprints 1-3 make them green:
  *
  *   B1 (Sprint 1): in-block reads must see pending same-block writes;
@@ -66,14 +65,13 @@ function makeHandlers(): Record<string, SubgraphHandler> {
 		address: string,
 		amount: bigint,
 	) => {
-		await ctx.patchOrInsert(
+		const existing = (await ctx.findOne("balances", {
+			address,
+		})) as BalanceRow | null;
+		ctx.upsert(
 			"balances",
 			{ address },
-			{
-				address,
-				balance: ((existing: BalanceRow | null) =>
-					toBig(existing?.balance) + amount) as ComputedValue,
-			},
+			{ address, balance: toBig(existing?.balance) + amount },
 		);
 	};
 	const debit = async (
@@ -81,14 +79,13 @@ function makeHandlers(): Record<string, SubgraphHandler> {
 		address: string,
 		amount: bigint,
 	) => {
-		await ctx.patchOrInsert(
+		const existing = (await ctx.findOne("balances", {
+			address,
+		})) as BalanceRow | null;
+		ctx.upsert(
 			"balances",
 			{ address },
-			{
-				address,
-				balance: ((existing: BalanceRow | null) =>
-					toBig(existing?.balance) - amount) as ComputedValue,
-			},
+			{ address, balance: toBig(existing?.balance) - amount },
 		);
 	};
 	return {
@@ -373,7 +370,7 @@ describe("same-block events on one row all apply (no lost updates)", () => {
 		expect(await balanceOf(pgSchema, B)).toBe(40n);
 	});
 
-	it("context-level: patchOrInsert reads must observe pending same-block writes", async () => {
+	it("context-level: findOne reads must observe pending same-block writes", async () => {
 		const pgSchema = `sg_acc_b1d_${randomUUID().slice(0, 8)}`;
 		await createBalancesTable(pgSchema);
 
@@ -385,24 +382,26 @@ describe("same-block events on one row all apply (no lost updates)", () => {
 			{ txId: "0x1", sender: POOL, type: "contract_call", status: "success" },
 		);
 
-		await ctx.patchOrInsert(
-			"balances",
-			{ address: KEEPER },
-			{
+		{
+			const e = (await ctx.findOne("balances", {
 				address: KEEPER,
-				balance: ((e: BalanceRow | null) =>
-					toBig(e?.balance) + 500n) as ComputedValue,
-			},
-		);
-		await ctx.patchOrInsert(
-			"balances",
-			{ address: KEEPER },
-			{
+			})) as BalanceRow | null;
+			ctx.upsert(
+				"balances",
+				{ address: KEEPER },
+				{ address: KEEPER, balance: toBig(e?.balance) + 500n },
+			);
+		}
+		{
+			const e = (await ctx.findOne("balances", {
 				address: KEEPER,
-				balance: ((e: BalanceRow | null) =>
-					toBig(e?.balance) - 500n) as ComputedValue,
-			},
-		);
+			})) as BalanceRow | null;
+			ctx.upsert(
+				"balances",
+				{ address: KEEPER },
+				{ address: KEEPER, balance: toBig(e?.balance) - 500n },
+			);
+		}
 		await ctx.flush();
 
 		// +500 then -500 → 0. Current code: second read sees pre-block NULL,

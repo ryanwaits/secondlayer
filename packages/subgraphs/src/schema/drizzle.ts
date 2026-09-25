@@ -7,8 +7,7 @@ import { pascalCase, pgSchemaName, snakeToCamel } from "./utils.ts";
 
 /**
  * Generate a Drizzle schema from a subgraph definition — the Drizzle arm of the
- * "Prisma wrapper for Stacks" story. Emits `pgSchema().table()` defs, `relations()`
- * (so the relational query API `db.query.x.findMany({ with: {…} })` works), and
+ * "Prisma wrapper for Stacks" story. Emits `pgSchema().table()` defs and
  * `$inferSelect` row types. Like the Prisma generator, output mirrors the deployed
  * DDL — these tables are processor-written and owned by the BYO deploy, so treat
  * them read-only and never `drizzle-kit push`.
@@ -86,46 +85,6 @@ function renderTable(
 	return `export const ${varName} = sg.table("${tableName}", {\n${cols.join("\n")}\n}${extrasBlock});`;
 }
 
-function renderRelations(schema: Record<string, SubgraphTable>): string[] {
-	// Back-relations: target table → list of owning tables referencing it.
-	const back = new Map<string, Array<{ field: string; from: string }>>();
-	for (const [owning, table] of Object.entries(schema)) {
-		for (const rel of table.relations ?? []) {
-			const list = back.get(rel.references) ?? [];
-			list.push({
-				field: `${snakeToCamel(owning)}${pascalCase(rel.name)}`,
-				from: snakeToCamel(owning),
-			});
-			back.set(rel.references, list);
-		}
-	}
-
-	const out: string[] = [];
-	for (const [tableName, table] of Object.entries(schema)) {
-		const v = snakeToCamel(tableName);
-		const ones = (table.relations ?? []).map((rel) => {
-			const localFields = rel.fields
-				.map((f) => `${v}.${snakeToCamel(f)}`)
-				.join(", ");
-			const refFields = rel.referencedColumns
-				.map((c) => `${snakeToCamel(rel.references)}.${snakeToCamel(c)}`)
-				.join(", ");
-			return `  ${rel.name}: one(${snakeToCamel(rel.references)}, { fields: [${localFields}], references: [${refFields}] }),`;
-		});
-		const manys = (back.get(tableName) ?? []).map(
-			(b) => `  ${b.field}: many(${b.from}),`,
-		);
-		if (ones.length === 0 && manys.length === 0) continue;
-		const helpers = [ones.length ? "one" : "", manys.length ? "many" : ""]
-			.filter(Boolean)
-			.join(", ");
-		out.push(
-			`export const ${v}Relations = relations(${v}, ({ ${helpers} }) => ({\n${[...ones, ...manys].join("\n")}\n}));`,
-		);
-	}
-	return out;
-}
-
 export interface DrizzleGenOptions {
 	schemaName?: string;
 }
@@ -154,18 +113,11 @@ export function generateDrizzleSchema(
 	if (needsUnique) used.add("uniqueIndex");
 	used.add("pgSchema");
 
-	const hasRelations = Object.values(def.schema).some(
-		(t) => t.relations?.length,
-	);
-	const imports = [
-		`import { ${[...used].sort().join(", ")} } from "drizzle-orm/pg-core";`,
-		...(hasRelations ? [`import { relations } from "drizzle-orm";`] : []),
-	].join("\n");
+	const imports = `import { ${[...used].sort().join(", ")} } from "drizzle-orm/pg-core";`;
 
 	const tables = Object.entries(def.schema).map(([name, table]) =>
 		renderTable(snakeToCamel(name), name, table),
 	);
-	const relationDecls = renderRelations(def.schema);
 	const typeExports = Object.keys(def.schema).map(
 		(name) =>
 			`export type ${pascalCase(name)} = typeof ${snakeToCamel(name)}.$inferSelect;`,
@@ -178,7 +130,6 @@ export function generateDrizzleSchema(
 		`export const sg = pgSchema("${schemaName}");`,
 		"",
 		tables.join("\n\n"),
-		...(relationDecls.length ? ["", relationDecls.join("\n\n")] : []),
 		"",
 		typeExports.join("\n"),
 		"",

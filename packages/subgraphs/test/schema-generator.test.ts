@@ -1,6 +1,5 @@
 import { expect, test } from "bun:test";
 import {
-	emitForeignKeyDDL,
 	emitIndexedColumnIndexDDL,
 	emitTableDDL,
 	generateSubgraphSQL,
@@ -336,23 +335,6 @@ test("emitTableDDL includes unique constraints, composite indexes, and defaults"
 	expect(joined).toContain("composite_0");
 	expect(joined).toContain("(seller, status)");
 	expect(joined).toContain("status TEXT NOT NULL DEFAULT 'open'");
-});
-
-test("emitForeignKeyDDL renders relations as FK constraints", () => {
-	const stmts = emitForeignKeyDDL("subgraph_x", "sales", {
-		columns: { listing_id: { type: "uint" } },
-		relations: [
-			{
-				name: "listing",
-				fields: ["listing_id"],
-				references: "listings",
-				referencedColumns: ["id"],
-			},
-		],
-	});
-	expect(stmts[0]).toContain("ADD CONSTRAINT fk_subgraph_x_sales_listing");
-	expect(stmts[0]).toContain("FOREIGN KEY (listing_id)");
-	expect(stmts[0]).toContain("REFERENCES subgraph_x.listings (id)");
 });
 
 test("generates composite indexes", () => {

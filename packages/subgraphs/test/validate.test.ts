@@ -204,36 +204,6 @@ test("validateSubgraphDefinition rejects injection in indexes", () => {
 	).toThrow();
 });
 
-test("validateSubgraphDefinition rejects FK relation name that is not a SQL identifier", () => {
-	const withRelName = (name: string) => ({
-		name: "rel-test",
-		sources: { handler: { type: "contract_call", contractId: "SP000::c" } },
-		schema: {
-			sales: {
-				columns: { listing_id: { type: "uint" } },
-				relations: [
-					{
-						name,
-						fields: ["listing_id"],
-						references: "listings",
-						referencedColumns: ["id"],
-					},
-				],
-			},
-			listings: { columns: { id: { type: "uint" } } },
-		},
-		handlers: { handler: () => {} },
-	});
-
-	expect(() =>
-		validateSubgraphDefinition(withRelName('x") ; DROP TABLE foo; --')),
-	).toThrow();
-	expect(() => validateSubgraphDefinition(withRelName("my-rel"))).toThrow();
-	expect(() =>
-		validateSubgraphDefinition(withRelName("listing")),
-	).not.toThrow();
-});
-
 test("validateSubgraphDefinition accepts normal definition with uniqueKeys", () => {
 	const result = validateSubgraphDefinition({
 		name: "test-transfers",
@@ -491,7 +461,7 @@ test("contract_call with functionName requires abi", () => {
 	).not.toThrow();
 });
 
-test("source without handler and without * is refused", () => {
+test("source without a handler is refused", () => {
 	expect(() =>
 		validateSubgraphDefinition({
 			name: "no-handler",
@@ -502,7 +472,7 @@ test("source without handler and without * is refused", () => {
 	).toThrow(/has no handler/);
 });
 
-test("catch-all * covers all sources", () => {
+test('a "*" handler key does not cover other sources', () => {
 	expect(() =>
 		validateSubgraphDefinition({
 			name: "star-handler",
@@ -513,82 +483,5 @@ test("catch-all * covers all sources", () => {
 			schema: { t: { columns: { a: { type: "uint" } } } },
 			handlers: { "*": () => {} },
 		}),
-	).not.toThrow();
-});
-
-test("materialize without handler satisfies the handler gate", () => {
-	expect(() =>
-		validateSubgraphDefinition({
-			name: "identity-map",
-			sources: {
-				swap: {
-					type: "print_event",
-					contractId: "SP1.pool",
-					prints: { swap: { tokenX: "principal", dx: "uint" } },
-					materialize: {
-						table: "swaps",
-						columns: {
-							token_x: { from: "tokenX" },
-							amount_x: { from: "dx" },
-						},
-					},
-				},
-			},
-			schema: {
-				swaps: {
-					columns: {
-						token_x: { type: "principal" },
-						amount_x: { type: "uint" },
-					},
-				},
-			},
-			handlers: {},
-		}),
-	).not.toThrow();
-});
-
-test("materialize from unknown print field names known keys", () => {
-	expect(() =>
-		validateSubgraphDefinition({
-			name: "bad-from",
-			sources: {
-				swap: {
-					type: "print_event",
-					contractId: "SP1.pool",
-					prints: { swap: { tokenX: "principal" } },
-					materialize: {
-						table: "swaps",
-						columns: { amount_in: { from: "amountIn" } },
-					},
-				},
-			},
-			schema: {
-				swaps: { columns: { amount_in: { type: "uint" } } },
-			},
-			handlers: {},
-		}),
-	).toThrow(/known:.*tokenX/);
-});
-
-test("handler and materialize together are refused", () => {
-	expect(() =>
-		validateSubgraphDefinition({
-			name: "both",
-			sources: {
-				swap: {
-					type: "print_event",
-					contractId: "SP1.pool",
-					prints: { swap: { dx: "uint" } },
-					materialize: {
-						table: "swaps",
-						columns: { amount_x: { from: "dx" } },
-					},
-				},
-			},
-			schema: {
-				swaps: { columns: { amount_x: { type: "uint" } } },
-			},
-			handlers: { swap: () => {} },
-		}),
-	).toThrow(/both materialize and a handler/);
+	).toThrow(/has no handler/);
 });

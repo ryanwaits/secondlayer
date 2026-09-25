@@ -113,19 +113,6 @@ describe("runHandlers", () => {
 		expect(result.errors).toBe(0);
 	});
 
-	test("falls back to catch-all handler", async () => {
-		let callCount = 0;
-		const sg = makeSg({
-			"*": () => {
-				callCount++;
-			},
-		});
-		const ctx = mockCtx();
-		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
-		await runHandlers(sg, matched, ctx as any);
-		expect(callCount).toBe(2);
-	});
-
 	test("skips when no matching handler", async () => {
 		const sg = makeSg({ other: () => {} });
 		const ctx = mockCtx();

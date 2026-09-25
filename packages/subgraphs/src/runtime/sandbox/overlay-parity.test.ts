@@ -71,46 +71,15 @@ function realCtx(): SubgraphContext {
 function hostAnswerSendRead() {
 	const hostCtx = realCtx(); // ops never mutated — pure raw-read oracle
 	return async (
-		method:
-			| "findOne"
-			| "findMany"
-			| "count"
-			| "sum"
-			| "min"
-			| "max"
-			| "countDistinct",
+		method: "findOne" | "findMany",
 		table: string,
 		where: Record<string, unknown>,
-		column?: string,
 	): Promise<ReadReply> => {
 		switch (method) {
 			case "findOne":
 				return { kind: "row", row: await hostCtx.findOne(table, where) };
 			case "findMany":
 				return { kind: "rows", rows: await hostCtx.findMany(table, where) };
-			case "count":
-				return { kind: "count", count: await hostCtx.count(table, where) };
-			case "countDistinct":
-				return {
-					kind: "count",
-					// biome-ignore lint/style/noNonNullAssertion: column always provided for this method
-					count: await hostCtx.countDistinct(table, column!, where),
-				};
-			case "sum": {
-				// biome-ignore lint/style/noNonNullAssertion: column always provided for this method
-				const v = await hostCtx.sum(table, column!, where);
-				return { kind: "amount", amount: v.toString() };
-			}
-			case "min": {
-				// biome-ignore lint/style/noNonNullAssertion: column always provided for this method
-				const v = await hostCtx.min(table, column!, where);
-				return { kind: "amount", amount: v == null ? null : v.toString() };
-			}
-			case "max": {
-				// biome-ignore lint/style/noNonNullAssertion: column always provided for this method
-				const v = await hostCtx.max(table, column!, where);
-				return { kind: "amount", amount: v == null ? null : v.toString() };
-			}
 		}
 	};
 }

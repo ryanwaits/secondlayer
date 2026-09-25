@@ -85,8 +85,7 @@ export function tableNeedsTrgm(tableDef: SubgraphTable): boolean {
 
 /**
  * All per-table DDL for ONE table — create + meta/user/composite indexes + UNIQUE
- * constraints (NOT foreign keys; see {@link emitForeignKeyDDL}, emitted in a
- * second pass once every referenced table exists). Single-sourced so the full
+ * constraints. Single-sourced so the full
  * generator and the deployer's additive-create path can't drift — a missing
  * UNIQUE or DEFAULT here would make a handler `upsert ON CONFLICT` fail at runtime.
  */
@@ -227,25 +226,6 @@ export function emitFactoryDDL(schemaName: string): string[] {
 	];
 }
 
-/** Foreign-key DDL for one table's relations. Emit AFTER every referenced table
- *  exists; references require the target columns to be a UNIQUE key. */
-export function emitForeignKeyDDL(
-	schemaName: string,
-	tableName: string,
-	tableDef: SubgraphTable,
-): string[] {
-	return (tableDef.relations ?? []).map((rel) => {
-		const constraintName = quotePgIdent(
-			`fk_${schemaName}_${tableName}_${rel.name}`,
-		);
-		return (
-			`ALTER TABLE ${quotePgIdent(schemaName)}.${quotePgIdent(tableName)} ADD CONSTRAINT ${constraintName} ` +
-			`FOREIGN KEY (${rel.fields.map(quotePgIdent).join(", ")}) ` +
-			`REFERENCES ${quotePgIdent(schemaName)}.${quotePgIdent(rel.references)} (${rel.referencedColumns.map(quotePgIdent).join(", ")})`
-		);
-	});
-}
-
 /**
  * Generates PostgreSQL DDL statements for a subgraph definition.
  * Creates a dedicated schema `subgraph_<name>` with one table per schema entry,
@@ -284,13 +264,6 @@ export function generateSubgraphSQL(
 		)
 	) {
 		statements.push(...emitFactoryDDL(schemaName));
-	}
-
-	// Foreign keys are added in a second pass so every referenced table exists.
-	// These mirror the ORM relations emitted by the codegen (no drift) and require
-	// the referenced columns to be a UNIQUE key on the target table.
-	for (const [tableName, tableDef] of Object.entries(def.schema)) {
-		statements.push(...emitForeignKeyDDL(schemaName, tableName, tableDef));
 	}
 
 	// Hash based on schema structure only — version intentionally excluded

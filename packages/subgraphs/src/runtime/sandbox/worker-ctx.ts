@@ -11,8 +11,7 @@
 // real `SubgraphContext` hitting a real Postgres) without spinning up an
 // actual `Worker` thread. `worker-entry.ts` is the only place that wires a
 // real `postMessage` transport in.
-import { formatUnits } from "@secondlayer/stacks/utils";
-import type { ComputedValue, SubgraphSchema } from "../../types.ts";
+import type { SubgraphSchema } from "../../types.ts";
 import type { BlockMeta, TxMeta } from "../context.ts";
 import {
 	type WriteOp,
@@ -30,15 +29,7 @@ export type SendRead = (
 	method: ReadMethod,
 	table: string,
 	where: Record<string, unknown>,
-	column?: string,
 ) => Promise<ReadReply>;
-
-/** Mirrors `context.ts:56-61` — same validation, same error message. */
-function validateColumnName(name: string): void {
-	if (!/^[a-z_][a-z0-9_]*$/i.test(name)) {
-		throw new Error(`Invalid column name: ${name}`);
-	}
-}
 
 export class WorkerCtx {
 	readonly block: BlockMeta;
@@ -165,36 +156,6 @@ export class WorkerCtx {
 		});
 	}
 
-	/** Mirrors `context.ts:265-272` — patch is an alias for update. */
-	patch(
-		table: string,
-		where: Record<string, unknown>,
-		set: Record<string, unknown>,
-	): void {
-		this.update(table, where, set);
-	}
-
-	/** Mirrors `context.ts:274-289`. */
-	async patchOrInsert(
-		table: string,
-		key: Record<string, unknown>,
-		row: Record<string, ComputedValue>,
-	): Promise<void> {
-		const existing = await this.findOne(table, key);
-		const resolved: Record<string, unknown> = {};
-		for (const [k, v] of Object.entries(row)) {
-			resolved[k] = typeof v === "function" ? v(existing) : v;
-		}
-		this.upsert(table, key, resolved);
-	}
-
-	/** Mirrors `context.ts:291-294` — pure formatting, no I/O; safe to call
-	 *  directly (this class runs in the worker, but is trusted harness code,
-	 *  not the untrusted handler bundle itself). */
-	formatUnits(value: bigint, decimals: number): string {
-		return formatUnits(value, decimals);
-	}
-
 	// --- Read operations — round-trip to host for the raw base-DB state,
 	// then overlay this worker's own pending ops locally (never round-tripped). ---
 
@@ -216,67 +177,6 @@ export class WorkerCtx {
 		const reply = await this.sendRead("findMany", table, where);
 		const rows = reply.kind === "rows" ? reply.rows : [];
 		return overlayMany(this.ops, table, where, rows);
-	}
-
-	// --- Aggregate reads — NOT overlaid in production either
-	// (context.ts:71: "Aggregate reads … remain pre-flush DB state"), so no
-	// worker-side overlay is applied here — the host's raw value is final. ---
-
-	async count(table: string, where?: Record<string, unknown>): Promise<number> {
-		this.validateTable(table);
-		const reply = await this.sendRead("count", table, where ?? {});
-		return reply.kind === "count" ? reply.count : 0;
-	}
-
-	async sum(
-		table: string,
-		column: string,
-		where?: Record<string, unknown>,
-	): Promise<bigint> {
-		this.validateTable(table);
-		validateColumnName(column);
-		const reply = await this.sendRead("sum", table, where ?? {}, column);
-		return BigInt(reply.kind === "amount" ? (reply.amount ?? "0") : "0");
-	}
-
-	async min(
-		table: string,
-		column: string,
-		where?: Record<string, unknown>,
-	): Promise<bigint | null> {
-		this.validateTable(table);
-		validateColumnName(column);
-		const reply = await this.sendRead("min", table, where ?? {}, column);
-		if (reply.kind !== "amount" || reply.amount == null) return null;
-		return BigInt(reply.amount);
-	}
-
-	async max(
-		table: string,
-		column: string,
-		where?: Record<string, unknown>,
-	): Promise<bigint | null> {
-		this.validateTable(table);
-		validateColumnName(column);
-		const reply = await this.sendRead("max", table, where ?? {}, column);
-		if (reply.kind !== "amount" || reply.amount == null) return null;
-		return BigInt(reply.amount);
-	}
-
-	async countDistinct(
-		table: string,
-		column: string,
-		where?: Record<string, unknown>,
-	): Promise<number> {
-		this.validateTable(table);
-		validateColumnName(column);
-		const reply = await this.sendRead(
-			"countDistinct",
-			table,
-			where ?? {},
-			column,
-		);
-		return reply.kind === "count" ? reply.count : 0;
 	}
 
 	// --- Ops checkpoint (per-event atomicity) — mirrors context.ts:249-263 ---

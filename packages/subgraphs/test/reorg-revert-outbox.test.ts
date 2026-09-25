@@ -29,7 +29,6 @@ const ACCOUNT_ID = "00000000-0000-0000-0000-000000000001";
 
 const baseDef: SubgraphDefinition = {
 	name: SUBGRAPH_NAME,
-	version: "1.0.0",
 	sources: { handler: { type: "contract_call", contractId: "SP123::test" } },
 	schema: {
 		transfers: {

@@ -116,22 +116,6 @@ describe("lintPrintFields", () => {
 		expect(warnings[0]).toContain('"recipient"');
 	});
 
-	test("falls back to the wildcard handler when no named handler", async () => {
-		const def = defOf(
-			{
-				deposits: {
-					type: "print_event",
-					contractId: CONTRACT,
-					topic: "completed-deposit",
-				},
-			},
-			{ "*": (e: { data: Record<string, unknown> }) => e.data.bogusField },
-		);
-		expect(
-			(await lintPrintFields(def, lookupOf(depositTopics))).warnings,
-		).toHaveLength(1);
-	});
-
 	test("repeated unknown reads warn once", async () => {
 		const def = defOf(
 			{ prints: { type: "print_event", contractId: CONTRACT } },

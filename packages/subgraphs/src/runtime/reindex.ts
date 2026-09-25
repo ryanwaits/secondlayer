@@ -596,7 +596,7 @@ async function clearReindexMetadata(
  *
  * Always whole-subgraph: `[start_block, chain tip]`. There is no ranged
  * reindex — the drop cannot be scoped to a range without re-running delta
- * handlers (`ctx.increment` / `ctx.update` / `ctx.patchOrInsert`) over rows
+ * handlers (`ctx.increment` / `ctx.update` / findOne-then-upsert) over rows
  * that were never removed, which is the exact double-count hazard `backfill`
  * already refuses. Use `backfillSubgraph` for ranged, additive work.
  *
