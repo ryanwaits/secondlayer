@@ -6,6 +6,9 @@ import {
 	expect,
 	test,
 } from "bun:test";
+import { meter } from "@secondlayer/platform/billing/meter";
+import { ROWS_DELIVERED_MONTHLY_ALLOWANCE } from "@secondlayer/platform/billing/prices";
+import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
 import { getDb, jsonb, sql } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
@@ -960,5 +963,287 @@ describe.skipIf(!HAS_DB)("Index PoX cycles route caching", () => {
 		expect(body.cycles.every((c) => c.is_current === false)).toBe(true);
 		expect(body.notes).toContain("PoX-4 ended at the epoch 4.0 activation");
 		expect(res.headers.get("Cache-Control")).toContain("max-age=3600");
+	});
+});
+
+describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
+	const db = HAS_DB ? getDb() : (null as never);
+	let prevMode: string | undefined;
+	const accountIds: string[] = [];
+
+	beforeAll(() => {
+		prevMode = process.env.INSTANCE_MODE;
+		process.env.INSTANCE_MODE = "platform";
+	});
+	afterAll(async () => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
+		if (accountIds.length > 0) {
+			await db.deleteFrom("accounts").where("id", "in", accountIds).execute();
+		}
+	});
+
+	async function makeAccount(): Promise<string> {
+		const row = await db
+			.insertInto("accounts")
+			.values({ email: null, ghost: true })
+			.returning("id")
+			.executeTakeFirstOrThrow();
+		accountIds.push(row.id);
+		return row.id;
+	}
+
+	function fakeEvent(cursor: string) {
+		return {
+			cursor,
+			block_height: 10,
+			tx_id: `0x${cursor}`,
+			tx_index: 0,
+			event_index: 0,
+			event_type: "ft_transfer" as const,
+			contract_id: "SP123.token",
+			asset_identifier: "SP123.token::coin",
+			sender: "SP123.sender",
+			recipient: "SP123.recipient",
+			amount: "1",
+		};
+	}
+
+	async function ledgerRows(accountId: string) {
+		return db
+			.selectFrom("usage_ledger")
+			.selectAll()
+			.where("account_id", "=", accountId)
+			.where("unit", "=", "rows.delivered")
+			.execute();
+	}
+
+	test("free account under the allowance reads and gets a $0 ledger row", async () => {
+		const accountId = await makeAccount();
+		const app = new Hono();
+		app.onError(errorHandler);
+		const tokens: IndexTokenStore = new Map([
+			[
+				`sk-sl_test_${accountId}`,
+				{
+					tenant_id: `account:${accountId}`,
+					account_id: accountId,
+					tier: "free",
+					scopes: [INDEX_READ_SCOPE],
+				},
+			],
+		]);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				tokens,
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readEvents: async () => ({
+					events: [fakeEvent("0:0")],
+					next_cursor: null,
+				}),
+			}),
+		);
+
+		const res = await app.request("/v1/index/events?event_type=ft_transfer", {
+			headers: { Authorization: `Bearer sk-sl_test_${accountId}` },
+		});
+		expect(res.status).toBe(200);
+
+		const rows = await ledgerRows(accountId);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]?.usd_micros).toBe("0");
+	});
+
+	test("account at the allowance with $0 balance gets 402 insufficient_credits and no rows served", async () => {
+		const accountId = await makeAccount();
+		const now = new Date("2026-09-24T00:00:00Z");
+		// Use up the allowance without any balance to pay for it.
+		await meter(db, {
+			accountId,
+			unit: "rows.delivered",
+			quantity: ROWS_DELIVERED_MONTHLY_ALLOWANCE,
+			source: "test-seed",
+			idempotencyKey: `seed-${accountId}`,
+			occurredAt: now,
+		});
+
+		let readerCalled = false;
+		const app = new Hono();
+		app.onError(errorHandler);
+		const tokens: IndexTokenStore = new Map([
+			[
+				`sk-sl_test_${accountId}`,
+				{
+					tenant_id: `account:${accountId}`,
+					account_id: accountId,
+					tier: "free",
+					scopes: [INDEX_READ_SCOPE],
+				},
+			],
+		]);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				tokens,
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readEvents: async () => {
+					readerCalled = true;
+					return { events: [fakeEvent("1:0")], next_cursor: null };
+				},
+			}),
+		);
+
+		const res = await app.request("/v1/index/events?event_type=ft_transfer", {
+			headers: { Authorization: `Bearer sk-sl_test_${accountId}` },
+		});
+
+		expect(res.status).toBe(402);
+		const body = (await res.json()) as {
+			error: string;
+			shortfall_usd_micros: number;
+			top_up_url: string;
+		};
+		expect(body.error).toBe("insufficient_credits");
+		expect(body.shortfall_usd_micros).toBeGreaterThan(0);
+		expect(body.top_up_url).toBeTruthy();
+		expect(readerCalled).toBe(false);
+
+		const rows = await ledgerRows(accountId);
+		expect(rows).toHaveLength(1); // only the seed row — this attempt served nothing
+	});
+
+	test("the same over-allowance account reads again after a top-up, and the row is debited", async () => {
+		const accountId = await makeAccount();
+		const now = new Date("2026-09-24T00:00:00Z");
+		await meter(db, {
+			accountId,
+			unit: "rows.delivered",
+			quantity: ROWS_DELIVERED_MONTHLY_ALLOWANCE,
+			source: "test-seed",
+			idempotencyKey: `seed-${accountId}`,
+			occurredAt: now,
+		});
+		await creditCredits(db, accountId, 1_000_000n);
+
+		const app = new Hono();
+		app.onError(errorHandler);
+		const tokens: IndexTokenStore = new Map([
+			[
+				`sk-sl_test_${accountId}`,
+				{
+					tenant_id: `account:${accountId}`,
+					account_id: accountId,
+					tier: "free",
+					scopes: [INDEX_READ_SCOPE],
+				},
+			],
+		]);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				tokens,
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readEvents: async () => ({
+					events: [fakeEvent("2:0")],
+					next_cursor: null,
+				}),
+			}),
+		);
+
+		const res = await app.request("/v1/index/events?event_type=ft_transfer", {
+			headers: { Authorization: `Bearer sk-sl_test_${accountId}` },
+		});
+		expect(res.status).toBe(200);
+
+		const rows = await ledgerRows(accountId);
+		const billed = rows.find((r) => r.source === "index");
+		expect(billed).toBeDefined();
+		expect(billed?.debited).toBe(true);
+		expect(Number(billed?.usd_micros)).toBeGreaterThan(0);
+	});
+
+	test("a read that straddles the allowance boundary with $0 balance serves in full, overflow debited=false", async () => {
+		const accountId = await makeAccount();
+		const now = new Date("2026-09-24T00:00:00Z");
+		// 3 rows of allowance left.
+		await meter(db, {
+			accountId,
+			unit: "rows.delivered",
+			quantity: ROWS_DELIVERED_MONTHLY_ALLOWANCE - 3,
+			source: "test-seed",
+			idempotencyKey: `seed-${accountId}`,
+			occurredAt: now,
+		});
+
+		const app = new Hono();
+		app.onError(errorHandler);
+		const tokens: IndexTokenStore = new Map([
+			[
+				`sk-sl_test_${accountId}`,
+				{
+					tenant_id: `account:${accountId}`,
+					account_id: accountId,
+					tier: "free",
+					scopes: [INDEX_READ_SCOPE],
+				},
+			],
+		]);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				tokens,
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readEvents: async () => ({
+					events: [
+						fakeEvent("3:0"),
+						fakeEvent("3:1"),
+						fakeEvent("3:2"),
+						fakeEvent("3:3"),
+						fakeEvent("3:4"),
+					],
+					next_cursor: null,
+				}),
+			}),
+		);
+
+		const res = await app.request("/v1/index/events?event_type=ft_transfer", {
+			headers: { Authorization: `Bearer sk-sl_test_${accountId}` },
+		});
+		expect(res.status).toBe(200); // served in full — started under the allowance
+		const body = (await res.json()) as { events: unknown[] };
+		expect(body.events).toHaveLength(5);
+
+		const rows = await ledgerRows(accountId);
+		const overflow = rows.find((r) => r.source === "index");
+		expect(overflow).toBeDefined();
+		expect(overflow?.debited).toBe(false); // 2 of the 5 rows were billable, balance was $0
+	});
+
+	test("oss/self-host loopback read with no key and no account: 200, no ledger row", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		try {
+			const app = new Hono();
+			app.onError(errorHandler);
+			app.route(
+				"/v1/index",
+				createIndexRouter({
+					getTip: () => TIP,
+					readReorgs: async () => [],
+					readEvents: async () => ({
+						events: [fakeEvent("4:0")],
+						next_cursor: null,
+					}),
+				}),
+			);
+			const res = await app.request("/v1/index/events?event_type=ft_transfer");
+			expect(res.status).toBe(200);
+		} finally {
+			process.env.INSTANCE_MODE = "platform";
+		}
 	});
 });

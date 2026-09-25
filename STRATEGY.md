@@ -263,8 +263,9 @@ Contract and prices live in `docs/internal/economics-metered-model.md`
 Display unit is dollars. Charge archive bytes at fetch time with a gated
 URL. Charge hosted reads after the page is served, live or history, at the
 same rate — the archive is the only bulk discount. A free monthly
-allowance of rows replaces the old free-height window; hosted `/v1`
-without a key is 401.
+allowance of rows replaces the old free-height window: past it, an
+account needs balance or the read 402s before serving, with a top-up
+link. Hosted `/v1` without a key is 401.
 
 We do not host subgraphs, webhook delivery, or a public Explore catalog.
 Do not reintroduce monthly-plan UX.

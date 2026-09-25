@@ -67,8 +67,13 @@ every charge. Prices live in one table, `packages/platform/src/billing/prices.ts
 
 - The first 10M `rows.delivered` per account per UTC calendar month are free
   — replaces the old free-height window and Streams' 1-day retention
-  ladder (both removed). Every account reads full history; rows past the
-  allowance are a paid read, not a blocked one.
+  ladder (both removed). An account still under the allowance, or with
+  balance ≥ `MIN_CREDITED_USD_MICROS` (one page's worth), reads full
+  history and pays per row past the allowance. Once the allowance is used
+  up and the balance is short, the credits gate refuses the read up front
+  with 402 `insufficient_credits` + a top-up link — the pre-check that
+  keeps an out-of-credits key from becoming an unmetered feed of all
+  history (`index/credits-gate.ts`, `streams/credits-gate.ts`).
 - Hosted `/v1` Index/Streams reads require an `sk-sl_*` key (401 without
   one) — the allowance is per account, so a keyless feed of all history
   would be unmetered.
@@ -88,9 +93,9 @@ Subgraphs and webhooks are self-host only and unmetered.
 
 1. ~~Play grant = $10.~~ Removed 2026-09-23 with hosted subgraphs.
 2. ~~No $250 usage gate.~~ Moot: no claim path.
-3. **No Streams retention ladder.** Removed 2026-09-24 — every account
-   reads full history; the monthly allowance is the free tier now, not a
-   time window.
+3. **No Streams retention ladder.** Removed 2026-09-24 — the monthly
+   allowance is the free tier now, not a time window; a read past it needs
+   balance, or the credits gate 402s before serving it.
 4. ~~Accountless play, account at claim.~~ Shipped 2026-09-11, removed
    2026-09-23 (migration 0135 drops claim_tokens, play_provisions,
    hosted_meter_days).
