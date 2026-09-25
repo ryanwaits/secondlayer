@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 16.3.1
+
+### Patch Changes
+
+- 97aef55: The CLI no longer crashes on install when the optional `@stacks/clarinet-sdk` peer isn't present. Only Clarinet-backed commands need it, and they now say how to install it. Fresh installs also no longer pull a broken `@dsnp/parquetjs` 1.9.x release.
+
 ## 16.3.0
 
 ### Minor Changes
