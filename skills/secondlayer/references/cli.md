@@ -432,11 +432,13 @@ Usage: `secondlayer subgraphs query <name> <table>`
 | `--sort <column>` | — | Sort by column. |
 | `--order <dir>` | `asc` | `asc` or `desc` (only applied when `--sort` is set). |
 | `--limit <n>` | `20` | Max rows. |
-| `--offset <n>` | — | Skip first N rows. |
+| `--cursor <token>` | — | Resume from a previous page's `next_cursor`. |
 | `--fields <cols>` | — | Comma-separated columns. |
 | `--filter <kv...>` | — | Repeatable. `key=value`. Suffixes: `.eq`, `.neq`, `.gt`, `.gte`, `.lt`, `.lte`. |
 | `--count` | false | Return row count only. |
 | `--json` | false | Output as JSON. |
+
+Reads `/v1` — cursor pagination, no `--offset`. Prints `next_cursor` below the table when a page is full; pass it back as `--cursor` to resume.
 
 Example: `secondlayer subgraphs query my-watcher transfers --sort _block_height --order desc --limit 50 --filter amount.gte=1000`
 

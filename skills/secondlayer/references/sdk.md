@@ -776,7 +776,7 @@ markdown(name: string, options?: SubgraphSpecOptions): Promise<string>
 rows<T = unknown>(
   name: string,
   table: string,
-  params?: Omit<SubgraphQueryParams, "offset" | "sort"> & { cursor?: string },
+  params?: Omit<SubgraphQueryParams, "offset"> & { cursor?: string },
 ): Promise<SubgraphRowsEnvelope<T>>
 
 interface SubgraphRowsEnvelope<T = unknown> {
@@ -786,39 +786,39 @@ interface SubgraphRowsEnvelope<T = unknown> {
 }
 ```
 
-Hits `GET /v1/subgraphs/<name>/<table>` — no key on a loopback instance, `apiKey` past that. `_id` keyset pagination: pass `cursor: next_cursor` to resume, `order: "asc" | "desc"` for direction. No `offset`/`sort` on /v1.
+Hits `GET /v1/subgraphs/<name>/<table>` — no key on a loopback instance, `apiKey` past that. `_id` keyset pagination by default, or one column via `sort`/`order` (`_sort`/`_order` on the wire); pass `cursor: next_cursor` to resume. No `offset` on /v1.
 
-### `queryTable(name, table, params?)`
+### `count(name, table, params?)`, `aggregate(name, table, params?)` — open /v1 reads
 
 ```ts
 interface SubgraphQueryParams {
   sort?: string;
   order?: string;             // "asc" | "desc"
   limit?: number;
-  offset?: number;
   fields?: string;            // comma-separated column list
   filters?: Record<string, string>; // e.g. { "amount.gte": "1000" }
 }
 
-queryTable(name: string, table: string, params?: SubgraphQueryParams): Promise<unknown[]>
-queryTableCount(name: string, table: string, params?: SubgraphQueryParams): Promise<{ count: number }>
-queryTableAggregate(name: string, table: string, params?: SubgraphAggregateParams): Promise<SubgraphAggregateResponse>
+count(name: string, table: string, params?: Pick<SubgraphQueryParams, "filters">): Promise<{ count: number }>
+aggregate(name: string, table: string, params?: SubgraphAggregateParams): Promise<SubgraphAggregateResponse>
 ```
 
-`queryTableAggregate` hits `/api/subgraphs/:name/:table/aggregate` (sum, min, max, count, count distinct over a column). Aggregate query grammar: [REST API](https://secondlayer.tools/docs/rest-api).
+`aggregate` hits `/v1/subgraphs/:name/:table/aggregate` (sum, min, max, count, count distinct over a column). Aggregate query grammar: [REST API](https://secondlayer.tools/docs/rest-api).
 
 ```ts
-const rows = await sl.subgraphs.queryTable("sbtc", "transfers", {
+const { rows } = await sl.subgraphs.rows("sbtc", "transfers", {
   filters: { sender: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7" },
   sort: "_block_height",
   order: "desc",
   limit: 50,
 });
 
-const { count } = await sl.subgraphs.queryTableCount("sbtc", "transfers", {
+const { count } = await sl.subgraphs.count("sbtc", "transfers", {
   filters: { "amount.gte": "100000000" },
 });
 ```
+
+`queryTable`, `queryTableCount` and `queryTableAggregate` (the `/api` offset-read client) are gone — `/api` no longer serves table rows. `rows`/`count`/`aggregate` above, and the typed `findMany`/`count`/`aggregate` below, are the read surface.
 
 ### `deploy(data)` — needs `apiKey`
 
@@ -946,7 +946,7 @@ Each table on the returned client has:
 
 ```ts
 interface SubgraphTableClient<TRow> {
-  findMany(options?: FindManyOptions<TRow>): Promise<TRow[]>;
+  findMany(options?: FindManyOptions<TRow>): Promise<FindManyPage<TRow>>;
   count(where?: WhereInput<TRow> & SystemWhereAliases): Promise<number>;
   // Realtime: stream rows as they're indexed (SSE). Returns an unsubscribe fn.
   subscribe(onRow: (row: TRow) => void, options?: SubscribeOptions<TRow>): () => void;
@@ -960,10 +960,18 @@ interface SubscribeOptions<TRow> {
 
 interface FindManyOptions<TRow> {
   where?: WhereInput<TRow> & SystemWhereAliases;
+  // Single-column object only — the /v1 keyset cursor pairs one sort column
+  // with `_id` as a tiebreaker. A second key throws at call time.
   orderBy?: { [K in keyof TRow]?: "asc" | "desc" } & SystemOrderByAliases;
   limit?: number;
-  offset?: number;
+  cursor?: string; // resume from a previous page's nextCursor
   fields?: (keyof TRow & string)[];
+}
+
+interface FindManyPage<TRow> {
+  rows: TRow[];
+  nextCursor: string | null;
+  tip: { block_height: number; subgraph_height: number; blocks_behind: number };
 }
 
 type WhereInput<TRow> = {
@@ -993,7 +1001,7 @@ import mySubgraph from "./subgraphs/sbtc.ts";
 
 const client = sl.subgraphs.typed(mySubgraph);
 
-const transfers = await client.transfers.findMany({
+const page = await client.transfers.findMany({
   where: {
     sender: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
     amount: { gte: 1_000_000n },
@@ -1002,6 +1010,7 @@ const transfers = await client.transfers.findMany({
   orderBy: { blockHeight: "desc" },
   limit: 100,
 });
+// page.rows, page.nextCursor, page.tip — pass nextCursor back as `cursor` to resume
 
 // Realtime: react to rows as they're indexed (block-cadence) over SSE.
 // Browser-friendly — no webhook endpoint needed. Requires a global EventSource
@@ -1024,7 +1033,7 @@ const client = getSubgraph(mySubgraph, { apiKey: process.env.INSTANCE_TOKEN });
 // also accepts an existing SecondLayer or Subgraphs instance
 ```
 
-> `orderBy` supports a single column — passing multiple keys throws synchronously.
+> `orderBy` supports a single column — passing multiple keys rejects the returned promise (`findMany` is async; catch it like any other request error).
 
 ---
 

@@ -785,19 +785,24 @@ Each table client:
 
 ```ts
 export interface SubgraphTableClient<TRow> {
-  findMany(options?: FindManyOptions<TRow>): Promise<TRow[]>;
+  findMany(options?: FindManyOptions<TRow>): Promise<FindManyPage<TRow>>;
   count(where?: WhereInput<TRow> & SystemWhereAliases): Promise<number>;
 }
 
 export interface FindManyOptions<TRow> {
   where?: WhereInput<TRow> & SystemWhereAliases;
-  // Single-key object, OR an ordered [column, dir][] for deterministic multi-column sort.
-  orderBy?:
-    | ({ [K in keyof TRow]?: "asc" | "desc" } & SystemOrderByAliases)
-    | Array<[keyof TRow & string, "asc" | "desc"]>;
+  // Single-column object only — the /v1 keyset cursor pairs one sort column
+  // with `_id` as a tiebreaker. A second key rejects the returned promise.
+  orderBy?: { [K in keyof TRow]?: "asc" | "desc" } & SystemOrderByAliases;
   limit?: number;
-  offset?: number;
+  cursor?: string; // resume from a previous page's nextCursor
   fields?: (keyof TRow & string)[];
+}
+
+export interface FindManyPage<TRow> {
+  rows: TRow[];
+  nextCursor: string | null;
+  tip: { block_height: number; subgraph_height: number; blocks_behind: number };
 }
 
 export type ComparisonFilter<T> = {
@@ -812,11 +817,12 @@ export type WhereInput<TRow> = {
 ```
 
 ```ts
-// in / notIn / like + multi-column sort
-await client.transfers.findMany({
+// in / notIn / like + single-column sort
+const page = await client.transfers.findMany({
   where: { token: { in: ["SP….usda", "SP….welsh"] }, sender: { like: "SP2%" } },
-  orderBy: [["blockHeight", "desc"], ["id", "asc"]],   // ordered, deterministic
+  orderBy: { blockHeight: "desc" },
 });
+// page.rows, page.nextCursor, page.tip — pass nextCursor back as `cursor` to resume
 ```
 
 `SystemWhereAliases` / `SystemOrderByAliases` accept either underscore (`_blockHeight`) or no-prefix (`blockHeight`) forms. `in`/`notIn` values can't contain commas (the REST encoding is a comma list).
@@ -831,7 +837,7 @@ const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_KEY });
 const client = sl.subgraphs.typed(mySubgraph);
 
 // Fully typed against your schema literal:
-const rows = await client.transfers.findMany({
+const page = await client.transfers.findMany({
   where: {
     sender: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
     amount: { gt: 1_000_000n },
@@ -839,7 +845,7 @@ const rows = await client.transfers.findMany({
   orderBy: { blockHeight: "desc" },
   limit: 50,
 });
-// rows: InferTableRow<typeof mySubgraph.schema.transfers>[]
+// page.rows: InferTableRow<typeof mySubgraph.schema.transfers>[]
 
 const total = await client.transfers.count({ sender: "SP..." });
 ```

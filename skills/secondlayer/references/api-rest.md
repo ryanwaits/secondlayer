@@ -233,14 +233,15 @@ Query rows. Envelope:
 
 | Query param | Type | Description |
 |---|---|---|
-| `cursor` | string | `_id` keyset resume token — pass back `next_cursor` |
-| `_order` | `asc`\|`desc` | |
+| `cursor` | string | keyset resume token — pass back `next_cursor` |
+| `_sort` | string | Sort by one column instead of `_id` (the cursor pairs it with `_id` as a tiebreaker); a comma list or a `jsonb` column is 400 |
+| `_order` | `asc`\|`desc` | Direction of `_sort`, or of the `_id` scan when `_sort` is absent |
 | `_limit` | number | |
 | `_fields` | comma-separated | Columns to return |
 | `_search` | string | Search-enabled columns |
-| `<column>` / `<column>.gte` etc. | scalar | Same filters as /api |
+| `<column>` / `<column>.gte` etc. | scalar | Column filters, validated against the table's schema |
 
-**`_offset` and `_sort` are rejected with 400 on /v1.**
+**`_offset` is rejected with 400 on /v1** — deep `OFFSET` scans hurt on big tables; page with `cursor` instead.
 
 ```bash
 curl "http://127.0.0.1:3800/v1/subgraphs/stx-transfers/transfers?_order=desc&_limit=10&amount.gte=1000000"
@@ -263,29 +264,7 @@ List deployed subgraphs.
 
 ### `GET /api/subgraphs/{name}`
 
-Full metadata, schema, status, gaps, row counts.
-
-### `GET /api/subgraphs/{name}/{table}`
-
-Query rows. Schema-aware filters.
-
-| Query param | Type | Description |
-|---|---|---|
-| `_sort` | string | Column name |
-| `_order` | `asc`\|`desc` | |
-| `_limit` | number | Default 200, max 1000 |
-| `_offset` | number | |
-| `_fields` | comma-separated | Columns to return |
-| `<column>` | scalar | Equality filter |
-| `<column>.gte` / `.lte` / `.gt` / `.lt` / `.neq` | scalar | Comparison filter |
-
-```bash
-curl "http://127.0.0.1:3800/api/subgraphs/stx-transfers/transfers?_sort=_block_height&_order=desc&_limit=10&amount.gte=1000000"
-```
-
-### `GET /api/subgraphs/{name}/{table}/count`
-
-Returns `{ count: number }` applying the same filter params (sans `_sort` / `_limit`).
+Full metadata, schema, status, gaps, row counts. `/api/subgraphs` serves no table rows — reads live on `/v1/subgraphs/{name}/{table}` above.
 
 ### `GET /api/subgraphs/{name}/openapi.json`
 ### `GET /api/subgraphs/{name}/schema.json`

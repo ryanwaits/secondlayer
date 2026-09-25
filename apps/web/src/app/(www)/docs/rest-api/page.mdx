@@ -116,7 +116,7 @@ curl http://127.0.0.1:3800/v1/subgraphs/sbtc-flows/transfers/aggregate \
 | `400 INVALID_COLUMN` | An unknown column |
 | `400 TOO_MANY_AGGREGATES` | Past 32 aggregate columns per request |
 
-Typed as `sl.subgraphs.typed(def).<table>.aggregate(spec)`, or untyped as `sl.subgraphs.queryTableAggregate(name, table, params)`: signatures in the [SDK reference](/docs/sdk-reference).
+Typed as `sl.subgraphs.typed(def).<table>.aggregate(spec)`, or untyped as `sl.subgraphs.aggregate(name, table, params)`: signatures in the [SDK reference](/docs/sdk-reference).
 
 ## Print-event schemas
 

@@ -47,6 +47,10 @@ Rows, streams and aggregates are served from `/v1/subgraphs/*` only. The duplica
 
 ## SDK — September 2026
 
+### `findMany` returns a cursor page, `queryTable*` is gone
+
+`queryTable`, `queryTableCount` and `queryTableAggregate` (the `/api` offset-read client) are removed. Typed `findMany` and untyped `rows`/`count`/`aggregate` read `/v1` instead: `findMany` returns `{ rows, nextCursor, tip }`, not a bare array — pass `nextCursor` back as `cursor` to resume. `orderBy` sorts one column; a second key throws.
+
 ### Unchanged pages revalidate for free
 
 The SDK caches the last 64 pages it read and sends `If-None-Match` on the next request. A `304` on a finalized page costs nothing on the hosted API. Pass `etagCache` to keep the cache across runs.

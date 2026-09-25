@@ -1,9 +1,13 @@
 // Query a deployed subgraph from your app via @secondlayer/sdk.
 //
 // Two flavors:
-//   1. Untyped: `sl.subgraphs.queryTable(name, table, params)` — works for any subgraph.
+//   1. Untyped: `sl.subgraphs.rows(name, table, params)` — works for any subgraph.
 //   2. Typed:   `sl.subgraphs.typed(definition)` — full inference if you have
 //      the original `defineSubgraph` module in scope.
+//
+// Both read the open /v1 surface: cursor pagination, no offset. Pass the
+// previous page's cursor (`next_cursor` / `nextCursor`) back as `cursor` to
+// resume.
 //
 // Run:  bun examples/sdk-query-subgraph.ts
 
@@ -18,7 +22,7 @@ const sl = new SecondLayer({
 
 // --- Untyped query ---
 
-const rows = await sl.subgraphs.queryTable("stx-transfers", "transfers", {
+const { rows } = await sl.subgraphs.rows("stx-transfers", "transfers", {
   sort: "_block_height",
   order: "desc",
   limit: 25,
@@ -28,7 +32,7 @@ const rows = await sl.subgraphs.queryTable("stx-transfers", "transfers", {
 });
 console.log(`Found ${rows.length} whale transfers`);
 
-const { count } = await sl.subgraphs.queryTableCount("stx-transfers", "transfers", {
+const { count } = await sl.subgraphs.count("stx-transfers", "transfers", {
   filters: { sender: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7" },
 });
 console.log(`That sender has sent in ${count} transfers total`);
@@ -46,6 +50,6 @@ const recent = await typed.transfers.findMany({
   limit: 10,
 });
 
-for (const t of recent) {
+for (const t of recent.rows) {
   console.log(`${t.sender} -> ${t.recipient}: ${t.amount}`);
 }
