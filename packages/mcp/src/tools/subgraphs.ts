@@ -121,13 +121,13 @@ export function registerSubgraphTools(
 		sort?: string;
 		order?: string;
 		limit?: number;
-		offset?: number;
+		cursor?: string;
 		fields?: string;
 		count?: boolean;
 	}>(
 		server,
 		"subgraphs_query",
-		'Query rows from a subgraph table (max 200 rows). Filters support operators: "amount.gte": "1000", "sender.neq": "SP...", "name.like": "%token%". Available operators: eq, neq, gt, gte, lt, lte, like. To TAIL new rows (no streaming over MCP): sort=_id, order=desc for the latest, then poll forward with the filter {"_id.gt": "<last _id seen>"}, order=asc — when tailing with a `fields` list, include "_id" in it or the next poll filter cannot be formed. Fetch one row by id with {"_id": "<id>"}. The same rows are readable over HTTP at GET /v1/subgraphs/<name>/<table> — { rows, next_cursor, tip } envelope, resume with ?cursor=<next_cursor> + _order=asc|desc (no _offset/_sort on /v1); hand that URL to third parties.',
+		'Query rows from a subgraph table (max 200 rows), reading the open /v1 surface — { rows, next_cursor, tip } envelope, cursor-paginated (no offset). Filters support operators: "amount.gte": "1000", "sender.neq": "SP...", "name.like": "%token%". Available operators: eq, neq, gt, gte, lt, lte, like. To TAIL new rows (no streaming over MCP): sort=_id, order=desc for the latest, then poll forward with the filter {"_id.gt": "<last _id seen>"}, order=asc — when tailing with a `fields` list, include "_id" in it or the next poll filter cannot be formed. Fetch one row by id with {"_id": "<id>"}. The response\'s nextCursor resumes the same page: pass it back as `cursor` on the next call. The same rows are readable over HTTP at GET /v1/subgraphs/<name>/<table>; hand that URL to third parties.',
 		{
 			name: z.string().describe("Subgraph name"),
 			table: z.string().describe("Table name"),
@@ -144,7 +144,10 @@ export function registerSubgraphTools(
 				.max(200)
 				.optional()
 				.describe("Max rows (default 50, max 200)"),
-			offset: z.number().optional().describe("Offset for pagination"),
+			cursor: z
+				.string()
+				.optional()
+				.describe("Resume from a previous response's nextCursor"),
 			fields: z
 				.string()
 				.optional()
@@ -163,31 +166,33 @@ export function registerSubgraphTools(
 			sort,
 			order,
 			limit,
-			offset,
+			cursor,
 			fields,
 			count,
 		}) => {
 			if (count) {
-				const result = await clientProvider().subgraphs.queryTableCount(
-					name,
-					table,
-					{ filters, sort, order },
-				);
+				const result = await clientProvider().subgraphs.count(name, table, {
+					filters,
+				});
 				return jsonResponse(result);
 			}
-			const rows = await clientProvider().subgraphs.queryTable(name, table, {
-				filters,
-				sort,
-				order,
-				limit: limit ?? 50,
-				offset,
-				fields,
-			});
-			const result = withCap(
+			const { rows, next_cursor, tip } = await clientProvider().subgraphs.rows(
+				name,
+				table,
+				{
+					filters,
+					sort,
+					order,
+					limit: limit ?? 50,
+					fields,
+					cursor,
+				},
+			);
+			const capped = withCap(
 				rows as Record<string, unknown>[],
 				Math.min(limit ?? 50, 200),
 			);
-			return jsonResponse(result);
+			return jsonResponse({ ...capped, nextCursor: next_cursor, tip });
 		},
 	);
 

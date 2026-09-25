@@ -85,6 +85,91 @@ describe("subgraph MCP tools", () => {
 		expect(result.content[0]?.text).toContain('"operationId": "op_1"');
 	});
 
+	it("subgraphs_query reads /v1 rows and forwards cursor, returning nextCursor/tip", async () => {
+		const tools: RegisteredTool[] = [];
+		let captured: { name: string; table: string; params: unknown } | undefined;
+		registerSubgraphTools(
+			fakeServer(tools),
+			() =>
+				({
+					subgraphs: {
+						rows: async (name: string, table: string, params: unknown) => {
+							captured = { name, table, params };
+							return {
+								rows: [{ sender: "SP1", amount: "100" }],
+								next_cursor: "42",
+								tip: {
+									block_height: 10,
+									subgraph_height: 10,
+									blocks_behind: 0,
+								},
+							};
+						},
+					},
+				}) as never,
+		);
+
+		const query = tools.find((tool) => tool.name === "subgraphs_query");
+		expect(query).toBeDefined();
+		if (!query) throw new Error("subgraphs_query not registered");
+
+		const result = await query.handler({
+			name: "dex",
+			table: "swaps",
+			cursor: "start",
+		});
+		expect(result.isError).toBeUndefined();
+		expect(captured).toEqual({
+			name: "dex",
+			table: "swaps",
+			params: {
+				filters: undefined,
+				sort: undefined,
+				order: undefined,
+				limit: 50,
+				fields: undefined,
+				cursor: "start",
+			},
+		});
+		expect(result.content[0]?.text).toContain('"nextCursor": "42"');
+		expect(result.content[0]?.text).toContain('"blocks_behind": 0');
+	});
+
+	it("subgraphs_query count=true reads the /v1 count endpoint (no sort/order)", async () => {
+		const tools: RegisteredTool[] = [];
+		let captured: { name: string; table: string; params: unknown } | undefined;
+		registerSubgraphTools(
+			fakeServer(tools),
+			() =>
+				({
+					subgraphs: {
+						count: async (name: string, table: string, params: unknown) => {
+							captured = { name, table, params };
+							return { count: 4 };
+						},
+					},
+				}) as never,
+		);
+
+		const query = tools.find((tool) => tool.name === "subgraphs_query");
+		expect(query).toBeDefined();
+		if (!query) throw new Error("subgraphs_query not registered");
+
+		const result = await query.handler({
+			name: "dex",
+			table: "swaps",
+			count: true,
+			filters: { status: "active" },
+		});
+		expect(result.isError).toBeUndefined();
+		expect(captured).toEqual({
+			name: "dex",
+			table: "swaps",
+			params: { filters: { status: "active" } },
+		});
+		expect(result.content[0]?.text).toContain('"count": 4');
+	});
+
 	it("subgraphs_stop cancels the in-flight operation", async () => {
 		const tools: RegisteredTool[] = [];
 		let stoppedName: string | undefined;
