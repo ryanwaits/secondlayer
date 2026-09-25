@@ -9,7 +9,6 @@ const INDEX_SHAPE_HINT =
 
 export interface SubgraphBundleResult {
 	name: string;
-	version?: string;
 	description?: string;
 	sources: Record<string, Record<string, unknown>>;
 	schema: Record<string, unknown>;
@@ -72,7 +71,6 @@ export async function bundleSubgraphCode(
 
 	return {
 		name: validated.name,
-		version: validated.version,
 		description: validated.description,
 		sources: validated.sources as unknown as Record<
 			string,

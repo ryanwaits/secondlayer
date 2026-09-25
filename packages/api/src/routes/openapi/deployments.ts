@@ -405,7 +405,7 @@ export const deploymentsPaths = {
 			tags: ["deployments"],
 			summary: "Queue a backfill over a block range",
 			description:
-				"Re-runs handlers over `fromBlock` to `toBlock`, inclusive, without dropping data. A backfill that overlaps an earlier failed or cancelled one resumes from its last committed block. Refused when the handlers apply deltas (`ctx.increment`, `ctx.patchOrInsert`, `ctx.update`), which would double-count blocks already processed; reindex those instead.",
+				"Re-runs handlers over `fromBlock` to `toBlock`, inclusive, without dropping data. A backfill that overlaps an earlier failed or cancelled one resumes from its last committed block. Refused when the handlers apply deltas (`ctx.increment`, `ctx.update`) or read-modify-write rows (`ctx.findOne`, `ctx.findMany`), which would double-count blocks already processed; reindex those instead.",
 			security: WRITE_SECURITY,
 			parameters: [NAME_PARAM],
 			requestBody: jsonBody({
@@ -745,11 +745,6 @@ export const deploymentsSchemas = {
 				description:
 					"Overrides the definition's `startBlock` for this deploy and forces a reindex from it. Refused past the chain tip (`START_BLOCK_PAST_TIP`).",
 			},
-			version: {
-				type: "string",
-				description:
-					"Version to record. Omitted, the server bumps the patch of the deployed version, starting at `1.0.0`.",
-			},
 			description: {
 				type: "string",
 				description: "One line on what the subgraph indexes.",
@@ -901,10 +896,6 @@ export const deploymentsSchemas = {
 		properties: {
 			ok: { type: "boolean", enum: [true], description: "Always `true`." },
 			name: { type: "string", description: "Name from the definition." },
-			version: {
-				type: ["string", "null"],
-				description: "Version from the definition, if set.",
-			},
 			description: {
 				type: ["string", "null"],
 				description: "Description from the definition, if set.",
@@ -927,7 +918,6 @@ export const deploymentsSchemas = {
 		example: {
 			ok: true,
 			name: "sbtc-flows",
-			version: null,
 			description: null,
 			sources: EXAMPLE_SOURCES,
 			schema: EXAMPLE_SCHEMA,
@@ -1222,7 +1212,7 @@ export const deploymentsSchemas = {
 			definition: {
 				type: ["object", "null"],
 				description:
-					"The stored definition: `name`, `version`, `description`, `startBlock`, `sources`, `schema`.",
+					"The stored definition: `name`, `description`, `startBlock`, `sources`, `schema`.",
 			},
 			health: {
 				type: "object",

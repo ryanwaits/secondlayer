@@ -72,7 +72,6 @@ export interface SubgraphRowsEnvelope<T = unknown> {
 export interface BundleSubgraphResponse {
 	ok: true;
 	name: string;
-	version: string | null;
 	description: string | null;
 	sources: Record<string, Record<string, unknown>>;
 	schema: Record<string, unknown>;

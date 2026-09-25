@@ -549,7 +549,7 @@ async function executeSubgraphDeploy(
 		return c.json(
 			{
 				error:
-					"Tip-first (backfillMode: concurrent) requires replay-safe handlers: ctx.update / ctx.patchOrInsert / ctx.increment apply deltas that double-count when the history fill revisits blocks. Deploy with the default blocking mode instead.",
+					"Tip-first (backfillMode: concurrent) requires replay-safe handlers: ctx.update / ctx.increment apply deltas and findOne/findMany read-modify-writes depend on block order, both wrong when the history fill revisits blocks. Deploy with the default blocking mode instead.",
 				code: "TIP_FIRST_NON_REPLAYABLE_HANDLER",
 			},
 			422,
@@ -580,7 +580,6 @@ async function executeSubgraphDeploy(
 	const result = await deploySchema(db, def, handlerPath, {
 		apiKeyId,
 		schemaName,
-		version: data.version,
 		handlerCode: data.handlerCode,
 		sourceCode: data.sourceCode,
 		forceReindex: data.startBlock !== undefined || startBlockChanged,
@@ -757,7 +756,6 @@ app.post("/bundle", async (c) => {
 		return c.json({
 			ok: true,
 			name: bundled.name,
-			version: bundled.version ?? null,
 			description: bundled.description ?? null,
 			sources: bundled.sources,
 			schema: bundled.schema,
@@ -900,12 +898,12 @@ app.post("/:subgraphName/backfill", async (c) => {
 	const db = getDb();
 
 	// Backfill re-runs blocks the live walk already processed; delta handlers
-	// (ctx.increment / patchOrInsert / update) double-apply on those heights.
+	// (ctx.increment / update, findOne read-modify-writes) double-apply on those heights.
 	if (hasNonReplayableWrites(subgraph.handler_code)) {
 		return c.json(
 			{
 				error:
-					"This subgraph's handlers apply deltas (ctx.increment / ctx.patchOrInsert / ctx.update); a backfill would re-run processed blocks and double-count. Use reindex for a clean rebuild instead.",
+					"This subgraph's handlers apply deltas (ctx.increment / ctx.update) or read-modify-write rows (ctx.findOne / ctx.findMany); a backfill would re-run processed blocks and double-count. Use reindex for a clean rebuild instead.",
 				code: "BACKFILL_NON_REPLAYABLE_HANDLER",
 			},
 			422,

@@ -4,7 +4,6 @@ import { z } from "zod";
 
 export interface DeploySubgraphRequest {
 	name: string;
-	version?: string;
 	description?: string;
 	sources: Record<string, Record<string, unknown>>;
 	schema: Record<string, unknown>;
@@ -23,7 +22,6 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 			.string()
 			.regex(/^[a-z0-9-]+$/, "lowercase alphanumeric + hyphens only")
 			.max(63),
-		version: z.string().optional(),
 		description: z.string().optional(),
 		sources: z
 			.record(z.string(), z.record(z.string(), z.unknown()))

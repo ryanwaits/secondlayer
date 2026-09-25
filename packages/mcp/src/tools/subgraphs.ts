@@ -338,7 +338,6 @@ export function registerSubgraphTools(
 			const bundled = await bundleSubgraphCode(code);
 			const result = await clientProvider().subgraphs.deploy({
 				name: bundled.name,
-				version: bundled.version,
 				description: bundled.description,
 				sources: bundled.sources,
 				schema: bundled.schema,
