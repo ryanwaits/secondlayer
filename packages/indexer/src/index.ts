@@ -37,6 +37,8 @@ import {
 } from "./mempool.ts";
 import { getObserverTip, listObserverMessages } from "./observer-export.ts";
 import {
+	handleIgnoredObserverPost,
+	handleNotFound,
 	handleObserverEvents,
 	handleObserverTip,
 	resolveObserverHttpBindHost,
@@ -573,9 +575,11 @@ const server = Bun.serve({
 			},
 		},
 
-		// Atlas attachments (no-op, required by Stacks node event dispatcher)
+		// Atlas attachments (no-op, required by Stacks node event dispatcher).
+		// Must still read the body: an early close reads as a failed delivery
+		// to stacks-node, which retries forever.
 		"/attachments/new": {
-			POST: () => Response.json({ status: "ok" }),
+			POST: handleIgnoredObserverPost,
 		},
 
 		// Cast: conditional key would otherwise be `path?: … | undefined`, which
@@ -584,9 +588,7 @@ const server = Bun.serve({
 	},
 
 	// Fallback for unmatched routes
-	fetch(_req) {
-		return new Response("Not Found", { status: 404 });
-	},
+	fetch: handleNotFound,
 
 	// Global error handler
 	error(error) {
