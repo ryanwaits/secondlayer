@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
 	applyApiKeyFlag,
+	assertInstanceOrAccountKey,
 	resolveDataPlaneKey,
 	resolveEnvKey,
+	resolveHostedAuth,
 } from "./resolve-auth.ts";
 
 const AUTH_ENV = [
@@ -122,5 +124,93 @@ describe("resolveDataPlaneKey host routing", () => {
 		process.env.SECONDLAYER_API_URL = "http://127.0.0.1:3800";
 		process.env.INSTANCE_TOKEN = "b".repeat(64);
 		expect(resolveDataPlaneKey()).toBe("b".repeat(64));
+	});
+});
+
+describe("assertInstanceOrAccountKey (plan 044: webhooks allowed hosted with a key)", () => {
+	let saved: Record<string, string | undefined>;
+
+	beforeEach(() => {
+		saved = {};
+		for (const k of AUTH_ENV) {
+			saved[k] = process.env[k];
+			Reflect.deleteProperty(process.env, k);
+		}
+	});
+
+	afterEach(() => {
+		for (const k of AUTH_ENV) {
+			if (saved[k] === undefined) Reflect.deleteProperty(process.env, k);
+			else process.env[k] = saved[k];
+		}
+	});
+
+	test("merchant URL with no account key → throws (same refusal as assertInstanceUrl)", () => {
+		process.env.SECONDLAYER_API_URL = "https://api.secondlayer.tools";
+		expect(() => assertInstanceOrAccountKey()).toThrow(
+			/this command runs on your instance/,
+		);
+	});
+
+	test("merchant URL with SECONDLAYER_API_KEY → does not throw", () => {
+		process.env.SECONDLAYER_API_URL = "https://api.secondlayer.tools";
+		process.env.SECONDLAYER_API_KEY = "sk-sl_x";
+		expect(() => assertInstanceOrAccountKey()).not.toThrow();
+	});
+
+	test("non-merchant URL never throws, account key or not", () => {
+		process.env.SECONDLAYER_API_URL = "http://127.0.0.1:3800";
+		expect(() => assertInstanceOrAccountKey()).not.toThrow();
+	});
+});
+
+describe("resolveHostedAuth (plan 044)", () => {
+	let saved: Record<string, string | undefined>;
+
+	beforeEach(() => {
+		saved = {};
+		for (const k of AUTH_ENV) {
+			saved[k] = process.env[k];
+			Reflect.deleteProperty(process.env, k);
+		}
+	});
+
+	afterEach(() => {
+		for (const k of AUTH_ENV) {
+			if (saved[k] === undefined) Reflect.deleteProperty(process.env, k);
+			else process.env[k] = saved[k];
+		}
+	});
+
+	test("merchant URL + SECONDLAYER_API_KEY → uses the account key directly", async () => {
+		process.env.SECONDLAYER_API_URL = "https://api.secondlayer.tools";
+		process.env.SECONDLAYER_API_KEY = "sk-sl_hosted";
+		const auth = await resolveHostedAuth();
+		expect(auth).toEqual({
+			apiUrl: "https://api.secondlayer.tools",
+			ephemeralKey: "sk-sl_hosted",
+			fromEnv: true,
+		});
+	});
+
+	test("non-merchant URL falls back to resolveAuth's oss path (empty ephemeral key)", async () => {
+		process.env.SECONDLAYER_API_URL = "http://127.0.0.1:3800";
+		const auth = await resolveHostedAuth();
+		expect(auth).toEqual({
+			apiUrl: "http://127.0.0.1:3800",
+			ephemeralKey: "",
+			fromEnv: true,
+		});
+	});
+
+	test("non-merchant URL with INSTANCE_TOKEN falls back to resolveAuth's env path", async () => {
+		process.env.SECONDLAYER_API_URL = "http://127.0.0.1:3800";
+		process.env.INSTANCE_TOKEN = "c".repeat(64);
+		const auth = await resolveHostedAuth();
+		expect(auth).toEqual({
+			apiUrl: "http://127.0.0.1:3800",
+			ephemeralKey: "c".repeat(64),
+			fromEnv: true,
+		});
 	});
 });

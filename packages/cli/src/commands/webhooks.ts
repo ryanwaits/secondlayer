@@ -23,7 +23,7 @@ import {
 	warn,
 	yellow,
 } from "../lib/output.ts";
-import { assertInstanceUrl } from "../lib/resolve-auth.ts";
+import { assertInstanceOrAccountKey } from "../lib/resolve-auth.ts";
 import { validateWebhookTargetFromApi } from "../lib/webhook-validation.ts";
 import { addWebhooksCreateCommand } from "./create.ts";
 import { buildWebhookAuthConfig, getWebhookClient } from "./create.ts";
@@ -985,6 +985,9 @@ export function registerWebhooksCommand(program: Command): void {
 		.command("webhooks")
 		.alias("hooks")
 		.description("Manage webhooks: a signed POST to a URL you run");
-	webhooks.hook("preAction", () => assertInstanceUrl());
+	// Hosted (plan 044): allowed against api.secondlayer.tools when a
+	// SECONDLAYER_API_KEY (sk-sl_*) is set — the gateway on the workload
+	// host resolves that key to a tenant stack. Self-host is unaffected.
+	webhooks.hook("preAction", () => assertInstanceOrAccountKey());
 	attachWebhookSubcommands(webhooks);
 }

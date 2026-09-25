@@ -20,7 +20,7 @@ import {
 import type { Command } from "commander";
 import { parseWebhookFilter } from "../lib/filter-params.ts";
 import { blue, error, info, success, warn } from "../lib/output.ts";
-import { resolveAuth } from "../lib/resolve-auth.ts";
+import { resolveHostedAuth } from "../lib/resolve-auth.ts";
 import { validateWebhookTargetFromApi } from "../lib/webhook-validation.ts";
 
 /**
@@ -480,7 +480,11 @@ export async function createChainWebhook(
 }
 
 export async function getWebhookClient(): Promise<SecondLayer> {
-	const { apiUrl, ephemeralKey } = await resolveAuth();
+	// Hosted-aware (plan 044): account key on the merchant host, instance
+	// token/session everywhere else — same as `resolveDataPlaneKey` for
+	// Index/Streams, so webhooks works against api.secondlayer.tools with a
+	// `sk-sl_*` key without touching self-host's session/instance-token path.
+	const { apiUrl, ephemeralKey } = await resolveHostedAuth();
 	return new SecondLayer({ baseUrl: apiUrl, apiKey: ephemeralKey });
 }
 

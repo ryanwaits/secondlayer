@@ -1,5 +1,5 @@
 import { resolveAccountKey, resolveApiKey } from "@secondlayer/sdk";
-import { isMerchantUrl, resolveApiUrl } from "./api-url.ts";
+import { assertInstanceUrl, isMerchantUrl, resolveApiUrl } from "./api-url.ts";
 import { readSession } from "./session.ts";
 
 export {
@@ -87,4 +87,40 @@ export function isOssMode(): boolean {
 export function resolveDataPlaneKey(): string | undefined {
 	if (isMerchantUrl()) return resolveAccountKey();
 	return resolveApiKey();
+}
+
+/**
+ * Auth for a command allowed against BOTH self-host and the hosted merchant
+ * (plan 044: `webhooks`; `subgraphs` joins in 046). Account key
+ * (`SECONDLAYER_API_KEY`, `sk-sl_*`) on the merchant host — same host
+ * routing as `resolveDataPlaneKey`, but returns the full `ResolvedAuth`
+ * shape `getWebhookClient` needs. Falls back to `resolveAuth()` (instance
+ * token / session) whenever no account key is set, so self-host and
+ * `secondlayer login` keep working unchanged.
+ */
+export async function resolveHostedAuth(): Promise<ResolvedAuth> {
+	if (isMerchantUrl()) {
+		const accountKey = resolveAccountKey();
+		if (accountKey) {
+			return {
+				apiUrl: resolveApiUrl(),
+				ephemeralKey: accountKey,
+				fromEnv: true,
+			};
+		}
+	}
+	return resolveAuth();
+}
+
+/**
+ * Throw unless the command is either off the merchant host, or on it with a
+ * hosted account key (`sk-sl_*`). Same refusal `assertInstanceUrl` gives
+ * every other instance-only command, minus the "merchant + account key"
+ * exception plan 044 opens for `webhooks` (and, in 046, `subgraphs`).
+ */
+export function assertInstanceOrAccountKey(
+	url: string = resolveApiUrl(),
+): void {
+	if (resolveAccountKey()) return;
+	assertInstanceUrl(url);
 }
