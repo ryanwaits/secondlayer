@@ -307,11 +307,13 @@ services:
       NODE_ENV: production
       STACKS_NETWORK: ${STACKS_NETWORK:-mainnet}
       # ~15 per-event-type decoder loops each poll independently; at-tip, this is
-      # the only throttle between polls. Code default (1000ms) was never wired
-      # here, so prod ran all 15 at a ~1s cadence continuously (2026-07-08 CPU
-      # incident). 5s is still tiny next to the 300s lag / 5min checkpoint-stale
-      # thresholds that define "healthy" — cuts idle query volume ~5x for free.
-      DECODER_EMPTY_BACKOFF_MS: ${DECODER_EMPTY_BACKOFF_MS:-5000}
+      # the only throttle between polls. Bumped to 5000ms after a 2026-07-08 CPU
+      # incident from continuous ~1s polling at the code default. Back to
+      # 1000ms: it trades ~5x idle query volume for ~2s lower decoder latency at
+      # the tip, worth it for hosted webhook latency. A wake-on-write
+      # notification will replace this poll entirely — until then, this is a
+      # stopgap latency win, not the fix.
+      DECODER_EMPTY_BACKOFF_MS: ${DECODER_EMPTY_BACKOFF_MS:-1000}
       SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
       # PoX-4 transaction-result decoder. Mainnet-only; auto-seeds checkpoint
       # to tip on first enable (no historical replay).
