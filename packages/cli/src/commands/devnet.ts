@@ -377,9 +377,9 @@ async function renderStatus(limit: number): Promise<string> {
 	for (const sg of subs) {
 		for (const table of sg.tables ?? []) {
 			const res = await jget(
-				`${API_URL}/api/subgraphs/${sg.name}/${table}?_limit=${limit}&_sort=_block_height&_order=desc`,
+				`${API_URL}/v1/subgraphs/${sg.name}/${table}?_limit=${limit}&_sort=_block_height&_order=desc`,
 			);
-			for (const row of res?.data ?? []) {
+			for (const row of res?.rows ?? []) {
 				const summary = Object.entries(row)
 					.filter(([k]) => !SYS_COLS.has(k))
 					.map(([, v]) => shortVal(v))
