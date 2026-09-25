@@ -1,7 +1,7 @@
 # One self-host stack per hosted account (plan 044, D1: instance per tenant —
 # no `workload` mode, no account scoping inside the runtime). The provisioner
 # runs this with `docker compose -p tenant-<acct8> -f tenant.compose.yml
-# --env-file <secrets dir>/<acct8>.env up -d`: one compose project per
+# --env-file <secrets dir>/<acct8>/.env up -d`: one compose project per
 # account, its own network, its own Postgres container and volume.
 #
 # Services are the split-stack subset that needs no chain of its own
@@ -57,9 +57,16 @@ services:
       DATABASE_URL: postgres://secondlayer:${POSTGRES_PASSWORD:?tenant secret required}@postgres:5432/secondlayer
       PORT: 3800
       LISTEN_HOST: "0.0.0.0"
-      # Never published to the host; the gateway reaches this container by
-      # its compose service name on the tenant's own network.
-      API_PUBLISH_ADDR: "0.0.0.0:3800"
+      # Review fix 1: the gateway is a HOST process, not a container on this
+      # tenant's compose network — it has no service-name DNS for
+      # `tenant-<acct8>-api`. Published on loopback only (`ports:` below) at
+      # a port the control DB allocated for this tenant; the gateway reaches
+      # it over `http://127.0.0.1:<TENANT_API_PORT>`. `API_PUBLISH_ADDR`
+      # matches the `ports:` spec exactly (same convention as
+      # `docker/oss/docker-compose.yml`) so the process knows it's
+      # loopback-published: `/v1` reads stay keyless, `/api` writes still
+      # require INSTANCE_TOKEN regardless (`instance-bind.ts`).
+      API_PUBLISH_ADDR: "127.0.0.1:${TENANT_API_PORT:?tenant secret required}"
       # Per-tenant instance credential, generated at provision (never prod's,
       # never shared across tenants). The gateway swaps the customer's
       # `sk-sl_*` for this on every proxied request — the customer key never
@@ -76,6 +83,12 @@ services:
       # these past what the gateway/pricing model assumes.
       WEBHOOK_MAX_RETRIES_CEILING: "7"
       WEBHOOK_TIMEOUT_MS_CEILING: "30000"
+    ports:
+      # Loopback only — never `0.0.0.0`. This is the ONLY way the gateway
+      # (a host process) reaches this tenant's `api` (review fix 1); it is
+      # also unreachable from any other tenant's compose network, since a
+      # loopback publish is host-local, not network-local.
+      - "127.0.0.1:${TENANT_API_PORT:?tenant secret required}:3800"
     volumes:
       - subgraphs_data:/data/subgraphs
     depends_on:

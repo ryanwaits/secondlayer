@@ -1,0 +1,20 @@
+# Caddy on the workload host (review fix 7): terminates :443 so app-server's
+# Caddy (`docker/Caddyfile`'s `/api/webhooks*` route) has a real TLS
+# endpoint to proxy to. The gateway process (`packages/workload`) binds
+# `127.0.0.1:8080` only — it never listens on a public interface itself.
+#
+# `tls internal` — Caddy's own local CA, not a public CA (ACME/Let's
+# Encrypt needs a public DNS name; this host is addressed by IP from
+# app-server, behind the cloud firewall's 443-from-app-server-only rule,
+# so a public cert buys nothing extra). app-server's Caddyfile pins this
+# CA's root explicitly (`tls_trust_pool file`) rather than trusting the
+# system store, which would never trust a locally-issued cert. See the
+# runbook's Bring-up section for copying the root CA to app-server.
+:443 {
+	tls internal
+
+	header -Server
+	header X-Content-Type-Options nosniff
+
+	reverse_proxy 127.0.0.1:8080
+}

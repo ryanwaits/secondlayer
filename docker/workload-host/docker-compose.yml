@@ -1,0 +1,19 @@
+# Runs Caddy on the workload host (review fix 7), terminating :443 in front
+# of the gateway process (`packages/workload`, run directly via `bun`, not in
+# a container — see the runbook's Bring-up section). `network_mode: host`
+# is what lets this container reach the host's own `127.0.0.1:8080` — Caddy
+# in its own bridge network could never reach a loopback-bound port on the
+# HOST's network namespace.
+services:
+  caddy:
+    image: caddy:2-alpine
+    network_mode: host
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
