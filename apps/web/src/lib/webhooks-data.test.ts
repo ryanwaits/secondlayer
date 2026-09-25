@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import type { DeliveryRow } from "@secondlayer/sdk";
+import type { DeliveryRow, WebhookDetail } from "@secondlayer/sdk";
 import {
+	buildWebhookIssues,
+	formatRelative,
 	getDeliveries,
+	hostOf,
+	isSuccessDelivery,
 	listWebhooks,
 	normalizeDeliveryRow,
 	resultForStatus,
@@ -57,6 +61,76 @@ const baseRow: DeliveryRow = {
 	blockTime: "2026-09-25T00:00:00.000Z",
 };
 
+describe("isSuccessDelivery", () => {
+	test("treats 2xx as success and everything else (including null) as failure", () => {
+		expect(isSuccessDelivery({ ...baseRow, statusCode: 200 })).toBe(true);
+		expect(isSuccessDelivery({ ...baseRow, statusCode: 299 })).toBe(true);
+		expect(isSuccessDelivery({ ...baseRow, statusCode: 300 })).toBe(false);
+		expect(isSuccessDelivery({ ...baseRow, statusCode: 500 })).toBe(false);
+		expect(isSuccessDelivery({ ...baseRow, statusCode: null })).toBe(false);
+	});
+});
+
+const baseWebhook: WebhookDetail = {
+	id: "wh_1",
+	name: "pool-payouts",
+	status: "active",
+	kind: "chain",
+	subgraphName: null,
+	tableName: null,
+	format: "standard-webhooks",
+	runtime: null,
+	url: "https://example.com/webhook",
+	lastDeliveryAt: null,
+	lastSuccessAt: null,
+	createdAt: "2026-09-25T00:00:00.000Z",
+	updatedAt: "2026-09-25T00:00:00.000Z",
+	filter: {},
+	triggers: [{ type: "stx_transfer" }],
+	authConfig: {},
+	maxRetries: 7,
+	timeoutMs: 10_000,
+	concurrency: 4,
+	circuitFailures: 0,
+	circuitOpenedAt: null,
+	lastError: null,
+	warning: null,
+};
+
+describe("buildWebhookIssues", () => {
+	test("a healthy webhook with deliveries has no issues", () => {
+		expect(buildWebhookIssues(baseWebhook, [baseRow], [])).toEqual([]);
+	});
+	test("collects warning, paused, last_error, circuit and dead_letters", () => {
+		const issues = buildWebhookIssues(
+			{
+				...baseWebhook,
+				status: "paused",
+				lastError: "receiver 500",
+				circuitFailures: 2,
+				warning: "evaluator idle",
+			},
+			[baseRow],
+			[{ id: "ob_1" } as never],
+		);
+		expect(issues.map((i) => i.code)).toEqual([
+			"warning",
+			"paused",
+			"last_error",
+			"circuit",
+			"dead_letters",
+		]);
+		expect(issues.find((i) => i.code === "last_error")?.detail).toBe(
+			"receiver 500",
+		);
+	});
+	test("no_deliveries fires only when the delivery list is empty", () => {
+		expect(buildWebhookIssues(baseWebhook, [], []).map((i) => i.code)).toEqual([
+			"no_deliveries",
+		]);
+	});
+});
+
 describe("normalizeDeliveryRow", () => {
 	test("leaves a present blockTime alone", () => {
 		expect(normalizeDeliveryRow(baseRow).blockTime).toBe(
@@ -73,6 +147,38 @@ describe("normalizeDeliveryRow", () => {
 		expect(
 			normalizeDeliveryRow(withoutBlockTime as DeliveryRow).blockTime,
 		).toBe(null);
+	});
+});
+
+describe("formatRelative", () => {
+	const now = new Date("2026-09-25T12:00:00.000Z").getTime();
+	test("never for null", () => {
+		expect(formatRelative(null, now)).toBe("never");
+	});
+	test("seconds, minutes, hours, and days ago", () => {
+		expect(formatRelative(new Date(now - 12_000).toISOString(), now)).toBe(
+			"12s ago",
+		);
+		expect(formatRelative(new Date(now - 41 * 60_000).toISOString(), now)).toBe(
+			"41m ago",
+		);
+		expect(
+			formatRelative(new Date(now - 3 * 3_600_000).toISOString(), now),
+		).toBe("3h ago");
+		expect(
+			formatRelative(new Date(now - 3 * 86_400_000).toISOString(), now),
+		).toBe("3d ago");
+	});
+});
+
+describe("hostOf", () => {
+	test("extracts the host from a webhook URL", () => {
+		expect(hostOf("https://hooks.pool.example/stacks/payouts")).toBe(
+			"hooks.pool.example",
+		);
+	});
+	test("falls back to a naive strip for something that fails URL parsing", () => {
+		expect(hostOf("not a url")).toBe("not a url");
 	});
 });
 

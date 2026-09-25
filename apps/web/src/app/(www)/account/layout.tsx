@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 const TABS = [
 	{ href: "/account/keys", label: "API keys" },
 	{ href: "/account/credits", label: "Credits" },
+	{ href: "/account/webhooks", label: "Webhooks" },
 ];
 
 /**
@@ -51,7 +52,11 @@ export default function AccountLayout({
 						key={t.href}
 						href={t.href}
 						className="acct-side-link"
-						aria-current={pathname === t.href ? "page" : undefined}
+						aria-current={
+							pathname === t.href || pathname?.startsWith(`${t.href}/`)
+								? "page"
+								: undefined
+						}
 					>
 						{t.label}
 					</Link>

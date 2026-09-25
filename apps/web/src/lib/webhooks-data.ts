@@ -1,6 +1,7 @@
 import type {
 	DeadRow,
 	DeliveryRow,
+	DoctorIssue,
 	RotateSecretResponse,
 	WebhookDetail,
 	WebhookSummary,
@@ -37,6 +38,41 @@ export function resultForStatus(
 	if (status === 429) return { kind: "rate_limited", retryAfter };
 	if (status === 404) return { kind: "not_found" };
 	return { kind: "error", message: errorMessage };
+}
+
+/** The SDK's own `isSuccessDelivery`, reimplemented (not imported) so the
+ *  client bundle never pulls in `@secondlayer/sdk`'s full barrel — it drags
+ *  in `@secondlayer/shared`'s Postgres client, which has no browser build.
+ *  Every `import type` in this file is free; this one has to be a real
+ *  value, so it stays local. */
+export function isSuccessDelivery(row: DeliveryRow): boolean {
+	return (
+		row.statusCode !== null && row.statusCode >= 200 && row.statusCode < 300
+	);
+}
+
+/** The detail page's own issue list — the same conditions as the SDK's
+ *  `buildDoctorReport` (also reimplemented rather than imported, for the
+ *  bundling reason above), minus the two subgraph issues: the dashboard
+ *  never fetches subgraph status, so those can never fire here. */
+export function buildWebhookIssues(
+	webhook: WebhookDetail,
+	deliveries: DeliveryRow[],
+	dead: DeadRow[],
+): DoctorIssue[] {
+	const issues: DoctorIssue[] = [];
+	if (webhook.warning)
+		issues.push({ code: "warning", detail: webhook.warning });
+	if (webhook.status === "paused") issues.push({ code: "paused" });
+	if (webhook.lastError) {
+		issues.push({ code: "last_error", detail: webhook.lastError });
+	}
+	if (webhook.circuitOpenedAt || webhook.circuitFailures > 0) {
+		issues.push({ code: "circuit" });
+	}
+	if (dead.length > 0) issues.push({ code: "dead_letters" });
+	if (deliveries.length === 0) issues.push({ code: "no_deliveries" });
+	return issues;
 }
 
 /** A tenant on an older API image can omit `blockTime` from a delivery row
@@ -155,4 +191,34 @@ export function deleteWebhook(
 	return request<{ ok: true }>(`/${encodeURIComponent(id)}`, {
 		method: "DELETE",
 	});
+}
+
+/** "12s ago" / "41m ago" / "3h ago" / "6d ago"; "never" for `null`. Coarsest
+ *  unit only, matching the mock — nobody needs "3d 4h ago" on a list row. */
+export function formatRelative(
+	iso: string | null,
+	now: number = Date.now(),
+): string {
+	if (!iso) return "never";
+	const ms = now - new Date(iso).getTime();
+	if (!Number.isFinite(ms) || ms < 0) return "just now";
+	const s = Math.floor(ms / 1000);
+	if (s < 60) return `${s}s ago`;
+	const m = Math.floor(s / 60);
+	if (m < 60) return `${m}m ago`;
+	const h = Math.floor(m / 60);
+	if (h < 24) return `${h}h ago`;
+	const d = Math.floor(h / 24);
+	return `${d}d ago`;
+}
+
+/** The host part of a webhook's target URL, for the list row sub-line. Falls
+ *  back to a naive strip when the URL somehow doesn't parse (never should —
+ *  the API validates it on create). */
+export function hostOf(url: string): string {
+	try {
+		return new URL(url).host;
+	} catch {
+		return url.replace(/^https?:\/\//, "").split("/")[0] ?? url;
+	}
 }
