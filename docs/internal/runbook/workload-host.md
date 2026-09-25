@@ -106,18 +106,66 @@ not the only line.
    `openssl rand -hex 32` and set it on BOTH sides), `CONTROL_DATABASE_URL`
    (a small Postgres for the `tenants` table — can be a container on this
    same host; it is not a tenant database and never holds a tenant secret).
-4. Deploy `packages/workload` — runs directly via `bun`, NOT in a container
-   (the gateway binds `127.0.0.1:8080`; Caddy in step 5 is what actually
-   terminates :443):
+4. Deploy `packages/workload` — runs directly via `bun` on the host as a
+   systemd service, NOT in a container (the gateway binds `127.0.0.1:8080`;
+   Caddy in step 6 is what actually terminates :443). The layout actually
+   used: the repo is cloned to `/opt/secondlayer-workload/src`; the parent
+   (`/opt/secondlayer-workload`) holds `tenants/`, `workload.env`,
+   `workload-host-key`, `control-pg-password`, `workload-host-ca.crt` — all
+   root-only.
+
    ```bash
-   cd /opt/secondlayer-workload
-   git clone <repo> . && bun install
-   # .env: CONTROL_DATABASE_URL, APP_SERVER_URL=https://api.secondlayer.tools,
-   #       WORKLOAD_HOST_KEY, TENANT_SECRETS_ROOT=/opt/secondlayer-workload/tenants,
-   #       TENANT_COMPOSE_FILE=docker/workload/tenant.compose.yml,
-   #       WORKLOAD_IMAGE_TAG=<deployed main sha>, GATEWAY_PORT=8080
-   bun run --filter @secondlayer/workload start
+   mkdir -p /opt/secondlayer-workload && cd /opt/secondlayer-workload
+   git clone <repo> src && cd src
+   curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.2"
+   bun install --frozen-lockfile
+   # Build the workspace deps the workload package imports from `dist` — skip
+   # this and startup fails with
+   # `Cannot find module '@secondlayer/platform/billing/prices'`.
+   bun run build:stacks && bun run build:shared && bun run build:platform
    ```
+
+   Control Postgres — a small Postgres for the `tenants` table only; it is
+   NOT a tenant database and never holds a tenant secret. Same image as the
+   tenant template's postgres (`postgres:17-alpine`), so this host never
+   pulls two postgres images:
+
+   ```bash
+   docker run -d --name workload-control-pg --restart unless-stopped \
+     -p 127.0.0.1:5439:5432 \
+     -v workload_control_pg:/var/lib/postgresql/data \
+     -e POSTGRES_USER=workload -e POSTGRES_DB=workload \
+     -e POSTGRES_PASSWORD="$(cat /opt/secondlayer-workload/control-pg-password)" \
+     postgres:17-alpine
+   ```
+
+   `/opt/secondlayer-workload/workload.env` (root-only, never committed):
+   `CONTROL_DATABASE_URL` (points at `workload-control-pg` above),
+   `APP_SERVER_URL` (`https://api.secondlayer.tools`), `WORKLOAD_HOST_KEY`
+   (shared with app-server's `/internal/keys/introspect` and
+   `/internal/meters` guards — generate with `openssl rand -hex 32` and set
+   it on BOTH sides), `TENANT_SECRETS_ROOT`
+   (`/opt/secondlayer-workload/tenants`), `TENANT_COMPOSE_FILE`
+   (`/opt/secondlayer-workload/src/docker/workload/tenant.compose.yml`),
+   `GATEWAY_PORT` (`8080`), `WORKLOAD_IMAGE_TAG` (a deployed main sha).
+
+   Install the systemd unit
+   (`docker/workload-host/secondlayer-workload.service` —
+   `EnvironmentFile=/opt/secondlayer-workload/workload.env`,
+   `WorkingDirectory=/opt/secondlayer-workload/src/packages/workload`,
+   `ExecStart=/root/.bun/bin/bun run src/index.ts`, `Restart=always`):
+
+   ```bash
+   cp docker/workload-host/secondlayer-workload.service /etc/systemd/system/
+   systemctl daemon-reload
+   systemctl enable --now secondlayer-workload
+   ```
+
+   Upgrading: `git pull`, `bun install --frozen-lockfile`, rebuild the three
+   packages above, bump `WORKLOAD_IMAGE_TAG` in `workload.env` to the new
+   deployed main sha, `systemctl restart secondlayer-workload`. Existing
+   tenant stacks keep their old image until re-upped — this only changes
+   what a NEW tenant stack (or an explicit re-up) pulls.
 5. DNS: add an A record for `workload-host.secondlayer.tools` (or whatever
    `WORKLOAD_HOST_NAME` is set to) pointing at this host's public IP. It
    never needs to be internet-reachable end to end (the cloud firewall
@@ -135,11 +183,11 @@ not the only line.
    own local CA) is the right tool:
    ```bash
    # On workload-host:
-   cd /opt/workload-host && docker compose -f docker/workload-host/docker-compose.yml up -d
+   cd /opt/secondlayer-workload/src/docker/workload-host && docker compose -p workload-host up -d
    # First run issues the cert and generates the CA — root cert lands at:
    docker run --rm -v workload-host_caddy_data:/data alpine \
-     cat /data/caddy/pki/authorities/local/root.crt > workload-host-ca.crt
-   scp workload-host-ca.crt <app-server>:/opt/secondlayer/workload-host-ca.crt
+     cat /data/caddy/pki/authorities/local/root.crt > /opt/secondlayer-workload/workload-host-ca.crt
+   scp /opt/secondlayer-workload/workload-host-ca.crt <app-server>:/opt/secondlayer/workload-host-ca.crt
    ```
    Verified locally (review fix B): `caddy:2-alpine` with this exact
    Caddyfile, `--network host`, in front of a dummy `Bun.serve` upstream on

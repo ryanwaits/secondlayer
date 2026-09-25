@@ -1,0 +1,14 @@
+[Unit]
+Description=secondlayer workload host (gateway + provisioner + meters)
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+EnvironmentFile=/opt/secondlayer-workload/workload.env
+WorkingDirectory=/opt/secondlayer-workload/src/packages/workload
+ExecStart=/root/.bun/bin/bun run src/index.ts
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

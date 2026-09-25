@@ -58,7 +58,11 @@ export function getControlDb(
 			"CONTROL_DATABASE_URL is required — the workload host's own control Postgres, never a tenant's.",
 		);
 	}
-	sql = postgres(url);
+	// Silence Postgres NOTICEs (e.g. the `ADD COLUMN IF NOT EXISTS ... already
+	// exists, skipping` from ensureControlSchema's idempotent upgrade path) —
+	// expected on every boot after the first, not worth logging as an object
+	// on every restart.
+	sql = postgres(url, { onnotice: () => {} });
 	return sql;
 }
 
