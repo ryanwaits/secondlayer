@@ -1042,7 +1042,7 @@ Examples:
 		)
 		.option(
 			"--tip-first",
-			"Go live at chain tip immediately; history backfills in the background (requires order-tolerant handlers — commutative or insert-only writes)",
+			"Go live at chain tip immediately; history backfills in the background (handlers may only insert, upsert and delete; update, increment and row reads are refused)",
 		)
 		.option("--dry-run", "Validate and preview deploy without writing changes")
 		.option("-y, --yes", "Skip the reindex confirmation prompt")
