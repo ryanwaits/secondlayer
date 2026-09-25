@@ -209,6 +209,16 @@ Every list response carries the collection, an opaque `next_cursor`, the chain `
 
 Built on [Streams](/docs/streams): the decoder on your instance reads the same raw firehose you can.
 
+### Long-poll instead of tight-loop polling
+
+`/v1/index/events` and `/v1/index/blocks` take `wait` (seconds, max 25). With `wait`, an empty page — nothing past your `cursor`/`from_height` yet — holds the connection open instead of answering immediately, and returns the moment new data commits or `wait` elapses, whichever comes first. A page that already has rows answers right away regardless of `wait`.
+
+```
+GET /v1/index/events?event_type=ft_transfer&cursor=<last>&wait=25
+```
+
+This replaces a `poll every N seconds` loop with `ask, then ask again` — same cursor logic, fewer empty round trips. A self-hosted instance from before `wait` shipped rejects the param (`400`); fall back to a plain poll loop on that response instead of retrying with `wait` forever.
+
 ## Get told when it changes
 
 A `consume()` loop pulls. To be pushed instead, into a queue or a serverless function, a webhook POSTs matching chain events to your URL as they land:

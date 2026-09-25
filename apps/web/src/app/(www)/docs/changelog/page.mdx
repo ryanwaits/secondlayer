@@ -17,6 +17,10 @@ Each decoded event type runs its own decoder, and they don't all sit at the same
 
 The chain-webhook evaluator no longer makes a separate `GET /public/status` request every tick to check decoder progress; it trusts the tip the Index API already returned. A tick that catches up a backlog of blocks re-runs immediately instead of waiting out the poll interval first. Part of an ongoing push to cut hosted webhook latency; more of that work is still in flight.
 
+### `wait`: long-poll instead of a tight poll loop
+
+`/v1/index/events` and `/v1/index/blocks` accept `wait` (seconds, max 25). With it, an empty page holds the connection open and returns the moment new data commits, instead of answering empty right away — same cursor logic, fewer wasted round trips. Under the hood, block ingest and every decoder checkpoint now NOTIFY Postgres on commit, which the L2 decoders and the hosted chain-webhook evaluator use to wake up early instead of sitting out their full poll interval. A self-hosted instance from before this shipped rejects `wait` with a 400; the SDK and evaluator detect that and fall back to plain polling automatically.
+
 ### 10M rows a month free, then prepaid
 
 Hosted Index and Streams bill rows delivered, live or history, at one price. Every account gets 10M rows free each month, then $5 per 1M ($2 per 1M past $50 in a month). Past the allowance with no balance, reads answer `402 insufficient_credits` with a top-up link. Hosted reads need an `sk-sl_` key; a self-hosted instance stays keyless on loopback and unmetered.
