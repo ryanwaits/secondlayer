@@ -7,6 +7,7 @@
  *   POST  /api/billing/refill   opt-in auto-refill threshold
  *   GET   /api/billing/caps     monthly spend cap + alert threshold
  *   PATCH /api/billing/caps
+ *   GET   /api/billing/usage    this month's usage_ledger, by unit
  *
  * Plan plumbing (/upgrade, /resolve, /cancel, /portal) was removed with the
  * plan/tier retirement — credits are the only paid rail
@@ -27,6 +28,7 @@ import {
 	getAccountById,
 	setStripeCustomerId,
 } from "@secondlayer/platform/db/queries/accounts";
+import { usageForMonth } from "@secondlayer/platform/db/queries/usage-ledger";
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
@@ -340,6 +342,35 @@ app.patch("/caps", async (c) => {
 		alertThresholdPct: updated.alert_threshold_pct,
 		frozenAt: updated.frozen_at,
 		alertSentAt: updated.alert_sent_at,
+	});
+});
+
+const MONTH_RE = /^\d{4}-\d{2}$/;
+
+/**
+ * GET /api/billing/usage?month=YYYY-MM
+ *
+ * Per-unit quantity + cost from `usage_ledger` for one UTC calendar month
+ * (default: this month). Read-only; the ledger is the source of truth, this
+ * route only groups it. The future consumer is the web account credits page
+ * (`apps/web/src/app/account/credits`) — no UI ships with this route.
+ */
+app.get("/usage", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const monthParam = c.req.query("month");
+	if (monthParam !== undefined && !MONTH_RE.test(monthParam)) {
+		return c.json({ error: "month must be YYYY-MM" }, 400);
+	}
+	const now = monthParam
+		? new Date(`${monthParam}-01T00:00:00.000Z`)
+		: new Date();
+
+	const usage = await usageForMonth(getDb(), accountId, now);
+	return c.json({
+		month: `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`,
+		usage,
 	});
 });
 

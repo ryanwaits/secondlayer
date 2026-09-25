@@ -20,6 +20,7 @@ import {
 	createInstanceCatalogRouter,
 	renderLocalConsole,
 } from "./routes/instance-catalog.ts";
+import internalMetersRouter from "./routes/internal-meters.ts";
 import nodeRouter from "./routes/node.ts";
 import openApiRouter from "./routes/openapi.ts";
 import publicCreditsRouter from "./routes/public-credits.ts";
@@ -147,6 +148,10 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/api/accounts", accountsRouter);
 		app.route("/api/billing", billingRouter);
 		app.route("/api/archive", archiveRouter);
+		// Own bearer guard (WORKLOAD_HOST_KEY), not the session/instance-token
+		// `resourceAuth` the ACCOUNT_PATHS above use — this is a first-party
+		// workload host, not an account.
+		app.route("/internal/meters", internalMetersRouter);
 	}
 	app.route("/", statusRouter);
 	app.route("/v1/instance", createInstanceCatalogRouter());

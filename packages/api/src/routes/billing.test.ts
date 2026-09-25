@@ -1,7 +1,11 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { meter } from "@secondlayer/platform/billing/meter";
+import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
 import { getDb } from "@secondlayer/shared/db";
+import { Hono, type MiddlewareHandler } from "hono";
 import type Stripe from "stripe";
-import {
+import { errorHandler } from "../middleware/error.ts";
+import billingRouter, {
 	type StripeClient,
 	ensureStripeCustomer,
 	isCreditPack,
@@ -210,5 +214,65 @@ describe.skipIf(!HAS_DB)("ensureStripeCustomer", () => {
 
 		const persisted = await getAccountRow(email);
 		expect(persisted.stripe_customer_id).toBe("cus_other_error");
+	});
+});
+
+describe.skipIf(!HAS_DB)("GET /usage", () => {
+	function appFor(accountId?: string) {
+		const a = new Hono();
+		const setAccountId: MiddlewareHandler = async (c, next) => {
+			if (accountId) c.set("accountId", accountId);
+			await next();
+		};
+		a.use("*", setAccountId);
+		a.onError(errorHandler);
+		a.route("/", billingRouter);
+		return a;
+	}
+
+	test("unauthenticated → 401", async () => {
+		const res = await appFor().request("/usage");
+		expect(res.status).toBe(401);
+	});
+
+	test("malformed month → 400", async () => {
+		const email = `billing-usage-bad-month-${Date.now()}@test.invalid`;
+		const account = await makeAccount(email);
+		const res = await appFor(account.id).request("/usage?month=2026-9");
+		expect(res.status).toBe(400);
+	});
+
+	test("groups this month's ledger by unit", async () => {
+		const email = `billing-usage-${Date.now()}@test.invalid`;
+		const account = await makeAccount(email);
+		await creditCredits(db, account.id, 1_000_000n);
+		const now = new Date("2026-09-24T12:00:00.000Z");
+		await meter(db, {
+			accountId: account.id,
+			unit: "archive.partition",
+			quantity: 2,
+			source: "test",
+			idempotencyKey: `usage-test-${account.id}-1`,
+			occurredAt: now,
+		});
+		await meter(db, {
+			accountId: account.id,
+			unit: "archive.partition.events",
+			quantity: 1,
+			source: "test",
+			idempotencyKey: `usage-test-${account.id}-2`,
+			occurredAt: now,
+		});
+
+		const res = await appFor(account.id).request("/usage?month=2026-09");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			month: string;
+			usage: Array<{ unit: string; quantity: string; usdMicros: string }>;
+		};
+		expect(body.month).toBe("2026-09");
+		const byUnit = new Map(body.usage.map((u) => [u.unit, u]));
+		expect(byUnit.get("archive.partition")?.usdMicros).toBe("100000");
+		expect(byUnit.get("archive.partition.events")?.usdMicros).toBe("150000");
 	});
 });
