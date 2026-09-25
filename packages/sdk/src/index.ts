@@ -187,6 +187,12 @@ export type {
 	ReplayResult,
 	DeadRow,
 } from "./webhooks/client.ts";
+export { buildDoctorReport, isSuccessDelivery } from "./webhooks/doctor.ts";
+export type {
+	DoctorIssue,
+	DoctorIssueCode,
+	DoctorReport,
+} from "./webhooks/doctor.ts";
 export type {
 	ConsumerSink,
 	SinkTx,

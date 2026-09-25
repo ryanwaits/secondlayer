@@ -1,4 +1,5 @@
-import type { SecondLayer } from "@secondlayer/sdk";
+import { buildDoctorReport, isSuccessDelivery } from "@secondlayer/sdk";
+import type { DoctorReport, SecondLayer } from "@secondlayer/sdk";
 import { sign } from "@secondlayer/shared/crypto/standard-webhooks";
 import type { SubgraphDetail } from "@secondlayer/shared/schemas/subgraphs";
 import type {
@@ -85,12 +86,6 @@ function truncate(value: string, max = 48): string {
 
 function formatMaybeDate(value: string | null): string {
 	return value ? value.replace("T", " ").slice(0, 19) : dim("-");
-}
-
-function isSuccessDelivery(row: DeliveryRow): boolean {
-	return (
-		row.statusCode !== null && row.statusCode >= 200 && row.statusCode < 300
-	);
 }
 
 function printJson(value: unknown): void {
@@ -205,104 +200,6 @@ function printWebhookDetail(sub: WebhookDetail): void {
 		console.log(dim("\nAuth config:"));
 		console.log(JSON.stringify(sub.authConfig, null, 2));
 	}
-}
-
-export interface DoctorReport {
-	webhook: WebhookDetail;
-	deliverySummary: {
-		total: number;
-		successful: number;
-		failed: number;
-		last: DeliveryRow | null;
-	};
-	deadCount: number;
-	subgraph: {
-		name: string;
-		status: string;
-		syncStatus: string;
-		lastProcessedBlock: number;
-		chainTip: number;
-		gapCount: number;
-		integrity: string;
-	} | null;
-	hints: string[];
-}
-
-export function buildDoctorReport(input: {
-	webhook: WebhookDetail;
-	deliveries: DeliveryRow[];
-	dead: DeadRow[];
-	subgraph?: SubgraphDetail | null;
-}): DoctorReport {
-	const successful = input.deliveries.filter(isSuccessDelivery).length;
-	const failed = input.deliveries.length - successful;
-	const subgraph = input.subgraph
-		? {
-				name: input.subgraph.name,
-				status: input.subgraph.status,
-				syncStatus: input.subgraph.sync.status,
-				lastProcessedBlock: input.subgraph.sync.lastProcessedBlock,
-				chainTip: input.subgraph.sync.chainTip,
-				gapCount: input.subgraph.sync.gaps.count,
-				integrity: input.subgraph.sync.integrity,
-			}
-		: null;
-
-	const hints: string[] = [];
-	if (input.webhook.warning) {
-		hints.push(input.webhook.warning);
-	}
-	if (input.webhook.status === "paused") {
-		hints.push(
-			`Resume when the receiver is healthy: secondlayer webhooks resume ${input.webhook.id}`,
-		);
-	}
-	if (input.webhook.lastError) {
-		hints.push(
-			"Run secondlayer webhooks test to reproduce the receiver request.",
-		);
-	}
-	if (input.webhook.circuitOpenedAt || input.webhook.circuitFailures > 0) {
-		hints.push(
-			"Circuit breaker has failures; inspect receiver logs and delivery status codes.",
-		);
-	}
-	if (input.dead.length > 0) {
-		hints.push(
-			`Dead-letter rows exist; inspect with secondlayer webhooks dead ${input.webhook.id} and requeue selected rows.`,
-		);
-	}
-	if (subgraph?.gapCount && subgraph.gapCount > 0) {
-		hints.push(
-			`Linked subgraph has gaps; run secondlayer subgraphs gaps ${input.webhook.subgraphName}.`,
-		);
-	}
-	if (subgraph?.syncStatus === "catching_up") {
-		hints.push(
-			"Linked subgraph is still catching up; new matching rows may arrive later.",
-		);
-	}
-	if (input.deliveries.length === 0) {
-		hints.push(
-			"No deliveries yet; confirm the table is receiving inserted rows that match the filter.",
-		);
-	}
-	if (hints.length === 0) {
-		hints.push("No immediate action needed.");
-	}
-
-	return {
-		webhook: input.webhook,
-		deliverySummary: {
-			total: input.deliveries.length,
-			successful,
-			failed,
-			last: input.deliveries[0] ?? null,
-		},
-		deadCount: input.dead.length,
-		subgraph,
-		hints,
-	};
 }
 
 function printDoctorReport(report: DoctorReport): void {
