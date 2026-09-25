@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 11.8.1
+
+### Patch Changes
+
+- 0818a4c: One metered ledger (`usage_ledger` + `meter()`) now backs every billable unit: archive partitions and hosted Index/Streams rows. A 10M-rows-per-account-per-month free allowance replaces the old free-height window and the Streams 1-day retention limit — every account now reads full history over the hosted API; rows past the allowance draw the prepaid balance. Hosted Index/Streams reads require an `sk-sl_*` key (401 without one). Stripe top-ups now also write a ledger row. New `POST /internal/meters` (guarded by `WORKLOAD_HOST_KEY`) for batched hosted-stack meters, and `GET /api/billing/usage?month=` for a per-unit usage breakdown.
+- 28f9260: Fix a reorg race where a webhook row claimed (or previously attempted) mid-reorg could be silently deleted instead of rolled back; it's now marked dead and included in `chain.reorg.rollback` instead. Delivery caps (`max_retries`, `timeout_ms`) are now configurable ceilings via `WEBHOOK_MAX_RETRIES_CEILING` and `WEBHOOK_TIMEOUT_MS_CEILING` (self-host defaults unchanged). Add missing SSRF ranges (benchmarking, multicast, reserved/broadcast, IPv6 multicast, NAT64). Replay range is now capped via `WEBHOOK_REPLAY_MAX_BLOCKS` (default unchanged) and returns 409 on a concurrent replay for the same webhook. A chain webhook on an instance without the chain-trigger evaluator running now warns on create, on every read, at plane boot, and in `secondlayer webhooks doctor`.
+
 ## 11.8.0
 
 ### Minor Changes

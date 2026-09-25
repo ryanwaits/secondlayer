@@ -1,5 +1,17 @@
 # @secondlayer/platform
 
+## 0.3.0
+
+### Minor Changes
+
+- 0818a4c: One metered ledger (`usage_ledger` + `meter()`) now backs every billable unit: archive partitions and hosted Index/Streams rows. A 10M-rows-per-account-per-month free allowance replaces the old free-height window and the Streams 1-day retention limit — every account now reads full history over the hosted API; rows past the allowance draw the prepaid balance. Hosted Index/Streams reads require an `sk-sl_*` key (401 without one). Stripe top-ups now also write a ledger row. New `POST /internal/meters` (guarded by `WORKLOAD_HOST_KEY`) for batched hosted-stack meters, and `GET /api/billing/usage?month=` for a per-unit usage breakdown.
+
+### Patch Changes
+
+- Updated dependencies [0818a4c]
+- Updated dependencies [28f9260]
+  - @secondlayer/shared@11.8.1
+
 ## 0.2.17
 
 ### Patch Changes

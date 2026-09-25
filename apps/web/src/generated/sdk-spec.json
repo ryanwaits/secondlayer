@@ -1983,7 +1983,7 @@
 					"summary": "JSON mirror of the subgraph runtime's `SubgraphFilter` union.",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 55
+					"line": 66
 				},
 				{
 					"name": "ChainTriggerType",
@@ -1991,7 +1991,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 48
+					"line": 59
 				},
 				{
 					"name": "ChainTxLevelEvent",
@@ -2023,7 +2023,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 197
+					"line": 208
 				},
 				{
 					"name": "CreateWebhookResponse",
@@ -2031,7 +2031,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 263
+					"line": 281
 				},
 				{
 					"name": "DeadRow",
@@ -2039,7 +2039,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 295
+					"line": 313
 				},
 				{
 					"name": "DeliveryRow",
@@ -2047,7 +2047,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 272
+					"line": 290
 				},
 				{
 					"name": "ReplayResult",
@@ -2055,7 +2055,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 281
+					"line": 299
 				},
 				{
 					"name": "RotateSecretResponse",
@@ -2063,7 +2063,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 268
+					"line": 286
 				},
 				{
 					"name": "SbtcDepositEvent",
@@ -2103,7 +2103,7 @@
 					"summary": "Ergonomic chain-trigger constructors for `webhooks.create({ triggers })`.",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 177
+					"line": 188
 				},
 				{
 					"name": "UpdateWebhookRequest",
@@ -2111,7 +2111,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 216
+					"line": 227
 				},
 				{
 					"name": "verifyStandardWebhooksHeaders",
@@ -2127,7 +2127,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 251
+					"line": 262
 				},
 				{
 					"name": "WebhookFormat",
@@ -2135,7 +2135,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 28
+					"line": 39
 				},
 				{
 					"name": "WebhookKind",
@@ -2143,7 +2143,7 @@
 					"summary": "Polymorphic webhook mode (mirrors db/types `WebhookKind`).",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 27
+					"line": 38
 				},
 				{
 					"name": "WebhookRuntime",
@@ -2151,7 +2151,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 29
+					"line": 40
 				},
 				{
 					"name": "WebhookStatus",
@@ -2159,7 +2159,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 25
+					"line": 36
 				},
 				{
 					"name": "WebhookSummary",
@@ -2167,7 +2167,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 234
+					"line": 245
 				},
 				{
 					"name": "WebhookTestResult",
@@ -2175,7 +2175,7 @@
 					"summary": "Result of a one-off test delivery (`POST /:id/test`).",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 288
+					"line": 306
 				}
 			]
 		},
