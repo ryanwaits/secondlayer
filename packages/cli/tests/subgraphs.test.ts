@@ -81,7 +81,6 @@ describe("subgraphs command helpers", () => {
 
 		expect(preview).toMatchObject({
 			name: "sbtc-activity",
-			version: "(auto)",
 			startBlock: "123",
 			sources: "depositCalls",
 			handlers: "depositCalls",

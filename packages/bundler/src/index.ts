@@ -4,6 +4,7 @@ export {
 } from "./errors.ts";
 export {
 	extractSubgraphDefinition,
+	injectSourceAbis,
 	SubgraphNotStaticError,
 } from "./extract.ts";
 export type { ExtractedSubgraph } from "./extract.ts";

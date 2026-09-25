@@ -40,7 +40,6 @@ function starter(name: string): string {
 
 export default defineSubgraph({
   name: "${name}",
-  version: "1.0.0",
   description: "TODO: describe what this subgraph tracks",
 
   // Sources define what chain data this subgraph processes.
@@ -73,8 +72,8 @@ export default defineSubgraph({
   },
 
   // Handlers process matched events. Keys must match source names.
-  // Context: ctx.insert(), ctx.update(), ctx.upsert(), ctx.patch(),
-  //          ctx.patchOrInsert(), ctx.findOne(), ctx.findMany(), ctx.increment()
+  // Context: ctx.insert(), ctx.update(), ctx.upsert(), ctx.increment(),
+  //          ctx.delete(), ctx.findOne(), ctx.findMany()
   handlers: {
     handler: (event, ctx) => {
       // event is typed from the source — for stx_transfer: sender, recipient,

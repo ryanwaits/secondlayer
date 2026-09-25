@@ -45,6 +45,7 @@ import type {
 	SubgraphOperationStatus,
 	SubgraphQueryParams,
 } from "../lib/api-client.ts";
+import { withDerivedAbis } from "../lib/derive-abi.ts";
 type SubgraphSpecFormat = "openapi" | "agent" | "markdown";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { parseQueryFilters } from "../lib/filter-params.ts";
@@ -215,7 +216,7 @@ export async function runPayloadsCodegen(
 	}
 	const { readFile } = await import("node:fs/promises");
 	const { bundleSubgraphCode } = await import("@secondlayer/bundler");
-	const source = await readFile(absPath, "utf8");
+	const { source } = await withDerivedAbis(await readFile(absPath, "utf8"));
 	const bundled = await bundleSubgraphCode(source);
 	const pinned = collectPinnedPrintSources(
 		(bundled.sources ?? {}) as Record<string, unknown>,
@@ -331,11 +332,10 @@ async function specFromLocalFile(
 		generateSubgraphMarkdown,
 		generateSubgraphOpenApi,
 	} = await import("@secondlayer/shared/subgraphs/spec");
-	const source = await readFile(absPath, "utf8");
+	const { source } = await withDerivedAbis(await readFile(absPath, "utf8"));
 	const bundled = await bundleSubgraphCode(source);
 	const { hash } = generateSubgraphSQL({
 		name: bundled.name,
-		version: bundled.version,
 		description: bundled.description,
 		sources: bundled.sources as unknown as SubgraphDefinition["sources"],
 		schema: bundled.schema as SubgraphDefinition["schema"],
@@ -343,7 +343,6 @@ async function specFromLocalFile(
 	});
 	const detail = createLocalSubgraphDetail({
 		name: bundled.name,
-		version: bundled.version,
 		description: bundled.description,
 		sources: bundled.sources,
 		schema: bundled.schema,
@@ -358,7 +357,6 @@ async function specFromLocalFile(
 
 function createLocalSubgraphDetail(input: {
 	name: string;
-	version?: string;
 	description?: string;
 	sources: Record<string, Record<string, unknown>>;
 	schema: Record<string, unknown>;
@@ -405,7 +403,7 @@ function createLocalSubgraphDetail(input: {
 	}
 	return {
 		name: input.name,
-		version: input.version ?? "0.0.0",
+		version: "0.0.0",
 		schemaHash: input.schemaHash,
 		status: "local",
 		lastProcessedBlock: 0,
@@ -522,7 +520,6 @@ export async function installScaffoldDependencies(
 
 export interface SubgraphDeployPreview {
 	name: string;
-	version: string;
 	description: string;
 	startBlock: string;
 	sources: string;
@@ -543,7 +540,6 @@ export function createSubgraphDeployPreview(
 
 	return {
 		name: def.name,
-		version: def.version ?? "(auto)",
 		description: def.description ?? "",
 		startBlock: String(def.startBlock ?? 1),
 		sources: Object.keys(def.sources).join(", ") || "(none)",
@@ -565,7 +561,6 @@ function printSubgraphDeployPreview(
 		["File", context.file],
 		["Network", context.network],
 		["Name", preview.name],
-		["Version", preview.version],
 		["Start Block", preview.startBlock],
 		["Sources", preview.sources],
 		["Handlers", preview.handlers],
@@ -1143,7 +1138,30 @@ Examples:
 					const { validateSubgraphDefinition } = await import(
 						"@secondlayer/subgraphs/validate"
 					);
-					const validated = validateSubgraphDefinition(effectiveDef);
+					// Remote deploys fill in a missing contract_call `abi` from the
+					// deployed contract. A local deploy runs this file as-is, so its
+					// sources must declare `abi` themselves.
+					const { readFile } = await import("node:fs/promises");
+					const derived =
+						config.network !== "local"
+							? await withDerivedAbis(await readFile(absPath, "utf8"))
+							: undefined;
+					for (const name of Object.keys(derived?.abis ?? {})) {
+						info(`Using the deployed contract's abi for source "${name}"`);
+					}
+					const validated = validateSubgraphDefinition(
+						derived && Object.keys(derived.abis).length > 0
+							? {
+									...effectiveDef,
+									sources: Object.fromEntries(
+										Object.entries(effectiveDef.sources).map(([k, v]) => [
+											k,
+											derived.abis[k] ? { ...v, abi: derived.abis[k] } : v,
+										]),
+									),
+								}
+							: effectiveDef,
+					);
 
 					if (config.network !== "local") {
 						// ── Remote deploy ──────────────────────────────────────
@@ -1151,23 +1169,16 @@ Examples:
 							`${dryRun ? "Bundling for remote deploy dry run" : "Bundling for remote deploy"} (${config.network})...`,
 						);
 
-						const { readFile } = await import("node:fs/promises");
-						const source = await readFile(absPath, "utf8");
+						const source = derived?.source ?? (await readFile(absPath, "utf8"));
 						const { bundleSubgraphCode } = await import("@secondlayer/bundler");
 						const bundled = await bundleSubgraphCode(source);
 						const handlerCode = bundled.handlerCode;
 
 						if (dryRun) {
 							printSubgraphDeployPreview(
-								createSubgraphDeployPreview(
-									{
-										...validated,
-										version: validated.version,
-									},
-									{
-										bundleBytes: Buffer.byteLength(handlerCode, "utf8"),
-									},
-								),
+								createSubgraphDeployPreview(validated, {
+									bundleBytes: Buffer.byteLength(handlerCode, "utf8"),
+								}),
 								{
 									network: config.network,
 									file: absPath,
@@ -1235,7 +1246,6 @@ Examples:
 						}
 						const result = await deploySubgraphApi({
 							name: effectiveDef.name,
-							version: undefined,
 							description: effectiveDef.description,
 							sources: effectiveDef.sources as unknown as Record<
 								string,
@@ -1343,10 +1353,7 @@ Examples:
 						// ── Local deploy ───────────────────────────────────────
 						if (dryRun) {
 							printSubgraphDeployPreview(
-								createSubgraphDeployPreview({
-									...validated,
-									version: validated.version,
-								}),
+								createSubgraphDeployPreview(validated),
 								{
 									network: config.network,
 									file: absPath,
@@ -1361,7 +1368,6 @@ Examples:
 
 						const db = getDb();
 						const result = await deploySchema(db, effectiveDef, absPath, {
-							version: undefined,
 							forceReindex: startBlock !== undefined,
 						});
 
@@ -2329,11 +2335,10 @@ export async function runSubgraphSchemaCodegen(
 			generateDrizzleSchema,
 			generateKyselySchema,
 		} = await import("@secondlayer/subgraphs");
-		const source = await readFile(absPath, "utf8");
+		const { source } = await withDerivedAbis(await readFile(absPath, "utf8"));
 		const bundled = await bundleSubgraphCode(source);
 		const def: SubgraphDefinition = {
 			name: bundled.name,
-			version: bundled.version,
 			description: bundled.description,
 			sources: bundled.sources as unknown as SubgraphDefinition["sources"],
 			schema: bundled.schema as SubgraphDefinition["schema"],

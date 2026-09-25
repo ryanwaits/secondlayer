@@ -9,7 +9,6 @@ import ts from "typescript";
  */
 export interface ExtractedSubgraph {
 	name?: unknown;
-	version?: unknown;
 	description?: unknown;
 	startBlock?: unknown;
 	backfillMode?: unknown;
@@ -24,7 +23,6 @@ export class SubgraphNotStaticError extends Error {}
 
 const META_KEYS = [
 	"name",
-	"version",
 	"description",
 	"startBlock",
 	"backfillMode",
@@ -77,6 +75,65 @@ export function extractSubgraphDefinition(code: string): ExtractedSubgraph {
 			);
 		}
 		// Unknown keys are ignored (validator's .strict() on filters still guards sources).
+	}
+	return out;
+}
+
+/**
+ * Write `abi` literals into named sources of the sole `defineSubgraph({...})`
+ * call, as if the author had typed them. Lets a deploy fill in a derived ABI
+ * (the deployed contract's interface) while the bundle stays statically
+ * readable. Sources that already declare `abi` are left untouched.
+ */
+export function injectSourceAbis(
+	code: string,
+	abis: Record<string, unknown>,
+): string {
+	if (Object.keys(abis).length === 0) return code;
+	const sf = ts.createSourceFile(
+		"subgraph.ts",
+		code,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TS,
+	);
+	const arg = findSoleDefineSubgraphArg(sf);
+	const sourcesProp = arg.properties.find(
+		(p): p is ts.PropertyAssignment =>
+			ts.isPropertyAssignment(p) && keyText(p.name, sf) === "sources",
+	);
+	if (!sourcesProp || !ts.isObjectLiteralExpression(sourcesProp.initializer)) {
+		throw new SubgraphNotStaticError(
+			"defineSubgraph({...}) has no object-literal `sources` to add an abi to",
+		);
+	}
+	const inserts: Array<{ pos: number; text: string }> = [];
+	for (const [name, abi] of Object.entries(abis)) {
+		const src = sourcesProp.initializer.properties.find(
+			(p): p is ts.PropertyAssignment =>
+				ts.isPropertyAssignment(p) && keyText(p.name, sf) === name,
+		);
+		if (!src || !ts.isObjectLiteralExpression(src.initializer)) {
+			throw new SubgraphNotStaticError(
+				`source "${name}" is not an object literal; add its abi by hand`,
+			);
+		}
+		const hasAbi = src.initializer.properties.some(
+			(p) =>
+				!ts.isSpreadAssignment(p) &&
+				p.name !== undefined &&
+				keyText(p.name, sf) === "abi",
+		);
+		if (hasAbi) continue;
+		// Right after the source's opening `{`.
+		inserts.push({
+			pos: src.initializer.getStart(sf) + 1,
+			text: ` abi: ${JSON.stringify(abi)},`,
+		});
+	}
+	let out = code;
+	for (const { pos, text } of inserts.sort((a, b) => b.pos - a.pos)) {
+		out = out.slice(0, pos) + text + out.slice(pos);
 	}
 	return out;
 }

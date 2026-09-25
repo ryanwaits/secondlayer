@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	SubgraphNotStaticError,
 	extractSubgraphDefinition,
+	injectSourceAbis,
 } from "../src/extract.ts";
 
 describe("extractSubgraphDefinition", () => {
@@ -11,7 +12,6 @@ describe("extractSubgraphDefinition", () => {
 
 			export default defineSubgraph({
 				name: "extract-smoke",
-				version: "1.0.0",
 				description: "smoke test",
 				startBlock: 100,
 				sources: {
@@ -31,7 +31,6 @@ describe("extractSubgraphDefinition", () => {
 		`);
 
 		expect(result.name).toBe("extract-smoke");
-		expect(result.version).toBe("1.0.0");
 		expect(result.description).toBe("smoke test");
 		expect(result.startBlock).toBe(100);
 		expect(Object.keys(result.sources as Record<string, unknown>)).toEqual([
@@ -159,40 +158,7 @@ describe("extractSubgraphDefinition", () => {
 		]);
 	});
 
-	test("extracts materialize literals inside sources", () => {
-		const result = extractSubgraphDefinition(`
-			import { defineSubgraph } from "@secondlayer/subgraphs";
-
-			export default defineSubgraph({
-				name: "materialize-literal",
-				sources: {
-					swap: {
-						type: "print_event",
-						contractId: "SP123.pool",
-						prints: { swap: { tokenX: "principal" } },
-						materialize: {
-							table: "swaps",
-							columns: { token_x: { from: "tokenX" } },
-						},
-					},
-				},
-				schema: {
-					swaps: { columns: { token_x: { type: "principal" } } },
-				},
-				handlers: {},
-			});
-		`);
-		const sources = result.sources as Record<
-			string,
-			{ materialize?: { table: string; columns: Record<string, unknown> } }
-		>;
-		expect(sources.swap.materialize).toEqual({
-			table: "swaps",
-			columns: { token_x: { from: "tokenX" } },
-		});
-	});
-
-	test("rejects from() call inside materialize", () => {
+	test("rejects a call expression nested inside sources", () => {
 		expect(() =>
 			extractSubgraphDefinition(`
 				import { defineSubgraph } from "@secondlayer/subgraphs";
@@ -203,10 +169,7 @@ describe("extractSubgraphDefinition", () => {
 						swap: {
 							type: "print_event",
 							contractId: "SP123.pool",
-							materialize: {
-								table: "swaps",
-								columns: { token_x: { from: from("tokenX") } },
-							},
+							prints: { swap: { tokenX: field("principal") } },
 						},
 					},
 					schema: {
@@ -216,5 +179,47 @@ describe("extractSubgraphDefinition", () => {
 				});
 			`),
 		).toThrow(SubgraphNotStaticError);
+	});
+});
+
+describe("injectSourceAbis", () => {
+	const code = `
+		import { defineSubgraph } from "@secondlayer/subgraphs";
+
+		export default defineSubgraph({
+			name: "calls",
+			sources: {
+				stake: { type: "contract_call", contractId: "SP1.pool", functionName: "stake" },
+				pinned: { type: "contract_call", contractId: "SP1.pool", functionName: "exit", abi: { functions: [] } },
+			},
+			schema: { rows: { columns: { amount: { type: "uint" } } } },
+			handlers: {
+				stake: (event, ctx) => ctx.insert("rows", { amount: 1n }),
+				pinned: (event, ctx) => ctx.insert("rows", { amount: 2n }),
+			},
+		});
+	`;
+	const abi = { functions: [{ name: "stake", access: "public", args: [] }] };
+
+	test("writes the abi into the named source as a static literal", () => {
+		const out = injectSourceAbis(code, { stake: abi });
+		const sources = extractSubgraphDefinition(out).sources as Record<
+			string,
+			{ abi?: unknown }
+		>;
+		expect(sources.stake?.abi).toEqual(abi);
+	});
+
+	test("leaves a source that already declares abi untouched", () => {
+		const out = injectSourceAbis(code, { pinned: abi });
+		const sources = extractSubgraphDefinition(out).sources as Record<
+			string,
+			{ abi?: unknown }
+		>;
+		expect(sources.pinned?.abi).toEqual({ functions: [] });
+	});
+
+	test("no abis returns the source unchanged", () => {
+		expect(injectSourceAbis(code, {})).toBe(code);
 	});
 });

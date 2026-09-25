@@ -102,7 +102,8 @@ export async function runSubgraphPreview(
 	const { readFile } = await import("node:fs/promises");
 	const { bundleSubgraphCode } = await import("@secondlayer/bundler");
 
-	const source = await readFile(absPath, "utf8");
+	const { withDerivedAbis } = await import("../lib/derive-abi.ts");
+	const { source } = await withDerivedAbis(await readFile(absPath, "utf8"));
 	const bundled = await bundleSubgraphCode(source);
 	const sources = (bundled.sources ?? {}) as Record<
 		string,
@@ -111,7 +112,6 @@ export async function runSubgraphPreview(
 			contractId?: string | string[];
 			topic?: string;
 			functionName?: string;
-			materialize?: unknown;
 		}
 	>;
 
