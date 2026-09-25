@@ -21,7 +21,6 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
 	name: "sbtc-flows-bench",
-	version: "1.0.0",
 	description:
 		"Bench — sBTC registry print events from contract activation. Mirrors customer-shape subgraph for backfill speed measurement.",
 

@@ -12,7 +12,6 @@ import { defineSubgraph } from "../src/define.ts";
  */
 export default defineSubgraph({
 	name: "contract-deployments",
-	version: "1.0.0",
 	description: "Tracks all smart contract deployments on Stacks",
 
 	sources: { deploy: { type: "contract_deploy" } },

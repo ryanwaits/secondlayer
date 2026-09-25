@@ -75,7 +75,7 @@ describe("withDerivedAbis", () => {
 	});
 
 	test("nothing to derive leaves the source unchanged", async () => {
-		const plain = SOURCE.replaceAll(/functionName: "[a-z]+"/g, 'caller: "SP2"');
+		const plain = SOURCE.replace(/functionName: "[a-z]+"/g, 'caller: "SP2"');
 		const { source, abis } = await withDerivedAbis(plain, {
 			getContractInfo: async () => {
 				throw new Error("should not fetch");
