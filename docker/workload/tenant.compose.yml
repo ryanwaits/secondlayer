@@ -81,6 +81,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       DATA_DIR: /data
+      # api only READS this to report evaluator state (webhooks.ts toDetail) —
+      # the evaluator itself runs in webhook-service, not here.
+      SUBGRAPH_SOURCE: streams-index
       # Hosted caps (D2): never let a tenant's own webhooks.create raise
       # these past what the gateway/pricing model assumes.
       WEBHOOK_MAX_RETRIES_CEILING: "7"
