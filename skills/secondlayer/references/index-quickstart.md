@@ -26,7 +26,7 @@ bun add @secondlayer/sdk
 ```ts
 import { SecondLayer } from "@secondlayer/sdk";
 
-const sl = new SecondLayer(); // http://127.0.0.1:3800 or SL_API_URL
+const sl = new SecondLayer(); // http://127.0.0.1:3800 or SECONDLAYER_API_URL
 ```
 
 ```bash

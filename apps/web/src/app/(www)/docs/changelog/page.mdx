@@ -71,6 +71,17 @@ The SDK caches the last 64 pages it read and sends `If-None-Match` on the next r
 
 ## CLI — September 2026
 
+### One name per setting
+
+`SL_API_URL`, `SL_API_KEY` and `SL_ARCHIVE_API_KEY` are no longer read anywhere — CLI, SDK, and MCP now read only the canonical names, with no fallback and no warning.
+
+| Old | Canonical |
+| --- | --- |
+| `SL_API_URL` | `SECONDLAYER_API_URL` |
+| `SL_API_KEY` / `SL_ARCHIVE_API_KEY` | `SECONDLAYER_API_KEY` |
+
+`secondlayer init` now honors `SECONDLAYER_API_URL` (it used to read only the legacy name), and `secondlayer backup` now backs up `SECONDLAYER_API_KEY`. Re-run `secondlayer init` if your `.env` still has the old names.
+
 ### Setup asks plain questions instead of a terminal UI
 
 `secondlayer setup` no longer installs a native terminal UI. Run it interactively and it asks for whatever `--network`, `--node-mode`, or `--against` you didn't already pass, with plain prompts that work under node, not just Bun. `--against` now defaults to the official archive, so you only pass it to point at a mirror or skip it with `--skip-bootstrap`.

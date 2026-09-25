@@ -441,7 +441,7 @@ function legDeploy(): void {
 	}
 	const res = run(
 		["bun", "run", "packages/cli/src/cli.ts", "subgraphs", "list"],
-		{ SL_API_URL: API_URL },
+		{ SECONDLAYER_API_URL: API_URL },
 	);
 	record(
 		"deploy",

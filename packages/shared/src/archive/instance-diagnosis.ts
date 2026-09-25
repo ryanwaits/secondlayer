@@ -158,7 +158,7 @@ export interface ContextProbe {
 	apiUrl: string;
 	/** `false` only for the metered archive deployment, which has accounts. */
 	selfHosted: boolean;
-	/** `true` when INSTANCE_TOKEN / SL_API_KEY resolved to a value. */
+	/** `true` when INSTANCE_TOKEN / SECONDLAYER_API_KEY resolved to a value. */
 	hasCredential: boolean;
 	/** `/public/status` when it answered, `null` when the probe failed. */
 	status: PublicStatus | null;
@@ -205,7 +205,7 @@ export function explainContextNulls(
 	if (!probe.status) {
 		const reason = `No instance answered at ${probe.apiUrl} (${probe.statusError ?? "unreachable"}), so this read never reached an API.`;
 		return {
-			summary: `${reason} Start it from docker/oss with: docker compose up -d — or point SL_API_URL at the instance you meant.`,
+			summary: `${reason} Start it from docker/oss with: docker compose up -d — or point SECONDLAYER_API_URL at the instance you meant.`,
 			nulls: Object.fromEntries(nullFields.map((field) => [field, reason])),
 		};
 	}

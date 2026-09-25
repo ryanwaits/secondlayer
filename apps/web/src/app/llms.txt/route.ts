@@ -14,7 +14,7 @@ const LLMS_TXT = `# Secondlayer — self-hosted Stacks data
 
 ## Auth model
 - Loopback reads: no key.
-- Writes and bind-beyond-loopback: INSTANCE_TOKEN from secondlayer init (or SL_API_KEY).
+- Writes and bind-beyond-loopback: INSTANCE_TOKEN from secondlayer init (or SECONDLAYER_API_KEY).
 - Archive restore/backfill: card credits on https://api.secondlayer.tools
   (secondlayer credits buy / balance). Auto-refill is off until you set it.
 

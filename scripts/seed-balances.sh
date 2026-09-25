@@ -3,11 +3,11 @@
 # genesis-exempt founder account. Balances are only correct from genesis,
 # so this MUST run with an account allowed full-history backfill.
 #
-# Usage: SL_API_KEY=sk-sl_... ./scripts/seed-balances.sh
+# Usage: SECONDLAYER_API_KEY=sk-sl_... ./scripts/seed-balances.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-API="${SL_API_URL:-https://api.secondlayer.tools}"
+API="${SECONDLAYER_API_URL:-https://api.secondlayer.tools}"
 SL="${SL_BIN:-node_modules/.bin/sl}"
 
 verify_asset() { # contract_id — abort if the Index has never seen it

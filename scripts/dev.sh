@@ -37,6 +37,6 @@ echo -e "${green}Starting api (3800) + web (3000)${reset}"
 echo ""
 
 DATABASE_URL="$DB_URL" DEV_MODE=true bun run --filter @secondlayer/api dev &
-SL_API_URL="http://localhost:3800" bun run --filter @secondlayer/web dev &
+SECONDLAYER_API_URL="http://localhost:3800" bun run --filter @secondlayer/web dev &
 
 wait

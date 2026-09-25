@@ -21,7 +21,7 @@ The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP c
 }
 ```
 
-`INSTANCE_TOKEN` is optional for reads on loopback; anything published past loopback requires it, and the write tools require it always. `SECONDLAYER_API_URL` is the lead instance URL (`SL_API_URL` still works). Hosted archive/credits tools also need `SECONDLAYER_API_KEY`. See [Authentication](/docs/authentication).
+`INSTANCE_TOKEN` is optional for reads on loopback; anything published past loopback requires it, and the write tools require it always. `SECONDLAYER_API_URL` is the lead instance URL. Hosted archive/credits tools also need `SECONDLAYER_API_KEY`. See [Authentication](/docs/authentication).
 
 An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional `SECONDLAYER_MCP_SECRET` bearer auth for hosting the server behind a URL.
 

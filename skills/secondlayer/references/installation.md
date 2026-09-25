@@ -61,21 +61,21 @@ docker compose -f docker/oss/docker-compose.yml --env-file .env.local up -d
 `secondlayer init` writes `.env.local` (`INSTANCE_TOKEN`, secrets key, webhook signing key). Loopback reads need no token. For writes, and for any instance that has the token configured:
 
 ```bash
-export SL_API_URL=http://127.0.0.1:3800
+export SECONDLAYER_API_URL=http://127.0.0.1:3800
 export INSTANCE_TOKEN=<token from .env.local>
 ```
 
 Writes (`/api/subgraphs`, `/api/webhooks`, `/api/node`, `/status`) send `Authorization: Bearer <INSTANCE_TOKEN>` whenever the instance has a token, loopback included. `/v1` reads send it once the API is published past loopback — mandatory there, since an instance that binds past loopback with no token refuses to start. `/health` and `/public/*` are always open.
 
-`--api-key <key>` is shape-routed: hex → instance token, `sk-sl_*` → hosted account key. `--api-url <url>` overrides `SECONDLAYER_API_URL` / `SL_API_URL` for that one invocation.
+`--api-key <key>` is shape-routed: hex → instance token, `sk-sl_*` → hosted account key. `--api-url <url>` overrides `SECONDLAYER_API_URL` for that one invocation.
 
 ## Environment variables
 
 | Variable | Read by | Purpose |
 |---|---|---|
-| `SECONDLAYER_API_URL` | All SDK + CLI calls | Override API base. Default: `http://127.0.0.1:3800`. `SL_API_URL` is a one-release fallback. |
+| `SECONDLAYER_API_URL` | All SDK + CLI calls | Override API base. Default: `http://127.0.0.1:3800`. |
 | `INSTANCE_TOKEN` | CLI writes, MCP, SDK | Hex token `secondlayer init` writes for your instance. Loopback reads need no value. |
-| `SECONDLAYER_API_KEY` | Hosted API, archive, credits | Account key (`sk-sl_*`). `SL_API_KEY` is a one-release hosted fallback, not an instance alias. |
+| `SECONDLAYER_API_KEY` | Hosted API, archive, credits | Account key (`sk-sl_*`), not an instance alias. |
 | `SIGNING_SECRET` | `secondlayer webhooks test` fallback | If `--signing-secret` not passed. |
 | `STACKS_NETWORK` | `secondlayer codegen contracts` and some local commands | `mainnet`, `testnet`, or `devnet` (`devnet` maps to the config file's `local`). |
 
@@ -84,7 +84,7 @@ Writes (`/api/subgraphs`, `/api/webhooks`, `/api/node`, `/status`) send `Authori
 ```typescript
 import { SecondLayer } from "@secondlayer/sdk";
 
-const sl = new SecondLayer(); // http://127.0.0.1:3800 or SL_API_URL
+const sl = new SecondLayer(); // http://127.0.0.1:3800 or SECONDLAYER_API_URL
 
 const tip = await sl.streams.tip();
 const { data } = await sl.subgraphs.list();
@@ -121,7 +121,7 @@ my-app/
 ├── src/
 │   └── ...                  # Your app code, imports @secondlayer/sdk / @secondlayer/stacks
 ├── package.json             # Deps on @secondlayer/sdk, @secondlayer/subgraphs, @secondlayer/stacks
-└── .env.local               # INSTANCE_TOKEN, SL_API_URL, SIGNING_SECRET, ...
+└── .env.local               # INSTANCE_TOKEN, SECONDLAYER_API_URL, SIGNING_SECRET, ...
 ```
 
 Subgraph files live under `subgraphs/` by convention but the CLI accepts any path: `secondlayer subgraphs deploy any/path/file.ts`.

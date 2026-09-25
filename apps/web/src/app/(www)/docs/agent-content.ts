@@ -363,7 +363,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Sync from genesis",
 			"Backfill, then deploy against your instance.",
-			"/secondlayer Walk me through a genesis sync with a Stacks node that is itself syncing from genesis (an already-synced node only sends new blocks): start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, `secondlayer verify all --against <manifest>`, then deploy a subgraph against my local instance with `SL_API_URL=http://localhost:3800` and `secondlayer subgraphs deploy`.",
+			"/secondlayer Walk me through a genesis sync with a Stacks node that is itself syncing from genesis (an already-synced node only sends new blocks): start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, `secondlayer verify all --against <manifest>`, then deploy a subgraph against my local instance with `SECONDLAYER_API_URL=http://localhost:3800` and `secondlayer subgraphs deploy`.",
 		),
 	],
 
@@ -394,7 +394,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Deploy against devnet",
 			"Run a subgraph on local devnet blocks.",
-			"/secondlayer Help me deploy a subgraph against my local devnet: `SL_API_URL=http://localhost:3800 INSTANCE_TOKEN=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts` — the generated devnet stack ships that fixed local token, and deploys are writes, so they carry it. Then have me fire a contract call in the devnet and confirm the matching rows land by reading the subgraph's table with plain `curl` — the stack publishes the api on 127.0.0.1, so `/v1` reads need no token.",
+			"/secondlayer Help me deploy a subgraph against my local devnet: `SECONDLAYER_API_URL=http://localhost:3800 INSTANCE_TOKEN=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts` — the generated devnet stack ships that fixed local token, and deploys are writes, so they carry it. Then have me fire a contract call in the devnet and confirm the matching rows land by reading the subgraph's table with plain `curl` — the stack publishes the api on 127.0.0.1, so `/v1` reads need no token.",
 		),
 		card(
 			"Watch and tear down",

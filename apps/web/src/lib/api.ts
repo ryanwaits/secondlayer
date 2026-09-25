@@ -1,5 +1,8 @@
 export const PLATFORM_API_URL =
-	process.env.SL_API_URL || "http://localhost:3800";
+	process.env.SECONDLAYER_API_URL ||
+	(process.env.NODE_ENV === "production"
+		? "https://api.secondlayer.tools"
+		: "http://localhost:3800");
 const API_URL = PLATFORM_API_URL;
 
 export class ApiError extends Error {

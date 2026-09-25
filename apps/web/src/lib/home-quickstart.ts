@@ -23,7 +23,7 @@ const HOSTED_API = "https://api.secondlayer.tools";
 
 /** MCP against the hosted API: the account key, not an instance token. */
 const MCP_ENV = {
-	SL_API_URL: HOSTED_API,
+	SECONDLAYER_API_URL: HOSTED_API,
 	SECONDLAYER_API_KEY: "<sk-sl_ key from /account/keys>",
 };
 
@@ -43,7 +43,7 @@ export const HARNESSES: Harness[] = [
 			"Codex takes the MCP server instead; the tools are the same surface.",
 		file: "terminal",
 		lang: "bash",
-		code: `codex mcp add secondlayer --env SL_API_URL=${HOSTED_API} --env SECONDLAYER_API_KEY=$SECONDLAYER_API_KEY -- bunx @secondlayer/mcp`,
+		code: `codex mcp add secondlayer --env SECONDLAYER_API_URL=${HOSTED_API} --env SECONDLAYER_API_KEY=$SECONDLAYER_API_KEY -- bunx @secondlayer/mcp`,
 	},
 	{
 		key: "cursor",

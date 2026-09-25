@@ -81,7 +81,7 @@ async function runCli(
 	console.log(`$ ${[cmd, ...fullArgs].join(" ")}`);
 	const env = { ...process.env };
 	if (!env.SL_SERVICE_KEY && env.SL_ROW_ALLOW_ENV_TENANT !== "true") {
-		env.SL_API_URL = undefined;
+		env.SECONDLAYER_API_URL = undefined;
 	}
 
 	return new Promise((resolve, reject) => {

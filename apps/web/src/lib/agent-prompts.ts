@@ -283,7 +283,7 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		tags: ["mcp", "subgraphs", "webhooks"],
 		build: () =>
 			withSetup(
-				"/secondlayer Install the Secondlayer MCP server for my agent. Generate the `bunx @secondlayer/mcp` config with `SECONDLAYER_API_URL` (or `SL_API_URL`) and `INSTANCE_TOKEN` for the instance. For hosted archive/credits tools also set `SECONDLAYER_API_KEY`. Then verify tool availability for subgraphs and webhooks: list, get, query, deploy, create, update, pause, resume, rotate-secret, deliveries, dead, requeue, and replay.",
+				"/secondlayer Install the Secondlayer MCP server for my agent. Generate the `bunx @secondlayer/mcp` config with `SECONDLAYER_API_URL` and `INSTANCE_TOKEN` for the instance. For hosted archive/credits tools also set `SECONDLAYER_API_KEY`. Then verify tool availability for subgraphs and webhooks: list, get, query, deploy, create, update, pause, resume, rotate-secret, deliveries, dead, requeue, and replay.",
 			),
 	},
 ];

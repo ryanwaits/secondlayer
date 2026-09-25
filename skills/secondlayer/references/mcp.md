@@ -14,7 +14,7 @@ live Streams list reads) are REST-only — see the `/v1` OpenAPI spec.
       "command": "bunx",
       "args": ["@secondlayer/mcp"],
       "env": {
-        "SL_API_URL": "http://127.0.0.1:3800",
+        "SECONDLAYER_API_URL": "http://127.0.0.1:3800",
         "INSTANCE_TOKEN": "<from `secondlayer init`>"
       }
     }
@@ -27,7 +27,7 @@ Restart the MCP client after changing the config.
 ## HTTP Setup
 
 ```bash
-export SL_API_URL=http://127.0.0.1:3800
+export SECONDLAYER_API_URL=http://127.0.0.1:3800
 export INSTANCE_TOKEN=<from `secondlayer init`>
 export SECONDLAYER_MCP_SECRET=local-bearer-secret
 bunx --package @secondlayer/mcp mcp-http

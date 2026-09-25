@@ -48,13 +48,13 @@ For working code, see `examples/` — every file is copy-pasteable and verified.
 These are small enough to keep in the router. Everything else is in a reference file.
 
 - **Binary:** `secondlayer` (`sl` is a short alias). Install: `bun add -g @secondlayer/cli`.
-- **Default API:** `http://127.0.0.1:3800`. Override with `SECONDLAYER_API_URL`, then `SL_API_URL`.
+- **Default API:** `http://127.0.0.1:3800`. Override with `SECONDLAYER_API_URL`.
 - **Two credentials.** Instance token opens your box; account key identifies you on the hosted API and archive.
 
   | Plane | Credential | Env |
   |---|---|---|
   | Your instance (`/v1`, `/api`) | hex token from `secondlayer init` | `INSTANCE_TOKEN` |
-  | Hosted API + archive credits | `sk-sl_*` | `SECONDLAYER_API_KEY` (`SL_API_KEY` is a one-release hosted fallback) |
+  | Hosted API + archive credits | `sk-sl_*` | `SECONDLAYER_API_KEY` |
 
   Loopback reads need no key; writes take `INSTANCE_TOKEN` always, and every read takes it past loopback. `--api-key` is shape-routed (hex → instance, `sk-sl_*` → account). Never mix the two values.
 - **Streams / Index:** local instance reads. Loopback needs no key. Public archive dumps (`secondlayer streams dumps`) are a separate signed bucket.

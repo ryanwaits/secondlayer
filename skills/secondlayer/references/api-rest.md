@@ -10,7 +10,7 @@ Your instance's HTTP API — the surface the SDK and CLI sit on top of. Use it d
 http://127.0.0.1:3800
 ```
 
-Override with `SL_API_URL` env var or `baseUrl` SDK option.
+Override with `SECONDLAYER_API_URL` env var or `baseUrl` SDK option.
 
 ## Authentication
 

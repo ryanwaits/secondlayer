@@ -58,7 +58,7 @@ clarinet devnet start
 Point the CLI at the local API. There is no login: a deploy is a write, and the generated stack ships a fixed local token, `dev-instance-token`, for exactly that:
 
 ```bash
-SL_API_URL=http://localhost:3800 \
+SECONDLAYER_API_URL=http://localhost:3800 \
 INSTANCE_TOKEN=dev-instance-token \
 secondlayer subgraphs deploy ./subgraph.ts
 ```

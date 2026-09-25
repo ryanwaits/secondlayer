@@ -8,7 +8,7 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | --- | --- |
 | `--network <network>` | Override network for this invocation (sets `STACKS_NETWORK`). Values: `mainnet`, `testnet`, `devnet`. |
 | `--api-key <key>` | Shape-routed credential for this invocation: hex → instance, `sk-sl_*` → hosted account. Prefer the env var: a flag lands in shell history and `ps`. |
-| `--api-url <url>` | API base for this invocation (`SECONDLAYER_API_URL` / `SL_API_URL`). Also what `init` writes. |
+| `--api-url <url>` | API base for this invocation (`SECONDLAYER_API_URL`). Also what `init` writes. |
 | `--version` | Print CLI version. |
 | `--help` | Show help. |
 
@@ -18,10 +18,10 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 
 | Var | Used by | Purpose |
 | --- | --- | --- |
-| `SECONDLAYER_API_URL` | every command that calls an API | Override the API base URL. Default `http://127.0.0.1:3800`. `SL_API_URL` is a one-release fallback. |
+| `SECONDLAYER_API_URL` | every command that calls an API | Override the API base URL. Default `http://127.0.0.1:3800`. |
 | `INSTANCE_TOKEN` | instance writes/reads past loopback | Hex token `secondlayer init` writes. Required for every write, and for every read once the API is published past loopback; loopback reads need no value. Instance commands refuse `api.secondlayer.tools`. |
-| `SECONDLAYER_API_KEY` | hosted API, archive, credits | Account key (`sk-sl_*`). `SL_API_KEY` is a one-release hosted fallback. |
-| `SL_PLATFORM_API_URL` | legacy alias of `SL_API_URL` | Same default: `http://127.0.0.1:3800`. |
+| `SECONDLAYER_API_KEY` | hosted API, archive, credits | Account key (`sk-sl_*`). |
+| `SL_PLATFORM_API_URL` | legacy alias of `SECONDLAYER_API_URL` | Same default: `http://127.0.0.1:3800`. |
 | `SIGNING_SECRET` | webhooks test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
 | `SL_STREAMS_DUMPS_URL` | streams dumps | Public bulk-dump bucket base URL (dumps are public — no API key). Alternative to `--dumps-url`. |
@@ -83,7 +83,7 @@ Usage: `secondlayer init [--network <network>] [--api-url <url>] [--force]`
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--network <network>` | `STACKS_NETWORK` or `mainnet` | Global flag. `mainnet`, `testnet`, or `devnet`. |
-| `--api-url <url>` | `SL_API_URL` or `http://127.0.0.1:3800` | Global flag. Local API URL written as `SL_API_URL`. |
+| `--api-url <url>` | `SECONDLAYER_API_URL` or `http://127.0.0.1:3800` | Global flag. Local API URL written as `SECONDLAYER_API_URL`. |
 | `--force` | off | Overwrite generated values even if `.env.local` exists. |
 
 Does **not** write `secondlayer.config.ts` — that file is for `secondlayer codegen contracts`.
@@ -261,7 +261,7 @@ Usage: `secondlayer credits refill --below <usd> [--pack <usd>] [--off] [--json]
 
 ## Subgraphs
 
-Manage materialized subgraphs. Subcommands hit your instance at `SL_API_URL`; writes send `INSTANCE_TOKEN` as the bearer whenever the instance has one, loopback included. Only an instance with no token set at all needs no key. Local deploys (`network=local`) write straight to the local Postgres dev DB.
+Manage materialized subgraphs. Subcommands hit your instance at `SECONDLAYER_API_URL`; writes send `INSTANCE_TOKEN` as the bearer whenever the instance has one, loopback included. Only an instance with no token set at all needs no key. Local deploys (`network=local`) write straight to the local Postgres dev DB.
 
 ### secondlayer subgraphs create
 
@@ -484,7 +484,7 @@ secondlayer subgraphs scaffold --trait sip-010 -o subgraphs/all-tokens.ts    # a
 
 Deprecated aliases (`subscriptions`, `sl.subscriptions`, `subscriptions_*`) keep working for one release cycle.
 
-Manage subgraph table webhooks (webhook deliveries). Alias: `subs`. All subcommands take the credential and endpoint from the global `--api-key` / `--api-url` flags, or from `INSTANCE_TOKEN` / `SL_API_URL` in the environment. These are writes, so they send the token even on loopback.
+Manage subgraph table webhooks (webhook deliveries). Alias: `subs`. All subcommands take the credential and endpoint from the global `--api-key` / `--api-url` flags, or from `INSTANCE_TOKEN` / `SECONDLAYER_API_URL` in the environment. These are writes, so they send the token even on loopback.
 
 Webhook references (`<idOrName>`) accept the webhook UUID or its name. Ambiguous names error out — use the ID.
 
@@ -505,7 +505,7 @@ Usage: `secondlayer webhooks create <name>`
 | `--auth-token <token>` | Bearer token for receiver-side auth. |
 | `--filter <kv...>` | Repeatable. `key=value` with `.eq/.neq/.gt/.gte/.lt/.lte` suffixes. |
 | `--api-key <key>` | `INSTANCE_TOKEN` override. |
-| `--api-url <url>` | `SL_API_URL` override. |
+| `--api-url <url>` | `SECONDLAYER_API_URL` override. |
 | `--skip-api` | Copy template only; do NOT create the webhook via API. |
 | `--no-scaffold` | Skip the local runtime template directory (webhook-only setups — provisions webhook only). |
 
@@ -531,7 +531,7 @@ Usage: `secondlayer webhooks list`
 | --- | --- |
 | `--json` | Output as JSON. |
 | `--api-key <key>` | `INSTANCE_TOKEN` override. |
-| `--api-url <url>` | `SL_API_URL` override. |
+| `--api-url <url>` | `SECONDLAYER_API_URL` override. |
 
 ### secondlayer webhooks get
 
@@ -722,7 +722,7 @@ Mirrors `sl.index.*` in the SDK.
 
 ## Streams
 
-Read raw chain events from Streams on this instance. Default API is `http://127.0.0.1:3800`. Loopback reads need no key. Override via `SL_API_URL`.
+Read raw chain events from Streams on this instance. Default API is `http://127.0.0.1:3800`. Loopback reads need no key. Override via `SECONDLAYER_API_URL`.
 
 Valid event types: `stx_transfer`, `stx_mint`, `stx_burn`, `stx_lock`, `ft_transfer`, `ft_mint`, `ft_burn`, `nft_transfer`, `nft_mint`, `nft_burn`, `print`.
 
@@ -845,7 +845,7 @@ Usage: `secondlayer devnet connect`
 Then run your normal `clarinet devnet start` — deployed contracts and their events stream into the local indexer (api at `http://localhost:3800`, indexer at `http://localhost:3700`). Deploy a subgraph against it with:
 
 ```bash
-SL_API_URL=http://localhost:3800 INSTANCE_TOKEN=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts
+SECONDLAYER_API_URL=http://localhost:3800 INSTANCE_TOKEN=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts
 ```
 
 The generated compose publishes the api on `127.0.0.1` only and hands it that same spec as `API_PUBLISH_ADDR`, so `/v1` reads on a devnet are keyless. `dev-instance-token` is the stack's fixed local token: writes (deploys, webhooks) send it, and the container needs it to boot at all, since it listens on `0.0.0.0` behind the loopback publish. The indexer is the one port published on every interface — the devnet's stacks-node container POSTs to `host.docker.internal:3700`, which is not loopback.
@@ -894,7 +894,7 @@ Usage: `secondlayer devnet down`
 
 ### secondlayer devnet status
 
-Snapshot of the local stack: service health, ingest tip/lag, deployed subgraphs (status, block, tables, row counts), and a recent-activity table built from the subgraph rows. Node-native; reads `SL_API_URL` (default `http://localhost:3800`) and `INDEXER_URL` (default `http://localhost:3700`).
+Snapshot of the local stack: service health, ingest tip/lag, deployed subgraphs (status, block, tables, row counts), and a recent-activity table built from the subgraph rows. Node-native; reads `SECONDLAYER_API_URL` (default `http://localhost:3800`) and `INDEXER_URL` (default `http://localhost:3700`).
 
 Usage: `secondlayer devnet status`
 
