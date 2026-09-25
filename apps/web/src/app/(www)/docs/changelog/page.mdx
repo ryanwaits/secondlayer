@@ -7,6 +7,26 @@ instance reads are yours and unmetered. Archive bootstrap/backfill/reindex
 and hosted Index/Streams reads at `api.secondlayer.tools` draw
 [credits](/docs/authentication#archive-credits).
 
+## Index — September 2026
+
+### 10M rows a month free, then prepaid
+
+Hosted Index and Streams bill rows delivered, live or history, at one price. Every account gets 10M rows free each month, then $5 per 1M ($2 per 1M past $50 in a month). Past the allowance with no balance, reads answer `402 insufficient_credits` with a top-up link. Hosted reads need an `sk-sl_` key; a self-hosted instance stays keyless on loopback and unmetered.
+
+### Full history on every account
+
+The one-day free window and the Streams retention limit are gone. Any key reads from genesis; rows past the allowance draw credits.
+
+## Webhooks — September 2026
+
+### Rollbacks cover everything that may have landed
+
+A reorg now rolls back every delivery your endpoint may have received, including one still in flight or retried, instead of dropping it. Delivery stays at-least-once and unordered.
+
+### Limits you can set
+
+`WEBHOOK_MAX_RETRIES_CEILING`, `WEBHOOK_TIMEOUT_MS_CEILING` and `WEBHOOK_REPLAY_MAX_BLOCKS` cap retries, timeouts and replay size. One replay runs per webhook at a time; a second answers `409`. `secondlayer webhooks doctor` warns when chain webhooks can't fire on your instance.
+
 ## Subgraphs — September 2026
 
 ### One way to write each row
