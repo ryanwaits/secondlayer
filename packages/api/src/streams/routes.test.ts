@@ -255,7 +255,7 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.headers.get("Cache-Control")).toBe("private, max-age=2");
 	});
 
-	test("Free-tier key requesting from_height older than 1 day gets 403", async () => {
+	test("Free-tier key requesting from_height older than the old retention floor now succeeds (no retention ladder)", async () => {
 		const app = createApp();
 		const oldBlock = TEST_TIP.block_height - 1 * STREAMS_BLOCKS_PER_DAY - 1;
 		const res = await app.request(
@@ -265,25 +265,7 @@ describe("Stacks Streams gateway middleware", () => {
 			},
 		);
 
-		expect(res.status).toBe(403);
-		const body = (await res.json()) as {
-			error: string;
-			code: string;
-			details?: {
-				reason?: string;
-				oldest_seekable_height?: number;
-				oldest_cursor?: string;
-				dumps_manifest_url?: string | null;
-			};
-		};
-		expect(body.error).toContain("free tier");
-		expect(body.error).toContain("last 1 days");
-		// Enriched 403: machine-readable retention reason + a pointer to the cold lane.
-		expect(body.details?.reason).toBe("RETENTION");
-		const oldest = TEST_TIP.block_height - 1 * STREAMS_BLOCKS_PER_DAY;
-		expect(body.details?.oldest_seekable_height).toBe(oldest);
-		expect(body.details?.oldest_cursor).toBe(`${oldest}:0`);
-		expect("dumps_manifest_url" in (body.details ?? {})).toBe(true);
+		expect(res.status).toBe(200);
 	});
 
 	test("Missing token returns 401", async () => {
@@ -307,11 +289,10 @@ describe("Stacks Streams gateway middleware", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const oldest = TEST_TIP.block_height - 1 * STREAMS_BLOCKS_PER_DAY;
 		await expect(res.json()).resolves.toEqual({
 			...TEST_TIP,
-			oldest_seekable_height: oldest,
-			oldest_cursor: `${oldest}:0`,
+			oldest_seekable_height: null,
+			oldest_cursor: null,
 		});
 	});
 
@@ -472,11 +453,10 @@ describe("Stacks Streams gateway middleware", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const oldest = TEST_TIP.block_height - 1 * STREAMS_BLOCKS_PER_DAY;
 		await expect(res.json()).resolves.toEqual({
 			...TEST_TIP,
-			oldest_seekable_height: oldest,
-			oldest_cursor: `${oldest}:0`,
+			oldest_seekable_height: null,
+			oldest_cursor: null,
 		});
 	});
 
@@ -595,9 +575,9 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(seenFromHeight).toBeUndefined();
 	});
 
-	test("free tier hitting /events/:tx_id past retention gets 403", async () => {
-		// streamsEvent defaults to block 100; free-tier cutoff is tip - 1 day
-		// (182_720), so 100 is past the live window → 403.
+	test("free tier reads a genesis-height row via /events/:tx_id (no retention refusal)", async () => {
+		// streamsEvent defaults to block 100 — under the old 1-day retention
+		// floor (182_720). No retention ladder anymore: this succeeds.
 		const app = createMeteredApp({
 			readEventsByTxId: async ({ txId }) => ({
 				events: [streamsEvent({ tx_id: txId })],
@@ -608,12 +588,10 @@ describe("Stacks Streams gateway middleware", () => {
 			headers: authHeaders("sk-sl_free_anon_streams"),
 		});
 
-		expect(res.status).toBe(403);
-		const body = (await res.json()) as { details?: { reason?: string } };
-		expect(body.details?.reason).toBe("RETENTION");
+		expect(res.status).toBe(200);
 	});
 
-	test("free tier hitting /blocks/:heightOrHash/events past retention gets 403", async () => {
+	test("free tier reads a genesis-height row via /blocks/:heightOrHash/events (no retention refusal)", async () => {
 		const app = createMeteredApp({
 			readBlockEvents: async () => ({
 				events: [streamsEvent({ block_hash: "0xblock" })],
@@ -624,8 +602,6 @@ describe("Stacks Streams gateway middleware", () => {
 			headers: authHeaders("sk-sl_free_anon_streams"),
 		});
 
-		expect(res.status).toBe(403);
-		const body = (await res.json()) as { details?: { reason?: string } };
-		expect(body.details?.reason).toBe("RETENTION");
+		expect(res.status).toBe(200);
 	});
 });

@@ -47,12 +47,7 @@ import {
 	getStreamsReorgsListResponse,
 } from "../streams/reorgs.ts";
 import { StreamsResponseCache } from "../streams/response-cache.ts";
-import {
-	assertStreamsHeightWithinRetention,
-	streamsRetentionWindow,
-} from "../streams/retention.ts";
 import { getStreamsSigner, respondSignedJson } from "../streams/signing.ts";
-import { getStreamsRetentionCutoff } from "../streams/tiers.ts";
 import { type StreamsTipProvider, getStreamsTip } from "../streams/tip.ts";
 
 const STREAMS_EVENTS_ALLOWED = [
@@ -201,12 +196,18 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		"*",
 		streamsBearerAuth({ tokens: opts.tokens ?? DEFAULT_STREAMS_TOKEN_STORE }),
 	);
-	// Credits gate: a free account with a prepaid balance goes pay-as-you-go —
-	// flags the request so the rate limiter + retention gate let it through and
-	// the post-read step debits per row. Runs after auth, before both.
+	// Credits gate: a free account with a prepaid balance goes unthrottled —
+	// flags the request so the rate limiter lets it through; the post-read
+	// step meters every row (allowance + any debit inside `meter()`). Runs
+	// after auth, before the rate limiter.
 	router.use("*", streamsCreditsGate());
 	router.use("*", streamsRateLimit());
-	router.use("/events", streamsRetentionWindow({ getTip }));
+	// No retention floor (plan-049): every account reads full history. Still
+	// sets `streamsTip` for the /events handler below.
+	router.use("/events", async (c, next) => {
+		c.set("streamsTip", await getTip());
+		await next();
+	});
 
 	router.get("/events", async (c) => {
 		const query = new URL(c.req.url).searchParams;
@@ -362,12 +363,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			return c.json({ error: "Transaction events not found" }, 404);
 		}
 		const firstEvent = result.events[0];
-		// Point-lookups carry no seekable param, so the retention middleware can't
-		// gate them — enforce post-read against the tx's block height (403 before
-		// any metering, so rejected reads never count or charge).
-		if (firstEvent) {
-			assertStreamsHeightWithinRetention(c, tip, firstEvent.block_height);
-		}
 		const lastEvent = result.events.at(-1);
 		const reorgs =
 			firstEvent && lastEvent
@@ -418,11 +413,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			return c.json({ error: "Block events not found" }, 404);
 		}
 		const firstEvent = result.events[0];
-		// Same post-read retention gate as /events/:tx_id (no seekable param to
-		// inspect up front); 403 before metering.
-		if (firstEvent) {
-			assertStreamsHeightWithinRetention(c, tip, firstEvent.block_height);
-		}
 		const lastEvent = result.events.at(-1);
 		const reorgs =
 			firstEvent && lastEvent
@@ -466,17 +456,12 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	router.get("/tip", async (c) => {
 		c.header("Cache-Control", streamsCacheControl(false));
 		const tip = await getTip();
-		const tenant = c.get("streamsTenant");
-		// Advertise the seekable floor so consumers know how far back the live API
-		// serves before they must fall to the cold dumps lane. null = unlimited
-		// (also the accountless case — no tenant tier to bound it).
-		const oldest = tenant
-			? getStreamsRetentionCutoff(tenant.tier, tip.block_height)
-			: null;
+		// No retention floor (plan-049): every account reads full history, so
+		// there is no seekable floor to advertise anymore.
 		return respondSignedJson(c, {
 			...tip,
-			oldest_seekable_height: oldest,
-			oldest_cursor: oldest !== null ? `${oldest}:0` : null,
+			oldest_seekable_height: null,
+			oldest_cursor: null,
 		});
 	});
 

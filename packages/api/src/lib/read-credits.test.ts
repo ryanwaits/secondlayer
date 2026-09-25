@@ -1,58 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { isOverMonthlyCreditCap } from "@secondlayer/platform/billing/prices";
 import {
 	creditCredits,
 	getCredits,
-	getMonthlyCreditsSpend,
-	recordCreditsSpend,
 } from "@secondlayer/platform/db/queries/account-credits";
 import { getDb } from "@secondlayer/shared/db";
-import {
-	COMMIT_TIER_MONTHLY_USD_MICROS,
-	CREDIT_USD_MICROS_PER_ROW,
-	CREDIT_USD_MICROS_PER_ROW_VOLUME,
-	FREE_READ_WINDOW_BLOCKS,
-	billableRowCount,
-	debitCreditedRows,
-	isOverMonthlyCreditCap,
-} from "./read-credits.ts";
+import { meterRowsDelivered } from "./read-credits.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
-
-describe("billableRowCount", () => {
-	const tip = 1_000_000;
-	const cutoff = tip - FREE_READ_WINDOW_BLOCKS;
-
-	test("rows inside the free window cost nothing", () => {
-		const rows = [{ block_height: tip }, { block_height: cutoff }];
-		expect(billableRowCount(rows, tip)).toBe(0);
-	});
-
-	test("only rows below the window are charged", () => {
-		const rows = [
-			{ block_height: cutoff - 1 },
-			{ block_height: cutoff },
-			{ block_height: tip },
-		];
-		expect(billableRowCount(rows, tip)).toBe(1);
-	});
-
-	test("string heights and a bare height field both count", () => {
-		const rows = [{ block_height: String(cutoff - 5) }, { height: cutoff - 1 }];
-		expect(billableRowCount(rows, tip)).toBe(2);
-	});
-
-	test("rows with no height are current, so free", () => {
-		expect(billableRowCount([{ tx_id: "0x01" }], tip)).toBe(0);
-	});
-
-	test("unknown tip charges every row rather than guessing a cutoff", () => {
-		expect(billableRowCount([{ block_height: tip }, {}], undefined)).toBe(2);
-	});
-
-	test("a young chain clamps the cutoff at genesis", () => {
-		expect(billableRowCount([{ block_height: 0 }], 100)).toBe(0);
-	});
-});
 
 describe("isOverMonthlyCreditCap", () => {
 	test("no cap (null) is never over", () => {
@@ -85,7 +40,12 @@ describe("isOverMonthlyCreditCap", () => {
 	});
 });
 
-describe.skipIf(!HAS_DB)("debitCreditedRows (DB)", () => {
+// The dollar-per-row math (5µ$ standard, 2µ$ volume, allowance boundary,
+// idempotent replay, short-balance visibility) is characterized against
+// `meter()` directly in packages/platform/src/billing/meter.test.ts —
+// `meterRowsDelivered` here is a thin `meter()` call, so this just pins
+// that it reaches the ledger at all and is a no-op for an empty page.
+describe.skipIf(!HAS_DB)("meterRowsDelivered (DB)", () => {
 	const TEST_EMAIL = `read-credits-test-${Date.now()}@example.com`;
 	let accountId: string;
 	const db = HAS_DB ? getDb() : (null as never);
@@ -107,66 +67,22 @@ describe.skipIf(!HAS_DB)("debitCreditedRows (DB)", () => {
 		await db.deleteFrom("accounts").where("id", "=", accountId).execute();
 	});
 
-	test("debit and record move together (standard rate)", async () => {
-		await db
-			.deleteFrom("account_credits")
-			.where("account_id", "=", accountId)
-			.execute();
-
+	test("zero rows is a no-op — no ledger row, no debit", async () => {
 		await creditCredits(db, accountId, 1_000_000n);
-
-		const rows = 10;
-		const expectedCost = BigInt(rows) * CREDIT_USD_MICROS_PER_ROW; // 10 × 5 = 50
-
-		await debitCreditedRows({ accountId, balance: 1_000_000n }, rows);
-
-		const balanceAfter = await getCredits(db, accountId);
-		const spendAfter = await getMonthlyCreditsSpend(db, accountId);
-
-		expect(balanceAfter).toBe(1_000_000n - expectedCost);
-		expect(spendAfter).toBe(expectedCost);
+		const before = await getCredits(db, accountId);
+		await meterRowsDelivered(accountId, 0, "test");
+		expect(await getCredits(db, accountId)).toBe(before);
 	});
 
-	test("insufficient balance: neither balance nor spend changes", async () => {
-		await db
-			.deleteFrom("account_credits")
-			.where("account_id", "=", accountId)
-			.execute();
-
-		// Credit only 3n — below one row's cost of 5n
-		await creditCredits(db, accountId, 3n);
-
-		await debitCreditedRows({ accountId, balance: 3n }, 1);
-
-		const balanceAfter = await getCredits(db, accountId);
-		const spendAfter = await getMonthlyCreditsSpend(db, accountId);
-
-		expect(balanceAfter).toBe(3n);
-		expect(spendAfter).toBe(0n);
-	});
-
-	test("volume rate applies past commit threshold", async () => {
-		await db
-			.deleteFrom("account_credits")
-			.where("account_id", "=", accountId)
-			.execute();
-
-		// Pre-seed monthly spend at the threshold
-		await recordCreditsSpend(db, accountId, COMMIT_TIER_MONTHLY_USD_MICROS);
-
-		// Credit enough balance for 10 rows at volume rate (10 × 2 = 20)
+	test("a page of rows reaches the ledger", async () => {
 		await creditCredits(db, accountId, 1_000_000n);
-
-		const rows = 10;
-		const expectedCost = BigInt(rows) * CREDIT_USD_MICROS_PER_ROW_VOLUME; // 10 × 2 = 20
-
-		await debitCreditedRows({ accountId, balance: 1_000_000n }, rows);
-
-		const balanceAfter = await getCredits(db, accountId);
-		const spendAfter = await getMonthlyCreditsSpend(db, accountId);
-
-		expect(balanceAfter).toBe(1_000_000n - expectedCost);
-		// Spend = pre-seeded threshold + new cost
-		expect(spendAfter).toBe(COMMIT_TIER_MONTHLY_USD_MICROS + expectedCost);
+		await meterRowsDelivered(accountId, 5, "test");
+		const rows = await db
+			.selectFrom("usage_ledger")
+			.select("unit")
+			.where("account_id", "=", accountId)
+			.where("unit", "=", "rows.delivered")
+			.execute();
+		expect(rows.length).toBeGreaterThan(0);
 	});
 });

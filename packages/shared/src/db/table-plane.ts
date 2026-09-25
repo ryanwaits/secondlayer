@@ -87,6 +87,8 @@ export const TABLE_TO_DB = {
 	account_credits: "target",
 	// ── TARGET: archive fetch gate (design-f089) ──
 	archive_fetches: "target",
+	// ── TARGET: metered ledger (plan-049) ──
+	usage_ledger: "target",
 	// ── TARGET: public waitlist pages ──
 	waitlists: "target",
 	waitlist_signups: "target",

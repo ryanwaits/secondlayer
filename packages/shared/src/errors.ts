@@ -97,9 +97,9 @@ export class RateLimitError extends SecondLayerError {
 }
 
 /**
- * HTTP 402. Carries the x402 challenge (or a retry-later reason) in `details` so
- * the global error handler emits it in the body. The wire `PAYMENT-REQUIRED`
- * header is set separately by the x402 middleware on the challenge path.
+ * HTTP 402: insufficient credits. Carries a machine-readable reason (e.g.
+ * `insufficient_credits`, `UPGRADE_REQUIRED`) in `details` so the global
+ * error handler emits it in the body, alongside a top-up hint/link.
  */
 export class PaymentRequiredError extends SecondLayerError {
 	constructor(message: string, details?: Record<string, unknown>) {

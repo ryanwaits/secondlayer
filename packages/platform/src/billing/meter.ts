@@ -99,13 +99,27 @@ async function priceUnit(
 	return { usdMicros: BigInt(billableQty) * rate, viaAllowance: false };
 }
 
+/**
+ * Run `fn` inside a transaction, unless `db` already IS one — Kysely's
+ * `Transaction` has no `.transaction()` of its own (no nested transactions /
+ * savepoints), so a caller that hands `meter()` its own open transaction
+ * (the archive fetch gate, one `meter()` call per priced partition) gets its
+ * queries run directly against it instead.
+ */
+function withTransaction<T>(
+	db: Kysely<Database>,
+	fn: (trx: Kysely<Database>) => Promise<T>,
+): Promise<T> {
+	return db.isTransaction ? fn(db) : db.transaction().execute(fn);
+}
+
 export async function meter(
 	db: Kysely<Database>,
 	input: MeterInput,
 ): Promise<MeterResult> {
 	const occurredAt = input.occurredAt ?? new Date();
 
-	return db.transaction().execute(async (trx) => {
+	return withTransaction(db, async (trx) => {
 		const priced = await priceUnit(trx, input, occurredAt);
 
 		const { row, claimed } = await claimLedgerEntry(trx, {
@@ -199,9 +213,9 @@ export type TopupInput = {
 export async function recordTopup(
 	db: Kysely<Database>,
 	input: TopupInput,
-): Promise<void> {
+): Promise<{ balance: bigint }> {
 	const occurredAt = input.occurredAt ?? new Date();
-	await db.transaction().execute(async (trx) => {
+	return withTransaction(db, async (trx) => {
 		const { claimed } = await claimLedgerEntry(trx, {
 			accountId: input.accountId,
 			unit: "topup",
@@ -212,7 +226,10 @@ export async function recordTopup(
 			idempotencyKey: input.idempotencyKey,
 			occurredAt,
 		});
-		if (!claimed) return;
-		await creditCredits(trx, input.accountId, input.usdMicros);
+		if (!claimed) {
+			return { balance: await getCredits(trx, input.accountId) };
+		}
+		const balance = await creditCredits(trx, input.accountId, input.usdMicros);
+		return { balance };
 	});
 }

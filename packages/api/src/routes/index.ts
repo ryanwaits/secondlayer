@@ -38,7 +38,6 @@ import {
 	type IndexEventsReader,
 	getIndexEventsResponse,
 } from "../index/events.ts";
-import { indexFreeWindow } from "../index/free-window.ts";
 import {
 	type FtTransfersReader,
 	getFtTransfersResponse,
@@ -421,15 +420,15 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		"*",
 		indexBearerAuth({ tokens: opts.tokens ?? DEFAULT_INDEX_TOKEN_STORE }),
 	);
-	// Credits gate: a free account with a prepaid balance goes pay-as-you-go —
-	// flags the request so the rate limiter + free-window gate let it through and
-	// the post-read step debits per row. Runs after auth, before both.
+	// Credits gate: a free account with a prepaid balance goes unthrottled —
+	// flags the request so the rate limiter lets it through; the post-read
+	// step meters every row (allowance + any debit inside `meter()`). Runs
+	// after auth, before the rate limiter.
 	router.use("*", indexCreditsGate());
 	router.use("*", indexRateLimit());
-	// Free + keyless reads are windowed to the recent 24h; deeper history is a
-	// paid action. Runs after auth (needs the resolved tier). Mounted before the
-	// routes, so it never gates the open `/` info endpoint registered above.
-	router.use("*", indexFreeWindow({ getTip }));
+	// No free-height window (plan-049): every keyed account reads full
+	// history. Rows past the monthly allowance are a paid read, not a
+	// blocked one.
 
 	router.get("/events", async (c) => {
 		const query = new URL(c.req.url).searchParams;

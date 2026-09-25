@@ -1,22 +1,17 @@
 import type { Context, MiddlewareHandler } from "hono";
 import {
-	billableRowCount,
-	debitCreditedRows,
+	meterRowsDelivered,
 	resolveCreditedAccount,
 } from "../lib/read-credits.ts";
 import type { StreamsEnv } from "./auth.ts";
 
-export {
-	CREDIT_USD_MICROS_PER_ROW,
-	MIN_CREDITED_USD_MICROS,
-} from "../lib/read-credits.ts";
+export { MIN_CREDITED_USD_MICROS } from "../lib/read-credits.ts";
 
 /**
  * Credits gate (Streams): a free-tier account that topped up prepaid credits
- * goes pay-as-you-go — it bypasses the free retention window + the free rate
- * limit, and pays per row read. Shares one `account_credits` balance with the
- * Index surface. Sets `credited` for the rate limiter, the retention gate, and
- * the post-read debit to read.
+ * goes unthrottled — it bypasses the free rate limit and pays per row read
+ * past the monthly allowance. Shares one `account_credits` balance with the
+ * Index surface. Sets `credited` for the rate limiter.
  */
 export function streamsCreditsGate(): MiddlewareHandler<StreamsEnv> {
 	return async (c, next) => {
@@ -30,14 +25,14 @@ export function streamsCreditsGate(): MiddlewareHandler<StreamsEnv> {
 	};
 }
 
-/** Post-read debit for a credited caller — no-op when not credited. Rows
- *  inside the free retention window are not charged. */
+/** Post-read meter for a keyed caller — no-op for anon/internal (no
+ *  account_id). Meters every row, live or history; the monthly allowance
+ *  and any debit happen inside `meter()`. */
 export async function debitStreamsCreditedRead(
 	c: Context<StreamsEnv>,
 	rows: readonly unknown[],
 ): Promise<void> {
-	await debitCreditedRows(
-		c.get("credited"),
-		billableRowCount(rows, c.get("streamsTip")?.block_height),
-	);
+	const accountId = c.get("streamsTenant")?.account_id;
+	if (!accountId) return;
+	await meterRowsDelivered(accountId, rows.length, "streams");
 }

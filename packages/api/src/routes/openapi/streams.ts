@@ -21,8 +21,6 @@ const FREE_TIER = STREAMS_TIER_CONFIG.free;
 
 const STREAMS_429 = `Rate limited on the hosted API (${STREAMS_ANON_RATE_LIMIT_PER_SECOND}/s per IP without a key, ${FREE_TIER.rateLimitPerSecond}/s on a free key). Self-hosted instances do not throttle Streams. Retry after \`Retry-After\` seconds`;
 
-const STREAMS_403 = `A free-tier key asked for a height older than its ${FREE_TIER.retentionDays}-day retention window (\`AUTHORIZATION_ERROR\`). \`details\` carries \`oldest_seekable_height\`, \`oldest_cursor\` and \`dumps_manifest_url\` for the cold dumps. Keyless reads on a self-hosted instance have no retention limit`;
-
 const STREAMS_503 =
 	"No canonical block indexed yet (`CHAIN_DATA_UNAVAILABLE`). Wait for the indexer to ingest its first block";
 
@@ -282,7 +280,6 @@ export const streamsPaths = {
 						description:
 							"Finalized page unchanged since the `ETag` sent in `If-None-Match`",
 					},
-					"403": jsonError(STREAMS_403),
 					"429": jsonError(STREAMS_429),
 					"503": jsonError(STREAMS_503),
 				};
@@ -554,12 +551,12 @@ export const streamsSchemas = {
 			},
 			oldest_seekable_height: {
 				type: ["integer", "null"],
-				description: `Oldest height this caller's key can read (${FREE_TIER.retentionDays} day back on a free key). \`null\` when there is no limit, including every keyless read.`,
+				description:
+					"Always `null` — every account reads full history. Rows past the monthly allowance are a paid read, not a blocked one.",
 			},
 			oldest_cursor: {
 				type: ["string", "null"],
-				description:
-					"`<oldest_seekable_height>:0`, ready to pass as `from_cursor`. `null` with no limit.",
+				description: "Always `null` — see `oldest_seekable_height`.",
 			},
 		},
 		example: {

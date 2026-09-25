@@ -16,7 +16,7 @@
  * with the SDK, which re-parses internally.
  */
 
-import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
+import { recordTopup } from "@secondlayer/platform/billing/meter";
 import { logger } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db";
 import { getDb } from "@secondlayer/shared/db";
@@ -162,7 +162,12 @@ async function onCheckoutCompleted(
 	const cents = session.amount_total ?? 0;
 	if (cents <= 0) return;
 	const usdMicros = BigInt(cents) * 10_000n;
-	const balance = await creditCredits(db, accountId, usdMicros);
+	const { balance } = await recordTopup(db, {
+		accountId,
+		usdMicros,
+		source: "stripe:checkout",
+		idempotencyKey: `stripe:${eventId}`,
+	});
 	logger.info("Credited account from top-up", {
 		eventId,
 		accountId,
@@ -186,7 +191,12 @@ async function onPaymentIntentSucceeded(
 	const cents = intent.amount_received || intent.amount;
 	if (cents <= 0) return;
 	const usdMicros = BigInt(cents) * 10_000n;
-	const balance = await creditCredits(db, accountId, usdMicros);
+	const { balance } = await recordTopup(db, {
+		accountId,
+		usdMicros,
+		source: "stripe:refill",
+		idempotencyKey: `stripe:${eventId}`,
+	});
 	logger.info("Credited account from refill", {
 		eventId,
 		accountId,

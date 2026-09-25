@@ -1,21 +1,17 @@
 import type { Context, MiddlewareHandler } from "hono";
 import {
-	billableRowCount,
-	debitCreditedRows,
+	meterRowsDelivered,
 	resolveCreditedAccount,
 } from "../lib/read-credits.ts";
 import type { IndexEnv } from "./auth.ts";
 
-export {
-	CREDIT_USD_MICROS_PER_ROW,
-	MIN_CREDITED_USD_MICROS,
-} from "../lib/read-credits.ts";
+export { MIN_CREDITED_USD_MICROS } from "../lib/read-credits.ts";
 
 /**
- * Credits gate (Index): a free-tier account that topped up prepaid credits goes
- * pay-as-you-go — it bypasses the free 24h window + the free rate limit, and
- * pays per row read (debited after the response). Sets `credited` on the context
- * for the rate limiter, the free-window gate, and the post-read debit to read.
+ * Credits gate (Index): a free-tier account that topped up prepaid credits
+ * goes unthrottled — it bypasses the free rate limit and pays per row read
+ * past the monthly allowance (debited after the response). Sets `credited`
+ * on the context for the rate limiter.
  */
 export function indexCreditsGate(): MiddlewareHandler<IndexEnv> {
 	return async (c, next) => {
@@ -29,14 +25,14 @@ export function indexCreditsGate(): MiddlewareHandler<IndexEnv> {
 	};
 }
 
-/** Post-read debit for a credited caller — no-op when not credited. Rows
- *  inside the free window are not charged. */
+/** Post-read meter for a keyed caller — no-op for anon/internal (no
+ *  account_id). Meters every row, live or history; the monthly allowance
+ *  and any debit happen inside `meter()`. */
 export async function debitCreditedRead(
 	c: Context<IndexEnv>,
 	rows: readonly unknown[],
 ): Promise<void> {
-	await debitCreditedRows(
-		c.get("credited"),
-		billableRowCount(rows, c.get("indexTip")?.block_height),
-	);
+	const accountId = c.get("indexTenant")?.account_id;
+	if (!accountId) return;
+	await meterRowsDelivered(accountId, rows.length, "index");
 }

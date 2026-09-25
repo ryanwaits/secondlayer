@@ -3,12 +3,14 @@ import { sql } from "kysely";
 import type { Kysely } from "kysely";
 
 /**
- * Prepaid dev credits — the card-funded peer to the wallet-funded x402 rail
- * (`packages/api/src/x402/balance.ts`). Same atomic-debit mechanics, keyed by
- * `account_id`. A Stripe card top-up credits the balance; metered reads /
- * subgraph indexing debit it. The prepaid balance is the hard bill-shock
- * ceiling; `recordCreditsSpend` accumulates a rolling monthly counter for the
- * optional per-account cap (`account_spend_caps`).
+ * Prepaid credits — the balance `meter()` (`../billing/meter.ts`) debits for
+ * every billable unit (archive partitions, hosted Index/Streams rows, and
+ * future hosted-stack meters). Atomic debit, keyed by `account_id`. A
+ * Stripe card top-up credits the balance; `recordCreditsSpend` accumulates a
+ * rolling monthly counter for the optional per-account cap
+ * (`account_spend_caps`). `usage_ledger` (`./usage-ledger.ts`) is the
+ * append-only record of what moved this balance; this table is only the
+ * cached total.
  */
 
 export function usdToMicros(usd: number): bigint {
@@ -74,7 +76,9 @@ function monthKey(now: Date = new Date()): string {
 	return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Accumulate consumption into the rolling month bucket (mirrors x402 recordSpend). */
+/** Accumulate consumption into the rolling month bucket — the per-account
+ *  cap's real-time counter (`meter()` and the daily spend-cap cron both read
+ *  it). */
 export async function recordCreditsSpend(
 	db: Kysely<Database>,
 	accountId: string,

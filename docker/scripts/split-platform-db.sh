@@ -84,6 +84,7 @@ CONTROL_TABLES=(
   x402_balances
   account_credits
   archive_fetches
+  usage_ledger
   waitlists
   waitlist_signups
 )

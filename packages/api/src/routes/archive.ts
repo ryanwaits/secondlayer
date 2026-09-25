@@ -19,11 +19,9 @@
  * the events price.
  */
 
-import {
-	debitCredits,
-	getCredits,
-	recordCreditsSpend,
-} from "@secondlayer/platform/db/queries/account-credits";
+import { meter } from "@secondlayer/platform/billing/meter";
+import { PRICES } from "@secondlayer/platform/billing/prices";
+import { getCredits } from "@secondlayer/platform/db/queries/account-credits";
 import {
 	allowancePartitionsUsedThisMonth,
 	recentChargedPaths,
@@ -49,14 +47,25 @@ type ArchiveDataset = "blocks" | "transactions" | "events";
 /**
  * Price per partition, in USD-micros (1 USD = 1_000_000 micros — matches
  * `usdToMicros`). Founder-approved 2026-08-16 (`design-f089-archive-fetch-gate.md`):
- * $0.05 for blocks/transactions, $0.15 for events (~7x the rows). Server-only
- * by design — changing a price is an API deploy, never a CLI release.
+ * $0.05 for blocks/transactions, $0.15 for events (~7x the rows). Lives in
+ * `@secondlayer/platform/billing/prices` now — the one price table
+ * (plan-049) — read here, never hardcoded twice. Server-only by design:
+ * changing a price is an API deploy, never a CLI release.
  */
 const PRICE_MICROS: Record<ArchiveDataset, bigint> = {
-	blocks: 50_000n,
-	transactions: 50_000n,
-	events: 150_000n,
+	blocks: PRICES["archive.partition"],
+	transactions: PRICES["archive.partition"],
+	events: PRICES["archive.partition.events"],
 };
+
+/** The `meter()` unit for a dataset — events price differently from blocks/tx. */
+function meterUnitForDataset(
+	dataset: ArchiveDataset,
+): "archive.partition" | "archive.partition.events" {
+	return dataset === "events"
+		? "archive.partition.events"
+		: "archive.partition";
+}
 
 /** Object key prefix the archive publisher writes under
  *  (`CANONICAL_ARCHIVE_PREFIX` in `packages/indexer/src/archive/upload-snapshot.ts`).
@@ -361,12 +370,31 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 
 				const total = priced.reduce((sum, p) => sum + p.usdMicros, 0n);
 				if (total > 0n) {
-					const debit = await debitCredits(trx, accountId, total);
-					if (!debit.ok) {
-						const balance = await getCredits(trx, accountId);
-						throw new InsufficientArchiveCreditsError(total - balance);
+					// Balance BEFORE any of this batch's debits — the shortfall on
+					// failure is against this fixed point, matching the old single
+					// aggregate `debitCredits(total)` regardless of per-item order.
+					const startingBalance = await getCredits(trx, accountId);
+					// One `meter()` call per priced (non-free) path, each its own
+					// ledger row (unit archive.partition[.events]) — but still inside
+					// this one transaction, so a failure partway rolls back every
+					// debit already taken this batch. Free (allowance/24h-reissue)
+					// paths never call `meter()`; that pre-check stays above.
+					for (const p of priced) {
+						if (p.usdMicros === 0n) continue;
+						const result = await meter(trx, {
+							accountId,
+							unit: meterUnitForDataset(p.dataset),
+							quantity: 1,
+							source: "archive",
+							idempotencyKey: `archive:${accountId}:${p.path}:${nowTs.toISOString().slice(0, 10)}`,
+							occurredAt: nowTs,
+						});
+						if (!result.debited) {
+							throw new InsufficientArchiveCreditsError(
+								total - startingBalance,
+							);
+						}
 					}
-					await recordCreditsSpend(trx, accountId, total, nowTs);
 				}
 				// Charge-log rows store the path AS SENT (relative or full-key) —
 				// not the resolved object key — so the 24h re-issue window

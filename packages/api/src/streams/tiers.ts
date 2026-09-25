@@ -2,7 +2,6 @@ export type StreamsTier = "free" | "internal";
 
 export type StreamsTierConfig = {
 	rateLimitPerSecond: number | null;
-	retentionDays: number | null;
 };
 
 // Post-Nakamoto Stacks blocks target roughly five-second cadence.
@@ -32,16 +31,10 @@ export const STREAMS_TIP_REORG_MARGIN_BLOCKS = 2;
  *  shared global counter, not per-caller. */
 export const STREAMS_ANON_RATE_LIMIT_PER_SECOND = 50;
 
+// No retention ladder (plan-049, founder 2026-09-24): every account reads
+// full history; rows past the monthly allowance are a paid read, not a
+// blocked one. `retentionDays` and `getStreamsRetentionCutoff` are gone.
 export const STREAMS_TIER_CONFIG: Record<StreamsTier, StreamsTierConfig> = {
-	free: { rateLimitPerSecond: 10, retentionDays: 1 },
-	internal: { rateLimitPerSecond: null, retentionDays: null },
+	free: { rateLimitPerSecond: 10 },
+	internal: { rateLimitPerSecond: null },
 };
-
-export function getStreamsRetentionCutoff(
-	tier: StreamsTier,
-	currentTipHeight: number,
-): number | null {
-	const retentionDays = STREAMS_TIER_CONFIG[tier].retentionDays;
-	if (retentionDays === null) return null;
-	return Math.max(0, currentTipHeight - retentionDays * STREAMS_BLOCKS_PER_DAY);
-}
