@@ -7,6 +7,11 @@ import {
 import { assertDbSplit, closeDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import {
+	type WakeBus,
+	createWakeBus,
+	sourceListenerUrl,
+} from "@secondlayer/shared/queue/listener";
+import {
 	consumeFtBurnDecodedEvents,
 	consumeFtMintDecodedEvents,
 	consumeFtTransferDecodedEvents,
@@ -78,6 +83,26 @@ const decodedThisMinute: Record<string, number> = {
 	...(SETTLEMENT_CONFIRMER_ENABLED ? { [SETTLEMENT_CONFIRMER_NAME]: 0 } : {}),
 };
 
+// Wakes every decoder's empty-poll backoff early on a fresh block, instead of
+// each decoder idling out its full DECODER_EMPTY_BACKOFF_MS. `null` (unset
+// until `initWakeBus` resolves, or permanently if it fails to connect) means
+// every decoder just falls back to its own timer — a wake bus is an
+// optimization on top of the poll loop, never a replacement for it.
+let wakeBus: WakeBus | null = null;
+
+async function initWakeBus(): Promise<void> {
+	try {
+		wakeBus = await createWakeBus("indexer:new_block", {
+			connectionString: sourceListenerUrl(),
+		});
+	} catch (error) {
+		logger.warn(
+			"decoder wake listener failed to start — decoders fall back to plain empty-poll backoff",
+			{ error: String(error) },
+		);
+	}
+}
+
 async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 	if (signal?.aborted) return;
 	await new Promise<void>((resolve) => {
@@ -138,6 +163,7 @@ type DecoderConsumeFn = (opts: {
 	emptyBackoffMs?: number;
 	maxEmptyPolls?: number;
 	signal?: AbortSignal;
+	wake?: () => Promise<void>;
 	onProgress?: (stats: {
 		decoded: number;
 		cursor?: string | null;
@@ -168,6 +194,7 @@ async function runDecoder(
 					10,
 				),
 				signal: controller.signal,
+				wake: wakeBus?.wait,
 				onProgress: ({ decoded }) => {
 					decodedTotals[decoderName] =
 						(decodedTotals[decoderName] ?? 0) + decoded;
@@ -280,13 +307,14 @@ const server = Bun.serve({
 
 assertDbSplit();
 logger.info("Starting L2 decoder service", { port: PORT });
-void runDecoders();
+void initWakeBus().then(() => void runDecoders());
 
 async function shutdown() {
 	logger.info("Shutting down L2 decoder service");
 	controller.abort();
 	clearInterval(progressTimer);
 	server.stop();
+	await wakeBus?.stop();
 	await closeDb();
 	process.exit(0);
 }

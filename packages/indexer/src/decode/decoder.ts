@@ -58,6 +58,9 @@ type DecodedEventConsumeOpts = {
 	maxPages?: number;
 	maxEmptyPolls?: number;
 	signal?: AbortSignal;
+	/** Cuts the empty-poll backoff short on a NOTIFY — see
+	 *  `StreamsEventsConsumeParams.wake` in the SDK. */
+	wake?: () => Promise<void>;
 	decoderName?: string;
 	types?: readonly StreamsEventType[];
 	onProgress?: (stats: {
@@ -118,6 +121,7 @@ async function consumeDecodedEvents(
 		maxPages: opts?.maxPages,
 		maxEmptyPolls: opts?.maxEmptyPolls,
 		signal: opts?.signal,
+		wake: opts?.wake,
 		types: opts?.types ?? [config.streamsType],
 		onBatch: async (events, envelope) => {
 			const faults: {

@@ -297,5 +297,15 @@ export async function persistBlock(
 				}),
 			)
 			.execute();
+
+		// Wake the dead channel `subgraphs/runtime/processor.ts` already LISTENs
+		// on. Postgres only delivers a NOTIFY after its transaction commits, so
+		// issuing it here (inside the transaction) rather than after `execute()`
+		// returns costs nothing and can't fire on a rolled-back persist. Payload
+		// is the height, matching what a listener needs to decide whether it
+		// already knows about it.
+		await sql`SELECT pg_notify('indexer:new_block', ${String(blockHeight)})`.execute(
+			tx,
+		);
 	});
 }

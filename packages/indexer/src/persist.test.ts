@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
+import { listen } from "@secondlayer/shared/queue/listener";
 import { type PersistBlockInput, persistBlock } from "./persist.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -404,5 +405,22 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		expect(archived).toEqual([
 			{ tx_id: "0xtxA", orphaned_block_hash: "0xblockA", ordinal: 0 },
 		]);
+	});
+
+	test("notifies indexer:new_block with the committed height only after commit", async () => {
+		if (!db) throw new Error("missing db");
+		const received: string[] = [];
+		const stop = await listen("indexer:new_block", (payload) => {
+			if (payload) received.push(payload);
+		});
+		try {
+			await persistBlock(db, payload("0xblockNotify", "0xtxNotify"));
+			// LISTEN/NOTIFY delivery isn't synchronous with commit — give the
+			// notification a moment to arrive on this connection.
+			await new Promise((resolve) => setTimeout(resolve, 200));
+			expect(received).toContain(String(H));
+		} finally {
+			await stop();
+		}
 	});
 });
