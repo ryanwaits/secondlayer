@@ -38,12 +38,12 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 - [Credits](#credits) — `credits buy|balance|refill`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `gaps`, `query`, `delete`, `scaffold`
 - [Webhooks](#webhooks) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
-- [Index](#index) — `ft-transfers`, `nft-transfers`, `events`, `contract-calls`
-- [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`, `dumps`
+- [Index](#index) — `ft-transfers`, `nft-transfers`, `events`, `contract-calls`, `transactions`, `blocks`, `canonical`, `stacking`, `mempool`
+- [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`, `by-tx`, `block-events`, `dumps`
 - [Devnet](#devnet) — `devnet connect|down|status|logs|faucet` (Clarinet → local Secondlayer stack)
 - [Config](#config) — `config get|set|reset|delete`
 - [Status](#status) — top-level `status`
-- [Doctor](#doctor) — top-level `doctor`
+- [Doctor](#doctor) — top-level `doctor`, `whoami`, `context`
 - [Codegen](#codegen) — `codegen contracts|subgraph|index|client|prints`
 
 ---
@@ -297,7 +297,7 @@ Usage: `secondlayer subgraphs deploy <file>`
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--start-block <n>` | (from definition) | Override definition's `startBlock` for this deploy (nonneg integer). |
-| `--tip-first` | false | Go live at chain tip immediately; history backfills behind you. Requires order-tolerant handlers (commutative or insert-only writes). |
+| `--tip-first` | false | Go live at chain tip immediately; history backfills behind you. Handlers may only `insert` or full-row `upsert`; one that calls `update`, `increment`, `findOne` or `findMany` is refused (`TIP_FIRST_NON_REPLAYABLE_HANDLER`). |
 | `--dry-run` | false | Validate and preview without writing. |
 | `-y, --yes` | false | Skip confirmation prompt for reindex operations (DROP + reindex). |
 | `--strict` | false | Run `bunx tsc --noEmit` on handler before deploy. |
@@ -701,13 +701,22 @@ whatever this instance has bootstrapped.
 - `secondlayer index nft-transfers [… --asset-identifier]`
 - `secondlayer index events --event-type <type> [filters…]` — generic decoded events (stx_*, ft/nft mint/burn, print, …)
 - `secondlayer index contract-calls [--function-name] [--sender] [filters…]`
+- `secondlayer index transactions [--type] [--sender] [filters…]` · `index transactions get <txId>`
+- `secondlayer index blocks [--from-height] [--to-height] [--cursor] [--limit]` · `index blocks get <height|hash>`
+- `secondlayer index canonical [--from-height] [--to-height]`: the canonical block sequence (height + hash)
+- `secondlayer index stacking [--function-name] [--stacker] [--caller]`: decoded PoX-4 stacking actions
+- `secondlayer index mempool [--contract-id] [--function-name] [--sender] [--type] [--cursor] [--limit]` · `index mempool get <txId>` (404 once mined)
+
+List commands take `--from-height`, `--to-height`, `--cursor`, `--limit` and
+`--json` (the full envelope). `get` subcommands take `--json`.
 
 ```bash
 secondlayer index ft-transfers --recipient SP… --limit 20
 secondlayer index events --event-type print --contract-id SP….dao --limit 10
+secondlayer index mempool --contract-id SP….amm --function-name swap
 ```
 
-Mirrors `sl.index.{ftTransfers,nftTransfers,events,contractCalls}` in the SDK.
+Mirrors `sl.index.*` in the SDK.
 
 ## Streams
 
@@ -782,6 +791,20 @@ Usage: `secondlayer streams canonical <height>`
 No flags.
 
 Example: `secondlayer streams canonical 150000`
+
+### secondlayer streams by-tx
+
+Every event one transaction emitted, as the Streams envelope (JSON).
+
+Usage: `secondlayer streams by-tx <txId>`
+
+### secondlayer streams block-events
+
+Every event in one block, by height or block hash (JSON).
+
+Usage: `secondlayer streams block-events <heightOrHash>`
+
+Example: `secondlayer streams block-events 150000`
 
 ### secondlayer streams dumps
 
@@ -986,6 +1009,22 @@ Usage: `secondlayer doctor`
 
 Checks `/public/status` on this instance, then local Docker / Postgres / config when present.
 
+### secondlayer whoami
+
+Which instance and which archive credits account the CLI will hit, and whether a credential is set for each.
+
+Usage: `secondlayer whoami [--json]`
+
+Prints the instance URL with `INSTANCE_TOKEN` set or missing, and the credits URL with `SECONDLAYER_API_KEY` (or a `login --credits` session) and its email. A missing credits identity does not fail the command: self-host needs only the instance.
+
+### secondlayer context
+
+An orientation snapshot for an agent starting work: live Streams and Index tips, your subgraphs and webhooks, and in-flight reindex operations.
+
+Usage: `secondlayer context [--json]`
+
+Prints JSON. A field the instance could not answer is `null`, with the error under `errors` and a one-line `diagnostics` summary saying whether the instance is unbootstrapped, unauthorized, or down.
+
 ---
 
 ## Codegen
@@ -1019,7 +1058,7 @@ Examples:
 ### secondlayer codegen subgraph
 
 Generate an ORM schema for a subgraph's tables. Point the ORM at the instance's
-Postgres for a fully-typed client with relations and joins.
+Postgres for a fully-typed read client.
 
 Usage: `secondlayer codegen subgraph <file>`
 
@@ -1035,7 +1074,7 @@ The output mirrors the deployed DDL, so the subgraph owns the schema: run
 `prisma db pull` / `drizzle-kit pull` to verify (it should be a no-op), never
 `prisma migrate` / `drizzle-kit push`. Tables are processor-written — query them
 read-only. `uint`→`Decimal`/`numeric` and the `BigInt` id need `.toString()` for
-JSON. Relations require `relations` metadata on the subgraph schema.
+JSON. No foreign keys or relation fields are generated: join on your own columns.
 
 Example: `secondlayer codegen subgraph subgraphs/dex.ts --target prisma -o prisma/schema.prisma`
 

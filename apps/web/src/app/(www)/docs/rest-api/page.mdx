@@ -116,7 +116,7 @@ curl http://127.0.0.1:3800/v1/subgraphs/sbtc-flows/transfers/aggregate \
 | `400 INVALID_COLUMN` | An unknown column |
 | `400 TOO_MANY_AGGREGATES` | Past 32 aggregate columns per request |
 
-Typed as `subgraph.<table>.aggregate(spec)` in the [SDK](/docs/sdk#aggregate-subgraph-rows).
+Typed as `sl.subgraphs.typed(def).<table>.aggregate(spec)`, or untyped as `sl.subgraphs.queryTableAggregate(name, table, params)`: signatures in the [SDK reference](/docs/sdk-reference).
 
 ## Print-event schemas
 
@@ -128,6 +128,21 @@ curl "http://127.0.0.1:3800/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CT
 
 - Cached `Cache-Control: public, max-age=300` with a weak `ETag`; send `If-None-Match` for `304`.
 - Takes **no query params**; any param is rejected with `400 VALIDATION_ERROR`.
+
+## Batch reads
+
+`POST /v1/batch` runs up to 10 `/v1` reads in one round trip, for agents and dashboards that pay per request in latency.
+
+```bash
+curl -X POST http://127.0.0.1:3800/v1/batch -H "content-type: application/json" -d '{
+  "requests": [
+    { "path": "/v1/index/pox5/events", "params": { "topic": "stake", "limit": 5 } },
+    { "path": "/v1/streams/tip" }
+  ]
+}'
+```
+
+Results come back in order as `{ "results": [{ "path", "status", "body" }] }`. Each item runs through the same auth and limits as a direct call, with your `Authorization` header forwarded. Only paths under `/v1/index/`, `/v1/subgraphs`, `/v1/streams/` and `/v1/contracts` are allowed; anything else is a per-item `400`.
 
 ## Transaction-inclusion proof
 

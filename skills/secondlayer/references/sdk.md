@@ -674,6 +674,30 @@ for await (const nft of sl.index.nftTransfers.walk({
 
 Note `.walk()` defaults `fromHeight: 0` when neither `cursor` nor `fromCursor` is supplied — pass an explicit `fromHeight` if you want to start at the tip.
 
+### Every other Index resource
+
+Same `list` (one page) / `walk` (every page) shape and envelope as the transfers above. Full param and row types are in the generated [SDK reference](https://secondlayer.tools/docs/sdk-reference).
+
+| Resource | Methods | Route |
+| --- | --- | --- |
+| `sl.index.events` | `list`, `walk`, `consume` | `/v1/index/events` |
+| `sl.index.contractCalls` | `list`, `walk`, `consume` | `/v1/index/contract-calls` |
+| `sl.index.transactions` | `list`, `walk`, `get(txId)`, `getProof(txId)` | `/v1/index/transactions` |
+| `sl.index.blocks` | `list`, `walk`, `get(heightOrHash)` | `/v1/index/blocks` |
+| `sl.index.canonical` | `list`, `walk` | `/v1/index/canonical` |
+| `sl.index.mempool` | `list`, `walk`, `get(txId)` (null once mined) | `/v1/index/mempool` |
+| `sl.index.stacking` | `list`, `walk` (PoX-4 era) | `/v1/index/stacking` |
+| `sl.index.pox5.events` | `list`, `walk`; `fields` narrows the row type | `/v1/index/pox5/events` |
+| `sl.index.pox.cycles` | `list`, `walk`, `get(rewardCycle)` | `/v1/index/pox/cycles` |
+| `sl.index.sbtc` | `deposits` (`list`, `walk`, `consume`, `get(bitcoinTxid)`), `withdrawals` (`list`, `walk`, `get(requestId)`), `events` (`list`, `walk`, `consume`), `summary()` | `/v1/index/sbtc/*` |
+| `sl.index.printSchema(contractId)` | inferred print topics for a contract, or null | `/v1/index/contracts/:id/print-schema` |
+
+```ts
+for await (const e of sl.index.pox5.events.walk({ topic: "stake", signer: "SP…" })) {
+  console.log(e.staker, e.amount_ustx);
+}
+```
+
 ---
 
 ## 5b. `sl.contracts` — contract discovery
@@ -778,7 +802,10 @@ interface SubgraphQueryParams {
 
 queryTable(name: string, table: string, params?: SubgraphQueryParams): Promise<unknown[]>
 queryTableCount(name: string, table: string, params?: SubgraphQueryParams): Promise<{ count: number }>
+queryTableAggregate(name: string, table: string, params?: SubgraphAggregateParams): Promise<SubgraphAggregateResponse>
 ```
+
+`queryTableAggregate` hits `/api/subgraphs/:name/:table/aggregate` (sum, min, max, count, count distinct over a column). Aggregate query grammar: [REST API](https://secondlayer.tools/docs/rest-api).
 
 ```ts
 const rows = await sl.subgraphs.queryTable("sbtc", "transfers", {
@@ -843,7 +870,11 @@ interface ReindexResponse {
 reindex(name: string): Promise<ReindexResponse>
 backfill(name: string, options: { fromBlock: number; toBlock: number }): Promise<ReindexResponse>
 stop(name: string): Promise<{ message: string; operationId?: string; status?: string }>
+operations(name: string): Promise<{ operations: SubgraphOperationStatus[] }>
+getOperation(name: string, operationId: string): Promise<SubgraphOperationStatus>
 ```
+
+Poll `getOperation` with the `operationId` a reindex, backfill or stop returned until its `status` is terminal.
 
 `reindex` takes a name and nothing else: it always drops the whole subgraph and rebuilds from `startBlock` to tip. A range would only narrow the rebuild, never the drop. For a range, `backfill` — it never drops anything.
 
@@ -974,8 +1005,8 @@ const transfers = await client.transfers.findMany({
 
 // Realtime: react to rows as they're indexed (block-cadence) over SSE.
 // Browser-friendly — no webhook endpoint needed. Requires a global EventSource
-// (browsers, or Node >= 22). Public path: GET /v1/subgraphs/<name>/<table>/stream
-// (anon for public subgraphs; /api equivalent stays on the authed control plane).
+// (browsers, or Node >= 22). Path: GET /v1/subgraphs/<name>/<table>/stream
+// (open on loopback, INSTANCE_TOKEN past it; there is no /api stream route).
 const unsubscribe = client.transfers.subscribe(
   (row) => console.log("new transfer", row.sender, row.amount),
   { where: { amount: { gte: 1_000_000n } } },
@@ -1255,6 +1286,14 @@ requeue(id: string, outboxId: string): Promise<{ ok: true }>
 ```ts
 const { data: dead } = await sl.webhooks.dead(sub.id);
 for (const row of dead) await sl.webhooks.requeue(sub.id, row.id);
+```
+
+### `test(id)`
+
+One test POST to the webhook's URL, built for its format and SSRF-guarded. Logged as a delivery row.
+
+```ts
+test(id: string): Promise<{ ok: boolean; statusCode: number | null; error: string | null; durationMs: number; deliveryId: string }>
 ```
 
 ---

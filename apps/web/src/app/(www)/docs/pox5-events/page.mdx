@@ -18,6 +18,21 @@ curl "http://127.0.0.1:3800/v1/index/pox5/events?topic=register-for-bond&limit=5
 
 Each row has `bond_index`, `amount_sats`, `is_l1_lock`, and `data.btc-lockup` (L1 txids). This is the print log, not a position scoreboard. Envelope, cursors, `?confirmed=true`: [Index](/docs/index).
 
+The SDK pages it for you and narrows the row to the columns you ask for:
+
+```ts
+for await (const e of sl.index.pox5.events.walk({ topic: "stake", signer: "SP…" })) {
+  console.log(e.block_height, e.staker, e.amount_ustx);
+}
+
+const { events } = await sl.index.pox5.events.list({
+  topic: "register-for-bond",
+  fields: ["bond_index", "amount_sats"],
+});
+```
+
+Filters: `topic`, `staker`, `signer`, `signerManager`, `bondIndex`, `rewardCycle`, `fromHeight`, `toHeight`, `confirmed`.
+
 ## Get a webhook on registrations
 
 A chain webhook POSTs matching prints to your URL.
