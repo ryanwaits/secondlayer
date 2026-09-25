@@ -50,6 +50,7 @@ Temporary Hetzner Cloud box in Falkenstein. One compose project
 | Node RPC | `127.0.0.1:20443`. P2P `20444` (cloud firewall open). |
 | Bitcoin RPC | `peer_host = "37.27.171.220"` port 8332. Allowlist: app-server `65.21.135.94` and this IPv4. Not `0.0.0.0/0`. |
 | Cloud firewall | `stacks-feeder` (`11648111`): TCP 22 from operator `136.62.99.163/32`; TCP 20444 open. 3700 not published. |
+| Watchdog | `docker/feeder/feeder-alert.sh` → `/opt/secondlayer-feeder/feeder-alert.sh`, `secondlayer-feeder-alert.timer` every 5m, Slack webhook in `alert.env`, log `/var/log/secondlayer-feeder-alert.log`. Read-only. `/v2/info` pages after 3 straight misses (IBD holds the chainstate lock); tip stall pages at 60m. |
 
 `ccx43` (64 GB) failed with dedicated-core quota; `cpx62` is the fallback.
 Stacks-node is capped at 24G so scratch Postgres + indexer fit on 32 GB.
