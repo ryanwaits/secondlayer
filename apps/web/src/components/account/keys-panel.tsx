@@ -273,7 +273,7 @@ export function KeysCard({
 					>
 						Create a key
 					</button>
-					<p className="acct-fine">The last 24 hours are free with any key.</p>
+					<p className="acct-fine">Your first 10M rows each month are free.</p>
 				</div>
 			}
 		>
@@ -319,8 +319,8 @@ export function KeysSection({ handedOver }: { handedOver: string | null }) {
 			)}
 			<KeyList keys={keys} />
 			<p className="acct-fine left">
-				Endpoints: <a href="/docs/api-reference">API reference</a>. The last 24
-				hours of data are free with any key.
+				Endpoints: <a href="/docs/api-reference">API reference</a>. Your first
+				10M rows each month are free.
 			</p>
 		</>
 	);

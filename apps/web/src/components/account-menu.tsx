@@ -129,7 +129,8 @@ export function AccountMenu({
 						<div className="acct-empty">
 							<p className="acct-empty-title">No credits left</p>
 							<p className="acct-empty-line">
-								The last 24 hours stay free. Older history needs credits.
+								Your first 10M rows each month are free. Past that, reads need
+								credits.
 							</p>
 							<button
 								type="button"

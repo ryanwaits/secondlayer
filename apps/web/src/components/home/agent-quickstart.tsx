@@ -38,7 +38,8 @@ export function AgentQuickstart() {
 				<p className="home-sub">
 					The docs ship as a skill. Install it once and your harness knows every
 					endpoint; you ask the question, it makes the calls.{" "}
-					<a href="/login">Get a key</a> and the last 24 hours are free.
+					<a href="/login">Get a key</a>; your first 10M rows each month are
+					free.
 				</p>
 
 				<ol className="home-qs-steps">

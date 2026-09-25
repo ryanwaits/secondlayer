@@ -90,7 +90,7 @@ export function GetStartedMenu() {
 						<span className="imenu-row-text">
 							<span className="imenu-row-title">Get an API key</span>
 							<span className="imenu-row-desc">
-								Query our hosted API. The last 24 hours are free.
+								Read from our hosted API. 10M rows free every month.
 							</span>
 						</span>
 					</Link>
