@@ -196,32 +196,41 @@ not the only line.
    the root landed at the documented path, and
    `curl --resolve workload-host.secondlayer.tools:443:127.0.0.1 --cacert
    root.crt https://workload-host.secondlayer.tools/` printed `ok`.
-7. **Flip** (a separate change, landed as its own commit at flip time — NOT
-   part of plan 044's initial bring-up, so `docker/Caddyfile` stays
-   untouched until this step actually runs): add the hosted-webhooks route
-   to app-server's live `docker/Caddyfile`, inside the
-   `api.{$BASE_DOMAIN...}` block, before the catch-all `handle {}`:
-   ```caddyfile
-   handle /api/webhooks* {
-     reverse_proxy {$WORKLOAD_HOST_ADDR:workload-host.secondlayer.tools}:443 {
-       transport http {
-         tls
-         tls_trust_pool file {$WORKLOAD_HOST_CA_FILE}
-       }
-     }
-   }
-   ```
-   Also at flip time, on app-server: mount `workload-host-ca.crt` (copied in
-   step 6) into the `caddy` service (`docker/docker-compose.hetzner.yml`'s
-   volumes) and set `WORKLOAD_HOST_CA_FILE=/etc/caddy/workload-host-ca.crt`
-   (path inside the container) and `WORKLOAD_HOST_ADDR` (only if the DNS
-   name from step 5 isn't what's resolvable — omit it otherwise, the
-   Caddyfile default already names it). Then:
+7. **Flip** — committed: the `/api/webhooks*` route lives in
+   `docker/Caddyfile` (inside the `api.{$BASE_DOMAIN...}` block, before the
+   catch-all `handle {}`) and the CA mount lives in
+   `docker/docker-compose.hetzner.yml`'s `caddy` service volumes. Both
+   `WORKLOAD_HOST_ADDR` and `WORKLOAD_HOST_CA_FILE` default in the Caddyfile
+   itself (`workload-host.secondlayer.tools` and
+   `/etc/caddy/workload-host-ca.crt`), so no new env var is required —
+   override `WORKLOAD_HOST_ADDR` only if the DNS name from step 5 isn't
+   what's resolvable. No `header_up Host` override: Caddy rewrites Host to
+   the upstream address automatically for an HTTPS upstream, and adding one
+   explicitly makes `caddy validate` warn it's unnecessary.
+
+   **Before this deploys**, `workload-host-ca.crt` (copied in step 6) MUST
+   already exist at `/opt/secondlayer/data/workload-host-ca.crt` on
+   app-server. Deploys run `git reset --hard origin/main` then recreate the
+   `caddy` container from the new compose file; a bind mount with no source
+   file becomes an empty directory at that path, so Caddy fails to load its
+   TLS trust pool and `api.secondlayer.tools` goes down with it. Confirm the
+   file is there, then let the deploy run its normal `docker compose up -d`
+   (recreates `caddy` with the new mount and route). To check by hand
+   instead:
    ```bash
    caddy validate --config docker/Caddyfile   # confirm before reloading — a bad
                                                # config here is all of api.secondlayer.tools
    docker compose restart caddy               # or however app-server reloads Caddy
    ```
+
+   **Rollback**: revert this commit and redeploy (route reverts to a 404,
+   same as before the flip), or on the host directly: delete the
+   `handle /api/webhooks*` block from the live Caddyfile and
+   `docker restart secondlayer-caddy-1`.
+
+   **Rotating the workload host's CA**: re-copy `root.crt` (step 6) to
+   `/opt/secondlayer/data/workload-host-ca.crt` on app-server and restart
+   the `caddy` container — no code change needed.
 8. Smoke test end to end (needs a real hosted account + `sk-sl_*` key):
    ```bash
    SECONDLAYER_API_KEY=sk-sl_... secondlayer webhooks create smoke-test \
