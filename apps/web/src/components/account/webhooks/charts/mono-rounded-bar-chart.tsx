@@ -54,7 +54,7 @@ export function MonoRoundedBarChart({
 		<ResponsiveContainer width="100%" height={height}>
 			<BarChart
 				data={data}
-				margin={{ top: 8, right: 4, left: -22, bottom: 0 }}
+				margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
 				barCategoryGap={1}
 			>
 				<CartesianGrid
@@ -67,10 +67,10 @@ export function MonoRoundedBarChart({
 					ticks={[0, maxMs / 2, maxMs]}
 					tickLine={false}
 					axisLine={false}
-					width={40}
+					width={34}
 					tick={{ fontSize: 10, fill: "var(--ink-demoted)" }}
 					tickFormatter={(v: number) =>
-						v === 0 ? "0" : v >= maxMs ? "2s+" : `${v / 1000}s`
+						v === 0 ? "0" : v >= maxMs ? `${maxMs / 1000}s+` : `${v / 1000}s`
 					}
 				/>
 				<Tooltip
