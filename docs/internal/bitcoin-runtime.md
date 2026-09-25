@@ -35,7 +35,7 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 | **0** Measure + demand | `ord --index-runes` synced; RPC fetch benchmark; Runes dataset sizes; named demand list | feeder | **Gate 0** |
 | **1** Runes decoder spike | TS decoder backfills 840,000 → tip; digest parity with `ord` at every checkpoint | feeder | **Gate 1** |
 | **2** Runes product | Bitcoin Streams, `/v1/index/runes/*`, webhook triggers, SDK, oss compose profile, docs; soak at tip | feeder (staging) | **Gate 2** |
-| **3** Prod migration | Bitcoin runtime on local NVMe; feeder no longer serves Bitcoin | prod host (D8) | **Gate 3** |
+| **3** Prod migration | Bitcoin runtime on local NVMe; feeder no longer serves Bitcoin | app-server + added NVMe (D8) | **Gate 3** |
 | **4** Inscriptions (metadata) | Same shape as 1–3: spike, parity, product | prod host | Gate 4 |
 | Later | Protocol decoders (BRC-20, sats names, Alkanes, marketplace sales, rare sats, collections) | prod host | named customer each |
 
@@ -65,7 +65,7 @@ the named gate), **OPEN** (needs founder call).
 | D9 | 2026-09-22 | Bitcoin Streams is a thin reorg-aware reader over bitcoind. Do not mirror raw Bitcoin blocks/txs into Postgres | PROPOSED (Gate 1) |
 | D10 | 2026-09-22 | Reorg handling: per-block undo journal ≥12 blocks deep; deeper reorg halts ingest and pages (fail closed) | PARTIAL (spike halts on prev-hash mismatch; undo journal in Phase 2) |
 | D11 | 2026-09-22 | Inscription content is not served; metadata only until a takedown process exists | PROPOSED (Phase 4) |
-| D8 | 2026-09-22 | Prod topology mirrors today's split: node-server stays the node layer (bitcoind, stacks-node); Bitcoin app layer (ord, decoders, Bitcoin PG, API) goes on a **new dedicated box with extra local NVMe**, app-server-shaped, reading node-server bitcoind over the DC network. Not co-located on node-server | LOCKED |
+| D8 | 2026-09-22 | Prod topology mirrors today's split: node-server stays the node layer (bitcoind, stacks-node); Bitcoin app layer (ord, decoders, Bitcoin PG, API) goes on a **new dedicated box with extra local NVMe**, app-server-shaped, reading node-server bitcoind over the DC network. Not co-located on node-server. **Amended 2026-09-25 (founder, cost):** no new box. The Bitcoin app layer runs on **app-server with an added NVMe drive** dedicated to it (own mount, own Postgres container). node-server stays the node layer, unchanged. Why: a new dedicated box at post-June-2026 Hetzner pricing was ~$220–290/mo of a ~$650–720 steady state; a drive add-on keeps the grandfathered AX52 price and fixes app-server's real limit (disk 85% used). Runs no customer code, so no isolation cost. Revisit (own box) only if Bitcoin load contends with the Stacks API on app-server CPU/RAM | LOCKED |
 | D12 | 2026-09-22 | Tip following via ZMQ (`hashblock` + `rawblock`) on node-server bitcoind, no polling. Needs a prod bitcoind config change + restart (brief burn-feed gap for prod stacks-node; schedule a window). ZMQ is unauthenticated: publish only on the private allowlist, same DOCKER-USER pattern as `:8332`, never `0.0.0.0/0`. Lands as its own step in the Phase 1 plan | LOCKED |
 | D13 | 2026-09-22 | Pricing for hosted Bitcoin Index reads (credit meter vs separate) | OPEN (Gate 2) |
 | D14 | 2026-09-22 | Gate 0 demand threshold: ≥3 named builders with a concrete Runes use, ≥1 willing to pay or self-host in production | LOCKED |
@@ -95,16 +95,18 @@ Layout on the feeder:
 A separate Postgres instance, not a schema in the Stacks scratch PG: plan 031
 pair-restores the Stacks PG onto prod, and Bitcoin rows must not ride along.
 
-**Prod (Phase 3): new dedicated Bitcoin app box with local NVMe, per D8.** Migration is a **rebuild, not a
+**Prod (Phase 3): app-server with an added NVMe drive for Bitcoin, per D8 (amended 2026-09-25).** Migration is a **rebuild, not a
 copy**:
 
-1. Provision the D8 host. Install the oss compose Bitcoin profile exactly as
-   a self-hoster would (this is the self-host proof, per the build-for-
+1. Add the NVMe drive to app-server (Hetzner Robot add-on, maintenance
+   window), mount it for Bitcoin data only. Install the oss compose Bitcoin
+   profile exactly as a self-hoster would, as its own compose project (this is the self-host proof, per the build-for-
    everyone rule).
 2. Rebuild `ord` and our Runes tables from bitcoind on local NVMe. Record the
    wall time; it is the number we quote self-hosters.
-3. Run both hosts in parallel until digests match at the same height.
-4. Switch routing (Caddy on app-server: Bitcoin `/v1` paths → prod host).
+3. Run feeder and app-server in parallel until digests match at the same height.
+4. Switch routing (Caddy on app-server: Bitcoin `/v1` paths → the local
+   Bitcoin API container).
 5. Stop and delete Bitcoin containers and `/data/feeder/{ord,btc-pg}` on the
    feeder. The feeder then retires on its own schedule (plan 031).
 
