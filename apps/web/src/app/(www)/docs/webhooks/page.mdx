@@ -8,6 +8,24 @@ The product name is Webhooks: `secondlayer webhooks`, `sl.webhooks`, `webhooks_*
 
 </Callout>
 
+## Hosted vs self-host
+
+Chain webhooks (triggers on raw events — no subgraph deployed) run either way. Subgraph webhooks (triggers on a subgraph table you deployed) are self-host only until subgraphs themselves go hosted.
+
+| | Self-host | Hosted (`api.secondlayer.tools`) |
+| --- | --- | --- |
+| Chain webhooks | Yes | Yes — an `sk-sl_*` key and prepaid credits, no instance to run |
+| Subgraph webhooks | Yes | Not yet |
+| Auth | `INSTANCE_TOKEN`, your own instance | `sk-sl_*` account key |
+| `max_retries` | Any value you set | Capped at 7 |
+| `timeout_ms` | Any value you set | Capped at 30000 |
+| Rate limits | None (it's your box) | Per account: create/update/delete 30/min, `test` 10/min, `replay` 5/hour, reads 600/min |
+| Egress | Whatever your network allows | Your webhook receiver + our own read APIs only — a tenant's compose network can't reach another tenant or our internal services |
+| Pricing | Free (self-host) | `webhook.event` per delivered event; retries are never billed |
+| Isolation | N/A (you run it) | One full self-host stack per account, not a shared multi-tenant runtime — your data never shares a database or process with anyone else's |
+
+A hosted chain webhook works exactly like a self-host one from the CLI/SDK: set `SECONDLAYER_API_KEY` (`sk-sl_*`) and point at `api.secondlayer.tools` (or leave the default). Delivery semantics — at-least-once, unordered, reorg rollback — are identical on both: [Receiving deliveries](/docs/webhooks/deliveries).
+
 ## Create a webhook
 
 ```bash

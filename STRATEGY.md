@@ -9,8 +9,9 @@
 Secondlayer is a self-hosted data runtime for Bitcoin and its L2s, starting
 with Stacks: run it beside your node, bootstrap verified history, query
 decoded data, deploy TypeScript subgraphs. We operate a signed canonical
-archive on R2 and a hosted API at api.secondlayer.tools for Index and
-Streams. Subgraphs and webhooks run on self-host only; we do not host them.
+archive on R2 and a hosted API at api.secondlayer.tools for Index, Streams,
+and chain webhooks — one self-host stack per hosted account, gatewayed
+(044). Subgraphs (and subgraph webhooks) run on self-host only until 046.
 Prepaid credits buy archive bootstrap/backfill and hosted reads. Same
 balance. Bitcoin Runes and
 inscriptions are next, gated on demand (see **Bitcoin**).
@@ -146,9 +147,13 @@ is still a *subscription* internally (product noun Webhooks, object
 subscription, the Stripe/Alchemy shape). Renamed from "Subscriptions"
 2026-09-12: that word collides with "not a monthly service" and every
 comparable product says Webhooks. Public rename with aliases:
-`plans/rename-webhooks.md`. Self-host only: the operator's instance runs the
-matcher and the sender; they host the receiver. Hosted delivery is not
-offered.
+`plans/rename-webhooks.md`. Self-host: the operator's instance runs the
+matcher and the sender; they host the receiver. Chain webhooks are also
+offered hosted (044) — an `sk-sl_*` key and prepaid credits, no self-host
+instance required; the gateway resolves the key to that account's own
+tenant stack (one self-host stack per account, unchanged runtime, D1) and
+never forwards the customer key into it. Caps: `max_retries` ≤ 7,
+`timeout_ms` ≤ 30000. Subgraph webhooks stay self-host only until 046.
 
 **Archive** — the signed canonical history Index and Streams bootstrap from.
 `secondlayer verify`, `repair`, `bootstrap`. Free against public manifests;
