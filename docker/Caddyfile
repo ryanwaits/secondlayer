@@ -1,8 +1,7 @@
 # Caddy config — single platform host post 2026-05-14 shared-rip.
 #
 # Backend routing:
-#   api.{BASE_DOMAIN}   →  api:3800   (`/hooks/slack*` → agent:3900,
-#                                      `/api/webhooks*` → workload-host, 044)
+#   api.{BASE_DOMAIN}   →  api:3800   (`/hooks/slack*` → agent:3900)
 {
 	email {$CADDY_ACME_EMAIL:ryan.waits@gmail.com}
 }
@@ -27,30 +26,6 @@ api.{$BASE_DOMAIN:secondlayer.tools} {
 
 	handle /hooks/slack* {
 		reverse_proxy agent:3900
-	}
-	# Hosted chain webhooks (plan 044). The gateway on the workload host is
-	# the only thing that ever sees a customer's sk-sl_* key — it introspects
-	# against `POST /internal/keys/introspect` (below, this same api) before
-	# forwarding into that account's own tenant stack with the stack's own
-	# INSTANCE_TOKEN swapped in. Everything else stays on `api` untouched.
-	#
-	# Review fix 7: workload-host terminates :443 with Caddy's own internal
-	# CA (`docker/workload-host/Caddyfile`, `tls internal`) — there is no
-	# public DNS name for that host to get a real ACME cert against, and the
-	# cloud firewall already restricts :443 there to this app-server's IP.
-	# `tls_trust_pool file` pins that specific CA instead of the system trust
-	# store (which would never trust a locally-issued cert) — Caddy 2.8+
-	# syntax (this image is `caddy:2-alpine`, currently v2.11.x; the
-	# deprecated `tls_trusted_ca_certs` directive is the pre-2.8 equivalent
-	# if this image is ever pinned older). `WORKLOAD_HOST_CA_FILE` is that
-	# CA's root cert, copied from the workload host once — see the runbook.
-	handle /api/webhooks* {
-		reverse_proxy {$WORKLOAD_HOST_ADDR:workload-host.secondlayer.tools}:443 {
-			transport http {
-				tls
-				tls_trust_pool file {$WORKLOAD_HOST_CA_FILE}
-			}
-		}
 	}
 	handle {
 		# Load-balance across all `api` replicas. `dynamic a` re-resolves the
