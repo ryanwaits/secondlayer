@@ -95,7 +95,7 @@ const REMOTE_STATUS_TIMEOUT_MS = 5_000;
  * decoder ever runs in the same Postgres (a hosted tenant's `webhook-service`,
  * or any instance pointed at `SUBGRAPH_INDEX_API_URL`). `decoderBoundTip` then
  * must not read local `decoder_checkpoints` — that table is empty there and
- * the evaluator stalls forever (f091-class bug: chain webhooks never fire).
+ * the evaluator stalls forever (otherwise chain webhooks never fire).
  */
 function usesRemoteDecoderStatus(): boolean {
 	return (
