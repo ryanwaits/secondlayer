@@ -31,7 +31,7 @@ billable.
 | Host | `workload-host`, Hetzner Cloud, fsn1. Label `role=workload-host`. |
 | SKU | `cpx32` (4 vCPU / 8 GB / 160 GB disk). **Not `cpx31`** — deprecated in fsn1 (`hcloud server-type describe cpx31`: `Available: no`, unavailable after 2025-12-31); `cpx32` is the same spec, currently available (verified live while writing this runbook). 046 may resize once subgraph handlers add load. |
 | SSH | Cloud key `macbook-prod` (already registered — same key `stacks-feeder` uses). |
-| Volume | `workload-data`, 100 GB ext4, automounted. Backs `/opt/secondlayer-workload` (tenant secrets, one dir per acct8) and each tenant's Postgres volume. |
+| Volume | None — local disk. Volume dropped 2026-09-25: project volume quota exhausted by feeder-data; local disk until 046 sizing. `/opt/secondlayer-workload` (tenant secrets, one dir per acct8) and each tenant's Postgres data live on the CPX32's own 160 GB disk. |
 | Cloud firewall | `workload-host`: TCP 22 from operator `136.62.99.163/32` (same IP `stacks-feeder`'s firewall already allowlists); TCP 443 from app-server `65.21.135.94/32` only. Nothing else inbound. |
 | Runtime | `packages/workload` (`@secondlayer/workload`) — one Bun process, gateway + provisioner + meters, bound `127.0.0.1:8080` only. Not yet deployed to this host. |
 | TLS | `docker/workload-host/Caddyfile` (its own `docker-compose.yml`, `network_mode: host`) terminates :443 with `tls internal`, addressed by `{$WORKLOAD_HOST_NAME:workload-host.secondlayer.tools}` (a real hostname, not a bare `:443` — the cert's name has to match the SNI app-server dials), and reverse-proxies to the gateway's `127.0.0.1:8080`. app-server pins that CA (`tls_trust_pool file`, `WORKLOAD_HOST_CA_FILE`) — see Bring-up steps 5–7. |
@@ -87,7 +87,7 @@ not the only line.
 1. **Provision** (spend gate — founder go required):
    ```bash
    docker/workload-host/provision.sh --dry-run   # review the exact commands
-   docker/workload-host/provision.sh             # creates the firewall, volume, server
+   docker/workload-host/provision.sh             # creates the firewall, server
    ```
 2. SSH in, confirm Docker + `runsc` + the egress rules landed (cloud-init's
    `runcmd`):
@@ -241,15 +241,17 @@ the flip landed), then:
 
 ```bash
 hcloud server delete workload-host
-hcloud volume delete workload-data
 hcloud firewall delete workload-host
 ```
 
-Each tenant stack is destroyed independently by the provisioner
+No volume to delete (dropped 2026-09-25 — see the Volume row above): tenant
+data lives on the server's own local disk, so deleting the server is the
+whole teardown of persisted data. Each tenant stack is destroyed
+independently by the provisioner
 (`packages/workload/src/provisioner.ts`'s `destroy()`: `pg_dump` to R2,
 `compose down -v`, secrets directory removed) — deleting the host does not
-implicitly destroy tenant data; do that first if a real teardown (not just
-a host resize/replace) is intended.
+implicitly destroy tenant data ahead of that; run `destroy()` first if a
+real teardown (not just a host resize/replace) is intended.
 
 ## Open
 

@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 # Idempotent provision of the workload-host (plan 044, step 1): Hetzner
-# Cloud fsn1, one firewall, one volume, one server. Re-runnable — anyone can
-# stand up the same host (build-for-everyone), and a second run against an
+# Cloud fsn1, one firewall, one server. Re-runnable — anyone can stand up the
+# same host (build-for-everyone), and a second run against an
 # already-provisioned host skips what exists rather than erroring or
 # duplicating resources.
 #
+# No separate volume (dropped 2026-09-25): the project's volume quota is
+# already used by the feeder's 4.1 TB volume, so `hcloud volume create` here
+# failed with `resource_limit_exceeded` on the real run. Tenant data lives
+# on the CPX32's own 160 GB local disk under `/opt/secondlayer-workload`.
+# Phase 1 data (chain webhooks, no subgraph tables yet) is small; revisit a
+# volume — or a bigger server type — when 046 adds subgraph tables.
+#
 # SPEND GATE: this script creates BILLABLE resources
-# (`hcloud firewall/volume/server create`). It must only be run after the
-# founder says go for the permanent host — see plan 044's step 1. Use
-# `--dry-run` to print the exact `hcloud` commands without executing them.
+# (`hcloud firewall/server create`). It must only be run after the founder
+# says go for the permanent host — see plan 044's step 1. Use `--dry-run` to
+# print the exact `hcloud` commands without executing them.
 #
 # Requires: `hcloud` CLI, context `secondlayer` active, a working token
 # (never printed by this script or logged by hcloud itself).
@@ -20,7 +27,6 @@
 # Teardown (documented, not run by this script — see
 # docs/internal/runbook/workload-host.md):
 #   hcloud server delete workload-host
-#   hcloud volume delete workload-data
 #   hcloud firewall delete workload-host
 
 set -euo pipefail
@@ -47,8 +53,6 @@ SERVER_TYPE="cpx32" # 4 vCPU / 8 GB / 160 GB disk — cpx31's successor.
 LOCATION="fsn1"
 IMAGE="ubuntu-24.04"
 SSH_KEY="macbook-prod"
-VOLUME_NAME="workload-data"
-VOLUME_SIZE_GB=100
 FIREWALL_NAME="workload-host"
 # app-server's public IP (docs/internal/runbook/genesis-feeder.md's Bitcoin
 # RPC allowlist entry — same host, same IP, already load-bearing elsewhere).
@@ -118,15 +122,7 @@ else
 	EOF
 fi
 
-# 2. Volume — idempotent: skip if it already exists.
-if hcloud volume describe "$VOLUME_NAME" >/dev/null 2>&1; then
-	echo "volume '$VOLUME_NAME' already exists, skipping"
-else
-	run hcloud volume create --name "$VOLUME_NAME" --size "$VOLUME_SIZE_GB" \
-		--location "$LOCATION" --format ext4
-fi
-
-# 3. Server — idempotent: skip if it already exists. cloud-init is rendered
+# 2. Server — idempotent: skip if it already exists. cloud-init is rendered
 #    two ways before it's handed to `hcloud server create`: the egress
 #    script is inlined from its standalone file (review fix C), then
 #    APP_SERVER_IP is baked into the runcmd line that invokes it (cloud-init
@@ -143,7 +139,7 @@ else
 	fi
 	run hcloud server create --name "$SERVER_NAME" --type "$SERVER_TYPE" \
 		--image "$IMAGE" --location "$LOCATION" --ssh-key "$SSH_KEY" \
-		--firewall "$FIREWALL_NAME" --volume "$VOLUME_NAME" --automount \
+		--firewall "$FIREWALL_NAME" \
 		--user-data-from-file "$CLOUD_INIT_RENDERED"
 fi
 
