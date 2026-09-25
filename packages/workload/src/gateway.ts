@@ -103,7 +103,7 @@ export async function handleGatewayRequest(
 		return Response.json(
 			{
 				error: "insufficient_credits",
-				top_up_url: "https://secondlayer.tools/billing",
+				top_up_url: "https://www.secondlayer.tools/account/credits",
 			},
 			{ status: 402 },
 		);
@@ -121,6 +121,16 @@ export async function handleGatewayRequest(
 
 	const state = await deps.resolveTenant(introspected.accountId);
 	if (state === undefined) {
+		// A read against an account with no tenant yet must not provision one —
+		// opening the dashboard's webhooks page shouldn't start a billed service.
+		// Only a write (create/update/delete/pause/...) provisions.
+		if (bucket === "read") {
+			const isList =
+				url.pathname === "/api/webhooks" || url.pathname === "/api/webhooks/";
+			return isList
+				? Response.json({ data: [] }, { status: 200 })
+				: Response.json({ error: "Webhook not found" }, { status: 404 });
+		}
 		deps.startProvisioning(introspected.accountId);
 		return withRetryAfter(
 			Response.json(

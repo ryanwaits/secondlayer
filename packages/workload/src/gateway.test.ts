@@ -118,13 +118,15 @@ describe("handleGatewayRequest", () => {
 			req({ auth: "Bearer sk-sl_good" }),
 		);
 		expect(res.status).toBe(402);
-		expect(((await res.json()) as { error: string }).error).toBe(
-			"insufficient_credits",
+		const body = (await res.json()) as { error: string; top_up_url: string };
+		expect(body.error).toBe("insufficient_credits");
+		expect(body.top_up_url).toBe(
+			"https://www.secondlayer.tools/account/credits",
 		);
 		expect(resolveTenantCalled).toBe(false);
 	});
 
-	test("no tenant yet → 503 + Retry-After, kicks off provisioning exactly once", async () => {
+	test("no tenant yet → 503 + Retry-After, kicks off provisioning exactly once (write)", async () => {
 		let provisionCalls = 0;
 		const deps = baseDeps({
 			resolveTenant: async () => undefined,
@@ -134,7 +136,88 @@ describe("handleGatewayRequest", () => {
 		});
 		const res = await handleGatewayRequest(
 			deps,
-			req({ auth: "Bearer sk-sl_good" }),
+			req({ method: "POST", auth: "Bearer sk-sl_good" }),
+		);
+		expect(res.status).toBe(503);
+		expect(res.headers.get("Retry-After")).toBe("30");
+		expect(provisionCalls).toBe(1);
+	});
+
+	test("no tenant yet, list read → 200 empty, never provisions", async () => {
+		let provisionCalls = 0;
+		const deps = baseDeps({
+			resolveTenant: async () => undefined,
+			startProvisioning: () => {
+				provisionCalls++;
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({ method: "GET", path: "/api/webhooks", auth: "Bearer sk-sl_good" }),
+		);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ data: [] });
+		expect(provisionCalls).toBe(0);
+	});
+
+	test("no tenant yet, a webhook detail read → 404, never provisions", async () => {
+		let provisionCalls = 0;
+		const deps = baseDeps({
+			resolveTenant: async () => undefined,
+			startProvisioning: () => {
+				provisionCalls++;
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({
+				method: "GET",
+				path: "/api/webhooks/wh_1",
+				auth: "Bearer sk-sl_good",
+			}),
+		);
+		expect(res.status).toBe(404);
+		expect(((await res.json()) as { error: string }).error).toBe(
+			"Webhook not found",
+		);
+		expect(provisionCalls).toBe(0);
+	});
+
+	test("no tenant yet, a deliveries read → 404, never provisions", async () => {
+		let provisionCalls = 0;
+		const deps = baseDeps({
+			resolveTenant: async () => undefined,
+			startProvisioning: () => {
+				provisionCalls++;
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({
+				method: "GET",
+				path: "/api/webhooks/wh_1/deliveries",
+				auth: "Bearer sk-sl_good",
+			}),
+		);
+		expect(res.status).toBe(404);
+		expect(provisionCalls).toBe(0);
+	});
+
+	test("no tenant yet, a write still provisions and 503s", async () => {
+		let provisionCalls = 0;
+		const deps = baseDeps({
+			resolveTenant: async () => undefined,
+			startProvisioning: () => {
+				provisionCalls++;
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({
+				method: "POST",
+				path: "/api/webhooks/wh_1/pause",
+				auth: "Bearer sk-sl_good",
+			}),
 		);
 		expect(res.status).toBe(503);
 		expect(res.headers.get("Retry-After")).toBe("30");
