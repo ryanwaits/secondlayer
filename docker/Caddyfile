@@ -32,12 +32,13 @@ api.{$BASE_DOMAIN:secondlayer.tools} {
 	# api and forwards with that stack's own token; the key never reaches a stack.
 	# The workload host's Caddy uses its internal CA, pinned here.
 	handle /api/webhooks* {
-		# No explicit `header_up Host` — Caddy already rewrites Host to the
-		# upstream address for an HTTPS upstream (confirmed: `caddy validate`
-		# warns "Unnecessary header_up Host" if it's added here), so the
-		# request arrives with Host == workload-host.secondlayer.tools, which
-		# is the name its own Caddy site block is addressed by.
+		# Prod runs Caddy 2.10, which forwards the ORIGINAL inbound Host
+		# (api.{$BASE_DOMAIN}) to an HTTPS upstream — that rewrite only
+		# became default in 2.11. The workload host's Caddy only serves its
+		# own name, so set Host explicitly (redundant but harmless on ≥2.11,
+		# where it just logs an "Unnecessary header_up Host" warning).
 		reverse_proxy {$WORKLOAD_HOST_ADDR:workload-host.secondlayer.tools}:443 {
+			header_up Host {upstream_hostport}
 			transport http {
 				tls
 				tls_trust_pool file {$WORKLOAD_HOST_CA_FILE:/etc/caddy/workload-host-ca.crt}
