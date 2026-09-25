@@ -20,8 +20,10 @@ import {
 	createInstanceCatalogRouter,
 	renderLocalConsole,
 } from "./routes/instance-catalog.ts";
+import internalAccountsCreditsRouter from "./routes/internal-accounts-credits.ts";
 import internalIntrospectRouter from "./routes/internal-introspect.ts";
 import internalMetersRouter from "./routes/internal-meters.ts";
+import internalTenantKeyRouter from "./routes/internal-tenant-key.ts";
 import nodeRouter from "./routes/node.ts";
 import openApiRouter from "./routes/openapi.ts";
 import publicCreditsRouter from "./routes/public-credits.ts";
@@ -154,6 +156,8 @@ export function createApiApp(mode: InstanceMode): Hono {
 		// workload host, not an account.
 		app.route("/internal/meters", internalMetersRouter);
 		app.route("/internal/keys/introspect", internalIntrospectRouter);
+		app.route("/internal/keys/tenant", internalTenantKeyRouter);
+		app.route("/internal/accounts/credits", internalAccountsCreditsRouter);
 	}
 	app.route("/", statusRouter);
 	app.route("/v1/instance", createInstanceCatalogRouter());

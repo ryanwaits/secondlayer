@@ -123,3 +123,23 @@ export async function mintApiKey(
 		createdAt: key.created_at.toISOString(),
 	};
 }
+
+/**
+ * Revoke every active key with `name` for one account. Used before minting a
+ * rotating, named, first-party key (e.g. the workload host's per-tenant
+ * `hosted-stack` key, `routes/internal-tenant-key.ts`) so re-provisioning
+ * never leaves an old copy of that specific key active.
+ */
+export async function revokeKeysByName(
+	db: ReturnType<typeof getDb>,
+	accountId: string,
+	name: string,
+): Promise<void> {
+	await db
+		.updateTable("api_keys")
+		.set({ status: "revoked", revoked_at: new Date() })
+		.where("account_id", "=", accountId)
+		.where("name", "=", name)
+		.where("status", "=", "active")
+		.execute();
+}
