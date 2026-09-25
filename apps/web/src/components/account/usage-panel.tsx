@@ -29,28 +29,19 @@ import {
 import { useEffect, useState } from "react";
 
 /**
- * The out-of-credits gate banner. Always checks the real current month — not
- * whatever month the usage table below is browsing — so it stays put while
- * the account is paused even if the person scrolls the switcher into a past
- * month. That's a second small fetch on page load; cheap for a page nobody
- * hits often.
+ * The out-of-credits gate banner. Always reads the real current month's
+ * usage from the store — not whatever month the table below is browsing —
+ * so it stays put while the account is paused even if the person scrolls
+ * the switcher into a past month. Doesn't fetch itself: `UsageSection`'s
+ * default (offset-0) fetch loads the current month, so one page load makes
+ * one usage call, not two.
  */
 export function OutOfCreditsBanner({ billing }: { billing: Billing | null }) {
-	const [rowsDelivered, setRowsDelivered] = useState<number | null>(null);
+	const { usage } = useAccountData();
+	const rows = usage[monthParam(currentUtcMonth())];
 
-	useEffect(() => {
-		let cancelled = false;
-		refreshUsage().then((usage) => {
-			if (cancelled) return;
-			const rd = usage?.find((u) => u.unit === "rows.delivered");
-			setRowsDelivered(rd ? Number(rd.quantity) : 0);
-		});
-		return () => {
-			cancelled = true;
-		};
-	}, []);
-
-	if (!billing || rowsDelivered === null) return null;
+	if (!billing || rows === undefined) return null;
+	const rowsDelivered = deliveredRowsIn(rows);
 	const stopped =
 		Number(billing.creditsUsdMicros) <= 0 && rowsDelivered >= ROWS_ALLOWANCE;
 	if (!stopped) return null;
@@ -203,6 +194,7 @@ export function UsageSection() {
 	const earliest = accountCreationMonth(account?.createdAt);
 	const prevDisabled = earliest !== null && compareMonths(month, earliest) <= 0;
 	const nextDisabled = isSameMonth(month, cur);
+	const rows = usage[monthKey];
 
 	return (
 		<>
@@ -228,7 +220,7 @@ export function UsageSection() {
 					</button>
 				</div>
 			</div>
-			{usage === null ? null : usage.length === 0 ? (
+			{rows === undefined ? null : rows.length === 0 ? (
 				<div className="use-empty">
 					No usage in {monthLabel(month)}. Your {formatRows(ROWS_ALLOWANCE)}{" "}
 					free rows went unused.
@@ -236,12 +228,12 @@ export function UsageSection() {
 			) : (
 				<>
 					<AllowanceMeter
-						deliveredRows={deliveredRowsIn(usage)}
+						deliveredRows={deliveredRowsIn(rows)}
 						resetLabel={nextMonthLabel(month)}
 					/>
 					<UsageTable
-						usage={usage}
-						deliveredRows={deliveredRowsIn(usage)}
+						usage={rows}
+						deliveredRows={deliveredRowsIn(rows)}
 						monthWord={monthName(month)}
 					/>
 				</>

@@ -12,6 +12,7 @@ import {
 	nextMonthLabel,
 	spentUsdMicros,
 	unitLabel,
+	withUsageMonth,
 } from "./usage";
 
 describe("formatRows", () => {
@@ -158,5 +159,43 @@ describe("accountCreationMonth", () => {
 		expect(accountCreationMonth(null)).toBeNull();
 		expect(accountCreationMonth(undefined)).toBeNull();
 		expect(accountCreationMonth("not-a-date")).toBeNull();
+	});
+});
+
+describe("withUsageMonth", () => {
+	test("writes only the given month, leaving other months untouched", () => {
+		const before = {
+			"2026-08": [{ unit: "rows.delivered", quantity: "1", usdMicros: "5" }],
+		};
+		const after = withUsageMonth(before, "2026-09", [
+			{ unit: "rows.delivered", quantity: "2", usdMicros: "10" },
+		]);
+		expect(after["2026-08"]).toBe(before["2026-08"]);
+		expect(after["2026-09"]).toEqual([
+			{ unit: "rows.delivered", quantity: "2", usdMicros: "10" },
+		]);
+	});
+
+	test("a late response for month A does not change month B's entry", () => {
+		// Simulates clicking the month switcher twice fast: the August fetch
+		// (still in flight) resolves after the September fetch already landed.
+		const septFirst = withUsageMonth({}, "2026-09", [
+			{ unit: "rows.delivered", quantity: "9", usdMicros: "45" },
+		]);
+		const augLate = withUsageMonth(septFirst, "2026-08", [
+			{ unit: "rows.delivered", quantity: "8", usdMicros: "40" },
+		]);
+		expect(augLate["2026-09"]).toEqual([
+			{ unit: "rows.delivered", quantity: "9", usdMicros: "45" },
+		]);
+		expect(augLate["2026-08"]).toEqual([
+			{ unit: "rows.delivered", quantity: "8", usdMicros: "40" },
+		]);
+	});
+
+	test("does not mutate the previous map", () => {
+		const before = { "2026-09": [] };
+		withUsageMonth(before, "2026-08", []);
+		expect(before).toEqual({ "2026-09": [] });
 	});
 });

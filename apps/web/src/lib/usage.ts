@@ -1,7 +1,7 @@
 /**
- * Pure helpers for the /account/credits usage view (plan 052) — number and
- * copy formatting, month math, and the free-allowance gate math. No React,
- * no fetch, so `bun test` covers it without a DOM or a store.
+ * Pure helpers for the /account/credits usage view — number and copy
+ * formatting, month math, and the free-allowance gate math. No React, no
+ * fetch, so `bun test` covers it without a DOM or a store.
  */
 
 /** One row of `GET /api/billing/usage`'s `usage` array. Quantities and
@@ -32,6 +32,22 @@ const UNIT_LABEL: Record<string, [string, string]> = {
 
 export function unitLabel(unit: string): [string, string] {
 	return UNIT_LABEL[unit] ?? [unit, ""];
+}
+
+/** Usage rows keyed by `YYYY-MM`, one entry per month the store has fetched. */
+export type UsageByMonth = Record<string, UsageRow[]>;
+
+/** Merge one month's freshly fetched rows into the keyed store, leaving
+ *  every other month's entry untouched. Out-of-order responses (a slow
+ *  fetch for a month the person already navigated away from) still only
+ *  ever write their own key, so they can't clobber whatever month is on
+ *  screen now. */
+export function withUsageMonth(
+	prev: UsageByMonth,
+	month: string,
+	rows: UsageRow[],
+): UsageByMonth {
+	return { ...prev, [month]: rows };
 }
 
 /** Rows at or above 1M as `6.41M` / `10M` (trailing decimal zeros stripped,

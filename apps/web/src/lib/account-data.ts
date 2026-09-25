@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { ApiKey } from "./types";
-import type { UsageRow } from "./usage";
+import { type UsageByMonth, type UsageRow, withUsageMonth } from "./usage";
 
 /**
  * Account data the nav chip, the floating cards and the /account pages all read. One
@@ -22,10 +22,10 @@ export type Billing = {
 type State = {
 	billing: Billing | null;
 	keys: ApiKey[] | null;
-	usage: UsageRow[] | null;
+	usage: UsageByMonth;
 };
 
-const EMPTY: State = { billing: null, keys: null, usage: null };
+const EMPTY: State = { billing: null, keys: null, usage: {} };
 let state: State = EMPTY;
 const listeners = new Set<() => void>();
 
@@ -59,17 +59,16 @@ export async function refreshBilling(): Promise<Billing | null> {
 	}
 }
 
-/** This account's usage_ledger for one UTC calendar month (default: this
- *  month), grouped by unit. Powers the /account/credits usage view
- *  (plan 052) — mirrors `refreshBilling`. */
-export async function refreshUsage(month?: string): Promise<UsageRow[] | null> {
+/** This account's usage_ledger for one UTC calendar month (`YYYY-MM`),
+ *  grouped by unit. Writes only that month's entry in the keyed `usage`
+ *  store, so a slow response for a month the caller has moved on from can't
+ *  overwrite whatever month is on screen now. Mirrors `refreshBilling`. */
+export async function refreshUsage(month: string): Promise<UsageRow[] | null> {
 	try {
-		const res = await fetch(
-			`/api/billing/usage${month ? `?month=${month}` : ""}`,
-		);
+		const res = await fetch(`/api/billing/usage?month=${month}`);
 		if (!res.ok) return null;
 		const data = (await res.json()) as { month: string; usage: UsageRow[] };
-		set({ usage: data.usage });
+		set({ usage: withUsageMonth(state.usage, month, data.usage) });
 		return data.usage;
 	} catch {
 		return null;
