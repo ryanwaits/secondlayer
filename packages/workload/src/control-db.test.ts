@@ -9,6 +9,7 @@ import {
 	listPollableTenants,
 	listRunningTenants,
 	listTenants,
+	setTenantImageSha,
 	setTenantState,
 } from "./control-db.ts";
 
@@ -121,6 +122,31 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 		await setTenantState(db, accountId, "stopped");
 		pollable = await listPollableTenants(db);
 		expect(pollable.some((r) => r.account_id === accountId)).toBe(true);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("ensureControlSchema adds image_sha to a table created before the column existed", async () => {
+		await db`ALTER TABLE tenants DROP COLUMN IF EXISTS image_sha`;
+		await ensureControlSchema(db);
+		const cols = await db`
+			SELECT column_name FROM information_schema.columns
+			WHERE table_name = 'tenants' AND column_name = 'image_sha'
+		`;
+		expect(cols).toHaveLength(1);
+	});
+
+	test("a freshly inserted row has a null image_sha until setTenantImageSha records one", async () => {
+		const accountId = `test-${crypto.randomUUID()}`;
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+
+		let row = await getTenant(db, accountId);
+		expect(row?.image_sha).toBeNull();
+
+		const sha = "a".repeat(40);
+		await setTenantImageSha(db, accountId, sha);
+		row = await getTenant(db, accountId);
+		expect(row?.image_sha).toBe(sha);
 
 		await deleteTenant(db, accountId);
 	});

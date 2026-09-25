@@ -10,11 +10,15 @@
  *                          and /internal/meters guards
  *   TENANT_SECRETS_ROOT    root-only dir, one subdirectory per tenant
  *   TENANT_COMPOSE_FILE    docker/workload/tenant.compose.yml
- *   WORKLOAD_IMAGE_TAG     deployed main sha `tenant.compose.yml` pins
- *                          `secondlayer-api` to (required there, no `latest`
- *                          default); flows through to `docker compose` via
- *                          spawnCompose's `process.env` merge
  *   GATEWAY_PORT           default 8080
+ *
+ * There is no `WORKLOAD_IMAGE_TAG` env anymore (plan 064): the deployed sha
+ * `tenant.compose.yml` pins `secondlayer-api` to is DERIVED, not configured
+ * — this process polls app-server `/health`'s `image_sha` every 5 minutes
+ * (piggybacking on the credits-poll interval) and passes whatever it last
+ * resolved to `docker compose` per call. A prod deploy now reaches every
+ * tenant within one poll interval instead of waiting for an operator to bump
+ * an env var and re-up each stack by hand.
  *
  * Review fix 7: the gateway binds 127.0.0.1 only — a local Caddy
  * (`docker/workload-host/Caddyfile`) terminates :443 and reverse-proxies to
@@ -55,12 +59,19 @@ import {
 	up as provisionUp,
 } from "./provisioner.ts";
 import { createRateLimiter } from "./rate-limiter.ts";
+import {
+	createTargetShaCache,
+	createUpgradeRunner,
+	resolveTargetSha,
+} from "./upgrade.ts";
 
 const METER_FLUSH_INTERVAL_MS = 60_000;
 const MEMORY_SAMPLE_INTERVAL_MS = 60_000;
 const MEMORY_FLUSH_INTERVAL_MS = 60 * 60_000; // hourly (Design)
 const STORAGE_SAMPLE_INTERVAL_MS = 24 * 60 * 60_000; // daily (Design)
 const CREDITS_POLL_INTERVAL_MS = 5 * 60_000; // Design: "every 5 min"
+const INITIAL_TARGET_RESOLUTION_ATTEMPTS = 3;
+const INITIAL_TARGET_RESOLUTION_RETRY_MS = 2_000;
 
 function requireEnv(name: string): string {
 	const value = process.env[name]?.trim();
@@ -74,10 +85,6 @@ async function main(): Promise<void> {
 	const workloadHostKey = requireEnv("WORKLOAD_HOST_KEY");
 	const secretsRoot = requireEnv("TENANT_SECRETS_ROOT");
 	const composeFile = requireEnv("TENANT_COMPOSE_FILE");
-	// Not read past this point — validated up front so a missing tag fails
-	// fast at startup instead of at the first `docker compose up` (it reaches
-	// compose via spawnCompose's `process.env` merge, not through this value).
-	requireEnv("WORKLOAD_IMAGE_TAG");
 	const gatewayPort = Number(process.env.GATEWAY_PORT ?? 8080);
 
 	const db = getControlDb(controlDbUrl);
@@ -86,13 +93,41 @@ async function main(): Promise<void> {
 	const introspect = new IntrospectClient({ appServerUrl, workloadHostKey });
 	const rateLimit = createRateLimiter();
 
+	// The deployed target sha is derived from app-server's `/health`, not
+	// configured (plan 064) — `getTargetSha` always reads whatever this cache
+	// holds at call time, never a value captured once at process start.
+	const targetShaCache = createTargetShaCache();
+	for (
+		let attempt = 1;
+		attempt <= INITIAL_TARGET_RESOLUTION_ATTEMPTS;
+		attempt++
+	) {
+		const sha = await resolveTargetSha(appServerUrl, fetch, targetShaCache);
+		if (sha) break;
+		if (attempt < INITIAL_TARGET_RESOLUTION_ATTEMPTS) {
+			await new Promise((r) =>
+				setTimeout(r, INITIAL_TARGET_RESOLUTION_RETRY_MS),
+			);
+		}
+	}
+	if (!targetShaCache.lastGood) {
+		// Existing tenants keep running on whatever they're already on — only
+		// NEW provisioning (`up()`'s `requireTargetSha`) refuses until the next
+		// poll resolves something.
+		logger.error("workload.upgrade.no_initial_target", {
+			attempts: INITIAL_TARGET_RESOLUTION_ATTEMPTS,
+		});
+	}
+
 	const provisionerCfg: ProvisionerConfig = {
 		db,
 		secretsRoot,
 		composeFile,
 		hostedApiUrl: appServerUrl,
 		workloadHostKey,
+		getTargetSha: () => targetShaCache.lastGood,
 	};
+	const runUpgradeRound = createUpgradeRunner(provisionerCfg);
 
 	// One EventCounter + meter-socket server per running tenant, started the
 	// moment we know about it and torn down on destroy. Keyed by accountId,
@@ -326,9 +361,24 @@ async function main(): Promise<void> {
 	}, STORAGE_SAMPLE_INTERVAL_MS);
 
 	// Zero-balance / top-up poll (review fix 3a): running→stopped,
-	// stopped→running, every 5 minutes (Design).
-	const creditsPollLoop = setInterval(() => {
-		pollCredits(provisionerCfg).catch((err) => {
+	// stopped→running, every 5 minutes (Design). Piggybacks the target-sha
+	// resolution + rolling upgrade (plan 064) on the same interval — simpler
+	// than a second timer, and both are 5-minute-cadence background sweeps
+	// over the same tenant set.
+	const creditsPollLoop = setInterval(async () => {
+		const targetSha = await resolveTargetSha(
+			appServerUrl,
+			fetch,
+			targetShaCache,
+		);
+		if (targetSha) {
+			await runUpgradeRound(targetSha).catch((err) => {
+				logger.error("workload.upgrade.round_failed", {
+					error: err instanceof Error ? err.message : String(err),
+				});
+			});
+		}
+		await pollCredits(provisionerCfg).catch((err) => {
 			logger.error("workload.provisioner.poll_credits_failed", {
 				error: err instanceof Error ? err.message : String(err),
 			});

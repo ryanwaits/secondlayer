@@ -147,7 +147,9 @@ not the only line.
    it on BOTH sides), `TENANT_SECRETS_ROOT`
    (`/opt/secondlayer-workload/tenants`), `TENANT_COMPOSE_FILE`
    (`/opt/secondlayer-workload/src/docker/workload/tenant.compose.yml`),
-   `GATEWAY_PORT` (`8080`), `WORKLOAD_IMAGE_TAG` (a deployed main sha).
+   `GATEWAY_PORT` (`8080`). No `WORKLOAD_IMAGE_TAG` here (plan 064) — the
+   deployed sha is derived from app-server `/health`, not configured; see
+   Auto-upgrade below.
 
    Install the systemd unit
    (`docker/workload-host/secondlayer-workload.service` —
@@ -161,11 +163,11 @@ not the only line.
    systemctl enable --now secondlayer-workload
    ```
 
-   Upgrading: `git pull`, `bun install --frozen-lockfile`, rebuild the three
-   packages above, bump `WORKLOAD_IMAGE_TAG` in `workload.env` to the new
-   deployed main sha, `systemctl restart secondlayer-workload`. Existing
-   tenant stacks keep their old image until re-upped — this only changes
-   what a NEW tenant stack (or an explicit re-up) pulls.
+   Upgrading the workload service's OWN code (gateway/provisioner —
+   `packages/workload`) is the one manual step plan 064 doesn't automate:
+   `git pull`, `bun install --frozen-lockfile`, rebuild the three packages
+   above, `systemctl restart secondlayer-workload`. What each TENANT stack
+   runs is separate and no longer manual — see Auto-upgrade below.
 5. DNS: add an A record for `workload-host.secondlayer.tools` (or whatever
    `WORKLOAD_HOST_NAME` is set to) pointing at this host's public IP. It
    never needs to be internet-reachable end to end (the cloud firewall
@@ -239,6 +241,54 @@ not the only line.
    ```
    First call 503s (provisioning); retry after `Retry-After` seconds lands
    on the newly-up tenant stack.
+
+## Auto-upgrade (plan 064)
+
+Every hosted tenant stack now follows a prod deploy automatically — no
+`WORKLOAD_IMAGE_TAG` bump, no per-tenant re-up by hand.
+
+**How it works:** every 5 minutes (piggybacking the credits poll), the
+workload host reads app-server `GET /health`'s `image_sha` and treats it as
+the target. Any `running` tenant whose recorded `image_sha` doesn't match
+gets rolled forward one at a time: `docker pull` the target image for that
+tenant's compose project, then `compose up -d --wait`. A `stopped` tenant
+upgrades lazily — whenever it next restarts (a top-up), it comes up on
+whatever's current, not whatever it was running when it stopped. A brand
+new tenant provisions straight onto the current target.
+
+**Safety:** a failed pull stops the round before anything changes. A failed
+`up` (image pulled, but the new containers never got healthy) re-ups that
+tenant on its previous sha to restore service, then stops the round — a bad
+image fails every tenant the same way, so there's nothing to gain from
+trying the rest. Either way, the round resumes on the next 5-minute tick
+once the underlying problem (bad image, `/health` down) is fixed. If
+`/health` is unreachable or returns something that isn't a 40-char sha, the
+host keeps the LAST known-good target — it never falls back to `latest`.
+
+**How to see it:**
+
+```bash
+journalctl -u secondlayer-workload | grep workload.upgrade
+# per tenant: workload.upgrade.tenant_upgraded {accountId, from, to}
+# a failed round: workload.upgrade.pull_failed / .up_failed / .rolled_back
+# an overlapping tick: workload.upgrade.round_skipped_overlap
+```
+
+`SELECT account_id, image_sha, state FROM tenants` on the control DB shows
+what each tenant is actually running.
+
+**How to pin/hold a rollout:** there's no per-tenant pin — app-server's
+`/health` is the single source of truth for every tenant. To hold every
+tenant on the current sha, either stop the service
+(`systemctl stop secondlayer-workload` — tenants keep running, they just
+stop polling for a new target) or roll back the app-server deploy (`/health`
+then reports the older sha, and the next poll rolls tenants back to it the
+same way it rolls them forward).
+
+**The one remaining manual step**: the workload host upgrading its own
+gateway/provisioner code (`packages/workload`) — see step 4's "Upgrading
+the workload service's OWN code" above. Auto-upgrade only ever touches
+tenant stacks, never this host's own process.
 
 ## Verify (step 1's egress check)
 

@@ -18,6 +18,13 @@
 # to a known-good deploy instead of drifting under it. Digest-pin like
 # `docker/oss/docker-compose.yml` once a tag is chosen for GA.
 #
+# `WORKLOAD_IMAGE_TAG` is never a process env on this host (plan 064): the
+# provisioner (`packages/workload/src/provisioner.ts`, `upgrade.ts`) resolves
+# it from app-server `/health` and supplies it explicitly on every `docker
+# compose` call — `up`, `start`, `stop`, `destroy`, and the 5-minute rolling
+# upgrade all pass it fresh, so a tenant follows the deployed sha
+# automatically instead of drifting until an operator bumps this by hand.
+#
 # Phase 1 (chain webhooks only, D5): `subgraph-processor` is deliberately
 # absent. 046 adds it back once tenants run subgraph handlers.
 

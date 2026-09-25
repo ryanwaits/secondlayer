@@ -75,12 +75,16 @@ describe("buildTenantEnv / renderEnvFile", () => {
 	});
 });
 
+const TARGET_SHA = "a".repeat(40);
+const OTHER_SHA = "b".repeat(40);
+
 describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 	let secretsRoot: string;
 	const composeCalls: Array<{ args: string[]; env: Record<string, string> }> =
 		[];
 	let nextResult: ComposeResult = { code: 0, stdout: "", stderr: "" };
 	let mintCalls: string[] = [];
+	let targetSha: string | null = TARGET_SHA;
 	const MINTED_KEY = "sk-sl_minted-hosted-stack-key";
 
 	function cfg(): ProvisionerConfig {
@@ -97,6 +101,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 				mintCalls.push(accountId);
 				return MINTED_KEY;
 			},
+			getTargetSha: () => targetSha,
 		};
 	}
 
@@ -108,6 +113,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		composeCalls.length = 0;
 		mintCalls = [];
 		nextResult = { code: 0, stdout: "", stderr: "" };
+		targetSha = TARGET_SHA;
 		if (secretsRoot) rmSync(secretsRoot, { recursive: true, force: true });
 	});
 
@@ -142,6 +148,31 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		expect(contents).toContain(`TENANT_API_PORT=${row?.api_port}`);
 
 		await deleteTenant(db, accountId);
+	});
+
+	test("up() passes the target sha as WORKLOAD_IMAGE_TAG and records it on the row", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = `test-${crypto.randomUUID()}`;
+
+		await up(cfg(), accountId);
+		expect(composeCalls[0]?.env.WORKLOAD_IMAGE_TAG).toBe(TARGET_SHA);
+
+		const row = await getTenant(db, accountId);
+		expect(row?.image_sha).toBe(TARGET_SHA);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("up() refuses to provision a new tenant when no target has resolved, and leaves no row behind", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = `test-${crypto.randomUUID()}`;
+		targetSha = null;
+
+		await expect(up(cfg(), accountId)).rejects.toThrow(
+			/no resolved image target/,
+		);
+		expect(composeCalls).toHaveLength(0);
+		expect(await getTenant(db, accountId)).toBeUndefined();
 	});
 
 	test("up() mints a DEDICATED tenant key — never forwards a customer's presented key (Design fix)", async () => {
@@ -230,6 +261,9 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		expect(composeCalls).toHaveLength(1);
 		expect(composeCalls[0]?.args).toContain("stop");
 		expect(composeCalls[0]?.args).not.toContain("postgres");
+		// `stop` still needs SOME WORKLOAD_IMAGE_TAG for compose to parse the
+		// file — the value it's given doesn't change what's running.
+		expect(composeCalls[0]?.env.WORKLOAD_IMAGE_TAG).toBe(TARGET_SHA);
 
 		const row = await getTenant(db, accountId);
 		expect(row?.state).toBe("stopped");
@@ -271,6 +305,42 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await deleteTenant(db, accountId);
 	});
 
+	test("start() always uses the CURRENT target, not whatever the tenant last ran (stopped tenants upgrade lazily)", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = `test-${crypto.randomUUID()}`;
+		await up(cfg(), accountId); // provisions on TARGET_SHA
+		await stop(cfg(), accountId);
+		targetSha = OTHER_SHA; // a deploy landed while it was stopped
+		composeCalls.length = 0;
+
+		await start(cfg(), accountId);
+		expect(composeCalls[0]?.env.WORKLOAD_IMAGE_TAG).toBe(targetSha);
+
+		const row = await getTenant(db, accountId);
+		expect(row?.image_sha).toBe(targetSha);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("start() refuses when no target has resolved", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = `test-${crypto.randomUUID()}`;
+		await up(cfg(), accountId);
+		await stop(cfg(), accountId);
+		composeCalls.length = 0;
+		targetSha = null;
+
+		await expect(start(cfg(), accountId)).rejects.toThrow(
+			/no resolved image target/,
+		);
+		expect(composeCalls).toHaveLength(0);
+
+		const row = await getTenant(db, accountId);
+		expect(row?.state).toBe("stopped"); // untouched by the refused start
+
+		await deleteTenant(db, accountId);
+	});
+
 	test("destroy() removes the control-db row after a successful compose down -v", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = `test-${crypto.randomUUID()}`;
@@ -303,6 +373,7 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 			mintTenantKey: async () => "sk-sl_minted",
 			checkCreditsOk: async (ids) =>
 				Object.fromEntries(ids.map((id) => [id, creditsOk[id] ?? false])),
+			getTargetSha: () => TARGET_SHA,
 		};
 	}
 

@@ -26,6 +26,7 @@ import {
 	getTenant,
 	insertProvisioningTenant,
 	listPollableTenants,
+	setTenantImageSha,
 	setTenantState,
 } from "./control-db.ts";
 import type { FetchLike } from "./fetch-like.ts";
@@ -205,6 +206,14 @@ export interface ProvisionerConfig {
 	mintTenantKey?: MintTenantKey;
 	checkCreditsOk?: CheckCreditsOk;
 	fetchImpl?: FetchLike;
+	/** The current deployed-image target (`upgrade.ts`'s `resolveTargetSha`,
+	 *  cached in memory by the caller) — a function, not a fixed value, so
+	 *  every `runCompose` call sees whatever `/health` reported most
+	 *  recently, never a sha captured once at process start. `null` before
+	 *  the first successful resolution: `up()`/`start()` refuse to run
+	 *  compose against an undetermined target rather than pass an empty
+	 *  `WORKLOAD_IMAGE_TAG`. */
+	getTargetSha: () => string | null;
 }
 
 function resolveMintTenantKey(cfg: ProvisionerConfig): MintTenantKey {
@@ -235,11 +244,14 @@ function resolveCheckCreditsOk(cfg: ProvisionerConfig): CheckCreditsOk {
 	);
 }
 
-function tenantDir(cfg: ProvisionerConfig, acct8: string): string {
+/** Exported for `upgrade.ts`, which drives the same compose project from a
+ *  separate loop (the 5-minute rolling upgrade) and must resolve identical
+ *  paths/names — never its own copy that could drift from this one. */
+export function tenantDir(cfg: ProvisionerConfig, acct8: string): string {
 	return join(cfg.secretsRoot, acct8);
 }
 
-function projectName(acct8: string): string {
+export function projectName(acct8: string): string {
 	return `tenant-${acct8}`;
 }
 
@@ -253,6 +265,28 @@ function writeSecretsToDisk(
 	const path = join(dir, ".env");
 	writeFileSync(path, envFile, { mode: 0o600 });
 	chmodSync(path, 0o600);
+}
+
+/** Every compose call needs SOME `WORKLOAD_IMAGE_TAG` — the file interpolates
+ *  it up front, before acting on any subcommand (plan 064). Throws rather
+ *  than let compose fail with its own less legible "variable is not set"
+ *  error when no target has resolved yet. */
+function requireTargetSha(
+	cfg: ProvisionerConfig,
+	accountId: string,
+	op: string,
+): string {
+	const sha = cfg.getTargetSha();
+	if (!sha) {
+		logger.error("workload.provisioner.op_refused_no_target", {
+			accountId,
+			op,
+		});
+		throw new Error(
+			`refusing to ${op} tenant for ${accountId}: no resolved image target yet`,
+		);
+	}
+	return sha;
 }
 
 /**
@@ -288,6 +322,11 @@ export async function up(
 		}
 		return existing.state;
 	}
+
+	// Checked before the row insert (not just before the compose call) so an
+	// undetermined target never leaves behind a stuck `provisioning` row that
+	// would 503 this account forever (plan 064).
+	const targetSha = requireTargetSha(cfg, accountId, "provision");
 
 	const { inserted, apiPort } = await insertProvisioningTenant(
 		cfg.db,
@@ -327,7 +366,7 @@ export async function up(
 				"-d",
 				"--wait",
 			],
-			env,
+			{ ...env, WORKLOAD_IMAGE_TAG: targetSha },
 		);
 		if (result.code !== 0) {
 			logger.error("workload.provisioner.up_failed", {
@@ -340,12 +379,25 @@ export async function up(
 			);
 		}
 	} catch (err) {
-		await cleanupFailedProvision(cfg, runCompose, accountId, acct8, dir, err);
+		await cleanupFailedProvision(
+			cfg,
+			runCompose,
+			accountId,
+			acct8,
+			dir,
+			targetSha,
+			err,
+		);
 		throw err;
 	}
 
 	await setTenantState(cfg.db, accountId, "running");
-	logger.info("workload.provisioner.up", { accountId, acct8 });
+	await setTenantImageSha(cfg.db, accountId, targetSha);
+	logger.info("workload.provisioner.up", {
+		accountId,
+		acct8,
+		imageSha: targetSha,
+	});
 	return "running";
 }
 
@@ -362,6 +414,7 @@ async function cleanupFailedProvision(
 	accountId: string,
 	acct8: string,
 	dir: string,
+	targetSha: string,
 	originalErr: unknown,
 ): Promise<void> {
 	logger.error("workload.provisioner.up_failed_cleanup", {
@@ -382,7 +435,7 @@ async function cleanupFailedProvision(
 				"down",
 				"-v",
 			],
-			{},
+			{ WORKLOAD_IMAGE_TAG: targetSha },
 		);
 	} catch (cleanupErr) {
 		logger.warn("workload.provisioner.up_failed_cleanup_compose_down_error", {
@@ -405,6 +458,12 @@ export async function stop(
 	const runCompose = cfg.runCompose ?? spawnCompose;
 	const acct8 = acct8For(accountId);
 	const dir = tenantDir(cfg, acct8);
+	// `stop` doesn't change what's running, but compose still interpolates
+	// the WHOLE file (including the `api`/`webhook-service`/`migrate` image
+	// lines) before it can act on any service — a required var with nothing
+	// supplied fails parsing even for a subcommand that never touches the
+	// image (plan 064). Any resolvable value works here.
+	const workloadImageTag = requireTargetSha(cfg, accountId, "stop");
 	const result = await runCompose(
 		[
 			"-p",
@@ -418,7 +477,7 @@ export async function stop(
 			"webhook-service",
 			"migrate",
 		],
-		{},
+		{ WORKLOAD_IMAGE_TAG: workloadImageTag },
 	);
 	if (result.code !== 0) {
 		throw new Error(
@@ -438,6 +497,9 @@ export async function start(
 	const runCompose = cfg.runCompose ?? spawnCompose;
 	const acct8 = acct8For(accountId);
 	const dir = tenantDir(cfg, acct8);
+	// Stopped tenants upgrade lazily (plan 064, Design): every restart uses
+	// whatever's currently deployed, not whatever this tenant last ran.
+	const targetSha = requireTargetSha(cfg, accountId, "start");
 	const result = await runCompose(
 		[
 			"-p",
@@ -450,7 +512,7 @@ export async function start(
 			"-d",
 			"--wait",
 		],
-		{},
+		{ WORKLOAD_IMAGE_TAG: targetSha },
 	);
 	if (result.code !== 0) {
 		throw new Error(
@@ -458,7 +520,12 @@ export async function start(
 		);
 	}
 	await setTenantState(cfg.db, accountId, "running");
-	logger.info("workload.provisioner.start", { accountId, acct8 });
+	await setTenantImageSha(cfg.db, accountId, targetSha);
+	logger.info("workload.provisioner.start", {
+		accountId,
+		acct8,
+		imageSha: targetSha,
+	});
 }
 
 /** `any → destroyed`: final `pg_dump` to R2 (Open, decided 2026-09-24), then
@@ -472,6 +539,7 @@ export async function destroy(
 	const runCompose = cfg.runCompose ?? spawnCompose;
 	const acct8 = acct8For(accountId);
 	const dir = tenantDir(cfg, acct8);
+	const workloadImageTag = requireTargetSha(cfg, accountId, "destroy");
 	const result = await runCompose(
 		[
 			"-p",
@@ -483,7 +551,7 @@ export async function destroy(
 			"down",
 			"-v",
 		],
-		{},
+		{ WORKLOAD_IMAGE_TAG: workloadImageTag },
 	);
 	if (result.code !== 0) {
 		throw new Error(

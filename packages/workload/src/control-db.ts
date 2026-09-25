@@ -30,6 +30,12 @@ export interface TenantRow {
 	created_at: Date;
 	stopped_at: Date | null;
 	storage_cap_bytes: string | null;
+	/** The full 40-char sha of the `secondlayer-api` image this tenant's `api`/
+	 *  `webhook-service` last came up on (`upgrade.ts`'s `resolveTargetSha`
+	 *  reports the deployed target; `up()`/`start()`/`upgradeTenants` write
+	 *  the sha they actually started). `null` until the first `up()`/`start()`
+	 *  after this column existed. */
+	image_sha: string | null;
 }
 
 /** First 8 hex chars of the account id with non-hex characters stripped —
@@ -105,6 +111,10 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 		DEFAULT nextval('tenant_api_port_seq')
 	`;
 	await db`ALTER TABLE tenants ALTER COLUMN api_port SET NOT NULL`;
+	// Upgrade path for a `tenants` table created before auto-upgrade tracked
+	// what each tenant runs (plan 064) — same idempotent-column pattern as
+	// `api_port` above.
+	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS image_sha TEXT`;
 }
 
 export async function getTenant(
@@ -158,6 +168,17 @@ export async function setTenantState(
 		return;
 	}
 	await db`UPDATE tenants SET state = ${state}, stopped_at = NULL WHERE account_id = ${accountId}`;
+}
+
+/** Records the sha of the image a tenant's `api`/`webhook-service` just came
+ *  up on (`up()`, `start()`, `upgradeTenants` in `upgrade.ts`) — read back by
+ *  `upgradeTenants` to decide which `running` tenants are stale. */
+export async function setTenantImageSha(
+	db: postgres.Sql,
+	accountId: string,
+	imageSha: string,
+): Promise<void> {
+	await db`UPDATE tenants SET image_sha = ${imageSha} WHERE account_id = ${accountId}`;
 }
 
 export async function deleteTenant(
