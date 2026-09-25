@@ -9,6 +9,7 @@ import {
 	flushAll,
 	flushMeterBatch,
 	memoryIdempotencyKey,
+	mergePending,
 	parseDockerStatsMemUsageBytes,
 	parseMemUsageToBytes,
 	parsePgDatabaseSizeOutput,
@@ -181,7 +182,13 @@ describe("flushAll", () => {
 	test("pages items at maxBatch and keeps going after one page fails", async () => {
 		const calls: number[] = [];
 		let failNext = true;
-		await flushAll(
+		const allItems = Array.from({ length: 5 }, (_, i) => ({
+			accountId: "acct_1",
+			unit: "webhook.event" as const,
+			quantity: 1,
+			idempotencyKey: `k${i}`,
+		}));
+		const failed = await flushAll(
 			{
 				appServerUrl: "https://api.secondlayer.tools",
 				workloadHostKey: "wh-key",
@@ -195,7 +202,21 @@ describe("flushAll", () => {
 					return new Response("{}", { status: 200 });
 				},
 			},
-			Array.from({ length: 5 }, (_, i) => ({
+			allItems,
+			2,
+		);
+		expect(calls).toEqual([2, 2, 1]); // 3 pages of size 2,2,1; all attempted despite the first failing
+		expect(failed).toEqual(allItems.slice(0, 2)); // exactly the first (failed) page, returned unchanged
+	});
+
+	test("returns an empty array when every page sends successfully", async () => {
+		const failed = await flushAll(
+			{
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				fetchImpl: async () => new Response("{}", { status: 200 }),
+			},
+			Array.from({ length: 4 }, (_, i) => ({
 				accountId: "acct_1",
 				unit: "webhook.event" as const,
 				quantity: 1,
@@ -203,7 +224,81 @@ describe("flushAll", () => {
 			})),
 			2,
 		);
-		expect(calls).toEqual([2, 2, 1]); // 3 pages of size 2,2,1; all attempted despite the first failing
+		expect(failed).toEqual([]);
+	});
+});
+
+describe("mergePending", () => {
+	test("orders pending (retried) items ahead of freshly-sampled ones", () => {
+		const pending = [
+			{
+				accountId: "acct_1",
+				unit: "webhook.event" as const,
+				quantity: 1,
+				idempotencyKey: "evt:acct_1:2026-09-25T14:37",
+			},
+		];
+		const fresh = [
+			{
+				accountId: "acct_1",
+				unit: "webhook.event" as const,
+				quantity: 1,
+				idempotencyKey: "evt:acct_1:2026-09-25T14:38",
+			},
+		];
+		const { items, droppedCount } = mergePending(pending, fresh, 10);
+		expect(items).toEqual([...pending, ...fresh]);
+		expect(droppedCount).toBe(0);
+	});
+
+	test("a retried item keeps its original idempotency key across ticks, even though a fresh sample in a different minute gets a different key", () => {
+		const retried = {
+			accountId: "acct_1",
+			unit: "webhook.event" as const,
+			quantity: 3,
+			idempotencyKey: "evt:acct_1:2026-09-25T14:37",
+		};
+		const freshSameAccount = {
+			accountId: "acct_1",
+			unit: "webhook.event" as const,
+			quantity: 5,
+			idempotencyKey: "evt:acct_1:2026-09-25T14:38",
+		};
+		const { items } = mergePending([retried], [freshSameAccount], 10);
+		expect(items[0]).toBe(retried); // same object, not rebuilt — key untouched
+		expect(items[0]?.idempotencyKey).toBe("evt:acct_1:2026-09-25T14:37");
+		expect(items[1]?.idempotencyKey).toBe("evt:acct_1:2026-09-25T14:38");
+	});
+
+	test("over the cap, drops the OLDEST items and reports how many", () => {
+		const pending = Array.from({ length: 3 }, (_, i) => ({
+			accountId: "acct_1",
+			unit: "webhook.event" as const,
+			quantity: 1,
+			idempotencyKey: `old${i}`,
+		}));
+		const fresh = Array.from({ length: 4 }, (_, i) => ({
+			accountId: "acct_1",
+			unit: "webhook.event" as const,
+			quantity: 1,
+			idempotencyKey: `new${i}`,
+		}));
+		const { items, droppedCount } = mergePending(pending, fresh, 5);
+		expect(droppedCount).toBe(2);
+		// the 2 oldest pending items are gone; everything else survives in order
+		expect(items.map((i) => i.idempotencyKey)).toEqual([
+			"old2",
+			"new0",
+			"new1",
+			"new2",
+			"new3",
+		]);
+	});
+
+	test("under the cap, nothing is dropped", () => {
+		const { items, droppedCount } = mergePending([], [], 10);
+		expect(items).toEqual([]);
+		expect(droppedCount).toBe(0);
 	});
 });
 

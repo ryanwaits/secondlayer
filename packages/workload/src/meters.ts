@@ -310,13 +310,15 @@ export async function sampleTenantDatabaseBytes(
 }
 
 /** Batches `items` at `MAX_METER_BATCH` (`/internal/meters`'s own cap) and
- *  flushes each page; a failed page is logged and left for the next tick
- *  rather than losing the whole run over one bad page. */
+ *  flushes each page; a failed page is logged and its items are returned so
+ *  the caller can resend them (unchanged — same idempotency keys) on a later
+ *  tick, rather than losing the whole run over one bad page. */
 export async function flushAll(
 	cfg: MetersClientConfig,
 	items: MeterBatchItem[],
 	maxBatch: number,
-): Promise<void> {
+): Promise<MeterBatchItem[]> {
+	const failed: MeterBatchItem[] = [];
 	for (let i = 0; i < items.length; i += maxBatch) {
 		const page = items.slice(i, i + maxBatch);
 		try {
@@ -326,6 +328,32 @@ export async function flushAll(
 				count: page.length,
 				error: err instanceof Error ? err.message : String(err),
 			});
+			failed.push(...page);
 		}
 	}
+	return failed;
+}
+
+/** Default cap for a caller's retry buffer (see `mergePending`) — generous
+ *  enough to ride out a long app-server deploy without ever growing memory
+ *  unbounded. */
+export const DEFAULT_PENDING_CAP = 10_000;
+
+/**
+ * Combines a caller's unsent `pending` items (returned by a previous
+ * `flushAll` failure) ahead of freshly-sampled `fresh` ones, then caps the
+ * result at `cap` by dropping the OLDEST items — never the newest, and never
+ * rebuilding an item, so a retried item keeps its original idempotency key
+ * across ticks (two `evt:` samples a minute apart get different keys; a
+ * retry of the first must not silently become the second's).
+ */
+export function mergePending(
+	pending: MeterBatchItem[],
+	fresh: MeterBatchItem[],
+	cap: number = DEFAULT_PENDING_CAP,
+): { items: MeterBatchItem[]; droppedCount: number } {
+	const merged = [...pending, ...fresh];
+	if (merged.length <= cap) return { items: merged, droppedCount: 0 };
+	const droppedCount = merged.length - cap;
+	return { items: merged.slice(droppedCount), droppedCount };
 }

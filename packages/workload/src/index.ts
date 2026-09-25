@@ -36,10 +36,12 @@ import {
 import { handleGatewayRequest } from "./gateway.ts";
 import { IntrospectClient } from "./introspect-client.ts";
 import {
+	DEFAULT_PENDING_CAP,
 	EventCounter,
 	type MeterBatchItem,
 	eventsMeterItem,
 	flushAll,
+	mergePending,
 	sampleMemoryGbHour,
 	sampleStorageGbDay,
 	sampleTenantDatabaseBytes,
@@ -182,14 +184,33 @@ async function main(): Promise<void> {
 	});
 
 	// Event meter flush (step 5): drains each tenant's in-memory delivered
-	// count every 60s.
+	// count every 60s. A failed flush's items come back from `flushAll` and
+	// are resent (unchanged — same idempotency keys) ahead of the next
+	// tick's fresh items, so an app-server outage delays a batch instead of
+	// losing it.
+	let eventPending: MeterBatchItem[] = [];
 	const eventFlushLoop = setInterval(async () => {
-		const items: MeterBatchItem[] = [];
+		const fresh: MeterBatchItem[] = [];
 		for (const [accountId, counter] of eventCounters) {
 			const item = eventsMeterItem(accountId, counter.drain());
-			if (item) items.push(item);
+			if (item) fresh.push(item);
 		}
-		await flushAll({ appServerUrl, workloadHostKey }, items, MAX_METER_BATCH);
+		const { items, droppedCount } = mergePending(
+			eventPending,
+			fresh,
+			DEFAULT_PENDING_CAP,
+		);
+		if (droppedCount > 0) {
+			logger.error("workload.meters.pending_overflow", {
+				loop: "events",
+				droppedCount,
+			});
+		}
+		eventPending = await flushAll(
+			{ appServerUrl, workloadHostKey },
+			items,
+			MAX_METER_BATCH,
+		);
 	}, METER_FLUSH_INTERVAL_MS);
 
 	// Memory meter (review fix 4): sample every 60s, accumulate GB-hours per
@@ -228,12 +249,13 @@ async function main(): Promise<void> {
 		}
 	}, MEMORY_SAMPLE_INTERVAL_MS);
 
+	let memoryPending: MeterBatchItem[] = [];
 	const memoryFlushLoop = setInterval(async () => {
 		const now = new Date();
-		const items: MeterBatchItem[] = [];
+		const fresh: MeterBatchItem[] = [];
 		for (const [accountId, gbHours] of memoryAccumulatorGbHours) {
 			if (gbHours <= 0) continue;
-			items.push({
+			fresh.push({
 				accountId,
 				unit: "memory.gb_hour",
 				quantity: gbHours,
@@ -241,10 +263,26 @@ async function main(): Promise<void> {
 			});
 		}
 		memoryAccumulatorGbHours.clear();
-		await flushAll({ appServerUrl, workloadHostKey }, items, MAX_METER_BATCH);
+		const { items, droppedCount } = mergePending(
+			memoryPending,
+			fresh,
+			DEFAULT_PENDING_CAP,
+		);
+		if (droppedCount > 0) {
+			logger.error("workload.meters.pending_overflow", {
+				loop: "memory",
+				droppedCount,
+			});
+		}
+		memoryPending = await flushAll(
+			{ appServerUrl, workloadHostKey },
+			items,
+			MAX_METER_BATCH,
+		);
 	}, MEMORY_FLUSH_INTERVAL_MS);
 
 	// Storage meter (review fix 4): sample + flush daily.
+	let storagePending: MeterBatchItem[] = [];
 	const storageLoop = setInterval(async () => {
 		let running: TenantRow[];
 		try {
@@ -255,13 +293,13 @@ async function main(): Promise<void> {
 			});
 			return;
 		}
-		const items: MeterBatchItem[] = [];
+		const fresh: MeterBatchItem[] = [];
 		for (const tenant of running) {
 			try {
 				const item = await sampleStorageGbDay(tenant.account_id, (accountId) =>
 					sampleTenantDatabaseBytes(acct8For(accountId)),
 				);
-				items.push(item);
+				fresh.push(item);
 			} catch (err) {
 				logger.error("workload.meters.storage_sample_failed", {
 					accountId: tenant.account_id,
@@ -269,7 +307,22 @@ async function main(): Promise<void> {
 				});
 			}
 		}
-		await flushAll({ appServerUrl, workloadHostKey }, items, MAX_METER_BATCH);
+		const { items, droppedCount } = mergePending(
+			storagePending,
+			fresh,
+			DEFAULT_PENDING_CAP,
+		);
+		if (droppedCount > 0) {
+			logger.error("workload.meters.pending_overflow", {
+				loop: "storage",
+				droppedCount,
+			});
+		}
+		storagePending = await flushAll(
+			{ appServerUrl, workloadHostKey },
+			items,
+			MAX_METER_BATCH,
+		);
 	}, STORAGE_SAMPLE_INTERVAL_MS);
 
 	// Zero-balance / top-up poll (review fix 3a): running→stopped,
