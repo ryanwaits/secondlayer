@@ -2,6 +2,12 @@
 
 Check the signature, decode the body, and undo anything a reorg orphans.
 
+<Callout type="warning" title="Delivery semantics">
+
+Delivery is **at-least-once** and **unordered**: dedupe on `(tx_id, event_index, block_hash)` and don't assume arrival order matches chain order. On a reorg, `chain.reorg.rollback` covers everything that *may* have reached your endpoint, meaning any row the emitter claimed or attempted, not only one the server confirmed as delivered. A delivery whose response never made it back still counts as "may have arrived," so undo every entry the rollback lists.
+
+</Callout>
+
 ## Verify the signature
 
 On the default `standard-webhooks` format, every delivery carries a per-webhook HMAC. Pass the **raw body first**.
