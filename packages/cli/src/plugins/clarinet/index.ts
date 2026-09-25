@@ -6,9 +6,46 @@
 import { toCamelCase } from "@secondlayer/stacks/clarity";
 import { normalizeAbi } from "@secondlayer/stacks/clarity";
 import type { AbiContract } from "@secondlayer/stacks/clarity";
-import { initSimnet } from "@stacks/clarinet-sdk";
 import { DEFAULT_SENDER_ADDRESS } from "../../utils/constants";
 import { parseContractId } from "../../utils/contract-id";
+
+const CLARINET_SDK_INSTALL_HINT =
+	"This command needs @stacks/clarinet-sdk. Install it in your project: bun add -d @stacks/clarinet-sdk";
+
+/**
+ * True when `error` is Node/Bun's module-resolution failure for exactly
+ * `moduleName`, not some other missing module the resolver hit along the way.
+ */
+function isModuleNotFoundError(error: unknown, moduleName: string): boolean {
+	if (!(error instanceof Error)) return false;
+	const code = (error as NodeJS.ErrnoException).code;
+	if (code !== "MODULE_NOT_FOUND" && code !== "ERR_MODULE_NOT_FOUND") {
+		return false;
+	}
+	return error.message.includes(moduleName);
+}
+
+/**
+ * `@stacks/clarinet-sdk` is an optional peer dependency — most consumers of
+ * this CLI never touch Clarinet. Loading it lazily (rather than as a static
+ * import) keeps it out of dist's top-level module graph, so `secondlayer
+ * --version` and every other command work without it installed. Only a
+ * missing-module failure for this exact package is translated into an
+ * actionable message; anything else (a real error inside the SDK) is
+ * rethrown as-is.
+ */
+async function importClarinetSdk(): Promise<
+	typeof import("@stacks/clarinet-sdk")
+> {
+	try {
+		return await import("@stacks/clarinet-sdk");
+	} catch (error) {
+		if (isModuleNotFoundError(error, "@stacks/clarinet-sdk")) {
+			throw new Error(CLARINET_SDK_INSTALL_HINT);
+		}
+		throw error;
+	}
+}
 
 export interface ClarinetOptions {
 	/** Path to Clarinet.toml file */
@@ -157,6 +194,7 @@ export async function loadClarinetContracts(
 	const manifestPath = options.path || "./Clarinet.toml";
 
 	try {
+		const { initSimnet } = await importClarinetSdk();
 		const simnet = await initSimnet(manifestPath);
 		const contractInterfaces = simnet.getContractsInterfaces();
 		const contracts: ClarinetLoadedContract[] = [];
