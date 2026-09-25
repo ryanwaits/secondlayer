@@ -25,8 +25,16 @@ import {
  * loader + tip swap behind this seam.
  */
 export interface BlockSource {
-	/** Highest canonical block height available to process. */
-	getTip(): Promise<number>;
+	/**
+	 * Highest canonical block height available to process.
+	 *
+	 * `opts` is an HTTP-plane long-poll hint (plan-063 3.4/3.5), ignored by any
+	 * source with no such notion (the Postgres tap: a local DB read is already
+	 * instant, nothing to wait on). `knownHeight` is the last tip THIS caller
+	 * observed; passing `wait` without it is a no-op — the server needs a
+	 * baseline to decide whether anything has changed.
+	 */
+	getTip(opts?: { wait?: number; knownHeight?: number }): Promise<number>;
 	/** Canonical block data for [fromHeight, toHeight], keyed by height. */
 	loadBlockRange(
 		fromHeight: number,
@@ -248,13 +256,13 @@ export class PublicApiBlockSource implements BlockSource {
 		return found.length ? Math.min(...found) : null;
 	}
 
-	getTip(): Promise<number> {
+	getTip(opts?: { wait?: number; knownHeight?: number }): Promise<number> {
 		// VM rows land with ingest. Decoded Index tip can lag; use the source
 		// field when this loader fetches any vm type.
 		if (this.eventTypes.some((t) => VM_INDEX_EVENT_TYPES.has(t))) {
-			return this.http.getIndexSourceTip();
+			return this.http.getIndexSourceTip(opts);
 		}
-		return this.http.getIndexTip();
+		return this.http.getIndexTip(opts);
 	}
 
 	/** Reads the SAME envelope `getTip()` just cached on `this.http` — call
@@ -344,9 +352,12 @@ export class FallbackBlockSource implements BlockSource {
 		private readonly fallback: BlockSource,
 	) {}
 
-	async getTip(): Promise<number> {
+	async getTip(opts?: {
+		wait?: number;
+		knownHeight?: number;
+	}): Promise<number> {
 		try {
-			const tip = await this.primary.getTip();
+			const tip = await this.primary.getTip(opts);
 			this.lastTipFromPrimary = true;
 			return tip;
 		} catch (err) {
@@ -354,6 +365,8 @@ export class FallbackBlockSource implements BlockSource {
 				error: err instanceof Error ? err.message : String(err),
 			});
 			this.lastTipFromPrimary = false;
+			// The DB tap has no wait/long-poll notion — a plain read is already
+			// instant, so `opts` is dropped here rather than forwarded.
 			return this.fallback.getTip();
 		}
 	}
@@ -409,14 +422,20 @@ const postgresBlockSource = new PostgresBlockSource();
  * `chainSubsNeedTransactions(chainSubs)` so a tick with no contract_call/deploy
  * trigger skips `walkTransactions` entirely — one fewer HTTP round trip and a
  * smaller `walkEvents` payload (no `tx_context` join) on every such tick.
+ *
+ * `httpClient` defaults to a fresh client (unchanged behavior) — pass one in
+ * to reuse across calls. The evaluator's own long-lived loop does this so
+ * `IndexHttpClient.waitIsSupported()` (plan-063 3.5) reflects what THIS
+ * server actually supports instead of resetting every tick.
  */
 export function buildChainBlockSource(
 	eventTypes: string[],
 	needsTransactions = true,
+	httpClient: IndexHttpClient = buildHttpClient(),
 ): BlockSource {
 	return new FallbackBlockSource(
 		new PublicApiBlockSource(
-			buildHttpClient(),
+			httpClient,
 			eventTypes,
 			undefined,
 			needsTransactions,

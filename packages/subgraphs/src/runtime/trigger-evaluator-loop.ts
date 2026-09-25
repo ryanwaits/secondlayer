@@ -2,9 +2,10 @@ import { getErrorMessage } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db";
 import { getTargetDb } from "@secondlayer/shared/db";
 import { listActiveChainWebhooks } from "@secondlayer/shared/db/queries/webhooks";
+import type { IndexHttpClient } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
-import { buildChainBlockSource } from "./block-source.ts";
+import { buildChainBlockSource, buildHttpClient } from "./block-source.ts";
 import { boundSourceTip } from "./decoder-bound.ts";
 import {
 	blockTimeOf,
@@ -35,6 +36,10 @@ const CHAIN_SUB_WARN_THRESHOLD = 5000; // observability only — not a cap.
  */
 
 const POLL_MS = Number(process.env.TRIGGER_EVALUATOR_POLL_MS) || 5_000;
+// Long-poll budget for a tick that finds nothing new (plan-063 3.5) — a
+// caught-up evaluator holds its tip request open instead of sleeping POLL_MS
+// and re-asking. Kept under `MAX_INDEX_WAIT_SECONDS` (25) with headroom.
+const WAIT_SECONDS = Number(process.env.TRIGGER_EVALUATOR_WAIT_SECONDS) || 20;
 const BATCH = Number(process.env.TRIGGER_EVALUATOR_BATCH) || 200;
 // Bound work per tick so a large gap (e.g. after downtime) is caught up in
 // steps rather than one huge fetch.
@@ -111,14 +116,43 @@ export type EvaluatorTickResult = {
 	 *  use this to re-run immediately instead of waiting out the poll
 	 *  interval, so a backlog drains without idle gaps between ticks. */
 	advanced: boolean;
+	/** Raw (pre-decoder-bound) source tip observed this tick, or `null` when
+	 *  the tick bailed before fetching one (no chain webhooks matter here —
+	 *  it still fetches to feed sBTC settlement scanning's early returns).
+	 *  Fed back as the next tick's `knownTip` so a long-poll has a baseline
+	 *  to compare against (plan-063 3.5). */
+	rawTip: number | null;
+	/** True exactly when this tick found the cursor already at (or past) the
+	 *  bound tip — caught up, nothing to process. The next tick can safely
+	 *  long-poll instead of sleeping `POLL_MS` blind. False on every other
+	 *  return path (no chain data yet, a decoder stall, or a batch that still
+	 *  advanced the cursor) so a genuinely stuck evaluator keeps falling back
+	 *  to the plain timer instead of long-polling a condition `wait` cannot
+	 *  fix. */
+	idleAtTip: boolean;
 };
 
 export async function runEvaluatorOnce(
 	db: Kysely<Database> = getTargetDb(),
+	opts?: {
+		/** Long-poll the tip fetch this many seconds (clamped server-side to
+		 *  `MAX_INDEX_WAIT_SECONDS`) instead of returning immediately. Only
+		 *  useful together with `knownTip` — see `BlockSource.getTip`. */
+		waitSeconds?: number;
+		/** The raw tip THIS evaluator last observed — the baseline `waitSeconds`
+		 *  needs to know whether anything has changed. */
+		knownTip?: number;
+		/** Reused across ticks so `IndexHttpClient.waitIsSupported()` (plan-063
+		 *  3.5) reflects this server's real capability instead of resetting on
+		 *  every call. Defaults to a fresh client (unchanged behavior) when
+		 *  omitted — tests and one-off callers don't need to care. */
+		httpClient?: IndexHttpClient;
+	},
 ): Promise<EvaluatorTickResult> {
 	const tickStart = Date.now();
 	let emitted = 0;
 	let advanced = false;
+	let idleAtTip = false;
 	let rawTip: number | null = null;
 	let boundTip: number | null = null;
 	let cursorBefore: number | null = null;
@@ -140,6 +174,7 @@ export async function runEvaluatorOnce(
 		const source = buildChainBlockSource(
 			referencedEventTypes(chainSubs),
 			chainSubsNeedTransactions(chainSubs),
+			opts?.httpClient,
 		);
 		// sBTC settlement webhooks fire on Bitcoin confirmations, async to Stacks
 		// blocks — scan every tick on their own cursor, independent of (and before)
@@ -148,11 +183,11 @@ export async function runEvaluatorOnce(
 		// instead of stacking the DB scan in front of the network hop.
 		const [settlementEmitted, tip0] = await Promise.all([
 			emitSbtcSettlementOutbox(db, chainSubs),
-			source.getTip(),
+			source.getTip({ wait: opts?.waitSeconds, knownHeight: opts?.knownTip }),
 		]);
 		emitted = settlementEmitted;
 		rawTip = tip0;
-		if (rawTip <= 0) return { emitted, advanced };
+		if (rawTip <= 0) return { emitted, advanced, rawTip, idleAtTip };
 
 		const bound = await boundSourceTip(
 			rawTip,
@@ -171,7 +206,7 @@ export async function runEvaluatorOnce(
 				event: "chain_evaluator_decoder_stall",
 				missing: bound.missing,
 			});
-			return { emitted, advanced };
+			return { emitted, advanced, rawTip, idleAtTip };
 		}
 		if (bound.floor !== null && bound.floor < rawTip) {
 			logger.debug("Chain evaluator tip bounded by decoder progress", {
@@ -195,9 +230,12 @@ export async function runEvaluatorOnce(
 				cursorAfter = tip;
 				advanced = true;
 			}
-			return { emitted, advanced };
+			return { emitted, advanced, rawTip, idleAtTip };
 		}
-		if (cursor >= tip) return { emitted, advanced };
+		if (cursor >= tip) {
+			idleAtTip = true;
+			return { emitted, advanced, rawTip, idleAtTip };
+		}
 
 		const { sources, keyMeta } = buildSourcesMap(chainSubs);
 		const target = Math.min(tip, cursor + MAX_BLOCKS_PER_TICK);
@@ -236,7 +274,7 @@ export async function runEvaluatorOnce(
 			}
 			if (res.reorged) break;
 		}
-		return { emitted, advanced };
+		return { emitted, advanced, rawTip, idleAtTip };
 	} finally {
 		// Measurement-only: one info log per tick so Gate 1's per-hop latency
 		// numbers (raw tip → bound tip → cursor advance → emit) can be pulled
@@ -266,17 +304,65 @@ export function nextTickDelayMs(advanced: boolean, pollMs: number): number {
 	return advanced ? 0 : pollMs;
 }
 
+/**
+ * Should the tick about to run ask the server to hold its tip request
+ * (long-poll) instead of returning immediately? True only when the PREVIOUS
+ * tick found nothing to do at the tip (`idleAtTip`) AND the server is still
+ * known to support `wait` — an older server already forced a plain answer
+ * (see `IndexHttpClient.waitIsSupported`), so a stalled wait capability
+ * degrades back to plain polling exactly like never having it.
+ */
+export function shouldWaitThisTick(
+	previousIdleAtTip: boolean,
+	waitSupported: boolean,
+): boolean {
+	return previousIdleAtTip && waitSupported;
+}
+
+/**
+ * Delay before scheduling the NEXT tick. A tick that itself long-polled
+ * already spent its waiting time inside the call — re-arm immediately (0ms)
+ * so a caught-up evaluator keeps one continuous long-poll going instead of
+ * ALSO sleeping `pollMs` on top of it. A tick that did NOT wait keeps the
+ * original timer-based pacing (`nextTickDelayMs`).
+ */
+export function delayAfterTick(
+	usedWait: boolean,
+	advanced: boolean,
+	pollMs: number,
+): number {
+	return usedWait ? 0 : nextTickDelayMs(advanced, pollMs);
+}
+
 /** Start the evaluator timer loop. Returns a stop function. */
 export function startTriggerEvaluator(): () => void {
 	let running = true;
 	let timer: ReturnType<typeof setTimeout> | undefined;
+	// One client for the whole loop's life (not per tick) so
+	// `IndexHttpClient.waitIsSupported()` reflects a real, sticky answer —
+	// see `waitOnNextCall` below.
+	const httpClient = buildHttpClient();
+	// Set once the PREVIOUS tick found nothing to do at the tip: the NEXT tick
+	// long-polls instead of sleeping POLL_MS blind and re-asking.
+	let waitOnNextCall = false;
+	let knownTip: number | undefined;
 
 	const tick = async (): Promise<void> => {
 		if (!running) return;
 		let advanced = false;
+		const usedWait = shouldWaitThisTick(
+			waitOnNextCall,
+			httpClient.waitIsSupported(),
+		);
 		try {
-			const result = await runEvaluatorOnce();
+			const result = await runEvaluatorOnce(undefined, {
+				httpClient,
+				waitSeconds: usedWait ? WAIT_SECONDS : undefined,
+				knownTip: usedWait ? knownTip : undefined,
+			});
 			advanced = result.advanced;
+			if (result.rawTip !== null) knownTip = result.rawTip;
+			waitOnNextCall = result.idleAtTip;
 			if (result.emitted > 0) {
 				logger.info("Trigger evaluator emitted chain deliveries", {
 					count: result.emitted,
@@ -287,11 +373,15 @@ export function startTriggerEvaluator(): () => void {
 				error: getErrorMessage(err),
 			});
 		}
-		if (running) timer = setTimeout(tick, nextTickDelayMs(advanced, POLL_MS));
+		if (running)
+			timer = setTimeout(tick, delayAfterTick(usedWait, advanced, POLL_MS));
 	};
 
 	timer = setTimeout(tick, POLL_MS);
-	logger.info("Trigger evaluator started", { pollMs: POLL_MS });
+	logger.info("Trigger evaluator started", {
+		pollMs: POLL_MS,
+		waitSeconds: WAIT_SECONDS,
+	});
 	return () => {
 		running = false;
 		if (timer) clearTimeout(timer);

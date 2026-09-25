@@ -3,8 +3,10 @@ import { getDb } from "@secondlayer/shared/db";
 import { handleChainReorg } from "./chain-reorg.ts";
 import {
 	advanceCursor,
+	delayAfterTick,
 	getChainReorgGeneration,
 	nextTickDelayMs,
+	shouldWaitThisTick,
 } from "./trigger-evaluator-loop.ts";
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
@@ -82,5 +84,31 @@ describe("nextTickDelayMs", () => {
 
 	it("falls back to the poll interval when the tick made no progress", () => {
 		expect(nextTickDelayMs(false, 5_000)).toBe(5_000);
+	});
+});
+
+describe("shouldWaitThisTick", () => {
+	it("waits only when the previous tick was idle at the tip AND the server still supports wait", () => {
+		expect(shouldWaitThisTick(true, true)).toBe(true);
+	});
+
+	it("never waits after a tick that found work to do — waiting would delay real progress", () => {
+		expect(shouldWaitThisTick(false, true)).toBe(false);
+	});
+
+	it("never waits once the server has been found not to support it, even if idle", () => {
+		expect(shouldWaitThisTick(true, false)).toBe(false);
+	});
+});
+
+describe("delayAfterTick", () => {
+	it("re-arms immediately after a tick that long-polled — it already spent its wait inside the call", () => {
+		expect(delayAfterTick(true, false, 5_000)).toBe(0);
+		expect(delayAfterTick(true, true, 5_000)).toBe(0);
+	});
+
+	it("falls back to nextTickDelayMs's rule when the tick did not wait", () => {
+		expect(delayAfterTick(false, true, 5_000)).toBe(0);
+		expect(delayAfterTick(false, false, 5_000)).toBe(5_000);
 	});
 });
