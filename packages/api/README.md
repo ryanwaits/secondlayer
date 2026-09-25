@@ -127,9 +127,10 @@ GET /v1/subgraphs/:name/schema.json
 GET /v1/subgraphs/:name/docs.md
 ```
 
-Row routes return `{ rows, next_cursor, tip }` with `_id` keyset pagination —
-pass `?cursor=<next_cursor>` to resume, `_order=asc|desc` for direction
-(`_offset`/`_sort` rejected with 400).
+Row routes return `{ rows, next_cursor, tip }` with `_id` keyset pagination by
+default, or one column via `?_sort=<column>&_order=asc|desc` — pass
+`?cursor=<next_cursor>` to resume (`_offset` rejected with 400; a
+multi-column `_sort` or a `jsonb` column too).
 
 Management stays on `/api/subgraphs`. Writes send `INSTANCE_TOKEN` as the
 bearer, loopback included:
@@ -151,13 +152,10 @@ GET    /api/subgraphs/:name/violations # print payloads that failed validation
 GET    /api/subgraphs/:name/openapi.json # generated OpenAPI 3.1 spec
 GET    /api/subgraphs/:name/schema.json  # compact agent schema
 GET    /api/subgraphs/:name/docs.md      # generated Markdown reference
-GET    /api/subgraphs/:name/:table   # query table
-GET    /api/subgraphs/:name/:table/count
-GET    /api/subgraphs/:name/:table/aggregate
 ```
 
-Single-row and SSE stream reads live only on `/v1/subgraphs`. Table list routes
-return `{ data, meta }`. Count routes return `{ count }`.
+Table rows, single-row, count, aggregate and SSE stream reads live only on
+`/v1/subgraphs` above — `/api/subgraphs` no longer serves table data.
 
 ### Generated subgraph API specs
 

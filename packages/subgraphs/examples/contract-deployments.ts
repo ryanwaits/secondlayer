@@ -7,8 +7,8 @@ import { defineSubgraph } from "../src/define.ts";
  *   sl subgraphs deploy contract-deployments
  *
  * Query examples:
- *   GET /api/subgraphs/contract-deployments/contracts?_search=bns
- *   GET /api/subgraphs/contract-deployments/contracts?deployer=SP000000000000000000002Q6VF78
+ *   GET /v1/subgraphs/contract-deployments/contracts?_search=bns
+ *   GET /v1/subgraphs/contract-deployments/contracts?deployer=SP000000000000000000002Q6VF78
  */
 export default defineSubgraph({
 	name: "contract-deployments",

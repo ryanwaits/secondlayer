@@ -216,7 +216,7 @@ export interface SubgraphQueryParams {
 }
 
 /**
- * Request shape for `GET /api/subgraphs/:subgraphName/:tableName/aggregate`.
+ * Request shape for `GET /v1/subgraphs/:subgraphName/:tableName/aggregate`.
  * `filters` reuses the list/count where-surface; the rest name the columns to
  * aggregate. SUM/MIN/MAX columns must be numeric (uint/int, plus `_block_height`).
  */
