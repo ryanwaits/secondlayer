@@ -246,178 +246,47 @@ describe("decoderBoundTip (remote index status)", () => {
 		else process.env.SUBGRAPH_INDEX_API_URL = prevUrl;
 	});
 
-	test("all referenced decoders present: floor is min(checkpoint) - 1", async () => {
+	test("remote mode trusts the block source's own tip — no /public/status poll", async () => {
 		setRemoteEnv();
 		try {
-			const statusLoader = async () => [
-				{ decoder: "decode.print.v1", checkpointBlockHeight: 8_864_633 },
-				{ decoder: "decode.ft_transfer.v1", checkpointBlockHeight: 8_864_861 },
-			];
+			// The Index API now enforces the committed-height rule server-side (the
+			// tip in every envelope is already decoder-safe), so remote mode no
+			// longer needs a second request to bound its own reads.
 			await expect(
-				decoderBoundTip(["decode.print.v1", "decode.ft_transfer.v1"], {
-					statusLoader,
-				}),
-			).resolves.toEqual({ kind: "height", height: 8_864_632 });
+				decoderBoundTip(["decode.print.v1", "decode.ft_transfer.v1"]),
+			).resolves.toEqual({ kind: "unbounded" });
 		} finally {
 			delete process.env.SUBGRAPH_SOURCE;
 			delete process.env.SUBGRAPH_INDEX_API_URL;
 		}
 	});
 
-	test("committedBlockHeight, when sent, is used directly (no extra -1)", async () => {
+	test("remote mode never touches sourceDb even when one is passed", async () => {
 		setRemoteEnv();
 		try {
-			const statusLoader = async () => [
-				{
-					decoder: "decode.print.v1",
-					checkpointBlockHeight: 8_864_633,
-					committedBlockHeight: 8_864_633,
-				},
-				{
-					decoder: "decode.ft_transfer.v1",
-					checkpointBlockHeight: 8_864_862,
-					committedBlockHeight: 8_864_861,
-				},
-			];
-			await expect(
-				decoderBoundTip(["decode.print.v1", "decode.ft_transfer.v1"], {
-					statusLoader,
-				}),
-			).resolves.toEqual({ kind: "height", height: 8_864_633 });
-		} finally {
-			delete process.env.SUBGRAPH_SOURCE;
-			delete process.env.SUBGRAPH_INDEX_API_URL;
-		}
-	});
-
-	test("a null committedBlockHeight (sent, but no checkpoint) stalls", async () => {
-		setRemoteEnv();
-		try {
-			const statusLoader = async () => [
-				{
-					decoder: "decode.print.v1",
-					checkpointBlockHeight: null,
-					committedBlockHeight: null,
-				},
-			];
-			await expect(
-				decoderBoundTip(["decode.print.v1"], { statusLoader }),
-			).resolves.toEqual({ kind: "stall", missing: ["decode.print.v1"] });
-		} finally {
-			delete process.env.SUBGRAPH_SOURCE;
-			delete process.env.SUBGRAPH_INDEX_API_URL;
-		}
-	});
-
-	test("an older server that omits committedBlockHeight falls back to checkpointBlockHeight - 1", async () => {
-		setRemoteEnv();
-		try {
-			const statusLoader = async () => [
-				{ decoder: "decode.print.v1", checkpointBlockHeight: 500 },
-			];
-			await expect(
-				decoderBoundTip(["decode.print.v1"], { statusLoader }),
-			).resolves.toEqual({ kind: "height", height: 499 });
-		} finally {
-			delete process.env.SUBGRAPH_SOURCE;
-			delete process.env.SUBGRAPH_INDEX_API_URL;
-		}
-	});
-
-	test("a referenced decoder absent from status stalls with that name", async () => {
-		setRemoteEnv();
-		try {
-			const statusLoader = async () => [
-				{ decoder: "decode.ft_transfer.v1", checkpointBlockHeight: 100 },
-			];
-			await expect(
-				decoderBoundTip(["decode.print.v1", "decode.ft_transfer.v1"], {
-					statusLoader,
-				}),
-			).resolves.toEqual({ kind: "stall", missing: ["decode.print.v1"] });
-		} finally {
-			delete process.env.SUBGRAPH_SOURCE;
-			delete process.env.SUBGRAPH_INDEX_API_URL;
-		}
-	});
-
-	test("a null checkpointBlockHeight stalls", async () => {
-		setRemoteEnv();
-		try {
-			const statusLoader = async () => [
-				{ decoder: "decode.print.v1", checkpointBlockHeight: null },
-			];
-			await expect(
-				decoderBoundTip(["decode.print.v1"], { statusLoader }),
-			).resolves.toEqual({ kind: "stall", missing: ["decode.print.v1"] });
-		} finally {
-			delete process.env.SUBGRAPH_SOURCE;
-			delete process.env.SUBGRAPH_INDEX_API_URL;
-		}
-	});
-
-	test("unreferenced decoders in the status response are ignored", async () => {
-		setRemoteEnv();
-		try {
-			const statusLoader = async () => [
-				{ decoder: "decode.print.v1", checkpointBlockHeight: 500 },
-				{ decoder: "decode.pox4.v1", checkpointBlockHeight: null },
-			];
-			await expect(
-				decoderBoundTip(["decode.print.v1"], { statusLoader }),
-			).resolves.toEqual({ kind: "height", height: 499 });
-		} finally {
-			delete process.env.SUBGRAPH_SOURCE;
-			delete process.env.SUBGRAPH_INDEX_API_URL;
-		}
-	});
-
-	test("status endpoint failure stalls rather than falling through to unbounded", async () => {
-		setRemoteEnv();
-		try {
-			const statusLoader = async (): Promise<never> => {
-				throw new Error("GET /public/status → 500 boom");
+			const fake = fakeSourceDb({});
+			const spy = fake.db as unknown as { selectFrom: () => never };
+			spy.selectFrom = () => {
+				throw new Error("remote mode must not query decoder_checkpoints");
 			};
 			await expect(
-				decoderBoundTip(["decode.print.v1"], { statusLoader }),
-			).resolves.toEqual({ kind: "stall", missing: ["decode.print.v1"] });
+				decoderBoundTip(["decode.print.v1"], { sourceDb: fake.db }),
+			).resolves.toEqual({ kind: "unbounded" });
 		} finally {
 			delete process.env.SUBGRAPH_SOURCE;
 			delete process.env.SUBGRAPH_INDEX_API_URL;
 		}
 	});
 
-	test("network error also stalls, never unbounded", async () => {
-		setRemoteEnv();
-		try {
-			const statusLoader = async (): Promise<never> => {
-				throw new TypeError("fetch failed");
-			};
-			const result = await decoderBoundTip(["decode.print.v1"], {
-				statusLoader,
-			});
-			expect(result.kind).toBe("stall");
-		} finally {
-			delete process.env.SUBGRAPH_SOURCE;
-			delete process.env.SUBGRAPH_INDEX_API_URL;
-		}
-	});
-
-	test("local mode (no SUBGRAPH_INDEX_API_URL) still reads Postgres, ignoring statusLoader", async () => {
+	test("local mode (no SUBGRAPH_INDEX_API_URL) still reads Postgres", async () => {
 		process.env.SUBGRAPH_SOURCE = "streams-index";
 		delete process.env.SUBGRAPH_INDEX_API_URL;
 		try {
 			const fake = fakeSourceDb({
 				"decode.print.v1": `100:${EMPTY_RANGE_EVENT_INDEX_SENTINEL}`,
 			});
-			const statusLoader = async (): Promise<never> => {
-				throw new Error("statusLoader must not be called in local mode");
-			};
 			await expect(
-				decoderBoundTip(["decode.print.v1"], {
-					sourceDb: fake.db,
-					statusLoader,
-				}),
+				decoderBoundTip(["decode.print.v1"], { sourceDb: fake.db }),
 			).resolves.toEqual({ kind: "height", height: 100 });
 		} finally {
 			delete process.env.SUBGRAPH_SOURCE;
@@ -439,7 +308,6 @@ describe("decoderBoundTip (remote index status)", () => {
 		}
 	});
 });
-
 describe("boundSourceTip", () => {
 	test("min of raw tip and decoder floor", async () => {
 		const fake = fakeSourceDb({

@@ -10,6 +10,7 @@ import {
 	blockTimeOf,
 	buildSourcesMap,
 	buildTraitContracts,
+	chainSubsNeedTransactions,
 	emitChainOutbox,
 	emitSbtcOutbox,
 	emitSbtcSettlementOutbox,
@@ -104,11 +105,20 @@ export async function advanceCursor(
  * webhooks and emit matches. Returns the number of outbox rows written.
  * Extracted from the timer loop for testing.
  */
+export type EvaluatorTickResult = {
+	emitted: number;
+	/** True when this tick advanced the cursor at least once — a caller can
+	 *  use this to re-run immediately instead of waiting out the poll
+	 *  interval, so a backlog drains without idle gaps between ticks. */
+	advanced: boolean;
+};
+
 export async function runEvaluatorOnce(
 	db: Kysely<Database> = getTargetDb(),
-): Promise<number> {
+): Promise<EvaluatorTickResult> {
 	const tickStart = Date.now();
 	let emitted = 0;
+	let advanced = false;
 	let rawTip: number | null = null;
 	let boundTip: number | null = null;
 	let cursorBefore: number | null = null;
@@ -127,14 +137,22 @@ export async function runEvaluatorOnce(
 			});
 		}
 
+		const source = buildChainBlockSource(
+			referencedEventTypes(chainSubs),
+			chainSubsNeedTransactions(chainSubs),
+		);
 		// sBTC settlement webhooks fire on Bitcoin confirmations, async to Stacks
 		// blocks — scan every tick on their own cursor, independent of (and before)
-		// the block-cursor early returns below.
-		emitted = await emitSbtcSettlementOutbox(db, chainSubs);
-
-		const source = buildChainBlockSource(referencedEventTypes(chainSubs));
-		rawTip = await source.getTip();
-		if (rawTip <= 0) return emitted;
+		// the block-cursor early returns below. It touches only local DB state, so
+		// it's independent of the tip's HTTP round trip — run them concurrently
+		// instead of stacking the DB scan in front of the network hop.
+		const [settlementEmitted, tip0] = await Promise.all([
+			emitSbtcSettlementOutbox(db, chainSubs),
+			source.getTip(),
+		]);
+		emitted = settlementEmitted;
+		rawTip = tip0;
+		if (rawTip <= 0) return { emitted, advanced };
 
 		const bound = await boundSourceTip(
 			rawTip,
@@ -145,7 +163,7 @@ export async function runEvaluatorOnce(
 				event: "chain_evaluator_decoder_stall",
 				missing: bound.missing,
 			});
-			return emitted;
+			return { emitted, advanced };
 		}
 		if (bound.floor !== null && bound.floor < rawTip) {
 			logger.debug("Chain evaluator tip bounded by decoder progress", {
@@ -165,10 +183,13 @@ export async function runEvaluatorOnce(
 		// nothing backfills history.
 		if (cursor === 0 || chainSubs.length === 0) {
 			const res = await advanceCursor(db, tip, generation);
-			if (res.advanced) cursorAfter = tip;
-			return emitted;
+			if (res.advanced) {
+				cursorAfter = tip;
+				advanced = true;
+			}
+			return { emitted, advanced };
 		}
-		if (cursor >= tip) return emitted;
+		if (cursor >= tip) return { emitted, advanced };
 
 		const { sources, keyMeta } = buildSourcesMap(chainSubs);
 		const target = Math.min(tip, cursor + MAX_BLOCKS_PER_TICK);
@@ -201,10 +222,13 @@ export async function runEvaluatorOnce(
 				);
 			}
 			const res = await advanceCursor(db, to, generation);
-			if (res.advanced) cursorAfter = to;
+			if (res.advanced) {
+				cursorAfter = to;
+				advanced = true;
+			}
 			if (res.reorged) break;
 		}
-		return emitted;
+		return { emitted, advanced };
 	} finally {
 		// Measurement-only: one info log per tick so Gate 1's per-hop latency
 		// numbers (raw tip → bound tip → cursor advance → emit) can be pulled
@@ -221,6 +245,19 @@ export async function runEvaluatorOnce(
 	}
 }
 
+/**
+ * Delay before the next tick. No overlap: the next tick is armed only once
+ * this one fully finishes — this just decides how long to wait first. A tick
+ * that advanced the cursor means there was a backlog to drain — re-arm
+ * immediately (0ms) instead of waiting out the poll interval, so catching up
+ * after downtime (or just a slow block) doesn't pay a poll-interval gap
+ * between every batch. A tick that made no progress (idle, or stalled on a
+ * missing decoder) falls back to the poll timer as before.
+ */
+export function nextTickDelayMs(advanced: boolean, pollMs: number): number {
+	return advanced ? 0 : pollMs;
+}
+
 /** Start the evaluator timer loop. Returns a stop function. */
 export function startTriggerEvaluator(): () => void {
 	let running = true;
@@ -228,11 +265,13 @@ export function startTriggerEvaluator(): () => void {
 
 	const tick = async (): Promise<void> => {
 		if (!running) return;
+		let advanced = false;
 		try {
-			const emitted = await runEvaluatorOnce();
-			if (emitted > 0) {
+			const result = await runEvaluatorOnce();
+			advanced = result.advanced;
+			if (result.emitted > 0) {
 				logger.info("Trigger evaluator emitted chain deliveries", {
-					count: emitted,
+					count: result.emitted,
 				});
 			}
 		} catch (err) {
@@ -240,7 +279,7 @@ export function startTriggerEvaluator(): () => void {
 				error: getErrorMessage(err),
 			});
 		}
-		if (running) timer = setTimeout(tick, POLL_MS);
+		if (running) timer = setTimeout(tick, nextTickDelayMs(advanced, POLL_MS));
 	};
 
 	timer = setTimeout(tick, POLL_MS);

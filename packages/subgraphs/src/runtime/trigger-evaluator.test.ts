@@ -13,6 +13,7 @@ import type { BlockData } from "./batch-loader.ts";
 import type { TraitContracts } from "./source-matcher.ts";
 import {
 	buildSourcesMap,
+	chainSubsNeedTransactions,
 	chainTriggerToFilter,
 	emitChainOutbox,
 	evaluateBlock,
@@ -115,6 +116,47 @@ describe("referencedEventTypes", () => {
 		expect(types.length).toBeGreaterThan(1);
 		expect(types).toContain("stx_transfer");
 		expect(types).toContain("print");
+	});
+});
+
+describe("chainSubsNeedTransactions", () => {
+	it("false for event-only chain webhooks — no walkTransactions round trip needed", () => {
+		expect(
+			chainSubsNeedTransactions([
+				chainSub([{ type: "ft_transfer" }, { type: "print_event" }]),
+			]),
+		).toBe(false);
+	});
+
+	it("true when a contract_call trigger is present", () => {
+		expect(
+			chainSubsNeedTransactions([chainSub([{ type: "contract_call" }])]),
+		).toBe(true);
+	});
+
+	it("true when a contract_deploy trigger is present", () => {
+		expect(
+			chainSubsNeedTransactions([chainSub([{ type: "contract_deploy" }])]),
+		).toBe(true);
+	});
+
+	it("true when a tx-level trigger is mixed in among several webhooks", () => {
+		expect(
+			chainSubsNeedTransactions([
+				chainSub([{ type: "ft_transfer" }]),
+				chainSub([{ type: "contract_call", contractId: "SP1.amm" }]),
+			]),
+		).toBe(true);
+	});
+
+	it("false for sBTC-only chain webhooks", () => {
+		expect(
+			chainSubsNeedTransactions([chainSub([{ type: "sbtc_deposit" }])]),
+		).toBe(false);
+	});
+
+	it("false with no active chain webhooks", () => {
+		expect(chainSubsNeedTransactions([])).toBe(false);
 	});
 });
 

@@ -372,10 +372,23 @@ const postgresBlockSource = new PostgresBlockSource();
  * HTTP (Streams+Index) chain source for a set of decoded event types, wrapped so
  * it falls back to the Postgres tap when api is down. Used by the chain-trigger
  * evaluator (which isn't subgraph-scoped, so it can't go through resolveBlockSource).
+ *
+ * `needsTransactions` defaults true (safe/unchanged) but the evaluator passes
+ * `chainSubsNeedTransactions(chainSubs)` so a tick with no contract_call/deploy
+ * trigger skips `walkTransactions` entirely — one fewer HTTP round trip and a
+ * smaller `walkEvents` payload (no `tx_context` join) on every such tick.
  */
-export function buildChainBlockSource(eventTypes: string[]): BlockSource {
+export function buildChainBlockSource(
+	eventTypes: string[],
+	needsTransactions = true,
+): BlockSource {
 	return new FallbackBlockSource(
-		new PublicApiBlockSource(buildHttpClient(), eventTypes),
+		new PublicApiBlockSource(
+			buildHttpClient(),
+			eventTypes,
+			undefined,
+			needsTransactions,
+		),
 		postgresBlockSource,
 	);
 }

@@ -1,10 +1,5 @@
 import { committedHeight } from "@secondlayer/shared";
 import { type Database, getSourceDb } from "@secondlayer/shared/db";
-import {
-	defaultInternalIndexApiKey,
-	defaultInternalIndexBaseUrl,
-} from "@secondlayer/shared/index-internal-auth";
-import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
 import type { SubgraphDefinition } from "../types.ts";
 import {
@@ -68,20 +63,6 @@ export type DecoderBound =
 	| { kind: "stall"; missing: string[] }
 	| { kind: "height"; height: number };
 
-/** The subset of `GET /public/status`'s `index.decoders[]` this reads.
- *  `committedBlockHeight` is absent on an older server that hasn't shipped it
- *  yet — `undefined`, not `null` — so callers can tell "not sent" apart from
- *  "sent, decoder has no checkpoint at all". */
-export type RemoteDecoderStatusEntry = {
-	decoder: string;
-	checkpointBlockHeight: number | null;
-	committedBlockHeight?: number | null;
-};
-
-export type DecoderStatusLoader = () => Promise<RemoteDecoderStatusEntry[]>;
-
-const REMOTE_STATUS_TIMEOUT_MS = 5_000;
-
 /**
  * True when this process reads Index over HTTP with no guarantee a local
  * decoder ever runs in the same Postgres (a hosted tenant's `webhook-service`,
@@ -97,102 +78,35 @@ function usesRemoteDecoderStatus(): boolean {
 }
 
 /**
- * Fetch decoder progress from the Index API's own `/public/status` — the same
- * endpoint operators already poll. Reuses the internal-index auth resolution
- * (`defaultInternalIndexBaseUrl`/`defaultInternalIndexApiKey`) that
- * `IndexHttpClient` uses, so it targets the same base URL and sends the same
- * bearer (harmless here — `/public/status` needs no auth).
- */
-async function fetchRemoteDecoderStatus(): Promise<RemoteDecoderStatusEntry[]> {
-	const baseUrl = defaultInternalIndexBaseUrl().replace(/\/+$/, "");
-	const apiKey = defaultInternalIndexApiKey();
-	const headers: Record<string, string> = apiKey
-		? { authorization: `Bearer ${apiKey}` }
-		: {};
-	const res = await fetch(`${baseUrl}/public/status`, {
-		headers,
-		signal: AbortSignal.timeout(REMOTE_STATUS_TIMEOUT_MS),
-	});
-	if (!res.ok) {
-		throw new Error(`GET ${baseUrl}/public/status → ${res.status}`);
-	}
-	const body = (await res.json()) as {
-		index?: { decoders?: RemoteDecoderStatusEntry[] };
-	};
-	return body.index?.decoders ?? [];
-}
-
-/**
- * Remote-status variant of the floor below: same missing/floor semantics,
- * sourced from the Index API's decoder progress instead of local
- * `decoder_checkpoints`. Prefers each entry's `committedBlockHeight` (the same
- * committed-height rule `decoderBoundTip` applies locally, computed
- * server-side) when the server sends it. Falls back to the older,
- * conservative `checkpointBlockHeight - 1` when a server hasn't shipped
- * `committedBlockHeight` yet (the field is absent, not null) — that costs at
- * most one extra block of latency and never risks processing past a
- * partially-decoded block.
- *
- * Any failure (unreachable, non-2xx, bad JSON) stalls rather than falling
- * through to the unbounded raw tip — same fail-closed posture as a missing
- * local checkpoint.
- */
-async function remoteDecoderBoundTip(
-	decoderNames: string[],
-	loadStatus: DecoderStatusLoader,
-): Promise<DecoderBound> {
-	let entries: RemoteDecoderStatusEntry[];
-	try {
-		entries = await loadStatus();
-	} catch (err) {
-		logger.warn("Chain evaluator: remote index status unreachable", {
-			event: "chain_evaluator_decoder_status_unreachable",
-			error: err instanceof Error ? err.message : String(err),
-		});
-		return { kind: "stall", missing: decoderNames };
-	}
-	const byName = new Map(entries.map((e) => [e.decoder, e]));
-	const missing: string[] = [];
-	const heights: number[] = [];
-	for (const name of decoderNames) {
-		const entry = byName.get(name);
-		if (entry && entry.committedBlockHeight !== undefined) {
-			if (entry.committedBlockHeight === null) missing.push(name);
-			else heights.push(entry.committedBlockHeight);
-			continue;
-		}
-		const checkpointBlockHeight = entry?.checkpointBlockHeight;
-		if (checkpointBlockHeight === undefined || checkpointBlockHeight === null) {
-			missing.push(name);
-		} else {
-			heights.push(Math.max(0, checkpointBlockHeight - 1));
-		}
-	}
-	if (missing.length > 0) return { kind: "stall", missing };
-	return { kind: "height", height: Math.min(...heights) };
-}
-
-/**
  * Data-availability floor for `decoderNames`. On an instance that reads Index
- * over HTTP (`SUBGRAPH_SOURCE=streams-index` + `SUBGRAPH_INDEX_API_URL`),
- * sources progress from that API's `/public/status` instead — the local
- * `decoder_checkpoints` table only has rows when a decoder runs in the same
- * Postgres, which a hosted tenant's `webhook-service` never does.
+ * over HTTP (`SUBGRAPH_SOURCE=streams-index` + `SUBGRAPH_INDEX_API_URL`) the
+ * floor is `unbounded`: trust the block source's own tip. The Index API now
+ * enforces the committed-height rule server-side (the Index tip is the MIN
+ * committed height across every classic decoder — see
+ * `packages/api/src/index/tip.ts`), so the tip already returned by
+ * `PublicApiBlockSource.getTip()` (`IndexHttpClient.getIndexTip`/
+ * `getIndexSourceTip`) is already a decoder-safe ceiling. A second,
+ * decoder-status-specific request (the old `GET /public/status` poll every
+ * tick) is redundant — this was the extra hop Gate 1 measured adding ~4s of
+ * serial round-trip time to every evaluator tick.
  *
- * Otherwise reads SOURCE-plane `decoder_checkpoints` directly (same rationale
- * as trait resolution: the consumer handle is often the TARGET, where those
- * rows are empty).
+ * This trades a little precision for that hop: the global cross-decoder MIN
+ * can be more conservative than the narrowest floor for `decoderNames`
+ * specifically (e.g. an unrelated slow `print` decoder holding back a
+ * `stx_transfer`-only webhook). Local mode below stays exactly scoped, since
+ * it's a free extra DB predicate rather than a whole extra network call.
+ *
+ * Otherwise (local mode) reads SOURCE-plane `decoder_checkpoints` directly
+ * (same rationale as trait resolution: the consumer handle is often the
+ * TARGET, where those rows are empty).
  */
 export async function decoderBoundTip(
 	decoderNames: string[],
-	opts?: { sourceDb?: Kysely<Database>; statusLoader?: DecoderStatusLoader },
+	opts?: { sourceDb?: Kysely<Database> },
 ): Promise<DecoderBound> {
 	if (decoderNames.length === 0) return { kind: "unbounded" };
 	if (usesRemoteDecoderStatus()) {
-		return remoteDecoderBoundTip(
-			decoderNames,
-			opts?.statusLoader ?? fetchRemoteDecoderStatus,
-		);
+		return { kind: "unbounded" };
 	}
 	const sourceDb = opts?.sourceDb ?? getSourceDb();
 	const rows = await sourceDb
@@ -220,7 +134,7 @@ export type BoundSourceTip =
 export async function boundSourceTip(
 	rawTip: number,
 	decoderNames: string[],
-	opts?: { sourceDb?: Kysely<Database>; statusLoader?: DecoderStatusLoader },
+	opts?: { sourceDb?: Kysely<Database> },
 ): Promise<BoundSourceTip> {
 	const bound = await decoderBoundTip(decoderNames, opts);
 	if (bound.kind === "stall") return { ok: false, missing: bound.missing };

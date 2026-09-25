@@ -4,6 +4,7 @@ import { handleChainReorg } from "./chain-reorg.ts";
 import {
 	advanceCursor,
 	getChainReorgGeneration,
+	nextTickDelayMs,
 } from "./trigger-evaluator-loop.ts";
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
@@ -71,5 +72,15 @@ describe("chain-evaluator cursor advance vs. reorg rewind", () => {
 
 		expect(result).toEqual({ advanced: false, reorged: false });
 		expect(await cursor()).toBe(300);
+	});
+});
+
+describe("nextTickDelayMs", () => {
+	it("re-arms immediately (0ms) when the tick advanced the cursor — a backlog drains without idle gaps", () => {
+		expect(nextTickDelayMs(true, 5_000)).toBe(0);
+	});
+
+	it("falls back to the poll interval when the tick made no progress", () => {
+		expect(nextTickDelayMs(false, 5_000)).toBe(5_000);
 	});
 });

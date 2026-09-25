@@ -170,6 +170,22 @@ export function referencedDecoderNames(chainSubs: Webhook[]): string[] {
 	return decoderNamesForIndexEventTypes(referencedEventTypes(chainSubs));
 }
 
+/**
+ * True when some active chain webhook has a tx-level trigger
+ * (contract_call/contract_deploy) — the only trigger types whose match needs
+ * a REAL transaction (`function_args`, `raw_result`, etc., read in
+ * `emitChainOutbox`'s TX_LEVEL branch below). Every other trigger type matches
+ * off decoded events, which the block source can synthesize a minimal tx for
+ * from joined event context instead of fetching every transaction in the
+ * range. Mirrors `needsTransactionData` in block-source.ts for subgraphs —
+ * same rule, chain-webhook triggers instead of subgraph source filters.
+ */
+export function chainSubsNeedTransactions(chainSubs: Webhook[]): boolean {
+	return chainSubs.some((sub) =>
+		triggersOf(sub).some((trigger) => TX_LEVEL_TRIGGER_TYPES.has(trigger.type)),
+	);
+}
+
 /** Distinct traits referenced across all chain triggers. */
 export function referencedTraits(chainSubs: Webhook[]): string[] {
 	const traits = new Set<string>();
