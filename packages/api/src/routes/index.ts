@@ -117,6 +117,7 @@ import {
 	VM_INDEX_EVENT_CONFIG,
 	VM_INDEX_EVENT_TYPES,
 } from "../index/vm-events.ts";
+import { longPollIndex, parseWaitSeconds } from "../index/wait.ts";
 import { validateQueryParams } from "../middleware/validation.ts";
 import {
 	DEFAULT_STREAMS_REORGS_READER,
@@ -144,6 +145,9 @@ const EVENTS_ALLOWED = [
 	"var_name",
 	"caller",
 	"tx_id",
+	// Long-poll (plan-063 3.4) — /events only, not the ft/nft-transfers aliases
+	// or the other filtered routes below (no `longPollIndex` wiring for them).
+	"wait",
 ];
 
 export type IndexRouterOptions = {
@@ -229,7 +233,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					path: "/v1/index/events",
 					method: "GET",
 					description:
-						"Decoded chain events for a chosen event_type, filterable + cursor-paginated. Returns events[], next_cursor, tip, reorgs[].",
+						"Decoded chain events for a chosen event_type, filterable + cursor-paginated. Returns events[], next_cursor, tip, reorgs[]. `wait` (seconds, max 25) long-polls: holds the response until a new event lands or `wait` elapses, instead of a poll loop.",
 					required: ["event_type"],
 					event_types: ALL_INDEX_EVENT_TYPES,
 					// Opt-in node traces: not in `*`, not in old archives. Discovery
@@ -299,7 +303,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					path: "/v1/index/blocks",
 					method: "GET",
 					description:
-						"Canonical blocks, cursor-paginated. Returns blocks[] ({block_height, block_hash, parent_hash, burn_block_height, burn_block_hash, block_time, canonical}), next_cursor, tip.",
+						"Canonical blocks, cursor-paginated. Returns blocks[] ({block_height, block_hash, parent_hash, burn_block_height, burn_block_hash, block_time, canonical}), next_cursor, tip. `wait` (seconds, max 25) long-polls when `from_height`/`cursor` is already at the tip, instead of a poll loop.",
 					filters: BLOCKS_FILTERS,
 				},
 				{
@@ -432,14 +436,23 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 
 	router.get("/events", async (c) => {
 		const query = new URL(c.req.url).searchParams;
-		const tip = await getTip();
-		c.set("indexTip", tip);
-		const response = await getIndexEventsResponse({
-			query,
-			tip,
-			readEvents: opts.readEvents,
-			readReorgs,
+		const waitSeconds = parseWaitSeconds(query.get("wait") ?? undefined);
+		const response = await longPollIndex({
+			waitSeconds,
+			isEmpty: (r) => r.events.length === 0,
+			// Re-fetches the tip fresh every attempt — a stale tip would report
+			// "still empty" forever regardless of what actually committed.
+			build: async () => {
+				const tip = await getTip();
+				return getIndexEventsResponse({
+					query,
+					tip,
+					readEvents: opts.readEvents,
+					readReorgs,
+				});
+			},
 		});
+		c.set("indexTip", response.tip);
 		const notModified = applyIndexCache(c, query, response.tip, {
 			events: response.events,
 			next_cursor: response.next_cursor,
@@ -494,17 +507,29 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	router.get("/blocks", async (c) => {
 		const query = new URL(c.req.url).searchParams;
 		validateQueryParams(query, BLOCKS_FILTERS);
-		const tip = await getTip();
-		c.set("indexTip", tip);
-		const response = await getBlocksResponse({
+		const waitSeconds = parseWaitSeconds(query.get("wait") ?? undefined);
+		const response = await longPollIndex({
+			waitSeconds,
+			isEmpty: (r) => r.blocks.length === 0,
+			// Re-fetches the tip fresh every attempt — see the /events handler.
+			// This is also the shape `IndexHttpClient.getIndexTip({ wait,
+			// knownHeight })` uses to learn the tip: an empty page here (nothing
+			// past `knownHeight + 1`) is exactly what makes waiting meaningful.
+			build: async () => {
+				const tip = await getTip();
+				return getBlocksResponse({ query, tip, readBlocks: opts.readBlocks });
+			},
+		});
+		c.set("indexTip", response.tip);
+		const notModified = applyIndexCache(
+			c,
 			query,
-			tip,
-			readBlocks: opts.readBlocks,
-		});
-		const notModified = applyIndexCache(c, query, indexSourceWindowTip(tip), {
-			blocks: response.blocks,
-			next_cursor: response.next_cursor,
-		});
+			indexSourceWindowTip(response.tip),
+			{
+				blocks: response.blocks,
+				next_cursor: response.next_cursor,
+			},
+		);
 		if (notModified) return notModified;
 		await meterRows(c, response.blocks);
 		return c.json(response);

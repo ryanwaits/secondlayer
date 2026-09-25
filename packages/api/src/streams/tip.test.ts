@@ -4,6 +4,7 @@ import {
 	type StreamsTipBlockReader,
 	createStreamsTipProvider,
 	getLagSeconds,
+	startStreamsTipInvalidationListener,
 } from "./tip.ts";
 
 function tipBlock(height: number, ts: Date) {
@@ -110,5 +111,58 @@ describe("createStreamsTipProvider — empty chain", () => {
 			code: "CHAIN_DATA_UNAVAILABLE",
 		});
 		expect(CODE_TO_STATUS.CHAIN_DATA_UNAVAILABLE).toBe(503);
+	});
+});
+
+describe("createStreamsTipProvider onInvalidate", () => {
+	test("calling the handed-back invalidate() drops the cached value early", async () => {
+		let calls = 0;
+		let invalidate = () => {};
+		const provider = createStreamsTipProvider({
+			readTip: async () => {
+				calls++;
+				return tipBlock(calls, new Date(0));
+			},
+			readFinalizedHeight: async () => 0,
+			cacheTtlMs: 60_000, // long enough that only invalidate(), not the TTL, could cause a refetch
+			onInvalidate: (fn) => {
+				invalidate = fn;
+			},
+		});
+
+		const first = await provider();
+		const cached = await provider();
+		expect(cached).toEqual(first);
+		expect(calls).toBe(1);
+
+		invalidate();
+		const afterInvalidate = await provider();
+		expect(calls).toBe(2);
+		expect(afterInvalidate.block_height).toBe(2);
+	});
+
+	test("a provider built without onInvalidate behaves exactly as before (TTL-only)", async () => {
+		let calls = 0;
+		const provider = createStreamsTipProvider({
+			readTip: async () => {
+				calls++;
+				return tipBlock(calls, new Date(0));
+			},
+			readFinalizedHeight: async () => 0,
+			cacheTtlMs: 60_000,
+		});
+		await provider();
+		await provider();
+		expect(calls).toBe(1);
+	});
+});
+
+describe("startStreamsTipInvalidationListener degrades safely", () => {
+	test("a bad connection string never throws synchronously — the caller doesn't need to catch it", () => {
+		expect(() =>
+			startStreamsTipInvalidationListener({
+				connectionString: "postgres://bad-host-does-not-resolve:5432/nope",
+			}),
+		).not.toThrow();
 	});
 });

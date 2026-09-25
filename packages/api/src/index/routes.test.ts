@@ -326,6 +326,122 @@ describe("Stacks Index gateway middleware", () => {
 		expect(body.reorgs).toEqual([]);
 	});
 
+	test("GET /events with wait but data already present returns immediately, no waiting", async () => {
+		const app = new Hono();
+		app.onError(errorHandler);
+		let readCalls = 0;
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readEvents: async () => {
+					readCalls++;
+					return {
+						events: [
+							{
+								cursor: "10:0",
+								block_height: 10,
+								tx_id: "0x01",
+								tx_index: 0,
+								event_index: 0,
+								event_type: "ft_transfer" as const,
+								contract_id: "SP123.token",
+								asset_identifier: "SP123.token::coin",
+								sender: "SP123.sender",
+								recipient: "SP123.recipient",
+								amount: "1",
+							},
+						],
+						next_cursor: "10:0",
+					};
+				},
+			}),
+		);
+		const start = Date.now();
+		const res = await app.request(
+			"/v1/index/events?event_type=ft_transfer&wait=5",
+			{ headers: authHeaders(FREE_KEY) },
+		);
+		expect(res.status).toBe(200);
+		expect(readCalls).toBe(1);
+		expect(Date.now() - start).toBeLessThan(500);
+	});
+
+	test("GET /events with wait and no data holds the response for roughly `wait`, then answers empty", async () => {
+		const app = new Hono();
+		app.onError(errorHandler);
+		let readCalls = 0;
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readEvents: async () => {
+					readCalls++;
+					return { events: [], next_cursor: null };
+				},
+			}),
+		);
+		const start = Date.now();
+		const res = await app.request(
+			"/v1/index/events?event_type=ft_transfer&wait=1",
+			{ headers: authHeaders(FREE_KEY) },
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { events: unknown[] };
+		expect(body.events).toEqual([]);
+		expect(readCalls).toBe(2); // the initial check + one post-wait retry
+		expect(Date.now() - start).toBeGreaterThanOrEqual(900);
+	});
+
+	test("GET /events refuses a wait past the 25s ceiling", async () => {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readEvents: async () => ({ events: [], next_cursor: null }),
+			}),
+		);
+		const res = await app.request(
+			"/v1/index/events?event_type=ft_transfer&wait=30",
+			{ headers: authHeaders(FREE_KEY) },
+		);
+		expect(res.status).toBe(400);
+	});
+
+	test("GET /blocks with wait and from_height past the tip holds, then answers with the fresh tip", async () => {
+		const app = new Hono();
+		app.onError(errorHandler);
+		let tipCalls = 0;
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				// Simulates the exact shape IndexHttpClient.getIndexTip({ wait,
+				// knownHeight }) relies on: from_height anchored one past the
+				// caller's last known height, so an unmoved tip yields an empty page.
+				getTip: () => {
+					tipCalls++;
+					return TIP;
+				},
+				readReorgs: async () => [],
+			}),
+		);
+		const start = Date.now();
+		const res = await app.request(
+			`/v1/index/blocks?limit=1&from_height=${TIP.block_height + 1}&wait=1`,
+			{ headers: authHeaders(FREE_KEY) },
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { blocks: unknown[] };
+		expect(body.blocks).toEqual([]);
+		expect(tipCalls).toBe(2); // the initial check + one post-wait retry
+		expect(Date.now() - start).toBeGreaterThanOrEqual(900);
+	});
+
 	test("GET /contract-calls serves via the injected reader with reorgs: []", async () => {
 		const app = new Hono();
 		app.onError(errorHandler);

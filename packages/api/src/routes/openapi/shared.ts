@@ -54,6 +54,16 @@ export const INDEX_RANGE_PARAMS = [
 	qp("to_height", "integer", false, "Last block height to read, inclusive."),
 ];
 
+/** Long-poll (plan-063): `/v1/index/events` and `/v1/index/blocks` only —
+ *  not every Index list, so this stays separate from `INDEX_RANGE_PARAMS`
+ *  rather than overclaiming support on routes that don't wire it. */
+export const WAIT_PARAM = qp(
+	"wait",
+	"integer",
+	false,
+	"Seconds (max 25) to hold the response open when there's nothing new past your cursor/from_height, instead of answering immediately. Returns early the moment new data commits, or at the timeout — either way you get a normal response, just later. Omit for the old poll-and-retry behavior.",
+);
+
 /** `/api` writes: the instance token is required whenever one is set, and an
  *  instance reachable past loopback refuses to boot without one. */
 export const WRITE_SECURITY = [{ bearerAuth: [] }];

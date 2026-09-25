@@ -632,6 +632,7 @@ export function parseIndexEventsQuery(
 		"types",
 		"tx_context",
 		"fields",
+		"wait",
 		...(traitSupported ? ["trait"] : []),
 	]);
 

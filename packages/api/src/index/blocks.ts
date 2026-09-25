@@ -9,13 +9,15 @@ import {
 import { type IndexTip, indexSourceWindowTip } from "./tip.ts";
 
 /** Window/pagination params the blocks list accepts. Blocks carry no content
- *  filters — height is the only axis. */
+ *  filters — height is the only axis. `wait` (plan-063 3.4) long-polls when
+ *  the requested window has nothing new yet — see `../index/wait.ts`. */
 export const BLOCKS_FILTERS = [
 	"limit",
 	"cursor",
 	"from_cursor",
 	"from_height",
 	"to_height",
+	"wait",
 ] as const;
 
 /**

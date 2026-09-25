@@ -7,6 +7,8 @@ import {
 	DEFAULT_BTC_CONFIRMATIONS,
 	finalizedBurnHeight,
 } from "@secondlayer/shared";
+import { logger } from "@secondlayer/shared/logger";
+import { listen, sourceListenerUrl } from "@secondlayer/shared/queue/listener";
 
 export type StreamsTip = {
 	block_height: number;
@@ -33,6 +35,15 @@ export type StreamsTipProviderOptions = {
 	btcConfirmations?: number;
 	now?: () => number;
 	cacheTtlMs?: number;
+	/**
+	 * Called once, synchronously, at creation with a function that drops this
+	 * instance's cached value. Only the process-wide `getStreamsTip` singleton
+	 * wires this up (to the `indexer:new_block` NOTIFY, see
+	 * `startStreamsTipInvalidationListener`) — a hand-built provider in a test
+	 * has no reason to invalidate early and can omit it, leaving `cacheTtlMs`
+	 * as the only staleness bound, unchanged from before this option existed.
+	 */
+	onInvalidate?: (invalidate: () => void) => void;
 };
 
 export const DEFAULT_STREAMS_TIP: StreamsTip = {
@@ -85,6 +96,9 @@ export function createStreamsTipProvider(
 	const now = opts.now ?? Date.now;
 	const cacheTtlMs = opts.cacheTtlMs ?? 500;
 	let cache: { expiresAt: number; value: StreamsTip } | null = null;
+	opts.onInvalidate?.(() => {
+		cache = null;
+	});
 
 	return async () => {
 		const nowMs = now();
@@ -109,10 +123,50 @@ export function createStreamsTipProvider(
 			lag_seconds: getLagSeconds(tip.ts, nowMs),
 		};
 
-		// TODO: invalidate from indexer block notifications instead of TTL polling.
 		cache = { expiresAt: nowMs + cacheTtlMs, value };
 		return value;
 	};
 }
 
-export const getStreamsTip = createStreamsTipProvider();
+/** Invalidators registered by every `getStreamsTip`-style singleton created
+ *  with `onInvalidate` (in practice just the one below — plural only so a
+ *  second instance, e.g. in a future entrypoint, doesn't have to reinvent
+ *  this). */
+const streamsTipInvalidators = new Set<() => void>();
+
+export const getStreamsTip = createStreamsTipProvider({
+	onInvalidate: (invalidate) => {
+		streamsTipInvalidators.add(invalidate);
+	},
+});
+
+let streamsTipListenerStarted: Promise<() => Promise<void>> | null = null;
+
+/**
+ * Start (once per process) the LISTEN that drops the Streams tip cache the
+ * moment a block commits, instead of waiting out `cacheTtlMs` (500ms) on the
+ * next request (plan-063 3.3 — the TODO above this used to mark). Call from
+ * the api entrypoint; safe to call more than once. Degrades safely: if the
+ * LISTEN connection never comes up (or later drops), the tip simply falls
+ * back to its normal TTL-refresh behavior — never wrong, just up to
+ * `cacheTtlMs` staler than it could be.
+ */
+export function startStreamsTipInvalidationListener(opts?: {
+	connectionString?: string;
+}): void {
+	if (streamsTipListenerStarted) return;
+	streamsTipListenerStarted = listen(
+		"indexer:new_block",
+		() => {
+			for (const invalidate of streamsTipInvalidators) invalidate();
+		},
+		{ connectionString: opts?.connectionString ?? sourceListenerUrl() },
+	).catch((error) => {
+		logger.warn(
+			"streams tip invalidation listener failed to start — the tip cache still refreshes every cacheTtlMs",
+			{ error: error instanceof Error ? error.message : String(error) },
+		);
+		streamsTipListenerStarted = null;
+		return null as unknown as () => Promise<void>;
+	});
+}

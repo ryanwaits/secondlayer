@@ -9275,6 +9275,15 @@
 							"type": "string"
 						},
 						"description": "Comma-separated columns to return: the universal ones, the type's own columns, and the `tx_*` columns when `tx_context=true`. `cursor`, `block_height` and `event_type` always come back; an unknown name is refused. Leaving out `block_time` skips a join."
+					},
+					{
+						"name": "wait",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Seconds (max 25) to hold the response open when there's nothing new past your cursor/from_height, instead of answering immediately. Returns early the moment new data commits, or at the timeout — either way you get a normal response, just later. Omit for the old poll-and-retry behavior."
 					}
 				],
 				"responses": {
@@ -10054,6 +10063,15 @@
 							"type": "integer"
 						},
 						"description": "Last block height to read, inclusive."
+					},
+					{
+						"name": "wait",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Seconds (max 25) to hold the response open when there's nothing new past your cursor/from_height, instead of answering immediately. Returns early the moment new data commits, or at the timeout — either way you get a normal response, just later. Omit for the old poll-and-retry behavior."
 					}
 				],
 				"responses": {
