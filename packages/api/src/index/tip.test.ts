@@ -198,6 +198,19 @@ describe("committedHeightForEventTypes", () => {
 		expect(committedHeightForEventTypes(tip, ["nft_transfer"])).toBeNull();
 	});
 
+	test("null when a requested type's decoder has no checkpoint yet (null, not missing)", () => {
+		const notStarted: IndexTip = {
+			...tip,
+			decoded_heights: { ...tip.decoded_heights, nft_transfer: null },
+		};
+		expect(
+			committedHeightForEventTypes(notStarted, ["nft_transfer"]),
+		).toBeNull();
+		expect(
+			committedHeightForEventTypes(notStarted, ["ft_transfer", "nft_transfer"]),
+		).toBeNull();
+	});
+
 	test("null when the tip carries no decoded_heights map at all", () => {
 		const bare: IndexTip = {
 			block_height: 100,
@@ -256,10 +269,10 @@ describe.skipIf(!HAS_DB)("getDecoderCommittedHeights (DB)", () => {
 		expect(heights.stx_transfer).toBe(79);
 	});
 
-	test("a decoder with no checkpoint row reports height 0, not missing", async () => {
+	test("a decoder with no checkpoint row reports null, not height 0", async () => {
 		if (!db) throw new Error("missing db");
 		const heights = await getDecoderCommittedHeights(db);
-		expect(heights.ft_transfer).toBe(0);
-		expect(heights.print).toBe(0);
+		expect(heights.ft_transfer).toBeNull();
+		expect(heights.print).toBeNull();
 	});
 });

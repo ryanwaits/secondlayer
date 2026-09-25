@@ -163,11 +163,32 @@ export type IndexHttpOptions = {
 	streamsApiKey?: string;
 };
 
+/** `/v1/index/blocks?limit=1`'s envelope — read for its `tip`, not its rows. */
+export type IndexTipEnvelope = {
+	tip: {
+		block_height: number;
+		source_block_height?: number;
+		/**
+		 * Committed height per classic decoded event_type (plan-063), e.g.
+		 * `{ ft_transfer: 950, stx_transfer: 940 }`. `null` means that decoder
+		 * has no checkpoint yet (fail-closed for a caller that references it,
+		 * not "committed to height 0"); a missing key means an older server
+		 * that doesn't send this field at all. Absent on an instance built
+		 * before plan-063 shipped it.
+		 */
+		decoded_heights?: Record<string, number | null>;
+	};
+};
+
 export class IndexHttpClient {
 	private readonly indexBaseUrl: string;
 	private readonly indexApiKey: string | undefined;
 	private readonly streamsBaseUrl: string;
 	private readonly streamsApiKey: string | undefined;
+	/** Populated by the last `getIndexTipEnvelope()` call (via `getIndexTip`/
+	 *  `getIndexSourceTip`) so `getDecodedHeights()` can read the SAME response
+	 *  synchronously instead of making a second request. */
+	private lastTipEnvelope: IndexTipEnvelope | undefined;
 
 	constructor(opts: IndexHttpOptions) {
 		this.indexBaseUrl = opts.indexBaseUrl.replace(/\/+$/, "");
@@ -382,12 +403,25 @@ export class IndexHttpClient {
 		return Number(env.tip?.source_block_height ?? env.tip?.block_height) || 0;
 	}
 
-	private async getIndexTipEnvelope(): Promise<{
-		tip: { block_height: number; source_block_height?: number };
-	}> {
-		return this.get<{
-			tip: { block_height: number; source_block_height?: number };
-		}>(`${this.indexBaseUrl}/v1/index/blocks?limit=1`, this.indexApiKey);
+	/**
+	 * Per-decoder committed heights from the last tip envelope fetched by
+	 * `getIndexTip()`/`getIndexSourceTip()` — reads the cached response, no
+	 * extra request. `undefined` before either has been called, or against an
+	 * older server that doesn't send the field. A caller (the chain evaluator)
+	 * uses this to bound itself by the decoders it actually reads instead of
+	 * the conservative cross-decoder floor `block_height` itself carries.
+	 */
+	getDecodedHeights(): Record<string, number | null> | undefined {
+		return this.lastTipEnvelope?.tip.decoded_heights;
+	}
+
+	private async getIndexTipEnvelope(): Promise<IndexTipEnvelope> {
+		const env = await this.get<IndexTipEnvelope>(
+			`${this.indexBaseUrl}/v1/index/blocks?limit=1`,
+			this.indexApiKey,
+		);
+		this.lastTipEnvelope = env;
+		return env;
 	}
 
 	/** Reorgs since a resume token (wall-clock `detected_at`-keyed). */

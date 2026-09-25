@@ -246,14 +246,95 @@ describe("decoderBoundTip (remote index status)", () => {
 		else process.env.SUBGRAPH_INDEX_API_URL = prevUrl;
 	});
 
-	test("remote mode trusts the block source's own tip — no /public/status poll", async () => {
+	test("a stalled UNREFERENCED decoder never gates a referenced one (the invariant this mode must preserve)", async () => {
 		setRemoteEnv();
 		try {
-			// The Index API now enforces the committed-height rule server-side (the
-			// tip in every envelope is already decoder-safe), so remote mode no
-			// longer needs a second request to bound its own reads.
+			// print hasn't moved past 100; the webhook only reads stx_transfer,
+			// which is at 200. Bounding by the global cross-decoder floor would
+			// wrongly stall this webhook on a decoder it never reads.
+			await expect(
+				decoderBoundTip(["decode.stx_transfer.v1"], {
+					remoteDecodedHeights: { stx_transfer: 200, print: 100 },
+				}),
+			).resolves.toEqual({ kind: "height", height: 200 });
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("a REFERENCED decoder missing from decoded_heights stalls", async () => {
+		setRemoteEnv();
+		try {
+			await expect(
+				decoderBoundTip(["decode.stx_transfer.v1"], {
+					remoteDecodedHeights: { print: 100 },
+				}),
+			).resolves.toEqual({
+				kind: "stall",
+				missing: ["decode.stx_transfer.v1"],
+			});
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("a REFERENCED decoder present but null (no checkpoint yet) stalls", async () => {
+		setRemoteEnv();
+		try {
+			await expect(
+				decoderBoundTip(["decode.stx_transfer.v1"], {
+					remoteDecodedHeights: { stx_transfer: null },
+				}),
+			).resolves.toEqual({
+				kind: "stall",
+				missing: ["decode.stx_transfer.v1"],
+			});
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("min across several referenced decoders, unreferenced ones still ignored", async () => {
+		setRemoteEnv();
+		try {
+			await expect(
+				decoderBoundTip(["decode.ft_transfer.v1", "decode.stx_transfer.v1"], {
+					remoteDecodedHeights: {
+						ft_transfer: 300,
+						stx_transfer: 200,
+						print: 50,
+					},
+				}),
+			).resolves.toEqual({ kind: "height", height: 200 });
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("decoded_heights absent entirely (older server) falls back to unbounded, not a stall", async () => {
+		setRemoteEnv();
+		try {
+			// rawTip (whatever the caller passes to boundSourceTip) is already the
+			// conservative cross-decoder floor server-side, so trusting it as-is
+			// IS the fallback — no separate request to reconstruct it here.
 			await expect(
 				decoderBoundTip(["decode.print.v1", "decode.ft_transfer.v1"]),
+			).resolves.toEqual({ kind: "unbounded" });
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("zero referenced decoders (VM-only triggers) stay unbounded regardless of decoded_heights", async () => {
+		setRemoteEnv();
+		try {
+			await expect(
+				decoderBoundTip([], { remoteDecodedHeights: { print: 0 } }),
 			).resolves.toEqual({ kind: "unbounded" });
 		} finally {
 			delete process.env.SUBGRAPH_SOURCE;
@@ -270,8 +351,11 @@ describe("decoderBoundTip (remote index status)", () => {
 				throw new Error("remote mode must not query decoder_checkpoints");
 			};
 			await expect(
-				decoderBoundTip(["decode.print.v1"], { sourceDb: fake.db }),
-			).resolves.toEqual({ kind: "unbounded" });
+				decoderBoundTip(["decode.print.v1"], {
+					sourceDb: fake.db,
+					remoteDecodedHeights: { print: 100 },
+				}),
+			).resolves.toEqual({ kind: "height", height: 100 });
 		} finally {
 			delete process.env.SUBGRAPH_SOURCE;
 			delete process.env.SUBGRAPH_INDEX_API_URL;

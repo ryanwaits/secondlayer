@@ -39,6 +39,15 @@ export interface BlockSource {
 		afterHeight: number,
 		untilHeight: number,
 	): Promise<number | null>;
+	/**
+	 * Per-decoder committed heights from the SAME response `getTip()` just
+	 * fetched (no extra request) — undefined for a source with no such notion
+	 * (the Postgres tap: local mode reads `decoder_checkpoints` directly and
+	 * never needs this). Lets a caller (the chain evaluator) narrow its own
+	 * bound to the decoders it actually reads instead of `getTip()`'s
+	 * conservative cross-decoder floor. Call AFTER `getTip()`.
+	 */
+	getDecodedHeights?(): Record<string, number | null> | undefined;
 }
 
 /** A (decoded event type, optional contract scope) pair the sparse probe
@@ -248,6 +257,12 @@ export class PublicApiBlockSource implements BlockSource {
 		return this.http.getIndexTip();
 	}
 
+	/** Reads the SAME envelope `getTip()` just cached on `this.http` — call
+	 *  this only after `getTip()` has resolved at least once. */
+	getDecodedHeights(): Record<string, number | null> | undefined {
+		return this.http.getDecodedHeights();
+	}
+
 	async loadBlockRange(
 		fromHeight: number,
 		toHeight: number,
@@ -319,6 +334,11 @@ export class PublicApiBlockSource implements BlockSource {
  * resumes transparently once healthy.
  */
 export class FallbackBlockSource implements BlockSource {
+	/** True when the LAST `getTip()` call actually used the primary — guards
+	 *  `getDecodedHeights()` against returning the primary's stale cached
+	 *  envelope from an earlier success after a call that just fell back. */
+	private lastTipFromPrimary = false;
+
 	constructor(
 		private readonly primary: BlockSource,
 		private readonly fallback: BlockSource,
@@ -326,13 +346,25 @@ export class FallbackBlockSource implements BlockSource {
 
 	async getTip(): Promise<number> {
 		try {
-			return await this.primary.getTip();
+			const tip = await this.primary.getTip();
+			this.lastTipFromPrimary = true;
+			return tip;
 		} catch (err) {
 			logger.warn("block source primary getTip failed — using DB tap", {
 				error: err instanceof Error ? err.message : String(err),
 			});
+			this.lastTipFromPrimary = false;
 			return this.fallback.getTip();
 		}
+	}
+
+	/** Only meaningful right after a `getTip()` that used the primary — the
+	 *  fallback (Postgres tap) has no such notion, and returning the
+	 *  primary's stale cache after a fallback would mismatch the returned
+	 *  tip. Local mode's own `decoderBoundTip` never calls this. */
+	getDecodedHeights(): Record<string, number | null> | undefined {
+		if (!this.lastTipFromPrimary) return undefined;
+		return this.primary.getDecodedHeights?.();
 	}
 
 	async loadBlockRange(

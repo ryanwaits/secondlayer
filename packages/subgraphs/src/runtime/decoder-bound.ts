@@ -77,24 +77,59 @@ function usesRemoteDecoderStatus(): boolean {
 	);
 }
 
+/** Inverse of `decoderNameForEventType` — decoder names in this codebase are
+ *  always exactly `decode.<type>.v1`, so stripping the fixed prefix/suffix is
+ *  a lossless round trip. Needed because the wire's `decoded_heights` map
+ *  (packages/api/src/index/tip.ts) is keyed by event_type (the Index API's
+ *  own public vocabulary), not by decoder name. */
+function eventTypeForDecoderName(decoderName: string): string {
+	return decoderName.replace(/^decode\./, "").replace(/\.v1$/, "");
+}
+
+/**
+ * Remote-mode variant of the floor below, scoped to `decoderNames` — same
+ * missing/floor semantics as local mode, sourced from `decodedHeights` (the
+ * SAME tip envelope `source.getTip()` already fetched; see
+ * `IndexHttpClient.getDecodedHeights()`) instead of a local DB read. No
+ * network call of its own — this is pure/synchronous.
+ *
+ * `decodedHeights` absent entirely (an older server that doesn't send the
+ * field, or called before any `getTip()`) falls back to `unbounded`: the raw
+ * tip IS already the conservative cross-decoder floor (`IndexTip.block_height`
+ * — see packages/api/src/index/tip.ts), so trusting it outright is the same
+ * as bounding by it explicitly, just without the redundant `Math.min`.
+ *
+ * A referenced decoder missing from the map, or present with `null` (no
+ * checkpoint yet), stalls — same fail-closed rule local mode already applies.
+ * An unreferenced decoder stalling (e.g. an idle `print`) never appears in
+ * `decoderNames` and so can never gate this.
+ */
+function remoteDecoderBoundTip(
+	decoderNames: string[],
+	decodedHeights: Record<string, number | null> | undefined,
+): DecoderBound {
+	if (!decodedHeights) return { kind: "unbounded" };
+	const missing: string[] = [];
+	const heights: number[] = [];
+	for (const decoderName of decoderNames) {
+		const height = decodedHeights[eventTypeForDecoderName(decoderName)];
+		if (height === undefined || height === null) missing.push(decoderName);
+		else heights.push(height);
+	}
+	if (missing.length > 0) return { kind: "stall", missing };
+	return { kind: "height", height: Math.min(...heights) };
+}
+
 /**
  * Data-availability floor for `decoderNames`. On an instance that reads Index
- * over HTTP (`SUBGRAPH_SOURCE=streams-index` + `SUBGRAPH_INDEX_API_URL`) the
- * floor is `unbounded`: trust the block source's own tip. The Index API now
- * enforces the committed-height rule server-side (the Index tip is the MIN
- * committed height across every classic decoder — see
- * `packages/api/src/index/tip.ts`), so the tip already returned by
- * `PublicApiBlockSource.getTip()` (`IndexHttpClient.getIndexTip`/
- * `getIndexSourceTip`) is already a decoder-safe ceiling. A second,
- * decoder-status-specific request (the old `GET /public/status` poll every
- * tick) is redundant — this was the extra hop Gate 1 measured adding ~4s of
- * serial round-trip time to every evaluator tick.
- *
- * This trades a little precision for that hop: the global cross-decoder MIN
- * can be more conservative than the narrowest floor for `decoderNames`
- * specifically (e.g. an unrelated slow `print` decoder holding back a
- * `stx_transfer`-only webhook). Local mode below stays exactly scoped, since
- * it's a free extra DB predicate rather than a whole extra network call.
+ * over HTTP (`SUBGRAPH_SOURCE=streams-index` + `SUBGRAPH_INDEX_API_URL`),
+ * bounds by the referenced decoders' OWN committed heights from
+ * `opts.remoteDecodedHeights` (the tip envelope the block source's `getTip()`
+ * already fetched — no second request). A stalled UNREFERENCED decoder (e.g.
+ * an idle `print`) must never gate progress — this only ever looks at
+ * `decoderNames`, so it can't. Falls back to `unbounded` (trust the raw tip,
+ * itself the conservative cross-decoder floor) when the caller has no
+ * decoded-heights map to hand (an older server, or before any `getTip()`).
  *
  * Otherwise (local mode) reads SOURCE-plane `decoder_checkpoints` directly
  * (same rationale as trait resolution: the consumer handle is often the
@@ -102,11 +137,15 @@ function usesRemoteDecoderStatus(): boolean {
  */
 export async function decoderBoundTip(
 	decoderNames: string[],
-	opts?: { sourceDb?: Kysely<Database> },
+	opts?: {
+		sourceDb?: Kysely<Database>;
+		/** Remote mode only — see `remoteDecoderBoundTip`. */
+		remoteDecodedHeights?: Record<string, number | null>;
+	},
 ): Promise<DecoderBound> {
 	if (decoderNames.length === 0) return { kind: "unbounded" };
 	if (usesRemoteDecoderStatus()) {
-		return { kind: "unbounded" };
+		return remoteDecoderBoundTip(decoderNames, opts?.remoteDecodedHeights);
 	}
 	const sourceDb = opts?.sourceDb ?? getSourceDb();
 	const rows = await sourceDb
@@ -134,7 +173,10 @@ export type BoundSourceTip =
 export async function boundSourceTip(
 	rawTip: number,
 	decoderNames: string[],
-	opts?: { sourceDb?: Kysely<Database> },
+	opts?: {
+		sourceDb?: Kysely<Database>;
+		remoteDecodedHeights?: Record<string, number | null>;
+	},
 ): Promise<BoundSourceTip> {
 	const bound = await decoderBoundTip(decoderNames, opts);
 	if (bound.kind === "stall") return { ok: false, missing: bound.missing };

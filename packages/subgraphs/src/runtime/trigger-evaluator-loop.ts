@@ -157,6 +157,14 @@ export async function runEvaluatorOnce(
 		const bound = await boundSourceTip(
 			rawTip,
 			referencedDecoderNames(chainSubs),
+			{
+				// Reads the SAME tip envelope the `source.getTip()` call above just
+				// fetched (remote mode only) — no second request. Lets the bound
+				// narrow to the decoders these webhooks actually reference instead of
+				// `rawTip`'s conservative cross-decoder floor, without reintroducing
+				// the old per-tick `/public/status` poll.
+				remoteDecodedHeights: source.getDecodedHeights?.(),
+			},
 		);
 		if (!bound.ok) {
 			logger.warn("Chain evaluator stalled: missing decoder checkpoint", {

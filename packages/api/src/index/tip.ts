@@ -74,8 +74,15 @@ export type IndexTipProvider = () => IndexTip | Promise<IndexTip>;
 export type IndexSourceTipReader = () => Promise<IndexerStreamsTipBlock | null>;
 export type DecodedTipReader = () => Promise<DecodedTipBlock | null>;
 
-/** Committed height per classic decoded event_type — see `IndexTip.decoded_heights`. */
-export type DecodedTypeHeights = Record<string, number>;
+/**
+ * Committed height per classic decoded event_type — see `IndexTip.decoded_heights`.
+ * `null` means that decoder has no checkpoint yet: distinct from a genuine
+ * committed height of 0, and distinct from a missing key (decoder not in this
+ * server's build at all). A caller bounding itself by a SPECIFIC type must
+ * treat both `null` and "key absent" as unknown/stall — see
+ * `committedHeightForEventTypes` and decoder-bound.ts's remote mode.
+ */
+export type DecodedTypeHeights = Record<string, number | null>;
 export type DecodedHeightsReader = () => Promise<DecodedTypeHeights>;
 
 /**
@@ -86,9 +93,10 @@ export type DecodedHeightsReader = () => Promise<DecodedTypeHeights>;
  * everything else `createIndexTipProvider` computes).
  *
  * A decoder with no checkpoint row yet (fresh instance, nothing decoded)
- * reports height 0 rather than being omitted — omitting it would make
- * `Math.min` over the map silently ignore a decoder that hasn't started,
- * which is the one case the floor most needs to catch.
+ * reports `null`, not 0 — a real caller bounding itself by that specific
+ * decoder needs to tell "hasn't started" apart from "committed nothing past
+ * genesis", the same distinction local-mode `decoderBoundTip` already makes
+ * (`committedHeight(undefined) === null`).
  */
 export async function getDecoderCommittedHeights(
 	db: Kysely<Database> = getSourceDb(),
@@ -107,8 +115,7 @@ export async function getDecoderCommittedHeights(
 	for (const decoderName of decoderNames) {
 		const eventType =
 			DECODER_EVENT_TYPES[decoderName as keyof typeof DECODER_EVENT_TYPES];
-		heights[eventType] =
-			committedHeight(cursorByName.get(decoderName) ?? null) ?? 0;
+		heights[eventType] = committedHeight(cursorByName.get(decoderName) ?? null);
 	}
 	return heights;
 }
@@ -118,16 +125,22 @@ export async function getDecoderCommittedHeights(
  * committed height across every one of them. Min-over-a-superset is always
  * ≤ min-over-any-subset, so this floor is correct (never over-serves) no
  * matter which types a given caller actually reads — the property that lets
- * an HTTP-only reader (the chain evaluator, a hosted subgraph) trust it as
- * the block source's tip without a second, decoder-status-specific request
- * (see decoder-bound.ts's remote mode). Event routes that know their own
- * type sharpen this further via `indexReadTip`/`committedHeightForEventTypes`.
+ * an HTTP-only reader (the chain evaluator, a hosted subgraph) trust it as a
+ * FALLBACK block source tip when it can't (or an older server didn't send
+ * enough to) narrow to the decoders it actually reads (see
+ * decoder-bound.ts's remote mode). Event routes that know their own type
+ * sharpen this further via `indexReadTip`/`committedHeightForEventTypes`.
+ *
+ * A decoder with no checkpoint yet (`null` in the map) counts as height 0
+ * here — this is the GLOBAL, caller-agnostic floor, so the conservative
+ * choice is to assume the worst rather than have one un-started decoder make
+ * the whole tip undefined.
  */
 async function getDecoderCommittedTipBlock(
 	db: Kysely<Database> = getSourceDb(),
 ): Promise<DecodedTipBlock | null> {
 	const heights = await getDecoderCommittedHeights(db);
-	const values = Object.values(heights);
+	const values = Object.values(heights).map((h) => h ?? 0);
 	if (values.length === 0) return null;
 	const minHeight = Math.min(...values);
 
@@ -192,7 +205,7 @@ export function committedHeightForEventTypes(
 	const values: number[] = [];
 	for (const eventType of eventTypes) {
 		const height = heights[eventType];
-		if (height === undefined) return null;
+		if (height === undefined || height === null) return null;
 		values.push(height);
 	}
 	return Math.min(...values);
