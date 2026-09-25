@@ -242,25 +242,29 @@ key. Subgraphs and webhooks are not hosted; run them on your instance.
 
 ## Pricing
 
-Not a monthly service. The runtime is MIT. We run the archive and a hosted
-API. One prepaid `account_credits` balance, denominated in dollars, meters
-every hosted unit. No Pro SKU. No retention ladder. Enterprise is a custom
-door.
+A data pipeline, priced by rows delivered — not a query service. Not a
+monthly service. The runtime is MIT. We run the archive and a hosted API.
+One prepaid `account_credits` balance, denominated in dollars, meters every
+hosted unit through one ledger (`usage_ledger` + `meter()`). No Pro SKU. No
+retention ladder. Enterprise is a custom door.
 
 Contract and prices live in `docs/internal/economics-metered-model.md`
-(founder-resolved 2026-09-11). Summary:
+(founder-resolved 2026-09-11, allowance 2026-09-24). Summary:
 
 | Billable | Not billable |
 | --- | --- |
 | Official-archive bootstrap (genesis or a large range) | Self-host runtime, compose, CLI |
 | Data-avail backfill / reindex that reads our archive | Forward-only indexing from the operator's node |
-| Hosted Index / Streams reads | Self-host `/v1` reads |
+| Hosted Index / Streams reads past the monthly allowance | Self-host `/v1` reads |
+| | The first 10M rows delivered per account per month |
 | | `secondlayer verify` / `secondlayer repair` against public manifests |
 | | Self-host subgraphs and webhooks |
 
 Display unit is dollars. Charge archive bytes at fetch time with a gated
-URL. Charge hosted reads after the page is served. Hosted `/v1` without a
-key is 401.
+URL. Charge hosted reads after the page is served, live or history, at the
+same rate — the archive is the only bulk discount. A free monthly
+allowance of rows replaces the old free-height window; hosted `/v1`
+without a key is 401.
 
 We do not host subgraphs, webhook delivery, or a public Explore catalog.
 Do not reintroduce monthly-plan UX.

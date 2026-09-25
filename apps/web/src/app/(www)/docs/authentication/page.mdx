@@ -34,12 +34,12 @@ Never put `sk-sl_*` in `INSTANCE_TOKEN`. Never put the hex token in `SECONDLAYER
 
 Get a key: [sign in](https://www.secondlayer.tools/login) with your email. Your first key is shown once on [your account page](https://www.secondlayer.tools/account), where you can create more.
 
-Hosted reads:
+Hosted reads, live or history, priced the same:
 
-| Rows | Cost |
+| Rows delivered | Cost |
 | --- | --- |
-| Last 17,280 blocks (about a day) | free, with or without credits |
-| Older history | $5 per 1M rows, $2 per 1M past $50 in a month |
+| First 10M rows per account per month | free |
+| Past 10M rows/month | $5 per 1M rows, $2 per 1M past $50 in a month |
 | `304` on `If-None-Match` for a finalized page | free |
 
 The SDK sends `If-None-Match` for you. Its cache holds the last 64 pages in memory; pass `etagCache` to keep one across runs.

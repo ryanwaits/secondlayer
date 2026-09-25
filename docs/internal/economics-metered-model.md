@@ -11,6 +11,11 @@ subgraph running/storage/indexing and delivery meters were removed
 and webhooks are self-host only. The archive and Index/Streams read meters
 below stand.
 
+**Updated 2026-09-24 (one ledger):** every meter now runs through
+`usage_ledger` + `meter()`, one price table, and a 10M-rows/month
+allowance replacing the free-height window and the Streams retention
+ladder — both dropped.
+
 ## Constraint
 
 No monthly SKUs. One prepaid balance, dollars, across archive bootstrap
@@ -44,46 +49,56 @@ is an asset. The AX162-S is the floor: bitcoind (~750 GB) + stacks
 chainstate (~800–900 GB) needs ~2 TB of fast disk. Revisit only if
 revenue stalls below $1k/mo for months.
 
-## What already exists
+## What exists (plan-049, one ledger)
 
 Credits are USD-micros (`account_credits.balance_usd_micros`). 1 USD =
-1,000,000 µ$. One balance already covers two meters:
+1,000,000 µ$. `meter()` (`packages/platform/src/billing/meter.ts`) is the
+one function that debits it; `usage_ledger` is the append-only record of
+every charge. Prices live in one table, `packages/platform/src/billing/prices.ts`:
 
-| Unit | Price | Code |
+| Unit | Price | Status |
 |---|---|---|
-| Archive partition (blocks / tx) | $0.05 | `packages/api/src/routes/archive.ts` |
-| Archive partition (events) | $0.15 | same |
-| Hosted Index / Streams row read | $5/1M; $2/1M once monthly spend ≥ $50 | `packages/api/src/lib/read-credits.ts` |
-| Min PAYG balance | $0.005 (one 1,000-row page) | same |
-| Top-up packs | $10 / $25 / $50 / $100 | `packages/api/src/routes/billing.ts` |
-| Free repair allowance | 18 partitions/mo | archive.ts |
-| Index free window | last 24h, 10/s | `index/free-window.ts`, `index/tiers.ts` |
-| Streams free window | 1-day retention, 10/s | `streams/tiers.ts` |
+| `archive.partition` | $0.05 | live |
+| `archive.partition.events` | $0.15 | live |
+| `rows.delivered` | $5/1M; $2/1M once monthly spend ≥ $50; first 10M rows/mo free | live |
+| `memory.gb_hour` | ~$0.028/GB-hour | priced, no caller yet (044) |
+| `storage.gb_day` | ~$0.25/GB-month billed daily | priced, no caller yet (046) |
+| `webhook.event` | $10/1M, retries free | priced, no caller yet (044) |
+
+- The first 10M `rows.delivered` per account per UTC calendar month are free
+  — replaces the old free-height window and Streams' 1-day retention
+  ladder (both removed). Every account reads full history; rows past the
+  allowance are a paid read, not a blocked one.
+- Hosted `/v1` Index/Streams reads require an `sk-sl_*` key (401 without
+  one) — the allowance is per account, so a keyless feed of all history
+  would be unmetered.
+- Free repair allowance (archive `repair` flow): 18 partitions/mo, a
+  pre-check in `routes/archive.ts`, separate from the ledger allowance.
+- Top-up packs: $10 / $25 / $50 / $100 (`routes/billing.ts`); a top-up
+  writes a `unit: "topup"` ledger row with negative `usd_micros`.
+- `POST /internal/meters`: batched ingest for the hosted-stack meters
+  above, guarded by `WORKLOAD_HOST_KEY` (044/046's provisioner and
+  gateway; no caller yet).
+- `GET /api/billing/usage?month=`: per-unit quantity + cost from the
+  ledger. No UI yet — the future consumer is the web account credits page.
 
 Subgraphs and webhooks are self-host only and unmetered.
 
-## Proposed meters
-
-All debit the same `account_credits` balance. Display unit is **dollars**,
-not a credit token. Internally we already store micros; do not invent a
-second denomination.
-
-| Meter | Price | What it pays for | Notes |
-|---|---|---|---|
-| Archive partition | $0.05 / $0.15 (events) | R2 fetch | unchanged |
-| Row read (Index, Streams) | $5/1M, $2/1M over $50/mo | query serving | |
-
-## Resolved numbers (founder, 2026-09-11)
+## Resolved numbers (founder, 2026-09-11; allowance 2026-09-24)
 
 1. ~~Play grant = $10.~~ Removed 2026-09-23 with hosted subgraphs.
 2. ~~No $250 usage gate.~~ Moot: no claim path.
-3. **No Streams retention ladder.** 1-day hot window for everyone
-   (already built). Older is free dump replay.
+3. **No Streams retention ladder.** Removed 2026-09-24 — every account
+   reads full history; the monthly allowance is the free tier now, not a
+   time window.
 4. ~~Accountless play, account at claim.~~ Shipped 2026-09-11, removed
    2026-09-23 (migration 0135 drops claim_tokens, play_provisions,
    hosted_meter_days).
 5. **Display = dollars everywhere.** No credit-token denomination.
    Quotes and balances print as `$`.
+6. **A pipeline priced by rows delivered, not a query service** (founder
+   2026-09-24). Tip and history cost the same; the archive is the only
+   bulk discount.
 
 ## Capacity at $10k/mo
 

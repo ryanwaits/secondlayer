@@ -100,13 +100,13 @@ describe("internal Index/Streams credentials", () => {
 		);
 	});
 
-	test("requireInternalIndexApiKey names the 24h window in its message", () => {
+	test("requireInternalIndexApiKey names the 401 consequence in its message", () => {
 		expect(() =>
 			requireInternalIndexApiKey({
 				INDEX_INTERNAL_API_KEY: "",
 				INSTANCE_TOKEN: "",
 			}),
-		).toThrow(/24h/);
+		).toThrow(/401/);
 	});
 
 	test("requireInternalIndexApiKey returns INSTANCE_TOKEN when internal env is empty", () => {

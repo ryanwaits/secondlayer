@@ -20,7 +20,7 @@ const MISSING_INTERNAL_STREAMS_API_KEY =
 	"Set STREAMS_INTERNAL_API_KEY (archive; prefix sl-int_) or INSTANCE_TOKEN (OSS). Empty env no longer falls back to a committed secret.";
 
 const MISSING_INTERNAL_INDEX_API_KEY =
-	"Set INDEX_INTERNAL_API_KEY (archive; prefix sl-int_) or INSTANCE_TOKEN (OSS). Without one, Index reads go out anonymously and are capped at the last 24h, so any seek into older history 402s.";
+	"Set INDEX_INTERNAL_API_KEY (archive; prefix sl-int_) or INSTANCE_TOKEN (OSS). Without one, Index reads carry no credential and platform mode 401s every one of them.";
 
 export function defaultInternalIndexApiKey(
 	env: NodeJS.ProcessEnv = process.env,
@@ -45,12 +45,9 @@ export function defaultInternalStreamsApiKey(
 /**
  * Platform-mode Index consumer: refuse to run with neither credential.
  *
- * A keyless Index read is not an error — it is an anonymous read, and the API
- * serves it for the last 24h (`api/src/index/free-window.ts`). That makes a
- * missing key invisible right up until a consumer's cursor falls out of the
- * window, at which point every read 402s and the container goes unhealthy,
- * possibly weeks after the misconfiguration. Callers that seek older history
- * on a platform-mode instance should fail here at startup instead.
+ * Platform mode requires a credential on every Index read (a keyless read
+ * 401s, `api/src/index/auth.ts`) — a first-party consumer with no internal
+ * key would fail every request at call time. Fail here at startup instead.
  *
  * Self-hosted (oss/dedicated) instances are not gated, so they must NOT call
  * this — `defaultInternalIndexApiKey()` returning undefined is correct there.

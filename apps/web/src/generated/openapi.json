@@ -4988,14 +4988,14 @@
 							"integer",
 							"null"
 						],
-						"description": "Oldest height this caller's key can read (1 day back on a free key). `null` when there is no limit, including every keyless read."
+						"description": "Always `null` — every account reads full history. Rows past the monthly allowance are a paid read, not a blocked one."
 					},
 					"oldest_cursor": {
 						"type": [
 							"string",
 							"null"
 						],
-						"description": "`<oldest_seekable_height>:0`, ready to pass as `from_cursor`. `null` with no limit."
+						"description": "Always `null` — see `oldest_seekable_height`."
 					}
 				},
 				"example": {
@@ -12788,16 +12788,6 @@
 					},
 					"401": {
 						"description": "This bind requires the instance token, and it was missing or wrong",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/Error"
-								}
-							}
-						}
-					},
-					"403": {
-						"description": "A free-tier key asked for a height older than its 1-day retention window (`AUTHORIZATION_ERROR`). `details` carries `oldest_seekable_height`, `oldest_cursor` and `dumps_manifest_url` for the cold dumps. Keyless reads on a self-hosted instance have no retention limit",
 						"content": {
 							"application/json": {
 								"schema": {
