@@ -306,6 +306,69 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		expect(JSON.stringify(responseBody)).not.toContain("relation");
 		expect(JSON.stringify(responseBody)).not.toContain("does not exist");
 	});
+
+	test("deliveries report the delivered event's block time, or null without one", async () => {
+		const created = await app.request("/webhooks", {
+			method: "POST",
+			body: JSON.stringify({
+				name: "deliveries-block-time",
+				subgraphName: SUBGRAPH_NAME,
+				tableName: "transfers",
+				url: "https://example.com/webhook",
+			}),
+		});
+		const body = (await created.json()) as { webhook: { id: string } };
+		const webhookId = body.webhook.id;
+
+		const db = getDb();
+		const blockTime = new Date("2026-04-23T00:00:00.000Z");
+		const outbox = await db
+			.insertInto("webhook_outbox")
+			.values({
+				webhook_id: webhookId,
+				subgraph_name: SUBGRAPH_NAME,
+				table_name: "transfers",
+				block_height: 42,
+				tx_id: "0xtimed",
+				row_pk: { blockHeight: 42, txId: "0xtimed", rowIndex: 0 },
+				event_type: `${SUBGRAPH_NAME}.transfers.created`,
+				payload: { amount: "1" },
+				dedup_key: "deliveries-block-time-outbox",
+				block_time: blockTime,
+			})
+			.returning("id")
+			.executeTakeFirstOrThrow();
+
+		await db
+			.insertInto("webhook_deliveries")
+			.values([
+				{
+					webhook_id: webhookId,
+					outbox_id: outbox.id,
+					attempt: 1,
+					status_code: 200,
+				},
+				{
+					// No outbox row (e.g. a test delivery) — blockTime must be null.
+					webhook_id: webhookId,
+					outbox_id: null,
+					attempt: 1,
+					status_code: 200,
+				},
+			])
+			.execute();
+
+		const res = await app.request(`/webhooks/${webhookId}/deliveries`);
+		expect(res.status).toBe(200);
+		const { data } = (await res.json()) as {
+			data: Array<{ blockTime: string | null }>;
+		};
+		expect(data).toHaveLength(2);
+		const withOutbox = data.find((d) => d.blockTime !== null);
+		const withoutOutbox = data.find((d) => d.blockTime === null);
+		expect(withOutbox?.blockTime).toBe(blockTime.toISOString());
+		expect(withoutOutbox?.blockTime).toBeNull();
+	});
 });
 
 describe.skipIf(SKIP)("Webhooks API pagination", () => {

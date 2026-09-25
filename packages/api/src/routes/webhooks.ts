@@ -396,6 +396,7 @@ app.get("/:id/deliveries", async (c) => {
 				"d.response_body",
 				"d.dispatched_at",
 				"o.block_height",
+				"o.block_time",
 			])
 			.where("d.webhook_id", "=", sub.id)
 			.orderBy("d.dispatched_at", "desc")
@@ -419,6 +420,8 @@ app.get("/:id/deliveries", async (c) => {
 			statusCode: r.status_code,
 			// Null when the outbox row was already compacted away.
 			blockHeight: r.block_height === null ? null : Number(r.block_height),
+			// Null when the outbox row is gone, or predates the block_time column.
+			blockTime: r.block_time === null ? null : r.block_time.toISOString(),
 			errorMessage: r.error_message,
 			durationMs: r.duration_ms,
 			responseBody: r.response_body,

@@ -49,6 +49,7 @@ const delivery = (statusCode: number | null): DeliveryRow => ({
 	durationMs: 10,
 	responseBody: null,
 	dispatchedAt: "2026-04-23T00:00:00.000Z",
+	blockTime: null,
 });
 
 const deadRow: DeadRow = {

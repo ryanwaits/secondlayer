@@ -533,6 +533,7 @@ export const webhooksPaths = {
 									attempt: 1,
 									statusCode: 200,
 									blockHeight: 8700076,
+									blockTime: "2026-09-22T14:02:58.000Z",
 									errorMessage: null,
 									durationMs: 142,
 									responseBody: '{"received":true}',
@@ -858,6 +859,7 @@ export const webhooksSchemas = {
 			"attempt",
 			"statusCode",
 			"blockHeight",
+			"blockTime",
 			"errorMessage",
 			"durationMs",
 			"responseBody",
@@ -883,6 +885,12 @@ export const webhooksSchemas = {
 				description:
 					"Block of the delivered event. `null` for test deliveries and for events already compacted out of the outbox.",
 			},
+			blockTime: {
+				type: ["string", "null"],
+				format: "date-time",
+				description:
+					"When the delivered event's block was produced. `null` for test deliveries, events already compacted out of the outbox, and rows written before this column existed.",
+			},
 			errorMessage: {
 				type: ["string", "null"],
 				description: "Why the attempt failed. `null` on success.",
@@ -907,6 +915,7 @@ export const webhooksSchemas = {
 			attempt: 1,
 			statusCode: 200,
 			blockHeight: 8700076,
+			blockTime: "2026-09-22T14:02:58.000Z",
 			errorMessage: null,
 			durationMs: 142,
 			responseBody: '{"received":true}',
