@@ -125,23 +125,11 @@ export const INSTANCE_TOKEN_ENV = "INSTANCE_TOKEN";
 /** Hosted account key (`sk-sl_*`) for api.secondlayer.tools. */
 export const ACCOUNT_KEY_ENV = "SECONDLAYER_API_KEY";
 
-let warnedUrlAlias = false;
-
 export function resolveBaseUrl(explicit?: string): string {
 	if (explicit && explicit.length > 0) return explicit.replace(/\/+$/, "");
 	if (typeof process !== "undefined") {
 		const primary = process.env?.SECONDLAYER_API_URL || undefined;
 		if (primary) return primary.replace(/\/+$/, "");
-		const legacy = process.env?.SL_API_URL || undefined;
-		if (legacy) {
-			if (!warnedUrlAlias) {
-				warnedUrlAlias = true;
-				console.warn(
-					"[secondlayer] SL_API_URL is a legacy alias of SECONDLAYER_API_URL; using the alias this once.",
-				);
-			}
-			return legacy.replace(/\/+$/, "");
-		}
 	}
 	return LOCAL_API_URL;
 }
@@ -156,30 +144,13 @@ export function resolveApiKey(apiKey?: string): string | undefined {
 	return token;
 }
 
-let warnedArchiveAlias = false;
-
 /** Resolve the hosted account key for archive quote/fetch/credits.
- *  Precedence: explicit `accountKey` → `SECONDLAYER_API_KEY` → `SL_API_KEY` /
- *  `SL_ARCHIVE_API_KEY` (one-release warn-fallbacks). Does not read
+ *  Precedence: explicit `accountKey` → `SECONDLAYER_API_KEY`. Does not read
  *  `INSTANCE_TOKEN`. */
 export function resolveAccountKey(accountKey?: string): string | undefined {
 	if (accountKey !== undefined) return accountKey;
 	if (typeof process === "undefined") return undefined;
-	const primary = process.env?.SECONDLAYER_API_KEY || undefined;
-	const slAlias = process.env?.SL_API_KEY || undefined;
-	const archiveAlias = process.env?.SL_ARCHIVE_API_KEY || undefined;
-	if (primary) return primary;
-	const legacy = slAlias ?? archiveAlias;
-	if (legacy) {
-		if (!warnedArchiveAlias) {
-			warnedArchiveAlias = true;
-			console.warn(
-				"[secondlayer] SL_API_KEY / SL_ARCHIVE_API_KEY are legacy aliases of SECONDLAYER_API_KEY; using the alias this once.",
-			);
-		}
-		return legacy;
-	}
-	return undefined;
+	return process.env?.SECONDLAYER_API_KEY || undefined;
 }
 
 /** Percent-encode one URL path segment. Every caller-supplied identifier

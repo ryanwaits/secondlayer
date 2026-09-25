@@ -5,6 +5,7 @@ import {
 	type FetchLike,
 	LOCAL_API_URL,
 	MemoryEtagCache,
+	resolveAccountKey,
 	resolveBaseUrl,
 } from "./base.ts";
 
@@ -27,12 +28,73 @@ describe("resolveBaseUrl", () => {
 		);
 	});
 
-	test("SL_API_URL then local default", () => {
+	test("SECONDLAYER_API_URL then local default", () => {
 		Reflect.deleteProperty(process.env, "SL_API_URL");
 		Reflect.deleteProperty(process.env, "SECONDLAYER_API_URL");
 		expect(resolveBaseUrl()).toBe(LOCAL_API_URL);
-		process.env.SL_API_URL = "http://localhost:3999";
+		process.env.SECONDLAYER_API_URL = "http://localhost:3999";
 		expect(resolveBaseUrl()).toBe("http://localhost:3999");
+	});
+
+	test("SL_API_URL alone is ignored", () => {
+		Reflect.deleteProperty(process.env, "SECONDLAYER_API_URL");
+		process.env.SL_API_URL = "http://localhost:3999";
+		const warn = console.warn;
+		let warned = false;
+		console.warn = (...args: unknown[]) => {
+			warned = true;
+			warn(...args);
+		};
+		try {
+			expect(resolveBaseUrl()).toBe(LOCAL_API_URL);
+			expect(warned).toBe(false);
+		} finally {
+			console.warn = warn;
+		}
+	});
+});
+
+describe("resolveAccountKey", () => {
+	const saved = {
+		SL_API_KEY: process.env.SL_API_KEY,
+		SL_ARCHIVE_API_KEY: process.env.SL_ARCHIVE_API_KEY,
+		SECONDLAYER_API_KEY: process.env.SECONDLAYER_API_KEY,
+	};
+
+	afterEach(() => {
+		for (const [k, v] of Object.entries(saved)) {
+			if (v === undefined) Reflect.deleteProperty(process.env, k);
+			else process.env[k] = v;
+		}
+	});
+
+	test("explicit wins", () => {
+		expect(resolveAccountKey("sk-sl_explicit")).toBe("sk-sl_explicit");
+	});
+
+	test("SECONDLAYER_API_KEY is read", () => {
+		Reflect.deleteProperty(process.env, "SL_API_KEY");
+		Reflect.deleteProperty(process.env, "SL_ARCHIVE_API_KEY");
+		process.env.SECONDLAYER_API_KEY = "sk-sl_canonical";
+		expect(resolveAccountKey()).toBe("sk-sl_canonical");
+	});
+
+	test("SL_API_KEY / SL_ARCHIVE_API_KEY alone are ignored", () => {
+		Reflect.deleteProperty(process.env, "SECONDLAYER_API_KEY");
+		process.env.SL_API_KEY = "sk-sl_legacy";
+		process.env.SL_ARCHIVE_API_KEY = "sk-sl_legacy-archive";
+		const warn = console.warn;
+		let warned = false;
+		console.warn = (...args: unknown[]) => {
+			warned = true;
+			warn(...args);
+		};
+		try {
+			expect(resolveAccountKey()).toBeUndefined();
+			expect(warned).toBe(false);
+		} finally {
+			console.warn = warn;
+		}
 	});
 });
 

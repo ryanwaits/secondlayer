@@ -395,25 +395,16 @@ describe("BaseClient", () => {
 			expect(resolveAccountKey()).toBe("sk-sl_primary");
 		});
 
-		test("falls back to SL_API_KEY when primary unset", () => {
-			process.env.SL_API_KEY = "sk-sl_alias";
-			expect(resolveAccountKey()).toBe("sk-sl_alias");
-		});
-
-		test("falls back to SL_ARCHIVE_API_KEY when both above unset", () => {
-			process.env.SL_ARCHIVE_API_KEY = "sk-sl_archive_alias";
-			expect(resolveAccountKey()).toBe("sk-sl_archive_alias");
-		});
-
-		test("SL_API_KEY wins over SL_ARCHIVE_API_KEY", () => {
+		test("does not read SL_API_KEY or SL_ARCHIVE_API_KEY", () => {
 			process.env.SL_API_KEY = "sk-sl_alias";
 			process.env.SL_ARCHIVE_API_KEY = "sk-sl_archive_alias";
-			expect(resolveAccountKey()).toBe("sk-sl_alias");
+			expect(resolveAccountKey()).toBeUndefined();
 		});
 
-		test("SECONDLAYER_API_KEY wins over SL_API_KEY", () => {
+		test("SECONDLAYER_API_KEY wins even when SL_API_KEY and SL_ARCHIVE_API_KEY are set", () => {
 			process.env.SECONDLAYER_API_KEY = "sk-sl_primary";
 			process.env.SL_API_KEY = "sk-sl_alias";
+			process.env.SL_ARCHIVE_API_KEY = "sk-sl_archive_alias";
 			expect(resolveAccountKey()).toBe("sk-sl_primary");
 		});
 

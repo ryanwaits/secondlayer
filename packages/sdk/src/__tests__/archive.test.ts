@@ -379,27 +379,28 @@ describe("archive", () => {
 		expect(calls).toBe(0);
 	});
 
-	test("hex from SL_API_KEY env throws ArchiveAuthError and does not send", async () => {
+	test("SL_API_KEY / SL_ARCHIVE_API_KEY env are ignored; request sends unauthenticated", async () => {
 		const original = process.env.SL_API_KEY;
 		const originalAccount = process.env.SECONDLAYER_API_KEY;
 		const originalArchive = process.env.SL_ARCHIVE_API_KEY;
 		delete process.env.SECONDLAYER_API_KEY;
-		delete process.env.SL_ARCHIVE_API_KEY;
 		process.env.SL_API_KEY = "b".repeat(64);
+		process.env.SL_ARCHIVE_API_KEY = "c".repeat(64);
 		let calls = 0;
+		let sawAuthHeader = false;
 		try {
 			const c = createArchiveClient({
 				archiveBaseUrl: ARCHIVE_BASE,
 				archiveOpsUrl: OPS_BASE,
-				fetchImpl: async () => {
+				fetchImpl: async (_input, init) => {
 					calls++;
+					sawAuthHeader = new Headers(init?.headers).has("Authorization");
 					return new Response(JSON.stringify(quoteOk), { status: 200 });
 				},
 			});
-			await expect(
-				c.quote({ paths: [partition.path], flow: "bootstrap" }),
-			).rejects.toBeInstanceOf(ArchiveAuthError);
-			expect(calls).toBe(0);
+			await c.quote({ paths: [partition.path], flow: "bootstrap" });
+			expect(calls).toBe(1);
+			expect(sawAuthHeader).toBe(false);
 		} finally {
 			if (original === undefined) delete process.env.SL_API_KEY;
 			else process.env.SL_API_KEY = original;
