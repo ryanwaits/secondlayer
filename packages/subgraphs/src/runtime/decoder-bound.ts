@@ -1,4 +1,4 @@
-import { decodeStreamsCursor, isEmptyRangeCursor } from "@secondlayer/shared";
+import { committedHeight } from "@secondlayer/shared";
 import { type Database, getSourceDb } from "@secondlayer/shared/db";
 import {
 	defaultInternalIndexApiKey,
@@ -57,33 +57,25 @@ export function usesDecodedIndexPlane(subgraph: SubgraphDefinition): boolean {
 	);
 }
 
-/**
- * Highest height at which this cursor has fully committed. Mid-block
- * (`H:n`, n not the empty-range sentinel) means the rest of H is still
- * in flight — floor is H-1. Sentinel `H:2147483647` means H is done.
- */
-export function committedHeight(
-	cursor: string | null | undefined,
-): number | null {
-	if (!cursor) return null;
-	try {
-		const decoded = decodeStreamsCursor(cursor);
-		if (isEmptyRangeCursor(decoded)) return decoded.block_height;
-		return Math.max(0, decoded.block_height - 1);
-	} catch {
-		return null;
-	}
-}
+// `committedHeight` moved to `@secondlayer/shared` (streams-cursor.ts) so the
+// Index `/public/status` route and this module share one implementation of
+// the committed-height rule. Re-exported here so existing importers of
+// `./decoder-bound.ts` are unaffected.
+export { committedHeight };
 
 export type DecoderBound =
 	| { kind: "unbounded" }
 	| { kind: "stall"; missing: string[] }
 	| { kind: "height"; height: number };
 
-/** The subset of `GET /public/status`'s `index.decoders[]` this reads. */
+/** The subset of `GET /public/status`'s `index.decoders[]` this reads.
+ *  `committedBlockHeight` is absent on an older server that hasn't shipped it
+ *  yet — `undefined`, not `null` — so callers can tell "not sent" apart from
+ *  "sent, decoder has no checkpoint at all". */
 export type RemoteDecoderStatusEntry = {
 	decoder: string;
 	checkpointBlockHeight: number | null;
+	committedBlockHeight?: number | null;
 };
 
 export type DecoderStatusLoader = () => Promise<RemoteDecoderStatusEntry[]>;
@@ -133,11 +125,13 @@ async function fetchRemoteDecoderStatus(): Promise<RemoteDecoderStatusEntry[]> {
 /**
  * Remote-status variant of the floor below: same missing/floor semantics,
  * sourced from the Index API's decoder progress instead of local
- * `decoder_checkpoints`. `checkpointBlockHeight` is the checkpoint cursor's
- * raw block height (`health.ts` `cursorBlockHeight` — not floored for a
- * mid-block cursor the way `committedHeight` is), so it gets the same
- * conservative `-1`: costs at most one block of latency, never risks
- * processing past a partially-decoded block.
+ * `decoder_checkpoints`. Prefers each entry's `committedBlockHeight` (the same
+ * committed-height rule `decoderBoundTip` applies locally, computed
+ * server-side) when the server sends it. Falls back to the older,
+ * conservative `checkpointBlockHeight - 1` when a server hasn't shipped
+ * `committedBlockHeight` yet (the field is absent, not null) — that costs at
+ * most one extra block of latency and never risks processing past a
+ * partially-decoded block.
  *
  * Any failure (unreachable, non-2xx, bad JSON) stalls rather than falling
  * through to the unbounded raw tip — same fail-closed posture as a missing
@@ -157,13 +151,17 @@ async function remoteDecoderBoundTip(
 		});
 		return { kind: "stall", missing: decoderNames };
 	}
-	const byName = new Map(
-		entries.map((e) => [e.decoder, e.checkpointBlockHeight]),
-	);
+	const byName = new Map(entries.map((e) => [e.decoder, e]));
 	const missing: string[] = [];
 	const heights: number[] = [];
 	for (const name of decoderNames) {
-		const checkpointBlockHeight = byName.get(name);
+		const entry = byName.get(name);
+		if (entry && entry.committedBlockHeight !== undefined) {
+			if (entry.committedBlockHeight === null) missing.push(name);
+			else heights.push(entry.committedBlockHeight);
+			continue;
+		}
+		const checkpointBlockHeight = entry?.checkpointBlockHeight;
 		if (checkpointBlockHeight === undefined || checkpointBlockHeight === null) {
 			missing.push(name);
 		} else {

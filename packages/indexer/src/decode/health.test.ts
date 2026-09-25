@@ -206,6 +206,76 @@ describe.skipIf(!HAS_DB)("L2 decoder health", () => {
 		expect(health.lag_seconds).toBe(240);
 	});
 
+	test("mid-block checkpoint floors checkpoint_committed_height to H-1", async () => {
+		if (!db) throw new Error("missing db");
+		const now = new Date();
+		const nowSec = Math.floor(now.getTime() / 1000);
+
+		await db
+			.insertInto("blocks")
+			.values([
+				{
+					height: 10,
+					hash: "0x10",
+					parent_hash: "0x09",
+					burn_block_height: 110,
+					timestamp: nowSec,
+					canonical: true,
+				},
+			])
+			.execute();
+		// event_index 5, not the empty-range sentinel: block 10 is still in
+		// flight, so the committed floor is 9 even though the raw height is 10.
+		await writeDecoderCheckpoint({
+			cursor: "10:5",
+			db,
+			decoderName: NFT_TRANSFER_DECODER_NAME,
+		});
+
+		const health = await getDecoderHealth({
+			db,
+			decoderName: NFT_TRANSFER_DECODER_NAME,
+			now,
+		});
+
+		expect(health.checkpoint_block_height).toBe(10);
+		expect(health.checkpoint_committed_height).toBe(9);
+	});
+
+	test("empty-range sentinel checkpoint means checkpoint_committed_height == H", async () => {
+		if (!db) throw new Error("missing db");
+		const now = new Date();
+		const nowSec = Math.floor(now.getTime() / 1000);
+
+		await db
+			.insertInto("blocks")
+			.values([
+				{
+					height: 10,
+					hash: "0x10",
+					parent_hash: "0x09",
+					burn_block_height: 110,
+					timestamp: nowSec,
+					canonical: true,
+				},
+			])
+			.execute();
+		await writeDecoderCheckpoint({
+			cursor: "10:2147483647",
+			db,
+			decoderName: NFT_TRANSFER_DECODER_NAME,
+		});
+
+		const health = await getDecoderHealth({
+			db,
+			decoderName: NFT_TRANSFER_DECODER_NAME,
+			now,
+		});
+
+		expect(health.checkpoint_block_height).toBe(10);
+		expect(health.checkpoint_committed_height).toBe(10);
+	});
+
 	test("missing checkpoint reports unhealthy with no heartbeat", async () => {
 		if (!db) throw new Error("missing db");
 		const now = new Date();

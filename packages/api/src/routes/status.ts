@@ -29,6 +29,11 @@ type PublicIndexDecoder = {
 	status: PublicIndexDecoderStatus;
 	lagSeconds: number | null;
 	checkpointBlockHeight: number | null;
+	/** Highest height this decoder has fully committed (sentinel cursor = H
+	 *  done, mid-block = H-1) — the bound a consumer should read at, not the
+	 *  raw checkpoint height. Additive: consumers on an older SDK that only
+	 *  know `checkpointBlockHeight` are unaffected. */
+	committedBlockHeight: number | null;
 	tipBlockHeight: number | null;
 	lastDecodedAt: string | null;
 };
@@ -115,6 +120,7 @@ export function publicIndexStatusFromDecoderHealth(
 				status: "unavailable",
 				lagSeconds: null,
 				checkpointBlockHeight: null,
+				committedBlockHeight: null,
 				tipBlockHeight: null,
 				lastDecodedAt: null,
 			})),
@@ -132,6 +138,7 @@ export function publicIndexStatusFromDecoderHealth(
 				status: "unavailable" as const,
 				lagSeconds: null,
 				checkpointBlockHeight: null,
+				committedBlockHeight: null,
 				tipBlockHeight: null,
 				lastDecodedAt: null,
 			};
@@ -142,6 +149,7 @@ export function publicIndexStatusFromDecoderHealth(
 			status: source.status === "healthy" ? "ok" : "degraded",
 			lagSeconds: source.lag_seconds,
 			checkpointBlockHeight: source.checkpoint_block_height,
+			committedBlockHeight: source.checkpoint_committed_height,
 			tipBlockHeight: source.tip_block_height,
 			lastDecodedAt: source.last_decoded_at,
 		};

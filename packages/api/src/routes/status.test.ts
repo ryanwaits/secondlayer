@@ -30,6 +30,9 @@ const HEALTHY_INDEX: DecodersHealth = {
 			decoder: "decode.ft_transfer.v1",
 			checkpoint: "100:2",
 			checkpoint_block_height: 100,
+			// Mid-block cursor (event_index 2, not the sentinel): committed floor
+			// is one behind the raw checkpoint height.
+			checkpoint_committed_height: 99,
 			tip_block_height: 101,
 			lag_seconds: 12,
 			last_decoded_at: "2026-05-11T12:00:00.000Z",
@@ -41,6 +44,7 @@ const HEALTHY_INDEX: DecodersHealth = {
 			decoder: "decode.nft_transfer.v1",
 			checkpoint: "99:4",
 			checkpoint_block_height: 99,
+			checkpoint_committed_height: 98,
 			tip_block_height: 101,
 			lag_seconds: 18,
 			last_decoded_at: "2026-05-11T12:00:01.000Z",
@@ -66,6 +70,7 @@ describe("/status Index freshness", () => {
 			status: "ok",
 			lagSeconds: 12,
 			checkpointBlockHeight: 100,
+			committedBlockHeight: 99,
 			tipBlockHeight: 101,
 			lastDecodedAt: "2026-05-11T12:00:00.000Z",
 		});
@@ -75,6 +80,7 @@ describe("/status Index freshness", () => {
 			status: "ok",
 			lagSeconds: 18,
 			checkpointBlockHeight: 99,
+			committedBlockHeight: 98,
 			tipBlockHeight: 101,
 			lastDecodedAt: "2026-05-11T12:00:01.000Z",
 		});
@@ -88,6 +94,34 @@ describe("/status Index freshness", () => {
 				d.decoder !== "decode.nft_transfer.v1",
 		);
 		expect(others.every((d) => d.status === "unavailable")).toBe(true);
+	});
+
+	test("a sentinel checkpoint reports committedBlockHeight == checkpointBlockHeight", () => {
+		const status = publicIndexStatusFromDecoderHealth({
+			status: "healthy",
+			decoders: [
+				{
+					status: "healthy",
+					decoder: "decode.ft_transfer.v1",
+					checkpoint: "100:2147483647",
+					checkpoint_block_height: 100,
+					checkpoint_committed_height: 100,
+					tip_block_height: 101,
+					lag_seconds: 12,
+					last_decoded_at: "2026-05-11T12:00:00.000Z",
+					writes_recent: true,
+					checkpoint_recent: true,
+				},
+			],
+		});
+
+		const byDecoder = new Map(status.decoders.map((d) => [d.decoder, d]));
+		expect(byDecoder.get("decode.ft_transfer.v1")?.checkpointBlockHeight).toBe(
+			100,
+		);
+		expect(byDecoder.get("decode.ft_transfer.v1")?.committedBlockHeight).toBe(
+			100,
+		);
 	});
 
 	test("marks unhealthy decoders as degraded", () => {

@@ -1,3 +1,4 @@
+import { committedHeight } from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
@@ -20,6 +21,10 @@ export type DecoderHealth = {
 	decoder: string;
 	checkpoint: string | null;
 	checkpoint_block_height: number | null;
+	/** Highest height this checkpoint has fully committed (the shared
+	 *  committed-height rule — sentinel cursor = H done, mid-block = H-1).
+	 *  Null when there's no checkpoint yet, same as `checkpoint_block_height`. */
+	checkpoint_committed_height: number | null;
 	tip_block_height: number | null;
 	lag_seconds: number | null;
 	last_decoded_at: string | null;
@@ -54,6 +59,9 @@ export async function getDecoderHealth(opts?: {
 		.where("decoder_name", "=", decoderName)
 		.executeTakeFirst();
 	const checkpointBlockHeight = cursorBlockHeight(
+		checkpoint?.last_cursor ?? null,
+	);
+	const checkpointCommittedHeight = committedHeight(
 		checkpoint?.last_cursor ?? null,
 	);
 
@@ -113,6 +121,7 @@ export async function getDecoderHealth(opts?: {
 		decoder: decoderName,
 		checkpoint: checkpoint?.last_cursor ?? null,
 		checkpoint_block_height: checkpointBlockHeight,
+		checkpoint_committed_height: checkpointCommittedHeight,
 		tip_block_height: tip ? Number(tip.height) : null,
 		lag_seconds: checkpointLagSeconds,
 		last_decoded_at: lastDecodedAt?.toISOString() ?? null,

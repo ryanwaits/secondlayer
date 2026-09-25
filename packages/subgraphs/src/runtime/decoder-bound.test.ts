@@ -264,6 +264,66 @@ describe("decoderBoundTip (remote index status)", () => {
 		}
 	});
 
+	test("committedBlockHeight, when sent, is used directly (no extra -1)", async () => {
+		setRemoteEnv();
+		try {
+			const statusLoader = async () => [
+				{
+					decoder: "decode.print.v1",
+					checkpointBlockHeight: 8_864_633,
+					committedBlockHeight: 8_864_633,
+				},
+				{
+					decoder: "decode.ft_transfer.v1",
+					checkpointBlockHeight: 8_864_862,
+					committedBlockHeight: 8_864_861,
+				},
+			];
+			await expect(
+				decoderBoundTip(["decode.print.v1", "decode.ft_transfer.v1"], {
+					statusLoader,
+				}),
+			).resolves.toEqual({ kind: "height", height: 8_864_633 });
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("a null committedBlockHeight (sent, but no checkpoint) stalls", async () => {
+		setRemoteEnv();
+		try {
+			const statusLoader = async () => [
+				{
+					decoder: "decode.print.v1",
+					checkpointBlockHeight: null,
+					committedBlockHeight: null,
+				},
+			];
+			await expect(
+				decoderBoundTip(["decode.print.v1"], { statusLoader }),
+			).resolves.toEqual({ kind: "stall", missing: ["decode.print.v1"] });
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("an older server that omits committedBlockHeight falls back to checkpointBlockHeight - 1", async () => {
+		setRemoteEnv();
+		try {
+			const statusLoader = async () => [
+				{ decoder: "decode.print.v1", checkpointBlockHeight: 500 },
+			];
+			await expect(
+				decoderBoundTip(["decode.print.v1"], { statusLoader }),
+			).resolves.toEqual({ kind: "height", height: 499 });
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
 	test("a referenced decoder absent from status stalls with that name", async () => {
 		setRemoteEnv();
 		try {

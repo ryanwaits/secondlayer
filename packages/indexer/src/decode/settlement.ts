@@ -317,6 +317,10 @@ export async function getSettlementConfirmerHealth(opts?: {
 		decoder: SETTLEMENT_CONFIRMER_NAME,
 		checkpoint: checkpoint?.last_cursor ?? null,
 		checkpoint_block_height: null,
+		// Not block-keyed (a Bitcoin-confirmation scan cursor, not the `H:n`
+		// Streams cursor the committed-height rule reads), so there's no
+		// committed height to report.
+		checkpoint_committed_height: null,
 		tip_block_height: null,
 		lag_seconds: null,
 		last_decoded_at: lastWriteAt ? new Date(lastWriteAt).toISOString() : null,

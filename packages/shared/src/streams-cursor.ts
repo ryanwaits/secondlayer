@@ -70,6 +70,27 @@ export function isEmptyRangeCursor(cursor: StreamsCursor): boolean {
 	return cursor.event_index === EMPTY_RANGE_EVENT_INDEX_SENTINEL;
 }
 
+/**
+ * Highest height a cursor has fully committed. Mid-block (`H:n`, n not the
+ * empty-range sentinel) means the rest of H is still in flight — the
+ * committed floor is H-1. Sentinel `H:2147483647` means H is done. One
+ * implementation shared by every reader of a decoder/consumer checkpoint
+ * (Subgraphs' `decoderBoundTip`, the Index `/public/status` route) so the
+ * rule can never drift between them.
+ */
+export function committedHeight(
+	cursor: string | null | undefined,
+): number | null {
+	if (!cursor) return null;
+	try {
+		const decoded = decodeStreamsCursor(cursor);
+		if (isEmptyRangeCursor(decoded)) return decoded.block_height;
+		return Math.max(0, decoded.block_height - 1);
+	} catch {
+		return null;
+	}
+}
+
 /** Exclusive end of every event that can live in `height`. */
 export function blockEndCursor(height: number): StreamsCursor {
 	return {
