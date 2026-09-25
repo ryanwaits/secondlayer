@@ -15,6 +15,7 @@ import {
 } from "@secondlayer/shared/schemas/webhooks";
 import { type Kysely, sql } from "kysely";
 import { buildForFormat } from "./formats/index.ts";
+import { recordDelivery } from "./meter-socket.ts";
 import { refreshMatcher } from "./webhook-state.ts";
 
 /**
@@ -553,6 +554,12 @@ async function settleDelivered(
 			})
 			.where("id", "=", outboxRow.webhook_id)
 			.execute();
+
+		// Hosted-stack event meter (plan 044, step 5): counts a real delivery,
+		// never a retry (this function only runs on the successful outcome) and
+		// never a test delivery (`deliverTestEvent` never calls this). A no-op
+		// on self-host (WEBHOOK_METER_SOCKET unset).
+		recordDelivery();
 	});
 }
 

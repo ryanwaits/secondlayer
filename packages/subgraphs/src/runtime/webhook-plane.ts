@@ -3,6 +3,7 @@ import { listActiveChainWebhooks } from "@secondlayer/shared/db/queries/webhooks
 import { logger } from "@secondlayer/shared/logger";
 import { handleChainReorg } from "./chain-reorg.ts";
 import { startEmitter } from "./emitter.ts";
+import { startMeterSocketReporter } from "./meter-socket.ts";
 import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";
 import {
 	gateChainReorgOnLeader,
@@ -56,11 +57,16 @@ export async function startWebhookPlane(): Promise<() => Promise<void>> {
 	// webhooks; FOR UPDATE SKIP LOCKED makes it safe across replicas.
 	const stopEmitter = await startEmitter();
 
+	// Hosted-stack event meter (plan 044, step 5): a no-op unless
+	// WEBHOOK_METER_SOCKET is set (self-host never sets it).
+	const stopMeterSocket = startMeterSocketReporter();
+
 	logger.info("Webhook plane ready", { streamsIndex });
 
 	return async () => {
 		stopChainReorgPoll?.();
 		await stopTriggerEvaluator?.();
 		await stopEmitter();
+		stopMeterSocket();
 	};
 }
