@@ -1,5 +1,16 @@
 # @secondlayer/api
 
+## 1.40.0
+
+### Minor Changes
+
+- 321539a: Three first-party routes for the hosted workload host, all guarded by the `WORKLOAD_HOST_KEY` bearer `/internal/meters` uses, platform mode only (404 on self-host): `POST /internal/keys/introspect` resolves an `sk-sl_*` key to `{account_id, credits_ok}`; `POST /internal/keys/tenant` mints a rotating `hosted-stack` key for an account's stack; `POST /internal/accounts/credits` returns `credits_ok` for up to 500 accounts.
+
+### Patch Changes
+
+- Updated dependencies [1c12bae]
+  - @secondlayer/subgraphs@6.1.0
+
 ## 1.39.0
 
 ### Minor Changes

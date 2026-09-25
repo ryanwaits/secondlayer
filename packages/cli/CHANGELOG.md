@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 16.3.0
+
+### Minor Changes
+
+- ca4fe8d: `secondlayer webhooks` accepts the hosted API (`api.secondlayer.tools`) when `SECONDLAYER_API_KEY` (`sk-sl_*`) is set, for chain webhooks. Without an account key, hosted stays refused as before; self-host is unaffected.
+
+### Patch Changes
+
+- Updated dependencies [1c12bae]
+  - @secondlayer/subgraphs@6.1.0
+
 ## 16.2.0
 
 ### Minor Changes

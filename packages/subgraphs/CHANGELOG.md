@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 6.1.0
+
+### Minor Changes
+
+- 1c12bae: `webhook-processor` counts delivered events (never retries or test sends) and pushes them over a unix socket every 60s when `WEBHOOK_METER_SOCKET` is set, for hosted usage metering. Inert when unset, which is every self-host.
+
 ## 6.0.0
 
 ### Major Changes
