@@ -19,6 +19,12 @@ The one-day free window and the Streams retention limit are gone. Any key reads 
 
 ## Webhooks — September 2026
 
+### Hosted chain webhooks
+
+Chain webhooks run hosted now, at `api.secondlayer.tools` with an `sk-sl_` key and prepaid credits. Each account gets its own isolated webhook stack, not a shared queue. `secondlayer webhooks create` works against hosted the moment `SECONDLAYER_API_KEY` is set.
+
+Delivered events run $10 per 1M; retries are free, never metered. Hosted caps at 7 retries and a 30s timeout per delivery.
+
 ### Rollbacks cover everything that may have landed
 
 A reorg now rolls back every delivery your endpoint may have received, including one still in flight or retried, instead of dropping it. Delivery stays at-least-once and unordered.
