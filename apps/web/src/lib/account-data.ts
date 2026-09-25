@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { ApiKey } from "./types";
+import type { UsageRow } from "./usage";
 
 /**
  * Account data the nav chip, the floating cards and the /account pages all read. One
@@ -18,9 +19,13 @@ export type Billing = {
 	spentThisMonthUsdMicros: string;
 };
 
-type State = { billing: Billing | null; keys: ApiKey[] | null };
+type State = {
+	billing: Billing | null;
+	keys: ApiKey[] | null;
+	usage: UsageRow[] | null;
+};
 
-const EMPTY: State = { billing: null, keys: null };
+const EMPTY: State = { billing: null, keys: null, usage: null };
 let state: State = EMPTY;
 const listeners = new Set<() => void>();
 
@@ -49,6 +54,23 @@ export async function refreshBilling(): Promise<Billing | null> {
 		const billing = (await res.json()) as Billing;
 		set({ billing });
 		return billing;
+	} catch {
+		return null;
+	}
+}
+
+/** This account's usage_ledger for one UTC calendar month (default: this
+ *  month), grouped by unit. Powers the /account/credits usage view
+ *  (plan 052) — mirrors `refreshBilling`. */
+export async function refreshUsage(month?: string): Promise<UsageRow[] | null> {
+	try {
+		const res = await fetch(
+			`/api/billing/usage${month ? `?month=${month}` : ""}`,
+		);
+		if (!res.ok) return null;
+		const data = (await res.json()) as { month: string; usage: UsageRow[] };
+		set({ usage: data.usage });
+		return data.usage;
 	} catch {
 		return null;
 	}
