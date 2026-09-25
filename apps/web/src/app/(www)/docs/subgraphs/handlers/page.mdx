@@ -14,10 +14,14 @@ ctx.increment("balances", { holder }, { amount: -amount });
 
 The read-modify-write it replaces (`findOne` → compute → `upsert`) looks
 equivalent and isn't. Two events touching the same row in one block both read
-the stale value and the second write wins, so updates are silently lost. It is
-also not replay-safe: under `backfillMode: "concurrent"` the history fill
-revisits blocks, and a non-commutative handler double-counts. Deltas commute,
-so order doesn't matter, and a reorg rewind reverses them cleanly.
+the stale value and the second write wins, so updates are silently lost. Deltas
+commute within a block, and a reorg rewind reverses them cleanly.
+
+The tradeoff: a delta is applied once per pass over a block. Tip-first deploys
+(`backfillMode: "concurrent"`) and `backfill` revisit blocks the live walk
+already processed, so they refuse handlers that call `increment`, `update`,
+`findOne` or `findMany`. Those subgraphs deploy with the default blocking
+backfill and rebuild with `reindex`.
 
 ## Reading the chain from a handler
 

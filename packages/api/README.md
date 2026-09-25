@@ -10,7 +10,7 @@ Base URL: `http://127.0.0.1:3800`
 |---|---|---|
 | Raw ordered chain events | Stacks Streams | `/v1/streams` |
 | Decoded token and NFT transfer events | Stacks Index | `/v1/index` |
-| App-specific materialized tables | Stacks Subgraphs | `/v1/subgraphs` (reads — anon for public subgraphs, wildcard CORS) · `/api/subgraphs` (management) |
+| Your own tables, written by your handlers | Stacks Subgraphs | `/v1/subgraphs` (reads, wildcard CORS) · `/api/subgraphs` (management) |
 
 ## Authentication
 
@@ -110,18 +110,19 @@ Proof errors:
 
 ## Stacks Subgraphs
 
-Reads live on `/v1/subgraphs` — anon for **public** subgraphs (deploys
-default public), owner `sk-sl_` bearer for private (anon → 404). Wildcard CORS.
+Reads live on `/v1/subgraphs`, with the same rule as Index and Streams: open
+on loopback, `INSTANCE_TOKEN` bearer once the API is published past loopback.
+Wildcard CORS. There is no per-subgraph public or private flag.
 
 ```
-GET /v1/subgraphs                       # list public (+ caller's own with bearer)
+GET /v1/subgraphs                       # list
 GET /v1/subgraphs/:name                 # metadata + tables + tip
 GET /v1/subgraphs/:name/:table          # query rows
 GET /v1/subgraphs/:name/:table/count
 GET /v1/subgraphs/:name/:table/aggregate
 GET /v1/subgraphs/:name/:table/:id
 GET /v1/subgraphs/:name/:table/stream   # SSE
-GET /v1/subgraphs/:name/openapi.json    # per-subgraph specs (anon for public)
+GET /v1/subgraphs/:name/openapi.json    # per-subgraph specs
 GET /v1/subgraphs/:name/schema.json
 GET /v1/subgraphs/:name/docs.md
 ```
@@ -130,43 +131,43 @@ Row routes return `{ rows, next_cursor, tip }` with `_id` keyset pagination —
 pass `?cursor=<next_cursor>` to resume, `_order=asc|desc` for direction
 (`_offset`/`_sort` rejected with 400).
 
-Management stays on `/api/subgraphs` (session or key):
+Management stays on `/api/subgraphs`. Writes send `INSTANCE_TOKEN` as the
+bearer, loopback included:
 
 ```
 GET    /api/subgraphs                # list
 POST   /api/subgraphs                # deploy
+POST   /api/subgraphs/bundle         # bundle a source file server-side
 GET    /api/subgraphs/:name          # get
 DELETE /api/subgraphs/:name          # delete
 POST   /api/subgraphs/:name/reindex  # reindex
 POST   /api/subgraphs/:name/backfill # backfill a block range
 POST   /api/subgraphs/:name/stop     # request operation cancellation
+GET    /api/subgraphs/:name/operations              # reindex/backfill operations
+GET    /api/subgraphs/:name/operations/:operationId # one operation
 GET    /api/subgraphs/:name/source   # captured source for edit loops
 GET    /api/subgraphs/:name/gaps     # gap inspection
+GET    /api/subgraphs/:name/violations # print payloads that failed validation
 GET    /api/subgraphs/:name/openapi.json # generated OpenAPI 3.1 spec
 GET    /api/subgraphs/:name/schema.json  # compact agent schema
 GET    /api/subgraphs/:name/docs.md      # generated Markdown reference
 GET    /api/subgraphs/:name/:table   # query table
 GET    /api/subgraphs/:name/:table/count
-GET    /api/subgraphs/:name/:table/:id
+GET    /api/subgraphs/:name/:table/aggregate
 ```
 
-Table list routes return `{ data, meta }`. Count routes return `{ count }`.
+Single-row and SSE stream reads live only on `/v1/subgraphs`. Table list routes
+return `{ data, meta }`. Count routes return `{ count }`.
 
 ### Generated subgraph API specs
 
-The API can generate documentation from the deployed subgraph schema. These
-routes use the same authentication and ownership checks as
-`GET /api/subgraphs/:name`.
+The API can generate documentation from the deployed subgraph schema. The same
+three files are served under `/v1/subgraphs/:name/*` for readers.
 
 ```bash
-curl -H "Authorization: Bearer sk-sl_..." \
-  http://127.0.0.1:3800/api/subgraphs/token-transfers/openapi.json
-
-curl -H "Authorization: Bearer sk-sl_..." \
-  http://127.0.0.1:3800/api/subgraphs/token-transfers/schema.json
-
-curl -H "Authorization: Bearer sk-sl_..." \
-  http://127.0.0.1:3800/api/subgraphs/token-transfers/docs.md
+curl http://127.0.0.1:3800/v1/subgraphs/token-transfers/openapi.json
+curl http://127.0.0.1:3800/v1/subgraphs/token-transfers/schema.json
+curl http://127.0.0.1:3800/v1/subgraphs/token-transfers/docs.md
 ```
 
 Formats:
@@ -205,7 +206,7 @@ webhook, OR `subgraphName` + `tableName` for a **subgraph** webhook —
 mutually exclusive.
 
 ```bash
-curl -X POST -H "Authorization: Bearer sk-sl_..." \
+curl -X POST -H "Authorization: Bearer $INSTANCE_TOKEN" \
   http://127.0.0.1:3800/api/webhooks \
   -d '{
     "name": "amm-swaps",

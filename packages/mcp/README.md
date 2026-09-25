@@ -16,7 +16,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public: `index_*` and `contracts_find` work with no key. Subgraph tools need an `INSTANCE_TOKEN` past loopback; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the instance token (anon → 404). `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. `streams_tip` is key-mandatory (keyless → 401). Live Streams list reads are REST-only (`GET /v1/streams/*`). Writes (deploy, reindex, delete, webhooks) need a key: set `INSTANCE_TOKEN` from `secondlayer init`. Hosted credits/quote use `SECONDLAYER_API_KEY` (`sk-sl_*`). Read `secondlayer://context` first: it reports auth state and read-auth tiers.
+Most reads are public: `index_*` and `contracts_find` work with no key. Subgraph tools need an `INSTANCE_TOKEN` past loopback, and so does `GET /v1/subgraphs/<name>/<table>` over HTTP (`{ rows, next_cursor, tip }` cursor envelope); on loopback it is open. There is no per-subgraph public or private flag. `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. `streams_tip` is key-mandatory (keyless → 401). Live Streams list reads are REST-only (`GET /v1/streams/*`). Writes (deploy, reindex, delete, webhooks) need a key: set `INSTANCE_TOKEN` from `secondlayer init`. Hosted credits/quote use `SECONDLAYER_API_KEY` (`sk-sl_*`). Read `secondlayer://context` first: it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 

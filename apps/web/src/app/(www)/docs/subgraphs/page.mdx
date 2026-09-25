@@ -65,6 +65,8 @@ function credit(ctx: TypedSubgraphContext<typeof schema>, holder: string) {
 export default defineSubgraph({ name: "balances", schema, sources, handlers });
 ```
 
+With only the definition in scope, `InferContext<typeof def>` gives the same typed `ctx`.
+
 ## Indexing a contract set
 
 `contractId` takes an array, so a router plus its pools is one source and one
@@ -152,7 +154,7 @@ Read:      http://127.0.0.1:3800/v1/subgraphs/gamma-sales/sales
 
 <Callout type="tip" title="Tip-first deploys">
 
-`--tip-first` (or `backfillMode: "concurrent"`) goes live at the tip, so rows are queryable in seconds while history backfills. Only for out-of-order-tolerant handlers: commutative counters and balances, insert-only tables. Latest-value-wins handlers keep the default blocking backfill.
+`--tip-first` (or `backfillMode: "concurrent"`) goes live at the tip, so rows are queryable in seconds while history backfills. The history fill revisits blocks, so it only takes handlers that write with `insert` or a full-row `upsert`. A handler that calls `update`, `increment`, `findOne` or `findMany` is refused with `TIP_FIRST_NON_REPLAYABLE_HANDLER`; deploy it with the default blocking backfill. The same rule applies to `secondlayer subgraphs backfill`: use `reindex` for a clean rebuild instead.
 
 </Callout>
 

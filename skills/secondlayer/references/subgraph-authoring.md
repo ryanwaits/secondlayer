@@ -421,13 +421,24 @@ export interface NftBurnEvent {
 ```ts
 export interface ContractCallFilter {
   type: "contract_call";
-  contractId?: string;
+  /** One id, a set (max 20), or a `*` wildcard. Exclusive with `trait`. */
+  contractId?: string | readonly string[];
   functionName?: string;
   caller?: string;
-  /** ABI for typed event.args. If omitted, auto-fetched at deploy time. */
-  abi?: Record<string, unknown>;
+  trait?: string;
+  factory?: { from: string; field: string };
+  /** ABI (`as const`) that types `event.input`. */
+  abi?: AbiContract;
 }
 ```
+
+A source with `functionName` needs an ABI by the time it deploys. For a single
+concrete `contractId`, `secondlayer subgraphs deploy` (and `lint`, `spec`,
+`codegen`, `preview`) fetch it from the deployed contract and write it into the
+bundle, so you can leave `abi` out. The tradeoff: `event.input` is only typed in
+your editor when `abi` is in the file. Pass it yourself for wildcard,
+multi-contract or trait sources, and for a local-network deploy, which imports
+the file as written.
 
 **Event payload (per `src/types.ts` — `ContractCallEvent`):**
 
@@ -1089,5 +1100,5 @@ The CLI runs validation on `secondlayer subgraphs deploy` — bad definitions ne
 - **Don't omit `uniqueKeys` if you call `upsert`** — the runtime falls back to a non-atomic insert with a warning. For correctness, always declare `uniqueKeys: [[...]]` matching the upsert key.
 - **Don't use `number` for amounts** — Stacks amounts are 128-bit. Use `bigint` literals (`1_000_000n`) and the `uint` column type.
 - **Don't hand-add `_block_height` / `_tx_id` columns** — they're auto-added on every insert. Declaring them yourself will conflict.
-- **Don't read-modify-write a running total** (`findOne` → compute → `upsert`) — use `increment`. Deltas commute, so replays and tip-first backfills stay correct.
+- **Don't read-modify-write a running total** (`findOne` → compute → `upsert`) — use `increment`. Deltas commute within a block and a reorg rewind reverses them. Tip-first deploys and `backfill` refuse handlers that call `increment`, `update`, `findOne` or `findMany` (they revisit processed blocks); those subgraphs use the default blocking backfill and `reindex`.
 - **Don't cast `event` — it's already typed.** `defineSubgraph` types `event` per source `type` (e.g. an `ft_transfer` source → `event.amount: bigint`). Declare a `prints` map to type `event.data` per topic, and pass a `const` `abi` to type `event.input` for `contract_call` (§3.11, §8.3). No `as` casts needed.

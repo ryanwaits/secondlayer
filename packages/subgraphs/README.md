@@ -46,17 +46,21 @@ export default defineSubgraph({
 });
 ```
 
-Deploy via CLI (`secondlayer subgraphs deploy path/to/definition.ts`), SDK (`sl.subgraphs.deploy({...})`), or MCP (`subgraphs_deploy`). The CLI can also scaffold from a deployed contract with `secondlayer subgraphs scaffold <contract> -o subgraphs/name.ts`; scaffold writes or amends `package.json` and runs `bun install` unless `--no-install` is passed. The dashboard is read-only — creation always happens through an API surface.
+Deploy via CLI (`secondlayer subgraphs deploy path/to/definition.ts`), SDK (`sl.subgraphs.deploy({...})`), or MCP (`subgraphs_deploy`). The CLI can also scaffold from a deployed contract with `secondlayer subgraphs scaffold <contract> -o subgraphs/name.ts`; scaffold writes or amends `package.json` and runs `bun install` unless `--no-install` is passed. `secondlayer subgraphs create <name> --from-contract <id>` writes a definition with one `ctx.insert` handler per print topic.
+
+Every source needs a handler of the same name. Handlers write with `ctx.insert`, `update`, `upsert`, `delete` and `increment`, and read with `ctx.findOne` / `findMany`. A `contract_call` source with `functionName` gets its `abi` fetched at deploy by the CLI; pass it yourself for wildcard, multi-contract or trait sources, or a local deploy.
 
 ## Exports
 
 | Subpath | Description |
 | --- | --- |
-| `.` | `defineSubgraph`, `validateSubgraphDefinition`, `deploySchema`, `diffSchema`, `generateSubgraphSQL`, `pgSchemaName` |
+| `.` | `defineSubgraph`, `defineSchema`, `InferContext` / `TypedSubgraphContext`, `readContractAt`, `validateSubgraphDefinition`, ORM generators (`generatePrismaSchema`, `generateDrizzleSchema`, `generateKyselySchema`), `deploySchema`, `diffSchema`, `generateSubgraphSQL`, `pgSchemaName` |
 | `./types` | All schema + filter + handler types (`SubgraphDefinition`, `SubgraphFilter`, `StxTransferFilter`, etc.) |
 | `./schema` | Generator + deployer internals |
 | `./validate` | Shape + filter validation for deploys |
-| `./runtime/replay` | `replayWebhook({ accountId, webhookId, fromBlock, toBlock })` — re-enqueue historical rows as outbox entries |
+| `./testing` | `runSubgraphTest`, `createTestContext`, `buildEvent`: run handlers against real or built events before deploying |
+| `./runtime/replay` | `replayWebhook({ accountId, webhookId, fromBlock, toBlock })`: re-enqueue historical rows as outbox entries |
+| `./runtime/emitter` | Webhook egress checks used by the API (`checkEgressAllowed`) |
 
 ## Runtime
 
@@ -68,7 +72,7 @@ Every row written through `ctx.insert()` / `ctx.upsert()` is atomically enqueued
 
 The emitter drains the outbox via `LISTEN webhooks:new_outbox` and `FOR UPDATE SKIP LOCKED` batch claims. Live deliveries win a 90/10 split over replays. Each row dispatches through the format builder matching the webhook's `format` column (`standard-webhooks`, `inngest`, `trigger`, `cloudflare`, `cloudevents`, `raw`). Retries follow `30s → 2m → 10m → 1h → 6h → 24h → 72h`. Twenty consecutive failures trips the per-sub circuit breaker and pauses the webhook.
 
-Delivery bodies and response previews land in `webhook_deliveries`. Rows whose retries exhaust mark `status = 'dead'` in the outbox and surface in the dashboard's dead-letter queue for one-click requeue.
+Delivery bodies and response previews land in `webhook_deliveries`. Rows whose retries exhaust mark `status = 'dead'` in the outbox; list them with `secondlayer webhooks dead <id>` and send one again with `secondlayer webhooks requeue`.
 
 ## Environment
 
@@ -88,13 +92,13 @@ Delivery bodies and response previews land in `webhook_deliveries`. Rows whose r
 Once rows land in your DB, generate a typed schema for your ORM:
 
 ```bash
+secondlayer codegen subgraph subgraphs/my.ts                      # Kysely (default)
 secondlayer codegen subgraph subgraphs/my.ts --target prisma  -o prisma/schema.prisma
 secondlayer codegen subgraph subgraphs/my.ts --target drizzle -o db/schema.ts
 ```
 
-Prisma and Drizzle have first-class generators (`generatePrismaSchema` /
-`generateDrizzleSchema` are exported). For Kysely, run `kysely-codegen`
-against the DB.
+The generators are exported too (`generateKyselySchema`, `generatePrismaSchema`,
+`generateDrizzleSchema`). No foreign keys or relation fields are generated.
 Output mirrors the deployed DDL — `prisma db pull` should be a no-op; treat the
 tables as read-only (the processor owns them) and never `migrate`/`push`.
 `uint`→`Decimal`/`numeric` and the `BigInt` id need `.toString()` for JSON.

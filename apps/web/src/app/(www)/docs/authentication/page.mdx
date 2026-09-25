@@ -27,7 +27,7 @@ Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On 
 
 | Surface | Credential | Behavior |
 | --- | --- | --- |
-| `api.secondlayer.tools` `/v1` Index, Streams, subgraphs | `SECONDLAYER_API_KEY` (`sk-sl_*`) | required. Same prepaid credits as archive |
+| `api.secondlayer.tools` `/v1` Index, Streams | `SECONDLAYER_API_KEY` (`sk-sl_*`) | required. Same prepaid credits as archive. Subgraphs and webhooks run on your instance, not here |
 | Archive quote / fetch / credits | `SECONDLAYER_API_KEY` or `secondlayer login --credits` | required |
 
 Never put `sk-sl_*` in `INSTANCE_TOKEN`. Never put the hex token in `SECONDLAYER_API_KEY`.
