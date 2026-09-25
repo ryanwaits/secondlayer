@@ -4,7 +4,7 @@
 //   - Filtering by asset identifier (`SP....token::token-name`)
 //   - Append-only `transfers` table (one row per event)
 //   - Upserted `balances` table (one row per holder, requires uniqueKeys)
-//   - patchOrInsert to atomically update both sides of a transfer
+//   - increment to update both sides of a transfer (deltas commute)
 //
 // Deploy:   secondlayer subgraphs deploy examples/sip010-balances.ts
 // Query:    secondlayer subgraphs query usda-token balances --sort balance --order desc --limit 20
@@ -15,7 +15,6 @@ const TOKEN = "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.usda-token::usda";
 
 export default defineSubgraph({
   name: "usda-token",
-  version: "1.0.0",
   description: "USDA token transfers + per-holder balances",
 
   sources: {
@@ -43,58 +42,22 @@ export default defineSubgraph({
   },
 
   handlers: {
-    async transfer(event, ctx) {
+    transfer(event, ctx) {
       ctx.insert("transfers", {
         sender: event.sender,
         recipient: event.recipient,
         amount: event.amount,
       });
-
-      // Debit sender. Values can be functions of the existing row.
-      await ctx.patchOrInsert(
-        "balances",
-        { holder: event.sender },
-        {
-          holder: event.sender,
-          balance: (row: { balance?: bigint } | null) =>
-            (row?.balance ?? 0n) - (event.amount as bigint),
-        },
-      );
-
-      // Credit recipient.
-      await ctx.patchOrInsert(
-        "balances",
-        { holder: event.recipient },
-        {
-          holder: event.recipient,
-          balance: (row: { balance?: bigint } | null) =>
-            (row?.balance ?? 0n) + (event.amount as bigint),
-        },
-      );
+      ctx.increment("balances", { holder: event.sender }, { balance: -event.amount });
+      ctx.increment("balances", { holder: event.recipient }, { balance: event.amount });
     },
 
-    async mint(event, ctx) {
-      await ctx.patchOrInsert(
-        "balances",
-        { holder: event.recipient },
-        {
-          holder: event.recipient,
-          balance: (row: { balance?: bigint } | null) =>
-            (row?.balance ?? 0n) + (event.amount as bigint),
-        },
-      );
+    mint(event, ctx) {
+      ctx.increment("balances", { holder: event.recipient }, { balance: event.amount });
     },
 
-    async burn(event, ctx) {
-      await ctx.patchOrInsert(
-        "balances",
-        { holder: event.sender },
-        {
-          holder: event.sender,
-          balance: (row: { balance?: bigint } | null) =>
-            (row?.balance ?? 0n) - (event.amount as bigint),
-        },
-      );
+    burn(event, ctx) {
+      ctx.increment("balances", { holder: event.sender }, { balance: -event.amount });
     },
   },
 });

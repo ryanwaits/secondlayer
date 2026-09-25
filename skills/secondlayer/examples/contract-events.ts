@@ -14,7 +14,6 @@ const POOL = "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault";
 
 export default defineSubgraph({
 	name: "amm-events",
-	version: "1.0.0",
 	description: "Decoded swap + liquidity events for one AMM pool",
 
 	sources: {

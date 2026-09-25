@@ -8,7 +8,6 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
   name: "stx-transfers",
-  version: "1.0.0",
   description: "Every STX transfer with sender, recipient, amount",
 
   sources: {

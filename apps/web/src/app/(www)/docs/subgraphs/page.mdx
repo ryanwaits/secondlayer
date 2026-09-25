@@ -4,7 +4,7 @@ One TypeScript file, and you get a table plus a REST API over it. You don't pick
 
 ## Define a subgraph
 
-One config file: named source filters, a table schema, handlers keyed by source name (or `"*"` for a catch-all).
+One config file: named source filters, a table schema, and one handler per source, keyed by source name.
 
 ```ts
 import { defineSubgraph } from "@secondlayer/subgraphs";
@@ -39,7 +39,9 @@ export default defineSubgraph({
 });
 ```
 
-Each handler gets `(event, ctx)`: `ctx.tx` / `ctx.block` for metadata, `ctx.insert` / `update` / `upsert` / `delete` / `patch` / `increment` for writes. Accumulating a value, reading contract state, and typing a `print` payload each have a rule worth knowing: [Writing handlers](/docs/subgraphs/handlers).
+Each handler gets `(event, ctx)`: `ctx.tx` / `ctx.block` for metadata, `ctx.insert` / `update` / `upsert` / `delete` / `increment` for writes, `ctx.findOne` / `findMany` to read rows back. Accumulating a value, reading contract state, and typing a `print` payload each have a rule worth knowing: [Writing handlers](/docs/subgraphs/handlers).
+
+A `contract_call` source with a `functionName` types `event.input` from the contract's ABI. `secondlayer subgraphs deploy` fetches it from the deployed contract, so you don't paste it. Pass `abi` yourself for wildcard, multi-contract or trait sources, or a local deploy.
 
 ### Hoisting the schema
 

@@ -20,8 +20,6 @@ Verbatim from `packages/subgraphs/src/types.ts`:
 export interface SubgraphDefinition {
   /** Unique subgraph name (lowercase, alphanumeric + hyphens) */
   name: string;
-  /** Semantic version */
-  version?: string;
   /** Human description */
   description?: string;
   /** Block height to start indexing from (default: 1) */
@@ -30,7 +28,7 @@ export interface SubgraphDefinition {
   sources: Record<string, SubgraphFilter>;
   /** Tables in this subgraph */
   schema: SubgraphSchema;
-  /** Handler functions — keys must match source names (or "*" for catch-all) */
+  /** Handler functions, one per source, keyed by source name */
   handlers: Record<string, SubgraphHandler>;
 }
 ```
@@ -42,7 +40,6 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
   name: "my-subgraph",
-  version: "1.0.0",
   description: "What it tracks",
   startBlock: 100_000,
   sources: { /* ... */ },
@@ -633,9 +630,9 @@ export type SubgraphHandler = (
 
 Rules:
 
-- Handler **key must equal a source key** in `sources`, or be `"*"` (catch-all that fires for every matched event).
+- Every source needs a handler with the **same key**. A source without one fails validation.
 - Runs **once per matched event**. Writes are batched and flushed atomically at the end of the block.
-- Can be sync or `async`. Use `async` when calling `ctx.findOne`, `ctx.findMany`, `ctx.count`, etc. — those return promises.
+- Can be sync or `async`. Use `async` when calling `ctx.findOne` / `ctx.findMany`, which return promises.
 - The `event` arg is **typed from the source's `type`** (e.g. an `ft_transfer` source → `event.amount` is `bigint`, `event.sender`/`event.recipient` are `string`) — no cast needed. `ctx.insert` is checked against your `schema`. For `print_event` sources, declare a `prints` map to type `event.data` per topic (§8.3); for `contract_call`, pass a `const` `abi` to type `event.input` (§3.11).
 
 Example:
@@ -650,9 +647,6 @@ handlers: {
       recipient: event.recipient,
       amount: event.amount,
     });
-  },
-  "*": (event, ctx) => {
-    // catch-all — fires for every matched event of any source
   },
 }
 ```
@@ -682,18 +676,12 @@ export interface SubgraphContext {
     row: Record<string, unknown>,
   ): void;
   delete(table: string, where: Record<string, unknown>): void;
-  /** Partial update — sets only specified fields, preserves others */
-  patch(
-    table: string,
-    where: Record<string, unknown>,
-    set: Record<string, unknown>,
-  ): void;
-  /** Find-then-merge-or-insert. Values can be functions: (existing) => newValue */
-  patchOrInsert(
+  /** Atomic counter update: `col = COALESCE(col, 0) + delta` per column. */
+  increment(
     table: string,
     key: Record<string, unknown>,
-    row: Record<string, ComputedValue>,
-  ): Promise<void>;
+    deltas: Record<string, bigint | number>,
+  ): void;
   findOne(
     table: string,
     where: Record<string, unknown>,
@@ -702,43 +690,7 @@ export interface SubgraphContext {
     table: string,
     where: Record<string, unknown>,
   ): Promise<Record<string, unknown>[]>;
-  /** Format a bigint amount with decimal places */
-  formatUnits(value: bigint, decimals: number): string;
-  /** Count rows matching filter */
-  count(table: string, where?: Record<string, unknown>): Promise<number>;
-  /** Sum a numeric column */
-  sum(
-    table: string,
-    column: string,
-    where?: Record<string, unknown>,
-  ): Promise<bigint>;
-  /** Min of a numeric column */
-  min(
-    table: string,
-    column: string,
-    where?: Record<string, unknown>,
-  ): Promise<bigint | null>;
-  /** Max of a numeric column */
-  max(
-    table: string,
-    column: string,
-    where?: Record<string, unknown>,
-  ): Promise<bigint | null>;
-  /** Count distinct values in a column */
-  countDistinct(
-    table: string,
-    column: string,
-    where?: Record<string, unknown>,
-  ): Promise<number>;
 }
-```
-
-Plus the related type:
-
-```ts
-export type ComputedValue =
-  | RowValue
-  | ((existing: Record<string, unknown> | null) => unknown);
 ```
 
 ### `ctx.block` and `ctx.tx`
@@ -764,32 +716,22 @@ export type ComputedValue =
 
 ### Writes — when to use which
 
-| Method            | Sync/async  | Use when                                                                 |
-|-------------------|-------------|--------------------------------------------------------------------------|
-| `insert`          | sync        | Append-only event log (one row per event).                               |
-| `update`          | sync        | You know the row exists and want to replace specific fields by `where`.  |
-| `upsert`          | sync        | Stateful row keyed by `uniqueKeys` — replace whole row (e.g. balances). Requires matching `uniqueKeys` entry. |
-| `delete`          | sync        | Remove rows matching `where`.                                            |
-| `patch`           | sync        | Alias for `update` — partial update preserving other fields.             |
-| `patchOrInsert`   | **async**   | Need `(existing) => newValue` semantics (reads first). Slower — prefer plain `upsert` when you can compute the new row without reading. |
+| Method      | Use when                                                                 |
+|-------------|--------------------------------------------------------------------------|
+| `insert`    | Append-only event log (one row per event).                               |
+| `update`    | You know the row exists and want to set specific fields by `where`.      |
+| `upsert`    | Stateful row keyed by `uniqueKeys` — replace the whole row. Requires a matching `uniqueKeys` entry. |
+| `delete`    | Remove rows matching `where`.                                            |
+| `increment` | Running totals (balances, counters). Deltas commute, so it is the reorg-safe accumulator. Requires a matching `uniqueKeys` entry. |
 
-Writes are queued; they flush atomically at the end of the block.
+All writes are sync and queued; they flush atomically at the end of the block.
 
 ### Reads — execute immediately
 
 - `findOne(table, where)` → `Promise<row | null>`
 - `findMany(table, where)` → `Promise<row[]>`
-- `count(table, where?)` → `Promise<number>`
-- `sum(table, column, where?)` → `Promise<bigint>`
-- `min(table, column, where?)` → `Promise<bigint | null>`
-- `max(table, column, where?)` → `Promise<bigint | null>`
-- `countDistinct(table, column, where?)` → `Promise<number>`
 
-Reads see **pre-flush state** — writes queued earlier in the same block aren't visible to reads.
-
-### Utility
-
-`ctx.formatUnits(value: bigint, decimals: number): string` — convert a raw `bigint` amount to a fixed-decimal string for display (e.g. `formatUnits(123_456_789n, 8)` → `"1.23456789"`).
+Reads see writes queued earlier in the same block (the pending ops are overlaid on the database state). For totals and counts over a table, query the subgraph's REST aggregates (`_count`, `_sum`, ...) instead of computing them in a handler.
 
 ---
 
@@ -939,7 +881,6 @@ function credit(
 
 export default defineSubgraph({
   name: "sip010-balances",
-  version: "1.0.0",
   description: "Per-token balance tracking for any SIP-010 asset",
   sources: {
     transfer: { type: "ft_transfer" },
@@ -971,7 +912,6 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
   name: "contract-deployments",
-  version: "1.0.0",
   description: "Tracks all smart contract deployments on Stacks",
   sources: { deploy: { type: "contract_deploy" } },
   schema: {
@@ -1016,7 +956,6 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
   name: "alex-swaps",
-  version: "1.0.0",
   description: "ALEX AMM swap events",
   sources: {
     swap: {
@@ -1063,7 +1002,6 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
   name: "sbtc-deposits",
-  version: "1.0.0",
   description: "Completed sBTC deposits from sbtc-registry print events",
   startBlock: 328_312,
   sources: {
@@ -1147,11 +1085,9 @@ The CLI runs validation on `secondlayer subgraphs deploy` — bad definitions ne
 
 ## 10. Don't-Do List
 
-- **Don't use array sources or `"contract::event"` handler names** — that was the old shape. Sources are a named object `Record<string, SubgraphFilter>` and handlers are keyed by source name (or `"*"`).
+- **Don't use array sources or `"contract::event"` handler names** — that was the old shape. Sources are a named object `Record<string, SubgraphFilter>` and handlers are keyed by source name, one per source.
 - **Don't omit `uniqueKeys` if you call `upsert`** — the runtime falls back to a non-atomic insert with a warning. For correctness, always declare `uniqueKeys: [[...]]` matching the upsert key.
 - **Don't use `number` for amounts** — Stacks amounts are 128-bit. Use `bigint` literals (`1_000_000n`) and the `uint` column type.
 - **Don't hand-add `_block_height` / `_tx_id` columns** — they're auto-added on every insert. Declaring them yourself will conflict.
-- **Don't reach for `patchOrInsert` if a plain `upsert` works** — `patchOrInsert` is async (it reads existing first). Use it only when you need `(existing) => newValue` merge semantics; otherwise compute the new row inline and call sync `upsert`.
+- **Don't read-modify-write a running total** (`findOne` → compute → `upsert`) — use `increment`. Deltas commute, so replays and tip-first backfills stay correct.
 - **Don't cast `event` — it's already typed.** `defineSubgraph` types `event` per source `type` (e.g. an `ft_transfer` source → `event.amount: bigint`). Declare a `prints` map to type `event.data` per topic, and pass a `const` `abi` to type `event.input` for `contract_call` (§3.11, §8.3). No `as` casts needed.
-- **Don't call `findOne`/`findMany` and expect to see writes from earlier in the same block** — reads return pre-flush state. If you need running totals within a block, accumulate in handler-local state or use `patchOrInsert` with a merge function.
-- **Don't put complex business logic in `"*"` catch-all handlers without a discriminator** — `event` shape varies by source. Inspect `event.type` or branch on the source that matched.
