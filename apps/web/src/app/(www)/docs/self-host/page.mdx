@@ -16,14 +16,15 @@ with `--yes`), it skips the prompts and runs from flags instead:
 
 ```bash
 secondlayer setup --yes \
-  --network mainnet --node-mode external \
-  --against https://archive.secondlayer.tools/latest.json
+  --network mainnet --node-mode external
 ```
 
 `--network` and `--node-mode` are always required in that mode — there's no
-safe default for either. `--skip-bootstrap` skips the archive: the index then
-holds only what your node sends from now on, full history only if the node
-itself syncs from genesis. `--skip-verify` skips the post-bootstrap check.
+safe default for either. `--against` defaults to the official archive
+(`https://archive.secondlayer.tools/latest.json`); pass `--skip-bootstrap` to
+skip it instead — the index then holds only what your node sends from now on,
+full history only if the node itself syncs from genesis. `--skip-verify` skips
+the post-bootstrap check.
 
 API: `http://127.0.0.1:3800`. Health: `curl http://localhost:3800/health`.
 

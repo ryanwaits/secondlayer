@@ -63,6 +63,10 @@ The SDK caches the last 64 pages it read and sends `If-None-Match` on the next r
 
 ## CLI — September 2026
 
+### Setup asks plain questions instead of a terminal UI
+
+`secondlayer setup` no longer installs a native terminal UI. Run it interactively and it asks for whatever `--network`, `--node-mode`, or `--against` you didn't already pass, with plain prompts that work under node, not just Bun. `--against` now defaults to the official archive, so you only pass it to point at a mirror or skip it with `--skip-bootstrap`.
+
 ### Observer stanzas work on a stock node
 
 `secondlayer observer` prints `events_keys = ["*"]` in both modes, the only set a stock stacks-core starts with. `--recovery` is gone. A block your node fails to deliver stays a gap until `secondlayer repair` fills it from the archive.

@@ -64,15 +64,15 @@ Usage: `secondlayer setup [--network mainnet|testnet|devnet] [--node-mode extern
 | `--node-mode <mode>` | none — required | `external` (you run the Stacks node) or `stacks` (same — no bundled bitcoind, no bundled-stacks-only compose profile), or `full` (bundled Stacks node + bitcoind). |
 | `--api-port <spec>` | `127.0.0.1:3800` | API publish spec, matching `docker/oss/docker-compose.yml`'s default. |
 | `--dir <path>` | cwd | Target directory for `docker-compose.yml` and `.env`. |
-| `--against <manifest>` | suggested: `https://archive.secondlayer.tools/latest.json` | Archive manifest to bootstrap from. Required unless `--skip-bootstrap`. |
+| `--against <manifest>` | `https://archive.secondlayer.tools/latest.json` | Archive manifest to bootstrap from. |
 | `--skip-bootstrap` | off | Skip the archive restore. The index holds only what your node sends from now on (full history only if the node itself syncs from genesis). |
 | `--skip-verify` | off | Skip the post-bootstrap verify pass. |
-| `--yes` | off | Skip the interactive TUI; run from flags only, never prompt. Also implied by a non-TTY stdout (piped, CI, an agent). |
+| `--yes` | off | Skip the interactive prompts; run from flags only, never ask. Also implied by a non-TTY stdout (piped, CI, an agent). |
 | `--force` | off | Regenerate secrets even if a `.env` already exists in `--dir`. |
 
-With a TTY and no `--yes`, this launches an OpenTUI wizard: network → node mode (RAM/disk floor shown live per highlighted option) → bootstrap source → a confirm screen → a running view with a step list and scrolling log. Without a TTY, or with `--yes`, every decision with no safe default must come from a flag or the command fails fast naming exactly which one is missing — this is what lets an agent drive it exactly as well as a human at a terminal.
+With a TTY and no `--yes`, this asks with plain `@inquirer/prompts` questions: network → node mode (RAM/disk floor shown live per highlighted option) → bootstrap source → a confirm screen, filling in only whatever flags didn't already answer. Without a TTY, or with `--yes`, every decision with no safe default must come from a flag or the command fails fast naming exactly which one is missing — this is what lets an agent drive it exactly as well as a human at a terminal.
 
-Example: `secondlayer setup --yes --network mainnet --node-mode external --against https://archive.secondlayer.tools/latest.json`
+Example: `secondlayer setup --yes --network mainnet --node-mode external`
 
 ### secondlayer init
 

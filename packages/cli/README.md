@@ -35,7 +35,7 @@ secondlayer subgraphs deploy subgraphs/my-contract.ts --start-block <recent-bloc
 secondlayer subgraphs query my-contract <table> --sort _block_height --order desc
 ```
 
-`secondlayer setup` is a guided wizard: it picks network + node mode (with the
+`secondlayer setup` is a guided command: it picks network + node mode (with the
 RAM/disk floor shown live), generates secrets, writes `docker-compose.yml` and
 `.env` (including the `DATABASE_URL` every later `bootstrap`/`verify`/`repair`
 in that directory connects with) into a target directory, brings the stack up,
@@ -45,13 +45,12 @@ secrets → `docker compose up` → `observer` → `bootstrap` → `verify`. `se
 is also the only way to bring the stack up: the old `secondlayer start`, which
 printed a compose line for a monorepo checkout, is gone. Without a TTY (or
 with `--yes`), it skips the interactive prompts and runs from flags instead;
-`--network` and `--node-mode` are then required, and `--against` is required
-unless you pass `--skip-bootstrap`:
+`--network` and `--node-mode` are then required. `--against` defaults to the
+official archive, so it's needed only to point at a different one:
 
 ```bash
 secondlayer setup --yes \
-  --network mainnet --node-mode external \
-  --against https://archive.secondlayer.tools/latest.json
+  --network mainnet --node-mode external
 ```
 
 `secondlayer subgraphs scaffold` writes the definition file, creates/updates
@@ -79,7 +78,7 @@ No account. Writes `.env.local`, restores history, prints the Stacks observer st
 
 | Command | What it does |
 |---|---|
-| `secondlayer setup [--network …] [--node-mode external\|stacks\|full] [--api-port <spec>] [--dir <path>] [--against <manifest>] [--skip-bootstrap] [--skip-verify] [--yes] [--force]` | Guided self-host onboarding — secrets, compose + `.env`, docker up, observer stanza, bootstrap, verify. TUI when interactive; flags-only (no prompts) with `--yes` or no TTY |
+| `secondlayer setup [--network …] [--node-mode external\|stacks\|full] [--api-port <spec>] [--dir <path>] [--against <manifest>] [--skip-bootstrap] [--skip-verify] [--yes] [--force]` | Guided self-host onboarding — secrets, compose + `.env`, docker up, observer stanza, bootstrap, verify. Prompts when interactive; flags-only (no prompts) with `--yes` or no TTY |
 | `secondlayer init [--network mainnet\|testnet\|devnet] [--api-url <url>] [--force]` | Write `.env.local` (token, secrets key, webhook signing key). `--network` and `--api-url` are the global flags. Idempotent |
 | `secondlayer bootstrap --against <manifest> [--from-block <n>] [--to-block <n>] [--verify all\|blocks] [--public-key <pem>] [-y] [--json]` | Restore chain history from a verified archive into an empty database. A run that died mid-way resumes per dataset on re-run. After the load, digests for blocks, transactions, and events are checked over the restored range (`--verify blocks` skips the child datasets and the minutes they cost). Partition fetches retry three times with backoff on resets, timeouts, 429 (honoring `Retry-After`) and 5xx; a link that stays down exits `1` with a re-run hint, and the re-run resumes. Exit `0` restored, `1` diverged or interrupted, `2` refused |
 | `secondlayer observer [--mode indexer\|signer-shared] [--endpoint host:port] [--network …]` | Print the `[[events_observer]]` stanza. Signer-shared skips retries; a missed block stays a gap until `repair` |
