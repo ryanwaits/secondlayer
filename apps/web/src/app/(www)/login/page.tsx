@@ -1,6 +1,5 @@
 "use client";
 
-import { MarketingNav } from "@/components/marketing-nav";
 import { useAuth } from "@/lib/auth";
 import { handOverNewKey } from "@/lib/new-key";
 import { useRouter } from "next/navigation";
@@ -85,7 +84,6 @@ export default function LoginPage() {
 
 	return (
 		<div className="login-page">
-			<MarketingNav />
 			<div className="login-card">
 				{status === "sent" ? (
 					<div className="login-sent">

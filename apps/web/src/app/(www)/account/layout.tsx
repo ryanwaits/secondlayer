@@ -1,6 +1,5 @@
 "use client";
 
-import { MarketingNav } from "@/components/marketing-nav";
 import { clearAccountData } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import Link from "next/link";
@@ -24,18 +23,11 @@ export default function AccountLayout({
 	const { account, loading, logout } = useAuth();
 	const pathname = usePathname();
 
-	if (loading) {
-		return (
-			<div className="www">
-				<MarketingNav />
-			</div>
-		);
-	}
+	if (loading) return null;
 
 	if (!account) {
 		return (
 			<div className="login-page">
-				<MarketingNav />
 				<div className="login-card">
 					<span className="login-eyebrow">Account</span>
 					<h1 className="login-title">Sign in to get a key</h1>
@@ -51,35 +43,32 @@ export default function AccountLayout({
 	}
 
 	return (
-		<div className="www">
-			<MarketingNav />
-			<div className="acct-page">
-				<nav className="acct-side" aria-label="Account">
-					<p className="acct-side-head">Account</p>
-					{TABS.map((t) => (
-						<Link
-							key={t.href}
-							href={t.href}
-							className="acct-side-link"
-							aria-current={pathname === t.href ? "page" : undefined}
-						>
-							{t.label}
-						</Link>
-					))}
-					<p className="acct-side-email">{account.email}</p>
-					<button
-						type="button"
-						className="acct-side-link quiet"
-						onClick={() => {
-							clearAccountData();
-							logout();
-						}}
+		<div className="acct-page">
+			<nav className="acct-side" aria-label="Account">
+				<p className="acct-side-head">Account</p>
+				{TABS.map((t) => (
+					<Link
+						key={t.href}
+						href={t.href}
+						className="acct-side-link"
+						aria-current={pathname === t.href ? "page" : undefined}
 					>
-						Sign out
-					</button>
-				</nav>
-				<main className="acct-main">{children}</main>
-			</div>
+						{t.label}
+					</Link>
+				))}
+				<p className="acct-side-email">{account.email}</p>
+				<button
+					type="button"
+					className="acct-side-link quiet"
+					onClick={() => {
+						clearAccountData();
+						logout();
+					}}
+				>
+					Sign out
+				</button>
+			</nav>
+			<main className="acct-main">{children}</main>
 		</div>
 	);
 }
