@@ -29,7 +29,7 @@ Add to your Claude Desktop or Cursor config:
       "command": "bunx",
       "args": ["-p", "@secondlayer/mcp", "secondlayer-mcp"],
       "env": {
-        "SL_API_URL": "http://127.0.0.1:3800",
+        "SECONDLAYER_API_URL": "http://127.0.0.1:3800",
         "INSTANCE_TOKEN": "..."
       }
     }
@@ -40,7 +40,7 @@ Add to your Claude Desktop or Cursor config:
 ## Quick Start — HTTP (Remote)
 
 ```bash
-export SL_API_URL=http://127.0.0.1:3800
+export SECONDLAYER_API_URL=http://127.0.0.1:3800
 export INSTANCE_TOKEN=<from secondlayer init>
 export SECONDLAYER_MCP_SECRET=your-secret
 bunx -p @secondlayer/mcp secondlayer-mcp-http
@@ -52,8 +52,8 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `INSTANCE_TOKEN` | Writes only | — | From `secondlayer init`. Required for write tools; reads are public. Not valid for hosted credits. |
-| `SECONDLAYER_API_KEY` | Hosted credits/quote/latest | — | `sk-sl_*` for `api.secondlayer.tools`. `SL_API_KEY` / `SL_ARCHIVE_API_KEY` are one-release fallbacks. |
-| `SECONDLAYER_API_URL` | No | `http://127.0.0.1:3800` | Instance API. `SL_API_URL` is a one-release fallback. |
+| `SECONDLAYER_API_KEY` | Hosted credits/quote/latest | — | `sk-sl_*` for `api.secondlayer.tools`. |
+| `SECONDLAYER_API_URL` | No | `http://127.0.0.1:3800` | Instance API. |
 | `SECONDLAYER_BIN` | CLI tools | `secondlayer` on PATH | Path to the CLI binary (`setup`, `bootstrap`, `repair`). |
 | `SECONDLAYER_CWD` | CLI tools | process cwd | Compose project directory. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port. |

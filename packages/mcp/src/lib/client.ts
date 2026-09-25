@@ -2,6 +2,7 @@ import {
 	SecondLayer,
 	resolveAccountKey,
 	resolveApiKey,
+	resolveBaseUrl,
 } from "@secondlayer/sdk";
 
 let instance: SecondLayer | null = null;
@@ -14,7 +15,7 @@ const DEFAULT_ARCHIVE_OPS_URL = "https://api.secondlayer.tools";
 
 /**
  * Read the instance credential from env: `INSTANCE_TOKEN` only. Does not read
- * `SL_API_KEY` / `SECONDLAYER_API_KEY` (those are the hosted account key).
+ * `SECONDLAYER_API_KEY` (that is the hosted account key).
  * Delegated to the SDK so the MCP server, CLI, and SDK resolve identically.
  */
 export function readApiKey(): string | undefined {
@@ -30,10 +31,7 @@ export function readApiKey(): string | undefined {
 export function getClient(): SecondLayer {
 	if (!instance) {
 		const apiKey = readApiKey();
-		const baseUrl =
-			process.env.SECONDLAYER_API_URL ||
-			process.env.SL_API_URL ||
-			"http://127.0.0.1:3800";
+		const baseUrl = resolveBaseUrl();
 		const dumpsBaseUrl = process.env.SL_STREAMS_DUMPS_URL;
 		instance = new SecondLayer({
 			...(apiKey ? { apiKey } : {}),
@@ -46,8 +44,7 @@ export function getClient(): SecondLayer {
 }
 
 /** `sk-sl_*` for api.secondlayer.tools. Empty/unset is missing — never fall
- *  back to INSTANCE_TOKEN. Prefers SECONDLAYER_API_KEY, then SL_API_KEY /
- *  SL_ARCHIVE_API_KEY (one-release fallbacks via the SDK helper). */
+ *  back to INSTANCE_TOKEN. Reads SECONDLAYER_API_KEY via the SDK helper. */
 export function readArchiveApiKey(): string | undefined {
 	return resolveAccountKey();
 }
@@ -82,10 +79,7 @@ export async function apiRequest<T>(
 	path: string,
 	body?: unknown,
 ): Promise<T> {
-	const baseUrl =
-		process.env.SECONDLAYER_API_URL ||
-		process.env.SL_API_URL ||
-		"http://127.0.0.1:3800";
+	const baseUrl = resolveBaseUrl();
 	let host = "";
 	try {
 		host = new URL(baseUrl).hostname;

@@ -86,15 +86,12 @@ describe("hosted archive ops credentials", () => {
 		expect(readArchiveApiKey()).toBe("sk-sl_primary");
 	});
 
-	it("falls back to SL_API_KEY when primary unset", () => {
-		process.env.SL_API_KEY = "sk-sl_alias";
-		expect(readArchiveApiKey()).toBe("sk-sl_alias");
-	});
-
-	it("falls back to SL_ARCHIVE_API_KEY when others unset", () => {
+	it("ignores SL_API_KEY / SL_ARCHIVE_API_KEY (dropped aliases)", () => {
 		process.env.INSTANCE_TOKEN = "instance-token";
+		process.env.SL_API_KEY = "sk-sl_alias";
 		process.env.SL_ARCHIVE_API_KEY = "sk-sl_credits";
-		expect(readArchiveApiKey()).toBe("sk-sl_credits");
+		expect(readArchiveApiKey()).toBeUndefined();
+		expect(() => getArchiveOpsClient()).toThrow(HOSTED_KEY_HINT);
 	});
 
 	it("getArchiveOpsClient constructs with accountKey", () => {

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { resolveBaseUrl } from "@secondlayer/sdk";
 import { isHostedArchiveUrl } from "./lib/hosted.ts";
 import { registerResources } from "./resources.ts";
 import { registerAccountTools } from "./tools/account.ts";
@@ -37,10 +38,7 @@ export function createServer(): McpServer {
 	registerInstanceTools(server);
 	registerArchiveTools(server);
 	registerSetupTools(server);
-	const baseUrl =
-		process.env.SECONDLAYER_API_URL ||
-		process.env.SL_API_URL ||
-		"http://127.0.0.1:3800";
+	const baseUrl = resolveBaseUrl();
 	if (isHostedArchiveUrl(baseUrl)) {
 		registerAccountTools(server);
 	}
