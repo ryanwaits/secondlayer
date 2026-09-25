@@ -230,6 +230,156 @@ describe("decoderBoundTip", () => {
 	});
 });
 
+describe("decoderBoundTip (remote index status)", () => {
+	const prevSource = process.env.SUBGRAPH_SOURCE;
+	const prevUrl = process.env.SUBGRAPH_INDEX_API_URL;
+
+	function setRemoteEnv() {
+		process.env.SUBGRAPH_SOURCE = "streams-index";
+		process.env.SUBGRAPH_INDEX_API_URL = "https://api.secondlayer.tools";
+	}
+
+	afterAll(() => {
+		if (prevSource === undefined) delete process.env.SUBGRAPH_SOURCE;
+		else process.env.SUBGRAPH_SOURCE = prevSource;
+		if (prevUrl === undefined) delete process.env.SUBGRAPH_INDEX_API_URL;
+		else process.env.SUBGRAPH_INDEX_API_URL = prevUrl;
+	});
+
+	test("all referenced decoders present: floor is min(checkpoint) - 1", async () => {
+		setRemoteEnv();
+		try {
+			const statusLoader = async () => [
+				{ decoder: "decode.print.v1", checkpointBlockHeight: 8_864_633 },
+				{ decoder: "decode.ft_transfer.v1", checkpointBlockHeight: 8_864_861 },
+			];
+			await expect(
+				decoderBoundTip(["decode.print.v1", "decode.ft_transfer.v1"], {
+					statusLoader,
+				}),
+			).resolves.toEqual({ kind: "height", height: 8_864_632 });
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("a referenced decoder absent from status stalls with that name", async () => {
+		setRemoteEnv();
+		try {
+			const statusLoader = async () => [
+				{ decoder: "decode.ft_transfer.v1", checkpointBlockHeight: 100 },
+			];
+			await expect(
+				decoderBoundTip(["decode.print.v1", "decode.ft_transfer.v1"], {
+					statusLoader,
+				}),
+			).resolves.toEqual({ kind: "stall", missing: ["decode.print.v1"] });
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("a null checkpointBlockHeight stalls", async () => {
+		setRemoteEnv();
+		try {
+			const statusLoader = async () => [
+				{ decoder: "decode.print.v1", checkpointBlockHeight: null },
+			];
+			await expect(
+				decoderBoundTip(["decode.print.v1"], { statusLoader }),
+			).resolves.toEqual({ kind: "stall", missing: ["decode.print.v1"] });
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("unreferenced decoders in the status response are ignored", async () => {
+		setRemoteEnv();
+		try {
+			const statusLoader = async () => [
+				{ decoder: "decode.print.v1", checkpointBlockHeight: 500 },
+				{ decoder: "decode.pox4.v1", checkpointBlockHeight: null },
+			];
+			await expect(
+				decoderBoundTip(["decode.print.v1"], { statusLoader }),
+			).resolves.toEqual({ kind: "height", height: 499 });
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("status endpoint failure stalls rather than falling through to unbounded", async () => {
+		setRemoteEnv();
+		try {
+			const statusLoader = async (): Promise<never> => {
+				throw new Error("GET /public/status → 500 boom");
+			};
+			await expect(
+				decoderBoundTip(["decode.print.v1"], { statusLoader }),
+			).resolves.toEqual({ kind: "stall", missing: ["decode.print.v1"] });
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("network error also stalls, never unbounded", async () => {
+		setRemoteEnv();
+		try {
+			const statusLoader = async (): Promise<never> => {
+				throw new TypeError("fetch failed");
+			};
+			const result = await decoderBoundTip(["decode.print.v1"], {
+				statusLoader,
+			});
+			expect(result.kind).toBe("stall");
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+
+	test("local mode (no SUBGRAPH_INDEX_API_URL) still reads Postgres, ignoring statusLoader", async () => {
+		process.env.SUBGRAPH_SOURCE = "streams-index";
+		delete process.env.SUBGRAPH_INDEX_API_URL;
+		try {
+			const fake = fakeSourceDb({
+				"decode.print.v1": `100:${EMPTY_RANGE_EVENT_INDEX_SENTINEL}`,
+			});
+			const statusLoader = async (): Promise<never> => {
+				throw new Error("statusLoader must not be called in local mode");
+			};
+			await expect(
+				decoderBoundTip(["decode.print.v1"], {
+					sourceDb: fake.db,
+					statusLoader,
+				}),
+			).resolves.toEqual({ kind: "height", height: 100 });
+		} finally {
+			delete process.env.SUBGRAPH_SOURCE;
+		}
+	});
+
+	test("SUBGRAPH_SOURCE unset still reads Postgres even with SUBGRAPH_INDEX_API_URL set", async () => {
+		delete process.env.SUBGRAPH_SOURCE;
+		process.env.SUBGRAPH_INDEX_API_URL = "https://api.secondlayer.tools";
+		try {
+			const fake = fakeSourceDb({
+				"decode.print.v1": `100:${EMPTY_RANGE_EVENT_INDEX_SENTINEL}`,
+			});
+			await expect(
+				decoderBoundTip(["decode.print.v1"], { sourceDb: fake.db }),
+			).resolves.toEqual({ kind: "height", height: 100 });
+		} finally {
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		}
+	});
+});
+
 describe("boundSourceTip", () => {
 	test("min of raw tip and decoder floor", async () => {
 		const fake = fakeSourceDb({

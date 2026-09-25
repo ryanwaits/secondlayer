@@ -1,5 +1,10 @@
 import { decodeStreamsCursor, isEmptyRangeCursor } from "@secondlayer/shared";
 import { type Database, getSourceDb } from "@secondlayer/shared/db";
+import {
+	defaultInternalIndexApiKey,
+	defaultInternalIndexBaseUrl,
+} from "@secondlayer/shared/index-internal-auth";
+import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
 import type { SubgraphDefinition } from "../types.ts";
 import {
@@ -75,16 +80,122 @@ export type DecoderBound =
 	| { kind: "stall"; missing: string[] }
 	| { kind: "height"; height: number };
 
+/** The subset of `GET /public/status`'s `index.decoders[]` this reads. */
+export type RemoteDecoderStatusEntry = {
+	decoder: string;
+	checkpointBlockHeight: number | null;
+};
+
+export type DecoderStatusLoader = () => Promise<RemoteDecoderStatusEntry[]>;
+
+const REMOTE_STATUS_TIMEOUT_MS = 5_000;
+
 /**
- * Data-availability floor for `decoderNames`. Reads SOURCE-plane
- * `decoder_checkpoints` (same rationale as trait resolution: the consumer
- * handle is often the TARGET, where those rows are empty).
+ * True when this process reads Index over HTTP with no guarantee a local
+ * decoder ever runs in the same Postgres (a hosted tenant's `webhook-service`,
+ * or any instance pointed at `SUBGRAPH_INDEX_API_URL`). `decoderBoundTip` then
+ * must not read local `decoder_checkpoints` — that table is empty there and
+ * the evaluator stalls forever (f091-class bug: chain webhooks never fire).
+ */
+function usesRemoteDecoderStatus(): boolean {
+	return (
+		process.env.SUBGRAPH_SOURCE === "streams-index" &&
+		Boolean(process.env.SUBGRAPH_INDEX_API_URL)
+	);
+}
+
+/**
+ * Fetch decoder progress from the Index API's own `/public/status` — the same
+ * endpoint operators already poll. Reuses the internal-index auth resolution
+ * (`defaultInternalIndexBaseUrl`/`defaultInternalIndexApiKey`) that
+ * `IndexHttpClient` uses, so it targets the same base URL and sends the same
+ * bearer (harmless here — `/public/status` needs no auth).
+ */
+async function fetchRemoteDecoderStatus(): Promise<RemoteDecoderStatusEntry[]> {
+	const baseUrl = defaultInternalIndexBaseUrl().replace(/\/+$/, "");
+	const apiKey = defaultInternalIndexApiKey();
+	const headers: Record<string, string> = apiKey
+		? { authorization: `Bearer ${apiKey}` }
+		: {};
+	const res = await fetch(`${baseUrl}/public/status`, {
+		headers,
+		signal: AbortSignal.timeout(REMOTE_STATUS_TIMEOUT_MS),
+	});
+	if (!res.ok) {
+		throw new Error(`GET ${baseUrl}/public/status → ${res.status}`);
+	}
+	const body = (await res.json()) as {
+		index?: { decoders?: RemoteDecoderStatusEntry[] };
+	};
+	return body.index?.decoders ?? [];
+}
+
+/**
+ * Remote-status variant of the floor below: same missing/floor semantics,
+ * sourced from the Index API's decoder progress instead of local
+ * `decoder_checkpoints`. `checkpointBlockHeight` is the checkpoint cursor's
+ * raw block height (`health.ts` `cursorBlockHeight` — not floored for a
+ * mid-block cursor the way `committedHeight` is), so it gets the same
+ * conservative `-1`: costs at most one block of latency, never risks
+ * processing past a partially-decoded block.
+ *
+ * Any failure (unreachable, non-2xx, bad JSON) stalls rather than falling
+ * through to the unbounded raw tip — same fail-closed posture as a missing
+ * local checkpoint.
+ */
+async function remoteDecoderBoundTip(
+	decoderNames: string[],
+	loadStatus: DecoderStatusLoader,
+): Promise<DecoderBound> {
+	let entries: RemoteDecoderStatusEntry[];
+	try {
+		entries = await loadStatus();
+	} catch (err) {
+		logger.warn("Chain evaluator: remote index status unreachable", {
+			event: "chain_evaluator_decoder_status_unreachable",
+			error: err instanceof Error ? err.message : String(err),
+		});
+		return { kind: "stall", missing: decoderNames };
+	}
+	const byName = new Map(
+		entries.map((e) => [e.decoder, e.checkpointBlockHeight]),
+	);
+	const missing: string[] = [];
+	const heights: number[] = [];
+	for (const name of decoderNames) {
+		const checkpointBlockHeight = byName.get(name);
+		if (checkpointBlockHeight === undefined || checkpointBlockHeight === null) {
+			missing.push(name);
+		} else {
+			heights.push(Math.max(0, checkpointBlockHeight - 1));
+		}
+	}
+	if (missing.length > 0) return { kind: "stall", missing };
+	return { kind: "height", height: Math.min(...heights) };
+}
+
+/**
+ * Data-availability floor for `decoderNames`. On an instance that reads Index
+ * over HTTP (`SUBGRAPH_SOURCE=streams-index` + `SUBGRAPH_INDEX_API_URL`),
+ * sources progress from that API's `/public/status` instead — the local
+ * `decoder_checkpoints` table only has rows when a decoder runs in the same
+ * Postgres, which a hosted tenant's `webhook-service` never does.
+ *
+ * Otherwise reads SOURCE-plane `decoder_checkpoints` directly (same rationale
+ * as trait resolution: the consumer handle is often the TARGET, where those
+ * rows are empty).
  */
 export async function decoderBoundTip(
 	decoderNames: string[],
-	opts?: { sourceDb?: Kysely<Database> },
+	opts?: { sourceDb?: Kysely<Database>; statusLoader?: DecoderStatusLoader },
 ): Promise<DecoderBound> {
 	if (decoderNames.length === 0) return { kind: "unbounded" };
+	if (usesRemoteDecoderStatus()) {
+		return remoteDecoderBoundTip(
+			decoderNames,
+			opts?.statusLoader ?? fetchRemoteDecoderStatus,
+		);
+	}
 	const sourceDb = opts?.sourceDb ?? getSourceDb();
 	const rows = await sourceDb
 		.selectFrom("decoder_checkpoints")
@@ -111,7 +222,7 @@ export type BoundSourceTip =
 export async function boundSourceTip(
 	rawTip: number,
 	decoderNames: string[],
-	opts?: { sourceDb?: Kysely<Database> },
+	opts?: { sourceDb?: Kysely<Database>; statusLoader?: DecoderStatusLoader },
 ): Promise<BoundSourceTip> {
 	const bound = await decoderBoundTip(decoderNames, opts);
 	if (bound.kind === "stall") return { ok: false, missing: bound.missing };
