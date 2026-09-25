@@ -205,6 +205,8 @@ On the events and contract-call feeds, `contract_id` also takes a comma-separate
 
 Every list response carries the collection, an opaque `next_cursor`, the chain `tip`, and `reorgs`. Full grammar and response bodies: [API reference](/docs/api-reference). `GET /v1/index` describes itself at runtime, so an agent can learn each `event_type` without docs.
 
+`tip.block_height` is the committed height for the event type you just read, not a shared global number. Each decoded type (`ft_transfer`, `stx_transfer`, `print`, and so on) runs its own decoder, and they don't all sit at the same height. A `stx_transfer` read and an `ft_transfer` read against the same instance can report different tips at the same moment; both are correct for what they cover. `/v1/index/blocks` and `/v1/index/transactions` stay on the ingest tip (`source_block_height`) since raw blocks land with the chain, not with decode. If you cache a tip across event types, re-read it per response instead of reusing one number.
+
 Built on [Streams](/docs/streams): the decoder on your instance reads the same raw firehose you can.
 
 ## Get told when it changes

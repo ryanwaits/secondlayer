@@ -9,6 +9,14 @@ and hosted Index/Streams reads at `api.secondlayer.tools` draw
 
 ## Index — September 2026
 
+### Tip is per event type, not one number for everyone
+
+Each decoded event type runs its own decoder, and they don't all sit at the same height. `tip.block_height` on `/v1/index/events` (and `ft-transfers`/`nft-transfers`) now reports the committed height for the type you just read, instead of always reporting the `ft_transfer` decoder's checkpoint. A slower decoder no longer silently holds back reads of a type it isn't even feeding, and a type that's actually behind `ft_transfer` no longer serves rows past what it has decoded. Re-read `tip` per response if you cache it across event types. `/v1/index/blocks` and `/v1/index/transactions` are unchanged, on the ingest tip.
+
+### Hosted chain webhooks: one less poll on the way to your endpoint
+
+The chain-webhook evaluator no longer makes a separate `GET /public/status` request every tick to check decoder progress; it trusts the tip the Index API already returned. A tick that catches up a backlog of blocks re-runs immediately instead of waiting out the poll interval first. Part of an ongoing push to cut hosted webhook latency; more of that work is still in flight.
+
 ### 10M rows a month free, then prepaid
 
 Hosted Index and Streams bill rows delivered, live or history, at one price. Every account gets 10M rows free each month, then $5 per 1M ($2 per 1M past $50 in a month). Past the allowance with no balance, reads answer `402 insufficient_credits` with a top-up link. Hosted reads need an `sk-sl_` key; a self-hosted instance stays keyless on loopback and unmetered.
