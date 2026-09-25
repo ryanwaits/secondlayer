@@ -129,6 +129,11 @@ services:
       STRIPE_PRICE_LAUNCH_YEARLY: ${STRIPE_PRICE_LAUNCH_YEARLY:-}
       STRIPE_PRICE_SCALE: ${STRIPE_PRICE_SCALE:-}
       STRIPE_PRICE_SCALE_YEARLY: ${STRIPE_PRICE_SCALE_YEARLY:-}
+      # Shared bearer for the first-party workload host's internal routes
+      # (/internal/meters, /internal/keys/introspect, /internal/keys/tenant,
+      # /internal/accounts/credits — see workloadHostKeyMatches() in
+      # routes/internal-meters.ts). Unset → those routes 401 everything.
+      WORKLOAD_HOST_KEY: ${WORKLOAD_HOST_KEY:-}
       # Ghost-key claim URLs (POST /v1/keys) point at the marketing site.
       PLATFORM_BASE_URL: ${PLATFORM_BASE_URL:-https://secondlayer.tools}
       # Host split: the authenticated console lives on app.secondlayer.tools.
