@@ -22,8 +22,9 @@ function baseDeps(overrides: Partial<GatewayDeps> = {}): GatewayDeps {
 		}),
 		resolveTenant: async () => "running",
 		startProvisioning: () => {},
+		startTenant: () => {},
 		tenantUpstream: async () => ({
-			baseUrl: "http://tenant-acct1234-api:3800",
+			baseUrl: "http://127.0.0.1:20001",
 			instanceToken: "tenant-instance-token",
 		}),
 		fetchImpl: async () => new Response("ok", { status: 200 }),
@@ -157,13 +158,53 @@ describe("handleGatewayRequest", () => {
 		expect(provisionCalls).toBe(0);
 	});
 
-	test("stopped tenant (zero balance) → 402 insufficient_credits", async () => {
-		const deps = baseDeps({ resolveTenant: async () => "stopped" });
+	test("stopped tenant + creditsOk (topped up) → 503 starting, kicks a background start (review fix 3b)", async () => {
+		let startCalls = 0;
+		const deps = baseDeps({
+			resolveTenant: async () => "stopped",
+			startTenant: () => {
+				startCalls++;
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({ auth: "Bearer sk-sl_good" }),
+		);
+		expect(res.status).toBe(503);
+		expect(res.headers.get("Retry-After")).toBe("30");
+		expect((await res.json()) as { error: string }).toEqual(
+			expect.objectContaining({ error: "starting" }),
+		);
+		expect(startCalls).toBe(1);
+	});
+
+	test("stopped tenant never reaches here with creditsOk:false — that 402s earlier from introspect", async () => {
+		// Documents the invariant handleGatewayRequest relies on: by the time
+		// state === "stopped" is checked, introspected.creditsOk is already
+		// true (the creditsOk:false branch returns 402 before resolveTenant is
+		// even called — see the "credits_ok:false" test above).
+		let startCalls = 0;
+		const deps = baseDeps({
+			introspect: new IntrospectClient({
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				fetchImpl: async () =>
+					new Response(
+						JSON.stringify({ account_id: "acct_1", credits_ok: false }),
+						{ status: 200, headers: { "content-type": "application/json" } },
+					),
+			}),
+			resolveTenant: async () => "stopped",
+			startTenant: () => {
+				startCalls++;
+			},
+		});
 		const res = await handleGatewayRequest(
 			deps,
 			req({ auth: "Bearer sk-sl_good" }),
 		);
 		expect(res.status).toBe(402);
+		expect(startCalls).toBe(0);
 	});
 
 	test("destroyed tenant → 401 invalid_api_key", async () => {
@@ -194,9 +235,7 @@ describe("handleGatewayRequest", () => {
 		expect(res.status).toBe(200);
 		expect(await res.text()).toBe("upstream-body");
 		expect(seen.auth).toBe("Bearer tenant-instance-token");
-		expect(seen.url).toBe(
-			"http://tenant-acct1234-api:3800/api/webhooks?limit=10",
-		);
+		expect(seen.url).toBe("http://127.0.0.1:20001/api/webhooks?limit=10");
 	});
 
 	test("rate limited → 429 with Retry-After, upstream never called", async () => {

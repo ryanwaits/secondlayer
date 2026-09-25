@@ -22,10 +22,21 @@ export interface GatewayDeps {
 	resolveTenant: (accountId: string) => Promise<TenantState | undefined>;
 	/** `provisioner.up()` — called fire-and-forget on a `none` tenant so the
 	 *  first caller doesn't block on the full provision; they get 503 +
-	 *  Retry-After and the tenant is `running` by the time they retry. */
-	startProvisioning: (accountId: string, accountKey: string) => void;
-	/** `http://tenant-<acct8>-api:3800`-shaped base URL for a running
-	 *  tenant's `api` service, and its `INSTANCE_TOKEN` to swap in. */
+	 *  Retry-After and the tenant is `running` by the time they retry. Takes
+	 *  only `accountId` — the customer's presented key is NEVER passed to the
+	 *  provisioner (Design fix: the provisioner mints its own dedicated
+	 *  `hosted-stack` key via `POST /internal/keys/tenant`). */
+	startProvisioning: (accountId: string) => void;
+	/** `provisioner.start()` — called fire-and-forget on a `stopped` tenant
+	 *  whose introspect result just came back `creditsOk: true` (review fix
+	 *  3b: a topped-up account must not stay 402'd waiting for the next
+	 *  5-minute poll). The caller still gets 503 + Retry-After on THIS
+	 *  request; the stack is usually up well before the retry. */
+	startTenant: (accountId: string) => void;
+	/** `127.0.0.1:<api_port>`-shaped base URL for a running tenant's `api`
+	 *  service (review fix: the gateway is a HOST process — it has no
+	 *  compose-network DNS, so this can never be a `tenant-<acct8>-api`
+	 *  service name), and its `INSTANCE_TOKEN` to swap in. */
 	tenantUpstream: (
 		accountId: string,
 	) => Promise<{ baseUrl: string; instanceToken: string }>;
@@ -110,7 +121,7 @@ export async function handleGatewayRequest(
 
 	const state = await deps.resolveTenant(introspected.accountId);
 	if (state === undefined) {
-		deps.startProvisioning(introspected.accountId, presentedKey);
+		deps.startProvisioning(introspected.accountId);
 		return withRetryAfter(
 			Response.json(
 				{
@@ -135,12 +146,20 @@ export async function handleGatewayRequest(
 		);
 	}
 	if (state === "stopped") {
-		return Response.json(
-			{
-				error: "insufficient_credits",
-				top_up_url: "https://secondlayer.tools/billing",
-			},
-			{ status: 402 },
+		// Review fix 3b: introspect already confirmed creditsOk (checked
+		// above) — a stopped tenant whose balance is fine just hasn't been
+		// restarted by the 5-minute poll yet. Kick it in the background and
+		// tell the caller to retry, instead of 402'ing a topped-up account.
+		deps.startTenant(introspected.accountId);
+		return withRetryAfter(
+			Response.json(
+				{
+					error: "starting",
+					retry_after: PROVISIONING_RETRY_AFTER_SECONDS,
+				},
+				{ status: 503 },
+			),
+			PROVISIONING_RETRY_AFTER_SECONDS,
 		);
 	}
 	if (state === "destroyed") {

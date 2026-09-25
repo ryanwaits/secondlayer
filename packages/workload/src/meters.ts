@@ -184,6 +184,131 @@ export function eventsMeterItem(
 	};
 }
 
+export interface DockerResult {
+	code: number;
+	stdout: string;
+	stderr: string;
+}
+
+export type RunDocker = (args: string[]) => Promise<DockerResult>;
+
+/** Real `docker` invocation for the memory/storage samplers below. */
+export const spawnDocker: RunDocker = async (args) => {
+	const proc = Bun.spawn(["docker", ...args], {
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const [stdout, stderr, exitCode] = await Promise.all([
+		new Response(proc.stdout).text(),
+		new Response(proc.stderr).text(),
+		proc.exited,
+	]);
+	return { code: exitCode, stdout, stderr };
+};
+
+/** Parse one `docker stats --format {{.MemUsage}}` value, e.g. `"239.3MiB"`
+ *  or `"1.2GiB"`, to bytes. Docker's memory display is always binary units
+ *  (Ki/Mi/Gi/Ti), confirmed against a live `docker stats` run (step 3's
+ *  local two-tenant verify: `"42.45MiB / 15.66GiB"`). Returns 0 for
+ *  anything unparseable rather than throwing — a format change upstream
+ *  should degrade a sample to zero, not crash the meter loop. */
+export function parseMemUsageToBytes(value: string): number {
+	const match = value.trim().match(/^([\d.]+)\s*([KMGT]i?B)$/i);
+	if (!match) return 0;
+	const amount = Number(match[1]);
+	const unit = (match[2] ?? "").toUpperCase();
+	const multipliers: Record<string, number> = {
+		B: 1,
+		KB: 1000,
+		MB: 1000 ** 2,
+		GB: 1000 ** 3,
+		TB: 1000 ** 4,
+		KIB: 1024,
+		MIB: 1024 ** 2,
+		GIB: 1024 ** 3,
+		TIB: 1024 ** 4,
+	};
+	const multiplier = multipliers[unit];
+	if (!Number.isFinite(amount) || multiplier === undefined) return 0;
+	return amount * multiplier;
+}
+
+/** Sum memory bytes across every line of a `docker stats --no-stream
+ *  --format "{{.MemUsage}}"` run against one tenant's containers (one line
+ *  per container: `api`, `webhook-service`, `postgres`, ...). Each line is
+ *  `"<used> / <limit>"` — only `<used>` (before the ` / `) counts. */
+export function parseDockerStatsMemUsageBytes(output: string): number {
+	let total = 0;
+	for (const line of output.split("\n")) {
+		const used = line.split("/")[0]?.trim();
+		if (!used) continue;
+		total += parseMemUsageToBytes(used);
+	}
+	return total;
+}
+
+/** Real memory sample for one tenant: `docker ps` (by
+ *  `com.docker.compose.project=tenant-<acct8>` — the label every compose
+ *  container gets automatically) to find its containers, since `docker
+ *  stats` itself has no `--filter` flag, then `docker stats --no-stream` on
+ *  exactly those. Zero containers (tenant not up, or just destroyed mid-tick)
+ *  → 0 bytes, not an error. */
+export async function sampleTenantMemoryBytes(
+	acct8: string,
+	runDocker: RunDocker = spawnDocker,
+): Promise<number> {
+	const ps = await runDocker([
+		"ps",
+		"-q",
+		"--filter",
+		`label=com.docker.compose.project=tenant-${acct8}`,
+	]);
+	const ids = ps.stdout
+		.split("\n")
+		.map((s) => s.trim())
+		.filter(Boolean);
+	if (ids.length === 0) return 0;
+
+	const stats = await runDocker([
+		"stats",
+		"--no-stream",
+		"--format",
+		"{{.MemUsage}}",
+		...ids,
+	]);
+	return parseDockerStatsMemUsageBytes(stats.stdout);
+}
+
+/** Parse `psql -tAc "SELECT pg_database_size(...)"` output — a bare integer
+ *  string, one line, possibly with trailing whitespace. */
+export function parsePgDatabaseSizeOutput(output: string): number {
+	const n = Number(output.trim());
+	return Number.isFinite(n) ? n : 0;
+}
+
+/** Real storage sample for one tenant: `pg_database_size` via `docker exec`
+ *  into that tenant's own `postgres` container — no network hop, no
+ *  credential needed beyond `docker exec` access the provisioner already
+ *  has as the container's operator. */
+export async function sampleTenantDatabaseBytes(
+	acct8: string,
+	runDocker: RunDocker = spawnDocker,
+): Promise<number> {
+	const result = await runDocker([
+		"exec",
+		`tenant-${acct8}-postgres-1`,
+		"psql",
+		"-U",
+		"secondlayer",
+		"-d",
+		"secondlayer",
+		"-tAc",
+		"SELECT pg_database_size('secondlayer')",
+	]);
+	if (result.code !== 0) return 0;
+	return parsePgDatabaseSizeOutput(result.stdout);
+}
+
 /** Batches `items` at `MAX_METER_BATCH` (`/internal/meters`'s own cap) and
  *  flushes each page; a failed page is logged and left for the next tick
  *  rather than losing the whole run over one bad page. */

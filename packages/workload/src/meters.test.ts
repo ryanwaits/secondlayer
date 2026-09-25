@@ -9,8 +9,13 @@ import {
 	flushAll,
 	flushMeterBatch,
 	memoryIdempotencyKey,
+	parseDockerStatsMemUsageBytes,
+	parseMemUsageToBytes,
+	parsePgDatabaseSizeOutput,
 	sampleMemoryGbHour,
 	sampleStorageGbDay,
+	sampleTenantDatabaseBytes,
+	sampleTenantMemoryBytes,
 	startMeterSocketServer,
 	storageIdempotencyKey,
 } from "./meters.ts";
@@ -242,5 +247,125 @@ describe("startMeterSocketServer", () => {
 		} finally {
 			handle.stop();
 		}
+	});
+});
+
+describe("parseMemUsageToBytes (review fix 4)", () => {
+	test("parses MiB", () => {
+		expect(parseMemUsageToBytes("239.3MiB")).toBeCloseTo(239.3 * 1024 ** 2, 0);
+	});
+
+	test("parses GiB", () => {
+		expect(parseMemUsageToBytes("1.2GiB")).toBeCloseTo(1.2 * 1024 ** 3, 0);
+	});
+
+	test("parses a bare number with a space before the unit", () => {
+		expect(parseMemUsageToBytes("42.45 MiB")).toBeCloseTo(42.45 * 1024 ** 2, 0);
+	});
+
+	test("unparseable input returns 0, never throws", () => {
+		expect(parseMemUsageToBytes("garbage")).toBe(0);
+		expect(parseMemUsageToBytes("")).toBe(0);
+	});
+});
+
+describe("parseDockerStatsMemUsageBytes (review fix 4)", () => {
+	test("sums MemUsage across multiple container lines, using only the used side", () => {
+		// Real `docker stats --format {{.MemUsage}}` output for a tenant's three
+		// containers (captured shape from the step-3 local verify).
+		const output = [
+			"42.45MiB / 15.66GiB",
+			"239.3MiB / 15.66GiB",
+			"133MiB / 15.66GiB",
+		].join("\n");
+		const bytes = parseDockerStatsMemUsageBytes(output);
+		const expected = (42.45 + 239.3 + 133) * 1024 ** 2;
+		expect(bytes).toBeCloseTo(expected, -3); // within ~1KB of the sum
+	});
+
+	test("blank lines are skipped", () => {
+		const output = "42.45MiB / 15.66GiB\n\n\n";
+		expect(parseDockerStatsMemUsageBytes(output)).toBeCloseTo(
+			42.45 * 1024 ** 2,
+			0,
+		);
+	});
+
+	test("empty output is 0 bytes, not an error", () => {
+		expect(parseDockerStatsMemUsageBytes("")).toBe(0);
+	});
+});
+
+describe("parsePgDatabaseSizeOutput (review fix 4)", () => {
+	test("parses a bare integer with trailing whitespace/newline", () => {
+		expect(parsePgDatabaseSizeOutput(" 8404992\n")).toBe(8404992);
+	});
+
+	test("unparseable output is 0, not NaN", () => {
+		expect(parsePgDatabaseSizeOutput("ERROR: relation does not exist")).toBe(0);
+	});
+});
+
+describe("sampleTenantMemoryBytes (review fix 4)", () => {
+	test("docker ps by compose-project label, then docker stats on exactly those ids", async () => {
+		const calls: string[][] = [];
+		const runDocker = async (args: string[]) => {
+			calls.push(args);
+			if (args[0] === "ps") {
+				return { code: 0, stdout: "abc123\ndef456\n", stderr: "" };
+			}
+			return { code: 0, stdout: "100MiB / 8GiB\n200MiB / 8GiB\n", stderr: "" };
+		};
+		const bytes = await sampleTenantMemoryBytes("acct1234", runDocker);
+		expect(bytes).toBeCloseTo(300 * 1024 ** 2, 0);
+
+		expect(calls[0]).toEqual([
+			"ps",
+			"-q",
+			"--filter",
+			"label=com.docker.compose.project=tenant-acct1234",
+		]);
+		expect(calls[1]).toEqual([
+			"stats",
+			"--no-stream",
+			"--format",
+			"{{.MemUsage}}",
+			"abc123",
+			"def456",
+		]);
+	});
+
+	test("zero containers → 0 bytes, docker stats is never called", async () => {
+		let statsCalled = false;
+		const runDocker = async (args: string[]) => {
+			if (args[0] === "stats") statsCalled = true;
+			return { code: 0, stdout: "", stderr: "" };
+		};
+		expect(await sampleTenantMemoryBytes("acct1234", runDocker)).toBe(0);
+		expect(statsCalled).toBe(false);
+	});
+});
+
+describe("sampleTenantDatabaseBytes (review fix 4)", () => {
+	test("execs psql in the tenant's own postgres container", async () => {
+		let seenArgs: string[] = [];
+		const runDocker = async (args: string[]) => {
+			seenArgs = args;
+			return { code: 0, stdout: "1048576\n", stderr: "" };
+		};
+		const bytes = await sampleTenantDatabaseBytes("acct1234", runDocker);
+		expect(bytes).toBe(1048576);
+		expect(seenArgs[0]).toBe("exec");
+		expect(seenArgs[1]).toBe("tenant-acct1234-postgres-1");
+		expect(seenArgs).toContain("psql");
+	});
+
+	test("a non-zero exit → 0 bytes, not a thrown error", async () => {
+		const runDocker = async () => ({
+			code: 1,
+			stdout: "",
+			stderr: "no such container",
+		});
+		expect(await sampleTenantDatabaseBytes("acct1234", runDocker)).toBe(0);
 	});
 });
