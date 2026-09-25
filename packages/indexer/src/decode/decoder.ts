@@ -1,4 +1,5 @@
 import { type StreamsClient, createStreamsClient } from "@secondlayer/sdk";
+import { committedHeight } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import type {
@@ -67,6 +68,25 @@ type DecodedEventConsumeOpts = {
 	/** Test hook: decode and plan the batch without opening a database. */
 	skipPersist?: boolean;
 };
+
+/**
+ * True log point for `decoder_checkpoint_advanced`: only when a checkpoint
+ * write moves the committed height forward (not every mid-block cursor
+ * bump within the same block). Pure and exported so it's unit-testable
+ * without a live DB or a real Streams client — measurement only, no
+ * behavior change to the commit path itself.
+ */
+export function checkpointAdvance(
+	previousCursor: string | null,
+	nextCursor: string | null,
+	events: readonly { block_height: number; ts: string }[],
+): { height: number; blockTime: string | null } | null {
+	const previousHeight = committedHeight(previousCursor);
+	const newHeight = committedHeight(nextCursor);
+	if (newHeight === null || newHeight === previousHeight) return null;
+	const matched = events.find((event) => event.block_height === newHeight);
+	return { height: newHeight, blockTime: matched?.ts ?? null };
+}
 
 /**
  * Generic decoded-event consumer: server-side filtered by a single Streams
@@ -159,6 +179,7 @@ async function consumeDecodedEvents(
 				}
 			});
 			if (!opts?.skipPersist) {
+				const startedFrom = expectedCheckpoint;
 				await commitGenericDecoderBatch({
 					db,
 					decoderName,
@@ -166,9 +187,23 @@ async function consumeDecodedEvents(
 					rows,
 					receipts: planGenericDecoderReceipts(clockEvents),
 					failure: failureFromFaults(faults),
-					startedFrom: expectedCheckpoint,
+					startedFrom,
 				});
 				expectedCheckpoint = envelope.next_cursor;
+				const advance = checkpointAdvance(
+					startedFrom,
+					expectedCheckpoint,
+					events,
+				);
+				if (advance) {
+					logger.info("decoder.checkpoint_advanced", {
+						event: "decoder_checkpoint_advanced",
+						decoder: decoderName,
+						height: advance.height,
+						block_time: advance.blockTime,
+						advanced_at: new Date().toISOString(),
+					});
+				}
 			}
 			decoded += rows.length;
 			await opts?.onProgress?.({

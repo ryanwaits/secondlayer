@@ -11,6 +11,7 @@ import {
 	buildHttpClient,
 } from "./block-source.ts";
 import {
+	blockTimeOf,
 	buildSourcesMap,
 	buildTraitContracts,
 	emitChainOutbox,
@@ -305,6 +306,7 @@ export async function replayChainWebhook(
 			const bd = blocks.get(h);
 			if (!bd) continue;
 			scanned++;
+			const blockTime = blockTimeOf(bd.block);
 			const matches = evaluateBlock(bd, sources, traitContracts);
 			if (matches.length > 0) {
 				enqueued += await emitChainOutbox(
@@ -313,6 +315,7 @@ export async function replayChainWebhook(
 					keyMeta,
 					h,
 					bd.block.hash,
+					blockTime,
 					{
 						replayId,
 					},
@@ -323,7 +326,7 @@ export async function replayChainWebhook(
 			// replay over a historical range backfills sBTC webhooks too. (Settlement
 			// `swept_confirmed` is cursor/confirmed_at driven, not block-keyed, so it
 			// emits nothing here — documented forward-only.)
-			enqueued += await emitSbtcOutbox(db, [sub], h, bd.block.hash, {
+			enqueued += await emitSbtcOutbox(db, [sub], h, bd.block.hash, blockTime, {
 				replayId,
 			});
 		}

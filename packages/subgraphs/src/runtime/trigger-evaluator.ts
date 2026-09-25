@@ -28,6 +28,21 @@ import {
 /** Trigger types that match a whole transaction (not an individual event). */
 const TX_LEVEL_TRIGGER_TYPES = new Set(["contract_call", "contract_deploy"]);
 
+/**
+ * `BlockData.block.timestamp` → the `webhook_outbox.block_time` the emitters
+ * below stamp on a row. Unix seconds on every real block source
+ * (`PostgresBlockSource` reads it off `blocks`; `PublicApiBlockSource`
+ * reconstructs it from the Index API's `block_time`). Undefined/NaN/non-
+ * positive (a test's minimal block fixture, or the 0-timestamp bulk-import
+ * artifact `decode/health.ts` also guards against) means "unknown" — leave
+ * `block_time` null rather than writing an Invalid Date or a 1970 sentinel.
+ */
+export function blockTimeOf(block: { timestamp: number }): Date | undefined {
+	return Number.isFinite(block.timestamp) && block.timestamp > 0
+		? new Date(block.timestamp * 1000)
+		: undefined;
+}
+
 /** Fired on a Bitcoin confirmation, async to Stacks blocks — handled by the
  *  scan-based `emitSbtcSettlementOutbox`, NOT the per-block path. Listed in
  *  SBTC_TRIGGER_TYPES so the per-block matcher skips it, but deliberately absent
@@ -266,6 +281,7 @@ function applyRow(
 	eventIndex: number,
 	event: Record<string, unknown>,
 	replayId?: string,
+	blockTime?: Date,
 ): InsertWebhookOutbox {
 	const clock = clockFor(meta.triggerType);
 	const payload: ChainApplyEnvelope = {
@@ -299,6 +315,7 @@ function applyRow(
 			clock,
 		),
 		...(replayId ? { is_replay: true } : {}),
+		...(blockTime ? { block_time: blockTime } : {}),
 	};
 }
 
@@ -315,6 +332,7 @@ export async function emitChainOutbox(
 	keyMeta: Map<string, TriggerKeyMeta>,
 	blockHeight: number,
 	blockHash: string,
+	blockTime?: Date,
 	opts?: { replayId?: string },
 ): Promise<number> {
 	const replayId = opts?.replayId;
@@ -342,6 +360,7 @@ export async function emitChainOutbox(
 						result_hex: match.tx.raw_result ?? null,
 					},
 					replayId,
+					blockTime,
 				),
 			);
 		} else {
@@ -360,6 +379,7 @@ export async function emitChainOutbox(
 							data: event.data,
 						},
 						replayId,
+						blockTime,
 					),
 				);
 			}
@@ -492,6 +512,7 @@ export async function emitSbtcOutbox(
 	chainSubs: Webhook[],
 	blockHeight: number,
 	blockHash: string,
+	blockTime?: Date,
 	opts?: { replayId?: string; sourceDb?: Kysely<Database> },
 ): Promise<number> {
 	const sbtcSubs = chainSubs.filter((sub) =>
@@ -541,6 +562,7 @@ export async function emitSbtcOutbox(
 						row.event_index,
 						event as unknown as Record<string, unknown>,
 						replayId,
+						blockTime,
 					),
 				);
 			}

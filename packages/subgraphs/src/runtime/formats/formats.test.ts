@@ -57,6 +57,7 @@ function outbox(): WebhookOutbox {
 		next_attempt_at: FIXED_CREATED_AT,
 		status: "pending",
 		is_replay: false,
+		block_time: null,
 		delivered_at: null,
 		failed_at: null,
 		locked_by: null,

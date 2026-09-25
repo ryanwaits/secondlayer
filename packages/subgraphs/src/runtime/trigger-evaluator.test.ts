@@ -238,6 +238,57 @@ describe("emitChainOutbox (DB)", () => {
 		expect(payload.block_hash).toBe("0xblock");
 	});
 
+	it("stores the block's time on the outbox row when passed", async () => {
+		const sub = await makeChainSub([
+			{ type: "contract_call", contractId: "SP1.amm" },
+		]);
+		const { sources, keyMeta } = buildSourcesMap([sub]);
+		const b = block(
+			[
+				tx({
+					tx_id: "0xtime",
+					type: "contract_call",
+					contract_id: "SP1.amm",
+					function_name: "swap",
+				}),
+			],
+			[],
+		);
+		const matches = evaluateBlock(b, sources, new Map());
+		const blockTime = new Date("2026-09-25T00:00:00.000Z");
+
+		await emitChainOutbox(db, matches, keyMeta, 100, "0xblock", blockTime);
+
+		const rows = await outboxRows(sub.id);
+		expect(rows).toHaveLength(1);
+		expect(rows[0].block_time?.toISOString()).toBe(blockTime.toISOString());
+	});
+
+	it("leaves block_time null when not passed", async () => {
+		const sub = await makeChainSub([
+			{ type: "contract_call", contractId: "SP1.amm" },
+		]);
+		const { sources, keyMeta } = buildSourcesMap([sub]);
+		const b = block(
+			[
+				tx({
+					tx_id: "0xnotime",
+					type: "contract_call",
+					contract_id: "SP1.amm",
+					function_name: "swap",
+				}),
+			],
+			[],
+		);
+		const matches = evaluateBlock(b, sources, new Map());
+
+		await emitChainOutbox(db, matches, keyMeta, 100, "0xblock");
+
+		const rows = await outboxRows(sub.id);
+		expect(rows).toHaveLength(1);
+		expect(rows[0].block_time).toBeNull();
+	});
+
 	it("emits one apply row per matched event for event-level triggers", async () => {
 		const sub = await makeChainSub([{ type: "ft_transfer" }]);
 		const { sources, keyMeta } = buildSourcesMap([sub]);
@@ -355,15 +406,22 @@ describe("emitChainOutbox (DB)", () => {
 			keyMeta,
 			100,
 			"0xblock",
+			undefined,
 			{
 				replayId,
 			},
 		);
 		expect(replayed).toBe(1);
 		// Re-running the same replay is a no-op (same replayId → same key).
-		const again = await emitChainOutbox(db, matches, keyMeta, 100, "0xblock", {
-			replayId,
-		});
+		const again = await emitChainOutbox(
+			db,
+			matches,
+			keyMeta,
+			100,
+			"0xblock",
+			undefined,
+			{ replayId },
+		);
 		expect(again).toBe(0);
 
 		const rows = await outboxRows(sub.id);

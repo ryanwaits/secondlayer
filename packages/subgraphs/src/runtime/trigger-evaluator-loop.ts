@@ -7,6 +7,7 @@ import type { Kysely } from "kysely";
 import { buildChainBlockSource } from "./block-source.ts";
 import { boundSourceTip } from "./decoder-bound.ts";
 import {
+	blockTimeOf,
 	buildSourcesMap,
 	buildTraitContracts,
 	emitChainOutbox,
@@ -106,81 +107,118 @@ export async function advanceCursor(
 export async function runEvaluatorOnce(
 	db: Kysely<Database> = getTargetDb(),
 ): Promise<number> {
-	// Snapshot BEFORE reading the cursor: a rewind between this read and the
-	// cursor read below still trips the guard on the next advanceCursor call
-	// (conservative — one wasted tick, never a clobber).
-	const generation = getChainReorgGeneration();
-	const chainSubs = await listActiveChainWebhooks(db);
-	if (chainSubs.length >= CHAIN_SUB_WARN_THRESHOLD) {
-		logger.warn("Active chain webhook count is high", {
-			event: "chain_sub_load_high",
-			count: chainSubs.length,
-			threshold: CHAIN_SUB_WARN_THRESHOLD,
-		});
-	}
+	const tickStart = Date.now();
+	let emitted = 0;
+	let rawTip: number | null = null;
+	let boundTip: number | null = null;
+	let cursorBefore: number | null = null;
+	let cursorAfter: number | null = null;
+	try {
+		// Snapshot BEFORE reading the cursor: a rewind between this read and the
+		// cursor read below still trips the guard on the next advanceCursor call
+		// (conservative — one wasted tick, never a clobber).
+		const generation = getChainReorgGeneration();
+		const chainSubs = await listActiveChainWebhooks(db);
+		if (chainSubs.length >= CHAIN_SUB_WARN_THRESHOLD) {
+			logger.warn("Active chain webhook count is high", {
+				event: "chain_sub_load_high",
+				count: chainSubs.length,
+				threshold: CHAIN_SUB_WARN_THRESHOLD,
+			});
+		}
 
-	// sBTC settlement webhooks fire on Bitcoin confirmations, async to Stacks
-	// blocks — scan every tick on their own cursor, independent of (and before)
-	// the block-cursor early returns below.
-	let emitted = await emitSbtcSettlementOutbox(db, chainSubs);
+		// sBTC settlement webhooks fire on Bitcoin confirmations, async to Stacks
+		// blocks — scan every tick on their own cursor, independent of (and before)
+		// the block-cursor early returns below.
+		emitted = await emitSbtcSettlementOutbox(db, chainSubs);
 
-	const source = buildChainBlockSource(referencedEventTypes(chainSubs));
-	const rawTip = await source.getTip();
-	if (rawTip <= 0) return emitted;
+		const source = buildChainBlockSource(referencedEventTypes(chainSubs));
+		rawTip = await source.getTip();
+		if (rawTip <= 0) return emitted;
 
-	const bound = await boundSourceTip(rawTip, referencedDecoderNames(chainSubs));
-	if (!bound.ok) {
-		logger.warn("Chain evaluator stalled: missing decoder checkpoint", {
-			event: "chain_evaluator_decoder_stall",
-			missing: bound.missing,
-		});
-		return emitted;
-	}
-	if (bound.floor !== null && bound.floor < rawTip) {
-		logger.debug("Chain evaluator tip bounded by decoder progress", {
-			event: "chain_evaluator_decoder_floor",
+		const bound = await boundSourceTip(
 			rawTip,
-			floor: bound.floor,
-			tip: bound.tip,
-		});
-	}
-	const tip = bound.tip;
+			referencedDecoderNames(chainSubs),
+		);
+		if (!bound.ok) {
+			logger.warn("Chain evaluator stalled: missing decoder checkpoint", {
+				event: "chain_evaluator_decoder_stall",
+				missing: bound.missing,
+			});
+			return emitted;
+		}
+		if (bound.floor !== null && bound.floor < rawTip) {
+			logger.debug("Chain evaluator tip bounded by decoder progress", {
+				event: "chain_evaluator_decoder_floor",
+				rawTip,
+				floor: bound.floor,
+				tip: bound.tip,
+			});
+		}
+		const tip = bound.tip;
+		boundTip = tip;
 
-	const cursor = await readCursor(db);
-	// Forward-looking: uninitialized cursor or no webhooks → jump to tip so
-	// nothing backfills history.
-	if (cursor === 0 || chainSubs.length === 0) {
-		await advanceCursor(db, tip, generation);
-		return emitted;
-	}
-	if (cursor >= tip) return emitted;
+		const cursor = await readCursor(db);
+		cursorBefore = cursor;
+		cursorAfter = cursor;
+		// Forward-looking: uninitialized cursor or no webhooks → jump to tip so
+		// nothing backfills history.
+		if (cursor === 0 || chainSubs.length === 0) {
+			const res = await advanceCursor(db, tip, generation);
+			if (res.advanced) cursorAfter = tip;
+			return emitted;
+		}
+		if (cursor >= tip) return emitted;
 
-	const { sources, keyMeta } = buildSourcesMap(chainSubs);
-	const target = Math.min(tip, cursor + MAX_BLOCKS_PER_TICK);
-	for (let from = cursor + 1; from <= target; from = from + BATCH) {
-		const to = Math.min(from + BATCH - 1, target);
-		const blocks = await source.loadBlockRange(from, to);
-		// Trait membership only grows; resolve once per batch as of its top height.
-		const traitContracts = await buildTraitContracts(chainSubs, to);
-		for (let h = from; h <= to; h++) {
-			const bd = blocks.get(h);
-			if (!bd) continue;
-			const matches = evaluateBlock(bd, sources, traitContracts);
-			if (matches.length > 0) {
-				emitted += await emitChainOutbox(
+		const { sources, keyMeta } = buildSourcesMap(chainSubs);
+		const target = Math.min(tip, cursor + MAX_BLOCKS_PER_TICK);
+		for (let from = cursor + 1; from <= target; from = from + BATCH) {
+			const to = Math.min(from + BATCH - 1, target);
+			const blocks = await source.loadBlockRange(from, to);
+			// Trait membership only grows; resolve once per batch as of its top height.
+			const traitContracts = await buildTraitContracts(chainSubs, to);
+			for (let h = from; h <= to; h++) {
+				const bd = blocks.get(h);
+				if (!bd) continue;
+				const blockTime = blockTimeOf(bd.block);
+				const matches = evaluateBlock(bd, sources, traitContracts);
+				if (matches.length > 0) {
+					emitted += await emitChainOutbox(
+						db,
+						matches,
+						keyMeta,
+						h,
+						bd.block.hash,
+						blockTime,
+					);
+				}
+				emitted += await emitSbtcOutbox(
 					db,
-					matches,
-					keyMeta,
+					chainSubs,
 					h,
 					bd.block.hash,
+					blockTime,
 				);
 			}
-			emitted += await emitSbtcOutbox(db, chainSubs, h, bd.block.hash);
+			const res = await advanceCursor(db, to, generation);
+			if (res.advanced) cursorAfter = to;
+			if (res.reorged) break;
 		}
-		const res = await advanceCursor(db, to, generation);
-		if (res.reorged) break;
+		return emitted;
+	} finally {
+		// Measurement-only: one info log per tick so Gate 1's per-hop latency
+		// numbers (raw tip → bound tip → cursor advance → emit) can be pulled
+		// straight from logs, regardless of which early return above fired.
+		logger.info("Chain evaluator tick", {
+			event: "chain_evaluator_tick",
+			raw_tip: rawTip,
+			bound_tip: boundTip,
+			cursor_before: cursorBefore,
+			cursor_after: cursorAfter,
+			emitted,
+			tick_ms: Date.now() - tickStart,
+		});
 	}
-	return emitted;
 }
 
 /** Start the evaluator timer loop. Returns a stop function. */

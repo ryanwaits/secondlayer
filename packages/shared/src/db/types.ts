@@ -1181,6 +1181,11 @@ export interface WebhookOutboxTable {
 	next_attempt_at: Generated<Date>;
 	status: ColumnType<OutboxStatus, OutboxStatus | undefined, OutboxStatus>;
 	is_replay: Generated<boolean>;
+	/** The chain block_time of the matched event/tx. Null for rows written
+	 *  before this column existed, and for the settlement scan path (not yet
+	 *  wired). Lets `delivered_at - block_time` measure end-to-end webhook
+	 *  latency without a join to SOURCE-plane `blocks`. */
+	block_time: Date | null;
 	delivered_at: Date | null;
 	failed_at: Date | null;
 	locked_by: string | null;

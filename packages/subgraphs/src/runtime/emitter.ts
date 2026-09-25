@@ -465,6 +465,7 @@ function buildTestOutboxRow(sub: Webhook): WebhookOutbox {
 		next_attempt_at: now,
 		status: "pending",
 		is_replay: false,
+		block_time: null,
 		delivered_at: null,
 		failed_at: null,
 		locked_by: null,
