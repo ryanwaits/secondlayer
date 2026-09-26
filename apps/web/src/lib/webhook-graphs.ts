@@ -1,4 +1,8 @@
-import type { DeliveryRow, WebhookActivityHour } from "@secondlayer/sdk";
+import type {
+	DeliveryRow,
+	WebhookActivity,
+	WebhookActivityHour,
+} from "@secondlayer/sdk";
 
 /**
  * Pure series math for the webhook detail page's graphs (plan 070). Every
@@ -231,6 +235,82 @@ export function formatUtcDateTime(iso: string): string {
 /** "14:06 UTC" — the axis-label form, no date. */
 export function formatUtcTime(iso: string): string {
 	return `${iso.slice(11, 16)} UTC`;
+}
+
+// ── receiver_down: events waiting since the last success ─────────────
+
+export interface WaitingSeriesPoint {
+	/** Unix seconds. */
+	time: number;
+	value: number;
+}
+
+const MIN_LIVELINE_WINDOW_SECS = 30;
+
+/** The `receiver_down` flag graph's line: a rise from `lastSuccessAt` to now,
+ *  seeded on mount from `/activity`'s hourly `waiting` counts (so the graph
+ *  shows the climb on first paint, not just this session's live polls), then
+ *  continued with the real 5s polls in `waitingHistory`.
+ *
+ *  The hourly counts are a coarse proxy for a continuous backlog curve, so
+ *  they're scaled to land exactly on the current `waiting` figure — the same
+ *  number the evidence line above the graph shows. Seed and live points can
+ *  collide at the boundary (the seed's last hour and the first live poll
+ *  landing in the same second); the live, real reading wins on a tie.
+ *
+ *  Liveline's own `window` prop defaults to 30s, which would clip this
+ *  entire seeded rise — `windowSecs` here is sized to the full span so the
+ *  caller can pass it straight through. */
+export function receiverDownWaitingSeries(
+	activity: WebhookActivity,
+	waitingHistory: { t: number; waiting: number }[],
+	nowMs: number,
+): { points: WaitingSeriesPoint[]; windowSecs: number } {
+	const livePoints: WaitingSeriesPoint[] = waitingHistory.map((p) => ({
+		time: Math.floor(p.t / 1000),
+		value: p.waiting,
+	}));
+
+	const seedPoints: WaitingSeriesPoint[] = [];
+	if (activity.lastSuccessAt) {
+		const lastSuccessMs = new Date(activity.lastSuccessAt).getTime();
+		const relevant = activity.hours.filter((h) => {
+			const hourStartMs = new Date(h.hour).getTime();
+			return hourStartMs + 3_600_000 > lastSuccessMs;
+		});
+
+		let cumulative = 0;
+		const raw = relevant.map((h) => {
+			cumulative += h.waiting;
+			return {
+				time: Math.floor(new Date(h.hour).getTime() / 1000),
+				value: cumulative,
+			};
+		});
+		const rawTotal = raw[raw.length - 1]?.value ?? 0;
+		const scale = rawTotal > 0 ? activity.waiting / rawTotal : 0;
+		seedPoints.push(
+			...raw.map((p) => ({ time: p.time, value: p.value * scale })),
+		);
+	}
+
+	// Concatenate then drop an earlier point whenever the next one shares its
+	// timestamp (the seed/live boundary is the only place this happens) — a
+	// duplicate x value is what breaks the line into two segments.
+	const merged = [...seedPoints, ...livePoints];
+	const points: WaitingSeriesPoint[] = [];
+	for (let i = 0; i < merged.length; i++) {
+		const point = merged[i];
+		const next = merged[i + 1];
+		if (point && next && point.time === next.time) continue;
+		if (point) points.push(point);
+	}
+
+	const nowSec = Math.floor(nowMs / 1000);
+	const earliest = points[0]?.time ?? nowSec;
+	const windowSecs = Math.max(MIN_LIVELINE_WINDOW_SECS, nowSec - earliest);
+
+	return { points, windowSecs };
 }
 
 // ── Catch-up bar ───────────────────────────────────────────────────────

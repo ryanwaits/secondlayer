@@ -5,6 +5,7 @@ import {
 	formatUtcDateTime,
 	formatUtcTime,
 	rateLimitedShareByHour,
+	receiverDownWaitingSeries,
 	responseTimeHistogram,
 } from "@/lib/webhook-graphs";
 import type {
@@ -14,7 +15,6 @@ import type {
 	WebhookActivity,
 	WebhookDetail,
 } from "@secondlayer/sdk";
-import type { LivelinePoint } from "liveline";
 import { LivelineWaitingChart } from "./charts/liveline-waiting-chart";
 import { MonoHistogramChart } from "./charts/mono-histogram-chart";
 import { MonoLagLineChart } from "./charts/mono-lag-line-chart";
@@ -152,14 +152,19 @@ function FlagGraph({
 	waitingHistory: { t: number; waiting: number }[];
 }) {
 	if (primary.code === "receiver_down") {
-		const points: LivelinePoint[] = waitingHistory.map((p) => ({
-			time: Math.floor(p.t / 1000),
-			value: p.waiting,
-		}));
 		const value =
 			activity?.waiting ??
 			waitingHistory[waitingHistory.length - 1]?.waiting ??
 			0;
+		const { points, windowSecs } = activity
+			? receiverDownWaitingSeries(activity, waitingHistory, Date.now())
+			: {
+					points: waitingHistory.map((p) => ({
+						time: Math.floor(p.t / 1000),
+						value: p.waiting,
+					})),
+					windowSecs: 30,
+				};
 		const lastSuccessLabel = evidenceValue(primary, "last success");
 		return (
 			<div className="wh-chart">
@@ -170,7 +175,11 @@ function FlagGraph({
 					</span>
 					<span className="mono">{value.toLocaleString("en-US")} waiting</span>
 				</div>
-				<LivelineWaitingChart data={points} value={value} />
+				<LivelineWaitingChart
+					data={points}
+					value={value}
+					windowSecs={windowSecs}
+				/>
 				<div className="wh-chart-ends">
 					<span>
 						{activity?.lastSuccessAt

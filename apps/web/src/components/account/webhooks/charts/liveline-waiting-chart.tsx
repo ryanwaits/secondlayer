@@ -44,15 +44,21 @@ function usePageTheme(): "light" | "dark" {
 
 const noText = () => "";
 
-/** Events waiting since the last success, live. `data` grows as the page
- *  polls `/activity` while `receiver_down` stays primary. */
+/** Events waiting since the last success, live. `data` is seeded on mount
+ *  from `/activity`'s hourly history (so the rise shows on first paint), then
+ *  grows with this session's live polls while `receiver_down` stays primary.
+ *  `windowSecs` must cover that whole span — Liveline's own `window` prop
+ *  defaults to 30s, which would clip the seeded history and show only a
+ *  flat tail. */
 export function LivelineWaitingChart({
 	data,
 	value,
+	windowSecs,
 	height = 70,
 }: {
 	data: LivelinePoint[];
 	value: number;
+	windowSecs: number;
 	height?: number;
 }) {
 	const color = useResolvedCssColor("--fig-role-a");
@@ -65,6 +71,7 @@ export function LivelineWaitingChart({
 			<Liveline
 				data={data}
 				value={value}
+				window={windowSecs}
 				color={color}
 				theme={theme}
 				grid={false}

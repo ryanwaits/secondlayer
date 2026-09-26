@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { DeliveryRow } from "@secondlayer/sdk";
+import type { DeliveryRow, WebhookActivity } from "@secondlayer/sdk";
 import { type WebhookDetail, buildDoctorReport } from "@secondlayer/sdk";
 import {
 	activityHeaderSummary,
@@ -9,6 +9,7 @@ import {
 	formatUtcDateTime,
 	formatUtcTime,
 	rateLimitedShareByHour,
+	receiverDownWaitingSeries,
 	responseTimeHistogram,
 	ribbonCells,
 } from "./webhook-graphs";
@@ -273,5 +274,103 @@ describe("formatUtcDateTime and formatUtcTime", () => {
 		const iso = "2026-04-23T14:06:10.000Z";
 		expect(formatUtcDateTime(iso)).toBe("2026-04-23 14:06 UTC");
 		expect(formatUtcTime(iso)).toBe("14:06 UTC");
+	});
+});
+
+describe("receiverDownWaitingSeries", () => {
+	function activity(overrides: Partial<WebhookActivity> = {}): WebhookActivity {
+		return {
+			hours: [],
+			waiting: 0,
+			nextAttemptAt: null,
+			lastSuccessAt: null,
+			...overrides,
+		};
+	}
+
+	function hour(iso: string, waiting: number) {
+		return { hour: iso, delivered: 0, waiting, gaveUp: 0 };
+	}
+
+	test("with no lastSuccessAt, only the live polls show", () => {
+		const now = new Date("2026-04-23T14:10:00.000Z").getTime();
+		const history = [
+			{ t: now - 5_000, waiting: 10 },
+			{ t: now, waiting: 20 },
+		];
+		const { points } = receiverDownWaitingSeries(activity(), history, now);
+		expect(points).toEqual([
+			{ time: Math.floor((now - 5_000) / 1000), value: 10 },
+			{ time: Math.floor(now / 1000), value: 20 },
+		]);
+	});
+
+	test("seeds a rising curve from hourly waiting counts, scaled to the current total", () => {
+		const now = new Date("2026-04-23T14:00:00.000Z").getTime();
+		const a = activity({
+			hours: [
+				hour("2026-04-23T11:00:00.000Z", 100),
+				hour("2026-04-23T12:00:00.000Z", 100),
+				hour("2026-04-23T13:00:00.000Z", 100),
+			],
+			waiting: 412,
+			lastSuccessAt: "2026-04-23T11:30:00.000Z",
+		});
+		const { points, windowSecs } = receiverDownWaitingSeries(a, [], now);
+		// The 11:00 hour is included (last success falls inside it); 300 raw,
+		// scaled by 412/300 so the last seed point lands exactly on 412.
+		expect(points).toHaveLength(3);
+		const values = points.map((p) => p.value);
+		expect(values[0]).toBeCloseTo((100 * 412) / 300);
+		expect(values[2]).toBeCloseTo(412);
+		// Values rise monotonically — this is a climb, not a flat line.
+		expect(values[0]).toBeLessThan(values[1] ?? 0);
+		expect(values[1]).toBeLessThan(values[2] ?? 0);
+		expect(windowSecs).toBeGreaterThanOrEqual(3 * 3600);
+	});
+
+	test("a live poll at the same second as the last seed point wins, closing the gap", () => {
+		const seedHourMs = new Date("2026-04-23T13:00:00.000Z").getTime();
+		const now = seedHourMs + 60_000;
+		const a = activity({
+			hours: [hour("2026-04-23T13:00:00.000Z", 50)],
+			waiting: 50,
+			lastSuccessAt: "2026-04-23T12:59:00.000Z",
+		});
+		const history = [{ t: seedHourMs, waiting: 48 }];
+		const { points } = receiverDownWaitingSeries(a, history, now);
+		// One point at that second, not two — the live reading (48), not the
+		// scaled seed estimate (50).
+		const atBoundary = points.filter(
+			(p) => p.time === Math.floor(seedHourMs / 1000),
+		);
+		expect(atBoundary).toHaveLength(1);
+		expect(atBoundary[0]?.value).toBe(48);
+	});
+
+	test("hours summing to zero waiting never divide by zero", () => {
+		const now = new Date("2026-04-23T14:00:00.000Z").getTime();
+		const a = activity({
+			hours: [hour("2026-04-23T13:00:00.000Z", 0)],
+			waiting: 0,
+			lastSuccessAt: "2026-04-23T13:00:00.000Z",
+		});
+		const { points } = receiverDownWaitingSeries(a, [], now);
+		expect(points).toEqual([
+			{
+				time: Math.floor(new Date("2026-04-23T13:00:00.000Z").getTime() / 1000),
+				value: 0,
+			},
+		]);
+	});
+
+	test("the window covers the full span, never less than 30s", () => {
+		const now = new Date("2026-04-23T14:00:10.000Z").getTime();
+		const { windowSecs } = receiverDownWaitingSeries(
+			activity(),
+			[{ t: now, waiting: 5 }],
+			now,
+		);
+		expect(windowSecs).toBe(30);
 	});
 });
