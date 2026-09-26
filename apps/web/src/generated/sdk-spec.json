@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "12.2.0",
+	"version": "12.3.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -2031,7 +2031,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 281
+					"line": 284
 				},
 				{
 					"name": "DeadRow",
@@ -2039,7 +2039,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 317
+					"line": 320
 				},
 				{
 					"name": "DeliveryRow",
@@ -2047,7 +2047,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 290
+					"line": 293
 				},
 				{
 					"name": "ReplayResult",
@@ -2055,7 +2055,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 303
+					"line": 306
 				},
 				{
 					"name": "RotateSecretResponse",
@@ -2063,7 +2063,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 286
+					"line": 289
 				},
 				{
 					"name": "SbtcDepositEvent",
@@ -2127,7 +2127,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 262
+					"line": 266
 				},
 				{
 					"name": "WebhookFormat",
@@ -2175,7 +2175,7 @@
 					"summary": "Result of a one-off test delivery (`POST /:id/test`).",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 310
+					"line": 313
 				}
 			]
 		},
@@ -2483,7 +2483,15 @@
 					"summary": "",
 					"signature": "buildDoctorReport(input: object): DoctorReport",
 					"file": "src/webhooks/doctor.ts",
-					"line": 58
+					"line": 404
+				},
+				{
+					"name": "buildListIssue",
+					"kind": "function",
+					"summary": "The list page's own reduced detector: computed from `WebhookSummary` alone (no deliveries, no dead-letter rows — the list endpoint returns neither, and fetching per-row detail or deliveries here wo…",
+					"signature": "buildListIssue(webhook: object): null | DoctorIssue",
+					"file": "src/webhooks/doctor.ts",
+					"line": 527
 				},
 				{
 					"name": "consumerHealth",
@@ -2534,12 +2542,28 @@
 					"line": 254
 				},
 				{
+					"name": "DoctorEvidence",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/webhooks/doctor.ts",
+					"line": 28
+				},
+				{
+					"name": "DoctorFix",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/webhooks/doctor.ts",
+					"line": 33
+				},
+				{
 					"name": "DoctorIssue",
 					"kind": "interface",
 					"summary": "",
 					"signature": null,
 					"file": "src/webhooks/doctor.ts",
-					"line": 30
+					"line": 56
 				},
 				{
 					"name": "DoctorIssueCode",
@@ -2547,7 +2571,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/webhooks/doctor.ts",
-					"line": 20
+					"line": 41
 				},
 				{
 					"name": "DoctorReport",
@@ -2555,7 +2579,15 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/webhooks/doctor.ts",
-					"line": 35
+					"line": 67
+				},
+				{
+					"name": "DoctorSeverity",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/webhooks/doctor.ts",
+					"line": 26
 				},
 				{
 					"name": "InstanceClient",
@@ -2603,7 +2635,7 @@
 					"summary": "Webhook diagnosis, shared by `secondlayer webhooks doctor` and the dashboard's webhook detail page.",
 					"signature": "isSuccessDelivery(row: DeliveryRow): boolean",
 					"file": "src/webhooks/doctor.ts",
-					"line": 14
+					"line": 20
 				},
 				{
 					"name": "LoadedArchive",
