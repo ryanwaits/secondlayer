@@ -3,10 +3,9 @@
 // parity-state --height <H> --ord-runes <file> --ord-balances <file> |
 // repair-entries | digests --from <A> --to <B> | state-hash`.
 //
-// `follow` (env: BITCOIN_ZMQ_URL, plus the existing BITCOIN_DATABASE_URL/
-// BITCOIN_RPC_* envs) needs plan 038 (ZMQ on node-server bitcoind) DONE —
-// see NOTES in plan 057 for a verified Bun/zeromq incompatibility that blocks
-// running it under Bun today.
+// `follow` wakes on bitcoind's own `waitfornewblock` RPC (plan 070, D12
+// amended 2026-09-26) over the existing BITCOIN_RPC_*/BITCOIN_DATABASE_URL
+// envs — no extra port needed.
 
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { runBackfill } from "./backfill.ts";
@@ -26,8 +25,8 @@ import {
 	runeIdByName,
 } from "./parity/state.ts";
 import { repairEntries } from "./repair.ts";
+import { RpcWaitNotifier } from "./rpc-wait-notifier.ts";
 import { bitcoinRpcClientFromEnv } from "./rpc.ts";
-import { ZmqNotifier } from "./zmq-notifier.ts";
 
 function requireEnv(name: string): string {
 	const value = process.env[name];
@@ -310,22 +309,20 @@ async function cmdStateHash(): Promise<void> {
 }
 
 /**
- * Follows the tip forever (D12): batch catch-up if far behind, then one
- * block at a time near it (each flush writes an undo row), woken by
- * `BITCOIN_ZMQ_URL`'s `hashblock` topic — `ZmqNotifier`'s own 60s reconnect
- * timer is the safety net if ZMQ has gone silent, not a polling loop. Runs
- * one pass immediately on start (catches up after downtime, and rewinds an
+ * Follows the tip forever (D12, amended 2026-09-26): batch catch-up if far
+ * behind, then one block at a time near it (each flush writes an undo row),
+ * woken by bitcoind's own blocking `waitfornewblock` RPC (`RpcWaitNotifier`),
+ * with a `getbestblockhash`-polling fallback on nodes that lack it. Runs one
+ * pass immediately on start (catches up after downtime, and rewinds an
  * orphaned checkpoint left over from a previous run) before waiting on the
  * first notification. Stops cleanly on SIGINT/SIGTERM.
  */
 async function cmdFollow(): Promise<void> {
 	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
 	const rpc = bitcoinRpcClientFromEnv();
-	const zmqUrl = requireEnv("BITCOIN_ZMQ_URL");
 	const fetchConcurrency = Number(process.env.FETCH_CONCURRENCY ?? "8");
 
-	const notifier = new ZmqNotifier({ url: zmqUrl });
-	await notifier.connect();
+	const notifier = new RpcWaitNotifier({ rpc });
 
 	const controller = new AbortController();
 	const stop = () => {

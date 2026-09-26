@@ -1,8 +1,8 @@
 // DB-backed follow.ts tests, with a fake RPC (a tiny in-memory chain, real
 // enough to pass verifyBlockIntegrity/checkContinuity) and a fake notifier
-// (manually fired, no ZMQ involved — see zmq-notifier.ts for why that's a
-// separate, never-eagerly-imported module). Skipped when
-// BITCOIN_TEST_DATABASE_URL isn't set (same convention as rewind.test.ts):
+// (manually fired — see rpc-wait-notifier.test.ts for the real notifier's own
+// unit tests). Skipped when BITCOIN_TEST_DATABASE_URL isn't set (same
+// convention as rewind.test.ts):
 //
 //   BITCOIN_TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5440/bitcoin_follow_test \
 //     bun test src/follow.test.ts
@@ -146,6 +146,12 @@ class FakeChain implements BitcoinRpcClient {
 	getrawtransaction: BitcoinRpcClient["getrawtransaction"] = (() => {
 		throw new Error("FakeChain: getrawtransaction not needed by these tests");
 	}) as BitcoinRpcClient["getrawtransaction"];
+	async waitfornewblock(): Promise<{ hash: string; height: number }> {
+		throw new Error("FakeChain: waitfornewblock not needed by these tests");
+	}
+	async getbestblockhash(): Promise<string> {
+		throw new Error("FakeChain: getbestblockhash not needed by these tests");
+	}
 }
 
 class FakeNotifier implements BlockNotifier {

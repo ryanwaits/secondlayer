@@ -1,19 +1,28 @@
 #!/usr/bin/env bun
 // Plan 057 step 5 / Gate 2: "one reorg handled, injected on regtest."
+// Plan 070: drives the real `runFollow` + `RpcWaitNotifier` (D12, amended
+// 2026-09-26 — wakes on bitcoind's `waitfornewblock` RPC, not ZMQ) for the
+// wake-up proof below.
 //
 // Spins up a real `bitcoin/bitcoin` regtest node in Docker, etches a rune,
 // mints it, and transfers it — real, wire-format-valid transactions, not
 // synthetic ones (`follow.test.ts`'s fake chain covers the orchestration
 // logic in isolation; this proves the same code decodes a real node's bytes
-// end to end). Then injects a real reorg (`invalidateblock` + a longer
-// branch) and asserts:
-//   1. `syncOnce` (`../../src/follow.ts`) detects it, rewinds via
-//      `rewindTo` (`../../src/rewind.ts`), and re-applies the new branch.
-//   2. The result is byte-identical (`state-hash`, the package's existing
-//      CLI command) to a fresh backfill of the new branch from an empty DB —
-//      proving the incremental rewind-and-reapply path and a from-scratch
-//      decode never disagree.
-//   3. A `btc_reorgs` row records the rewind.
+// end to end). Then:
+//   1. Runs `runFollow` with a real `RpcWaitNotifier` in the background,
+//      mines one block, and asserts the checkpoint reaches it within 10s —
+//      proving a mined block actually wakes the follower (not just its own
+//      30s timeout fallback).
+//   2. Stops that background follower, then injects a real reorg
+//      (`invalidateblock` + a longer branch) the same deterministic way as
+//      before this plan: a direct `syncOnce` call, so the reorg assertions
+//      below aren't racing the background notifier against `invalidateblock`
+//      temporarily shortening the live chain.
+//   3. Asserts `syncOnce` detects the reorg, rewinds via `rewindTo`
+//      (`../../src/rewind.ts`), re-applies the new branch, and that the
+//      result is byte-identical (`state-hash`, the package's existing CLI
+//      command) to a fresh backfill of the new branch from an empty DB.
+//   4. A `btc_reorgs` row records the rewind.
 //
 // Requires Docker and a local Postgres at 127.0.0.1:5440
 // (`docker/docker-compose.dev.yml`, `bun run db` from the repo root) —
@@ -24,9 +33,12 @@
 
 import { spawnSync } from "node:child_process";
 import { bytesToHex } from "@noble/hashes/utils.js";
+import type { Kysely } from "kysely";
 import { migrateToLatest } from "../../src/db/migrate.ts";
 import { openStore } from "../../src/db/store.ts";
-import { syncOnce } from "../../src/follow.ts";
+import type { Database } from "../../src/db/types.ts";
+import { runFollow, syncOnce } from "../../src/follow.ts";
+import { RpcWaitNotifier } from "../../src/rpc-wait-notifier.ts";
 import { bitcoinRpcClient } from "../../src/rpc.ts";
 import { Network } from "../../src/runes/rune.ts";
 import { encodeEtchingWithTerms, encodeMint } from "./runestone-encode.ts";
@@ -39,7 +51,6 @@ const CONTAINER = "sl-bitcoin-regtest-057";
 // `docker.io/v2/repositories/bitcoin/bitcoin/tags`).
 const IMAGE = "bitcoin/bitcoin:29.4";
 const RPC_PORT = 18543;
-const ZMQ_PORT = 28532; // not used by this test (see NOTES: zeromq's native module crashes under Bun); reserved for when a live-ZMQ regtest run becomes possible
 const RPC_USER = "test";
 const RPC_PASS = "test";
 const WALLET = "test";
@@ -233,6 +244,28 @@ function cliStateHash(databaseUrl: string): string {
 	return res.stdout.trim();
 }
 
+/** Polls `runes_checkpoint.height` (the same table `loadState`/`syncOnce` maintain) until it reaches `targetHeight`, or throws after `timeoutMs`. */
+async function waitForCheckpointHeight(
+	db: Kysely<Database>,
+	targetHeight: number,
+	timeoutMs: number,
+): Promise<number> {
+	const deadline = Date.now() + timeoutMs;
+	for (;;) {
+		const row = await db
+			.selectFrom("runes_checkpoint")
+			.select("height")
+			.executeTakeFirst();
+		if (row && row.height >= targetHeight) return row.height;
+		if (Date.now() >= deadline) {
+			throw new Error(
+				`checkpoint never reached height ${targetHeight} within ${timeoutMs}ms (last seen: ${row?.height})`,
+			);
+		}
+		await Bun.sleep(200);
+	}
+}
+
 let exitCode = 0;
 
 async function main(): Promise<void> {
@@ -248,8 +281,6 @@ async function main(): Promise<void> {
 		CONTAINER,
 		"-p",
 		`${RPC_PORT}:18443`,
-		"-p",
-		`${ZMQ_PORT}:28332`,
 		IMAGE,
 		"-regtest=1",
 		"-txindex=1",
@@ -258,7 +289,6 @@ async function main(): Promise<void> {
 		`-rpcpassword=${RPC_PASS}`,
 		"-rpcallowip=0.0.0.0/0",
 		"-rpcbind=0.0.0.0",
-		"-zmqpubhashblock=tcp://0.0.0.0:28332",
 		"-fallbackfee=0.0001",
 		"-rpcport=18443",
 	]);
@@ -324,28 +354,71 @@ async function main(): Promise<void> {
 	);
 	console.log(`  height=${transfer.height} txid=${transfer.txid}`);
 
-	console.log("[follow] syncOnce against the live chain…");
 	const liveDb = openStore(liveUrl);
 	const rpcClient = bitcoinRpcClient({
 		url: `http://127.0.0.1:${RPC_PORT}`,
 		username: RPC_USER,
 		password: RPC_PASS,
 	});
-	const before = await syncOnce({
-		db: liveDb,
-		rpc: rpcClient,
-		network: Network.Regtest,
-		genesisHeight: 0,
-	});
-	console.log(`  height=${before.state.height} hash=${before.state.hash}`);
 
+	console.log(
+		"[follow] runFollow + RpcWaitNotifier in the background — catching up…",
+	);
+	const notifier = new RpcWaitNotifier({ rpc: rpcClient });
+	const followController = new AbortController();
+	const followErrors: unknown[] = [];
+	const followPromise = runFollow(
+		{ db: liveDb, rpc: rpcClient, network: Network.Regtest, genesisHeight: 0 },
+		notifier,
+		followController.signal,
+	).catch((error) => {
+		followErrors.push(error);
+	});
+
+	const caughtUpHeight = await waitForCheckpointHeight(
+		liveDb,
+		transfer.height,
+		10_000,
+	);
+	console.log(`  caught up to height=${caughtUpHeight}`);
+
+	console.log(
+		"[follow] mining a block to prove the wake-up path (waitfornewblock, not the timeout)…",
+	);
+	const [wakeHash] = await rpc<string[]>(
+		"generatetoaddress",
+		[1, minerAddress],
+		WALLET,
+	);
+	const wakeBlock = await rpc<{ height: number }>("getblock", [wakeHash]);
+	const wokeHeight = await waitForCheckpointHeight(
+		liveDb,
+		wakeBlock.height,
+		10_000,
+	);
+	console.log(
+		`  checkpoint reached height=${wokeHeight} within 10s of mining — wake-up path proven`,
+	);
+
+	followController.abort();
+	notifier.close();
+	assert(
+		followErrors.length === 0,
+		`runFollow threw: ${followErrors.map(String).join(", ")}`,
+	);
+
+	// Reorg injection: same direct-`syncOnce` technique as before this plan,
+	// not the background follower above — `invalidateblock` briefly shortens
+	// the live chain below the old checkpoint height, which would race the
+	// background notifier waking mid-shorten; a direct call keeps this
+	// deterministic.
 	const forkHeight = etch.height; // orphan everything after the etch
 	console.log(
 		`[reorg] invalidateblock at height ${forkHeight + 1}, mining a longer branch…`,
 	);
 	const hashToInvalidate = await rpc<string>("getblockhash", [forkHeight + 1]);
 	await rpc("invalidateblock", [hashToInvalidate]);
-	const orphanedTip = before.state.height as number;
+	const orphanedTip = wakeBlock.height;
 	const newBranchLength = orphanedTip - forkHeight + 1; // strictly longer than the orphaned branch
 	await rpc("generatetoaddress", [newBranchLength, minerAddress], WALLET);
 	const newTipInfo = await rpc<{ blocks: number }>("getblockchaininfo");

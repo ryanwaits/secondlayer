@@ -7,9 +7,10 @@
 // in place instead of forcing a rebuild.
 //
 // `BlockNotifier` is the wake-up source for "check the tip again" — this
-// module never polls for new blocks itself. `ZmqNotifier` (`./zmq-notifier.ts`,
-// a separate file so a lazy `import("zeromq")` never runs during `bun test`)
-// is the real one; `FakeNotifier` in `follow.test.ts` drives the unit tests.
+// module never polls for new blocks itself. `RpcWaitNotifier`
+// (`./rpc-wait-notifier.ts`, D12 amended 2026-09-26: wakes on bitcoind's
+// `waitfornewblock` RPC, not ZMQ) is the real one; `FakeNotifier` in
+// `follow.test.ts` drives the unit tests.
 
 import type { Kysely } from "kysely";
 import {
@@ -38,9 +39,9 @@ import {
 /**
  * Wake-up source for "the tip may have moved, check again" — `runFollow`
  * never polls for blocks itself (D12: push, not polling). `notified()`
- * resolves on a ZMQ `hashblock` message, or after the reconnect timer fires
- * if ZMQ has been silent — either way it's just a signal to re-run
- * `syncOnce`, never block data itself.
+ * resolves when bitcoind's blocking `waitfornewblock` RPC returns, whether
+ * that's a new block or its own timeout — either way it's just a signal to
+ * re-run `syncOnce`, never block data itself.
  */
 export interface BlockNotifier {
 	/** Resolves the next time a block may have landed (a real notification, or the reconnect-timer safety net). Never rejects. */
@@ -228,13 +229,13 @@ export async function syncOnce(deps: FollowDeps): Promise<SyncResult> {
 }
 
 /**
- * Runs `syncOnce` forever, waking on `notifier.notified()` (a real ZMQ
- * `hashblock`, or the reconnect timer's 60s safety net). Runs one pass
- * immediately on start (covers catching up after being offline, and an
- * orphaned checkpoint left over from a previous run) before waiting for the
- * first notification. Never returns on its own — the caller stops it via
- * `signal` (an `AbortController`, since `notifier.notified()` doesn't
- * otherwise have a way to be cancelled mid-wait).
+ * Runs `syncOnce` forever, waking on `notifier.notified()` (a real
+ * `waitfornewblock` return, or the fallback poll noticing a new best hash).
+ * Runs one pass immediately on start (covers catching up after being
+ * offline, and an orphaned checkpoint left over from a previous run) before
+ * waiting for the first notification. Never returns on its own — the caller
+ * stops it via `signal` (an `AbortController`, since `notifier.notified()`
+ * doesn't otherwise have a way to be cancelled mid-wait).
  */
 export async function runFollow(
 	deps: FollowDeps,

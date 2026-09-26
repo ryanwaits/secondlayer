@@ -61,6 +61,18 @@ export interface BitcoinRpcClient {
 	): Promise<RawTransactionVerbose>;
 	/** Raw tx hex (verbosity 0) — used by `cli.ts repair-entries` (plan 040), which parses it itself instead of trusting bitcoind's decode. */
 	getrawtransaction(txid: string, verbose: false): Promise<string>;
+	/**
+	 * Blocks until a new block arrives or `timeoutMs` elapses (whichever
+	 * first), then returns the current best block — a hidden RPC (D12,
+	 * amended 2026-09-26; `bitcoin-cli help waitfornewblock` works, but it
+	 * isn't listed in `help`). `RpcWaitNotifier` treats either outcome the
+	 * same: a signal to re-run sync. The caller (`rpc()` above) has no fetch
+	 * timeout today; if one is ever added, it must be ≥ `timeoutMs + 10s` for
+	 * this call so the HTTP layer never times out before bitcoind does.
+	 */
+	waitfornewblock(timeoutMs: number): Promise<{ hash: string; height: number }>;
+	/** Used by `RpcWaitNotifier`'s fallback path when `waitfornewblock` answers `-32601` (method not found). */
+	getbestblockhash(): Promise<string>;
 }
 
 /** Build a JSON-RPC client bound to a bitcoind endpoint. */
@@ -117,6 +129,9 @@ export function bitcoinRpcClient(config: BitcoinRpcConfig): BitcoinRpcClient {
 				txid,
 				verbose,
 			])) as BitcoinRpcClient["getrawtransaction"],
+		waitfornewblock: (timeoutMs: number) =>
+			rpc<{ hash: string; height: number }>("waitfornewblock", [timeoutMs]),
+		getbestblockhash: () => rpc<string>("getbestblockhash", []),
 	};
 }
 
