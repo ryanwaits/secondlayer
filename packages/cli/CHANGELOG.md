@@ -1,5 +1,18 @@
 # @secondlayer/cli
 
+## 17.0.2
+
+### Patch Changes
+
+- 82f427a: Documents `resolveHostedAuth()`'s credential resolution order in the README's Auth section: `SECONDLAYER_API_KEY`, then `INSTANCE_TOKEN`/`--api-key`, then a saved `secondlayer login` session (`~/.secondlayer/session.json`). Explains a report of `webhooks list` succeeding against the merchant host with no `SECONDLAYER_API_KEY` set — a saved session from an earlier login, a real credential, not a missing-auth bug.
+- 889e412: `webhooks list`/`get`/`doctor` rendered a chain webhook's Target column as `null.null` (they have no `subgraphName`/`tableName`). A chain webhook now shows its trigger types where the response has them (`get`/`doctor`), else falls back to `chain`; subgraph webhooks are unchanged (`subgraph.table`).
+- df5090b: Comment-only cleanup, no behavior change: reworded `packages/platform/src/billing/prices.ts`'s stale "not wired to a caller yet" note for the hosted-stack meters (the workload host flushes them to `/internal/meters`), and stripped `plan-NNN`/`design-fNNN` references from code comments across `shared`, `cli`, `platform`, plus `api`, `indexer`, and `subgraphs` — those numbers point at gitignored local planning docs, meaningless to anyone reading the comment later. Left the `f0NN` audit-finding codes (e.g. `fix-f040`, `f068`) alone — those are backed by permanent, git-tracked docs (`docs/internal/audits/`, package changelogs), a different and legitimate documentation convention.
+- Updated dependencies [829ca13]
+- Updated dependencies [134b5cc]
+- Updated dependencies [df5090b]
+  - @secondlayer/subgraphs@6.2.5
+  - @secondlayer/shared@11.12.3
+
 ## 17.0.1
 
 ### Patch Changes

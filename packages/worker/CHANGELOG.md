@@ -1,5 +1,14 @@
 # @secondlayer/worker
 
+## 1.3.18
+
+### Patch Changes
+
+- Updated dependencies [134b5cc]
+- Updated dependencies [df5090b]
+  - @secondlayer/shared@11.12.3
+  - @secondlayer/platform@0.3.11
+
 ## 1.3.17
 
 ### Patch Changes

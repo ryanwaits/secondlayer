@@ -1,5 +1,15 @@
 # @secondlayer/subgraphs
 
+## 6.2.5
+
+### Patch Changes
+
+- 829ca13: Test hygiene, no production code change: the 7 emitter test suites deleted only their `webhooks` rows in `afterAll`, orphaning `webhook_deliveries` rows in the shared CI-mirror DB (`webhook_outbox` already cascades on webhook delete; `webhook_deliveries.webhook_id` carries no FK). Each `afterAll` now deletes its own outbox + delivery rows by webhook id first. A small residual race remains — `stopEmitter()` doesn't await an in-flight `claimAndDrain` call, so a delivery write can land just after teardown — worth a follow-up if it grows.
+- df5090b: Comment-only cleanup, no behavior change: reworded `packages/platform/src/billing/prices.ts`'s stale "not wired to a caller yet" note for the hosted-stack meters (the workload host flushes them to `/internal/meters`), and stripped `plan-NNN`/`design-fNNN` references from code comments across `shared`, `cli`, `platform`, plus `api`, `indexer`, and `subgraphs` — those numbers point at gitignored local planning docs, meaningless to anyone reading the comment later. Left the `f0NN` audit-finding codes (e.g. `fix-f040`, `f068`) alone — those are backed by permanent, git-tracked docs (`docs/internal/audits/`, package changelogs), a different and legitimate documentation convention.
+- Updated dependencies [134b5cc]
+- Updated dependencies [df5090b]
+  - @secondlayer/shared@11.12.3
+
 ## 6.2.4
 
 ### Patch Changes

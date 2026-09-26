@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 11.12.3
+
+### Patch Changes
+
+- 134b5cc: `listen()`'s LISTEN connection already reconnects on its own (postgres.js re-issues LISTEN with backoff), but never replayed a NOTIFY that fired while it was down, so a waiter could be stranded until the next NOTIFY. Every reconnect now logs `listener_reconnected` and fires one synthetic wake (undefined payload) so callers re-check current state.
+- df5090b: Comment-only cleanup, no behavior change: reworded `packages/platform/src/billing/prices.ts`'s stale "not wired to a caller yet" note for the hosted-stack meters (the workload host flushes them to `/internal/meters`), and stripped `plan-NNN`/`design-fNNN` references from code comments across `shared`, `cli`, `platform`, plus `api`, `indexer`, and `subgraphs` — those numbers point at gitignored local planning docs, meaningless to anyone reading the comment later. Left the `f0NN` audit-finding codes (e.g. `fix-f040`, `f068`) alone — those are backed by permanent, git-tracked docs (`docs/internal/audits/`, package changelogs), a different and legitimate documentation convention.
+
 ## 11.12.2
 
 ### Patch Changes

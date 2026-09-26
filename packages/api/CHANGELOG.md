@@ -1,5 +1,18 @@
 # @secondlayer/api
 
+## 1.43.6
+
+### Patch Changes
+
+- df5090b: Comment-only cleanup, no behavior change: reworded `packages/platform/src/billing/prices.ts`'s stale "not wired to a caller yet" note for the hosted-stack meters (the workload host flushes them to `/internal/meters`), and stripped `plan-NNN`/`design-fNNN` references from code comments across `shared`, `cli`, `platform`, plus `api`, `indexer`, and `subgraphs` — those numbers point at gitignored local planning docs, meaningless to anyone reading the comment later. Left the `f0NN` audit-finding codes (e.g. `fix-f040`, `f068`) alone — those are backed by permanent, git-tracked docs (`docs/internal/audits/`, package changelogs), a different and legitimate documentation convention.
+- Updated dependencies [829ca13]
+- Updated dependencies [134b5cc]
+- Updated dependencies [df5090b]
+  - @secondlayer/subgraphs@6.2.5
+  - @secondlayer/shared@11.12.3
+  - @secondlayer/platform@0.3.11
+  - @secondlayer/indexer@1.16.3
+
 ## 1.43.5
 
 ### Patch Changes
