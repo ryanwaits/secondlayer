@@ -3,15 +3,14 @@
 import { formatUsd, refreshUsage, useAccountData } from "@/lib/account-data";
 import { currentUtcMonth, monthLabel, monthParam } from "@/lib/usage";
 import {
-	type WebhooksResult,
 	dismissInsight,
 	formatRelative,
 	hasShownToast,
 	hostOf,
 	isInsightDismissed,
-	listWebhooks,
 	markToastShown,
 } from "@/lib/webhooks-data";
+import { poll, refreshList, useWebhooksCache } from "@/lib/webhooks-store";
 import NumberFlow from "@number-flow/react";
 import type { DoctorIssue, WebhookSummary } from "@secondlayer/sdk";
 import { buildListIssue } from "@secondlayer/sdk/webhooks/doctor";
@@ -25,6 +24,12 @@ import {
 	countByDisplayStatus,
 	displayStatus,
 } from "./shared";
+import { WebhooksListSkeleton } from "./skeletons";
+
+/** The list page polls this often while the tab is visible — plan 073. It
+ *  never polled before; this is what makes new webhooks and status changes
+ *  show up without a manual reload. */
+const LIST_POLL_MS = 15_000;
 
 const CREATE_CMD =
 	"secondlayer webhooks create --name pool-payouts --trigger stx_transfer --url https://your.app/hook";
@@ -36,42 +41,43 @@ type ListState =
 	| { kind: "error"; message: string }
 	| { kind: "ok"; data: WebhookSummary[] };
 
-function nextState(res: WebhooksResult<WebhookSummary[]>): ListState {
-	if (res.kind === "ok") return { kind: "ok", data: res.data };
-	if (res.kind === "starting") return { kind: "starting" };
-	if (res.kind === "no_credits") return { kind: "no_credits" };
-	if (res.kind === "not_found") return { kind: "ok", data: [] };
-	if (res.kind === "rate_limited") return { kind: "loading" }; // retried silently, see below
-	return { kind: "error", message: res.message };
-}
-
-/** Fetches the list, and while a delivery service is starting (or the read
- *  got rate limited), polls again after the server's own `Retry-After`
- *  instead of guessing an interval. */
+/** Cache-first: once the store has rows, they render at once and a non-ok
+ *  poll (starting, rate-limited, no credits, an error) never blanks them —
+ *  it just keeps retrying in the background. Only before the first row ever
+ *  lands does that poll's outcome become the page's own notice. */
 function useWebhooksList(): ListState {
-	const [state, setState] = useState<ListState>({ kind: "loading" });
+	const cache = useWebhooksCache();
+	const [notice, setNotice] = useState<Exclude<
+		ListState,
+		{ kind: "ok" }
+	> | null>(null);
 
 	useEffect(() => {
-		let stopped = false;
-		let timer: ReturnType<typeof setTimeout> | undefined;
-
-		async function load() {
-			const res = await listWebhooks();
-			if (stopped) return;
-			setState(nextState(res));
-			if (res.kind === "starting" || res.kind === "rate_limited") {
-				timer = setTimeout(load, res.retryAfter * 1000);
+		return poll(async () => {
+			const res = await refreshList();
+			if (res.kind === "ok") {
+				setNotice(null);
+				return {};
 			}
-		}
-
-		load();
-		return () => {
-			stopped = true;
-			if (timer) clearTimeout(timer);
-		};
+			if (res.kind === "starting") {
+				setNotice({ kind: "starting" });
+				return { retryAfterMs: res.retryAfter * 1000 };
+			}
+			if (res.kind === "rate_limited") {
+				// Cached rows (if any) keep showing; retried silently.
+				return { retryAfterMs: res.retryAfter * 1000 };
+			}
+			if (res.kind === "no_credits") {
+				setNotice({ kind: "no_credits" });
+				return {};
+			}
+			setNotice({ kind: "error", message: res.message });
+			return {};
+		}, LIST_POLL_MS);
 	}, []);
 
-	return state;
+	if (cache.list) return { kind: "ok", data: cache.list.data };
+	return notice ?? { kind: "loading" };
 }
 
 function StartingNotice() {
@@ -203,7 +209,7 @@ export function WebhooksListSection() {
 		}
 	}, [rows]);
 
-	if (state.kind === "loading") return null;
+	if (state.kind === "loading") return <WebhooksListSkeleton />;
 
 	if (state.kind === "no_credits") {
 		return (

@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import type { ApiKey } from "./types";
 import { type UsageByMonth, type UsageRow, withUsageMonth } from "./usage";
+import { clearWebhooksData } from "./webhooks-store";
 
 /**
  * Account data the nav chip, the floating cards and the /account pages all read. One
@@ -89,6 +90,7 @@ export async function refreshKeys(): Promise<void> {
 /** Forget everything on sign-out so the next account never sees it. */
 export function clearAccountData(): void {
 	set(EMPTY);
+	clearWebhooksData();
 }
 
 export function activeKeys(keys: ApiKey[] | null): ApiKey[] {

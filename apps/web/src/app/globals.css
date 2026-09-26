@@ -2982,6 +2982,60 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	text-decoration: underline;
 }
 
+/* Skeletons (plan 073): a shimmering block the size of the real content it
+ * stands in for, built from the same tokens as everything else here — no
+ * new colors. `prefers-reduced-motion` gets the flat block with no shimmer. */
+.wh-skel {
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--text-main) 6%, transparent);
+	position: relative;
+	overflow: hidden;
+}
+.wh-skel::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	transform: translateX(-100%);
+	background: linear-gradient(
+		90deg,
+		transparent,
+		color-mix(in srgb, var(--text-main) 6%, transparent),
+		transparent
+	);
+	animation: wh-shimmer 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+	.wh-skel::after {
+		animation: none;
+		content: none;
+	}
+}
+@keyframes wh-shimmer {
+	100% {
+		transform: translateX(100%);
+	}
+}
+.wh-skel-stats .acct-stat-v {
+	margin-top: 4px;
+}
+.wh-skel-row td {
+	padding: 14px;
+}
+.wh-skel-chart {
+	height: 160px;
+	border-radius: 8px;
+}
+.wh-skel-ribbon {
+	height: 28px;
+	border-radius: 6px;
+}
+.wh-skel-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 4px;
+}
+
 .wh-empty {
 	display: flex;
 	flex-direction: column;
