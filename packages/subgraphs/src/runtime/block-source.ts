@@ -262,7 +262,12 @@ export class PublicApiBlockSource implements BlockSource {
 		if (this.eventTypes.some((t) => VM_INDEX_EVENT_TYPES.has(t))) {
 			return this.http.getIndexSourceTip(opts);
 		}
-		return this.http.getIndexTip(opts);
+		// Scope the tip (and, with `wait`, what counts as "nothing new") to
+		// exactly the classic types THIS source reads instead of the global
+		// cross-decoder floor. Without this, any of the ~15 classic decoders
+		// committing — most unrelated to what this source actually walks —
+		// moves the global floor and makes an unrelated `wait` return early.
+		return this.http.getIndexTip({ ...opts, eventTypes: this.eventTypes });
 	}
 
 	/** Reads the SAME envelope `getTip()` just cached on `this.http` — call

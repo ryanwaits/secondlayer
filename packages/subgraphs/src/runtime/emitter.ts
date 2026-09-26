@@ -62,6 +62,11 @@ interface RunningState {
 	running: boolean;
 	inFlightBySub: Map<string, number>;
 	claimInFlight: boolean;
+	/** Set when a wake (NOTIFY) arrives while a claim cycle is already
+	 *  running. The in-flight cycle checks this before releasing the lock —
+	 *  see `claimAndDrain`'s "drain-loop" pass — so rows that land mid-drain
+	 *  aren't stranded until an unrelated future wake or the safety poll. */
+	claimPending: boolean;
 }
 
 function nextDelaySeconds(attempt: number): number {
@@ -642,95 +647,174 @@ async function settleFailed(
 	});
 }
 
+/** What woke this claim cycle — purely for the diagnostic log below; the
+ *  claim/dispatch logic itself doesn't branch on it. `"drain-loop"` marks a
+ *  pass this function re-ran on itself (see `claimAndDrain`) because a wake
+ *  arrived (or the batch cap was hit) while the previous pass was still
+ *  dispatching. */
+type ClaimTrigger = "notify" | "poll" | "startup" | "drain-loop";
+
+/**
+ * The regression this closes: a NOTIFY that arrives while a claim cycle is
+ * ALREADY dispatching used to be dropped on the floor (the `claimInFlight`
+ * guard below just returned 0), and nothing re-checked once that cycle
+ * finished. Rows inserted mid-drain — a normal burst of ~6 chain-webhook
+ * matches per block — sat `pending` until an UNRELATED future wake happened
+ * to fire, or the 2-minute safety poll, which is exactly the outbox→POST p95
+ * tail this was built to catch.
+ *
+ * The holder of `claimInFlight` now keeps looping (`claimPending`, set by any
+ * caller that finds the lock held) until a pass claims nothing NEW and no one
+ * asked for a recheck while it ran — so a burst drains fully off one wake
+ * instead of needing one wake per claim-sized chunk.
+ */
 async function claimAndDrain(
 	db: Kysely<Database>,
 	state: RunningState,
 	emitterId: string,
+	trigger: ClaimTrigger,
 ): Promise<number> {
-	if (state.claimInFlight) return 0;
+	if (state.claimInFlight) {
+		state.claimPending = true;
+		return 0;
+	}
 	state.claimInFlight = true;
+	let totalClaimed = 0;
 	try {
-		// FOR UPDATE SKIP LOCKED — multiple emitters split the batch.
-		// 90/10 live vs replay so a big replay doesn't starve live emits.
-		const liveLimit = Math.max(1, Math.round(BATCH_SIZE * LIVE_SHARE));
-		const replayLimit = BATCH_SIZE - liveLimit;
-		const claimed = await db.transaction().execute(async (tx) => {
-			const live = await sql<WebhookOutbox>`
-					SELECT * FROM webhook_outbox
-					WHERE status = 'pending'
-						AND next_attempt_at <= NOW()
-						AND is_replay = FALSE
-					ORDER BY next_attempt_at ASC
-					FOR UPDATE SKIP LOCKED
-					LIMIT ${sql.lit(liveLimit)}
-				`.execute(tx);
-			const replay = await sql<WebhookOutbox>`
-					SELECT * FROM webhook_outbox
-					WHERE status = 'pending'
-						AND next_attempt_at <= NOW()
-						AND is_replay = TRUE
-					ORDER BY next_attempt_at ASC
-					FOR UPDATE SKIP LOCKED
-					LIMIT ${sql.lit(replayLimit)}
-				`.execute(tx);
-
-			const combined = [...live.rows, ...replay.rows];
-			if (combined.length === 0) return [];
-
-			// Push `next_attempt_at` forward by the lock window. This is
-			// the only defense against double-dispatch if the emitter
-			// process crashes mid-HTTP-call: the row won't be re-claimable
-			// until `LOCK_WINDOW_MS` elapses, giving us a stale-lock
-			// recovery window. `settleDelivered`/`settleFailed` overrides
-			// this on the success/failure path.
-			const now = new Date();
-			const lockUntil = new Date(now.getTime() + LOCK_WINDOW_MS);
-			await tx
-				.updateTable("webhook_outbox")
-				.set({
-					locked_by: emitterId,
-					locked_until: lockUntil,
-					next_attempt_at: lockUntil,
-				})
-				.where(
-					"id",
-					"in",
-					combined.map((r) => r.id),
-				)
-				.execute();
-			return combined;
-		});
-
-		if (claimed.length === 0) return 0;
-
-		// Hydrate each claimed row's sub once, then dispatch with per-sub
-		// concurrency cap enforced via in-memory semaphore.
-		const bySubId = new Map<string, WebhookOutbox[]>();
-		for (const row of claimed) {
-			const arr = bySubId.get(row.webhook_id);
-			if (arr) arr.push(row);
-			else bySubId.set(row.webhook_id, [row]);
+		let currentTrigger = trigger;
+		for (;;) {
+			state.claimPending = false;
+			const claimedThisPass = await claimAndDispatchOnce(
+				db,
+				state,
+				emitterId,
+				currentTrigger,
+			);
+			totalClaimed += claimedThisPass;
+			// Keep going while either: a wake landed mid-pass (claimPending —
+			// set by the guard above, from another caller), or this pass hit
+			// the batch cap, meaning more rows may still be waiting behind it.
+			if (!state.claimPending && claimedThisPass < BATCH_SIZE) break;
+			currentTrigger = "drain-loop";
 		}
-
-		const subIds = Array.from(bySubId.keys());
-		const subs = await db
-			.selectFrom("webhooks")
-			.selectAll()
-			.where("id", "in", subIds)
-			.execute();
-		const subById = new Map(subs.map((s) => [s.id, s]));
-
-		await Promise.all(
-			subIds.map((subId) =>
-				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-				drainForSub(db, state, subById.get(subId)!, bySubId.get(subId)!),
-			),
-		);
-
-		return claimed.length;
 	} finally {
 		state.claimInFlight = false;
 	}
+	return totalClaimed;
+}
+
+/** One claim + dispatch pass. Caller (`claimAndDrain`) owns the re-loop and
+ *  the `claimInFlight` lock; this is the unit it repeats. */
+async function claimAndDispatchOnce(
+	db: Kysely<Database>,
+	state: RunningState,
+	emitterId: string,
+	trigger: ClaimTrigger,
+): Promise<number> {
+	// FOR UPDATE SKIP LOCKED — multiple emitters split the batch.
+	// 90/10 live vs replay so a big replay doesn't starve live emits.
+	const liveLimit = Math.max(1, Math.round(BATCH_SIZE * LIVE_SHARE));
+	const replayLimit = BATCH_SIZE - liveLimit;
+	const claimed = await db.transaction().execute(async (tx) => {
+		const live = await sql<WebhookOutbox>`
+				SELECT * FROM webhook_outbox
+				WHERE status = 'pending'
+					AND next_attempt_at <= NOW()
+					AND is_replay = FALSE
+				ORDER BY next_attempt_at ASC
+				FOR UPDATE SKIP LOCKED
+				LIMIT ${sql.lit(liveLimit)}
+			`.execute(tx);
+		const replay = await sql<WebhookOutbox>`
+				SELECT * FROM webhook_outbox
+				WHERE status = 'pending'
+					AND next_attempt_at <= NOW()
+					AND is_replay = TRUE
+				ORDER BY next_attempt_at ASC
+				FOR UPDATE SKIP LOCKED
+				LIMIT ${sql.lit(replayLimit)}
+			`.execute(tx);
+
+		const combined = [...live.rows, ...replay.rows];
+		if (combined.length === 0) return [];
+
+		// Push `next_attempt_at` forward by the lock window. This is
+		// the only defense against double-dispatch if the emitter
+		// process crashes mid-HTTP-call: the row won't be re-claimable
+		// until `LOCK_WINDOW_MS` elapses, giving us a stale-lock
+		// recovery window. `settleDelivered`/`settleFailed` overrides
+		// this on the success/failure path.
+		const now = new Date();
+		const lockUntil = new Date(now.getTime() + LOCK_WINDOW_MS);
+		await tx
+			.updateTable("webhook_outbox")
+			.set({
+				locked_by: emitterId,
+				locked_until: lockUntil,
+				next_attempt_at: lockUntil,
+			})
+			.where(
+				"id",
+				"in",
+				combined.map((r) => r.id),
+			)
+			.execute();
+		return combined;
+	});
+
+	if (claimed.length === 0) return 0;
+
+	// Hydrate each claimed row's sub once, then dispatch with per-sub
+	// concurrency cap enforced via in-memory semaphore.
+	const bySubId = new Map<string, WebhookOutbox[]>();
+	for (const row of claimed) {
+		const arr = bySubId.get(row.webhook_id);
+		if (arr) arr.push(row);
+		else bySubId.set(row.webhook_id, [row]);
+	}
+
+	const subIds = Array.from(bySubId.keys());
+	const subs = await db
+		.selectFrom("webhooks")
+		.selectAll()
+		.where("id", "in", subIds)
+		.execute();
+	const subById = new Map(subs.map((s) => [s.id, s]));
+
+	// One line per claim pass: what woke it, how much it found, how stale the
+	// oldest row was, and how loaded the in-flight pool already was —
+	// everything needed to tell "briefly busy" apart from "actually stuck"
+	// without reproducing it live. `in_flight`/`concurrency` sum across only
+	// the subs THIS pass touched (a quiet sub's unrelated cap doesn't dilute
+	// the reading).
+	const oldestCreatedAtMs = Math.min(
+		...claimed.map((r) => new Date(r.created_at).getTime()),
+	);
+	const inFlight = subIds.reduce(
+		(sum, id) => sum + (state.inFlightBySub.get(id) ?? 0),
+		0,
+	);
+	const concurrency = subIds.reduce(
+		(sum, id) => sum + (subById.get(id)?.concurrency || 4),
+		0,
+	);
+	logger.info("emitter claim cycle", {
+		event: "emitter_claim",
+		trigger,
+		claimed: claimed.length,
+		oldest_created_at_age_ms: Date.now() - oldestCreatedAtMs,
+		in_flight: inFlight,
+		concurrency,
+	});
+
+	await Promise.all(
+		subIds.map((subId) =>
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
+			drainForSub(db, state, subById.get(subId)!, bySubId.get(subId)!),
+		),
+	);
+
+	return claimed.length;
 }
 
 async function drainForSub(
@@ -817,6 +901,7 @@ export async function startEmitter(
 		running: true,
 		inFlightBySub: new Map(),
 		claimInFlight: false,
+		claimPending: false,
 	};
 	const pollIntervalMs = opts?.pollIntervalMs ?? 120_000;
 	const retentionIntervalMs = opts?.retentionIntervalMs ?? 60 * 60_000;
@@ -861,7 +946,7 @@ export async function startEmitter(
 		"webhooks:new_outbox",
 		() => {
 			if (!state.running) return;
-			void claimAndDrain(db, state, emitterId).catch((err) =>
+			void claimAndDrain(db, state, emitterId, "notify").catch((err) =>
 				logger.error("[emitter] claim failed", {
 					error: err instanceof Error ? err.message : String(err),
 				}),
@@ -894,7 +979,7 @@ export async function startEmitter(
 	// backoff wakeups (rows whose next_attempt_at has passed).
 	const poll = setInterval(() => {
 		if (!state.running) return;
-		void claimAndDrain(db, state, emitterId).catch((err) =>
+		void claimAndDrain(db, state, emitterId, "poll").catch((err) =>
 			logger.error("[emitter] poll claim failed", {
 				error: err instanceof Error ? err.message : String(err),
 			}),
@@ -902,7 +987,7 @@ export async function startEmitter(
 	}, pollIntervalMs);
 
 	// Kick once on startup so any rows that arrived before we started drain.
-	void claimAndDrain(db, state, emitterId);
+	void claimAndDrain(db, state, emitterId, "startup");
 
 	// Retention sweep — hourly by default.
 	const retention = setInterval(() => {

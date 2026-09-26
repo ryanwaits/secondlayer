@@ -135,6 +135,24 @@ describe("PublicApiBlockSource.loadBlockRange", () => {
 		expect(sourceCalls).toBe(0);
 	});
 
+	test("ft_transfer getTip passes its own event types through to getIndexTip, so the server can narrow the wait to just those decoders instead of the global floor", async () => {
+		let seenOpts: unknown;
+		const http = {
+			...fakeHttp,
+			getIndexTip: async (opts: unknown) => {
+				seenOpts = opts;
+				return 100;
+			},
+		} as unknown as IndexHttpClient;
+		const src = new PublicApiBlockSource(http, ["ft_transfer", "stx_transfer"]);
+		await src.getTip({ wait: 20, knownHeight: 99 });
+		expect(seenOpts).toEqual({
+			wait: 20,
+			knownHeight: 99,
+			eventTypes: ["ft_transfer", "stx_transfer"],
+		});
+	});
+
 	test("map_set getTip uses the ingest tip", async () => {
 		const http = {
 			...fakeHttp,
