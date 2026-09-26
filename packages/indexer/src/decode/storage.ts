@@ -198,6 +198,18 @@ export async function bumpDecoderCheckpoint(opts: {
 		.execute();
 }
 
+/**
+ * Rows per INSERT. `decoded_events` binds 15 params/row — Postgres's wire
+ * protocol caps a single statement at 65535 bound params, so an unchunked
+ * insert wedges once one decoder's page share climbs past ~4,369 rows.
+ * `DEFAULT_CLASSIC_BATCH_LIMIT` (`../decode/classic-decoders.ts`) reads up to
+ * 10,000 rows in one page specifically so a heavy block costs one scan — this
+ * keeps that page's write safe regardless of how skewed toward one decoder
+ * type a block's events are (e.g. a single contract emitting thousands of
+ * `print` events). Matches the chunk size `persist.ts` already uses for the
+ * same reason on `events`/`transactions`. */
+const DECODED_EVENTS_CHUNK_SIZE = 1000;
+
 export async function writeDecodedEvents(
 	events: readonly DecodedEventRow[],
 	opts?: { db?: Kysely<Database> },
@@ -216,55 +228,58 @@ export async function writeDecodedEvents(
 	const deduped = [...byCursor.values()];
 
 	const db = decodeDb(opts?.db);
-	await db
-		.insertInto("decoded_events")
-		.values(
-			deduped.map((event) => {
-				// Every decoded payload is a subset of DecodedEventColumns, so columns
-				// map generically — the decoder decides which fields a given event
-				// type populates; absent ones fall to null.
-				const payload = event.decoded_payload as DecodedEventColumns;
-				return {
-					cursor: event.cursor,
-					block_height: event.block_height,
-					tx_id: event.tx_id,
-					tx_index: event.tx_index,
-					event_index: event.event_index,
-					event_type: event.event_type,
-					contract_id: payload.contract_id ?? null,
-					sender: payload.sender ?? null,
-					recipient: payload.recipient ?? null,
-					amount: payload.amount ?? null,
-					asset_identifier: payload.asset_identifier ?? null,
-					value: payload.value ?? null,
-					memo: payload.memo ?? null,
-					payload:
-						payload.payload != null ? JSON.stringify(payload.payload) : null,
-					source_cursor: event.source_cursor,
-				};
-			}),
-		)
-		.onConflict((oc) =>
-			oc.column("cursor").doUpdateSet((eb) => ({
-				block_height: eb.ref("excluded.block_height"),
-				tx_id: eb.ref("excluded.tx_id"),
-				tx_index: eb.ref("excluded.tx_index"),
-				event_index: eb.ref("excluded.event_index"),
-				event_type: eb.ref("excluded.event_type"),
-				microblock_hash: eb.ref("excluded.microblock_hash"),
-				canonical: true,
-				contract_id: eb.ref("excluded.contract_id"),
-				sender: eb.ref("excluded.sender"),
-				recipient: eb.ref("excluded.recipient"),
-				amount: eb.ref("excluded.amount"),
-				asset_identifier: eb.ref("excluded.asset_identifier"),
-				value: eb.ref("excluded.value"),
-				memo: eb.ref("excluded.memo"),
-				payload: eb.ref("excluded.payload"),
-				source_cursor: eb.ref("excluded.source_cursor"),
-			})),
-		)
-		.execute();
+	for (let i = 0; i < deduped.length; i += DECODED_EVENTS_CHUNK_SIZE) {
+		const chunk = deduped.slice(i, i + DECODED_EVENTS_CHUNK_SIZE);
+		await db
+			.insertInto("decoded_events")
+			.values(
+				chunk.map((event) => {
+					// Every decoded payload is a subset of DecodedEventColumns, so columns
+					// map generically — the decoder decides which fields a given event
+					// type populates; absent ones fall to null.
+					const payload = event.decoded_payload as DecodedEventColumns;
+					return {
+						cursor: event.cursor,
+						block_height: event.block_height,
+						tx_id: event.tx_id,
+						tx_index: event.tx_index,
+						event_index: event.event_index,
+						event_type: event.event_type,
+						contract_id: payload.contract_id ?? null,
+						sender: payload.sender ?? null,
+						recipient: payload.recipient ?? null,
+						amount: payload.amount ?? null,
+						asset_identifier: payload.asset_identifier ?? null,
+						value: payload.value ?? null,
+						memo: payload.memo ?? null,
+						payload:
+							payload.payload != null ? JSON.stringify(payload.payload) : null,
+						source_cursor: event.source_cursor,
+					};
+				}),
+			)
+			.onConflict((oc) =>
+				oc.column("cursor").doUpdateSet((eb) => ({
+					block_height: eb.ref("excluded.block_height"),
+					tx_id: eb.ref("excluded.tx_id"),
+					tx_index: eb.ref("excluded.tx_index"),
+					event_index: eb.ref("excluded.event_index"),
+					event_type: eb.ref("excluded.event_type"),
+					microblock_hash: eb.ref("excluded.microblock_hash"),
+					canonical: true,
+					contract_id: eb.ref("excluded.contract_id"),
+					sender: eb.ref("excluded.sender"),
+					recipient: eb.ref("excluded.recipient"),
+					amount: eb.ref("excluded.amount"),
+					asset_identifier: eb.ref("excluded.asset_identifier"),
+					value: eb.ref("excluded.value"),
+					memo: eb.ref("excluded.memo"),
+					payload: eb.ref("excluded.payload"),
+					source_cursor: eb.ref("excluded.source_cursor"),
+				})),
+			)
+			.execute();
+	}
 }
 
 export async function handleDecodedEventsReorg(

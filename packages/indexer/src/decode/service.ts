@@ -12,6 +12,7 @@ import {
 	sourceListenerUrl,
 } from "@secondlayer/shared/queue/listener";
 import {
+	DEFAULT_CLASSIC_BATCH_LIMIT,
 	runClassicDecodeCycle,
 	waitForNextClassicDecodeCycle,
 } from "./classic-decoders.ts";
@@ -252,7 +253,17 @@ async function runDecoder(
  * loop, and bumps liveness for all 11 checkpoint names per iteration.
  */
 async function runClassicDecoders(): Promise<void> {
-	const limit = Number.parseInt(process.env.DECODER_BATCH_SIZE ?? "500", 10);
+	// Deliberately NOT `DECODER_BATCH_SIZE` — that env var is the page size for
+	// the OTHER classic-style decoders (bns/pox4/pox5/sbtc), real HTTP Streams
+	// consumers via `runDecoder` below, and moving it would change public-facing
+	// Streams page-size behavior. This loop reads the source DB in-process, so
+	// it can afford a much larger cap: a heavy block (thousands of rows) then
+	// costs ONE reader call/full-block-scan instead of N (see
+	// `DEFAULT_CLASSIC_BATCH_LIMIT`'s doc in `./classic-decoders.ts`).
+	const limit = Number.parseInt(
+		process.env.CLASSIC_DECODE_ROW_CAP ?? String(DEFAULT_CLASSIC_BATCH_LIMIT),
+		10,
+	);
 	const emptyBackoffMs = Number.parseInt(
 		process.env.DECODER_EMPTY_BACKOFF_MS ?? "1000",
 		10,

@@ -257,7 +257,11 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 		// A page limit of 2 forces 3 reader calls for 5 events, all within one
 		// cycle, each with its own commit (2.4 revision: per-page commits, not
 		// one accumulated commit) — the cycle must still land on the sentinel
-		// once the last (short) page proves the block is fully scanned.
+		// once the last (short) page proves the block is fully scanned. Same
+		// mechanism as a block bigger than the (much larger, production) row
+		// cap: whatever `limit` is, a block wider than it still pages and still
+		// reaches the sentinel — this is the fallback path the row-cap tests
+		// below rely on for anything too big for one reader call.
 		const result = await runClassicDecodeCycle({
 			db,
 			limit: 2,
@@ -280,6 +284,63 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 			"1:3",
 			"1:4",
 		]);
+	});
+
+	test("a heavy block (more rows than the old 500-row HTTP page size) is read in exactly one reader call under the default row cap", async () => {
+		if (!db) throw new Error("missing db");
+		// 600 events in one block — more than the classic-style HTTP decoders'
+		// DECODER_BATCH_SIZE default (500), well under DEFAULT_CLASSIC_BATCH_LIMIT
+		// (10,000). Before the row cap was raised (and decoupled from
+		// DECODER_BATCH_SIZE — see `service.ts`), a block this size cost 2 reader
+		// calls, each re-scanning and re-ordinating the WHOLE block
+		// (`same_block_events` + `streamOrdinalCtes` in `../streams-events.ts`).
+		const events = Array.from({ length: 600 }, (_, i) =>
+			ftTransferEvent(`tx-heavy-${i}`, String(i + 1)),
+		);
+		await seedBlock({ height: 1, parentHash: "0x00", hash: "0x01", events });
+
+		// No explicit `limit` — exercises the real default the in-process loop
+		// falls back to, not a test-only override.
+		const result = await runClassicDecodeCycle({ db });
+
+		expect(result.pagesCommitted).toBe(1);
+		expect(result.scanned).toBe(600);
+		expect(result.decodedByDecoder[FT_TRANSFER_DECODER_NAME]).toBe(600);
+		expect(result.checkpoints[FT_TRANSFER_DECODER_NAME]).toBe("1:2147483647");
+	});
+
+	test("a single-call read (under the row cap) and a paged read (above it) of the same block converge on byte-identical checkpoints", async () => {
+		if (!db) throw new Error("missing db");
+		const events = Array.from({ length: 12 }, (_, i) =>
+			ftTransferEvent(`tx-parity-${i}`, String(i + 1)),
+		);
+		await seedBlock({ height: 1, parentHash: "0x00", hash: "0x01", events });
+
+		// Paged path: a tiny limit forces several reader calls + per-page commits.
+		const paged = await runClassicDecodeCycle({
+			db,
+			limit: 3,
+			maxPagesPerCycle: 20,
+		});
+		expect(paged.pagesCommitted).toBeGreaterThan(1);
+
+		// Reset decoder state but reseed the IDENTICAL underlying block/tx/event
+		// rows, so the single-call path decodes the exact same input.
+		await sql`DELETE FROM decoded_events`.execute(db);
+		await sql`DELETE FROM decoder_checkpoints`.execute(db);
+		await sql`DELETE FROM stage_failures`.execute(db);
+		await sql`DELETE FROM stage_block_receipts`.execute(db);
+
+		// Single-call path: the default row cap comfortably covers all 12 rows
+		// in one reader call.
+		const single = await runClassicDecodeCycle({ db });
+		expect(single.pagesCommitted).toBe(1);
+
+		// The parity guard: however many reader calls it took, every decoder
+		// converges on the identical final cursor.
+		expect(single.checkpoints).toEqual(paged.checkpoints);
+		expect(single.decoded).toBe(paged.decoded);
+		expect(single.scanned).toBe(paged.scanned);
 	});
 
 	test("an idle instance with nothing past the source tip does not scan or commit", async () => {

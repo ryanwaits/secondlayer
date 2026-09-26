@@ -102,10 +102,21 @@ const CLASSIC_DECODER_NAME_BY_TYPE: Partial<
 	DECODER_NAMES.map((name) => [DECODER_EVENT_TYPES[name], name]),
 );
 
-/** One reader call's page limit. Real per-block deltas are tiny; this also
- *  bounds how many rows one commit ever holds in memory — a page shorter
- *  than this is the proof a block's classic events are fully accounted for. */
-export const DEFAULT_CLASSIC_BATCH_LIMIT = 1000;
+/**
+ * One reader call's page limit. Deliberately generous: `readCanonicalStreamsEvents`
+ * re-scans and re-ordinals the WHOLE current block on every call it's asked
+ * for (`same_block_events` + `streamOrdinalCtes` in `../streams-events.ts`), so
+ * a limit smaller than a heavy block's row count turns one block into N full
+ * block scans instead of one. This is independent of `DECODER_BATCH_SIZE`
+ * (the page size the OTHER classic-style decoders — bns/pox4/pox5/sbtc, real
+ * HTTP Streams consumers, `runDecoder` in `./service.ts`) use: that value is
+ * effectively a public API page-size default and must not move with this
+ * one. `maxPagesPerCycle` below still bounds a backlog bigger than this cap;
+ * a page shorter than this is the proof a block's classic events are fully
+ * accounted for. Also bounds how many rows one commit ever holds in memory —
+ * see `DECODED_EVENTS_CHUNK_SIZE` in `./storage.ts` for how a single page's
+ * insert stays under Postgres's parameter limit regardless of this cap. */
+export const DEFAULT_CLASSIC_BATCH_LIMIT = 10_000;
 
 /** Safety valve on how many pages one cycle may read (each with its own
  *  commit) before returning and letting the caller re-enter — bounds how

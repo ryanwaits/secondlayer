@@ -167,6 +167,16 @@ async function writeCheckpoint(
 	await sql`SELECT pg_notify('index:tip', ${decoderName})`.execute(tx);
 }
 
+/** Rows per INSERT, matching `DECODED_EVENTS_CHUNK_SIZE`
+ *  (`packages/indexer/src/decode/storage.ts`) — one receipt per distinct
+ *  block height in a batch, which stays small for a normal page but isn't
+ *  bounded by row count alone: a decoder catching up through a long sparse
+ *  range (few events across many blocks) can carry one receipt per block, and
+ *  a large in-process page (e.g. the classic loop's whole-block-in-one-call
+ *  cap) could otherwise push a single INSERT's bound params past Postgres's
+ *  65535 limit (7 columns/row here). */
+const RECEIPTS_CHUNK_SIZE = 1000;
+
 async function writeReceipts(
 	tx: Kysely<Database>,
 	stageId: string,
@@ -174,30 +184,33 @@ async function writeReceipts(
 	receipts: readonly DecoderAdapterReceipt[],
 ): Promise<void> {
 	if (receipts.length === 0) return;
-	await tx
-		.insertInto("stage_block_receipts")
-		.values(
-			receipts.map((receipt) => ({
-				stage_id: stageId,
-				run_id: runId,
-				block_height: receipt.height,
-				block_hash: receipt.hash,
-				input_count: receipt.input_count,
-				input_digest: receipt.input_digest,
-				effect_digest: receipt.effect_digest,
-			})),
-		)
-		.onConflict((oc) =>
-			oc
-				.columns(["stage_id", "block_height", "block_hash"])
-				.doUpdateSet((eb) => ({
-					input_count: eb.ref("excluded.input_count"),
-					input_digest: eb.ref("excluded.input_digest"),
-					effect_digest: eb.ref("excluded.effect_digest"),
-					run_id: eb.ref("excluded.run_id"),
+	for (let i = 0; i < receipts.length; i += RECEIPTS_CHUNK_SIZE) {
+		const chunk = receipts.slice(i, i + RECEIPTS_CHUNK_SIZE);
+		await tx
+			.insertInto("stage_block_receipts")
+			.values(
+				chunk.map((receipt) => ({
+					stage_id: stageId,
+					run_id: runId,
+					block_height: receipt.height,
+					block_hash: receipt.hash,
+					input_count: receipt.input_count,
+					input_digest: receipt.input_digest,
+					effect_digest: receipt.effect_digest,
 				})),
-		)
-		.execute();
+			)
+			.onConflict((oc) =>
+				oc
+					.columns(["stage_id", "block_height", "block_hash"])
+					.doUpdateSet((eb) => ({
+						input_count: eb.ref("excluded.input_count"),
+						input_digest: eb.ref("excluded.input_digest"),
+						effect_digest: eb.ref("excluded.effect_digest"),
+						run_id: eb.ref("excluded.run_id"),
+					})),
+			)
+			.execute();
+	}
 }
 
 async function writeFailure(
