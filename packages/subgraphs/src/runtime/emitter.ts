@@ -58,9 +58,25 @@ const CIRCUIT_THRESHOLD = 20;
 export const MAX_WEBHOOK_TIMEOUT_MS: number = webhookTimeoutMsCeiling();
 export const LOCK_WINDOW_MS: number = MAX_WEBHOOK_TIMEOUT_MS + 60_000; // ceiling + settle margin
 
+/** A sub's persistent delivery queue + in-flight counter. Lives for as long
+ *  as the sub has (or recently had) work — see `enqueueForSub`/`pumpSub`.
+ *  `sub` is refreshed on every enqueue so a status/concurrency change (a
+ *  pause, a resume, a config edit) is picked up by the next batch of rows
+ *  without waiting for anything to expire. */
+interface SubQueue {
+	sub: Webhook;
+	queue: WebhookOutbox[];
+	inFlight: number;
+}
+
 interface RunningState {
 	running: boolean;
-	inFlightBySub: Map<string, number>;
+	/** Per-webhook queue + concurrency counter — see `SubQueue`. Replaces a
+	 *  bare in-flight counter so dispatch can be decoupled from the claim
+	 *  transaction (see `claimAndDispatchOnce`): claiming a batch no longer
+	 *  waits for a sub's HTTP calls to finish before the NEXT claim can run,
+	 *  it just hands rows to that sub's queue and returns. */
+	subQueues: Map<string, SubQueue>;
 	claimInFlight: boolean;
 	/** Set when a wake (NOTIFY) arrives while a claim cycle is already
 	 *  running. The in-flight cycle checks this before releasing the lock —
@@ -650,23 +666,25 @@ async function settleFailed(
 /** What woke this claim cycle — purely for the diagnostic log below; the
  *  claim/dispatch logic itself doesn't branch on it. `"drain-loop"` marks a
  *  pass this function re-ran on itself (see `claimAndDrain`) because a wake
- *  arrived (or the batch cap was hit) while the previous pass was still
- *  dispatching. */
-type ClaimTrigger = "notify" | "poll" | "startup" | "drain-loop";
+ *  arrived (or a per-lane batch cap was hit) while the previous pass was
+ *  still claiming. `"changed"` is a resume (or any webhook edit) — see the
+ *  `webhooks:changed` listener. */
+type ClaimTrigger = "notify" | "poll" | "startup" | "changed" | "drain-loop";
 
 /**
  * The regression this closes: a NOTIFY that arrives while a claim cycle is
- * ALREADY dispatching used to be dropped on the floor (the `claimInFlight`
- * guard below just returned 0), and nothing re-checked once that cycle
- * finished. Rows inserted mid-drain — a normal burst of ~6 chain-webhook
- * matches per block — sat `pending` until an UNRELATED future wake happened
- * to fire, or the 2-minute safety poll, which is exactly the outbox→POST p95
- * tail this was built to catch.
+ * ALREADY running used to be dropped on the floor (the `claimInFlight` guard
+ * below just returned 0), and nothing re-checked once that cycle finished.
+ * Rows inserted mid-cycle — a normal burst of ~6 chain-webhook matches per
+ * block — sat `pending` until an UNRELATED future wake happened to fire, or
+ * the 2-minute safety poll.
  *
  * The holder of `claimInFlight` now keeps looping (`claimPending`, set by any
  * caller that finds the lock held) until a pass claims nothing NEW and no one
  * asked for a recheck while it ran — so a burst drains fully off one wake
- * instead of needing one wake per claim-sized chunk.
+ * instead of needing one wake per claim-sized chunk. Critically, this lock
+ * wraps ONLY `claimAndDispatchOnce`'s DB claim query, never dispatch (see its
+ * doc) — a slow or hanging receiver must never hold up the next claim.
  */
 async function claimAndDrain(
 	db: Kysely<Database>,
@@ -684,17 +702,21 @@ async function claimAndDrain(
 		let currentTrigger = trigger;
 		for (;;) {
 			state.claimPending = false;
-			const claimedThisPass = await claimAndDispatchOnce(
+			const result = await claimAndDispatchOnce(
 				db,
 				state,
 				emitterId,
 				currentTrigger,
 			);
-			totalClaimed += claimedThisPass;
+			totalClaimed += result.claimed;
 			// Keep going while either: a wake landed mid-pass (claimPending —
-			// set by the guard above, from another caller), or this pass hit
-			// the batch cap, meaning more rows may still be waiting behind it.
-			if (!state.claimPending && claimedThisPass < BATCH_SIZE) break;
+			// set by the guard above, from another caller), or either lane
+			// (live/replay) came back full, meaning more may be waiting behind
+			// it. Comparing against the LANE limits, not the combined batch
+			// size, matters: live traffic alone is capped at `liveLimit` (90%
+			// of BATCH_SIZE) and would never reach the full BATCH_SIZE on its
+			// own, so that comparison never re-looped on a live-only backlog.
+			if (!state.claimPending && !result.mayHaveMore) break;
 			currentTrigger = "drain-loop";
 		}
 	} finally {
@@ -703,71 +725,110 @@ async function claimAndDrain(
 	return totalClaimed;
 }
 
-/** One claim + dispatch pass. Caller (`claimAndDrain`) owns the re-loop and
- *  the `claimInFlight` lock; this is the unit it repeats. */
+interface ClaimResult {
+	claimed: number;
+	dispatched: number;
+	released: number;
+	mayHaveMore: boolean;
+}
+
+/**
+ * One claim pass: SELECT a batch, mark it locked, then hand each sub's slice
+ * to its persistent queue and return — WITHOUT waiting for any of it to
+ * dispatch. Caller (`claimAndDrain`) owns the re-loop and the `claimInFlight`
+ * lock, which now covers only this function's DB work.
+ *
+ * This decoupling is the fix for the emitter-wide latency regression: the
+ * previous version awaited `Promise.all(subIds.map(drainForSub))` — every
+ * sub's FULL dispatch — before returning, so the slowest receiver in a batch
+ * (a hung connection, a multi-second response) held the process-wide claim
+ * lock for as long as IT took, starving every other sub's claims (including
+ * a fast sub's own fresh rows) for that whole time. Claiming is now a single
+ * short transaction; delivery happens on each sub's own independent
+ * queue/semaphore (`enqueueForSub`/`pumpSub`), so one sub's pace never
+ * gates another's.
+ *
+ * Also fixes the "stuck rows" bug: a row claimed for a sub that turns out to
+ * be `paused` (status read fresh here, after the claim) is released
+ * IMMEDIATELY — `next_attempt_at` reset to now, lock cleared — instead of
+ * being silently abandoned with its lock held for the full `LOCK_WINDOW_MS`.
+ * The old code's `if (sub.status !== "active") return;` left the row
+ * claimed-but-untouched: locked, `next_attempt_at` pushed far into the
+ * future, never dispatched, never settled — a resumed webhook's backlog
+ * then only drained once each row's stale lock happened to expire.
+ */
 async function claimAndDispatchOnce(
 	db: Kysely<Database>,
 	state: RunningState,
 	emitterId: string,
 	trigger: ClaimTrigger,
-): Promise<number> {
+): Promise<ClaimResult> {
 	// FOR UPDATE SKIP LOCKED — multiple emitters split the batch.
 	// 90/10 live vs replay so a big replay doesn't starve live emits.
 	const liveLimit = Math.max(1, Math.round(BATCH_SIZE * LIVE_SHARE));
 	const replayLimit = BATCH_SIZE - liveLimit;
-	const claimed = await db.transaction().execute(async (tx) => {
-		const live = await sql<WebhookOutbox>`
-				SELECT * FROM webhook_outbox
-				WHERE status = 'pending'
-					AND next_attempt_at <= NOW()
-					AND is_replay = FALSE
-				ORDER BY next_attempt_at ASC
-				FOR UPDATE SKIP LOCKED
-				LIMIT ${sql.lit(liveLimit)}
-			`.execute(tx);
-		const replay = await sql<WebhookOutbox>`
-				SELECT * FROM webhook_outbox
-				WHERE status = 'pending'
-					AND next_attempt_at <= NOW()
-					AND is_replay = TRUE
-				ORDER BY next_attempt_at ASC
-				FOR UPDATE SKIP LOCKED
-				LIMIT ${sql.lit(replayLimit)}
-			`.execute(tx);
+	const { combined, liveCount, replayCount } = await db
+		.transaction()
+		.execute(async (tx) => {
+			const live = await sql<WebhookOutbox>`
+					SELECT * FROM webhook_outbox
+					WHERE status = 'pending'
+						AND next_attempt_at <= NOW()
+						AND is_replay = FALSE
+					ORDER BY next_attempt_at ASC
+					FOR UPDATE SKIP LOCKED
+					LIMIT ${sql.lit(liveLimit)}
+				`.execute(tx);
+			const replay = await sql<WebhookOutbox>`
+					SELECT * FROM webhook_outbox
+					WHERE status = 'pending'
+						AND next_attempt_at <= NOW()
+						AND is_replay = TRUE
+					ORDER BY next_attempt_at ASC
+					FOR UPDATE SKIP LOCKED
+					LIMIT ${sql.lit(replayLimit)}
+				`.execute(tx);
 
-		const combined = [...live.rows, ...replay.rows];
-		if (combined.length === 0) return [];
+			const rows = [...live.rows, ...replay.rows];
+			if (rows.length === 0) {
+				return { combined: rows, liveCount: 0, replayCount: 0 };
+			}
 
-		// Push `next_attempt_at` forward by the lock window. This is
-		// the only defense against double-dispatch if the emitter
-		// process crashes mid-HTTP-call: the row won't be re-claimable
-		// until `LOCK_WINDOW_MS` elapses, giving us a stale-lock
-		// recovery window. `settleDelivered`/`settleFailed` overrides
-		// this on the success/failure path.
-		const now = new Date();
-		const lockUntil = new Date(now.getTime() + LOCK_WINDOW_MS);
-		await tx
-			.updateTable("webhook_outbox")
-			.set({
-				locked_by: emitterId,
-				locked_until: lockUntil,
-				next_attempt_at: lockUntil,
-			})
-			.where(
-				"id",
-				"in",
-				combined.map((r) => r.id),
-			)
-			.execute();
-		return combined;
-	});
+			// Push `next_attempt_at` forward by the lock window. This is
+			// the only defense against double-dispatch if the emitter
+			// process crashes mid-HTTP-call: the row won't be re-claimable
+			// until `LOCK_WINDOW_MS` elapses, giving us a stale-lock
+			// recovery window. `settleDelivered`/`settleFailed` overrides
+			// this on the success/failure path (and the paused-sub release
+			// below overrides it on the "never got dispatched" path).
+			const now = new Date();
+			const lockUntil = new Date(now.getTime() + LOCK_WINDOW_MS);
+			await tx
+				.updateTable("webhook_outbox")
+				.set({
+					locked_by: emitterId,
+					locked_until: lockUntil,
+					next_attempt_at: lockUntil,
+				})
+				.where(
+					"id",
+					"in",
+					rows.map((r) => r.id),
+				)
+				.execute();
+			return {
+				combined: rows,
+				liveCount: live.rows.length,
+				replayCount: replay.rows.length,
+			};
+		});
 
-	if (claimed.length === 0) return 0;
+	if (combined.length === 0) {
+		return { claimed: 0, dispatched: 0, released: 0, mayHaveMore: false };
+	}
 
-	// Hydrate each claimed row's sub once, then dispatch with per-sub
-	// concurrency cap enforced via in-memory semaphore.
 	const bySubId = new Map<string, WebhookOutbox[]>();
-	for (const row of claimed) {
+	for (const row of combined) {
 		const arr = bySubId.get(row.webhook_id);
 		if (arr) arr.push(row);
 		else bySubId.set(row.webhook_id, [row]);
@@ -781,17 +842,45 @@ async function claimAndDispatchOnce(
 		.execute();
 	const subById = new Map(subs.map((s) => [s.id, s]));
 
-	// One line per claim pass: what woke it, how much it found, how stale the
-	// oldest row was, and how loaded the in-flight pool already was —
-	// everything needed to tell "briefly busy" apart from "actually stuck"
-	// without reproducing it live. `in_flight`/`concurrency` sum across only
-	// the subs THIS pass touched (a quiet sub's unrelated cap doesn't dilute
-	// the reading).
+	let dispatched = 0;
+	let released = 0;
+	const releasedIds: string[] = [];
+	for (const subId of subIds) {
+		const sub = subById.get(subId);
+		// biome-ignore lint/style/noNonNullAssertion: key came from bySubId itself
+		const rows = bySubId.get(subId)!;
+		if (!sub || sub.status !== "active") {
+			released += rows.length;
+			releasedIds.push(...rows.map((r) => r.id));
+			continue;
+		}
+		dispatched += rows.length;
+		enqueueForSub(db, state, sub, rows);
+	}
+
+	if (releasedIds.length > 0) {
+		// Claimable again immediately: a webhook that's already resumed by the
+		// time we notice the release loses nothing waiting for LOCK_WINDOW_MS
+		// (up to several minutes) to expire on its own.
+		await db
+			.updateTable("webhook_outbox")
+			.set({ next_attempt_at: new Date(), locked_by: null, locked_until: null })
+			.where("id", "in", releasedIds)
+			.execute();
+	}
+
+	// One line per claim pass: what woke it, how much it found, how it split
+	// between dispatched-now and released-back (paused), how stale the oldest
+	// row was, and how loaded the in-flight pool already was — everything
+	// needed to tell "briefly busy" apart from "actually stuck" without
+	// reproducing it live. `in_flight`/`concurrency` sum across only the subs
+	// THIS pass touched (a quiet sub's unrelated cap doesn't dilute the
+	// reading).
 	const oldestCreatedAtMs = Math.min(
-		...claimed.map((r) => new Date(r.created_at).getTime()),
+		...combined.map((r) => new Date(r.created_at).getTime()),
 	);
 	const inFlight = subIds.reduce(
-		(sum, id) => sum + (state.inFlightBySub.get(id) ?? 0),
+		(sum, id) => sum + (state.subQueues.get(id)?.inFlight ?? 0),
 		0,
 	);
 	const concurrency = subIds.reduce(
@@ -801,72 +890,109 @@ async function claimAndDispatchOnce(
 	logger.info("emitter claim cycle", {
 		event: "emitter_claim",
 		trigger,
-		claimed: claimed.length,
+		claimed: combined.length,
+		dispatched,
+		released,
 		oldest_created_at_age_ms: Date.now() - oldestCreatedAtMs,
 		in_flight: inFlight,
 		concurrency,
 	});
 
-	await Promise.all(
-		subIds.map((subId) =>
-			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-			drainForSub(db, state, subById.get(subId)!, bySubId.get(subId)!),
-		),
-	);
-
-	return claimed.length;
+	return {
+		claimed: combined.length,
+		dispatched,
+		released,
+		mayHaveMore: liveCount >= liveLimit || replayCount >= replayLimit,
+	};
 }
 
-async function drainForSub(
+/**
+ * Hand `rows` to `sub`'s persistent queue and try to start dispatching
+ * immediately. Decoupled from the claim transaction on purpose (see
+ * `claimAndDispatchOnce`'s doc) — a slow or hanging sub's in-flight HTTP
+ * calls must never hold up the next claim, for this sub or any other.
+ *
+ * `sub` is refreshed here on every call (not just on first creation) so a
+ * status/concurrency change since the last batch — most importantly a
+ * pause — is picked up by `pumpSub` without waiting for anything to expire.
+ */
+function enqueueForSub(
 	db: Kysely<Database>,
 	state: RunningState,
 	sub: Webhook,
 	rows: WebhookOutbox[],
-): Promise<void> {
-	if (sub.status !== "active") return;
-	const cap = sub.concurrency || 4;
-	const counter = () => state.inFlightBySub.get(sub.id) ?? 0;
-	const inc = () => state.inFlightBySub.set(sub.id, counter() + 1);
-	const dec = () => state.inFlightBySub.set(sub.id, Math.max(0, counter() - 1));
-
-	const queue = [...rows];
-	const workers: Promise<void>[] = [];
-	const slots = Math.min(cap, queue.length);
-
-	for (let i = 0; i < slots; i++) {
-		workers.push(
-			(async () => {
-				while (state.running && queue.length > 0) {
-					const row = queue.shift();
-					if (!row) break;
-					inc();
-					try {
-						const result = await dispatchOne(db, row, sub);
-						if (result.ok) {
-							await settleDelivered(db, row);
-						} else {
-							const err = result.error ?? `HTTP ${result.statusCode ?? "?"}`;
-							await settleFailed(db, row, sub, err);
-						}
-					} catch (err) {
-						logger.error("Emitter dispatch crashed", {
-							outboxId: row.id,
-							error: err instanceof Error ? err.message : String(err),
-						});
-						await settleFailed(
-							db,
-							row,
-							sub,
-							err instanceof Error ? err.message : String(err),
-						);
-					} finally {
-						dec();
-					}
-				}
-			})(),
-		);
+): void {
+	let sq = state.subQueues.get(sub.id);
+	if (!sq) {
+		sq = { sub, queue: [], inFlight: 0 };
+		state.subQueues.set(sub.id, sq);
+	} else {
+		sq.sub = sub;
 	}
-	await Promise.all(workers);
+	sq.queue.push(...rows);
+	pumpSub(db, state, sub.id);
+}
+
+/**
+ * Start as many workers as the sub's remaining concurrency allows, pulling
+ * from its queue. Reentrant-safe without an explicit lock: every branch here
+ * is synchronous (the only `await` lives in `runOne`, called but not
+ * awaited), so JS's single-threaded execution means two calls — one from
+ * `enqueueForSub`, one from a just-finished worker's `finally` — can never
+ * interleave mid-loop; each runs to completion before the other starts.
+ */
+function pumpSub(
+	db: Kysely<Database>,
+	state: RunningState,
+	subId: string,
+): void {
+	const sq = state.subQueues.get(subId);
+	if (!sq) return;
+	const cap = sq.sub.concurrency || 4;
+	while (
+		state.running &&
+		sq.sub.status === "active" &&
+		sq.inFlight < cap &&
+		sq.queue.length > 0
+	) {
+		const row = sq.queue.shift();
+		if (!row) break;
+		sq.inFlight++;
+		void runOne(db, state, sq, row);
+	}
+}
+
+/** Dispatch one claimed row end to end (POST, settle), then release its
+ *  in-flight slot and try to pull more work for the same sub. */
+async function runOne(
+	db: Kysely<Database>,
+	state: RunningState,
+	sq: SubQueue,
+	row: WebhookOutbox,
+): Promise<void> {
+	try {
+		const result = await dispatchOne(db, row, sq.sub);
+		if (result.ok) {
+			await settleDelivered(db, row);
+		} else {
+			const err = result.error ?? `HTTP ${result.statusCode ?? "?"}`;
+			await settleFailed(db, row, sq.sub, err);
+		}
+	} catch (err) {
+		logger.error("Emitter dispatch crashed", {
+			outboxId: row.id,
+			error: err instanceof Error ? err.message : String(err),
+		});
+		await settleFailed(
+			db,
+			row,
+			sq.sub,
+			err instanceof Error ? err.message : String(err),
+		);
+	} finally {
+		sq.inFlight--;
+		pumpSub(db, state, sq.sub.id);
+	}
 }
 
 export interface StartEmitterOptions {
@@ -899,7 +1025,7 @@ export async function startEmitter(
 	const db = getTargetDb();
 	const state: RunningState = {
 		running: true,
-		inFlightBySub: new Map(),
+		subQueues: new Map(),
 		claimInFlight: false,
 		claimPending: false,
 	};
@@ -960,6 +1086,16 @@ export async function startEmitter(
 			if (!state.running) return;
 			void refreshMatcher(db).catch((err) =>
 				logger.error("[emitter] matcher refresh failed", {
+					error: err instanceof Error ? err.message : String(err),
+				}),
+			);
+			// A resume is exactly `webhooks:changed` — its rows were already
+			// released back to claimable (see claimAndDispatchOnce's paused-sub
+			// branch) as soon as we noticed the pause, so a resumed webhook's
+			// backlog drains on the SAME event that flips it active again,
+			// instead of waiting for an unrelated future notify or the poll.
+			void claimAndDrain(db, state, emitterId, "changed").catch((err) =>
+				logger.error("[emitter] claim failed", {
 					error: err instanceof Error ? err.message : String(err),
 				}),
 			);
