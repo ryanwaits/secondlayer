@@ -43,6 +43,19 @@ services:
       - /opt/secondlayer-btc:/opt/secondlayer-btc
     env_file:
       - /etc/secondlayer-btc/btc.env
-    mem_limit: 6g
+    mem_limit: 22g
     cpus: 6
     restart: "no"
+
+  follow:
+    image: oven/bun:1.4.2
+    network_mode: host
+    working_dir: /opt/secondlayer-btc/packages/bitcoin
+    volumes:
+      - /opt/secondlayer-btc:/opt/secondlayer-btc
+    env_file:
+      - /etc/secondlayer-btc/btc.env
+    mem_limit: 22g
+    cpus: 6
+    command: bun run src/cli.ts follow
+    restart: unless-stopped
