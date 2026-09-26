@@ -430,7 +430,18 @@ export class IndexHttpClient {
 		wait?: number;
 		knownHeight?: number;
 	}): Promise<number> {
-		const env = await this.getIndexTipEnvelope(opts);
+		// `tip_only`: this method never reads `blocks[]`, only `tip`, so the
+		// server can skip the row query. It ALSO fixes what `tip_only` exists
+		// for: `blocks.length` is governed by the SOURCE tip (`/blocks` windows
+		// to it), but `knownHeight` here is the DECODED tip this method itself
+		// returns — comparing against raw rows made an idle `wait` return
+		// almost instantly whenever ingest ran even slightly ahead of decode
+		// (routes/index.ts's /blocks handler judges emptiness against
+		// `tip.block_height` directly when `tip_only` is set, sidestepping the
+		// mismatch). Do NOT set this on `getIndexSourceTip` below — its
+		// `knownHeight` baseline is the source tip already, so the row-based
+		// check is the CORRECT one there, not a bug to route around.
+		const env = await this.getIndexTipEnvelope({ ...opts, tipOnly: true });
 		return Number(env.tip?.block_height) || 0;
 	}
 
@@ -456,12 +467,12 @@ export class IndexHttpClient {
 		return this.lastTipEnvelope?.tip.decoded_heights;
 	}
 
-	/** False once a `wait` request has 400'd on THIS client instance (see the
-	 *  catch in `getIndexTipEnvelope`) — an older server that doesn't recognize
-	 *  the long-poll params. A caller that reuses one client across many calls
-	 *  (the chain evaluator, plan-063 3.5) uses this to stop scheduling itself
-	 *  as if `wait` actually blocked, instead of re-discovering the 400 on
-	 *  every single call. */
+	/** False once a `wait`/`tip_only` request has 400'd on THIS client instance
+	 *  (see the catch in `getIndexTipEnvelope`) — an older server that doesn't
+	 *  recognize these params. A caller that reuses one client across many
+	 *  calls (the chain evaluator, plan-063 3.5) uses this to stop scheduling
+	 *  itself as if `wait` actually blocked, instead of re-discovering the 400
+	 *  on every single call. */
 	waitIsSupported(): boolean {
 		return this.waitSupported;
 	}
@@ -469,9 +480,12 @@ export class IndexHttpClient {
 	private async getIndexTipEnvelope(opts?: {
 		wait?: number;
 		knownHeight?: number;
+		tipOnly?: boolean;
 	}): Promise<IndexTipEnvelope> {
 		const wantsWait = this.waitSupported && (opts?.wait ?? 0) > 0;
+		const wantsTipOnly = this.waitSupported && Boolean(opts?.tipOnly);
 		const params = new URLSearchParams({ limit: "1" });
+		if (wantsTipOnly) params.set("tip_only", "true");
 		if (wantsWait) {
 			params.set(
 				"wait",
@@ -495,13 +509,18 @@ export class IndexHttpClient {
 			this.lastTipEnvelope = env;
 			return env;
 		} catch (err) {
-			// An older server's `validateQueryParams` 400s on `wait`/`from_height`
-			// it doesn't recognize. Treat that ONE status as "this server predates
-			// long-poll", not an outage: disable wait for the rest of this client's
-			// life and retry plainly, so `FallbackBlockSource` never mistakes a
-			// version-skew 400 for the api being down and routes to the DB tap.
+			// An older server's `validateQueryParams` 400s on `wait`/`from_height`/
+			// `tip_only` it doesn't recognize. Treat that ONE status as "this
+			// server predates long-poll", not an outage: disable BOTH extensions
+			// for the rest of this client's life and retry plainly, so
+			// `FallbackBlockSource` never mistakes a version-skew 400 for the api
+			// being down and routes to the DB tap. Gating retry on `wantsWait ||
+			// wantsTipOnly` (not `wantsWait` alone) matters mid-rollout: a server
+			// already upgraded for `wait` but not yet for `tip_only` (or vice
+			// versa) still 400s on the one it doesn't know, even on a plain,
+			// non-waiting `getIndexTip()` call.
 			if (
-				wantsWait &&
+				(wantsWait || wantsTipOnly) &&
 				err instanceof IndexHttpStatusError &&
 				err.status === 400
 			) {

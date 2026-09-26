@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { resolveSourceUrl, resolveTargetUrl } from "../db/index.ts";
 
 interface ListenOptions {
 	/**
@@ -12,20 +13,28 @@ interface ListenOptions {
 
 /**
  * LISTEN/NOTIFY connection for indexer-fired channels (`indexer:new_block`,
- * `subgraph_reorg`, `tx:confirmed`) — they fire on the SOURCE (chain) DB.
- * `||` (not `??`) so an empty-string env (an unset `SOURCE_DATABASE_URL` passed
- * through docker-compose as `""`) falls back to `DATABASE_URL`.
+ * `subgraph_reorg`, `tx:confirmed`, `index:tip`) — they fire wherever
+ * `getSourceDb()` writes. Delegates to `resolveSourceUrl` (the same function
+ * `getSourceDb()` calls) instead of re-deriving the env-var precedence here:
+ * a hand-duplicated resolver previously skipped the `isPlatformMode()` gate
+ * that `getSourceDb()` applies, so a process not in platform mode (but with
+ * `SOURCE_DATABASE_URL` set anyway, e.g. inherited from a shared env
+ * template) would LISTEN on a different database than the one the write
+ * actually commits to — a NOTIFY that fires correctly on the writer's
+ * connection then never reaches this listener. One resolver, used by both.
  */
-export function sourceListenerUrl(): string | undefined {
-	return process.env.SOURCE_DATABASE_URL || process.env.DATABASE_URL;
+export function sourceListenerUrl(): string {
+	return resolveSourceUrl();
 }
 
 /**
  * LISTEN/NOTIFY connection for control-plane channels (`webhooks:new_outbox`,
- * `webhooks:changed`, subgraph operations) — they fire on the TARGET DB.
+ * `webhooks:changed`, subgraph operations) — they fire wherever `getTargetDb()`
+ * writes. See {@link sourceListenerUrl} for why this delegates instead of
+ * re-deriving the precedence.
  */
-export function targetListenerUrl(): string | undefined {
-	return process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
+export function targetListenerUrl(): string {
+	return resolveTargetUrl();
 }
 
 function resolveUrl(opts?: ListenOptions): string {

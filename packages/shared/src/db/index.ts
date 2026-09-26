@@ -70,22 +70,35 @@ export function applicationDatabaseUrl(): string {
 	return process.env.DATABASE_URL || DEFAULT_URL;
 }
 
-function resolveSourceUrl(): string {
+/**
+ * Canonical source-DB URL — the ONE place that decides it. Exported so a
+ * LISTEN connection (`queue/listener.ts`) resolves the same database a write
+ * through `getSourceDb()` commits to; a second, hand-duplicated resolution
+ * that skips the `isPlatformMode()` gate silently listens on the wrong
+ * database whenever a process isn't in platform mode but `SOURCE_DATABASE_URL`
+ * happens to be set anyway (a shared env template, a staging box) — a NOTIFY
+ * on the real (gated) URL then never reaches it.
+ */
+export function resolveSourceUrl(): string {
 	if (!isPlatformMode()) return applicationDatabaseUrl();
 	return (
 		process.env.SOURCE_DATABASE_URL || process.env.DATABASE_URL || DEFAULT_URL
 	);
 }
 
-function resolveTargetUrl(): string {
+/** Canonical target-DB URL — see {@link resolveSourceUrl}. */
+export function resolveTargetUrl(): string {
 	if (!isPlatformMode()) return applicationDatabaseUrl();
 	return (
 		process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL || DEFAULT_URL
 	);
 }
 
-/** Host[:port]/dbname for a connection URL — credentials stripped. */
-function describeDbUrl(url: string): string {
+/** Host[:port]/dbname for a connection URL — credentials stripped. Exported
+ *  so anything logging which database it connected to (a LISTEN channel's
+ *  startup log, an ops health check) can describe it without ever printing a
+ *  password. */
+export function describeDbUrl(url: string): string {
 	try {
 		const u = new URL(url);
 		return `${u.hostname}${u.port ? `:${u.port}` : ""}${u.pathname}`;
