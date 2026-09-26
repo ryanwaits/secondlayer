@@ -23,6 +23,22 @@ export SECONDLAYER_API_URL=http://127.0.0.1:3800
 export INSTANCE_TOKEN=<from secondlayer init>
 ```
 
+### Hosted commands (`webhooks`, `subgraphs`) — credential resolution order
+
+Against `api.secondlayer.tools`, `resolveHostedAuth()` tries these in order —
+the first one set wins:
+
+| Order | Source | Notes |
+|---|---|---|
+| 1 | `SECONDLAYER_API_KEY` (`sk-sl_*`) | Hosted account key |
+| 2 | `INSTANCE_TOKEN` / `--api-key` | Rarely set on the merchant host |
+| 3 | Saved session, `~/.secondlayer/session.json` | Written by `secondlayer login`, scoped per API URL, 0600 |
+| — | none of the above | Fails: `Not logged in — run secondlayer login` |
+
+A shell with no `SECONDLAYER_API_KEY` exported can still authenticate against
+the merchant host if this machine ran `secondlayer login` at some point — that's
+#3, a real (if easy to forget) credential, not a bug.
+
 ## Quickstart
 
 ```bash
