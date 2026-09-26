@@ -186,6 +186,9 @@ export type {
 	DeliveryRow,
 	ReplayResult,
 	DeadRow,
+	WebhookActivity,
+	WebhookActivityHour,
+	WebhookDeliveryDetail,
 } from "./webhooks/client.ts";
 export {
 	buildDoctorReport,

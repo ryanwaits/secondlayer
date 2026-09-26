@@ -1,6 +1,6 @@
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import type { Webhook } from "@secondlayer/shared/db";
+import type { OutboxStatus, Webhook } from "@secondlayer/shared/db";
 import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import {
 	createWebhook,
@@ -28,6 +28,7 @@ import {
 	replayWebhook,
 } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
+import { sql } from "kysely";
 import { getTenantScopedAccountId } from "../lib/request-scope.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
@@ -52,6 +53,8 @@ const SUBGRAPH_NOT_REGISTERED_RE =
 // N blocks" (a `WEBHOOK_REPLAY_MAX_BLOCKS` override that isn't a clean
 // multiple of 1000) — see `formatBlockCount` in runtime/replay.ts.
 const REPLAY_RANGE_TOO_LARGE_RE = /^replay range exceeds \d+k? blocks$/;
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isKnownReplayError(msg: string): boolean {
 	return (
@@ -427,6 +430,172 @@ app.get("/:id/deliveries", async (c) => {
 			responseBody: r.response_body,
 			dispatchedAt: r.dispatched_at.toISOString(),
 		})),
+	});
+});
+
+// ── GET /api/webhooks/:id/activity ─────────────────────────────────
+// Hourly delivered/waiting/gave-up counts over the last 7 days (zero-filled
+// to 168 hours), plus the current queue depth — the events chart and the
+// catch-up bar on the detail page poll this. One query over `webhook_outbox`
+// keyed on (webhook_id, created_at), matching the `outbox_sub_idx` index.
+
+const ACTIVITY_HOURS = 168;
+const ACTIVITY_KEY_BY_STATUS: Record<
+	OutboxStatus,
+	"delivered" | "waiting" | "gaveUp"
+> = {
+	delivered: "delivered",
+	pending: "waiting",
+	dead: "gaveUp",
+};
+
+/** `count` hour-aligned UTC ISO timestamps, oldest first, ending on the
+ *  current (partial) hour. */
+function hourBucketsUtc(now: Date, count: number): string[] {
+	const currentHourMs = Math.floor(now.getTime() / 3_600_000) * 3_600_000;
+	const buckets: string[] = [];
+	for (let i = count - 1; i >= 0; i--) {
+		buckets.push(new Date(currentHourMs - i * 3_600_000).toISOString());
+	}
+	return buckets;
+}
+
+app.get("/:id/activity", async (c) => {
+	const accountId = getTenantScopedAccountId(c);
+	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
+	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
+
+	const db = getDb();
+	const [grouped, waitingRow, nextAttemptRow, lastSuccessRow] =
+		await Promise.all([
+			db
+				.selectFrom("webhook_outbox")
+				.select([
+					// `AT TIME ZONE 'UTC'` on both sides makes the truncation a UTC
+					// hour boundary regardless of the session's timezone setting.
+					sql<Date>`date_trunc('hour', created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`.as(
+						"hour",
+					),
+					"status",
+					db.fn.countAll<string>().as("n"),
+				])
+				.where("webhook_id", "=", sub.id)
+				.where("created_at", ">=", sql<Date>`now() - interval '168 hours'`)
+				.groupBy(
+					sql`date_trunc('hour', created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
+				)
+				.groupBy("status")
+				.execute(),
+			db
+				.selectFrom("webhook_outbox")
+				.select(db.fn.countAll<string>().as("n"))
+				.where("webhook_id", "=", sub.id)
+				.where("status", "=", "pending")
+				.executeTakeFirst(),
+			db
+				.selectFrom("webhook_outbox")
+				.select(({ fn }) => fn.min("next_attempt_at").as("next_attempt_at"))
+				.where("webhook_id", "=", sub.id)
+				.where("status", "=", "pending")
+				.executeTakeFirst(),
+			db
+				.selectFrom("webhook_deliveries")
+				.select(({ fn }) => fn.max("dispatched_at").as("dispatched_at"))
+				.where("webhook_id", "=", sub.id)
+				.where("status_code", ">=", 200)
+				.where("status_code", "<", 300)
+				.executeTakeFirst(),
+		]);
+
+	const byHour = new Map<
+		string,
+		{ delivered: number; waiting: number; gaveUp: number }
+	>();
+	for (const row of grouped) {
+		const hourIso = row.hour.toISOString();
+		const key = ACTIVITY_KEY_BY_STATUS[row.status as OutboxStatus];
+		const bucket = byHour.get(hourIso) ?? {
+			delivered: 0,
+			waiting: 0,
+			gaveUp: 0,
+		};
+		bucket[key] += Number(row.n);
+		byHour.set(hourIso, bucket);
+	}
+
+	const hours = hourBucketsUtc(new Date(), ACTIVITY_HOURS).map((hour) => ({
+		hour,
+		...(byHour.get(hour) ?? { delivered: 0, waiting: 0, gaveUp: 0 }),
+	}));
+
+	return c.json({
+		hours,
+		waiting: Number(waitingRow?.n ?? 0),
+		nextAttemptAt: nextAttemptRow?.next_attempt_at
+			? (nextAttemptRow.next_attempt_at as Date).toISOString()
+			: null,
+		lastSuccessAt: lastSuccessRow?.dispatched_at
+			? (lastSuccessRow.dispatched_at as Date).toISOString()
+			: null,
+	});
+});
+
+// ── GET /api/webhooks/:id/deliveries/:deliveryId — one attempt ────
+// The delivery card's data: the delivery row plus its outbox context
+// (payload, event/tx/block info), left-joined since the outbox row may
+// already be compacted away (7-day retention on delivered rows).
+
+app.get("/:id/deliveries/:deliveryId", async (c) => {
+	const accountId = getTenantScopedAccountId(c);
+	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
+	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
+
+	const deliveryId = c.req.param("deliveryId");
+	if (!UUID_RE.test(deliveryId)) {
+		return c.json({ error: "deliveryId must be a UUID" }, 400);
+	}
+
+	const row = await getDb()
+		.selectFrom("webhook_deliveries as d")
+		.leftJoin("webhook_outbox as o", "o.id", "d.outbox_id")
+		.select([
+			"d.id",
+			"d.attempt",
+			"d.status_code",
+			"d.duration_ms",
+			"d.dispatched_at",
+			"d.error_message",
+			"d.response_body",
+			"d.response_headers",
+			"d.outbox_id",
+			"o.event_type",
+			"o.tx_id",
+			"o.block_height",
+			"o.block_time",
+			"o.payload",
+		])
+		.where("d.id", "=", deliveryId)
+		.where("d.webhook_id", "=", sub.id)
+		.executeTakeFirst();
+	if (!row) return c.json({ error: "Delivery not found" }, 404);
+
+	return c.json({
+		id: row.id,
+		attempt: row.attempt,
+		statusCode: row.status_code,
+		durationMs: row.duration_ms,
+		dispatchedAt: row.dispatched_at.toISOString(),
+		errorMessage: row.error_message,
+		responseBody: row.response_body,
+		responseHeaders: row.response_headers,
+		outboxId: row.outbox_id,
+		eventType: row.event_type,
+		txId: row.tx_id,
+		blockHeight: row.block_height === null ? null : Number(row.block_height),
+		blockTime: row.block_time === null ? null : row.block_time.toISOString(),
+		payload: row.payload ?? null,
 	});
 });
 

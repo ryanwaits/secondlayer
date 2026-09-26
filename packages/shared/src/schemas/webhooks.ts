@@ -818,6 +818,46 @@ export interface DeliveryRow {
 	blockTime: string | null;
 }
 
+/** One hour of `webhook_outbox` activity (`GET /:id/activity`), zero-filled
+ *  so the events chart always has 168 bars. */
+export interface WebhookActivityHour {
+	/** ISO timestamp, UTC hour start. */
+	hour: string;
+	delivered: number;
+	waiting: number;
+	gaveUp: number;
+}
+
+export interface WebhookActivity {
+	/** 168 hours, oldest first. */
+	hours: WebhookActivityHour[];
+	/** Pending rows right now, no time bound. */
+	waiting: number;
+	nextAttemptAt: string | null;
+	lastSuccessAt: string | null;
+}
+
+/** One delivery attempt with its outbox context, for the delivery card
+ *  (`GET /:id/deliveries/:deliveryId`). `payload`/`outboxId`/`eventType`/
+ *  `txId`/`blockHeight`/`blockTime` are null once the outbox row is gone
+ *  (compacted after 7 days) or for a test delivery, which never had one. */
+export interface WebhookDeliveryDetail {
+	id: string;
+	attempt: number;
+	statusCode: number | null;
+	durationMs: number | null;
+	dispatchedAt: string;
+	errorMessage: string | null;
+	responseBody: string | null;
+	responseHeaders: Record<string, string> | null;
+	outboxId: string | null;
+	eventType: string | null;
+	txId: string | null;
+	blockHeight: number | null;
+	blockTime: string | null;
+	payload: unknown | null;
+}
+
 export interface ReplayResult {
 	replayId: string;
 	enqueuedCount: number;

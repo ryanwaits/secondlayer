@@ -6,6 +6,8 @@ import type {
 	ReplayResult,
 	RotateSecretResponse,
 	UpdateWebhookRequest,
+	WebhookActivity,
+	WebhookDeliveryDetail,
 	WebhookDetail,
 	WebhookSummary,
 	WebhookTestResult,
@@ -21,6 +23,9 @@ export type {
 	DeliveryRow,
 	ReplayResult,
 	RotateSecretResponse,
+	WebhookActivity,
+	WebhookActivityHour,
+	WebhookDeliveryDetail,
 	WebhookDetail,
 	WebhookFormat,
 	WebhookKind,
@@ -99,6 +104,27 @@ export class Webhooks extends BaseClient {
 		return this.request<{ data: DeliveryRow[] }>(
 			"GET",
 			`/api/webhooks/${seg(id)}/deliveries`,
+		);
+	}
+
+	/** Hourly delivered/waiting/gave-up counts for the last 7 days, plus the
+	 *  current queue depth — the events chart on the detail page. */
+	async activity(id: string): Promise<WebhookActivity> {
+		return this.request<WebhookActivity>(
+			"GET",
+			`/api/webhooks/${seg(id)}/activity`,
+		);
+	}
+
+	/** One delivery attempt with its outbox context (payload, response
+	 *  headers) — the delivery card on the detail page. */
+	async delivery(
+		id: string,
+		deliveryId: string,
+	): Promise<WebhookDeliveryDetail> {
+		return this.request<WebhookDeliveryDetail>(
+			"GET",
+			`/api/webhooks/${seg(id)}/deliveries/${seg(deliveryId)}`,
 		);
 	}
 
