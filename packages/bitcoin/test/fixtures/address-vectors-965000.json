@@ -1,0 +1,37 @@
+[
+	{
+		"type": "p2pkh",
+		"txid": "c9db7d8321ffcfff86724508c0477947beae8879c1e883c72f96b75cb7c01ee0",
+		"vout": 1,
+		"scriptHex": "76a9141d9549464dfb4e413fd92dc0d7d0d0e800aae9e388ac",
+		"address": "13hRS9pizWanWdendCmzAqnb677yKhi3eP"
+	},
+	{
+		"type": "p2sh",
+		"txid": "b9d0fda357c1fd37f854f3a5868f72d4954d3c6928dd94173cd5f3897fe7f8b9",
+		"vout": 0,
+		"scriptHex": "a914265ae1340f5d442d099ffc27b443ffdba4bc034687",
+		"address": "35BpUGMm4Cod9dVWwdTJK1A4RDsCE3zTVC"
+	},
+	{
+		"type": "v0_p2wpkh",
+		"txid": "5fc111d07140a808ba08ac28f61fd436efbfe9d84f5437abe980b42c8d9f0a5e",
+		"vout": 0,
+		"scriptHex": "0014e93523416d7137dad7b63813ca2a72010bc94d3b",
+		"address": "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg"
+	},
+	{
+		"type": "v0_p2wsh",
+		"txid": "982470a22110da7666a2824daa04ae8fc7462248ec03f9a672639ec7d18d4720",
+		"vout": 0,
+		"scriptHex": "00208e8d53539a6d9c3b5172fafb8124d5151bf02d6833ae8d4412bbf978947c71f3",
+		"address": "bc1q36x4x5u6dkwrk5tjltaczfx4z5dlqttgxwhg63qjh0uh39ruw8esphe2qa"
+	},
+	{
+		"type": "v1_p2tr",
+		"txid": "cd817d8072541130686aa84066408400185b8512d109b5a8cf4186c8de726807",
+		"vout": 0,
+		"scriptHex": "5120c264ca849542d864b329734bcccf45c415fada4cc8d65a0d48df8a29b982c711",
+		"address": "bc1pcfjv4py4gtvxfvefwd9uen69cs2l4kjvert95r2gm79znwvzcugse2zxlt"
+	}
+]
