@@ -43,8 +43,10 @@ import {
 	DEFAULT_PENDING_CAP,
 	EventCounter,
 	type MeterBatchItem,
+	collectShutdownFlushItems,
 	eventsMeterItem,
 	flushAll,
+	flushOnShutdown,
 	mergePending,
 	sampleMemoryGbHour,
 	sampleStorageGbDay,
@@ -70,6 +72,7 @@ const MEMORY_SAMPLE_INTERVAL_MS = 60_000;
 const MEMORY_FLUSH_INTERVAL_MS = 60 * 60_000; // hourly (Design)
 const STORAGE_SAMPLE_INTERVAL_MS = 24 * 60 * 60_000; // daily (Design)
 const CREDITS_POLL_INTERVAL_MS = 5 * 60_000; // Design: "every 5 min"
+const SHUTDOWN_FLUSH_TIMEOUT_MS = 5_000;
 const INITIAL_TARGET_RESOLUTION_ATTEMPTS = 3;
 const INITIAL_TARGET_RESOLUTION_RETRY_MS = 2_000;
 
@@ -385,7 +388,10 @@ async function main(): Promise<void> {
 		});
 	}, CREDITS_POLL_INTERVAL_MS);
 
-	const shutdown = () => {
+	let shuttingDown = false;
+	const shutdown = async () => {
+		if (shuttingDown) return; // a second SIGINT/SIGTERM must not re-enter the flush
+		shuttingDown = true;
 		logger.info("workload host shutting down");
 		clearInterval(eventFlushLoop);
 		clearInterval(memorySampleLoop);
@@ -394,6 +400,25 @@ async function main(): Promise<void> {
 		clearInterval(creditsPollLoop);
 		for (const s of socketServers.values()) s.stop();
 		server.stop();
+
+		// Final flush: drains each meter's live accumulator (an EventCounter's
+		// in-flight minute, memory's in-flight hour) plus whatever's already
+		// sitting in a pending retry buffer, so a restart never under-bills —
+		// bounded so a dead app-server can't delay exit past the timeout.
+		const items = collectShutdownFlushItems({
+			eventCounters,
+			eventPending,
+			memoryAccumulatorGbHours,
+			memoryPending,
+			storagePending,
+		});
+		await flushOnShutdown(
+			{ appServerUrl, workloadHostKey },
+			items,
+			MAX_METER_BATCH,
+			SHUTDOWN_FLUSH_TIMEOUT_MS,
+		);
+
 		process.exit(0);
 	};
 	process.on("SIGINT", shutdown);

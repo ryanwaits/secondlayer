@@ -4,10 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	EventCounter,
+	collectShutdownFlushItems,
 	eventsIdempotencyKey,
 	eventsMeterItem,
 	flushAll,
 	flushMeterBatch,
+	flushOnShutdown,
 	memoryIdempotencyKey,
 	mergePending,
 	parseDockerStatsMemUsageBytes,
@@ -299,6 +301,172 @@ describe("mergePending", () => {
 		const { items, droppedCount } = mergePending([], [], 10);
 		expect(items).toEqual([]);
 		expect(droppedCount).toBe(0);
+	});
+});
+
+describe("collectShutdownFlushItems", () => {
+	test("drains each EventCounter and the memory accumulator, ahead of every pending buffer", () => {
+		const counterA = new EventCounter();
+		counterA.add(5);
+		const counterB = new EventCounter();
+		counterB.add(2);
+
+		const state = {
+			eventCounters: new Map([
+				["acct_a", counterA],
+				["acct_b", counterB],
+			]),
+			eventPending: [
+				{
+					accountId: "acct_a",
+					unit: "webhook.event" as const,
+					quantity: 1,
+					idempotencyKey: "evt:acct_a:pending",
+				},
+			],
+			memoryAccumulatorGbHours: new Map([
+				["acct_a", 1.5],
+				["acct_zero", 0],
+			]),
+			memoryPending: [
+				{
+					accountId: "acct_a",
+					unit: "memory.gb_hour" as const,
+					quantity: 0.25,
+					idempotencyKey: "mem:acct_a:pending",
+				},
+			],
+			storagePending: [
+				{
+					accountId: "acct_a",
+					unit: "storage.gb_day" as const,
+					quantity: 3,
+					idempotencyKey: "storage:acct_a:pending",
+				},
+			],
+		};
+
+		const items = collectShutdownFlushItems(state);
+
+		// Pending (already-retried) items come first, in buffer order.
+		expect(items[0]?.idempotencyKey).toBe("evt:acct_a:pending");
+		expect(items[1]?.idempotencyKey).toBe("mem:acct_a:pending");
+		expect(items[2]?.idempotencyKey).toBe("storage:acct_a:pending");
+
+		const eventItems = items.filter((i) => i.unit === "webhook.event");
+		expect(eventItems).toContainEqual(
+			expect.objectContaining({ accountId: "acct_a", quantity: 5 }),
+		);
+		expect(eventItems).toContainEqual(
+			expect.objectContaining({ accountId: "acct_b", quantity: 2 }),
+		);
+
+		const memoryItems = items.filter(
+			(i) =>
+				i.unit === "memory.gb_hour" &&
+				i.idempotencyKey !== "mem:acct_a:pending",
+		);
+		expect(memoryItems).toEqual([
+			expect.objectContaining({ accountId: "acct_a", quantity: 1.5 }),
+		]);
+
+		// acct_zero had a non-positive accumulator — never a zero-quantity row.
+		expect(items.some((i) => i.accountId === "acct_zero")).toBe(false);
+
+		// Both live counters are drained, and the memory accumulator is cleared,
+		// exactly like the periodic loops do — a second call finds nothing left.
+		expect(counterA.drain()).toBe(0);
+		expect(counterB.drain()).toBe(0);
+		expect(state.memoryAccumulatorGbHours.size).toBe(0);
+	});
+
+	test("no live state and empty pending buffers produces an empty list", () => {
+		const items = collectShutdownFlushItems({
+			eventCounters: new Map(),
+			eventPending: [],
+			memoryAccumulatorGbHours: new Map(),
+			memoryPending: [],
+			storagePending: [],
+		});
+		expect(items).toEqual([]);
+	});
+});
+
+describe("flushOnShutdown", () => {
+	test("sends the accumulated items exactly once with the expected idempotency keys", async () => {
+		const seenBatches: unknown[] = [];
+		await flushOnShutdown(
+			{
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				fetchImpl: async (_url, init) => {
+					seenBatches.push(JSON.parse(String(init?.body)));
+					return new Response("{}", { status: 200 });
+				},
+			},
+			[
+				{
+					accountId: "acct_a",
+					unit: "memory.gb_hour",
+					quantity: 1.5,
+					idempotencyKey: "mem:acct_a:2026-09-26T10",
+				},
+			],
+			100,
+			5_000,
+		);
+		expect(seenBatches).toEqual([
+			{
+				items: [
+					{
+						accountId: "acct_a",
+						unit: "memory.gb_hour",
+						quantity: 1.5,
+						idempotencyKey: "mem:acct_a:2026-09-26T10",
+					},
+				],
+			},
+		]);
+	});
+
+	test("an empty item list never calls fetch", async () => {
+		let called = false;
+		await flushOnShutdown(
+			{
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				fetchImpl: async () => {
+					called = true;
+					return new Response("{}", { status: 200 });
+				},
+			},
+			[],
+			100,
+			5_000,
+		);
+		expect(called).toBe(false);
+	});
+
+	test("a flush that hangs past the timeout still resolves (never blocks process exit)", async () => {
+		const start = Date.now();
+		await flushOnShutdown(
+			{
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				fetchImpl: () => new Promise(() => {}), // never resolves
+			},
+			[
+				{
+					accountId: "acct_a",
+					unit: "webhook.event",
+					quantity: 1,
+					idempotencyKey: "evt:acct_a:hang",
+				},
+			],
+			100,
+			200,
+		);
+		expect(Date.now() - start).toBeLessThan(1_000);
 	});
 });
 

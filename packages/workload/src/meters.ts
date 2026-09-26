@@ -334,6 +334,79 @@ export async function flushAll(
 	return failed;
 }
 
+export interface ShutdownFlushState {
+	eventCounters: Map<string, EventCounter>;
+	eventPending: MeterBatchItem[];
+	memoryAccumulatorGbHours: Map<string, number>;
+	memoryPending: MeterBatchItem[];
+	storagePending: MeterBatchItem[];
+}
+
+/**
+ * Drains every meter's live in-process state into one item list for a final
+ * shutdown flush, ahead of each meter's own already-buffered retry items.
+ * Every idempotency key here is identical to what that meter's own loop
+ * would produce for "right now" (hour/day/minute-keyed), so a re-send on the
+ * next boot — before this flush's response is even known — can never
+ * double-charge (review: shutdown used to `process.exit(0)` straight past
+ * these, dropping up to an hour of memory usage plus anything already
+ * sitting in a pending buffer). Storage has no in-process accumulator to
+ * drain — each sample reads live `pg_database_size`, nothing accrues
+ * between ticks — so only its pending retry buffer is included. Mutates
+ * `state.eventCounters` (drains each counter) and clears
+ * `state.memoryAccumulatorGbHours`, mirroring what the periodic loops do.
+ */
+export function collectShutdownFlushItems(
+	state: ShutdownFlushState,
+): MeterBatchItem[] {
+	const now = new Date();
+	const items: MeterBatchItem[] = [
+		...state.eventPending,
+		...state.memoryPending,
+		...state.storagePending,
+	];
+
+	for (const [accountId, counter] of state.eventCounters) {
+		const item = eventsMeterItem(accountId, counter.drain());
+		if (item) items.push(item);
+	}
+
+	for (const [accountId, gbHours] of state.memoryAccumulatorGbHours) {
+		if (gbHours > 0) {
+			items.push({
+				accountId,
+				unit: "memory.gb_hour",
+				quantity: gbHours,
+				idempotencyKey: memoryIdempotencyKey(accountId, now),
+			});
+		}
+	}
+	state.memoryAccumulatorGbHours.clear();
+
+	return items;
+}
+
+/**
+ * Flushes shutdown items bounded by `timeoutMs` — a hung flush (e.g. a dead
+ * app-server) must never delay process exit past the deadline. `flushAll`
+ * already catches and logs a failed page's error internally (returning it
+ * unsent), so this only needs to race the whole call against the timeout;
+ * whatever didn't land in time is simply lost this restart, same as any
+ * other flush failure, just capped.
+ */
+export async function flushOnShutdown(
+	cfg: MetersClientConfig,
+	items: MeterBatchItem[],
+	maxBatch: number,
+	timeoutMs: number,
+): Promise<void> {
+	if (items.length === 0) return;
+	await Promise.race([
+		flushAll(cfg, items, maxBatch).then(() => {}),
+		new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+	]);
+}
+
 /** Default cap for a caller's retry buffer (see `mergePending`) — generous
  *  enough to ride out a long app-server deploy without ever growing memory
  *  unbounded. */
