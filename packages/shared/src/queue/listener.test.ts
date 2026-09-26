@@ -44,6 +44,26 @@ describe.skipIf(!HAS_DB)("createWakeBus", () => {
 		// Must resolve (not hang) even though no NOTIFY ever fired.
 		await pending;
 	});
+
+	test("generation() starts at 0 and increments once per NOTIFY, independent of how many waiters were pending", async () => {
+		const bus = await createWakeBus(CHANNEL);
+		try {
+			expect(bus.generation()).toBe(0);
+
+			await notify(CHANNEL);
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			expect(bus.generation()).toBe(1);
+
+			// No active waiter at all this time — the generation still ticks, so a
+			// caller that only checks it later (never having called wait()) can
+			// still tell a NOTIFY happened.
+			await notify(CHANNEL);
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			expect(bus.generation()).toBe(2);
+		} finally {
+			await bus.stop();
+		}
+	});
 });
 
 describe("createWakeBus degrades safely", () => {

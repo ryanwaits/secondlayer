@@ -77,6 +77,18 @@ export type WakeBus = {
 	/** Resolves on the next NOTIFY. A fresh promise every call — safe to call
 	 *  again immediately after it resolves. */
 	wait: () => Promise<void>;
+	/**
+	 * Monotonically increasing counter, bumped once per NOTIFY received —
+	 * before resolving any waiters pending at that moment — never decreasing,
+	 * never resetting, starting at 0. Lets a caller record "the generation as
+	 * of some point in time" and later ask "has a NOTIFY landed since then"
+	 * without having been an active `wait()`er when it happened. This closes
+	 * the check-then-wait race every poll-then-wait loop otherwise has: a
+	 * NOTIFY that fires between a caller checking for fresh state and it
+	 * registering a fresh `wait()` resolves zero waiters (nobody was
+	 * listening yet) and would otherwise be missed until the NEXT NOTIFY.
+	 */
+	generation: () => number;
 	/** Close the underlying LISTEN connection and resolve every pending waiter
 	 *  (so nothing blocks forever on shutdown). */
 	stop: () => Promise<void>;
@@ -92,9 +104,11 @@ export async function createWakeBus(
 	opts?: ListenOptions,
 ): Promise<WakeBus> {
 	let waiters = new Set<() => void>();
+	let generation = 0;
 	const stopListening = await listen(
 		channel,
 		() => {
+			generation++;
 			const pending = waiters;
 			waiters = new Set();
 			for (const resolve of pending) resolve();
@@ -103,6 +117,7 @@ export async function createWakeBus(
 	);
 	return {
 		wait: () => new Promise<void>((resolve) => waiters.add(resolve)),
+		generation: () => generation,
 		stop: async () => {
 			const pending = waiters;
 			waiters = new Set();
