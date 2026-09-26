@@ -1,5 +1,17 @@
 # @secondlayer/api
 
+## 1.43.9
+
+### Patch Changes
+
+- 1b2b5f4: Two new tenant-scoped reads for the webhook detail page. `GET /api/webhooks/:id/activity` returns 168 hours of zero-filled delivered/waiting/gave-up counts from `webhook_outbox`, plus the current queue depth, next retry, and last success. `GET /api/webhooks/:id/deliveries/:deliveryId` returns one delivery attempt with its outbox context (payload, event/tx/block, response headers), left-joined since the outbox row may already be compacted away. Both are exposed on the SDK's `Webhooks` client as `activity()` and `delivery()`.
+- b83d2b0: The webhook detail page answers "is it firing, did anything fail, and how much is piling up" directly: a stacked events-per-hour chart (delivered/waiting/gave up, 7 days), a last-100-attempts ribbon, and a catch-up bar while a backlog drains. The insight card now carries a graph as evidence for the four detectors that have one (receiver down, rate-limited, slow, running behind), each pinned to the same numbers already shown in its evidence list. Clicking a delivery opens the app's own `FloatingCard` with payload, response, and response-header tabs (client-side Shiki, loaded on first open), block/tx context, and a Copy-as-curl / Resend action. `GET /:id/deliveries/:deliveryId` now also returns `eventIndex`, read from the outbox row's `row_pk`.
+- Updated dependencies [1b2b5f4]
+- Updated dependencies [b83d2b0]
+  - @secondlayer/sdk@12.4.0
+  - @secondlayer/shared@11.13.0
+  - @secondlayer/platform@0.3.14
+
 ## 1.43.8
 
 ### Patch Changes

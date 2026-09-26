@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "12.3.0",
+	"version": "12.4.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -2039,7 +2039,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 320
+					"line": 371
 				},
 				{
 					"name": "DeliveryRow",
@@ -2055,7 +2055,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 306
+					"line": 357
 				},
 				{
 					"name": "RotateSecretResponse",
@@ -2122,6 +2122,30 @@
 					"line": 32
 				},
 				{
+					"name": "WebhookActivity",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
+					"line": 318
+				},
+				{
+					"name": "WebhookActivityHour",
+					"kind": "interface",
+					"summary": "One hour of `webhook_outbox` activity (`GET /:id/activity`), zero-filled so the events chart always has 168 bars.",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
+					"line": 311
+				},
+				{
+					"name": "WebhookDeliveryDetail",
+					"kind": "interface",
+					"summary": "One delivery attempt with its outbox context, for the delivery card (`GET /:id/deliveries/:deliveryId`).",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
+					"line": 331
+				},
+				{
 					"name": "WebhookDetail",
 					"kind": "interface",
 					"summary": "",
@@ -2175,7 +2199,7 @@
 					"summary": "Result of a one-off test delivery (`POST /:id/test`).",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 313
+					"line": 364
 				}
 			]
 		},
@@ -2483,7 +2507,7 @@
 					"summary": "",
 					"signature": "buildDoctorReport(input: object): DoctorReport",
 					"file": "src/webhooks/doctor.ts",
-					"line": 404
+					"line": 406
 				},
 				{
 					"name": "buildListIssue",
@@ -2491,7 +2515,7 @@
 					"summary": "The list page's own reduced detector: computed from `WebhookSummary` alone (no deliveries, no dead-letter rows — the list endpoint returns neither, and fetching per-row detail or deliveries here wo…",
 					"signature": "buildListIssue(webhook: object): null | DoctorIssue",
 					"file": "src/webhooks/doctor.ts",
-					"line": 527
+					"line": 529
 				},
 				{
 					"name": "consumerHealth",
@@ -2588,6 +2612,14 @@
 					"signature": null,
 					"file": "src/webhooks/doctor.ts",
 					"line": 26
+				},
+				{
+					"name": "DOWN_MIN_CONSECUTIVE",
+					"kind": "variable",
+					"summary": "",
+					"signature": null,
+					"file": "src/webhooks/doctor.ts",
+					"line": 102
 				},
 				{
 					"name": "InstanceClient",
@@ -2715,7 +2747,7 @@
 					"summary": "",
 					"signature": "Webhooks(options?: object): unknown",
 					"file": "src/webhooks/client.ts",
-					"line": 38
+					"line": 43
 				},
 				{
 					"name": "WithSinkTx",

@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/shared",
-	"version": "11.12.5",
+	"version": "11.13.0",
 	"description": "Internal building blocks shared across Secondlayer packages.",
 	"license": "MIT",
 	"repository": {

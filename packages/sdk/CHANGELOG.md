@@ -1,5 +1,17 @@
 # @secondlayer/sdk
 
+## 12.4.0
+
+### Minor Changes
+
+- 1b2b5f4: Two new tenant-scoped reads for the webhook detail page. `GET /api/webhooks/:id/activity` returns 168 hours of zero-filled delivered/waiting/gave-up counts from `webhook_outbox`, plus the current queue depth, next retry, and last success. `GET /api/webhooks/:id/deliveries/:deliveryId` returns one delivery attempt with its outbox context (payload, event/tx/block, response headers), left-joined since the outbox row may already be compacted away. Both are exposed on the SDK's `Webhooks` client as `activity()` and `delivery()`.
+
+### Patch Changes
+
+- Updated dependencies [1b2b5f4]
+- Updated dependencies [b83d2b0]
+  - @secondlayer/shared@11.13.0
+
 ## 12.3.0
 
 ### Minor Changes
