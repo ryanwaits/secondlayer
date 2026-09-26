@@ -1,10 +1,24 @@
 "use client";
 
+import {
+	deliveryLagSeries,
+	formatUtcDateTime,
+	formatUtcTime,
+	rateLimitedShareByHour,
+	responseTimeHistogram,
+} from "@/lib/webhook-graphs";
 import type {
+	DeliveryRow,
 	DoctorIssue,
 	DoctorIssueCode,
+	WebhookActivity,
 	WebhookDetail,
 } from "@secondlayer/sdk";
+import type { LivelinePoint } from "liveline";
+import { LivelineWaitingChart } from "./charts/liveline-waiting-chart";
+import { MonoHistogramChart } from "./charts/mono-histogram-chart";
+import { MonoLagLineChart } from "./charts/mono-lag-line-chart";
+import { MonoShareBarChart } from "./charts/mono-share-bar-chart";
 import { CliLine } from "./shared";
 
 /**
@@ -120,11 +134,137 @@ function legacyCommand(
 	return undefined;
 }
 
+/** Flag graphs (plan 070): shown only for the four codes with a detector
+ *  window to visualize, right after the evidence `<dl>`. Every number in a
+ *  header is either fixed (a rule's threshold) or read straight from
+ *  `primary.evidence` — never recomputed, so it can't disagree with it. */
+function FlagGraph({
+	primary,
+	webhook,
+	deliveries,
+	activity,
+	waitingHistory,
+}: {
+	primary: DoctorIssue;
+	webhook: WebhookDetail;
+	deliveries: DeliveryRow[];
+	activity: WebhookActivity | null;
+	waitingHistory: { t: number; waiting: number }[];
+}) {
+	if (primary.code === "receiver_down") {
+		const points: LivelinePoint[] = waitingHistory.map((p) => ({
+			time: Math.floor(p.t / 1000),
+			value: p.waiting,
+		}));
+		const value =
+			activity?.waiting ??
+			waitingHistory[waitingHistory.length - 1]?.waiting ??
+			0;
+		const lastSuccessLabel = evidenceValue(primary, "last success");
+		return (
+			<div className="wh-chart">
+				<div className="wh-chart-top">
+					<span>
+						Events waiting since the last success{" "}
+						<span className="wh-live">live</span>
+					</span>
+					<span className="mono">{value.toLocaleString("en-US")} waiting</span>
+				</div>
+				<LivelineWaitingChart data={points} value={value} />
+				<div className="wh-chart-ends">
+					<span>
+						{activity?.lastSuccessAt
+							? formatUtcTime(activity.lastSuccessAt)
+							: (lastSuccessLabel ?? "unknown")}
+						, last success
+					</span>
+					<span>now</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (primary.code === "receiver_rate_limited") {
+		const hours = rateLimitedShareByHour(deliveries);
+		return (
+			<div className="wh-chart">
+				<div className="wh-chart-top">
+					<span>Share of attempts answered 429, per hour</span>
+					<span className="mono">dashed line = 50%, the rule's threshold</span>
+				</div>
+				<MonoShareBarChart hours={hours} />
+				<div className="wh-chart-ends">
+					<span>oldest</span>
+					<span>now</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (primary.code === "receiver_slow") {
+		const { bins, median } = responseTimeHistogram(
+			deliveries,
+			webhook.timeoutMs,
+		);
+		const medianLabel = evidenceValue(primary, "median response time");
+		const timeoutLabel = evidenceValue(primary, "timeout");
+		return (
+			<div className="wh-chart">
+				<div className="wh-chart-top">
+					<span>Response time, last 100 attempts</span>
+					<span className="mono">
+						median {medianLabel} · timeout {timeoutLabel}
+					</span>
+				</div>
+				<MonoHistogramChart
+					bins={bins}
+					median={median}
+					timeoutMs={webhook.timeoutMs}
+				/>
+				<div className="wh-legend">
+					<span>
+						<i style={{ background: "var(--fig-role-a)" }} />
+						median
+					</span>
+					<span>
+						<i style={{ background: "var(--fig-alarm)" }} />
+						timeout
+					</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (primary.code === "delivery_lag") {
+		const points = deliveryLagSeries(deliveries);
+		const medianLabel = evidenceValue(primary, "median lag");
+		return (
+			<div className="wh-chart">
+				<div className="wh-chart-top">
+					<span>Block to delivery, newest 40 events</span>
+					<span className="mono">median {medianLabel}</span>
+				</div>
+				<MonoLagLineChart points={points} />
+				<div className="wh-chart-ends">
+					<span>older</span>
+					<span>dashed line = 60 s, the rule's threshold</span>
+					<span>newest</span>
+				</div>
+			</div>
+		);
+	}
+
+	return null;
+}
+
 export function DiagnosisPanel({
 	webhook,
 	issues,
 	primary,
 	deadCount,
+	deliveries = [],
+	activity = null,
+	waitingHistory = [],
 }: {
 	webhook: WebhookDetail;
 	/** The full report — the primary leads the card; everything else
@@ -132,12 +272,34 @@ export function DiagnosisPanel({
 	issues: DoctorIssue[];
 	primary: DoctorIssue | null;
 	deadCount: number;
+	/** The deliveries window already fetched — feeds the flag graphs. */
+	deliveries?: DeliveryRow[];
+	/** Live queue depth from `/activity` — feeds `receiver_down`'s graph. */
+	activity?: WebhookActivity | null;
+	/** This page session's `/activity` polls, oldest first — the
+	 *  `receiver_down` graph's live series. */
+	waitingHistory?: { t: number; waiting: number }[];
 }) {
 	if (!primary) return null;
 
 	const lede = primaryLede(primary, webhook, deadCount);
 	const command = primary.fix?.command ?? legacyCommand(primary, webhook);
 	const rest = issues.filter((i) => i !== primary);
+	const extraEvidence =
+		primary.code === "receiver_down"
+			? [
+					{
+						label: "waiting",
+						value: `${(activity?.waiting ?? 0).toLocaleString("en-US")} events`,
+					},
+					{
+						label: "next retry",
+						value: activity?.nextAttemptAt
+							? formatUtcDateTime(activity.nextAttemptAt)
+							: "none scheduled",
+					},
+				]
+			: [];
 
 	return (
 		<section
@@ -149,9 +311,10 @@ export function DiagnosisPanel({
 				<p className="l">{lede}</p>
 			</div>
 
-			{primary.evidence && primary.evidence.length > 0 ? (
+			{(primary.evidence && primary.evidence.length > 0) ||
+			extraEvidence.length > 0 ? (
 				<dl className="wh-insight-evidence">
-					{primary.evidence.map((e) => (
+					{[...(primary.evidence ?? []), ...extraEvidence].map((e) => (
 						<div key={e.label}>
 							<dt>{e.label}</dt>
 							<dd>{e.value}</dd>
@@ -159,6 +322,14 @@ export function DiagnosisPanel({
 					))}
 				</dl>
 			) : null}
+
+			<FlagGraph
+				primary={primary}
+				webhook={webhook}
+				deliveries={deliveries}
+				activity={activity}
+				waitingHistory={waitingHistory}
+			/>
 
 			{primary.fix?.text ? (
 				<p className="wh-insight-fix">{primary.fix.text}</p>

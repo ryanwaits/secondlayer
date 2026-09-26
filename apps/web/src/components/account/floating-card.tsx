@@ -23,7 +23,8 @@ export function FloatingCard({
 }: {
 	open: boolean;
 	onClose: () => void;
-	title: string;
+	/** Usually plain text; the delivery card adds a status dot beside it. */
+	title: React.ReactNode;
 	subtitle?: React.ReactNode;
 	/** The full page for this job, opened by the expand button. Omitted when
 	 *  the card has no page of its own (the delivery card) — the expand

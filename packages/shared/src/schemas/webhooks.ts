@@ -839,8 +839,9 @@ export interface WebhookActivity {
 
 /** One delivery attempt with its outbox context, for the delivery card
  *  (`GET /:id/deliveries/:deliveryId`). `payload`/`outboxId`/`eventType`/
- *  `txId`/`blockHeight`/`blockTime` are null once the outbox row is gone
- *  (compacted after 7 days) or for a test delivery, which never had one. */
+ *  `txId`/`blockHeight`/`blockTime`/`eventIndex` are null once the outbox
+ *  row is gone (compacted after 7 days) or for a test delivery, which never
+ *  had one. */
 export interface WebhookDeliveryDetail {
 	id: string;
 	attempt: number;
@@ -855,6 +856,11 @@ export interface WebhookDeliveryDetail {
 	txId: string | null;
 	blockHeight: number | null;
 	blockTime: string | null;
+	/** The row's position within its block/tx, from the outbox's `row_pk`
+	 *  (`rowIndex` for a subgraph row, `event_index` for a chain-trigger
+	 *  row). Null when `row_pk` carries neither — a settlement or reorg
+	 *  outbox row, or no outbox row at all. */
+	eventIndex: number | null;
 	payload: unknown | null;
 }
 

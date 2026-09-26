@@ -219,6 +219,20 @@ export function deliveryLagSeries(rows: DeliveryRow[]): LagPoint[] {
 		.reverse();
 }
 
+// ── Shared date/time formatting (flag graphs + their evidence) ───────
+
+/** "2026-04-23 14:06 UTC" — matches the doctor's own evidence formatting
+ *  (`@secondlayer/sdk/webhooks/doctor`'s `formatShortDate`), so a value we
+ *  add here never reads differently from one the detector already prints. */
+export function formatUtcDateTime(iso: string): string {
+	return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
+}
+
+/** "14:06 UTC" — the axis-label form, no date. */
+export function formatUtcTime(iso: string): string {
+	return `${iso.slice(11, 16)} UTC`;
+}
+
 // ── Catch-up bar ───────────────────────────────────────────────────────
 
 export interface CatchUpPoll {

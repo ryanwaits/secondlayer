@@ -546,6 +546,16 @@ app.get("/:id/activity", async (c) => {
 // (payload, event/tx/block info), left-joined since the outbox row may
 // already be compacted away (7-day retention on delivered rows).
 
+/** A subgraph row's `row_pk` carries `rowIndex`; a chain-trigger row carries
+ *  `event_index`. Settlement and reorg rows carry neither. */
+function eventIndexFromRowPk(rowPk: unknown): number | null {
+	if (!rowPk || typeof rowPk !== "object") return null;
+	const pk = rowPk as Record<string, unknown>;
+	if (typeof pk.rowIndex === "number") return pk.rowIndex;
+	if (typeof pk.event_index === "number") return pk.event_index;
+	return null;
+}
+
 app.get("/:id/deliveries/:deliveryId", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
@@ -574,6 +584,7 @@ app.get("/:id/deliveries/:deliveryId", async (c) => {
 			"o.tx_id",
 			"o.block_height",
 			"o.block_time",
+			"o.row_pk",
 			"o.payload",
 		])
 		.where("d.id", "=", deliveryId)
@@ -595,6 +606,7 @@ app.get("/:id/deliveries/:deliveryId", async (c) => {
 		txId: row.tx_id,
 		blockHeight: row.block_height === null ? null : Number(row.block_height),
 		blockTime: row.block_time === null ? null : row.block_time.toISOString(),
+		eventIndex: eventIndexFromRowPk(row.row_pk),
 		payload: row.payload ?? null,
 	});
 });

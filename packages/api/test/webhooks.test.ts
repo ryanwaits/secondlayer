@@ -573,6 +573,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			payload: unknown;
 			blockTime: string | null;
 			responseHeaders: Record<string, string> | null;
+			eventIndex: number | null;
 		};
 		expect(detail.outboxId).toBe(outbox.id);
 		expect(detail.payload).toEqual({ amount: "1" });
@@ -580,6 +581,71 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		expect(detail.responseHeaders).toEqual({
 			"content-type": "application/json",
 		});
+		expect(detail.eventIndex).toBe(0);
+	});
+
+	test("delivery detail reads a chain-trigger row's event_index, not just a subgraph row's rowIndex", async () => {
+		const webhookId = await createTestWebhook("delivery-detail-chain-index");
+		const db = getDb();
+		const outbox = await db
+			.insertInto("webhook_outbox")
+			.values(
+				outboxRow({
+					webhook_id: webhookId,
+					dedup_key: "delivery-detail-chain-index-outbox",
+					row_pk: { tx_id: "0xchain", event_index: 3 },
+				}),
+			)
+			.returning("id")
+			.executeTakeFirstOrThrow();
+		const delivery = await db
+			.insertInto("webhook_deliveries")
+			.values({
+				webhook_id: webhookId,
+				outbox_id: outbox.id,
+				attempt: 1,
+				status_code: 200,
+			})
+			.returning("id")
+			.executeTakeFirstOrThrow();
+
+		const res = await app.request(
+			`/webhooks/${webhookId}/deliveries/${delivery.id}`,
+		);
+		const detail = (await res.json()) as { eventIndex: number | null };
+		expect(detail.eventIndex).toBe(3);
+	});
+
+	test("delivery detail's event index is null when row_pk carries neither shape", async () => {
+		const webhookId = await createTestWebhook("delivery-detail-no-index");
+		const db = getDb();
+		const outbox = await db
+			.insertInto("webhook_outbox")
+			.values(
+				outboxRow({
+					webhook_id: webhookId,
+					dedup_key: "delivery-detail-no-index-outbox",
+					row_pk: { sweep_txid: "0xsweep" },
+				}),
+			)
+			.returning("id")
+			.executeTakeFirstOrThrow();
+		const delivery = await db
+			.insertInto("webhook_deliveries")
+			.values({
+				webhook_id: webhookId,
+				outbox_id: outbox.id,
+				attempt: 1,
+				status_code: 200,
+			})
+			.returning("id")
+			.executeTakeFirstOrThrow();
+
+		const res = await app.request(
+			`/webhooks/${webhookId}/deliveries/${delivery.id}`,
+		);
+		const detail = (await res.json()) as { eventIndex: number | null };
+		expect(detail.eventIndex).toBeNull();
 	});
 
 	test("delivery detail reports a null payload once the outbox row is gone", async () => {

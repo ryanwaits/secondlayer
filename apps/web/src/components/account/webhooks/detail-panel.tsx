@@ -2,8 +2,14 @@
 
 import { formatDate } from "@/lib/account-data";
 import {
+	activityHeaderSummary,
+	catchUpCopy,
+	catchUpState,
+} from "@/lib/webhook-graphs";
+import {
 	deleteWebhook,
 	formatRelative,
+	getActivity,
 	getDead,
 	getDeliveries,
 	getWebhook,
@@ -18,6 +24,7 @@ import NumberFlow from "@number-flow/react";
 import type {
 	DeadRow,
 	DeliveryRow,
+	WebhookActivity,
 	WebhookDetail,
 	WebhookFormat,
 } from "@secondlayer/sdk";
@@ -29,8 +36,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AttemptsChart, medianOkDurationMs } from "./chart";
+import { MonoStackedBarChart } from "./charts/mono-stacked-bar-chart";
+import { DeliveryCard } from "./delivery-card";
 import { DiagnosisPanel } from "./diagnosis";
+import { AttemptRibbon } from "./ribbon";
 import { CliLine, FiresOn, StatusPill } from "./shared";
 
 /** A one-line, user-facing reason for anything short of `{ kind: "ok" }` —
@@ -57,6 +66,18 @@ const FORMAT_LABEL: Record<WebhookFormat, string> = {
 	cloudevents: "CloudEvents envelope",
 	raw: "Raw JSON payload",
 };
+
+/** Response time, oldest → newest, over the deliveries the page already
+ *  fetched — moved here (from the deleted `chart.tsx`) since only the
+ *  "Median response" stat still needs it. */
+function medianOkDurationMs(rows: DeliveryRow[]): number {
+	const durations = rows
+		.filter(isSuccessDelivery)
+		.map((r) => r.durationMs ?? 0)
+		.sort((a, b) => a - b);
+	if (durations.length === 0) return 0;
+	return durations[Math.floor(durations.length / 2)] ?? 0;
+}
 
 type DetailState =
 	| { kind: "loading" }
@@ -119,6 +140,15 @@ function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** One `/activity` poll, kept client-side for the session — the catch-up
+ *  bar's rate and the `receiver_down` graph's live line both read this. */
+interface WaitingPoll {
+	t: number;
+	waiting: number;
+}
+
+const WAITING_HISTORY_LIMIT = 180; // ~15 minutes at the 5s poll cadence
+
 export function WebhookDetailSection({ id }: { id: string }) {
 	const router = useRouter();
 	const { state, reload } = useWebhookDetail(id);
@@ -127,6 +157,16 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	const [deliveries, setDeliveries] = useState<DeliveryRow[] | null>(null);
 	const [dead, setDead] = useState<DeadRow[] | null>(null);
 	const [tab, setTab] = useState<"deliveries" | "failed">("deliveries");
+
+	const [activity, setActivity] = useState<WebhookActivity | null>(null);
+	const [waitingHistory, setWaitingHistory] = useState<WaitingPoll[]>([]);
+	const [peakWaiting, setPeakWaiting] = useState(0);
+	const sawNoCreditsRef = useRef(false);
+
+	const [showAllDeliveries, setShowAllDeliveries] = useState(false);
+	const [openDeliveryIndex, setOpenDeliveryIndex] = useState<number | null>(
+		null,
+	);
 
 	const [testBusy, setTestBusy] = useState(false);
 	const [testResult, setTestResult] = useState<{
@@ -170,6 +210,75 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			stopped = true;
 		};
 	}, [webhook, id]);
+
+	useEffect(() => {
+		if (state.kind === "no_credits") sawNoCreditsRef.current = true;
+	}, [state.kind]);
+
+	const rows = deliveries ?? [];
+	const deadRows = dead ?? [];
+	// `subgraph: null` — the dashboard never fetches subgraph status, so the
+	// two subgraph issue codes (subgraph_gaps/subgraph_catching_up) never fire
+	// here; the CLI passes the real subgraph status and can see them.
+	const report = webhook
+		? buildDoctorReport({
+				webhook,
+				deliveries: rows,
+				dead: deadRows,
+				subgraph: null,
+			})
+		: null;
+	const primary = report?.primary ?? null;
+
+	// Kept current every render so the polling effect below (which must stay
+	// mounted for the page's whole life, not restart on every state change)
+	// always sees this render's answer to "should we still be polling".
+	const pollActiveRef = useRef(false);
+	pollActiveRef.current =
+		activity !== null && activity.waiting > 0
+			? true
+			: primary?.code === "receiver_down";
+
+	useEffect(() => {
+		if (!webhook) return;
+		let stopped = false;
+
+		function record(data: WebhookActivity) {
+			if (stopped) return;
+			setActivity(data);
+			setPeakWaiting((prev) => Math.max(prev, data.waiting));
+			setWaitingHistory((prev) =>
+				[...prev, { t: Date.now(), waiting: data.waiting }].slice(
+					-WAITING_HISTORY_LIMIT,
+				),
+			);
+		}
+
+		// Seed once immediately, regardless of whether polling continues.
+		getActivity(id).then((res) => {
+			if (res.kind === "ok") record(res.data);
+		});
+
+		const interval = setInterval(async () => {
+			if (stopped) return;
+			if (document.visibilityState !== "visible") return;
+			if (!pollActiveRef.current) return;
+			const res = await getActivity(id);
+			if (res.kind === "ok") record(res.data);
+		}, 5000);
+
+		return () => {
+			stopped = true;
+			clearInterval(interval);
+		};
+	}, [webhook, id]);
+
+	const lastTwoPolls = waitingHistory.slice(-2);
+	const isCatchingUp =
+		activity !== null &&
+		activity.waiting >= 100 &&
+		lastTwoPolls.length === 2 &&
+		(lastTwoPolls[1]?.waiting ?? 0) < (lastTwoPolls[0]?.waiting ?? 0);
 
 	if (state.kind === "loading") return null;
 
@@ -221,7 +330,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		return <p className="acct-error">{state.message}</p>;
 	}
 
-	if (!webhook) return null;
+	if (!webhook || !report) return null;
 
 	async function onTest() {
 		setTestBusy(true);
@@ -342,22 +451,20 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		}
 	}
 
-	const rows = deliveries ?? [];
 	const okCount = rows.filter(isSuccessDelivery).length;
 	const median = medianOkDurationMs(rows);
-	const deadRows = dead ?? [];
-	// `subgraph: null` — the dashboard never fetches subgraph status, so the
-	// two subgraph issue codes (subgraph_gaps/subgraph_catching_up) never fire
-	// here; the CLI passes the real subgraph status and can see them.
-	const report = buildDoctorReport({
-		webhook,
-		deliveries: rows,
-		dead: deadRows,
-		subgraph: null,
-	});
-	const issues = report.issues;
-	const primary = report.primary;
 	const deadCount = deadRows.length;
+	const issues = report.issues;
+
+	const visibleDeliveries = showAllDeliveries ? rows : rows.slice(0, 5);
+	const eventsDeliveredThisWindow = activity
+		? activity.hours.reduce((sum, h) => sum + h.delivered, 0)
+		: null;
+
+	const catchUp =
+		isCatchingUp && activity
+			? catchUpState(peakWaiting, activity.waiting, waitingHistory)
+			: null;
 
 	return (
 		<>
@@ -399,33 +506,93 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			) : null}
 			{actionError ? <p className="acct-error">{actionError}</p> : null}
 
+			{catchUp ? (
+				<output className="wh-catchup">
+					<p className="wh-catchup-t">
+						<span>
+							{sawNoCreditsRef.current
+								? "Catching up after your top-up"
+								: "Catching up"}
+						</span>
+						<span className="wh-live">live</span>
+					</p>
+					<div className="wh-catchup-bar">
+						<b style={{ width: `${Math.round(catchUp.progress * 100)}%` }} />
+					</div>
+					<p className="wh-catchup-l">{catchUpCopy(catchUp)}</p>
+				</output>
+			) : null}
+
 			<DiagnosisPanel
 				webhook={webhook}
 				issues={issues}
 				primary={primary}
 				deadCount={deadCount}
+				deliveries={rows}
+				activity={activity}
+				waitingHistory={waitingHistory}
 			/>
 
-			<div className="wh-chart">
-				<div className="wh-chart-top">
-					<span>Last 100 attempts</span>
-					<span className="mono">
-						<NumberFlow value={okCount} /> ok · median{" "}
-						<NumberFlow value={median} /> ms
+			<div className="acct-stats">
+				<div className="acct-stat">
+					<span className="acct-stat-k">Delivered, last 7 days</span>
+					<span className="acct-stat-v">
+						{eventsDeliveredThisWindow !== null ? (
+							<NumberFlow value={eventsDeliveredThisWindow} />
+						) : (
+							"–"
+						)}
 					</span>
 				</div>
-				<AttemptsChart rows={rows} />
-				<div className="wh-legend">
-					<span>
-						<i style={{ background: "var(--accent-blue)" }} />
-						2xx, bar height is response time
+				<div className="acct-stat">
+					<span className="acct-stat-k">Ok, last 100 attempts</span>
+					<span className="acct-stat-v">
+						<NumberFlow value={okCount} /> <small>of {rows.length}</small>
 					</span>
-					<span>
-						<i style={{ background: "var(--red)" }} />
-						error or timeout
+				</div>
+				<div className="acct-stat">
+					<span className="acct-stat-k">Median response</span>
+					<span className="acct-stat-v">
+						<NumberFlow value={median} /> <small>ms</small>
+					</span>
+				</div>
+				<div className="acct-stat">
+					<span className="acct-stat-k">Failed events</span>
+					<span className="acct-stat-v">
+						<NumberFlow value={deadCount} />
 					</span>
 				</div>
 			</div>
+
+			<div className="wh-chart">
+				<div className="wh-chart-top">
+					<span>Events, last 7 days</span>
+					<span className="mono">
+						{activity ? activityHeaderSummary(activity.hours) : "…"}
+					</span>
+				</div>
+				<MonoStackedBarChart data={activity?.hours ?? []} />
+				<div className="wh-legend">
+					<span>
+						<i style={{ background: "var(--fig-bar)" }} />
+						delivered
+					</span>
+					<span>
+						<i style={{ background: "var(--fig-role-a)" }} />
+						waiting to send
+					</span>
+					<span>
+						<i style={{ background: "var(--fig-alarm)" }} />
+						gave up after every retry
+					</span>
+					<span>
+						One bar per hour. Each event is one POST and one billed event;
+						retries are free.
+					</span>
+				</div>
+			</div>
+
+			<AttemptRibbon rows={rows} />
 
 			<dl className="wh-facts">
 				<dt>Fires on</dt>
@@ -488,7 +655,17 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			</div>
 			<div role="tabpanel">
 				{tab === "deliveries" ? (
-					<DeliveriesTable rows={rows} />
+					<DeliveriesTable
+						allRows={rows}
+						visibleRows={visibleDeliveries}
+						showAll={showAllDeliveries}
+						onToggleShowAll={() => {
+							setShowAllDeliveries((v) => !v);
+							setOpenDeliveryIndex(null);
+						}}
+						openIndex={openDeliveryIndex}
+						onOpen={(i) => setOpenDeliveryIndex(i)}
+					/>
 				) : (
 					<FailedEventsTable
 						rows={dead ?? []}
@@ -501,6 +678,16 @@ export function WebhookDetailSection({ id }: { id: string }) {
 					/>
 				)}
 			</div>
+
+			<DeliveryCard
+				webhookId={id}
+				webhookUrl={webhook.url}
+				maxRetries={webhook.maxRetries}
+				rows={visibleDeliveries}
+				openIndex={openDeliveryIndex}
+				onClose={() => setOpenDeliveryIndex(null)}
+				onNavigate={(i) => setOpenDeliveryIndex(i)}
+			/>
 
 			<div className="wh-danger">
 				{rotating === "revealed" && newSecret ? (
@@ -630,8 +817,22 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	);
 }
 
-function DeliveriesTable({ rows }: { rows: DeliveryRow[] }) {
-	if (rows.length === 0) {
+function DeliveriesTable({
+	allRows,
+	visibleRows,
+	showAll,
+	onToggleShowAll,
+	openIndex,
+	onOpen,
+}: {
+	allRows: DeliveryRow[];
+	visibleRows: DeliveryRow[];
+	showAll: boolean;
+	onToggleShowAll: () => void;
+	openIndex: number | null;
+	onOpen: (index: number) => void;
+}) {
+	if (allRows.length === 0) {
 		return (
 			<div className="wh-empty" style={{ marginTop: 12 }}>
 				<p>No deliveries yet.</p>
@@ -645,17 +846,30 @@ function DeliveriesTable({ rows }: { rows: DeliveryRow[] }) {
 					<thead>
 						<tr>
 							<th>Sent</th>
-							<th>Block time</th>
+							<th>Block</th>
 							<th className="num">Try</th>
 							<th>Response</th>
 							<th className="num">Time</th>
+							<th />
 						</tr>
 					</thead>
 					<tbody>
-						{rows.map((r) => {
+						{visibleRows.map((r, i) => {
 							const ok = r.statusCode !== null && r.statusCode < 300;
 							return (
-								<tr key={r.id}>
+								<tr
+									key={r.id}
+									className="link"
+									tabIndex={0}
+									aria-selected={openIndex === i}
+									onClick={() => onOpen(i)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" || e.key === " ") {
+											e.preventDefault();
+											onOpen(i);
+										}
+									}}
+								>
 									<td className="m">
 										{r.dispatchedAt.replace("T", " ").slice(0, 19)}
 									</td>
@@ -672,14 +886,9 @@ function DeliveriesTable({ rows }: { rows: DeliveryRow[] }) {
 										{r.errorMessage ? (
 											<span className="dim"> {r.errorMessage}</span>
 										) : null}
-										{r.responseBody ? (
-											<details className="wh-body">
-												<summary>Response body</summary>
-												<pre>{r.responseBody}</pre>
-											</details>
-										) : null}
 									</td>
 									<td className="num">{r.durationMs ?? "–"} ms</td>
+									<td className="num">›</td>
 								</tr>
 							);
 						})}
@@ -687,7 +896,17 @@ function DeliveriesTable({ rows }: { rows: DeliveryRow[] }) {
 				</table>
 			</div>
 			<p className="acct-fine left" style={{ marginTop: 8 }}>
-				Latest 100 attempts are kept. Retries are free.
+				Latest 100 attempts are kept. Retries are free.{" "}
+				{allRows.length > 5 ? (
+					<button
+						type="button"
+						className="acct-btn line small"
+						style={{ marginLeft: 8 }}
+						onClick={onToggleShowAll}
+					>
+						{showAll ? "Show latest 5" : `View all ${allRows.length}`}
+					</button>
+				) : null}
 			</p>
 		</>
 	);

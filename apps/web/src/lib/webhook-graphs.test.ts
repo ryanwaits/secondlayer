@@ -6,6 +6,8 @@ import {
 	catchUpCopy,
 	catchUpState,
 	deliveryLagSeries,
+	formatUtcDateTime,
+	formatUtcTime,
 	rateLimitedShareByHour,
 	responseTimeHistogram,
 	ribbonCells,
@@ -262,5 +264,13 @@ describe("catchUpState and catchUpCopy", () => {
 		const state = catchUpState(0, 0, []);
 		expect(state.progress).toBe(0);
 		expect(state.sentSoFar).toBe(0);
+	});
+});
+
+describe("formatUtcDateTime and formatUtcTime", () => {
+	test("formats the date and time, or just the time, both UTC", () => {
+		const iso = "2026-04-23T14:06:10.000Z";
+		expect(formatUtcDateTime(iso)).toBe("2026-04-23 14:06 UTC");
+		expect(formatUtcTime(iso)).toBe("14:06 UTC");
 	});
 });

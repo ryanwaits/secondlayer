@@ -34,7 +34,7 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.9.0",
+      "version": "0.9.1",
       "dependencies": {
         "@mdx-js/loader": "^3.1.1",
         "@mdx-js/react": "^3.1.1",
@@ -42,6 +42,8 @@
         "@number-flow/react": "^0.6.2",
         "@secondlayer/sdk": "workspace:*",
         "@secondlayer/stacks": "workspace:*",
+        "@shikijs/langs": "4.0.2",
+        "liveline": "0.0.7",
         "next": "16.3.5",
         "posthog-js": "^1.407.2",
         "react": "19.2.4",
@@ -62,7 +64,7 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.43.7",
+      "version": "1.43.8",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@aws-sdk/s3-request-presigner": "3.1042.0",
@@ -189,7 +191,7 @@
     },
     "packages/platform": {
       "name": "@secondlayer/platform",
-      "version": "0.3.12",
+      "version": "0.3.13",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.17",
@@ -216,7 +218,7 @@
       "name": "@secondlayer/sdk",
       "version": "12.3.0",
       "dependencies": {
-        "@secondlayer/shared": "^11.11.0",
+        "@secondlayer/shared": "^11.12.4",
         "@secondlayer/stacks": "^6.1.0",
         "@secondlayer/subgraphs": "^6.2.0",
       },
@@ -241,7 +243,7 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "11.12.4",
+      "version": "11.12.5",
       "dependencies": {
         "@secondlayer/stacks": "^6.1.0",
         "kysely": "0.28.17",
@@ -284,9 +286,9 @@
     },
     "packages/subgraphs": {
       "name": "@secondlayer/subgraphs",
-      "version": "6.2.5",
+      "version": "6.2.6",
       "dependencies": {
-        "@secondlayer/shared": "^11.12.2",
+        "@secondlayer/shared": "^11.12.5",
         "@secondlayer/stacks": "^6.1.0",
         "esbuild": "^0.28.2",
         "kysely": "0.28.17",
@@ -299,7 +301,7 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.3.19",
+      "version": "1.3.20",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
         "@secondlayer/shared": "^11.6.0",
@@ -313,7 +315,7 @@
     },
     "packages/workload": {
       "name": "@secondlayer/workload",
-      "version": "0.0.13",
+      "version": "0.0.14",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
         "@secondlayer/shared": "^11.8.1",
@@ -2080,6 +2082,8 @@
     "lightningcss-win32-arm64-msvc": ["lightningcss-win32-arm64-msvc@1.33.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-1K+MPfLSFVpphzpdbfkhlWk6wBrTObBzS2T6db10PNOZgR9GoVsAWzwNyuhUYYbTp23j+4RrncfujZ4uAzXvwA=="],
 
     "lightningcss-win32-x64-msvc": ["lightningcss-win32-x64-msvc@1.33.0", "", { "os": "win32", "cpu": "x64" }, "sha512-OlEICDx/Xl0FqSp4bry8zFnCvGpig3Gl4gCquvYwHuqJKEC1+n9NgDniFvqHGmMv1ZkqDJrDqKKSykTDX+ehuA=="],
+
+    "liveline": ["liveline@0.0.7", "", { "peerDependencies": { "react": ">=18" } }, "sha512-S1Weo1kmefiOCNaW/WFXErqJXlV8A/ldIkIthaOeT57I2ZhqhKLKQDJ1wfabtMSK9vJeU8PeMNHd8Sr8TLByWQ=="],
 
     "locate-path": ["locate-path@5.0.0", "", { "dependencies": { "p-locate": "^4.1.0" } }, "sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g=="],
 

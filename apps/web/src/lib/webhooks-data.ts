@@ -2,6 +2,8 @@ import type {
 	DeadRow,
 	DeliveryRow,
 	RotateSecretResponse,
+	WebhookActivity,
+	WebhookDeliveryDetail,
 	WebhookDetail,
 	WebhookSummary,
 	WebhookTestResult,
@@ -104,6 +106,21 @@ export async function getDeliveries(
 
 export function getDead(id: string): Promise<WebhooksResult<DeadRow[]>> {
 	return requestList<DeadRow>(`/${encodeURIComponent(id)}/dead`);
+}
+
+export function getActivity(
+	id: string,
+): Promise<WebhooksResult<WebhookActivity>> {
+	return request<WebhookActivity>(`/${encodeURIComponent(id)}/activity`);
+}
+
+export function getDelivery(
+	id: string,
+	deliveryId: string,
+): Promise<WebhooksResult<WebhookDeliveryDetail>> {
+	return request<WebhookDeliveryDetail>(
+		`/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(deliveryId)}`,
+	);
 }
 
 export function testWebhook(
