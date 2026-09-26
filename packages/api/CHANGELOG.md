@@ -1,5 +1,15 @@
 # @secondlayer/api
 
+## 1.43.3
+
+### Patch Changes
+
+- Updated dependencies [8152489]
+- Updated dependencies [8152489]
+  - @secondlayer/indexer@1.16.0
+  - @secondlayer/shared@11.12.0
+  - @secondlayer/platform@0.3.8
+
 ## 1.43.2
 
 ### Patch Changes
