@@ -1,5 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import type { StreamsClient } from "@secondlayer/sdk";
+import { getDb, sql } from "@secondlayer/shared/db";
 import type {
 	StreamsEvent,
 	StreamsEventType,
@@ -18,6 +19,9 @@ import {
 	consumeStxMintDecodedEvents,
 	consumeStxTransferDecodedEvents,
 } from "./decoder.ts";
+import { FT_TRANSFER_DECODER_NAME, readDecoderCheckpoint } from "./storage.ts";
+
+const HAS_DB = !!process.env.DATABASE_URL;
 
 function streamsClientSpy(
 	onTypes: (types: readonly StreamsEventType[] | undefined) => void,
@@ -164,6 +168,91 @@ describe("L2 decoder Streams filters", () => {
 		});
 
 		expect(result.decoded).toBe(0);
+	});
+});
+
+describe.skipIf(!HAS_DB)("short-page sentinel commit", () => {
+	const db = HAS_DB ? getDb() : null;
+
+	beforeEach(async () => {
+		if (!db) return;
+		await sql`DELETE FROM decoded_events`.execute(db);
+		await sql`DELETE FROM decoder_checkpoints`.execute(db);
+	});
+
+	test("a block's only page, shorter than the requested batch size, reaches the sentinel in one fetch", async () => {
+		if (!db) return;
+		const event = {
+			cursor: "5:0",
+			block_height: 5,
+			block_hash: "0x05",
+			burn_block_height: 5,
+			tx_id: "0xabc",
+			tx_index: 0,
+			event_index: 0,
+			event_type: "ft_transfer",
+			contract_id: "SP1.token",
+			ts: "2026-09-25T00:00:00.000Z",
+			payload: {
+				asset_identifier: "SP1.token::token",
+				sender: "SP1",
+				recipient: "SP2",
+				amount: "1",
+			},
+		} as unknown as StreamsEvent;
+		const chainTip = {
+			block_height: 5,
+			block_hash: "0x05",
+			burn_block_height: 5,
+			lag_seconds: 0,
+		};
+
+		let fetches = 0;
+		const base = streamsClientSpy(() => {});
+		const streamsClient: StreamsClient = {
+			...base,
+			events: {
+				...base.events,
+				consume: async (params) => {
+					fetches++;
+					const nextCursor = await params.onBatch?.(
+						[event] as Parameters<NonNullable<typeof params.onBatch>>[0],
+						{ events: [event], next_cursor: "5:0", tip: chainTip, reorgs: [] },
+						{
+							cursor: null,
+							height: 5,
+							tipHeight: 5,
+							blocksBehind: 0,
+						} as Parameters<typeof params.onBatch>[2],
+					);
+					return {
+						cursor: (nextCursor as string) ?? null,
+						pages: 1,
+						emptyPolls: 0,
+					};
+				},
+			},
+		};
+
+		const result = await consumeFtTransferDecodedEvents({
+			db,
+			streamsClient,
+			fromCursor: "0:0",
+			batchSize: 500,
+			maxPages: 1,
+		});
+
+		// One fetch, and the commit landed on the end-of-block sentinel — no
+		// follow-up empty poll needed to confirm block 5 is done.
+		expect(fetches).toBe(1);
+		expect(result.decoded).toBe(1);
+		expect(result.cursor).toBe("5:2147483647");
+		expect(
+			await readDecoderCheckpoint({
+				db,
+				decoderName: FT_TRANSFER_DECODER_NAME,
+			}),
+		).toBe("5:2147483647");
 	});
 });
 

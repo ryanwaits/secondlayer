@@ -3,6 +3,7 @@
  * (sBTC/PoX/BNS) producers share the atomic decoder adapter here.
  */
 
+import { blockEndCursor, encodeStreamsCursor } from "@secondlayer/shared";
 import {
 	type DecoderAdapterFailure,
 	type DecoderAdapterReceipt,
@@ -16,6 +17,34 @@ import type { Kysely } from "kysely";
 import { assertCheckpointUnmoved, writeDecodedEvents } from "./storage.ts";
 
 export const GENERIC_DECODER_PRODUCER_VERSION = "v1";
+
+/**
+ * Skip the follow-up empty poll a decoder would otherwise need to reach the
+ * end-of-block sentinel. `streams-events.ts` always delivers exactly
+ * `requestedBatchSize` rows when its scan was cut off by the page limit, and
+ * fewer than that only when the scan ran every candidate row in the range
+ * dry before hitting the limit (`pageRows = rows.slice(0, limit)` — see
+ * `readCanonicalStreamsEvents`). A page shorter than requested is therefore
+ * proof the range through the server's scan ceiling is fully accounted for.
+ *
+ * That ceiling IS `envelope.tip.block_height` only at the internal Streams
+ * tier (`STREAMS_INTERNAL_TIP_REORG_MARGIN_BLOCKS = 0`, plan-063 D1) that
+ * every in-fleet decoder authenticates at — a public/account tier holds the
+ * scan back by a reorg margin, so its short pages would under-claim. Callers
+ * outside that tier must not use this.
+ */
+export function shortPageCheckpointCursor(opts: {
+	eventCount: number;
+	requestedBatchSize: number;
+	tipHeight: number;
+	/** `envelope.next_cursor` — used whenever the short-page proof doesn't apply. */
+	fallback: string | null;
+}): string | null {
+	if (opts.eventCount === 0 || opts.eventCount >= opts.requestedBatchSize) {
+		return opts.fallback;
+	}
+	return encodeStreamsCursor(blockEndCursor(opts.tipHeight));
+}
 
 export type GenericDecodeFault = "omission" | "version";
 

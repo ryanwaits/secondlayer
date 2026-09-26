@@ -4,6 +4,7 @@ import {
 	classifyGenericDecodeFault,
 	failureFromFaults,
 	planGenericDecoderReceipts,
+	shortPageCheckpointCursor,
 } from "./generic-commit.ts";
 
 describe("classifyGenericDecodeFault", () => {
@@ -89,6 +90,41 @@ describe("failureFromFaults", () => {
 
 	test("no faults means no failure row", () => {
 		expect(failureFromFaults([])).toBeNull();
+	});
+});
+
+describe("shortPageCheckpointCursor", () => {
+	test("a page shorter than requested commits the end-of-block sentinel at the tip", () => {
+		expect(
+			shortPageCheckpointCursor({
+				eventCount: 3,
+				requestedBatchSize: 500,
+				tipHeight: 150420,
+				fallback: "150420:2",
+			}),
+		).toBe("150420:2147483647");
+	});
+
+	test("a full page falls back to the envelope cursor — the range may be truncated", () => {
+		expect(
+			shortPageCheckpointCursor({
+				eventCount: 500,
+				requestedBatchSize: 500,
+				tipHeight: 150420,
+				fallback: "150420:2",
+			}),
+		).toBe("150420:2");
+	});
+
+	test("an empty page falls back — that proof belongs to the reader's own sentinel, not this one", () => {
+		expect(
+			shortPageCheckpointCursor({
+				eventCount: 0,
+				requestedBatchSize: 500,
+				tipHeight: 150420,
+				fallback: "150420:2147483647",
+			}),
+		).toBe("150420:2147483647");
 	});
 });
 

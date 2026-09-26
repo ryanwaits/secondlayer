@@ -26,6 +26,7 @@ import {
 	commitGenericDecoderBatch,
 	failureFromFaults,
 	planGenericDecoderReceipts,
+	shortPageCheckpointCursor,
 } from "./generic-commit.ts";
 import { requireInternalStreamsApiKey } from "./internal-auth.ts";
 import {
@@ -113,10 +114,11 @@ async function consumeDecodedEvents(
 			: await readDecoderCheckpoint({ db, decoderName });
 	let expectedCheckpoint = startCursor;
 	let decoded = 0;
+	const requestedBatchSize = opts?.batchSize ?? 500;
 
 	const result = await streamsClient.events.consume({
 		fromCursor: startCursor,
-		batchSize: opts?.batchSize ?? 500,
+		batchSize: requestedBatchSize,
 		emptyBackoffMs: opts?.emptyBackoffMs,
 		maxPages: opts?.maxPages,
 		maxEmptyPolls: opts?.maxEmptyPolls,
@@ -182,18 +184,29 @@ async function consumeDecodedEvents(
 					return [];
 				}
 			});
+			let checkpointCursor = envelope.next_cursor;
 			if (!opts?.skipPersist) {
 				const startedFrom = expectedCheckpoint;
+				// A page shorter than requested proves the scan already reached
+				// the tip empty-handed — commit the end-of-block sentinel now
+				// instead of paying a whole extra fetch + commit for a follow-up
+				// empty poll to discover the same thing.
+				checkpointCursor = shortPageCheckpointCursor({
+					eventCount: events.length,
+					requestedBatchSize,
+					tipHeight: envelope.tip.block_height,
+					fallback: envelope.next_cursor,
+				});
 				await commitGenericDecoderBatch({
 					db,
 					decoderName,
-					checkpointCursor: envelope.next_cursor,
+					checkpointCursor,
 					rows,
 					receipts: planGenericDecoderReceipts(clockEvents),
 					failure: failureFromFaults(faults),
 					startedFrom,
 				});
-				expectedCheckpoint = envelope.next_cursor;
+				expectedCheckpoint = checkpointCursor;
 				const advance = checkpointAdvance(
 					startedFrom,
 					expectedCheckpoint,
@@ -212,10 +225,10 @@ async function consumeDecodedEvents(
 			decoded += rows.length;
 			await opts?.onProgress?.({
 				decoded: rows.length,
-				cursor: envelope.next_cursor,
+				cursor: checkpointCursor,
 				lagSeconds: envelope.tip.lag_seconds,
 			});
-			return envelope.next_cursor;
+			return checkpointCursor;
 		},
 	});
 
