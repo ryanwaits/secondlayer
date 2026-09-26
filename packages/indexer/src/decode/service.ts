@@ -189,7 +189,6 @@ async function runDecoder(
 	consume: DecoderConsumeFn,
 ): Promise<void> {
 	while (!controller.signal.aborted) {
-		const before = decodedTotals[decoderName] ?? 0;
 		try {
 			await consume({
 				batchSize: Number.parseInt(process.env.DECODER_BATCH_SIZE ?? "500", 10),
@@ -197,11 +196,11 @@ async function runDecoder(
 					process.env.DECODER_EMPTY_BACKOFF_MS ?? "1000",
 					10,
 				),
-				// Force `consume()` to return after a small empty-poll budget
-				// so `runDecoder`'s `finally` block runs the liveness ping and
-				// progress log. Without this, a stream that returns no events
-				// (e.g. sparse contract filter at-tip) keeps the SDK consumer
-				// looping forever and `updated_at` goes stale.
+				// Force `consume()` to return after a small empty-poll budget so
+				// `runDecoder`'s `finally` block runs the liveness ping. Without
+				// this, a stream that returns no events (e.g. sparse contract
+				// filter at-tip) keeps the SDK consumer looping forever and
+				// `updated_at` goes stale.
 				maxEmptyPolls: Number.parseInt(
 					process.env.DECODER_MAX_EMPTY_POLLS ?? "1",
 					10,
@@ -241,7 +240,11 @@ async function runDecoder(
 				// Best-effort; if the DB is down the health endpoint already
 				// reports the larger problem.
 			}
-			if ((decodedTotals[decoderName] ?? 0) !== before) await logProgress();
+			// Progress health fan-out (getServiceHealth ~= 60 queries) runs ONLY
+			// off the 60s progressTimer below, never off this per-wake path. A
+			// decode that writes rows used to trigger it here too, so every busy
+			// block paid a health-endpoint-sized query burst before the next
+			// fetch — the opposite of what an in-process decode hop needs.
 		}
 	}
 }
