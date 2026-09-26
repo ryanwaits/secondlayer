@@ -841,7 +841,7 @@ function DeliveriesTable({
 				<table className="wh-tbl">
 					<thead>
 						<tr>
-							<th>Sent</th>
+							<th>Sent (UTC)</th>
 							<th>Block</th>
 							<th className="num">Try</th>
 							<th>Response</th>
@@ -870,9 +870,9 @@ function DeliveriesTable({
 										{r.dispatchedAt.replace("T", " ").slice(0, 19)}
 									</td>
 									<td className="m">
-										{r.blockTime
-											? r.blockTime.replace("T", " ").slice(0, 19)
-											: "–"}
+										{r.blockHeight === null
+											? "–"
+											: r.blockHeight.toLocaleString("en-US")}
 									</td>
 									<td className="num">{r.attempt}</td>
 									<td>
@@ -891,19 +891,23 @@ function DeliveriesTable({
 					</tbody>
 				</table>
 			</div>
-			<p className="acct-fine left" style={{ marginTop: 8 }}>
-				Latest 100 attempts are kept. Retries are free.{" "}
+			<div className="wh-tbl-foot">
+				<p className="acct-fine">
+					{showAll
+						? `All ${allRows.length} attempts.`
+						: `Latest ${visibleRows.length} of ${allRows.length}.`}{" "}
+					Retries are free.
+				</p>
 				{allRows.length > 5 ? (
 					<button
 						type="button"
-						className="acct-btn line small"
-						style={{ marginLeft: 8 }}
+						className="wh-tbl-foot-link"
 						onClick={onToggleShowAll}
 					>
 						{showAll ? "Show latest 5" : `View all ${allRows.length}`}
 					</button>
 				) : null}
-			</p>
+			</div>
 		</>
 	);
 }

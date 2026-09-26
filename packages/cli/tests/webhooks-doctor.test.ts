@@ -43,6 +43,7 @@ function rateLimitedDelivery(
 		durationMs: 50,
 		responseBody: null,
 		dispatchedAt: "2026-04-23T00:10:00.000Z",
+		blockHeight: null,
 		blockTime: null,
 		...overrides,
 	};
@@ -88,6 +89,7 @@ describe("formatDoctorReport", () => {
 			durationMs: 8000, // 80% of the 10_000ms timeout
 			responseBody: null,
 			dispatchedAt: "2026-04-23T00:10:00.000Z",
+			blockHeight: null,
 			blockTime: null,
 		}));
 		const report = buildDoctorReport({
@@ -124,6 +126,7 @@ describe("formatDoctorReport", () => {
 					durationMs: 20,
 					responseBody: null,
 					dispatchedAt: "2026-04-23T00:00:00.000Z",
+					blockHeight: null,
 					blockTime: null,
 				},
 			],

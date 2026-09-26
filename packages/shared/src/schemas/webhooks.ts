@@ -812,6 +812,9 @@ export interface DeliveryRow {
 	durationMs: number | null;
 	responseBody: string | null;
 	dispatchedAt: string;
+	/** Null for test deliveries and events already compacted out of the
+	 *  outbox. */
+	blockHeight: number | null;
 	/** ISO timestamp of the delivered event's block. `null` for test
 	 *  deliveries, events already compacted out of the outbox, and rows
 	 *  written before this column existed. */

@@ -60,6 +60,7 @@ const baseRow: DeliveryRow = {
 	durationMs: 100,
 	responseBody: null,
 	dispatchedAt: "2026-09-25T00:00:00.000Z",
+	blockHeight: 100,
 	blockTime: "2026-09-25T00:00:00.000Z",
 };
 

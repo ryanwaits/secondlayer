@@ -3000,6 +3000,28 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	font-weight: 500;
 }
 
+.wh-tbl-foot {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 12px;
+	margin-top: 8px;
+}
+.wh-tbl-foot p {
+	margin: 0;
+}
+.wh-tbl-foot-link {
+	border: 0;
+	background: none;
+	padding: 0;
+	color: var(--text-main);
+	text-decoration: none;
+	border-bottom: 1px solid var(--border-hover);
+	cursor: pointer;
+	font-size: 12px;
+	white-space: nowrap;
+}
+
 .wh-crumb {
 	margin: 0 0 -8px;
 	font-size: 13px;
