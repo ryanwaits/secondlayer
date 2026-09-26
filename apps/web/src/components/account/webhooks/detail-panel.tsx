@@ -373,7 +373,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 				<div className="wh-actions">
 					<button
 						type="button"
-						className="acct-btn"
+						className="acct-btn line small"
 						onClick={onTest}
 						disabled={testBusy}
 					>
@@ -381,7 +381,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 					</button>
 					<button
 						type="button"
-						className="acct-btn"
+						className="acct-btn line small"
 						onClick={onTogglePause}
 						disabled={pauseBusy}
 					>
@@ -560,7 +560,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 						</p>
 						<button
 							type="button"
-							className="acct-btn"
+							className="acct-btn line small"
 							onClick={() => setRotating("confirm")}
 						>
 							Rotate secret
@@ -742,8 +742,7 @@ function FailedEventsTable({
 								<td className="num">
 									<button
 										type="button"
-										className="acct-btn"
-										style={{ height: 28 }}
+										className="acct-btn line small"
 										onClick={() => onResendOne(d.id)}
 									>
 										Resend
@@ -760,12 +759,20 @@ function FailedEventsTable({
 						<span className="acct-fine">
 							Resent {resend.done} of {resend.total}
 						</span>
-						<button type="button" className="acct-btn" onClick={onStop}>
+						<button
+							type="button"
+							className="acct-btn line small"
+							onClick={onStop}
+						>
 							Stop
 						</button>
 					</>
 				) : (
-					<button type="button" className="acct-btn" onClick={onResendAll}>
+					<button
+						type="button"
+						className="acct-btn line small"
+						onClick={onResendAll}
+					>
 						Resend all {rows.length}
 					</button>
 				)}
