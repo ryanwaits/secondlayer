@@ -25,10 +25,14 @@ function isAllowed(method: Method, segments: string[]): boolean {
 		if (segments.length === 1) return true; // get one
 		if (
 			segments.length === 2 &&
-			(segments[1] === "deliveries" || segments[1] === "dead")
+			(segments[1] === "deliveries" ||
+				segments[1] === "dead" ||
+				segments[1] === "activity")
 		) {
 			return true;
 		}
+		// one delivery attempt (the delivery card)
+		if (segments.length === 3 && segments[1] === "deliveries") return true;
 		return false;
 	}
 	if (method === "POST") {

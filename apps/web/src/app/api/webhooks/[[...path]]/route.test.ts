@@ -77,6 +77,34 @@ describe("webhooks dashboard proxy", () => {
 		expect(headers.get("Authorization")).toBe("Bearer session-tok");
 	});
 
+	for (const path of [
+		["wh_1", "activity"],
+		["wh_1", "deliveries", "0b6f1f9e-2c4a-4a39-9d0e-6a1c2b3d4e5f"],
+	]) {
+		test(`GET ${path.slice(1).join("/")} (the detail page's graphs and delivery card) is forwarded`, async () => {
+			const { calls } = stubFetch(
+				() => new Response(JSON.stringify({}), { status: 200 }),
+			);
+			const { GET } = await import("./route");
+			const res = await GET(req({ cookie: "sl_session=tok" }), ctx(path));
+			expect(res.status).toBe(200);
+			expect(calls[0]?.url.endsWith(`/api/webhooks/${path.join("/")}`)).toBe(
+				true,
+			);
+		});
+	}
+
+	test("GET :id/deliveries/:deliveryId/anything deeper is refused → 405", async () => {
+		const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
+		const { GET } = await import("./route");
+		const res = await GET(
+			req({ cookie: "sl_session=tok" }),
+			ctx(["wh_1", "deliveries", "d1", "x"]),
+		);
+		expect(res.status).toBe(405);
+		expect(calls.length).toBe(0);
+	});
+
 	test("a 503 upstream passes through the status and Retry-After header", async () => {
 		stubFetch(
 			() =>
