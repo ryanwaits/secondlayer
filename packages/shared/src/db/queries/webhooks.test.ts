@@ -155,6 +155,35 @@ describe("webhooks queries", () => {
 		expect(after).not.toBeNull();
 	});
 
+	it("delete cascades to webhook_deliveries (migration 0140 FK)", async () => {
+		const { webhook } = await createWebhook(db, baseInput());
+		await db
+			.insertInto("webhook_deliveries")
+			.values({
+				outbox_id: null,
+				webhook_id: webhook.id,
+				attempt: 1,
+				status_code: 200,
+			})
+			.execute();
+		const before = await db
+			.selectFrom("webhook_deliveries")
+			.select("id")
+			.where("webhook_id", "=", webhook.id)
+			.execute();
+		expect(before.length).toBe(1);
+
+		const ok = await deleteWebhook(db, accountId, webhook.id);
+		expect(ok).toBe(true);
+
+		const after = await db
+			.selectFrom("webhook_deliveries")
+			.select("id")
+			.where("webhook_id", "=", webhook.id)
+			.execute();
+		expect(after.length).toBe(0);
+	});
+
 	it("creates a chain webhook (kind=chain, triggers persisted, no subgraph target)", async () => {
 		const triggers = [
 			{
