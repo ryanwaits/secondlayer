@@ -313,12 +313,18 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			value: "0x0100000000000000000000000000000001",
 		});
 
+		// Both nft_transfer events (2) are fewer than the requested batch size
+		// (10), which proves the scan already reached the tip empty-handed —
+		// the decoder commits the end-of-block sentinel straight off this one
+		// page instead of needing a follow-up empty poll to confirm block 1 is
+		// done.
+		expect(result.pages).toBe(1);
 		const checkpoint = await db
 			.selectFrom("decoder_checkpoints")
 			.select("last_cursor")
 			.where("decoder_name", "=", "decode.nft_transfer.v1")
 			.executeTakeFirstOrThrow();
-		expect(checkpoint.last_cursor).toBe("1:4");
+		expect(checkpoint.last_cursor).toBe("1:2147483647");
 	});
 
 	test("restart resumes from checkpoint without duplicates or gaps", async () => {
