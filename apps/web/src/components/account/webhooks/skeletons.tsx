@@ -88,13 +88,21 @@ export function WebhooksListSkeleton() {
 	);
 }
 
-export function WebhookDetailSkeleton() {
+export function WebhookDetailSkeleton({
+	hideHead = false,
+}: {
+	/** Skip the name/pill placeholder when a real header (from the list
+	 *  cache, or the webhook itself) is already rendered above this. */
+	hideHead?: boolean;
+} = {}) {
 	return (
 		<output aria-label="Loading webhook" aria-busy="true">
-			<div className="wh-skel-head">
-				<Skel width={220} height={26} />
-				<Skel width={72} height={22} style={{ borderRadius: 999 }} />
-			</div>
+			{hideHead ? null : (
+				<div className="wh-skel-head">
+					<Skel width={220} height={26} />
+					<Skel width={72} height={22} style={{ borderRadius: 999 }} />
+				</div>
+			)}
 			<div className="acct-stats" style={{ marginTop: 14 }}>
 				<StatSkeleton label="Delivered, last 7 days" />
 				<StatSkeleton label="Ok, last 100 attempts" />

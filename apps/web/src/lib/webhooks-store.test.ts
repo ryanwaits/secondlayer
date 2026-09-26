@@ -1,4 +1,9 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
+import type {
+	WebhookActivity,
+	WebhookDetail,
+	WebhookSummary,
+} from "@secondlayer/sdk";
 import {
 	clearWebhooksData,
 	poll,
@@ -25,6 +30,47 @@ function jsonResponse(
 	});
 }
 
+function summary(id: string, name: string): WebhookSummary {
+	return {
+		id,
+		name,
+		status: "active",
+		kind: "chain",
+		subgraphName: null,
+		tableName: null,
+		format: "standard-webhooks",
+		runtime: "node",
+		url: "https://example.com/webhook",
+		lastDeliveryAt: null,
+		lastSuccessAt: null,
+		circuitOpenedAt: null,
+		circuitFailures: 0,
+		createdAt: "2026-01-01T00:00:00.000Z",
+		updatedAt: "2026-01-01T00:00:00.000Z",
+	};
+}
+
+function detail(id: string, name: string): WebhookDetail {
+	return {
+		...summary(id, name),
+		filter: {},
+		triggers: null,
+		authConfig: {},
+		maxRetries: 7,
+		timeoutMs: 10_000,
+		concurrency: 8,
+		lastError: null,
+		warning: null,
+	};
+}
+
+const emptyActivity: WebhookActivity = {
+	hours: [],
+	waiting: 0,
+	nextAttemptAt: null,
+	lastSuccessAt: null,
+};
+
 /** Routes a fake `/api/webhooks/...` call for one webhook id, and records
  *  every path it was called with so a test can count the actual rounds. */
 function stubFetch(webhookId: string) {
@@ -33,10 +79,10 @@ function stubFetch(webhookId: string) {
 		const path = String(url);
 		calls.push(path);
 		if (path === "/api/webhooks") {
-			return jsonResponse({ data: [{ id: webhookId, name: "pool-payouts" }] });
+			return jsonResponse({ data: [summary(webhookId, "pool-payouts")] });
 		}
 		if (path === `/api/webhooks/${webhookId}`) {
-			return jsonResponse({ id: webhookId, name: "pool-payouts" });
+			return jsonResponse(detail(webhookId, "pool-payouts"));
 		}
 		if (path === `/api/webhooks/${webhookId}/deliveries`) {
 			return jsonResponse({ data: [] });
@@ -45,7 +91,7 @@ function stubFetch(webhookId: string) {
 			return jsonResponse({ data: [] });
 		}
 		if (path === `/api/webhooks/${webhookId}/activity`) {
-			return jsonResponse({ waiting: 0, hours: [] });
+			return jsonResponse(emptyActivity);
 		}
 		throw new Error(`unhandled path in test stub: ${path}`);
 	}) as typeof fetch;
@@ -58,7 +104,7 @@ describe("refreshList", () => {
 		const res = await refreshList();
 		expect(res.kind).toBe("ok");
 		expect(webhooksSnapshot().list?.data).toEqual([
-			{ id: "wh-1", name: "pool-payouts" },
+			summary("wh-1", "pool-payouts"),
 		]);
 	});
 
@@ -67,7 +113,7 @@ describe("refreshList", () => {
 		await refreshList();
 
 		let resolveSecond: (r: Response) => void = () => {};
-		globalThis.fetch = (() =>
+		globalThis.fetch = (async (_url: string) =>
 			new Promise<Response>((resolve) => {
 				resolveSecond = resolve;
 			})) as typeof fetch;
@@ -75,18 +121,16 @@ describe("refreshList", () => {
 		const second = refreshList();
 		// Still in flight: the cache keeps showing the first call's row.
 		expect(webhooksSnapshot().list?.data).toEqual([
-			{ id: "wh-1", name: "pool-payouts" },
+			summary("wh-1", "pool-payouts"),
 		]);
 
-		resolveSecond(jsonResponse({ data: [{ id: "wh-2", name: "renamed" }] }));
+		resolveSecond(jsonResponse({ data: [summary("wh-2", "renamed")] }));
 		await second;
-		expect(webhooksSnapshot().list?.data).toEqual([
-			{ id: "wh-2", name: "renamed" },
-		]);
+		expect(webhooksSnapshot().list?.data).toEqual([summary("wh-2", "renamed")]);
 	});
 
 	test("a 404 from the list endpoint resolves as an empty ok list", async () => {
-		globalThis.fetch = (async () =>
+		globalThis.fetch = (async (_url: string) =>
 			jsonResponse({ error: "none" }, 404)) as typeof fetch;
 		const res = await refreshList();
 		expect(res).toEqual({ kind: "ok", data: [] });
@@ -97,14 +141,14 @@ describe("refreshList", () => {
 		stubFetch("wh-1");
 		await refreshList();
 
-		globalThis.fetch = (async () =>
+		globalThis.fetch = (async (_url: string) =>
 			jsonResponse({ error: "slow down" }, 429, {
 				"Retry-After": "7",
 			})) as typeof fetch;
 		const res = await refreshList();
 		expect(res).toEqual({ kind: "rate_limited", retryAfter: 7 });
 		expect(webhooksSnapshot().list?.data).toEqual([
-			{ id: "wh-1", name: "pool-payouts" },
+			summary("wh-1", "pool-payouts"),
 		]);
 	});
 });
@@ -120,9 +164,8 @@ describe("refreshDetail", () => {
 			if (String(url).endsWith("/deliveries"))
 				return jsonResponse({ data: [] });
 			if (String(url).endsWith("/dead")) return jsonResponse({ data: [] });
-			if (String(url).endsWith("/activity"))
-				return jsonResponse({ waiting: 0, hours: [] });
-			return jsonResponse({ id: "wh-3", name: "pool-payouts" });
+			if (String(url).endsWith("/activity")) return jsonResponse(emptyActivity);
+			return jsonResponse(detail("wh-3", "pool-payouts"));
 		}) as typeof fetch;
 
 		await refreshDetail("wh-3");
@@ -143,7 +186,7 @@ describe("refreshDetail", () => {
 		expect(cache.detail["wh-3b"]?.data.name).toBe("pool-payouts");
 		expect(cache.deliveries["wh-3b"]?.data).toEqual([]);
 		expect(cache.dead["wh-3b"]?.data).toEqual([]);
-		expect(cache.activity["wh-3b"]?.data).toEqual({ waiting: 0, hours: [] });
+		expect(cache.activity["wh-3b"]?.data).toEqual(emptyActivity);
 	});
 });
 
@@ -211,6 +254,7 @@ describe("poll", () => {
 		const runs: number[] = [];
 		const stop = poll(async () => {
 			runs.push(Date.now());
+			return undefined;
 		}, 1000);
 		expect(runs.length).toBe(1);
 		await advance(1000);
@@ -240,6 +284,7 @@ describe("poll", () => {
 		const runs: number[] = [];
 		const stop = poll(async () => {
 			runs.push(Date.now());
+			return undefined;
 		}, 1000);
 		// Hidden from the start, so even the immediate call is skipped.
 		expect(runs.length).toBe(0);

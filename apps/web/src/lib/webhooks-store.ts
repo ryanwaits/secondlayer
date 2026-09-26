@@ -82,14 +82,20 @@ export function clearWebhooksData(): void {
  *  `prefetchDetail`'s own dedupe window, not the visible-poll cadence. */
 const FRESH_MS = 10_000;
 
-export async function refreshList(): Promise<WebhooksResult<WebhookSummary[]>> {
+/** Never resolves `not_found` — the list endpoint's 404 always meant "no
+ *  webhooks on this account", so it's folded into an empty `ok` below,
+ *  never surfaced as its own kind a caller would have to handle. */
+export type ListResult = Exclude<
+	WebhooksResult<WebhookSummary[]>,
+	{ kind: "not_found" }
+>;
+
+export async function refreshList(): Promise<ListResult> {
 	const res = await listWebhooks();
 	if (res.kind === "ok") {
 		set({ list: { data: res.data, at: Date.now() } });
 		return res;
 	}
-	// The list endpoint's 404 means "no webhooks on this account" — always
-	// been an empty state here, never a real not-found (plan 073).
 	if (res.kind === "not_found") {
 		set({ list: { data: [], at: Date.now() } });
 		return { kind: "ok", data: [] };

@@ -9,10 +9,6 @@ import {
 import {
 	deleteWebhook,
 	formatRelative,
-	getActivity,
-	getDead,
-	getDeliveries,
-	getWebhook,
 	pauseWebhook,
 	requeue,
 	resumeWebhook,
@@ -20,14 +16,15 @@ import {
 	testWebhook,
 } from "@/lib/webhooks-data";
 import type { WebhooksResult } from "@/lib/webhooks-data";
+import {
+	poll,
+	refreshActivity,
+	refreshDetail,
+	useWebhooksCache,
+	webhooksSnapshot,
+} from "@/lib/webhooks-store";
 import NumberFlow from "@number-flow/react";
-import type {
-	DeadRow,
-	DeliveryRow,
-	WebhookActivity,
-	WebhookDetail,
-	WebhookFormat,
-} from "@secondlayer/sdk";
+import type { DeadRow, DeliveryRow, WebhookFormat } from "@secondlayer/sdk";
 import {
 	buildDoctorReport,
 	isSuccessDelivery,
@@ -41,6 +38,14 @@ import { DeliveryCard } from "./delivery-card";
 import { DiagnosisPanel } from "./diagnosis";
 import { AttemptRibbon } from "./ribbon";
 import { CliLine, FiresOn, StatusPill, displayStatus } from "./shared";
+import { WebhookDetailSkeleton } from "./skeletons";
+
+/** How often the detail bundle (webhook, deliveries, dead, activity)
+ *  refreshes together while the tab is visible — plan 073. */
+const DETAIL_POLL_MS = 10_000;
+/** The fast standalone `/activity` poll while a receiver is down or events
+ *  are backed up — otherwise activity just rides the slower bundle above. */
+const ACTIVITY_POLL_MS = 5_000;
 
 /** A one-line, user-facing reason for anything short of `{ kind: "ok" }` —
  *  shared by every action's error path and its matching toast, so the two
@@ -79,61 +84,63 @@ function medianOkDurationMs(rows: DeliveryRow[]): number {
 	return durations[Math.floor(durations.length / 2)] ?? 0;
 }
 
-type DetailState =
-	| { kind: "loading" }
+type DetailNotice =
 	| { kind: "starting" }
 	| { kind: "no_credits" }
 	| { kind: "not_found" }
-	| { kind: "error"; message: string }
-	| { kind: "ok"; webhook: WebhookDetail };
+	| { kind: "error"; message: string };
 
-function useWebhookDetail(id: string): {
-	state: DetailState;
+/**
+ * Fires the whole detail bundle (webhook, deliveries, dead, activity) in
+ * parallel through `refreshDetail` on mount, then again every
+ * `DETAIL_POLL_MS` while the tab is visible — none of the four waits on the
+ * webhook object first.
+ *
+ * A non-ok webhook result becomes this page's notice only when nothing is
+ * cached yet for it; once a webhook has loaded once, a later starting/
+ * no-credits/error result just keeps retrying quietly behind the
+ * last-known page (stale-while-revalidate). `not_found` is the one
+ * exception — it always wins, since a genuinely deleted webhook shouldn't
+ * keep showing stale content.
+ */
+function useWebhookDetailPoll(id: string): {
+	notice: DetailNotice | null;
 	reload: () => void;
 } {
-	const [state, setState] = useState<DetailState>({ kind: "loading" });
-	const loadRef = useRef<() => void>(() => {});
+	const [notice, setNotice] = useState<DetailNotice | null>(null);
 
 	useEffect(() => {
-		let stopped = false;
-		let timer: ReturnType<typeof setTimeout> | undefined;
-
-		async function load() {
-			const res = await getWebhook(id);
-			if (stopped) return;
-			if (res.kind === "ok") {
-				setState({ kind: "ok", webhook: res.data });
-				return;
+		setNotice(null);
+		return poll(async () => {
+			const res = await refreshDetail(id);
+			const hasCached = webhooksSnapshot().detail[id] !== undefined;
+			if (res.webhook.kind === "ok") {
+				setNotice(null);
+				return {};
 			}
-			if (res.kind === "starting") {
-				setState({ kind: "starting" });
-				timer = setTimeout(load, res.retryAfter * 1000);
-				return;
+			if (res.webhook.kind === "not_found") {
+				setNotice({ kind: "not_found" });
+				return {};
 			}
-			if (res.kind === "rate_limited") {
-				timer = setTimeout(load, res.retryAfter * 1000);
-				return;
+			if (res.webhook.kind === "starting") {
+				if (!hasCached) setNotice({ kind: "starting" });
+				return { retryAfterMs: res.webhook.retryAfter * 1000 };
 			}
-			if (res.kind === "no_credits") {
-				setState({ kind: "no_credits" });
-				return;
+			if (res.webhook.kind === "rate_limited") {
+				return { retryAfterMs: res.webhook.retryAfter * 1000 };
 			}
-			if (res.kind === "not_found") {
-				setState({ kind: "not_found" });
-				return;
+			if (res.webhook.kind === "no_credits") {
+				if (!hasCached) setNotice({ kind: "no_credits" });
+				return {};
 			}
-			setState({ kind: "error", message: res.message });
-		}
-
-		loadRef.current = load;
-		load();
-		return () => {
-			stopped = true;
-			if (timer) clearTimeout(timer);
-		};
+			if (!hasCached) {
+				setNotice({ kind: "error", message: res.webhook.message });
+			}
+			return {};
+		}, DETAIL_POLL_MS);
 	}, [id]);
 
-	return { state, reload: () => loadRef.current() };
+	return { notice, reload: () => void refreshDetail(id) };
 }
 
 function sleep(ms: number): Promise<void> {
@@ -151,17 +158,27 @@ const WAITING_HISTORY_LIMIT = 180; // ~15 minutes at the 5s poll cadence
 
 export function WebhookDetailSection({ id }: { id: string }) {
 	const router = useRouter();
-	const { state, reload } = useWebhookDetail(id);
-	const webhook = state.kind === "ok" ? state.webhook : null;
+	const cache = useWebhooksCache();
+	const { notice, reload } = useWebhookDetailPoll(id);
 
-	const [deliveries, setDeliveries] = useState<DeliveryRow[] | null>(null);
-	const [dead, setDead] = useState<DeadRow[] | null>(null);
+	const webhook = cache.detail[id]?.data ?? null;
+	const deliveries = cache.deliveries[id]?.data ?? null;
+	const dead = cache.dead[id]?.data ?? null;
+	const activityEntry = cache.activity[id];
+	const activity = activityEntry?.data ?? null;
+	// The header (name, status, id) the list page already fetched — shown at
+	// once while this page's own `GET /:id` is still in flight.
+	const listSummary = cache.list?.data.find((w) => w.id === id) ?? null;
+
 	const [tab, setTab] = useState<"deliveries" | "failed">("deliveries");
 
-	const [activity, setActivity] = useState<WebhookActivity | null>(null);
 	const [waitingHistory, setWaitingHistory] = useState<WaitingPoll[]>([]);
 	const [peakWaiting, setPeakWaiting] = useState(0);
 	const sawNoCreditsRef = useRef(false);
+	// The last activity fetch already folded into `waitingHistory` — an
+	// `at` timestamp, not the data itself, since a poll can legitimately
+	// repeat the same waiting count.
+	const lastActivityAtRef = useRef<number | null>(null);
 
 	const [showAllDeliveries, setShowAllDeliveries] = useState(false);
 	const [openDeliveryIndex, setOpenDeliveryIndex] = useState<number | null>(
@@ -192,42 +209,46 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		null,
 	);
 	const resendStop = useRef(false);
-
-	// `webhook` is a fresh object on every successful load, including a
-	// reload after test/pause/rotate — so depending on it re-fetches the log
-	// whenever any of those actions might have changed it.
-	useEffect(() => {
-		if (!webhook) return;
-		let stopped = false;
-		async function loadLogs() {
-			const [d, x] = await Promise.all([getDeliveries(id), getDead(id)]);
-			if (stopped) return;
-			if (d.kind === "ok") setDeliveries(d.data);
-			if (x.kind === "ok") setDead(x.data);
-		}
-		loadLogs();
-		return () => {
-			stopped = true;
-		};
-	}, [webhook, id]);
+	// Rows requeued locally, hidden immediately instead of waiting out the
+	// next poll — the cache itself is only ever written by a fetch.
+	const [locallyResent, setLocallyResent] = useState<ReadonlySet<string>>(
+		new Set(),
+	);
 
 	useEffect(() => {
-		if (state.kind === "no_credits") sawNoCreditsRef.current = true;
-	}, [state.kind]);
+		if (!activityEntry) return;
+		if (lastActivityAtRef.current === activityEntry.at) return;
+		lastActivityAtRef.current = activityEntry.at;
+		const data = activityEntry.data;
+		setPeakWaiting((prev) => Math.max(prev, data.waiting));
+		setWaitingHistory((prev) =>
+			[...prev, { t: activityEntry.at, waiting: data.waiting }].slice(
+				-WAITING_HISTORY_LIMIT,
+			),
+		);
+	}, [activityEntry]);
+
+	useEffect(() => {
+		if (notice?.kind === "no_credits") sawNoCreditsRef.current = true;
+	}, [notice]);
 
 	const rows = deliveries ?? [];
-	const deadRows = dead ?? [];
+	const deadRows = (dead ?? []).filter((r) => !locallyResent.has(r.id));
 	// `subgraph: null` — the dashboard never fetches subgraph status, so the
 	// two subgraph issue codes (subgraph_gaps/subgraph_catching_up) never fire
 	// here; the CLI passes the real subgraph status and can see them.
-	const report = webhook
-		? buildDoctorReport({
-				webhook,
-				deliveries: rows,
-				dead: deadRows,
-				subgraph: null,
-			})
-		: null;
+	// Gated on deliveries *and* dead having loaded at least once (they can be
+	// cached from an earlier visit) — otherwise an empty `rows`/`deadRows`
+	// reads as "no deliveries yet" before the real logs ever arrive.
+	const report =
+		webhook && deliveries !== null && dead !== null
+			? buildDoctorReport({
+					webhook,
+					deliveries: rows,
+					dead: deadRows,
+					subgraph: null,
+				})
+			: null;
 	const primary = report?.primary ?? null;
 
 	// Kept current every render so the polling effect below (which must stay
@@ -239,39 +260,16 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			? true
 			: primary?.code === "receiver_down";
 
+	// The fast standalone poll: only actually calls out while catching up or
+	// down. Otherwise it just idles — activity still refreshes every
+	// `DETAIL_POLL_MS` as part of the bundle above.
 	useEffect(() => {
-		if (!webhook) return;
-		let stopped = false;
-
-		function record(data: WebhookActivity) {
-			if (stopped) return;
-			setActivity(data);
-			setPeakWaiting((prev) => Math.max(prev, data.waiting));
-			setWaitingHistory((prev) =>
-				[...prev, { t: Date.now(), waiting: data.waiting }].slice(
-					-WAITING_HISTORY_LIMIT,
-				),
-			);
-		}
-
-		// Seed once immediately, regardless of whether polling continues.
-		getActivity(id).then((res) => {
-			if (res.kind === "ok") record(res.data);
-		});
-
-		const interval = setInterval(async () => {
-			if (stopped) return;
-			if (document.visibilityState !== "visible") return;
-			if (!pollActiveRef.current) return;
-			const res = await getActivity(id);
-			if (res.kind === "ok") record(res.data);
-		}, 5000);
-
-		return () => {
-			stopped = true;
-			clearInterval(interval);
-		};
-	}, [webhook, id]);
+		return poll(async () => {
+			if (!pollActiveRef.current) return {};
+			await refreshActivity(id);
+			return {};
+		}, ACTIVITY_POLL_MS);
+	}, [id]);
 
 	const lastTwoPolls = waitingHistory.slice(-2);
 	const isCatchingUp =
@@ -280,9 +278,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		lastTwoPolls.length === 2 &&
 		(lastTwoPolls[1]?.waiting ?? 0) < (lastTwoPolls[0]?.waiting ?? 0);
 
-	if (state.kind === "loading") return null;
-
-	if (state.kind === "not_found") {
+	if (notice?.kind === "not_found") {
 		return (
 			<p className="acct-muted">
 				That webhook doesn't exist, or belongs to a different account. Back to{" "}
@@ -291,46 +287,83 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		);
 	}
 
-	if (state.kind === "no_credits") {
+	if (!webhook) {
+		if (notice?.kind === "no_credits") {
+			return (
+				<output className="wh-notice stop">
+					<div>
+						<p className="wh-notice-t">
+							Deliveries are paused until you add credits
+						</p>
+						<p className="wh-notice-l">
+							This webhook and its settings are kept; delivery resumes where it
+							stopped.
+						</p>
+					</div>
+					<a className="acct-btn solid" href="/account/credits">
+						Add credits
+					</a>
+				</output>
+			);
+		}
+
+		if (notice?.kind === "starting") {
+			return (
+				<output className="wh-notice wait">
+					<div>
+						<p className="wh-notice-t">
+							<span className="wh-spin" aria-hidden="true" />
+							Starting your delivery service
+						</p>
+						<p className="wh-notice-l">
+							This takes about 30 seconds. Hang tight.
+						</p>
+					</div>
+				</output>
+			);
+		}
+
+		if (notice?.kind === "error") {
+			return <p className="acct-error">{notice.message}</p>;
+		}
+
 		return (
-			<output className="wh-notice stop">
-				<div>
-					<p className="wh-notice-t">
-						Deliveries are paused until you add credits
-					</p>
-					<p className="wh-notice-l">
-						This webhook and its settings are kept; delivery resumes where it
-						stopped.
-					</p>
-				</div>
-				<a className="acct-btn solid" href="/account/credits">
-					Add credits
-				</a>
-			</output>
+			<>
+				{listSummary ? (
+					<>
+						<p className="wh-crumb">
+							<Link href="/account/webhooks">Webhooks</Link>{" "}
+							<span className="wh-mono">/ {id}</span>
+						</p>
+						<div className="wh-h1-row">
+							<h1 className="acct-h1">{listSummary.name}</h1>
+							<StatusPill status={displayStatus(listSummary)} />
+						</div>
+					</>
+				) : null}
+				<WebhookDetailSkeleton hideHead={listSummary !== null} />
+			</>
 		);
 	}
 
-	if (state.kind === "starting") {
+	// The webhook itself loaded, but its logs haven't (or a race lost one of
+	// them) — hold the skeleton rather than render stats and tables off an
+	// empty `rows`/`deadRows` that would misreport as "nothing here".
+	if (!report) {
 		return (
-			<output className="wh-notice wait">
-				<div>
-					<p className="wh-notice-t">
-						<span className="wh-spin" aria-hidden="true" />
-						Starting your delivery service
-					</p>
-					<p className="wh-notice-l">
-						This takes about 30 seconds. Hang tight.
-					</p>
+			<>
+				<p className="wh-crumb">
+					<Link href="/account/webhooks">Webhooks</Link>{" "}
+					<span className="wh-mono">/ {webhook.id}</span>
+				</p>
+				<div className="wh-h1-row">
+					<h1 className="acct-h1">{webhook.name}</h1>
+					<StatusPill status={displayStatus(webhook)} />
 				</div>
-			</output>
+				<WebhookDetailSkeleton hideHead />
+			</>
 		);
 	}
-
-	if (state.kind === "error") {
-		return <p className="acct-error">{state.message}</p>;
-	}
-
-	if (!webhook || !report) return null;
 
 	async function onTest() {
 		setTestBusy(true);
@@ -411,7 +444,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	async function onResendOne(outboxId: string) {
 		const res = await requeue(id, outboxId);
 		if (res.kind === "ok") {
-			setDead((prev) => prev?.filter((r) => r.id !== outboxId) ?? prev);
+			setLocallyResent((prev) => new Set(prev).add(outboxId));
 			toast.success("Event resent");
 			return;
 		}
@@ -421,13 +454,13 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	}
 
 	async function onResendAll() {
-		const rows = dead ?? [];
-		if (rows.length === 0) return;
+		const targets = deadRows;
+		if (targets.length === 0) return;
 		resendStop.current = false;
-		const total = rows.length;
+		const total = targets.length;
 		let done = 0;
 		setResend({ done, total });
-		for (const row of rows) {
+		for (const row of targets) {
 			if (resendStop.current) break;
 			let res = await requeue(id, row.id);
 			if (res.kind === "rate_limited") {
@@ -437,7 +470,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			}
 			if (res.kind === "ok") {
 				done += 1;
-				setDead((prev) => prev?.filter((r) => r.id !== row.id) ?? prev);
+				setLocallyResent((prev) => new Set(prev).add(row.id));
 				setResend({ done, total });
 			}
 		}
@@ -628,7 +661,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 					/>
 				) : (
 					<FailedEventsTable
-						rows={dead ?? []}
+						rows={deadRows}
 						resend={resend}
 						onResendOne={onResendOne}
 						onResendAll={onResendAll}
