@@ -72,7 +72,7 @@ describe("GET /api/billing/usage", () => {
 		expect(await res.json()).toEqual(body);
 	});
 
-	test("an upstream ApiError status passes through", async () => {
+	test("the API status passes through on error", async () => {
 		stubFetch(
 			() => new Response(JSON.stringify({ error: "nope" }), { status: 403 }),
 		);
