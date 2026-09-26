@@ -50,9 +50,13 @@ function eventVout(event: RuneEvent): number {
 /**
  * Sort key: `(txIndex, kindOrder, vout ?? -1, runeId as (block, tx) numeric)`.
  * Independent of Map/HashMap iteration order, so a non-TS implementation can
- * reproduce the same canonical ordering from the same event set.
+ * reproduce the same canonical ordering from the same event set. Exported so
+ * `db/store.ts` can assign each event's `event_index` (its position within
+ * its block in this same canonical order) at flush time without duplicating
+ * the sort key (plan 057 step 2) — `event_index` is a derived column, kept
+ * out of the digest serialization itself (see `serializeEvent`).
  */
-function compareEvents(a: RuneEvent, b: RuneEvent): number {
+export function compareEvents(a: RuneEvent, b: RuneEvent): number {
 	if (a.txIndex !== b.txIndex) return a.txIndex - b.txIndex;
 	const ka = KIND_ORDER[a.kind];
 	const kb = KIND_ORDER[b.kind];

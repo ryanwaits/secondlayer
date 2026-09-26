@@ -6,6 +6,7 @@
 // from in-memory state alone, exactly which rows need a write.
 import { describe, expect, test } from "bun:test";
 import type { RuneEntry } from "../runes/entry.ts";
+import type { RuneEvent } from "../runes/state.ts";
 import { createRuneState, setBalance } from "../runes/state.ts";
 import {
 	DELETE_CHUNK_SIZE,
@@ -16,6 +17,7 @@ import {
 	RUNE_ENTRIES_PARAMS_PER_ROW,
 	RUNE_EVENTS_PARAMS_PER_ROW,
 	UPSERT_CHUNK_SIZE,
+	assignEventIndices,
 	computeBalanceChanges,
 	entryToRow,
 	rowToEntry,
@@ -71,7 +73,7 @@ describe("computeBalanceChanges", () => {
 
 		expect(toDelete).toHaveLength(0);
 		expect(toUpsert).toEqual([
-			{ txid: "c".repeat(64), vout: 2, runeId, amount: 42n },
+			{ txid: "c".repeat(64), vout: 2, runeId, amount: 42n, address: null },
 		]);
 	});
 
@@ -108,8 +110,78 @@ describe("computeBalanceChanges", () => {
 
 		expect(toDelete).toHaveLength(0);
 		expect(toUpsert).toEqual([
-			{ txid: "e".repeat(64), vout: 4, runeId, amount: 7n },
+			{ txid: "e".repeat(64), vout: 4, runeId, amount: 7n, address: null },
 		]);
+	});
+
+	test("a balance's address comes from state.balanceAddresses, keyed by outpoint", () => {
+		const state = createRuneState();
+		const outpoint = `${"f".repeat(64)}:0`;
+		const runeId = "840000:6";
+		const address = "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg";
+
+		setBalance(state, outpoint, runeId, 5n, address);
+
+		const { toUpsert } = computeBalanceChanges(state);
+		expect(toUpsert).toEqual([
+			{ txid: "f".repeat(64), vout: 0, runeId, amount: 5n, address },
+		]);
+	});
+
+	test("an outpoint's address is dropped once its last balance is spent", () => {
+		const state = createRuneState();
+		const outpoint = `${"1".repeat(64)}:0`;
+		const runeId = "840000:7";
+		const address = "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg";
+
+		setBalance(state, outpoint, runeId, 5n, address);
+		expect(state.balanceAddresses.get(outpoint)).toBe(address);
+
+		setBalance(state, outpoint, runeId, 0n);
+		expect(state.balanceAddresses.has(outpoint)).toBe(false);
+	});
+});
+
+describe("assignEventIndices", () => {
+	test("indexes reset per block and follow the digest's canonical order", () => {
+		const blockA: RuneEvent[] = [
+			{
+				kind: "mint",
+				height: 840_000,
+				txIndex: 1,
+				txid: "a".repeat(64),
+				runeId: "840000:0",
+				amount: 1n,
+			},
+			{
+				kind: "burn",
+				height: 840_000,
+				txIndex: 0,
+				txid: "b".repeat(64),
+				runeId: "840000:0",
+				amount: 1n,
+			},
+		];
+		const blockB: RuneEvent[] = [
+			{
+				kind: "mint",
+				height: 840_001,
+				txIndex: 0,
+				txid: "c".repeat(64),
+				runeId: "840000:0",
+				amount: 1n,
+			},
+		];
+
+		const indices = assignEventIndices([...blockA, ...blockB]);
+
+		// burn has txIndex 0, mint has txIndex 1 — compareEvents sorts by
+		// txIndex first, so the burn gets index 0 despite kindOrder ranking
+		// mint (0) ahead of burn (3) when txIndex ties.
+		expect(indices.get(blockA[1] as RuneEvent)).toBe(0); // burn, txIndex 0
+		expect(indices.get(blockA[0] as RuneEvent)).toBe(1); // mint, txIndex 1
+		// height 840,001 is a separate block: its own event resets to 0.
+		expect(indices.get(blockB[0] as RuneEvent)).toBe(0);
 	});
 });
 

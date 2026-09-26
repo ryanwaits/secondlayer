@@ -61,7 +61,7 @@ Confirmed:
 - OSS loopback `/v1` reads are keyless; hosted `/v1` is keyed (`Authorization: Bearer`, account key `sk-sl_*`). Keys gate hosted reads and all writes.
 - Voice: calm infrastructure. No exclamation points, no emoji, no hype, no competitor naming in public copy.
 - Hosted decoded reads stay. Generic decoders power hosted Index, and self-hosted Subgraphs and webhook triggers. Protocol decoders (sBTC, pox-5 today) earn their place; on Bitcoin, BRC-20, sats names, Alkanes and similar are noted and deferred until a customer asks.
-- Bitcoin scope excludes L1 address/UTXO indexing and inscription content serving. `ord` is the parity reference for Runes and inscriptions.
+- Bitcoin scope excludes general L1 address/UTXO indexing (BTC balances, address tx history) and inscription content serving; rune-bearing outputs carry their address, as data about the rune, not a separate Bitcoin index. `ord` is the parity reference for Runes and inscriptions.
 - Team is 1–2 people. Two Hetzner boxes today (node-server with stacks-node and bitcoind, app-server). Every product noun is a door and a parity tax; the family is five nouns, not a junk drawer.
 - We do not host a public Explore catalog of other people's subgraphs unless a later grant explicitly funds a protocol catalog (sBTC, PoX, BNS) as a public good.
 

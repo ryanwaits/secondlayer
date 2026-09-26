@@ -41,6 +41,8 @@ export interface RuneBalancesTable {
 	vout: number;
 	rune_id: string;
 	amount: string;
+	/** Mainnet address derived from the outpoint's scriptPubKey (`../address.ts`), null for a non-standard script. Migration 0004. */
+	address: string | null;
 }
 
 export interface RuneEventsTable {
@@ -52,6 +54,10 @@ export interface RuneEventsTable {
 	rune_id: string;
 	amount: string;
 	vout: number | null;
+	/** This event's position within its block, in the digest chain's canonical order (migration 0004). */
+	event_index: number;
+	/** Mainnet address derived from the output's scriptPubKey (`../address.ts`); only ever set on a `transfer` event. Migration 0004. */
+	address: string | null;
 }
 
 export interface BtcBlocksTable {

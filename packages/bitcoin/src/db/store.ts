@@ -19,11 +19,16 @@ import { hexToBytes } from "@noble/hashes/utils.js";
 import { Kysely, sql } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
-import { GENESIS_DIGEST, computeBlockDigests } from "../integrity/digest.ts";
+import {
+	GENESIS_DIGEST,
+	compareEvents,
+	computeBlockDigests,
+} from "../integrity/digest.ts";
 import type { RuneEntry } from "../runes/entry.ts";
 import { runeIdFromString } from "../runes/rune_id.ts";
 import { spacedRuneToString } from "../runes/spaced_rune.ts";
 import {
+	type RuneEvent,
 	type RuneState,
 	balanceKey,
 	createRuneState,
@@ -204,6 +209,7 @@ export async function loadState(db: Kysely<Database>): Promise<RuneState> {
 		byRune.set(outpoint, n(row.amount));
 
 		state.dbBalanceKeys.add(balanceKey(outpoint, row.rune_id));
+		if (row.address !== null) state.balanceAddresses.set(outpoint, row.address);
 	}
 
 	const checkpoint = await db
@@ -238,6 +244,8 @@ export interface BalanceRow {
 	vout: number;
 	runeId: string;
 	amount: bigint;
+	/** The outpoint's mainnet address (`state.balanceAddresses`), null for a non-standard script. */
+	address: string | null;
 }
 export interface BalanceRowKey {
 	txid: string;
@@ -277,7 +285,13 @@ export function computeBalanceChanges(state: RuneState): {
 		const wasInDb = state.dbBalanceKeys.has(key);
 
 		if (amount > 0n) {
-			toUpsert.push({ txid, vout, runeId, amount });
+			toUpsert.push({
+				txid,
+				vout,
+				runeId,
+				amount,
+				address: state.balanceAddresses.get(outpoint) ?? null,
+			});
 		} else if (wasInDb) {
 			toDelete.push({ txid, vout, runeId });
 		}
@@ -288,6 +302,35 @@ export function computeBalanceChanges(state: RuneState): {
 	return { toUpsert, toDelete };
 }
 
+/**
+ * Pure (no DB access) — assigns each event its `event_index` (position within
+ * its own block, in the digest chain's canonical order: `compareEvents`,
+ * `../integrity/digest.ts`). Grouping by height first matters because one
+ * flush window can span many blocks (batch backfill); the index resets per
+ * block. Keyed by object identity, since `state.events` never contains the
+ * same event object twice.
+ */
+export function assignEventIndices(
+	events: readonly RuneEvent[],
+): Map<RuneEvent, number> {
+	const byHeight = new Map<number, RuneEvent[]>();
+	for (const event of events) {
+		let bucket = byHeight.get(event.height);
+		if (!bucket) {
+			bucket = [];
+			byHeight.set(event.height, bucket);
+		}
+		bucket.push(event);
+	}
+
+	const indices = new Map<RuneEvent, number>();
+	for (const bucket of byHeight.values()) {
+		const sorted = [...bucket].sort(compareEvents);
+		sorted.forEach((event, i) => indices.set(event, i));
+	}
+	return indices;
+}
+
 // Postgres's bind-parameter limit (POSTGRES_MAX_PARAMETERS) is per statement.
 // Chunk sizes below are sized per-statement's own column count, with
 // headroom — sizing this wrong crashed a real backfill run (`rune_entries`
@@ -295,8 +338,8 @@ export function computeBalanceChanges(state: RuneState): {
 // MAX_PARAMETERS_EXCEEDED). See the `chunk sizes stay under the parameter
 // limit` test in store.test.ts, which asserts these constants against their
 // table's real column count so a future column addition fails loudly.
-export const RUNE_BALANCES_PARAMS_PER_ROW = 4; // txid, vout, rune_id, amount
-export const RUNE_EVENTS_PARAMS_PER_ROW = 7; // height, tx_index, txid, kind, rune_id, amount, vout
+export const RUNE_BALANCES_PARAMS_PER_ROW = 5; // txid, vout, rune_id, amount, address (migration 0004)
+export const RUNE_EVENTS_PARAMS_PER_ROW = 9; // height, tx_index, txid, kind, rune_id, amount, vout, event_index, address (migration 0004)
 // 21 original columns + symbol_codepoint, has_terms, repaired_at (migration 0003).
 export const RUNE_ENTRIES_PARAMS_PER_ROW = 24;
 
@@ -350,6 +393,10 @@ export async function flush(
 		state.events,
 		state,
 	);
+	// Derived, not part of the digest chain (see migration 0004's docstring) —
+	// computed from the same `state.events` the digest above was built from,
+	// so it can never disagree with the canonical per-block order `d_H` proves.
+	const eventIndices = assignEventIndices(state.events);
 
 	await db.transaction().execute(async (trx) => {
 		for (const batch of chunk(dirtyEntryRows, ENTRY_CHUNK_SIZE)) {
@@ -393,12 +440,14 @@ export async function flush(
 						vout: r.vout,
 						rune_id: r.runeId,
 						amount: s(r.amount),
+						address: r.address,
 					})),
 				)
 				.onConflict((oc) =>
-					oc
-						.columns(["txid", "vout", "rune_id"])
-						.doUpdateSet((eb) => ({ amount: eb.ref("excluded.amount") })),
+					oc.columns(["txid", "vout", "rune_id"]).doUpdateSet((eb) => ({
+						amount: eb.ref("excluded.amount"),
+						address: eb.ref("excluded.address"),
+					})),
 				)
 				.execute();
 		}
@@ -415,6 +464,9 @@ export async function flush(
 						rune_id: event.runeId,
 						amount: s("amount" in event ? event.amount : 0n),
 						vout: "vout" in event ? event.vout : null,
+						// biome-ignore lint/style/noNonNullAssertion: assignEventIndices covers every event in state.events by construction
+						event_index: eventIndices.get(event)!,
+						address: "address" in event ? (event.address ?? null) : null,
 					})),
 				)
 				.execute();

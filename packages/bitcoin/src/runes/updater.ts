@@ -12,6 +12,7 @@
 // spike indexes Runes only (inscriptions are out of scope per the plan), so
 // there is no inscription index to join against.
 
+import { addressFromScript } from "../address.ts";
 import type { ParsedTx } from "../block.ts";
 import { type Artifact, artifactMint } from "./artifact.ts";
 import { type RuneEntry, runeEntryMintable } from "./entry.ts";
@@ -524,6 +525,7 @@ export async function applyTransaction(
 		}
 
 		const outpoint = `${tx.txid}:${vout}`;
+		const address = addressFromScript(output.script);
 		const sorted = [...balances.entries()].sort(([a], [b]) =>
 			runeIdCompare(runeIdFromKey(a), runeIdFromKey(b)),
 		);
@@ -534,6 +536,7 @@ export async function applyTransaction(
 				outpoint,
 				runeId,
 				getBalance(state, outpoint, runeId) + balance,
+				address,
 			);
 			state.events.push({
 				kind: "transfer",
@@ -543,6 +546,7 @@ export async function applyTransaction(
 				runeId,
 				amount: balance,
 				vout,
+				address,
 			});
 		}
 	}

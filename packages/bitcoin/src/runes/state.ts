@@ -33,6 +33,13 @@ export type RuneEvent =
 			runeId: string;
 			amount: bigint;
 			vout: number;
+			/**
+			 * The output's mainnet address (`../address.ts`), when its scriptPubKey
+			 * is one of the five standard types — `undefined` otherwise. Derived,
+			 * not part of the digest chain (plan 057: kept out of
+			 * `../integrity/digest.ts`'s `serializeEvent`).
+			 */
+			address?: string;
 	  }
 	| {
 			kind: "burn";
@@ -83,6 +90,14 @@ export interface RuneState {
 	 * before, now empty -> delete" apart from "never existed -> no-op".
 	 */
 	dbBalanceKeys: Set<string>;
+	/**
+	 * Outpoint (`"txid:vout"`) -> its mainnet address, for every outpoint that
+	 * currently holds a live rune balance. One address per outpoint (an
+	 * output's scriptPubKey doesn't vary by rune), set by `setBalance` from the
+	 * output script, cleared when the outpoint's last balance is spent. Not ord
+	 * (`../address.ts`'s docstring): only rune-bearing outputs get an entry.
+	 */
+	balanceAddresses: Map<string, string>;
 	events: RuneEvent[];
 	height?: number;
 	hash?: string;
@@ -101,6 +116,7 @@ export function createRuneState(): RuneState {
 		dirtyRuneIds: new Set(),
 		dirtyBalanceKeys: new Set(),
 		dbBalanceKeys: new Set(),
+		balanceAddresses: new Map(),
 		events: [],
 	};
 }
@@ -118,19 +134,30 @@ export function getBalance(
 	return state.balances.get(outpoint)?.get(runeId) ?? 0n;
 }
 
-/** Sets a balance (0 deletes it), keeping `balances`/`balancesByRune` and the dirty sets in sync. */
+/**
+ * Sets a balance (0 deletes it), keeping `balances`/`balancesByRune` and the
+ * dirty sets in sync. `address` (the outpoint's derived mainnet address, see
+ * `../address.ts`) is recorded in `balanceAddresses` the first time this
+ * outpoint gets a live balance, and cleared once its last balance is spent —
+ * an outpoint's address never varies by rune, so a caller setting a second
+ * rune on an already-tracked outpoint can omit it.
+ */
 export function setBalance(
 	state: RuneState,
 	outpoint: string,
 	runeId: string,
 	amount: bigint,
+	address?: string,
 ): void {
 	let byOutpoint = state.balances.get(outpoint);
 	let byRune = state.balancesByRune.get(runeId);
 
 	if (amount === 0n) {
 		byOutpoint?.delete(runeId);
-		if (byOutpoint?.size === 0) state.balances.delete(outpoint);
+		if (byOutpoint?.size === 0) {
+			state.balances.delete(outpoint);
+			state.balanceAddresses.delete(outpoint);
+		}
 		byRune?.delete(outpoint);
 		if (byRune?.size === 0) state.balancesByRune.delete(runeId);
 	} else {
@@ -145,6 +172,8 @@ export function setBalance(
 			state.balancesByRune.set(runeId, byRune);
 		}
 		byRune.set(outpoint, amount);
+
+		if (address !== undefined) state.balanceAddresses.set(outpoint, address);
 	}
 
 	state.dirtyBalanceKeys.add(balanceKey(outpoint, runeId));

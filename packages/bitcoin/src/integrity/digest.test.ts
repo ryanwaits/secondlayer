@@ -5,6 +5,7 @@ import { createRuneState } from "../runes/state.ts";
 import {
 	GENESIS_DIGEST,
 	canonicalBlockDelta,
+	compareEvents,
 	computeBlockDigest,
 	computeBlockDigests,
 } from "./digest.ts";
@@ -95,6 +96,65 @@ describe("canonicalBlockDelta", () => {
 		expect(canonicalBlockDelta([event], stateA)).not.toBe(
 			canonicalBlockDelta([event], stateB),
 		);
+	});
+});
+
+// Plan 057 step 2: `event_index` and `address` are derived fields, computed
+// from (and after) the same canonical order/digest — they must never change
+// `d_H`, or a rebuild couldn't be proven byte-identical against a pre-057
+// digest chain.
+describe("the digest chain is unaffected by the plan 057 derived fields", () => {
+	test("a transfer event's `address` field doesn't change the delta or d_H", () => {
+		const blocks = [{ height: 840_000, hash: "a".repeat(64) }];
+		const state = createRuneState();
+
+		const withoutAddress: RuneEvent = {
+			kind: "transfer",
+			height: 840_000,
+			txIndex: 0,
+			txid: "b".repeat(64),
+			runeId: "840000:0",
+			amount: 42n,
+			vout: 0,
+		};
+		const withAddress: RuneEvent = {
+			...withoutAddress,
+			address: "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg",
+		};
+
+		const deltaWithout = canonicalBlockDelta([withoutAddress], state);
+		const deltaWith = canonicalBlockDelta([withAddress], state);
+		expect(deltaWith).toBe(deltaWithout);
+
+		const rowsWithout = computeBlockDigests(
+			GENESIS_DIGEST,
+			blocks,
+			[withoutAddress],
+			state,
+		);
+		const rowsWith = computeBlockDigests(
+			GENESIS_DIGEST,
+			blocks,
+			[withAddress],
+			state,
+		);
+		// biome-ignore lint/style/noNonNullAssertion: one block in, one row out
+		expect(rowsWith[0]!.digest).toBe(rowsWithout[0]!.digest);
+	});
+
+	test("compareEvents (the event_index sort key) doesn't consult `address`", () => {
+		const a: RuneEvent = {
+			kind: "transfer",
+			height: 840_000,
+			txIndex: 0,
+			txid: "a".repeat(64),
+			runeId: "840000:0",
+			amount: 1n,
+			vout: 0,
+			address: "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg",
+		};
+		const b: RuneEvent = { ...a, address: undefined };
+		expect(compareEvents(a, b)).toBe(0);
 	});
 });
 
