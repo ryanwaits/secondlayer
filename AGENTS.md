@@ -72,7 +72,7 @@ request), supported, documented.
   keyless reads.
 - Cursor format and public `/v1` envelope are 1.0 contracts; reorg/cursor tests
   are sacred.
-- The decoder service (`packages/indexer` l2 module) reads from Streams in production — dogfooding, do not break it.
+- Decoders read Streams' reader in-process; the HTTP Streams path is guarded by the HTTP == in-process parity test (`packages/api/src/streams/decode-dogfood.test.ts`). Do not break either. (The 11 classic decoders — `packages/indexer` l2 module — moved in-process; sbtc/pox4/pox5/bns still read over HTTP until their own pass.)
 - Never describe product surfaces as L1/L2/L3 layers in docs or comms — Stacks is itself a Bitcoin L2, so the terms confuse users. Say raw (Streams), decoded (Index), your schema (Subgraphs). This also extends to code: no identifier, env var, service, or table may start with `l2`/`layer2`. The decoder service is `decoder` (image `secondlayer-decoder`), the dir is `packages/indexer/src/decode/`, checkpoints are named `decode.<event_type>.v<major>`, and the checkpoint table is `decoder_checkpoints` (see ADR-0008/ADR-0010).
 - No EVM/multi-chain. No new wallet-side primitives beyond nonce coordination (supported) and what's already frozen.
 

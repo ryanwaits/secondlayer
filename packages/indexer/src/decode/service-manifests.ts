@@ -26,7 +26,7 @@ const CANONICAL_ALL = ["blocks", "transactions", "events"] as const;
 const STREAMS_API_INPUT = {
 	name: "streams-api",
 	reason:
-		"decoders read canonical events through the Streams client rather than raw parquet — the runtime path is the same as production live-decode",
+		"this protocol decoder reads canonical events through the Streams client rather than raw parquet — the runtime path is the same as production live-decode. (The 11 classic decoders read Streams' own reader in-process instead, plan-066; this manifest only covers the protocol producers below.)",
 	source: "bundled-secondlayer-runtime",
 	rebuildable_from_archive: true,
 } as const;

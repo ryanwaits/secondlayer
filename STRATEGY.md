@@ -114,7 +114,8 @@ blocks, transactions over REST with a cursor envelope — or build your own app
 index on the same rows: a checkpointed `consume()` loop with automatic cursor
 rewind on reorg (`onReorg` rolls back your own rows), `walk()` sweeps,
 `from_height=0` backfill, `/canonical`, `secondlayer codegen index` for your mirror
-schema. Built on Streams (our decoder is a Streams consumer). App index
+schema. Built on Streams (our classic decoders read Streams' own reader
+in-process; protocol decoders are still Streams consumers over HTTP). App index
 without writing decoders. Boot-contract tables (pox-5, sBTC, stacking) are
 the same primitive on contracts everyone shares, not a catalog. New protocols
 go in the operator's `consume()` loop or a subgraph.
@@ -195,7 +196,8 @@ This distinction is load-bearing; keep it crisp everywhere:
 
 Both are indexer products at different levels: Streams is raw, low-level
 indexing — Index is app-level indexing on decoded rows. Streams powers Index:
-our decoder is itself a Streams consumer. Subgraphs is the Index loop, on your
+our classic decoders read Streams' own reader in-process (protocol decoders
+still consume it over HTTP). Subgraphs is the Index loop, on your
 machine or on ours. We sell archive bootstrap and hosted usage (Index/Streams
 reads, subgraphs, webhook deliveries) off one prepaid balance.
 
