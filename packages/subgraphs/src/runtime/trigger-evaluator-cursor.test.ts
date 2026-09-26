@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import { handleChainReorg } from "./chain-reorg.ts";
 import {
+	MIN_REAL_WAIT_MS,
 	advanceCursor,
 	delayAfterTick,
 	getChainReorgGeneration,
 	nextTickDelayMs,
 	shouldWaitThisTick,
+	wasRealWait,
 } from "./trigger-evaluator-loop.ts";
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
@@ -110,5 +112,38 @@ describe("delayAfterTick", () => {
 	it("falls back to nextTickDelayMs's rule when the tick did not wait", () => {
 		expect(delayAfterTick(false, true, 5_000)).toBe(0);
 		expect(delayAfterTick(false, false, 5_000)).toBe(5_000);
+	});
+});
+
+describe("wasRealWait (busy-loop regression guard)", () => {
+	it("is false when this tick never asked the server to wait in the first place", () => {
+		expect(wasRealWait(false, true, 20_000)).toBe(false);
+	});
+
+	it("is false when a wait was requested but the response came back fast reporting nothing new — a server that isn't actually holding wait", () => {
+		expect(wasRealWait(true, true, 100)).toBe(false);
+	});
+
+	it("is true when a wait was requested and it genuinely held close to the full window", () => {
+		expect(wasRealWait(true, true, MIN_REAL_WAIT_MS + 1)).toBe(true);
+	});
+
+	it("is true on an early return with new data, even if that took well under the floor — a legitimate wake, not broken wait", () => {
+		expect(wasRealWait(true, false, 50)).toBe(true);
+	});
+});
+
+describe("plan-063 regression: a wait that never actually holds must not become a busy loop", () => {
+	it("delayAfterTick, fed a non-real wait, falls back to the poll interval instead of re-arming at 0", () => {
+		// This is the exact composition startTriggerEvaluator uses: gate
+		// delayAfterTick's first argument on wasRealWait, not on `usedWait`
+		// alone. A server that answers `wait` instantly while reporting no
+		// progress must degrade to at most one request per POLL_MS, never a
+		// tight loop.
+		const usedWait = true;
+		const idleAtTipAfter = true;
+		const brokenElapsedMs = 90; // a real network hop, nowhere near a 20s wait
+		const real = wasRealWait(usedWait, idleAtTipAfter, brokenElapsedMs);
+		expect(delayAfterTick(real, false, 5_000)).toBe(5_000);
 	});
 });

@@ -4,6 +4,7 @@ import {
 	type Database,
 	type Webhook,
 	type WebhookOutbox,
+	describeDbUrl,
 	getTargetDb,
 } from "@secondlayer/shared/db";
 import { getWebhookSigningSecret } from "@secondlayer/shared/db/queries/webhooks";
@@ -880,6 +881,14 @@ export async function startEmitter(
 		},
 		{ connectionString: listenUrl },
 	);
+	// Names both channels + the exact host/db LISTENed on (no credentials) so
+	// a split-DB misconfiguration — the wake never reaching this process — is
+	// visible in `docker logs` at boot, not only inferred from a delivery
+	// latency graph later.
+	logger.info("[emitter] wake listeners connected", {
+		channels: ["webhooks:new_outbox", "webhooks:changed"],
+		db: describeDbUrl(listenUrl),
+	});
 
 	// Poll every pollIntervalMs as a safety net for missed notifications +
 	// backoff wakeups (rows whose next_attempt_at has passed).

@@ -334,6 +334,35 @@ export function delayAfterTick(
 	return usedWait ? 0 : nextTickDelayMs(advanced, pollMs);
 }
 
+/** Floor (ms) a genuine `wait` round trip must clear before `delayAfterTick`
+ *  trusts it enough to re-arm at 0. Deliberately generous relative to any
+ *  real network hop (~100ms) but small relative to `WAIT_SECONDS` (20_000ms),
+ *  so it only trips on a wait that plainly never held. */
+export const MIN_REAL_WAIT_MS = 2_000;
+
+/**
+ * Defense in depth (this is what a plan-063 regression slipped past): even
+ * when the client asked the server to hold the response, NEVER trust that it
+ * actually did just because the request "succeeded". A server that answers
+ * `wait` requests instantly — a bug, a proxy that strips the param, anything —
+ * must never turn `delayAfterTick`'s 0ms re-arm into a busy loop.
+ *
+ * A wait attempt only counts as real when EITHER it found something new
+ * (`!idleAtTipAfter` — an early wake is legitimate, not a sign of breakage)
+ * OR it actually consumed close to the time it asked for. Both false means
+ * the round trip came back fast AND reported nothing new, which no correct
+ * `wait` implementation can do.
+ */
+export function wasRealWait(
+	usedWait: boolean,
+	idleAtTipAfter: boolean,
+	elapsedMs: number,
+	minRealWaitMs: number = MIN_REAL_WAIT_MS,
+): boolean {
+	if (!usedWait) return false;
+	return !idleAtTipAfter || elapsedMs >= minRealWaitMs;
+}
+
 /** Start the evaluator timer loop. Returns a stop function. */
 export function startTriggerEvaluator(): () => void {
 	let running = true;
@@ -350,10 +379,16 @@ export function startTriggerEvaluator(): () => void {
 	const tick = async (): Promise<void> => {
 		if (!running) return;
 		let advanced = false;
+		// Defense in depth against exactly the regression this guards: only
+		// re-arm at 0ms when the wait this tick asked for actually held (see
+		// `wasRealWait`). Starts false so a thrown/failed tick — no result to
+		// judge — always falls back to the plain poll timer.
+		let realWait = false;
 		const usedWait = shouldWaitThisTick(
 			waitOnNextCall,
 			httpClient.waitIsSupported(),
 		);
+		const tickStart = Date.now();
 		try {
 			const result = await runEvaluatorOnce(undefined, {
 				httpClient,
@@ -363,6 +398,11 @@ export function startTriggerEvaluator(): () => void {
 			advanced = result.advanced;
 			if (result.rawTip !== null) knownTip = result.rawTip;
 			waitOnNextCall = result.idleAtTip;
+			realWait = wasRealWait(
+				usedWait,
+				result.idleAtTip,
+				Date.now() - tickStart,
+			);
 			if (result.emitted > 0) {
 				logger.info("Trigger evaluator emitted chain deliveries", {
 					count: result.emitted,
@@ -374,7 +414,7 @@ export function startTriggerEvaluator(): () => void {
 			});
 		}
 		if (running)
-			timer = setTimeout(tick, delayAfterTick(usedWait, advanced, POLL_MS));
+			timer = setTimeout(tick, delayAfterTick(realWait, advanced, POLL_MS));
 	};
 
 	timer = setTimeout(tick, POLL_MS);
