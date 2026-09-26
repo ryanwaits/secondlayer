@@ -594,46 +594,6 @@ export function WebhookDetailSection({ id }: { id: string }) {
 
 			<AttemptRibbon rows={rows} />
 
-			<dl className="wh-facts">
-				<dt>Fires on</dt>
-				<dd>
-					<FiresOn
-						kind={webhook.kind}
-						subgraphName={webhook.subgraphName}
-						tableName={webhook.tableName}
-						triggers={webhook.triggers}
-					/>
-					<div className="acct-fine" style={{ marginTop: 4 }}>
-						Created {formatDate(webhook.createdAt)}
-					</div>
-				</dd>
-				<dt>Sends to</dt>
-				<dd>
-					<span className="wh-mono">{webhook.url}</span>
-				</dd>
-				<dt>Format</dt>
-				<dd>{FORMAT_LABEL[webhook.format]}</dd>
-				<dt>Retries</dt>
-				<dd>
-					<span className="wh-mono">{webhook.maxRetries}</span>{" "}
-					<span className="wh-of">of 7 allowed</span>
-				</dd>
-				<dt>Timeout</dt>
-				<dd>
-					<span className="wh-mono">{webhook.timeoutMs / 1000}</span> seconds{" "}
-					<span className="wh-of">of 30 allowed</span>
-				</dd>
-				<dt>In flight</dt>
-				<dd>
-					<span className="wh-mono">{webhook.concurrency}</span>{" "}
-					<span className="wh-of">requests at once</span>
-				</dd>
-			</dl>
-			<p className="acct-fine left">
-				Change any of these with{" "}
-				<code>secondlayer webhooks update {webhook.id}</code>.
-			</p>
-
 			<div className="wh-tabs" role="tablist">
 				<button
 					type="button"
@@ -678,6 +638,44 @@ export function WebhookDetailSection({ id }: { id: string }) {
 					/>
 				)}
 			</div>
+
+			<h2 className="acct-h2">Settings</h2>
+			<dl className="wh-facts">
+				<dt>Fires on</dt>
+				<dd>
+					<FiresOn
+						kind={webhook.kind}
+						subgraphName={webhook.subgraphName}
+						tableName={webhook.tableName}
+						triggers={webhook.triggers}
+					/>
+					<div className="acct-fine" style={{ marginTop: 4 }}>
+						Created {formatDate(webhook.createdAt)}
+					</div>
+				</dd>
+				<dt>Sends to</dt>
+				<dd>
+					<span className="wh-mono">{webhook.url}</span>
+				</dd>
+				<dt>Format</dt>
+				<dd>{FORMAT_LABEL[webhook.format]}</dd>
+				<dt>Retries</dt>
+				<dd>
+					<span className="wh-mono">{webhook.maxRetries}</span>{" "}
+					<span className="wh-of">of 7 allowed</span>
+				</dd>
+				<dt>Timeout</dt>
+				<dd>
+					<span className="wh-mono">{webhook.timeoutMs / 1000}</span> seconds{" "}
+					<span className="wh-of">of 30 allowed</span>
+				</dd>
+				<dt>In flight</dt>
+				<dd>
+					<span className="wh-mono">{webhook.concurrency}</span>{" "}
+					<span className="wh-of">requests at once</span>
+				</dd>
+			</dl>
+			<CliLine command={`secondlayer webhooks update ${webhook.id}`} />
 
 			<DeliveryCard
 				webhookId={id}
@@ -811,8 +809,6 @@ export function WebhookDetailSection({ id }: { id: string }) {
 					</>
 				)}
 			</div>
-
-			<CliLine command={`secondlayer webhooks update ${webhook.id}`} />
 		</>
 	);
 }
