@@ -10,10 +10,16 @@ import {
 	isInsightDismissed,
 	markToastShown,
 } from "@/lib/webhooks-data";
-import { poll, refreshList, useWebhooksCache } from "@/lib/webhooks-store";
+import {
+	poll,
+	prefetchDetail,
+	refreshList,
+	useWebhooksCache,
+} from "@/lib/webhooks-store";
 import NumberFlow from "@number-flow/react";
 import type { DoctorIssue, WebhookSummary } from "@secondlayer/sdk";
 import { buildListIssue } from "@secondlayer/sdk/webhooks/doctor";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -307,9 +313,20 @@ export function WebhooksListSection() {
 												open(w.id);
 											}
 										}}
+										onMouseEnter={() => prefetchDetail(w.id)}
+										onFocus={() => prefetchDetail(w.id)}
 									>
 										<td>
-											{w.name}
+											<Link
+												href={`/account/webhooks/${w.id}`}
+												// The row itself is the tab stop (below); this
+												// anchor exists for prefetch, and for a real
+												// middle-/right-click, not as a second one.
+												tabIndex={-1}
+												onClick={(e) => e.stopPropagation()}
+											>
+												{w.name}
+											</Link>
 											<span className="wh-tbl-sub wh-mono">
 												{hostOf(w.url)}
 											</span>
