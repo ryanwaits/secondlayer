@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.13.1
+
+### Patch Changes
+
+- b886f88: `WebhookSummary` (the webhooks list) now carries `circuitFailures`, the consecutive failed deliveries a success resets. The dashboard's list page uses it so a row reads Failing, and counts toward "Needs attention", as soon as its receiver fails 5 times in a row, not only once the circuit breaker pauses it.
+
 ## 11.13.0
 
 ### Minor Changes

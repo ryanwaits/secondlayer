@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "12.4.0",
+	"version": "12.4.1",
 	"areas": [
 		{
 			"name": "Client",
@@ -2031,7 +2031,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 284
+					"line": 287
 				},
 				{
 					"name": "DeadRow",
@@ -2039,7 +2039,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 371
+					"line": 374
 				},
 				{
 					"name": "DeliveryRow",
@@ -2047,7 +2047,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 293
+					"line": 296
 				},
 				{
 					"name": "ReplayResult",
@@ -2055,7 +2055,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 357
+					"line": 360
 				},
 				{
 					"name": "RotateSecretResponse",
@@ -2063,7 +2063,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 289
+					"line": 292
 				},
 				{
 					"name": "SbtcDepositEvent",
@@ -2127,7 +2127,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 318
+					"line": 321
 				},
 				{
 					"name": "WebhookActivityHour",
@@ -2135,7 +2135,7 @@
 					"summary": "One hour of `webhook_outbox` activity (`GET /:id/activity`), zero-filled so the events chart always has 168 bars.",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 311
+					"line": 314
 				},
 				{
 					"name": "WebhookDeliveryDetail",
@@ -2143,7 +2143,7 @@
 					"summary": "One delivery attempt with its outbox context, for the delivery card (`GET /:id/deliveries/:deliveryId`).",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 331
+					"line": 334
 				},
 				{
 					"name": "WebhookDetail",
@@ -2151,7 +2151,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 266
+					"line": 270
 				},
 				{
 					"name": "WebhookFormat",
@@ -2199,7 +2199,7 @@
 					"summary": "Result of a one-off test delivery (`POST /:id/test`).",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 364
+					"line": 367
 				}
 			]
 		},

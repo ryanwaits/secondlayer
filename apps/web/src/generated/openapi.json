@@ -6347,6 +6347,7 @@
 					"lastDeliveryAt",
 					"lastSuccessAt",
 					"circuitOpenedAt",
+					"circuitFailures",
 					"createdAt",
 					"updatedAt"
 				],
@@ -6445,6 +6446,10 @@
 						"format": "date-time",
 						"description": "When the circuit breaker paused this webhook. Cleared on resume."
 					},
+					"circuitFailures": {
+						"type": "integer",
+						"description": "Consecutive failed deliveries; a success resets it. The circuit opens at 20; resume resets it."
+					},
 					"createdAt": {
 						"type": "string",
 						"format": "date-time",
@@ -6469,6 +6474,7 @@
 					"lastDeliveryAt": "2026-09-22T14:03:11.402Z",
 					"lastSuccessAt": "2026-09-22T14:03:11.402Z",
 					"circuitOpenedAt": null,
+					"circuitFailures": 0,
 					"createdAt": "2026-09-20T09:12:45.118Z",
 					"updatedAt": "2026-09-20T09:12:45.118Z"
 				}
@@ -6490,6 +6496,7 @@
 					"lastDeliveryAt",
 					"lastSuccessAt",
 					"circuitOpenedAt",
+					"circuitFailures",
 					"createdAt",
 					"updatedAt",
 					"filter",
@@ -6498,7 +6505,6 @@
 					"maxRetries",
 					"timeoutMs",
 					"concurrency",
-					"circuitFailures",
 					"lastError",
 					"warning"
 				],
@@ -6597,6 +6603,10 @@
 						"format": "date-time",
 						"description": "When the circuit breaker paused this webhook. Cleared on resume."
 					},
+					"circuitFailures": {
+						"type": "integer",
+						"description": "Consecutive failed deliveries; a success resets it. The circuit opens at 20; resume resets it."
+					},
 					"createdAt": {
 						"type": "string",
 						"format": "date-time",
@@ -6643,10 +6653,6 @@
 						"maximum": 100,
 						"description": "Deliveries in flight at once for this webhook. Default 4."
 					},
-					"circuitFailures": {
-						"type": "integer",
-						"description": "Consecutive failed deliveries. The circuit opens at 20; resume resets it."
-					},
 					"lastError": {
 						"type": [
 							"string",
@@ -6675,6 +6681,7 @@
 					"lastDeliveryAt": "2026-09-22T14:03:11.402Z",
 					"lastSuccessAt": "2026-09-22T14:03:11.402Z",
 					"circuitOpenedAt": null,
+					"circuitFailures": 0,
 					"createdAt": "2026-09-20T09:12:45.118Z",
 					"updatedAt": "2026-09-20T09:12:45.118Z",
 					"filter": {},
@@ -6693,7 +6700,6 @@
 					"maxRetries": 7,
 					"timeoutMs": 10000,
 					"concurrency": 4,
-					"circuitFailures": 0,
 					"lastError": null,
 					"warning": null
 				}
@@ -6729,6 +6735,7 @@
 						"lastDeliveryAt": "2026-09-22T14:03:11.402Z",
 						"lastSuccessAt": "2026-09-22T14:03:11.402Z",
 						"circuitOpenedAt": null,
+						"circuitFailures": 0,
 						"createdAt": "2026-09-20T09:12:45.118Z",
 						"updatedAt": "2026-09-20T09:12:45.118Z",
 						"filter": {},
@@ -6747,7 +6754,6 @@
 						"maxRetries": 7,
 						"timeoutMs": 10000,
 						"concurrency": 4,
-						"circuitFailures": 0,
 						"lastError": null,
 						"warning": null
 					},
@@ -14630,6 +14636,7 @@
 												"lastDeliveryAt": "2026-09-22T14:03:11.402Z",
 												"lastSuccessAt": "2026-09-22T14:03:11.402Z",
 												"circuitOpenedAt": null,
+												"circuitFailures": 0,
 												"createdAt": "2026-09-20T09:12:45.118Z",
 												"updatedAt": "2026-09-20T09:12:45.118Z"
 											}
