@@ -11,7 +11,10 @@ import {
 	createWakeBus,
 	sourceListenerUrl,
 } from "@secondlayer/shared/queue/listener";
-import { runClassicDecodeCycle } from "./classic-decoders.ts";
+import {
+	runClassicDecodeCycle,
+	waitForNextClassicDecodeCycle,
+} from "./classic-decoders.ts";
 import { consumeBnsDecodedEvents } from "./decoders/bns.ts";
 import { consumePox4DecodedEvents } from "./decoders/pox-4.ts";
 import { consumePox5DecodedEvents } from "./decoders/pox-5.ts";
@@ -254,7 +257,20 @@ async function runClassicDecoders(): Promise<void> {
 		process.env.DECODER_EMPTY_BACKOFF_MS ?? "1000",
 		10,
 	);
+	// Instrumentation for tracing hosted-webhook p95 tail latency: which class
+	// of slow decode cycle a given block fell into. `trigger` names what woke
+	// THIS iteration ("continue" — the previous cycle still had more to do,
+	// "wake" — a NOTIFY, "timer" — the empty-poll backoff fired first);
+	// `waitStartedAt` measures how long this iteration actually waited before
+	// starting.
+	let trigger: "wake" | "timer" | "continue" = "timer";
+	let waitStartedAt = Date.now();
 	while (!controller.signal.aborted) {
+		const waitMsBefore = Date.now() - waitStartedAt;
+		// Read BEFORE the cycle runs: if this generation differs from the bus's
+		// generation once the cycle returns, a NOTIFY landed while busy — see
+		// `waitForNextClassicDecodeCycle`.
+		const generationAtCycleStart = wakeBus?.generation() ?? 0;
 		let progressed = false;
 		try {
 			const result = await runClassicDecodeCycle({ limit });
@@ -266,6 +282,18 @@ async function runClassicDecoders(): Promise<void> {
 				decodedThisMinute[decoderName] =
 					(decodedThisMinute[decoderName] ?? 0) + decoded;
 			}
+			logger.info("classic_decode_cycle", {
+				event: "classic_decode_cycle",
+				trigger,
+				from_height: result.fromHeight,
+				to_height: result.toHeight,
+				pages: result.pagesCommitted,
+				rows: result.decoded,
+				read_ms: result.readMs,
+				commit_ms: result.commitMs,
+				total_ms: result.totalMs,
+				wait_ms_before: waitMsBefore,
+			});
 		} catch (error) {
 			if (controller.signal.aborted) return;
 			if (error instanceof DecoderCheckpointRewoundError) {
@@ -293,17 +321,24 @@ async function runClassicDecoders(): Promise<void> {
 				}
 			}
 		}
-		if (progressed) continue;
+		if (progressed) {
+			trigger = "continue";
+			waitStartedAt = Date.now();
+			continue;
+		}
 		// Nothing to do: wait for the next block's NOTIFY, with the empty-poll
 		// backoff timer always running underneath (see `runDecoder`'s wake race
 		// — a broken or absent wake source degrades to plain polling, never a
-		// stall).
-		await (wakeBus?.wait
-			? Promise.race([
-					sleep(emptyBackoffMs, controller.signal),
-					wakeBus.wait().catch(() => new Promise<never>(() => {})),
-				])
-			: sleep(emptyBackoffMs, controller.signal));
+		// stall). `generationAtCycleStart` catches a NOTIFY dropped while the
+		// cycle above was running instead of registering a fresh wait() that
+		// would only resolve on a FUTURE notify.
+		waitStartedAt = Date.now();
+		trigger = await waitForNextClassicDecodeCycle({
+			wakeBus,
+			generationAtCycleStart,
+			emptyBackoffMs,
+			sleep: (ms) => sleep(ms, controller.signal),
+		});
 	}
 }
 

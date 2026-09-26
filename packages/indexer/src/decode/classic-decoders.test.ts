@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import {
+	type ClassicDecodeWakeBus,
 	type ClassicDecoderCommitFn,
 	runClassicDecodeCycle,
+	waitForNextClassicDecodeCycle,
 } from "./classic-decoders.ts";
 import { commitClassicDecoderBatch } from "./generic-commit.ts";
 import { getDecodersHealth } from "./health.ts";
@@ -511,5 +513,63 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 			expect(decoder.lag_seconds).toBe(0);
 			expect(decoder.status).toBe("healthy");
 		}
+	});
+});
+
+describe("waitForNextClassicDecodeCycle", () => {
+	function sleepFn(ms: number): Promise<void> {
+		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	test("no wake bus — waits out the empty-poll backoff and reports timer", async () => {
+		const start = Date.now();
+		const trigger = await waitForNextClassicDecodeCycle({
+			wakeBus: null,
+			generationAtCycleStart: 0,
+			emptyBackoffMs: 150,
+			sleep: sleepFn,
+		});
+		expect(trigger).toBe("timer");
+		expect(Date.now() - start).toBeGreaterThanOrEqual(140);
+	});
+
+	test("generation unchanged since the cycle started — a wake still resolves it ahead of the backoff timer", async () => {
+		let resolveWait: () => void = () => {};
+		const wakeBus: ClassicDecodeWakeBus = {
+			wait: () =>
+				new Promise((resolve) => {
+					resolveWait = resolve;
+				}),
+			generation: () => 5,
+		};
+		const pending = waitForNextClassicDecodeCycle({
+			wakeBus,
+			generationAtCycleStart: 5,
+			emptyBackoffMs: 5000,
+			sleep: sleepFn,
+		});
+		await sleepFn(20);
+		resolveWait();
+		expect(await pending).toBe("wake");
+	});
+
+	test("a NOTIFY dropped while the previous cycle was busy (generation already advanced) reruns immediately instead of waiting out the backoff", async () => {
+		// `wait()` deliberately never resolves — proof this returns "wake"
+		// purely from the generation mismatch, not from a real wake landing
+		// during the call.
+		const wakeBus: ClassicDecodeWakeBus = {
+			wait: () => new Promise(() => {}),
+			generation: () => 6,
+		};
+		const start = Date.now();
+		const trigger = await waitForNextClassicDecodeCycle({
+			wakeBus,
+			generationAtCycleStart: 5,
+			emptyBackoffMs: 5000,
+			sleep: sleepFn,
+		});
+		expect(trigger).toBe("wake");
+		// Without the generation check this would hang out the full 5s backoff.
+		expect(Date.now() - start).toBeLessThan(200);
 	});
 });

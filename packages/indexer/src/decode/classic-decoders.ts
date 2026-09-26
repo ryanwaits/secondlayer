@@ -135,10 +135,32 @@ export type ClassicDecodeCycleResult = {
 	progressed: boolean;
 	/** Every decoder's checkpoint cursor after this cycle (unchanged ones too). */
 	checkpoints: Record<DecoderName, string | null>;
+	/** First not-yet-committed height this cycle scanned from — the lowest
+	 *  classic checkpoint plus one. Null when every checkpoint is unset (never
+	 *  committed, scan starts at genesis) is represented as 0, not null; null
+	 *  here means the cycle never reached a tip read at all (no canonical
+	 *  block exists yet). Instrumentation for tracing decode-cycle latency. */
+	fromHeight: number | null;
+	/** Source-tip height this cycle bounded itself to. Null only when no
+	 *  canonical block exists yet. */
+	toHeight: number | null;
+	/** Wall time spent inside `readCanonicalStreamsEvents`, summed across
+	 *  every page this cycle read. */
+	readMs: number;
+	/** Wall time spent inside `commit`, summed across every page this cycle
+	 *  committed. */
+	commitMs: number;
+	/** Wall time for the whole cycle, start to return. */
+	totalMs: number;
 };
 
 function emptyCheckpointResult(
 	checkpoints: Record<DecoderName, string | null>,
+	opts: {
+		fromHeight: number | null;
+		toHeight: number | null;
+		totalMs: number;
+	},
 ): ClassicDecodeCycleResult {
 	const decodedByDecoder = {} as Record<DecoderName, number>;
 	for (const name of DECODER_NAMES) decodedByDecoder[name] = 0;
@@ -149,6 +171,11 @@ function emptyCheckpointResult(
 		pagesCommitted: 0,
 		progressed: false,
 		checkpoints,
+		fromHeight: opts.fromHeight,
+		toHeight: opts.toHeight,
+		readMs: 0,
+		commitMs: 0,
+		totalMs: opts.totalMs,
 	};
 }
 
@@ -195,6 +222,7 @@ export async function runClassicDecodeCycle(opts?: {
 	maxPagesPerCycle?: number;
 	commit?: ClassicDecoderCommitFn;
 }): Promise<ClassicDecodeCycleResult> {
+	const cycleStart = Date.now();
 	const db = opts?.db ?? getSourceDb();
 	const limit = opts?.limit ?? DEFAULT_CLASSIC_BATCH_LIMIT;
 	const maxPages = opts?.maxPagesPerCycle ?? DEFAULT_MAX_PAGES_PER_CYCLE;
@@ -210,14 +238,26 @@ export async function runClassicDecodeCycle(opts?: {
 
 	const lowestCursor = pickLowestCursor(Object.values(startCheckpoints));
 	const lowestCommittedHeight = committedHeight(lowestCursor);
+	const fromHeight =
+		lowestCommittedHeight === null ? 0 : lowestCommittedHeight + 1;
 
 	const tip = await getCurrentCanonicalTip(db);
-	if (!tip) return emptyCheckpointResult(startCheckpoints);
+	if (!tip) {
+		return emptyCheckpointResult(startCheckpoints, {
+			fromHeight: null,
+			toHeight: null,
+			totalMs: Date.now() - cycleStart,
+		});
+	}
 	const toHeight = tip.block_height;
 
 	if (lowestCommittedHeight !== null && lowestCommittedHeight >= toHeight) {
 		// Every classic decoder already committed through the source tip.
-		return emptyCheckpointResult(startCheckpoints);
+		return emptyCheckpointResult(startCheckpoints, {
+			fromHeight,
+			toHeight,
+			totalMs: Date.now() - cycleStart,
+		});
 	}
 
 	// Mutable running state, updated after each page's successful commit —
@@ -231,9 +271,12 @@ export async function runClassicDecodeCycle(opts?: {
 	let after = lowestCursor ? decodeStreamsCursor(lowestCursor) : undefined;
 	let scanned = 0;
 	let pages = 0;
+	let readMs = 0;
+	let commitMs = 0;
 
 	while (pages < maxPages) {
 		pages++;
+		const readStart = Date.now();
 		const page = await readCanonicalStreamsEvents({
 			db,
 			after,
@@ -241,6 +284,7 @@ export async function runClassicDecodeCycle(opts?: {
 			types: CLASSIC_TYPES,
 			limit,
 		});
+		readMs += Date.now() - readStart;
 		const events = page.events as StreamsEvent[];
 		scanned += events.length;
 
@@ -344,7 +388,9 @@ export async function runClassicDecodeCycle(opts?: {
 		// any earlier page in this cycle already committed and stays committed.
 		// The error propagates to the caller, which resumes on the NEXT cycle
 		// by re-reading checkpoints (now reflecting the rewind) from scratch.
+		const commitStart = Date.now();
 		await commit(entries, { db });
+		commitMs += Date.now() - commitStart;
 
 		for (const name of DECODER_NAMES) {
 			decodedByDecoder[name] += rowsByDecoder[name].length;
@@ -381,5 +427,60 @@ export async function runClassicDecodeCycle(opts?: {
 		pagesCommitted: pages,
 		progressed: true,
 		checkpoints: currentCheckpoints,
+		fromHeight,
+		toHeight,
+		readMs,
+		commitMs,
+		totalMs: Date.now() - cycleStart,
 	};
+}
+
+/** The slice of `WakeBus` the classic-decoder loop's wait step needs — a
+ *  plain object literal satisfies this in tests, no real LISTEN required. */
+export type ClassicDecodeWakeBus = {
+	wait: () => Promise<void>;
+	generation: () => number;
+};
+
+export type ClassicDecodeWaitTrigger = "wake" | "timer";
+
+/**
+ * Decide how the classic-decoder loop resumes after an idle cycle (nothing
+ * left to decode through the source tip it saw). A NOTIFY can land on
+ * `indexer:new_block` while the PREVIOUS `runClassicDecodeCycle` call was
+ * still running — nobody was an active `wait()`er at that moment, so
+ * `createWakeBus`'s resolve fan-out (`packages/shared/src/queue/listener.ts`)
+ * drops it on the floor. Without this check, the loop would then register a
+ * brand new `wait()` that only resolves on a FUTURE notify, so that block's
+ * decode waits out the empty-poll backoff (or the next block entirely)
+ * instead of running right away. Same generation-check pattern as the Index
+ * API long-poll fix (`packages/api/src/index/wait.ts`).
+ *
+ * `generationAtCycleStart` must be read (via `wakeBus.generation()`) right
+ * before the cycle that just finished was started — if the bus's generation
+ * has since moved past it, at least one commit happened while busy, and this
+ * returns "wake" immediately instead of racing a fresh wait against the
+ * backoff timer.
+ */
+export async function waitForNextClassicDecodeCycle(opts: {
+	wakeBus: ClassicDecodeWakeBus | null;
+	generationAtCycleStart: number;
+	emptyBackoffMs: number;
+	sleep: (ms: number) => Promise<void>;
+}): Promise<ClassicDecodeWaitTrigger> {
+	const { wakeBus, generationAtCycleStart, emptyBackoffMs, sleep } = opts;
+	if (!wakeBus) {
+		await sleep(emptyBackoffMs);
+		return "timer";
+	}
+	if (wakeBus.generation() !== generationAtCycleStart) {
+		return "wake";
+	}
+	return Promise.race([
+		sleep(emptyBackoffMs).then(() => "timer" as const),
+		wakeBus
+			.wait()
+			.then(() => "wake" as const)
+			.catch(() => new Promise<never>(() => {})),
+	]);
 }
