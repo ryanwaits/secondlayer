@@ -8,7 +8,6 @@
 // (delivered/waiting/gave up) via recharts `stackId`, instead of Mono's
 // single-series bars.
 
-import { useEffect, useState } from "react";
 import {
 	Bar,
 	BarChart,
@@ -26,20 +25,14 @@ export interface ActivityHourBar {
 	gaveUp: number;
 }
 
-function usePrefersReducedMotion(): boolean {
-	const [reduced, setReduced] = useState(false);
-	useEffect(() => {
-		const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-		setReduced(mq.matches);
-		const onChange = () => setReduced(mq.matches);
-		mq.addEventListener("change", onChange);
-		return () => mq.removeEventListener("change", onChange);
-	}, []);
-	return reduced;
-}
-
 /** One stacked bar per hour: delivered (`--fig-bar`), waiting (`--fig-role-a`),
- *  gave up (`--fig-alarm`). `data` is oldest → newest, left to right. */
+ *  gave up (`--fig-alarm`). `data` is oldest → newest, left to right.
+ *  Animation is off: this chart re-renders on every 5s `/activity` poll, and
+ *  recharts would otherwise replay the entrance animation on every refresh —
+ *  and, briefly, corrupt the low-opacity `--fig-bar` fill (recharts
+ *  interpolates a `fill` string frame-by-frame for the enter transition,
+ *  which doesn't understand `var()`, causing the delivered bars to paint
+ *  invisibly for the whole animated window). */
 export function MonoStackedBarChart({
 	data,
 	height = 120,
@@ -47,8 +40,6 @@ export function MonoStackedBarChart({
 	data: ActivityHourBar[];
 	height?: number;
 }) {
-	const reducedMotion = usePrefersReducedMotion();
-
 	return (
 		<ResponsiveContainer width="100%" height={height}>
 			<BarChart
@@ -72,8 +63,7 @@ export function MonoStackedBarChart({
 					stackId="events"
 					fill="var(--fig-bar)"
 					radius={[1, 1, 1, 1]}
-					isAnimationActive={!reducedMotion}
-					animationDuration={400}
+					isAnimationActive={false}
 				/>
 				<Bar
 					dataKey="waiting"
@@ -81,8 +71,7 @@ export function MonoStackedBarChart({
 					stackId="events"
 					fill="var(--fig-role-a)"
 					radius={[1, 1, 1, 1]}
-					isAnimationActive={!reducedMotion}
-					animationDuration={400}
+					isAnimationActive={false}
 				/>
 				<Bar
 					dataKey="gaveUp"
@@ -90,8 +79,7 @@ export function MonoStackedBarChart({
 					stackId="events"
 					fill="var(--fig-alarm)"
 					radius={[1, 1, 1, 1]}
-					isAnimationActive={!reducedMotion}
-					animationDuration={400}
+					isAnimationActive={false}
 				/>
 			</BarChart>
 		</ResponsiveContainer>
