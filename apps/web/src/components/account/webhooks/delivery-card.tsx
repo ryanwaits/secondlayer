@@ -288,7 +288,11 @@ export function DeliveryCard({
 			<dl className="wh-dl-meta">
 				<div>
 					<dt>Block</dt>
-					<dd>{detail?.blockHeight ?? "–"}</dd>
+					<dd>
+						{detail?.blockHeight == null
+							? "–"
+							: detail.blockHeight.toLocaleString("en-US")}
+					</dd>
 				</div>
 				<div>
 					<dt>Event</dt>

@@ -18,7 +18,13 @@ import { buildListIssue } from "@secondlayer/sdk/webhooks/doctor";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { CliLine, FiresOn, StatusPill, displayStatus } from "./shared";
+import {
+	CliLine,
+	FiresOn,
+	StatusPill,
+	countByDisplayStatus,
+	displayStatus,
+} from "./shared";
 
 const CREATE_CMD =
 	"secondlayer webhooks create --name pool-payouts --trigger stx_transfer --url https://your.app/hook";
@@ -223,8 +229,8 @@ export function WebhooksListSection() {
 
 	if (rows.length === 0) return <EmptyState />;
 
-	const delivering = rows.filter((w) => w.status === "active").length;
-	const attention = rows.filter((w) => w.status === "error").length;
+	const delivering = countByDisplayStatus(rows, "active");
+	const attention = countByDisplayStatus(rows, "error");
 	const webhookUsage = usage[monthKey]?.find((r) => r.unit === "webhook.event");
 
 	function open(id: string) {

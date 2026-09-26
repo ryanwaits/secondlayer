@@ -74,6 +74,20 @@ export function displayStatus(
 	return "active";
 }
 
+/** How many of these rows would show `status` as their pill — the list
+ *  page's "Delivering N of M" / "Needs attention" stats. Summary rows carry
+ *  no `primary`, so this only ever sees rules 1, 2, and 5 of `displayStatus`. */
+export function countByDisplayStatus(
+	rows: readonly {
+		status: WebhookStatus;
+		circuitOpenedAt: string | null;
+		circuitFailures?: number;
+	}[],
+	status: WebhookStatus,
+): number {
+	return rows.filter((w) => displayStatus(w) === status).length;
+}
+
 /** "SP21YTS…8XEF.pox4-fast-pool-v3" — long enough to recognize, short enough
  *  to sit in a table cell. Only the address part is truncated. Works for any
  *  long identifier (a transaction id has no dot, so it's truncated whole). */

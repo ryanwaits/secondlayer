@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { DoctorIssue } from "@secondlayer/sdk";
-import { displayStatus } from "./shared";
+import { countByDisplayStatus, displayStatus } from "./shared";
 
 function issue(overrides: Partial<DoctorIssue> = {}): DoctorIssue {
 	return { code: "receiver_down", severity: "bad", ...overrides };
@@ -104,5 +104,36 @@ describe("displayStatus", () => {
 		expect(
 			displayStatus({ status: "active", circuitOpenedAt: null }, null),
 		).toBe("active");
+	});
+});
+
+describe("countByDisplayStatus", () => {
+	// The list page's rows: one auto-paused by the breaker (Failing), one
+	// healthy (Delivering), one paused by the user (Paused) — the exact shape
+	// WebhookSummary gives the list page, no primary available.
+	const rows = [
+		{
+			status: "paused" as const,
+			circuitOpenedAt: "2026-04-23T00:00:00.000Z",
+		},
+		{ status: "active" as const, circuitOpenedAt: null },
+		{ status: "paused" as const, circuitOpenedAt: null },
+	];
+
+	test("counts a circuit-paused row as error (Needs attention), not active", () => {
+		expect(countByDisplayStatus(rows, "error")).toBe(1);
+	});
+
+	test("counts only the genuinely active row as Delivering", () => {
+		expect(countByDisplayStatus(rows, "active")).toBe(1);
+	});
+
+	test("counts the user-paused row as paused", () => {
+		expect(countByDisplayStatus(rows, "paused")).toBe(1);
+	});
+
+	test("an empty list counts zero for every status", () => {
+		expect(countByDisplayStatus([], "error")).toBe(0);
+		expect(countByDisplayStatus([], "active")).toBe(0);
 	});
 });

@@ -883,7 +883,9 @@ function DeliveriesTable({
 											<span className="dim"> {r.errorMessage}</span>
 										) : null}
 									</td>
-									<td className="num">{r.durationMs ?? "–"} ms</td>
+									<td className="num">
+										{r.durationMs === null ? "–" : `${r.durationMs} ms`}
+									</td>
 									<td className="num">›</td>
 								</tr>
 							);
