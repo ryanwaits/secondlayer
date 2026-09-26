@@ -123,19 +123,39 @@ async function writeCheckpoint(
 	cursor: string | null,
 ): Promise<void> {
 	if (cursor === null) return;
-	await tx
+	// An idle decoder still calls onBatch on every empty poll (the SDK's
+	// no-sink consume loop, packages/sdk/src/streams/consumer.ts, invokes it
+	// unconditionally — see `onBatch` in the no-sink branch), which re-commits
+	// the SAME cursor every `DECODER_EMPTY_BACKOFF_MS`. With ~15 decoders
+	// idling on ~1s backoff, an unconditional write+NOTIFY here fired
+	// `index:tip` up to ~15x/sec with ZERO actual progress, waking every
+	// pending Index long-poll to recheck for nothing. The `WHERE` makes "did
+	// this actually change" an atomic compare-and-skip at the database: the
+	// conflicting row is left untouched (and `RETURNING` yields nothing)
+	// whenever the incoming cursor matches what's already stored, so a
+	// no-op poll costs one INSERT attempt, not a write + a NOTIFY fan-out.
+	// `IS DISTINCT FROM`, not `!=`: `last_cursor` starts out NULL for a
+	// decoder that has never committed, and SQL's `NULL != x` evaluates to
+	// NULL (falsy in a WHERE) — a plain `!=` silently treated "still unset"
+	// as "unchanged" and dropped a decoder's very first commit entirely.
+	const written = await tx
 		.insertInto("decoder_checkpoints")
 		.values({
 			decoder_name: decoderName,
 			last_cursor: cursor,
 		})
 		.onConflict((oc) =>
-			oc.column("decoder_name").doUpdateSet({
-				last_cursor: cursor,
-				updated_at: new Date(),
-			}),
+			oc
+				.column("decoder_name")
+				.doUpdateSet({
+					last_cursor: cursor,
+					updated_at: new Date(),
+				})
+				.where("decoder_checkpoints.last_cursor", "is distinct from", cursor),
 		)
+		.returning("last_cursor")
 		.execute();
+	if (written.length === 0) return;
 
 	// Every decoder (classic + protocol) funnels its checkpoint write through
 	// here, so this is the one place a `index:tip` NOTIFY can cover the whole

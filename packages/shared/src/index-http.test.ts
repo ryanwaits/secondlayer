@@ -119,6 +119,34 @@ describe("IndexHttpClient.getIndexTip wait", () => {
 		expect(url.searchParams.get("from_height")).toBe("101");
 	});
 
+	test("sends event_types (comma-joined) alongside tip_only, so the server narrows the tip/wait to just those decoders", async () => {
+		const { urls } = stubFetchCapturingUrl({
+			blocks: [],
+			next_cursor: null,
+			tip: { block_height: 105, decoded_heights: { ft_transfer: 105 } },
+		});
+		await client().getIndexTip({
+			wait: 10,
+			knownHeight: 100,
+			eventTypes: ["ft_transfer", "stx_transfer"],
+		});
+		const url = new URL(urls[0] ?? "");
+		expect(url.searchParams.get("event_types")).toBe(
+			"ft_transfer,stx_transfer",
+		);
+	});
+
+	test("omits event_types when none are given — the global-floor default is unchanged", async () => {
+		const { urls } = stubFetchCapturingUrl({
+			blocks: [],
+			next_cursor: null,
+			tip: { block_height: 100 },
+		});
+		await client().getIndexTip({ wait: 10, knownHeight: 99 });
+		const url = new URL(urls[0] ?? "");
+		expect(url.searchParams.get("event_types")).toBeNull();
+	});
+
 	test("clamps wait to MAX_INDEX_WAIT_SECONDS", async () => {
 		const { urls } = stubFetchCapturingUrl({
 			blocks: [],

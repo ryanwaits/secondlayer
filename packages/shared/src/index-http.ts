@@ -429,6 +429,18 @@ export class IndexHttpClient {
 	async getIndexTip(opts?: {
 		wait?: number;
 		knownHeight?: number;
+		/**
+		 * Event types this caller actually reads (e.g. a chain evaluator's
+		 * `referencedEventTypes`). Narrows the returned tip — and, together with
+		 * `wait`, what counts as "nothing new" — to the MIN committed height
+		 * over just these types, instead of the global floor over EVERY classic
+		 * decoder. Without it, an unrelated decoder committing (any of ~15,
+		 * several times a block) moves the global floor and makes an unrelated
+		 * `wait` return early — the exact busy-idle pattern this fixes. Omit
+		 * when there's no meaningful subset (falls back to the global floor,
+		 * unchanged from before this option existed).
+		 */
+		eventTypes?: readonly string[];
 	}): Promise<number> {
 		// `tip_only`: this method never reads `blocks[]`, only `tip`, so the
 		// server can skip the row query. It ALSO fixes what `tip_only` exists
@@ -441,7 +453,11 @@ export class IndexHttpClient {
 		// mismatch). Do NOT set this on `getIndexSourceTip` below — its
 		// `knownHeight` baseline is the source tip already, so the row-based
 		// check is the CORRECT one there, not a bug to route around.
-		const env = await this.getIndexTipEnvelope({ ...opts, tipOnly: true });
+		const env = await this.getIndexTipEnvelope({
+			...opts,
+			tipOnly: true,
+			eventTypes: opts?.eventTypes,
+		});
 		return Number(env.tip?.block_height) || 0;
 	}
 
@@ -481,11 +497,20 @@ export class IndexHttpClient {
 		wait?: number;
 		knownHeight?: number;
 		tipOnly?: boolean;
+		eventTypes?: readonly string[];
 	}): Promise<IndexTipEnvelope> {
 		const wantsWait = this.waitSupported && (opts?.wait ?? 0) > 0;
 		const wantsTipOnly = this.waitSupported && Boolean(opts?.tipOnly);
+		const wantsEventTypes =
+			this.waitSupported && wantsTipOnly && Boolean(opts?.eventTypes?.length);
 		const params = new URLSearchParams({ limit: "1" });
 		if (wantsTipOnly) params.set("tip_only", "true");
+		// Only meaningful alongside tip_only — it narrows what the returned
+		// (and wait-compared) tip means, and tip_only is what makes the server
+		// return a tip at all instead of a page of rows.
+		if (wantsEventTypes && opts?.eventTypes) {
+			params.set("event_types", opts.eventTypes.join(","));
+		}
 		if (wantsWait) {
 			params.set(
 				"wait",
@@ -510,15 +535,17 @@ export class IndexHttpClient {
 			return env;
 		} catch (err) {
 			// An older server's `validateQueryParams` 400s on `wait`/`from_height`/
-			// `tip_only` it doesn't recognize. Treat that ONE status as "this
-			// server predates long-poll", not an outage: disable BOTH extensions
-			// for the rest of this client's life and retry plainly, so
-			// `FallbackBlockSource` never mistakes a version-skew 400 for the api
-			// being down and routes to the DB tap. Gating retry on `wantsWait ||
-			// wantsTipOnly` (not `wantsWait` alone) matters mid-rollout: a server
-			// already upgraded for `wait` but not yet for `tip_only` (or vice
-			// versa) still 400s on the one it doesn't know, even on a plain,
-			// non-waiting `getIndexTip()` call.
+			// `tip_only`/`event_types` it doesn't recognize. Treat that ONE status
+			// as "this server predates long-poll", not an outage: disable every
+			// extension for the rest of this client's life (event_types is only
+			// ever sent alongside tip_only, so gating on `wantsTipOnly` already
+			// covers a server that knows `wait`/`tip_only` but not `event_types`
+			// yet) and retry plainly, so `FallbackBlockSource` never mistakes a
+			// version-skew 400 for the api being down and routes to the DB tap.
+			// Gating on `wantsWait || wantsTipOnly` (not `wantsWait` alone)
+			// matters mid-rollout: a server already upgraded for `wait` but not
+			// yet for `tip_only` still 400s on the one it doesn't know, even on a
+			// plain, non-waiting `getIndexTip()` call.
 			if (
 				(wantsWait || wantsTipOnly) &&
 				err instanceof IndexHttpStatusError &&

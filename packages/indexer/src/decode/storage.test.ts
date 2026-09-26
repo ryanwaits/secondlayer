@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
+import { listen } from "@secondlayer/shared/queue/listener";
 import { commitGenericDecoderBatch } from "./generic-commit.ts";
 import {
 	DecoderCheckpointRewoundError,
@@ -375,6 +376,81 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 			.where("cursor", "=", "110:0")
 			.executeTakeFirst();
 		expect(inserted?.cursor).toBe("110:0");
+	});
+
+	test("re-committing the SAME checkpoint cursor (an idle decoder's empty-poll re-commit) does not NOTIFY index:tip", async () => {
+		if (!db) throw new Error("missing db");
+		await writeDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			cursor: "100:0",
+		});
+		const received: string[] = [];
+		const stop = await listen("index:tip", (payload) => {
+			if (payload) received.push(payload);
+		});
+		try {
+			// Same cursor the row already holds — exactly what an idle decoder's
+			// no-sink consume loop re-commits every empty-poll backoff interval.
+			await commitGenericDecoderBatch({
+				db,
+				decoderName: FT_TRANSFER_DECODER_NAME,
+				checkpointCursor: "100:0",
+				startedFrom: "100:0",
+				rows: [],
+				receipts: [],
+			});
+			await commitGenericDecoderBatch({
+				db,
+				decoderName: FT_TRANSFER_DECODER_NAME,
+				checkpointCursor: "100:0",
+				startedFrom: "100:0",
+				rows: [],
+				receipts: [],
+			});
+			// A genuine advance still notifies exactly once.
+			await commitGenericDecoderBatch({
+				db,
+				decoderName: FT_TRANSFER_DECODER_NAME,
+				checkpointCursor: "110:0",
+				startedFrom: "100:0",
+				rows: [ftRow("110:0", 110)],
+				receipts: [],
+			});
+			await new Promise((resolve) => setTimeout(resolve, 200));
+			expect(received).toEqual([FT_TRANSFER_DECODER_NAME]);
+		} finally {
+			await stop();
+		}
+	});
+
+	test("a decoder's first-ever commit persists even when its checkpoint row already exists with last_cursor NULL", async () => {
+		if (!db) throw new Error("missing db");
+		// A registered-but-never-committed decoder: the row exists (e.g. seeded
+		// by a health/registry pass) but `last_cursor` is still NULL. SQL's
+		// `NULL != x` is NULL, not true — a naive "did this change" check
+		// using `!=` treats that as "unchanged" and silently drops the
+		// decoder's very first real commit forever. `IS DISTINCT FROM` is the
+		// only comparison that gets this right.
+		await writeDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			cursor: null,
+		});
+		await commitGenericDecoderBatch({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			checkpointCursor: "1:0",
+			startedFrom: null,
+			rows: [ftRow("1:0", 1)],
+			receipts: [],
+		});
+		const checkpoint = await db
+			.selectFrom("decoder_checkpoints")
+			.select("last_cursor")
+			.where("decoder_name", "=", FT_TRANSFER_DECODER_NAME)
+			.executeTakeFirst();
+		expect(checkpoint?.last_cursor).toBe("1:0");
 	});
 });
 
