@@ -2731,6 +2731,20 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	border: 1px solid color-mix(in srgb, var(--red) 35%, var(--border));
 	background: color-mix(in srgb, var(--red) 5%, transparent);
 }
+.use-error {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 14px 16px;
+	border-radius: 8px;
+	border: 1px dashed color-mix(in srgb, var(--red) 35%, var(--border));
+}
+.use-error p {
+	margin: 0;
+	font-size: 13px;
+	color: var(--text-muted);
+}
 .use-stop-t {
 	margin: 0;
 	font-weight: 500;

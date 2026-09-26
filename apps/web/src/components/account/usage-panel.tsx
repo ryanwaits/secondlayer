@@ -27,7 +27,7 @@ import {
 	spentUsdMicros,
 	unitLabel,
 } from "@/lib/usage";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * The out-of-credits gate banner. Always reads the real current month's
@@ -170,9 +170,65 @@ function UsageTable({
 	);
 }
 
+/** "not_loaded": no fetch has resolved for this month yet. "failed": the
+ *  fetch resolved to null (bad status or network error) — `account-data.ts`
+ *  swallows the reason, so all we know is it didn't load. "ok" covers both
+ *  the empty-month and has-rows cases below, which `UsageBody` tells apart
+ *  by `rows`. Tracked per month so switching months while one is failed
+ *  doesn't carry the error along. */
+type UsageStatus = "not_loaded" | "failed" | "ok";
+
+/** The content under the month switcher: nothing (not loaded), a load-failed
+ *  box with retry, the empty-month box, or the meter + table. Pure — no
+ *  hooks, no fetch — so a render test can hit every status directly. */
+export function UsageBody({
+	status,
+	month,
+	rows,
+	onRetry,
+}: {
+	status: UsageStatus;
+	month: Month;
+	rows: UsageRow[] | undefined;
+	onRetry: () => void;
+}) {
+	if (status === "not_loaded") return null;
+	if (status === "failed") {
+		return (
+			<div className="use-error">
+				<p>Couldn't load usage for {monthLabel(month)}.</p>
+				<button type="button" className="acct-btn line small" onClick={onRetry}>
+					Retry
+				</button>
+			</div>
+		);
+	}
+	if (!rows || rows.length === 0) {
+		return (
+			<div className="use-empty">
+				No usage in {monthLabel(month)}. Your {formatRows(ROWS_ALLOWANCE)} free
+				rows went unused.
+			</div>
+		);
+	}
+	return (
+		<>
+			<AllowanceMeter
+				deliveredRows={deliveredRowsIn(rows)}
+				resetLabel={nextMonthLabel(month)}
+			/>
+			<UsageTable
+				usage={rows}
+				deliveredRows={deliveredRowsIn(rows)}
+				monthWord={monthName(month)}
+			/>
+		</>
+	);
+}
+
 /** "Usage" — month switcher, free-rows meter, and the usage table (or the
- *  empty-month box). Lives between `BalanceStats` and "Add credits" on
- *  /account/credits. */
+ *  empty-month box, or a load-failed box with retry). Lives between
+ *  `BalanceStats` and "Add credits" on /account/credits. */
 export function UsageSection() {
 	const { usage } = useAccountData();
 	const { account } = useAuth();
@@ -180,15 +236,33 @@ export function UsageSection() {
 	const [cur] = useState(() => currentUtcMonth());
 	const month: Month = addMonths(cur, offset);
 	const monthKey = monthParam(month);
+	const [failedMonth, setFailedMonth] = useState<string | null>(null);
+
+	const load = useCallback((key: string) => {
+		refreshUsage(key).then((result) => {
+			setFailedMonth((prev) => {
+				if (result !== null) return prev === key ? null : prev;
+				return key;
+			});
+		});
+	}, []);
 
 	useEffect(() => {
-		refreshUsage(monthKey);
-	}, [monthKey]);
+		load(monthKey);
+	}, [monthKey, load]);
 
 	const earliest = accountCreationMonth(account?.createdAt);
 	const prevDisabled = earliest !== null && compareMonths(month, earliest) <= 0;
 	const nextDisabled = isSameMonth(month, cur);
 	const rows = usage[monthKey];
+	// Stale rows from an earlier successful fetch still render — a failed
+	// retry shouldn't blank out data that's already on screen.
+	const status: UsageStatus =
+		rows !== undefined
+			? "ok"
+			: failedMonth === monthKey
+				? "failed"
+				: "not_loaded";
 
 	return (
 		<>
@@ -214,24 +288,12 @@ export function UsageSection() {
 					</button>
 				</div>
 			</div>
-			{rows === undefined ? null : rows.length === 0 ? (
-				<div className="use-empty">
-					No usage in {monthLabel(month)}. Your {formatRows(ROWS_ALLOWANCE)}{" "}
-					free rows went unused.
-				</div>
-			) : (
-				<>
-					<AllowanceMeter
-						deliveredRows={deliveredRowsIn(rows)}
-						resetLabel={nextMonthLabel(month)}
-					/>
-					<UsageTable
-						usage={rows}
-						deliveredRows={deliveredRowsIn(rows)}
-						monthWord={monthName(month)}
-					/>
-				</>
-			)}
+			<UsageBody
+				status={status}
+				month={month}
+				rows={rows}
+				onRetry={() => load(monthKey)}
+			/>
 		</>
 	);
 }
