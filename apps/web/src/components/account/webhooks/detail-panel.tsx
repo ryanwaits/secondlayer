@@ -33,7 +33,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { MonoStackedBarChart } from "./charts/mono-stacked-bar-chart";
+import { LazyMonoStackedBarChart } from "./charts/lazy";
 import { DeliveryCard } from "./delivery-card";
 import { DiagnosisPanel } from "./diagnosis";
 import { AttemptRibbon } from "./ribbon";
@@ -604,7 +604,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 						{activity ? activityHeaderSummary(activity.hours) : "…"}
 					</span>
 				</div>
-				<MonoStackedBarChart data={activity?.hours ?? []} />
+				<LazyMonoStackedBarChart data={activity?.hours ?? []} />
 				<div className="wh-legend">
 					<span>
 						<i style={{ background: "var(--fig-bar)" }} />

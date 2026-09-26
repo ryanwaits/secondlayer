@@ -15,10 +15,12 @@ import type {
 	WebhookActivity,
 	WebhookDetail,
 } from "@secondlayer/sdk";
-import { LivelineWaitingChart } from "./charts/liveline-waiting-chart";
-import { MonoHistogramChart } from "./charts/mono-histogram-chart";
-import { MonoLagLineChart } from "./charts/mono-lag-line-chart";
-import { MonoShareBarChart } from "./charts/mono-share-bar-chart";
+import {
+	LazyLivelineWaitingChart,
+	LazyMonoHistogramChart,
+	LazyMonoLagLineChart,
+	LazyMonoShareBarChart,
+} from "./charts/lazy";
 import { CliLine } from "./shared";
 
 /**
@@ -175,7 +177,7 @@ function FlagGraph({
 					</span>
 					<span className="mono">{value.toLocaleString("en-US")} waiting</span>
 				</div>
-				<LivelineWaitingChart
+				<LazyLivelineWaitingChart
 					data={points}
 					value={value}
 					windowSecs={windowSecs}
@@ -201,7 +203,7 @@ function FlagGraph({
 					<span>Share of attempts answered 429, per hour</span>
 					<span className="mono">dashed line = 50%, the rule's threshold</span>
 				</div>
-				<MonoShareBarChart hours={hours} />
+				<LazyMonoShareBarChart hours={hours} />
 				<div className="wh-chart-ends">
 					<span>oldest</span>
 					<span>now</span>
@@ -225,7 +227,7 @@ function FlagGraph({
 						median {medianLabel} · timeout {timeoutLabel}
 					</span>
 				</div>
-				<MonoHistogramChart
+				<LazyMonoHistogramChart
 					bins={bins}
 					median={median}
 					timeoutMs={webhook.timeoutMs}
@@ -253,7 +255,7 @@ function FlagGraph({
 					<span>Block to delivery, newest 40 events</span>
 					<span className="mono">median {medianLabel}</span>
 				</div>
-				<MonoLagLineChart points={points} />
+				<LazyMonoLagLineChart points={points} />
 				<div className="wh-chart-ends">
 					<span>older</span>
 					<span>dashed line = 60 s, the rule's threshold</span>
