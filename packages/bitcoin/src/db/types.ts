@@ -1,4 +1,5 @@
 import type { Generated } from "kysely";
+import type { UndoPayloadJson } from "../runes/undo.ts";
 
 // Kysely table types for this package's own Postgres (D18: separate from
 // `packages/shared`'s `Database` type). Numeric columns are typed `string`
@@ -79,6 +80,25 @@ export interface RuneBlockDigestsTable {
 	event_count: number;
 }
 
+/** D10 per-block undo journal, kept ≥ `UNDO_DEPTH` (`../runes/undo.ts`) blocks deep while following the tip. */
+export interface RuneUndoTable {
+	height: number;
+	block_hash: string;
+	payload: UndoPayloadJson;
+}
+
+/** Same fields as the Stacks `ChainReorgRecord` (`packages/shared/src/db/queries/chain-reorgs.ts`), so plan 059 can serve this table as `reorgs`. */
+export interface BtcReorgsTable {
+	id: Generated<string>;
+	detected_at: Generated<Date>;
+	fork_point_height: number;
+	old_hash: string;
+	new_hash: string;
+	orphaned_from: number;
+	orphaned_to: number;
+	new_tip_height: number;
+}
+
 export interface Database {
 	rune_entries: RuneEntriesTable;
 	rune_balances: RuneBalancesTable;
@@ -86,6 +106,8 @@ export interface Database {
 	btc_blocks: BtcBlocksTable;
 	runes_checkpoint: RunesCheckpointTable;
 	rune_block_digests: RuneBlockDigestsTable;
+	rune_undo: RuneUndoTable;
+	btc_reorgs: BtcReorgsTable;
 }
 
 export const CHECKPOINT_NAME = "runes";

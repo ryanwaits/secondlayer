@@ -35,6 +35,12 @@ import {
 	getBalance,
 } from "../runes/state.ts";
 import {
+	type StateSnapshot,
+	UNDO_DEPTH,
+	buildUndoPayload,
+	undoPayloadToJson,
+} from "../runes/undo.ts";
+import {
 	CHECKPOINT_NAME,
 	type Database,
 	type RuneEntriesTable,
@@ -357,6 +363,18 @@ export interface FlushStats {
 	ms: number;
 }
 
+export interface FlushOptions {
+	/**
+	 * A `snapshotState(state)` taken immediately before this block was applied
+	 * — presence signals "write this block's `rune_undo` row" (D10, tip
+	 * following, `../follow.ts`). Only valid for a single-block flush
+	 * (`blocks.length === 1`): the undo journal reverses one block at a time,
+	 * and a batch flush (backfill, far from the tip) never needs it — "batch
+	 * as today with no undo rows" (plan 057 design).
+	 */
+	undoSnapshotBeforeBlock?: StateSnapshot;
+}
+
 /**
  * Flushes dirty entries/balances/events plus the block range's `btc_blocks`
  * rows and the checkpoint, in one transaction. Runs the supply invariant
@@ -370,9 +388,15 @@ export async function flush(
 	state: RuneState,
 	blocks: Array<{ height: number; hash: string }>,
 	checkInvariant: (state: RuneState, runeIds: Iterable<string>) => void,
+	options?: FlushOptions,
 ): Promise<FlushStats> {
 	if (blocks.length === 0) {
 		throw new Error("flush: no blocks to flush");
+	}
+	if (options?.undoSnapshotBeforeBlock !== undefined && blocks.length !== 1) {
+		throw new Error(
+			"flush: undoSnapshotBeforeBlock requires exactly one block per flush",
+		);
 	}
 	const last = blocks[blocks.length - 1] as { height: number; hash: string };
 	const start = performance.now();
@@ -397,6 +421,12 @@ export async function flush(
 	// computed from the same `state.events` the digest above was built from,
 	// so it can never disagree with the canonical per-block order `d_H` proves.
 	const eventIndices = assignEventIndices(state.events);
+	// Pure (no DB access), like the digest above — built from the same
+	// pre/post-block state the digest and event indices were, so all three
+	// can never disagree about what this block did.
+	const undoPayload = options?.undoSnapshotBeforeBlock
+		? buildUndoPayload(last.height, options.undoSnapshotBeforeBlock, state)
+		: undefined;
 
 	await db.transaction().execute(async (trx) => {
 		for (const batch of chunk(dirtyEntryRows, ENTRY_CHUNK_SIZE)) {
@@ -490,6 +520,25 @@ export async function flush(
 				})),
 			)
 			.execute();
+
+		if (undoPayload) {
+			await trx
+				.insertInto("rune_undo")
+				.values({
+					height: last.height,
+					block_hash: last.hash,
+					payload: undoPayloadToJson(undoPayload),
+				})
+				.execute();
+
+			// Keep the journal UNDO_DEPTH blocks deep (D10) — prune in the same
+			// transaction so a crash between the insert and the prune never leaves
+			// the journal in a state a later prune has to reconcile.
+			await trx
+				.deleteFrom("rune_undo")
+				.where("height", "<=", last.height - UNDO_DEPTH)
+				.execute();
+		}
 
 		await trx
 			.insertInto("runes_checkpoint")

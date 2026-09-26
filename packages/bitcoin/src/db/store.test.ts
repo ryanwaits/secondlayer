@@ -5,9 +5,11 @@
 // Runes launch window. `computeBalanceChanges` is the fix's core: it decides,
 // from in-memory state alone, exactly which rows need a write.
 import { describe, expect, test } from "bun:test";
+import type { Kysely } from "kysely";
 import type { RuneEntry } from "../runes/entry.ts";
 import type { RuneEvent } from "../runes/state.ts";
-import { createRuneState, setBalance } from "../runes/state.ts";
+import { createRuneState, seedGenesis, setBalance } from "../runes/state.ts";
+import { snapshotState } from "../runes/undo.ts";
 import {
 	DELETE_CHUNK_SIZE,
 	ENTRY_CHUNK_SIZE,
@@ -20,9 +22,11 @@ import {
 	assignEventIndices,
 	computeBalanceChanges,
 	entryToRow,
+	flush,
 	rowToEntry,
 	symbolForDb,
 } from "./store.ts";
+import type { Database } from "./types.ts";
 
 const U128_MAX = (1n << 128n) - 1n;
 
@@ -139,6 +143,30 @@ describe("computeBalanceChanges", () => {
 
 		setBalance(state, outpoint, runeId, 0n);
 		expect(state.balanceAddresses.has(outpoint)).toBe(false);
+	});
+});
+
+describe("flush's undoSnapshotBeforeBlock guard", () => {
+	test("rejects a multi-block flush (undo is only ever written one block at a time)", async () => {
+		const state = createRuneState();
+		seedGenesis(state);
+		const before = snapshotState(state);
+
+		await expect(
+			flush(
+				// Never reached — the guard throws before any DB access.
+				{} as Kysely<Database>,
+				state,
+				[
+					{ height: 840_000, hash: "a".repeat(64) },
+					{ height: 840_001, hash: "b".repeat(64) },
+				],
+				() => {},
+				{ undoSnapshotBeforeBlock: before },
+			),
+		).rejects.toThrow(
+			"flush: undoSnapshotBeforeBlock requires exactly one block per flush",
+		);
 	});
 });
 
