@@ -40,6 +40,24 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	await stopEmitter?.();
+	// Owned outbox + delivery rows first — see emitter.test.ts's afterAll comment
+	// for why a bare `deleteFrom("webhooks")` orphans deliveries.
+	const ownedWebhooks = await db
+		.selectFrom("webhooks")
+		.select("id")
+		.where("account_id", "=", accountId)
+		.execute();
+	const webhookIds = ownedWebhooks.map((w) => w.id);
+	if (webhookIds.length > 0) {
+		await db
+			.deleteFrom("webhook_deliveries")
+			.where("webhook_id", "in", webhookIds)
+			.execute();
+		await db
+			.deleteFrom("webhook_outbox")
+			.where("webhook_id", "in", webhookIds)
+			.execute();
+	}
 	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 });
 
