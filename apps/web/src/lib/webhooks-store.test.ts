@@ -188,6 +188,25 @@ describe("refreshDetail", () => {
 		expect(cache.dead["wh-3b"]?.data).toEqual([]);
 		expect(cache.activity["wh-3b"]?.data).toEqual(emptyActivity);
 	});
+
+	test("skips the activity read when told to exclude it", async () => {
+		const calls: string[] = [];
+		globalThis.fetch = (async (url: string) => {
+			const path = String(url);
+			calls.push(path);
+			if (path.endsWith("/deliveries")) return jsonResponse({ data: [] });
+			if (path.endsWith("/dead")) return jsonResponse({ data: [] });
+			if (path.endsWith("/activity")) {
+				throw new Error("activity should not be fetched when excluded");
+			}
+			return jsonResponse(detail("wh-3c", "pool-payouts"));
+		}) as typeof fetch;
+
+		const res = await refreshDetail("wh-3c", { activity: false });
+		expect(calls.length).toBe(3);
+		expect(res.activity).toBeNull();
+		expect(webhooksSnapshot().activity["wh-3c"]).toBeUndefined();
+	});
 });
 
 describe("prefetchDetail", () => {

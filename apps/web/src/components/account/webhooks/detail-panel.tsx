@@ -103,7 +103,10 @@ type DetailNotice =
  * exception — it always wins, since a genuinely deleted webhook shouldn't
  * keep showing stale content.
  */
-function useWebhookDetailPoll(id: string): {
+function useWebhookDetailPoll(
+	id: string,
+	skipActivityRef: { current: boolean },
+): {
 	notice: DetailNotice | null;
 	reload: () => void;
 } {
@@ -112,7 +115,12 @@ function useWebhookDetailPoll(id: string): {
 	useEffect(() => {
 		setNotice(null);
 		return poll(async () => {
-			const res = await refreshDetail(id);
+			// While the fast activity-only poll below is doing the work, this
+			// bundle skips that one read — otherwise both intervals fetch
+			// `/activity` on the same tick.
+			const res = await refreshDetail(id, {
+				activity: !skipActivityRef.current,
+			});
 			const hasCached = webhooksSnapshot().detail[id] !== undefined;
 			if (res.webhook.kind === "ok") {
 				setNotice(null);
@@ -138,7 +146,10 @@ function useWebhookDetailPoll(id: string): {
 			}
 			return {};
 		}, DETAIL_POLL_MS);
-	}, [id]);
+		// `skipActivityRef` is a stable ref object from the caller — listed for
+		// the linter, but its `.current` mutations never need to restart this
+		// effect (the poll tick reads it fresh on every call).
+	}, [id, skipActivityRef]);
 
 	return { notice, reload: () => void refreshDetail(id) };
 }
@@ -159,7 +170,12 @@ const WAITING_HISTORY_LIMIT = 180; // ~15 minutes at the 5s poll cadence
 export function WebhookDetailSection({ id }: { id: string }) {
 	const router = useRouter();
 	const cache = useWebhooksCache();
-	const { notice, reload } = useWebhookDetailPoll(id);
+	// Shared with the fast activity poll below: true while that poll is the
+	// one actually fetching activity, so the 10s bundle above can skip it.
+	// Set for real once `activity`/`primary` are known further down; reading
+	// it inside a poll tick always sees this render's latest value.
+	const pollActiveRef = useRef(false);
+	const { notice, reload } = useWebhookDetailPoll(id, pollActiveRef);
 
 	const webhook = cache.detail[id]?.data ?? null;
 	const deliveries = cache.deliveries[id]?.data ?? null;
@@ -251,10 +267,9 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			: null;
 	const primary = report?.primary ?? null;
 
-	// Kept current every render so the polling effect below (which must stay
+	// Kept current every render so the polling effects (which must stay
 	// mounted for the page's whole life, not restart on every state change)
-	// always sees this render's answer to "should we still be polling".
-	const pollActiveRef = useRef(false);
+	// always see this render's answer to "should the fast poll be running".
 	pollActiveRef.current =
 		activity !== null && activity.waiting > 0
 			? true

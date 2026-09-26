@@ -107,19 +107,29 @@ export interface DetailFetch {
 	webhook: WebhooksResult<WebhookDetail>;
 	deliveries: WebhooksResult<DeliveryRow[]>;
 	dead: WebhooksResult<DeadRow[]>;
-	activity: WebhooksResult<WebhookActivity>;
+	/** `null` when this call was told to skip activity (the caller's own
+	 *  fast poll already has it covered this round). */
+	activity: WebhooksResult<WebhookActivity> | null;
 }
 
-/** Fires all four reads for one webhook at once — none of them wait on the
+/** Fires the detail reads for one webhook at once — none of them wait on the
  *  webhook object first, unlike the old serial `GET /:id` → logs chain. Each
  *  only writes its own slice of the cache on an `ok`, so one endpoint being
- *  slow or rate-limited never blocks or clears the others. */
-export async function refreshDetail(id: string): Promise<DetailFetch> {
+ *  slow or rate-limited never blocks or clears the others.
+ *
+ *  `activity: false` skips that one read entirely — the detail page passes
+ *  it while its own faster activity-only poll is already running, so the
+ *  two don't both fetch `/activity` on the same tick. */
+export async function refreshDetail(
+	id: string,
+	opts: { activity?: boolean } = {},
+): Promise<DetailFetch> {
+	const includeActivity = opts.activity ?? true;
 	const [webhook, deliveries, dead, activity] = await Promise.all([
 		getWebhook(id),
 		getDeliveries(id),
 		getDead(id),
-		getActivity(id),
+		includeActivity ? getActivity(id) : Promise.resolve(null),
 	]);
 	const now = Date.now();
 	const patch: Partial<State> = {};
@@ -135,7 +145,7 @@ export async function refreshDetail(id: string): Promise<DetailFetch> {
 	if (dead.kind === "ok") {
 		patch.dead = { ...state.dead, [id]: { data: dead.data, at: now } };
 	}
-	if (activity.kind === "ok") {
+	if (activity && activity.kind === "ok") {
 		patch.activity = {
 			...state.activity,
 			[id]: { data: activity.data, at: now },
