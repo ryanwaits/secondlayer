@@ -537,6 +537,63 @@ describe("Stacks Index gateway middleware", () => {
 		}
 	});
 
+	test("regression: event_types scopes wait to the referenced decoder(s) — an unreferenced decoder committing repeatedly must not unblock it, but the referenced one committing must", async () => {
+		// Two decoders. `unreferenced` (e.g. an idle `print` decoder re-committing
+		// its unchanged cursor, or just a slower one) keeps advancing on every
+		// check; `referenced` (what this request's event_types names) does not,
+		// until the very end. Without event_types, the GLOBAL floor (min over
+		// both) would track `unreferenced` and flip the wait to "non-empty" the
+		// moment it moves — exactly plan-063's busy-idle regression.
+		let getTipCalls = 0;
+		let unreferencedHeight = 100;
+		let referencedHeight = 100;
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => {
+					getTipCalls++;
+					unreferencedHeight++; // "commits repeatedly" on every check
+					return {
+						block_height: Math.min(referencedHeight, unreferencedHeight),
+						finalized_height: 90,
+						lag_seconds: 0,
+						decoded_heights: {
+							referenced: referencedHeight,
+							unreferenced: unreferencedHeight,
+						},
+					};
+				},
+				readReorgs: async () => [],
+			}),
+		);
+
+		// Holds: only `unreferenced` moves for the whole window.
+		const holdStart = Date.now();
+		const held = await app.request(
+			"/v1/index/blocks?limit=1&tip_only=true&event_types=referenced&from_height=101&wait=1",
+			{ headers: authHeaders(FREE_KEY) },
+		);
+		const heldBody = (await held.json()) as { tip: { block_height: number } };
+		expect(heldBody.tip.block_height).toBe(100); // unaffected by unreferenced's climb
+		expect(getTipCalls).toBeLessThanOrEqual(2); // at most one post-wait retry, not a busy loop
+		expect(Date.now() - holdStart).toBeGreaterThanOrEqual(900);
+
+		// Unblocks: `referenced` itself commits.
+		referencedHeight = 105;
+		const returnStart = Date.now();
+		const returned = await app.request(
+			"/v1/index/blocks?limit=1&tip_only=true&event_types=referenced&from_height=101&wait=1",
+			{ headers: authHeaders(FREE_KEY) },
+		);
+		const returnedBody = (await returned.json()) as {
+			tip: { block_height: number };
+		};
+		expect(returnedBody.tip.block_height).toBe(105);
+		expect(Date.now() - returnStart).toBeLessThan(500); // already non-empty on the first check
+	});
+
 	test("GET /contract-calls serves via the injected reader with reorgs: []", async () => {
 		const app = new Hono();
 		app.onError(errorHandler);

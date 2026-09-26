@@ -128,6 +128,85 @@ describe("Index blocks helpers", () => {
 		expect(response.blocks).toEqual([]);
 		expect(response.tip.block_height).toBe(100);
 	});
+
+	test("tip_only + event_types narrows to the MIN committed height over just those types, not the global cross-decoder floor", async () => {
+		// referenced=100 is way ahead; unreferenced=91 is the current global
+		// bottleneck. A caller scoped to `referenced` must see 100 (its own
+		// decoder's progress), not 91 (an irrelevant decoder dragging the
+		// global floor down) or the reverse (an irrelevant decoder racing
+		// ahead must not matter either).
+		const tip: IndexTip = {
+			block_height: 91, // global min(referenced=100, unreferenced=91)
+			finalized_height: 90,
+			lag_seconds: 0,
+			decoded_heights: { referenced: 100, unreferenced: 91 },
+		};
+		const response = await getBlocksResponse({
+			query: params("?tip_only=true&event_types=referenced&from_height=101"),
+			tip,
+		});
+		expect(response.tip.block_height).toBe(100);
+	});
+
+	test("regression: this is what plan-063's busy-idle pattern actually was — an UNREFERENCED decoder committing repeatedly must never flip an unrelated wait to non-empty", async () => {
+		// The evaluator's baseline (`from_height`) is one past what it last saw
+		// for `referenced` specifically (100) — it has NOT changed. Only the
+		// unreferenced decoder is advancing (91 → 92 → …), which without
+		// `event_types` moves the global floor and would report "new data".
+		const referencedFixed = 100;
+		const fromHeight = referencedFixed + 1;
+		for (const unreferencedNow of [91, 95, 99, 100, 105]) {
+			const tip: IndexTip = {
+				block_height: Math.min(referencedFixed, unreferencedNow),
+				finalized_height: 90,
+				lag_seconds: 0,
+				decoded_heights: {
+					referenced: referencedFixed,
+					unreferenced: unreferencedNow,
+				},
+			};
+			const response = await getBlocksResponse({
+				query: params(
+					`?tip_only=true&event_types=referenced&from_height=${fromHeight}`,
+				),
+				tip,
+			});
+			// Still exactly `referencedFixed` — the router's isEmpty (`tip.block_height
+			// <= knownHeight`) stays true (still empty, wait holds) for every one of
+			// these unreferenced-only advances.
+			expect(response.tip.block_height).toBe(referencedFixed);
+		}
+
+		// Now the referenced decoder itself commits — THIS is what should
+		// unblock the wait.
+		const tip: IndexTip = {
+			block_height: referencedFixed, // unreferenced (105) no longer the min
+			finalized_height: 90,
+			lag_seconds: 0,
+			decoded_heights: { referenced: 105, unreferenced: 105 },
+		};
+		const response = await getBlocksResponse({
+			query: params(
+				`?tip_only=true&event_types=referenced&from_height=${fromHeight}`,
+			),
+			tip,
+		});
+		expect(response.tip.block_height).toBe(105);
+	});
+
+	test("tip_only + event_types falls back to the global floor when the type is unknown to decoded_heights (older server, or a typo)", async () => {
+		const tip: IndexTip = {
+			block_height: 42,
+			finalized_height: 40,
+			lag_seconds: 0,
+			decoded_heights: { ft_transfer: 42 },
+		};
+		const response = await getBlocksResponse({
+			query: params("?tip_only=true&event_types=made_up_type&from_height=1"),
+			tip,
+		});
+		expect(response.tip.block_height).toBe(42);
+	});
 });
 
 describe.skipIf(!HAS_DB)("Index blocks DB reads", () => {

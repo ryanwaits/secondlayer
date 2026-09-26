@@ -6,12 +6,17 @@ import {
 	parseIndexBaseQuery,
 	toIsoOrNull,
 } from "./_shared.ts";
-import { type IndexTip, indexSourceWindowTip } from "./tip.ts";
+import {
+	type IndexTip,
+	committedHeightForEventTypes,
+	indexSourceWindowTip,
+} from "./tip.ts";
 
 /** Window/pagination params the blocks list accepts. Blocks carry no content
  *  filters — height is the only axis. `wait` (plan-063 3.4) long-polls when
  *  the requested window has nothing new yet — see `../index/wait.ts`.
- *  `tip_only` skips the row query entirely — see its doc on `getBlocksResponse`. */
+ *  `tip_only` skips the row query entirely, and `event_types` narrows which
+ *  decoders that tip is judged by — see the doc on `getBlocksResponse`. */
 export const BLOCKS_FILTERS = [
 	"limit",
 	"cursor",
@@ -20,6 +25,7 @@ export const BLOCKS_FILTERS = [
 	"to_height",
 	"wait",
 	"tip_only",
+	"event_types",
 ] as const;
 
 /**
@@ -139,6 +145,42 @@ export async function readBlocks(
 	return { blocks, next_cursor: last ? last.cursor : null };
 }
 
+/**
+ * The tip a `tip_only` request should be judged (and answered) by. Without
+ * `event_types`, this is the plain global cross-decoder floor (unchanged
+ * behavior). With it, narrows to the MIN committed height over just those
+ * types — the same quantity `boundSourceTip` (subgraphs runtime) computes
+ * client-side from `decoded_heights`, computed once here instead so the
+ * `wait` emptiness check upstream (`../routes/index.ts`, which just reads
+ * `response.tip.block_height`) and the value the caller ultimately uses are
+ * the SAME number. Fixes the busy-idle pattern where ANY of ~15 decoders
+ * committing (most of them irrelevant to the caller) moved the global floor
+ * and made an unrelated wait return early: the evaluator's chain webhooks
+ * reference a handful of event types, but every decoder's checkpoint write
+ * NOTIFYs the same `index:tip` channel — a request that says which types it
+ * actually reads is judged only by whether THOSE moved.
+ *
+ * Falls back to the unnarrowed tip when `event_types` is absent, unknown to
+ * this server (`decoded_heights` missing), or names a type with no
+ * checkpoint yet (`committedHeightForEventTypes` returns `null`) — the safe,
+ * conservative default, identical to today's behavior.
+ */
+function tipForTipOnly(opts: {
+	query: URLSearchParams;
+	tip: IndexTip;
+}): IndexTip {
+	const raw = opts.query.get("event_types");
+	if (!raw) return opts.tip;
+	const eventTypes = raw
+		.split(",")
+		.map((t) => t.trim())
+		.filter(Boolean);
+	if (eventTypes.length === 0) return opts.tip;
+	const narrowed = committedHeightForEventTypes(opts.tip, eventTypes);
+	if (narrowed === null || narrowed === opts.tip.block_height) return opts.tip;
+	return { ...opts.tip, block_height: narrowed };
+}
+
 /** Fetch a single block by height (numeric → canonical block at that height) or
  *  by hash (returns the block regardless of canonicality, so callers can detect
  *  an orphaned hash via the `canonical` flag). */
@@ -176,7 +218,7 @@ export async function getBlocksResponse(opts: {
 	// caller declares "I don't care about rows," so wait/emptiness upstream
 	// is judged against `tip.block_height` directly instead.
 	if (opts.query.get("tip_only") === "true") {
-		return { blocks: [], next_cursor: null, tip: opts.tip };
+		return { blocks: [], next_cursor: null, tip: tipForTipOnly(opts) };
 	}
 
 	const base = parseIndexBaseQuery(opts.query, indexSourceWindowTip(opts.tip));
