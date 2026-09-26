@@ -83,6 +83,16 @@ interface RunningState {
 	 *  see `claimAndDrain`'s "drain-loop" pass — so rows that land mid-drain
 	 *  aren't stranded until an unrelated future wake or the safety poll. */
 	claimPending: boolean;
+	/** The promise of whichever `claimAndDrain` call currently owns
+	 *  `claimInFlight` (assigned by that call itself, before its first
+	 *  `await`, so there is no race with a concurrent caller that just sets
+	 *  `claimPending` and returns). `stopEmitter`'s clean-stop path awaits
+	 *  this so shutdown doesn't race a claim pass that's mid-dispatch. */
+	currentClaim: Promise<number> | null;
+	/** Every `runOne` promise currently dispatching, added by `pumpSub` at
+	 *  start and removed on settle. `stopEmitter` awaits this set (bounded)
+	 *  so it never reports "stopped" while a delivery is still mid-flight. */
+	inFlightRuns: Set<Promise<void>>;
 }
 
 function nextDelaySeconds(attempt: number): number {
@@ -697,10 +707,35 @@ async function claimAndDrain(
 		return 0;
 	}
 	state.claimInFlight = true;
+	// Assigned synchronously (before any `await` in `runClaimLoop` yields back
+	// to the event loop) so `stopEmitter` can always await the pass that
+	// actually owns the lock, never a concurrent caller's already-resolved
+	// `claimPending` short-circuit above.
+	const drainPromise = runClaimLoop(db, state, emitterId, trigger);
+	state.currentClaim = drainPromise;
+	try {
+		return await drainPromise;
+	} finally {
+		if (state.currentClaim === drainPromise) state.currentClaim = null;
+	}
+}
+
+async function runClaimLoop(
+	db: Kysely<Database>,
+	state: RunningState,
+	emitterId: string,
+	trigger: ClaimTrigger,
+): Promise<number> {
 	let totalClaimed = 0;
 	try {
 		let currentTrigger = trigger;
 		for (;;) {
+			// Stop requested: claim no new rows. Anything already claimed by an
+			// in-flight `claimAndDispatchOnce` call still gets handed to its
+			// sub's queue, but `pumpSub`'s own `state.running` check means it
+			// won't dispatch — those rows just keep their lock until the next
+			// emitter re-claims them after LOCK_WINDOW_MS.
+			if (!state.running) break;
 			state.claimPending = false;
 			const result = await claimAndDispatchOnce(
 				db,
@@ -958,7 +993,11 @@ function pumpSub(
 		const row = sq.queue.shift();
 		if (!row) break;
 		sq.inFlight++;
-		void runOne(db, state, sq, row);
+		const runPromise = runOne(db, state, sq, row);
+		state.inFlightRuns.add(runPromise);
+		void runPromise.finally(() => {
+			state.inFlightRuns.delete(runPromise);
+		});
 	}
 }
 
@@ -1000,6 +1039,14 @@ export interface StartEmitterOptions {
 	pollIntervalMs?: number;
 	/** Retention sweep interval (ms). Defaults to 1 hour. */
 	retentionIntervalMs?: number;
+	/** Bound for the returned stop function's clean-shutdown drain — how long
+	 *  it waits for the current claim pass + in-flight dispatches before
+	 *  giving up and reporting them abandoned. Defaults to
+	 *  `MAX_WEBHOOK_TIMEOUT_MS + 5_000` (a dispatch can't legitimately run
+	 *  longer than the webhook timeout ceiling). `MAX_WEBHOOK_TIMEOUT_MS` is
+	 *  fixed at module load from `WEBHOOK_TIMEOUT_MS_CEILING`, so this exists
+	 *  mainly for tests that need a short bound without a 5-minute wait. */
+	stopDrainDeadlineMs?: number;
 }
 
 async function runRetention(db: Kysely<Database>): Promise<void> {
@@ -1028,6 +1075,8 @@ export async function startEmitter(
 		subQueues: new Map(),
 		claimInFlight: false,
 		claimPending: false,
+		currentClaim: null,
+		inFlightRuns: new Set(),
 	};
 	const pollIntervalMs = opts?.pollIntervalMs ?? 120_000;
 	const retentionIntervalMs = opts?.retentionIntervalMs ?? 60 * 60_000;
@@ -1136,11 +1185,48 @@ export async function startEmitter(
 	}, retentionIntervalMs);
 
 	return async () => {
+		// No new claims start (`runClaimLoop`'s own check) and no new
+		// dispatches start (`pumpSub`'s own check) from this point on — the
+		// two sets we're about to await can only shrink from here.
 		state.running = false;
 		clearInterval(poll);
 		clearInterval(retention);
 		await stopNew();
 		await stopChanged();
-		logger.info("[emitter] stopped", { id: emitterId });
+
+		const pendingRuns = new Set(state.inFlightRuns);
+		const drainTarget = pendingRuns.size;
+		// `runOne` never rejects (it catches into `settleFailed`), but a claim
+		// pass could — swallow that here rather than let it crash shutdown; the
+		// call site that kicked off the claim already logs its own errors.
+		const claimSettled = (state.currentClaim ?? Promise.resolve()).catch(
+			() => {},
+		);
+		const waitAll = Promise.all([claimSettled, ...pendingRuns]);
+		// A dispatch can't legitimately run longer than the webhook timeout
+		// ceiling — bound the wait so a hung receiver can't hold up shutdown
+		// forever. Rows still claimed/locked at the deadline keep their lock
+		// and are re-claimed by the next emitter after LOCK_WINDOW_MS.
+		const deadlineMs =
+			opts?.stopDrainDeadlineMs ?? MAX_WEBHOOK_TIMEOUT_MS + 5_000;
+		let timedOut = false;
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const timeout = new Promise<void>((resolve) => {
+			timer = setTimeout(() => {
+				timedOut = true;
+				resolve();
+			}, deadlineMs);
+		});
+		await Promise.race([waitAll, timeout]);
+		clearTimeout(timer);
+
+		const abandoned = timedOut ? state.inFlightRuns.size : 0;
+		const drained = drainTarget - abandoned;
+		logger.info("[emitter] stopped", {
+			id: emitterId,
+			event: "emitter_stopped",
+			drained,
+			abandoned,
+		});
 	};
 }
