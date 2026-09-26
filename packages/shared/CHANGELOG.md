@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.12.1
+
+### Patch Changes
+
+- e9f4d1c: `WakeBus` now exposes `generation()`, a counter bumped once per NOTIFY. Lets a waiter that checked state, then registered to wait, tell whether a NOTIFY landed in between — closing a lost-wakeup race no `wait()`-only API could detect.
+
 ## 11.12.0
 
 ### Minor Changes

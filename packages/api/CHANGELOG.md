@@ -1,5 +1,16 @@
 # @secondlayer/api
 
+## 1.43.4
+
+### Patch Changes
+
+- fcad7ad: Fixes a hosted-webhook p95 tail: the Index tip cache (500ms TTL) wasn't invalidated on the `index:tip` NOTIFY it's woken by, so a long-poll woken by a commit could re-check and still see the pre-commit cached tip, then hold until the next block. Adds `startIndexTipInvalidationListener` (same pattern as the Streams tip) and a generation check in `longPollIndex`/`waitForIndexTipAdvance` that closes the remaining check-then-wait race.
+- Updated dependencies [81d2395]
+- Updated dependencies [e9f4d1c]
+  - @secondlayer/indexer@1.16.1
+  - @secondlayer/shared@11.12.1
+  - @secondlayer/platform@0.3.9
+
 ## 1.43.3
 
 ### Patch Changes
