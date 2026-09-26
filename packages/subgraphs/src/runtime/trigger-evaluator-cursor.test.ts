@@ -4,6 +4,7 @@ import { handleChainReorg } from "./chain-reorg.ts";
 import {
 	MIN_REAL_WAIT_MS,
 	advanceCursor,
+	classifyWaitOutcome,
 	delayAfterTick,
 	getChainReorgGeneration,
 	nextTickDelayMs,
@@ -130,6 +131,63 @@ describe("wasRealWait (busy-loop regression guard)", () => {
 
 	it("is true on an early return with new data, even if that took well under the floor — a legitimate wake, not broken wait", () => {
 		expect(wasRealWait(true, false, 50)).toBe(true);
+	});
+});
+
+describe("classifyWaitOutcome", () => {
+	it("is not_requested when the tick never asked to wait", () => {
+		expect(
+			classifyWaitOutcome({
+				waitRequested: false,
+				waitSupported: true,
+				knownHeight: 100,
+				rawTip: 100,
+			}),
+		).toBe("not_requested");
+	});
+
+	it("is not_supported when the client has already given up on wait/tip_only for this server", () => {
+		expect(
+			classifyWaitOutcome({
+				waitRequested: true,
+				waitSupported: false,
+				knownHeight: 100,
+				rawTip: 100,
+			}),
+		).toBe("not_supported");
+	});
+
+	it("is tip_moved when the returned tip is past the baseline this tick sent", () => {
+		expect(
+			classifyWaitOutcome({
+				waitRequested: true,
+				waitSupported: true,
+				knownHeight: 100,
+				rawTip: 101,
+			}),
+		).toBe("tip_moved");
+	});
+
+	it("is timeout when a real wait held and reported nothing past the baseline", () => {
+		expect(
+			classifyWaitOutcome({
+				waitRequested: true,
+				waitSupported: true,
+				knownHeight: 100,
+				rawTip: 100,
+			}),
+		).toBe("timeout");
+	});
+
+	it("is timeout, not tip_moved, when there was no baseline to compare against", () => {
+		expect(
+			classifyWaitOutcome({
+				waitRequested: true,
+				waitSupported: true,
+				knownHeight: undefined,
+				rawTip: 100,
+			}),
+		).toBe("timeout");
 	});
 });
 

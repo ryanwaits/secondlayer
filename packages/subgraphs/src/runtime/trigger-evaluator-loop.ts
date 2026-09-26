@@ -157,6 +157,12 @@ export async function runEvaluatorOnce(
 	let boundTip: number | null = null;
 	let cursorBefore: number | null = null;
 	let cursorAfter: number | null = null;
+	// Instrumentation only, for `chain_evaluator_tick` (tracing residual
+	// decoder-committed → outbox misses): whether this tick asked to long-poll,
+	// how long that fetch itself took (isolated from the concurrent settlement
+	// scan below), and why it returned.
+	const waitRequested = (opts?.waitSeconds ?? 0) > 0;
+	let waitMs = 0;
 	try {
 		// Snapshot BEFORE reading the cursor: a rewind between this read and the
 		// cursor read below still trips the guard on the next advanceCursor call
@@ -181,9 +187,17 @@ export async function runEvaluatorOnce(
 		// the block-cursor early returns below. It touches only local DB state, so
 		// it's independent of the tip's HTTP round trip — run them concurrently
 		// instead of stacking the DB scan in front of the network hop.
+		// `getTip` timed on its own (not the whole Promise.all) so `waitMs` is
+		// the wait round trip itself, not inflated or hidden by the concurrent
+		// settlement scan racing alongside it.
+		const getTipStart = Date.now();
 		const [settlementEmitted, tip0] = await Promise.all([
 			emitSbtcSettlementOutbox(db, chainSubs),
-			source.getTip({ wait: opts?.waitSeconds, knownHeight: opts?.knownTip }),
+			source
+				.getTip({ wait: opts?.waitSeconds, knownHeight: opts?.knownTip })
+				.finally(() => {
+					waitMs = Date.now() - getTipStart;
+				}),
 		]);
 		emitted = settlementEmitted;
 		rawTip = tip0;
@@ -287,6 +301,18 @@ export async function runEvaluatorOnce(
 			cursor_after: cursorAfter,
 			emitted,
 			tick_ms: Date.now() - tickStart,
+			// Long-poll tracing (see `classifyWaitOutcome`): whether this tick
+			// asked the server to hold the request, the baseline height it sent,
+			// how long that fetch itself took, and why it returned when it did.
+			wait_requested: waitRequested,
+			known_height: opts?.knownTip ?? null,
+			wait_ms: waitMs,
+			wait_outcome: classifyWaitOutcome({
+				waitRequested,
+				waitSupported: opts?.httpClient?.waitIsSupported() ?? true,
+				knownHeight: opts?.knownTip,
+				rawTip,
+			}),
 		});
 	}
 }
@@ -339,6 +365,47 @@ export function delayAfterTick(
  *  real network hop (~100ms) but small relative to `WAIT_SECONDS` (20_000ms),
  *  so it only trips on a wait that plainly never held. */
 export const MIN_REAL_WAIT_MS = 2_000;
+
+/** Why this tick's tip fetch returned — `chain_evaluator_tick` instrumentation
+ *  for classifying a miss (a tick that took far longer than the p50) after the
+ *  fact instead of guessing from `tick_ms` alone. */
+export type WaitOutcome =
+	| "not_requested"
+	| "not_supported"
+	| "tip_moved"
+	| "timeout";
+
+/**
+ * Classify why `source.getTip()` returned when it did, from the same signals
+ * the tick already has on hand: did it ask to wait at all, did the client
+ * still believe the server supports `wait` (a 400 on an earlier call — an
+ * older server, or one mid-rollout — flips this false for the rest of the
+ * client's life, see `IndexHttpClient.waitIsSupported`), and did the returned
+ * tip actually move past the baseline this tick sent.
+ *
+ * `not_supported` and a fast `timeout` both explain a tick that skipped or
+ * cut short a long-poll without new data — the difference matters for tracing
+ * a miss: `not_supported` points at the HTTP client/server version skew,
+ * `timeout` is the server legitimately reporting nothing new for the full
+ * window. `tip_moved` is a genuine wake, whether via NOTIFY or a fresh poll.
+ */
+export function classifyWaitOutcome(opts: {
+	waitRequested: boolean;
+	waitSupported: boolean;
+	knownHeight: number | undefined;
+	rawTip: number | null;
+}): WaitOutcome {
+	if (!opts.waitRequested) return "not_requested";
+	if (!opts.waitSupported) return "not_supported";
+	if (
+		opts.knownHeight !== undefined &&
+		opts.rawTip !== null &&
+		opts.rawTip > opts.knownHeight
+	) {
+		return "tip_moved";
+	}
+	return "timeout";
+}
 
 /**
  * Defense in depth (this is what a plan-063 regression slipped past): even
