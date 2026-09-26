@@ -301,4 +301,62 @@ describe("poll", () => {
 		expect(runs.length).toBe(2);
 		stop();
 	});
+
+	test("a visibility flap during an in-flight run doesn't fork a second loop", async () => {
+		jest.useFakeTimers();
+		let visibilityState = "visible";
+		const listeners = new Set<() => void>();
+		(globalThis as { document?: unknown }).document = {
+			get visibilityState() {
+				return visibilityState;
+			},
+			addEventListener: (_event: string, cb: () => void) => {
+				listeners.add(cb);
+			},
+			removeEventListener: (_event: string, cb: () => void) => {
+				listeners.delete(cb);
+			},
+		};
+
+		const runs: number[] = [];
+		let resolveRun: (() => void) | undefined;
+		let callCount = 0;
+		const stop = poll(() => {
+			runs.push(Date.now());
+			callCount += 1;
+			// Only the first call stays pending (the in-flight run this test
+			// flaps visibility during); later ticks resolve immediately so the
+			// interval can keep going and prove it settles at a single cadence.
+			if (callCount === 1) {
+				return new Promise<undefined>((resolve) => {
+					resolveRun = () => resolve(undefined);
+				});
+			}
+			return Promise.resolve(undefined);
+		}, 1000);
+
+		// The first run is in flight, deliberately left unresolved.
+		expect(runs.length).toBe(1);
+
+		// Hidden then visible again while that run is still pending. A forked
+		// loop would call `run` a second time right here, before the first
+		// ever resolves.
+		visibilityState = "hidden";
+		for (const cb of listeners) cb();
+		visibilityState = "visible";
+		for (const cb of listeners) cb();
+		expect(runs.length).toBe(1);
+
+		// Resolve the in-flight run: only its own reschedule should follow,
+		// at the plain interval — not a second, forked timer chain.
+		resolveRun?.();
+		await advance(0);
+		expect(runs.length).toBe(1);
+
+		await advance(1000);
+		expect(runs.length).toBe(2);
+		await advance(1000);
+		expect(runs.length).toBe(3);
+		stop();
+	});
 });

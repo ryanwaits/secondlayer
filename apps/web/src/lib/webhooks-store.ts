@@ -190,6 +190,12 @@ export function poll(
 	intervalMs: number,
 ): () => void {
 	let stopped = false;
+	// True while a `run()` from this poll is in flight. A visibility flap
+	// (hidden then visible again) during that window must not start a
+	// second `tick()` — the in-flight one already reschedules itself when
+	// `run()` settles, so racing it here would fork two live loops writing
+	// the same `timer` variable.
+	let running = false;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 
 	function isVisible(): boolean {
@@ -204,13 +210,15 @@ export function poll(
 			timer = setTimeout(tick, intervalMs);
 			return;
 		}
+		running = true;
 		const result = await run();
+		running = false;
 		if (stopped) return;
 		timer = setTimeout(tick, result?.retryAfterMs ?? intervalMs);
 	}
 
 	function onVisibilityChange() {
-		if (stopped || !isVisible()) return;
+		if (stopped || running || !isVisible()) return;
 		if (timer) clearTimeout(timer);
 		tick();
 	}
