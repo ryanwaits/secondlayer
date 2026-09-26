@@ -1,5 +1,10 @@
 import postgres from "postgres";
-import { resolveSourceUrl, resolveTargetUrl } from "../db/index.ts";
+import {
+	describeDbUrl,
+	resolveSourceUrl,
+	resolveTargetUrl,
+} from "../db/index.ts";
+import { logger } from "../logger.ts";
 
 interface ListenOptions {
 	/**
@@ -50,19 +55,47 @@ function resolveUrl(opts?: ListenOptions): string {
 	return url;
 }
 
+/**
+ * postgres.js's LISTEN connection already reconnects on its own (backoff,
+ * re-issues `LISTEN` for every channel, `onlisten` fires again after each
+ * reconnect) — see `node_modules/postgres/src/index.js`'s `listen()`, which
+ * hardcodes `idle_timeout`/`max_lifetime` to `null` on its dedicated
+ * connection regardless of what's passed here, so nothing we set can defeat
+ * it. What it does NOT do is replay a NOTIFY that fired while the connection
+ * was down. So on every reconnect (not the initial connect) we log it and
+ * fire one synthetic call to `callback` with no payload — every caller here
+ * treats a missing/unparseable payload as "go re-check current state," which
+ * is exactly right for "a NOTIFY may have been missed."
+ */
 export async function listen(
 	channel: string,
 	callback: (payload?: string) => void,
 	opts?: ListenOptions,
 ): Promise<() => Promise<void>> {
-	const client = postgres(resolveUrl(opts), {
+	const url = resolveUrl(opts);
+	const client = postgres(url, {
 		max: 1,
 		onnotice: () => {},
 	});
 
-	await client.listen(channel, (payload) => {
-		callback(payload);
-	});
+	let connectedOnce = false;
+	await client.listen(
+		channel,
+		(payload) => {
+			callback(payload);
+		},
+		() => {
+			if (connectedOnce) {
+				logger.info("LISTEN connection reconnected", {
+					event: "listener_reconnected",
+					channel,
+					db: describeDbUrl(url),
+				});
+				callback();
+			}
+			connectedOnce = true;
+		},
+	);
 
 	return async () => {
 		await client.end();

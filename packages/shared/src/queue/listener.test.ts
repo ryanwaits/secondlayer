@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import postgres from "postgres";
 import { resolveSourceUrl, resolveTargetUrl } from "../db/index.ts";
 import {
 	createWakeBus,
@@ -64,6 +65,43 @@ describe.skipIf(!HAS_DB)("createWakeBus", () => {
 			await bus.stop();
 		}
 	});
+});
+
+describe.skipIf(!HAS_DB)("listen() reconnects after the backend drops", () => {
+	test("a later NOTIFY still reaches the callback, and a synthetic wake fires right after reconnect", async () => {
+		const channel = `listener_reconnect_test_${Date.now()}`;
+		const received: (string | undefined)[] = [];
+		const stop = await listen(channel, (payload) => {
+			received.push(payload);
+		});
+		const admin = postgres(process.env.DATABASE_URL as string, { max: 1 });
+		try {
+			const before = received.length;
+			await admin`
+					select pg_terminate_backend(pid)
+					from pg_stat_activity
+					where query ilike 'listen%' and query ilike ${`%${channel}%`}
+				`;
+
+			// The reconnect must fire a synthetic wake (undefined payload)
+			// on its own, before any NOTIFY — proving a NOTIFY that fires
+			// while the connection is down can't strand a waiter forever.
+			const deadline = Date.now() + 5000;
+			while (received.length === before && Date.now() < deadline) {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
+			expect(received.length).toBeGreaterThan(before);
+			expect(received[received.length - 1]).toBeUndefined();
+
+			// A real NOTIFY after the reconnect must still reach the callback.
+			await notify(channel, "after-reconnect");
+			await new Promise((resolve) => setTimeout(resolve, 300));
+			expect(received[received.length - 1]).toBe("after-reconnect");
+		} finally {
+			await stop();
+			await admin.end();
+		}
+	}, 10_000);
 });
 
 describe("createWakeBus degrades safely", () => {
