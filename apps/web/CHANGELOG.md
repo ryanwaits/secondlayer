@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.10.4
+
+### Patch Changes
+
+- cab662c: The webhooks list and detail pages now render cached rows instantly, fetch in parallel instead of serially, and keep updating while the tab is open. A skeleton fills the wait on a first load, hovering a row prefetches its detail page, and detail charts load in their own chunk behind the page's first content.
+
 ## 0.10.3
 
 ### Patch Changes
