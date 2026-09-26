@@ -74,7 +74,7 @@ function AllowanceMeter({
 	return (
 		<div className="use-allow">
 			<div className="use-allow-row">
-				<span className="use-allow-k">Free rows this month</span>
+				<span className="use-allow-k">Free Index and Streams rows</span>
 				<span className="use-allow-v">
 					{formatRows(shown)} <span>of {formatRows(ROWS_ALLOWANCE)}</span>
 				</span>
@@ -87,7 +87,8 @@ function AllowanceMeter({
 				<i style={{ width: `${pct.toFixed(1)}%` }} />
 			</div>
 			<div className="use-allow-foot">
-				{allowanceFootLine(deliveredRows, resetLabel)}
+				{allowanceFootLine(deliveredRows, resetLabel)} Webhooks are billed per
+				event and don't use free rows.
 			</div>
 		</div>
 	);

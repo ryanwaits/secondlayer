@@ -48,7 +48,8 @@ describe("UsageBody", () => {
 				onRetry={() => {}}
 			/>,
 		);
-		expect(html).toContain("Free rows this month");
+		expect(html).toContain("Free Index and Streams rows");
+		expect(html).toContain("Webhooks are billed per");
 		expect(html).toContain("Rows delivered");
 		expect(html).not.toContain("load usage for");
 	});
