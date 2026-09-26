@@ -91,8 +91,9 @@ export async function resolveBlockCommitments(
 	rpc: BitcoinRpcClient,
 	block: ParsedBlock,
 	height: number,
+	network: Network = Network.Bitcoin,
 ): Promise<CommitmentMap> {
-	const minimum = runeMinimumAtHeight(Network.Bitcoin, height);
+	const minimum = runeMinimumAtHeight(network, height);
 	const resolved = new Map<string, boolean>();
 	const seen = new Set<string>();
 	const txCache = new Map<string, Promise<RawTransactionVerbose>>();
@@ -219,6 +220,10 @@ export interface BackfillOptions {
 	toHeight: number;
 	fetchConcurrency: number;
 	flushInterval?: number;
+	/** Defaults to `Network.Bitcoin` (mainnet). Only ever overridden by the regtest reorg test (`test/regtest/`) — Runes activates at block 0 on regtest, not 840,000, and there's no mainnet-only UNCOMMON•GOODS to seed. */
+	network?: Network;
+	/** Defaults to `GENESIS_HEIGHT` (840,000, mainnet's Runes activation height). Regtest-test-only override — see `network`. */
+	genesisHeight?: number;
 	/** Called after every flush with row-count/timing stats plus how many blocks were in this window and the wall-clock ms since the previous flush (for a blocks/s log line). */
 	onFlush?: (
 		stats: FlushStats &
@@ -248,6 +253,7 @@ async function* fetchBlocksInOrder(
 	from: number,
 	to: number,
 	concurrency: number,
+	network: Network,
 ): AsyncGenerator<{ height: number; fetched: FetchedBlock }> {
 	const total = to - from + 1;
 	if (total <= 0) return;
@@ -260,7 +266,12 @@ async function* fetchBlocksInOrder(
 		const hash = await rpc.getblockhash(height);
 		const hex = await rpc.getblock(hash);
 		const block = parseBlock(hex);
-		const commitments = await resolveBlockCommitments(rpc, block, height);
+		const commitments = await resolveBlockCommitments(
+			rpc,
+			block,
+			height,
+			network,
+		);
 		results.set(height, { block, commitments });
 	}
 
@@ -295,13 +306,17 @@ export async function runBackfill(
 	options: BackfillOptions,
 ): Promise<RuneState> {
 	const flushInterval = options.flushInterval ?? DEFAULT_FLUSH_INTERVAL;
+	const network = options.network ?? Network.Bitcoin;
+	const genesisHeight = options.genesisHeight ?? GENESIS_HEIGHT;
 
 	const state = await loadState(options.db);
-	if (state.height === undefined) {
+	if (state.height === undefined && network === Network.Bitcoin) {
+		// UNCOMMON•GOODS is a mainnet-only pre-existing rune (`seedGenesis`'s own
+		// docstring) — regtest/testnet/signet have no equivalent to seed.
 		seedGenesis(state);
 	}
 
-	const fromHeight = (state.height ?? GENESIS_HEIGHT - 1) + 1;
+	const fromHeight = (state.height ?? genesisHeight - 1) + 1;
 	if (fromHeight > options.toHeight) {
 		return state;
 	}
@@ -318,6 +333,7 @@ export async function runBackfill(
 		fromHeight,
 		options.toHeight,
 		options.fetchConcurrency,
+		network,
 	)) {
 		const { block, commitments } = fetched;
 		timers.fetchWaitMs += performance.now() - fetchWaitStart;
@@ -328,7 +344,7 @@ export async function runBackfill(
 
 		checkContinuity(height, block, previousHash);
 
-		const minimum = runeMinimumAtHeight(Network.Bitcoin, height);
+		const minimum = runeMinimumAtHeight(network, height);
 		const ctx: UpdaterContext = {
 			height,
 			blockTime: block.time,

@@ -60,6 +60,10 @@ export interface FollowDeps {
 	invariantReportDir?: string;
 	onBlock?: (info: { height: number; hash: string }) => void;
 	onReorg?: (info: ReorgInfo) => void;
+	/** Defaults to `Network.Bitcoin` (mainnet). Only ever overridden by the regtest reorg test (`test/regtest/`) — see `backfill.ts`'s `BackfillOptions.network`. */
+	network?: Network;
+	/** Defaults to `GENESIS_HEIGHT` (840,000). Regtest-test-only override — see `network`. */
+	genesisHeight?: number;
 }
 
 /**
@@ -122,11 +126,17 @@ async function applyOneBlock(
 	verifyBlockIntegrity(block);
 	checkContinuity(height, block, state.hash);
 
-	const commitments = await resolveBlockCommitments(deps.rpc, block, height);
+	const network = deps.network ?? Network.Bitcoin;
+	const commitments = await resolveBlockCommitments(
+		deps.rpc,
+		block,
+		height,
+		network,
+	);
 	const ctx: UpdaterContext = {
 		height,
 		blockTime: block.time,
-		minimum: runeMinimumAtHeight(Network.Bitcoin, height),
+		minimum: runeMinimumAtHeight(network, height),
 		commitments,
 	};
 
@@ -158,18 +168,24 @@ export interface SyncResult {
  * again).
  */
 export async function syncOnce(deps: FollowDeps): Promise<SyncResult> {
+	const network = deps.network ?? Network.Bitcoin;
+	const genesisHeight = deps.genesisHeight ?? GENESIS_HEIGHT;
+
 	let state = await loadState(deps.db);
-	if (state.height === undefined) seedGenesis(state);
+	if (state.height === undefined && network === Network.Bitcoin) {
+		// UNCOMMON•GOODS is mainnet-only — see backfill.ts's runBackfill.
+		seedGenesis(state);
+	}
 
 	state = await reconcileCheckpoint(deps, state);
 
 	const tipHeight = await deps.rpc.getblockcount();
 	// `state.height` is `undefined` only for a brand-new database (nothing
 	// backfilled yet, ever) — treat that exactly like backfill.ts does (one
-	// height below GENESIS_HEIGHT), so a fresh `follow` on an empty DB still
-	// takes the batched catch-up path instead of walking from 840,000 one
-	// block at a time.
-	const checkpointHeight = state.height ?? GENESIS_HEIGHT - 1;
+	// height below the genesis height), so a fresh `follow` on an empty DB
+	// still takes the batched catch-up path instead of walking from the start
+	// one block at a time.
+	const checkpointHeight = state.height ?? genesisHeight - 1;
 	if (tipHeight - checkpointHeight > UNDO_DEPTH) {
 		state = await runBackfill({
 			db: deps.db,
@@ -177,13 +193,15 @@ export async function syncOnce(deps: FollowDeps): Promise<SyncResult> {
 			toHeight: tipHeight - UNDO_DEPTH,
 			fetchConcurrency: deps.fetchConcurrency ?? 8,
 			invariantReportDir: deps.invariantReportDir,
+			network,
+			genesisHeight,
 		});
 	}
 
 	let blocksApplied = 0;
 	for (;;) {
 		const currentTip = await deps.rpc.getblockcount();
-		const currentHeight = state.height ?? GENESIS_HEIGHT - 1;
+		const currentHeight = state.height ?? genesisHeight - 1;
 		if (currentHeight >= currentTip) break;
 
 		const nextHeight = currentHeight + 1;
