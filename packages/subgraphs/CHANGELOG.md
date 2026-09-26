@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 6.2.6
+
+### Patch Changes
+
+- eecf2e5: `stopEmitter()` now waits for the current claim pass and every in-flight delivery to finish (bounded by the webhook timeout ceiling + 5s) before resolving, instead of returning immediately. Closes the race where a mid-flight POST wrote its `webhook_deliveries` row after the emitter reported "stopped" — a delivery-during-restart hazard in prod. Rows still claimed at the deadline keep their lock and are re-claimed by the next emitter.
+- Updated dependencies [5898759]
+  - @secondlayer/shared@11.12.5
+
 ## 6.2.5
 
 ### Patch Changes
