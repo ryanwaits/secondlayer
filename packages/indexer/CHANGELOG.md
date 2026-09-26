@@ -1,5 +1,12 @@
 # @secondlayer/indexer
 
+## 1.15.7
+
+### Patch Changes
+
+- d644561: The L2 decoder service's per-wake loop no longer runs `logProgress()` (a ~60-query health fan-out) whenever a decode wrote rows. It now fires only off the existing 60s progress timer, so a busy block no longer pays a health-endpoint-sized query burst before the next fetch.
+- d644561: The classic decoders (ft/nft/stx transfer, mint, burn, lock, print) now commit the end-of-block sentinel cursor directly when a Streams page comes back shorter than the requested batch size, instead of waiting on a follow-up empty poll to prove the block is done. Cuts one HTTP fetch + one commit transaction off the common per-block path.
+
 ## 1.15.6
 
 ### Patch Changes
