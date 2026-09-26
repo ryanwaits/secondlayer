@@ -17,6 +17,7 @@ export function FloatingCard({
 	subtitle,
 	expandHref,
 	onExpand,
+	headerActions,
 	footer,
 	children,
 }: {
@@ -24,10 +25,15 @@ export function FloatingCard({
 	onClose: () => void;
 	title: string;
 	subtitle?: React.ReactNode;
-	/** The full page for this job, opened by the expand button. */
-	expandHref: string;
+	/** The full page for this job, opened by the expand button. Omitted when
+	 *  the card has no page of its own (the delivery card) — the expand
+	 *  button then doesn't render. */
+	expandHref?: string;
 	/** Runs just before expanding, to carry state the page can't refetch. */
 	onExpand?: () => void;
+	/** Rendered before expand/close, e.g. the delivery card's Newer/Older
+	 *  buttons. */
+	headerActions?: React.ReactNode;
 	footer?: React.ReactNode;
 	children: React.ReactNode;
 }) {
@@ -82,29 +88,32 @@ export function FloatingCard({
 					</h2>
 					{subtitle ? <p className="acct-card-sub">{subtitle}</p> : null}
 				</div>
-				<Link
-					href={expandHref}
-					className="acct-card-icon"
-					aria-label="Open full page"
-					onClick={() => {
-						onExpand?.();
-						onCloseRef.current();
-					}}
-				>
-					<svg
-						width="14"
-						height="14"
-						viewBox="0 0 16 16"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="1.5"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						aria-hidden="true"
+				{headerActions}
+				{expandHref ? (
+					<Link
+						href={expandHref}
+						className="acct-card-icon"
+						aria-label="Open full page"
+						onClick={() => {
+							onExpand?.();
+							onCloseRef.current();
+						}}
 					>
-						<path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" />
-					</svg>
-				</Link>
+						<svg
+							width="14"
+							height="14"
+							viewBox="0 0 16 16"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.5"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" />
+						</svg>
+					</Link>
+				) : null}
 				<button
 					type="button"
 					className="acct-card-icon"
