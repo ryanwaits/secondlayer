@@ -1,5 +1,18 @@
 # @secondlayer/api
 
+## 1.43.1
+
+### Patch Changes
+
+- 4c462cd: Fixes a prod regression from the `wait` long-poll shipping in the last release: `/v1/index/blocks` judged "anything new" by raw row presence, which tracks the ingest tip, not the decoded tip `IndexHttpClient.getIndexTip()` callers (like the hosted chain-webhook evaluator) actually poll against — so `wait` returned almost instantly and the evaluator re-armed in a tight loop instead of holding. `/v1/index/blocks` now accepts `tip_only=true`, which skips the row query and judges emptiness against the tip field directly.
+- Updated dependencies [e5ad7f2]
+- Updated dependencies [0b4efbe]
+- Updated dependencies [6f46d66]
+  - @secondlayer/subgraphs@6.2.1
+  - @secondlayer/shared@11.11.1
+  - @secondlayer/indexer@1.15.6
+  - @secondlayer/platform@0.3.6
+
 ## 1.43.0
 
 ### Minor Changes

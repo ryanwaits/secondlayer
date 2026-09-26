@@ -1,5 +1,13 @@
 # @secondlayer/indexer
 
+## 1.15.6
+
+### Patch Changes
+
+- 6f46d66: The L2 decoder's wake listener now logs the channel name and redacted DB host it connected (or failed to connect) to at startup, so a split-DB LISTEN/NOTIFY mismatch is visible in `docker logs` instead of only inferable from a latency graph.
+- Updated dependencies [0b4efbe]
+  - @secondlayer/shared@11.11.1
+
 ## 1.15.5
 
 ### Patch Changes
