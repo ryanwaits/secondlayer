@@ -61,8 +61,8 @@ export const DEFAULT_INDEX_TOKENS: IndexTokenStore = new Map([
 ]);
 
 // First-party internal consumer (subgraph processor PublicApiBlockSource).
-// Internal tier + NO account_id → reads are unmetered (metering gates on
-// account_id). Seeded only when INDEX_INTERNAL_API_KEY is non-empty;
+// Internal tier → reads are unmetered and unthrottled (the credits gate skips
+// the internal tier, with or without an account_id). Seeded only when INDEX_INTERNAL_API_KEY is non-empty;
 // INSTANCE_TOKEN stays on the instanceTokenMatches path.
 const indexInternalKey = process.env.INDEX_INTERNAL_API_KEY?.trim();
 if (indexInternalKey) {

@@ -57,19 +57,21 @@ async function lookupAccountApiKey(
 	if (!row) return null;
 	return {
 		account_id: row.account_id,
-		// DB-backed keys are always the single metered tier. Legacy `build`/
-		// `scale`/`enterprise` pins on old rows are not authority — the paid
-		// ladder was retired and the column is vestigial.
+		// DB-backed keys are the single metered tier, except a first-party
+		// `internal` key (only mintable by an internal route, see
+		// `INTERNAL_MINT_TIER`). Legacy `build`/`scale`/`enterprise` pins on
+		// old rows are not authority: the paid ladder was retired.
 		status: row.status,
-		tier: "free",
+		tier: row.tier === "internal" ? "internal" : "free",
 	};
 }
 
 /**
  * Runtime token store: static seed tokens (first-party service credentials)
  * first, then the instance token, then `api_keys` by hash on the metered
- * archive. Every DB-backed key resolves to the single metered `free` tier —
- * legacy paid pins on `api_keys.tier` are not honored.
+ * archive. Every DB-backed key resolves to the single metered `free` tier,
+ * except a first-party `internal` key; legacy paid pins on `api_keys.tier`
+ * are not honored.
  */
 export function createApiKeyTokenStore<TTenant extends ProductTenant>(
 	opts: ApiKeyTokenStoreOptions<TTenant>,

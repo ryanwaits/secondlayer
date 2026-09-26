@@ -1383,6 +1383,53 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 		expect(rows).toHaveLength(1); // only the seed row — this attempt served nothing
 	});
 
+	test("a first-party internal key bound to an account is served past the allowance and never metered", async () => {
+		const accountId = await makeAccount();
+		// The account is over its allowance with $0: a customer key would 402.
+		await meter(db, {
+			accountId,
+			unit: "rows.delivered",
+			quantity: ROWS_DELIVERED_MONTHLY_ALLOWANCE,
+			source: "test-seed",
+			idempotencyKey: `seed-${accountId}`,
+			occurredAt: new Date(),
+		});
+
+		const app = new Hono();
+		app.onError(errorHandler);
+		const tokens: IndexTokenStore = new Map([
+			[
+				`sk-sl_hosted_${accountId}`,
+				{
+					tenant_id: `account:${accountId}`,
+					account_id: accountId,
+					tier: "internal",
+					scopes: [INDEX_READ_SCOPE],
+				},
+			],
+		]);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				tokens,
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readEvents: async () => ({
+					events: [fakeEvent("2:0"), fakeEvent("2:1")],
+					next_cursor: null,
+				}),
+			}),
+		);
+
+		const res = await app.request("/v1/index/events?event_type=ft_transfer", {
+			headers: { Authorization: `Bearer sk-sl_hosted_${accountId}` },
+		});
+		expect(res.status).toBe(200);
+
+		const rows = await ledgerRows(accountId);
+		expect(rows).toHaveLength(1); // only the seed row: the read wasn't metered
+	});
+
 	test("the same over-allowance account reads again after a top-up, and the row is debited", async () => {
 		const accountId = await makeAccount();
 		const now = new Date("2026-09-24T00:00:00Z");

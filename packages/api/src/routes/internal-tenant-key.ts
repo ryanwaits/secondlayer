@@ -56,6 +56,8 @@ app.post("/", async (c) => {
 		name: HOSTED_STACK_KEY_NAME,
 		product: "account",
 		ip: "workload-host",
+		// The evaluator's reads are ours, not the customer's rows.
+		internal: true,
 	});
 
 	return c.json({ key: minted.key });

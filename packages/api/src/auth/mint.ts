@@ -15,6 +15,16 @@ export type MintProduct = "account";
 export const DEFAULT_MINT_TIER = "free";
 
 /**
+ * The first-party tier: reads are neither throttled nor metered. Only the
+ * workload host's per-tenant `hosted-stack` key gets it (minted by
+ * `routes/internal-tenant-key.ts`, behind the workload host key): a hosted
+ * webhook evaluator's Index/Streams reads are our cost, covered by the
+ * per-event webhook price, never the customer's rows. Customers can't set a
+ * tier on a key, so this can't be claimed from outside.
+ */
+export const INTERNAL_MINT_TIER = "internal";
+
+/**
  * Cap on active (non-revoked) keys per account. A backstop against key-spray
  * via the agent-reachable mint endpoint; the per-IP rate limit is the first
  * line of defence. Revoked keys don't count. Env-overridable.
@@ -97,6 +107,8 @@ export async function mintApiKey(
 		name?: string | null;
 		product: MintProduct;
 		ip: string;
+		/** First-party service key (unmetered, unthrottled). Internal routes only. */
+		internal?: boolean;
 	},
 ): Promise<MintedKey> {
 	const { raw, hash, prefix } = generateApiKey();
@@ -110,7 +122,7 @@ export async function mintApiKey(
 			account_id: input.accountId,
 			status: "active",
 			product: input.product,
-			tier: DEFAULT_MINT_TIER,
+			tier: input.internal ? INTERNAL_MINT_TIER : DEFAULT_MINT_TIER,
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();

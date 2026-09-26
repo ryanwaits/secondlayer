@@ -109,11 +109,13 @@ describe.skipIf(!HAS_DB)("POST /internal/keys/tenant", () => {
 
 		const row = await db
 			.selectFrom("api_keys")
-			.select(["name", "status", "account_id"])
+			.select(["name", "status", "account_id", "tier"])
 			.where("account_id", "=", accountId)
 			.where("status", "=", "active")
 			.executeTakeFirst();
 		expect(row?.name).toBe(HOSTED_STACK_KEY_NAME);
+		// The evaluator's reads are first-party: never metered to the account.
+		expect(row?.tier).toBe("internal");
 	});
 
 	test("a second call revokes the first hosted-stack key (rotating, idempotent)", async () => {

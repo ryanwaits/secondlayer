@@ -33,8 +33,9 @@ export function streamsCreditsGate(): MiddlewareHandler<StreamsEnv> {
 	};
 }
 
-/** Post-read meter for a keyed caller — no-op for anon/internal (no
- *  account_id). Meters every row, live or history; the monthly allowance
+/** Post-read meter for a keyed caller: no-op for anon and for the
+ *  `internal` tier, including an account-bound first-party key (a hosted
+ *  webhook evaluator's reads are ours, billed per webhook event instead). Meters every row, live or history; the monthly allowance
  *  and any debit happen inside `meter()`. The pre-check above already
  *  refused a read that couldn't start; this can only make an
  *  allowance-straddling read's overflow visible (`debited: false`) if the
@@ -43,7 +44,8 @@ export async function debitStreamsCreditedRead(
 	c: Context<StreamsEnv>,
 	rows: readonly unknown[],
 ): Promise<void> {
-	const accountId = c.get("streamsTenant")?.account_id;
-	if (!accountId) return;
+	const tenant = c.get("streamsTenant");
+	if (!tenant?.account_id || tenant.tier === "internal") return;
+	const accountId = tenant.account_id;
 	await meterRowsDelivered(accountId, rows.length, "streams");
 }

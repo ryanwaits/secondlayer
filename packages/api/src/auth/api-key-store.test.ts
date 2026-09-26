@@ -128,6 +128,31 @@ describe("createApiKeyTokenStore", () => {
 				expect(tenant?.tier).toBe("free");
 			});
 
+			test("a first-party internal key resolves as internal and keeps its account", async () => {
+				const raw = "sk-sl_hosted_stack_internal_test";
+				await db
+					.insertInto("api_keys")
+					.values({
+						key_hash: hashToken(raw),
+						key_prefix: "sk-sl_hosted",
+						account_id: accountId,
+						ip_address: "workload-host",
+						product: "account",
+						tier: "internal",
+						status: "active",
+					})
+					.execute();
+
+				const store = createApiKeyTokenStore({
+					staticTokens: new Map(),
+					requiredScope: "index:read",
+					product: "index",
+				});
+				const tenant = await store.get(raw);
+				expect(tenant?.tier).toBe("internal");
+				expect(tenant?.account_id).toBe(accountId);
+			});
+
 			test("an active scoped streams key does not resolve", async () => {
 				const raw = "sk-sl_scoped_streams_retired_test";
 				await db
