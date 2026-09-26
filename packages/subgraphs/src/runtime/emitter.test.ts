@@ -59,27 +59,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	await stopEmitter?.();
-	// webhook_outbox cascades on webhook delete, but webhook_deliveries.webhook_id
-	// carries no FK (only deliveries.outbox_id -> outbox, ON DELETE SET NULL) —
-	// so a bare `deleteFrom("webhooks")` orphans every delivery row this suite
-	// created, in the shared CI-mirror DB. Delete both explicitly first, scoped
-	// to this suite's own webhook ids.
-	const ownedWebhooks = await db
-		.selectFrom("webhooks")
-		.select("id")
-		.where("account_id", "=", accountId)
-		.execute();
-	const webhookIds = ownedWebhooks.map((w) => w.id);
-	if (webhookIds.length > 0) {
-		await db
-			.deleteFrom("webhook_deliveries")
-			.where("webhook_id", "in", webhookIds)
-			.execute();
-		await db
-			.deleteFrom("webhook_outbox")
-			.where("webhook_id", "in", webhookIds)
-			.execute();
-	}
+	// webhook_outbox and webhook_deliveries both cascade on webhook delete
+	// (migration 0140 added the FK for deliveries) — one cleanup path.
 	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 });
 
