@@ -25,9 +25,13 @@ export default function AccountLayout({
 	const { account, loading, logout } = useAuth();
 	const pathname = usePathname();
 
-	if (loading) return null;
-
-	if (!account) {
+	// Signed out is the one case that still blocks: nothing account-specific
+	// ever mounts for a visitor who isn't authenticated. While `loading` is
+	// still resolving, though, the shell and its children render right away
+	// instead of waiting on `/auth/me` — `children` start their own fetches
+	// immediately, and a proxy 401 just reads as "signed out" once loading
+	// catches up (each page's own store/notice handling covers that).
+	if (!loading && !account) {
 		return (
 			<div className="login-page">
 				<div className="login-card">
@@ -62,7 +66,17 @@ export default function AccountLayout({
 						{t.label}
 					</Link>
 				))}
-				<p className="acct-side-email">{account.email}</p>
+				{account ? (
+					<p className="acct-side-email">{account.email}</p>
+				) : (
+					<p className="acct-side-email">
+						<span
+							className="wh-skel"
+							aria-hidden="true"
+							style={{ display: "inline-block", width: 130, height: 13 }}
+						/>
+					</p>
+				)}
 				<button
 					type="button"
 					className="acct-side-link quiet"
