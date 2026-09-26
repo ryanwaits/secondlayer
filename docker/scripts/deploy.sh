@@ -24,6 +24,31 @@ if [ "${DEPLOY_REEXECED:-0}" != "1" ]; then
 	exec bash /opt/secondlayer/docker/scripts/deploy.sh
 fi
 
+# Host timers run bun against this checkout (slack-gate → `ai`, staging-health).
+# Images ship their own node_modules; git reset above does not install. Without
+# this, host `ai` sat at 6.0.167 after 7.0.105 landed, `experimental_evaluate`
+# crashed at import, and every page fail-opened past Jev.
+# Do not pass --production: `ai` is a root devDependency used at host runtime.
+install_host_js_deps() {
+	local bun_bin="${BUN_BIN:-}"
+	if [ -z "$bun_bin" ]; then
+		if [ -x /root/.bun/bin/bun ]; then
+			bun_bin=/root/.bun/bin/bun
+		else
+			bun_bin="$(command -v bun || true)"
+		fi
+	fi
+	if [ -z "$bun_bin" ] || [ ! -x "$bun_bin" ]; then
+		echo "WARN: bun not found; host scripts will fail-open without Jev"
+		return 0
+	fi
+	echo "📦 bun install --frozen-lockfile (host scripts)"
+	(cd /opt/secondlayer && "$bun_bin" install --frozen-lockfile --ignore-scripts)
+	(cd /opt/secondlayer && "$bun_bin" -e 'import { experimental_evaluate } from "ai"')
+}
+
+install_host_js_deps
+
 cd /opt/secondlayer/docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 

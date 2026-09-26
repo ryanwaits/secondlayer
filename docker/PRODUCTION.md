@@ -31,7 +31,10 @@ Compose project lives at `/opt/secondlayer/docker` on app-server.
 ## Operational rules (each one paid for in incidents)
 
 1. **Deploys go through `docker/scripts/deploy.sh` only.** Its `APP_SERVICES`
-   allow-list deliberately never touches postgres.
+   allow-list deliberately never touches postgres. After `git reset`, it
+   `bun install --frozen-lockfile`s the host checkout so timer scripts
+   (`slack-gate` / Jev) match the lockfile. Images do not share that
+   `node_modules`.
 2. **`COMPOSE_FILE` is pinned in the server `.env`**
    (`docker-compose.yml:docker-compose.hetzner.yml`) so even a raw
    `docker compose` command loads the hetzner overlay. The overlay carries the

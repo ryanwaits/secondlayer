@@ -51,7 +51,9 @@ Each service sources `/opt/secondlayer/docker/.env` for `DATA_DIR`,
 Alert scripts post through `scripts/ops/slack-gate.ts` (Jev). Pages only when
 `page_now >= 0.8` and `severity >= 3`, except health-alert CRITICAL and
 integrity-alert unfillable/unlinked (`--force`) and all-clears (`--recovery`).
-Set `AI_GATEWAY_API_KEY` in `.env`; unset fails open (posts). GitHub deploy
+Set `AI_GATEWAY_API_KEY` in `.env`; unset fails open (posts). `deploy.sh`
+runs `bun install --frozen-lockfile` on `/opt/secondlayer` so host `ai`
+matches the lockfile (`experimental_evaluate` is AI SDK 7). GitHub deploy
 Slack fires only on deploy or smoke *failure*.
 `staging-health` additionally builds a host-reachable SOURCE DB URL from
 `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` (override the target with

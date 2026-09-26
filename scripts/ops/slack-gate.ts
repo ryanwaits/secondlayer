@@ -20,8 +20,6 @@
  * Exit 0 always — a timer must not fail because Slack or Jev blipped.
  */
 
-import { experimental_evaluate as evaluate } from "ai";
-
 export const SLACK_GATE_SCHEMA_VERSION = 1 as const;
 export const PAGE_NOW_MIN = 0.8;
 export const SEVERITY_MIN = 3;
@@ -181,6 +179,9 @@ async function classify(text: string): Promise<{
 	if (!process.env.AI_GATEWAY_API_KEY) {
 		return { kind: null, pageNow: null, severity: null };
 	}
+	// Load inside classify so a stale host `ai` (missing experimental_evaluate)
+	// is a fail-open, not a load-time crash that skips decideGate entirely.
+	const { experimental_evaluate: evaluate } = await import("ai");
 	const result = await evaluate({
 		model: JEV_MODEL,
 		state: text,
