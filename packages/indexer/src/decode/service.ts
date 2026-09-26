@@ -260,10 +260,7 @@ async function runClassicDecoders(): Promise<void> {
 	// it can afford a much larger cap: a heavy block (thousands of rows) then
 	// costs ONE reader call/full-block-scan instead of N (see
 	// `DEFAULT_CLASSIC_BATCH_LIMIT`'s doc in `./classic-decoders.ts`).
-	const limit = Number.parseInt(
-		process.env.CLASSIC_DECODE_ROW_CAP ?? String(DEFAULT_CLASSIC_BATCH_LIMIT),
-		10,
-	);
+	const limit = DEFAULT_CLASSIC_BATCH_LIMIT;
 	const emptyBackoffMs = Number.parseInt(
 		process.env.DECODER_EMPTY_BACKOFF_MS ?? "1000",
 		10,
