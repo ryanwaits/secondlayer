@@ -7,6 +7,7 @@ import {
 	DEFAULT_BTC_CONFIRMATIONS,
 	finalizedBurnHeight,
 } from "@secondlayer/shared";
+import { describeDbUrl } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { listen, sourceListenerUrl } from "@secondlayer/shared/queue/listener";
 
@@ -155,18 +156,33 @@ export function startStreamsTipInvalidationListener(opts?: {
 	connectionString?: string;
 }): void {
 	if (streamsTipListenerStarted) return;
+	const url = opts?.connectionString ?? sourceListenerUrl();
 	streamsTipListenerStarted = listen(
 		"indexer:new_block",
 		() => {
 			for (const invalidate of streamsTipInvalidators) invalidate();
 		},
-		{ connectionString: opts?.connectionString ?? sourceListenerUrl() },
-	).catch((error) => {
-		logger.warn(
-			"streams tip invalidation listener failed to start — the tip cache still refreshes every cacheTtlMs",
-			{ error: error instanceof Error ? error.message : String(error) },
-		);
-		streamsTipListenerStarted = null;
-		return null as unknown as () => Promise<void>;
-	});
+		{ connectionString: url },
+	)
+		.then((stop) => {
+			// Names the channel + the exact host/db LISTENed on (no credentials) so
+			// a split-DB misconfiguration is visible in `docker logs` at boot.
+			logger.info("streams tip invalidation listener connected", {
+				channel: "indexer:new_block",
+				db: describeDbUrl(url),
+			});
+			return stop;
+		})
+		.catch((error) => {
+			logger.warn(
+				"streams tip invalidation listener failed to start — the tip cache still refreshes every cacheTtlMs",
+				{
+					channel: "indexer:new_block",
+					db: describeDbUrl(url),
+					error: error instanceof Error ? error.message : String(error),
+				},
+			);
+			streamsTipListenerStarted = null;
+			return null as unknown as () => Promise<void>;
+		});
 }

@@ -508,9 +508,25 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		const query = new URL(c.req.url).searchParams;
 		validateQueryParams(query, BLOCKS_FILTERS);
 		const waitSeconds = parseWaitSeconds(query.get("wait") ?? undefined);
+		// `tip_only` (IndexHttpClient.getIndexTip's wait) cares about the
+		// DECODED tip (`response.tip.block_height`), not raw rows — `blocks[]`
+		// is always empty in that mode (see getBlocksResponse), and the SOURCE
+		// tip `blocks.length` would otherwise be governed by moves independently
+		// of decode, making a decoded-tip-based `from_height` baseline never
+		// register as "still nothing new". Compare the tip field directly instead.
+		const tipOnly = query.get("tip_only") === "true";
+		const fromHeightParam = query.get("from_height");
+		const parsedFromHeight =
+			fromHeightParam !== null ? Number(fromHeightParam) : undefined;
+		const knownHeight =
+			parsedFromHeight !== undefined && Number.isFinite(parsedFromHeight)
+				? parsedFromHeight - 1
+				: undefined;
 		const response = await longPollIndex({
 			waitSeconds,
-			isEmpty: (r) => r.blocks.length === 0,
+			isEmpty: tipOnly
+				? (r) => knownHeight === undefined || r.tip.block_height <= knownHeight
+				: (r) => r.blocks.length === 0,
 			// Re-fetches the tip fresh every attempt — see the /events handler.
 			// This is also the shape `IndexHttpClient.getIndexTip({ wait,
 			// knownHeight })` uses to learn the tip: an empty page here (nothing

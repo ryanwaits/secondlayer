@@ -10,7 +10,8 @@ import { type IndexTip, indexSourceWindowTip } from "./tip.ts";
 
 /** Window/pagination params the blocks list accepts. Blocks carry no content
  *  filters — height is the only axis. `wait` (plan-063 3.4) long-polls when
- *  the requested window has nothing new yet — see `../index/wait.ts`. */
+ *  the requested window has nothing new yet — see `../index/wait.ts`.
+ *  `tip_only` skips the row query entirely — see its doc on `getBlocksResponse`. */
 export const BLOCKS_FILTERS = [
 	"limit",
 	"cursor",
@@ -18,6 +19,7 @@ export const BLOCKS_FILTERS = [
 	"from_height",
 	"to_height",
 	"wait",
+	"tip_only",
 ] as const;
 
 /**
@@ -160,6 +162,23 @@ export async function getBlocksResponse(opts: {
 	tip: IndexTip;
 	readBlocks?: BlocksReader;
 }): Promise<BlocksResponse> {
+	// A caller that only wants the tip (IndexHttpClient.getIndexTip/
+	// getIndexSourceTip — never reads `blocks[]`) skips the row query
+	// entirely: there's nothing to page, and — the reason this exists —
+	// `blocks.length === 0` is governed by the SOURCE tip (`readBlocks`
+	// windows to `indexSourceWindowTip`), not the decoded `tip.block_height`
+	// `getIndexTip()` actually reports. A caller polling with `from_height`
+	// anchored to the DECODED tip would see rows the instant the SOURCE tip
+	// (which usually leads decode by a little) moved past it, even though
+	// the decoded tip it's tracking hasn't — making the "empty" wait
+	// condition upstream (`../routes/index.ts`) true almost every fetch and
+	// defeating `wait` entirely. `tip_only` sidesteps the ambiguity: the
+	// caller declares "I don't care about rows," so wait/emptiness upstream
+	// is judged against `tip.block_height` directly instead.
+	if (opts.query.get("tip_only") === "true") {
+		return { blocks: [], next_cursor: null, tip: opts.tip };
+	}
+
 	const base = parseIndexBaseQuery(opts.query, indexSourceWindowTip(opts.tip));
 
 	if (base.cursorPastTip) {

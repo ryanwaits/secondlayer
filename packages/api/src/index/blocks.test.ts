@@ -87,6 +87,47 @@ describe("Index blocks helpers", () => {
 		expect(response.tip.block_height).toBe(100);
 		expect(response.blocks).toHaveLength(1);
 	});
+
+	test("tip_only skips the row query entirely and always reports blocks: []", async () => {
+		let readerCalled = false;
+		const response = await getBlocksResponse({
+			query: params("?tip_only=true&from_height=1&wait=5"),
+			tip: TIP,
+			readBlocks: async () => {
+				readerCalled = true;
+				return { blocks: [{} as never], next_cursor: "x" };
+			},
+		});
+		expect(readerCalled).toBe(false);
+		expect(response).toEqual({ blocks: [], next_cursor: null, tip: TIP });
+	});
+
+	test("tip_only reproduces plan-063's regression: a decoded-tip caller must NOT see rows just because the source tip (which readBlocks windows to) is ahead of the decoded tip it's tracking", async () => {
+		// Same lag shape as the test above (decoded 100, source 200) — a
+		// non-tip_only /blocks read legitimately serves real rows there. A
+		// tip_only caller (IndexHttpClient.getIndexTip's wait) must see
+		// blocks: [] regardless, because it doesn't want rows — it wants to
+		// know whether the DECODED tip moved, which readBlocks' source-tip
+		// window cannot answer.
+		const lagged: IndexTip = {
+			block_height: 100,
+			finalized_height: 90,
+			lag_seconds: 0,
+			source_block_height: 200,
+		};
+		let readerCalled = false;
+		const response = await getBlocksResponse({
+			query: params("?tip_only=true&from_height=101"),
+			tip: lagged,
+			readBlocks: async () => {
+				readerCalled = true;
+				return { blocks: [{} as never], next_cursor: "x" };
+			},
+		});
+		expect(readerCalled).toBe(false);
+		expect(response.blocks).toEqual([]);
+		expect(response.tip.block_height).toBe(100);
+	});
 });
 
 describe.skipIf(!HAS_DB)("Index blocks DB reads", () => {

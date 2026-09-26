@@ -19,6 +19,7 @@ import type { StreamsTokenStore } from "../streams/auth.ts";
 import { STREAMS_READ_SCOPE } from "../streams/auth.ts";
 import type { StreamsTip } from "../streams/tip.ts";
 import { INDEX_READ_SCOPE, type IndexTokenStore } from "./auth.ts";
+import type { IndexBlock } from "./blocks.ts";
 import type { FtTransfersReader } from "./ft-transfers.ts";
 import type { NftTransfersReader } from "./nft-transfers.ts";
 import type {
@@ -81,6 +82,20 @@ const EMPTY_NFT_READER: NftTransfersReader = async () => ({
 
 function authHeaders(token: string) {
 	return { Authorization: `Bearer ${token}` };
+}
+
+function blockRow(height: number): IndexBlock {
+	return {
+		cursor: `${height}:0`,
+		block_height: height,
+		block_hash: `0x${height}`,
+		parent_hash: `0x${height - 1}`,
+		burn_block_height: height + 1000,
+		burn_block_hash: null,
+		index_block_hash: null,
+		block_time: null,
+		canonical: true,
+	};
 }
 
 function createApp(
@@ -440,6 +455,86 @@ describe("Stacks Index gateway middleware", () => {
 		expect(body.blocks).toEqual([]);
 		expect(tipCalls).toBe(2); // the initial check + one post-wait retry
 		expect(Date.now() - start).toBeGreaterThanOrEqual(900);
+	});
+
+	test("regression: an idle-at-tip evaluator (decoded tip unmoved, source tip ahead) must hold for ~wait, not busy-loop — this is what IndexHttpClient.getIndexTip's tip_only fixes", async () => {
+		// The exact shape that broke in prod: decode lags ingest by a little
+		// (normal, even with margin 0), so `source_block_height` sits above the
+		// DECODED `block_height` the evaluator tracks as its `knownHeight`
+		// baseline. Real blocks genuinely exist in that gap — a caller who
+		// reads rows (no tip_only) legitimately gets them back immediately.
+		const laggedTip = {
+			...TIP,
+			block_height: 10_000,
+			source_block_height: 10_003,
+		};
+		const realRowsInGap: IndexBlock[] = [
+			blockRow(10_001),
+			blockRow(10_002),
+			blockRow(10_003),
+		];
+
+		// Without tip_only: a real block-listing consumer correctly gets the
+		// rows immediately — this is NOT a bug, it's the documented "source tip
+		// for a blocks read" contract, asserted here as the control case.
+		{
+			const app = new Hono();
+			app.onError(errorHandler);
+			app.route(
+				"/v1/index",
+				createIndexRouter({
+					getTip: () => laggedTip,
+					readReorgs: async () => [],
+					readBlocks: async () => ({
+						blocks: realRowsInGap,
+						next_cursor: realRowsInGap.at(-1)?.cursor ?? null,
+					}),
+				}),
+			);
+			const res = await app.request(
+				`/v1/index/blocks?limit=10&from_height=${laggedTip.block_height + 1}&wait=1`,
+				{ headers: authHeaders(FREE_KEY) },
+			);
+			const body = (await res.json()) as { blocks: unknown[] };
+			expect(body.blocks.length).toBeGreaterThan(0);
+		}
+
+		// With tip_only=true (what getIndexTip actually sends): the caller only
+		// cares whether the DECODED tip moved past its baseline. The source tip
+		// being ahead must NOT count as "new data" — the request must hold for
+		// the full wait window and make at most one retry, never busy-loop.
+		{
+			const app = new Hono();
+			app.onError(errorHandler);
+			let requestCount = 0;
+			app.route(
+				"/v1/index",
+				createIndexRouter({
+					getTip: () => {
+						requestCount++;
+						return laggedTip;
+					},
+					readReorgs: async () => [],
+					readBlocks: async () => ({
+						blocks: realRowsInGap,
+						next_cursor: realRowsInGap.at(-1)?.cursor ?? null,
+					}),
+				}),
+			);
+			const start = Date.now();
+			const res = await app.request(
+				`/v1/index/blocks?limit=1&tip_only=true&from_height=${laggedTip.block_height + 1}&wait=1`,
+				{ headers: authHeaders(FREE_KEY) },
+			);
+			const body = (await res.json()) as { blocks: unknown[] };
+			expect(res.status).toBe(200);
+			expect(body.blocks).toEqual([]);
+			// The bug made this fire on a tight loop (many requests, ~100ms each).
+			// The fix must hold for close to the full `wait` window and answer
+			// with at most one retry — never more than one request per `wait`.
+			expect(requestCount).toBeLessThanOrEqual(2);
+			expect(Date.now() - start).toBeGreaterThanOrEqual(900);
+		}
 	});
 
 	test("GET /contract-calls serves via the injected reader with reorgs: []", async () => {

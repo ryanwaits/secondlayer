@@ -15,6 +15,7 @@
  * occasional spurious wake.
  */
 
+import { describeDbUrl } from "@secondlayer/shared/db";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { MAX_INDEX_WAIT_SECONDS } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
@@ -60,16 +61,25 @@ export function startIndexTipWakeListener(opts?: {
 	connectionString?: string;
 }): void {
 	if (wakeBus || starting) return;
-	starting = createWakeBus("index:tip", {
-		connectionString: opts?.connectionString ?? sourceListenerUrl(),
-	})
+	const url = opts?.connectionString ?? sourceListenerUrl();
+	starting = createWakeBus("index:tip", { connectionString: url })
 		.then((bus) => {
 			wakeBus = bus;
+			// Names the channel + the exact host/db LISTENed on (no credentials)
+			// so a split-DB misconfiguration is visible in `docker logs` at boot.
+			logger.info("Index tip wake listener connected", {
+				channel: "index:tip",
+				db: describeDbUrl(url),
+			});
 		})
 		.catch((error) => {
 			logger.warn(
 				"Index tip wake listener failed to start — long-polls will always wait out their full `wait` timeout instead of waking early",
-				{ error: error instanceof Error ? error.message : String(error) },
+				{
+					channel: "index:tip",
+					db: describeDbUrl(url),
+					error: error instanceof Error ? error.message : String(error),
+				},
 			);
 		})
 		.finally(() => {
