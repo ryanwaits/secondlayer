@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
-import { runClassicDecodeCycle } from "./classic-decoders.ts";
-import { commitClassicDecoderBatch } from "./generic-commit.ts";
 import {
+	type ClassicDecoderCommitFn,
+	runClassicDecodeCycle,
+} from "./classic-decoders.ts";
+import { commitClassicDecoderBatch } from "./generic-commit.ts";
+import { getDecodersHealth } from "./health.ts";
+import {
+	DECODER_NAMES,
 	FT_TRANSFER_DECODER_NAME,
 	NFT_TRANSFER_DECODER_NAME,
 	PRINT_DECODER_NAME,
@@ -248,8 +253,9 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 		});
 
 		// A page limit of 2 forces 3 reader calls for 5 events, all within one
-		// cycle — the cycle must not commit a non-sentinel checkpoint just
-		// because the FIRST page was truncated.
+		// cycle, each with its own commit (2.4 revision: per-page commits, not
+		// one accumulated commit) — the cycle must still land on the sentinel
+		// once the last (short) page proves the block is fully scanned.
 		const result = await runClassicDecodeCycle({
 			db,
 			limit: 2,
@@ -257,6 +263,7 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 		});
 
 		expect(result.scanned).toBe(5);
+		expect(result.pagesCommitted).toBe(3);
 		expect(result.decodedByDecoder[FT_TRANSFER_DECODER_NAME]).toBe(5);
 		expect(result.checkpoints[FT_TRANSFER_DECODER_NAME]).toBe("1:2147483647");
 		const rows = await db
@@ -371,5 +378,138 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 			.select("cursor")
 			.execute();
 		expect(rows).toEqual([]);
+	});
+
+	test("a backlog spanning many pages commits each page on its own and never holds more than one page of rows", async () => {
+		if (!db) throw new Error("missing db");
+		// 30 ft_transfer events in one block, well past a small page limit —
+		// simulates the gap after decoder downtime (deploy/crash/reset), which
+		// can be hours or days of backlog. Every commit must be bounded by the
+		// page limit, not by how big the whole backlog is.
+		const limit = 3;
+		const events = Array.from({ length: 30 }, (_, i) =>
+			ftTransferEvent(`tx-${i}`, String(i + 1)),
+		);
+		await seedBlock({ height: 1, parentHash: "0x00", hash: "0x01", events });
+
+		const commitCalls: number[] = [];
+		const spyCommit: ClassicDecoderCommitFn = async (entries, commitOpts) => {
+			const rowCount = entries.reduce((n, e) => n + e.rows.length, 0);
+			commitCalls.push(rowCount);
+			await commitClassicDecoderBatch(entries, commitOpts);
+		};
+
+		const result = await runClassicDecodeCycle({
+			db,
+			limit,
+			maxPagesPerCycle: 20,
+			commit: spyCommit,
+		});
+
+		// 30 events / limit 3 = 10 full pages, plus one short (empty) page that
+		// proves the range is exhausted and commits the sentinel.
+		expect(commitCalls.length).toBeGreaterThanOrEqual(10);
+		for (const rowCount of commitCalls) {
+			expect(rowCount).toBeLessThanOrEqual(limit);
+		}
+		expect(result.decodedByDecoder[FT_TRANSFER_DECODER_NAME]).toBe(30);
+		expect(result.checkpoints[FT_TRANSFER_DECODER_NAME]).toBe("1:2147483647");
+		const rowTotal = await db
+			.selectFrom("decoded_events")
+			.select("cursor")
+			.execute();
+		expect(rowTotal).toHaveLength(30);
+	});
+
+	test("a rewind between two page commits aborts only the in-flight page; the next cycle resumes from the rewound checkpoints", async () => {
+		if (!db) throw new Error("missing db");
+		await seedBlock({
+			height: 1,
+			parentHash: "0x00",
+			hash: "0x01",
+			events: [ftTransferEvent("tx-1", "1")],
+		});
+		await seedBlock({
+			height: 2,
+			parentHash: "0x01",
+			hash: "0x02",
+			events: [ftTransferEvent("tx-2", "2")],
+		});
+
+		let calls = 0;
+		const sabotagingCommit: ClassicDecoderCommitFn = async (
+			entries,
+			commitOpts,
+		) => {
+			calls++;
+			if (calls === 2) {
+				// Simulate a concurrent reorg rewinding ft_transfer's checkpoint
+				// AFTER page 1 committed but BEFORE page 2's commit runs — exactly
+				// the race `assertCheckpointUnmoved` exists to catch.
+				await writeDecoderCheckpoint({
+					db,
+					decoderName: FT_TRANSFER_DECODER_NAME,
+					cursor: null,
+				});
+			}
+			await commitClassicDecoderBatch(entries, commitOpts);
+		};
+
+		await expect(
+			runClassicDecodeCycle({
+				db,
+				limit: 1,
+				maxPagesPerCycle: 10,
+				commit: sabotagingCommit,
+			}),
+		).rejects.toThrow(/rewound/);
+
+		// Page 1 (block 1's event) is durably committed; page 2 (block 2's
+		// event) rolled back with the sabotaged commit.
+		const rowsAfterAbort = await db
+			.selectFrom("decoded_events")
+			.select("cursor")
+			.execute();
+		expect(rowsAfterAbort.map((r) => r.cursor)).toEqual(["1:0"]);
+		const rewoundCheckpoint = await readDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+		});
+		expect(rewoundCheckpoint).toBeNull();
+
+		// The next cycle re-reads checkpoints from scratch, sees the rewind, and
+		// resumes cleanly — no duplicate rows, no stuck loop.
+		const resumed = await runClassicDecodeCycle({ db, limit: 1 });
+		expect(resumed.progressed).toBe(true);
+		expect(resumed.checkpoints[FT_TRANSFER_DECODER_NAME]).toBe("2:2147483647");
+		const rowsAfterResume = await db
+			.selectFrom("decoded_events")
+			.select("cursor")
+			.orderBy("cursor")
+			.execute();
+		expect(rowsAfterResume.map((r) => r.cursor)).toEqual(["1:0", "2:0"]);
+	});
+
+	test("health reports all 11 classic decoders correctly after an in-process cycle", async () => {
+		if (!db) throw new Error("missing db");
+		await seedBlock({
+			height: 1,
+			parentHash: "0x00",
+			hash: "0x01",
+			events: [ftTransferEvent("tx-ft", "10")],
+		});
+
+		await runClassicDecodeCycle({ db, limit: 500 });
+
+		const health = await getDecodersHealth({ db, decoderNames: DECODER_NAMES });
+		expect(health.decoders).toHaveLength(11);
+		expect(health.status).toBe("healthy");
+		for (const decoder of health.decoders) {
+			expect(decoder.checkpoint).toBe("1:2147483647");
+			expect(decoder.checkpoint_committed_height).toBe(1);
+			expect(decoder.tip_block_height).toBe(1);
+			expect(decoder.lag_seconds).toBe(0);
+			expect(decoder.status).toBe("healthy");
+		}
 	});
 });
