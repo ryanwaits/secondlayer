@@ -21,9 +21,9 @@
 			"types": "./src/vm-streams-events.ts",
 			"import": "./src/vm-streams-events.ts"
 		},
-		"./decode/decoder": {
-			"types": "./src/decode/decoder.ts",
-			"import": "./src/decode/decoder.ts"
+		"./decode/classic-decoders": {
+			"types": "./src/decode/classic-decoders.ts",
+			"import": "./src/decode/classic-decoders.ts"
 		},
 		"./decode/health": {
 			"types": "./src/decode/health.ts",

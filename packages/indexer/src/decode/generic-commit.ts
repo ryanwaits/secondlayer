@@ -3,11 +3,16 @@
  * (sBTC/PoX/BNS) producers share the atomic decoder adapter here.
  */
 
-import { blockEndCursor, encodeStreamsCursor } from "@secondlayer/shared";
+import {
+	blockEndCursor,
+	committedHeight,
+	encodeStreamsCursor,
+} from "@secondlayer/shared";
 import {
 	type DecoderAdapterFailure,
 	type DecoderAdapterReceipt,
 	commitDecoderAdapter,
+	commitDecoderAdapterBatch,
 	inputDigest,
 } from "@secondlayer/shared/coverage";
 import { getSourceDb } from "@secondlayer/shared/db";
@@ -169,4 +174,75 @@ export async function commitGenericDecoderBatch(opts: {
 				db: tx as unknown as Kysely<Database>,
 			}),
 	});
+}
+
+/**
+ * One entry of a multi-decoder batch commit — same shape
+ * `commitGenericDecoderBatch` takes for a single decoder, grouped under one
+ * decoder name so several types can land in ONE transaction.
+ */
+export type GenericDecoderBatchEntry = {
+	decoderName: string;
+	checkpointCursor: string | null;
+	rows: readonly DecodedEventRow[];
+	receipts: readonly DecoderAdapterReceipt[];
+	failure?: DecoderAdapterFailure | null;
+	startedFrom: string | null;
+};
+
+/**
+ * Commit several classic decoders' checkpoints + rows in ONE transaction —
+ * the in-process loop reads all 11 classic types off a single cursor scan
+ * (plan-066), so their commits must be atomic together: a crash partway
+ * through must never leave one type's checkpoint ahead of another's rows.
+ *
+ * Each entry keeps its own `assertCheckpointUnmoved` FOR UPDATE check (via
+ * `commitDecoderAdapterBatch`'s per-entry `writeOutput`), in the order given —
+ * callers must pass entries in the same fixed order `handleDecodedEventsReorg`
+ * locks decoder checkpoints in, so a rewind and a batch commit racing each
+ * other take locks in the same order and cannot deadlock. A rewind on ANY
+ * entry aborts the whole transaction — nothing in the batch commits.
+ */
+export async function commitClassicDecoderBatch(
+	entries: readonly GenericDecoderBatchEntry[],
+	opts?: { db?: Kysely<Database> },
+): Promise<void> {
+	const db = opts?.db ?? getSourceDb();
+	await commitDecoderAdapterBatch(
+		db,
+		entries.map((entry) => ({
+			stage_id: entry.decoderName,
+			decoder_name: entry.decoderName,
+			checkpoint_cursor: entry.checkpointCursor,
+			receipts: entry.receipts,
+			failure: entry.failure ?? null,
+			writeOutput: async (tx: Kysely<Database>) => {
+				await assertCheckpointUnmoved({
+					db: tx,
+					decoderName: entry.decoderName,
+					expected: entry.startedFrom,
+				});
+				await writeDecodedEvents(entry.rows, { db: tx });
+			},
+		})),
+	);
+}
+
+/**
+ * True log point for `decoder_checkpoint_advanced`: only when a checkpoint
+ * write moves the committed height forward (not every mid-block cursor
+ * bump within the same block). Pure and exported so it's unit-testable
+ * without a live DB or a real Streams client — measurement only, no
+ * behavior change to the commit path itself.
+ */
+export function checkpointAdvance(
+	previousCursor: string | null,
+	nextCursor: string | null,
+	events: readonly { block_height: number; ts: string }[],
+): { height: number; blockTime: string | null } | null {
+	const previousHeight = committedHeight(previousCursor);
+	const newHeight = committedHeight(nextCursor);
+	if (newHeight === null || newHeight === previousHeight) return null;
+	const matched = events.find((event) => event.block_height === newHeight);
+	return { height: newHeight, blockTime: matched?.ts ?? null };
 }

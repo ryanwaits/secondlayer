@@ -250,3 +250,51 @@ export async function commitDecoderAdapter(
 		);
 	});
 }
+
+/**
+ * Same commit as {@link commitDecoderAdapter}, for several decoders sharing
+ * ONE outer transaction and ONE read of the source events they were fed
+ * from — the in-process classic-decoder loop's shape (plan-066): 11
+ * checkpoints + their decoded rows land together, so a crash mid-batch
+ * cannot leave one type's checkpoint ahead of another's rows.
+ *
+ * Steps run in four PASSES across the whole batch, not step-by-step per
+ * entry, so the global order stays output → checkpoint → receipt → failure
+ * (matching the single-entry commit) while every entry's output — including
+ * its `assertCheckpointUnmoved` FOR UPDATE check — lands before any entry's
+ * new checkpoint is written. Entries are locked in the order given, which
+ * callers must keep identical to `handleDecodedEventsReorg`'s decoder-name
+ * order so the two paths never take checkpoint-row locks in conflicting
+ * order (deadlock risk otherwise). No per-entry `crashAfter` probe — that
+ * stays on the single-entry path.
+ */
+export async function commitDecoderAdapterBatch(
+	db: Kysely<Database>,
+	inputs: readonly Omit<DecoderAdapterCommit, "crashAfter">[],
+): Promise<void> {
+	await db.transaction().execute(async (tx) => {
+		for (const input of inputs) {
+			await upsertRegistry(tx, input.stage_id);
+		}
+		for (const input of inputs) {
+			await input.writeOutput(tx);
+		}
+		for (const input of inputs) {
+			await writeCheckpoint(tx, input.decoder_name, input.checkpoint_cursor);
+		}
+		for (const input of inputs) {
+			await writeReceipts(
+				tx,
+				input.stage_id,
+				input.run_id ?? null,
+				input.receipts,
+			);
+		}
+		for (const input of inputs) {
+			const failure = input.failure ?? null;
+			if (failure) {
+				await writeFailure(tx, input.stage_id, input.run_id ?? null, failure);
+			}
+		}
+	});
+}

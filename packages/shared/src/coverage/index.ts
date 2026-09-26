@@ -85,6 +85,7 @@ export {
 	DecoderAdapterCrash,
 	applyDecoderReceipts,
 	commitDecoderAdapter,
+	commitDecoderAdapterBatch,
 	runDecoderCommitSteps,
 } from "./adapter.ts";
 export type {

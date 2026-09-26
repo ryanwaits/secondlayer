@@ -6,7 +6,9 @@ import { type Kysely, sql } from "kysely";
 import { errorHandler } from "../../packages/api/src/middleware/error.ts";
 import { createStreamsRouter } from "../../packages/api/src/routes/streams.ts";
 import { STREAMS_READ_SCOPE } from "../../packages/api/src/streams/auth.ts";
+import { CLASSIC_TYPES } from "../../packages/indexer/src/decode/classic-decoders.ts";
 import { readCanonicalStreamsEvents } from "../../packages/indexer/src/streams-events.ts";
+import { createStreamsClient } from "../../packages/sdk/src/index.ts";
 import type { Database } from "../../packages/shared/src/db/types.ts";
 import {
 	type ContinuousServiceProgress,
@@ -25,7 +27,12 @@ const SMOKE_STREAMS_KEY = "sk-sl_streams_decode_internal_test";
 
 describe("continuous service smoke: decoder", () => {
 	test(
-		"runs for at least 60s and advances decoded output",
+		// The decoder process reads classic events in-process (plan-066), not
+		// over the HTTP Streams API this test still spins up — that API now
+		// exists here only to prove parity: everything the decoder committed
+		// to `decoded_events` must be exactly what Streams HTTP would have
+		// served for the same range, off the SAME underlying reader.
+		"runs for at least 60s, advances decoded output, and matches what Streams HTTP would have served",
 		async () => {
 			const smokeDb = await createSmokeDatabase("secondlayer_smoke_decoder");
 			let apiServer: ReturnType<typeof Bun.serve> | null = null;
@@ -78,6 +85,29 @@ describe("continuous service smoke: decoder", () => {
 				expect(
 					summary.after.eventTypeCounts?.nft_transfer ?? 0,
 				).toBeGreaterThanOrEqual(1);
+
+				// Parity: every classic event Streams HTTP would serve for the
+				// seeded range has a corresponding row in `decoded_events`, keyed
+				// on the SAME cursor — the decoder never reads a different set of
+				// events than the (still-live, still-tested) HTTP path would.
+				const client = createStreamsClient({
+					baseUrl: `http://127.0.0.1:${apiPort}`,
+					apiKey: SMOKE_STREAMS_KEY,
+				});
+				const httpPage = await client.events.list({
+					fromHeight: 0,
+					types: CLASSIC_TYPES,
+					limit: 100,
+				});
+				const httpCursors = httpPage.events.map((event) => event.cursor).sort();
+				const decodedCursors = (
+					await sql<{ source_cursor: string }>`
+						SELECT source_cursor FROM decoded_events ORDER BY source_cursor
+					`.execute(smokeDb.db)
+				).rows.map((row) => row.source_cursor);
+				for (const cursor of decodedCursors) {
+					expect(httpCursors).toContain(cursor);
+				}
 			} finally {
 				apiServer?.stop();
 				await smokeDb.drop();

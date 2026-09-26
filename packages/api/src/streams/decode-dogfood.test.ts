@@ -7,9 +7,10 @@ import {
 	test,
 } from "bun:test";
 import {
-	consumeFtTransferDecodedEvents,
-	consumeNftTransferDecodedEvents,
-} from "@secondlayer/indexer/decode/decoder";
+	CLASSIC_TYPES,
+	runClassicDecodeCycle,
+} from "@secondlayer/indexer/decode/classic-decoders";
+import { readCanonicalStreamsEvents } from "@secondlayer/indexer/streams-events";
 import { createStreamsClient } from "@secondlayer/sdk";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { Hono } from "hono";
@@ -45,7 +46,7 @@ const INDEX_TOKENS: IndexTokenStore = new Map([
 	],
 ]);
 
-describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
+describe.skipIf(!HAS_DB)("classic decoders vs. Streams HTTP parity", () => {
 	const db = HAS_DB ? getDb() : null;
 
 	// The fixture lives at block height 1 and the in-process tip is height 1, so
@@ -245,10 +246,10 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 		process.env.LISTEN_HOST = "0.0.0.0";
 		try {
 			await expect(
-				consumeFtTransferDecodedEvents({
-					db,
-					streamsClient: inProcessClient("sk-sl_streams_bad_internal_test"),
-					maxPages: 1,
+				inProcessClient("sk-sl_streams_bad_internal_test").events.list({
+					fromHeight: 0,
+					toHeight: 1,
+					limit: 10,
 				}),
 			).rejects.toThrow(/key/i);
 		} finally {
@@ -258,15 +259,58 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 		}
 	});
 
-	test("consumes /events in-process and writes decoded ft_transfer rows", async () => {
+	// D1 (plan-066, decided 2026-09-26): classic decoders read
+	// `readCanonicalStreamsEvents` in-process instead of over HTTP. The
+	// dogfooding value HTTP consumption used to provide — catching a Streams
+	// bug before an external consumer does — now lives here: the HTTP route
+	// and the in-process reader must return byte-identical events and cursors
+	// for the same range, at the internal tier (reorg margin 0) every
+	// in-fleet decoder authenticates at.
+	test("HTTP Streams and the in-process reader return identical classic events for the same range", async () => {
 		if (!db) throw new Error("missing db");
 
-		const result = await consumeFtTransferDecodedEvents({
-			db,
-			streamsClient: inProcessClient(),
-			batchSize: 10,
-			maxPages: 1,
+		// `toHeight` is omitted from the HTTP call so the server derives it
+		// itself, the same way a real request does: internal tier (reorg
+		// margin 0, `getClampedStreamsTipHeight`) clamps it to `getTip()`'s
+		// block_height (1 here). The in-process side uses that SAME raw tip
+		// height directly — no margin — exactly what `runClassicDecodeCycle`
+		// does against `getCurrentCanonicalTip`. If the internal-tier margin
+		// ever stopped being 0, this is what would catch it.
+		const httpResult = await inProcessClient().events.list({
+			fromHeight: 0,
+			types: CLASSIC_TYPES,
+			limit: 100,
 		});
+		const inProcessResult = await readCanonicalStreamsEvents({
+			db,
+			fromHeight: 0,
+			toHeight: 1,
+			types: CLASSIC_TYPES,
+			limit: 100,
+		});
+
+		expect(httpResult.next_cursor).toBe(inProcessResult.next_cursor);
+		expect(httpResult.events.map((event) => event.cursor)).toEqual(
+			inProcessResult.events.map((event) => event.cursor),
+		);
+		// Round-trip through JSON so the comparison is on the wire shape (what a
+		// real HTTP client sees) rather than TS's discriminated-union typing,
+		// which doesn't distribute cleanly through a rest-spread over a union.
+		const httpEventsWithoutFinalized = JSON.parse(
+			JSON.stringify(httpResult.events),
+		).map((event: Record<string, unknown>) => {
+			const { finalized: _finalized, ...rest } = event;
+			return rest;
+		});
+		expect(httpEventsWithoutFinalized).toEqual(
+			JSON.parse(JSON.stringify(inProcessResult.events)),
+		);
+	});
+
+	test("the in-process classic loop decodes every classic type off the fixture, not just ft/nft transfer", async () => {
+		if (!db) throw new Error("missing db");
+
+		const result = await runClassicDecodeCycle({ db, limit: 10 });
 
 		const rows = await db
 			.selectFrom("decoded_events")
@@ -274,9 +318,18 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			.orderBy("cursor")
 			.execute();
 
-		expect(result.decoded).toBe(2);
-		expect(rows.map((row) => row.cursor)).toEqual(["1:0", "1:2"]);
-		expect(rows.map((row) => row.source_cursor)).toEqual(["1:0", "1:2"]);
+		// 2 ft_transfer + 1 print + 1 nft_transfer. The old per-type HTTP
+		// consumers filtered server-side to their own type; the in-process loop
+		// reads all 11 classic types off one scan, so the fixture's print event
+		// (invisible to the old ft/nft-only assertions) is decoded too.
+		expect(result.decoded).toBe(4);
+		expect(rows.map((row) => row.cursor)).toEqual(["1:0", "1:1", "1:2", "1:3"]);
+		expect(rows.map((row) => row.source_cursor)).toEqual([
+			"1:0",
+			"1:1",
+			"1:2",
+			"1:3",
+		]);
 		expect(rows[0]).toMatchObject({
 			contract_id: "SP1.token",
 			sender: "SP1",
@@ -284,27 +337,8 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			amount: "10",
 			asset_identifier: "SP1.token::sbtc",
 		});
-	});
-
-	test("consumes /events in-process and writes decoded nft_transfer rows", async () => {
-		if (!db) throw new Error("missing db");
-
-		const result = await consumeNftTransferDecodedEvents({
-			db,
-			streamsClient: inProcessClient(),
-			batchSize: 10,
-			maxPages: 1,
-		});
-
-		const rows = await db
-			.selectFrom("decoded_events")
-			.selectAll()
-			.orderBy("cursor")
-			.execute();
-
-		expect(result.decoded).toBe(1);
-		expect(rows.map((row) => row.cursor)).toEqual(["1:3"]);
-		expect(rows[0]).toMatchObject({
+		expect(rows[1]).toMatchObject({ event_type: "print" });
+		expect(rows[3]).toMatchObject({
 			event_type: "nft_transfer",
 			contract_id: "SP5.collection",
 			sender: "SP5",
@@ -313,12 +347,10 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			value: "0x0100000000000000000000000000000001",
 		});
 
-		// Both nft_transfer events (2) are fewer than the requested batch size
-		// (10), which proves the scan already reached the tip empty-handed —
-		// the decoder commits the end-of-block sentinel straight off this one
-		// page instead of needing a follow-up empty poll to confirm block 1 is
-		// done.
-		expect(result.pages).toBe(1);
+		// The whole block's classic events fit in one page (limit 10 > 5 events),
+		// which proves the scan already reached the tip empty-handed — the cycle
+		// commits the end-of-block sentinel straight off this one page instead
+		// of needing a follow-up empty poll to confirm block 1 is done.
 		const checkpoint = await db
 			.selectFrom("decoder_checkpoints")
 			.select("last_cursor")
@@ -327,54 +359,10 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 		expect(checkpoint.last_cursor).toBe("1:2147483647");
 	});
 
-	test("restart resumes from checkpoint without duplicates or gaps", async () => {
-		if (!db) throw new Error("missing db");
-		const streamsClient = inProcessClient();
-
-		await consumeFtTransferDecodedEvents({
-			db,
-			streamsClient,
-			batchSize: 1,
-			maxPages: 1,
-		});
-		await consumeFtTransferDecodedEvents({
-			db,
-			streamsClient,
-			batchSize: 1,
-			maxPages: 2,
-		});
-
-		const rows = await db
-			.selectFrom("decoded_events")
-			.select(["cursor", "source_cursor"])
-			.orderBy("cursor")
-			.execute();
-		const checkpoint = await db
-			.selectFrom("decoder_checkpoints")
-			.select("last_cursor")
-			.where("decoder_name", "=", "decode.ft_transfer.v1")
-			.executeTakeFirst();
-
-		expect(rows).toEqual([
-			{ cursor: "1:0", source_cursor: "1:0" },
-			{ cursor: "1:2", source_cursor: "1:2" },
-		]);
-		// After block 1's ft_transfers are consumed, the final scan finds no
-		// more matches and advances the cursor past the range via the empty-range
-		// sentinel (block_height:2147483647) rather than pinning at the last
-		// event — so the decoder resumes at block 2 without re-reading block 1.
-		expect(checkpoint?.last_cursor).toBe("1:2147483647");
-	});
-
 	test("bounded decoder rows are returned by /v1/index/ft-transfers with pagination", async () => {
 		if (!db) throw new Error("missing db");
 
-		await consumeFtTransferDecodedEvents({
-			db,
-			streamsClient: inProcessClient(),
-			batchSize: 10,
-			maxPages: 1,
-		});
+		await runClassicDecodeCycle({ db, limit: 10 });
 
 		const app = new Hono();
 		app.onError(errorHandler);
@@ -425,12 +413,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 	test("bounded decoder rows are returned by /v1/index/nft-transfers with pagination", async () => {
 		if (!db) throw new Error("missing db");
 
-		await consumeNftTransferDecodedEvents({
-			db,
-			streamsClient: inProcessClient(),
-			batchSize: 10,
-			maxPages: 1,
-		});
+		await runClassicDecodeCycle({ db, limit: 10 });
 
 		const app = new Hono();
 		app.onError(errorHandler);

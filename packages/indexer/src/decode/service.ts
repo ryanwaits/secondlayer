@@ -11,19 +11,7 @@ import {
 	createWakeBus,
 	sourceListenerUrl,
 } from "@secondlayer/shared/queue/listener";
-import {
-	consumeFtBurnDecodedEvents,
-	consumeFtMintDecodedEvents,
-	consumeFtTransferDecodedEvents,
-	consumeNftBurnDecodedEvents,
-	consumeNftMintDecodedEvents,
-	consumeNftTransferDecodedEvents,
-	consumePrintDecodedEvents,
-	consumeStxBurnDecodedEvents,
-	consumeStxLockDecodedEvents,
-	consumeStxMintDecodedEvents,
-	consumeStxTransferDecodedEvents,
-} from "./decoder.ts";
+import { runClassicDecodeCycle } from "./classic-decoders.ts";
 import { consumeBnsDecodedEvents } from "./decoders/bns.ts";
 import { consumePox4DecodedEvents } from "./decoders/pox-4.ts";
 import { consumePox5DecodedEvents } from "./decoders/pox-5.ts";
@@ -38,6 +26,7 @@ import {
 	getSettlementConfirmerHealth,
 } from "./settlement.ts";
 import {
+	DECODER_NAMES,
 	DecoderCheckpointRewoundError,
 	bumpDecoderCheckpoint,
 } from "./storage.ts";
@@ -249,20 +238,77 @@ async function runDecoder(
 	}
 }
 
+/**
+ * One loop for all 11 classic decoders (plan-066): each wake reads every
+ * classic checkpoint, scans the source DB once from the lowest of them
+ * through the current source tip, and commits every advanced checkpoint +
+ * decoded row together. Replaces 11 separate HTTP `runDecoder` loops.
+ *
+ * Mirrors `runDecoder`'s shape (wake/backoff, liveness ping, rewind
+ * handling) but drives `runClassicDecodeCycle` instead of an SDK consume
+ * loop, and bumps liveness for all 11 checkpoint names per iteration.
+ */
+async function runClassicDecoders(): Promise<void> {
+	const limit = Number.parseInt(process.env.DECODER_BATCH_SIZE ?? "500", 10);
+	const emptyBackoffMs = Number.parseInt(
+		process.env.DECODER_EMPTY_BACKOFF_MS ?? "1000",
+		10,
+	);
+	while (!controller.signal.aborted) {
+		let progressed = false;
+		try {
+			const result = await runClassicDecodeCycle({ limit });
+			progressed = result.progressed;
+			for (const decoderName of DECODER_NAMES) {
+				const decoded = result.decodedByDecoder[decoderName] ?? 0;
+				decodedTotals[decoderName] =
+					(decodedTotals[decoderName] ?? 0) + decoded;
+				decodedThisMinute[decoderName] =
+					(decodedThisMinute[decoderName] ?? 0) + decoded;
+			}
+		} catch (error) {
+			if (controller.signal.aborted) return;
+			if (error instanceof DecoderCheckpointRewoundError) {
+				logger.warn("decoder.checkpoint_rewound", {
+					decoder: error.decoderName,
+					expected: error.expected,
+					current: error.current,
+				});
+			} else {
+				logger.error("decoder.error", {
+					decoder: "classic",
+					error: String(error),
+				});
+				await sleep(5_000, controller.signal);
+			}
+		} finally {
+			// Liveness ping for all 11 checkpoints — same contract as
+			// `runDecoder`'s finally block, just for every classic name at once.
+			for (const decoderName of DECODER_NAMES) {
+				try {
+					await bumpDecoderCheckpoint({ decoderName });
+				} catch {
+					// Best-effort; if the DB is down the health endpoint already
+					// reports the larger problem.
+				}
+			}
+		}
+		if (progressed) continue;
+		// Nothing to do: wait for the next block's NOTIFY, with the empty-poll
+		// backoff timer always running underneath (see `runDecoder`'s wake race
+		// — a broken or absent wake source degrades to plain polling, never a
+		// stall).
+		await (wakeBus?.wait
+			? Promise.race([
+					sleep(emptyBackoffMs, controller.signal),
+					wakeBus.wait().catch(() => new Promise<never>(() => {})),
+				])
+			: sleep(emptyBackoffMs, controller.signal));
+	}
+}
+
 async function runDecoders(): Promise<void> {
-	const tasks = [
-		runDecoder("decode.ft_transfer.v1", consumeFtTransferDecodedEvents),
-		runDecoder("decode.nft_transfer.v1", consumeNftTransferDecodedEvents),
-		runDecoder("decode.stx_transfer.v1", consumeStxTransferDecodedEvents),
-		runDecoder("decode.stx_mint.v1", consumeStxMintDecodedEvents),
-		runDecoder("decode.stx_burn.v1", consumeStxBurnDecodedEvents),
-		runDecoder("decode.stx_lock.v1", consumeStxLockDecodedEvents),
-		runDecoder("decode.ft_mint.v1", consumeFtMintDecodedEvents),
-		runDecoder("decode.ft_burn.v1", consumeFtBurnDecodedEvents),
-		runDecoder("decode.nft_mint.v1", consumeNftMintDecodedEvents),
-		runDecoder("decode.nft_burn.v1", consumeNftBurnDecodedEvents),
-		runDecoder("decode.print.v1", consumePrintDecodedEvents),
-	];
+	const tasks = [runClassicDecoders()];
 	if (SBTC_ENABLED) {
 		tasks.push(runDecoder("decode.sbtc.v1", consumeSbtcRegistryDecodedEvents));
 		tasks.push(

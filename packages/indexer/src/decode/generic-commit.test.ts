@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	GENERIC_DECODER_PRODUCER_VERSION,
+	checkpointAdvance,
 	classifyGenericDecodeFault,
 	failureFromFaults,
 	planGenericDecoderReceipts,
@@ -131,5 +132,52 @@ describe("shortPageCheckpointCursor", () => {
 describe("producer version", () => {
 	test("generic producers are v1", () => {
 		expect(GENERIC_DECODER_PRODUCER_VERSION).toBe("v1");
+	});
+});
+
+describe("checkpointAdvance", () => {
+	const EMPTY_RANGE_SENTINEL = 2_147_483_647;
+	const events = [
+		{ block_height: 100, ts: "2026-09-25T00:00:00.000Z" },
+		{ block_height: 101, ts: "2026-09-25T00:00:12.000Z" },
+	];
+
+	test("null when the committed height doesn't move (mid-block bump)", () => {
+		expect(checkpointAdvance("100:0", "100:1", events)).toBeNull();
+	});
+
+	test("the first-ever batch (starting from an uninitialized cursor) reports an advance", () => {
+		expect(checkpointAdvance(null, "100:0", events)).toEqual({
+			height: 99,
+			blockTime: null,
+		});
+	});
+
+	test("reports the newly committed height and its block's time", () => {
+		expect(
+			checkpointAdvance(
+				`99:${EMPTY_RANGE_SENTINEL}`,
+				`100:${EMPTY_RANGE_SENTINEL}`,
+				events,
+			),
+		).toEqual({ height: 100, blockTime: "2026-09-25T00:00:00.000Z" });
+	});
+
+	test("a mid-block cursor advancing past a finished block still reports the committed height", () => {
+		// Cursor moves from block 99 done → block 101 in flight: the committed
+		// floor advances from 99 to 100, even though the raw cursor points at 101.
+		expect(
+			checkpointAdvance(`99:${EMPTY_RANGE_SENTINEL}`, "101:0", events),
+		).toEqual({ height: 100, blockTime: "2026-09-25T00:00:00.000Z" });
+	});
+
+	test("null block_time when the advanced height's block isn't in this batch", () => {
+		expect(
+			checkpointAdvance(
+				`99:${EMPTY_RANGE_SENTINEL}`,
+				`100:${EMPTY_RANGE_SENTINEL}`,
+				[],
+			),
+		).toEqual({ height: 100, blockTime: null });
 	});
 });
