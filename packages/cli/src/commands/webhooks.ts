@@ -3,10 +3,12 @@ import type { DoctorReport, SecondLayer } from "@secondlayer/sdk";
 import { sign } from "@secondlayer/shared/crypto/standard-webhooks";
 import type { SubgraphDetail } from "@secondlayer/shared/schemas/subgraphs";
 import type {
+	ChainTrigger,
 	DeadRow,
 	DeliveryRow,
 	UpdateWebhookRequest,
 	WebhookDetail,
+	WebhookKind,
 	WebhookSummary,
 } from "@secondlayer/shared/schemas/webhooks";
 import type { Command } from "commander";
@@ -171,13 +173,32 @@ export function buildWebhookUpdatePatch(
 	return patch;
 }
 
+/** The Target column/field for a webhook. A subgraph webhook always has
+ *  `subgraphName`/`tableName` (`subgraph.table`); a chain webhook has
+ *  neither — `null.null` if rendered the same way — so it shows its trigger
+ *  types when the caller has them (a `WebhookDetail`, which carries
+ *  `triggers`), else falls back to the bare `"chain"` a `WebhookSummary`
+ *  (the list response) is limited to. */
+export function formatWebhookTarget(sub: {
+	kind: WebhookKind;
+	subgraphName: string | null;
+	tableName: string | null;
+	triggers?: ChainTrigger[] | null;
+}): string {
+	if (sub.kind === "chain") {
+		const types = sub.triggers?.map((t) => t.type);
+		return types && types.length > 0 ? `chain.${types.join(",")}` : "chain";
+	}
+	return `${sub.subgraphName}.${sub.tableName}`;
+}
+
 function printWebhookDetail(sub: WebhookDetail): void {
 	console.log(
 		formatKeyValue([
 			["ID", sub.id],
 			["Name", sub.name],
 			["Status", sub.status],
-			["Target", `${sub.subgraphName}.${sub.tableName}`],
+			["Target", formatWebhookTarget(sub)],
 			["Format", sub.format],
 			["Runtime", sub.runtime ?? "none"],
 			["URL", sub.url],
@@ -208,7 +229,7 @@ function printDoctorReport(report: DoctorReport): void {
 		formatKeyValue([
 			["Webhook", `${sub.name} (${sub.id})`],
 			["Status", sub.status],
-			["Target", `${sub.subgraphName}.${sub.tableName}`],
+			["Target", formatWebhookTarget(sub)],
 			["Format", sub.format],
 			["Runtime", sub.runtime ?? "none"],
 			["URL", sub.url],
@@ -479,7 +500,7 @@ function attachWebhookSubcommands(parent: Command): void {
 								: sub.status === "paused"
 									? yellow(sub.status)
 									: redStatus(sub.status),
-							`${sub.subgraphName}.${sub.tableName}`,
+							formatWebhookTarget(sub),
 							sub.format,
 							formatMaybeDate(sub.lastSuccessAt),
 						]),

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import type { SecondLayer } from "@secondlayer/sdk";
-import type { WebhookDetail } from "@secondlayer/shared/schemas/webhooks";
+import type {
+	ChainTrigger,
+	WebhookDetail,
+} from "@secondlayer/shared/schemas/webhooks";
 import {
 	buildSyntheticRow,
 	buildWebhookTestFixture,
 	buildWebhookUpdatePatch,
+	formatWebhookTarget,
 	resolveSigningSecret,
 	resolveWebhookRef,
 } from "../src/commands/webhooks.ts";
@@ -177,6 +181,35 @@ describe("webhooks command helpers", () => {
 			sender: "SP000000000000000000002Q6VF78",
 			confirmed: true,
 		});
+	});
+
+	it("renders a subgraph webhook's target as subgraph.table", () => {
+		expect(formatWebhookTarget(baseDetail)).toBe("token-transfers.transfers");
+	});
+
+	it("renders a chain webhook row without null.null", () => {
+		const summary = {
+			kind: "chain" as const,
+			subgraphName: null,
+			tableName: null,
+		};
+		// A WebhookSummary (list response) has no `triggers` — falls back to
+		// the bare kind, never `null.null`.
+		expect(formatWebhookTarget(summary)).toBe("chain");
+	});
+
+	it("shows a chain webhook's trigger types when available (detail views)", () => {
+		expect(
+			formatWebhookTarget({
+				kind: "chain",
+				subgraphName: null,
+				tableName: null,
+				triggers: [
+					{ type: "stx_transfer" },
+					{ type: "contract_call" },
+				] as ChainTrigger[],
+			}),
+		).toBe("chain.stx_transfer,contract_call");
 	});
 
 	it("rejects schema-aware filter mistakes before create/update", async () => {
