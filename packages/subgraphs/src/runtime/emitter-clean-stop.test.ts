@@ -209,6 +209,21 @@ describe("stopEmitter waits for in-flight work before resolving", () => {
 		} finally {
 			infoSpy.mockRestore();
 			server.stop(true);
+			// Closing the server fails the abandoned POST, and its dispatch then
+			// writes a failure row. Let that land before afterAll deletes the
+			// webhook, or the cascade and the insert can deadlock.
+			const deadline = Date.now() + 5_000;
+			while (Date.now() < deadline) {
+				const rows = await db
+					.selectFrom("webhook_deliveries as d")
+					.innerJoin("webhooks as w", "w.id", "d.webhook_id")
+					.select("d.id")
+					.where("w.account_id", "=", accountId)
+					.where("w.name", "like", "clean-stop-hang-%")
+					.execute();
+				if (rows.length > 0) break;
+				await new Promise((r) => setTimeout(r, 25));
+			}
 		}
 	}, 15_000);
 });
