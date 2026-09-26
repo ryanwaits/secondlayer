@@ -535,6 +535,22 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		expect(res.status).toBe(404);
 	});
 
+	test("the list carries each webhook's consecutive failure count", async () => {
+		const webhookId = await createTestWebhook("list-circuit-failures");
+		await getDb()
+			.updateTable("webhooks")
+			.set({ circuit_failures: 6 })
+			.where("id", "=", webhookId)
+			.execute();
+
+		const res = await app.request("/webhooks");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			data: { id: string; circuitFailures: number }[];
+		};
+		expect(body.data.find((w) => w.id === webhookId)?.circuitFailures).toBe(6);
+	});
+
 	test("delivery detail returns the outbox context for a live delivery", async () => {
 		const webhookId = await createTestWebhook("delivery-detail-live");
 		const db = getDb();

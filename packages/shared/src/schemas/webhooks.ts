@@ -770,6 +770,10 @@ export interface WebhookSummary {
 	 *  cleared on resume. Present on the list summary (not detail-only) so a
 	 *  numbers-only insight can be shown per row without a per-row fetch. */
 	circuitOpenedAt: string | null;
+	/** Consecutive failed deliveries (reset to 0 on a success). On the
+	 *  summary so the list can show a failing receiver per row without a
+	 *  per-row fetch. */
+	circuitFailures: number;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -782,7 +786,6 @@ export interface WebhookDetail extends WebhookSummary {
 	maxRetries: number;
 	timeoutMs: number;
 	concurrency: number;
-	circuitFailures: number;
 	lastError: string | null;
 	/** Set on a `kind="chain"` webhook when this instance's chain-trigger
 	 *  evaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the

@@ -50,20 +50,19 @@ const FAILING_PRIMARY_CODES: ReadonlySet<DoctorIssue["code"]> = new Set([
  *  4. The primary issue is a "bad"-severity receiver failure → "error".
  *  5. Otherwise → "active".
  *
- *  `circuitFailures` is detail-only (`WebhookSummary` doesn't carry it), so
- *  the list page — which has no primary issue either — only ever reaches
- *  rules 1, 2, and 5. */
+ *  The list page has no primary issue (no per-row deliveries fetch), so it
+ *  reaches rules 1, 2, 3 and 5. */
 export function displayStatus(
 	webhook: {
 		status: WebhookStatus;
 		circuitOpenedAt: string | null;
-		circuitFailures?: number;
+		circuitFailures: number;
 	},
 	primary?: DoctorIssue | null,
 ): WebhookStatus {
 	if (webhook.status === "paused" && webhook.circuitOpenedAt) return "error";
 	if (webhook.status === "paused") return "paused";
-	if ((webhook.circuitFailures ?? 0) >= DOWN_MIN_CONSECUTIVE) return "error";
+	if (webhook.circuitFailures >= DOWN_MIN_CONSECUTIVE) return "error";
 	if (
 		primary &&
 		primary.severity === "bad" &&
@@ -74,14 +73,14 @@ export function displayStatus(
 	return "active";
 }
 
-/** How many of these rows would show `status` as their pill — the list
+/** How many of these rows would show `status` as their pill: the list
  *  page's "Delivering N of M" / "Needs attention" stats. Summary rows carry
- *  no `primary`, so this only ever sees rules 1, 2, and 5 of `displayStatus`. */
+ *  no `primary`, so rule 4 of `displayStatus` never applies here. */
 export function countByDisplayStatus(
 	rows: readonly {
 		status: WebhookStatus;
 		circuitOpenedAt: string | null;
-		circuitFailures?: number;
+		circuitFailures: number;
 	}[],
 	status: WebhookStatus,
 ): number {

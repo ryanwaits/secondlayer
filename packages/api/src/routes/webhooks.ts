@@ -80,6 +80,7 @@ function toSummary(sub: Webhook) {
 		// Circuit-breaker state: list views derive a "circuit-paused" count from
 		// this, so it must be present on the summary (not just toDetail).
 		circuitOpenedAt: sub.circuit_opened_at?.toISOString() ?? null,
+		circuitFailures: sub.circuit_failures,
 		createdAt: sub.created_at.toISOString(),
 		updatedAt: sub.updated_at.toISOString(),
 	};
@@ -108,7 +109,6 @@ function toDetail(sub: Webhook) {
 		maxRetries: sub.max_retries,
 		timeoutMs: sub.timeout_ms,
 		concurrency: sub.concurrency,
-		circuitFailures: sub.circuit_failures,
 		lastError: sub.last_error,
 		warning: chainEvaluatorWarning(sub),
 	};

@@ -75,6 +75,7 @@ const EXAMPLE_SUMMARY = {
 	lastDeliveryAt: "2026-09-22T14:03:11.402Z",
 	lastSuccessAt: "2026-09-22T14:03:11.402Z",
 	circuitOpenedAt: null,
+	circuitFailures: 0,
 	createdAt: "2026-09-20T09:12:45.118Z",
 	updatedAt: "2026-09-20T09:12:45.118Z",
 };
@@ -87,7 +88,6 @@ const EXAMPLE_DETAIL = {
 	maxRetries: 7,
 	timeoutMs: 10000,
 	concurrency: 4,
-	circuitFailures: 0,
 	lastError: null,
 	warning: null,
 };
@@ -193,6 +193,11 @@ const SUMMARY_PROPERTIES = {
 		description:
 			"When the circuit breaker paused this webhook. Cleared on resume.",
 	},
+	circuitFailures: {
+		type: "integer",
+		description:
+			"Consecutive failed deliveries; a success resets it. The circuit opens at 20; resume resets it.",
+	},
 	createdAt: {
 		type: "string",
 		format: "date-time",
@@ -244,11 +249,6 @@ const DETAIL_PROPERTIES = {
 		description: "Chain triggers. `null` for subgraph webhooks.",
 	},
 	...TUNING_PROPS,
-	circuitFailures: {
-		type: "integer",
-		description:
-			"Consecutive failed deliveries. The circuit opens at 20; resume resets it.",
-	},
 	lastError: {
 		type: ["string", "null"],
 		description: "Error from the last failed delivery.",

@@ -8,9 +8,13 @@ function issue(overrides: Partial<DoctorIssue> = {}): DoctorIssue {
 
 describe("displayStatus", () => {
 	test("active with no issues is Delivering", () => {
-		expect(displayStatus({ status: "active", circuitOpenedAt: null })).toBe(
-			"active",
-		);
+		expect(
+			displayStatus({
+				status: "active",
+				circuitOpenedAt: null,
+				circuitFailures: 0,
+			}),
+		).toBe("active");
 	});
 
 	test("paused by the user (no circuit) stays Paused, even with failures", () => {
@@ -28,6 +32,7 @@ describe("displayStatus", () => {
 			displayStatus({
 				status: "paused",
 				circuitOpenedAt: "2026-04-23T00:00:00.000Z",
+				circuitFailures: 20,
 			}),
 		).toBe("error");
 	});
@@ -52,12 +57,6 @@ describe("displayStatus", () => {
 		).toBe("error");
 	});
 
-	test("circuitFailures absent (the list page's WebhookSummary) never trips rule 3", () => {
-		expect(displayStatus({ status: "active", circuitOpenedAt: null })).toBe(
-			"active",
-		);
-	});
-
 	for (const code of [
 		"receiver_down",
 		"receiver_rejects",
@@ -66,7 +65,7 @@ describe("displayStatus", () => {
 		test(`a primary "bad" ${code} is Failing`, () => {
 			expect(
 				displayStatus(
-					{ status: "active", circuitOpenedAt: null },
+					{ status: "active", circuitOpenedAt: null, circuitFailures: 0 },
 					issue({ code, severity: "bad" }),
 				),
 			).toBe("error");
@@ -76,7 +75,7 @@ describe("displayStatus", () => {
 	test("a primary bad issue outside the failing set stays Delivering", () => {
 		expect(
 			displayStatus(
-				{ status: "active", circuitOpenedAt: null },
+				{ status: "active", circuitOpenedAt: null, circuitFailures: 0 },
 				issue({ code: "dead_letters", severity: "bad" }),
 			),
 		).toBe("active");
@@ -85,7 +84,7 @@ describe("displayStatus", () => {
 	test("a warn-severity receiver_down doesn't count — severity must be bad", () => {
 		expect(
 			displayStatus(
-				{ status: "active", circuitOpenedAt: null },
+				{ status: "active", circuitOpenedAt: null, circuitFailures: 0 },
 				issue({ code: "receiver_down", severity: "warn" }),
 			),
 		).toBe("active");
@@ -94,7 +93,7 @@ describe("displayStatus", () => {
 	test("paused still wins over a bad primary issue (rule order: paused checked first)", () => {
 		expect(
 			displayStatus(
-				{ status: "paused", circuitOpenedAt: null },
+				{ status: "paused", circuitOpenedAt: null, circuitFailures: 0 },
 				issue({ code: "receiver_down", severity: "bad" }),
 			),
 		).toBe("paused");
@@ -102,26 +101,31 @@ describe("displayStatus", () => {
 
 	test("null primary is the same as no primary", () => {
 		expect(
-			displayStatus({ status: "active", circuitOpenedAt: null }, null),
+			displayStatus(
+				{ status: "active", circuitOpenedAt: null, circuitFailures: 0 },
+				null,
+			),
 		).toBe("active");
 	});
 });
 
 describe("countByDisplayStatus", () => {
-	// The list page's rows: one auto-paused by the breaker (Failing), one
-	// healthy (Delivering), one paused by the user (Paused) — the exact shape
-	// WebhookSummary gives the list page, no primary available.
+	// The list page's rows, in WebhookSummary's shape (no primary): one
+	// auto-paused by the breaker, one active but failing 5 in a row, one
+	// healthy, one paused by the user.
 	const rows = [
 		{
 			status: "paused" as const,
 			circuitOpenedAt: "2026-04-23T00:00:00.000Z",
+			circuitFailures: 20,
 		},
-		{ status: "active" as const, circuitOpenedAt: null },
-		{ status: "paused" as const, circuitOpenedAt: null },
+		{ status: "active" as const, circuitOpenedAt: null, circuitFailures: 5 },
+		{ status: "active" as const, circuitOpenedAt: null, circuitFailures: 0 },
+		{ status: "paused" as const, circuitOpenedAt: null, circuitFailures: 0 },
 	];
 
-	test("counts a circuit-paused row as error (Needs attention), not active", () => {
-		expect(countByDisplayStatus(rows, "error")).toBe(1);
+	test("counts circuit-paused and 5-in-a-row failing rows as error (Needs attention)", () => {
+		expect(countByDisplayStatus(rows, "error")).toBe(2);
 	});
 
 	test("counts only the genuinely active row as Delivering", () => {
