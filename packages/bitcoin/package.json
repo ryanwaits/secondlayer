@@ -13,7 +13,8 @@
 		"@noble/hashes": "2.0.1",
 		"kysely": "0.28.17",
 		"kysely-postgres-js": "3.0.0",
-		"postgres": "^3.4.6"
+		"postgres": "^3.4.6",
+		"zeromq": "6.8.0"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

@@ -1,13 +1,19 @@
 #!/usr/bin/env bun
-// `migrate | backfill --to <H> | parity-decode --blocks <list|range> |
+// `migrate | backfill --to <H> | follow | parity-decode --blocks <list|range> |
 // parity-state --height <H> --ord-runes <file> --ord-balances <file> |
 // repair-entries | digests --from <A> --to <B> | state-hash`.
+//
+// `follow` (env: BITCOIN_ZMQ_URL, plus the existing BITCOIN_DATABASE_URL/
+// BITCOIN_RPC_* envs) needs plan 038 (ZMQ on node-server bitcoind) DONE —
+// see NOTES in plan 057 for a verified Bun/zeromq incompatibility that blocks
+// running it under Bun today.
 
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { runBackfill } from "./backfill.ts";
 import { parseBlock } from "./block.ts";
 import { migrateToLatest } from "./db/migrate.ts";
 import { loadState, openStore } from "./db/store.ts";
+import { runFollow } from "./follow.ts";
 import { computeStateHash } from "./integrity/digest.ts";
 import { diffOne, txidsWithRunestoneMarker } from "./parity/decode.ts";
 import { parseJsonPreservingBigInts } from "./parity/json-bigint.ts";
@@ -21,6 +27,7 @@ import {
 } from "./parity/state.ts";
 import { repairEntries } from "./repair.ts";
 import { bitcoinRpcClientFromEnv } from "./rpc.ts";
+import { ZmqNotifier } from "./zmq-notifier.ts";
 
 function requireEnv(name: string): string {
 	const value = process.env[name];
@@ -302,6 +309,54 @@ async function cmdStateHash(): Promise<void> {
 	console.log(`${state.height}\t${hash}`);
 }
 
+/**
+ * Follows the tip forever (D12): batch catch-up if far behind, then one
+ * block at a time near it (each flush writes an undo row), woken by
+ * `BITCOIN_ZMQ_URL`'s `hashblock` topic — `ZmqNotifier`'s own 60s reconnect
+ * timer is the safety net if ZMQ has gone silent, not a polling loop. Runs
+ * one pass immediately on start (catches up after downtime, and rewinds an
+ * orphaned checkpoint left over from a previous run) before waiting on the
+ * first notification. Stops cleanly on SIGINT/SIGTERM.
+ */
+async function cmdFollow(): Promise<void> {
+	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
+	const rpc = bitcoinRpcClientFromEnv();
+	const zmqUrl = requireEnv("BITCOIN_ZMQ_URL");
+	const fetchConcurrency = Number(process.env.FETCH_CONCURRENCY ?? "8");
+
+	const notifier = new ZmqNotifier({ url: zmqUrl });
+	await notifier.connect();
+
+	const controller = new AbortController();
+	const stop = () => {
+		console.log("follow: stopping…");
+		controller.abort();
+		notifier.close();
+	};
+	process.once("SIGINT", stop);
+	process.once("SIGTERM", stop);
+
+	await runFollow(
+		{
+			db,
+			rpc,
+			fetchConcurrency,
+			onBlock: ({ height, hash }) => {
+				console.log(`✅ follow height=${height} hash=${hash}`);
+			},
+			onReorg: ({ forkHeight, oldCheckpointHeight }) => {
+				console.log(
+					`⚠️  reorg: rewound from ${oldCheckpointHeight} to fork point ${forkHeight}`,
+				);
+			},
+		},
+		notifier,
+		controller.signal,
+	);
+
+	await db.destroy();
+}
+
 async function main(): Promise<void> {
 	const [command, ...args] = process.argv.slice(2);
 
@@ -310,6 +365,8 @@ async function main(): Promise<void> {
 			return cmdMigrate();
 		case "backfill":
 			return cmdBackfill(args);
+		case "follow":
+			return cmdFollow();
 		case "parity-decode":
 			return cmdParityDecode(args);
 		case "parity-state":
@@ -322,7 +379,7 @@ async function main(): Promise<void> {
 			return cmdStateHash();
 		default:
 			console.error(
-				"usage: cli.ts migrate | backfill --to <H> | parity-decode --blocks <list|range> | parity-state --height <H> --ord-runes <file> --ord-balances <file> | repair-entries | digests --from <A> --to <B> | state-hash",
+				"usage: cli.ts migrate | backfill --to <H> | follow | parity-decode --blocks <list|range> | parity-state --height <H> --ord-runes <file> --ord-balances <file> | repair-entries | digests --from <A> --to <B> | state-hash",
 			);
 			process.exit(1);
 	}

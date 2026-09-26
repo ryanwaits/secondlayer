@@ -86,7 +86,8 @@ const commitmentRpcLimit = new Semaphore(
  * loop's `etched()` short-circuits on `runeToId` before ever consulting the
  * map, exactly as it did before this change existed.
  */
-async function resolveBlockCommitments(
+/** Exported for `follow.ts`'s near-tip one-block-at-a-time apply loop, which needs the same commitment resolution this uses per block during backfill. */
+export async function resolveBlockCommitments(
 	rpc: BitcoinRpcClient,
 	block: ParsedBlock,
 	height: number,
