@@ -1,10 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
+import { notify } from "@secondlayer/shared/queue/listener";
 import {
+	currentIndexTipGeneration,
 	longPollIndex,
 	parseWaitSeconds,
 	startIndexTipWakeListener,
 	waitForIndexTipAdvance,
 } from "./wait.ts";
+
+const HAS_DB = !!process.env.DATABASE_URL;
 
 describe("parseWaitSeconds", () => {
 	test("undefined (param absent) stays undefined — every existing caller keeps today's behavior", () => {
@@ -106,6 +110,60 @@ describe("waitForIndexTipAdvance", () => {
 		expect(Date.now() - start).toBeGreaterThanOrEqual(180);
 	});
 });
+
+// Real wake bus + real NOTIFY. Placed here — right after the tests above that
+// require NO real connection to exist yet, and before the bad-connection-string
+// test below (`startIndexTipWakeListener` is a once-per-process singleton: a
+// second call while a first connection attempt is still in flight is silently
+// dropped, no retry, so a real connection must be established cleanly with
+// nothing else racing it).
+describe.skipIf(!HAS_DB)(
+	"the check-then-wait race is closed (real wake bus)",
+	() => {
+		beforeAll(async () => {
+			startIndexTipWakeListener();
+			// `startIndexTipWakeListener` doesn't expose its connect promise —
+			// give the real LISTEN a moment to establish before relying on it.
+			await new Promise((resolve) => setTimeout(resolve, 300));
+		});
+
+		test("waitForIndexTipAdvance returns immediately once the generation has already advanced past sinceGeneration", async () => {
+			const before = currentIndexTipGeneration();
+			await notify("index:tip", "test");
+			await new Promise((resolve) => setTimeout(resolve, 150));
+			expect(currentIndexTipGeneration()).toBeGreaterThan(before);
+
+			const start = Date.now();
+			await waitForIndexTipAdvance(5, before);
+			expect(Date.now() - start).toBeLessThan(200);
+		});
+
+		test("a commit that lands right after build() reads stale state still wakes the long-poll immediately, not after the full wait budget", async () => {
+			let calls = 0;
+			const start = Date.now();
+			const result = await longPollIndex({
+				waitSeconds: 2,
+				isEmpty: (r: { rows: number[] }) => r.rows.length === 0,
+				build: async () => {
+					calls++;
+					if (calls === 1) {
+						// Simulate a commit landing the instant after this build() read
+						// its (now-stale) state — fully delivered before this call
+						// registers its wait(), so a freshly-registered wait() would
+						// never see it (the bug this generation check closes).
+						await notify("index:tip", "test");
+						await new Promise((resolve) => setTimeout(resolve, 150));
+						return { rows: [] as number[] };
+					}
+					return { rows: [42] };
+				},
+			});
+			expect(calls).toBe(2);
+			expect(result.rows).toEqual([42]);
+			expect(Date.now() - start).toBeLessThan(700);
+		});
+	},
+);
 
 describe("startIndexTipWakeListener degrades safely", () => {
 	test("a bad connection string never throws synchronously — the caller doesn't need to catch it", () => {

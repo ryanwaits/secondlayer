@@ -9,9 +9,11 @@ import {
 	committedHeight,
 	finalizedBurnHeight,
 } from "@secondlayer/shared";
-import { getSourceDb } from "@secondlayer/shared/db";
+import { describeDbUrl, getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
+import { logger } from "@secondlayer/shared/logger";
 import { isOssMode } from "@secondlayer/shared/mode";
+import { listen, sourceListenerUrl } from "@secondlayer/shared/queue/listener";
 import type { Kysely } from "kysely";
 
 export type IndexTip = {
@@ -235,6 +237,17 @@ export function createIndexTipProvider(opts?: {
 	 * genuinely missing canonical tip surfaces as an incident.
 	 */
 	allowEmptyTip?: boolean;
+	/**
+	 * Called once, synchronously, at creation with a function that drops this
+	 * instance's cached value. Only the process-wide `getIndexTip` singleton
+	 * wires this up (to the `index:tip` NOTIFY, see
+	 * `startIndexTipInvalidationListener`) — a hand-built provider in a test
+	 * has no reason to invalidate early and can omit it, leaving `cacheTtlMs`
+	 * as the only staleness bound, unchanged from before this option existed.
+	 * Same pattern as `createStreamsTipProvider`'s `onInvalidate`
+	 * (`../streams/tip.ts`).
+	 */
+	onInvalidate?: (invalidate: () => void) => void;
 }): IndexTipProvider {
 	const readSourceTip = opts?.readSourceTip ?? getCurrentCanonicalTip;
 	const readDecodedTip =
@@ -252,6 +265,9 @@ export function createIndexTipProvider(opts?: {
 	const cacheTtlMs = opts?.cacheTtlMs ?? 500;
 	const allowEmptyTip = opts?.allowEmptyTip ?? isOssMode();
 	let cache: { expiresAt: number; value: IndexTip } | null = null;
+	opts?.onInvalidate?.(() => {
+		cache = null;
+	});
 
 	return async () => {
 		const nowMs = now();
@@ -298,6 +314,65 @@ export function createIndexTipProvider(opts?: {
 	};
 }
 
+/** Invalidators registered by every `getIndexTip`-style singleton created with
+ *  `onInvalidate` (in practice just the one below — plural only so a second
+ *  instance, e.g. in a future entrypoint, doesn't have to reinvent this). */
+const indexTipInvalidators = new Set<() => void>();
+
 export const getIndexTip = createIndexTipProvider({
 	readDecodedHeights: getDecoderCommittedHeights,
+	onInvalidate: (invalidate) => {
+		indexTipInvalidators.add(invalidate);
+	},
 });
+
+let indexTipInvalidationListenerStarted: Promise<() => Promise<void>> | null =
+	null;
+
+/**
+ * Start (once per process) the LISTEN that drops the Index tip cache the
+ * moment ANY decoder checkpoint commits, instead of waiting out `cacheTtlMs`
+ * (500ms) on the next request. Without this, a long-poll woken by the same
+ * `index:tip` NOTIFY (`waitForIndexTipAdvance`, `./wait.ts`) re-ran `build()`
+ * only to read the CACHED pre-commit tip and see nothing new — the remaining
+ * NOTIFYs from that commit had already fired while it wasn't waiting, so it
+ * held until the next block. Call from the api entrypoint; safe to call more
+ * than once. Degrades safely: if the LISTEN connection never comes up (or
+ * later drops), the tip simply falls back to its normal TTL-refresh behavior
+ * — never wrong, just up to `cacheTtlMs` staler than it could be. Same
+ * pattern as `startStreamsTipInvalidationListener` (`../streams/tip.ts`).
+ */
+export function startIndexTipInvalidationListener(opts?: {
+	connectionString?: string;
+}): void {
+	if (indexTipInvalidationListenerStarted) return;
+	const url = opts?.connectionString ?? sourceListenerUrl();
+	indexTipInvalidationListenerStarted = listen(
+		"index:tip",
+		() => {
+			for (const invalidate of indexTipInvalidators) invalidate();
+		},
+		{ connectionString: url },
+	)
+		.then((stop) => {
+			// Names the channel + the exact host/db LISTENed on (no credentials)
+			// so a split-DB misconfiguration is visible in `docker logs` at boot.
+			logger.info("Index tip invalidation listener connected", {
+				channel: "index:tip",
+				db: describeDbUrl(url),
+			});
+			return stop;
+		})
+		.catch((error) => {
+			logger.warn(
+				"Index tip invalidation listener failed to start — the tip cache still refreshes every cacheTtlMs",
+				{
+					channel: "index:tip",
+					db: describeDbUrl(url),
+					error: error instanceof Error ? error.message : String(error),
+				},
+			);
+			indexTipInvalidationListenerStarted = null;
+			return null as unknown as () => Promise<void>;
+		});
+}

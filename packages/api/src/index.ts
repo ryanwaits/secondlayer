@@ -2,6 +2,7 @@ import { logger } from "@secondlayer/shared";
 import { assertDbSplit, closeDb } from "@secondlayer/shared/db";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { createApiApp } from "./create-app.ts";
+import { startIndexTipInvalidationListener } from "./index/tip.ts";
 import { startIndexTipWakeListener } from "./index/wait.ts";
 import {
 	assertInstanceBindAuth,
@@ -80,11 +81,13 @@ if (mode !== "platform") {
 }
 
 assertDbSplit();
-// Wake sources for plan-063's Phase 3 (NOTIFY over polling). Both degrade
-// safely on their own — a failed/dropped LISTEN just leaves the Streams tip
-// cache on its normal TTL and Index long-polls waiting out their full `wait`
-// timeout, never wrong either way — so a failure here never blocks startup.
+// Wake sources for plan-063's Phase 3 (NOTIFY over polling). All three degrade
+// safely on their own — a failed/dropped LISTEN just leaves the Streams/Index
+// tip caches on their normal TTL and Index long-polls waiting out their full
+// `wait` timeout, never wrong either way — so a failure here never blocks
+// startup.
 startStreamsTipInvalidationListener();
+startIndexTipInvalidationListener();
 startIndexTipWakeListener();
 const server = Bun.serve({
 	port: PORT,

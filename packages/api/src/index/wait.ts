@@ -87,14 +87,38 @@ export function startIndexTipWakeListener(opts?: {
 		});
 }
 
+/** The wake bus's current generation counter, or 0 when it hasn't connected
+ *  (yet, or ever). Exported so a long-poll loop can record "the generation as
+ *  of just before this build()" and later tell whether a NOTIFY landed since —
+ *  see `waitForIndexTipAdvance`'s `sinceGeneration`. */
+export function currentIndexTipGeneration(): number {
+	return wakeBus?.generation() ?? 0;
+}
+
 /** Wait for the next decoder-checkpoint commit, or `seconds` elapsing —
  *  whichever comes first. `undefined`/`0` resolves immediately (no wait
  *  requested). Never rejects: a wake bus that failed to start (or hasn't
- *  finished starting yet) just falls back to the plain timeout. */
+ *  finished starting yet) just falls back to the plain timeout.
+ *
+ *  `sinceGeneration`, when given, closes the check-then-wait race: if the
+ *  wake bus's generation has already advanced past it, a commit happened
+ *  since the caller last checked (most likely while it was inside `build()`,
+ *  reading now-stale state), and a freshly registered `wait()` would only
+ *  resolve on a FUTURE notify — so this returns immediately instead of
+ *  waiting out the remaining budget or a second commit that may never come
+ *  before the next block. */
 export async function waitForIndexTipAdvance(
 	seconds: number | undefined,
+	sinceGeneration?: number,
 ): Promise<void> {
 	if (!seconds || seconds <= 0) return;
+	if (
+		sinceGeneration !== undefined &&
+		wakeBus &&
+		wakeBus.generation() !== sinceGeneration
+	) {
+		return;
+	}
 	const ms = Math.min(MAX_INDEX_WAIT_SECONDS, seconds) * 1000;
 	await new Promise<void>((resolve) => {
 		let done = false;
@@ -115,6 +139,10 @@ export async function waitForIndexTipAdvance(
  * says there's nothing new, wait for a wake or the remaining budget, then
  * retry, until `waitSeconds` (clamped) has elapsed or the caller stops
  * looking empty. Immediate (no wait) when `waitSeconds` is unset or 0.
+ *
+ * The generation is recorded BEFORE each `build()`, not after — a commit can
+ * land while `build()` itself is running (e.g. reading a tip cache moments
+ * before its invalidation), and that must count as "already advanced" too.
  */
 export async function longPollIndex<T>(opts: {
 	waitSeconds: number | undefined;
@@ -123,13 +151,15 @@ export async function longPollIndex<T>(opts: {
 }): Promise<T> {
 	const totalMs =
 		Math.min(MAX_INDEX_WAIT_SECONDS, Math.max(0, opts.waitSeconds ?? 0)) * 1000;
+	let generation = currentIndexTipGeneration();
 	let result = await opts.build();
 	if (totalMs <= 0) return result;
 
 	const deadline = Date.now() + totalMs;
 	while (opts.isEmpty(result) && Date.now() < deadline) {
 		const remainingSeconds = (deadline - Date.now()) / 1000;
-		await waitForIndexTipAdvance(remainingSeconds);
+		await waitForIndexTipAdvance(remainingSeconds, generation);
+		generation = currentIndexTipGeneration();
 		result = await opts.build();
 	}
 	return result;

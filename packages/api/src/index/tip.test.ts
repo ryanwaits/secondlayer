@@ -8,6 +8,7 @@ import {
 	createIndexTipProvider,
 	getDecoderCommittedHeights,
 	getIndexLagSeconds,
+	startIndexTipInvalidationListener,
 } from "./tip.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -274,5 +275,60 @@ describe.skipIf(!HAS_DB)("getDecoderCommittedHeights (DB)", () => {
 		const heights = await getDecoderCommittedHeights(db);
 		expect(heights.ft_transfer).toBeNull();
 		expect(heights.print).toBeNull();
+	});
+});
+
+describe("createIndexTipProvider onInvalidate", () => {
+	test("calling the handed-back invalidate() drops the cached value early", async () => {
+		let calls = 0;
+		let invalidate = () => {};
+		const provider = createIndexTipProvider({
+			readSourceTip: sourceTip(30_000, new Date(0)),
+			readDecodedTip: async () => {
+				calls++;
+				return { block_height: calls, ts: new Date(0) };
+			},
+			readFinalizedHeight: async () => 0,
+			cacheTtlMs: 60_000, // long enough that only invalidate(), not the TTL, could cause a refetch
+			onInvalidate: (fn) => {
+				invalidate = fn;
+			},
+		});
+
+		const first = await provider();
+		const cached = await provider();
+		expect(cached).toEqual(first);
+		expect(calls).toBe(1);
+
+		invalidate();
+		const afterInvalidate = await provider();
+		expect(calls).toBe(2);
+		expect(afterInvalidate.block_height).toBe(2);
+	});
+
+	test("a provider built without onInvalidate behaves exactly as before (TTL-only)", async () => {
+		let calls = 0;
+		const provider = createIndexTipProvider({
+			readSourceTip: sourceTip(30_000, new Date(0)),
+			readDecodedTip: async () => {
+				calls++;
+				return { block_height: calls, ts: new Date(0) };
+			},
+			readFinalizedHeight: async () => 0,
+			cacheTtlMs: 60_000,
+		});
+		await provider();
+		await provider();
+		expect(calls).toBe(1);
+	});
+});
+
+describe("startIndexTipInvalidationListener degrades safely", () => {
+	test("a bad connection string never throws synchronously — the caller doesn't need to catch it", () => {
+		expect(() =>
+			startIndexTipInvalidationListener({
+				connectionString: "postgres://bad-host-does-not-resolve:5432/nope",
+			}),
+		).not.toThrow();
 	});
 });
