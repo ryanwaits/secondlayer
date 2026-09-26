@@ -1,4 +1,4 @@
-import type { DeliveryRow } from "@secondlayer/sdk";
+import type { DeliveryRow, WebhookActivityHour } from "@secondlayer/sdk";
 
 /**
  * Pure series math for the webhook detail page's graphs (plan 070). Every
@@ -23,8 +23,8 @@ export interface RibbonCell {
 
 export interface RibbonSummary {
 	cells: RibbonCell[];
-	/** "100 of 100 ok", or "77 ok · 23 failed · 0 rate-limited" — every part
-	 *  shown even when it's zero. */
+	/** "100 of 100 ok", or "77 ok · 23 failed" — zero-valued parts are
+	 *  dropped, not shown as "0 rate-limited". */
 	summary: string;
 }
 
@@ -62,9 +62,34 @@ export function ribbonCells(rows: DeliveryRow[]): RibbonSummary {
 	const summary =
 		ok === ordered.length
 			? `${ok} of ${ordered.length} ok`
-			: `${ok} ok · ${failed} failed · ${rateLimited} rate-limited`;
+			: [
+					`${ok} ok`,
+					failed > 0 ? `${failed} failed` : null,
+					rateLimited > 0 ? `${rateLimited} rate-limited` : null,
+				]
+					.filter((part): part is string => part !== null)
+					.join(" · ");
 
 	return { cells, summary };
+}
+
+// ── Events, last 7 days: header summary ──────────────────────────────
+
+/** "1,204 events delivered", plus " · N waiting" and/or " · N gave up" only
+ *  when either is non-zero — matching the locked mock exactly. */
+export function activityHeaderSummary(hours: WebhookActivityHour[]): string {
+	let delivered = 0;
+	let waiting = 0;
+	let gaveUp = 0;
+	for (const hour of hours) {
+		delivered += hour.delivered;
+		waiting += hour.waiting;
+		gaveUp += hour.gaveUp;
+	}
+	const parts = [`${delivered.toLocaleString("en-US")} events delivered`];
+	if (waiting > 0) parts.push(`${waiting.toLocaleString("en-US")} waiting`);
+	if (gaveUp > 0) parts.push(`${gaveUp.toLocaleString("en-US")} gave up`);
+	return parts.join(" · ");
 }
 
 // ── Share of attempts answered 429, per hour ─────────────────────────

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { DeliveryRow } from "@secondlayer/sdk";
 import { type WebhookDetail, buildDoctorReport } from "@secondlayer/sdk";
 import {
+	activityHeaderSummary,
 	catchUpCopy,
 	catchUpState,
 	deliveryLagSeries,
@@ -36,13 +37,13 @@ describe("ribbonCells", () => {
 		expect(ribbonCells(rows).summary).toBe("2 of 2 ok");
 	});
 
-	test("mixed outcomes count every part, including zero rate-limited", () => {
+	test("mixed outcomes drop zero-valued parts", () => {
 		const rows = [
 			row({ statusCode: 200 }),
 			row({ statusCode: 200 }),
 			row({ statusCode: 500 }),
 		];
-		expect(ribbonCells(rows).summary).toBe("2 ok · 1 failed · 0 rate-limited");
+		expect(ribbonCells(rows).summary).toBe("2 ok · 1 failed");
 	});
 
 	test("429s count as rate-limited, not failed", () => {
@@ -65,6 +66,42 @@ describe("ribbonCells", () => {
 	test("no response labels without a status code or duration", () => {
 		const rows = [row({ statusCode: null, durationMs: null })];
 		expect(ribbonCells(rows).cells[0]?.label).toBe("attempt 1 · no response");
+	});
+});
+
+describe("activityHeaderSummary", () => {
+	function hour(overrides: {
+		delivered?: number;
+		waiting?: number;
+		gaveUp?: number;
+	}) {
+		return {
+			hour: "2026-04-23T00:00:00.000Z",
+			delivered: 0,
+			waiting: 0,
+			gaveUp: 0,
+			...overrides,
+		};
+	}
+
+	test("an empty window is 0 events delivered", () => {
+		expect(activityHeaderSummary([])).toBe("0 events delivered");
+	});
+
+	test("drops waiting and gave-up when both are zero", () => {
+		expect(activityHeaderSummary([hour({ delivered: 1204 })])).toBe(
+			"1,204 events delivered",
+		);
+	});
+
+	test("shows waiting and gave-up only when non-zero, summed across hours", () => {
+		const hours = [
+			hour({ delivered: 100, waiting: 5 }),
+			hour({ delivered: 50, gaveUp: 2 }),
+		];
+		expect(activityHeaderSummary(hours)).toBe(
+			"150 events delivered · 5 waiting · 2 gave up",
+		);
 	});
 });
 
