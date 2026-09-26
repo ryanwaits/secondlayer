@@ -31,6 +31,10 @@ The one-day free window and the Streams retention limit are gone. Any key reads 
 
 ## Webhooks — September 2026
 
+### See what each webhook is doing at a glance
+
+A webhook's page now shows its events per hour for the last 7 days, split into delivered, waiting and gave up, plus your last 100 attempts as one strip, so a failure burst or a growing backlog shows up before you read a single row. When a check fires, its insight carries a graph as evidence: events piling up while your receiver is down, the share of 429s, response times against your timeout, or block-to-delivery lag. Click any delivery to see the payload we sent and what your receiver answered, highlighted and copyable. The status pill reads Failing when your receiver is. The same data is in the SDK: `webhooks.activity(id)` and `webhooks.delivery(id, deliveryId)`.
+
 ### Doctor explains what's wrong, not just that something is
 
 `secondlayer webhooks doctor` and the dashboard's detail page now run five deterministic checks against your last 100 delivery attempts: rate-limited, down, rejecting, slow, or running behind on delivery. Each fires on a fixed threshold and reports the evidence (attempt counts, response times, a status breakdown), never a guessed cause. One insight leads; the rest collapse underneath it. The webhooks list shows a one-line note per row from data it already has (a paused webhook, a tripped circuit breaker), and `/account/credits` now estimates days of credit left at this month's spend. [Troubleshooting](/docs/webhooks#troubleshooting) has one section per rule.
