@@ -4,7 +4,7 @@ import {
 	isPox5DecoderEnabled,
 	isSbtcDecoderEnabled,
 } from "@secondlayer/shared";
-import { assertDbSplit, closeDb } from "@secondlayer/shared/db";
+import { assertDbSplit, closeDb, describeDbUrl } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import {
 	type WakeBus,
@@ -91,14 +91,27 @@ const decodedThisMinute: Record<string, number> = {
 let wakeBus: WakeBus | null = null;
 
 async function initWakeBus(): Promise<void> {
+	const url = sourceListenerUrl();
 	try {
 		wakeBus = await createWakeBus("indexer:new_block", {
-			connectionString: sourceListenerUrl(),
+			connectionString: url,
+		});
+		// Names the channel + the exact host/db LISTENed on (no credentials) so
+		// a split-DB misconfiguration (LISTEN on the wrong database — see
+		// plan-063's prod incident) is visible in `docker logs` at boot, not
+		// only inferred from a latency graph later.
+		logger.info("decoder wake listener connected", {
+			channel: "indexer:new_block",
+			db: describeDbUrl(url),
 		});
 	} catch (error) {
 		logger.warn(
 			"decoder wake listener failed to start — decoders fall back to plain empty-poll backoff",
-			{ error: String(error) },
+			{
+				channel: "indexer:new_block",
+				db: describeDbUrl(url),
+				error: String(error),
+			},
 		);
 	}
 }
