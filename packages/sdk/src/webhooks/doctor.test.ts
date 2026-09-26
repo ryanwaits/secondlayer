@@ -293,7 +293,7 @@ describe("receiver_down detector", () => {
 		).toBe("5");
 		expect(
 			issue?.evidence?.find((e) => e.label === "last success")?.value,
-		).toBe("2026-04-22 00:00:00");
+		).toBe("2026-04-22 00:00 UTC");
 	});
 
 	it("does not fire on only 4 consecutive failures", () => {
@@ -547,6 +547,6 @@ describe("buildListIssue", () => {
 		expect(issue?.severity).toBe("bad");
 		expect(
 			issue?.evidence?.find((e) => e.label === "circuit opened")?.value,
-		).toBe("2026-04-23 00:00:00");
+		).toBe("2026-04-23 00:00 UTC");
 	});
 });

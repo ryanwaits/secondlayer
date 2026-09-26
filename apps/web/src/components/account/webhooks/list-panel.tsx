@@ -143,8 +143,8 @@ function listIssueText(issue: DoctorIssue): string {
 			(e) => e.label === "circuit opened",
 		)?.value;
 		return opened
-			? `Circuit breaker tripped at ${opened} — check your receiver, then send a test event.`
-			: "Circuit breaker tripped — check your receiver, then send a test event.";
+			? `Circuit breaker tripped at ${opened}. Check your receiver, then send a test event.`
+			: "Circuit breaker tripped. Check your receiver, then send a test event.";
 	}
 	if (issue.code === "paused") {
 		return "Resume when your receiver is healthy.";

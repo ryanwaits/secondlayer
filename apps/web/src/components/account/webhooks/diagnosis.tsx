@@ -40,7 +40,7 @@ const PRIMARY_TITLE: Record<DoctorIssueCode, string> = {
  *  short: it names the rule, it doesn't re-argue the evidence above it. */
 const RULE_EXPLANATION: Record<DoctorIssueCode, string> = {
 	warning: "Set directly on this webhook by the instance it runs on.",
-	paused: "This webhook's status is paused — nothing is being delivered.",
+	paused: "This webhook's status is paused. Nothing is being delivered.",
 	last_error: "The most recent delivery attempt returned an error.",
 	circuit:
 		"The delivery service opened the circuit breaker after repeated failures, and pauses briefly between retries.",

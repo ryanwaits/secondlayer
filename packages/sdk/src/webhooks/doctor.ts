@@ -124,8 +124,10 @@ function formatMs(ms: number): string {
 	return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`;
 }
 
+/** "2026-04-23 00:00 UTC" — date, hour:minute, and an explicit zone so an
+ *  evidence value never reads as local time. */
 function formatShortDate(iso: string): string {
-	return iso.replace("T", " ").slice(0, 19);
+	return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 }
 
 /** The longest run from the start of `rows` (newest-first) matching

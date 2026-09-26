@@ -100,7 +100,7 @@ export function FiresOn({
 export function CliLine({ command }: { command: string }) {
 	return (
 		<div className="wh-cli">
-			<code>
+			<code className="wh-cli-code">
 				<span className="wh-cli-p">$</span> {command}
 			</code>
 			<CopyButton code={command} inline label="Copy" />

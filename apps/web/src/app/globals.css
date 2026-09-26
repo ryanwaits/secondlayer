@@ -2801,7 +2801,6 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 .wh-cli {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
 	gap: 10px;
 	padding: 10px 12px;
 	border-radius: 8px;
@@ -2809,9 +2808,14 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	color: #d7d1c9;
 	font-family: var(--font-mono-stack);
 	font-size: 12.5px;
-	overflow-x: auto;
 }
-.wh-cli code {
+/* The command scrolls on its own, inside the block; the copy button (below)
+ * is a fixed-size flex item that never shrinks or scrolls with it, so a long
+ * `webhooks update ... --concurrency N` never runs under or past it. */
+.wh-cli-code {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow-x: auto;
 	white-space: pre;
 	font-size: 12.5px;
 }
@@ -2820,6 +2824,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	margin-right: 4px;
 }
 .wh-cli .copy-button {
+	flex: 0 0 auto;
 	background: none;
 	color: #d7d1c9;
 	border: 1px solid rgba(255, 255, 255, 0.12);
