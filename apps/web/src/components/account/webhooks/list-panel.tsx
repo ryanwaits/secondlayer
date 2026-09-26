@@ -18,7 +18,7 @@ import { buildListIssue } from "@secondlayer/sdk/webhooks/doctor";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { CliLine, FiresOn, StatusPill } from "./shared";
+import { CliLine, FiresOn, StatusPill, displayStatus } from "./shared";
 
 const CREATE_CMD =
 	"secondlayer webhooks create --name pool-payouts --trigger stx_transfer --url https://your.app/hook";
@@ -310,7 +310,7 @@ export function WebhooksListSection() {
 											/>
 										</td>
 										<td>
-											<StatusPill status={w.status} />
+											<StatusPill status={displayStatus(w)} />
 										</td>
 										<td className={`num${w.status === "error" ? " bad" : ""}`}>
 											{formatRelative(w.lastDeliveryAt)}

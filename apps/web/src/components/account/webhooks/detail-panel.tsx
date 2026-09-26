@@ -40,7 +40,7 @@ import { MonoStackedBarChart } from "./charts/mono-stacked-bar-chart";
 import { DeliveryCard } from "./delivery-card";
 import { DiagnosisPanel } from "./diagnosis";
 import { AttemptRibbon } from "./ribbon";
-import { CliLine, FiresOn, StatusPill } from "./shared";
+import { CliLine, FiresOn, StatusPill, displayStatus } from "./shared";
 
 /** A one-line, user-facing reason for anything short of `{ kind: "ok" }` —
  *  shared by every action's error path and its matching toast, so the two
@@ -475,7 +475,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			<div className="wh-head-row">
 				<div className="wh-h1-row">
 					<h1 className="acct-h1">{webhook.name}</h1>
-					<StatusPill status={webhook.status} />
+					<StatusPill status={displayStatus(webhook, primary)} />
 				</div>
 				<div className="wh-actions">
 					<button

@@ -97,7 +97,9 @@ export interface DoctorReport {
 
 const RATE_LIMITED_MIN_ATTEMPTS = 10;
 const RATE_LIMITED_MIN_RATIO = 0.5;
-const DOWN_MIN_CONSECUTIVE = 5;
+// Exported: the status pill's "auto-failing" rule (plan 070) reuses this
+// instead of duplicating the number.
+export const DOWN_MIN_CONSECUTIVE = 5;
 const REJECTS_MIN_CONSECUTIVE = 5;
 const SLOW_WINDOW = 20;
 const SLOW_MIN_SAMPLES = 5;

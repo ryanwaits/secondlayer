@@ -6,6 +6,14 @@ import type {
 	WebhookKind,
 	WebhookStatus,
 } from "@secondlayer/sdk";
+// Subpath import, not the main `@secondlayer/sdk` barrel: that barrel's
+// runtime code (unlike a `type` import, which is erased) drags in
+// `@secondlayer/shared`'s DB layer — and `postgres`, a Node-only driver —
+// into this client component's bundle.
+import {
+	DOWN_MIN_CONSECUTIVE,
+	type DoctorIssue,
+} from "@secondlayer/sdk/webhooks/doctor";
 
 /** Small pieces shared by the webhooks list and detail pages: the status
  *  pill, the "Fires on" trigger line, and the CLI command box. Kept here
@@ -20,6 +28,50 @@ export const STATUS_LABEL: Record<WebhookStatus, string> = {
 
 export function StatusPill({ status }: { status: WebhookStatus }) {
 	return <span className={`wh-pill ${status}`}>{STATUS_LABEL[status]}</span>;
+}
+
+/** The three codes a failing receiver can carry as the primary issue — a
+ *  down receiver still reads "Delivering" if the pill only looked at
+ *  `webhook.status` (active/paused), which never moves on its own when
+ *  deliveries start failing. */
+const FAILING_PRIMARY_CODES: ReadonlySet<DoctorIssue["code"]> = new Set([
+	"receiver_down",
+	"receiver_rejects",
+	"circuit",
+]);
+
+/** The status the pill should show, which isn't always `webhook.status`.
+ *  Checked in order:
+ *  1. Paused with the circuit breaker open → the breaker paused it, not the
+ *     user — "error", not "paused".
+ *  2. Paused (by the user) → "paused".
+ *  3. `circuitFailures` at or past the same threshold `receiver_down` uses
+ *     (consecutive; the emitter resets it to 0 on a success) → "error".
+ *  4. The primary issue is a "bad"-severity receiver failure → "error".
+ *  5. Otherwise → "active".
+ *
+ *  `circuitFailures` is detail-only (`WebhookSummary` doesn't carry it), so
+ *  the list page — which has no primary issue either — only ever reaches
+ *  rules 1, 2, and 5. */
+export function displayStatus(
+	webhook: {
+		status: WebhookStatus;
+		circuitOpenedAt: string | null;
+		circuitFailures?: number;
+	},
+	primary?: DoctorIssue | null,
+): WebhookStatus {
+	if (webhook.status === "paused" && webhook.circuitOpenedAt) return "error";
+	if (webhook.status === "paused") return "paused";
+	if ((webhook.circuitFailures ?? 0) >= DOWN_MIN_CONSECUTIVE) return "error";
+	if (
+		primary &&
+		primary.severity === "bad" &&
+		FAILING_PRIMARY_CODES.has(primary.code)
+	) {
+		return "error";
+	}
+	return "active";
 }
 
 /** "SP21YTS…8XEF.pox4-fast-pool-v3" — long enough to recognize, short enough

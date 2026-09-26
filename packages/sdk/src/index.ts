@@ -193,6 +193,7 @@ export type {
 export {
 	buildDoctorReport,
 	buildListIssue,
+	DOWN_MIN_CONSECUTIVE,
 	isSuccessDelivery,
 } from "./webhooks/doctor.ts";
 export type {
