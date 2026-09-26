@@ -356,6 +356,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		subgraph: null,
 	});
 	const issues = report.issues;
+	const primary = report.primary;
 	const deadCount = deadRows.length;
 
 	return (
@@ -398,7 +399,12 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			) : null}
 			{actionError ? <p className="acct-error">{actionError}</p> : null}
 
-			<DiagnosisPanel webhook={webhook} issues={issues} deadCount={deadCount} />
+			<DiagnosisPanel
+				webhook={webhook}
+				issues={issues}
+				primary={primary}
+				deadCount={deadCount}
+			/>
 
 			<div className="wh-chart">
 				<div className="wh-chart-top">

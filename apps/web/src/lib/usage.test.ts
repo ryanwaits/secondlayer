@@ -4,14 +4,18 @@ import {
 	accountCreationMonth,
 	addMonths,
 	allowanceFootLine,
+	allowanceUsedFraction,
 	compareMonths,
+	deliveredRowsIn,
 	formatRows,
 	formatUnitQuantity,
 	monthLabel,
 	monthParam,
 	nextMonthLabel,
+	runwayDays,
 	spentUsdMicros,
 	unitLabel,
+	utcDaysElapsedInMonth,
 	withUsageMonth,
 } from "./usage";
 
@@ -197,5 +201,64 @@ describe("withUsageMonth", () => {
 		const before = { "2026-09": [] };
 		withUsageMonth(before, "2026-08", []);
 		expect(before).toEqual({ "2026-09": [] });
+	});
+});
+
+describe("deliveredRowsIn", () => {
+	test("reads the rows.delivered quantity", () => {
+		expect(
+			deliveredRowsIn([
+				{ unit: "rows.delivered", quantity: "500", usdMicros: "0" },
+			]),
+		).toBe(500);
+	});
+
+	test("is 0 when the unit hasn't billed anything this month", () => {
+		expect(deliveredRowsIn([])).toBe(0);
+		expect(
+			deliveredRowsIn([
+				{ unit: "webhook.event", quantity: "3", usdMicros: "10" },
+			]),
+		).toBe(0);
+	});
+});
+
+describe("allowanceUsedFraction", () => {
+	test("0 rows is 0, the full allowance is 1, and past it exceeds 1", () => {
+		expect(allowanceUsedFraction(0)).toBe(0);
+		expect(allowanceUsedFraction(ROWS_ALLOWANCE)).toBe(1);
+		expect(allowanceUsedFraction(ROWS_ALLOWANCE * 1.5)).toBe(1.5);
+	});
+});
+
+describe("utcDaysElapsedInMonth", () => {
+	test("is the UTC day-of-month, at least 1 on the 1st", () => {
+		expect(utcDaysElapsedInMonth(new Date("2026-09-01T00:00:00.000Z"))).toBe(1);
+		expect(utcDaysElapsedInMonth(new Date("2026-09-15T23:00:00.000Z"))).toBe(
+			15,
+		);
+	});
+});
+
+describe("runwayDays", () => {
+	test("projects balance / (spend so far / days elapsed)", () => {
+		// $50 balance, $10 spent in 5 days → $2/day → 25 days of runway.
+		expect(runwayDays(50_000_000, 10_000_000, 5)).toBe(25);
+	});
+
+	test("is null with zero balance", () => {
+		expect(runwayDays(0, 10_000_000, 5)).toBeNull();
+	});
+
+	test("is null with zero spend (nothing to project a rate from)", () => {
+		expect(runwayDays(50_000_000, 0, 5)).toBeNull();
+	});
+
+	test("is null at month start (0 days elapsed) instead of dividing by zero", () => {
+		expect(runwayDays(50_000_000, 10_000_000, 0)).toBeNull();
+	});
+
+	test("still projects on day 1 of the month (1 day elapsed, not 0)", () => {
+		expect(runwayDays(10_000_000, 10_000_000, 1)).toBe(1);
 	});
 });

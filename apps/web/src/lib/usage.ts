@@ -82,6 +82,48 @@ export function spentUsdMicros(usage: UsageRow[]): number {
 	}, 0);
 }
 
+/** This month's `rows.delivered` from a usage list, or 0 if the unit hasn't
+ *  billed anything yet. */
+export function deliveredRowsIn(usage: UsageRow[]): number {
+	const rd = usage.find((u) => u.unit === "rows.delivered");
+	return rd ? Number(rd.quantity) : 0;
+}
+
+/** Fraction of the monthly free-rows allowance already used (can exceed 1
+ *  once the allowance is spent past). */
+export function allowanceUsedFraction(rowsDelivered: number): number {
+	return rowsDelivered / ROWS_ALLOWANCE;
+}
+
+/** Whole UTC days elapsed so far in `now`'s month — day 1 of the month
+ *  counts as 1, never 0, so a same-day spend still projects a rate. */
+export function utcDaysElapsedInMonth(now: Date = new Date()): number {
+	return now.getUTCDate();
+}
+
+/**
+ * ≈ days of credit left at this month's daily spend rate, or `null` when
+ * there's nothing to project from: no balance, no spend yet, or (degenerate)
+ * no days elapsed. "≈0 days" reads as an alarm the numbers don't back up
+ * when there's no real spend to extrapolate — `null` lets the caller render
+ * nothing instead.
+ */
+export function runwayDays(
+	creditsUsdMicros: number,
+	monthSpentUsdMicros: number,
+	daysElapsedInMonth: number,
+): number | null {
+	if (
+		creditsUsdMicros <= 0 ||
+		monthSpentUsdMicros <= 0 ||
+		daysElapsedInMonth <= 0
+	) {
+		return null;
+	}
+	const dailyRate = monthSpentUsdMicros / daysElapsedInMonth;
+	return Math.floor(creditsUsdMicros / dailyRate);
+}
+
 /** The free-rows meter's foot line: under / exactly-at / over the monthly
  *  allowance. `resetLabel` is the pre-formatted date the allowance resets
  *  (e.g. "Oct 1"). */

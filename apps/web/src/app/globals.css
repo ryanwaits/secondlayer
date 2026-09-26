@@ -2926,6 +2926,32 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	color: var(--text-muted);
 }
 
+/* List-page insight line (plan 068): one sev-tinted line under a row's own
+ * cells, computed from the list summary alone (no per-row fetch). */
+.wh-list-issue-row td {
+	padding: 6px 10px 10px;
+	border-top: none;
+	background: color-mix(in srgb, var(--text-main) 2%, transparent);
+}
+.wh-list-issue {
+	font-size: 12.5px;
+}
+.wh-list-issue.bad {
+	color: var(--red);
+}
+.wh-list-issue.warn {
+	color: var(--yellow);
+}
+.wh-list-issue-dismiss {
+	margin-left: 10px;
+	border: none;
+	background: none;
+	color: var(--text-muted);
+	font-size: 12px;
+	cursor: pointer;
+	text-decoration: underline;
+}
+
 .wh-empty {
 	display: flex;
 	flex-direction: column;
@@ -3028,45 +3054,84 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	font-variant-numeric: tabular-nums;
 }
 
-.wh-diag {
+/* Insight card (plan 068): leads the detail page with the report's single
+ * most severe issue — title, evidence, fix, and a disclosure naming the
+ * rule. `--wh-sev` tints the border/wash per severity; `bad`/`warn` get a
+ * color, `calm` stays neutral (existing status tokens, never `--accent`). */
+.wh-insight {
+	--wh-sev: var(--border);
 	display: flex;
 	flex-direction: column;
-	border: 1px solid color-mix(in srgb, var(--red) 35%, var(--border));
+	gap: 10px;
+	border: 1px solid color-mix(in srgb, var(--wh-sev) 35%, var(--border));
 	border-radius: 8px;
-	overflow: hidden;
+	padding: 14px 16px;
 }
-.wh-diag-h {
-	padding: 12px 16px;
-	background: color-mix(in srgb, var(--red) 5%, transparent);
+.wh-insight.bad {
+	--wh-sev: var(--red);
 }
-.wh-diag-h p {
+.wh-insight.warn {
+	--wh-sev: var(--yellow);
+}
+.wh-insight-h p {
 	margin: 0;
 }
-.wh-diag-h .t {
+.wh-insight-h .t {
 	font-weight: 500;
 }
-.wh-diag-h .l {
+.wh-insight-h .l {
 	margin-top: 3px;
 	font-size: 13px;
 	color: var(--text-muted);
 }
-.wh-diag-err {
+.wh-insight-evidence {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 20px;
 	margin: 0;
-	padding: 10px 16px;
-	border-top: 1px solid var(--border);
-	font-family: var(--font-mono-stack);
-	font-size: 12px;
-	overflow-x: auto;
-	white-space: pre;
+	padding: 10px 12px;
+	background: color-mix(in srgb, var(--wh-sev) 6%, transparent);
+	border-radius: 6px;
 }
-.wh-diag ol {
-	margin: 0;
-	padding: 12px 16px 12px 34px;
-	border-top: 1px solid var(--border);
+.wh-insight-evidence > div {
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	gap: 2px;
+}
+.wh-insight-evidence dt {
+	font-size: 11px;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+}
+.wh-insight-evidence dd {
+	margin: 0;
+	font-family: var(--font-mono-stack);
 	font-size: 13px;
+}
+.wh-insight-fix {
+	margin: 0;
+	font-size: 13px;
+}
+.wh-insight-why,
+.wh-insight-more {
+	font-size: 12.5px;
+	color: var(--text-muted);
+}
+.wh-insight-why summary,
+.wh-insight-more summary {
+	cursor: pointer;
+	color: var(--text-muted);
+}
+.wh-insight-why p {
+	margin: 6px 0 0;
+}
+.wh-insight-more ul {
+	margin: 6px 0 0;
+	padding-left: 18px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
 }
 
 .wh-chart {

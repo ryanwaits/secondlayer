@@ -1,5 +1,10 @@
 import { buildDoctorReport, isSuccessDelivery } from "@secondlayer/sdk";
-import type { DoctorReport, SecondLayer } from "@secondlayer/sdk";
+import type {
+	DoctorIssue,
+	DoctorIssueCode,
+	DoctorReport,
+	SecondLayer,
+} from "@secondlayer/sdk";
 import { sign } from "@secondlayer/shared/crypto/standard-webhooks";
 import type { SubgraphDetail } from "@secondlayer/shared/schemas/subgraphs";
 import type {
@@ -223,9 +228,52 @@ function printWebhookDetail(sub: WebhookDetail): void {
 	}
 }
 
-function printDoctorReport(report: DoctorReport): void {
+/** CLI-only titles for each doctor issue code — kept separate from the
+ *  dashboard's own copy in `diagnosis.tsx` (the CLI never needs the button
+ *  text the dashboard already has next to it). */
+const DOCTOR_ISSUE_TITLES: Record<DoctorIssueCode, string> = {
+	warning: "This webhook can't fire yet",
+	paused: "This webhook is paused",
+	last_error: "The last delivery failed",
+	circuit: "Your receiver is failing",
+	dead_letters: "Some events exhausted every retry",
+	subgraph_gaps: "The linked subgraph has gaps",
+	subgraph_catching_up: "The linked subgraph is still catching up",
+	no_deliveries: "No deliveries yet",
+	receiver_rate_limited: "Your receiver is rate-limiting us",
+	receiver_down: "Your receiver looks down",
+	receiver_rejects: "Your receiver is rejecting deliveries",
+	receiver_slow: "Your receiver is slow",
+	delivery_lag: "Deliveries are running behind",
+};
+
+function formatPrimaryInsight(primary: DoctorIssue): string {
+	const severityColor =
+		primary.severity === "bad"
+			? redStatus
+			: primary.severity === "warn"
+				? yellow
+				: dim;
+	const lines: string[] = [dim("\nInsight:")];
+	lines.push(
+		`  ${severityColor(DOCTOR_ISSUE_TITLES[primary.code])} ${dim(`[${primary.severity}]`)}`,
+	);
+	for (const evidence of primary.evidence ?? []) {
+		lines.push(`    ${dim(`${evidence.label}:`)} ${evidence.value}`);
+	}
+	if (primary.fix) {
+		lines.push(`  ${primary.fix.text}`);
+		if (primary.fix.command) lines.push(`    $ ${primary.fix.command}`);
+	}
+	return lines.join("\n");
+}
+
+/** Builds the doctor report's human-readable text as a single string — kept
+ *  separate from printing (below) so it's directly unit-testable: Bun's
+ *  `console.log` isn't reliably mockable via `spyOn` in this environment. */
+export function formatDoctorReport(report: DoctorReport): string {
 	const sub = report.webhook;
-	console.log(
+	const sections: string[] = [
 		formatKeyValue([
 			["Webhook", `${sub.name} (${sub.id})`],
 			["Status", sub.status],
@@ -243,43 +291,59 @@ function printDoctorReport(report: DoctorReport): void {
 			["Last Delivery", sub.lastDeliveryAt ?? "none"],
 			["Last Success", sub.lastSuccessAt ?? "none"],
 		]),
-	);
-
-	console.log(dim("\nDelivery summary:"));
-	console.log(
-		formatKeyValue([
-			["Recent Attempts", String(report.deliverySummary.total)],
-			["Successful", String(report.deliverySummary.successful)],
-			["Failed", String(report.deliverySummary.failed)],
-			[
-				"Last Attempt",
-				report.deliverySummary.last
-					? `${report.deliverySummary.last.statusCode ?? "error"} at ${report.deliverySummary.last.dispatchedAt}`
-					: "none",
-			],
-			["Dead Letter Rows", String(report.deadCount)],
-		]),
-	);
+		[
+			dim("\nDelivery summary:"),
+			formatKeyValue([
+				["Recent Attempts", String(report.deliverySummary.total)],
+				["Successful", String(report.deliverySummary.successful)],
+				["Failed", String(report.deliverySummary.failed)],
+				[
+					"Last Attempt",
+					report.deliverySummary.last
+						? `${report.deliverySummary.last.statusCode ?? "error"} at ${report.deliverySummary.last.dispatchedAt}`
+						: "none",
+				],
+				["Dead Letter Rows", String(report.deadCount)],
+			]),
+		].join("\n"),
+	];
 
 	if (report.subgraph) {
-		console.log(dim("\nLinked subgraph:"));
-		console.log(
-			formatKeyValue([
-				["Name", report.subgraph.name],
-				["Status", report.subgraph.status],
-				["Sync", report.subgraph.syncStatus],
-				[
-					"Blocks",
-					`${report.subgraph.lastProcessedBlock} / ${report.subgraph.chainTip}`,
-				],
-				["Integrity", report.subgraph.integrity],
-				["Gaps", String(report.subgraph.gapCount)],
-			]),
+		sections.push(
+			[
+				dim("\nLinked subgraph:"),
+				formatKeyValue([
+					["Name", report.subgraph.name],
+					["Status", report.subgraph.status],
+					["Sync", report.subgraph.syncStatus],
+					[
+						"Blocks",
+						`${report.subgraph.lastProcessedBlock} / ${report.subgraph.chainTip}`,
+					],
+					["Integrity", report.subgraph.integrity],
+					["Gaps", String(report.subgraph.gapCount)],
+				]),
+			].join("\n"),
 		);
 	}
 
-	console.log(dim("\nNext steps:"));
-	for (const hint of report.hints) console.log(`  - ${hint}`);
+	if (report.primary) sections.push(formatPrimaryInsight(report.primary));
+
+	const primaryIndex = report.primary
+		? report.issues.indexOf(report.primary)
+		: -1;
+	const rest = report.hints.filter((_, i) => i !== primaryIndex);
+	if (rest.length > 0) {
+		sections.push(
+			[dim("\nNext steps:"), ...rest.map((hint) => `  - ${hint}`)].join("\n"),
+		);
+	}
+
+	return sections.join("\n");
+}
+
+export function printDoctorReport(report: DoctorReport): void {
+	console.log(formatDoctorReport(report));
 }
 
 function syntheticValue(type: string): unknown {

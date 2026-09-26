@@ -11,9 +11,65 @@ import {
 	topupLanded,
 	useAccountData,
 } from "@/lib/account-data";
+import {
+	allowanceUsedFraction,
+	currentUtcMonth,
+	deliveredRowsIn,
+	formatRows,
+	monthParam,
+	runwayDays,
+	spentUsdMicros,
+	utcDaysElapsedInMonth,
+} from "@/lib/usage";
 import { useEffect, useId, useState } from "react";
 import { FloatingCard } from "./floating-card";
 import { OutOfCreditsBanner, UsageSection } from "./usage-panel";
+
+/** Free-rows usage number surfaces once it's most of the way to the
+ *  allowance — before that it's just the usage table below, not an insight. */
+const FREE_ROWS_NOTICE_THRESHOLD = 0.8;
+
+/**
+ * Account-level insights (plan 068): a runway estimate from this month's
+ * balance and spend rate, and a heads-up once free rows are mostly used.
+ * Numbers only — no cause guessing, no model. The out-of-credits case
+ * already has its own bad-severity banner (`OutOfCreditsBanner`, above).
+ */
+function AccountInsights({ billing }: { billing: Billing | null }) {
+	const { usage } = useAccountData();
+	if (!billing) return null;
+
+	const monthKey = monthParam(currentUtcMonth());
+	const rows = usage[monthKey];
+	const spent = rows ? spentUsdMicros(rows) : 0;
+	const runway = runwayDays(
+		Number(billing.creditsUsdMicros),
+		spent,
+		utcDaysElapsedInMonth(),
+	);
+	const rowsDelivered = rows ? deliveredRowsIn(rows) : 0;
+	const usedFraction = allowanceUsedFraction(rowsDelivered);
+	const showFreeRowsNotice = usedFraction >= FREE_ROWS_NOTICE_THRESHOLD;
+
+	if (runway === null && !showFreeRowsNotice) return null;
+
+	return (
+		<>
+			{runway !== null ? (
+				<p className="acct-fine left">
+					≈{runway} day{runway === 1 ? "" : "s"} of credit left at this month's
+					spend.
+				</p>
+			) : null}
+			{showFreeRowsNotice ? (
+				<p className="acct-fine left">
+					You've used {formatRows(rowsDelivered)} of your 10M free rows this
+					month.
+				</p>
+			) : null}
+		</>
+	);
+}
 
 export function BalanceStats({ billing }: { billing: Billing | null }) {
 	return (
@@ -259,6 +315,7 @@ export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
 			{st ? <ReturnNotice st={st} billing={billing} /> : null}
 			<OutOfCreditsBanner billing={billing} />
 			{st?.kind === "landed" ? null : <BalanceStats billing={billing} />}
+			<AccountInsights billing={billing} />
 			<UsageSection />
 			<h2 className="acct-h2">Add credits</h2>
 			<AmountPicker co={co} wide />

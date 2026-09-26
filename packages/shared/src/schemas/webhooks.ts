@@ -766,6 +766,10 @@ export interface WebhookSummary {
 	url: string;
 	lastDeliveryAt: string | null;
 	lastSuccessAt: string | null;
+	/** When the circuit breaker paused this webhook (20 straight failures);
+	 *  cleared on resume. Present on the list summary (not detail-only) so a
+	 *  numbers-only insight can be shown per row without a per-row fetch. */
+	circuitOpenedAt: string | null;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -779,7 +783,6 @@ export interface WebhookDetail extends WebhookSummary {
 	timeoutMs: number;
 	concurrency: number;
 	circuitFailures: number;
-	circuitOpenedAt: string | null;
 	lastError: string | null;
 	/** Set on a `kind="chain"` webhook when this instance's chain-trigger
 	 *  evaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the

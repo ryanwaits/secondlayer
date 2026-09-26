@@ -16,6 +16,7 @@ import {
 	allowanceFootLine,
 	compareMonths,
 	currentUtcMonth,
+	deliveredRowsIn,
 	formatRows,
 	formatUnitQuantity,
 	isSameMonth,
@@ -167,13 +168,6 @@ function UsageTable({
 			</table>
 		</div>
 	);
-}
-
-/** This month's rows.delivered from a usage list, or 0 if the unit hasn't
- *  billed anything yet. */
-function deliveredRowsIn(usage: UsageRow[]): number {
-	const rd = usage.find((u) => u.unit === "rows.delivered");
-	return rd ? Number(rd.quantity) : 0;
 }
 
 /** "Usage" — month switcher, free-rows meter, and the usage table (or the

@@ -176,6 +176,56 @@ export function formatRelative(
 	return `${d}d ago`;
 }
 
+// ── List-page insight memory (plan 068) ─────────────────────────────
+// Per-viewer, v1 only: a server-side insights table (054) replaces this.
+// Every read/write is try/catch-wrapped — the list page works with no
+// memory at all (private browsing, blocked storage) instead of crashing.
+
+const TOAST_SHOWN_KEY = "sl.webhooks.toastShown";
+const DISMISSED_KEY = "sl.webhooks.dismissed";
+
+function insightKey(webhookId: string, code: string): string {
+	return `${webhookId}:${code}`;
+}
+
+function readInsightSet(key: string): Set<string> {
+	try {
+		const raw = localStorage.getItem(key);
+		return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+	} catch {
+		return new Set();
+	}
+}
+
+function addToInsightSet(key: string, member: string): void {
+	try {
+		const set = readInsightSet(key);
+		set.add(member);
+		localStorage.setItem(key, JSON.stringify([...set]));
+	} catch {
+		// localStorage unavailable — the page still works, it just re-shows
+		// the toast/line next visit.
+	}
+}
+
+/** Has this (webhook, rule) already shown its once-per-session toast? */
+export function hasShownToast(webhookId: string, code: string): boolean {
+	return readInsightSet(TOAST_SHOWN_KEY).has(insightKey(webhookId, code));
+}
+
+export function markToastShown(webhookId: string, code: string): void {
+	addToInsightSet(TOAST_SHOWN_KEY, insightKey(webhookId, code));
+}
+
+/** Has this (webhook, rule) been dismissed from the list line? */
+export function isInsightDismissed(webhookId: string, code: string): boolean {
+	return readInsightSet(DISMISSED_KEY).has(insightKey(webhookId, code));
+}
+
+export function dismissInsight(webhookId: string, code: string): void {
+	addToInsightSet(DISMISSED_KEY, insightKey(webhookId, code));
+}
+
 /** The host part of a webhook's target URL, for the list row sub-line. Falls
  *  back to a naive strip when the URL somehow doesn't parse (never should —
  *  the API validates it on create). */

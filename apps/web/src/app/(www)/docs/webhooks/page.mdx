@@ -148,6 +148,48 @@ Replays are **idempotent**, **historical only**, and **never move the live curso
 
 Not a real chain event, so check `data.test` before treating a delivery as live.
 
+## Troubleshooting
+
+`secondlayer webhooks doctor <idOrName>` and the dashboard's detail page run the same five rules against your last 100 delivery attempts. Every rule is deterministic: no model, and it only states what the numbers prove. Each fires on a fixed threshold, listed below, and each reports evidence you can check yourself.
+
+### Receiver rate-limited
+
+Fires when at least 10 of the last 100 attempts are `429`s, and `429`s are at least half that window. Your receiver is answering, but throttling us.
+
+Lower `--concurrency` on the webhook, or make your receiver honor the `Retry-After` header it's sending back:
+
+```bash
+secondlayer webhooks update <idOrName> --concurrency 2
+```
+
+### Receiver down
+
+Fires when the 5 most recent attempts are all `5xx` responses or got no response at all (timeout or connection failure). Check your receiver's health and logs, then confirm it's back with a test delivery:
+
+```bash
+secondlayer webhooks test <idOrName>
+```
+
+### Receiver rejects
+
+Fires when the 5 most recent attempts are all `4xx` responses other than `429`. Your receiver is reachable and actively rejecting the request: check auth config or signature verification first.
+
+```bash
+secondlayer webhooks test <idOrName>
+```
+
+### Receiver slow
+
+Fires when the median response time of the newest 20 attempts is at least half this webhook's `timeoutMs`. Speed up your receiver, or raise the timeout (capped at 30s hosted):
+
+```bash
+secondlayer webhooks update <idOrName> --timeout-ms 30000
+```
+
+### Delivery lag
+
+Fires when the median gap between a block's time and when we dispatched its event, over the newest 20 attempts, exceeds 60 seconds. This is latency on our side, not your receiver: no action needed on your end.
+
 export const metadata = {
 	title: "Webhooks — Secondlayer Docs",
 	description:

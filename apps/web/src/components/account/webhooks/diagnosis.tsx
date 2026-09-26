@@ -1,115 +1,195 @@
 "use client";
 
-import type { DoctorIssue, WebhookDetail } from "@secondlayer/sdk";
+import type {
+	DoctorIssue,
+	DoctorIssueCode,
+	WebhookDetail,
+} from "@secondlayer/sdk";
+import { CliLine } from "./shared";
 
 /**
- * The web's own copy for each doctor issue code — the CLI prints a
- * `secondlayer webhooks ...` hint; the dashboard already has the button (or
- * points at the tab) that does the same thing.
+ * The webhook detail page's insight card (plan 068). Leads with the single
+ * most severe issue (`report.primary`) — title, a one-line lede with the key
+ * number, the evidence behind it, and a fix (text, a copyable CLI command
+ * when there is one, and a docs link). A "How we worked this out" disclosure
+ * names the rule so the reader can verify it themselves.
+ *
+ * The five deterministic detectors (plan 068) carry `evidence`/`fix` on the
+ * issue already; the older flag checks (paused, circuit, ...) don't, so this
+ * keeps their existing plain-text copy — never inventing evidence a rule
+ * didn't produce.
  */
 
-function diagnosisTitle(issues: DoctorIssue[]): string {
-	const codes = new Set(issues.map((i) => i.code));
-	if (codes.has("circuit")) return "Your receiver is failing";
-	if (codes.has("paused")) return "This webhook is paused";
-	if (codes.has("last_error")) return "The last delivery failed";
-	if (codes.has("dead_letters")) return "Some events exhausted every retry";
-	if (codes.has("warning")) return "This webhook can't fire yet";
-	if (codes.has("subgraph_gaps")) return "The linked subgraph has gaps";
-	if (codes.has("subgraph_catching_up")) {
-		return "The linked subgraph is still catching up";
-	}
-	return "No deliveries yet";
+const PRIMARY_TITLE: Record<DoctorIssueCode, string> = {
+	warning: "This webhook can't fire yet",
+	paused: "This webhook is paused",
+	last_error: "The last delivery failed",
+	circuit: "Your receiver is failing",
+	dead_letters: "Some events exhausted every retry",
+	subgraph_gaps: "The linked subgraph has gaps",
+	subgraph_catching_up: "The linked subgraph is still catching up",
+	no_deliveries: "No deliveries yet",
+	receiver_rate_limited: "Your receiver is rate-limiting us",
+	receiver_down: "Your receiver looks down",
+	receiver_rejects: "Your receiver is rejecting deliveries",
+	receiver_slow: "Your receiver is slow",
+	delivery_lag: "Deliveries are running behind",
+};
+
+/** Why each rule fires and over what window — the disclosure content. Kept
+ *  short: it names the rule, it doesn't re-argue the evidence above it. */
+const RULE_EXPLANATION: Record<DoctorIssueCode, string> = {
+	warning: "Set directly on this webhook by the instance it runs on.",
+	paused: "This webhook's status is paused — nothing is being delivered.",
+	last_error: "The most recent delivery attempt returned an error.",
+	circuit:
+		"The delivery service opened the circuit breaker after repeated failures, and pauses briefly between retries.",
+	dead_letters:
+		"At least one event exhausted every retry and stopped delivering.",
+	subgraph_gaps:
+		"The subgraph feeding this webhook has gaps in its indexed data.",
+	subgraph_catching_up:
+		"The subgraph feeding this webhook hasn't caught up to the chain tip yet.",
+	no_deliveries: "No delivery attempts have been logged for this webhook yet.",
+	receiver_rate_limited:
+		"Rule receiver_rate_limited: fires when at least 10 of the last 100 delivery attempts are 429s, and 429s are at least half of that window.",
+	receiver_down:
+		"Rule receiver_down: fires when the 5 most recent attempts are all 5xx responses or got no response at all.",
+	receiver_rejects:
+		"Rule receiver_rejects: fires when the 5 most recent attempts are all 4xx responses other than 429.",
+	receiver_slow:
+		"Rule receiver_slow: fires when the median response time of the newest 20 attempts is at least half this webhook's timeout.",
+	delivery_lag:
+		"Rule delivery_lag: fires when the median time between a block and when we dispatched its event, over the newest 20 attempts, exceeds 60 seconds.",
+};
+
+function evidenceValue(issue: DoctorIssue, label: string): string | undefined {
+	return issue.evidence?.find((e) => e.label === label)?.value;
 }
 
-function issueCopy(
+/** The one-line lede with the key number. The five new detectors read their
+ *  own evidence; the older flag checks keep their existing sentence (no
+ *  evidence array to draw a number from). */
+function primaryLede(
 	issue: DoctorIssue,
 	webhook: WebhookDetail,
 	deadCount: number,
-): { text: string; command?: string } {
+): string {
 	switch (issue.code) {
 		case "warning":
-			return { text: issue.detail ?? "This webhook can't fire yet." };
+			return issue.detail ?? "This webhook can't fire yet.";
 		case "paused":
-			return {
-				text: "This webhook is paused, so nothing is being delivered. Resume it above when your receiver is healthy.",
-			};
+			return "Nothing is being delivered. Resume it above when your receiver is healthy.";
 		case "last_error":
-			return {
-				text: `The last delivery failed: ${issue.detail ?? "unknown error"}. Send a test event to check whether it's still happening.`,
-			};
+			return `The last delivery failed: ${issue.detail ?? "unknown error"}.`;
 		case "circuit":
-			return {
-				text: `Your receiver failed ${webhook.circuitFailures} times in a row, so deliveries are paused briefly between tries. Check your receiver's logs, then send a test event.`,
-			};
+			return `Your receiver failed ${webhook.circuitFailures} times in a row, so deliveries are paused briefly between tries.`;
 		case "dead_letters":
-			return {
-				text: `${deadCount} event${deadCount === 1 ? "" : "s"} exhausted every retry and are waiting in Failed events, below.`,
-			};
+			return `${deadCount} event${deadCount === 1 ? "" : "s"} exhausted every retry and are waiting in Failed events, below.`;
 		case "subgraph_gaps":
-			return {
-				text: "The subgraph feeding this webhook has gaps in its data.",
-				command: webhook.subgraphName
-					? `secondlayer subgraphs gaps ${webhook.subgraphName}`
-					: undefined,
-			};
+			return "The subgraph feeding this webhook has gaps in its data.";
 		case "subgraph_catching_up":
-			return {
-				text: "The subgraph feeding this webhook is still catching up to the chain tip; new matching rows may arrive later.",
-			};
+			return "The subgraph feeding this webhook is still catching up to the chain tip; new matching rows may arrive later.";
 		case "no_deliveries":
-			return {
-				text: "No deliveries yet. Confirm your receiver is reachable, then send a test event.",
-			};
+			return "No deliveries yet. Confirm your receiver is reachable, then send a test event.";
+		case "receiver_rate_limited":
+			return `${evidenceValue(issue, "429 responses") ?? "Most"} were 429 responses.`;
+		case "receiver_down":
+			return `${evidenceValue(issue, "consecutive failures") ?? "Several"} attempts in a row failed.`;
+		case "receiver_rejects":
+			return `${evidenceValue(issue, "consecutive rejects") ?? "Several"} attempts in a row were rejected.`;
+		case "receiver_slow":
+			return `Median response time is ${evidenceValue(issue, "median response time") ?? "high"}, close to the ${evidenceValue(issue, "timeout") ?? "configured"} timeout.`;
+		case "delivery_lag":
+			return `Deliveries are arriving a median of ${evidenceValue(issue, "median lag") ?? "some time"} after the block.`;
 		default:
-			return { text: "" };
+			return "";
 	}
+}
+
+/** A fix `command` for the five new detectors only; the older flag checks
+ *  point at the button already on this page (resume/test), so they carry no
+ *  command here. */
+function legacyCommand(
+	issue: DoctorIssue,
+	webhook: WebhookDetail,
+): string | undefined {
+	if (issue.code === "subgraph_gaps" && webhook.subgraphName) {
+		return `secondlayer subgraphs gaps ${webhook.subgraphName}`;
+	}
+	return undefined;
 }
 
 export function DiagnosisPanel({
 	webhook,
 	issues,
+	primary,
 	deadCount,
 }: {
 	webhook: WebhookDetail;
+	/** The full report — the primary leads the card; everything else
+	 *  collapses underneath it (plan 068: one insight per webhook). */
 	issues: DoctorIssue[];
+	primary: DoctorIssue | null;
 	deadCount: number;
 }) {
-	if (issues.length === 0) return null;
-	const errBlock = [
-		webhook.lastError ? `last_error: ${webhook.lastError}` : null,
-		webhook.circuitOpenedAt
-			? `circuit: open at ${webhook.circuitOpenedAt}`
-			: webhook.circuitFailures > 0
-				? `circuit: ${webhook.circuitFailures} failures`
-				: null,
-	].filter((line): line is string => line !== null);
+	if (!primary) return null;
+
+	const lede = primaryLede(primary, webhook, deadCount);
+	const command = primary.fix?.command ?? legacyCommand(primary, webhook);
+	const rest = issues.filter((i) => i !== primary);
 
 	return (
-		<section className="wh-diag" aria-label="Diagnosis">
-			<div className="wh-diag-h">
-				<p className="t">{diagnosisTitle(issues)}</p>
-				<p className="l">Here's what to do about it.</p>
+		<section
+			className={`wh-insight ${primary.severity}`}
+			aria-label="Diagnosis"
+		>
+			<div className="wh-insight-h">
+				<p className="t">{PRIMARY_TITLE[primary.code]}</p>
+				<p className="l">{lede}</p>
 			</div>
-			{errBlock.length > 0 ? (
-				<pre className="wh-diag-err">{errBlock.join("\n")}</pre>
+
+			{primary.evidence && primary.evidence.length > 0 ? (
+				<dl className="wh-insight-evidence">
+					{primary.evidence.map((e) => (
+						<div key={e.label}>
+							<dt>{e.label}</dt>
+							<dd>{e.value}</dd>
+						</div>
+					))}
+				</dl>
 			) : null}
-			<ol>
-				{issues.map((issue) => {
-					const { text, command } = issueCopy(issue, webhook, deadCount);
-					return (
-						<li key={issue.code}>
-							{text}
-							{command ? (
-								<>
-									{" "}
-									<code className="wh-mono">{command}</code>
-								</>
-							) : null}
-						</li>
-					);
-				})}
-			</ol>
+
+			{primary.fix?.text ? (
+				<p className="wh-insight-fix">{primary.fix.text}</p>
+			) : null}
+			{command ? <CliLine command={command} /> : null}
+			{primary.fix?.docsPath ? (
+				<p className="acct-fine">
+					<a href={primary.fix.docsPath}>Learn more in the docs</a>
+				</p>
+			) : null}
+
+			<details className="wh-insight-why">
+				<summary>How we worked this out</summary>
+				<p>{RULE_EXPLANATION[primary.code]}</p>
+			</details>
+
+			{rest.length > 0 ? (
+				<details className="wh-insight-more">
+					<summary>
+						{rest.length} more thing{rest.length === 1 ? "" : "s"} to check
+					</summary>
+					<ul>
+						{rest.map((issue) => (
+							<li key={issue.code}>
+								<strong>{PRIMARY_TITLE[issue.code]}</strong>{" "}
+								{primaryLede(issue, webhook, deadCount)}
+							</li>
+						))}
+					</ul>
+				</details>
+			) : null}
 		</section>
 	);
 }

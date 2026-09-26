@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { DeliveryRow } from "@secondlayer/sdk";
 import {
+	dismissInsight,
 	formatRelative,
 	getDeliveries,
+	hasShownToast,
 	hostOf,
+	isInsightDismissed,
 	listWebhooks,
+	markToastShown,
 	normalizeDeliveryRow,
 	resultForStatus,
 } from "./webhooks-data";
@@ -96,6 +100,54 @@ describe("formatRelative", () => {
 		expect(
 			formatRelative(new Date(now - 3 * 86_400_000).toISOString(), now),
 		).toBe("3d ago");
+	});
+});
+
+class FakeLocalStorage {
+	private store = new Map<string, string>();
+	getItem(key: string): string | null {
+		return this.store.has(key) ? (this.store.get(key) as string) : null;
+	}
+	setItem(key: string, value: string): void {
+		this.store.set(key, value);
+	}
+}
+
+describe("insight memory (toast-once and dismiss)", () => {
+	const originalLocalStorage = (globalThis as { localStorage?: unknown })
+		.localStorage;
+
+	afterEach(() => {
+		(globalThis as { localStorage?: unknown }).localStorage =
+			originalLocalStorage;
+	});
+
+	test("a toast is remembered per (webhook, rule), independent of other rules/webhooks", () => {
+		(globalThis as { localStorage?: unknown }).localStorage =
+			new FakeLocalStorage();
+		expect(hasShownToast("wh-1", "circuit")).toBe(false);
+		markToastShown("wh-1", "circuit");
+		expect(hasShownToast("wh-1", "circuit")).toBe(true);
+		expect(hasShownToast("wh-1", "paused")).toBe(false);
+		expect(hasShownToast("wh-2", "circuit")).toBe(false);
+	});
+
+	test("a dismissal is remembered per (webhook, rule)", () => {
+		(globalThis as { localStorage?: unknown }).localStorage =
+			new FakeLocalStorage();
+		expect(isInsightDismissed("wh-1", "paused")).toBe(false);
+		dismissInsight("wh-1", "paused");
+		expect(isInsightDismissed("wh-1", "paused")).toBe(true);
+	});
+
+	test("never throws with no localStorage, and just reports 'not shown/dismissed'", () => {
+		(globalThis as { localStorage?: unknown }).localStorage = undefined;
+		expect(() => hasShownToast("wh-1", "circuit")).not.toThrow();
+		expect(hasShownToast("wh-1", "circuit")).toBe(false);
+		expect(() => markToastShown("wh-1", "circuit")).not.toThrow();
+		expect(() => isInsightDismissed("wh-1", "paused")).not.toThrow();
+		expect(isInsightDismissed("wh-1", "paused")).toBe(false);
+		expect(() => dismissInsight("wh-1", "paused")).not.toThrow();
 	});
 });
 
