@@ -271,14 +271,16 @@ export function DeliveryCard({
 						>
 							Copy as curl
 						</button>
-						<button
-							type="button"
-							className="acct-btn solid small"
-							onClick={onResend}
-							disabled={!detail?.outboxId || resending}
-						>
-							{resending ? "Resending..." : "Resend event"}
-						</button>
+						{detail?.outboxStatus === "dead" ? (
+							<button
+								type="button"
+								className="acct-btn solid small"
+								onClick={onResend}
+								disabled={resending}
+							>
+								{resending ? "Resending..." : "Resend event"}
+							</button>
+						) : null}
 					</div>
 				</div>
 			}

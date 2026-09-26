@@ -546,6 +546,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 					webhook_id: webhookId,
 					dedup_key: "delivery-detail-live-outbox",
 					block_time: blockTime,
+					status: "delivered",
 				}),
 			)
 			.returning("id")
@@ -570,18 +571,52 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		expect(res.status).toBe(200);
 		const detail = (await res.json()) as {
 			outboxId: string | null;
+			outboxStatus: string | null;
 			payload: unknown;
 			blockTime: string | null;
 			responseHeaders: Record<string, string> | null;
 			eventIndex: number | null;
 		};
 		expect(detail.outboxId).toBe(outbox.id);
+		expect(detail.outboxStatus).toBe("delivered");
 		expect(detail.payload).toEqual({ amount: "1" });
 		expect(detail.blockTime).toBe(blockTime.toISOString());
 		expect(detail.responseHeaders).toEqual({
 			"content-type": "application/json",
 		});
 		expect(detail.eventIndex).toBe(0);
+	});
+
+	test("delivery detail's outboxStatus is dead only when the outbox row exhausted retries", async () => {
+		const webhookId = await createTestWebhook("delivery-detail-dead-outbox");
+		const db = getDb();
+		const outbox = await db
+			.insertInto("webhook_outbox")
+			.values(
+				outboxRow({
+					webhook_id: webhookId,
+					dedup_key: "delivery-detail-dead-outbox-outbox",
+					status: "dead",
+				}),
+			)
+			.returning("id")
+			.executeTakeFirstOrThrow();
+		const delivery = await db
+			.insertInto("webhook_deliveries")
+			.values({
+				webhook_id: webhookId,
+				outbox_id: outbox.id,
+				attempt: 5,
+				status_code: 502,
+			})
+			.returning("id")
+			.executeTakeFirstOrThrow();
+
+		const res = await app.request(
+			`/webhooks/${webhookId}/deliveries/${delivery.id}`,
+		);
+		const detail = (await res.json()) as { outboxStatus: string | null };
+		expect(detail.outboxStatus).toBe("dead");
 	});
 
 	test("delivery detail reads a chain-trigger row's event_index, not just a subgraph row's rowIndex", async () => {
@@ -667,9 +702,11 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		expect(res.status).toBe(200);
 		const detail = (await res.json()) as {
 			outboxId: string | null;
+			outboxStatus: string | null;
 			payload: unknown;
 		};
 		expect(detail.outboxId).toBeNull();
+		expect(detail.outboxStatus).toBeNull();
 		expect(detail.payload).toBeNull();
 	});
 

@@ -855,6 +855,11 @@ export interface WebhookDeliveryDetail {
 	responseBody: string | null;
 	responseHeaders: Record<string, string> | null;
 	outboxId: string | null;
+	/** The outbox row's own status — `null` once it's gone (compacted after
+	 *  delivery, or never had one, e.g. a test delivery). Only `"dead"` means
+	 *  a resend is possible: it's the one status `POST /:id/dead/:outboxId/
+	 *  requeue` accepts. */
+	outboxStatus: "pending" | "delivered" | "dead" | null;
 	eventType: string | null;
 	txId: string | null;
 	blockHeight: number | null;
