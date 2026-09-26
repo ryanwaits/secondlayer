@@ -28,7 +28,7 @@ export interface BlockSource {
 	/**
 	 * Highest canonical block height available to process.
 	 *
-	 * `opts` is an HTTP-plane long-poll hint (plan-063 3.4/3.5), ignored by any
+	 * `opts` is an HTTP-plane long-poll hint, ignored by any
 	 * source with no such notion (the Postgres tap: a local DB read is already
 	 * instant, nothing to wait on). `knownHeight` is the last tip THIS caller
 	 * observed; passing `wait` without it is a no-op — the server needs a
@@ -430,7 +430,7 @@ const postgresBlockSource = new PostgresBlockSource();
  *
  * `httpClient` defaults to a fresh client (unchanged behavior) — pass one in
  * to reuse across calls. The evaluator's own long-lived loop does this so
- * `IndexHttpClient.waitIsSupported()` (plan-063 3.5) reflects what THIS
+ * `IndexHttpClient.waitIsSupported()` reflects what THIS
  * server actually supports instead of resetting every tick.
  */
 export function buildChainBlockSource(

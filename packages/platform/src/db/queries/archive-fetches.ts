@@ -2,7 +2,7 @@ import type { Database } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 
 /**
- * The archive fetch gate's charge log (design-f089). Append-only: one row
+ * The archive fetch gate's charge log. Append-only: one row
  * per priced attempt to fetch a partition object from the API's
  * `/api/archive/{quote,fetch}` routes. Two read paths this module serves:
  *

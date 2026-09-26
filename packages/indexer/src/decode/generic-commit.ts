@@ -33,7 +33,7 @@ export const GENERIC_DECODER_PRODUCER_VERSION = "v1";
  * proof the range through the server's scan ceiling is fully accounted for.
  *
  * That ceiling IS `envelope.tip.block_height` only at the internal Streams
- * tier (`STREAMS_INTERNAL_TIP_REORG_MARGIN_BLOCKS = 0`, plan-063 D1) that
+ * tier (`STREAMS_INTERNAL_TIP_REORG_MARGIN_BLOCKS = 0`) that
  * every in-fleet decoder authenticates at — a public/account tier holds the
  * scan back by a reorg margin, so its short pages would under-claim. Callers
  * outside that tier must not use this.
@@ -192,8 +192,8 @@ export type GenericDecoderBatchEntry = {
 
 /**
  * Commit several classic decoders' checkpoints + rows in ONE transaction —
- * the in-process loop reads all 11 classic types off a single cursor scan
- * (plan-066), so their commits must be atomic together: a crash partway
+ * the in-process loop reads all 11 classic types off a single cursor scan,
+ * so their commits must be atomic together: a crash partway
  * through must never leave one type's checkpoint ahead of another's rows.
  *
  * Each entry keeps its own `assertCheckpointUnmoved` FOR UPDATE check (via

@@ -190,12 +190,12 @@ export type IndexTipEnvelope = {
 		block_height: number;
 		source_block_height?: number;
 		/**
-		 * Committed height per classic decoded event_type (plan-063), e.g.
+		 * Committed height per classic decoded event_type, e.g.
 		 * `{ ft_transfer: 950, stx_transfer: 940 }`. `null` means that decoder
 		 * has no checkpoint yet (fail-closed for a caller that references it,
 		 * not "committed to height 0"); a missing key means an older server
 		 * that doesn't send this field at all. Absent on an instance built
-		 * before plan-063 shipped it.
+		 * before this field was added.
 		 */
 		decoded_heights?: Record<string, number | null>;
 	};
@@ -422,7 +422,7 @@ export class IndexHttpClient {
 	 *
 	 * `opts.wait` (seconds, clamped to `MAX_INDEX_WAIT_SECONDS`) long-polls:
 	 * the server holds the request until a fresher tip than `opts.knownHeight`
-	 * is available or `wait` elapses (plan-063 3.4/3.5). Pass `knownHeight` —
+	 * is available or `wait` elapses. Pass `knownHeight` —
 	 * the last tip THIS caller observed — or `wait` is a no-op (nothing to
 	 * compare against). A caller that only wants the plain tip omits both.
 	 */
@@ -486,7 +486,7 @@ export class IndexHttpClient {
 	/** False once a `wait`/`tip_only` request has 400'd on THIS client instance
 	 *  (see the catch in `getIndexTipEnvelope`) — an older server that doesn't
 	 *  recognize these params. A caller that reuses one client across many
-	 *  calls (the chain evaluator, plan-063 3.5) uses this to stop scheduling
+	 *  calls (the chain evaluator) uses this to stop scheduling
 	 *  itself as if `wait` actually blocked, instead of re-discovering the 400
 	 *  on every single call. */
 	waitIsSupported(): boolean {

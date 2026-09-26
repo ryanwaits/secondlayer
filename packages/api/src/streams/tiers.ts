@@ -32,13 +32,13 @@ export const STREAMS_TIP_REORG_MARGIN_BLOCKS = 2;
 /**
  * Reorg-safety margin for first-party decoder reads (an `internal`-tier
  * Streams tenant — the seeded `STREAMS_INTERNAL_API_KEY`/`sl-int_` key, or a
- * self-hosted `INSTANCE_TOKEN`). Founder decision D1 (plan-063, 2026-09-25):
+ * self-hosted `INSTANCE_TOKEN`). Founder decision, 2026-09-25:
  * margin 0, relying on the decoder's own reorg rewind
  * (`handleDecodedEventsReorg` hard-deletes decoded rows at/above the fork and
  * rewinds every decoder checkpoint in the SAME transaction as reorg detection
  * — see `packages/indexer/src/reorg.ts` / `decode/storage.ts`) plus 043's
- * webhook rollback deliveries. Measured reorg frequency (plan-063 Results,
- * 1.3): 29 reorgs / 90d, depth 1 in 21 of them — margin 2 only ever hid 25/29,
+ * webhook rollback deliveries. Measured reorg frequency:
+ * 29 reorgs / 90d, depth 1 in 21 of them — margin 2 only ever hid 25/29,
  * so the margin was never doing much reorg-hiding work to begin with.
  *
  * A distinct constant, not a second meaning of `STREAMS_TIP_REORG_MARGIN_BLOCKS`
@@ -52,7 +52,7 @@ export const STREAMS_INTERNAL_TIP_REORG_MARGIN_BLOCKS = 0;
  *  shared global counter, not per-caller. */
 export const STREAMS_ANON_RATE_LIMIT_PER_SECOND = 50;
 
-// No retention ladder (plan-049, founder 2026-09-24): every account reads
+// No retention ladder (founder decision, 2026-09-24): every account reads
 // full history; rows past the monthly allowance are a paid read, not a
 // blocked one. `retentionDays` and `getStreamsRetentionCutoff` are gone.
 export const STREAMS_TIER_CONFIG: Record<StreamsTier, StreamsTierConfig> = {

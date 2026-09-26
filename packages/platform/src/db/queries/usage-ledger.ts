@@ -2,7 +2,7 @@ import type { Database, UsageLedgerRow } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 
 /**
- * The metered ledger (plan-049): one append-only row per billable (or free
+ * The metered ledger: one append-only row per billable (or free
  * -allowance) unit. Written only by `meter()` (`../billing/meter.ts`); this
  * module is the plain DB access underneath it, mirroring `account-credits.ts`
  * and `archive-fetches.ts` — functions over an injected `Kysely<Database>`

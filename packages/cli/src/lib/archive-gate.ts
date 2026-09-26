@@ -1,7 +1,7 @@
 import { CliHttpError, httpArchiveOps } from "./http.ts";
 
 /**
- * The archive fetch gate — CLI-side quote/fetch client (design-f089).
+ * The archive fetch gate — CLI-side quote/fetch client.
  *
  * Gates ONLY the official hosted archive. Anyone pointing `--against` at a
  * mirror, a teammate's box, or a local directory pays nothing and talks to

@@ -23,7 +23,7 @@ export type MeterUnit =
  *  own volume-tier + monthly-allowance logic in `meter.ts`; every other unit
  *  is `PRICES[unit] * quantity`, no tiers. */
 export const PRICES: Record<MeterUnit, bigint> = {
-	// Archive fetch gate (design-f089). Unchanged from `routes/archive.ts`.
+	// Archive fetch gate. Unchanged from `routes/archive.ts`.
 	"archive.partition": 50_000n,
 	"archive.partition.events": 150_000n,
 
@@ -31,9 +31,9 @@ export const PRICES: Record<MeterUnit, bigint> = {
 	// for the commit-tier rate past COMMIT_TIER_MONTHLY_USD_MICROS.
 	"rows.delivered": 5n,
 
-	// Hosted stack meters (044/046 provisioner). Not wired to a caller yet —
-	// the price exists so /internal/meters and the usage view are ready the
-	// day the provisioner ships.
+	// Hosted stack meters (044/046 provisioner). The workload host is the
+	// caller: its memory/storage/event flush loops (packages/workload/src/
+	// index.ts, meters.ts) POST these to /internal/meters.
 	"memory.gb_hour": 28_000n, // ~$0.028/GB-hour, ~$20/GB-month (founder 2026-09-24)
 	"storage.gb_day": 8_333n, // ~$0.25/GB-month billed daily (250_000n / 30)
 	"webhook.event": 10n, // $10/1M events; retries are free (never metered)

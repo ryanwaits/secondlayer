@@ -81,7 +81,7 @@ if (mode !== "platform") {
 }
 
 assertDbSplit();
-// Wake sources for plan-063's Phase 3 (NOTIFY over polling). All three degrade
+// Wake sources (NOTIFY over polling). All three degrade
 // safely on their own — a failed/dropped LISTEN just leaves the Streams/Index
 // tip caches on their normal TTL and Index long-polls waiting out their full
 // `wait` timeout, never wrong either way — so a failure here never blocks

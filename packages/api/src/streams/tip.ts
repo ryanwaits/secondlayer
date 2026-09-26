@@ -146,7 +146,7 @@ let streamsTipListenerStarted: Promise<() => Promise<void>> | null = null;
 /**
  * Start (once per process) the LISTEN that drops the Streams tip cache the
  * moment a block commits, instead of waiting out `cacheTtlMs` (500ms) on the
- * next request (plan-063 3.3 — the TODO above this used to mark). Call from
+ * next request. Call from
  * the api entrypoint; safe to call more than once. Degrades safely: if the
  * LISTEN connection never comes up (or later drops), the tip simply falls
  * back to its normal TTL-refresh behavior — never wrong, just up to

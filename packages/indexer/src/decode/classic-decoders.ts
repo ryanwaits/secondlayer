@@ -1,5 +1,5 @@
 /**
- * In-process classic decoder loop (plan-066).
+ * In-process classic decoder loop.
  *
  * The 11 classic decoders (ft/nft/stx transfer, mint, burn, lock, print) used
  * to be 11 separate HTTP Streams consumers. Every one of those types is a

@@ -36,7 +36,7 @@ const CHAIN_SUB_WARN_THRESHOLD = 5000; // observability only — not a cap.
  */
 
 const POLL_MS = Number(process.env.TRIGGER_EVALUATOR_POLL_MS) || 5_000;
-// Long-poll budget for a tick that finds nothing new (plan-063 3.5) — a
+// Long-poll budget for a tick that finds nothing new — a
 // caught-up evaluator holds its tip request open instead of sleeping POLL_MS
 // and re-asking. Kept under `MAX_INDEX_WAIT_SECONDS` (25) with headroom.
 const WAIT_SECONDS = Number(process.env.TRIGGER_EVALUATOR_WAIT_SECONDS) || 20;
@@ -120,7 +120,7 @@ export type EvaluatorTickResult = {
 	 *  the tick bailed before fetching one (no chain webhooks matter here —
 	 *  it still fetches to feed sBTC settlement scanning's early returns).
 	 *  Fed back as the next tick's `knownTip` so a long-poll has a baseline
-	 *  to compare against (plan-063 3.5). */
+	 *  to compare against. */
 	rawTip: number | null;
 	/** True exactly when this tick found the cursor already at (or past) the
 	 *  bound tip — caught up, nothing to process. The next tick can safely
@@ -142,8 +142,8 @@ export async function runEvaluatorOnce(
 		/** The raw tip THIS evaluator last observed — the baseline `waitSeconds`
 		 *  needs to know whether anything has changed. */
 		knownTip?: number;
-		/** Reused across ticks so `IndexHttpClient.waitIsSupported()` (plan-063
-		 *  3.5) reflects this server's real capability instead of resetting on
+		/** Reused across ticks so `IndexHttpClient.waitIsSupported()`
+		 *  reflects this server's real capability instead of resetting on
 		 *  every call. Defaults to a fresh client (unchanged behavior) when
 		 *  omitted — tests and one-off callers don't need to care. */
 		httpClient?: IndexHttpClient;
@@ -408,7 +408,7 @@ export function classifyWaitOutcome(opts: {
 }
 
 /**
- * Defense in depth (this is what a plan-063 regression slipped past): even
+ * Defense in depth (this is what a real prod regression slipped past): even
  * when the client asked the server to hold the response, NEVER trust that it
  * actually did just because the request "succeeded". A server that answers
  * `wait` requests instantly — a bug, a proxy that strips the param, anything —

@@ -1,5 +1,5 @@
 /**
- * The archive fetch gate (design-f089) — quote, charge, presign.
+ * The archive fetch gate — quote, charge, presign.
  *
  *   POST /api/archive/quote   authed, free, idempotent — prices a batch of
  *                             R2 partition keys without charging anything.
@@ -46,10 +46,10 @@ type ArchiveDataset = "blocks" | "transactions" | "events";
 
 /**
  * Price per partition, in USD-micros (1 USD = 1_000_000 micros — matches
- * `usdToMicros`). Founder-approved 2026-08-16 (`design-f089-archive-fetch-gate.md`):
+ * `usdToMicros`). Founder-approved 2026-08-16:
  * $0.05 for blocks/transactions, $0.15 for events (~7x the rows). Lives in
- * `@secondlayer/platform/billing/prices` now — the one price table
- * (plan-049) — read here, never hardcoded twice. Server-only by design:
+ * `@secondlayer/platform/billing/prices` now — the one price table —
+ * read here, never hardcoded twice. Server-only by design:
  * changing a price is an API deploy, never a CLI release.
  */
 const PRICE_MICROS: Record<ArchiveDataset, bigint> = {

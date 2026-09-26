@@ -145,7 +145,7 @@ const EVENTS_ALLOWED = [
 	"var_name",
 	"caller",
 	"tx_id",
-	// Long-poll (plan-063 3.4) — /events only, not the ft/nft-transfers aliases
+	// Long-poll — /events only, not the ft/nft-transfers aliases
 	// or the other filtered routes below (no `longPollIndex` wiring for them).
 	"wait",
 ];
@@ -430,7 +430,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	// after auth, before the rate limiter.
 	router.use("*", indexCreditsGate());
 	router.use("*", indexRateLimit());
-	// No free-height window (plan-049): every keyed account reads full
+	// No free-height window: every keyed account reads full
 	// history. Rows past the monthly allowance are a paid read, not a
 	// blocked one.
 

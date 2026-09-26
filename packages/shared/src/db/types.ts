@@ -1006,7 +1006,7 @@ export type InsertAccountCredits = Insertable<AccountCreditsTable>;
 export type UpdateAccountCredits = Updateable<AccountCreditsTable>;
 
 /**
- * Archive fetch charge log (design-f089 gate). Append-only: one row per
+ * Archive fetch charge log. Append-only: one row per
  * priced attempt to fetch a partition object. `usd_micros` is 0 for
  * free rows (24h re-issue, monthly repair allowance).
  */

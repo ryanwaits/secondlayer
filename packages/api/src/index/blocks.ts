@@ -13,7 +13,7 @@ import {
 } from "./tip.ts";
 
 /** Window/pagination params the blocks list accepts. Blocks carry no content
- *  filters — height is the only axis. `wait` (plan-063 3.4) long-polls when
+ *  filters — height is the only axis. `wait` long-polls when
  *  the requested window has nothing new yet — see `../index/wait.ts`.
  *  `tip_only` skips the row query entirely, and `event_types` narrows which
  *  decoders that tip is judged by — see the doc on `getBlocksResponse`. */

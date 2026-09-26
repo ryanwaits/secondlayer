@@ -202,7 +202,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	// after auth, before the rate limiter.
 	router.use("*", streamsCreditsGate());
 	router.use("*", streamsRateLimit());
-	// No retention floor (plan-049): every account reads full history. Still
+	// No retention floor: every account reads full history. Still
 	// sets `streamsTip` for the /events handler below.
 	router.use("/events", async (c, next) => {
 		c.set("streamsTip", await getTip());
@@ -460,7 +460,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	router.get("/tip", async (c) => {
 		c.header("Cache-Control", streamsCacheControl(false));
 		const tip = await getTip();
-		// No retention floor (plan-049): every account reads full history, so
+		// No retention floor: every account reads full history, so
 		// there is no seekable floor to advertise anymore.
 		return respondSignedJson(c, {
 			...tip,

@@ -90,8 +90,8 @@ async function initWakeBus(): Promise<void> {
 			connectionString: url,
 		});
 		// Names the channel + the exact host/db LISTENed on (no credentials) so
-		// a split-DB misconfiguration (LISTEN on the wrong database — see
-		// plan-063's prod incident) is visible in `docker logs` at boot, not
+		// a split-DB misconfiguration (LISTEN on the wrong database — a real
+		// prod incident) is visible in `docker logs` at boot, not
 		// only inferred from a latency graph later.
 		logger.info("decoder wake listener connected", {
 			channel: "indexer:new_block",
@@ -243,7 +243,7 @@ async function runDecoder(
 }
 
 /**
- * One loop for all 11 classic decoders (plan-066): each wake reads every
+ * One loop for all 11 classic decoders: each wake reads every
  * classic checkpoint, scans the source DB once from the lowest of them
  * through the current source tip, and commits every advanced checkpoint +
  * decoded row together. Replaces 11 separate HTTP `runDecoder` loops.

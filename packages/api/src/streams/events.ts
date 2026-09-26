@@ -294,7 +294,7 @@ function joinFilterValue(value: unknown, name: string): string | undefined {
  * replaces). Override via `STREAMS_TIP_REORG_MARGIN_BLOCKS` for ops tuning.
  *
  * `tier === "internal"` (the seeded first-party decoder key, or a self-hosted
- * `INSTANCE_TOKEN`) reads at margin 0 instead (D1, plan-063) — the decoder
+ * `INSTANCE_TOKEN`) reads at margin 0 instead — the decoder
  * already rewinds decoded rows + checkpoints on reorg, so the margin buys it
  * nothing but latency. Public/account tenants keep the default margin.
  */

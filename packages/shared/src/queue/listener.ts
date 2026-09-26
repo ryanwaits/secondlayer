@@ -130,7 +130,7 @@ export type WakeBus = {
 /**
  * Start a `WakeBus` on `channel`. Callers that only need a fallback timer if
  * this fails should catch the rejection and keep polling — a wake bus is an
- * optimization, never the only path to progress (see plan-063 D3).
+ * optimization, never the only path to progress.
  */
 export async function createWakeBus(
 	channel: string,

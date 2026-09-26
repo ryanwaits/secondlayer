@@ -1,5 +1,5 @@
 /**
- * Index long-poll (plan-063 3.4). A request that names `wait` (seconds) holds
+ * Index long-poll. A request that names `wait` (seconds) holds
  * the connection open instead of answering immediately when it has nothing
  * new to report, and is woken the moment ANY decoder checkpoint commits
  * (`index:tip` NOTIFY, emitted from `writeCheckpoint` in

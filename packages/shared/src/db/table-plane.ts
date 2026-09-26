@@ -85,9 +85,9 @@ export const TABLE_TO_DB = {
 	subgraph_violations: "target",
 	subgraph_processing_stats: "target",
 	account_credits: "target",
-	// ── TARGET: archive fetch gate (design-f089) ──
+	// ── TARGET: archive fetch gate charge log ──
 	archive_fetches: "target",
-	// ── TARGET: metered ledger (plan-049) ──
+	// ── TARGET: metered ledger (one append-only row per billable event) ──
 	usage_ledger: "target",
 	// ── TARGET: public waitlist pages ──
 	waitlists: "target",

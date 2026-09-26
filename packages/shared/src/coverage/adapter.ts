@@ -161,7 +161,7 @@ async function writeCheckpoint(
 	// here, so this is the one place a `index:tip` NOTIFY can cover the whole
 	// decoder set. Postgres defers delivery until the transaction commits,
 	// so a rewound/rolled-back commit never fires it. A caller (the Index
-	// API's long-poll wake, plan-063) only needs to know "something committed,
+	// API's long-poll wake) only needs to know "something committed,
 	// go recheck" — it re-reads the real committed height itself, so the
 	// payload doesn't need to be more specific than the decoder name.
 	await sql`SELECT pg_notify('index:tip', ${decoderName})`.execute(tx);
@@ -267,7 +267,7 @@ export async function commitDecoderAdapter(
 /**
  * Same commit as {@link commitDecoderAdapter}, for several decoders sharing
  * ONE outer transaction and ONE read of the source events they were fed
- * from — the in-process classic-decoder loop's shape (plan-066): 11
+ * from — the in-process classic-decoder loop's shape: 11
  * checkpoints + their decoded rows land together, so a crash mid-batch
  * cannot leave one type's checkpoint ahead of another's rows.
  *

@@ -54,7 +54,7 @@ export const INDEX_RANGE_PARAMS = [
 	qp("to_height", "integer", false, "Last block height to read, inclusive."),
 ];
 
-/** Long-poll (plan-063): `/v1/index/events` and `/v1/index/blocks` only —
+/** Long-poll: `/v1/index/events` and `/v1/index/blocks` only —
  *  not every Index list, so this stays separate from `INDEX_RANGE_PARAMS`
  *  rather than overclaiming support on routes that don't wire it. */
 export const WAIT_PARAM = qp(
