@@ -402,6 +402,7 @@ async function main(): Promise<void> {
 
 	followController.abort();
 	notifier.close();
+	await followPromise;
 	assert(
 		followErrors.length === 0,
 		`runFollow threw: ${followErrors.map(String).join(", ")}`,
