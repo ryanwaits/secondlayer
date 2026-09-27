@@ -71,7 +71,7 @@ const ALL_TYPES = Object.keys(DECODERS) as StreamsEventType[];
 const PAGE_LIMIT = 1000;
 const DELETE_BATCH_BLOCKS = 50_000;
 
-type Args = {
+export type Args = {
 	fromHeight: number;
 	toHeight: number;
 	apply: boolean;
@@ -117,12 +117,27 @@ function parseArgs(argv: string[]): Args {
 	return { fromHeight, toHeight, apply, types };
 }
 
-async function main(): Promise<void> {
-	const args = parseArgs(process.argv.slice(2));
+export type RederiveDecodedEventsResult = {
+	deleted: number;
+	read: number;
+	decoded: number;
+	skipped: number;
+};
+
+/** Core logic, extracted from `main` so a caller (tests, `--derive` tooling)
+ *  can run it in-process without spawning the CLI. `main` below is a thin
+ *  argv/console wrapper around this. */
+export async function rederiveDecodedEvents(
+	args: Args,
+	opts?: {
+		onProgress?: (stats: {
+			read: number;
+			decoded: number;
+			skipped: number;
+		}) => void;
+	},
+): Promise<RederiveDecodedEventsResult> {
 	const db = getSourceDb();
-	console.log(
-		`[rederive-decoded-events] range [${args.fromHeight}, ${args.toHeight}] · types [${args.types.join(",")}] · ${args.apply ? "APPLY" : "dry-run"}`,
-	);
 
 	const typeList = sql.join(
 		args.types.map((t) => sql.lit(t)),
@@ -133,8 +148,8 @@ async function main(): Promise<void> {
 	// regenerated, so re-decode alone would leave them behind). Scoped to --types
 	// so other event types in the range are untouched. Batched so no single
 	// statement locks the whole table.
+	let deleted = 0;
 	if (args.apply) {
-		let deleted = 0;
 		for (
 			let lo = args.fromHeight;
 			lo <= args.toHeight;
@@ -148,9 +163,6 @@ async function main(): Promise<void> {
 			`.execute(db);
 			deleted += Number(res.numAffectedRows ?? 0n);
 		}
-		console.log(
-			`[rederive-decoded-events] deleted ${deleted} stale decoded rows`,
-		);
 	}
 
 	// Page the clean firehose over the bounded range, decode every type, write.
@@ -186,12 +198,8 @@ async function main(): Promise<void> {
 		}
 		decoded += rows.length;
 		if (args.apply && rows.length > 0) await writeDecodedEvents(rows, { db });
-
-		if (read % 50_000 < PAGE_LIMIT) {
-			console.log(
-				`  …read ${read} events, decoded ${decoded}, skipped ${skipped}`,
-			);
-		}
+		if (read % 50_000 < PAGE_LIMIT)
+			opts?.onProgress?.({ read, decoded, skipped });
 
 		if (!page.next_cursor) break;
 		const next = decodeStreamsCursor(page.next_cursor);
@@ -199,10 +207,38 @@ async function main(): Promise<void> {
 		after = next;
 	}
 
+	return { deleted, read, decoded, skipped };
+}
+
+async function main(): Promise<void> {
+	const args = parseArgs(process.argv.slice(2));
 	console.log(
-		`[rederive-decoded-events] DONE — read ${read}, decoded ${decoded}, skipped ${skipped}${args.apply ? " (written)" : " (dry-run, nothing written)"}`,
+		`[rederive-decoded-events] range [${args.fromHeight}, ${args.toHeight}] · types [${args.types.join(",")}] · ${args.apply ? "APPLY" : "dry-run"}`,
+	);
+	const result = await rederiveDecodedEvents(args, {
+		onProgress: ({ read, decoded, skipped }) =>
+			console.log(
+				`  …read ${read} events, decoded ${decoded}, skipped ${skipped}`,
+			),
+	});
+	if (args.apply) {
+		console.log(
+			`[rederive-decoded-events] deleted ${result.deleted} stale decoded rows`,
+		);
+	}
+	console.log(
+		`[rederive-decoded-events] DONE — read ${result.read}, decoded ${result.decoded}, skipped ${result.skipped}${args.apply ? " (written)" : " (dry-run, nothing written)"}`,
 	);
 	await closeDb();
 }
 
-void main();
+if (import.meta.main) {
+	main().catch(async (err) => {
+		console.error(
+			"rederive-decoded-events failed:",
+			err instanceof Error ? (err.stack ?? err.message) : err,
+		);
+		await closeDb().catch(() => {});
+		process.exit(1);
+	});
+}

@@ -41,7 +41,7 @@ export { BNS_DECODER_NAME };
 // excludes it if the upstream node ever delivers testnet events through this
 // stream. Server-side `contractId` filter (passed below in `consume`) targets
 // the mainnet contract — that drives the actual fetch volume.
-const BNS_V2_MAINNET_CONTRACT =
+export const BNS_V2_MAINNET_CONTRACT =
 	"SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2";
 const BNS_V2_CONTRACTS: readonly string[] = [
 	BNS_V2_MAINNET_CONTRACT,
@@ -302,6 +302,45 @@ async function seedCheckpointToTip(): Promise<string | null> {
 	if (!row) return null;
 	const eventIndex = row.max_event ?? 0;
 	return `${row.height}:${eventIndex}`;
+}
+
+export type BnsDecodedEvent =
+	| { kind: "name"; row: BnsNameEventRow }
+	| { kind: "namespace"; row: BnsNamespaceEventRow }
+	| { kind: "marketplace"; row: BnsMarketplaceEventRow };
+
+/**
+ * Decode one canonical BNS-V2 print event into whichever of the three event
+ * logs it belongs to (or `null` for a non-BNS / undecodable event). The exact
+ * dispatch `consumeBnsDecodedEvents` uses inline, factored out so a bounded
+ * window re-derive (`rederive-bns-events.ts`) can reuse it without
+ * duplicating the topic/status/`a`-key discriminator.
+ */
+export function decodeBnsPrintEvent(
+	event: StreamsEvent,
+): BnsDecodedEvent | null {
+	if (event.event_type !== "print" || event.contract_id === null) return null;
+	if (!BNS_V2_CONTRACTS.includes(event.contract_id)) return null;
+
+	const payload = decodeClarityPayload(event.payload);
+	if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+		return null;
+	}
+	const tuple = payload as Record<string, unknown>;
+
+	if (typeof tuple.topic === "string") {
+		const row = decodeNameEvent(event, tuple);
+		return row ? { kind: "name", row } : null;
+	}
+	if (typeof tuple.status === "string") {
+		const row = decodeNamespaceEvent(event, tuple);
+		return row ? { kind: "namespace", row } : null;
+	}
+	if (typeof tuple.a === "string") {
+		const row = decodeMarketplaceEvent(event, tuple);
+		return row ? { kind: "marketplace", row } : null;
+	}
+	return null;
 }
 
 // ── Name-event decoder (topic discriminator) ────────────────────────────────

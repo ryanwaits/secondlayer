@@ -28,6 +28,11 @@
  *   bun run packages/indexer/src/repair-from-journal.ts --from 8777879 --to 8964808 --verify-node
  *   bun run packages/indexer/src/repair-from-journal.ts --from 8777879 --to 8964808 --apply --derive
  */
+import {
+	DB_TO_STREAMS_EVENT_TYPE,
+	type StreamsDbEventType,
+	type StreamsEventType,
+} from "@secondlayer/shared";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
@@ -361,18 +366,29 @@ async function main(): Promise<void> {
 	if (args.derive && repairedHeights.length > 0) {
 		const from = Math.min(...repairedHeights);
 		const to = Math.max(...repairedHeights);
+		// decoded_events' --types wants the STREAMS vocab (stx_transfer, print, …),
+		// not the raw DB labels (stx_transfer_event, smart_contract_event, …) —
+		// and only the types decoded_events actually stores. Map + dedupe (print
+		// has two DB labels for the same streams type).
 		const { rows: typeRows } = await sql<{ type: string }>`
 			SELECT DISTINCT type FROM events
 			WHERE block_height >= ${from} AND block_height <= ${to}
-			ORDER BY type
 		`.execute(db);
-		const types = typeRows.map((r) => r.type).join(",");
+		const decodedEventsTypes = [
+			...new Set(
+				typeRows
+					.map((r) => DB_TO_STREAMS_EVENT_TYPE[r.type as StreamsDbEventType])
+					.filter((t): t is StreamsEventType => !!t),
+			),
+		].sort();
 		console.log(
 			`\nRe-derive commands for the repaired window [${from}, ${to}] — run AFTER this repair, never before (see the plan's warning about rows the source lacks):`,
 		);
-		console.log(
-			`  bun run packages/indexer/src/rederive-decoded-events.ts --from-height ${from} --to-height ${to} --types ${types} --apply`,
-		);
+		if (decodedEventsTypes.length > 0) {
+			console.log(
+				`  bun run packages/indexer/src/rederive-decoded-events.ts --from-height ${from} --to-height ${to} --types ${decodedEventsTypes.join(",")} --apply`,
+			);
+		}
 		console.log(
 			`  bun run packages/indexer/src/decode/backfill-from-firehose.ts --target sbtc_token --from-height ${from} --to-height ${to} --apply`,
 		);
@@ -383,7 +399,7 @@ async function main(): Promise<void> {
 			`  bun run packages/indexer/src/decode/rederive-bns-events.ts --from-height ${from} --to-height ${to} --apply`,
 		);
 		console.log(
-			`  bun run packages/indexer/src/contracts/rederive-registry.ts --from-height ${from} --to-height ${to} --apply`,
+			"  bun run packages/indexer/src/contracts/rederive-registry.ts --limit 2000   # no window — self-heals via discoverDeploys",
 		);
 	}
 

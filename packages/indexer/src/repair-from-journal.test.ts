@@ -118,7 +118,11 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 
 	test("dry-run reports exactly the txs missing from a height, and changes nothing", async () => {
 		if (!db) throw new Error("missing db");
-		const payload = nodePayload("0xblockH", ["0xtxA", "0xtxB", "0xtxC"]);
+		const payload = nodePayload("0xblockH", [
+			"0xrfjtxa",
+			"0xrfjtxb",
+			"0xrfjtxc",
+		]);
 		await seedJournal(db, payload);
 		await persistBlock(db, {
 			block: {
@@ -148,14 +152,14 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 		await db
 			.deleteFrom("transactions")
 			.where("block_height", "=", H)
-			.where("tx_id", "in", ["0xtxA", "0xtxB"])
+			.where("tx_id", "in", ["0xrfjtxa", "0xrfjtxb"])
 			.execute();
 
 		const diff = await diffHeightAgainstJournal(db, H);
 		expect(diff.status).toBe("diverged");
 		expect(diff.journalTxCount).toBe(3);
 		expect(diff.dbTxCount).toBe(1);
-		expect(diff.missingTxIds.sort()).toEqual(["0xtxA", "0xtxB"]);
+		expect(diff.missingTxIds.sort()).toEqual(["0xrfjtxa", "0xrfjtxb"]);
 		expect(diff.extraTxIds).toEqual([]);
 
 		// Dry-run (diff alone) touches nothing.
@@ -164,7 +168,7 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 			.select("tx_id")
 			.where("block_height", "=", H)
 			.execute();
-		expect(stillMissing.map((r) => r.tx_id)).toEqual(["0xtxC"]);
+		expect(stillMissing.map((r) => r.tx_id)).toEqual(["0xrfjtxc"]);
 
 		// --apply restores them.
 		await repairHeightFromJournal(db, H);
@@ -174,9 +178,9 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 			.where("block_height", "=", H)
 			.execute();
 		expect(restored.map((r) => r.tx_id).sort()).toEqual([
-			"0xtxA",
-			"0xtxB",
-			"0xtxC",
+			"0xrfjtxa",
+			"0xrfjtxb",
+			"0xrfjtxc",
 		]);
 
 		// A re-run reports 0 missing.
@@ -218,7 +222,7 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 
 	test("verify-node matches a complete block and mismatches a short one, against a stubbed node", async () => {
 		if (!db) throw new Error("missing db");
-		const txIds = ["0xtxA", "0xtxB"];
+		const txIds = ["0xrfjtxa", "0xrfjtxb"];
 		await persistBlock(db, {
 			block: {
 				height: H,
@@ -258,7 +262,7 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 		await db
 			.deleteFrom("transactions")
 			.where("block_height", "=", H)
-			.where("tx_id", "=", "0xtxB")
+			.where("tx_id", "=", "0xrfjtxb")
 			.execute();
 		const short = await verifyHeightAgainstNode(
 			db,
