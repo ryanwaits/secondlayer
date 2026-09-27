@@ -16,7 +16,12 @@ import {
 	stripNullBytes,
 } from "./parser.ts";
 import { persistBlock } from "./persist.ts";
-import { detectReorg, handleReorg } from "./reorg.ts";
+import {
+	RECONCILE_LOOKBACK_HEIGHTS,
+	detectReorg,
+	handleReorg,
+	reconcileReorgedRange,
+} from "./reorg.ts";
 import { validateStreamsEventPayload } from "./streams-payload-schema.ts";
 import type {
 	NewBlockPayload,
@@ -155,6 +160,46 @@ export async function ingestNewBlock(
 		// Replays through this same path, so a fork several blocks deep unwinds
 		// one height at a time. Each step is strictly lower, so this terminates.
 		await ingestNewBlock(settled.payload as NewBlockPayload);
+
+		// The settle above only re-establishes settled.height itself. A tx a
+		// same-height collision (or the old doNothing re-mine bug) moved off a
+		// LOWER height never shows up as a hash mismatch there — that height's
+		// block never changed — so self-heal a trailing window against the
+		// journal every time a reorg resettles. See reconcileReorgedRange.
+		//
+		// Caught, not propagated: the settle above already landed correctly (its
+		// own fail-loud assertion inside persistBlock covers that), and this is
+		// an additional backward-looking safety net, not a requirement for THIS
+		// block to count as ingested. It throws when a height in range has no
+		// journal payload — expected for internal producers that never journal
+		// (tests, auto-backfill replaying from local rows, pre-journal heights)
+		// — which must not crash a settle that otherwise succeeded.
+		try {
+			const tipRow = await db
+				.selectFrom("blocks")
+				.select("height")
+				.where("canonical", "=", true)
+				.orderBy("height", "desc")
+				.limit(1)
+				.executeTakeFirst();
+			const currentTip = tipRow ? Number(tipRow.height) : settled.height;
+			const reconciled = await reconcileReorgedRange(
+				db,
+				Math.max(1, settled.height - RECONCILE_LOOKBACK_HEIGHTS),
+				currentTip,
+			);
+			if (reconciled.repaired > 0) {
+				logger.warn("Post-reorg reconcile repaired heights the settle missed", {
+					settledHeight: settled.height,
+					...reconciled,
+				});
+			}
+		} catch (err) {
+			logger.error("Post-reorg reconcile could not verify its window", {
+				settledHeight: settled.height,
+				error: err instanceof Error ? err.message : String(err),
+			});
+		}
 	}
 
 	const reorgCheck = await detectReorg(

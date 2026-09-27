@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import { listen } from "@secondlayer/shared/queue/listener";
 import { type PersistBlockInput, persistBlock } from "./persist.ts";
+import { reconcileReorgedRange } from "./reorg.ts";
+import type { NewBlockPayload } from "./types/node-events.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const H = 990001;
@@ -49,6 +51,69 @@ function payload(
 	};
 }
 
+/** The raw `/new_block` shape the reconcile reads from `observer_journal` —
+ *  deliberately a different type from `payload()`'s `PersistBlockInput`, since
+ *  the reconcile parses the journal's node event JSON, not our internal
+ *  insert shape. */
+function nodePayload(
+	hash: string,
+	txId: string,
+	height: number = H,
+): NewBlockPayload {
+	return {
+		block_hash: hash,
+		block_height: height,
+		index_block_hash: `${hash}-ibh`,
+		parent_block_hash: "0xparent",
+		parent_index_block_hash: "0xparent-ibh",
+		burn_block_hash: "0xburn",
+		burn_block_height: 1,
+		timestamp: 1_700_000_000,
+		miner_txid: "0xminer",
+		transactions: [
+			{
+				txid: txId,
+				raw_tx: "0x00",
+				status: "success",
+				tx_index: 0,
+			},
+		],
+		events: [
+			{
+				txid: txId,
+				event_index: 0,
+				type: "stx_transfer_event",
+				stx_transfer_event: { sender: "SP1", recipient: "SP2", amount: "1" },
+			},
+		],
+	};
+}
+
+async function seedJournal(
+	db: NonNullable<ReturnType<typeof getDb>>,
+	block: NewBlockPayload,
+): Promise<void> {
+	await db
+		.insertInto("observer_journal")
+		.values({
+			network: NETWORK,
+			path: "/new_block",
+			source: "test",
+			raw_body: Buffer.from(JSON.stringify(block)),
+			raw_body_sha256: "test",
+			status: "processed",
+			semantic_sha256: null,
+			block_height: block.block_height,
+			block_hash: block.block_hash,
+			burn_block_height: block.burn_block_height,
+			burn_block_hash: block.burn_block_hash ?? null,
+			result: null,
+			error: null,
+			processed_at: new Date(),
+		})
+		.execute();
+}
+
 describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 	const db = HAS_DB ? getDb() : null;
 
@@ -85,6 +150,10 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		await db
 			.deleteFrom("vm_events_archive")
 			.where("block_height", "in", [H, H + 1])
+			.execute();
+		await db
+			.deleteFrom("observer_journal")
+			.where("network", "=", NETWORK)
 			.execute();
 	});
 
@@ -440,36 +509,60 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		expect(block?.hash).toBe("0xblockA");
 	});
 
-	test.failing(
-		"a tx stolen by a same-height collision at a fresh height is not restored anywhere once the true winner replaces the thief",
-		async () => {
-			if (!db) throw new Error("missing db");
+	test("a tx stolen by a same-height collision at a fresh height is restored by the post-reorg reconcile", async () => {
+		if (!db) throw new Error("missing db");
 
-			// W@H really contains T.
-			await persistBlock(db, payload("0xblockA", "0xtxT", H));
+		// W@H really contains T — and the journal holds the ground truth for it.
+		await seedJournal(db, nodePayload("0xblockA", "0xtxT", H));
+		await persistBlock(db, payload("0xblockA", "0xtxT", H));
 
-			// A losing block claims a FRESH height (H+1, never seen before) and
-			// also carries T. Nothing marks this a reorg — it's the first block
-			// seen at H+1 — so last-writer-wins moves T there.
-			await persistBlock(db, payload("0xblockLoser", "0xtxT", H + 1));
+		// A losing block claims a FRESH height (H+1, never seen before) and also
+		// carries T. Nothing marks this a reorg — it's the first block seen at
+		// H+1 — so last-writer-wins moves T there.
+		await persistBlock(db, payload("0xblockLoser", "0xtxT", H + 1));
 
-			// The chain's real block at H+1 replaces the loser and does not carry
-			// T. Replace-per-height deletes everything currently at H+1, including
-			// the stolen T — which was never really the loser's tx to begin with,
-			// and is now gone from both heights.
-			await persistBlock(db, payload("0xblockWinner", "0xtxOther2", H + 1));
+		// The chain's real block at H+1 replaces the loser and does not carry T.
+		// Replace-per-height deletes everything currently at H+1, including the
+		// stolen T — which was never really the loser's tx to begin with, and
+		// (absent the reconcile) is now gone from both heights.
+		await seedJournal(db, nodePayload("0xblockWinner", "0xtxOther2", H + 1));
+		await persistBlock(db, payload("0xblockWinner", "0xtxOther2", H + 1));
 
-			const atH = await db
-				.selectFrom("transactions")
-				.select(["tx_id"])
-				.where("block_height", "=", H)
-				.execute();
+		const beforeReconcile = await db
+			.selectFrom("transactions")
+			.select(["tx_id"])
+			.where("block_height", "=", H)
+			.execute();
+		expect(beforeReconcile).toHaveLength(0);
 
-			// T belongs at H. Without the post-reorg reconcile (step 2), it is
-			// simply gone — this documents the known gap until that lands.
-			expect(atH.map((t) => t.tx_id)).toEqual(["0xtxT"]);
-		},
-	);
+		const result = await reconcileReorgedRange(db, H, H + 1);
+		expect(result).toEqual({ checked: 2, repaired: 1 });
+
+		const atH = await db
+			.selectFrom("transactions")
+			.select(["tx_id"])
+			.where("block_height", "=", H)
+			.execute();
+		expect(atH.map((t) => t.tx_id)).toEqual(["0xtxT"]);
+
+		// H+1 already matched its own journal payload — left untouched.
+		const atHPlus1 = await db
+			.selectFrom("transactions")
+			.select(["tx_id"])
+			.where("block_height", "=", H + 1)
+			.execute();
+		expect(atHPlus1.map((t) => t.tx_id)).toEqual(["0xtxOther2"]);
+	});
+
+	test("reconcile fails loudly when a canonical height has no journal payload", async () => {
+		if (!db) throw new Error("missing db");
+		await persistBlock(db, payload("0xblockA", "0xtxA", H));
+		// No journal row seeded for H — the reconcile cannot verify it and must
+		// not silently skip it.
+		await expect(reconcileReorgedRange(db, H, H)).rejects.toThrow(
+			/no observer_journal payload/,
+		);
+	});
 
 	test("notifies indexer:new_block with the committed height only after commit", async () => {
 		if (!db) throw new Error("missing db");
