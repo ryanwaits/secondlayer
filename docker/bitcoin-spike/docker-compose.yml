@@ -57,5 +57,5 @@ services:
       - /etc/secondlayer-btc/btc.env
     mem_limit: 22g
     cpus: 6
-    command: bun run src/cli.ts follow
+    command: bun --smol run src/cli.ts follow
     restart: unless-stopped
