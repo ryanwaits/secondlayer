@@ -436,7 +436,9 @@ export function ConfigRow({
 				{headerText}
 			</span>
 			<span className="sep">·</span>
-			<span>{pluralize(webhook.maxRetries, "retry")}</span>
+			<span>
+				{webhook.maxRetries} {webhook.maxRetries === 1 ? "retry" : "retries"}
+			</span>
 			<span className="sep">·</span>
 			<span>{webhook.timeoutMs / 1000} s timeout</span>
 			<span className="sep">·</span>

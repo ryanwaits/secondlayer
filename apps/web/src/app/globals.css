@@ -2962,6 +2962,14 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 .wh-tbl .dim {
 	color: var(--text-muted);
 }
+/* The deliveries table's Event column (short tx + event index) — dropped
+   below 700px, where the table is already tight on space and the row's own
+   detail card (one tap away) has the full value anyway. */
+@media (max-width: 700px) {
+	.wh-tbl-event {
+		display: none;
+	}
+}
 
 /* List-page insight line (plan 068): one sev-tinted line under a row's own
  * cells, computed from the list summary alone (no per-row fetch). */

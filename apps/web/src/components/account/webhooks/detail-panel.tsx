@@ -42,7 +42,7 @@ import {
 import { DeliveryCard } from "./delivery-card";
 import { DiagnosisPanel } from "./diagnosis";
 import { AttemptRibbon } from "./ribbon";
-import { StatusPill, displayStatus } from "./shared";
+import { StatusPill, displayStatus, formatEventCell } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
 
 /** How often the detail bundle (webhook, deliveries, dead, activity)
@@ -876,6 +876,7 @@ function DeliveriesTable({
 						<tr>
 							<th>Sent (UTC)</th>
 							<th>Block</th>
+							<th className="wh-tbl-event">Event</th>
 							<th className="num">Try</th>
 							<th>Response</th>
 							<th className="num">Time</th>
@@ -906,6 +907,9 @@ function DeliveriesTable({
 										{r.blockHeight === null
 											? "–"
 											: r.blockHeight.toLocaleString("en-US")}
+									</td>
+									<td className="m wh-tbl-event">
+										{formatEventCell(r.txId, r.eventIndex)}
 									</td>
 									<td className="num">{r.attempt}</td>
 									<td>

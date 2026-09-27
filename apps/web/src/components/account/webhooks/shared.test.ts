@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { DoctorIssue } from "@secondlayer/sdk";
-import { countByDisplayStatus, displayStatus } from "./shared";
+import { countByDisplayStatus, displayStatus, formatEventCell } from "./shared";
 
 function issue(overrides: Partial<DoctorIssue> = {}): DoctorIssue {
 	return { code: "receiver_down", severity: "bad", ...overrides };
@@ -139,5 +139,29 @@ describe("countByDisplayStatus", () => {
 	test("an empty list counts zero for every status", () => {
 		expect(countByDisplayStatus([], "error")).toBe(0);
 		expect(countByDisplayStatus([], "active")).toBe(0);
+	});
+});
+
+describe("formatEventCell", () => {
+	test("shortens the tx id and appends the event index", () => {
+		expect(
+			formatEventCell(
+				"0x920af4720020f5aba341630e8965851f8537bc8fc99a856091093780c886a2c77",
+				408,
+			),
+		).toBe("0x920a…2c77 #408");
+	});
+
+	test("no tx id (a test delivery, or a compacted outbox row) reads as a dash", () => {
+		expect(formatEventCell(null, null)).toBe("–");
+		expect(formatEventCell(null, 3)).toBe("–");
+	});
+
+	test("a tx id with no event index (neither rowIndex nor event_index shape) omits the #", () => {
+		expect(formatEventCell("0xabc", null)).toBe("0xabc");
+	});
+
+	test("event index 0 still shows — it's a real position, not a missing value", () => {
+		expect(formatEventCell("0xabc", 0)).toBe("0xabc #0");
 	});
 });

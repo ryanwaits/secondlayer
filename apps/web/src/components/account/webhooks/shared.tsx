@@ -111,6 +111,18 @@ export function shortenPrincipal(value: string): string {
 	return dot > 0 ? `${shortAddr}${value.slice(dot)}` : shortAddr;
 }
 
+/** "0x920a…2c77 #408" for the deliveries table's Event column — a short tx
+ *  plus its position in that block/tx, or "–" without one (a test delivery,
+ *  or an event already compacted out of the outbox). */
+export function formatEventCell(
+	txId: string | null,
+	eventIndex: number | null,
+): string {
+	if (!txId) return "–";
+	const short = shortenPrincipal(txId);
+	return eventIndex === null ? short : `${short} #${eventIndex}`;
+}
+
 function formatTriggerFieldValue(key: string, value: unknown): string {
 	if (
 		(key === "minAmount" || key === "maxAmount") &&
