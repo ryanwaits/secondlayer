@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.14.2
+
+### Patch Changes
+
+- 7771458: Adds nullable `blocks.tx_count`, set at persist time, so downstream completeness checks can compare it against the actual `transactions` row count for a height. Adds `findShortBlocks` to the integrity query set.
+
 ## 11.14.1
 
 ### Patch Changes

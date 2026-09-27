@@ -1,5 +1,15 @@
 # @secondlayer/indexer
 
+## 1.16.6
+
+### Patch Changes
+
+- 7771458: Fail loud when a persisted block lands fewer txs than it received, self-heal a reorg's aftermath against the observer journal, and attest transaction membership (not just block identity) against the node's own tx merkle root. Integrity reports short blocks (`transactions` short of `blocks.tx_count`) alongside broken links.
+- 19039d1: Adds bounded window re-derive tools for pox5_events and the BNS event logs, and an immediate-trigger command for the contracts registry, matching the existing decoded_events / sbtc_token_events re-derive pattern — the downstream repair step after restoring a short block's source transactions from the observer journal.
+- 3a42ddb: Adds `repair-from-journal.ts`: diffs a canonical height's `transactions` against its own observer-journal payload and, with `--apply`, restores it through the normal persist path. Dry-run by default; `--verify-node` cross-checks the repaired tx set against the node's own tx merkle root.
+- Updated dependencies [7771458]
+  - @secondlayer/shared@11.14.2
+
 ## 1.16.5
 
 ### Patch Changes
