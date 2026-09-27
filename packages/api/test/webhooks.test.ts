@@ -454,6 +454,67 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		expect(withoutOutbox?.blockTime).toBeNull();
 	});
 
+	test("deliveries report the outbox row's tx id and its row_pk's event index", async () => {
+		const created = await app.request("/webhooks", {
+			method: "POST",
+			body: JSON.stringify({
+				name: "deliveries-event-index",
+				subgraphName: SUBGRAPH_NAME,
+				tableName: "transfers",
+				url: "https://example.com/webhook",
+			}),
+		});
+		const body = (await created.json()) as { webhook: { id: string } };
+		const webhookId = body.webhook.id;
+
+		const db = getDb();
+		const outbox = await db
+			.insertInto("webhook_outbox")
+			.values({
+				webhook_id: webhookId,
+				subgraph_name: SUBGRAPH_NAME,
+				table_name: "transfers",
+				block_height: 42,
+				tx_id: "0xindexed",
+				row_pk: { blockHeight: 42, txId: "0xindexed", rowIndex: 3 },
+				event_type: `${SUBGRAPH_NAME}.transfers.created`,
+				payload: { amount: "1" },
+				dedup_key: "deliveries-event-index-outbox",
+			})
+			.returning("id")
+			.executeTakeFirstOrThrow();
+
+		await db
+			.insertInto("webhook_deliveries")
+			.values([
+				{
+					webhook_id: webhookId,
+					outbox_id: outbox.id,
+					attempt: 1,
+					status_code: 200,
+				},
+				{
+					// No outbox row — txId and eventIndex must both be null.
+					webhook_id: webhookId,
+					outbox_id: null,
+					attempt: 1,
+					status_code: 200,
+				},
+			])
+			.execute();
+
+		const res = await app.request(`/webhooks/${webhookId}/deliveries`);
+		expect(res.status).toBe(200);
+		const { data } = (await res.json()) as {
+			data: Array<{ txId: string | null; eventIndex: number | null }>;
+		};
+		expect(data).toHaveLength(2);
+		const withOutbox = data.find((d) => d.txId !== null);
+		const withoutOutbox = data.find((d) => d.txId === null);
+		expect(withOutbox).toMatchObject({ txId: "0xindexed", eventIndex: 3 });
+		expect(withoutOutbox?.eventIndex).toBeNull();
+	});
+
 	async function createTestWebhook(name: string): Promise<string> {
 		const created = await app.request("/webhooks", {
 			method: "POST",
@@ -549,6 +610,57 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		for (const bucket of otherHours) {
 			expect(bucket.delivered + bucket.waiting + bucket.gaveUp).toBe(0);
 		}
+	});
+
+	test("activity's byEventType counts per event type in the 168-hour window, excluding older rows", async () => {
+		const webhookId = await createTestWebhook("activity-by-event-type");
+		const db = getDb();
+		const now = new Date();
+		const currentHour = new Date(
+			Math.floor(now.getTime() / 3_600_000) * 3_600_000,
+		);
+		const outsideWindow = new Date(currentHour.getTime() - 200 * 3_600_000);
+
+		await db
+			.insertInto("webhook_outbox")
+			.values([
+				outboxRow({
+					webhook_id: webhookId,
+					dedup_key: "by-event-type-transfer-1",
+					event_type: "chain.stx_transfer.apply",
+					created_at: currentHour,
+				}),
+				outboxRow({
+					webhook_id: webhookId,
+					dedup_key: "by-event-type-transfer-2",
+					event_type: "chain.stx_transfer.apply",
+					created_at: currentHour,
+				}),
+				outboxRow({
+					webhook_id: webhookId,
+					dedup_key: "by-event-type-print",
+					event_type: "chain.print_event.apply",
+					created_at: currentHour,
+				}),
+				// Older than the 168-hour window — must not be counted.
+				outboxRow({
+					webhook_id: webhookId,
+					dedup_key: "by-event-type-outside-window",
+					event_type: "chain.stx_transfer.apply",
+					created_at: outsideWindow,
+				}),
+			])
+			.execute();
+
+		const res = await app.request(`/webhooks/${webhookId}/activity`);
+		expect(res.status).toBe(200);
+		const activity = (await res.json()) as {
+			byEventType: Record<string, number>;
+		};
+		expect(activity.byEventType).toEqual({
+			"chain.stx_transfer.apply": 2,
+			"chain.print_event.apply": 1,
+		});
 	});
 
 	test("activity reports waiting count and next retry with no time bound, and the latest success", async () => {

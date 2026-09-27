@@ -429,6 +429,8 @@ app.get("/:id/deliveries", async (c) => {
 				"d.dispatched_at",
 				"o.block_height",
 				"o.block_time",
+				"o.tx_id",
+				"o.row_pk",
 			])
 			.where("d.webhook_id", "=", sub.id)
 			.orderBy("d.dispatched_at", "desc")
@@ -458,6 +460,8 @@ app.get("/:id/deliveries", async (c) => {
 			durationMs: r.duration_ms,
 			responseBody: r.response_body,
 			dispatchedAt: r.dispatched_at.toISOString(),
+			txId: r.tx_id,
+			eventIndex: eventIndexFromRowPk(r.row_pk),
 		})),
 	});
 });
@@ -496,7 +500,7 @@ app.get("/:id/activity", async (c) => {
 	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 
 	const db = getDb();
-	const [grouped, waitingRow, nextAttemptRow, lastSuccessRow] =
+	const [grouped, byEventTypeRows, waitingRow, nextAttemptRow, lastSuccessRow] =
 		await Promise.all([
 			db
 				.selectFrom("webhook_outbox")
@@ -515,6 +519,16 @@ app.get("/:id/activity", async (c) => {
 					sql`date_trunc('hour', created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
 				)
 				.groupBy("status")
+				.execute(),
+			// Same window and index as the hourly query above, grouped by
+			// `event_type` instead of hour × status — the config card's
+			// per-trigger volume (design 5).
+			db
+				.selectFrom("webhook_outbox")
+				.select(["event_type", db.fn.countAll<string>().as("n")])
+				.where("webhook_id", "=", sub.id)
+				.where("created_at", ">=", sql<Date>`now() - interval '168 hours'`)
+				.groupBy("event_type")
 				.execute(),
 			db
 				.selectFrom("webhook_outbox")
@@ -536,6 +550,11 @@ app.get("/:id/activity", async (c) => {
 				.where("status_code", "<", 300)
 				.executeTakeFirst(),
 		]);
+
+	const byEventType: Record<string, number> = {};
+	for (const row of byEventTypeRows) {
+		byEventType[row.event_type] = Number(row.n);
+	}
 
 	const byHour = new Map<
 		string,
@@ -567,6 +586,7 @@ app.get("/:id/activity", async (c) => {
 		lastSuccessAt: lastSuccessRow?.dispatched_at
 			? (lastSuccessRow.dispatched_at as Date).toISOString()
 			: null,
+		byEventType,
 	});
 });
 

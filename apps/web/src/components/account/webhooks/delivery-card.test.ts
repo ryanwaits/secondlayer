@@ -13,6 +13,8 @@ function row(id: string): DeliveryRow {
 		dispatchedAt: "2026-09-01T00:00:00.000Z",
 		blockHeight: 100,
 		blockTime: "2026-09-01T00:00:00.000Z",
+		txId: null,
+		eventIndex: null,
 	};
 }
 

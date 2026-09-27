@@ -45,6 +45,8 @@ function rateLimitedDelivery(
 		dispatchedAt: "2026-04-23T00:10:00.000Z",
 		blockHeight: null,
 		blockTime: null,
+		txId: null,
+		eventIndex: null,
 		...overrides,
 	};
 }
@@ -91,6 +93,8 @@ describe("formatDoctorReport", () => {
 			dispatchedAt: "2026-04-23T00:10:00.000Z",
 			blockHeight: null,
 			blockTime: null,
+			txId: null,
+			eventIndex: null,
 		}));
 		const report = buildDoctorReport({
 			webhook: { ...webhook, status: "paused" },
@@ -128,6 +132,8 @@ describe("formatDoctorReport", () => {
 					dispatchedAt: "2026-04-23T00:00:00.000Z",
 					blockHeight: null,
 					blockTime: null,
+					txId: null,
+					eventIndex: null,
 				},
 			],
 			dead: [],

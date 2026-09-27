@@ -46,6 +46,8 @@ const delivery = (statusCode: number | null): DeliveryRow => ({
 	dispatchedAt: "2026-04-23T00:00:00.000Z",
 	blockHeight: null,
 	blockTime: null,
+	txId: null,
+	eventIndex: null,
 });
 
 const deadRow: DeadRow = {
@@ -210,6 +212,8 @@ function mkDelivery(overrides: Partial<DeliveryRow> = {}): DeliveryRow {
 		dispatchedAt: "2026-04-23T00:00:00.000Z",
 		blockHeight: null,
 		blockTime: null,
+		txId: null,
+		eventIndex: null,
 		...overrides,
 	};
 }

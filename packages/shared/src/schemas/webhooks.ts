@@ -835,6 +835,13 @@ export interface DeliveryRow {
 	 *  deliveries, events already compacted out of the outbox, and rows
 	 *  written before this column existed. */
 	blockTime: string | null;
+	/** Null for test deliveries and events already compacted out of the
+	 *  outbox. */
+	txId: string | null;
+	/** The row's position within its block/tx, from the outbox's `row_pk`.
+	 *  Null for test deliveries, compacted rows, and rows with neither shape
+	 *  (a settlement or reorg outbox row). */
+	eventIndex: number | null;
 }
 
 /** One hour of `webhook_outbox` activity (`GET /:id/activity`), zero-filled
@@ -854,6 +861,10 @@ export interface WebhookActivity {
 	waiting: number;
 	nextAttemptAt: string | null;
 	lastSuccessAt: string | null;
+	/** 7-day counts per `event_type` (same 168-hour window as `hours`), e.g.
+	 *  `chain.stx_transfer.apply` or `<subgraph>.<table>.created` — the
+	 *  config card's per-trigger volume. */
+	byEventType: Record<string, number>;
 }
 
 /** One delivery attempt with its outbox context, for the delivery card

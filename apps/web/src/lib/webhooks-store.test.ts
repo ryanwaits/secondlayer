@@ -71,6 +71,7 @@ const emptyActivity: WebhookActivity = {
 	waiting: 0,
 	nextAttemptAt: null,
 	lastSuccessAt: null,
+	byEventType: {},
 };
 
 /** Routes a fake `/api/webhooks/...` call for one webhook id, and records
