@@ -46,6 +46,9 @@ export interface BlocksTable {
 	>;
 	timestamp: number;
 	canonical: Generated<boolean>;
+	/** Tx count `persistBlock` was handed for this height. Null on rows
+	 *  ingested before this column existed. */
+	tx_count: ColumnType<number | null, number | null | undefined, number | null>;
 	created_at: Generated<Date>;
 }
 

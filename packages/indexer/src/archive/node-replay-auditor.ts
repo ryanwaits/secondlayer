@@ -2,8 +2,12 @@ import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
-import { fetchNakamotoBlock } from "@secondlayer/shared/node/nakamoto";
+import {
+	fetchNakamotoBlock,
+	txMerkleRoot,
+} from "@secondlayer/shared/node/nakamoto";
 import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manifest";
+import { devnet, mainnet, mocknet, testnet } from "@secondlayer/stacks/chains";
 import type { Kysely } from "kysely";
 import { writeJsonFile } from "../streams-bulk/file.ts";
 
@@ -26,12 +30,17 @@ import { writeJsonFile } from "../streams-bulk/file.ts";
  *   4. Records a match, mismatch, or unavailable per height.
  *
  * Scope — what this attests, honestly:
- *   - Attested: `blocks` identity (`hash`, `index_block_hash`) per height.
- *   - Not attested by this pass: `transactions` (raw bytes are on the node but
- *     `raw_result` / `status` are execution outcomes the node does not expose),
- *     `events` (the node does not expose events at all — they arrive only via
- *     the observer callback). Both are declared `unattested-by-node` in the
- *     report so a consumer cannot mistake silence for approval.
+ *   - Attested: `blocks` identity (`hash`, `index_block_hash`) per height, and
+ *     `transactions` identity + membership — recomputing `txMerkleRoot` over
+ *     our stored txids (ordered by `tx_index`) and comparing it against the
+ *     node header's `tx_merkle_root` proves every txid we hold for a height
+ *     is one the node actually included there, and none is missing. It does
+ *     NOT attest execution: `raw_result` / `status` are outcomes the node
+ *     does not expose.
+ *   - Not attested by this pass: `events` (the node does not expose events at
+ *     all — they arrive only via the observer callback). Declared
+ *     `unattested-by-node` in the report so a consumer cannot mistake silence
+ *     for approval.
  *
  * The output is a `NodeAttestation` document. It is designed to be published
  * to R2 at `attestations/<snapshot_digest>/node.json`, though this module does
@@ -40,6 +49,11 @@ import { writeJsonFile } from "../streams-bulk/file.ts";
 
 export const NODE_ATTESTATION_SCHEMA_VERSION = 1 as const;
 export const NODE_ATTESTATION_KIND = "node" as const;
+
+export type BlockCheckMismatchField =
+	| "hash"
+	| "index_block_hash"
+	| "tx_merkle_root";
 
 export type BlockCheck =
 	| {
@@ -57,7 +71,7 @@ export type BlockCheck =
 			actual_hash: string;
 			expected_index_block_hash: string;
 			actual_index_block_hash: string;
-			mismatches: Array<"hash" | "index_block_hash">;
+			mismatches: BlockCheckMismatchField[];
 	  }
 	| {
 			height: number;
@@ -67,6 +81,86 @@ export type BlockCheck =
 			reason: string;
 	  };
 
+/** Boot address per network — the deployer of every boot contract (pox-2..5,
+ *  costs-*, bns, …). Only the node itself can act as this sender: it has no
+ *  private key, so no real user transaction can ever name it. */
+function bootAddressForNetwork(network: string): string {
+	switch (network) {
+		case "testnet":
+			return testnet.bootAddress;
+		case "devnet":
+			return devnet.bootAddress;
+		case "mocknet":
+			return mocknet.bootAddress;
+		default:
+			return mainnet.bootAddress;
+	}
+}
+
+export type AttestableTx = {
+	tx_id: string;
+	tx_index: number;
+	sender: string;
+	type: string;
+};
+
+/**
+ * A transaction the observer synthesizes for a boot-contract deploy at a
+ * hard-fork activation (e.g. pox-5 at Epoch 4.0, block 8,665,568) is never in
+ * the node's own raw block bytes — it isn't a broadcast transaction, so it
+ * carries no place in the consensus tx merkle tree. We store it anyway (it's
+ * real chain state), but a byte-for-byte replay of the node's header must
+ * exclude it or it will "mismatch" a block that is actually complete.
+ *
+ * Identified by sender: only the chain's boot address can appear as a
+ * `smart_contract` deployer here, and only the node — never a keyed user
+ * transaction — can produce that.
+ */
+export function isObserverSyntheticBootTx(
+	tx: Pick<AttestableTx, "sender" | "type">,
+	network: string,
+): boolean {
+	return (
+		tx.type === "smart_contract" && tx.sender === bootAddressForNetwork(network)
+	);
+}
+
+/** Our stored txids for a height, in consensus tx-merkle order, with
+ *  observer-synthetic boot-deploy txs excluded (see {@link isObserverSyntheticBootTx}). */
+export function attestedTxIds(txs: AttestableTx[], network: string): string[] {
+	return txs
+		.filter((tx) => !isObserverSyntheticBootTx(tx, network))
+		.sort((a, b) => a.tx_index - b.tx_index)
+		.map((tx) => tx.tx_id);
+}
+
+export type TxMerkleCheck =
+	| { status: "match"; computedRoot: string }
+	| { status: "mismatch"; computedRoot: string | null };
+
+/**
+ * Recompute `txMerkleRoot` over our stored txids for a height (boot-synthetic
+ * txs excluded) and compare it against the node header's own root. `null`
+ * `computedRoot` means we hold no attestable txs at all for the height — a
+ * complete block always has at least a coinbase, so that is itself a mismatch,
+ * not a special case.
+ */
+export function checkTxMerkleRoot(
+	txs: AttestableTx[],
+	network: string,
+	nodeTxMerkleRootHex: string,
+): TxMerkleCheck {
+	const ids = attestedTxIds(txs, network);
+	if (ids.length === 0) {
+		return { status: "mismatch", computedRoot: null };
+	}
+	const computedRoot = normalizeHash(txMerkleRoot(ids));
+	const expected = normalizeHash(nodeTxMerkleRootHex);
+	return computedRoot === expected
+		? { status: "match", computedRoot }
+		: { status: "mismatch", computedRoot };
+}
+
 export type NodeAttestation = {
 	schema_version: typeof NODE_ATTESTATION_SCHEMA_VERSION;
 	kind: typeof NODE_ATTESTATION_KIND;
@@ -75,9 +169,9 @@ export type NodeAttestation = {
 	generated_at: string;
 	node_url: string;
 	coverage: { from_block: number; to_block: number };
-	attested_datasets: Array<"blocks">;
+	attested_datasets: Array<"blocks" | "transactions">;
 	unattested_datasets: Array<{
-		dataset: "transactions" | "events";
+		dataset: "events";
 		reason: string;
 	}>;
 	stats: {
@@ -209,8 +303,9 @@ export async function runNodeReplayAudit(
 		height: number;
 		expectedHash: string;
 		expectedIbh: string | null;
+		txs: AttestableTx[];
 	}): Promise<BlockCheck> => {
-		const { height, expectedHash, expectedIbh } = row;
+		const { height, expectedHash, expectedIbh, txs } = row;
 		if (!expectedIbh) {
 			return {
 				height,
@@ -232,7 +327,13 @@ export async function runNodeReplayAudit(
 			const expectedIbhNorm = normalizeHash(expectedIbh);
 			const hashOk = actualHash === expected;
 			const ibhOk = actualIbh === expectedIbhNorm;
-			if (hashOk && ibhOk) {
+			const txMerkle = checkTxMerkleRoot(
+				txs,
+				options.network,
+				fetched.header.txMerkleRoot,
+			);
+			const txMerkleOk = txMerkle.status === "match";
+			if (hashOk && ibhOk && txMerkleOk) {
 				return {
 					height,
 					status: "match",
@@ -242,9 +343,10 @@ export async function runNodeReplayAudit(
 					actual_index_block_hash: actualIbh,
 				};
 			}
-			const which: Array<"hash" | "index_block_hash"> = [];
+			const which: BlockCheckMismatchField[] = [];
 			if (!hashOk) which.push("hash");
 			if (!ibhOk) which.push("index_block_hash");
+			if (!txMerkleOk) which.push("tx_merkle_root");
 			return {
 				height,
 				status: "mismatch",
@@ -282,10 +384,37 @@ export async function runNodeReplayAudit(
 		`.execute(db);
 		if (rows.length === 0) break;
 
+		const heights = rows.map((row) => Number(row.height));
+		type TxRow = {
+			block_height: string | number;
+			tx_id: string;
+			tx_index: string | number;
+			sender: string;
+			type: string;
+		};
+		const { rows: txRows } = await sql<TxRow>`
+			SELECT block_height, tx_id, tx_index, sender, type
+			  FROM transactions
+			 WHERE block_height = ANY(${heights})
+		`.execute(db);
+		const txsByHeight = new Map<number, AttestableTx[]>();
+		for (const t of txRows) {
+			const h = Number(t.block_height);
+			const list = txsByHeight.get(h) ?? [];
+			list.push({
+				tx_id: t.tx_id,
+				tx_index: Number(t.tx_index),
+				sender: t.sender,
+				type: t.type,
+			});
+			txsByHeight.set(h, list);
+		}
+
 		const normalized = rows.map((row) => ({
 			height: Number(row.height),
 			expectedHash: row.hash,
 			expectedIbh: row.index_block_hash,
+			txs: txsByHeight.get(Number(row.height)) ?? [],
 		}));
 
 		// Fire up to `concurrency` fetches at a time. `Promise.all` inside a
@@ -320,13 +449,8 @@ export async function runNodeReplayAudit(
 			from_block: options.fromBlock,
 			to_block: options.toBlock,
 		},
-		attested_datasets: ["blocks"],
+		attested_datasets: ["blocks", "transactions"],
 		unattested_datasets: [
-			{
-				dataset: "transactions",
-				reason:
-					"stacks-node does not expose transaction execution `raw_result` / `status`; identity attestation only",
-			},
 			{
 				dataset: "events",
 				reason:

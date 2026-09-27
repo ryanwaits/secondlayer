@@ -92,6 +92,7 @@ function fixtureBlock(
 			burn_block_height: height,
 			burn_block_hash: null,
 			index_block_hash: null,
+			tx_count: null,
 			timestamp: 1_700_000_000 + height,
 			canonical: true,
 			created_at: new Date(0),

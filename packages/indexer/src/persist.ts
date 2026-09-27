@@ -126,9 +126,13 @@ export async function persistBlock(
 		const isReorgReplacement =
 			existingBlock !== undefined && existingBlock.hash !== block.hash;
 
+		// tx_count is what THIS persist was handed, not whatever the caller put
+		// on `block` — it's the ground truth the completeness check compares
+		// `count(transactions at h)` against, so it must track the same `txs`
+		// array that actually gets inserted below.
 		await tx
 			.insertInto("blocks")
-			.values(block)
+			.values({ ...block, tx_count: txs.length })
 			// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
 			.onConflict((oc: any) =>
 				oc.column("height").doUpdateSet({
@@ -139,6 +143,7 @@ export async function persistBlock(
 					index_block_hash: block.index_block_hash,
 					timestamp: block.timestamp,
 					canonical: true,
+					tx_count: txs.length,
 				}),
 			)
 			.execute();

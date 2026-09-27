@@ -13,6 +13,7 @@ import {
 	computeContiguousTip,
 	countMissingBlocks,
 	findGaps,
+	findShortBlocks,
 } from "./integrity.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -155,3 +156,74 @@ describe.skipIf(!HAS_DB)(
 		});
 	},
 );
+
+describe.skipIf(!HAS_DB)("findShortBlocks", () => {
+	// biome-ignore lint/suspicious/noExplicitAny: test db handle
+	const db = HAS_DB ? getDb() : (null as any);
+	const SHORT = 810_001;
+	const HEALTHY = 810_002;
+
+	async function cleanup() {
+		await sql`DELETE FROM transactions WHERE block_height IN (${SHORT}, ${HEALTHY})`.execute(
+			db,
+		);
+		await sql`DELETE FROM blocks WHERE height IN (${SHORT}, ${HEALTHY})`.execute(
+			db,
+		);
+	}
+
+	beforeEach(cleanup);
+	afterAll(cleanup);
+
+	async function insertBlockWithTxCount(height: number, txCount: number) {
+		await db
+			.insertInto("blocks")
+			.values({
+				height,
+				hash: `0x${height.toString(16).padStart(64, "0")}`,
+				parent_hash: `0x${(height - 1).toString(16).padStart(64, "0")}`,
+				burn_block_height: height,
+				timestamp: Math.floor(Date.now() / 1000),
+				canonical: true,
+				tx_count: txCount,
+			})
+			.execute();
+	}
+
+	async function insertTx(height: number, txId: string, index: number) {
+		await db
+			.insertInto("transactions")
+			.values({
+				tx_id: txId,
+				block_height: height,
+				tx_index: index,
+				type: "contract_call",
+				sender: "SP1",
+				status: "success",
+				raw_tx: "0x00",
+			})
+			.execute();
+	}
+
+	test("reports a canonical height where transactions is short of blocks.tx_count", async () => {
+		await insertBlockWithTxCount(SHORT, 3);
+		await insertTx(SHORT, `0x${SHORT}a`, 0);
+		await insertTx(SHORT, `0x${SHORT}b`, 1);
+
+		const short = await findShortBlocks(db, { window: null });
+		const found = short.find((s) => s.height === SHORT);
+		expect(found).toEqual({
+			height: SHORT,
+			expectedTxCount: 3,
+			actualTxCount: 2,
+		});
+	});
+
+	test("does not report a height whose tx count matches tx_count", async () => {
+		await insertBlockWithTxCount(HEALTHY, 1);
+		await insertTx(HEALTHY, `0x${HEALTHY}a`, 0);
+
+		const short = await findShortBlocks(db, { window: null });
+		expect(short.find((s) => s.height === HEALTHY)).toBeUndefined();
+	});
+});

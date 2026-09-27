@@ -2,13 +2,25 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { txMerkleRoot } from "@secondlayer/shared/node/nakamoto";
 import {
+	type AttestableTx,
 	type BlockCheck,
 	type NodeAttestation,
+	attestedTxIds,
+	checkTxMerkleRoot,
 	emptyAuditBuckets,
+	isObserverSyntheticBootTx,
 	recordAuditOutcome,
 	writeNodeAttestation,
 } from "./node-replay-auditor.ts";
+
+const BOOT_ADDRESS = "SP000000000000000000002Q6VF78";
+/** A 32-byte hex txid filled with `n`, for merkle-root fixtures. */
+const txid = (n: number) => `0x${n.toString(16).padStart(64, "0")}`;
+const TX_A = txid(0xa);
+const TX_B = txid(0xb);
+const TX_BOOT = txid(0xf);
 
 /**
  * These tests exercise the audit report shape end-to-end (write path). A
@@ -36,11 +48,8 @@ describe("writeNodeAttestation", () => {
 			generated_at: "2026-01-01T00:00:00.000Z",
 			node_url: "http://localhost:20443",
 			coverage: { from_block: 0, to_block: 9 },
-			attested_datasets: ["blocks"],
-			unattested_datasets: [
-				{ dataset: "transactions", reason: "no receipts on node" },
-				{ dataset: "events", reason: "no events on node" },
-			],
+			attested_datasets: ["blocks", "transactions"],
+			unattested_datasets: [{ dataset: "events", reason: "no events on node" }],
 			stats: {
 				blocks_checked: 10,
 				matches: 10,
@@ -55,7 +64,7 @@ describe("writeNodeAttestation", () => {
 		expect(path).toEndWith("/attestations/abc123/node.json");
 		const parsed = JSON.parse(await readFile(path, "utf8")) as NodeAttestation;
 		expect(parsed.snapshot_digest).toBe("abc123");
-		expect(parsed.attested_datasets).toEqual(["blocks"]);
+		expect(parsed.attested_datasets).toEqual(["blocks", "transactions"]);
 	});
 
 	test("falls back to pending/ when no snapshot digest is known", async () => {
@@ -153,5 +162,87 @@ describe("recordAuditOutcome", () => {
 		expect(buckets.sampleMatches.map((row) => row.height)).toEqual([
 			1, 2, 3, 4, 5,
 		]);
+	});
+});
+
+describe("isObserverSyntheticBootTx", () => {
+	test("flags a smart_contract deploy from the mainnet boot address", () => {
+		expect(
+			isObserverSyntheticBootTx(
+				{ sender: BOOT_ADDRESS, type: "smart_contract" },
+				"mainnet",
+			),
+		).toBe(true);
+	});
+
+	test("does not flag a real user's smart_contract deploy", () => {
+		expect(
+			isObserverSyntheticBootTx(
+				{ sender: "SP1ABC", type: "smart_contract" },
+				"mainnet",
+			),
+		).toBe(false);
+	});
+
+	test("does not flag a non-deploy tx even from the boot address", () => {
+		expect(
+			isObserverSyntheticBootTx(
+				{ sender: BOOT_ADDRESS, type: "contract_call" },
+				"mainnet",
+			),
+		).toBe(false);
+	});
+});
+
+describe("checkTxMerkleRoot", () => {
+	function tx(
+		id: string,
+		index: number,
+		opts?: Partial<AttestableTx>,
+	): AttestableTx {
+		return {
+			tx_id: id,
+			tx_index: index,
+			sender: "SP1ABC",
+			type: "token_transfer",
+			...opts,
+		};
+	}
+
+	test("attests a complete block", () => {
+		const txs = [tx(TX_A, 0), tx(TX_B, 1)];
+		const nodeRoot = txMerkleRoot([TX_A, TX_B]);
+		expect(checkTxMerkleRoot(txs, "mainnet", nodeRoot)).toEqual({
+			status: "match",
+			computedRoot: nodeRoot.startsWith("0x") ? nodeRoot.slice(2) : nodeRoot,
+		});
+	});
+
+	test("a missing txid yields a merkle mismatch", () => {
+		const nodeRoot = txMerkleRoot([TX_A, TX_B]);
+		// We only hold TX_A — TX_B silently went missing.
+		const result = checkTxMerkleRoot([tx(TX_A, 0)], "mainnet", nodeRoot);
+		expect(result.status).toBe("mismatch");
+	});
+
+	test("excludes an observer-synthetic boot-deploy tx so a complete block still attests", () => {
+		// The node's raw block (and its real tx_merkle_root) never included the
+		// boot deploy — exactly the pox-5-at-8,665,568 shape (DB 3 vs node 2).
+		const nodeRoot = txMerkleRoot([TX_A, TX_B]);
+		const txs = [
+			tx(TX_A, 0),
+			tx(TX_B, 1),
+			tx(TX_BOOT, 2, { sender: BOOT_ADDRESS, type: "smart_contract" }),
+		];
+		expect(attestedTxIds(txs, "mainnet")).toEqual([TX_A, TX_B]);
+		expect(checkTxMerkleRoot(txs, "mainnet", nodeRoot).status).toBe("match");
+	});
+
+	test("a block with no attestable txs is a mismatch, not an empty pass", () => {
+		const nodeRoot = txMerkleRoot([TX_A]);
+		expect(checkTxMerkleRoot([], "mainnet", nodeRoot)).toEqual({
+			status: "mismatch",
+			computedRoot: null,
+		});
 	});
 });

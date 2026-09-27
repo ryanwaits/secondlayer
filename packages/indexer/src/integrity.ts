@@ -4,8 +4,9 @@ import {
 	countMissingBlocks,
 	findBrokenLinks,
 	findGaps,
+	findShortBlocks,
 } from "@secondlayer/shared/db/queries/integrity";
-import type { Gap } from "@secondlayer/shared/db/queries/integrity";
+import type { Gap, ShortBlock } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
 import { ingestNewBlock } from "./ingest.ts";
@@ -26,15 +27,19 @@ export const integrityState = {
 	autoBackfillUnfillable: [] as number[],
 	/** Canonical heights whose parent_hash does not match the block below. */
 	brokenLinks: [] as number[],
+	/** Canonical heights where `transactions` doesn't match `blocks.tx_count`. */
+	shortBlocks: [] as ShortBlock[],
 };
 
 // The windowed broken-link query only sees the last 10k blocks, so a break
 // further down used to scroll out of view unrepaired. Scan the whole chain on
 // start and then every FULL_SCAN_EVERY cycles (~hourly), and keep reporting
-// what it found in between.
+// what it found in between. Short blocks share the same cadence — same
+// window-then-full-scan tradeoff, same reason.
 const FULL_SCAN_EVERY = 12;
 let integrityRuns = 0;
 let fullScanLinks: number[] = [];
+let fullScanShortBlocks: ShortBlock[] = [];
 
 // Track when gaps were first seen (for 5-min cooldown)
 const gapFirstSeen = new Map<string, Date>();
@@ -54,6 +59,7 @@ async function runIntegrityCheck() {
 			fullScanLinks = (await findBrokenLinks(db, { window: null })).map(
 				(l) => l.height,
 			);
+			fullScanShortBlocks = await findShortBlocks(db, { window: null });
 		}
 		integrityRuns++;
 		const brokenLinks = await findBrokenLinks(db, { limit: 20 });
@@ -70,6 +76,28 @@ async function runIntegrityCheck() {
 				expectedParent: first?.expectedParent,
 				hint: "a block at this height is off-chain; re-ingest it from the node",
 			});
+		}
+
+		const shortBlocks = await findShortBlocks(db, { limit: 20 });
+		const shortBlocksByHeight = new Map(
+			[...fullScanShortBlocks, ...shortBlocks].map((s) => [s.height, s]),
+		);
+		integrityState.shortBlocks = [...shortBlocksByHeight.values()].sort(
+			(a, b) => a.height - b.height,
+		);
+		if (integrityState.shortBlocks.length > 0) {
+			const first = integrityState.shortBlocks[0];
+			logger.error(
+				"Integrity: canonical block holds fewer txs than persisted",
+				{
+					count: integrityState.shortBlocks.length,
+					heights: integrityState.shortBlocks.slice(0, 20).map((s) => s.height),
+					firstHeight: first?.height,
+					expectedTxCount: first?.expectedTxCount,
+					actualTxCount: first?.actualTxCount,
+					hint: "repair-from-journal.ts --heights <height>",
+				},
+			);
 		}
 
 		integrityState.lastCheckAt = new Date();

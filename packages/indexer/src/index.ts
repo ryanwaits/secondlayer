@@ -359,19 +359,22 @@ const server = Bun.serve({
 					? 0
 					: integrityState.totalMissing;
 
-			// A broken link outranks a gap: every height can be present while the
-			// chain still does not join up, which is how a losing-fork adoption
-			// stays invisible. Report it first so it cannot read as "healthy".
+			// A broken link or a short block outranks a gap: every height can be
+			// present — and every count can look complete — while the chain still
+			// doesn't join up, or a block holds fewer txs than it was persisted
+			// with. Report either first so it cannot read as "healthy".
 			const status =
 				integrityState.brokenLinks.length > 0
 					? "chain_unlinked"
-					: totalMissing === 0
-						? "healthy"
-						: integrityState.autoBackfillInProgress
-							? "degraded"
-							: integrityState.autoBackfillUnfillable.length > 0
-								? "gaps_unfillable"
-								: "gaps_detected";
+					: integrityState.shortBlocks.length > 0
+						? "short_blocks"
+						: totalMissing === 0
+							? "healthy"
+							: integrityState.autoBackfillInProgress
+								? "degraded"
+								: integrityState.autoBackfillUnfillable.length > 0
+									? "gaps_unfillable"
+									: "gaps_detected";
 
 			return Response.json({
 				status,
@@ -387,6 +390,7 @@ const server = Bun.serve({
 					unfillableHeights: integrityState.autoBackfillUnfillable.slice(0, 10),
 				},
 				brokenLinks: integrityState.brokenLinks.slice(0, 10),
+				shortBlocks: integrityState.shortBlocks.slice(0, 10),
 				observerJournal,
 			});
 		},

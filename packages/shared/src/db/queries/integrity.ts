@@ -130,6 +130,62 @@ export async function computeContiguousTip(
 	return Number(rows[0]?.tip ?? fromHeight);
 }
 
+export type ShortBlock = {
+	height: number;
+	expectedTxCount: number;
+	actualTxCount: number;
+};
+
+/**
+ * Canonical heights where `transactions` holds fewer (or more) rows than the
+ * block was supposed to. `blocks.tx_count` is set by `persistBlock` from the
+ * incoming block, so a mismatch means a later write silently moved or dropped
+ * a tx after that block was persisted — a reorg replaying the wrong height, a
+ * same-height tx_id collision, or a bug in the persist path itself. Ingest
+ * used to report the *parsed* count, not the inserted count, so this kind of
+ * short block was invisible; a skipped insert looked identical to success.
+ *
+ * Scoped to heights with `tx_count IS NOT NULL` — rows ingested before this
+ * column existed have no baseline to check against. Also scoped to a recent
+ * window by default (like `findBrokenLinks`): every new block sets
+ * `tx_count`, so the eligible range only grows, and a short block is an
+ * active-repair concern, not something worth a full-table scan every cycle.
+ */
+export async function findShortBlocks(
+	db: Kysely<Database>,
+	/** Heights below the tip to scan; `null` scans the whole chain. */
+	opts: { window?: number | null; limit?: number } = {},
+): Promise<ShortBlock[]> {
+	const windowSize = opts.window === undefined ? 10_000 : opts.window;
+	const limitClause = opts.limit ? sql`LIMIT ${opts.limit}` : sql``;
+	const windowClause =
+		windowSize === null
+			? sql``
+			: sql`AND b.height > (SELECT MAX(height) - ${windowSize} FROM blocks WHERE canonical = true)`;
+	const { rows } = await sql<{
+		height: string | number;
+		tx_count: number;
+		actual_count: string | number;
+	}>`
+		SELECT b.height, b.tx_count, COUNT(t.tx_id) AS actual_count
+		  FROM blocks b
+		  LEFT JOIN transactions t ON t.block_height = b.height
+		 WHERE b.canonical = true
+		   AND b.tx_count IS NOT NULL
+		   ${windowClause}
+		 GROUP BY b.height, b.tx_count
+		HAVING COUNT(t.tx_id) <> b.tx_count
+		 ORDER BY b.height
+		 ${limitClause}
+	`.execute(db);
+
+	return rows.map((r) => ({
+		height: Number(r.height),
+		expectedTxCount: Number(r.tx_count),
+		actualTxCount: Number(r.actual_count),
+	}));
+}
+
 export type BrokenLink = {
 	height: number;
 	hash: string;
