@@ -6501,7 +6501,7 @@
 					"updatedAt",
 					"filter",
 					"triggers",
-					"authConfig",
+					"auth",
 					"maxRetries",
 					"timeoutMs",
 					"concurrency",
@@ -6630,10 +6630,36 @@
 						},
 						"description": "Chain triggers. `null` for subgraph webhooks."
 					},
-					"authConfig": {
+					"auth": {
 						"type": "object",
-						"additionalProperties": true,
-						"description": "Per-format receiver credentials: `token` / `tokenEnc` for `trigger` and `cloudflare`, `headers` or `basicAuth` for `raw`."
+						"required": [
+							"type",
+							"headerNames",
+							"hasSecret"
+						],
+						"description": "Receiver credentials, redacted — set with `authConfig` on create or update, but never returned. `authConfig` is write-only.",
+						"properties": {
+							"type": {
+								"type": "string",
+								"enum": [
+									"bearer",
+									"basic",
+									"none"
+								],
+								"description": "Auth scheme the receiver expects."
+							},
+							"headerNames": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								},
+								"description": "Names of extra headers sent with each delivery. Values are never returned."
+							},
+							"hasSecret": {
+								"type": "boolean",
+								"description": "True when a bearer token or basic-auth string is set. The value itself is never returned."
+							}
+						}
 					},
 					"maxRetries": {
 						"type": "integer",
@@ -6696,7 +6722,11 @@
 							"contractId": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry"
 						}
 					],
-					"authConfig": {},
+					"auth": {
+						"type": "none",
+						"headerNames": [],
+						"hasSecret": false
+					},
 					"maxRetries": 7,
 					"timeoutMs": 10000,
 					"concurrency": 4,
@@ -6750,7 +6780,11 @@
 								"contractId": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry"
 							}
 						],
-						"authConfig": {},
+						"auth": {
+							"type": "none",
+							"headerNames": [],
+							"hasSecret": false
+						},
 						"maxRetries": 7,
 						"timeoutMs": 10000,
 						"concurrency": 4,
@@ -6979,7 +7013,7 @@
 					"authConfig": {
 						"type": "object",
 						"additionalProperties": true,
-						"description": "Per-format receiver credentials: `token` / `tokenEnc` for `trigger` and `cloudflare`, `headers` or `basicAuth` for `raw`."
+						"description": "Per-format receiver credentials: `token` / `tokenEnc` for `trigger` and `cloudflare`, `headers` or `basicAuth` for `raw`. Write-only — never returned; a read gets `auth` instead."
 					},
 					"maxRetries": {
 						"type": "integer",
@@ -7063,7 +7097,7 @@
 					"authConfig": {
 						"type": "object",
 						"additionalProperties": true,
-						"description": "Per-format receiver credentials: `token` / `tokenEnc` for `trigger` and `cloudflare`, `headers` or `basicAuth` for `raw`."
+						"description": "Per-format receiver credentials: `token` / `tokenEnc` for `trigger` and `cloudflare`, `headers` or `basicAuth` for `raw`. Write-only — never returned; a read gets `auth` instead."
 					},
 					"maxRetries": {
 						"type": "integer",
