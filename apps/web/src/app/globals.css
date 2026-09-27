@@ -3211,24 +3211,19 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	font-size: 13px;
 	color: var(--text-muted);
 }
-.wh-cfg-warn-line {
-	display: flex;
-	gap: 8px;
-	align-items: flex-start;
-	margin: 0;
-	font-size: 13px;
-	color: var(--text-muted);
+.wh-sumline-warn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--text-main);
 }
-.wh-cfg-warn-line i {
-	flex: none;
+.wh-sumline-warn i {
 	width: 6px;
 	height: 6px;
-	margin-top: 6px;
 	border-radius: 999px;
 	background: var(--yellow);
 }
-.wh-cfg-warn-line b {
-	color: var(--text-main);
+.wh-sumline-warn b {
 	font-weight: 500;
 }
 .wh-cfg-row {

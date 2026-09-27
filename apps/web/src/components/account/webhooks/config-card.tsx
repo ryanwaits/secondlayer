@@ -306,11 +306,19 @@ export function unfilteredTriggers(triggers: ChainTrigger[]): ChainTrigger[] {
 }
 
 /** The page's "Fires on … · See configuration" line, right under the
- *  title. */
+ *  title. An unfiltered chain trigger (it matches everything of its type,
+ *  usually a mistake or a deliberate, expensive choice) adds its daily
+ *  volume to this same line in the warning color, so the costly default is
+ *  never hidden and never takes a second line. */
 export function ConfigSummaryLine({
 	webhook,
+	activity,
 	onOpen,
-}: { webhook: WebhookDetail; onOpen: () => void }) {
+}: {
+	webhook: WebhookDetail;
+	activity: WebhookActivity | null;
+	onOpen: () => void;
+}) {
 	if (webhook.kind === "subgraph") {
 		const filterCount = Object.keys(webhook.filter).length;
 		return (
@@ -334,6 +342,20 @@ export function ConfigSummaryLine({
 		(sum, t) => sum + setTriggerFields(t).length,
 		0,
 	);
+	const unfiltered = unfilteredTriggers(triggers);
+	// Distinct types only: two unfiltered triggers of one type share a count.
+	const unfilteredPerDay = [...new Set(unfiltered.map((t) => t.type))].reduce(
+		(sum, type) =>
+			sum +
+			perDay(
+				triggerVolume(
+					unfiltered.find((t) => t.type === type) as ChainTrigger,
+					triggers,
+					activity,
+				).count,
+			),
+		0,
+	);
 	return (
 		<p className="wh-sumline">
 			Fires on{" "}
@@ -347,52 +369,22 @@ export function ConfigSummaryLine({
 			))}{" "}
 			· {pluralize(triggers.length, "trigger")},{" "}
 			{filterCount > 0 ? pluralize(filterCount, "filter") : "no filters"} ·{" "}
+			{unfiltered.length > 0 ? (
+				<>
+					<span className="wh-sumline-warn">
+						<i />
+						{unfiltered.length < triggers.length
+							? `${pluralize(unfiltered.length, "trigger")} unfiltered, `
+							: ""}
+						about <b>{n(unfilteredPerDay)}</b> events a day
+					</span>{" "}
+					·{" "}
+				</>
+			) : null}
 			<button type="button" className="wh-linklike" onClick={onOpen}>
 				See configuration
 			</button>
 		</p>
-	);
-}
-
-/** One line per unfiltered chain trigger, always visible on the page (never
- *  only inside the card) — design 4's rule that an expensive default never
- *  hides. */
-export function UnfilteredTriggerWarnings({
-	webhook,
-	activity,
-	onOpen,
-}: {
-	webhook: WebhookDetail;
-	activity: WebhookActivity | null;
-	onOpen: () => void;
-}) {
-	if (webhook.kind !== "chain") return null;
-	const triggers = webhook.triggers ?? [];
-	const unfiltered = unfilteredTriggers(triggers);
-	if (unfiltered.length === 0) return null;
-	return (
-		<>
-			{unfiltered.map((t, i) => {
-				const { count } = triggerVolume(t, triggers, activity);
-				return (
-					<p
-						className="wh-cfg-warn-line"
-						// biome-ignore lint/suspicious/noArrayIndexKey: unfiltered triggers are static per webhook
-						key={i}
-					>
-						<i />
-						<span>
-							<code className="wh-mono">{t.type}</code> has no filters: about{" "}
-							<b>{n(perDay(count))}</b> events a day, each a delivery and a
-							billed event.{" "}
-							<button type="button" className="wh-linklike" onClick={onOpen}>
-								See configuration
-							</button>
-						</span>
-					</p>
-				);
-			})}
-		</>
 	);
 }
 

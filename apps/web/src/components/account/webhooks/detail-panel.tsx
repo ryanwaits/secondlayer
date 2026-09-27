@@ -33,12 +33,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { LazyMonoStackedBarChart } from "./charts/lazy";
-import {
-	ConfigCard,
-	ConfigRow,
-	ConfigSummaryLine,
-	UnfilteredTriggerWarnings,
-} from "./config-card";
+import { ConfigCard, ConfigRow, ConfigSummaryLine } from "./config-card";
 import { DeliveryCard } from "./delivery-card";
 import { DiagnosisPanel } from "./diagnosis";
 import { AttemptRibbon } from "./ribbon";
@@ -548,8 +543,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 				</div>
 			</div>
 
-			<ConfigSummaryLine webhook={webhook} onOpen={() => openConfig("fires")} />
-			<UnfilteredTriggerWarnings
+			<ConfigSummaryLine
 				webhook={webhook}
 				activity={activity}
 				onOpen={() => openConfig("fires")}
