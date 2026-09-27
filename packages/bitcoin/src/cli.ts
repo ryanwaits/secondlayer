@@ -83,7 +83,7 @@ async function cmdBackfill(args: string[]): Promise<void> {
 	const start = Date.now();
 	let lastFlushHeight = -1;
 
-	await runBackfill({
+	const finalState = await runBackfill({
 		db,
 		rpc,
 		toHeight,
@@ -110,6 +110,20 @@ async function cmdBackfill(args: string[]): Promise<void> {
 	});
 
 	const totalS = ((Date.now() - start) / 1000).toFixed(1);
+
+	// A short checkpoint should be impossible given `runBackfill`'s own
+	// contract (it either resolves at `toHeight` or rejects — plan 076 step
+	// 2 closed the gap where it could silently stop early instead) — this is
+	// a last-resort backstop so "exited 0" always matches reality even if
+	// that contract is ever broken by a future change.
+	if ((finalState.height ?? -1) < toHeight) {
+		console.error(
+			`❌ backfill to ${toHeight} incomplete: checkpoint at ${finalState.height ?? "none"} after ${totalS}s`,
+		);
+		await db.destroy();
+		process.exit(1);
+	}
+
 	console.log(
 		`backfill to ${toHeight} complete (last flush ${lastFlushHeight}) in ${totalS}s`,
 	);
@@ -345,6 +359,14 @@ async function cmdFollow(): Promise<void> {
 				console.log(
 					`⚠️  reorg: rewound from ${oldCheckpointHeight} to fork point ${forkHeight}`,
 				);
+			},
+			onHeartbeat: ({ checkpointHeight, tipHeight, lag, stale }) => {
+				const line = `follow heartbeat: checkpoint=${checkpointHeight ?? "none"} tip=${tipHeight} lag=${lag}`;
+				if (stale) {
+					console.error(`🚨 STALE: ${line} (lag > 12 blocks for over 30 min)`);
+				} else {
+					console.log(line);
+				}
 			},
 		},
 		notifier,

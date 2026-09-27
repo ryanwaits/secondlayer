@@ -16,6 +16,7 @@ import {
 	type BlockNotifier,
 	type FollowDeps,
 	type ReorgInfo,
+	createHeartbeatTracker,
 	runFollow,
 	syncOnce,
 } from "./follow.ts";
@@ -23,6 +24,97 @@ import type { BitcoinRpcClient, BlockHeader } from "./rpc.ts";
 import { UNDO_DEPTH } from "./runes/undo.ts";
 
 const testUrl = process.env.BITCOIN_TEST_DATABASE_URL;
+
+const TEN_MINUTES_MS = 10 * 60 * 1000;
+const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+
+describe("createHeartbeatTracker", () => {
+	function fakeClock(start = 0): {
+		now: () => number;
+		advance: (ms: number) => void;
+	} {
+		let t = start;
+		return {
+			now: () => t,
+			advance: (ms: number) => {
+				t += ms;
+			},
+		};
+	}
+
+	test("does not report before HEARTBEAT_INTERVAL_MS has elapsed", () => {
+		const { now, advance } = fakeClock();
+		const tracker = createHeartbeatTracker(now);
+
+		expect(tracker.record(840_000, 840_000)).toBeUndefined();
+		advance(TEN_MINUTES_MS - 1);
+		expect(tracker.record(840_000, 840_000)).toBeUndefined();
+	});
+
+	test("reports once HEARTBEAT_INTERVAL_MS has elapsed, with lag and stale=false", () => {
+		const { now, advance } = fakeClock();
+		const tracker = createHeartbeatTracker(now);
+
+		advance(TEN_MINUTES_MS);
+		const info = tracker.record(840_000, 840_005);
+
+		expect(info).toEqual({
+			checkpointHeight: 840_000,
+			tipHeight: 840_005,
+			lag: 5,
+			stale: false,
+		});
+	});
+
+	test("resets the reporting clock after each report", () => {
+		const { now, advance } = fakeClock();
+		const tracker = createHeartbeatTracker(now);
+
+		advance(TEN_MINUTES_MS);
+		expect(tracker.record(1, 1)).toBeDefined();
+		advance(TEN_MINUTES_MS - 1);
+		expect(tracker.record(1, 1)).toBeUndefined();
+		advance(1);
+		expect(tracker.record(1, 1)).toBeDefined();
+	});
+
+	test("a checkpoint with no height yet (fresh DB) reports lag 0, not NaN", () => {
+		const { now, advance } = fakeClock();
+		const tracker = createHeartbeatTracker(now);
+
+		advance(TEN_MINUTES_MS);
+		const info = tracker.record(undefined, 840_000);
+
+		expect(info?.checkpointHeight).toBeUndefined();
+		expect(info?.lag).toBe(0);
+	});
+
+	test("lag above 12 for over 30 minutes reports stale=true", () => {
+		const { now, advance } = fakeClock();
+		const tracker = createHeartbeatTracker(now);
+
+		// Lag first exceeds 12 at t=0 (tracked on every record() call, not
+		// just the ones that report).
+		expect(tracker.record(100, 113)).toBeUndefined(); // lag=13, staleSince=0
+		advance(TEN_MINUTES_MS);
+		expect(tracker.record(100, 113)?.stale).toBe(false); // 10 min < 30 min stale threshold
+		advance(TEN_MINUTES_MS);
+		expect(tracker.record(100, 113)?.stale).toBe(false); // 20 min
+		advance(TEN_MINUTES_MS + 1);
+		expect(tracker.record(100, 113)?.stale).toBe(true); // 30 min + 1ms
+	});
+
+	test("lag dropping back to <=12 clears staleness, requiring a fresh 30 minutes", () => {
+		const { now, advance } = fakeClock();
+		const tracker = createHeartbeatTracker(now);
+
+		expect(tracker.record(100, 113)).toBeUndefined(); // lag=13, staleSince=0
+		advance(THIRTY_MINUTES_MS + 1);
+		expect(tracker.record(100, 112)?.stale).toBe(false); // lag=12 (not > 12): staleness clears
+		advance(THIRTY_MINUTES_MS + 1);
+		expect(tracker.record(100, 113)?.stale).toBe(false); // lag=13 again, but staleSince just reset to "now"
+	});
+});
 
 // --- A minimal, real (wire-format-valid) fake chain ---------------------
 // Coinbase-only blocks with no runestones: `verifyBlockIntegrity` (merkle

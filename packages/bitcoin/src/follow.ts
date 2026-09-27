@@ -54,6 +54,15 @@ export interface ReorgInfo {
 	oldCheckpointHeight: number;
 }
 
+/** `runFollow`'s periodic liveness snapshot — see `onHeartbeat` below. */
+export interface HeartbeatInfo {
+	checkpointHeight: number | undefined;
+	tipHeight: number;
+	lag: number;
+	/** True once `lag` has stayed above `STALE_LAG_BLOCKS` continuously for more than `STALE_AFTER_MS`. */
+	stale: boolean;
+}
+
 export interface FollowDeps {
 	db: Kysely<Database>;
 	rpc: BitcoinRpcClient;
@@ -61,6 +70,17 @@ export interface FollowDeps {
 	invariantReportDir?: string;
 	onBlock?: (info: { height: number; hash: string }) => void;
 	onReorg?: (info: ReorgInfo) => void;
+	/**
+	 * Called at most once every `HEARTBEAT_INTERVAL_MS` of wall-clock time by
+	 * `runFollow` with a checkpoint/tip/lag snapshot (plan 076) — `follow`
+	 * otherwise runs forever with no signal at all once it stops making
+	 * per-block progress (the original silent-hang bug: no log line, no
+	 * crash, just an idle process). `cli.ts` logs this, at error level when
+	 * `stale` is true; the Slack wiring for that stays in plan 062.
+	 */
+	onHeartbeat?: (info: HeartbeatInfo) => void;
+	/** Test seam: overrides `Date.now` for the heartbeat's interval/staleness tracking. */
+	now?: () => number;
 	/** Defaults to `Network.Bitcoin` (mainnet). Only ever overridden by the regtest reorg test (`test/regtest/`) — see `backfill.ts`'s `BackfillOptions.network`. */
 	network?: Network;
 	/** Defaults to `GENESIS_HEIGHT` (840,000). Regtest-test-only override — see `network`. */
@@ -228,6 +248,52 @@ export async function syncOnce(deps: FollowDeps): Promise<SyncResult> {
 	return { state, blocksApplied };
 }
 
+/** `runFollow`'s heartbeat cadence and staleness threshold (plan 076). */
+const HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000;
+const STALE_LAG_BLOCKS = 12;
+const STALE_AFTER_MS = 30 * 60 * 1000;
+
+/**
+ * Tracks `runFollow`'s liveness state across iterations and decides, on each
+ * `record()` call, whether it's time to report a heartbeat. Factored out
+ * (plan 076) so its interval/staleness bookkeeping is directly unit-testable
+ * against an injected clock, without driving a whole `runFollow` loop.
+ */
+export interface HeartbeatTracker {
+	/**
+	 * Called once per `runFollow` iteration with the checkpoint `syncOnce`
+	 * just produced and the live tip. Always updates the internal staleness
+	 * tracking; returns a `HeartbeatInfo` to report only once per
+	 * `HEARTBEAT_INTERVAL_MS` of wall-clock time, `undefined` otherwise.
+	 */
+	record(
+		checkpointHeight: number | undefined,
+		tipHeight: number,
+	): HeartbeatInfo | undefined;
+}
+
+/** `now` defaults to `Date.now`; a test passes a fake clock instead. */
+export function createHeartbeatTracker(
+	now: () => number = Date.now,
+): HeartbeatTracker {
+	let lastHeartbeatAt = now();
+	let staleSince: number | undefined;
+
+	return {
+		record(checkpointHeight, tipHeight) {
+			const t = now();
+			const lag = tipHeight - (checkpointHeight ?? tipHeight);
+			staleSince = lag > STALE_LAG_BLOCKS ? (staleSince ?? t) : undefined;
+
+			if (t - lastHeartbeatAt < HEARTBEAT_INTERVAL_MS) return undefined;
+			lastHeartbeatAt = t;
+
+			const stale = staleSince !== undefined && t - staleSince > STALE_AFTER_MS;
+			return { checkpointHeight, tipHeight, lag, stale };
+		},
+	};
+}
+
 /**
  * Runs `syncOnce` forever, waking on `notifier.notified()` (a real
  * `waitfornewblock` return, or the fallback poll noticing a new best hash).
@@ -236,14 +302,34 @@ export async function syncOnce(deps: FollowDeps): Promise<SyncResult> {
  * waiting for the first notification. Never returns on its own — the caller
  * stops it via `signal` (an `AbortController`, since `notifier.notified()`
  * doesn't otherwise have a way to be cancelled mid-wait).
+ *
+ * Every iteration also re-reads the live tip (`getblockcount`) and feeds it
+ * to a `HeartbeatTracker`, so a run that's genuinely falling behind — not
+ * just one that's hung, which the timeout/retry fix in `rpc.ts` now bounds —
+ * still produces a signal. A failed liveness check (the extra `getblockcount`
+ * call) is swallowed — it's a signal, not the critical path, and `syncOnce`
+ * itself is what surfaces a real RPC failure.
  */
 export async function runFollow(
 	deps: FollowDeps,
 	notifier: BlockNotifier,
 	signal?: AbortSignal,
 ): Promise<void> {
+	const heartbeat = createHeartbeatTracker(deps.now);
+
 	while (!signal?.aborted) {
-		await syncOnce(deps);
+		const { state } = await syncOnce(deps);
+
+		if (deps.onHeartbeat) {
+			try {
+				const tipHeight = await deps.rpc.getblockcount();
+				const info = heartbeat.record(state.height, tipHeight);
+				if (info) deps.onHeartbeat(info);
+			} catch {
+				// A failed liveness check shouldn't take down follow itself.
+			}
+		}
+
 		if (signal?.aborted) break;
 		await notifier.notified();
 	}

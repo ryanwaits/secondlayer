@@ -247,8 +247,18 @@ interface FetchedBlock {
  * small reorder buffer holds out-of-order completions). Each fetch also
  * resolves that block's commitment RPCs in parallel (plan 039 step 5) before
  * the block is yielded, so the sequential apply loop never awaits an RPC.
+ *
+ * Every launched fetch's outcome (success into `results`, failure into
+ * `errors`) is recorded via a handler attached at launch time — before the
+ * consumer ever awaits anything — so a rejection is never lost even if it
+ * lands while the consumer is busy applying a previously yielded block (plan
+ * 076: `.finally(() => inFlight.delete(p))` alone let a fetch's rejection
+ * vanish unobserved once nothing else referenced that promise, so once every
+ * other fetch drained, `Promise.race(inFlight)` on an empty set never
+ * settled and the whole process idled with nothing left to run the event
+ * loop — mid-run, backfill exited 0 short of its target).
  */
-async function* fetchBlocksInOrder(
+export async function* fetchBlocksInOrder(
 	rpc: BitcoinRpcClient,
 	from: number,
 	to: number,
@@ -259,6 +269,7 @@ async function* fetchBlocksInOrder(
 	if (total <= 0) return;
 
 	const results = new Map<number, FetchedBlock>();
+	const errors = new Map<number, unknown>();
 	let nextToFetch = from;
 	let nextToYield = from;
 
@@ -281,16 +292,29 @@ async function* fetchBlocksInOrder(
 		if (nextToFetch > to) return;
 		const height = nextToFetch;
 		nextToFetch += 1;
-		const p = fetchOne(height).finally(() => inFlight.delete(p));
+		const p = fetchOne(height)
+			.catch((error) => {
+				errors.set(height, error);
+			})
+			.finally(() => inFlight.delete(p));
 		inFlight.add(p);
 	}
 
 	for (let i = 0; i < concurrency && nextToFetch <= to; i++) launchNext();
 
 	while (nextToYield <= to) {
+		if (errors.has(nextToYield)) {
+			const error = errors.get(nextToYield);
+			errors.delete(nextToYield);
+			throw error;
+		}
 		if (!results.has(nextToYield)) {
-			// biome-ignore lint/style/noNonNullAssertion: inFlight is non-empty whenever nextToYield hasn't been fetched yet (loop invariant)
-			await Promise.race(inFlight)!;
+			if (inFlight.size === 0) {
+				throw new Error(
+					`fetchBlocksInOrder: no result or error for height ${nextToYield} and nothing in flight (invariant violated)`,
+				);
+			}
+			await Promise.race(inFlight);
 			continue;
 		}
 		const fetched = results.get(nextToYield) as FetchedBlock;
