@@ -216,7 +216,7 @@ self-hostable, parity-verified runtime covering Stacks and Bitcoin.
 
 | Tier | Stacks | Bitcoin |
 |---|---|---|
-| Streams (raw) | blocks, txs, events | blocks, txs |
+| Streams (raw) | blocks, txs, events | Runes events (`rune_*`); raw blocks/txs on request |
 | Index (generic decode) | ft / nft / stx / print | Runes, inscriptions (metadata) |
 | Protocol decoders | sBTC, pox-5 | none yet |
 
