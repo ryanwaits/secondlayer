@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import type {
 	WebhookActivity,
+	WebhookDeliveryDetail,
 	WebhookDetail,
 	WebhookSummary,
 } from "@secondlayer/sdk";
 import {
 	clearWebhooksData,
+	getDeliveryDetail,
 	poll,
 	prefetchDetail,
 	refreshDetail,
@@ -93,10 +95,75 @@ function stubFetch(webhookId: string) {
 		if (path === `/api/webhooks/${webhookId}/activity`) {
 			return jsonResponse(emptyActivity);
 		}
+		if (path.startsWith(`/api/webhooks/${webhookId}/deliveries/`)) {
+			const deliveryId = path.split("/").pop() ?? "";
+			return jsonResponse(deliveryDetail(deliveryId));
+		}
 		throw new Error(`unhandled path in test stub: ${path}`);
 	}) as typeof fetch;
 	return calls;
 }
+
+function deliveryDetail(id: string): WebhookDeliveryDetail {
+	return {
+		id,
+		attempt: 1,
+		statusCode: 200,
+		durationMs: 120,
+		dispatchedAt: "2026-09-01T00:00:00.000Z",
+		errorMessage: null,
+		responseBody: null,
+		responseHeaders: null,
+		outboxId: "outbox-1",
+		outboxStatus: "delivered",
+		eventType: "chain.stx_transfer.apply",
+		txId: "0xabc",
+		blockHeight: 100,
+		blockTime: "2026-09-01T00:00:00.000Z",
+		eventIndex: 0,
+		payload: { ok: true },
+	};
+}
+
+describe("getDeliveryDetail", () => {
+	test("caches a delivery by id and never refetches it — a delivery attempt is immutable", async () => {
+		const calls: string[] = [];
+		globalThis.fetch = (async (url: string) => {
+			calls.push(String(url));
+			return jsonResponse(deliveryDetail("d-1"));
+		}) as typeof fetch;
+
+		const first = await getDeliveryDetail("wh-1", "d-1");
+		expect(first).toEqual({ kind: "ok", data: deliveryDetail("d-1") });
+		expect(calls.length).toBe(1);
+
+		const second = await getDeliveryDetail("wh-1", "d-1");
+		expect(second).toEqual({ kind: "ok", data: deliveryDetail("d-1") });
+		// Same delivery id, second call: no network round trip at all.
+		expect(calls.length).toBe(1);
+	});
+
+	test("a different delivery id still fetches its own row", async () => {
+		const calls: string[] = [];
+		globalThis.fetch = (async (url: string) => {
+			calls.push(String(url));
+			const id = String(url).split("/").pop() ?? "";
+			return jsonResponse(deliveryDetail(id));
+		}) as typeof fetch;
+
+		await getDeliveryDetail("wh-1", "d-1");
+		await getDeliveryDetail("wh-1", "d-2");
+		expect(calls.length).toBe(2);
+	});
+
+	test("an error result is never cached", async () => {
+		globalThis.fetch = (async (_url: string) =>
+			jsonResponse({ error: "gone" }, 404)) as typeof fetch;
+		const res = await getDeliveryDetail("wh-1", "d-3");
+		expect(res).toEqual({ kind: "not_found" });
+		expect(webhooksSnapshot().deliveryDetail["d-3"]).toBeUndefined();
+	});
+});
 
 describe("refreshList", () => {
 	test("caches the rows on an ok result", async () => {
@@ -237,6 +304,8 @@ describe("clearWebhooksData", () => {
 		await refreshDetail("wh-6");
 		expect(webhooksSnapshot().list).toBeDefined();
 
+		await getDeliveryDetail("wh-6", "d-1");
+		expect(webhooksSnapshot().deliveryDetail["d-1"]).toBeDefined();
 		clearWebhooksData();
 		const cache = webhooksSnapshot();
 		expect(cache.list).toBeUndefined();
@@ -244,6 +313,7 @@ describe("clearWebhooksData", () => {
 		expect(cache.deliveries).toEqual({});
 		expect(cache.dead).toEqual({});
 		expect(cache.activity).toEqual({});
+		expect(cache.deliveryDetail).toEqual({});
 	});
 });
 

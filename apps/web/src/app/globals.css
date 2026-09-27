@@ -2480,6 +2480,13 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	flex-direction: column;
 	gap: 18px;
 }
+/* A flex item with its own `overflow` (e.g. `.wh-code`'s scrolling response
+   panel) otherwise gets an automatic min-height of 0 here, so a tall child
+   can squash everything above it — including the tab row — to zero height.
+   Every direct child keeps its natural height; only the card body scrolls. */
+.acct-card-body > * {
+	flex-shrink: 0;
+}
 .acct-card-foot {
 	display: flex;
 	flex-direction: column;

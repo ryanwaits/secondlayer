@@ -197,9 +197,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	const lastActivityAtRef = useRef<number | null>(null);
 
 	const [showAllDeliveries, setShowAllDeliveries] = useState(false);
-	const [openDeliveryIndex, setOpenDeliveryIndex] = useState<number | null>(
-		null,
-	);
+	const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null);
 
 	const [testBusy, setTestBusy] = useState(false);
 	const [testResult, setTestResult] = useState<{
@@ -669,10 +667,10 @@ export function WebhookDetailSection({ id }: { id: string }) {
 						showAll={showAllDeliveries}
 						onToggleShowAll={() => {
 							setShowAllDeliveries((v) => !v);
-							setOpenDeliveryIndex(null);
+							setOpenDeliveryId(null);
 						}}
-						openIndex={openDeliveryIndex}
-						onOpen={(i) => setOpenDeliveryIndex(i)}
+						openId={openDeliveryId}
+						onOpen={(deliveryId) => setOpenDeliveryId(deliveryId)}
 					/>
 				) : (
 					<FailedEventsTable
@@ -730,9 +728,9 @@ export function WebhookDetailSection({ id }: { id: string }) {
 				webhookUrl={webhook.url}
 				maxRetries={webhook.maxRetries}
 				rows={visibleDeliveries}
-				openIndex={openDeliveryIndex}
-				onClose={() => setOpenDeliveryIndex(null)}
-				onNavigate={(i) => setOpenDeliveryIndex(i)}
+				openId={openDeliveryId}
+				onClose={() => setOpenDeliveryId(null)}
+				onNavigate={(deliveryId) => setOpenDeliveryId(deliveryId)}
 			/>
 
 			<div className="wh-danger">
@@ -866,15 +864,15 @@ function DeliveriesTable({
 	visibleRows,
 	showAll,
 	onToggleShowAll,
-	openIndex,
+	openId,
 	onOpen,
 }: {
 	allRows: DeliveryRow[];
 	visibleRows: DeliveryRow[];
 	showAll: boolean;
 	onToggleShowAll: () => void;
-	openIndex: number | null;
-	onOpen: (index: number) => void;
+	openId: string | null;
+	onOpen: (deliveryId: string) => void;
 }) {
 	if (allRows.length === 0) {
 		return (
@@ -898,19 +896,19 @@ function DeliveriesTable({
 						</tr>
 					</thead>
 					<tbody>
-						{visibleRows.map((r, i) => {
+						{visibleRows.map((r) => {
 							const ok = r.statusCode !== null && r.statusCode < 300;
 							return (
 								<tr
 									key={r.id}
 									className="link"
 									tabIndex={0}
-									aria-selected={openIndex === i}
-									onClick={() => onOpen(i)}
+									aria-selected={openId === r.id}
+									onClick={() => onOpen(r.id)}
 									onKeyDown={(e) => {
 										if (e.key === "Enter" || e.key === " ") {
 											e.preventDefault();
-											onOpen(i);
+											onOpen(r.id);
 										}
 									}}
 								>

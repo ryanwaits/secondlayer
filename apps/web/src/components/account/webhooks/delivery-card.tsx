@@ -2,7 +2,8 @@
 
 import { FloatingCard } from "@/components/account/floating-card";
 import { CopyButton } from "@/components/copy-button";
-import { getDelivery, requeue } from "@/lib/webhooks-data";
+import { requeue } from "@/lib/webhooks-data";
+import { getDeliveryDetail } from "@/lib/webhooks-store";
 import type { DeliveryRow, WebhookDeliveryDetail } from "@secondlayer/sdk";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -128,12 +129,40 @@ function CodePanel({
 	);
 }
 
+/** The row `DeliveryCard` should show for `openId`: the live row when it's
+ *  still in `rows`, otherwise `previous` — the last row shown for this id.
+ *  A 10s poll reshuffles `rows` as new deliveries arrive, which can push the
+ *  open one past the visible slice; without this it would vanish out from
+ *  under an open card instead of just holding still. */
+export function resolveOpenRow(
+	rows: DeliveryRow[],
+	openId: string | null,
+	previous: DeliveryRow | null,
+): DeliveryRow | null {
+	if (openId === null) return null;
+	return rows.find((r) => r.id === openId) ?? previous;
+}
+
+/** The delivery id Newer/Older should jump to: one position toward newer or
+ *  older than `openId`, within `rows` — `null` at an edge, or once `openId`
+ *  has scrolled out of `rows` entirely (nothing to navigate relative to). */
+export function navigateDeliveryId(
+	rows: DeliveryRow[],
+	openId: string | null,
+	direction: "newer" | "older",
+): string | null {
+	const index = openId === null ? -1 : rows.findIndex((r) => r.id === openId);
+	if (index === -1) return null;
+	const nextIndex = direction === "newer" ? index - 1 : index + 1;
+	return rows[nextIndex]?.id ?? null;
+}
+
 export function DeliveryCard({
 	webhookId,
 	webhookUrl,
 	maxRetries,
 	rows,
-	openIndex,
+	openId,
 	onClose,
 	onNavigate,
 }: {
@@ -142,32 +171,41 @@ export function DeliveryCard({
 	maxRetries: number;
 	/** The visible rows (5 or up to 100), newest first — same order as the table. */
 	rows: DeliveryRow[];
-	openIndex: number | null;
+	openId: string | null;
 	onClose: () => void;
-	onNavigate: (index: number) => void;
+	onNavigate: (id: string) => void;
 }) {
-	const open = openIndex !== null;
-	const row = open && openIndex !== null ? (rows[openIndex] ?? null) : null;
+	const open = openId !== null;
+	const [snapshot, setSnapshot] = useState<DeliveryRow | null>(null);
+	const row = resolveOpenRow(rows, openId, snapshot);
 	const [detail, setDetail] = useState<WebhookDeliveryDetail | null>(null);
 	const [tab, setTab] = useState<DeliveryTab>("payload");
 	const [resending, setResending] = useState(false);
 
-	const rowId = row?.id ?? null;
+	// `row` (not `rows`) is the real dependency here — it's already the
+	// resolved value for the current `openId`/`rows` pair.
 	useEffect(() => {
-		if (!rowId) {
+		setSnapshot(row);
+	}, [row]);
+
+	useEffect(() => {
+		if (!openId) {
 			setDetail(null);
 			return;
 		}
 		setDetail(null);
 		setTab("payload");
 		let stopped = false;
-		getDelivery(webhookId, rowId).then((res) => {
+		getDeliveryDetail(webhookId, openId).then((res) => {
 			if (!stopped && res.kind === "ok") setDetail(res.data);
 		});
 		return () => {
 			stopped = true;
 		};
-	}, [rowId, webhookId]);
+	}, [openId, webhookId]);
+
+	const openIndex =
+		openId === null ? -1 : rows.findIndex((r) => r.id === openId);
 
 	if (!open || !row) return null;
 
@@ -213,8 +251,11 @@ export function DeliveryCard({
 						type="button"
 						className="acct-card-icon"
 						aria-label="Newer delivery"
-						disabled={openIndex === 0}
-						onClick={() => onNavigate((openIndex ?? 0) - 1)}
+						disabled={openIndex <= 0}
+						onClick={() => {
+							const id = navigateDeliveryId(rows, openId, "newer");
+							if (id) onNavigate(id);
+						}}
 					>
 						<svg
 							width="14"
@@ -234,8 +275,11 @@ export function DeliveryCard({
 						type="button"
 						className="acct-card-icon"
 						aria-label="Older delivery"
-						disabled={openIndex === rows.length - 1}
-						onClick={() => onNavigate((openIndex ?? 0) + 1)}
+						disabled={openIndex === -1 || openIndex === rows.length - 1}
+						onClick={() => {
+							const id = navigateDeliveryId(rows, openId, "older");
+							if (id) onNavigate(id);
+						}}
 					>
 						<svg
 							width="14"

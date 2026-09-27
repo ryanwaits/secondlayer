@@ -4,6 +4,7 @@ import type {
 	DeadRow,
 	DeliveryRow,
 	WebhookActivity,
+	WebhookDeliveryDetail,
 	WebhookDetail,
 	WebhookSummary,
 } from "@secondlayer/sdk";
@@ -13,6 +14,7 @@ import {
 	getActivity,
 	getDead,
 	getDeliveries,
+	getDelivery,
 	getWebhook,
 	listWebhooks,
 } from "./webhooks-data";
@@ -38,6 +40,10 @@ type State = {
 	deliveries: Record<string, CacheEntry<DeliveryRow[]>>;
 	dead: Record<string, CacheEntry<DeadRow[]>>;
 	activity: Record<string, CacheEntry<WebhookActivity>>;
+	/** Keyed by delivery id, not webhook id — a delivery attempt never
+	 *  changes once it's dispatched, so once one loads here it's good for the
+	 *  life of the tab; nothing ever refetches it. */
+	deliveryDetail: Record<string, CacheEntry<WebhookDeliveryDetail>>;
 };
 
 const EMPTY: State = {
@@ -46,6 +52,7 @@ const EMPTY: State = {
 	deliveries: {},
 	dead: {},
 	activity: {},
+	deliveryDetail: {},
 };
 
 let state: State = EMPTY;
@@ -166,6 +173,28 @@ export async function refreshActivity(
 	if (res.kind === "ok") {
 		set({
 			activity: { ...state.activity, [id]: { data: res.data, at: Date.now() } },
+		});
+	}
+	return res;
+}
+
+/** A single delivery's detail, by id — cached forever once loaded (a
+ *  delivery attempt is immutable), so the delivery card never refetches one
+ *  it already has, whether that's a reopen or a poll reshuffling the table
+ *  underneath an already-open card. */
+export async function getDeliveryDetail(
+	webhookId: string,
+	deliveryId: string,
+): Promise<WebhooksResult<WebhookDeliveryDetail>> {
+	const cached = state.deliveryDetail[deliveryId];
+	if (cached) return { kind: "ok", data: cached.data };
+	const res = await getDelivery(webhookId, deliveryId);
+	if (res.kind === "ok") {
+		set({
+			deliveryDetail: {
+				...state.deliveryDetail,
+				[deliveryId]: { data: res.data, at: Date.now() },
+			},
 		});
 	}
 	return res;
