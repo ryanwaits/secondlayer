@@ -31,6 +31,14 @@ The one-day free window and the Streams retention limit are gone. Any key reads 
 
 ## Webhooks — September 2026
 
+### Receiver credentials are write-only
+
+A webhook read (get, create, update, pause, resume, rotate-secret) no longer echoes back your bearer token, basic-auth string or header values. You get `auth: { type, headerNames, hasSecret }` instead: enough to see what's set, never the credential itself. Set it the same way as before, with `authConfig` on create or update. `secondlayer webhooks get` prints an `Auth` line ("bearer token (set, hidden), headers: x-team") in place of the old raw config dump.
+
+### A config card that explains what you'd otherwise have to guess
+
+The webhook detail page has a new Configuration card: a plain-English read of what each trigger matches, its own 7-day volume, and which fields aren't filtered. An unfiltered trigger gets a warning right on the page, not just inside the card, with the events-a-day estimate it's costing you. The deliveries table adds an Event column (a short transaction id plus its position in the block) so events from the same block stop looking like duplicates. Two bugs are fixed along the way: reopening a delivery no longer swaps to a different one when a poll reshuffles the table underneath it, and a tall response body no longer squashes the tab row to nothing.
+
 ### See what each webhook is doing at a glance
 
 A webhook's page now shows its events per hour for the last 7 days, split into delivered, waiting and gave up, plus your last 100 attempts as one strip, so a failure burst or a growing backlog shows up before you read a single row. When a check fires, its insight carries a graph as evidence: events piling up while your receiver is down, the share of 429s, response times against your timeout, or block-to-delivery lag. Click any delivery to see the payload we sent and what your receiver answered, highlighted and copyable. The status pill reads Failing when your receiver is. The same data is in the SDK: `webhooks.activity(id)` and `webhooks.delivery(id, deliveryId)`.
