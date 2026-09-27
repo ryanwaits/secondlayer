@@ -5385,9 +5385,11 @@ html.force-dark .shiki span {
 	grid-template-columns: minmax(0, 1fr) 200px;
 	margin-left: 248px;
 	max-width: clamp(1072px, calc(100vw - 368px), 1400px);
-	padding-top: 48px;
+	padding-top: 64px;
 }
-/* full-width product nav, fixed beside the sidebar — does not scroll */
+/* full-width product nav, fixed beside the sidebar — does not scroll.
+   Type, GitHub pill, and account chip reuse the marketing bar's classes
+   (.mnav-plain, .mnav-pill, .acct-chip); this rule only places the strip. */
 .docs-topnav {
 	position: fixed;
 	top: 0;
@@ -5397,42 +5399,19 @@ html.force-dark .shiki span {
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
-	gap: 1.25rem;
-	height: 48px;
+	gap: 2px;
+	height: 64px;
 	padding: 0 32px;
 	border-bottom: 1px solid var(--border);
-	background: color-mix(in srgb, var(--bg) 90%, transparent);
-	-webkit-backdrop-filter: blur(8px);
-	backdrop-filter: blur(8px);
+	background: color-mix(in srgb, var(--bg) 85%, transparent);
+	-webkit-backdrop-filter: blur(12px);
+	backdrop-filter: blur(12px);
 }
 .docs-content {
 	grid-column: 1;
 }
 .docs-toc {
 	grid-column: 2;
-}
-.docs-topnav-link {
-	font-family: var(--font-mono-stack);
-	font-size: 11px;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: var(--text-muted);
-	text-decoration: none;
-	transition: color 0.12s ease;
-}
-.docs-topnav-link:hover {
-	color: var(--text-main);
-}
-/* GitHub sits in the same quiet strip as its siblings; the icon is the only
-   thing distinguishing it, so keep it on the text baseline. */
-.docs-topnav-gh {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-}
-.docs-topnav-link[aria-current="page"] {
-	color: var(--text-main);
-	font-weight: 500;
 }
 
 .docs-nav {
@@ -5451,10 +5430,10 @@ html.force-dark .shiki span {
 }
 /* brand/home link at the top of the docs sidebar */
 .docs-nav-brand {
-	/* a 48px band that lines up with the top nav row */
+	/* a 64px band that lines up with the top nav row */
 	display: flex;
 	align-items: center;
-	height: 48px;
+	height: 64px;
 	margin: 0 0 22px 8px;
 	font-family: var(--font-heading-stack);
 	font-weight: 500;
@@ -5482,6 +5461,14 @@ html.force-dark .shiki span {
 	color: var(--text-muted);
 	text-decoration: none;
 	transition: color 0.12s ease, background 0.12s ease;
+}
+button.docs-nav-item {
+	width: 100%;
+	border: 0;
+	background: transparent;
+	cursor: pointer;
+	font: inherit;
+	text-align: left;
 }
 .docs-nav-item:hover {
 	color: var(--text-main);
@@ -5819,17 +5806,17 @@ html.force-dark .shiki span {
 }
 
 /* Pinned under the topnav and out of the content's scroll, like .docs-nav on
-   the left. It sticks at 48px rather than 0 because .docs-shell's 48px
+   the left. It sticks at 64px rather than 0 because .docs-shell's 64px
    padding-top is where this column already starts: with top:0 the element had
-   to travel that 48px before it caught, so it visibly drifted up with the body
+   to travel that 64px before it caught, so it visibly drifted up with the body
    on every page. Matching the two numbers means zero drift. Height subtracts
-   the same 48px, so the box ends at the viewport bottom instead of hanging
+   the same 64px, so the box ends at the viewport bottom instead of hanging
    past it and clipping the tail of a long list. */
 .docs-toc {
 	position: sticky;
-	top: 48px;
+	top: 64px;
 	align-self: start;
-	height: calc(100vh - 48px);
+	height: calc(100vh - 64px);
 	overflow-y: auto;
 	padding: 24px 22px 40px;
 }

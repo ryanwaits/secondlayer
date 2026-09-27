@@ -47,14 +47,14 @@ export const NAV: NavEntry[] = [
 
 /**
  * The "leave docs" strip. Docs already owns the sidebar; this is the way
- * back out.
+ * back out. Session chrome (Sign in / account chip) is not in this list —
+ * DocsTopNav and the mobile drawer read the session and paint it.
  */
 export const DOCS_STRIP: NavLink[] = [
 	{ label: "Home", href: "/" },
 	{ label: "Archive", href: "/archive" },
 	{ label: "Docs", href: "/docs" },
 	{ label: "Blog", href: "/writing" },
-	{ label: "Sign in", href: "/login" },
 ];
 
 function matches(pathname: string, href: string): boolean {

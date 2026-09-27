@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { DOCS_STRIP } from "@/lib/nav";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DOCS_NAV, docsNavPages } from "./docs/nav";
 
@@ -56,6 +57,18 @@ describe("www marketing routes", () => {
 		expect(html).not.toContain("our REST");
 		expect(html).not.toContain("our API");
 		expect(html).not.toContain("hosted indexer");
+	});
+});
+
+describe("docs site strip", () => {
+	test("session chrome is not hardcoded into the leave-docs links", () => {
+		expect(DOCS_STRIP.map((l) => l.label)).toEqual([
+			"Home",
+			"Archive",
+			"Docs",
+			"Blog",
+		]);
+		expect(DOCS_STRIP.map((l) => l.href)).not.toContain("/login");
 	});
 });
 

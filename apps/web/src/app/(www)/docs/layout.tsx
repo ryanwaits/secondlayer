@@ -1,4 +1,5 @@
 import { DocsTopNav } from "@/components/docs-top-nav";
+import { readGithubStars } from "@/lib/github-stars";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { DocsModeProvider, ModeToggle } from "./docs-mode";
@@ -28,16 +29,22 @@ export const metadata: Metadata = {
 	},
 };
 
-export default function DocsLayout({ children }: { children: ReactNode }) {
+export default async function DocsLayout({
+	children,
+}: {
+	children: ReactNode;
+}) {
+	const stars = await readGithubStars();
 	// The product nav lives inside the shell so it starts at the sidebar's right
-	// edge (the sidebar drives docs sub-navigation). AuthBar floats top-right.
-	// DocsView switches the body between the human reading view and the agent-doc.
+	// edge (the sidebar drives docs sub-navigation). Session chrome lives in
+	// DocsTopNav. DocsView switches the body between the human reading view
+	// and the agent-doc.
 	return (
 		<DocsModeProvider>
 			<DocsScrollTop />
 			<div className="docs-shell">
 				<DocsSidebar />
-				<DocsTopNav />
+				<DocsTopNav stars={stars} />
 				<main className="docs-content">
 					<DocsView>{children}</DocsView>
 				</main>

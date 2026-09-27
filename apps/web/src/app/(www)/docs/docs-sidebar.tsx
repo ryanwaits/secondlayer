@@ -3,6 +3,8 @@
 import { Logo } from "@/components/logo";
 import { MobileNavCta } from "@/components/mobile-nav-cta";
 import apiNav from "@/generated/openapi-nav.json";
+import { clearAccountData } from "@/lib/account-data";
+import { useAuth } from "@/lib/auth";
 import { DOCS_STRIP } from "@/lib/nav";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -216,6 +218,7 @@ function ApiReferenceNav({ active }: { active: string }) {
 
 export function DocsSidebar() {
 	const pathname = usePathname();
+	const { account, loading, logout } = useAuth();
 	const [open, setOpen] = useState(false);
 	const onReference = pathname === API_REFERENCE;
 	const activeSection = useActiveSection(onReference);
@@ -254,8 +257,8 @@ export function DocsSidebar() {
 
 	return (
 		<>
-			{/* Mobile bar: burger · wordmark · CTA. Replaces the topnav strip and
-			    the floating AuthBar below 768px; hidden on desktop. */}
+			{/* Mobile bar: burger · wordmark · CTA. Replaces the topnav strip
+			    below 768px; hidden on desktop. */}
 			<div className="docs-mobilebar">
 				<Link href="/" className="docs-mobilebar-brand">
 					<Logo size={22} />
@@ -311,6 +314,28 @@ export function DocsSidebar() {
 								{p.label}
 							</Link>
 						))}
+						{!loading && !account ? (
+							<Link href="/login" className="docs-nav-item">
+								Sign in
+							</Link>
+						) : null}
+						{account ? (
+							<Link href="/account/keys" className="docs-nav-item">
+								Account
+							</Link>
+						) : null}
+						{account ? (
+							<button
+								type="button"
+								className="docs-nav-item"
+								onClick={() => {
+									clearAccountData();
+									logout();
+								}}
+							>
+								Sign out
+							</button>
+						) : null}
 					</div>
 				</div>
 				{DOCS_NAV.map((group) => (
