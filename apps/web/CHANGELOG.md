@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.11.1
+
+### Patch Changes
+
+- 89b2e6e: A webhook with an unfiltered trigger no longer shows a second warning line under the title. Its daily event volume now sits in the "Fires on" summary line itself, in the warning color, with one "See configuration" link.
+
 ## 0.11.0
 
 ### Minor Changes
