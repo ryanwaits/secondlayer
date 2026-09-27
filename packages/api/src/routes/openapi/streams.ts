@@ -50,6 +50,30 @@ function signedJson200(
 	};
 }
 
+/** `chain=` (plan 059) — every Streams route accepts it. `bitcoin` serves
+ *  Runes events (`RuneStreamsEvent`) on their own cursor space instead of the
+ *  Stacks default; see that schema. */
+const CHAIN_PARAM = {
+	...qp(
+		"chain",
+		"string",
+		false,
+		"`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only.",
+	),
+	schema: { type: "string", enum: ["stacks", "bitcoin"], default: "stacks" },
+};
+
+/** `chain=bitcoin`-only filters on `/events` and `/events/stream`. */
+const BITCOIN_FILTER_PARAMS = [
+	qp(
+		"rune",
+		"string",
+		false,
+		"chain=bitcoin only. A RuneRef: an id (`840000:3`) or a name, spacers/case ignored (`DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon`, `doggotothemoon`).",
+	),
+	qp("address", "string", false, "chain=bitcoin only. A mainnet address."),
+];
+
 function limitParam(what: string) {
 	return {
 		name: "limit",
@@ -253,9 +277,11 @@ export const streamsPaths = {
 			description: `Canonical chain events in chain order: block height, then transaction position, then event position. Pages are capped at the tip minus a ${STREAMS_TIP_REORG_MARGIN_BLOCKS}-block reorg margin. With no cursor or \`from_height\`, the read starts ${STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS} blocks behind the tip. An empty filtered page still returns a \`next_cursor\` past \`to_height\`, so a consumer never stalls. Pages at or below \`tip.finalized_height\` are immutable: they carry an \`ETag\` and answer \`If-None-Match\` with 304.`,
 			security: READ_SECURITY,
 			parameters: [
+				CHAIN_PARAM,
 				limitParam("Events per page."),
 				...START_PARAMS,
 				...FILTER_PARAMS,
+				...BITCOIN_FILTER_PARAMS,
 			],
 			responses: (() => {
 				const base = envelope("events", {
@@ -294,9 +320,11 @@ export const streamsPaths = {
 				'Server-sent events over the same read as `/v1/streams/events`, with the same parameters. The server polls every 1.5 seconds by default (`STREAMS_SSE_POLL_MS`) and writes one frame per event: `id` is the event\'s cursor and `data` is `{ "event": <StreamsEvent> }`, or `{ "event", "sig", "key_id" }` with an ed25519 signature over the event\'s JSON when the instance has a signing key. After 20 seconds with no events it writes `event: ping` with empty data; ignore it. With no `cursor`, `from_cursor` or `from_height`, the tail starts at the current tip minus the reorg margin. `Last-Event-ID` is not read; to resume after a disconnect, reconnect with `from_cursor` set to the last `id` you processed.',
 			security: READ_SECURITY,
 			parameters: [
+				CHAIN_PARAM,
 				limitParam("Most events written per poll."),
 				...START_PARAMS,
 				...FILTER_PARAMS,
+				...BITCOIN_FILTER_PARAMS,
 			],
 			responses: {
 				"200": {
@@ -327,6 +355,7 @@ export const streamsPaths = {
 				"Reorgs the indexer recorded, oldest first. Page forward by passing `next_since` back as `since`.",
 			security: READ_SECURITY,
 			parameters: [
+				CHAIN_PARAM,
 				{
 					...qp(
 						"since",
@@ -379,17 +408,19 @@ export const streamsPaths = {
 				"The canonical Stacks block at one height and the Bitcoin block it anchors to. Finalized heights are cached for good and answer `If-None-Match` with 304; the `ETag` is the block hash.",
 			security: READ_SECURITY,
 			parameters: [
+				CHAIN_PARAM,
 				{
 					name: "height",
 					in: "path",
 					required: true,
 					schema: { type: "integer", minimum: 0, example: 9048876 },
-					description: "Stacks block height.",
+					description:
+						"Block height (Stacks by default, Bitcoin with chain=bitcoin).",
 				},
 			],
 			responses: {
 				"200": signedJson200(
-					"The canonical block",
+					"The canonical block. chain=bitcoin returns a StreamsBitcoinCanonicalBlock (btc block hash, no burn-chain fields) instead.",
 					{ $ref: "#/components/schemas/StreamsCanonicalBlock" },
 					{
 						ETag: {
@@ -416,10 +447,14 @@ export const streamsPaths = {
 			description:
 				"The newest canonical block this instance has indexed, the finality boundary, and how far back this caller can seek. Never cached.",
 			security: READ_SECURITY,
+			parameters: [CHAIN_PARAM],
 			responses: {
-				"200": signedJson200("The tip", {
-					$ref: "#/components/schemas/StreamsTip",
-				}),
+				"200": signedJson200(
+					"The tip. chain=bitcoin returns a StreamsBitcoinTip (no burn-chain or retention fields) instead.",
+					{
+						$ref: "#/components/schemas/StreamsTip",
+					},
+				),
 				"401": jsonError(ERROR_401),
 				"429": jsonError(STREAMS_429),
 				"503": jsonError(STREAMS_503),
@@ -599,6 +634,142 @@ export const streamsSchemas = {
 			burn_block_height: 968284,
 			burn_block_hash:
 				"0x00000000000000000001b1cadea50180db28922325872c9f16ca19edda3f8bae",
+			is_canonical: true,
+		},
+	},
+	RuneStreamsEvent: {
+		type: "object",
+		description:
+			"chain=bitcoin only (plan 059). A Runes event: rune_etch, rune_mint, rune_transfer or rune_burn, on its own cursor space (a cursor from chain=bitcoin only resumes with chain=bitcoin).",
+		required: [
+			"cursor",
+			"chain",
+			"block_height",
+			"block_hash",
+			"tx_id",
+			"tx_index",
+			"event_index",
+			"event_type",
+			"rune_id",
+			"payload",
+		],
+		properties: {
+			cursor: {
+				type: "string",
+				description: "`<block_height>:<event_index>`, bitcoin-chain relative.",
+			},
+			chain: { type: "string", const: "bitcoin" },
+			block_height: { type: "integer", description: "Bitcoin block height." },
+			block_hash: { type: "string", description: "That block's hash." },
+			tx_id: {
+				type: "string",
+				description: "Transaction that emitted the event.",
+			},
+			tx_index: { type: "integer", description: "Its position in the block." },
+			event_index: {
+				type: "integer",
+				description:
+					"The event's position among the block's Runes events, from 0.",
+			},
+			event_type: {
+				type: "string",
+				enum: ["rune_etch", "rune_mint", "rune_transfer", "rune_burn"],
+			},
+			rune_id: {
+				type: "string",
+				description: "`<block>:<tx>` id of the rune this event touched.",
+			},
+			payload: {
+				type: "object",
+				description:
+					"amount (u128 decimal string) always; vout and address on rune_transfer only; entry (the etched rune's identity, terms and supply inputs) on rune_etch only.",
+				additionalProperties: true,
+			},
+			finalized: {
+				type: "boolean",
+				description:
+					"`true` when the block is at or below `tip.finalized_height` and can no longer reorg.",
+			},
+		},
+		example: {
+			cursor: "840000:0",
+			chain: "bitcoin",
+			block_height: 840000,
+			block_hash:
+				"0000000000000000000320283a032748cef8227151f4bdd782bb6ff9ba46e97",
+			tx_id: "b0dc5c239d3b28108bd7d80f6de56dc7ffa9b8f0ac5f3c9baa2ffd6bb96f6dc9",
+			tx_index: 3,
+			event_index: 0,
+			event_type: "rune_etch",
+			rune_id: "840000:3",
+			payload: {
+				amount: "0",
+				entry: {
+					name: "DOGGOTOTHEMOON",
+					spaced_name: "DOG•GO•TO•THE•MOON",
+					symbol: "🐕",
+					divisibility: 5,
+					premine: "100000000000000",
+					turbo: false,
+					terms: {
+						amount: "100000",
+						cap: "340282366920938463463374607431768211455",
+						height_start: null,
+						height_end: null,
+						offset_start: null,
+						offset_end: null,
+					},
+				},
+			},
+			finalized: true,
+		},
+	},
+	StreamsBitcoinTip: {
+		type: "object",
+		description:
+			"chain=bitcoin tip (plan 059). No burn-chain or retention fields — Bitcoin has no burn chain of its own, and Runes reads have no retention ladder.",
+		required: ["block_height", "block_hash", "finalized_height", "lag_seconds"],
+		properties: {
+			block_height: {
+				type: "integer",
+				description: "Highest Bitcoin block Runes ingest has flushed.",
+			},
+			block_hash: { type: "string", description: "That block's hash." },
+			finalized_height: {
+				type: "integer",
+				description: "Highest block past the reorg-safety confirmation depth.",
+			},
+			lag_seconds: {
+				type: "integer",
+				description: "Seconds since this checkpoint was written.",
+			},
+		},
+		example: {
+			block_height: 870000,
+			block_hash:
+				"00000000000000000001a2b3c4d5e6f7890abcdef1234567890abcdef123456",
+			finalized_height: 869994,
+			lag_seconds: 42,
+		},
+	},
+	StreamsBitcoinCanonicalBlock: {
+		type: "object",
+		description:
+			"chain=bitcoin canonical block (plan 059). No burn-chain fields.",
+		required: ["block_height", "block_hash", "is_canonical"],
+		properties: {
+			block_height: { type: "integer", description: "Bitcoin block height." },
+			block_hash: { type: "string", description: "Bitcoin block hash." },
+			is_canonical: {
+				type: "boolean",
+				const: true,
+				description: "Always `true`.",
+			},
+		},
+		example: {
+			block_height: 840000,
+			block_hash:
+				"0000000000000000000320283a032748cef8227151f4bdd782bb6ff9ba46e97",
 			is_canonical: true,
 		},
 	},
