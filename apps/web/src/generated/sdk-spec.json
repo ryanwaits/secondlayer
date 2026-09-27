@@ -2031,7 +2031,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 287
+					"line": 299
 				},
 				{
 					"name": "DeadRow",
@@ -2039,7 +2039,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 374
+					"line": 397
 				},
 				{
 					"name": "DeliveryRow",
@@ -2047,7 +2047,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 296
+					"line": 308
 				},
 				{
 					"name": "ReplayResult",
@@ -2055,7 +2055,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 360
+					"line": 383
 				},
 				{
 					"name": "RotateSecretResponse",
@@ -2063,7 +2063,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 292
+					"line": 304
 				},
 				{
 					"name": "SbtcDepositEvent",
@@ -2127,7 +2127,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 321
+					"line": 340
 				},
 				{
 					"name": "WebhookActivityHour",
@@ -2135,7 +2135,15 @@
 					"summary": "One hour of `webhook_outbox` activity (`GET /:id/activity`), zero-filled so the events chart always has 168 bars.",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 314
+					"line": 333
+				},
+				{
+					"name": "WebhookAuth",
+					"kind": "interface",
+					"summary": "What a webhook's receiver credentials look like once redacted for a response — never the bearer token, basic-auth string, or header values themselves, only enough to show what's set.",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
+					"line": 275
 				},
 				{
 					"name": "WebhookDeliveryDetail",
@@ -2143,7 +2151,7 @@
 					"summary": "One delivery attempt with its outbox context, for the delivery card (`GET /:id/deliveries/:deliveryId`).",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 334
+					"line": 357
 				},
 				{
 					"name": "WebhookDetail",
@@ -2151,7 +2159,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 270
+					"line": 282
 				},
 				{
 					"name": "WebhookFormat",
@@ -2199,7 +2207,7 @@
 					"summary": "Result of a one-off test delivery (`POST /:id/test`).",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 367
+					"line": 390
 				}
 			]
 		},
@@ -2747,7 +2755,7 @@
 					"summary": "",
 					"signature": "Webhooks(options?: object): unknown",
 					"file": "src/webhooks/client.ts",
-					"line": 43
+					"line": 44
 				},
 				{
 					"name": "WithSinkTx",
