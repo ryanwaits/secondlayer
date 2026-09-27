@@ -220,6 +220,30 @@ export async function persistBlock(
 				.execute();
 		}
 
+		// Fail loud: the block is only "persisted" if every incoming tx actually
+		// landed at this height. A skipped insert (dropped by a conflict, moved by
+		// last-writer-wins to another height in the same beat, etc.) used to look
+		// identical to success — ingest reported the parsed count, not the inserted
+		// count. Throwing here rolls back the whole transaction, so a partial write
+		// is never committed; the observer sees a failure and the journal row is
+		// retried instead of silently losing the tx.
+		const expectedTxIds = new Set(txs.map((row) => row.tx_id as string));
+		const landedRows = await tx
+			.selectFrom("transactions")
+			.select("tx_id")
+			.where("block_height", "=", blockHeight)
+			.execute();
+		const landedTxIds = new Set(landedRows.map((row) => row.tx_id));
+		if (
+			landedTxIds.size !== expectedTxIds.size ||
+			[...expectedTxIds].some((id) => !landedTxIds.has(id))
+		) {
+			const missing = [...expectedTxIds].filter((id) => !landedTxIds.has(id));
+			throw new Error(
+				`persistBlock: incomplete write at height ${blockHeight} — expected ${expectedTxIds.size} txs, landed ${landedTxIds.size} (missing: ${missing.slice(0, 10).join(", ")})`,
+			);
+		}
+
 		for (let i = 0; i < evts.length; i += EVT_CHUNK_SIZE) {
 			await tx
 				.insertInto("events")

@@ -407,6 +407,70 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		]);
 	});
 
+	test("a write that lands fewer txs than the incoming block throws and leaves prior rows intact", async () => {
+		if (!db) throw new Error("missing db");
+		await persistBlock(db, payload("0xblockA", "0xtxA"));
+
+		// A duplicate tx_id inside one incoming block can never land as two rows:
+		// the chunked upsert hits the same conflict target twice in one statement
+		// and Postgres refuses it. That is exactly the shape the fail-loud
+		// assertion exists to catch generally — a persist that cannot possibly
+		// write every incoming tx must never commit a partial result.
+		const broken = payload("0xblockBroken", "0xtxA");
+		const firstTx = broken.txs[0];
+		if (!firstTx) throw new Error("payload tx");
+		broken.txs = [firstTx, { ...firstTx, tx_index: 1 }];
+
+		await expect(persistBlock(db, broken)).rejects.toThrow();
+
+		const txs = await db
+			.selectFrom("transactions")
+			.select(["tx_id", "block_height"])
+			.where("block_height", "=", H)
+			.execute();
+		const block = await db
+			.selectFrom("blocks")
+			.select(["hash"])
+			.where("height", "=", H)
+			.executeTakeFirst();
+
+		// Rolled back entirely — the original block A is still there, not
+		// half-replaced.
+		expect(txs.map((t) => t.tx_id)).toEqual(["0xtxA"]);
+		expect(block?.hash).toBe("0xblockA");
+	});
+
+	test.failing(
+		"a tx stolen by a same-height collision at a fresh height is not restored anywhere once the true winner replaces the thief",
+		async () => {
+			if (!db) throw new Error("missing db");
+
+			// W@H really contains T.
+			await persistBlock(db, payload("0xblockA", "0xtxT", H));
+
+			// A losing block claims a FRESH height (H+1, never seen before) and
+			// also carries T. Nothing marks this a reorg — it's the first block
+			// seen at H+1 — so last-writer-wins moves T there.
+			await persistBlock(db, payload("0xblockLoser", "0xtxT", H + 1));
+
+			// The chain's real block at H+1 replaces the loser and does not carry
+			// T. Replace-per-height deletes everything currently at H+1, including
+			// the stolen T — which was never really the loser's tx to begin with,
+			// and is now gone from both heights.
+			await persistBlock(db, payload("0xblockWinner", "0xtxOther2", H + 1));
+
+			const atH = await db
+				.selectFrom("transactions")
+				.select(["tx_id"])
+				.where("block_height", "=", H)
+				.execute();
+
+			// T belongs at H. Without the post-reorg reconcile (step 2), it is
+			// simply gone — this documents the known gap until that lands.
+			expect(atH.map((t) => t.tx_id)).toEqual(["0xtxT"]);
+		},
+	);
+
 	test("notifies indexer:new_block with the committed height only after commit", async () => {
 		if (!db) throw new Error("missing db");
 		const received: string[] = [];
