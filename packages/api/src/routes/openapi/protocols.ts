@@ -374,7 +374,7 @@ export const protocolsPaths = {
 						"signer",
 						"string",
 						false,
-						"Signer-manager contract on stake-side topics (`stake`, `stake-update`, `unstake`, `register-signer`, `register-for-bond`). A pool's claims and key grants carry it in `signer_manager` instead, so filter both to see a pool's full activity.",
+						"The signer: a signer-manager contract. Set on every topic that involves a signer, so `signer=` returns a pool's full activity.",
 					),
 					schema: {
 						type: "string",
@@ -386,7 +386,7 @@ export const protocolsPaths = {
 					"signer_manager",
 					"string",
 					false,
-					"Signer-manager contract on claim and grant topics (`claim-rewards`, `claim-staker-rewards-for-signer`, `grant-signer-key`, `revoke-signer-grant`). Stake-side topics carry it in `signer`.",
+					"The same principal, as printed on claim and grant topics (`claim-rewards`, `claim-staker-rewards-for-signer`, `grant-signer-key`, `revoke-signer-grant`). Kept for compatibility; `signer` covers it.",
 				),
 				qp("bond_index", "integer", false, "Bond index. Exact match."),
 				qp("reward_cycle", "integer", false, "Reward cycle. Exact match."),

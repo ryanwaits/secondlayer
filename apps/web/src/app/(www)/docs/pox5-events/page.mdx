@@ -31,7 +31,25 @@ const { events } = await sl.index.pox5.events.list({
 });
 ```
 
-Filters: `topic`, `staker`, `signer`, `signerManager`, `bondIndex`, `rewardCycle`, `fromHeight`, `toHeight`, `confirmed`.
+Filters: `topic`, `staker`, `signer`, `signerManager`, `bondIndex`, `rewardCycle`, `fromHeight`, `toHeight`, `confirmed`. `signer` covers a pool's claims and key grants too — the contract prints those under `signer-manager`, but it's the same principal, so `signer=` alone returns a pool's full activity. `signerManager` stays for compatibility.
+
+## Consume the print log
+
+`pox5.events.consume()` is the checkpointed sweep over the pox-5 print log: all 19 topics, or filtered to one:
+
+```ts
+await sl.index.pox5.events.consume({
+  signer: "SP…", // server-side; omit for every signer
+  fromCursor: await db.loadCheckpoint(),
+  fromHeight: 0,
+  onBatch: async (events, _envelope, ctx) => {
+    for (const e of events) await db.upsertPox5Event(e); // typed columns, no payload parsing
+    await db.saveCheckpoint(ctx.cursor);
+    return ctx.cursor;
+  },
+  onReorg: async (r) => db.deleteFromHeight(r.fork_point_height),
+});
+```
 
 ## Get a webhook on registrations
 

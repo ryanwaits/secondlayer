@@ -9,6 +9,10 @@ and hosted Index/Streams reads at `api.secondlayer.tools` draw
 
 ## Index — September 2026
 
+### `signer` now returns a pool's full pox-5 activity
+
+`claim-rewards`, `claim-staker-rewards-for-signer`, `grant-signer-key`, and `revoke-signer-grant` only ever printed `signer-manager`, so a pool had to query `signer=` and `signerManager=` and merge the results. The contract's own assertions make the two the same principal, so the decoder now fills `signer` on those topics too: `signer=` alone returns everything. `signerManager` stays for compatibility. `pox5.events.consume()` also ships: the same checkpointed paging, cursor saving, reorg rollback, and retries as `events`, `contractCalls`, and `sbtc.events`.
+
 ### Tip is per event type, not one number for everyone
 
 Each decoded event type runs its own decoder, and they don't all sit at the same height. `tip.block_height` on `/v1/index/events` (and `ft-transfers`/`nft-transfers`) now reports the committed height for the type you just read, instead of always reporting the `ft_transfer` decoder's checkpoint. A slower decoder no longer silently holds back reads of a type it isn't even feeding, and a type that's actually behind `ft_transfer` no longer serves rows past what it has decoded. Re-read `tip` per response if you cache it across event types. `/v1/index/blocks` and `/v1/index/transactions` are unchanged, on the ingest tip.
