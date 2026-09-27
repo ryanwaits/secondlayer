@@ -135,9 +135,9 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 	test("dry-run reports exactly the txs missing from a height, and changes nothing", async () => {
 		if (!db) throw new Error("missing db");
 		const payload = nodePayload("0xblockH", [
-			"0xrfjtxa",
-			"0xrfjtxb",
-			"0xrfjtxc",
+			"0xa0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+			"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+			"0xa2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
 		]);
 		await seedJournal(db, payload);
 		await persistBlock(db, {
@@ -168,14 +168,20 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 		await db
 			.deleteFrom("transactions")
 			.where("block_height", "=", H)
-			.where("tx_id", "in", ["0xrfjtxa", "0xrfjtxb"])
+			.where("tx_id", "in", [
+				"0xa0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+				"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+			])
 			.execute();
 
 		const diff = await diffHeightAgainstJournal(db, H);
 		expect(diff.status).toBe("diverged");
 		expect(diff.journalTxCount).toBe(3);
 		expect(diff.dbTxCount).toBe(1);
-		expect(diff.missingTxIds.sort()).toEqual(["0xrfjtxa", "0xrfjtxb"]);
+		expect(diff.missingTxIds.sort()).toEqual([
+			"0xa0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+			"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+		]);
 		expect(diff.extraTxIds).toEqual([]);
 
 		// Dry-run (diff alone) touches nothing.
@@ -184,7 +190,9 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 			.select("tx_id")
 			.where("block_height", "=", H)
 			.execute();
-		expect(stillMissing.map((r) => r.tx_id)).toEqual(["0xrfjtxc"]);
+		expect(stillMissing.map((r) => r.tx_id)).toEqual([
+			"0xa2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
+		]);
 
 		// --apply restores them.
 		await repairHeightFromJournal(db, H);
@@ -194,9 +202,9 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 			.where("block_height", "=", H)
 			.execute();
 		expect(restored.map((r) => r.tx_id).sort()).toEqual([
-			"0xrfjtxa",
-			"0xrfjtxb",
-			"0xrfjtxc",
+			"0xa0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+			"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+			"0xa2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
 		]);
 
 		// A re-run reports 0 missing.
@@ -238,7 +246,10 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 
 	test("verify-node matches a complete block and mismatches a short one, against a stubbed node", async () => {
 		if (!db) throw new Error("missing db");
-		const txIds = ["0xrfjtxa", "0xrfjtxb"];
+		const txIds = [
+			"0xa0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+			"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+		];
 		await persistBlock(db, {
 			block: {
 				height: H,
@@ -278,7 +289,11 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 		await db
 			.deleteFrom("transactions")
 			.where("block_height", "=", H)
-			.where("tx_id", "=", "0xrfjtxb")
+			.where(
+				"tx_id",
+				"=",
+				"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+			)
 			.execute();
 		const short = await verifyHeightAgainstNode(
 			db,
