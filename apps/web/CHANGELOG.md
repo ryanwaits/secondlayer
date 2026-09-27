@@ -1,5 +1,13 @@
 # @secondlayer/web
 
+## 0.11.2
+
+### Patch Changes
+
+- 7471189: The PoX-5 events docs page notes that `signer` now covers a pool's claims and key grants, and adds a `pox5.events.consume()` example next to `list`/`walk`.
+- Updated dependencies [94ada6f]
+  - @secondlayer/sdk@13.1.0
+
 ## 0.11.1
 
 ### Patch Changes

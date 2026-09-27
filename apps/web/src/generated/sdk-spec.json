@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "13.0.0",
+	"version": "13.1.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -320,7 +320,7 @@
 					"summary": "`index.ftTransfers` — callable shorthand for `.list()`, with `.list`/`.walk` still available: `await sl.index.ftTransfers({ contractId })`.",
 					"signature": "FtTransfersResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1324
+					"line": 1339
 				},
 				{
 					"name": "FtTransfersWalkParams",
@@ -336,7 +336,7 @@
 					"summary": "",
 					"signature": "Index(options?: object): unknown",
 					"file": "src/index-api/client.ts",
-					"line": 1426
+					"line": 1441
 				},
 				{
 					"name": "INDEX_MAX_PAGE_SIZE",
@@ -392,7 +392,7 @@
 					"summary": "The `GET /v1/index` discovery doc — live endpoint + filter vocabulary.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1421
+					"line": 1436
 				},
 				{
 					"name": "IndexEvent",
@@ -424,7 +424,7 @@
 					"summary": "`index.events` — callable shorthand for `.list()`; `eventType` is required.",
 					"signature": "IndexEventsResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1368
+					"line": 1383
 				},
 				{
 					"name": "IndexEventType",
@@ -440,7 +440,7 @@
 					"summary": "Per-event-type filter vocabulary in the {@link IndexDiscovery} doc.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1411
+					"line": 1426
 				},
 				{
 					"name": "IndexFeedEnvelope",
@@ -792,7 +792,7 @@
 					"summary": "`index.nftTransfers` — callable shorthand for `.list()` (see {@link FtTransfersResource}).",
 					"signature": "NftTransfersResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1347
+					"line": 1362
 				},
 				{
 					"name": "NftTransfersWalkParams",
@@ -801,6 +801,14 @@
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 175
+				},
+				{
+					"name": "Pox5EventsConsumeParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1245
 				},
 				{
 					"name": "Pox5EventsEnvelope",
@@ -832,7 +840,7 @@
 					"summary": "`index.pox5` — decoded PoX-5 print events, the staking primitive from the epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1247
+					"line": 1253
 				},
 				{
 					"name": "PoxCycleEnvelope",

@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 13.1.0
+
+### Minor Changes
+
+- 94ada6f: `index.pox5.events` gets `consume()`, matching `events`, `contractCalls`, and `sbtc.events`: checkpointed paging, cursor saving, reorg rollback, and retries, instead of hand-rolling `list`/`walk` into a loop.
+
+### Patch Changes
+
+- Updated dependencies [7491186]
+  - @secondlayer/shared@11.14.1
+
 ## 13.0.0
 
 ### Major Changes

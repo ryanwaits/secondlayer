@@ -1,5 +1,18 @@
 # @secondlayer/api
 
+## 1.43.13
+
+### Patch Changes
+
+- 7471189: The `/v1/index/pox5/events` `signer` and `signer_manager` param docs no longer tell you to filter both — `signer` now covers a pool's claims and key grants too, the same principal the contract prints as `signer_manager`.
+- Updated dependencies [94ada6f]
+- Updated dependencies [7491186]
+- Updated dependencies [4160e41]
+  - @secondlayer/sdk@13.1.0
+  - @secondlayer/shared@11.14.1
+  - @secondlayer/indexer@1.16.5
+  - @secondlayer/platform@0.3.18
+
 ## 1.43.12
 
 ### Patch Changes
