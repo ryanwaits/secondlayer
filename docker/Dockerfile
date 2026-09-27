@@ -38,6 +38,7 @@ COPY packages/stacks/package.json ./packages/stacks/
 COPY packages/bundler/package.json ./packages/bundler/
 COPY packages/scaffold/package.json ./packages/scaffold/
 COPY packages/platform/package.json ./packages/platform/
+COPY packages/bitcoin/package.json ./packages/bitcoin/
 # Install dependencies
 RUN bun install
 
@@ -56,6 +57,8 @@ COPY packages/worker ./packages/worker
 COPY packages/indexer ./packages/indexer
 COPY packages/bundler ./packages/bundler
 COPY packages/platform ./packages/platform
+# Runs from source (no build step); the api imports its db types and rune helpers.
+COPY packages/bitcoin ./packages/bitcoin
 COPY tsconfig.json ./
 
 # Build all server packages (stacks must be built first as a dependency)
@@ -81,6 +84,7 @@ COPY --from=builder /app/packages/indexer ./packages/indexer
 COPY --from=builder /app/packages/sdk ./packages/sdk
 COPY --from=builder /app/packages/api ./packages/api
 COPY --from=builder /app/packages/platform ./packages/platform
+COPY --from=builder /app/packages/bitcoin ./packages/bitcoin
 COPY --from=builder /app/package.json ./
 
 ENV NODE_ENV=production
@@ -189,6 +193,7 @@ COPY --from=builder /app/packages/indexer ./packages/indexer
 COPY --from=builder /app/packages/sdk ./packages/sdk
 COPY --from=builder /app/packages/api ./packages/api
 COPY --from=builder /app/packages/platform ./packages/platform
+COPY --from=builder /app/packages/bitcoin ./packages/bitcoin
 COPY --from=builder /app/package.json ./
 
 ENV NODE_ENV=production
