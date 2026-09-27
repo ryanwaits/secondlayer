@@ -1,0 +1,51 @@
+{
+	"schema_version": 1,
+	"id": "2026-09-27-short-blocks-at-deep-reorgs",
+	"date": "2026-09-27",
+	"title": "Transactions missing from 64 blocks after three deep reorgs",
+	"severity": "P1",
+	"affects_archive": true,
+	"summary": "677 transactions and 32,106 events in 64 blocks at 8,777,879, between 8,831,514 and 8,831,580, and between 8,964,785 and 8,964,808 were missing from Index, Streams and the archive after deep reorgs on Aug 16, Aug 24 and Sep 11. Block rows were correct, so block-level checks passed. The raw payloads in our observer journal were complete; the data was restored from them on 2026-09-27 and verified against the node's transaction merkle roots.",
+	"detection": "A PoX-5 cycle replay against the node disagreed with our indexed stake events. Tracing the gap showed blocks holding fewer transactions than the node reported. No existing check compared a block's transaction count with its stored rows.",
+	"root_cause": "When a transaction was re-mined into a lower height on the winning fork, ingest skipped it as already present, then deleted it along with the losing fork's height.",
+	"affected_heights": [
+		8777879, 8831514, 8831515, 8831516, 8831517, 8831518, 8831519, 8831520,
+		8831521, 8831522, 8831523, 8831524, 8831525, 8831526, 8831527, 8831528,
+		8831529, 8831530, 8831531, 8831532, 8831533, 8831534, 8831535, 8831536,
+		8831537, 8831538, 8831539, 8831540, 8831541, 8831542, 8831543, 8831544,
+		8831545, 8831546, 8831547, 8831548, 8831571, 8831572, 8831573, 8831574,
+		8831575, 8831576, 8831577, 8831578, 8831579, 8831580, 8964785, 8964786,
+		8964787, 8964788, 8964789, 8964790, 8964791, 8964792, 8964793, 8964794,
+		8964795, 8964796, 8964797, 8964798, 8964799, 8964800, 8964801, 8964808
+	],
+	"window": { "first": "2026-08-16", "last": "2026-09-11" },
+	"impact": "Reads for those heights omitted 677 transactions and 32,106 events, including sBTC token transfers, 3 PoX-5 stakes and 10 BNS marketplace events. Every archive snapshot whose coverage reached 8,777,879 carried the gap, as did the Streams dumps for 8,770,000 to 8,779,999, 8,830,000 to 8,839,999 and 8,960,000 to 8,969,999. Block data and block range digests were unaffected, so a default verify did not flag it.",
+	"fix": [
+		"All 64 blocks restored from the observer journal; each block's transaction set matches the node's merkle root",
+		"Decoded sBTC, PoX-5, BNS and contract registry rows rebuilt for the affected heights",
+		"Ingest now asserts the stored transaction set equals the incoming block and records each block's transaction count",
+		"Reorg handling reconciles re-mined transactions across a 200-height lookback",
+		"Archive republished and the three Streams dump ranges re-exported"
+	],
+	"prevention": [
+		"The integrity health check reports any block whose stored transactions fall short of its recorded count",
+		"The node replay auditor attests transaction membership against each block's merkle root, not just block hashes"
+	],
+	"verification": "Integrity reports zero short blocks. Decoded events equal raw events for the affected heights. The corrected snapshot passes verify with counts and semantic checks for 8,750,000 to 8,999,999; the superseded snapshot fails with a count mismatch on the three affected partitions.",
+	"superseded_snapshots": [
+		"a523b88ceb94d74f581268e290d899a3a76e2ea1fc6543d2cafa636a389dbaa6",
+		"c204117f0c312a1d57cb150a49d5eb62d82eab3a69dc316df41584cca4c9ec0e",
+		"b13b6bfd9f866088ddf31345c9f9e5f6d3c9fc14a3170970f3043ed033bda93d",
+		"1ddd9287bd269bd1ea36eae52702e52d9887d5cfb49aa2460a2e16f21efe4c39",
+		"f756746854dab6df08aab1d189a6036c7251fbfaddc51743cedca39d860890fb",
+		"3ad72345feb05d80e06133ea10cc675b11319eb9f8a005a4bb09db28162d3bf2",
+		"e4eab815eb54974a147d9383e4fe680a8bb44c9d0de2efac840cccaf3f3a595e",
+		"f0dc3fbe21d2bf869d9ff5fe26e55d492ae5d3b98e235b6bf000007b0b2ada54",
+		"ed1d7385502f20d7918ace2c993981f24e82afbc75b0f2b81b517102563031df",
+		"dd8ce8c23bf539c44be4794544a23f073379347b2f1a8fe8cb1a0ef0872c673d",
+		"d1db4af398e9a0418095a48beef1c6c595070df3398f92ef16ef0fdb10daed1b",
+		"c71cddc128bf60303e66ad9cbcde11dee121ee17ee1a66781b1337d9d4919960"
+	],
+	"corrected_snapshot": "__CORRECTED_DIGEST__",
+	"consumer_action": "If you bootstrapped from a superseded snapshot, run `secondlayer verify raw --counts` for 8,750,000 to 8,999,999. If it reports a mismatch, re-bootstrap into an empty database from the corrected snapshot, then re-run your decoders for those heights."
+}

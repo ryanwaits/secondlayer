@@ -14,6 +14,16 @@ Entry shape:
 
 ---
 
+## 2026-09-27
+
+### Transactions missing from 64 blocks after three deep reorgs
+
+- **Severity:** P1 (customer-impacting: Index, Streams and signed archive snapshots omitted 677 transactions and 32,106 events)
+- **Detection:** A PoX-5 cycle replay against the node disagreed with indexed stake events. Tracing it showed blocks storing fewer transactions than the node reported, at 8,777,879, 8,831,514–8,831,580 and 8,964,785–8,964,808 (64 blocks), after deep reorgs on Aug 16, Aug 24 and Sep 11. Block rows and block range digests were correct, so every existing check passed.
+- **Root cause:** `transactions` holds one row per `tx_id`. A tx re-mined into a lower height on the winning fork hit the insert conflict and was skipped, then deleted with the losing fork's height.
+- **Fix:** Commits in the persist/reorg/integrity series (fail-loud tx-set assertion, `blocks.tx_count`, `reconcileReorgedRange` 200-height lookback, `findShortBlocks`) plus `repair-from-journal.ts`. Prod: 64/64 blocks restored from `observer_journal`, each matching the node's tx merkle root; sBTC, PoX-5, BNS and registry rows rederived. Archive republished; Streams dumps `0008770000`, `0008830000`, `0008960000` re-exported. Published report: `published/2026-09-27-short-blocks-at-deep-reorgs.json` (superseded + corrected snapshot digests, consumer action).
+- **Prevention:** `/health/integrity` reports `shortBlocks`; node replay auditor attests tx membership via merkle root; single-leaf merkle root fixed in `@secondlayer/shared` 11.14.3 (one-tx blocks false-mismatched before). Open: export gate refusing short blocks, CLI `repair` for child-partition divergence.
+
 ## 2026-08-12
 
 ### transactions.function_args double-encoded for every row since migration 0021
