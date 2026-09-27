@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	bufferCV,
@@ -14,7 +14,9 @@ import { BNS_V2_MAINNET_CONTRACT } from "./decoders/bns.ts";
 import { rederiveBnsEvents } from "./rederive-bns-events.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
-const H = 990501;
+// Below reorg.test.ts's 990050: handleReorg takes MAX(canonical height)
+// >= its fork point, so leftover seeds above it would corrupt that test.
+const H = 989501;
 const NETWORK = "rederive-bns-test";
 const OWNER = "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE";
 
@@ -29,6 +31,20 @@ describe.skipIf(!HAS_DB)("rederiveBnsEvents", () => {
 	const db = HAS_DB ? getDb() : null;
 
 	beforeEach(async () => {
+		if (!db) return;
+		await db
+			.deleteFrom("bns_name_events")
+			.where("block_height", "=", H)
+			.execute();
+		await db.deleteFrom("events").where("block_height", "=", H).execute();
+		await db.deleteFrom("transactions").where("block_height", "=", H).execute();
+		await db.deleteFrom("blocks").where("height", "=", H).execute();
+		await db
+			.deleteFrom("index_progress")
+			.where("network", "=", NETWORK)
+			.execute();
+	});
+	afterAll(async () => {
 		if (!db) return;
 		await db
 			.deleteFrom("bns_name_events")

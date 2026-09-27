@@ -1,16 +1,46 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import { persistBlock } from "./persist.ts";
 import { rederiveDecodedEvents } from "./rederive-decoded-events.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
-const H = 990_801;
+// Below reorg.test.ts's 990050: handleReorg takes MAX(canonical height)
+// >= its fork point, so leftover seeds above it would corrupt that test.
+const H = 989_801;
 const NETWORK = "rederive-decoded-events-test";
 
 describe.skipIf(!HAS_DB)("rederiveDecodedEvents", () => {
 	const db = HAS_DB ? getDb() : null;
 
 	beforeEach(async () => {
+		if (!db) return;
+		await db
+			.deleteFrom("decoded_events")
+			.where("block_height", "=", H)
+			.execute();
+		await db.deleteFrom("events").where("block_height", "=", H).execute();
+		await db.deleteFrom("transactions").where("block_height", "=", H).execute();
+		await db.deleteFrom("blocks").where("height", "=", H).execute();
+		await db
+			.deleteFrom("index_progress")
+			.where("network", "=", NETWORK)
+			.execute();
+	});
+	afterAll(async () => {
+		if (!db) return;
+		await db
+			.deleteFrom("decoded_events")
+			.where("block_height", "=", H)
+			.execute();
+		await db.deleteFrom("events").where("block_height", "=", H).execute();
+		await db.deleteFrom("transactions").where("block_height", "=", H).execute();
+		await db.deleteFrom("blocks").where("height", "=", H).execute();
+		await db
+			.deleteFrom("index_progress")
+			.where("network", "=", NETWORK)
+			.execute();
+	});
+	afterAll(async () => {
 		if (!db) return;
 		await db
 			.deleteFrom("decoded_events")

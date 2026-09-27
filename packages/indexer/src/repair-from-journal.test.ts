@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import { txMerkleRoot } from "@secondlayer/shared/node/nakamoto";
 import { persistBlock } from "./persist.ts";
@@ -11,7 +11,9 @@ import {
 import type { NewBlockPayload } from "./types/node-events.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
-const H = 990301;
+// Below reorg.test.ts's 990050: handleReorg takes MAX(canonical height)
+// >= its fork point, so leftover seeds above it would corrupt that test.
+const H = 989301;
 const NETWORK = "repair-from-journal-test";
 
 function nodePayload(
@@ -102,6 +104,20 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 	const db = HAS_DB ? getDb() : null;
 
 	beforeEach(async () => {
+		if (!db) return;
+		await db.deleteFrom("events").where("block_height", "=", H).execute();
+		await db.deleteFrom("transactions").where("block_height", "=", H).execute();
+		await db.deleteFrom("blocks").where("height", "=", H).execute();
+		await db
+			.deleteFrom("index_progress")
+			.where("network", "=", NETWORK)
+			.execute();
+		await db
+			.deleteFrom("observer_journal")
+			.where("network", "=", NETWORK)
+			.execute();
+	});
+	afterAll(async () => {
 		if (!db) return;
 		await db.deleteFrom("events").where("block_height", "=", H).execute();
 		await db.deleteFrom("transactions").where("block_height", "=", H).execute();
