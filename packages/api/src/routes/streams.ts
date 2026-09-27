@@ -6,6 +6,7 @@ import {
 	readCanonicalStreamsEventsByTxId,
 } from "@secondlayer/indexer/streams-events";
 import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
+import { ValidationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { validateQueryParams } from "../middleware/validation.ts";
@@ -15,6 +16,23 @@ import {
 	type StreamsTokenStore,
 	streamsBearerAuth,
 } from "../streams/auth.ts";
+import {
+	type ReadStreamsBitcoinBlockEventsParams,
+	type ReadStreamsBitcoinEventsByTxIdParams,
+	type ReadStreamsBitcoinEventsListResult,
+	type StreamsBitcoinEventsReader,
+	type StreamsBitcoinReorgsSinceParams,
+	type StreamsBitcoinTipProvider,
+	encodeBitcoinReorgsNextSince,
+	getStreamsBitcoinEventsResponse,
+	getStreamsBitcoinTip,
+	markBitcoinFinalized,
+	readStreamsBitcoinBlockEvents,
+	readStreamsBitcoinCanonicalBlock,
+	readStreamsBitcoinEventsByTxId,
+	readStreamsBitcoinReorgs,
+	readStreamsBitcoinReorgsSince,
+} from "../streams/bitcoin.ts";
 import {
 	STREAMS_IMMUTABLE_CACHE_CONTROL,
 	isFinalizedHeight,
@@ -66,8 +84,26 @@ const STREAMS_EVENTS_ALLOWED = [
 	"filters",
 	"limit",
 	"clock",
+	// chain=bitcoin (plan 059): a separate cursor space, own filter vocabulary.
+	"chain",
+	"rune",
+	"address",
 ] as const;
-const STREAMS_REORGS_ALLOWED = ["since", "limit"] as const;
+const STREAMS_REORGS_ALLOWED = ["since", "limit", "chain"] as const;
+/** Every non-`/events` route's query surface is just the chain switch. */
+const STREAMS_CHAIN_ONLY_ALLOWED = ["chain"] as const;
+
+export type StreamsChain = "stacks" | "bitcoin";
+
+/** `chain=` on every Streams route (plan 059): `stacks` (default, unchanged
+ *  cursor/response shape) or `bitcoin` (Runes events, its own cursor space —
+ *  see `../streams/bitcoin.ts`). */
+function resolveStreamsChain(query: URLSearchParams): StreamsChain {
+	const raw = query.get("chain");
+	if (raw === null || raw === "stacks") return "stacks";
+	if (raw === "bitcoin") return "bitcoin";
+	throw new ValidationError('chain must be "stacks" or "bitcoin"');
+}
 
 // SSE tail cadence: poll the forward cursor every `POLL_MS`, and emit a `ping`
 // keepalive after `HEARTBEAT_MS` of no events.
@@ -106,6 +142,23 @@ const STREAMS_EVENTS_FILTER_SPEC = [
 	{ name: "cursor", type: "string" },
 	{ name: "from_cursor", type: "string" },
 	{ name: "limit", type: "number (max 1000)" },
+	{
+		name: "chain",
+		type: "stacks | bitcoin",
+		description:
+			"stacks (default) or bitcoin (Runes events, own cursor space). See the top-level chain field.",
+	},
+	{
+		name: "rune",
+		type: "string",
+		description:
+			"chain=bitcoin only: a RuneRef, id (840000:3) or name (DOG•GO•TO•THE•MOON)",
+	},
+	{
+		name: "address",
+		type: "string",
+		description: "chain=bitcoin only: a mainnet address",
+	},
 ] as const;
 
 export type StreamsRouterOptions = {
@@ -122,11 +175,28 @@ export type StreamsRouterOptions = {
 	readReorgs?: StreamsReorgsReader;
 	readReorgsSince?: StreamsReorgsSinceReader;
 	responseCache?: StreamsResponseCache;
+	// chain=bitcoin (plan 059) — mirrors the Stacks options above, own readers
+	// since it's a separate Postgres (`packages/bitcoin`, D18).
+	getBitcoinTip?: StreamsBitcoinTipProvider;
+	readBitcoinEvents?: StreamsBitcoinEventsReader;
+	readBitcoinEventsByTxId?: (
+		params: ReadStreamsBitcoinEventsByTxIdParams,
+	) => Promise<ReadStreamsBitcoinEventsListResult>;
+	readBitcoinBlockEvents?: (
+		params: ReadStreamsBitcoinBlockEventsParams,
+	) => Promise<ReadStreamsBitcoinEventsListResult>;
+	readBitcoinCanonicalBlock?: typeof readStreamsBitcoinCanonicalBlock;
+	readBitcoinReorgs?: StreamsReorgsReader;
+	readBitcoinReorgsSince?: (
+		params: StreamsBitcoinReorgsSinceParams,
+	) => ReturnType<typeof readStreamsBitcoinReorgsSince>;
 };
 
 export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	const getTip = opts.getTip ?? getStreamsTip;
 	const readReorgs = opts.readReorgs ?? DEFAULT_STREAMS_REORGS_READER;
+	const getBitcoinTip = opts.getBitcoinTip ?? getStreamsBitcoinTip;
+	const readBitcoinReorgs = opts.readBitcoinReorgs ?? readStreamsBitcoinReorgs;
 	// One cache per router: a single shared instance in production (the router is
 	// built once at startup), and isolated per app in tests.
 	const responseCache = opts.responseCache ?? new StreamsResponseCache();
@@ -148,36 +218,45 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 				{
 					path: "/v1/streams/reorgs",
 					method: "GET",
-					description: "Chain reorg history. since=<iso|cursor>.",
-					filters: ["since", "limit"],
+					description:
+						"Chain reorg history. since=<iso|cursor>. chain=stacks|bitcoin.",
+					filters: ["since", "limit", "chain"],
 					auth: "bearer required, metered per row",
 				},
 				{
 					path: "/v1/streams/canonical/:height",
 					method: "GET",
-					description: "Single canonical block by height.",
+					description:
+						"Single canonical block by height. chain=bitcoin returns the btc block hash.",
 				},
 				{
 					path: "/v1/streams/events/:tx_id",
 					method: "GET",
-					description: "All events for one transaction.",
+					description: "All events for one transaction. chain=stacks|bitcoin.",
 				},
 				{
 					path: "/v1/streams/blocks/:heightOrHash/events",
 					method: "GET",
-					description: "Events for a single block.",
+					description: "Events for a single block. chain=stacks|bitcoin.",
 				},
 				{
 					path: "/v1/streams/tip",
 					method: "GET",
 					description:
-						"Current chain tip: { block_height, block_hash, burn_block_height, finalized_height, lag_seconds }.",
+						"Current chain tip. chain=stacks (default): { block_height, block_hash, burn_block_height, finalized_height, lag_seconds }. chain=bitcoin: { block_height, block_hash, finalized_height, lag_seconds }.",
 				},
 			],
 			cursor: {
 				format: "<block_height>:<event_index>",
 				semantics:
-					"opaque resume token; pass back unchanged to continue. Equals last event's cursor (inclusive on output, exclusive on input).",
+					"opaque resume token; pass back unchanged to continue. Equals last event's cursor (inclusive on output, exclusive on input). Per-chain: a cursor from chain=bitcoin only resumes with chain=bitcoin, and vice versa.",
+			},
+			chain: {
+				param: "chain",
+				values: ["stacks", "bitcoin"],
+				default: "stacks",
+				description:
+					"stacks (default) is the existing Stacks feed, unchanged. bitcoin serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn) with its own cursor space; filters rune=<id|name> and address= replace contract_id/sender/recipient/asset_identifier/filters, which are Stacks-only. clock=vm is Stacks-only too.",
 			},
 			reorgs_shape: {
 				detected_at: "ISO 8601",
@@ -212,6 +291,25 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	router.get("/events", async (c) => {
 		const query = new URL(c.req.url).searchParams;
 		validateQueryParams(query, STREAMS_EVENTS_ALLOWED);
+		const chain = resolveStreamsChain(query);
+		if (chain === "bitcoin") {
+			// No response-cache/ETag optimization on this path (v1) — Runes
+			// volume is far lower than the Stacks firehose, and the Stacks
+			// default path above is untouched either way.
+			const tip = await getBitcoinTip();
+			c.header("Cache-Control", streamsCacheControl(false));
+			const response = await getStreamsBitcoinEventsResponse({
+				query,
+				tip,
+				readEvents: opts.readBitcoinEvents,
+				readReorgs: readBitcoinReorgs,
+			});
+			const accountId = c.get("streamsTenant")?.account_id;
+			if (accountId && response.events.length > 0) {
+				await debitStreamsCreditedRead(c, response.events);
+			}
+			return respondSignedJson(c, response);
+		}
 		const tip = c.get("streamsTip");
 		const tier = c.get("streamsTenant")?.tier;
 		const { cacheControl, cacheKey } = streamsEventsCachePlan(query, tip, tier);
@@ -266,6 +364,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	router.get("/events/stream", async (c) => {
 		const initialQuery = new URL(c.req.url).searchParams;
 		validateQueryParams(initialQuery, STREAMS_EVENTS_ALLOWED);
+		const chain = resolveStreamsChain(initialQuery);
 		const accountId = c.get("streamsTenant")?.account_id;
 		const tier = c.get("streamsTenant")?.tier;
 		const signer = getStreamsSigner();
@@ -285,21 +384,45 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			let initialized = hasStart;
 			let lastBeat = Date.now();
 			while (!stream.aborted) {
-				const tip = await getTip();
-				if (!initialized) {
-					// No start given → live-tail from the current (reorg-clamped) tip.
-					const q = new URLSearchParams(filterParams);
-					q.set("from_height", String(getClampedStreamsTipHeight(tip, tier)));
-					pollQuery = q;
-					initialized = true;
+				let response: Awaited<
+					ReturnType<
+						| typeof getStreamsEventsResponse
+						| typeof getStreamsBitcoinEventsResponse
+					>
+				>;
+				if (chain === "bitcoin") {
+					const tip = await getBitcoinTip();
+					if (!initialized) {
+						// No start given → live-tail from the current tip. Bitcoin has no
+						// reorg-margin clamp (see `../streams/bitcoin.ts`'s module doc).
+						const q = new URLSearchParams(filterParams);
+						q.set("from_height", String(tip.block_height));
+						pollQuery = q;
+						initialized = true;
+					}
+					response = await getStreamsBitcoinEventsResponse({
+						query: pollQuery,
+						tip,
+						readEvents: opts.readBitcoinEvents,
+						readReorgs: readBitcoinReorgs,
+					});
+				} else {
+					const tip = await getTip();
+					if (!initialized) {
+						// No start given → live-tail from the current (reorg-clamped) tip.
+						const q = new URLSearchParams(filterParams);
+						q.set("from_height", String(getClampedStreamsTipHeight(tip, tier)));
+						pollQuery = q;
+						initialized = true;
+					}
+					response = await getStreamsEventsResponse({
+						query: pollQuery,
+						tip,
+						tier,
+						readEvents: opts.readEvents,
+						readReorgs,
+					});
 				}
-				const response = await getStreamsEventsResponse({
-					query: pollQuery,
-					tip,
-					tier,
-					readEvents: opts.readEvents,
-					readReorgs,
-				});
 				for (const event of response.events) {
 					// Inline per-frame signature: SSE has no per-frame headers, so the
 					// ed25519 proof rides in the frame body as `{ event, sig, key_id }`,
@@ -336,7 +459,28 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	});
 
 	router.get("/canonical/:height", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, STREAMS_CHAIN_ONLY_ALLOWED);
 		const height = parseStreamsHeight(c.req.param("height"));
+		if (resolveStreamsChain(query) === "bitcoin") {
+			const readBlock =
+				opts.readBitcoinCanonicalBlock ?? readStreamsBitcoinCanonicalBlock;
+			const block = await readBlock(height);
+			if (!block) {
+				return c.json({ error: "Canonical block not found" }, 404);
+			}
+			const tip = await getBitcoinTip();
+			const etag = `"${block.block_hash}"`;
+			c.header("ETag", etag);
+			c.header(
+				"Cache-Control",
+				streamsCacheControl(height <= tip.finalized_height),
+			);
+			if (matchesIfNoneMatch(c.req.header("If-None-Match"), etag)) {
+				return c.body(null, 304);
+			}
+			return respondSignedJson(c, block);
+		}
 		const readCanonicalBlock =
 			opts.readCanonicalBlock ?? readCanonicalStreamsBlock;
 		const block = await readCanonicalBlock(height);
@@ -357,8 +501,50 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	});
 
 	router.get("/events/:tx_id", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, STREAMS_CHAIN_ONLY_ALLOWED);
 		const txId = c.req.param("tx_id");
 		if (!txId) return c.json({ error: "tx_id is required" }, 400);
+		if (resolveStreamsChain(query) === "bitcoin") {
+			const tip = await getBitcoinTip();
+			const readEventsByTxId =
+				opts.readBitcoinEventsByTxId ?? readStreamsBitcoinEventsByTxId;
+			const result = await readEventsByTxId({ txId });
+			if (result.events.length === 0) {
+				return c.json({ error: "Transaction events not found" }, 404);
+			}
+			const firstEvent = result.events[0];
+			const lastEvent = result.events.at(-1);
+			const reorgs =
+				firstEvent && lastEvent
+					? await readBitcoinReorgs({
+							from: {
+								block_height: firstEvent.block_height,
+								event_index: firstEvent.event_index,
+							},
+							to: {
+								block_height: lastEvent.block_height,
+								event_index: lastEvent.event_index,
+							},
+						})
+					: [];
+			c.header(
+				"Cache-Control",
+				streamsCacheControl(
+					lastEvent !== undefined &&
+						lastEvent.block_height <= tip.finalized_height,
+				),
+			);
+			const accountId = c.get("streamsTenant")?.account_id;
+			if (accountId) {
+				await debitStreamsCreditedRead(c, result.events);
+			}
+			return respondSignedJson(c, {
+				events: markBitcoinFinalized(result.events, tip.finalized_height),
+				tip,
+				reorgs,
+			});
+		}
 		const tip = await getTip();
 		const readEventsByTxId =
 			opts.readEventsByTxId ?? readCanonicalStreamsEventsByTxId;
@@ -397,12 +583,59 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	});
 
 	router.get("/blocks/:heightOrHash/events", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, STREAMS_CHAIN_ONLY_ALLOWED);
 		const heightOrHash = c.req.param("heightOrHash");
 		const byHeight = /^(0|[1-9]\d*)$/.test(heightOrHash)
 			? parseStreamsHeight(heightOrHash, "heightOrHash")
 			: undefined;
 		if (byHeight === undefined && heightOrHash.length === 0) {
 			return c.json({ error: "heightOrHash is required" }, 400);
+		}
+
+		if (resolveStreamsChain(query) === "bitcoin") {
+			const tip = await getBitcoinTip();
+			const readBlockEvents =
+				opts.readBitcoinBlockEvents ?? readStreamsBitcoinBlockEvents;
+			const result = await readBlockEvents(
+				byHeight === undefined
+					? { blockHash: heightOrHash }
+					: { blockHeight: byHeight },
+			);
+			if (result.events.length === 0) {
+				return c.json({ error: "Block events not found" }, 404);
+			}
+			const firstEvent = result.events[0];
+			const lastEvent = result.events.at(-1);
+			const reorgs =
+				firstEvent && lastEvent
+					? await readBitcoinReorgs({
+							from: {
+								block_height: firstEvent.block_height,
+								event_index: firstEvent.event_index,
+							},
+							to: {
+								block_height: lastEvent.block_height,
+								event_index: lastEvent.event_index,
+							},
+						})
+					: [];
+			c.header(
+				"Cache-Control",
+				streamsCacheControl(
+					firstEvent !== undefined &&
+						firstEvent.block_height <= tip.finalized_height,
+				),
+			);
+			const accountId = c.get("streamsTenant")?.account_id;
+			if (accountId) {
+				await debitStreamsCreditedRead(c, result.events);
+			}
+			return respondSignedJson(c, {
+				events: markBitcoinFinalized(result.events, tip.finalized_height),
+				tip,
+				reorgs,
+			});
 		}
 
 		const tip = await getTip();
@@ -449,6 +682,26 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	router.get("/reorgs", async (c) => {
 		const query = new URL(c.req.url).searchParams;
 		validateQueryParams(query, STREAMS_REORGS_ALLOWED);
+		if (resolveStreamsChain(query) === "bitcoin") {
+			const since = query.get("since");
+			if (!since) throw new ValidationError("since is required");
+			const limitRaw = query.get("limit");
+			const limit = limitRaw ? Number(limitRaw) : 100;
+			if (!Number.isSafeInteger(limit) || limit < 1) {
+				throw new ValidationError("limit must be a positive integer");
+			}
+			const readReorgsSince =
+				opts.readBitcoinReorgsSince ?? readStreamsBitcoinReorgsSince;
+			const reorgs = await readReorgsSince({
+				since,
+				limit: Math.min(1000, limit),
+			});
+			const last = reorgs.at(-1);
+			return respondSignedJson(c, {
+				reorgs,
+				next_since: last ? encodeBitcoinReorgsNextSince(last) : null,
+			});
+		}
 		const response = await getStreamsReorgsListResponse({
 			query,
 			readReorgsSince:
@@ -458,7 +711,12 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	});
 
 	router.get("/tip", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, STREAMS_CHAIN_ONLY_ALLOWED);
 		c.header("Cache-Control", streamsCacheControl(false));
+		if (resolveStreamsChain(query) === "bitcoin") {
+			return respondSignedJson(c, await getBitcoinTip());
+		}
 		const tip = await getTip();
 		// No retention floor: every account reads full history, so
 		// there is no seekable floor to advertise anymore.

@@ -2,9 +2,18 @@
 // event primitives shared by the SDK's Streams surface and the indexer's
 // decoders — the SDK re-exports these unchanged (`StreamsEvent`,
 // `StreamsEventType`, payload types), so the public API is unmoved.
-import type { StreamsEventType, VmEventType } from "../event-types.ts";
+import type {
+	RuneEventType,
+	StreamsEventType,
+	VmEventType,
+} from "../event-types.ts";
 
-export { STREAMS_EVENT_TYPES, type StreamsEventType } from "../event-types.ts";
+export {
+	RUNE_EVENT_TYPES,
+	STREAMS_EVENT_TYPES,
+	type RuneEventType,
+	type StreamsEventType,
+} from "../event-types.ts";
 
 /** A Clarity value as Streams serves it: the canonical hex string, a typed
  *  object carrying that hex (`{ hex }`), or a decoded Clarity-JSON object.
@@ -111,6 +120,14 @@ export type StreamsEventBase = {
 	 * (`on.<label>`), so handlers rarely read it directly.
 	 */
 	matched?: string[];
+	/**
+	 * Which chain this event came from (plan 059). Every Stacks Streams
+	 * response sets this to `"stacks"`; optional here for back-compat with
+	 * fixtures/tests that pre-date the field — the same reasoning as
+	 * `finalized?`. Cursors stay per-chain but chain-agnostic in shape, so this
+	 * is the only signal a mixed-chain caller can discriminate on.
+	 */
+	chain?: "stacks";
 };
 
 type StreamsEventOf<T extends StreamsEventType, P> = StreamsEventBase & {
@@ -180,6 +197,76 @@ export type VmStreamsEvent =
 	| VmStreamsEventOf<"map_insert", MapWritePayload>
 	| VmStreamsEventOf<"map_delete", MapDeletePayload>;
 
+// ── chain=bitcoin rows (Runes events, plan 059) ────────────────────────────
+// `rune_*` events live in Streams alongside the Stacks rows above, selected by
+// the request's `chain` param — never inside the cursor, so Stacks cursors
+// stay byte-identical (`<height>:<event_index>` is chain-relative, valid only
+// against the chain it was issued for). A response never mixes chains, same
+// rule as `clock`.
+//
+// No `burn_block_height` (Bitcoin has no burn chain of its own) and no `ts`:
+// the Runes Postgres (`packages/bitcoin`, D18) has no per-block wall-clock
+// column — `btc_blocks` is height+hash only (see `RUNE_EVENT_TYPES`'s doc and
+// `packages/bitcoin/migrations/0001_runes.ts`). Adding one is a bitcoin-package
+// migration, out of this plan's scope; a future plan can add `ts` once that
+// column exists.
+
+/** The etch a `rune_etch` event created — everything a consumer needs to
+ *  render a fresh rune without a second lookup, minus what the envelope
+ *  already carries (`rune_id`). Mirrors 058's `RuneEntry` shape
+ *  (`packages/api/src/index/runes.ts`), trimmed to fields that exist at etch
+ *  time (no `mints`/`burned`/`supply` — always zero on the etching event). */
+export type RuneEtchEntry = {
+	/** No spacers, uppercase. */
+	name: string;
+	/** As etched, spacers included (e.g. `DOG•GO•TO•THE•MOON`). */
+	spaced_name: string;
+	symbol: string | null;
+	divisibility: number;
+	/** u128 decimal string. Never `Number()`. */
+	premine: string;
+	turbo: boolean;
+	terms: {
+		amount: string | null;
+		cap: string | null;
+		height_start: string | null;
+		height_end: string | null;
+		offset_start: string | null;
+		offset_end: string | null;
+	} | null;
+};
+
+export type RuneEventPayload = {
+	/** u128 decimal string. Never `Number()`. */
+	amount: string;
+	/** The output this event landed on. Set on `rune_transfer` only — an etch
+	 *  or mint's allocation isn't tied to one output the way a transfer is
+	 *  (`packages/bitcoin/src/runes/updater.ts`). */
+	vout?: number;
+	/** The output's mainnet address. Set on `rune_transfer` only, and only
+	 *  when the output has a standard scriptPubKey. */
+	address?: string;
+	/** `rune_etch` only — the entry this event created. */
+	entry?: RuneEtchEntry;
+};
+
+export type RuneStreamsEvent = {
+	cursor: string;
+	chain: "bitcoin";
+	block_height: number;
+	block_hash: string;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	event_type: RuneEventType;
+	rune_id: string;
+	payload: RuneEventPayload;
+	/** True when this event's block is past the finality boundary (immutable).
+	 *  Optional for back-compat with the same reasoning as `StreamsEventBase`. */
+	finalized?: boolean;
+};
+
 /** Anything `GET /v1/streams/events` can return: Streams 1.0 rows on the
- *  classic clock, or vm rows on `clock=vm`. A response never mixes the two. */
-export type StreamsWireEvent = StreamsEvent | VmStreamsEvent;
+ *  classic clock, vm rows on `clock=vm`, or Runes rows on `chain=bitcoin`. A
+ *  response never mixes chains or clocks. */
+export type StreamsWireEvent = StreamsEvent | VmStreamsEvent | RuneStreamsEvent;

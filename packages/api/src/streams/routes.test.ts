@@ -639,6 +639,263 @@ describe("Stacks Streams gateway middleware", () => {
 
 		expect(res.status).toBe(200);
 	});
+
+	// Plan 059 done-criterion: chain=stacks (the default, chain param omitted)
+	// stays byte-identical to the pre-059 wire shape except the additive
+	// `chain` field.
+	test("chain=stacks (default) response is unchanged except the additive chain field", async () => {
+		const app = createApp(
+			async () => ({
+				events: [streamsEvent()],
+				next_cursor: "100:0",
+			}),
+			TEST_TOKENS,
+		);
+		const res = await app.request("/v1/streams/events?from_height=0", {
+			headers: authHeaders(INTERNAL_KEY),
+		});
+
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			events: Array<Record<string, unknown>>;
+		};
+		expect(body.events).toHaveLength(1);
+		const event = body.events[0] as Record<string, unknown>;
+		expect(event.chain).toBe("stacks");
+		const { chain: _chain, ...rest } = event;
+		expect(rest).toEqual({
+			...streamsEvent(),
+			// TEST_TIP.finalized_height (199_994) >= the fixture's block_height (100).
+			finalized: true,
+		});
+		expect(Object.keys(event).sort()).toEqual(
+			[...Object.keys(streamsEvent()), "finalized", "chain"].sort(),
+		);
+	});
+});
+
+describe("chain=bitcoin Streams gateway (plan 059)", () => {
+	function createBitcoinApp(
+		opts: {
+			readBitcoinEvents?: Parameters<
+				typeof createStreamsRouter
+			>[0]["readBitcoinEvents"];
+			readBitcoinReorgs?: Parameters<
+				typeof createStreamsRouter
+			>[0]["readBitcoinReorgs"];
+		} = {},
+	) {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/streams",
+			createStreamsRouter({
+				tokens: TEST_TOKENS,
+				getTip: () => TEST_TIP,
+				readEvents: EMPTY_EVENTS_READER,
+				readReorgs: async () => [],
+				getBitcoinTip: async () => ({
+					block_height: 900_000,
+					block_hash: "btchash900000",
+					finalized_height: 899_994,
+					lag_seconds: 0,
+				}),
+				readBitcoinEvents: opts.readBitcoinEvents,
+				readBitcoinReorgs: opts.readBitcoinReorgs,
+			}),
+		);
+		return app;
+	}
+
+	function runeEtchEvent(overrides: Record<string, unknown> = {}) {
+		return {
+			cursor: "840000:0",
+			chain: "bitcoin" as const,
+			block_height: 840000,
+			block_hash: "btchash840000",
+			tx_id: "0xetch",
+			tx_index: 0,
+			event_index: 0,
+			event_type: "rune_etch" as const,
+			rune_id: "840000:3",
+			payload: { amount: "0" },
+			...overrides,
+		};
+	}
+
+	test("chain=bitcoin returns 200 with rune events", async () => {
+		const app = createBitcoinApp({
+			readBitcoinEvents: async () => ({
+				events: [runeEtchEvent()],
+				next_cursor: "840000:0",
+			}),
+		});
+		const res = await app.request(
+			"/v1/streams/events?chain=bitcoin&from_height=0",
+			{ headers: authHeaders(INTERNAL_KEY) },
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			events: Array<Record<string, unknown>>;
+			next_cursor: string | null;
+			tip: { block_height: number };
+		};
+		expect(body.events).toHaveLength(1);
+		expect(body.events[0]?.chain).toBe("bitcoin");
+		expect(body.events[0]?.event_type).toBe("rune_etch");
+		expect(body.tip.block_height).toBe(900_000);
+	});
+
+	test("chain=bitcoin rejects a Stacks-only event type with 400", async () => {
+		const app = createBitcoinApp();
+		const res = await app.request(
+			"/v1/streams/events?chain=bitcoin&types=ft_transfer",
+			{ headers: authHeaders(INTERNAL_KEY) },
+		);
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain(
+			"Unknown Streams event type for chain=bitcoin",
+		);
+	});
+
+	test("chain=bitcoin rejects Stacks-only filters", async () => {
+		const app = createBitcoinApp();
+		const res = await app.request(
+			"/v1/streams/events?chain=bitcoin&contract_id=SP1.token",
+			{ headers: authHeaders(INTERNAL_KEY) },
+		);
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain("Stacks-only");
+	});
+
+	test("chain=bitcoin clock=vm is rejected", async () => {
+		const app = createBitcoinApp();
+		const res = await app.request("/v1/streams/events?chain=bitcoin&clock=vm", {
+			headers: authHeaders(INTERNAL_KEY),
+		});
+		expect(res.status).toBe(400);
+	});
+
+	test("chain=bitcoin cursor round-trips across two pages with no gap or repeat", async () => {
+		const allEvents = [
+			runeEtchEvent({ cursor: "840000:0", event_index: 0 }),
+			runeEtchEvent({
+				cursor: "840000:1",
+				event_index: 1,
+				event_type: "rune_mint",
+				payload: { amount: "100" },
+			}),
+			runeEtchEvent({
+				cursor: "840001:0",
+				block_height: 840001,
+				block_hash: "btchash840001",
+				event_index: 0,
+				event_type: "rune_transfer",
+				payload: { amount: "100", vout: 0, address: "bc1qtest" },
+			}),
+		];
+		const app = createBitcoinApp({
+			readBitcoinEvents: async ({ after, limit }) => {
+				const startIdx = after
+					? allEvents.findIndex(
+							(e) =>
+								e.block_height === after.block_height &&
+								e.event_index === after.event_index,
+						) + 1
+					: 0;
+				const page = allEvents.slice(startIdx, startIdx + limit);
+				const next = allEvents[startIdx + limit];
+				return {
+					events: page,
+					next_cursor: next ? (page.at(-1)?.cursor ?? null) : null,
+				};
+			},
+		});
+
+		let cursor: string | null = null;
+		const walked: string[] = [];
+		do {
+			const res: Response = await app.request(
+				`/v1/streams/events?chain=bitcoin&limit=2${cursor ? `&cursor=${cursor}` : "&from_height=0"}`,
+				{ headers: authHeaders(INTERNAL_KEY) },
+			);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as {
+				events: Array<{ cursor: string }>;
+				next_cursor: string | null;
+			};
+			walked.push(...body.events.map((e) => e.cursor));
+			cursor = body.next_cursor;
+		} while (cursor);
+
+		expect(walked).toEqual(allEvents.map((e) => e.cursor));
+		expect(new Set(walked).size).toBe(walked.length);
+	});
+
+	test("chain=bitcoin attaches reorgs to the page", async () => {
+		const app = createBitcoinApp({
+			readBitcoinEvents: async () => ({
+				events: [runeEtchEvent()],
+				next_cursor: "840000:0",
+			}),
+			readBitcoinReorgs: async () => [
+				{
+					id: "1",
+					detected_at: "2026-09-25T00:00:00.000Z",
+					fork_point_height: 840000,
+					old_index_block_hash: "0xold",
+					new_index_block_hash: "0xnew",
+					orphaned_range: { from: "840000:0", to: "840000:2147483647" },
+					new_canonical_tip: "840001:0",
+				},
+			],
+		});
+		const res = await app.request(
+			"/v1/streams/events?chain=bitcoin&from_height=0",
+			{ headers: authHeaders(INTERNAL_KEY) },
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { reorgs: Array<{ id: string }> };
+		expect(body.reorgs).toHaveLength(1);
+		expect(body.reorgs[0]?.id).toBe("1");
+	});
+
+	test("/tip?chain=bitcoin returns the bitcoin tip shape", async () => {
+		const app = createBitcoinApp();
+		const res = await app.request("/v1/streams/tip?chain=bitcoin", {
+			headers: authHeaders(INTERNAL_KEY),
+		});
+		expect(res.status).toBe(200);
+		await expect(res.json()).resolves.toEqual({
+			block_height: 900_000,
+			block_hash: "btchash900000",
+			finalized_height: 899_994,
+			lag_seconds: 0,
+		});
+	});
+
+	test("chain=stacks default /tip response has no bitcoin fields mixed in", async () => {
+		const app = createBitcoinApp();
+		const res = await app.request("/v1/streams/tip", {
+			headers: authHeaders(INTERNAL_KEY),
+		});
+		expect(res.status).toBe(200);
+		await expect(res.json()).resolves.toEqual({
+			...TEST_TIP,
+			oldest_seekable_height: null,
+			oldest_cursor: null,
+		});
+	});
+
+	test("invalid chain value is a 400", async () => {
+		const app = createBitcoinApp();
+		const res = await app.request("/v1/streams/events?chain=solana", {
+			headers: authHeaders(INTERNAL_KEY),
+		});
+		expect(res.status).toBe(400);
+	});
 });
 
 describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {

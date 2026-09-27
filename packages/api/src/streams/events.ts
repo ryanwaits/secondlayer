@@ -79,6 +79,11 @@ export function markFinalized(
 ): StreamsEventEnvelope[] {
 	return events.map((event) => ({
 		...event,
+		// Additive (plan 059): every Stacks Streams response now tags its chain,
+		// same as `finalized` above — the Stacks default shape is otherwise
+		// byte-identical. `chain=bitcoin` pages never pass through this
+		// function; they're already `chain: "bitcoin"` from `../streams/bitcoin.ts`.
+		chain: "stacks" as const,
 		finalized: event.block_height <= finalizedHeight,
 	}));
 }

@@ -38,3 +38,19 @@ export const VM_STORED_TO_NODE_TYPE: VmStoredToNode = {
 export const STREAMS_EVENT_TYPES: typeof DECODED_EVENT_TYPES =
 	DECODED_EVENT_TYPES;
 export type StreamsEventType = DecodedEventType;
+
+/**
+ * Wire vocabulary for `chain=bitcoin` Streams events (plan 059) — Runes
+ * activity, mirroring the Stacks `ft_*` family. Same four kinds as 058's
+ * `RuneEventKind` (`packages/api/src/index/runes.ts`), duplicated here as the
+ * canonical shared const rather than imported from the api package (shared
+ * never depends on api); the DB `kind` column (`etch|mint|transfer|burn`) is
+ * mapped at the edge in both readers.
+ */
+export const RUNE_EVENT_TYPES = [
+	"rune_etch",
+	"rune_mint",
+	"rune_transfer",
+	"rune_burn",
+] as const;
+export type RuneEventType = (typeof RUNE_EVENT_TYPES)[number];

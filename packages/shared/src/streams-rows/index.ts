@@ -24,6 +24,10 @@ export type {
 	NftMintPayload,
 	NftTransferPayload,
 	PrintPayload,
+	RuneEtchEntry,
+	RuneEventPayload,
+	RuneEventType,
+	RuneStreamsEvent,
 	StreamsClarityValue,
 	StreamsEvent,
 	StreamsEventBase,
@@ -37,7 +41,7 @@ export type {
 	VarSetPayload,
 	VmStreamsEvent,
 } from "./events.ts";
-export { STREAMS_EVENT_TYPES } from "./events.ts";
+export { RUNE_EVENT_TYPES, STREAMS_EVENT_TYPES } from "./events.ts";
 export {
 	decodedRow,
 	optionalString,
