@@ -197,6 +197,25 @@ export function formatWebhookTarget(sub: {
 	return `${sub.subgraphName}.${sub.tableName}`;
 }
 
+/** "bearer token (set, hidden), headers: x-team" — never the credential or
+ *  header values, which the API no longer returns at all (auth_config is
+ *  write-only; set it with `webhooks update --auth-token` or `authConfig`). */
+export function formatAuthLine(auth: WebhookDetail["auth"]): string {
+	const scheme =
+		auth.type === "bearer"
+			? auth.hasSecret
+				? "bearer token (set, hidden)"
+				: "bearer (no token set)"
+			: auth.type === "basic"
+				? auth.hasSecret
+					? "basic auth (set, hidden)"
+					: "basic (no credentials set)"
+				: "none";
+	return auth.headerNames.length > 0
+		? `${scheme}, headers: ${auth.headerNames.join(", ")}`
+		: scheme;
+}
+
 function printWebhookDetail(sub: WebhookDetail): void {
 	console.log(
 		formatKeyValue([
@@ -207,6 +226,7 @@ function printWebhookDetail(sub: WebhookDetail): void {
 			["Format", sub.format],
 			["Runtime", sub.runtime ?? "none"],
 			["URL", sub.url],
+			["Auth", formatAuthLine(sub.auth)],
 			["Last Delivery", sub.lastDeliveryAt ?? "none"],
 			["Last Success", sub.lastSuccessAt ?? "none"],
 			["Circuit Failures", String(sub.circuitFailures)],
@@ -222,10 +242,6 @@ function printWebhookDetail(sub: WebhookDetail): void {
 	);
 	console.log(dim("\nFilter:"));
 	console.log(JSON.stringify(sub.filter, null, 2));
-	if (Object.keys(sub.authConfig).length > 0) {
-		console.log(dim("\nAuth config:"));
-		console.log(JSON.stringify(sub.authConfig, null, 2));
-	}
 }
 
 /** CLI-only titles for each doctor issue code — kept separate from the

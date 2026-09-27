@@ -778,11 +778,24 @@ export interface WebhookSummary {
 	updatedAt: string;
 }
 
+/** What a webhook's receiver credentials look like once redacted for a
+ *  response — never the bearer token, basic-auth string, or header values
+ *  themselves, only enough to show what's set. `authConfig` on create/update
+ *  is unaffected (write-only: the API still accepts it, just never echoes
+ *  it back). */
+export interface WebhookAuth {
+	type: "bearer" | "basic" | "none";
+	/** Keys of any extra headers the receiver expects — never their values. */
+	headerNames: string[];
+	/** True when a bearer token or basic-auth string is set, whatever it is. */
+	hasSecret: boolean;
+}
+
 export interface WebhookDetail extends WebhookSummary {
 	filter: Record<string, unknown>;
 	/** Chain-trigger filters (chain webhooks only). */
 	triggers: ChainTrigger[] | null;
-	authConfig: Record<string, unknown>;
+	auth: WebhookAuth;
 	maxRetries: number;
 	timeoutMs: number;
 	concurrency: number;

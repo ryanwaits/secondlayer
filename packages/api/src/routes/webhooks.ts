@@ -18,6 +18,7 @@ import {
 	CreateWebhookRequestSchema,
 	ReplayWebhookRequestSchema,
 	UpdateWebhookRequestSchema,
+	type WebhookAuth,
 	type WebhookSchemaTables,
 	formatWebhookSchemaErrors,
 	validateWebhookFilterForTable,
@@ -100,12 +101,40 @@ function chainEvaluatorWarning(sub: Webhook): string | null {
 	return CHAIN_EVALUATOR_IDLE_WARNING;
 }
 
+/**
+ * Turns a webhook's raw `auth_config` — the receiver's bearer token,
+ * basic-auth string, or custom header values, stored as given — into what's
+ * safe to hand back over the API: never the credential itself, just enough
+ * to show what's set. `toDetail` is the one place every endpoint that
+ * returns a webhook goes through, so this is the one place redaction has to
+ * happen; a new endpoint returning a webhook should go through `toDetail`
+ * too, not read `auth_config` directly.
+ */
+export function redactAuthConfig(
+	authConfig: Record<string, unknown>,
+): WebhookAuth {
+	const cfg = authConfig as {
+		authType?: "bearer" | "basic" | "none";
+		token?: string;
+		tokenEnc?: string;
+		basicAuth?: string;
+		headers?: Record<string, string>;
+	};
+	const type: WebhookAuth["type"] =
+		cfg.authType ?? (cfg.token || cfg.tokenEnc ? "bearer" : "none");
+	return {
+		type,
+		headerNames: cfg.headers ? Object.keys(cfg.headers) : [],
+		hasSecret: Boolean(cfg.token || cfg.tokenEnc || cfg.basicAuth),
+	};
+}
+
 function toDetail(sub: Webhook) {
 	return {
 		...toSummary(sub),
 		filter: sub.filter as Record<string, unknown>,
 		triggers: (sub.triggers ?? null) as ChainTrigger[] | null,
-		authConfig: sub.auth_config as Record<string, unknown>,
+		auth: redactAuthConfig(sub.auth_config as Record<string, unknown>),
 		maxRetries: sub.max_retries,
 		timeoutMs: sub.timeout_ms,
 		concurrency: sub.concurrency,

@@ -84,7 +84,7 @@ const EXAMPLE_DETAIL = {
 	...EXAMPLE_SUMMARY,
 	filter: {},
 	triggers: EXAMPLE_TRIGGERS,
-	authConfig: {},
+	auth: { type: "none", headerNames: [], hasSecret: false },
 	maxRetries: 7,
 	timeoutMs: 10000,
 	concurrency: 4,
@@ -210,12 +210,42 @@ const SUMMARY_PROPERTIES = {
 	},
 };
 
+// Response-only: the redacted shape `toDetail` returns for `auth_config`.
+// Never the request shape — create/update still take `authConfig` (see
+// `TUNING_PROPS` below), it's just never echoed back.
+const AUTH_PROP = {
+	type: "object",
+	required: ["type", "headerNames", "hasSecret"],
+	description:
+		"Receiver credentials, redacted — set with `authConfig` on create or update, but never returned. `authConfig` is write-only.",
+	properties: {
+		type: {
+			type: "string",
+			enum: ["bearer", "basic", "none"],
+			description: "Auth scheme the receiver expects.",
+		},
+		headerNames: {
+			type: "array",
+			items: { type: "string" },
+			description:
+				"Names of extra headers sent with each delivery. Values are never returned.",
+		},
+		hasSecret: {
+			type: "boolean",
+			description:
+				"True when a bearer token or basic-auth string is set. The value itself is never returned.",
+		},
+	},
+};
+
+// Request-only: accepted by create/update, never returned by a read (see
+// `AUTH_PROP` above for what a read gets instead).
 const TUNING_PROPS = {
 	authConfig: {
 		type: "object",
 		additionalProperties: true,
 		description:
-			"Per-format receiver credentials: `token` / `tokenEnc` for `trigger` and `cloudflare`, `headers` or `basicAuth` for `raw`.",
+			"Per-format receiver credentials: `token` / `tokenEnc` for `trigger` and `cloudflare`, `headers` or `basicAuth` for `raw`. Write-only — never returned; a read gets `auth` instead.",
 	},
 	maxRetries: {
 		type: "integer",
@@ -248,7 +278,10 @@ const DETAIL_PROPERTIES = {
 		items: { $ref: "#/components/schemas/ChainTrigger" },
 		description: "Chain triggers. `null` for subgraph webhooks.",
 	},
-	...TUNING_PROPS,
+	auth: AUTH_PROP,
+	maxRetries: TUNING_PROPS.maxRetries,
+	timeoutMs: TUNING_PROPS.timeoutMs,
+	concurrency: TUNING_PROPS.concurrency,
 	lastError: {
 		type: ["string", "null"],
 		description: "Error from the last failed delivery.",

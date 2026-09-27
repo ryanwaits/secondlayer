@@ -8,6 +8,7 @@ import {
 	buildSyntheticRow,
 	buildWebhookTestFixture,
 	buildWebhookUpdatePatch,
+	formatAuthLine,
 	formatWebhookTarget,
 	resolveSigningSecret,
 	resolveWebhookRef,
@@ -30,7 +31,7 @@ const baseDetail: WebhookDetail = {
 	createdAt: "2026-04-23T00:00:00.000Z",
 	updatedAt: "2026-04-23T00:00:00.000Z",
 	filter: {},
-	authConfig: {},
+	auth: { type: "none", headerNames: [], hasSecret: false },
 	maxRetries: 7,
 	timeoutMs: 10_000,
 	concurrency: 4,
@@ -243,5 +244,24 @@ describe("webhooks command helpers", () => {
 				filter: { memo: { gt: "x" } },
 			}),
 		).rejects.toThrow('Operator "gt" is not supported');
+	});
+
+	it("formats the redacted auth line `get` prints, never a credential value", () => {
+		expect(
+			formatAuthLine({
+				type: "bearer",
+				headerNames: ["x-team"],
+				hasSecret: true,
+			}),
+		).toBe("bearer token (set, hidden), headers: x-team");
+		expect(
+			formatAuthLine({ type: "bearer", headerNames: [], hasSecret: false }),
+		).toBe("bearer (no token set)");
+		expect(
+			formatAuthLine({ type: "basic", headerNames: [], hasSecret: true }),
+		).toBe("basic auth (set, hidden)");
+		expect(
+			formatAuthLine({ type: "none", headerNames: [], hasSecret: false }),
+		).toBe("none");
 	});
 });

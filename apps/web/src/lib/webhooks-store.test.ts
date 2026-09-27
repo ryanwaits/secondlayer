@@ -57,7 +57,7 @@ function detail(id: string, name: string): WebhookDetail {
 		...summary(id, name),
 		filter: {},
 		triggers: null,
-		authConfig: {},
+		auth: { type: "none", headerNames: [], hasSecret: false },
 		maxRetries: 7,
 		timeoutMs: 10_000,
 		concurrency: 8,

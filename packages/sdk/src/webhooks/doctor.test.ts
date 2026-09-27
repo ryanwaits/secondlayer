@@ -26,7 +26,7 @@ const baseDetail: WebhookDetail = {
 	createdAt: "2026-04-23T00:00:00.000Z",
 	updatedAt: "2026-04-23T00:00:00.000Z",
 	filter: {},
-	authConfig: {},
+	auth: { type: "none", headerNames: [], hasSecret: false },
 	maxRetries: 7,
 	timeoutMs: 10_000,
 	concurrency: 4,

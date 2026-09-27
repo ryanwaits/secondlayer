@@ -146,6 +146,89 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		});
 	});
 
+	test("a webhook's receiver credentials never come back in the response", async () => {
+		const created = await app.request("/webhooks", {
+			method: "POST",
+			body: JSON.stringify({
+				name: "auth-redaction",
+				subgraphName: SUBGRAPH_NAME,
+				tableName: "transfers",
+				url: "https://example.com/webhook",
+				authConfig: {
+					authType: "bearer",
+					token: "s3cret",
+					headers: { "x-team": "a" },
+				},
+			}),
+		});
+		expect(created.status).toBe(201);
+		const createdText = await created.text();
+		expect(createdText).not.toContain("s3cret");
+		// "a" alone is too common to grep for; check the header's own value
+		// isn't echoed back next to its name instead.
+		expect(createdText).not.toContain('"x-team":"a"');
+		const createdBody = JSON.parse(createdText) as {
+			webhook: { id: string; auth: unknown };
+		};
+		expect(createdBody.webhook.auth).toEqual({
+			type: "bearer",
+			headerNames: ["x-team"],
+			hasSecret: true,
+		});
+		expect(createdBody.webhook).not.toHaveProperty("authConfig");
+
+		const got = await app.request(`/webhooks/${createdBody.webhook.id}`);
+		expect(got.status).toBe(200);
+		const gotText = await got.text();
+		expect(gotText).not.toContain("s3cret");
+		expect(JSON.parse(gotText)).toMatchObject({
+			auth: { type: "bearer", headerNames: ["x-team"], hasSecret: true },
+		});
+
+		// The list response never carried auth at all, but it's a cheap
+		// regression guard against that ever changing.
+		const list = await app.request("/webhooks");
+		const listText = await list.text();
+		expect(listText).not.toContain("s3cret");
+	});
+
+	test("auth type falls back to bearer when a token is set without an explicit authType", async () => {
+		const created = await app.request("/webhooks", {
+			method: "POST",
+			body: JSON.stringify({
+				name: "auth-implicit-bearer",
+				subgraphName: SUBGRAPH_NAME,
+				tableName: "transfers",
+				url: "https://example.com/webhook",
+				authConfig: { token: "implicit-token" },
+			}),
+		});
+		const body = (await created.json()) as { webhook: { auth: unknown } };
+		expect(body.webhook.auth).toEqual({
+			type: "bearer",
+			headerNames: [],
+			hasSecret: true,
+		});
+	});
+
+	test("no auth config at all reads back as type none with no secret", async () => {
+		const created = await app.request("/webhooks", {
+			method: "POST",
+			body: JSON.stringify({
+				name: "auth-none",
+				subgraphName: SUBGRAPH_NAME,
+				tableName: "transfers",
+				url: "https://example.com/webhook",
+			}),
+		});
+		const body = (await created.json()) as { webhook: { auth: unknown } };
+		expect(body.webhook.auth).toEqual({
+			type: "none",
+			headerNames: [],
+			hasSecret: false,
+		});
+	});
+
 	test("update rejects filter fields outside the subscribed table", async () => {
 		const created = await app.request("/webhooks", {
 			method: "POST",

@@ -20,7 +20,7 @@ const webhook: WebhookDetail = {
 	createdAt: "2026-04-01T00:00:00.000Z",
 	updatedAt: "2026-04-01T00:00:00.000Z",
 	filter: {},
-	authConfig: {},
+	auth: { type: "none", headerNames: [], hasSecret: false },
 	maxRetries: 7,
 	timeoutMs: 10_000,
 	concurrency: 8,
