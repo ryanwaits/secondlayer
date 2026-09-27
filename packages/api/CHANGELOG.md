@@ -1,5 +1,18 @@
 # @secondlayer/api
 
+## 1.44.0
+
+### Minor Changes
+
+- 87d95ea: Adds the `/v1/index/runes/*` read API: `listRunes`, `getRune`, `listRuneActivity`, `listRuneBalances` — same envelope, cursor, finality cache, and metering as every other Index feed.
+
+### Patch Changes
+
+- dd4ab6a: Fix the tx merkle root and inclusion proof for one-transaction blocks. Stacks consensus pairs a lone leaf with itself, so a one-tx block's root is H(0x01 ‖ leaf ‖ leaf); `txMerkleRoot` returned the bare leaf hash and `txMerkleProof` returned an empty path. That made `/v1/index/transactions/:tx_id/proof` produce a proof that failed verification for any transaction alone in its block, and made the node auditor's transaction attestation report a false mismatch for every one-tx block. Verified against mainnet block 9,070,019.
+- Updated dependencies [dd4ab6a]
+  - @secondlayer/shared@11.14.3
+  - @secondlayer/platform@0.3.20
+
 ## 1.43.14
 
 ### Patch Changes
