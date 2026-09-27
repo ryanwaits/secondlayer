@@ -1,13 +1,12 @@
 "use client";
 
 import { FloatingCard } from "@/components/account/floating-card";
-import { CopyButton } from "@/components/copy-button";
 import { requeue } from "@/lib/webhooks-data";
 import { getDeliveryDetail } from "@/lib/webhooks-store";
 import type { DeliveryRow, WebhookDeliveryDetail } from "@secondlayer/sdk";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { shortenPrincipal } from "./shared";
+import { CodePanel, prettyJson, shortenPrincipal } from "./shared";
 
 /** Common status texts for the delivery card's title. Anything else falls
  *  back to just the number — the receiver's own text, when we have one, adds
@@ -31,14 +30,6 @@ const STATUS_TEXT: Record<number, string> = {
 
 type DeliveryTab = "payload" | "response" | "headers";
 
-function bytes(n: number): string {
-	return n >= 1024 ? `${(n / 1024).toFixed(1)} KB` : `${n} B`;
-}
-
-function byteLength(s: string): number {
-	return new TextEncoder().encode(s).length;
-}
-
 /** Pretty JSON when it parses as JSON; otherwise the raw text, unchanged
  *  ("anything else is shown as sent" — plan 070). */
 function prettyOrRaw(text: string): { text: string; lang: "json" | "html" } {
@@ -47,10 +38,6 @@ function prettyOrRaw(text: string): { text: string; lang: "json" | "html" } {
 	} catch {
 		return { text, lang: "html" };
 	}
-}
-
-function prettyJson(value: unknown): string {
-	return JSON.stringify(value, null, 2);
 }
 
 function buildCurlCommand(url: string, payload: unknown): string {
@@ -62,71 +49,6 @@ function buildCurlCommand(url: string, payload: unknown): string {
 		`  -H 'content-type: application/json' \\`,
 		`  -d '${escaped}'`,
 	].join("\n");
-}
-
-function HighlightedCode({
-	code,
-	lang,
-}: { code: string; lang: "json" | "html" }) {
-	const [html, setHtml] = useState<string | null>(null);
-
-	useEffect(() => {
-		let stopped = false;
-		import("@/lib/highlight-client").then(({ highlightClient }) =>
-			highlightClient(code, lang).then((h) => {
-				if (!stopped) setHtml(h);
-			}),
-		);
-		return () => {
-			stopped = true;
-		};
-	}, [code, lang]);
-
-	if (!html) return <pre>{code}</pre>;
-	// biome-ignore lint/security/noDangerouslySetInnerHtml: server-rendered-style syntax highlighting, same pattern as the docs' `highlight()`
-	return <div dangerouslySetInnerHTML={{ __html: html }} />;
-}
-
-function CodePanel({
-	label,
-	code,
-	lang,
-	emptyText,
-	loading,
-}: {
-	label: string;
-	code: string | null;
-	lang: "json" | "html";
-	emptyText: string;
-	/** `detail` hasn't loaded yet — distinct from a real empty state, which
-	 *  says something specific ("payload no longer kept"). */
-	loading?: boolean;
-}) {
-	if (loading) {
-		return (
-			<div className="wh-code">
-				<p className="wh-code-empty">Loading…</p>
-			</div>
-		);
-	}
-	if (code === null || code.length === 0) {
-		return (
-			<div className="wh-code">
-				<p className="wh-code-empty">{emptyText}</p>
-			</div>
-		);
-	}
-	return (
-		<div className="wh-code">
-			<div className="wh-code-head">
-				<span>
-					{label} · {bytes(byteLength(code))}
-				</span>
-				<CopyButton code={code} label="Copy" />
-			</div>
-			<HighlightedCode code={code} lang={lang} />
-		</div>
-	);
 }
 
 /** The row `DeliveryCard` should show for `openId`: the live row when it's

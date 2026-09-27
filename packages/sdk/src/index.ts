@@ -176,6 +176,7 @@ export type {
 	WebhookKind,
 	WebhookSummary,
 	WebhookDetail,
+	WebhookAuth,
 	WebhookTestResult,
 	CreateWebhookRequest,
 	CreateWebhookResponse,

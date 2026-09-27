@@ -1,6 +1,5 @@
 "use client";
 
-import { formatDate } from "@/lib/account-data";
 import {
 	activityHeaderSummary,
 	catchUpCopy,
@@ -24,7 +23,7 @@ import {
 	webhooksSnapshot,
 } from "@/lib/webhooks-store";
 import NumberFlow from "@number-flow/react";
-import type { DeadRow, DeliveryRow, WebhookFormat } from "@secondlayer/sdk";
+import type { DeadRow, DeliveryRow } from "@secondlayer/sdk";
 import {
 	buildDoctorReport,
 	isSuccessDelivery,
@@ -34,10 +33,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { LazyMonoStackedBarChart } from "./charts/lazy";
+import {
+	ConfigCard,
+	ConfigRow,
+	ConfigSummaryLine,
+	UnfilteredTriggerWarnings,
+} from "./config-card";
 import { DeliveryCard } from "./delivery-card";
 import { DiagnosisPanel } from "./diagnosis";
 import { AttemptRibbon } from "./ribbon";
-import { CliLine, FiresOn, StatusPill, displayStatus } from "./shared";
+import { StatusPill, displayStatus } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
 
 /** How often the detail bundle (webhook, deliveries, dead, activity)
@@ -62,15 +67,6 @@ function describeFailure(
 	if (res.kind === "not_found") return "That webhook wasn't found.";
 	return res.message;
 }
-
-const FORMAT_LABEL: Record<WebhookFormat, string> = {
-	"standard-webhooks": "Standard Webhooks, signed with your secret",
-	inngest: "Inngest event",
-	trigger: "Trigger.dev event",
-	cloudflare: "Cloudflare Queues message",
-	cloudevents: "CloudEvents envelope",
-	raw: "Raw JSON payload",
-};
 
 /** Response time, oldest → newest, over the deliveries the page already
  *  fetched — moved here (from the deleted `chart.tsx`) since only the
@@ -198,6 +194,15 @@ export function WebhookDetailSection({ id }: { id: string }) {
 
 	const [showAllDeliveries, setShowAllDeliveries] = useState(false);
 	const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null);
+	// The config card's open tab, `null` when closed. One `FloatingCard` shows
+	// at a time — opening this closes an open delivery card and vice versa.
+	const [configTab, setConfigTab] = useState<
+		"fires" | "delivery" | "json" | null
+	>(null);
+	const openConfig = (tab: "fires" | "delivery" | "json") => {
+		setConfigTab(tab);
+		setOpenDeliveryId(null);
+	};
 
 	const [testBusy, setTestBusy] = useState(false);
 	const [testResult, setTestResult] = useState<{
@@ -543,6 +548,13 @@ export function WebhookDetailSection({ id }: { id: string }) {
 				</div>
 			</div>
 
+			<ConfigSummaryLine webhook={webhook} onOpen={() => openConfig("fires")} />
+			<UnfilteredTriggerWarnings
+				webhook={webhook}
+				activity={activity}
+				onOpen={() => openConfig("fires")}
+			/>
+
 			{testResult ? (
 				<p className="wh-result">
 					<span className={testResult.ok ? "ok" : "bad"}>
@@ -670,7 +682,10 @@ export function WebhookDetailSection({ id }: { id: string }) {
 							setOpenDeliveryId(null);
 						}}
 						openId={openDeliveryId}
-						onOpen={(deliveryId) => setOpenDeliveryId(deliveryId)}
+						onOpen={(deliveryId) => {
+							setOpenDeliveryId(deliveryId);
+							setConfigTab(null);
+						}}
 					/>
 				) : (
 					<FailedEventsTable
@@ -685,43 +700,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 				)}
 			</div>
 
-			<h2 className="acct-h2">Settings</h2>
-			<dl className="wh-facts">
-				<dt>Fires on</dt>
-				<dd>
-					<FiresOn
-						kind={webhook.kind}
-						subgraphName={webhook.subgraphName}
-						tableName={webhook.tableName}
-						triggers={webhook.triggers}
-					/>
-					<div className="acct-fine" style={{ marginTop: 4 }}>
-						Created {formatDate(webhook.createdAt)}
-					</div>
-				</dd>
-				<dt>Sends to</dt>
-				<dd>
-					<span className="wh-mono">{webhook.url}</span>
-				</dd>
-				<dt>Format</dt>
-				<dd>{FORMAT_LABEL[webhook.format]}</dd>
-				<dt>Retries</dt>
-				<dd>
-					<span className="wh-mono">{webhook.maxRetries}</span>{" "}
-					<span className="wh-of">of 7 allowed</span>
-				</dd>
-				<dt>Timeout</dt>
-				<dd>
-					<span className="wh-mono">{webhook.timeoutMs / 1000}</span> seconds{" "}
-					<span className="wh-of">of 30 allowed</span>
-				</dd>
-				<dt>In flight</dt>
-				<dd>
-					<span className="wh-mono">{webhook.concurrency}</span>{" "}
-					<span className="wh-of">requests at once</span>
-				</dd>
-			</dl>
-			<CliLine command={`secondlayer webhooks update ${webhook.id}`} />
+			<ConfigRow webhook={webhook} onOpen={() => openConfig("fires")} />
 
 			<DeliveryCard
 				webhookId={id}
@@ -731,6 +710,14 @@ export function WebhookDetailSection({ id }: { id: string }) {
 				openId={openDeliveryId}
 				onClose={() => setOpenDeliveryId(null)}
 				onNavigate={(deliveryId) => setOpenDeliveryId(deliveryId)}
+			/>
+
+			<ConfigCard
+				webhook={configTab !== null ? webhook : null}
+				activity={activity}
+				tab={configTab ?? "fires"}
+				onTabChange={setConfigTab}
+				onClose={() => setConfigTab(null)}
 			/>
 
 			<div className="wh-danger">

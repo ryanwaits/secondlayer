@@ -3,6 +3,7 @@
 import { CopyButton } from "@/components/copy-button";
 import type {
 	ChainTrigger,
+	WebhookFormat,
 	WebhookKind,
 	WebhookStatus,
 } from "@secondlayer/sdk";
@@ -14,11 +15,23 @@ import {
 	DOWN_MIN_CONSECUTIVE,
 	type DoctorIssue,
 } from "@secondlayer/sdk/webhooks/doctor";
+import { useEffect, useState } from "react";
 
 /** Small pieces shared by the webhooks list and detail pages: the status
  *  pill, the "Fires on" trigger line, and the CLI command box. Kept here
  *  instead of duplicated so a status label or a trigger's formatting only
  *  has one place to fix. */
+
+/** "Standard Webhooks, signed with your secret", etc. — the config card's
+ *  Delivery tab and (until plan 070) the old Settings block. */
+export const FORMAT_LABEL: Record<WebhookFormat, string> = {
+	"standard-webhooks": "Standard Webhooks, signed with your secret",
+	inngest: "Inngest event",
+	trigger: "Trigger.dev event",
+	cloudflare: "Cloudflare Queues message",
+	cloudevents: "CloudEvents envelope",
+	raw: "Raw JSON payload",
+};
 
 export const STATUS_LABEL: Record<WebhookStatus, string> = {
 	active: "Delivering",
@@ -170,6 +183,89 @@ export function CliLine({ command }: { command: string }) {
 				<span className="wh-cli-p">$</span> {command}
 			</code>
 			<CopyButton code={command} inline label="Copy" />
+		</div>
+	);
+}
+
+// ── Syntax-highlighted code panels — shared by the delivery card
+// (payload/response/headers) and the config card (JSON tab) ──────────────
+
+export function prettyJson(value: unknown): string {
+	return JSON.stringify(value, null, 2);
+}
+
+function bytes(n: number): string {
+	return n >= 1024 ? `${(n / 1024).toFixed(1)} KB` : `${n} B`;
+}
+
+function byteLength(s: string): number {
+	return new TextEncoder().encode(s).length;
+}
+
+function HighlightedCode({
+	code,
+	lang,
+}: { code: string; lang: "json" | "html" }) {
+	const [html, setHtml] = useState<string | null>(null);
+
+	useEffect(() => {
+		let stopped = false;
+		import("@/lib/highlight-client").then(({ highlightClient }) =>
+			highlightClient(code, lang).then((h) => {
+				if (!stopped) setHtml(h);
+			}),
+		);
+		return () => {
+			stopped = true;
+		};
+	}, [code, lang]);
+
+	if (!html) return <pre>{code}</pre>;
+	// biome-ignore lint/security/noDangerouslySetInnerHtml: server-rendered-style syntax highlighting, same pattern as the docs' `highlight()`
+	return <div dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+/** A labeled, highlighted code block with byte count and a Copy button — the
+ *  delivery card's Payload/Response/Headers tabs and the config card's JSON
+ *  tab all render through this one component. */
+export function CodePanel({
+	label,
+	code,
+	lang,
+	emptyText,
+	loading,
+}: {
+	label: string;
+	code: string | null;
+	lang: "json" | "html";
+	emptyText: string;
+	/** The data hasn't loaded yet — distinct from a real empty state, which
+	 *  says something specific ("payload no longer kept"). */
+	loading?: boolean;
+}) {
+	if (loading) {
+		return (
+			<div className="wh-code">
+				<p className="wh-code-empty">Loading…</p>
+			</div>
+		);
+	}
+	if (code === null || code.length === 0) {
+		return (
+			<div className="wh-code">
+				<p className="wh-code-empty">{emptyText}</p>
+			</div>
+		);
+	}
+	return (
+		<div className="wh-code">
+			<div className="wh-code-head">
+				<span>
+					{label} · {bytes(byteLength(code))}
+				</span>
+				<CopyButton code={code} label="Copy" />
+			</div>
+			<HighlightedCode code={code} lang={lang} />
 		</div>
 	);
 }

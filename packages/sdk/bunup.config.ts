@@ -12,6 +12,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/sinks/bun-sqlite.ts",
 		"src/sinks/testing.ts",
 		"src/webhooks/doctor.ts",
+		"src/webhooks/triggers.ts",
 	],
 	// Explicit source root: Bun.build's inferred common-ancestor flips to the
 	// package dir once the entry list grows past ~8, nesting output under

@@ -25,6 +25,7 @@ export type {
 	RotateSecretResponse,
 	WebhookActivity,
 	WebhookActivityHour,
+	WebhookAuth,
 	WebhookDeliveryDetail,
 	WebhookDetail,
 	WebhookFormat,

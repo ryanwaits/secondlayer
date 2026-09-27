@@ -3167,6 +3167,199 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	font-variant-numeric: tabular-nums;
 }
 
+/* Config side card: the page summary line, its unfiltered-trigger warning,
+   the "Configuration" row, and the card's own Fires-on / Delivery / JSON
+   tabs. */
+.wh-linklike {
+	border: 0;
+	background: none;
+	padding: 0;
+	font: inherit;
+	color: inherit;
+	text-decoration: none;
+	border-bottom: 1px solid var(--border-hover);
+	cursor: pointer;
+}
+.wh-linklike:hover {
+	color: var(--text-main);
+}
+.wh-chip {
+	display: inline-flex;
+	align-items: center;
+	height: 22px;
+	padding: 0 8px;
+	border-radius: 6px;
+	background: var(--wash);
+	color: var(--text-main);
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+}
+.wh-sumline {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 8px;
+	margin: -6px 0 0;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+.wh-cfg-warn-line {
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+	margin: 0;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+.wh-cfg-warn-line i {
+	flex: none;
+	width: 6px;
+	height: 6px;
+	margin-top: 6px;
+	border-radius: 999px;
+	background: var(--yellow);
+}
+.wh-cfg-warn-line b {
+	color: var(--text-main);
+	font-weight: 500;
+}
+.wh-cfg-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	padding: 10px 14px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	font-size: 13px;
+}
+.wh-cfg-row .sep {
+	color: var(--text-dim);
+}
+.wh-cfg-row .more {
+	margin-left: auto;
+	border: 0;
+	background: none;
+	color: var(--text-muted);
+	font: inherit;
+	font-size: 12.5px;
+	cursor: pointer;
+	border-bottom: 1px solid var(--border-hover);
+	padding: 0;
+}
+.wh-cfg-row .more:hover {
+	color: var(--text-main);
+}
+.wh-cfg-rule {
+	margin: 0;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+.wh-cfg-rule b {
+	color: var(--text-main);
+	font-weight: 500;
+}
+.wh-tc {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	overflow: hidden;
+}
+.wh-tc + .wh-tc {
+	margin-top: 12px;
+}
+.wh-tc-h {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px 14px;
+	flex-wrap: wrap;
+}
+.wh-tc-h .l {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+.wh-tc-h .sent {
+	margin: 0;
+	font-size: 14px;
+}
+.wh-tc-vol {
+	text-align: right;
+	font-size: 12px;
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+.wh-tc-vol b {
+	display: block;
+	font-family: var(--font-mono-stack);
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-main);
+}
+.wh-tc-fields {
+	display: grid;
+	grid-template-columns: 132px 1fr;
+	border-top: 1px solid var(--border);
+	margin: 0;
+}
+.wh-tc-fields dt,
+.wh-tc-fields dd {
+	margin: 0;
+	padding: 8px 14px;
+	font-size: 13px;
+	border-bottom: 1px solid color-mix(in srgb, var(--text-main) 5%, transparent);
+}
+.wh-tc-fields dt {
+	color: var(--text-muted);
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+}
+.wh-tc-fields dd {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+.wh-tc-fields dd .op {
+	color: var(--text-muted);
+	flex: none;
+}
+.wh-tc-fields dd .v {
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	overflow-wrap: anywhere;
+}
+.wh-tc-fields > div:last-of-type dt,
+.wh-tc-fields > div:last-of-type dd {
+	border-bottom: 0;
+}
+.wh-tc-any {
+	padding: 8px 14px 10px;
+	border-top: 1px solid color-mix(in srgb, var(--text-main) 5%, transparent);
+	font-size: 12.5px;
+	color: var(--text-muted);
+}
+.wh-tc-warn {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+	margin: 0;
+	padding: 10px 14px;
+	border-top: 1px solid var(--border);
+	background: color-mix(in srgb, var(--yellow) 7%, transparent);
+	font-size: 13px;
+}
+.wh-tc-warn i {
+	flex: none;
+	width: 6px;
+	height: 6px;
+	margin-top: 7px;
+	border-radius: 999px;
+	background: var(--yellow);
+}
+
 /* Insight card (plan 068): leads the detail page with the report's single
  * most severe issue — title, evidence, fix, and a disclosure naming the
  * rule. `--wh-sev` tints the border/wash per severity; `bad`/`warn` get a
