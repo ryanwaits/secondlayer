@@ -432,6 +432,99 @@ describe("createStreamsClient", () => {
 		expect(seen).toEqual([]);
 		expect(requests).toBe(2);
 	});
+
+	// Plan 059: chain=bitcoin (Runes events) has its own cursor/filter vocab.
+	test("chain=bitcoin sends rune/address query params, not Stacks ones", async () => {
+		const requests: Request[] = [];
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async (input, init) => {
+				const request =
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init);
+				requests.push(request);
+				return jsonResponse({
+					events: [
+						{
+							cursor: "840000:0",
+							chain: "bitcoin",
+							block_height: 840_000,
+							block_hash: "btchash",
+							tx_id: "0xetch",
+							tx_index: 0,
+							event_index: 0,
+							event_type: "rune_etch",
+							rune_id: "840000:3",
+							payload: { amount: "0" },
+						},
+					],
+					next_cursor: "840000:0",
+					tip: {
+						block_height: 840_000,
+						block_hash: "btchash",
+						finalized_height: 839_994,
+						lag_seconds: 0,
+					},
+					reorgs: [],
+				});
+			},
+		});
+
+		const page = await client.events.list({
+			chain: "bitcoin",
+			rune: "840000:3",
+			address: "bc1qtest",
+			types: ["rune_etch"],
+		});
+
+		const url = new URL(requests[0]?.url ?? "");
+		expect(url.searchParams.get("chain")).toBe("bitcoin");
+		expect(url.searchParams.get("rune")).toBe("840000:3");
+		expect(url.searchParams.get("address")).toBe("bc1qtest");
+		expect(url.searchParams.get("types")).toBe("rune_etch");
+		expect(url.searchParams.has("contract_id")).toBe(false);
+		expect(page.events).toHaveLength(1);
+		expect(page.events[0]?.chain).toBe("bitcoin");
+		expect(page.tip.block_height).toBe(840_000);
+	});
+
+	test("tip({chain: 'bitcoin'}) and canonical({chain: 'bitcoin'}) hit the right query", async () => {
+		const requests: Request[] = [];
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async (input, init) => {
+				const request =
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init);
+				requests.push(request);
+				return jsonResponse({
+					block_height: 840_000,
+					block_hash: "btchash",
+					finalized_height: 839_994,
+					lag_seconds: 0,
+					is_canonical: true,
+				});
+			},
+		});
+
+		await client.tip({ chain: "bitcoin" });
+		await client.canonical(840_000, { chain: "bitcoin" });
+
+		expect(new URL(requests[0]?.url ?? "").pathname).toBe("/v1/streams/tip");
+		expect(new URL(requests[0]?.url ?? "").searchParams.get("chain")).toBe(
+			"bitcoin",
+		);
+		expect(new URL(requests[1]?.url ?? "").pathname).toBe(
+			"/v1/streams/canonical/840000",
+		);
+		expect(new URL(requests[1]?.url ?? "").searchParams.get("chain")).toBe(
+			"bitcoin",
+		);
+	});
 });
 
 describe("createStreamsClient verify", () => {

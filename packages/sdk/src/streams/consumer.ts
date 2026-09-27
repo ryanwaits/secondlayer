@@ -115,12 +115,19 @@ export async function applyReorgs<
 type StreamsEventsFetchParams = {
 	cursor?: string | null;
 	limit: number;
+	/** `bitcoin` reads Runes events instead of the Stacks default (plan 059).
+	 *  See {@link StreamsEventsStreamParams.chain}'s untyped-events caveat. */
+	chain?: "stacks" | "bitcoin";
 	types?: readonly StreamsEventType[];
 	notTypes?: readonly StreamsEventType[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/** `chain: "bitcoin"` only — a RuneRef (id or name). */
+	rune?: string;
+	/** `chain: "bitcoin"` only — a mainnet address. */
+	address?: string;
 	/** Labelled filter groups, forwarded to the server verbatim. */
 	filters?: StreamsFilterMap;
 };
@@ -320,12 +327,15 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 	mode?: "tail" | "bounded";
 	finalizedOnly?: boolean;
 	batchSize: number;
+	chain?: "stacks" | "bitcoin";
 	types?: readonly StreamsEventType[];
 	notTypes?: readonly StreamsEventType[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	rune?: string;
+	address?: string;
 	/** Labelled filter groups, forwarded to the server verbatim. */
 	filters?: StreamsFilterMap;
 	fetchEvents: StreamsEventsFetcher;
@@ -414,12 +424,15 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 				opts.fetchEvents({
 					cursor,
 					limit: opts.batchSize,
+					chain: opts.chain,
 					types: opts.types,
 					notTypes: opts.notTypes,
 					contractId: opts.contractId,
 					sender: opts.sender,
 					recipient: opts.recipient,
 					assetIdentifier: opts.assetIdentifier,
+					rune: opts.rune,
+					address: opts.address,
 					filters: opts.filters,
 				}),
 			{
@@ -616,12 +629,15 @@ export async function* iterateStreamsBatches(opts: {
 	fromCursor?: string | null;
 	batchSize: number;
 	intervalMs: number;
+	chain?: "stacks" | "bitcoin";
 	types?: readonly StreamsEventType[];
 	notTypes?: readonly StreamsEventType[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	rune?: string;
+	address?: string;
 	/** Labelled filter groups, forwarded to the server verbatim. */
 	filters?: StreamsFilterMap;
 	fetchEvents: StreamsEventsFetcher;
@@ -635,12 +651,15 @@ export async function* iterateStreamsBatches(opts: {
 		const envelope = await opts.fetchEvents({
 			cursor,
 			limit: opts.batchSize,
+			chain: opts.chain,
 			types: opts.types,
 			notTypes: opts.notTypes,
 			contractId: opts.contractId,
 			sender: opts.sender,
 			recipient: opts.recipient,
 			assetIdentifier: opts.assetIdentifier,
+			rune: opts.rune,
+			address: opts.address,
 			filters: opts.filters,
 		});
 
@@ -667,12 +686,15 @@ export async function* iterateStreamsBatches(opts: {
 export async function* streamStreamsEvents(opts: {
 	fromCursor?: string | null;
 	batchSize: number;
+	chain?: "stacks" | "bitcoin";
 	types?: readonly StreamsEventType[];
 	notTypes?: readonly StreamsEventType[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	rune?: string;
+	address?: string;
 	/** Labelled filter groups, forwarded to the server verbatim. */
 	filters?: StreamsFilterMap;
 	fetchEvents: StreamsEventsFetcher;
@@ -698,12 +720,15 @@ export async function* streamStreamsEvents(opts: {
 		const envelope = await opts.fetchEvents({
 			cursor,
 			limit: opts.batchSize,
+			chain: opts.chain,
 			types: opts.types,
 			notTypes: opts.notTypes,
 			contractId: opts.contractId,
 			sender: opts.sender,
 			recipient: opts.recipient,
 			assetIdentifier: opts.assetIdentifier,
+			rune: opts.rune,
+			address: opts.address,
 			filters: opts.filters,
 		});
 		pages++;

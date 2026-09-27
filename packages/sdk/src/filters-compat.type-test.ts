@@ -14,7 +14,7 @@ import type {
 } from "./index-api/client.ts";
 import type {
 	StreamsEventsConsumeParams,
-	StreamsEventsListParams,
+	StreamsEventsStacksListParams,
 } from "./streams/types.ts";
 import type { ChainTrigger } from "./webhooks/client.ts";
 
@@ -29,9 +29,14 @@ export function _filterCompatChecks(): void {
 		ft.toIndexParams({ limit: 100 as number }),
 	).toMatchTypeOf<EventsListParams>();
 
-	// Streams: list and consume both accept the projection spread.
+	// Streams: list and consume both accept the projection spread. Pinned to
+	// the Stacks branch (`chain: "bitcoin"` has no contractId/assetIdentifier —
+	// plan 059) since this projection is a Stacks-only filter.
 	expectTypeOf(ft.toStreamsParams()).toMatchTypeOf<
-		Pick<StreamsEventsListParams, "types" | "assetIdentifier" | "contractId">
+		Pick<
+			StreamsEventsStacksListParams,
+			"types" | "assetIdentifier" | "contractId"
+		>
 	>();
 	const consumeParams: StreamsEventsConsumeParams = {
 		...ft.toStreamsParams(),

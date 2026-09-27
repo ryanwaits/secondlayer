@@ -108,6 +108,7 @@ export function subscribeStreamsEvents(opts: {
 		while (!controller.signal.aborted) {
 			try {
 				const url = `${opts.baseUrl}/v1/streams/events/stream${buildQuery({
+					chain: params.chain === "bitcoin" ? "bitcoin" : undefined,
 					from_cursor: cursor ?? undefined,
 					types: params.types,
 					not_types: params.notTypes,

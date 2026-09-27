@@ -3,6 +3,9 @@
 // Streams surface is unchanged.
 import type { VmEventType } from "@secondlayer/shared";
 import {
+	RUNE_EVENT_TYPES,
+	type RuneEventType,
+	type RuneStreamsEvent,
 	STREAMS_EVENT_TYPES,
 	type StreamsEvent,
 	type StreamsEventType,
@@ -13,7 +16,10 @@ import type { IndexEvent } from "../index-api/client.ts";
 import type { ConsumerSink, WithSinkTx } from "../sinks/types.ts";
 
 export {
+	RUNE_EVENT_TYPES,
 	STREAMS_EVENT_TYPES,
+	type RuneEventType,
+	type RuneStreamsEvent,
 	type StreamsEvent,
 	type StreamsEventType,
 	type VmStreamsEvent,
@@ -31,6 +37,8 @@ export type {
 	NftMintPayload,
 	NftTransferPayload,
 	PrintPayload,
+	RuneEtchEntry,
+	RuneEventPayload,
 	StreamsClarityValue,
 	StreamsEventBase,
 	StreamsEventPayload,
@@ -60,11 +68,28 @@ export type StreamsTip = {
 	oldest_cursor?: string | null;
 };
 
+/** `chain=bitcoin` tip (plan 059) — no `burn_block_height`/retention fields,
+ *  since Bitcoin has no burn chain of its own and Runes reads have no
+ *  retention ladder. Returned by `tip({ chain: "bitcoin" })`. */
+export type StreamsBitcoinTip = {
+	block_height: number;
+	block_hash: string;
+	finalized_height: number;
+	lag_seconds: number;
+};
+
 export type StreamsCanonicalBlock = {
 	block_height: number;
 	block_hash: string;
 	burn_block_height: number;
 	burn_block_hash: string | null;
+	is_canonical: true;
+};
+
+/** `chain=bitcoin` canonical block (plan 059) — no burn-chain fields. */
+export type StreamsBitcoinCanonicalBlock = {
+	block_height: number;
+	block_hash: string;
 	is_canonical: true;
 };
 
@@ -81,17 +106,17 @@ export type StreamsReorg = {
 	new_canonical_tip: string;
 };
 
-export type StreamsEventsEnvelope<TEvent = StreamsEvent> = {
+export type StreamsEventsEnvelope<TEvent = StreamsEvent, TTip = StreamsTip> = {
 	events: TEvent[];
 	next_cursor: string | null;
-	tip: StreamsTip;
+	tip: TTip;
 	reorgs: StreamsReorg[];
 };
 
-export type StreamsEventsListEnvelope = Omit<
-	StreamsEventsEnvelope,
-	"next_cursor"
->;
+export type StreamsEventsListEnvelope<
+	TEvent = StreamsEvent,
+	TTip = StreamsTip,
+> = Omit<StreamsEventsEnvelope<TEvent, TTip>, "next_cursor">;
 
 /** The StreamsEvent union narrowed to a `types` selection — what a
  *  const-generic `types: ["ft_transfer"]` buys at the type level. */
@@ -141,10 +166,17 @@ export type StreamsEventForFilter<F, D extends boolean = false> = F extends {
 		? IndexEvent
 		: StreamsEvent;
 
-export type StreamsEventsListParams = {
+type StreamsEventsListParamsCommon = {
 	cursor?: string | null;
 	fromHeight?: number;
 	toHeight?: number;
+	limit?: number;
+};
+
+/** `chain: "stacks"` (default, omit `chain` entirely) — unchanged since
+ *  before plan 059. */
+export type StreamsEventsStacksListParams = StreamsEventsListParamsCommon & {
+	chain?: "stacks";
 	/** `vm` reads ordinal. Omit for Streams 1.0. */
 	clock?: "classic" | "vm";
 	types?: readonly (StreamsEventType | VmEventType)[];
@@ -160,10 +192,41 @@ export type StreamsEventsListParams = {
 	 * unrelated concerns share one page, one cursor, one checkpoint.
 	 */
 	filters?: StreamsFilterMap;
-	limit?: number;
 };
 
+/**
+ * `chain: "bitcoin"` (plan 059) — Runes events, own cursor space. `types` is
+ * restricted to {@link RuneEventType} at the type level, so e.g.
+ * `{ chain: "bitcoin", types: ["ft_transfer"] }` is a compile error rather
+ * than a silent 400 at request time. `contractId`/`sender`/`recipient`/
+ * `assetIdentifier`/`filters`/`clock` don't exist on this branch — they're
+ * Stacks-only (the server 400s on them too).
+ */
+export type StreamsEventsBitcoinListParams = StreamsEventsListParamsCommon & {
+	chain: "bitcoin";
+	types?: readonly RuneEventType[];
+	notTypes?: readonly RuneEventType[];
+	/** A RuneRef: an id (`840000:3`) or a name (`DOG•GO•TO•THE•MOON`). */
+	rune?: string;
+	/** A mainnet address. */
+	address?: string;
+};
+
+export type StreamsEventsListParams =
+	| StreamsEventsStacksListParams
+	| StreamsEventsBitcoinListParams;
+
 export type StreamsEventsStreamParams = {
+	/**
+	 * `bitcoin` tails Runes events (plan 059) instead of the Stacks default.
+	 * Untyped on this surface for now — `for await` still yields values typed
+	 * as {@link StreamsEvent}, though the wire payload is
+	 * {@link RuneStreamsEvent}-shaped when set; cast at the call site
+	 * (`as unknown as RuneStreamsEvent`) until a future major generic-izes
+	 * `stream`/`subscribe`/`consume` over the event type the way `events.list`
+	 * already is.
+	 */
+	chain?: "stacks" | "bitcoin";
 	fromCursor?: string | null;
 	types?: readonly StreamsEventType[];
 	notTypes?: readonly StreamsEventType[];
@@ -171,6 +234,10 @@ export type StreamsEventsStreamParams = {
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/** `chain: "bitcoin"` only — a RuneRef (id or name). */
+	rune?: string;
+	/** `chain: "bitcoin"` only — a mainnet address. */
+	address?: string;
 	/** Labelled filter groups; see {@link StreamsEventsListParams.filters}. */
 	filters?: StreamsFilterMap;
 	batchSize?: number;
@@ -181,6 +248,8 @@ export type StreamsEventsStreamParams = {
 };
 
 export type StreamsEventsSubscribeParams = {
+	/** See {@link StreamsEventsStreamParams.chain} — same untyped-events caveat. */
+	chain?: "stacks" | "bitcoin";
 	/** Resume strictly after this cursor; omit to live-tail from the tip. */
 	fromCursor?: string | null;
 	types?: readonly StreamsEventType[];
@@ -189,6 +258,10 @@ export type StreamsEventsSubscribeParams = {
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/** `chain: "bitcoin"` only — a RuneRef (id or name). */
+	rune?: string;
+	/** `chain: "bitcoin"` only — a mainnet address. */
+	address?: string;
 	/** Labelled filter groups; see {@link StreamsEventsListParams.filters}. */
 	filters?: StreamsFilterMap;
 	/** Abort to unsubscribe (the returned function does the same). */
@@ -303,6 +376,10 @@ export type StreamsEventsConsumeParams<
 	D extends boolean = false,
 	F extends StreamsFilterMap = Record<never, never>,
 > = {
+	/** See {@link StreamsEventsStreamParams.chain} — same untyped-events caveat;
+	 *  reorg rewind still works (bitcoin reorgs carry the same
+	 *  `fork_point_height` + `new_canonical_tip` shape). */
+	chain?: "stacks" | "bitcoin";
 	fromCursor?: string | null;
 	/**
 	 * Deliver events pre-decoded as the flat, `event_type`-discriminated rows
@@ -336,6 +413,10 @@ export type StreamsEventsConsumeParams<
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/** `chain: "bitcoin"` only — a RuneRef (id or name). */
+	rune?: string;
+	/** `chain: "bitcoin"` only — a mainnet address. */
+	address?: string;
 	/**
 	 * Labelled filter groups. The groups OR together in ONE server-side scan,
 	 * so two unrelated concerns share one page, one cursor, and one checkpoint
@@ -595,31 +676,48 @@ export type StreamsClient = {
 	consume(params?: StreamsConsumeParams): AsyncIterableIterator<StreamsBatch>;
 	events: {
 		/** `clock: "vm"` pages carry vm rows only (a parallel vocabulary,
-		 *  `event_index` = `ordinal`). Never `StreamsEvent`. */
+		 *  `event_index` = `ordinal`). Never `StreamsEvent`. Stacks-only —
+		 *  `chain: "bitcoin"` has no `clock`. */
 		list(
-			params: StreamsEventsListParams & { clock: "vm" },
+			params: StreamsEventsStacksListParams & { clock: "vm" },
 		): Promise<StreamsEventsEnvelope<VmStreamsEvent>>;
 		/** Narrowing overload, matching `consume`. Classic clock only —
 		 *  `clock: "vm"` is overload 1, and a general `StreamsEventsListParams`
 		 *  variable (clock unresolved) is the wire-union fallback. */
 		list<const T extends readonly StreamsEventType[]>(
-			params: Omit<StreamsEventsListParams, "clock" | "types" | "notTypes"> & {
+			params: Omit<
+				StreamsEventsStacksListParams,
+				"clock" | "types" | "notTypes"
+			> & {
 				types: T;
 				notTypes?: readonly StreamsEventType[];
 				clock?: "classic";
 			},
 		): Promise<StreamsEventsEnvelope<StreamsEventOfTypes<T>>>;
 		list(
-			params?: Omit<StreamsEventsListParams, "clock" | "types" | "notTypes"> & {
+			params?: Omit<
+				StreamsEventsStacksListParams,
+				"clock" | "types" | "notTypes"
+			> & {
 				types?: readonly StreamsEventType[];
 				notTypes?: readonly StreamsEventType[];
 				clock?: "classic";
 			},
 		): Promise<StreamsEventsEnvelope>;
-		/** Unresolved `clock` on a general params variable: the wire union. */
+		/** `chain: "bitcoin"` pages carry Runes rows only, on the bitcoin tip
+		 *  shape (plan 059). */
+		list(
+			params: StreamsEventsBitcoinListParams,
+		): Promise<StreamsEventsEnvelope<RuneStreamsEvent, StreamsBitcoinTip>>;
+		/** Unresolved `chain`/`clock` on a general params variable: the wire union. */
 		list(
 			params: StreamsEventsListParams,
 		): Promise<StreamsEventsEnvelope<StreamsWireEvent>>;
+		/** `chain: "bitcoin"` — Runes events for one transaction. */
+		byTxId(
+			txId: string,
+			opts: { chain: "bitcoin" },
+		): Promise<StreamsEventsListEnvelope<RuneStreamsEvent, StreamsBitcoinTip>>;
 		byTxId(txId: string): Promise<StreamsEventsListEnvelope>;
 		/**
 		 * Pull pages from Streams and call `onBatch` after each page.
@@ -674,13 +772,25 @@ export type StreamsClient = {
 		subscribe(params: StreamsEventsSubscribeParams): StreamsSubscription;
 	};
 	blocks: {
+		events(
+			heightOrHash: number | string,
+			opts: { chain: "bitcoin" },
+		): Promise<StreamsEventsListEnvelope<RuneStreamsEvent, StreamsBitcoinTip>>;
 		events(heightOrHash: number | string): Promise<StreamsEventsListEnvelope>;
 	};
 	reorgs: {
+		list(
+			params: StreamsReorgsListParams & { chain: "bitcoin" },
+		): Promise<StreamsReorgsListEnvelope>;
 		list(params: StreamsReorgsListParams): Promise<StreamsReorgsListEnvelope>;
 	};
 	/** Bulk parquet dumps. Requires `dumpsBaseUrl` on the client. */
 	dumps: StreamsDumps;
+	canonical(
+		height: number,
+		opts: { chain: "bitcoin" },
+	): Promise<StreamsBitcoinCanonicalBlock>;
 	canonical(height: number): Promise<StreamsCanonicalBlock>;
+	tip(opts: { chain: "bitcoin" }): Promise<StreamsBitcoinTip>;
 	tip(): Promise<StreamsTip>;
 };

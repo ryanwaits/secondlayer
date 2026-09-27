@@ -62,21 +62,27 @@ function maxCursor(a: string | null, b: string | null): string | null {
  * deliberately forwards a subset and stays explicit.
  */
 function streamsFilters(params: {
+	chain?: "stacks" | "bitcoin";
 	types?: readonly StreamsEventType[];
 	notTypes?: readonly StreamsEventType[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	rune?: string;
+	address?: string;
 	filters?: StreamsFilterMap;
 }) {
 	return {
+		chain: params.chain,
 		types: params.types,
 		notTypes: params.notTypes,
 		contractId: params.contractId,
 		sender: params.sender,
 		recipient: params.recipient,
 		assetIdentifier: params.assetIdentifier,
+		rune: params.rune,
+		address: params.address,
 		filters: params.filters,
 	};
 }
@@ -301,13 +307,28 @@ export function createStreamsClient(
 		return JSON.parse(text) as T;
 	}
 
-	// StreamsEventsFetchParams is a strict subset of StreamsEventsListParams, so
-	// this is checked by the compiler rather than by a hand-copied destructure.
-	const fetchEvents: StreamsEventsFetcher = listEvents;
+	// StreamsEventsFetchParams was a strict subset of StreamsEventsListParams
+	// pre-059; `chain: "bitcoin"` narrows `types` to RuneEventType there, so a
+	// plain cast replaces the old structural assignment for this one generic
+	// entry point shared by consume/stream (untyped across chains — see
+	// `StreamsEventsStreamParams.chain`'s doc comment).
+	const fetchEvents: StreamsEventsFetcher = (params) =>
+		listEvents(params as StreamsEventsListParams);
 
-	function listReorgs(params: StreamsReorgsListParams) {
+	function byTxId(txId: string, opts?: { chain?: "stacks" | "bitcoin" }) {
+		return request<StreamsEventsListEnvelope>(
+			`/v1/streams/events/${encodeURIComponent(txId)}${buildQuery({
+				chain: opts?.chain === "bitcoin" ? "bitcoin" : undefined,
+			})}`,
+		);
+	}
+
+	function listReorgs(
+		params: StreamsReorgsListParams & { chain?: "stacks" | "bitcoin" },
+	) {
 		return request<StreamsReorgsListEnvelope>(
 			`/v1/streams/reorgs${buildQuery({
+				chain: params.chain === "bitcoin" ? "bitcoin" : undefined,
 				since: params.since,
 				limit: params.limit,
 			})}`,
@@ -324,6 +345,21 @@ export function createStreamsClient(
 	async function listEvents(
 		params: StreamsEventsListParams = {},
 	): Promise<StreamsEventsEnvelope> {
+		if (params.chain === "bitcoin") {
+			return request<StreamsEventsEnvelope>(
+				`/v1/streams/events${buildQuery({
+					chain: "bitcoin",
+					cursor: params.cursor,
+					from_height: params.fromHeight,
+					to_height: params.toHeight,
+					limit: params.limit,
+					types: params.types,
+					not_types: params.notTypes,
+					rune: params.rune,
+					address: params.address,
+				})}`,
+			);
+		}
 		return request<StreamsEventsEnvelope>(
 			`/v1/streams/events${buildQuery({
 				cursor: params.cursor,
@@ -459,11 +495,7 @@ export function createStreamsClient(
 		events: {
 			// One wire call; the overloads narrow the row type by `clock`/`types`.
 			list: listEvents as StreamsClient["events"]["list"],
-			byTxId(txId: string) {
-				return request<StreamsEventsListEnvelope>(
-					`/v1/streams/events/${encodeURIComponent(txId)}`,
-				);
-			},
+			byTxId: byTxId as StreamsClient["events"]["byTxId"],
 			consume: consumeEvents,
 			stream(params: StreamsEventsStreamParams = {}) {
 				return streamStreamsEvents({
@@ -540,19 +572,29 @@ export function createStreamsClient(
 			},
 		},
 		blocks: {
-			events(heightOrHash: number | string) {
-				return request<StreamsEventsListEnvelope>(
-					`/v1/streams/blocks/${encodeURIComponent(String(heightOrHash))}/events`,
-				);
-			},
+			events: ((
+				heightOrHash: number | string,
+				opts?: { chain?: "stacks" | "bitcoin" },
+			) =>
+				request<StreamsEventsListEnvelope>(
+					`/v1/streams/blocks/${encodeURIComponent(String(heightOrHash))}/events${buildQuery(
+						{ chain: opts?.chain === "bitcoin" ? "bitcoin" : undefined },
+					)}`,
+				)) as StreamsClient["blocks"]["events"],
 		},
-		reorgs: { list: listReorgs },
+		reorgs: { list: listReorgs as StreamsClient["reorgs"]["list"] },
 		dumps,
-		canonical(height: number) {
-			return request<StreamsCanonicalBlock>(`/v1/streams/canonical/${height}`);
-		},
-		tip() {
-			return request<StreamsTip>("/v1/streams/tip");
-		},
+		canonical: ((height: number, opts?: { chain?: "stacks" | "bitcoin" }) =>
+			request<StreamsCanonicalBlock>(
+				`/v1/streams/canonical/${height}${buildQuery({
+					chain: opts?.chain === "bitcoin" ? "bitcoin" : undefined,
+				})}`,
+			)) as StreamsClient["canonical"],
+		tip: ((opts?: { chain?: "stacks" | "bitcoin" }) =>
+			request<StreamsTip>(
+				`/v1/streams/tip${buildQuery({
+					chain: opts?.chain === "bitcoin" ? "bitcoin" : undefined,
+				})}`,
+			)) as StreamsClient["tip"],
 	};
 }
