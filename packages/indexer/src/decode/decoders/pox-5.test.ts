@@ -215,6 +215,10 @@ describe("decodePox5Print", () => {
 		);
 		expect(row?.reward_cycle).toBe(145);
 		expect(row?.signer_manager).toBe(SIGNER_MANAGER);
+		// The contract prints only signer-manager here, but it IS the signer
+		// (claim-rewards asserts contract-caller is-eq signer-manager) — derived
+		// so `signer=` alone returns a pool's full activity.
+		expect(row?.signer).toBe(SIGNER_MANAGER);
 		const bondRewards = (row?.data as Record<string, unknown>)[
 			"bond-rewards"
 		] as Array<Record<string, unknown>>;
@@ -236,6 +240,7 @@ describe("decodePox5Print", () => {
 			),
 		);
 		expect(withBond?.bond_index).toBe(4);
+		expect(withBond?.signer).toBe(withBond?.signer_manager);
 
 		const stxOnly = decodePox5Print(
 			buildPrintEvent(
@@ -341,7 +346,20 @@ describe("decodePox5Print", () => {
 			),
 		);
 		expect(granted?.signer_manager).toBe(SIGNER_MANAGER);
+		expect(granted?.signer).toBe(SIGNER_MANAGER);
 		expect(granted?.signer_key).toBe(registered?.signer_key ?? "");
+
+		const revoked = decodePox5Print(
+			buildPrintEvent(
+				tupleCV({
+					topic: stringAsciiCV("revoke-signer-grant"),
+					"signer-manager": contractPrincipalCV(SIGNER, "signer-manager"),
+					"signer-key": bufferCV(signerKey),
+				}),
+			),
+		);
+		expect(revoked?.signer_manager).toBe(SIGNER_MANAGER);
+		expect(revoked?.signer).toBe(SIGNER_MANAGER);
 	});
 
 	test("admin topics decode with all promoted columns null", () => {

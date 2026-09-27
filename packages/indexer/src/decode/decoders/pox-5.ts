@@ -326,13 +326,23 @@ function promoteTopicFields(
 			return {
 				bond_index: asInt64(tuple["bond-index"]),
 			};
+		// These four topics print only `signer-manager`, never `signer` — but in
+		// pox-5 the signer *is* the signer-manager contract (it calls the
+		// contract-of its own signer-manager, and every one of these functions
+		// asserts contract-caller is-eq signer-manager). So `signer` is filled
+		// with the same principal here: a derivation from the contract's own
+		// identity rule, not a guess. Without it, a pool has to query `signer=`
+		// AND `signerManager=` and merge the results for "everything about my
+		// signer".
 		case "claim-rewards":
 			return {
 				reward_cycle: asInt32(tuple["reward-cycle"]),
+				signer: asString(tuple["signer-manager"]),
 				signer_manager: asString(tuple["signer-manager"]),
 			};
 		case "claim-staker-rewards-for-signer":
 			return {
+				signer: asString(tuple["signer-manager"]),
 				signer_manager: asString(tuple["signer-manager"]),
 				staker: asString(tuple.staker),
 				reward_cycle: asInt32(tuple["reward-cycle"]),
@@ -342,11 +352,13 @@ function promoteTopicFields(
 		case "grant-signer-key":
 			return {
 				signer_key: asHex(tuple["signer-key"]),
+				signer: asString(tuple["signer-manager"]),
 				signer_manager: asString(tuple["signer-manager"]),
 			};
 		case "revoke-signer-grant":
 			return {
 				signer_key: asHex(tuple["signer-key"]),
+				signer: asString(tuple["signer-manager"]),
 				signer_manager: asString(tuple["signer-manager"]),
 			};
 	}
