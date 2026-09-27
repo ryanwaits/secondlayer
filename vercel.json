@@ -1,5 +1,5 @@
 {
 	"$schema": "https://openapi.vercel.sh/vercel.json",
-	"buildCommand": "bun run build && bun run --filter @secondlayer/web build",
-	"installCommand": "bun install"
+	"installCommand": "curl -fsSL https://bun.sh/install | bash -s bun-v1.4.2 && $HOME/.bun/bin/bun install",
+	"buildCommand": "export PATH=$HOME/.bun/bin:$PATH && bun --version && bun run build && bun run --filter @secondlayer/web build"
 }
