@@ -1242,6 +1242,12 @@ export type Pox5EventsListParams = {
 export type Pox5EventsWalkParams = Omit<Pox5EventsListParams, "limit"> &
 	WalkOptions;
 
+export type Pox5EventsConsumeParams<TTx = never> = Omit<
+	Pox5EventsListParams,
+	"cursor" | "fromCursor" | "limit"
+> &
+	IndexConsumeOptions<IndexPox5Event, Pox5EventsEnvelope, TTx>;
+
 /** `index.pox5` — decoded PoX-5 print events, the staking primitive from the
  *  epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there). */
 export interface Pox5Resource {
@@ -1253,6 +1259,15 @@ export interface Pox5Resource {
 		): Promise<Pox5EventsEnvelope<Pox5EventFields<F>>>;
 		list(params?: Pox5EventsListParams): Promise<Pox5EventsEnvelope>;
 		walk(params?: Pox5EventsWalkParams): AsyncIterable<IndexPox5Event>;
+		/** Checkpointed sweep of the pox-5 print log — append-only across all
+		 *  19 topics. See {@link IndexConsumeOptions}. */
+		consume<TTx = never>(
+			params: Pox5EventsConsumeParams<TTx> & { sink?: ConsumerSink<TTx> },
+		): Promise<{
+			cursor: string | null;
+			pages: number;
+			emptyPolls: number;
+		}>;
 	};
 }
 
@@ -1713,6 +1728,21 @@ export class Index extends BaseClient {
 			walk: (
 				params: Pox5EventsWalkParams = {},
 			): AsyncIterable<IndexPox5Event> => this.walkPox5Events(params),
+			consume: <TTx = never>(
+				params: Pox5EventsConsumeParams<TTx> & { sink?: ConsumerSink<TTx> },
+			) =>
+				consumeIndexFeed<IndexPox5Event, Pox5EventsEnvelope, TTx>({
+					...params,
+					fetchPage: ({ cursor, fromHeight, limit }) =>
+						this.listPox5Events({
+							...feedFilters(params),
+							cursor,
+							fromHeight,
+							limit,
+							signal: params.signal,
+						}),
+					itemsOf: (envelope) => envelope.events,
+				}),
 		},
 	};
 

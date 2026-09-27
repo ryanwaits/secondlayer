@@ -79,6 +79,7 @@ export type {
 	PoxResource,
 	IndexPox5Event,
 	IndexPox5EventTopic,
+	Pox5EventsConsumeParams,
 	Pox5EventsEnvelope,
 	Pox5EventsListParams,
 	Pox5EventsWalkParams,

@@ -640,6 +640,113 @@ describe("index.sbtc consumers", () => {
 	});
 });
 
+describe("index.pox5 consumers", () => {
+	function pox5Event(cursor: string, blockHeight: number, index: number) {
+		return {
+			cursor,
+			block_height: blockHeight,
+			block_time: null,
+			tx_id: `0x${index}`,
+			tx_index: index,
+			event_index: index,
+			topic: "register-signer",
+			staker: null,
+			signer: "SP1.fastpool-signer-manager",
+			signer_manager: null,
+			bond_index: null,
+			amount_ustx: null,
+			amount_sats: null,
+			reward_cycle: null,
+			first_reward_cycle: null,
+			unlock_cycle: null,
+			unlock_burn_height: null,
+			is_l1_lock: null,
+			signer_key: null,
+			data: {},
+		};
+	}
+
+	test("events.consume pages the pox-5 print log and keeps the signer filter on every request", async () => {
+		const pages = [
+			{
+				events: [pox5Event("1:0", 1, 0), pox5Event("2:1", 2, 1)],
+				next_cursor: "2:1",
+				tip: TIP,
+				reorgs: [],
+			},
+			{
+				events: [pox5Event("3:0", 3, 2)],
+				next_cursor: "3:0",
+				tip: TIP,
+				reorgs: [],
+			},
+		];
+		const urls: string[] = [];
+		globalThis.fetch = (async (input: string | URL | Request) => {
+			urls.push(input.toString());
+			return jsonResponse(pages.shift());
+		}) as unknown as typeof fetch;
+
+		const seen: string[] = [];
+		const result = await new Index().pox5.events.consume({
+			signer: "SP1.fastpool-signer-manager",
+			batchSize: 2,
+			maxPages: 2,
+			onBatch: (events, _envelope, ctx) => {
+				seen.push(...events.map((e) => e.cursor));
+				return ctx.cursor;
+			},
+		});
+
+		expect(seen).toEqual(["1:0", "2:1", "3:0"]);
+		expect(result.cursor).toBe("3:0");
+		expect(urls[0]).toContain("/v1/index/pox5/events");
+		// The filter has to survive pagination, or page two silently widens to
+		// every signer and the mirror fills with rows the caller never asked for.
+		expect(urls[0]).toContain("signer=SP1.fastpool-signer-manager");
+		expect(urls[1]).toContain("signer=SP1.fastpool-signer-manager");
+		expect(urls[1]).toContain("cursor=2%3A1");
+	});
+
+	test("events.consume rolls back on a reorg like every other index feed", async () => {
+		let served = 0;
+		globalThis.fetch = (async () => {
+			served++;
+			if (served === 1) {
+				return jsonResponse({
+					events: [pox5Event("9:0", 9, 0)],
+					next_cursor: "9:0",
+					tip: TIP,
+					reorgs: [],
+				});
+			}
+			return jsonResponse({
+				events: [],
+				next_cursor: null,
+				tip: TIP,
+				reorgs: [reorg()],
+			});
+		}) as unknown as typeof fetch;
+
+		const rolledBackFrom: number[] = [];
+		const heights: Array<number | null> = [];
+		await new Index().pox5.events.consume({
+			emptyBackoffMs: 0,
+			maxEmptyPolls: 1,
+			onBatch: (_events, _envelope, ctx) => {
+				heights.push(ctx.height);
+				return ctx.cursor;
+			},
+			onReorg: (r) => {
+				rolledBackFrom.push(r.fork_point_height);
+			},
+		});
+
+		expect(rolledBackFrom).toEqual([5]);
+		expect(heights).toEqual([9, 4]);
+	});
+});
+
 describe("consume progress context", () => {
 	test("reports the highest block reached and its distance from the tip", async () => {
 		const pages: EventsEnvelope[] = [
