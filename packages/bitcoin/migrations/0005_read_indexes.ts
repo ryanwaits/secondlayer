@@ -18,6 +18,9 @@ import { type Kysely, sql } from "kysely";
 // database's collation.
 // biome-ignore lint/suspicious/noExplicitAny: migrations are schema-agnostic (pattern: migrations/0001_runes.ts)
 export async function up(db: Kysely<any>): Promise<void> {
+	// Index builds over the full rune_events table exceed the migrator's 60s default.
+	await sql`SET LOCAL statement_timeout = 0`.execute(db);
+
 	await db.schema
 		.createIndex("rune_entries_rune_uidx")
 		.on("rune_entries")
