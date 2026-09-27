@@ -216,18 +216,23 @@ function tagged(tag: number, ...parts: Uint8Array[]): Uint8Array {
  * tx_merkle_root over the block's txids (hex), reproducing the consensus rule:
  * leaf = H(0x00 ‖ txid), node = H(0x01 ‖ left ‖ right), odd level duplicates the
  * last node. Returns the root hex; throws on an empty tx list.
+ *
+ * Every level is combined at least once, including a single leaf: consensus
+ * duplicates a lone leaf too, so a one-tx block's root is
+ * H(0x01 ‖ leaf ‖ leaf), not the bare leaf hash (checked against a mainnet
+ * header, block 9,070,019).
  */
 export function txMerkleRoot(txidsHex: string[]): string {
 	if (txidsHex.length === 0) throw new Error("no transactions");
 	let level = txidsHex.map((t) => tagged(LEAF_TAG, fromHex(t)));
-	while (level.length > 1) {
+	do {
 		if (level.length % 2 === 1) level.push(level[level.length - 1]);
 		const next: Uint8Array[] = [];
 		for (let i = 0; i < level.length; i += 2) {
 			next.push(tagged(NODE_TAG, level[i], level[i + 1]));
 		}
 		level = next;
-	}
+	} while (level.length > 1);
 	return toHex(level[0]);
 }
 
@@ -254,7 +259,9 @@ export function txMerkleProof(
 	let level = txidsHex.map((t) => tagged(LEAF_TAG, fromHex(t)));
 	let idx = index;
 	const path: MerkleProofStep[] = [];
-	while (level.length > 1) {
+	// do-while for the same reason as txMerkleRoot: a lone leaf is paired with
+	// itself, so a one-tx block's proof has one step (its own leaf, on the right).
+	do {
 		if (level.length % 2 === 1) level.push(level[level.length - 1]);
 		const siblingIdx = idx % 2 === 0 ? idx + 1 : idx - 1;
 		path.push({
@@ -267,7 +274,7 @@ export function txMerkleProof(
 		}
 		level = next;
 		idx = Math.floor(idx / 2);
-	}
+	} while (level.length > 1);
 	return path;
 }
 

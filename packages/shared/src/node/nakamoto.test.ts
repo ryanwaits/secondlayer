@@ -56,6 +56,18 @@ describe("Nakamoto header parsing + consensus hashing", () => {
 		expect(txMerkleRoot(txids)).toBe(e.txMerkleRoot);
 	});
 
+	test("a one-tx block's root pairs the lone leaf with itself, matching mainnet", () => {
+		// Mainnet block 9,070,019: one tx, header tx_merkle_root below.
+		const txid =
+			"0a33aeaba279172aa6217e0abf6377de2b703a140f055f99840bbaf738f9cd8e";
+		const root =
+			"88ee0ce389d2ad57a905101c5c28a4e54a180495812d29f64b560f4c835aec6d";
+		expect(txMerkleRoot([txid])).toBe(root);
+		const path = txMerkleProof([txid], 0);
+		expect(path).toHaveLength(1);
+		expect(verifyTxMerkleProof(txid, path, root)).toBe(true);
+	});
+
 	test("tx-inclusion proof: every tx's path folds back to the merkle root", () => {
 		const txids = (fixture.rawTxs as string[]).map((hex) =>
 			stacksTxid(Uint8Array.from(Buffer.from(hex, "hex"))),
