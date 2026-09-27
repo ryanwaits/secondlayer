@@ -15,6 +15,7 @@
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.1042.0",
 		"@aws-sdk/s3-request-presigner": "3.1042.0",
+		"@secondlayer/bitcoin": "workspace:*",
 		"@secondlayer/bundler": "^0.6.1",
 		"@secondlayer/indexer": "^1.16.6",
 		"@secondlayer/platform": "workspace:*",

@@ -7,6 +7,7 @@ import {
 	type SbtcWithdrawalStatus,
 } from "../../index/sbtc-peg.ts";
 import {
+	ERROR_400,
 	ERROR_401,
 	ERROR_429,
 	INDEX_RANGE_PARAMS,
@@ -111,6 +112,94 @@ const NOT_MODIFIED_POINT = {
 		"The resource is past finality and matches your `If-None-Match` ETag.",
 };
 
+// ── Runes (plan 058) — a separate clock and reorg source from the Stacks
+// `Tip`/`Reorg` schemas above, so these get their own refs rather than
+// reusing `envelope()` (which hardcodes `$ref: Tip`/`Reorg`).
+
+const BITCOIN_TIP = { $ref: "#/components/schemas/BitcoinTip" };
+
+/** A tip read from mainnet Bitcoin, illustrative (2026-09-23). */
+const BITCOIN_TIP_EXAMPLE = {
+	block_height: 921_487,
+	finalized_height: 921_481,
+	lag_seconds: 340,
+};
+
+const RUNES_NOTES = {
+	type: "string",
+	description:
+		"Present only when Runes data is not configured on this instance (BITCOIN_DATABASE_URL).",
+};
+
+const RUNE_REF_DESCRIPTION =
+	"A rune id (`<block>:<tx>`, e.g. `840000:3`) or name — spacers and case are ignored, so `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` are the same rune.";
+
+/** `<block>:<tx>`/name range params, list/activity share the shape but not
+ *  the wording — `INDEX_RANGE_PARAMS`'s cursor example is a 7-digit Stacks
+ *  height, which reads oddly next to Bitcoin's ~6-digit ones. */
+const RUNE_ACTIVITY_RANGE_PARAMS = [
+	{
+		...qp(
+			"cursor",
+			"string",
+			false,
+			"`<block_height>:<event_index>` from a previous page's `next_cursor`. Resumes after it.",
+		),
+		schema: { type: "string", example: "840010:2" },
+	},
+	...INDEX_RANGE_PARAMS.slice(1),
+];
+
+/** Runes list/activity/balances envelope — `envelope()`'s shape, but pointed
+ *  at `BitcoinTip`/`BtcReorg` instead of the Stacks `Tip`/`Reorg`, plus the
+ *  `notes` soft-flag field every Runes route can carry. `reorgs` is included
+ *  only for `listRuneActivity` — `listRunes`/`listRuneBalances` read
+ *  reorg-corrected snapshot tables and always report `reorgs: []` (see
+ *  `../../index/runes.ts`'s module doc). */
+function runesEnvelope(
+	rowKey: string,
+	row: string,
+	opts: { reorgs: boolean },
+): Record<string, unknown> {
+	const properties: Record<string, unknown> = {
+		[rowKey]: { type: "array", items: { $ref: `#/components/schemas/${row}` } },
+		next_cursor: {
+			type: ["string", "null"],
+			description:
+				"The last row's cursor. Pass it back as `cursor` to continue; an empty page means you are at the end.",
+		},
+		tip: BITCOIN_TIP,
+		...(opts.reorgs
+			? {
+					reorgs: {
+						type: "array",
+						description:
+							"Bitcoin reorgs that touched this page's height range. Reconcile anything you committed from a fork.",
+						items: { $ref: "#/components/schemas/BtcReorg" },
+					},
+				}
+			: {}),
+		notes: RUNES_NOTES,
+	};
+	return {
+		"200": {
+			description: "Cursor-paginated envelope",
+			content: {
+				"application/json": {
+					schema: {
+						type: "object",
+						required: [rowKey, "next_cursor", "tip"],
+						properties,
+					},
+				},
+			},
+		},
+		"400": jsonError(ERROR_400),
+		"401": jsonError(ERROR_401),
+		"429": jsonError(ERROR_429),
+	};
+}
+
 // ── Examples: real mainnet rows, shaped by each route's serializer ──────────
 
 /** `readPoxCycle(105)`. */
@@ -127,6 +216,78 @@ const POX_CYCLE_EXAMPLE = {
 		{ function_name: "stack-aggregation-increase", count: 11 },
 		{ function_name: "stack-aggregation-commit-indexed", count: 40 },
 	],
+};
+
+// DOG•GO•TO•THE•MOON, 840000:3 — illustrative, not a live mainnet snapshot
+// (`mints`/`burned`/`supply` move every block it's still mintable).
+const RUNE_ENTRY_EXAMPLE = {
+	id: "840000:3",
+	number: "0",
+	name: "DOGGOTOTHEMOON",
+	spaced_name: "DOG•GO•TO•THE•MOON",
+	symbol: "🐕",
+	divisibility: 5,
+	premine: "10000000000000000",
+	supply: "79079600000000000",
+	burned: "1234560000",
+	mints: "690796",
+	turbo: true,
+	etching_txid:
+		"0x8ac3daa9f0c869cd6d1cdd3c04cbba1b155c0304a95c9c1c1e33e1c0e6b73f27",
+	etched_height: 840000,
+	etched_tx_index: 3,
+	terms: {
+		amount: "100000000000",
+		cap: "340282366920938463463374607431768211455",
+		height_start: null,
+		height_end: null,
+		offset_start: null,
+		offset_end: null,
+	},
+};
+
+const RUNE_EVENT_EXAMPLE = {
+	cursor: "840010:2",
+	block_height: 840010,
+	tx_index: 5,
+	txid: "0x2f6a1c9b5e4d3a8f7c0b6e5d4c3b2a1908f7e6d5c4b3a29180706050403020a1",
+	event_index: 2,
+	kind: "rune_transfer",
+	amount: "5000000000",
+	vout: 1,
+	address: "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg",
+	rune: {
+		id: "840000:3",
+		name: "DOGGOTOTHEMOON",
+		spaced_name: "DOG•GO•TO•THE•MOON",
+		symbol: "🐕",
+		divisibility: 5,
+	},
+};
+
+const RUNE_BALANCE_EXAMPLE = {
+	rune: {
+		id: "840000:3",
+		name: "DOGGOTOTHEMOON",
+		spaced_name: "DOG•GO•TO•THE•MOON",
+		symbol: "🐕",
+		divisibility: 5,
+	},
+	address: "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg",
+	txid: "0x2f6a1c9b5e4d3a8f7c0b6e5d4c3b2a1908f7e6d5c4b3a29180706050403020a1",
+	vout: 1,
+	amount: "5000000000",
+};
+
+const BTC_REORG_EXAMPLE = {
+	id: "7",
+	detected_at: "2026-08-11T04:22:10.000Z",
+	fork_point_height: 851203,
+	old_hash: "0000000000000000000123abc1230000000000000000000000000000000000",
+	new_hash: "0000000000000000000456def4560000000000000000000000000000000000",
+	orphaned_from: 851203,
+	orphaned_to: 851204,
+	new_tip_height: 851205,
 };
 
 /** The `completed-deposit` at 9,048,911:4. */
@@ -406,6 +567,201 @@ export const protocolsPaths = {
 					label: "SDK",
 					source:
 						'const page = await sl.index.pox5.events.list({\n  signer: "SP8HK160YD5GHXP69VGA0TC7AQJ1X4CDW3XVERSE.xverse-signer-manager-3",\n  topic: "stake",\n  limit: 50,\n});',
+				},
+			],
+		},
+	},
+	"/v1/index/runes": {
+		get: {
+			tags: ["index"],
+			summary: "Rune catalog",
+			description:
+				"Every etched rune, with the identity bundle (id, name, spaced_name, symbol, divisibility) every Runes response carries plus its computed supply, mint/burn counters and mint terms. `search` prefix-matches the name (spacers and case ignored); `sort` is etch order (`number`, default) or busiest-first (`mints`).",
+			security: READ_SECURITY,
+			parameters: [
+				qp(
+					"search",
+					"string",
+					false,
+					"Name prefix, spacers and case ignored (e.g. `dog` matches `DOG•GO•TO•THE•MOON`).",
+				),
+				{
+					...qp(
+						"sort",
+						"string",
+						false,
+						"`number` (etch order, oldest first — default) or `mints` (busiest first).",
+					),
+					schema: {
+						type: "string",
+						enum: ["number", "mints"],
+						default: "number",
+					},
+				},
+				{
+					...qp(
+						"cursor",
+						"string",
+						false,
+						"Opaque token from a previous page's `next_cursor`. Resumes after it — pass back unchanged.",
+					),
+					schema: { type: "string" },
+				},
+				LIMIT,
+			],
+			responses: runesEnvelope("runes", "RuneEntry", { reorgs: false }),
+			"x-codeSamples": [
+				{
+					lang: "TypeScript",
+					label: "SDK",
+					source:
+						'const page = await sl.index.runes.list({ search: "dog", sort: "mints" });',
+				},
+			],
+		},
+	},
+	"/v1/index/runes/{rune}": {
+		get: {
+			tags: ["index"],
+			summary: "A single rune's entry",
+			description:
+				"One rune's full entry by id or name, with computed `supply` (`premine + mints × terms.amount`). 404 when no rune matches.",
+			security: READ_SECURITY,
+			parameters: [
+				{
+					...pp("rune", RUNE_REF_DESCRIPTION),
+					schema: { type: "string", example: "840000:3" },
+				},
+			],
+			responses: {
+				"200": json200(
+					{
+						type: "object",
+						required: ["rune", "tip"],
+						properties: {
+							rune: { $ref: "#/components/schemas/RuneEntry" },
+							tip: BITCOIN_TIP,
+						},
+						example: { rune: RUNE_ENTRY_EXAMPLE, tip: BITCOIN_TIP_EXAMPLE },
+					},
+					"The rune",
+				),
+				"400": jsonError(ERROR_400),
+				"401": jsonError(ERROR_401),
+				"404": jsonError(
+					"No rune matches this id/name, or Runes isn't configured on this instance (`code: NOT_FOUND`, the latter case also carries `details.notes`)",
+				),
+				"429": jsonError(ERROR_429),
+			},
+			"x-codeSamples": [
+				{
+					lang: "TypeScript",
+					label: "SDK",
+					source:
+						'const { rune } = await sl.index.runes.get("DOG•GO•TO•THE•MOON");',
+				},
+			],
+		},
+	},
+	"/v1/index/runes/activity": {
+		get: {
+			tags: ["index"],
+			summary: "Rune activity (etch/mint/transfer/burn events)",
+			description:
+				"Every rune-moving event — etch, mint, transfer, burn — filterable by rune/address/kind/txid and cursor-paginated. Returns events[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>, same shape as every other decoded-event feed.",
+			security: READ_SECURITY,
+			parameters: [
+				LIMIT,
+				...RUNE_ACTIVITY_RANGE_PARAMS,
+				{
+					...qp("rune", "string", false, RUNE_REF_DESCRIPTION),
+					schema: { type: "string", example: "840000:3" },
+				},
+				qp("address", "string", false, "Mainnet Bitcoin address. Exact match."),
+				{
+					...qp(
+						"kind",
+						"string",
+						false,
+						"One or more of `rune_etch`, `rune_mint`, `rune_transfer`, `rune_burn`, comma-separated.",
+					),
+					schema: {
+						type: "string",
+						example: "rune_mint,rune_transfer",
+					},
+				},
+				qp(
+					"txid",
+					"string",
+					false,
+					"Bitcoin txid, `0x`-prefixed hex. Exact match.",
+				),
+			],
+			responses: runesEnvelope("events", "RuneEvent", { reorgs: true }),
+			"x-codeSamples": [
+				{
+					lang: "TypeScript",
+					label: "SDK",
+					source:
+						'const page = await sl.index.runes.activity.list({\n  rune: "DOG•GO•TO•THE•MOON",\n  kind: ["rune_mint"],\n});',
+				},
+			],
+		},
+	},
+	"/v1/index/runes/balances": {
+		get: {
+			tags: ["index"],
+			summary: "Rune balances by address or outpoint",
+			description:
+				"Current per-outpoint rune balances. Exactly one of `address` or `outpoint` is required; `rune` narrows either to one rune. Returns balances[], next_cursor, tip.",
+			security: READ_SECURITY,
+			parameters: [
+				qp(
+					"address",
+					"string",
+					false,
+					"Mainnet Bitcoin address. Mutually exclusive with `outpoint`; exactly one is required.",
+				),
+				{
+					...qp(
+						"outpoint",
+						"string",
+						false,
+						"`<txid>:<vout>`. Mutually exclusive with `address`; exactly one is required.",
+					),
+					schema: {
+						type: "string",
+						example:
+							"2f6a1c9b5e4d3a8f7c0b6e5d4c3b2a1908f7e6d5c4b3a29180706050403020a1:1",
+					},
+				},
+				{
+					...qp(
+						"rune",
+						"string",
+						false,
+						`${RUNE_REF_DESCRIPTION} Narrows the result to one rune.`,
+					),
+					schema: { type: "string", example: "840000:3" },
+				},
+				{
+					...qp(
+						"cursor",
+						"string",
+						false,
+						"Opaque token from a previous page's `next_cursor`. Resumes after it — pass back unchanged.",
+					),
+					schema: { type: "string" },
+				},
+				LIMIT,
+			],
+			responses: runesEnvelope("balances", "RuneBalance", { reorgs: false }),
+			"x-codeSamples": [
+				{
+					lang: "TypeScript",
+					label: "SDK",
+					source:
+						'const page = await sl.index.runes.balances.list({ address: "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg" });',
 				},
 			],
 		},
@@ -1118,6 +1474,276 @@ export const protocolsSchemas = {
 				"first-reward-cycle": "144",
 				"unlock-burn-height": "1170050",
 			},
+		},
+	},
+	BitcoinTip: {
+		type: "object",
+		description:
+			"The Bitcoin chain tip a Runes read was served against (`BitcoinIndexTip`, `src/bitcoin/db.ts`) — a separate clock from the Stacks `Tip` above; Runes ingest tracks Bitcoin blocks, not Stacks ones.",
+		properties: {
+			block_height: {
+				type: "integer",
+				description: "Highest Bitcoin block Runes state has ingested.",
+			},
+			finalized_height: {
+				type: "integer",
+				description:
+					"Highest block past the reorg-safety margin. Rows at or below it won't be reorged away.",
+			},
+			lag_seconds: {
+				type: "integer",
+				description: "Seconds since that block was produced.",
+			},
+		},
+		example: BITCOIN_TIP_EXAMPLE,
+	},
+	BtcReorg: {
+		type: "object",
+		description:
+			"A Bitcoin fork the Runes indexer rolled back. Rows in `[orphaned_from, orphaned_to]` were replaced; undo anything you committed from them. Shaped like the Stacks `Reorg` above, but block-level only — a Bitcoin reorg has no Stacks-style event_index component.",
+		properties: {
+			id: { type: "string", description: "Reorg id." },
+			detected_at: {
+				type: "string",
+				format: "date-time",
+				description: "When the indexer saw the fork.",
+			},
+			fork_point_height: {
+				type: "integer",
+				description:
+					"First block height the new fork replaced. Undo rows at or above it.",
+			},
+			old_hash: {
+				type: "string",
+				description: "Block hash of the abandoned tip.",
+			},
+			new_hash: {
+				type: "string",
+				description: "Block hash of the winning tip.",
+			},
+			orphaned_from: {
+				type: "integer",
+				description: "First orphaned height.",
+			},
+			orphaned_to: { type: "integer", description: "Last orphaned height." },
+			new_tip_height: {
+				type: "integer",
+				description: "Height of the new canonical tip once the fork resolved.",
+			},
+		},
+		example: BTC_REORG_EXAMPLE,
+	},
+	RuneEntry: {
+		type: "object",
+		description:
+			"One etched rune's full entry — identity, premine/mint/burn counters, computed supply, and mint terms.",
+		required: [
+			"id",
+			"number",
+			"name",
+			"spaced_name",
+			"symbol",
+			"divisibility",
+			"premine",
+			"supply",
+			"burned",
+			"mints",
+			"turbo",
+			"etching_txid",
+			"etched_height",
+			"etched_tx_index",
+			"terms",
+		],
+		properties: {
+			id: {
+				type: "string",
+				description: "`<block>:<tx>` of the etch, e.g. `840000:3`.",
+			},
+			number: {
+				type: "string",
+				description:
+					"Etch sequence number (u128 decimal string) — 0 is genesis.",
+			},
+			name: {
+				type: "string",
+				description: "The rune's name with spacers stripped, uppercase.",
+			},
+			spaced_name: {
+				type: "string",
+				description: "The name as etched, spacers (`•`) included.",
+			},
+			symbol: {
+				type: ["string", "null"],
+				description: "The etched display symbol, if any.",
+			},
+			divisibility: {
+				type: "integer",
+				description: "Decimal places a whole unit divides into.",
+			},
+			premine: {
+				type: "string",
+				description: "Premined amount, u128 decimal string.",
+			},
+			supply: {
+				type: "string",
+				description:
+					"Computed: `premine + mints × terms.amount` (0 with no terms). u128 decimal string.",
+			},
+			burned: {
+				type: "string",
+				description: "Total burned, u128 decimal string.",
+			},
+			mints: {
+				type: "string",
+				description: "Total mint transactions, u128 decimal string.",
+			},
+			turbo: {
+				type: "boolean",
+				description: "Whether the etch opted into future protocol upgrades.",
+			},
+			etching_txid: {
+				type: "string",
+				description: "The etch transaction's Bitcoin txid.",
+			},
+			etched_height: {
+				type: "integer",
+				description: "Bitcoin block the etch landed in.",
+			},
+			etched_tx_index: {
+				type: "integer",
+				description: "The etch transaction's position in that block.",
+			},
+			terms: {
+				type: ["object", "null"],
+				description:
+					"Mint terms, or `null` for a premine-only rune that was never mintable.",
+				properties: {
+					amount: {
+						type: ["string", "null"],
+						description: "Units minted per mint tx.",
+					},
+					cap: {
+						type: ["string", "null"],
+						description: "Maximum number of mint transactions.",
+					},
+					height_start: {
+						type: ["string", "null"],
+						description: "Absolute start height, if set.",
+					},
+					height_end: {
+						type: ["string", "null"],
+						description: "Absolute end height, if set.",
+					},
+					offset_start: {
+						type: ["string", "null"],
+						description: "Start height relative to the etch, if set.",
+					},
+					offset_end: {
+						type: ["string", "null"],
+						description: "End height relative to the etch, if set.",
+					},
+				},
+			},
+		},
+		example: RUNE_ENTRY_EXAMPLE,
+	},
+	RuneEvent: {
+		type: "object",
+		description:
+			"One etch/mint/transfer/burn event from `rune_events`, with the rune's identity embedded so an activity feed never needs a second lookup to show a name.",
+		required: [
+			"cursor",
+			"block_height",
+			"tx_index",
+			"txid",
+			"event_index",
+			"kind",
+			"amount",
+			"vout",
+			"address",
+			"rune",
+		],
+		properties: {
+			cursor: CURSOR_PROP,
+			block_height: {
+				type: "integer",
+				description: "Bitcoin block the event landed in.",
+			},
+			tx_index: {
+				type: "integer",
+				description: "The transaction's position in that block.",
+			},
+			txid: { type: "string", description: "The Bitcoin transaction's txid." },
+			event_index: {
+				type: "integer",
+				description:
+					"The event's position in the block. With `block_height`, the cursor.",
+			},
+			kind: {
+				type: "string",
+				enum: ["rune_etch", "rune_mint", "rune_transfer", "rune_burn"],
+				description: "What happened.",
+			},
+			amount: { type: "string", description: "u128 decimal string." },
+			vout: {
+				type: ["integer", "null"],
+				description:
+					"The output the amount landed on, when this event has one.",
+			},
+			address: {
+				type: ["string", "null"],
+				description:
+					"The output's mainnet address. Only ever set on a `rune_transfer` event.",
+			},
+			rune: { $ref: "#/components/schemas/RuneRefSummary" },
+		},
+		example: RUNE_EVENT_EXAMPLE,
+	},
+	RuneBalance: {
+		type: "object",
+		description:
+			"A rune's balance on one unspent output, with the rune's identity embedded.",
+		required: ["rune", "address", "txid", "vout", "amount"],
+		properties: {
+			rune: { $ref: "#/components/schemas/RuneRefSummary" },
+			address: {
+				type: ["string", "null"],
+				description:
+					"The output's mainnet address, or `null` for a non-standard script.",
+			},
+			txid: { type: "string", description: "The outpoint's Bitcoin txid." },
+			vout: { type: "integer", description: "The outpoint's output index." },
+			amount: { type: "string", description: "u128 decimal string." },
+		},
+		example: RUNE_BALANCE_EXAMPLE,
+	},
+	RuneRefSummary: {
+		type: "object",
+		description:
+			"The rune identity bundle every Runes response embeds, so a client never needs a second lookup just to show a name.",
+		required: ["id", "name", "spaced_name", "symbol", "divisibility"],
+		properties: {
+			id: { type: "string", description: "`<block>:<tx>` of the etch." },
+			name: { type: "string", description: "Spacers stripped, uppercase." },
+			spaced_name: {
+				type: "string",
+				description: "As etched, spacers (`•`) included.",
+			},
+			symbol: {
+				type: ["string", "null"],
+				description: "The etched display symbol, if any.",
+			},
+			divisibility: {
+				type: "integer",
+				description: "Decimal places a whole unit divides into.",
+			},
+		},
+		example: {
+			id: "840000:3",
+			name: "DOGGOTOTHEMOON",
+			spaced_name: "DOG•GO•TO•THE•MOON",
+			symbol: "🐕",
+			divisibility: 5,
 		},
 	},
 	SbtcEvent: {

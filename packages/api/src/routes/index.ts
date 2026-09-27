@@ -2,6 +2,13 @@ import { readChainReorgsForHeightRange } from "@secondlayer/shared/db/queries/ch
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { type Context, Hono } from "hono";
 import {
+	type BitcoinTipProvider,
+	type BtcReorgsReader,
+	getBitcoinTip,
+	parseRuneRef,
+	readBtcReorgs,
+} from "../bitcoin/db.ts";
+import {
 	MUTABLE_CACHE_CONTROL,
 	cacheControl,
 	etag,
@@ -72,6 +79,19 @@ import {
 	parsePrintSchemaContractId,
 } from "../index/print-schema.ts";
 import { indexRateLimit } from "../index/rate-limit.ts";
+import {
+	RUNES_LIST_FILTERS,
+	RUNE_ACTIVITY_FILTERS,
+	RUNE_BALANCES_FILTERS,
+	type RuneActivityReader,
+	type RuneBalancesReader,
+	type RuneReader,
+	type RunesReader,
+	getRuneActivityResponse,
+	getRuneBalancesResponse,
+	getRuneResponse,
+	getRunesResponse,
+} from "../index/runes.ts";
 import {
 	SBTC_DEPOSIT_FILTERS,
 	SBTC_EVENTS_FILTERS,
@@ -167,6 +187,14 @@ export type IndexRouterOptions = {
 	readPoxCycle?: PoxCycleReader;
 	readTransactionProof?: TransactionProofReader;
 	readPox5Events?: Pox5EventsReader;
+	/** Separate clock from `getTip` above — Runes ingest tracks the Bitcoin
+	 *  chain, not Stacks blocks (`../bitcoin/db.ts`). */
+	getBitcoinTip?: BitcoinTipProvider;
+	readRunes?: RunesReader;
+	readRune?: RuneReader;
+	readRuneActivity?: RuneActivityReader;
+	readRuneBalances?: RuneBalancesReader;
+	readBtcReorgs?: BtcReorgsReader;
 	readSbtcEvents?: SbtcEventsReader;
 	readSbtcDeposits?: SbtcDepositsReader;
 	readSbtcWithdrawals?: SbtcWithdrawalsReader;
@@ -209,6 +237,8 @@ function applyIndexCache(
 export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	const getTip = opts.getTip ?? getIndexTip;
 	const readReorgs = opts.readReorgs ?? DEFAULT_STREAMS_REORGS_READER;
+	const getRunesTip = opts.getBitcoinTip ?? getBitcoinTip;
+	const readRuneReorgs = opts.readBtcReorgs ?? readBtcReorgs;
 
 	/**
 	 * Debit one page of decoded rows against a credited (pay-as-you-go) caller.
@@ -351,6 +381,33 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					description:
 						"Decoded PoX-5 (SIP-045 Bitcoin Staking) print events from the pox-5 boot contract — all 19 topics with the full decoded tuple in data. Filterable by topic/staker/signer/signer_manager/bond_index/reward_cycle + cursor-paginated; ?confirmed=true returns only rows past the reorg margin. Returns events[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>.",
 					filters: POX5_EVENTS_FILTERS,
+				},
+				{
+					path: "/v1/index/runes",
+					method: "GET",
+					description:
+						"Rune catalog: id, name, spaced_name, symbol, divisibility, premine, computed supply, burned, mints, terms. `search` prefix-matches the name (spacers/case ignored); `sort` is `number` (etch order, default) or `mints`. Returns runes[], next_cursor, tip.",
+					filters: RUNES_LIST_FILTERS,
+				},
+				{
+					path: "/v1/index/runes/:rune",
+					method: "GET",
+					description:
+						"A single rune's full entry by id (<block>:<tx>, e.g. 840000:3) or name (spacers/case ignored — DOG•GO•TO•THE•MOON, dog.go.to.the.moon, and doggotothemoon are the same rune). 404 when absent.",
+				},
+				{
+					path: "/v1/index/runes/activity",
+					method: "GET",
+					description:
+						"Etch/mint/transfer/burn events, filterable by rune/address/kind/txid + cursor-paginated. Returns events[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>.",
+					filters: RUNE_ACTIVITY_FILTERS,
+				},
+				{
+					path: "/v1/index/runes/balances",
+					method: "GET",
+					description:
+						"Current per-outpoint rune balances, looked up by exactly one of address or outpoint (<txid>:<vout>); optional rune filter. Returns balances[], next_cursor, tip.",
+					filters: RUNE_BALANCES_FILTERS,
 				},
 				{
 					path: "/v1/index/sbtc/events",
@@ -750,6 +807,67 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		return c.json(response);
 	});
 
+	// Runes — plan 058 (D15: more data on the existing Index plane, not a new
+	// brand). Reads a separate Bitcoin/Runes Postgres (`../bitcoin/db.ts`, D18)
+	// on a separate clock (`getRunesTip`, Bitcoin block height, not Stacks).
+	// Static list routes first, `/runes/:rune` registered later (with the
+	// other point-gets) so it doesn't shadow `/runes/activity` or
+	// `/runes/balances` — same ordering rule as `/sbtc/*` below.
+	router.get("/runes", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, RUNES_LIST_FILTERS);
+		const tip = await getRunesTip();
+		const response = await getRunesResponse({
+			query,
+			tip,
+			readRunes: opts.readRunes,
+		});
+		// The catalog changes slowly (new etchings, mint/burn counters ticking
+		// up) and carries no height window to hang a finality ETag off of —
+		// short public cache, no ETag/304 (same idea as `/pox/cycles`).
+		c.header("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+		await meterRows(c, response.runes);
+		return c.json(response);
+	});
+
+	router.get("/runes/activity", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, RUNE_ACTIVITY_FILTERS);
+		const tip = await getRunesTip();
+		const response = await getRuneActivityResponse({
+			query,
+			tip,
+			readRuneActivity: opts.readRuneActivity,
+			readReorgs: readRuneReorgs,
+		});
+		// Same event-log shape as pox5/sbtc events (raw rows keyed
+		// `<height>:<event_index>`) — the standard finality cache applies.
+		const notModified = applyIndexCache(c, query, tip, {
+			events: response.events,
+			next_cursor: response.next_cursor,
+			reorgs: response.reorgs,
+		});
+		if (notModified) return notModified;
+		await meterRows(c, response.events);
+		return c.json(response);
+	});
+
+	router.get("/runes/balances", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, RUNE_BALANCES_FILTERS);
+		const tip = await getRunesTip();
+		const response = await getRuneBalancesResponse({
+			query,
+			tip,
+			readRuneBalances: opts.readRuneBalances,
+		});
+		// A balance can move with the next block's transfer — most volatile of
+		// the four Runes reads, same as mempool: short private TTL, no ETag.
+		c.header("Cache-Control", MUTABLE_CACHE_CONTROL);
+		await meterRows(c, response.balances);
+		return c.json(response);
+	});
+
 	// sBTC peg feed — the sharpest data-plane moat (decoded peg events Hiro
 	// declined, SBA #1709). Raw events + typed deposits use the standard
 	// finality cache; the withdrawals rollup never does (its derived status can
@@ -832,6 +950,31 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 
 	// Point-gets (registered after the static list routes so they don't shadow
 	// them). Cheap reference data — served but not metered, like blocks/:id.
+	router.get("/runes/:rune", async (c) => {
+		const ref = parseRuneRef(c.req.param("rune"));
+		const tip = await getRunesTip();
+		const result = await getRuneResponse({
+			runeRef: ref,
+			tip,
+			readRune: opts.readRune,
+		});
+		if (!result.found) {
+			return c.json(
+				{
+					error: "Rune not found",
+					code: "NOT_FOUND",
+					...(result.notes ? { details: { notes: result.notes } } : {}),
+				},
+				404,
+			);
+		}
+		// Mint/burn counters keep moving for as long as a rune stays mintable —
+		// unlike a block or tx, there is no height past which this row is
+		// provably done changing, so no immutable ETag/304 here either.
+		c.header("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+		return c.json({ rune: result.rune, tip: result.tip });
+	});
+
 	router.get("/sbtc/withdrawals/:request_id", async (c) => {
 		const raw = c.req.param("request_id");
 		if (!/^(0|[1-9]\d*)$/.test(raw)) {

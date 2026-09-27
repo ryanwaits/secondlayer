@@ -12,7 +12,9 @@ import { creditCredits } from "@secondlayer/platform/db/queries/account-credits"
 import { getDb, jsonb, sql } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
+import type { BitcoinIndexTip } from "../bitcoin/db.ts";
 import { errorHandler } from "../middleware/error.ts";
+import type { IndexRouterOptions } from "../routes/index.ts";
 import { createIndexRouter } from "../routes/index.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
 import type { StreamsTokenStore } from "../streams/auth.ts";
@@ -28,6 +30,7 @@ import type {
 	PoxCyclesReader,
 } from "./pox-cycles.ts";
 import { _resetPox4EraCacheForTests } from "./pox-era.ts";
+import type { RuneEntry, RuneReader, RunesReader } from "./runes.ts";
 import {
 	INDEX_ANON_RATE_LIMIT_PER_SECOND,
 	INDEX_TIER_CONFIG,
@@ -726,6 +729,202 @@ describe("Index PoX-5 events route", () => {
 			headers: authHeaders(FREE_KEY),
 		});
 		expect(res.status).toBe(400);
+	});
+});
+
+describe("Index Runes routes", () => {
+	const prevMode = process.env.INSTANCE_MODE;
+	const prevBitcoinUrl = process.env.BITCOIN_DATABASE_URL;
+	beforeEach(async () => {
+		process.env.INSTANCE_MODE = "platform";
+		// Stub readers below never touch a real pool — this only flips
+		// `isBitcoinConfigured()` so the route doesn't take the "not
+		// provisioned" short-circuit for the happy-path tests.
+		process.env.BITCOIN_DATABASE_URL = "postgres://stub-not-a-real-db/bitcoin";
+		await _resetRateLimitStoreForTests();
+	});
+	afterAll(() => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
+		if (prevBitcoinUrl === undefined) delete process.env.BITCOIN_DATABASE_URL;
+		else process.env.BITCOIN_DATABASE_URL = prevBitcoinUrl;
+	});
+
+	const RUNES_TIP: BitcoinIndexTip = {
+		block_height: 840_100,
+		finalized_height: 840_094,
+		lag_seconds: 12,
+	};
+
+	const DOG_ENTRY: RuneEntry = {
+		id: "840000:3",
+		number: "0",
+		name: "DOGGOTOTHEMOON",
+		spaced_name: "DOG•GO•TO•THE•MOON",
+		symbol: "🐕",
+		divisibility: 5,
+		premine: "10000000000000000",
+		supply: "10000000000000000",
+		burned: "0",
+		mints: "0",
+		turbo: true,
+		etching_txid: "aa".repeat(32),
+		etched_height: 840_000,
+		etched_tx_index: 3,
+		terms: null,
+	};
+
+	const readRuneStub: RuneReader = async (ref) =>
+		"id" in ref && ref.id === "840000:3" ? DOG_ENTRY : null;
+	const readRunesStub: RunesReader = async () => ({
+		runes: [DOG_ENTRY],
+		next_cursor: null,
+	});
+
+	function runesApp(overrides: Partial<IndexRouterOptions> = {}) {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getBitcoinTip: async () => RUNES_TIP,
+				readRunes: readRunesStub,
+				readRune: readRuneStub,
+				readRuneActivity: async () => ({ events: [], next_cursor: null }),
+				readRuneBalances: async () => ({ balances: [], next_cursor: null }),
+				readBtcReorgs: async () => [],
+				...overrides,
+			}),
+		);
+		return app;
+	}
+
+	test("GET /runes returns the envelope with an account key", async () => {
+		const res = await runesApp().request("/v1/index/runes", {
+			headers: authHeaders(FREE_KEY),
+		});
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			runes: unknown[];
+			next_cursor: string | null;
+			tip: unknown;
+			reorgs: unknown[];
+		};
+		expect(body.runes).toHaveLength(1);
+		expect(body.tip).toEqual(RUNES_TIP);
+		expect(body.reorgs).toEqual([]);
+	});
+
+	test("anon GET /runes returns 401 on platform", async () => {
+		const res = await runesApp().request("/v1/index/runes");
+		expect(res.status).toBe(401);
+	});
+
+	test("GET /runes/:rune returns the entry", async () => {
+		const res = await runesApp().request("/v1/index/runes/840000:3", {
+			headers: authHeaders(FREE_KEY),
+		});
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { rune: { id: string }; tip: unknown };
+		expect(body.rune.id).toBe("840000:3");
+		expect(body.tip).toEqual(RUNES_TIP);
+	});
+
+	test("GET /runes/:rune resolves a name reference the same as its id", async () => {
+		const res = await runesApp().request(
+			`/v1/index/runes/${encodeURIComponent("dog.go.to.the.moon")}`,
+			{ headers: authHeaders(FREE_KEY) },
+		);
+		// The stub reader only matches on id — a name-form ref parses to
+		// `{ rune: bigint }`, which the stub reports as not found. This proves
+		// `parseRuneRef` accepted the name (no 400) and reached the reader.
+		expect(res.status).toBe(404);
+	});
+
+	test("GET /runes/:rune 404s for an unknown rune id", async () => {
+		const res = await runesApp().request("/v1/index/runes/1:1", {
+			headers: authHeaders(FREE_KEY),
+		});
+		expect(res.status).toBe(404);
+		const body = (await res.json()) as { code: string };
+		expect(body.code).toBe("NOT_FOUND");
+	});
+
+	test("GET /runes/:rune 400s for a garbage rune reference", async () => {
+		const res = await runesApp().request(
+			`/v1/index/runes/${encodeURIComponent("!!!not-a-rune###")}`,
+			{ headers: authHeaders(FREE_KEY) },
+		);
+		expect(res.status).toBe(400);
+	});
+
+	test("GET /runes/activity returns the envelope", async () => {
+		const res = await runesApp().request("/v1/index/runes/activity", {
+			headers: authHeaders(FREE_KEY),
+		});
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { events: unknown[]; reorgs: unknown[] };
+		expect(body.events).toEqual([]);
+		expect(body.reorgs).toEqual([]);
+	});
+
+	test("GET /runes/activity rejects an unknown query filter", async () => {
+		const res = await runesApp().request("/v1/index/runes/activity?bogus=x", {
+			headers: authHeaders(FREE_KEY),
+		});
+		expect(res.status).toBe(400);
+	});
+
+	test("GET /runes/balances requires exactly one of address/outpoint", async () => {
+		const res = await runesApp().request("/v1/index/runes/balances", {
+			headers: authHeaders(FREE_KEY),
+		});
+		expect(res.status).toBe(400);
+	});
+
+	test("GET /runes/balances returns the envelope", async () => {
+		const res = await runesApp().request(
+			"/v1/index/runes/balances?address=bc1qexample",
+			{ headers: authHeaders(FREE_KEY) },
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { balances: unknown[] };
+		expect(body.balances).toEqual([]);
+	});
+
+	test("all four Runes routes are listed in the discovery doc", async () => {
+		const res = await runesApp().request("/v1/index");
+		const body = (await res.json()) as { routes: Array<{ path: string }> };
+		const paths = body.routes.map((r) => r.path);
+		expect(paths).toContain("/v1/index/runes");
+		expect(paths).toContain("/v1/index/runes/:rune");
+		expect(paths).toContain("/v1/index/runes/activity");
+		expect(paths).toContain("/v1/index/runes/balances");
+	});
+
+	test("not configured: GET /runes returns an empty list with a note", async () => {
+		delete process.env.BITCOIN_DATABASE_URL;
+		const res = await runesApp().request("/v1/index/runes", {
+			headers: authHeaders(FREE_KEY),
+		});
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { runes: unknown[]; notes?: string };
+		expect(body.runes).toEqual([]);
+		expect(body.notes).toMatch(/BITCOIN_DATABASE_URL/);
+	});
+
+	test("not configured: GET /runes/:rune 404s with a note in details", async () => {
+		delete process.env.BITCOIN_DATABASE_URL;
+		const res = await runesApp().request("/v1/index/runes/840000:3", {
+			headers: authHeaders(FREE_KEY),
+		});
+		expect(res.status).toBe(404);
+		const body = (await res.json()) as {
+			code: string;
+			details?: { notes?: string };
+		};
+		expect(body.code).toBe("NOT_FOUND");
+		expect(body.details?.notes).toMatch(/BITCOIN_DATABASE_URL/);
 	});
 });
 

@@ -89,6 +89,18 @@
 				"title": "The PoX-5 event object"
 			},
 			{
+				"anchor": "rune-entry-object",
+				"title": "The rune entry object"
+			},
+			{
+				"anchor": "rune-event-object",
+				"title": "The rune event object"
+			},
+			{
+				"anchor": "rune-balance-object",
+				"title": "The rune balance object"
+			},
+			{
 				"anchor": "sbtc-event-object",
 				"title": "The sBTC event object"
 			},
@@ -191,6 +203,26 @@
 				"anchor": "list-pox5-events",
 				"method": "GET",
 				"title": "PoX-5 boot-contract events (decoded)"
+			},
+			{
+				"anchor": "list-runes",
+				"method": "GET",
+				"title": "Rune catalog"
+			},
+			{
+				"anchor": "get-rune",
+				"method": "GET",
+				"title": "A single rune's entry"
+			},
+			{
+				"anchor": "list-rune-activity",
+				"method": "GET",
+				"title": "Rune activity (etch/mint/transfer/burn events)"
+			},
+			{
+				"anchor": "list-rune-balances",
+				"method": "GET",
+				"title": "Rune balances by address or outpoint"
 			},
 			{
 				"anchor": "list-sbtc-events",
