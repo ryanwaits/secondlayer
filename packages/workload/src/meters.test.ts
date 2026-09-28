@@ -463,6 +463,61 @@ describe("collectShutdownFlushItems", () => {
 		});
 		expect(items).toEqual([]);
 	});
+
+	test("freshly-drained items (live counter + live accumulator) are dated at this shutdown, not left unset", () => {
+		const before = Date.now();
+		const counter = new EventCounter();
+		counter.add(3);
+
+		const items = collectShutdownFlushItems({
+			eventCounters: new Map([["acct_a", counter]]),
+			eventPending: [],
+			memoryAccumulatorGbHours: new Map([["acct_a", 1.5]]),
+			memoryObservedAccumulatorGbHours: new Map([["acct_a", 1.2]]),
+			memoryPending: [],
+			storagePending: [],
+		});
+		const after = Date.now();
+
+		expect(items).toHaveLength(2);
+		for (const item of items) {
+			expect(item.occurredAt).toBeDefined();
+			const ms = Date.parse(item.occurredAt as string);
+			expect(ms).toBeGreaterThanOrEqual(before);
+			expect(ms).toBeLessThanOrEqual(after);
+		}
+		// The event item and the memory item share the exact same shutdown
+		// instant — one `now`, not two independently-read clocks.
+		expect(items[0]?.occurredAt).toBe(items[1]?.occurredAt);
+	});
+
+	test("already-pending items (from an earlier failed flush) pass through with whatever occurredAt they already carried", () => {
+		const items = collectShutdownFlushItems({
+			eventCounters: new Map(),
+			eventPending: [
+				{
+					accountId: "acct_a",
+					unit: "webhook.event" as const,
+					quantity: 1,
+					idempotencyKey: "evt:acct_a:pending",
+					occurredAt: "2026-09-25T22:00:00.000Z",
+				},
+			],
+			memoryAccumulatorGbHours: new Map(),
+			memoryPending: [
+				{
+					accountId: "acct_a",
+					unit: "memory.gb_hour" as const,
+					quantity: 0.25,
+					idempotencyKey: "mem:acct_a:pending",
+					occurredAt: "2026-09-25T23:00:00.000Z",
+				},
+			],
+			storagePending: [],
+		});
+		expect(items[0]?.occurredAt).toBe("2026-09-25T22:00:00.000Z");
+		expect(items[1]?.occurredAt).toBe("2026-09-25T23:00:00.000Z");
+	});
 });
 
 describe("flushOnShutdown", () => {

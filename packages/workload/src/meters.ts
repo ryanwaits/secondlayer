@@ -199,16 +199,24 @@ export async function sampleStorageGbDay(
 	};
 }
 
+/** `occurredAt` is optional and, when passed, pins both the idempotency key
+ *  and the item's `occurredAt` to that same instant — the shutdown-flush
+ *  path (`collectShutdownFlushItems`) uses this so a drained counter is
+ *  dated at the moment it was drained, not whenever the flush happens to
+ *  land. Omitted (the regular per-tick flush loop) keeps prior behavior
+ *  unchanged. */
 export function eventsMeterItem(
 	accountId: string,
 	count: number,
+	occurredAt?: Date,
 ): MeterBatchItem | undefined {
 	if (count <= 0) return undefined;
 	return {
 		accountId,
 		unit: "webhook.event",
 		quantity: count,
-		idempotencyKey: eventsIdempotencyKey(accountId, new Date()),
+		idempotencyKey: eventsIdempotencyKey(accountId, occurredAt ?? new Date()),
+		occurredAt: occurredAt?.toISOString(),
 	};
 }
 
@@ -399,7 +407,9 @@ export function collectShutdownFlushItems(
 	];
 
 	for (const [accountId, counter] of state.eventCounters) {
-		const item = eventsMeterItem(accountId, counter.drain());
+		// Dated at `now` (this shutdown), not left for the API to default at
+		// whatever moment the flush actually lands.
+		const item = eventsMeterItem(accountId, counter.drain(), now);
 		if (item) items.push(item);
 	}
 
@@ -413,6 +423,7 @@ export function collectShutdownFlushItems(
 				quantity: gbHours,
 				observedQuantity: observedGbHours,
 				idempotencyKey: memoryIdempotencyKey(accountId, now),
+				occurredAt: now.toISOString(),
 			});
 		}
 	}
