@@ -32,8 +32,9 @@ export async function pollReorgsOnce(
 	cursor: string,
 	onReorg: OnReorg,
 	handled?: Set<string>,
+	chain: "stacks" | "bitcoin" = "stacks",
 ): Promise<string> {
-	const { reorgs, next_since } = await http.listReorgs(cursor);
+	const { reorgs, next_since } = await http.listReorgs(cursor, chain);
 	const sorted = [...reorgs].sort(
 		(a, b) => a.fork_point_height - b.fork_point_height,
 	);
@@ -61,8 +62,16 @@ export async function pollReorgsOnce(
  * `/v1/streams/reorgs` and invoke `onReorg` at each fork point. Runs alongside
  * the Postgres `subgraph_reorg` LISTEN (which serves db-tap subgraphs); both
  * drive the same idempotent handler, so overlap is harmless.
+ *
+ * `chain` (plan 060) defaults to `"stacks"` — unchanged behavior. `"bitcoin"`
+ * polls the Runes reorg feed instead, with its own cursor and `handled` set
+ * (a separate `startStreamsReorgPoll` instance per chain), so a Stacks and a
+ * Bitcoin poll never share state.
  */
-export function startStreamsReorgPoll(onReorg: OnReorg): () => void {
+export function startStreamsReorgPoll(
+	onReorg: OnReorg,
+	chain: "stacks" | "bitcoin" = "stacks",
+): () => void {
 	const http = createInternalIndexHttpClient();
 
 	let since = new Date(Date.now() - STARTUP_MARGIN_MS).toISOString();
@@ -76,17 +85,18 @@ export function startStreamsReorgPoll(onReorg: OnReorg): () => void {
 		if (!running) return;
 		if (handled.size > 10_000) handled.clear();
 		try {
-			since = await pollReorgsOnce(http, since, onReorg, handled);
+			since = await pollReorgsOnce(http, since, onReorg, handled, chain);
 		} catch (err) {
 			logger.error("Streams reorg poll failed", {
 				error: getErrorMessage(err),
+				chain,
 			});
 		}
 		if (running) timer = setTimeout(tick, POLL_MS);
 	};
 
 	timer = setTimeout(tick, POLL_MS);
-	logger.info("Streams reorg poll started", { pollMs: POLL_MS });
+	logger.info("Streams reorg poll started", { pollMs: POLL_MS, chain });
 	return () => {
 		running = false;
 		if (timer) clearTimeout(timer);

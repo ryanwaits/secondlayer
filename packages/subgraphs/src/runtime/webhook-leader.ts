@@ -5,6 +5,7 @@ import {
 	withLeaderLock,
 } from "@secondlayer/shared/leader";
 import { targetListenerUrl } from "@secondlayer/shared/queue/listener";
+import { startBitcoinTriggerEvaluator } from "./bitcoin-trigger-evaluator.ts";
 import { startTriggerEvaluator } from "./trigger-evaluator-loop.ts";
 
 /**
@@ -53,9 +54,25 @@ export type StartTriggerEvaluatorLeaderOptions = {
 	heartbeatMs?: number;
 	/** Injectable for tests; defaults to the real Postgres backend on target. */
 	createBackend?: () => LeaderBackend;
-	/** Injectable for tests; defaults to the real evaluator loop. */
+	/** Injectable for tests; defaults to starting both evaluator loops
+	 *  (Stacks + Bitcoin, see `startDefaultEvaluators` below). */
 	startWork?: () => (() => void) | Promise<() => void>;
 };
+
+/**
+ * Start both chain-trigger evaluator loops (Stacks + Bitcoin/Runes, plan 060)
+ * under one leader election — they share the same `trigger_evaluator_state`
+ * row (one column per chain), so the same leader must drive both. Returns a
+ * stop function that stops each loop.
+ */
+function startDefaultEvaluators(): () => void {
+	const stopStacks = startTriggerEvaluator();
+	const stopBitcoin = startBitcoinTriggerEvaluator();
+	return () => {
+		stopStacks();
+		stopBitcoin();
+	};
+}
 
 /**
  * Run the chain-trigger evaluator only while this process is the elected leader.
@@ -65,7 +82,7 @@ export type StartTriggerEvaluatorLeaderOptions = {
 export function startTriggerEvaluatorLeader(
 	opts: StartTriggerEvaluatorLeaderOptions = {},
 ): () => Promise<void> {
-	const startWork = opts.startWork ?? startTriggerEvaluator;
+	const startWork = opts.startWork ?? startDefaultEvaluators;
 	return withLeaderLock(
 		WEBHOOK_EVALUATOR_LOCK_KEY,
 		async () => {

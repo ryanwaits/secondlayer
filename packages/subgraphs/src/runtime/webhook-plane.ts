@@ -42,10 +42,21 @@ export async function startWebhookPlane(): Promise<() => Promise<void>> {
 
 	// Chain-reorg rewind off the public Streams reorg feed (the streams-index path
 	// has no Postgres NOTIFY). Gated on the evaluator leader so the rewind and the
-	// evaluator's advance never race the same cursor across replicas.
+	// evaluator's advance never race the same cursor across replicas. Bitcoin
+	// (Runes, plan 060) runs its OWN poll — a separate feed, own cursor — but
+	// under the same leader gate, since both rewind columns on the one
+	// `trigger_evaluator_state` row the two evaluators advance.
 	const stopChainReorgPoll = streamsIndex
 		? startStreamsReorgPoll(
 				gateChainReorgOnLeader((forkHeight) => handleChainReorg(forkHeight)),
+			)
+		: undefined;
+	const stopBitcoinReorgPoll = streamsIndex
+		? startStreamsReorgPoll(
+				gateChainReorgOnLeader((forkHeight) =>
+					handleChainReorg(forkHeight, undefined, "bitcoin"),
+				),
+				"bitcoin",
 			)
 		: undefined;
 
@@ -65,6 +76,7 @@ export async function startWebhookPlane(): Promise<() => Promise<void>> {
 
 	return async () => {
 		stopChainReorgPoll?.();
+		stopBitcoinReorgPoll?.();
 		await stopTriggerEvaluator?.();
 		await stopEmitter();
 		stopMeterSocket();

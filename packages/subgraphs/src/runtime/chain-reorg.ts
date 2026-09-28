@@ -40,9 +40,23 @@ import { bumpChainReorgGeneration } from "./trigger-evaluator-loop.ts";
  *  shallow). Beyond this the payload is marked truncated. */
 const MAX_ORPHANED_PER_SUB = 500;
 
+/**
+ * Which chain this reorg is for. Heights are NOT a reliable discriminator on
+ * their own (Stacks ~9.06M, Bitcoin ~968k on mainnet, but they can overlap on
+ * regtest/devnet) — the `event_type` filter below is what actually scopes a
+ * reorg to its own rows, so a Bitcoin reorg can never sweep up Stacks rows at
+ * a numerically-greater height (and vice versa). Defaults to `"stacks"`,
+ * preserving every existing caller's behavior unchanged.
+ */
+export type ChainReorgChain = "stacks" | "bitcoin";
+
+/** Bitcoin (Runes) apply rows only — `chain.rune_etch.apply`, etc. */
+const RUNE_APPLY_EVENT_TYPE_PREFIX = "chain.rune";
+
 export async function handleChainReorg(
 	forkHeight: number,
 	db: Kysely<Database> = getTargetDb(),
+	chain: ChainReorgChain = "stacks",
 ): Promise<void> {
 	// Invalidate any evaluator tick snapshotted before this reorg so its stale
 	// forward advance cannot clobber the rewind below (bump before any await, so
@@ -69,7 +83,21 @@ export async function handleChainReorg(
 			])
 			.where("kind", "=", "chain")
 			.where("block_height", ">=", forkHeight)
-			.where("event_type", "like", "chain.%.apply")
+			.where((eb) =>
+				chain === "bitcoin"
+					? // Bitcoin only ever reorgs its own rune_*.apply rows. Scoping on
+						// event_type (not just block_height) matters: Stacks heights (~9.06M)
+						// are always >= a Bitcoin fork height (~968k), so without this a
+						// Bitcoin reorg would otherwise sweep up every Stacks apply row too.
+						eb("event_type", "like", `${RUNE_APPLY_EVENT_TYPE_PREFIX}%.apply`)
+					: // Stacks touches every chain apply row EXCEPT Bitcoin's rune_*
+						// ones — heights can overlap on regtest/devnet, so height alone
+						// isn't a safe discriminator there either.
+						eb.and([
+							eb("event_type", "like", "chain.%.apply"),
+							eb("event_type", "not like", `${RUNE_APPLY_EVENT_TYPE_PREFIX}%`),
+						]),
+			)
 			.where((eb) =>
 				eb.or([eb("status", "=", "pending"), eb("status", "=", "delivered")]),
 			)
@@ -138,6 +166,7 @@ export async function handleChainReorg(
 				const truncated = entries.length > MAX_ORPHANED_PER_SUB;
 				const payload: ChainReorgRollbackEnvelope = {
 					action: "rollback",
+					...(chain === "bitcoin" ? { chain: "bitcoin" as const } : {}),
 					fork_point_height: forkHeight,
 					orphaned: truncated
 						? entries.slice(0, MAX_ORPHANED_PER_SUB)
@@ -154,9 +183,13 @@ export async function handleChainReorg(
 					row_pk: { fork_point_height: forkHeight },
 					event_type: "chain.reorg.rollback",
 					payload,
-					// One rollback per (webhook, fork) — re-applying the same reorg
-					// is a no-op.
-					dedup_key: `chainreorg:${webhookId}:${forkHeight}`,
+					// One rollback per (webhook, fork) — re-applying the same reorg is a
+					// no-op. Namespaced per chain so a Stacks and a Bitcoin fork at the
+					// same numeric height can't dedup each other.
+					dedup_key:
+						chain === "bitcoin"
+							? `btcreorg:${webhookId}:${forkHeight}`
+							: `chainreorg:${webhookId}:${forkHeight}`,
 				});
 			}
 			await trx
@@ -173,7 +206,31 @@ export async function handleChainReorg(
 	});
 
 	// 4. Rewind the evaluator cursor so the new canonical blocks re-fire applies.
+	// Stacks and Bitcoin each rewind their OWN column only — they're separate
+	// clocks (see `ChainReorgChain`'s doc) sharing one row.
 	await db.transaction().execute(async (trx) => {
+		if (chain === "bitcoin") {
+			const cur = await trx
+				.selectFrom("trigger_evaluator_state")
+				.select("bitcoin_last_cursor")
+				.where("id", "=", true)
+				.forUpdate()
+				.executeTakeFirst();
+			const curHeight = cur?.bitcoin_last_cursor
+				? bitcoinCursorHeight(cur.bitcoin_last_cursor)
+				: null;
+			if (curHeight !== null && curHeight >= forkHeight) {
+				await trx
+					.updateTable("trigger_evaluator_state")
+					.set({
+						bitcoin_last_cursor: `${forkHeight}:0`,
+						updated_at: new Date(),
+					})
+					.where("id", "=", true)
+					.execute();
+			}
+			return;
+		}
 		const cur = await trx
 			.selectFrom("trigger_evaluator_state")
 			.select("last_processed_block")
@@ -188,4 +245,12 @@ export async function handleChainReorg(
 				.execute();
 		}
 	});
+}
+
+/** Parse the `<block_height>` prefix off a `bitcoin_last_cursor` value
+ *  (`<block_height>:<event_index>`). Malformed/empty → null (treated as
+ *  uninitialized, so the rewind below is skipped rather than throwing). */
+function bitcoinCursorHeight(cursor: string): number | null {
+	const height = Number(cursor.split(":")[0]);
+	return Number.isFinite(height) ? height : null;
 }

@@ -12,19 +12,32 @@ process.env.DATABASE_URL =
 
 const db = getDb();
 const accountId = randomUUID();
+// OSS/tenant mode stores every webhook under the empty account id regardless
+// of what's passed (`createWebhook`: `isPlatformMode() ? input.accountId :
+// ""`), so cleanup keyed on `account_id = accountId` is a no-op there and
+// leaks rows into the shared dev DB across every local test run. Tag the
+// webhook's NAME with this run's random id instead — unique per process
+// (including concurrent local runs) regardless of platform mode.
+const NAME_PREFIX = `reorg-${accountId}-`;
 
 afterAll(async () => {
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	await db
+		.deleteFrom("webhooks")
+		.where("name", "like", `${NAME_PREFIX}%`)
+		.execute();
 });
 
 beforeEach(async () => {
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	await db
+		.deleteFrom("webhooks")
+		.where("name", "like", `${NAME_PREFIX}%`)
+		.execute();
 });
 
 async function makeSub(): Promise<string> {
 	const { webhook } = await createWebhook(db, {
 		accountId,
-		name: `reorg-${randomUUID()}`,
+		name: `${NAME_PREFIX}${randomUUID()}`,
 		kind: "chain",
 		triggers: [{ type: "contract_call" }],
 		url: "https://webhook.site/reorg",
@@ -80,6 +93,55 @@ async function cursor(): Promise<number> {
 		.where("id", "=", true)
 		.executeTakeFirstOrThrow();
 	return Number(row.last_processed_block);
+}
+
+async function setBitcoinCursor(cursorText: string): Promise<void> {
+	await db
+		.updateTable("trigger_evaluator_state")
+		.set({ bitcoin_last_cursor: cursorText })
+		.where("id", "=", true)
+		.execute();
+}
+
+async function bitcoinCursor(): Promise<string | null> {
+	const row = await db
+		.selectFrom("trigger_evaluator_state")
+		.select("bitcoin_last_cursor")
+		.where("id", "=", true)
+		.executeTakeFirstOrThrow();
+	return row.bitcoin_last_cursor;
+}
+
+async function insertRuneApply(
+	webhookId: string,
+	height: number,
+	txId: string,
+	status: OutboxStatus,
+): Promise<void> {
+	const row: InsertWebhookOutbox = {
+		webhook_id: webhookId,
+		kind: "chain",
+		subgraph_name: null,
+		table_name: null,
+		block_height: height,
+		tx_id: txId,
+		row_pk: { tx_id: txId, event_index: 0 },
+		event_type: "chain.rune_transfer.apply",
+		payload: {
+			action: "apply",
+			chain: "bitcoin",
+			block_hash: `0xbtc${height}`,
+			block_height: height,
+			tx_id: txId,
+			event_index: 0,
+			trigger: "rune_transfer",
+			rune_id: "840000:3",
+			event: { amount: "1000" },
+		},
+		dedup_key: `btc:${webhookId}:${txId}:0:0xbtc${height}`,
+		status,
+	};
+	await db.insertInto("webhook_outbox").values(row).execute();
 }
 
 async function rows(webhookId: string) {
@@ -188,5 +250,72 @@ describe("handleChainReorg", () => {
 		expect(rollback).toBeDefined();
 		const payload = rollback?.payload as { orphaned: { tx_id: string }[] };
 		expect(payload.orphaned.map((o) => o.tx_id)).toEqual(["0xretried"]);
+	});
+});
+
+describe("handleChainReorg — chain scoping (plan 060)", () => {
+	it("a Bitcoin reorg at a much lower height does not touch Stacks apply rows or the Stacks cursor", async () => {
+		const sub = await makeSub();
+		// Stacks heights (~9.06M) are numerically far above a Bitcoin fork
+		// height (~968k) — the bug this guards against would have swept this
+		// row up under a bare `block_height >= forkHeight` check.
+		await insertApply(sub, 9_060_050, "0xstacks", "delivered");
+		await insertRuneApply(sub, 968_000, "0xbtc", "delivered");
+		await setCursor(9_060_100);
+		await setBitcoinCursor("968100:0");
+
+		await handleChainReorg(968_000, db, "bitcoin");
+
+		const all = await rows(sub);
+		// Stacks apply row completely untouched.
+		const stacksRow = all.find((r) => r.tx_id === "0xstacks");
+		expect(stacksRow).toBeDefined();
+		expect(stacksRow?.status).toBe("delivered");
+		expect(await cursor()).toBe(9_060_100); // Stacks cursor unchanged
+
+		// Bitcoin rune apply row rolled back.
+		const rollbacks = all.filter(
+			(r) => r.event_type === "chain.reorg.rollback",
+		);
+		expect(rollbacks).toHaveLength(1);
+		expect(rollbacks[0]?.dedup_key).toBe(`btcreorg:${sub}:968000`);
+		const payload = rollbacks[0]?.payload as {
+			chain?: string;
+			orphaned: { tx_id: string }[];
+		};
+		expect(payload.chain).toBe("bitcoin");
+		expect(payload.orphaned.map((o) => o.tx_id)).toEqual(["0xbtc"]);
+		expect(await bitcoinCursor()).toBe("968000:0"); // Bitcoin cursor rewound
+	});
+
+	it("a Stacks reorg does not touch Bitcoin rune apply rows, even at an overlapping height", async () => {
+		const sub = await makeSub();
+		await insertApply(sub, 100, "0xstacks", "delivered");
+		await insertRuneApply(sub, 100, "0xbtc", "delivered");
+		await setCursor(105);
+		await setBitcoinCursor("105:0");
+
+		await handleChainReorg(100, db); // chain defaults to "stacks"
+
+		const all = await rows(sub);
+		// Bitcoin rune apply row completely untouched.
+		const btcRow = all.find((r) => r.tx_id === "0xbtc");
+		expect(btcRow).toBeDefined();
+		expect(btcRow?.status).toBe("delivered");
+		expect(await bitcoinCursor()).toBe("105:0"); // Bitcoin cursor unchanged
+
+		// Stacks apply row rolled back, Stacks cursor rewound.
+		const rollbacks = all.filter(
+			(r) => r.event_type === "chain.reorg.rollback",
+		);
+		expect(rollbacks).toHaveLength(1);
+		expect(rollbacks[0]?.dedup_key).toBe(`chainreorg:${sub}:100`);
+		const payload = rollbacks[0]?.payload as {
+			chain?: string;
+			orphaned: { tx_id: string }[];
+		};
+		expect(payload.chain).toBeUndefined();
+		expect(payload.orphaned.map((o) => o.tx_id)).toEqual(["0xstacks"]);
+		expect(await cursor()).toBe(99);
 	});
 });
