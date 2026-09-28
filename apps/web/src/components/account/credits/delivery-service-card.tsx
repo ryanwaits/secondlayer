@@ -1,16 +1,21 @@
 "use client";
 
+import { LazyMonoAreaLineChart } from "@/components/charts/lazy";
 import { formatUsd, useAccountData } from "@/lib/account-data";
 import {
 	type DeliveryService,
 	MEMORY_FLOOR_GB,
 	MEMORY_RATE_USD_PER_GB_HOUR,
 	currentUtcMonth,
+	formatMemoryChartYTick,
 	latestMemoryHour,
+	memoryChartXTickFormatter,
+	memoryChartYTicks,
+	memoryMinimumLabel,
 	monthParam,
 	runsOutDate,
+	toMemoryChartPoints,
 } from "@/lib/usage";
-import { MemoryChart } from "./charts/memory-chart";
 
 /**
  * "Delivery service" — memory, last 24 hours. Hidden entirely when the
@@ -48,6 +53,9 @@ export function DeliveryServiceCard({ service }: { service: DeliveryService }) {
 	const memoryRow = currentMonthRows?.find((u) => u.unit === "memory.gb_hour");
 	const monthUsdMicros = memoryRow ? Number(memoryRow.usdMicros) : 0;
 
+	const chartPoints = toMemoryChartPoints(service.memory24h, now);
+	const yTicks = memoryChartYTicks(service.memory24h);
+
 	return (
 		<>
 			<div className="h2row">
@@ -64,7 +72,23 @@ export function DeliveryServiceCard({ service }: { service: DeliveryService }) {
 						{running ? "Running" : "Stopped"}
 					</span>
 				</div>
-				<MemoryChart memory24h={service.memory24h} now={now} />
+				<LazyMonoAreaLineChart
+					data={chartPoints}
+					height={120}
+					xDomain={[0, 24]}
+					xTicks={[0, 12, 24]}
+					xTickFormatter={memoryChartXTickFormatter}
+					yTicks={yTicks}
+					yTickFormatter={formatMemoryChartYTick}
+					referenceLineY={{
+						value: MEMORY_FLOOR_GB,
+						label: memoryMinimumLabel(running, latest?.observedGb ?? null),
+					}}
+					showEndpointDot={service.memory24h.length > 0}
+					valueName="Actual"
+					extraSeries={[{ dataKey: "billedGb", name: "Billed" }]}
+					tooltipFormatter={(v) => `${Number(v).toFixed(2)} GB`}
+				/>
 				<div className="use-svc-grid">
 					<div>
 						<span className="k">Billed memory</span>

@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
 // src/components/dither-charts/lib/recharts-tooltip.tsx — Tailwind classes and
 // hardcoded colors replaced with this app's own CSS tokens (wh-* classes in
 // globals.css), so it themes with the rest of the account area for free.
+// Shared by every recharts-based chart on the webhooks and credits pages —
+// one tooltip, not one per page.
 
 interface TooltipPayloadItem {
 	value?: number | string;
@@ -22,7 +24,7 @@ export interface ChartTooltipContentProps {
 	formatter?: (value: number | string, name: string) => ReactNode;
 }
 
-export function WebhookChartTooltip({
+export function ChartTooltip({
 	active,
 	payload,
 	label,

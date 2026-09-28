@@ -1,5 +1,6 @@
 "use client";
 
+import { LazyMonoStackedBarChart } from "@/components/charts/lazy";
 import {
 	activityHeaderSummary,
 	catchUpCopy,
@@ -32,7 +33,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { LazyMonoStackedBarChart } from "./charts/lazy";
 import { ConfigCard, ConfigRow, ConfigSummaryLine } from "./config-card";
 import { DeliveryCard } from "./delivery-card";
 import { DiagnosisPanel } from "./diagnosis";
@@ -623,7 +623,24 @@ export function WebhookDetailSection({ id }: { id: string }) {
 						{activity ? activityHeaderSummary(activity.hours) : "…"}
 					</span>
 				</div>
-				<LazyMonoStackedBarChart data={activity?.hours ?? []} />
+				<LazyMonoStackedBarChart
+					data={activity?.hours ?? []}
+					xAxisDataKey="hour"
+					tooltipFormatter={(v) => `${v}`}
+					series={[
+						{
+							dataKey: "delivered",
+							name: "Delivered",
+							color: "var(--fig-bar)",
+						},
+						{
+							dataKey: "waiting",
+							name: "Waiting to send",
+							color: "var(--fig-role-a)",
+						},
+						{ dataKey: "gaveUp", name: "Gave up", color: "var(--fig-alarm)" },
+					]}
+				/>
 				<div className="wh-legend">
 					<span>
 						<i style={{ background: "var(--fig-bar)" }} />

@@ -1,6 +1,12 @@
 "use client";
 
 import {
+	LazyLivelineWaitingChart,
+	LazyMonoHistogramChart,
+	LazyMonoLagLineChart,
+	LazyMonoShareBarChart,
+} from "@/components/charts/lazy";
+import {
 	deliveryLagSeries,
 	formatUtcDateTime,
 	formatUtcTime,
@@ -15,12 +21,6 @@ import type {
 	WebhookActivity,
 	WebhookDetail,
 } from "@secondlayer/sdk";
-import {
-	LazyLivelineWaitingChart,
-	LazyMonoHistogramChart,
-	LazyMonoLagLineChart,
-	LazyMonoShareBarChart,
-} from "./charts/lazy";
 import { CliLine } from "./shared";
 
 /**

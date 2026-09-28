@@ -366,6 +366,189 @@ export function buildDailyChart(
 	return days;
 }
 
+// ── recharts data shaping: daily spend chart ────────────────────────────
+
+/** One recharts-ready row for the daily-spend `MonoStackedBarChart` — real
+ *  days carry their three real dollar categories with `projectedUsd` at 0;
+ *  a projected day carries the reverse (all three real categories at 0,
+ *  `projectedUsd` holding the day's full projected total), so recharts'
+ *  ordinary 4-series stack naturally renders a real day as three segments
+ *  and a projected day as one (the hatch-filled `projectedUsd` series). */
+export type DailyChartRow = {
+	date: string;
+	day: number;
+	memUsd: number;
+	eventsUsd: number;
+	rowsUsd: number;
+	projectedUsd: number;
+};
+
+export function toDailyChartRows(
+	days: DailyChartDay[],
+	rateDayUsdMicros: number,
+): DailyChartRow[] {
+	const rateDayDollars = rateDayUsdMicros / 1_000_000;
+	return days.map((d) =>
+		d.projected
+			? {
+					date: d.date,
+					day: d.day,
+					memUsd: 0,
+					eventsUsd: 0,
+					rowsUsd: 0,
+					projectedUsd: rateDayDollars,
+				}
+			: {
+					date: d.date,
+					day: d.day,
+					memUsd: d.memUsdMicros / 1_000_000,
+					eventsUsd: d.eventsUsdMicros / 1_000_000,
+					rowsUsd: d.rowsUsdMicros / 1_000_000,
+					projectedUsd: 0,
+				},
+	);
+}
+
+/** Only day 1, every 7th day before today, and the last day of the month
+ *  get an x-axis tick — Design's exact label rule, ported from axis label
+ *  visibility to which categories recharts is told to tick at all. */
+export function dailyChartXTicks(
+	days: DailyChartDay[],
+	nowDay: number,
+): string[] {
+	const totalDays = days.length;
+	return days
+		.filter(
+			(d) =>
+				d.day === 1 ||
+				(d.day % 7 === 0 && d.day < nowDay) ||
+				d.day === totalDays,
+		)
+		.map((d) => d.date);
+}
+
+/** "Sep 7" from a "YYYY-MM-DD" x-axis category value and the chart's month
+ *  short label. */
+export function dailyChartXTickFormatter(
+	monthShortLabelValue: string,
+): (date: string | number) => string {
+	return (date: string | number) => {
+		const day = Number(String(date).slice(-2));
+		return `${monthShortLabelValue} ${day}`;
+	};
+}
+
+/** The first projected day's date — the "now" boundary the mock draws its
+ *  dashed reference line at. `null` for a past month (nothing is projected,
+ *  so there's no "now" line to draw). */
+export function dailyChartNowReferenceDate(
+	days: DailyChartDay[],
+): string | null {
+	return days.find((d) => d.projected)?.date ?? null;
+}
+
+export type DailyChartYAxis = { ticks: number[]; decimals: 0 | 2 };
+
+/** Dollar-scale y-axis ticks, coarser once the month's peak day is a few
+ *  dollars, finer for a quiet account — same thresholds as the locked mock. */
+export function dailyChartYAxis(rows: DailyChartRow[]): DailyChartYAxis {
+	const max = Math.max(
+		0,
+		...rows.map((r) => r.memUsd + r.eventsUsd + r.rowsUsd + r.projectedUsd),
+	);
+	const step = max > 4 ? 2 : max > 1 ? 0.5 : max > 0.4 ? 0.2 : 0.1;
+	const top = Math.max(step, Math.ceil(max / step) * step);
+	const ticks: number[] = [];
+	for (let t = 0; t <= top + 1e-9; t += step) {
+		ticks.push(Math.round(t * 100) / 100);
+	}
+	return { ticks, decimals: step < 1 ? 2 : 0 };
+}
+
+export function formatDailyChartYTick(v: number, decimals: 0 | 2): string {
+	return `$${v.toFixed(decimals)}`;
+}
+
+// ── recharts data shaping: memory chart ─────────────────────────────────
+
+export type MemoryChartPoint = {
+	x: number; // hours from "24h ago" (0) to "now" (24)
+	/** The connected line's value: the real sample, or a billed-floor
+	 *  fallback for a legacy hour with no `observedGb`. */
+	value: number;
+	/** The real sample, or `null` — the area fill only covers stretches
+	 *  where this is non-null. */
+	areaValue: number | null;
+	billedGb: number;
+};
+
+export function toMemoryChartPoints(
+	memory24h: MemoryHourRow[],
+	now: Date,
+): MemoryChartPoint[] {
+	if (memory24h.length === 0) {
+		// recharts renders no axes/grid at all for a genuinely empty `data`
+		// array — two zero-value boundary points (nothing sampled, so
+		// nothing billed) keep the frame (axis, grid, the 0.5 GB reference
+		// line) visible for a service with no memory history in the window,
+		// matching the locked mock's own "stopped" state (a flat line at 0).
+		return [
+			{ x: 0, value: 0, areaValue: null, billedGb: 0 },
+			{ x: 24, value: 0, areaValue: null, billedGb: 0 },
+		];
+	}
+	return memory24h.map((row) => {
+		const hoursAgo = (now.getTime() - new Date(row.hour).getTime()) / 3_600_000;
+		const x = Math.min(24, Math.max(0, 24 - hoursAgo));
+		return {
+			x,
+			value: row.observedGb ?? row.billedGb,
+			areaValue: row.observedGb,
+			billedGb: row.billedGb,
+		};
+	});
+}
+
+export function memoryChartYTicks(memory24h: MemoryHourRow[]): number[] {
+	const maxGb = Math.max(
+		MEMORY_FLOOR_GB,
+		...memory24h.map((r) => r.observedGb ?? r.billedGb),
+	);
+	const top = Math.max(
+		1,
+		Math.ceil(Math.max(maxGb * 1.3, MEMORY_FLOOR_GB * 1.3) * 4) / 4,
+	);
+	return [0, top / 2, top];
+}
+
+export function formatMemoryChartYTick(v: number): string {
+	return `${v.toFixed(2).replace(/0$/, "")} GB`;
+}
+
+export function memoryChartXTickFormatter(hoursFrom24hAgo: number): string {
+	if (hoursFrom24hAgo <= 0) return "24h ago";
+	if (hoursFrom24hAgo >= 24) return "now";
+	return "12h";
+}
+
+/** "0.5 GB minimum (billed)" only while the service is running and the
+ *  latest real sample is under the floor — a stopped service (or one above
+ *  the floor) never actually bills at the minimum, so the label must not
+ *  claim it does. */
+export function memoryMinimumLabel(
+	running: boolean,
+	latestObservedGb: number | null,
+): string {
+	if (
+		running &&
+		latestObservedGb != null &&
+		latestObservedGb < MEMORY_FLOOR_GB
+	) {
+		return "0.5 GB minimum (billed)";
+	}
+	return "0.5 GB minimum";
+}
+
 /** The free-rows meter's foot line: under / exactly-at / over the monthly
  *  allowance. `resetLabel` is the pre-formatted date the allowance resets
  *  (e.g. "Oct 1"). */

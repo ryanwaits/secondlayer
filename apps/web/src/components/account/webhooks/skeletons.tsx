@@ -31,20 +31,6 @@ function Skel({
 	);
 }
 
-/** A lazy-loaded chart's `next/dynamic` loading fallback — sized to that
- *  chart's own default height so nothing jumps once the real thing (and its
- *  `recharts`/`liveline` chunk) lands. */
-export function ChartSkeleton({ height = 120 }: { height?: number }) {
-	return (
-		<span
-			className="wh-skel"
-			aria-hidden="true"
-			aria-label="Loading chart"
-			style={{ display: "block", width: "100%", height, borderRadius: 8 }}
-		/>
-	);
-}
-
 function StatSkeleton({ label }: { label: string }) {
 	return (
 		<div className="acct-stat wh-skel-stats">

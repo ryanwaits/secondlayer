@@ -1,5 +1,6 @@
 "use client";
 
+import { LazyMonoStackedBarChart } from "@/components/charts/lazy";
 import { formatUsd } from "@/lib/account-data";
 import {
 	type DailySpend,
@@ -9,7 +10,12 @@ import {
 	type UsageRow,
 	buildDailyChart,
 	currentUtcMonth,
+	dailyChartNowReferenceDate,
+	dailyChartXTickFormatter,
+	dailyChartXTicks,
+	dailyChartYAxis,
 	daysInUtcMonth,
+	formatDailyChartYTick,
 	formatRows,
 	fractionalDaysRemainingInMonth,
 	isSameMonth,
@@ -20,8 +26,10 @@ import {
 	nextMonthAtRateUsdMicros,
 	projectedMonthEndUsdMicros,
 	spentUsdMicros,
+	toDailyChartRows,
 } from "@/lib/usage";
-import { DailySpendChart } from "./charts/daily-spend-chart";
+
+const HATCH_PATTERN_ID = "credits-daily-spend-hatch";
 
 /**
  * "<Month> so far" — the stacked daily-spend chart, its Spent/Projected/
@@ -48,6 +56,10 @@ export function SpendCard({
 	const spent = rows ? spentUsdMicros(rows) : 0;
 	const days = buildDailyChart(daily ?? [], month, now, rateDayUsdMicros);
 	const lastDayLabel = `${monthShortLabel(month)} ${daysInUtcMonth(month)}`;
+
+	const chartRows = toDailyChartRows(days, rateDayUsdMicros);
+	const yAxis = dailyChartYAxis(chartRows);
+	const nowReferenceDate = isCurrent ? dailyChartNowReferenceDate(days) : null;
 
 	return (
 		<>
@@ -90,12 +102,64 @@ export function SpendCard({
 						</>
 					) : null}
 				</div>
-				<DailySpendChart
-					days={days}
-					rateDayUsdMicros={rateDayUsdMicros}
-					nowDay={now.getUTCDate()}
-					showNowLine={isCurrent}
-					monthShortLabel={monthShortLabel(month)}
+				<LazyMonoStackedBarChart
+					data={chartRows}
+					height={170}
+					xAxisDataKey="date"
+					xAxisTicks={dailyChartXTicks(days, now.getUTCDate())}
+					xAxisTickFormatter={dailyChartXTickFormatter(monthShortLabel(month))}
+					yAxisTicks={yAxis.ticks}
+					yAxisTickFormatter={(v) => formatDailyChartYTick(v, yAxis.decimals)}
+					tooltipLabelFormatter={(date) =>
+						dailyChartXTickFormatter(monthShortLabel(month))(String(date))
+					}
+					tooltipFormatter={(v) => formatUsd(Number(v) * 1_000_000)}
+					referenceLineX={
+						nowReferenceDate
+							? { value: nowReferenceDate, label: "now" }
+							: undefined
+					}
+					patternDefs={
+						<pattern
+							id={HATCH_PATTERN_ID}
+							width={4}
+							height={4}
+							patternUnits="userSpaceOnUse"
+							patternTransform="rotate(45)"
+						>
+							<rect width={4} height={4} fill="transparent" />
+							<line
+								x1={0}
+								y1={0}
+								x2={0}
+								y2={4}
+								stroke="var(--fig-bar)"
+								strokeWidth={2}
+							/>
+						</pattern>
+					}
+					series={[
+						{
+							dataKey: "memUsd",
+							name: "Delivery service memory",
+							color: "var(--fig-bar)",
+						},
+						{
+							dataKey: "eventsUsd",
+							name: "Webhook events",
+							color: "var(--fig-role-a)",
+						},
+						{
+							dataKey: "rowsUsd",
+							name: `Rows past free ${formatRows(ROWS_ALLOWANCE)}`,
+							color: "var(--fig-role-b)",
+						},
+						{
+							dataKey: "projectedUsd",
+							name: "Projected",
+							color: `url(#${HATCH_PATTERN_ID})`,
+						},
+					]}
 				/>
 				<div className="use-legend">
 					<span>

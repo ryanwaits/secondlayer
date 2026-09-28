@@ -8,13 +8,22 @@ import {
 	buildDailyChart,
 	burnCompositionLabel,
 	compareMonths,
+	dailyChartNowReferenceDate,
+	dailyChartXTickFormatter,
+	dailyChartXTicks,
+	dailyChartYAxis,
 	daysInUtcMonth,
 	deliveredRowsIn,
+	formatDailyChartYTick,
+	formatMemoryChartYTick,
 	formatRows,
 	formatUnitQuantity,
 	formatUsdPerHour,
 	fractionalDaysRemainingInMonth,
 	latestMemoryHour,
+	memoryChartXTickFormatter,
+	memoryChartYTicks,
+	memoryMinimumLabel,
 	monthLabel,
 	monthParam,
 	nextChargeLabel,
@@ -26,6 +35,8 @@ import {
 	runsOutDate,
 	runwayDays,
 	spentUsdMicros,
+	toDailyChartRows,
+	toMemoryChartPoints,
 	unitLabel,
 	withUsageMonth,
 } from "./usage";
@@ -522,5 +533,206 @@ describe("buildDailyChart", () => {
 		const days = buildDailyChart([], month, now, 350_000);
 		expect(days.every((d) => !d.projected)).toBe(true);
 		expect(days).toHaveLength(30);
+	});
+});
+
+describe("toDailyChartRows", () => {
+	test("a real day carries its three categories, projectedUsd at 0", () => {
+		const days = [
+			{
+				day: 1,
+				date: "2026-09-01",
+				memUsdMicros: 14_000,
+				eventsUsdMicros: 12_000,
+				rowsUsdMicros: 5_000,
+				projected: false,
+			},
+		];
+		expect(toDailyChartRows(days, 350_000)).toEqual([
+			{
+				date: "2026-09-01",
+				day: 1,
+				memUsd: 0.014,
+				eventsUsd: 0.012,
+				rowsUsd: 0.005,
+				projectedUsd: 0,
+			},
+		]);
+	});
+
+	test("a projected day carries only projectedUsd (the day's full rate), the rest at 0", () => {
+		const days = [
+			{
+				day: 6,
+				date: "2026-09-06",
+				memUsdMicros: 0,
+				eventsUsdMicros: 0,
+				rowsUsdMicros: 0,
+				projected: true,
+			},
+		];
+		expect(toDailyChartRows(days, 350_000)).toEqual([
+			{
+				date: "2026-09-06",
+				day: 6,
+				memUsd: 0,
+				eventsUsd: 0,
+				rowsUsd: 0,
+				projectedUsd: 0.35,
+			},
+		]);
+	});
+});
+
+describe("dailyChartXTicks / dailyChartXTickFormatter / dailyChartNowReferenceDate", () => {
+	const month = { year: 2026, month: 8 };
+
+	test("ticks at day 1, every 7th day before today, and the last day", () => {
+		const now = new Date("2026-09-20T12:00:00.000Z");
+		const days = buildDailyChart([], month, now, 0);
+		const ticks = dailyChartXTicks(days, now.getUTCDate());
+		expect(ticks).toEqual([
+			"2026-09-01",
+			"2026-09-07",
+			"2026-09-14",
+			"2026-09-30",
+		]);
+	});
+
+	test("formats a date to '<Month short> <day>'", () => {
+		expect(dailyChartXTickFormatter("Sep")("2026-09-07")).toBe("Sep 7");
+	});
+
+	test("the now-reference date is the first projected day", () => {
+		const now = new Date("2026-09-20T12:00:00.000Z");
+		const days = buildDailyChart([], month, now, 350_000);
+		expect(dailyChartNowReferenceDate(days)).toBe("2026-09-21");
+	});
+
+	test("null when nothing is projected (a fully-past month)", () => {
+		const now = new Date("2026-10-15T12:00:00.000Z");
+		const days = buildDailyChart([], month, now, 350_000);
+		expect(dailyChartNowReferenceDate(days)).toBeNull();
+	});
+});
+
+describe("dailyChartYAxis / formatDailyChartYTick", () => {
+	test("a quiet month uses the finest ($0.10) step, 2 decimals", () => {
+		const rows = [
+			{
+				date: "2026-09-01",
+				day: 1,
+				memUsd: 0.1,
+				eventsUsd: 0,
+				rowsUsd: 0,
+				projectedUsd: 0,
+			},
+		];
+		const axis = dailyChartYAxis(rows);
+		expect(axis.decimals).toBe(2);
+		expect(axis.ticks[0]).toBe(0);
+		expect(formatDailyChartYTick(0.1, axis.decimals)).toBe("$0.10");
+	});
+
+	test("a big-spend day uses the coarsest ($2) step, whole dollars", () => {
+		const rows = [
+			{
+				date: "2026-09-01",
+				day: 1,
+				memUsd: 5,
+				eventsUsd: 0,
+				rowsUsd: 0,
+				projectedUsd: 0,
+			},
+		];
+		const axis = dailyChartYAxis(rows);
+		expect(axis.decimals).toBe(0);
+		expect(formatDailyChartYTick(2, axis.decimals)).toBe("$2");
+	});
+});
+
+describe("toMemoryChartPoints", () => {
+	test("maps hours-ago to an x position from 0 (24h ago) to 24 (now)", () => {
+		const now = new Date("2026-09-28T12:00:00.000Z");
+		const points = toMemoryChartPoints(
+			[
+				{ hour: "2026-09-27T12:00:00.000Z", billedGb: 0.5, observedGb: 0.3 },
+				{ hour: "2026-09-28T12:00:00.000Z", billedGb: 0.5, observedGb: 0.32 },
+			],
+			now,
+		);
+		expect(points[0]?.x).toBeCloseTo(0, 6);
+		expect(points[1]?.x).toBeCloseTo(24, 6);
+	});
+
+	test("value falls back to billedGb when observedGb is null; areaValue stays null", () => {
+		const now = new Date("2026-09-28T12:00:00.000Z");
+		const points = toMemoryChartPoints(
+			[{ hour: "2026-09-28T12:00:00.000Z", billedGb: 0.5, observedGb: null }],
+			now,
+		);
+		expect(points[0]?.value).toBe(0.5);
+		expect(points[0]?.areaValue).toBeNull();
+		expect(points[0]?.billedGb).toBe(0.5);
+	});
+
+	test("returns two zero-value boundary points when there's no history in the window, so the chart frame still renders", () => {
+		const now = new Date("2026-09-28T12:00:00.000Z");
+		const points = toMemoryChartPoints([], now);
+		expect(points).toHaveLength(2);
+		expect(points[0]).toMatchObject({
+			x: 0,
+			value: 0,
+			areaValue: null,
+			billedGb: 0,
+		});
+		expect(points[1]).toMatchObject({
+			x: 24,
+			value: 0,
+			areaValue: null,
+			billedGb: 0,
+		});
+	});
+});
+
+describe("memoryChartYTicks / formatMemoryChartYTick", () => {
+	test("three ticks: 0, half, and a peak with headroom above the sample", () => {
+		const ticks = memoryChartYTicks([
+			{ hour: "2026-09-28T12:00:00.000Z", billedGb: 0.5, observedGb: 0.3 },
+		]);
+		expect(ticks).toHaveLength(3);
+		expect(ticks[0]).toBe(0);
+		expect(ticks[2]).toBeGreaterThan(0.3);
+	});
+
+	test("strips one trailing zero, matching the locked mock's own gridline format", () => {
+		expect(formatMemoryChartYTick(1)).toBe("1.0 GB");
+		expect(formatMemoryChartYTick(0.5)).toBe("0.5 GB");
+	});
+});
+
+describe("memoryChartXTickFormatter", () => {
+	test("0 is '24h ago', 12 is '12h', 24 is 'now'", () => {
+		expect(memoryChartXTickFormatter(0)).toBe("24h ago");
+		expect(memoryChartXTickFormatter(12)).toBe("12h");
+		expect(memoryChartXTickFormatter(24)).toBe("now");
+	});
+});
+
+describe("memoryMinimumLabel", () => {
+	test("running and under the floor: labeled billed", () => {
+		expect(memoryMinimumLabel(true, 0.3)).toBe("0.5 GB minimum (billed)");
+	});
+
+	test("running and at/above the floor: no billed suffix", () => {
+		expect(memoryMinimumLabel(true, 0.8)).toBe("0.5 GB minimum");
+	});
+
+	test("stopped never claims billed, even if the last sample was under the floor", () => {
+		expect(memoryMinimumLabel(false, 0.3)).toBe("0.5 GB minimum");
+	});
+
+	test("no observed sample at all: no billed suffix", () => {
+		expect(memoryMinimumLabel(true, null)).toBe("0.5 GB minimum");
 	});
 });
