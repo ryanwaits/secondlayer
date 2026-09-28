@@ -356,12 +356,21 @@ function LevelBanner({
  *  the 402 `spend_cap_reached` refusal on the read path. */
 const USD_MICROS_PER_CENT = 10_000;
 
-/** Shown once this month's spend on hosted Index/Streams reads past the free
- *  1M rows reaches the account's monthly spend cap — the same condition
- *  `checkRowsAllowance` (`packages/api/src/lib/read-credits.ts`) refuses a
- *  read on with 402 `spend_cap_reached`. Same banner style as `LevelBanner`. */
-function CapBanner({ now }: { now: Date }) {
+/** Shown once this month's TOTAL spend (memory, storage, webhooks, and
+ *  Index/Streams reads — every unit `meter()` debits) reaches the account's
+ *  monthly spend cap — the same condition `checkRowsAllowance`
+ *  (`packages/api/src/lib/read-credits.ts`) refuses a read on with 402
+ *  `spend_cap_reached`. Only reads past the free 1M rows pause; webhooks and
+ *  the delivery service keep running. Same banner style as `LevelBanner`. */
+function CapBanner({
+	now,
+	monthlyCapCents,
+}: {
+	now: Date;
+	monthlyCapCents: number;
+}) {
 	const resets = nextMonthLabel(currentUtcMonth(now));
+	const cap$ = `$${(monthlyCapCents / 100).toFixed(2)}`;
 	return (
 		<output className="use-banner capped">
 			<div>
@@ -369,8 +378,9 @@ function CapBanner({ now }: { now: Date }) {
 					Reads paused: you reached your monthly spend cap
 				</p>
 				<p className="use-banner-l">
-					Hosted Index and Streams reads past your free 1M rows are paused until{" "}
-					{resets}. Raise your cap to keep reading this month.
+					You've spent your {cap$} monthly cap. Hosted Index and Streams reads
+					past your free 1M rows are paused until {resets}. Raise your cap to
+					keep reading this month.
 				</p>
 			</div>
 			<button
@@ -509,10 +519,11 @@ function AlertSwitch({
 const DEFAULT_ALERTS: BalanceAlerts = { notify7d: true, notify2d: true };
 
 /** Whole-dollar `$` input + Save, bound to `GET/PATCH /api/billing/caps`.
- *  Empty input = no cap. A read past the free 1M rows once the cap is
- *  reached is refused with 402 `spend_cap_reached` before it starts
- *  (`checkRowsAllowance`, `packages/api/src/lib/read-credits.ts`) — it
- *  really does pause. */
+ *  Empty input = no cap. The cap counts total monthly spend (memory,
+ *  storage, webhooks, and reads — every unit `meter()` debits); only a read
+ *  past the free 1M rows once the cap is reached is refused with 402
+ *  `spend_cap_reached` before it starts (`checkRowsAllowance`,
+ *  `packages/api/src/lib/read-credits.ts`) — webhooks keep running. */
 function SpendCapRow() {
 	const { caps } = useAccountData();
 	useEffect(() => {
@@ -551,8 +562,8 @@ function SpendCapRow() {
 			<label htmlFor="spend-cap-input">
 				<span className="t">Monthly spend cap</span>
 				<span className="s">
-					Pauses hosted reads past your free 1M rows once this month's spend on
-					them reaches the cap. Webhooks aren't affected.
+					Counts everything you spend this month. Once you reach it, hosted
+					reads past your free 1M rows pause. Webhooks keep running.
 				</span>
 			</label>
 			<div className="use-cap-fields">
@@ -671,7 +682,9 @@ export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
 	return (
 		<>
 			{st ? <ReturnNotice st={st} billing={billing} /> : null}
-			{st?.kind !== "landed" && capped ? <CapBanner now={now} /> : null}
+			{st?.kind !== "landed" && capped && caps?.monthlyCapCents != null ? (
+				<CapBanner now={now} monthlyCapCents={caps.monthlyCapCents} />
+			) : null}
 			{st?.kind !== "landed" && ready && service ? (
 				<>
 					<LevelBanner

@@ -1,11 +1,14 @@
 /**
  * Daily spend-cap threshold monitor for the pay-as-you-go credits rail.
  *
- * The cap governs the only live variable spend: a free-tier account's prepaid
- * `account_credits` consumed per read this calendar month. (The earlier version
- * projected the Stripe invoice — flat base price, since no
- * metered overage is emitted — so it could never trip; see the 2026-06-18
- * billing audit.) For each account with a `monthly_cap_cents` set:
+ * The cap governs a free-tier account's total prepaid `account_credits`
+ * spend this calendar month — every unit `meter()` debits (hosted reads,
+ * the delivery service's memory/storage, webhook events), not just reads.
+ * Only reads past the free 1M rows actually pause once it's reached; webhooks
+ * and the delivery service keep running. (The earlier version projected the
+ * Stripe invoice — flat base price, since no metered overage is emitted —
+ * so it could never trip; see the 2026-06-18 billing audit.) For each
+ * account with a `monthly_cap_cents` set:
  *   - Month's credit spend >= threshold_pct (default 80%) → send email + bump
  *     `alert_sent_at` (debounced once per calendar month)
  *   - Month's credit spend >= monthly_cap_cents → set `frozen_at` (display +
@@ -182,9 +185,11 @@ async function sendCapAlert(
 	const pct = Math.round((projectedCents / capCents) * 100);
 	const resets = nextMonthResetLabel(now);
 
-	// Over the cap, a keyed read past the free 1M rows is refused with 402
-	// `spend_cap_reached` before it starts (`checkRowsAllowance`,
-	// packages/api/src/lib/read-credits.ts) — so it really does "pause."
+	// The cap counts total monthly spend (memory, storage, webhooks, rows —
+	// every unit `meter()` debits, @secondlayer/platform/billing/meter.ts),
+	// not just Index/Streams reads; only reads past the free 1M rows pause
+	// once it's reached (`checkRowsAllowance`,
+	// packages/api/src/lib/read-credits.ts) — the copy must say both.
 	const subject =
 		kind === "frozen"
 			? "You reached your monthly spend cap"
@@ -192,10 +197,10 @@ async function sendCapAlert(
 	const paragraphs =
 		kind === "frozen"
 			? [
-					`Your spend on hosted Index and Streams reads past your free 1M rows reached your ${cap$} cap. Those reads are paused until ${resets} or until you raise the cap. Your balance is untouched, and webhooks and your delivery service keep running.`,
+					`You've spent ${cap$} this month and reached your monthly cap. Hosted Index and Streams reads past your free 1M rows are paused until ${resets} or until you raise the cap. Your balance is untouched, and webhooks and your delivery service keep running.`,
 				]
 			: [
-					`Your spend on hosted Index and Streams reads past your free 1M rows is ${spent$} this month, ${pct}% of your ${cap$} cap. When it reaches the cap, those reads pause until next month or until you raise the cap. Webhooks and your delivery service aren't affected.`,
+					`You've spent ${spent$} this month, ${pct}% of your ${cap$} monthly cap. When you reach the cap, hosted Index and Streams reads past your free 1M rows pause until ${resets} or until you raise the cap. Webhooks and your delivery service keep running.`,
 				];
 
 	const { html, text } = renderEmail({
