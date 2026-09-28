@@ -415,7 +415,7 @@ export const protocolsPaths = {
 			tags: ["index"],
 			summary: "Reward cycles of the current PoX (PoX-5)",
 			description:
-				"One row per pox-5 reward cycle, newest first, exact to the node: total stacked, reward-eligible STX, bond sats, sBTC custodied, rewards allocated/claimed, and cumulative rewards-per-token. `pox_version` marks the era; at the next PoX fork this endpoint follows the chain and reports the new PoX instead. PoX-4 history is final and not served here; rebuild it from `/v1/index/stacking` on a self-hosted instance. Frozen cycles cache for an hour; the still-open current cycle caches briefly.",
+				"One row per pox-5 reward cycle, descending, exact to the node: total stacked, reward-eligible STX, bond sats, sBTC custodied, rewards allocated/claimed, and cumulative rewards-per-token. Without a cursor, your list starts at the next reward cycle (the current one plus one) and goes back in time. Pass a higher `cursor` to reach cycles further in the future, which PoX-5 bonds can lock many cycles ahead. `pox_version` marks the era; at the next PoX fork this endpoint follows the chain and reports the new PoX instead. PoX-4 history is final and not served here; rebuild it from `/v1/index/stacking` on a self-hosted instance. Frozen cycles cache for an hour; the still-open current cycle caches briefly.",
 			security: READ_SECURITY,
 			parameters: [
 				{
@@ -428,9 +428,9 @@ export const protocolsPaths = {
 				{
 					name: "cursor",
 					in: "query",
-					schema: { type: "integer", minimum: 0, example: 144 },
+					schema: { type: "integer", minimum: 0, example: 200 },
 					description:
-						"`next_cursor` from the previous page. Returns cycles below it.",
+						"`next_cursor` from the previous page, or any reward cycle (exclusive) to page from. Returns cycles below it. Omit it and the list starts at the next reward cycle.",
 				},
 			],
 			responses: {
@@ -458,7 +458,7 @@ export const protocolsPaths = {
 							tip: TIP,
 						},
 					},
-					"Reward cycles, newest first",
+					"Reward cycles, descending from the next reward cycle",
 				),
 				"400": jsonError(
 					"`limit` or `cursor` is out of range, or an unknown parameter was sent",

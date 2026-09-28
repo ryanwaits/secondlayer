@@ -225,8 +225,16 @@ function parseCycleCursor(raw: string | null): number | undefined {
 	return n;
 }
 
+export type PoxCyclesQuery = {
+	limit: number;
+	/** Exclusive upper bound on `reward_cycle` — the caller's `cursor` if
+	 *  given, else `currentCycle + 2` so the list starts at `currentCycle +
+	 *  1`. `undefined` means unbounded (highest cycle first). */
+	before?: number;
+};
+
 export type PoxCyclesReader = (
-	query: URLSearchParams,
+	params: PoxCyclesQuery,
 	db?: Kysely<Database>,
 ) => Promise<{ cycles: Pox5CycleData[]; next_cursor: number | null }>;
 
@@ -236,14 +244,13 @@ export type PoxCycleReader = (
 ) => Promise<{ cycle: Pox5CycleData; signers: Pox5CycleSigner[] } | null>;
 
 export async function readPoxCycles(
-	query: URLSearchParams,
+	params: PoxCyclesQuery,
 	db: Kysely<Database> = getSourceDb(),
 ): Promise<{ cycles: Pox5CycleData[]; next_cursor: number | null }> {
-	const limit = parseCycleLimit(query.get("limit"));
-	const after = parseCycleCursor(query.get("cursor"));
+	const { limit, before } = params;
 
-	const afterClause =
-		after !== undefined ? sql`AND reward_cycle < ${after}` : sql``;
+	const beforeClause =
+		before !== undefined ? sql`AND reward_cycle < ${before}` : sql``;
 
 	const { rows } = await sql<CycleDbRow>`
 		SELECT
@@ -254,7 +261,7 @@ export async function readPoxCycles(
 			rewards_per_token_stx, rewards_per_token_bond,
 			distributions, rewards_claimed, computed_through_height
 		FROM pox5_cycles
-		WHERE true ${afterClause}
+		WHERE true ${beforeClause}
 		ORDER BY reward_cycle DESC
 		LIMIT ${limit + 1}
 	`.execute(db);
@@ -306,14 +313,25 @@ export async function getPoxCyclesResponse(opts: {
 	readPoxCycles?: PoxCyclesReader;
 	readTipBurnHeight?: PoxTipBurnHeightReader;
 }): Promise<PoxCyclesResponse> {
-	// Validate/read first: a bad `limit`/`cursor` should 400 without ever
-	// touching the tip.
-	const reader = opts.readPoxCycles ?? readPoxCycles;
-	const { cycles, next_cursor } = await reader(opts.query);
+	// Validate first: a bad `limit`/`cursor` should 400 without ever touching
+	// the tip.
+	const limit = parseCycleLimit(opts.query.get("limit"));
+	const cursor = parseCycleCursor(opts.query.get("cursor"));
+
 	const tipBurnHeight =
 		opts.tipBurnHeight ??
 		(await (opts.readTipBurnHeight ?? readTipBurnHeight)(opts.tip));
 	const currentCycle = safeCurrentCycle(tipBurnHeight);
+
+	// No cursor: start the list at the next reward cycle (current + 1), not
+	// the farthest future one a PoX-5 bond can reach. A cursor still reaches
+	// any cycle beyond that. Unknown current cycle (pre pox-5 tip) falls back
+	// to unbounded, highest cycle first.
+	const before =
+		cursor ?? (currentCycle !== null ? currentCycle + 2 : undefined);
+
+	const reader = opts.readPoxCycles ?? readPoxCycles;
+	const { cycles, next_cursor } = await reader({ limit, before });
 	return {
 		pox_version: POX_VERSION,
 		cycles: cycles.map((c) => withFlags(c, tipBurnHeight, currentCycle)),

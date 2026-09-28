@@ -192,10 +192,12 @@ describe.skipIf(!HAS_DB)("PoX-5 cycles", () => {
 
 	test("is_frozen is true once the tip passes a cycle's prepare_start_burn_height, even for a not-yet-current cycle", async () => {
 		// A tip inside 141's own window, but past 142's prepare phase — 142 is
-		// closed for new registrations though it isn't "current" yet.
+		// closed for new registrations though it isn't "current" yet. A cursor
+		// past 900_003 keeps that far-future cycle in view (it's past the
+		// current-cycle default start).
 		const cycle142PrepareStart = 666_050 + 900_002 * 2_100 - 100;
 		const response = await getPoxCyclesResponse({
-			query: params(),
+			query: params("?cursor=900004"),
 			tip: TIP,
 			tipBurnHeight: cycle142PrepareStart,
 		});
@@ -222,6 +224,97 @@ describe.skipIf(!HAS_DB)("PoX-5 cycles", () => {
 			if (prev === undefined) delete process.env.POX4_DECODER_ENABLED;
 			else process.env.POX4_DECODER_ENABLED = prev;
 		}
+	});
+});
+
+describe.skipIf(!HAS_DB)("PoX-5 cycles default cursor", () => {
+	const db = HAS_DB ? getDb() : null;
+	// Every reward cycle a pox-5 bond can currently reach (141 = FIRST_POX5_REWARD_CYCLE).
+	const CYCLES = Array.from({ length: 100 }, (_, i) => 141 + i);
+	const CYCLE_144_START_BURN_HEIGHT = 666_050 + 144 * 2_100;
+	const TIP_IN_CYCLE_144 = CYCLE_144_START_BURN_HEIGHT + 5;
+
+	beforeEach(async () => {
+		if (!db) return;
+		await sql`DELETE FROM pox5_cycles WHERE reward_cycle BETWEEN 141 AND 240`.execute(
+			db,
+		);
+		await db
+			.insertInto("pox5_cycles")
+			.values(CYCLES.map((c) => cycleRow(c)))
+			.execute();
+	});
+
+	afterAll(async () => {
+		if (!db) return;
+		await sql`DELETE FROM pox5_cycles WHERE reward_cycle BETWEEN 141 AND 240`.execute(
+			db,
+		);
+	});
+
+	test("with no cursor, starts at the next reward cycle and descends", async () => {
+		const first = await getPoxCyclesResponse({
+			query: params("?limit=2"),
+			tip: TIP,
+			tipBurnHeight: TIP_IN_CYCLE_144,
+		});
+		expect(first.cycles.map((c) => c.reward_cycle)).toEqual([145, 144]);
+		expect(first.cycles[1]?.is_current).toBe(true);
+		expect(first.next_cursor).toBe(144);
+
+		const second = await getPoxCyclesResponse({
+			query: params(`?limit=2&cursor=${first.next_cursor}`),
+			tip: TIP,
+			tipBurnHeight: TIP_IN_CYCLE_144,
+		});
+		expect(second.cycles.map((c) => c.reward_cycle)).toEqual([143, 142]);
+	});
+
+	test("a cursor past the default start still reaches far-future cycles", async () => {
+		const response = await getPoxCyclesResponse({
+			query: params("?limit=1&cursor=241"),
+			tip: TIP,
+			tipBurnHeight: TIP_IN_CYCLE_144,
+		});
+		expect(response.cycles.map((c) => c.reward_cycle)).toEqual([240]);
+	});
+
+	test("falls back to unbounded, highest cycle first, when the current cycle is unknown", async () => {
+		const response = await getPoxCyclesResponse({
+			query: params("?limit=100"),
+			tip: TIP,
+			tipBurnHeight: 0,
+		});
+		const returned = response.cycles.filter((c) =>
+			CYCLES.includes(c.reward_cycle),
+		);
+		expect(returned.map((c) => c.reward_cycle)).toEqual([...CYCLES].reverse());
+	});
+
+	test("rejects a bad cursor or limit without ever reading the tip", async () => {
+		let tipReaderCalled = false;
+		const readTipBurnHeight = async () => {
+			tipReaderCalled = true;
+			return TIP_IN_CYCLE_144;
+		};
+
+		await expect(
+			getPoxCyclesResponse({
+				query: params("?cursor=abc"),
+				tip: TIP,
+				readTipBurnHeight,
+			}),
+		).rejects.toThrow();
+		expect(tipReaderCalled).toBe(false);
+
+		await expect(
+			getPoxCyclesResponse({
+				query: params("?limit=0"),
+				tip: TIP,
+				readTipBurnHeight,
+			}),
+		).rejects.toThrow();
+		expect(tipReaderCalled).toBe(false);
 	});
 });
 

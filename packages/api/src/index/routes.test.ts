@@ -1453,13 +1453,15 @@ describe.skipIf(!HAS_DB)("Index PoX cycles route caching", () => {
 	test("short-caches a page that contains an open (not yet frozen) cycle", async () => {
 		if (!db) throw new Error("missing db");
 		// 142 is current (and so frozen); 200 is far enough in the future that
-		// its own prepare phase hasn't started yet.
+		// its own prepare phase hasn't started yet. A cursor past 200 keeps
+		// that far-future cycle in view (it's past the current-cycle default
+		// start).
 		await db
 			.insertInto("pox5_cycles")
 			.values([cycleRow(142), cycleRow(200)])
 			.execute();
 
-		const res = await cyclesApp().request("/v1/index/pox/cycles");
+		const res = await cyclesApp().request("/v1/index/pox/cycles?cursor=201");
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
 			pox_version: number;
