@@ -60,6 +60,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				items: [
 					{ title: "PoX-5 events", href: "/docs/pox5-events" },
 					{ title: "sBTC settlement", href: "/docs/sbtc-settlement" },
+					{ title: "Runes", href: "/docs/runes" },
 				],
 			},
 			{

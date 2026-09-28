@@ -231,6 +231,24 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 	],
 
+	"/docs/runes": [
+		card(
+			"Read the rune catalog and one entry",
+			"List, search, and fetch a single rune by id or name.",
+			'/secondlayer Help me read Bitcoin Runes from Index: `sl.index.runes.list({ search: "dog", sort: "mints" })` for the catalog, and `sl.index.runes.get("840000:3")` for one entry (accepts an id or a name, spacers/case ignored). Explain the computed `supply` field and that `get` resolves to `null` on 404. Point at /docs/runes.',
+		),
+		card(
+			"Walk rune activity for an address",
+			"Page or stream etch/mint/transfer/burn events.",
+			"/secondlayer Help me read Runes activity from Index: `sl.index.runes.activity.list({ address, fromHeight })` for a page, or `for await (const e of sl.index.runes.activity.walk({ address }))` to sweep it. Explain the cursor shape, the `kind` filter (rune_etch/rune_mint/rune_transfer/rune_burn), and that reorgs on this feed are block-level (no event_index component). Point at /docs/runes.",
+		),
+		card(
+			"Webhook on rune transfers",
+			"Fire on rune activity instead of polling.",
+			'/secondlayer Create a Runes transfer webhook with `client.webhooks.create({ url, triggers: [trigger.runeTransfer({ rune: "840000:3", minAmount: "1000000" })] })`. Explain the other three triggers (runeEtch, runeMint, runeBurn), that a rune name is resolved to its id at create time, and that a name is rejected with a hint to use the id when the instance has no Runes data configured. Point at /docs/runes and /docs/webhooks.',
+		),
+	],
+
 	"/docs/contracts": [
 		card(
 			"Find contracts by trait",

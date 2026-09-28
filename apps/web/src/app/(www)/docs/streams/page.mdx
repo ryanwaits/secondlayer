@@ -70,6 +70,16 @@ curl "http://127.0.0.1:3800/v1/streams/events?types=ft_transfer&limit=100"
 
 Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, and `from_height`/`to_height`: exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api-reference).
 
+### Bitcoin events (Runes)
+
+`chain=bitcoin` serves Runes events (`rune_etch`, `rune_mint`, `rune_transfer`, `rune_burn`) on their own cursor space; a bitcoin cursor only resumes with `chain=bitcoin` set again. Stacks-only filters (`contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, `clock`) 400 here; `rune` and `address` are bitcoin-only.
+
+```bash
+curl "http://127.0.0.1:3800/v1/streams/events?chain=bitcoin&rune=840000:3"
+```
+
+The tip and canonical block drop the burn-chain fields Stacks carries, since Bitcoin has no burn chain of its own. Events carry no block time; Runes ingest has none to give yet. The rune catalog, per-rune activity feed, and balances live on [Index](/docs/runes); this is the raw event log underneath them.
+
 ### Two concerns, one loop
 
 A flat filter is one AND-ed set, so tracking sBTC mints *and* treasury spends

@@ -199,6 +199,14 @@ Boot-contract feeds use the same verbs and envelope. They are Index on contracts
 | `/v1/index/pox5/events` | Decoded PoX-5 print events, all 19 topics ([PoX-5 events](/docs/pox5-events)) | `topic`, `staker`, `signer`, `signer_manager`, `bond_index`, `reward_cycle` |
 | `/v1/index/sbtc/*` | Decoded sBTC peg lifecycle ([sBTC settlement](/docs/sbtc-settlement)) | deposits, withdrawals, events, summary |
 
+Runes reads are a separate clock and envelope: `tip` is a Bitcoin block height, not a Stacks one, and only the activity feed's `reorgs` can ever be non-empty (the catalog and balances read reorg-corrected snapshots). See [Runes](/docs/runes).
+
+| Endpoint | Returns | Filters beyond the common set |
+| --- | --- | --- |
+| `/v1/index/runes` · `/{rune}` | Rune catalog: identity, computed supply, mint terms ([Runes](/docs/runes)) | `search`, `sort` |
+| `/v1/index/runes/activity` | Etch/mint/transfer/burn events, cursor `<block_height>:<event_index>` | `rune`, `address`, `kind`, `txid` |
+| `/v1/index/runes/balances` | Current per-outpoint balances | `address` or `outpoint` (exactly one), `rune` |
+
 On the events and contract-call feeds, `contract_id` also takes a comma-separated set (`?contract_id=SP1.a,SP1.b`, max 20): one cursor over a protocol's contracts instead of one consumer each. For "every contract of a standard" use `trait`, which picks up contracts deployed after you ship.
 
 `tx_context=true` collapses an N+1 walk into one pass: every event carries `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id`, `tx_function_name`. For `print` events, `tx_sender` is the only place the sender lives.

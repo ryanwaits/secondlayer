@@ -1,0 +1,120 @@
+# Runes
+
+Index on Bitcoin Runes: an etch catalog, a per-rune activity log, and balances. Same envelope, cursors, and consume conventions as every other Index feed, on a Bitcoin tip instead of a Stacks one, since Runes ingest tracks Bitcoin blocks.
+
+<Callout type="note" title="Self-host today, hosted follows">
+
+Self-host with the `bitcoin` compose profile has Runes data now. Hosted `api.secondlayer.tools` answers with `notes: "Runes data is not configured on this instance"` until it lands there too.
+
+</Callout>
+
+## What a rune is
+
+A rune's identity is its etch. The id is `<block>:<tx>` of the etching transaction (for example `840000:3`), fixed the moment it lands. The name is a unique A-Z string chosen at etch time; spacers (`•`) are a display choice only, never part of the name's identity. `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon`, and `doggotothemoon` all name the same rune, and every call below takes any of the three.
+
+```json
+{
+  "id": "840000:3",
+  "number": "0",
+  "name": "DOGGOTOTHEMOON",
+  "spaced_name": "DOG•GO•TO•THE•MOON",
+  "symbol": "🐕",
+  "divisibility": 5,
+  "premine": "10000000000000000",
+  "supply": "79079600000000000",
+  "burned": "1234560000",
+  "mints": "690796",
+  "turbo": true,
+  "etching_txid": "0x8ac3daa9f0c869cd6d1cdd3c04cbba1b155c0304a95c9c1c1e33e1c0e6b73f27",
+  "etched_height": 840000,
+  "etched_tx_index": 3,
+  "terms": {
+    "amount": "100000000000",
+    "cap": "340282366920938463463374607431768211455",
+    "height_start": null,
+    "height_end": null,
+    "offset_start": null,
+    "offset_end": null
+  }
+}
+```
+
+`premine`, `supply`, `burned`, `mints`, and every amount elsewhere on this page are u128 decimal strings; never round-trip one through `Number()`. `supply` is computed on read: `premine + mints × terms.amount` (0 with no terms). `terms` is `null` for a premine-only rune that was never mintable.
+
+## The four calls
+
+```ts
+import { SecondLayer } from "@secondlayer/sdk";
+
+const sl = new SecondLayer({ apiKey });
+
+await sl.index.runes.list({ search: "dog", sort: "mints" });
+await sl.index.runes.get("DOG•GO•TO•THE•MOON");
+await sl.index.runes.balances({ address: "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg" });
+await sl.index.runes.activity.list({ rune: "840000:3", fromHeight: 900_000 });
+
+for await (const e of sl.index.runes.activity.walk({ address })) {
+  console.log(e.kind, e.rune.spaced_name, e.amount);
+}
+```
+
+- `list` reads the catalog. `search` prefix-matches the name, spacers and case ignored; `sort` is etch order (default) or busiest-first (`mints`).
+- `get` reads one rune's full entry by id or name. Resolves to `null` on 404, whether that's no matching rune or Runes not configured on this instance.
+- `balances` reads current per-outpoint balances. Exactly one of `address`/`outpoint` is required, enforced at the type level, not just at runtime; `rune` narrows either to one rune.
+- `activity.list` / `activity.walk` read the etch/mint/transfer/burn event log, cursor `<block_height>:<event_index>`, the same shape as every other decoded-event feed. Filter by `rune`, `address`, `kind`, or `txid`.
+
+Over REST, the same four reads sit under `/v1/index/runes`:
+
+```bash
+curl "http://127.0.0.1:3800/v1/index/runes?search=dog&sort=mints"
+curl "http://127.0.0.1:3800/v1/index/runes/840000:3"
+curl "http://127.0.0.1:3800/v1/index/runes/balances?address=bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg"
+curl "http://127.0.0.1:3800/v1/index/runes/activity?rune=840000:3&kind=rune_mint,rune_transfer"
+```
+
+## `RuneRef`: an id or a name, no generated union
+
+Every `rune` field and path param takes a `RuneRef`, an id or a name, with or without spacers, in any case. There are 178,000 runes and counting, so a generated union of every name would be huge and stale the day it shipped. `list({ search })` is discovery instead.
+
+## Finality and reorgs
+
+A Bitcoin block needs 6 confirmations before a Runes row counts as final; `tip.finalized_height` is always `tip.block_height - 6`. The catalog and balances read tables that ingest keeps reorg-corrected in place, so their `reorgs` field is always empty; there's no stale page to reconcile there. `activity` reads an append-only event log instead, so a fork can leave a stale page behind, and its `reorgs` array names the replaced height spans, block-level only (Bitcoin has no Stacks-style `event_index` component to a reorg).
+
+## Raw events on Streams
+
+The same data, undecoded and per-transaction, is on Streams with `chain=bitcoin`:
+
+```bash
+curl "http://127.0.0.1:3800/v1/streams/events?chain=bitcoin&rune=840000:3"
+```
+
+Its own cursor space: a bitcoin cursor only resumes with `chain=bitcoin` set again. Events carry no block time; Runes ingest has none to give yet. Filters, tip, and canonical-block shapes: [Streams](/docs/streams#bitcoin-events-runes).
+
+## Get a webhook on rune activity
+
+Four triggers match the same feed a Bitcoin block produces.
+
+```ts
+import { trigger } from "@secondlayer/sdk";
+
+await sl.webhooks.create({
+  name: "dog-transfers",
+  url: "https://your-app.com/webhooks/runes",
+  triggers: [trigger.runeTransfer({ rune: "840000:3", minAmount: "1000000" })],
+});
+```
+
+| Builder | `type` | Fields |
+| --- | --- | --- |
+| `trigger.runeEtch` | `rune_etch` | `rune` |
+| `trigger.runeMint` | `rune_mint` | `rune` |
+| `trigger.runeTransfer` | `rune_transfer` | `rune`, `address`, `minAmount` |
+| `trigger.runeBurn` | `rune_burn` | `rune` |
+
+`rune` takes an id or a name. A name is resolved to its canonical id at create time; on an instance with no Runes data configured, a name is rejected with a hint to use the id instead, since an id always works with no lookup needed. Delivery is the standard `chain.{type}.apply` envelope: [Webhooks](/docs/webhooks#triggers).
+
+export const metadata = {
+	title: "Runes — Secondlayer Docs",
+	description:
+		"Index on Bitcoin Runes: etch catalog, activity log, and balances, plus chain=bitcoin Streams and rune_* webhook triggers.",
+};
