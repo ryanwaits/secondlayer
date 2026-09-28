@@ -12,6 +12,10 @@ import type { ChainTrigger } from "@secondlayer/shared/schemas/webhooks";
 import type { BlockData } from "./batch-loader.ts";
 import type { TraitContracts } from "./source-matcher.ts";
 import {
+	advanceCursor,
+	getChainReorgGeneration,
+} from "./trigger-evaluator-loop.ts";
+import {
 	buildSourcesMap,
 	chainSubsNeedTransactions,
 	chainTriggerToFilter,
@@ -475,5 +479,114 @@ describe("emitChainOutbox (DB)", () => {
 			`replay:${replayId}:chain:${sub.id}:0xa:-1:0xblock`,
 		);
 		expect(replayRow?.event_type).toBe("chain.contract_call.apply");
+	});
+});
+
+describe("evaluator restart: durable cursor + idempotent outbox", () => {
+	const db = getDb();
+	const accountId = randomUUID();
+
+	afterAll(async () => {
+		await db
+			.deleteFrom("webhooks")
+			.where("account_id", "=", accountId)
+			.execute();
+	});
+
+	async function makeChainSub(triggers: ChainTrigger[]): Promise<Webhook> {
+		const { webhook } = await createWebhook(db, {
+			accountId,
+			name: `restart-${randomUUID()}`,
+			kind: "chain",
+			triggers,
+			url: "https://webhook.site/restart",
+		});
+		return webhook;
+	}
+
+	it("a crash before the cursor commits re-evaluates the same blocks without double-delivering", async () => {
+		// Three blocks' worth of matching activity — what accumulated on chain
+		// while the delivery service was stopped (docker/workload/tenant.compose.yml
+		// `stop` only takes down `api`/`webhook-service`/`migrate`; `postgres`,
+		// and the `trigger_evaluator_state` cursor it holds, keeps running).
+		const sub = await makeChainSub([
+			{ type: "contract_call", contractId: "SP1.amm" },
+		]);
+		const { sources, keyMeta } = buildSourcesMap([sub]);
+		const heights = [101, 102, 103];
+		const blocks = heights.map((h) =>
+			block(
+				[
+					tx({
+						tx_id: `0x${h}`,
+						block_height: h,
+						type: "contract_call",
+						contract_id: "SP1.amm",
+						function_name: "swap",
+					}),
+				],
+				[],
+			),
+		);
+
+		// First pass: the evaluator processes all three blocks and writes their
+		// outbox rows, then the process dies before `advanceCursor` (in
+		// `trigger-evaluator-loop.ts`) commits the new cursor position — the
+		// exact window a container `stop` or crash can land in.
+		let emitted = 0;
+		for (const [i, b] of blocks.entries()) {
+			const matches = evaluateBlock(b, sources, new Map());
+			emitted += await emitChainOutbox(
+				db,
+				matches,
+				keyMeta,
+				heights[i],
+				b.block.hash,
+			);
+		}
+		expect(emitted).toBe(3);
+
+		// Restart: since nothing advanced the cursor, the next process resumes
+		// from the same starting point and re-evaluates the identical range —
+		// this is what "start the evaluator again" actually replays.
+		for (const [i, b] of blocks.entries()) {
+			const matches = evaluateBlock(b, sources, new Map());
+			await emitChainOutbox(db, matches, keyMeta, heights[i], b.block.hash);
+		}
+
+		const rows = await db
+			.selectFrom("webhook_outbox")
+			.selectAll()
+			.where("webhook_id", "=", sub.id)
+			.execute();
+		// One row per block — the unique (webhook_id, dedup_key) constraint
+		// suppressed every duplicate from the replayed pass.
+		expect(rows).toHaveLength(3);
+		expect(new Set(rows.map((r) => r.dedup_key)).size).toBe(3);
+	});
+
+	it("advanceCursor persists past a simulated restart: the next tick reads exactly what the last one committed", async () => {
+		await db.deleteFrom("trigger_evaluator_state").execute();
+		await db
+			.insertInto("trigger_evaluator_state")
+			.values({ id: true, last_processed_block: 100 })
+			.execute();
+
+		const cursorRow = () =>
+			db
+				.selectFrom("trigger_evaluator_state")
+				.select("last_processed_block")
+				.where("id", "=", true)
+				.executeTakeFirst();
+
+		// "A fresh process starts" — its cursor read is a plain DB read, so it
+		// sees exactly what the last (now-dead) process last committed, not
+		// height 0 and not wherever it happened to be mid-batch.
+		expect(Number((await cursorRow())?.last_processed_block)).toBe(100);
+
+		const generation = getChainReorgGeneration();
+		const { advanced } = await advanceCursor(db, 103, generation);
+		expect(advanced).toBe(true);
+		expect(Number((await cursorRow())?.last_processed_block)).toBe(103);
 	});
 });
