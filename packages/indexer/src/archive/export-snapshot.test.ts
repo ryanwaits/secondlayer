@@ -182,6 +182,24 @@ describe.skipIf(!HAS_DB)("canonical snapshot export", () => {
 		).rejects.toThrow(/refusing to export/);
 	});
 
+	test("refuses to export when a canonical block is short on transactions", async () => {
+		if (!db) throw new Error("missing db");
+		// Height 5 was persisted with 2 transactions but now holds only the 1
+		// `seedChain` inserted — the shape of the 2026-09-27 incident, where a
+		// tx re-mined onto the winning fork at a lower height was skipped and
+		// then deleted with its losing-fork height.
+		await sql`UPDATE blocks SET tx_count = 2 WHERE height = 5`.execute(db);
+		expect(
+			exportCanonicalSnapshot({
+				network: "testnet",
+				outDir: await makeOutDir(),
+				toBlock: 9,
+				partitionSizeBlocks: 4,
+				db,
+			}),
+		).rejects.toThrow(/refusing to export/);
+	});
+
 	test("refuses a bound beyond the canonical tip", async () => {
 		if (!db) throw new Error("missing db");
 		expect(

@@ -3,6 +3,7 @@ import {
 	finalizedBurnHeight,
 } from "@secondlayer/shared";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
+import { findShortBlocks } from "@secondlayer/shared/db/queries/integrity";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { getFinalizedStacksHeight } from "../streams-tip.ts";
@@ -51,6 +52,8 @@ export type CanonicalContinuity = {
 	first_broken_link_height: number | null;
 	duplicate_height_count: number;
 	first_duplicate_height: number | null;
+	short_block_count: number;
+	first_short_block_height: number | null;
 };
 
 export type TxEventHeightDesync = {
@@ -91,6 +94,8 @@ export function summarizeCanonicalContinuity(input: {
 	firstBrokenLinkHeight: number | null;
 	duplicateHeightCount: number;
 	firstDuplicateHeight: number | null;
+	shortBlockCount: number;
+	firstShortBlockHeight: number | null;
 }): CanonicalContinuity {
 	const prefixGap =
 		input.fromBlock !== null && input.fromBlock > input.expectedFromBlock
@@ -122,7 +127,8 @@ export function summarizeCanonicalContinuity(input: {
 		suffixGap === null &&
 		input.gapCount === 0 &&
 		input.brokenLinkCount === 0 &&
-		input.duplicateHeightCount === 0;
+		input.duplicateHeightCount === 0 &&
+		input.shortBlockCount === 0;
 
 	return {
 		healthy,
@@ -139,6 +145,8 @@ export function summarizeCanonicalContinuity(input: {
 		first_broken_link_height: input.firstBrokenLinkHeight,
 		duplicate_height_count: input.duplicateHeightCount,
 		first_duplicate_height: input.firstDuplicateHeight,
+		short_block_count: input.shortBlockCount,
+		first_short_block_height: input.firstShortBlockHeight,
 	};
 }
 
@@ -213,6 +221,7 @@ export async function auditCanonicalCoverageInSnapshot(
 		const gaps = await summarizeGaps(tx);
 		const brokenLinks = await summarizeBrokenLinks(tx);
 		const duplicateHeights = await summarizeDuplicateHeights(tx);
+		const shortBlocks = await summarizeShortBlocks(tx);
 		const desyncFloorHeight = computeDesyncFloorHeight(toBlock ?? 0);
 		const desync = await summarizeTxEventHeightDesync(tx, desyncFloorHeight);
 
@@ -229,6 +238,8 @@ export async function auditCanonicalCoverageInSnapshot(
 			firstBrokenLinkHeight: brokenLinks.first_broken_link_height,
 			duplicateHeightCount: duplicateHeights.duplicate_height_count,
 			firstDuplicateHeight: duplicateHeights.first_duplicate_height,
+			shortBlockCount: shortBlocks.short_block_count,
+			firstShortBlockHeight: shortBlocks.first_short_block_height,
 		});
 
 		return {
@@ -361,6 +372,25 @@ async function summarizeDuplicateHeights(db: Kysely<Database>): Promise<{
 	return {
 		duplicate_height_count: Number(row?.duplicate_height_count ?? 0),
 		first_duplicate_height: nullableNumber(row?.first_duplicate_height),
+	};
+}
+
+/**
+ * Canonical heights whose `transactions` row count disagrees with the
+ * `blocks.tx_count` recorded at ingest — the exact shape of the 2026-09-27
+ * incident (a tx re-mined onto the winning fork at a lower height was
+ * skipped, then deleted with its losing-fork height). Unbounded (`window:
+ * null`): the export covers full history, and a short block anywhere in that
+ * history must refuse the export, not just one near the tip.
+ */
+async function summarizeShortBlocks(db: Kysely<Database>): Promise<{
+	short_block_count: number;
+	first_short_block_height: number | null;
+}> {
+	const shortBlocks = await findShortBlocks(db, { window: null });
+	return {
+		short_block_count: shortBlocks.length,
+		first_short_block_height: shortBlocks[0]?.height ?? null,
 	};
 }
 

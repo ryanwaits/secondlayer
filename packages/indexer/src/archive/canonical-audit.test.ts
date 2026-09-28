@@ -22,6 +22,8 @@ describe("canonical coverage continuity", () => {
 				firstBrokenLinkHeight: null,
 				duplicateHeightCount: 0,
 				firstDuplicateHeight: null,
+				shortBlockCount: 0,
+				firstShortBlockHeight: null,
 			}),
 		).toEqual({
 			healthy: false,
@@ -37,6 +39,8 @@ describe("canonical coverage continuity", () => {
 			first_broken_link_height: null,
 			duplicate_height_count: 0,
 			first_duplicate_height: null,
+			short_block_count: 0,
+			first_short_block_height: null,
 		});
 	});
 
@@ -53,6 +57,8 @@ describe("canonical coverage continuity", () => {
 				firstBrokenLinkHeight: 42,
 				duplicateHeightCount: 0,
 				firstDuplicateHeight: null,
+				shortBlockCount: 0,
+				firstShortBlockHeight: null,
 			}),
 		).toMatchObject({
 			healthy: false,
@@ -80,6 +86,8 @@ describe("canonical coverage continuity", () => {
 				firstBrokenLinkHeight: null,
 				duplicateHeightCount: 0,
 				firstDuplicateHeight: null,
+				shortBlockCount: 0,
+				firstShortBlockHeight: null,
 			}),
 		).toMatchObject({
 			healthy: false,
@@ -102,6 +110,8 @@ describe("canonical coverage continuity", () => {
 				firstBrokenLinkHeight: null,
 				duplicateHeightCount: 0,
 				firstDuplicateHeight: null,
+				shortBlockCount: 0,
+				firstShortBlockHeight: null,
 			}),
 		).toMatchObject({ healthy: true, complete: false, suffix_checked: false });
 	});
@@ -120,6 +130,8 @@ describe("canonical coverage continuity", () => {
 				firstBrokenLinkHeight: null,
 				duplicateHeightCount: 0,
 				firstDuplicateHeight: null,
+				shortBlockCount: 0,
+				firstShortBlockHeight: null,
 			}),
 		).toMatchObject({
 			healthy: false,
@@ -145,12 +157,38 @@ describe("canonical coverage continuity", () => {
 				firstBrokenLinkHeight: null,
 				duplicateHeightCount: 1,
 				firstDuplicateHeight: 7,
+				shortBlockCount: 0,
+				firstShortBlockHeight: null,
 			}),
 		).toMatchObject({
 			healthy: false,
 			complete: false,
 			duplicate_height_count: 1,
 			first_duplicate_height: 7,
+		});
+	});
+
+	test("rejects a short block", () => {
+		expect(
+			summarizeCanonicalContinuity({
+				fromBlock: 0,
+				toBlock: 10,
+				expectedFromBlock: 0,
+				gapCount: 0,
+				missingBlocks: 0,
+				firstGap: null,
+				brokenLinkCount: 0,
+				firstBrokenLinkHeight: null,
+				duplicateHeightCount: 0,
+				firstDuplicateHeight: null,
+				shortBlockCount: 1,
+				firstShortBlockHeight: 7,
+			}),
+		).toMatchObject({
+			healthy: false,
+			complete: false,
+			short_block_count: 1,
+			first_short_block_height: 7,
 		});
 	});
 
@@ -167,6 +205,8 @@ describe("canonical coverage continuity", () => {
 				firstBrokenLinkHeight: null,
 				duplicateHeightCount: 0,
 				firstDuplicateHeight: null,
+				shortBlockCount: 0,
+				firstShortBlockHeight: null,
 			}),
 		).toMatchObject({
 			healthy: false,
@@ -310,5 +350,85 @@ describe.skipIf(!HAS_DB)("tx/event height desync audit", () => {
 		const report = await auditCanonicalCoverage({ network: "testnet", db });
 		expect(report.tx_event_height_desync.healthy).toBe(true);
 		expect(report.tx_event_height_desync.count).toBe(0);
+	});
+});
+
+/**
+ * The 2026-09-27 incident: a tx re-mined onto the winning fork at a lower
+ * height was skipped at insert, then deleted with its losing-fork height —
+ * leaving a canonical block whose `tx_count` disagrees with its actual
+ * transaction rows. Nothing gated export on this before. Seeded past the
+ * live table's current max, like the desync suite above, so this can run
+ * against a real database without touching its existing history.
+ */
+describe.skipIf(!HAS_DB)("short-block audit", () => {
+	const db = HAS_DB ? getSourceDb() : (null as never);
+	let base = 0;
+
+	async function currentMaxHeight(): Promise<number> {
+		const row = await db
+			.selectFrom("blocks")
+			.select(({ fn }) => fn.max("height").as("max_height"))
+			.executeTakeFirst();
+		return Number(row?.max_height ?? 0);
+	}
+
+	afterEach(async () => {
+		if (base === 0) return;
+		await sql`DELETE FROM events WHERE block_height BETWEEN ${base} AND ${base + 5}`.execute(
+			db,
+		);
+		await sql`DELETE FROM transactions WHERE block_height BETWEEN ${base} AND ${base + 5}`.execute(
+			db,
+		);
+		await sql`DELETE FROM blocks WHERE height BETWEEN ${base} AND ${base + 5}`.execute(
+			db,
+		);
+		base = 0;
+	});
+
+	test("a canonical block short on transactions fails continuity.complete", async () => {
+		base = (await currentMaxHeight()) + 1000;
+		await db
+			.insertInto("blocks")
+			.values({
+				height: base,
+				hash: `0xs${base}`,
+				parent_hash: "0xsparent",
+				burn_block_height: 200_000 + base,
+				burn_block_hash: "0xburn",
+				timestamp: 1_700_000_000 + base,
+				canonical: true,
+				// Two transactions were persisted at insert time, but one was
+				// later deleted with the wrong height — the exact shape of the
+				// incident this audit exists to catch.
+				tx_count: 2,
+			})
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values({
+				tx_id: "0xshort-tx",
+				block_height: base,
+				tx_index: 0,
+				type: "contract_call",
+				sender: "SP1",
+				status: "success",
+				contract_id: "SP1.c",
+				function_name: "f",
+				function_args: ["u1"],
+				raw_tx: "0x00",
+			})
+			.execute();
+
+		const report = await auditCanonicalCoverage({
+			network: "testnet",
+			db,
+			expectedFromBlock: base,
+			expectedToBlock: base,
+		});
+		expect(report.continuity.short_block_count).toBeGreaterThanOrEqual(1);
+		expect(report.continuity.first_short_block_height).toBe(base);
+		expect(report.continuity.complete).toBe(false);
 	});
 });
