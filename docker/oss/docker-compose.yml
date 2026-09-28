@@ -150,6 +150,12 @@ services:
         limits:
           memory: 22G
     restart: unless-stopped
+    # Plan 084: a SIGTERM mid batch-catch-up (a 250-block flush can take a
+    # few seconds; catch-up doesn't check the stop signal between blocks) can
+    # still take longer than Docker's 10s default grace period even though a
+    # parked `follow` now stops within ~1s. 60s covers that without masking a
+    # real hang (`docker stop -t <n>` still SIGKILLs sooner if you ask it to).
+    stop_grace_period: 60s
     profiles: ["bitcoin"]
 
   bitcoind:
