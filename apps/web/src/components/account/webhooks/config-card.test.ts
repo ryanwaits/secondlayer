@@ -124,6 +124,18 @@ describe("triggerSentence", () => {
 			"Any contract deploy deployed by SP21YT…EFFP named pox-5",
 		);
 	});
+
+	test("a Runes trigger (chain=bitcoin, plan 060) reads a plain sentence too", () => {
+		const t: ChainTrigger = {
+			type: "rune_transfer",
+			rune: "840000:3",
+			address: "bc1qexampleexampleexample",
+			minAmount: "1000",
+		};
+		expect(triggerSentence(t)).toBe(
+			"Any rune transfer of 840000:3 to bc1qex…mple of 1,000 base units or more",
+		);
+	});
 });
 
 describe("setTriggerFields / unsetTriggerFields", () => {

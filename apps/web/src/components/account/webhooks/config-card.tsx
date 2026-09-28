@@ -59,6 +59,10 @@ export const TRIGGER_NOUN: Record<ChainTriggerType, string> = {
 	sbtc_withdrawal_accept: "sBTC withdrawal accept",
 	sbtc_withdrawal_reject: "sBTC withdrawal reject",
 	sbtc_withdrawal_swept_confirmed: "sBTC withdrawal sweep",
+	rune_etch: "rune etch",
+	rune_mint: "rune mint",
+	rune_transfer: "rune transfer",
+	rune_burn: "rune burn",
 };
 
 /** Principal-shaped fields, shortened the same way the deliveries table
@@ -71,6 +75,7 @@ const PRINCIPAL_FIELDS = new Set([
 	"deployer",
 	"caller",
 	"lockedAddress",
+	"address",
 ]);
 
 const SBTC_TOKEN_SUFFIX = "sbtc-token::sbtc-token";
@@ -149,6 +154,8 @@ export const SENTENCE_FIELD_ORDER = [
 	"trait",
 	"sender",
 	"recipient",
+	"rune",
+	"address",
 	"minAmount",
 	"maxAmount",
 ] as const;
@@ -190,6 +197,10 @@ function sentencePhrase(
 		case "sender":
 			return `sent by ${shortenPrincipal(String(value))}`;
 		case "recipient":
+			return `to ${shortenPrincipal(String(value))}`;
+		case "rune":
+			return `of ${value}`;
+		case "address":
 			return `to ${shortenPrincipal(String(value))}`;
 		case "minAmount":
 			return `of ${formatTriggerAmount(trigger, value as string | number)} or more`;
