@@ -91,6 +91,7 @@ export const TABLE_TO_DB = {
 	archive_fetches: "target",
 	// ── TARGET: metered ledger (one append-only row per billable event) ──
 	usage_ledger: "target",
+	account_balance_alerts: "target",
 	// ── TARGET: public waitlist pages ──
 	waitlists: "target",
 	waitlist_signups: "target",

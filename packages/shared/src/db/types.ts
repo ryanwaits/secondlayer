@@ -999,6 +999,7 @@ export interface Database {
 	stage_failures: StageFailuresTable;
 	archive_fetches: ArchiveFetchesTable;
 	usage_ledger: UsageLedgerTable;
+	account_balance_alerts: AccountBalanceAlertsTable;
 	waitlists: WaitlistsTable;
 	waitlist_signups: WaitlistSignupsTable;
 }
@@ -1097,6 +1098,21 @@ export interface UsageLedgerTable {
 export type UsageLedgerRow = Selectable<UsageLedgerTable>;
 export type InsertUsageLedgerRow = Insertable<UsageLedgerTable>;
 export type UpdateUsageLedgerRow = Updateable<UsageLedgerTable>;
+
+/** Preferences + debounce state for the balance-runway email alerts. One
+ *  row per account; a missing row means both alerts are on (defaults). */
+export interface AccountBalanceAlertsTable {
+	account_id: string;
+	notify_7d: Generated<boolean>;
+	notify_2d: Generated<boolean>;
+	sent_7d_at: Date | null;
+	sent_2d_at: Date | null;
+	sent_stopped_at: Date | null;
+}
+
+export type AccountBalanceAlerts = Selectable<AccountBalanceAlertsTable>;
+export type InsertAccountBalanceAlerts = Insertable<AccountBalanceAlertsTable>;
+export type UpdateAccountBalanceAlerts = Updateable<AccountBalanceAlertsTable>;
 
 // ── Convenience types ─────────────────────────────────────────────────
 

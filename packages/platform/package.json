@@ -24,6 +24,10 @@
 			"types": "./dist/db/queries/usage-ledger.d.ts",
 			"import": "./dist/db/queries/usage-ledger.js"
 		},
+		"./db/queries/account-balance-alerts": {
+			"types": "./dist/db/queries/account-balance-alerts.d.ts",
+			"import": "./dist/db/queries/account-balance-alerts.js"
+		},
 		"./billing/prices": {
 			"types": "./dist/billing/prices.d.ts",
 			"import": "./dist/billing/prices.js"
@@ -31,6 +35,10 @@
 		"./billing/meter": {
 			"types": "./dist/billing/meter.d.ts",
 			"import": "./dist/billing/meter.js"
+		},
+		"./billing/runway": {
+			"types": "./dist/billing/runway.d.ts",
+			"import": "./dist/billing/runway.js"
 		},
 		"./schemas/accounts": {
 			"types": "./dist/schemas/accounts.d.ts",
@@ -51,6 +59,7 @@
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
+		"bunup": "0.16.32",
 		"typescript": "^5"
 	}
 }

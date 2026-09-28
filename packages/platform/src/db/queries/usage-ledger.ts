@@ -201,6 +201,34 @@ export async function burnRateUsdMicros(
 	return row?.total ? BigInt(row.total) : 0n;
 }
 
+/** Distinct `account_id`s the balance-alert cron needs to check: anything
+ *  with a positive charge in the last 24h (so it has a burn rate to project
+ *  from), or a `memory.gb_hour` row in the last 35 days (a delivery service
+ *  that isn't `none` — it could still be `stopped`, which is exactly the
+ *  case the "your service stopped" email exists for). */
+export async function accountsToCheckForBalanceAlerts(
+	db: Kysely<Database>,
+	now: Date = new Date(),
+): Promise<string[]> {
+	const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+	const since35d = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000);
+	const rows = await db
+		.selectFrom("usage_ledger")
+		.select("account_id")
+		.distinct()
+		.where((eb) =>
+			eb.or([
+				eb.and([eb("usd_micros", ">", "0"), eb("occurred_at", ">=", since24h)]),
+				eb.and([
+					eb("unit", "=", "memory.gb_hour"),
+					eb("occurred_at", ">=", since35d),
+				]),
+			]),
+		)
+		.execute();
+	return rows.map((r) => r.account_id);
+}
+
 export type ServiceState = "running" | "stopped" | "none";
 
 export type MemoryHourRow = {
