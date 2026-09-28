@@ -347,7 +347,7 @@ balances, on a Bitcoin tip instead of a Stacks one.
 ```typescript
 await sl.index.runes.list({ search: "dog", sort: "mints" });
 await sl.index.runes.get("DOG•GO•TO•THE•MOON"); // id, spaced name, or bare name — null on 404
-await sl.index.runes.balances({ address: "bc1q..." }); // exactly one of address/outpoint
+await sl.index.runes.balances({ address: "bc1phnp234rd5hel0h8ulqvnq3zrww2td0a8q48hjcg7mv67j97jnxfq9ayczm" }); // exactly one of address/outpoint
 
 for await (const e of sl.index.runes.activity.walk({ fromHeight: 900_000 })) {
   console.log(e.kind, e.rune.spaced_name, e.amount); // amounts are u128 decimal strings
