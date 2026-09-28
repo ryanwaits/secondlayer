@@ -1,5 +1,23 @@
 # @secondlayer/api
 
+## 1.47.0
+
+### Minor Changes
+
+- 3a6e2a8: Add `GET/PUT /api/billing/alerts` for the balance-runway email preferences.
+- 9f6aa2d: `GET /api/billing/usage` now also returns `daily` (spend by UTC day), `burn` (trailing-24h rate), and `service` (delivery service state + last 24h memory). `POST /internal/meters` accepts an optional `observedQuantity` per item.
+
+### Patch Changes
+
+- bdbb446: The credits usage table now shows a charge that landed while your balance was short as its own line with an "unpaid" chip, instead of folding it into the paid total.
+- Updated dependencies [bdbb446]
+- Updated dependencies [b785dd2]
+- Updated dependencies [fb93859]
+- Updated dependencies [b785dd2]
+- Updated dependencies [fb93859]
+  - @secondlayer/platform@0.3.25
+  - @secondlayer/shared@11.15.3
+
 ## 1.46.2
 
 ### Patch Changes

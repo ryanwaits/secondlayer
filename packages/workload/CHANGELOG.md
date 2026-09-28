@@ -1,5 +1,18 @@
 # @secondlayer/workload
 
+## 0.0.26
+
+### Patch Changes
+
+- fb93859: The memory meter now reports the raw sampled RAM alongside the floored, billed quantity, so the credits page can show actual usage against the 0.5 GB minimum.
+- Updated dependencies [bdbb446]
+- Updated dependencies [b785dd2]
+- Updated dependencies [fb93859]
+- Updated dependencies [b785dd2]
+- Updated dependencies [fb93859]
+  - @secondlayer/platform@0.3.25
+  - @secondlayer/shared@11.15.3
+
 ## 0.0.25
 
 ### Patch Changes

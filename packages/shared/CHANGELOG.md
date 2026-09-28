@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 11.15.3
+
+### Patch Changes
+
+- b785dd2: Add the `account_balance_alerts` table: per-account preferences and debounce state for the balance-runway email alerts.
+- fb93859: Add `usage_ledger.observed_quantity`, the raw sampled amount before a unit's floor (memory.gb_hour's actual RAM, before the 0.5 GB minimum).
+
 ## 11.15.2
 
 ### Patch Changes

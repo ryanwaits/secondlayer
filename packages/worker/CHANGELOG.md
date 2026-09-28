@@ -1,5 +1,18 @@
 # @secondlayer/worker
 
+## 1.3.32
+
+### Patch Changes
+
+- 6bd69ea: Email accounts before their balance runs out: about 7 days left, under 2 days left, and when the delivery service stops.
+- Updated dependencies [bdbb446]
+- Updated dependencies [b785dd2]
+- Updated dependencies [fb93859]
+- Updated dependencies [b785dd2]
+- Updated dependencies [fb93859]
+  - @secondlayer/platform@0.3.25
+  - @secondlayer/shared@11.15.3
+
 ## 1.3.31
 
 ### Patch Changes

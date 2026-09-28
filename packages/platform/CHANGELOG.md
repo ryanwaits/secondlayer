@@ -1,5 +1,16 @@
 # @secondlayer/platform
 
+## 0.3.25
+
+### Patch Changes
+
+- bdbb446: The credits usage table now shows a charge that landed while your balance was short as its own line with an "unpaid" chip, instead of folding it into the paid total.
+- b785dd2: Add balance-alert preference queries and shared runway/level math (`billing/runway`), used by both the balance-alert cron and the credits page.
+- fb93859: `meter()` now stores an optional `observedQuantity` alongside a charge's floored `quantity`, and the ledger gains `dailySpendForMonth`, `burnRateUsdMicros`, and `deliveryServiceSnapshot` for the credits page's runway and memory views.
+- Updated dependencies [b785dd2]
+- Updated dependencies [fb93859]
+  - @secondlayer/shared@11.15.3
+
 ## 0.3.24
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @secondlayer/web
 
+## 0.11.8
+
+### Patch Changes
+
+- bdbb446: The credits usage table now shows a charge that landed while your balance was short as its own line with an "unpaid" chip, instead of folding it into the paid total.
+- 88fc7b9: Proxy `GET/PUT /api/billing/alerts` for the credits page's balance-alert switches.
+- 89f2893: Rebuild /account/credits: burn rate, runway, a level banner, projected month-end spend, a delivery-service memory chart, and balance-alert switches.
+
 ## 0.11.7
 
 ### Patch Changes
