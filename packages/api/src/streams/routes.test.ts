@@ -14,7 +14,10 @@ import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
 import { errorHandler } from "../middleware/error.ts";
-import { createStreamsRouter } from "../routes/streams.ts";
+import {
+	type StreamsRouterOptions,
+	createStreamsRouter,
+} from "../routes/streams.ts";
 import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
 import type { StreamsEventsReader } from "./events.ts";
 import {
@@ -677,12 +680,8 @@ describe("Stacks Streams gateway middleware", () => {
 describe("chain=bitcoin Streams gateway (plan 059)", () => {
 	function createBitcoinApp(
 		opts: {
-			readBitcoinEvents?: Parameters<
-				typeof createStreamsRouter
-			>[0]["readBitcoinEvents"];
-			readBitcoinReorgs?: Parameters<
-				typeof createStreamsRouter
-			>[0]["readBitcoinReorgs"];
+			readBitcoinEvents?: StreamsRouterOptions["readBitcoinEvents"];
+			readBitcoinReorgs?: StreamsRouterOptions["readBitcoinReorgs"];
 		} = {},
 	) {
 		const app = new Hono();
