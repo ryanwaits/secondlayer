@@ -216,30 +216,8 @@ export type StreamsEventsListParams =
 	| StreamsEventsStacksListParams
 	| StreamsEventsBitcoinListParams;
 
-export type StreamsEventsStreamParams = {
-	/**
-	 * `bitcoin` tails Runes events (plan 059) instead of the Stacks default.
-	 * Untyped on this surface for now — `for await` still yields values typed
-	 * as {@link StreamsEvent}, though the wire payload is
-	 * {@link RuneStreamsEvent}-shaped when set; cast at the call site
-	 * (`as unknown as RuneStreamsEvent`) until a future major generic-izes
-	 * `stream`/`subscribe`/`consume` over the event type the way `events.list`
-	 * already is.
-	 */
-	chain?: "stacks" | "bitcoin";
+type StreamsEventsStreamCommon = {
 	fromCursor?: string | null;
-	types?: readonly StreamsEventType[];
-	notTypes?: readonly StreamsEventType[];
-	contractId?: StreamsFilterValue;
-	sender?: StreamsFilterValue;
-	recipient?: StreamsFilterValue;
-	assetIdentifier?: string;
-	/** `chain: "bitcoin"` only — a RuneRef (id or name). */
-	rune?: string;
-	/** `chain: "bitcoin"` only — a mainnet address. */
-	address?: string;
-	/** Labelled filter groups; see {@link StreamsEventsListParams.filters}. */
-	filters?: StreamsFilterMap;
 	batchSize?: number;
 	emptyBackoffMs?: number;
 	maxPages?: number;
@@ -247,31 +225,44 @@ export type StreamsEventsStreamParams = {
 	signal?: AbortSignal;
 };
 
-export type StreamsEventsSubscribeParams = {
-	/** See {@link StreamsEventsStreamParams.chain} — same untyped-events caveat. */
-	chain?: "stacks" | "bitcoin";
-	/** Resume strictly after this cursor; omit to live-tail from the tip. */
-	fromCursor?: string | null;
+/** `chain: "stacks"` (default, omit `chain` entirely) — matches
+ *  {@link StreamsEventsStacksListParams}. */
+export type StreamsEventsStreamStacksParams = StreamsEventsStreamCommon & {
+	chain?: "stacks";
 	types?: readonly StreamsEventType[];
 	notTypes?: readonly StreamsEventType[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
-	/** `chain: "bitcoin"` only — a RuneRef (id or name). */
-	rune?: string;
-	/** `chain: "bitcoin"` only — a mainnet address. */
-	address?: string;
 	/** Labelled filter groups; see {@link StreamsEventsListParams.filters}. */
 	filters?: StreamsFilterMap;
+};
+
+/** `chain: "bitcoin"` (plan 059/061) — Runes events, tailed the same way as
+ *  the Stacks default. `types` is restricted to {@link RuneEventType} at the
+ *  type level, matching {@link StreamsEventsBitcoinListParams}.
+ *  `contractId`/`sender`/`recipient`/`assetIdentifier`/`filters` don't exist
+ *  on this branch — they're Stacks-only. */
+export type StreamsEventsStreamBitcoinParams = StreamsEventsStreamCommon & {
+	chain: "bitcoin";
+	types?: readonly RuneEventType[];
+	notTypes?: readonly RuneEventType[];
+	/** A RuneRef: an id (`840000:3`) or a name (`DOG•GO•TO•THE•MOON`). */
+	rune?: string;
+	/** A mainnet address. */
+	address?: string;
+};
+
+export type StreamsEventsStreamParams =
+	| StreamsEventsStreamStacksParams
+	| StreamsEventsStreamBitcoinParams;
+
+type StreamsEventsSubscribeCommon = {
+	/** Resume strictly after this cursor; omit to live-tail from the tip. */
+	fromCursor?: string | null;
 	/** Abort to unsubscribe (the returned function does the same). */
 	signal?: AbortSignal;
-	/**
-	 * Called for each pushed event, in order. The resume cursor advances only
-	 * after this resolves, so a handler that throws sees the same event again
-	 * on reconnect (at-least-once). Key durable writes by `cursor`.
-	 */
-	onEvent: (event: StreamsEvent) => void | Promise<void>;
 	/**
 	 * Called on every failure. Transport errors (dropped socket, 5xx, 429, a
 	 * stale connection, a throwing handler) reconnect from the last handled
@@ -292,6 +283,45 @@ export type StreamsEventsSubscribeParams = {
 	 */
 	staleAfterMs?: number;
 };
+
+/** `chain: "stacks"` (default, omit `chain` entirely). */
+export type StreamsEventsSubscribeStacksParams =
+	StreamsEventsSubscribeCommon & {
+		chain?: "stacks";
+		types?: readonly StreamsEventType[];
+		notTypes?: readonly StreamsEventType[];
+		contractId?: StreamsFilterValue;
+		sender?: StreamsFilterValue;
+		recipient?: StreamsFilterValue;
+		assetIdentifier?: string;
+		/** Labelled filter groups; see {@link StreamsEventsListParams.filters}. */
+		filters?: StreamsFilterMap;
+		/**
+		 * Called for each pushed event, in order. The resume cursor advances only
+		 * after this resolves, so a handler that throws sees the same event again
+		 * on reconnect (at-least-once). Key durable writes by `cursor`.
+		 */
+		onEvent: (event: StreamsEvent) => void | Promise<void>;
+	};
+
+/** `chain: "bitcoin"` (plan 059/061) — Runes events pushed live, on their own
+ *  cursor space. `contractId`/`sender`/`recipient`/`assetIdentifier`/`filters`
+ *  don't exist on this branch — they're Stacks-only. */
+export type StreamsEventsSubscribeBitcoinParams =
+	StreamsEventsSubscribeCommon & {
+		chain: "bitcoin";
+		types?: readonly RuneEventType[];
+		notTypes?: readonly RuneEventType[];
+		/** A RuneRef: an id (`840000:3`) or a name (`DOG•GO•TO•THE•MOON`). */
+		rune?: string;
+		/** A mainnet address. */
+		address?: string;
+		onEvent: (event: RuneStreamsEvent) => void | Promise<void>;
+	};
+
+export type StreamsEventsSubscribeParams =
+	| StreamsEventsSubscribeStacksParams
+	| StreamsEventsSubscribeBitcoinParams;
 
 /**
  * Handle for a live subscription: call it to unsubscribe. `done` resolves
@@ -376,10 +406,10 @@ export type StreamsEventsConsumeParams<
 	D extends boolean = false,
 	F extends StreamsFilterMap = Record<never, never>,
 > = {
-	/** See {@link StreamsEventsStreamParams.chain} — same untyped-events caveat;
-	 *  reorg rewind still works (bitcoin reorgs carry the same
-	 *  `fork_point_height` + `new_canonical_tip` shape). */
-	chain?: "stacks" | "bitcoin";
+	/** `chain: "stacks"` (default, omit `chain` entirely) — the bitcoin branch
+	 *  is {@link StreamsEventsConsumeBitcoinParams}, a separate overload with
+	 *  no `filters`/`on`/`decoded` (Stacks-only concepts). */
+	chain?: "stacks";
 	fromCursor?: string | null;
 	/**
 	 * Deliver events pre-decoded as the flat, `event_type`-discriminated rows
@@ -413,10 +443,6 @@ export type StreamsEventsConsumeParams<
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
-	/** `chain: "bitcoin"` only — a RuneRef (id or name). */
-	rune?: string;
-	/** `chain: "bitcoin"` only — a mainnet address. */
-	address?: string;
 	/**
 	 * Labelled filter groups. The groups OR together in ONE server-side scan,
 	 * so two unrelated concerns share one page, one cursor, and one checkpoint
@@ -517,23 +543,86 @@ export type StreamsEventsConsumeParams<
 };
 
 /**
+ * `chain: "bitcoin"` (plan 059/061) — the checkpointed sweep over Runes
+ * events. A separate, simpler type from {@link StreamsEventsConsumeParams}
+ * rather than a widened union member: `filters`/`on`/`decoded` are Stacks-only
+ * concepts (labelled OR-groups and Index-shaped projection have no Runes
+ * equivalent yet), so `onBatch` is the only way in and is required. Reorg
+ * rewind still works the same way (bitcoin reorgs carry the same
+ * `fork_point_height` + `new_canonical_tip` shape as Stacks ones).
+ */
+export type StreamsEventsConsumeBitcoinParams<TTx = never> = {
+	chain: "bitcoin";
+	fromCursor?: string | null;
+	sink?: ConsumerSink<TTx>;
+	onProgress?: (ctx: ConsumerBatchContext) => void;
+	mode?: "tail" | "bounded";
+	finalizedOnly?: boolean;
+	types?: readonly RuneEventType[];
+	notTypes?: readonly RuneEventType[];
+	/** A RuneRef: an id (`840000:3`) or a name (`DOG•GO•TO•THE•MOON`). */
+	rune?: string;
+	/** A mainnet address. */
+	address?: string;
+	batchSize?: number;
+	onBatch: (
+		events: RuneStreamsEvent[],
+		envelope: StreamsEventsEnvelope<RuneStreamsEvent, StreamsBitcoinTip>,
+		ctx: StreamsBatchContext & WithSinkTx<TTx>,
+	) =>
+		| void
+		| string
+		| null
+		| undefined
+		| Promise<void>
+		| Promise<string | null | undefined>;
+	onReorg?: (
+		reorg: StreamsReorg,
+		ctx: StreamsReorgContext,
+	) => Promise<void> | void;
+	maxRollbackDepth?: number;
+	retryCount?: number;
+	retryDelay?: number;
+	onError?: (
+		err: unknown,
+		ctx: { attempt: number; retriesLeft: number; delayMs: number },
+	) => void;
+	emptyBackoffMs?: number;
+	maxPages?: number;
+	maxEmptyPolls?: number;
+	signal?: AbortSignal;
+	wake?: () => Promise<void>;
+};
+
+/**
  * One yielded page from {@link StreamsClient.consume} — the
  * `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to
  * `cursor` (the checkpoint to persist and resume from).
  */
-export type StreamsBatch<TEvent = StreamsEvent> = {
+export type StreamsBatch<TEvent = StreamsEvent, TTip = StreamsTip> = {
 	/** Canonical events of this page, in cursor order. */
 	events: TEvent[];
 	/** Checkpoint after this page — pass back as `consume({ cursor })` to resume. */
 	cursor: string | null;
-	tip: StreamsTip;
+	tip: TTip;
 	/** Chain reorgs reported alongside this page; empty when none. */
 	reorgs: StreamsReorg[];
 };
 
-export type StreamsConsumeParams = {
+type StreamsConsumeCommon = {
 	/** Resume strictly after this cursor; omit to start from the oldest seekable page. */
 	cursor?: string | null;
+	/** Events per page (the `limit` query param). Default 100. */
+	batchSize?: number;
+	/** Poll interval while caught up at the tip, in ms. Default 2000. */
+	intervalMs?: number;
+	/** Abort to end the iteration. */
+	signal?: AbortSignal;
+};
+
+/** `chain: "stacks"` (default, omit `chain` entirely). */
+export type StreamsConsumeStacksParams = StreamsConsumeCommon & {
+	chain?: "stacks";
 	types?: readonly StreamsEventType[];
 	notTypes?: readonly StreamsEventType[];
 	contractId?: StreamsFilterValue;
@@ -543,13 +632,24 @@ export type StreamsConsumeParams = {
 	/** Labelled OR-groups — same semantics as `events.consume`; each returned
 	 *  event echoes the labels it matched. */
 	filters?: StreamsFilterMap;
-	/** Events per page (the `limit` query param). Default 100. */
-	batchSize?: number;
-	/** Poll interval while caught up at the tip, in ms. Default 2000. */
-	intervalMs?: number;
-	/** Abort to end the iteration. */
-	signal?: AbortSignal;
 };
+
+/** `chain: "bitcoin"` (plan 059/061) — Runes batches, own cursor space.
+ *  `contractId`/`sender`/`recipient`/`assetIdentifier`/`filters` don't exist
+ *  on this branch — they're Stacks-only. */
+export type StreamsConsumeBitcoinParams = StreamsConsumeCommon & {
+	chain: "bitcoin";
+	types?: readonly RuneEventType[];
+	notTypes?: readonly RuneEventType[];
+	/** A RuneRef: an id (`840000:3`) or a name (`DOG•GO•TO•THE•MOON`). */
+	rune?: string;
+	/** A mainnet address. */
+	address?: string;
+};
+
+export type StreamsConsumeParams =
+	| StreamsConsumeStacksParams
+	| StreamsConsumeBitcoinParams;
 
 export type StreamsEventsConsumeResult = {
 	cursor: string | null;
@@ -668,10 +768,15 @@ export type StreamsClient = {
 	 * rewound automatically — use `events.consume` with `onReorg` for managed
 	 * rollback semantics.
 	 */
+	/** `chain: "bitcoin"` — batches carry Runes rows only, on the bitcoin tip
+	 *  shape (plan 059/061). */
+	consume(
+		params: StreamsConsumeBitcoinParams,
+	): AsyncIterableIterator<StreamsBatch<RuneStreamsEvent, StreamsBitcoinTip>>;
 	/** Narrowing overload: a literal `types` array narrows every batch's
 	 *  event union to exactly those members. */
 	consume<const T extends readonly StreamsEventType[]>(
-		params: StreamsConsumeParams & { types: T },
+		params: StreamsConsumeStacksParams & { types: T },
 	): AsyncIterableIterator<StreamsBatch<StreamsEventOfTypes<T>>>;
 	consume(params?: StreamsConsumeParams): AsyncIterableIterator<StreamsBatch>;
 	events: {
@@ -728,6 +833,13 @@ export type StreamsClient = {
 		 * The consumer also exits when `maxPages`, `maxEmptyPolls`, or `signal`
 		 * stops it.
 		 */
+		/** `chain: "bitcoin"` — the checkpointed sweep over Runes events; see
+		 *  {@link StreamsEventsConsumeBitcoinParams}. */
+		consume<TTx = never>(
+			params: StreamsEventsConsumeBitcoinParams<TTx> & {
+				sink?: ConsumerSink<TTx>;
+			},
+		): Promise<StreamsEventsConsumeResult>;
 		consume<
 			const F extends StreamsFilterMap = Record<never, never>,
 			TTx = never,
@@ -756,9 +868,13 @@ export type StreamsClient = {
 		 * indefinitely by default and stops when its `AbortSignal`, `maxPages`, or
 		 * `maxEmptyPolls` stops it.
 		 */
+		/** `chain: "bitcoin"` — Runes events only (plan 059/061). */
+		stream(
+			params: StreamsEventsStreamBitcoinParams,
+		): AsyncIterable<RuneStreamsEvent>;
 		/** Narrowing overload, matching `consume`. */
 		stream<const T extends readonly StreamsEventType[]>(
-			params: StreamsEventsStreamParams & { types: T },
+			params: StreamsEventsStreamStacksParams & { types: T },
 		): AsyncIterable<StreamsEventOfTypes<T>>;
 		stream(params?: StreamsEventsStreamParams): AsyncIterable<StreamsEvent>;
 		/**
@@ -769,7 +885,9 @@ export type StreamsClient = {
 		 * settles when the loop ends. Not reorg-aware: an event delivered then
 		 * orphaned is never retracted. Durable writers use `consume()`.
 		 */
-		subscribe(params: StreamsEventsSubscribeParams): StreamsSubscription;
+		/** `chain: "bitcoin"` — `onEvent` receives Runes rows (plan 059/061). */
+		subscribe(params: StreamsEventsSubscribeBitcoinParams): StreamsSubscription;
+		subscribe(params: StreamsEventsSubscribeStacksParams): StreamsSubscription;
 	};
 	blocks: {
 		events(

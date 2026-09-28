@@ -17,14 +17,18 @@ import {
 	ValidationError,
 	mapStreamsError,
 } from "./errors.ts";
-import { subscribeStreamsEvents } from "./subscribe.ts";
+import {
+	type StreamsEventsSubscribeWireParams,
+	subscribeStreamsEvents,
+} from "./subscribe.ts";
 import type {
 	FetchLike,
+	StreamsBatch,
 	StreamsCanonicalBlock,
 	StreamsClient,
 	StreamsConsumeParams,
 	StreamsEvent,
-	StreamsEventType,
+	StreamsEventsConsumeBitcoinParams,
 	StreamsEventsConsumeParams,
 	StreamsEventsConsumeResult,
 	StreamsEventsEnvelope,
@@ -37,6 +41,7 @@ import type {
 	StreamsFilterValue,
 	StreamsReorgsListEnvelope,
 	StreamsReorgsListParams,
+	StreamsSubscription,
 	StreamsTip,
 } from "./types.ts";
 
@@ -63,8 +68,12 @@ function maxCursor(a: string | null, b: string | null): string | null {
  */
 function streamsFilters(params: {
 	chain?: "stacks" | "bitcoin";
-	types?: readonly StreamsEventType[];
-	notTypes?: readonly StreamsEventType[];
+	// `readonly string[]`, not `StreamsEventType[]`: this helper is shared by
+	// the Stacks and Bitcoin branches, whose `types` element types (
+	// `StreamsEventType` vs `RuneEventType`) are disjoint. It forwards the
+	// field verbatim with no type-based logic, so the wider type costs nothing.
+	types?: readonly string[];
+	notTypes?: readonly string[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
@@ -481,48 +490,126 @@ export function createStreamsClient(
 		});
 	}
 
-	return {
-		consume(params: StreamsConsumeParams = {}) {
-			return iterateStreamsBatches({
-				fromCursor: params.cursor,
-				batchSize: params.batchSize ?? 100,
-				intervalMs: params.intervalMs ?? 2000,
-				...streamsFilters(params),
-				signal: params.signal,
-				fetchEvents,
-			});
+	// Top-level `consume` (page-batch iterator). One implementation shared by
+	// both chains — `iterateStreamsBatches` isn't generic over the event type
+	// (it just forwards whatever the wire returns), so this returns the wide
+	// `AsyncGenerator<StreamsBatch>` and the public field below casts it to
+	// `StreamsClient["consume"]`'s richer, chain-narrowed overloads. Same
+	// bridging pattern `listEvents` uses for `events.list`.
+	function consumeBatches(
+		params: StreamsConsumeParams = {},
+	): AsyncGenerator<StreamsBatch> {
+		return iterateStreamsBatches({
+			fromCursor: params.cursor,
+			batchSize: params.batchSize ?? 100,
+			intervalMs: params.intervalMs ?? 2000,
+			...streamsFilters(params),
+			signal: params.signal,
+			fetchEvents,
+		});
+	}
+
+	function streamEvents(
+		params: StreamsEventsStreamParams = {},
+	): AsyncIterable<StreamsEvent> {
+		return streamStreamsEvents({
+			fromCursor: params.fromCursor,
+			// Includes the labelled OR-groups: dropping them here silently
+			// widened the stream to the FULL firehose (billed per row).
+			...streamsFilters(params),
+			batchSize: params.batchSize ?? 100,
+			emptyBackoffMs: params.emptyBackoffMs,
+			maxPages: params.maxPages,
+			maxEmptyPolls: params.maxEmptyPolls,
+			signal: params.signal,
+			fetchEvents,
+		});
+	}
+
+	function subscribeEvents(
+		params: StreamsEventsSubscribeParams,
+	): StreamsSubscription {
+		return subscribeStreamsEvents({
+			baseUrl,
+			headers: authHeaders(),
+			fetchImpl,
+			verify: verifyMode,
+			loadKey: loadKeyFor,
+			reconnectDelayMs: params.reconnectDelayMs,
+			staleAfterMs: params.staleAfterMs,
+			// `StreamsEventsSubscribeParams` (Stacks | Bitcoin) narrows `onEvent`'s
+			// parameter type per branch; the loop below reads every field off one
+			// flat wire shape regardless of chain — see
+			// `StreamsEventsSubscribeWireParams`'s doc comment.
+			params: params as unknown as StreamsEventsSubscribeWireParams,
+		});
+	}
+
+	/**
+	 * `events.consume`'s bitcoin branch: a separate, simpler implementation
+	 * (no `filters`/`on`/`decoded`) rather than widening `consumeEvents`'s
+	 * generics — see {@link StreamsEventsConsumeBitcoinParams}'s doc comment.
+	 * Runtime loop is `consumeStreamsEvents`, same as the Stacks branch.
+	 */
+	function consumeBitcoinEvents<TTx = never>(
+		params: StreamsEventsConsumeBitcoinParams<TTx> & {
+			sink?: ConsumerSink<TTx>;
 		},
+	): Promise<StreamsEventsConsumeResult> {
+		return consumeStreamsEvents<TTx>({
+			fromCursor: params.fromCursor,
+			sink: params.sink,
+			onProgress: params.onProgress,
+			mode: params.mode,
+			finalizedOnly: params.finalizedOnly,
+			chain: "bitcoin",
+			types: params.types,
+			notTypes: params.notTypes,
+			rune: params.rune,
+			address: params.address,
+			batchSize: params.batchSize ?? 100,
+			fetchEvents,
+			fetchReorgs,
+			onBatch: params.onBatch as unknown as NonNullable<
+				StreamsEventsConsumeParams<TTx>["onBatch"]
+			>,
+			onReorg: params.onReorg,
+			maxRollbackDepth: params.maxRollbackDepth,
+			emptyBackoffMs: params.emptyBackoffMs,
+			maxPages: params.maxPages,
+			maxEmptyPolls: params.maxEmptyPolls,
+			signal: params.signal,
+			retryCount: params.retryCount,
+			retryDelay: params.retryDelay,
+			onError: params.onError,
+			wake: params.wake,
+		});
+	}
+
+	/** Dispatches `events.consume` by `chain` to the Stacks (`consumeEvents`,
+	 *  filters/on/decoded-capable) or Bitcoin (`consumeBitcoinEvents`, plain
+	 *  `onBatch` only) implementation. Cast to the public overloaded type at
+	 *  the field assignment below, same as every other chain-narrowed field. */
+	function dispatchEventsConsume<TTx = never>(
+		params:
+			| (StreamsEventsConsumeBitcoinParams<TTx> & { sink?: ConsumerSink<TTx> })
+			| (StreamsEventsConsumeParams<TTx, boolean, StreamsFilterMap> & {
+					sink?: ConsumerSink<TTx>;
+			  }),
+	): Promise<StreamsEventsConsumeResult> {
+		if (params.chain === "bitcoin") return consumeBitcoinEvents(params);
+		return consumeEvents(params);
+	}
+
+	return {
+		consume: consumeBatches as StreamsClient["consume"],
 		events: {
 			// One wire call; the overloads narrow the row type by `clock`/`types`.
 			list: listEvents as StreamsClient["events"]["list"],
 			byTxId: byTxId as StreamsClient["events"]["byTxId"],
-			consume: consumeEvents,
-			stream(params: StreamsEventsStreamParams = {}) {
-				return streamStreamsEvents({
-					fromCursor: params.fromCursor,
-					// Includes the labelled OR-groups: dropping them here silently
-					// widened the stream to the FULL firehose (billed per row).
-					...streamsFilters(params),
-					batchSize: params.batchSize ?? 100,
-					emptyBackoffMs: params.emptyBackoffMs,
-					maxPages: params.maxPages,
-					maxEmptyPolls: params.maxEmptyPolls,
-					signal: params.signal,
-					fetchEvents,
-				});
-			},
-			subscribe(params: StreamsEventsSubscribeParams) {
-				return subscribeStreamsEvents({
-					baseUrl,
-					headers: authHeaders(),
-					fetchImpl,
-					verify: verifyMode,
-					loadKey: loadKeyFor,
-					reconnectDelayMs: params.reconnectDelayMs,
-					staleAfterMs: params.staleAfterMs,
-					params,
-				});
-			},
+			consume: dispatchEventsConsume as StreamsClient["events"]["consume"],
+			stream: streamEvents as StreamsClient["events"]["stream"],
+			subscribe: subscribeEvents as StreamsClient["events"]["subscribe"],
 			async replay(params: StreamsEventsReplayParams) {
 				const fromCursor =
 					params.from === "genesis" ? null : (params.from ?? null);

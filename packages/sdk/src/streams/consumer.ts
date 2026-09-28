@@ -5,7 +5,6 @@ import type {
 	ConsumerBatchContext,
 	StreamsBatch,
 	StreamsEvent,
-	StreamsEventType,
 	StreamsEventsEnvelope,
 	StreamsFilterMap,
 	StreamsFilterValue,
@@ -118,8 +117,8 @@ type StreamsEventsFetchParams = {
 	/** `bitcoin` reads Runes events instead of the Stacks default (plan 059).
 	 *  See {@link StreamsEventsStreamParams.chain}'s untyped-events caveat. */
 	chain?: "stacks" | "bitcoin";
-	types?: readonly StreamsEventType[];
-	notTypes?: readonly StreamsEventType[];
+	types?: readonly string[];
+	notTypes?: readonly string[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
@@ -328,8 +327,8 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 	finalizedOnly?: boolean;
 	batchSize: number;
 	chain?: "stacks" | "bitcoin";
-	types?: readonly StreamsEventType[];
-	notTypes?: readonly StreamsEventType[];
+	types?: readonly string[];
+	notTypes?: readonly string[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
@@ -630,8 +629,8 @@ export async function* iterateStreamsBatches(opts: {
 	batchSize: number;
 	intervalMs: number;
 	chain?: "stacks" | "bitcoin";
-	types?: readonly StreamsEventType[];
-	notTypes?: readonly StreamsEventType[];
+	types?: readonly string[];
+	notTypes?: readonly string[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
@@ -687,8 +686,8 @@ export async function* streamStreamsEvents(opts: {
 	fromCursor?: string | null;
 	batchSize: number;
 	chain?: "stacks" | "bitcoin";
-	types?: readonly StreamsEventType[];
-	notTypes?: readonly StreamsEventType[];
+	types?: readonly string[];
+	notTypes?: readonly string[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;

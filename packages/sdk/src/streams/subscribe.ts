@@ -8,9 +8,37 @@ import {
 import type {
 	FetchLike,
 	StreamsEvent,
-	StreamsEventsSubscribeParams,
+	StreamsFilterMap,
+	StreamsFilterValue,
 	StreamsSubscription,
 } from "./types.ts";
+
+/**
+ * The wire-level shape this loop actually reads off `params`: every field
+ * from both the Stacks and Bitcoin `StreamsEventsSubscribeParams` branches,
+ * flattened into one type so the loop needs no chain narrowing. The public
+ * `StreamsClient.events.subscribe` overloads are the real (narrower,
+ * discriminated) surface; `client.ts` bridges the two with a boundary cast,
+ * the same pattern `listEvents` uses for `events.list`.
+ */
+export type StreamsEventsSubscribeWireParams = {
+	chain?: "stacks" | "bitcoin";
+	fromCursor?: string | null;
+	types?: readonly string[];
+	notTypes?: readonly string[];
+	contractId?: StreamsFilterValue;
+	sender?: StreamsFilterValue;
+	recipient?: StreamsFilterValue;
+	assetIdentifier?: string;
+	rune?: string;
+	address?: string;
+	filters?: StreamsFilterMap;
+	signal?: AbortSignal;
+	onEvent: (event: StreamsEvent) => void | Promise<void>;
+	onError?: (err: unknown) => void;
+	reconnectDelayMs?: number;
+	staleAfterMs?: number;
+};
 
 type VerificationKey = {
 	keyId: string;
@@ -76,14 +104,14 @@ export function subscribeStreamsEvents(opts: {
 	 *  on an unknown id; a pinned key fails closed), or the cached key when
 	 *  the frame carries none. */
 	loadKey: (keyId?: string | null) => Promise<VerificationKey>;
-	/** First reconnect pause; see {@link StreamsEventsSubscribeParams.reconnectDelayMs}. */
+	/** First reconnect pause; see {@link StreamsEventsSubscribeWireParams.reconnectDelayMs}. */
 	reconnectDelayMs?: number;
 	/** Idle limit before the socket is treated as dead; see
-	 *  {@link StreamsEventsSubscribeParams.staleAfterMs}. */
+	 *  {@link StreamsEventsSubscribeWireParams.staleAfterMs}. */
 	staleAfterMs?: number;
 	/** Jitter source, injectable for tests. */
 	random?: () => number;
-	params: StreamsEventsSubscribeParams;
+	params: StreamsEventsSubscribeWireParams;
 }): StreamsSubscription {
 	const { params } = opts;
 	const controller = new AbortController();
@@ -116,6 +144,10 @@ export function subscribeStreamsEvents(opts: {
 					sender: params.sender,
 					recipient: params.recipient,
 					asset_identifier: params.assetIdentifier,
+					// `chain: "bitcoin"` only (plan 059/061) — missing here meant a
+					// bitcoin subscribe silently ignored these filters.
+					rune: params.rune,
+					address: params.address,
 					// JSON in a query param, so SSE keeps plain GET semantics:
 					// no POST-and-stream variant of this route.
 					filters: params.filters ? JSON.stringify(params.filters) : undefined,

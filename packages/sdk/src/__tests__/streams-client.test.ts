@@ -490,6 +490,134 @@ describe("createStreamsClient", () => {
 		expect(page.tip.block_height).toBe(840_000);
 	});
 
+	/** One Runes page, reused by the chain=bitcoin consume/stream/top-level
+	 *  consume tests below (plan 059/061). */
+	function bitcoinRunesPage() {
+		return {
+			events: [
+				{
+					cursor: "840000:0",
+					chain: "bitcoin",
+					block_height: 840_000,
+					block_hash: "btchash",
+					tx_id: "0xetch",
+					tx_index: 0,
+					event_index: 0,
+					event_type: "rune_etch",
+					rune_id: "840000:3",
+					payload: { amount: "0" },
+				},
+			],
+			next_cursor: "840000:0",
+			tip: {
+				block_height: 840_000,
+				block_hash: "btchash",
+				finalized_height: 839_994,
+				lag_seconds: 0,
+			},
+			reorgs: [],
+		};
+	}
+
+	test("events.consume with chain: bitcoin sends chain/rune/address and delivers Runes rows", async () => {
+		const requests: Request[] = [];
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async (input, init) => {
+				const request =
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init);
+				requests.push(request);
+				return jsonResponse(bitcoinRunesPage());
+			},
+		});
+
+		const delivered: unknown[] = [];
+		await client.events.consume({
+			chain: "bitcoin",
+			rune: "840000:3",
+			address: "bc1qtest",
+			maxPages: 1,
+			onBatch: (events) => {
+				delivered.push(...events);
+			},
+		});
+
+		const url = new URL(requests[0]?.url ?? "");
+		expect(url.searchParams.get("chain")).toBe("bitcoin");
+		expect(url.searchParams.get("rune")).toBe("840000:3");
+		expect(url.searchParams.get("address")).toBe("bc1qtest");
+		expect(delivered).toHaveLength(1);
+		expect((delivered[0] as { rune_id: string }).rune_id).toBe("840000:3");
+	});
+
+	test("events.stream with chain: bitcoin sends chain/rune/address and yields Runes rows", async () => {
+		const requests: Request[] = [];
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async (input, init) => {
+				const request =
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init);
+				requests.push(request);
+				return jsonResponse(bitcoinRunesPage());
+			},
+		});
+
+		const seen: unknown[] = [];
+		for await (const event of client.events.stream({
+			chain: "bitcoin",
+			rune: "840000:3",
+			address: "bc1qtest",
+			maxPages: 1,
+		})) {
+			seen.push(event);
+		}
+
+		const url = new URL(requests[0]?.url ?? "");
+		expect(url.searchParams.get("chain")).toBe("bitcoin");
+		expect(url.searchParams.get("rune")).toBe("840000:3");
+		expect(url.searchParams.get("address")).toBe("bc1qtest");
+		expect(seen).toHaveLength(1);
+		expect((seen[0] as { rune_id: string }).rune_id).toBe("840000:3");
+	});
+
+	test("top-level consume with chain: bitcoin sends chain/rune/address and yields a Runes batch", async () => {
+		const requests: Request[] = [];
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async (input, init) => {
+				const request =
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init);
+				requests.push(request);
+				return jsonResponse(bitcoinRunesPage());
+			},
+		});
+
+		let firstBatch: { events: unknown[] } | undefined;
+		for await (const batch of client.consume({
+			chain: "bitcoin",
+			rune: "840000:3",
+			address: "bc1qtest",
+		})) {
+			firstBatch = batch;
+			break;
+		}
+
+		const url = new URL(requests[0]?.url ?? "");
+		expect(url.searchParams.get("chain")).toBe("bitcoin");
+		expect(url.searchParams.get("rune")).toBe("840000:3");
+		expect(url.searchParams.get("address")).toBe("bc1qtest");
+		expect(firstBatch?.events).toHaveLength(1);
+	});
+
 	test("tip({chain: 'bitcoin'}) and canonical({chain: 'bitcoin'}) hit the right query", async () => {
 		const requests: Request[] = [];
 		const client = createStreamsClient({

@@ -94,6 +94,35 @@ describe("subscribeStreamsEvents", () => {
 		expect((got[0] as { cursor: string }).cursor).toBe("100:0");
 	});
 
+	test("chain: bitcoin forwards chain, rune, and address on the SSE URL", async () => {
+		const urls: string[] = [];
+		let unsub = () => {};
+		await new Promise<void>((resolve) => {
+			const fetchImpl: FetchLike = (url, init) => {
+				urls.push(String(url));
+				return sseFetch([signedFrame(EVENT)])(url, init);
+			};
+			unsub = subscribeStreamsEvents({
+				baseUrl: "https://streams.example",
+				fetchImpl,
+				verify: "off",
+				loadKey,
+				params: {
+					chain: "bitcoin",
+					rune: "840000:3",
+					address: "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg",
+					onEvent: () => resolve(),
+				},
+			});
+		});
+		unsub();
+		expect(urls[0]).toContain("chain=bitcoin");
+		expect(urls[0]).toContain("rune=840000%3A3");
+		expect(urls[0]).toContain(
+			"address=bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg",
+		);
+	});
+
 	test("verify on: a valid inline signature passes through", async () => {
 		const got: StreamsEvent[] = [];
 		let unsub = () => {};
