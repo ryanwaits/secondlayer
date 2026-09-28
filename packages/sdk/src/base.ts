@@ -182,10 +182,14 @@ export function buildQuery(
 	return query ? `?${query}` : "";
 }
 
-/** Pull the message and code out of an API error body. The API answers every
- *  failure with `{error, code}`; a proxy in front of it may answer with plain
+/** Pull the message and code out of an API error body. The API answers most
+ *  failures with `{error, code}`, where `error` IS the human text (e.g.
+ *  `{error: "Unauthorized"}`) — a proxy in front of it may answer with plain
  *  text or nothing, so the body is kept whichever shape it took and the
- *  message is left undefined when there is none worth surfacing. */
+ *  message is left undefined when there is none worth surfacing. A few
+ *  bodies (e.g. `spend_cap_reached`) instead use `error` as a machine code
+ *  and carry the human text in its own `message` field — when both a string
+ *  `error` and a string `message` are present, `message` wins. */
 export function parseErrorEnvelope(text: string): {
 	message?: string;
 	code?: string;
@@ -198,7 +202,13 @@ export function parseErrorEnvelope(text: string): {
 		let code: string | undefined;
 		if (json && typeof json === "object") {
 			const err = json.error ?? json.message;
-			if (typeof err === "string" && err.length > 0) message = err;
+			if (
+				typeof err === "string" &&
+				typeof json.message === "string" &&
+				json.message.length > 0
+			) {
+				message = json.message;
+			} else if (typeof err === "string" && err.length > 0) message = err;
 			else if (err && typeof err === "object") message = JSON.stringify(err);
 			if (typeof json.code === "string") code = json.code;
 		}

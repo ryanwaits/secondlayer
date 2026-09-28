@@ -510,5 +510,46 @@ describe("BaseClient", () => {
 				expect((err as ApiError).message).toBe("404 Not Found");
 			}
 		});
+
+		test("a body's own message wins over its error code, e.g. spend_cap_reached", async () => {
+			globalThis.fetch = mockFetch({
+				ok: false,
+				status: 402,
+				body: {
+					error: "spend_cap_reached",
+					message: "You reached your monthly spend cap.",
+				},
+			});
+			try {
+				await client.doRequest("GET", "/test");
+				expect.unreachable("should have thrown");
+			} catch (err) {
+				expect((err as ApiError).status).toBe(402);
+				expect((err as ApiError).shortMessage).toBe(
+					"You reached your monthly spend cap.",
+				);
+				expect((err as ApiError).body).toMatchObject({
+					error: "spend_cap_reached",
+				});
+			}
+		});
+
+		test("falls back to the error code as the message when the body has no message field", async () => {
+			globalThis.fetch = mockFetch({
+				ok: false,
+				status: 402,
+				body: {
+					error: "insufficient_credits",
+					shortfall_usd_micros: 5000,
+					hint: "Add usage credits to keep reading rows past the free monthly allowance.",
+				},
+			});
+			try {
+				await client.doRequest("GET", "/test");
+				expect.unreachable("should have thrown");
+			} catch (err) {
+				expect((err as ApiError).shortMessage).toBe("insufficient_credits");
+			}
+		});
 	});
 });
