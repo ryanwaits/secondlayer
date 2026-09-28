@@ -19,6 +19,7 @@ import {
 	planGenericDecoderReceipts,
 } from "../generic-commit.ts";
 import { requireInternalStreamsApiKey } from "../internal-auth.ts";
+import { maintainPox5Cycles } from "../pox5-cycles-storage.ts";
 import {
 	POX5_DECODER_NAME,
 	type Pox5EventRow,
@@ -154,7 +155,14 @@ export async function consumePox5DecodedEvents(
 				failure: failureFromFaults(faults),
 				startedFrom: expectedCheckpoint,
 				writeOutput: async (tx) => {
-					if (rows.length > 0) await writePox5Events(rows, { db: tx });
+					if (rows.length > 0) {
+						await writePox5Events(rows, { db: tx });
+						// Keep the materialized per-cycle rollup (`pox5_cycles` /
+						// `pox5_cycle_signers`) in lockstep with the events it's
+						// derived from — same transaction, so a crash mid-batch
+						// never leaves them ahead of or behind `pox5_events`.
+						await maintainPox5Cycles({ db: tx });
+					}
 				},
 			});
 			expectedCheckpoint = envelope.next_cursor;

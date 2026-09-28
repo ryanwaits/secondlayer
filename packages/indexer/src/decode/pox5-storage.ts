@@ -2,6 +2,7 @@ import { getSourceDb, jsonb } from "@secondlayer/shared/db";
 import type { Pox5EventTopic } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
+import { maintainPox5Cycles } from "./pox5-cycles-storage.ts";
 import { writeDecoderCheckpoint } from "./storage.ts";
 
 export const POX5_DECODER_NAME = "decode.pox5.v1";
@@ -105,6 +106,10 @@ export async function handlePox5Reorg(
 		.deleteFrom("pox5_events")
 		.where("block_height", ">=", blockHeight)
 		.executeTakeFirst();
+
+	// The rollup is derived from `pox5_events`; a reorg that drops rows must
+	// drop the cycles/signers built from them too.
+	await maintainPox5Cycles({ db: opts?.db });
 
 	return {
 		deleted: Number(result.numDeletedRows ?? 0),

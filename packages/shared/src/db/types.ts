@@ -530,6 +530,45 @@ export interface Pox5EventsTable {
 	created_at: Generated<Date>;
 }
 
+// Materialized per-cycle PoX-5 rollup (`rollupPox5Cycles`), maintained after
+// every committed pox5 decoder batch and after a pox5 reorg. Fully
+// rebuildable from `pox5_events` via `rebuild-pox5-cycles.ts --apply`.
+export interface Pox5CyclesTable {
+	reward_cycle: number;
+	start_burn_height: number;
+	prepare_start_burn_height: number;
+	end_burn_height: number;
+	total_stacked_ustx: string;
+	reward_eligible_ustx: string;
+	stakers: number;
+	signers_in_set: number;
+	/** bond index (as string) -> sats staked for this cycle. */
+	bond_sats: unknown;
+	bond_total_sats: string;
+	sbtc_custodied_sats: string;
+	rewards_allocated_stx: string;
+	rewards_allocated_bond: string;
+	reserve_deposit: string;
+	rewards_per_token_stx: string | null;
+	/** bond index (as string) -> cumulative rewards-per-sat for this cycle. */
+	rewards_per_token_bond: unknown;
+	distributions: number;
+	rewards_claimed: string;
+	computed_through_height: number;
+	updated_at: Generated<Date>;
+}
+
+// Per-signer half of the pox-5 cycle rollup.
+export interface Pox5CycleSignersTable {
+	reward_cycle: number;
+	signer: string;
+	delegated_ustx: string;
+	stx_only_ustx: string;
+	reward_shares_ustx: string;
+	in_set: boolean;
+	rewards_claimed: string;
+}
+
 // Actual BTC PoX payout — one row per reward slot (≤2 per burn block), from the
 // /new_burn_block reward_recipients array. `amount_sats`/`burn_amount` are sats.
 export interface BurnBlockRewardsTable {
@@ -936,6 +975,8 @@ export interface Database {
 	chain_reorgs: ChainReorgsTable;
 	pox4_calls: Pox4CallsTable;
 	pox5_events: Pox5EventsTable;
+	pox5_cycles: Pox5CyclesTable;
+	pox5_cycle_signers: Pox5CycleSignersTable;
 	burn_block_rewards: BurnBlockRewardsTable;
 	burn_block_reward_slots: BurnBlockRewardSlotsTable;
 	sbtc_events: SbtcEventsTable;
