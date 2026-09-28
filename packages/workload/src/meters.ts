@@ -134,17 +134,25 @@ export function startMeterSocketServer(
 	return { stop: () => server.stop(true) };
 }
 
+/** Minimum billed memory per running tenant, in GB (founder 2026-09-27) —
+ *  any running hosted stack bills at least this much, ~$10/mo at
+ *  `PRICES["memory.gb_hour"]`. Only applies while a tenant is running
+ *  (`listRunningTenants` in `index.ts` only samples `state = 'running'`
+ *  tenants); a stopped tenant is never sampled, so it's never floored. */
+export const MEMORY_FLOOR_GB = 0.5;
+
 /** One tenant's memory sample: RSS summed across its containers, in GiB.
  *  `sampleCgroupBytes` is injected so tests never shell out to `docker
  *  stats`; the real implementation lives in `index.ts` (needs the compose
- *  project name → container list mapping). */
+ *  project name → container list mapping). Floored at `MEMORY_FLOOR_GB` —
+ *  a running stack always bills at least the floor, even idling near 0. */
 export async function sampleMemoryGbHour(
 	accountId: string,
 	sampleCgroupBytes: (accountId: string) => Promise<number>,
 	intervalSeconds: number,
 ): Promise<MeterBatchItem> {
 	const bytes = await sampleCgroupBytes(accountId);
-	const gb = bytes / 1024 ** 3;
+	const gb = Math.max(bytes / 1024 ** 3, MEMORY_FLOOR_GB);
 	const gbHours = gb * (intervalSeconds / 3600);
 	return {
 		accountId,

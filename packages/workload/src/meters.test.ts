@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	EventCounter,
+	MEMORY_FLOOR_GB,
 	collectShutdownFlushItems,
 	eventsIdempotencyKey,
 	eventsMeterItem,
@@ -109,6 +110,26 @@ describe("sampleMemoryGbHour / sampleStorageGbDay", () => {
 		const item = await sampleStorageGbDay("acct_1", async () => 5 * 1024 ** 3);
 		expect(item.unit).toBe("storage.gb_day");
 		expect(item.quantity).toBeCloseTo(5, 6);
+	});
+
+	test("memory: a 100 MB sample bills the 0.5 GB floor, not the raw sample", async () => {
+		const item = await sampleMemoryGbHour(
+			"acct_1",
+			async () => 100 * 1024 ** 2,
+			3600,
+		);
+		expect(item.unit).toBe("memory.gb_hour");
+		expect(item.quantity).toBeCloseTo(MEMORY_FLOOR_GB, 6);
+	});
+
+	test("memory: a 2 GB sample bills the raw sample, above the floor", async () => {
+		const item = await sampleMemoryGbHour(
+			"acct_1",
+			async () => 2 * 1024 ** 3,
+			3600,
+		);
+		expect(item.unit).toBe("memory.gb_hour");
+		expect(item.quantity).toBeCloseTo(2, 6);
 	});
 });
 
