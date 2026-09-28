@@ -162,12 +162,19 @@ export async function sampleMemoryGbHour(
 	const gb = Math.max(rawGb, MEMORY_FLOOR_GB);
 	const gbHours = gb * (intervalSeconds / 3600);
 	const observedGbHours = rawGb * (intervalSeconds / 3600);
+	// The idempotency key AND `occurredAt` are pinned to this one sample
+	// time — a batch that fails to flush and gets resent later (same key)
+	// must keep dating the charge at when it was actually sampled, not
+	// whenever the retry happens to land, or the trailing-24h burn rate and
+	// the memory chart both read the wrong hour.
+	const now = new Date();
 	return {
 		accountId,
 		unit: "memory.gb_hour",
 		quantity: gbHours,
 		observedQuantity: observedGbHours,
-		idempotencyKey: memoryIdempotencyKey(accountId, new Date()),
+		idempotencyKey: memoryIdempotencyKey(accountId, now),
+		occurredAt: now.toISOString(),
 	};
 }
 
@@ -180,11 +187,15 @@ export async function sampleStorageGbDay(
 ): Promise<MeterBatchItem> {
 	const bytes = await sampleDatabaseBytes(accountId);
 	const gb = bytes / 1024 ** 3;
+	// Same fix as `sampleMemoryGbHour`: pin `occurredAt` to the sample time,
+	// not whenever a retried flush happens to land.
+	const now = new Date();
 	return {
 		accountId,
 		unit: "storage.gb_day",
 		quantity: gb,
-		idempotencyKey: storageIdempotencyKey(accountId, new Date()),
+		idempotencyKey: storageIdempotencyKey(accountId, now),
+		occurredAt: now.toISOString(),
 	};
 }
 

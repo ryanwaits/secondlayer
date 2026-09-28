@@ -135,6 +135,30 @@ describe("sampleMemoryGbHour / sampleStorageGbDay", () => {
 		// Above the floor, observedQuantity equals the billed quantity.
 		expect(item.observedQuantity).toBeCloseTo(2, 6);
 	});
+
+	test("memory: occurredAt is pinned to the sample time, not left for /internal/meters to default at flush time", async () => {
+		const before = Date.now();
+		const item = await sampleMemoryGbHour(
+			"acct_1",
+			async () => 2 * 1024 ** 3,
+			60,
+		);
+		const after = Date.now();
+		expect(item.occurredAt).toBeDefined();
+		const occurredAtMs = Date.parse(item.occurredAt as string);
+		expect(occurredAtMs).toBeGreaterThanOrEqual(before);
+		expect(occurredAtMs).toBeLessThanOrEqual(after);
+	});
+
+	test("storage: occurredAt is pinned to the sample time", async () => {
+		const before = Date.now();
+		const item = await sampleStorageGbDay("acct_1", async () => 5 * 1024 ** 3);
+		const after = Date.now();
+		expect(item.occurredAt).toBeDefined();
+		const occurredAtMs = Date.parse(item.occurredAt as string);
+		expect(occurredAtMs).toBeGreaterThanOrEqual(before);
+		expect(occurredAtMs).toBeLessThanOrEqual(after);
+	});
 });
 
 describe("flushMeterBatch", () => {
@@ -252,6 +276,30 @@ describe("flushAll", () => {
 			2,
 		);
 		expect(failed).toEqual([]);
+	});
+
+	test("a retried (resent) item keeps its original occurredAt — flushAll never rebuilds items", async () => {
+		const sampledAt = "2026-09-25T22:00:00.000Z"; // a real hour a retry must not overwrite
+		const item = {
+			accountId: "acct_1",
+			unit: "memory.gb_hour" as const,
+			quantity: 0.5,
+			idempotencyKey: "mem:acct_1:2026-09-25T22",
+			occurredAt: sampledAt,
+		};
+		const failed = await flushAll(
+			{
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				fetchImpl: async () => new Response("boom", { status: 500 }),
+			},
+			[item],
+			10,
+		);
+		// Byte-identical on the way back out — a later resend still carries the
+		// original sample time, not whenever the resend happens to run.
+		expect(failed).toEqual([item]);
+		expect(failed[0]?.occurredAt).toBe(sampledAt);
 	});
 });
 

@@ -24,6 +24,13 @@ import { InvalidJSONError } from "../middleware/error.ts";
 
 const VALID_UNITS = new Set<string>(Object.keys(PRICES));
 
+/** `occurredAt` bounds: a small forward tolerance for clock skew between the
+ *  workload host and this server, and a floor matching the delivery-service
+ *  snapshot's own 35-day "ever ran" window (`usage-ledger.ts`) — nothing a
+ *  real sample or retry should ever fall outside of. */
+const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
+const MAX_PAST_MS = 35 * 24 * 60 * 60 * 1000;
+
 function isValidUnit(unit: unknown): unit is MeterUnit {
 	return typeof unit === "string" && VALID_UNITS.has(unit);
 }
@@ -96,8 +103,27 @@ function parseItem(raw: unknown, index: number): MeterItemInput {
 	) {
 		throw new ValidationError(`items[${index}].idempotencyKey is required`);
 	}
-	if (body.occurredAt !== undefined && typeof body.occurredAt !== "string") {
-		throw new ValidationError(`items[${index}].occurredAt must be a string`);
+	if (body.occurredAt !== undefined) {
+		if (typeof body.occurredAt !== "string") {
+			throw new ValidationError(`items[${index}].occurredAt must be a string`);
+		}
+		const occurredAtMs = Date.parse(body.occurredAt);
+		if (Number.isNaN(occurredAtMs)) {
+			throw new ValidationError(
+				`items[${index}].occurredAt must be a valid ISO date`,
+			);
+		}
+		const now = Date.now();
+		if (occurredAtMs > now + FUTURE_TOLERANCE_MS) {
+			throw new ValidationError(
+				`items[${index}].occurredAt must not be in the future`,
+			);
+		}
+		if (occurredAtMs < now - MAX_PAST_MS) {
+			throw new ValidationError(
+				`items[${index}].occurredAt must not be more than 35 days old`,
+			);
+		}
 	}
 	if (body.source !== undefined && typeof body.source !== "string") {
 		throw new ValidationError(`items[${index}].source must be a string`);

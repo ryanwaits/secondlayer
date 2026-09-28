@@ -144,6 +144,109 @@ describe.skipIf(!HAS_DB)("POST /internal/meters", () => {
 		expect(res.status).toBe(400);
 	});
 
+	test("occurredAt more than 5 minutes in the future → 400", async () => {
+		const future = new Date(Date.now() + 6 * 60_000).toISOString();
+		const res = await app().request("/internal/meters", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({
+				items: [
+					{
+						accountId,
+						unit: "memory.gb_hour",
+						quantity: 0.5,
+						idempotencyKey: "future-occurred-at",
+						occurredAt: future,
+					},
+				],
+			}),
+		});
+		expect(res.status).toBe(400);
+	});
+
+	test("occurredAt more than 35 days old → 400", async () => {
+		const tooOld = new Date(
+			Date.now() - 36 * 24 * 60 * 60 * 1000,
+		).toISOString();
+		const res = await app().request("/internal/meters", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({
+				items: [
+					{
+						accountId,
+						unit: "memory.gb_hour",
+						quantity: 0.5,
+						idempotencyKey: "too-old-occurred-at",
+						occurredAt: tooOld,
+					},
+				],
+			}),
+		});
+		expect(res.status).toBe(400);
+	});
+
+	test("occurredAt that isn't a parseable date → 400", async () => {
+		const res = await app().request("/internal/meters", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({
+				items: [
+					{
+						accountId,
+						unit: "memory.gb_hour",
+						quantity: 0.5,
+						idempotencyKey: "garbage-occurred-at",
+						occurredAt: "not-a-date",
+					},
+				],
+			}),
+		});
+		expect(res.status).toBe(400);
+	});
+
+	test("a retried batch's occurredAt (real sample time, within bounds) is accepted and stored", async () => {
+		const { creditCredits } = await import(
+			"@secondlayer/platform/db/queries/account-credits"
+		);
+		await creditCredits(db, accountId, 1_000_000n);
+		const sampledAt = new Date(Date.now() - 3 * 60 * 60 * 1000); // 3h ago
+		const res = await app().request("/internal/meters", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({
+				items: [
+					{
+						accountId,
+						unit: "memory.gb_hour",
+						quantity: 0.5,
+						idempotencyKey: "retry-keeps-occurred-at",
+						occurredAt: sampledAt.toISOString(),
+					},
+				],
+			}),
+		});
+		expect(res.status).toBe(200);
+		const row = await db
+			.selectFrom("usage_ledger")
+			.select("occurred_at")
+			.where("idempotency_key", "=", "retry-keeps-occurred-at")
+			.executeTakeFirstOrThrow();
+		expect(new Date(row.occurred_at).getTime()).toBe(sampledAt.getTime());
+	});
+
 	test("unknown unit → 400", async () => {
 		const res = await app().request("/internal/meters", {
 			method: "POST",
