@@ -317,6 +317,8 @@ const TRIGGER_FIELD_TEXT: Record<string, string> = {
 	bitcoinTxid: "Bitcoin txid of the deposit.",
 	requestId: "sBTC request id.",
 	sweepTxid: "Bitcoin txid of the sweep.",
+	rune: 'A RuneRef: an id ("840000:3") or a name ("DOG•GO•TO•THE•MOON"), spacer- and case-insensitive. Normalized to its canonical id on create; an unknown rune is rejected with 400.',
+	address: "Bitcoin (mainnet) address. Exact match, no wildcards.",
 };
 
 const TRIGGER_AMOUNT = {

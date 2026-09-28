@@ -13,6 +13,7 @@ import {
 	toggleWebhookStatus,
 	updateWebhook,
 } from "@secondlayer/shared/db/queries/webhooks";
+import { ValidationError } from "@secondlayer/shared/errors";
 import {
 	type ChainTrigger,
 	CreateWebhookRequestSchema,
@@ -23,6 +24,7 @@ import {
 	formatWebhookSchemaErrors,
 	validateWebhookFilterForTable,
 } from "@secondlayer/shared/schemas/webhooks";
+import { RUNE_EVENT_TYPES } from "@secondlayer/shared/streams-rows";
 import { deliverTestEvent } from "@secondlayer/subgraphs/runtime/emitter";
 import {
 	ReplayInProgressError,
@@ -30,6 +32,11 @@ import {
 } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
 import { sql } from "kysely";
+import {
+	getBitcoinDb,
+	isBitcoinConfigured,
+	parseRuneRef,
+} from "../bitcoin/db.ts";
 import { getTenantScopedAccountId } from "../lib/request-scope.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
@@ -175,6 +182,89 @@ async function validateWebhookTarget(input: {
 	});
 }
 
+const RUNE_TRIGGER_TYPE_SET = new Set<string>(RUNE_EVENT_TYPES);
+
+/** The minimal Kysely surface `resolveRuneId` needs — a real `getBitcoinDb()`
+ *  handle satisfies this, and a test can pass a lightweight stub instead of
+ *  standing up a scratch Bitcoin/Runes database for this one lookup. */
+export type RuneEntryLookupDb = {
+	selectFrom(table: "rune_entries"): {
+		select(column: "rune_id"): {
+			where(
+				column: "rune",
+				op: "=",
+				value: string,
+			): { executeTakeFirst(): Promise<{ rune_id: string } | undefined> };
+		};
+	};
+};
+
+/** Resolve a `RuneRef` (id or name) to its canonical `rune_id`. Mirrors the
+ *  private `resolveRuneId` in `../index/runes.ts` and `../streams/bitcoin.ts` —
+ *  an id-form ref already is the key; a name-form ref needs one lookup. */
+export async function resolveRuneId(
+	ref: ReturnType<typeof parseRuneRef>,
+	db: RuneEntryLookupDb,
+): Promise<string | undefined> {
+	if ("id" in ref) return ref.id;
+	const row = await db
+		.selectFrom("rune_entries")
+		.select("rune_id")
+		.where("rune", "=", ref.rune.toString())
+		.executeTakeFirst();
+	return row?.rune_id;
+}
+
+/**
+ * Normalize every Runes trigger's `rune` field (an id like `840000:3` or a
+ * name like `DOG•GO•TO•THE•MOON`) to its canonical `rune_id` before storage
+ * (plan 060 design) — the Bitcoin evaluator then matches with a plain string
+ * compare against a Streams event's `rune_id`, no lookup at match time.
+ * Throws `ValidationError` (→ 400) for an unparseable or unresolvable rune.
+ * A no-op when this instance has no Bitcoin data configured — nothing to
+ * resolve against, and the trigger simply never matches, same posture as any
+ * chain webhook on an instance whose evaluator isn't running (see `warning`
+ * on the response). `opts` is a test seam (`resolveRuneTriggers.test.ts`-style
+ * unit tests, no scratch DB); real callers omit it.
+ */
+export async function normalizeRuneTriggers(
+	triggers: ChainTrigger[],
+	opts?: { configured?: boolean; db?: RuneEntryLookupDb },
+): Promise<ChainTrigger[]> {
+	const configured = opts?.configured ?? isBitcoinConfigured();
+	if (!configured) return triggers;
+	const db = opts?.db ?? getBitcoinDb();
+	// Configured (env var set) but the lazy singleton has no live connection —
+	// treat like unconfigured rather than throw; the trigger just never
+	// matches, same soft-flag posture as every other Bitcoin reader.
+	if (!db) return triggers;
+	const normalized: ChainTrigger[] = [];
+	for (const trigger of triggers) {
+		const rune = (trigger as { rune?: string }).rune;
+		if (!RUNE_TRIGGER_TYPE_SET.has(trigger.type) || rune === undefined) {
+			normalized.push(trigger);
+			continue;
+		}
+		const ref = parseRuneRef(rune);
+		// A real `getBitcoinDb()` handle structurally satisfies `RuneEntryLookupDb`
+		// at runtime (a strict subset of Kysely's full query-builder surface); its
+		// generic-overloaded `select`/`where` signatures just don't collapse to
+		// this literal-argument shape for the type checker.
+		const runeId = await resolveRuneId(ref, db as RuneEntryLookupDb);
+		if (!runeId) {
+			throw new ValidationError(
+				`unknown rune on a "${trigger.type}" trigger: ${rune}`,
+			);
+		}
+		// `RUNE_TRIGGER_TYPE_SET.has(trigger.type)` above proves `trigger` is one
+		// of the rune-typed union members (every one of which has an optional
+		// `rune?: string`) — TS can't narrow a union on a Set membership check,
+		// hence the cast.
+		normalized.push({ ...trigger, rune: runeId } as ChainTrigger);
+	}
+	return normalized;
+}
+
 // ── GET /api/webhooks ──────────────────────────────────────────────
 
 app.get("/", async (c) => {
@@ -241,6 +331,12 @@ app.post("/", async (c) => {
 		return c.json({ error: `Webhook "${input.name}" already exists` }, 409);
 	}
 
+	// Outside the try/catch below: a bad/unknown rune is a client error
+	// (ValidationError → 400 via the global handler), not an internal one.
+	const triggers = isChain
+		? await normalizeRuneTriggers(input.triggers as ChainTrigger[])
+		: undefined;
+
 	try {
 		const { webhook, signingSecret } = await createWebhook(getDb(), {
 			accountId,
@@ -248,7 +344,7 @@ app.post("/", async (c) => {
 			kind: isChain ? "chain" : "subgraph",
 			subgraphName: isChain ? null : input.subgraphName,
 			tableName: isChain ? null : input.tableName,
-			triggers: isChain ? input.triggers : undefined,
+			triggers,
 			url: input.url,
 			format: input.format,
 			runtime: input.runtime ?? null,
