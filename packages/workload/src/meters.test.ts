@@ -93,6 +93,17 @@ describe("eventsMeterItem", () => {
 		expect(item?.quantity).toBe(12);
 		expect(item?.accountId).toBe("acct_1");
 	});
+
+	test("occurredAt is unset when no drain time is passed (regular tick, unchanged behavior)", () => {
+		const item = eventsMeterItem("acct_1", 12);
+		expect(item?.occurredAt).toBeUndefined();
+	});
+
+	test("occurredAt is pinned to the passed drain time", () => {
+		const drainedAt = new Date("2026-09-25T22:07:00.000Z");
+		const item = eventsMeterItem("acct_1", 12, drainedAt);
+		expect(item?.occurredAt).toBe("2026-09-25T22:07:00.000Z");
+	});
 });
 
 describe("sampleMemoryGbHour / sampleStorageGbDay", () => {
@@ -300,6 +311,27 @@ describe("flushAll", () => {
 		// original sample time, not whenever the resend happens to run.
 		expect(failed).toEqual([item]);
 		expect(failed[0]?.occurredAt).toBe(sampledAt);
+	});
+
+	test("a retried events item (built by eventsMeterItem at drain time) keeps its original occurredAt", async () => {
+		const drainedAt = new Date("2026-09-25T22:07:00.000Z");
+		const item = eventsMeterItem("acct_1", 40, drainedAt);
+		if (!item) throw new Error("expected an item for a positive count");
+
+		const failed = await flushAll(
+			{
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				fetchImpl: async () => new Response("boom", { status: 500 }),
+			},
+			[item],
+			10,
+		);
+		// Same guarantee as memory: a later resend of this exact (unchanged)
+		// item still carries the minute it was actually drained in, not
+		// whenever the resend happens to run.
+		expect(failed).toEqual([item]);
+		expect(failed[0]?.occurredAt).toBe("2026-09-25T22:07:00.000Z");
 	});
 });
 

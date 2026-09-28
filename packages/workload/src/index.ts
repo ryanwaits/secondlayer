@@ -228,9 +228,14 @@ async function main(): Promise<void> {
 	// losing it.
 	let eventPending: MeterBatchItem[] = [];
 	const eventFlushLoop = setInterval(async () => {
+		// One `now` for the whole tick: every counter drained this pass is
+		// dated at when it was actually drained, so a batch that fails to
+		// flush and gets resent later keeps its real minute instead of
+		// whatever time the retry happens to land.
+		const now = new Date();
 		const fresh: MeterBatchItem[] = [];
 		for (const [accountId, counter] of eventCounters) {
-			const item = eventsMeterItem(accountId, counter.drain());
+			const item = eventsMeterItem(accountId, counter.drain(), now);
 			if (item) fresh.push(item);
 		}
 		const { items, droppedCount } = mergePending(
@@ -305,6 +310,11 @@ async function main(): Promise<void> {
 				quantity: gbHours,
 				observedQuantity: memoryObservedAccumulatorGbHours.get(accountId),
 				idempotencyKey: `mem:${accountId}:${now.toISOString().slice(0, 13)}`,
+				// Dated at this flush tick, not left for the API to default at
+				// whatever time a retry of this same item eventually lands —
+				// this loop (not `sampleMemoryGbHour`) builds the item that
+				// actually gets POSTed, so this is where the real fix lives.
+				occurredAt: now.toISOString(),
 			});
 		}
 		memoryAccumulatorGbHours.clear();
