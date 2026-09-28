@@ -9,14 +9,17 @@
  *   - Month's credit spend >= threshold_pct (default 80%) → send email + bump
  *     `alert_sent_at` (debounced once per calendar month)
  *   - Month's credit spend >= monthly_cap_cents → set `frozen_at` (display +
- *     email). The hard stop is enforced in real time by `meter()`
- *     (`@secondlayer/platform/billing/meter`); this flag mirrors it.
+ *     email). The hard stop is enforced in real time on the read path —
+ *     `checkRowsAllowance` (`packages/api/src/lib/read-credits.ts`) refuses a
+ *     keyed read past the free rows with 402 `spend_cap_reached` once the cap
+ *     is reached; this flag mirrors that for the dashboard/email.
  *   - Back under cap with a stale freeze (month rolled over) → clear it.
  *
  * Also cleared on `invoice.paid` webhook or when the user raises their cap.
  * No-op in non-platform mode.
  */
 
+import { nextMonthResetLabel } from "@secondlayer/platform/billing/prices";
 import { getMonthlyCreditsSpend } from "@secondlayer/platform/db/queries/account-credits";
 import {
 	clearFreeze,
@@ -165,16 +168,6 @@ async function checkOneCap(row: CapRow): Promise<void> {
 
 const CAP_SETTING_URL = "https://secondlayer.tools/account/credits#cap";
 
-/** "Mon D" for the 1st of the month after `now`, UTC. */
-function nextMonthResetLabel(now: Date): string {
-	const at = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-	return at.toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		timeZone: "UTC",
-	});
-}
-
 async function sendCapAlert(
 	row: CapRow,
 	projectedCents: number,
@@ -189,10 +182,9 @@ async function sendCapAlert(
 	const pct = Math.round((projectedCents / capCents) * 100);
 	const resets = nextMonthResetLabel(now);
 
-	// Over the cap, a keyed read past the free 1M rows keeps being served —
-	// it just isn't charged (`meter()`, @secondlayer/platform/billing/meter.ts:
-	// `debited = false` once monthly spend is over `monthly_cap_cents`) — so
-	// this never says reads "pause."
+	// Over the cap, a keyed read past the free 1M rows is refused with 402
+	// `spend_cap_reached` before it starts (`checkRowsAllowance`,
+	// packages/api/src/lib/read-credits.ts) — so it really does "pause."
 	const subject =
 		kind === "frozen"
 			? "You reached your monthly spend cap"
@@ -200,10 +192,10 @@ async function sendCapAlert(
 	const paragraphs =
 		kind === "frozen"
 			? [
-					`Your spend on hosted Index and Streams reads past your free 1M rows reached your ${cap$} cap. Those reads keep working without a charge until ${resets} or until you raise your cap. Your balance is untouched, and webhooks and your delivery service keep running.`,
+					`Your spend on hosted Index and Streams reads past your free 1M rows reached your ${cap$} cap. Those reads are paused until ${resets} or until you raise the cap. Your balance is untouched, and webhooks and your delivery service keep running.`,
 				]
 			: [
-					`Your spend on hosted Index and Streams reads past your free 1M rows is ${spent$} this month, ${pct}% of your ${cap$} cap. Once you reach the cap, those reads keep working without a charge until ${resets} or until you raise your cap. Webhooks and your delivery service aren't affected.`,
+					`Your spend on hosted Index and Streams reads past your free 1M rows is ${spent$} this month, ${pct}% of your ${cap$} cap. When it reaches the cap, those reads pause until next month or until you raise the cap. Webhooks and your delivery service aren't affected.`,
 				];
 
 	const { html, text } = renderEmail({
