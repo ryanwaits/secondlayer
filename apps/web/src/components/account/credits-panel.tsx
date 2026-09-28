@@ -9,10 +9,12 @@ import {
 	formatUsd,
 	refreshAlerts,
 	refreshBilling,
+	refreshCaps,
 	refreshUsage,
 	startCheckout,
 	topupLanded,
 	updateAlerts,
+	updateCap,
 	useAccountData,
 } from "@/lib/account-data";
 import {
@@ -471,6 +473,81 @@ function AlertSwitch({
 
 const DEFAULT_ALERTS: BalanceAlerts = { notify7d: true, notify2d: true };
 
+/** Whole-dollar `$` input + Save, bound to `GET/PATCH /api/billing/caps`.
+ *  Empty input = no cap. A read past the free 1M rows keeps being served
+ *  once the cap is reached — it just stops being charged (`meter()`,
+ *  `@secondlayer/platform/billing/meter.ts`) — so the sub-line never says
+ *  "pause." */
+function SpendCapRow() {
+	const { caps } = useAccountData();
+	useEffect(() => {
+		refreshCaps();
+	}, []);
+	const [draft, setDraft] = useState<string | null>(null);
+	const [saving, setSaving] = useState(false);
+
+	const savedDollars =
+		caps?.monthlyCapCents != null
+			? String(Math.round(caps.monthlyCapCents / 100))
+			: "";
+	const value = draft ?? savedDollars;
+	const thresholdPct = caps?.alertThresholdPct ?? 80;
+
+	async function save() {
+		const trimmed = value.trim();
+		if (trimmed !== "" && (!/^\d+$/.test(trimmed) || Number(trimmed) < 1)) {
+			toast.error("Enter a whole dollar amount, or leave it empty for no cap");
+			return;
+		}
+		setSaving(true);
+		const monthlyCapCents = trimmed === "" ? null : Number(trimmed) * 100;
+		const result = await updateCap(monthlyCapCents);
+		setSaving(false);
+		setDraft(null);
+		if (!result) toast.error("Couldn't update your spend cap");
+		else
+			toast.success(
+				monthlyCapCents == null ? "Spend cap removed" : "Spend cap saved",
+			);
+	}
+
+	return (
+		<div className="use-alert-row cap" id="cap">
+			<label htmlFor="spend-cap-input">
+				<span className="t">Monthly spend cap</span>
+				<span className="s">
+					Once this month's spend on hosted reads past your free 1M rows reaches
+					the cap, those reads keep working without a charge until next month.
+					Webhooks aren't affected.
+				</span>
+			</label>
+			<div className="use-cap-fields">
+				<span className="use-cap-prefix">$</span>
+				<input
+					id="spend-cap-input"
+					className="acct-input use-cap-input"
+					type="number"
+					inputMode="numeric"
+					min={1}
+					step={1}
+					placeholder="No cap"
+					value={value}
+					onChange={(e) => setDraft(e.target.value)}
+				/>
+				<button
+					type="button"
+					className="acct-btn small"
+					onClick={save}
+					disabled={saving}
+				>
+					{saving ? "Saving..." : "Save"}
+				</button>
+			</div>
+			<span className="use-cap-note">Alert me at {thresholdPct}%</span>
+		</div>
+	);
+}
+
 /** Two switches, bound to `GET/PUT /api/billing/alerts`. Optimistic: the
  *  switch flips immediately, then reverts with a Sonner toast if the write
  *  fails (Design step 5.7). */
@@ -508,6 +585,7 @@ function BalanceAlertsSection() {
 					title="Email me at 2 days left"
 					sub="And again if the service stops"
 				/>
+				<SpendCapRow />
 			</div>
 		</>
 	);

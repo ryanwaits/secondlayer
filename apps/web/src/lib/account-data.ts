@@ -29,6 +29,15 @@ export type Billing = {
 
 export type BalanceAlerts = { notify7d: boolean; notify2d: boolean };
 
+/** Monthly spend cap for hosted Index/Streams reads past the free rows
+ *  allowance. `monthlyCapCents: null` means no cap set. */
+export type Caps = {
+	monthlyCapCents: number | null;
+	alertThresholdPct: number;
+	frozenAt: string | null;
+	alertSentAt: string | null;
+};
+
 type State = {
 	billing: Billing | null;
 	keys: ApiKey[] | null;
@@ -43,6 +52,7 @@ type State = {
 	 *  `burn`. */
 	service: DeliveryService | null;
 	alerts: BalanceAlerts | null;
+	caps: Caps | null;
 };
 
 const EMPTY: State = {
@@ -53,6 +63,7 @@ const EMPTY: State = {
 	burn: null,
 	service: null,
 	alerts: null,
+	caps: null,
 };
 let state: State = EMPTY;
 const listeners = new Set<() => void>();
@@ -141,6 +152,34 @@ export async function updateAlerts(
 	const alerts = (await res.json()) as BalanceAlerts;
 	set({ alerts });
 	return alerts;
+}
+
+/** The signed-in account's monthly spend-cap setting. */
+export async function refreshCaps(): Promise<Caps | null> {
+	try {
+		const res = await fetch("/api/billing/caps");
+		if (!res.ok) return null;
+		const caps = (await res.json()) as Caps;
+		set({ caps });
+		return caps;
+	} catch {
+		return null;
+	}
+}
+
+/** Set or clear the monthly spend cap. `monthlyCapCents: null` clears it. */
+export async function updateCap(
+	monthlyCapCents: number | null,
+): Promise<Caps | null> {
+	const res = await fetch("/api/billing/caps", {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ monthlyCapCents }),
+	});
+	if (!res.ok) return null;
+	const caps = (await res.json()) as Caps;
+	set({ caps });
+	return caps;
 }
 
 export async function refreshKeys(): Promise<void> {
