@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.11.7
+
+### Patch Changes
+
+- 1de3077: Update account pages and the get-started menu to show the new 1M free-rows allowance.
+
 ## 0.11.6
 
 ### Patch Changes

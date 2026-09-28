@@ -1,5 +1,13 @@
 # @secondlayer/api
 
+## 1.46.2
+
+### Patch Changes
+
+- 1de3077: Hosted Index and Streams reads now give you the first 1M rows a month free, down from 10M.
+- Updated dependencies [1de3077]
+  - @secondlayer/platform@0.3.24
+
 ## 1.46.1
 
 ### Patch Changes

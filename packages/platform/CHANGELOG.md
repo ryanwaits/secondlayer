@@ -1,5 +1,11 @@
 # @secondlayer/platform
 
+## 0.3.24
+
+### Patch Changes
+
+- 1de3077: Lower the free `rows.delivered` allowance to 1M rows/month (down from 10M).
+
 ## 0.3.23
 
 ### Patch Changes
