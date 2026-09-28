@@ -23,6 +23,25 @@ export function isBitcoinConfigured(): boolean {
 	return !!process.env.BITCOIN_DATABASE_URL;
 }
 
+/**
+ * Postgres' `undefined_table` code — thrown when `BITCOIN_DATABASE_URL`
+ * points at a real, reachable database that simply hasn't run
+ * `packages/bitcoin`'s migrations yet (plan 062: the oss compose profile
+ * always sets this env var on the `secondlayer` service once the `bitcoin`
+ * database exists, even when the `bitcoin` profile — the service that runs
+ * `migrate` — isn't enabled). `isBitcoinConfigured()` only checks that the
+ * env var is set, not that the schema exists; every DB-touching reader below
+ * also treats this specific error as "not configured" rather than a 500,
+ * same as the `../index/pox5-events.ts` soft-flag pattern the rest of this
+ * file follows. Same `.code` check shape as
+ * `packages/shared/src/db/queries/subgraph-operations.ts`'s `"23505"` check.
+ */
+function isMissingTableError(err: unknown): boolean {
+	return (
+		err instanceof Error && (err as Error & { code?: string }).code === "42P01"
+	);
+}
+
 let bitcoinDb: Kysely<BitcoinDatabase> | undefined;
 let bitcoinDbResolved = false;
 
@@ -98,11 +117,18 @@ export async function getBitcoinTip(
 	if (tipCache && nowMs < tipCache.expiresAt) return tipCache.value;
 	if (!db) return EMPTY_BITCOIN_TIP;
 
-	const row = await db
-		.selectFrom("runes_checkpoint")
-		.select(["height", "updated_at"])
-		.where("name", "=", CHECKPOINT_NAME)
-		.executeTakeFirst();
+	let row: { height: number; updated_at: Date } | undefined;
+	try {
+		row = await db
+			.selectFrom("runes_checkpoint")
+			.select(["height", "updated_at"])
+			.where("name", "=", CHECKPOINT_NAME)
+			.executeTakeFirst();
+	} catch (err) {
+		// Database exists, `runes_checkpoint` doesn't yet — same as unconfigured.
+		if (!isMissingTableError(err)) throw err;
+		row = undefined;
+	}
 	const value: BitcoinIndexTip = row
 		? {
 				block_height: row.height,
@@ -186,14 +212,20 @@ export async function readBtcReorgs(
 	db: Kysely<BitcoinDatabase> | undefined = getBitcoinDb(),
 ): Promise<BtcReorg[]> {
 	if (!db) return [];
-	const rows = await db
-		.selectFrom("btc_reorgs")
-		.selectAll()
-		.where("orphaned_from", "<=", toHeight)
-		.where("orphaned_to", ">=", fromHeight)
-		.orderBy("detected_at", "asc")
-		.execute();
-	return rows.map(normalizeBtcReorg);
+	try {
+		const rows = await db
+			.selectFrom("btc_reorgs")
+			.selectAll()
+			.where("orphaned_from", "<=", toHeight)
+			.where("orphaned_to", ">=", fromHeight)
+			.orderBy("detected_at", "asc")
+			.execute();
+		return rows.map(normalizeBtcReorg);
+	} catch (err) {
+		// Database exists, `btc_reorgs` doesn't yet — same as unconfigured.
+		if (!isMissingTableError(err)) throw err;
+		return [];
+	}
 }
 
 /**

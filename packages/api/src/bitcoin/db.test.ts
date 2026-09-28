@@ -1,5 +1,16 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
+import type { Database as BitcoinDatabase } from "@secondlayer/bitcoin/db";
 import { ValidationError } from "@secondlayer/shared/errors";
+import { Kysely } from "kysely";
+import { PostgresJSDialect } from "kysely-postgres-js";
+import postgres from "postgres";
 import {
 	_resetBitcoinDbForTests,
 	_resetBitcoinTipCacheForTests,
@@ -77,3 +88,51 @@ describe("isBitcoinConfigured / getBitcoinTip (unconfigured)", () => {
 		expect(reorgs).toEqual([]);
 	});
 });
+
+// Reproduces plan 062's oss scenario: `BITCOIN_DATABASE_URL` is set and the
+// database is reachable, but `packages/bitcoin`'s migrations never ran (the
+// `bitcoin` compose profile — the service that runs `migrate` — isn't
+// enabled). `isBitcoinConfigured()` alone can't see this (env-var-only
+// check); `getBitcoinTip`/`readBtcReorgs` must degrade the same as
+// unconfigured instead of throwing. Deliberately never migrated — see
+// packages/api/src/index/runes.test.ts's header for the sibling convention
+// of a *migrated* scratch DB; this one must stay empty.
+//
+//   docker exec <postgres-container> psql -U postgres -c \
+//     "CREATE DATABASE bitcoin_db062_missing_table_test"
+//   BITCOIN_TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5440/bitcoin_db062_missing_table_test \
+//     bun test src/bitcoin/db.test.ts
+const missingTableTestUrl = process.env.BITCOIN_TEST_DATABASE_URL;
+
+describe.skipIf(!missingTableTestUrl)(
+	"getBitcoinTip / readBtcReorgs (database exists, tables missing)",
+	() => {
+		// biome-ignore lint/style/noNonNullAssertion: describe.skipIf guards this whole block
+		const client = postgres(missingTableTestUrl!, { max: 1 });
+		const db = new Kysely<BitcoinDatabase>({
+			dialect: new PostgresJSDialect({ postgres: client }),
+		});
+
+		afterEach(() => {
+			_resetBitcoinTipCacheForTests();
+		});
+
+		afterAll(async () => {
+			await db.destroy();
+		});
+
+		test("getBitcoinTip returns the zero tip instead of throwing", async () => {
+			const tip = await getBitcoinTip(db);
+			expect(tip).toEqual({
+				block_height: 0,
+				finalized_height: 0,
+				lag_seconds: 0,
+			});
+		});
+
+		test("readBtcReorgs returns empty instead of throwing", async () => {
+			const reorgs = await readBtcReorgs(0, 1000, db);
+			expect(reorgs).toEqual([]);
+		});
+	},
+);
