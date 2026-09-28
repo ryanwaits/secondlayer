@@ -1,5 +1,6 @@
 import { getEnv, logger } from "@secondlayer/shared";
 import { assertDbSplit } from "@secondlayer/shared/db";
+import { startBalanceAlertCron } from "./jobs/balance-alert.ts";
 import { startCreditsRefillCron } from "./jobs/credits-refill.ts";
 import { startSpendCapAlertCron } from "./jobs/spend-cap-alert.ts";
 
@@ -10,7 +11,11 @@ async function runWorker() {
 	const env = getEnv();
 	logger.info("Starting worker", { networks: env.enabledNetworks });
 
-	const stops = [startSpendCapAlertCron(), startCreditsRefillCron()];
+	const stops = [
+		startSpendCapAlertCron(),
+		startCreditsRefillCron(),
+		startBalanceAlertCron(),
+	];
 
 	logger.info("Worker ready");
 
