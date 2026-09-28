@@ -29,9 +29,11 @@
 	],
 	"prevention": [
 		"The integrity health check reports any block whose stored transactions fall short of its recorded count",
-		"The node replay auditor attests transaction membership against each block's merkle root, not just block hashes"
+		"The node replay auditor attests transaction membership against each block's merkle root, not just block hashes",
+		"The archive export refuses to sign a snapshot while any block is short on transactions",
+		"`secondlayer repair` now fixes transaction and event ranges even when every block matches the archive"
 	],
-	"verification": "Integrity reports zero short blocks. Decoded events equal raw events for the affected heights. The corrected snapshot passes verify with counts and semantic checks for 8,750,000 to 8,999,999; the superseded snapshot fails with a count mismatch on the three affected partitions.",
+	"verification": "Integrity reports zero short blocks. Decoded events equal raw events for the affected heights. The corrected snapshot passes verify with counts and semantic checks for 8,750,000 to 8,999,999; the superseded snapshot fails with a count mismatch on the three affected partitions. A signed node attestation for the corrected snapshot checks all 250,000 blocks from 8,750,000 to 8,999,999 against the node, including each block's transaction set against its merkle root: 250,000 matches, 0 mismatches.",
 	"superseded_snapshots": [
 		"a523b88ceb94d74f581268e290d899a3a76e2ea1fc6543d2cafa636a389dbaa6",
 		"c204117f0c312a1d57cb150a49d5eb62d82eab3a69dc316df41584cca4c9ec0e",
@@ -46,6 +48,6 @@
 		"d1db4af398e9a0418095a48beef1c6c595070df3398f92ef16ef0fdb10daed1b",
 		"c71cddc128bf60303e66ad9cbcde11dee121ee17ee1a66781b1337d9d4919960"
 	],
-	"corrected_snapshot": "__CORRECTED_DIGEST__",
-	"consumer_action": "If you bootstrapped from a superseded snapshot, run `secondlayer verify raw --counts` for 8,750,000 to 8,999,999. If it reports a mismatch, re-bootstrap into an empty database from the corrected snapshot, then re-run your decoders for those heights."
+	"corrected_snapshot": "40d90b508319a1d317423dc77ee7c3a0ad09fea5dffd929b587acc02267053ed",
+	"consumer_action": "If you bootstrapped from a superseded snapshot, run `secondlayer verify raw --counts` for 8,750,000 to 8,999,999. If it reports a mismatch, run `secondlayer repair --from-block 8750000 --to-block 8999999 --apply` (CLI 18.1.0 or later) to replace the affected transactions and events, then re-run your decoders for those heights."
 }
