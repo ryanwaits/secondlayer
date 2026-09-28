@@ -272,6 +272,8 @@ export type {
 	ChainTxLevelEvent,
 	ChainWebhookDelivery,
 	ChainWebhookEnvelope,
+	RuneApplyDeliveryOf,
+	RuneApplyEnvelope,
 	SbtcDepositEvent,
 	SbtcWithdrawalEvent,
 	SbtcWithdrawalSweptConfirmedEvent,

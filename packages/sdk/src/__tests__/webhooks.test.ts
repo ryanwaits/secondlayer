@@ -233,6 +233,36 @@ describe("decodeChainWebhook", () => {
 		);
 	});
 
+	// Bitcoin-sourced (plan 060) — a separate wire shape from a Stacks apply:
+	// `chain`/`event_index` at the top level, no `canonical`, `event` is the
+	// plain Streams `RuneEventPayload` (no nested `.data`).
+	test("decodes a rune_transfer apply delivery (Bitcoin-sourced, chain=bitcoin)", () => {
+		const body = JSON.stringify({
+			type: "chain.rune_transfer.apply",
+			timestamp: "2026-09-28T12:00:00.000Z",
+			data: {
+				action: "apply",
+				chain: "bitcoin",
+				trigger: "rune_transfer",
+				tx_id: "0xrunetx",
+				block_hash: "0xbtcblockhash",
+				block_height: 968_123,
+				event_index: 2,
+				rune_id: "840000:3",
+				event: { amount: "1000", address: "bc1qexample" },
+			},
+		});
+
+		const delivery = decodeChainWebhook(body);
+		if (delivery.type !== "chain.rune_transfer.apply") {
+			throw new Error("expected a rune_transfer apply delivery");
+		}
+		expect(delivery.data.chain).toBe("bitcoin");
+		expect(delivery.data.rune_id).toBe("840000:3");
+		expect(delivery.data.event.amount).toBe("1000");
+		expect(delivery.data.event.address).toBe("bc1qexample");
+	});
+
 	test("decodes a chain.reorg.rollback delivery", () => {
 		const body = JSON.stringify({
 			type: "chain.reorg.rollback",
