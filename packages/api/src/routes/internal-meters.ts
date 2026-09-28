@@ -56,6 +56,9 @@ type MeterItemInput = {
 	accountId: string;
 	unit: MeterUnit;
 	quantity: number;
+	/** Raw sampled quantity before any floor — `memory.gb_hour` only.
+	 *  Optional; non-negative when present. */
+	observedQuantity?: number;
 	idempotencyKey: string;
 	source?: string;
 	occurredAt?: string;
@@ -78,6 +81,16 @@ function parseItem(raw: unknown, index: number): MeterItemInput {
 		throw new ValidationError(`items[${index}].quantity must be a number`);
 	}
 	if (
+		body.observedQuantity !== undefined &&
+		(typeof body.observedQuantity !== "number" ||
+			!Number.isFinite(body.observedQuantity) ||
+			body.observedQuantity < 0)
+	) {
+		throw new ValidationError(
+			`items[${index}].observedQuantity must be a non-negative number`,
+		);
+	}
+	if (
 		typeof body.idempotencyKey !== "string" ||
 		body.idempotencyKey.length === 0
 	) {
@@ -93,6 +106,7 @@ function parseItem(raw: unknown, index: number): MeterItemInput {
 		accountId: body.accountId,
 		unit: body.unit,
 		quantity: body.quantity,
+		observedQuantity: body.observedQuantity as number | undefined,
 		idempotencyKey: body.idempotencyKey,
 		source: body.source,
 		occurredAt: body.occurredAt,
@@ -141,6 +155,7 @@ app.post("/", async (c) => {
 				accountId: item.accountId,
 				unit: item.unit,
 				quantity: item.quantity,
+				observedQuantity: item.observedQuantity,
 				source: item.source ?? "internal:workload-host",
 				idempotencyKey: item.idempotencyKey,
 				occurredAt: item.occurredAt ? new Date(item.occurredAt) : undefined,

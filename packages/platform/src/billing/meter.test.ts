@@ -321,4 +321,44 @@ describe.skipIf(!HAS_DB)("meter — fractional hosted-stack units", () => {
 		});
 		expect(result.usdMicros).toBe(1n);
 	});
+
+	test("memory.gb_hour stores observedQuantity alongside the floored quantity, priced off quantity only", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const idempotencyKey = randomUUID();
+		const result = await meter(db, {
+			accountId,
+			unit: "memory.gb_hour",
+			quantity: 0.5,
+			observedQuantity: 0.098,
+			source: "internal:provisioner",
+			idempotencyKey,
+		});
+		// Priced off the floored quantity (0.5 GB-h), never the raw sample.
+		expect(result.usdMicros).toBe(14_000n);
+		const row = await db
+			.selectFrom("usage_ledger")
+			.select(["quantity", "observed_quantity"])
+			.where("idempotency_key", "=", idempotencyKey)
+			.executeTakeFirstOrThrow();
+		expect(Number(row.quantity)).toBe(0.5);
+		expect(Number(row.observed_quantity)).toBeCloseTo(0.098, 6);
+	});
+
+	test("a unit with no observedQuantity stores NULL", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const idempotencyKey = randomUUID();
+		await meter(db, {
+			accountId,
+			unit: "storage.gb_day",
+			quantity: 1,
+			source: "internal:provisioner",
+			idempotencyKey,
+		});
+		const row = await db
+			.selectFrom("usage_ledger")
+			.select("observed_quantity")
+			.where("idempotency_key", "=", idempotencyKey)
+			.executeTakeFirstOrThrow();
+		expect(row.observed_quantity).toBeNull();
+	});
 });

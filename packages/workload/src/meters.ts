@@ -25,6 +25,10 @@ export interface MeterBatchItem {
 	accountId: string;
 	unit: MeterUnit;
 	quantity: number;
+	/** Raw sampled quantity before any floor — `memory.gb_hour` only. Passed
+	 *  through to `/internal/meters` and stored on the ledger row unchanged;
+	 *  pricing never reads it. */
+	observedQuantity?: number;
 	idempotencyKey: string;
 	occurredAt?: string;
 }
@@ -144,20 +148,25 @@ export const MEMORY_FLOOR_GB = 0.5;
 /** One tenant's memory sample: RSS summed across its containers, in GiB.
  *  `sampleCgroupBytes` is injected so tests never shell out to `docker
  *  stats`; the real implementation lives in `index.ts` (needs the compose
- *  project name → container list mapping). Floored at `MEMORY_FLOOR_GB` —
- *  a running stack always bills at least the floor, even idling near 0. */
+ *  project name → container list mapping). `quantity` is floored at
+ *  `MEMORY_FLOOR_GB` — a running stack always bills at least the floor,
+ *  even idling near 0 — while `observedQuantity` carries the raw,
+ *  unfloored sample for the credits page's memory chart. */
 export async function sampleMemoryGbHour(
 	accountId: string,
 	sampleCgroupBytes: (accountId: string) => Promise<number>,
 	intervalSeconds: number,
 ): Promise<MeterBatchItem> {
 	const bytes = await sampleCgroupBytes(accountId);
-	const gb = Math.max(bytes / 1024 ** 3, MEMORY_FLOOR_GB);
+	const rawGb = bytes / 1024 ** 3;
+	const gb = Math.max(rawGb, MEMORY_FLOOR_GB);
 	const gbHours = gb * (intervalSeconds / 3600);
+	const observedGbHours = rawGb * (intervalSeconds / 3600);
 	return {
 		accountId,
 		unit: "memory.gb_hour",
 		quantity: gbHours,
+		observedQuantity: observedGbHours,
 		idempotencyKey: memoryIdempotencyKey(accountId, new Date()),
 	};
 }
@@ -346,6 +355,10 @@ export interface ShutdownFlushState {
 	eventCounters: Map<string, EventCounter>;
 	eventPending: MeterBatchItem[];
 	memoryAccumulatorGbHours: Map<string, number>;
+	/** Raw (unfloored) counterpart of `memoryAccumulatorGbHours`, keyed the
+	 *  same way. Optional so callers that predate observed-quantity
+	 *  tracking still compile; omitted accounts simply flush without one. */
+	memoryObservedAccumulatorGbHours?: Map<string, number>;
 	memoryPending: MeterBatchItem[];
 	storagePending: MeterBatchItem[];
 }
@@ -381,15 +394,19 @@ export function collectShutdownFlushItems(
 
 	for (const [accountId, gbHours] of state.memoryAccumulatorGbHours) {
 		if (gbHours > 0) {
+			const observedGbHours =
+				state.memoryObservedAccumulatorGbHours?.get(accountId);
 			items.push({
 				accountId,
 				unit: "memory.gb_hour",
 				quantity: gbHours,
+				observedQuantity: observedGbHours,
 				idempotencyKey: memoryIdempotencyKey(accountId, now),
 			});
 		}
 	}
 	state.memoryAccumulatorGbHours.clear();
+	state.memoryObservedAccumulatorGbHours?.clear();
 
 	return items;
 }

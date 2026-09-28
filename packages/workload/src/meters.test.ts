@@ -120,6 +120,8 @@ describe("sampleMemoryGbHour / sampleStorageGbDay", () => {
 		);
 		expect(item.unit).toBe("memory.gb_hour");
 		expect(item.quantity).toBeCloseTo(MEMORY_FLOOR_GB, 6);
+		// observedQuantity carries the raw, unfloored sample (~0.098 GB-h).
+		expect(item.observedQuantity).toBeCloseTo(0.09765625, 6);
 	});
 
 	test("memory: a 2 GB sample bills the raw sample, above the floor", async () => {
@@ -130,6 +132,8 @@ describe("sampleMemoryGbHour / sampleStorageGbDay", () => {
 		);
 		expect(item.unit).toBe("memory.gb_hour");
 		expect(item.quantity).toBeCloseTo(2, 6);
+		// Above the floor, observedQuantity equals the billed quantity.
+		expect(item.observedQuantity).toBeCloseTo(2, 6);
 	});
 });
 

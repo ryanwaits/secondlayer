@@ -1082,6 +1082,10 @@ export interface UsageLedgerTable {
 	account_id: string;
 	unit: string;
 	quantity: string | number | bigint;
+	/** Raw sampled quantity before any floor (e.g. `memory.gb_hour`'s actual
+	 *  RAM, before the 0.5 GB minimum). NULL for every unit that has no
+	 *  floor to observe past. */
+	observed_quantity: string | number | null;
 	usd_micros: string | number | bigint;
 	debited: Generated<boolean>;
 	source: string;

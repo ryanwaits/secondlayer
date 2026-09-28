@@ -122,6 +122,28 @@ describe.skipIf(!HAS_DB)("POST /internal/meters", () => {
 		expect(res.status).toBe(401);
 	});
 
+	test("negative observedQuantity → 400", async () => {
+		const res = await app().request("/internal/meters", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({
+				items: [
+					{
+						accountId,
+						unit: "memory.gb_hour",
+						quantity: 0.5,
+						observedQuantity: -1,
+						idempotencyKey: "neg-observed",
+					},
+				],
+			}),
+		});
+		expect(res.status).toBe(400);
+	});
+
 	test("unknown unit → 400", async () => {
 		const res = await app().request("/internal/meters", {
 			method: "POST",
@@ -178,6 +200,7 @@ describe.skipIf(!HAS_DB)("POST /internal/meters", () => {
 				accountId,
 				unit: "memory.gb_hour",
 				quantity: 2,
+				observedQuantity: 1.7,
 				idempotencyKey: "batch-1-item-2",
 			},
 		];
@@ -197,6 +220,13 @@ describe.skipIf(!HAS_DB)("POST /internal/meters", () => {
 		expect(firstBody.results).toHaveLength(2);
 		expect(firstBody.results[0]?.usd_micros).toBe(1_000); // 100 events x 10µ$
 		expect(firstBody.results[1]?.usd_micros).toBe(56_000); // 2 GB-hours x 28,000µ$
+
+		const memoryRow = await db
+			.selectFrom("usage_ledger")
+			.select("observed_quantity")
+			.where("idempotency_key", "=", "batch-1-item-2")
+			.executeTakeFirstOrThrow();
+		expect(Number(memoryRow.observed_quantity)).toBeCloseTo(1.7, 6);
 
 		const balanceAfterFirst = await getCredits(db, accountId);
 

@@ -39,6 +39,10 @@ export type MeterInput = {
 	unit: MeterUnit;
 	/** Count of units consumed (rows, partitions, GB-hours, events). */
 	quantity: number;
+	/** Raw sampled quantity before any floor (`memory.gb_hour`'s actual RAM,
+	 *  before the 0.5 GB minimum). Every other unit omits this — pricing
+	 *  always uses `quantity`, never this. */
+	observedQuantity?: number;
 	/** Free-text origin for the usage view / audit trail, e.g. "index",
 	 *  "streams", "archive", "internal:provisioner". */
 	source: string;
@@ -131,6 +135,7 @@ export async function meter(
 			accountId: input.accountId,
 			unit: input.unit,
 			quantity: input.quantity,
+			observedQuantity: input.observedQuantity ?? null,
 			usdMicros: priced.usdMicros,
 			debited: true,
 			source: input.source,
@@ -225,6 +230,7 @@ export async function recordTopup(
 			accountId: input.accountId,
 			unit: "topup",
 			quantity: Number(input.usdMicros / 1_000_000n),
+			observedQuantity: null,
 			usdMicros: -input.usdMicros,
 			debited: true,
 			source: input.source,

@@ -256,6 +256,7 @@ async function main(): Promise<void> {
 	// newly-running or newly-stopped tenant is picked up/dropped without a
 	// restart.
 	const memoryAccumulatorGbHours = new Map<string, number>();
+	const memoryObservedAccumulatorGbHours = new Map<string, number>();
 	const memorySampleLoop = setInterval(async () => {
 		let running: TenantRow[];
 		try {
@@ -278,6 +279,11 @@ async function main(): Promise<void> {
 					(memoryAccumulatorGbHours.get(tenant.account_id) ?? 0) +
 						item.quantity,
 				);
+				memoryObservedAccumulatorGbHours.set(
+					tenant.account_id,
+					(memoryObservedAccumulatorGbHours.get(tenant.account_id) ?? 0) +
+						(item.observedQuantity ?? item.quantity),
+				);
 			} catch (err) {
 				logger.error("workload.meters.memory_sample_failed", {
 					accountId: tenant.account_id,
@@ -297,10 +303,12 @@ async function main(): Promise<void> {
 				accountId,
 				unit: "memory.gb_hour",
 				quantity: gbHours,
+				observedQuantity: memoryObservedAccumulatorGbHours.get(accountId),
 				idempotencyKey: `mem:${accountId}:${now.toISOString().slice(0, 13)}`,
 			});
 		}
 		memoryAccumulatorGbHours.clear();
+		memoryObservedAccumulatorGbHours.clear();
 		const { items, droppedCount } = mergePending(
 			memoryPending,
 			fresh,
@@ -409,6 +417,7 @@ async function main(): Promise<void> {
 			eventCounters,
 			eventPending,
 			memoryAccumulatorGbHours,
+			memoryObservedAccumulatorGbHours,
 			memoryPending,
 			storagePending,
 		});

@@ -1,5 +1,5 @@
 import type { Database, UsageLedgerRow } from "@secondlayer/shared/db";
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 
 /**
  * The metered ledger: one append-only row per billable (or free
@@ -14,6 +14,9 @@ export type LedgerEntry = {
 	accountId: string;
 	unit: string;
 	quantity: number;
+	/** Raw sampled quantity before any floor (`memory.gb_hour` only; every
+	 *  other unit passes `null`). */
+	observedQuantity: number | null;
 	usdMicros: bigint;
 	debited: boolean;
 	source: string;
@@ -38,6 +41,7 @@ export async function claimLedgerEntry(
 			account_id: entry.accountId,
 			unit: entry.unit,
 			quantity: entry.quantity,
+			observed_quantity: entry.observedQuantity,
 			usd_micros: entry.usdMicros.toString(),
 			debited: entry.debited,
 			source: entry.source,
@@ -132,4 +136,129 @@ export async function usageForMonth(
 		quantity: row.quantity ?? "0",
 		usdMicros: row.usd_micros ?? "0",
 	}));
+}
+
+export type DailySpend = {
+	date: string; // "YYYY-MM-DD", UTC
+	unit: string;
+	usdMicros: string;
+};
+
+/** One row per UTC day × unit for `now`'s calendar month, positive charges
+ *  only (a top-up's negative `usd_micros` would otherwise show as a bar
+ *  under the axis) — the credits page's stacked daily-spend chart. */
+export async function dailySpendForMonth(
+	db: Kysely<Database>,
+	accountId: string,
+	now: Date = new Date(),
+): Promise<DailySpend[]> {
+	const { start, end } = monthBounds(now);
+	const rows = await db
+		.selectFrom("usage_ledger")
+		.select((eb) => [
+			// `AT TIME ZONE 'UTC'` on both sides makes the truncation a UTC day
+			// boundary regardless of the session's timezone setting.
+			sql<Date>`date_trunc('day', occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`.as(
+				"day",
+			),
+			"unit",
+			eb.fn.sum<string>("usd_micros").as("usd_micros"),
+		])
+		.where("account_id", "=", accountId)
+		.where("occurred_at", ">=", start)
+		.where("occurred_at", "<", end)
+		.where("usd_micros", ">", "0")
+		.groupBy(
+			sql`date_trunc('day', occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
+		)
+		.groupBy("unit")
+		.orderBy("day")
+		.execute();
+	return rows.map((row) => ({
+		date: new Date(row.day).toISOString().slice(0, 10),
+		unit: row.unit,
+		usdMicros: row.usd_micros ?? "0",
+	}));
+}
+
+/** Sum of positive `usd_micros` across every unit in the trailing 24h — the
+ *  "burning now" rate. Always relative to `now`, independent of whatever
+ *  month the usage table is browsing. */
+export async function burnRateUsdMicros(
+	db: Kysely<Database>,
+	accountId: string,
+	now: Date = new Date(),
+): Promise<bigint> {
+	const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+	const row = await db
+		.selectFrom("usage_ledger")
+		.select((eb) => eb.fn.sum<string>("usd_micros").as("total"))
+		.where("account_id", "=", accountId)
+		.where("occurred_at", ">=", since)
+		.where("occurred_at", "<=", now)
+		.where("usd_micros", ">", "0")
+		.executeTakeFirst();
+	return row?.total ? BigInt(row.total) : 0n;
+}
+
+export type ServiceState = "running" | "stopped" | "none";
+
+export type MemoryHourRow = {
+	hour: string; // ISO
+	billedGb: number;
+	observedGb: number | null;
+};
+
+export type DeliveryServiceSnapshot = {
+	state: ServiceState;
+	lastChargedAt: string | null;
+	memory24h: MemoryHourRow[];
+};
+
+const SERVICE_RUNNING_WINDOW_MS = 75 * 60 * 1000;
+const SERVICE_STOPPED_WINDOW_MS = 35 * 24 * 60 * 60 * 1000;
+const MEMORY_24H_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Derives the delivery-service state from `memory.gb_hour` ledger rows —
+ *  no new plumbing, per Definitions: `running` if a row exists in the last
+ *  75 min, `stopped` if one exists in the last 35 days but not the last 75
+ *  min, `none` if neither (never ran, or last ran more than 35 days ago). */
+export async function deliveryServiceSnapshot(
+	db: Kysely<Database>,
+	accountId: string,
+	now: Date = new Date(),
+): Promise<DeliveryServiceSnapshot> {
+	const since35d = new Date(now.getTime() - SERVICE_STOPPED_WINDOW_MS);
+	const since75m = new Date(now.getTime() - SERVICE_RUNNING_WINDOW_MS);
+	const since24h = new Date(now.getTime() - MEMORY_24H_WINDOW_MS);
+
+	const rows = await db
+		.selectFrom("usage_ledger")
+		.select(["occurred_at", "quantity", "observed_quantity"])
+		.where("account_id", "=", accountId)
+		.where("unit", "=", "memory.gb_hour")
+		.where("occurred_at", ">=", since35d)
+		.where("occurred_at", "<=", now)
+		.orderBy("occurred_at", "asc")
+		.execute();
+
+	const last = rows.at(-1);
+	const state: ServiceState = !last
+		? "none"
+		: last.occurred_at >= since75m
+			? "running"
+			: "stopped";
+
+	return {
+		state,
+		lastChargedAt: last ? last.occurred_at.toISOString() : null,
+		memory24h: rows
+			.filter((r) => r.occurred_at >= since24h)
+			.map((r) => ({
+				hour: r.occurred_at.toISOString(),
+				billedGb: Number(r.quantity),
+				observedGb:
+					r.observed_quantity != null ? Number(r.observed_quantity) : null,
+			})),
+	};
 }
