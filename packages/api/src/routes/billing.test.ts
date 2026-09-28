@@ -275,4 +275,129 @@ describe.skipIf(!HAS_DB)("GET /usage", () => {
 		expect(byUnit.get("archive.partition")?.usdMicros).toBe("100000");
 		expect(byUnit.get("archive.partition.events")?.usdMicros).toBe("150000");
 	});
+
+	type UsageResponseBody = {
+		month: string;
+		usage: Array<{ unit: string; quantity: string; usdMicros: string }>;
+		daily: Array<{ date: string; unit: string; usdMicros: string }>;
+		burn: { rateDayUsdMicros: string; windowHours: number };
+		service: {
+			state: "running" | "stopped" | "none";
+			lastChargedAt: string | null;
+			memory24h: Array<{
+				hour: string;
+				billedGb: number;
+				observedGb: number | null;
+			}>;
+		};
+	};
+
+	test("service.state is running when a memory.gb_hour row landed in the last hour", async () => {
+		const email = `billing-usage-svc-running-${Date.now()}@test.invalid`;
+		const account = await makeAccount(email);
+		await creditCredits(db, account.id, 1_000_000n);
+		await meter(db, {
+			accountId: account.id,
+			unit: "memory.gb_hour",
+			quantity: 0.5,
+			observedQuantity: 0.3,
+			source: "test",
+			idempotencyKey: `svc-running-${account.id}`,
+			occurredAt: new Date(Date.now() - 30 * 60 * 1000),
+		});
+
+		const res = await appFor(account.id).request("/usage");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as UsageResponseBody;
+		expect(body.service.state).toBe("running");
+		expect(body.service.lastChargedAt).not.toBeNull();
+		expect(body.service.memory24h.length).toBeGreaterThan(0);
+		expect(body.service.memory24h[0]?.observedGb).toBeCloseTo(0.3, 6);
+	});
+
+	test("service.state is stopped when the last memory.gb_hour row is 3h old", async () => {
+		const email = `billing-usage-svc-stopped-${Date.now()}@test.invalid`;
+		const account = await makeAccount(email);
+		await creditCredits(db, account.id, 1_000_000n);
+		await meter(db, {
+			accountId: account.id,
+			unit: "memory.gb_hour",
+			quantity: 0.5,
+			source: "test",
+			idempotencyKey: `svc-stopped-${account.id}`,
+			occurredAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+		});
+
+		const res = await appFor(account.id).request("/usage");
+		const body = (await res.json()) as UsageResponseBody;
+		expect(body.service.state).toBe("stopped");
+	});
+
+	test("service.state is none with no memory.gb_hour history", async () => {
+		const email = `billing-usage-svc-none-${Date.now()}@test.invalid`;
+		const account = await makeAccount(email);
+		await creditCredits(db, account.id, 1_000_000n);
+
+		const res = await appFor(account.id).request("/usage");
+		const body = (await res.json()) as UsageResponseBody;
+		expect(body.service.state).toBe("none");
+		expect(body.service.lastChargedAt).toBeNull();
+		expect(body.service.memory24h).toHaveLength(0);
+	});
+
+	test("daily groups by UTC day, splitting a charge either side of midnight", async () => {
+		const email = `billing-usage-daily-midnight-${Date.now()}@test.invalid`;
+		const account = await makeAccount(email);
+		await creditCredits(db, account.id, 1_000_000n);
+		await meter(db, {
+			accountId: account.id,
+			unit: "webhook.event",
+			quantity: 10,
+			source: "test",
+			idempotencyKey: `daily-before-midnight-${account.id}`,
+			occurredAt: new Date("2026-09-01T23:30:00.000Z"),
+		});
+		await meter(db, {
+			accountId: account.id,
+			unit: "webhook.event",
+			quantity: 20,
+			source: "test",
+			idempotencyKey: `daily-after-midnight-${account.id}`,
+			occurredAt: new Date("2026-09-02T00:30:00.000Z"),
+		});
+
+		const res = await appFor(account.id).request("/usage?month=2026-09");
+		const body = (await res.json()) as UsageResponseBody;
+		const byDate = new Map(body.daily.map((d) => [d.date, d]));
+		expect(byDate.get("2026-09-01")?.usdMicros).toBe("100");
+		expect(byDate.get("2026-09-02")?.usdMicros).toBe("200");
+	});
+
+	test("burn excludes a charge older than the trailing 24h window", async () => {
+		const email = `billing-usage-burn-window-${Date.now()}@test.invalid`;
+		const account = await makeAccount(email);
+		await creditCredits(db, account.id, 1_000_000n);
+		await meter(db, {
+			accountId: account.id,
+			unit: "webhook.event",
+			quantity: 1000,
+			source: "test",
+			idempotencyKey: `burn-old-${account.id}`,
+			occurredAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+		});
+		await meter(db, {
+			accountId: account.id,
+			unit: "webhook.event",
+			quantity: 5,
+			source: "test",
+			idempotencyKey: `burn-recent-${account.id}`,
+			occurredAt: new Date(Date.now() - 60 * 60 * 1000),
+		});
+
+		const res = await appFor(account.id).request("/usage");
+		const body = (await res.json()) as UsageResponseBody;
+		// 5 events x 10µ$ = 50µ$; the 1000-event charge 25h ago must not count.
+		expect(body.burn.rateDayUsdMicros).toBe("50");
+		expect(body.burn.windowHours).toBe(24);
+	});
 });
