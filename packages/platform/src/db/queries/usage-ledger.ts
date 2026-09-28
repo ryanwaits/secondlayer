@@ -288,16 +288,36 @@ export async function deliveryServiceSnapshot(
 			? "running"
 			: "stopped";
 
+	// Bucketed by UTC hour, not one point per row: a retried flush that lands
+	// several samples under the same (or a nearby) `occurred_at` must never
+	// blow the chart past 24 points — sum whatever landed in each hour
+	// instead of trusting the ledger to have exactly one row per hour.
+	const buckets = await db
+		.selectFrom("usage_ledger")
+		.select((eb) => [
+			sql<Date>`date_trunc('hour', occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`.as(
+				"hour",
+			),
+			eb.fn.sum<string>("quantity").as("billed_gb"),
+			sql<string | null>`sum(observed_quantity)`.as("observed_gb"),
+		])
+		.where("account_id", "=", accountId)
+		.where("unit", "=", "memory.gb_hour")
+		.where("occurred_at", ">=", since24h)
+		.where("occurred_at", "<=", now)
+		.groupBy(
+			sql`date_trunc('hour', occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
+		)
+		.orderBy("hour", "asc")
+		.execute();
+
 	return {
 		state,
 		lastChargedAt: last ? last.occurred_at.toISOString() : null,
-		memory24h: rows
-			.filter((r) => r.occurred_at >= since24h)
-			.map((r) => ({
-				hour: r.occurred_at.toISOString(),
-				billedGb: Number(r.quantity),
-				observedGb:
-					r.observed_quantity != null ? Number(r.observed_quantity) : null,
-			})),
+		memory24h: buckets.map((b) => ({
+			hour: b.hour.toISOString(),
+			billedGb: Number(b.billed_gb),
+			observedGb: b.observed_gb != null ? Number(b.observed_gb) : null,
+		})),
 	};
 }
