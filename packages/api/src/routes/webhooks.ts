@@ -221,23 +221,25 @@ export async function resolveRuneId(
  * (plan 060 design) — the Bitcoin evaluator then matches with a plain string
  * compare against a Streams event's `rune_id`, no lookup at match time.
  * Throws `ValidationError` (→ 400) for an unparseable or unresolvable rune.
- * A no-op when this instance has no Bitcoin data configured — nothing to
- * resolve against, and the trigger simply never matches, same posture as any
- * chain webhook on an instance whose evaluator isn't running (see `warning`
- * on the response). `opts` is a test seam (`resolveRuneTriggers.test.ts`-style
- * unit tests, no scratch DB); real callers omit it.
+ *
+ * With no live Bitcoin data to resolve against (Bitcoin not configured on
+ * this instance, or configured but the lazy singleton has no connection) an
+ * id-form ref is still accepted (re-encoded to its canonical form — it IS the
+ * key, no lookup needed), but a NAME-form ref is rejected: storing it raw
+ * would silently never match once Runes data does land, since the evaluator
+ * compares against `rune_id`, not a name. Rejecting up front (rather than
+ * degrading to a no-op like other chain-trigger fields) is what actually
+ * prevents a dead-on-arrival webhook here.
+ *
+ * `opts` is a test seam (`webhooks-runes.test.ts`, no scratch DB); real
+ * callers omit it.
  */
 export async function normalizeRuneTriggers(
 	triggers: ChainTrigger[],
 	opts?: { configured?: boolean; db?: RuneEntryLookupDb },
 ): Promise<ChainTrigger[]> {
 	const configured = opts?.configured ?? isBitcoinConfigured();
-	if (!configured) return triggers;
-	const db = opts?.db ?? getBitcoinDb();
-	// Configured (env var set) but the lazy singleton has no live connection —
-	// treat like unconfigured rather than throw; the trigger just never
-	// matches, same soft-flag posture as every other Bitcoin reader.
-	if (!db) return triggers;
+	const db = configured ? (opts?.db ?? getBitcoinDb()) : undefined;
 	const normalized: ChainTrigger[] = [];
 	for (const trigger of triggers) {
 		const rune = (trigger as { rune?: string }).rune;
@@ -246,6 +248,19 @@ export async function normalizeRuneTriggers(
 			continue;
 		}
 		const ref = parseRuneRef(rune);
+		if (!db) {
+			if ("id" in ref) {
+				// `RUNE_TRIGGER_TYPE_SET.has(trigger.type)` above proves `trigger` is
+				// one of the rune-typed union members (every one of which has an
+				// optional `rune?: string`) — TS can't narrow a union on a Set
+				// membership check, hence the cast.
+				normalized.push({ ...trigger, rune: ref.id } as ChainTrigger);
+				continue;
+			}
+			throw new ValidationError(
+				'rune names need Runes data on this instance; use the rune id instead (e.g. "840000:3")',
+			);
+		}
 		// A real `getBitcoinDb()` handle structurally satisfies `RuneEntryLookupDb`
 		// at runtime (a strict subset of Kysely's full query-builder surface); its
 		// generic-overloaded `select`/`where` signatures just don't collapse to
@@ -256,10 +271,6 @@ export async function normalizeRuneTriggers(
 				`unknown rune on a "${trigger.type}" trigger: ${rune}`,
 			);
 		}
-		// `RUNE_TRIGGER_TYPE_SET.has(trigger.type)` above proves `trigger` is one
-		// of the rune-typed union members (every one of which has an optional
-		// `rune?: string`) — TS can't narrow a union on a Set membership check,
-		// hence the cast.
 		normalized.push({ ...trigger, rune: runeId } as ChainTrigger);
 	}
 	return normalized;

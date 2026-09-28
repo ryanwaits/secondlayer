@@ -47,24 +47,68 @@ describe("resolveRuneId", () => {
 	});
 });
 
-describe("normalizeRuneTriggers", () => {
-	test("a no-op when Bitcoin data isn't configured on this instance", async () => {
+describe("normalizeRuneTriggers — no live Bitcoin data (unconfigured, or configured with no DB handle)", () => {
+	// An id-form ref IS the canonical key — no lookup needed, so it's always
+	// safe to accept and normalize even with nothing to resolve a name against.
+	test("not configured: an id-form rune is accepted and normalized", async () => {
 		const triggers: ChainTrigger[] = [
-			{ type: "rune_transfer", rune: "NOT-EVEN-PARSEABLE!!" },
+			{ type: "rune_burn", rune: "0840000:03" }, // leading zeros
 		];
 		const result = await normalizeRuneTriggers(triggers, { configured: false });
-		expect(result).toEqual(triggers); // unchanged — never even attempts to parse
+		expect(result).toEqual([{ type: "rune_burn", rune: "840000:3" }]);
 	});
 
-	test("a no-op when configured but the DB handle is unavailable (soft-flag posture)", async () => {
-		const triggers: ChainTrigger[] = [{ type: "rune_etch", rune: "840000:3" }];
+	test("configured but the DB handle is unavailable: an id-form rune is accepted and normalized", async () => {
+		const triggers: ChainTrigger[] = [
+			{ type: "rune_etch", rune: "0840000:03" },
+		];
 		const result = await normalizeRuneTriggers(triggers, {
 			configured: true,
 			db: undefined,
 		});
+		expect(result).toEqual([{ type: "rune_etch", rune: "840000:3" }]);
+	});
+
+	// A name-form ref needs a lookup this instance can't perform. Storing it
+	// raw would silently never match once Runes data does land — the
+	// evaluator compares against `rune_id`, not a name — so reject up front
+	// instead of degrading to a no-op.
+	test("not configured: a name-form rune is rejected, not silently stored raw", async () => {
+		const triggers: ChainTrigger[] = [
+			{ type: "rune_transfer", rune: "DOG•GO•TO•THE•MOON" },
+		];
+		await expect(
+			normalizeRuneTriggers(triggers, { configured: false }),
+		).rejects.toThrow(
+			'rune names need Runes data on this instance; use the rune id instead (e.g. "840000:3")',
+		);
+	});
+
+	test("configured but the DB handle is unavailable: a name-form rune is rejected", async () => {
+		const triggers: ChainTrigger[] = [
+			{ type: "rune_mint", rune: "dog.go.to.the.moon" },
+		];
+		await expect(
+			normalizeRuneTriggers(triggers, { configured: true, db: undefined }),
+		).rejects.toThrow(/rune names need Runes data on this instance/);
+	});
+
+	test("leaves a Stacks trigger untouched when not configured", async () => {
+		const triggers: ChainTrigger[] = [
+			{ type: "ft_transfer", trait: "sip-010" },
+		];
+		const result = await normalizeRuneTriggers(triggers, { configured: false });
 		expect(result).toEqual(triggers);
 	});
 
+	test("leaves a rune trigger with no `rune` field untouched when not configured", async () => {
+		const triggers: ChainTrigger[] = [{ type: "rune_etch" }];
+		const result = await normalizeRuneTriggers(triggers, { configured: false });
+		expect(result).toEqual(triggers);
+	});
+});
+
+describe("normalizeRuneTriggers", () => {
 	test("leaves a Stacks trigger untouched even when configured", async () => {
 		const triggers: ChainTrigger[] = [
 			{ type: "ft_transfer", trait: "sip-010" },
