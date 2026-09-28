@@ -1,5 +1,13 @@
 # @secondlayer/shared
 
+## 11.15.2
+
+### Patch Changes
+
+- e6ba2b4: Adds the `pox5_cycles` and `pox5_cycle_signers` tables that materialize the per-cycle PoX-5 rollup.
+- Updated dependencies [c6d9f3e]
+  - @secondlayer/stacks@6.1.1
+
 ## 11.15.1
 
 ### Patch Changes

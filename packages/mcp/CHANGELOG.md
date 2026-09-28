@@ -1,5 +1,16 @@
 # @secondlayer/mcp
 
+## 9.0.2
+
+### Patch Changes
+
+- Updated dependencies [daa256e]
+- Updated dependencies [e6ba2b4]
+- Updated dependencies [c6d9f3e]
+  - @secondlayer/sdk@14.0.0
+  - @secondlayer/shared@11.15.2
+  - @secondlayer/stacks@6.1.1
+
 ## 9.0.1
 
 ### Patch Changes

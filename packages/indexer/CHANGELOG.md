@@ -1,5 +1,21 @@
 # @secondlayer/indexer
 
+## 1.17.0
+
+### Minor Changes
+
+- e6ba2b4: Maintains a materialized per-cycle PoX-5 rollup (`pox5_cycles` / `pox5_cycle_signers`) after every pox5 decoder batch and reorg, and adds a `rebuild-pox5-cycles` CLI to bootstrap or repair it.
+
+### Patch Changes
+
+- f195cab: Mirrors published incident reports and their index into the served public archive tree, so `archive.secondlayer.tools/reports/incidents/...` no longer 404s after `publish-incidents --apply`.
+- Updated dependencies [daa256e]
+- Updated dependencies [e6ba2b4]
+- Updated dependencies [c6d9f3e]
+  - @secondlayer/sdk@14.0.0
+  - @secondlayer/shared@11.15.2
+  - @secondlayer/stacks@6.1.1
+
 ## 1.16.7
 
 ### Patch Changes

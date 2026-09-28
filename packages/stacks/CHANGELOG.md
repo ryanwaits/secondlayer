@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 6.1.1
+
+### Patch Changes
+
+- c6d9f3e: Adds `MAINNET_PREPARE_CYCLE_LENGTH`, pox-5's reward-cycle prepare-phase length in burn blocks, for callers computing cycle freeze points without a node connection.
+
 ## 6.1.0
 
 ### Minor Changes
