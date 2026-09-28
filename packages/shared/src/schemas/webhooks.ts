@@ -172,7 +172,18 @@ export const CHAIN_TRIGGER_TYPES = [
 	"sbtc_withdrawal_accept",
 	"sbtc_withdrawal_reject",
 	"sbtc_withdrawal_swept_confirmed",
+	"rune_etch",
+	"rune_mint",
+	"rune_transfer",
+	"rune_burn",
 ] as const;
+
+/** Runes trigger types (plan 060) — matched off `chain=bitcoin` Streams events
+ *  (plan 059), not the Stacks Index clock. `rune` is a RuneRef (an id like
+ *  `840000:3` or a name like `DOG•GO•TO•THE•MOON`); the API resolves and
+ *  normalizes it to its canonical id at create time (see `../../routes/webhooks.ts`),
+ *  rejecting an unresolvable one with 400 when Bitcoin data is configured. */
+const runeRef = z.string().trim().min(1);
 
 const triggerAmount = z.union([
 	z.string().trim().regex(/^\d+$/, "must be a non-negative integer string"),
@@ -372,6 +383,32 @@ export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 				type: z.literal("sbtc_withdrawal_swept_confirmed"),
 				requestId: z.number().int().nonnegative().optional(),
 				sweepTxid: triggerPattern.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("rune_etch"),
+				rune: runeRef.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("rune_mint"),
+				rune: runeRef.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("rune_transfer"),
+				rune: runeRef.optional(),
+				address: triggerPattern.optional(),
+				minAmount: triggerAmount.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("rune_burn"),
+				rune: runeRef.optional(),
 			})
 			.strict(),
 	],
@@ -606,7 +643,16 @@ export type ChainTrigger =
 			type: "sbtc_withdrawal_swept_confirmed";
 			requestId?: number;
 			sweepTxid?: string;
-	  };
+	  }
+	| { type: "rune_etch"; rune?: string }
+	| { type: "rune_mint"; rune?: string }
+	| {
+			type: "rune_transfer";
+			rune?: string;
+			address?: string;
+			minAmount?: ChainTriggerAmount;
+	  }
+	| { type: "rune_burn"; rune?: string };
 
 /** Args for a chain-trigger builder — every field of a variant except `type`. */
 type TriggerArgs<T extends ChainTrigger["type"]> = Omit<
@@ -704,6 +750,22 @@ export const trigger = {
 		f: TriggerArgs<"sbtc_withdrawal_swept_confirmed"> = {},
 	): ChainTrigger => ({
 		type: "sbtc_withdrawal_swept_confirmed",
+		...f,
+	}),
+	runeEtch: (f: TriggerArgs<"rune_etch"> = {}): ChainTrigger => ({
+		type: "rune_etch",
+		...f,
+	}),
+	runeMint: (f: TriggerArgs<"rune_mint"> = {}): ChainTrigger => ({
+		type: "rune_mint",
+		...f,
+	}),
+	runeTransfer: (f: TriggerArgs<"rune_transfer"> = {}): ChainTrigger => ({
+		type: "rune_transfer",
+		...f,
+	}),
+	runeBurn: (f: TriggerArgs<"rune_burn"> = {}): ChainTrigger => ({
+		type: "rune_burn",
 		...f,
 	}),
 } as const;

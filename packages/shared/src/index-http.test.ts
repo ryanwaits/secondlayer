@@ -237,3 +237,84 @@ describe("IndexHttpClient.getIndexTip wait", () => {
 		).rejects.toThrow();
 	});
 });
+
+describe("IndexHttpClient chain=bitcoin (plan 060)", () => {
+	test("getBitcoinStreamsTip reads /v1/streams/tip?chain=bitcoin", async () => {
+		let lastUrl = "";
+		globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+			lastUrl = String(input);
+			return new Response(JSON.stringify({ block_height: 968_123 }), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			});
+		}) as unknown as typeof fetch;
+
+		const tip = await client().getBitcoinStreamsTip();
+		expect(tip).toBe(968_123);
+		const url = new URL(lastUrl);
+		expect(url.pathname).toBe("/v1/streams/tip");
+		expect(url.searchParams.get("chain")).toBe("bitcoin");
+	});
+
+	test("getBitcoinStreamsEventsPage sends chain/types/to_height and from_height by default", async () => {
+		let lastUrl = "";
+		globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+			lastUrl = String(input);
+			return new Response(JSON.stringify({ events: [], next_cursor: null }), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			});
+		}) as unknown as typeof fetch;
+
+		await client().getBitcoinStreamsEventsPage({
+			types: ["rune_transfer"],
+			toHeight: 968_200,
+			fromHeight: 968_000,
+		});
+		const url = new URL(lastUrl);
+		expect(url.pathname).toBe("/v1/streams/events");
+		expect(url.searchParams.get("chain")).toBe("bitcoin");
+		expect(url.searchParams.get("types")).toBe("rune_transfer");
+		expect(url.searchParams.get("to_height")).toBe("968200");
+		expect(url.searchParams.get("from_height")).toBe("968000");
+		expect(url.searchParams.has("from_cursor")).toBe(false);
+	});
+
+	test("getBitcoinStreamsEventsPage prefers afterCursor over fromHeight when both are given", async () => {
+		let lastUrl = "";
+		globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+			lastUrl = String(input);
+			return new Response(JSON.stringify({ events: [], next_cursor: null }), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			});
+		}) as unknown as typeof fetch;
+
+		await client().getBitcoinStreamsEventsPage({
+			types: ["rune_transfer"],
+			toHeight: 968_200,
+			fromHeight: 968_000,
+			afterCursor: "968100:2",
+		});
+		const url = new URL(lastUrl);
+		expect(url.searchParams.get("from_cursor")).toBe("968100:2");
+		expect(url.searchParams.has("from_height")).toBe(false);
+	});
+
+	test('listReorgs(since, "bitcoin") sets chain=bitcoin; default omits it', async () => {
+		let lastUrl = "";
+		globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+			lastUrl = String(input);
+			return new Response(JSON.stringify({ reorgs: [], next_since: null }), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			});
+		}) as unknown as typeof fetch;
+
+		await client().listReorgs("2026-01-01T00:00:00Z", "bitcoin");
+		expect(new URL(lastUrl).searchParams.get("chain")).toBe("bitcoin");
+
+		await client().listReorgs("2026-01-01T00:00:00Z");
+		expect(new URL(lastUrl).searchParams.get("chain")).toBeNull();
+	});
+});

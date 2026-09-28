@@ -1238,6 +1238,15 @@ export interface TriggerEvaluatorStateTable {
 		Date | null | undefined,
 		Date | null
 	>;
+	/** Streams cursor (`<block_height>:<event_index>`) for the Bitcoin (Runes)
+	 *  chain-trigger evaluator (plan 060) — a separate clock from
+	 *  `last_processed_block` (Stacks). Null until the evaluator fast-forwards
+	 *  it to the Bitcoin Streams tip on first run. */
+	bitcoin_last_cursor: ColumnType<
+		string | null,
+		string | null | undefined,
+		string | null
+	>;
 	updated_at: Generated<Date>;
 }
 

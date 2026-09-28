@@ -3,6 +3,7 @@ import {
 	defaultInternalIndexBaseUrl,
 	defaultInternalStreamsApiKey,
 } from "./index-internal-auth.ts";
+import type { RuneStreamsEvent } from "./streams-rows/events.ts";
 
 /**
  * Low-level transport for the public Index (`/v1/index`) + Streams clock
@@ -558,13 +559,56 @@ export class IndexHttpClient {
 		}
 	}
 
-	/** Reorgs since a resume token (wall-clock `detected_at`-keyed). */
+	/** Reorgs since a resume token (wall-clock `detected_at`-keyed). `chain`
+	 *  defaults to `"stacks"` (unchanged); `"bitcoin"` reads Runes reorgs
+	 *  (`btc_reorgs`, plan 060) instead — a separate feed, own resume tokens. */
 	async listReorgs(
 		since: string,
+		chain: "stacks" | "bitcoin" = "stacks",
 	): Promise<{ reorgs: StreamsReorgRow[]; next_since: string | null }> {
 		const params = new URLSearchParams({ since });
+		if (chain === "bitcoin") params.set("chain", "bitcoin");
 		return this.get(
 			`${this.streamsBaseUrl}/v1/streams/reorgs?${params}`,
+			this.streamsApiKey,
+		);
+	}
+
+	/** Bitcoin (Runes) Streams tip height — `chain=bitcoin`'s own clock,
+	 *  unrelated to the Stacks tip (plan 060). */
+	async getBitcoinStreamsTip(): Promise<number> {
+		const tip = await this.get<{ block_height: number }>(
+			`${this.streamsBaseUrl}/v1/streams/tip?chain=bitcoin`,
+			this.streamsApiKey,
+		);
+		return Number(tip.block_height) || 0;
+	}
+
+	/**
+	 * One page of `chain=bitcoin` Streams events (Runes activity, plan 060's
+	 * evaluator source). Unlike `walkEvents`, this does NOT drain — the caller
+	 * pages by feeding back `next_cursor` — so a tick bounds its own work
+	 * instead of draining an unbounded backlog in one call. `afterCursor`
+	 * (exclusive) takes precedence over `fromHeight` when both are given,
+	 * mirroring the REST endpoint's own `cursor`/`from_height` exclusivity.
+	 */
+	async getBitcoinStreamsEventsPage(opts: {
+		types: readonly string[];
+		toHeight: number;
+		afterCursor?: string;
+		fromHeight?: number;
+		limit?: number;
+	}): Promise<{ events: RuneStreamsEvent[]; next_cursor: string | null }> {
+		const params = new URLSearchParams({
+			chain: "bitcoin",
+			to_height: String(opts.toHeight),
+			limit: String(opts.limit ?? PAGE_LIMIT),
+			types: opts.types.join(","),
+		});
+		if (opts.afterCursor) params.set("from_cursor", opts.afterCursor);
+		else params.set("from_height", String(opts.fromHeight ?? 0));
+		return this.get(
+			`${this.streamsBaseUrl}/v1/streams/events?${params}`,
 			this.streamsApiKey,
 		);
 	}

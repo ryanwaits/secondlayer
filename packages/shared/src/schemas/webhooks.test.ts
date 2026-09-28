@@ -280,6 +280,56 @@ describe("chain webhooks (direct chain triggers)", () => {
 	});
 });
 
+describe("Runes triggers (chain=bitcoin, plan 060)", () => {
+	it("accepts every rune trigger variant, rune ref optional", () => {
+		const parsed = CreateWebhookRequestSchema.parse({
+			name: "runes",
+			url: "https://example.com/webhook",
+			triggers: [
+				{ type: "rune_etch" },
+				{ type: "rune_mint", rune: "840000:3" },
+				{
+					type: "rune_transfer",
+					rune: "DOG•GO•TO•THE•MOON",
+					address: "bc1qexample",
+					minAmount: "1000",
+				},
+				{ type: "rune_burn", rune: "840000:3" },
+			],
+		});
+		expect(parsed.triggers).toHaveLength(4);
+	});
+
+	it("rejects an unknown field on a rune trigger (strict)", () => {
+		const r = CreateWebhookRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			triggers: [{ type: "rune_etch", contractId: "SP123.amm" }],
+		});
+		expect(r.success).toBe(false);
+	});
+
+	it("rejects address/minAmount on rune_etch (rune_transfer-only fields)", () => {
+		const r = CreateWebhookRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			triggers: [{ type: "rune_etch", address: "bc1qexample" }],
+		});
+		expect(r.success).toBe(false);
+	});
+
+	it("a Stacks trigger is unaffected by the rune trigger additions", () => {
+		const parsed = CreateWebhookRequestSchema.parse({
+			name: "stacks-still-works",
+			url: "https://example.com/webhook",
+			triggers: [{ type: "ft_transfer", trait: "sip-010" }],
+		});
+		expect(parsed.triggers).toEqual([
+			{ type: "ft_transfer", trait: "sip-010" },
+		]);
+	});
+});
+
 describe("delivery cap ceilings", () => {
 	afterEach(() => {
 		Reflect.deleteProperty(process.env, "WEBHOOK_MAX_RETRIES_CEILING");

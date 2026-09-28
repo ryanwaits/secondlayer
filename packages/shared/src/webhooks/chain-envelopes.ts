@@ -1,4 +1,8 @@
 import type { ChainTrigger } from "../schemas/webhooks.ts";
+import type {
+	RuneEventPayload,
+	RuneEventType,
+} from "../streams-rows/events.ts";
 
 // Wire shapes delivered to a direct chain-event webhook's webhook. Canonical
 // here so the producer (subgraphs trigger evaluator + reorg handler) and consumers
@@ -72,6 +76,28 @@ export interface ChainApplyEnvelope {
 		| Record<string, unknown>;
 }
 
+/**
+ * Delivered when a Runes trigger (`rune_etch`/`rune_mint`/`rune_transfer`/
+ * `rune_burn`) matches an event on the `chain=bitcoin` Streams clock (plan
+ * 059) — a separate wire shape from {@link ChainApplyEnvelope} because it's
+ * Bitcoin-sourced, not matched off the Stacks Index clock: no `canonical`
+ * (Bitcoin Streams events are always canonical — orphaned ones are recalled
+ * via {@link ChainReorgRollbackEnvelope} like every other chain webhook), and
+ * `event_index` lives at the top level rather than nested. `event` mirrors the
+ * Streams row's `payload` (see `RuneStreamsEvent` in `../streams-rows/events.ts`).
+ */
+export interface RuneApplyEnvelope {
+	action: "apply";
+	chain: "bitcoin";
+	block_hash: string;
+	block_height: number;
+	tx_id: string;
+	event_index: number;
+	trigger: RuneEventType;
+	rune_id: string;
+	event: RuneEventPayload;
+}
+
 /** One orphaned delivery recalled by a reorg rollback. */
 export interface ChainReorgOrphanedEntry {
 	tx_id: string | null;
@@ -84,9 +110,13 @@ export interface ChainReorgOrphanedEntry {
  * (`event_type: "chain.reorg.rollback"`). Lists the previously-delivered applies
  * at or above `fork_point_height` that are now orphaned, so the consumer can undo
  * them precisely. `orphaned` is capped (currently 500); `truncated` flags overflow.
+ * `chain` is set to `"bitcoin"` on a Runes reorg (plan 060) and omitted on a
+ * Stacks one — added rather than always-present so the existing (Stacks-only)
+ * wire shape never changes for an existing consumer.
  */
 export interface ChainReorgRollbackEnvelope {
 	action: "rollback";
+	chain?: "bitcoin";
 	fork_point_height: number;
 	orphaned: ChainReorgOrphanedEntry[];
 	truncated: boolean;
@@ -95,6 +125,7 @@ export interface ChainReorgRollbackEnvelope {
 /** Any chain-webhook webhook body. Discriminate on `action`. */
 export type ChainWebhookEnvelope =
 	| ChainApplyEnvelope
+	| RuneApplyEnvelope
 	| ChainReorgRollbackEnvelope;
 
 // ── Typed per-trigger delivery (`ChainWebhookDelivery`) ────────────────────
@@ -248,6 +279,16 @@ export type ChainApplyDeliveryOf<
 	data: ChainApplyEnvelopeOf<TTrigger, TEvent>;
 };
 
+/** One Runes `apply` delivery body (`type: "chain.rune_*.apply"`). Bitcoin-sourced
+ *  (see {@link RuneApplyEnvelope}), so — unlike {@link ChainApplyDeliveryOf} —
+ *  not generic over an `event` shape: every Runes trigger delivers the same
+ *  `RuneEventPayload`. */
+export type RuneApplyDeliveryOf<TTrigger extends RuneEventType> = {
+	type: `chain.${TTrigger}.apply`;
+	timestamp: string;
+	data: RuneApplyEnvelope & { trigger: TTrigger };
+};
+
 /** Delivered once per affected webhook on a reorg (`type: "chain.reorg.rollback"`). */
 export interface ChainReorgRollbackDelivery {
 	type: "chain.reorg.rollback";
@@ -353,5 +394,9 @@ export type ChainWebhookDelivery =
 			"sbtc_withdrawal_swept_confirmed",
 			SbtcWithdrawalSweptConfirmedEvent
 	  >
+	| RuneApplyDeliveryOf<"rune_etch">
+	| RuneApplyDeliveryOf<"rune_mint">
+	| RuneApplyDeliveryOf<"rune_transfer">
+	| RuneApplyDeliveryOf<"rune_burn">
 	| ChainReorgRollbackDelivery
 	| ChainTestDelivery;
