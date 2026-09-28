@@ -2923,7 +2923,8 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	background: var(--yellow-bg);
 }
 .use-banner.crit,
-.use-banner.stopped {
+.use-banner.stopped,
+.use-banner.capped {
 	border: 1px solid color-mix(in srgb, var(--red) 35%, var(--border));
 	background: var(--red-bg);
 }

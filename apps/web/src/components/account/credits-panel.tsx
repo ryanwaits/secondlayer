@@ -351,6 +351,41 @@ function LevelBanner({
 	);
 }
 
+/** Cents → USD-micros, matching `isOverMonthlyCreditCap`
+ *  (`@secondlayer/platform/billing/prices`) so the page never disagrees with
+ *  the 402 `spend_cap_reached` refusal on the read path. */
+const USD_MICROS_PER_CENT = 10_000;
+
+/** Shown once this month's spend on hosted Index/Streams reads past the free
+ *  1M rows reaches the account's monthly spend cap — the same condition
+ *  `checkRowsAllowance` (`packages/api/src/lib/read-credits.ts`) refuses a
+ *  read on with 402 `spend_cap_reached`. Same banner style as `LevelBanner`. */
+function CapBanner({ now }: { now: Date }) {
+	const resets = nextMonthLabel(currentUtcMonth(now));
+	return (
+		<output className="use-banner capped">
+			<div>
+				<p className="use-banner-t">
+					Reads paused: you reached your monthly spend cap
+				</p>
+				<p className="use-banner-l">
+					Hosted Index and Streams reads past your free 1M rows are paused until{" "}
+					{resets}. Raise your cap to keep reading this month.
+				</p>
+			</div>
+			<button
+				type="button"
+				className="acct-btn"
+				onClick={() =>
+					document.getElementById("cap")?.scrollIntoView({ behavior: "smooth" })
+				}
+			>
+				Change cap
+			</button>
+		</output>
+	);
+}
+
 /** Balance + level pill + runway bar, Burning now, Runs out (Design step
  *  5.3). */
 function RunwayRow({
@@ -474,10 +509,10 @@ function AlertSwitch({
 const DEFAULT_ALERTS: BalanceAlerts = { notify7d: true, notify2d: true };
 
 /** Whole-dollar `$` input + Save, bound to `GET/PATCH /api/billing/caps`.
- *  Empty input = no cap. A read past the free 1M rows keeps being served
- *  once the cap is reached — it just stops being charged (`meter()`,
- *  `@secondlayer/platform/billing/meter.ts`) — so the sub-line never says
- *  "pause." */
+ *  Empty input = no cap. A read past the free 1M rows once the cap is
+ *  reached is refused with 402 `spend_cap_reached` before it starts
+ *  (`checkRowsAllowance`, `packages/api/src/lib/read-credits.ts`) — it
+ *  really does pause. */
 function SpendCapRow() {
 	const { caps } = useAccountData();
 	useEffect(() => {
@@ -516,9 +551,8 @@ function SpendCapRow() {
 			<label htmlFor="spend-cap-input">
 				<span className="t">Monthly spend cap</span>
 				<span className="s">
-					Once this month's spend on hosted reads past your free 1M rows reaches
-					the cap, those reads keep working without a charge until next month.
-					Webhooks aren't affected.
+					Pauses hosted reads past your free 1M rows once this month's spend on
+					them reaches the cap. Webhooks aren't affected.
 				</span>
 			</label>
 			<div className="use-cap-fields">
@@ -593,13 +627,14 @@ function BalanceAlertsSection() {
 
 /** The credits flow on /account/credits, including the way back from Stripe. */
 export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
-	const { billing, burn, service, usage } = useAccountData();
+	const { billing, burn, service, usage, caps } = useAccountData();
 	const st = useTopupReturn(ret);
 	const co = useCheckout();
 	const monthState = useUsageMonth();
 
 	useEffect(() => {
 		refreshBilling();
+		refreshCaps();
 	}, []);
 
 	// Every 60s while the tab is visible, refresh the current month's usage —
@@ -627,10 +662,16 @@ export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
 		runwayDays: runway,
 	});
 	const ready = billing !== null && burn !== null && service !== null;
+	const capped =
+		billing != null &&
+		caps?.monthlyCapCents != null &&
+		Number(billing.spentThisMonthUsdMicros) >=
+			caps.monthlyCapCents * USD_MICROS_PER_CENT;
 
 	return (
 		<>
 			{st ? <ReturnNotice st={st} billing={billing} /> : null}
+			{st?.kind !== "landed" && capped ? <CapBanner now={now} /> : null}
 			{st?.kind !== "landed" && ready && service ? (
 				<>
 					<LevelBanner
