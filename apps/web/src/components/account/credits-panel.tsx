@@ -383,7 +383,7 @@ function RunwayRow({
 		level === "stopped"
 			? service.lastChargedAt
 				? runsOutDate(new Date(service.lastChargedAt), 0)
-				: "—"
+				: "No ongoing charges"
 			: !finiteRunway
 				? "No ongoing charges"
 				: runsOutDate(now, runway);

@@ -134,7 +134,7 @@ function UsageTable({
 												Charged while your balance was short
 											</span>
 										</td>
-										<td className="use-num">—</td>
+										<td className="use-num" />
 										<td className="use-num use-free">
 											{rateLabel(u.unit, u.quantity)}
 										</td>
