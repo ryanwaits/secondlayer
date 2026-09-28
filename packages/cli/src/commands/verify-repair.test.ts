@@ -894,9 +894,10 @@ describe.skipIf(!HAS_DB)("repair --apply against a real database", () => {
 		expect(report.datasets_rewritten).toEqual(["blocks"]);
 		expect(report.heights_missing_child_partitions).toEqual([5]);
 		expect(res.stderr).not.toContain("re-verified clean");
-		expect(res.stderr).toContain(
-			"secondlayer bootstrap --from-block 5 --to-block 5",
-		);
+		// `bootstrap` refuses a database that already holds a completed import,
+		// which every repaired instance does — the hint must not suggest it.
+		expect(res.stderr).not.toContain("secondlayer bootstrap");
+		expect(res.stderr).toContain("cannot be repaired in place");
 		const db = getDb();
 		const txs = await sql<{
 			tx_id: string;
@@ -931,3 +932,112 @@ describe.skipIf(!HAS_DB)("repair --apply against a real database", () => {
 		expect(txs.rows.map((r) => r.tx_id)).toEqual(["fork-tx-5"]);
 	});
 });
+
+/**
+ * The 2026-09-27 incident's exact shape: blocks never changed, only a
+ * transaction (and its event) went missing underneath a block that still
+ * matches the archive byte-for-byte. Before this suite, `repair` only ever
+ * compared block digests, so it reported "nothing to repair" here.
+ */
+describe.skipIf(!HAS_DB)(
+	"repair --apply fixes transactions/events divergence when blocks already match",
+	() => {
+		const ranges = [{ from_block: 0, to_block: 9 }];
+		const chain = fixtureChain(0, 9);
+		let archiveDir: string;
+		let archive: WrittenArchive;
+
+		beforeAll(async () => {
+			const db = getDb();
+			archiveDir = await mkdtemp(join(tmpdir(), "sl-repair-child-"));
+			await clearChain(db);
+			await seedChain(db, chain);
+			const digests = await digestsFor(db, ranges, ["blocks"]);
+			archive = await writeArchive(
+				join(archiveDir, "full"),
+				chain,
+				ranges,
+				digests,
+			);
+		});
+
+		afterAll(async () => {
+			await clearChain(getDb());
+			await closeDb();
+			if (archiveDir) await rm(archiveDir, { recursive: true, force: true });
+		});
+
+		test("a transactions partition short one height is planned, applied, and re-verifies clean", async () => {
+			const db = getDb();
+			// The block at 5 is untouched — `blocks` still matches the archive
+			// exactly — but its transaction and event were deleted underneath it.
+			await sql`DELETE FROM events WHERE block_height = 5`.execute(db);
+			await sql`DELETE FROM transactions WHERE block_height = 5`.execute(db);
+
+			const plan = runRepair(
+				["--against", archive.manifestPath],
+				archive.publicPem,
+			);
+			expect(plan.status).toBe(1);
+			const planReport = JSON.parse(plan.stdout);
+			expect(planReport.status).toBe("plan");
+			expect(planReport.child_partition_mismatches).toHaveLength(1);
+			expect(planReport.child_partition_mismatches[0]).toMatchObject({
+				from_block: 0,
+				to_block: 9,
+				transactions: { expected: 10, actual: 9 },
+				events: { expected: 10, actual: 9 },
+			});
+
+			const applied = runRepair(
+				["--against", archive.manifestPath, "--apply"],
+				archive.publicPem,
+			);
+			expect(applied.status).toBe(0);
+			const report = JSON.parse(applied.stdout);
+			expect(report.status).toBe("repaired");
+			expect(report.rows_written).toEqual({
+				blocks: 0,
+				transactions: 10,
+				events: 10,
+			});
+
+			const txs = await sql<{
+				tx_id: string;
+			}>`SELECT tx_id FROM transactions WHERE block_height = 5`.execute(db);
+			expect(txs.rows.map((r) => r.tx_id)).toEqual(["tx-5"]);
+
+			const verify = spawnSync(
+				process.execPath,
+				[
+					REPAIR_CLI,
+					"verify",
+					"--against",
+					archive.manifestPath,
+					"--counts",
+					"--json",
+					"--public-key",
+					archive.publicPem,
+				],
+				{
+					encoding: "utf8",
+					env: {
+						...process.env,
+						NO_COLOR: "1",
+						SECONDLAYER_API_URL: "http://127.0.0.1:1",
+					},
+				},
+			);
+			expect(verify.status).toBe(0);
+		});
+
+		test("nothing to repair once blocks and children both match", async () => {
+			const res = runRepair(
+				["--against", archive.manifestPath],
+				archive.publicPem,
+			);
+			expect(res.status).toBe(0);
+			expect(JSON.parse(res.stdout)).toEqual({ status: "clean", fixes: [] });
+		});
+	},
+);

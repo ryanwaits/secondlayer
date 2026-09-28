@@ -71,6 +71,11 @@ import { isOssMode } from "../lib/resolve-auth.ts";
  *     hang off that height is not repaired, it is inconsistent in a new way.
  *     When the reference carries no child partition for a height, the block
  *     is rewritten alone and the run says so and exits incomplete.
+ *  6. Blocks matching the archive is not proof nothing is wrong: transactions
+ *     and events can go missing underneath an untouched block (the
+ *     2026-09-27 incident). Every run also compares local transactions/events
+ *     row counts against the manifest and repairs those ranges even when
+ *     every block already matches.
  */
 
 export const REPAIR_EXIT = {
@@ -443,6 +448,374 @@ async function reverify(
 	return remaining;
 }
 
+function findChildPartition(
+	partitions: readonly ArchivePartition[],
+	dataset: ChildDataset,
+	fromBlock: number,
+	toBlock: number,
+): ArchivePartition | undefined {
+	return partitions.find(
+		(p) =>
+			p.dataset === dataset &&
+			p.from_block === fromBlock &&
+			p.to_block === toBlock,
+	);
+}
+
+type ZeroRecordRange = {
+	dataset: string;
+	from_block: number;
+	to_block: number;
+};
+
+function expectedZeroRows(
+	zeroRecordRanges: readonly ZeroRecordRange[],
+	dataset: ChildDataset,
+	fromBlock: number,
+	toBlock: number,
+): boolean {
+	return zeroRecordRanges.some(
+		(r) =>
+			r.dataset === dataset &&
+			r.from_block === fromBlock &&
+			r.to_block === toBlock,
+	);
+}
+
+export type ChildRangeMismatch = {
+	from_block: number;
+	to_block: number;
+	transactions: { expected: number; actual: number };
+	events: { expected: number; actual: number };
+};
+
+/**
+ * Transactions/events ranges whose row count disagrees with the manifest
+ * while the covering blocks match it exactly — the shape of the 2026-09-27
+ * incident: a transaction re-mined onto the winning fork at a lower height
+ * was skipped at insert, then deleted with its losing-fork height, and no
+ * block ever changed. `verify --counts` finds the same disagreement; this is
+ * repair's own copy of that check, so a standalone `repair --apply` run can
+ * fix it without an operator first running `verify`.
+ *
+ * Scoped to ranges the manifest names a transactions or events partition
+ * for. A range where BOTH datasets are zero-record is skipped — nothing to
+ * compare there, and any local rows in it are a broken chain elsewhere, out
+ * of scope for this check.
+ */
+export async function planChildPartitionDivergence(
+	db: ReturnType<typeof getDb>,
+	partitions: readonly ArchivePartition[],
+	zeroRecordRanges: readonly ZeroRecordRange[],
+	inRange: (from: number, to: number) => boolean,
+): Promise<ChildRangeMismatch[]> {
+	const ranges = new Map<string, { from: number; to: number }>();
+	for (const p of partitions) {
+		if (p.dataset !== "transactions" && p.dataset !== "events") continue;
+		if (!inRange(p.from_block, p.to_block)) continue;
+		ranges.set(`${p.from_block}-${p.to_block}`, {
+			from: p.from_block,
+			to: p.to_block,
+		});
+	}
+
+	const mismatches: ChildRangeMismatch[] = [];
+	for (const { from, to } of ranges.values()) {
+		const txPartition = findChildPartition(
+			partitions,
+			"transactions",
+			from,
+			to,
+		);
+		const evPartition = findChildPartition(partitions, "events", from, to);
+		const expectedTx =
+			txPartition?.row_count ??
+			(expectedZeroRows(zeroRecordRanges, "transactions", from, to) ? 0 : null);
+		const expectedEv =
+			evPartition?.row_count ??
+			(expectedZeroRows(zeroRecordRanges, "events", from, to) ? 0 : null);
+		if (expectedTx === null && expectedEv === null) continue;
+
+		const actualTx = (await computeRangeDigest(db, "transactions", from, to))
+			.row_count;
+		const actualEv = (await computeRangeDigest(db, "events", from, to))
+			.row_count;
+		if (
+			(expectedTx !== null && actualTx !== expectedTx) ||
+			(expectedEv !== null && actualEv !== expectedEv)
+		) {
+			mismatches.push({
+				from_block: from,
+				to_block: to,
+				transactions: { expected: expectedTx ?? actualTx, actual: actualTx },
+				events: { expected: expectedEv ?? actualEv, actual: actualEv },
+			});
+		}
+	}
+	return mismatches;
+}
+
+/**
+ * Replace one range's transactions and events outright, together — the
+ * covering blocks already match the archive, so there is no block or
+ * parent-hash boundary to respect here, only these two child tables for this
+ * height range. Both are always rewritten as a pair, even when only one of
+ * them actually diverged: events reference transactions by `tx_id`, so
+ * clearing transactions without first clearing (and then restoring) events
+ * would either violate that foreign key or leave stale events behind.
+ */
+async function applyChildRangeFix(
+	rawClient: ReturnType<typeof getRawClient>,
+	reference: LoadedReference,
+	mismatch: ChildRangeMismatch,
+	gate: ArchiveGate | undefined,
+): Promise<{ transactions: number; events: number }> {
+	const partitions = reference.manifest.partitions ?? [];
+	const txPartition = findChildPartition(
+		partitions,
+		"transactions",
+		mismatch.from_block,
+		mismatch.to_block,
+	);
+	const evPartition = findChildPartition(
+		partitions,
+		"events",
+		mismatch.from_block,
+		mismatch.to_block,
+	);
+	const txBytes = txPartition
+		? await fetchVerifiedPartition(reference, txPartition, gate)
+		: null;
+	const evBytes = evPartition
+		? await fetchVerifiedPartition(reference, evPartition, gate)
+		: null;
+
+	const written = { transactions: 0, events: 0 };
+	await rawClient.begin(async (tx) => {
+		// FK order: events out before transactions, transactions in before events.
+		await tx.unsafe("DELETE FROM events WHERE block_height BETWEEN $1 AND $2", [
+			mismatch.from_block,
+			mismatch.to_block,
+		]);
+		await tx.unsafe(
+			"DELETE FROM transactions WHERE block_height BETWEEN $1 AND $2",
+			[mismatch.from_block, mismatch.to_block],
+		);
+		if (txBytes) {
+			const writable = await tx
+				.unsafe(copyStatement("transactions"))
+				.writable();
+			written.transactions = await writeRowsToCopyStream({
+				writable,
+				dataset: "transactions",
+				rows: readPartitionRows(
+					txBytes,
+					`repair-transactions-${mismatch.from_block}`,
+				),
+			});
+		}
+		if (evBytes) {
+			const writable = await tx.unsafe(copyStatement("events")).writable();
+			written.events = await writeRowsToCopyStream({
+				writable,
+				dataset: "events",
+				rows: readPartitionRows(
+					evBytes,
+					`repair-events-${mismatch.from_block}`,
+				),
+			});
+		}
+	});
+	return written;
+}
+
+/**
+ * The whole repair flow for the case where blocks already match the archive
+ * and only transactions/events diverge — quote, confirm, apply, re-verify,
+ * report, exit. Kept apart from the block-fix flow above: that flow always
+ * has bytes to fetch to plan a block replace/insert, so its quote covers
+ * dry-run too; this one can plan for free (the mismatch is a local row-count
+ * check against the manifest, no partition bytes needed) and only meters
+ * when `--apply` actually fetches anything.
+ */
+async function runChildOnlyRepair(params: {
+	reference: LoadedReference;
+	childMismatches: ChildRangeMismatch[];
+	apply: boolean;
+	json: boolean;
+	yes: boolean;
+}): Promise<never> {
+	const { reference, childMismatches, apply, json, yes } = params;
+
+	if (childMismatches.length === 0) {
+		success("Nothing to repair — local data matches the archive.");
+		output({ json, data: { status: "clean", fixes: [] }, human: () => {} });
+		process.exit(REPAIR_EXIT.OK);
+	}
+
+	const partitions = reference.manifest.partitions ?? [];
+	const fetchPaths = childMismatches.flatMap((m) => {
+		const tx = findChildPartition(
+			partitions,
+			"transactions",
+			m.from_block,
+			m.to_block,
+		);
+		const ev = findChildPartition(
+			partitions,
+			"events",
+			m.from_block,
+			m.to_block,
+		);
+		return [tx?.path, ev?.path].filter((p): p is string => p !== undefined);
+	});
+
+	let gate: ArchiveGate | undefined;
+	let quoteLine: string | undefined;
+	if (apply && isOfficialArchive(reference)) {
+		const result = await quoteArchiveFetch(fetchPaths, "repair");
+		if (!result.ok) {
+			printError(
+				result.kind === "not_configured"
+					? ARCHIVE_GATE_NOT_CONFIGURED_MESSAGE
+					: result.message,
+			);
+			process.exit(REPAIR_EXIT.UNANCHORED);
+		}
+		if (!result.quote.sufficient) {
+			printError(formatInsufficientMessage(result.quote));
+			process.exit(REPAIR_EXIT.UNANCHORED);
+		}
+		quoteLine = formatQuoteValue(result.quote, "repair");
+		note(`  metered: ${quoteLine}`);
+		if (shouldPromptForGatedFetch({ yes })) {
+			if (json) {
+				writeData(JSON.stringify(confirmationRequiredPayload(result.quote)));
+				process.exit(REPAIR_EXIT.UNANCHORED);
+			}
+			const proceed = await confirmDestructive({
+				message: `Fetch ${fetchPaths.length} partition(s) from the archive?`,
+				yes,
+			});
+			if (!proceed) {
+				note("Nothing was fetched.");
+				process.exit(REPAIR_EXIT.UNANCHORED);
+			}
+		}
+		gate = createGatedFetcher(fetchPaths, "repair");
+	}
+
+	const applied = { transactions: 0, events: 0 };
+	if (apply) {
+		const rawClient = getRawClient("source");
+		for (const mismatch of childMismatches) {
+			const result = await applyChildRangeFix(
+				rawClient,
+				reference,
+				mismatch,
+				gate,
+			);
+			applied.transactions += result.transactions;
+			applied.events += result.events;
+		}
+	}
+
+	const db = getDb();
+	let remaining = childMismatches.length;
+	if (apply) {
+		remaining = 0;
+		for (const mismatch of childMismatches) {
+			const [actualTx, actualEv] = await Promise.all([
+				computeRangeDigest(
+					db,
+					"transactions",
+					mismatch.from_block,
+					mismatch.to_block,
+				),
+				computeRangeDigest(
+					db,
+					"events",
+					mismatch.from_block,
+					mismatch.to_block,
+				),
+			]);
+			if (
+				actualTx.row_count !== mismatch.transactions.expected ||
+				actualEv.row_count !== mismatch.events.expected
+			) {
+				remaining++;
+			}
+		}
+	}
+	const complete = apply && remaining === 0;
+
+	const report = {
+		status: apply ? (complete ? "repaired" : "incomplete") : "plan",
+		reference: reference.origin,
+		divergent_ranges: 0,
+		blocks_to_replace: 0,
+		blocks_to_insert: 0,
+		local_only_heights: [] as number[],
+		applied: 0,
+		rows_written: { blocks: 0, ...applied },
+		datasets_rewritten: apply
+			? (["transactions", "events"] as const)
+			: ([] as const),
+		heights_missing_child_partitions: [] as number[],
+		child_partition_mismatches: childMismatches,
+		fixes: [] as BlockFix[],
+		metered: quoteLine ?? null,
+	};
+
+	output({
+		json,
+		data: report,
+		human: () => {
+			if (apply) {
+				const written = `${applied.transactions} transactions, ${applied.events} events`;
+				if (complete) {
+					success(
+						`Repaired ${childMismatches.length} range(s) (rewrote ${written}); blocks were already correct.`,
+					);
+				} else {
+					warn(
+						`Rewrote ${written} but ${remaining} range(s) still diverge from the archive.`,
+					);
+				}
+			} else {
+				warn(
+					`${childMismatches.length} range(s) have transactions/events that diverge from the archive, while their blocks match.`,
+				);
+				console.error("");
+				console.error(
+					formatTable(
+						[
+							"RANGE",
+							"TX EXPECTED",
+							"TX LOCAL",
+							"EVENTS EXPECTED",
+							"EVENTS LOCAL",
+						],
+						childMismatches
+							.slice(0, 20)
+							.map((m) => [
+								`${m.from_block}-${m.to_block}`,
+								String(m.transactions.expected),
+								String(m.transactions.actual),
+								String(m.events.expected),
+								String(m.events.actual),
+							]),
+					),
+				);
+				console.error("");
+				console.error(dim("(dry-run — pass --apply to write the repair)"));
+			}
+		},
+	});
+
+	process.exit(complete ? REPAIR_EXIT.OK : REPAIR_EXIT.DIVERGENCE_REMAINS);
+}
+
 export function attachRepairCommand(cmd: Command): Command {
 	return cmd
 		.requiredOption(
@@ -470,6 +843,11 @@ A fixed block is rewritten together with its transactions and events from the
 archive's partitions for that height. When the reference carries no
 transactions or events partition for a height, the block is rewritten alone,
 the run names the height, and it exits 1.
+
+When blocks already match the archive but a transactions or events partition
+does not, that range's transactions and events are replaced outright — there
+is no block or fork boundary to preserve, only stale rows underneath one that
+was never wrong.
 
 Exit codes:
   0  nothing to repair, or the repair completed and re-verified clean
@@ -549,14 +927,27 @@ Exit codes:
 					(c) => c.status !== "match",
 				);
 
+				// Blocks agree with the archive; the chain's shape is fine. But the
+				// 2026-09-27 incident left blocks untouched and only broke
+				// transactions/events, so "blocks match" is not "nothing to repair" —
+				// check the child datasets before saying so.
 				if (divergent.length === 0) {
-					success("Nothing to repair — local blocks match the archive.");
-					output({
-						json: opts.json,
-						data: { status: "clean", fixes: [] },
-						human: () => {},
+					const childMismatches = await planChildPartitionDivergence(
+						db,
+						reference.manifest.partitions ?? [],
+						(reference.manifest.zero_record_ranges as
+							| ZeroRecordRange[]
+							| undefined) ?? [],
+						inRange,
+					);
+					await runChildOnlyRepair({
+						reference,
+						childMismatches,
+						apply: !!opts.apply,
+						json: !!opts.json,
+						yes: !!opts.yes,
 					});
-					process.exit(REPAIR_EXIT.OK);
+					return;
 				}
 
 				const partitions = (reference.manifest.partitions ?? []).filter(
@@ -735,9 +1126,12 @@ Exit codes:
 						);
 					}
 					for (const height of missingHeights.slice(0, 5)) {
+						// `bootstrap` refuses a database that already holds a completed
+						// import (`lib/bootstrap-resume.ts`), which every repaired
+						// instance does — it is never the right suggestion here.
 						console.error(
 							dim(
-								`  transactions/events at ${height}: run \`secondlayer bootstrap --from-block ${height} --to-block ${height}\``,
+								`  the archive has no transactions/events at ${height} either: it cannot be repaired in place; re-ingest ${height} from your own node, or bootstrap a fresh database from the archive`,
 							),
 						);
 					}

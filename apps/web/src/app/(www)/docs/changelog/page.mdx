@@ -7,6 +7,12 @@ instance reads are yours and unmetered. Archive bootstrap/backfill/reindex
 and hosted Index/Streams reads at `api.secondlayer.tools` draw
 [credits](/docs/authentication#archive-credits).
 
+## CLI — September 2026
+
+### `repair` fixes transactions and events, not just blocks
+
+`secondlayer repair` used to compare block digests only, so it reported "nothing to repair" whenever a transaction or event went missing underneath a block that still matched the archive. It now also compares your transactions/events row counts against the manifest and repairs those ranges on `--apply`, even when every block is already correct. The stale-height hint no longer suggests `bootstrap`, which refuses a database that already holds a completed import.
+
 ## Index — September 2026
 
 ### Runes: `sl.index.runes`, and `chain=bitcoin` on Streams
