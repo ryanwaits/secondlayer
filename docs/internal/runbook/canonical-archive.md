@@ -114,8 +114,11 @@ rule.
 
 Compares each canonical height's `hash` + `index_block_hash` to a stacks-node
 `/v3/blocks/{index_block_hash}` fetch. Recomputes both identities from the raw
-bytes. Does **not** attest transactions or events — those are declared
-`unattested-by-node` in the report.
+bytes. Also recomputes `txMerkleRoot` over our stored txids and compares it
+against the node header's own `tx_merkle_root`, so `blocks` and
+`transactions` are both attested (`attested_datasets`). It does **not**
+attest `events`: the node does not expose events at this endpoint, so that
+dataset is declared `unattested-by-node` in the report.
 
 ```bash
 # Detached. Log is bind-mounted, survives ssh drops.

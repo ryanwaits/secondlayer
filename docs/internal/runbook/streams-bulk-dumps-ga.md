@@ -66,8 +66,9 @@ is final.
 
 - Tune with `STREAMS_BULK_BTC_CONFIRMATIONS` (default 6).
 - The streams-bulk path no longer reads `STREAMS_BULK_FINALITY_LAG_BLOCKS`.
-  **Do NOT remove that var from prod `.env`** — the **dataset publishers**
-  (sbtc / stx-transfers / pox-4 / bns, via `datasets/_shared/scheduler.ts`)
-  still read it for their own finality lag. It is inert only for streams-bulk.
+  The old dataset publishers (sbtc / stx-transfers / pox-4 / bns, via
+  `datasets/_shared/scheduler.ts`) were the last other reader; the whole
+  datasets product surface was removed (`23e84491`), so nothing reads this
+  var anymore. Safe to remove from prod `.env`.
 - The manifest's `finality_lag_blocks` now reports the *observed* lag
   (`tip_height − finalized_height`) at publish time, not a fixed constant.
