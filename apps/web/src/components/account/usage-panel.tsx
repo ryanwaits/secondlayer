@@ -125,8 +125,8 @@ function UsageTable({
 						if (u.unit === "rows.delivered") {
 							sub +=
 								deliveredRows > ROWS_ALLOWANCE
-									? " · first 10M free"
-									: " · inside the free 10M";
+									? ` · first ${formatRows(ROWS_ALLOWANCE)} free`
+									: ` · inside the free ${formatRows(ROWS_ALLOWANCE)}`;
 						}
 						return (
 							<tr key={u.unit}>

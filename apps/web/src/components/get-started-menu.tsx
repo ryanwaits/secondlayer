@@ -1,5 +1,6 @@
 "use client";
 
+import { ROWS_ALLOWANCE, formatRows } from "@/lib/usage";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -90,7 +91,8 @@ export function GetStartedMenu() {
 						<span className="imenu-row-text">
 							<span className="imenu-row-title">Get an API key</span>
 							<span className="imenu-row-desc">
-								Read from our hosted API. 10M rows free every month.
+								Read from our hosted API. {formatRows(ROWS_ALLOWANCE)} rows free
+								every month.
 							</span>
 						</span>
 					</Link>

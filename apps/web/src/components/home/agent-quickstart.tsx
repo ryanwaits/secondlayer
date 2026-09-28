@@ -1,5 +1,6 @@
 import { CodeBlock } from "@/components/code-block";
 import { ASK_STEP, HARNESSES, READ_CMD } from "@/lib/home-quickstart";
+import { ROWS_ALLOWANCE, formatRows } from "@/lib/usage";
 import type { ReactNode } from "react";
 import { HarnessPicker } from "./harness-picker";
 
@@ -38,8 +39,8 @@ export function AgentQuickstart() {
 				<p className="home-sub">
 					The docs ship as a skill. Install it once and your harness knows every
 					endpoint; you ask the question, it makes the calls.{" "}
-					<a href="/login">Get a key</a>; your first 10M rows each month are
-					free.
+					<a href="/login">Get a key</a>; your first{" "}
+					{formatRows(ROWS_ALLOWANCE)} rows each month are free.
 				</p>
 
 				<ol className="home-qs-steps">

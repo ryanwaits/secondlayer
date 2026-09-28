@@ -98,8 +98,8 @@ describe("allowanceFootLine", () => {
 	const resetLabel = "Oct 1";
 
 	test("under the allowance", () => {
-		expect(allowanceFootLine(4_000_000, resetLabel)).toBe(
-			"6M free rows left. Resets Oct 1.",
+		expect(allowanceFootLine(400_000, resetLabel)).toBe(
+			"600,000 free rows left. Resets Oct 1.",
 		);
 	});
 
@@ -110,7 +110,7 @@ describe("allowanceFootLine", () => {
 	});
 
 	test("over the allowance", () => {
-		expect(allowanceFootLine(10_410_000, resetLabel)).toBe(
+		expect(allowanceFootLine(1_410_000, resetLabel)).toBe(
 			"Allowance used. 410,000 rows past it this month, paid from your balance. Resets Oct 1.",
 		);
 	});

@@ -12,6 +12,7 @@ import {
 	useAccountData,
 } from "@/lib/account-data";
 import {
+	ROWS_ALLOWANCE,
 	allowanceUsedFraction,
 	currentUtcMonth,
 	deliveredRowsIn,
@@ -63,8 +64,8 @@ function AccountInsights({ billing }: { billing: Billing | null }) {
 			) : null}
 			{showFreeRowsNotice ? (
 				<p className="acct-fine left">
-					You've used {formatRows(rowsDelivered)} of your 10M free rows this
-					month.
+					You've used {formatRows(rowsDelivered)} of your{" "}
+					{formatRows(ROWS_ALLOWANCE)} free rows this month.
 				</p>
 			) : null}
 		</>
@@ -93,9 +94,10 @@ export function BalanceStats({ billing }: { billing: Billing | null }) {
 function PricingNote() {
 	return (
 		<p className="acct-pricing">
-			Every account gets <strong>10M rows free each month</strong>, live or
-			history. After that, <strong>$5 per 1M rows</strong>, then $2 per 1M past
-			$50 in a month. Archive partitions are $0.05 ($0.15 for events); your
+			Every account gets{" "}
+			<strong>{formatRows(ROWS_ALLOWANCE)} rows free each month</strong>, live
+			or history. After that, <strong>$5 per 1M rows</strong>, then $2 per 1M
+			past $50 in a month. Archive partitions are $0.05 ($0.15 for events); your
 			first six repair downloads each month are free. Self-hosted instances are
 			never metered.
 		</p>

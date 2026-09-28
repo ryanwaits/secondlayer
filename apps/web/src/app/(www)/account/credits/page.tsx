@@ -2,6 +2,7 @@
 
 import { CreditsSection } from "@/components/account/credits-panel";
 import { type TopupReturn, takeTopupReturn } from "@/lib/account-data";
+import { ROWS_ALLOWANCE, formatRows } from "@/lib/usage";
 import { useEffect, useRef, useState } from "react";
 
 export default function AccountCreditsPage() {
@@ -19,8 +20,8 @@ export default function AccountCreditsPage() {
 		<>
 			<h1 className="acct-h1">Credits</h1>
 			<p className="acct-lede">
-				Prepaid. Your first 10M rows each month are free; rows past that and
-				archive downloads draw from this balance.
+				Prepaid. Your first {formatRows(ROWS_ALLOWANCE)} rows each month are
+				free; rows past that and archive downloads draw from this balance.
 			</p>
 			<CreditsSection ret={ret} />
 		</>

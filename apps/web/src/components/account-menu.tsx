@@ -11,6 +11,7 @@ import {
 	useAccountData,
 } from "@/lib/account-data";
 import type { Account } from "@/lib/types";
+import { ROWS_ALLOWANCE, formatRows } from "@/lib/usage";
 import { useEffect, useId, useRef, useState } from "react";
 
 const CLI_INSTALL = "bun add -g @secondlayer/cli";
@@ -129,8 +130,8 @@ export function AccountMenu({
 						<div className="acct-empty">
 							<p className="acct-empty-title">No credits left</p>
 							<p className="acct-empty-line">
-								Your first 10M rows each month are free. Past that, reads need
-								credits.
+								Your first {formatRows(ROWS_ALLOWANCE)} rows each month are
+								free. Past that, reads need credits.
 							</p>
 							<button
 								type="button"

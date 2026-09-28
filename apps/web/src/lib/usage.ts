@@ -16,7 +16,7 @@ export type UsageRow = {
  *  Mirrors `ROWS_DELIVERED_MONTHLY_ALLOWANCE` in
  *  `packages/platform/src/billing/prices.ts` — the one place this number is
  *  read from in the web app. */
-export const ROWS_ALLOWANCE = 10_000_000;
+export const ROWS_ALLOWANCE = 1_000_000;
 
 /** Label + sub-line for a usage-table row, by unit. Units missing here (a
  *  future meter, or `topup` which has its own row shape) fall back to their
