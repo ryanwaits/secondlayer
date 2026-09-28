@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.16.0
+
+### Minor Changes
+
+- e7231e5: Add `@secondlayer/shared/email` — one HTML/text layout, sender, and Resend call for every customer email.
+
 ## 11.15.3
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @secondlayer/sdk
 
+## 14.0.1
+
+### Patch Changes
+
+- ddfe189: An error body's own `message` field now wins over its `error` code (e.g. `spend_cap_reached`), so `ApiError.message` shows the human text instead of the raw code.
+- Updated dependencies [e7231e5]
+- Updated dependencies [df2e644]
+  - @secondlayer/shared@11.16.0
+  - @secondlayer/subgraphs@6.3.1
+
 ## 14.0.0
 
 ### Major Changes

@@ -1,5 +1,15 @@
 # @secondlayer/web
 
+## 0.11.9
+
+### Patch Changes
+
+- 9df9601: Draw the credits page's daily-spend and delivery-service memory charts with the shared Mono chart base instead of hand-rolled SVG, and always render the memory chart's frame even when there's no usage in the last 24 hours.
+- f0cc734: Show a banner on the credits page when the monthly spend cap has paused reads, and restore the cap row's "pauses" copy.
+- 264c24d: Add a monthly spend-cap setting to the credits page's balance-alerts card.
+- Updated dependencies [ddfe189]
+  - @secondlayer/sdk@14.0.1
+
 ## 0.11.8
 
 ### Patch Changes

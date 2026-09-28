@@ -1,5 +1,16 @@
 # @secondlayer/worker
 
+## 1.3.33
+
+### Patch Changes
+
+- b70e561: Move balance and spend-cap alert emails onto the shared layout, and fix the spend-cap email copy: over-cap reads keep being served without a charge, not paused.
+- e296f04: Restore the spend-cap alert emails' "pause" copy — now accurate, since a keyed read past the free rows is refused once the cap is reached.
+- Updated dependencies [45534c7]
+- Updated dependencies [e7231e5]
+  - @secondlayer/platform@0.4.0
+  - @secondlayer/shared@11.16.0
+
 ## 1.3.32
 
 ### Patch Changes

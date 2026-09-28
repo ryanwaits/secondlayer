@@ -19,6 +19,10 @@ The instance web console and the `secondlayer console` command are removed. Oper
 
 ## Index — September 2026
 
+### Credits: runway, projected spend, balance alerts and a monthly spend cap
+
+Your credits page now shows what you spend per day, when your balance runs out, and what the month will cost at your current rate, plus your delivery service's memory against its 0.5 GB minimum. We email you at 7 days and 2 days of credit left, and if your delivery service stops. You can also set a monthly spend cap: once this month's spend reaches it, hosted Index and Streams reads past your free 1M rows pause with a `402 spend_cap_reached` until the 1st or until you raise it. Webhooks keep running.
+
 ### 1M rows a month free, then prepaid; a memory floor for hosted stacks
 
 Hosted Index and Streams give you 1M free rows a month, down from 10M. Past that: $5 per 1M rows, $2 per 1M past $50 in a month. Your hosted stack (it runs your webhooks) now bills at least 0.5 GB of memory while it runs, about $10/mo, instead of raw sampled RAM. A stopped stack still bills nothing.

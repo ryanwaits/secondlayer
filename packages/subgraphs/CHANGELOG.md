@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 6.3.1
+
+### Patch Changes
+
+- df2e644: Move the reindex-complete email onto the shared layout.
+- Updated dependencies [e7231e5]
+  - @secondlayer/shared@11.16.0
+
 ## 6.3.0
 
 ### Minor Changes

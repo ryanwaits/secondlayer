@@ -1,5 +1,20 @@
 # @secondlayer/api
 
+## 1.47.1
+
+### Patch Changes
+
+- b096a4a: Move the login-code email onto the shared `@secondlayer/shared/email` layout.
+- 45534c7: Refuse a keyed Index/Streams read past the free 1M rows with 402 `spend_cap_reached` once the account's monthly spend cap is reached, so a spend cap actually pauses reads.
+- Updated dependencies [45534c7]
+- Updated dependencies [ddfe189]
+- Updated dependencies [e7231e5]
+- Updated dependencies [df2e644]
+  - @secondlayer/platform@0.4.0
+  - @secondlayer/sdk@14.0.1
+  - @secondlayer/shared@11.16.0
+  - @secondlayer/subgraphs@6.3.1
+
 ## 1.47.0
 
 ### Minor Changes

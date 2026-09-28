@@ -1,5 +1,16 @@
 # @secondlayer/platform
 
+## 0.4.0
+
+### Minor Changes
+
+- 45534c7: Add `nextMonthResetLabel` to `billing/prices` — the "Mon D" spend-cap reset date, shared by the 402 refusal, the alert emails, and the credits page.
+
+### Patch Changes
+
+- Updated dependencies [e7231e5]
+  - @secondlayer/shared@11.16.0
+
 ## 0.3.25
 
 ### Patch Changes
