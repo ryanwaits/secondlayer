@@ -11,6 +11,10 @@
 # data from somewhere, and we don't wire a public RPC default for it — the
 # only bundled node option is full-node (stacks-node + bitcoind together).
 #
+# Optional Bitcoin/Runes follower (D18, plan 062):
+#   docker compose --profile bitcoin up -d                        # external bitcoind (BITCOIN_RPC_* in .env)
+#   docker compose --profile full-node --profile bitcoin up -d    # bundled bitcoind too
+#
 # Multi-service split (legacy): docker-compose.split.yml
 
 # Third-party images are digest-pinned (`tag@sha256:...`). Tags are mutable, so
@@ -27,6 +31,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-secondlayer}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Runs once, on first init of an empty postgres_data volume: creates
+      # the separate `bitcoin` database (D18, plan 062) alongside
+      # `${POSTGRES_DB:-secondlayer}`.
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     ports:
       - "${POSTGRES_PORT:-127.0.0.1:5432}:5432"
     healthcheck:
@@ -81,6 +89,14 @@ services:
       SUBGRAPH_SOURCE: ${SUBGRAPH_SOURCE:-streams-index}
       SUBGRAPH_INDEX_API_URL: http://127.0.0.1:3800
       BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD:-}
+      # Always set, independent of the `bitcoin` profile below: the `bitcoin`
+      # database is provisioned by postgres's init script unconditionally, so
+      # this points at it whether or not the `runes` service that migrates
+      # and follows it is actually running. When it isn't (or hasn't caught
+      # up yet), `../bitcoin/db.ts`'s readers degrade to the same
+      # not-configured notes as an unset `BITCOIN_DATABASE_URL` instead of
+      # erroring (plan 062: the "database exists, table missing" case).
+      BITCOIN_DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/bitcoin
     ports:
       - "${API_PORT:-127.0.0.1:3800}:3800"
       - "${INDEXER_PORT:-127.0.0.1:3700}:3700"
@@ -105,6 +121,37 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Bitcoin/Runes follower (D18): migrates its own Postgres database
+  # (`bitcoin`, provisioned unconditionally by postgres's init script below)
+  # then follows the tip forever. Points at the bundled `bitcoind` by default
+  # (`--profile full-node --profile bitcoin`) or an external one — only the
+  # BITCOIN_RPC_* envs change either way.
+  runes:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: bitcoin
+    environment:
+      BITCOIN_RPC_URL: ${BITCOIN_RPC_URL:-http://bitcoind:8332}
+      BITCOIN_RPC_USERNAME: ${BITCOIN_RPC_USER:-stacks}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD:-changeme_bitcoin_rpc_password}
+      BITCOIN_DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/bitcoin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # In-memory Runes state (D12, plan 062): `--smol` (baked into the image's
+    # CMD) keeps `follow` at 7-12 GiB instead of 18.2 GiB; a full backfill
+    # peaked at 17.1 GiB with it. 22G gives headroom the same way bitcoind's
+    # 32G below does for its own load. Note for upgrades: a migration can run
+    # long on a full DB (0005 took 2h07m) — `follow` is stopped for the
+    # duration, which is expected, not a hang.
+    deploy:
+      resources:
+        limits:
+          memory: 22G
+    restart: unless-stopped
+    profiles: ["bitcoin"]
+
   bitcoind:
     # Upstream publishes no version tags — only `latest` and an abandoned 1.0.0
     # — so the digest IS the version pin here. `latest` is retained only as the
@@ -114,6 +161,11 @@ services:
     image: kylemanna/bitcoind:latest@sha256:86bbcaa99bf3bf3d5df7fd6d9217b3a41194db4c4e34385064f2cfc9fa7bdf91
     volumes:
       - ${BITCOIN_DATA_DIR:-./data/bitcoin}:/bitcoin/.bitcoin
+      # txindex=1 (Runes commitment checks need it) plus the rpcuser/password
+      # this compose's other services authenticate with — see bitcoin.conf's
+      # own comments. No ZMQ config: `follow` wakes on bitcoind's
+      # `waitfornewblock` RPC instead (plan 070/062, D12).
+      - ./bitcoin.conf:/bitcoin/.bitcoin/bitcoin.conf:ro
     ports:
       - "127.0.0.1:8332:8332"
       - "8333:8333"
