@@ -1,8 +1,18 @@
 import { createHash } from "node:crypto";
-import { mkdir, rename, stat, unlink } from "node:fs/promises";
+import {
+	mkdir,
+	readFile,
+	readdir,
+	rename,
+	stat,
+	unlink,
+} from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { ParquetSchema, ParquetWriter } from "@dsnp/parquetjs";
-import { waitForDiskSpace } from "@secondlayer/shared/archive/disk-guard";
+import {
+	DEFAULT_MIN_FREE_BYTES,
+	waitForDiskSpace,
+} from "@secondlayer/shared/archive/disk-guard";
 import {
 	type DigestIndexPartition,
 	PerHeightDigestAccumulator,
@@ -203,6 +213,9 @@ export type ExportCanonicalSnapshotOptions = {
 	db?: Kysely<Database>;
 	generatedAt?: string;
 	signingPrivateKeyPem?: string;
+	/** The most recent prior snapshot manifest, if one exists, used only to
+	 *  size the free-space requirement (see `deriveExportSpaceRequirement`). */
+	previousManifest?: CanonicalSnapshotManifest;
 };
 
 export type ExportCanonicalSnapshotResult = {
@@ -210,6 +223,84 @@ export type ExportCanonicalSnapshotResult = {
 	manifestPath: string;
 	snapshotDigest: string;
 };
+
+/** Sum of every partition's on-disk bytes a manifest declares — this run's
+ *  own footprint, not a chain-wide total (zero-record ranges write nothing). */
+export function manifestTotalBytes(
+	manifest: CanonicalSnapshotManifest,
+): number {
+	const partitionBytes = (manifest.partitions ?? []).reduce(
+		(sum, p) => sum + p.byte_size,
+		0,
+	);
+	const digestBytes = (manifest.digest_index ?? []).reduce(
+		(sum, d) => sum + d.byte_size,
+		0,
+	);
+	return partitionBytes + digestBytes;
+}
+
+/**
+ * How much free space this export needs before it starts writing.
+ *
+ * The export is cumulative — every run re-writes the whole chain to
+ * `outDir` — so a fixed guess drifts as the chain grows: 100GB was
+ * "comfortably above" the ~39GB a 2026-08 export needed, but by 2026-09 the
+ * production disk hovered at 96–106GB free, making that fixed threshold
+ * nearly unsatisfiable on a host that otherwise had room to spare. The
+ * previous run's own total size is a direct, self-correcting measurement of
+ * what THIS run is about to write; a flat headroom margin covers this run's
+ * organic growth since then. Only a first-ever export (no previous manifest
+ * to measure) falls back to the fixed constant.
+ */
+export const EXPORT_SPACE_MARGIN_FRACTION = 0.2;
+
+export function deriveExportSpaceRequirement(
+	previousManifest: CanonicalSnapshotManifest | null | undefined,
+	defaultMinFreeBytes: number = DEFAULT_MIN_FREE_BYTES,
+): number {
+	if (!previousManifest) return defaultMinFreeBytes;
+	const previousTotal = manifestTotalBytes(previousManifest);
+	if (!Number.isFinite(previousTotal) || previousTotal <= 0) {
+		return defaultMinFreeBytes;
+	}
+	return Math.ceil(previousTotal * (1 + EXPORT_SPACE_MARGIN_FRACTION));
+}
+
+/**
+ * The most recently generated manifest already sitting in `outDir/snapshots`,
+ * if any — the prior local export this staging directory produced. Malformed
+ * or unreadable files are skipped rather than failing the export: sizing the
+ * disk-space check is a nice-to-have, never a reason to refuse to run.
+ */
+export async function loadLatestLocalManifest(
+	outDir: string,
+): Promise<CanonicalSnapshotManifest | null> {
+	const snapshotsDir = join(outDir, "snapshots");
+	let entries: string[];
+	try {
+		entries = await readdir(snapshotsDir);
+	} catch {
+		return null;
+	}
+	let latest: CanonicalSnapshotManifest | null = null;
+	for (const entry of entries) {
+		if (!entry.endsWith(".json")) continue;
+		try {
+			const raw = await readFile(join(snapshotsDir, entry), "utf8");
+			const parsed = JSON.parse(raw) as CanonicalSnapshotManifest;
+			if (
+				!latest ||
+				(parsed.generated_at ?? "") > (latest.generated_at ?? "")
+			) {
+				latest = parsed;
+			}
+		} catch {
+			// Skip a partial/corrupt manifest file rather than fail the export.
+		}
+	}
+	return latest;
+}
 
 export async function exportCanonicalSnapshot(
 	options: ExportCanonicalSnapshotOptions,
@@ -221,6 +312,7 @@ export async function exportCanonicalSnapshot(
 	if (!Number.isSafeInteger(partitionSize) || partitionSize <= 0) {
 		throw new Error(`invalid partition size: ${partitionSize}`);
 	}
+	const minFreeBytes = deriveExportSpaceRequirement(options.previousManifest);
 
 	// Resolve finality OUTSIDE the snapshot only when unbounded; an explicit
 	// bound is pinned as-is so a re-export reproduces the same snapshot scope.
@@ -292,6 +384,7 @@ export async function exportCanonicalSnapshot(
 			// on 2026-08-12 after starting with comfortable headroom.
 			await waitForDiskSpace({
 				path: options.outDir,
+				minFreeBytes,
 				onPause: (space, waitedMs) =>
 					process.stderr.write(
 						`  paused: ${(space.freeBytes / 1024 ** 3).toFixed(1)}GB free, waiting for space (${Math.round(waitedMs / 60_000)}m)\n`,
@@ -832,6 +925,7 @@ function parseCliArgs(argv: string[]): {
 
 async function main(): Promise<void> {
 	const args = parseCliArgs(process.argv.slice(2));
+	const previousManifest = await loadLatestLocalManifest(args.outDir);
 	const result = await exportCanonicalSnapshot({
 		network: process.env.STACKS_NETWORK ?? "mainnet",
 		outDir: args.outDir,
@@ -839,6 +933,7 @@ async function main(): Promise<void> {
 		fromBlock: args.fromBlock,
 		partitionSizeBlocks: args.partitionSizeBlocks,
 		signingPrivateKeyPem: process.env.STREAMS_SIGNING_PRIVATE_KEY,
+		previousManifest: previousManifest ?? undefined,
 	});
 	console.log(
 		JSON.stringify(

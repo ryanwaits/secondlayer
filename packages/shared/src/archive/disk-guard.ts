@@ -42,8 +42,11 @@ export type DiskGuardOptions = {
 	readSpace?: (path: string) => Promise<DiskSpace>;
 };
 
-/** 100GB: comfortably above the ~39GB an export needs plus the backup spike. */
-const DEFAULT_MIN_FREE_BYTES = 100 * 1024 ** 3;
+/** 100GB: comfortably above the ~39GB an export needs plus the backup spike.
+ *  Exported as the fallback threshold for callers (the canonical exporter)
+ *  that derive a tighter, size-aware requirement once they have a previous
+ *  snapshot to measure, and only fall back to this fixed number cold. */
+export const DEFAULT_MIN_FREE_BYTES: number = 100 * 1024 ** 3;
 const DEFAULT_POLL_MS = 60_000;
 const DEFAULT_MAX_WAIT_MS = 2 * 3_600_000;
 /**

@@ -3,10 +3,81 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ParquetReader } from "@dsnp/parquetjs";
+import { DEFAULT_MIN_FREE_BYTES } from "@secondlayer/shared/archive/disk-guard";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
-import { exportCanonicalSnapshot } from "./export-snapshot.ts";
+import type { CanonicalSnapshotManifest } from "./export-snapshot.ts";
+import {
+	deriveExportSpaceRequirement,
+	exportCanonicalSnapshot,
+	manifestTotalBytes,
+} from "./export-snapshot.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
+
+function manifestWithBytes(
+	byteSizes: number[],
+	digestByteSizes: number[] = [],
+): CanonicalSnapshotManifest {
+	return {
+		partitions: byteSizes.map((byte_size, i) => ({
+			dataset: "blocks",
+			from_block: i,
+			to_block: i,
+			path: `blocks/${i}.parquet`,
+			row_count: 1,
+			byte_size,
+			sha256: "",
+			semantic_digest: null,
+			semantic_digest_spec: "sha256:semantic-v1",
+		})),
+		digest_index: digestByteSizes.map((byte_size, i) => ({
+			from_block: i,
+			to_block: i,
+			path: `digests/${i}.parquet`,
+			row_count: 1,
+			byte_size,
+			sha256: "",
+			digest_spec: "sha256:semantic-v1",
+		})),
+	} as unknown as CanonicalSnapshotManifest;
+}
+
+describe("deriving the export's free-space requirement", () => {
+	test("falls back to the fixed default when there is no previous manifest", () => {
+		expect(deriveExportSpaceRequirement(null)).toBe(DEFAULT_MIN_FREE_BYTES);
+		expect(deriveExportSpaceRequirement(undefined)).toBe(
+			DEFAULT_MIN_FREE_BYTES,
+		);
+	});
+
+	test("falls back to the fixed default when the previous manifest is empty", () => {
+		expect(deriveExportSpaceRequirement(manifestWithBytes([]))).toBe(
+			DEFAULT_MIN_FREE_BYTES,
+		);
+	});
+
+	test("sums partitions and digest sidecars into the previous total", () => {
+		const manifest = manifestWithBytes([100, 200], [10]);
+		expect(manifestTotalBytes(manifest)).toBe(310);
+	});
+
+	test("adds a margin on top of the previous export's total size", () => {
+		const manifest = manifestWithBytes([100_000_000_000]);
+		// 100GB previous export -> 120GB requirement (20% margin), well below the
+		// fixed 100GB default this replaces for a chain this size.
+		expect(deriveExportSpaceRequirement(manifest)).toBe(120_000_000_000);
+	});
+
+	test("a small previous export never demands more than its own size plus margin", () => {
+		// Guards against a chain small enough that the old fixed 100GB default
+		// would have been wildly oversized for it.
+		const manifest = manifestWithBytes([1_000]);
+		expect(deriveExportSpaceRequirement(manifest)).toBe(1_200);
+		expect(deriveExportSpaceRequirement(manifest)).toBeLessThan(
+			DEFAULT_MIN_FREE_BYTES,
+		);
+	});
+});
 
 /**
  * The exporter audits and exports the WHOLE canonical table set in one
