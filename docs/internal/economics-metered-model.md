@@ -12,9 +12,15 @@ and webhooks are self-host only. The archive and Index/Streams read meters
 below stand.
 
 **Updated 2026-09-24 (one ledger):** every meter now runs through
-`usage_ledger` + `meter()`, one price table, and a 10M-rows/month
+`usage_ledger` + `meter()`, one price table, and a monthly rows
 allowance replacing the free-height window and the Streams retention
 ladder — both dropped.
+
+**Updated 2026-09-27 (lower allowance + memory floor):** the free-rows
+allowance dropped from 10M to 1M/month (at 10M nearly every reader was
+free). `memory.gb_hour` now bills `max(sampled RAM, 0.5 GB)` per running
+tenant, so any running hosted stack floors at ~$10/mo; a stopped tenant
+is never sampled, so it bills nothing.
 
 ## Constraint
 
@@ -60,12 +66,12 @@ every charge. Prices live in one table, `packages/platform/src/billing/prices.ts
 |---|---|---|
 | `archive.partition` | $0.05 | live |
 | `archive.partition.events` | $0.15 | live |
-| `rows.delivered` | $5/1M; $2/1M once monthly spend ≥ $50; first 10M rows/mo free | live |
-| `memory.gb_hour` | ~$0.028/GB-hour | priced, no caller yet (044) |
+| `rows.delivered` | $5/1M; $2/1M once monthly spend ≥ $50; first 1M rows/mo free | live |
+| `memory.gb_hour` | ~$0.028/GB-hour, floored at 0.5 GB per running tenant | priced, no caller yet (044) |
 | `storage.gb_day` | ~$0.25/GB-month billed daily | priced, no caller yet (046) |
 | `webhook.event` | $10/1M, retries free | priced, no caller yet (044) |
 
-- The first 10M `rows.delivered` per account per UTC calendar month are free
+- The first 1M `rows.delivered` per account per UTC calendar month are free
   — replaces the old free-height window and Streams' 1-day retention
   ladder (both removed). An account still under the allowance, or with
   balance ≥ `MIN_CREDITED_USD_MICROS` (one page's worth), reads full
@@ -74,6 +80,11 @@ every charge. Prices live in one table, `packages/platform/src/billing/prices.ts
   with 402 `insufficient_credits` + a top-up link — the pre-check that
   keeps an out-of-credits key from becoming an unmetered feed of all
   history (`index/credits-gate.ts`, `streams/credits-gate.ts`).
+- `memory.gb_hour` bills `max(sampled RAM, 0.5 GB)` per running tenant
+  (`packages/workload/src/meters.ts`), so any running hosted stack floors
+  at ~$10/mo even idling near 0. Sampling only ever runs against
+  `state = 'running'` tenants (`listRunningTenants`); a stopped tenant is
+  never sampled, so it bills nothing.
 - Hosted `/v1` Index/Streams reads require an `sk-sl_*` key (401 without
   one) — the allowance is per account, so a keyless feed of all history
   would be unmetered.

@@ -263,9 +263,10 @@ Contract and prices live in `docs/internal/economics-metered-model.md`
 | Official-archive bootstrap (genesis or a large range) | Self-host runtime, compose, CLI |
 | Data-avail backfill / reindex that reads our archive | Forward-only indexing from the operator's node |
 | Hosted Index / Streams reads past the monthly allowance | Self-host `/v1` reads |
-| | The first 10M rows delivered per account per month |
+| A running hosted stack's memory, floored at 0.5 GB (~$10/mo) | The first 1M rows delivered per account per month |
 | | `secondlayer verify` / `secondlayer repair` against public manifests |
 | | Self-host subgraphs and webhooks |
+| | A stopped hosted stack |
 
 Display unit is dollars. Charge archive bytes at fetch time with a gated
 URL. Charge hosted reads after the page is served, live or history, at the

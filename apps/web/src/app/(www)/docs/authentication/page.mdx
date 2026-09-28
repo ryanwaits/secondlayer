@@ -38,13 +38,15 @@ Hosted reads, live or history, priced the same:
 
 | Rows delivered | Cost |
 | --- | --- |
-| First 10M rows per account per month | free |
-| Past 10M rows/month | $5 per 1M rows, $2 per 1M past $50 in a month |
+| First 1M rows per account per month | free |
+| Past 1M rows/month | $5 per 1M rows, $2 per 1M past $50 in a month |
 | `304` on `If-None-Match` for a finalized page | free |
 
 The SDK sends `If-None-Match` for you. Its cache holds the last 64 pages in memory; pass `etagCache` to keep one across runs.
 
 Past the free monthly allowance, a key with no balance gets a `402` (`insufficient_credits`) with a top-up link, before anything is served. A key still under the allowance, or with a balance, reads normally and is billed per row after the response.
+
+A hosted subgraph stack bills memory at a min 0.5 GB (~$10/mo while running); a stopped stack bills nothing.
 
 ## Archive credits
 
