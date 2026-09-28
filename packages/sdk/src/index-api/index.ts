@@ -71,7 +71,7 @@ export type {
 	NftTransfersWalkParams,
 	PrintSchemaResponse,
 	IndexPoxCycle,
-	IndexPoxFunctionCount,
+	IndexPoxCycleSigner,
 	PoxCycleEnvelope,
 	PoxCyclesEnvelope,
 	PoxCyclesListParams,

@@ -1,85 +1,208 @@
-import { isPox4DecoderEnabled } from "@secondlayer/shared";
-import { getSourceDb, sql } from "@secondlayer/shared/db";
+/**
+ * `/v1/index/pox/cycles` — reward cycles of the CURRENT PoX (PoX-5). Reads
+ * the materialized `pox5_cycles` / `pox5_cycle_signers` rollup
+ * (`packages/indexer/src/decode/pox5-cycles.ts`), served on hosted and
+ * self-host alike (never gated by a decoder-enabled flag).
+ *
+ * PoX-4 history is retired outright (plan 078): the old rollup queried
+ * `pox4_calls`, a table that stopped growing forever at the epoch 4.0 fork.
+ * At the next PoX fork, repeat this move — a new `pox<N>_cycles` rollup, a
+ * `pox_version` flip, this file rewritten again. The endpoint path never
+ * changes.
+ */
+
+import { getSourceDb, parseJsonb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
+import { burnHeightToRewardCycle } from "@secondlayer/stacks/pox5";
 import type { Kysely } from "kysely";
-import { isPox4EraClosed } from "./pox-era.ts";
 import type { IndexTip } from "./tip.ts";
 
 export const POX_CYCLES_FILTERS = ["limit", "cursor"] as const;
-
 export const POX_CYCLE_FILTERS = [] as const;
 
-/** Per-function action count within a reward cycle. */
-export type PoxFunctionCount = {
-	function_name: string;
-	count: number;
+export const POX_VERSION = 5 as const;
+
+// Mainnet PoX cycle math constants — mirrors the indexer's own copy
+// (`pox5-cycles-storage.ts`). Kept as a local copy rather than an
+// indexer import: the read API doesn't otherwise depend on indexer
+// internals, and pox-5 is mainnet-only for now (same scope as pox-4).
+const MAINNET_FIRST_BURNCHAIN_BLOCK_HEIGHT = 666_050;
+const MAINNET_REWARD_CYCLE_LENGTH = 2_100;
+const POX5_CYCLE_PARAMS = {
+	firstBurnchainBlockHeight: MAINNET_FIRST_BURNCHAIN_BLOCK_HEIGHT,
+	rewardCycleLength: MAINNET_REWARD_CYCLE_LENGTH,
 };
 
-/** Aggregate stats for one PoX reward cycle. */
-export type PoxCycle = {
+/** `get-first-pox-5-reward-cycle` on mainnet — cycles before this are PoX-4,
+ *  final, and not served here. */
+export const FIRST_POX5_REWARD_CYCLE = 141;
+
+export const POX4_NOT_SERVED_NOTE =
+	"PoX-4 cycles are final and not served. Rebuild them from /v1/index/stacking on a self-hosted instance.";
+
+/** A pox-5 reward cycle's materialized totals, before the tip-relative
+ *  `is_current` / `is_frozen` flags are applied. */
+export type Pox5CycleData = {
 	reward_cycle: number;
-	/** Total ustx locked across all stack-* calls in this cycle (bigint-safe string). */
+	start_burn_height: number;
+	prepare_start_burn_height: number;
+	end_burn_height: number;
 	total_stacked_ustx: string;
-	unique_stackers: number;
-	unique_delegators: number;
-	action_count: number;
-	start_block_height: number;
-	end_block_height: number;
-	/** True when this is the latest reward cycle and it is still accumulating new
-	 *  actions. Always false once the pox-4 era closed at the epoch 4.0 fork. */
+	reward_eligible_ustx: string;
+	stakers: number;
+	signers_in_set: number;
+	/** bond index (as string) -> sats staked for this cycle. */
+	bond_sats: Record<string, string>;
+	bond_total_sats: string;
+	sbtc_custodied_sats: string;
+	rewards_allocated_stx: string;
+	rewards_allocated_bond: string;
+	reserve_deposit: string;
+	rewards_per_token_stx: string | null;
+	/** bond index (as string) -> cumulative rewards-per-sat for this cycle. */
+	rewards_per_token_bond: Record<string, string>;
+	distributions: number;
+	rewards_claimed: string;
+	computed_through_height: number;
+};
+
+export type Pox5Cycle = Pox5CycleData & {
+	/** The tip's reward cycle. */
 	is_current: boolean;
-	function_breakdown: PoxFunctionCount[];
+	/**
+	 * Totals can no longer change — the tip's burn height has reached this
+	 * cycle's `prepare_start_burn_height`. Closed and current cycles are
+	 * frozen; a not-yet-started future cycle is open.
+	 */
+	is_frozen: boolean;
+};
+
+export type Pox5CycleSigner = {
+	signer: string;
+	delegated_ustx: string;
+	stx_only_ustx: string;
+	reward_shares_ustx: string;
+	in_set: boolean;
+	rewards_claimed: string;
 };
 
 export type PoxCyclesResponse = {
-	cycles: PoxCycle[];
+	pox_version: typeof POX_VERSION;
+	cycles: Pox5Cycle[];
 	next_cursor: number | null;
 	tip: IndexTip;
-	notes?: string;
 };
 
 export type PoxCycleResponse = {
-	cycle: PoxCycle;
+	pox_version: typeof POX_VERSION;
+	cycle: Pox5Cycle & { signers: Pox5CycleSigner[] };
 	tip: IndexTip;
-	notes?: string;
 };
-
-const POX4_DISABLED_NOTE =
-	"PoX-4 decoding is disabled (POX4_DECODER_ENABLED=false); cycle data is unavailable until re-enabled.";
-
-// `pox4_calls` stops receiving rows forever at the epoch 4.0 hard fork, so the
-// last pox-4 cycle would otherwise report `is_current: true` in perpetuity.
-const POX4_ERA_CLOSED_NOTE =
-	"PoX-4 ended at the epoch 4.0 activation; these cycles are final. PoX-5 era data is at /v1/index/pox5/events.";
 
 type CycleDbRow = {
 	reward_cycle: number;
+	start_burn_height: string | number;
+	prepare_start_burn_height: string | number;
+	end_burn_height: string | number;
 	total_stacked_ustx: string;
-	unique_stackers: number;
-	unique_delegators: number;
-	action_count: number;
-	start_block_height: number;
-	end_block_height: number;
-	max_cycle: number;
-	function_breakdown: Record<string, number>;
+	reward_eligible_ustx: string;
+	stakers: number;
+	signers_in_set: number;
+	bond_sats: unknown;
+	bond_total_sats: string;
+	sbtc_custodied_sats: string;
+	rewards_allocated_stx: string;
+	rewards_allocated_bond: string;
+	reserve_deposit: string;
+	rewards_per_token_stx: string | null;
+	rewards_per_token_bond: unknown;
+	distributions: number;
+	rewards_claimed: string;
+	computed_through_height: string | number;
 };
 
-function normalizeCycle(row: CycleDbRow, eraClosed = false): PoxCycle {
+type SignerDbRow = {
+	signer: string;
+	delegated_ustx: string;
+	stx_only_ustx: string;
+	reward_shares_ustx: string;
+	in_set: boolean;
+	rewards_claimed: string;
+};
+
+function mapCycleRow(row: CycleDbRow): Pox5CycleData {
 	return {
 		reward_cycle: Number(row.reward_cycle),
-		total_stacked_ustx: row.total_stacked_ustx ?? "0",
-		unique_stackers: Number(row.unique_stackers),
-		unique_delegators: Number(row.unique_delegators),
-		action_count: Number(row.action_count),
-		start_block_height: Number(row.start_block_height),
-		end_block_height: Number(row.end_block_height),
-		is_current:
-			Number(row.reward_cycle) === Number(row.max_cycle) && !eraClosed,
-		function_breakdown: Object.entries(row.function_breakdown ?? {}).map(
-			([function_name, count]) => ({ function_name, count: Number(count) }),
+		start_burn_height: Number(row.start_burn_height),
+		prepare_start_burn_height: Number(row.prepare_start_burn_height),
+		end_burn_height: Number(row.end_burn_height),
+		total_stacked_ustx: row.total_stacked_ustx,
+		reward_eligible_ustx: row.reward_eligible_ustx,
+		stakers: Number(row.stakers),
+		signers_in_set: Number(row.signers_in_set),
+		bond_sats: parseJsonb<Record<string, string>>(row.bond_sats),
+		bond_total_sats: row.bond_total_sats,
+		sbtc_custodied_sats: row.sbtc_custodied_sats,
+		rewards_allocated_stx: row.rewards_allocated_stx,
+		rewards_allocated_bond: row.rewards_allocated_bond,
+		reserve_deposit: row.reserve_deposit,
+		rewards_per_token_stx: row.rewards_per_token_stx,
+		rewards_per_token_bond: parseJsonb<Record<string, string>>(
+			row.rewards_per_token_bond,
 		),
+		distributions: Number(row.distributions),
+		rewards_claimed: row.rewards_claimed,
+		computed_through_height: Number(row.computed_through_height),
 	};
+}
+
+function mapSignerRow(row: SignerDbRow): Pox5CycleSigner {
+	return {
+		signer: row.signer,
+		delegated_ustx: row.delegated_ustx,
+		stx_only_ustx: row.stx_only_ustx,
+		reward_shares_ustx: row.reward_shares_ustx,
+		in_set: row.in_set,
+		rewards_claimed: row.rewards_claimed,
+	};
+}
+
+/** The reward cycle a burn height falls in, or `null` before pox-5's genesis
+ *  burn height (an empty/dev instance's zero tip) — nothing is "current". */
+function safeCurrentCycle(tipBurnHeight: number): number | null {
+	if (tipBurnHeight < POX5_CYCLE_PARAMS.firstBurnchainBlockHeight) return null;
+	return burnHeightToRewardCycle(tipBurnHeight, POX5_CYCLE_PARAMS);
+}
+
+function withFlags(
+	data: Pox5CycleData,
+	tipBurnHeight: number,
+	currentCycle: number | null,
+): Pox5Cycle {
+	return {
+		...data,
+		is_current: currentCycle !== null && data.reward_cycle === currentCycle,
+		is_frozen: tipBurnHeight >= data.prepare_start_burn_height,
+	};
+}
+
+/** Resolves the tip's burn height from its Stacks height — injectable so
+ *  callers can test `is_current` / `is_frozen` at synthetic tips without a
+ *  database. */
+export type PoxTipBurnHeightReader = (tip: IndexTip) => Promise<number>;
+
+export async function readTipBurnHeight(
+	tip: IndexTip,
+	db: Kysely<Database> = getSourceDb(),
+): Promise<number> {
+	const row = await db
+		.selectFrom("blocks")
+		.select("burn_block_height")
+		.where("height", "=", tip.block_height)
+		.where("canonical", "=", true)
+		.executeTakeFirst();
+	return row?.burn_block_height ?? 0;
 }
 
 function parseCycleLimit(raw: string | null): number {
@@ -105,73 +228,38 @@ function parseCycleCursor(raw: string | null): number | undefined {
 export type PoxCyclesReader = (
 	query: URLSearchParams,
 	db?: Kysely<Database>,
-	eraClosed?: boolean,
-) => Promise<{ cycles: PoxCycle[]; next_cursor: number | null }>;
+) => Promise<{ cycles: Pox5CycleData[]; next_cursor: number | null }>;
 
 export type PoxCycleReader = (
 	rewardCycle: number,
 	db?: Kysely<Database>,
-	eraClosed?: boolean,
-) => Promise<PoxCycle | null>;
+) => Promise<{ cycle: Pox5CycleData; signers: Pox5CycleSigner[] } | null>;
 
 export async function readPoxCycles(
 	query: URLSearchParams,
 	db: Kysely<Database> = getSourceDb(),
-	eraClosed = false,
-): Promise<{ cycles: PoxCycle[]; next_cursor: number | null }> {
+): Promise<{ cycles: Pox5CycleData[]; next_cursor: number | null }> {
 	const limit = parseCycleLimit(query.get("limit"));
 	const after = parseCycleCursor(query.get("cursor"));
 
 	const afterClause =
-		after !== undefined ? sql`AND p.reward_cycle < ${after}` : sql``;
+		after !== undefined ? sql`AND reward_cycle < ${after}` : sql``;
 
 	const { rows } = await sql<CycleDbRow>`
-		WITH fn_counts AS (
-			SELECT reward_cycle, function_name, COUNT(*)::int AS cnt
-			FROM pox4_calls
-			WHERE canonical = true AND reward_cycle IS NOT NULL
-			GROUP BY reward_cycle, function_name
-		),
-		fn_breakdown AS (
-			SELECT reward_cycle,
-				jsonb_object_agg(function_name, cnt) AS function_breakdown
-			FROM fn_counts
-			GROUP BY reward_cycle
-		),
-		max_cycle AS (
-			SELECT MAX(reward_cycle) AS val
-			FROM pox4_calls
-			WHERE canonical = true AND reward_cycle IS NOT NULL
-		)
 		SELECT
-			p.reward_cycle,
-			COALESCE(
-				SUM(p.amount_ustx::numeric) FILTER (WHERE p.amount_ustx IS NOT NULL),
-				0
-			)::text AS total_stacked_ustx,
-			COUNT(DISTINCT p.stacker) FILTER (WHERE p.stacker IS NOT NULL)::int AS unique_stackers,
-			COUNT(DISTINCT p.caller) FILTER (
-				WHERE p.function_name LIKE 'delegate-%'
-			)::int AS unique_delegators,
-			COUNT(*)::int AS action_count,
-			MIN(p.block_height)::int AS start_block_height,
-			MAX(p.block_height)::int AS end_block_height,
-			m.val::int AS max_cycle,
-			f.function_breakdown
-		FROM pox4_calls p
-		JOIN fn_breakdown f ON f.reward_cycle = p.reward_cycle
-		CROSS JOIN max_cycle m
-		WHERE p.canonical = true
-		  AND p.reward_cycle IS NOT NULL
-		  ${afterClause}
-		GROUP BY p.reward_cycle, f.function_breakdown, m.val
-		ORDER BY p.reward_cycle DESC
+			reward_cycle, start_burn_height, prepare_start_burn_height, end_burn_height,
+			total_stacked_ustx, reward_eligible_ustx, stakers, signers_in_set,
+			bond_sats, bond_total_sats, sbtc_custodied_sats,
+			rewards_allocated_stx, rewards_allocated_bond, reserve_deposit,
+			rewards_per_token_stx, rewards_per_token_bond,
+			distributions, rewards_claimed, computed_through_height
+		FROM pox5_cycles
+		WHERE true ${afterClause}
+		ORDER BY reward_cycle DESC
 		LIMIT ${limit + 1}
 	`.execute(db);
 
-	const cycles = rows
-		.slice(0, limit)
-		.map((row) => normalizeCycle(row, eraClosed));
+	const cycles = rows.slice(0, limit).map(mapCycleRow);
 	const hasMore = rows.length > limit;
 	const last = cycles.at(-1);
 	return {
@@ -183,110 +271,89 @@ export async function readPoxCycles(
 export async function readPoxCycle(
 	rewardCycle: number,
 	db: Kysely<Database> = getSourceDb(),
-	eraClosed = false,
-): Promise<PoxCycle | null> {
+): Promise<{ cycle: Pox5CycleData; signers: Pox5CycleSigner[] } | null> {
 	const { rows } = await sql<CycleDbRow>`
-		WITH fn_counts AS (
-			SELECT function_name, COUNT(*)::int AS cnt
-			FROM pox4_calls
-			WHERE canonical = true AND reward_cycle = ${rewardCycle}
-			GROUP BY function_name
-		),
-		fn_breakdown AS (
-			SELECT jsonb_object_agg(function_name, cnt) AS function_breakdown
-			FROM fn_counts
-		),
-		max_cycle AS (
-			SELECT MAX(reward_cycle)::int AS val
-			FROM pox4_calls
-			WHERE canonical = true AND reward_cycle IS NOT NULL
-		)
 		SELECT
-			${rewardCycle}::int AS reward_cycle,
-			COALESCE(
-				SUM(p.amount_ustx::numeric) FILTER (WHERE p.amount_ustx IS NOT NULL),
-				0
-			)::text AS total_stacked_ustx,
-			COUNT(DISTINCT p.stacker) FILTER (WHERE p.stacker IS NOT NULL)::int AS unique_stackers,
-			COUNT(DISTINCT p.caller) FILTER (
-				WHERE p.function_name LIKE 'delegate-%'
-			)::int AS unique_delegators,
-			COUNT(*)::int AS action_count,
-			MIN(p.block_height)::int AS start_block_height,
-			MAX(p.block_height)::int AS end_block_height,
-			m.val AS max_cycle,
-			f.function_breakdown
-		FROM pox4_calls p
-		CROSS JOIN fn_breakdown f
-		CROSS JOIN max_cycle m
-		WHERE p.canonical = true AND p.reward_cycle = ${rewardCycle}
-		GROUP BY m.val, f.function_breakdown
+			reward_cycle, start_burn_height, prepare_start_burn_height, end_burn_height,
+			total_stacked_ustx, reward_eligible_ustx, stakers, signers_in_set,
+			bond_sats, bond_total_sats, sbtc_custodied_sats,
+			rewards_allocated_stx, rewards_allocated_bond, reserve_deposit,
+			rewards_per_token_stx, rewards_per_token_bond,
+			distributions, rewards_claimed, computed_through_height
+		FROM pox5_cycles
+		WHERE reward_cycle = ${rewardCycle}
+	`.execute(db);
+	const row = rows[0];
+	if (!row) return null;
+
+	const { rows: signerRows } = await sql<SignerDbRow>`
+		SELECT signer, delegated_ustx, stx_only_ustx, reward_shares_ustx, in_set, rewards_claimed
+		FROM pox5_cycle_signers
+		WHERE reward_cycle = ${rewardCycle}
+		ORDER BY signer ASC
 	`.execute(db);
 
-	const row = rows[0];
-	if (!row || row.action_count === 0) return null;
-	return normalizeCycle(row, eraClosed);
-}
-
-/** Exactly one note is returned. A disabled decoder outranks the era note: it
- *  is the more actionable problem and the one an operator can fix. */
-function cycleNote(enabled: boolean, eraClosed: boolean): string | undefined {
-	if (!enabled) return POX4_DISABLED_NOTE;
-	if (eraClosed) return POX4_ERA_CLOSED_NOTE;
-	return undefined;
+	return {
+		cycle: mapCycleRow(row),
+		signers: signerRows.map(mapSignerRow),
+	};
 }
 
 export async function getPoxCyclesResponse(opts: {
 	query: URLSearchParams;
 	tip: IndexTip;
-	decoderEnabled?: boolean;
-	eraClosed?: boolean;
+	tipBurnHeight?: number;
 	readPoxCycles?: PoxCyclesReader;
+	readTipBurnHeight?: PoxTipBurnHeightReader;
 }): Promise<PoxCyclesResponse> {
-	const enabled = opts.decoderEnabled ?? isPox4DecoderEnabled();
-	if (!enabled) {
-		return {
-			cycles: [],
-			next_cursor: null,
-			tip: opts.tip,
-			notes: POX4_DISABLED_NOTE,
-		};
-	}
-	const eraClosed = opts.eraClosed ?? (await isPox4EraClosed());
-	const note = cycleNote(enabled, eraClosed);
+	// Validate/read first: a bad `limit`/`cursor` should 400 without ever
+	// touching the tip.
 	const reader = opts.readPoxCycles ?? readPoxCycles;
-	const { cycles, next_cursor } = await reader(
-		opts.query,
-		undefined,
-		eraClosed,
-	);
+	const { cycles, next_cursor } = await reader(opts.query);
+	const tipBurnHeight =
+		opts.tipBurnHeight ??
+		(await (opts.readTipBurnHeight ?? readTipBurnHeight)(opts.tip));
+	const currentCycle = safeCurrentCycle(tipBurnHeight);
 	return {
-		cycles,
+		pox_version: POX_VERSION,
+		cycles: cycles.map((c) => withFlags(c, tipBurnHeight, currentCycle)),
 		next_cursor,
 		tip: opts.tip,
-		...(note ? { notes: note } : {}),
 	};
 }
+
+export type PoxCycleLookup =
+	| { kind: "ok"; response: PoxCycleResponse }
+	| { kind: "not_found" }
+	| { kind: "pox4_not_served" };
 
 export async function getPoxCycleResponse(opts: {
 	rewardCycle: number;
 	tip: IndexTip;
-	decoderEnabled?: boolean;
-	eraClosed?: boolean;
+	tipBurnHeight?: number;
 	readPoxCycle?: PoxCycleReader;
-}): Promise<PoxCycleResponse | null> {
-	const enabled = opts.decoderEnabled ?? isPox4DecoderEnabled();
-	if (!enabled) {
-		return null;
+	readTipBurnHeight?: PoxTipBurnHeightReader;
+}): Promise<PoxCycleLookup> {
+	if (opts.rewardCycle < FIRST_POX5_REWARD_CYCLE) {
+		return { kind: "pox4_not_served" };
 	}
-	const eraClosed = opts.eraClosed ?? (await isPox4EraClosed());
-	const note = cycleNote(enabled, eraClosed);
 	const reader = opts.readPoxCycle ?? readPoxCycle;
-	const cycle = await reader(opts.rewardCycle, undefined, eraClosed);
-	if (!cycle) return null;
+	const result = await reader(opts.rewardCycle);
+	if (!result) return { kind: "not_found" };
+
+	const tipBurnHeight =
+		opts.tipBurnHeight ??
+		(await (opts.readTipBurnHeight ?? readTipBurnHeight)(opts.tip));
+	const currentCycle = safeCurrentCycle(tipBurnHeight);
 	return {
-		cycle,
-		tip: opts.tip,
-		...(note ? { notes: note } : {}),
+		kind: "ok",
+		response: {
+			pox_version: POX_VERSION,
+			cycle: {
+				...withFlags(result.cycle, tipBurnHeight, currentCycle),
+				signers: result.signers,
+			},
+			tip: opts.tip,
+		},
 	};
 }

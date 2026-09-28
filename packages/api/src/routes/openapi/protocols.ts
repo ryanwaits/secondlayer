@@ -201,20 +201,42 @@ function runesEnvelope(
 
 // ── Examples: real mainnet rows, shaped by each route's serializer ──────────
 
-/** `readPoxCycle(105)`. */
+/** `readPoxCycle(141)` — pox-5's first reward cycle. `total_stacked_ustx` and
+ *  `rewards_per_token_stx` are the exact mainnet values (plan 078); the rest
+ *  are illustrative. */
 const POX_CYCLE_EXAMPLE = {
-	reward_cycle: 105,
-	total_stacked_ustx: "162",
-	unique_stackers: 0,
-	unique_delegators: 0,
-	action_count: 51,
-	start_block_height: 171597,
-	end_block_height: 714810,
+	reward_cycle: 141,
+	start_burn_height: 962_150,
+	prepare_start_burn_height: 962_050,
+	end_burn_height: 964_249,
+	total_stacked_ustx: "392447554847960",
+	reward_eligible_ustx: "392447554847960",
+	stakers: 3035,
+	signers_in_set: 36,
+	bond_sats: { "1": "23017037628" },
+	bond_total_sats: "23017037628",
+	sbtc_custodied_sats: "16016587628",
+	rewards_allocated_stx: "297713728",
+	rewards_allocated_bond: "13810222",
+	reserve_deposit: "52537716",
+	rewards_per_token_stx: "758607677183",
+	rewards_per_token_bond: { "1": "599999974940302" },
+	distributions: 2,
+	rewards_claimed: "162018760",
+	computed_through_height: 8_665_732,
 	is_current: false,
-	function_breakdown: [
-		{ function_name: "stack-aggregation-increase", count: 11 },
-		{ function_name: "stack-aggregation-commit-indexed", count: 40 },
-	],
+	is_frozen: true,
+};
+
+/** `readPoxCycle(141)`'s per-signer breakdown, same cycle as above. */
+const POX_CYCLE_SIGNER_EXAMPLE = {
+	signer:
+		"SPMPMA1V6P430M8C91QS1G9XJ95S59JS1TZFZ4Q4.fastpool-max500-signer-manager",
+	delegated_ustx: "51000000000000",
+	stx_only_ustx: "51000000000000",
+	reward_shares_ustx: "51000000000000",
+	in_set: true,
+	rewards_claimed: "19011164",
 };
 
 // DOG•GO•TO•THE•MOON, 840000:3 — a real mainnet row (live feeder DB,
@@ -391,9 +413,9 @@ export const protocolsPaths = {
 	"/v1/index/pox/cycles": {
 		get: {
 			tags: ["index"],
-			summary: "PoX-4 reward-cycle aggregates",
+			summary: "Reward cycles of the current PoX (PoX-5)",
 			description:
-				"One rollup per PoX-4 reward cycle, newest first: amount, action count, block range and a per-function breakdown. A cycle groups the calls that name a reward cycle, which are the aggregation commits and increases; solo and delegated stacking calls carry none and are not counted. Completed cycles cache for an hour.",
+				"One row per pox-5 reward cycle, newest first, exact to the node: total stacked, reward-eligible STX, bond sats, sBTC custodied, rewards allocated/claimed, and cumulative rewards-per-token. `pox_version` marks the era; at the next PoX fork this endpoint follows the chain and reports the new PoX instead. PoX-4 history is final and not served here; rebuild it from `/v1/index/stacking` on a self-hosted instance. Frozen cycles cache for an hour; the still-open current cycle caches briefly.",
 			security: READ_SECURITY,
 			parameters: [
 				{
@@ -406,7 +428,7 @@ export const protocolsPaths = {
 				{
 					name: "cursor",
 					in: "query",
-					schema: { type: "integer", minimum: 0, example: 84 },
+					schema: { type: "integer", minimum: 0, example: 144 },
 					description:
 						"`next_cursor` from the previous page. Returns cycles below it.",
 				},
@@ -415,20 +437,25 @@ export const protocolsPaths = {
 				"200": json200(
 					{
 						type: "object",
-						required: ["cycles", "next_cursor", "tip"],
+						required: ["pox_version", "cycles", "next_cursor", "tip"],
 						properties: {
+							pox_version: {
+								type: "integer",
+								description:
+									"The PoX version this response reports. Currently 5.",
+								example: 5,
+							},
 							cycles: {
 								type: "array",
-								items: { $ref: "#/components/schemas/PoxCycle" },
+								items: { $ref: "#/components/schemas/Pox5Cycle" },
 							},
 							next_cursor: {
 								type: ["integer", "null"],
 								description:
 									"The last cycle on this page when more remain. Pass it back as `cursor`. `null` on the last page.",
-								example: 104,
+								example: 141,
 							},
 							tip: TIP,
-							notes: POX4_NOTES,
 						},
 					},
 					"Reward cycles, newest first",
@@ -451,39 +478,62 @@ export const protocolsPaths = {
 	"/v1/index/pox/cycles/{reward_cycle}": {
 		get: {
 			tags: ["index"],
-			summary: "PoX-4 reward-cycle aggregate by cycle number",
+			summary: "A PoX-5 reward cycle by cycle number",
 			description:
-				"The rollup for one PoX-4 reward cycle, the same shape as a row of `/v1/index/pox/cycles`.",
+				"One pox-5 reward cycle, the same shape as a row of `/v1/index/pox/cycles` plus its per-signer breakdown. 404 when the cycle doesn't exist yet. A cycle number below 141 (pox-5's first) 404s with a note that PoX-4 cycles are final and not served here.",
 			security: READ_SECURITY,
 			parameters: [
 				{
 					...pp("reward_cycle", "Reward cycle number."),
-					schema: { type: "integer", minimum: 0, example: 105 },
+					schema: { type: "integer", minimum: 0, example: 141 },
 				},
 			],
 			responses: {
 				"200": json200(
 					{
 						type: "object",
-						required: ["cycle", "tip"],
+						required: ["pox_version", "cycle", "tip"],
 						properties: {
-							cycle: { $ref: "#/components/schemas/PoxCycle" },
+							pox_version: {
+								type: "integer",
+								description:
+									"The PoX version this response reports. Currently 5.",
+								example: 5,
+							},
+							cycle: {
+								description:
+									"The cycle's rollup, with its per-signer breakdown.",
+								allOf: [
+									{ $ref: "#/components/schemas/Pox5Cycle" },
+									{
+										type: "object",
+										required: ["signers"],
+										properties: {
+											signers: {
+												type: "array",
+												items: { $ref: "#/components/schemas/Pox5CycleSigner" },
+											},
+										},
+									},
+								],
+							},
 							tip: TIP,
-							notes: POX4_NOTES,
 						},
 						example: {
-							cycle: POX_CYCLE_EXAMPLE,
+							pox_version: 5,
+							cycle: {
+								...POX_CYCLE_EXAMPLE,
+								signers: [POX_CYCLE_SIGNER_EXAMPLE],
+							},
 							tip: TIP_EXAMPLE,
-							notes:
-								"PoX-4 ended at the epoch 4.0 activation; these cycles are final. PoX-5 era data is at /v1/index/pox5/events.",
 						},
 					},
-					"The cycle's rollup",
+					"The cycle, with its signers",
 				),
 				"400": jsonError("`reward_cycle` is not a non-negative integer"),
 				"401": jsonError(ERROR_401),
 				"404": jsonError(
-					"No PoX-4 call names this cycle, or PoX-4 decoding is off on this instance",
+					"The cycle doesn't exist yet, or (below 141) is PoX-4 history: final and not served here; rebuild it from /v1/index/stacking on a self-hosted instance",
 				),
 				"429": jsonError(ERROR_429),
 			},
@@ -491,7 +541,7 @@ export const protocolsPaths = {
 				{
 					lang: "TypeScript",
 					label: "SDK",
-					source: "const res = await sl.index.pox.cycles.get(105);",
+					source: "const res = await sl.index.pox.cycles.get(141);",
 				},
 			],
 		},
@@ -1269,72 +1319,178 @@ export const protocolsSchemas = {
 			result_ok: true,
 		},
 	},
-	PoxCycle: {
+	Pox5Cycle: {
 		type: "object",
 		description:
-			"Rollup of the canonical PoX-4 calls that name one reward cycle: the aggregation commits and increases.",
+			"Materialized per-cycle rollup of pox-5.clar's own state (plan 078), exact to the node.",
 		required: [
 			"reward_cycle",
+			"start_burn_height",
+			"prepare_start_burn_height",
+			"end_burn_height",
 			"total_stacked_ustx",
-			"unique_stackers",
-			"unique_delegators",
-			"action_count",
-			"start_block_height",
-			"end_block_height",
+			"reward_eligible_ustx",
+			"stakers",
+			"signers_in_set",
+			"bond_sats",
+			"bond_total_sats",
+			"sbtc_custodied_sats",
+			"rewards_allocated_stx",
+			"rewards_allocated_bond",
+			"reserve_deposit",
+			"rewards_per_token_stx",
+			"rewards_per_token_bond",
+			"distributions",
+			"rewards_claimed",
+			"computed_through_height",
 			"is_current",
-			"function_breakdown",
+			"is_frozen",
 		],
 		properties: {
 			reward_cycle: { type: "integer", description: "The reward cycle." },
+			start_burn_height: {
+				type: "integer",
+				description: "Bitcoin block at which this cycle starts.",
+			},
+			prepare_start_burn_height: {
+				type: "integer",
+				description:
+					"Bitcoin block at which this cycle's totals froze: the start of the prior cycle's prepare phase.",
+			},
+			end_burn_height: {
+				type: "integer",
+				description: "Bitcoin block at which this cycle ends.",
+			},
 			total_stacked_ustx: {
 				type: "string",
 				description:
-					"Sum of `amount_ustx` over the cycle's calls, as a decimal string. Commits carry no amount, so this is the sum of aggregation increases.",
+					"STX + bond ustx delegated to signers this cycle, as a decimal string.",
 			},
-			unique_stackers: {
+			reward_eligible_ustx: {
+				type: "string",
+				description:
+					"STX actually counted toward rewards. Signers below the 50,000 STX threshold don't count, even though they're in `total_stacked_ustx`.",
+			},
+			stakers: {
 				type: "integer",
 				description:
-					"Distinct non-null `stacker` values among the cycle's calls.",
+					"Distinct stakers (STX and bond) with a position this cycle.",
 			},
-			unique_delegators: {
+			signers_in_set: {
 				type: "integer",
 				description:
-					"Distinct callers of `delegate-*` functions among the cycle's calls.",
+					"Signers that met the 50,000 STX delegation threshold this cycle.",
 			},
-			action_count: {
-				type: "integer",
-				description: "Calls that name this cycle.",
+			bond_sats: {
+				type: "object",
+				description:
+					"Bond index (as a string key) -> sats staked for this cycle.",
+				additionalProperties: { type: "string" },
 			},
-			start_block_height: {
-				type: "integer",
-				description: "Stacks block of the first such call.",
+			bond_total_sats: {
+				type: "string",
+				description: "Sum of `bond_sats` for this cycle.",
 			},
-			end_block_height: {
+			sbtc_custodied_sats: {
+				type: "string",
+				description:
+					"sBTC currently custodied by pox-5 (non-L1 bonds only). A running total, not scoped to this cycle: the contract's `get-total-sbtc-staked` takes no cycle argument.",
+			},
+			rewards_allocated_stx: {
+				type: "string",
+				description:
+					"STX rewards allocated to this cycle's distributions so far.",
+			},
+			rewards_allocated_bond: {
+				type: "string",
+				description:
+					"Bond (sBTC) rewards allocated to this cycle's distributions so far.",
+			},
+			reserve_deposit: {
+				type: "string",
+				description:
+					"STX deposited to the protocol reserve from this cycle's distributions.",
+			},
+			rewards_per_token_stx: {
+				type: ["string", "null"],
+				description:
+					"Cumulative STX rewards per micro-STX for this cycle. `null` before the first distribution.",
+			},
+			rewards_per_token_bond: {
+				type: "object",
+				description:
+					"Bond index (as a string key) -> cumulative rewards-per-sat for this cycle.",
+				additionalProperties: { type: "string" },
+			},
+			distributions: {
 				type: "integer",
-				description: "Stacks block of the last such call.",
+				description: "Distributions run for this cycle so far (0, 1, or 2).",
+			},
+			rewards_claimed: {
+				type: "string",
+				description:
+					"Rewards claimed for this cycle so far, across every signer.",
+			},
+			computed_through_height: {
+				type: "integer",
+				description:
+					"Stacks block height this rollup was last computed through.",
 			},
 			is_current: {
 				type: "boolean",
-				description:
-					"True for the highest cycle while PoX-4 is still live. Always false after the epoch 4.0 fork.",
+				description: "True for the cycle containing the tip's burn height.",
 			},
-			function_breakdown: {
-				type: "array",
-				description: "Call count per function.",
-				items: {
-					type: "object",
-					properties: {
-						function_name: {
-							type: "string",
-							description: "PoX-4 function name.",
-						},
-						count: { type: "integer", description: "Calls to it." },
-					},
-				},
+			is_frozen: {
+				type: "boolean",
+				description:
+					"True once totals can no longer change: the tip has reached `prepare_start_burn_height`. Closed and current cycles are always frozen; only a not-yet-started future cycle is open.",
 			},
 		},
-		// A real row: mainnet, reward cycle 105.
+		// A real cycle: mainnet, reward cycle 141 (pox-5's first).
 		example: POX_CYCLE_EXAMPLE,
+	},
+	Pox5CycleSigner: {
+		type: "object",
+		description: "One signer's share of a pox-5 reward cycle.",
+		required: [
+			"signer",
+			"delegated_ustx",
+			"stx_only_ustx",
+			"reward_shares_ustx",
+			"in_set",
+			"rewards_claimed",
+		],
+		properties: {
+			signer: {
+				type: "string",
+				description: "The signer's principal or contract id.",
+			},
+			delegated_ustx: {
+				type: "string",
+				description:
+					"Total ustx delegated to this signer this cycle (STX + bond).",
+			},
+			stx_only_ustx: {
+				type: "string",
+				description:
+					"STX-only (non-bond) ustx delegated to this signer this cycle.",
+			},
+			reward_shares_ustx: {
+				type: "string",
+				description:
+					"STX shares counted toward rewards, 0 unless the signer met the 50,000 STX threshold.",
+			},
+			in_set: {
+				type: "boolean",
+				description:
+					"Whether this signer met the 50,000 STX delegation threshold this cycle.",
+			},
+			rewards_claimed: {
+				type: "string",
+				description: "Rewards this signer has claimed for this cycle so far.",
+			},
+		},
+		example: POX_CYCLE_SIGNER_EXAMPLE,
 	},
 	Pox5Event: {
 		type: "object",

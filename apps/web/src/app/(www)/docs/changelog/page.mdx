@@ -19,6 +19,10 @@ The instance web console and the `secondlayer console` command are removed. Oper
 
 ## Index — September 2026
 
+### `pox/cycles` now reports PoX-5, exact to the node (SDK major)
+
+`/v1/index/pox/cycles` follows the chain: it now reports reward cycles of the current PoX (PoX-5) instead of the retired PoX-4 rollup, which stopped growing forever at the epoch 4.0 fork. Each cycle carries total stacked and reward-eligible STX, bond sats, sBTC custodied, rewards allocated and claimed, cumulative rewards-per-token, and `is_current`/`is_frozen`; the single-cycle route adds a per-signer breakdown. A new `pox_version` field marks the era, and this endpoint will follow the same move at the next PoX fork. PoX-4 cycle history is final and not served here: a cycle number below 141 404s with a note to rebuild it from `/v1/index/stacking` on a self-hosted instance. `sl.index.pox.cycles` picks up the new shape: an SDK major, since the old fields (`unique_stackers`, `unique_delegators`, `action_count`, `function_breakdown`) are gone.
+
 ### Runes: `sl.index.runes`, and `chain=bitcoin` on Streams
 
 Runes is data on the existing Index plane, not a new product. `sl.index.runes.list()` is the etch catalog, `.get(ref)` a single rune by id or name, `.balances()` current per-outpoint balances, and `.activity.list()` / `.activity.walk()` the etch/mint/transfer/burn event log, with the same envelope shape, cursors, and consume conventions as every other Index feed, on a Bitcoin tip instead of a Stacks one. `sl.streams.events.list({ chain: "bitcoin" })` (and `stream`/`subscribe`/`consume`) reads the same events raw, on their own cursor space. Four webhook triggers (`runeEtch`, `runeMint`, `runeTransfer`, `runeBurn`) fire off the same feed. Self-host with the `bitcoin` compose profile has data today; hosted follows. See [Runes](/docs/runes).

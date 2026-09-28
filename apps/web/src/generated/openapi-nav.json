@@ -81,8 +81,8 @@
 				"title": "The PoX-4 stacking action object"
 			},
 			{
-				"anchor": "pox-cycle-object",
-				"title": "The PoX-4 reward cycle object"
+				"anchor": "pox5-cycle-object",
+				"title": "The PoX-5 reward cycle object"
 			},
 			{
 				"anchor": "pox5-event-object",
@@ -192,12 +192,12 @@
 			{
 				"anchor": "list-pox4-cycles",
 				"method": "GET",
-				"title": "PoX-4 reward-cycle aggregates"
+				"title": "Reward cycles of the current PoX (PoX-5)"
 			},
 			{
 				"anchor": "get-pox4-cycle",
 				"method": "GET",
-				"title": "PoX-4 reward-cycle aggregate by cycle number"
+				"title": "A PoX-5 reward cycle by cycle number"
 			},
 			{
 				"anchor": "list-pox5-events",

@@ -1106,42 +1106,80 @@ export interface SbtcResource {
 }
 
 // ── PoX reward cycles (/v1/index/pox/cycles) ───────────────────────
+// Reports the CURRENT PoX (PoX-5, plan 078). PoX-4 history is final and not
+// served here — see `index.stacking` for the per-call PoX-4 feed. At the
+// next PoX fork, `pox_version` flips and this shape changes again; the
+// resource path stays `index.pox.cycles`.
 
-/** Per-function action count within a reward cycle. */
-export type IndexPoxFunctionCount = {
-	function_name: string;
-	count: number;
-};
-
-/** Aggregate stats for one PoX reward cycle — distinct from `index.stacking`
- *  (decoded per-call PoX-4 actions); this is the reward-cycle rollup. */
+/** One pox-5 reward cycle, exact to the node. */
 export type IndexPoxCycle = {
 	reward_cycle: number;
-	/** Total ustx locked across all stack-* calls in this cycle (bigint-safe string). */
+	/** Bitcoin block at which this cycle starts. */
+	start_burn_height: number;
+	/** Bitcoin block at which this cycle's totals froze (the prior cycle's prepare phase). */
+	prepare_start_burn_height: number;
+	/** Bitcoin block at which this cycle ends. */
+	end_burn_height: number;
+	/** STX + bond ustx delegated to signers this cycle (bigint-safe string). */
 	total_stacked_ustx: string;
-	unique_stackers: number;
-	unique_delegators: number;
-	action_count: number;
-	start_block_height: number;
-	end_block_height: number;
-	/** True when this is the latest reward cycle (still accumulating new actions). */
+	/** STX actually counted toward rewards — signers below the 50k STX threshold don't count. */
+	reward_eligible_ustx: string;
+	/** Distinct stakers (STX and bond) with a position this cycle. */
+	stakers: number;
+	/** Signers that met the 50,000 STX delegation threshold this cycle. */
+	signers_in_set: number;
+	/** Bond index (as a string key) -> sats staked for this cycle. */
+	bond_sats: Record<string, string>;
+	bond_total_sats: string;
+	/** sBTC currently custodied by pox-5 (non-L1 bonds only) — a running total,
+	 *  not scoped to this cycle. Not in this endpoint: unclaimed/pending rewards. */
+	sbtc_custodied_sats: string;
+	rewards_allocated_stx: string;
+	rewards_allocated_bond: string;
+	reserve_deposit: string;
+	/** Cumulative STX rewards per micro-STX for this cycle; `null` before the first distribution. */
+	rewards_per_token_stx: string | null;
+	/** Bond index (as a string key) -> cumulative rewards-per-sat for this cycle. */
+	rewards_per_token_bond: Record<string, string>;
+	/** Distributions run for this cycle so far (0, 1, or 2). */
+	distributions: number;
+	rewards_claimed: string;
+	/** Stacks block height this rollup was last computed through. */
+	computed_through_height: number;
+	/** True for the cycle containing the tip's burn height. */
 	is_current: boolean;
-	function_breakdown: IndexPoxFunctionCount[];
+	/** True once totals can no longer change (the tip has reached
+	 *  `prepare_start_burn_height`). Closed and current cycles are always
+	 *  frozen; only a not-yet-started future cycle is open. */
+	is_frozen: boolean;
+};
+
+/** One signer's share of a pox-5 reward cycle. */
+export type IndexPoxCycleSigner = {
+	signer: string;
+	/** Total ustx delegated to this signer this cycle (STX + bond). */
+	delegated_ustx: string;
+	/** STX-only (non-bond) ustx delegated to this signer this cycle. */
+	stx_only_ustx: string;
+	/** STX shares counted toward rewards — 0 unless the signer met the 50k threshold. */
+	reward_shares_ustx: string;
+	in_set: boolean;
+	rewards_claimed: string;
 };
 
 export type PoxCyclesEnvelope = {
+	/** The PoX version this response reports. Currently 5. */
+	pox_version: 5;
 	cycles: IndexPoxCycle[];
 	/** The next `reward_cycle` to page from (cycles descend), or null at the end. */
 	next_cursor: number | null;
 	tip: IndexTip;
-	/** Present only when the PoX-4 decoder is disabled, explaining an empty feed. */
-	notes?: string;
 };
 
 export type PoxCycleEnvelope = {
-	cycle: IndexPoxCycle;
+	pox_version: 5;
+	cycle: IndexPoxCycle & { signers: IndexPoxCycleSigner[] };
 	tip: IndexTip;
-	notes?: string;
 };
 
 export type PoxCyclesListParams = {
@@ -1153,12 +1191,13 @@ export type PoxCyclesListParams = {
 export type PoxCyclesWalkParams = Omit<PoxCyclesListParams, "limit"> &
 	WalkOptions;
 
-/** `index.pox` — PoX reward-cycle aggregates. */
+/** `index.pox` — reward cycles of the current PoX (PoX-5). */
 export interface PoxResource {
 	cycles: {
 		list(params?: PoxCyclesListParams): Promise<PoxCyclesEnvelope>;
 		walk(params?: PoxCyclesWalkParams): AsyncIterable<IndexPoxCycle>;
-		/** Fetch one reward cycle's aggregate by number; 404 → null. */
+		/** Fetch one reward cycle by number; 404 (unknown cycle, or below pox-5's
+		 *  first reward cycle 141 — final PoX-4 history, not served here) → null. */
 		get(rewardCycle: number): Promise<PoxCycleEnvelope | null>;
 	};
 }

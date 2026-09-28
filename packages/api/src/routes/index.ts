@@ -61,9 +61,11 @@ import {
 	getNftTransfersResponse,
 } from "../index/nft-transfers.ts";
 import {
+	POX4_NOT_SERVED_NOTE,
 	POX_CYCLES_FILTERS,
 	type PoxCycleReader,
 	type PoxCyclesReader,
+	type PoxTipBurnHeightReader,
 	getPoxCycleResponse,
 	getPoxCyclesResponse,
 } from "../index/pox-cycles.ts";
@@ -185,6 +187,7 @@ export type IndexRouterOptions = {
 	readStacking?: StackingReader;
 	readPoxCycles?: PoxCyclesReader;
 	readPoxCycle?: PoxCycleReader;
+	readPoxTipBurnHeight?: PoxTipBurnHeightReader;
 	readTransactionProof?: TransactionProofReader;
 	readPox5Events?: Pox5EventsReader;
 	/** Separate clock from `getTip` above — Runes ingest tracks the Bitcoin
@@ -366,14 +369,14 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					path: "/v1/index/pox/cycles",
 					method: "GET",
 					description:
-						"PoX reward-cycle aggregates — per-cycle totals every stacking dashboard hand-rolls: total_stacked_ustx, unique_stackers, unique_delegators, action_count, block range, is_current flag, and per-function breakdown. Newest cycle first. Cursor-paginated by reward_cycle. Completed cycles are immutably cached; the current cycle is short-cached (still accumulating).",
+						"Reward cycles of the current PoX (PoX-5), exact to the node: total_stacked_ustx, reward_eligible_ustx, bond sats, sBTC custodied, rewards allocated/claimed, rewards-per-token, is_current, is_frozen. pox_version marks the era. Newest cycle first. Cursor-paginated by reward_cycle. Frozen cycles are immutably cached; the still-open current cycle is short-cached.",
 					filters: POX_CYCLES_FILTERS,
 				},
 				{
 					path: "/v1/index/pox/cycles/:reward_cycle",
 					method: "GET",
 					description:
-						"Single PoX reward cycle aggregate by cycle number. Same shape as the list item. 404 when the cycle has no recorded actions.",
+						"A single PoX-5 reward cycle by cycle number, with its per-signer breakdown. 404 when the cycle doesn't exist yet; a cycle number below 141 (the last PoX-4 cycle) 404s with a note that PoX-4 history is final and not served here.",
 				},
 				{
 					path: "/v1/index/pox5/events",
@@ -729,9 +732,9 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		return c.json(response);
 	});
 
-	// PoX cycle aggregates — per-cycle rollup every stacking dashboard hand-builds.
-	// Completed cycles are long-cached (no new actions land); the current cycle
-	// is short-cached (still accumulating). The list caches per page — short only
+	// PoX cycle aggregates — reports the CURRENT PoX (PoX-5). Completed cycles
+	// are long-cached (frozen, no new actions land); the current cycle is
+	// short-cached (still accumulating). The list caches per page — short only
 	// if some cycle on it is current; the single-cycle route caches the same way.
 	router.get("/pox/cycles", async (c) => {
 		const query = new URL(c.req.url).searchParams;
@@ -742,14 +745,14 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			query,
 			tip,
 			readPoxCycles: opts.readPoxCycles,
+			readTipBurnHeight: opts.readPoxTipBurnHeight,
 		});
 		// Short-cache only when the page actually contains a still-accumulating
-		// cycle. Completed cycles are immutable, and after the epoch 4.0 fork no
-		// pox-4 cycle is current at all — so every page becomes long-cacheable.
-		const anyCurrent = response.cycles.some((cycle) => cycle.is_current);
+		// (not-yet-frozen) cycle. Frozen cycles are immutable.
+		const anyOpen = response.cycles.some((cycle) => !cycle.is_frozen);
 		c.header(
 			"Cache-Control",
-			anyCurrent
+			anyOpen
 				? "public, max-age=30, stale-while-revalidate=60"
 				: "public, max-age=3600, stale-while-revalidate=120",
 		);
@@ -767,19 +770,23 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		}
 		const tip = await getTip();
 		c.set("indexTip", tip);
-		const response = await getPoxCycleResponse({
+		const result = await getPoxCycleResponse({
 			rewardCycle,
 			tip,
 			readPoxCycle: opts.readPoxCycle,
+			readTipBurnHeight: opts.readPoxTipBurnHeight,
 		});
-		if (!response) return c.json({ error: "not_found" }, 404);
-		// Immutable cache for completed cycles; short for the current one.
-		const maxAge = response.cycle.is_current ? 30 : 3600;
+		if (result.kind === "pox4_not_served") {
+			return c.json({ error: "not_found", notes: POX4_NOT_SERVED_NOTE }, 404);
+		}
+		if (result.kind === "not_found") return c.json({ error: "not_found" }, 404);
+		// Immutable cache once frozen; short while the cycle is still open.
+		const maxAge = result.response.cycle.is_frozen ? 3600 : 30;
 		c.header(
 			"Cache-Control",
 			`public, max-age=${maxAge}, stale-while-revalidate=120`,
 		);
-		return c.json(response);
+		return c.json(result.response);
 	});
 
 	// PoX-5 print events — the decoded pox-5 boot-contract log (SIP-045). The

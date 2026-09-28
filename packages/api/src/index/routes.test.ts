@@ -25,11 +25,12 @@ import type { IndexBlock } from "./blocks.ts";
 import type { FtTransfersReader } from "./ft-transfers.ts";
 import type { NftTransfersReader } from "./nft-transfers.ts";
 import type {
-	PoxCycle,
+	Pox5Cycle,
+	Pox5CycleData,
 	PoxCycleReader,
 	PoxCyclesReader,
+	PoxTipBurnHeightReader,
 } from "./pox-cycles.ts";
-import { _resetPox4EraCacheForTests } from "./pox-era.ts";
 import type { RuneEntry, RuneReader, RunesReader } from "./runes.ts";
 import {
 	INDEX_ANON_RATE_LIMIT_PER_SECOND,
@@ -1132,20 +1133,47 @@ describe("Index sBTC peg routes", () => {
 	});
 });
 
-const FAKE_POX_CYCLE: PoxCycle = {
+// Real mainnet cycle math (666,050 first burn height, 2,100-block cycles) so
+// the fixture's `prepare_start_burn_height` lines up with `reward_cycle` —
+// the flags below are computed from that boundary, not from the reward_cycle
+// number itself.
+const FAKE_POX_CYCLE_DATA: Pox5CycleData = {
 	reward_cycle: 142,
+	start_burn_height: 964_250,
+	prepare_start_burn_height: 964_150,
+	end_burn_height: 966_349,
 	total_stacked_ustx: "5000000",
-	unique_stackers: 3,
-	unique_delegators: 1,
-	action_count: 4,
-	start_block_height: 9000,
-	end_block_height: 9100,
-	is_current: true,
-	function_breakdown: [{ function_name: "stack-stx", count: 4 }],
+	reward_eligible_ustx: "4000000",
+	stakers: 3,
+	signers_in_set: 1,
+	bond_sats: {},
+	bond_total_sats: "0",
+	sbtc_custodied_sats: "0",
+	rewards_allocated_stx: "0",
+	rewards_allocated_bond: "0",
+	reserve_deposit: "0",
+	rewards_per_token_stx: null,
+	rewards_per_token_bond: {},
+	distributions: 0,
+	rewards_claimed: "0",
+	computed_through_height: 9100,
+};
+// A tip well before cycle 142 starts (and before its prepare phase at
+// 964,150): 142 reads as a future, open (not-frozen) cycle.
+const OPEN_TIP_BURN_HEIGHT = 900_000;
+const FAKE_POX_CYCLE: Pox5Cycle = {
+	...FAKE_POX_CYCLE_DATA,
+	is_current: false,
+	is_frozen: false,
 };
 
 describe("Index /pox/cycles route (fake reader)", () => {
-	function cyclesApp(overrides: { readPoxCycles?: PoxCyclesReader } = {}) {
+	function cyclesApp(
+		overrides: {
+			readPoxCycles?: PoxCyclesReader;
+			readPoxTipBurnHeight?: PoxTipBurnHeightReader;
+		} = {},
+	) {
 		const app = new Hono();
 		app.onError(errorHandler);
 		app.route(
@@ -1154,37 +1182,43 @@ describe("Index /pox/cycles route (fake reader)", () => {
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readPoxCycles: async () => ({
-					cycles: [FAKE_POX_CYCLE],
+					cycles: [FAKE_POX_CYCLE_DATA],
 					next_cursor: null,
 				}),
+				readPoxTipBurnHeight: async () => OPEN_TIP_BURN_HEIGHT,
 				...overrides,
 			}),
 		);
 		return app;
 	}
 
-	test("returns the envelope from the injected fake reader", async () => {
+	test("returns the pox_version-5 envelope from the injected fake reader", async () => {
 		const res = await cyclesApp().request("/v1/index/pox/cycles");
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
-			cycles: PoxCycle[];
+			pox_version: number;
+			cycles: Pox5Cycle[];
 			next_cursor: number | null;
 		};
+		expect(body.pox_version).toBe(5);
 		expect(body.cycles).toEqual([FAKE_POX_CYCLE]);
 		expect(body.next_cursor).toBeNull();
 	});
 
-	test("short-caches a page that contains a current cycle", async () => {
+	test("short-caches a page that contains an open (not-frozen) cycle", async () => {
 		const res = await cyclesApp().request("/v1/index/pox/cycles");
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Cache-Control")).toContain("max-age=30");
 	});
 
-	test("long-caches a page where no returned cycle is current", async () => {
-		const closedCycle = { ...FAKE_POX_CYCLE, is_current: false };
+	test("long-caches a page where every returned cycle is frozen", async () => {
+		const frozenCycle = {
+			...FAKE_POX_CYCLE_DATA,
+			prepare_start_burn_height: 0,
+		};
 		const res = await cyclesApp({
 			readPoxCycles: async () => ({
-				cycles: [closedCycle],
+				cycles: [frozenCycle],
 				next_cursor: null,
 			}),
 		}).request("/v1/index/pox/cycles");
@@ -1194,7 +1228,12 @@ describe("Index /pox/cycles route (fake reader)", () => {
 });
 
 describe("Index /pox/cycles/:reward_cycle route (fake reader)", () => {
-	function cycleApp(overrides: { readPoxCycle?: PoxCycleReader } = {}) {
+	function cycleApp(
+		overrides: {
+			readPoxCycle?: PoxCycleReader;
+			readPoxTipBurnHeight?: PoxTipBurnHeightReader;
+		} = {},
+	) {
 		const app = new Hono();
 		app.onError(errorHandler);
 		app.route(
@@ -1203,18 +1242,25 @@ describe("Index /pox/cycles/:reward_cycle route (fake reader)", () => {
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readPoxCycle: async (rewardCycle) =>
-					rewardCycle === 142 ? FAKE_POX_CYCLE : null,
+					rewardCycle === 142
+						? { cycle: FAKE_POX_CYCLE_DATA, signers: [] }
+						: null,
+				readPoxTipBurnHeight: async () => OPEN_TIP_BURN_HEIGHT,
 				...overrides,
 			}),
 		);
 		return app;
 	}
 
-	test("returns the cycle for a matching reward_cycle", async () => {
+	test("returns the cycle for a matching reward_cycle, with its signers", async () => {
 		const res = await cycleApp().request("/v1/index/pox/cycles/142");
 		expect(res.status).toBe(200);
-		const body = (await res.json()) as { cycle: PoxCycle };
-		expect(body.cycle).toEqual(FAKE_POX_CYCLE);
+		const body = (await res.json()) as {
+			pox_version: number;
+			cycle: Pox5Cycle & { signers: unknown[] };
+		};
+		expect(body.pox_version).toBe(5);
+		expect(body.cycle).toEqual({ ...FAKE_POX_CYCLE, signers: [] });
 	});
 
 	test("404s for a reward_cycle the reader doesn't have", async () => {
@@ -1222,12 +1268,28 @@ describe("Index /pox/cycles/:reward_cycle route (fake reader)", () => {
 		expect(res.status).toBe(404);
 	});
 
+	test("404s below the first pox-5 reward cycle with a note, without calling the reader", async () => {
+		let called = false;
+		const res = await cycleApp({
+			readPoxCycle: async () => {
+				called = true;
+				return null;
+			},
+		}).request("/v1/index/pox/cycles/140");
+		expect(res.status).toBe(404);
+		const body = (await res.json()) as { notes?: string };
+		expect(body.notes).toContain("PoX-4");
+		expect(called).toBe(false);
+	});
+
 	test("400s for a non-integer reward_cycle without ever calling the reader", async () => {
 		let called = false;
 		const res = await cycleApp({
 			readPoxCycle: async (rewardCycle) => {
 				called = true;
-				return rewardCycle === 142 ? FAKE_POX_CYCLE : null;
+				return rewardCycle === 142
+					? { cycle: FAKE_POX_CYCLE_DATA, signers: [] }
+					: null;
 			},
 		}).request("/v1/index/pox/cycles/abc");
 		expect(res.status).toBe(400);
@@ -1239,7 +1301,9 @@ describe("Index /pox/cycles/:reward_cycle route (fake reader)", () => {
 		const res = await cycleApp({
 			readPoxCycle: async (rewardCycle) => {
 				called = true;
-				return rewardCycle === 142 ? FAKE_POX_CYCLE : null;
+				return rewardCycle === 142
+					? { cycle: FAKE_POX_CYCLE_DATA, signers: [] }
+					: null;
 			},
 		}).request("/v1/index/pox/cycles/-1");
 		expect(res.status).toBe(400);
@@ -1318,6 +1382,9 @@ describe("Index /transactions/:tx_id/proof route (fake reader)", () => {
 
 describe.skipIf(!HAS_DB)("Index PoX cycles route caching", () => {
 	const db = HAS_DB ? getDb() : null;
+	// A block at TIP.block_height (10,000) whose burn height sits inside
+	// cycle 142's active range — a realistic "current tip" for these tests.
+	const TIP_BURN_HEIGHT = 964_300;
 
 	function cyclesApp() {
 		const app = new Hono();
@@ -1329,106 +1396,105 @@ describe.skipIf(!HAS_DB)("Index PoX cycles route caching", () => {
 		return app;
 	}
 
-	function poxCall(cursor: string, blockHeight: number, rewardCycle: number) {
+	function cycleRow(rewardCycle: number) {
 		return {
-			cursor,
-			block_height: blockHeight,
-			block_time: new Date(1_700_000_000_000),
-			burn_block_height: blockHeight + 10_000,
-			tx_id: `0x${cursor}`,
-			tx_index: 0,
-			function_name: "stack-stx" as const,
-			caller: "SP1",
-			stacker: "SP1",
-			delegate_to: null,
-			amount_ustx: "1000000",
-			lock_period: 6,
-			pox_addr_version: 4,
-			pox_addr_hashbytes: "0xabcd",
-			pox_addr_btc: `bc1q${blockHeight}`,
-			start_cycle: rewardCycle,
-			end_cycle: rewardCycle + 6,
-			signer_key: null,
-			signer_signature: null,
-			auth_id: null,
-			max_amount: null,
 			reward_cycle: rewardCycle,
-			aggregated_amount_ustx: null,
-			aggregated_signer_index: null,
-			auth_period: null,
-			auth_topic: null,
-			auth_allowed: null,
-			result_ok: true,
-			result_raw: "0x07",
-			canonical: true,
-			source_cursor: cursor,
-		};
-	}
-
-	function pox5Row(cursor: string) {
-		return {
-			cursor,
-			block_height: 900_000,
-			block_time: new Date("2026-07-30T00:00:00.000Z"),
-			tx_id: `0x${cursor}`,
-			tx_index: 0,
-			event_index: 0,
-			topic: "stake" as const,
-			staker: null,
-			signer: null,
-			signer_manager: null,
-			bond_index: null,
-			amount_ustx: null,
-			amount_sats: null,
-			reward_cycle: null,
-			first_reward_cycle: null,
-			unlock_cycle: null,
-			unlock_burn_height: null,
-			is_l1_lock: null,
-			signer_key: null,
-			data: jsonb({ topic: "stake" }),
-			canonical: true,
-			source_cursor: cursor,
+			start_burn_height: 666_050 + rewardCycle * 2_100,
+			prepare_start_burn_height: 666_050 + rewardCycle * 2_100 - 100,
+			end_burn_height: 666_050 + (rewardCycle + 1) * 2_100 - 1,
+			total_stacked_ustx: "1000000",
+			reward_eligible_ustx: "1000000",
+			stakers: 1,
+			signers_in_set: 1,
+			bond_sats: jsonb({}),
+			bond_total_sats: "0",
+			sbtc_custodied_sats: "0",
+			rewards_allocated_stx: "0",
+			rewards_allocated_bond: "0",
+			reserve_deposit: "0",
+			rewards_per_token_stx: null,
+			rewards_per_token_bond: jsonb({}),
+			distributions: 0,
+			rewards_claimed: "0",
+			computed_through_height: 9_000,
 		};
 	}
 
 	beforeEach(async () => {
-		_resetPox4EraCacheForTests();
 		if (!db) return;
-		await sql`DELETE FROM pox4_calls`.execute(db);
-		await sql`DELETE FROM pox5_events`.execute(db);
+		await sql`DELETE FROM pox5_cycles`.execute(db);
 		await db
-			.insertInto("pox4_calls")
-			.values([poxCall("9000:0", 9000, 100), poxCall("9100:0", 9100, 101)])
+			.deleteFrom("blocks")
+			.where("height", "=", TIP.block_height)
+			.execute();
+		await db
+			.insertInto("blocks")
+			.values({
+				height: TIP.block_height,
+				hash: "0xpoxcyclestip",
+				parent_hash: "0xparent",
+				burn_block_height: TIP_BURN_HEIGHT,
+				burn_block_hash: null,
+				timestamp: 1_700_000_000,
+				canonical: true,
+			})
 			.execute();
 	});
 
-	test("short-caches a page that still contains the current cycle", async () => {
+	afterAll(async () => {
+		if (!db) return;
+		await sql`DELETE FROM pox5_cycles`.execute(db);
+		await db
+			.deleteFrom("blocks")
+			.where("height", "=", TIP.block_height)
+			.execute();
+	});
+
+	test("short-caches a page that contains an open (not yet frozen) cycle", async () => {
+		if (!db) throw new Error("missing db");
+		// 142 is current (and so frozen); 200 is far enough in the future that
+		// its own prepare phase hasn't started yet.
+		await db
+			.insertInto("pox5_cycles")
+			.values([cycleRow(142), cycleRow(200)])
+			.execute();
+
 		const res = await cyclesApp().request("/v1/index/pox/cycles");
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
-			cycles: Array<{ is_current: boolean }>;
+			pox_version: number;
+			cycles: Array<{
+				reward_cycle: number;
+				is_current: boolean;
+				is_frozen: boolean;
+			}>;
 		};
-		expect(body.cycles.some((c) => c.is_current)).toBe(true);
+		expect(body.pox_version).toBe(5);
+		expect(body.cycles.find((c) => c.reward_cycle === 142)?.is_current).toBe(
+			true,
+		);
+		expect(body.cycles.find((c) => c.reward_cycle === 142)?.is_frozen).toBe(
+			true,
+		);
+		expect(body.cycles.find((c) => c.reward_cycle === 200)?.is_frozen).toBe(
+			false,
+		);
 		expect(res.headers.get("Cache-Control")).toContain("max-age=30");
 	});
 
-	test("long-caches every page once the pox-4 era has closed", async () => {
+	test("long-caches a page where every cycle is already frozen", async () => {
 		if (!db) throw new Error("missing db");
 		await db
-			.insertInto("pox5_events")
-			.values([pox5Row("900000:0")])
+			.insertInto("pox5_cycles")
+			.values([cycleRow(141), cycleRow(142)])
 			.execute();
-		_resetPox4EraCacheForTests();
 
 		const res = await cyclesApp().request("/v1/index/pox/cycles");
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
-			cycles: Array<{ is_current: boolean }>;
-			notes?: string;
+			cycles: Array<{ is_frozen: boolean }>;
 		};
-		expect(body.cycles.every((c) => c.is_current === false)).toBe(true);
-		expect(body.notes).toContain("PoX-4 ended at the epoch 4.0 activation");
+		expect(body.cycles.every((c) => c.is_frozen)).toBe(true);
 		expect(res.headers.get("Cache-Control")).toContain("max-age=3600");
 	});
 });
