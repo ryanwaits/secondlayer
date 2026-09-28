@@ -85,6 +85,7 @@ CONTROL_TABLES=(
   account_credits
   archive_fetches
   usage_ledger
+  account_balance_alerts
   waitlists
   waitlist_signups
 )
