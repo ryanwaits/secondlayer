@@ -152,10 +152,11 @@ const RUNE_ACTIVITY_RANGE_PARAMS = [
 
 /** Runes list/activity/balances envelope — `envelope()`'s shape, but pointed
  *  at `BitcoinTip`/`BtcReorg` instead of the Stacks `Tip`/`Reorg`, plus the
- *  `notes` soft-flag field every Runes route can carry. `reorgs` is included
- *  only for `listRuneActivity` — `listRunes`/`listRuneBalances` read
- *  reorg-corrected snapshot tables and always report `reorgs: []` (see
- *  `../../index/runes.ts`'s module doc). */
+ *  `notes` soft-flag field every Runes route can carry. Every Runes feed
+ *  carries `reorgs` on the wire (`../../index/runes.ts`'s response types all
+ *  include it), but only `listRuneActivity`'s can ever be non-empty —
+ *  `listRunes`/`listRuneBalances` read reorg-corrected snapshot tables and
+ *  always report `reorgs: []` (see that module's doc). */
 function runesEnvelope(
 	rowKey: string,
 	row: string,
@@ -169,16 +170,13 @@ function runesEnvelope(
 				"The last row's cursor. Pass it back as `cursor` to continue; an empty page means you are at the end.",
 		},
 		tip: BITCOIN_TIP,
-		...(opts.reorgs
-			? {
-					reorgs: {
-						type: "array",
-						description:
-							"Bitcoin reorgs that touched this page's height range. Reconcile anything you committed from a fork.",
-						items: { $ref: "#/components/schemas/BtcReorg" },
-					},
-				}
-			: {}),
+		reorgs: {
+			type: "array",
+			description: opts.reorgs
+				? "Bitcoin reorgs that touched this page's height range. Reconcile anything you committed from a fork."
+				: "Always empty — this feed reads a reorg-corrected snapshot table, not an append-only log.",
+			items: { $ref: "#/components/schemas/BtcReorg" },
+		},
 		notes: RUNES_NOTES,
 	};
 	return {
@@ -188,7 +186,7 @@ function runesEnvelope(
 				"application/json": {
 					schema: {
 						type: "object",
-						required: [rowKey, "next_cursor", "tip"],
+						required: [rowKey, "next_cursor", "tip", "reorgs"],
 						properties,
 					},
 				},
