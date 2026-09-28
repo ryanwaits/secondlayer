@@ -28,7 +28,7 @@ import {
 	SemanticDigestRollup,
 	semanticDigest,
 } from "@secondlayer/shared/archive/semantic-digest";
-import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
+import { closeDbOrTimeout, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manifest";
 import type { Kysely } from "kysely";
@@ -950,7 +950,10 @@ async function main(): Promise<void> {
 			2,
 		),
 	);
-	await closeDb();
+	// Bounded: a hung shutdown must not stop this one-shot script from exiting
+	// once its actual work — the export — is already done and printed.
+	await closeDbOrTimeout();
+	process.exit(0);
 }
 
 if (import.meta.main) {
@@ -959,7 +962,7 @@ if (import.meta.main) {
 			"export-snapshot failed:",
 			error instanceof Error ? error.message : error,
 		);
-		await closeDb().catch(() => {});
+		await closeDbOrTimeout().catch(() => {});
 		process.exit(1);
 	});
 }

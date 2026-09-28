@@ -31,10 +31,14 @@ STAGING_DIR="${ARCHIVE_STAGING_DIR:-/data/archive/canonical-v1-staging}"
 # Host-side path for the same directory, resolved through the compose bind
 # mount. The wrapper needs this because `docker exec` has a known failure mode
 # where the exec stream doesn't cleanly close after the child process exits
-# (2026-08-13 incident: export finished in 3.3 h, dockerd held the channel
-# open, outer `timeout` killed it at the 6 h mark, wrapper flagged the whole
-# cycle as failed even though a valid signed snapshot was on disk). Reading
-# the manifest from the shared bind mount is the recovery path.
+# (2026-08-13 incident: export finished in 3.3 h, the exec stream stayed open,
+# outer `timeout` killed it at the 6 h mark, wrapper flagged the whole cycle
+# as failed even though a valid signed snapshot was on disk). Confirmed
+# 2026-09-28: not dockerd — the script itself hung in `await closeDb()` after
+# printing its summary, 0% CPU, one open socket, `wchan=ep_poll`; only the
+# outer `timeout` moved things along. `export-snapshot.ts` now bounds that
+# shutdown itself, but reading the manifest from the shared bind mount stays
+# the recovery path for whatever hangs next.
 HOST_STAGING_DIR="${ARCHIVE_HOST_STAGING_DIR:-/opt/secondlayer/data/archive/canonical-v1-staging}"
 # The export reads ~240M rows; the cap is generous but bounded so a wedged run
 # cannot hold the weekly timer open forever.

@@ -20,7 +20,7 @@ import {
 	type ArchiveStatus,
 	deriveArchiveStatus,
 } from "@secondlayer/shared/archive/status";
-import { closeDb, getSourceDb } from "@secondlayer/shared/db";
+import { closeDbOrTimeout, getSourceDb } from "@secondlayer/shared/db";
 import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manifest";
 import { FT_TRANSFER_DECODER_NAME } from "../decode/storage.ts";
 import {
@@ -150,8 +150,10 @@ async function main(): Promise<void> {
 
 	if (!apply) {
 		console.error("\n(dry-run — pass --apply to publish)");
-		await closeDb();
-		return;
+		// Bounded: a hung shutdown must not stop this one-shot script from
+		// exiting once its actual work is already done and printed.
+		await closeDbOrTimeout();
+		process.exit(0);
 	}
 
 	const config = getStreamsBulkR2ConfigFromEnv();
@@ -180,7 +182,8 @@ async function main(): Promise<void> {
 	});
 	if (mirrored) console.error(`Mirrored status to ${mirrored}`);
 
-	await closeDb();
+	await closeDbOrTimeout();
+	process.exit(0);
 }
 
 if (import.meta.main) {
@@ -189,7 +192,7 @@ if (import.meta.main) {
 			"publish-status failed:",
 			err instanceof Error ? err.message : err,
 		);
-		await closeDb().catch(() => {});
+		await closeDbOrTimeout().catch(() => {});
 		process.exit(1);
 	});
 }

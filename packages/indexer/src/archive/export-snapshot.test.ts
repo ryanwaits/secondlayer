@@ -316,4 +316,47 @@ describe.skipIf(!HAS_DB)("canonical snapshot export", () => {
 			await reader.close();
 		}
 	});
+
+	/**
+	 * 2026-09-28: the CLI entrypoint printed its summary and then sat idle for
+	 * 20 minutes, stuck in `await closeDb()` — only the wrapper's own 6h
+	 * `timeout` moved things along. This can't reproduce that exact hang
+	 * against a local test database, but it stands as the regression guard the
+	 * plan calls for: the process must exit on its own shortly after printing
+	 * its summary, never rely on an external timeout to end it.
+	 */
+	test("the CLI entrypoint exits on its own shortly after printing its summary", async () => {
+		const outDir = await makeOutDir();
+		const timeoutMs = 15_000;
+		const proc = Bun.spawn(
+			[
+				process.execPath,
+				"run",
+				join(import.meta.dir, "export-snapshot.ts"),
+				"--to-block",
+				"9",
+				"--out",
+				outDir,
+			],
+			{ env: { ...process.env }, stdout: "pipe", stderr: "pipe" },
+		);
+		const outcome = await Promise.race([
+			proc.exited.then(() => "exited" as const),
+			new Promise<"timeout">((resolve) =>
+				setTimeout(() => resolve("timeout"), timeoutMs),
+			),
+		]);
+		if (outcome === "timeout") {
+			proc.kill();
+			throw new Error(
+				`export-snapshot did not exit within ${timeoutMs}ms of starting`,
+			);
+		}
+		const [stdout, stderr] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+		]);
+		expect(proc.exitCode, stderr).toBe(0);
+		expect(stdout).toContain("snapshot_digest");
+	});
 });

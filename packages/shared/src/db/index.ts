@@ -364,6 +364,29 @@ export async function closeDb(): Promise<void> {
 	pools.clear();
 }
 
+const DEFAULT_CLOSE_DB_TIMEOUT_MS = 30_000;
+
+/**
+ * `closeDb()`, but never let it block process exit past `timeoutMs`.
+ *
+ * 2026-09-28: a canonical export printed its summary and then sat idle for 20
+ * minutes — 0% CPU, `wchan=ep_poll`, one open socket — stuck in `await
+ * closeDb()`. Only the wrapper's own 6h timeout moved things along. A driver
+ * holding a socket open past `.destroy()`/`.end()` finishing (or never
+ * finishing at all) must not stop a one-shot script from exiting once its
+ * actual work is done.
+ */
+export async function closeDbOrTimeout(
+	timeoutMs: number = DEFAULT_CLOSE_DB_TIMEOUT_MS,
+	/** Test seam; production callers leave this unset. */
+	closeFn: () => Promise<void> = closeDb,
+): Promise<void> {
+	await Promise.race([
+		closeFn(),
+		new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+	]);
+}
+
 import { sql } from "kysely";
 export { sql };
 export * from "./types.ts";
