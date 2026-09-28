@@ -114,6 +114,36 @@ export DEPLOY_IMAGE_OWNER DEPLOY_IMAGE_TAG
 # write L1/L2 tables, so migrations must complete before they restart on new code.
 MIGRATION_LOCK_HOLDERS="api indexer decoder worker"
 
+ARCHIVE_PUBLISH_UNIT="secondlayer-archive-publish.service"
+ARCHIVE_PUBLISH_WAIT_TIMEOUT_SECONDS="${ARCHIVE_PUBLISH_WAIT_TIMEOUT_SECONDS:-21600}"
+ARCHIVE_PUBLISH_POLL_INTERVAL_SECONDS="${ARCHIVE_PUBLISH_POLL_INTERVAL_SECONDS:-60}"
+
+# 2026-09-27 and 2026-09-07: a deploy landed mid-export and stopped or
+# recreated secondlayer-indexer-1 (via the migration lock-holder stop, or the
+# recreate below) while archive-publish.sh was still `docker exec`'d into it,
+# killing the multi-hour export with exit 137. The publish runs twice a week
+# for a few hours; a bounded wait here is far cheaper than a corrupted export
+# and the exit-137/retry churn it causes. Checked once, before anything below
+# can touch indexer — the migration-stop path and the bulk recreate both go
+# through this same gate rather than each needing their own.
+wait_for_archive_publish_idle() {
+  if ! systemctl is-active --quiet "$ARCHIVE_PUBLISH_UNIT" 2>/dev/null; then
+    return 0
+  fi
+  echo "⏳ ${ARCHIVE_PUBLISH_UNIT} is active — waiting for it to finish before touching indexer..."
+  local waited=0
+  while systemctl is-active --quiet "$ARCHIVE_PUBLISH_UNIT" 2>/dev/null; do
+    if [ "$waited" -ge "$ARCHIVE_PUBLISH_WAIT_TIMEOUT_SECONDS" ]; then
+      echo "ERROR: ${ARCHIVE_PUBLISH_UNIT} still active after ${ARCHIVE_PUBLISH_WAIT_TIMEOUT_SECONDS}s — refusing to touch indexer mid-export"
+      return 1
+    fi
+    sleep "$ARCHIVE_PUBLISH_POLL_INTERVAL_SECONDS"
+    waited=$((waited + ARCHIVE_PUBLISH_POLL_INTERVAL_SECONDS))
+  done
+  echo "✅ ${ARCHIVE_PUBLISH_UNIT} finished — resuming deploy"
+  return 0
+}
+
 echo "Deploy image owner: ${DEPLOY_IMAGE_OWNER}"
 echo "Deploy image tag: ${DEPLOY_IMAGE_TAG}"
 
@@ -167,6 +197,8 @@ if ! flock -w "$DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS" 9; then
   echo "ERROR: timed out waiting for DB maintenance lock after ${DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS}s"
   exit 1
 fi
+
+wait_for_archive_publish_idle || exit 1
 
 # Force-remove orphan containers from removed/renamed services. These are
 # live containers from older deploys whose service no longer exists in the
