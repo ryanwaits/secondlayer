@@ -67,7 +67,7 @@ every charge. Prices live in one table, `packages/platform/src/billing/prices.ts
 | `archive.partition` | $0.05 | live |
 | `archive.partition.events` | $0.15 | live |
 | `rows.delivered` | $5/1M; $2/1M once monthly spend ≥ $50; first 1M rows/mo free | live |
-| `memory.gb_hour` | ~$0.028/GB-hour, floored at 0.5 GB per running tenant | priced, no caller yet (044) |
+| `memory.gb_hour` | ~$0.028/GB-hour, floored at 0.5 GB per running tenant | live, called by the workload host's memory sampler |
 | `storage.gb_day` | ~$0.25/GB-month billed daily | priced, no caller yet (046) |
 | `webhook.event` | $10/1M, retries free | priced, no caller yet (044) |
 

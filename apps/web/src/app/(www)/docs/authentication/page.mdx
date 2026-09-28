@@ -46,7 +46,7 @@ The SDK sends `If-None-Match` for you. Its cache holds the last 64 pages in memo
 
 Past the free monthly allowance, a key with no balance gets a `402` (`insufficient_credits`) with a top-up link, before anything is served. A key still under the allowance, or with a balance, reads normally and is billed per row after the response.
 
-A hosted subgraph stack bills memory at a min 0.5 GB (~$10/mo while running); a stopped stack bills nothing.
+Your hosted stack (it runs your webhooks) bills memory at a minimum of 0.5 GB, about $10/mo while it runs. A stopped stack bills nothing.
 
 ## Archive credits
 
