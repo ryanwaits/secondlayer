@@ -122,7 +122,7 @@ services:
       NODE_ENV: production
       DATA_DIR: /data
       RESEND_API_KEY: ${RESEND_API_KEY:-}
-      EMAIL_FROM: ${EMAIL_FROM:-Second Layer <noreply@secondlayer.tools>}
+      EMAIL_FROM: ${EMAIL_FROM:-secondlayer <noreply@secondlayer.tools>}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       STRIPE_PRICE_LAUNCH: ${STRIPE_PRICE_LAUNCH:-}
@@ -387,7 +387,7 @@ services:
       # the api service uses. Unset RESEND_API_KEY → every alert job skips
       # sending and logs a warning, never throws.
       RESEND_API_KEY: ${RESEND_API_KEY:-}
-      EMAIL_FROM: ${EMAIL_FROM:-Second Layer <noreply@secondlayer.tools>}
+      EMAIL_FROM: ${EMAIL_FROM:-secondlayer <noreply@secondlayer.tools>}
     depends_on:
       migrate:
         condition: service_completed_successfully
