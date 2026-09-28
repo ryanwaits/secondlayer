@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.16.1
+
+### Patch Changes
+
+- 50b453e: Index webhook_deliveries.outbox_id and delete a webhook's deliveries and outbox in batches, so removing a high-volume chain webhook finishes instead of holding a lock until the API idle timeout returns 502.
+
 ## 11.16.0
 
 ### Minor Changes
