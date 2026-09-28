@@ -1,5 +1,16 @@
 # @secondlayer/indexer
 
+## 1.16.7
+
+### Patch Changes
+
+- 1643f22: `export-snapshot` and `publish-status` now bound their database shutdown and exit explicitly after printing their result, instead of relying on `await closeDb()` to resolve on its own. Fixes a hang observed 2026-09-28: the export sat idle for 20 minutes after finishing, stuck in that call, until the wrapper's own 6-hour timeout killed it.
+- 0ed732d: Sizes the canonical export's free-space check from the previous local snapshot's total byte size plus a margin, instead of a fixed 100GB, so it tracks the chain's actual growth instead of drifting from production disk reality. Falls back to the fixed default when there is no previous manifest to measure.
+- 0f18490: Wires `findShortBlocks` into the canonical export audit so `continuity.complete` is false, and the export refuses to run, when a canonical block's transaction count disagrees with its persisted `tx_count`.
+- Updated dependencies [1643f22]
+- Updated dependencies [0ed732d]
+  - @secondlayer/shared@11.15.1
+
 ## 1.16.6
 
 ### Patch Changes

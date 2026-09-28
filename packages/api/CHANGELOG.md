@@ -1,5 +1,18 @@
 # @secondlayer/api
 
+## 1.45.1
+
+### Patch Changes
+
+- Updated dependencies [1643f22]
+- Updated dependencies [0ed732d]
+- Updated dependencies [1643f22]
+- Updated dependencies [0ed732d]
+- Updated dependencies [0f18490]
+  - @secondlayer/shared@11.15.1
+  - @secondlayer/indexer@1.16.7
+  - @secondlayer/platform@0.3.22
+
 ## 1.45.0
 
 ### Minor Changes

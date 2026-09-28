@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 11.15.1
+
+### Patch Changes
+
+- 1643f22: Adds `closeDbOrTimeout`, a bounded variant of `closeDb` for one-shot scripts: a hung connection-pool shutdown can no longer stop a script from exiting once its actual work is done.
+- 0ed732d: Exports `DEFAULT_MIN_FREE_BYTES` from the archive disk guard so callers can derive a tighter, size-aware free-space requirement and fall back to the same fixed default this module already used.
+
 ## 11.15.0
 
 ### Minor Changes
