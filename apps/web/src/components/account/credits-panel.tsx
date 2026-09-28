@@ -20,9 +20,12 @@ import {
 	type DeliveryService,
 	ROWS_ALLOWANCE,
 	type ServiceState,
+	type UsageRow,
 	balanceLevel,
+	burnCompositionLabel,
 	currentUtcMonth,
 	formatRows,
+	formatUsdPerHour,
 	monthParam,
 	nextMonthLabel,
 	packDaysLabel,
@@ -148,13 +151,9 @@ function CheckoutAction({
 					onClick={co.checkout}
 					disabled={co.busy}
 				>
-					{co.busy
-						? "Opening checkout..."
-						: `Continue to checkout · $${co.amount}`}
+					{co.busy ? "Opening checkout..." : `Add $${co.amount} with Stripe`}
 				</button>
-				<p className="acct-fine">
-					Stripe takes the payment, then brings you back.
-				</p>
+				<p className="acct-fine">One-time payment. Nothing auto-renews.</p>
 			</div>
 			{co.error ? <p className="acct-error">{co.error}</p> : null}
 		</>
@@ -359,6 +358,7 @@ function RunwayRow({
 	rateDayUsdMicros,
 	now,
 	service,
+	monthRows,
 }: {
 	balanceUsdMicros: number;
 	level: BalanceLevel;
@@ -366,6 +366,7 @@ function RunwayRow({
 	rateDayUsdMicros: number;
 	now: Date;
 	service: DeliveryService;
+	monthRows: UsageRow[] | undefined;
 }) {
 	const finiteRunway = Number.isFinite(runway);
 	const barPct = finiteRunway
@@ -393,12 +394,10 @@ function RunwayRow({
 			: finiteRunway
 				? "at today's rate"
 				: "";
-	const rateSub =
-		rateDayUsdMicros > 0
-			? `${formatUsd(rateDayUsdMicros / 24)}/hour`
-			: service.state === "running"
-				? "No charges in the last 24 hours"
-				: "Nothing runs while stopped";
+	const running = service.state === "running";
+	const rateSub = running
+		? `${formatUsdPerHour(rateDayUsdMicros)}/hour · ${burnCompositionLabel(true, monthRows)}`
+		: "Nothing runs while stopped";
 
 	return (
 		<section className="use-runway" aria-label="Balance and runway">
@@ -516,7 +515,7 @@ function BalanceAlertsSection() {
 
 /** The credits flow on /account/credits, including the way back from Stripe. */
 export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
-	const { billing, burn, service } = useAccountData();
+	const { billing, burn, service, usage } = useAccountData();
 	const st = useTopupReturn(ret);
 	const co = useCheckout();
 	const monthState = useUsageMonth();
@@ -539,6 +538,10 @@ export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
 	const balanceUsdMicros = billing ? Number(billing.creditsUsdMicros) : 0;
 	const rateDayUsdMicros = burn ? Number(burn.rateDayUsdMicros) : 0;
 	const serviceState: ServiceState = service?.state ?? "none";
+	// Always "now"'s calendar month, independent of the Usage switcher below —
+	// the runway row's burn composition must not flip when browsing a past
+	// month (Design: "runway/banner/service always reflect now").
+	const currentMonthRows = usage[monthParam(currentUtcMonth(now))];
 	const runway = runwayDays(balanceUsdMicros, rateDayUsdMicros);
 	const level = balanceLevel({
 		serviceState,
@@ -566,6 +569,7 @@ export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
 						rateDayUsdMicros={rateDayUsdMicros}
 						now={now}
 						service={service}
+						monthRows={currentMonthRows}
 					/>
 				</>
 			) : null}

@@ -6,11 +6,13 @@ import {
 	allowanceFootLine,
 	balanceLevel,
 	buildDailyChart,
+	burnCompositionLabel,
 	compareMonths,
 	daysInUtcMonth,
 	deliveredRowsIn,
 	formatRows,
 	formatUnitQuantity,
+	formatUsdPerHour,
 	fractionalDaysRemainingInMonth,
 	latestMemoryHour,
 	monthLabel,
@@ -52,9 +54,9 @@ describe("formatUnitQuantity", () => {
 		expect(formatUnitQuantity("rows.delivered", "6410000")).toBe("6.41M");
 	});
 
-	test("GB units keep up to 2 fractional decimals", () => {
-		expect(formatUnitQuantity("memory.gb_hour", "12.5")).toBe("12.5");
-		expect(formatUnitQuantity("storage.gb_day", "3")).toBe("3");
+	test("GB-hour/GB-day units carry their unit suffix, one decimal", () => {
+		expect(formatUnitQuantity("memory.gb_hour", "12.5")).toBe("12.5 GB-h");
+		expect(formatUnitQuantity("storage.gb_day", "3")).toBe("3.0 GB-d");
 	});
 
 	test("everything else is a thousands-separated whole count", () => {
@@ -409,6 +411,40 @@ describe("nextChargeLabel", () => {
 		expect(nextChargeLabel(new Date("2026-09-28T17:05:00.000Z"), "none")).toBe(
 			"Updated 17:05 UTC · service stopped",
 		);
+	});
+});
+
+describe("formatUsdPerHour", () => {
+	test("3 decimals, from a daily rate", () => {
+		// $0.336/day (memDay for 0.5 GB-h x $0.028) / 24 = $0.014/hour.
+		expect(formatUsdPerHour(336_000)).toBe("$0.014");
+	});
+});
+
+describe("burnCompositionLabel", () => {
+	test("stopped reads as no composition (caller shows its own copy)", () => {
+		expect(burnCompositionLabel(false, undefined)).toBe("");
+	});
+
+	test("running with no other spend is just memory", () => {
+		expect(burnCompositionLabel(true, [])).toBe("memory");
+	});
+
+	test("adds events and rows only when this month actually spent on them", () => {
+		const rows = [
+			{ unit: "memory.gb_hour", quantity: "12", usdMicros: "336000" },
+			{ unit: "webhook.event", quantity: "1200", usdMicros: "12000" },
+			{ unit: "rows.delivered", quantity: "0", usdMicros: "0" },
+		];
+		expect(burnCompositionLabel(true, rows)).toBe("memory + events");
+	});
+
+	test("all three when memory, events and rows all spent", () => {
+		const rows = [
+			{ unit: "webhook.event", quantity: "1200", usdMicros: "12000" },
+			{ unit: "rows.delivered", quantity: "150000", usdMicros: "750000" },
+		];
+		expect(burnCompositionLabel(true, rows)).toBe("memory + events + rows");
 	});
 });
 

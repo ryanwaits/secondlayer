@@ -59,13 +59,16 @@ function AllowanceMeter({
 	);
 }
 
-/** The memory row's sub-line notes "(minimum)" when the delivery service is
- *  currently billed at the 0.5 GB floor above its actual sampled RAM. */
+/** The memory row's sub-line suffix: "· 0.50 GB billed", plus "(minimum)"
+ *  when the delivery service is currently billed at the 0.5 GB floor above
+ *  its actual sampled RAM — matches the mock exactly. */
 function memorySubNote(service: DeliveryService | null): string {
 	if (!service) return "";
 	const latest = latestMemoryHour(service.memory24h);
-	if (!latest || latest.observedGb == null) return "";
-	return latest.billedGb > latest.observedGb ? " (minimum)" : "";
+	if (!latest) return "";
+	const atFloor =
+		latest.observedGb != null && latest.billedGb > latest.observedGb;
+	return ` · ${latest.billedGb.toFixed(2)} GB billed${atFloor ? " (minimum)" : ""}`;
 }
 
 function UsageTable({

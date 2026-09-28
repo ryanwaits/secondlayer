@@ -14,6 +14,7 @@ import {
 	fractionalDaysRemainingInMonth,
 	isSameMonth,
 	monthLabel,
+	monthName,
 	monthShortLabel,
 	nextChargeLabel,
 	nextMonthAtRateUsdMicros,
@@ -52,7 +53,7 @@ export function SpendCard({
 		<>
 			<div className="h2row">
 				<h2 className="acct-h2">
-					{isCurrent ? `${monthLabel(month)} so far` : monthLabel(month)}
+					{isCurrent ? `${monthName(month)} so far` : monthLabel(month)}
 				</h2>
 				{isCurrent ? (
 					<span className="aside mono">

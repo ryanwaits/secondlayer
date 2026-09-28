@@ -72,16 +72,13 @@ export function formatRows(n: number | string): string {
 	return `${millions.replace(/\.00$/, "").replace(/(\.\d)0$/, "$1")}M`;
 }
 
-/** Quantity for a non-`rows.delivered` unit: GB units keep up to 2 decimals
- *  (fractional GB-hours/GB-days are real), everything else is a whole-count
- *  thousands-separated integer. */
+/** Quantity for a non-`rows.delivered` unit: GB-hour/GB-day units carry
+ *  their unit suffix, one decimal, matching the mock ("12.5 GB-h", "1.4
+ *  GB-d") — everything else is a whole-count thousands-separated integer. */
 export function formatUnitQuantity(unit: string, quantity: string): string {
 	if (unit === "rows.delivered") return formatRows(quantity);
-	if (unit === "memory.gb_hour" || unit === "storage.gb_day") {
-		return Number(quantity).toLocaleString("en-US", {
-			maximumFractionDigits: 2,
-		});
-	}
+	if (unit === "memory.gb_hour") return `${Number(quantity).toFixed(1)} GB-h`;
+	if (unit === "storage.gb_day") return `${Number(quantity).toFixed(1)} GB-d`;
 	return Number(quantity).toLocaleString("en-US");
 }
 
@@ -276,6 +273,30 @@ export function rateLabel(unit: string, quantity: string): string {
 		default:
 			return "";
 	}
+}
+
+/** `$X.XXX` — 3 decimals, matching the mock's "Burning now" hourly precision
+ *  (the daily/monthly figures elsewhere on the page use 2). */
+export function formatUsdPerHour(rateDayUsdMicros: number): string {
+	return `$${(rateDayUsdMicros / 24 / 1_000_000).toFixed(3)}`;
+}
+
+/** The runway row's "$X.XXX/hour · memory + events + rows" composition:
+ *  memory is a given whenever the delivery service is running; events and
+ *  rows are only listed when this month's usage shows real spend for them
+ *  (Design step 5.3). `""` when the service isn't running — the caller
+ *  shows "Nothing runs while stopped" instead. */
+export function burnCompositionLabel(
+	serviceRunning: boolean,
+	monthRows: UsageRow[] | undefined,
+): string {
+	if (!serviceRunning) return "";
+	const hasCost = (unit: string) =>
+		(monthRows ?? []).some((r) => r.unit === unit && Number(r.usdMicros) > 0);
+	let label = "memory";
+	if (hasCost("webhook.event")) label += " + events";
+	if (hasCost("rows.delivered")) label += " + rows";
+	return label;
 }
 
 /** One day of the "<Month> so far" stacked bar chart: real, categorized
