@@ -37,7 +37,7 @@ export interface AreaLinePoint {
 
 export function MonoAreaLineChart({
 	data,
-	height = 120,
+	height = 144,
 	xDomain,
 	xTicks,
 	xTickFormatter,
@@ -70,7 +70,7 @@ export function MonoAreaLineChart({
 		<ResponsiveContainer width="100%" height={height}>
 			<ComposedChart
 				data={data}
-				margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+				margin={{ top: 8, right: 8, left: 0, bottom: 16 }}
 			>
 				<CartesianGrid
 					strokeDasharray="2 2"
@@ -87,6 +87,8 @@ export function MonoAreaLineChart({
 					tick={{ fontSize: 10, fill: "var(--fig-faint)" }}
 					axisLine={false}
 					tickLine={false}
+					tickMargin={8}
+					height={24}
 				/>
 				<YAxis
 					ticks={yTicks}
@@ -96,7 +98,7 @@ export function MonoAreaLineChart({
 					tick={{ fontSize: 10, fill: "var(--fig-faint)" }}
 					axisLine={false}
 					tickLine={false}
-					width={38}
+					width={44}
 				/>
 				<Tooltip
 					content={<ChartTooltip formatter={tooltipFormatter} />}
@@ -137,11 +139,22 @@ export function MonoAreaLineChart({
 						y={referenceLineY.value}
 						stroke="var(--text-main)"
 						strokeDasharray="4 3"
-						label={{
-							value: referenceLineY.label,
-							position: "insideTopRight",
-							fill: "var(--text-main)",
-							fontSize: 10,
+						label={(props: {
+							viewBox?: { x: number; y: number; width: number };
+						}) => {
+							const viewBox = props.viewBox;
+							if (!viewBox) return undefined;
+							return (
+								<text
+									x={viewBox.x + viewBox.width}
+									y={viewBox.y - 6}
+									textAnchor="end"
+									fill="var(--text-main)"
+									fontSize={10}
+								>
+									{referenceLineY.label}
+								</text>
+							);
 						}}
 					/>
 				) : null}

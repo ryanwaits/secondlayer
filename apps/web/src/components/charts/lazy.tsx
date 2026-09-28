@@ -19,7 +19,7 @@ export const LazyMonoStackedBarChart = dynamic(
 
 export const LazyMonoAreaLineChart = dynamic(
 	() => import("./mono-area-line-chart").then((m) => m.MonoAreaLineChart),
-	{ ssr: false, loading: () => <ChartSkeleton height={120} /> },
+	{ ssr: false, loading: () => <ChartSkeleton height={144} /> },
 );
 
 export const LazyLivelineWaitingChart = dynamic(

@@ -74,7 +74,7 @@ export function DeliveryServiceCard({ service }: { service: DeliveryService }) {
 				</div>
 				<LazyMonoAreaLineChart
 					data={chartPoints}
-					height={120}
+					height={144}
 					xDomain={[0, 24]}
 					xTicks={[0, 12, 24]}
 					xTickFormatter={memoryChartXTickFormatter}
