@@ -339,6 +339,27 @@ await sl.index.contractCalls.consume({
 });
 ```
 
+### Runes
+
+Bitcoin Runes on the same Index plane: an etch catalog, per-rune activity, and
+balances, on a Bitcoin tip instead of a Stacks one.
+
+```typescript
+await sl.index.runes.list({ search: "dog", sort: "mints" });
+await sl.index.runes.get("DOG•GO•TO•THE•MOON"); // id, spaced name, or bare name — null on 404
+await sl.index.runes.balances({ address: "bc1q..." }); // exactly one of address/outpoint
+
+for await (const e of sl.index.runes.activity.walk({ fromHeight: 900_000 })) {
+  console.log(e.kind, e.rune.spaced_name, e.amount); // amounts are u128 decimal strings
+}
+```
+
+`RuneRef` (the type every `rune` field/param takes) is an id (`` `${number}:${number}` ``)
+or any name form, spacers and case ignored — typing all 178k+ rune names would
+be huge and stale, so `list({ search })` covers discovery instead. Self-host
+with the `bitcoin` compose profile has data today; hosted follows. Full guide:
+[docs/runes](https://www.secondlayer.tools/docs/runes).
+
 ## Transaction-inclusion proofs
 
 Verify — **without trusting Secondlayer** — that a transaction is included in a

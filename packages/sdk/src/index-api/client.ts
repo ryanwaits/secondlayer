@@ -1271,6 +1271,208 @@ export interface Pox5Resource {
 	};
 }
 
+// ── Runes (/v1/index/runes/*) ───────────────────────────────────────
+
+/** A rune's `<block>:<tx>` id — the etch transaction's position, e.g. `840000:3`. */
+export type RuneId = `${number}:${number}`;
+
+/**
+ * A rune reference accepted by every Runes call: an id ({@link RuneId}) or a
+ * name, with or without spacers, in any case — `DOG•GO•TO•THE•MOON`,
+ * `dog.go.to.the.moon` and `doggotothemoon` all resolve to the same rune.
+ * Typing every rune name is a no (178k runes and growing — a generated union
+ * would be huge and stale on day one); `list({ search })` covers discovery.
+ */
+export type RuneRef = RuneId | (string & {});
+
+/** The Bitcoin chain tip a Runes read was served against — a separate clock
+ *  from the Stacks {@link IndexTip}: Runes ingest tracks Bitcoin blocks, not
+ *  Stacks ones. */
+export type IndexBitcoinTip = {
+	block_height: number;
+	finalized_height: number;
+	lag_seconds: number;
+};
+
+/** A Bitcoin fork the Runes indexer rolled back. Rows in
+ *  `[orphaned_from, orphaned_to]` were replaced; undo anything you committed
+ *  from them. Block-level only — a Bitcoin reorg has no Stacks-style
+ *  event_index component. */
+export type IndexBtcReorg = {
+	id: string;
+	detected_at: string;
+	fork_point_height: number;
+	old_hash: string;
+	new_hash: string;
+	orphaned_from: number;
+	orphaned_to: number;
+	new_tip_height: number;
+};
+
+/** The rune identity bundle every Runes response embeds, so a client never
+ *  needs a second lookup just to show a name next to an event or a balance. */
+export type IndexRuneRefSummary = {
+	id: string;
+	/** Spacers stripped, uppercase. */
+	name: string;
+	/** As etched, spacers (`•`) included. */
+	spaced_name: string;
+	symbol: string | null;
+	divisibility: number;
+};
+
+/** Mint terms, or `null` for a premine-only rune that was never mintable. */
+export type IndexRuneTerms = {
+	amount: string | null;
+	cap: string | null;
+	height_start: string | null;
+	height_end: string | null;
+	offset_start: string | null;
+	offset_end: string | null;
+};
+
+/** One etched rune's full entry: identity, premine/mint/burn counters,
+ *  computed supply, and mint terms. */
+export type IndexRuneEntry = IndexRuneRefSummary & {
+	/** Etch sequence number (u128 decimal string) — 0 is genesis. */
+	number: string;
+	/** Premined amount, u128 decimal string. Never `Number()`. */
+	premine: string;
+	/** Computed: `premine + mints × terms.amount` (0 with no terms). u128
+	 *  decimal string. */
+	supply: string;
+	burned: string;
+	mints: string;
+	turbo: boolean;
+	etching_txid: string;
+	etched_height: number;
+	etched_tx_index: number;
+	terms: IndexRuneTerms | null;
+};
+
+export type RunesEnvelope<TRow = IndexRuneEntry> = {
+	runes: TRow[];
+	next_cursor: string | null;
+	tip: IndexBitcoinTip;
+	/** Always empty: `list` reads a reorg-corrected snapshot table, not an
+	 *  append-only log — there is no stale page to reconcile. */
+	reorgs: IndexBtcReorg[];
+	/** Present only when Runes data is not configured on this instance. */
+	notes?: string;
+};
+
+export type RunesListParams = {
+	/** Name prefix, spacers and case ignored (`dog` matches `DOG•GO•TO•THE•MOON`). */
+	search?: string;
+	/** `number` (etch order, oldest first — default) or `mints` (busiest first). */
+	sort?: "number" | "mints";
+	cursor?: string | null;
+	limit?: number;
+};
+
+export type RuneEnvelope = {
+	rune: IndexRuneEntry;
+	tip: IndexBitcoinTip;
+};
+
+export type IndexRuneEventKind =
+	| "rune_etch"
+	| "rune_mint"
+	| "rune_transfer"
+	| "rune_burn";
+
+/** One etch/mint/transfer/burn event, with the rune's identity embedded so an
+ *  activity feed never needs a second lookup to show a name. */
+export type IndexRuneEvent = {
+	cursor: string;
+	block_height: number;
+	tx_index: number;
+	txid: string;
+	event_index: number;
+	kind: IndexRuneEventKind;
+	/** u128 decimal string. Never `Number()`. */
+	amount: string;
+	vout: number | null;
+	/** The output's mainnet address. Only ever set on a `rune_transfer` event. */
+	address: string | null;
+	rune: IndexRuneRefSummary;
+};
+
+export type RuneActivityEnvelope<TRow = IndexRuneEvent> = {
+	events: TRow[];
+	next_cursor: string | null;
+	tip: IndexBitcoinTip;
+	reorgs: IndexBtcReorg[];
+	notes?: string;
+};
+
+export type RuneActivityListParams = {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	fromHeight?: number;
+	toHeight?: number;
+	limit?: number;
+	rune?: RuneRef;
+	address?: string;
+	kind?: readonly IndexRuneEventKind[];
+	txid?: string;
+};
+
+export type RuneActivityWalkParams = Omit<RuneActivityListParams, "limit"> &
+	WalkOptions;
+
+/** A rune's balance on one unspent output, with the rune's identity embedded. */
+export type IndexRuneBalance = {
+	rune: IndexRuneRefSummary;
+	/** The output's mainnet address, or `null` for a non-standard script. */
+	address: string | null;
+	txid: string;
+	vout: number;
+	/** u128 decimal string. Never `Number()`. */
+	amount: string;
+};
+
+export type RuneBalancesEnvelope<TRow = IndexRuneBalance> = {
+	balances: TRow[];
+	next_cursor: string | null;
+	tip: IndexBitcoinTip;
+	/** Always empty — see {@link RunesEnvelope.reorgs}. */
+	reorgs: IndexBtcReorg[];
+	notes?: string;
+};
+
+/** Exactly one of `address`/`outpoint` is required — enforced at the type
+ *  level, not just at runtime. */
+export type RuneBalancesListParams = (
+	| { address: string; outpoint?: never }
+	| { outpoint: string; address?: never }
+) & {
+	/** Narrows the result to one rune. */
+	rune?: RuneRef;
+	cursor?: string | null;
+	limit?: number;
+};
+
+/** `index.runes` — the rune catalog, activity log, and balances. Runes is
+ *  more data on the existing Index plane, not a new product. Not configured
+ *  on hosted yet; every feed's `notes` says so when it isn't. Self-host with
+ *  the `bitcoin` compose profile has data today. */
+export interface RunesResource {
+	/** The rune catalog. `search` prefix-matches the name; `sort` is etch
+	 *  order (default) or busiest-first. */
+	list(params?: RunesListParams): Promise<RunesEnvelope>;
+	/** One rune's full entry by id or name; `null` on 404 (no such rune, or
+	 *  Runes isn't configured on this instance). */
+	get(rune: RuneRef): Promise<RuneEnvelope | null>;
+	/** Current per-outpoint rune balances by address or outpoint. */
+	balances(params: RuneBalancesListParams): Promise<RuneBalancesEnvelope>;
+	/** Etch/mint/transfer/burn events, cursor `<block_height>:<event_index>`. */
+	activity: {
+		list(params?: RuneActivityListParams): Promise<RuneActivityEnvelope>;
+		walk(params?: RuneActivityWalkParams): AsyncIterable<IndexRuneEvent>;
+	};
+}
+
 /**
  * A consume call's feed filters: everything except the loop's own starting
  * checkpoint. `fromCursor` MUST be dropped — it is where the loop begins, not
@@ -1743,6 +1945,24 @@ export class Index extends BaseClient {
 						}),
 					itemsOf: (envelope) => envelope.events,
 				}),
+		},
+	};
+
+	/** Rune catalog, activity and balances. Separate clock/reorg source from
+	 *  the Stacks feeds above — see {@link RunesResource}. */
+	readonly runes: RunesResource = {
+		list: (params: RunesListParams = {}): Promise<RunesEnvelope> =>
+			this.listRunes(params),
+		get: (rune: RuneRef): Promise<RuneEnvelope | null> => this.getRune(rune),
+		balances: (params: RuneBalancesListParams): Promise<RuneBalancesEnvelope> =>
+			this.listRuneBalances(params),
+		activity: {
+			list: (
+				params: RuneActivityListParams = {},
+			): Promise<RuneActivityEnvelope> => this.listRuneActivity(params),
+			walk: (
+				params: RuneActivityWalkParams = {},
+			): AsyncIterable<IndexRuneEvent> => this.walkRuneActivity(params),
 		},
 	};
 
@@ -2271,6 +2491,73 @@ export class Index extends BaseClient {
 		return this.requestOrNull<PoxCycleEnvelope>(
 			"GET",
 			`/v1/index/pox/cycles/${rewardCycle}`,
+		);
+	}
+
+	private async listRunes(
+		params: RunesListParams & RequestSignal = {},
+	): Promise<RunesEnvelope> {
+		return this.request<RunesEnvelope>(
+			"GET",
+			`/v1/index/runes${buildQuery({
+				search: params.search,
+				sort: params.sort,
+				cursor: params.cursor,
+				limit: params.limit,
+			})}`,
+			undefined,
+			{ signal: params.signal },
+		);
+	}
+
+	private async getRune(rune: RuneRef): Promise<RuneEnvelope | null> {
+		return this.requestOrNull<RuneEnvelope>(
+			"GET",
+			`/v1/index/runes/${encodeURIComponent(rune)}`,
+		);
+	}
+
+	private async listRuneActivity(
+		params: RuneActivityListParams & RequestSignal = {},
+	): Promise<RuneActivityEnvelope> {
+		return this.request<RuneActivityEnvelope>(
+			"GET",
+			`/v1/index/runes/activity${buildQuery({
+				...indexPageQuery(params),
+				rune: params.rune,
+				address: params.address,
+				kind: params.kind,
+				txid: params.txid,
+			})}`,
+			undefined,
+			{ signal: params.signal },
+		);
+	}
+
+	private walkRuneActivity(
+		params: RuneActivityWalkParams = {},
+	): AsyncGenerator<IndexRuneEvent> {
+		return this.keysetWalk(
+			params,
+			(page) => this.listRuneActivity({ ...params, ...page }),
+			(e) => e.events,
+		);
+	}
+
+	private async listRuneBalances(
+		params: RuneBalancesListParams & RequestSignal,
+	): Promise<RuneBalancesEnvelope> {
+		return this.request<RuneBalancesEnvelope>(
+			"GET",
+			`/v1/index/runes/balances${buildQuery({
+				address: params.address,
+				outpoint: params.outpoint,
+				rune: params.rune,
+				cursor: params.cursor,
+				limit: params.limit,
+			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 }

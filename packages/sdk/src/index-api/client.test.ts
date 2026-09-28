@@ -989,3 +989,131 @@ describe("multi-contract scope", () => {
 		expect(urls[0]).not.toContain("%2C");
 	});
 });
+
+describe("Index Runes accessors", () => {
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	test("runes.list forwards search/sort/cursor/limit", async () => {
+		const urls = recorder({
+			runes: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).runes.list({
+			search: "dog",
+			sort: "mints",
+			limit: 10,
+		});
+		expect(urls[0]).toContain("/v1/index/runes?");
+		expect(urls[0]).toContain("search=dog");
+		expect(urls[0]).toContain("sort=mints");
+		expect(urls[0]).toContain("limit=10");
+	});
+
+	test("runes.get hits the rune path and unwraps", async () => {
+		const urls = recorder({
+			rune: { id: "840000:3", name: "DOGGOTOTHEMOON" },
+			tip: {},
+		});
+		const res = await new Index({ baseUrl: BASE_URL }).runes.get(
+			"DOG•GO•TO•THE•MOON",
+		);
+		expect(urls[0]).toContain(
+			`/v1/index/runes/${encodeURIComponent("DOG•GO•TO•THE•MOON")}`,
+		);
+		expect(res?.rune.id).toBe("840000:3");
+	});
+
+	test("runes.get resolves null on 404", async () => {
+		globalThis.fetch = mock(() =>
+			Promise.resolve({
+				ok: false,
+				status: 404,
+				headers: new Headers(),
+				json: () => Promise.resolve({ error: "not_found" }),
+				text: () => Promise.resolve('{"error":"not_found"}'),
+			} as Response),
+		) as unknown as typeof fetch;
+		const res = await new Index({ baseUrl: BASE_URL }).runes.get("840000:3");
+		expect(res).toBeNull();
+	});
+
+	test("runes.balances forwards address, and separately outpoint+rune", async () => {
+		const urls = recorder({
+			balances: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).runes.balances({
+			address: "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg",
+		});
+		await new Index({ baseUrl: BASE_URL }).runes.balances({
+			outpoint: "abcd:1",
+			rune: "840000:3",
+		});
+		expect(urls[0]).toContain(
+			"address=bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg",
+		);
+		expect(urls[1]).toContain("outpoint=abcd%3A1");
+		expect(urls[1]).toContain("rune=840000%3A3");
+	});
+
+	test("runes.activity.list maps camelCase params to the snake_case wire", async () => {
+		const urls = recorder({
+			events: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).runes.activity.list({
+			rune: "840000:3",
+			fromHeight: 900_000,
+			kind: ["rune_mint", "rune_transfer"],
+		});
+		expect(urls[0]).toContain("/v1/index/runes/activity");
+		expect(urls[0]).toContain("rune=840000%3A3");
+		expect(urls[0]).toContain("from_height=900000");
+		expect(urls[0]).toContain("kind=rune_mint%2Crune_transfer");
+	});
+
+	test("runes.activity.walk follows next_cursor across two pages, then stops", async () => {
+		const urls: string[] = [];
+		const page = (cursor: string | null, count: number) => ({
+			events: Array.from({ length: count }, (_, i) => ({
+				cursor: `${i}`,
+				kind: "rune_mint",
+			})),
+			next_cursor: cursor,
+			tip: {},
+			reorgs: [],
+		});
+		const bodies = [page("840010:1", 2), page("840020:1", 1)];
+		globalThis.fetch = mock((input: string | URL | Request) => {
+			urls.push(typeof input === "string" ? input : input.toString());
+			const body = bodies[urls.length - 1] ?? page(null, 0);
+			return Promise.resolve({
+				ok: true,
+				status: 200,
+				headers: new Headers({ "content-type": "application/json" }),
+				json: () => Promise.resolve(body),
+				text: () => Promise.resolve(JSON.stringify(body)),
+			} as Response);
+		}) as unknown as typeof fetch;
+
+		const seen: unknown[] = [];
+		for await (const event of new Index({
+			baseUrl: BASE_URL,
+		}).runes.activity.walk({ batchSize: 2 })) {
+			seen.push(event);
+		}
+		expect(urls).toHaveLength(3);
+		expect(urls[0]).toContain("/v1/index/runes/activity");
+		expect(urls[1]).toContain("cursor=840010%3A1");
+		expect(urls[2]).toContain("cursor=840020%3A1");
+		expect(seen).toHaveLength(3);
+	});
+});
