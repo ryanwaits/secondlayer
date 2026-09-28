@@ -1903,7 +1903,7 @@
 					"summary": "One delivery body, generic over its trigger literal + matched-event shape.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 242
+					"line": 270
 				},
 				{
 					"name": "ChainApplyEnvelope",
@@ -1911,7 +1911,7 @@
 					"summary": "Delivered when a matched chain event lands in a canonical block (`event_type: \"chain.<trigger>.apply\"`).",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 58
+					"line": 59
 				},
 				{
 					"name": "ChainApplyEnvelopeOf",
@@ -1919,7 +1919,7 @@
 					"summary": "One `apply` envelope, generic over its trigger literal + matched-event shape.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 228
+					"line": 256
 				},
 				{
 					"name": "ChainEventEnvelope",
@@ -1927,7 +1927,7 @@
 					"summary": "Wrapper around an event-level trigger's matched event.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 200
+					"line": 228
 				},
 				{
 					"name": "ChainFtBurnData",
@@ -1935,7 +1935,7 @@
 					"summary": "`event.data` for an `ft_burn` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 154
+					"line": 182
 				},
 				{
 					"name": "ChainFtMintData",
@@ -1943,7 +1943,7 @@
 					"summary": "`event.data` for an `ft_mint` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 148
+					"line": 176
 				},
 				{
 					"name": "ChainFtTransferData",
@@ -1951,7 +1951,7 @@
 					"summary": "`event.data` for an `ft_transfer` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 141
+					"line": 169
 				},
 				{
 					"name": "ChainNftBurnData",
@@ -1959,7 +1959,7 @@
 					"summary": "`event.data` for an `nft_burn` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 177
+					"line": 205
 				},
 				{
 					"name": "ChainNftMintData",
@@ -1967,7 +1967,7 @@
 					"summary": "`event.data` for an `nft_mint` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 171
+					"line": 199
 				},
 				{
 					"name": "ChainNftTransferData",
@@ -1975,7 +1975,7 @@
 					"summary": "`event.data` for an `nft_transfer` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 164
+					"line": 192
 				},
 				{
 					"name": "ChainPrintEventData",
@@ -1983,7 +1983,7 @@
 					"summary": "`event.data` for a `print_event` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 187
+					"line": 215
 				},
 				{
 					"name": "ChainReorgOrphanedEntry",
@@ -1991,7 +1991,7 @@
 					"summary": "One orphaned delivery recalled by a reorg rollback.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 76
+					"line": 99
 				},
 				{
 					"name": "ChainReorgRollbackDelivery",
@@ -1999,7 +1999,7 @@
 					"summary": "Delivered once per affected webhook on a reorg (`type: \"chain.reorg.rollback\"`).",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 252
+					"line": 290
 				},
 				{
 					"name": "ChainReorgRollbackEnvelope",
@@ -2007,7 +2007,7 @@
 					"summary": "Delivered once per affected webhook on a reorg (`event_type: \"chain.reorg.rollback\"`).",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 88
+					"line": 114
 				},
 				{
 					"name": "ChainStxBurnData",
@@ -2015,7 +2015,7 @@
 					"summary": "`event.data` for a `stx_burn` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 130
+					"line": 158
 				},
 				{
 					"name": "ChainStxLockData",
@@ -2023,7 +2023,7 @@
 					"summary": "`event.data` for a `stx_lock` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 135
+					"line": 163
 				},
 				{
 					"name": "ChainStxMintData",
@@ -2031,7 +2031,7 @@
 					"summary": "`event.data` for a `stx_mint` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 125
+					"line": 153
 				},
 				{
 					"name": "ChainStxTransferData",
@@ -2039,7 +2039,7 @@
 					"summary": "`event.data` for a `stx_transfer` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 117
+					"line": 145
 				},
 				{
 					"name": "ChainTestDelivery",
@@ -2047,7 +2047,7 @@
 					"summary": "The `POST /webhooks/:id/test` ping (`type: \"chain.test.apply\"`) — not a real chain event.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 259
+					"line": 297
 				},
 				{
 					"name": "ChainTrigger",
@@ -2071,7 +2071,7 @@
 					"summary": "A tx-level trigger's matched event (`contract_call` / `contract_deploy`) — flat, no nested `data` key.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 212
+					"line": 240
 				},
 				{
 					"name": "ChainWebhookDelivery",
@@ -2079,7 +2079,7 @@
 					"summary": "The full wire body of a chain-webhook webhook delivery, as sent to a `format: \"standard-webhooks\"` webhook (the default) — `{ type, timestamp, data }`.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 301
+					"line": 339
 				},
 				{
 					"name": "ChainWebhookEnvelope",
@@ -2087,7 +2087,7 @@
 					"summary": "Any chain-webhook webhook body.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 96
+					"line": 123
 				},
 				{
 					"name": "CreateWebhookRequest",
@@ -2095,7 +2095,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 208
+					"line": 226
 				},
 				{
 					"name": "CreateWebhookResponse",
@@ -2103,7 +2103,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 299
+					"line": 317
 				},
 				{
 					"name": "DeadRow",
@@ -2111,7 +2111,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 397
+					"line": 415
 				},
 				{
 					"name": "DeliveryRow",
@@ -2119,7 +2119,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 308
+					"line": 326
 				},
 				{
 					"name": "ReplayResult",
@@ -2127,7 +2127,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 383
+					"line": 401
 				},
 				{
 					"name": "RotateSecretResponse",
@@ -2135,7 +2135,23 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 304
+					"line": 322
+				},
+				{
+					"name": "RuneApplyDeliveryOf",
+					"kind": "type",
+					"summary": "One Runes `apply` delivery body (`type: \"chain.rune_*.apply\"`).",
+					"signature": null,
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
+					"line": 283
+				},
+				{
+					"name": "RuneApplyEnvelope",
+					"kind": "interface",
+					"summary": "Delivered when a Runes trigger (`rune_etch`/`rune_mint`/`rune_transfer`/ `rune_burn`) matches an event on the `chain=bitcoin` Streams clock (plan 059) — a separate wire shape from {@link ChainApply…",
+					"signature": null,
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
+					"line": 86
 				},
 				{
 					"name": "SbtcDepositEvent",
@@ -2143,7 +2159,7 @@
 					"summary": "Payload for `sbtc_deposit` (topic: completed-deposit).",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 14
+					"line": 15
 				},
 				{
 					"name": "SbtcWithdrawalEvent",
@@ -2151,7 +2167,7 @@
 					"summary": "Payload for `sbtc_withdrawal_create`, `sbtc_withdrawal_accept`, `sbtc_withdrawal_reject` — the on-Stacks lifecycle events.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 27
+					"line": 28
 				},
 				{
 					"name": "SbtcWithdrawalSweptConfirmedEvent",
@@ -2159,7 +2175,7 @@
 					"summary": "Payload for `sbtc_withdrawal_swept_confirmed` — fired once when a peg-out's committed BTC sweep crosses the confirmation threshold on Bitcoin.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 42
+					"line": 43
 				},
 				{
 					"name": "StandardWebhooksHeaders",
@@ -2175,7 +2191,7 @@
 					"summary": "Ergonomic chain-trigger constructors for `webhooks.create({ triggers })`.",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 188
+					"line": 202
 				},
 				{
 					"name": "UpdateWebhookRequest",
@@ -2183,7 +2199,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 227
+					"line": 245
 				},
 				{
 					"name": "verifyStandardWebhooksHeaders",
@@ -2199,7 +2215,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 340
+					"line": 358
 				},
 				{
 					"name": "WebhookActivityHour",
@@ -2207,7 +2223,7 @@
 					"summary": "One hour of `webhook_outbox` activity (`GET /:id/activity`), zero-filled so the events chart always has 168 bars.",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 333
+					"line": 351
 				},
 				{
 					"name": "WebhookAuth",
@@ -2215,7 +2231,7 @@
 					"summary": "What a webhook's receiver credentials look like once redacted for a response — never the bearer token, basic-auth string, or header values themselves, only enough to show what's set.",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 275
+					"line": 293
 				},
 				{
 					"name": "WebhookDeliveryDetail",
@@ -2223,7 +2239,7 @@
 					"summary": "One delivery attempt with its outbox context, for the delivery card (`GET /:id/deliveries/:deliveryId`).",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 357
+					"line": 375
 				},
 				{
 					"name": "WebhookDetail",
@@ -2231,7 +2247,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 282
+					"line": 300
 				},
 				{
 					"name": "WebhookFormat",
@@ -2271,7 +2287,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 245
+					"line": 263
 				},
 				{
 					"name": "WebhookTestResult",
@@ -2279,7 +2295,7 @@
 					"summary": "Result of a one-off test delivery (`POST /:id/test`).",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 390
+					"line": 408
 				}
 			]
 		},
@@ -2643,7 +2659,7 @@
 					"summary": "Decode + narrow a chain webhook delivery body into a typed {@link ChainWebhookDelivery}.",
 					"signature": "decodeChainWebhook(rawBody: string): ChainWebhookDelivery",
 					"file": "src/webhooks/verify.ts",
-					"line": 254
+					"line": 256
 				},
 				{
 					"name": "DoctorEvidence",
@@ -2803,7 +2819,7 @@
 					"summary": "Verify the universal Secondlayer authenticity signature that every delivery carries, regardless of body format (`raw`, `cloudevents`, `standard-webhooks`, …).",
 					"signature": "verifySecondlayerSignature(rawBody: string, headers: WebhookHeaderInput, publicKeyPem: string): boolean",
 					"file": "src/webhooks/verify.ts",
-					"line": 206
+					"line": 208
 				},
 				{
 					"name": "verifyWebhookSignature",
@@ -2811,7 +2827,7 @@
 					"summary": "Verify a Secondlayer webhook delivery signature.",
 					"signature": "verifyWebhookSignature(rawBody: string, headers: WebhookHeaderInput, secret: string, toleranceSeconds?: number): boolean",
 					"file": "src/webhooks/verify.ts",
-					"line": 155
+					"line": 157
 				},
 				{
 					"name": "WebhookHeaderInput",
@@ -2819,7 +2835,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/webhooks/verify.ts",
-					"line": 41
+					"line": 43
 				},
 				{
 					"name": "Webhooks",

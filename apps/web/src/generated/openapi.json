@@ -7424,7 +7424,11 @@
 							"sbtc_withdrawal_create",
 							"sbtc_withdrawal_accept",
 							"sbtc_withdrawal_reject",
-							"sbtc_withdrawal_swept_confirmed"
+							"sbtc_withdrawal_swept_confirmed",
+							"rune_etch",
+							"rune_mint",
+							"rune_transfer",
+							"rune_burn"
 						],
 						"description": "Event to match."
 					},
@@ -7447,7 +7451,7 @@
 								"minimum": 0
 							}
 						],
-						"description": "Minimum amount, inclusive. Integer string (uint128-safe) or number. Accepted on `stx_transfer`, `stx_mint`, `stx_burn`, `stx_lock`, `ft_transfer`, `ft_mint`, `ft_burn`, `sbtc_deposit`, `sbtc_withdrawal_create`."
+						"description": "Minimum amount, inclusive. Integer string (uint128-safe) or number. Accepted on `stx_transfer`, `stx_mint`, `stx_burn`, `stx_lock`, `ft_transfer`, `ft_mint`, `ft_burn`, `sbtc_deposit`, `sbtc_withdrawal_create`, `rune_transfer`."
 					},
 					"maxAmount": {
 						"oneOf": [
@@ -7510,6 +7514,14 @@
 					"sweepTxid": {
 						"type": "string",
 						"description": "Bitcoin txid of the sweep. Accepted on `sbtc_withdrawal_accept`, `sbtc_withdrawal_swept_confirmed`."
+					},
+					"rune": {
+						"type": "string",
+						"description": "A RuneRef: an id (\"840000:3\") or a name (\"DOG•GO•TO•THE•MOON\"), spacer- and case-insensitive. Normalized to its canonical id on create; an unknown rune is rejected with 400. Accepted on `rune_etch`, `rune_mint`, `rune_transfer`, `rune_burn`."
+					},
+					"address": {
+						"type": "string",
+						"description": "Bitcoin (mainnet) address. Exact match, no wildcards. Accepted on `rune_transfer`."
 					}
 				},
 				"example": {
