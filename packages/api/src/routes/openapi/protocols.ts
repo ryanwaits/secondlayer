@@ -118,11 +118,12 @@ const NOT_MODIFIED_POINT = {
 
 const BITCOIN_TIP = { $ref: "#/components/schemas/BitcoinTip" };
 
-/** A tip read from mainnet Bitcoin, illustrative (2026-09-23). */
+/** A tip read from mainnet Bitcoin (live feeder DB, 2026-09-28), past the
+ *  DOG examples' heights below. */
 const BITCOIN_TIP_EXAMPLE = {
-	block_height: 921_487,
-	finalized_height: 921_481,
-	lag_seconds: 340,
+	block_height: 968_925,
+	finalized_height: 968_919,
+	lag_seconds: 210,
 };
 
 const RUNES_NOTES = {
@@ -216,44 +217,40 @@ const POX_CYCLE_EXAMPLE = {
 	],
 };
 
-// DOG•GO•TO•THE•MOON, 840000:3 — illustrative, not a live mainnet snapshot
-// (`mints`/`burned`/`supply` move every block it's still mintable).
+// DOG•GO•TO•THE•MOON, 840000:3 — a real mainnet row (live feeder DB,
+// 2026-09-28). Premine-only: never had mint terms, so `mints` stays "0" and
+// `supply` is just `premine`. Rune txids come back without a `0x` prefix —
+// the API emits them as stored.
 const RUNE_ENTRY_EXAMPLE = {
 	id: "840000:3",
-	number: "0",
+	number: "3",
 	name: "DOGGOTOTHEMOON",
 	spaced_name: "DOG•GO•TO•THE•MOON",
 	symbol: "🐕",
 	divisibility: 5,
 	premine: "10000000000000000",
-	supply: "79079600000000000",
-	burned: "1234560000",
-	mints: "690796",
-	turbo: true,
+	supply: "10000000000000000",
+	burned: "2440680717188",
+	mints: "0",
+	turbo: false,
 	etching_txid:
-		"0x8ac3daa9f0c869cd6d1cdd3c04cbba1b155c0304a95c9c1c1e33e1c0e6b73f27",
+		"e79134080a83fe3e0e06ed6990c5a9b63b362313341745707a2bff7d788a1375",
 	etched_height: 840000,
 	etched_tx_index: 3,
-	terms: {
-		amount: "100000000000",
-		cap: "340282366920938463463374607431768211455",
-		height_start: null,
-		height_end: null,
-		offset_start: null,
-		offset_end: null,
-	},
+	terms: null,
 };
 
+// A real DOG transfer (live feeder DB, 2026-09-28).
 const RUNE_EVENT_EXAMPLE = {
-	cursor: "840010:2",
-	block_height: 840010,
-	tx_index: 5,
-	txid: "0x2f6a1c9b5e4d3a8f7c0b6e5d4c3b2a1908f7e6d5c4b3a29180706050403020a1",
-	event_index: 2,
+	cursor: "968919:3",
+	block_height: 968919,
+	tx_index: 144,
+	txid: "77c95d193e680429fe7f801a68488bd30919d011f23542141a7fae5244b002b4",
+	event_index: 3,
 	kind: "rune_transfer",
-	amount: "5000000000",
-	vout: 1,
-	address: "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg",
+	amount: "2933553300",
+	vout: 2,
+	address: "bc1pjku9h7ckjt8802mu79zt7vv8d6mhp0x57gkppcls57ex4rkq9cxqs52pr3",
 	rune: {
 		id: "840000:3",
 		name: "DOGGOTOTHEMOON",
@@ -263,6 +260,7 @@ const RUNE_EVENT_EXAMPLE = {
 	},
 };
 
+// A real DOG balance (live feeder DB, 2026-09-28).
 const RUNE_BALANCE_EXAMPLE = {
 	rune: {
 		id: "840000:3",
@@ -271,10 +269,10 @@ const RUNE_BALANCE_EXAMPLE = {
 		symbol: "🐕",
 		divisibility: 5,
 	},
-	address: "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg",
-	txid: "0x2f6a1c9b5e4d3a8f7c0b6e5d4c3b2a1908f7e6d5c4b3a29180706050403020a1",
-	vout: 1,
-	amount: "5000000000",
+	address: "bc1phnp234rd5hel0h8ulqvnq3zrww2td0a8q48hjcg7mv67j97jnxfq9ayczm",
+	txid: "2d2b54008790a44c9c3e630faa521a50f8ab122625c4eb8fb84705051c4fc611",
+	vout: 0,
+	amount: "88980600",
 };
 
 const BTC_REORG_EXAMPLE = {
@@ -692,7 +690,7 @@ export const protocolsPaths = {
 					"txid",
 					"string",
 					false,
-					"Bitcoin txid, `0x`-prefixed hex. Exact match.",
+					"Bitcoin txid, hex with no `0x` prefix (Rune txids come back as stored, unlike Stacks ones). Exact match.",
 				),
 			],
 			responses: runesEnvelope("events", "RuneEvent", { reorgs: true }),
@@ -730,7 +728,7 @@ export const protocolsPaths = {
 					schema: {
 						type: "string",
 						example:
-							"2f6a1c9b5e4d3a8f7c0b6e5d4c3b2a1908f7e6d5c4b3a29180706050403020a1:1",
+							"2d2b54008790a44c9c3e630faa521a50f8ab122625c4eb8fb84705051c4fc611:0",
 					},
 				},
 				{
@@ -759,7 +757,7 @@ export const protocolsPaths = {
 					lang: "TypeScript",
 					label: "SDK",
 					source:
-						'const page = await sl.index.runes.balances.list({ address: "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg" });',
+						'const page = await sl.index.runes.balances({ address: "bc1phnp234rd5hel0h8ulqvnq3zrww2td0a8q48hjcg7mv67j97jnxfq9ayczm" });',
 				},
 			],
 		},

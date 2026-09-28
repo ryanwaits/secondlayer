@@ -691,13 +691,17 @@ export const streamsSchemas = {
 					"`true` when the block is at or below `tip.finalized_height` and can no longer reorg.",
 			},
 		},
+		// DOG•GO•TO•THE•MOON, 840000:3 (live feeder DB, 2026-09-28); block_hash
+		// isn't tracked in that row set, so it's an explicit all-zero placeholder
+		// rather than an invented-looking one. Rune txids come back without a
+		// `0x` prefix, unlike Stacks ones.
 		example: {
 			cursor: "840000:0",
 			chain: "bitcoin",
 			block_height: 840000,
 			block_hash:
-				"0000000000000000000320283a032748cef8227151f4bdd782bb6ff9ba46e97",
-			tx_id: "b0dc5c239d3b28108bd7d80f6de56dc7ffa9b8f0ac5f3c9baa2ffd6bb96f6dc9",
+				"0000000000000000000000000000000000000000000000000000000000000000",
+			tx_id: "e79134080a83fe3e0e06ed6990c5a9b63b362313341745707a2bff7d788a1375",
 			tx_index: 3,
 			event_index: 0,
 			event_type: "rune_etch",
@@ -709,16 +713,10 @@ export const streamsSchemas = {
 					spaced_name: "DOG•GO•TO•THE•MOON",
 					symbol: "🐕",
 					divisibility: 5,
-					premine: "100000000000000",
+					premine: "10000000000000000",
 					turbo: false,
-					terms: {
-						amount: "100000",
-						cap: "340282366920938463463374607431768211455",
-						height_start: null,
-						height_end: null,
-						offset_start: null,
-						offset_end: null,
-					},
+					// Premine-only: never had mint terms.
+					terms: null,
 				},
 			},
 			finalized: true,
@@ -744,12 +742,14 @@ export const streamsSchemas = {
 				description: "Seconds since this checkpoint was written.",
 			},
 		},
+		// block_hash isn't tracked in the row set this was pulled from (2026-09-28),
+		// so it's an explicit all-zero placeholder rather than an invented one.
 		example: {
-			block_height: 870000,
+			block_height: 968925,
 			block_hash:
-				"00000000000000000001a2b3c4d5e6f7890abcdef1234567890abcdef123456",
-			finalized_height: 869994,
-			lag_seconds: 42,
+				"0000000000000000000000000000000000000000000000000000000000000000",
+			finalized_height: 968919,
+			lag_seconds: 210,
 		},
 	},
 	StreamsBitcoinCanonicalBlock: {
@@ -766,10 +766,12 @@ export const streamsSchemas = {
 				description: "Always `true`.",
 			},
 		},
+		// DOG's etch block; block_hash isn't tracked in the row set this was
+		// pulled from, so it's an explicit all-zero placeholder.
 		example: {
 			block_height: 840000,
 			block_hash:
-				"0000000000000000000320283a032748cef8227151f4bdd782bb6ff9ba46e97",
+				"0000000000000000000000000000000000000000000000000000000000000000",
 			is_canonical: true,
 		},
 	},
