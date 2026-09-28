@@ -177,6 +177,33 @@ HEALTHCHECK NONE
 CMD ["bun", "run", "packages/subgraphs/src/webhook-service.ts"]
 
 # =============================================================================
+# Bitcoin/Runes follower — the oss self-host `bitcoin` compose profile's
+# `runes` service (plan 062, D18). Runs from source, no build step (same as
+# the `packages/bitcoin` copy above, which the api target already needs for
+# its db types and rune helpers).
+# =============================================================================
+FROM base AS bitcoin
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/packages/bitcoin ./packages/bitcoin
+COPY --from=builder /app/package.json ./
+
+ENV NODE_ENV=production
+
+# No HTTP server, so no curl-based healthcheck (liveness via restart policy,
+# same as subgraph-processor/webhook-processor below).
+HEALTHCHECK NONE
+
+# migrate then follow: an oss instance starts from an empty database (no
+# runes_checkpoint table yet), and `follow`'s own catch-up loop assumes
+# migrations already ran. `--smol` caps the in-memory Runes state — 7-12 GiB
+# with it vs 18.2 GiB without (plan 062, D12); a full backfill peaked at
+# 17.1 GiB with it and OOM-killed at 22g without it.
+CMD ["sh", "-c", "bun run packages/bitcoin/src/cli.ts migrate && exec bun --smol run packages/bitcoin/src/cli.ts follow"]
+
+# =============================================================================
 # One-box self-host runtime — postgres is the only sibling.
 # Publisher/archive stays on the dedicated indexer/publisher images.
 # =============================================================================
