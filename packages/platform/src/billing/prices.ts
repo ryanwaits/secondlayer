@@ -51,8 +51,9 @@ export const CREDIT_USD_MICROS_PER_ROW_VOLUME = 2n;
 export const COMMIT_TIER_MONTHLY_USD_MICROS = 50_000_000n;
 
 /** First N `rows.delivered` per account per UTC calendar month are free
- *  (founder 2026-09-24) — replaces the old free height window. */
-export const ROWS_DELIVERED_MONTHLY_ALLOWANCE = 10_000_000;
+ *  (founder 2026-09-24) — replaces the old free height window. Lowered from
+ *  10M to 1M (founder 2026-09-27): at 10M nearly every reader was free. */
+export const ROWS_DELIVERED_MONTHLY_ALLOWANCE = 1_000_000;
 
 /**
  * Minimum balance to take a debit for one page: one full page (1000 rows ×

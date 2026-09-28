@@ -129,7 +129,7 @@ describe.skipIf(!HAS_DB)("meter — rows.delivered characterization", () => {
 		expect(result.usdMicros).toBe(expectedCost);
 	});
 
-	test("allowance boundary: row 10,000,000 free, 10,000,001st charged", async () => {
+	test("allowance boundary: row 1,000,000 free, 1,000,001st charged", async () => {
 		await creditCredits(db, accountId, 1_000_000n);
 		const now = new Date("2026-09-24T00:00:00Z");
 		const atBoundary = await meter(db, {

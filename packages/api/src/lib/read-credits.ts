@@ -22,7 +22,7 @@ export {
 /**
  * Shared pay-as-you-go read metering for Index + Streams. Every keyed read
  * with an account meters `rows.delivered` (`@secondlayer/platform/billing/meter`):
- * the first 10M rows/month are free (the allowance), rows past it debit the
+ * the first 1M rows/month are free (the allowance), rows past it debit the
  * prepaid `account_credits` balance. One balance covers both surfaces.
  */
 
