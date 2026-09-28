@@ -85,3 +85,16 @@ export function isOverMonthlyCreditCap(
 	if (monthlyCapCents == null) return false;
 	return spentUsdMicros >= BigInt(monthlyCapCents) * USD_MICROS_PER_CENT;
 }
+
+/** "Mon D" for the 1st of the month after `now`, UTC — when a spend cap's
+ *  monthly spend resets. Shared by the 402 refusal message
+ *  (`read-credits.ts`), the alert emails (`spend-cap-alert.ts`), and the
+ *  credits page banner, so the date is always the same. */
+export function nextMonthResetLabel(now: Date = new Date()): string {
+	const at = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+	return at.toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		timeZone: "UTC",
+	});
+}

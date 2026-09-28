@@ -4,6 +4,7 @@ import {
 	MIN_CREDITED_USD_MICROS,
 	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
 	isOverMonthlyCreditCap,
+	nextMonthResetLabel,
 } from "@secondlayer/platform/billing/prices";
 import {
 	getCredits,
@@ -97,25 +98,38 @@ export type InsufficientCreditsBody = {
 	top_up_url: string;
 };
 
+export type SpendCapReachedBody = {
+	error: "spend_cap_reached";
+	message: string;
+};
+
+export type ReadRefusalBody = InsufficientCreditsBody | SpendCapReachedBody;
+
 /**
  * Pre-read gate: once a keyed account's `rows.delivered` this UTC calendar
- * month has reached the free allowance, it needs balance ≥
- * `MIN_CREDITED_USD_MICROS` (one page's worth) to keep reading — the same
- * threshold `resolveCreditedAccount` uses for the rate-limit bypass. Below
- * it, the read is refused BEFORE anything is served, with the same error
- * code the archive fetch gate's 402 uses (`routes/archive.ts`):
- * `insufficient_credits` + `shortfall_usd_micros`, plus a top-up hint/link.
+ * month has reached the free allowance, two things can refuse the read
+ * BEFORE anything is served:
+ *
+ *   1. A configured monthly spend cap already reached this month
+ *      (`spend_cap_reached`) — checked first, since it's a deliberate limit
+ *      the account set, not a balance problem.
+ *   2. Balance short of `MIN_CREDITED_USD_MICROS` (one page's worth) — the
+ *      same threshold `resolveCreditedAccount` uses for the rate-limit
+ *      bypass (`insufficient_credits` + `shortfall_usd_micros`, plus a
+ *      top-up hint/link — the same error code the archive fetch gate's 402
+ *      uses, `routes/archive.ts`).
  *
  * No-op (never refuses — returns `null`) for anon, internal, or self-host:
  * the allowance is an account concept, and only platform mode meters reads
  * at all. A read that starts under the allowance is never refused here even
- * if it will straddle it; see `meterRowsDelivered`.
+ * if it will straddle it — the free rows and the cap are both allowance-
+ * gated, not balance-gated; see `meterRowsDelivered`.
  */
 export async function checkRowsAllowance(
 	accountId: string | undefined,
 	tier: string | undefined,
 	now: Date = new Date(),
-): Promise<InsufficientCreditsBody | null> {
+): Promise<ReadRefusalBody | null> {
 	if (!isPlatformMode() || !accountId || tier === "internal") return null;
 	const db = getDb();
 	const usedThisMonth = await monthlyQuantity(
@@ -125,6 +139,18 @@ export async function checkRowsAllowance(
 		now,
 	);
 	if (usedThisMonth < ROWS_DELIVERED_MONTHLY_ALLOWANCE) return null;
+
+	const caps = await getCaps(db, accountId);
+	if (caps?.monthly_cap_cents != null) {
+		const spent = await getMonthlyCreditsSpend(db, accountId, now);
+		if (isOverMonthlyCreditCap(spent, caps.monthly_cap_cents)) {
+			return {
+				error: "spend_cap_reached",
+				message: `You reached your monthly spend cap. Reads past your free 1M rows are paused until ${nextMonthResetLabel(now)} or until you raise the cap at https://secondlayer.tools/account/credits#cap.`,
+			};
+		}
+	}
+
 	const balance = await getCredits(db, accountId);
 	if (balance >= MIN_CREDITED_USD_MICROS) return null;
 	return {
