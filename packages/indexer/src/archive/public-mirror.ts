@@ -10,12 +10,16 @@
  * operator had copied it by hand. Found 2026-08-15 while tracing a staleness
  * page: the object the page told a reader to consult was unreachable.
  *
+ * Signed reports also live under a nested path (`reports/incidents/<id>.json`),
+ * so `name` may include directories: the parent is created as needed and the
+ * temp file lands beside the target rather than at the tree root.
+ *
  * Opt-in through `ARCHIVE_PUBLIC_DIR`. A publisher that serves the archive
  * straight from object storage has no local tree to keep consistent, so unset
  * means "do nothing" rather than "misconfigured".
  */
-import { rename, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, rename, writeFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, join } from "node:path";
 
 /** The locally-served public archive tree, or null when nothing is served. */
 export function getPublicArchiveDir(): string | null {
@@ -28,7 +32,10 @@ export function getPublicArchiveDir(): string | null {
  *
  * The file is live — a reader can request it mid-write — so it lands via
  * temp-then-rename. `rename` within a directory is atomic, so a consumer sees
- * either the old pointer or the new one and never a truncated JSON body.
+ * either the old pointer or the new one and never a truncated JSON body. When
+ * `name` is nested, its parent directory is created first; a flat `name` keeps
+ * the original behavior exactly, including failing loudly if the tree root
+ * itself doesn't exist.
  *
  * Returns the path written, or null when no public tree is configured. Throws
  * on a real write failure: a pointer that reached R2 but not the tree the world
@@ -41,8 +48,19 @@ export async function mirrorToPublicArchive(params: {
 	const dir = getPublicArchiveDir();
 	if (!dir) return null;
 
+	if (isAbsolute(params.name) || params.name.split("/").includes("..")) {
+		throw new Error(`mirrorToPublicArchive: invalid name "${params.name}"`);
+	}
+
 	const target = join(dir, params.name);
-	const temp = join(dir, `.${params.name}.tmp`);
+	const targetDir = dirname(target);
+	// Only auto-create for a nested name. A flat name's parent IS the tree
+	// root, and an unwritable root should still fail loudly rather than be
+	// silently created.
+	if (targetDir !== dir) {
+		await mkdir(targetDir, { recursive: true });
+	}
+	const temp = join(targetDir, `.${basename(target)}.tmp`);
 	await writeFile(temp, `${JSON.stringify(params.value, null, 2)}\n`, "utf8");
 	await rename(temp, target);
 	return target;

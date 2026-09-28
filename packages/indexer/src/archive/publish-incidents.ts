@@ -25,6 +25,7 @@ import {
 	getStreamsBulkR2ConfigFromEnv,
 	putJsonObject,
 } from "../streams-bulk/upload.ts";
+import { mirrorToPublicArchive } from "./public-mirror.ts";
 import { CANONICAL_ARCHIVE_PREFIX } from "./upload-snapshot.ts";
 
 export type IncidentReport = {
@@ -144,6 +145,12 @@ async function main(): Promise<void> {
 			value: signed,
 		});
 		console.error(`published ${report.id}`);
+
+		const mirrored = await mirrorToPublicArchive({
+			name: `reports/incidents/${report.id}.json`,
+			value: signed,
+		});
+		if (mirrored) console.error(`Mirrored ${report.id}.json to ${mirrored}`);
 	}
 
 	// Index last: it is the thing consumers enumerate, so it should never name
@@ -161,6 +168,12 @@ async function main(): Promise<void> {
 		value: signedIndex,
 	});
 	console.error(`published index (${reports.length} incidents)`);
+
+	const mirroredIndex = await mirrorToPublicArchive({
+		name: "reports/incidents/index.json",
+		value: signedIndex,
+	});
+	if (mirroredIndex) console.error(`Mirrored index.json to ${mirroredIndex}`);
 }
 
 if (import.meta.main) {

@@ -73,4 +73,50 @@ describe("public archive mirror", () => {
 			mirrorToPublicArchive({ name: "status.json", value: {} }),
 		).rejects.toThrow();
 	});
+
+	test("creates missing directories for a nested name", async () => {
+		const dir = await publicDir();
+		const written = await mirrorToPublicArchive({
+			name: "reports/incidents/2026-09-01-example.json",
+			value: { id: "2026-09-01-example" },
+		});
+
+		expect(written).toBe(
+			join(dir, "reports/incidents/2026-09-01-example.json"),
+		);
+		expect(
+			JSON.parse(
+				await readFile(
+					join(dir, "reports/incidents/2026-09-01-example.json"),
+					"utf8",
+				),
+			),
+		).toEqual({ id: "2026-09-01-example" });
+		// The temp file lands beside the target, not at the tree root.
+		expect(await readdir(join(dir, "reports/incidents"))).toEqual([
+			"2026-09-01-example.json",
+		]);
+	});
+
+	test("rejects an absolute name", async () => {
+		await publicDir();
+
+		expect(
+			mirrorToPublicArchive({ name: "/etc/passwd", value: {} }),
+		).rejects.toThrow();
+	});
+
+	test("rejects a name with a .. segment", async () => {
+		await publicDir();
+
+		expect(
+			mirrorToPublicArchive({ name: "../escape.json", value: {} }),
+		).rejects.toThrow();
+		expect(
+			mirrorToPublicArchive({
+				name: "reports/../../escape.json",
+				value: {},
+			}),
+		).rejects.toThrow();
+	});
 });
