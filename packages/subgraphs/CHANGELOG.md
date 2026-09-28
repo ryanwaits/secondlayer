@@ -1,5 +1,18 @@
 # @secondlayer/subgraphs
 
+## 6.3.0
+
+### Minor Changes
+
+- 9a7dd7a: Adds a second chain-trigger evaluator loop for Runes webhooks (`chain=bitcoin` Streams events), running under the same leader lock as the Stacks evaluator with its own cursor and reorg poll. Fixes a reorg-handling bug where a Bitcoin fork's cursor rewind could sweep up Stacks apply rows (and vice versa) at an overlapping numeric block height — reorg handling is now scoped per chain.
+
+### Patch Changes
+
+- Updated dependencies [61c1cb6]
+- Updated dependencies [2bfbad9]
+- Updated dependencies [5320eb2]
+  - @secondlayer/shared@11.15.0
+
 ## 6.2.6
 
 ### Patch Changes

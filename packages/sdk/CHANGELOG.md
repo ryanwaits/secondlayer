@@ -1,5 +1,22 @@
 # @secondlayer/sdk
 
+## 13.2.0
+
+### Minor Changes
+
+- 2bfbad9: Adds `chain: "bitcoin"` to `streams.events.list`, typed so `types` narrows to the Runes event vocabulary (`rune_etch`/`rune_mint`/`rune_transfer`/`rune_burn`) and rejects a Stacks type at compile time. Also threads `chain`/`rune`/`address` through `stream`/`subscribe`/`consume`, and adds a `chain` option to `tip`, `canonical`, `blocks.events` and `events.byTxId`.
+- 96160ef: Adds `sl.index.runes`: `list`/`get` for the etch catalog, `balances` for current per-outpoint balances (exactly one of `address`/`outpoint`, enforced at the type level), and `activity.list`/`activity.walk` for the etch/mint/transfer/burn event log. Every `rune` field/param takes a `RuneRef` (an id or a name, spacers and case ignored). Same envelope, cursor, and consume conventions as every other Index feed, on a Bitcoin tip instead of a Stacks one.
+- 04072e0: Re-exports `RuneApplyEnvelope`/`RuneApplyDeliveryOf`, so `decodeChainWebhook` narrows a `chain.rune_*.apply` delivery the same way it does every Stacks trigger. `trigger.runeEtch`/`runeMint`/`runeTransfer`/`runeBurn` builders come along via the existing `trigger` re-export.
+
+### Patch Changes
+
+- Updated dependencies [61c1cb6]
+- Updated dependencies [2bfbad9]
+- Updated dependencies [5320eb2]
+- Updated dependencies [9a7dd7a]
+  - @secondlayer/shared@11.15.0
+  - @secondlayer/subgraphs@6.3.0
+
 ## 13.1.0
 
 ### Minor Changes

@@ -1,5 +1,26 @@
 # @secondlayer/api
 
+## 1.45.0
+
+### Minor Changes
+
+- 2bfbad9: Adds `chain=bitcoin` to every `/v1/streams/*` route: Runes events (`rune_etch`, `rune_mint`, `rune_transfer`, `rune_burn`) on their own cursor space, filtered by `rune`/`address`. The Stacks default (`chain` omitted) is unchanged except an additive `chain: "stacks"` field on every event.
+
+### Patch Changes
+
+- ee9796d: Webhook creation normalizes a Runes trigger's `rune` field (an id or a name) to its canonical `rune_id` and rejects an unresolvable one with 400, when Bitcoin data is configured on this instance. Documents the new Runes trigger types and fields on the webhooks OpenAPI schema.
+- Updated dependencies [61c1cb6]
+- Updated dependencies [2bfbad9]
+- Updated dependencies [2bfbad9]
+- Updated dependencies [96160ef]
+- Updated dependencies [04072e0]
+- Updated dependencies [5320eb2]
+- Updated dependencies [9a7dd7a]
+  - @secondlayer/shared@11.15.0
+  - @secondlayer/platform@0.3.21
+  - @secondlayer/sdk@13.2.0
+  - @secondlayer/subgraphs@6.3.0
+
 ## 1.44.0
 
 ### Minor Changes

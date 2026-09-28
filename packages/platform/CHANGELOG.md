@@ -1,5 +1,15 @@
 # @secondlayer/platform
 
+## 0.3.21
+
+### Patch Changes
+
+- 61c1cb6: Meter fractional memory and storage quantities. `usage_ledger.quantity` is now `numeric`, so hosted-stack GB-hour and GB-day samples record and bill instead of failing the flush.
+- Updated dependencies [61c1cb6]
+- Updated dependencies [2bfbad9]
+- Updated dependencies [5320eb2]
+  - @secondlayer/shared@11.15.0
+
 ## 0.3.20
 
 ### Patch Changes

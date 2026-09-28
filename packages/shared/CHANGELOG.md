@@ -1,5 +1,16 @@
 # @secondlayer/shared
 
+## 11.15.0
+
+### Minor Changes
+
+- 2bfbad9: Adds `RUNE_EVENT_TYPES`/`RuneEventType` and a `RuneStreamsEvent` row shape to `@secondlayer/shared/streams-rows`, and an additive `chain?: "stacks"` field on the existing Streams event base.
+- 5320eb2: Adds Runes chain-trigger types (`rune_etch`, `rune_mint`, `rune_transfer`, `rune_burn`) and matching `trigger.*` builders to the webhooks schema, a `RuneApplyEnvelope`/`RuneApplyDeliveryOf` webhook-delivery shape, `bitcoin_last_cursor` on `trigger_evaluator_state`, and `chain=bitcoin` Streams methods (`getBitcoinStreamsTip`, `getBitcoinStreamsEventsPage`, `listReorgs(since, chain)`) on `IndexHttpClient`.
+
+### Patch Changes
+
+- 61c1cb6: Meter fractional memory and storage quantities. `usage_ledger.quantity` is now `numeric`, so hosted-stack GB-hour and GB-day samples record and bill instead of failing the flush.
+
 ## 11.14.3
 
 ### Patch Changes
