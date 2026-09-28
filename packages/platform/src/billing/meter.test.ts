@@ -288,3 +288,37 @@ describe.skipIf(!HAS_DB)("meter — flat-priced units (archive)", () => {
 		expect(result.usdMicros).toBe(150_000n);
 	});
 });
+
+describe.skipIf(!HAS_DB)("meter — fractional hosted-stack units", () => {
+	test("memory.gb_hour prices a fractional GB-hour and stores the exact quantity", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const idempotencyKey = randomUUID();
+		const result = await meter(db, {
+			accountId,
+			unit: "memory.gb_hour",
+			quantity: 0.375,
+			source: "internal:provisioner",
+			idempotencyKey,
+		});
+		expect(result.usdMicros).toBe(10_500n);
+		expect(result.debited).toBe(true);
+		const row = await db
+			.selectFrom("usage_ledger")
+			.select("quantity")
+			.where("idempotency_key", "=", idempotencyKey)
+			.executeTakeFirstOrThrow();
+		expect(Number(row.quantity)).toBe(0.375);
+	});
+
+	test("storage.gb_day rounds a sub-µ$ charge to the nearest µ$", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const result = await meter(db, {
+			accountId,
+			unit: "storage.gb_day",
+			quantity: 0.0001,
+			source: "internal:provisioner",
+			idempotencyKey: randomUUID(),
+		});
+		expect(result.usdMicros).toBe(1n);
+	});
+});

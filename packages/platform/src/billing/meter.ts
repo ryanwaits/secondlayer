@@ -64,8 +64,13 @@ async function priceUnit(
 	occurredAt: Date,
 ): Promise<{ usdMicros: bigint; viaAllowance: boolean }> {
 	if (input.unit !== "rows.delivered") {
+		// Hosted-stack units are fractional (GB-hours, GB-days); price in
+		// floating point and round to the nearest µ$. Prices are ≤ 150k µ$, so
+		// the product stays well inside Number's exact-integer range.
 		return {
-			usdMicros: PRICES[input.unit] * BigInt(input.quantity),
+			usdMicros: BigInt(
+				Math.round(Number(PRICES[input.unit]) * input.quantity),
+			),
 			viaAllowance: false,
 		};
 	}
