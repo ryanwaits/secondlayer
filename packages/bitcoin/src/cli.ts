@@ -405,8 +405,18 @@ async function main(): Promise<void> {
 }
 
 if (import.meta.main) {
-	main().catch((error) => {
-		console.error(error);
-		process.exit(1);
-	});
+	// Every one-shot command (everything but `follow`) awaits its final DB
+	// write and `db.destroy()` before `main()` resolves — so it's always safe
+	// to force-exit here. `follow` runs until SIGINT/SIGTERM and must keep
+	// its own lifecycle (plan 081: root cause of the hang wasn't found in the
+	// time box — this is the unconditional backstop for it).
+	const [command] = process.argv.slice(2);
+	main()
+		.then(() => {
+			if (command !== "follow") process.exit(process.exitCode ?? 0);
+		})
+		.catch((error) => {
+			console.error(error);
+			process.exit(1);
+		});
 }
