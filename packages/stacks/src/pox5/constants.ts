@@ -55,6 +55,15 @@ export type Pox5EventTopic = (typeof POX5_EVENT_TOPICS)[number];
 export const POX5_ACTIVATION_BURN_HEIGHT_MAINNET: typeof EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET =
 	EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET;
 
+/**
+ * Reward-cycle prepare-phase length, in burn blocks. A genesis chain
+ * parameter (`/v2/pox` `prepare_cycle_length`) fixed since pox-2 and
+ * unchanged by pox-5; prefer reading it from `/v2/pox` where a client is
+ * available (see `eligibility.ts`), and fall back to this pinned mainnet
+ * value where one isn't (an offline rollup, a CLI without a node).
+ */
+export const MAINNET_PREPARE_CYCLE_LENGTH = 100;
+
 /** Length of a paired-BTC bond, in reward cycles (`BOND_LENGTH_CYCLES`). */
 export const BOND_LENGTH_CYCLES = 12;
 
