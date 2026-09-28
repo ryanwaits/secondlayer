@@ -26,18 +26,23 @@ box that is already undersized can still be restarted.
 ## Bitcoin/Runes follower (`bitcoin` profile)
 
 The `runes` service migrates its own database (`bitcoin`, separate from
-`${POSTGRES_DB:-secondlayer}` — provisioned automatically the first time
-`postgres` starts) then follows the Bitcoin tip forever, decoding Runes
-activity. It needs a Bitcoin node with `txindex=1` — either the bundled
+`${POSTGRES_DB:-secondlayer}`) then follows the Bitcoin tip forever, decoding
+Runes activity. It needs a Bitcoin node with `txindex=1` — either the bundled
 `bitcoind` (add `--profile full-node`) or an external one via the
 `BITCOIN_RPC_*` vars in `.env`.
 
 - Memory: 22 GB limit. `follow` runs with Bun's `--smol` flag, which keeps its
   in-memory Runes state around 7-12 GB (18.2 GB without it); a full backfill
   from empty peaks around 17.1 GB.
-- Upgrades: a schema migration can run long against a large database
-  (minutes to hours) — `follow` doesn't start until it finishes, which is
-  expected, not a hang.
+- Upgrades: existing installs get the `bitcoin` database created automatically
+  by the `runes` service's first `migrate` run — no manual step. (A brand-new
+  install instead gets it from postgres's own init script, provisioned the
+  first time `postgres` starts; either path lands in the same place.) The
+  Postgres role needs `CREATEDB` for this — the default oss `postgres`
+  service's superuser role already has it; `migrate` fails with a one-line fix
+  if a custom, more restricted role doesn't. Also note: a schema migration can
+  run long against a large database (minutes to hours) — `follow` doesn't
+  start until it finishes, which is expected, not a hang.
 - When this profile isn't running (or hasn't caught up yet), the `bitcoin`
   database still exists but is empty; `secondlayer`'s `/v1/index/runes/*`
   reads degrade to a "not configured" note instead of erroring.

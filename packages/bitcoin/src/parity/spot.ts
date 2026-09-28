@@ -13,10 +13,8 @@
 // and "rune" fields). There is no "supply" field on `RuneEntry` itself;
 // `normalizeOrdRuneEntry` computes it the same way `runeEntrySupply`
 // (`../runes/entry.ts`) does for ours: premine + mints*terms.amount.
-// Caveat: written without a live ord instance to capture the real JSON
-// against (no `ord` binary available while writing this) — verify the field
-// names here against a real ord `/rune/<id>` response before trusting a
-// mismatch report, and correct this file if they differ.
+// Verified against live ord 0.29.0 `/rune/840000:3` (DOG•GO•TO•THE•MOON),
+// 2026-09-28: mints=0, burned=2440680717188, terms=null → supply=premine.
 
 import type { Kysely } from "kysely";
 import type { Database } from "../db/types.ts";
