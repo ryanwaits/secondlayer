@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.11.6
+
+### Patch Changes
+
+- e4231d7: `/v1/index/pox/cycles` without a cursor now starts at the next reward cycle instead of the farthest future one a PoX-5 bond can lock; pass a higher `cursor` to reach those far-future cycles.
+
 ## 0.11.5
 
 ### Patch Changes
