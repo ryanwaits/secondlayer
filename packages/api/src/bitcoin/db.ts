@@ -24,22 +24,30 @@ export function isBitcoinConfigured(): boolean {
 }
 
 /**
- * Postgres' `undefined_table` code — thrown when `BITCOIN_DATABASE_URL`
- * points at a real, reachable database that simply hasn't run
- * `packages/bitcoin`'s migrations yet (plan 062: the oss compose profile
- * always sets this env var on the `secondlayer` service once the `bitcoin`
- * database exists, even when the `bitcoin` profile — the service that runs
- * `migrate` — isn't enabled). `isBitcoinConfigured()` only checks that the
- * env var is set, not that the schema exists; every DB-touching reader below
- * also treats this specific error as "not configured" rather than a 500,
- * same as the `../index/pox5-events.ts` soft-flag pattern the rest of this
- * file follows. Same `.code` check shape as
+ * Two Postgres codes that both mean "`BITCOIN_DATABASE_URL` is set, but
+ * `packages/bitcoin`'s schema isn't there to read yet" (plan 062):
+ *   - `42P01` (`undefined_table`) — the database exists, but its migrations
+ *     haven't run (the oss compose profile always sets this env var on the
+ *     `secondlayer` service once the `bitcoin` database exists, even when
+ *     the `bitcoin` profile — the service that runs `migrate` — isn't
+ *     enabled).
+ *   - `3D000` (`invalid_catalog_name`) — the database itself doesn't exist
+ *     yet (round 1: an *existing* oss install that pulls this update has no
+ *     `bitcoin` database at all — the postgres init script that creates it
+ *     only runs on a brand-new volume; `packages/bitcoin`'s own `migrate`
+ *     self-provisions it going forward, but a reader here can still race
+ *     that first migrate on a freshly-upgraded instance).
+ * `isBitcoinConfigured()` only checks that the env var is set, not that the
+ * database/schema exist; every DB-touching reader below also treats both
+ * codes as "not configured" rather than a 500, same as the
+ * `../index/pox5-events.ts` soft-flag pattern the rest of this file follows.
+ * Same `.code` check shape as
  * `packages/shared/src/db/queries/subgraph-operations.ts`'s `"23505"` check.
  */
-function isMissingTableError(err: unknown): boolean {
-	return (
-		err instanceof Error && (err as Error & { code?: string }).code === "42P01"
-	);
+function isBitcoinSchemaAbsent(err: unknown): boolean {
+	if (!(err instanceof Error)) return false;
+	const code = (err as Error & { code?: string }).code;
+	return code === "42P01" || code === "3D000";
 }
 
 let bitcoinDb: Kysely<BitcoinDatabase> | undefined;
@@ -125,8 +133,8 @@ export async function getBitcoinTip(
 			.where("name", "=", CHECKPOINT_NAME)
 			.executeTakeFirst();
 	} catch (err) {
-		// Database exists, `runes_checkpoint` doesn't yet — same as unconfigured.
-		if (!isMissingTableError(err)) throw err;
+		// Database or `runes_checkpoint` table doesn't exist yet — same as unconfigured.
+		if (!isBitcoinSchemaAbsent(err)) throw err;
 		row = undefined;
 	}
 	const value: BitcoinIndexTip = row
@@ -222,8 +230,8 @@ export async function readBtcReorgs(
 			.execute();
 		return rows.map(normalizeBtcReorg);
 	} catch (err) {
-		// Database exists, `btc_reorgs` doesn't yet — same as unconfigured.
-		if (!isMissingTableError(err)) throw err;
+		// Database or `btc_reorgs` table doesn't exist yet — same as unconfigured.
+		if (!isBitcoinSchemaAbsent(err)) throw err;
 		return [];
 	}
 }
