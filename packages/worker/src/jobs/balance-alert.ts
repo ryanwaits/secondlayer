@@ -150,9 +150,17 @@ function formatUsdPerDay(usdMicros: bigint): string {
 }
 
 /** Now + runway days, date only, UTC, "Mon D" — matches Definitions'
- *  "Runs out" and the credits page's own formatting. */
+ *  "Runs out" and `apps/web/src/lib/usage.ts`'s `runsOutDate` exactly:
+ *  floor `runway` to whole days, then add that many calendar days to
+ *  `now`'s UTC date. */
 function runsOutDate(now: Date, runway: number): string {
-	const at = new Date(now.getTime() + runway * 24 * 60 * 60 * 1000);
+	const at = new Date(
+		Date.UTC(
+			now.getUTCFullYear(),
+			now.getUTCMonth(),
+			now.getUTCDate() + Math.floor(runway),
+		),
+	);
 	return at.toLocaleDateString("en-US", {
 		month: "short",
 		day: "numeric",
