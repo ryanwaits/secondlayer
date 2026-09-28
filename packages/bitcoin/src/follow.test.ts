@@ -464,6 +464,33 @@ describe.skipIf(!testUrl)("follow", () => {
 		expect(notifier.callCount).toBe(0);
 	});
 
+	test("syncOnce's batch catch-up honors flushInterval, not backfill.ts's DEFAULT_FLUSH_INTERVAL", async () => {
+		const chain = new FakeChain();
+		let prev = chain.mine(GENESIS_HEIGHT, GENESIS_ANCHOR_HASH);
+		// 20 blocks total (GENESIS_HEIGHT..+19) puts the tip UNDO_DEPTH+8 ahead of
+		// the fresh checkpoint (genesisHeight - 1), so syncOnce's batch catch-up
+		// backfills 8 blocks (GENESIS_HEIGHT..+7) before switching to the
+		// per-block loop for the last UNDO_DEPTH (12).
+		for (let h = GENESIS_HEIGHT + 1; h <= GENESIS_HEIGHT + 19; h++) {
+			prev = chain.mine(h, prev);
+		}
+
+		const flushes: number[] = [];
+		const deps: FollowDeps = {
+			db,
+			rpc: chain,
+			flushInterval: 3,
+			onFlush: (stats) => flushes.push(stats.blocksInWindow),
+		};
+
+		const result = await syncOnce(deps);
+
+		expect(result.state.height).toBe(GENESIS_HEIGHT + 19);
+		// 8 backfilled blocks at flushInterval=3: windows of 3, 3, 2 — never the
+		// unbatched default of 1000 (which would flush everything in one shot).
+		expect(flushes).toEqual([3, 3, 2]);
+	});
+
 	test("runFollow with `until` set waits for a block that hasn't landed yet, then stops at it", async () => {
 		const chain = new FakeChain();
 		const h0 = chain.mine(GENESIS_HEIGHT, GENESIS_ANCHOR_HASH);

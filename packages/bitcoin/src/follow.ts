@@ -14,6 +14,7 @@
 
 import type { Kysely } from "kysely";
 import {
+	type BackfillOptions,
 	ContinuityError,
 	GENESIS_HEIGHT,
 	checkContinuity,
@@ -68,6 +69,10 @@ export interface FollowDeps {
 	rpc: BitcoinRpcClient;
 	fetchConcurrency?: number;
 	invariantReportDir?: string;
+	/** Defaults to `DEFAULT_FLUSH_INTERVAL` (`backfill.ts`) — only affects the batch catch-up (`runBackfill`); the per-block loop near the tip always flushes every block regardless. */
+	flushInterval?: number;
+	/** Forwarded to the batch catch-up's `runBackfill` call — the per-block loop near the tip doesn't report through this (it flushes every block, not in batches). */
+	onFlush?: BackfillOptions["onFlush"];
 	onBlock?: (info: { height: number; hash: string }) => void;
 	onReorg?: (info: ReorgInfo) => void;
 	/**
@@ -228,6 +233,8 @@ export async function syncOnce(deps: FollowDeps): Promise<SyncResult> {
 			rpc: deps.rpc,
 			toHeight: tipHeight - UNDO_DEPTH,
 			fetchConcurrency: deps.fetchConcurrency ?? 8,
+			flushInterval: deps.flushInterval,
+			onFlush: deps.onFlush,
 			invariantReportDir: deps.invariantReportDir,
 			network,
 			genesisHeight,

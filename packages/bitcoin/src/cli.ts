@@ -385,6 +385,9 @@ async function cmdFollow(args: string[]): Promise<void> {
 	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
 	const rpc = bitcoinRpcClientFromEnv();
 	const fetchConcurrency = Number(process.env.FETCH_CONCURRENCY ?? "8");
+	const flushInterval = process.env.FLUSH_INTERVAL
+		? Number(process.env.FLUSH_INTERVAL)
+		: undefined;
 	const { network, genesisHeight } = followNetworkFromEnv();
 
 	const notifier = new RpcWaitNotifier({ rpc });
@@ -403,6 +406,7 @@ async function cmdFollow(args: string[]): Promise<void> {
 			db,
 			rpc,
 			fetchConcurrency,
+			flushInterval,
 			until,
 			network,
 			genesisHeight,
