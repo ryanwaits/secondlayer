@@ -1,11 +1,16 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
+import { sql } from "kysely";
 import {
 	ContinuityError,
 	checkContinuity,
 	fetchBlocksInOrder,
+	runBackfill,
 } from "./backfill.ts";
+import { migrateToLatest } from "./db/migrate.ts";
+import { dropReadIndexes, ensureReadIndexes } from "./db/read-indexes.ts";
+import { openStore } from "./db/store.ts";
 import type { BitcoinRpcClient, BlockHeader } from "./rpc.ts";
 import { Network } from "./runes/rune.ts";
 
@@ -190,3 +195,144 @@ describe("checkContinuity", () => {
 		).toThrow(ContinuityError);
 	});
 });
+
+// --- runBackfill: deferred read indexes (plan 089) -----------------------
+// DB-backed. Skipped when BITCOIN_TEST_DATABASE_URL isn't set (same
+// convention as follow.test.ts/rewind.test.ts):
+//
+//   BITCOIN_TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5440/bitcoin_backfill_test \
+//     bun test src/backfill.test.ts
+//
+// Regtest + genesisHeight 0 (Runes activates at block 0 on regtest — see
+// `BackfillOptions.network`'s own docstring): lets these tests run a tiny,
+// fast fake chain instead of needing real mainnet-sized heights.
+
+const testUrl = process.env.BITCOIN_TEST_DATABASE_URL;
+
+const BOTH_READ_INDEXES = new Set([
+	"rune_events_address_height_event_index_idx",
+	"rune_events_txid_idx",
+]);
+
+async function readIndexNames(
+	db: ReturnType<typeof openStore>,
+): Promise<Set<string>> {
+	const result = await sql<{ indexname: string }>`
+		select indexname from pg_indexes
+		where tablename = 'rune_events'
+			and indexname in ('rune_events_address_height_event_index_idx', 'rune_events_txid_idx')
+	`.execute(db);
+	return new Set(result.rows.map((r) => r.indexname));
+}
+
+describe.skipIf(!testUrl)(
+	"runBackfill: deferred read indexes (plan 089)",
+	() => {
+		// biome-ignore lint/style/noNonNullAssertion: describe.skipIf(!testUrl) guards this whole block
+		const db = openStore(testUrl!);
+
+		beforeEach(async () => {
+			process.env.BITCOIN_DATABASE_URL = testUrl;
+			await migrateToLatest();
+			await sql`truncate table rune_entries, rune_balances, rune_events, btc_blocks, runes_checkpoint, rune_block_digests, rune_undo, btc_reorgs`.execute(
+				db,
+			);
+			// A prior test that dropped the indexes and (by bug) never restored
+			// them would otherwise leak into the next test — force a known-good
+			// starting state regardless of test order.
+			await ensureReadIndexes(db);
+		});
+
+		test("a gap over the threshold drops both indexes before the loop, and rebuilds them after the final flush", async () => {
+			expect(await readIndexNames(db)).toEqual(BOTH_READ_INDEXES);
+
+			const rpc = new FakeRpc([0, 1, 2, 3, 4, 5]);
+			// Snapshots fired from inside `onFlush`, for every flush except the
+			// final one — the final flush's `onFlush` races `ensureReadIndexes`
+			// (which runs right after the loop ends), so it's asserted after
+			// `runBackfill` resolves instead, not from inside the hook.
+			const midFlushSnapshots: Promise<Set<string>>[] = [];
+
+			await runBackfill({
+				db,
+				rpc,
+				toHeight: 5,
+				fetchConcurrency: 4,
+				flushInterval: 2,
+				deferIndexThreshold: 3, // gap = 5 - 0 = 5 > 3
+				network: Network.Regtest,
+				genesisHeight: 0,
+				onFlush: (stats) => {
+					if (stats.height === 5) return; // final flush — see above
+					midFlushSnapshots.push(readIndexNames(db));
+				},
+			});
+
+			expect(midFlushSnapshots.length).toBeGreaterThan(0);
+			for (const snapshot of await Promise.all(midFlushSnapshots)) {
+				expect(snapshot).toEqual(new Set());
+			}
+			expect(await readIndexNames(db)).toEqual(BOTH_READ_INDEXES);
+		});
+
+		test("under the threshold, indexes are never dropped", async () => {
+			expect(await readIndexNames(db)).toEqual(BOTH_READ_INDEXES);
+
+			const rpc = new FakeRpc([0, 1, 2]);
+			const flushSnapshots: Promise<Set<string>>[] = [];
+
+			await runBackfill({
+				db,
+				rpc,
+				toHeight: 2,
+				fetchConcurrency: 4,
+				flushInterval: 1,
+				deferIndexThreshold: 10, // gap = 2 - 0 = 2, not > 10
+				network: Network.Regtest,
+				genesisHeight: 0,
+				onFlush: () => {
+					flushSnapshots.push(readIndexNames(db));
+				},
+			});
+
+			expect(flushSnapshots.length).toBeGreaterThan(0);
+			for (const snapshot of await Promise.all(flushSnapshots)) {
+				expect(snapshot).toEqual(BOTH_READ_INDEXES);
+			}
+			expect(await readIndexNames(db)).toEqual(BOTH_READ_INDEXES);
+		});
+
+		test("ensureReadIndexes is idempotent and restores exactly 0005's definitions", async () => {
+			const freshDefs = (
+				await sql<{ indexname: string; indexdef: string }>`
+					select indexname, indexdef from pg_indexes
+					where tablename = 'rune_events'
+						and indexname in ('rune_events_address_height_event_index_idx', 'rune_events_txid_idx')
+					order by indexname
+				`.execute(db)
+			).rows;
+			expect(freshDefs).toHaveLength(2);
+
+			await dropReadIndexes(db);
+			expect(await readIndexNames(db)).toEqual(new Set());
+			// dropReadIndexes is itself idempotent — dropping twice in a row
+			// (nothing left to drop the second time) doesn't throw.
+			await dropReadIndexes(db);
+			expect(await readIndexNames(db)).toEqual(new Set());
+
+			await ensureReadIndexes(db);
+			await ensureReadIndexes(db); // idempotent: second call is a no-op
+
+			const restoredDefs = (
+				await sql<{ indexname: string; indexdef: string }>`
+					select indexname, indexdef from pg_indexes
+					where tablename = 'rune_events'
+						and indexname in ('rune_events_address_height_event_index_idx', 'rune_events_txid_idx')
+					order by indexname
+				`.execute(db)
+			).rows;
+
+			expect(restoredDefs).toEqual(freshDefs);
+		});
+	},
+);

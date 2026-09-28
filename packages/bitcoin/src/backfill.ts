@@ -5,6 +5,11 @@
 
 import type { Kysely } from "kysely";
 import { type ParsedBlock, parseBlock } from "./block.ts";
+import {
+	DEFER_INDEX_THRESHOLD,
+	dropReadIndexes,
+	ensureReadIndexes,
+} from "./db/read-indexes.ts";
 import { type FlushStats, flush, loadState } from "./db/store.ts";
 import type { Database } from "./db/types.ts";
 import { verifyBlockIntegrity } from "./integrity/merkle.ts";
@@ -237,6 +242,8 @@ export interface BackfillOptions {
 	) => void;
 	/** Directory to write `invariant-<height>.json` to on a fail-closed invariant break. Defaults to cwd. */
 	invariantReportDir?: string;
+	/** Test-only override for `DEFER_INDEX_THRESHOLD` (`db/read-indexes.ts`) — production never sets this. */
+	deferIndexThreshold?: number;
 }
 
 interface FetchedBlock {
@@ -347,6 +354,18 @@ export async function runBackfill(
 		return state;
 	}
 
+	// Large gap (plan 089): the two big `rune_events` read indexes only serve
+	// `/v1/index/runes` reads, never ingest — drop them before the bulk load
+	// and rebuild once at the end, instead of maintaining them live against a
+	// growing table on every flush. A small gap (tip catch-up) leaves them
+	// alone entirely.
+	const deferIndexThreshold =
+		options.deferIndexThreshold ?? DEFER_INDEX_THRESHOLD;
+	const deferIndexes = options.toHeight - fromHeight > deferIndexThreshold;
+	if (deferIndexes) {
+		await dropReadIndexes(options.db);
+	}
+
 	let previousHash = state.height === undefined ? undefined : state.hash;
 	let pendingBlocks: Array<{ height: number; hash: string }> = [];
 	let sinceFlush = 0;
@@ -414,6 +433,10 @@ export async function runBackfill(
 		}
 
 		fetchWaitStart = performance.now();
+	}
+
+	if (deferIndexes) {
+		await ensureReadIndexes(options.db);
 	}
 
 	return state;

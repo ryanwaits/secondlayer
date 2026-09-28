@@ -22,6 +22,7 @@ import {
 	runBackfill,
 } from "./backfill.ts";
 import { type ParsedBlock, parseBlock } from "./block.ts";
+import { ensureReadIndexes } from "./db/read-indexes.ts";
 import { type FlushStats, flush, loadState } from "./db/store.ts";
 import type { Database } from "./db/types.ts";
 import { verifyBlockIntegrity } from "./integrity/merkle.ts";
@@ -339,12 +340,21 @@ export function createHeartbeatTracker(
  * still produces a signal. A failed liveness check (the extra `getblockcount`
  * call) is swallowed — it's a signal, not the critical path, and `syncOnce`
  * itself is what surfaces a real RPC failure.
+ *
+ * Calls `ensureReadIndexes` once, before the loop starts (plan 089): a
+ * backfill that dropped the two large `rune_events` read indexes and then
+ * died mid-run — before its own end-of-run `ensureReadIndexes` — would
+ * otherwise leave a follower running against `rune_events` with those
+ * indexes missing indefinitely. Idempotent either way (`CREATE INDEX IF NOT
+ * EXISTS`), so this is a no-op when they're already there.
  */
 export async function runFollow(
 	deps: FollowDeps,
 	notifier: BlockNotifier,
 	signal?: AbortSignal,
 ): Promise<void> {
+	await ensureReadIndexes(deps.db);
+
 	const heartbeat = createHeartbeatTracker(deps.now);
 
 	while (!signal?.aborted) {
