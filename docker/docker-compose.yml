@@ -383,6 +383,11 @@ services:
       NETWORKS: ${NETWORKS:-mainnet}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
+      # The spend-cap and balance-alert crons send email — same passthrough
+      # the api service uses. Unset RESEND_API_KEY → every alert job skips
+      # sending and logs a warning, never throws.
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Second Layer <noreply@secondlayer.tools>}
     depends_on:
       migrate:
         condition: service_completed_successfully
