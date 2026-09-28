@@ -4,18 +4,27 @@ import {
 	accountCreationMonth,
 	addMonths,
 	allowanceFootLine,
-	allowanceUsedFraction,
+	balanceLevel,
+	buildDailyChart,
 	compareMonths,
+	daysInUtcMonth,
 	deliveredRowsIn,
 	formatRows,
 	formatUnitQuantity,
+	fractionalDaysRemainingInMonth,
+	latestMemoryHour,
 	monthLabel,
 	monthParam,
+	nextChargeLabel,
+	nextMonthAtRateUsdMicros,
 	nextMonthLabel,
+	packDaysLabel,
+	projectedMonthEndUsdMicros,
+	rateLabel,
+	runsOutDate,
 	runwayDays,
 	spentUsdMicros,
 	unitLabel,
-	utcDaysElapsedInMonth,
 	withUsageMonth,
 } from "./usage";
 
@@ -223,42 +232,259 @@ describe("deliveredRowsIn", () => {
 	});
 });
 
-describe("allowanceUsedFraction", () => {
-	test("0 rows is 0, the full allowance is 1, and past it exceeds 1", () => {
-		expect(allowanceUsedFraction(0)).toBe(0);
-		expect(allowanceUsedFraction(ROWS_ALLOWANCE)).toBe(1);
-		expect(allowanceUsedFraction(ROWS_ALLOWANCE * 1.5)).toBe(1.5);
+describe("runwayDays", () => {
+	test("balance / rateDay", () => {
+		expect(runwayDays(50_000_000, 10_000_000)).toBe(5);
+	});
+
+	test("is Infinity when rateDay is zero — nothing burning, nothing to run out", () => {
+		expect(runwayDays(50_000_000, 0)).toBe(Number.POSITIVE_INFINITY);
+	});
+
+	test("is Infinity for a negative rate too (never billed backwards)", () => {
+		expect(runwayDays(50_000_000, -1)).toBe(Number.POSITIVE_INFINITY);
 	});
 });
 
-describe("utcDaysElapsedInMonth", () => {
-	test("is the UTC day-of-month, at least 1 on the 1st", () => {
-		expect(utcDaysElapsedInMonth(new Date("2026-09-01T00:00:00.000Z"))).toBe(1);
-		expect(utcDaysElapsedInMonth(new Date("2026-09-15T23:00:00.000Z"))).toBe(
-			15,
+describe("balanceLevel", () => {
+	test("ok above 7 days of runway", () => {
+		expect(
+			balanceLevel({
+				serviceState: "running",
+				balanceUsdMicros: 1,
+				runwayDays: 8,
+			}),
+		).toBe("ok");
+	});
+
+	test("ok with no service and no spend (Infinity runway)", () => {
+		expect(
+			balanceLevel({
+				serviceState: "none",
+				balanceUsdMicros: 0,
+				runwayDays: Number.POSITIVE_INFINITY,
+			}),
+		).toBe("ok");
+	});
+
+	test("low at 7 days, not yet low at 7.01", () => {
+		expect(
+			balanceLevel({
+				serviceState: "running",
+				balanceUsdMicros: 1,
+				runwayDays: 7,
+			}),
+		).toBe("low");
+		expect(
+			balanceLevel({
+				serviceState: "running",
+				balanceUsdMicros: 1,
+				runwayDays: 7.01,
+			}),
+		).toBe("ok");
+	});
+
+	test("crit at 2 days, not yet crit at 2.01", () => {
+		expect(
+			balanceLevel({
+				serviceState: "running",
+				balanceUsdMicros: 1,
+				runwayDays: 2,
+			}),
+		).toBe("crit");
+		expect(
+			balanceLevel({
+				serviceState: "running",
+				balanceUsdMicros: 1,
+				runwayDays: 2.01,
+			}),
+		).toBe("low");
+	});
+
+	test("stopped overrides runway when the service is stopped at $0", () => {
+		expect(
+			balanceLevel({
+				serviceState: "stopped",
+				balanceUsdMicros: 0,
+				runwayDays: Number.POSITIVE_INFINITY,
+			}),
+		).toBe("stopped");
+	});
+
+	test("a stopped service with a positive balance is not `stopped`", () => {
+		expect(
+			balanceLevel({
+				serviceState: "stopped",
+				balanceUsdMicros: 1,
+				runwayDays: 3,
+			}),
+		).toBe("low");
+	});
+});
+
+describe("runsOutDate", () => {
+	test("now + runway days, UTC, Mon D", () => {
+		expect(runsOutDate(new Date("2026-09-28T17:05:00.000Z"), 24)).toBe(
+			"Oct 22",
 		);
 	});
 });
 
-describe("runwayDays", () => {
-	test("projects balance / (spend so far / days elapsed)", () => {
-		// $50 balance, $10 spent in 5 days → $2/day → 25 days of runway.
-		expect(runwayDays(50_000_000, 10_000_000, 5)).toBe(25);
+describe("daysInUtcMonth / fractionalDaysRemainingInMonth", () => {
+	test("September has 30 days", () => {
+		expect(daysInUtcMonth({ year: 2026, month: 8 })).toBe(30);
 	});
 
-	test("is null with zero balance", () => {
-		expect(runwayDays(0, 10_000_000, 5)).toBeNull();
+	test("February in a non-leap year has 28", () => {
+		expect(daysInUtcMonth({ year: 2026, month: 1 })).toBe(28);
 	});
 
-	test("is null with zero spend (nothing to project a rate from)", () => {
-		expect(runwayDays(50_000_000, 0, 5)).toBeNull();
+	test("mid-month, mid-day leaves a fractional remainder", () => {
+		// Sep 28, 17:05 UTC of a 30-day month → 30 - 27.2118... ≈ 2.288 days left.
+		const remaining = fractionalDaysRemainingInMonth(
+			new Date("2026-09-28T17:05:00.000Z"),
+		);
+		expect(remaining).toBeCloseTo(2.2882, 3);
 	});
 
-	test("is null at month start (0 days elapsed) instead of dividing by zero", () => {
-		expect(runwayDays(50_000_000, 10_000_000, 0)).toBeNull();
+	test("first instant of the month leaves the full month", () => {
+		expect(
+			fractionalDaysRemainingInMonth(new Date("2026-09-01T00:00:00.000Z")),
+		).toBe(30);
+	});
+});
+
+describe("projectedMonthEndUsdMicros / nextMonthAtRateUsdMicros", () => {
+	test("month-to-date spend + rateDay x remaining fractional days", () => {
+		expect(projectedMonthEndUsdMicros(3_840_000, 350_000, 2)).toBe(4_540_000);
 	});
 
-	test("still projects on day 1 of the month (1 day elapsed, not 0)", () => {
-		expect(runwayDays(10_000_000, 10_000_000, 1)).toBe(1);
+	test("rateDay x days in next month", () => {
+		expect(nextMonthAtRateUsdMicros(350_000, { year: 2026, month: 8 })).toBe(
+			350_000 * 31, // October has 31 days
+		);
+	});
+});
+
+describe("packDaysLabel", () => {
+	test("stopped always says the pack restarts the service", () => {
+		expect(packDaysLabel(25, 350_000, true)).toBe("starts your service again");
+		expect(packDaysLabel(25, 0, true)).toBe("starts your service again");
+	});
+
+	test("about N days at a real rate", () => {
+		// $25 pack at $0.35/day (350,000µ$) → floor(25,000,000/350,000) = 71 days.
+		expect(packDaysLabel(25, 350_000, false)).toBe(
+			"about 71 days at this rate",
+		);
+	});
+
+	test("over a year once the pack would outlast 365 days", () => {
+		// $100 pack at $0.10/day → 1000 days.
+		expect(packDaysLabel(100, 100_000, false)).toBe("over a year at this rate");
+	});
+
+	test("no burn at all (not stopped) reads as a very long runway", () => {
+		expect(packDaysLabel(25, 0, false)).toBe("over a year at this rate");
+	});
+});
+
+describe("nextChargeLabel", () => {
+	test("running shows the next full-hour memory charge", () => {
+		expect(
+			nextChargeLabel(new Date("2026-09-28T17:05:00.000Z"), "running"),
+		).toBe("Updated 17:05 UTC · next memory charge 18:00");
+	});
+
+	test("wraps midnight", () => {
+		expect(
+			nextChargeLabel(new Date("2026-09-28T23:40:00.000Z"), "running"),
+		).toBe("Updated 23:40 UTC · next memory charge 00:00");
+	});
+
+	test("stopped or none both read as service stopped", () => {
+		expect(
+			nextChargeLabel(new Date("2026-09-28T17:05:00.000Z"), "stopped"),
+		).toBe("Updated 17:05 UTC · service stopped");
+		expect(nextChargeLabel(new Date("2026-09-28T17:05:00.000Z"), "none")).toBe(
+			"Updated 17:05 UTC · service stopped",
+		);
+	});
+});
+
+describe("latestMemoryHour", () => {
+	test("the last (most recent) row", () => {
+		const rows = [
+			{ hour: "2026-09-28T10:00:00.000Z", billedGb: 0.5, observedGb: 0.3 },
+			{ hour: "2026-09-28T11:00:00.000Z", billedGb: 0.5, observedGb: 0.31 },
+		];
+		expect(latestMemoryHour(rows)).toBe(rows[1]);
+	});
+
+	test("null for no history", () => {
+		expect(latestMemoryHour([])).toBeNull();
+	});
+});
+
+describe("rateLabel", () => {
+	test("flat rates", () => {
+		expect(rateLabel("memory.gb_hour", "1")).toBe("$0.028/GB-h");
+		expect(rateLabel("webhook.event", "1")).toBe("$10/1M");
+		expect(rateLabel("storage.gb_day", "1")).toBe("$0.25/GB-mo");
+		expect(rateLabel("archive.partition", "1")).toBe("$0.05/partition");
+		expect(rateLabel("archive.partition.events", "1")).toBe("$0.15/partition");
+	});
+
+	test("rows.delivered is free inside the allowance, $5/1M past it", () => {
+		expect(rateLabel("rows.delivered", "17171")).toBe("free");
+		expect(rateLabel("rows.delivered", String(ROWS_ALLOWANCE + 1))).toBe(
+			"$5/1M",
+		);
+	});
+
+	test("unknown unit has no rate label", () => {
+		expect(rateLabel("topup", "1")).toBe("");
+	});
+});
+
+describe("buildDailyChart", () => {
+	const month = { year: 2026, month: 8 }; // September
+
+	test("splits daily rows into memory/events/rows buckets by day", () => {
+		const daily = [
+			{ date: "2026-09-01", unit: "memory.gb_hour", usdMicros: "14000" },
+			{ date: "2026-09-01", unit: "webhook.event", usdMicros: "12000" },
+			{ date: "2026-09-02", unit: "rows.delivered", usdMicros: "5000" },
+		];
+		const now = new Date("2026-09-30T23:59:59.000Z"); // whole month is "past"
+		const days = buildDailyChart(daily, month, now, 0);
+		expect(days).toHaveLength(30);
+		expect(days[0]).toEqual({
+			day: 1,
+			date: "2026-09-01",
+			memUsdMicros: 14000,
+			eventsUsdMicros: 12000,
+			rowsUsdMicros: 0,
+			projected: false,
+		});
+		expect(days[1]?.rowsUsdMicros).toBe(5000);
+		expect(days.every((d) => !d.projected)).toBe(true);
+	});
+
+	test("days after today are projected and carry no real category data", () => {
+		const now = new Date("2026-09-05T12:00:00.000Z");
+		const days = buildDailyChart([], month, now, 350_000);
+		const today = days.find((d) => d.day === 5);
+		const tomorrow = days.find((d) => d.day === 6);
+		expect(today?.projected).toBe(false);
+		expect(tomorrow?.projected).toBe(true);
+		expect(tomorrow?.memUsdMicros).toBe(0);
+	});
+
+	test("a past month (not now's month) has no projected days", () => {
+		const now = new Date("2026-10-15T12:00:00.000Z");
+		const days = buildDailyChart([], month, now, 350_000);
+		expect(days.every((d) => !d.projected)).toBe(true);
+		expect(days).toHaveLength(30);
 	});
 });

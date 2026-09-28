@@ -1,13 +1,9 @@
 "use client";
 
-import {
-	type Billing,
-	formatUsd,
-	refreshUsage,
-	useAccountData,
-} from "@/lib/account-data";
+import { formatUsd, refreshUsage, useAccountData } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import {
+	type DeliveryService,
 	type Month,
 	ROWS_ALLOWANCE,
 	type UsageRow,
@@ -20,47 +16,16 @@ import {
 	formatRows,
 	formatUnitQuantity,
 	isSameMonth,
+	latestMemoryHour,
 	monthLabel,
 	monthName,
 	monthParam,
 	nextMonthLabel,
+	rateLabel,
 	spentUsdMicros,
 	unitLabel,
 } from "@/lib/usage";
 import { useCallback, useEffect, useState } from "react";
-
-/**
- * The out-of-credits gate banner. Always reads the real current month's
- * usage from the store — not whatever month the table below is browsing —
- * so it stays put while the account is paused even if the person scrolls
- * the switcher into a past month. Doesn't fetch itself: `UsageSection`'s
- * default (offset-0) fetch loads the current month, so one page load makes
- * one usage call, not two.
- */
-export function OutOfCreditsBanner({ billing }: { billing: Billing | null }) {
-	const { usage } = useAccountData();
-	const rows = usage[monthParam(currentUtcMonth())];
-
-	if (!billing || rows === undefined) return null;
-	const rowsDelivered = deliveredRowsIn(rows);
-	const stopped =
-		Number(billing.creditsUsdMicros) <= 0 && rowsDelivered >= ROWS_ALLOWANCE;
-	if (!stopped) return null;
-
-	return (
-		<output className="use-stop">
-			<div>
-				<p className="use-stop-t">Reads are paused until you add credits</p>
-				<p className="use-stop-l">
-					You used this month's {formatRows(ROWS_ALLOWANCE)} free rows and your
-					balance is $0. Hosted Index and Streams answer{" "}
-					<code>402 insufficient_credits</code> until you top up; free rows
-					return on {nextMonthLabel(currentUtcMonth())}.
-				</p>
-			</div>
-		</output>
-	);
-}
 
 function AllowanceMeter({
 	deliveredRows,
@@ -94,14 +59,25 @@ function AllowanceMeter({
 	);
 }
 
+/** The memory row's sub-line notes "(minimum)" when the delivery service is
+ *  currently billed at the 0.5 GB floor above its actual sampled RAM. */
+function memorySubNote(service: DeliveryService | null): string {
+	if (!service) return "";
+	const latest = latestMemoryHour(service.memory24h);
+	if (!latest || latest.observedGb == null) return "";
+	return latest.billedGb > latest.observedGb ? " (minimum)" : "";
+}
+
 function UsageTable({
 	usage,
 	deliveredRows,
 	monthWord,
+	service,
 }: {
 	usage: UsageRow[];
 	deliveredRows: number;
 	monthWord: string;
+	service: DeliveryService | null;
 }) {
 	const body = usage.filter((u) => u.unit !== "topup");
 	const topup = usage.find((u) => u.unit === "topup");
@@ -114,6 +90,7 @@ function UsageTable({
 					<tr>
 						<th>What</th>
 						<th className="use-num">Quantity</th>
+						<th className="use-num">Rate</th>
 						<th className="use-num">Cost</th>
 					</tr>
 				</thead>
@@ -128,6 +105,9 @@ function UsageTable({
 									? ` · first ${formatRows(ROWS_ALLOWANCE)} free`
 									: ` · inside the free ${formatRows(ROWS_ALLOWANCE)}`;
 						}
+						if (u.unit === "memory.gb_hour") {
+							sub += memorySubNote(service);
+						}
 						return (
 							<tr key={u.unit}>
 								<td>
@@ -136,6 +116,9 @@ function UsageTable({
 								</td>
 								<td className="use-num">
 									{formatUnitQuantity(u.unit, u.quantity)}
+								</td>
+								<td className="use-num use-free">
+									{rateLabel(u.unit, u.quantity)}
 								</td>
 								<td className={`use-num${cost === 0 ? " use-free" : ""}`}>
 									{cost === 0 ? "$0.00" : formatUsd(cost)}
@@ -153,6 +136,7 @@ function UsageTable({
 								</span>
 							</td>
 							<td className="use-num" />
+							<td className="use-num" />
 							<td className="use-num use-credit">
 								+{formatUsd(-Number(topup.usdMicros))}
 							</td>
@@ -162,6 +146,7 @@ function UsageTable({
 				<tfoot>
 					<tr>
 						<td>Spent in {monthWord}</td>
+						<td />
 						<td />
 						<td className="use-num">{formatUsd(spent)}</td>
 					</tr>
@@ -177,7 +162,7 @@ function UsageTable({
  *  the empty-month and has-rows cases below, which `UsageBody` tells apart
  *  by `rows`. Tracked per month so switching months while one is failed
  *  doesn't carry the error along. */
-type UsageStatus = "not_loaded" | "failed" | "ok";
+export type UsageStatus = "not_loaded" | "failed" | "ok";
 
 /** The content under the month switcher: nothing (not loaded), a load-failed
  *  box with retry, the empty-month box, or the meter + table. Pure — no
@@ -186,11 +171,13 @@ export function UsageBody({
 	status,
 	month,
 	rows,
+	service,
 	onRetry,
 }: {
 	status: UsageStatus;
 	month: Month;
 	rows: UsageRow[] | undefined;
+	service: DeliveryService | null;
 	onRetry: () => void;
 }) {
 	if (status === "not_loaded") return null;
@@ -222,16 +209,20 @@ export function UsageBody({
 				usage={rows}
 				deliveredRows={deliveredRowsIn(rows)}
 				monthWord={monthName(month)}
+				service={service}
 			/>
 		</>
 	);
 }
 
-/** "Usage" — month switcher, free-rows meter, and the usage table (or the
- *  empty-month box, or a load-failed box with retry). Lives between
- *  `BalanceStats` and "Add credits" on /account/credits. */
-export function UsageSection() {
-	const { usage } = useAccountData();
+/**
+ * Month-switcher state shared by the "<Month> so far" spend chart and the
+ * Usage meter/table below it — one fetch per month change drives both.
+ * `burn`/`service` (always "now") live in the account-data store directly
+ * and aren't part of this hook.
+ */
+export function useUsageMonth() {
+	const { usage, daily } = useAccountData();
 	const { account } = useAuth();
 	const [offset, setOffset] = useState(0);
 	const [cur] = useState(() => currentUtcMonth());
@@ -256,8 +247,6 @@ export function UsageSection() {
 	const prevDisabled = earliest !== null && compareMonths(month, earliest) <= 0;
 	const nextDisabled = isSameMonth(month, cur);
 	const rows = usage[monthKey];
-	// Stale rows from an earlier successful fetch still render — a failed
-	// retry shouldn't blank out data that's already on screen.
 	const status: UsageStatus =
 		rows !== undefined
 			? "ok"
@@ -265,6 +254,41 @@ export function UsageSection() {
 				? "failed"
 				: "not_loaded";
 
+	return {
+		month,
+		monthKey,
+		rows,
+		daily: daily[monthKey],
+		status,
+		prevDisabled,
+		nextDisabled,
+		goPrev: () => setOffset((o) => o - 1),
+		goNext: () => setOffset((o) => o + 1),
+		retry: () => load(monthKey),
+	};
+}
+
+export type UsageMonthState = ReturnType<typeof useUsageMonth>;
+
+/** "Usage" — month switcher, free-rows meter, and the usage table (or the
+ *  empty-month box, or a load-failed box with retry). */
+export function UsageSection({
+	monthState,
+	service,
+}: {
+	monthState: UsageMonthState;
+	service: DeliveryService | null;
+}) {
+	const {
+		month,
+		rows,
+		status,
+		prevDisabled,
+		nextDisabled,
+		goPrev,
+		goNext,
+		retry,
+	} = monthState;
 	return (
 		<>
 			<div className="use-head">
@@ -272,7 +296,7 @@ export function UsageSection() {
 				<div className="use-month">
 					<button
 						type="button"
-						onClick={() => setOffset((o) => o - 1)}
+						onClick={goPrev}
 						disabled={prevDisabled}
 						aria-label="Previous month"
 					>
@@ -281,7 +305,7 @@ export function UsageSection() {
 					<span>{monthLabel(month)}</span>
 					<button
 						type="button"
-						onClick={() => setOffset((o) => o + 1)}
+						onClick={goNext}
 						disabled={nextDisabled}
 						aria-label="Next month"
 					>
@@ -293,7 +317,8 @@ export function UsageSection() {
 				status={status}
 				month={month}
 				rows={rows}
-				onRetry={() => load(monthKey)}
+				service={service}
+				onRetry={retry}
 			/>
 		</>
 	);

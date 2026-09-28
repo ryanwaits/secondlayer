@@ -18,6 +18,14 @@ export type UsageRow = {
  *  read from in the web app. */
 export const ROWS_ALLOWANCE = 1_000_000;
 
+/** Mirrors `PRICES["memory.gb_hour"]` in
+ *  `packages/platform/src/billing/prices.ts` (28,000µ$ = $0.028/GB-hour) —
+ *  the delivery service card's cost-per-hour stat tile. */
+export const MEMORY_RATE_USD_PER_GB_HOUR = 0.028;
+
+/** Mirrors `MEMORY_FLOOR_GB` in `packages/workload/src/meters.ts`. */
+export const MEMORY_FLOOR_GB = 0.5;
+
 /** Label + sub-line for a usage-table row, by unit. Units missing here (a
  *  future meter, or `topup` which has its own row shape) fall back to their
  *  raw name with no sub-line. */
@@ -89,39 +97,247 @@ export function deliveredRowsIn(usage: UsageRow[]): number {
 	return rd ? Number(rd.quantity) : 0;
 }
 
-/** Fraction of the monthly free-rows allowance already used (can exceed 1
- *  once the allowance is spent past). */
-export function allowanceUsedFraction(rowsDelivered: number): number {
-	return rowsDelivered / ROWS_ALLOWANCE;
-}
+// ── Burn, runway, level (Definitions) ──────────────────────────────────
 
-/** Whole UTC days elapsed so far in `now`'s month — day 1 of the month
- *  counts as 1, never 0, so a same-day spend still projects a rate. */
-export function utcDaysElapsedInMonth(now: Date = new Date()): number {
-	return now.getUTCDate();
-}
+export type ServiceState = "running" | "stopped" | "none";
+export type BalanceLevel = "ok" | "low" | "crit" | "stopped";
 
-/**
- * ≈ days of credit left at this month's daily spend rate, or `null` when
- * there's nothing to project from: no balance, no spend yet, or (degenerate)
- * no days elapsed. "≈0 days" reads as an alarm the numbers don't back up
- * when there's no real spend to extrapolate — `null` lets the caller render
- * nothing instead.
- */
+export type DailySpend = { date: string; unit: string; usdMicros: string };
+export type Burn = { rateDayUsdMicros: string; windowHours: number };
+export type MemoryHourRow = {
+	hour: string;
+	billedGb: number;
+	observedGb: number | null;
+};
+export type DeliveryService = {
+	state: ServiceState;
+	lastChargedAt: string | null;
+	memory24h: MemoryHourRow[];
+};
+
+/** `GET /api/billing/usage`'s full shape — `usage` (month totals by unit,
+ *  unchanged), plus `daily`, `burn` and `service` (090). */
+export type UsageResponse = {
+	month: string;
+	usage: UsageRow[];
+	daily: DailySpend[];
+	burn: Burn;
+	service: DeliveryService;
+};
+
+/** `balance / rateDay`, in days. `Infinity` when `rateDay <= 0` — nothing is
+ *  burning, so there's no runway to run out of. */
 export function runwayDays(
-	creditsUsdMicros: number,
-	monthSpentUsdMicros: number,
-	daysElapsedInMonth: number,
-): number | null {
-	if (
-		creditsUsdMicros <= 0 ||
-		monthSpentUsdMicros <= 0 ||
-		daysElapsedInMonth <= 0
-	) {
-		return null;
+	balanceUsdMicros: number,
+	rateDayUsdMicros: number,
+): number {
+	if (rateDayUsdMicros <= 0) return Number.POSITIVE_INFINITY;
+	return balanceUsdMicros / rateDayUsdMicros;
+}
+
+/** `stopped` if the delivery service is stopped and the balance is at or
+ *  below $0; else `crit` at ≤2 days of runway, `low` at ≤7, otherwise `ok`.
+ *  Mirrors `@secondlayer/platform/billing/runway`'s `balanceLevel` exactly
+ *  (the balance-alert cron's copy of the same math) so the page and the
+ *  emails never disagree. */
+export function balanceLevel(opts: {
+	serviceState: ServiceState;
+	balanceUsdMicros: number;
+	runwayDays: number;
+}): BalanceLevel {
+	if (opts.serviceState === "stopped" && opts.balanceUsdMicros <= 0) {
+		return "stopped";
 	}
-	const dailyRate = monthSpentUsdMicros / daysElapsedInMonth;
-	return Math.floor(creditsUsdMicros / dailyRate);
+	if (opts.runwayDays <= 2) return "crit";
+	if (opts.runwayDays <= 7) return "low";
+	return "ok";
+}
+
+/** Now + runway days, date only, UTC, "Mon D" — Definitions' "Runs out".
+ *  Floors `runway` to whole days first, then adds that many calendar days
+ *  to `now`'s UTC date (not fractional hours to the exact instant) — the
+ *  mock's own `addDays` does the same, e.g. a $8.59 balance at $0.35/day is
+ *  a 24.54-day runway that reads "Oct 22" (Sep 28 + 24), not 25. Callers
+ *  only pass a finite `runway` (a `stopped`/`ok`-with-no-spend level never
+ *  reaches this). */
+export function runsOutDate(now: Date, runway: number): string {
+	const at = new Date(
+		Date.UTC(
+			now.getUTCFullYear(),
+			now.getUTCMonth(),
+			now.getUTCDate() + Math.floor(runway),
+		),
+	);
+	return at.toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		timeZone: "UTC",
+	});
+}
+
+/** Days in the UTC month `{year, month}` falls in (`month` 0-indexed). */
+export function daysInUtcMonth(m: Month): number {
+	return new Date(Date.UTC(m.year, m.month + 1, 0)).getUTCDate();
+}
+
+/** Fractional days left in `now`'s UTC month, counted from right now — e.g.
+ *  17:05 UTC on the 28th of a 30-day month leaves `30 - 27.71 ≈ 2.29`
+ *  days, not a flat integer. */
+export function fractionalDaysRemainingInMonth(now: Date): number {
+	const total = daysInUtcMonth(currentUtcMonth(now));
+	const elapsed =
+		now.getUTCDate() -
+		1 +
+		now.getUTCHours() / 24 +
+		now.getUTCMinutes() / 1440 +
+		now.getUTCSeconds() / 86400;
+	return total - elapsed;
+}
+
+/** Month-to-date spend + `rateDay × (remaining days in the UTC month,
+ *  fractional)` — Definitions' "Projected month end". */
+export function projectedMonthEndUsdMicros(
+	spentSoFarUsdMicros: number,
+	rateDayUsdMicros: number,
+	remainingDaysFractional: number,
+): number {
+	return spentSoFarUsdMicros + rateDayUsdMicros * remainingDaysFractional;
+}
+
+/** `rateDay × days in next month` — Definitions' "Next month at this
+ *  rate". */
+export function nextMonthAtRateUsdMicros(
+	rateDayUsdMicros: number,
+	thisMonth: Month,
+): number {
+	return rateDayUsdMicros * daysInUtcMonth(addMonths(thisMonth, 1));
+}
+
+/** A credit pack's runway at the current burn rate: "about N days at this
+ *  rate" / "over a year at this rate" / "starts your service again" when
+ *  the delivery service is stopped (Design step 8). */
+export function packDaysLabel(
+	packUsd: number,
+	rateDayUsdMicros: number,
+	stopped: boolean,
+): string {
+	if (stopped) return "starts your service again";
+	if (rateDayUsdMicros <= 0) return "over a year at this rate";
+	const days = Math.floor((packUsd * 1_000_000) / rateDayUsdMicros);
+	if (days >= 365) return "over a year at this rate";
+	return `about ${days} day${days === 1 ? "" : "s"} at this rate`;
+}
+
+/** The "<Month> so far" header's aside: "Updated HH:MM UTC · next memory
+ *  charge HH:00" while running, "Updated HH:MM UTC · service stopped"
+ *  otherwise (Design step 5.4). */
+export function nextChargeLabel(now: Date, serviceState: ServiceState): string {
+	const updated = `Updated ${String(now.getUTCHours()).padStart(2, "0")}:${String(
+		now.getUTCMinutes(),
+	).padStart(2, "0")} UTC`;
+	if (serviceState !== "running") return `${updated} · service stopped`;
+	const nextHour = (now.getUTCHours() + 1) % 24;
+	return `${updated} · next memory charge ${String(nextHour).padStart(2, "0")}:00`;
+}
+
+/** The most recent hour in `service.memory24h` (rows are chronological,
+ *  oldest → newest from the API), or `null` when the service has no
+ *  memory history in the last 24h. */
+export function latestMemoryHour(
+	memory24h: MemoryHourRow[],
+): MemoryHourRow | null {
+	return memory24h.length > 0
+		? (memory24h[memory24h.length - 1] ?? null)
+		: null;
+}
+
+/** Rate label for the Usage table's new Rate column. `rows.delivered` is
+ *  the only unit whose label depends on the row's own quantity (free vs.
+ *  past the monthly allowance); every other unit is a flat rate. */
+export function rateLabel(unit: string, quantity: string): string {
+	switch (unit) {
+		case "memory.gb_hour":
+			return "$0.028/GB-h";
+		case "webhook.event":
+			return "$10/1M";
+		case "storage.gb_day":
+			return "$0.25/GB-mo";
+		case "archive.partition":
+			return "$0.05/partition";
+		case "archive.partition.events":
+			return "$0.15/partition";
+		case "rows.delivered":
+			return Number(quantity) > ROWS_ALLOWANCE ? "$5/1M" : "free";
+		default:
+			return "";
+	}
+}
+
+/** One day of the "<Month> so far" stacked bar chart: real, categorized
+ *  spend for a past or in-progress day; a single (hatched, uncategorized)
+ *  projected total for a future day. */
+export type DailyChartDay = {
+	day: number; // 1-indexed day of month
+	date: string; // "YYYY-MM-DD"
+	memUsdMicros: number;
+	eventsUsdMicros: number;
+	rowsUsdMicros: number;
+	projected: boolean;
+};
+
+/** Buckets `daily` into one bar per day of `month`, real categorized spend
+ *  through today and one hatched `rateDay`-sized bar per remaining day —
+ *  the chart never has real per-category data for a day that hasn't
+ *  happened yet, only the aggregate burn rate (Design step 5.4). A past
+ *  month (not `now`'s month) has no "today" and no projected days: every
+ *  day is real. */
+export function buildDailyChart(
+	daily: DailySpend[],
+	month: Month,
+	now: Date,
+	rateDayUsdMicros: number,
+): DailyChartDay[] {
+	const totalDays = daysInUtcMonth(month);
+	const isCurrentMonth = isSameMonth(month, currentUtcMonth(now));
+	const today = isCurrentMonth ? now.getUTCDate() : totalDays;
+
+	const byDate = new Map<string, DailySpend[]>();
+	for (const row of daily) {
+		const arr = byDate.get(row.date);
+		if (arr) arr.push(row);
+		else byDate.set(row.date, [row]);
+	}
+
+	const sumUnit = (rows: DailySpend[], unit: string): number =>
+		rows
+			.filter((r) => r.unit === unit)
+			.reduce((total, r) => total + Number(r.usdMicros), 0);
+
+	const days: DailyChartDay[] = [];
+	for (let day = 1; day <= totalDays; day++) {
+		const date = `${month.year}-${String(month.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+		if (isCurrentMonth && day > today) {
+			days.push({
+				day,
+				date,
+				memUsdMicros: 0,
+				eventsUsdMicros: 0,
+				rowsUsdMicros: 0,
+				projected: true,
+			});
+			continue;
+		}
+		const rows = byDate.get(date) ?? [];
+		days.push({
+			day,
+			date,
+			memUsdMicros: sumUnit(rows, "memory.gb_hour"),
+			eventsUsdMicros: sumUnit(rows, "webhook.event"),
+			rowsUsdMicros: sumUnit(rows, "rows.delivered"),
+			projected: false,
+		});
+	}
+	return days;
 }
 
 /** The free-rows meter's foot line: under / exactly-at / over the monthly
@@ -173,6 +389,14 @@ export function monthLabel(m: Month): string {
 	return new Date(Date.UTC(m.year, m.month, 1)).toLocaleDateString("en-US", {
 		month: "long",
 		year: "numeric",
+		timeZone: "UTC",
+	});
+}
+
+/** "Sep" — the daily spend chart's axis-label prefix. */
+export function monthShortLabel(m: Month): string {
+	return new Date(Date.UTC(m.year, m.month, 1)).toLocaleDateString("en-US", {
+		month: "short",
 		timeZone: "UTC",
 	});
 }

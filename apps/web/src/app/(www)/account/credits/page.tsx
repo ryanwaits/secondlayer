@@ -20,8 +20,9 @@ export default function AccountCreditsPage() {
 		<>
 			<h1 className="acct-h1">Credits</h1>
 			<p className="acct-lede">
-				Prepaid. Your first {formatRows(ROWS_ALLOWANCE)} rows each month are
-				free; rows past that and archive downloads draw from this balance.
+				Prepaid, no subscription. Usage draws from this balance as it happens.
+				When it reaches $0, your delivery service stops and reads past the free{" "}
+				{formatRows(ROWS_ALLOWANCE)} rows pause until you top up.
 			</p>
 			<CreditsSection ret={ret} />
 		</>

@@ -2,7 +2,14 @@
 
 import { useSyncExternalStore } from "react";
 import type { ApiKey } from "./types";
-import { type UsageByMonth, type UsageRow, withUsageMonth } from "./usage";
+import {
+	type Burn,
+	type DailySpend,
+	type DeliveryService,
+	type UsageByMonth,
+	type UsageResponse,
+	withUsageMonth,
+} from "./usage";
 import { clearWebhooksData } from "./webhooks-store";
 
 /**
@@ -20,13 +27,33 @@ export type Billing = {
 	spentThisMonthUsdMicros: string;
 };
 
+export type BalanceAlerts = { notify7d: boolean; notify2d: boolean };
+
 type State = {
 	billing: Billing | null;
 	keys: ApiKey[] | null;
 	usage: UsageByMonth;
+	/** Day-by-day spend, keyed by month like `usage` — only the requested
+	 *  month's chart data. */
+	daily: Record<string, DailySpend[]>;
+	/** Trailing-24h burn rate. Always "now", independent of whichever
+	 *  month's usage was last fetched — the latest response always wins. */
+	burn: Burn | null;
+	/** Delivery service state + last-24h memory. Same "always now" rule as
+	 *  `burn`. */
+	service: DeliveryService | null;
+	alerts: BalanceAlerts | null;
 };
 
-const EMPTY: State = { billing: null, keys: null, usage: {} };
+const EMPTY: State = {
+	billing: null,
+	keys: null,
+	usage: {},
+	daily: {},
+	burn: null,
+	service: null,
+	alerts: null,
+};
 let state: State = EMPTY;
 const listeners = new Set<() => void>();
 
@@ -61,19 +88,59 @@ export async function refreshBilling(): Promise<Billing | null> {
 }
 
 /** This account's usage_ledger for one UTC calendar month (`YYYY-MM`),
- *  grouped by unit. Writes only that month's entry in the keyed `usage`
- *  store, so a slow response for a month the caller has moved on from can't
- *  overwrite whatever month is on screen now. Mirrors `refreshBilling`. */
-export async function refreshUsage(month: string): Promise<UsageRow[] | null> {
+ *  grouped by unit, plus that month's daily chart data and the always-now
+ *  burn rate + delivery service snapshot. Writes only that month's `usage`/
+ *  `daily` entry, so a slow response for a month the caller has moved on
+ *  from can't overwrite whatever month is on screen now — `burn` and
+ *  `service` always take the latest response, since they're never
+ *  month-scoped. Mirrors `refreshBilling`. */
+export async function refreshUsage(
+	month: string,
+): Promise<UsageResponse | null> {
 	try {
 		const res = await fetch(`/api/billing/usage?month=${month}`);
 		if (!res.ok) return null;
-		const data = (await res.json()) as { month: string; usage: UsageRow[] };
-		set({ usage: withUsageMonth(state.usage, month, data.usage) });
-		return data.usage;
+		const data = (await res.json()) as UsageResponse;
+		set({
+			usage: withUsageMonth(state.usage, month, data.usage),
+			daily: { ...state.daily, [month]: data.daily },
+			burn: data.burn,
+			service: data.service,
+		});
+		return data;
 	} catch {
 		return null;
 	}
+}
+
+/** The signed-in account's balance-alert email preferences. */
+export async function refreshAlerts(): Promise<BalanceAlerts | null> {
+	try {
+		const res = await fetch("/api/billing/alerts");
+		if (!res.ok) return null;
+		const alerts = (await res.json()) as BalanceAlerts;
+		set({ alerts });
+		return alerts;
+	} catch {
+		return null;
+	}
+}
+
+/** Optimistic PUT: the caller flips the switch immediately, this persists
+ *  it and reconciles with what the server actually stored (or rolls back
+ *  on failure — the caller shows a toast). */
+export async function updateAlerts(
+	patch: Partial<BalanceAlerts>,
+): Promise<BalanceAlerts | null> {
+	const res = await fetch("/api/billing/alerts", {
+		method: "PUT",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(patch),
+	});
+	if (!res.ok) return null;
+	const alerts = (await res.json()) as BalanceAlerts;
+	set({ alerts });
+	return alerts;
 }
 
 export async function refreshKeys(): Promise<void> {
