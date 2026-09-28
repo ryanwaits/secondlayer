@@ -92,3 +92,6 @@ cassettes/
 
 # local archive manifest pulled for verify runs — never commit
 /snapshot-*.json
+
+# generated customer-email previews (packages/shared/src/email/preview.ts)
+/email-previews/
