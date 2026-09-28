@@ -189,11 +189,55 @@ export async function toggleWebhookStatus(
 	return (await q.returningAll().executeTakeFirst()) ?? null;
 }
 
+/** Rows removed per statement. Small enough that one batch stays well
+ *  under the API idle timeout, and each batch commits on its own so a
+ *  client that gives up keeps the rows already removed. */
+const WEBHOOK_DELETE_BATCH = 5_000;
+
+/** Delete a webhook's deliveries, then its outbox, in batches.
+ *
+ *  Deliveries go first. The outbox FK is `ON DELETE SET NULL`, so deleting
+ *  an outbox row updates every delivery that points at it. Doing that for
+ *  a high-volume chain webhook (on the order of 1e5 `stx_transfer` rows)
+ *  sequential-scans `webhook_deliveries` once per outbox row unless
+ *  `webhook_deliveries_outbox_id_idx` (migration 0149) is present, and the
+ *  scan still reads dead tuples until vacuum. That single cascaded
+ *  `DELETE FROM webhooks` runs past the API's 90s idle timeout: the socket
+ *  closes, the gateway returns 502, and a retry queues on the same lock.
+ *
+ *  Batches are separate statements. A timed-out request leaves a smaller
+ *  webhook, and the next delete finishes it. */
+async function deleteWebhookChildren(
+	db: Kysely<Database>,
+	webhookId: string,
+): Promise<void> {
+	for (const table of ["webhook_deliveries", "webhook_outbox"] as const) {
+		for (;;) {
+			const result = await sql`
+				DELETE FROM ${sql.table(table)}
+				WHERE id IN (
+					SELECT id FROM ${sql.table(table)}
+					WHERE webhook_id = ${webhookId}
+					LIMIT ${WEBHOOK_DELETE_BATCH}
+				)
+			`.execute(db);
+			if (Number(result.numAffectedRows ?? 0n) === 0) break;
+		}
+	}
+}
+
 export async function deleteWebhook(
 	db: Kysely<Database>,
 	accountId: string,
 	id: string,
 ): Promise<boolean> {
+	let owned = db.selectFrom("webhooks").select("id").where("id", "=", id);
+	if (isPlatformMode()) owned = owned.where("account_id", "=", accountId);
+	const row = await owned.executeTakeFirst();
+	if (!row) return false;
+
+	await deleteWebhookChildren(db, id);
+
 	let q = db.deleteFrom("webhooks").where("id", "=", id);
 	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
 	const res = await q.executeTakeFirst();

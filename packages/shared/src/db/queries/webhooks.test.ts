@@ -155,33 +155,49 @@ describe("webhooks queries", () => {
 		expect(after).not.toBeNull();
 	});
 
-	it("delete cascades to webhook_deliveries (migration 0140 FK)", async () => {
+	it("delete removes deliveries and the outbox before the webhook row", async () => {
 		const { webhook } = await createWebhook(db, baseInput());
+		const outbox = await db
+			.insertInto("webhook_outbox")
+			.values({
+				webhook_id: webhook.id,
+				subgraph_name: "my-subgraph",
+				table_name: "transfers",
+				block_height: 1,
+				tx_id: "0xdel",
+				row_pk: { id: "1" },
+				event_type: "my-subgraph.transfers.created",
+				payload: { amount: "1" },
+				dedup_key: `del-${webhook.id}`,
+			})
+			.returning("id")
+			.executeTakeFirstOrThrow();
 		await db
 			.insertInto("webhook_deliveries")
 			.values({
-				outbox_id: null,
+				outbox_id: outbox.id,
 				webhook_id: webhook.id,
 				attempt: 1,
 				status_code: 200,
 			})
 			.execute();
-		const before = await db
-			.selectFrom("webhook_deliveries")
-			.select("id")
-			.where("webhook_id", "=", webhook.id)
-			.execute();
-		expect(before.length).toBe(1);
 
 		const ok = await deleteWebhook(db, accountId, webhook.id);
 		expect(ok).toBe(true);
+		expect(await getWebhook(db, accountId, webhook.id)).toBeNull();
 
-		const after = await db
+		const deliveries = await db
 			.selectFrom("webhook_deliveries")
 			.select("id")
 			.where("webhook_id", "=", webhook.id)
 			.execute();
-		expect(after.length).toBe(0);
+		const outboxLeft = await db
+			.selectFrom("webhook_outbox")
+			.select("id")
+			.where("webhook_id", "=", webhook.id)
+			.execute();
+		expect(deliveries).toHaveLength(0);
+		expect(outboxLeft).toHaveLength(0);
 	});
 
 	it("creates a chain webhook (kind=chain, triggers persisted, no subgraph target)", async () => {
