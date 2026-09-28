@@ -1,11 +1,14 @@
 #!/usr/bin/env bun
-// `migrate | backfill --to <H> | follow | parity-decode --blocks <list|range> |
+// `migrate | backfill --to <H> | follow [--until <H>] |
+// parity-decode --blocks <list|range> |
 // parity-state --height <H> --ord-runes <file> --ord-balances <file> |
-// repair-entries | digests --from <A> --to <B> | state-hash`.
+// parity-spot | repair-entries | digests --from <A> --to <B> | state-hash`.
 //
 // `follow` wakes on bitcoind's own `waitfornewblock` RPC (plan 070, D12
 // amended 2026-09-26) over the existing BITCOIN_RPC_*/BITCOIN_DATABASE_URL
-// envs — no extra port needed.
+// envs — no extra port needed. `--until <H>` (plan 062) stops it cleanly at
+// H instead of running forever — used by the weekly frozen-parity procedure
+// to pin our side and ord to the same height before diffing.
 
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { runBackfill } from "./backfill.ts";
@@ -16,6 +19,7 @@ import { runFollow } from "./follow.ts";
 import { computeStateHash } from "./integrity/digest.ts";
 import { diffOne, txidsWithRunestoneMarker } from "./parity/decode.ts";
 import { parseJsonPreservingBigInts } from "./parity/json-bigint.ts";
+import { runSpotParity } from "./parity/spot.ts";
 import {
 	buildStateDiffReport,
 	normalizeOrdBalancesJson,
@@ -27,11 +31,39 @@ import {
 import { repairEntries } from "./repair.ts";
 import { RpcWaitNotifier } from "./rpc-wait-notifier.ts";
 import { bitcoinRpcClientFromEnv } from "./rpc.ts";
+import { Network } from "./runes/rune.ts";
 
 function requireEnv(name: string): string {
 	const value = process.env[name];
 	if (!value) throw new Error(`missing required env var ${name}`);
 	return value;
+}
+
+/**
+ * `follow`'s network/genesis-height overrides — unset in every real
+ * deployment (mainnet is the only network Runes ever ran on; see
+ * `follow.ts`'s `FollowDeps.network` doc). Exists so the built `bitcoin`
+ * Docker image can be smoke-tested against a regtest bitcoind (plan 062
+ * step 2's boot verification) without a separate in-process harness.
+ */
+function followNetworkFromEnv(): {
+	network: Network | undefined;
+	genesisHeight: number | undefined;
+} {
+	const networkEnv = process.env.BITCOIN_NETWORK;
+	if (networkEnv !== undefined) {
+		if (!Object.values(Network).includes(networkEnv as Network)) {
+			throw new Error(
+				`invalid BITCOIN_NETWORK "${networkEnv}" (expected one of: ${Object.values(Network).join(", ")})`,
+			);
+		}
+	}
+	const genesisHeightEnv = process.env.BITCOIN_GENESIS_HEIGHT;
+	return {
+		network: networkEnv as Network | undefined,
+		genesisHeight:
+			genesisHeightEnv !== undefined ? Number(genesisHeightEnv) : undefined,
+	};
 }
 
 function parseFlag(args: string[], name: string): string | undefined {
@@ -323,18 +355,37 @@ async function cmdStateHash(): Promise<void> {
 }
 
 /**
- * Follows the tip forever (D12, amended 2026-09-26): batch catch-up if far
- * behind, then one block at a time near it (each flush writes an undo row),
- * woken by bitcoind's own blocking `waitfornewblock` RPC (`RpcWaitNotifier`),
- * with a `getbestblockhash`-polling fallback on nodes that lack it. Runs one
- * pass immediately on start (catches up after downtime, and rewinds an
- * orphaned checkpoint left over from a previous run) before waiting on the
- * first notification. Stops cleanly on SIGINT/SIGTERM.
+ * Follows the tip (D12, amended 2026-09-26): batch catch-up if far behind,
+ * then one block at a time near it (each flush writes an undo row), woken by
+ * bitcoind's own blocking `waitfornewblock` RPC (`RpcWaitNotifier`), with a
+ * `getbestblockhash`-polling fallback on nodes that lack it. Runs one pass
+ * immediately on start (catches up after downtime, and rewinds an orphaned
+ * checkpoint left over from a previous run) before waiting on the first
+ * notification.
+ *
+ * With no `--until`, runs forever and stops only on SIGINT/SIGTERM. With
+ * `--until <H>` (plan 062), stops cleanly at H on its own — used by the
+ * weekly frozen-parity procedure to pin this side and ord to the same
+ * height before diffing — and, like every other one-shot command
+ * (plan 081), force-exits after `db.destroy()` rather than relying on
+ * `main()`'s "follow never returns" assumption.
  */
-async function cmdFollow(): Promise<void> {
+async function cmdFollow(args: string[]): Promise<void> {
+	const untilStr = parseFlag(args, "--until");
+	const until = untilStr !== undefined ? Number(untilStr) : undefined;
+	if (
+		untilStr !== undefined &&
+		(!Number.isInteger(until) || (until as number) < 0)
+	) {
+		throw new Error(
+			`--until requires a non-negative integer height, got "${untilStr}"`,
+		);
+	}
+
 	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
 	const rpc = bitcoinRpcClientFromEnv();
 	const fetchConcurrency = Number(process.env.FETCH_CONCURRENCY ?? "8");
+	const { network, genesisHeight } = followNetworkFromEnv();
 
 	const notifier = new RpcWaitNotifier({ rpc });
 
@@ -352,6 +403,9 @@ async function cmdFollow(): Promise<void> {
 			db,
 			rpc,
 			fetchConcurrency,
+			until,
+			network,
+			genesisHeight,
 			onBlock: ({ height, hash }) => {
 				console.log(`✅ follow height=${height} hash=${hash}`);
 			},
@@ -373,7 +427,37 @@ async function cmdFollow(): Promise<void> {
 		controller.signal,
 	);
 
+	notifier.close();
 	await db.destroy();
+
+	if (until !== undefined) {
+		console.log(`follow: reached --until height ${until}, exiting`);
+		process.exit(0);
+	}
+}
+
+/**
+ * Daily spot parity (plan 062, Gate 2): waits for ord's `/blockheight` to
+ * reach our checkpoint (up to 30 min), then compares mints/burned/supply for
+ * the runes with the most events in the last 144 blocks against ord's
+ * `/rune/<id>` JSON. Writes a report and exits non-zero on any mismatch.
+ */
+async function cmdParitySpot(): Promise<void> {
+	const ordUrl = process.env.ORD_URL ?? "http://127.0.0.1:8089";
+	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
+
+	const result = await runSpotParity({ db, ordUrl });
+	await db.destroy();
+
+	const outDir = process.env.PARITY_REPORT_DIR ?? process.cwd();
+	const outPath = `${outDir}/spot-${new Date().toISOString().slice(0, 10)}.json`;
+	await Bun.write(outPath, JSON.stringify(result, null, 2));
+
+	console.log(
+		`spot parity at height ${result.checkpointHeight}: ${result.runesChecked} rune(s) checked, ` +
+			`${result.mismatches.length} mismatch(es). Report: ${outPath}`,
+	);
+	if (result.mismatches.length > 0) process.exitCode = 1;
 }
 
 async function main(): Promise<void> {
@@ -385,11 +469,13 @@ async function main(): Promise<void> {
 		case "backfill":
 			return cmdBackfill(args);
 		case "follow":
-			return cmdFollow();
+			return cmdFollow(args);
 		case "parity-decode":
 			return cmdParityDecode(args);
 		case "parity-state":
 			return cmdParityState(args);
+		case "parity-spot":
+			return cmdParitySpot();
 		case "repair-entries":
 			return cmdRepairEntries();
 		case "digests":
@@ -398,18 +484,21 @@ async function main(): Promise<void> {
 			return cmdStateHash();
 		default:
 			console.error(
-				"usage: cli.ts migrate | backfill --to <H> | follow | parity-decode --blocks <list|range> | parity-state --height <H> --ord-runes <file> --ord-balances <file> | repair-entries | digests --from <A> --to <B> | state-hash",
+				"usage: cli.ts migrate | backfill --to <H> | follow [--until <H>] | parity-decode --blocks <list|range> | parity-state --height <H> --ord-runes <file> --ord-balances <file> | parity-spot | repair-entries | digests --from <A> --to <B> | state-hash",
 			);
 			process.exit(1);
 	}
 }
 
 if (import.meta.main) {
-	// Every one-shot command (everything but `follow`) awaits its final DB
-	// write and `db.destroy()` before `main()` resolves — so it's always safe
-	// to force-exit here. `follow` runs until SIGINT/SIGTERM and must keep
-	// its own lifecycle (plan 081: root cause of the hang wasn't found in the
-	// time box — this is the unconditional backstop for it).
+	// Every one-shot command (everything but a `follow` with no `--until`)
+	// awaits its final DB write and `db.destroy()` before `main()` resolves —
+	// so it's always safe to force-exit here. `follow` with no `--until` runs
+	// until SIGINT/SIGTERM and must keep its own lifecycle (plan 081: root
+	// cause of the hang wasn't found in the time box — this is the
+	// unconditional backstop for it); `follow --until <H>` (plan 062) is a
+	// one-shot command in disguise and force-exits itself inside `cmdFollow`
+	// once it reaches H, so this branch never has to.
 	const [command] = process.argv.slice(2);
 	main()
 		.then(() => {

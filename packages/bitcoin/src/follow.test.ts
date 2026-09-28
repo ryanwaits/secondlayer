@@ -248,7 +248,12 @@ class FakeChain implements BitcoinRpcClient {
 
 class FakeNotifier implements BlockNotifier {
 	private waiters: Array<() => void> = [];
+	/** How many times `notified()` has been called — used to assert `runFollow`
+	 *  with `deps.until` never waits on the notifier once it's reached the
+	 *  target height. */
+	callCount = 0;
 	notified(): Promise<void> {
+		this.callCount += 1;
 		return new Promise((resolve) => {
 			this.waiters.push(resolve);
 		});
@@ -418,5 +423,65 @@ describe.skipIf(!testUrl)("follow", () => {
 		}
 
 		await expect(syncOnce(deps)).rejects.toThrow();
+	});
+
+	test("syncOnce with `until` set caps at that height even though the live chain has moved past it", async () => {
+		const chain = new FakeChain();
+		let prev = chain.mine(GENESIS_HEIGHT, GENESIS_ANCHOR_HASH);
+		for (let h = GENESIS_HEIGHT + 1; h <= GENESIS_HEIGHT + 5; h++) {
+			prev = chain.mine(h, prev);
+		}
+		expect(await chain.getblockcount()).toBe(GENESIS_HEIGHT + 5);
+
+		const deps: FollowDeps = { db, rpc: chain, until: GENESIS_HEIGHT + 2 };
+		const result = await syncOnce(deps);
+		expect(result.state.height).toBe(GENESIS_HEIGHT + 2);
+		expect(result.blocksApplied).toBe(3); // GENESIS_HEIGHT, +1, +2
+
+		// A second pass with the same cap is a no-op even though the live chain
+		// is still 3 blocks further ahead.
+		const second = await syncOnce(deps);
+		expect(second.blocksApplied).toBe(0);
+		expect(second.state.height).toBe(GENESIS_HEIGHT + 2);
+
+		// Lifting the cap picks back up from where `until` left off.
+		const uncapped = await syncOnce({ db, rpc: chain });
+		expect(uncapped.state.height).toBe(GENESIS_HEIGHT + 5);
+	});
+
+	test("runFollow with `until` set stops cleanly on its own once reached, without waiting on the notifier", async () => {
+		const chain = new FakeChain();
+		chain.mine(GENESIS_HEIGHT, GENESIS_ANCHOR_HASH);
+		const deps: FollowDeps = { db, rpc: chain, until: GENESIS_HEIGHT };
+		const notifier = new FakeNotifier();
+
+		// No controller.abort() and no notifier.fire() — the only way this
+		// resolves is runFollow's own `until` check.
+		await runFollow(deps, notifier);
+
+		const state = await import("./db/store.ts").then((m) => m.loadState(db));
+		expect(state.height).toBe(GENESIS_HEIGHT);
+		expect(notifier.callCount).toBe(0);
+	});
+
+	test("runFollow with `until` set waits for a block that hasn't landed yet, then stops at it", async () => {
+		const chain = new FakeChain();
+		const h0 = chain.mine(GENESIS_HEIGHT, GENESIS_ANCHOR_HASH);
+		const deps: FollowDeps = { db, rpc: chain, until: GENESIS_HEIGHT + 1 };
+		const notifier = new FakeNotifier();
+
+		const run = runFollow(deps, notifier);
+
+		// First pass lands at GENESIS_HEIGHT and is still short of `until` — it
+		// must wait on the notifier rather than returning early.
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		expect(notifier.callCount).toBe(1);
+
+		chain.mine(GENESIS_HEIGHT + 1, h0);
+		notifier.fire();
+		await run;
+
+		const state = await import("./db/store.ts").then((m) => m.loadState(db));
+		expect(state.height).toBe(GENESIS_HEIGHT + 1);
 	});
 });

@@ -85,6 +85,15 @@ export interface FollowDeps {
 	network?: Network;
 	/** Defaults to `GENESIS_HEIGHT` (840,000). Regtest-test-only override — see `network`. */
 	genesisHeight?: number;
+	/**
+	 * Caps both the batch catch-up and the per-block loop at this height —
+	 * `syncOnce` never fetches or applies a block past it, even when the live
+	 * chain's tip is higher. `runFollow` stops cleanly (returns) once the
+	 * checkpoint reaches it, instead of waiting on the next notification
+	 * (plan 062: `cli.ts follow --until <H>`, used by weekly frozen parity to
+	 * pin both sides to the same height before diffing).
+	 */
+	until?: number;
 }
 
 /**
@@ -200,7 +209,13 @@ export async function syncOnce(deps: FollowDeps): Promise<SyncResult> {
 
 	state = await reconcileCheckpoint(deps, state);
 
-	const tipHeight = await deps.rpc.getblockcount();
+	const rawTipHeight = await deps.rpc.getblockcount();
+	// Capped at `deps.until` (plan 062) so a bounded `follow --until <H>` never
+	// fetches or applies a block past H, even if the live chain has moved on.
+	const tipHeight =
+		deps.until !== undefined
+			? Math.min(rawTipHeight, deps.until)
+			: rawTipHeight;
 	// `state.height` is `undefined` only for a brand-new database (nothing
 	// backfilled yet, ever) — treat that exactly like backfill.ts does (one
 	// height below the genesis height), so a fresh `follow` on an empty DB
@@ -221,7 +236,11 @@ export async function syncOnce(deps: FollowDeps): Promise<SyncResult> {
 
 	let blocksApplied = 0;
 	for (;;) {
-		const currentTip = await deps.rpc.getblockcount();
+		const rawCurrentTip = await deps.rpc.getblockcount();
+		const currentTip =
+			deps.until !== undefined
+				? Math.min(rawCurrentTip, deps.until)
+				: rawCurrentTip;
 		const currentHeight = state.height ?? genesisHeight - 1;
 		if (currentHeight >= currentTip) break;
 
@@ -299,9 +318,13 @@ export function createHeartbeatTracker(
  * `waitfornewblock` return, or the fallback poll noticing a new best hash).
  * Runs one pass immediately on start (covers catching up after being
  * offline, and an orphaned checkpoint left over from a previous run) before
- * waiting for the first notification. Never returns on its own — the caller
- * stops it via `signal` (an `AbortController`, since `notifier.notified()`
- * doesn't otherwise have a way to be cancelled mid-wait).
+ * waiting for the first notification. With no `deps.until`, never returns on
+ * its own — the caller stops it via `signal` (an `AbortController`, since
+ * `notifier.notified()` doesn't otherwise have a way to be cancelled
+ * mid-wait). With `deps.until` set, returns on its own — without ever
+ * calling `notifier.notified()` again — the moment the checkpoint reaches
+ * that height (plan 062: `follow --until <H>`), so a caller relying on it
+ * never has a wait already in flight for `signal` to interrupt.
  *
  * Every iteration also re-reads the live tip (`getblockcount`) and feeds it
  * to a `HeartbeatTracker`, so a run that's genuinely falling behind — not
@@ -328,6 +351,13 @@ export async function runFollow(
 			} catch {
 				// A failed liveness check shouldn't take down follow itself.
 			}
+		}
+
+		if (
+			deps.until !== undefined &&
+			(state.height ?? Number.NEGATIVE_INFINITY) >= deps.until
+		) {
+			break;
 		}
 
 		if (signal?.aborted) break;
