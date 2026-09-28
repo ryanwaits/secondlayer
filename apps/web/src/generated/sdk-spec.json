@@ -320,7 +320,7 @@
 					"summary": "`index.ftTransfers` — callable shorthand for `.list()`, with `.list`/`.walk` still available: `await sl.index.ftTransfers({ contractId })`.",
 					"signature": "FtTransfersResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1339
+					"line": 1541
 				},
 				{
 					"name": "FtTransfersWalkParams",
@@ -336,7 +336,7 @@
 					"summary": "",
 					"signature": "Index(options?: object): unknown",
 					"file": "src/index-api/client.ts",
-					"line": 1441
+					"line": 1643
 				},
 				{
 					"name": "INDEX_MAX_PAGE_SIZE",
@@ -355,12 +355,28 @@
 					"line": 320
 				},
 				{
+					"name": "IndexBitcoinTip",
+					"kind": "type",
+					"summary": "The Bitcoin chain tip a Runes read was served against — a separate clock from the Stacks {@link IndexTip}: Runes ingest tracks Bitcoin blocks, not Stacks ones.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1291
+				},
+				{
 					"name": "IndexBlock",
 					"kind": "type",
 					"summary": "A block resource.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 494
+				},
+				{
+					"name": "IndexBtcReorg",
+					"kind": "type",
+					"summary": "A Bitcoin fork the Runes indexer rolled back.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1301
 				},
 				{
 					"name": "IndexCanonicalBlock",
@@ -392,7 +408,7 @@
 					"summary": "The `GET /v1/index` discovery doc — live endpoint + filter vocabulary.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1436
+					"line": 1638
 				},
 				{
 					"name": "IndexEvent",
@@ -424,7 +440,7 @@
 					"summary": "`index.events` — callable shorthand for `.list()`; `eventType` is required.",
 					"signature": "IndexEventsResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1383
+					"line": 1585
 				},
 				{
 					"name": "IndexEventType",
@@ -440,7 +456,7 @@
 					"summary": "Per-event-type filter vocabulary in the {@link IndexDiscovery} doc.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1426
+					"line": 1628
 				},
 				{
 					"name": "IndexFeedEnvelope",
@@ -609,6 +625,54 @@
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 35
+				},
+				{
+					"name": "IndexRuneBalance",
+					"kind": "type",
+					"summary": "A rune's balance on one unspent output, with the rune's identity embedded.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1425
+				},
+				{
+					"name": "IndexRuneEntry",
+					"kind": "type",
+					"summary": "One etched rune's full entry: identity, premine/mint/burn counters, computed supply, and mint terms.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1336
+				},
+				{
+					"name": "IndexRuneEvent",
+					"kind": "type",
+					"summary": "One etch/mint/transfer/burn event, with the rune's identity embedded so an activity feed never needs a second lookup to show a name.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1386
+				},
+				{
+					"name": "IndexRuneEventKind",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1378
+				},
+				{
+					"name": "IndexRuneRefSummary",
+					"kind": "type",
+					"summary": "The rune identity bundle every Runes response embeds, so a client never needs a second lookup just to show a name next to an event or a balance.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1314
+				},
+				{
+					"name": "IndexRuneTerms",
+					"kind": "type",
+					"summary": "Mint terms, or `null` for a premine-only rune that was never mintable.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1325
 				},
 				{
 					"name": "IndexSbtcDeposit",
@@ -792,7 +856,7 @@
 					"summary": "`index.nftTransfers` — callable shorthand for `.list()` (see {@link FtTransfersResource}).",
 					"signature": "NftTransfersResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1362
+					"line": 1564
 				},
 				{
 					"name": "NftTransfersWalkParams",
@@ -889,6 +953,94 @@
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 762
+				},
+				{
+					"name": "RuneActivityEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1401
+				},
+				{
+					"name": "RuneActivityListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1409
+				},
+				{
+					"name": "RuneActivityWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1421
+				},
+				{
+					"name": "RuneBalancesEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1435
+				},
+				{
+					"name": "RuneBalancesListParams",
+					"kind": "type",
+					"summary": "Exactly one of `address`/`outpoint` is required — enforced at the type level, not just at runtime.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1446
+				},
+				{
+					"name": "RuneEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1373
+				},
+				{
+					"name": "RuneId",
+					"kind": "type",
+					"summary": "A rune's `<block>:<tx>` id — the etch transaction's position, e.g.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1277
+				},
+				{
+					"name": "RuneRef",
+					"kind": "type",
+					"summary": "A rune reference accepted by every Runes call: an id ({@link RuneId}) or a name, with or without spacers, in any case — `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` all resolve t…",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1286
+				},
+				{
+					"name": "RunesEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1353
+				},
+				{
+					"name": "RunesListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1364
+				},
+				{
+					"name": "RunesResource",
+					"kind": "interface",
+					"summary": "`index.runes` — the rune catalog, activity log, and balances.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1460
 				},
 				{
 					"name": "SbtcDepositEnvelope",

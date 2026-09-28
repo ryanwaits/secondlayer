@@ -12283,7 +12283,8 @@
 									"required": [
 										"runes",
 										"next_cursor",
-										"tip"
+										"tip",
+										"reorgs"
 									],
 									"properties": {
 										"runes": {
@@ -12301,6 +12302,13 @@
 										},
 										"tip": {
 											"$ref": "#/components/schemas/BitcoinTip"
+										},
+										"reorgs": {
+											"type": "array",
+											"description": "Always empty — this feed reads a reorg-corrected snapshot table, not an append-only log.",
+											"items": {
+												"$ref": "#/components/schemas/BtcReorg"
+											}
 										},
 										"notes": {
 											"type": "string",
@@ -12585,7 +12593,8 @@
 									"required": [
 										"events",
 										"next_cursor",
-										"tip"
+										"tip",
+										"reorgs"
 									],
 									"properties": {
 										"events": {
@@ -12727,7 +12736,8 @@
 									"required": [
 										"balances",
 										"next_cursor",
-										"tip"
+										"tip",
+										"reorgs"
 									],
 									"properties": {
 										"balances": {
@@ -12745,6 +12755,13 @@
 										},
 										"tip": {
 											"$ref": "#/components/schemas/BitcoinTip"
+										},
+										"reorgs": {
+											"type": "array",
+											"description": "Always empty — this feed reads a reorg-corrected snapshot table, not an append-only log.",
+											"items": {
+												"$ref": "#/components/schemas/BtcReorg"
+											}
 										},
 										"notes": {
 											"type": "string",
