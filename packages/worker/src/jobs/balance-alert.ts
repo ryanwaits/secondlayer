@@ -32,6 +32,7 @@ import {
 } from "@secondlayer/platform/db/queries/usage-ledger";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
+import { renderEmail, sendEmail } from "@secondlayer/shared/email";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 
 const INTERVAL_MS = 60 * 60 * 1000; // hourly — a runway crossing doesn't
@@ -129,23 +130,29 @@ export async function checkOneBalance(
 		return;
 	}
 
+	const ctx = { now, runway, rateDayUsdMicros, balance };
+
 	if (level === "stopped" && notify2d && !alerts?.sent_stopped_at) {
 		await upsertBalanceAlerts(db, row.id, { sent_stopped_at: now });
-		await sendBalanceAlert(row, "stopped", { now, runway, rateDayUsdMicros });
+		await sendBalanceAlert(row, "stopped", ctx);
 		return;
 	}
 	if (level === "crit" && notify2d && !alerts?.sent_2d_at) {
 		await upsertBalanceAlerts(db, row.id, { sent_2d_at: now });
-		await sendBalanceAlert(row, "crit", { now, runway, rateDayUsdMicros });
+		await sendBalanceAlert(row, "crit", ctx);
 		return;
 	}
 	if (level === "low" && notify7d && !alerts?.sent_7d_at) {
 		await upsertBalanceAlerts(db, row.id, { sent_7d_at: now });
-		await sendBalanceAlert(row, "low", { now, runway, rateDayUsdMicros });
+		await sendBalanceAlert(row, "low", ctx);
 	}
 }
 
 function formatUsdPerDay(usdMicros: bigint): string {
+	return `$${(Number(usdMicros) / 1_000_000).toFixed(2)}/day`;
+}
+
+function formatUsd(usdMicros: bigint): string {
 	return `$${(Number(usdMicros) / 1_000_000).toFixed(2)}`;
 }
 
@@ -168,48 +175,75 @@ function runsOutDate(now: Date, runway: number): string {
 	});
 }
 
+/** "Mon D HH:MM UTC" — when the delivery service stopped. */
+function stoppedAtLabel(now: Date): string {
+	const date = now.toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		timeZone: "UTC",
+	});
+	const time = now.toLocaleTimeString("en-US", {
+		hour: "2-digit",
+		minute: "2-digit",
+		hour12: false,
+		timeZone: "UTC",
+	});
+	return `${date} ${time} UTC`;
+}
+
 async function sendBalanceAlert(
 	account: AccountRow,
 	kind: "low" | "crit" | "stopped",
-	ctx: { now: Date; runway: number; rateDayUsdMicros: bigint },
+	ctx: {
+		now: Date;
+		runway: number;
+		rateDayUsdMicros: bigint;
+		balance: bigint;
+	},
 ): Promise<void> {
 	if (!account.email) return; // no address to alert (ghost account)
-	const resendKey = process.env.RESEND_API_KEY;
-	if (!resendKey) {
-		logger.warn("RESEND_API_KEY unset — skipping balance alert email", {
-			accountId: account.id,
-			kind,
-		});
-		return;
-	}
-
-	const from =
-		process.env.EMAIL_FROM ?? "Secondlayer <noreply@secondlayer.tools>";
 
 	let subject: string;
-	let body: string;
+	let paragraphs: string[];
+	let facts: { label: string; value: string }[];
+
 	if (kind === "stopped") {
 		subject = "Your delivery service stopped";
-		body = `Your balance reached $0, so your delivery service stopped and webhooks aren't delivering. Add credits and it starts again within 5 minutes: ${DASHBOARD_LINK}`;
+		paragraphs = [
+			"Your balance reached $0, so your delivery service stopped. Webhook events are held while it's stopped and delivered after you add credits. It starts again within 5 minutes of a top-up.",
+		];
+		facts = [
+			{ label: "Balance", value: "$0.00" },
+			{ label: "Stopped at", value: stoppedAtLabel(ctx.now) },
+		];
 	} else {
 		const days = Math.floor(ctx.runway);
 		subject =
 			kind === "low"
 				? `About ${days} days of credit left`
 				: "Under 2 days of credit left";
-		body = `At ${formatUsdPerDay(ctx.rateDayUsdMicros)}/day your balance runs out around ${runsOutDate(ctx.now, ctx.runway)}. Your delivery service stops then, and webhooks stop delivering until you add credits. Add credits: ${DASHBOARD_LINK}`;
+		paragraphs = [
+			"Your delivery service stops when your balance reaches $0, and webhooks stop delivering until you add credits.",
+		];
+		facts = [
+			{ label: "Balance", value: formatUsd(ctx.balance) },
+			{ label: "Spending", value: formatUsdPerDay(ctx.rateDayUsdMicros) },
+			{ label: "Runs out around", value: runsOutDate(ctx.now, ctx.runway) },
+		];
+		if (kind === "crit" && ctx.runway < 1) {
+			const hours = Math.max(1, Math.round(ctx.runway * 24));
+			facts.push({ label: "Runs out in about", value: `${hours} hours` });
+		}
 	}
 
-	const res = await fetch("https://api.resend.com/emails", {
-		method: "POST",
-		headers: {
-			Authorization: `Bearer ${resendKey}`,
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({ from, to: [account.email], subject, text: body }),
+	const { html, text } = renderEmail({
+		heading: subject,
+		paragraphs,
+		facts,
+		cta: { label: "Add credits", url: DASHBOARD_LINK },
+		footnote:
+			"You get this because balance alerts are on. Turn them off on your credits page.",
 	});
-	if (!res.ok) {
-		const text = await res.text().catch(() => "");
-		throw new Error(`Resend ${res.status}: ${text.slice(0, 200)}`);
-	}
+
+	await sendEmail({ to: account.email, subject, html, text });
 }

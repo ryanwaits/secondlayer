@@ -24,6 +24,7 @@ import {
 } from "@secondlayer/platform/db/queries/account-spend-caps";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
+import { renderEmail, sendEmail } from "@secondlayer/shared/email";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 
 const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h — threshold alerts are not a
@@ -162,52 +163,62 @@ async function checkOneCap(row: CapRow): Promise<void> {
 	}
 }
 
+const CAP_SETTING_URL = "https://secondlayer.tools/account/credits#cap";
+
+/** "Mon D" for the 1st of the month after `now`, UTC. */
+function nextMonthResetLabel(now: Date): string {
+	const at = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+	return at.toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		timeZone: "UTC",
+	});
+}
+
 async function sendCapAlert(
 	row: CapRow,
 	projectedCents: number,
 	capCents: number,
 	kind: "threshold" | "frozen",
+	now: Date = new Date(),
 ): Promise<void> {
 	if (!row.email) return; // no address to alert (ghost account — shouldn't have a cap)
-	const resendKey = process.env.RESEND_API_KEY;
-	if (!resendKey) {
-		logger.warn("RESEND_API_KEY unset — skipping cap email", {
-			accountId: row.account_id,
-			kind,
-		});
-		return;
-	}
 
-	const from =
-		process.env.EMAIL_FROM ?? "Secondlayer <noreply@secondlayer.tools>";
-	const projected$ = (projectedCents / 100).toFixed(2);
-	const cap$ = (capCents / 100).toFixed(2);
+	const spent$ = `$${(projectedCents / 100).toFixed(2)}`;
+	const cap$ = `$${(capCents / 100).toFixed(2)}`;
 	const pct = Math.round((projectedCents / capCents) * 100);
+	const resets = nextMonthResetLabel(now);
 
+	// Over the cap, a keyed read past the free 1M rows keeps being served —
+	// it just isn't charged (`meter()`, @secondlayer/platform/billing/meter.ts:
+	// `debited = false` once monthly spend is over `monthly_cap_cents`) — so
+	// this never says reads "pause."
 	const subject =
 		kind === "frozen"
-			? "Your Secondlayer spend cap was reached"
-			: `You're at ${pct}% of your Secondlayer spend cap`;
-	const body =
+			? "You reached your monthly spend cap"
+			: `You've used ${pct}% of your monthly spend cap`;
+	const paragraphs =
 		kind === "frozen"
-			? `Your pay-as-you-go credit spend this month ($${projected$}) has reached your configured cap of $${cap$}. Metered reads are paused for the rest of the month — your prepaid balance is untouched, and reads fall back to the free-tier window. Raise your cap in Billing to keep reading on credits this month; it resets automatically next month.`
-			: `Your pay-as-you-go credit spend this month is $${projected$} — ${pct}% of your $${cap$} cap. No action required; we'll pause metered reads automatically if you reach 100%. Adjust your cap in Billing settings if needed.`;
+			? [
+					`Your spend on hosted Index and Streams reads past your free 1M rows reached your ${cap$} cap. Those reads keep working without a charge until ${resets} or until you raise your cap. Your balance is untouched, and webhooks and your delivery service keep running.`,
+				]
+			: [
+					`Your spend on hosted Index and Streams reads past your free 1M rows is ${spent$} this month, ${pct}% of your ${cap$} cap. Once you reach the cap, those reads keep working without a charge until ${resets} or until you raise your cap. Webhooks and your delivery service aren't affected.`,
+				];
 
-	const res = await fetch("https://api.resend.com/emails", {
-		method: "POST",
-		headers: {
-			Authorization: `Bearer ${resendKey}`,
-			"Content-Type": "application/json",
+	const { html, text } = renderEmail({
+		heading: subject,
+		paragraphs,
+		facts: [
+			{ label: "Spent this month", value: spent$ },
+			{ label: "Cap", value: cap$ },
+			{ label: "Resets", value: resets },
+		],
+		cta: {
+			label: kind === "frozen" ? "Raise your cap" : "Change your cap",
+			url: CAP_SETTING_URL,
 		},
-		body: JSON.stringify({
-			from,
-			to: [row.email],
-			subject,
-			text: body,
-		}),
 	});
-	if (!res.ok) {
-		const text = await res.text().catch(() => "");
-		throw new Error(`Resend ${res.status}: ${text.slice(0, 200)}`);
-	}
+
+	await sendEmail({ to: row.email, subject, html, text });
 }
