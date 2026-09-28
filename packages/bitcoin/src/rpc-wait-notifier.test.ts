@@ -30,8 +30,21 @@ class FakeRpc {
 		});
 	}
 
-	async waitfornewblock(): Promise<{ hash: string; height: number }> {
+	/** When set, `waitfornewblock` ignores the queue and never settles on its own — only the caller's `AbortSignal` firing rejects it, exactly like a real in-flight RPC cancelled by `close()`. */
+	hangUntilAborted = false;
+
+	async waitfornewblock(
+		_timeoutMs?: number,
+		signal?: AbortSignal,
+	): Promise<{ hash: string; height: number }> {
 		this.waitCalls += 1;
+		if (this.hangUntilAborted) {
+			return new Promise((_resolve, reject) => {
+				signal?.addEventListener("abort", () =>
+					reject(new Error("waitfornewblock aborted")),
+				);
+			});
+		}
 		const next = this.waitQueue.shift();
 		if (!next) throw new Error("FakeRpc: no waitfornewblock queued");
 		return next();
@@ -45,11 +58,25 @@ class FakeRpc {
 }
 
 function recordingSleep(): {
-	sleep: (ms: number) => Promise<void>;
+	sleep: (ms: number, signal?: AbortSignal) => Promise<void>;
 	calls: number[];
 } {
 	const calls: number[] = [];
-	return { sleep: async (ms: number) => void calls.push(ms), calls };
+	return {
+		sleep: async (ms: number) => void calls.push(ms),
+		calls,
+	};
+}
+
+/** A `sleep` that only resolves when `signal` aborts — never on its own, so a test using it hangs forever unless `close()` actually wires the abort through. */
+function sleepUntilAborted(): (
+	ms: number,
+	signal?: AbortSignal,
+) => Promise<void> {
+	return (_ms: number, signal?: AbortSignal) =>
+		new Promise((resolve) => {
+			signal?.addEventListener("abort", () => resolve());
+		});
 }
 
 describe("RpcWaitNotifier", () => {
@@ -131,5 +158,41 @@ describe("RpcWaitNotifier", () => {
 		await notifier.notified();
 
 		expect(rpc.waitCalls).toBe(0);
+	});
+
+	test("close() cancels an in-flight waitfornewblock, resolving notified() within 100ms", async () => {
+		const rpc = new FakeRpc();
+		rpc.hangUntilAborted = true;
+		const notifier = new RpcWaitNotifier({ rpc });
+
+		const start = Date.now();
+		const pending = notifier.notified();
+		// Give the call a moment to actually start (reach `await
+		// rpc.waitfornewblock`) before closing, so this proves cancellation of an
+		// in-flight wait, not just the already-covered "closed before notified()
+		// is called" case.
+		await Bun.sleep(5);
+		notifier.close();
+		await pending;
+
+		expect(Date.now() - start).toBeLessThan(100);
+		expect(rpc.waitCalls).toBe(1);
+	});
+
+	test("close() cancels the fallback poll's sleep, resolving notified() promptly", async () => {
+		const rpc = new FakeRpc();
+		rpc.queueWaitError(new BitcoinRpcError("Method not found", -32601));
+		rpc.queueBestHash("hash-a"); // baseline read
+		const sleep = sleepUntilAborted();
+		const notifier = new RpcWaitNotifier({ rpc, sleep, pollMs: 5_000 });
+
+		const start = Date.now();
+		// First call: -32601 -> fallback baseline read -> parks in the poll sleep.
+		const pending = notifier.notified();
+		await Bun.sleep(5);
+		notifier.close();
+		await pending;
+
+		expect(Date.now() - start).toBeLessThan(100);
 	});
 });

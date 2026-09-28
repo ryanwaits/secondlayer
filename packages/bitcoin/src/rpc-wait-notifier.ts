@@ -18,8 +18,20 @@ const DEFAULT_POLL_MS = 5_000;
 const BASE_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 30_000;
 
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
+/** Resolves after `ms`, or immediately if/when `signal` aborts — races `close()` against the fallback's poll/backoff delays so it doesn't wait out a full `pollMs`/backoff on stop (plan 084). */
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+	if (signal?.aborted) return Promise.resolve();
+	return new Promise((resolve) => {
+		const timer = setTimeout(() => {
+			signal?.removeEventListener("abort", onAbort);
+			resolve();
+		}, ms);
+		function onAbort() {
+			clearTimeout(timer);
+			resolve();
+		}
+		signal?.addEventListener("abort", onAbort, { once: true });
+	});
 }
 
 export interface RpcWaitNotifierOptions {
@@ -28,8 +40,8 @@ export interface RpcWaitNotifierOptions {
 	timeoutMs?: number;
 	/** Fallback poll interval once `-32601` is seen. Defaults to `BITCOIN_POLL_MS` env, or 5000. */
 	pollMs?: number;
-	/** Test seam: overrides the real `setTimeout`-based sleep used for backoff and fallback polling. */
-	sleep?: (ms: number) => Promise<void>;
+	/** Test seam: overrides the real `setTimeout`-based sleep used for backoff and fallback polling. Receives `close()`'s abort signal so a test can assert it's wired through. */
+	sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
 }
 
 /**
@@ -39,15 +51,17 @@ export interface RpcWaitNotifierOptions {
  * RPC error it waits an exponentially growing backoff (capped at 30s), then
  * resolves, so `syncOnce` itself is what surfaces a real RPC failure. On
  * `BitcoinRpcError` code `-32601` it switches permanently to polling
- * `getbestblockhash` and logs the switch once. `close()` sets a flag so the
- * *next* `notified()` call resolves immediately — it doesn't cancel a wait
- * already in flight.
+ * `getbestblockhash` and logs the switch once. `close()` aborts an
+ * `AbortController` shared with any in-flight `waitfornewblock` call and the
+ * fallback's poll/backoff sleeps, so a wait already in progress resolves
+ * immediately instead of running out its full timeout/delay (plan 084).
  */
 export class RpcWaitNotifier implements BlockNotifier {
 	private readonly rpc: RpcWaitNotifierOptions["rpc"];
 	private readonly timeoutMs: number;
 	private readonly pollMs: number;
-	private readonly sleepFn: (ms: number) => Promise<void>;
+	private readonly sleepFn: (ms: number, signal?: AbortSignal) => Promise<void>;
+	private readonly abortController = new AbortController();
 
 	private closed = false;
 	private useFallback = false;
@@ -70,9 +84,15 @@ export class RpcWaitNotifier implements BlockNotifier {
 		if (this.useFallback) return this.notifiedFallback();
 
 		try {
-			await this.rpc.waitfornewblock(this.timeoutMs);
+			await this.rpc.waitfornewblock(
+				this.timeoutMs,
+				this.abortController.signal,
+			);
 			this.resetBackoff();
 		} catch (error) {
+			// close() aborted a call already in flight — resolve silently, no
+			// backoff or log line (it's a deliberate stop, not a failure).
+			if (this.closed) return;
 			if (error instanceof BitcoinRpcError && error.code === -32601) {
 				this.useFallback = true;
 				if (!this.fallbackLogged) {
@@ -83,7 +103,7 @@ export class RpcWaitNotifier implements BlockNotifier {
 				}
 				return this.notifiedFallback();
 			}
-			await this.sleepFn(this.nextBackoff());
+			await this.sleepFn(this.nextBackoff(), this.abortController.signal);
 		}
 	}
 
@@ -94,21 +114,23 @@ export class RpcWaitNotifier implements BlockNotifier {
 			try {
 				this.lastBestHash = await this.rpc.getbestblockhash();
 			} catch {
-				await this.sleepFn(this.nextBackoff());
+				if (this.closed) return;
+				await this.sleepFn(this.nextBackoff(), this.abortController.signal);
 				return;
 			}
 		}
 
 		for (;;) {
 			if (this.closed) return;
-			await this.sleepFn(this.pollMs);
+			await this.sleepFn(this.pollMs, this.abortController.signal);
 			if (this.closed) return;
 
 			let hash: string;
 			try {
 				hash = await this.rpc.getbestblockhash();
 			} catch {
-				await this.sleepFn(this.nextBackoff());
+				if (this.closed) return;
+				await this.sleepFn(this.nextBackoff(), this.abortController.signal);
 				return;
 			}
 			if (hash !== this.lastBestHash) {
@@ -131,5 +153,6 @@ export class RpcWaitNotifier implements BlockNotifier {
 
 	close(): void {
 		this.closed = true;
+		this.abortController.abort();
 	}
 }

@@ -72,6 +72,34 @@ describe("bitcoinRpcClient timeout", () => {
 		expect(seenTimeouts).toEqual([30_000]);
 	});
 
+	test("a caller AbortSignal cancels an in-flight waitfornewblock immediately, without retrying", async () => {
+		// Never resolves on its own — only an abort settles it, exactly like a
+		// real fetch racing a cancelled-mid-flight RPC.
+		let fetchCalls = 0;
+		const fakeFetch = ((_url: string, init?: RequestInit) =>
+			new Promise((_resolve, reject) => {
+				fetchCalls += 1;
+				const signal = init?.signal as AbortSignal;
+				signal.addEventListener("abort", () => reject(signal.reason));
+			})) as unknown as typeof fetch;
+		const { sleep, calls } = recordingSleep();
+		const client = bitcoinRpcClient({
+			url: "http://fake",
+			username: "u",
+			password: "p",
+			fetch: fakeFetch,
+			sleep,
+		});
+		const controller = new AbortController();
+
+		const pending = client.waitfornewblock(30_000, controller.signal);
+		controller.abort();
+
+		await expect(pending).rejects.toThrow();
+		expect(fetchCalls).toBe(1); // not retried
+		expect(calls.length).toBe(0); // no backoff sleep either
+	});
+
 	test("a plain call uses the default (non-waitfornewblock) timeout", async () => {
 		const seenTimeouts: number[] = [];
 		const client = bitcoinRpcClient({

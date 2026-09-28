@@ -41,6 +41,14 @@ class RpcNetworkError extends Error {
 	}
 }
 
+/** The caller's own `AbortSignal` fired (e.g. `RpcWaitNotifier.close()` cancelling an in-flight `waitfornewblock`) — a deliberate cancel, never retried, unlike a timeout (`RpcNetworkError`). */
+class RpcAbortedError extends Error {
+	constructor(method: string) {
+		super(`bitcoin rpc ${method} aborted by caller`);
+		this.name = "RpcAbortedError";
+	}
+}
+
 /** An HTTP 5xx with no JSON-RPC error body — bitcoind/the proxy in front of it failed, not a real RPC answer. Retryable, unlike a 4xx (which means our own request is wrong and won't succeed on retry). */
 class RetryableHttpError extends Error {
 	constructor(message: string) {
@@ -118,8 +126,15 @@ export interface BitcoinRpcClient {
 	 * same: a signal to re-run sync. `bitcoinRpcClient`'s HTTP fetch timeout
 	 * for this call is `timeoutMs + 10_000` (plan 076), so the HTTP layer
 	 * never times out before bitcoind's own blocking wait does.
+	 *
+	 * An optional `signal` cancels an in-flight call immediately — a
+	 * deliberate cancel (e.g. `RpcWaitNotifier.close()`), not a timeout, so it
+	 * rejects without going through the retry loop (plan 084).
 	 */
-	waitfornewblock(timeoutMs: number): Promise<{ hash: string; height: number }>;
+	waitfornewblock(
+		timeoutMs: number,
+		signal?: AbortSignal,
+	): Promise<{ hash: string; height: number }>;
 	/** Used by `RpcWaitNotifier`'s fallback path when `waitfornewblock` answers `-32601` (method not found). */
 	getbestblockhash(): Promise<string>;
 }
@@ -139,7 +154,11 @@ export function bitcoinRpcClient(config: BitcoinRpcConfig): BitcoinRpcClient {
 		method: string,
 		params: unknown[],
 		fetchTimeoutMs: number,
+		callerSignal?: AbortSignal,
 	): Promise<T> {
+		const signal = callerSignal
+			? AbortSignal.any([timeoutSignalFn(fetchTimeoutMs), callerSignal])
+			: timeoutSignalFn(fetchTimeoutMs);
 		let res: Response;
 		try {
 			res = await doFetch(config.url, {
@@ -154,9 +173,13 @@ export function bitcoinRpcClient(config: BitcoinRpcConfig): BitcoinRpcClient {
 					method,
 					params,
 				}),
-				signal: timeoutSignalFn(fetchTimeoutMs),
+				signal,
 			});
 		} catch (error) {
+			// The caller's own signal firing is a deliberate cancel, distinct from
+			// the timeout signal firing — rethrown as `RpcAbortedError` so `rpc()`
+			// below never retries it.
+			if (callerSignal?.aborted) throw new RpcAbortedError(method);
 			throw new RpcNetworkError(method, error);
 		}
 		// Bitcoin Core delivers JSON-RPC errors with an HTTP 500 status AND the
@@ -196,13 +219,16 @@ export function bitcoinRpcClient(config: BitcoinRpcConfig): BitcoinRpcClient {
 		method: string,
 		params: unknown[],
 		fetchTimeoutMs?: number,
+		callerSignal?: AbortSignal,
 	): Promise<T> {
 		const timeoutMs = fetchTimeoutMs ?? defaultTimeoutMs;
 		for (let attempt = 0; ; attempt++) {
 			try {
-				return await rpcOnce<T>(method, params, timeoutMs);
+				return await rpcOnce<T>(method, params, timeoutMs, callerSignal);
 			} catch (error) {
 				if (error instanceof BitcoinRpcError) throw error;
+				// A deliberate caller cancel — not 076's retry loop's business.
+				if (error instanceof RpcAbortedError) throw error;
 				if (!isRetryable(error) || attempt >= MAX_RETRIES) throw error;
 				const wait = jitteredBackoff(attempt + 1);
 				console.error(
@@ -227,11 +253,12 @@ export function bitcoinRpcClient(config: BitcoinRpcConfig): BitcoinRpcClient {
 		// waitfornewblock blocks inside bitcoind for up to `timeoutMs` — the HTTP
 		// layer's own timeout must be strictly longer, or the fetch aborts before
 		// bitcoind ever answers (rpc.ts docstring on `waitfornewblock` above).
-		waitfornewblock: (timeoutMs: number) =>
+		waitfornewblock: (timeoutMs: number, signal?: AbortSignal) =>
 			rpc<{ hash: string; height: number }>(
 				"waitfornewblock",
 				[timeoutMs],
 				timeoutMs + 10_000,
+				signal,
 			),
 		getbestblockhash: () => rpc<string>("getbestblockhash", []),
 	};

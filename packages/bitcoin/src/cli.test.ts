@@ -13,7 +13,8 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { migrateToLatest } from "./db/migrate.ts";
+import postgres from "postgres";
+import { databaseNameFromUrl, migrateToLatest } from "./db/migrate.ts";
 
 const testUrl = process.env.BITCOIN_TEST_DATABASE_URL;
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -85,4 +86,143 @@ describe.skipIf(!testUrl)("cli one-shot commands exit", () => {
 		},
 		TEST_TIMEOUT_MS,
 	);
+});
+
+// Plan 084: `follow` (no `--until`) only stops on SIGINT/SIGTERM, and before
+// this plan a SIGTERM while parked in `RpcWaitNotifier.notified()` waited out
+// bitcoind's own `waitfornewblock` timeout (up to 30s) — Docker's default
+// 10s grace period SIGKILLs it first (exit 137), every single stop. This
+// spawns the real CLI entrypoint (not `runFollow` in-process) against a fake
+// bitcoind so the whole path — `process.once("SIGTERM", ...)` in `cli.ts`,
+// `controller.abort()` + `notifier.close()`, `RpcWaitNotifier` cancelling its
+// in-flight `waitfornewblock` — is exercised exactly as `docker stop` does it.
+describe.skipIf(!testUrl)("follow stops promptly on SIGTERM", () => {
+	/** A scratch DB distinct from the one the suite above shares — this test needs a brand-new, empty DB (no prior checkpoint) so `follow`'s first pass has nothing to catch up on and goes straight to parking in `notified()`. */
+	function uniqueFollowTestUrl(baseUrl: string): string {
+		const url = new URL(baseUrl);
+		url.pathname = `/bitcoin_follow_sigterm_${Date.now()}`;
+		return url.toString();
+	}
+
+	async function dropDatabase(url: string): Promise<void> {
+		const adminUrl = new URL(url);
+		adminUrl.pathname = "/postgres";
+		const admin = postgres(adminUrl.toString(), { max: 1 });
+		try {
+			await admin.unsafe(
+				`DROP DATABASE IF EXISTS "${databaseNameFromUrl(url)}"`,
+			);
+		} finally {
+			await admin.end();
+		}
+	}
+
+	/**
+	 * A fake bitcoind JSON-RPC endpoint — just enough for `follow` on a
+	 * brand-new DB to see nothing to catch up on (`getblockcount` always
+	 * answers the same height as `BITCOIN_GENESIS_HEIGHT - 1`) and then park
+	 * in `waitfornewblock`, which never answers on its own (only the client's
+	 * own `close()`-triggered abort ends the request — proving cancellation,
+	 * not a lucky response). `parked` resolves the moment that request lands,
+	 * so the test knows to send SIGTERM only once `follow` is actually parked.
+	 */
+	function startFakeBitcoind(): {
+		url: string;
+		parked: Promise<void>;
+		stop: () => void;
+	} {
+		let resolveParked: () => void = () => {};
+		const parked = new Promise<void>((resolve) => {
+			resolveParked = resolve;
+		});
+		const server = Bun.serve({
+			port: 0,
+			hostname: "127.0.0.1",
+			fetch: async (req) => {
+				const body = (await req.json()) as { method: string; id: unknown };
+				if (body.method === "getblockcount") {
+					return Response.json({ result: 100, error: null, id: body.id });
+				}
+				if (body.method === "waitfornewblock") {
+					resolveParked();
+					return new Promise<Response>(() => {}); // never settles on its own
+				}
+				return Response.json({
+					result: null,
+					error: { code: -32601, message: `unexpected method ${body.method}` },
+					id: body.id,
+				});
+			},
+		});
+		return {
+			url: `http://127.0.0.1:${server.port}`,
+			parked,
+			stop: () => server.stop(true),
+		};
+	}
+
+	test("exits 0 within 5s of SIGTERM while parked in waitfornewblock", async () => {
+		// biome-ignore lint/style/noNonNullAssertion: describe.skipIf(!testUrl) guards this whole block
+		const followUrl = uniqueFollowTestUrl(testUrl!);
+		process.env.BITCOIN_DATABASE_URL = followUrl;
+		await migrateToLatest();
+
+		const fakeRpc = startFakeBitcoind();
+		let exitCode: number;
+		try {
+			const proc = Bun.spawn(["bun", "run", "src/cli.ts", "follow"], {
+				cwd: packageRoot,
+				env: {
+					...process.env,
+					BITCOIN_DATABASE_URL: followUrl,
+					BITCOIN_RPC_URL: fakeRpc.url,
+					BITCOIN_RPC_USERNAME: "test",
+					BITCOIN_RPC_PASSWORD: "test",
+					BITCOIN_NETWORK: "regtest",
+					// checkpointHeight = GENESIS_HEIGHT - 1 = 100 = the fake tip
+					// (getblockcount), so there's nothing to catch up on.
+					BITCOIN_GENESIS_HEIGHT: "101",
+				},
+				stdout: "pipe",
+				stderr: "pipe",
+			});
+
+			try {
+				await Promise.race([
+					fakeRpc.parked,
+					new Promise((_resolve, reject) =>
+						setTimeout(
+							() =>
+								reject(
+									new Error("follow never reached waitfornewblock within 5s"),
+								),
+							5_000,
+						),
+					),
+				]);
+
+				proc.kill("SIGTERM");
+
+				exitCode = await Promise.race([
+					proc.exited,
+					new Promise<number>((_resolve, reject) =>
+						setTimeout(
+							() =>
+								reject(new Error("follow did not exit within 5s of SIGTERM")),
+							5_000,
+						),
+					),
+				]);
+			} catch (error) {
+				proc.kill();
+				throw error;
+			}
+		} finally {
+			fakeRpc.stop();
+		}
+
+		expect(exitCode).toBe(0);
+
+		await dropDatabase(followUrl);
+	}, 15_000);
 });
