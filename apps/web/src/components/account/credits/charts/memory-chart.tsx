@@ -84,7 +84,7 @@ export function MemoryChart({
 
 	return (
 		<svg
-			className="chart"
+			className="use-chart"
 			viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
 			role="img"
 			aria-label="Memory used over the last 24 hours against the 0.5 GB billing minimum"

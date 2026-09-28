@@ -25,7 +25,7 @@ import {
 	spentUsdMicros,
 	unitLabel,
 } from "@/lib/usage";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 
 function AllowanceMeter({
 	deliveredRows,
@@ -108,22 +108,43 @@ function UsageTable({
 						if (u.unit === "memory.gb_hour") {
 							sub += memorySubNote(service);
 						}
+						const unpaid = Number(u.unpaidUsdMicros ?? "0");
 						return (
-							<tr key={u.unit}>
-								<td>
-									{label}
-									{sub ? <span className="use-sub">{sub}</span> : null}
-								</td>
-								<td className="use-num">
-									{formatUnitQuantity(u.unit, u.quantity)}
-								</td>
-								<td className="use-num use-free">
-									{rateLabel(u.unit, u.quantity)}
-								</td>
-								<td className={`use-num${cost === 0 ? " use-free" : ""}`}>
-									{cost === 0 ? "$0.00" : formatUsd(cost)}
-								</td>
-							</tr>
+							<Fragment key={u.unit}>
+								<tr>
+									<td>
+										{label}
+										{sub ? <span className="use-sub">{sub}</span> : null}
+									</td>
+									<td className="use-num">
+										{formatUnitQuantity(u.unit, u.quantity)}
+									</td>
+									<td className="use-num use-free">
+										{rateLabel(u.unit, u.quantity)}
+									</td>
+									<td className={`use-num${cost === 0 ? " use-free" : ""}`}>
+										{cost === 0 ? "$0.00" : formatUsd(cost)}
+									</td>
+								</tr>
+								{unpaid > 0 ? (
+									<tr>
+										<td>
+											{label}
+											<span className="use-sub">
+												Charged while your balance was short
+											</span>
+										</td>
+										<td className="use-num">—</td>
+										<td className="use-num use-free">
+											{rateLabel(u.unit, u.quantity)}
+										</td>
+										<td className="use-num">
+											{formatUsd(unpaid)}
+											<span className="unpaid">unpaid</span>
+										</td>
+									</tr>
+								) : null}
+							</Fragment>
 						);
 					})}
 					{topup ? (

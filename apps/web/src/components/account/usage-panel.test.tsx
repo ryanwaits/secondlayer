@@ -86,6 +86,47 @@ describe("UsageBody", () => {
 		expect(html).toContain("(minimum)");
 	});
 
+	test("a debited: false charge renders as its own row with the unpaid chip", () => {
+		const html = renderToStaticMarkup(
+			<UsageBody
+				status="ok"
+				month={month}
+				rows={[
+					{
+						unit: "webhook.event",
+						quantity: "1000",
+						usdMicros: "10000",
+						unpaidUsdMicros: "10000",
+					},
+				]}
+				service={null}
+				onRetry={() => {}}
+			/>,
+		);
+		expect(html).toContain("unpaid");
+		expect(html).toContain("Charged while your balance was short");
+	});
+
+	test("no unpaid row when unpaidUsdMicros is zero", () => {
+		const html = renderToStaticMarkup(
+			<UsageBody
+				status="ok"
+				month={month}
+				rows={[
+					{
+						unit: "webhook.event",
+						quantity: "1000",
+						usdMicros: "10000",
+						unpaidUsdMicros: "0",
+					},
+				]}
+				service={null}
+				onRetry={() => {}}
+			/>,
+		);
+		expect(html).not.toContain("unpaid");
+	});
+
 	test("no (minimum) note when billed matches observed", () => {
 		const html = renderToStaticMarkup(
 			<UsageBody

@@ -276,6 +276,37 @@ describe.skipIf(!HAS_DB)("GET /usage", () => {
 		expect(byUnit.get("archive.partition.events")?.usdMicros).toBe("150000");
 	});
 
+	test("a debited: false charge shows up as unpaidUsdMicros, not folded into the paid total", async () => {
+		const email = `billing-usage-unpaid-${Date.now()}@test.invalid`;
+		const account = await makeAccount(email);
+		// No credits: the charge lands with debited: false.
+		const now = new Date("2026-09-24T12:00:00.000Z");
+		await meter(db, {
+			accountId: account.id,
+			unit: "webhook.event",
+			quantity: 1000,
+			source: "test",
+			idempotencyKey: `unpaid-${account.id}`,
+			occurredAt: now,
+		});
+
+		const res = await appFor(account.id).request("/usage?month=2026-09");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			usage: Array<{
+				unit: string;
+				quantity: string;
+				usdMicros: string;
+				unpaidUsdMicros: string;
+			}>;
+		};
+		const row = body.usage.find((u) => u.unit === "webhook.event");
+		// usdMicros still sums every row regardless of debited — unchanged
+		// behavior; unpaidUsdMicros is the additive new field.
+		expect(row?.usdMicros).toBe("10000");
+		expect(row?.unpaidUsdMicros).toBe("10000");
+	});
+
 	type UsageResponseBody = {
 		month: string;
 		usage: Array<{ unit: string; quantity: string; usdMicros: string }>;

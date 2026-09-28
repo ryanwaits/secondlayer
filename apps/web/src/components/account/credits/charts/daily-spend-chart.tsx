@@ -69,7 +69,7 @@ export function DailySpendChart({
 
 	return (
 		<svg
-			className="chart"
+			className="use-chart"
 			viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
 			role="img"
 			aria-label="Daily spend, stacked by memory, events and paid rows, with projected days to the end of the month"

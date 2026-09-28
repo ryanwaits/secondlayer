@@ -2741,6 +2741,15 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	font-weight: 500;
 	background: color-mix(in srgb, var(--text-main) 2%, transparent);
 }
+.unpaid {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 1px 6px;
+	border-radius: 999px;
+	font-size: 11px;
+	color: var(--red);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 40%, transparent);
+}
 .use-empty {
 	padding: 20px 16px;
 	border: 1px dashed var(--border-hover);

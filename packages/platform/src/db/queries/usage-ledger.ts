@@ -108,6 +108,13 @@ export type UsageByUnit = {
 	unit: string;
 	quantity: string;
 	usdMicros: string;
+	/** Sum of `usd_micros` for this unit's `debited: false` rows this month
+	 *  — a charge attempted while the balance was short, still on the
+	 *  ledger but never actually taken. Additive to `usdMicros` (which sums
+	 *  every row regardless of `debited`, unchanged from before) — never
+	 *  subtracted, so existing readers of `usdMicros` see the same total
+	 *  they always did. "0" when nothing this unit charged went unpaid. */
+	unpaidUsdMicros: string;
 };
 
 /** Per-unit quantity + cost for `now`'s UTC calendar month — the account
@@ -124,6 +131,9 @@ export async function usageForMonth(
 			"unit",
 			eb.fn.sum<string>("quantity").as("quantity"),
 			eb.fn.sum<string>("usd_micros").as("usd_micros"),
+			sql<string>`sum(case when debited = false then usd_micros else 0 end)`.as(
+				"unpaid_usd_micros",
+			),
 		])
 		.where("account_id", "=", accountId)
 		.where("occurred_at", ">=", start)
@@ -135,6 +145,7 @@ export async function usageForMonth(
 		unit: row.unit,
 		quantity: row.quantity ?? "0",
 		usdMicros: row.usd_micros ?? "0",
+		unpaidUsdMicros: row.unpaid_usd_micros ?? "0",
 	}));
 }
 

@@ -10,6 +10,11 @@ export type UsageRow = {
 	unit: string;
 	quantity: string;
 	usdMicros: string;
+	/** Sum of this unit's `debited: false` charges this month — attempted
+	 *  while the balance was short, never actually taken. `"0"` (or
+	 *  absent, for rows shaped before this field existed) when nothing
+	 *  went unpaid. */
+	unpaidUsdMicros?: string;
 };
 
 /** First N `rows.delivered` per account per UTC calendar month are free.
