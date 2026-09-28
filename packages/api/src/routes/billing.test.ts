@@ -401,3 +401,67 @@ describe.skipIf(!HAS_DB)("GET /usage", () => {
 		expect(body.burn.windowHours).toBe(24);
 	});
 });
+
+describe.skipIf(!HAS_DB)("GET/PUT /alerts", () => {
+	function appFor(accountId?: string) {
+		const a = new Hono();
+		const setAccountId: MiddlewareHandler = async (c, next) => {
+			if (accountId) c.set("accountId", accountId);
+			await next();
+		};
+		a.use("*", setAccountId);
+		a.onError(errorHandler);
+		a.route("/", billingRouter);
+		return a;
+	}
+
+	test("GET unauthenticated → 401", async () => {
+		const res = await appFor().request("/alerts");
+		expect(res.status).toBe(401);
+	});
+
+	test("PUT unauthenticated → 401", async () => {
+		const res = await appFor().request("/alerts", {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ notify7d: false }),
+		});
+		expect(res.status).toBe(401);
+	});
+
+	test("GET with no row yet defaults both alerts on", async () => {
+		const email = `billing-alerts-default-${Date.now()}@test.invalid`;
+		const account = await makeAccount(email);
+		const res = await appFor(account.id).request("/alerts");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { notify7d: boolean; notify2d: boolean };
+		expect(body).toEqual({ notify7d: true, notify2d: true });
+	});
+
+	test("PUT one field leaves the other untouched, then GET reflects it", async () => {
+		const email = `billing-alerts-put-${Date.now()}@test.invalid`;
+		const account = await makeAccount(email);
+
+		const put = await appFor(account.id).request("/alerts", {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ notify7d: false }),
+		});
+		expect(put.status).toBe(200);
+		expect(await put.json()).toEqual({ notify7d: false, notify2d: true });
+
+		const get = await appFor(account.id).request("/alerts");
+		expect(await get.json()).toEqual({ notify7d: false, notify2d: true });
+	});
+
+	test("PUT a non-boolean value → 400", async () => {
+		const email = `billing-alerts-bad-value-${Date.now()}@test.invalid`;
+		const account = await makeAccount(email);
+		const res = await appFor(account.id).request("/alerts", {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ notify2d: "yes" }),
+		});
+		expect(res.status).toBe(400);
+	});
+});

@@ -15,6 +15,10 @@
  */
 
 import {
+	getBalanceAlerts,
+	upsertBalanceAlerts,
+} from "@secondlayer/platform/db/queries/account-balance-alerts";
+import {
 	getCreditRefill,
 	getCredits,
 	getMonthlyCreditsSpend,
@@ -389,6 +393,58 @@ app.get("/usage", async (c) => {
 		daily,
 		burn: { rateDayUsdMicros: rateDayUsdMicros.toString(), windowHours: 24 },
 		service,
+	});
+});
+
+/**
+ * GET /api/billing/alerts
+ *
+ * The signed-in account's balance-runway email preferences (missing row =
+ * both on, matching the default `meter()` row on first write).
+ */
+app.get("/alerts", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const alerts = await getBalanceAlerts(getDb(), accountId);
+	return c.json({
+		notify7d: alerts?.notify_7d ?? true,
+		notify2d: alerts?.notify_2d ?? true,
+	});
+});
+
+/**
+ * PUT /api/billing/alerts   body: { notify7d?: boolean, notify2d?: boolean }
+ *
+ * Either field alone leaves the other untouched; the row is created on
+ * first write.
+ */
+app.put("/alerts", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const body = (await c.req.json().catch(() => {
+		throw new InvalidJSONError();
+	})) as { notify7d?: unknown; notify2d?: unknown };
+
+	const patch: Parameters<typeof upsertBalanceAlerts>[2] = {};
+	if (body.notify7d !== undefined) {
+		if (typeof body.notify7d !== "boolean") {
+			return c.json({ error: "notify7d must be a boolean" }, 400);
+		}
+		patch.notify_7d = body.notify7d;
+	}
+	if (body.notify2d !== undefined) {
+		if (typeof body.notify2d !== "boolean") {
+			return c.json({ error: "notify2d must be a boolean" }, 400);
+		}
+		patch.notify_2d = body.notify2d;
+	}
+
+	const updated = await upsertBalanceAlerts(getDb(), accountId, patch);
+	return c.json({
+		notify7d: updated.notify_7d,
+		notify2d: updated.notify_2d,
 	});
 });
 
