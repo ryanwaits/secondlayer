@@ -1298,7 +1298,7 @@
 					"summary": "What the loop knows at the end of a page, handed to `onBatch`.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 327
+					"line": 357
 				},
 				{
 					"name": "createStreamsClient",
@@ -1306,7 +1306,7 @@
 					"summary": "",
 					"signature": "createStreamsClient(options: CreateStreamsClientOptions): StreamsClient",
 					"file": "src/streams/client.ts",
-					"line": 151
+					"line": 160
 				},
 				{
 					"name": "Cursor",
@@ -1626,7 +1626,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 608
+					"line": 708
 				},
 				{
 					"name": "FtTransferEvent",
@@ -1786,7 +1786,7 @@
 					"summary": "One yielded page from {@link StreamsClient.consume} — the `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to `cursor` (the checkpoint to persist and resume from).",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 524
+					"line": 602
 				},
 				{
 					"name": "StreamsBatchContext",
@@ -1794,7 +1794,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 363
+					"line": 393
 				},
 				{
 					"name": "StreamsBitcoinCanonicalBlock",
@@ -1826,7 +1826,15 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 656
+					"line": 756
+				},
+				{
+					"name": "StreamsConsumeBitcoinParams",
+					"kind": "type",
+					"summary": "`chain: \"bitcoin\"` (plan 059/061) — Runes batches, own cursor space.",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 640
 				},
 				{
 					"name": "StreamsConsumeParams",
@@ -1834,7 +1842,15 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 534
+					"line": 650
+				},
+				{
+					"name": "StreamsConsumeStacksParams",
+					"kind": "type",
+					"summary": "`chain: \"stacks\"` (default, omit `chain` entirely).",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 624
 				},
 				{
 					"name": "StreamsDumpFile",
@@ -1842,7 +1858,7 @@
 					"summary": "One bulk parquet file in the dumps manifest.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 615
+					"line": 715
 				},
 				{
 					"name": "StreamsDumps",
@@ -1850,7 +1866,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 647
+					"line": 747
 				},
 				{
 					"name": "StreamsDumpsManifest",
@@ -1858,7 +1874,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 628
+					"line": 728
 				},
 				{
 					"name": "StreamsEvent",
@@ -1885,12 +1901,20 @@
 					"line": 205
 				},
 				{
+					"name": "StreamsEventsConsumeBitcoinParams",
+					"kind": "type",
+					"summary": "`chain: \"bitcoin\"` (plan 059/061) — the checkpointed sweep over Runes events.",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 554
+				},
+				{
 					"name": "StreamsEventsConsumeParams",
 					"kind": "type",
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 374
+					"line": 404
 				},
 				{
 					"name": "StreamsEventsConsumeResult",
@@ -1898,7 +1922,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 554
+					"line": 654
 				},
 				{
 					"name": "StreamsEventsEnvelope",
@@ -1933,12 +1957,36 @@
 					"line": 178
 				},
 				{
+					"name": "StreamsEventsStreamBitcoinParams",
+					"kind": "type",
+					"summary": "`chain: \"bitcoin\"` (plan 059/061) — Runes events, tailed the same way as the Stacks default.",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 247
+				},
+				{
 					"name": "StreamsEventsStreamParams",
 					"kind": "type",
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 219
+					"line": 257
+				},
+				{
+					"name": "StreamsEventsStreamStacksParams",
+					"kind": "type",
+					"summary": "`chain: \"stacks\"` (default, omit `chain` entirely) — matches {@link StreamsEventsStacksListParams}.",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 230
+				},
+				{
+					"name": "StreamsEventsSubscribeBitcoinParams",
+					"kind": "type",
+					"summary": "`chain: \"bitcoin\"` (plan 059/061) — Runes events pushed live, on their own cursor space.",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 310
 				},
 				{
 					"name": "StreamsEventsSubscribeParams",
@@ -1946,7 +1994,15 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 250
+					"line": 322
+				},
+				{
+					"name": "StreamsEventsSubscribeStacksParams",
+					"kind": "type",
+					"summary": "`chain: \"stacks\"` (default, omit `chain` entirely).",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 288
 				},
 				{
 					"name": "StreamsEventType",
@@ -1970,7 +2026,7 @@
 					"summary": "`cursor` is the rewind position the loop resumes from after `onReorg`: the foot of the fork point, or `null` for a fork at genesis.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 372
+					"line": 402
 				},
 				{
 					"name": "StreamsReorgsListEnvelope",
@@ -2010,7 +2066,7 @@
 					"summary": "Handle for a live subscription: call it to unsubscribe.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 302
+					"line": 332
 				},
 				{
 					"name": "StreamsTip",

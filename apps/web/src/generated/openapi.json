@@ -4031,9 +4031,9 @@
 					}
 				},
 				"example": {
-					"block_height": 921487,
-					"finalized_height": 921481,
-					"lag_seconds": 340
+					"block_height": 968925,
+					"finalized_height": 968919,
+					"lag_seconds": 210
 				}
 			},
 			"BtcReorg": {
@@ -4221,27 +4221,20 @@
 				},
 				"example": {
 					"id": "840000:3",
-					"number": "0",
+					"number": "3",
 					"name": "DOGGOTOTHEMOON",
 					"spaced_name": "DOG•GO•TO•THE•MOON",
 					"symbol": "🐕",
 					"divisibility": 5,
 					"premine": "10000000000000000",
-					"supply": "79079600000000000",
-					"burned": "1234560000",
-					"mints": "690796",
-					"turbo": true,
-					"etching_txid": "0x8ac3daa9f0c869cd6d1cdd3c04cbba1b155c0304a95c9c1c1e33e1c0e6b73f27",
+					"supply": "10000000000000000",
+					"burned": "2440680717188",
+					"mints": "0",
+					"turbo": false,
+					"etching_txid": "e79134080a83fe3e0e06ed6990c5a9b63b362313341745707a2bff7d788a1375",
 					"etched_height": 840000,
 					"etched_tx_index": 3,
-					"terms": {
-						"amount": "100000000000",
-						"cap": "340282366920938463463374607431768211455",
-						"height_start": null,
-						"height_end": null,
-						"offset_start": null,
-						"offset_end": null
-					}
+					"terms": null
 				}
 			},
 			"RuneEvent": {
@@ -4314,15 +4307,15 @@
 					}
 				},
 				"example": {
-					"cursor": "840010:2",
-					"block_height": 840010,
-					"tx_index": 5,
-					"txid": "0x2f6a1c9b5e4d3a8f7c0b6e5d4c3b2a1908f7e6d5c4b3a29180706050403020a1",
-					"event_index": 2,
+					"cursor": "968919:3",
+					"block_height": 968919,
+					"tx_index": 144,
+					"txid": "77c95d193e680429fe7f801a68488bd30919d011f23542141a7fae5244b002b4",
+					"event_index": 3,
 					"kind": "rune_transfer",
-					"amount": "5000000000",
-					"vout": 1,
-					"address": "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg",
+					"amount": "2933553300",
+					"vout": 2,
+					"address": "bc1pjku9h7ckjt8802mu79zt7vv8d6mhp0x57gkppcls57ex4rkq9cxqs52pr3",
 					"rune": {
 						"id": "840000:3",
 						"name": "DOGGOTOTHEMOON",
@@ -4375,10 +4368,10 @@
 						"symbol": "🐕",
 						"divisibility": 5
 					},
-					"address": "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg",
-					"txid": "0x2f6a1c9b5e4d3a8f7c0b6e5d4c3b2a1908f7e6d5c4b3a29180706050403020a1",
-					"vout": 1,
-					"amount": "5000000000"
+					"address": "bc1phnp234rd5hel0h8ulqvnq3zrww2td0a8q48hjcg7mv67j97jnxfq9ayczm",
+					"txid": "2d2b54008790a44c9c3e630faa521a50f8ab122625c4eb8fb84705051c4fc611",
+					"vout": 0,
+					"amount": "88980600"
 				}
 			},
 			"RuneRefSummary": {
@@ -5537,8 +5530,8 @@
 					"cursor": "840000:0",
 					"chain": "bitcoin",
 					"block_height": 840000,
-					"block_hash": "0000000000000000000320283a032748cef8227151f4bdd782bb6ff9ba46e97",
-					"tx_id": "b0dc5c239d3b28108bd7d80f6de56dc7ffa9b8f0ac5f3c9baa2ffd6bb96f6dc9",
+					"block_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+					"tx_id": "e79134080a83fe3e0e06ed6990c5a9b63b362313341745707a2bff7d788a1375",
 					"tx_index": 3,
 					"event_index": 0,
 					"event_type": "rune_etch",
@@ -5550,16 +5543,9 @@
 							"spaced_name": "DOG•GO•TO•THE•MOON",
 							"symbol": "🐕",
 							"divisibility": 5,
-							"premine": "100000000000000",
+							"premine": "10000000000000000",
 							"turbo": false,
-							"terms": {
-								"amount": "100000",
-								"cap": "340282366920938463463374607431768211455",
-								"height_start": null,
-								"height_end": null,
-								"offset_start": null,
-								"offset_end": null
-							}
+							"terms": null
 						}
 					},
 					"finalized": true
@@ -5593,10 +5579,10 @@
 					}
 				},
 				"example": {
-					"block_height": 870000,
-					"block_hash": "00000000000000000001a2b3c4d5e6f7890abcdef1234567890abcdef123456",
-					"finalized_height": 869994,
-					"lag_seconds": 42
+					"block_height": 968925,
+					"block_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+					"finalized_height": 968919,
+					"lag_seconds": 210
 				}
 			},
 			"StreamsBitcoinCanonicalBlock": {
@@ -5624,7 +5610,7 @@
 				},
 				"example": {
 					"block_height": 840000,
-					"block_hash": "0000000000000000000320283a032748cef8227151f4bdd782bb6ff9ba46e97",
+					"block_hash": "0000000000000000000000000000000000000000000000000000000000000000",
 					"is_canonical": true
 				}
 			},
@@ -12407,32 +12393,25 @@
 									"example": {
 										"rune": {
 											"id": "840000:3",
-											"number": "0",
+											"number": "3",
 											"name": "DOGGOTOTHEMOON",
 											"spaced_name": "DOG•GO•TO•THE•MOON",
 											"symbol": "🐕",
 											"divisibility": 5,
 											"premine": "10000000000000000",
-											"supply": "79079600000000000",
-											"burned": "1234560000",
-											"mints": "690796",
-											"turbo": true,
-											"etching_txid": "0x8ac3daa9f0c869cd6d1cdd3c04cbba1b155c0304a95c9c1c1e33e1c0e6b73f27",
+											"supply": "10000000000000000",
+											"burned": "2440680717188",
+											"mints": "0",
+											"turbo": false,
+											"etching_txid": "e79134080a83fe3e0e06ed6990c5a9b63b362313341745707a2bff7d788a1375",
 											"etched_height": 840000,
 											"etched_tx_index": 3,
-											"terms": {
-												"amount": "100000000000",
-												"cap": "340282366920938463463374607431768211455",
-												"height_start": null,
-												"height_end": null,
-												"offset_start": null,
-												"offset_end": null
-											}
+											"terms": null
 										},
 										"tip": {
-											"block_height": 921487,
-											"finalized_height": 921481,
-											"lag_seconds": 340
+											"block_height": 968925,
+											"finalized_height": 968919,
+											"lag_seconds": 210
 										}
 									}
 								}
@@ -12580,7 +12559,7 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "Bitcoin txid, `0x`-prefixed hex. Exact match."
+						"description": "Bitcoin txid, hex with no `0x` prefix (Rune txids come back as stored, unlike Stacks ones). Exact match."
 					}
 				],
 				"responses": {
@@ -12699,7 +12678,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"example": "2f6a1c9b5e4d3a8f7c0b6e5d4c3b2a1908f7e6d5c4b3a29180706050403020a1:1"
+							"example": "2d2b54008790a44c9c3e630faa521a50f8ab122625c4eb8fb84705051c4fc611:0"
 						},
 						"description": "`<txid>:<vout>`. Mutually exclusive with `address`; exactly one is required."
 					},
@@ -12807,7 +12786,7 @@
 					{
 						"lang": "TypeScript",
 						"label": "SDK",
-						"source": "const page = await sl.index.runes.balances.list({ address: \"bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg\" });"
+						"source": "const page = await sl.index.runes.balances({ address: \"bc1phnp234rd5hel0h8ulqvnq3zrww2td0a8q48hjcg7mv67j97jnxfq9ayczm\" });"
 					}
 				]
 			}
