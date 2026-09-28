@@ -9,6 +9,10 @@ and hosted Index/Streams reads at `api.secondlayer.tools` draw
 
 ## CLI — September 2026
 
+### `secondlayer console` is gone (CLI 19.0.0)
+
+The instance web console and the `secondlayer console` command are removed. Operate an instance with the CLI, REST API, or MCP. Account settings live at `/account` on the web app.
+
 ### `repair` fixes transactions and events, not just blocks
 
 `secondlayer repair` used to compare block digests only, so it reported "nothing to repair" whenever a transaction or event went missing underneath a block that still matched the archive. It now also compares your transactions/events row counts against the manifest and repairs those ranges on `--apply`, even when every block is already correct. The stale-height hint no longer suggests `bootstrap`, which refuses a database that already holds a completed import.

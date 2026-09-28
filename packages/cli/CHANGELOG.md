@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 19.0.0
+
+### Major Changes
+
+- 2354965: Remove the instance web console and `secondlayer console`. Operate with CLI, REST, and MCP.
+
 ## 18.1.0
 
 ### Minor Changes

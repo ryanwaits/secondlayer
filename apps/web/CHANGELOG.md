@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.11.4
+
+### Patch Changes
+
+- 2354965: Remove the instance web console and `secondlayer console`. Operate with CLI, REST, and MCP.
+
 ## 0.11.3
 
 ### Patch Changes
