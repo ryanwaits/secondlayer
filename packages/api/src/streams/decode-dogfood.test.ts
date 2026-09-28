@@ -296,13 +296,21 @@ describe.skipIf(!HAS_DB)("classic decoders vs. Streams HTTP parity", () => {
 		// Round-trip through JSON so the comparison is on the wire shape (what a
 		// real HTTP client sees) rather than TS's discriminated-union typing,
 		// which doesn't distribute cleanly through a rest-spread over a union.
-		const httpEventsWithoutFinalized = JSON.parse(
+		// Strip two fields the HTTP response layer adds that the in-process
+		// reader never touches: `finalized` (computed against the tip,
+		// `markFinalized`) and `chain` (plan 059: `markFinalized` additively
+		// tags every Stacks event `chain: "stacks"` — see its doc comment in
+		// `./events.ts` — `readCanonicalStreamsEvents` has no equivalent step).
+		// Neither is decoder OUTPUT; both are response-envelope metadata the HTTP
+		// route layers on top, so excluding them still proves the thing this test
+		// exists to prove: decoder output === Streams output, field for field.
+		const httpEventsWithoutEnvelopeFields = JSON.parse(
 			JSON.stringify(httpResult.events),
 		).map((event: Record<string, unknown>) => {
-			const { finalized: _finalized, ...rest } = event;
+			const { finalized: _finalized, chain: _chain, ...rest } = event;
 			return rest;
 		});
-		expect(httpEventsWithoutFinalized).toEqual(
+		expect(httpEventsWithoutEnvelopeFields).toEqual(
 			JSON.parse(JSON.stringify(inProcessResult.events)),
 		);
 	});
