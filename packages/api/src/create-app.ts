@@ -23,6 +23,7 @@ import {
 import internalAccountsCreditsRouter from "./routes/internal-accounts-credits.ts";
 import internalIntrospectRouter from "./routes/internal-introspect.ts";
 import internalMetersRouter from "./routes/internal-meters.ts";
+import internalSentinelRouter from "./routes/internal-sentinel.ts";
 import internalTenantKeyRouter from "./routes/internal-tenant-key.ts";
 import nodeRouter from "./routes/node.ts";
 import openApiRouter from "./routes/openapi.ts";
@@ -158,6 +159,8 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/internal/keys/introspect", internalIntrospectRouter);
 		app.route("/internal/keys/tenant", internalTenantKeyRouter);
 		app.route("/internal/accounts/credits", internalAccountsCreditsRouter);
+		// Sentinel's own guard: SENTINEL_SERVICE_KEY only, never the workload host key.
+		app.route("/internal/sentinel", internalSentinelRouter);
 	}
 	app.route("/", statusRouter);
 	app.route("/v1/instance", createInstanceCatalogRouter());

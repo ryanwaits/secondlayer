@@ -6,12 +6,16 @@ import {
 	expect,
 	test,
 } from "bun:test";
-import { getCredits } from "@secondlayer/platform/db/queries/account-credits";
+import {
+	creditCredits,
+	getCredits,
+} from "@secondlayer/platform/db/queries/account-credits";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { createApiApp } from "../create-app.ts";
 import { errorHandler } from "../middleware/error.ts";
 import internalMetersRouter, {
+	sentinelServiceKeyMatches,
 	workloadHostKeyMatches,
 } from "./internal-meters.ts";
 
@@ -377,5 +381,150 @@ describe.skipIf(!HAS_DB)("mounted on the platform app", () => {
 		const api = createApiApp("oss");
 		const res = await api.request("/internal/meters", { method: "POST" });
 		expect(res.status).toBe(404);
+	});
+});
+
+describe.skipIf(!HAS_DB)("POST /internal/meters: Sentinel key", () => {
+	let prevSentinelKey: string | undefined;
+
+	beforeEach(() => {
+		prevSentinelKey = process.env.SENTINEL_SERVICE_KEY;
+		process.env.SENTINEL_SERVICE_KEY = "test-sentinel-key";
+	});
+
+	afterEach(() => {
+		if (prevSentinelKey === undefined) delete process.env.SENTINEL_SERVICE_KEY;
+		else process.env.SENTINEL_SERVICE_KEY = prevSentinelKey;
+	});
+
+	function post(key: string, items: unknown[]) {
+		return app().request("/internal/meters", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: `Bearer ${key}`,
+			},
+			body: JSON.stringify({ items }),
+		});
+	}
+
+	test("sentinel key meters a sentinel.* unit", async () => {
+		await creditCredits(db, accountId, 5_000_000n);
+		const res = await post("test-sentinel-key", [
+			{
+				accountId,
+				unit: "sentinel.run",
+				quantity: 1,
+				idempotencyKey: `sentinel:run:${accountId}`,
+			},
+		]);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			results: { usd_micros: number; debited: boolean }[];
+		};
+		expect(body.results[0]?.usd_micros).toBe(1_500_000);
+		expect(body.results[0]?.debited).toBe(true);
+		expect(await getCredits(db, accountId)).toBe(3_500_000n);
+	});
+
+	test("sentinel key on a non-sentinel unit → 403, nothing charged (whole batch)", async () => {
+		await creditCredits(db, accountId, 5_000_000n);
+		const res = await post("test-sentinel-key", [
+			{
+				accountId,
+				unit: "sentinel.run",
+				quantity: 1,
+				idempotencyKey: `sentinel:run:mixed:${accountId}`,
+			},
+			{
+				accountId,
+				unit: "webhook.event",
+				quantity: 1,
+				idempotencyKey: `sentinel:evt:${accountId}`,
+			},
+		]);
+		expect(res.status).toBe(403);
+		expect(await getCredits(db, accountId)).toBe(5_000_000n);
+	});
+
+	test("sentinel key with a non-sentinel: idempotency key → 400", async () => {
+		const res = await post("test-sentinel-key", [
+			{
+				accountId,
+				unit: "sentinel.run",
+				quantity: 1,
+				idempotencyKey: `plain-${accountId}`,
+			},
+		]);
+		expect(res.status).toBe(400);
+	});
+
+	test("workload key is unaffected (still meters any unit)", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const res = await post("test-workload-host-key", [
+			{
+				accountId,
+				unit: "webhook.event",
+				quantity: 10,
+				idempotencyKey: `wl-${accountId}`,
+			},
+		]);
+		expect(res.status).toBe(200);
+	});
+
+	test("wrong key → 401; unset SENTINEL_SERVICE_KEY → 401 for the old value", async () => {
+		expect((await post("nope", [])).status).toBe(401);
+		delete process.env.SENTINEL_SERVICE_KEY;
+		expect((await post("test-sentinel-key", [])).status).toBe(401);
+	});
+
+	test("negative quantity → 400 for the Sentinel key", async () => {
+		const res = await post("test-sentinel-key", [
+			{
+				accountId,
+				unit: "sentinel.run",
+				quantity: -1,
+				idempotencyKey: `sentinel:neg:${accountId}`,
+			},
+		]);
+		expect(res.status).toBe(400);
+		expect(await getCredits(db, accountId)).toBe(0n);
+	});
+
+	test("negative quantity → 400 for the workload key", async () => {
+		const res = await post("test-workload-host-key", [
+			{
+				accountId,
+				unit: "webhook.event",
+				quantity: -5,
+				idempotencyKey: `wl-neg-${accountId}`,
+			},
+		]);
+		expect(res.status).toBe(400);
+		expect(await getCredits(db, accountId)).toBe(0n);
+	});
+});
+
+describe("sentinelServiceKeyMatches", () => {
+	test("unset key authenticates nobody", () => {
+		expect(sentinelServiceKeyMatches("anything", {})).toBe(false);
+	});
+
+	test("wrong and right keys", () => {
+		expect(
+			sentinelServiceKeyMatches("wrong", { SENTINEL_SERVICE_KEY: "right" }),
+		).toBe(false);
+		expect(
+			sentinelServiceKeyMatches("right", { SENTINEL_SERVICE_KEY: "right" }),
+		).toBe(true);
+	});
+
+	test("never matches when it equals the workload host key", () => {
+		expect(
+			sentinelServiceKeyMatches("same", {
+				SENTINEL_SERVICE_KEY: "same",
+				WORKLOAD_HOST_KEY: "same",
+			}),
+		).toBe(false);
 	});
 });

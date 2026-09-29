@@ -8,6 +8,11 @@
  * constant-time compare against `WORKLOAD_HOST_KEY`, and an unset key
  * authenticates nobody — every request 401s rather than silently accepting
  * an unauthenticated batch.
+ *
+ * Sentinel's worker (a separate product on this platform) may also submit,
+ * with `SENTINEL_SERVICE_KEY`, but only `sentinel.*` units (403 otherwise).
+ * `quantity` must be >= 0 for every caller: a negative quantity would write
+ * a negative ledger row and credit the account.
  */
 
 import { timingSafeEqual } from "node:crypto";
@@ -17,6 +22,7 @@ import type { MeterUnit } from "@secondlayer/platform/billing/prices";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	AuthenticationError,
+	ForbiddenError,
 	ValidationError,
 } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
@@ -44,6 +50,23 @@ export function workloadHostKeyMatches(
 ): boolean {
 	const expected = env.WORKLOAD_HOST_KEY?.trim();
 	if (!expected || provided.length === 0) return false;
+	const a = Buffer.from(provided);
+	const b = Buffer.from(expected);
+	if (a.length !== b.length) return false;
+	return timingSafeEqual(a, b);
+}
+
+/** Constant-time compare against `SENTINEL_SERVICE_KEY`. Same contract as
+ *  `workloadHostKeyMatches`: an unset key authenticates nobody. It also never
+ *  matches when the configured value equals `WORKLOAD_HOST_KEY`, so the
+ *  workload host key can't stand in for the Sentinel key on `/internal/sentinel/*`. */
+export function sentinelServiceKeyMatches(
+	provided: string,
+	env: NodeJS.ProcessEnv = process.env,
+): boolean {
+	const expected = env.SENTINEL_SERVICE_KEY?.trim();
+	if (!expected || provided.length === 0) return false;
+	if (expected === env.WORKLOAD_HOST_KEY?.trim()) return false;
 	const a = Buffer.from(provided);
 	const b = Buffer.from(expected);
 	if (a.length !== b.length) return false;
@@ -86,6 +109,9 @@ function parseItem(raw: unknown, index: number): MeterItemInput {
 	}
 	if (typeof body.quantity !== "number" || !Number.isFinite(body.quantity)) {
 		throw new ValidationError(`items[${index}].quantity must be a number`);
+	}
+	if (body.quantity < 0) {
+		throw new ValidationError(`items[${index}].quantity must not be negative`);
 	}
 	if (
 		body.observedQuantity !== undefined &&
@@ -143,7 +169,10 @@ const app = new Hono();
 
 app.post("/", async (c) => {
 	const raw = bearerToken(c.req.header("authorization"));
-	if (!raw || !workloadHostKeyMatches(raw)) {
+	const isWorkloadHost = raw !== null && workloadHostKeyMatches(raw);
+	const isSentinel =
+		!isWorkloadHost && raw !== null && sentinelServiceKeyMatches(raw);
+	if (!isWorkloadHost && !isSentinel) {
 		throw new AuthenticationError("Missing or invalid Authorization header", {
 			hint: "Send the workload host key as `Authorization: Bearer $WORKLOAD_HOST_KEY`.",
 			env_var: "WORKLOAD_HOST_KEY",
@@ -174,6 +203,24 @@ app.post("/", async (c) => {
 	}
 	const items = rawItems.map(parseItem);
 
+	// The Sentinel key moves money only through `sentinel.*` units, and only
+	// under `sentinel:` idempotency keys so it can't pre-claim a key the
+	// workload host will use. Checked for the whole batch before any charge.
+	if (isSentinel) {
+		for (const [index, item] of items.entries()) {
+			if (!item.unit.startsWith("sentinel.")) {
+				throw new ForbiddenError(
+					`items[${index}].unit: the Sentinel key may only meter sentinel.* units`,
+				);
+			}
+			if (!item.idempotencyKey.startsWith("sentinel:")) {
+				throw new ValidationError(
+					`items[${index}].idempotencyKey must start with "sentinel:"`,
+				);
+			}
+		}
+	}
+
 	const db = getDb();
 	const results = await Promise.all(
 		items.map(async (item) => {
@@ -182,7 +229,8 @@ app.post("/", async (c) => {
 				unit: item.unit,
 				quantity: item.quantity,
 				observedQuantity: item.observedQuantity,
-				source: item.source ?? "internal:workload-host",
+				source:
+					item.source ?? (isSentinel ? "sentinel" : "internal:workload-host"),
 				idempotencyKey: item.idempotencyKey,
 				occurredAt: item.occurredAt ? new Date(item.occurredAt) : undefined,
 			});

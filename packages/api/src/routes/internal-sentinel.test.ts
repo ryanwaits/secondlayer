@@ -1,0 +1,505 @@
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
+import { randomUUID } from "node:crypto";
+import { PRICES } from "@secondlayer/platform/billing/prices";
+import {
+	creditCredits,
+	getCredits,
+} from "@secondlayer/platform/db/queries/account-credits";
+import { upsertCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
+import { getDb } from "@secondlayer/shared/db";
+import { Hono } from "hono";
+import type Stripe from "stripe";
+import { createApiApp } from "../create-app.ts";
+import { errorHandler } from "../middleware/error.ts";
+import type { StripeClient } from "./billing.ts";
+import {
+	MAX_GRANT_USD_MICROS,
+	buildReturnUrl,
+	createInternalSentinelRouter,
+} from "./internal-sentinel.ts";
+
+const HAS_DB = !!process.env.DATABASE_URL;
+const db = HAS_DB ? getDb() : (null as never);
+
+const KEY = "test-sentinel-key";
+const accountIds: string[] = [];
+const emails: string[] = [];
+
+async function makeAccount(email: string | null = null): Promise<string> {
+	const row = await db
+		.insertInto("accounts")
+		.values({ email, ghost: email === null })
+		.returning("id")
+		.executeTakeFirstOrThrow();
+	accountIds.push(row.id);
+	return row.id;
+}
+
+type StripeCall = {
+	success_url?: string;
+	cancel_url?: string;
+	amount?: number;
+};
+
+function stubStripe(calls: StripeCall[] = []): StripeClient {
+	return {
+		customers: {
+			create: async () => ({ id: "cus_stub" }) as unknown as Stripe.Customer,
+			retrieve: async () =>
+				({ id: "cus_stub", deleted: false }) as unknown as Stripe.Customer,
+		},
+		checkout: {
+			sessions: {
+				create: async (params: Stripe.Checkout.SessionCreateParams) => {
+					calls.push({
+						success_url: params.success_url ?? undefined,
+						cancel_url: params.cancel_url ?? undefined,
+						amount: params.line_items?.[0]?.price_data?.unit_amount,
+					});
+					return { url: "https://checkout.stripe.test/session" };
+				},
+			},
+		},
+	} as unknown as StripeClient;
+}
+
+function app(getStripe: () => StripeClient | null = () => stubStripe()) {
+	const a = new Hono();
+	a.onError(errorHandler);
+	a.route("/internal/sentinel", createInternalSentinelRouter({ getStripe }));
+	return a;
+}
+
+function post(a: Hono, path: string, body: unknown, key: string | null = KEY) {
+	return a.request(`/internal/sentinel${path}`, {
+		method: "POST",
+		headers: {
+			"content-type": "application/json",
+			...(key ? { authorization: `Bearer ${key}` } : {}),
+		},
+		body: JSON.stringify(body),
+	});
+}
+
+let prevSentinel: string | undefined;
+let prevWorkload: string | undefined;
+let prevWebUrl: string | undefined;
+
+beforeEach(() => {
+	prevSentinel = process.env.SENTINEL_SERVICE_KEY;
+	prevWorkload = process.env.WORKLOAD_HOST_KEY;
+	prevWebUrl = process.env.SENTINEL_WEB_URL;
+	process.env.SENTINEL_SERVICE_KEY = KEY;
+	process.env.WORKLOAD_HOST_KEY = "test-workload-host-key";
+	delete process.env.SENTINEL_WEB_URL;
+});
+
+afterEach(() => {
+	for (const [k, v] of [
+		["SENTINEL_SERVICE_KEY", prevSentinel],
+		["WORKLOAD_HOST_KEY", prevWorkload],
+		["SENTINEL_WEB_URL", prevWebUrl],
+	] as const) {
+		if (v === undefined) delete process.env[k];
+		else process.env[k] = v;
+	}
+});
+
+afterAll(async () => {
+	if (!HAS_DB) return;
+	const ids = [...accountIds];
+	if (emails.length > 0) {
+		const rows = await db
+			.selectFrom("accounts")
+			.select("id")
+			.where("email", "in", emails)
+			.execute();
+		ids.push(...rows.map((r) => r.id));
+	}
+	if (ids.length === 0) return;
+	await db.deleteFrom("usage_ledger").where("account_id", "in", ids).execute();
+	await db
+		.deleteFrom("account_spend_caps")
+		.where("account_id", "in", ids)
+		.execute();
+	await db
+		.deleteFrom("account_credits")
+		.where("account_id", "in", ids)
+		.execute();
+	await db.deleteFrom("accounts").where("id", "in", ids).execute();
+});
+
+describe("buildReturnUrl", () => {
+	test("builds from the default origin", () => {
+		expect(buildReturnUrl("/app/billing", "success", {})).toBe(
+			"https://runsentinel.app/app/billing?topup=success",
+		);
+	});
+
+	test("honours SENTINEL_WEB_URL and existing query", () => {
+		expect(
+			buildReturnUrl("/a?x=1", "cancelled", {
+				SENTINEL_WEB_URL: "https://staging.example.com/ignored",
+			}),
+		).toBe("https://staging.example.com/a?x=1&topup=cancelled");
+	});
+
+	test.each([
+		"//evil.com",
+		"//evil.com/x",
+		"https://evil.com",
+		"evil.com/x",
+		"",
+		"/\\evil.com",
+		"/ok\nbad",
+		"\\\\evil.com",
+	])("rejects %j", (path) => {
+		expect(() => buildReturnUrl(path, "success", {})).toThrow();
+	});
+
+	test("rejects non-strings", () => {
+		expect(() => buildReturnUrl(undefined, "success", {})).toThrow();
+		expect(() => buildReturnUrl(42, "success", {})).toThrow();
+	});
+});
+
+describe("/internal/sentinel auth", () => {
+	const routes: [string, unknown][] = [
+		["/accounts/resolve", { email: "a@b.co" }],
+		["/accounts/grant", {}],
+		["/accounts/summary", {}],
+		["/affordable", {}],
+		["/checkout", {}],
+	];
+
+	test.each(routes)("%s: missing key → 401", async (path, body) => {
+		expect((await post(app(), path, body, null)).status).toBe(401);
+	});
+
+	test.each(routes)("%s: wrong key → 401", async (path, body) => {
+		expect((await post(app(), path, body, "nope")).status).toBe(401);
+	});
+
+	test.each(routes)("%s: workload host key → 401", async (path, body) => {
+		expect(
+			(await post(app(), path, body, "test-workload-host-key")).status,
+		).toBe(401);
+	});
+
+	test.each(routes)(
+		"%s: unset SENTINEL_SERVICE_KEY → 401",
+		async (path, body) => {
+			delete process.env.SENTINEL_SERVICE_KEY;
+			expect((await post(app(), path, body, KEY)).status).toBe(401);
+		},
+	);
+
+	test("the workload host key can't stand in even if configured identically", async () => {
+		process.env.SENTINEL_SERVICE_KEY = "shared";
+		process.env.WORKLOAD_HOST_KEY = "shared";
+		expect(
+			(await post(app(), "/accounts/resolve", { email: "a@b.co" }, "shared"))
+				.status,
+		).toBe(401);
+	});
+});
+
+describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
+	test("mounted in platform mode with the Sentinel key, not in oss mode", async () => {
+		const body = JSON.stringify({ email: `mount-${randomUUID()}@example.com` });
+		emails.push(JSON.parse(body).email);
+		const headers = {
+			"content-type": "application/json",
+			authorization: `Bearer ${KEY}`,
+		};
+		const res = await createApiApp("platform").request(
+			"/internal/sentinel/accounts/resolve",
+			{ method: "POST", headers, body },
+		);
+		expect(res.status).toBe(200);
+		const oss = await createApiApp("oss").request(
+			"/internal/sentinel/accounts/resolve",
+			{ method: "POST", headers, body },
+		);
+		expect(oss.status).toBe(404);
+	});
+
+	test("resolve lowercases + trims, is idempotent, hadAccount is correct", async () => {
+		const email = `Sentinel-${randomUUID()}@Example.COM`;
+		const lower = email.toLowerCase();
+		emails.push(lower);
+
+		const first = await post(app(), "/accounts/resolve", {
+			email: `  ${email}  `,
+		});
+		expect(first.status).toBe(200);
+		const a = (await first.json()) as {
+			accountId: string;
+			created: boolean;
+			hadAccount: boolean;
+		};
+		expect(a.created).toBe(true);
+		expect(a.hadAccount).toBe(false);
+
+		const stored = await db
+			.selectFrom("accounts")
+			.select("email")
+			.where("id", "=", a.accountId)
+			.executeTakeFirstOrThrow();
+		expect(stored.email).toBe(lower);
+
+		const second = await post(app(), "/accounts/resolve", { email: lower });
+		const b = (await second.json()) as typeof a;
+		expect(b).toEqual({
+			accountId: a.accountId,
+			created: false,
+			hadAccount: true,
+		});
+	});
+
+	test("resolve finds a pre-existing account stored with mixed case", async () => {
+		const mixed = `Legacy-${randomUUID()}@Example.com`;
+		const id = await makeAccount(mixed);
+		const res = await post(app(), "/accounts/resolve", { email: mixed });
+		expect(await res.json()).toEqual({
+			accountId: id,
+			created: false,
+			hadAccount: true,
+		});
+	});
+
+	test("resolve rejects a bad email", async () => {
+		expect(
+			(await post(app(), "/accounts/resolve", { email: "nope" })).status,
+		).toBe(400);
+		expect((await post(app(), "/accounts/resolve", {})).status).toBe(400);
+	});
+
+	test("grant is idempotent by key", async () => {
+		const accountId = await makeAccount();
+		const body = {
+			accountId,
+			usdMicros: 5_000_000,
+			reason: "starter",
+			idempotencyKey: `sentinel:starter:${accountId}`,
+		};
+		const first = await post(app(), "/accounts/grant", body);
+		expect(first.status).toBe(200);
+		expect(await first.json()).toEqual({
+			granted: true,
+			balanceAfter: 5_000_000,
+		});
+		const second = await post(app(), "/accounts/grant", body);
+		expect(await second.json()).toEqual({
+			granted: false,
+			balanceAfter: 5_000_000,
+		});
+		expect(await getCredits(db, accountId)).toBe(5_000_000n);
+	});
+
+	test("grant over the cap is refused, nothing credited", async () => {
+		const accountId = await makeAccount();
+		const res = await post(app(), "/accounts/grant", {
+			accountId,
+			usdMicros: Number(MAX_GRANT_USD_MICROS) + 1,
+			reason: "starter",
+			idempotencyKey: `sentinel:big:${accountId}`,
+		});
+		expect(res.status).toBe(400);
+		expect(await getCredits(db, accountId)).toBe(0n);
+	});
+
+	test("grant rejects zero, negative, fractional, bad key, unknown account", async () => {
+		const accountId = await makeAccount();
+		const base = {
+			accountId,
+			usdMicros: 1_000_000,
+			reason: "starter",
+			idempotencyKey: `sentinel:t:${accountId}`,
+		};
+		for (const bad of [
+			{ usdMicros: 0 },
+			{ usdMicros: -5 },
+			{ usdMicros: 1.5 },
+			{ usdMicros: "5000000" },
+			{ idempotencyKey: "starter" },
+			{ reason: "has space" },
+		]) {
+			const res = await post(app(), "/accounts/grant", { ...base, ...bad });
+			expect(res.status).toBe(400);
+		}
+		const missing = await post(app(), "/accounts/grant", {
+			...base,
+			accountId: randomUUID(),
+		});
+		expect(missing.status).toBe(404);
+		expect(await getCredits(db, accountId)).toBe(0n);
+	});
+
+	test("summary returns balance, spend, cap and prices from PRICES", async () => {
+		const accountId = await makeAccount();
+		await creditCredits(db, accountId, 7_000_000n);
+		await upsertCaps(db, accountId, { monthly_cap_cents: 2500 });
+		const res = await post(app(), "/accounts/summary", { accountId });
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			balanceUsdMicros: 7_000_000,
+			spentMonthUsdMicros: 0,
+			monthlyCapCents: 2500,
+			prices: {
+				run: Number(PRICES["sentinel.run"]),
+				deep_audit: Number(PRICES["sentinel.deep_audit"]),
+				monitored_event: Number(PRICES["sentinel.monitored_event"]),
+			},
+		});
+	});
+
+	test("summary: no cap → null; unknown account → 404", async () => {
+		const accountId = await makeAccount();
+		const res = await post(app(), "/accounts/summary", { accountId });
+		const body = (await res.json()) as { monthlyCapCents: number | null };
+		expect(body.monthlyCapCents).toBeNull();
+		expect(
+			(await post(app(), "/accounts/summary", { accountId: randomUUID() }))
+				.status,
+		).toBe(404);
+		expect(
+			(await post(app(), "/accounts/summary", { accountId: "not-a-uuid" }))
+				.status,
+		).toBe(404);
+	});
+
+	test("affordable: ok, balance, cap", async () => {
+		const accountId = await makeAccount();
+
+		const none = await post(app(), "/affordable", {
+			accountId,
+			unit: "sentinel.run",
+			quantity: 1,
+		});
+		expect(await none.json()).toEqual({
+			ok: false,
+			priceUsdMicros: 1_500_000,
+			balanceUsdMicros: 0,
+			reason: "balance",
+		});
+
+		await creditCredits(db, accountId, 10_000_000n);
+		const ok = await post(app(), "/affordable", {
+			accountId,
+			unit: "run",
+			quantity: 2,
+		});
+		expect(await ok.json()).toEqual({
+			ok: true,
+			priceUsdMicros: 3_000_000,
+			balanceUsdMicros: 10_000_000,
+		});
+
+		// $2 cap: one $1.50 run fits, two do not.
+		await upsertCaps(db, accountId, { monthly_cap_cents: 200 });
+		const one = await post(app(), "/affordable", {
+			accountId,
+			unit: "sentinel.run",
+			quantity: 1,
+		});
+		expect(((await one.json()) as { ok: boolean }).ok).toBe(true);
+		const two = await post(app(), "/affordable", {
+			accountId,
+			unit: "sentinel.run",
+			quantity: 2,
+		});
+		expect(await two.json()).toEqual({
+			ok: false,
+			priceUsdMicros: 3_000_000,
+			balanceUsdMicros: 10_000_000,
+			reason: "cap",
+		});
+		// Pure check: nothing debited.
+		expect(await getCredits(db, accountId)).toBe(10_000_000n);
+	});
+
+	test("affordable rejects non-sentinel units and bad quantities", async () => {
+		const accountId = await makeAccount();
+		for (const bad of [
+			{ unit: "webhook.event", quantity: 1 },
+			{ unit: "rows.delivered", quantity: 1 },
+			{ unit: "sentinel.run", quantity: 0 },
+			{ unit: "sentinel.run", quantity: -1 },
+			{ unit: "sentinel.run", quantity: 1.5 },
+		]) {
+			const res = await post(app(), "/affordable", { accountId, ...bad });
+			expect(res.status).toBe(400);
+		}
+	});
+
+	test("checkout rejects non-allow-listed returnPath and bad packs", async () => {
+		const accountId = await makeAccount();
+		const calls: StripeCall[] = [];
+		const a = app(() => stubStripe(calls));
+		for (const returnPath of [
+			"//evil.com",
+			"https://evil.com/x",
+			"evil",
+			"/\\evil.com",
+		]) {
+			const res = await post(a, "/checkout", {
+				accountId,
+				packUsd: 10,
+				returnPath,
+			});
+			expect(res.status).toBe(400);
+		}
+		expect(
+			(await post(a, "/checkout", { accountId, packUsd: 7, returnPath: "/ok" }))
+				.status,
+		).toBe(400);
+		expect(calls).toHaveLength(0);
+	});
+
+	test("checkout returns a Stripe URL with Sentinel-origin return URLs", async () => {
+		const accountId = await makeAccount(`co-${randomUUID()}@example.com`);
+		const calls: StripeCall[] = [];
+		const res = await post(
+			app(() => stubStripe(calls)),
+			"/checkout",
+			{
+				accountId,
+				packUsd: 25,
+				returnPath: "/app/billing",
+			},
+		);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			url: "https://checkout.stripe.test/session",
+		});
+		expect(calls).toEqual([
+			{
+				success_url: "https://runsentinel.app/app/billing?topup=success",
+				cancel_url: "https://runsentinel.app/app/billing?topup=cancelled",
+				amount: 2500,
+			},
+		]);
+	});
+
+	test("checkout: Stripe not configured → 503", async () => {
+		const accountId = await makeAccount();
+		const res = await post(
+			app(() => null),
+			"/checkout",
+			{
+				accountId,
+				packUsd: 10,
+				returnPath: "/x",
+			},
+		);
+		expect(res.status).toBe(503);
+	});
+});
