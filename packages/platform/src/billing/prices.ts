@@ -17,7 +17,10 @@ export type MeterUnit =
 	| "rows.delivered"
 	| "memory.gb_hour"
 	| "storage.gb_day"
-	| "webhook.event";
+	| "webhook.event"
+	| "sentinel.run"
+	| "sentinel.deep_audit"
+	| "sentinel.monitored_event";
 
 /** Flat price per unit of quantity, in USD-micros. `rows.delivered` has its
  *  own volume-tier + monthly-allowance logic in `meter.ts`; every other unit
@@ -37,6 +40,13 @@ export const PRICES: Record<MeterUnit, bigint> = {
 	"memory.gb_hour": 28_000n, // ~$0.028/GB-hour, ~$20/GB-month (founder 2026-09-24)
 	"storage.gb_day": 8_333n, // ~$0.25/GB-month billed daily (250_000n / 30)
 	"webhook.event": 10n, // $10/1M events; retries are free (never metered)
+
+	// Sentinel product units (Sentinel, founder 2026-09-29). Metered by
+	// Sentinel's worker via /internal/meters with SENTINEL_SERVICE_KEY. Free
+	// allowances live Sentinel-side, so meter() needs no allowance logic.
+	"sentinel.run": 1_500_000n, // $1.50: re-verify, reproduce, challenge, ask
+	"sentinel.deep_audit": 3_000_000n, // $3.00
+	"sentinel.monitored_event": 15n, // $15/1M chain events on watched contracts
 };
 
 /** $5 per 1M rows read = 5 USD-micros per row. Same value as `PRICES["rows.delivered"]`,

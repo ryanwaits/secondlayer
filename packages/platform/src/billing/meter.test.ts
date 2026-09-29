@@ -14,7 +14,7 @@ import {
 	getMonthlyCreditsSpend,
 } from "../db/queries/account-credits.ts";
 import { upsertCaps } from "../db/queries/account-spend-caps.ts";
-import { meter } from "./meter.ts";
+import { grantCredits, meter } from "./meter.ts";
 import {
 	COMMIT_TIER_MONTHLY_USD_MICROS,
 	CREDIT_USD_MICROS_PER_ROW,
@@ -360,5 +360,59 @@ describe.skipIf(!HAS_DB)("meter — fractional hosted-stack units", () => {
 			.where("idempotency_key", "=", idempotencyKey)
 			.executeTakeFirstOrThrow();
 		expect(row.observed_quantity).toBeNull();
+	});
+});
+
+describe.skipIf(!HAS_DB)("meter — sentinel units and grants", () => {
+	test("sentinel.run prices flat at $1.50, sentinel.monitored_event at 15µ$ each", async () => {
+		await creditCredits(db, accountId, 10_000_000n);
+		const run = await meter(db, {
+			accountId,
+			unit: "sentinel.run",
+			quantity: 1,
+			source: "test",
+			idempotencyKey: randomUUID(),
+		});
+		expect(run.usdMicros).toBe(1_500_000n);
+		const events = await meter(db, {
+			accountId,
+			unit: "sentinel.monitored_event",
+			quantity: 1000,
+			source: "test",
+			idempotencyKey: randomUUID(),
+		});
+		expect(events.usdMicros).toBe(15_000n);
+		expect(await getCredits(db, accountId)).toBe(10_000_000n - 1_515_000n);
+	});
+
+	test("grantCredits credits once; the same key never credits twice", async () => {
+		const key = `sentinel:starter:${accountId}`;
+		const first = await grantCredits(db, {
+			accountId,
+			usdMicros: 5_000_000n,
+			source: "sentinel:starter",
+			idempotencyKey: key,
+		});
+		expect(first).toEqual({ granted: true, balance: 5_000_000n });
+
+		const second = await grantCredits(db, {
+			accountId,
+			usdMicros: 5_000_000n,
+			source: "sentinel:starter",
+			idempotencyKey: key,
+		});
+		expect(second).toEqual({ granted: false, balance: 5_000_000n });
+		expect(await getCredits(db, accountId)).toBe(5_000_000n);
+
+		const rows = await db
+			.selectFrom("usage_ledger")
+			.select(["unit", "usd_micros", "source"])
+			.where("idempotency_key", "=", key)
+			.execute();
+		expect(rows).toEqual([
+			{ unit: "grant", usd_micros: "-5000000", source: "sentinel:starter" },
+		]);
+		// A grant is money in, not spend.
+		expect(await getMonthlyCreditsSpend(db, accountId)).toBe(0n);
 	});
 });

@@ -244,3 +244,49 @@ export async function recordTopup(
 		return { balance };
 	});
 }
+
+export type GrantInput = {
+	accountId: string;
+	/** The positive amount credited, in USD-micros. */
+	usdMicros: bigint;
+	/** Free-text origin, e.g. `sentinel:starter`. */
+	source: string;
+	/** Unique per grant. A retried call with the same key credits once. */
+	idempotencyKey: string;
+	occurredAt?: Date;
+};
+
+/**
+ * Credit a promotional grant (e.g. a starter credit): `creditCredits` + a
+ * `unit: "grant"` ledger row, same transaction. Modelled on `recordTopup`,
+ * idempotent on `idempotencyKey`: a second call with the same key returns
+ * `granted: false` and never credits again. Callers own the amount policy
+ * (who may grant, how much); this only moves the money.
+ */
+export async function grantCredits(
+	db: Kysely<Database>,
+	input: GrantInput,
+): Promise<{ granted: boolean; balance: bigint }> {
+	const occurredAt = input.occurredAt ?? new Date();
+	return withTransaction(db, async (trx) => {
+		const { claimed } = await claimLedgerEntry(trx, {
+			accountId: input.accountId,
+			unit: "grant",
+			quantity: Number(input.usdMicros / 1_000_000n),
+			observedQuantity: null,
+			usdMicros: -input.usdMicros,
+			debited: true,
+			source: input.source,
+			idempotencyKey: input.idempotencyKey,
+			occurredAt,
+		});
+		if (!claimed) {
+			return {
+				granted: false,
+				balance: await getCredits(trx, input.accountId),
+			};
+		}
+		const balance = await creditCredits(trx, input.accountId, input.usdMicros);
+		return { granted: true, balance };
+	});
+}

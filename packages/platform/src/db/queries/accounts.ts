@@ -15,6 +15,44 @@ export async function upsertAccount(
 		.executeTakeFirstOrThrow();
 }
 
+/** Trim + lowercase. `upsertAccount` does not normalize; callers that take an
+ *  email from another system (Sentinel) normalize first so one address is one
+ *  account. */
+export function normalizeEmail(email: string): string {
+	return email.trim().toLowerCase();
+}
+
+/**
+ * Find-or-create the account for an email, case-insensitively. `created` is
+ * true only for the call that inserted the row (a concurrent loser sees
+ * `created: false`), so it is safe to key first-time actions off it.
+ */
+export async function findOrCreateAccountByEmail(
+	db: Kysely<Database>,
+	email: string,
+): Promise<{ account: Account; created: boolean }> {
+	const normalized = normalizeEmail(email);
+	const existing = await db
+		.selectFrom("accounts")
+		.selectAll()
+		.where(sql<boolean>`lower(email) = ${normalized}`)
+		.executeTakeFirst();
+	if (existing) return { account: existing, created: false };
+	const inserted = await db
+		.insertInto("accounts")
+		.values({ email: normalized })
+		.onConflict((oc) => oc.column("email").doNothing())
+		.returningAll()
+		.executeTakeFirst();
+	if (inserted) return { account: inserted, created: true };
+	const raced = await db
+		.selectFrom("accounts")
+		.selectAll()
+		.where("email", "=", normalized)
+		.executeTakeFirstOrThrow();
+	return { account: raced, created: false };
+}
+
 export async function getAccountById(
 	db: Kysely<Database>,
 	id: string,

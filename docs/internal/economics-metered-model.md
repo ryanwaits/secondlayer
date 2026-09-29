@@ -116,6 +116,35 @@ Subgraphs and webhooks are self-host only and unmetered.
    2026-09-24). Tip and history cost the same; the archive is the only
    bulk discount.
 
+## Sentinel units (founder, 2026-09-29)
+
+Sentinel is a product on this platform with its own sign-in and console; one
+prepaid balance pays for both. Its worker meters through the same ledger.
+
+| Unit | Price | Meaning |
+|---|---|---|
+| `sentinel.run` | $1.50 (1,500,000 µ$) | re-verify, reproduce, challenge, ask |
+| `sentinel.deep_audit` | $3.00 (3,000,000 µ$) | deep audit |
+| `sentinel.monitored_event` | $15 per 1M (15 µ$) | chain event on a watched contract |
+
+- Free allowances live Sentinel-side (100,000 monitored events per account
+  per UTC month). `meter()` has no allowance logic for these units, so the
+  price is flat `PRICES[unit] * quantity`.
+- Our own `webhook.event` price is unchanged and has no free allowance.
+- Idempotency keys: `sentinel:run:<runId>`, `sentinel:events:<accountId>:<YYYY-MM-DDTHH>`.
+  A replay returns the original ledger row, never a second charge.
+- Starter credit: a one-time $5 `grant` (unit `grant`, negative `usd_micros`,
+  source `sentinel:<reason>`, key `sentinel:starter:<accountId>`), credited
+  into the same balance. Grants are idempotent by key and capped at $5 per call.
+- Auth: `SENTINEL_SERVICE_KEY` (never `WORKLOAD_HOST_KEY`). It opens
+  `/internal/sentinel/*` (resolve, grant, summary, affordable, checkout) and
+  `/internal/meters` for `sentinel.*` units only. `/internal/meters` rejects a
+  negative `quantity` for every caller.
+- Checkout return URLs use the allow-listed origin `SENTINEL_WEB_URL`
+  (default `https://runsentinel.app`) plus a path starting with a single `/`.
+- The monthly spend cap is checked by `affordable` before a run. `meter()`
+  still applies the cap to `rows.delivered` only.
+
 ## Capacity at $10k/mo
 
 - $10k/mo in row reads at $5/1M = 2B rows/mo ≈ 770 rows/sec. Trivial
