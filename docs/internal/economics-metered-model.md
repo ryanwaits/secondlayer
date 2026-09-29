@@ -135,11 +135,12 @@ prepaid balance pays for both. Its worker meters through the same ledger.
   A replay returns the original ledger row, never a second charge.
 - Starter credit: a one-time $5 `grant` (unit `grant`, negative `usd_micros`,
   source `sentinel:<reason>`, key `sentinel:starter:<accountId>`), credited
-  into the same balance. Grants are idempotent by key and capped at $5 per call.
+  into the same balance. The grant route accepts only that key and at most $5, so an account gets at most one Sentinel grant, ever.
 - Auth: `SENTINEL_SERVICE_KEY` (never `WORKLOAD_HOST_KEY`). It opens
   `/internal/sentinel/*` (resolve, grant, summary, affordable, checkout) and
   `/internal/meters` for `sentinel.*` units only. `/internal/meters` rejects a
   negative `quantity` for every caller.
+- Scope: the key touches only accounts in `sentinel_accounts` (created by Sentinel, or linked via `/internal/sentinel/accounts/link` after the owner consents in Sentinel). Otherwise 403 `account_not_linked`.
 - Checkout return URLs use the allow-listed origin `SENTINEL_WEB_URL`
   (default `https://runsentinel.app`) plus a path starting with a single `/`.
 - The monthly spend cap is checked by `affordable` before a run. `meter()`

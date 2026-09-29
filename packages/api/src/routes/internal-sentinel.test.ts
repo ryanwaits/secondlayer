@@ -32,13 +32,23 @@ const KEY = "test-sentinel-key";
 const accountIds: string[] = [];
 const emails: string[] = [];
 
-async function makeAccount(email: string | null = null): Promise<string> {
+/** A pre-existing account; linked to Sentinel unless `linked` is false. */
+async function makeAccount(
+	email: string | null = null,
+	linked = true,
+): Promise<string> {
 	const row = await db
 		.insertInto("accounts")
 		.values({ email, ghost: email === null })
 		.returning("id")
 		.executeTakeFirstOrThrow();
 	accountIds.push(row.id);
+	if (linked) {
+		await db
+			.insertInto("sentinel_accounts")
+			.values({ account_id: row.id, via: "consent" })
+			.execute();
+	}
 	return row.id;
 }
 
@@ -173,6 +183,7 @@ describe("buildReturnUrl", () => {
 describe("/internal/sentinel auth", () => {
 	const routes: [string, unknown][] = [
 		["/accounts/resolve", { email: "a@b.co" }],
+		["/accounts/link", {}],
 		["/accounts/grant", {}],
 		["/accounts/summary", {}],
 		["/affordable", {}],
@@ -247,6 +258,13 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 		};
 		expect(a.created).toBe(true);
 		expect(a.hadAccount).toBe(false);
+		expect((a as { linked?: boolean }).linked).toBe(true);
+		const linkRow = await db
+			.selectFrom("sentinel_accounts")
+			.select("via")
+			.where("account_id", "=", a.accountId)
+			.executeTakeFirstOrThrow();
+		expect(linkRow.via).toBe("created");
 
 		const stored = await db
 			.selectFrom("accounts")
@@ -261,18 +279,27 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			accountId: a.accountId,
 			created: false,
 			hadAccount: true,
+			linked: true,
 		});
 	});
 
 	test("resolve finds a pre-existing account stored with mixed case", async () => {
 		const mixed = `Legacy-${randomUUID()}@Example.com`;
-		const id = await makeAccount(mixed);
+		const id = await makeAccount(mixed, false);
 		const res = await post(app(), "/accounts/resolve", { email: mixed });
 		expect(await res.json()).toEqual({
 			accountId: id,
 			created: false,
 			hadAccount: true,
+			linked: false,
 		});
+		// Resolving an existing account must not link it.
+		const rows = await db
+			.selectFrom("sentinel_accounts")
+			.select("account_id")
+			.where("account_id", "=", id)
+			.execute();
+		expect(rows).toHaveLength(0);
 	});
 
 	test("resolve rejects a bad email", async () => {
@@ -310,7 +337,7 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			accountId,
 			usdMicros: Number(MAX_GRANT_USD_MICROS) + 1,
 			reason: "starter",
-			idempotencyKey: `sentinel:big:${accountId}`,
+			idempotencyKey: `sentinel:starter:${accountId}`,
 		});
 		expect(res.status).toBe(400);
 		expect(await getCredits(db, accountId)).toBe(0n);
@@ -322,7 +349,7 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			accountId,
 			usdMicros: 1_000_000,
 			reason: "starter",
-			idempotencyKey: `sentinel:t:${accountId}`,
+			idempotencyKey: `sentinel:starter:${accountId}`,
 		};
 		for (const bad of [
 			{ usdMicros: 0 },
@@ -330,14 +357,18 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			{ usdMicros: 1.5 },
 			{ usdMicros: "5000000" },
 			{ idempotencyKey: "starter" },
+			{ idempotencyKey: `sentinel:bonus:${accountId}` },
+			{ idempotencyKey: `sentinel:starter:${randomUUID()}` },
 			{ reason: "has space" },
 		]) {
 			const res = await post(app(), "/accounts/grant", { ...base, ...bad });
 			expect(res.status).toBe(400);
 		}
+		const ghostId = randomUUID();
 		const missing = await post(app(), "/accounts/grant", {
 			...base,
-			accountId: randomUUID(),
+			accountId: ghostId,
+			idempotencyKey: `sentinel:starter:${ghostId}`,
 		});
 		expect(missing.status).toBe(404);
 		expect(await getCredits(db, accountId)).toBe(0n);
@@ -501,5 +532,75 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			},
 		);
 		expect(res.status).toBe(503);
+	});
+
+	test("link: consent links an existing account, idempotent, 404 unknown", async () => {
+		const id = await makeAccount(`link-${randomUUID()}@example.com`, false);
+		for (let i = 0; i < 2; i++) {
+			const res = await post(app(), "/accounts/link", { accountId: id });
+			expect(res.status).toBe(200);
+			expect(await res.json()).toEqual({ linked: true });
+		}
+		const rows = await db
+			.selectFrom("sentinel_accounts")
+			.select("via")
+			.where("account_id", "=", id)
+			.execute();
+		expect(rows).toEqual([{ via: "consent" }]);
+		expect(
+			(await post(app(), "/accounts/link", { accountId: randomUUID() })).status,
+		).toBe(404);
+		expect(
+			(await post(app(), "/accounts/link", { accountId: "nope" })).status,
+		).toBe(404);
+	});
+
+	test("unlinked account: grant/summary/affordable/checkout → 403 account_not_linked, nothing moves", async () => {
+		const id = await makeAccount(`unl-${randomUUID()}@example.com`, false);
+		await creditCredits(db, id, 3_000_000n);
+		const calls: StripeCall[] = [];
+		const a = app(() => stubStripe(calls));
+		const attempts: [string, unknown][] = [
+			[
+				"/accounts/grant",
+				{
+					accountId: id,
+					usdMicros: 5_000_000,
+					reason: "starter",
+					idempotencyKey: `sentinel:starter:${id}`,
+				},
+			],
+			["/accounts/summary", { accountId: id }],
+			["/affordable", { accountId: id, unit: "sentinel.run", quantity: 1 }],
+			["/checkout", { accountId: id, packUsd: 10, returnPath: "/x" }],
+		];
+		for (const [path, body] of attempts) {
+			const res = await post(a, path, body);
+			expect(res.status).toBe(403);
+			expect(await res.json()).toMatchObject({ error: "account_not_linked" });
+		}
+		expect(calls).toHaveLength(0);
+		expect(await getCredits(db, id)).toBe(3_000_000n);
+		const ledger = await db
+			.selectFrom("usage_ledger")
+			.select("id")
+			.where("account_id", "=", id)
+			.execute();
+		expect(ledger).toHaveLength(0);
+	});
+
+	test("a second grant with a different key is refused; only the starter key works, once", async () => {
+		const id = await makeAccount();
+		const grant = (idempotencyKey: string) =>
+			post(app(), "/accounts/grant", {
+				accountId: id,
+				usdMicros: 5_000_000,
+				reason: "starter",
+				idempotencyKey,
+			});
+		expect((await grant(`sentinel:starter:${id}`)).status).toBe(200);
+		expect((await grant(`sentinel:starter:${id}-2`)).status).toBe(400);
+		expect((await grant(`sentinel:again:${id}`)).status).toBe(400);
+		expect(await getCredits(db, id)).toBe(5_000_000n);
 	});
 });

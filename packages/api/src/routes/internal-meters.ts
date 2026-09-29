@@ -19,6 +19,7 @@ import { timingSafeEqual } from "node:crypto";
 import { meter } from "@secondlayer/platform/billing/meter";
 import { MAX_METER_BATCH, PRICES } from "@secondlayer/platform/billing/prices";
 import type { MeterUnit } from "@secondlayer/platform/billing/prices";
+import { sentinelLinkedIds } from "@secondlayer/platform/db/queries/accounts";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	AuthenticationError,
@@ -207,6 +208,14 @@ app.post("/", async (c) => {
 	// under `sentinel:` idempotency keys so it can't pre-claim a key the
 	// workload host will use. Checked for the whole batch before any charge.
 	if (isSentinel) {
+		const linked = await sentinelLinkedIds(getDb(), [
+			...new Set(items.map((i) => i.accountId)),
+		]);
+		for (const item of items) {
+			if (!linked.has(item.accountId)) {
+				return c.json({ error: "account_not_linked" }, 403);
+			}
+		}
 		for (const [index, item] of items.entries()) {
 			if (!item.unit.startsWith("sentinel.")) {
 				throw new ForbiddenError(

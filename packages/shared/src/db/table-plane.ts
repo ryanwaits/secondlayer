@@ -92,6 +92,8 @@ export const TABLE_TO_DB = {
 	// ── TARGET: metered ledger (one append-only row per billable event) ──
 	usage_ledger: "target",
 	account_balance_alerts: "target",
+	// ── TARGET: accounts Sentinel's service key may touch ──
+	sentinel_accounts: "target",
 	// ── TARGET: public waitlist pages ──
 	waitlists: "target",
 	waitlist_signups: "target",

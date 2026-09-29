@@ -1000,6 +1000,7 @@ export interface Database {
 	archive_fetches: ArchiveFetchesTable;
 	usage_ledger: UsageLedgerTable;
 	account_balance_alerts: AccountBalanceAlertsTable;
+	sentinel_accounts: SentinelAccountsTable;
 	waitlists: WaitlistsTable;
 	waitlist_signups: WaitlistSignupsTable;
 }
@@ -1109,6 +1110,16 @@ export interface AccountBalanceAlertsTable {
 	sent_2d_at: Date | null;
 	sent_stopped_at: Date | null;
 }
+
+/** Accounts Sentinel's service key may touch: created by Sentinel, or the
+ *  owner opted in. */
+export interface SentinelAccountsTable {
+	account_id: string;
+	linked_at: Generated<Date>;
+	via: "created" | "consent";
+}
+
+export type SentinelAccount = Selectable<SentinelAccountsTable>;
 
 export type AccountBalanceAlerts = Selectable<AccountBalanceAlertsTable>;
 export type InsertAccountBalanceAlerts = Insertable<AccountBalanceAlertsTable>;

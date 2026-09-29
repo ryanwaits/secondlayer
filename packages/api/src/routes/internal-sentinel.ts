@@ -3,7 +3,8 @@
  * product on this platform, with its own sign-in and console) and the shared
  * secondlayer account + prepaid balance underneath it. Server-to-server only.
  *
- *   POST /accounts/resolve   { email }                                  find-or-create
+ *   POST /accounts/resolve   { email }                                  find-or-create (+ linked)
+ *   POST /accounts/link      { accountId }                              owner opted in (via consent)
  *   POST /accounts/grant     { accountId, usdMicros, reason, idempotencyKey }
  *   POST /accounts/summary   { accountId }                              balance, cap, prices
  *   POST /affordable         { accountId, unit, quantity }              pure check, no debit
@@ -12,7 +13,9 @@
  * Guard: `SENTINEL_SERVICE_KEY` ONLY (constant-time, unset key authenticates
  * nobody). `WORKLOAD_HOST_KEY` does not open these routes. Metering itself
  * goes through `/internal/meters`, which accepts the same key for `sentinel.*`
- * units. Prices are read from `PRICES`, never hard-coded here.
+ * units. Every route past resolve/link also requires the account to be in
+ * `sentinel_accounts` (created by Sentinel, or linked with consent), else 403
+ * `account_not_linked`: a leaked key can't touch an arbitrary account. Prices are read from `PRICES`, never hard-coded here.
  */
 
 import { grantCredits } from "@secondlayer/platform/billing/meter";
@@ -29,10 +32,13 @@ import { getCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
 import {
 	findOrCreateAccountByEmail,
 	getAccountById,
+	isSentinelLinked,
+	linkSentinelAccount,
 } from "@secondlayer/platform/db/queries/accounts";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	AuthenticationError,
+	ForbiddenError,
 	NotFoundError,
 	ValidationError,
 } from "@secondlayer/shared/errors";
@@ -46,7 +52,8 @@ import {
 } from "./billing.ts";
 import { bearerToken, sentinelServiceKeyMatches } from "./internal-meters.ts";
 
-/** Most a single grant may credit: $5, the starter credit. */
+/** The only grant Sentinel ever makes: the $5 starter. Its key is fixed per
+ *  account, so an account can receive at most one Sentinel grant, ever. */
 export const MAX_GRANT_USD_MICROS = 5_000_000n;
 
 const DEFAULT_SENTINEL_WEB_URL = "https://runsentinel.app";
@@ -128,6 +135,15 @@ function requireString(
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Existing account that Sentinel may touch, else 404 / 403 account_not_linked. */
+async function requireLinkedAccount(accountId: string) {
+	const account = await requireAccount(accountId);
+	if (!(await isSentinelLinked(getDb(), accountId))) {
+		throw new ForbiddenError("account_not_linked");
+	}
+	return account;
+}
+
 async function requireAccount(accountId: string) {
 	const account = UUID_RE.test(accountId)
 		? await getAccountById(getDb(), accountId)
@@ -157,15 +173,36 @@ export function createInternalSentinelRouter(
 		const body = await readBody(c.req);
 		const email = requireString(body, "email", 320);
 		if (!email.includes("@")) throw new ValidationError("email is invalid");
-		const { account, created } = await findOrCreateAccountByEmail(
-			getDb(),
-			email,
-		);
+		const db = getDb();
+		const { account, created, linked } = await db
+			.transaction()
+			.execute(async (trx) => {
+				const found = await findOrCreateAccountByEmail(trx, email);
+				// Only an account Sentinel itself created is linked here; an
+				// existing account waits for /accounts/link (owner consent).
+				if (found.created) {
+					await linkSentinelAccount(trx, found.account.id, "created");
+					return { ...found, linked: true };
+				}
+				return {
+					...found,
+					linked: await isSentinelLinked(trx, found.account.id),
+				};
+			});
 		return c.json({
 			accountId: account.id,
 			created,
 			hadAccount: !created,
+			linked,
 		});
+	});
+
+	app.post("/accounts/link", async (c) => {
+		const body = await readBody(c.req);
+		const accountId = requireString(body, "accountId");
+		await requireAccount(accountId);
+		await linkSentinelAccount(getDb(), accountId, "consent");
+		return c.json({ linked: true });
 	});
 
 	app.post("/accounts/grant", async (c) => {
@@ -176,8 +213,10 @@ export function createInternalSentinelRouter(
 			throw new ValidationError("reason must be a short slug");
 		}
 		const idempotencyKey = requireString(body, "idempotencyKey");
-		if (!idempotencyKey.startsWith("sentinel:")) {
-			throw new ValidationError('idempotencyKey must start with "sentinel:"');
+		if (idempotencyKey !== `sentinel:starter:${accountId}`) {
+			throw new ValidationError(
+				'idempotencyKey must be "sentinel:starter:<accountId>"',
+			);
 		}
 		const amount = body.usdMicros;
 		if (
@@ -190,10 +229,10 @@ export function createInternalSentinelRouter(
 		const usdMicros = BigInt(amount);
 		if (usdMicros > MAX_GRANT_USD_MICROS) {
 			throw new ValidationError(
-				`usdMicros exceeds the ${MAX_GRANT_USD_MICROS} per-grant cap`,
+				`usdMicros exceeds the ${MAX_GRANT_USD_MICROS} starter-grant cap`,
 			);
 		}
-		await requireAccount(accountId);
+		await requireLinkedAccount(accountId);
 		const result = await grantCredits(getDb(), {
 			accountId,
 			usdMicros,
@@ -209,7 +248,7 @@ export function createInternalSentinelRouter(
 	app.post("/accounts/summary", async (c) => {
 		const body = await readBody(c.req);
 		const accountId = requireString(body, "accountId");
-		await requireAccount(accountId);
+		await requireLinkedAccount(accountId);
 		const db = getDb();
 		const [balance, spent, caps] = await Promise.all([
 			getCredits(db, accountId),
@@ -240,7 +279,7 @@ export function createInternalSentinelRouter(
 		) {
 			throw new ValidationError("quantity must be a positive integer");
 		}
-		await requireAccount(accountId);
+		await requireLinkedAccount(accountId);
 		const db = getDb();
 		const price = PRICES[unit] * BigInt(quantity);
 		const [balance, spent, caps] = await Promise.all([
@@ -273,7 +312,7 @@ export function createInternalSentinelRouter(
 		}
 		const successUrl = buildReturnUrl(body.returnPath, "success");
 		const cancelUrl = buildReturnUrl(body.returnPath, "cancelled");
-		const account = await requireAccount(accountId);
+		const account = await requireLinkedAccount(accountId);
 		const stripe = getStripe();
 		if (!stripe) return c.json({ error: "billing_not_configured" }, 503);
 		const url = await createCreditsCheckoutSession({

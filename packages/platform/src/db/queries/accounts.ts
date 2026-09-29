@@ -53,6 +53,50 @@ export async function findOrCreateAccountByEmail(
 	return { account: raced, created: false };
 }
 
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Record that Sentinel may touch this account. Idempotent: an existing row
+ *  (and its original `via`) is kept. */
+export async function linkSentinelAccount(
+	db: Kysely<Database>,
+	accountId: string,
+	via: "created" | "consent",
+): Promise<void> {
+	await db
+		.insertInto("sentinel_accounts")
+		.values({ account_id: accountId, via })
+		.onConflict((oc) => oc.column("account_id").doNothing())
+		.execute();
+}
+
+export async function isSentinelLinked(
+	db: Kysely<Database>,
+	accountId: string,
+): Promise<boolean> {
+	const row = await db
+		.selectFrom("sentinel_accounts")
+		.select("account_id")
+		.where("account_id", "=", accountId)
+		.executeTakeFirst();
+	return row !== undefined;
+}
+
+/** Subset of `accountIds` that Sentinel may touch. */
+export async function sentinelLinkedIds(
+	db: Kysely<Database>,
+	accountIds: string[],
+): Promise<Set<string>> {
+	const valid = accountIds.filter((id) => UUID_RE.test(id));
+	if (valid.length === 0) return new Set();
+	const rows = await db
+		.selectFrom("sentinel_accounts")
+		.select("account_id")
+		.where("account_id", "in", valid)
+		.execute();
+	return new Set(rows.map((r) => r.account_id));
+}
+
 export async function getAccountById(
 	db: Kysely<Database>,
 	id: string,
