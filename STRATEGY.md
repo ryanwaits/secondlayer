@@ -77,6 +77,20 @@ subdomain is the lockup), on its own shell (viem-style, gold), never in a
 product switcher. Own domain only if outside maintainers join or a second
 account-free library ships.
 
+**Named exception: Sentinel** (founder-resolved 2026-09-29). Sentinel,
+security monitoring for Stacks contracts, is a separate product sold to a
+different buyer (protocol teams), built on the plane. It fails the account
+test on purpose: every Sentinel user has a Secondlayer account underneath
+and spends the one prepaid balance. It still keeps its own identity (name,
+mark, `runsentinel.app`, its own sign-in and console) and carries a
+"Powered by secondlayer" endorsement, never a sub-brand of this site. Money
+stays the platform's: top-ups, receipts and card descriptors say
+Secondlayer, and Sentinel usage appears as its own `sentinel.*` ledger
+lines. Sentinel calls the platform only through a dedicated internal
+service key limited to `sentinel.*` units. This is one named exception, not
+a pattern: any other product that wants the same needs its own founder
+decision recorded here.
+
 Five nouns on the plane: **Archive · Streams · Index · Subgraphs · Webhooks**.
 Two altitudes: primitives (Archive, Streams, Index) and opinionated products
 (Subgraphs = pull, a table you own; Webhooks = push, a signed POST to a URL
