@@ -1,5 +1,17 @@
 # @secondlayer/platform
 
+## 0.5.0
+
+### Minor Changes
+
+- c7ef442: Add `settleOwedSentinel` and `owedSentinelUsdMicros` to collect and total unpaid `sentinel.*` usage, oldest first, one transaction per row.
+- c24af9d: Add the `sentinel.run`, `sentinel.deep_audit` and `sentinel.monitored_event` meter units, a `grantCredits` helper for idempotent credit grants, and email-normalizing account find-or-create and Sentinel account link queries.
+
+### Patch Changes
+
+- Updated dependencies [326fa4f]
+  - @secondlayer/shared@11.17.0
+
 ## 0.4.1
 
 ### Patch Changes

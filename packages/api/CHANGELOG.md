@@ -1,5 +1,20 @@
 # @secondlayer/api
 
+## 1.48.0
+
+### Minor Changes
+
+- eeb7894: Add `/internal/sentinel/*` routes (account resolve, link, grant, summary, affordable, checkout), scoped to accounts Sentinel created or that opted in, with a single $5 starter grant per account, guarded by `SENTINEL_SERVICE_KEY`, let that key meter `sentinel.*` units on `/internal/meters`, and reject a negative meter quantity for every caller.
+- c7ef442: Add `/internal/sentinel/accounts/settle` and `/internal/sentinel/settings`, and return `owedUsdMicros` and `refill` from the Sentinel account summary. The auto top-up and spend-cap validation now lives in shared helpers used by both the session and Sentinel routes.
+
+### Patch Changes
+
+- Updated dependencies [c7ef442]
+- Updated dependencies [c24af9d]
+- Updated dependencies [326fa4f]
+  - @secondlayer/platform@0.5.0
+  - @secondlayer/shared@11.17.0
+
 ## 1.47.2
 
 ### Patch Changes

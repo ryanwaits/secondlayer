@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.17.0
+
+### Minor Changes
+
+- 326fa4f: Add the `sentinel_accounts` table (migration 0150) recording which accounts Sentinel's service key may touch.
+
 ## 11.16.1
 
 ### Patch Changes

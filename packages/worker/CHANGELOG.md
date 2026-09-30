@@ -1,5 +1,16 @@
 # @secondlayer/worker
 
+## 1.3.35
+
+### Patch Changes
+
+- 9ef884f: Auto top-up now turns itself off after a declined or authentication-required charge, emails the owner once, and never retries; each charge carries a per-attempt Stripe idempotency key.
+- Updated dependencies [c7ef442]
+- Updated dependencies [c24af9d]
+- Updated dependencies [326fa4f]
+  - @secondlayer/platform@0.5.0
+  - @secondlayer/shared@11.17.0
+
 ## 1.3.34
 
 ### Patch Changes
