@@ -244,6 +244,14 @@ export interface BackfillOptions {
 	invariantReportDir?: string;
 	/** Test-only override for `DEFER_INDEX_THRESHOLD` (`db/read-indexes.ts`) — production never sets this. */
 	deferIndexThreshold?: number;
+	/**
+	 * Continue from a state the caller already holds (`follow`'s catch-up)
+	 * instead of loading a second copy from Postgres. It must be the state as of
+	 * the last flush (nothing dirty) and already seeded (`seedGenesis`) when
+	 * fresh. Mutated in place and returned. If this run throws, it may be ahead
+	 * of the database: discard it. Omitted, the run loads (and seeds) its own.
+	 */
+	state?: RuneState;
 }
 
 interface FetchedBlock {
@@ -342,11 +350,14 @@ export async function runBackfill(
 	const network = options.network ?? Network.Bitcoin;
 	const genesisHeight = options.genesisHeight ?? GENESIS_HEIGHT;
 
-	const state = await loadState(options.db);
-	if (state.height === undefined && network === Network.Bitcoin) {
-		// UNCOMMON•GOODS is a mainnet-only pre-existing rune (`seedGenesis`'s own
-		// docstring) — regtest/testnet/signet have no equivalent to seed.
-		seedGenesis(state);
+	let state = options.state;
+	if (state === undefined) {
+		state = await loadState(options.db);
+		if (state.height === undefined && network === Network.Bitcoin) {
+			// UNCOMMON•GOODS is a mainnet-only pre-existing rune (`seedGenesis`'s own
+			// docstring) — regtest/testnet/signet have no equivalent to seed.
+			seedGenesis(state);
+		}
 	}
 
 	const fromHeight = (state.height ?? genesisHeight - 1) + 1;
