@@ -12,8 +12,13 @@ import {
 } from "@secondlayer/indexer/decode/classic-decoders";
 import { readCanonicalStreamsEvents } from "@secondlayer/indexer/streams-events";
 import { createStreamsClient } from "@secondlayer/sdk";
-import { getDb, sql } from "@secondlayer/shared/db";
+import { closeDb, getDb, sql } from "@secondlayer/shared/db";
 import { Hono } from "hono";
+import { runFileMigrations } from "../../../shared/src/db/migrate.ts";
+import {
+	createTestDatabase,
+	dropTestDatabase,
+} from "../../../shared/src/db/test-helpers.ts";
 import { INDEX_READ_SCOPE, type IndexTokenStore } from "../index/auth.ts";
 import { readFtTransfers } from "../index/ft-transfers.ts";
 import { readNftTransfers } from "../index/nft-transfers.ts";
@@ -47,7 +52,33 @@ const INDEX_TOKENS: IndexTokenStore = new Map([
 ]);
 
 describe.skipIf(!HAS_DB)("classic decoders vs. Streams HTTP parity", () => {
-	const db = HAS_DB ? getDb() : null;
+	// The suite wipes every chain table, so it never runs against the database
+	// DATABASE_URL names. It provisions a scratch database on the same server,
+	// repoints DATABASE_URL at it (the routes resolve their pool from the env),
+	// and drops it afterwards.
+	const originalDatabaseUrl = process.env.DATABASE_URL;
+	let scratchUrl: string | null = null;
+	let db: ReturnType<typeof getDb> | undefined;
+
+	beforeAll(async () => {
+		scratchUrl = await createTestDatabase();
+		const migrated = await runFileMigrations(getDb(scratchUrl));
+		if (migrated.error) throw migrated.error;
+		process.env.DATABASE_URL = scratchUrl;
+		db = getDb();
+	}, 300_000);
+
+	afterAll(async () => {
+		if (originalDatabaseUrl === undefined) {
+			Reflect.deleteProperty(process.env, "DATABASE_URL");
+		} else {
+			process.env.DATABASE_URL = originalDatabaseUrl;
+		}
+		if (scratchUrl) {
+			await closeDb();
+			await dropTestDatabase(scratchUrl);
+		}
+	}, 60_000);
 
 	// The fixture lives at block height 1 and the in-process tip is height 1, so
 	// the default 2-block reorg margin would clamp the served tip to 0 and hide
