@@ -13,6 +13,7 @@ import {
 	type RuneState,
 	createRuneState,
 	getBalance,
+	iterateBalances,
 	setBalance,
 	takeOutpointBalances,
 } from "./state.ts";
@@ -57,8 +58,8 @@ function hashOf(state: RuneState): string {
 /** Sum of every live balance of `runeId`, walked from the balances themselves. */
 function fromScratchSupply(state: RuneState, runeId: string): bigint {
 	let total = 0n;
-	for (const byRune of state.balances.values()) {
-		total += byRune.get(runeId) ?? 0n;
+	for (const [, id, amount] of iterateBalances(state)) {
+		if (id === runeId) total += amount;
 	}
 	return total;
 }
@@ -111,6 +112,33 @@ function applyBlockTwo(state: RuneState): void {
 }
 
 describe("RuneState balances", () => {
+	test("an outpoint keeps its address and insertion order as runes join and leave it", () => {
+		const state = createRuneState();
+		const outpoint = op("9", 0);
+		setBalance(state, outpoint, RUNE_B, 4n, ADDR_A);
+		setBalance(state, outpoint, RUNE_A, 6n);
+		expect([...iterateBalances(state)]).toEqual([
+			[outpoint, RUNE_B, 4n],
+			[outpoint, RUNE_A, 6n],
+		]);
+
+		// Dropping one rune leaves the other (and the outpoint's address) intact.
+		setBalance(state, outpoint, RUNE_B, 0n);
+		expect(getBalance(state, outpoint, RUNE_A)).toBe(6n);
+		expect(getBalance(state, outpoint, RUNE_B)).toBe(0n);
+		expect(state.balanceAddresses.get(outpoint)).toBe(ADDR_A);
+
+		// A rune the outpoint doesn't hold is a no-op, not a deletion of the holder.
+		setBalance(state, outpoint, RUNE_B, 0n);
+		expect(getBalance(state, outpoint, RUNE_A)).toBe(6n);
+
+		const taken = takeOutpointBalances(state, outpoint);
+		expect([...taken]).toEqual([[RUNE_A, 6n]]);
+		expect(state.balances.has(outpoint)).toBe(false);
+		expect(state.balanceAddresses.has(outpoint)).toBe(false);
+		expect(state.liveSupply.size).toBe(0);
+	});
+
 	test("liveSupply tracks a from-scratch sum through etch, mint, multi-rune transfer, spend and rewind", () => {
 		const state = createRuneState();
 		applyBlockOne(state);

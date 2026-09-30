@@ -9,7 +9,13 @@
 // `rewindTo` mirrors `applyUndoPayload`'s reversal in SQL against the same
 // payload, replayed from Postgres.
 
-import { type RuneState, balanceKey, getBalance, setBalance } from "./state.ts";
+import {
+	type RuneState,
+	balanceKey,
+	getBalance,
+	iterateBalances,
+	setBalance,
+} from "./state.ts";
 
 /** A per-block undo journal ≥ this deep (D10) — a reorg deeper than this halts ingest (fail closed) rather than raising it. */
 export const UNDO_DEPTH = 12;
@@ -67,10 +73,8 @@ export interface StateSnapshot {
  */
 export function snapshotState(state: RuneState): StateSnapshot {
 	const balances = new Map<string, bigint>();
-	for (const [outpoint, byRune] of state.balances) {
-		for (const [runeId, amount] of byRune) {
-			balances.set(balanceKey(outpoint, runeId), amount);
-		}
+	for (const [outpoint, runeId, amount] of iterateBalances(state)) {
+		balances.set(balanceKey(outpoint, runeId), amount);
 	}
 	const entries = new Map<string, { mints: bigint; burned: bigint }>();
 	for (const [runeId, entry] of state.entries) {
@@ -96,10 +100,8 @@ export function buildUndoPayload(
 	state: RuneState,
 ): UndoPayload {
 	const afterKeys = new Set<string>();
-	for (const [outpoint, byRune] of state.balances) {
-		for (const runeId of byRune.keys()) {
-			afterKeys.add(balanceKey(outpoint, runeId));
-		}
+	for (const [outpoint, runeId] of iterateBalances(state)) {
+		afterKeys.add(balanceKey(outpoint, runeId));
 	}
 
 	const allKeys = new Set<string>([...before.balances.keys(), ...afterKeys]);

@@ -15,7 +15,11 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { runeIdCompare, runeIdFromString } from "../runes/rune_id.ts";
-import type { RuneEvent, RuneState } from "../runes/state.ts";
+import {
+	type RuneEvent,
+	type RuneState,
+	iterateBalances,
+} from "../runes/state.ts";
 
 /** `d_{839999}` — the chain's seed, one block before the Runes activation height (840,000). */
 export const GENESIS_DIGEST = new Uint8Array(32);
@@ -280,10 +284,8 @@ export function canonicalStateDump(state: RuneState): string {
 		runeId: string;
 		amount: bigint;
 	}> = [];
-	for (const [outpoint, byRune] of state.balances) {
-		for (const [runeId, amount] of byRune) {
-			balanceRows.push({ outpoint, runeId, amount });
-		}
+	for (const [outpoint, runeId, amount] of iterateBalances(state)) {
+		balanceRows.push({ outpoint, runeId, amount });
 	}
 	balanceRows.sort((a, b) => {
 		const oa = splitOutpoint(a.outpoint);

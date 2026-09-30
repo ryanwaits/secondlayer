@@ -50,11 +50,22 @@ export type RuneEvent =
 			amount: bigint;
 	  };
 
+/**
+ * One outpoint's live rune balances. Almost every outpoint holds a single
+ * rune, so that case is a bare `[runeId, amount]` tuple; only an outpoint
+ * holding two or more runes pays for a `Map` (runeId -> amount). At 7M
+ * outpoints the per-outpoint `Map` this replaces was the largest structure in
+ * memory.
+ */
+export type OutpointBalances =
+	| [runeId: string, amount: bigint]
+	| Map<string, bigint>;
+
 export interface RuneState {
 	/** Keyed by `RuneId` as `"block:tx"`. */
 	entries: Map<string, RuneEntry>;
-	/** Outer key: outpoint `"txid:vout"`. Inner key: `RuneId` as `"block:tx"`. */
-	balances: Map<string, Map<string, bigint>>;
+	/** Outpoint `"txid:vout"` -> the runes it holds. See `OutpointBalances`; read and write through the helpers below, never by shape. */
+	balances: Map<string, OutpointBalances>;
 	/**
 	 * `RuneId` string -> the sum of that rune's live balances across every
 	 * outpoint, kept as a running total by `setBalance` (and seeded by
@@ -113,12 +124,21 @@ export function balanceKey(outpoint: string, runeId: string): string {
 	return `${outpoint}|${runeId}`;
 }
 
+function amountHeld(
+	held: OutpointBalances | undefined,
+	runeId: string,
+): bigint {
+	if (held === undefined) return 0n;
+	if (Array.isArray(held)) return held[0] === runeId ? held[1] : 0n;
+	return held.get(runeId) ?? 0n;
+}
+
 export function getBalance(
 	state: RuneState,
 	outpoint: string,
 	runeId: string,
 ): bigint {
-	return state.balances.get(outpoint)?.get(runeId) ?? 0n;
+	return amountHeld(state.balances.get(outpoint), runeId);
 }
 
 /** Adds `delta` to `runeId`'s running live supply, dropping the entry when it reaches zero. */
@@ -131,6 +151,64 @@ function adjustLiveSupply(
 	const next = (state.liveSupply.get(runeId) ?? 0n) + delta;
 	if (next === 0n) state.liveSupply.delete(runeId);
 	else state.liveSupply.set(runeId, next);
+}
+
+/**
+ * Writes `amount` for `runeId` at `outpoint` into `state.balances` (0
+ * deletes it), promoting a single-rune tuple to a Map when a second rune
+ * arrives and demoting it back when only one is left; an emptied outpoint
+ * also loses its address. Returns the amount it replaced. Insertion order of
+ * a multi-rune outpoint is preserved (`takeOutpointBalances` hands it to the
+ * updater in that order).
+ */
+function writeBalance(
+	state: RuneState,
+	outpoint: string,
+	runeId: string,
+	amount: bigint,
+): bigint {
+	const held = state.balances.get(outpoint);
+	const previous = amountHeld(held, runeId);
+
+	if (amount === 0n) {
+		if (held === undefined || previous === 0n) return 0n;
+		if (Array.isArray(held)) {
+			state.balances.delete(outpoint);
+			state.balanceAddresses.delete(outpoint);
+			return previous;
+		}
+		held.delete(runeId);
+		if (held.size === 1) {
+			const [remainingRune, remainingAmount] = held.entries().next().value as [
+				string,
+				bigint,
+			];
+			state.balances.set(outpoint, [remainingRune, remainingAmount]);
+		} else if (held.size === 0) {
+			state.balances.delete(outpoint);
+			state.balanceAddresses.delete(outpoint);
+		}
+		return previous;
+	}
+
+	if (held === undefined) {
+		state.balances.set(outpoint, [runeId, amount]);
+	} else if (Array.isArray(held)) {
+		if (held[0] === runeId) {
+			held[1] = amount;
+		} else {
+			state.balances.set(
+				outpoint,
+				new Map([
+					[held[0], held[1]],
+					[runeId, amount],
+				]),
+			);
+		}
+	} else {
+		held.set(runeId, amount);
+	}
+	return previous;
 }
 
 /**
@@ -148,25 +226,11 @@ export function setBalance(
 	amount: bigint,
 	address?: string,
 ): void {
-	let byOutpoint = state.balances.get(outpoint);
-	const previous = byOutpoint?.get(runeId) ?? 0n;
-
-	if (amount === 0n) {
-		byOutpoint?.delete(runeId);
-		if (byOutpoint?.size === 0) {
-			state.balances.delete(outpoint);
-			state.balanceAddresses.delete(outpoint);
-		}
-	} else {
-		if (!byOutpoint) {
-			byOutpoint = new Map();
-			state.balances.set(outpoint, byOutpoint);
-		}
-		byOutpoint.set(runeId, amount);
-
-		if (address !== undefined) state.balanceAddresses.set(outpoint, address);
-	}
+	const previous = writeBalance(state, outpoint, runeId, amount);
 	adjustLiveSupply(state, runeId, amount - previous);
+	if (amount !== 0n && address !== undefined) {
+		state.balanceAddresses.set(outpoint, address);
+	}
 
 	state.dirtyBalanceKeys.add(balanceKey(outpoint, runeId));
 	state.dirtyRuneIds.add(runeId);
@@ -184,13 +248,7 @@ export function seedBalance(
 	amount: bigint,
 	address: string | null,
 ): void {
-	let byOutpoint = state.balances.get(outpoint);
-	if (!byOutpoint) {
-		byOutpoint = new Map();
-		state.balances.set(outpoint, byOutpoint);
-	}
-	const previous = byOutpoint.get(runeId) ?? 0n;
-	byOutpoint.set(runeId, amount);
+	const previous = writeBalance(state, outpoint, runeId, amount);
 	adjustLiveSupply(state, runeId, amount - previous);
 	if (address !== null) state.balanceAddresses.set(outpoint, address);
 }
@@ -201,13 +259,26 @@ export function takeOutpointBalances(
 	outpoint: string,
 ): Map<string, bigint> {
 	const held = state.balances.get(outpoint);
-	if (!held || held.size === 0) return new Map();
+	if (held === undefined) return new Map();
 
-	const snapshot = new Map(held);
+	const snapshot = Array.isArray(held) ? new Map([held]) : new Map(held);
 	for (const runeId of snapshot.keys()) {
 		setBalance(state, outpoint, runeId, 0n);
 	}
 	return snapshot;
+}
+
+/** Every live `(outpoint, runeId, amount)` in `state.balances`, in insertion order. */
+export function* iterateBalances(
+	state: RuneState,
+): Generator<[outpoint: string, runeId: string, amount: bigint]> {
+	for (const [outpoint, held] of state.balances) {
+		if (Array.isArray(held)) {
+			yield [outpoint, held[0], held[1]];
+		} else {
+			for (const [runeId, amount] of held) yield [outpoint, runeId, amount];
+		}
+	}
 }
 
 /** Sum of every live balance of `runeId` across all outpoints — the invariant's `sum(balances)` term. */

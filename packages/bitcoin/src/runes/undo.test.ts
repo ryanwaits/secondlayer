@@ -8,7 +8,12 @@ import { describe, expect, test } from "bun:test";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { computeStateHash } from "../integrity/digest.ts";
 import type { RuneEntry } from "./entry.ts";
-import { type RuneState, createRuneState, setBalance } from "./state.ts";
+import {
+	type RuneState,
+	createRuneState,
+	getBalance,
+	setBalance,
+} from "./state.ts";
 import {
 	applyUndoPayload,
 	buildUndoPayload,
@@ -62,7 +67,7 @@ describe("buildUndoPayload + applyUndoPayload", () => {
 		applyUndoPayload(state, payload);
 
 		expect(stateHash(state)).toBe(afterHash);
-		expect(state.balances.get(outpoint)?.get("840000:0")).toBe(100n);
+		expect(getBalance(state, outpoint, "840000:0")).toBe(100n);
 		expect(state.balances.has(newOutpoint)).toBe(false);
 		expect(state.balanceAddresses.get(outpoint)).toBe(ADDRESS);
 	});

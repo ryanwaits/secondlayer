@@ -1,6 +1,6 @@
 import { type RuneEntry, runeEntrySupply } from "../runes/entry.ts";
 import { spacedRuneToString } from "../runes/spaced_rune.ts";
-import type { RuneState } from "../runes/state.ts";
+import { type RuneState, iterateBalances } from "../runes/state.ts";
 // Step 7 (plan 037): diffs OUR state (rune_entries + rune_balances) against
 // ord's `runes` / `balances` CLI JSON at a frozen height. Field names below
 // are copied from a live capture against ord 0.29.0 (`ord ... runes`,
@@ -227,10 +227,8 @@ export function runeIdByName(
 /** Normalizes our own `RuneState.balances` into the same shape. */
 export function normalizeOurBalances(state: RuneState): NormalizedBalanceRow[] {
 	const out: NormalizedBalanceRow[] = [];
-	for (const [outpoint, byRune] of state.balances) {
-		for (const [runeId, amount] of byRune) {
-			out.push({ outpoint, runeId, amount: amount.toString() });
-		}
+	for (const [outpoint, runeId, amount] of iterateBalances(state)) {
+		out.push({ outpoint, runeId, amount: amount.toString() });
 	}
 	return out;
 }
