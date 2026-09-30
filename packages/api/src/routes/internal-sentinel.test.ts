@@ -65,9 +65,11 @@ type StripeCall = {
 function stubStripe(calls: StripeCall[] = []): StripeClient {
 	return {
 		customers: {
-			create: async () => ({ id: "cus_stub" }) as unknown as Stripe.Customer,
-			retrieve: async () =>
-				({ id: "cus_stub", deleted: false }) as unknown as Stripe.Customer,
+			// A fresh id per customer: accounts.stripe_customer_id is unique.
+			create: async () =>
+				({ id: `cus_${randomUUID()}` }) as unknown as Stripe.Customer,
+			retrieve: async (id: string) =>
+				({ id, deleted: false }) as unknown as Stripe.Customer,
 		},
 		checkout: {
 			sessions: {
@@ -535,10 +537,18 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			});
 			expect(res.status).toBe(400);
 		}
-		expect(
-			(await post(a, "/checkout", { accountId, packUsd: 7, returnPath: "/ok" }))
-				.status,
-		).toBe(400);
+		for (const bad of [
+			{ amountUsd: 4 },
+			{ amountUsd: 1001 },
+			{ amountUsd: 12.5 },
+			{ amountUsd: "20" },
+			{},
+		]) {
+			expect(
+				(await post(a, "/checkout", { accountId, returnPath: "/ok", ...bad }))
+					.status,
+			).toBe(400);
+		}
 		expect(calls).toHaveLength(0);
 	});
 
@@ -565,6 +575,25 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 				amount: 2500,
 			},
 		]);
+	});
+
+	test("checkout takes a custom whole-dollar amount, and the older packUsd name", async () => {
+		const accountId = await makeAccount(`co-${randomUUID()}@example.com`);
+		const calls: StripeCall[] = [];
+		const a = app(() => stubStripe(calls));
+		for (const body of [
+			{ amountUsd: 7 },
+			{ amountUsd: 1000 },
+			{ packUsd: 10 },
+		]) {
+			const res = await post(a, "/checkout", {
+				accountId,
+				returnPath: "/app",
+				...body,
+			});
+			expect(res.status).toBe(200);
+		}
+		expect(calls.map((c) => c.amount)).toEqual([700, 100_000, 1000]);
 	});
 
 	test("checkout: Stripe not configured → 503", async () => {

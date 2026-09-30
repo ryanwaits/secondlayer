@@ -56,6 +56,19 @@ export function isCreditPack(n: number): n is CreditPackUsd {
 	return (CREDIT_PACKS_USD as readonly number[]).includes(n);
 }
 
+/** A Sentinel top-up: any whole-dollar amount in this range (the packs are inside it). Below $5 the
+ *  card fee takes too large a share. */
+export const SENTINEL_TOPUP_MIN_USD = 5;
+export const SENTINEL_TOPUP_MAX_USD = 1000;
+export function isSentinelTopupUsd(n: unknown): n is number {
+	return (
+		typeof n === "number" &&
+		Number.isInteger(n) &&
+		n >= SENTINEL_TOPUP_MIN_USD &&
+		n <= SENTINEL_TOPUP_MAX_USD
+	);
+}
+
 /**
  * Validate an auto-refill request: `belowUsd: null` turns it off, otherwise
  * `belowUsd >= 1` and `packUsd` one of the credit packs (default 25). Shared
@@ -191,7 +204,8 @@ export async function createCreditsCheckoutSession(opts: {
 	stripe: StripeClient;
 	db: ReturnType<typeof getDb>;
 	account: AccountRow;
-	usd: CreditPackUsd;
+	/** Whole dollars, already validated by the caller (a pack, or a Sentinel top-up amount). */
+	usd: number;
 	successUrl: string;
 	cancelUrl: string;
 }): Promise<string | null> {

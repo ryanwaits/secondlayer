@@ -54,10 +54,12 @@ import { Hono } from "hono";
 import { getStripeOrNull } from "../lib/stripe.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import {
+	SENTINEL_TOPUP_MAX_USD,
+	SENTINEL_TOPUP_MIN_USD,
 	type StripeClient,
 	applyMonthlyCap,
 	createCreditsCheckoutSession,
-	isCreditPack,
+	isSentinelTopupUsd,
 	parseRefillInput,
 } from "./billing.ts";
 import { bearerToken, sentinelServiceKeyMatches } from "./internal-meters.ts";
@@ -429,9 +431,12 @@ export function createInternalSentinelRouter(
 	app.post("/checkout", async (c) => {
 		const body = await readBody(c.req);
 		const accountId = requireString(body, "accountId");
-		const packUsd = body.packUsd;
-		if (typeof packUsd !== "number" || !isCreditPack(packUsd)) {
-			throw new ValidationError("packUsd must be one of 10, 25, 50, 100");
+		// `amountUsd`: any whole-dollar top-up in range; `packUsd` is the older name for the same field.
+		const usd = body.amountUsd ?? body.packUsd;
+		if (!isSentinelTopupUsd(usd)) {
+			throw new ValidationError(
+				`amountUsd must be a whole number from ${SENTINEL_TOPUP_MIN_USD} to ${SENTINEL_TOPUP_MAX_USD}`,
+			);
 		}
 		const successUrl = buildReturnUrl(body.returnPath, "success");
 		const cancelUrl = buildReturnUrl(body.returnPath, "cancelled");
@@ -442,7 +447,7 @@ export function createInternalSentinelRouter(
 			stripe,
 			db: getDb(),
 			account,
-			usd: packUsd,
+			usd,
 			successUrl,
 			cancelUrl,
 		});
