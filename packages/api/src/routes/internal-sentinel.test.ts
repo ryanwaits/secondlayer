@@ -261,6 +261,7 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			accountId: string;
 			created: boolean;
 			hadAccount: boolean;
+			linked: boolean;
 		};
 		expect(a.created).toBe(true);
 		expect(a.hadAccount).toBe(false);
