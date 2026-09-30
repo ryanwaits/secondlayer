@@ -293,3 +293,72 @@ export async function repairEntries(
 		ms: performance.now() - start,
 	};
 }
+
+/** The one RPC shape `repairBlockTimes` needs: a block's header time (unix seconds) by hash. */
+export interface BlockTimeFetcher {
+	getBlockTime(hash: string): Promise<number>;
+}
+
+export interface RepairBlockTimesOptions {
+	concurrency?: number;
+	/** Rows resolved and written per round; progress is logged once per batch. */
+	batchSize?: number;
+	onProgress?: (filled: number) => void;
+}
+
+export interface RepairBlockTimesStats {
+	rowsFilled: number;
+	ms: number;
+}
+
+/**
+ * Fills `btc_blocks.time` (migration 0006) for rows written before the column
+ * existed, from each block's header. Works in height order in batches:
+ * select the next `batchSize` rows where `time IS NULL`, fetch at bounded
+ * concurrency, write the batch back in one `unnest` update. Idempotent: a
+ * filled row never matches again, so a second run fetches nothing, and an
+ * interrupted run resumes where it stopped. Safe alongside `follow` (new
+ * rows already carry `time`).
+ */
+export async function repairBlockTimes(
+	db: Kysely<Database>,
+	fetcher: BlockTimeFetcher,
+	options: RepairBlockTimesOptions = {},
+): Promise<RepairBlockTimesStats> {
+	const { concurrency = 8, batchSize = 10_000, onProgress } = options;
+	const start = performance.now();
+	let rowsFilled = 0;
+
+	for (;;) {
+		const rows = await db
+			.selectFrom("btc_blocks")
+			.select(["height", "hash"])
+			.where("time", "is", null)
+			.orderBy("height")
+			.limit(batchSize)
+			.execute();
+		if (rows.length === 0) break;
+
+		const times = new Map<number, number>();
+		await runPool(rows, concurrency, async (row) => {
+			times.set(row.height, await fetcher.getBlockTime(row.hash));
+		});
+
+		for (const part of chunk(rows, REPAIR_UPDATE_CHUNK_SIZE)) {
+			await sql`
+				update btc_blocks b
+				set time = d.time
+				from unnest(
+					${sql.val(part.map((r) => r.height))}::int[],
+					${sql.val(part.map((r) => times.get(r.height) as number))}::int[]
+				) as d(height, time)
+				where b.height = d.height and b.time is null
+			`.execute(db);
+		}
+
+		rowsFilled += rows.length;
+		onProgress?.(rowsFilled);
+	}
+
+	return { rowsFilled, ms: performance.now() - start };
+}

@@ -236,6 +236,7 @@ class FakeChain implements BitcoinRpcClient {
 			height: block.height,
 			previousblockhash:
 				block.prevHash === GENESIS_ANCHOR_HASH ? undefined : block.prevHash,
+			time: 1_700_000_000 + block.height,
 		};
 	}
 	getrawtransaction: BitcoinRpcClient["getrawtransaction"] = (() => {

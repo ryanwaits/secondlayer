@@ -1,14 +1,18 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 // Plan 040 step 2: `cli.ts repair-entries` backfills `symbol_codepoint`/
 // `has_terms` on rows written before migration 0003. These tests exercise
 // `resolveRepairForRow`/`repairRows` against a stub RPC returning real raw
 // tx hex (built by hand below, the same wire format `getrawtransaction
 // <txid> false` returns) — no live bitcoind, no Postgres.
 import { bytesToHex } from "@noble/hashes/utils.js";
+import { sql } from "kysely";
+import { migrateToLatest } from "./db/migrate.ts";
+import { openStore } from "./db/store.ts";
 import {
 	type EtchingTxFetcher,
 	RepairDisagreementError,
 	type RepairSourceRow,
+	repairBlockTimes,
 	repairRows,
 	resolveRepairForRow,
 } from "./repair.ts";
@@ -317,5 +321,85 @@ describe("repairRows idempotency", () => {
 		const second = await repairRows([], fetcher);
 		expect(second.rpcCalls).toBe(0);
 		expect(calls).toHaveLength(1); // unchanged
+	});
+});
+
+const testUrl = process.env.BITCOIN_TEST_DATABASE_URL;
+
+describe.skipIf(!testUrl)("repairBlockTimes", () => {
+	// biome-ignore lint/style/noNonNullAssertion: describe.skipIf(!testUrl) guards this whole block
+	const db = openStore(testUrl!);
+
+	beforeEach(async () => {
+		process.env.BITCOIN_DATABASE_URL = testUrl;
+		await migrateToLatest();
+		await sql`truncate table btc_blocks`.execute(db);
+	});
+
+	afterAll(async () => {
+		await db.destroy();
+	});
+
+	function fakeFetcher() {
+		const calls: string[] = [];
+		return {
+			calls,
+			fetcher: {
+				getBlockTime: async (hash: string) => {
+					calls.push(hash);
+					return 1_700_000_000 + Number.parseInt(hash.slice(0, 4), 16);
+				},
+			},
+		};
+	}
+
+	test("fills null times across several batches and leaves filled rows alone", async () => {
+		const hash = (n: number) => n.toString(16).padStart(4, "0").padEnd(64, "0");
+		await db
+			.insertInto("btc_blocks")
+			.values([
+				{ height: 1, hash: hash(1), time: null },
+				{ height: 2, hash: hash(2), time: 42 },
+				{ height: 3, hash: hash(3), time: null },
+				{ height: 4, hash: hash(4), time: null },
+			])
+			.execute();
+		const { fetcher, calls } = fakeFetcher();
+		const progress: number[] = [];
+
+		const stats = await repairBlockTimes(db, fetcher, {
+			batchSize: 2,
+			onProgress: (filled) => progress.push(filled),
+		});
+
+		expect(stats.rowsFilled).toBe(3);
+		expect(progress).toEqual([2, 3]);
+		expect(calls).not.toContain(hash(2));
+		const rows = await db
+			.selectFrom("btc_blocks")
+			.select(["height", "time"])
+			.orderBy("height")
+			.execute();
+		expect(rows).toEqual([
+			{ height: 1, time: 1_700_000_001 },
+			{ height: 2, time: 42 },
+			{ height: 3, time: 1_700_000_003 },
+			{ height: 4, time: 1_700_000_004 },
+		]);
+	});
+
+	test("a second run fetches nothing", async () => {
+		await db
+			.insertInto("btc_blocks")
+			.values([{ height: 1, hash: "1".repeat(64), time: null }])
+			.execute();
+		const { fetcher, calls } = fakeFetcher();
+
+		await repairBlockTimes(db, fetcher);
+		expect(calls).toHaveLength(1);
+
+		const second = await repairBlockTimes(db, fetcher);
+		expect(second.rowsFilled).toBe(0);
+		expect(calls).toHaveLength(1);
 	});
 });

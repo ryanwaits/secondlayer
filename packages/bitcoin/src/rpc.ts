@@ -104,6 +104,8 @@ export interface BlockHeader {
 	hash: string;
 	height: number;
 	previousblockhash?: string;
+	/** Header time, unix seconds. */
+	time: number;
 }
 
 export interface BitcoinRpcClient {

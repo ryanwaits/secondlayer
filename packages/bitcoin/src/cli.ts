@@ -2,7 +2,7 @@
 // `migrate | backfill --to <H> | follow [--until <H>] |
 // parity-decode --blocks <list|range> |
 // parity-state --height <H> --ord-runes <file> --ord-balances <file> |
-// parity-spot | repair-entries | digests --from <A> --to <B> | state-hash`.
+// parity-spot | repair-entries | repair-block-times | digests --from <A> --to <B> | state-hash`.
 //
 // `follow` wakes on bitcoind's own `waitfornewblock` RPC (plan 070, D12
 // amended 2026-09-26) over the existing BITCOIN_RPC_*/BITCOIN_DATABASE_URL
@@ -28,7 +28,7 @@ import {
 	normalizeOurEntries,
 	runeIdByName,
 } from "./parity/state.ts";
-import { repairEntries } from "./repair.ts";
+import { repairBlockTimes, repairEntries } from "./repair.ts";
 import { RpcWaitNotifier } from "./rpc-wait-notifier.ts";
 import { bitcoinRpcClientFromEnv } from "./rpc.ts";
 import { Network } from "./runes/rune.ts";
@@ -319,6 +319,25 @@ async function cmdRepairEntries(): Promise<void> {
 	);
 }
 
+async function cmdRepairBlockTimes(): Promise<void> {
+	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
+	const rpc = bitcoinRpcClientFromEnv();
+
+	const stats = await repairBlockTimes(
+		db,
+		{ getBlockTime: async (hash) => (await rpc.getblockheader(hash)).time },
+		{
+			onProgress: (filled) =>
+				console.log(`repair-block-times: filled=${filled}`),
+		},
+	);
+	await closeStore(db);
+
+	console.log(
+		`repair-block-times: filled=${stats.rowsFilled} ms=${stats.ms.toFixed(0)}`,
+	);
+}
+
 async function cmdDigests(args: string[]): Promise<void> {
 	const fromStr = parseFlag(args, "--from");
 	const toStr = parseFlag(args, "--to");
@@ -482,13 +501,15 @@ async function main(): Promise<void> {
 			return cmdParitySpot();
 		case "repair-entries":
 			return cmdRepairEntries();
+		case "repair-block-times":
+			return cmdRepairBlockTimes();
 		case "digests":
 			return cmdDigests(args);
 		case "state-hash":
 			return cmdStateHash();
 		default:
 			console.error(
-				"usage: cli.ts migrate | backfill --to <H> | follow [--until <H>] | parity-decode --blocks <list|range> | parity-state --height <H> --ord-runes <file> --ord-balances <file> | parity-spot | repair-entries | digests --from <A> --to <B> | state-hash",
+				"usage: cli.ts migrate | backfill --to <H> | follow [--until <H>] | parity-decode --blocks <list|range> | parity-state --height <H> --ord-runes <file> --ord-balances <file> | parity-spot | repair-entries | repair-block-times | digests --from <A> --to <B> | state-hash",
 			);
 			process.exit(1);
 	}
