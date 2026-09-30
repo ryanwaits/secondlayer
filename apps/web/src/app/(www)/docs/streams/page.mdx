@@ -78,7 +78,7 @@ Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_ty
 curl "http://127.0.0.1:3800/v1/streams/events?chain=bitcoin&rune=840000:3"
 ```
 
-The tip and canonical block drop the burn-chain fields Stacks carries, since Bitcoin has no burn chain of its own. Events carry no block time; Runes ingest has none to give yet. The rune catalog, per-rune activity feed, and balances live on [Index](/docs/runes); this is the raw event log underneath them.
+The tip and canonical block drop the burn-chain fields Stacks carries, since Bitcoin has no burn chain of its own. Events carry `ts`, the block's time. The rune catalog, per-rune activity feed, and balances live on [Index](/docs/runes); this is the raw event log underneath them.
 
 ### Two concerns, one loop
 

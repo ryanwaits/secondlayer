@@ -81,7 +81,7 @@ The same data, undecoded and per-transaction, is on Streams with `chain=bitcoin`
 curl "http://127.0.0.1:3800/v1/streams/events?chain=bitcoin&rune=840000:3"
 ```
 
-Its own cursor space: a bitcoin cursor only resumes with `chain=bitcoin` set again. Events carry no block time; Runes ingest has none to give yet. Filters, tip, and canonical-block shapes: [Streams](/docs/streams#bitcoin-events-runes).
+Its own cursor space: a bitcoin cursor only resumes with `chain=bitcoin` set again. Events carry `ts`, the block's time. Filters, tip, and canonical-block shapes: [Streams](/docs/streams#bitcoin-events-runes).
 
 ## Get a webhook on rune activity
 

@@ -679,6 +679,12 @@ export const streamsSchemas = {
 				type: "string",
 				description: "`<block>:<tx>` id of the rune this event touched.",
 			},
+			ts: {
+				type: "string",
+				format: "date-time",
+				description:
+					"The block's time (ISO 8601). Omitted for a block whose time hasn't been recorded yet.",
+			},
 			payload: {
 				type: "object",
 				description:
@@ -706,6 +712,7 @@ export const streamsSchemas = {
 			event_index: 0,
 			event_type: "rune_etch",
 			rune_id: "840000:3",
+			ts: "2024-04-20T00:09:27.000Z",
 			payload: {
 				amount: "0",
 				entry: {

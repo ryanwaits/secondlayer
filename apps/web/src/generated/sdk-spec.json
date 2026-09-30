@@ -1338,7 +1338,7 @@
 					"summary": "Superset of the columns the decoded_events table holds.",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 237
+					"line": 241
 				},
 				{
 					"name": "DecodedEventRow",
@@ -1346,7 +1346,7 @@
 					"summary": "Union of every decoded DB-row shape the guard+decode pairs produce — exactly what the `decoded_events` table stores.",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 511
+					"line": 515
 				},
 				{
 					"name": "DecodedFtBurn",
@@ -1354,7 +1354,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 449
+					"line": 453
 				},
 				{
 					"name": "DecodedFtBurnPayload",
@@ -1362,7 +1362,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 442
+					"line": 446
 				},
 				{
 					"name": "DecodedFtMint",
@@ -1370,7 +1370,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 432
+					"line": 436
 				},
 				{
 					"name": "DecodedFtMintPayload",
@@ -1378,7 +1378,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 425
+					"line": 429
 				},
 				{
 					"name": "DecodedFtTransfer",
@@ -1386,7 +1386,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 285
+					"line": 289
 				},
 				{
 					"name": "DecodedFtTransferPayload",
@@ -1394,7 +1394,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 277
+					"line": 281
 				},
 				{
 					"name": "DecodedNftBurn",
@@ -1402,7 +1402,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 483
+					"line": 487
 				},
 				{
 					"name": "DecodedNftBurnPayload",
@@ -1410,7 +1410,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 476
+					"line": 480
 				},
 				{
 					"name": "DecodedNftMint",
@@ -1418,7 +1418,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 466
+					"line": 470
 				},
 				{
 					"name": "DecodedNftMintPayload",
@@ -1426,7 +1426,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 459
+					"line": 463
 				},
 				{
 					"name": "DecodedNftTransfer",
@@ -1434,7 +1434,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 308
+					"line": 312
 				},
 				{
 					"name": "DecodedNftTransferPayload",
@@ -1442,7 +1442,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 300
+					"line": 304
 				},
 				{
 					"name": "DecodedPrint",
@@ -1450,7 +1450,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 334
+					"line": 338
 				},
 				{
 					"name": "DecodedPrintPayload",
@@ -1458,7 +1458,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 330
+					"line": 334
 				},
 				{
 					"name": "DecodedPrintValue",
@@ -1466,7 +1466,7 @@
 					"summary": "Decoded form of a Clarity `print` event: - `topic`: the print topic, when the contract emits a `{ topic, ...",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 325
+					"line": 329
 				},
 				{
 					"name": "DecodedStxBurn",
@@ -1474,7 +1474,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 382
+					"line": 386
 				},
 				{
 					"name": "DecodedStxBurnPayload",
@@ -1482,7 +1482,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 378
+					"line": 382
 				},
 				{
 					"name": "DecodedStxLock",
@@ -1490,7 +1490,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 411
+					"line": 415
 				},
 				{
 					"name": "DecodedStxLockPayload",
@@ -1498,7 +1498,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 404
+					"line": 408
 				},
 				{
 					"name": "DecodedStxMint",
@@ -1506,7 +1506,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 368
+					"line": 372
 				},
 				{
 					"name": "DecodedStxMintPayload",
@@ -1514,7 +1514,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 364
+					"line": 368
 				},
 				{
 					"name": "DecodedStxTransfer",
@@ -1522,7 +1522,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 354
+					"line": 358
 				},
 				{
 					"name": "DecodedStxTransferPayload",
@@ -1530,7 +1530,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 348
+					"line": 352
 				},
 				{
 					"name": "decodeFtBurn",
@@ -1538,7 +1538,7 @@
 					"summary": "",
 					"signature": "decodeFtBurn(event: StreamsEvent): DecodedFtBurn",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 500
+					"line": 504
 				},
 				{
 					"name": "decodeFtMint",
@@ -1546,7 +1546,7 @@
 					"summary": "",
 					"signature": "decodeFtMint(event: StreamsEvent): DecodedFtMint",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 496
+					"line": 500
 				},
 				{
 					"name": "decodeFtTransfer",
@@ -1554,7 +1554,7 @@
 					"summary": "",
 					"signature": "decodeFtTransfer(event: StreamsEvent): DecodedFtTransfer",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 296
+					"line": 300
 				},
 				{
 					"name": "decodeNftBurn",
@@ -1562,7 +1562,7 @@
 					"summary": "",
 					"signature": "decodeNftBurn(event: StreamsEvent): DecodedNftBurn",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 508
+					"line": 512
 				},
 				{
 					"name": "decodeNftMint",
@@ -1570,7 +1570,7 @@
 					"summary": "",
 					"signature": "decodeNftMint(event: StreamsEvent): DecodedNftMint",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 504
+					"line": 508
 				},
 				{
 					"name": "decodeNftTransfer",
@@ -1578,7 +1578,7 @@
 					"summary": "",
 					"signature": "decodeNftTransfer(event: StreamsEvent): DecodedNftTransfer",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 319
+					"line": 323
 				},
 				{
 					"name": "decodePrint",
@@ -1586,7 +1586,7 @@
 					"summary": "",
 					"signature": "decodePrint(event: StreamsEvent): DecodedPrint",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 347
+					"line": 351
 				},
 				{
 					"name": "decodeStxBurn",
@@ -1594,7 +1594,7 @@
 					"summary": "",
 					"signature": "decodeStxBurn(event: StreamsEvent): DecodedStxBurn",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 403
+					"line": 407
 				},
 				{
 					"name": "decodeStxLock",
@@ -1602,7 +1602,7 @@
 					"summary": "",
 					"signature": "decodeStxLock(event: StreamsEvent): DecodedStxLock",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 424
+					"line": 428
 				},
 				{
 					"name": "decodeStxMint",
@@ -1610,7 +1610,7 @@
 					"summary": "",
 					"signature": "decodeStxMint(event: StreamsEvent): DecodedStxMint",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 399
+					"line": 403
 				},
 				{
 					"name": "decodeStxTransfer",
@@ -1618,7 +1618,7 @@
 					"summary": "",
 					"signature": "decodeStxTransfer(event: StreamsEvent): DecodedStxTransfer",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 395
+					"line": 399
 				},
 				{
 					"name": "FetchLike",
@@ -1634,7 +1634,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 274
+					"line": 278
 				},
 				{
 					"name": "FtTransferPayload",
@@ -1650,7 +1650,7 @@
 					"summary": "",
 					"signature": "isFtBurn(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 497
+					"line": 501
 				},
 				{
 					"name": "isFtMint",
@@ -1658,7 +1658,7 @@
 					"summary": "",
 					"signature": "isFtMint(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 493
+					"line": 497
 				},
 				{
 					"name": "isFtTransfer",
@@ -1666,7 +1666,7 @@
 					"summary": "",
 					"signature": "isFtTransfer(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 295
+					"line": 299
 				},
 				{
 					"name": "isNftBurn",
@@ -1674,7 +1674,7 @@
 					"summary": "",
 					"signature": "isNftBurn(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 505
+					"line": 509
 				},
 				{
 					"name": "isNftMint",
@@ -1682,7 +1682,7 @@
 					"summary": "",
 					"signature": "isNftMint(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 501
+					"line": 505
 				},
 				{
 					"name": "isNftTransfer",
@@ -1690,7 +1690,7 @@
 					"summary": "",
 					"signature": "isNftTransfer(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 318
+					"line": 322
 				},
 				{
 					"name": "isPrint",
@@ -1698,7 +1698,7 @@
 					"summary": "",
 					"signature": "isPrint(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 344
+					"line": 348
 				},
 				{
 					"name": "isStxBurn",
@@ -1706,7 +1706,7 @@
 					"summary": "",
 					"signature": "isStxBurn(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 400
+					"line": 404
 				},
 				{
 					"name": "isStxLock",
@@ -1714,7 +1714,7 @@
 					"summary": "",
 					"signature": "isStxLock(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 421
+					"line": 425
 				},
 				{
 					"name": "isStxMint",
@@ -1722,7 +1722,7 @@
 					"summary": "",
 					"signature": "isStxMint(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 396
+					"line": 400
 				},
 				{
 					"name": "isStxTransfer",
@@ -1730,7 +1730,7 @@
 					"summary": "",
 					"signature": "isStxTransfer(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 392
+					"line": 396
 				},
 				{
 					"name": "NftTransferEvent",
@@ -1738,7 +1738,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 297
+					"line": 301
 				},
 				{
 					"name": "NftTransferPayload",
@@ -2082,7 +2082,7 @@
 					"summary": "Anything `GET /v1/streams/events` can return: Streams 1.0 rows on the classic clock, vm rows on `clock=vm`, or Runes rows on `chain=bitcoin`.",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 233
+					"line": 237
 				},
 				{
 					"name": "toJsonSafe",

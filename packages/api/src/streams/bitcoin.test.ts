@@ -1,9 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import type { Database as BitcoinDatabase } from "@secondlayer/bitcoin/db";
+import { Kysely, sql } from "kysely";
+import { PostgresJSDialect } from "kysely-postgres-js";
+import postgres from "postgres";
 import {
 	type StreamsBitcoinEventsReader,
 	type StreamsBitcoinTip,
 	getStreamsBitcoinEventsResponse,
 	parseStreamsBitcoinEventsQuery,
+	readStreamsBitcoinEvents,
 } from "./bitcoin.ts";
 
 const TIP: StreamsBitcoinTip = {
@@ -195,5 +200,60 @@ describe("getStreamsBitcoinEventsResponse", () => {
 			to: { block_height: 840_090, event_index: 0 },
 		});
 		expect(body.reorgs.map((r) => r.id)).toEqual(["1"]);
+	});
+});
+
+// DB-backed: needs a scratch database already migrated with the bitcoin
+// package's migrations (recipe in ../index/runes.test.ts).
+const testUrl = process.env.BITCOIN_TEST_DATABASE_URL;
+
+describe.skipIf(!testUrl)("readStreamsBitcoinEvents block time", () => {
+	const client = postgres(testUrl ?? "postgres://x/x", { max: 2 });
+	const db = new Kysely<BitcoinDatabase>({
+		dialect: new PostgresJSDialect({ postgres: client }),
+	});
+
+	beforeEach(async () => {
+		await sql`truncate table rune_events, btc_blocks`.execute(db);
+	});
+
+	afterAll(async () => {
+		await db.destroy();
+	});
+
+	test("ts is the block's header time as ISO 8601, and omitted when the block has none", async () => {
+		await db
+			.insertInto("btc_blocks")
+			.values([
+				{ height: 840_000, hash: "a".repeat(64), time: 1_713_571_767 },
+				{ height: 840_001, hash: "b".repeat(64), time: null },
+			])
+			.execute();
+		const event = (height: number) => ({
+			height,
+			tx_index: 0,
+			txid: "c".repeat(64),
+			kind: "mint" as const,
+			rune_id: "840000:3",
+			amount: "1",
+			vout: null,
+			event_index: 0,
+			address: null,
+		});
+		await db
+			.insertInto("rune_events")
+			.values([event(840_000), event(840_001)])
+			.execute();
+
+		const { events } = await readStreamsBitcoinEvents({
+			fromHeight: 0,
+			toHeight: 900_000,
+			limit: 10,
+			db,
+		});
+
+		expect(events).toHaveLength(2);
+		expect(events[0]?.ts).toBe("2024-04-20T00:09:27.000Z");
+		expect(events[1]).not.toHaveProperty("ts");
 	});
 });

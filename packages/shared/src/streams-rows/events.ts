@@ -261,6 +261,10 @@ export type RuneStreamsEvent = {
 	event_type: RuneEventType;
 	rune_id: string;
 	payload: RuneEventPayload;
+	/** The event's block time, ISO 8601. Absent when the indexer has no header
+	 *  time for that block yet (rows written before block times were recorded,
+	 *  until backfilled). */
+	ts?: string;
 	/** True when this event's block is past the finality boundary (immutable).
 	 *  Optional for back-compat with the same reasoning as `StreamsEventBase`. */
 	finalized?: boolean;

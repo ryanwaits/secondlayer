@@ -279,6 +279,8 @@ export function parseStreamsBitcoinEventsQuery(
 type RuneStreamsEventDbRow = {
 	block_height: string | number;
 	block_hash: string;
+	/** Block header time, unix seconds; null until `repair-block-times` fills a pre-0006 row. */
+	time: number | null;
 	tx_index: string | number;
 	txid: string;
 	event_index: string | number;
@@ -346,12 +348,16 @@ function normalizeRuneStreamsEvent(
 		event_type: RUNE_EVENT_TYPE_DB_TO_WIRE[row.kind],
 		rune_id: row.rune_id,
 		payload,
+		...(row.time !== null && {
+			ts: new Date(row.time * 1000).toISOString(),
+		}),
 	};
 }
 
 const RUNE_STREAMS_EVENT_COLUMNS = sql`
 	e.height AS block_height,
 	bb.hash AS block_hash,
+	bb.time,
 	e.tx_index,
 	e.txid,
 	e.event_index,
