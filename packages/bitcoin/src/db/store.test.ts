@@ -163,8 +163,8 @@ describe("flush's undoRecorder guard", () => {
 				{} as Kysely<Database>,
 				state,
 				[
-					{ height: 840_000, hash: "a".repeat(64) },
-					{ height: 840_001, hash: "b".repeat(64) },
+					{ height: 840_000, hash: "a".repeat(64), time: 1 },
+					{ height: 840_001, hash: "b".repeat(64), time: 2 },
 				],
 				() => {},
 				{ undoRecorder: before },

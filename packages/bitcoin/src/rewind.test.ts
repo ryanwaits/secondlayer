@@ -66,7 +66,13 @@ async function applyAndFlushBlock(
 	await flush(
 		db,
 		state,
-		[{ height, hash: `${height.toString(16).padStart(63, "0")}f` }],
+		[
+			{
+				height,
+				hash: `${height.toString(16).padStart(63, "0")}f`,
+				time: 1_700_000_000,
+			},
+		],
 		checkInvariant,
 		{ undoRecorder: before },
 	);
@@ -198,7 +204,7 @@ describe.skipIf(!testUrl)("rewindTo", () => {
 		await flush(
 			db,
 			state,
-			[{ height: 840_001, hash: "f".repeat(64) }],
+			[{ height: 840_001, hash: "f".repeat(64), time: 1_700_000_000 }],
 			checkInvariant,
 			{ undoRecorder: before },
 		);

@@ -389,6 +389,24 @@ describe.skipIf(!testUrl)("follow", () => {
 		expect(second.blocksApplied).toBe(1);
 	});
 
+	test("syncOnce records each block's header time in btc_blocks", async () => {
+		const chain = new FakeChain();
+		const h0 = chain.mine(GENESIS_HEIGHT, GENESIS_ANCHOR_HASH);
+		chain.mine(GENESIS_HEIGHT + 1, h0);
+
+		await syncOnce({ db, rpc: chain });
+
+		const rows = await db
+			.selectFrom("btc_blocks")
+			.select(["height", "time"])
+			.orderBy("height")
+			.execute();
+		expect(rows).toEqual([
+			{ height: GENESIS_HEIGHT, time: 1_700_000_000 + GENESIS_HEIGHT },
+			{ height: GENESIS_HEIGHT + 1, time: 1_700_000_000 + GENESIS_HEIGHT + 1 },
+		]);
+	});
+
 	test("runFollow loads the balances once across passes and again only after a reorg rewinds", async () => {
 		const balanceLoads: string[] = [];
 		const countingDb = new Kysely<Database>({

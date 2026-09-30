@@ -10,7 +10,12 @@ import {
 	dropReadIndexes,
 	ensureReadIndexes,
 } from "./db/read-indexes.ts";
-import { type FlushStats, flush, loadState } from "./db/store.ts";
+import {
+	type FlushBlock,
+	type FlushStats,
+	flush,
+	loadState,
+} from "./db/store.ts";
 import type { Database } from "./db/types.ts";
 import { verifyBlockIntegrity } from "./integrity/merkle.ts";
 import type {
@@ -378,7 +383,7 @@ export async function runBackfill(
 	}
 
 	let previousHash = state.height === undefined ? undefined : state.hash;
-	let pendingBlocks: Array<{ height: number; hash: string }> = [];
+	let pendingBlocks: FlushBlock[] = [];
 	let sinceFlush = 0;
 	let windowStart = performance.now();
 	let timers = createFlushPhaseTimers();
@@ -416,7 +421,7 @@ export async function runBackfill(
 		applyBlockBurns(state, blockBurned);
 
 		previousHash = block.hash;
-		pendingBlocks.push({ height, hash: block.hash });
+		pendingBlocks.push({ height, hash: block.hash, time: block.time });
 		sinceFlush += 1;
 
 		const isFinal = height === options.toHeight;

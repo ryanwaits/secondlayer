@@ -192,7 +192,7 @@ async function applyOneBlock(
 		return await flush(
 			deps.db,
 			state,
-			[{ height, hash: block.hash }],
+			[{ height, hash: block.hash, time: block.time }],
 			checkInvariant,
 			{ undoRecorder: recorder },
 		);

@@ -64,6 +64,8 @@ export interface RuneEventsTable {
 export interface BtcBlocksTable {
 	height: number;
 	hash: string;
+	/** Block header time, unix seconds. Null on rows written before migration 0006 until `repair-block-times` fills it. */
+	time: number | null;
 }
 
 export interface RunesCheckpointTable {

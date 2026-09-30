@@ -383,6 +383,13 @@ export interface FlushOptions {
 	undoRecorder?: UndoRecorder;
 }
 
+/** One applied block as `flush` records it in `btc_blocks`; `time` is the header's unix seconds. */
+export interface FlushBlock {
+	height: number;
+	hash: string;
+	time: number;
+}
+
 /**
  * Flushes dirty entries/balances/events plus the block range's `btc_blocks`
  * rows and the checkpoint, in one transaction. Runs the supply invariant
@@ -393,7 +400,7 @@ export interface FlushOptions {
 export async function flush(
 	db: Kysely<Database>,
 	state: RuneState,
-	blocks: Array<{ height: number; hash: string }>,
+	blocks: FlushBlock[],
 	checkInvariant: (state: RuneState, runeIds: Iterable<string>) => void,
 	options?: FlushOptions,
 ): Promise<FlushStats> {
@@ -403,7 +410,7 @@ export async function flush(
 	if (options?.undoRecorder !== undefined && blocks.length !== 1) {
 		throw new Error("flush: undoRecorder requires exactly one block per flush");
 	}
-	const last = blocks[blocks.length - 1] as { height: number; hash: string };
+	const last = blocks[blocks.length - 1] as FlushBlock;
 	const start = performance.now();
 
 	const { toUpsert, toDelete } = computeBalanceChanges(state);
@@ -510,7 +517,9 @@ export async function flush(
 		if (blocks.length > 0) {
 			await trx
 				.insertInto("btc_blocks")
-				.values(blocks.map((b) => ({ height: b.height, hash: b.hash })))
+				.values(
+					blocks.map((b) => ({ height: b.height, hash: b.hash, time: b.time })),
+				)
 				.execute();
 		}
 
