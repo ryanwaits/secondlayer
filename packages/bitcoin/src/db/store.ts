@@ -33,6 +33,7 @@ import {
 	balanceKey,
 	createRuneState,
 	getBalance,
+	seedBalance,
 } from "../runes/state.ts";
 import {
 	type StateSnapshot,
@@ -200,22 +201,8 @@ export async function loadState(db: Kysely<Database>): Promise<RuneState> {
 	const balances = await db.selectFrom("rune_balances").selectAll().execute();
 	for (const row of balances) {
 		const outpoint = `${row.txid}:${row.vout}`;
-		let byOutpoint = state.balances.get(outpoint);
-		if (!byOutpoint) {
-			byOutpoint = new Map();
-			state.balances.set(outpoint, byOutpoint);
-		}
-		byOutpoint.set(row.rune_id, n(row.amount));
-
-		let byRune = state.balancesByRune.get(row.rune_id);
-		if (!byRune) {
-			byRune = new Map();
-			state.balancesByRune.set(row.rune_id, byRune);
-		}
-		byRune.set(outpoint, n(row.amount));
-
+		seedBalance(state, outpoint, row.rune_id, n(row.amount), row.address);
 		state.dbBalanceKeys.add(balanceKey(outpoint, row.rune_id));
-		if (row.address !== null) state.balanceAddresses.set(outpoint, row.address);
 	}
 
 	const checkpoint = await db

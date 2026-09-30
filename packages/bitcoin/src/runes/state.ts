@@ -56,14 +56,14 @@ export interface RuneState {
 	/** Outer key: outpoint `"txid:vout"`. Inner key: `RuneId` as `"block:tx"`. */
 	balances: Map<string, Map<string, bigint>>;
 	/**
-	 * Secondary index of `balances`, inverted: `RuneId` string -> outpoint ->
-	 * amount. Not in ord (its `outpoint_to_balances` table is the only balance
-	 * index; ord never needs "every outpoint holding rune X" as a query). Kept
-	 * here so the supply invariant (../runes/invariant.ts) can sum a dirty
-	 * rune's live balance without scanning every outpoint in the state on
-	 * every 1,000-block flush.
+	 * `RuneId` string -> the sum of that rune's live balances across every
+	 * outpoint, kept as a running total by `setBalance` (and seeded by
+	 * `seedBalance` at load). Not in ord. It lets the supply invariant
+	 * (../runes/invariant.ts) read a dirty rune's circulating supply in O(1)
+	 * without scanning every outpoint. A rune with no live balance has no
+	 * entry.
 	 */
-	balancesByRune: Map<string, Map<string, bigint>>;
+	liveSupply: Map<string, bigint>;
 	/** `Rune.n` (decimal string, since bigint isn't a valid Map key across JSON) -> RuneId string. Mirrors ord's `rune_to_id` table; used to reject re-etching. */
 	runeToId: Map<string, string>;
 	statisticRunes: bigint;
@@ -109,7 +109,7 @@ export function createRuneState(): RuneState {
 	return {
 		entries: new Map(),
 		balances: new Map(),
-		balancesByRune: new Map(),
+		liveSupply: new Map(),
 		runeToId: new Map(),
 		statisticRunes: 0n,
 		statisticReservedRunes: 0n,
@@ -134,8 +134,20 @@ export function getBalance(
 	return state.balances.get(outpoint)?.get(runeId) ?? 0n;
 }
 
+/** Adds `delta` to `runeId`'s running live supply, dropping the entry when it reaches zero. */
+function adjustLiveSupply(
+	state: RuneState,
+	runeId: string,
+	delta: bigint,
+): void {
+	if (delta === 0n) return;
+	const next = (state.liveSupply.get(runeId) ?? 0n) + delta;
+	if (next === 0n) state.liveSupply.delete(runeId);
+	else state.liveSupply.set(runeId, next);
+}
+
 /**
- * Sets a balance (0 deletes it), keeping `balances`/`balancesByRune` and the
+ * Sets a balance (0 deletes it), keeping `balances`, `liveSupply` and the
  * dirty sets in sync. `address` (the outpoint's derived mainnet address, see
  * `../address.ts`) is recorded in `balanceAddresses` the first time this
  * outpoint gets a live balance, and cleared once its last balance is spent —
@@ -150,7 +162,7 @@ export function setBalance(
 	address?: string,
 ): void {
 	let byOutpoint = state.balances.get(outpoint);
-	let byRune = state.balancesByRune.get(runeId);
+	const previous = byOutpoint?.get(runeId) ?? 0n;
 
 	if (amount === 0n) {
 		byOutpoint?.delete(runeId);
@@ -158,8 +170,6 @@ export function setBalance(
 			state.balances.delete(outpoint);
 			state.balanceAddresses.delete(outpoint);
 		}
-		byRune?.delete(outpoint);
-		if (byRune?.size === 0) state.balancesByRune.delete(runeId);
 	} else {
 		if (!byOutpoint) {
 			byOutpoint = new Map();
@@ -167,17 +177,35 @@ export function setBalance(
 		}
 		byOutpoint.set(runeId, amount);
 
-		if (!byRune) {
-			byRune = new Map();
-			state.balancesByRune.set(runeId, byRune);
-		}
-		byRune.set(outpoint, amount);
-
 		if (address !== undefined) state.balanceAddresses.set(outpoint, address);
 	}
+	adjustLiveSupply(state, runeId, amount - previous);
 
 	state.dirtyBalanceKeys.add(balanceKey(outpoint, runeId));
 	state.dirtyRuneIds.add(runeId);
+}
+
+/**
+ * Loads one persisted balance row into `state` (`loadState`'s only writer):
+ * like `setBalance` with a live amount, but marks nothing dirty because the
+ * row is already in Postgres.
+ */
+export function seedBalance(
+	state: RuneState,
+	outpoint: string,
+	runeId: string,
+	amount: bigint,
+	address: string | null,
+): void {
+	let byOutpoint = state.balances.get(outpoint);
+	if (!byOutpoint) {
+		byOutpoint = new Map();
+		state.balances.set(outpoint, byOutpoint);
+	}
+	const previous = byOutpoint.get(runeId) ?? 0n;
+	byOutpoint.set(runeId, amount);
+	adjustLiveSupply(state, runeId, amount - previous);
+	if (address !== null) state.balanceAddresses.set(outpoint, address);
 }
 
 /** Removes every rune balance held at `outpoint` (spending it), returning what it held. */
@@ -197,11 +225,7 @@ export function takeOutpointBalances(
 
 /** Sum of every live balance of `runeId` across all outpoints — the invariant's `sum(balances)` term. */
 export function sumRuneBalance(state: RuneState, runeId: string): bigint {
-	let total = 0n;
-	for (const amount of state.balancesByRune.get(runeId)?.values() ?? []) {
-		total += amount;
-	}
-	return total;
+	return state.liveSupply.get(runeId) ?? 0n;
 }
 
 const U128_MAX = (1n << 128n) - 1n;
