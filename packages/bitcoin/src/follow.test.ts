@@ -261,6 +261,10 @@ class FakeNotifier implements BlockNotifier {
 			this.waiters.push(resolve);
 		});
 	}
+	/** True while a follower is parked on `notified()`. */
+	get waiting(): boolean {
+		return this.waiters.length > 0;
+	}
 	fire(): void {
 		const waiters = this.waiters;
 		this.waiters = [];
@@ -406,17 +410,30 @@ describe.skipIf(!testUrl)("follow", () => {
 			notifier,
 			controller.signal,
 		);
-		const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
+		const until = async (condition: () => boolean | Promise<boolean>) => {
+			const deadline = Date.now() + 10_000;
+			while (!(await condition())) {
+				if (Date.now() > deadline) throw new Error("timed out waiting");
+				await new Promise((resolve) => setTimeout(resolve, 5));
+			}
+		};
+		// A fire only counts while the follower is parked on the notifier, so
+		// wait for the parked state before firing and again for the pass to land.
+		const fireAndReach = async (height: number) => {
+			await until(() => notifier.waiting);
+			notifier.fire();
+			await until(async () => (await loadState(db)).height === height);
+			await until(() => notifier.waiting);
+		};
 
-		await settle();
+		await until(() => notifier.waiting);
+		expect((await loadState(db)).height).toBe(GENESIS_HEIGHT);
 		expect(balanceLoads).toHaveLength(1);
 
 		const a1 = chain.mine(GENESIS_HEIGHT + 1, h0);
-		notifier.fire();
-		await settle();
+		await fireAndReach(GENESIS_HEIGHT + 1);
 		const a2 = chain.mine(GENESIS_HEIGHT + 2, a1);
-		notifier.fire();
-		await settle();
+		await fireAndReach(GENESIS_HEIGHT + 2);
 		expect((await loadState(db)).height).toBe(GENESIS_HEIGHT + 2);
 		expect(balanceLoads).toHaveLength(1); // two more blocks, no reload
 
@@ -427,8 +444,7 @@ describe.skipIf(!testUrl)("follow", () => {
 		chain.mine(GENESIS_HEIGHT + 3, b2);
 		expect(b1).not.toBe(a1);
 		expect(a2).not.toBe(b2);
-		notifier.fire();
-		await settle();
+		await fireAndReach(GENESIS_HEIGHT + 3);
 		expect(reorgs).toHaveLength(1);
 		expect(balanceLoads).toHaveLength(2);
 		expect((await loadState(db)).height).toBe(GENESIS_HEIGHT + 3);
