@@ -350,6 +350,42 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 		expect(await getCredits(db, accountId)).toBe(0n);
 	});
 
+	test("a top-up grant is allowed; Sentinel grants never exceed the cap in total", async () => {
+		const accountId = await makeAccount();
+		const grant = (usdMicros: number, kind: string) =>
+			post(app(), "/accounts/grant", {
+				accountId,
+				usdMicros,
+				reason: kind,
+				idempotencyKey: `sentinel:${kind}:${accountId}`,
+			});
+		expect((await grant(5_000_000, "starter")).status).toBe(200);
+		// The top-up past the cap is refused; the one that fits is credited once.
+		expect((await grant(5_000_001, "starter-topup")).status).toBe(400);
+		expect((await grant(5_000_000, "starter-topup")).status).toBe(200);
+		const retry = await grant(5_000_000, "starter-topup");
+		expect(retry.status).toBe(200);
+		expect(await retry.json()).toEqual({
+			granted: false,
+			balanceAfter: 10_000_000,
+		});
+		expect(await getCredits(db, accountId)).toBe(10_000_000n);
+	});
+
+	test("a new account's $10 starter leaves no room for a top-up", async () => {
+		const accountId = await makeAccount();
+		const grant = (usdMicros: number, kind: string) =>
+			post(app(), "/accounts/grant", {
+				accountId,
+				usdMicros,
+				reason: kind,
+				idempotencyKey: `sentinel:${kind}:${accountId}`,
+			});
+		expect((await grant(10_000_000, "starter")).status).toBe(200);
+		expect((await grant(1_000_000, "starter-topup")).status).toBe(400);
+		expect(await getCredits(db, accountId)).toBe(10_000_000n);
+	});
+
 	test("grant rejects zero, negative, fractional, bad key, unknown account", async () => {
 		const accountId = await makeAccount();
 		const base = {

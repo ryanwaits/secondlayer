@@ -62,9 +62,33 @@ import {
 } from "./billing.ts";
 import { bearerToken, sentinelServiceKeyMatches } from "./internal-meters.ts";
 
-/** The only grant Sentinel ever makes: the $5 starter. Its key is fixed per
- *  account, so an account can receive at most one Sentinel grant, ever. */
-export const MAX_GRANT_USD_MICROS = 5_000_000n;
+/** Sentinel's starter credit. An account can receive two Sentinel grants, each
+ *  under a fixed per-account key: the starter, and a one-time top-up for accounts
+ *  that got the earlier $5 starter. Together they never exceed this, ever. */
+export const MAX_GRANT_USD_MICROS = 10_000_000n;
+const GRANT_KEY_KINDS = ["starter", "starter-topup"] as const;
+const grantKeys = (accountId: string) =>
+	GRANT_KEY_KINDS.map((kind) => `sentinel:${kind}:${accountId}`);
+
+/** What Sentinel already granted this account, excluding `exceptKey` (a retry of
+ *  that grant is idempotent and must not count against itself). */
+async function sentinelGrantedUsdMicros(
+	accountId: string,
+	exceptKey: string,
+): Promise<bigint> {
+	const rows = await getDb()
+		.selectFrom("usage_ledger")
+		.select("usd_micros")
+		.where("account_id", "=", accountId)
+		.where("unit", "=", "grant")
+		.where(
+			"idempotency_key",
+			"in",
+			grantKeys(accountId).filter((k) => k !== exceptKey),
+		)
+		.execute();
+	return rows.reduce((sum, r) => sum - BigInt(String(r.usd_micros)), 0n);
+}
 
 const DEFAULT_SENTINEL_WEB_URL = "https://runsentinel.app";
 
@@ -223,9 +247,9 @@ export function createInternalSentinelRouter(
 			throw new ValidationError("reason must be a short slug");
 		}
 		const idempotencyKey = requireString(body, "idempotencyKey");
-		if (idempotencyKey !== `sentinel:starter:${accountId}`) {
+		if (!grantKeys(accountId).includes(idempotencyKey)) {
 			throw new ValidationError(
-				'idempotencyKey must be "sentinel:starter:<accountId>"',
+				'idempotencyKey must be "sentinel:starter:<accountId>" or "sentinel:starter-topup:<accountId>"',
 			);
 		}
 		const amount = body.usdMicros;
@@ -243,6 +267,12 @@ export function createInternalSentinelRouter(
 			);
 		}
 		await requireLinkedAccount(accountId);
+		const prior = await sentinelGrantedUsdMicros(accountId, idempotencyKey);
+		if (prior + usdMicros > MAX_GRANT_USD_MICROS) {
+			throw new ValidationError(
+				`Sentinel grants to this account would exceed ${MAX_GRANT_USD_MICROS} in total`,
+			);
+		}
 		const result = await grantCredits(getDb(), {
 			accountId,
 			usdMicros,
