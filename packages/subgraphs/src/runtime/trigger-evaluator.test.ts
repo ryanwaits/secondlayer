@@ -217,25 +217,29 @@ describe("evaluateBlock", () => {
 describe("emitChainOutbox (DB)", () => {
 	const db = getDb();
 	const accountId = randomUUID();
+	// OSS mode stores every webhook under account_id "", so cleanup keyed on
+	// accountId matches nothing and leaks rows. Tag the NAME with this run's id;
+	// the webhook_outbox FK cascades, so outbox rows go with the webhook.
+	const NAME_PREFIX = `eval-${accountId}-`;
 
 	afterAll(async () => {
 		await db
 			.deleteFrom("webhooks")
-			.where("account_id", "=", accountId)
+			.where("name", "like", `${NAME_PREFIX}%`)
 			.execute();
 	});
 
 	beforeEach(async () => {
 		await db
 			.deleteFrom("webhooks")
-			.where("account_id", "=", accountId)
+			.where("name", "like", `${NAME_PREFIX}%`)
 			.execute();
 	});
 
 	async function makeChainSub(triggers: ChainTrigger[]): Promise<Webhook> {
 		const { webhook } = await createWebhook(db, {
 			accountId,
-			name: `eval-${randomUUID()}`,
+			name: `${NAME_PREFIX}${randomUUID()}`,
 			kind: "chain",
 			triggers,
 			url: "https://webhook.site/eval",
@@ -485,18 +489,19 @@ describe("emitChainOutbox (DB)", () => {
 describe("evaluator restart: durable cursor + idempotent outbox", () => {
 	const db = getDb();
 	const accountId = randomUUID();
+	const NAME_PREFIX = `restart-${accountId}-`;
 
 	afterAll(async () => {
 		await db
 			.deleteFrom("webhooks")
-			.where("account_id", "=", accountId)
+			.where("name", "like", `${NAME_PREFIX}%`)
 			.execute();
 	});
 
 	async function makeChainSub(triggers: ChainTrigger[]): Promise<Webhook> {
 		const { webhook } = await createWebhook(db, {
 			accountId,
-			name: `restart-${randomUUID()}`,
+			name: `${NAME_PREFIX}${randomUUID()}`,
 			kind: "chain",
 			triggers,
 			url: "https://webhook.site/restart",
