@@ -137,10 +137,16 @@ prepaid balance pays for both. Its worker meters through the same ledger.
   source `sentinel:<reason>`, key `sentinel:starter:<accountId>`), credited
   into the same balance. The grant route accepts only that key and at most $5, so an account gets at most one Sentinel grant, ever.
 - Auth: `SENTINEL_SERVICE_KEY` (never `WORKLOAD_HOST_KEY`). It opens
-  `/internal/sentinel/*` (resolve, grant, summary, affordable, checkout) and
+  `/internal/sentinel/*` (resolve, link, grant, summary, settle, settings, affordable, checkout) and
   `/internal/meters` for `sentinel.*` units only. `/internal/meters` rejects a
   negative `quantity` for every caller.
 - Scope: the key touches only accounts in `sentinel_accounts` (created by Sentinel, or linked via `/internal/sentinel/accounts/link` after the owner consents in Sentinel). Otherwise 403 `account_not_linked`.
+- Owed usage: a `sentinel.*` meter call that finds the balance short is kept as `debited=false`.
+  `summary.owedUsdMicros` sums those rows (Sentinel units only). `/accounts/settle`
+  collects them oldest first while the balance covers each, one transaction per row,
+  so a row can't be settled twice; other units are never touched.
+- `/settings` edits the monthly cap and auto top-up with the same validation as the
+  session routes (`/api/billing/caps`, `/api/billing/refill`).
 - Checkout return URLs use the allow-listed origin `SENTINEL_WEB_URL`
   (default `https://runsentinel.app`) plus a path starting with a single `/`.
 - The monthly spend cap is checked by `affordable` before a run. `meter()`

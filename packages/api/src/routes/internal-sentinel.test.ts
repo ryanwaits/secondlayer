@@ -10,9 +10,13 @@ import { randomUUID } from "node:crypto";
 import { PRICES } from "@secondlayer/platform/billing/prices";
 import {
 	creditCredits,
+	getCreditRefill,
 	getCredits,
 } from "@secondlayer/platform/db/queries/account-credits";
-import { upsertCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
+import {
+	getCaps,
+	upsertCaps,
+} from "@secondlayer/platform/db/queries/account-spend-caps";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import type Stripe from "stripe";
@@ -186,6 +190,8 @@ describe("/internal/sentinel auth", () => {
 		["/accounts/link", {}],
 		["/accounts/grant", {}],
 		["/accounts/summary", {}],
+		["/accounts/settle", {}],
+		["/settings", {}],
 		["/affordable", {}],
 		["/checkout", {}],
 	];
@@ -384,6 +390,8 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			balanceUsdMicros: 7_000_000,
 			spentMonthUsdMicros: 0,
 			monthlyCapCents: 2500,
+			owedUsdMicros: 0,
+			refill: null,
 			prices: {
 				run: Number(PRICES["sentinel.run"]),
 				deep_audit: Number(PRICES["sentinel.deep_audit"]),
@@ -571,6 +579,8 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 				},
 			],
 			["/accounts/summary", { accountId: id }],
+			["/accounts/settle", { accountId: id }],
+			["/settings", { accountId: id, monthlyCapCents: 500 }],
 			["/affordable", { accountId: id, unit: "sentinel.run", quantity: 1 }],
 			["/checkout", { accountId: id, packUsd: 10, returnPath: "/x" }],
 		];
@@ -581,6 +591,7 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 		}
 		expect(calls).toHaveLength(0);
 		expect(await getCredits(db, id)).toBe(3_000_000n);
+		expect(await getCaps(db, id)).toBeNull();
 		const ledger = await db
 			.selectFrom("usage_ledger")
 			.select("id")
@@ -602,5 +613,132 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 		expect((await grant(`sentinel:starter:${id}-2`)).status).toBe(400);
 		expect((await grant(`sentinel:again:${id}`)).status).toBe(400);
 		expect(await getCredits(db, id)).toBe(5_000_000n);
+	});
+
+	async function owe(
+		accountId: string,
+		unit: string,
+		usdMicros: number,
+		n: number,
+	) {
+		await db
+			.insertInto("usage_ledger")
+			.values({
+				account_id: accountId,
+				unit,
+				quantity: 1,
+				usd_micros: usdMicros,
+				debited: false,
+				source: "test",
+				idempotency_key: `t:${randomUUID()}`,
+				occurred_at: new Date(Date.UTC(2026, 8, n)),
+			})
+			.execute();
+	}
+
+	test("summary returns owed (sentinel.* only) and refill", async () => {
+		const id = await makeAccount();
+		await owe(id, "sentinel.run", 1_500_000, 1);
+		await owe(id, "webhook.event", 42, 2);
+		const a = app();
+		let s = (await (
+			await post(a, "/accounts/summary", { accountId: id })
+		).json()) as Record<string, unknown>;
+		expect(s.owedUsdMicros).toBe(1_500_000);
+		expect(s.refill).toBeNull();
+		await post(a, "/settings", {
+			accountId: id,
+			refill: { belowUsd: 5, packUsd: 25 },
+		});
+		s = (await (
+			await post(a, "/accounts/summary", { accountId: id })
+		).json()) as Record<string, unknown>;
+		expect(s.refill).toEqual({ belowUsd: 5, packUsd: 25 });
+	});
+
+	test("settle collects owed sentinel rows, oldest first, leaves other units", async () => {
+		const id = await makeAccount();
+		await owe(id, "sentinel.deep_audit", 3_000_000, 1);
+		await owe(id, "sentinel.run", 1_500_000, 2);
+		await owe(id, "rows.delivered", 900_000, 1);
+		await creditCredits(db, id, 4_000_000n);
+		const res = await post(app(), "/accounts/settle", { accountId: id });
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			settledUsdMicros: 3_000_000,
+			owedUsdMicros: 1_500_000,
+			balanceUsdMicros: 1_000_000,
+		});
+		const again = await post(app(), "/accounts/settle", { accountId: id });
+		expect(await again.json()).toEqual({
+			settledUsdMicros: 0,
+			owedUsdMicros: 1_500_000,
+			balanceUsdMicros: 1_000_000,
+		});
+		const other = await db
+			.selectFrom("usage_ledger")
+			.select("debited")
+			.where("account_id", "=", id)
+			.where("unit", "=", "rows.delivered")
+			.executeTakeFirstOrThrow();
+		expect(other.debited).toBe(false);
+	});
+
+	test("settings writes cap + refill like the session routes, validates first", async () => {
+		const id = await makeAccount();
+		const a = app();
+		const ok = await post(a, "/settings", {
+			accountId: id,
+			monthlyCapCents: 2500,
+			refill: { belowUsd: 3, packUsd: 50 },
+		});
+		expect(ok.status).toBe(200);
+		expect(await ok.json()).toEqual({
+			monthlyCapCents: 2500,
+			refill: { belowUsd: 3, packUsd: 50 },
+		});
+		expect((await getCaps(db, id))?.monthly_cap_cents).toBe(2500);
+		expect((await getCreditRefill(db, id)).packUsd).toBe(50);
+
+		// pack defaults to 25 like the session route
+		await post(a, "/settings", { accountId: id, refill: { belowUsd: 2 } });
+		expect((await getCreditRefill(db, id)).packUsd).toBe(25);
+
+		// omitted fields are left alone
+		await post(a, "/settings", { accountId: id, monthlyCapCents: 0 });
+		expect((await getCaps(db, id))?.monthly_cap_cents).toBe(0);
+		expect((await getCreditRefill(db, id)).belowUsdMicros).toBe(2_000_000n);
+
+		// null turns things off
+		const off = await post(a, "/settings", {
+			accountId: id,
+			monthlyCapCents: null,
+			refill: { belowUsd: null },
+		});
+		expect(await off.json()).toEqual({ monthlyCapCents: null, refill: null });
+		expect((await getCreditRefill(db, id)).packUsd).toBeNull();
+
+		// invalid input: 400 and nothing written (even the valid half)
+		await post(a, "/settings", { accountId: id, monthlyCapCents: 900 });
+		for (const bad of [
+			{ monthlyCapCents: 100, refill: { belowUsd: 0.5 } },
+			{ monthlyCapCents: 100, refill: { belowUsd: 5, packUsd: 7 } },
+			{ monthlyCapCents: -1 },
+			{ monthlyCapCents: 1.5 },
+			{ monthlyCapCents: "5" },
+			{ refill: "on" },
+			{ refill: {} },
+		]) {
+			const res = await post(a, "/settings", { accountId: id, ...bad });
+			expect(res.status).toBe(400);
+		}
+		expect((await getCaps(db, id))?.monthly_cap_cents).toBe(900);
+	});
+
+	test("raising the cap through settings unfreezes like PATCH /caps", async () => {
+		const id = await makeAccount();
+		await upsertCaps(db, id, { monthly_cap_cents: 500, frozen_at: new Date() });
+		await post(app(), "/settings", { accountId: id, monthlyCapCents: 1000 });
+		expect((await getCaps(db, id))?.frozen_at).toBeNull();
 	});
 });

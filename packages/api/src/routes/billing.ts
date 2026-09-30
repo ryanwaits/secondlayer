@@ -39,8 +39,9 @@ import {
 	usageForMonth,
 } from "@secondlayer/platform/db/queries/usage-ledger";
 import { logger } from "@secondlayer/shared";
-import { getDb } from "@secondlayer/shared/db";
+import { type Database, getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
+import type { Kysely } from "kysely";
 import { getAccountId } from "../lib/ownership.ts";
 import { getStripeOrNull } from "../lib/stripe.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
@@ -53,6 +54,76 @@ export type CreditPackUsd = (typeof CREDIT_PACKS_USD)[number];
 
 export function isCreditPack(n: number): n is CreditPackUsd {
 	return (CREDIT_PACKS_USD as readonly number[]).includes(n);
+}
+
+/**
+ * Validate an auto-refill request: `belowUsd: null` turns it off, otherwise
+ * `belowUsd >= 1` and `packUsd` one of the credit packs (default 25). Shared
+ * by the session route and the Sentinel service route so they can't drift.
+ */
+export function parseRefillInput(body: {
+	belowUsd?: unknown;
+	packUsd?: unknown;
+}):
+	| {
+			ok: true;
+			belowUsd: number | null;
+			belowUsdMicros: bigint | null;
+			packUsd: number | null;
+	  }
+	| { ok: false; error: string } {
+	if (body.belowUsd === null) {
+		return { ok: true, belowUsd: null, belowUsdMicros: null, packUsd: null };
+	}
+	const belowUsd =
+		typeof body.belowUsd === "number" ? body.belowUsd : Number(body.belowUsd);
+	if (!Number.isFinite(belowUsd) || belowUsd < 1) {
+		return { ok: false, error: "belowUsd must be at least 1" };
+	}
+	const packRaw =
+		typeof body.packUsd === "number"
+			? body.packUsd
+			: Number(body.packUsd ?? 25);
+	if (!isCreditPack(packRaw)) {
+		return {
+			ok: false,
+			error: `packUsd must be one of ${CREDIT_PACKS_USD.join(", ")}`,
+		};
+	}
+	return {
+		ok: true,
+		belowUsd,
+		belowUsdMicros: BigInt(Math.round(belowUsd * 1_000_000)),
+		packUsd: packRaw,
+	};
+}
+
+/**
+ * Write the monthly spend cap (`null` clears it). Raising the cap mid-cycle
+ * unfreezes the account: the user explicitly said "yes, bill more". Shared by
+ * `PATCH /api/billing/caps` and the Sentinel service route.
+ */
+export async function applyMonthlyCap(
+	db: Kysely<Database>,
+	accountId: string,
+	monthlyCapCents: number | null,
+	extra: Parameters<typeof upsertCaps>[2] = {},
+) {
+	const patch: Parameters<typeof upsertCaps>[2] = {
+		...extra,
+		monthly_cap_cents: monthlyCapCents,
+	};
+	const existing = await getCaps(db, accountId);
+	if (
+		existing?.frozen_at &&
+		monthlyCapCents != null &&
+		existing.monthly_cap_cents != null &&
+		monthlyCapCents > existing.monthly_cap_cents
+	) {
+		patch.frozen_at = null;
+		patch.alert_sent_at = null;
+	}
+	return upsertCaps(db, accountId, patch);
 }
 
 function dashboardBaseUrl(): string {
@@ -253,42 +324,15 @@ app.post("/refill", async (c) => {
 		throw new InvalidJSONError();
 	})) as { belowUsd?: unknown; packUsd?: unknown };
 
-	if (body.belowUsd === null) {
-		const refill = await setCreditRefill(getDb(), accountId, {
-			belowUsdMicros: null,
-			packUsd: null,
-		});
-		return c.json({
-			belowUsd: null,
-			packUsd: null,
-			lastAt: refill.lastAt?.toISOString() ?? null,
-		});
-	}
-
-	const belowUsd =
-		typeof body.belowUsd === "number" ? body.belowUsd : Number(body.belowUsd);
-	if (!Number.isFinite(belowUsd) || belowUsd < 1) {
-		return c.json({ error: "belowUsd must be at least 1" }, 400);
-	}
-
-	const packRaw =
-		typeof body.packUsd === "number"
-			? body.packUsd
-			: Number(body.packUsd ?? 25);
-	if (!isCreditPack(packRaw)) {
-		return c.json(
-			{ error: `packUsd must be one of ${CREDIT_PACKS_USD.join(", ")}` },
-			400,
-		);
-	}
-
+	const parsed = parseRefillInput(body);
+	if (!parsed.ok) return c.json({ error: parsed.error }, 400);
 	const refill = await setCreditRefill(getDb(), accountId, {
-		belowUsdMicros: BigInt(Math.round(belowUsd * 1_000_000)),
-		packUsd: packRaw,
+		belowUsdMicros: parsed.belowUsdMicros,
+		packUsd: parsed.packUsd,
 	});
 	return c.json({
-		belowUsd,
-		packUsd: packRaw,
+		belowUsd: parsed.belowUsd,
+		packUsd: parsed.packUsd,
 		lastAt: refill.lastAt?.toISOString() ?? null,
 	});
 });
@@ -316,11 +360,9 @@ app.patch("/caps", async (c) => {
 		alertThresholdPct?: number;
 	};
 
-	// Normalize the input. Callers send cents directly; null explicitly
-	// clears a cap.
-	const patch: Parameters<typeof upsertCaps>[2] = {};
-	if (body.monthlyCapCents !== undefined)
-		patch.monthly_cap_cents = body.monthlyCapCents;
+	// Callers send cents directly; null explicitly clears a cap. Omitted
+	// leaves the cap as is.
+	const extra: Parameters<typeof upsertCaps>[2] = {};
 	if (body.alertThresholdPct !== undefined) {
 		if (body.alertThresholdPct < 1 || body.alertThresholdPct > 100) {
 			return c.json(
@@ -328,24 +370,13 @@ app.patch("/caps", async (c) => {
 				400,
 			);
 		}
-		patch.alert_threshold_pct = body.alertThresholdPct;
+		extra.alert_threshold_pct = body.alertThresholdPct;
 	}
 
-	// Raising the cap mid-cycle unfreezes the account — user explicitly
-	// said "yes, bill more." Lowering it doesn't auto-freeze; the alert
-	// cron will re-check and freeze if the new cap is already exceeded.
-	const existing = await getCaps(getDb(), accountId);
-	if (
-		existing?.frozen_at &&
-		patch.monthly_cap_cents != null &&
-		existing.monthly_cap_cents != null &&
-		patch.monthly_cap_cents > existing.monthly_cap_cents
-	) {
-		patch.frozen_at = null;
-		patch.alert_sent_at = null;
-	}
-
-	const updated = await upsertCaps(getDb(), accountId, patch);
+	const updated =
+		body.monthlyCapCents === undefined
+			? await upsertCaps(getDb(), accountId, extra)
+			: await applyMonthlyCap(getDb(), accountId, body.monthlyCapCents, extra);
 	return c.json({
 		monthlyCapCents: updated.monthly_cap_cents,
 		alertThresholdPct: updated.alert_threshold_pct,

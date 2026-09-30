@@ -1,5 +1,5 @@
 import type { Database } from "@secondlayer/shared/db";
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 import {
 	creditCredits,
 	debitCredits,
@@ -9,9 +9,11 @@ import {
 } from "../db/queries/account-credits.ts";
 import { getCaps } from "../db/queries/account-spend-caps.ts";
 import {
+	SENTINEL_UNIT_PREFIX,
 	claimLedgerEntry,
 	markLedgerEntryDebited,
 	monthlyQuantity,
+	owedSentinelUsdMicros,
 } from "../db/queries/usage-ledger.ts";
 import {
 	COMMIT_TIER_MONTHLY_USD_MICROS,
@@ -289,4 +291,68 @@ export async function grantCredits(
 		const balance = await creditCredits(trx, input.accountId, input.usdMicros);
 		return { granted: true, balance };
 	});
+}
+
+class BalanceShort extends Error {}
+
+/**
+ * Collect Sentinel usage that was recorded while the balance was short
+ * (`debited=false`), oldest first, while the balance covers each row. Per row,
+ * one transaction: claim it (`debited=false` -> true, only for a `sentinel.*`
+ * unit; the row lock makes a concurrent settle wait, then find it already
+ * settled), then a conditional debit. If the balance can't cover the row the
+ * transaction rolls back, so the row stays owed. Other units are never touched.
+ * Spend is counted toward the monthly cap exactly like `meter()` does.
+ */
+export async function settleOwedSentinel(
+	db: Kysely<Database>,
+	accountId: string,
+): Promise<{
+	settledUsdMicros: bigint;
+	owedUsdMicros: bigint;
+	balanceUsdMicros: bigint;
+}> {
+	const owedRows = await db
+		.selectFrom("usage_ledger")
+		.select(["id", "occurred_at"])
+		.where("account_id", "=", accountId)
+		.where("debited", "=", false)
+		.where(sql<boolean>`unit LIKE ${`${SENTINEL_UNIT_PREFIX}%`}`)
+		.orderBy("occurred_at", "asc")
+		.orderBy("id", "asc")
+		.execute();
+
+	let settled = 0n;
+	for (const owed of owedRows) {
+		const paid = await withTransaction(db, async (trx) => {
+			const claimed = await trx
+				.updateTable("usage_ledger")
+				.set({ debited: true })
+				.where("id", "=", owed.id)
+				.where("account_id", "=", accountId)
+				.where("debited", "=", false)
+				.where(sql<boolean>`unit LIKE ${`${SENTINEL_UNIT_PREFIX}%`}`)
+				.returning("usd_micros")
+				.executeTakeFirst();
+			if (!claimed) return 0n; // settled by someone else meanwhile
+			const usdMicros = BigInt(claimed.usd_micros);
+			if (usdMicros > 0n) {
+				const result = await debitCredits(trx, accountId, usdMicros);
+				if (!result.ok) throw new BalanceShort(); // rolls the claim back
+				await recordCreditsSpend(trx, accountId, usdMicros);
+			}
+			return usdMicros;
+		}).catch((err) => {
+			if (err instanceof BalanceShort) return null;
+			throw err;
+		});
+		if (paid === null) break; // balance can't cover the oldest owed row
+		settled += paid;
+	}
+
+	return {
+		settledUsdMicros: settled,
+		owedUsdMicros: await owedSentinelUsdMicros(db, accountId),
+		balanceUsdMicros: await getCredits(db, accountId),
+	};
 }

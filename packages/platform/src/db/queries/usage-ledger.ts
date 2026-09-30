@@ -75,6 +75,25 @@ export async function markLedgerEntryDebited(
 		.execute();
 }
 
+/** Ledger units Sentinel owns. Settling and owed sums never look past this. */
+export const SENTINEL_UNIT_PREFIX = "sentinel.";
+
+/** Sum of Sentinel usage that was recorded but never paid (`debited=false`).
+ *  Only `sentinel.*` rows count; every other unit is invisible here. */
+export async function owedSentinelUsdMicros(
+	db: Kysely<Database>,
+	accountId: string,
+): Promise<bigint> {
+	const row = await db
+		.selectFrom("usage_ledger")
+		.select(sql<string>`COALESCE(SUM(usd_micros), 0)`.as("owed"))
+		.where("account_id", "=", accountId)
+		.where("debited", "=", false)
+		.where(sql<boolean>`unit LIKE ${`${SENTINEL_UNIT_PREFIX}%`}`)
+		.executeTakeFirstOrThrow();
+	return BigInt(row.owed);
+}
+
 /** UTC calendar-month bounds `now` falls in: `[start, end)`. */
 export function monthBounds(now: Date): { start: Date; end: Date } {
 	const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));

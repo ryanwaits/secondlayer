@@ -6,7 +6,9 @@
  *   POST /accounts/resolve   { email }                                  find-or-create (+ linked)
  *   POST /accounts/link      { accountId }                              owner opted in (via consent)
  *   POST /accounts/grant     { accountId, usdMicros, reason, idempotencyKey }
- *   POST /accounts/summary   { accountId }                              balance, cap, prices
+ *   POST /accounts/summary   { accountId }                              balance, owed, cap, refill, prices
+ *   POST /accounts/settle    { accountId }                              collect owed sentinel.* usage
+ *   POST /settings           { accountId, monthlyCapCents?, refill? }   cap + auto top-up
  *   POST /affordable         { accountId, unit, quantity }              pure check, no debit
  *   POST /checkout           { accountId, packUsd, returnPath }         Stripe Checkout URL
  *
@@ -18,15 +20,20 @@
  * `account_not_linked`: a leaked key can't touch an arbitrary account. Prices are read from `PRICES`, never hard-coded here.
  */
 
-import { grantCredits } from "@secondlayer/platform/billing/meter";
+import {
+	grantCredits,
+	settleOwedSentinel,
+} from "@secondlayer/platform/billing/meter";
 import {
 	PRICES,
 	USD_MICROS_PER_CENT,
 } from "@secondlayer/platform/billing/prices";
 import type { MeterUnit } from "@secondlayer/platform/billing/prices";
 import {
+	getCreditRefill,
 	getCredits,
 	getMonthlyCreditsSpend,
+	setCreditRefill,
 } from "@secondlayer/platform/db/queries/account-credits";
 import { getCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
 import {
@@ -35,6 +42,7 @@ import {
 	isSentinelLinked,
 	linkSentinelAccount,
 } from "@secondlayer/platform/db/queries/accounts";
+import { owedSentinelUsdMicros } from "@secondlayer/platform/db/queries/usage-ledger";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	AuthenticationError,
@@ -47,8 +55,10 @@ import { getStripeOrNull } from "../lib/stripe.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import {
 	type StripeClient,
+	applyMonthlyCap,
 	createCreditsCheckoutSession,
 	isCreditPack,
+	parseRefillInput,
 } from "./billing.ts";
 import { bearerToken, sentinelServiceKeyMatches } from "./internal-meters.ts";
 
@@ -250,20 +260,99 @@ export function createInternalSentinelRouter(
 		const accountId = requireString(body, "accountId");
 		await requireLinkedAccount(accountId);
 		const db = getDb();
-		const [balance, spent, caps] = await Promise.all([
+		const [balance, spent, caps, owed, refill] = await Promise.all([
 			getCredits(db, accountId),
 			getMonthlyCreditsSpend(db, accountId),
 			getCaps(db, accountId),
+			owedSentinelUsdMicros(db, accountId),
+			getCreditRefill(db, accountId),
 		]);
 		return c.json({
 			balanceUsdMicros: Number(balance),
 			spentMonthUsdMicros: Number(spent),
+			owedUsdMicros: Number(owed),
 			monthlyCapCents: caps?.monthly_cap_cents ?? null,
+			refill:
+				refill.belowUsdMicros != null && refill.packUsd != null
+					? {
+							belowUsd: Number(refill.belowUsdMicros) / 1_000_000,
+							packUsd: refill.packUsd,
+						}
+					: null,
 			prices: {
 				run: Number(PRICES["sentinel.run"]),
 				deep_audit: Number(PRICES["sentinel.deep_audit"]),
 				monitored_event: Number(PRICES["sentinel.monitored_event"]),
 			},
+		});
+	});
+
+	app.post("/accounts/settle", async (c) => {
+		const body = await readBody(c.req);
+		const accountId = requireString(body, "accountId");
+		await requireLinkedAccount(accountId);
+		const result = await settleOwedSentinel(getDb(), accountId);
+		return c.json({
+			settledUsdMicros: Number(result.settledUsdMicros),
+			owedUsdMicros: Number(result.owedUsdMicros),
+			balanceUsdMicros: Number(result.balanceUsdMicros),
+		});
+	});
+
+	app.post("/settings", async (c) => {
+		const body = await readBody(c.req);
+		const accountId = requireString(body, "accountId");
+
+		// Validate everything before writing anything.
+		let cap: { cents: number | null } | undefined;
+		if (body.monthlyCapCents !== undefined) {
+			const cents = body.monthlyCapCents;
+			if (
+				cents !== null &&
+				(typeof cents !== "number" || !Number.isSafeInteger(cents) || cents < 0)
+			) {
+				throw new ValidationError(
+					"monthlyCapCents must be a non-negative integer or null",
+				);
+			}
+			cap = { cents };
+		}
+		let refill: ReturnType<typeof parseRefillInput> | undefined;
+		if (body.refill !== undefined) {
+			const r = body.refill;
+			if (typeof r !== "object" || r === null || Array.isArray(r)) {
+				throw new ValidationError("refill must be an object");
+			}
+			const input = r as Record<string, unknown>;
+			if (!("belowUsd" in input)) {
+				throw new ValidationError("refill.belowUsd is required (or null)");
+			}
+			refill = parseRefillInput(input);
+			if (!refill.ok) throw new ValidationError(refill.error);
+		}
+
+		await requireLinkedAccount(accountId);
+		const db = getDb();
+		if (cap) await applyMonthlyCap(db, accountId, cap.cents);
+		if (refill?.ok) {
+			await setCreditRefill(db, accountId, {
+				belowUsdMicros: refill.belowUsdMicros,
+				packUsd: refill.packUsd,
+			});
+		}
+		const [caps, current] = await Promise.all([
+			getCaps(db, accountId),
+			getCreditRefill(db, accountId),
+		]);
+		return c.json({
+			monthlyCapCents: caps?.monthly_cap_cents ?? null,
+			refill:
+				current.belowUsdMicros != null && current.packUsd != null
+					? {
+							belowUsd: Number(current.belowUsdMicros) / 1_000_000,
+							packUsd: current.packUsd,
+						}
+					: null,
 		});
 	});
 
