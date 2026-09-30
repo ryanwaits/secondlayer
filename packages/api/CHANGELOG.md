@@ -1,5 +1,20 @@
 # @secondlayer/api
 
+## 1.49.0
+
+### Minor Changes
+
+- 8419137: Sentinel checkout takes `amountUsd`, any whole-dollar top-up from $5 to $1,000; `packUsd` still works as the older name for the same field.
+- 1f7a940: Raise the Sentinel starter grant cap to $10 and allow one `sentinel:starter-topup:<accountId>` grant, so accounts that received the earlier $5 starter can be brought to $10. Sentinel grants to an account never exceed $10 in total.
+
+### Patch Changes
+
+- Updated dependencies [3f7945c]
+- Updated dependencies [3f7945c]
+  - @secondlayer/shared@11.18.0
+  - @secondlayer/sdk@14.1.0
+  - @secondlayer/platform@0.5.1
+
 ## 1.48.0
 
 ### Minor Changes

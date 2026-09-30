@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.18.0
+
+### Minor Changes
+
+- 3f7945c: Add optional `ts` (block time) to `RuneStreamsEvent`.
+
 ## 11.17.0
 
 ### Minor Changes

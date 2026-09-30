@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 14.1.0
+
+### Minor Changes
+
+- 3f7945c: Bitcoin Streams events (`RuneStreamsEvent`) now carry an optional `ts`, the block time.
+
+### Patch Changes
+
+- Updated dependencies [3f7945c]
+  - @secondlayer/shared@11.18.0
+
 ## 14.0.1
 
 ### Patch Changes

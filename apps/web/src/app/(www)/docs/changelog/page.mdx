@@ -33,7 +33,7 @@ Hosted Index and Streams give you 1M free rows a month, down from 10M. Past that
 
 ### Runes: `sl.index.runes`, and `chain=bitcoin` on Streams
 
-Runes is data on the existing Index plane, not a new product. `sl.index.runes.list()` is the etch catalog, `.get(ref)` a single rune by id or name, `.balances()` current per-outpoint balances, and `.activity.list()` / `.activity.walk()` the etch/mint/transfer/burn event log, with the same envelope shape, cursors, and consume conventions as every other Index feed, on a Bitcoin tip instead of a Stacks one. `sl.streams.events.list({ chain: "bitcoin" })` (and `stream`/`subscribe`/`consume`) reads the same events raw, on their own cursor space. Four webhook triggers (`runeEtch`, `runeMint`, `runeTransfer`, `runeBurn`) fire off the same feed. Self-host with the `bitcoin` compose profile has data today; hosted follows. See [Runes](/docs/runes).
+Runes is data on the existing Index plane, not a new product. `sl.index.runes.list()` is the etch catalog, `.get(ref)` a single rune by id or name, `.balances()` current per-outpoint balances, and `.activity.list()` / `.activity.walk()` the etch/mint/transfer/burn event log, with the same envelope shape, cursors, and consume conventions as every other Index feed, on a Bitcoin tip instead of a Stacks one. `sl.streams.events.list({ chain: "bitcoin" })` (and `stream`/`subscribe`/`consume`) reads the same events raw, on their own cursor space, and each event carries `ts`, its block's time. Four webhook triggers (`runeEtch`, `runeMint`, `runeTransfer`, `runeBurn`) fire off the same feed. Self-host with the `bitcoin` compose profile has data today; hosted follows. See [Runes](/docs/runes).
 
 ### `signer` now returns a pool's full pox-5 activity
 
