@@ -215,15 +215,29 @@ export interface SyncResult {
  * Returns once `state.height` has caught up to `getblockcount()` as observed
  * at that moment (a moving tip just means the next `notified()` wakes this up
  * again).
+ *
+ * `loaded` is the state a previous pass returned; `runFollow` threads it
+ * through so the ~6 GB state is loaded once per process, not once per block.
+ * Omitted, this pass loads its own. Only a rewind reloads (inside
+ * `reconcileCheckpoint`), so the returned state may be a different object than
+ * the one passed in. If this throws, `loaded` may be ahead of Postgres:
+ * discard it and load fresh (`runFollow` never catches, so its state dies with
+ * the error).
  */
-export async function syncOnce(deps: FollowDeps): Promise<SyncResult> {
+export async function syncOnce(
+	deps: FollowDeps,
+	loaded?: RuneState,
+): Promise<SyncResult> {
 	const network = deps.network ?? Network.Bitcoin;
 	const genesisHeight = deps.genesisHeight ?? GENESIS_HEIGHT;
 
-	let state = await loadState(deps.db);
-	if (state.height === undefined && network === Network.Bitcoin) {
-		// UNCOMMON•GOODS is mainnet-only — see backfill.ts's runBackfill.
-		seedGenesis(state);
+	let state = loaded;
+	if (state === undefined) {
+		state = await loadState(deps.db);
+		if (state.height === undefined && network === Network.Bitcoin) {
+			// UNCOMMON•GOODS is mainnet-only — see backfill.ts's runBackfill.
+			seedGenesis(state);
+		}
 	}
 
 	state = await reconcileCheckpoint(deps, state);
@@ -252,6 +266,7 @@ export async function syncOnce(deps: FollowDeps): Promise<SyncResult> {
 			invariantReportDir: deps.invariantReportDir,
 			network,
 			genesisHeight,
+			state,
 		});
 	}
 
@@ -370,8 +385,13 @@ export async function runFollow(
 
 	const heartbeat = createHeartbeatTracker(deps.now);
 
+	// Loaded on the first pass, then carried across passes: a new block applies
+	// to the state already in memory instead of reloading every balance row.
+	let carried: RuneState | undefined;
+
 	while (!signal?.aborted) {
-		const { state } = await syncOnce(deps);
+		const { state } = await syncOnce(deps, carried);
+		carried = state;
 
 		if (deps.onHeartbeat) {
 			try {

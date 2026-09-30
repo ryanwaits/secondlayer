@@ -9,9 +9,12 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import { sql } from "kysely";
+import { Kysely, sql } from "kysely";
+import { PostgresJSDialect } from "kysely-postgres-js";
+import postgres from "postgres";
 import { migrateToLatest } from "./db/migrate.ts";
-import { openStore } from "./db/store.ts";
+import { loadState, openStore } from "./db/store.ts";
+import type { Database } from "./db/types.ts";
 import {
 	type BlockNotifier,
 	type FollowDeps,
@@ -365,6 +368,75 @@ describe.skipIf(!testUrl)("follow", () => {
 		const result = await syncOnce({ db, rpc: chain });
 		expect(result.state.height).toBe(GENESIS_HEIGHT + 3);
 		expect(result.state.hash).toBe(b3);
+	});
+
+	test("syncOnce given the previous state extends it in place instead of loading another copy", async () => {
+		const chain = new FakeChain();
+		const h0 = chain.mine(GENESIS_HEIGHT, GENESIS_ANCHOR_HASH);
+		const deps: FollowDeps = { db, rpc: chain };
+
+		const first = await syncOnce(deps);
+		const h1 = chain.mine(GENESIS_HEIGHT + 1, h0);
+		const second = await syncOnce(deps, first.state);
+
+		expect(second.state).toBe(first.state);
+		expect(second.state.height).toBe(GENESIS_HEIGHT + 1);
+		expect(second.state.hash).toBe(h1);
+		expect(second.blocksApplied).toBe(1);
+	});
+
+	test("runFollow loads the balances once across passes and again only after a reorg rewinds", async () => {
+		const balanceLoads: string[] = [];
+		const countingDb = new Kysely<Database>({
+			// biome-ignore lint/style/noNonNullAssertion: describe.skipIf(!testUrl) guards this whole block
+			dialect: new PostgresJSDialect({ postgres: postgres(testUrl!) }),
+			log: (event) => {
+				if (/select .* from "rune_balances"/.test(event.query.sql)) {
+					balanceLoads.push(event.query.sql);
+				}
+			},
+		});
+		const chain = new FakeChain();
+		const h0 = chain.mine(GENESIS_HEIGHT, GENESIS_ANCHOR_HASH);
+		const notifier = new FakeNotifier();
+		const controller = new AbortController();
+		const reorgs: ReorgInfo[] = [];
+		const run = runFollow(
+			{ db: countingDb, rpc: chain, onReorg: (info) => reorgs.push(info) },
+			notifier,
+			controller.signal,
+		);
+		const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
+
+		await settle();
+		expect(balanceLoads).toHaveLength(1);
+
+		const a1 = chain.mine(GENESIS_HEIGHT + 1, h0);
+		notifier.fire();
+		await settle();
+		const a2 = chain.mine(GENESIS_HEIGHT + 2, a1);
+		notifier.fire();
+		await settle();
+		expect((await loadState(db)).height).toBe(GENESIS_HEIGHT + 2);
+		expect(balanceLoads).toHaveLength(1); // two more blocks, no reload
+
+		// A reorg is the one case that reloads (the rewind), and the follower
+		// keeps going on the reloaded state afterwards.
+		const b1 = chain.mine(GENESIS_HEIGHT + 1, h0);
+		const b2 = chain.mine(GENESIS_HEIGHT + 2, b1);
+		chain.mine(GENESIS_HEIGHT + 3, b2);
+		expect(b1).not.toBe(a1);
+		expect(a2).not.toBe(b2);
+		notifier.fire();
+		await settle();
+		expect(reorgs).toHaveLength(1);
+		expect(balanceLoads).toHaveLength(2);
+		expect((await loadState(db)).height).toBe(GENESIS_HEIGHT + 3);
+
+		controller.abort();
+		notifier.fire();
+		await run;
+		await countingDb.destroy();
 	});
 
 	test("runFollow drives syncOnce off the notifier and stops on abort", async () => {
