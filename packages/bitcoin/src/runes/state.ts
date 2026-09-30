@@ -72,24 +72,12 @@ export interface RuneState {
 	dirtyRuneIds: Set<string>;
 	/**
 	 * `(outpoint, runeId)` pairs touched since the last flush, as
-	 * `"${outpoint}|${runeId}"`. This is every pair the flush needs to
-	 * *consider*, not every pair it needs to write — see `dbBalanceKeys`,
-	 * whose comparison against this set is what lets the flush skip a pair
-	 * that was created and fully spent within the same window (never
-	 * persisted, so it needs neither an insert nor a delete). Without that
-	 * comparison, a dense window (e.g. the Runes launch block) turns into one
-	 * DB round trip per touched pair — the flush performance defect this
-	 * field exists to fix (see db/store.ts's `computeBalanceChanges`).
+	 * `"${outpoint}|${runeId}"`. The flush writes every one of them: a pair
+	 * with a live amount is upserted, a pair at zero is deleted (a delete of a
+	 * row that was never persisted is a no-op, which is how a pair created and
+	 * spent inside one window never reaches the table).
 	 */
 	dirtyBalanceKeys: Set<string>;
-	/**
-	 * `(outpoint, runeId)` pairs the flush believes are CURRENTLY persisted in
-	 * `rune_balances` — loaded once in `loadState` and kept in sync after
-	 * every successful flush. Not ord's concept (ord's redb table has no such
-	 * shadow); it exists purely so `computeBalanceChanges` can tell "existed
-	 * before, now empty -> delete" apart from "never existed -> no-op".
-	 */
-	dbBalanceKeys: Set<string>;
 	/**
 	 * Outpoint (`"txid:vout"`) -> its mainnet address, for every outpoint that
 	 * currently holds a live rune balance. One address per outpoint (an
@@ -115,13 +103,12 @@ export function createRuneState(): RuneState {
 		statisticReservedRunes: 0n,
 		dirtyRuneIds: new Set(),
 		dirtyBalanceKeys: new Set(),
-		dbBalanceKeys: new Set(),
 		balanceAddresses: new Map(),
 		events: [],
 	};
 }
 
-/** `"${outpoint}|${runeId}"` — the composite key used by `dirtyBalanceKeys`/`dbBalanceKeys`. Neither half can contain `|` (txid is hex, vout/runeId are digits and `:`). */
+/** `"${outpoint}|${runeId}"` — the composite key used by `dirtyBalanceKeys`. Neither half can contain `|` (txid is hex, vout/runeId are digits and `:`). */
 export function balanceKey(outpoint: string, runeId: string): string {
 	return `${outpoint}|${runeId}`;
 }

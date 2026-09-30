@@ -31,7 +31,7 @@ import type { Database } from "./types.ts";
 const U128_MAX = (1n << 128n) - 1n;
 
 describe("computeBalanceChanges", () => {
-	test("a balance created and fully spent within one flush window touches neither list", () => {
+	test("a balance created and fully spent within one flush window is never upserted, only deleted", () => {
 		const state = createRuneState();
 		const outpoint = `${"a".repeat(64)}:0`;
 		const runeId = "840000:1";
@@ -43,8 +43,9 @@ describe("computeBalanceChanges", () => {
 
 		const { toUpsert, toDelete } = computeBalanceChanges(state);
 
+		// Never inserted; the delete is a no-op against a row that was never persisted.
 		expect(toUpsert).toHaveLength(0);
-		expect(toDelete).toHaveLength(0);
+		expect(toDelete).toEqual([{ txid: "a".repeat(64), vout: 0, runeId }]);
 	});
 
 	test("a balance that existed before this flush and is now fully spent is queued for delete", () => {
@@ -54,7 +55,6 @@ describe("computeBalanceChanges", () => {
 
 		// Simulate a prior flush having persisted this row.
 		setBalance(state, outpoint, runeId, 100n);
-		state.dbBalanceKeys.add(`${outpoint}|${runeId}`);
 		state.dirtyBalanceKeys.clear(); // the prior flush would have cleared this
 
 		// This window: spend it.
@@ -105,7 +105,6 @@ describe("computeBalanceChanges", () => {
 		const runeId = "840000:5";
 
 		setBalance(state, outpoint, runeId, 10n);
-		state.dbBalanceKeys.add(`${outpoint}|${runeId}`);
 		state.dirtyBalanceKeys.clear();
 
 		setBalance(state, outpoint, runeId, 7n); // partial spend within this window

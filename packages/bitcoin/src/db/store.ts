@@ -9,11 +9,11 @@
 // the next flush). The first version of this file did one DELETE and one
 // INSERT per touched outpoint — a single flush measured in pg_stat_activity
 // issuing one-row-at-a-time statements for 45+ minutes with zero rows
-// committed. `computeBalanceChanges` fixes this two ways: (1) a pair that
-// was never actually persisted (created and spent within the window) is
-// skipped entirely — no DELETE, no INSERT; (2) every remaining write is
-// batched into chunked multi-row statements instead of one round trip per
-// row.
+// committed. `computeBalanceChanges` fixes this: a pair that ends the window
+// at zero is only ever deleted (never inserted), and every write is batched
+// into chunked multi-row statements instead of one round trip per row. A
+// delete of a row that was never persisted (created and spent inside the
+// window) is a no-op.
 
 import { hexToBytes } from "@noble/hashes/utils.js";
 import { Kysely, sql } from "kysely";
@@ -30,7 +30,6 @@ import { spacedRuneToString } from "../runes/spaced_rune.ts";
 import {
 	type RuneEvent,
 	type RuneState,
-	balanceKey,
 	createRuneState,
 	getBalance,
 	seedBalance,
@@ -202,7 +201,6 @@ export async function loadState(db: Kysely<Database>): Promise<RuneState> {
 	for (const row of balances) {
 		const outpoint = `${row.txid}:${row.vout}`;
 		seedBalance(state, outpoint, row.rune_id, n(row.amount), row.address);
-		state.dbBalanceKeys.add(balanceKey(outpoint, row.rune_id));
 	}
 
 	const checkpoint = await db
@@ -255,11 +253,12 @@ function splitOutpoint(outpoint: string): { txid: string; vout: number } {
 }
 
 /**
- * Pure (no DB access) — computes exactly which `rune_balances` rows need a
- * write for this flush, from `state.dirtyBalanceKeys` compared against
- * `state.dbBalanceKeys` (what's currently persisted). A pair whose current
- * amount is 0 AND was never in `dbBalanceKeys` is pure in-window churn and
- * appears in neither list.
+ * Pure (no DB access) — computes which `rune_balances` rows need a write for
+ * this flush from `state.dirtyBalanceKeys`: a pair with a live amount is
+ * upserted, a pair at zero is deleted. Whether the row was ever persisted is
+ * not tracked (that shadow set cost ~1 GB at 7M rows); deleting a row that
+ * isn't there is a no-op, so a pair created and spent inside one window
+ * costs one batched delete and is never inserted.
  */
 export function computeBalanceChanges(state: RuneState): {
 	toUpsert: BalanceRow[];
@@ -275,7 +274,6 @@ export function computeBalanceChanges(state: RuneState): {
 		const { txid, vout } = splitOutpoint(outpoint);
 
 		const amount = getBalance(state, outpoint, runeId);
-		const wasInDb = state.dbBalanceKeys.has(key);
 
 		if (amount > 0n) {
 			toUpsert.push({
@@ -285,11 +283,9 @@ export function computeBalanceChanges(state: RuneState): {
 				amount,
 				address: state.balanceAddresses.get(outpoint) ?? null,
 			});
-		} else if (wasInDb) {
+		} else {
 			toDelete.push({ txid, vout, runeId });
 		}
-		// else: created and fully spent within this flush window — never
-		// touched the DB, so it needs neither a delete nor an insert.
 	}
 
 	return { toUpsert, toDelete };
@@ -367,8 +363,7 @@ export interface FlushOptions {
  * rows and the checkpoint, in one transaction. Runs the supply invariant
  * (over `state.dirtyRuneIds`) inside the transaction before it commits —
  * throwing rolls the whole flush back (fail closed, per plan design). Clears
- * the dirty sets/event buffer, and updates `state.dbBalanceKeys`, only after
- * a successful commit.
+ * the dirty sets and event buffer only after a successful commit.
  */
 export async function flush(
 	db: Kysely<Database>,
@@ -548,15 +543,6 @@ export async function flush(
 		// the whole flush back rather than persisting a corrupt state.
 		checkInvariant(state, state.dirtyRuneIds);
 	});
-
-	for (const row of toUpsert) {
-		state.dbBalanceKeys.add(balanceKey(`${row.txid}:${row.vout}`, row.runeId));
-	}
-	for (const row of toDelete) {
-		state.dbBalanceKeys.delete(
-			balanceKey(`${row.txid}:${row.vout}`, row.runeId),
-		);
-	}
 
 	const eventsInserted = state.events.length;
 	state.dirtyRuneIds.clear();
