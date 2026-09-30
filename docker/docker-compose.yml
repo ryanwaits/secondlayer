@@ -134,6 +134,12 @@ services:
       # /internal/accounts/credits — see workloadHostKeyMatches() in
       # routes/internal-meters.ts). Unset → those routes 401 everything.
       WORKLOAD_HOST_KEY: ${WORKLOAD_HOST_KEY:-}
+      # Sentinel's service key for /internal/sentinel/* and Sentinel-unit meters
+      # (see sentinelServiceKeyMatches() in routes/internal-meters.ts). Unset →
+      # those routes 401 everything. SENTINEL_WEB_URL is the only origin Sentinel
+      # checkout may return to.
+      SENTINEL_SERVICE_KEY: ${SENTINEL_SERVICE_KEY:-}
+      SENTINEL_WEB_URL: ${SENTINEL_WEB_URL:-https://runsentinel.app}
       # Ghost-key claim URLs (POST /v1/keys) point at the marketing site.
       PLATFORM_BASE_URL: ${PLATFORM_BASE_URL:-https://secondlayer.tools}
       # Host split: the authenticated console lives on app.secondlayer.tools.
