@@ -21,7 +21,10 @@ import { type RuneId, runeIdCompare, runeIdToString } from "./rune_id.ts";
 import { runestoneDecipher, scriptInstructions } from "./runestone.ts";
 import {
 	type RuneState,
+	addBurned,
+	addMints,
 	getBalance,
+	insertEntry,
 	setBalance,
 	takeOutpointBalances,
 } from "./state.ts";
@@ -208,7 +211,7 @@ function mint(
 	const result = runeEntryMintable(entry, height);
 	if ("err" in result) return undefined;
 
-	entry.mints += 1n;
+	addMints(state, runeId, 1n);
 	state.dirtyRuneIds.add(runeId);
 
 	return result.ok;
@@ -305,7 +308,7 @@ function createRuneEntry(
 		};
 	}
 
-	state.entries.set(idKey, entry);
+	insertEntry(state, idKey, entry);
 	state.dirtyRuneIds.add(idKey);
 	state.events.push({
 		kind: "etch",
@@ -593,7 +596,7 @@ export function applyBlockBurns(
 		if (!entry) {
 			throw new Error(`applyBlockBurns: no entry for rune ${runeId}`);
 		}
-		entry.burned += amount;
+		addBurned(state, runeId, amount);
 		state.dirtyRuneIds.add(runeId);
 	}
 }

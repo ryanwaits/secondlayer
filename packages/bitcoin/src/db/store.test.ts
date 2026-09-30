@@ -8,8 +8,13 @@ import { describe, expect, test } from "bun:test";
 import type { Kysely } from "kysely";
 import type { RuneEntry } from "../runes/entry.ts";
 import type { RuneEvent } from "../runes/state.ts";
-import { createRuneState, seedGenesis, setBalance } from "../runes/state.ts";
-import { snapshotState } from "../runes/undo.ts";
+import {
+	beginUndoCapture,
+	createRuneState,
+	seedGenesis,
+	setBalance,
+} from "../runes/state.ts";
+
 import {
 	DELETE_CHUNK_SIZE,
 	ENTRY_CHUNK_SIZE,
@@ -145,11 +150,11 @@ describe("computeBalanceChanges", () => {
 	});
 });
 
-describe("flush's undoSnapshotBeforeBlock guard", () => {
+describe("flush's undoRecorder guard", () => {
 	test("rejects a multi-block flush (undo is only ever written one block at a time)", async () => {
 		const state = createRuneState();
 		seedGenesis(state);
-		const before = snapshotState(state);
+		const before = beginUndoCapture(state);
 
 		await expect(
 			flush(
@@ -161,10 +166,10 @@ describe("flush's undoSnapshotBeforeBlock guard", () => {
 					{ height: 840_001, hash: "b".repeat(64) },
 				],
 				() => {},
-				{ undoSnapshotBeforeBlock: before },
+				{ undoRecorder: before },
 			),
 		).rejects.toThrow(
-			"flush: undoSnapshotBeforeBlock requires exactly one block per flush",
+			"flush: undoRecorder requires exactly one block per flush",
 		);
 	});
 });

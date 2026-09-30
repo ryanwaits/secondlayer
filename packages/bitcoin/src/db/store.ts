@@ -30,12 +30,12 @@ import { spacedRuneToString } from "../runes/spaced_rune.ts";
 import {
 	type RuneEvent,
 	type RuneState,
+	type UndoRecorder,
 	createRuneState,
 	getBalance,
 	seedBalance,
 } from "../runes/state.ts";
 import {
-	type StateSnapshot,
 	UNDO_DEPTH,
 	buildUndoPayload,
 	undoPayloadToJson,
@@ -348,14 +348,14 @@ export interface FlushStats {
 
 export interface FlushOptions {
 	/**
-	 * A `snapshotState(state)` taken immediately before this block was applied
-	 * — presence signals "write this block's `rune_undo` row" (D10, tip
+	 * The `beginUndoCapture(state)` recorder that was active while this block
+	 * was applied — presence signals "write this block's `rune_undo` row" (D10, tip
 	 * following, `../follow.ts`). Only valid for a single-block flush
 	 * (`blocks.length === 1`): the undo journal reverses one block at a time,
 	 * and a batch flush (backfill, far from the tip) never needs it — "batch
 	 * as today with no undo rows" (plan 057 design).
 	 */
-	undoSnapshotBeforeBlock?: StateSnapshot;
+	undoRecorder?: UndoRecorder;
 }
 
 /**
@@ -375,10 +375,8 @@ export async function flush(
 	if (blocks.length === 0) {
 		throw new Error("flush: no blocks to flush");
 	}
-	if (options?.undoSnapshotBeforeBlock !== undefined && blocks.length !== 1) {
-		throw new Error(
-			"flush: undoSnapshotBeforeBlock requires exactly one block per flush",
-		);
+	if (options?.undoRecorder !== undefined && blocks.length !== 1) {
+		throw new Error("flush: undoRecorder requires exactly one block per flush");
 	}
 	const last = blocks[blocks.length - 1] as { height: number; hash: string };
 	const start = performance.now();
@@ -406,8 +404,8 @@ export async function flush(
 	// Pure (no DB access), like the digest above — built from the same
 	// pre/post-block state the digest and event indices were, so all three
 	// can never disagree about what this block did.
-	const undoPayload = options?.undoSnapshotBeforeBlock
-		? buildUndoPayload(last.height, options.undoSnapshotBeforeBlock, state)
+	const undoPayload = options?.undoRecorder
+		? buildUndoPayload(last.height, options.undoRecorder, state)
 		: undefined;
 
 	await db.transaction().execute(async (trx) => {

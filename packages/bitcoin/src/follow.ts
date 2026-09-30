@@ -30,8 +30,13 @@ import { DeepReorgError, rewindTo } from "./rewind.ts";
 import type { BitcoinRpcClient } from "./rpc.ts";
 import { checkInvariant } from "./runes/invariant.ts";
 import { Network, runeMinimumAtHeight } from "./runes/rune.ts";
-import { type RuneState, seedGenesis } from "./runes/state.ts";
-import { UNDO_DEPTH, snapshotState } from "./runes/undo.ts";
+import {
+	type RuneState,
+	beginUndoCapture,
+	endUndoCapture,
+	seedGenesis,
+} from "./runes/state.ts";
+import { UNDO_DEPTH } from "./runes/undo.ts";
 import {
 	type UpdaterContext,
 	applyBlockBurns,
@@ -176,16 +181,24 @@ async function applyOneBlock(
 		commitments,
 	};
 
-	const before = snapshotState(state);
-	const blockBurned = new Map<string, bigint>();
-	for (const [txIndex, tx] of block.txs.entries()) {
-		await applyTransaction(state, tx, txIndex, ctx, blockBurned);
-	}
-	applyBlockBurns(state, blockBurned);
+	const recorder = beginUndoCapture(state);
+	try {
+		const blockBurned = new Map<string, bigint>();
+		for (const [txIndex, tx] of block.txs.entries()) {
+			await applyTransaction(state, tx, txIndex, ctx, blockBurned);
+		}
+		applyBlockBurns(state, blockBurned);
 
-	return flush(deps.db, state, [{ height, hash: block.hash }], checkInvariant, {
-		undoSnapshotBeforeBlock: before,
-	});
+		return await flush(
+			deps.db,
+			state,
+			[{ height, hash: block.hash }],
+			checkInvariant,
+			{ undoRecorder: recorder },
+		);
+	} finally {
+		endUndoCapture(state);
+	}
 }
 
 export interface SyncResult {

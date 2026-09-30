@@ -1,5 +1,5 @@
-// Pure (no DB) tests for the undo journal: build a payload from a
-// before/after snapshot pair, then prove applying it reverses exactly that
+// Pure (no DB) tests for the undo journal: build a payload from the
+// pre-images a block recorded, then prove applying it reverses exactly that
 // block's effect — using `computeStateHash` (not raw object equality) since
 // housekeeping fields (dirty sets, event buffers) legitimately differ by
 // flush history without the *logical* state differing (see
@@ -10,14 +10,17 @@ import { computeStateHash } from "../integrity/digest.ts";
 import type { RuneEntry } from "./entry.ts";
 import {
 	type RuneState,
+	addBurned,
+	addMints,
+	beginUndoCapture,
 	createRuneState,
 	getBalance,
+	insertEntry,
 	setBalance,
 } from "./state.ts";
 import {
 	applyUndoPayload,
 	buildUndoPayload,
-	snapshotState,
 	undoPayloadFromJson,
 	undoPayloadToJson,
 } from "./undo.ts";
@@ -55,7 +58,7 @@ describe("buildUndoPayload + applyUndoPayload", () => {
 		const outpoint = `${"a".repeat(64)}:0`;
 		setBalance(state, outpoint, "840000:0", 100n, ADDRESS);
 
-		const before = snapshotState(state);
+		const before = beginUndoCapture(state);
 		const afterHash = stateHash(state); // "before this block" == current state, since nothing has moved yet
 
 		// Block: moves the balance to a new outpoint.
@@ -75,11 +78,11 @@ describe("buildUndoPayload + applyUndoPayload", () => {
 	test("a newly etched rune is deleted entirely on undo (not just its balance)", () => {
 		const state = createRuneState();
 		const beforeHash = stateHash(state);
-		const before = snapshotState(state);
+		const before = beginUndoCapture(state);
 
 		// Block: etches a new rune with a premine balance.
 		const entry = baseEntry({ number: 0n });
-		state.entries.set("840000:5", entry);
+		insertEntry(state, "840000:5", entry);
 		state.runeToId.set("123", "840000:5");
 		state.statisticRunes = 1n;
 		const outpoint = `${"c".repeat(64)}:0`;
@@ -103,12 +106,11 @@ describe("buildUndoPayload + applyUndoPayload", () => {
 		const state = createRuneState();
 		state.entries.set("840000:0", baseEntry({ mints: 3n, burned: 2n }));
 		const beforeHash = stateHash(state);
-		const before = snapshotState(state);
+		const before = beginUndoCapture(state);
 
 		// Block: two more mints and a burn.
-		const entry = state.entries.get("840000:0") as RuneEntry;
-		entry.mints += 2n;
-		entry.burned += 1n;
+		addMints(state, "840000:0", 2n);
+		addBurned(state, "840000:0", 1n);
 
 		const payload = buildUndoPayload(840_001, before, state);
 		expect(payload.entryDeltas).toEqual([
@@ -126,7 +128,7 @@ describe("buildUndoPayload + applyUndoPayload", () => {
 	test("applying blocks A, B, C then undoing C and B matches the state after A alone", () => {
 		const runeId = "840000:0";
 		function applyA(state: RuneState): void {
-			state.entries.set(runeId, baseEntry());
+			insertEntry(state, runeId, baseEntry());
 			state.runeToId.set("123", runeId);
 			state.statisticRunes = 1n;
 			setBalance(state, `${"a".repeat(64)}:0`, runeId, 1000n, ADDRESS);
@@ -136,13 +138,11 @@ describe("buildUndoPayload + applyUndoPayload", () => {
 			setBalance(state, `${"a".repeat(64)}:0`, runeId, 0n);
 			setBalance(state, `${"b".repeat(64)}:0`, runeId, 400n, ADDRESS);
 			setBalance(state, `${"b".repeat(64)}:1`, runeId, 600n);
-			const entry = state.entries.get(runeId) as RuneEntry;
-			entry.mints += 1n;
+			addMints(state, runeId, 1n);
 		}
 		function applyC(state: RuneState): void {
 			setBalance(state, `${"b".repeat(64)}:1`, runeId, 0n);
-			const entry = state.entries.get(runeId) as RuneEntry;
-			entry.burned += 100n;
+			addBurned(state, runeId, 100n);
 		}
 
 		// Reference: state after A alone.
@@ -154,11 +154,11 @@ describe("buildUndoPayload + applyUndoPayload", () => {
 		const state = createRuneState();
 		applyA(state);
 
-		const beforeB = snapshotState(state);
+		const beforeB = beginUndoCapture(state);
 		applyB(state);
 		const payloadB = buildUndoPayload(840_001, beforeB, state);
 
-		const beforeC = snapshotState(state);
+		const beforeC = beginUndoCapture(state);
 		applyC(state);
 		const payloadC = buildUndoPayload(840_002, beforeC, state);
 
@@ -173,7 +173,7 @@ describe("buildUndoPayload + applyUndoPayload", () => {
 		state.entries.set("840000:0", baseEntry());
 		setBalance(state, `${"a".repeat(64)}:0`, "840000:0", 50n);
 
-		const before = snapshotState(state);
+		const before = beginUndoCapture(state);
 		// No-op block.
 		const payload = buildUndoPayload(840_001, before, state);
 

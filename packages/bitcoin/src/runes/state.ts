@@ -61,8 +61,23 @@ export type OutpointBalances =
 	| [runeId: string, amount: bigint]
 	| Map<string, bigint>;
 
+/**
+ * Pre-images of everything one block modifies, recorded the first time the
+ * block touches each key (see `beginUndoCapture`). `runes/undo.ts` builds the
+ * block's undo payload from exactly these, so the cost is proportional to what
+ * the block changed, never to the size of the state.
+ */
+export interface UndoRecorder {
+	/** `balanceKey(outpoint, runeId)` -> the amount before the block (`undefined`: no live balance). */
+	balances: Map<string, bigint | undefined>;
+	/** outpoint -> its address before the block (`undefined`: none). Recorded with the outpoint's first balance write. */
+	addresses: Map<string, string | undefined>;
+	/** `RuneId` string -> `{mints, burned}` before the block (`undefined`: the rune did not exist, i.e. this block etches it). */
+	entries: Map<string, { mints: bigint; burned: bigint } | undefined>;
+}
+
 export interface RuneState {
-	/** Keyed by `RuneId` as `"block:tx"`. */
+	/** Keyed by `RuneId` as `"block:tx"`. Write through `insertEntry`/`addMints`/`addBurned`, which feed `undoRecorder`. */
 	entries: Map<string, RuneEntry>;
 	/** Outpoint `"txid:vout"` -> the runes it holds. See `OutpointBalances`; read and write through the helpers below, never by shape. */
 	balances: Map<string, OutpointBalances>;
@@ -98,6 +113,8 @@ export interface RuneState {
 	 */
 	balanceAddresses: Map<string, string>;
 	events: RuneEvent[];
+	/** Set only while a block is applied for the undo journal (`beginUndoCapture`); batch backfill leaves it unset and pays nothing. */
+	undoRecorder?: UndoRecorder;
 	height?: number;
 	hash?: string;
 	/** The block digest chain's running value (`d_height`, see ../integrity/digest.ts), `GENESIS_DIGEST` when `height` is undefined. */
@@ -122,6 +139,56 @@ export function createRuneState(): RuneState {
 /** `"${outpoint}|${runeId}"` — the composite key used by `dirtyBalanceKeys`. Neither half can contain `|` (txid is hex, vout/runeId are digits and `:`). */
 export function balanceKey(outpoint: string, runeId: string): string {
 	return `${outpoint}|${runeId}`;
+}
+
+/** Starts recording pre-images for the block about to be applied. Pair with `endUndoCapture`. */
+export function beginUndoCapture(state: RuneState): UndoRecorder {
+	const recorder: UndoRecorder = {
+		balances: new Map(),
+		addresses: new Map(),
+		entries: new Map(),
+	};
+	state.undoRecorder = recorder;
+	return recorder;
+}
+
+export function endUndoCapture(state: RuneState): void {
+	state.undoRecorder = undefined;
+}
+
+/** Records `runeId`'s entry as it is now, unless this block already touched it. Call before every entry write. */
+function recordEntryPreImage(state: RuneState, runeId: string): void {
+	const recorder = state.undoRecorder;
+	if (recorder === undefined || recorder.entries.has(runeId)) return;
+	const entry = state.entries.get(runeId);
+	recorder.entries.set(
+		runeId,
+		entry === undefined
+			? undefined
+			: { mints: entry.mints, burned: entry.burned },
+	);
+}
+
+/** Adds a newly etched rune. */
+export function insertEntry(
+	state: RuneState,
+	runeId: string,
+	entry: RuneEntry,
+): void {
+	recordEntryPreImage(state, runeId);
+	state.entries.set(runeId, entry);
+}
+
+/** Adds `n` to an existing rune's `mints`. */
+export function addMints(state: RuneState, runeId: string, n: bigint): void {
+	recordEntryPreImage(state, runeId);
+	(state.entries.get(runeId) as RuneEntry).mints += n;
+}
+
+/** Adds `n` to an existing rune's `burned`. */
+export function addBurned(state: RuneState, runeId: string, n: bigint): void {
+	recordEntryPreImage(state, runeId);
+	(state.entries.get(runeId) as RuneEntry).burned += n;
 }
 
 function amountHeld(
@@ -226,6 +293,18 @@ export function setBalance(
 	amount: bigint,
 	address?: string,
 ): void {
+	const recorder = state.undoRecorder;
+	if (recorder !== undefined) {
+		const key = balanceKey(outpoint, runeId);
+		if (!recorder.balances.has(key)) {
+			const held = amountHeld(state.balances.get(outpoint), runeId);
+			recorder.balances.set(key, held === 0n ? undefined : held);
+		}
+		if (!recorder.addresses.has(outpoint)) {
+			recorder.addresses.set(outpoint, state.balanceAddresses.get(outpoint));
+		}
+	}
+
 	const previous = writeBalance(state, outpoint, runeId, amount);
 	adjustLiveSupply(state, runeId, amount - previous);
 	if (amount !== 0n && address !== undefined) {

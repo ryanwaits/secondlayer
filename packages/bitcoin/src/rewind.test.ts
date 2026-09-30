@@ -19,12 +19,15 @@ import { DeepReorgError, rewindTo } from "./rewind.ts";
 import { checkInvariant } from "./runes/invariant.ts";
 import {
 	type RuneState,
+	addMints,
+	beginUndoCapture,
 	createRuneState,
+	endUndoCapture,
 	getBalance,
+	insertEntry,
 	seedGenesis,
 	setBalance,
 } from "./runes/state.ts";
-import { snapshotState } from "./runes/undo.ts";
 
 const testUrl = process.env.BITCOIN_TEST_DATABASE_URL;
 
@@ -40,10 +43,9 @@ async function applyAndFlushBlock(
 	runeId: string,
 	mintAmount: bigint,
 ): Promise<void> {
-	const before = snapshotState(state);
-	const entry = state.entries.get(runeId);
-	if (!entry) throw new Error(`no entry for ${runeId}`);
-	entry.mints += 1n;
+	const before = beginUndoCapture(state);
+	if (!state.entries.has(runeId)) throw new Error(`no entry for ${runeId}`);
+	addMints(state, runeId, 1n);
 	state.dirtyRuneIds.add(runeId);
 	const outpoint = `${height.toString(16).padStart(64, "0")}:0`;
 	setBalance(
@@ -66,8 +68,9 @@ async function applyAndFlushBlock(
 		state,
 		[{ height, hash: `${height.toString(16).padStart(63, "0")}f` }],
 		checkInvariant,
-		{ undoSnapshotBeforeBlock: before },
+		{ undoRecorder: before },
 	);
+	endUndoCapture(state);
 }
 
 describe.skipIf(!testUrl)("rewindTo", () => {
@@ -163,9 +166,9 @@ describe.skipIf(!testUrl)("rewindTo", () => {
 		await applyAndFlushBlock(db, state, 840_000, "1:0", 1n);
 
 		// Block 840,001 etches a brand-new rune with a premine.
-		const before = snapshotState(state);
+		const before = beginUndoCapture(state);
 		const newRuneId = "840001:0";
-		state.entries.set(newRuneId, {
+		insertEntry(state, newRuneId, {
 			block: 840_001n,
 			burned: 0n,
 			divisibility: 0,
@@ -197,8 +200,9 @@ describe.skipIf(!testUrl)("rewindTo", () => {
 			state,
 			[{ height: 840_001, hash: "f".repeat(64) }],
 			checkInvariant,
-			{ undoSnapshotBeforeBlock: before },
+			{ undoRecorder: before },
 		);
+		endUndoCapture(state);
 
 		expect(state.entries.has(newRuneId)).toBe(true);
 

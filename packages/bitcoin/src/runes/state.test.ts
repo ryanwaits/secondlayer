@@ -11,13 +11,15 @@ import { computeStateHash } from "../integrity/digest.ts";
 import type { RuneEntry } from "./entry.ts";
 import {
 	type RuneState,
+	beginUndoCapture,
 	createRuneState,
+	endUndoCapture,
 	getBalance,
 	iterateBalances,
 	setBalance,
 	takeOutpointBalances,
 } from "./state.ts";
-import { applyUndoPayload, buildUndoPayload, snapshotState } from "./undo.ts";
+import { applyUndoPayload, buildUndoPayload } from "./undo.ts";
 
 const ADDR_A = "bc1qay6jxstdwyma44ak8qfu52njqy9ujnfm37hllg";
 const ADDR_B = "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr";
@@ -147,7 +149,7 @@ describe("RuneState balances", () => {
 		expect(liveSupplyOf(state, RUNE_B)).toBe(300n);
 		expect(hashOf(state)).toBe(BLOCK_ONE_HASH);
 
-		const before = snapshotState(state);
+		const before = beginUndoCapture(state);
 		applyBlockTwo(state);
 		expectSupplyConsistent(state);
 		expect(liveSupplyOf(state, RUNE_A)).toBe(1500n);
@@ -157,6 +159,7 @@ describe("RuneState balances", () => {
 		expect(state.balances.has(op("5", 0))).toBe(false);
 		expect(hashOf(state)).toBe(BLOCK_TWO_HASH);
 
+		endUndoCapture(state);
 		applyUndoPayload(state, buildUndoPayload(840_002, before, state));
 		expectSupplyConsistent(state);
 		expect(liveSupplyOf(state, RUNE_A)).toBe(1500n);
