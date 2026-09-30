@@ -269,8 +269,12 @@ export function createInternalSentinelRouter(
 		await requireLinkedAccount(accountId);
 		const prior = await sentinelGrantedUsdMicros(accountId, idempotencyKey);
 		if (prior + usdMicros > MAX_GRANT_USD_MICROS) {
-			throw new ValidationError(
-				`Sentinel grants to this account would exceed ${MAX_GRANT_USD_MICROS} in total`,
+			return c.json(
+				{
+					error: "grant_total_exceeded",
+					message: `Sentinel grants to this account would exceed ${MAX_GRANT_USD_MICROS} in total`,
+				},
+				409,
 			);
 		}
 		const result = await grantCredits(getDb(), {

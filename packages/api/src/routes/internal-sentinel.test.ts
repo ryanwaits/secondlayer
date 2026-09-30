@@ -361,7 +361,9 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			});
 		expect((await grant(5_000_000, "starter")).status).toBe(200);
 		// The top-up past the cap is refused; the one that fits is credited once.
-		expect((await grant(5_000_001, "starter-topup")).status).toBe(400);
+		const over = await grant(5_000_001, "starter-topup");
+		expect(over.status).toBe(409);
+		expect(await over.json()).toMatchObject({ error: "grant_total_exceeded" });
 		expect((await grant(5_000_000, "starter-topup")).status).toBe(200);
 		const retry = await grant(5_000_000, "starter-topup");
 		expect(retry.status).toBe(200);
@@ -382,7 +384,7 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 				idempotencyKey: `sentinel:${kind}:${accountId}`,
 			});
 		expect((await grant(10_000_000, "starter")).status).toBe(200);
-		expect((await grant(1_000_000, "starter-topup")).status).toBe(400);
+		expect((await grant(1_000_000, "starter-topup")).status).toBe(409);
 		expect(await getCredits(db, accountId)).toBe(10_000_000n);
 	});
 
