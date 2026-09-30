@@ -142,6 +142,31 @@ export function openStore(databaseUrl: string): Kysely<Database> {
  * `rune_entries` row. Pure (no DB access) so the round trip is directly
  * unit-testable; `loadState` is its only caller.
  */
+/**
+ * Closes the pool, but never waits longer than `timeoutMs`. On a long-lived
+ * host-networked connection `destroy()` has been seen to never settle, which
+ * kept one-shot commands alive for hours after their work was done.
+ */
+export async function closeStore(
+	db: Pick<Kysely<Database>, "destroy">,
+	timeoutMs = 10_000,
+): Promise<void> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timedOut = new Promise<boolean>((resolve) => {
+		timer = setTimeout(() => resolve(true), timeoutMs);
+	});
+	const closed = db.destroy().then(() => false);
+	try {
+		if (await Promise.race([closed, timedOut])) {
+			console.error(
+				`db close timed out after ${timeoutMs / 1000}s; exiting anyway`,
+			);
+		}
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
 export function rowToEntry(row: RuneEntriesTable): RuneEntry {
 	return {
 		block: n(row.block),

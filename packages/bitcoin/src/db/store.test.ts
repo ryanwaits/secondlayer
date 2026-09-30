@@ -4,7 +4,7 @@
 // single-row statements sitting in pg_stat_activity for 45+ minutes on the
 // Runes launch window. `computeBalanceChanges` is the fix's core: it decides,
 // from in-memory state alone, exactly which rows need a write.
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import type { Kysely } from "kysely";
 import type { RuneEntry } from "../runes/entry.ts";
 import type { RuneEvent } from "../runes/state.ts";
@@ -25,6 +25,7 @@ import {
 	RUNE_EVENTS_PARAMS_PER_ROW,
 	UPSERT_CHUNK_SIZE,
 	assignEventIndices,
+	closeStore,
 	computeBalanceChanges,
 	entryToRow,
 	flush,
@@ -372,5 +373,39 @@ describe("entryToRow -> rowToEntry round trip (lossless symbol/terms storage)", 
 
 		const entry = rowToEntry(row);
 		expect(entry.terms).toBeUndefined();
+	});
+});
+
+describe("closeStore", () => {
+	test("returns once a destroy that never settles passes the timeout, and logs once", async () => {
+		const log = spyOn(console, "error").mockImplementation(() => {});
+		try {
+			const started = Date.now();
+			await closeStore({ destroy: () => new Promise<void>(() => {}) }, 50);
+			expect(Date.now() - started).toBeLessThan(1_000);
+			expect(log).toHaveBeenCalledTimes(1);
+			expect(String(log.mock.calls[0]?.[0])).toContain("db close timed out");
+		} finally {
+			log.mockRestore();
+		}
+	});
+
+	test("a destroy that settles resolves immediately and logs nothing", async () => {
+		const log = spyOn(console, "error").mockImplementation(() => {});
+		try {
+			let destroyed = 0;
+			await closeStore(
+				{
+					destroy: async () => {
+						destroyed++;
+					},
+				},
+				5_000,
+			);
+			expect(destroyed).toBe(1);
+			expect(log).not.toHaveBeenCalled();
+		} finally {
+			log.mockRestore();
+		}
 	});
 });

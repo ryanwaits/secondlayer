@@ -13,6 +13,7 @@ import {
 } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
+import { closeStore } from "./store.ts";
 
 const migrationsFolder = resolve(dirname(import.meta.dir), "../migrations");
 
@@ -118,7 +119,7 @@ export async function migrateToLatest(): Promise<void> {
 	try {
 		await sql`SET lock_timeout = '30s'`.execute(db);
 	} catch (err) {
-		await db.destroy();
+		await closeStore(db);
 		if (!isDatabaseAbsentError(err)) throw err;
 		await createDatabaseIfMissing(url);
 		db = openDb(url);
@@ -135,7 +136,7 @@ export async function migrateToLatest(): Promise<void> {
 		else console.warn(`⏭️  ${r.migrationName} (not executed)`);
 	}
 
-	await db.destroy();
+	await closeStore(db);
 
 	if (error) throw error;
 }
@@ -151,7 +152,7 @@ export async function migrateDown(): Promise<void> {
 		else if (r.status === "Error") console.error(`❌ ${r.migrationName}`);
 	}
 
-	await db.destroy();
+	await closeStore(db);
 
 	if (error) throw error;
 }

@@ -14,7 +14,7 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import { runBackfill } from "./backfill.ts";
 import { parseBlock } from "./block.ts";
 import { migrateToLatest } from "./db/migrate.ts";
-import { loadState, openStore } from "./db/store.ts";
+import { closeStore, loadState, openStore } from "./db/store.ts";
 import { runFollow } from "./follow.ts";
 import { computeStateHash } from "./integrity/digest.ts";
 import { diffOne, txidsWithRunestoneMarker } from "./parity/decode.ts";
@@ -152,14 +152,14 @@ async function cmdBackfill(args: string[]): Promise<void> {
 		console.error(
 			`❌ backfill to ${toHeight} incomplete: checkpoint at ${finalState.height ?? "none"} after ${totalS}s`,
 		);
-		await db.destroy();
+		await closeStore(db);
 		process.exit(1);
 	}
 
 	console.log(
 		`backfill to ${toHeight} complete (last flush ${lastFlushHeight}) in ${totalS}s`,
 	);
-	await db.destroy();
+	await closeStore(db);
 }
 
 async function cmdParityDecode(args: string[]): Promise<void> {
@@ -275,7 +275,7 @@ async function cmdParityState(args: string[]): Promise<void> {
 	const state = await loadState(db);
 	const ourEntries = normalizeOurEntries(state);
 	const ourBalances = normalizeOurBalances(state);
-	await db.destroy();
+	await closeStore(db);
 
 	const report = buildStateDiffReport(
 		height,
@@ -311,7 +311,7 @@ async function cmdRepairEntries(): Promise<void> {
 	const stats = await repairEntries(db, {
 		getRawTx: (txid) => rpc.getrawtransaction(txid, false),
 	});
-	await db.destroy();
+	await closeStore(db);
 
 	console.log(
 		`repair-entries: scanned=${stats.rowsScanned} noRpc=${stats.rowsRepairedNoRpc} ` +
@@ -336,7 +336,7 @@ async function cmdDigests(args: string[]): Promise<void> {
 		.where("height", "<=", to)
 		.orderBy("height", "asc")
 		.execute();
-	await db.destroy();
+	await closeStore(db);
 
 	for (const row of rows) {
 		console.log(
@@ -348,7 +348,7 @@ async function cmdDigests(args: string[]): Promise<void> {
 async function cmdStateHash(): Promise<void> {
 	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
 	const state = await loadState(db);
-	await db.destroy();
+	await closeStore(db);
 
 	const hash = bytesToHex(computeStateHash(state));
 	console.log(`${state.height}\t${hash}`);
@@ -367,7 +367,7 @@ async function cmdStateHash(): Promise<void> {
  * `--until <H>` (plan 062), stops cleanly at H on its own — used by the
  * weekly frozen-parity procedure to pin this side and ord to the same
  * height before diffing — and, like every other one-shot command
- * (plan 081), force-exits after `db.destroy()` rather than relying on
+ * (plan 081), force-exits after `closeStore()` rather than relying on
  * `main()`'s "follow never returns" assumption.
  */
 async function cmdFollow(args: string[]): Promise<void> {
@@ -432,7 +432,7 @@ async function cmdFollow(args: string[]): Promise<void> {
 	);
 
 	notifier.close();
-	await db.destroy();
+	await closeStore(db);
 
 	if (until !== undefined) {
 		console.log(`follow: reached --until height ${until}, exiting`);
@@ -451,7 +451,7 @@ async function cmdParitySpot(): Promise<void> {
 	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
 
 	const result = await runSpotParity({ db, ordUrl });
-	await db.destroy();
+	await closeStore(db);
 
 	const outDir = process.env.PARITY_REPORT_DIR ?? process.cwd();
 	const outPath = `${outDir}/spot-${new Date().toISOString().slice(0, 10)}.json`;
@@ -496,7 +496,7 @@ async function main(): Promise<void> {
 
 if (import.meta.main) {
 	// Every one-shot command (everything but a `follow` with no `--until`)
-	// awaits its final DB write and `db.destroy()` before `main()` resolves —
+	// awaits its final DB write and `closeStore()` before `main()` resolves —
 	// so it's always safe to force-exit here. `follow` with no `--until` runs
 	// until SIGINT/SIGTERM and must keep its own lifecycle (plan 081: root
 	// cause of the hang wasn't found in the time box — this is the
