@@ -20,13 +20,16 @@ import {
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import type Stripe from "stripe";
+import { generateSessionToken, hashToken } from "../auth/keys.ts";
 import { createApiApp } from "../create-app.ts";
 import { errorHandler } from "../middleware/error.ts";
 import type { StripeClient } from "./billing.ts";
 import {
 	MAX_GRANT_USD_MICROS,
+	type SentinelAreas,
 	buildReturnUrl,
 	createInternalSentinelRouter,
+	parseAreas,
 } from "./internal-sentinel.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -140,6 +143,8 @@ afterAll(async () => {
 		ids.push(...rows.map((r) => r.id));
 	}
 	if (ids.length === 0) return;
+	await db.deleteFrom("api_keys").where("account_id", "in", ids).execute();
+	await db.deleteFrom("sessions").where("account_id", "in", ids).execute();
 	await db.deleteFrom("usage_ledger").where("account_id", "in", ids).execute();
 	await db
 		.deleteFrom("account_spend_caps")
@@ -196,6 +201,8 @@ describe("/internal/sentinel auth", () => {
 		["/settings", {}],
 		["/affordable", {}],
 		["/checkout", {}],
+		["/tokens/resolve", {}],
+		["/keys", {}],
 	];
 
 	test.each(routes)("%s: missing key → 401", async (path, body) => {
@@ -808,5 +815,190 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 		await upsertCaps(db, id, { monthly_cap_cents: 500, frozen_at: new Date() });
 		await post(app(), "/settings", { accountId: id, monthlyCapCents: 1000 });
 		expect((await getCaps(db, id))?.frozen_at).toBeNull();
+	});
+});
+
+describe("parseAreas", () => {
+	const ok: SentinelAreas = {
+		plans: "write",
+		monitoring: "read",
+		alerts: "none",
+	};
+	test("accepts exactly the three areas", () => {
+		expect(parseAreas(ok)).toEqual(ok);
+	});
+	test.each([
+		["not an object", "read"],
+		["array", []],
+		["missing area", { plans: "read", monitoring: "read" }],
+		["unknown area", { ...ok, billing: "read" }],
+		["unknown level", { ...ok, plans: "admin" }],
+	])("rejects %s", (_n, v) => {
+		expect(() => parseAreas(v)).toThrow();
+	});
+});
+
+describe.skipIf(!HAS_DB)("/internal/sentinel tokens + keys", () => {
+	const areas = { plans: "write", monitoring: "read", alerts: "none" };
+	const get = (path: string, key: string | null = KEY) =>
+		app().request(`/internal/sentinel${path}`, {
+			headers: key ? { authorization: `Bearer ${key}` } : {},
+		});
+	const del = (path: string) =>
+		app().request(`/internal/sentinel${path}`, {
+			method: "DELETE",
+			headers: { authorization: `Bearer ${KEY}` },
+		});
+	const mint = async (accountId: string, name = "agent") =>
+		(await (await post(app(), "/keys", { accountId, name, areas })).json()) as {
+			id: string;
+			key: string;
+			prefix: string;
+		};
+	const resolve = (raw: string) =>
+		post(app(), "/tokens/resolve", { tokenHash: hashToken(raw) });
+	async function makeSession(
+		accountId: string,
+		opts: { revoked?: boolean; expiresAt?: Date } = {},
+	) {
+		const { raw, hash, prefix } = generateSessionToken();
+		await db
+			.insertInto("sessions")
+			.values({
+				token_hash: hash,
+				token_prefix: prefix,
+				account_id: accountId,
+				ip_address: "test",
+				...(opts.expiresAt ? { expires_at: opts.expiresAt } : {}),
+				...(opts.revoked ? { revoked_at: new Date() } : {}),
+			})
+			.execute();
+		return raw;
+	}
+
+	test("mint returns the raw key once; the stored row holds only the hash", async () => {
+		const accountId = await makeAccount(`k-${randomUUID()}@example.com`);
+		const res = await post(app(), "/keys", { accountId, name: "ci", areas });
+		expect(res.status).toBe(201);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(String(body.key)).toMatch(/^sk-sl_[0-9a-f]{32}$/);
+		expect(body.areas).toEqual(areas);
+		const row = await db
+			.selectFrom("api_keys")
+			.selectAll()
+			.where("id", "=", String(body.id))
+			.executeTakeFirstOrThrow();
+		expect(row.key_hash).toBe(hashToken(String(body.key)));
+		expect(row.product).toBe("sentinel");
+		expect(row.areas).toEqual(areas);
+	});
+
+	test("mint validates areas, name and the linked account", async () => {
+		const accountId = await makeAccount(`k-${randomUUID()}@example.com`);
+		for (const bad of [
+			undefined,
+			{ plans: "write" },
+			{ ...areas, extra: "read" },
+			{ ...areas, plans: "owner" },
+		]) {
+			expect(
+				(await post(app(), "/keys", { accountId, name: "x", areas: bad }))
+					.status,
+			).toBe(400);
+		}
+		expect((await post(app(), "/keys", { accountId, areas })).status).toBe(400);
+		const unlinked = await makeAccount(`k-${randomUUID()}@example.com`, false);
+		expect(
+			(await post(app(), "/keys", { accountId: unlinked, name: "x", areas }))
+				.status,
+		).toBe(403);
+	});
+
+	test("list is scoped to the account and never returns raw key or hash", async () => {
+		const a = await makeAccount(`k-${randomUUID()}@example.com`);
+		const b = await makeAccount(`k-${randomUUID()}@example.com`);
+		const ka = await mint(a, "mine");
+		await mint(b, "theirs");
+		const res = await get(`/keys?accountId=${a}`);
+		expect(res.status).toBe(200);
+		const text = await res.text();
+		expect(text).not.toContain(ka.key);
+		expect(text).not.toContain("key_hash");
+		const { keys } = JSON.parse(text) as {
+			keys: { id: string; name: string; prefix: string; areas: unknown }[];
+		};
+		expect(keys.map((k) => k.name)).toEqual(["mine"]);
+		expect(keys[0]?.prefix).toBe(ka.prefix);
+		expect(keys[0]?.areas).toEqual(areas);
+	});
+
+	test("delete revokes within the account only", async () => {
+		const a = await makeAccount(`k-${randomUUID()}@example.com`);
+		const b = await makeAccount(`k-${randomUUID()}@example.com`);
+		const ka = await mint(a);
+		expect((await del(`/keys/${ka.id}?accountId=${b}`)).status).toBe(404);
+		expect((await resolve(ka.key)).status).toBe(200);
+		expect((await del(`/keys/${ka.id}?accountId=${a}`)).status).toBe(200);
+		expect((await resolve(ka.key)).status).toBe(404);
+		expect((await del(`/keys/${ka.id}?accountId=${a}`)).status).toBe(404);
+		expect((await del(`/keys/not-a-uuid?accountId=${a}`)).status).toBe(404);
+	});
+
+	test("resolve: sentinel key → kind key with areas; session → kind session", async () => {
+		const accountId = await makeAccount(`k-${randomUUID()}@example.com`);
+		const k = await mint(accountId);
+		const res = await resolve(k.key);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			accountId,
+			kind: "key",
+			keyId: k.id,
+			areas,
+		});
+		const session = await makeSession(accountId);
+		const sres = await resolve(session);
+		expect(sres.status).toBe(200);
+		expect(await sres.json()).toEqual({ accountId, kind: "session" });
+	});
+
+	test("resolve: expired and revoked sessions, unknown hashes → 404", async () => {
+		const accountId = await makeAccount(`k-${randomUUID()}@example.com`);
+		const expired = await makeSession(accountId, {
+			expiresAt: new Date(Date.now() - 1000),
+		});
+		const revoked = await makeSession(accountId, { revoked: true });
+		expect((await resolve(expired)).status).toBe(404);
+		expect((await resolve(revoked)).status).toBe(404);
+		expect((await resolve(`sk-sl_${randomUUID()}`)).status).toBe(404);
+	});
+
+	test("resolve: account-product and revoked keys → 404", async () => {
+		const accountId = await makeAccount(`k-${randomUUID()}@example.com`);
+		const raw = `sk-sl_acct_${randomUUID()}`;
+		await db
+			.insertInto("api_keys")
+			.values({
+				key_hash: hashToken(raw),
+				key_prefix: raw.slice(0, 14),
+				account_id: accountId,
+				ip_address: "test",
+				product: "account",
+				tier: "free",
+			})
+			.execute();
+		expect((await resolve(raw)).status).toBe(404);
+	});
+
+	test("resolve rejects a non-hash (raw token) body", async () => {
+		const accountId = await makeAccount(`k-${randomUUID()}@example.com`);
+		const k = await mint(accountId);
+		expect(
+			(await post(app(), "/tokens/resolve", { tokenHash: k.key })).status,
+		).toBe(400);
+	});
+
+	test("GET/DELETE keys require the service key", async () => {
+		expect((await get("/keys?accountId=x", null)).status).toBe(401);
+		expect((await get("/keys?accountId=x", "nope")).status).toBe(401);
 	});
 });

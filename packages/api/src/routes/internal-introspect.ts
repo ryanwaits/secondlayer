@@ -78,6 +78,7 @@ app.post("/", async (c) => {
 			.selectFrom("api_keys")
 			.select(["account_id", "status"])
 			.where("key_hash", "=", hashToken(presented))
+			.where("product", "=", "account")
 			.executeTakeFirst();
 
 		if (!keyRecord || keyRecord.status !== "active") {

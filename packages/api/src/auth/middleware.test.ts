@@ -92,12 +92,28 @@ describe("requireAuth middleware", () => {
 		expect(res.status).toBe(403);
 	});
 
+	test("sentinel-product key → 401 (account keys only)", async () => {
+		const { raw } = generateApiKey();
+		mockExecuteTakeFirst.mockResolvedValue({
+			id: "test-id",
+			status: "active",
+			key_hash: hashToken(raw),
+			product: "sentinel",
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		} as any);
+		const res = await createApp().request("/test", {
+			headers: { Authorization: `Bearer ${raw}` },
+		});
+		expect(res.status).toBe(401);
+	});
+
 	test("valid key → passes with apiKey on context", async () => {
 		const { raw } = generateApiKey();
 		const keyRecord = {
 			id: "test-id",
 			status: "active",
 			key_hash: hashToken(raw),
+			product: "account",
 			rate_limit: 120,
 		};
 		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit

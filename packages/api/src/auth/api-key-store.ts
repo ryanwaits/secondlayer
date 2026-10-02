@@ -20,7 +20,7 @@ export type ProductTokenStore<TTenant> = {
 	get(rawToken: string): TTenant | undefined | Promise<TTenant | undefined>;
 };
 
-export type ProductScope = "streams" | "index";
+export type ProductScope = "streams" | "index" | "sentinel";
 
 type ApiKeyRecord = {
 	account_id: string;

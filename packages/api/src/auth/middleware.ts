@@ -122,6 +122,12 @@ export function requireAuth(opts?: {
 				throw new AuthenticationError("Invalid API key");
 			}
 
+			// Account keys only. Product keys (e.g. `sentinel`) are resolved
+			// server-to-server by their product and never open account routes.
+			if (keyRecord.product !== "account") {
+				throw new AuthenticationError("Invalid API key");
+			}
+
 			// Ghost guard: keys owned by an unclaimed ghost account are read-only.
 			// Only checked on mutating methods, so the hot GET path pays nothing;
 			// for writes it's one indexed PK read on accounts — acceptable.

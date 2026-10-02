@@ -5,7 +5,7 @@ import {
 } from "@secondlayer/shared/errors";
 import { generateApiKey } from "./keys.ts";
 
-export type MintProduct = "account";
+export type MintProduct = "account" | "sentinel";
 
 /**
  * The single tier every minted key gets. Plan/tier selection is retired —
@@ -106,6 +106,8 @@ export async function mintApiKey(
 		accountId: string;
 		name?: string | null;
 		product: MintProduct;
+		/** Sentinel permission areas; stored only on `sentinel` keys. */
+		areas?: Record<string, string>;
 		ip: string;
 		/** First-party service key (unmetered, unthrottled). Internal routes only. */
 		internal?: boolean;
@@ -122,6 +124,7 @@ export async function mintApiKey(
 			account_id: input.accountId,
 			status: "active",
 			product: input.product,
+			areas: input.areas ?? null,
 			tier: input.internal ? INTERNAL_MINT_TIER : DEFAULT_MINT_TIER,
 		})
 		.returningAll()

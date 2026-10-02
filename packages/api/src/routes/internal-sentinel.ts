@@ -11,6 +11,10 @@
  *   POST /settings           { accountId, monthlyCapCents?, refill? }   cap + auto top-up
  *   POST /affordable         { accountId, unit, quantity }              pure check, no debit
  *   POST /checkout           { accountId, packUsd, returnPath }         Stripe Checkout URL
+ *   POST /tokens/resolve     { tokenHash }                              SHA-256 hex of a presented ss-sl_/sk-sl_ token
+ *   POST /keys               { accountId, name, areas }                 mint a sentinel agent key (raw key shown once)
+ *   GET  /keys?accountId=                                               list the account's active sentinel keys
+ *   DELETE /keys/:id?accountId=                                         revoke one of that account's sentinel keys
  *
  * Guard: `SENTINEL_SERVICE_KEY` ONLY (constant-time, unset key authenticates
  * nobody). `WORKLOAD_HOST_KEY` does not open these routes. Metering itself
@@ -51,6 +55,8 @@ import {
 	ValidationError,
 } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
+import { assertUnderKeyCeiling, mintApiKey } from "../auth/mint.ts";
+import { lookupSession } from "../auth/session.ts";
 import { getStripeOrNull } from "../lib/stripe.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import {
@@ -167,6 +173,37 @@ function requireString(
 	}
 	return v;
 }
+
+const AREA_NAMES = ["plans", "monitoring", "alerts"] as const;
+const AREA_LEVELS = ["none", "read", "write"] as const;
+type AreaLevel = (typeof AREA_LEVELS)[number];
+export type SentinelAreas = Record<(typeof AREA_NAMES)[number], AreaLevel>;
+
+/** Exactly the three known areas, each none|read|write. Anything else is rejected. */
+export function parseAreas(raw: unknown): SentinelAreas {
+	if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+		throw new ValidationError("areas must be an object");
+	}
+	const input = raw as Record<string, unknown>;
+	for (const k of Object.keys(input)) {
+		if (!(AREA_NAMES as readonly string[]).includes(k)) {
+			throw new ValidationError(`unknown area "${k}"`);
+		}
+	}
+	const out = {} as SentinelAreas;
+	for (const name of AREA_NAMES) {
+		const level = input[name];
+		if (!(AREA_LEVELS as readonly unknown[]).includes(level)) {
+			throw new ValidationError(
+				`areas.${name} must be one of ${AREA_LEVELS.join(", ")}`,
+			);
+		}
+		out[name] = level as AreaLevel;
+	}
+	return out;
+}
+
+const SHA256_HEX_RE = /^[0-9a-f]{64}$/;
 
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -452,6 +489,117 @@ export function createInternalSentinelRouter(
 			cancelUrl,
 		});
 		return c.json({ url });
+	});
+
+	// Resolve a presented token (by hash, never the raw token) to the account it
+	// belongs to. Sessions honor expiry/revocation exactly like requireAuth; keys
+	// must be active and `sentinel`-product. Anything else is a flat 404.
+	app.post("/tokens/resolve", async (c) => {
+		const body = await readBody(c.req);
+		const tokenHash = requireString(body, "tokenHash", 64);
+		if (!SHA256_HEX_RE.test(tokenHash)) {
+			throw new ValidationError(
+				"tokenHash must be a lowercase SHA-256 hex digest",
+			);
+		}
+		const db = getDb();
+		const lookup = await lookupSession(db, tokenHash);
+		if (lookup.status === "ok") {
+			return c.json({ accountId: lookup.session.account_id, kind: "session" });
+		}
+		const key = await db
+			.selectFrom("api_keys")
+			.select(["id", "account_id", "areas"])
+			.where("key_hash", "=", tokenHash)
+			.where("status", "=", "active")
+			.where("product", "=", "sentinel")
+			.executeTakeFirst();
+		if (!key) throw new NotFoundError("Token not found");
+		return c.json({
+			accountId: key.account_id,
+			kind: "key",
+			keyId: key.id,
+			areas: key.areas,
+		});
+	});
+
+	app.post("/keys", async (c) => {
+		const body = await readBody(c.req);
+		const accountId = requireString(body, "accountId");
+		const name = requireString(body, "name", 64);
+		const areas = parseAreas(body.areas);
+		await requireLinkedAccount(accountId);
+		const db = getDb();
+		await assertUnderKeyCeiling(db, accountId);
+		const minted = await mintApiKey(db, {
+			accountId,
+			name,
+			product: "sentinel",
+			areas,
+			ip: "sentinel",
+		});
+		return c.json(
+			{
+				id: minted.id,
+				key: minted.key,
+				prefix: minted.prefix,
+				name,
+				areas,
+				createdAt: minted.createdAt,
+			},
+			201,
+		);
+	});
+
+	app.get("/keys", async (c) => {
+		const accountId = c.req.query("accountId") ?? "";
+		if (!accountId) throw new ValidationError("accountId is required");
+		await requireLinkedAccount(accountId);
+		const rows = await getDb()
+			.selectFrom("api_keys")
+			.select([
+				"id",
+				"name",
+				"key_prefix",
+				"areas",
+				"created_at",
+				"last_used_at",
+			])
+			.where("account_id", "=", accountId)
+			.where("product", "=", "sentinel")
+			.where("status", "=", "active")
+			.orderBy("created_at", "desc")
+			.execute();
+		return c.json({
+			keys: rows.map((r) => ({
+				id: r.id,
+				name: r.name,
+				prefix: r.key_prefix,
+				areas: r.areas,
+				createdAt: r.created_at.toISOString(),
+				lastUsedAt: r.last_used_at ? r.last_used_at.toISOString() : null,
+			})),
+		});
+	});
+
+	app.delete("/keys/:id", async (c) => {
+		const accountId = c.req.query("accountId") ?? "";
+		if (!accountId) throw new ValidationError("accountId is required");
+		const id = c.req.param("id");
+		await requireLinkedAccount(accountId);
+		const revoked = UUID_RE.test(id)
+			? await getDb()
+					.updateTable("api_keys")
+					.set({ status: "revoked", revoked_at: new Date() })
+					.where("id", "=", id)
+					.where("account_id", "=", accountId)
+					.where("product", "=", "sentinel")
+					.where("status", "=", "active")
+					.returning("id")
+					.executeTakeFirst()
+			: undefined;
+		if (!revoked) throw new NotFoundError("Key not found");
+		return c.json({ revoked: true });
 	});
 
 	return app;

@@ -175,6 +175,31 @@ describe("createApiKeyTokenStore", () => {
 				});
 				expect(await store.get(raw)).toBeUndefined();
 			});
+
+			test("an active sentinel key does not resolve on any product route", async () => {
+				const raw = "sk-sl_sentinel_product_rejected_test";
+				await db
+					.insertInto("api_keys")
+					.values({
+						key_hash: hashToken(raw),
+						key_prefix: "sk-sl_sentine",
+						account_id: accountId,
+						ip_address: "test",
+						product: "sentinel",
+						tier: "free",
+						status: "active",
+					})
+					.execute();
+
+				for (const product of ["streams", "index"] as const) {
+					const store = createApiKeyTokenStore({
+						staticTokens: new Map(),
+						requiredScope: `${product}:read`,
+						product,
+					});
+					expect(await store.get(raw)).toBeUndefined();
+				}
+			});
 		},
 	);
 

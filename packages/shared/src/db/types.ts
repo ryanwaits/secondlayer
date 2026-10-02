@@ -299,7 +299,9 @@ export interface ApiKeysTable {
 	rate_limit: Generated<number>;
 	ip_address: string;
 	account_id: string;
-	product: Generated<"account" | "streams" | "index">;
+	product: Generated<"account" | "streams" | "index" | "sentinel">;
+	/** Sentinel permission areas; set only on `product = 'sentinel'` keys. */
+	areas: unknown | null;
 	tier: "free" | "build" | "scale" | "enterprise" | "internal" | null;
 	last_used_at: Date | null;
 	revoked_at: Date | null;
