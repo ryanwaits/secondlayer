@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.19.0
+
+### Minor Changes
+
+- b1c7ff6: Sentinel agent keys: `sentinel`-product API keys with permission areas, minted and revoked through `/internal/sentinel/keys`, and `/internal/sentinel/tokens/resolve` turns a hashed `ss-sl_`/`sk-sl_` token into its account. Product keys no longer authenticate account routes or introspection.
+
 ## 11.18.0
 
 ### Minor Changes
