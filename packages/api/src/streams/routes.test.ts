@@ -976,7 +976,7 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 
 	test("account at the allowance with $0 balance gets 402 insufficient_credits and no rows served", async () => {
 		const accountId = await makeAccount();
-		const now = new Date("2026-09-24T00:00:00Z");
+		const now = new Date();
 		await meter(db, {
 			accountId,
 			unit: "rows.delivered",
@@ -1025,7 +1025,7 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 
 	test("the same over-allowance account reads again after a top-up, and the row is debited", async () => {
 		const accountId = await makeAccount();
-		const now = new Date("2026-09-24T00:00:00Z");
+		const now = new Date();
 		await meter(db, {
 			accountId,
 			unit: "rows.delivered",
@@ -1065,7 +1065,7 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 
 	test("a read that straddles the allowance boundary with $0 balance serves in full, overflow debited=false", async () => {
 		const accountId = await makeAccount();
-		const now = new Date("2026-09-24T00:00:00Z");
+		const now = new Date();
 		// 3 rows of allowance left.
 		await meter(db, {
 			accountId,
