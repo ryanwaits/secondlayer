@@ -24,6 +24,15 @@ import {
 } from "./prices.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
+// Owed-ledger seeds must sit in the current UTC billing month (spend is
+// month-scoped); day 1 < day 2 keeps the "oldest first" ordering.
+const MONTH_START = new Date();
+MONTH_START.setUTCDate(1);
+MONTH_START.setUTCHours(0, 0, 0, 0);
+const MONTH_DAY_1 = MONTH_START.toISOString();
+const MONTH_DAY_2 = new Date(
+	MONTH_START.getTime() + 24 * 60 * 60 * 1000,
+).toISOString();
 
 const db = HAS_DB ? getDb() : (null as never);
 
@@ -77,7 +86,7 @@ describe.skipIf(!HAS_DB)("meter — rows.delivered characterization", () => {
 	// not change.
 	test("standard rate: 10 rows past the allowance cost 10 x 5µ$", async () => {
 		await creditCredits(db, accountId, 1_000_000n);
-		const now = new Date("2026-09-24T00:00:00Z");
+		const now = new Date();
 		await meter(db, {
 			accountId,
 			unit: "rows.delivered",
@@ -106,7 +115,7 @@ describe.skipIf(!HAS_DB)("meter — rows.delivered characterization", () => {
 		await creditCredits(db, accountId, 200_000_000n);
 		// Pre-seed the ledger past the commit threshold entirely via the
 		// allowance-exhausting path so getMonthlyCreditsSpend reads the tier.
-		const now = new Date("2026-09-24T00:00:00Z");
+		const now = new Date();
 		await meter(db, {
 			accountId,
 			unit: "rows.delivered",
@@ -132,7 +141,7 @@ describe.skipIf(!HAS_DB)("meter — rows.delivered characterization", () => {
 
 	test("allowance boundary: row 1,000,000 free, 1,000,001st charged", async () => {
 		await creditCredits(db, accountId, 1_000_000n);
-		const now = new Date("2026-09-24T00:00:00Z");
+		const now = new Date();
 		const atBoundary = await meter(db, {
 			accountId,
 			unit: "rows.delivered",
@@ -158,7 +167,7 @@ describe.skipIf(!HAS_DB)("meter — rows.delivered characterization", () => {
 
 	test("a batch straddling the allowance boundary is charged only for the excess", async () => {
 		await creditCredits(db, accountId, 1_000_000n);
-		const now = new Date("2026-09-24T00:00:00Z");
+		const now = new Date();
 		// Use up all but 5 rows of the allowance.
 		await meter(db, {
 			accountId,
@@ -182,7 +191,7 @@ describe.skipIf(!HAS_DB)("meter — rows.delivered characterization", () => {
 
 	test("short balance: ledger row written with debited=false, balance unchanged", async () => {
 		// No credits — balance is 0, and the allowance is already exhausted.
-		const now = new Date("2026-09-24T00:00:00Z");
+		const now = new Date();
 		await meter(db, {
 			accountId,
 			unit: "rows.delivered",
@@ -214,7 +223,7 @@ describe.skipIf(!HAS_DB)("meter — rows.delivered characterization", () => {
 	test("spend cap refuses the debit even with balance available", async () => {
 		await creditCredits(db, accountId, 1_000_000n);
 		await upsertCaps(db, accountId, { monthly_cap_cents: 0 });
-		const now = new Date("2026-09-24T00:00:00Z");
+		const now = new Date();
 		const result = await meter(db, {
 			accountId,
 			unit: "rows.delivered",
@@ -229,7 +238,7 @@ describe.skipIf(!HAS_DB)("meter — rows.delivered characterization", () => {
 
 	test("idempotent replay: the same key never charges twice", async () => {
 		await creditCredits(db, accountId, 1_000_000n);
-		const now = new Date("2026-09-24T00:00:00Z");
+		const now = new Date();
 		const key = randomUUID();
 		const first = await meter(db, {
 			accountId,
@@ -435,28 +444,18 @@ describe.skipIf(!HAS_DB)("meter — sentinel units and grants", () => {
 
 	test("owed sums only debited=false sentinel.* rows", async () => {
 		const k = randomUUID();
-		await owe("sentinel.run", 1_500_000n, "2026-09-01T00:00:00Z", `${k}:a`);
-		await owe(
-			"sentinel.monitored_event",
-			15n,
-			"2026-09-02T00:00:00Z",
-			`${k}:b`,
-		);
-		await owe("webhook.event", 999n, "2026-09-02T00:00:00Z", `${k}:c`);
-		await owe("rows.delivered", 777n, "2026-09-02T00:00:00Z", `${k}:d`);
+		await owe("sentinel.run", 1_500_000n, MONTH_DAY_1, `${k}:a`);
+		await owe("sentinel.monitored_event", 15n, MONTH_DAY_2, `${k}:b`);
+		await owe("webhook.event", 999n, MONTH_DAY_2, `${k}:c`);
+		await owe("rows.delivered", 777n, MONTH_DAY_2, `${k}:d`);
 		expect(await owedSentinelUsdMicros(db, accountId)).toBe(1_500_015n);
 	});
 
 	test("settle pays oldest first while the balance covers each, never touches other units", async () => {
 		const k = randomUUID();
-		await owe(
-			"sentinel.deep_audit",
-			3_000_000n,
-			"2026-09-01T00:00:00Z",
-			`${k}:a`,
-		);
-		await owe("sentinel.run", 1_500_000n, "2026-09-02T00:00:00Z", `${k}:b`);
-		await owe("rows.delivered", 500_000n, "2026-09-01T00:00:00Z", `${k}:c`);
+		await owe("sentinel.deep_audit", 3_000_000n, MONTH_DAY_1, `${k}:a`);
+		await owe("sentinel.run", 1_500_000n, MONTH_DAY_2, `${k}:b`);
+		await owe("rows.delivered", 500_000n, MONTH_DAY_1, `${k}:c`);
 		await creditCredits(db, accountId, 4_000_000n);
 
 		const r1 = await settleOwedSentinel(db, accountId);
@@ -491,8 +490,8 @@ describe.skipIf(!HAS_DB)("meter — sentinel units and grants", () => {
 
 	test("concurrent settles debit each owed row exactly once", async () => {
 		const k = randomUUID();
-		await owe("sentinel.run", 1_500_000n, "2026-09-01T00:00:00Z", `${k}:a`);
-		await owe("sentinel.run", 1_500_000n, "2026-09-02T00:00:00Z", `${k}:b`);
+		await owe("sentinel.run", 1_500_000n, MONTH_DAY_1, `${k}:a`);
+		await owe("sentinel.run", 1_500_000n, MONTH_DAY_2, `${k}:b`);
 		await creditCredits(db, accountId, 10_000_000n);
 		const results = await Promise.all([
 			settleOwedSentinel(db, accountId),
@@ -506,7 +505,7 @@ describe.skipIf(!HAS_DB)("meter — sentinel units and grants", () => {
 	});
 
 	test("settle with no balance changes nothing", async () => {
-		await owe("sentinel.run", 1_500_000n, "2026-09-01T00:00:00Z", randomUUID());
+		await owe("sentinel.run", 1_500_000n, MONTH_DAY_1, randomUUID());
 		const r = await settleOwedSentinel(db, accountId);
 		expect(r).toEqual({
 			settledUsdMicros: 0n,
