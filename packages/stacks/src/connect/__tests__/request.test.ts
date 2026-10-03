@@ -215,6 +215,61 @@ describe("request", () => {
 		expect(result).toEqual(expected);
 	});
 
+	test("unwraps a JSON-RPC envelope (Leather) and caches its addresses", async () => {
+		const addresses = [
+			{
+				address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+				publicKey: "02ab",
+			},
+		];
+		setProvider({
+			request: mock(() =>
+				Promise.resolve({ jsonrpc: "2.0", id: "1", result: { addresses } }),
+			),
+		});
+
+		const result = await request("getAddresses");
+
+		expect(result).toEqual({ addresses });
+		expect(store.get("@secondlayer/connect")).toBeDefined();
+	});
+
+	test("throws JsonRpcError for an envelope carrying an error", async () => {
+		setProvider({
+			request: mock(() =>
+				Promise.resolve({
+					jsonrpc: "2.0",
+					id: "1",
+					error: { code: 4001, message: "User rejected" },
+				}),
+			),
+		});
+
+		const err = await request("stx_signMessage", { message: "hi" }).catch(
+			(e) => e,
+		);
+		expect(err).toBeInstanceOf(JsonRpcError);
+		expect((err as JsonRpcError).rpcCode).toBe(4001);
+	});
+
+	test("throws JsonRpcError when the provider rejects with an envelope", async () => {
+		setProvider({
+			request: mock(() =>
+				Promise.reject({
+					jsonrpc: "2.0",
+					id: "1",
+					error: { code: 4001, message: "User rejected" },
+				}),
+			),
+		});
+
+		const err = await request("stx_signMessage", { message: "hi" }).catch(
+			(e) => e,
+		);
+		expect(err).toBeInstanceOf(JsonRpcError);
+		expect((err as JsonRpcError).message).toBe("User rejected");
+	});
+
 	test("does not treat fake { type: string } objects as Clarity values", async () => {
 		const mockRequest = mock(() => Promise.resolve({}));
 		setProvider({ request: mockRequest });

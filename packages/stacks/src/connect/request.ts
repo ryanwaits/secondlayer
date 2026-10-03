@@ -53,7 +53,9 @@ export async function request<M extends keyof Methods>(
 	try {
 		result = await provider.request(method as string, serialized);
 		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-	} catch (err: any) {
+	} catch (thrown: any) {
+		// Leather rejects with the whole JSON-RPC envelope: the error is under `.error`.
+		const err = thrown?.error?.code !== undefined ? thrown.error : thrown;
 		if (err?.code !== undefined) {
 			throw new JsonRpcError(err.message ?? String(err), err.code, {
 				data: err.data,
@@ -62,6 +64,18 @@ export async function request<M extends keyof Methods>(
 		throw new ConnectError(err?.message ?? "Wallet request failed", {
 			cause: err instanceof Error ? err : undefined,
 		});
+	}
+
+	// Leather resolves with the JSON-RPC envelope `{ jsonrpc, id, result | error }`; Xverse with the bare result.
+	if (result?.jsonrpc !== undefined) {
+		if (result.error) {
+			throw new JsonRpcError(
+				result.error.message ?? "Wallet request failed",
+				result.error.code,
+				{ data: result.error.data },
+			);
+		}
+		result = result.result;
 	}
 
 	if (ADDRESS_METHODS.has(method as string) && result?.addresses) {
