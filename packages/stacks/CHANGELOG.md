@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 6.1.2
+
+### Patch Changes
+
+- connect: unwrap the JSON-RPC envelope Leather returns from `request()` (and surface envelope errors as `JsonRpcError`), so `connect()` returns `addresses` with Leather as with Xverse.
+
 ## 6.1.1
 
 ### Patch Changes
