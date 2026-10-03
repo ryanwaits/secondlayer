@@ -11,7 +11,7 @@
  *   POST /settings           { accountId, monthlyCapCents?, refill? }   cap + auto top-up
  *   POST /affordable         { accountId, unit, quantity }              pure check, no debit
  *   POST /checkout           { accountId, packUsd, returnPath }         Stripe Checkout URL
- *   POST /tokens/resolve     { tokenHash }                              SHA-256 hex of a presented ss-sl_/sk-sl_ token
+ *   POST /tokens/resolve     { tokenHash }                              SHA-256 hex of a presented ss-sl_/sk-snt_ token
  *   POST /keys               { accountId, name, areas }                 mint a sentinel agent key (raw key shown once)
  *   GET  /keys?accountId=                                               list the account's active sentinel keys
  *   DELETE /keys/:id?accountId=                                         revoke one of that account's sentinel keys
@@ -493,7 +493,9 @@ export function createInternalSentinelRouter(
 
 	// Resolve a presented token (by hash, never the raw token) to the account it
 	// belongs to. Sessions honor expiry/revocation exactly like requireAuth; keys
-	// must be active and `sentinel`-product. Anything else is a flat 404.
+	// must be active and `sentinel`-product. An active key of another product
+	// (an account key) is a 404 `other_product`, so Sentinel can say which key
+	// to use; it never resolves. Anything else is a flat 404.
 	app.post("/tokens/resolve", async (c) => {
 		const body = await readBody(c.req);
 		const tokenHash = requireString(body, "tokenHash", 64);
@@ -509,12 +511,14 @@ export function createInternalSentinelRouter(
 		}
 		const key = await db
 			.selectFrom("api_keys")
-			.select(["id", "account_id", "areas"])
+			.select(["id", "account_id", "areas", "product"])
 			.where("key_hash", "=", tokenHash)
 			.where("status", "=", "active")
-			.where("product", "=", "sentinel")
 			.executeTakeFirst();
 		if (!key) throw new NotFoundError("Token not found");
+		if (key.product !== "sentinel") {
+			return c.json({ error: "other_product" }, 404);
+		}
 		return c.json({
 			accountId: key.account_id,
 			kind: "key",

@@ -881,7 +881,8 @@ describe.skipIf(!HAS_DB)("/internal/sentinel tokens + keys", () => {
 		const res = await post(app(), "/keys", { accountId, name: "ci", areas });
 		expect(res.status).toBe(201);
 		const body = (await res.json()) as Record<string, unknown>;
-		expect(String(body.key)).toMatch(/^sk-sl_[0-9a-f]{32}$/);
+		expect(String(body.key)).toMatch(/^sk-snt_[0-9a-f]{32}$/);
+		expect(String(body.prefix)).toMatch(/^sk-snt_[0-9a-f]{8}$/);
 		expect(body.areas).toEqual(areas);
 		const row = await db
 			.selectFrom("api_keys")
@@ -889,6 +890,7 @@ describe.skipIf(!HAS_DB)("/internal/sentinel tokens + keys", () => {
 			.where("id", "=", String(body.id))
 			.executeTakeFirstOrThrow();
 		expect(row.key_hash).toBe(hashToken(String(body.key)));
+		expect(row.key_prefix).toBe(String(body.prefix));
 		expect(row.product).toBe("sentinel");
 		expect(row.areas).toEqual(areas);
 	});
@@ -972,9 +974,12 @@ describe.skipIf(!HAS_DB)("/internal/sentinel tokens + keys", () => {
 		expect((await resolve(`sk-sl_${randomUUID()}`)).status).toBe(404);
 	});
 
-	test("resolve: account-product and revoked keys → 404", async () => {
-		const accountId = await makeAccount(`k-${randomUUID()}@example.com`);
-		const raw = `sk-sl_acct_${randomUUID()}`;
+	async function insertKey(
+		accountId: string,
+		raw: string,
+		product: "account" | "sentinel",
+		status: "active" | "revoked" = "active",
+	) {
 		await db
 			.insertInto("api_keys")
 			.values({
@@ -982,11 +987,45 @@ describe.skipIf(!HAS_DB)("/internal/sentinel tokens + keys", () => {
 				key_prefix: raw.slice(0, 14),
 				account_id: accountId,
 				ip_address: "test",
-				product: "account",
+				product,
+				status,
 				tier: "free",
+				...(product === "sentinel" ? { areas } : {}),
 			})
 			.execute();
-		expect((await resolve(raw)).status).toBe(404);
+	}
+
+	test("resolve: an active account key → 404 other_product, never resolved", async () => {
+		const accountId = await makeAccount(`k-${randomUUID()}@example.com`);
+		const raw = `sk-sl_acct_${randomUUID()}`;
+		await insertKey(accountId, raw, "account");
+		const res = await resolve(raw);
+		expect(res.status).toBe(404);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body).toEqual({ error: "other_product" });
+		expect(body.accountId).toBeUndefined();
+	});
+
+	test("resolve: revoked keys of any product → plain 404", async () => {
+		const accountId = await makeAccount(`k-${randomUUID()}@example.com`);
+		for (const product of ["account", "sentinel"] as const) {
+			const raw = `sk-sl_rev_${randomUUID()}`;
+			await insertKey(accountId, raw, product, "revoked");
+			const res = await resolve(raw);
+			expect(res.status).toBe(404);
+			expect(((await res.json()) as { error?: string }).error).not.toBe(
+				"other_product",
+			);
+		}
+	});
+
+	test("resolve: an existing sk-sl_ sentinel key still resolves", async () => {
+		const accountId = await makeAccount(`k-${randomUUID()}@example.com`);
+		const raw = `sk-sl_${randomUUID().replace(/-/g, "")}`;
+		await insertKey(accountId, raw, "sentinel");
+		const res = await resolve(raw);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toMatchObject({ accountId, kind: "key", areas });
 	});
 
 	test("resolve rejects a non-hash (raw token) body", async () => {

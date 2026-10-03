@@ -1,11 +1,18 @@
 import { expect, test } from "bun:test";
-import { generateApiKey, hashToken } from "./keys.ts";
+import { SENTINEL_KEY_PREFIX, generateApiKey, hashToken } from "./keys.ts";
 
 test("generated key has correct prefix format", () => {
 	const { raw, prefix } = generateApiKey();
 	expect(raw).toMatch(/^sk-sl_[0-9a-f]{32}$/);
 	expect(prefix).toMatch(/^sk-sl_[0-9a-f]{8}$/);
 	expect(raw.startsWith(prefix)).toBe(true);
+});
+
+test("a sentinel key carries its own prefix", () => {
+	const { raw, prefix, hash } = generateApiKey(SENTINEL_KEY_PREFIX);
+	expect(raw).toMatch(/^sk-snt_[0-9a-f]{32}$/);
+	expect(prefix).toMatch(/^sk-snt_[0-9a-f]{8}$/);
+	expect(hashToken(raw)).toBe(hash);
 });
 
 test("hash is deterministic", () => {

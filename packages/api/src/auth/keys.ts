@@ -1,4 +1,7 @@
 const API_KEY_PREFIX = "sk-sl_";
+/** Sentinel product keys get their own prefix so they can't be mistaken for an
+ *  account key. Lookups are by hash, so older `sk-sl_` Sentinel keys still resolve. */
+export const SENTINEL_KEY_PREFIX = "sk-snt_";
 const SESSION_PREFIX = "ss-sl_";
 
 export function hashToken(raw: string): string {
@@ -23,12 +26,12 @@ function generateToken(prefix: string): {
 	return { raw, hash, prefix: tokenPrefix };
 }
 
-export function generateApiKey(): {
+export function generateApiKey(prefix: string = API_KEY_PREFIX): {
 	raw: string;
 	hash: string;
 	prefix: string;
 } {
-	return generateToken(API_KEY_PREFIX);
+	return generateToken(prefix);
 }
 
 export function generateSessionToken(): {

@@ -3,7 +3,7 @@ import {
 	AuthorizationError,
 	ValidationError,
 } from "@secondlayer/shared/errors";
-import { generateApiKey } from "./keys.ts";
+import { SENTINEL_KEY_PREFIX, generateApiKey } from "./keys.ts";
 
 export type MintProduct = "account" | "sentinel";
 
@@ -113,7 +113,9 @@ export async function mintApiKey(
 		internal?: boolean;
 	},
 ): Promise<MintedKey> {
-	const { raw, hash, prefix } = generateApiKey();
+	const { raw, hash, prefix } = generateApiKey(
+		input.product === "sentinel" ? SENTINEL_KEY_PREFIX : undefined,
+	);
 	const key = await db
 		.insertInto("api_keys")
 		.values({
