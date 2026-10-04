@@ -5,7 +5,7 @@
  *
  *   POST /accounts/resolve   { email }                                  find-or-create (+ linked)
  *   POST /accounts/link      { accountId }                              owner opted in (via consent)
- *   POST /accounts/grant     { accountId, usdMicros, reason, idempotencyKey }
+ *   POST /accounts/grant     { accountId, usdMicros, reason, idempotencyKey }   starter, top-up, or run refund
  *   POST /accounts/summary   { accountId }                              balance, owed, cap, refill, prices
  *   POST /accounts/settle    { accountId }                              collect owed sentinel.* usage
  *   POST /settings           { accountId, monthlyCapCents?, refill? }   cap + auto top-up
@@ -78,6 +78,11 @@ const GRANT_KEY_KINDS = ["starter", "starter-topup"] as const;
 const grantKeys = (accountId: string) =>
 	GRANT_KEY_KINDS.map((kind) => `sentinel:${kind}:${accountId}`);
 
+/** Sentinel's refund of a wrongly charged run, keyed by that run's id, so a run
+ *  is never refunded twice. Not part of the starter total above; each refund is
+ *  capped at the largest single Sentinel unit price instead. */
+const REFUND_KEY = /^sentinel:refund:aud_[0-9a-f]+$/;
+
 /** What Sentinel already granted this account, excluding `exceptKey` (a retry of
  *  that grant is idempotent and must not count against itself). */
 async function sentinelGrantedUsdMicros(
@@ -106,6 +111,12 @@ const SENTINEL_UNITS: SentinelUnit[] = [
 	"sentinel.deep_audit",
 	"sentinel.monitored_event",
 ];
+
+/** One refund never exceeds the largest single Sentinel unit price. */
+export const MAX_REFUND_USD_MICROS = SENTINEL_UNITS.reduce(
+	(max, unit) => (PRICES[unit] > max ? PRICES[unit] : max),
+	0n,
+);
 
 /** Accept `sentinel.run` or the short `run`. */
 function parseSentinelUnit(raw: unknown): SentinelUnit {
@@ -286,9 +297,10 @@ export function createInternalSentinelRouter(
 			throw new ValidationError("reason must be a short slug");
 		}
 		const idempotencyKey = requireString(body, "idempotencyKey");
-		if (!grantKeys(accountId).includes(idempotencyKey)) {
+		const refund = REFUND_KEY.test(idempotencyKey);
+		if (!refund && !grantKeys(accountId).includes(idempotencyKey)) {
 			throw new ValidationError(
-				'idempotencyKey must be "sentinel:starter:<accountId>" or "sentinel:starter-topup:<accountId>"',
+				'idempotencyKey must be "sentinel:starter:<accountId>", "sentinel:starter-topup:<accountId>" or "sentinel:refund:<runId>"',
 			);
 		}
 		const amount = body.usdMicros;
@@ -300,6 +312,24 @@ export function createInternalSentinelRouter(
 			throw new ValidationError("usdMicros must be a positive integer");
 		}
 		const usdMicros = BigInt(amount);
+		if (refund) {
+			if (usdMicros > MAX_REFUND_USD_MICROS) {
+				throw new ValidationError(
+					`usdMicros exceeds the ${MAX_REFUND_USD_MICROS} refund cap (the largest Sentinel unit price)`,
+				);
+			}
+			await requireLinkedAccount(accountId);
+			const result = await grantCredits(getDb(), {
+				accountId,
+				usdMicros,
+				source: "sentinel:refund",
+				idempotencyKey,
+			});
+			return c.json({
+				granted: result.granted,
+				balanceAfter: Number(result.balance),
+			});
+		}
 		if (usdMicros > MAX_GRANT_USD_MICROS) {
 			throw new ValidationError(
 				`usdMicros exceeds the ${MAX_GRANT_USD_MICROS} starter-grant cap`,

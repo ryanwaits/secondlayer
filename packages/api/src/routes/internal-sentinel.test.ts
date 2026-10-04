@@ -26,6 +26,7 @@ import { errorHandler } from "../middleware/error.ts";
 import type { StripeClient } from "./billing.ts";
 import {
 	MAX_GRANT_USD_MICROS,
+	MAX_REFUND_USD_MICROS,
 	type SentinelAreas,
 	buildReturnUrl,
 	createInternalSentinelRouter,
@@ -395,6 +396,84 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 		expect((await grant(10_000_000, "starter")).status).toBe(200);
 		expect((await grant(1_000_000, "starter-topup")).status).toBe(409);
 		expect(await getCredits(db, accountId)).toBe(10_000_000n);
+	});
+
+	test("refund cap is the largest Sentinel unit price", () => {
+		expect(MAX_REFUND_USD_MICROS).toBe(PRICES["sentinel.deep_audit"]);
+	});
+
+	const refund = (accountId: string, runId: string, usdMicros: number) =>
+		post(app(), "/accounts/grant", {
+			accountId,
+			usdMicros,
+			reason: "refund",
+			idempotencyKey: `sentinel:refund:${runId}`,
+		});
+	const runId = () => `aud_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
+
+	test("a run refund is credited once, labelled sentinel:refund", async () => {
+		const accountId = await makeAccount();
+		const run = runId();
+		const first = await refund(accountId, run, 1_500_000);
+		expect(first.status).toBe(200);
+		expect(await first.json()).toEqual({
+			granted: true,
+			balanceAfter: 1_500_000,
+		});
+		const retry = await refund(accountId, run, 1_500_000);
+		expect(retry.status).toBe(200);
+		expect(await retry.json()).toEqual({
+			granted: false,
+			balanceAfter: 1_500_000,
+		});
+		const rows = await db
+			.selectFrom("usage_ledger")
+			.select(["source", "idempotency_key"])
+			.where("account_id", "=", accountId)
+			.execute();
+		expect(rows).toEqual([
+			{ source: "sentinel:refund", idempotency_key: `sentinel:refund:${run}` },
+		]);
+	});
+
+	test("a refund over the largest unit price is refused, nothing credited", async () => {
+		const accountId = await makeAccount();
+		const res = await refund(
+			accountId,
+			runId(),
+			Number(MAX_REFUND_USD_MICROS) + 1,
+		);
+		expect(res.status).toBe(400);
+		expect(await getCredits(db, accountId)).toBe(0n);
+	});
+
+	test("refunds don't count toward the starter cap", async () => {
+		const accountId = await makeAccount();
+		const starter = await post(app(), "/accounts/grant", {
+			accountId,
+			usdMicros: 10_000_000,
+			reason: "starter",
+			idempotencyKey: `sentinel:starter:${accountId}`,
+		});
+		expect(starter.status).toBe(200);
+		expect((await refund(accountId, runId(), 3_000_000)).status).toBe(200);
+		expect((await refund(accountId, runId(), 3_000_000)).status).toBe(200);
+		expect(await getCredits(db, accountId)).toBe(16_000_000n);
+	});
+
+	test("refund rejects a malformed run id", async () => {
+		const accountId = await makeAccount();
+		for (const bad of [
+			"",
+			"aud_",
+			"aud_XYZ",
+			"run_abc123",
+			`aud_abc123:${accountId}`,
+			"aud_abc 123",
+		]) {
+			expect((await refund(accountId, bad, 1_500_000)).status).toBe(400);
+		}
+		expect(await getCredits(db, accountId)).toBe(0n);
 	});
 
 	test("grant rejects zero, negative, fractional, bad key, unknown account", async () => {
