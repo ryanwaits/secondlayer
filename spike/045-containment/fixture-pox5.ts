@@ -1,5 +1,9 @@
 import { defineSubgraph } from "@secondlayer/subgraphs";
 
+// Replaced with a number literal by run.sh before bundling (only on the
+// `startBlock:` line below, so this declaration stays valid).
+declare const __START_BLOCK__: number;
+
 /**
  * Benign fixture for the containment spike: stack B's "keeps advancing"
  * measurement and the runsc-vs-runc per-block timing. `run.sh` replaces

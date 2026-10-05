@@ -198,7 +198,7 @@ case "$TIP" in '' | null | *[!0-9]*)
 	;;
 esac
 START=$((TIP - 400))
-sed "s/__START_BLOCK__/$START/" "$SPIKE_DIR/fixture-pox5.ts" >/tmp/fixture.ts
+sed "s/startBlock: __START_BLOCK__/startBlock: $START/" "$SPIKE_DIR/fixture-pox5.ts" >/tmp/fixture.ts
 echo "tip=$TIP startBlock=$START" >"$OUT/fixture-range.txt"
 
 up_stack() {
