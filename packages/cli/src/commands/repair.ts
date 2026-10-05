@@ -569,7 +569,11 @@ async function applyChildRangeFix(
 	reference: LoadedReference,
 	mismatch: ChildRangeMismatch,
 	gate: ArchiveGate | undefined,
-): Promise<{ transactions: number; events: number }> {
+): Promise<{
+	transactions: number;
+	events: number;
+	vm_events: { restored: number; dropped: number };
+}> {
 	const partitions = reference.manifest.partitions ?? [];
 	const txPartition = findChildPartition(
 		partitions,
@@ -590,8 +594,19 @@ async function applyChildRangeFix(
 		? await fetchVerifiedPartition(reference, evPartition, gate)
 		: null;
 
-	const written = { transactions: 0, events: 0 };
+	const written = {
+		transactions: 0,
+		events: 0,
+		vm_events: { restored: 0, dropped: 0 },
+	};
 	await rawClient.begin(async (tx) => {
+		// The archive carries no `vm_events`, and `vm_events.tx_id` cascades on
+		// delete, so wiping this range's transactions would erase rows that can
+		// never be refetched. Park them for the length of this transaction.
+		await tx.unsafe(
+			"CREATE TEMP TABLE repair_vm_events_keep ON COMMIT DROP AS SELECT * FROM vm_events WHERE block_height BETWEEN $1 AND $2",
+			[mismatch.from_block, mismatch.to_block],
+		);
 		// FK order: events out before transactions, transactions in before events.
 		await tx.unsafe("DELETE FROM events WHERE block_height BETWEEN $1 AND $2", [
 			mismatch.from_block,
@@ -624,6 +639,18 @@ async function applyChildRangeFix(
 					`repair-events-${mismatch.from_block}`,
 				),
 			});
+		}
+		// Restore only rows whose parent transaction is back at the same height.
+		const kept = await tx.unsafe(
+			"SELECT count(*)::int AS n FROM repair_vm_events_keep",
+		);
+		const keptCount = Number(kept[0]?.n ?? 0);
+		if (keptCount > 0) {
+			const restored = await tx.unsafe(
+				"INSERT INTO vm_events SELECT k.* FROM repair_vm_events_keep k JOIN transactions t ON t.tx_id = k.tx_id AND t.block_height = k.block_height",
+			);
+			written.vm_events.restored = restored.count;
+			written.vm_events.dropped = keptCount - restored.count;
 		}
 	});
 	return written;
@@ -706,6 +733,7 @@ async function runChildOnlyRepair(params: {
 	}
 
 	const applied = { transactions: 0, events: 0 };
+	const vmEvents = { restored: 0, dropped: 0 };
 	if (apply) {
 		const rawClient = getRawClient("source");
 		for (const mismatch of childMismatches) {
@@ -717,6 +745,8 @@ async function runChildOnlyRepair(params: {
 			);
 			applied.transactions += result.transactions;
 			applied.events += result.events;
+			vmEvents.restored += result.vm_events.restored;
+			vmEvents.dropped += result.vm_events.dropped;
 		}
 	}
 
@@ -765,6 +795,9 @@ async function runChildOnlyRepair(params: {
 		child_partition_mismatches: childMismatches,
 		fixes: [] as BlockFix[],
 		metered: quoteLine ?? null,
+		...(vmEvents.restored + vmEvents.dropped > 0
+			? { vm_events: vmEvents }
+			: {}),
 	};
 
 	output({
@@ -772,6 +805,11 @@ async function runChildOnlyRepair(params: {
 		data: report,
 		human: () => {
 			if (apply) {
+				if (vmEvents.dropped > 0) {
+					warn(
+						`Dropped ${vmEvents.dropped} vm_events row(s) whose transaction is not in the archive; vm_events can't be refetched from the archive.`,
+					);
+				}
 				const written = `${applied.transactions} transactions, ${applied.events} events`;
 				if (complete) {
 					success(

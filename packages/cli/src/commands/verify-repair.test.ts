@@ -962,6 +962,7 @@ describe.skipIf(!HAS_DB)(
 		});
 
 		afterAll(async () => {
+			await sql`TRUNCATE vm_events`.execute(getDb());
 			await clearChain(getDb());
 			await closeDb();
 			if (archiveDir) await rm(archiveDir, { recursive: true, force: true });
@@ -1038,6 +1039,74 @@ describe.skipIf(!HAS_DB)(
 			);
 			expect(res.status).toBe(0);
 			expect(JSON.parse(res.stdout)).toEqual({ status: "clean", fixes: [] });
+		});
+
+		test("an empty vm_events table leaves no vm_events key in the report", async () => {
+			const db = getDb();
+			await sql`DELETE FROM events WHERE block_height = 5`.execute(db);
+
+			const res = runRepair(
+				["--against", archive.manifestPath, "--apply"],
+				archive.publicPem,
+			);
+			expect(res.status).toBe(0);
+			const report = JSON.parse(res.stdout);
+			expect(report.status).toBe("repaired");
+			expect(report).not.toHaveProperty("vm_events");
+		});
+
+		test("vm_events survive a child rewrite; rows whose transaction is not in the archive are dropped and counted", async () => {
+			const db = getDb();
+			// Node-only rows: the archive has no vm_events, so these exist nowhere else.
+			await sql`
+				INSERT INTO vm_events (id, tx_id, block_height, ordinal, type, data)
+				VALUES
+					('00000000-0000-0000-0000-000000000003', 'tx-3', 3, 0, 'var_set', '{"k":3}'),
+					('00000000-0000-0000-0000-000000000005', 'tx-5', 5, 0, 'map_set', '{"k":5}')
+			`.execute(db);
+			// A local-only transaction (the archive lacks it) with its own vm row.
+			await sql`
+				INSERT INTO transactions (tx_id, block_height, tx_index, type, sender, status, raw_tx)
+				VALUES ('tx-local-7', 7, 1, 'coinbase', 'SP000', 'success', '00')
+			`.execute(db);
+			await sql`
+				INSERT INTO vm_events (id, tx_id, block_height, ordinal, type, data)
+				VALUES ('00000000-0000-0000-0000-000000000007', 'tx-local-7', 7, 0, 'var_set', '{"k":7}')
+			`.execute(db);
+			// Child counts now diverge from the archive.
+			await sql`DELETE FROM events WHERE block_height = 5`.execute(db);
+
+			const res = runRepair(
+				["--against", archive.manifestPath, "--apply"],
+				archive.publicPem,
+			);
+			expect(res.status).toBe(0);
+			const report = JSON.parse(res.stdout);
+			expect(report.status).toBe("repaired");
+			expect(report.vm_events).toEqual({ restored: 2, dropped: 1 });
+
+			const rows = await sql<{
+				id: string;
+				tx_id: string;
+				ordinal: number;
+				data: unknown;
+			}>`SELECT id, tx_id, ordinal, data FROM vm_events ORDER BY block_height`.execute(
+				db,
+			);
+			expect(rows.rows).toEqual([
+				{
+					id: "00000000-0000-0000-0000-000000000003",
+					tx_id: "tx-3",
+					ordinal: 0,
+					data: { k: 3 },
+				},
+				{
+					id: "00000000-0000-0000-0000-000000000005",
+					tx_id: "tx-5",
+					ordinal: 0,
+					data: { k: 5 },
+				},
+			]);
 		});
 	},
 );
