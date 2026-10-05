@@ -258,9 +258,34 @@ export async function runEvaluatorOnce(
 			const blocks = await source.loadBlockRange(from, to);
 			// Trait membership only grows; resolve once per batch as of its top height.
 			const traitContracts = await buildTraitContracts(chainSubs, to);
+			// Last height this batch fully evaluated + emitted; the cursor never
+			// moves past it.
+			let lastDone = to;
+			let stopped = false;
 			for (let h = from; h <= to; h++) {
-				const bd = blocks.get(h);
-				if (!bd) continue;
+				let bd = blocks.get(h);
+				if (!bd) {
+					// Refetch once — distinguishes a transient source hiccup from a
+					// genuinely absent block.
+					bd = (await source.loadBlockRange(h, h)).get(h);
+				}
+				if (!bd) {
+					// Every source returns an entry for every canonical height (empty
+					// blocks included), so a missing one means its data is not available
+					// yet. Skipping it would drop that block's deliveries for good — a
+					// tenant stack even falls back to an empty local tap when hosted
+					// Index errors. Stop with the cursor BEFORE it; the next tick
+					// re-attempts it.
+					logger.warn(
+						"Chain evaluator: block missing, deferring to next tick",
+						{
+							blockHeight: h,
+						},
+					);
+					lastDone = h - 1;
+					stopped = true;
+					break;
+				}
 				const blockTime = blockTimeOf(bd.block);
 				const matches = evaluateBlock(bd, sources, traitContracts);
 				if (matches.length > 0) {
@@ -281,12 +306,15 @@ export async function runEvaluatorOnce(
 					blockTime,
 				);
 			}
-			const res = await advanceCursor(db, to, generation);
-			if (res.advanced) {
-				cursorAfter = to;
-				advanced = true;
+			if (lastDone >= from) {
+				const res = await advanceCursor(db, lastDone, generation);
+				if (res.advanced) {
+					cursorAfter = lastDone;
+					advanced = true;
+				}
+				if (res.reorged) break;
 			}
-			if (res.reorged) break;
+			if (stopped) break;
 		}
 		return { emitted, advanced, rawTip, idleAtTip };
 	} finally {

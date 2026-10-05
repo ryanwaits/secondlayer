@@ -1,5 +1,8 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { randomUUID } from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
+import type { IndexHttpClient } from "@secondlayer/shared/index-http";
 import { handleChainReorg } from "./chain-reorg.ts";
 import {
 	MIN_REAL_WAIT_MS,
@@ -8,6 +11,7 @@ import {
 	delayAfterTick,
 	getChainReorgGeneration,
 	nextTickDelayMs,
+	runEvaluatorOnce,
 	shouldWaitThisTick,
 	wasRealWait,
 } from "./trigger-evaluator-loop.ts";
@@ -203,5 +207,152 @@ describe("plan-063 regression: a wait that never actually holds must not become 
 		const brokenElapsedMs = 90; // a real network hop, nowhere near a 20s wait
 		const real = wasRealWait(usedWait, idleAtTipAfter, brokenElapsedMs);
 		expect(delayAfterTick(real, false, 5_000)).toBe(5_000);
+	});
+});
+
+describe("chain evaluator vs. a block the source does not return", () => {
+	const FROM = 1000;
+	const TIP = FROM + 4;
+	const EVENT_HEIGHT = FROM + 3;
+	const NAME_PREFIX = `missing-block-${randomUUID()}-`;
+	const savedEnv = {
+		SUBGRAPH_SOURCE: process.env.SUBGRAPH_SOURCE,
+		SUBGRAPH_INDEX_API_URL: process.env.SUBGRAPH_INDEX_API_URL,
+	};
+	let webhookId: string;
+
+	/** Fake hosted Index. `available(h, singleHeight)` decides whether a height
+	 *  comes back from `walkBlocks`; `singleHeight` is true for the evaluator's
+	 *  one-height refetch. One stx_transfer sits at EVENT_HEIGHT. */
+	function fakeHttp(
+		available: (height: number, singleHeight: boolean) => boolean,
+	): IndexHttpClient {
+		return {
+			getIndexTip: async () => TIP,
+			getIndexSourceTip: async () => TIP,
+			// Remote decoder mode: the bound comes from here, not decoder_checkpoints.
+			getDecodedHeights: () => ({ stx_transfer: TIP }),
+			waitIsSupported: () => true,
+			walkBlocks: async (from: number, to: number) => {
+				const rows = [];
+				for (let h = from; h <= to; h++) {
+					if (!available(h, from === to)) continue;
+					rows.push({
+						block_height: h,
+						block_hash: `0xh${h}`,
+						parent_hash: `0xh${h - 1}`,
+						burn_block_height: h,
+						burn_block_hash: null,
+						block_time: "2026-01-01T00:00:00.000Z",
+					});
+				}
+				return rows;
+			},
+			walkTransactions: async () => [],
+			walkEvents: async (_type: string, from: number, to: number) =>
+				EVENT_HEIGHT >= from && EVENT_HEIGHT <= to
+					? [
+							{
+								event_type: "stx_transfer",
+								block_height: EVENT_HEIGHT,
+								tx_id: "0xtx-missing-block",
+								tx_index: 0,
+								event_index: 0,
+								contract_id: null,
+								tx_sender: "SP1",
+								tx_type: "token_transfer",
+								tx_status: "success",
+								sender: "SP1",
+								recipient: "SP2",
+								amount: "1000",
+								memo: null,
+							},
+						]
+					: [],
+		} as unknown as IndexHttpClient;
+	}
+
+	async function outboxHeights(): Promise<number[]> {
+		const rows = await db
+			.selectFrom("webhook_outbox")
+			.select("block_height")
+			.where("webhook_id", "=", webhookId)
+			.execute();
+		return rows.map((r) => Number(r.block_height));
+	}
+
+	async function cleanup(): Promise<void> {
+		await db
+			.deleteFrom("webhook_outbox")
+			.where("webhook_id", "in", (qb) =>
+				qb
+					.selectFrom("webhooks")
+					.select("id")
+					.where("name", "like", `${NAME_PREFIX}%`),
+			)
+			.execute();
+		await db
+			.deleteFrom("webhooks")
+			.where("name", "like", `${NAME_PREFIX}%`)
+			.execute();
+		await setCursor(0);
+	}
+
+	beforeEach(async () => {
+		await cleanup();
+		process.env.SUBGRAPH_SOURCE = "streams-index";
+		process.env.SUBGRAPH_INDEX_API_URL = "http://index.invalid";
+		const { webhook } = await createWebhook(db, {
+			accountId: randomUUID(),
+			name: `${NAME_PREFIX}${randomUUID()}`,
+			kind: "chain",
+			triggers: [{ type: "stx_transfer" }],
+			url: "https://webhook.site/missing-block",
+		});
+		webhookId = webhook.id;
+		await setCursor(FROM - 1);
+	});
+
+	afterEach(async () => {
+		await cleanup();
+		for (const [key, value] of Object.entries(savedEnv)) {
+			if (value === undefined) delete process.env[key];
+			else process.env[key] = value;
+		}
+	});
+
+	it("stops before a height the source omits and delivers it once the source returns it", async () => {
+		const missingFrom = FROM + 2;
+		await runEvaluatorOnce(db, {
+			httpClient: fakeHttp((h) => h < missingFrom),
+		});
+
+		expect(await cursor()).toBe(FROM + 1);
+		expect(await outboxHeights()).toEqual([]);
+
+		await runEvaluatorOnce(db, { httpClient: fakeHttp(() => true) });
+
+		expect(await cursor()).toBe(TIP);
+		expect(await outboxHeights()).toEqual([EVENT_HEIGHT]);
+	});
+
+	it("does not move the cursor or throw when the very first height is missing", async () => {
+		const result = await runEvaluatorOnce(db, {
+			httpClient: fakeHttp(() => false),
+		});
+
+		expect(result.advanced).toBe(false);
+		expect(await cursor()).toBe(FROM - 1);
+		expect(await outboxHeights()).toEqual([]);
+	});
+
+	it("recovers a height omitted from the batch when the single-height refetch returns it", async () => {
+		const result = await runEvaluatorOnce(db, {
+			httpClient: fakeHttp((h, single) => !(h === EVENT_HEIGHT && !single)),
+		});
+
+		expect(result.advanced).toBe(true);
+		expect(await cursor()).toBe(TIP);
+		expect(await outboxHeights()).toEqual([EVENT_HEIGHT]);
 	});
 });
