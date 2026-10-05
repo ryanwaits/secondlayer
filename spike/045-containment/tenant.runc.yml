@@ -1,0 +1,10 @@
+# Comparison-only override, applied AFTER tenant.hardening.yml: same limits
+# and user/read-only settings, default runc runtime. Used for the per-block
+# latency and idle-memory comparison against runsc. Never a deployment shape.
+services:
+  api:
+    runtime: runc
+  webhook-service:
+    runtime: runc
+  subgraph-processor:
+    runtime: runc

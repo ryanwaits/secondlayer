@@ -1,0 +1,87 @@
+# Hardening override for the tenant stack. Apply with:
+#   docker compose -p tenant-<acct8> \
+#     -f docker/workload/tenant.compose.yml \
+#     -f spike/045-containment/tenant.hardening.yml up -d
+#
+# Every service that can hold or run customer code (api, subgraph-processor)
+# plus webhook-service gets the same box: gVisor, non-root, read-only root,
+# bounded cpu/memory/pids, no privilege escalation. postgres and migrate stay
+# as-is (no customer code; postgres owns its own data dir and needs root init).
+#
+# `subgraph-processor` is NOT in the base file (chain webhooks only, no
+# handlers). It is the api image with the processor entry, shaped after
+# docker/oss/docker-compose.split.yml.
+
+x-hardening: &hardening
+  runtime: runsc
+  user: "1000:1000"
+  read_only: true
+  tmpfs:
+    - /tmp
+  mem_limit: 512m
+  cpus: 1
+  pids_limit: 128
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  # One-shot: the `subgraphs_data` named volume is created root-owned (the
+  # image has no /data/subgraphs to copy ownership from), and the api and
+  # processor now run as uid 1000. Without this, every deploy fails writing
+  # the handler file. Runs as root on the default runtime: no customer code.
+  volume-init:
+    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:?set WORKLOAD_IMAGE_TAG to a deployed main sha}
+    platform: linux/amd64
+    user: "0:0"
+    command: ["sh", "-c", "mkdir -p /data/subgraphs && chown -R 1000:1000 /data"]
+    volumes:
+      - subgraphs_data:/data/subgraphs
+    restart: "no"
+
+  api:
+    <<: *hardening
+    environment:
+      PROBE_GATEWAY_IP: ${PROBE_GATEWAY_IP:-}
+      PROBE_B_PG_IP: ${PROBE_B_PG_IP:-}
+      PROBE_B_API_PORT: ${PROBE_B_API_PORT:-}
+      PROBE_RES: ${PROBE_RES:-}
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+
+  webhook-service:
+    <<: *hardening
+
+  subgraph-processor:
+    <<: *hardening
+    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:?set WORKLOAD_IMAGE_TAG to a deployed main sha}
+    platform: linux/amd64
+    command: ["bun", "run", "packages/subgraphs/src/service.ts"]
+    environment:
+      INSTANCE_MODE: oss
+      DATABASE_URL: postgres://secondlayer:${POSTGRES_PASSWORD:?tenant secret required}@postgres:5432/secondlayer
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+      DATA_DIR: /data
+      SUBGRAPH_SOURCE: streams-index
+      SUBGRAPH_INDEX_API_URL: ${HOSTED_API_URL:?tenant secret required}
+      STREAMS_API_URL: ${HOSTED_API_URL:?tenant secret required}
+      INDEX_INTERNAL_API_KEY: ${TENANT_HOSTED_READ_KEY:?tenant secret required}
+      STREAMS_INTERNAL_API_KEY: ${TENANT_HOSTED_READ_KEY:?tenant secret required}
+      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY:?tenant secret required}
+      PROBE_GATEWAY_IP: ${PROBE_GATEWAY_IP:-}
+      PROBE_B_PG_IP: ${PROBE_B_PG_IP:-}
+      PROBE_B_API_PORT: ${PROBE_B_API_PORT:-}
+      PROBE_RES: ${PROBE_RES:-}
+    volumes:
+      - subgraphs_data:/data/subgraphs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      volume-init:
+        condition: service_completed_successfully
+    healthcheck:
+      disable: true
+    restart: unless-stopped

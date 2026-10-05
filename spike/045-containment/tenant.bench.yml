@@ -1,0 +1,14 @@
+# Benchmark-only override, applied AFTER tenant.hardening.yml on the stacks
+# that run the fixture subgraph: loads bench-preload.ts into the processor so
+# it logs per-block timing. Mounts the spike dir read-only at /spike
+# ($SPIKE_DIR is the absolute path on the host).
+services:
+  subgraph-processor:
+    command:
+      - bun
+      - --preload
+      - /spike/bench-preload.ts
+      - run
+      - packages/subgraphs/src/service.ts
+    volumes:
+      - ${SPIKE_DIR:?absolute path of spike/045-containment}:/spike:ro
