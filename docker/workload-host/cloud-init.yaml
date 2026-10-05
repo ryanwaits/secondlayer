@@ -47,7 +47,7 @@ write_files:
       {
         "runtimes": {
           "runsc": {
-            "path": "/usr/local/bin/runsc"
+            "path": "/usr/bin/runsc"
           }
         }
       }
