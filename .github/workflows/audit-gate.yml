@@ -27,7 +27,8 @@ jobs:
         run: |
           # bun audit exits 1 on any finding (incl. low/moderate). Capture output
           # and fail only when an advisory line is high or critical.
-          bun audit | tee /tmp/audit.txt || true
+          # GHSA-vfj7-8cjw-p6xm: braces DoS, no patched release yet (dev/CLI globs only). Drop once upstream fixes.
+          bun audit --ignore=GHSA-vfj7-8cjw-p6xm | tee /tmp/audit.txt || true
           if ! grep -qE 'vulnerabilit' /tmp/audit.txt; then
             echo "::error::bun audit did not produce expected output"
             exit 1
