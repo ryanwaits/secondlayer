@@ -1,0 +1,15 @@
+{"check":"env:pid1","expected":"own-only","outcome":"own-only","detail":"keys=ALLOW_UNSIGNED_WEBHOOKS,API_PUBLISH_ADDR,BUN_INSTALL_BIN,BUN_RUNTIME_TRANSPILER_CACHE_PATH,DATABASE_URL,DATA_DIR,HOME,HOSTNAME,INSTANCE_MODE,INSTANCE_TOKEN,LISTEN_HOST,LOG_LEVEL,NODE_ENV,PATH,PORT,PROBE_B_API_PORT,PROBE_B_PG_IP,PROBE_GATEWAY_IP,PROBE_RES,PWD,SECONDLAYER_SECRETS_KEY,SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY,SHLVL,STREAMS_SIGNING_PRIVATE_KEY,SUBGRAPH_SOURCE,WEBHOOK_MAX_RETRIES_CEILING,WEBHOOK_TIMEOUT_MS_CEILING","path":"deploy-probe","at":"module"}
+{"check":"fs:docker-sock","expected":"false","outcome":"false","detail":"/var/run/docker.sock","path":"deploy-probe","at":"module"}
+{"check":"fs:mounts","expected":"declared-only","outcome":"declared-only","detail":"docker-managed=/etc/hosts,/etc/hostname,/etc/resolv.conf all=/,/dev,/sys,/tmp,/proc,/dev/pts,/dev/shm,/etc/hosts,/etc/hostname,/sys/fs/cgroup,/sys/fs/cgroup/cpu,/sys/fs/cgroup/cpuacct,/sys/fs/cgroup/cpuset,/sys/fs/cgroup/devices,/sys/fs/cgroup/job,/sys/fs/cgroup/memory,/sys/fs/cgroup/pids,/data/subgraphs,/etc/resolv.conf","path":"deploy-probe","at":"module"}
+{"check":"fs:write-root","expected":"blocked","outcome":"blocked","detail":"EACCES","path":"deploy-probe","at":"module"}
+{"check":"tcp:own-postgres","expected":"reachable","outcome":"reachable","detail":"postgres:5432 connected","path":"deploy-probe","at":"module"}
+{"check":"dns:other-tenant","expected":"not-found","outcome":"not-found","detail":"ENOTFOUND","path":"deploy-probe","at":"module"}
+{"check":"tcp:public-api","expected":"reachable","outcome":"reachable","detail":"api.secondlayer.tools:443 connected","path":"deploy-probe","at":"module"}
+{"check":"tcp:metadata","expected":"blocked","outcome":"blocked","detail":"169.254.169.254:80 ETIMEDOUT","path":"deploy-probe","at":"module"}
+{"check":"tcp:rfc1918:10.0.0.2","expected":"blocked","outcome":"blocked","detail":"10.0.0.2:443 ETIMEDOUT","path":"deploy-probe","at":"module"}
+{"check":"tcp:rfc1918:172.16.0.1","expected":"blocked","outcome":"blocked","detail":"172.16.0.1:443 ETIMEDOUT","path":"deploy-probe","at":"module"}
+{"check":"tcp:rfc1918:192.168.0.1","expected":"blocked","outcome":"blocked","detail":"192.168.0.1:443 ETIMEDOUT","path":"deploy-probe","at":"module"}
+{"check":"tcp:other-tenant-postgres","expected":"blocked","outcome":"blocked","detail":"172.30.2.10:5432 ETIMEDOUT","path":"deploy-probe","at":"module"}
+{"check":"tcp:other-tenant-api","expected":"blocked","outcome":"blocked","detail":"172.30.1.1:3922 ETIMEDOUT","path":"deploy-probe","at":"module"}
+{"check":"tcp:host-gateway","expected":"blocked","outcome":"blocked","detail":"172.30.1.1:8080 ETIMEDOUT","path":"deploy-probe","at":"module"}
+{"check":"tcp:control-pg","expected":"blocked","outcome":"blocked","detail":"172.30.1.1:5432 ETIMEDOUT","path":"deploy-probe","at":"module"}

@@ -1,0 +1,6 @@
+tenant-a-webhook-service-1 Up 10 seconds
+tenant-a-subgraph-processor-1 Up 15 seconds
+tenant-a-api-1 Up 15 seconds (healthy)
+tenant-a-volume-init-1 Exited (0) 26 seconds ago
+tenant-a-migrate-1 Exited (0) 16 seconds ago
+tenant-a-postgres-1 Up 28 seconds (healthy)

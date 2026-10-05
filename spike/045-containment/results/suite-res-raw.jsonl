@@ -1,0 +1,6 @@
+{"check":"res:pids","expected":"stops-near-128","outcome":"stopped-at-48","detail":"reason=ENOMEM pids_limit=128","path":"processor","at":"module"}
+{"check":"res:memory","expected":"oom-killed-near-512MB","outcome":"progress","detail":"held=384MB","path":"processor","at":"module"}
+{"check":"res:memory","expected":"oom-killed-near-512MB","outcome":"progress","detail":"held=448MB","path":"processor","at":"module"}
+{"check":"res:memory","expected":"oom-killed-near-512MB","outcome":"progress","detail":"held=64MB","path":"processor","at":"module"}
+{"check":"res:cpu","expected":"other-tenant-keeps-advancing","outcome":"start","detail":"busy loop 60s","path":"processor","at":"module"}
+{"check":"res:cpu","expected":"other-tenant-keeps-advancing","outcome":"end","detail":"iterations=1597177737","path":"processor","at":"module"}

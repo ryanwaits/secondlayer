@@ -1,0 +1,20 @@
+## iptables DOCKER-USER (packet counters after the suite)
+Chain DOCKER-USER (1 references)
+    pkts      bytes target     prot opt in     out     source               destination         
+  121183 202172042 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+      55     3300 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-is-bridged
+      16      960 ACCEPT     6    --  *      *       0.0.0.0/0            65.21.135.94         tcp dpt:443
+       3      180 DROP       0    --  *      *       0.0.0.0/0            169.254.169.254     
+       0        0 DROP       0    --  br+    br+     0.0.0.0/0            0.0.0.0/0           
+       3      180 DROP       0    --  br+    *       0.0.0.0/0            10.0.0.0/8          
+       3      180 DROP       0    --  br+    *       0.0.0.0/0            172.16.0.0/12       
+       3      180 DROP       0    --  br+    *       0.0.0.0/0            192.168.0.0/16      
+       0        0 DROP       0    --  br+    *       0.0.0.0/0            100.64.0.0/10       
+       0        0 DROP       0    --  br+    *       0.0.0.0/0            169.254.0.0/16      
+       0        0 DROP       0    --  br+    *       0.0.0.0/0            127.0.0.0/8         
+      24     1586 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+## iptables WORKLOAD-INPUT
+Chain WORKLOAD-INPUT (2 references)
+    pkts      bytes target     prot opt in     out     source               destination         
+      56    32411 ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+      12      720 DROP       0    --  *      *       0.0.0.0/0            0.0.0.0/0           

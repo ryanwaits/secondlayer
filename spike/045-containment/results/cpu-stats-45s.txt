@@ -1,0 +1,8 @@
+tenant-a-subgraph-processor-1|100.87%|44.82MiB / 512MiB
+tenant-a-api-1|0.68%|125.6MiB / 512MiB
+tenant-a-webhook-service-1|0.14%|45.8MiB / 512MiB
+tenant-a-postgres-1|3.55%|69.74MiB / 7.566GiB
+tenant-b-webhook-service-1|0.13%|47.78MiB / 512MiB
+tenant-b-api-1|0.48%|121.1MiB / 512MiB
+tenant-b-subgraph-processor-1|0.19%|67.11MiB / 512MiB
+tenant-b-postgres-1|0.08%|69.39MiB / 7.566GiB

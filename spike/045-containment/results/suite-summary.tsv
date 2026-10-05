@@ -1,0 +1,34 @@
+path	check	expected	outcome	ok
+deploy-probe	env:pid1	own-only	own-only	PASS
+deploy-probe	fs:docker-sock	false	false	PASS
+deploy-probe	fs:mounts	declared-only	declared-only	PASS
+deploy-probe	fs:write-root	blocked	blocked	PASS
+deploy-probe	tcp:own-postgres	reachable	reachable	PASS
+deploy-probe	dns:other-tenant	not-found	not-found	PASS
+deploy-probe	tcp:public-api	reachable	reachable	PASS
+deploy-probe	tcp:metadata	blocked	blocked	PASS
+deploy-probe	tcp:rfc1918:10.0.0.2	blocked	blocked	PASS
+deploy-probe	tcp:rfc1918:172.16.0.1	blocked	blocked	PASS
+deploy-probe	tcp:rfc1918:192.168.0.1	blocked	blocked	PASS
+deploy-probe	tcp:other-tenant-postgres	blocked	blocked	PASS
+deploy-probe	tcp:other-tenant-api	blocked	blocked	PASS
+deploy-probe	tcp:host-gateway	blocked	blocked	PASS
+deploy-probe	tcp:control-pg	blocked	blocked	PASS
+processor	env:pid1	own-only	own-only	PASS
+processor	fs:docker-sock	false	false	PASS
+processor	fs:mounts	declared-only	declared-only	PASS
+processor	fs:write-root	blocked	blocked	PASS
+processor	tcp:own-postgres	reachable	reachable	PASS
+processor	dns:other-tenant	not-found	not-found	PASS
+processor	tcp:public-api	reachable	reachable	PASS
+processor	tcp:metadata	blocked	blocked	PASS
+processor	tcp:rfc1918:10.0.0.2	blocked	blocked	PASS
+processor	tcp:rfc1918:172.16.0.1	blocked	blocked	PASS
+processor	tcp:rfc1918:192.168.0.1	blocked	blocked	PASS
+processor	tcp:other-tenant-postgres	blocked	blocked	PASS
+processor	tcp:other-tenant-api	blocked	blocked	PASS
+processor	tcp:host-gateway	blocked	blocked	PASS
+processor	tcp:control-pg	blocked	blocked	PASS
+processor	res:pids	stops-near-128 (64..128 children)	stopped-at-48	FAIL
+processor	res:memory	oom-killed-near-512MB (256..576 MB held)	oom-killed-near-512MB:448MB	PASS
+processor	res:cpu	other-tenant-keeps-advancing	other-tenant-advanced:8-blocks	PASS

@@ -1,0 +1,6 @@
+stack A bridge gateway (host side): 172.30.1.1
+stack B postgres container ip: 172.30.2.10
+stack B TENANT_API_PORT: 3922 (published 127.0.0.1 only)
+A subnet: 172.30.1.0/24
+B subnet: 172.30.2.0/24
+host-side listener check (from the host itself): 8080:listening 5432:listening 3922:listening

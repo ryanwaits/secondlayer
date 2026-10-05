@@ -1,0 +1,1 @@
+deploy http=201 {"action":"created","subgraphId":"a8f033ae-752c-4d0c-8f47-6077980ac75e","version":"1.0.0","start_block":1,"message":"Subgraph \"containment-probe\" created","reindexStarted":true,"operationId":"c43d38b8-5223-4442-8555-9aecf39c9249","estimatedEvents":0}

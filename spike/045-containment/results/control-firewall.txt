@@ -1,0 +1,5 @@
+gateway 172.30.1.1:8080 from a runsc container on tenant-a network, firewall as provisioned:
+blocked
+same connect with an ACCEPT rule for :8080 inserted at the top of WORKLOAD-INPUT:
+reachable
+rule removed.

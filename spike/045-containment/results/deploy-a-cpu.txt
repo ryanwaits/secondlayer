@@ -1,0 +1,2 @@
+delete http=200
+deploy http=201 {"action":"created","subgraphId":"0e1d7cf6-112f-4952-a25e-e25d83177dce","version":"1.0.0","start_block":1,"message":"Subgraph \"containment-probe\" created","reindexStarted":true,"operationId":"452c74ec-05a2-4c79-9a92-3197fe57c1c3","estimatedEvents":0}

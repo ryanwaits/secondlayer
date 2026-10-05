@@ -1,0 +1,2 @@
+{"label": "runsc", "blocks_logged": 392, "warmup_dropped": 20, "blocks_measured": 372, "totalMs": {"p50": 4.0, "p95": 10.449999999999989, "mean": 5.15, "max": 45}, "handlerMs": {"p50": 0.0, "p95": 0.0, "mean": 0.06, "max": 8}, "flushMs": {"p50": 1.0, "p95": 4.0, "mean": 1.26, "max": 40}}
+{"label": "runc", "blocks_logged": 397, "warmup_dropped": 20, "blocks_measured": 377, "totalMs": {"p50": 2.0, "p95": 5.0, "mean": 2.67, "max": 29}, "handlerMs": {"p50": 0.0, "p95": 0.0, "mean": 0.05, "max": 6}, "flushMs": {"p50": 0.0, "p95": 2.0, "mean": 0.39, "max": 6}}

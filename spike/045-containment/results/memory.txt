@@ -1,0 +1,36 @@
+## idle: B(runsc) + C(runc) both caught up at tip 2026-10-05T20:50:18Z
+tenant-c-webhook-service-1|29.68MiB / 512MiB|0.07%|8
+tenant-c-api-1|100.4MiB / 512MiB|0.08%|11
+tenant-c-subgraph-processor-1|45.09MiB / 512MiB|0.10%|8
+tenant-c-postgres-1|69.1MiB / 7.566GiB|3.36%|23
+tenant-b-webhook-service-1|48.08MiB / 512MiB|0.26%|35
+tenant-b-api-1|121.9MiB / 512MiB|0.59%|38
+tenant-b-subgraph-processor-1|68.47MiB / 512MiB|0.20%|38
+tenant-b-postgres-1|69.26MiB / 7.566GiB|0.00%|23
+               total        used        free      shared  buff/cache   available
+Mem:            7747        1175        3598         217        3500        6571
+Swap:              0           0           0
+## idle: A(runsc, probe) + B(runsc, fixture) 2026-10-05T20:50:51Z
+tenant-a-webhook-service-1|45.55MiB / 512MiB|0.39%|34
+tenant-a-subgraph-processor-1|47.08MiB / 512MiB|0.54%|35
+tenant-a-api-1|130.4MiB / 512MiB|1.27%|36
+tenant-a-postgres-1|59.19MiB / 7.566GiB|11.74%|22
+tenant-b-webhook-service-1|47.58MiB / 512MiB|0.28%|35
+tenant-b-api-1|120.2MiB / 512MiB|1.18%|38
+tenant-b-subgraph-processor-1|68.7MiB / 512MiB|0.54%|38
+tenant-b-postgres-1|69.25MiB / 7.566GiB|0.00%|23
+               total        used        free      shared  buff/cache   available
+Mem:            7747        1205        3579         368        3640        6541
+Swap:              0           0           0
+## final 2026-10-05T20:53:36Z
+tenant-a-api-1|116.6MiB / 512MiB|0.48%|35
+tenant-a-subgraph-processor-1|43.86MiB / 512MiB|3.82%|34
+tenant-a-webhook-service-1|46.06MiB / 512MiB|0.38%|34
+tenant-a-postgres-1|68.34MiB / 7.566GiB|0.32%|26
+tenant-b-webhook-service-1|48.34MiB / 512MiB|0.29%|35
+tenant-b-api-1|121.3MiB / 512MiB|1.61%|38
+tenant-b-subgraph-processor-1|68.84MiB / 512MiB|0.53%|38
+tenant-b-postgres-1|69.48MiB / 7.566GiB|0.09%|23
+               total        used        free      shared  buff/cache   available
+Mem:            7747        1193        3569         362        3657        6553
+Swap:              0           0           0

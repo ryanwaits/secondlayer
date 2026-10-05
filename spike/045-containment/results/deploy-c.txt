@@ -1,0 +1,1 @@
+deploy http=201 {"action":"created","subgraphId":"55138093-dbd3-40cd-b173-5b9f27122908","version":"1.0.0","start_block":9128610,"message":"Subgraph \"spike-pox5-fixture\" created","reindexStarted":true,"operationId":"b2a21b02-6993-46fc-820f-af1ff6f4b8e5"}
