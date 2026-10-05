@@ -29,6 +29,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-secondlayer}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
       POSTGRES_DB: ${POSTGRES_DB:-secondlayer}
+    # Postgres ships with a 128 MB cache, too small for a full-chain sync:
+    # inserts stall on index reads from disk. ~25% of RAM is the usual size.
+    command: ["postgres", "-c", "shared_buffers=${POSTGRES_SHARED_BUFFERS:-1GB}"]
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Runs once, on first init of an empty postgres_data volume: creates
