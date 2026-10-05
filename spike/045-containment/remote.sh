@@ -78,16 +78,13 @@ apt-get install -y -qq jq >/dev/null 2>&1 || {
 	exit 2
 }
 
-if [ ! -x /usr/local/bin/runsc ]; then
-	note "FINDING: cloud-init.yaml registers runsc at /usr/local/bin/runsc but that path does not exist on the booted host."
-	if [ -x /usr/bin/runsc ]; then
-		note "FINDING: the gVisor apt package installed /usr/bin/runsc; this run symlinked it to /usr/local/bin/runsc on the scratch VM only so the suite could proceed."
-		ln -s /usr/bin/runsc /usr/local/bin/runsc
-	else
-		note "STOP: runsc is not installed at all."
-		exit 3
-	fi
+# The spike tests the cloud-init config as shipped: runsc must be registered at
+# the path the gVisor package installs. No workaround.
+if [ ! -x /usr/bin/runsc ]; then
+	note "STOP: /usr/bin/runsc missing after cloud-init"
+	exit 3
 fi
+docker info --format '{{json .Runtimes}}' | grep -q '"/usr/bin/runsc"' || note "FINDING: docker runsc runtime path is not /usr/bin/runsc"
 
 log "pull images"
 docker pull -q "$IMG" >/dev/null || {
@@ -150,6 +147,29 @@ X="$OUT/1a-experiments.txt"
 	docker run --rm --runtime runsc --user 1000:1000 --read-only "$IMG" bun -e 'require("node:fs").writeFileSync("/tmp/x","y"); console.log("tmp-write-ok")' 2>&1 | head -3
 	echo "with --tmpfs /tmp:"
 	docker run --rm --runtime runsc --user 1000:1000 --read-only --tmpfs /tmp "$IMG" bun -e 'require("node:fs").writeFileSync("/tmp/x","y"); console.log("tmp-write-ok")' 2>&1 | head -3
+	echo
+	echo "## E5 read-only root, runc vs runsc, root vs uid 1000 (touch / , /tmp, /app; root mount flags)"
+	for rt in runc runsc; do
+		for u in 0:0 1000:1000; do
+			echo "runtime=$rt user=$u:"
+			docker run --rm --runtime "$rt" --user "$u" --read-only "$IMG" sh -c 'for p in /x /tmp/x /app/x; do touch $p 2>&1 && echo "$p write-ok" ; done; grep " / " /proc/self/mounts | head -2' 2>&1
+		done
+	done
+	echo
+	echo "## E4 Docker embedded DNS (127.0.0.11) on a user-defined network: runc vs runsc, stock vs public resolver"
+	docker network create spike-dns >/dev/null
+	docker run -d --rm --name spike-dns-peer --network spike-dns "$IMG" sleep 120 >/dev/null
+	L='require("node:dns").lookup(process.argv[1],(e,a)=>console.log(process.argv[1],e?e.code:a))'
+	for rt in runc runsc; do
+		echo "runtime=$rt stock resolv.conf:"
+		docker run --rm --runtime "$rt" --network spike-dns "$IMG" bun -e "$L" spike-dns-peer 2>&1
+		docker run --rm --runtime "$rt" --network spike-dns "$IMG" bun -e "$L" api.secondlayer.tools 2>&1
+	done
+	echo "runtime=runsc with resolv.conf = nameserver 1.1.1.1:"
+	docker run --rm --runtime runsc --network spike-dns -v "$SPIKE_DIR/resolv.conf:/etc/resolv.conf:ro" "$IMG" bun -e "$L" api.secondlayer.tools 2>&1
+	docker run --rm --runtime runsc --network spike-dns -v "$SPIKE_DIR/resolv.conf:/etc/resolv.conf:ro" "$IMG" bun -e "$L" spike-dns-peer 2>&1
+	docker rm -f spike-dns-peer >/dev/null 2>&1
+	docker network rm spike-dns >/dev/null 2>&1
 } >"$X" 2>&1
 
 # ----------------------------------------------------------- env + hosted tip
@@ -159,6 +179,13 @@ mk_env() { # mk_env <stack> <port> <key>  (socket dir root-only 0700, as the pro
 	mkdir -p "$sd"
 	chmod 700 "$sd"
 	READ_KEY="$3" "$SPIKE_DIR/gen-env.sh" "$ENVD/$1.env" "$2" "$sd"
+	# Per-tenant /24 and static postgres address (runsc has no working Docker DNS).
+	local n
+	case "$1" in a) n=1 ;; b) n=2 ;; *) n=3 ;; esac
+	{
+		echo "TENANT_SUBNET=172.30.$n.0/24"
+		echo "TENANT_PG_IP=172.30.$n.10"
+	} >>"$ENVD/$1.env"
 }
 mk_env a 3921 "dummy-read-key-for-spike"
 mk_env b 3922 "$HOSTED_KEY"
@@ -190,10 +217,13 @@ up_stack() {
 }
 
 wait_caught_up() { # wait_caught_up <stack> <target>
-	local s=$1 target=$2 deadline=$((SECONDS + 900)) c
+	local s=$1 target=$2 deadline=$((SECONDS + 600)) c
+	[ -s "$OUT/deploy-$s.fail" ] && return 1
 	while [ $SECONDS -lt $deadline ]; do
 		c=$(cursor "$s")
 		[ "${c:-0}" -ge "$target" ] && return 0
+		# No progress at all after 4 minutes: something is broken, do not burn 10.
+		[ "${c:-0}" -eq 0 ] && [ $SECONDS -gt $((deadline - 360)) ] && return 1
 		sleep 5
 	done
 	return 1
@@ -203,7 +233,10 @@ wait_caught_up() { # wait_caught_up <stack> <target>
 log "stack B (runsc, fixture)"
 up_stack b || note "stack B did not come up cleanly (see up-b.log)"
 sleep 5
-"$SPIKE_DIR/deploy.sh" 3922 "$ENVD/b.env" /tmp/fixture.ts >"$OUT/deploy-b.txt" 2>&1 || note "fixture deploy to B failed: $(cat "$OUT/deploy-b.txt" | head -c 400)"
+"$SPIKE_DIR/deploy.sh" 3922 "$ENVD/b.env" /tmp/fixture.ts >"$OUT/deploy-b.txt" 2>&1 || {
+	note "fixture deploy to B failed: $(head -c 400 "$OUT/deploy-b.txt")"
+	echo fail >"$OUT/deploy-b.fail"
+}
 wait_caught_up b "$TIP" || note "stack B did not catch up to tip $TIP within 15 min"
 log "B caught up, cursor=$(cursor b)"
 sleep 20
@@ -212,11 +245,41 @@ docker logs tenant-b-subgraph-processor-1 2>&1 | grep '^{"bench"' >"$OUT/bench-b
 docker ps -a --filter name=tenant-b-webhook-service --format '{{.Names}} {{.Status}}' >"$OUT/webhook-service-b-status.txt"
 docker logs --tail 20 tenant-b-webhook-service-1 >"$OUT/webhook-service-b.log" 2>&1
 
+# Meter socket as the provisioner would serve it: a root-owned unix socket in a
+# root-0700 dir, connected to from the uid 1000 webhook-service.
+SD=/opt/secondlayer-workload/tenants/spike-b/sock
+python3 - "$SD/meter.sock" <<'PY' &
+import socket, sys
+s = socket.socket(socket.AF_UNIX)
+s.bind(sys.argv[1])
+s.listen(8)
+while True:
+    c, _ = s.accept()
+    c.close()
+PY
+sleep 1
+MSOCK='const s=require("node:net").connect("/var/run/secondlayer/meter.sock");s.on("connect",()=>{console.log("connected");process.exit(0)});s.on("error",e=>{console.log(e.code);process.exit(0)})'
+{
+	echo "root-0700 dir, root socket: $(docker exec tenant-b-webhook-service-1 bun -e "$MSOCK" 2>&1)"
+	chown 1000:1000 "$SD" "$SD/meter.sock"
+	echo "after chown 1000:1000 on dir+socket: $(docker exec tenant-b-webhook-service-1 bun -e "$MSOCK" 2>&1)"
+	chown root:root "$SD" "$SD/meter.sock"
+	echo "host-side connect to the same socket (listener alive?): $(python3 -c "import socket;s=socket.socket(socket.AF_UNIX);s.connect('$SD/meter.sock');print('connected')" 2>&1)"
+	echo "runc container as root, same bind mount: $(docker run --rm --runtime runc --user 0:0 -v "$SD":/var/run/secondlayer "$IMG" bun -e "$MSOCK" 2>&1)"
+	echo "runsc container as root, same bind mount: $(docker run --rm --runtime runsc --user 0:0 -v "$SD":/var/run/secondlayer "$IMG" bun -e "$MSOCK" 2>&1)"
+	echo "runsc host-uds flag: $(docker info --format '{{json .Runtimes.runsc.status}}' | grep -o 'dev.gvisor.flag.host-uds\\":\\"[a-z]*' | head -1)"
+} >"$OUT/meter-socket.txt" 2>&1
+pkill -f listen.py 2>/dev/null
+
+
 # --------------------------------------------- stack C: runc, same fixture
 log "stack C (runc, fixture)"
 up_stack c || note "stack C did not come up cleanly (see up-c.log)"
 sleep 5
-"$SPIKE_DIR/deploy.sh" 3923 "$ENVD/c.env" /tmp/fixture.ts >"$OUT/deploy-c.txt" 2>&1 || note "fixture deploy to C failed: $(head -c 400 "$OUT/deploy-c.txt")"
+"$SPIKE_DIR/deploy.sh" 3923 "$ENVD/c.env" /tmp/fixture.ts >"$OUT/deploy-c.txt" 2>&1 || {
+	note "fixture deploy to C failed: $(head -c 400 "$OUT/deploy-c.txt")"
+	echo fail >"$OUT/deploy-c.fail"
+}
 wait_caught_up c "$TIP" || note "stack C did not catch up to tip $TIP within 15 min"
 log "C caught up, cursor=$(cursor c)"
 sleep 45
@@ -299,6 +362,12 @@ res_json() { # res_json <check> <expected> <outcome> <detail>
 }
 recreate_a() { # recreate_a <PROBE_RES value>
 	PROBE_RES="$1" dc a up -d --force-recreate api subgraph-processor >/dev/null 2>&1
+	if [ -n "$1" ]; then
+		# Fresh deploy: the processor only imports the module when an operation
+		# or an active catch-up needs it, so a redeploy is what triggers it.
+		for _ in $(seq 1 30); do curl -sf http://127.0.0.1:3921/health >/dev/null && break; sleep 2; done
+		DELETE_FIRST=containment-probe "$SPIKE_DIR/deploy.sh" 3921 "$ENVD/a.env" "$SPIKE_DIR/probe.ts" >"$OUT/deploy-a-$1.txt" 2>&1 || note "redeploy for res:$1 failed"
+	fi
 }
 
 log "res:pids"
@@ -341,8 +410,9 @@ sleep 10
 log "res:cpu"
 B0=$(b_state)
 recreate_a cpu
-for _ in $(seq 1 20); do
-	docker logs tenant-a-subgraph-processor-1 2>&1 | grep -q '"outcome":"start"' && break
+CPU_STARTED=no
+for _ in $(seq 1 90); do
+	if docker logs tenant-a-subgraph-processor-1 2>&1 | grep -q '"outcome":"start"'; then CPU_STARTED=yes; break; fi
 	sleep 1
 done
 sleep 20
@@ -356,7 +426,7 @@ B65=$(b_state)
 docker logs tenant-a-subgraph-processor-1 2>&1 | grep '"check":"res:cpu"' >>"$OUT/suite-res-raw.jsonl"
 C0=$(echo "$B0" | jq -r .b_cursor)
 C65=$(echo "$B65" | jq -r .b_cursor)
-if [ "$C65" -gt "$C0" ]; then V="other-tenant-advanced:$((C65 - C0))-blocks"; else V="other-tenant-stalled"; fi
+if [ "$CPU_STARTED" != yes ]; then V="not-exercised"; elif [ "$C65" -gt "$C0" ]; then V="other-tenant-advanced:$((C65 - C0))-blocks"; else V="other-tenant-stalled"; fi
 res_json res:cpu "other-tenant-keeps-advancing" "$V" "B cursor $C0 -> $C65 over ~65s; samples: t20=$B20 t45=$B45; A cpu limit 1"
 recreate_a ""
 sleep 10
@@ -367,3 +437,6 @@ ps_a >"$OUT/ps-a-final.txt"
 docker ps -a --format '{{.Names}} {{.Status}}' >"$OUT/ps-all-final.txt"
 docker run --rm "$IMG" bun --version >"$OUT/bun-version.txt" 2>&1
 log "remote done"
+pkill -f listen.py 2>/dev/null
+pkill -f 'python3 - /opt/secondlayer-workload' 2>/dev/null
+exit 0

@@ -2,6 +2,9 @@
 #   docker compose -p tenant-<acct8> \
 #     -f docker/workload/tenant.compose.yml \
 #     -f spike/045-containment/tenant.hardening.yml up -d
+# Needs, per tenant: SPIKE_DIR (abs path of this directory), TENANT_SUBNET
+# (a /24 unique per tenant, e.g. 172.30.1.0/24) and TENANT_PG_IP (an address in
+# it, e.g. 172.30.1.10).
 #
 # Every service that can hold or run customer code (api, subgraph-processor)
 # plus webhook-service gets the same box: gVisor, non-root, read-only root,
@@ -11,6 +14,10 @@
 # `subgraph-processor` is NOT in the base file (chain webhooks only, no
 # handlers). It is the api image with the processor entry, shaped after
 # docker/oss/docker-compose.split.yml.
+#
+# runsc cannot reach Docker's embedded DNS (127.0.0.11): every lookup times
+# out, service names and public names alike. Fix: a static address for
+# postgres (extra_hosts) and a public resolver in /etc/resolv.conf.
 
 x-hardening: &hardening
   runtime: runsc
@@ -23,8 +30,21 @@ x-hardening: &hardening
   pids_limit: 128
   security_opt:
     - no-new-privileges:true
+  extra_hosts:
+    - "postgres:${TENANT_PG_IP:?static postgres address}"
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${TENANT_SUBNET:?per-tenant /24}
 
 services:
+  postgres:
+    networks:
+      default:
+        ipv4_address: ${TENANT_PG_IP:?static postgres address}
+
   # One-shot: the `subgraphs_data` named volume is created root-owned (the
   # image has no /data/subgraphs to copy ownership from), and the api and
   # processor now run as uid 1000. Without this, every deploy fails writing
@@ -45,12 +65,16 @@ services:
       PROBE_B_PG_IP: ${PROBE_B_PG_IP:-}
       PROBE_B_API_PORT: ${PROBE_B_API_PORT:-}
       PROBE_RES: ${PROBE_RES:-}
+    volumes:
+      - ${SPIKE_DIR:?abs path of spike/045-containment}/resolv.conf:/etc/resolv.conf:ro
     depends_on:
       volume-init:
         condition: service_completed_successfully
 
   webhook-service:
     <<: *hardening
+    volumes:
+      - ${SPIKE_DIR:?abs path of spike/045-containment}/resolv.conf:/etc/resolv.conf:ro
 
   subgraph-processor:
     <<: *hardening
@@ -75,6 +99,7 @@ services:
       PROBE_RES: ${PROBE_RES:-}
     volumes:
       - subgraphs_data:/data/subgraphs
+      - ${SPIKE_DIR:?abs path of spike/045-containment}/resolv.conf:/etc/resolv.conf:ro
     depends_on:
       migrate:
         condition: service_completed_successfully

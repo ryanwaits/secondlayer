@@ -17,6 +17,11 @@ base="http://127.0.0.1:${port}/api/subgraphs"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
+if [ -n "${DELETE_FIRST:-}" ]; then
+	printf 'header = "Authorization: Bearer %s"\n' "$token" |
+		curl -sS -K - -X DELETE "$base/$DELETE_FIRST" -o /dev/null -w 'delete http=%{http_code}\n'
+fi
+
 call() { # call <path> <json-body-file>
 	printf 'header = "Authorization: Bearer %s"\n' "$token" |
 		curl -sS -K - -X POST "$base$1" -H 'content-type: application/json' \

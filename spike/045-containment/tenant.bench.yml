@@ -6,9 +6,9 @@ services:
   subgraph-processor:
     command:
       - bun
+      - run
       - --preload
       - /spike/bench-preload.ts
-      - run
       - packages/subgraphs/src/service.ts
     volumes:
       - ${SPIKE_DIR:?absolute path of spike/045-containment}:/spike:ro

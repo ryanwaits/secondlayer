@@ -3,7 +3,7 @@
 #
 # Creates (all named spike-045-<epoch>, never the live workload-host, its
 # firewall, or the macbook-prod key): an ephemeral ssh key, a firewall allowing
-# inbound 22 from this machine's public IP only, and a CPX VM booted from the
+# inbound 22 from this machine's public IP only, and a dedicated-core ccx13 VM booted from the
 # SAME cloud-init the real host uses (docker/workload-host/render-cloud-init.sh).
 # Runs remote.sh on it, copies the results back, and deletes everything on
 # success AND failure (trap).
@@ -21,7 +21,7 @@ REPO=$(pwd)
 RES="$REPO/spike/045-containment/results"
 EPOCH=$(date +%s)
 NAME="spike-045-$EPOCH"
-TAG="${WORKLOAD_IMAGE_TAG:-$(git rev-parse origin/main)}"
+TAG="${WORKLOAD_IMAGE_TAG:-554c9a824c2736ca9635114eaa00f86d3c5cd588}" # pinned: a main sha with a published ghcr image
 : "${SECONDLAYER_API_KEY:?set SECONDLAYER_API_KEY (hosted read key for stacks B and C)}"
 TMP=$(mktemp -d)
 SSH_KEY_MADE=0 FW_MADE=0 SERVER_MADE=0
@@ -75,9 +75,22 @@ printf '[{"direction":"in","protocol":"tcp","port":"22","source_ips":["%s/32"]}]
 FW_MADE=1
 hcloud firewall create --name "$NAME" --rules-file "$TMP/rules.json" --label spike=045 >/dev/null
 SERVER_MADE=1
-hcloud server create --name "$NAME" --type cpx32 --image ubuntu-24.04 --location fsn1 \
-	--ssh-key "$NAME" --firewall "$NAME" --user-data-from-file "$TMP/cloud-init.yaml" \
-	--label spike=045 >/dev/null
+# Dedicated-core ccx13 (the shared-core pool is at quota). fsn1 first, then
+# nbg1, hel1; any other failure (quota) is a STOP, never another type.
+LOCATION=""
+for loc in fsn1 nbg1 hel1; do
+	if hcloud server create --name "$NAME" --type ccx13 --image ubuntu-24.04 --location "$loc" \
+		--ssh-key "$NAME" --firewall "$NAME" --user-data-from-file "$TMP/cloud-init.yaml" \
+		--label spike=045 >"$TMP/create.txt" 2>&1; then
+		LOCATION=$loc
+		break
+	fi
+	cat "$TMP/create.txt" >&2
+	grep -qiE 'not available|unavailable|unsupported' "$TMP/create.txt" || break
+	hcloud server delete "$NAME" >/dev/null 2>&1 || true
+done
+[ -n "$LOCATION" ] || { echo "STOP: hcloud server create failed" >&2; exit 4; }
+echo "location: $LOCATION (ccx13)" >"$TMP/location.txt"
 IP=$(hcloud server ip "$NAME")
 log "server $NAME up at $IP (inbound 22 from $OPERATOR_IP only)"
 
@@ -119,6 +132,7 @@ mkdir -p "$RES"
 vm 'tar -C /opt/spike/out -cf - .' | tar -C "$RES" -xf - || true
 cp "$TMP/remote.log" "$RES/remote.log"
 cp "$TMP/cloud-init-status.txt" "$RES/cloud-init-status.txt"
+cp "$TMP/location.txt" "$RES/location.txt"
 echo "image tag: $TAG" >"$RES/image-tag.txt"
 
 # Zero secret values may be committed: the real key (by pattern file, not argv),
@@ -137,7 +151,7 @@ cat "$RES"/suite-deploy-probe.jsonl "$RES"/suite-processor.jsonl "$RES"/suite-re
 	jq -rs '
 	  map(select(.outcome != "progress" and .outcome != "start" and .outcome != "end")) |
 	  map(. + {ok: (.outcome == .expected
-	      or (.check|startswith("res:") and (.outcome|test("^(stopped-near-128|oom-killed-near-512MB|other-tenant-advanced)"))))}) |
+	      or ((.check|startswith("res:")) and (.outcome|test("^(stopped-near-128|oom-killed-near-512MB|other-tenant-advanced)"))))}) |
 	  (["path","check","expected","outcome","ok"] | @tsv),
 	  (.[] | [.path, .check, .expected, .outcome, (if .ok then "PASS" else "FAIL" end)] | @tsv)' \
 	>"$RES/suite-summary.tsv" || true
