@@ -163,11 +163,16 @@ not the only line.
    systemctl enable --now secondlayer-workload
    ```
 
-   Upgrading the workload service's OWN code (gateway/provisioner —
-   `packages/workload`) is the one manual step plan 064 doesn't automate:
-   `git pull`, `bun install --frozen-lockfile`, rebuild the three packages
-   above, `systemctl restart secondlayer-workload`. What each TENANT stack
-   runs is separate and no longer manual — see Auto-upgrade below.
+   Install the self-upgrade timer, which keeps this checkout on the commit
+   app-server reports as deployed (see Self-upgrade below):
+
+   ```bash
+   cp docker/workload-host/secondlayer-workload-upgrade.{service,timer} /etc/systemd/system/
+   systemctl daemon-reload
+   systemctl enable --now secondlayer-workload-upgrade.timer
+   ```
+
+   What each TENANT stack runs is separate — see Auto-upgrade below.
 5. DNS: add an A record for `workload-host.secondlayer.tools` (or whatever
    `WORKLOAD_HOST_NAME` is set to) pointing at this host's public IP. It
    never needs to be internet-reachable end to end (the cloud firewall
@@ -285,10 +290,46 @@ stop polling for a new target) or roll back the app-server deploy (`/health`
 then reports the older sha, and the next poll rolls tenants back to it the
 same way it rolls them forward).
 
-**The one remaining manual step**: the workload host upgrading its own
-gateway/provisioner code (`packages/workload`) — see step 4's "Upgrading
-the workload service's OWN code" above. Auto-upgrade only ever touches
-tenant stacks, never this host's own process.
+A restart mid-provision no longer strands a tenant: on boot the service
+clears every `provisioning` row (compose `down -v` for that project, then
+delete the row), so the account's next request provisions from scratch.
+Look for `workload.provisioner.recovered_interrupted` in the journal.
+
+## Self-upgrade
+
+The workload service's own code (`packages/workload`, plus the shared
+packages and `docker/workload/tenant.compose.yml` it reads from the
+checkout) follows deploys too. A systemd timer runs
+`docker/workload-host/workload-self-upgrade.sh` every 5 minutes from outside
+the service:
+
+1. Target = app-server `GET /health` `image_sha`; current = checkout `HEAD`.
+   Equal, or not a 40-char sha, or not fetchable: nothing happens.
+2. A dirty checkout is refused (logged, exit 1). Commit or discard local
+   edits.
+3. If nothing under `packages/{workload,platform,shared,stacks}`,
+   `docker/workload`, `package.json` or `bun.lock` changed, `HEAD` just moves.
+4. Otherwise: checkout, `bun install --frozen-lockfile`, the three builds,
+   `systemctl restart secondlayer-workload`, then poll
+   `http://127.0.0.1:8080/healthz` (up to 60 s) until it reports the target
+   sha.
+5. On any failure after checkout it restores the previous sha, rebuilds,
+   restarts, logs `ROLLED BACK <target> -> <previous>` and records the target
+   in `/var/lib/secondlayer-workload/bad-sha`. That sha is skipped until a
+   different one is deployed.
+
+```bash
+systemctl list-timers secondlayer-workload-upgrade.timer
+journalctl -u secondlayer-workload-upgrade
+curl -s 127.0.0.1:8080/healthz        # {"status":"ok","sha":"<running commit>"}
+git -C /opt/secondlayer-workload/src rev-parse HEAD
+```
+
+Clear a recorded bad sha to retry it: `rm /var/lib/secondlayer-workload/bad-sha`.
+Pause upgrades: `systemctl stop secondlayer-workload-upgrade.timer`.
+Paths, lock file and health timeout are overridable through env vars
+(header of the script). Alerting is the journal only; a Slack hook on
+`ROLLED BACK` is a follow-up.
 
 ## Verify (step 1's egress check)
 
