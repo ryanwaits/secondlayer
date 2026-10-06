@@ -48,6 +48,9 @@ export interface GatewayDeps {
 	 *  self-upgrade script can confirm a restart landed. Read once at boot;
 	 *  `null`/unset when unknown. */
 	sha?: string | null;
+	/** True while a tenant upgrade round is running; served at `/healthz` so
+	 *  the self-upgrade script restarts the service between rounds. */
+	isBusy?: () => boolean;
 }
 
 export interface RateLimitDecision {
@@ -92,7 +95,11 @@ export async function handleGatewayRequest(
 	const url = new URL(req.url);
 	// Unauthenticated liveness + version probe (loopback only, like the rest).
 	if (url.pathname === "/healthz") {
-		return Response.json({ status: "ok", sha: deps.sha ?? null });
+		return Response.json({
+			status: "ok",
+			sha: deps.sha ?? null,
+			busy: deps.isBusy?.() ?? false,
+		});
 	}
 	const presentedKey = bearerToken(req.headers.get("authorization"));
 	if (!presentedKey) {

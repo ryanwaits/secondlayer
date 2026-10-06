@@ -64,6 +64,9 @@ describe("workload-self-upgrade.sh", () => {
 	let deployedSha: string;
 	// Target sha for which the freshly restarted service never turns healthy.
 	let brokenSha: string | null;
+	// /healthz `busy` polls to report true before going idle; Infinity = never
+	// idle. `null` omits the field (an old process).
+	let busyPolls: number | null;
 	let baseSha: string;
 
 	const git = (cwd: string, ...args: string[]) => sh(["git", ...args], cwd);
@@ -86,6 +89,7 @@ describe("workload-self-upgrade.sh", () => {
 			WORKLOAD_UPGRADE_LOCK: join(root, "upgrade.lock"),
 			WORKLOAD_HEALTH_URL: `http://127.0.0.1:${server.port}/healthz`,
 			WORKLOAD_HEALTH_TIMEOUT: "2",
+			WORKLOAD_IDLE_TIMEOUT: "3",
 			APP_SERVER_URL: `http://127.0.0.1:${server.port}`,
 		});
 	}
@@ -111,7 +115,10 @@ describe("workload-self-upgrade.sh", () => {
 				if (path === "/healthz") {
 					const sha = (await git(checkout, "rev-parse", "HEAD")).stdout;
 					if (sha === brokenSha) return new Response("down", { status: 503 });
-					return Response.json({ status: "ok", sha });
+					if (busyPolls === null) return Response.json({ status: "ok", sha });
+					const busy = busyPolls > 0;
+					busyPolls -= 1;
+					return Response.json({ status: "ok", sha, busy });
 				}
 				return new Response("not found", { status: 404 });
 			},
@@ -136,6 +143,7 @@ describe("workload-self-upgrade.sh", () => {
 		callLog = join(root, "calls.log");
 		rmSync(callLog, { force: true });
 		brokenSha = null;
+		busyPolls = null;
 
 		mkdirSync(origin);
 		await git(origin, "init", "-q", "--bare", "-b", "main");
@@ -190,6 +198,34 @@ describe("workload-self-upgrade.sh", () => {
 			"systemctl restart secondlayer-workload",
 		]);
 		expect(existsSync(join(stateDir, "bad-sha"))).toBe(false);
+	});
+
+	test("the restart waits while a tenant upgrade round is in flight", async () => {
+		deployedSha = await commitFile("packages/workload/new.txt", "x");
+		busyPolls = 2;
+		const res = await run();
+		expect(res.code).toBe(0);
+		expect(res.stdout).toContain("tenant upgrade round in flight");
+		expect(res.stdout).not.toContain("WARNING");
+		expect(restarts()).toHaveLength(1);
+		expect(busyPolls).toBeLessThan(0); // polled past idle before restarting
+		expect(await head()).toBe(deployedSha);
+	});
+
+	test("a service that stays busy past the idle timeout is restarted anyway with a warning", async () => {
+		deployedSha = await commitFile("packages/workload/new.txt", "x");
+		busyPolls = Number.POSITIVE_INFINITY;
+		const res = await run();
+		expect(res.stdout).toContain("WARNING: still busy after 3s");
+		expect(restarts()).toHaveLength(1);
+	});
+
+	test("health without a busy field restarts without waiting", async () => {
+		deployedSha = await commitFile("packages/workload/new.txt", "x");
+		const res = await run();
+		expect(res.code).toBe(0);
+		expect(res.stdout).not.toContain("in flight");
+		expect(restarts()).toHaveLength(1);
 	});
 
 	test("an unhealthy new service rolls back, records the bad sha, and the next run skips it", async () => {

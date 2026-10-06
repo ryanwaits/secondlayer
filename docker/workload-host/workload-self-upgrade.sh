@@ -28,6 +28,8 @@
 #   WORKLOAD_UPGRADE_LOCK     /run/secondlayer-workload-upgrade.lock
 #   WORKLOAD_HEALTH_URL       http://127.0.0.1:${GATEWAY_PORT:-8080}/healthz
 #   WORKLOAD_HEALTH_TIMEOUT   60 (seconds)
+#   WORKLOAD_IDLE_TIMEOUT     180 (seconds to wait for /healthz busy=false
+#                             before restarting; proceeds on timeout)
 #
 # Clear a recorded bad sha: rm $WORKLOAD_STATE_DIR/bad-sha
 
@@ -40,6 +42,7 @@ ENV_FILE="${WORKLOAD_ENV_FILE:-/opt/secondlayer-workload/workload.env}"
 STATE_DIR="${WORKLOAD_STATE_DIR:-/var/lib/secondlayer-workload}"
 LOCK_FILE="${WORKLOAD_UPGRADE_LOCK:-/run/secondlayer-workload-upgrade.lock}"
 HEALTH_TIMEOUT="${WORKLOAD_HEALTH_TIMEOUT:-60}"
+IDLE_TIMEOUT="${WORKLOAD_IDLE_TIMEOUT:-180}"
 BAD_SHA_FILE="$STATE_DIR/bad-sha"
 SERVICE="secondlayer-workload"
 # Paths the running service depends on; a diff outside these needs no restart.
@@ -56,12 +59,32 @@ env_file_value() {
 	sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1 | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/"
 }
 
+# Wait until /healthz reports no tenant upgrade round in flight, so the
+# restart doesn't interrupt `docker compose`. Best effort: a missing `busy`
+# field (old process) or an unreachable service counts as idle, and a timeout
+# proceeds anyway (the service drains its round on SIGTERM).
+wait_idle() {
+	local deadline=$((SECONDS + IDLE_TIMEOUT)) body
+	while [ "$SECONDS" -lt "$deadline" ]; do
+		body=$(curl -fsS --max-time 5 "$HEALTH_URL" 2>/dev/null || true)
+		if [[ "$body" != *'"busy":true'* ]]; then
+			return 0
+		fi
+		log "tenant upgrade round in flight, waiting to restart"
+		sleep 1
+	done
+	log "WARNING: still busy after ${IDLE_TIMEOUT}s, restarting anyway"
+}
+
 # Checkout, install, build, restart. Returns non-zero on the first failure
 # (callers run it in an `if`, where `set -e` does not apply, hence the `&&`s).
+# $2 = "wait-idle" (upgrade path only) holds the restart until the service is
+# between tenant upgrade rounds; the rollback path restarts immediately.
 apply_sha() {
 	git checkout --quiet "$1" &&
 		(cd "$CHECKOUT" && bun install --frozen-lockfile &&
 			bun run build:stacks && bun run build:shared && bun run build:platform) &&
+		{ [ "${2:-}" != "wait-idle" ] || wait_idle; } &&
 		systemctl restart "$SERVICE"
 }
 
@@ -132,7 +155,7 @@ main() {
 	fi
 
 	log "upgrading $current -> $target"
-	if apply_sha "$target" && wait_healthy "$target"; then
+	if apply_sha "$target" wait-idle && wait_healthy "$target"; then
 		rm -f "$BAD_SHA_FILE"
 		log "upgraded to $target"
 		return 0

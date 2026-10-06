@@ -9,6 +9,12 @@ WorkingDirectory=/opt/secondlayer-workload/src/packages/workload
 ExecStart=/root/.bun/bin/bun run src/index.ts
 Restart=always
 RestartSec=5
+# SIGTERM only the main process (bun); its shutdown handler drains an
+# in-flight tenant upgrade round instead of systemd killing `docker compose`.
+# Anything still in the cgroup after bun exits gets SIGKILL.
+KillMode=mixed
+# Above the 150 s upgrade drain (UPGRADE_DRAIN_MS in src/index.ts) plus flush.
+TimeoutStopSec=180
 
 [Install]
 WantedBy=multi-user.target

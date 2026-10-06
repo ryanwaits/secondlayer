@@ -504,8 +504,8 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 			}),
 		);
 
-		const firstRound = runner(GOOD_SHA); // blocks on the pull gate
-		const secondRound = await runner(GOOD_SHA); // must be a no-op, not queued
+		const firstRound = runner.run(GOOD_SHA); // blocks on the pull gate
+		const secondRound = await runner.run(GOOD_SHA); // must be a no-op, not queued
 		expect(secondRound).toBeUndefined();
 		expect(composeCalls).toHaveLength(0); // second call never touched compose
 
@@ -513,6 +513,88 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 		await firstRound;
 		expect(composeCalls).toHaveLength(2); // exactly one round's worth (pull + up)
 
+		await deleteTenant(db, a);
+	});
+
+	test("isBusy is true during a round and false after", async () => {
+		const a = await seedRunningTenant(OTHER_SHA);
+		let release: (() => void) | undefined;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const runner = createUpgradeRunner(
+			cfg(async (args) => {
+				if (args.includes("pull")) await gate;
+				return { code: 0, stdout: "", stderr: "" };
+			}),
+		);
+		expect(runner.isBusy()).toBe(false);
+		const round = runner.run(GOOD_SHA);
+		expect(runner.isBusy()).toBe(true);
+		release?.();
+		await round;
+		expect(runner.isBusy()).toBe(false);
+		await deleteTenant(db, a);
+	});
+
+	test("drain waits for an in-flight round and resolves true", async () => {
+		const a = await seedRunningTenant(OTHER_SHA);
+		let release: (() => void) | undefined;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const runner = createUpgradeRunner(
+			cfg(async (args) => {
+				if (args.includes("pull")) await gate;
+				return { code: 0, stdout: "", stderr: "" };
+			}),
+		);
+		const round = runner.run(GOOD_SHA);
+		const drained = runner.drain(5_000);
+		let settled = false;
+		drained.then(() => {
+			settled = true;
+		});
+		await new Promise((r) => setTimeout(r, 20));
+		expect(settled).toBe(false); // still waiting on the round
+		release?.();
+		expect(await drained).toBe(true);
+		await round;
+		await deleteTenant(db, a);
+	});
+
+	test("drain resolves false when the round outlasts the timeout", async () => {
+		const a = await seedRunningTenant(OTHER_SHA);
+		let release: (() => void) | undefined;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const runner = createUpgradeRunner(
+			cfg(async (args) => {
+				if (args.includes("pull")) await gate;
+				return { code: 0, stdout: "", stderr: "" };
+			}),
+		);
+		const round = runner.run(GOOD_SHA);
+		expect(await runner.drain(30)).toBe(false);
+		release?.(); // let the round end so the test leaves nothing hanging
+		await round;
+		await deleteTenant(db, a);
+	});
+
+	test("after drain, run starts no new round", async () => {
+		const a = await seedRunningTenant(OTHER_SHA);
+		composeCalls = [];
+		const runner = createUpgradeRunner(
+			cfg(async (args, env) => {
+				composeCalls.push({ args, env });
+				return { code: 0, stdout: "", stderr: "" };
+			}),
+		);
+		expect(await runner.drain(1_000)).toBe(true); // idle: resolves at once
+		await runner.run(GOOD_SHA);
+		expect(composeCalls).toHaveLength(0);
+		expect(runner.isBusy()).toBe(false);
 		await deleteTenant(db, a);
 	});
 });

@@ -73,7 +73,7 @@ describe("GET /healthz", () => {
 			req({ path: "/healthz" }),
 		);
 		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ status: "ok", sha });
+		expect(await res.json()).toEqual({ status: "ok", sha, busy: false });
 	});
 
 	test("an unknown sha is reported as null", async () => {
@@ -82,7 +82,19 @@ describe("GET /healthz", () => {
 			req({ path: "/healthz" }),
 		);
 		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ status: "ok", sha: null });
+		expect(await res.json()).toEqual({ status: "ok", sha: null, busy: false });
+	});
+});
+
+describe("GET /healthz busy", () => {
+	test("reports busy from isBusy()", async () => {
+		let busy = true;
+		const deps = baseDeps({ isBusy: () => busy });
+		const first = await handleGatewayRequest(deps, req({ path: "/healthz" }));
+		expect(((await first.json()) as { busy: boolean }).busy).toBe(true);
+		busy = false;
+		const second = await handleGatewayRequest(deps, req({ path: "/healthz" }));
+		expect(((await second.json()) as { busy: boolean }).busy).toBe(false);
 	});
 });
 

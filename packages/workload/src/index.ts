@@ -75,6 +75,10 @@ const MEMORY_FLUSH_INTERVAL_MS = 60 * 60_000; // hourly (Design)
 const STORAGE_SAMPLE_INTERVAL_MS = 24 * 60 * 60_000; // daily (Design)
 const CREDITS_POLL_INTERVAL_MS = 5 * 60_000; // Design: "every 5 min"
 const SHUTDOWN_FLUSH_TIMEOUT_MS = 5_000;
+/** Longest shutdown waits for an in-flight tenant upgrade round: one
+ *  `docker compose up -d --wait` plus a rollback up. Must stay below the
+ *  unit's `TimeoutStopSec` (180). */
+const UPGRADE_DRAIN_MS = 150_000;
 const INITIAL_TARGET_RESOLUTION_ATTEMPTS = 3;
 const INITIAL_TARGET_RESOLUTION_RETRY_MS = 2_000;
 
@@ -150,7 +154,7 @@ async function main(): Promise<void> {
 		workloadHostKey,
 		getTargetSha: () => targetShaCache.lastGood,
 	};
-	const runUpgradeRound = createUpgradeRunner(provisionerCfg);
+	const upgradeRunner = createUpgradeRunner(provisionerCfg);
 	const checkProcessors = createProcessorWatch(provisionerCfg);
 
 	// Before the gateway accepts requests: a restart mid-provision leaves
@@ -257,6 +261,7 @@ async function main(): Promise<void> {
 					tenantUpstream,
 					rateLimit,
 					sha: workloadSha,
+					isBusy: upgradeRunner.isBusy,
 				},
 				req,
 			),
@@ -438,7 +443,7 @@ async function main(): Promise<void> {
 			targetShaCache,
 		);
 		if (targetSha) {
-			await runUpgradeRound(targetSha).catch((err) => {
+			await upgradeRunner.run(targetSha).catch((err) => {
 				logger.error("workload.upgrade.round_failed", {
 					error: err instanceof Error ? err.message : String(err),
 				});
@@ -466,6 +471,13 @@ async function main(): Promise<void> {
 		clearInterval(memoryFlushLoop);
 		clearInterval(storageLoop);
 		clearInterval(creditsPollLoop);
+		// Before anything else stops: a tenant upgrade round is a child
+		// `docker compose up`; letting it finish avoids a half-recreated stack.
+		if (!(await upgradeRunner.drain(UPGRADE_DRAIN_MS))) {
+			logger.warn("workload.upgrade.drain_timeout", {
+				timeoutMs: UPGRADE_DRAIN_MS,
+			});
+		}
 		for (const s of socketServers.values()) s.stop();
 		server.stop();
 

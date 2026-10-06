@@ -191,26 +191,62 @@ export async function upgradeTenants(
 	}
 }
 
+export interface UpgradeRunner {
+	/** One round; a no-op while another is in flight or after `drain`. */
+	run(targetSha: string): Promise<void>;
+	/** True while a round is in flight. */
+	isBusy(): boolean;
+	/** Stops any new round from starting, then resolves `true` once the
+	 *  in-flight round (if any) finishes, or `false` after `timeoutMs`. */
+	drain(timeoutMs: number): Promise<boolean>;
+}
+
 /**
  * Wraps `upgradeTenants` with an overlap guard: a round that's still running
  * (e.g. a slow `--wait` on a large tenant) makes the NEXT tick's call a
- * no-op instead of a second round stacking on top of it. One runner per
- * process — `index.ts` creates it once and calls it every tick.
+ * no-op instead of a second round stacking on top of it. `drain` lets
+ * shutdown wait out the round instead of killing `docker compose` mid-recreate.
+ * One runner per process — `index.ts` creates it once and calls it every tick.
  */
-export function createUpgradeRunner(
-	cfg: ProvisionerConfig,
-): (targetSha: string) => Promise<void> {
-	let running = false;
-	return async (targetSha: string): Promise<void> => {
-		if (running) {
-			logger.warn("workload.upgrade.round_skipped_overlap", { targetSha });
-			return;
-		}
-		running = true;
-		try {
-			await upgradeTenants(cfg, targetSha);
-		} finally {
-			running = false;
-		}
+export function createUpgradeRunner(cfg: ProvisionerConfig): UpgradeRunner {
+	let inFlight: Promise<void> | null = null;
+	let draining = false;
+	return {
+		async run(targetSha) {
+			if (draining) {
+				logger.warn("workload.upgrade.round_skipped_draining", { targetSha });
+				return;
+			}
+			if (inFlight) {
+				logger.warn("workload.upgrade.round_skipped_overlap", { targetSha });
+				return;
+			}
+			const round = upgradeTenants(cfg, targetSha);
+			inFlight = round;
+			try {
+				await round;
+			} finally {
+				inFlight = null;
+			}
+		},
+		isBusy: () => inFlight !== null,
+		async drain(timeoutMs) {
+			draining = true;
+			const round = inFlight;
+			if (!round) return true;
+			let timer: ReturnType<typeof setTimeout> | undefined;
+			const timedOut = new Promise<false>((resolve) => {
+				timer = setTimeout(() => resolve(false), timeoutMs);
+			});
+			const finished = round.then(
+				() => true as const,
+				() => true as const, // a failed round is still a finished round
+			);
+			try {
+				return await Promise.race([finished, timedOut]);
+			} finally {
+				clearTimeout(timer);
+			}
+		},
 	};
 }

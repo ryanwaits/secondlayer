@@ -310,6 +310,8 @@ the service:
 3. If nothing under `packages/{workload,platform,shared,stacks}`,
    `docker/workload`, `package.json` or `bun.lock` changed, `HEAD` just moves.
 4. Otherwise: checkout, `bun install --frozen-lockfile`, the three builds,
+   wait for `/healthz` `busy` to be false (up to `WORKLOAD_IDLE_TIMEOUT`, 180
+   s, then proceed; a missing `busy` counts as idle),
    `systemctl restart secondlayer-workload`, then poll
    `http://127.0.0.1:8080/healthz` (up to 60 s) until it reports the target
    sha.
@@ -318,10 +320,17 @@ the service:
    in `/var/lib/secondlayer-workload/bad-sha`. That sha is skipped until a
    different one is deployed.
 
+The service drains on SIGTERM: shutdown waits up to 150 s for an in-flight
+tenant upgrade round before stopping (`workload.upgrade.drain_timeout` if it
+doesn't finish). The unit sets `KillMode=mixed` and `TimeoutStopSec=180` so
+systemd signals only the main process. Existing hosts need the unit
+re-copied once (`cp docker/workload-host/secondlayer-workload.service
+/etc/systemd/system/ && systemctl daemon-reload`); the operator does this.
+
 ```bash
 systemctl list-timers secondlayer-workload-upgrade.timer
 journalctl -u secondlayer-workload-upgrade
-curl -s 127.0.0.1:8080/healthz        # {"status":"ok","sha":"<running commit>"}
+curl -s 127.0.0.1:8080/healthz        # {"status":"ok","sha":"<running commit>","busy":false}
 git -C /opt/secondlayer-workload/src rev-parse HEAD
 ```
 
