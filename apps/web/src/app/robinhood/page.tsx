@@ -187,7 +187,7 @@ export default function RobinhoodPage() {
 				<section className="rh-stage">
 					<div className="rh-copy">
 						<p className="rh-eyebrow">1:1 backing</p>
-						<h2>Every ERC-20 is backed by a locked SIP-010.</h2>
+						<h2>Each ERC-20 is minted against a locked SIP-010.</h2>
 						<p>
 							The locker on Stacks holds the original, and supply on Robinhood
 							Chain matches it 1:1. No lock, no mint. No burn, no release. In
