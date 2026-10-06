@@ -31,6 +31,7 @@ export {
 	INSTANCE_TOKEN_ENV,
 	LOCAL_API_URL,
 	MemoryEtagCache,
+	isHostedApiUrl,
 	resolveAccountKey,
 	resolveApiKey,
 	resolveBaseUrl,

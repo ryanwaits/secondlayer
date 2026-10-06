@@ -13,10 +13,13 @@ export type FetchLike = (
 export interface SecondLayerOptions {
 	/** Base URL of the instance API (trailing slashes are stripped). */
 	baseUrl: string;
-	/** Bearer token for authenticated instance requests (`INSTANCE_TOKEN`). */
+	/** Bearer token for authenticated requests. Defaults to
+	 *  `SECONDLAYER_API_KEY` on `api.secondlayer.tools`, `INSTANCE_TOKEN`
+	 *  elsewhere. */
 	apiKey?: string;
 	/** Hosted account key (`sk-sl_*`). Env `SECONDLAYER_API_KEY`. Used by
-	 *  `sl.archive` quote/fetch/credits, never by instance `/v1` or `/api`. */
+	 *  `sl.archive` quote/fetch/credits; reaches `/v1` and `/api` only through
+	 *  `apiKey` when the base URL is the hosted API. */
 	accountKey?: string;
 	/** Fetch implementation. Tests and edge runtimes can provide their own. */
 	fetchImpl?: FetchLike;
@@ -134,14 +137,32 @@ export function resolveBaseUrl(explicit?: string): string {
 	return LOCAL_API_URL;
 }
 
-/** Resolve the instance credential. Precedence: explicit `apiKey` (including
- *  `""` for keyless) → `INSTANCE_TOKEN`. Does not read the hosted account key
- *  env vars. Guarded for browsers and edge runtimes. */
-export function resolveApiKey(apiKey?: string): string | undefined {
+/** True when `url` is the hosted Secondlayer API (`api.secondlayer.tools`). */
+export function isHostedApiUrl(url: string): boolean {
+	try {
+		return new URL(url).hostname === "api.secondlayer.tools";
+	} catch {
+		return false;
+	}
+}
+
+/** Resolve the bearer credential; the key follows the host. Precedence:
+ *  explicit `apiKey` (including `""` for keyless) → on the hosted API,
+ *  `SECONDLAYER_API_KEY`; anywhere else (or with no `baseUrl`),
+ *  `INSTANCE_TOKEN`. Never crosses over: the instance token is not sent to the
+ *  hosted API and the account key is not sent to an instance. Guarded for
+ *  browsers and edge runtimes. */
+export function resolveApiKey(
+	apiKey?: string,
+	baseUrl?: string,
+): string | undefined {
 	if (apiKey !== undefined) return apiKey;
 	if (typeof process === "undefined") return undefined;
-	const token = process.env?.INSTANCE_TOKEN || undefined;
-	return token;
+	const name =
+		baseUrl !== undefined && isHostedApiUrl(baseUrl)
+			? ACCOUNT_KEY_ENV
+			: INSTANCE_TOKEN_ENV;
+	return process.env?.[name] || undefined;
 }
 
 /** Resolve the hosted account key for archive quote/fetch/credits.
@@ -228,7 +249,7 @@ export abstract class BaseClient {
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		this.baseUrl = resolveBaseUrl(options.baseUrl);
-		this.apiKey = resolveApiKey(options.apiKey);
+		this.apiKey = resolveApiKey(options.apiKey, this.baseUrl);
 		this.origin = options.origin ?? "cli";
 		this.requestTimeoutMs =
 			options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;

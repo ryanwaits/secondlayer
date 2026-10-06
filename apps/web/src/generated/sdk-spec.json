@@ -11,7 +11,7 @@
 					"summary": "Hosted account key (`sk-sl_*`) for api.secondlayer.tools.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 126
+					"line": 129
 				},
 				{
 					"name": "ActiveSubgraphOperation",
@@ -67,7 +67,7 @@
 					"summary": "Default per-request budget.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 91
+					"line": 94
 				},
 				{
 					"name": "EtagCache",
@@ -75,7 +75,7 @@
 					"summary": "Storage for `etagCache`.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 59
+					"line": 62
 				},
 				{
 					"name": "EtagEntry",
@@ -83,7 +83,7 @@
 					"summary": "One cached GET response: its validator and the body it validated.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 55
+					"line": 58
 				},
 				{
 					"name": "INSTANCE_TOKEN_ENV",
@@ -91,7 +91,15 @@
 					"summary": "Instance credential.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 123
+					"line": 126
+				},
+				{
+					"name": "isHostedApiUrl",
+					"kind": "function",
+					"summary": "True when `url` is the hosted Secondlayer API (`api.secondlayer.tools`).",
+					"signature": "isHostedApiUrl(url: string): boolean",
+					"file": "src/base.ts",
+					"line": 141
 				},
 				{
 					"name": "LOCAL_API_URL",
@@ -99,7 +107,7 @@
 					"summary": "Product default: the local one-box API.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 120
+					"line": 123
 				},
 				{
 					"name": "MemoryEtagCache",
@@ -107,7 +115,7 @@
 					"summary": "Bounded in-memory `EtagCache`.",
 					"signature": "MemoryEtagCache(limit?: number): unknown",
 					"file": "src/base.ts",
-					"line": 66
+					"line": 69
 				},
 				{
 					"name": "RequestOptions",
@@ -115,7 +123,7 @@
 					"summary": "Per-call options every `request*` method accepts.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 94
+					"line": 97
 				},
 				{
 					"name": "resolveAccountKey",
@@ -123,15 +131,15 @@
 					"summary": "Resolve the hosted account key for archive quote/fetch/credits.",
 					"signature": "resolveAccountKey(accountKey?: string): null | string",
 					"file": "src/base.ts",
-					"line": 150
+					"line": 171
 				},
 				{
 					"name": "resolveApiKey",
 					"kind": "function",
-					"summary": "Resolve the instance credential.",
-					"signature": "resolveApiKey(apiKey?: string): null | string",
+					"summary": "Resolve the bearer credential; the key follows the host.",
+					"signature": "resolveApiKey(apiKey?: string, baseUrl?: string): null | string",
 					"file": "src/base.ts",
-					"line": 140
+					"line": 155
 				},
 				{
 					"name": "resolveBaseUrl",
@@ -139,7 +147,7 @@
 					"summary": "",
 					"signature": "resolveBaseUrl(explicit?: string): string",
 					"file": "src/base.ts",
-					"line": 128
+					"line": 131
 				},
 				{
 					"name": "SecondLayer",

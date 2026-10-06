@@ -161,10 +161,10 @@ export function createStreamsClient(
 	options: CreateStreamsClientOptions,
 ): StreamsClient {
 	const baseUrl = normalizeBaseUrl(resolveBaseUrl(options.baseUrl));
-	// Same credential precedence as every other client (explicit option, then
-	// INSTANCE_TOKEN, then SECONDLAYER_API_KEY), so the same code authenticates
-	// the same way whether it enters through `new SecondLayer()` or here.
-	const apiKey = resolveApiKey(options.apiKey);
+	// Same credential rule as every other client (explicit option, then the
+	// host's env key), so the same code authenticates the same way whether it
+	// enters through `new SecondLayer()` or here.
+	const apiKey = resolveApiKey(options.apiKey, baseUrl);
 	const origin = options.origin ?? "cli";
 	const authHeaders = (): Record<string, string> => ({
 		"x-sl-origin": origin,

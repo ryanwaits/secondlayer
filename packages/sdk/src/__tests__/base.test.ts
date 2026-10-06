@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { BaseClient, resolveAccountKey, resolveApiKey } from "../base.ts";
+import {
+	BaseClient,
+	isHostedApiUrl,
+	resolveAccountKey,
+	resolveApiKey,
+} from "../base.ts";
 import { ApiError } from "../errors.ts";
 
 const BASE_URL = "http://localhost:3800";
@@ -357,6 +362,66 @@ describe("BaseClient", () => {
 			expect(resolveApiKey()).toBeUndefined();
 			process.env.INSTANCE_TOKEN = "";
 			expect(resolveApiKey()).toBeUndefined();
+		});
+
+		describe("key follows the host", () => {
+			const HOSTED = "https://api.secondlayer.tools";
+			const INSTANCE = "http://127.0.0.1:3800";
+
+			test("hosted URL with only SECONDLAYER_API_KEY uses it", () => {
+				process.env.SECONDLAYER_API_KEY = "sk-sl_account";
+				expect(resolveApiKey(undefined, HOSTED)).toBe("sk-sl_account");
+			});
+
+			test("hosted URL never falls back to INSTANCE_TOKEN", () => {
+				process.env.INSTANCE_TOKEN = "hex_instance_token";
+				expect(resolveApiKey(undefined, HOSTED)).toBeUndefined();
+			});
+
+			test("instance URL uses INSTANCE_TOKEN, not the account key", () => {
+				process.env.INSTANCE_TOKEN = "hex_instance_token";
+				process.env.SECONDLAYER_API_KEY = "sk-sl_account";
+				expect(resolveApiKey(undefined, INSTANCE)).toBe("hex_instance_token");
+			});
+
+			test("explicit empty apiKey is keyless on both hosts", () => {
+				process.env.INSTANCE_TOKEN = "hex_instance_token";
+				process.env.SECONDLAYER_API_KEY = "sk-sl_account";
+				expect(resolveApiKey("", HOSTED)).toBe("");
+				expect(resolveApiKey("", INSTANCE)).toBe("");
+			});
+
+			test("malformed URL behaves like an instance", () => {
+				process.env.INSTANCE_TOKEN = "hex_instance_token";
+				process.env.SECONDLAYER_API_KEY = "sk-sl_account";
+				expect(resolveApiKey(undefined, "not a url")).toBe(
+					"hex_instance_token",
+				);
+			});
+
+			test("a hosted client sends the account key as the bearer", async () => {
+				process.env.SECONDLAYER_API_KEY = "sk-sl_account";
+				const seen: Array<Record<string, string>> = [];
+				const c = new TestClient({
+					baseUrl: HOSTED,
+					fetchImpl: async (_url, init) => {
+						seen.push(init?.headers as Record<string, string>);
+						return new Response("{}", {
+							status: 200,
+							headers: { "content-type": "application/json" },
+						});
+					},
+				});
+				await c.doRequest("GET", "/v1/ping");
+				expect(seen[0]?.Authorization).toBe("Bearer sk-sl_account");
+			});
+
+			test("isHostedApiUrl matches only the hosted hostname", () => {
+				expect(isHostedApiUrl(HOSTED)).toBe(true);
+				expect(isHostedApiUrl("https://api.secondlayer.tools/v1")).toBe(true);
+				expect(isHostedApiUrl(INSTANCE)).toBe(false);
+				expect(isHostedApiUrl("nope")).toBe(false);
+			});
 		});
 	});
 
