@@ -62,6 +62,39 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 		await deleteTenant(db, accountId);
 	});
 
+	test("insertProvisioningTenant survives 20 concurrent inserts for one account", async () => {
+		const accountId = crypto.randomUUID();
+		const acct8 = acct8For(accountId);
+		try {
+			const results = await Promise.all(
+				Array.from({ length: 20 }, () =>
+					insertProvisioningTenant(db, accountId, acct8),
+				),
+			);
+			expect(results.filter((r) => r.inserted)).toHaveLength(1);
+			expect(new Set(results.map((r) => r.apiPort)).size).toBe(1);
+			expect(new Set(results.map((r) => r.subnetIdx)).size).toBe(1);
+		} finally {
+			await deleteTenant(db, accountId);
+		}
+	});
+
+	test("insertProvisioningTenant throws when another account owns the acct8", async () => {
+		const prefix = crypto.randomUUID().slice(0, 8);
+		const a = `${prefix}-0000-0000-0000-000000000000`;
+		const b = `${prefix}-1111-1111-1111-111111111111`;
+		expect(acct8For(a)).toBe(acct8For(b));
+		try {
+			await insertProvisioningTenant(db, a, acct8For(a));
+			await expect(
+				insertProvisioningTenant(db, b, acct8For(b)),
+			).rejects.toThrow(/acct8 collision/);
+		} finally {
+			await deleteTenant(db, a);
+			await deleteTenant(db, b);
+		}
+	});
+
 	test("two different accounts never get the same api_port", async () => {
 		const a = crypto.randomUUID();
 		const b = crypto.randomUUID();

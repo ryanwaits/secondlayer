@@ -51,7 +51,8 @@ export interface TenantRow {
  *  short, stable, and safe in a compose project name / socket path
  *  (`tenant-<acct8>`). Collisions are astronomically unlikely at this scale
  *  and the control DB's `acct8` UNIQUE constraint catches one if it ever
- *  happens, rather than silently colliding two tenants. */
+ *  happens (`insertProvisioningTenant` throws), rather than silently
+ *  colliding two tenants. */
 export function acct8For(accountId: string): string {
 	return accountId
 		.replace(/[^a-zA-Z0-9]/g, "")
@@ -151,9 +152,14 @@ export async function getTenant(
 /** First-request bootstrap: insert `provisioning` if this account has no row
  *  yet, allocating its `api_port` and `subnet_idx` from their sequences in the same statement
  *  (race-free — see `ensureControlSchema`). Idempotent — a concurrent
- *  second request for the same account hits the PK conflict, does nothing,
+ *  second request for the same account hits a unique conflict, does nothing,
  *  and gets back the WINNING row's port (never allocates a second one), so
- *  only one caller ever calls `up(account)` for real (`provisioner.ts`). */
+ *  only one caller ever calls `up(account)` for real (`provisioner.ts`).
+ *  The conflict clause is targetless so EVERY unique index (account_id,
+ *  acct8, subnet_idx, api_port) is an arbiter: a racing insert for the same
+ *  account may trip `acct8` first, and a named `ON CONFLICT (account_id)`
+ *  would raise 23505 instead of doing nothing. Throws if no row exists for
+ *  the account afterwards (an acct8 collision with a different account). */
 export async function insertProvisioningTenant(
 	db: postgres.Sql,
 	accountId: string,
@@ -164,7 +170,7 @@ export async function insertProvisioningTenant(
 	>`
 		INSERT INTO tenants (account_id, acct8, state)
 		VALUES (${accountId}, ${acct8}, 'provisioning')
-		ON CONFLICT (account_id) DO NOTHING
+		ON CONFLICT DO NOTHING
 		RETURNING account_id, api_port, subnet_idx
 	`;
 	if (inserted.length > 0) {
@@ -174,10 +180,13 @@ export async function insertProvisioningTenant(
 	}
 	const existing = await getTenant(db, accountId);
 	if (!existing) {
-		// Lost the insert race to a `destroy()` that ran between the conflict
-		// and this read — vanishingly unlikely, but never silently return a
-		// bogus port for a row that no longer exists.
-		throw new Error(`tenant row for ${accountId} vanished mid-insert`);
+		// Nothing inserted and no row for this account: the conflict was with a
+		// DIFFERENT account's acct8 (astronomically unlikely), or a `destroy()`
+		// ran between the conflict and this read. Fail loudly, never return a
+		// bogus port.
+		throw new Error(
+			`no tenant row for ${accountId} after conflict (acct8 collision with another account, or a concurrent destroy)`,
+		);
 	}
 	return {
 		inserted: false,
