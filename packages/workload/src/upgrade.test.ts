@@ -6,7 +6,13 @@ import {
 	expect,
 	test,
 } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import {
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import postgres from "postgres";
@@ -19,7 +25,11 @@ import {
 	setTenantImageSha,
 	setTenantState,
 } from "./control-db.ts";
-import type { ProvisionerConfig } from "./provisioner.ts";
+import {
+	type ProvisionerConfig,
+	parseEnvFile,
+	renderEnvFile,
+} from "./provisioner.ts";
 import {
 	type TargetShaCache,
 	createUpgradeRunner,
@@ -199,6 +209,83 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 			expect(call.env.WORKLOAD_IMAGE_TAG).toBe(GOOD_SHA);
 		}
 
+		expect((await getTenant(db, a))?.image_sha).toBe(GOOD_SHA);
+		expect((await getTenant(db, b))?.image_sha).toBe(GOOD_SHA);
+
+		await deleteTenant(db, a);
+		await deleteTenant(db, b);
+	});
+
+	/** An old-layout tenant: `.env` has no metered key or network vars. */
+	function seedOldEnv(accountId: string): string {
+		const dir = join(secretsRoot, acct8For(accountId));
+		mkdirSync(dir, { recursive: true });
+		const path = join(dir, ".env");
+		writeFileSync(path, renderEnvFile({ POSTGRES_PASSWORD: "pw" }), {
+			mode: 0o600,
+		});
+		return path;
+	}
+
+	test("an upgrade pulls every service including subgraph-processor, after backfilling the tenant's env", async () => {
+		const a = await seedRunningTenant(OTHER_SHA);
+		const envPath = seedOldEnv(a);
+		let envAtFirstCompose: Record<string, string> | undefined;
+
+		await upgradeTenants(
+			{
+				...cfg(async (args, env) => {
+					composeCalls.push({ args, env });
+					envAtFirstCompose ??= parseEnvFile(readFileSync(envPath, "utf8"));
+					return { code: 0, stdout: "", stderr: "" };
+				}),
+				mintTenantKey: async (_id, name) => `sk-sl_${name}`,
+			},
+			GOOD_SHA,
+		);
+
+		const mine = composeCalls.filter((c) =>
+			c.args.includes(`tenant-${acct8For(a)}`),
+		);
+		const pull = mine.find((c) => c.args.includes("pull"));
+		for (const service of [
+			"migrate",
+			"api",
+			"webhook-service",
+			"subgraph-processor",
+		]) {
+			expect(pull?.args).toContain(service);
+		}
+		expect(envAtFirstCompose?.TENANT_SUBGRAPH_READ_KEY).toBe(
+			"sk-sl_hosted-subgraphs",
+		);
+		expect(envAtFirstCompose?.TENANT_SUBNET).toBeDefined();
+		expect((await getTenant(db, a))?.image_sha).toBe(GOOD_SHA);
+
+		await deleteTenant(db, a);
+	});
+
+	test("a failed key mint during backfill doesn't abort the round: every tenant is still upgraded", async () => {
+		const a = await seedRunningTenant(OTHER_SHA);
+		const b = await seedRunningTenant(OTHER_SHA);
+		seedOldEnv(a);
+		seedOldEnv(b);
+		composeCalls = [];
+
+		await upgradeTenants(
+			{
+				...cfg(async (args, env) => {
+					composeCalls.push({ args, env });
+					return { code: 0, stdout: "", stderr: "" };
+				}),
+				mintTenantKey: async () => {
+					throw new Error("mint tenant key failed: 503");
+				},
+			},
+			GOOD_SHA,
+		);
+
+		expect(composeCalls).toHaveLength(4); // pull + up, for both tenants
 		expect((await getTenant(db, a))?.image_sha).toBe(GOOD_SHA);
 		expect((await getTenant(db, b))?.image_sha).toBe(GOOD_SHA);
 

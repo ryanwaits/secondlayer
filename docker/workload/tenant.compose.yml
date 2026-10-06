@@ -9,7 +9,24 @@
 # NOT included here — a tenant stack reads chain data from the HOSTED
 # Index/Streams API over STREAMS_API_URL/SUBGRAPH_INDEX_API_URL, using that
 # account's own key, D6). `postgres` here holds only this account's own state
-# (webhooks, and later subgraph tables, 046) — never chain data.
+# (webhooks and subgraph tables) — never chain data.
+#
+# Trust split. `api` (deploys customer handler code and runs it for dry runs)
+# and `subgraph-processor` (runs customer handlers) hold customer code, so they
+# run under gVisor (`runtime: runsc`), as uid 1000, with a read-only root
+# filesystem and bounded cpu/memory/pids, and they get the METERED
+# `TENANT_SUBGRAPH_READ_KEY`. `webhook-service` imports no customer code and
+# listens on no port, so it stays on the default runtime (it needs the host
+# meter socket, which runsc can't reach) and is the only service that holds
+# the internal, unmetered `TENANT_HOSTED_READ_KEY`.
+#
+# gVisor can't reach Docker's embedded DNS (127.0.0.11), so the runsc services
+# get a static postgres address (`extra_hosts`) on this tenant's own /24
+# (`TENANT_SUBNET` / `TENANT_PG_IP`, allocated by the provisioner) and a public
+# resolver file mounted at /etc/resolv.conf (`./resolv.conf`, relative to this
+# file). Every service joins the dedicated `tenant` network rather than
+# compose's `default`, so a tenant that predates this layout moves onto it with
+# a plain `up -d`.
 #
 # Images are pulled by tag (`image:`), never built locally — this file never
 # reaches a `docker build`. `WORKLOAD_IMAGE_TAG` is required, not defaulted to
@@ -24,9 +41,28 @@
 # compose` call — `up`, `start`, `stop`, `destroy`, and the 5-minute rolling
 # upgrade all pass it fresh, so a tenant follows the deployed sha
 # automatically instead of drifting until an operator bumps this by hand.
-#
-# Phase 1 (chain webhooks only, D5): `subgraph-processor` is deliberately
-# absent. 046 adds it back once tenants run subgraph handlers.
+
+x-hardening: &hardening
+  runtime: runsc
+  user: "1000:1000"
+  read_only: true
+  tmpfs:
+    - /tmp
+  mem_limit: 512m
+  cpus: 1
+  pids_limit: 128
+  security_opt:
+    - no-new-privileges:true
+  extra_hosts:
+    - "postgres:${TENANT_PG_IP:?tenant secret required}"
+  networks:
+    - tenant
+
+networks:
+  tenant:
+    ipam:
+      config:
+        - subnet: ${TENANT_SUBNET:?tenant secret required}
 
 services:
   postgres:
@@ -45,6 +81,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      tenant:
+        ipv4_address: ${TENANT_PG_IP:?tenant secret required}
     restart: unless-stopped
 
   migrate:
@@ -56,9 +95,27 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - tenant
+    restart: "no"
+
+  # One-shot: the `subgraphs_data` named volume is created root-owned (the
+  # image has no /data/subgraphs to copy ownership from) and `api` and the
+  # processor run as uid 1000. Without this every deploy fails writing the
+  # handler file. Runs as root on the default runtime: no customer code.
+  volume-init:
+    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:?set WORKLOAD_IMAGE_TAG to a deployed main sha}
+    platform: linux/amd64
+    user: "0:0"
+    command: ["sh", "-c", "mkdir -p /data/subgraphs && chown -R 1000:1000 /data"]
+    volumes:
+      - subgraphs_data:/data/subgraphs
+    networks:
+      - tenant
     restart: "no"
 
   api:
+    <<: *hardening
     image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:?set WORKLOAD_IMAGE_TAG to a deployed main sha}
     platform: linux/amd64
     environment:
@@ -91,6 +148,13 @@ services:
       # api only READS this to report evaluator state (webhooks.ts toDetail) —
       # the evaluator itself runs in webhook-service, not here.
       SUBGRAPH_SOURCE: streams-index
+      # No local chain: deploy-time print-schema lint and the empty-mapping
+      # probe read the hosted Index API with the account's METERED subgraph
+      # key. Never `TENANT_HOSTED_READ_KEY`: `api` runs customer code. `:-`
+      # (not `:?`) so a tenant whose key hasn't been backfilled yet still
+      # starts its webhook stack; only subgraph deploys fail until it is.
+      SUBGRAPH_INDEX_API_URL: ${HOSTED_API_URL:?tenant secret required}
+      INDEX_INTERNAL_API_KEY: ${TENANT_SUBGRAPH_READ_KEY:-}
       # Hosted caps (D2): never let a tenant's own webhooks.create raise
       # these past what the gateway/pricing model assumes.
       WEBHOOK_MAX_RETRIES_CEILING: "7"
@@ -103,11 +167,14 @@ services:
       - "127.0.0.1:${TENANT_API_PORT:?tenant secret required}:3800"
     volumes:
       - subgraphs_data:/data/subgraphs
+      - ./resolv.conf:/etc/resolv.conf:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
+      volume-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3800/health"]
       interval: 30s
@@ -147,7 +214,7 @@ services:
       SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY: ${SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY:?tenant secret required}
       ALLOW_UNSIGNED_WEBHOOKS: "false"
       # Meter socket (step 5): mounted into THIS container only — `api`
-      # (customer code deploys into it, 046) never sees it. Delivered-event
+      # (customer code deploys into it) never sees it. Delivered-event
       # counts never touch this tenant's own Postgres, so customer code
       # can't lower them.
       WEBHOOK_METER_SOCKET: /var/run/secondlayer/meter.sock
@@ -166,6 +233,46 @@ services:
         condition: service_healthy
       api:
         condition: service_healthy
+    networks:
+      - tenant
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
+  # Runs this tenant's subgraph handlers (customer code, in-process) against
+  # the HOSTED Index/Streams API, indexing into this tenant's own Postgres.
+  # Shaped after `docker/oss/docker-compose.split.yml`'s `subgraph-processor`.
+  # The key is the METERED `hosted-subgraphs` key, so indexing bills
+  # `rows.delivered` against the account and honors its spend cap. No meter
+  # socket and no `INSTANCE_TOKEN`: customer code never sees either. `:-` so a
+  # missing key fails only this service, never compose's parse of the project.
+  subgraph-processor:
+    <<: *hardening
+    image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:?set WORKLOAD_IMAGE_TAG to a deployed main sha}
+    platform: linux/amd64
+    command: ["bun", "run", "packages/subgraphs/src/service.ts"]
+    environment:
+      INSTANCE_MODE: oss
+      DATABASE_URL: postgres://secondlayer:${POSTGRES_PASSWORD:?tenant secret required}@postgres:5432/secondlayer
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+      DATA_DIR: /data
+      SUBGRAPH_SOURCE: streams-index
+      SUBGRAPH_INDEX_API_URL: ${HOSTED_API_URL:?tenant secret required}
+      STREAMS_API_URL: ${HOSTED_API_URL:?tenant secret required}
+      INDEX_INTERNAL_API_KEY: ${TENANT_SUBGRAPH_READ_KEY:-}
+      STREAMS_INTERNAL_API_KEY: ${TENANT_SUBGRAPH_READ_KEY:-}
+      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY:?tenant secret required}
+    volumes:
+      - subgraphs_data:/data/subgraphs
+      - ./resolv.conf:/etc/resolv.conf:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      volume-init:
+        condition: service_completed_successfully
     healthcheck:
       disable: true
     restart: unless-stopped

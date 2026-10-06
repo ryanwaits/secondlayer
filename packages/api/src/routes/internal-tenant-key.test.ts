@@ -12,6 +12,7 @@ import { createApiApp } from "../create-app.ts";
 import { errorHandler } from "../middleware/error.ts";
 import internalTenantKeyRouter, {
 	HOSTED_STACK_KEY_NAME,
+	HOSTED_SUBGRAPHS_KEY_NAME,
 } from "./internal-tenant-key.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -116,6 +117,62 @@ describe.skipIf(!HAS_DB)("POST /internal/keys/tenant", () => {
 		expect(row?.name).toBe(HOSTED_STACK_KEY_NAME);
 		// The evaluator's reads are first-party: never metered to the account.
 		expect(row?.tier).toBe("internal");
+	});
+
+	test("name hosted-subgraphs mints a metered key and leaves hosted-stack alone", async () => {
+		const accountId = await makeAccount();
+		const post = (body: Record<string, unknown>) =>
+			app().request("/internal/keys/tenant", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					authorization: "Bearer test-workload-host-key",
+				},
+				body: JSON.stringify({ account_id: accountId, ...body }),
+			});
+		expect((await post({})).status).toBe(200);
+		const res = await post({ name: HOSTED_SUBGRAPHS_KEY_NAME });
+		expect(res.status).toBe(200);
+		expect(((await res.json()) as { key: string }).key).toMatch(/^sk-sl_/);
+
+		const rows = await db
+			.selectFrom("api_keys")
+			.select(["name", "tier"])
+			.where("account_id", "=", accountId)
+			.where("status", "=", "active")
+			.execute();
+		const byName = Object.fromEntries(rows.map((r) => [r.name, r.tier]));
+		expect(Object.keys(byName).sort()).toEqual([
+			HOSTED_STACK_KEY_NAME,
+			HOSTED_SUBGRAPHS_KEY_NAME,
+		]);
+		expect(byName[HOSTED_STACK_KEY_NAME]).toBe("internal");
+		expect(byName[HOSTED_SUBGRAPHS_KEY_NAME]).not.toBe("internal");
+
+		// Rotating one name never revokes the other.
+		await post({ name: HOSTED_SUBGRAPHS_KEY_NAME });
+		const after = await db
+			.selectFrom("api_keys")
+			.select("name")
+			.where("account_id", "=", accountId)
+			.where("status", "=", "active")
+			.execute();
+		expect(after.map((r) => r.name).sort()).toEqual([
+			HOSTED_STACK_KEY_NAME,
+			HOSTED_SUBGRAPHS_KEY_NAME,
+		]);
+	});
+
+	test("unknown key name → 400", async () => {
+		const res = await app().request("/internal/keys/tenant", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({ account_id: "x", name: "anything-else" }),
+		});
+		expect(res.status).toBe(400);
 	});
 
 	test("a second call revokes the first hosted-stack key (rotating, idempotent)", async () => {

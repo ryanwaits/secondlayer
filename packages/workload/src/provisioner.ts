@@ -14,7 +14,13 @@
  */
 
 import { randomBytes } from "node:crypto";
-import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+	chmodSync,
+	mkdirSync,
+	readFileSync,
+	renameSync,
+	writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { logger } from "@secondlayer/shared";
 import { generateEd25519KeyPair } from "@secondlayer/shared/crypto/ed25519";
@@ -54,22 +60,54 @@ export function generateTenantSecrets(): TenantSecrets {
 	};
 }
 
+/** First octet pair of the pool tenant networks are carved from:
+ *  `10.64.0.0/10`, split into /24s. Chosen to sit clear of Docker's default
+ *  address pools (172.17-31.0.0/16 and 192.168.0.0/16, which compose's own
+ *  networks and any `default` network draw from) and of the Hetzner metadata
+ *  range. The host firewall (`docker/workload-host/docker-user-egress.sh`)
+ *  drops container-originated traffic to 10.0.0.0/8, which cannot touch a
+ *  tenant's own api/postgres traffic: that stays on one bridge, which the
+ *  firewall accepts before the private-range drops. */
+const TENANT_NETWORK_FIRST_OCTET = 10;
+const TENANT_NETWORK_SECOND_OCTET_BASE = 64;
+/** 64 second-octet values x 256 third-octet values. */
+export const TENANT_NETWORK_CAPACITY = 64 * 256;
+
+/** The private /24 and static postgres address for the tenant whose
+ *  `subnet_idx` (control DB, allocated once from a never-reused sequence) is
+ *  `idx`. Index 0 is never allocated (the sequence starts at 1), so the pool
+ *  keeps `10.64.0.0/24` free. */
+export function tenantNetwork(idx: number): { subnet: string; pgIp: string } {
+	if (!Number.isInteger(idx) || idx < 1 || idx >= TENANT_NETWORK_CAPACITY) {
+		throw new Error(`tenant network index out of range: ${idx}`);
+	}
+	const second = TENANT_NETWORK_SECOND_OCTET_BASE + (idx >> 8);
+	const third = idx & 255;
+	const prefix = `${TENANT_NETWORK_FIRST_OCTET}.${second}.${third}`;
+	return { subnet: `${prefix}.0/24`, pgIp: `${prefix}.10` };
+}
+
 /**
- * The compose `--env-file` contents for one tenant. `accountReadKey` is a
- * DEDICATED `hosted-stack` key minted for this account (`mintTenantKey`,
- * `POST /internal/keys/tenant`) — never the customer's own presented key.
- * Design: "The customer's key never reaches the stack." A leak of this key
- * only leaks reads the account already owns, and those reads meter against
- * the same account (step 5, "Hosted reads by the stack" — already billed on
- * app-server).
+ * The compose `--env-file` contents for one tenant. Two dedicated account
+ * keys are minted for this account (`mintTenantKey`,
+ * `POST /internal/keys/tenant`), never the customer's own presented key
+ * ("The customer's key never reaches the stack"):
+ * - `accountReadKey` (`hosted-stack`, internal, unmetered): `webhook-service`
+ *   only. It imports no customer code.
+ * - `subgraphReadKey` (`hosted-subgraphs`, metered): everything that runs
+ *   customer code (`api`, `subgraph-processor`). Its reads bill the account's
+ *   allowance and spend cap like any other key.
  */
 export function buildTenantEnv(opts: {
 	secrets: TenantSecrets;
 	accountReadKey: string;
+	subgraphReadKey: string;
 	hostedApiUrl: string;
 	tenantSocketDir: string;
 	apiPort: number;
+	subnetIdx: number;
 }): Record<string, string> {
+	const network = tenantNetwork(opts.subnetIdx);
 	return {
 		POSTGRES_PASSWORD: opts.secrets.postgresPassword,
 		INSTANCE_TOKEN: opts.secrets.instanceToken,
@@ -79,6 +117,9 @@ export function buildTenantEnv(opts: {
 			opts.secrets.webhookSigningPrivateKey,
 		HOSTED_API_URL: opts.hostedApiUrl,
 		TENANT_HOSTED_READ_KEY: opts.accountReadKey,
+		TENANT_SUBGRAPH_READ_KEY: opts.subgraphReadKey,
+		TENANT_SUBNET: network.subnet,
+		TENANT_PG_IP: network.pgIp,
 		TENANT_SOCKET_DIR: opts.tenantSocketDir,
 		// Loopback-only publish port for this tenant's `api` (review fix: the
 		// gateway is a host process with no compose-network DNS, so it reaches
@@ -95,6 +136,19 @@ export function renderEnvFile(env: Record<string, string>): string {
 	return `${Object.entries(env)
 		.map(([k, v]) => `${k}=${v.replace(/\r?\n/g, "\\n")}`)
 		.join("\n")}\n`;
+}
+
+/** Inverse of `renderEnvFile`: `KEY=value` lines, literal `\n` back to a
+ *  newline (PEM keys). Blank lines and `#` comments are skipped. */
+export function parseEnvFile(contents: string): Record<string, string> {
+	const env: Record<string, string> = {};
+	for (const line of contents.split("\n")) {
+		if (!line || line.startsWith("#")) continue;
+		const eq = line.indexOf("=");
+		if (eq <= 0) continue;
+		env[line.slice(0, eq)] = line.slice(eq + 1).replace(/\\n/g, "\n");
+	}
+	return env;
 }
 
 export interface ComposeResult {
@@ -162,7 +216,12 @@ export function makeCheckCreditsOk(
 	};
 }
 
-export type MintTenantKey = (accountId: string) => Promise<string>;
+export type TenantKeyName = "hosted-stack" | "hosted-subgraphs";
+
+export type MintTenantKey = (
+	accountId: string,
+	name: TenantKeyName,
+) => Promise<string>;
 
 /** Real implementation: `POST /internal/keys/tenant` on app-server (Design
  *  fix: mint a DEDICATED key for the tenant rather than forwarding the
@@ -172,7 +231,7 @@ export function makeMintTenantKey(
 	workloadHostKey: string,
 	fetchImpl: FetchLike = fetch,
 ): MintTenantKey {
-	return async (accountId: string): Promise<string> => {
+	return async (accountId: string, name: TenantKeyName): Promise<string> => {
 		const res = await fetchImpl(
 			`${hostedApiUrl.replace(/\/+$/, "")}/internal/keys/tenant`,
 			{
@@ -181,11 +240,11 @@ export function makeMintTenantKey(
 					"content-type": "application/json",
 					authorization: `Bearer ${workloadHostKey}`,
 				},
-				body: JSON.stringify({ account_id: accountId }),
+				body: JSON.stringify({ account_id: accountId, name }),
 			},
 		);
 		if (!res.ok) {
-			throw new Error(`mint tenant key failed: ${res.status}`);
+			throw new Error(`mint tenant key (${name}) failed: ${res.status}`);
 		}
 		const body = (await res.json()) as { key?: string };
 		if (!body.key) throw new Error("mint tenant key: no key in response");
@@ -256,6 +315,15 @@ export function projectName(acct8: string): string {
 	return `tenant-${acct8}`;
 }
 
+/** Services every lifecycle operation addresses by name. `volume-init` is a
+ *  one-shot that has already exited, so it is never stopped or pulled. */
+export const TENANT_SERVICES = [
+	"migrate",
+	"api",
+	"webhook-service",
+	"subgraph-processor",
+] as const;
+
 function writeSecretsToDisk(
 	dir: string,
 	socketDir: string,
@@ -291,13 +359,71 @@ function requireTargetSha(
 }
 
 /**
+ * Brings an existing tenant's `.env` up to the shape the current template
+ * needs: the metered subgraph key and the per-tenant network vars. A tenant
+ * provisioned before subgraph hosting has neither, and `start()` /
+ * `upgradeTenants` build their own compose calls from that file.
+ *
+ * The network vars are derived from the control-DB row (no network call), so
+ * they are always written, which keeps compose's required-var check from
+ * failing the WHOLE project. The key is minted only when absent (a mint
+ * rotates the previous key). Never throws: a failed mint is logged as
+ * `workload.tenant_env_backfill_failed` and the old env stays in place, so one
+ * bad mint can't abort an upgrade round or stop a webhook tenant. The
+ * processor fails to start for that tenant alone and the next round retries.
+ */
+export async function ensureTenantEnv(
+	cfg: ProvisionerConfig,
+	accountId: string,
+): Promise<void> {
+	try {
+		const row = await getTenant(cfg.db, accountId);
+		if (!row) return;
+		const acct8 = acct8For(accountId);
+		const envPath = join(tenantDir(cfg, acct8), ".env");
+		const current = parseEnvFile(readFileSync(envPath, "utf8"));
+		const next = { ...current };
+
+		const network = tenantNetwork(row.subnet_idx);
+		next.TENANT_SUBNET ||= network.subnet;
+		next.TENANT_PG_IP ||= network.pgIp;
+
+		let mintError: unknown;
+		if (!next.TENANT_SUBGRAPH_READ_KEY) {
+			try {
+				next.TENANT_SUBGRAPH_READ_KEY = await resolveMintTenantKey(cfg)(
+					accountId,
+					"hosted-subgraphs",
+				);
+			} catch (err) {
+				mintError = err;
+			}
+		}
+
+		if (renderEnvFile(next) !== renderEnvFile(current)) {
+			const tmp = `${envPath}.tmp`;
+			writeFileSync(tmp, renderEnvFile(next), { mode: 0o600 });
+			chmodSync(tmp, 0o600);
+			renameSync(tmp, envPath);
+			logger.info("workload.tenant_env_backfilled", { accountId, acct8 });
+		}
+		if (mintError) throw mintError;
+	} catch (err) {
+		logger.warn("workload.tenant_env_backfill_failed", {
+			accountId,
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
+}
+
+/**
  * `none → provisioning → running` (Design). Idempotent: a tenant already
  * `running` returns immediately; a tenant mid-`provisioning` (a concurrent
  * request raced this one) is left alone rather than double-provisioned —
  * the control DB's PK is the single point of truth for "who provisions."
  *
- * Never takes the customer's presented key — it mints a dedicated
- * `hosted-stack` key for the account itself (`resolveMintTenantKey`,
+ * Never takes the customer's presented key — it mints dedicated
+ * `hosted-stack` and `hosted-subgraphs` keys for the account itself (`resolveMintTenantKey`,
  * `POST /internal/keys/tenant`), so the customer's own key never reaches a
  * tenant stack (Design fix).
  *
@@ -329,7 +455,7 @@ export async function up(
 	// would 503 this account forever (plan 064).
 	const targetSha = requireTargetSha(cfg, accountId, "provision");
 
-	const { inserted, apiPort } = await insertProvisioningTenant(
+	const { inserted, apiPort, subnetIdx } = await insertProvisioningTenant(
 		cfg.db,
 		accountId,
 		acct8,
@@ -344,14 +470,20 @@ export async function up(
 	const socketDir = join(dir, "sockets");
 
 	try {
-		const accountReadKey = await resolveMintTenantKey(cfg)(accountId);
+		const mint = resolveMintTenantKey(cfg);
+		const [accountReadKey, subgraphReadKey] = await Promise.all([
+			mint(accountId, "hosted-stack"),
+			mint(accountId, "hosted-subgraphs"),
+		]);
 		const secrets = generateTenantSecrets();
 		const env = buildTenantEnv({
 			secrets,
 			accountReadKey,
+			subgraphReadKey,
 			hostedApiUrl: cfg.hostedApiUrl,
 			tenantSocketDir: socketDir,
 			apiPort,
+			subnetIdx,
 		});
 		writeSecretsToDisk(dir, socketDir, renderEnvFile(env));
 
@@ -520,9 +652,7 @@ export async function stop(
 			"--env-file",
 			join(dir, ".env"),
 			"stop",
-			"api",
-			"webhook-service",
-			"migrate",
+			...TENANT_SERVICES,
 		],
 		{ WORKLOAD_IMAGE_TAG: workloadImageTag },
 	);
@@ -547,6 +677,7 @@ export async function start(
 	// Stopped tenants upgrade lazily (plan 064, Design): every restart uses
 	// whatever's currently deployed, not whatever this tenant last ran.
 	const targetSha = requireTargetSha(cfg, accountId, "start");
+	await ensureTenantEnv(cfg, accountId);
 	const result = await runCompose(
 		[
 			"-p",

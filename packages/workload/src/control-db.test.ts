@@ -72,6 +72,27 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 		await deleteTenant(db, b);
 	});
 
+	test("subnet_idx is allocated once per account, shared by racing inserts, and never repeated across accounts", async () => {
+		const a = `test-${crypto.randomUUID()}`;
+		const b = `test-${crypto.randomUUID()}`;
+		const [first, second] = await Promise.all([
+			insertProvisioningTenant(db, a, acct8For(a)),
+			insertProvisioningTenant(db, a, acct8For(a)),
+		]);
+		expect(first.subnetIdx).toBe(second.subnetIdx);
+		const other = await insertProvisioningTenant(db, b, acct8For(b));
+		expect(other.subnetIdx).not.toBe(first.subnetIdx);
+		expect((await getTenant(db, a))?.subnet_idx).toBe(first.subnetIdx);
+
+		// Never reused: a destroyed tenant's index isn't handed to the next one.
+		await deleteTenant(db, a);
+		const c = `test-${crypto.randomUUID()}`;
+		const next = await insertProvisioningTenant(db, c, acct8For(c));
+		expect(next.subnetIdx).toBeGreaterThan(other.subnetIdx);
+		await deleteTenant(db, b);
+		await deleteTenant(db, c);
+	});
+
 	test("setTenantState('stopped') stamps stopped_at; leaving it clears it", async () => {
 		const accountId = `test-${crypto.randomUUID()}`;
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));

@@ -1,15 +1,20 @@
 /**
- * `POST /internal/keys/tenant` — mints the dedicated `hosted-stack` account
- * key a tenant's own `webhook-service` uses to read hosted Index/Streams
- * (D6, plan 044). Review fix: the customer's PRESENTED key must never reach
- * a tenant stack ("The customer's key never reaches the stack" — Design).
- * The provisioner calls this route itself, during `up()`, instead of
- * forwarding whatever key the customer happened to present on the request
- * that triggered provisioning.
+ * `POST /internal/keys/tenant`: mints a dedicated account key for a tenant
+ * stack. The customer's PRESENTED key must never reach a tenant stack ("The
+ * customer's key never reaches the stack", Design); the provisioner calls
+ * this route itself, during `up()`, instead of forwarding whatever key the
+ * customer happened to present on the request that triggered provisioning.
  *
- * Idempotent/rotating: revokes any previous `hosted-stack` key for the
- * account first, then mints a fresh one — calling this twice for the same
- * account never leaves two `hosted-stack` keys active.
+ * Two fixed names, two trust levels:
+ * - `hosted-stack` (default): INTERNAL, unmetered. Only `webhook-service`
+ *   gets it: it imports no customer code and its reads are ours.
+ * - `hosted-subgraphs`: a normal METERED account key. Anything that runs
+ *   customer code (`api`, `subgraph-processor`) gets this one, so indexing
+ *   reads bill `rows.delivered` against the account's allowance and spend cap.
+ *
+ * Idempotent/rotating per name: revokes any previous key of that name for the
+ * account first, then mints a fresh one, so calling this twice never leaves
+ * two keys of the same name active.
  *
  * Guard is the same `workloadHostKeyMatches()` + `bearerToken()` pair
  * `/internal/meters` and `/internal/keys/introspect` use.
@@ -26,6 +31,9 @@ import { InvalidJSONError } from "../middleware/error.ts";
 import { bearerToken, workloadHostKeyMatches } from "./internal-meters.ts";
 
 export const HOSTED_STACK_KEY_NAME = "hosted-stack";
+export const HOSTED_SUBGRAPHS_KEY_NAME = "hosted-subgraphs";
+
+const TENANT_KEY_NAMES = [HOSTED_STACK_KEY_NAME, HOSTED_SUBGRAPHS_KEY_NAME];
 
 const app = new Hono();
 
@@ -41,23 +49,33 @@ app.post("/", async (c) => {
 	const body = await c.req.json().catch(() => {
 		throw new InvalidJSONError();
 	});
-	const accountId =
+	const fields =
 		typeof body === "object" && body !== null
-			? (body as Record<string, unknown>).account_id
-			: undefined;
+			? (body as Record<string, unknown>)
+			: {};
+	const accountId = fields.account_id;
 	if (typeof accountId !== "string" || accountId.length === 0) {
-		throw new ValidationError("body must be { account_id: string }");
+		throw new ValidationError(
+			`body must be { account_id: string, name?: ${TENANT_KEY_NAMES.map((n) => `"${n}"`).join(" | ")} }`,
+		);
+	}
+	const name = fields.name ?? HOSTED_STACK_KEY_NAME;
+	if (typeof name !== "string" || !TENANT_KEY_NAMES.includes(name)) {
+		throw new ValidationError(
+			`name must be one of: ${TENANT_KEY_NAMES.join(", ")}`,
+		);
 	}
 
 	const db = getDb();
-	await revokeKeysByName(db, accountId, HOSTED_STACK_KEY_NAME);
+	await revokeKeysByName(db, accountId, name);
 	const minted = await mintApiKey(db, {
 		accountId,
-		name: HOSTED_STACK_KEY_NAME,
+		name,
 		product: "account",
 		ip: "workload-host",
-		// The evaluator's reads are ours, not the customer's rows.
-		internal: true,
+		// The evaluator's reads are ours, not the customer's rows; customer
+		// code's reads are the customer's, so that key is metered.
+		internal: name === HOSTED_STACK_KEY_NAME,
 	});
 
 	return c.json({ key: minted.key });

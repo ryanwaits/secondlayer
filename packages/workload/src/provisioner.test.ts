@@ -8,10 +8,12 @@ import {
 } from "bun:test";
 import {
 	existsSync,
+	mkdirSync,
 	mkdtempSync,
 	readFileSync,
 	rmSync,
 	statSync,
+	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -27,14 +29,20 @@ import {
 import {
 	type ComposeResult,
 	type ProvisionerConfig,
+	TENANT_NETWORK_CAPACITY,
+	type TenantKeyName,
 	buildTenantEnv,
 	destroy,
+	ensureTenantEnv,
 	generateTenantSecrets,
+	makeMintTenantKey,
+	parseEnvFile,
 	pollCredits,
 	recoverInterruptedProvisions,
 	renderEnvFile,
 	start,
 	stop,
+	tenantNetwork,
 	up,
 } from "./provisioner.ts";
 
@@ -65,15 +73,92 @@ describe("buildTenantEnv / renderEnvFile", () => {
 		const env = buildTenantEnv({
 			secrets,
 			accountReadKey: "sk-sl_reader",
+			subgraphReadKey: "sk-sl_subgraphs",
 			hostedApiUrl: "https://api.secondlayer.tools",
 			tenantSocketDir: "/tmp/x/sockets",
 			apiPort: 20001,
+			subnetIdx: 7,
 		});
 		const rendered = renderEnvFile(env);
 		expect(rendered).not.toMatch(/-----BEGIN PRIVATE KEY-----\n/); // no bare newline mid-value
 		expect(rendered).toContain("TENANT_HOSTED_READ_KEY=sk-sl_reader");
 		expect(rendered).toContain("HOSTED_API_URL=https://api.secondlayer.tools");
 		expect(rendered).toContain("TENANT_API_PORT=20001");
+		expect(rendered).toContain("TENANT_SUBGRAPH_READ_KEY=sk-sl_subgraphs");
+		expect(rendered).toContain("TENANT_SUBNET=10.64.7.0/24");
+		expect(rendered).toContain("TENANT_PG_IP=10.64.7.10");
+	});
+
+	test("parseEnvFile inverts renderEnvFile, PEM newlines included", () => {
+		const env = buildTenantEnv({
+			secrets: generateTenantSecrets(),
+			accountReadKey: "a",
+			subgraphReadKey: "b",
+			hostedApiUrl: "https://api.secondlayer.tools",
+			tenantSocketDir: "/tmp/x/sockets",
+			apiPort: 20001,
+			subnetIdx: 1,
+		});
+		expect(parseEnvFile(renderEnvFile(env))).toEqual(env);
+	});
+});
+
+describe("tenantNetwork", () => {
+	test("each index gets its own /24 and a postgres address inside it, all in 10.64.0.0/10", () => {
+		const seen = new Set<string>();
+		for (const idx of [
+			1,
+			2,
+			255,
+			256,
+			257,
+			4096,
+			TENANT_NETWORK_CAPACITY - 1,
+		]) {
+			const { subnet, pgIp } = tenantNetwork(idx);
+			expect(seen.has(subnet)).toBe(false);
+			seen.add(subnet);
+			const [a, b, c] = subnet.split(".").map(Number) as [
+				number,
+				number,
+				number,
+			];
+			expect(a).toBe(10);
+			expect(b).toBeGreaterThanOrEqual(64);
+			expect(b).toBeLessThanOrEqual(127);
+			expect(subnet).toBe(`10.${b}.${c}.0/24`);
+			expect(pgIp).toBe(`10.${b}.${c}.10`);
+		}
+	});
+
+	test("rejects indexes outside the pool instead of wrapping into another tenant's range", () => {
+		expect(() => tenantNetwork(0)).toThrow(/out of range/);
+		expect(() => tenantNetwork(-1)).toThrow(/out of range/);
+		expect(() => tenantNetwork(TENANT_NETWORK_CAPACITY)).toThrow(
+			/out of range/,
+		);
+	});
+});
+
+describe("makeMintTenantKey", () => {
+	test("sends the requested key name, so each key is minted and rotated on its own", async () => {
+		const bodies: unknown[] = [];
+		const mint = makeMintTenantKey(
+			"https://api.secondlayer.tools/",
+			"host-key",
+			async (_url, init) => {
+				bodies.push(JSON.parse(String(init?.body)));
+				return new Response(JSON.stringify({ key: "sk-sl_k" }), {
+					status: 200,
+				});
+			},
+		);
+		await mint("acct", "hosted-stack");
+		await mint("acct", "hosted-subgraphs");
+		expect(bodies).toEqual([
+			{ account_id: "acct", name: "hosted-stack" },
+			{ account_id: "acct", name: "hosted-subgraphs" },
+		]);
 	});
 });
 
@@ -85,9 +170,10 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 	const composeCalls: Array<{ args: string[]; env: Record<string, string> }> =
 		[];
 	let nextResult: ComposeResult = { code: 0, stdout: "", stderr: "" };
-	let mintCalls: string[] = [];
+	let mintCalls: Array<{ accountId: string; name: TenantKeyName }> = [];
 	let targetSha: string | null = TARGET_SHA;
 	const MINTED_KEY = "sk-sl_minted-hosted-stack-key";
+	const MINTED_SUBGRAPH_KEY = "sk-sl_minted-hosted-subgraphs-key";
 
 	function cfg(): ProvisionerConfig {
 		return {
@@ -99,9 +185,9 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 				composeCalls.push({ args, env });
 				return nextResult;
 			},
-			mintTenantKey: async (accountId) => {
-				mintCalls.push(accountId);
-				return MINTED_KEY;
+			mintTenantKey: async (accountId, name) => {
+				mintCalls.push({ accountId, name });
+				return name === "hosted-subgraphs" ? MINTED_SUBGRAPH_KEY : MINTED_KEY;
 			},
 			getTargetSha: () => targetSha,
 		};
@@ -148,6 +234,11 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		// The env file's TENANT_API_PORT matches the port the control DB
 		// allocated for this tenant — not a made-up or hardcoded value.
 		expect(contents).toContain(`TENANT_API_PORT=${row?.api_port}`);
+		// Same for the network: derived from the control-DB index, so the file
+		// and the allocation can't disagree.
+		const network = tenantNetwork(row?.subnet_idx as number);
+		expect(contents).toContain(`TENANT_SUBNET=${network.subnet}`);
+		expect(contents).toContain(`TENANT_PG_IP=${network.pgIp}`);
 
 		await deleteTenant(db, accountId);
 	});
@@ -182,11 +273,20 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		const accountId = `test-${crypto.randomUUID()}`;
 
 		await up(cfg(), accountId);
-		expect(mintCalls).toEqual([accountId]);
+		expect(mintCalls).toHaveLength(2);
+		expect(mintCalls.map((c) => c.accountId)).toEqual([accountId, accountId]);
+		expect(mintCalls.map((c) => c.name).sort()).toEqual([
+			"hosted-stack",
+			"hosted-subgraphs",
+		]);
 
 		const acct8 = acct8For(accountId);
 		const contents = readFileSync(join(secretsRoot, acct8, ".env"), "utf8");
+		// The internal key and the metered key land in different variables.
 		expect(contents).toContain(`TENANT_HOSTED_READ_KEY=${MINTED_KEY}`);
+		expect(contents).toContain(
+			`TENANT_SUBGRAPH_READ_KEY=${MINTED_SUBGRAPH_KEY}`,
+		);
 
 		await deleteTenant(db, accountId);
 	});
@@ -197,12 +297,12 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 		await up(cfg(), accountId);
 		expect(composeCalls).toHaveLength(1);
-		expect(mintCalls).toHaveLength(1);
+		expect(mintCalls).toHaveLength(2);
 
 		const state = await up(cfg(), accountId);
 		expect(state).toBe("running");
 		expect(composeCalls).toHaveLength(1); // no second compose invocation
-		expect(mintCalls).toHaveLength(1); // no second mint — no key rotation on a no-op
+		expect(mintCalls).toHaveLength(2); // no second mint — no key rotation on a no-op
 
 		await deleteTenant(db, accountId);
 	});
@@ -316,6 +416,15 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		expect(composeCalls).toHaveLength(1);
 		expect(composeCalls[0]?.args).toContain("stop");
 		expect(composeCalls[0]?.args).not.toContain("postgres");
+		// A stopped (out-of-credits) tenant must not keep indexing or metering.
+		for (const service of [
+			"api",
+			"webhook-service",
+			"migrate",
+			"subgraph-processor",
+		]) {
+			expect(composeCalls[0]?.args).toContain(service);
+		}
 		// `stop` still needs SOME WORKLOAD_IMAGE_TAG for compose to parse the
 		// file — the value it's given doesn't change what's running.
 		expect(composeCalls[0]?.env.WORKLOAD_IMAGE_TAG).toBe(TARGET_SHA);
@@ -339,10 +448,135 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		expect(state).toBe("running");
 		expect(composeCalls).toHaveLength(1);
 		expect(composeCalls[0]?.args).toContain("up");
-		expect(mintCalls).toHaveLength(0); // restart, not re-provision
+		expect(mintCalls).toHaveLength(0); // restart, not re-provision (key is already in the env)
 
 		const row = await getTenant(db, accountId);
 		expect(row?.state).toBe("running");
+
+		await deleteTenant(db, accountId);
+	});
+
+	/** A tenant provisioned before subgraph hosting: its `.env` lacks the
+	 *  metered key and the network vars. */
+	async function seedOldTenant(): Promise<{
+		accountId: string;
+		envPath: string;
+	}> {
+		const accountId = `test-${crypto.randomUUID()}`;
+		const acct8 = acct8For(accountId);
+		await insertProvisioningTenant(db, accountId, acct8);
+		await setTenantState(db, accountId, "running");
+		const dir = join(secretsRoot, acct8);
+		mkdirSync(dir, { recursive: true });
+		const envPath = join(dir, ".env");
+		writeFileSync(
+			envPath,
+			renderEnvFile({
+				POSTGRES_PASSWORD: "pw",
+				TENANT_HOSTED_READ_KEY: "sk-sl_internal",
+				TENANT_API_PORT: "20001",
+			}),
+			{ mode: 0o600 },
+		);
+		return { accountId, envPath };
+	}
+
+	test("ensureTenantEnv backfills the metered key and network vars on an old tenant, mode 600, leaving existing values alone", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const { accountId, envPath } = await seedOldTenant();
+
+		await ensureTenantEnv(cfg(), accountId);
+
+		const env = parseEnvFile(readFileSync(envPath, "utf8"));
+		const row = await getTenant(db, accountId);
+		const network = tenantNetwork(row?.subnet_idx as number);
+		expect(env.TENANT_SUBGRAPH_READ_KEY).toBe(MINTED_SUBGRAPH_KEY);
+		expect(env.TENANT_SUBNET).toBe(network.subnet);
+		expect(env.TENANT_PG_IP).toBe(network.pgIp);
+		expect(env.POSTGRES_PASSWORD).toBe("pw");
+		expect(env.TENANT_HOSTED_READ_KEY).toBe("sk-sl_internal");
+		expect(statSync(envPath).mode & 0o777).toBe(0o600);
+		// Only the subgraph key is minted: the internal key is never rotated.
+		expect(mintCalls.map((c) => c.name)).toEqual(["hosted-subgraphs"]);
+
+		// A second pass is a no-op: no re-mint (a mint rotates the old key).
+		mintCalls = [];
+		await ensureTenantEnv(cfg(), accountId);
+		expect(mintCalls).toHaveLength(0);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("ensureTenantEnv never throws on a failed mint, still writes the network vars, and retries next time", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const { accountId, envPath } = await seedOldTenant();
+		const failing: ProvisionerConfig = {
+			...cfg(),
+			mintTenantKey: async () => {
+				throw new Error("mint tenant key failed: 503");
+			},
+		};
+
+		await ensureTenantEnv(failing, accountId);
+
+		const env = parseEnvFile(readFileSync(envPath, "utf8"));
+		expect(env.TENANT_SUBGRAPH_READ_KEY).toBeUndefined();
+		// compose requires these; without them the whole project fails to parse.
+		expect(env.TENANT_SUBNET).toMatch(/^10\.\d+\.\d+\.0\/24$/);
+		expect(env.TENANT_PG_IP).toBeDefined();
+
+		await ensureTenantEnv(cfg(), accountId);
+		expect(
+			parseEnvFile(readFileSync(envPath, "utf8")).TENANT_SUBGRAPH_READ_KEY,
+		).toBe(MINTED_SUBGRAPH_KEY);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("ensureTenantEnv on a tenant with no env file logs and returns instead of throwing", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = `test-${crypto.randomUUID()}`;
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+
+		await expect(ensureTenantEnv(cfg(), accountId)).resolves.toBeUndefined();
+		expect(mintCalls).toHaveLength(0);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("start() backfills an old tenant's env before running compose, and a failed backfill doesn't stop the start", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const { accountId, envPath } = await seedOldTenant();
+		await setTenantState(db, accountId, "stopped");
+		let envAtCompose: Record<string, string> = {};
+		const withSnapshot: ProvisionerConfig = {
+			...cfg(),
+			runCompose: async (args, env) => {
+				envAtCompose = parseEnvFile(readFileSync(envPath, "utf8"));
+				composeCalls.push({ args, env });
+				return nextResult;
+			},
+		};
+		await start(withSnapshot, accountId);
+		expect(envAtCompose.TENANT_SUBGRAPH_READ_KEY).toBe(MINTED_SUBGRAPH_KEY);
+		expect(envAtCompose.TENANT_SUBNET).toBeDefined();
+		expect((await getTenant(db, accountId))?.state).toBe("running");
+
+		// Same tenant, mint down: start still succeeds.
+		await setTenantState(db, accountId, "stopped");
+		writeFileSync(envPath, renderEnvFile({ POSTGRES_PASSWORD: "pw" }), {
+			mode: 0o600,
+		});
+		await start(
+			{
+				...cfg(),
+				mintTenantKey: async () => {
+					throw new Error("down");
+				},
+			},
+			accountId,
+		);
+		expect((await getTenant(db, accountId))?.state).toBe("running");
 
 		await deleteTenant(db, accountId);
 	});

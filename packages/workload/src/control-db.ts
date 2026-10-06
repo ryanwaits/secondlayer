@@ -27,6 +27,11 @@ export interface TenantRow {
 	 *  `tenant_api_port_seq` — never reused, so a stale reference from a
 	 *  destroyed tenant can never collide with a newer one. */
 	api_port: number;
+	/** Index of this tenant's private /24 (`provisioner.ts`'s
+	 *  `tenantNetwork`). Allocated once, at insert, from
+	 *  `tenant_subnet_seq`, and never reused, so two tenants (live or since
+	 *  destroyed) can't be handed the same subnet. */
+	subnet_idx: number;
 	created_at: Date;
 	stopped_at: Date | null;
 	storage_cap_bytes: string | null;
@@ -92,12 +97,15 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 	await db.unsafe(
 		`CREATE SEQUENCE IF NOT EXISTS tenant_api_port_seq START ${API_PORT_SEQUENCE_START}`,
 	);
+	// Same pattern for the per-tenant network index: never reused.
+	await db`CREATE SEQUENCE IF NOT EXISTS tenant_subnet_seq START 1`;
 	await db`
 		CREATE TABLE IF NOT EXISTS tenants (
 			account_id TEXT PRIMARY KEY,
 			acct8 TEXT NOT NULL UNIQUE,
 			state TEXT NOT NULL DEFAULT 'provisioning',
 			api_port INTEGER NOT NULL UNIQUE DEFAULT nextval('tenant_api_port_seq'),
+			subnet_idx INTEGER NOT NULL UNIQUE DEFAULT nextval('tenant_subnet_seq'),
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 			stopped_at TIMESTAMPTZ,
 			storage_cap_bytes BIGINT
@@ -115,6 +123,14 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 	// what each tenant runs (plan 064) — same idempotent-column pattern as
 	// `api_port` above.
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS image_sha TEXT`;
+	// Tenants created before subgraph hosting have no network index: adding the
+	// column with a sequence default gives every existing row its own.
+	await db`
+		ALTER TABLE tenants
+		ADD COLUMN IF NOT EXISTS subnet_idx INTEGER UNIQUE
+		DEFAULT nextval('tenant_subnet_seq')
+	`;
+	await db`ALTER TABLE tenants ALTER COLUMN subnet_idx SET NOT NULL`;
 }
 
 export async function getTenant(
@@ -128,7 +144,7 @@ export async function getTenant(
 }
 
 /** First-request bootstrap: insert `provisioning` if this account has no row
- *  yet, allocating its `api_port` from the sequence in the same statement
+ *  yet, allocating its `api_port` and `subnet_idx` from their sequences in the same statement
  *  (race-free — see `ensureControlSchema`). Idempotent — a concurrent
  *  second request for the same account hits the PK conflict, does nothing,
  *  and gets back the WINNING row's port (never allocates a second one), so
@@ -137,16 +153,19 @@ export async function insertProvisioningTenant(
 	db: postgres.Sql,
 	accountId: string,
 	acct8: string,
-): Promise<{ inserted: boolean; apiPort: number }> {
-	const inserted = await db<{ account_id: string; api_port: number }[]>`
+): Promise<{ inserted: boolean; apiPort: number; subnetIdx: number }> {
+	const inserted = await db<
+		{ account_id: string; api_port: number; subnet_idx: number }[]
+	>`
 		INSERT INTO tenants (account_id, acct8, state)
 		VALUES (${accountId}, ${acct8}, 'provisioning')
 		ON CONFLICT (account_id) DO NOTHING
-		RETURNING account_id, api_port
+		RETURNING account_id, api_port, subnet_idx
 	`;
 	if (inserted.length > 0) {
 		// biome-ignore lint/style/noNonNullAssertion: length > 0 guarantees index 0
-		return { inserted: true, apiPort: inserted[0]!.api_port };
+		const row = inserted[0]!;
+		return { inserted: true, apiPort: row.api_port, subnetIdx: row.subnet_idx };
 	}
 	const existing = await getTenant(db, accountId);
 	if (!existing) {
@@ -155,7 +174,11 @@ export async function insertProvisioningTenant(
 		// bogus port for a row that no longer exists.
 		throw new Error(`tenant row for ${accountId} vanished mid-insert`);
 	}
-	return { inserted: false, apiPort: existing.api_port };
+	return {
+		inserted: false,
+		apiPort: existing.api_port,
+		subnetIdx: existing.subnet_idx,
+	};
 }
 
 export async function setTenantState(

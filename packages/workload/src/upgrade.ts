@@ -24,6 +24,8 @@ import type { FetchLike } from "./fetch-like.ts";
 import {
 	type ProvisionerConfig,
 	type RunCompose,
+	TENANT_SERVICES,
+	ensureTenantEnv,
 	projectName,
 	spawnCompose,
 	tenantDir,
@@ -83,8 +85,6 @@ export async function resolveTargetSha(
 	return sha;
 }
 
-const UPGRADE_SERVICES = ["migrate", "api", "webhook-service"];
-
 function composeArgs(
 	cfg: ProvisionerConfig,
 	acct8: string,
@@ -127,8 +127,12 @@ export async function upgradeTenants(
 	for (const tenant of stale) {
 		const acct8 = tenant.acct8;
 
+		// Older tenants predate the subgraph key and network vars; the template
+		// needs them. Non-fatal by contract (never throws).
+		await ensureTenantEnv(cfg, tenant.account_id);
+
 		const pullResult = await runCompose(
-			composeArgs(cfg, acct8, ["pull", ...UPGRADE_SERVICES]),
+			composeArgs(cfg, acct8, ["pull", ...TENANT_SERVICES]),
 			{ WORKLOAD_IMAGE_TAG: targetSha },
 		);
 		if (pullResult.code !== 0) {
