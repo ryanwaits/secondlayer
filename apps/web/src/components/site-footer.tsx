@@ -60,7 +60,7 @@ export function SiteFooter() {
 							<span>secondlayer</span>
 						</Link>
 						<p>
-							Self-hosted Stacks data runtime. Inspired by the ideas behind{" "}
+							Instant data for apps on Bitcoin. Inspired by the ideas behind{" "}
 							<a
 								href="https://paragraph.com/@aulneau/project-kourier"
 								target="_blank"

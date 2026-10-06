@@ -91,8 +91,8 @@ export function GetStartedMenu() {
 						<span className="imenu-row-text">
 							<span className="imenu-row-title">Get an API key</span>
 							<span className="imenu-row-desc">
-								Read from our hosted API. {formatRows(ROWS_ALLOWANCE)} rows free
-								every month.
+								Read from our hosted API or deploy a subgraph.{" "}
+								{formatRows(ROWS_ALLOWANCE)} rows free every month.
 							</span>
 						</span>
 					</Link>

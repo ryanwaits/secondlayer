@@ -11,7 +11,6 @@ export type CommandGroup =
 	| "navigation"
 	| "your subgraphs"
 	| "webhooks"
-	| "public subgraphs"
 	| "docs";
 
 /** Fixed render order; empty groups collapse. */
@@ -19,7 +18,6 @@ export const GROUP_ORDER: CommandGroup[] = [
 	"navigation",
 	"your subgraphs",
 	"webhooks",
-	"public subgraphs",
 	"docs",
 ];
 
