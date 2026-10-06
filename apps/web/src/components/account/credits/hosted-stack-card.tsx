@@ -18,14 +18,14 @@ import {
 } from "@/lib/usage";
 
 /**
- * "Delivery service" — memory, last 24 hours. Hidden entirely when the
+ * "Hosted stack" — memory, last 24 hours. Hidden entirely when the
  * service has never run (`state === "none"`, Design step 5.4). "This
  * month" reads the current calendar month's `memory.gb_hour` total from
  * the store directly (kept fresh by the page's 60s poll of the current
  * month) — independent of whatever month the Usage switcher below is
  * browsing.
  */
-export function DeliveryServiceCard({ service }: { service: DeliveryService }) {
+export function HostedStackCard({ service }: { service: DeliveryService }) {
 	const { usage } = useAccountData();
 	if (service.state === "none") return null;
 
@@ -59,10 +59,10 @@ export function DeliveryServiceCard({ service }: { service: DeliveryService }) {
 	return (
 		<>
 			<div className="h2row">
-				<h2 className="acct-h2">Delivery service</h2>
+				<h2 className="acct-h2">Hosted stack</h2>
 				<span className="aside">Runs your webhooks. One per account.</span>
 			</div>
-			<section className="use-card" aria-label="Delivery service">
+			<section className="use-card" aria-label="Hosted stack">
 				<div className="use-svc-top">
 					<div>
 						<p className="use-svc-name">Memory, last 24 hours</p>

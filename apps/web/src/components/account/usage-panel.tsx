@@ -60,7 +60,7 @@ function AllowanceMeter({
 }
 
 /** The memory row's sub-line suffix: "· 0.50 GB billed", plus "(minimum)"
- *  when the delivery service is currently billed at the 0.5 GB floor above
+ *  when the hosted stack is currently billed at the 0.5 GB floor above
  *  its actual sampled RAM — matches the mock exactly. */
 function memorySubNote(service: DeliveryService | null): string {
 	if (!service) return "";

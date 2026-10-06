@@ -1,6 +1,6 @@
 /**
  * Balance-runway email alerts: at $0 the workload host stops a tenant's
- * delivery service within 5 minutes (`packages/workload/src/provisioner.ts`
+ * hosted stack within 5 minutes (`packages/workload/src/provisioner.ts`
  * `pollCredits`) with no warning to the customer first. This cron closes
  * that gap — hourly, for every account with recent spend or a delivery
  * service that isn't `none`:
@@ -175,7 +175,7 @@ function runsOutDate(now: Date, runway: number): string {
 	});
 }
 
-/** "Mon D HH:MM UTC" — when the delivery service stopped. */
+/** "Mon D HH:MM UTC" — when the hosted stack stopped. */
 function stoppedAtLabel(now: Date): string {
 	const date = now.toLocaleDateString("en-US", {
 		month: "short",
@@ -208,9 +208,9 @@ async function sendBalanceAlert(
 	let facts: { label: string; value: string }[];
 
 	if (kind === "stopped") {
-		subject = "Your delivery service stopped";
+		subject = "Your hosted stack stopped";
 		paragraphs = [
-			"Your balance reached $0, so your delivery service stopped. Webhook events are held while it's stopped and delivered after you add credits. It starts again within 5 minutes of a top-up.",
+			"Your balance reached $0, so your hosted stack stopped. Webhook events are held and delivered after you add credits, and subgraphs resume where they left off. It starts again within 5 minutes of a top-up.",
 		];
 		facts = [
 			{ label: "Balance", value: "$0.00" },
@@ -223,7 +223,7 @@ async function sendBalanceAlert(
 				? `About ${days} days of credit left`
 				: "Under 2 days of credit left";
 		paragraphs = [
-			"Your delivery service stops when your balance reaches $0, and webhooks stop delivering until you add credits.",
+			"Your hosted stack stops when your balance reaches $0. Webhooks stop delivering (events are held) and subgraphs stop indexing, until you add credits.",
 		];
 		facts = [
 			{ label: "Balance", value: formatUsd(ctx.balance) },

@@ -48,7 +48,7 @@ type State = {
 	/** Trailing-24h burn rate. Always "now", independent of whichever
 	 *  month's usage was last fetched — the latest response always wins. */
 	burn: Burn | null;
-	/** Delivery service state + last-24h memory. Same "always now" rule as
+	/** Hosted stack state + last-24h memory. Same "always now" rule as
 	 *  `burn`. */
 	service: DeliveryService | null;
 	alerts: BalanceAlerts | null;
@@ -100,7 +100,7 @@ export async function refreshBilling(): Promise<Billing | null> {
 
 /** This account's usage_ledger for one UTC calendar month (`YYYY-MM`),
  *  grouped by unit, plus that month's daily chart data and the always-now
- *  burn rate + delivery service snapshot. Writes only that month's `usage`/
+ *  burn rate + hosted stack snapshot. Writes only that month's `usage`/
  *  `daily` entry, so a slow response for a month the caller has moved on
  *  from can't overwrite whatever month is on screen now — `burn` and
  *  `service` always take the latest response, since they're never

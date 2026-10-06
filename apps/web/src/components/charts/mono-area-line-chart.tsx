@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 // mono-lag-line-chart.tsx: a continuous value line, an area fill that only
 // covers the stretches where the underlying sample is real (not a
 // floor-only fallback), a dashed threshold reference line, and an endpoint
-// dot. Built for the credits page's delivery-service memory chart.
+// dot. Built for the credits page's hosted-stack memory chart.
 import {
 	Area,
 	CartesianGrid,

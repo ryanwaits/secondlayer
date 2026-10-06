@@ -92,10 +92,10 @@ function StartingNotice() {
 			<div>
 				<p className="wh-notice-t">
 					<span className="wh-spin" aria-hidden="true" />
-					Starting your delivery service
+					Starting your hosted stack
 				</p>
 				<p className="wh-notice-l">
-					Your account gets its own delivery service the first time you use
+					Your account gets its own hosted stack the first time you use
 					webhooks. This takes about 30 seconds.
 				</p>
 			</div>
@@ -126,7 +126,7 @@ function PricingNote() {
 	return (
 		<p className="acct-pricing">
 			<strong>$10 per 1M events delivered.</strong> Retries are free. Each
-			account runs its own delivery service. Hosted limits: up to{" "}
+			account runs its own hosted stack. Hosted limits: up to{" "}
 			<strong>7 retries</strong> and a <strong>30s timeout</strong> per webhook.
 			Self-hosted webhooks are never metered.
 		</p>

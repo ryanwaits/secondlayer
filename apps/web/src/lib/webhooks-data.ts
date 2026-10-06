@@ -14,7 +14,7 @@ import type {
  * `/api/webhooks/*` proxy (never the platform API directly — same style as
  * `account-data.ts`). Every call maps the proxy's status code to one of a
  * few outcomes the UI actually branches on, instead of throwing: a starting
- * delivery service and a zero balance are expected states here, not errors.
+ * hosted stack and a zero balance are expected states here, not errors.
  */
 
 export type WebhooksResult<T> =

@@ -32,7 +32,7 @@ import { InvalidJSONError } from "../middleware/error.ts";
 const VALID_UNITS = new Set<string>(Object.keys(PRICES));
 
 /** `occurredAt` bounds: a small forward tolerance for clock skew between the
- *  workload host and this server, and a floor matching the delivery-service
+ *  workload host and this server, and a floor matching the hosted-stack
  *  snapshot's own 35-day "ever ran" window (`usage-ledger.ts`) — nothing a
  *  real sample or retry should ever fall outside of. */
 const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;

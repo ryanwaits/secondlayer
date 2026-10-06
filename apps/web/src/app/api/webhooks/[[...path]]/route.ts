@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
  *
  * Forwards with `fetch` directly (not `apiRequest`, which drops response
  * headers) so a `503`'s `Retry-After` reaches the client — the list/detail
- * pages need it to poll a starting delivery service without hammering it.
+ * pages need it to poll a starting hosted stack without hammering it.
  */
 
 const SEGMENT_RE = /^[A-Za-z0-9_-]+$/;

@@ -38,7 +38,7 @@ import { poll } from "@/lib/webhooks-store";
 import NumberFlow from "@number-flow/react";
 import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
-import { DeliveryServiceCard } from "./credits/delivery-service-card";
+import { HostedStackCard } from "./credits/hosted-stack-card";
 import { SpendCard } from "./credits/spend-card";
 import { FloatingCard } from "./floating-card";
 import { UsageSection, useUsageMonth } from "./usage-panel";
@@ -320,12 +320,12 @@ function LevelBanner({
 			? runsOutDate(new Date(service.lastChargedAt), 0)
 			: null;
 		title = stoppedDate
-			? `Your delivery service stopped on ${stoppedDate}`
-			: "Your delivery service stopped";
-		body = `Your balance reached $0. Webhooks aren't delivering, and hosted reads past the free ${formatRows(ROWS_ALLOWANCE)} rows answer 402 insufficient_credits until you top up; free rows return on ${nextMonthLabel(currentUtcMonth(now))}. Add credits and the service starts again within 5 minutes.`;
+			? `Your hosted stack stopped on ${stoppedDate}`
+			: "Your hosted stack stopped";
+		body = `Your balance reached $0. Webhooks aren't delivering (events are held) and subgraphs have stopped indexing. Hosted reads past the free ${formatRows(ROWS_ALLOWANCE)} rows answer 402 insufficient_credits until you top up; free rows return on ${nextMonthLabel(currentUtcMonth(now))}. Add credits and the stack starts again within 5 minutes; subgraphs resume where they left off.`;
 	} else if (level === "crit") {
 		title = "Under 2 days of credit left";
-		body = `At ${formatUsd(rateDayUsdMicros)}/day your balance runs out ${runsOutDate(now, runway)}. Your delivery service stops then, and webhooks stop delivering until you add credits.`;
+		body = `At ${formatUsd(rateDayUsdMicros)}/day your balance runs out ${runsOutDate(now, runway)}. Your hosted stack stops then: webhooks stop delivering (events are held) and subgraphs stop indexing until you add credits.`;
 	} else {
 		title = `About ${Math.floor(runway)} days of credit left`;
 		body = `At ${formatUsd(rateDayUsdMicros)}/day your balance runs out around ${runsOutDate(now, runway)}. Add credits before then to keep webhooks delivering.`;
@@ -362,7 +362,7 @@ const USD_MICROS_PER_CENT = 10_000;
  *  monthly spend cap — the same condition `checkRowsAllowance`
  *  (`packages/api/src/lib/read-credits.ts`) refuses a read on with 402
  *  `spend_cap_reached`. Only reads past the free 1M rows pause; webhooks and
- *  the delivery service keep running. Same banner style as `LevelBanner`. */
+ *  the hosted stack keep running. Same banner style as `LevelBanner`. */
 function CapBanner({
 	now,
 	monthlyCapCents,
@@ -713,7 +713,7 @@ export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
 				rateDayUsdMicros={rateDayUsdMicros}
 				serviceState={serviceState}
 			/>
-			{service ? <DeliveryServiceCard service={service} /> : null}
+			{service ? <HostedStackCard service={service} /> : null}
 			<UsageSection monthState={monthState} service={service} />
 			<BalanceAlertsSection />
 			<h2 className="acct-h2">Add credits</h2>

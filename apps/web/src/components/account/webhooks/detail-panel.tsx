@@ -56,8 +56,7 @@ function describeFailure(
 	if (res.kind === "rate_limited") {
 		return `Too many requests — try again in ${res.retryAfter}s.`;
 	}
-	if (res.kind === "starting")
-		return "Your delivery service is still starting.";
+	if (res.kind === "starting") return "Your hosted stack is still starting.";
 	if (res.kind === "no_credits") return "Add credits to do that.";
 	if (res.kind === "not_found") return "That webhook wasn't found.";
 	return res.message;
@@ -326,7 +325,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 					<div>
 						<p className="wh-notice-t">
 							<span className="wh-spin" aria-hidden="true" />
-							Starting your delivery service
+							Starting your hosted stack
 						</p>
 						<p className="wh-notice-l">
 							This takes about 30 seconds. Hang tight.

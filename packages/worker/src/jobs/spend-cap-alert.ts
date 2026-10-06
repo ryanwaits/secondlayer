@@ -3,9 +3,9 @@
  *
  * The cap governs a free-tier account's total prepaid `account_credits`
  * spend this calendar month — every unit `meter()` debits (hosted reads,
- * the delivery service's memory/storage, webhook events), not just reads.
+ * the hosted stack's memory/storage, webhook events), not just reads.
  * Only reads past the free 1M rows actually pause once it's reached; webhooks
- * and the delivery service keep running. (The earlier version projected the
+ * and the hosted stack keep running. (The earlier version projected the
  * Stripe invoice — flat base price, since no metered overage is emitted —
  * so it could never trip; see the 2026-06-18 billing audit.) For each
  * account with a `monthly_cap_cents` set:
@@ -197,10 +197,10 @@ async function sendCapAlert(
 	const paragraphs =
 		kind === "frozen"
 			? [
-					`You've spent ${cap$} this month and reached your monthly cap. Hosted Index and Streams reads past your free 1M rows are paused until ${resets} or until you raise the cap. Your balance is untouched, and webhooks and your delivery service keep running.`,
+					`You've spent ${cap$} this month and reached your monthly cap. Hosted Index and Streams reads past your free 1M rows are paused until ${resets} or until you raise the cap. Your balance is untouched, and webhooks and your hosted stack keep running.`,
 				]
 			: [
-					`You've spent ${spent$} this month, ${pct}% of your ${cap$} monthly cap. When you reach the cap, hosted Index and Streams reads past your free 1M rows pause until ${resets} or until you raise the cap. Webhooks and your delivery service keep running.`,
+					`You've spent ${spent$} this month, ${pct}% of your ${cap$} monthly cap. When you reach the cap, hosted Index and Streams reads past your free 1M rows pause until ${resets} or until you raise the cap. Webhooks and your hosted stack keep running.`,
 				];
 
 	const { html, text } = renderEmail({

@@ -19,7 +19,7 @@ export function runwayDays(
 	return Number(balanceUsdMicros) / Number(rateDayUsdMicros);
 }
 
-/** `stopped` if the delivery service is stopped and the balance is at or
+/** `stopped` if the hosted stack is stopped and the balance is at or
  *  below $0; else `crit` at ≤2 days of runway, `low` at ≤7, otherwise `ok`.
  *  A service that's `none` (never ran) with no spend has `Infinity` runway,
  *  which falls through to `ok`, matching Design ("no service and no spend →

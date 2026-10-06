@@ -233,7 +233,7 @@ export async function burnRateUsdMicros(
 
 /** Distinct `account_id`s the balance-alert cron needs to check: anything
  *  with a positive charge in the last 24h (so it has a burn rate to project
- *  from), or a `memory.gb_hour` row in the last 35 days (a delivery service
+ *  from), or a `memory.gb_hour` row in the last 35 days (a hosted stack
  *  that isn't `none` — it could still be `stopped`, which is exactly the
  *  case the "your service stopped" email exists for). */
 export async function accountsToCheckForBalanceAlerts(
@@ -277,7 +277,7 @@ const SERVICE_RUNNING_WINDOW_MS = 75 * 60 * 1000;
 const SERVICE_STOPPED_WINDOW_MS = 35 * 24 * 60 * 60 * 1000;
 const MEMORY_24H_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/** Derives the delivery-service state from `memory.gb_hour` ledger rows —
+/** Derives the hosted-stack state from `memory.gb_hour` ledger rows —
  *  no new plumbing, per Definitions: `running` if a row exists in the last
  *  75 min, `stopped` if one exists in the last 35 days but not the last 75
  *  min, `none` if neither (never ran, or last ran more than 35 days ago). */

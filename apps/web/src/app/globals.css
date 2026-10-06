@@ -3005,7 +3005,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	box-shadow: inset 0 0 0 1px var(--fig-bar);
 }
 
-/* /account/credits — delivery service card */
+/* /account/credits — hosted stack card */
 .use-svc-top {
 	display: flex;
 	align-items: flex-start;

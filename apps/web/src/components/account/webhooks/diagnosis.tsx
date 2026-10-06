@@ -59,7 +59,7 @@ const RULE_EXPLANATION: Record<DoctorIssueCode, string> = {
 	paused: "This webhook's status is paused. Nothing is being delivered.",
 	last_error: "The most recent delivery attempt returned an error.",
 	circuit:
-		"The delivery service opened the circuit breaker after repeated failures, and pauses briefly between retries.",
+		"Webhook delivery opened the circuit breaker after repeated failures, and pauses briefly between retries.",
 	dead_letters:
 		"At least one event exhausted every retry and stopped delivering.",
 	subgraph_gaps:

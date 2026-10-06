@@ -141,7 +141,7 @@ export function SpendCard({
 					series={[
 						{
 							dataKey: "memUsd",
-							name: "Delivery service memory",
+							name: "Hosted stack memory",
 							color: "var(--fig-bar)",
 						},
 						{
@@ -164,7 +164,7 @@ export function SpendCard({
 				<div className="use-legend">
 					<span>
 						<i style={{ background: "var(--fig-bar)" }} />
-						Delivery service memory
+						Hosted stack memory
 					</span>
 					<span>
 						<i style={{ background: "var(--fig-role-a)" }} />

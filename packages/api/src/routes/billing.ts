@@ -406,7 +406,7 @@ const MONTH_RE = /^\d{4}-\d{2}$/;
  *
  * Per-unit quantity + cost from `usage_ledger` for one UTC calendar month
  * (default: this month), plus the day-by-day breakdown for that month's
- * chart, the trailing-24h burn rate, and the delivery service's state and
+ * chart, the trailing-24h burn rate, and the hosted stack's state and
  * last-24h memory — both of the latter always reflect right now, independent
  * of `month`, since the runway and service card never browse the past.
  * Read-only; the ledger is the source of truth, this route only groups it.

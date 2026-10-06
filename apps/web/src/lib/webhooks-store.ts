@@ -27,7 +27,7 @@ import {
  * refresher goes and gets the current numbers in the background.
  *
  * A refresher only writes into the cache on `{ kind: "ok" }` — a starting
- * delivery service, a rate limit or a dropped connection never overwrites
+ * hosted stack, a rate limit or a dropped connection never overwrites
  * good data still on screen; the caller gets the raw result back to decide
  * what notice (if any) to show.
  */

@@ -106,11 +106,11 @@ describe("checkOneBalance", () => {
 		expect(after?.sent_7d_at).toBeNull();
 	});
 
-	test("stopped: a stopped delivery service at $0 balance sends the stopped alert", async () => {
+	test("stopped: a stopped hosted stack at $0 balance sends the stopped alert", async () => {
 		const id = await makeAccount(
 			`balance-stopped-${crypto.randomUUID().slice(0, 8)}@test.invalid`,
 		);
-		// Delivery-service state = stopped: a memory.gb_hour row within the
+		// Hosted-stack state = stopped: a memory.gb_hour row within the
 		// last 35 days but not the last 75 minutes.
 		await meter(db, {
 			accountId: id,

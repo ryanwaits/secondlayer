@@ -137,7 +137,7 @@ export function runwayDays(
 	return balanceUsdMicros / rateDayUsdMicros;
 }
 
-/** `stopped` if the delivery service is stopped and the balance is at or
+/** `stopped` if the hosted stack is stopped and the balance is at or
  *  below $0; else `crit` at ≤2 days of runway, `low` at ≤7, otherwise `ok`.
  *  Mirrors `@secondlayer/platform/billing/runway`'s `balanceLevel` exactly
  *  (the balance-alert cron's copy of the same math) so the page and the
@@ -217,7 +217,7 @@ export function nextMonthAtRateUsdMicros(
 
 /** A credit pack's runway at the current burn rate: "about N days at this
  *  rate" / "over a year at this rate" / "starts your service again" when
- *  the delivery service is stopped (Design step 8). */
+ *  the hosted stack is stopped (Design step 8). */
 export function packDaysLabel(
 	packUsd: number,
 	rateDayUsdMicros: number,
@@ -282,7 +282,7 @@ export function formatUsdPerHour(rateDayUsdMicros: number): string {
 }
 
 /** The runway row's "$X.XXX/hour · memory + events + rows" composition:
- *  memory is a given whenever the delivery service is running; events and
+ *  memory is a given whenever the hosted stack is running; events and
  *  rows are only listed when this month's usage shows real spend for them
  *  (Design step 5.3). `""` when the service isn't running — the caller
  *  shows "Nothing runs while stopped" instead. */
