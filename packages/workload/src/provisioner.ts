@@ -13,7 +13,7 @@
  * history. This module never logs a secret value.
  */
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
 	chmodSync,
 	mkdirSync,
@@ -21,7 +21,7 @@ import {
 	renameSync,
 	writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { logger } from "@secondlayer/shared";
 import { generateEd25519KeyPair } from "@secondlayer/shared/crypto/ed25519";
 import type postgres from "postgres";
@@ -35,6 +35,7 @@ import {
 	listProvisioningTenants,
 	setTenantImageSha,
 	setTenantState,
+	setTenantTemplateSha,
 } from "./control-db.ts";
 import type { FetchLike } from "./fetch-like.ts";
 
@@ -336,6 +337,52 @@ function writeSecretsToDisk(
 	chmodSync(path, 0o600);
 }
 
+/** `- ./resolv.conf:/etc/resolv.conf:ro` style bind mounts of local files. */
+const LOCAL_MOUNT = /^\s*-\s+["']?(\.{1,2}\/[^:\s"']+):/gm;
+
+/**
+ * Fingerprint of the compose template a tenant stack was last brought up on:
+ * the compose file plus every local file it bind-mounts by relative path
+ * (found by reading the template, so a new `./file` mount is covered with no
+ * code change). A tenant whose recorded fingerprint differs needs a roll even
+ * when its image sha is current, e.g. a template-only change like a new
+ * `command` flag. `null` when the template can't be read: callers then fall
+ * back to image-sha staleness alone rather than rolling everyone on a read
+ * error.
+ */
+export function templateSha(cfg: ProvisionerConfig): string | null {
+	try {
+		const compose = readFileSync(cfg.composeFile);
+		const hash = createHash("sha256").update(compose);
+		const mounts = [...compose.toString("utf8").matchAll(LOCAL_MOUNT)]
+			.map((m) => m[1] as string)
+			.sort();
+		for (const mount of new Set(mounts)) {
+			hash
+				.update(`\0${mount}\0`)
+				.update(readFileSync(join(dirname(cfg.composeFile), mount)));
+		}
+		return hash.digest("hex");
+	} catch (err) {
+		logger.warn("workload.template_sha_unreadable", {
+			composeFile: cfg.composeFile,
+			error: err instanceof Error ? err.message : String(err),
+		});
+		return null;
+	}
+}
+
+/** Records what a tenant was just brought up on (image + template). */
+export async function recordTenantRelease(
+	cfg: ProvisionerConfig,
+	accountId: string,
+	imageSha: string,
+	template: string | null = templateSha(cfg),
+): Promise<void> {
+	await setTenantImageSha(cfg.db, accountId, imageSha);
+	if (template) await setTenantTemplateSha(cfg.db, accountId, template);
+}
+
 /** Every compose call needs SOME `WORKLOAD_IMAGE_TAG` — the file interpolates
  *  it up front, before acting on any subcommand (plan 064). Throws rather
  *  than let compose fail with its own less legible "variable is not set"
@@ -524,7 +571,7 @@ export async function up(
 	}
 
 	await setTenantState(cfg.db, accountId, "running");
-	await setTenantImageSha(cfg.db, accountId, targetSha);
+	await recordTenantRelease(cfg, accountId, targetSha);
 	logger.info("workload.provisioner.up", {
 		accountId,
 		acct8,
@@ -698,7 +745,7 @@ export async function start(
 		);
 	}
 	await setTenantState(cfg.db, accountId, "running");
-	await setTenantImageSha(cfg.db, accountId, targetSha);
+	await recordTenantRelease(cfg, accountId, targetSha);
 	logger.info("workload.provisioner.start", {
 		accountId,
 		acct8,

@@ -15,11 +15,7 @@
 
 import { join } from "node:path";
 import { logger } from "@secondlayer/shared";
-import {
-	type TenantRow,
-	listRunningTenants,
-	setTenantImageSha,
-} from "./control-db.ts";
+import { type TenantRow, listRunningTenants } from "./control-db.ts";
 import type { FetchLike } from "./fetch-like.ts";
 import {
 	type ProvisionerConfig,
@@ -27,7 +23,9 @@ import {
 	TENANT_SERVICES,
 	ensureTenantEnv,
 	projectName,
+	recordTenantRelease,
 	spawnCompose,
+	templateSha,
 	tenantDir,
 } from "./provisioner.ts";
 
@@ -103,14 +101,15 @@ function composeArgs(
 
 /**
  * Rolls every stale `running` tenant onto `targetSha`, one at a time, in
- * `listRunningTenants`'s order. A tenant already on `targetSha` is skipped
- * with no compose call at all.
+ * `listRunningTenants`'s order. A tenant already on `targetSha` AND the current
+ * compose template (`templateSha`) is skipped with no compose call at all.
  *
  * Per tenant: `docker pull` the target image for that tenant's compose
  * project first. A failed pull stops the round immediately — nothing has
  * changed yet, so there's nothing to roll back. A failed `up -d --wait`
  * (image pulled but the new containers never got healthy) re-ups the
- * tenant's previous sha to restore service, leaves `image_sha` unchanged,
+ * tenant's previous sha to restore service, leaves `image_sha` and
+ * `template_sha` unchanged,
  * logs `workload.upgrade.rolled_back`, and stops the round the same way (a
  * bad image fails every tenant identically — trying the next one just fails
  * it too).
@@ -121,7 +120,14 @@ export async function upgradeTenants(
 ): Promise<void> {
 	const runCompose: RunCompose = cfg.runCompose ?? spawnCompose;
 	const tenants = await listRunningTenants(cfg.db);
-	const stale = tenants.filter((t: TenantRow) => t.image_sha !== targetSha);
+	// Hashed once per round: every tenant runs the same template. A template
+	// change (a new command flag, a new mount) rolls tenants on a current image.
+	const template = templateSha(cfg);
+	const stale = tenants.filter(
+		(t: TenantRow) =>
+			t.image_sha !== targetSha ||
+			(template !== null && t.template_sha !== template),
+	);
 	if (stale.length === 0) return;
 
 	for (const tenant of stale) {
@@ -176,7 +182,7 @@ export async function upgradeTenants(
 			return;
 		}
 
-		await setTenantImageSha(cfg.db, tenant.account_id, targetSha);
+		await recordTenantRelease(cfg, tenant.account_id, targetSha, template);
 		logger.info("workload.upgrade.tenant_upgraded", {
 			accountId: tenant.account_id,
 			from: tenant.image_sha,

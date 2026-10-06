@@ -158,6 +158,16 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 		expect(cols).toHaveLength(1);
 	});
 
+	test("ensureControlSchema adds template_sha to a table created before the column existed", async () => {
+		await db`ALTER TABLE tenants DROP COLUMN IF EXISTS template_sha`;
+		await ensureControlSchema(db);
+		const cols = await db`
+			SELECT column_name FROM information_schema.columns
+			WHERE table_name = 'tenants' AND column_name = 'template_sha'
+		`;
+		expect(cols).toHaveLength(1);
+	});
+
 	test("a freshly inserted row has a null image_sha until setTenantImageSha records one", async () => {
 		const accountId = `test-${crypto.randomUUID()}`;
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));

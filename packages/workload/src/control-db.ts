@@ -41,6 +41,10 @@ export interface TenantRow {
 	 *  the sha they actually started). `null` until the first `up()`/`start()`
 	 *  after this column existed. */
 	image_sha: string | null;
+	/** Fingerprint of the compose template (file + local mounts) this tenant
+	 *  last came up on (`provisioner.ts`'s `templateSha`). A tenant whose value
+	 *  differs from the current template is rolled even on a current image. */
+	template_sha: string | null;
 }
 
 /** First 8 hex chars of the account id with non-hex characters stripped —
@@ -123,6 +127,7 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 	// what each tenant runs (plan 064) — same idempotent-column pattern as
 	// `api_port` above.
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS image_sha TEXT`;
+	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS template_sha TEXT`;
 	// Tenants created before subgraph hosting have no network index: adding the
 	// column with a sequence default gives every existing row its own.
 	await db`
@@ -202,6 +207,16 @@ export async function setTenantImageSha(
 	imageSha: string,
 ): Promise<void> {
 	await db`UPDATE tenants SET image_sha = ${imageSha} WHERE account_id = ${accountId}`;
+}
+
+/** Records the fingerprint of the compose template a tenant just came up on —
+ *  read back by `upgradeTenants` so a template-only change rolls tenants too. */
+export async function setTenantTemplateSha(
+	db: postgres.Sql,
+	accountId: string,
+	templateSha: string,
+): Promise<void> {
+	await db`UPDATE tenants SET template_sha = ${templateSha} WHERE account_id = ${accountId}`;
 }
 
 export async function deleteTenant(

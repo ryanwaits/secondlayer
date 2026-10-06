@@ -24,11 +24,13 @@ import {
 	insertProvisioningTenant,
 	setTenantImageSha,
 	setTenantState,
+	setTenantTemplateSha,
 } from "./control-db.ts";
 import {
 	type ProvisionerConfig,
 	parseEnvFile,
 	renderEnvFile,
+	templateSha,
 } from "./provisioner.ts";
 import {
 	type TargetShaCache,
@@ -143,29 +145,44 @@ const db = HAS_DB
 
 describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 	let secretsRoot: string;
+	let composeDir: string;
+	let composeFile: string;
 	let composeCalls: Array<{ args: string[]; env: Record<string, string> }>;
 
 	function cfg(runCompose: ProvisionerConfig["runCompose"]): ProvisionerConfig {
 		return {
 			db,
 			secretsRoot,
-			composeFile: "docker/workload/tenant.compose.yml",
+			composeFile,
 			hostedApiUrl: "https://api.secondlayer.tools",
 			runCompose,
 			getTargetSha: () => GOOD_SHA,
 		};
 	}
 
-	async function seedRunningTenant(imageSha: string | null): Promise<string> {
+	/** A tenant on the template currently on disk unless told otherwise, so the
+	 *  image-sha tests below stay about the image alone. */
+	async function seedRunningTenant(
+		imageSha: string | null,
+		template: string | null = templateSha(cfg(undefined)),
+	): Promise<string> {
 		const accountId = `test-${crypto.randomUUID()}`;
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
 		await setTenantState(db, accountId, "running");
 		if (imageSha) await setTenantImageSha(db, accountId, imageSha);
+		if (template) await setTenantTemplateSha(db, accountId, template);
 		return accountId;
 	}
 
 	beforeAll(async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-upgrade-"));
+		composeDir = mkdtempSync(join(tmpdir(), "workload-template-"));
+		composeFile = join(composeDir, "tenant.compose.yml");
+		writeFileSync(
+			composeFile,
+			"services:\n  api:\n    volumes:\n      - ./resolv.conf:/etc/resolv.conf:ro\n",
+		);
+		writeFileSync(join(composeDir, "resolv.conf"), "nameserver 1.1.1.1\n");
 		await ensureControlSchema(db);
 	});
 
@@ -175,6 +192,7 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 
 	afterAll(async () => {
 		rmSync(secretsRoot, { recursive: true, force: true });
+		rmSync(composeDir, { recursive: true, force: true });
 		await db.end();
 	});
 
@@ -344,7 +362,7 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 		await deleteTenant(db, b);
 	});
 
-	test("a tenant already on the target sha is skipped with no compose calls", async () => {
+	test("a tenant already on the target sha and template is skipped with no compose calls", async () => {
 		const a = await seedRunningTenant(GOOD_SHA);
 		composeCalls = [];
 
@@ -353,6 +371,87 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 				composeCalls.push({ args, env });
 				return { code: 0, stdout: "", stderr: "" };
 			}),
+			GOOD_SHA,
+		);
+
+		expect(composeCalls).toHaveLength(0);
+
+		await deleteTenant(db, a);
+	});
+
+	test("a tenant on the current image but an older template is rolled, and both shas are recorded", async () => {
+		const a = await seedRunningTenant(GOOD_SHA, "an-older-template-sha");
+		composeCalls = [];
+
+		await upgradeTenants(
+			cfg(async (args, env) => {
+				composeCalls.push({ args, env });
+				return { code: 0, stdout: "", stderr: "" };
+			}),
+			GOOD_SHA,
+		);
+
+		expect(composeCalls.map((c) => c.args.includes("pull"))).toEqual([
+			true,
+			false,
+		]);
+		const row = await getTenant(db, a);
+		expect(row?.image_sha).toBe(GOOD_SHA);
+		expect(row?.template_sha).toBe(templateSha(cfg(undefined)));
+
+		await deleteTenant(db, a);
+	});
+
+	test("editing a file the template mounts rolls a tenant that was current", async () => {
+		const a = await seedRunningTenant(GOOD_SHA);
+		composeCalls = [];
+
+		writeFileSync(join(composeDir, "resolv.conf"), "nameserver 9.9.9.9\n");
+		await upgradeTenants(
+			cfg(async (args, env) => {
+				composeCalls.push({ args, env });
+				return { code: 0, stdout: "", stderr: "" };
+			}),
+			GOOD_SHA,
+		);
+		writeFileSync(join(composeDir, "resolv.conf"), "nameserver 1.1.1.1\n");
+
+		expect(composeCalls).toHaveLength(2);
+
+		await deleteTenant(db, a);
+	});
+
+	test("a failed roll leaves template_sha as it was", async () => {
+		const a = await seedRunningTenant(GOOD_SHA, "an-older-template-sha");
+
+		await upgradeTenants(
+			cfg(async (args) =>
+				args.includes("pull")
+					? { code: 0, stdout: "", stderr: "" }
+					: { code: 1, stdout: "", stderr: "unhealthy" },
+			),
+			GOOD_SHA,
+		);
+
+		expect((await getTenant(db, a))?.template_sha).toBe(
+			"an-older-template-sha",
+		);
+
+		await deleteTenant(db, a);
+	});
+
+	test("an unreadable template falls back to image-sha staleness alone", async () => {
+		const a = await seedRunningTenant(GOOD_SHA, null);
+		composeCalls = [];
+
+		await upgradeTenants(
+			{
+				...cfg(async (args, env) => {
+					composeCalls.push({ args, env });
+					return { code: 0, stdout: "", stderr: "" };
+				}),
+				composeFile: join(composeDir, "missing.yml"),
+			},
 			GOOD_SHA,
 		);
 
@@ -415,5 +514,49 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 		expect(composeCalls).toHaveLength(2); // exactly one round's worth (pull + up)
 
 		await deleteTenant(db, a);
+	});
+});
+
+describe("templateSha", () => {
+	let dir: string;
+	const cfgFor = (composeFile: string) =>
+		({ composeFile }) as unknown as ProvisionerConfig;
+
+	function write(name: string, body: string) {
+		writeFileSync(join(dir, name), body);
+	}
+
+	beforeAll(() => {
+		dir = mkdtempSync(join(tmpdir(), "workload-templatesha-"));
+	});
+	afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+	test("covers the compose file and every local file it mounts, found from the template itself", () => {
+		write(
+			"a.yml",
+			'services:\n  s:\n    volumes:\n      - data:/d\n      - ./one.conf:/etc/one:ro\n      - "./two.conf:/etc/two"\n',
+		);
+		write("one.conf", "1");
+		write("two.conf", "2");
+		const base = templateSha(cfgFor(join(dir, "a.yml")));
+		expect(base).toMatch(/^[0-9a-f]{64}$/);
+		expect(templateSha(cfgFor(join(dir, "a.yml")))).toBe(base);
+
+		write("two.conf", "changed");
+		expect(templateSha(cfgFor(join(dir, "a.yml")))).not.toBe(base);
+	});
+
+	test("a named volume is not a file mount, and an unrelated file does not affect the hash", () => {
+		write("b.yml", "services:\n  s:\n    volumes:\n      - data:/d\n");
+		write("stray.conf", "x");
+		const before = templateSha(cfgFor(join(dir, "b.yml")));
+		write("stray.conf", "y");
+		expect(templateSha(cfgFor(join(dir, "b.yml")))).toBe(before);
+	});
+
+	test("an unreadable template or mount is null, not a throw", () => {
+		expect(templateSha(cfgFor(join(dir, "nope.yml")))).toBeNull();
+		write("c.yml", "services:\n  s:\n    volumes:\n      - ./absent.conf:/x\n");
+		expect(templateSha(cfgFor(join(dir, "c.yml")))).toBeNull();
 	});
 });
