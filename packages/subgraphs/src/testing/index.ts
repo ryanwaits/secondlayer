@@ -11,9 +11,7 @@
  * The context here is the REAL {@link SubgraphContext} with its row store
  * swapped for memory. Read-your-writes, upsert merging, increment deltas,
  * where-matching, and control-key handling all come from the one
- * implementation — a second copy of that logic already drifted once (see
- * `runtime/sandbox/overlay-parity.test.ts`), and this surface will not be the
- * third.
+ * implementation, so there is no second copy to drift.
  */
 
 export {

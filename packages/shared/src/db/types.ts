@@ -199,11 +199,6 @@ export interface SubgraphsTable {
 	expires_at: Date | null;
 	/** (event type, contract) probe pairs persisted at deploy for weight classification. */
 	sparse_probe_targets: unknown | null;
-	// f071 Stage 2a: per-subgraph opt-in for the sandboxed (Bun Worker) handler
-	// path. Default false; combined with the global SUBGRAPH_SANDBOX_WORKERS
-	// env flag (both must be true) via runtime/sandbox/flag.ts's
-	// sandboxEnabled(). Not cut over to for any subgraph as of this stage.
-	sandbox_workers: Generated<boolean>;
 	created_at: Generated<Date>;
 	updated_at: Generated<Date>;
 }
