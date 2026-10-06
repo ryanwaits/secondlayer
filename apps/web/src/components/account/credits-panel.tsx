@@ -19,7 +19,7 @@ import {
 } from "@/lib/account-data";
 import {
 	type BalanceLevel,
-	type DeliveryService,
+	type HostedStack,
 	ROWS_ALLOWANCE,
 	type ServiceState,
 	type UsageRow,
@@ -309,7 +309,7 @@ function LevelBanner({
 	runway: number;
 	rateDayUsdMicros: number;
 	now: Date;
-	service: DeliveryService;
+	service: HostedStack;
 }) {
 	if (level === "ok") return null;
 
@@ -413,7 +413,7 @@ function RunwayRow({
 	runway: number;
 	rateDayUsdMicros: number;
 	now: Date;
-	service: DeliveryService;
+	service: HostedStack;
 	monthRows: UsageRow[] | undefined;
 }) {
 	const finiteRunway = Number.isFinite(runway);

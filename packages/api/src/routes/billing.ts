@@ -35,7 +35,7 @@ import {
 import {
 	burnRateUsdMicros,
 	dailySpendForMonth,
-	deliveryServiceSnapshot,
+	hostedStackSnapshot,
 	usageForMonth,
 } from "@secondlayer/platform/db/queries/usage-ledger";
 import { logger } from "@secondlayer/shared";
@@ -429,7 +429,7 @@ app.get("/usage", async (c) => {
 		usageForMonth(db, accountId, now),
 		dailySpendForMonth(db, accountId, now),
 		burnRateUsdMicros(db, accountId),
-		deliveryServiceSnapshot(db, accountId),
+		hostedStackSnapshot(db, accountId),
 	]);
 
 	return c.json({

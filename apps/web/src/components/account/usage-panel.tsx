@@ -3,7 +3,7 @@
 import { formatUsd, refreshUsage, useAccountData } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import {
-	type DeliveryService,
+	type HostedStack,
 	type Month,
 	ROWS_ALLOWANCE,
 	type UsageRow,
@@ -62,7 +62,7 @@ function AllowanceMeter({
 /** The memory row's sub-line suffix: "· 0.50 GB billed", plus "(minimum)"
  *  when the hosted stack is currently billed at the 0.5 GB floor above
  *  its actual sampled RAM — matches the mock exactly. */
-function memorySubNote(service: DeliveryService | null): string {
+function memorySubNote(service: HostedStack | null): string {
 	if (!service) return "";
 	const latest = latestMemoryHour(service.memory24h);
 	if (!latest) return "";
@@ -80,7 +80,7 @@ function UsageTable({
 	usage: UsageRow[];
 	deliveredRows: number;
 	monthWord: string;
-	service: DeliveryService | null;
+	service: HostedStack | null;
 }) {
 	const body = usage.filter((u) => u.unit !== "topup");
 	const topup = usage.find((u) => u.unit === "topup");
@@ -201,7 +201,7 @@ export function UsageBody({
 	status: UsageStatus;
 	month: Month;
 	rows: UsageRow[] | undefined;
-	service: DeliveryService | null;
+	service: HostedStack | null;
 	onRetry: () => void;
 }) {
 	if (status === "not_loaded") return null;
@@ -301,7 +301,7 @@ export function UsageSection({
 	service,
 }: {
 	monthState: UsageMonthState;
-	service: DeliveryService | null;
+	service: HostedStack | null;
 }) {
 	const {
 		month,

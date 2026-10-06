@@ -8,7 +8,7 @@ import {
 } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import { meter } from "../../billing/meter.ts";
-import { deliveryServiceSnapshot } from "./usage-ledger.ts";
+import { hostedStackSnapshot } from "./usage-ledger.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
@@ -49,7 +49,7 @@ afterAll(async () => {
 });
 
 describe.skipIf(!HAS_DB)(
-	"deliveryServiceSnapshot — memory24h hour bucketing",
+	"hostedStackSnapshot — memory24h hour bucketing",
 	() => {
 		test("two rows landing in the same hour (e.g. a retried flush re-dated at insert time) sum into one bucket, not two", async () => {
 			const now = new Date("2026-09-28T12:00:00.000Z");
@@ -75,7 +75,7 @@ describe.skipIf(!HAS_DB)(
 				occurredAt: new Date("2026-09-28T10:40:00.000Z"),
 			});
 
-			const snapshot = await deliveryServiceSnapshot(db, accountId, now);
+			const snapshot = await hostedStackSnapshot(db, accountId, now);
 			expect(snapshot.memory24h).toHaveLength(1);
 			expect(snapshot.memory24h[0]?.hour).toBe("2026-09-28T10:00:00.000Z");
 			expect(snapshot.memory24h[0]?.billedGb).toBeCloseTo(1.0, 6);
@@ -105,7 +105,7 @@ describe.skipIf(!HAS_DB)(
 				}
 			}
 
-			const snapshot = await deliveryServiceSnapshot(db, accountId, now);
+			const snapshot = await hostedStackSnapshot(db, accountId, now);
 			expect(snapshot.memory24h).toHaveLength(24);
 		});
 
@@ -130,7 +130,7 @@ describe.skipIf(!HAS_DB)(
 				occurredAt: new Date("2026-09-28T11:00:00.000Z"),
 			});
 
-			const snapshot = await deliveryServiceSnapshot(db, accountId, now);
+			const snapshot = await hostedStackSnapshot(db, accountId, now);
 			expect(snapshot.memory24h).toHaveLength(2);
 			expect(snapshot.memory24h[0]?.hour).toBe("2026-09-28T10:00:00.000Z");
 			expect(snapshot.memory24h[1]?.hour).toBe("2026-09-28T11:00:00.000Z");

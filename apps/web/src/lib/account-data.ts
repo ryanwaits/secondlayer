@@ -5,7 +5,7 @@ import type { ApiKey } from "./types";
 import {
 	type Burn,
 	type DailySpend,
-	type DeliveryService,
+	type HostedStack,
 	type UsageByMonth,
 	type UsageResponse,
 	withUsageMonth,
@@ -50,7 +50,7 @@ type State = {
 	burn: Burn | null;
 	/** Hosted stack state + last-24h memory. Same "always now" rule as
 	 *  `burn`. */
-	service: DeliveryService | null;
+	service: HostedStack | null;
 	alerts: BalanceAlerts | null;
 	caps: Caps | null;
 };

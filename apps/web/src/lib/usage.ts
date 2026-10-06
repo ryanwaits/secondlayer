@@ -111,7 +111,7 @@ export type MemoryHourRow = {
 	billedGb: number;
 	observedGb: number | null;
 };
-export type DeliveryService = {
+export type HostedStack = {
 	state: ServiceState;
 	lastChargedAt: string | null;
 	memory24h: MemoryHourRow[];
@@ -124,7 +124,7 @@ export type UsageResponse = {
 	usage: UsageRow[];
 	daily: DailySpend[];
 	burn: Burn;
-	service: DeliveryService;
+	service: HostedStack;
 };
 
 /** `balance / rateDay`, in days. `Infinity` when `rateDay <= 0` — nothing is

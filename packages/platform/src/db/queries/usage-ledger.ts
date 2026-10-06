@@ -267,7 +267,7 @@ export type MemoryHourRow = {
 	observedGb: number | null;
 };
 
-export type DeliveryServiceSnapshot = {
+export type HostedStackSnapshot = {
 	state: ServiceState;
 	lastChargedAt: string | null;
 	memory24h: MemoryHourRow[];
@@ -281,11 +281,11 @@ const MEMORY_24H_WINDOW_MS = 24 * 60 * 60 * 1000;
  *  no new plumbing, per Definitions: `running` if a row exists in the last
  *  75 min, `stopped` if one exists in the last 35 days but not the last 75
  *  min, `none` if neither (never ran, or last ran more than 35 days ago). */
-export async function deliveryServiceSnapshot(
+export async function hostedStackSnapshot(
 	db: Kysely<Database>,
 	accountId: string,
 	now: Date = new Date(),
-): Promise<DeliveryServiceSnapshot> {
+): Promise<HostedStackSnapshot> {
 	const since35d = new Date(now.getTime() - SERVICE_STOPPED_WINDOW_MS);
 	const since75m = new Date(now.getTime() - SERVICE_RUNNING_WINDOW_MS);
 	const since24h = new Date(now.getTime() - MEMORY_24H_WINDOW_MS);

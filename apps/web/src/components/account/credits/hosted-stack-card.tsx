@@ -3,7 +3,7 @@
 import { LazyMonoAreaLineChart } from "@/components/charts/lazy";
 import { formatUsd, useAccountData } from "@/lib/account-data";
 import {
-	type DeliveryService,
+	type HostedStack,
 	MEMORY_FLOOR_GB,
 	MEMORY_RATE_USD_PER_GB_HOUR,
 	currentUtcMonth,
@@ -25,7 +25,7 @@ import {
  * month) — independent of whatever month the Usage switcher below is
  * browsing.
  */
-export function HostedStackCard({ service }: { service: DeliveryService }) {
+export function HostedStackCard({ service }: { service: HostedStack }) {
 	const { usage } = useAccountData();
 	if (service.state === "none") return null;
 

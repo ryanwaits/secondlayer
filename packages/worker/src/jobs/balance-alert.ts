@@ -28,7 +28,7 @@ import { getCredits } from "@secondlayer/platform/db/queries/account-credits";
 import {
 	accountsToCheckForBalanceAlerts,
 	burnRateUsdMicros,
-	deliveryServiceSnapshot,
+	hostedStackSnapshot,
 } from "@secondlayer/platform/db/queries/usage-ledger";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
@@ -105,7 +105,7 @@ export async function checkOneBalance(
 	const [balance, rateDayUsdMicros, service, alerts] = await Promise.all([
 		getCredits(db, row.id),
 		burnRateUsdMicros(db, row.id, now),
-		deliveryServiceSnapshot(db, row.id, now),
+		hostedStackSnapshot(db, row.id, now),
 		getBalanceAlerts(db, row.id),
 	]);
 
