@@ -42,6 +42,10 @@ export interface GatewayDeps {
 	) => Promise<{ baseUrl: string; instanceToken: string }>;
 	fetchImpl?: FetchLike;
 	rateLimit?: RateLimiter;
+	/** Git sha this process started from, served at `/healthz` so the
+	 *  self-upgrade script can confirm a restart landed. Read once at boot;
+	 *  `null`/unset when unknown. */
+	sha?: string | null;
 }
 
 export interface RateLimitDecision {
@@ -83,6 +87,10 @@ export async function handleGatewayRequest(
 	req: Request,
 ): Promise<Response> {
 	const url = new URL(req.url);
+	// Unauthenticated liveness + version probe (loopback only, like the rest).
+	if (url.pathname === "/healthz") {
+		return Response.json({ status: "ok", sha: deps.sha ?? null });
+	}
 	const presentedKey = bearerToken(req.headers.get("authorization"));
 	if (!presentedKey) {
 		return Response.json(

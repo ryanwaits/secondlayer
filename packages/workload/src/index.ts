@@ -77,6 +77,24 @@ const SHUTDOWN_FLUSH_TIMEOUT_MS = 5_000;
 const INITIAL_TARGET_RESOLUTION_ATTEMPTS = 3;
 const INITIAL_TARGET_RESOLUTION_RETRY_MS = 2_000;
 
+/** The git sha this process started from: `WORKLOAD_SHA` if set, else
+ *  `git rev-parse HEAD` in the checkout. Read once at startup, never per
+ *  request; `null` when neither works. */
+function resolveWorkloadSha(): string | null {
+	const fromEnv = process.env.WORKLOAD_SHA?.trim();
+	if (fromEnv) return fromEnv;
+	try {
+		const out = Bun.spawnSync(["git", "rev-parse", "HEAD"], {
+			stdout: "pipe",
+			stderr: "ignore",
+		});
+		const sha = out.stdout.toString().trim();
+		return out.exitCode === 0 && /^[0-9a-f]{40}$/.test(sha) ? sha : null;
+	} catch {
+		return null;
+	}
+}
+
 function requireEnv(name: string): string {
 	const value = process.env[name]?.trim();
 	if (!value) throw new Error(`${name} is required`);
@@ -197,6 +215,8 @@ async function main(): Promise<void> {
 		};
 	}
 
+	const workloadSha = resolveWorkloadSha();
+
 	const server = Bun.serve({
 		port: gatewayPort,
 		hostname: "127.0.0.1",
@@ -229,6 +249,7 @@ async function main(): Promise<void> {
 					},
 					tenantUpstream,
 					rateLimit,
+					sha: workloadSha,
 				},
 				req,
 			),

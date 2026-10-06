@@ -63,6 +63,27 @@ describe("classifyWebhooksRequest", () => {
 	});
 });
 
+describe("GET /healthz", () => {
+	test("returns 200 with the injected sha and needs no API key", async () => {
+		const sha = "c".repeat(40);
+		const res = await handleGatewayRequest(
+			baseDeps({ sha }),
+			req({ path: "/healthz" }),
+		);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ status: "ok", sha });
+	});
+
+	test("an unknown sha is reported as null", async () => {
+		const res = await handleGatewayRequest(
+			baseDeps({ sha: null }),
+			req({ path: "/healthz" }),
+		);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ status: "ok", sha: null });
+	});
+});
+
 describe("handleGatewayRequest", () => {
 	test("no Authorization header → 401 missing_api_key", async () => {
 		const res = await handleGatewayRequest(baseDeps(), req());
