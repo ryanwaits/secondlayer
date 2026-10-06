@@ -8,6 +8,13 @@ import type { IndexEnv } from "./auth.ts";
 
 export { MIN_CREDITED_USD_MICROS } from "../lib/read-credits.ts";
 
+/** Block headers are reference data: the list read is never metered, so an
+ *  exhausted allowance must not refuse it. Exact `/blocks` only — the point-get
+ *  and every metered route keep the pre-check. */
+function isUnmeteredRead(path: string): boolean {
+	return /\/blocks\/?$/.test(path);
+}
+
 /**
  * Credits gate (Index): pre-check, then debit. A keyed account whose monthly
  * `rows.delivered` allowance is used up AND whose balance is short refuses
@@ -18,13 +25,6 @@ export { MIN_CREDITED_USD_MICROS } from "../lib/read-credits.ts";
  * with enough balance, is served; a free-tier account with a topped-up
  * balance also goes unthrottled (sets `credited` for the rate limiter).
  */
-/** Block headers are reference data: the list read is never metered, so an
- *  exhausted allowance must not refuse it. Exact `/blocks` only — the point-get
- *  and every metered route keep the pre-check. */
-function isUnmeteredRead(path: string): boolean {
-	return /\/blocks\/?$/.test(path);
-}
-
 export function indexCreditsGate(): MiddlewareHandler<IndexEnv> {
 	return async (c, next) => {
 		const tenant = c.get("indexTenant");
