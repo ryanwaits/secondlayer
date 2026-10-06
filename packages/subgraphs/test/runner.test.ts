@@ -430,7 +430,14 @@ describe("runHandlers delivered count", () => {
 	});
 	const sg = makeSg(
 		{ probe: () => {} },
-		{ probe: { type: "print_event", contractId: "SP.c", topic: "wanted" } },
+		{
+			probe: {
+				type: "print_event",
+				contractId: "SP.c",
+				topic: "wanted",
+				prints: { wanted: {} },
+			},
+		},
 	);
 
 	test("a topic-filtered event matches but is not delivered", async () => {
