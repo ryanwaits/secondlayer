@@ -1,0 +1,9 @@
+[Unit]
+Description=Check every 5 minutes whether the workload host is behind the deployed commit
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,7 @@
+[Unit]
+Description=secondlayer workload host self-upgrade to the deployed commit
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/secondlayer-workload/src/docker/workload-host/workload-self-upgrade.sh
