@@ -1,5 +1,6 @@
 import {
 	SecondLayer,
+	isHostedApiUrl,
 	resolveAccountKey,
 	resolveApiKey,
 	resolveBaseUrl,
@@ -14,12 +15,12 @@ export const HOSTED_KEY_HINT =
 const DEFAULT_ARCHIVE_OPS_URL = "https://api.secondlayer.tools";
 
 /**
- * Read the instance credential from env: `INSTANCE_TOKEN` only. Does not read
- * `SECONDLAYER_API_KEY` (that is the hosted account key).
- * Delegated to the SDK so the MCP server, CLI, and SDK resolve identically.
+ * Read the request credential for the resolved API host: `SECONDLAYER_API_KEY`
+ * on api.secondlayer.tools, `INSTANCE_TOKEN` elsewhere. Delegated to the SDK so
+ * the MCP server and SDK resolve identically.
  */
 export function readApiKey(): string | undefined {
-	return resolveApiKey();
+	return resolveApiKey(undefined, resolveBaseUrl());
 }
 
 /**
@@ -71,7 +72,11 @@ export function getArchiveOpsClient(): SecondLayer {
 
 // Appended to 401/403 errors raised on keyless requests — the operation needs
 // a write/account key, so point at where to get one.
-export const keyHint = " — set INSTANCE_TOKEN from `sl init` for writes";
+export function keyHint(baseUrl: string = resolveBaseUrl()): string {
+	return isHostedApiUrl(baseUrl)
+		? " — set SECONDLAYER_API_KEY (an sk-sl_ key from secondlayer.tools/account/keys)"
+		: " — set INSTANCE_TOKEN from `sl init` for writes";
+}
 
 /** Raw fetch helper for API endpoints not covered by the SDK. */
 export async function apiRequest<T>(
@@ -80,14 +85,7 @@ export async function apiRequest<T>(
 	body?: unknown,
 ): Promise<T> {
 	const baseUrl = resolveBaseUrl();
-	let host = "";
-	try {
-		host = new URL(baseUrl).hostname;
-	} catch {
-		host = "";
-	}
-	const apiKey =
-		host === "api.secondlayer.tools" ? resolveAccountKey() : readApiKey();
+	const apiKey = readApiKey();
 	const res = await fetch(`${baseUrl}${path}`, {
 		method,
 		headers: {
@@ -100,7 +98,9 @@ export async function apiRequest<T>(
 		const text = await res.text().catch(() => "");
 		const needsKey = !apiKey && (res.status === 401 || res.status === 403);
 		throw Object.assign(
-			new Error((text || `HTTP ${res.status}`) + (needsKey ? keyHint : "")),
+			new Error(
+				(text || `HTTP ${res.status}`) + (needsKey ? keyHint(baseUrl) : ""),
+			),
 			{ status: res.status },
 		);
 	}

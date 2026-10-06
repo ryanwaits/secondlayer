@@ -2,9 +2,45 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
 	HOSTED_KEY_HINT,
 	getArchiveOpsClient,
+	keyHint,
 	readApiKey,
 	readArchiveApiKey,
 } from "./client.ts";
+
+describe("hosted key resolution", () => {
+	const saved = {
+		url: process.env.SECONDLAYER_API_URL,
+		token: process.env.INSTANCE_TOKEN,
+		account: process.env.SECONDLAYER_API_KEY,
+	};
+	afterEach(() => {
+		for (const [k, v] of [
+			["SECONDLAYER_API_URL", saved.url],
+			["INSTANCE_TOKEN", saved.token],
+			["SECONDLAYER_API_KEY", saved.account],
+		] as const) {
+			if (v === undefined) delete process.env[k];
+			else process.env[k] = v;
+		}
+	});
+
+	it("reads SECONDLAYER_API_KEY when pointed at the hosted API", () => {
+		process.env.SECONDLAYER_API_URL = "https://api.secondlayer.tools";
+		process.env.SECONDLAYER_API_KEY = "sk-sl_account";
+		process.env.INSTANCE_TOKEN = "token-from-init";
+		expect(readApiKey()).toBe("sk-sl_account");
+	});
+
+	it("keyHint points at the account key on the hosted API", () => {
+		expect(keyHint("https://api.secondlayer.tools")).toContain(
+			"SECONDLAYER_API_KEY",
+		);
+	});
+
+	it("keyHint points at INSTANCE_TOKEN on an instance", () => {
+		expect(keyHint("http://127.0.0.1:3800")).toContain("INSTANCE_TOKEN");
+	});
+});
 
 describe("MCP credential resolution", () => {
 	const originalToken = process.env.INSTANCE_TOKEN;

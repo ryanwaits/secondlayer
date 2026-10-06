@@ -2,7 +2,11 @@ import {
 	type McpServer,
 	ResourceTemplate,
 } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ContextField } from "@secondlayer/sdk";
+import {
+	type ContextField,
+	isHostedApiUrl,
+	resolveBaseUrl,
+} from "@secondlayer/sdk";
 import { CHAIN_TRIGGER_FIELDS } from "@secondlayer/shared";
 import { BOOTSTRAP_STEP } from "@secondlayer/shared/archive/instance-diagnosis";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
@@ -131,14 +135,22 @@ export function buildCapabilities() {
 }
 
 /** Per-product read-auth tiers — what an agent must know before reading. */
-const READ_AUTH_TIERS = {
-	index:
-		"keyless while the API is only reachable on loopback; the instance token is required once it is published past loopback",
-	streams:
-		"keyless while the API is only reachable on loopback; the instance token is required once it is published past loopback",
-	subgraphs:
-		"reads at /v1/subgraphs/<name>/<table> ({ rows, next_cursor, tip } cursor envelope) follow the same loopback rule as the other read planes; writes always require the instance token",
-};
+function readAuthTiers(credential: string) {
+	const reads = `keyless while the API is only reachable on loopback; ${credential} is required once it is published past loopback`;
+	return {
+		index: reads,
+		streams: reads,
+		subgraphs: `reads at /v1/subgraphs/<name>/<table> ({ rows, next_cursor, tip } cursor envelope) follow the same loopback rule as the other read planes; writes always require ${credential}`,
+	};
+}
+
+/** Credential the resolved API host expects: the account key on the hosted
+ *  API, the instance token anywhere else. */
+function credentialLabel(): string {
+	return isHostedApiUrl(resolveBaseUrl())
+		? "SECONDLAYER_API_KEY (an sk-sl_ account key)"
+		: "INSTANCE_TOKEN";
+}
 
 type ContextDeps = {
 	clientProvider: typeof getClient;
@@ -155,7 +167,8 @@ type ContextDeps = {
 export async function buildContext(
 	deps: ContextDeps = { clientProvider: getClient },
 ) {
-	const unavailable = "unavailable: set INSTANCE_TOKEN";
+	const credential = credentialLabel();
+	const unavailable = `unavailable: set ${credential}`;
 	// The SDK says why a field is missing; pass that reason through so the
 	// agent can tell an unreachable API from a rejected token.
 	const orNull = <T>(field: ContextField<T> | undefined) => {
@@ -189,7 +202,7 @@ export async function buildContext(
 			instance,
 		},
 		whatYouCanDo: buildCapabilities(),
-		readAuthTiers: READ_AUTH_TIERS,
+		readAuthTiers: readAuthTiers(credential),
 		...(snap?.instance?.value?.state === "empty-index"
 			? { nextStep: BOOTSTRAP_STEP }
 			: {}),
