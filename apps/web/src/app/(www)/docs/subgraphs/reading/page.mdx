@@ -1,6 +1,6 @@
 # Reading rows
 
-A deployed subgraph serves its tables four ways: paged REST, a live stream, a webhook, and a typed ORM schema over the same Postgres.
+A deployed subgraph serves its tables four ways: paged REST, a live stream, a webhook, and a typed ORM schema over the same Postgres (the last two are self-host only).
 
 ## Pages, cursors, and sorting
 
@@ -12,12 +12,14 @@ curl http://127.0.0.1:3800/v1/subgraphs/asset-holdings/holdings \
   -G -d "_limit=5" -d "_sort=amount" -d "_order=desc"
 ```
 
+Hosted, use `https://api.secondlayer.tools` and add `-H "Authorization: Bearer $SECONDLAYER_API_KEY"`.
+
 Mark a column `indexed: true` if you plan to sort on it. Sorted reads get a
 `(column, _id)` index that matches the page order, so deep pages stay flat
 instead of re-sorting every tie group. Existing tables pick that index up on
 their next reindex or schema change.
 
-`GET /v1/subgraphs` lists your instance's subgraphs; `GET /v1/subgraphs/sbtc-flows` returns metadata. Row-by-id `/:table/:id`, counts `/:table/count`, rollups `/:table/aggregate`: see [aggregates](/docs/rest-api#aggregates) and the [API reference](/docs/api-reference).
+`GET /v1/subgraphs` lists your instance's (or hosted account's) subgraphs; `GET /v1/subgraphs/sbtc-flows` returns metadata. Row-by-id `/:table/:id`, counts `/:table/count`, rollups `/:table/aggregate`: see [aggregates](/docs/rest-api#aggregates) and the [API reference](/docs/api-reference).
 
 ## Stream rows in real time
 
@@ -41,7 +43,7 @@ It uses the global `EventSource`, so browser or **Node ≥ 22** only. Wire contr
 
 ## Get told when it changes
 
-SSE holds a connection open, which is fine for a browser and wrong for a queue or a serverless function. To have rows delivered instead, point a webhook at any table in the subgraph:
+SSE holds a connection open, which is fine for a browser and wrong for a queue or a serverless function. To have rows delivered instead, point a webhook at any table in the subgraph. Subgraph webhooks are self-host only; on the hosted API, use a [chain webhook](/docs/webhooks#direct-chain-webhooks-no-subgraph).
 
 ```bash
 secondlayer webhooks create sbtc-webhook \
@@ -55,7 +57,7 @@ Deliveries are signed, retried, and land in a dead-letter queue you can inspect 
 
 ## Typed ORM schemas (codegen)
 
-Subgraph rows live in your instance's Postgres. `codegen` emits a typed ORM schema for a subgraph's tables so your app reads them with Prisma, Drizzle, or Kysely:
+Subgraph rows live in your instance's Postgres, so codegen needs direct database access and is self-host only. `codegen` emits a typed ORM schema for a subgraph's tables so your app reads them with Prisma, Drizzle, or Kysely:
 
 ```bash
 secondlayer codegen subgraph ./subgraph.config.ts --target prisma -o prisma/schema.prisma
@@ -67,5 +69,5 @@ Generators: `--target prisma|drizzle|kysely`. Secondlayer owns the DDL, so treat
 export const metadata = {
 	title: "Reading rows — Secondlayer Docs",
 	description:
-		"Read a Stacks subgraph table: keyset pages and sorting, SSE streams, webhook delivery, and typed Prisma/Drizzle/Kysely schemas.",
+		"Read a Stacks subgraph table: keyset pages and sorting, SSE streams, webhook delivery, and typed Prisma/Drizzle/Kysely schemas, hosted or self-host.",
 };

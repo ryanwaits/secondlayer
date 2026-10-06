@@ -1,0 +1,70 @@
+# Deploy a hosted subgraph
+
+Deploy one TypeScript file to `api.secondlayer.tools` and read its table over REST, with no box to run.
+
+## Get a key and point the CLI at the hosted API
+
+Create an `sk-sl_*` key at [`/account/keys`](/account/keys). It needs CLI 19.1 or later.
+
+```bash
+export SECONDLAYER_API_URL=https://api.secondlayer.tools
+export SECONDLAYER_API_KEY=sk-sl_...
+```
+
+## Deploy
+
+Write the file as in [Subgraphs](/docs/subgraphs#define-a-subgraph), then deploy.
+
+```bash
+secondlayer subgraphs deploy ./subgraph.config.ts --start-block 8000000
+secondlayer subgraphs status sbtc-flows
+```
+
+Set `startBlock` (or `--start-block`). Without one the subgraph reindexes from genesis. Only your matching contract events are fetched, but every matching event and transaction row still bills, and a long history takes time. A start block bounds both.
+
+## Read rows
+
+```bash
+curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  -G -d "_limit=10" -d "_order=desc"
+```
+
+```ts
+import { SecondLayer } from "@secondlayer/sdk";
+
+const sl = new SecondLayer({ baseUrl: "https://api.secondlayer.tools" });
+const { rows } = await sl.subgraphs.rows("sbtc-flows", "transfers", { limit: 10 });
+```
+
+On the hosted URL the SDK reads `SECONDLAYER_API_KEY` for you. Paging, sorting and streams: [Reading rows](/docs/subgraphs/reading).
+
+## What runs hosted
+
+| | Hosted |
+| --- | --- |
+| Sources | Event filters (`stx_*`, `ft_*`, `nft_*`, `print_event`, `nested_contract_call`, `var_set`, `map_*`), `contract_call`, `contract_deploy`. Anything else: `422 SOURCE_NOT_HOSTABLE`, naming the source |
+| Isolation | One private stack per account. Handlers run in a gVisor sandbox |
+| Memory | 512 MB |
+| Network | Secondlayer's API and the public internet |
+| Visibility | Private. No public catalog, fork or marketplace |
+| Subgraph webhooks | Self-host only. Chain webhooks work hosted |
+
+A processor that stalls or runs out of memory is restarted. After 3 deaths at the same height the subgraph is marked `error`: fix the handler and redeploy.
+
+## Billing
+
+| Item | Cost |
+| --- | --- |
+| Event and transaction rows your subgraph reads | `rows.delivered`: 1M free per account per month, then $5 per 1M, $2 per 1M past $50 |
+| Block headers (`/v1/index/blocks`) | Free, never a `402` |
+| Reads of your own subgraph tables | Free |
+| Stack | Memory, 0.5 GB minimum (about $10/mo while running), plus storage |
+
+Prefer your own box? See [Run Secondlayer](/docs/self-host).
+
+export const metadata = {
+	title: "Deploy a hosted subgraph — Secondlayer Docs",
+	description:
+		"Deploy a Stacks subgraph to api.secondlayer.tools with an account key, read its table over REST, and see what runs hosted and what it costs.",
+};

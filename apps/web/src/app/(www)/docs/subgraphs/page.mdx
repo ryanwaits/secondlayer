@@ -4,7 +4,7 @@ One TypeScript file, and you get a table plus a REST API over it. You don't pick
 
 ## Hosted vs self-host
 
-Subgraphs run on your own instance, or hosted at `api.secondlayer.tools`. Hosted subgraphs are private: one stack per account, with no public catalog, no fork and no marketplace. Set `SECONDLAYER_API_KEY` (`sk-sl_*`) and `secondlayer subgraphs deploy` works the same as against your own box.
+Subgraphs run on your own instance, or hosted at `api.secondlayer.tools`. Hosted subgraphs are private: one stack per account, with no public catalog, no fork and no marketplace. Set `SECONDLAYER_API_KEY` (`sk-sl_*`) and `secondlayer subgraphs deploy` works the same as against your own box. Step by step: [Deploy a hosted subgraph](/docs/subgraphs/hosted).
 
 | | Self-host | Hosted (`api.secondlayer.tools`) |
 | --- | --- | --- |
@@ -14,8 +14,8 @@ Subgraphs run on your own instance, or hosted at `api.secondlayer.tools`. Hosted
 | Memory | Your box | 512 MB each for your API and your subgraph processor |
 | Network | Whatever your network allows | Your handlers reach Secondlayer's API and the public internet, nothing else |
 | Isolation | N/A (you run it) | Handler code runs in a gVisor sandbox inside your own stack, never beside anyone else's data or process |
-| Pricing | Free (self-host) | Indexing bills the event and transaction rows it reads against your allowance (block headers are free), plus the stack's memory and storage. Reads of your own tables are free |
-| Subgraph webhooks | Yes | Not yet |
+| Pricing | Free (self-host) | Indexing bills the event and transaction rows it reads against your allowance (block headers are free), plus the stack's memory (0.5 GB minimum, about $10/mo while running) and storage. Reads of your own tables are free |
+| Subgraph webhooks | Yes | Self-host only. Chain webhooks work hosted |
 
 A hosted stack that runs out of credits stops and starts again on top-up. Your tables are kept while it is stopped.
 
@@ -132,7 +132,7 @@ sources: {
 },
 ```
 
-Traits: `sip-009`, `sip-010`, `sip-013`. A reindex backfills each contract from its deploy block; history below your bootstrap floor is a metered [archive backfill](/docs/authentication#archive-credits). [Contract discovery](/docs/contracts) queries the set directly.
+Traits: `sip-009`, `sip-010`, `sip-013`. A reindex backfills each contract from its deploy block. On self-host, history below your bootstrap floor is a metered [archive backfill](/docs/authentication#archive-credits); a hosted reindex reads the hosted Index and bills the rows it reads. [Contract discovery](/docs/contracts) queries the set directly.
 
 ## Test before you deploy
 
@@ -165,7 +165,7 @@ unstubbed read throws naming the key it wanted.
 
 ## Deploy
 
-First deploy backfills from `startBlock`; new blocks stream in after. History below your instance's bootstrap floor is a metered [archive backfill](/docs/authentication#archive-credits).
+First deploy backfills from `startBlock`; new blocks stream in after. On self-host, history below your instance's bootstrap floor is a metered [archive backfill](/docs/authentication#archive-credits). Hosted, the backfill reads the hosted Index, so set a `startBlock`.
 
 ```bash
 secondlayer subgraphs deploy ./subgraph.config.ts
@@ -174,6 +174,8 @@ secondlayer subgraphs deploy ./subgraph.config.ts
 ```text
 Read:      http://127.0.0.1:3800/v1/subgraphs/gamma-sales/sales
 ```
+
+Against the hosted API (`SECONDLAYER_API_URL=https://api.secondlayer.tools`, `SECONDLAYER_API_KEY` set) the read URL is `https://api.secondlayer.tools/v1/subgraphs/gamma-sales/sales`.
 
 <Callout type="tip" title="Tip-first deploys">
 
@@ -207,6 +209,11 @@ const { rows, next_cursor, tip } = await sl.subgraphs.rows(
 ```bash
 curl http://127.0.0.1:3800/v1/subgraphs/sbtc-flows/transfers \
   -G -d "_limit=10" -d "_order=desc"
+
+# hosted
+curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  -G -d "_limit=10" -d "_order=desc"
 ```
 
 ```json
@@ -225,10 +232,10 @@ curl http://127.0.0.1:3800/v1/subgraphs/sbtc-flows/transfers \
 }
 ```
 
-Paging, sorting, live streams, webhooks, and typed ORM schemas: [Reading rows](/docs/subgraphs/reading).
+Paging, sorting, live streams, webhooks, and typed ORM schemas (self-host): [Reading rows](/docs/subgraphs/reading).
 
 export const metadata = {
 	title: "Subgraphs — Secondlayer Docs",
 	description:
-		"Declare Stacks contract events in one file and deploy Postgres tables on your instance /v1 read API.",
+		"Declare Stacks contract events in one file and deploy Postgres tables with a /v1 read API, hosted or on your own box.",
 };

@@ -43,7 +43,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Run the quickstart",
 			"Drive the golden path to a live table.",
-			"/secondlayer Walk me through the quickstart end to end: `secondlayer setup` for the guided one-command install (secrets, docker-compose + .env, bootstrap from the archive, verify), `secondlayer subgraphs create my-balances --from-contract <my contract id>`, `secondlayer subgraphs deploy subgraphs/my-balances.ts`, then curl `http://127.0.0.1:3800/v1/subgraphs/my-balances/balances` to confirm it's live — no token on loopback.",
+			"/secondlayer Walk me through the quickstart end to end: `secondlayer setup` for the guided one-command install (secrets, docker-compose + .env, bootstrap from the archive, verify), `secondlayer subgraphs create my-balances --from-contract <my contract id>`, `secondlayer subgraphs deploy subgraphs/my-balances.ts`, then curl `http://127.0.0.1:3800/v1/subgraphs/my-balances/balances` to confirm it's live — no token on loopback. Or skip the box: export `SECONDLAYER_API_URL=https://api.secondlayer.tools` and `SECONDLAYER_API_KEY` (`sk-sl_*`, from /account/keys), deploy the same file, and read it from the hosted URL with the key as a bearer token.",
 		),
 		card(
 			"Verify my setup",
@@ -56,8 +56,8 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 	"/docs/authentication": [
 		card(
 			"Understand the two credentials",
-			"Instance token for your box; account key for hosted API and archive.",
-			"/secondlayer Explain Secondlayer auth: two credentials. On my instance, `/v1` reads from loopback need no key, past loopback they send `Authorization: Bearer $INSTANCE_TOKEN`, and writes (`/api/subgraphs`, `/api/webhooks`, `/api/node`) send it always. Hosted `api.secondlayer.tools` and archive credits use `SECONDLAYER_API_KEY` (`sk-sl_*`). Never mix them. Help me wire the right one into my client and CI.",
+			"Instance token for your box; account key for the hosted API, hosted subgraphs and webhooks, and archive.",
+			"/secondlayer Explain Secondlayer auth: two credentials. On my instance, `/v1` reads from loopback need no key, past loopback they send `Authorization: Bearer $INSTANCE_TOKEN`, and writes (`/api/subgraphs`, `/api/webhooks`, `/api/node`) send it always. Hosted `api.secondlayer.tools` (Index, Streams, your subgraphs and webhooks) and archive credits use `SECONDLAYER_API_KEY` (`sk-sl_*`). The SDK, MCP and CLI pick the key from the host. Never mix them. Help me wire the right one into my client and CI.",
 		),
 		card(
 			"Rotate a token or secret",
@@ -89,13 +89,26 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		variant("subgraph-alex-swaps"),
 		card(
 			"Typed ORM schema",
-			"Codegen a Prisma/Drizzle/Kysely schema for a subgraph.",
-			"/secondlayer Help me generate a typed ORM schema for my subgraph with `secondlayer codegen subgraph --target prisma|drizzle|kysely`, wire it into my app, and treat the tables as read-only.",
+			"Codegen a Prisma/Drizzle/Kysely schema for a subgraph on your own box.",
+			"/secondlayer Help me generate a typed ORM schema for my subgraph with `secondlayer codegen subgraph --target prisma|drizzle|kysely`, wire it into my app, and treat the tables as read-only. This needs direct Postgres access, so it is self-host only; hosted subgraphs are read over REST.",
 		),
 		card(
 			"Watch the backfill",
 			"Deploy, then watch the backfill drain.",
 			"/secondlayer Watch the genesis backfill with `secondlayer subgraphs status <name>` while reads already serve on `/v1/subgraphs/<name>/<table>`, and explain what the operation progress and ETA mean.",
+		),
+	],
+
+	"/docs/subgraphs/hosted": [
+		card(
+			"Deploy a hosted subgraph",
+			"Deploy to api.secondlayer.tools with an account key.",
+			"/secondlayer Help me deploy a subgraph to the hosted API: export `SECONDLAYER_API_URL=https://api.secondlayer.tools` and `SECONDLAYER_API_KEY` (`sk-sl_*` from /account/keys), set a `startBlock` so the reindex is bounded (event and transaction rows bill), run `secondlayer subgraphs deploy`, then read `/v1/subgraphs/<name>/<table>` with the key as a bearer token. Check my sources are hostable (event filters, `contract_call`, `contract_deploy`) or tell me which one gets `SOURCE_NOT_HOSTABLE`.",
+		),
+		card(
+			"Fix a failing hosted subgraph",
+			"Diagnose an `error` status after restarts.",
+			"/secondlayer My hosted subgraph is marked `error`. Run `secondlayer subgraphs status <name>`, explain that a processor that stalls or runs out of its 512 MB is restarted and marked `error` after 3 deaths at the same height, find the handler at that block, fix it, and redeploy.",
 		),
 	],
 
@@ -145,7 +158,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Wire the SDK",
 			"One client, typed reads across every surface.",
-			'/secondlayer Help me wire `@secondlayer/sdk` into my app: create a `SecondLayer({ baseUrl: "http://127.0.0.1:3800", apiKey: process.env.INSTANCE_TOKEN })` client pointed at my instance, read subgraph rows with `sl.subgraphs.rows(name, table, opts)` → `{ rows, next_cursor, tip }`, and get a typed table client via `sl.subgraphs.typed(def)`. Hosted Index/Streams/archive use `accountKey` / `SECONDLAYER_API_KEY`.',
+			'/secondlayer Help me wire `@secondlayer/sdk` into my app: create a `SecondLayer({ baseUrl: "http://127.0.0.1:3800", apiKey: process.env.INSTANCE_TOKEN })` client pointed at my instance, read subgraph rows with `sl.subgraphs.rows(name, table, opts)` → `{ rows, next_cursor, tip }`, and get a typed table client via `sl.subgraphs.typed(def)`. On `api.secondlayer.tools` the client reads `SECONDLAYER_API_KEY` itself (the key follows the host); `accountKey` is only for archive operations.',
 		),
 		card(
 			"Verify webhooks",
@@ -303,7 +316,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Stand up a local runtime",
 			"Guided setup, or init, bootstrap, print the observer stanza.",
-			"/secondlayer Help me run a local Secondlayer instance — no account, there are none: `secondlayer setup` walks through network/node-mode, writes secrets + docker-compose + .env, brings the stack up, restores verified history, and verifies it — or step by step, `secondlayer init --network mainnet` writes `.env.local`, `secondlayer bootstrap --against <manifest>` restores verified history into an empty database, and `secondlayer observer --mode indexer` prints the `[[events_observer]]` stanza, then `secondlayer verify all --against <manifest>` checks the restore. Explain flags, exit codes, and when to use `--mode signer-shared`.",
+			"/secondlayer Help me run Secondlayer on my own box (or skip it: set `SECONDLAYER_API_URL=https://api.secondlayer.tools` and `SECONDLAYER_API_KEY` and `secondlayer subgraphs` / `webhooks` run hosted): `secondlayer setup` walks through network/node-mode, writes secrets + docker-compose + .env, brings the stack up, restores verified history, and verifies it — or step by step, `secondlayer init --network mainnet` writes `.env.local`, `secondlayer bootstrap --against <manifest>` restores verified history into an empty database, and `secondlayer observer --mode indexer` prints the `[[events_observer]]` stanza, then `secondlayer verify all --against <manifest>` checks the restore. Explain flags, exit codes, and when to use `--mode signer-shared`.",
 		),
 		variant("cli-operate"),
 		card(

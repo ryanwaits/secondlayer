@@ -1,6 +1,6 @@
 # SDK
 
-Talk to your instance from TypeScript without hand-writing cursor walks, reorg rewind, or signature checks.
+Talk to Secondlayer, hosted or your own instance, from TypeScript without hand-writing cursor walks, reorg rewind, or signature checks.
 
 Every export, with signatures: [SDK reference](/docs/sdk-reference).
 
@@ -19,7 +19,7 @@ const sl = new SecondLayer({
 });
 ```
 
-Hosted Index, Streams, and archive use `accountKey` / `SECONDLAYER_API_KEY`. See [Authentication](/docs/authentication).
+The key follows the host: on `api.secondlayer.tools` the client reads `SECONDLAYER_API_KEY`; anywhere else, `INSTANCE_TOKEN`. `accountKey` is for archive operations only. See [Authentication](/docs/authentication).
 
 ## One client, every surface
 

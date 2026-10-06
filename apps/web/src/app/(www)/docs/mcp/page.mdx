@@ -1,6 +1,6 @@
 # MCP
 
-Point Claude Code, Cursor, or any MCP client at your instance so it can read and operate it directly.
+Point Claude Code, Cursor, or any MCP client at the hosted API or your own instance so it can read and operate it directly.
 
 ## Connect
 
@@ -21,7 +21,7 @@ The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP c
 }
 ```
 
-`INSTANCE_TOKEN` is optional for reads on loopback; anything published past loopback requires it, and the write tools require it always. `SECONDLAYER_API_URL` is the lead instance URL. Hosted archive/credits tools also need `SECONDLAYER_API_KEY`. See [Authentication](/docs/authentication).
+`INSTANCE_TOKEN` is optional for reads on loopback; anything published past loopback requires it, and the write tools require it always. `SECONDLAYER_API_URL` is the lead instance URL. For the hosted API, set `SECONDLAYER_API_URL` to `https://api.secondlayer.tools` and `SECONDLAYER_API_KEY` (`sk-sl_*`) instead of `INSTANCE_TOKEN`; the key follows the host. See [Authentication](/docs/authentication).
 
 An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional `SECONDLAYER_MCP_SECRET` bearer auth for hosting the server behind a URL.
 

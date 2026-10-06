@@ -1,6 +1,6 @@
 # CLI
 
-Stand up an instance, fill it with chain history, and deploy your own tables on top, from one terminal.
+Deploy subgraphs and webhooks hosted or on your own box, and run the instance, from one terminal.
 
 ## Install
 
@@ -28,7 +28,7 @@ secondlayer credits balance
 secondlayer credits refill --below 5 --pack 25
 ```
 
-`--api-key` shape-routes hex to `INSTANCE_TOKEN` and `sk-sl_*` to `SECONDLAYER_API_KEY`. Instance commands refuse `api.secondlayer.tools`. See [Authentication](/docs/authentication). [Verified archive](/docs/archive) owns `secondlayer verify` / `secondlayer repair`. [Self-host](/docs/self-host) is the compose loop. `secondlayer credits *` meters archive bootstrap/backfill and hosted Index/Streams reads; [archive credits](/docs/authentication#archive-credits).
+`--api-key` shape-routes hex to `INSTANCE_TOKEN` and `sk-sl_*` to `SECONDLAYER_API_KEY`. Instance commands refuse `api.secondlayer.tools`, except `secondlayer subgraphs` and `secondlayer webhooks`, which take `SECONDLAYER_API_KEY` against the hosted URL ([hosted subgraphs](/docs/subgraphs/hosted)). See [Authentication](/docs/authentication). [Verified archive](/docs/archive) owns `secondlayer verify` / `secondlayer repair`. [Self-host](/docs/self-host) is the compose loop. `secondlayer credits *` meters archive bootstrap/backfill and hosted Index/Streams reads; [archive credits](/docs/authentication#archive-credits).
 
 <Callout type="note" title="Chain webhooks">
 
@@ -127,5 +127,5 @@ These work but get no further investment.
 
 export const metadata = {
 	title: "CLI — Secondlayer Docs",
-	description: "Init a local runtime, bootstrap history, deploy subgraphs, and attach webhooks with sl.",
+	description: "Deploy subgraphs and webhooks hosted or on your own box, init a local runtime, and bootstrap verified history with the secondlayer CLI.",
 };

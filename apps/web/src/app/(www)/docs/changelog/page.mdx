@@ -2,16 +2,24 @@
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026
 describe the hosted service as it worked then: per-row read metering, API
-keys, `402` past the free window. That service is withdrawn. On a self-hosted
-instance reads are yours and unmetered. Archive bootstrap/backfill/reindex
-and hosted Index/Streams reads at `api.secondlayer.tools` draw
+keys, `402` past the free window. That service was withdrawn in August 2026
+and has since returned: hosted Index, Streams, subgraphs and webhooks at
+`api.secondlayer.tools` run on an account key and prepaid
+[credits](/docs/authentication). On a self-hosted instance reads stay yours
+and unmetered; archive bootstrap, backfill and reindex draw
 [credits](/docs/authentication#archive-credits).
+
+## Index — October 2026
+
+### Block headers are free on `/v1/index/blocks`
+
+Hosted reads of `/v1/index/blocks` are never billed and never return a `402`, even past your free 1M rows or with no balance. Event and transaction rows still bill. See [Authentication](/docs/authentication#hosted-api-and-archive).
 
 ## Subgraphs — October 2026
 
-### Hosted subgraphs, private to your account
+### Hosted subgraphs, private to your account (CLI 19.1)
 
-Deploy a subgraph to `api.secondlayer.tools` with an `sk-sl_*` key and it runs in your account's own stack, with no box to run. `secondlayer subgraphs` takes `SECONDLAYER_API_KEY` the way `webhooks` does. Your handlers run in a gVisor sandbox with 512 MB of memory and no network beyond Secondlayer's API and the public internet. Sources must be event filters or `contract_call` / `contract_deploy`; anything else is refused at deploy with `SOURCE_NOT_HOSTABLE`, naming the source. Indexing reads bill `rows.delivered` against your allowance, plus the stack's memory and storage. A subgraph whose handler keeps stalling or running the processor out of memory is restarted, then marked `error` after three restarts at the same block. Subgraphs are private to your account: there is no public catalog. Subgraph webhooks stay self-host only for now. See [Subgraphs](/docs/subgraphs#hosted-vs-self-host).
+Deploy a subgraph to `api.secondlayer.tools` with an `sk-sl_*` key and it runs in your account's own stack, with no box to run. `secondlayer subgraphs` takes `SECONDLAYER_API_KEY` the way `webhooks` does. Your handlers run in a gVisor sandbox with 512 MB of memory and no network beyond Secondlayer's API and the public internet. Sources must be event filters or `contract_call` / `contract_deploy`; anything else is refused at deploy with `SOURCE_NOT_HOSTABLE`, naming the source. Indexing reads bill `rows.delivered` against your allowance, plus the stack's memory and storage. A subgraph whose handler keeps stalling or running the processor out of memory is restarted, then marked `error` after three restarts at the same block. Subgraphs are private to your account: there is no public catalog. Subgraph webhooks stay self-host only. A subgraph with no `startBlock` reindexes from genesis, which now works hosted and fetches only your subgraph's matching contract events; it still bills every matching event and transaction row, so set a `startBlock`. See [Deploy a hosted subgraph](/docs/subgraphs/hosted).
 
 ## CLI — September 2026
 
@@ -397,6 +405,8 @@ Account tools (`account_whoami`, `account_create_key`) register only when the se
 ### Hosted subgraphs and webhooks are retired
 
 `/api/subgraphs` and `/api/webhooks` now 404 wherever the archive used to run them. Deploying handler code and delivering webhooks was never something a shared box should have been doing on your behalf. Self-host and nothing changes: it's still your subgraph, your subscription, your infrastructure end to end.
+
+Since reversed: hosted subgraphs returned in October 2026, private to your account. See [Deploy a hosted subgraph](/docs/subgraphs/hosted).
 
 ## SDK — August 2026
 

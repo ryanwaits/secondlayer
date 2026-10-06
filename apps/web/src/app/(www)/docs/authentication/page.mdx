@@ -1,6 +1,6 @@
 # Instance token and account key
 
-Two credentials. The instance token opens your box. The account key identifies you on the hosted API and the archive.
+Two credentials. The instance token opens your box. The account key identifies you on the hosted API: Index, Streams, subgraphs, webhooks and the archive.
 
 ## Your instance
 
@@ -42,13 +42,13 @@ Hosted reads, live or history, priced the same:
 | Past 1M rows/month | $5 per 1M rows, $2 per 1M past $50 in a month |
 | `304` on `If-None-Match` for a finalized page | free |
 
-Block headers are free; you pay for event and transaction rows.
+Block headers (`/v1/index/blocks`) are free, never billed and never a `402`; you pay for event and transaction rows. Reads of your own subgraph tables are free. A hosted subgraph's indexing bills the event and transaction rows it reads.
 
 The SDK sends `If-None-Match` for you. Its cache holds the last 64 pages in memory; pass `etagCache` to keep one across runs.
 
 Past the free monthly allowance, a key with no balance gets a `402` (`insufficient_credits`) with a top-up link, before anything is served. A key still under the allowance, or with a balance, reads normally and is billed per row after the response.
 
-Your hosted stack (it runs your webhooks) bills memory at a minimum of 0.5 GB, about $10/mo while it runs. A stopped stack bills nothing.
+Your hosted stack (it runs your webhooks and subgraphs) bills memory at a minimum of 0.5 GB, about $10/mo while it runs, plus storage. A stopped stack bills no memory.
 
 ## Archive credits
 
@@ -70,5 +70,5 @@ A **signing secret** (`whsec_…`) is per-webhook and verifies an incoming webho
 export const metadata = {
 	title: "Authentication — Secondlayer Docs",
 	description:
-		"Instance token for your box, account key for the hosted API and archive, and prepaid credits for bootstrap.",
+		"Instance token for your box, account key for the hosted API, hosted subgraphs and webhooks, and archive, and the prepaid credits behind them.",
 };

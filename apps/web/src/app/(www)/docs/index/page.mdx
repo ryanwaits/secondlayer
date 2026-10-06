@@ -4,7 +4,7 @@ Decoded rows you sweep into your own tables. You write the loop; the decoding, t
 
 <Callout type="note" title="History">
 
-Reads hit your own Postgres: no meter, no rate limit. `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)). Loopback needs no token; hosted `api.secondlayer.tools` is keyed ([Authentication](/docs/authentication)).
+Reads on your own box hit your own Postgres: no meter, no rate limit. Hosted `api.secondlayer.tools` bills `rows.delivered`: 1M free per account per month, then $5 per 1M, and block headers are free. `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)). Loopback needs no token; hosted is keyed ([Authentication](/docs/authentication)).
 
 </Callout>
 
@@ -187,7 +187,7 @@ curl "http://127.0.0.1:3800/v1/index/events?event_type=stx_transfer&limit=20"
 | `/v1/index/contract-calls` | Decoded contract-call transactions with `args` and `result` | `function_name`, `sender`, `trait`; cursors are a separate keyspace from events |
 
 | `/v1/index/transactions` · `/{tx_id}` | Full transaction documents (fee, nonce, sponsored, post-conditions, decoded payload) | `type`, `sender`, `contract_id`; `/{tx_id}/proof` returns an inclusion proof ([Verification](/docs/verification)) |
-| `/v1/index/blocks` · `/{height_or_hash}` | Decoded blocks, list or single | — |
+| `/v1/index/blocks` · `/{height_or_hash}` | Decoded blocks, list or single. Free on hosted: never billed, never a `402` | — |
 | `/v1/index/canonical` | Canonical block-hash map, one row per height, orphans excluded | `from_height` |
 | `/v1/index/mempool` · `/{tx_id}` | Pending transactions: no `block_height`/`result`, plus `received_at`; `404`s once mined, never cached | `sender`, `type`, `contract_id`, `function_name` |
 
