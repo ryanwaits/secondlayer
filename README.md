@@ -96,6 +96,11 @@ docker compose up -d
 
 [OSS quickstart](docker/oss/README.md).
 
+## Built on Secondlayer
+
+- [robinhood-bridge](https://github.com/ryanwaits/robinhood-bridge): Stacks
+  SIP-010 to Robinhood Chain and back, behind 2-of-2 keys. Demo token only.
+
 ## Development
 
 ```bash

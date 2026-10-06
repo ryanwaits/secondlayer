@@ -190,7 +190,9 @@ export default function RobinhoodPage() {
 						<h2>Every ERC-20 is backed by a locked SIP-010.</h2>
 						<p>
 							The locker on Stacks holds the original, and supply on Robinhood
-							Chain matches it 1:1. No lock, no mint. No burn, no release.
+							Chain matches it 1:1. No lock, no mint. No burn, no release. In
+							Phase 0 that's a rule the signers follow, not one the contracts
+							enforce.
 						</p>
 						<dl className="rh-facts">
 							<div>
