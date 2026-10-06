@@ -222,6 +222,11 @@ async function main(): Promise<void> {
 	const server = Bun.serve({
 		port: gatewayPort,
 		hostname: "127.0.0.1",
+		// Bun's default idleTimeout is 10s, which closes any proxied call that
+		// takes longer to answer (a delete waiting on a reindex runner, a deploy
+		// with a large bundle). Stay above the tenant API's own 90s so the tenant
+		// is always the one to time out, never the gateway.
+		idleTimeout: 120,
 		fetch: (req) =>
 			handleGatewayRequest(
 				{

@@ -97,7 +97,7 @@ const server = Bun.serve({
 	// requests that exceed that:
 	//   - BNS print scans against unindexed jsonb (5–20s during backfill)
 	//   - `DELETE /api/subgraphs/<name>` waiting for active reindex ops to
-	//     drain via `waitForSubgraphOperationsClear` (up to 30s)
+	//     drain via `waitForSubgraphOperationsClear` (up to 5s)
 	//   - sBTC/streams pagination over dense contract ranges
 	// Closing the socket mid-response surfaces as either
 	// `socket connection closed unexpectedly` (downstream consumers) or a
