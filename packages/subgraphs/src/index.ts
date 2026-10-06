@@ -110,6 +110,7 @@ export {
 export type { ReindexOptions } from "./runtime/reindex.ts";
 export {
 	canSparseScan,
+	isStreamsIndexEligible,
 	sparseProbeTargets,
 	type SparseProbeTarget,
 } from "./runtime/block-source.ts";

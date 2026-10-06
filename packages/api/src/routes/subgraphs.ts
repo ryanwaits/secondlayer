@@ -41,11 +41,18 @@ import { canSparseScan, sparseProbeTargets } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { sql } from "kysely";
-import { getPrintSchemaBody } from "../index/print-schema.ts";
+import {
+	fetchHostedPrintSchema,
+	getPrintSchemaBody,
+} from "../index/print-schema.ts";
 import { getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
 import { hasNonReplayableWrites } from "../subgraphs/handler-replay-safety.ts";
+import {
+	findUnhostableSource,
+	hasNoLocalChain,
+} from "../subgraphs/hosted-source.ts";
 import { classifyOperationWeight } from "../subgraphs/operation-weight.ts";
 import { lintPrintFields } from "../subgraphs/print-lint.ts";
 import {
@@ -428,6 +435,27 @@ async function executeSubgraphDeploy(
 		);
 	}
 
+	// A stack with no local chain can only feed sources the hosted Index/Streams
+	// plane serves; anything else would sit at height 0 on an empty local tap.
+	const noLocalChain = await hasNoLocalChain();
+	if (noLocalChain) {
+		const unhostable = findUnhostableSource(def);
+		if (unhostable) {
+			return c.json(
+				{
+					error: `Source "${unhostable}" can't run on a hosted stack: only event, contract_call and contract_deploy sources are served.`,
+					code: "SOURCE_NOT_HOSTABLE",
+					source: unhostable,
+				},
+				422,
+			);
+		}
+	}
+	const printSchemaLookup = (contractId: string) =>
+		noLocalChain
+			? fetchHostedPrintSchema(contractId)
+			: getPrintSchemaBody({ contractId });
+
 	// Best-effort print-field lint: flag `.data.<field>` reads in pinned
 	// print_event handlers that were never observed on-chain for that
 	// contract/topic. Advisory only — lookup failures skip the lint entirely.
@@ -435,9 +463,7 @@ async function executeSubgraphDeploy(
 	let printFieldWarnings: string[] = [];
 	let printFieldErrors: string[] = [];
 	try {
-		const lint = await lintPrintFields(def, (contractId) =>
-			getPrintSchemaBody({ contractId }),
-		);
+		const lint = await lintPrintFields(def, printSchemaLookup);
 		printFieldWarnings = lint.warnings;
 		printFieldErrors = lint.errors;
 	} catch {
@@ -463,7 +489,7 @@ async function executeSubgraphDeploy(
 	const emptyProbe = await probeEmptyMapping({
 		def,
 		handlerPath,
-		schemaLookup: (contractId) => getPrintSchemaBody({ contractId }),
+		schemaLookup: printSchemaLookup,
 	});
 	if (!emptyProbe.ok && emptyProbe.code === "EMPTY_MAPPING") {
 		return c.json(

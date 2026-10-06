@@ -1,6 +1,10 @@
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import { ValidationError } from "@secondlayer/shared/errors";
 import {
+	defaultInternalIndexBaseUrl,
+	requireInternalIndexApiKey,
+} from "@secondlayer/shared/index-internal-auth";
+import {
 	type InferredTopicSchema,
 	type PrintSample,
 	inferPrintTopics,
@@ -280,4 +284,48 @@ export async function getPrintSchemaResponse(opts: {
 }): Promise<PrintSchemaResponse> {
 	const body = await getPrintSchemaBody(opts);
 	return { ...body, tip: opts.tip };
+}
+
+/**
+ * Print schema read over HTTP from the hosted Index API, for stacks with no
+ * local chain (a hosted tenant's decoded_events is empty). Same body shape as
+ * the local path; the response's `tip` is dropped, and results share the
+ * in-process cache. A missing contract (404) is an empty schema, like a local
+ * contract with no observed prints. Any other failure throws, which the
+ * deploy-time callers treat as "skip the check".
+ */
+export async function fetchHostedPrintSchema(
+	contractId: string,
+	opts: { fetchImpl?: typeof fetch; cache?: PrintSchemaCache } = {},
+): Promise<PrintSchemaBody> {
+	const cache = opts.cache ?? printSchemaCache;
+	const cached = cache.get(contractId);
+	if (cached) return cached;
+
+	const baseUrl = defaultInternalIndexBaseUrl().replace(/\/+$/, "");
+	const res = await (opts.fetchImpl ?? fetch)(
+		`${baseUrl}/v1/index/contracts/${encodeURIComponent(contractId)}/print-schema`,
+		{
+			headers: {
+				authorization: `Bearer ${requireInternalIndexApiKey()}`,
+				accept: "application/json",
+			},
+		},
+	);
+	if (res.status === 404) {
+		return {
+			contract_id: contractId,
+			topics: [],
+			sampled: false,
+			total_events: 0,
+			total_events_capped: false,
+			sample: { size: 0, newest_height: null, oldest_height: null },
+		};
+	}
+	if (!res.ok) {
+		throw new Error(`hosted print-schema read failed: ${res.status}`);
+	}
+	const { tip: _tip, ...body } = (await res.json()) as PrintSchemaResponse;
+	cache.set(contractId, body);
+	return body;
 }
