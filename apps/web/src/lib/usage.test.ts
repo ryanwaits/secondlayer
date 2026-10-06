@@ -83,12 +83,12 @@ describe("unitLabel", () => {
 			"Hosted webhooks, retries free",
 		]);
 		expect(unitLabel("memory.gb_hour")).toEqual([
-			"Delivery service memory",
-			"Hosted webhooks",
+			"Hosted stack memory",
+			"Webhooks and subgraphs",
 		]);
 		expect(unitLabel("storage.gb_day")).toEqual([
-			"Delivery service storage",
-			"Hosted webhooks",
+			"Hosted stack storage",
+			"Webhooks and subgraphs",
 		]);
 	});
 

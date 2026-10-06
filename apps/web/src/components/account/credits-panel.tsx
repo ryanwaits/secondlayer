@@ -68,10 +68,11 @@ function PricingNote() {
 			Every account gets{" "}
 			<strong>{formatRows(ROWS_ALLOWANCE)} rows free each month</strong>, live
 			or history. After that, <strong>$5 per 1M rows</strong>, then $2 per 1M
-			past $50 in a month. Webhooks: <strong>$10 per 1M events</strong> (retries
-			free), plus the delivery service's memory at $0.028 per GB-hour,{" "}
-			<strong>0.5 GB minimum</strong> (about $10/mo while it runs). Self-hosted
-			instances are never metered.
+			past $50 in a month. Block headers are free, and so are reads of your own
+			subgraph tables. Your hosted stack runs webhooks and subgraphs: memory at
+			$0.028 per GB-hour, <strong>0.5 GB minimum</strong> (about $10/mo while it
+			runs), plus storage. Webhook events are <strong>$10 per 1M</strong>{" "}
+			(retries free). Self-hosted instances are never metered.
 		</p>
 	);
 }

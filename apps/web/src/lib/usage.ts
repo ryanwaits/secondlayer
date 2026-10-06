@@ -25,7 +25,7 @@ export const ROWS_ALLOWANCE = 1_000_000;
 
 /** Mirrors `PRICES["memory.gb_hour"]` in
  *  `packages/platform/src/billing/prices.ts` (28,000µ$ = $0.028/GB-hour) —
- *  the delivery service card's cost-per-hour stat tile. */
+ *  the hosted stack card's cost-per-hour stat tile. */
 export const MEMORY_RATE_USD_PER_GB_HOUR = 0.028;
 
 /** Mirrors `MEMORY_FLOOR_GB` in `packages/workload/src/meters.ts`. */
@@ -39,8 +39,8 @@ const UNIT_LABEL: Record<string, [string, string]> = {
 	"archive.partition": ["Archive partitions", "Blocks and transactions"],
 	"archive.partition.events": ["Archive event partitions", "Events"],
 	"webhook.event": ["Webhook events", "Hosted webhooks, retries free"],
-	"memory.gb_hour": ["Delivery service memory", "Hosted webhooks"],
-	"storage.gb_day": ["Delivery service storage", "Hosted webhooks"],
+	"memory.gb_hour": ["Hosted stack memory", "Webhooks and subgraphs"],
+	"storage.gb_day": ["Hosted stack storage", "Webhooks and subgraphs"],
 };
 
 export function unitLabel(unit: string): [string, string] {
