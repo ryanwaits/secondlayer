@@ -166,7 +166,7 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 		imageSha: string | null,
 		template: string | null = templateSha(cfg(undefined)),
 	): Promise<string> {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
 		await setTenantState(db, accountId, "running");
 		if (imageSha) await setTenantImageSha(db, accountId, imageSha);

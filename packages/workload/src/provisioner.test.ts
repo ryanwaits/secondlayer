@@ -211,7 +211,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("up() writes root-only secrets and brings the stack up exactly once", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		const acct8 = acct8For(accountId);
 
 		const state = await up(cfg(), accountId);
@@ -245,7 +245,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("up() passes the target sha as WORKLOAD_IMAGE_TAG and records it on the row", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 
 		await up(cfg(), accountId);
 		expect(composeCalls[0]?.env.WORKLOAD_IMAGE_TAG).toBe(TARGET_SHA);
@@ -258,7 +258,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("up() refuses to provision a new tenant when no target has resolved, and leaves no row behind", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		targetSha = null;
 
 		await expect(up(cfg(), accountId)).rejects.toThrow(
@@ -270,7 +270,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("up() mints a DEDICATED tenant key — never forwards a customer's presented key (Design fix)", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 
 		await up(cfg(), accountId);
 		expect(mintCalls).toHaveLength(2);
@@ -293,7 +293,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("up() is idempotent: a second call on a running tenant never calls compose or mint again", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 
 		await up(cfg(), accountId);
 		expect(composeCalls).toHaveLength(1);
@@ -309,7 +309,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("up() surfaces a non-zero compose exit as a thrown error, and cleans up rather than stranding the row (review fix 5)", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		nextResult = { code: 1, stdout: "", stderr: "boom" };
 
 		await expect(up(cfg(), accountId)).rejects.toThrow(
@@ -335,7 +335,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("up() cleans up even when the compose-down cleanup itself fails (logs, doesn't throw over the original error)", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		let call = 0;
 		const cfgWithFlakyCleanup: ProvisionerConfig = {
 			...cfg(),
@@ -355,7 +355,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("recoverInterruptedProvisions tears down a provisioning row with compose down -v and deletes it", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		const acct8 = acct8For(accountId);
 		await insertProvisioningTenant(db, accountId, acct8);
 
@@ -372,8 +372,8 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("recoverInterruptedProvisions leaves running and stopped tenants alone", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const runningId = `test-${crypto.randomUUID()}`;
-		const stoppedId = `test-${crypto.randomUUID()}`;
+		const runningId = crypto.randomUUID();
+		const stoppedId = crypto.randomUUID();
 		await insertProvisioningTenant(db, runningId, acct8For(runningId));
 		await setTenantState(db, runningId, "running");
 		await insertProvisioningTenant(db, stoppedId, acct8For(stoppedId));
@@ -396,7 +396,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("recoverInterruptedProvisions with no resolved target skips compose but still deletes the row", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
 		targetSha = null;
 
@@ -408,7 +408,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("stop() transitions running → stopped and stops the app services, not postgres", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await up(cfg(), accountId);
 		composeCalls.length = 0;
 
@@ -438,7 +438,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("up() on a stopped tenant restarts it instead of re-provisioning (no second mint)", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await up(cfg(), accountId);
 		await stop(cfg(), accountId);
 		composeCalls.length = 0;
@@ -462,7 +462,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		accountId: string;
 		envPath: string;
 	}> {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		const acct8 = acct8For(accountId);
 		await insertProvisioningTenant(db, accountId, acct8);
 		await setTenantState(db, accountId, "running");
@@ -535,7 +535,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("ensureTenantEnv on a tenant with no env file logs and returns instead of throwing", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
 
 		await expect(ensureTenantEnv(cfg(), accountId)).resolves.toBeUndefined();
@@ -583,7 +583,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("start() undoes stop()", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await up(cfg(), accountId);
 		await stop(cfg(), accountId);
 
@@ -596,7 +596,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("start() always uses the CURRENT target, not whatever the tenant last ran (stopped tenants upgrade lazily)", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await up(cfg(), accountId); // provisions on TARGET_SHA
 		await stop(cfg(), accountId);
 		targetSha = OTHER_SHA; // a deploy landed while it was stopped
@@ -613,7 +613,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("start() refuses when no target has resolved", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await up(cfg(), accountId);
 		await stop(cfg(), accountId);
 		composeCalls.length = 0;
@@ -632,7 +632,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 
 	test("destroy() removes the control-db row after a successful compose down -v", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await up(cfg(), accountId);
 
 		await destroy(cfg(), accountId);
@@ -681,7 +681,7 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 	});
 
 	test("running & zero balance → stopped", async () => {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await up(cfg({}), accountId);
 		composeCalls.length = 0;
 
@@ -695,7 +695,7 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 	});
 
 	test("stopped & topped up → running", async () => {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await up(cfg({}), accountId);
 		await stop(cfg({}), accountId);
 		composeCalls.length = 0;
@@ -710,7 +710,7 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 	});
 
 	test("running & funded stays running (no compose call)", async () => {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await up(cfg({}), accountId);
 		composeCalls.length = 0;
 
@@ -724,7 +724,7 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 	});
 
 	test("provisioning tenants are excluded from the poll", async () => {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
 
 		await pollCredits(cfg({ [accountId]: false }));
@@ -737,8 +737,8 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 	});
 
 	test("one tenant's transition failure doesn't stop the rest of the batch", async () => {
-		const good = `test-${crypto.randomUUID()}`;
-		const bad = `test-${crypto.randomUUID()}`;
+		const good = crypto.randomUUID();
+		const bad = crypto.randomUUID();
 		await up(cfg({}), good);
 		await up(cfg({}), bad);
 		composeCalls.length = 0;

@@ -44,7 +44,7 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 	});
 
 	test("insertProvisioningTenant is idempotent under a concurrent race", async () => {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		const acct8 = acct8For(accountId);
 		const [first, second] = await Promise.all([
 			insertProvisioningTenant(db, accountId, acct8),
@@ -63,8 +63,8 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 	});
 
 	test("two different accounts never get the same api_port", async () => {
-		const a = `test-${crypto.randomUUID()}`;
-		const b = `test-${crypto.randomUUID()}`;
+		const a = crypto.randomUUID();
+		const b = crypto.randomUUID();
 		const resultA = await insertProvisioningTenant(db, a, acct8For(a));
 		const resultB = await insertProvisioningTenant(db, b, acct8For(b));
 		expect(resultA.apiPort).not.toBe(resultB.apiPort);
@@ -73,8 +73,8 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 	});
 
 	test("subnet_idx is allocated once per account, shared by racing inserts, and never repeated across accounts", async () => {
-		const a = `test-${crypto.randomUUID()}`;
-		const b = `test-${crypto.randomUUID()}`;
+		const a = crypto.randomUUID();
+		const b = crypto.randomUUID();
 		const [first, second] = await Promise.all([
 			insertProvisioningTenant(db, a, acct8For(a)),
 			insertProvisioningTenant(db, a, acct8For(a)),
@@ -86,7 +86,7 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 
 		// Never reused: a destroyed tenant's index isn't handed to the next one.
 		await deleteTenant(db, a);
-		const c = `test-${crypto.randomUUID()}`;
+		const c = crypto.randomUUID();
 		const next = await insertProvisioningTenant(db, c, acct8For(c));
 		expect(next.subnetIdx).toBeGreaterThan(other.subnetIdx);
 		await deleteTenant(db, b);
@@ -94,7 +94,7 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 	});
 
 	test("setTenantState('stopped') stamps stopped_at; leaving it clears it", async () => {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
 		await setTenantState(db, accountId, "running");
 
@@ -116,14 +116,14 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 	});
 
 	test("deleteTenant removes the row; getTenant returns undefined after", async () => {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
 		await deleteTenant(db, accountId);
 		expect(await getTenant(db, accountId)).toBeUndefined();
 	});
 
 	test("listTenants includes every inserted row", async () => {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
 		const rows = await listTenants(db);
 		expect(rows.some((r) => r.account_id === accountId)).toBe(true);
@@ -131,7 +131,7 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 	});
 
 	test("listPollableTenants includes running/stopped, excludes provisioning", async () => {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
 
 		let pollable = await listPollableTenants(db);
@@ -169,7 +169,7 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 	});
 
 	test("a freshly inserted row has a null image_sha until setTenantImageSha records one", async () => {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
 
 		let row = await getTenant(db, accountId);
@@ -184,7 +184,7 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 	});
 
 	test("listProvisioningTenants returns only provisioning rows", async () => {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
 		expect(
 			(await listProvisioningTenants(db)).some(
@@ -203,7 +203,7 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 	});
 
 	test("listRunningTenants excludes stopped and provisioning", async () => {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
 		expect(
 			(await listRunningTenants(db)).some((r) => r.account_id === accountId),

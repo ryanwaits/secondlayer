@@ -76,7 +76,7 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 	}
 
 	async function seedTenant(): Promise<string> {
-		const accountId = `test-${crypto.randomUUID()}`;
+		const accountId = crypto.randomUUID();
 		const acct8 = acct8For(accountId);
 		await insertProvisioningTenant(db, accountId, acct8);
 		await setTenantState(db, accountId, "running");
