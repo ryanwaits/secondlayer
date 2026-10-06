@@ -13,12 +13,6 @@ mock.module("@/components/home/cta-pill", () => ({
 	),
 }));
 
-// Server component with async shiki blocks; the smoke test pins the shell
-// around it, not its highlighting.
-mock.module("@/components/home/agent-quickstart", () => ({
-	AgentQuickstart: () => <section className="home-qs" />,
-}));
-
 mock.module("@/components/notation", () => ({
 	Notation: ({ children }: { children: React.ReactNode }) => (
 		<span>{children}</span>
@@ -40,7 +34,7 @@ describe("www marketing routes", () => {
 		expect(html).toContain('class="home-hero"');
 		expect(html).toContain("<h1>");
 		expect(html).toContain('class="home-sub"');
-		expect(html).toContain('class="home-qs"');
+		expect(html).not.toContain("home-qs");
 		expect(html).toContain('href="/docs/self-host"');
 	});
 

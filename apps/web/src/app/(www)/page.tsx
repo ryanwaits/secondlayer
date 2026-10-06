@@ -1,4 +1,3 @@
-import { AgentQuickstart } from "@/components/home/agent-quickstart";
 import { CtaPill } from "@/components/home/cta-pill";
 import { Notation } from "@/components/notation";
 import { socialMeta } from "@/lib/og";
@@ -433,8 +432,6 @@ export function HomeView() {
 					</div>
 				</div>
 			</section>
-
-			<AgentQuickstart />
 
 			<section className="home-sec home-panel home-close">
 				<div className="home-shell">
