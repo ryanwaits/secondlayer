@@ -206,6 +206,8 @@ export interface ProcessBlockTiming {
 export interface ProcessBlockResult {
 	blockHeight: number;
 	matched: number;
+	/** Matched events a handler was actually offered (post topic filter). */
+	delivered: number;
 	processed: number;
 	errors: number;
 	skipped: boolean;
@@ -369,6 +371,7 @@ export async function processBlock(
 	const result: ProcessBlockResult = {
 		blockHeight,
 		matched: 0,
+		delivered: 0,
 		processed: 0,
 		errors: 0,
 		skipped: false,
@@ -615,6 +618,7 @@ export async function processBlock(
 			const runResult = await runHandlers(subgraph, matched, ctx);
 			handlerMs = performance.now() - handlerStart;
 
+			result.delivered = runResult.delivered;
 			result.processed = runResult.processed;
 			result.errors = runResult.errors;
 

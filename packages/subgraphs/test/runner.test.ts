@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { Cl, serializeCV } from "@secondlayer/stacks/clarity";
 import { runHandlers } from "../src/runtime/runner.ts";
 import type { MatchedTx } from "../src/runtime/source-matcher.ts";
 import type { SubgraphDefinition, SubgraphFilter } from "../src/types.ts";
@@ -399,5 +400,48 @@ describe("runHandlers", () => {
 		expect(seenFunctionName).not.toBeNull();
 		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		expect(seenFunctionName!).toBe("transfer");
+	});
+});
+
+describe("runHandlers delivered count", () => {
+	const printMatch = (topic: string): MatchedTx => ({
+		tx: {
+			tx_id: "0xtx",
+			type: "contract_call",
+			sender: "SP1",
+			status: "success",
+			contract_id: "SP.c",
+			function_name: "f",
+		},
+		events: [
+			{
+				id: "e1",
+				tx_id: "0xtx",
+				type: "contract_event",
+				event_index: 0,
+				data: {
+					topic: "print",
+					contract_identifier: "SP.c",
+					raw_value: `0x${serializeCV(Cl.tuple({ topic: Cl.stringAscii(topic) }))}`,
+				},
+			},
+		],
+		sourceName: "probe",
+	});
+	const sg = makeSg(
+		{ probe: () => {} },
+		{ probe: { type: "print_event", contractId: "SP.c", topic: "wanted" } },
+	);
+
+	test("a topic-filtered event matches but is not delivered", async () => {
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing
+		const r = await runHandlers(sg, [printMatch("other")], mockCtx() as any);
+		expect(r).toMatchObject({ delivered: 0, processed: 0, errors: 0 });
+	});
+
+	test("an event with the declared topic is delivered", async () => {
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing
+		const r = await runHandlers(sg, [printMatch("wanted")], mockCtx() as any);
+		expect(r).toMatchObject({ delivered: 1, processed: 1 });
 	});
 });

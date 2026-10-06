@@ -23,6 +23,11 @@ const DEFAULT_ERROR_THRESHOLD = 50;
 export interface RunResult {
 	processed: number;
 	errors: number;
+	/** Events that survived the post-decode topic filter, i.e. what a handler
+	 *  was actually offered (whether it then ran, errored, or failed `prints`).
+	 *  The matcher cannot see topics (payload is raw hex there), so its match
+	 *  count over-reports for a topic-filtered source. */
+	delivered: number;
 	/** Print events skipped because their decoded payload did not match the
 	 *  source's declared `prints` schema. Never an error: skipping keeps the
 	 *  block committable, which the checkpoint model requires. */
@@ -426,6 +431,7 @@ export async function runHandlers(
 	let processed = 0;
 	let errors = 0;
 	let skipped = 0;
+	let delivered = 0;
 	const threshold = opts?.errorThreshold ?? DEFAULT_ERROR_THRESHOLD;
 
 	// Build filter lookup from sources (supports both array and named object)
@@ -477,7 +483,12 @@ export async function runHandlers(
 					threshold,
 				},
 			);
-			return { processed, errors, ...(skipped > 0 ? { skipped } : {}) };
+			return {
+				processed,
+				errors,
+				delivered,
+				...(skipped > 0 ? { skipped } : {}),
+			};
 		}
 
 		const filter = filterLookup.get(sourceName);
@@ -550,6 +561,7 @@ export async function runHandlers(
 			) {
 				continue;
 			}
+			delivered++;
 
 			// Declared `prints` is the developer's stated payload shape, so a
 			// mismatch is a real defect (a contract upgrade, or a declaration
@@ -606,5 +618,5 @@ export async function runHandlers(
 		}
 	}
 
-	return { processed, errors, ...(skipped > 0 ? { skipped } : {}) };
+	return { processed, errors, delivered, ...(skipped > 0 ? { skipped } : {}) };
 }

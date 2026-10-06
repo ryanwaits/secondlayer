@@ -250,7 +250,7 @@ services:
     <<: *hardening
     image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:?set WORKLOAD_IMAGE_TAG to a deployed main sha}
     platform: linux/amd64
-    command: ["bun", "run", "packages/subgraphs/src/service.ts"]
+    command: ["bun", "--smol", "run", "packages/subgraphs/src/service.ts"]
     environment:
       INSTANCE_MODE: oss
       DATABASE_URL: postgres://secondlayer:${POSTGRES_PASSWORD:?tenant secret required}@postgres:5432/secondlayer

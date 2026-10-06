@@ -17,7 +17,7 @@ import { logger } from "@secondlayer/shared/logger";
 import { generateSubgraphSQL } from "../schema/generator.ts";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition } from "../types.ts";
-import { avgEventsPerBlock } from "./batch-loader.ts";
+import { type BlockData, avgEventsPerBlock } from "./batch-loader.ts";
 import {
 	type ProcessBlockResult,
 	processBlockWithRetry,
@@ -151,6 +151,14 @@ export interface ReindexOptions {
 	signal?: AbortSignal;
 }
 
+/** True when any block in the batch carries an event (either clock). */
+function batchHasEvents(batch: Map<number, BlockData>): boolean {
+	for (const data of batch.values()) {
+		if (data.events.length > 0 || (data.vmEvents?.length ?? 0) > 0) return true;
+	}
+	return false;
+}
+
 /**
  * Shared block range processor used by both reindex and backfill.
  * Processes blocks in batches with prefetch pipeline.
@@ -198,6 +206,7 @@ async function processBlockRange(
 	let currentHeight = fromBlock;
 	let aborted = false;
 	let consecutiveEmptyBatches = 0;
+	let lastBatchDelivered = 0;
 	// Sparse scan: when a whole batch matches nothing, ask the source for the
 	// next height that could match and leap there — token-scoped genesis
 	// reindexes skip the (often vast) majority of chain history.
@@ -239,8 +248,21 @@ async function processBlockRange(
 	// Pipeline: start loading first batch and track the prefetched range.
 	// batchEnd must match what was actually loaded — not recalculated from a
 	// potentially resized batchSize (adaptive sizing can change it between iterations).
-	let nextBatchEnd = Math.min(currentHeight + batchSize - 1, toBlock);
-	let nextBatchPromise = source.loadBlockRange(currentHeight, nextBatchEnd);
+	type InFlightBatch = {
+		end: number;
+		promise: Promise<Map<number, BlockData>>;
+	};
+	const startBatch = (from: number): InFlightBatch => {
+		const end = Math.min(from + batchSize - 1, toBlock);
+		const promise = source.loadBlockRange(from, end);
+		// A load we later drop (sparse skip, abort, a throw mid-batch) must not
+		// surface as an unhandled rejection. Awaiting `promise` still rethrows.
+		// IndexHttpClient takes no AbortSignal, so a dropped request runs to
+		// completion; dropping the reference lets its rows be collected after.
+		promise.catch(() => {});
+		return { end, promise };
+	};
+	let inFlight: InFlightBatch | null = startBatch(currentHeight);
 
 	while (currentHeight <= toBlock) {
 		// Check for abort at batch boundary
@@ -254,8 +276,11 @@ async function processBlockRange(
 			break;
 		}
 
-		const batch = await nextBatchPromise;
-		const batchEnd = nextBatchEnd;
+		// biome-ignore lint/style/noNonNullAssertion: set before the loop and re-armed at every iteration's end
+		const loading = inFlight!;
+		inFlight = null;
+		const batch = await loading.promise;
+		const batchEnd = loading.end;
 
 		// Source-health guard (fix-f040 B7): the source seeds every canonical
 		// height in range (including empty blocks), so consecutive fully-empty
@@ -275,15 +300,19 @@ async function processBlockRange(
 			consecutiveEmptyBatches = 0;
 		}
 
-		// Prefetch next batch (uses current batchSize, which may have been adapted)
+		// Prefetch the next batch (uses current batchSize, which may have been
+		// adapted). A sparse subgraph prefetches only while batches are actually
+		// delivering to handlers: during a quiet stretch the batch after this one
+		// is usually skipped, so prefetching it would fetch, bill, and drop it.
 		const nextStart = batchEnd + 1;
-		if (nextStart <= toBlock) {
-			nextBatchEnd = Math.min(nextStart + batchSize - 1, toBlock);
-			nextBatchPromise = source.loadBlockRange(nextStart, nextBatchEnd);
+		const prefetch =
+			!sparse || (lastBatchDelivered > 0 && batchHasEvents(batch));
+		if (nextStart <= toBlock && prefetch) {
+			inFlight = startBatch(nextStart);
 		}
 
 		const batchFailedBlocks: { height: number; reason: string }[] = [];
-		let batchMatched = 0;
+		let batchDelivered = 0;
 		// Reindex is a strictly ascending walk over the subgraph's own cursor, so
 		// written blocks checkpoint atomically and replays skip (fix-f040 B3).
 		// Backfill revisits heights below the live cursor — must stay batched.
@@ -380,7 +409,7 @@ async function processBlockRange(
 
 			blocksProcessed++;
 			if (result.skipped) blocksSkippedByCursor++;
-			batchMatched += result.matched;
+			batchDelivered += result.delivered;
 			totalEventsProcessed += result.processed;
 			totalErrors += result.errors;
 			pendingEventsProcessed += result.processed;
@@ -459,12 +488,16 @@ async function processBlockRange(
 			);
 		}
 
-		// Sparse skip: nothing in this batch could match → probe for the next
-		// height that can, and jump the cursor there. The in-flight prefetch is
-		// discarded (one wasted fetch buys skipping arbitrarily many).
+		lastBatchDelivered = batchDelivered;
+
+		// Sparse skip: no event in this batch reached a handler → probe for the
+		// next height that can match, and jump the cursor there. Counting handler
+		// deliveries (not raw matcher hits) is what lets a topic-filtered
+		// subgraph skip past a contract that prints other topics. Any in-flight
+		// prefetch is dropped (one wasted fetch buys skipping arbitrarily many).
 		if (
 			sparse &&
-			batchMatched === 0 &&
+			batchDelivered === 0 &&
 			batchEnd < toBlock &&
 			source.nextDataHeight
 		) {
@@ -494,10 +527,7 @@ async function processBlockRange(
 					skipped,
 				});
 				currentHeight = jumpTo;
-				if (currentHeight <= toBlock) {
-					nextBatchEnd = Math.min(currentHeight + batchSize - 1, toBlock);
-					nextBatchPromise = source.loadBlockRange(currentHeight, nextBatchEnd);
-				}
+				inFlight = currentHeight <= toBlock ? startBatch(currentHeight) : null;
 				continue;
 			}
 		}
@@ -516,6 +546,10 @@ async function processBlockRange(
 			);
 
 		currentHeight = batchEnd + 1;
+		// Nothing prefetched (a quiet sparse stretch the probe declined to skip).
+		if (!inFlight && currentHeight <= toBlock) {
+			inFlight = startBatch(currentHeight);
+		}
 	}
 
 	await stats.flush(targetDb);
