@@ -76,3 +76,163 @@ describe("PublicApiBlockSource.nextDataHeight", () => {
 		expect(await s.nextDataHeight(100, 10000)).toBeNull();
 	});
 });
+
+describe("scope: probe targets and event walks share one helper", () => {
+	test("wildcard, trait and factory filters stay unscoped", () => {
+		for (const filter of [
+			{ type: "print_event", contractId: "SP1.pool-*" },
+			{ type: "print_event", contractId: ["SP1.a", "SP1.*"] },
+			{ type: "print_event", trait: "sip-010" },
+			{
+				type: "print_event",
+				factory: { from: "created", field: "data.pool" },
+			},
+			{ type: "ft_transfer", assetIdentifier: "*::tok" },
+		]) {
+			expect(sparseProbeTargets(def({ a: filter }))).toEqual([
+				{ eventType: filter.type === "ft_transfer" ? "ft_transfer" : "print" },
+			]);
+		}
+	});
+
+	test("a contract array fans out to one target per contract", () => {
+		expect(
+			sparseProbeTargets(
+				def({ a: { type: "print_event", contractId: ["SP1.a", "SP1.b"] } }),
+			),
+		).toEqual([
+			{ eventType: "print", contractId: "SP1.a" },
+			{ eventType: "print", contractId: "SP1.b" },
+		]);
+	});
+
+	test("one unscoped filter collapses its type to a single unscoped target", () => {
+		expect(
+			sparseProbeTargets(
+				def({
+					a: { type: "print_event", contractId: "SP1.a" },
+					b: { type: "print_event" },
+					c: { type: "print_event", contractId: "SP1.c" },
+				}),
+			),
+		).toEqual([{ eventType: "print" }]);
+	});
+});
+
+describe("PublicApiBlockSource.loadBlockRange walks", () => {
+	const block = (h: number) => ({
+		block_height: h,
+		block_hash: `0xh${h}`,
+		parent_hash: `0xh${h - 1}`,
+		burn_block_height: h,
+		burn_block_hash: null,
+		block_time: "2026-01-01T00:00:00.000Z",
+	});
+	const print = (h: number, idx: number, contract: string) => ({
+		event_type: "print",
+		block_height: h,
+		tx_id: `0xt${h}`,
+		tx_index: 0,
+		event_index: idx,
+		contract_id: contract,
+		tx_sender: "SP1.s",
+		tx_type: "contract_call",
+		tx_status: "success",
+		tx_contract_id: contract,
+		tx_function_name: "f",
+		payload: { topic: "print", value: null, raw_value: "0x00" },
+	});
+
+	function recorder(rows: ReturnType<typeof print>[]) {
+		const calls: { type: string; contractId?: string }[] = [];
+		const http = {
+			walkBlocks: async () => [block(1), block(2)],
+			walkTransactions: async () => [],
+			walkEvents: async (
+				type: string,
+				_from: number,
+				_to: number,
+				_withTx: boolean,
+				contractId?: string,
+			) => {
+				calls.push({ type, contractId });
+				return rows.filter((r) => !contractId || r.contract_id === contractId);
+			},
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+		} as any;
+		return { http, calls };
+	}
+
+	test("scoped filters walk per contract and never unscoped", async () => {
+		const { http, calls } = recorder([
+			print(1, 0, "SP1.a"),
+			print(2, 0, "SP1.b"),
+			print(2, 1, "SP1.other"),
+		]);
+		const src = new PublicApiBlockSource(
+			http,
+			["print"],
+			[
+				{ eventType: "print", contractId: "SP1.a" },
+				{ eventType: "print", contractId: "SP1.b" },
+			],
+			false,
+		);
+		const map = await src.loadBlockRange(1, 2);
+		expect(calls).toEqual([
+			{ type: "print", contractId: "SP1.a" },
+			{ type: "print", contractId: "SP1.b" },
+		]);
+		expect(map.get(1)?.events).toHaveLength(1);
+		expect(map.get(2)?.events).toHaveLength(1);
+	});
+
+	test("mixed scoped and unscoped for one type walks unscoped once", async () => {
+		const { http, calls } = recorder([print(1, 0, "SP1.a")]);
+		const src = new PublicApiBlockSource(
+			http,
+			["print"],
+			sparseProbeTargets(
+				def({
+					a: { type: "print_event", contractId: "SP1.a" },
+					b: { type: "print_event" },
+				}),
+			),
+			false,
+		);
+		await src.loadBlockRange(1, 2);
+		expect(calls).toEqual([{ type: "print", contractId: undefined }]);
+	});
+
+	test("tx-level sources keep unscoped walks for complete tx event sets", async () => {
+		const { http, calls } = recorder([]);
+		const src = new PublicApiBlockSource(
+			http,
+			["print"],
+			[{ eventType: "print", contractId: "SP1.a" }],
+			true,
+		);
+		await src.loadBlockRange(1, 2);
+		expect(calls).toEqual([{ type: "print", contractId: undefined }]);
+	});
+
+	test("rows returned by overlapping walks are deduped", async () => {
+		const row = print(1, 0, "SP1.a");
+		const http = {
+			walkBlocks: async () => [block(1)],
+			walkTransactions: async () => [],
+			walkEvents: async () => [row],
+			// biome-ignore lint/suspicious/noExplicitAny: test stub
+		} as any;
+		const src = new PublicApiBlockSource(
+			http,
+			["print"],
+			[
+				{ eventType: "print", contractId: "SP1.a" },
+				{ eventType: "print", contractId: "SP1.b" },
+			],
+			false,
+		);
+		expect((await src.loadBlockRange(1, 1)).get(1)?.events).toHaveLength(1);
+	});
+});

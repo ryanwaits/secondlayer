@@ -73,22 +73,70 @@ export function canSparseScan(subgraph: SubgraphDefinition): boolean {
 	return filters.every((f) => Boolean(EVENT_FILTER_TO_INDEX_TYPE[f.type]));
 }
 
-/** Probe targets for a subgraph's filters: decoded type + contract scope when
- *  the filter pins one (assetIdentifier "SP….contract::asset" or contractId). */
+/** Most contracts one filter may pin before it is treated as unscoped (the
+ *  Index list-filter ceiling; beyond it a per-contract walk fan-out costs more
+ *  than it saves). */
+const MAX_PINNED_CONTRACTS = 20;
+
+/**
+ * Concrete contract ids a filter pins, or null when it pins none the Index can
+ * be asked for. Wildcards, trait scope and factory scope resolve per block
+ * against registry state the Index cannot see, so they stay unscoped: scoping
+ * them would change which events a handler receives.
+ */
+function pinnedContracts(filter: SubgraphFilter): string[] | null {
+	const f = filter as {
+		contractId?: string | readonly string[];
+		assetIdentifier?: string;
+		trait?: unknown;
+		factory?: unknown;
+	};
+	if (f.trait || f.factory) return null;
+	const ids = Array.isArray(f.contractId)
+		? [...f.contractId]
+		: f.contractId
+			? [f.contractId as string]
+			: f.assetIdentifier
+				? [f.assetIdentifier.split("::")[0] as string]
+				: [];
+	if (ids.length === 0 || ids.length > MAX_PINNED_CONTRACTS) return null;
+	if (ids.some((id) => !id || id.includes("*"))) return null;
+	return ids;
+}
+
+/**
+ * The (decoded event type, contract scope) pairs a subgraph's filters can
+ * match. One function feeds BOTH the sparse probe and the event walks, so a
+ * new contract-pinning filter field is added here once.
+ *
+ * Per event type: if ANY filter for it is unscoped, a single unscoped target
+ * covers everything (today's behavior); otherwise one target per distinct
+ * pinned contract.
+ */
 export function sparseProbeTargets(
 	subgraph: SubgraphDefinition,
 ): SparseProbeTarget[] {
-	const targets = new Map<string, SparseProbeTarget>();
+	const byType = new Map<string, Set<string> | "all">();
 	for (const f of sourceFilters(subgraph)) {
 		const eventType = EVENT_FILTER_TO_INDEX_TYPE[f.type];
 		if (!eventType) continue;
-		const scoped = f as { assetIdentifier?: string; contractId?: string };
-		const contractId =
-			scoped.contractId ?? scoped.assetIdentifier?.split("::")[0];
-		const key = `${eventType}|${contractId ?? ""}`;
-		targets.set(key, { eventType, ...(contractId ? { contractId } : {}) });
+		const pinned = pinnedContracts(f);
+		const prev = byType.get(eventType);
+		if (!pinned || prev === "all") {
+			byType.set(eventType, "all");
+			continue;
+		}
+		const set = prev ?? new Set<string>();
+		for (const id of pinned) set.add(id);
+		byType.set(eventType, set);
 	}
-	return [...targets.values()];
+	const targets: SparseProbeTarget[] = [];
+	for (const [eventType, scope] of byType) {
+		if (scope === "all") targets.push({ eventType });
+		else
+			for (const contractId of scope) targets.push({ eventType, contractId });
+	}
+	return targets;
 }
 
 /** Reads directly from the shared indexer Postgres (the original behavior). */
@@ -224,6 +272,17 @@ export function isStreamsIndexEligible(subgraph: SubgraphDefinition): boolean {
 	return true;
 }
 
+/** Merge of overlapping walks: one row per (type, height, event_index). */
+function dedupeEvents(rows: IndexEventRow[]): IndexEventRow[] {
+	const seen = new Set<string>();
+	return rows.filter((e) => {
+		const key = `${e.event_type}|${e.block_height}|${e.event_index}`;
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+}
+
 /** Streams clock + Index data plane, reconstructed into raw BlockData rows. */
 export class PublicApiBlockSource implements BlockSource {
 	constructor(
@@ -235,6 +294,19 @@ export class PublicApiBlockSource implements BlockSource {
 		 *  tx from joined event context. Defaults true (safe / unchanged). */
 		private readonly needsTransactions = true,
 	) {}
+
+	/**
+	 * What the event walks fetch. Event-only subgraphs walk exactly what their
+	 * filters can match (contract-scoped where a filter pins one); tx-level
+	 * sources need every event of a matched tx, so they walk each type whole.
+	 */
+	private walkTargets(): SparseProbeTarget[] {
+		const scoped = this.needsTransactions ? undefined : this.probeTargets;
+		return this.eventTypes.flatMap((eventType) => {
+			const own = scoped?.filter((t) => t.eventType === eventType);
+			return own?.length ? own : [{ eventType }];
+		});
+	}
 
 	/** Lowest height in (after, until] any probe target hits, or null. */
 	async nextDataHeight(
@@ -289,11 +361,18 @@ export class PublicApiBlockSource implements BlockSource {
 				? this.http.walkTransactions(fromHeight, toHeight)
 				: Promise.resolve<IndexTransactionRow[]>([]),
 			Promise.all(
-				this.eventTypes.map((t) =>
-					this.http.walkEvents(t, fromHeight, toHeight, withTx),
+				this.walkTargets().map((t) =>
+					this.http.walkEvents(
+						t.eventType,
+						fromHeight,
+						toHeight,
+						withTx,
+						t.contractId,
+					),
 				),
 			),
 		]);
+		const events = dedupeEvents(eventLists.flat());
 
 		const map = new Map<number, BlockData>();
 		// Seed every canonical height (incl. empty blocks) so catch-up doesn't
@@ -309,22 +388,20 @@ export class PublicApiBlockSource implements BlockSource {
 		// joined event context instead of every transaction in the range.
 		const txs = this.needsTransactions
 			? txRows.map(reconstructTransaction)
-			: synthesizeTxsFromEvents(eventLists.flat());
+			: synthesizeTxsFromEvents(events);
 		for (const t of txs) {
 			map.get(t.block_height)?.txs.push(t);
 		}
-		for (const list of eventLists) {
-			for (const e of list) {
-				const bd = map.get(e.block_height);
-				if (!bd) continue;
-				// vm rows ride their own clock: never merged into `events`, whose
-				// order is classic event_index.
-				if (VM_INDEX_EVENT_TYPES.has(e.event_type)) {
-					bd.vmEvents ??= [];
-					bd.vmEvents.push(reconstructEvent(e));
-				} else {
-					bd.events.push(reconstructEvent(e));
-				}
+		for (const e of events) {
+			const bd = map.get(e.block_height);
+			if (!bd) continue;
+			// vm rows ride their own clock: never merged into `events`, whose
+			// order is classic event_index.
+			if (VM_INDEX_EVENT_TYPES.has(e.event_type)) {
+				bd.vmEvents ??= [];
+				bd.vmEvents.push(reconstructEvent(e));
+			} else {
+				bd.events.push(reconstructEvent(e));
 			}
 		}
 		// Canonical ordering — multi-type event walks merge here, per clock.

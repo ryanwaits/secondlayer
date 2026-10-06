@@ -382,6 +382,9 @@ export class IndexHttpClient {
 		/** Join the submitting tx so each row carries `tx_*` — lets an event-only
 		 *  subgraph skip walkTransactions and build `ctx.tx` from the event. */
 		withTx = false,
+		/** Scope the walk to one contract (what a filter pins), so the Index
+		 *  returns, and meters, only that contract's rows. */
+		contractId?: string,
 	): Promise<IndexEventRow[]> {
 		return this.walk<"events", IndexEventRow>(
 			"/v1/index/events",
@@ -391,6 +394,7 @@ export class IndexHttpClient {
 			{
 				event_type: eventType,
 				...(withTx ? { tx_context: "true" } : {}),
+				...(contractId ? { contract_id: contractId } : {}),
 			},
 		);
 	}

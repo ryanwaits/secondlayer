@@ -318,3 +318,26 @@ describe("IndexHttpClient chain=bitcoin (plan 060)", () => {
 		expect(new URL(lastUrl).searchParams.get("chain")).toBeNull();
 	});
 });
+
+describe("IndexHttpClient.walkEvents scope", () => {
+	function captureUrls(): URL[] {
+		const urls: URL[] = [];
+		globalThis.fetch = (async (input: string | URL | Request) => {
+			urls.push(new URL(String(input)));
+			return new Response(JSON.stringify({ events: [], next_cursor: null }), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			});
+		}) as unknown as typeof fetch;
+		return urls;
+	}
+
+	test("sends contract_id when scoped, omits it otherwise", async () => {
+		const urls = captureUrls();
+		await client().walkEvents("print", 1, 10, true, "SP1.pox-5");
+		await client().walkEvents("print", 1, 10);
+		expect(urls[0]?.searchParams.get("contract_id")).toBe("SP1.pox-5");
+		expect(urls[0]?.searchParams.get("tx_context")).toBe("true");
+		expect(urls[1]?.searchParams.has("contract_id")).toBe(false);
+	});
+});
