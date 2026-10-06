@@ -11,8 +11,8 @@ with Stacks: run it beside your node, bootstrap verified history, query
 decoded data, deploy TypeScript subgraphs. We operate a signed canonical
 archive on R2 and a hosted API at api.secondlayer.tools for Index, Streams,
 and chain webhooks — one self-host stack per hosted account, gatewayed
-(044). Subgraphs (and subgraph webhooks) run on self-host only until 046.
-Prepaid credits buy archive bootstrap/backfill and hosted reads. Same
+(044). Private subgraphs run there too, in the same per-account stack (no
+public catalog). Subgraph webhooks stay self-host only. Prepaid credits buy archive bootstrap/backfill and hosted reads. Same
 balance. Bitcoin Runes and
 inscriptions are next, gated on demand (see **Bitcoin**).
 
@@ -146,10 +146,12 @@ grow; pox-4 is off in hosted). Archive stays raw-only; decoded data is always
 re-derivable from it.
 
 **Subgraphs** — your schema. `defineSubgraph()` in one TypeScript file →
-deploy → Postgres tables behind the same `/v1` read API. Self-host only.
-Hosted subgraphs are not offered: the accountless hosted path ran
-anonymous handler code beside prod credentials and was removed
-2026-09-23. We do not host a public Explore catalog either.
+deploy → Postgres tables behind the same `/v1` read API. Self-host, or
+hosted and private: one isolated stack per account, handler code in a gVisor
+sandbox with no network beyond our API and the public internet. The
+accountless hosted path ran anonymous handler code beside prod credentials
+and was removed 2026-09-23; hosted subgraphs return per account, on an
+isolated stack. No public Explore catalog, no fork, no marketplace.
 
 **Streams** — the raw signed event firehose + parquet dumps. The inputs, not our
 decoding: cursor-paginated REST, SSE tail, signed manifests, replay from any

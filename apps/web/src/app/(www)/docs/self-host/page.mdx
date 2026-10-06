@@ -186,6 +186,10 @@ secondlayer subgraphs deploy ./my-subgraph.ts
 
 `subgraphs deploy` is a write, so it sends `INSTANCE_TOKEN` even here on loopback. Keep `POSTGRES_PORT` / `INDEXER_PORT` on loopback. Consumers running elsewhere: [Deploy](/docs/deploy).
 
+## Running other teams' subgraphs
+
+A subgraph handler is code you deploy into the instance, so it runs with the instance's trust. That is fine for your own subgraphs. To run another team's on one box, give each team its own stack instead of sharing one: its own Postgres, its own network, and its `api` and `subgraph-processor` containers under gVisor (`runtime: runsc`) as a non-root user, with a read-only root filesystem and bounded memory, CPU and process count. [`docker/workload/tenant.compose.yml`](https://github.com/ryanwaits/secondlayer/blob/main/docker/workload/tenant.compose.yml) is the working shape. gVisor can't reach Docker's embedded DNS, so give each stack a static address for Postgres and a plain `resolv.conf`; the file explains both.
+
 ## Not in the box
 
 - Multi-tenant catalog

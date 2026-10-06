@@ -2,6 +2,29 @@
 
 One TypeScript file, and you get a table plus a REST API over it. You don't pick the API shape; if you need your own, use [Index](/docs/index).
 
+## Hosted vs self-host
+
+Subgraphs run on your own instance, or hosted at `api.secondlayer.tools`. Hosted subgraphs are private: one stack per account, with no public catalog, no fork and no marketplace. Set `SECONDLAYER_API_KEY` (`sk-sl_*`) and `secondlayer subgraphs deploy` works the same as against your own box.
+
+| | Self-host | Hosted (`api.secondlayer.tools`) |
+| --- | --- | --- |
+| Auth | `INSTANCE_TOKEN`, your own instance | `sk-sl_*` account key |
+| Chain data | Your own indexer, or the hosted Index and Streams API | The hosted Index and Streams API |
+| Sources | Any | Event and transaction sources only (below) |
+| Memory | Your box | 512 MB each for your API and your subgraph processor |
+| Network | Whatever your network allows | Your handlers reach Secondlayer's API and the public internet, nothing else |
+| Isolation | N/A (you run it) | Handler code runs in a gVisor sandbox inside your own stack, never beside anyone else's data or process |
+| Pricing | Free (self-host) | Indexing reads bill `rows.delivered` against your allowance, plus the stack's memory and storage. Reads of your own tables are free |
+| Subgraph webhooks | Yes | Not yet |
+
+A hosted stack that runs out of credits stops and starts again on top-up. Your tables are kept while it is stopped.
+
+### Which sources run hosted
+
+A hosted stack has no chain of its own, so every source must be something the hosted Index can feed: an event filter (`stx_*`, `ft_*`, `nft_*`, `print_event`, `nested_contract_call`, `var_set`, `map_*`) or `contract_call` / `contract_deploy`, declared as an object keyed by source name. Deploy refuses anything else with `422 SOURCE_NOT_HOSTABLE`, naming the source. Print-field checks at deploy read the hosted Index too, so they work the same as on a box with its own chain.
+
+A handler that stalls the processor or runs it out of memory gets the processor restarted. After three restarts at the same block, the subgraph is marked `error` with a reason. Fix the handler and redeploy.
+
 ## Define a subgraph
 
 One config file: named source filters, a table schema, and one handler per source, keyed by source name.

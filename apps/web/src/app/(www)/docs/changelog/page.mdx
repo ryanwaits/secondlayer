@@ -7,6 +7,12 @@ instance reads are yours and unmetered. Archive bootstrap/backfill/reindex
 and hosted Index/Streams reads at `api.secondlayer.tools` draw
 [credits](/docs/authentication#archive-credits).
 
+## Subgraphs — October 2026
+
+### Hosted subgraphs, private to your account
+
+Deploy a subgraph to `api.secondlayer.tools` with an `sk-sl_*` key and it runs in your account's own stack, with no box to run. `secondlayer subgraphs` takes `SECONDLAYER_API_KEY` the way `webhooks` does. Your handlers run in a gVisor sandbox with 512 MB of memory and no network beyond Secondlayer's API and the public internet. Sources must be event filters or `contract_call` / `contract_deploy`; anything else is refused at deploy with `SOURCE_NOT_HOSTABLE`, naming the source. Indexing reads bill `rows.delivered` against your allowance, plus the stack's memory and storage. A subgraph whose handler keeps stalling or running the processor out of memory is restarted, then marked `error` after three restarts at the same block. Subgraphs are private to your account: there is no public catalog. Subgraph webhooks stay self-host only for now. See [Subgraphs](/docs/subgraphs#hosted-vs-self-host).
+
 ## CLI — September 2026
 
 ### `secondlayer console` is gone (CLI 19.0.0)
