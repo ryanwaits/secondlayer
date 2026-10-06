@@ -741,7 +741,9 @@ function formatSubgraphSync(sync: {
 export function registerSubgraphsCommand(program: Command): void {
 	const subgraphs = program
 		.command("subgraphs")
-		.description("Manage materialized subgraphs");
+		.description(
+			"Manage materialized subgraphs (self-hosted, or hosted on api.secondlayer.tools with SECONDLAYER_API_KEY)",
+		);
 
 	subgraphs.hook("preAction", () => assertInstanceOrAccountKey());
 
@@ -1068,7 +1070,7 @@ Examples:
 		)
 		.addHelpText(
 			"after",
-			"\nBy default the source file must be staged or committed in git (`git add <file>`),\notherwise the deployed definition's only copy is the row in the database. Pass\n--allow-uncommitted to deploy anyway.",
+			"\nBy default the source file must be staged or committed in git (`git add <file>`),\notherwise the deployed definition's only copy is the row in the database. Pass\n--allow-uncommitted to deploy anyway.\n\nHosted: set SECONDLAYER_API_KEY and SECONDLAYER_API_URL=https://api.secondlayer.tools.\nHostable sources are event filters and contract_call/contract_deploy; anything else\nreturns 422 SOURCE_NOT_HOSTABLE. Set startBlock (or --start-block) so the first\ndeploy does not backfill from genesis.",
 		)
 		.action(
 			async (

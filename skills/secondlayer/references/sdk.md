@@ -4,7 +4,7 @@ Source of truth: `packages/sdk/src/`. Function signatures below are copied verba
 
 **Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SECONDLAYER_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.webhooks.*`) use `INSTANCE_TOKEN` from `secondlayer init` as `apiKey`. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
 
-Two credentials: `apiKey` / `INSTANCE_TOKEN` for your instance; `accountKey` / `SECONDLAYER_API_KEY` (`sk-sl_*`) for hosted API and archive. Pass `INSTANCE_TOKEN` as `apiKey`, or export it and the client picks it up (`resolveApiKey`). Writes always need it. Reads need it once the API is reachable past loopback — which is mandatory there, since an instance binding past loopback with no token refuses to start. Passing `apiKey` on a keyless loopback read is harmless: an unrecognized credential is ignored, not rejected.
+The key follows the host: on `api.secondlayer.tools` the SDK sends `SECONDLAYER_API_KEY` (`sk-sl_*`, or `accountKey`) automatically; everywhere else it sends `apiKey` / `INSTANCE_TOKEN`. Pass `INSTANCE_TOKEN` as `apiKey`, or export it and the client picks it up (`resolveApiKey`). Writes always need it. Reads need it once the API is reachable past loopback — which is mandatory there, since an instance binding past loopback with no token refuses to start. Passing `apiKey` on a keyless loopback read is harmless: an unrecognized credential is ignored, not rejected.
 
 ---
 

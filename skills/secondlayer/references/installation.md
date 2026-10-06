@@ -67,7 +67,7 @@ export INSTANCE_TOKEN=<token from .env.local>
 
 Writes (`/api/subgraphs`, `/api/webhooks`, `/api/node`, `/status`) send `Authorization: Bearer <INSTANCE_TOKEN>` whenever the instance has a token, loopback included. `/v1` reads send it once the API is published past loopback — mandatory there, since an instance that binds past loopback with no token refuses to start. `/health` and `/public/*` are always open.
 
-`--api-key <key>` is shape-routed: hex → instance token, `sk-sl_*` → hosted account key. `--api-url <url>` overrides `SECONDLAYER_API_URL` for that one invocation.
+`--api-key <key>` is shape-routed: hex → instance token, `sk-sl_*` → hosted account key. `secondlayer subgraphs` and `secondlayer webhooks` accept the account key on the hosted API. `--api-url <url>` overrides `SECONDLAYER_API_URL` for that one invocation.
 
 ## Environment variables
 
@@ -75,7 +75,7 @@ Writes (`/api/subgraphs`, `/api/webhooks`, `/api/node`, `/status`) send `Authori
 |---|---|---|
 | `SECONDLAYER_API_URL` | All SDK + CLI calls | Override API base. Default: `http://127.0.0.1:3800`. |
 | `INSTANCE_TOKEN` | CLI writes, MCP, SDK | Hex token `secondlayer init` writes for your instance. Loopback reads need no value. |
-| `SECONDLAYER_API_KEY` | Hosted API, archive, credits | Account key (`sk-sl_*`), not an instance alias. |
+| `SECONDLAYER_API_KEY` | Hosted API (`api.secondlayer.tools`), archive, credits | Account key (`sk-sl_*`), sent automatically on the hosted host. Not an instance alias. |
 | `SIGNING_SECRET` | `secondlayer webhooks test` fallback | If `--signing-secret` not passed. |
 | `STACKS_NETWORK` | `secondlayer codegen contracts` and some local commands | `mainnet`, `testnet`, or `devnet` (`devnet` maps to the config file's `local`). |
 
@@ -90,7 +90,7 @@ const tip = await sl.streams.tip();
 const { data } = await sl.subgraphs.list();
 ```
 
-Loopback reads need no key. History is whatever this instance has bootstrapped. Writes (`sl.subgraphs.deploy`, `sl.webhooks.create`, …) pass `INSTANCE_TOKEN` as `apiKey` — either explicitly (`new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`) or by exporting `INSTANCE_TOKEN`, which the SDK picks up. Hosted archive/credits use `accountKey` / `SECONDLAYER_API_KEY`. Public Streams dumps (`client.dumps`, `events.replay`) need no instance key.
+Loopback reads need no key. History is whatever this instance has bootstrapped. Writes (`sl.subgraphs.deploy`, `sl.webhooks.create`, …) pass `INSTANCE_TOKEN` as `apiKey` — either explicitly (`new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`) or by exporting `INSTANCE_TOKEN`, which the SDK picks up. On the hosted API (`api.secondlayer.tools`) the SDK sends `SECONDLAYER_API_KEY` (`sk-sl_*`, or `accountKey`) automatically; set `SECONDLAYER_API_URL=https://api.secondlayer.tools` and no `INSTANCE_TOKEN` is needed. Self-host is unmetered; hosted reads, stacks and webhook events bill. Public Streams dumps (`client.dumps`, `events.replay`) need no instance key.
 
 ## Stacks client quickstart
 

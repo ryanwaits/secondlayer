@@ -14,7 +14,7 @@ Override with `SECONDLAYER_API_URL` env var or `baseUrl` SDK option.
 
 ## Authentication
 
-Your instance uses `INSTANCE_TOKEN` from `secondlayer init`. Loopback reads need no key. Writes send it as `Authorization: Bearer`. Hosted `api.secondlayer.tools` uses `SECONDLAYER_API_KEY` (`sk-sl_*`).
+The key follows the host. Hosted `api.secondlayer.tools` (Index, Streams, Subgraphs, Webhooks) takes `Authorization: Bearer <sk-sl_* key>` (`SECONDLAYER_API_KEY`). Your own instance uses `INSTANCE_TOKEN` from `secondlayer init`: loopback reads need no key, writes send it as `Authorization: Bearer`. The table below describes a self-hosted instance.
 
 | Endpoint family | Reads | Writes | Header |
 |---|---|---|---|
@@ -495,6 +495,6 @@ Exhausted rows land in `/dead` and can be requeued individually.
 
 ## Rate limits
 
-Reads on your own instance are not metered and not billed — the ceiling is your Postgres. The API can still answer `429` under load; the SDK throws `RateLimitError` with a `retryAfter` header. Back off and retry.
+Self-host is unmetered: the ceiling is your Postgres. On hosted, reads bill by rows delivered (1M free per month, then $5 per 1M, $2 per 1M past $50), block headers are free, and reads of your own subgraph tables are free. The API can still answer `429` under load; the SDK throws `RateLimitError` with a `retryAfter` header. Back off and retry.
 
 For sustained high-throughput streaming, prefer `events.consume` / `events.stream` from the SDK — they checkpoint and batch automatically.

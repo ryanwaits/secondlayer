@@ -19,7 +19,11 @@ const sl = new SecondLayer({
 });
 ```
 
-Auth, once: `sl.index`, `sl.streams`, `sl.subgraphs.rows`, and the typed
+Hosted: point the client at `https://api.secondlayer.tools` (`SECONDLAYER_API_URL`)
+and it sends `SECONDLAYER_API_KEY` (`sk-sl_*`) automatically. Self-host: use
+`INSTANCE_TOKEN` as below. The key follows the host.
+
+Auth, once (self-hosted instance): `sl.index`, `sl.streams`, `sl.subgraphs.rows`, and the typed
 `subscribe` read `/v1`, which is open on loopback and needs `INSTANCE_TOKEN`
 once the API is bound beyond it. Everything under `sl.subgraphs.*` and `sl.webhooks.*` calls
 `/api`, which needs `INSTANCE_TOKEN` as soon as one is configured, loopback

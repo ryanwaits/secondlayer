@@ -2,6 +2,8 @@
 
 Typed on-chain indexing for Stacks. Declare event filters + column schema with `defineSubgraph()`; the runtime decodes blocks, matches filters, runs your handlers inside a transactional context, and exposes the result as a Postgres schema you query over REST or SQL.
 
+Run subgraphs on your own instance, or hosted on `api.secondlayer.tools` with `secondlayer subgraphs deploy` and your account key (`SECONDLAYER_API_KEY`). Hosted subgraphs are private to your account and limited to event filters and `contract_call`/`contract_deploy` sources (`422 SOURCE_NOT_HOSTABLE` otherwise); set `startBlock`. Subgraph webhooks are self-host only.
+
 Subgraph rows fan out to HTTP subscribers through a post-flush outbox emitter — signed Standard Webhooks POSTs with retries, circuit breaker, and replay.
 
 ## Install

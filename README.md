@@ -8,7 +8,8 @@ backfilled from genesis, reorg-safe, kept current. Get tables and a REST API
 out of the box, or stream rows into your own schema — Postgres, SQLite, or
 anything you already run — and serve them however you already serve things.
 
-The instance itself is Postgres plus one container, on your hardware.
+Run it hosted on `api.secondlayer.tools` (account key, 1M rows free every
+month) or self-host: Postgres plus one container, on your hardware.
 
 See [STRATEGY.md](STRATEGY.md).
 
@@ -66,7 +67,8 @@ Pages are `_id`-keyset: pass `?cursor=<next_cursor>` to resume, `_order=asc|desc
 for direction.
 
 **MCP** — `bunx -p @secondlayer/mcp secondlayer-mcp` (default local API).
-Set `INSTANCE_TOKEN` from `secondlayer init` for writes.
+Set `INSTANCE_TOKEN` from `secondlayer init` for writes on your instance; against
+`api.secondlayer.tools` it uses `SECONDLAYER_API_KEY` instead (the key follows the host).
 See [MCP README](packages/mcp/README.md).
 
 ## Packages

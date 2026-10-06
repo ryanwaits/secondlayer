@@ -8,7 +8,7 @@ Reference for writing `subgraphs/<name>.ts` files. Every type signature below is
 
 A subgraph is a single TypeScript file that exports `defineSubgraph({ name, sources, schema, handlers })` as its default export. `sources` is a named object of event filters; `schema` declares Postgres tables; `handlers` are functions keyed by source name that run once per matching event (batched per block). Secondlayer materializes the schema into Postgres, runs your handlers against the Stacks event stream (live + backfill), and exposes each table as a REST endpoint at `/v1/subgraphs/<name>/<table>` (open reads on this instance, `{ rows, next_cursor, tip }` cursor envelope; `/api/subgraphs` is the authed control plane).
 
-Deploy with `secondlayer subgraphs deploy <file>`; the runtime owns ingestion, retries, and gap handling. Deploys are open on any instance — no visibility flag, no quota.
+Deploy with `secondlayer subgraphs deploy <file>`; the runtime owns ingestion, retries, and gap handling. Deploys are open on any self-hosted instance (no visibility flag, no quota). On the hosted API (`SECONDLAYER_API_KEY`) subgraphs are private to your account and run in your own stack; sources are limited to event filters and `contract_call`/`contract_deploy` (anything else is `422 SOURCE_NOT_HOSTABLE`), set `startBlock` so the first deploy does not backfill from genesis, and subgraph webhooks are self-host only.
 
 ---
 

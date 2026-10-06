@@ -1,7 +1,8 @@
 # @secondlayer/mcp
 
-Gives your coding agent direct access to the Stacks data on your own instance —
-Index (decoded rows), Subgraphs (tables you define, served from your instance),
+Gives your coding agent direct access to Stacks data, on the hosted API
+(`api.secondlayer.tools`) or on your own instance:
+Index (decoded rows), Subgraphs (tables you define, served from your account or instance),
 and Streams (raw inputs). Exposes the golden-path tools only: Index reads, the
 subgraph lifecycle, webhooks, contract discovery/scaffolding, instance
 status, archive verify/bootstrap, and hosted credits/quote. Everything else
@@ -16,7 +17,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public: `index_*` and `contracts_find` work with no key. Subgraph tools need an `INSTANCE_TOKEN` past loopback, and so does `GET /v1/subgraphs/<name>/<table>` over HTTP (`{ rows, next_cursor, tip }` cursor envelope); on loopback it is open. There is no per-subgraph public or private flag. `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. `streams_tip` is key-mandatory (keyless → 401). Live Streams list reads are REST-only (`GET /v1/streams/*`). Writes (deploy, reindex, delete, webhooks) need a key: set `INSTANCE_TOKEN` from `secondlayer init`. Hosted credits/quote use `SECONDLAYER_API_KEY` (`sk-sl_*`). Read `secondlayer://context` first: it reports auth state and read-auth tiers.
+Most reads are public: `index_*` and `contracts_find` work with no key. Subgraph tools need an `INSTANCE_TOKEN` past loopback, and so does `GET /v1/subgraphs/<name>/<table>` over HTTP (`{ rows, next_cursor, tip }` cursor envelope); on loopback it is open. There is no per-subgraph public or private flag. `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. `streams_tip` is key-mandatory (keyless → 401). Live Streams list reads are REST-only (`GET /v1/streams/*`). Writes (deploy, reindex, delete, webhooks) need a key, and the key follows the host: on `https://api.secondlayer.tools` the server uses `SECONDLAYER_API_KEY` (`sk-sl_*`) automatically; anywhere else it uses `INSTANCE_TOKEN` from `secondlayer init`. Hosted credits/quote use `SECONDLAYER_API_KEY` too. On the hosted API, subgraph sources are limited to event filters and `contract_call`/`contract_deploy` (`422 SOURCE_NOT_HOSTABLE` otherwise); set `startBlock`. Read `secondlayer://context` first: it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
@@ -51,9 +52,9 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `INSTANCE_TOKEN` | Writes only | — | From `secondlayer init`. Required for write tools; reads are public. Not valid for hosted credits. |
-| `SECONDLAYER_API_KEY` | Hosted credits/quote/latest | — | `sk-sl_*` for `api.secondlayer.tools`. |
-| `SECONDLAYER_API_URL` | No | `http://127.0.0.1:3800` | Instance API. |
+| `INSTANCE_TOKEN` | Writes on your instance | — | From `secondlayer init`. Required for write tools elsewhere than `api.secondlayer.tools`; reads are public. Not sent to the hosted API. |
+| `SECONDLAYER_API_KEY` | Hosted API, credits/quote/latest | — | `sk-sl_*`, used automatically when `SECONDLAYER_API_URL` is `https://api.secondlayer.tools`. |
+| `SECONDLAYER_API_URL` | No | `http://127.0.0.1:3800` | Instance API, or `https://api.secondlayer.tools` for hosted. |
 | `SECONDLAYER_BIN` | CLI tools | `secondlayer` on PATH | Path to the CLI binary (`setup`, `bootstrap`, `repair`). |
 | `SECONDLAYER_CWD` | CLI tools | process cwd | Compose project directory. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port. |

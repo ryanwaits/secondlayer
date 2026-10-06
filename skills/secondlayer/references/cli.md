@@ -19,8 +19,8 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | Var | Used by | Purpose |
 | --- | --- | --- |
 | `SECONDLAYER_API_URL` | every command that calls an API | Override the API base URL. Default `http://127.0.0.1:3800`. |
-| `INSTANCE_TOKEN` | instance writes/reads past loopback | Hex token `secondlayer init` writes. Required for every write, and for every read once the API is published past loopback; loopback reads need no value. Instance commands refuse `api.secondlayer.tools`. |
-| `SECONDLAYER_API_KEY` | hosted API, archive, credits | Account key (`sk-sl_*`). |
+| `INSTANCE_TOKEN` | instance writes/reads past loopback | Hex token `secondlayer init` writes. Required for every write, and for every read once the API is published past loopback; loopback reads need no value. Not sent to `api.secondlayer.tools`; there the account key is used instead. |
+| `SECONDLAYER_API_KEY` | hosted API (`api.secondlayer.tools`), archive, credits | Account key (`sk-sl_*`), sent automatically on that host. `secondlayer subgraphs` and `secondlayer webhooks` accept it there. |
 | `SL_PLATFORM_API_URL` | legacy alias of `SECONDLAYER_API_URL` | Same default: `http://127.0.0.1:3800`. |
 | `SIGNING_SECRET` | webhooks test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
@@ -307,7 +307,7 @@ Deploy bundles the handler via `@secondlayer/bundler` and POSTs it to the instan
 
 Deploy refuses a definition file that isn't staged or committed in git (a prompt in a terminal, a hard failure in CI) because a deployed definition whose source isn't in version control exists only as a database row. `git add <file>` is enough; a staged copy is recoverable. `--allow-uncommitted` overrides it and prints a line saying so. Deploys from outside a git repo, and `--dry-run`, are unaffected. The reindex prompt gates on stdin: without a TTY and without `-y` it exits 1 before any request, so a pipe can never answer it.
 
-Deploys are open on any instance: no trial, no quota, and no visibility flag. Reads on `/v1/subgraphs/*` follow the same rule as Index and Streams — keyless while the API is published on loopback, `INSTANCE_TOKEN` past it. Who can reach the instance is your publish spec and your reverse proxy, not a per-subgraph setting.
+Deploys are open on any self-hosted instance: no trial, no quota, and no visibility flag. On the hosted API (`SECONDLAYER_API_KEY`) subgraphs are private to your account; hostable sources are event filters and `contract_call`/`contract_deploy` (`422 SOURCE_NOT_HOSTABLE` otherwise), and `--start-block` is recommended. Reads on `/v1/subgraphs/*` follow the same rule as Index and Streams — keyless while the API is published on loopback, `INSTANCE_TOKEN` past it. Who can reach the instance is your publish spec and your reverse proxy, not a per-subgraph setting.
 
 Example: `secondlayer subgraphs deploy subgraphs/my-watcher.ts --start-block 100000`
 

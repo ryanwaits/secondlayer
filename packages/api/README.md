@@ -14,7 +14,7 @@ Base URL: `http://127.0.0.1:3800`
 
 ## Authentication
 
-Loopback reads need no key. Writes use `INSTANCE_TOKEN` from `sl init`.
+Hosted `api.secondlayer.tools` takes your account key (`sk-sl_*`) as a bearer. On a self-hosted instance, loopback reads need no key and writes use `INSTANCE_TOKEN` from `sl init`.
 
 ```bash
 curl http://127.0.0.1:3800/v1/streams/tip

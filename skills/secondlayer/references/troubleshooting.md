@@ -117,13 +117,21 @@ try {
 
 The Streams errors do **not** extend `ApiError` — check them separately when wrapping Streams calls.
 
+## Hosted subgraphs
+
+| Symptom | Cause | Action |
+|---|---|---|
+| `422 SOURCE_NOT_HOSTABLE` on deploy | A source other than event filters or `contract_call`/`contract_deploy` | Rewrite the source to a hostable type, or self-host the subgraph |
+| Status `error` after restarts | 3 stall/OOM deaths at one height, so the runtime stopped retrying | Fix the handler or the data at that height, set `startBlock` past it, then redeploy or reindex |
+| `402` on hosted indexing | Prepaid credits are $0 or the monthly spend cap is reached | Top up at `/account/credits` or raise the cap; reads past the free 1M rows pause until then |
+
 ## CLI: instance not reachable
 
 | Error | Hint |
 |---|---|
 | Can't reach `/public/status` | `docker compose ps` in the `secondlayer setup` directory; bring the container up |
 | `401` on instance call | Export `INSTANCE_TOKEN` from `.env.local`, or pass `--api-key` with the hex token. Writes always need it, loopback included; reads need it once the API is published past loopback |
-| `401` on hosted / archive / credits | Export `SECONDLAYER_API_KEY` (`sk-sl_*`), or run `secondlayer login --credits` |
+| `401` on hosted / archive / credits | Export `SECONDLAYER_API_KEY` (`sk-sl_*`), or run `secondlayer login --credits`. On `api.secondlayer.tools` it is sent automatically; `INSTANCE_TOKEN` is not used there |
 | Empty history | `secondlayer bootstrap --against <manifest>`. Against the official archive this quotes a price in credits and waits for confirmation; your own mirror is free |
 
 ## Stacks SDK: contract calls failing

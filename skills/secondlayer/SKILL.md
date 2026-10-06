@@ -12,13 +12,13 @@ MUST run subgraphs_test and see matched≥1, written≥1 before deploy.
 NEVER treat dryRun or tsc as proof of a mapping.
 event.data is camelCase; schema columns are snake_case; you are writing a projection.
 
-Secondlayer is a self-hosted Stacks data runtime. Postgres plus one container.
+Secondlayer is instant data for apps on Bitcoin: every Stacks block and Bitcoin rune, decoded. Use it hosted on `api.secondlayer.tools`, or self-host (Postgres plus one container).
 
 | Surface | Package / Surface | What it does |
 |---|---|---|
 | **Raw (Streams)** | `@secondlayer/sdk` → `sl.streams` · REST `/v1/streams` · `secondlayer streams` | Cursor-paginated firehose of raw Stacks events (transfers, mints, burns, prints) with reorg awareness, Bitcoin-anchored finality (`finalized` per event, `finalized_height` on tip), `types`/`not_types` + `sender`/`recipient`/`contract_id` (single or comma-list) payload filters, signed responses (ed25519 `X-Signature`, opt-in SDK `verify`), and public bulk parquet dumps (`client.dumps` / `events.replay` / `secondlayer streams dumps`). |
 | **Decoded (Index)** | `@secondlayer/sdk` → `sl.index` · REST `/v1/index` · `secondlayer index` | Decoded SIP-010 (FT) and SIP-009 (NFT) transfers, all event types (`stx_*`, ft/nft mint/burn, print) via `events`, and decoded `contract-calls` — filtered by principal/contract/height. |
-| **Your schema (Subgraphs)** | `@secondlayer/subgraphs` + CLI · REST `/v1/subgraphs` (reads) · `/api/subgraphs` (writes) | TypeScript-authored indexers: declare filters + schema + handlers; the instance materializes Postgres tables and exposes REST. |
+| **Your schema (Subgraphs)** | `@secondlayer/subgraphs` + CLI · REST `/v1/subgraphs` (reads) · `/api/subgraphs` (writes) | TypeScript-authored indexers: declare filters + schema + handlers; the runtime materializes Postgres tables and exposes REST. Hosted: private to your account, run in your own stack. |
 | **Webhooks** | `sl.webhooks` · REST `/api/webhooks` · `secondlayer webhooks` | Standard-Webhooks-signed deliveries. Two kinds: **subgraph** webhooks fire on every row written by a subgraph; **chain** webhooks fire on raw chain events directly (no subgraph) via `triggers` (contract call / event type / trait). |
 | **Chain client** | `@secondlayer/stacks` | viem-style SDK: public/wallet clients, `Cl.*`, `Pc.*`, `getContract`, BNS / PoX / sBTC / StackingDAO extensions. |
 | **CLI** | `@secondlayer/cli` (binary `secondlayer`) | Every one of the above is reachable from `secondlayer`. |
@@ -48,8 +48,8 @@ For working code, see `examples/` — every file is copy-pasteable and verified.
 These are small enough to keep in the router. Everything else is in a reference file.
 
 - **Binary:** `secondlayer` (`sl` is a short alias). Install: `bun add -g @secondlayer/cli`.
-- **Default API:** `http://127.0.0.1:3800`. Override with `SECONDLAYER_API_URL`.
-- **Two credentials.** Instance token opens your box; account key identifies you on the hosted API and archive.
+- **Default API:** `http://127.0.0.1:3800`. Override with `SECONDLAYER_API_URL`. Hosted surfaces (Index, Streams, Subgraphs, Webhooks) live on `https://api.secondlayer.tools` with an `sk-sl_*` key.
+- **The key follows the host.** The SDK, MCP and CLI send `SECONDLAYER_API_KEY` automatically on `api.secondlayer.tools` and `INSTANCE_TOKEN` everywhere else. `secondlayer subgraphs` and `secondlayer webhooks` accept the account key on the hosted API.
 
   | Plane | Credential | Env |
   |---|---|---|
@@ -58,7 +58,7 @@ These are small enough to keep in the router. Everything else is in a reference 
 
   Loopback reads need no key; writes take `INSTANCE_TOKEN` always, and every read takes it past loopback. `--api-key` is shape-routed (hex → instance, `sk-sl_*` → account). Never mix the two values.
 - **Streams / Index:** local instance reads. Loopback needs no key. Public archive dumps (`secondlayer streams dumps`) are a separate signed bucket.
-- **Only archive fetches cost money.** `secondlayer bootstrap` / `repair` against the official archive draw prepaid credits and quote the price before charging; `secondlayer verify` is always free. Nothing you run yourself is metered.
+- **Self-host is unmetered; hosted bills.** Hosted: 1M rows free per month, then $5 per 1M ($2 per 1M past $50); block headers and reads of your own subgraph tables are free; a hosted stack has a 0.5 GB memory minimum (about $10/mo while running) plus storage; webhook events are $10 per 1M. On self-host, `secondlayer bootstrap` / `repair` against the official archive draw prepaid credits and quote the price before charging; `secondlayer verify` is always free.
 - **Package manager:** prefer `bun` and `bunx`. Most package.json files in user projects declare `bun` as `packageManager`.
 - **Network inference:** addresses starting `SP`/`SM` → mainnet, `ST`/`SN` → testnet. CLI infers this automatically when scaffolding.
 
@@ -69,7 +69,7 @@ These are small enough to keep in the router. Everything else is in a reference 
 | Contracts (`/v1/contracts`, `sl.contracts`) | Loopback reads need no key. |
 | Index (`/v1/index`, `sl.index`, `secondlayer index`) | Loopback reads need no key. History is whatever this instance has bootstrapped. |
 | Streams (`/v1/streams`, `sl.streams`, `secondlayer streams`) | Loopback reads need no key. Public archive dumps need no instance key. |
-| Subgraphs (`/v1/subgraphs/*`) | Loopback reads need no key. No public/private flag — every subgraph on the instance reads the same. Writes are `/api/subgraphs`, below. |
+| Subgraphs (`/v1/subgraphs/*`) | Loopback reads need no key. No public/private flag; hosted subgraphs are private to your account (key required). Writes are `/api/subgraphs`, below. Hosted sources are event filters and `contract_call`/`contract_deploy` only (`422 SOURCE_NOT_HOSTABLE` otherwise); set `startBlock`. Subgraph webhooks are self-host only. |
 
 One rule for the whole `/v1` read plane, identical on all four: open while the
 API is reachable only from this box, `Authorization: Bearer <INSTANCE_TOKEN>` on
@@ -111,6 +111,9 @@ loopback. Send the token whenever you have it.
 | `ApiError 401` from SDK | A write, or a read against an instance reachable past loopback, carried no bearer | Pass `INSTANCE_TOKEN` from `.env.local` as `apiKey`, or export it |
 | `tsc` errors after `getContract` upgrade | ABI shape changed, regenerate | `secondlayer codegen client <name> -o ...` or refresh ABI |
 | Webhook receiver getting unsigned bodies | `format` not set to `standard-webhooks` | `secondlayer webhooks update <name> --format standard-webhooks` |
+| `422 SOURCE_NOT_HOSTABLE` on hosted deploy | A source type other than event filters or `contract_call`/`contract_deploy` | Rewrite the source, or self-host. See `references/troubleshooting.md` |
+| Subgraph status `error` after restarts | 3 stall/OOM deaths at one height | Fix the handler, set `startBlock` past the bad height, redeploy |
+| `402` on hosted indexing | Credits are $0 or the spend cap is reached | Top up at /account/credits or raise the cap |
 | Subgraph "stuck" right after deploy | Catching up from `startBlock` | Normal; watch `secondlayer subgraphs status <name> -w`. Use `--start-block` near tip for fast first deploy |
 
 When the user asks "why isn't this working" and the symptom isn't on this list, load `references/troubleshooting.md`.

@@ -2,7 +2,7 @@
 # secondlayer Claude Code skill installer — https://secondlayer.tools
 #   curl -fsSL https://secondlayer.tools/skill.sh | bash
 # Installs the secondlayer skill into ~/.claude/skills so Claude Code can
-# build against Streams, Index, Subgraphs, Subscriptions, and the SDK.
+# build against Streams, Index, Subgraphs, Webhooks, and the SDK.
 set -eu
 
 RAW="https://raw.githubusercontent.com/ryanwaits/secondlayer/main/skills/secondlayer"

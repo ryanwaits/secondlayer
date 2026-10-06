@@ -93,7 +93,7 @@ Contracts:
 - `contracts_find` — discover contracts conforming to a trait
 - `contracts_get_abi` — fetch one contract's metadata + full ABI
 
-Set `INSTANCE_TOKEN` to the token `secondlayer init` wrote for instance tools. It is required for every write, and for every read once the instance is reachable past loopback; Index, Streams, and subgraph reads on a loopback instance need none. Setting it always is safe — a token sent on a read that didn't need it is ignored, not rejected. Hosted archive/credits tools use `SECONDLAYER_API_KEY` (`sk-sl_*`).
+Set `INSTANCE_TOKEN` to the token `secondlayer init` wrote for instance tools. It is required for every write, and for every read once the instance is reachable past loopback; Index, Streams, and subgraph reads on a loopback instance need none. Setting it always is safe — a token sent on a read that didn't need it is ignored, not rejected. On `api.secondlayer.tools` the MCP server uses `SECONDLAYER_API_KEY` (`sk-sl_*`) automatically instead; point `SECONDLAYER_API_URL` there and no `INSTANCE_TOKEN` is needed. Archive/credits tools use the same key.
 
 Resources:
 
