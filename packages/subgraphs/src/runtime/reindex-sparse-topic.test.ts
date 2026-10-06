@@ -3,10 +3,6 @@ import { randomUUID } from "node:crypto";
 import { getDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
-import {
-	type FakeIndexOptions,
-	startFakeIndex,
-} from "../../scripts/fake-index.ts";
 import { generateSubgraphSQL } from "../schema/generator.ts";
 import type {
 	SubgraphDefinition,
@@ -14,6 +10,7 @@ import type {
 	SubgraphSchema,
 } from "../types.ts";
 import type { SubgraphContext } from "./context.ts";
+import { type FakeIndexOptions, startFakeIndex } from "./fake-index.ts";
 import { reindexSubgraph } from "./reindex.ts";
 
 /**

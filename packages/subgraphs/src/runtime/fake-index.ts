@@ -11,7 +11,7 @@
  * `targetEvery` blocks, and with `wantedTopic` only at `wantedHeights`.
  *
  * Run standalone for a separate-process server (so a caller's RSS is its own):
- *   bun fake-index.ts '<json FakeIndexOptions>'
+ *   bun src/runtime/fake-index.ts '<json FakeIndexOptions>'
  * prints `READY <url>` then serves until killed; GET /__stats returns counters.
  */
 import { Cl, serializeCV } from "@secondlayer/stacks/clarity";

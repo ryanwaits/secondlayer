@@ -16,6 +16,10 @@
 import { randomUUID } from "node:crypto";
 import { getDb, sql } from "@secondlayer/shared/db";
 import type { SubgraphContext } from "../src/runtime/context.ts";
+import type {
+	FakeIndexOptions,
+	FakeIndexStats,
+} from "../src/runtime/fake-index.ts";
 import { reindexSubgraph } from "../src/runtime/reindex.ts";
 import { generateSubgraphSQL } from "../src/schema/generator.ts";
 import type {
@@ -23,7 +27,6 @@ import type {
 	SubgraphHandler,
 	SubgraphSchema,
 } from "../src/types.ts";
-import type { FakeIndexOptions, FakeIndexStats } from "./fake-index.ts";
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 
@@ -48,7 +51,7 @@ const chain: FakeIndexOptions = {
 const child = Bun.spawn(
 	[
 		"bun",
-		new URL("./fake-index.ts", import.meta.url).pathname,
+		new URL("../src/runtime/fake-index.ts", import.meta.url).pathname,
 		JSON.stringify(chain),
 	],
 	{ stdout: "pipe", stderr: "inherit" },
