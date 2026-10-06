@@ -1,5 +1,16 @@
 # @secondlayer/api
 
+## 1.50.4
+
+### Patch Changes
+
+- 8cc8dac: A hosted stack now counts every processor death, including one during a reindex, halts a subgraph that keeps killing it and cancels its operations, rolls tenants when the compose template changes, and answers a subgraph delete in seconds even when the reindex runner died.
+- Updated dependencies [8cc8dac]
+- Updated dependencies [8cc8dac]
+  - @secondlayer/subgraphs@6.3.4
+  - @secondlayer/shared@11.19.2
+  - @secondlayer/platform@0.5.4
+
 ## 1.50.3
 
 ### Patch Changes

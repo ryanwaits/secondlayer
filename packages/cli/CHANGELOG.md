@@ -1,5 +1,15 @@
 # @secondlayer/cli
 
+## 19.1.1
+
+### Patch Changes
+
+- 8cc8dac: `secondlayer subgraphs deploy` no longer prints a webhook command against api.secondlayer.tools, where subgraph webhooks are not offered.
+- Updated dependencies [8cc8dac]
+- Updated dependencies [8cc8dac]
+  - @secondlayer/subgraphs@6.3.4
+  - @secondlayer/shared@11.19.2
+
 ## 19.1.0
 
 ### Minor Changes

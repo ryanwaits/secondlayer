@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.19.2
+
+### Patch Changes
+
+- 8cc8dac: `IndexHttpClient.walkEvents` accepts a contract id so a caller can fetch one contract's events instead of every event of the type, and a subgraph delete can settle a cancelled operation whose runner has died.
+
 ## 11.19.1
 
 ### Patch Changes
