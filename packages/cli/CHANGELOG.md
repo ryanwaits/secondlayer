@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 19.0.2
+
+### Patch Changes
+
+- e76dc72: `secondlayer setup` compose sizes the Postgres cache (`POSTGRES_SHARED_BUFFERS`, default 1GB) so a full-chain sync doesn't stall on index reads.
+- f8360d6: `secondlayer repair` keeps `vm_events` when it rewrites a range's transactions under a matching block, and reports any rows it had to drop.
+- Updated dependencies [5f1c1d5]
+- Updated dependencies [da05bec]
+  - @secondlayer/subgraphs@6.3.2
+  - @secondlayer/shared@11.19.1
+
 ## 19.0.1
 
 ### Patch Changes

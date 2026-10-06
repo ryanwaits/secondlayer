@@ -1,5 +1,14 @@
 # @secondlayer/subgraphs
 
+## 6.3.2
+
+### Patch Changes
+
+- 5f1c1d5: Chain webhooks no longer skip a block when its data is briefly unavailable; the evaluator waits and retries it.
+- da05bec: Remove the unused subprocess sandbox for subgraph handlers and its `sandbox_workers` column; hosted stacks isolate handlers with gVisor instead.
+- Updated dependencies [da05bec]
+  - @secondlayer/shared@11.19.1
+
 ## 6.3.1
 
 ### Patch Changes

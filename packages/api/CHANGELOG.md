@@ -1,5 +1,16 @@
 # @secondlayer/api
 
+## 1.50.2
+
+### Patch Changes
+
+- 33a42ba: `/internal/sentinel/accounts/grant` accepts `sentinel:refund:<runId>` (`aud_<hex>`) to refund a wrongly charged Sentinel run. Idempotent on the key, labelled `sentinel:refund`, outside the $10 starter total, and capped per refund at the largest Sentinel unit price.
+- Updated dependencies [5f1c1d5]
+- Updated dependencies [da05bec]
+  - @secondlayer/subgraphs@6.3.2
+  - @secondlayer/shared@11.19.1
+  - @secondlayer/platform@0.5.3
+
 ## 1.50.1
 
 ### Patch Changes

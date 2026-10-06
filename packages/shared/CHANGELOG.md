@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.19.1
+
+### Patch Changes
+
+- da05bec: Remove the unused subprocess sandbox for subgraph handlers and its `sandbox_workers` column; hosted stacks isolate handlers with gVisor instead.
+
 ## 11.19.0
 
 ### Minor Changes

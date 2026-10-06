@@ -1,5 +1,14 @@
 # @secondlayer/workload
 
+## 0.0.32
+
+### Patch Changes
+
+- ab41c92: The workload host now follows deploys on its own and clears provisions a restart interrupted, so stacks no longer get stuck at "provisioning".
+- Updated dependencies [da05bec]
+  - @secondlayer/shared@11.19.1
+  - @secondlayer/platform@0.5.3
+
 ## 0.0.31
 
 ### Patch Changes
