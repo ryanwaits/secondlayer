@@ -268,7 +268,7 @@ async function processBlockRange(
 	// A pause code left by an earlier run clears on the first good read.
 	let pauseCleared = false;
 
-	while (currentHeight <= toBlock) {
+	walk: while (currentHeight <= toBlock) {
 		// Check for abort at batch boundary
 		if (opts.signal?.aborted) {
 			aborted = true;
@@ -357,7 +357,19 @@ async function processBlockRange(
 			if (!blockData) {
 				// Could be a transient source hiccup — refetch the single height
 				// before concluding the block is genuinely absent.
-				blockData = (await source.loadBlockRange(height, height)).get(height);
+				const refetch = () => source.loadBlockRange(height, height);
+				const refetched = await loadWhileBillingPaused(
+					targetDb,
+					subgraphName,
+					refetch(),
+					refetch,
+					{ signal: opts.signal },
+				);
+				if (!refetched) {
+					aborted = true;
+					break walk;
+				}
+				blockData = refetched.get(height);
 			}
 			if (!blockData) {
 				if (status === "reindexing") {

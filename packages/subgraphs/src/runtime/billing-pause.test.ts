@@ -194,6 +194,22 @@ describe("loadWhileBillingPaused", () => {
 		expect((await row()).last_error).toBeNull();
 	});
 
+	test("a single-height refetch keeps waiting while refused, then returns its block", async () => {
+		const refetch = (() => {
+			let calls = 0;
+			return async () => {
+				calls++;
+				if (calls < 3) throw refusal();
+				return new Map([[7, "block-7"]]);
+			};
+		})();
+		const value = await loadWhileBillingPaused(db, name, refetch(), refetch, {
+			backoffMs: 5,
+		});
+		expect(value?.get(7)).toBe("block-7");
+		expect((await row()).last_error).toBeNull();
+	});
+
 	test("an abort during the wait returns without a result", async () => {
 		const ctl = new AbortController();
 		const first = Promise.reject(refusal());
