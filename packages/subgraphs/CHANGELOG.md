@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 6.3.3
+
+### Patch Changes
+
+- e93f016: `secondlayer subgraphs` now works against `api.secondlayer.tools` with an `sk-sl_*` account key, so hosted accounts can deploy and manage private subgraphs without running an instance. `@secondlayer/subgraphs` exports `isStreamsIndexEligible`.
+
 ## 6.3.2
 
 ### Patch Changes

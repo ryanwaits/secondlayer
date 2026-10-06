@@ -1,5 +1,13 @@
 # @secondlayer/api
 
+## 1.50.3
+
+### Patch Changes
+
+- e93f016: Hosted stacks now run a subgraph processor under gVisor with a metered read key, route subgraph requests through the gateway, refuse sources a stack can't feed, and restart a processor that stalls or runs out of memory.
+- Updated dependencies [e93f016]
+  - @secondlayer/subgraphs@6.3.3
+
 ## 1.50.2
 
 ### Patch Changes
