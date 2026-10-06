@@ -1,6 +1,7 @@
 /**
- * Endpoint resolution with no other dependencies, so the session store can
- * key sessions by URL without importing the auth or HTTP layers.
+ * Endpoint resolution, kept free of the auth and HTTP layers so the session
+ * store can key sessions by URL. Host detection comes from the SDK so the CLI
+ * and SDK agree on what "hosted" means.
  */
 
 import { isHostedApiUrl } from "@secondlayer/sdk";
