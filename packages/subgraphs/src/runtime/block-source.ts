@@ -1,6 +1,7 @@
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Transaction } from "@secondlayer/shared/db";
 import {
+	BillingPausedError,
 	type IndexEventRow,
 	type IndexHttpClient,
 	type IndexTransactionRow,
@@ -443,6 +444,9 @@ export class FallbackBlockSource implements BlockSource {
 			this.lastTipFromPrimary = true;
 			return tip;
 		} catch (err) {
+			// A billing refusal is not the api being down: the DB tap would
+			// quietly serve different data, so let the caller pause instead.
+			if (err instanceof BillingPausedError) throw err;
 			logger.warn("block source primary getTip failed — using DB tap", {
 				error: err instanceof Error ? err.message : String(err),
 			});
@@ -469,6 +473,7 @@ export class FallbackBlockSource implements BlockSource {
 		try {
 			return await this.primary.loadBlockRange(fromHeight, toHeight);
 		} catch (err) {
+			if (err instanceof BillingPausedError) throw err;
 			logger.warn("block source primary loadBlockRange failed — using DB tap", {
 				from: fromHeight,
 				to: toHeight,

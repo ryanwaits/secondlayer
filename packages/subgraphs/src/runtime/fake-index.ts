@@ -38,6 +38,8 @@ export type FakeIndexStats = {
 	requests: { blocks: number; events: number };
 	/** One entry per events request: its contract_id param (or null). */
 	eventRequests: { contractId: string | null; limit1: boolean }[];
+	/** Row reads answered 402 while `refuse()` was on. */
+	refused: number;
 };
 
 const PAGE_MAX = 1000;
@@ -65,6 +67,7 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 		rows: { blocks: 0, events: 0 },
 		requests: { blocks: 0, events: 0 },
 		eventRequests: [],
+		refused: 0,
 	};
 
 	const bgContract = (k: number) => `SP${k}.bg-${k}`;
@@ -199,11 +202,19 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 		};
 	}
 
+	// When set, every row read is refused the way a metered account past its
+	// allowance is (`402 { error }`); the tip stays readable.
+	let refusal: string | null = null;
+
 	const server = Bun.serve({
 		port: opts.port ?? 0,
 		fetch(req) {
 			const url = new URL(req.url);
 			if (url.pathname === "/__stats") return Response.json(stats);
+			if (refusal && url.searchParams.get("tip_only") !== "true") {
+				stats.refused++;
+				return Response.json({ error: refusal }, { status: 402 });
+			}
 			if (url.pathname === "/v1/index/events") {
 				return Response.json(handleEvents(url.searchParams));
 			}
@@ -217,6 +228,10 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 	return {
 		url: `http://127.0.0.1:${server.port}`,
 		stats,
+		/** Refuse every row read with `402 { error: code }`; `null` lifts it. */
+		refuse: (code: string | null) => {
+			refusal = code;
+		},
 		stop: () => server.stop(true),
 	};
 }

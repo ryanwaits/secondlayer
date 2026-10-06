@@ -1,8 +1,15 @@
 import { getTargetDb, sql } from "@secondlayer/shared/db";
 import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
+import { BillingPausedError } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
+import { billingPausedCode } from "@secondlayer/shared/schemas";
 import type { SubgraphDefinition } from "../types.ts";
 import { type BlockData, avgEventsPerBlock } from "./batch-loader.ts";
+import {
+	clearBillingPause,
+	inBillingBackoff,
+	recordBillingPause,
+} from "./billing-pause.ts";
 import {
 	type ProcessBlockResult,
 	processBlockWithRetry,
@@ -276,6 +283,9 @@ export async function catchUpSubgraph(
 	subgraphName: string,
 ): Promise<number> {
 	if (catchingUp.has(subgraphName)) return 0;
+	// Billing-paused: don't hammer a refused read every block; re-check once
+	// the backoff window passes.
+	if (inBillingBackoff(subgraphName)) return 0;
 	catchingUp.add(subgraphName);
 
 	try {
@@ -348,6 +358,12 @@ export async function catchUpSubgraph(
 		let nextBatchPromise = batchConfig.prefetch
 			? source.loadBlockRange(currentHeight, prefetchedBatchEnd)
 			: undefined;
+		// A prefetch dropped by a throw (billing pause, handler failure) must not
+		// surface as an unhandled rejection; awaiting it still rethrows.
+		nextBatchPromise?.catch(() => {});
+		// A pause recorded by an earlier tick (or process) clears on the first
+		// successful read.
+		let pauseCleared = billingPausedCode(subgraphRow.last_error) === null;
 
 		while (currentHeight <= chainTip) {
 			// f069: per-iteration leadership check. `isCatchUpLeader()` reads this
@@ -396,6 +412,7 @@ export async function catchUpSubgraph(
 						nextStart,
 						prefetchedBatchEnd,
 					);
+					nextBatchPromise.catch(() => {});
 				} else {
 					nextBatchPromise = undefined;
 				}
@@ -404,6 +421,10 @@ export async function catchUpSubgraph(
 				// and load the next batch after this iteration completes.
 				batchEnd = Math.min(currentHeight + batchSize - 1, chainTip);
 				batch = await source.loadBlockRange(currentHeight, batchEnd);
+			}
+			if (!pauseCleared) {
+				pauseCleared = true;
+				await clearBillingPause(targetDb, subgraphName);
 			}
 
 			// Process each block from pre-loaded data
@@ -520,6 +541,14 @@ export async function catchUpSubgraph(
 		});
 
 		return processed;
+	} catch (err) {
+		// Reads refused for billing: not a failure. Record it, leave the status
+		// and the cursor alone, and let the first tick after the backoff retry.
+		if (err instanceof BillingPausedError) {
+			await recordBillingPause(getTargetDb(), subgraphName, err);
+			return 0;
+		}
+		throw err;
 	} finally {
 		catchingUp.delete(subgraphName);
 	}

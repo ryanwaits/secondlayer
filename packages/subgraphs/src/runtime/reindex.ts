@@ -18,6 +18,7 @@ import { generateSubgraphSQL } from "../schema/generator.ts";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition } from "../types.ts";
 import { type BlockData, avgEventsPerBlock } from "./batch-loader.ts";
+import { clearBillingPause, loadWhileBillingPaused } from "./billing-pause.ts";
 import {
 	type ProcessBlockResult,
 	processBlockWithRetry,
@@ -249,6 +250,7 @@ async function processBlockRange(
 	// batchEnd must match what was actually loaded — not recalculated from a
 	// potentially resized batchSize (adaptive sizing can change it between iterations).
 	type InFlightBatch = {
+		from: number;
 		end: number;
 		promise: Promise<Map<number, BlockData>>;
 	};
@@ -260,9 +262,11 @@ async function processBlockRange(
 		// IndexHttpClient takes no AbortSignal, so a dropped request runs to
 		// completion; dropping the reference lets its rows be collected after.
 		promise.catch(() => {});
-		return { end, promise };
+		return { from, end, promise };
 	};
 	let inFlight: InFlightBatch | null = startBatch(currentHeight);
+	// A pause code left by an earlier run clears on the first good read.
+	let pauseCleared = false;
 
 	while (currentHeight <= toBlock) {
 		// Check for abort at batch boundary
@@ -279,8 +283,30 @@ async function processBlockRange(
 		// biome-ignore lint/style/noNonNullAssertion: set before the loop and re-armed at every iteration's end
 		const loading = inFlight!;
 		inFlight = null;
-		const batch = await loading.promise;
+		// Reads refused for billing wait and retry the same range instead of
+		// failing the walk; the cursor stays where it is.
+		const loaded = await loadWhileBillingPaused(
+			targetDb,
+			subgraphName,
+			loading.promise,
+			() => source.loadBlockRange(loading.from, loading.end),
+			{ signal: opts.signal },
+		);
+		if (!loaded) {
+			aborted = true;
+			logger.info("Block processing aborted while billing-paused", {
+				subgraph: subgraphName,
+				currentBlock: currentHeight,
+				reason: String(opts.signal?.reason ?? "unknown"),
+			});
+			break;
+		}
+		const batch = loaded;
 		const batchEnd = loading.end;
+		if (!pauseCleared) {
+			pauseCleared = true;
+			await clearBillingPause(targetDb, subgraphName);
+		}
 
 		// Source-health guard (fix-f040 B7): the source seeds every canonical
 		// height in range (including empty blocks), so consecutive fully-empty
