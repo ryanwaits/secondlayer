@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 6.3.5
+
+### Patch Changes
+
+- ea5f375: README covers hosted subgraphs and their limits.
+
 ## 6.3.4
 
 ### Patch Changes

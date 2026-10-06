@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 19.1.2
+
+### Patch Changes
+
+- ea5f375: Subgraphs help text now covers hosted deploys with SECONDLAYER_API_KEY, hostable sources and startBlock.
+- Updated dependencies [ea5f375]
+- Updated dependencies [ea5f375]
+- Updated dependencies [86745b4]
+  - @secondlayer/sdk@14.2.0
+  - @secondlayer/subgraphs@6.3.5
+
 ## 19.1.1
 
 ### Patch Changes

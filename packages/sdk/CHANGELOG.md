@@ -1,5 +1,17 @@
 # @secondlayer/sdk
 
+## 14.2.0
+
+### Minor Changes
+
+- 86745b4: Clients pointed at api.secondlayer.tools now use SECONDLAYER_API_KEY automatically.
+
+### Patch Changes
+
+- ea5f375: README and AGENTS.md document the hosted path and key-follows-host auth.
+- Updated dependencies [ea5f375]
+  - @secondlayer/subgraphs@6.3.5
+
 ## 14.1.0
 
 ### Minor Changes

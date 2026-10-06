@@ -1,5 +1,17 @@
 # @secondlayer/mcp
 
+## 9.0.3
+
+### Patch Changes
+
+- ea5f375: README documents the hosted path and key-follows-host auth.
+- ef3cecd: MCP sends SECONDLAYER_API_KEY to api.secondlayer.tools and points key hints at it.
+- Updated dependencies [ea5f375]
+- Updated dependencies [ea5f375]
+- Updated dependencies [86745b4]
+  - @secondlayer/sdk@14.2.0
+  - @secondlayer/subgraphs@6.3.5
+
 ## 9.0.2
 
 ### Patch Changes
