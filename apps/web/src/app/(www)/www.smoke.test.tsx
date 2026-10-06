@@ -44,19 +44,16 @@ describe("www marketing routes", () => {
 		expect(html).toContain('href="/docs/self-host"');
 	});
 
-	test("/ keeps the ownership claim and never implies we host it", () => {
+	test("/ states the hosted and self-host paths and no withdrawn products", () => {
 		const html = renderToStaticMarkup(<HomeView />);
-		// The claim that survives any headline rewrite: it runs on their box.
-		expect(html).toContain("your own");
+		expect(html).toContain("for apps on Bitcoin.");
+		expect(html).toContain("Your box or ours.");
 		expect(html).toContain("beside your node");
-		// Withdrawn products must never reappear.
+		expect(html).toContain('href="/docs/subgraphs/hosted"');
+		expect(html).toContain('href="/docs/webhooks"');
+		// No stats strip, and nothing withdrawn.
 		expect(html).not.toContain("Explore subgraphs is live");
-		expect(html).not.toContain("Our decoders.");
 		expect(html).not.toContain('href="/subgraphs/explore"');
-		// Possessives that would imply we operate their instance (voice rule 6).
-		expect(html).not.toContain("our REST");
-		expect(html).not.toContain("our API");
-		expect(html).not.toContain("hosted indexer");
 	});
 });
 
