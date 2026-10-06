@@ -5,47 +5,52 @@ opportunity to one or more concrete capabilities below. If an opportunity can't 
 something here, it is out of scope (note it as "adjacent / not ours" instead of inventing a tool).
 
 ## Table of contents
-- Three core products
+- Five products
 - Installable packages & CLI
 - Public surfaces (API endpoints)
 - Domain concepts handled
 - The Hiro gap (our moat)
 - Differentiating tech
 
-## Three core products
+## Five products (Archive, Streams, Index, Subgraphs, Webhooks)
 
 1. **Index** — decoded chain data as-a-service. Queryable decoded Stacks events: FT/NFT/STX
    transfers, contract calls, `print_event` logs, **sBTC peg lifecycle**, **PoX reward cycles**.
-   Surface: REST `/v1/index/*`, **keyless** (no account/key for reads). For app devs, agents,
-   dashboards.
+   Surface: REST `/v1/index/*`; keyless on loopback when self-hosted, an account key
+   (`sk-sl_*`) on `api.secondlayer.tools`. For app devs, agents, dashboards.
 2. **Subgraphs** — your schema on our indexer. Deploy one TypeScript file (`defineSubgraph()` +
-   event sources + handlers + schema) → managed Postgres tables behind `/v1/subgraphs/*`. No node
-   required. Genesis backfill (Pro). The revenue core. For teams building app-specific chain views.
+   event sources + handlers + schema) → managed Postgres tables behind `/v1/subgraphs/*`. Hosted
+   subgraphs are private per account and run in their own stack (event filters and
+   `contract_call`/`contract_deploy` sources only); no node required. Genesis backfill from any
+   `startBlock`. For teams building app-specific chain views.
 3. **Streams** — raw signed event firehose. Cursor-paginated REST + SSE tail + ed25519-signed
    parquet archive. Reorg-aware, resumable, replay from any height. For data/infra engineers
    building their own indexers/ETL.
 
-Features (not products): Subscriptions (webhooks on Index/Streams/Subgraphs), Explore (public
-subgraph directory), Contract discovery (`/v1/contracts` trait filtering).
+4. **Webhooks**: signed (Standard Webhooks) POSTs with retries, replay and an attempt log.
+   Hosted webhooks fire on chain events ($10 per 1M events); subgraph webhooks are self-host only.
+5. **Archive**: signed canonical history; verify is free, bootstrap/repair are paid.
+
+Features (not products): Contract discovery (`/v1/contracts` trait filtering). There is no
+public subgraph directory.
 
 ## Installable packages & CLI
 
 | Package | Binary | Does | Users |
 |---|---|---|---|
-| `@secondlayer/cli` | `secondlayer` | auth, projects, subgraph scaffold/deploy/query, Clarity codegen, subscriptions, data reads | engineers/ops |
-| `@secondlayer/sdk` | — | TS client: query Index/Streams/Subgraphs, manage subscriptions, verify signatures | app code |
+| `@secondlayer/cli` | `secondlayer` | auth, subgraph scaffold/deploy/query, Clarity codegen, webhooks, data reads | engineers/ops |
+| `@secondlayer/sdk` | — | TS client: query Index/Streams/Subgraphs, manage webhooks, verify signatures | app code |
 | `@secondlayer/stacks` | — | viem-style Stacks SDK: contract reads, transfers, Clarity decoding, BNS, PoX, accounts, WalletConnect v2 | app devs |
 | `@secondlayer/mcp` | `secondlayer-mcp` | MCP server (scaffold + query for agents) | AI agents |
 | `@secondlayer/subgraphs` | — | `defineSubgraph()` DSL + declarative schema | subgraph authors |
 
 Golden-path commands:
 ```bash
-secondlayer login
-secondlayer projects create my-app && secondlayer projects use my-app
+export SECONDLAYER_API_KEY=sk-sl_...   # hosted; self-host uses INSTANCE_TOKEN
 secondlayer subgraphs scaffold SP….contract -o subgraphs/x.ts
 secondlayer subgraphs deploy subgraphs/x.ts --start-block <recent>
 secondlayer subgraphs query x <table> --sort _block_height --order desc
-secondlayer subscriptions create hook --subgraph x --table <t> --url https://…
+secondlayer webhooks --help   # create via sl.webhooks.create or the CLI; see /docs/webhooks
 secondlayer index ft-transfers --contract-id SP….token --limit 5
 secondlayer streams tip
 secondlayer codegen contracts ./contracts/*.clar -o src/generated.ts   # Clarity → typed TS + React hooks
@@ -81,7 +86,7 @@ secondlayer codegen contracts ./contracts/*.clar -o src/generated.ts   # Clarity
 | PoX reward-cycle aggregates (`/v1/index/pox/cycles`) | ✓ | ✗ |
 | Indexer-as-a-service / custom app schemas (Subgraphs) | ✓ | ✗ |
 | Keyless reads | ✓ | ✗ (key required) |
-| Genesis backfill in subgraphs | ✓ (Pro) | n/a |
+| Genesis backfill in subgraphs | ✓ (from any `startBlock`) | n/a |
 | Node-free operation (hosted) | ✓ | ✗ (node if self-hosted) |
 | Contract balances/nonces | ✗ (deferred) | ✓ |
 

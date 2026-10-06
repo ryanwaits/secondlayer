@@ -120,7 +120,7 @@ per-deployment checklist: `docs/internal/deployments.md`.
 
 Everything we market is one of the nouns below. Everything else is a feature
 of them. Archive is the history primitive (signed canonical archive; verify,
-repair, bootstrap; the only line billed today). It is a noun on the plane and
+repair, bootstrap; billed per fetch). It is a noun on the plane and
 a step in the golden path, same as Streams.
 
 **Index** — decoded chain data on your instance. Query events, transfers,
@@ -260,8 +260,11 @@ Roadmap, decision log, gates, hosting: `docs/internal/bitcoin-runtime.md`.
 `secondlayer subgraphs create` → deploy → curl your table on localhost → attach a
 webhook. Forward-only from your own node is free and skips bootstrap.
 
-Hosted: Index and Streams reads on api.secondlayer.tools with an account
-key. Subgraphs and webhooks are not hosted; run them on your instance.
+Hosted: Index, Streams, Subgraphs and Webhooks on api.secondlayer.tools with
+an account key. Hosted subgraphs and webhook delivery run in a private stack
+per account; there is no public catalog. Hostable subgraph sources are event
+filters and contract_call/contract_deploy. Subgraph webhooks are self-host
+only.
 
 ## Pricing
 
@@ -279,7 +282,10 @@ Contract and prices live in `docs/internal/economics-metered-model.md`
 | Official-archive bootstrap (genesis or a large range) | Self-host runtime, compose, CLI |
 | Data-avail backfill / reindex that reads our archive | Forward-only indexing from the operator's node |
 | Hosted Index / Streams reads past the monthly allowance | Self-host `/v1` reads |
-| A running hosted stack's memory, floored at 0.5 GB (~$10/mo) | The first 1M rows delivered per account per month |
+| Hosted subgraph indexing rows past the monthly allowance | The first 1M rows delivered per account per month |
+| A running hosted stack's memory, floored at 0.5 GB (~$10/mo) | Block headers |
+| Hosted stack storage | Reads of your own subgraph tables |
+| Hosted webhook events ($10 per 1M, retries free) | |
 | | `secondlayer verify` / `secondlayer repair` against public manifests |
 | | Self-host subgraphs and webhooks |
 | | A stopped hosted stack |
@@ -291,7 +297,7 @@ allowance of rows replaces the old free-height window: past it, an
 account needs balance or the read 402s before serving, with a top-up
 link. Hosted `/v1` without a key is 401.
 
-We do not host subgraphs, webhook delivery, or a public Explore catalog.
+We host subgraphs and webhook delivery, private per account. There is no public subgraph or Explore catalog.
 Do not reintroduce monthly-plan UX.
 
 ## x402 — deleted

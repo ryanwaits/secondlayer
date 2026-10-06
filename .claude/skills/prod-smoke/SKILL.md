@@ -25,8 +25,8 @@ docker ps -a --format '{{.Names}} {{.Status}}'
 Expected inventory (see PRODUCTION.md): exactly **2 api replicas** (`secondlayer-api-<N>`,
 N increments per deploy — the suffix value is meaningless), all others singletons,
 `migrate` as `Exited (0)`. Anything else exited/restarting = flag. Hosted subgraphs and
-webhooks are not offered: a `subgraph-processor` or `webhook-processor` container running
-= flag (stopped leftovers from before 2026-09-23 are cleanup, not a finding).
+webhooks are offered: a running `subgraph-processor` on the workload host is expected
+(its absence = flag), alongside the per-account hosted stacks.
 
 ```bash
 # Husk canaries — count(*), NEVER min/max (a husk shows plausible ranges).
@@ -77,7 +77,8 @@ because it settles on demand rather than tailing — `status: healthy` with a re
 `last_decoded_at` is the only signal it has. Neither is a finding.
 
 ```bash
-# Hosted subgraphs are not offered: no rows expected. Nonzero = flag.
+# Hosted subgraphs and webhooks are offered: rows are expected once accounts deploy.
+# Report the counts; a count of zero with a running subgraph-processor is not a finding.
 docker exec secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_platform -tAc \
   "SELECT (SELECT count(*) FROM subgraphs), (SELECT count(*) FROM webhooks)"
 ```
@@ -92,17 +93,17 @@ curl -s -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   'https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer&limit=1'   # events[0].block_height near tip
 curl -s -o /dev/null -w '%{http_code}' https://www.secondlayer.tools/llms.txt            # 200
 
-# Hosted subgraphs and play are gone: both must 404 (not 401).
-curl -s -o /dev/null -w '%{http_code}' https://api.secondlayer.tools/v1/subgraphs          # 404
+# Hosted subgraphs are keyed: no key must be 401. Play is gone: 404.
+curl -s -o /dev/null -w '%{http_code}' https://api.secondlayer.tools/v1/subgraphs          # 401
 curl -s -o /dev/null -w '%{http_code}' -X POST https://api.secondlayer.tools/v1/play       # 404
 ```
 
 ## Phase 4 — balance conservation (the gate that has caught four real bugs)
 
-**INAPPLICABLE on prod — hosted subgraphs are not offered** (no balance subgraphs since
-2026-08; hosted subgraphs removed 2026-09-23). Say "N/A, hosted subgraphs not offered" in
+**APPLICABLE on prod when a hosted balance subgraph exists** (hosted subgraphs are offered,
+private per account). With no balance subgraph deployed, say "N/A, no balance subgraphs" in
 the scorecard rather than ✓ or ✗. Phase 4b is the load-bearing conservation gate. The
-check below still applies to a self-hosted instance running `scripts/seed-balances/`.
+check below also applies to a self-hosted instance running `scripts/seed-balances/`.
 
 For each balance subgraph that is public AND synced (skip mid-reindex):
 `sum(balances) == mints − burns` **EXACTLY**, plus holder-count sanity bands.
@@ -203,8 +204,8 @@ WHERE d.contract_id='<cid>' AND d.canonical AND d.event_type='ft_burn'
 
 ```bash
 # 1. Accumulator guard holds (422, NOT a queued op — needs SL_API_KEY w/ owner rights):
-#    N/A on prod: hosted subgraphs are not offered and /api/subgraphs 404s there. Run it
-#    against a self-hosted instance with a balance subgraph instead.
+#    Applies on prod to a hosted balance subgraph (use that account's key); otherwise run it
+#    against a self-hosted instance with a balance subgraph.
 curl -s -X POST -H "Authorization: Bearer $SL_API_KEY" -H 'Content-Type: application/json' \
   -d '{"fromBlock":100,"toBlock":200}' https://api.secondlayer.tools/api/subgraphs/sbtc-balances/backfill
 # expect code BACKFILL_NON_REPLAYABLE_HANDLER. Skip if no key provided.
@@ -265,9 +266,9 @@ LEFT JOIN LATERAL (
 ## Prod Smoke — <date>
 
 Infra:        ✓/✗ (containers / canaries / connections / FATALs)
-Data planes:  ✓/✗ (decoder lags / zero hosted subgraphs+webhooks)
-Public API:   ✓/✗ (surfaces; /v1/subgraphs + /v1/play 404)
-Conservation: ✓/✗/N-A per token (Phase 4 N/A while no balance subgraphs; chain-truth decoded_net == raw_net at pinned H; exact deltas on ✗)
+Data planes:  ✓/✗ (decoder lags / subgraph-processor running)
+Public API:   ✓/✗ (surfaces; /v1/subgraphs 401 without key, /v1/play 404)
+Conservation: ✓/✗/N-A per token (Phase 4 N/A while no hosted balance subgraphs; chain-truth decoded_net == raw_net at pinned H; exact deltas on ✗)
 Regressions:  ✓/✗/N-A (guard 422 / kill-block markers / watcher / reorg orphans=0)
 
 Flags: <ambiguous, slow, or trending-wrong items + the exact command to dig deeper>
