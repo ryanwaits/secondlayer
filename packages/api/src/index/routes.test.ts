@@ -1748,6 +1748,121 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 		expect(Number(billed?.usd_micros)).toBeGreaterThan(0);
 	});
 
+	test("block headers are free: /blocks serves past the allowance with $0 balance and writes no ledger row, /events still 402s", async () => {
+		const accountId = await makeAccount();
+		await meter(db, {
+			accountId,
+			unit: "rows.delivered",
+			quantity: ROWS_DELIVERED_MONTHLY_ALLOWANCE,
+			source: "test-seed",
+			idempotencyKey: `seed-${accountId}`,
+			occurredAt: new Date(),
+		});
+
+		const app = new Hono();
+		app.onError(errorHandler);
+		const tokens: IndexTokenStore = new Map([
+			[
+				`sk-sl_test_${accountId}`,
+				{
+					tenant_id: `account:${accountId}`,
+					account_id: accountId,
+					tier: "free",
+					scopes: [INDEX_READ_SCOPE],
+				},
+			],
+		]);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				tokens,
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readBlocks: async () => ({
+					blocks: [blockRow(1), blockRow(2)],
+					next_cursor: null,
+				}),
+				readEvents: async () => ({
+					events: [fakeEvent("3:0")],
+					next_cursor: null,
+				}),
+			}),
+		);
+		const headers = { Authorization: `Bearer sk-sl_test_${accountId}` };
+
+		const blocks = await app.request("/v1/index/blocks?limit=2", { headers });
+		expect(blocks.status).toBe(200);
+		const body = (await blocks.json()) as { blocks: unknown[] };
+		expect(body.blocks).toHaveLength(2);
+		expect(await ledgerRows(accountId)).toHaveLength(1); // only the seed row
+
+		const events = await app.request(
+			"/v1/index/events?event_type=ft_transfer",
+			{
+				headers,
+			},
+		);
+		expect(events.status).toBe(402);
+	});
+
+	test("block headers are not debited for a credited account, event rows still are", async () => {
+		const accountId = await makeAccount();
+		await meter(db, {
+			accountId,
+			unit: "rows.delivered",
+			quantity: ROWS_DELIVERED_MONTHLY_ALLOWANCE,
+			source: "test-seed",
+			idempotencyKey: `seed-${accountId}`,
+			occurredAt: new Date(),
+		});
+		await creditCredits(db, accountId, 1_000_000n);
+
+		const app = new Hono();
+		app.onError(errorHandler);
+		const tokens: IndexTokenStore = new Map([
+			[
+				`sk-sl_test_${accountId}`,
+				{
+					tenant_id: `account:${accountId}`,
+					account_id: accountId,
+					tier: "free",
+					scopes: [INDEX_READ_SCOPE],
+				},
+			],
+		]);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				tokens,
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readBlocks: async () => ({
+					blocks: [blockRow(1), blockRow(2)],
+					next_cursor: null,
+				}),
+				readEvents: async () => ({
+					events: [fakeEvent("4:0")],
+					next_cursor: null,
+				}),
+			}),
+		);
+		const headers = { Authorization: `Bearer sk-sl_test_${accountId}` };
+
+		const blocks = await app.request("/v1/index/blocks?limit=2", { headers });
+		expect(blocks.status).toBe(200);
+		expect(await ledgerRows(accountId)).toHaveLength(1); // seed only
+
+		const events = await app.request(
+			"/v1/index/events?event_type=ft_transfer",
+			{
+				headers,
+			},
+		);
+		expect(events.status).toBe(200);
+		const rows = await ledgerRows(accountId);
+		expect(rows.filter((r) => r.source === "index")).toHaveLength(1);
+	});
+
 	test("a read that straddles the allowance boundary with $0 balance serves in full, overflow debited=false", async () => {
 		const accountId = await makeAccount();
 		const now = new Date();

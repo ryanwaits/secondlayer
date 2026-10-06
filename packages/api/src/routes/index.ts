@@ -607,7 +607,8 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			},
 		);
 		if (notModified) return notModified;
-		await meterRows(c, response.blocks);
+		// Block headers are reference data — served but not metered (and exempt
+		// from the allowance 402 in `indexCreditsGate`).
 		return c.json(response);
 	});
 

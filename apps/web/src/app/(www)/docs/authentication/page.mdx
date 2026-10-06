@@ -27,7 +27,7 @@ Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On 
 
 | Surface | Credential | Behavior |
 | --- | --- | --- |
-| `api.secondlayer.tools` `/v1` Index, Streams | `SECONDLAYER_API_KEY` (`sk-sl_*`) | required. Same prepaid credits as archive. Subgraphs and webhooks run on your instance, not here |
+| `api.secondlayer.tools` `/v1` Index, Streams | `SECONDLAYER_API_KEY` (`sk-sl_*`) | required. Same prepaid credits as archive. Subgraphs and webhooks also run here on a hosted stack; see [Subgraphs](/docs/subgraphs) and [Webhooks](/docs/webhooks) |
 | Archive quote / fetch / credits | `SECONDLAYER_API_KEY` or `secondlayer login --credits` | required |
 
 Never put `sk-sl_*` in `INSTANCE_TOKEN`. Never put the hex token in `SECONDLAYER_API_KEY`.
@@ -41,6 +41,8 @@ Hosted reads, live or history, priced the same:
 | First 1M rows per account per month | free |
 | Past 1M rows/month | $5 per 1M rows, $2 per 1M past $50 in a month |
 | `304` on `If-None-Match` for a finalized page | free |
+
+Block headers are free; you pay for event and transaction rows.
 
 The SDK sends `If-None-Match` for you. Its cache holds the last 64 pages in memory; pass `etagCache` to keep one across runs.
 

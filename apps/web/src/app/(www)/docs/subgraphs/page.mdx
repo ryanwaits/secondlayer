@@ -14,7 +14,7 @@ Subgraphs run on your own instance, or hosted at `api.secondlayer.tools`. Hosted
 | Memory | Your box | 512 MB each for your API and your subgraph processor |
 | Network | Whatever your network allows | Your handlers reach Secondlayer's API and the public internet, nothing else |
 | Isolation | N/A (you run it) | Handler code runs in a gVisor sandbox inside your own stack, never beside anyone else's data or process |
-| Pricing | Free (self-host) | Indexing reads bill `rows.delivered` against your allowance, plus the stack's memory and storage. Reads of your own tables are free |
+| Pricing | Free (self-host) | Indexing bills the event and transaction rows it reads against your allowance (block headers are free), plus the stack's memory and storage. Reads of your own tables are free |
 | Subgraph webhooks | Yes | Not yet |
 
 A hosted stack that runs out of credits stops and starts again on top-up. Your tables are kept while it is stopped.
