@@ -172,6 +172,72 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		expect(restarts).toEqual([id]);
 	});
 
+	const paused = (name: string, height: number): SubgraphCursor => ({
+		...sub(name, height),
+		lastError: "billing_paused: spend_cap_reached",
+	});
+
+	test("a billing-paused subgraph with a frozen cursor and a moving tip is never restarted or halted", async () => {
+		reset();
+		const id = await seedTenant();
+		subgraphs[id] = [paused("s", 10)];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		for (let i = 0; i < 2 * MAX_RESTARTS_PER_HEIGHT + 4; i++) {
+			tip = (tip ?? 0) + 50;
+			now += STALL_MS;
+			await tick();
+		}
+		expect(restarts).toEqual([]);
+		expect(halts).toEqual([]);
+	});
+
+	test("a pause that ends restarts the stall clock instead of reading the frozen cursor as a stall", async () => {
+		reset();
+		const id = await seedTenant();
+		subgraphs[id] = [paused("s", 10)];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick();
+		tip = (tip ?? 0) + 50;
+		now += 3 * STALL_MS;
+		await tick();
+		await tick();
+
+		// Billing recovered: the code clears, the cursor has yet to move.
+		subgraphs[id] = [sub("s", 10)];
+		tip = (tip ?? 0) + 50;
+		now += 5 * MINUTE;
+		await tick();
+		expect(restarts).toEqual([]);
+
+		// Still frozen a full window later: a real stall again.
+		tip = (tip ?? 0) + 50;
+		now += STALL_MS + MINUTE;
+		await tick();
+		expect(restarts).toEqual([id]);
+	});
+
+	test("a frozen subgraph still restarts while a paused one beside it is left alone", async () => {
+		reset();
+		const id = await seedTenant();
+		subgraphs[id] = [paused("capped", 10), sub("wedged", 20)];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick();
+		tip = (tip ?? 0) + 50;
+		now += STALL_MS + MINUTE;
+		await tick();
+		expect(restarts).toEqual([id]);
+		expect(halts).toEqual([]);
+		for (let i = 0; i < MAX_RESTARTS_PER_HEIGHT; i++) {
+			tip = (tip ?? 0) + 50;
+			now += STALL_MS + MINUTE;
+			await tick();
+		}
+		expect(halts.map((h) => h.name)).toEqual(["wedged"]);
+	});
+
 	test("a frozen cursor with a frozen tip is not a stall", async () => {
 		reset();
 		const id = await seedTenant();

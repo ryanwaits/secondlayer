@@ -28,6 +28,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@secondlayer/shared";
+import { billingPausedCode } from "@secondlayer/shared/schemas";
 import { listRunningTenants } from "./control-db.ts";
 import type { TenantRow } from "./control-db.ts";
 import { type RunDocker, spawnDocker } from "./meters.ts";
@@ -57,7 +58,13 @@ export interface SubgraphCursor {
 	lastProcessedBlock: number;
 	/** A reindex that is queued behind another operation rather than running. */
 	queued?: boolean;
+	/** Latest indexing error. `billing_paused: <code>` means the account's
+	 *  metered reads are refused (spend cap / credits): a deliberate pause. */
+	lastError?: string | null;
 }
+
+const isBillingPaused = (sub: SubgraphCursor): boolean =>
+	billingPausedCode(sub.lastError) !== null;
 
 /** What `docker inspect` says about the processor container. */
 export interface ProcessorState {
@@ -264,7 +271,18 @@ export function createProcessorWatch(
 			const key = `${tenant.account_id}:${sub.name}`;
 			seen.add(key);
 			const tracker = trackers.get(key);
-			if (!tracker) {
+			if (isBillingPaused(sub)) {
+				// A billing pause freezes the cursor on purpose while the tip moves.
+				// Keep the stall clock fresh so the first tick after the pause ends
+				// doesn't read the old freeze as a stall.
+				trackers.set(key, {
+					height: sub.lastProcessedBlock,
+					movedAt: now,
+					tipAtMove: tip,
+					creep: null,
+					streak: tracker?.streak ?? null,
+				});
+			} else if (!tracker) {
 				trackers.set(key, {
 					height: sub.lastProcessedBlock,
 					movedAt: now,
@@ -307,6 +325,7 @@ export function createProcessorWatch(
 		}
 
 		const stalled = subgraphs.filter((sub) => {
+			if (isBillingPaused(sub)) return false;
 			const t = trackers.get(`${tenant.account_id}:${sub.name}`);
 			return (
 				t !== undefined &&
@@ -328,6 +347,7 @@ export function createProcessorWatch(
 		const culprits = stalled.length
 			? stalled
 			: subgraphs.filter((sub) => {
+					if (isBillingPaused(sub)) return false;
 					const creep = trackers.get(`${tenant.account_id}:${sub.name}`)?.creep;
 					if (creep == null) return false;
 					if (tip === null) return creep === 0;
