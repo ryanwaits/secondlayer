@@ -16,6 +16,7 @@ import {
 	ensureScaffoldPackageJson,
 	formatOperationProgress,
 	formatOperationRange,
+	formatSubgraphStatus,
 	installScaffoldDependencies,
 	operationDetailPairs,
 	ormFlagsConflictingWithPayloads,
@@ -25,6 +26,17 @@ import {
 } from "../src/commands/subgraphs.ts";
 
 describe("subgraphs command helpers", () => {
+	it("shows a billing pause next to the status, and nothing for other errors", () => {
+		expect(
+			formatSubgraphStatus("active", "billing_paused: spend_cap_reached"),
+		).toBe("active (paused: spend cap reached)");
+		expect(
+			formatSubgraphStatus("active", "billing_paused: insufficient_credits"),
+		).toBe("active (paused: insufficient credits)");
+		expect(formatSubgraphStatus("error", "handler threw")).toBe("error");
+		expect(formatSubgraphStatus("active", null)).toBe("active");
+	});
+
 	it("parses deploy --start-block as a nonnegative integer", () => {
 		expect(parseStartBlockOption()).toBeUndefined();
 		expect(parseStartBlockOption("0")).toBe(0);

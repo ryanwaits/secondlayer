@@ -14,7 +14,10 @@ import {
 	generatePrintSchemaSubgraph,
 	generateTraitSubgraph,
 } from "@secondlayer/scaffold";
-import type { SubgraphDetail } from "@secondlayer/shared/schemas";
+import {
+	type SubgraphDetail,
+	billingPausedCode,
+} from "@secondlayer/shared/schemas";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import type { Command } from "commander";
@@ -601,6 +604,16 @@ export function formatOperationRange(op: {
 }): string {
 	if (op.fromBlock === null && op.toBlock === null) return "whole subgraph";
 	return `${op.fromBlock ?? "start"} → ${op.toBlock ?? "tip"}`;
+}
+
+/** Status with a billing pause called out: reads past the free allowance are
+ *  refused (spend cap / credits), so indexing waits rather than failing. */
+export function formatSubgraphStatus(
+	status: string,
+	lastError: string | null | undefined,
+): string {
+	const code = billingPausedCode(lastError);
+	return code ? `${status} (paused: ${code.replace(/_/g, " ")})` : status;
 }
 
 /** `progress` is null until the API knows a denominator — say so, don't fake 0%. */
@@ -1506,7 +1519,10 @@ Examples:
 					formatKeyValue([
 						["Name", subgraph.name],
 						["Version", subgraph.version],
-						["Status", subgraph.status],
+						[
+							"Status",
+							formatSubgraphStatus(subgraph.status, subgraph.health.lastError),
+						],
 						["Sync", syncDisplay.line],
 						[syncDisplay.remainingLabel, syncDisplay.remaining],
 						["Integrity", integrity],
