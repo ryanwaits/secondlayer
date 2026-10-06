@@ -22,6 +22,7 @@ import {
 	ensureControlSchema,
 	getTenant,
 	insertProvisioningTenant,
+	setTenantState,
 } from "./control-db.ts";
 import {
 	type ComposeResult,
@@ -30,6 +31,7 @@ import {
 	destroy,
 	generateTenantSecrets,
 	pollCredits,
+	recoverInterruptedProvisions,
 	renderEnvFile,
 	start,
 	stop,
@@ -249,6 +251,59 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 			/docker compose up failed/, // original error surfaces, not the cleanup error
 		);
 		expect(await getTenant(db, accountId)).toBeUndefined(); // still cleaned up the row
+	});
+
+	test("recoverInterruptedProvisions tears down a provisioning row with compose down -v and deletes it", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = `test-${crypto.randomUUID()}`;
+		const acct8 = acct8For(accountId);
+		await insertProvisioningTenant(db, accountId, acct8);
+
+		const count = await recoverInterruptedProvisions(cfg());
+		expect(count).toBeGreaterThanOrEqual(1);
+
+		const mine = composeCalls.filter((c) => c.args.includes(`tenant-${acct8}`));
+		expect(mine).toHaveLength(1);
+		expect(mine[0]?.args).toContain("down");
+		expect(mine[0]?.args).toContain("-v");
+		expect(mine[0]?.env.WORKLOAD_IMAGE_TAG).toBe(TARGET_SHA);
+		expect(await getTenant(db, accountId)).toBeUndefined();
+	});
+
+	test("recoverInterruptedProvisions leaves running and stopped tenants alone", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const runningId = `test-${crypto.randomUUID()}`;
+		const stoppedId = `test-${crypto.randomUUID()}`;
+		await insertProvisioningTenant(db, runningId, acct8For(runningId));
+		await setTenantState(db, runningId, "running");
+		await insertProvisioningTenant(db, stoppedId, acct8For(stoppedId));
+		await setTenantState(db, stoppedId, "stopped");
+
+		await recoverInterruptedProvisions(cfg());
+
+		expect((await getTenant(db, runningId))?.state).toBe("running");
+		expect((await getTenant(db, stoppedId))?.state).toBe("stopped");
+		const touched = composeCalls.filter(
+			(c) =>
+				c.args.includes(`tenant-${acct8For(runningId)}`) ||
+				c.args.includes(`tenant-${acct8For(stoppedId)}`),
+		);
+		expect(touched).toHaveLength(0);
+
+		await deleteTenant(db, runningId);
+		await deleteTenant(db, stoppedId);
+	});
+
+	test("recoverInterruptedProvisions with no resolved target skips compose but still deletes the row", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = `test-${crypto.randomUUID()}`;
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+		targetSha = null;
+
+		await recoverInterruptedProvisions(cfg());
+
+		expect(composeCalls).toHaveLength(0);
+		expect(await getTenant(db, accountId)).toBeUndefined();
 	});
 
 	test("stop() transitions running → stopped and stops the app services, not postgres", async () => {

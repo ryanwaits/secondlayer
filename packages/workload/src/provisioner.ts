@@ -26,6 +26,7 @@ import {
 	getTenant,
 	insertProvisioningTenant,
 	listPollableTenants,
+	listProvisioningTenants,
 	setTenantImageSha,
 	setTenantState,
 } from "./control-db.ts";
@@ -384,7 +385,6 @@ export async function up(
 			runCompose,
 			accountId,
 			acct8,
-			dir,
 			targetSha,
 			err,
 		);
@@ -413,7 +413,6 @@ async function cleanupFailedProvision(
 	runCompose: RunCompose,
 	accountId: string,
 	acct8: string,
-	dir: string,
 	targetSha: string,
 	originalErr: unknown,
 ): Promise<void> {
@@ -423,29 +422,77 @@ async function cleanupFailedProvision(
 		error:
 			originalErr instanceof Error ? originalErr.message : String(originalErr),
 	});
-	try {
-		await runCompose(
-			[
-				"-p",
-				projectName(acct8),
-				"-f",
-				cfg.composeFile,
-				"--env-file",
-				join(dir, ".env"),
-				"down",
-				"-v",
-			],
-			{ WORKLOAD_IMAGE_TAG: targetSha },
-		);
-	} catch (cleanupErr) {
-		logger.warn("workload.provisioner.up_failed_cleanup_compose_down_error", {
+	await teardownProvision(cfg, runCompose, accountId, acct8, targetSha);
+}
+
+/** Shared by the failed-`up()` cleanup and the boot sweep: `compose down -v`
+ *  for the tenant's project (skipped when there is no image tag to give
+ *  compose), then delete the control-db row. Never throws on a compose
+ *  failure. */
+async function teardownProvision(
+	cfg: ProvisionerConfig,
+	runCompose: RunCompose,
+	accountId: string,
+	acct8: string,
+	targetSha: string | null,
+): Promise<void> {
+	if (targetSha) {
+		try {
+			await runCompose(
+				[
+					"-p",
+					projectName(acct8),
+					"-f",
+					cfg.composeFile,
+					"--env-file",
+					join(tenantDir(cfg, acct8), ".env"),
+					"down",
+					"-v",
+				],
+				{ WORKLOAD_IMAGE_TAG: targetSha },
+			);
+		} catch (cleanupErr) {
+			logger.warn("workload.provisioner.up_failed_cleanup_compose_down_error", {
+				accountId,
+				acct8,
+				error:
+					cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
+			});
+		}
+	} else {
+		logger.warn("workload.provisioner.teardown_compose_skipped_no_target", {
 			accountId,
 			acct8,
-			error:
-				cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
 		});
 	}
 	await deleteTenant(cfg.db, accountId);
+}
+
+/** Boot sweep: a restart mid-`up()` kills the fire-and-forget provision, so
+ *  every `provisioning` row found before the gateway starts is orphaned (one
+ *  process owns provisioning; nothing is in flight yet). Tear each down the
+ *  same way a failed `up()` does so the next request re-provisions from
+ *  scratch instead of 503ing forever. Must run before `Bun.serve`. */
+export async function recoverInterruptedProvisions(
+	cfg: ProvisionerConfig,
+): Promise<number> {
+	const runCompose = cfg.runCompose ?? spawnCompose;
+	const rows = await listProvisioningTenants(cfg.db);
+	for (const row of rows) {
+		const acct8 = acct8For(row.account_id);
+		await teardownProvision(
+			cfg,
+			runCompose,
+			row.account_id,
+			acct8,
+			cfg.getTargetSha(),
+		);
+		logger.warn("workload.provisioner.recovered_interrupted", {
+			accountId: row.account_id,
+			acct8,
+		});
+	}
+	return rows.length;
 }
 
 /** `running → stopped`: stop every service except `postgres` (Design) so

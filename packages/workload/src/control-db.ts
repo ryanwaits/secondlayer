@@ -205,6 +205,17 @@ export async function listPollableTenants(
 	`;
 }
 
+/** `provisioning` tenants only — at boot, every one is orphaned by a restart
+ *  mid-`up()` (`provisioner.ts`'s `recoverInterruptedProvisions`). */
+export async function listProvisioningTenants(
+	db: postgres.Sql,
+): Promise<TenantRow[]> {
+	return db<TenantRow[]>`
+		SELECT * FROM tenants WHERE state = 'provisioning'
+		ORDER BY created_at ASC
+	`;
+}
+
 /** `running` tenants only — what the memory/storage samplers (`meters.ts`)
  *  iterate. A `stopped` tenant's containers aren't running, so sampling them
  *  would either error or report a stale/zero number; skip them entirely

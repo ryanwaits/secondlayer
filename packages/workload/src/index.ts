@@ -59,6 +59,7 @@ import {
 	pollCredits,
 	start as provisionStart,
 	up as provisionUp,
+	recoverInterruptedProvisions,
 } from "./provisioner.ts";
 import { createRateLimiter } from "./rate-limiter.ts";
 import {
@@ -131,6 +132,22 @@ async function main(): Promise<void> {
 		getTargetSha: () => targetShaCache.lastGood,
 	};
 	const runUpgradeRound = createUpgradeRunner(provisionerCfg);
+
+	// Before the gateway accepts requests: a restart mid-provision leaves
+	// `provisioning` rows nothing will ever finish. Failure here must not
+	// block boot.
+	try {
+		const recovered = await recoverInterruptedProvisions(provisionerCfg);
+		if (recovered > 0) {
+			logger.warn("workload.provisioner.recovered_interrupted_total", {
+				count: recovered,
+			});
+		}
+	} catch (err) {
+		logger.error("workload.provisioner.recover_interrupted_failed", {
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
 
 	// One EventCounter + meter-socket server per running tenant, started the
 	// moment we know about it and torn down on destroy. Keyed by accountId,

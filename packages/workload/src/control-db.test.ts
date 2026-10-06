@@ -7,6 +7,7 @@ import {
 	getTenant,
 	insertProvisioningTenant,
 	listPollableTenants,
+	listProvisioningTenants,
 	listRunningTenants,
 	listTenants,
 	setTenantImageSha,
@@ -147,6 +148,25 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 		await setTenantImageSha(db, accountId, sha);
 		row = await getTenant(db, accountId);
 		expect(row?.image_sha).toBe(sha);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("listProvisioningTenants returns only provisioning rows", async () => {
+		const accountId = `test-${crypto.randomUUID()}`;
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+		expect(
+			(await listProvisioningTenants(db)).some(
+				(r) => r.account_id === accountId,
+			),
+		).toBe(true);
+
+		await setTenantState(db, accountId, "running");
+		expect(
+			(await listProvisioningTenants(db)).some(
+				(r) => r.account_id === accountId,
+			),
+		).toBe(false);
 
 		await deleteTenant(db, accountId);
 	});
