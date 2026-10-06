@@ -611,6 +611,24 @@ export async function resolveBlockRange(
 }
 
 /**
+ * Back to `active` after a user-cancelled reindex, unless something else
+ * already decided the subgraph's fate: a watchdog halt marks it `error` and
+ * cancels its operations, and that error must survive the cancel it caused.
+ */
+async function resetCancelledReindex(
+	db: ReturnType<typeof getTargetDb>,
+	subgraphName: string,
+): Promise<void> {
+	await db
+		.updateTable("subgraphs")
+		.set({ status: "active", updated_at: new Date() })
+		.where("name", "=", subgraphName)
+		.where("status", "=", "reindexing")
+		.execute();
+	await clearReindexMetadata(db, subgraphName);
+}
+
+/**
  * Clear reindex metadata columns after completion or cancellation.
  */
 async function clearReindexMetadata(
@@ -733,8 +751,7 @@ export async function reindexSubgraph(
 		if (result.aborted) {
 			const reason = String(opts?.signal?.reason ?? "unknown");
 			if (reason === "user-cancelled") {
-				await updateSubgraphStatus(targetDb, subgraphName, "active");
-				await clearReindexMetadata(targetDb, subgraphName);
+				await resetCancelledReindex(targetDb, subgraphName);
 				logger.info("Reindex cancelled by user", { subgraph: subgraphName });
 			} else {
 				// shutdown — leave status as "reindexing" for auto-resume
@@ -841,8 +858,7 @@ export async function resumeReindex(
 		if (result.aborted) {
 			const reason = String(opts.signal?.reason ?? "unknown");
 			if (reason === "user-cancelled") {
-				await updateSubgraphStatus(targetDb, subgraphName, "active");
-				await clearReindexMetadata(targetDb, subgraphName);
+				await resetCancelledReindex(targetDb, subgraphName);
 				logger.info("Resume cancelled by user", { subgraph: subgraphName });
 			} else {
 				logger.info("Resume interrupted by shutdown, will resume again", {

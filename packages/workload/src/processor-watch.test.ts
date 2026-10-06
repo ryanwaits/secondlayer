@@ -19,6 +19,7 @@ import {
 } from "./control-db.ts";
 import {
 	MAX_RESTARTS_PER_HEIGHT,
+	type ProcessorState,
 	type ProcessorWatchDeps,
 	STALL_MS,
 	type SubgraphCursor,
@@ -38,7 +39,7 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 	let secretsRoot: string;
 	let now: number;
 	let tip: number | null;
-	let oom: { oomKilled: boolean; finishedAt: string } | null;
+	let container: ProcessorState | null;
 	let subgraphs: Record<string, SubgraphCursor[]>;
 	let restarts: string[];
 	let halts: { account: string; name: string; reason: string }[];
@@ -56,7 +57,7 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 
 	function deps(): ProcessorWatchDeps {
 		return {
-			inspectProcessor: async () => oom,
+			inspectProcessor: async () => container,
 			listSubgraphs: async (t) => {
 				const rows = subgraphs[t.instanceToken];
 				if (!rows) throw new Error("tenant api down");
@@ -90,8 +91,23 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		return accountId;
 	}
 
-	function sub(name: string, height: number, status = "active") {
-		return { name, status, lastProcessedBlock: height };
+	function sub(
+		name: string,
+		height: number,
+		status = "active",
+		queued = false,
+	) {
+		return { name, status, lastProcessedBlock: height, queued };
+	}
+
+	/** Docker restarts a crashed processor; the flag it leaves behind is false. */
+	function crashed(restartCount: number): ProcessorState {
+		return {
+			restartCount,
+			oomKilled: false,
+			exitCode: 137,
+			finishedAt: `2026-10-06T10:0${restartCount}:00Z`,
+		};
 	}
 
 	beforeAll(async () => {
@@ -113,7 +129,12 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 	function reset() {
 		now = 1_000_000;
 		tip = 100;
-		oom = { oomKilled: false, finishedAt: "0001-01-01T00:00:00Z" };
+		container = {
+			restartCount: 0,
+			oomKilled: false,
+			exitCode: 0,
+			finishedAt: "0001-01-01T00:00:00Z",
+		};
 		subgraphs = {};
 		restarts = [];
 		halts = [];
@@ -176,20 +197,107 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		expect(restarts).toEqual([]);
 	});
 
-	test("an OOM-killed processor is restarted once per death, not on every tick", async () => {
+	test("a processor docker already restarted is counted as a death, never restarted again", async () => {
 		reset();
 		const id = await seedTenant();
 		subgraphs[id] = [sub("s", 10)];
 		const tick = createProcessorWatch(cfg(), deps());
 
-		oom = { oomKilled: true, finishedAt: "2026-10-06T10:00:00Z" };
+		await tick(); // baseline: restartCount 0
+		container = crashed(1); // docker restarted it; OOMKilled reads false
+		await tick();
+		await tick(); // same count: same death, not counted twice
+		expect(restarts).toEqual([]);
+		expect(halts).toEqual([]);
+	});
+
+	test("an OOM kill the flag still shows is counted once per death, not on every tick", async () => {
+		reset();
+		const id = await seedTenant();
+		subgraphs[id] = [sub("s", 10)];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick(); // baseline
+		container = {
+			restartCount: 0,
+			oomKilled: true,
+			exitCode: 137,
+			finishedAt: "2026-10-06T10:00:00Z",
+		};
 		await tick();
 		await tick(); // the flag is sticky; same death
-		expect(restarts).toEqual([id]);
-
-		oom = { oomKilled: true, finishedAt: "2026-10-06T11:00:00Z" };
 		await tick();
-		expect(restarts).toEqual([id, id]);
+		expect(halts).toEqual([]); // 1 death, below the threshold
+
+		container = { ...container, finishedAt: "2026-10-06T11:00:00Z" };
+		await tick();
+		container = { ...container, finishedAt: "2026-10-06T12:00:00Z" };
+		await tick(); // third distinct death at the same cursor
+		expect(halts.map((h) => h.name)).toEqual(["s"]);
+		expect(restarts).toEqual([]);
+	});
+
+	test("three deaths at the same reindex cursor halt that subgraph once, not an innocent active one", async () => {
+		reset();
+		const id = await seedTenant();
+		subgraphs[id] = [sub("reindexed", 500, "reindexing"), sub("innocent", 50)];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick(); // baseline
+		for (let i = 1; i <= MAX_RESTARTS_PER_HEIGHT; i++) {
+			// The reindex is stuck at 500 while the processor dies under it; the
+			// innocent subgraph's cursor keeps moving.
+			subgraphs[id] = [
+				sub("reindexed", 500, "reindexing"),
+				sub("innocent", 50 + i),
+			];
+			container = crashed(i);
+			await tick();
+		}
+
+		expect(halts).toHaveLength(1);
+		expect(halts[0]?.name).toBe("reindexed");
+		expect(halts[0]?.reason).toContain("block 500");
+		expect(restarts).toEqual([]);
+	});
+
+	test("several deaths between two ticks all count toward the halt", async () => {
+		reset();
+		const id = await seedTenant();
+		subgraphs[id] = [sub("stuck", 10)];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick();
+		container = crashed(MAX_RESTARTS_PER_HEIGHT);
+		await tick();
+		expect(halts.map((h) => h.name)).toEqual(["stuck"]);
+	});
+
+	test("a reindex still waiting in the queue is never blamed for a death", async () => {
+		reset();
+		const id = await seedTenant();
+		subgraphs[id] = [sub("waiting", 0, "reindexing", true), sub("busy", 7)];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick();
+		for (let i = 1; i <= MAX_RESTARTS_PER_HEIGHT; i++) {
+			container = crashed(i);
+			await tick();
+		}
+		expect(halts.map((h) => h.name)).toEqual(["busy"]);
+	});
+
+	test("a recreated container (restart count back to zero) is not a death", async () => {
+		reset();
+		const id = await seedTenant();
+		subgraphs[id] = [sub("s", 10)];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		container = crashed(2);
+		await tick();
+		container = { ...crashed(0), exitCode: 0 };
+		await tick();
+		expect(halts).toEqual([]);
 	});
 
 	test("after the third restart at the same cursor height the subgraph is halted through the tenant api", async () => {
@@ -271,20 +379,22 @@ describe("realProcessorWatchDeps", () => {
 		getTargetSha: () => "b".repeat(40),
 	};
 
-	test("inspects the processor container and parses the OOM flag", async () => {
+	test("inspects the processor container and parses restart count, OOM flag and exit code", async () => {
 		const calls: string[][] = [];
 		const d = realProcessorWatchDeps(base, {
 			runDocker: async (args) => {
 				calls.push(args);
 				return {
 					code: 0,
-					stdout: "true 2026-10-06T10:00:00.123456789Z\n",
+					stdout: "2 true 137 2026-10-06T10:00:00.123456789Z\n",
 					stderr: "",
 				};
 			},
 		});
 		expect(await d.inspectProcessor("abcd1234")).toEqual({
+			restartCount: 2,
 			oomKilled: true,
+			exitCode: 137,
 			finishedAt: "2026-10-06T10:00:00.123456789Z",
 		});
 		expect(calls[0]).toContain("tenant-abcd1234-subgraph-processor-1");
@@ -295,6 +405,36 @@ describe("realProcessorWatchDeps", () => {
 			runDocker: async () => ({ code: 1, stdout: "", stderr: "No such" }),
 		});
 		expect(await d.inspectProcessor("abcd1234")).toBeNull();
+	});
+
+	test("listing marks a reindex that is queued behind another operation", async () => {
+		const d = realProcessorWatchDeps(base, {
+			fetchImpl: (async (url: string) => {
+				if (url.endsWith("/api/subgraphs")) {
+					return Response.json({
+						data: [
+							{ name: "a", status: "reindexing", lastProcessedBlock: 0 },
+							{ name: "b", status: "reindexing", lastProcessedBlock: 9 },
+							{ name: "c", status: "active", lastProcessedBlock: 5 },
+						],
+					});
+				}
+				return Response.json(
+					url.endsWith("/a")
+						? { sync: { queue: { position: 1 } } }
+						: { sync: {} },
+				);
+			}) as unknown as typeof fetch,
+		});
+		const rows = await d.listSubgraphs({
+			baseUrl: "http://127.0.0.1:20001",
+			instanceToken: "tok",
+		});
+		expect(rows.map((r) => [r.name, r.queued])).toEqual([
+			["a", true],
+			["b", false],
+			["c", undefined],
+		]);
 	});
 
 	test("restart targets only subgraph-processor, on the tag the tenant already runs", async () => {

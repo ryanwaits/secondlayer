@@ -901,7 +901,9 @@ app.post("/:subgraphName/stop", async (c) => {
  *  the stack's instance token, over loopback) for a subgraph whose handler
  *  keeps stalling or OOM-killing the processor: customer code does not get to
  *  report its own health, and the processor skips non-`active` subgraphs, so
- *  this ends the restart loop. A redeploy or reindex brings it back. */
+ *  this ends the restart loop. Its queued/running operations are cancelled
+ *  too: a halted reindex would otherwise resume on the next processor start and
+ *  wedge it again. A redeploy or reindex brings the subgraph back. */
 app.post("/:subgraphName/halt", async (c) => {
 	const { subgraphName } = c.req.param();
 	const body = await c.req.json().catch(() => {
@@ -927,6 +929,7 @@ app.post("/:subgraphName/halt", async (c) => {
 		})
 		.where("name", "=", subgraphName)
 		.execute();
+	await requestSubgraphOperationsCancelForDelete(db, subgraph.id);
 
 	return c.json({ message: `Subgraph "${subgraphName}" halted`, reason });
 });

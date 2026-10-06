@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
+import { createSubgraphOperation } from "@secondlayer/shared/db/queries/subgraph-operations";
 import { registerSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { Hono } from "hono";
 import { errorHandler } from "../middleware/error.ts";
@@ -52,6 +53,33 @@ describe.skipIf(!HAS_DB)("POST /api/subgraphs/:name/halt", () => {
 		expect(row.status).toBe("error");
 		expect(row.last_error).toBe("handler stalled at block 100");
 		expect(row.last_error_at).not.toBeNull();
+	});
+
+	test("cancels the subgraph's active operations so a halted reindex does not resume", async () => {
+		const name = `halt-test-${crypto.randomUUID().slice(0, 8)}`;
+		names.push(name);
+		const subgraph = await registerSubgraph(db, {
+			name,
+			version: "1.0.0",
+			definition: {},
+			schemaHash: "h",
+			handlerPath: "/data/subgraphs/x.js",
+		});
+		const reindex = await createSubgraphOperation(db, {
+			subgraphId: subgraph.id,
+			subgraphName: name,
+			kind: "reindex",
+		});
+
+		const res = await halt(name, { reason: "out of memory at block 500" });
+		expect(res.status).toBe(200);
+
+		const op = await db
+			.selectFrom("subgraph_operations")
+			.select("cancel_requested")
+			.where("id", "=", reindex.id)
+			.executeTakeFirstOrThrow();
+		expect(op.cancel_requested).toBe(true);
 	});
 
 	test("an unknown subgraph is a 404", async () => {
