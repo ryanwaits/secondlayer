@@ -1,5 +1,14 @@
 # @secondlayer/subgraphs
 
+## 6.3.6
+
+### Patch Changes
+
+- 562a550: A hosted subgraph whose reads are refused for billing (spend cap or credits) now pauses and resumes from its cursor instead of failing or halting.
+- Updated dependencies [0ca7fb4]
+- Updated dependencies [1308f51]
+  - @secondlayer/shared@11.19.3
+
 ## 6.3.5
 
 ### Patch Changes

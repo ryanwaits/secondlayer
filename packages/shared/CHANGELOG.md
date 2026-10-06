@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 11.19.3
+
+### Patch Changes
+
+- 0ca7fb4: Index and Streams reads refused with 402 `spend_cap_reached` or `insufficient_credits` raise `BillingPausedError` and are not retried.
+- 1308f51: Balance email previews say "hosted stack" and cover both webhooks and subgraphs when credits run out.
+
 ## 11.19.2
 
 ### Patch Changes

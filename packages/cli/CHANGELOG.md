@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 19.1.3
+
+### Patch Changes
+
+- 5a02ee2: `subgraphs status` shows "paused: spend cap reached" when a hosted subgraph is waiting on billing.
+- Updated dependencies [0ca7fb4]
+- Updated dependencies [562a550]
+- Updated dependencies [1308f51]
+  - @secondlayer/shared@11.19.3
+  - @secondlayer/subgraphs@6.3.6
+
 ## 19.1.2
 
 ### Patch Changes
