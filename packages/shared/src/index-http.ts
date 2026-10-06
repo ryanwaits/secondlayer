@@ -53,6 +53,47 @@ export class IndexHttpStatusError extends Error {
 	}
 }
 
+/** The two refusals a metered read can get once an account is past its free
+ *  allowance (`checkRowsAllowance`). Both are deliberate billing states, not
+ *  outages: retrying them in a storm only burns the request budget. */
+export type BillingPausedCode = "spend_cap_reached" | "insufficient_credits";
+
+const BILLING_PAUSED_CODES: ReadonlySet<string> = new Set<BillingPausedCode>([
+	"spend_cap_reached",
+	"insufficient_credits",
+]);
+
+/** A read refused with `402` and `{ error: "spend_cap_reached" |
+ *  "insufficient_credits" }`. Raised only on an exact body match, so an
+ *  unmetered (self-host) server never produces it. */
+export class BillingPausedError extends IndexHttpStatusError {
+	constructor(
+		readonly code: BillingPausedCode,
+		message: string,
+	) {
+		super(402, message);
+		this.name = "BillingPausedError";
+	}
+}
+
+/** `BillingPausedError` when `status`/`body` is exactly a billing refusal. */
+function billingPausedFrom(
+	status: number,
+	body: string,
+	message: string,
+): BillingPausedError | null {
+	if (status !== 402) return null;
+	try {
+		const code = (JSON.parse(body) as { error?: unknown } | null)?.error;
+		if (typeof code === "string" && BILLING_PAUSED_CODES.has(code)) {
+			return new BillingPausedError(code as BillingPausedCode, message);
+		}
+	} catch {
+		// Not JSON: not a billing refusal.
+	}
+	return null;
+}
+
 type Envelope<K extends string, T> = {
 	[P in K]: T[];
 } & { next_cursor: string | null };
@@ -253,9 +294,11 @@ export class IndexHttpClient {
 					await delay(RETRY_BASE_MS * 2 ** (attempt - 1));
 					continue;
 				}
-				throw new IndexHttpStatusError(
-					res.status,
-					`GET ${url} → ${res.status} ${await res.text()}`,
+				const body = await res.text();
+				const message = `GET ${url} → ${res.status} ${body}`;
+				throw (
+					billingPausedFrom(res.status, body, message) ??
+					new IndexHttpStatusError(res.status, message)
 				);
 			}
 			return (await res.json()) as T;

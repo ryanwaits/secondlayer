@@ -64,6 +64,21 @@ export interface DeploySubgraphResponse {
 
 // Subgraph API response types
 
+/** Prefix of the `last_error` a billing-paused subgraph carries, e.g.
+ *  `billing_paused: spend_cap_reached`. Stable: the processor writes it and
+ *  the watchdog and CLI key off it. */
+export const BILLING_PAUSED_PREFIX = "billing_paused: ";
+
+/** The billing code in a subgraph's `last_error`, or `null` when it isn't a
+ *  billing pause. */
+export function billingPausedCode(
+	lastError: string | null | undefined,
+): string | null {
+	return lastError?.startsWith(BILLING_PAUSED_PREFIX)
+		? lastError.slice(BILLING_PAUSED_PREFIX.length)
+		: null;
+}
+
 export interface SubgraphSummary {
 	name: string;
 	version: string;

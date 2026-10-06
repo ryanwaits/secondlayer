@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { IndexHttpClient } from "./index-http.ts";
+import {
+	BillingPausedError,
+	IndexHttpClient,
+	IndexHttpStatusError,
+} from "./index-http.ts";
 
 const originalFetch = globalThis.fetch;
 
@@ -339,5 +343,47 @@ describe("IndexHttpClient.walkEvents scope", () => {
 		expect(urls[0]?.searchParams.get("contract_id")).toBe("SP1.pox-5");
 		expect(urls[0]?.searchParams.get("tx_context")).toBe("true");
 		expect(urls[1]?.searchParams.has("contract_id")).toBe(false);
+	});
+});
+
+describe("IndexHttpClient billing refusals", () => {
+	function stub402(body: string): { calls: () => number } {
+		let n = 0;
+		globalThis.fetch = (async () => {
+			n++;
+			return new Response(body, { status: 402 });
+		}) as unknown as typeof fetch;
+		return { calls: () => n };
+	}
+
+	for (const code of ["spend_cap_reached", "insufficient_credits"] as const) {
+		test(`402 ${code} raises BillingPausedError once, without retrying`, async () => {
+			const stub = stub402(JSON.stringify({ error: code, message: "x" }));
+			const err = await client()
+				.walkBlocks(1, 2)
+				.catch((e: unknown) => e);
+			expect(err).toBeInstanceOf(BillingPausedError);
+			expect((err as BillingPausedError).code).toBe(code);
+			expect((err as BillingPausedError).status).toBe(402);
+			expect(stub.calls()).toBe(1);
+		});
+	}
+
+	test("any other 402 body stays a plain status error", async () => {
+		stub402(JSON.stringify({ error: "something_else" }));
+		const err = await client()
+			.walkBlocks(1, 2)
+			.catch((e: unknown) => e);
+		expect(err).toBeInstanceOf(IndexHttpStatusError);
+		expect(err).not.toBeInstanceOf(BillingPausedError);
+	});
+
+	test("a non-JSON 402 stays a plain status error", async () => {
+		stub402("Payment Required");
+		const err = await client()
+			.walkBlocks(1, 2)
+			.catch((e: unknown) => e);
+		expect(err).not.toBeInstanceOf(BillingPausedError);
+		expect((err as IndexHttpStatusError).status).toBe(402);
 	});
 });

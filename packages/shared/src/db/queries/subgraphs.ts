@@ -1,5 +1,6 @@
 import { type Kysely, sql } from "kysely";
 import { isPlatformMode } from "../../mode.ts";
+import { BILLING_PAUSED_PREFIX } from "../../schemas/subgraphs.ts";
 import { jsonb } from "../jsonb.ts";
 import type { Database, Subgraph } from "../types.ts";
 
@@ -184,6 +185,38 @@ export async function recordSubgraphProcessed(
 			updated_at: new Date(),
 		})
 		.where("name", "=", name)
+		.execute();
+}
+
+/** Record a billing pause on the existing health fields. Status and counters
+ *  are untouched: a paused subgraph is healthy, just waiting on its account. */
+export async function markSubgraphBillingPaused(
+	db: Kysely<Database>,
+	name: string,
+	code: string,
+): Promise<void> {
+	await db
+		.updateTable("subgraphs")
+		.set({
+			last_error: `${BILLING_PAUSED_PREFIX}${code}`,
+			last_error_at: new Date(),
+			updated_at: new Date(),
+		})
+		.where("name", "=", name)
+		.execute();
+}
+
+/** Clear a billing pause once reads succeed again. Leaves any other
+ *  `last_error` alone. */
+export async function clearSubgraphBillingPaused(
+	db: Kysely<Database>,
+	name: string,
+): Promise<void> {
+	await db
+		.updateTable("subgraphs")
+		.set({ last_error: null, last_error_at: null, updated_at: new Date() })
+		.where("name", "=", name)
+		.where("last_error", "like", `${BILLING_PAUSED_PREFIX}%`)
 		.execute();
 }
 
