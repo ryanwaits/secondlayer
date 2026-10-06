@@ -6,6 +6,25 @@ Point Claude Code, Cursor, or any MCP client at the hosted API or your own insta
 
 The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP client (Claude Code, Cursor, Claude Desktop):
 
+Hosted API:
+
+```json
+{
+  "mcpServers": {
+    "secondlayer": {
+      "command": "npx",
+      "args": ["-y", "@secondlayer/mcp"],
+      "env": {
+        "SECONDLAYER_API_URL": "https://api.secondlayer.tools",
+        "SECONDLAYER_API_KEY": "<sk-sl_ key from /account/keys>"
+      }
+    }
+  }
+}
+```
+
+Self-host (your own instance):
+
 ```json
 {
   "mcpServers": {
@@ -21,7 +40,7 @@ The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP c
 }
 ```
 
-`INSTANCE_TOKEN` is optional for reads on loopback; anything published past loopback requires it, and the write tools require it always. `SECONDLAYER_API_URL` is the lead instance URL. For the hosted API, set `SECONDLAYER_API_URL` to `https://api.secondlayer.tools` and `SECONDLAYER_API_KEY` (`sk-sl_*`) instead of `INSTANCE_TOKEN`; the key follows the host. See [Authentication](/docs/authentication).
+The MCP server uses `SECONDLAYER_API_KEY` automatically on the hosted URL and `INSTANCE_TOKEN` elsewhere. On a self-hosted instance, `INSTANCE_TOKEN` is optional for reads on loopback; anything published past loopback requires it, and the write tools require it always. See [Authentication](/docs/authentication).
 
 An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional `SECONDLAYER_MCP_SECRET` bearer auth for hosting the server behind a URL.
 
@@ -29,8 +48,8 @@ An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional
 
 | Surface | Reads | Writes |
 | --- | --- | --- |
-| Index, Streams, Contracts, Scaffold | Open on loopback | — |
-| Subgraphs, Webhooks | Open on loopback | `INSTANCE_TOKEN` |
+| Index, Streams, Contracts, Scaffold | Hosted: `SECONDLAYER_API_KEY`. Self-host: open on loopback | — |
+| Subgraphs, Webhooks | Hosted: `SECONDLAYER_API_KEY`. Self-host: open on loopback | Hosted: `SECONDLAYER_API_KEY`. Self-host: `INSTANCE_TOKEN` |
 
 A token sent on a loopback read that did not need it is ignored, never rejected.
 
