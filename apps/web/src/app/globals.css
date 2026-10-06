@@ -8952,6 +8952,7 @@ body:has(.marketing-nav) .auth-bar {
 .home-fork {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
+	row-gap: 12px;
 	overflow: hidden;
 	border: 1px solid var(--border);
 	border-radius: 16px;
@@ -8964,6 +8965,35 @@ body:has(.marketing-nav) .auth-bar {
 	min-width: 0;
 	padding: 28px;
 	align-items: flex-start;
+}
+.home-fork-body {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	align-items: flex-start;
+	align-self: stretch;
+	min-width: 0;
+}
+.home-fork > div > .home-btn-solid,
+.home-fork > div > .home-btn-outline {
+	margin-top: auto;
+}
+/* Each card spans three shared rows (content, button, disclaimer) so the
+   buttons and disclaimers line up across both cards. */
+@supports (grid-template-rows: subgrid) {
+	.home-fork > div {
+		display: grid;
+		grid-row: span 3;
+		grid-template-rows: subgrid;
+		justify-items: start;
+		row-gap: 12px;
+	}
+	.home-fork > div > .home-btn-solid,
+	.home-fork > div > .home-btn-outline,
+	.home-fork > div > .home-fork-price {
+		align-self: start;
+		margin-top: 0;
+	}
 }
 .home-fork > div + div {
 	border-left: 1px solid var(--border);
@@ -8997,10 +9027,41 @@ body:has(.marketing-nav) .auth-bar {
 	font-size: 0.85em;
 }
 .home-fork-price {
-	margin-top: 4px;
 	font-family: var(--font-mono-stack);
 	font-size: 0.78rem;
 	color: var(--text-muted);
+}
+/* Compact install pill: one line, left-aligned, scrolls if it overflows. */
+.home-fork .home-cmd {
+	display: flex;
+	width: 100%;
+	height: 40px;
+	gap: 8px;
+	padding: 0 10px 0 14px;
+	font-size: 0.8125rem;
+	text-align: left;
+	white-space: nowrap;
+	border-radius: 14px;
+}
+.home-fork .home-cmd .home-cmd-label {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow-x: auto;
+	scrollbar-width: none;
+	white-space: nowrap;
+	text-align: left;
+}
+.home-fork .home-cmd .home-cmd-label::-webkit-scrollbar {
+	display: none;
+}
+.home-fork .home-cmd .home-cmd-rule {
+	margin: -4px 0;
+}
+.home-fork .home-cmd .home-cmd-ic {
+	flex: none;
+	width: 24px;
+	height: 24px;
+	margin: 0;
 }
 .home-close {
 	text-align: center;
@@ -9037,6 +9098,17 @@ body:has(.marketing-nav) .auth-bar {
 @media (max-width: 800px) {
 	.home-fork {
 		grid-template-columns: 1fr;
+	}
+	.home-fork {
+		row-gap: 0;
+	}
+	.home-fork > div {
+		display: flex;
+		grid-row: auto;
+	}
+	.home-fork > div > .home-btn-solid,
+	.home-fork > div > .home-btn-outline {
+		margin-top: 0;
 	}
 	.home-fork > div + div {
 		border-left: 0;

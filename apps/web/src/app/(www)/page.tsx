@@ -375,55 +375,60 @@ export function HomeView() {
 					</div>
 					<div className="home-fork">
 						<div>
-							<p className="home-lbl">Hosted</p>
-							<h3>Ours, private to your account.</h3>
-							<ul>
-								<li>
-									<span>
-										Index, Streams, Subgraphs and Webhooks on{" "}
-										<code>api.secondlayer.tools</code>
-									</span>
-								</li>
-								<li>
-									<span>Your subgraphs run in your own sandboxed stack</span>
-								</li>
-								<li>
-									<span>Prepaid credits, spend caps, no surprise bills</span>
-								</li>
-							</ul>
+							<div className="home-fork-body">
+								<p className="home-lbl">Hosted</p>
+								<h3>Ours, private to your account.</h3>
+								<ul>
+									<li>
+										<span>
+											Index, Streams, Subgraphs and Webhooks on{" "}
+											<code>api.secondlayer.tools</code>
+										</span>
+									</li>
+									<li>
+										<span>Your subgraphs run in your own sandboxed stack</span>
+									</li>
+									<li>
+										<span>Prepaid credits, spend caps, no surprise bills</span>
+									</li>
+								</ul>
+							</div>
+							<Link href="/login" className="home-btn-solid">
+								Start free
+							</Link>
 							<p className="home-fork-price">
 								1M rows free / month · then $5 per 1M · stack from ~$10/mo while
 								it runs
 							</p>
-							<Link href="/login" className="home-btn-solid">
-								Start free
-							</Link>
 						</div>
 						<div>
-							<p className="home-lbl">Self-host</p>
-							<h3>Yours, the same code.</h3>
-							<ul>
-								<li>
-									<span>
-										One container beside your node, rows in Postgres you operate
-									</span>
-								</li>
-								<li>
-									<span>
-										Bootstrap from the signed archive, verify it for free
-									</span>
-								</li>
-								<li>
-									<span>MIT. No meter on anything you run</span>
-								</li>
-							</ul>
-							<p className="home-fork-price">
-								Free · archive bootstrap is the only paid part
-							</p>
-							<CtaPill />
+							<div className="home-fork-body">
+								<p className="home-lbl">Self-host</p>
+								<h3>Yours, the same code.</h3>
+								<ul>
+									<li>
+										<span>
+											One container beside your node, rows in Postgres you
+											operate
+										</span>
+									</li>
+									<li>
+										<span>
+											Bootstrap from the signed archive, verify it for free
+										</span>
+									</li>
+									<li>
+										<span>MIT. No meter on anything you run</span>
+									</li>
+								</ul>
+								<CtaPill />
+							</div>
 							<Link href="/docs/self-host" className="home-btn-outline">
 								Self-host guide
 							</Link>
+							<p className="home-fork-price">
+								Free · archive bootstrap is the only paid part
+							</p>
 						</div>
 					</div>
 				</div>
