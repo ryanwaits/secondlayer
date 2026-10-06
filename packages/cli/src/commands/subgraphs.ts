@@ -69,7 +69,7 @@ import {
 	yellow,
 } from "../lib/output.ts";
 import {
-	assertInstanceUrl,
+	assertInstanceOrAccountKey,
 	resolveApiUrl,
 	resolveAuth,
 } from "../lib/resolve-auth.ts";
@@ -731,7 +731,7 @@ export function registerSubgraphsCommand(program: Command): void {
 		.command("subgraphs")
 		.description("Manage materialized subgraphs");
 
-	subgraphs.hook("preAction", () => assertInstanceUrl());
+	subgraphs.hook("preAction", () => assertInstanceOrAccountKey());
 
 	// --- new ---
 	subgraphs

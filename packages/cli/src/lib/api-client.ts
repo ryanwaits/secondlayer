@@ -21,7 +21,7 @@ import type {
 } from "@secondlayer/shared/subgraphs/spec";
 import { CliHttpError } from "./http.ts";
 import { printError } from "./output.ts";
-import { isOssMode, resolveApiUrl, resolveAuth } from "./resolve-auth.ts";
+import { isOssMode, resolveApiUrl, resolveHostedAuth } from "./resolve-auth.ts";
 
 export { ApiError };
 export type { SubgraphQueryParams } from "@secondlayer/shared/schemas";
@@ -111,10 +111,11 @@ export async function assertOk(res: Response): Promise<void> {
 
 /**
  * SDK client targeting the platform API. Honors SECONDLAYER_API_URL / INSTANCE_TOKEN for
- * CI/OSS; otherwise uses the active session token.
+ * CI/OSS, and an account key (`SECONDLAYER_API_KEY`) against the hosted API;
+ * otherwise uses the active session token.
  */
 async function getPlatformClient(): Promise<SecondLayer> {
-	const { apiUrl, ephemeralKey } = await resolveAuth();
+	const { apiUrl, ephemeralKey } = await resolveHostedAuth();
 	return new SecondLayer({ baseUrl: apiUrl, apiKey: ephemeralKey });
 }
 

@@ -27,11 +27,14 @@ api.{$BASE_DOMAIN:secondlayer.tools} {
 	handle /hooks/slack* {
 		reverse_proxy agent:3900
 	}
-	# Hosted chain webhooks: each account's webhooks live in its own stack on the
-	# workload host. Its gateway introspects the caller's sk-sl_ key against this
-	# api and forwards with that stack's own token; the key never reaches a stack.
-	# The workload host's Caddy uses its internal CA, pinned here.
-	handle /api/webhooks* {
+	# Hosted chain webhooks and private subgraphs: each account's live in its own
+	# stack on the workload host. Its gateway introspects the caller's sk-sl_ key
+	# against this api and forwards with that stack's own token; the key never
+	# reaches a stack. The workload host's Caddy uses its internal CA, pinned
+	# here. This api runs INSTANCE_MODE=platform and never mounts subgraph
+	# routes, so routing both prefixes away can't shadow anything.
+	@workload path /api/webhooks* /api/subgraphs* /v1/subgraphs*
+	handle @workload {
 		# Prod runs Caddy 2.10, which forwards the ORIGINAL inbound Host
 		# (api.{$BASE_DOMAIN}) to an HTTPS upstream — that rewrite only
 		# became default in 2.11. The workload host's Caddy only serves its

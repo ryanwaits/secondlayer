@@ -5,8 +5,10 @@
  * stack's own `INSTANCE_TOKEN` swapped in. The customer key never reaches a
  * tenant stack.
  *
- * Phase 1 (D5): routes `/api/webhooks*` only. 046 adds `/api/subgraphs*` and
- * `/v1/subgraphs*` — same request handling, this module doesn't change.
+ * Routes `/api/webhooks*`, `/api/subgraphs*` and `/v1/subgraphs*`: all three
+ * get the same request handling, and the path is forwarded unchanged (there is
+ * no path allowlist here; prod's Caddy decides which prefixes reach this host).
+ * Reads never provision a tenant; only a write does.
  */
 
 import { logger } from "@secondlayer/shared";
@@ -66,11 +68,12 @@ function bearerToken(header: string | null): string | null {
 	return raw.length > 0 ? raw : null;
 }
 
-/** Coarse rate-limit bucket for a webhooks request, matching the Design's
- *  step 4 numbers (create/update/delete 30/min, test 10/min, replay
- *  5/hour, reads 600/min). The gateway only classifies; the actual limiter
- *  is injected so 046 can reuse this classifier for `/api/subgraphs*` too. */
-export function classifyWebhooksRequest(
+/** Coarse rate-limit bucket for a webhooks or subgraphs request, matching
+ *  the Design's step 4 numbers (create/update/delete 30/min, test 10/min,
+ *  replay 5/hour, reads 600/min). Method/path based, so it serves every
+ *  prefix the gateway routes. The gateway only classifies; the actual limiter
+ *  is injected. */
+export function classifyRequest(
 	method: string,
 	pathname: string,
 ): "write" | "test" | "replay" | "read" {
@@ -117,7 +120,7 @@ export async function handleGatewayRequest(
 		);
 	}
 
-	const bucket = classifyWebhooksRequest(req.method, url.pathname);
+	const bucket = classifyRequest(req.method, url.pathname);
 	const decision = deps.rateLimit?.(introspected.accountId, bucket);
 	if (decision && !decision.allowed) {
 		const res = Response.json({ error: "rate_limited" }, { status: 429 });
@@ -130,14 +133,11 @@ export async function handleGatewayRequest(
 	const state = await deps.resolveTenant(introspected.accountId);
 	if (state === undefined) {
 		// A read against an account with no tenant yet must not provision one —
-		// opening the dashboard's webhooks page shouldn't start a billed service.
-		// Only a write (create/update/delete/pause/...) provisions.
+		// opening the dashboard's webhooks or subgraphs page shouldn't start a
+		// billed service. Only a write (create/update/delete/pause/deploy/...)
+		// provisions.
 		if (bucket === "read") {
-			const isList =
-				url.pathname === "/api/webhooks" || url.pathname === "/api/webhooks/";
-			return isList
-				? Response.json({ data: [] }, { status: 200 })
-				: Response.json({ error: "Webhook not found" }, { status: 404 });
+			return emptyRead(url.pathname);
 		}
 		deps.startProvisioning(introspected.accountId);
 		return withRetryAfter(
@@ -213,6 +213,27 @@ export async function handleGatewayRequest(
 		});
 		return Response.json({ error: "upstream_unavailable" }, { status: 502 });
 	}
+}
+
+const LIST_PATHS = new Set([
+	"/api/webhooks",
+	"/api/subgraphs",
+	"/v1/subgraphs",
+]);
+
+/** What a read returns for an account with no tenant: an empty list for a
+ *  collection path, otherwise a 404 worded for the resource asked about. */
+function emptyRead(pathname: string): Response {
+	if (LIST_PATHS.has(pathname.replace(/\/+$/, ""))) {
+		return Response.json({ data: [] }, { status: 200 });
+	}
+	const isSubgraph =
+		pathname.startsWith("/api/subgraphs") ||
+		pathname.startsWith("/v1/subgraphs");
+	return Response.json(
+		{ error: isSubgraph ? "Subgraph not found" : "Webhook not found" },
+		{ status: 404 },
+	);
 }
 
 function withRetryAfter(res: Response, seconds: number): Response {

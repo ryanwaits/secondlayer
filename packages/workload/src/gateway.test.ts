@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	type GatewayDeps,
-	classifyWebhooksRequest,
+	classifyRequest,
 	handleGatewayRequest,
 } from "./gateway.ts";
 import { IntrospectClient } from "./introspect-client.ts";
@@ -44,22 +44,24 @@ function req(
 	);
 }
 
-describe("classifyWebhooksRequest", () => {
+describe("classifyRequest", () => {
 	test("GET is a read", () => {
-		expect(classifyWebhooksRequest("GET", "/api/webhooks")).toBe("read");
+		expect(classifyRequest("GET", "/api/webhooks")).toBe("read");
 	});
 	test("POST .../test is a test", () => {
-		expect(classifyWebhooksRequest("POST", "/api/webhooks/wh_1/test")).toBe(
-			"test",
-		);
+		expect(classifyRequest("POST", "/api/webhooks/wh_1/test")).toBe("test");
 	});
 	test("POST .../replay is a replay", () => {
-		expect(classifyWebhooksRequest("POST", "/api/webhooks/wh_1/replay")).toBe(
-			"replay",
-		);
+		expect(classifyRequest("POST", "/api/webhooks/wh_1/replay")).toBe("replay");
 	});
 	test("POST otherwise is a write", () => {
-		expect(classifyWebhooksRequest("POST", "/api/webhooks")).toBe("write");
+		expect(classifyRequest("POST", "/api/webhooks")).toBe("write");
+	});
+	test("subgraph paths get the same buckets", () => {
+		expect(classifyRequest("GET", "/v1/subgraphs/s/t")).toBe("read");
+		expect(classifyRequest("HEAD", "/api/subgraphs")).toBe("read");
+		expect(classifyRequest("POST", "/api/subgraphs")).toBe("write");
+		expect(classifyRequest("DELETE", "/api/subgraphs/s")).toBe("write");
 	});
 });
 
@@ -243,6 +245,97 @@ describe("handleGatewayRequest", () => {
 		expect(res.status).toBe(503);
 		expect(res.headers.get("Retry-After")).toBe("30");
 		expect(provisionCalls).toBe(1);
+	});
+
+	test.each(["/api/subgraphs", "/v1/subgraphs", "/api/subgraphs/"])(
+		"no tenant yet, subgraph list read %s → 200 empty, never provisions",
+		async (path) => {
+			let provisionCalls = 0;
+			const deps = baseDeps({
+				resolveTenant: async () => undefined,
+				startProvisioning: () => {
+					provisionCalls++;
+				},
+			});
+			const res = await handleGatewayRequest(
+				deps,
+				req({ method: "GET", path, auth: "Bearer sk-sl_good" }),
+			);
+			expect(res.status).toBe(200);
+			expect(await res.json()).toEqual({ data: [] });
+			expect(provisionCalls).toBe(0);
+		},
+	);
+
+	test.each([
+		"/api/subgraphs/my-subgraph",
+		"/v1/subgraphs/my-subgraph/transfers",
+		"/api/subgraphs/my-subgraph/gaps",
+	])(
+		"no tenant yet, subgraph read %s → 404 Subgraph not found, never provisions",
+		async (path) => {
+			let provisionCalls = 0;
+			const deps = baseDeps({
+				resolveTenant: async () => undefined,
+				startProvisioning: () => {
+					provisionCalls++;
+				},
+			});
+			const res = await handleGatewayRequest(
+				deps,
+				req({ method: "GET", path, auth: "Bearer sk-sl_good" }),
+			);
+			expect(res.status).toBe(404);
+			expect(((await res.json()) as { error: string }).error).toBe(
+				"Subgraph not found",
+			);
+			expect(provisionCalls).toBe(0);
+		},
+	);
+
+	test("no tenant yet, a subgraph deploy (write) provisions and 503s", async () => {
+		let provisionCalls = 0;
+		const deps = baseDeps({
+			resolveTenant: async () => undefined,
+			startProvisioning: () => {
+				provisionCalls++;
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({
+				method: "POST",
+				path: "/api/subgraphs",
+				auth: "Bearer sk-sl_good",
+			}),
+		);
+		expect(res.status).toBe(503);
+		expect(res.headers.get("Retry-After")).toBe("30");
+		expect(provisionCalls).toBe(1);
+	});
+
+	test("running tenant: a subgraph read is forwarded with the path and query intact", async () => {
+		let forwarded: { url: string; auth: string | null } | undefined;
+		const deps = baseDeps({
+			fetchImpl: async (input, init) => {
+				forwarded = {
+					url: String(input),
+					auth: new Headers(init?.headers).get("authorization"),
+				};
+				return new Response("{}", { status: 200 });
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			new Request("https://gateway.internal/v1/subgraphs/s/t?limit=5", {
+				headers: { authorization: "Bearer sk-sl_good" },
+			}),
+		);
+		expect(res.status).toBe(200);
+		expect(forwarded?.url).toBe(
+			"http://127.0.0.1:20001/v1/subgraphs/s/t?limit=5",
+		);
+		expect(forwarded?.auth).toBe("Bearer tenant-instance-token");
 	});
 
 	test("tenant mid-provisioning → 503 + Retry-After, no duplicate provisioning", async () => {

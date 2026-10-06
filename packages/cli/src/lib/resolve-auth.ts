@@ -89,7 +89,7 @@ export function resolveDataPlaneKey(): string | undefined {
 
 /**
  * Auth for a command allowed against BOTH self-host and the hosted merchant
- * (plan 044: `webhooks`; `subgraphs` joins in 046). Account key
+ * (`webhooks`, `subgraphs`). Account key
  * (`SECONDLAYER_API_KEY`, `sk-sl_*`) on the merchant host — same host
  * routing as `resolveDataPlaneKey`, but returns the full `ResolvedAuth`
  * shape `getWebhookClient` needs. Falls back to `resolveAuth()` (instance
@@ -114,7 +114,7 @@ export async function resolveHostedAuth(): Promise<ResolvedAuth> {
  * Throw unless the command is either off the merchant host, or on it with a
  * hosted account key (`sk-sl_*`). Same refusal `assertInstanceUrl` gives
  * every other instance-only command, minus the "merchant + account key"
- * exception plan 044 opens for `webhooks` (and, in 046, `subgraphs`).
+ * exception `webhooks` and `subgraphs` get.
  */
 export function assertInstanceOrAccountKey(
 	url: string = resolveApiUrl(),
