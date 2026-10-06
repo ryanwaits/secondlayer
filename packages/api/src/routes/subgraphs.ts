@@ -895,6 +895,42 @@ app.post("/:subgraphName/stop", async (c) => {
 	});
 });
 
+// ── Halt a subgraph that cannot make progress ───────────────────────────
+
+/** Mark a subgraph `error` with a reason. The workload host calls this (with
+ *  the stack's instance token, over loopback) for a subgraph whose handler
+ *  keeps stalling or OOM-killing the processor: customer code does not get to
+ *  report its own health, and the processor skips non-`active` subgraphs, so
+ *  this ends the restart loop. A redeploy or reindex brings it back. */
+app.post("/:subgraphName/halt", async (c) => {
+	const { subgraphName } = c.req.param();
+	const body = await c.req.json().catch(() => {
+		throw new InvalidJSONError();
+	});
+	const reason =
+		typeof body?.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+	if (!reason) {
+		return c.json({ error: "body must be { reason: string }" }, 400);
+	}
+
+	const db = getDb();
+	const subgraph = await getSubgraph(db, subgraphName);
+	if (!subgraph) throw new SubgraphNotFoundError(subgraphName);
+
+	await db
+		.updateTable("subgraphs")
+		.set({
+			status: "error",
+			last_error: reason,
+			last_error_at: new Date(),
+			updated_at: new Date(),
+		})
+		.where("name", "=", subgraphName)
+		.execute();
+
+	return c.json({ message: `Subgraph "${subgraphName}" halted`, reason });
+});
+
 // ── Backfill a subgraph (non-destructive) ────────────────────────────────
 
 app.post("/:subgraphName/backfill", async (c) => {

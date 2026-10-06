@@ -54,6 +54,7 @@ import {
 	sampleTenantMemoryBytes,
 	startMeterSocketServer,
 } from "./meters.ts";
+import { createProcessorWatch } from "./processor-watch.ts";
 import {
 	type ProvisionerConfig,
 	pollCredits,
@@ -150,6 +151,7 @@ async function main(): Promise<void> {
 		getTargetSha: () => targetShaCache.lastGood,
 	};
 	const runUpgradeRound = createUpgradeRunner(provisionerCfg);
+	const checkProcessors = createProcessorWatch(provisionerCfg);
 
 	// Before the gateway accepts requests: a restart mid-provision leaves
 	// `provisioning` rows nothing will ever finish. Failure here must not
@@ -439,6 +441,11 @@ async function main(): Promise<void> {
 		}
 		await pollCredits(provisionerCfg).catch((err) => {
 			logger.error("workload.provisioner.poll_credits_failed", {
+				error: err instanceof Error ? err.message : String(err),
+			});
+		});
+		await checkProcessors().catch((err) => {
+			logger.error("workload.processor.watch_failed", {
 				error: err instanceof Error ? err.message : String(err),
 			});
 		});
