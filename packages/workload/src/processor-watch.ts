@@ -318,14 +318,23 @@ export function createProcessorWatch(
 		});
 		if (deaths === 0 && stalled.length === 0) return;
 
-		// A stall names its subgraphs. A death doesn't, so blame whoever has not
-		// gotten anywhere since the last tick (a creep within the margin is the
-		// same dense batch killing the processor again, not progress).
+		// A stall names its subgraphs. A death doesn't, so blame only a subgraph
+		// that is not keeping up: behind the hosted tip by more than the margin,
+		// with a cursor that crept at most the margin since the last tick (the
+		// same dense batch killing the processor again). One following the tip
+		// moves tens of blocks per tick and is never to blame. With the tip
+		// unknown, only a cursor that has not moved at all is blamed. If nobody
+		// qualifies the death is recorded without a culprit.
 		const culprits = stalled.length
 			? stalled
 			: subgraphs.filter((sub) => {
 					const creep = trackers.get(`${tenant.account_id}:${sub.name}`)?.creep;
-					return creep != null && creep <= CURSOR_CREEP_MARGIN;
+					if (creep == null) return false;
+					if (tip === null) return creep === 0;
+					return (
+						tip - sub.lastProcessedBlock > CURSOR_CREEP_MARGIN &&
+						creep <= CURSOR_CREEP_MARGIN
+					);
 				});
 		const reason = deaths > 0 ? (oom ? "out_of_memory" : "crashed") : "stalled";
 

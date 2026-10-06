@@ -128,7 +128,7 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 
 	function reset() {
 		now = 1_000_000;
-		tip = 100;
+		tip = 1_000_000;
 		container = {
 			restartCount: 0,
 			oomKilled: false,
@@ -162,7 +162,7 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		const tick = createProcessorWatch(cfg(), deps());
 
 		await tick(); // baseline
-		tip = 110;
+		tip = 1_000_010;
 		now += STALL_MS - MINUTE;
 		await tick(); // not stale yet
 		expect(restarts).toEqual([]);
@@ -372,6 +372,44 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		expect(halts).toEqual([]);
 	});
 
+	test("a subgraph keeping up with the tip is never blamed for another's deaths", async () => {
+		reset();
+		const id = await seedTenant();
+		subgraphs[id] = [sub("atTip", 999_900), sub("behind", 5_000, "reindexing")];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick();
+		for (let i = 1; i <= MAX_RESTARTS_PER_HEIGHT; i++) {
+			// A follows the tip (+50 per tick, well inside the margin of it);
+			// B is far behind and creeps +100 per attempt.
+			subgraphs[id] = [
+				sub("atTip", 999_900 + i * 50),
+				sub("behind", 5_000 + i * 100, "reindexing"),
+			];
+			container = crashed(i);
+			await tick();
+		}
+
+		expect(halts.map((h) => h.name)).toEqual(["behind"]);
+	});
+
+	test("with the tip unknown only a cursor that has not moved at all is blamed", async () => {
+		reset();
+		tip = null;
+		const id = await seedTenant();
+		subgraphs[id] = [sub("frozen", 5_000), sub("creeping", 8_000)];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick();
+		for (let i = 1; i <= MAX_RESTARTS_PER_HEIGHT; i++) {
+			subgraphs[id] = [sub("frozen", 5_000), sub("creeping", 8_000 + i * 10)];
+			container = crashed(i);
+			await tick();
+		}
+
+		expect(halts.map((h) => h.name)).toEqual(["frozen"]);
+	});
+
 	test("a cursor that moves resets the restart count", async () => {
 		reset();
 		const id = await seedTenant();
@@ -399,7 +437,7 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		const tick = createProcessorWatch(cfg(), deps());
 
 		await tick();
-		tip = 200;
+		tip = 1_000_200;
 		now += 3 * STALL_MS;
 		await tick();
 		expect(restarts).toEqual([]);
@@ -414,7 +452,7 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		const tick = createProcessorWatch(cfg(), deps());
 
 		await tick();
-		tip = 200;
+		tip = 1_000_200;
 		now += STALL_MS + MINUTE;
 		await tick();
 		expect(restarts).toEqual([healthy]);
