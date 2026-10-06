@@ -1,5 +1,11 @@
 # @secondlayer/api
 
+## 1.50.5
+
+### Patch Changes
+
+- 0fcabc6: `GET /v1/index/blocks` no longer bills block headers or returns `402` past the allowance; only event and transaction rows are billed.
+
 ## 1.50.4
 
 ### Patch Changes
