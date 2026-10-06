@@ -14,6 +14,7 @@ import {
 	getGapSummaryBySubgraph,
 } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import {
+	cancelOrphanedSubgraphOperations,
 	createSubgraphOperation,
 	getOperationQueuePosition,
 	getRecentOperationMedianDuration,
@@ -1008,6 +1009,9 @@ app.post("/:subgraphName/backfill", async (c) => {
 
 // ── Delete a subgraph ────────────────────────────────────────────────────
 
+/** How long DELETE waits for a live runner to release a cancelled operation. */
+export const DELETE_OPERATION_WAIT_MS = 5_000;
+
 app.delete("/:subgraphName", async (c) => {
 	const { subgraphName } = c.req.param();
 	const subgraph = requireSubgraph(subgraphName);
@@ -1024,16 +1028,24 @@ app.delete("/:subgraphName", async (c) => {
 			count: cancelledOperations.length,
 			force,
 		});
-		// Wait for the processor to observe `cancel_requested` and release its
-		// row + advisory locks. Without this, `DROP SCHEMA ... CASCADE` blocks
-		// behind the live reindex transaction and the API socket-times-out
-		// into a 500 — the bug surfaced by `sl subgraphs delete <name>` while
-		// a reindex was running.
+		// Settle operations nobody is running (a queued one, or one whose runner
+		// died and let its lock lapse) so a dead runner never costs a wait.
+		await cancelOrphanedSubgraphOperations(db, subgraph.id);
+		// Give a LIVE runner a short window to observe `cancel_requested` and
+		// release its row + advisory locks. Without it, `DROP SCHEMA ... CASCADE`
+		// can block behind the runner's open block transaction and the socket
+		// times out into a 500 (the bug `sl subgraphs delete <name>` hit during
+		// a reindex). The window stays under the idle timeout of every hop on the
+		// way here: a hosted account's DELETE crosses the workload gateway, whose
+		// Bun server closes idle sockets at 10s.
 		const cleared = await waitForSubgraphOperationsClear(db, subgraph.id, {
-			timeoutMs: 30_000,
+			timeoutMs: DELETE_OPERATION_WAIT_MS,
 			pollMs: 500,
 		});
 		if (!cleared) {
+			// The lock may have lapsed while we waited; a still-live one is left
+			// alone and the drop proceeds (it blocks only until that runner exits).
+			await cancelOrphanedSubgraphOperations(db, subgraph.id);
 			logger.warn(
 				"Active operations did not clear within timeout; proceeding with DROP SCHEMA may block",
 				{

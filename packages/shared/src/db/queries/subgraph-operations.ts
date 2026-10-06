@@ -116,6 +116,45 @@ export async function requestSubgraphOperationsCancelForDelete(
 }
 
 /**
+ * Settle cancel-requested operations nobody is running: a queued one (no
+ * runner ever claimed it) and a running one whose lock has lapsed (its runner
+ * died without releasing the row; heartbeats renew the lock every 15s, so a
+ * lapsed one is a dead process, not a slow one). Returns how many rows were
+ * cancelled.
+ *
+ * An operation whose lock is still live is NEVER touched: its runner is
+ * alive, and the only safe way to stop it is the runner observing
+ * `cancel_requested` itself and releasing the row and advisory locks.
+ */
+export async function cancelOrphanedSubgraphOperations(
+	db: Kysely<Database>,
+	subgraphId: string,
+): Promise<number> {
+	const cancelled = await db
+		.updateTable("subgraph_operations")
+		.set({
+			status: "cancelled",
+			finished_at: new Date(),
+			locked_by: null,
+			locked_until: null,
+			updated_at: new Date(),
+		})
+		.where("subgraph_id", "=", subgraphId)
+		.where("cancel_requested", "=", true)
+		.where("status", "in", ACTIVE_STATUSES)
+		.where((eb) =>
+			eb.or([
+				eb("status", "=", "queued"),
+				eb("locked_until", "is", null),
+				eb("locked_until", "<", sql<Date>`now()`),
+			]),
+		)
+		.returning("id")
+		.execute();
+	return cancelled.length;
+}
+
+/**
  * Poll until no active subgraph operations remain for the subgraph or until
  * `timeoutMs` elapses. Returns true if all active operations cleared, false
  * if we timed out. Callers should use this before `DROP SCHEMA` so the active
