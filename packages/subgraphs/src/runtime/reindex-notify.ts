@@ -2,6 +2,7 @@ import { getErrorMessage } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db";
 import { renderEmail, sendEmail } from "@secondlayer/shared/email";
 import { logger } from "@secondlayer/shared/logger";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import type { Kysely } from "kysely";
 
 /**
@@ -9,12 +10,17 @@ import type { Kysely } from "kysely";
  * counterpart to the CLI/dashboard ETA (they still had to leave a terminal or
  * tab open to see either). Fire-and-forget: a failed send only logs a
  * warning, never fails or retries against the reindex itself.
+ *
+ * Platform mode only: accounts live there. An instance (including a hosted
+ * tenant stack) stamps its subgraphs with no account, so the lookup below has
+ * nothing to match and would only fail on an empty uuid.
  */
 export async function notifyReindexComplete(
 	db: Kysely<Database>,
 	subgraphName: string,
 	stats: { blocks: number; events: number; errors: number },
 ): Promise<void> {
+	if (!isPlatformMode()) return;
 	try {
 		const subgraph = await db
 			.selectFrom("subgraphs")

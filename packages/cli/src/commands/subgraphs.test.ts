@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Command } from "commander";
-import { registerSubgraphsCommand } from "./subgraphs.ts";
+import { registerSubgraphsCommand, webhookHint } from "./subgraphs.ts";
 
 const ENV = [
 	"INSTANCE_TOKEN",
@@ -70,5 +70,23 @@ describe("subgraphs against the hosted API", () => {
 			program().parseAsync(["node", "secondlayer", "subgraphs", "list"]),
 		).rejects.toThrow(/this command runs on your instance/);
 		expect(calls).toHaveLength(0);
+	});
+});
+
+describe("webhookHint", () => {
+	test("self-host gets the webhook command", () => {
+		expect(webhookHint("http://127.0.0.1:3800", "dex", "swaps")).toBe(
+			"secondlayer webhooks create dex-hook --subgraph dex --table swaps --url <your-endpoint>",
+		);
+	});
+
+	test("the hosted API gets none: subgraph webhooks are self-host only", () => {
+		expect(
+			webhookHint("https://api.secondlayer.tools", "dex", "swaps"),
+		).toBeNull();
+	});
+
+	test("a subgraph with no table has nothing to point a webhook at", () => {
+		expect(webhookHint("http://127.0.0.1:3800", "dex", undefined)).toBeNull();
 	});
 });

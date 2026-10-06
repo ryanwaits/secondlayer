@@ -46,7 +46,19 @@ import type {
 	SubgraphQueryParams,
 } from "../lib/api-client.ts";
 import { withDerivedAbis } from "../lib/derive-abi.ts";
+/** The deploy footer's webhook command, or null where it doesn't apply:
+ *  subgraph webhooks are self-host only, so the hosted API gets no hint. */
+export function webhookHint(
+	apiUrl: string,
+	name: string,
+	firstTable: string | undefined,
+): string | null {
+	if (!firstTable || isMerchantUrl(apiUrl)) return null;
+	return `secondlayer webhooks create ${name}-hook --subgraph ${name} --table ${firstTable} --url <your-endpoint>`;
+}
+
 type SubgraphSpecFormat = "openapi" | "agent" | "markdown";
+import { isMerchantUrl } from "../lib/api-url.ts";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { parseQueryFilters } from "../lib/filter-params.ts";
 import { writeTextFile } from "../lib/fs.ts";
@@ -1287,11 +1299,8 @@ Examples:
 								info(
 									`  Watch:     secondlayer subgraphs status ${effectiveDef.name}`,
 								);
-								if (firstTable) {
-									info(
-										`  Webhook:   secondlayer webhooks create ${effectiveDef.name}-hook --subgraph ${effectiveDef.name} --table ${firstTable} --url <your-endpoint>`,
-									);
-								}
+								const hint = webhookHint(apiUrl, effectiveDef.name, firstTable);
+								if (hint) info(`  Webhook:   ${hint}`);
 							} catch {
 								// Footer is decorative — never block deploy on URL derivation
 							}
