@@ -3,6 +3,8 @@
  * key sessions by URL without importing the auth or HTTP layers.
  */
 
+import { isHostedApiUrl } from "@secondlayer/sdk";
+
 export const LOCAL_API_URL = "http://127.0.0.1:3800";
 export const ARCHIVE_OPS_API_URL = "https://api.secondlayer.tools";
 
@@ -29,11 +31,7 @@ export function resolveArchiveOpsUrl(): string {
 
 /** True when `url` is our hosted merchant hostname (refuse-list for instance cmds). */
 export function isMerchantUrl(url: string = resolveApiUrl()): boolean {
-	try {
-		return new URL(url).hostname === "api.secondlayer.tools";
-	} catch {
-		return false;
-	}
+	return isHostedApiUrl(url);
 }
 
 /** Throw when the CLI is pointed at the merchant; instance commands refuse that host. */
