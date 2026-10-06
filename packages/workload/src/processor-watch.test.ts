@@ -249,7 +249,7 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 			// innocent subgraph's cursor keeps moving.
 			subgraphs[id] = [
 				sub("reindexed", 500, "reindexing"),
-				sub("innocent", 50 + i),
+				sub("innocent", 50 + i * 5_000),
 			];
 			container = crashed(i);
 			await tick();
@@ -321,6 +321,57 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		expect(halts[0]?.reason).toContain("block 10");
 	});
 
+	test("deaths with the cursor creeping forward between them still count as one streak", async () => {
+		reset();
+		const id = await seedTenant();
+		subgraphs[id] = [sub("dense", 5_000, "reindexing")];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick(); // baseline
+		for (let i = 1; i <= MAX_RESTARTS_PER_HEIGHT; i++) {
+			subgraphs[id] = [sub("dense", 5_000 + i * 100, "reindexing")];
+			container = crashed(i);
+			await tick();
+		}
+
+		expect(halts.map((h) => h.name)).toEqual(["dense"]);
+	});
+
+	test("a cursor that moves past the margin between deaths resets the streak", async () => {
+		reset();
+		const id = await seedTenant();
+		subgraphs[id] = [sub("s", 5_000, "reindexing")];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick();
+		// Two deaths near 5,000, then it gets well past the margin and dies
+		// twice more somewhere new: never three in one place.
+		const cursors = [5_100, 5_200, 9_000, 9_100];
+		for (const [i, cursor] of cursors.entries()) {
+			subgraphs[id] = [sub("s", cursor, "reindexing")];
+			container = crashed(i + 1);
+			await tick();
+		}
+
+		expect(halts).toEqual([]);
+	});
+
+	test("an innocent subgraph whose cursor moves well past is never halted", async () => {
+		reset();
+		const id = await seedTenant();
+		subgraphs[id] = [sub("innocent", 100)];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick();
+		for (let i = 1; i <= MAX_RESTARTS_PER_HEIGHT * 2; i++) {
+			subgraphs[id] = [sub("innocent", 100 + i * 5_000)];
+			container = crashed(i);
+			await tick();
+		}
+
+		expect(halts).toEqual([]);
+	});
+
 	test("a cursor that moves resets the restart count", async () => {
 		reset();
 		const id = await seedTenant();
@@ -333,7 +384,7 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 			tip = (tip ?? 0) + 5;
 			now += STALL_MS + MINUTE;
 			await tick();
-			subgraphs[id] = [sub("s", 20 + round)];
+			subgraphs[id] = [sub("s", 20 + (round + 1) * 5_000)];
 			await tick();
 			tip = (tip ?? 0) + 5;
 		}

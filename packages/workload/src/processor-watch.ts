@@ -43,6 +43,13 @@ import {
 /** A cursor that hasn't moved for this long while the hosted tip has is stalled. */
 export const STALL_MS = 10 * 60_000;
 export const MAX_RESTARTS_PER_HEIGHT = 3;
+/**
+ * How far a cursor may drift between deaths and still count as "the same
+ * place". Progress is flushed every 100 blocks or 5s, so a processor that dies
+ * in the same dense batch each time creeps forward a little per attempt. One
+ * max reindex batch (1,000 blocks): past it the subgraph got somewhere new.
+ */
+export const CURSOR_CREEP_MARGIN = 1_000;
 
 export interface SubgraphCursor {
 	name: string;
@@ -83,15 +90,17 @@ export interface TenantEndpoint {
 }
 
 interface Tracker {
+	/** Cursor as of the latest tick. */
 	height: number;
-	/** When `height` was first seen. */
+	/** When `height` last changed. */
 	movedAt: number;
 	/** Hosted tip at that moment. */
 	tipAtMove: number | null;
-	/** Processor deaths (or watchdog restarts) while the cursor sat at `height`. */
-	restarts: number;
-	/** `height` as of the previous tick, to tell who stood still across it. */
-	unchangedSinceLastTick: boolean;
+	/** How far the cursor moved since the previous tick; `null` on first sight. */
+	creep: number | null;
+	/** Consecutive processor deaths (or watchdog restarts) near one cursor:
+	 *  `count` of them, none past `highWater` + `CURSOR_CREEP_MARGIN`. */
+	streak: { count: number; highWater: number } | null;
 }
 
 /** The container name compose gives the processor (project `tenant-<acct8>`). */
@@ -255,16 +264,21 @@ export function createProcessorWatch(
 			const key = `${tenant.account_id}:${sub.name}`;
 			seen.add(key);
 			const tracker = trackers.get(key);
-			if (!tracker || tracker.height !== sub.lastProcessedBlock) {
+			if (!tracker) {
 				trackers.set(key, {
 					height: sub.lastProcessedBlock,
 					movedAt: now,
 					tipAtMove: tip,
-					restarts: 0,
-					unchangedSinceLastTick: false,
+					creep: null,
+					streak: null,
 				});
 			} else {
-				tracker.unchangedSinceLastTick = true;
+				tracker.creep = Math.abs(sub.lastProcessedBlock - tracker.height);
+				if (tracker.height !== sub.lastProcessedBlock) {
+					tracker.height = sub.lastProcessedBlock;
+					tracker.movedAt = now;
+					tracker.tipAtMove = tip;
+				}
 			}
 		}
 		for (const key of trackers.keys()) {
@@ -304,15 +318,15 @@ export function createProcessorWatch(
 		});
 		if (deaths === 0 && stalled.length === 0) return;
 
-		// A stall names its subgraphs. A death doesn't, so blame whoever stood
-		// still across the last tick.
+		// A stall names its subgraphs. A death doesn't, so blame whoever has not
+		// gotten anywhere since the last tick (a creep within the margin is the
+		// same dense batch killing the processor again, not progress).
 		const culprits = stalled.length
 			? stalled
-			: subgraphs.filter(
-					(sub) =>
-						trackers.get(`${tenant.account_id}:${sub.name}`)
-							?.unchangedSinceLastTick,
-				);
+			: subgraphs.filter((sub) => {
+					const creep = trackers.get(`${tenant.account_id}:${sub.name}`)?.creep;
+					return creep != null && creep <= CURSOR_CREEP_MARGIN;
+				});
 		const reason = deaths > 0 ? (oom ? "out_of_memory" : "crashed") : "stalled";
 
 		// Docker's restart policy already brought a dead processor back; only a
@@ -340,18 +354,28 @@ export function createProcessorWatch(
 		for (const sub of culprits) {
 			const tracker = trackers.get(`${tenant.account_id}:${sub.name}`);
 			if (!tracker) continue;
-			tracker.restarts += count;
-			if (tracker.restarts < MAX_RESTARTS_PER_HEIGHT) continue;
+			const cursor = sub.lastProcessedBlock;
+			// Same streak while the cursor stays within the margin of the highest
+			// cursor a death was counted at; past it, the subgraph moved on.
+			const streak =
+				tracker.streak &&
+				cursor <= tracker.streak.highWater + CURSOR_CREEP_MARGIN
+					? tracker.streak
+					: { count: 0, highWater: cursor };
+			streak.count += count;
+			streak.highWater = Math.max(streak.highWater, cursor);
+			tracker.streak = streak;
+			if (streak.count < MAX_RESTARTS_PER_HEIGHT) continue;
 			await deps.haltSubgraph(
 				endpoint,
 				sub.name,
-				`Halted after ${tracker.restarts} restarts at block ${tracker.height} (${reason}). Redeploy to resume.`,
+				`Halted after ${streak.count} restarts at block ${cursor} (${reason}). Redeploy to resume.`,
 			);
 			trackers.delete(`${tenant.account_id}:${sub.name}`);
 			logger.error("workload.processor.subgraph_halted", {
 				accountId: tenant.account_id,
 				subgraph: sub.name,
-				height: tracker.height,
+				height: cursor,
 				reason,
 			});
 		}
