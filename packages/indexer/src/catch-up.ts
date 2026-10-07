@@ -263,6 +263,9 @@ export class JournalApplier {
 				continue;
 			}
 			if (fetched > 0) continue;
+			// A row journaled (or an idle waiter registered) while this pass ran
+			// may have missed it: drain again before declaring idle.
+			if (this.notified) continue;
 			await this.settleForeignWaiters();
 			for (const resolve of this.idleWaiters.splice(0)) resolve();
 			await this.sleep(IDLE_POLL_MS);
