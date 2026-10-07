@@ -7,7 +7,10 @@
 #   docker compose up -d indexer-feeder
 #   docker compose up -d stacks-feeder
 #
-# Disk: /data/feeder/stacks and /data/feeder/postgres. Never a Hiro tarball.
+# Disk: STACKS_FEEDER_DATA_DIR / POSTGRES_FEEDER_DATA_DIR (default
+# /data/feeder/{stacks,postgres}). Never a Hiro tarball. A re-sync uses fresh
+# dirs and its own project (`-p secondlayer-feeder-v2`); point the alert at it
+# with FEEDER_PROJECT.
 # Observer: indexer-feeder:3700 (compose DNS). Never prod indexer.
 # Indexer image: feat build with 0131. Do not use GHCR :latest.
 
@@ -15,7 +18,9 @@ name: secondlayer-feeder
 
 services:
   stacks-feeder:
-    image: ghcr.io/ryanwaits/stacks-core:441e595@sha256:a9a881bd4193ea431902e429f41a3605c95ef6a2bf7d0591031f702c097f9f11
+    # Pin by digest in .env. The node must carry the storage-hook fix
+    # (records each write from its own arguments); 441e595 does not.
+    image: ${STACKS_FEEDER_IMAGE:?set STACKS_FEEDER_IMAGE to a pinned stacks-core fork image}
     volumes:
       - ${STACKS_FEEDER_DATA_DIR:-/data/feeder/stacks}:/stacks-blockchain/data
       - ./Config.toml:/stacks-blockchain/Config.toml:ro
@@ -30,6 +35,11 @@ services:
       resources:
         limits:
           memory: 24G
+    logging:
+      driver: json-file
+      options:
+        max-size: 100m
+        max-file: "5"
     restart: unless-stopped
     command: ["stacks-node", "start", "--config", "/stacks-blockchain/Config.toml"]
 
@@ -39,6 +49,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-secondlayer}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
       POSTGRES_DB: ${POSTGRES_DB:-secondlayer_feeder}
+    # A full-chain sync stalls on index reads at the stock 128 MB cache.
+    command: ["postgres", "-c", "shared_buffers=${POSTGRES_SHARED_BUFFERS:-4GB}"]
     volumes:
       - ${POSTGRES_FEEDER_DATA_DIR:-/data/feeder/postgres}:/var/lib/postgresql/data
     healthcheck:
@@ -67,7 +79,8 @@ services:
       PORT: 3700
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
-      OBSERVER_JOURNAL_ENABLED: "false"
+      # Catch-up ingest journals each block and replies before applying it.
+      OBSERVER_JOURNAL_ENABLED: "true"
       TIP_FOLLOWER_ENABLED: "true"
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://stacks-feeder:20443}
     ports:

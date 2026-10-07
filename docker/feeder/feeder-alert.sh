@@ -18,9 +18,11 @@ WRONG_MIN="${FEEDER_WRONG_MIN:-100000}"
 # Catch-up ingest acks the node on journal commit; the applier runs behind.
 # Page when it has unapplied blocks and applied nothing for this long.
 BACKLOG_STALL_SECONDS=600
-STACKS="secondlayer-feeder-stacks-feeder-1"
-INDEXER="secondlayer-feeder-indexer-feeder-1"
-PG="secondlayer-feeder-postgres-feeder-1"
+# Compose project of the run being watched (a re-sync runs as its own project).
+PROJECT="${FEEDER_PROJECT:-secondlayer-feeder}"
+STACKS="${PROJECT}-stacks-feeder-1"
+INDEXER="${PROJECT}-indexer-feeder-1"
+PG="${PROJECT}-postgres-feeder-1"
 
 post_slack() {
   local text="$1"
