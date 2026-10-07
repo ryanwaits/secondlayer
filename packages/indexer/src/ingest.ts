@@ -11,6 +11,7 @@ import {
 import {
 	parseBlock,
 	parseEvent,
+	parseStateWrites,
 	parseTransaction,
 	parseVmEvent,
 	stripNullBytes,
@@ -311,6 +312,10 @@ export async function ingestNewBlock(
 				.filter((evt): evt is NonNullable<typeof evt> => evt !== null)
 				.map((evt) => stripNullBytes(evt) as typeof evt)
 		: [];
+	const stateWrites = parseStateWrites(
+		payload.state_writes,
+		payload.block_height,
+	);
 
 	// Persist block + txs/events atomically. Replace-per-height inside (deletes
 	// stale rows at this height before insert) keeps reorged heights free of
@@ -320,6 +325,7 @@ export async function ingestNewBlock(
 		txs,
 		evts,
 		vmEvts,
+		stateWrites,
 		blockHeight: payload.block_height,
 		network: options?.network,
 	});
@@ -333,6 +339,7 @@ export async function ingestNewBlock(
 		transactions: txs.length,
 		events: evts.length,
 		vmEvents: vmEvts.length,
+		stateWrites: stateWrites.length,
 	});
 
 	return {

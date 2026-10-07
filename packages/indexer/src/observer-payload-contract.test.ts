@@ -6,8 +6,11 @@ import {
 	writeObserverDump,
 } from "./observer-export.ts";
 import { parseObserverBody, sha256Hex } from "./observer-journal.ts";
-import { parseBlock } from "./parser.ts";
-import type { NewBlockPayload } from "./types/node-events.ts";
+import { parseBlock, parseStateWrites } from "./parser.ts";
+import type {
+	NewBlockPayload,
+	StateWritePayload,
+} from "./types/node-events.ts";
 
 const HEX_LIKE = /^0x[0-9a-fA-F]+$/;
 
@@ -132,6 +135,68 @@ describe("observer payload contract", () => {
 			expect("event_index" in trace).toBe(false);
 			expect("vm_event_index" in trace).toBe(false);
 		}
+	});
+
+	test("`*` body omits state_writes and parses to no rows", async () => {
+		const { payload } = await loadFixture("new_block.star.json");
+		expect("state_writes" in payload).toBe(false);
+		expect(
+			parseStateWrites(payload.state_writes, payload.block_height),
+		).toEqual([]);
+	});
+
+	test("opt-in empty state_writes is present, not omitted, and parses to no rows", async () => {
+		const { payload } = await loadFixture("new_block.state_writes.empty.json");
+		expect("state_writes" in payload).toBe(true);
+		expect(payload.state_writes).toEqual([]);
+		expect(
+			parseStateWrites(payload.state_writes, payload.block_height),
+		).toEqual([]);
+	});
+
+	test("opt-in state_writes keep node ordinal, full MARF key, and null tx_index for block-level writes", async () => {
+		const { fileBytes, payload } = await loadFixture(
+			"new_block.state_writes.json",
+		);
+		const rows = parseStateWrites(payload.state_writes, payload.block_height);
+		expect(rows).toEqual(
+			(payload.state_writes ?? []).map((w) => ({
+				block_height: payload.block_height,
+				ordinal: w.ordinal,
+				tx_index: w.tx_index,
+				key: w.key,
+				value_hex: w.value_hex,
+			})),
+		);
+		expect(rows[0]?.tx_index).toBeNull();
+		expect(rows[0]?.key).toStartWith("vm-account::");
+		expect(rows[1]?.tx_index).toBe(0);
+		expect(rows[1]?.key).toStartWith("vm::");
+
+		// The export dump carries the field byte-for-byte.
+		const message = messageFromRow(exportRow(fileBytes, payload.block_height));
+		const chunks: string[] = [];
+		writeObserverDump([message], { write: (chunk) => chunks.push(chunk) });
+		const dumped = JSON.parse(chunks.join("").trimEnd()) as SbaObserverMessage;
+		expect((dumped.payload as NewBlockPayload).state_writes).toEqual(
+			payload.state_writes,
+		);
+	});
+
+	test("malformed state_writes rows are skipped, not fatal", () => {
+		const rows = parseStateWrites(
+			[
+				{ tx_index: 0, ordinal: 0, key: "vm::a", value_hex: "00" },
+				{ tx_index: -1, ordinal: 1, key: "vm::b", value_hex: "00" },
+				{ tx_index: null, ordinal: 2.5, key: "vm::c", value_hex: "00" },
+				{ tx_index: null, ordinal: 3, key: "", value_hex: "00" },
+				null as unknown as StateWritePayload,
+				{ tx_index: null, ordinal: 5, key: "vm::f\0", value_hex: "00" },
+				{ tx_index: null, ordinal: 6, key: "vm::g", value_hex: "00" },
+			],
+			7,
+		);
+		expect(rows.map((r) => r.ordinal)).toEqual([0, 6]);
 	});
 
 	test("opt-in body has vm_events with no event_index on traces", async () => {

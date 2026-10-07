@@ -1,6 +1,7 @@
 import type {
 	InsertBlock,
 	InsertEvent,
+	InsertStateWrite,
 	InsertTransaction,
 	InsertVmEvent,
 } from "@secondlayer/shared/db/schema";
@@ -17,6 +18,7 @@ import {
 import { AddressVersion, c32address } from "@secondlayer/stacks/utils";
 import type {
 	NewBlockPayload,
+	StateWritePayload,
 	TransactionEvent,
 	TransactionPayload,
 	VmTraceEvent,
@@ -364,6 +366,61 @@ export function parseVmEvent(
 		type: storedType,
 		data: eventData,
 	};
+}
+
+const PG_INT4_MAX = 2_147_483_647;
+
+function isInt4(value: unknown): value is number {
+	return (
+		typeof value === "number" &&
+		Number.isInteger(value) &&
+		value >= 0 &&
+		value <= PG_INT4_MAX
+	);
+}
+
+/**
+ * Parse `/new_block.state_writes` (opt-in `"state_writes"`). Absent or
+ * non-array → `[]`, so a `"*"` body persists nothing. `ordinal` is the node's
+ * per-block write order, kept as delivered. A malformed row is skipped with a
+ * warning, like a malformed vm_event: failing the block would wedge ingest on
+ * a payload the node never re-sends differently.
+ */
+export function parseStateWrites(
+	writes: StateWritePayload[] | undefined,
+	blockHeight: number,
+): InsertStateWrite[] {
+	if (!Array.isArray(writes)) return [];
+	const out: InsertStateWrite[] = [];
+	for (const write of writes) {
+		const valid =
+			write !== null &&
+			typeof write === "object" &&
+			isInt4(write.ordinal) &&
+			(write.tx_index === null || isInt4(write.tx_index)) &&
+			typeof write.key === "string" &&
+			write.key.length > 0 &&
+			typeof write.value_hex === "string" &&
+			// Postgres TEXT rejects \0. Skip rather than strip: a rewritten key
+			// would name a MARF leaf the block never wrote.
+			!write.key.includes("\0") &&
+			!write.value_hex.includes("\0");
+		if (!valid) {
+			logger.warn("Malformed state_write, skipping", {
+				blockHeight,
+				ordinal: write?.ordinal,
+			});
+			continue;
+		}
+		out.push({
+			block_height: blockHeight,
+			ordinal: write.ordinal,
+			tx_index: write.tx_index,
+			key: write.key,
+			value_hex: write.value_hex,
+		});
+	}
+	return out;
 }
 
 /** Strip null bytes from all string values — Postgres text/jsonb columns reject \0 */

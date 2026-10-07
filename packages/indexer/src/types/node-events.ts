@@ -320,6 +320,18 @@ export interface VmTraceEvent {
 	truncated?: { dropped: number };
 }
 
+// Opt-in storage-layer writes (`events_keys` `"state_writes"`). Not in `"*"`.
+// The exact MARF writes a block committed, in node order. `ordinal` is the
+// per-block write order; `tx_index` is null for block-level writes. `key` is
+// the full MARF key (`vm::<contract>::0::map::<hex>`, `vm-account::<addr>::19`);
+// `value_hex` is the hex of the side-store value string's bytes.
+export interface StateWritePayload {
+	tx_index: number | null;
+	ordinal: number;
+	key: string;
+	value_hex: string;
+}
+
 // Matured miner rewards
 export interface MaturedMinerReward {
 	from_stacks_block_hash: string;
@@ -349,6 +361,8 @@ export interface NewBlockPayload {
 	events: TransactionEvent[];
 	/** Present only when this observer opted into `"storage"` / `"contract_calls"`. Omitted on `"*"` bodies. */
 	vm_events?: VmTraceEvent[];
+	/** Present only when this observer opted into `"state_writes"`. Omitted on `"*"` bodies. */
+	state_writes?: StateWritePayload[];
 	matured_miner_rewards?: MaturedMinerReward[];
 }
 

@@ -13,6 +13,7 @@ import { handleDecodedEventsReorg } from "./decode/storage.ts";
 import {
 	parseBlock,
 	parseEvent,
+	parseStateWrites,
 	parseTransaction,
 	parseVmEvent,
 	stripNullBytes,
@@ -249,6 +250,7 @@ export async function reconcileReorgedRange(
 			txs,
 			evts,
 			vmEvts,
+			stateWrites: parseStateWrites(nodePayload.state_writes, height),
 			blockHeight: height,
 		});
 		repaired += 1;

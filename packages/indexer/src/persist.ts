@@ -14,6 +14,8 @@ export type PersistBlockInput = {
 	evts: Insertable<Database["events"]>[];
 	/** Second clock. Empty when the `/new_block` body had no `vm_events` field. */
 	vmEvts?: Insertable<Database["vm_events"]>[];
+	/** Storage-layer MARF writes. Empty when the body had no `state_writes` field. */
+	stateWrites?: Insertable<Database["state_writes"]>[];
 	blockHeight: number;
 	/** Defaults to STACKS_NETWORK env (or "mainnet"). */
 	network?: string;
@@ -73,6 +75,16 @@ async function archiveOrphanedHeight(
 			ordinal, type, data, created_at, ${orphanedHash}
 		FROM vm_events WHERE block_height = ${blockHeight}
 	`.execute(tx);
+
+	await sql`
+		INSERT INTO state_writes_archive (
+			id, block_height, ordinal, tx_index, key, value_hex,
+			orphaned_block_hash
+		)
+		SELECT block_height::text || ':' || ordinal::text, block_height, ordinal,
+			tx_index, key, value_hex, ${orphanedHash}
+		FROM state_writes WHERE block_height = ${blockHeight}
+	`.execute(tx);
 }
 
 /** Copy a re-mined tx's current row (block hash + execution fields) into
@@ -111,6 +123,7 @@ export async function persistBlock(
 ): Promise<void> {
 	const { block, txs, evts, blockHeight } = input;
 	const vmEvts = input.vmEvts ?? [];
+	const stateWrites = input.stateWrites ?? [];
 	const network = input.network ?? process.env.STACKS_NETWORK ?? "mainnet";
 
 	await db.transaction().execute(async (tx) => {
@@ -171,6 +184,11 @@ export async function persistBlock(
 		// (~105M rows) on every block. Split, each side uses its own index.
 		await tx
 			.deleteFrom("vm_events")
+			.where("block_height", "=", blockHeight)
+			.execute();
+		// state_writes carry tx_index, not a tx FK: height is their only owner.
+		await tx
+			.deleteFrom("state_writes")
 			.where("block_height", "=", blockHeight)
 			.execute();
 		await tx
@@ -270,6 +288,15 @@ export async function persistBlock(
 			await tx
 				.insertInto("vm_events")
 				.values(vmEvts.slice(i, i + EVT_CHUNK_SIZE))
+				// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
+				.onConflict((oc: any) => oc.doNothing())
+				.execute();
+		}
+
+		for (let i = 0; i < stateWrites.length; i += EVT_CHUNK_SIZE) {
+			await tx
+				.insertInto("state_writes")
+				.values(stateWrites.slice(i, i + EVT_CHUNK_SIZE))
 				// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
 				.onConflict((oc: any) => oc.doNothing())
 				.execute();

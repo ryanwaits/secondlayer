@@ -140,6 +140,12 @@ for (const path of HAS_DB ? [directPath(), catchUpPath()] : [directPath()])
 			await sql`DELETE FROM vm_events_archive WHERE block_height BETWEEN ${H - 1} AND ${H + 3}`.execute(
 				db,
 			);
+			await sql`DELETE FROM state_writes WHERE block_height BETWEEN ${H - 1} AND ${H + 3}`.execute(
+				db,
+			);
+			await sql`DELETE FROM state_writes_archive WHERE block_height BETWEEN ${H - 1} AND ${H + 3}`.execute(
+				db,
+			);
 			await sql`DELETE FROM transactions WHERE block_height BETWEEN ${H - 1} AND ${H + 3}`.execute(
 				db,
 			);
@@ -289,7 +295,7 @@ for (const path of HAS_DB ? [directPath(), catchUpPath()] : [directPath()])
 			expect((await canonicalRow(H + 2))?.parent_hash).toBe("0xrival-child");
 		});
 
-		test("A → B → A restores original vm_events with original ordinals", async () => {
+		test("A → B → A restores original vm_events and state_writes with original ordinals", async () => {
 			if (!db) throw new Error("missing db");
 
 			function withVm(
@@ -322,7 +328,32 @@ for (const path of HAS_DB ? [directPath(), catchUpPath()] : [directPath()])
 							},
 						},
 					],
+					state_writes: [
+						{
+							tx_index: null,
+							ordinal: 0,
+							key: `vm-account::SP.miner-${mapName}::19`,
+							value_hex: "3031",
+						},
+						{
+							tx_index: 0,
+							ordinal: 1,
+							key: `vm::SP.store::0::map::${mapName}`,
+							value_hex: "3062",
+						},
+					],
 				};
+			}
+
+			async function stateWriteKeysAtH() {
+				if (!db) throw new Error("missing db");
+				const rows = await db
+					.selectFrom("state_writes")
+					.select(["ordinal", "tx_index", "key"])
+					.where("block_height", "=", H)
+					.orderBy("ordinal", "asc")
+					.execute();
+				return rows;
 			}
 
 			await ingest(payload(H - 1, "0xbase", "0xancestor"));
@@ -340,6 +371,14 @@ for (const path of HAS_DB ? [directPath(), catchUpPath()] : [directPath()])
 			expect((duringB[0]?.data as { map_name: string }).map_name).toBe(
 				"cont-map",
 			);
+			expect(await stateWriteKeysAtH()).toEqual([
+				{
+					ordinal: 0,
+					tx_index: null,
+					key: "vm-account::SP.miner-cont-map::19",
+				},
+				{ ordinal: 1, tx_index: 0, key: "vm::SP.store::0::map::cont-map" },
+			]);
 
 			await ingest(payload(H + 1, "0xchild-of-original", "0xoriginal"));
 			await ingest(payload(H + 2, "0xgrandchild", "0xchild-of-original"));
@@ -355,5 +394,13 @@ for (const path of HAS_DB ? [directPath(), catchUpPath()] : [directPath()])
 			expect((restored[0]?.data as { map_name: string }).map_name).toBe(
 				"orig-map",
 			);
+			expect(await stateWriteKeysAtH()).toEqual([
+				{
+					ordinal: 0,
+					tx_index: null,
+					key: "vm-account::SP.miner-orig-map::19",
+				},
+				{ ordinal: 1, tx_index: 0, key: "vm::SP.store::0::map::orig-map" },
+			]);
 		});
 	});

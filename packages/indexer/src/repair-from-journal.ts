@@ -42,6 +42,7 @@ import { checkTxMerkleRoot } from "./archive/node-replay-auditor.ts";
 import {
 	parseBlock,
 	parseEvent,
+	parseStateWrites,
 	parseTransaction,
 	parseVmEvent,
 	stripNullBytes,
@@ -196,7 +197,14 @@ export async function repairHeightFromJournal(
 				.map((e) => stripNullBytes(e) as typeof e)
 		: [];
 
-	await persistBlock(db, { block, txs, evts, vmEvts, blockHeight: height });
+	await persistBlock(db, {
+		block,
+		txs,
+		evts,
+		vmEvts,
+		stateWrites: parseStateWrites(payload.state_writes, height),
+		blockHeight: height,
+	});
 }
 
 export type NodeVerifyResult =

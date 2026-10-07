@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { getDb } from "@secondlayer/shared/db";
+import { getDb, sql } from "@secondlayer/shared/db";
 import { listen } from "@secondlayer/shared/queue/listener";
 import { type PersistBlockInput, persistBlock } from "./persist.ts";
 import { reconcileReorgedRange } from "./reorg.ts";
@@ -121,6 +121,14 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		if (!db) return;
 		await db
 			.deleteFrom("vm_events")
+			.where("block_height", "in", [H, H + 1])
+			.execute();
+		await db
+			.deleteFrom("state_writes")
+			.where("block_height", "in", [H, H + 1])
+			.execute();
+		await db
+			.deleteFrom("state_writes_archive")
 			.where("block_height", "in", [H, H + 1])
 			.execute();
 		await db
@@ -480,6 +488,94 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 				ordinal: 0,
 			},
 		]);
+	});
+
+	test("a reorged height holds only the latest block's state_writes and archives the orphaned ones", async () => {
+		if (!db) throw new Error("missing db");
+		const first = payload("0xblockA", "0xtxA");
+		first.stateWrites = [
+			{
+				block_height: H,
+				ordinal: 0,
+				tx_index: null,
+				key: "vm-account::SP1::19",
+				value_hex: "3031",
+			},
+			{
+				block_height: H,
+				ordinal: 1,
+				tx_index: 0,
+				key: "vm::SP1.c::0::map::0a",
+				value_hex: "3062",
+			},
+		];
+		await persistBlock(db, first);
+		const second = payload("0xblockB", "0xtxB");
+		second.stateWrites = [
+			{
+				block_height: H,
+				ordinal: 0,
+				tx_index: 0,
+				key: "vm::SP1.c::0::map::0b",
+				value_hex: "3063",
+			},
+		];
+		await persistBlock(db, second);
+
+		const live = await db
+			.selectFrom("state_writes")
+			.select(["ordinal", "tx_index", "key"])
+			.where("block_height", "=", H)
+			.execute();
+		const archived = await db
+			.selectFrom("state_writes_archive")
+			.select(["id", "ordinal", "tx_index", "key", "orphaned_block_hash"])
+			.where("block_height", "=", H)
+			.orderBy("ordinal", "asc")
+			.execute();
+
+		expect(live).toEqual([
+			{ ordinal: 0, tx_index: 0, key: "vm::SP1.c::0::map::0b" },
+		]);
+		// The archive id is the row's logical key, as for vm_events.
+		expect(archived).toEqual([
+			{
+				id: `${H}:0`,
+				ordinal: 0,
+				tx_index: null,
+				key: "vm-account::SP1::19",
+				orphaned_block_hash: "0xblockA",
+			},
+			{
+				id: `${H}:1`,
+				ordinal: 1,
+				tx_index: 0,
+				key: "vm::SP1.c::0::map::0a",
+				orphaned_block_hash: "0xblockA",
+			},
+		]);
+	});
+
+	test("a block with more state_writes than one INSERT can bind lands in full", async () => {
+		// 14,000 rows × 5 columns = 70,000 binds, past Postgres' 65,535 limit for
+		// one statement: only the chunked insert (same chunk as vm_events) lands it.
+		if (!db) throw new Error("missing db");
+		const count = 14_000;
+		const input = payload("0xblockA", "0xtxA");
+		input.stateWrites = Array.from({ length: count }, (_, ordinal) => ({
+			block_height: H,
+			ordinal,
+			tx_index: ordinal % 7 === 0 ? null : 0,
+			key: `vm::SP1.c::0::map::${ordinal.toString(16).padStart(8, "0")}`,
+			value_hex: "3031",
+		}));
+		await persistBlock(db, input);
+
+		const { rows } = await sql<{ n: number; max: number }>`
+			SELECT count(*)::int AS n, max(ordinal)::int AS max
+			FROM state_writes WHERE block_height = ${H}
+		`.execute(db);
+		expect(rows[0]).toEqual({ n: count, max: count - 1 });
 	});
 
 	test("a write that lands fewer txs than the incoming block throws and leaves prior rows intact", async () => {

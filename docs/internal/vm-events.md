@@ -127,6 +127,12 @@ Instance queries for printed rows already exist. This does not invent Postgres. 
 
 PoX-5 Index is already “the print log, not a position scoreboard.” Scoreboard = `map_set` on the position maps → a subgraph. Charter holds: not a new `/v1/index/pox5/positions`.
 
+### `state_writes` — exact MARF writes, for verification
+
+The old fork's evaluator hook corrupted `var_set` / `map_*` rows. The fork's storage-layer collector (`events_keys` `"state_writes"`) replaces them for verification: `/new_block.state_writes[] = { tx_index | null, ordinal, key, value_hex }`, every changed MARF leaf in the block, in write order. `key` is the full MARF key (`vm::<contract>::0::map::<hex>`, `vm-account::<addr>::19`); `tx_index` is null for block-level writes.
+
+Ingest stores it 1:1 in `state_writes` (PK `(block_height, ordinal)`, FK `blocks` cascade, no tx FK) in the same transaction as `vm_events`: same replace-per-height, same reorg archive (`state_writes_archive`, id `block_height:ordinal`), same fork flip-back replay. Ingest only. No Index/Streams type, no archive dataset yet.
+
 ---
 
 ## Map onto the five nouns
