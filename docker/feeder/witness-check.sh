@@ -44,7 +44,7 @@ for h in "${heights[@]}"; do
 	args=(check --marf "$MARF" --height "$h" --rows "$rows")
 	if [[ "$has_state_writes" == "t" ]]; then
 		writes="$OUT/writes-$h.jsonl"
-		sql "SELECT json_build_object('tx_index',tx_index,'ordinal',ordinal,'key',key,'value_hex',value_hex) FROM state_writes WHERE block_height = $h ORDER BY ordinal" >"$writes"
+		sql "SELECT json_build_object('block_height',block_height,'tx_index',tx_index,'ordinal',ordinal,'key',key,'value_hex',value_hex) FROM state_writes WHERE block_height = $h ORDER BY ordinal" >"$writes"
 		args+=(--writes "$writes")
 	fi
 	if "$CHECKER" "${args[@]}" >"$OUT/report-$h.json"; then
