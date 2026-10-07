@@ -24,6 +24,8 @@ That’s `vm_events` (`var_set`, `map_set`, `map_insert`, `map_delete`) plus `ne
 
 Same information for committed stores. Different artifact: trie for execution and proofs, event log for products.
 
+MARF is also the proof source for the trustless index (plan 109): each indexed row is checkable against a block's `state_index_root`. The write log names writes, the MARF proves them.
+
 `vm_trace_max_bytes = 0` is how the log stays complete. A positive cap emits `truncated` and **drops later writes for that tx** — a hole you cannot fill from `"*"` later. We run cap 0. Truncation is an operator failure, not a product feature.
 
 ---
