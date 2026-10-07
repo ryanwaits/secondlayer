@@ -466,13 +466,19 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			.execute();
 		const archived = await db
 			.selectFrom("vm_events_archive")
-			.select(["tx_id", "orphaned_block_hash", "ordinal"])
+			.select(["id", "tx_id", "orphaned_block_hash", "ordinal"])
 			.where("block_height", "=", H)
 			.execute();
 
 		expect(live).toHaveLength(0);
+		// The archive id is the row's logical key: vm_events has no surrogate id.
 		expect(archived).toEqual([
-			{ tx_id: "0xtxA", orphaned_block_hash: "0xblockA", ordinal: 0 },
+			{
+				id: `${H}:0`,
+				tx_id: "0xtxA",
+				orphaned_block_hash: "0xblockA",
+				ordinal: 0,
+			},
 		]);
 	});
 

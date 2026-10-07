@@ -112,9 +112,9 @@ export interface EventsArchiveTable {
 }
 
 // Opt-in VM traces (migration 0131). Second clock: `ordinal` (array position
-// in `/new_block.vm_events`). Never mixed into `events.event_index`.
+// in `/new_block.vm_events`). Never mixed into `events.event_index`. Primary
+// key `(block_height, ordinal)` (migration 0153).
 export interface VmEventsTable {
-	id: Generated<string>;
 	tx_id: string;
 	block_height: number;
 	ordinal: number;
@@ -125,6 +125,7 @@ export interface VmEventsTable {
 
 export interface VmEventsArchiveTable {
 	archive_id: Generated<string>;
+	/** `block_height:ordinal`; rows archived before migration 0153 hold the old uuid. */
 	id: string;
 	tx_id: string;
 	block_height: number;

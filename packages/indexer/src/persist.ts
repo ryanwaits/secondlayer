@@ -69,8 +69,8 @@ async function archiveOrphanedHeight(
 			id, tx_id, block_height, ordinal, type, data, created_at,
 			orphaned_block_hash
 		)
-		SELECT id, tx_id, block_height, ordinal, type, data, created_at,
-			${orphanedHash}
+		SELECT block_height::text || ':' || ordinal::text, tx_id, block_height,
+			ordinal, type, data, created_at, ${orphanedHash}
 		FROM vm_events WHERE block_height = ${blockHeight}
 	`.execute(tx);
 }
