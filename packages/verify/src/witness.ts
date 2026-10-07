@@ -1,9 +1,9 @@
 // State witness v2: every node local to block N's trie, enough to recompute
 // N's state_index_root and enumerate every leaf trie N holds.
 //
-//   v2    := 0x02 | u16 n_anc | [32]*n_anc ancestor roots | u16 n_tbl | [32]*n_tbl ancestor block ids | node
+//   v3    := 0x03 | u32 n_anc | [32]*n_anc ancestor roots | u32 n_tbl | [32]*n_tbl ancestor block ids | node
 //   node  := u8 id | u8 plen | path | u16 n_ptrs | ptr* | child*   (one child per local ptr, in order)
-//   ptr   := u8 id | (id != 0: u8 chr) | (backptr: u16 tbl_idx)    (empty ptr = 0x00, chr 0)
+//   ptr   := u8 id | (id != 0: u8 chr) | (backptr: u32 tbl_idx)    (empty ptr = 0x00, chr 0)
 //   leaf  := 0x01 | u8 plen | path | [32] value hash
 //
 // Hashing mirrors stacks-core storage.rs: a backptr child contributes the
@@ -29,7 +29,7 @@ import {
 	nodeHash,
 } from "./marf.ts";
 
-const WITNESS_VERSION = 2;
+const WITNESS_VERSION = 3;
 const PATH_LEN = 32;
 /** stacks-common TrieHash::EMPTY = sha512/256 of the empty string. */
 export const TRIE_HASH_EMPTY = unhex(
@@ -62,8 +62,8 @@ export function parseWitness(bytes: Bytes): StateWitness {
 	const version = r.u8();
 	if (version !== WITNESS_VERSION)
 		throw new Error(`unsupported witness version ${version}`);
-	const ancestorRoots = Array.from({ length: r.u16() }, () => r.bytes(32));
-	const blockTable = Array.from({ length: r.u16() }, () => r.bytes(32));
+	const ancestorRoots = Array.from({ length: r.u32() }, () => r.bytes(32));
+	const blockTable = Array.from({ length: r.u32() }, () => r.bytes(32));
 	const leaves: WitnessLeaf[] = [];
 	const seen = new Set<string>();
 	let nodes = 0;
@@ -106,7 +106,7 @@ export function parseWitness(bytes: Bytes): StateWitness {
 				ptrs.push({ id: pid, chr, backBlock: ZERO_BLOCK });
 				continue;
 			}
-			const block = blockTable[r.u16()];
+			const block = blockTable[r.u32()];
 			if (!block) throw new Error("backptr table index out of range");
 			ptrs.push({ id: pid, chr, backBlock: block });
 		}
