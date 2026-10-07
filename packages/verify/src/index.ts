@@ -35,3 +35,8 @@ export {
 	verifyConsensusPreimage,
 } from "./burn.ts";
 export { dataVarKey, ftBalanceKey, mapEntryKey } from "./keys.ts";
+export {
+	type Checkpoint,
+	HeaderChain,
+	HeaderValidationError,
+} from "./bitcoin/chain.ts";
