@@ -190,7 +190,7 @@ Inner `list-in-ustx` (100proof) is the same pattern: the listing write often has
 - Reproducing arbitrary read-only **functions** without an evaluator (still `readContract` → node). Stored keys: yes.
 - Backfill of inner calls from **today’s** R2 archive (`canonical/v1`, `"*"` payloads / classic `events` parquet). That dump never had `vm_events`. After 032 the rows live in **our** Postgres; offering `bootstrap`/`repair` of inner calls is a **new archive generation** (vm parquet / side object) — not automatic the day we hit tip. See [canonical-archive.md](./runbook/canonical-archive.md) and [vm-events.md](./vm-events.md) Archive DX.
 - A public Explore of other people’s storage.
-- A second consensus or light-client of MARF.
+- ~~A second consensus or light-client of MARF.~~ Reversed 2026-10-07: a MARF light client (verify proofs and per-block state witnesses against signed headers) is now a goal. See plan 109, trustless index.
 
 ---
 
@@ -241,5 +241,7 @@ What a buyer is actually buying:
 Who that is *for*: a Stacks data incumbent that iced nested calls; a foundation that wants 291 as a public good; a general indexer that wants Stacks without years of VM work. The story is **the missing data plane**, not a TUI and not `@secondlayer/stacks`.
 
 Leverage: design partners before the post (they become the proof). One grant-shaped deployment (same rules as sBTC inclusion check). Fork image public, **history and hosted query** are the lock-in. Don’t PR `stacks-network` to make us redundant before the archive exists.
+
+Tension (2026-10-07, plan 109): an upstream event/receipt root or state witness would reduce fork lock-in and make the trustless index work on stock nodes. Decision deferred; the moat stays history + hosted query either way.
 
 This is internal. Public copy still follows STRATEGY voice.
