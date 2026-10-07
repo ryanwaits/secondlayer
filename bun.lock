@@ -301,6 +301,19 @@
         "typescript": "^5",
       },
     },
+    "packages/verify": {
+      "name": "@secondlayer/verify",
+      "version": "0.0.0",
+      "dependencies": {
+        "@noble/curves": "2.0.1",
+        "@noble/hashes": "2.0.1",
+        "@secondlayer/stacks": "^6.1.1",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^5",
+      },
+    },
     "packages/worker": {
       "name": "@secondlayer/worker",
       "version": "1.3.37",
@@ -1151,6 +1164,8 @@
     "@secondlayer/stacks-docs": ["@secondlayer/stacks-docs@workspace:apps/stacks-docs"],
 
     "@secondlayer/subgraphs": ["@secondlayer/subgraphs@workspace:packages/subgraphs"],
+
+    "@secondlayer/verify": ["@secondlayer/verify@workspace:packages/verify"],
 
     "@secondlayer/web": ["@secondlayer/web@workspace:apps/web"],
 
