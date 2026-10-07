@@ -29,6 +29,16 @@ export interface ReplayBlockPayload {
 	events: ReplayEventPayload[];
 	/** Node-shaped opt-in traces. Omitted when the height has none. */
 	vm_events?: ReplayVmEventPayload[];
+	/** Node-shaped storage-layer writes. Omitted when the height has none. */
+	state_writes?: ReplayStateWritePayload[];
+}
+
+/** Node-shaped `/new_block.state_writes[]` row; stored 1:1. */
+export interface ReplayStateWritePayload {
+	tx_index: number | null;
+	ordinal: number;
+	key: string;
+	value_hex: string;
 }
 
 interface ReplayTransactionPayload {
@@ -130,6 +140,13 @@ export class LocalClient {
 			.execute();
 		const vm_events = reconstructVmEventsForReplay(vmRows);
 
+		const state_writes: ReplayStateWritePayload[] = await db
+			.selectFrom("state_writes")
+			.select(["tx_index", "ordinal", "key", "value_hex"])
+			.where("block_height", "=", height)
+			.orderBy("ordinal", "asc")
+			.execute();
+
 		return {
 			block_hash: block.hash,
 			block_height: block.height,
@@ -185,6 +202,7 @@ export class LocalClient {
 				return payload;
 			}),
 			...(vm_events.length > 0 ? { vm_events } : {}),
+			...(state_writes.length > 0 ? { state_writes } : {}),
 		};
 	}
 

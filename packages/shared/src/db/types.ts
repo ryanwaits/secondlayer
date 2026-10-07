@@ -137,6 +137,30 @@ export interface VmEventsArchiveTable {
 	archived_at: Generated<Date>;
 }
 
+// Opt-in node storage-layer writes (migration 0154): the exact MARF writes a
+// block committed, in node order. `tx_index` is null for block-level writes.
+// Primary key `(block_height, ordinal)`.
+export interface StateWritesTable {
+	block_height: number;
+	ordinal: number;
+	tx_index: number | null;
+	key: string;
+	value_hex: string;
+}
+
+export interface StateWritesArchiveTable {
+	archive_id: Generated<string>;
+	/** `block_height:ordinal`. */
+	id: string;
+	block_height: number;
+	ordinal: number;
+	tx_index: number | null;
+	key: string;
+	value_hex: string;
+	orphaned_block_hash: string | null;
+	archived_at: Generated<Date>;
+}
+
 // Dead-letter log (see migration 0085): events whose decoded payload failed
 // schema validation on ingest. Append-only diagnostic; the event still lands in
 // `events`, so chain data is never lost.
@@ -943,9 +967,11 @@ export interface Database {
 	transactions: TransactionsTable;
 	events: EventsTable;
 	vm_events: VmEventsTable;
+	state_writes: StateWritesTable;
 	transactions_archive: TransactionsArchiveTable;
 	events_archive: EventsArchiveTable;
 	vm_events_archive: VmEventsArchiveTable;
+	state_writes_archive: StateWritesArchiveTable;
 	dead_letter_events: DeadLetterEventsTable;
 	mempool_transactions: MempoolTransactionsTable;
 	index_progress: IndexProgressTable;
@@ -1143,6 +1169,8 @@ export type UpdateEvent = Updateable<EventsTable>;
 export type VmEvent = Selectable<VmEventsTable>;
 export type InsertVmEvent = Insertable<VmEventsTable>;
 export type UpdateVmEvent = Updateable<VmEventsTable>;
+export type StateWrite = Selectable<StateWritesTable>;
+export type InsertStateWrite = Insertable<StateWritesTable>;
 
 export type IndexProgress = Selectable<IndexProgressTable>;
 export type InsertIndexProgress = Insertable<IndexProgressTable>;
