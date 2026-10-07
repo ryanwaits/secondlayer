@@ -49,7 +49,7 @@ export interface WitnessFixture {
 	height: number;
 	parent: string;
 	expected_root: string;
-	witness_v2: string;
+	witness: string;
 	writes: [string, string][];
 	internal: [string, string][];
 	carried_parent_values: Record<string, string>;

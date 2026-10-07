@@ -42,7 +42,7 @@ function chainInternal(height: number): [string, string][] {
 
 const cases = listFixtures("witness").map((f) => {
 	const fx = readJson<WitnessFixture>(`witness/${f}`);
-	const witness = parseWitness(unhex(fx.witness_v2));
+	const witness = parseWitness(unhex(fx.witness));
 	const input: BlockDiffInput = {
 		leaves: witness.leaves,
 		writes: fx.writes,
@@ -69,7 +69,7 @@ describe("parseWitness", () => {
 	});
 
 	const { fx } = cases[0] as (typeof cases)[number];
-	const bytes = unhex(fx.witness_v2);
+	const bytes = unhex(fx.witness);
 
 	test("a flipped leaf value byte changes the root", () => {
 		const tampered = bytes.slice();
@@ -80,7 +80,8 @@ describe("parseWitness", () => {
 
 	test("a flipped ancestor root changes the root", () => {
 		const tampered = bytes.slice();
-		tampered[3] = (tampered[3] as number) ^ 1;
+		// v3: version (1) + u32 ancestor count (4), so the first ancestor root starts at byte 5
+		tampered[5] = (tampered[5] as number) ^ 1;
 		expect(hex(parseWitness(tampered).root)).not.toBe(fx.expected_root);
 	});
 
