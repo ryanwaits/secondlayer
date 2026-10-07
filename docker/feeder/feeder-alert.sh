@@ -68,8 +68,8 @@ if ! running "$STACKS"; then problems+=("$STACKS not running"); fi
 if ! running "$INDEXER"; then problems+=("$INDEXER not running"); fi
 if ! running "$PG"; then problems+=("$PG not running"); fi
 
-info_json=$(curl -sS --max-time 15 localhost:20443/v2/info 2>/dev/null || true)
-health_json=$(curl -sS --max-time 5 localhost:3700/health 2>/dev/null || true)
+info_json=$(curl -sS --max-time 15 "${FEEDER_NODE_RPC:-localhost:20443}/v2/info" 2>/dev/null || true)
+health_json=$(curl -sS --max-time 5 "${FEEDER_INDEXER_URL:-localhost:3700}/health" 2>/dev/null || true)
 eval "$(python3 - "$info_json" "$health_json" <<'PY'
 import json,sys
 height, seen = -1, -1
