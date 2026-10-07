@@ -1059,10 +1059,10 @@ describe.skipIf(!HAS_DB)(
 			const db = getDb();
 			// Node-only rows: the archive has no vm_events, so these exist nowhere else.
 			await sql`
-				INSERT INTO vm_events (id, tx_id, block_height, ordinal, type, data)
+				INSERT INTO vm_events (tx_id, block_height, ordinal, type, data)
 				VALUES
-					('00000000-0000-0000-0000-000000000003', 'tx-3', 3, 0, 'var_set', '{"k":3}'),
-					('00000000-0000-0000-0000-000000000005', 'tx-5', 5, 0, 'map_set', '{"k":5}')
+					('tx-3', 3, 0, 'var_set', '{"k":3}'),
+					('tx-5', 5, 0, 'map_set', '{"k":5}')
 			`.execute(db);
 			// A local-only transaction (the archive lacks it) with its own vm row.
 			await sql`
@@ -1070,8 +1070,8 @@ describe.skipIf(!HAS_DB)(
 				VALUES ('tx-local-7', 7, 1, 'coinbase', 'SP000', 'success', '00')
 			`.execute(db);
 			await sql`
-				INSERT INTO vm_events (id, tx_id, block_height, ordinal, type, data)
-				VALUES ('00000000-0000-0000-0000-000000000007', 'tx-local-7', 7, 0, 'var_set', '{"k":7}')
+				INSERT INTO vm_events (tx_id, block_height, ordinal, type, data)
+				VALUES ('tx-local-7', 7, 0, 'var_set', '{"k":7}')
 			`.execute(db);
 			// Child counts now diverge from the archive.
 			await sql`DELETE FROM events WHERE block_height = 5`.execute(db);
@@ -1086,22 +1086,22 @@ describe.skipIf(!HAS_DB)(
 			expect(report.vm_events).toEqual({ restored: 2, dropped: 1 });
 
 			const rows = await sql<{
-				id: string;
+				block_height: string;
 				tx_id: string;
 				ordinal: number;
 				data: unknown;
-			}>`SELECT id, tx_id, ordinal, data FROM vm_events ORDER BY block_height`.execute(
+			}>`SELECT block_height::text, tx_id, ordinal, data FROM vm_events ORDER BY block_height`.execute(
 				db,
 			);
 			expect(rows.rows).toEqual([
 				{
-					id: "00000000-0000-0000-0000-000000000003",
+					block_height: "3",
 					tx_id: "tx-3",
 					ordinal: 0,
 					data: { k: 3 },
 				},
 				{
-					id: "00000000-0000-0000-0000-000000000005",
+					block_height: "5",
 					tx_id: "tx-5",
 					ordinal: 0,
 					data: { k: 5 },
