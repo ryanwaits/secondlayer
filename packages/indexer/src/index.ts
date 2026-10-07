@@ -15,6 +15,12 @@ import {
 import { logger } from "@secondlayer/shared/logger";
 import { sql } from "kysely";
 import {
+	JournalApplier,
+	cachedNodeBurnTip,
+	highestReceivedSequence,
+	receiveNewBlock,
+} from "./catch-up.ts";
+import {
 	ensureBootstrapSpoolConsumed,
 	isBootstrapSpoolMode,
 } from "./consume-spool.ts";
@@ -76,6 +82,32 @@ const PORT = Number.parseInt(
 const OBSERVER_JOURNAL_ENABLED =
 	process.env.OBSERVER_JOURNAL_ENABLED !== "false";
 const NETWORK = process.env.STACKS_NETWORK || "mainnet";
+const FORCED_LIVE = process.env.INGEST_MODE === "live";
+
+// Every journaled /new_block is applied here, in journal order. Started once
+// the bootstrap spool (if any) has settled, so it never races the seam.
+const applier = new JournalApplier({ network: NETWORK });
+const nodeBurnTip = cachedNodeBurnTip();
+let lastIngestMode: "live" | "catch-up" | "spool" | null = null;
+let lastReceivedHeight: number | null = null;
+
+/**
+ * Settle the bootstrap spool, then start the applier. Callers have checked we
+ * are not spooling. Once the applier runs, the seam never runs again: both
+ * read `received` rows.
+ */
+async function ensureApplierStarted(): Promise<void> {
+	if (applier.started) return;
+	const outcome = await ensureBootstrapSpoolConsumed();
+	// "waiting" here means INGEST_MODE=live ahead of the archive import: the
+	// spooled blocks are applied in journal order like any other. A refused
+	// seam leaves its spooled rows for the operator, as before.
+	const floor =
+		outcome === "refused"
+			? await highestReceivedSequence(getSourceDb(), NETWORK)
+			: null;
+	applier.start(floor);
+}
 
 const observerExportFlag = process.env.OBSERVER_HTTP_EXPORT;
 const observerExportToken = process.env.OBSERVER_HTTP_EXPORT_TOKEN;
@@ -254,6 +286,10 @@ async function runStartupIntegrityCheck() {
 
 await runStartupIntegrityCheck();
 await ensureBootstrapSpoolConsumed();
+// Resume a crash-interrupted backlog without waiting for the next block.
+if (OBSERVER_JOURNAL_ENABLED && !(await isBootstrapSpoolMode())) {
+	await ensureApplierStarted();
+}
 
 assertDbSplit();
 logger.info("Starting indexer service", { port: PORT });
@@ -298,6 +334,13 @@ const server = Bun.serve({
 					enabled: OBSERVER_JOURNAL_ENABLED,
 					network: NETWORK,
 					paths: ["/new_block", "/new_burn_block"],
+				},
+				// Catch-up ingest: the node is acked on journal commit and the
+				// applier runs behind. `backlog` is journaled-but-unapplied blocks.
+				ingest: {
+					mode: lastIngestMode,
+					lastReceivedHeight,
+					...applier.state(),
 				},
 				blocksFetchedViaPoll: tipFollowerState.blocksFetchedViaPoll,
 				streamsBulkPublisher: {
@@ -398,31 +441,13 @@ const server = Bun.serve({
 		// New block event
 		"/new_block": {
 			POST: async (req) => {
-				let receipt: ObserverReceipt | null = null;
-				let derivedStateCommitted = false;
 				try {
 					// Skip recording for self-sourced blocks (tip-follower, auto-backfill)
 					const source = req.headers.get("X-Source");
 					if (!source) recordBlockReceived();
 
-					// Drain the bootstrap spool before this block is journaled or
-					// ingested: the drain reads received journal rows, and this
-					// block must not be one of them.
-					const spooling = await isBootstrapSpoolMode();
-					if (!spooling) await ensureBootstrapSpoolConsumed();
-
-					receipt = OBSERVER_JOURNAL_ENABLED
-						? await captureObserverRequest(
-								req,
-								"/new_block",
-								source ?? "stacks-node",
-							)
-						: null;
-					const payload = receipt
-						? parseObserverBody<NewBlockPayload>(receipt.body)
-						: ((await req.json()) as NewBlockPayload);
-					if (spooling) {
-						if (!receipt) {
+					if (!OBSERVER_JOURNAL_ENABLED) {
+						if (await isBootstrapSpoolMode()) {
 							return Response.json(
 								{
 									status: "error",
@@ -431,37 +456,58 @@ const server = Bun.serve({
 								{ status: 503 },
 							);
 						}
+						await ensureBootstrapSpoolConsumed();
+						const payload = (await req.json()) as NewBlockPayload;
+						return Response.json(await ingestNewBlock(payload));
+					}
+
+					// Spool: journal only. The drain (consumeBootstrapSpool) reads the
+					// received rows once the archive import lands.
+					if (await isBootstrapSpoolMode()) {
+						const receipt = await captureObserverRequest(
+							req,
+							"/new_block",
+							source ?? "stacks-node",
+						);
+						const payload = parseObserverBody<NewBlockPayload>(receipt.body);
+						lastIngestMode = "spool";
 						return Response.json({
 							status: "spooled",
 							sequence: receipt.sequence,
 							block_height: payload.block_height,
 						});
 					}
-					const result = await ingestNewBlock(payload);
-					derivedStateCommitted = true;
-					if (receipt) {
-						await markObserverProcessed(getSourceDb(), receipt, {
-							path: "/new_block",
-							payload,
-							result,
-						});
+					// Drain the bootstrap spool before this block is journaled: the
+					// drain reads received journal rows, and this block must not be
+					// one of them.
+					await ensureApplierStarted();
+
+					const outcome = await receiveNewBlock(
+						{
+							network: NETWORK,
+							applier,
+							forcedLive: FORCED_LIVE,
+							nodeBurnTip,
+						},
+						{
+							body: new Uint8Array(await req.arrayBuffer()),
+							source: source ?? "stacks-node",
+						},
+					);
+					lastIngestMode = outcome.mode;
+					if (outcome.mode === "live") {
+						lastReceivedHeight = outcome.result.block_height;
+						return Response.json(outcome.result);
 					}
-					return Response.json(result);
+					lastReceivedHeight = outcome.block_height;
+					return Response.json({
+						status: "accepted",
+						sequence: outcome.sequence,
+						block_height: outcome.block_height,
+					});
 				} catch (error) {
-					if (receipt && !derivedStateCommitted) {
-						await markObserverFailed(getSourceDb(), receipt, error).catch(
-							(journalError) =>
-								logger.error("Failed to mark observer receipt", {
-									sequence: receipt?.sequence,
-									error: journalError,
-								}),
-						);
-					} else if (receipt) {
-						logger.error(
-							"Derived state committed but observer receipt could not be finalized",
-							{ sequence: receipt.sequence, error },
-						);
-					}
+					// The applier owns the receipt's status: a failed apply is marked
+					// there; a row left `received` is applied on the next pass.
 					logger.error("Error processing new_block", {
 						error:
 							error instanceof Error
@@ -641,6 +687,7 @@ const shutdown = async () => {
 	logger.info("Shutting down indexer service...");
 	await stopLeaderLoops();
 	server.stop();
+	await applier.stop();
 	logger.info("Indexer service stopped");
 	process.exit(0);
 };

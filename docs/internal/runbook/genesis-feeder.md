@@ -50,7 +50,7 @@ Temporary Hetzner Cloud box in Falkenstein. One compose project
 | Node RPC | `127.0.0.1:20443`. P2P `20444` (cloud firewall open). |
 | Bitcoin RPC | `peer_host = "37.27.171.220"` port 8332. Allowlist: app-server `65.21.135.94` and this IPv4. Not `0.0.0.0/0`. |
 | Cloud firewall | `stacks-feeder` (`11648111`): TCP 22 from operator `136.62.99.163/32`; TCP 20444 open. 3700 not published. |
-| Watchdog | `docker/feeder/feeder-alert.sh` → `/opt/secondlayer-feeder/feeder-alert.sh`, `secondlayer-feeder-alert.timer` every 5m, Slack webhook in `alert.env`, log `/var/log/secondlayer-feeder-alert.log`. Read-only. `/v2/info` pages after 3 straight misses (IBD holds the chainstate lock); tip stall pages at 60m. |
+| Watchdog | `docker/feeder/feeder-alert.sh` → `/opt/secondlayer-feeder/feeder-alert.sh`, `secondlayer-feeder-alert.timer` every 5m, Slack webhook in `alert.env`, log `/var/log/secondlayer-feeder-alert.log`. Read-only. `/v2/info` pages after 3 straight misses (IBD holds the chainstate lock); tip stall pages at 60m; a catch-up backlog with no apply for 10m pages. |
 
 `ccx43` (64 GB) failed with dedicated-core quota; `cpx62` is the fallback.
 Stacks-node is capped at 24G so scratch Postgres + indexer fit on 32 GB.
@@ -93,6 +93,18 @@ Start from `docker/feeder/Config.toml`, not the operator configs
 needs the vm_events keys, `vm_trace_max_bytes = 0`, and
 `event_dispatcher_blocking = true`. Wipe the
 volume if it ever held a snapshot.
+
+Catch-up ingest keeps that blocking guarantee without making indexer writes
+sync time: while the node is more than 6 burn blocks behind its burn tip, the
+indexer acks `/new_block` once the body is in `observer_journal` and one
+applier ingests the journal in order behind it. Past 2,000 unapplied blocks the
+ack waits for the applier. Near the tip with under 10 unapplied blocks it is
+back to ack-after-ingest on its own; `INGEST_MODE=live` forces that. Watch
+`/health` → `ingest` (`mode`, `backlog`, `oldestReceivedAgeSeconds`,
+`lastAppliedSecondsAgo`, `lastError`); the watchdog pages when the backlog is
+non-empty and nothing was applied for 10m. A crash leaves unapplied rows
+`received`; the next start applies them (already-ingested ones read as
+`duplicate`).
 
 ## After catch-up (collapse to one hooked follower)
 

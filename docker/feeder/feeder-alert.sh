@@ -15,6 +15,9 @@ LAG_BLOCKS="${FEEDER_LAG_BLOCKS:-100}"
 LAG_SECONDS="${FEEDER_LAG_SECONDS:-900}"
 DISK_WARN_PCT="${FEEDER_DISK_WARN_PCT:-50}"
 WRONG_MIN="${FEEDER_WRONG_MIN:-100000}"
+# Catch-up ingest acks the node on journal commit; the applier runs behind.
+# Page when it has unapplied blocks and applied nothing for this long.
+BACKLOG_STALL_SECONDS=600
 STACKS="secondlayer-feeder-stacks-feeder-1"
 INDEXER="secondlayer-feeder-indexer-feeder-1"
 PG="secondlayer-feeder-postgres-feeder-1"
@@ -68,16 +71,29 @@ health_json=$(curl -sS --max-time 5 localhost:3700/health 2>/dev/null || true)
 eval "$(python3 - "$info_json" "$health_json" <<'PY'
 import json,sys
 height, seen = -1, -1
+backlog, stall = 0, -1
 try:
     height = int(json.loads(sys.argv[1]).get("stacks_tip_height") or -1)
 except Exception:
     pass
 try:
-    seen = int(json.loads(sys.argv[2]).get("lastSeenHeight") or -1)
+    health = json.loads(sys.argv[2])
+    seen = int(health.get("lastSeenHeight") or -1)
+    ingest = health.get("ingest") or {}
+    # Delivery lag is measured to the last journaled block; applier lag is
+    # the backlog, checked separately below.
+    seen = max(seen, int(ingest.get("lastReceivedHeight") or -1))
+    backlog = int(ingest.get("backlog") or 0)
+    since = ingest.get("lastAppliedSecondsAgo")
+    if since is None:
+        since = ingest.get("oldestReceivedAgeSeconds")
+    stall = int(since) if since is not None else -1
 except Exception:
     pass
 print(f"height={height}")
 print(f"seen={seen}")
+print(f"backlog={backlog}")
+print(f"backlog_stall={stall}")
 PY
 )"
 
@@ -92,6 +108,9 @@ if [ "${height:- -1}" -lt 0 ]; then
 fi
 if [ "${seen:- -1}" -lt 0 ]; then
   problems+=("indexer /health unreadable")
+fi
+if [ "${backlog:-0}" -gt 0 ] && [ "${backlog_stall:- -1}" -ge "$BACKLOG_STALL_SECONDS" ]; then
+  problems+=("indexer applier stalled $(( backlog_stall / 60 ))m with backlog=$backlog")
 fi
 
 min_h=-1
@@ -169,7 +188,7 @@ if [ "$height" -ge 0 ] && [ "$seen" -ge 0 ] && [ $(( height - seen )) -gt "$LAG_
   fi
 fi
 
-echo "$LOG_TS height=$height seen=$seen min=$min_h max=$max_h n=$count disk=${disk_pct}% problems=${#problems[@]}"
+echo "$LOG_TS height=$height seen=$seen backlog=$backlog min=$min_h max=$max_h n=$count disk=${disk_pct}% problems=${#problems[@]}"
 
 if [ ${#problems[@]} -eq 0 ]; then
   if [ "$prev_paged" = "1" ]; then

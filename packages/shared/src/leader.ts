@@ -21,6 +21,9 @@ export const INDEXER_LEADER_LOCK_KEY = 770_2026;
 export const WEBHOOK_EVALUATOR_LOCK_KEY = 770_2027;
 /** Advisory lock key for the subgraph catch-up driver. */
 export const SUBGRAPH_CATCHUP_LOCK_KEY = 770_2028;
+/** Advisory lock key for the indexer's observer-journal applier: one
+ *  instance applies journaled blocks at a time, in sequence order. */
+export const OBSERVER_APPLY_LOCK_KEY = 770_2029;
 
 export type StopFn = () => void | Promise<void>;
 
