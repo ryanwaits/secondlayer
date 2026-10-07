@@ -18,7 +18,7 @@ bootstrap_node = "02196f005965cebe6ddc3901b7b1cc1aa7a88f305bb8c5893456b8f9a60592
 # Scratch indexer on this compose project. Not prod indexer.
 [[events_observer]]
 endpoint = "indexer-feeder:3700"
-events_keys = ["*", "storage", "contract_calls"]
+events_keys = ["*", "storage", "contract_calls", "state_writes"]
 timeout_ms = 120000
 disable_retries = false
 
