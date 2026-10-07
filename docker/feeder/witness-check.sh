@@ -7,6 +7,7 @@
 #   witness-check.sh --sample N           N random heights from 1..(indexed tip - LAG)
 #
 # Exit 1 on any mismatch; reports land in $OUT, a summary line per height on stdout.
+# With SLACK_WEBHOOK_URL set, a failed run posts one line to Slack.
 set -uo pipefail
 
 PROJECT="${FEEDER_PROJECT:-secondlayer-feeder}"
@@ -54,4 +55,10 @@ for h in "${heights[@]}"; do
 		failed=1
 	fi
 done
+if [[ "$failed" == 1 && -n "${SLACK_WEBHOOK_URL:-}" ]]; then
+	bad=$(grep -l '"ok": *false' "$OUT"/report-*.json 2>/dev/null | wc -l)
+	text="stacks-feeder witness check FAILED ($PROJECT): $bad block(s) mismatch the chain. Reports: $OUT"
+	payload=$(python3 -c "import json,sys; print(json.dumps({'text': sys.argv[1]}))" "$text")
+	curl -sS --max-time 15 -X POST -H 'Content-Type: application/json' -d "$payload" "$SLACK_WEBHOOK_URL" >/dev/null || true
+fi
 exit "$failed"
