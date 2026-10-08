@@ -109,3 +109,9 @@ test("classify export", async () => {
 	expect(mod.classify).toBeDefined();
 	expect(mod.resolveProvider).toBeDefined();
 });
+
+test("error-envelope export", async () => {
+	const mod = await import("@secondlayer/shared/error-envelope");
+	expect(mod.augmentErrorBody).toBeDefined();
+	expect(mod.newRequestId).toBeDefined();
+});

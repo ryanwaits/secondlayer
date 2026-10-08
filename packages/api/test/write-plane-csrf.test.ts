@@ -298,7 +298,7 @@ describe("the Stripe webhook is exempt", () => {
 			});
 			expect(res.status).not.toBe(415);
 			expect(res.status).toBe(400);
-			expect(await res.json()).toEqual({
+			expect(await res.json()).toMatchObject({
 				error: "Missing stripe-signature header",
 			});
 		},

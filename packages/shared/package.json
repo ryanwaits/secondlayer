@@ -97,6 +97,10 @@
 			"types": "./dist/src/mode.d.ts",
 			"import": "./dist/src/mode.js"
 		},
+		"./error-envelope": {
+			"types": "./dist/src/error-envelope.d.ts",
+			"import": "./dist/src/error-envelope.js"
+		},
 		"./index-internal-auth": {
 			"types": "./dist/src/index-internal-auth.d.ts",
 			"import": "./dist/src/index-internal-auth.js"

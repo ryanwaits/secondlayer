@@ -368,7 +368,7 @@ describe.skipIf(!HAS_DB)("mounted on the platform app", () => {
 		// missing session — both are 401 here, so assert the route ran by
 		// checking the body shape instead of the status code alone.
 		expect(res.status).toBe(401);
-		expect(await res.json()).toEqual({ error: "invalid_key" });
+		expect(await res.json()).toMatchObject({ error: "invalid_key" });
 	});
 
 	test("not mounted in oss mode", async () => {

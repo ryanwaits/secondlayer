@@ -1,5 +1,6 @@
 import { logger } from "@secondlayer/shared";
 import type { Context, Next } from "hono";
+import { getRequestId } from "./request-id.ts";
 
 /**
  * Request logging middleware
@@ -9,9 +10,10 @@ export async function requestLogger(c: Context, next: Next) {
 	const start = Date.now();
 	const method = c.req.method;
 	const path = c.req.path;
+	const requestId = getRequestId(c);
 
 	// Log request
-	logger.debug("Incoming request", { method, path });
+	logger.debug("Incoming request", { method, path, requestId });
 
 	await next();
 
@@ -20,12 +22,24 @@ export async function requestLogger(c: Context, next: Next) {
 	const status = c.res.status;
 
 	if (status >= 500) {
-		logger.error("Request failed", { method, path, status, duration });
+		logger.error("Request failed", {
+			method,
+			path,
+			status,
+			duration,
+			requestId,
+		});
 	} else {
 		// 4xx is info — scanner probes (`/.env`, `/.git/HEAD`) generate a
 		// steady stream of 404s that shouldn't surface as warnings. If a
 		// specific 4xx matters (auth failure, validation), the handler
 		// should log it explicitly at its own level.
-		logger.info("Request completed", { method, path, status, duration });
+		logger.info("Request completed", {
+			method,
+			path,
+			status,
+			duration,
+			requestId,
+		});
 	}
 }

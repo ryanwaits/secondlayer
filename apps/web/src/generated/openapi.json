@@ -8560,6 +8560,26 @@
 						"type": "string",
 						"description": "Stable machine-readable code to branch on.",
 						"example": "VALIDATION_ERROR"
+					},
+					"request_id": {
+						"type": "string",
+						"description": "Id of this request, also sent as the X-Request-Id header. Quote it when reporting a problem.",
+						"example": "req_3f9a1c0b7d2e4a6f8b1c2d3e"
+					},
+					"details": {
+						"type": "object",
+						"description": "Structured hints for some codes (the field that failed validation, the env var to set). Shape varies by code.",
+						"additionalProperties": true
+					},
+					"feedback": {
+						"type": "object",
+						"description": "Where to report a missing capability or a wrong answer. Hosted: POST /v1/feedback with the request_id. Self-hosted: the GitHub issue tracker.",
+						"properties": {
+							"url": {
+								"type": "string",
+								"description": "Report destination: a path on this API or an absolute URL."
+							}
+						}
 					}
 				}
 			}

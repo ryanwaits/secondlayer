@@ -1,3 +1,5 @@
+import { insertFailedRequest } from "@secondlayer/platform/db/queries/api-failed-requests";
+import { getDb } from "@secondlayer/shared/db";
 import type { InstanceMode } from "@secondlayer/shared/mode";
 import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
@@ -5,8 +7,10 @@ import { ipRateLimit, keysRouter, requireAuth } from "./auth/index.ts";
 import { v1InstanceGate } from "./auth/read-plane.ts";
 import { instanceTokenAuth } from "./middleware/auth-modes.ts";
 import { requireJsonWrites } from "./middleware/csrf.ts";
+import { errorEnvelope } from "./middleware/error-envelope.ts";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
+import { requestId } from "./middleware/request-id.ts";
 import accountsRouter from "./routes/accounts.ts";
 import archiveVerifyRouter from "./routes/archive-verify.ts";
 import archiveRouter from "./routes/archive.ts";
@@ -72,6 +76,7 @@ const PUBLIC_EXPOSE_HEADERS = [
 	// `/v1/proofs/witness`: a browser verifier needs these to check the bytes.
 	"X-Block-Height",
 	"X-State-Root",
+	"X-Request-Id",
 ];
 
 /** Hono app with routes for `mode`. Does not listen or start the cache. */
@@ -100,8 +105,22 @@ export function createApiApp(mode: InstanceMode): Hono {
 		credentials: true,
 		allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 		allowHeaders: ["Authorization", "Content-Type", "X-Provisioner-Secret"],
+		exposeHeaders: ["X-Request-Id"],
 	});
 
+	// Outermost: request id + error envelope wrap CORS, the gates, auth and
+	// every router, including onError / notFound responses.
+	app.use("*", requestId());
+	app.use(
+		"*",
+		errorEnvelope({
+			mode,
+			record:
+				mode === "platform"
+					? (row) => insertFailedRequest(getDb(), row)
+					: undefined,
+		}),
+	);
 	app.use("/v1/*", publicCors);
 	// Self-host: the read plane is open on a loopback bind and needs the
 	// instance token past it. Index/Streams/subgraphs enforce this themselves
