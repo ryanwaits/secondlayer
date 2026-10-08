@@ -100,4 +100,30 @@ describe("one error family", () => {
 			retryAfterSeconds: 12,
 		});
 	});
+
+	test("ApiError exposes requestId from the body", () => {
+		const err = new ApiError(
+			400,
+			"bad",
+			{ error: "bad", code: "INVALID_COLUMN", request_id: "req_abc12345" },
+			"INVALID_COLUMN",
+		);
+		expect(err.requestId).toBe("req_abc12345");
+		expect(err.toJSON()).toMatchObject({
+			status: 400,
+			requestId: "req_abc12345",
+			code: "INVALID_COLUMN",
+		});
+	});
+
+	test("requestId is undefined without a usable body", () => {
+		expect(new ApiError(500, "x").requestId).toBeUndefined();
+		expect(new ApiError(500, "x", "plain text").requestId).toBeUndefined();
+		expect(new ApiError(500, "x", { error: "x" }).requestId).toBeUndefined();
+	});
+
+	test("subclasses inherit requestId in toJSON", () => {
+		const err = new RateLimitError("x", "1", { request_id: "req_rl000001" });
+		expect(err.toJSON().requestId).toBe("req_rl000001");
+	});
 });

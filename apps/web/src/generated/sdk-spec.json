@@ -2609,7 +2609,7 @@
 					"summary": "Thrown on a 401 from the archive ops host (quote/fetch/credits).",
 					"signature": "ArchiveAuthError(message?: string): unknown",
 					"file": "src/errors.ts",
-					"line": 208
+					"line": 230
 				},
 				{
 					"name": "ArchiveGateNotConfiguredError",
@@ -2617,7 +2617,7 @@
 					"summary": "Thrown on a 503 when the archive fetch gate is unconfigured.",
 					"signature": "ArchiveGateNotConfiguredError(message?: string): unknown",
 					"file": "src/errors.ts",
-					"line": 232
+					"line": 254
 				},
 				{
 					"name": "ArchiveSignatureError",
@@ -2625,7 +2625,7 @@
 					"summary": "Thrown when an archive manifest signature is missing or does not verify.",
 					"signature": "ArchiveSignatureError(message?: string): unknown",
 					"file": "src/errors.ts",
-					"line": 200
+					"line": 222
 				},
 				{
 					"name": "AuthError",
@@ -2633,7 +2633,7 @@
 					"summary": "Thrown on a 401 by both the instance clients and Streams.",
 					"signature": "AuthError(message?: string, body?: object, code?: string): unknown",
 					"file": "src/errors.ts",
-					"line": 157
+					"line": 179
 				},
 				{
 					"name": "InsufficientArchiveCreditsError",
@@ -2641,7 +2641,7 @@
 					"summary": "Thrown on a 402 from archive fetch — prepaid credits do not cover the quote.",
 					"signature": "InsufficientArchiveCreditsError(message?: string, shortfallUsdMicros?: number): unknown",
 					"file": "src/errors.ts",
-					"line": 216
+					"line": 238
 				},
 				{
 					"name": "parseRetryAfter",
@@ -2649,7 +2649,7 @@
 					"summary": "Parse a `Retry-After` header: delta-seconds or an HTTP-date.",
 					"signature": "parseRetryAfter(value?: null | string): null | number",
 					"file": "src/errors.ts",
-					"line": 240
+					"line": 262
 				},
 				{
 					"name": "RateLimitError",
@@ -2657,7 +2657,7 @@
 					"summary": "Thrown on a 429 by both the instance clients and Streams.",
 					"signature": "RateLimitError(message?: string, retryAfter?: string, body?: object, code?: string): unknown",
 					"file": "src/errors.ts",
-					"line": 172
+					"line": 194
 				},
 				{
 					"name": "SecondLayerError",
@@ -2681,7 +2681,7 @@
 					"summary": "Thrown on a 4xx the caller can fix (bad cursor, bad params).",
 					"signature": "ValidationError(message: string, status: number, body?: object, code?: string): unknown",
 					"file": "src/errors.ts",
-					"line": 192
+					"line": 214
 				}
 			]
 		},

@@ -149,6 +149,28 @@ export class ApiError extends SecondLayerError {
 		});
 		this.name = "ApiError";
 	}
+
+	/** The API's `request_id` for this failure (from the error body), when sent.
+	 *  Quote it when reporting a failed call. */
+	get requestId(): string | undefined {
+		const b = this.body;
+		return b &&
+			typeof b === "object" &&
+			typeof (b as { request_id?: unknown }).request_id === "string"
+			? (b as { request_id: string }).request_id
+			: undefined;
+	}
+
+	override toJSON(): ReturnType<SecondLayerError["toJSON"]> & {
+		status: number;
+		requestId: string | undefined;
+	} {
+		return {
+			...super.toJSON(),
+			status: this.status,
+			requestId: this.requestId,
+		};
+	}
 }
 
 /** Thrown on a 401 by both the instance clients and Streams. Carries the
