@@ -4,6 +4,7 @@ import {
 	FEEDBACK_URL,
 	type FailedRequestRecord,
 	augmentErrorBody,
+	normalizeOrigin,
 	redactQuery,
 } from "@secondlayer/shared/error-envelope";
 import type { InstanceMode } from "@secondlayer/shared/mode";
@@ -89,7 +90,7 @@ export function errorEnvelope(opts: {
 					? augmented.error.slice(0, MAX_MESSAGE_CHARS)
 					: "",
 			query: redactQuery(new URL(c.req.url).searchParams),
-			origin: c.req.header("x-sl-origin")?.toLowerCase() ?? null,
+			origin: normalizeOrigin(c.req.header("x-sl-origin")),
 		};
 		// Fire-and-forget: never delays or alters the response.
 		void (async () => record(row))().catch(warnRecordFailure);

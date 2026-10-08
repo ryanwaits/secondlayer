@@ -100,3 +100,11 @@ export function augmentErrorBody(
 	}
 	return next;
 }
+
+const KNOWN_ORIGINS = ["cli", "mcp", "session"];
+
+/** `x-sl-origin` header reduced to a known value, else null. */
+export function normalizeOrigin(header: string | undefined): string | null {
+	const v = header?.toLowerCase();
+	return v !== undefined && KNOWN_ORIGINS.includes(v) ? v : null;
+}

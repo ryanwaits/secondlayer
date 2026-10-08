@@ -4,6 +4,7 @@ import {
 	REQUEST_ID_PATTERN,
 	augmentErrorBody,
 	newRequestId,
+	normalizeOrigin,
 	redactQuery,
 } from "./error-envelope.ts";
 
@@ -90,5 +91,16 @@ describe("augmentErrorBody", () => {
 	test("status map covers the documented codes", () => {
 		expect(DEFAULT_CODE_BY_STATUS[422]).toBe("VALIDATION_ERROR");
 		expect(DEFAULT_CODE_BY_STATUS[503]).toBe("SERVICE_UNAVAILABLE");
+	});
+});
+
+describe("normalizeOrigin", () => {
+	test("accepts known values case-insensitively, rejects everything else", () => {
+		expect(normalizeOrigin("MCP")).toBe("mcp");
+		expect(normalizeOrigin("cli")).toBe("cli");
+		expect(normalizeOrigin("session")).toBe("session");
+		expect(normalizeOrigin("evil")).toBeNull();
+		expect(normalizeOrigin(undefined)).toBeNull();
+		expect(normalizeOrigin("a".repeat(5000))).toBeNull();
 	});
 });

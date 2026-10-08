@@ -230,6 +230,13 @@ describe("failed-request recording", () => {
 		expect(r.rows[0]?.origin).toBe("mcp");
 	});
 
+	test("an unknown x-sl-origin is recorded as null", async () => {
+		const r = recorder();
+		const a = app("platform", r.record, (c) => c.set("accountId", "acct-1"));
+		await a.request("/nf", { headers: { "x-sl-origin": "evil" } });
+		expect(r.rows[0]?.origin).toBeNull();
+	});
+
 	test("a 3 KB query is stored as a truncated key list", async () => {
 		const r = recorder();
 		const a = app("platform", r.record, (c) => c.set("accountId", "acct-1"));
