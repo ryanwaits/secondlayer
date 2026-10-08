@@ -110,6 +110,7 @@ loopback. Send the token whenever you have it.
 | Webhook paused after 20 failures | Receiver returning 4xx/5xx or timing out | `secondlayer webhooks doctor <name>`; fix receiver; `secondlayer webhooks resume <name>` |
 | `ApiError 401` from SDK | A write, or a read against an instance reachable past loopback, carried no bearer | Pass `INSTANCE_TOKEN` from `.env.local` as `apiKey`, or export it |
 | `tsc` errors after `getContract` upgrade | ABI shape changed, regenerate | `secondlayer codegen client <name> -o ...` or refresh ABI |
+| A hosted call fails and the API looks wrong or incomplete | Missing capability, wrong value, or docs mismatch | POST /v1/feedback with the error's request_id and one line of intent; see references/troubleshooting.md |
 | Webhook receiver getting unsigned bodies | `format` not set to `standard-webhooks` | `secondlayer webhooks update <name> --format standard-webhooks` |
 | `422 SOURCE_NOT_HOSTABLE` on hosted deploy | A source type other than event filters or `contract_call`/`contract_deploy` | Rewrite the source, or self-host. See `references/troubleshooting.md` |
 | Subgraph status `error` after restarts | 3 stall/OOM deaths at one height | Fix the handler, set `startBlock` past the bad height, redeploy |

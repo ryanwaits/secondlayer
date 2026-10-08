@@ -38,6 +38,19 @@ Cursor format is `<block_height>:<event_index>`. `tip.finalized_height` is the b
 
 Branch on `code`, not on the message. `request_id` matches the `X-Request-Id` response header (sent on every response); quote it in any report. `feedback.url` is where to report a gap: hosted points at `/v1/feedback`, self-hosted at the GitHub issue tracker.
 
+## Report a problem (hosted)
+
+Every error body on `api.secondlayer.tools` carries a `request_id`. When a call fails and you think the API is wrong or missing something, send that id back with one line on what you were trying to do:
+
+```bash
+curl -X POST https://api.secondlayer.tools/v1/feedback \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"request_id":"req_3f9a1c0b7d2e4a6f8b1c2d3e","intent":"list aeUSDC swaps for one sender since block 165000"}'
+```
+
+The server attaches its own record of the failed call (method, path, status, code; kept 24 hours), so you don't resend it. Optional fields: `kind_hint` (`missing_capability`, `bug`, `schema_gap`, `docs_mismatch`, `perf`), `expected` (what you wanted back), and `evidence` (`tx_id`, `block_height`, `contract_id`, `event_type`, `subgraph`, `table`). An `Idempotency-Key` header makes retries safe. Self-hosted instances have no `/v1/feedback`; their error bodies link to a GitHub issue form instead.
+
 ## Pagination
 
 | Surface | Page size | Ordering |

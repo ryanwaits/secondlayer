@@ -148,3 +148,14 @@ The Streams errors do **not** extend `ApiError` — check them separately when w
 - **`webhook-timestamp` is dispatch time, not row creation time.** Standard Webhooks spec requires the timestamp to be within the tolerance window when signed; if Secondlayer signed at row creation and the row sat in the outbox for hours, every retry would fail verification. Stamping at dispatch and using `webhook-id` for dedup is correct.
 - **Schema additions don't reindex; schema removals/type changes do.** Add a column → ALTER TABLE, no reindex. Drop a column → drop + reindex. Confirm before approving.
 - **`startBlock` is honored only on first deploy** — once a subgraph has indexed past it, subsequent deploys ignore it. Use `--start-block` to override at deploy time (resets the position).
+
+## Hosted API: report a problem
+
+When a hosted call fails and the API looks wrong or incomplete, send the error body's `request_id` plus one line of intent to `POST /v1/feedback`. The server attaches its own record of the failed call (kept 24 hours). Self-hosted instances have no such route; their error bodies link to a GitHub issue form.
+
+```bash
+curl -X POST https://api.secondlayer.tools/v1/feedback \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"request_id":"req_3f9a1c0b7d2e4a6f8b1c2d3e","intent":"list aeUSDC swaps for one sender since block 165000"}'
+```
