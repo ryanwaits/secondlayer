@@ -1028,6 +1028,7 @@ export interface Database {
 	waitlists: WaitlistsTable;
 	waitlist_signups: WaitlistSignupsTable;
 	api_failed_requests: ApiFailedRequestsTable;
+	feedback_tickets: FeedbackTicketsTable;
 }
 
 export interface ServiceHeartbeatsTable {
@@ -1393,6 +1394,31 @@ export interface ApiFailedRequestsTable {
 
 export type ApiFailedRequest = Selectable<ApiFailedRequestsTable>;
 export type InsertApiFailedRequest = Insertable<ApiFailedRequestsTable>;
+
+/**
+ * Hosted problem report. `attempted` is the server's own copy of the failed
+ * request (never caller-supplied); `status` starts `new` until classified.
+ */
+export interface FeedbackTicketsTable {
+	id: Generated<string>;
+	account_id: string;
+	idempotency_key: string | null;
+	request_id: string | null;
+	intent: string;
+	expected: Record<string, unknown> | null;
+	kind_hint: string | null;
+	evidence: Record<string, unknown> | null;
+	attempted: Record<string, unknown> | null;
+	origin: string;
+	status: Generated<"new" | "classified">;
+	route: string | null;
+	classification: Record<string, unknown> | null;
+	classified_at: Date | null;
+	created_at: Generated<Date>;
+}
+
+export type FeedbackTicket = Selectable<FeedbackTicketsTable>;
+export type InsertFeedbackTicket = Insertable<FeedbackTicketsTable>;
 
 export type Waitlist = Selectable<WaitlistsTable>;
 export type WaitlistSignup = Selectable<WaitlistSignupsTable>;

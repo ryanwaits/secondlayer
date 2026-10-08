@@ -101,6 +101,8 @@ export const TABLE_TO_DB = {
 	waitlist_signups: "target",
 	// ── TARGET: 24h hosted failed-request record (feedback evidence) ──
 	api_failed_requests: "target",
+	// ── TARGET: hosted problem reports ──
+	feedback_tickets: "target",
 	// ── BOTH ──
 	service_heartbeats: "both",
 } satisfies Record<keyof Database, DbPlane>;
