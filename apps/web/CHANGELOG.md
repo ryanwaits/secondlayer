@@ -1,5 +1,12 @@
 # @secondlayer/web
 
+## 0.11.13
+
+### Patch Changes
+
+- Updated dependencies [eb12745]
+  - @secondlayer/sdk@14.3.0
+
 ## 0.11.12
 
 ### Patch Changes

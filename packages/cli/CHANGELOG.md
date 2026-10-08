@@ -1,5 +1,20 @@
 # @secondlayer/cli
 
+## 19.2.0
+
+### Minor Changes
+
+- 726d106: `secondlayer verify block <height|index_block_hash>` proves one Stacks block from the checkpoint built into the CLI: Bitcoin headers, burn block, signer set, signatures, state root, and state diff, with `--rows` for the Index rows. `--node` reads blocks and MARF proofs from your node; `--checkpoint` swaps the trusted starting point.
+
+### Patch Changes
+
+- Updated dependencies [00b955a]
+- Updated dependencies [b57387b]
+- Updated dependencies [eb12745]
+- Updated dependencies [f8cb9ee]
+  - @secondlayer/shared@11.20.0
+  - @secondlayer/sdk@14.3.0
+
 ## 19.1.3
 
 ### Patch Changes

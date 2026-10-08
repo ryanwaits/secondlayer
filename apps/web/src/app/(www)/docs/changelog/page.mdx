@@ -9,7 +9,21 @@ and has since returned: hosted Index, Streams, subgraphs and webhooks at
 and unmetered; archive bootstrap, backfill and reindex draw
 [credits](/docs/authentication#archive-credits).
 
+## CLI — October 2026
+
+### Check a block yourself with `secondlayer verify block` (CLI 19.2)
+
+`secondlayer verify block <height>` proves a mainnet Stacks block on your machine instead of asking you to trust us or any node. It checks Bitcoin headers and their proof of work, ties the block to the Bitcoin block that elected it, proves that cycle's signer set and that 70% of signer weight signed, then rebuilds the block's state root from a witness and lists every state change the block made. The only thing it trusts is a checkpoint built into the CLI. A busy block takes a few seconds. It covers state: contract maps and variables, balances and nonces. Print events aren't committed in Stacks block headers, so they aren't covered yet. See the [CLI reference](/docs/cli).
+
 ## Index — October 2026
+
+### Proofs for any block at `/v1/proofs`
+
+`/v1/proofs` serves what `verify block` checks: state witnesses, the bytes that tie a block to its Bitcoin block, Bitcoin headers, signed blocks and MARF proofs. Any account key works and proofs are never billed. Witness requests are limited to 2 per second per account.
+
+### Every storage write a block committed: `/v1/index/state-writes`
+
+`GET /v1/index/state-writes?block_height=H` returns the exact writes a block made to contract state, keyed the way the chain stores them, and the SDK has `index.stateWrites`. Rows bill like event rows. Hosted rows arrive once our nodes switch to the instance that records them; a self-hosted node records them with the `state_writes` observer key.
 
 ### Block headers are free on `/v1/index/blocks`
 

@@ -1,5 +1,16 @@
 # @secondlayer/shared
 
+## 11.20.0
+
+### Minor Changes
+
+- b57387b: New `state_writes` / `state_writes_archive` tables (`StateWritesTable`, `InsertStateWrite`) for the node's opt-in `"state_writes"` payload: exact MARF writes per block, keyed `(block_height, ordinal)`. `LocalClient.getBlockForReplay` now replays them as `state_writes`.
+- f8cb9ee: `vm_events` primary key is now `(block_height, ordinal)`; the `id` column and the redundant `vm_events_block_height_idx` / `vm_events_type_height_idx` indexes are dropped. `VmEventsTable` no longer has `id`. Archived vm rows record `block_height:ordinal` as their id.
+
+### Patch Changes
+
+- 00b955a: Add `OBSERVER_APPLY_LOCK_KEY` to the advisory lock key registry (`@secondlayer/shared/leader`).
+
 ## 11.19.3
 
 ### Patch Changes

@@ -1,5 +1,22 @@
 # @secondlayer/api
 
+## 1.51.0
+
+### Minor Changes
+
+- a143451: New `/v1/proofs/*`: state witnesses, consensus-hash preimages and Bitcoin headers from the proof sidecar (`PROOF_SIDECAR_URL`, 503 when unset), plus signed blocks and MARF inclusion proofs from the node. Bytes pass through unchanged. Free: never metered; hosted reads take any account key and are rate limited per account, witness in its own lower bucket.
+- eb12745: New `GET /v1/index/state-writes`: the exact MARF writes each canonical block committed, `{block_height, ordinal, tx_index, key, value_hex}` in node order, cursor `<block_height>:<ordinal>`, `block_height` for one block. SDK: `index.stateWrites.list()` / `.walk()` with `IndexStateWrite`. Present only from the height the node subscribed to `state_writes`.
+
+### Patch Changes
+
+- Updated dependencies [00b955a]
+- Updated dependencies [b57387b]
+- Updated dependencies [eb12745]
+- Updated dependencies [f8cb9ee]
+  - @secondlayer/shared@11.20.0
+  - @secondlayer/sdk@14.3.0
+  - @secondlayer/platform@0.5.6
+
 ## 1.50.6
 
 ### Patch Changes

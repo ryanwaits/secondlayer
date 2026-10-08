@@ -1,5 +1,18 @@
 # @secondlayer/sdk
 
+## 14.3.0
+
+### Minor Changes
+
+- eb12745: New `GET /v1/index/state-writes`: the exact MARF writes each canonical block committed, `{block_height, ordinal, tx_index, key, value_hex}` in node order, cursor `<block_height>:<ordinal>`, `block_height` for one block. SDK: `index.stateWrites.list()` / `.walk()` with `IndexStateWrite`. Present only from the height the node subscribed to `state_writes`.
+
+### Patch Changes
+
+- Updated dependencies [00b955a]
+- Updated dependencies [b57387b]
+- Updated dependencies [f8cb9ee]
+  - @secondlayer/shared@11.20.0
+
 ## 14.2.0
 
 ### Minor Changes
