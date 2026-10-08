@@ -9,6 +9,9 @@ import { type NakamotoHeader, signerSignatureHash } from "./header.ts";
 /** Mainnet single-sig (p2pkh) address version. */
 const MAINNET_P2PKH = 22;
 
+/** Boot contract holding `cycle-signer-set`, one entry per reward cycle. */
+export const SIGNERS_CONTRACT = "SP000000000000000000002Q6VF78.signers";
+
 /** Signer principal -> weight. */
 export type SignerSet = Map<string, bigint>;
 

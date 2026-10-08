@@ -304,6 +304,31 @@ function verifySteps(
 	return bytesEqual(root, trieHash);
 }
 
+/**
+ * Block ids of the ancestor tries a proof crosses: each one is the backptr a
+ * descendant trie follows toward the leaf. `verifyMarfProof` needs every one's
+ * header. Read from untrusted proof bytes, so they are only fetch hints; the
+ * proof still fails unless each header hashes to the id the trie committed.
+ * Malformed proofs yield no ids.
+ */
+export function marfProofAncestors(proof: Bytes): string[] {
+	let steps: ProofStep[];
+	try {
+		steps = decodeProof(proof);
+	} catch {
+		return [];
+	}
+	const ids = new Set<string>();
+	for (const s of steps) {
+		if (s.kind === "Leaf" || s.kind === "Shunt") continue;
+		const ptr = s.node.ptrs.find(
+			(p) => p.id !== NodeId.Empty && p.chr === s.chr,
+		);
+		if (ptr && isBackptr(ptr.id)) ids.add(hex(ptr.backBlock));
+	}
+	return [...ids];
+}
+
 export interface MarfProofInput {
 	/** Consensus-serialized TrieMerkleProof (`/v2/clarity/marf/<path>?proof=1`). */
 	proof: Bytes;

@@ -10,6 +10,7 @@ export {
 export {
 	type MarfProofInput,
 	marfPath,
+	marfProofAncestors,
 	marfValue,
 	verifyMarfProof,
 } from "./marf.ts";
@@ -23,6 +24,7 @@ export {
 	parseWitness,
 } from "./witness.ts";
 export {
+	SIGNERS_CONTRACT,
 	type SignerCheck,
 	type SignerSet,
 	decodeSignerSet,
@@ -30,7 +32,9 @@ export {
 } from "./signers.ts";
 export {
 	MAINNET_FIRST_BURN_HEIGHT,
+	MAINNET_PREPARE_LENGTH,
 	MAINNET_REWARD_CYCLE_LENGTH,
+	cycleStart,
 	rewardCycle,
 	verifyConsensusPreimage,
 } from "./burn.ts";
@@ -40,3 +44,36 @@ export {
 	HeaderChain,
 	HeaderValidationError,
 } from "./bitcoin/chain.ts";
+export { MAINNET_CHECKPOINT, type VerifyCheckpoint } from "./checkpoint.ts";
+export {
+	type BurnPreimage,
+	type MarfProofResponse,
+	NodeRpcProofSource,
+	type NodeRpcSourceOptions,
+	type ProofSource,
+	SecondlayerProofSource,
+	type SecondlayerSourceOptions,
+	SourceError,
+	type StateWrite,
+	type VmEventRow,
+} from "./source.ts";
+export {
+	type BlockStateInput,
+	type BlockStateResult,
+	type DiffLeaf,
+	type DiffWrite,
+	type ProvenDiff,
+	type StateFailure,
+	verifyBlockState,
+} from "./state.ts";
+export {
+	type BlockVerification,
+	BlockVerifier,
+	type SearchPoint,
+	type VerifyFailure,
+	type VerifyFailureCode,
+	type VerifyOptions,
+	type VerifyStep,
+	findAnchor,
+	verifyBlock,
+} from "./verify-block.ts";
