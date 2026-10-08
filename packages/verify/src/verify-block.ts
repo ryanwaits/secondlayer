@@ -84,6 +84,8 @@ export interface BlockVerification {
 	ok: boolean;
 	height?: number;
 	blockId?: string;
+	/** The header's state_index_root, hex: what the witness must hash to. */
+	stateRoot?: string;
 	cycle?: number;
 	burnHeight?: number;
 	/** Display-order hex. */
@@ -253,6 +255,7 @@ export class BlockVerifier {
 			});
 		out.height = height;
 		out.blockId = id;
+		out.stateRoot = hex(header.stateIndexRoot);
 
 		const burn = await this.#bindBurn(header, "burn");
 		const cycle = rewardCycle(burn.burnHeight);
