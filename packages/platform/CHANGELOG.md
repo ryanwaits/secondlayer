@@ -1,5 +1,19 @@
 # @secondlayer/platform
 
+## 0.6.0
+
+### Minor Changes
+
+- d606f80: Every JSON error now carries `request_id` (also the `X-Request-Id` header on every response), a `code` derived from the status when a route set none, and `feedback.url` (hosted `/v1/feedback`, self-host GitHub issues). Hosted keeps a 24h account-scoped record of failed requests (`api_failed_requests`, migration 0155) for feedback evidence; purged hourly by the worker.
+
+### Patch Changes
+
+- Updated dependencies [0c3ccff]
+- Updated dependencies [4394a96]
+- Updated dependencies [d606f80]
+- Updated dependencies [6427bc2]
+  - @secondlayer/shared@11.21.0
+
 ## 0.5.6
 
 ### Patch Changes

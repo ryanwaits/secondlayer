@@ -1,5 +1,17 @@
 # @secondlayer/workload
 
+## 0.0.37
+
+### Patch Changes
+
+- b5488e8: Hosted subgraph and webhook errors now carry the same envelope as the platform API: the gateway forwards one `X-Request-Id` end to end, adds `request_id`, `code` and `feedback.url` to JSON errors, and ships failed-request records to app-server (`POST /internal/failed-requests`) for feedback evidence.
+- Updated dependencies [0c3ccff]
+- Updated dependencies [4394a96]
+- Updated dependencies [d606f80]
+- Updated dependencies [6427bc2]
+  - @secondlayer/shared@11.21.0
+  - @secondlayer/platform@0.6.0
+
 ## 0.0.36
 
 ### Patch Changes

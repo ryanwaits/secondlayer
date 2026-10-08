@@ -1,5 +1,19 @@
 # @secondlayer/sdk
 
+## 14.4.0
+
+### Minor Changes
+
+- 3e422c4: Failed calls keep the API's error envelope. SDK: `ApiError.requestId` (from the body's `request_id`) and `toJSON()` now include `status` and `requestId`. MCP: tool errors return `code`, `request_id` and `feedback.url` when the API sent them, so an agent can quote the exact failed call.
+
+### Patch Changes
+
+- Updated dependencies [0c3ccff]
+- Updated dependencies [4394a96]
+- Updated dependencies [d606f80]
+- Updated dependencies [6427bc2]
+  - @secondlayer/shared@11.21.0
+
 ## 14.3.0
 
 ### Minor Changes

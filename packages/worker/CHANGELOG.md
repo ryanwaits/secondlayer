@@ -1,5 +1,21 @@
 # @secondlayer/worker
 
+## 1.4.0
+
+### Minor Changes
+
+- 2a8b18a: Hosted worker labels and routes new feedback tickets every minute: deterministic rules first, then the configured classifier; the model never hides a ticket. The model can lower a ticket to low_priority only after an eval gate: export a labelling set with `bun scripts/ops/feedback-queue.ts --status classified --since 30 --jsonl`, label at least 50 rows, run `scripts/ops/classifier-compare.ts` per provider, and flip `MODEL_ROUTING_ENABLED` in its own commit only at 0.85 kind agreement.
+
+### Patch Changes
+
+- d606f80: Every JSON error now carries `request_id` (also the `X-Request-Id` header on every response), a `code` derived from the status when a route set none, and `feedback.url` (hosted `/v1/feedback`, self-host GitHub issues). Hosted keeps a 24h account-scoped record of failed requests (`api_failed_requests`, migration 0155) for feedback evidence; purged hourly by the worker.
+- Updated dependencies [0c3ccff]
+- Updated dependencies [4394a96]
+- Updated dependencies [d606f80]
+- Updated dependencies [6427bc2]
+  - @secondlayer/shared@11.21.0
+  - @secondlayer/platform@0.6.0
+
 ## 1.3.41
 
 ### Patch Changes

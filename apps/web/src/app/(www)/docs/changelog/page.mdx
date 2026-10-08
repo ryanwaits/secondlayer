@@ -17,6 +17,10 @@ and unmetered; archive bootstrap, backfill and reindex draw
 
 ## Index — October 2026
 
+### Every error carries a request id you can report (SDK 14.4)
+
+Every JSON error from `api.secondlayer.tools` now includes a `request_id` (also sent as the `X-Request-Id` header), a `code`, and `feedback.url`. Send your own `X-Request-Id` and it comes back unchanged. When a call fails and the API looks wrong or incomplete, `POST /v1/feedback` with that `request_id` and one line on what you were trying to do. We attach our own record of the failed call, kept 24 hours, and `request_matched` in the reply tells you whether it was found. Hosted subgraph and webhook errors work the same way. In the SDK, `ApiError.requestId` holds the id, and MCP tool errors keep `code`, `request_id` and `feedback`. A self-hosted instance records nothing and points `feedback.url` at a GitHub issue. See the [REST API](/docs/rest-api) page.
+
 ### Proofs for any block at `/v1/proofs`
 
 `/v1/proofs` serves what `verify block` checks: state witnesses, the bytes that tie a block to its Bitcoin block, Bitcoin headers, signed blocks and MARF proofs. Any account key works and proofs are never billed. Witness requests are limited to 2 per second per account.

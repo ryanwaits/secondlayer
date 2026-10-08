@@ -1,5 +1,24 @@
 # @secondlayer/api
 
+## 1.52.0
+
+### Minor Changes
+
+- d606f80: Every JSON error now carries `request_id` (also the `X-Request-Id` header on every response), a `code` derived from the status when a route set none, and `feedback.url` (hosted `/v1/feedback`, self-host GitHub issues). Hosted keeps a 24h account-scoped record of failed requests (`api_failed_requests`, migration 0155) for feedback evidence; purged hourly by the worker.
+- 6427bc2: New hosted `POST /v1/feedback`: file a problem report with the `request_id` from an error body and one line of intent; the server attaches its record of the failed call. Idempotency-Key supported. Not mounted on self-hosted instances. Shared: `feedback_tickets` table (migration 0156).
+
+### Patch Changes
+
+- b5488e8: Hosted subgraph and webhook errors now carry the same envelope as the platform API: the gateway forwards one `X-Request-Id` end to end, adds `request_id`, `code` and `feedback.url` to JSON errors, and ships failed-request records to app-server (`POST /internal/failed-requests`) for feedback evidence.
+- Updated dependencies [0c3ccff]
+- Updated dependencies [4394a96]
+- Updated dependencies [d606f80]
+- Updated dependencies [6427bc2]
+- Updated dependencies [3e422c4]
+  - @secondlayer/shared@11.21.0
+  - @secondlayer/platform@0.6.0
+  - @secondlayer/sdk@14.4.0
+
 ## 1.51.0
 
 ### Minor Changes

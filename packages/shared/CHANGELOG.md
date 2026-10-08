@@ -1,5 +1,17 @@
 # @secondlayer/shared
 
+## 11.21.0
+
+### Minor Changes
+
+- 4394a96: Add `@secondlayer/shared/classify`: one typed `classify()` call over jev (AI Gateway), kev, Cloudflare clef, or offline rules, selected by `CLASSIFIER`. `ai` is an optional peer dependency, loaded only when a model provider is used.
+- d606f80: Every JSON error now carries `request_id` (also the `X-Request-Id` header on every response), a `code` derived from the status when a route set none, and `feedback.url` (hosted `/v1/feedback`, self-host GitHub issues). Hosted keeps a 24h account-scoped record of failed requests (`api_failed_requests`, migration 0155) for feedback evidence; purged hourly by the worker.
+
+### Patch Changes
+
+- 0c3ccff: An empty CLASSIFIER_MODEL now falls back to the provider default instead of being sent as the model id.
+- 6427bc2: New hosted `POST /v1/feedback`: file a problem report with the `request_id` from an error body and one line of intent; the server attaches its record of the failed call. Idempotency-Key supported. Not mounted on self-hosted instances. Shared: `feedback_tickets` table (migration 0156).
+
 ## 11.20.0
 
 ### Minor Changes
