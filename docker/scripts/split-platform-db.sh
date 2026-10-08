@@ -89,6 +89,7 @@ CONTROL_TABLES=(
   sentinel_accounts
   waitlists
   waitlist_signups
+  api_failed_requests
 )
 
 src_count() { psql "$SRC" -tAc "SELECT count(*) FROM $1" 2>/dev/null || echo "ERR"; }

@@ -1027,6 +1027,7 @@ export interface Database {
 	sentinel_accounts: SentinelAccountsTable;
 	waitlists: WaitlistsTable;
 	waitlist_signups: WaitlistSignupsTable;
+	api_failed_requests: ApiFailedRequestsTable;
 }
 
 export interface ServiceHeartbeatsTable {
@@ -1372,6 +1373,26 @@ export interface WaitlistSignupsTable {
 	answers: Record<string, unknown>;
 	created_at: Generated<Date>;
 }
+
+/**
+ * 24h hosted record of a failed API request, keyed by `request_id` and
+ * scoped to the account that made it. `query` is redacted before insert.
+ */
+export interface ApiFailedRequestsTable {
+	request_id: string;
+	account_id: string;
+	method: string;
+	path: string;
+	status: number;
+	code: string;
+	message: Generated<string>;
+	query: Record<string, unknown>;
+	origin: string | null;
+	created_at: Generated<Date>;
+}
+
+export type ApiFailedRequest = Selectable<ApiFailedRequestsTable>;
+export type InsertApiFailedRequest = Insertable<ApiFailedRequestsTable>;
 
 export type Waitlist = Selectable<WaitlistsTable>;
 export type WaitlistSignup = Selectable<WaitlistSignupsTable>;

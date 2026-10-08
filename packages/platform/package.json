@@ -28,6 +28,10 @@
 			"types": "./dist/db/queries/account-balance-alerts.d.ts",
 			"import": "./dist/db/queries/account-balance-alerts.js"
 		},
+		"./db/queries/api-failed-requests": {
+			"types": "./dist/db/queries/api-failed-requests.d.ts",
+			"import": "./dist/db/queries/api-failed-requests.js"
+		},
 		"./billing/prices": {
 			"types": "./dist/billing/prices.d.ts",
 			"import": "./dist/billing/prices.js"
