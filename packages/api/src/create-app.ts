@@ -26,6 +26,7 @@ import {
 	renderLocalConsole,
 } from "./routes/instance-catalog.ts";
 import internalAccountsCreditsRouter from "./routes/internal-accounts-credits.ts";
+import internalFailedRequestsRouter from "./routes/internal-failed-requests.ts";
 import internalIntrospectRouter from "./routes/internal-introspect.ts";
 import internalMetersRouter from "./routes/internal-meters.ts";
 import internalSentinelRouter from "./routes/internal-sentinel.ts";
@@ -186,6 +187,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 		// `resourceAuth` the ACCOUNT_PATHS above use — this is a first-party
 		// workload host, not an account.
 		app.route("/internal/meters", internalMetersRouter);
+		app.route("/internal/failed-requests", internalFailedRequestsRouter);
 		app.route("/internal/keys/introspect", internalIntrospectRouter);
 		app.route("/internal/keys/tenant", internalTenantKeyRouter);
 		app.route("/internal/accounts/credits", internalAccountsCreditsRouter);
