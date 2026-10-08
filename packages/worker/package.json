@@ -13,6 +13,7 @@
 	"dependencies": {
 		"@secondlayer/platform": "workspace:*",
 		"@secondlayer/shared": "^11.20.0",
+		"ai": "7.0.133",
 		"kysely": "0.28.17",
 		"stripe": "^22.0.2"
 	},
