@@ -2,6 +2,7 @@ import { getEnv, logger } from "@secondlayer/shared";
 import { assertDbSplit } from "@secondlayer/shared/db";
 import { startBalanceAlertCron } from "./jobs/balance-alert.ts";
 import { startCreditsRefillCron } from "./jobs/credits-refill.ts";
+import { startFailedRequestsPurgeCron } from "./jobs/failed-requests-purge.ts";
 import { startSpendCapAlertCron } from "./jobs/spend-cap-alert.ts";
 
 let running = true;
@@ -15,6 +16,7 @@ async function runWorker() {
 		startSpendCapAlertCron(),
 		startCreditsRefillCron(),
 		startBalanceAlertCron(),
+		startFailedRequestsPurgeCron(),
 	];
 
 	logger.info("Worker ready");
