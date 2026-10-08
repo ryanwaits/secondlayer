@@ -102,6 +102,22 @@ describe("classify", () => {
 		).toBeNull();
 	});
 
+	test("empty CLASSIFIER_MODEL sends the provider default model id", async () => {
+		let sent: { model?: string } = {};
+		const { fetchImpl } = stubFetch(async (init) => {
+			sent = JSON.parse(String(init.body));
+			return new Response(JSON.stringify(goodBody));
+		});
+		const r = await classify({
+			state: "x",
+			questions,
+			env: { ...kevEnv, CLASSIFIER_MODEL: "" },
+			fetchImpl,
+		});
+		expect(r).not.toBeNull();
+		expect(sent.model).toBe("kev-latest");
+	});
+
 	test("oversized state gives null without calling fetch", async () => {
 		const { fetchImpl, calls } = stubFetch(
 			async () => new Response(JSON.stringify(goodBody)),

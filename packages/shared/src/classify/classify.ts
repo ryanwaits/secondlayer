@@ -1,7 +1,12 @@
 import { logger } from "../logger.ts";
 import { type RawAnswer, normalizeAnswer } from "./confidence.ts";
 import { MAX_STATE_CHARS, stateSize, validateQuestions } from "./limits.ts";
-import { DEFAULT_MODEL, buildModel, resolveProvider } from "./providers.ts";
+import {
+	DEFAULT_MODEL,
+	buildModel,
+	envModel,
+	resolveProvider,
+} from "./providers.ts";
 import { runRules } from "./rules.ts";
 import type {
 	Answers,
@@ -48,7 +53,7 @@ export async function classify<
 	// An explicit provider override ignores CLASSIFIER_MODEL (it pins one backend).
 	const modelId =
 		input.modelId ??
-		(input.provider ? undefined : env.CLASSIFIER_MODEL) ??
+		(input.provider ? undefined : envModel(env)) ??
 		DEFAULT_MODEL[name];
 
 	if (stateSize(input.state) > MAX_STATE_CHARS) {

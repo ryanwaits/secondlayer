@@ -11,6 +11,20 @@ describe("resolveProvider", () => {
 			modelId: "typesafe-ai/jev",
 		});
 	});
+	test("empty CLASSIFIER_MODEL falls back to the provider default", () => {
+		expect(
+			resolveProvider({ AI_GATEWAY_API_KEY: "k", CLASSIFIER_MODEL: "" }),
+		).toEqual({ name: "jev", modelId: "typesafe-ai/jev" });
+	});
+	test("whitespace CLASSIFIER_MODEL falls back to the provider default", () => {
+		expect(
+			resolveProvider({
+				CLASSIFIER: "kev",
+				KEV_URL: "http://x:8009",
+				CLASSIFIER_MODEL: "  ",
+			}),
+		).toEqual({ name: "kev", modelId: "kev-latest" });
+	});
 	test("kev without KEV_URL falls back to rules", () => {
 		expect(resolveProvider({ CLASSIFIER: "kev" }).name).toBe("rules");
 	});

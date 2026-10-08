@@ -21,6 +21,10 @@ const REQUIRED_ENV: Record<Exclude<ClassifierName, "rules">, string[]> = {
 	clef: ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"],
 };
 
+/** Compose passes CLASSIFIER_MODEL="" when unset; blank means unset. */
+export const envModel = (env: Env): string | undefined =>
+	env.CLASSIFIER_MODEL?.trim() || undefined;
+
 /** CLASSIFIER picks the backend; unset means jev when the gateway key is set,
  *  else offline rules. A backend missing credentials falls back to rules. */
 export function resolveProvider(env: Env = process.env): {
@@ -51,7 +55,7 @@ export function resolveProvider(env: Env = process.env): {
 		);
 		return rules;
 	}
-	return { name, modelId: env.CLASSIFIER_MODEL ?? DEFAULT_MODEL[name] };
+	return { name, modelId: envModel(env) ?? DEFAULT_MODEL[name] };
 }
 
 export function buildModel(
