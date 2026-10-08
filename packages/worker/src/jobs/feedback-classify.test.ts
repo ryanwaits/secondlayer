@@ -211,4 +211,38 @@ describe("classifyNewTickets", () => {
 		expect(a + b).toBe(3);
 		for (const id of ids) expect((await load(id)).status).toBe("classified");
 	});
+
+	test("a ticket whose processing throws routes to human and does not stall the batch", async () => {
+		await drain();
+		const acct = await makeAccount();
+		const poison = await makeTicket(acct, {
+			createdAt: new Date(Date.now() - 2000),
+		});
+		const next = await makeTicket(acct, {
+			createdAt: new Date(Date.now() - 1000),
+		});
+		let calls = 0;
+		const deps: ClassifyDeps = {
+			classifyFn: (async () => {
+				calls++;
+				if (calls === 1) throw new Error("boom");
+				return {
+					provider: "jev",
+					modelId: "fake",
+					answers: answers("docs_mismatch"),
+				};
+			}) as unknown as ClassifyDeps["classifyFn"],
+			resolveProviderFn: (() => ({
+				name: "jev",
+				modelId: "jev",
+			})) as ClassifyDeps["resolveProviderFn"],
+		};
+		const n = await classifyNewTickets({ limit: 5, deps });
+		expect(n).toBe(2);
+		const bad = await load(poison);
+		expect(bad.status).toBe("classified");
+		expect(bad.route).toBe("human");
+		expect(bad.classification?.reason).toBe("job_error");
+		expect((await load(next)).route).toBe("docs");
+	});
 });

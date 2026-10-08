@@ -21,6 +21,7 @@
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { classify, resolveProvider } from "@secondlayer/shared/classify";
 import { getDb, jsonb } from "@secondlayer/shared/db";
+import type { FeedbackTicket } from "@secondlayer/shared/db";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import {
 	FEEDBACK_QUESTIONS,
@@ -58,37 +59,26 @@ export async function classifyNewTickets(
 			if (!(await classifyOne(opts.now ?? new Date(), deps))) break;
 			routed++;
 		} catch (err) {
-			logger.warn("Failed to classify feedback ticket", {
+			// Database-level failure: stop instead of spinning the whole batch.
+			logger.warn("Feedback classify batch aborted", {
 				error: getErrorMessage(err),
 			});
+			break;
 		}
 	}
 	return routed;
 }
 
-/** Returns false when no unclaimed new ticket is left. */
-async function classifyOne(now: Date, deps: ClassifyDeps): Promise<boolean> {
-	const db = getDb();
-	return db.transaction().execute(async (tx) => {
-		const row = await tx
-			.selectFrom("feedback_tickets")
-			.select([
-				"id",
-				"intent",
-				"expected",
-				"kind_hint",
-				"evidence",
-				"attempted",
-				"origin",
-			])
-			.where("status", "=", "new")
-			.orderBy("created_at", "asc")
-			.limit(1)
-			.forUpdate()
-			.skipLocked()
-			.executeTakeFirst();
-		if (!row) return false;
+type Claimed = Pick<
+	FeedbackTicket,
+	"intent" | "expected" | "kind_hint" | "evidence" | "attempted" | "origin"
+> & { id: string };
 
+/** Rules, then classifier, then policy. Any throw fails open to human with
+ *  reason job_error so one bad ticket never stalls the queue; only ids and
+ *  the error message are logged. */
+async function decide(row: Claimed, deps: ClassifyDeps) {
+	try {
 		const ticket: FeedbackTicketInput = {
 			id: row.id,
 			intent: row.intent,
@@ -116,21 +106,70 @@ async function classifyOne(now: Date, deps: ClassifyDeps): Promise<boolean> {
 			provider: result?.provider ?? null,
 			answers: result?.answers ?? null,
 		});
+		return {
+			route: decision.route,
+			classification: {
+				provider: result?.provider ?? null,
+				modelId: result?.modelId ?? null,
+				answers: result?.answers ?? null,
+				rules_hit: rules?.rule ?? null,
+				kind: decision.kind,
+				reason: decision.reason,
+			},
+		};
+	} catch (err) {
+		logger.warn("Failed to classify feedback ticket", {
+			ticketId: row.id,
+			error: getErrorMessage(err),
+		});
+		return {
+			route: "human" as const,
+			classification: {
+				provider: null,
+				modelId: null,
+				answers: null,
+				rules_hit: null,
+				kind: null,
+				reason: "job_error",
+			},
+		};
+	}
+}
+
+/** Returns false when no unclaimed new ticket is left. */
+async function classifyOne(now: Date, deps: ClassifyDeps): Promise<boolean> {
+	const db = getDb();
+	return db.transaction().execute(async (tx) => {
+		const row = await tx
+			.selectFrom("feedback_tickets")
+			.select([
+				"id",
+				"intent",
+				"expected",
+				"kind_hint",
+				"evidence",
+				"attempted",
+				"origin",
+			])
+			.where("status", "=", "new")
+			.orderBy("created_at", "asc")
+			.limit(1)
+			.forUpdate()
+			.skipLocked()
+			.executeTakeFirst();
+		if (!row) return false;
+
+		const outcome = await decide(row, deps);
 
 		await tx
 			.updateTable("feedback_tickets")
 			.set({
 				status: "classified",
-				route: decision.route,
+				route: outcome.route,
 				classified_at: now,
 				classification: jsonb<Record<string, unknown>>({
 					schema_version: FEEDBACK_SCHEMA_VERSION,
-					provider: result?.provider ?? null,
-					modelId: result?.modelId ?? null,
-					answers: result?.answers ?? null,
-					rules_hit: rules?.rule ?? null,
-					kind: decision.kind,
-					reason: decision.reason,
+					...outcome.classification,
 				}),
 			})
 			.where("id", "=", row.id)
