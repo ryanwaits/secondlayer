@@ -27,6 +27,7 @@ import internalSentinelRouter from "./routes/internal-sentinel.ts";
 import internalTenantKeyRouter from "./routes/internal-tenant-key.ts";
 import nodeRouter from "./routes/node.ts";
 import openApiRouter from "./routes/openapi.ts";
+import proofsRouter from "./routes/proofs.ts";
 import publicCreditsRouter from "./routes/public-credits.ts";
 import publicWaitlistRouter from "./routes/public-waitlist.ts";
 import statusRouter from "./routes/status.ts";
@@ -68,6 +69,9 @@ const PUBLIC_EXPOSE_HEADERS = [
 	"ETag",
 	"X-Signature",
 	"X-Signature-KeyId",
+	// `/v1/proofs/witness`: a browser verifier needs these to check the bytes.
+	"X-Block-Height",
+	"X-State-Root",
 ];
 
 /** Hono app with routes for `mode`. Does not listen or start the cache. */
@@ -172,6 +176,8 @@ export function createApiApp(mode: InstanceMode): Hono {
 	app.route("/v1/streams", streamsRouter);
 	app.route("/v1/index", indexRouter);
 	app.route("/v1/archive", archiveVerifyRouter);
+	// Free in every mode: checking a row is never metered.
+	app.route("/v1/proofs", proofsRouter);
 	// Subgraph reads are self-host only: hosted runs no subgraphs.
 	if (mode !== "platform") app.route("/v1/subgraphs", v1SubgraphsRouter);
 	app.route("/v1/contracts", contractsRouter);

@@ -314,6 +314,55 @@
 		]
 	},
 	{
+		"tag": "proofs",
+		"objects": [
+			{
+				"anchor": "proof-burn-block-object",
+				"title": "The burn block proof object"
+			},
+			{
+				"anchor": "bitcoin-headers-object",
+				"title": "The Bitcoin headers object"
+			},
+			{
+				"anchor": "marf-proof-object",
+				"title": "The MARF proof object"
+			}
+		],
+		"endpoints": [
+			{
+				"anchor": "get-state-witness",
+				"method": "GET",
+				"title": "State witness for a block"
+			},
+			{
+				"anchor": "get-burn-block-proof",
+				"method": "GET",
+				"title": "Burn block behind a consensus hash"
+			},
+			{
+				"anchor": "list-bitcoin-headers",
+				"method": "GET",
+				"title": "Bitcoin block headers"
+			},
+			{
+				"anchor": "get-signed-block",
+				"method": "GET",
+				"title": "Signed block by id"
+			},
+			{
+				"anchor": "get-signed-block-by-height",
+				"method": "GET",
+				"title": "Signed block by height"
+			},
+			{
+				"anchor": "get-marf-proof",
+				"method": "GET",
+				"title": "MARF inclusion proof"
+			}
+		]
+	},
+	{
 		"tag": "subgraphs",
 		"objects": [
 			{

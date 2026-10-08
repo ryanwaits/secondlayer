@@ -184,6 +184,7 @@ describe("route manifest", () => {
 			"index",
 			"streams",
 			"subgraphs",
+			"proofs",
 			"instance",
 		]);
 		const features = await app.request("/v1/instance/features");

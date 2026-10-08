@@ -24,6 +24,13 @@ const RETAINED_SURFACES = [
 		auth: "open on this instance",
 	},
 	{
+		name: "proofs",
+		path: "/v1/proofs",
+		description:
+			"Chain proofs to check Index rows without trusting this API: state witnesses, signed blocks, MARF proofs, burn-block preimages, Bitcoin headers. Proxied unchanged from the node and its proof sidecar. Never metered.",
+		auth: "open on this instance",
+	},
+	{
 		name: "instance",
 		path: "/v1/instance",
 		description:
@@ -46,6 +53,13 @@ const HOSTED_SURFACES = [
 		description:
 			"Raw, ordered, cursor-paginated firehose with reorg awareness.",
 		auth: "bearer required, metered per row",
+	},
+	{
+		name: "proofs",
+		path: "/v1/proofs",
+		description:
+			"Chain proofs to check Index rows without trusting this API: state witnesses, signed blocks, MARF proofs, burn-block preimages, Bitcoin headers. Proxied unchanged from the node and its proof sidecar.",
+		auth: "bearer required (any account key), free, rate limited per account",
 	},
 	{
 		name: "api-keys",
