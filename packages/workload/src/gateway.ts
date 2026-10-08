@@ -12,6 +12,16 @@
  */
 
 import { logger } from "@secondlayer/shared";
+import {
+	DEFAULT_CODE_BY_STATUS,
+	FEEDBACK_URL,
+	type FailedRequestRecord,
+	REQUEST_ID_PATTERN,
+	augmentErrorBody,
+	newRequestId,
+	normalizeOrigin,
+	redactQuery,
+} from "@secondlayer/shared/error-envelope";
 import type { TenantState } from "./control-db.ts";
 import type { FetchLike } from "./fetch-like.ts";
 import type { IntrospectClient } from "./introspect-client.ts";
@@ -51,6 +61,9 @@ export interface GatewayDeps {
 	/** True while a tenant upgrade round is running; served at `/healthz` so
 	 *  the self-upgrade script restarts the service between rounds. */
 	isBusy?: () => boolean;
+	/** Record one failed request for the account (feedback evidence).
+	 *  Fire-and-forget; must never throw or block. */
+	recordFailure?: (row: FailedRequestRecord) => void;
 }
 
 export interface RateLimitDecision {
@@ -88,9 +101,91 @@ export function classifyRequest(
 
 const PROVISIONING_RETRY_AFTER_SECONDS = 30;
 
+/** Gateway entry: one request id end to end (a valid incoming
+ *  `X-Request-Id` is reused, else minted), forwarded upstream and set on every
+ *  response; error responses get the hosted envelope and are recorded. */
 export async function handleGatewayRequest(
 	deps: GatewayDeps,
 	req: Request,
+): Promise<Response> {
+	const incoming = req.headers.get("x-request-id");
+	const requestId =
+		incoming && REQUEST_ID_PATTERN.test(incoming) ? incoming : newRequestId();
+	const ctx: { accountId?: string } = {};
+	const res = await route(deps, req, requestId, ctx);
+	return finalize(deps, req, res, requestId, ctx.accountId);
+}
+
+/** Error bodies above this are passed through unrewritten. */
+const MAX_REWRITE_BYTES = 65536;
+
+async function finalize(
+	deps: GatewayDeps,
+	req: Request,
+	res: Response,
+	requestId: string,
+	accountId: string | undefined,
+): Promise<Response> {
+	const headers = new Headers(res.headers);
+	headers.set("x-request-id", requestId);
+	const status = res.status;
+	// Success streams untouched: its body is never read here.
+	if (status < 400) return new Response(res.body, { status, headers });
+
+	let code = DEFAULT_CODE_BY_STATUS[status] ?? "HTTP_ERROR";
+	let message = "";
+	let outBody: string | ReadableStream<Uint8Array> | null = res.body;
+	const length = Number(headers.get("content-length") ?? Number.NaN);
+	if (
+		headers.get("content-type")?.includes("application/json") &&
+		(Number.isNaN(length) || length <= MAX_REWRITE_BYTES)
+	) {
+		const text = await res.text();
+		outBody = text;
+		try {
+			const augmented = augmentErrorBody(JSON.parse(text), {
+				status,
+				requestId,
+				feedbackUrl: FEEDBACK_URL.platform,
+				overrideFeedback: true,
+			});
+			if (augmented) {
+				outBody = JSON.stringify(augmented);
+				code = String(augmented.code);
+				message = String(augmented.error ?? "").slice(0, 200);
+				headers.delete("content-length");
+			}
+		} catch {
+			// Not JSON after all: pass the text through unchanged.
+		}
+	}
+
+	if (accountId && status !== 429) {
+		const url = new URL(req.url);
+		try {
+			deps.recordFailure?.({
+				request_id: requestId,
+				account_id: accountId,
+				method: req.method,
+				path: url.pathname,
+				status,
+				code,
+				message,
+				query: redactQuery(url.searchParams),
+				origin: normalizeOrigin(req.headers.get("x-sl-origin") ?? undefined),
+			});
+		} catch {
+			// Recording never affects the response.
+		}
+	}
+	return new Response(outBody, { status, headers });
+}
+
+async function route(
+	deps: GatewayDeps,
+	req: Request,
+	requestId: string,
+	ctx: { accountId?: string },
 ): Promise<Response> {
 	const url = new URL(req.url);
 	// Unauthenticated liveness + version probe (loopback only, like the rest).
@@ -116,6 +211,8 @@ export async function handleGatewayRequest(
 	if (!introspected.ok) {
 		return Response.json({ error: "invalid_api_key" }, { status: 401 });
 	}
+
+	ctx.accountId = introspected.accountId;
 
 	if (!introspected.creditsOk) {
 		return Response.json(
@@ -200,6 +297,7 @@ export async function handleGatewayRequest(
 	// own INSTANCE_TOKEN (Design, step 4).
 	forwardHeaders.set("authorization", `Bearer ${upstream.instanceToken}`);
 	forwardHeaders.delete("host");
+	forwardHeaders.set("x-request-id", requestId);
 
 	try {
 		const upstreamRes = await doFetch(forwardUrl.toString(), {
@@ -216,6 +314,7 @@ export async function handleGatewayRequest(
 	} catch (err) {
 		logger.error("workload.gateway.upstream_error", {
 			accountId: introspected.accountId,
+			requestId,
 			error: err instanceof Error ? err.message : String(err),
 		});
 		return Response.json({ error: "upstream_unavailable" }, { status: 502 });

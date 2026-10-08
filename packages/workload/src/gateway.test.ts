@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
+	DEFAULT_CODE_BY_STATUS,
+	type FailedRequestRecord,
+} from "@secondlayer/shared/error-envelope";
+import {
 	type GatewayDeps,
 	classifyRequest,
 	handleGatewayRequest,
@@ -476,5 +480,229 @@ describe("handleGatewayRequest", () => {
 			req({ auth: "Bearer sk-sl_good" }),
 		);
 		expect(res.status).toBe(502);
+	});
+});
+
+type EnvelopeBody = {
+	error: string;
+	hint?: string;
+	top_up_url?: string;
+	code: string;
+	request_id: string;
+	feedback: { url: string };
+};
+
+describe("error envelope", () => {
+	const GOOD = "Bearer sk-sl_good";
+
+	function gw(overrides: Partial<GatewayDeps> = {}): {
+		deps: GatewayDeps;
+		rows: FailedRequestRecord[];
+	} {
+		const rows: FailedRequestRecord[] = [];
+		return {
+			rows,
+			deps: baseDeps({ recordFailure: (r) => rows.push(r), ...overrides }),
+		};
+	}
+
+	function call(
+		deps: GatewayDeps,
+		opts: { path?: string; headers?: Record<string, string> } = {},
+	) {
+		return handleGatewayRequest(
+			deps,
+			new Request(
+				`https://gateway.internal${opts.path ?? "/v1/subgraphs/s/t"}`,
+				{ headers: { authorization: GOOD, ...opts.headers } },
+			),
+		);
+	}
+
+	function jsonRes(body: unknown, status: number): Response {
+		return new Response(JSON.stringify(body), {
+			status,
+			headers: { "content-type": "application/json" },
+		});
+	}
+
+	test("missing bearer: enveloped, header matches body, not recorded", async () => {
+		const { deps, rows } = gw();
+		const res = await handleGatewayRequest(deps, req());
+		const body = (await res.json()) as EnvelopeBody;
+		expect(res.status).toBe(401);
+		expect(body.error).toBe("missing_api_key");
+		expect(body.hint).toBeString();
+		expect(body.code).toBe(DEFAULT_CODE_BY_STATUS[401]);
+		expect(body.request_id).toBe(res.headers.get("x-request-id") as string);
+		expect(body.feedback.url).toBe("/v1/feedback");
+		expect(rows).toHaveLength(0);
+	});
+
+	test("402 is enveloped and recorded", async () => {
+		const { deps, rows } = gw({
+			introspect: new IntrospectClient({
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				fetchImpl: async () =>
+					jsonRes({ account_id: "acct_1", credits_ok: false }, 200),
+			}),
+		});
+		const res = await call(deps);
+		const body = (await res.json()) as EnvelopeBody;
+		expect(res.status).toBe(402);
+		expect(body.top_up_url).toBeString();
+		expect(body.code).toBe(DEFAULT_CODE_BY_STATUS[402]);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]?.account_id).toBe("acct_1");
+		expect(rows[0]?.code).toBe(DEFAULT_CODE_BY_STATUS[402]);
+	});
+
+	test("429 is enveloped, keeps Retry-After, not recorded", async () => {
+		const { deps, rows } = gw({
+			rateLimit: () => ({ allowed: false, retryAfterSeconds: 7 }),
+		});
+		const res = await call(deps);
+		const body = (await res.json()) as EnvelopeBody;
+		expect(res.status).toBe(429);
+		expect(res.headers.get("retry-after")).toBe("7");
+		expect(body.request_id).toBe(res.headers.get("x-request-id") as string);
+		expect(rows).toHaveLength(0);
+	});
+
+	test("upstream JSON error keeps its code, feedback pointer is replaced, row recorded", async () => {
+		const { deps, rows } = gw({
+			fetchImpl: async () =>
+				jsonRes(
+					{
+						error: "Unknown column: foo",
+						code: "INVALID_COLUMN",
+						feedback: { url: "https://github.com/x/y/issues/new" },
+					},
+					400,
+				),
+		});
+		const res = await call(deps, {
+			path: "/v1/subgraphs/s/t?where=foo&api_key=secret",
+		});
+		const body = (await res.json()) as EnvelopeBody;
+		expect(body.code).toBe("INVALID_COLUMN");
+		expect(body.feedback.url).toBe("/v1/feedback");
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({
+			request_id: body.request_id,
+			code: "INVALID_COLUMN",
+			path: "/v1/subgraphs/s/t",
+			status: 400,
+			method: "GET",
+			query: { where: "foo" },
+			message: "Unknown column: foo",
+		});
+	});
+
+	test("long upstream message is truncated to 200 in the record", async () => {
+		const { deps, rows } = gw({
+			fetchImpl: async () => jsonRes({ error: "e".repeat(500) }, 400),
+		});
+		await call(deps);
+		expect(rows[0]?.message).toHaveLength(200);
+	});
+
+	test("request id is forwarded upstream and matches the response", async () => {
+		let seen: string | null = null;
+		const { deps } = gw({
+			fetchImpl: async (_url, init) => {
+				seen = new Headers(init?.headers).get("x-request-id");
+				return new Response("ok", { status: 200 });
+			},
+		});
+		const res = await call(deps);
+		expect(seen as string | null).toBe(res.headers.get("x-request-id"));
+		expect(seen as string | null).toStartWith("req_");
+	});
+
+	test("a valid incoming request id is reused end to end; an invalid one is replaced", async () => {
+		let seen: string | null = null;
+		const { deps } = gw({
+			fetchImpl: async (_url, init) => {
+				seen = new Headers(init?.headers).get("x-request-id");
+				return new Response("ok", { status: 200 });
+			},
+		});
+		const kept = await call(deps, {
+			headers: { "x-request-id": "agent-turn-123" },
+		});
+		expect(kept.headers.get("x-request-id")).toBe("agent-turn-123");
+		expect(seen as string | null).toBe("agent-turn-123");
+		const replaced = await call(deps, { headers: { "x-request-id": "<x>" } });
+		expect(replaced.headers.get("x-request-id")).toStartWith("req_");
+	});
+
+	test("success bodies are untouched and carry the request id", async () => {
+		const raw = '{"data":[1,2,3],"error":null}';
+		const { deps, rows } = gw({
+			fetchImpl: async () =>
+				new Response(raw, {
+					status: 200,
+					headers: { "content-type": "application/json" },
+				}),
+		});
+		const res = await call(deps);
+		expect(await res.text()).toBe(raw);
+		expect(res.headers.get("x-request-id")).toStartWith("req_");
+		expect(rows).toHaveLength(0);
+	});
+
+	test("non-JSON upstream error passes through and is recorded with defaults", async () => {
+		const { deps, rows } = gw({
+			fetchImpl: async () =>
+				new Response("boom", {
+					status: 500,
+					headers: { "content-type": "text/plain" },
+				}),
+		});
+		const res = await call(deps);
+		expect(await res.text()).toBe("boom");
+		expect(res.headers.get("x-request-id")).toStartWith("req_");
+		expect(rows[0]).toMatchObject({
+			code: DEFAULT_CODE_BY_STATUS[500],
+			message: "",
+		});
+	});
+
+	test("upstream failure is a recorded, enveloped 502", async () => {
+		const { deps, rows } = gw({
+			fetchImpl: async () => {
+				throw new Error("refused");
+			},
+		});
+		const res = await call(deps);
+		const body = (await res.json()) as EnvelopeBody;
+		expect(res.status).toBe(502);
+		expect(body.error).toBe("upstream_unavailable");
+		expect(body.feedback.url).toBe("/v1/feedback");
+		expect(rows).toHaveLength(1);
+		expect(rows[0]?.status).toBe(502);
+	});
+
+	test("a throwing recorder does not change the response", async () => {
+		const { deps } = gw({
+			fetchImpl: async () => jsonRes({ error: "bad" }, 400),
+			recordFailure: () => {
+				throw new Error("recorder down");
+			},
+		});
+		const res = await call(deps);
+		expect(res.status).toBe(400);
+		expect(((await res.json()) as { error: string }).error).toBe("bad");
+	});
+
+	test("x-sl-origin is recorded only when known", async () => {
+		const { deps, rows } = gw({
+			fetchImpl: async () => jsonRes({ error: "bad" }, 400),
+		});
+		await call(deps, { headers: { "x-sl-origin": "MCP" } });
+		await call(deps, { headers: { "x-sl-origin": "evil" } });
+		expect(rows.map((r) => r.origin)).toEqual(["mcp", null]);
 	});
 });
