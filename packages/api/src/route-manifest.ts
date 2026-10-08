@@ -6,7 +6,8 @@
  *
  * Five fixture classes:
  *  - HOSTED_ROUTE_FIXTURES — hosted-only surface: public waitlist
- *    signups (the x402 pay-per-call rail that once lived here is deleted).
+ *    signups and agent problem reports (the x402 rail that once lived here is
+ *    deleted).
  *  - DELETED_ROUTE_FIXTURES — hosted-control surface removed by gate-g
  *    Slice D, plus the x402 rail, the subgraph public-namespace
  *    (publish/unpublish) claim, and accountless hosted play. Must 404
@@ -26,6 +27,7 @@
 export const HOSTED_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/api/public/waitlist" },
 	{ method: "GET", path: "/api/public/waitlist/robinhood/demand" },
+	{ method: "POST", path: "/v1/feedback" },
 ] as const;
 
 /** Gate-g Slice D deletions + the x402 rail — 404 in oss and platform alike. */

@@ -68,6 +68,13 @@ const HOSTED_SURFACES = [
 			"POST to mint a scoped streams/index read key so an agent can self-provision access. Returns the key once.",
 		auth: "bearer required (account-level owner key)",
 	},
+	{
+		name: "feedback",
+		path: "/v1/feedback",
+		description:
+			"POST a problem report: the request_id from an error body plus what you were trying to do. The server attaches its record of the failed call.",
+		auth: "bearer required (account key)",
+	},
 ] as const;
 
 /** GET /v1 — surface discovery. Lists the three public surfaces and where

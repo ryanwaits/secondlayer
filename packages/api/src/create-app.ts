@@ -19,6 +19,7 @@ import { createBatchRouter } from "./routes/batch.ts";
 import webhooksStripeRouter from "./routes/billing-stripe.ts";
 import billingRouter from "./routes/billing.ts";
 import contractsRouter from "./routes/contracts.ts";
+import feedbackRouter from "./routes/feedback.ts";
 import indexRouter from "./routes/index.ts";
 import {
 	createInstanceCatalogRouter,
@@ -175,6 +176,12 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/api/accounts", accountsRouter);
 		app.route("/api/billing", billingRouter);
 		app.route("/api/archive", archiveRouter);
+		// Hosted problem reports: an agent sends back the request_id from an
+		// error body plus what it was trying to do. Self-hosted instances point
+		// their error bodies at a GitHub issue instead (no route here).
+		app.use("/v1/feedback", requireJsonWrites());
+		app.use("/v1/feedback", resourceAuth);
+		app.route("/v1/feedback", feedbackRouter);
 		// Own bearer guard (WORKLOAD_HOST_KEY), not the session/instance-token
 		// `resourceAuth` the ACCOUNT_PATHS above use — this is a first-party
 		// workload host, not an account.

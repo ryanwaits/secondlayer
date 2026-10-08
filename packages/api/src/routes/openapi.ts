@@ -6,6 +6,7 @@ import {
 	HOSTED_OPENAPI_PATHS,
 	WORKLOAD_OPENAPI_PREFIXES,
 } from "../route-manifest.ts";
+import { FEEDBACK_KINDS } from "./feedback.ts";
 import { corePaths, coreSchemas } from "./openapi/core.ts";
 import { deploymentsPaths, deploymentsSchemas } from "./openapi/deployments.ts";
 import { indexPaths, indexSchemas } from "./openapi/index.ts";
@@ -17,6 +18,7 @@ import {
 	ERROR_400,
 	ERROR_401,
 	ERROR_404,
+	ERROR_429,
 	READ_SECURITY,
 	WRITE_SECURITY,
 	json200,
@@ -125,6 +127,7 @@ export const OPERATION_IDS: Record<string, string> = {
 	"POST /api/billing/refill": "refillCredits",
 	"GET /api/billing/status": "getBillingStatus",
 	"POST /api/public/credits/checkout": "createCreditsCheckout",
+	"POST /v1/feedback": "submitFeedback",
 };
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
@@ -633,7 +636,7 @@ function platformSpec(): typeof OPENAPI_SPEC {
 			KEYED_PREFIXES.some((p) => key === p || key.startsWith(`${p}/`));
 		paths[key] = keyed ? keyedOperations(value) : value;
 	}
-	Object.assign(paths, platformMeterPaths());
+	Object.assign(paths, platformMeterPaths(), platformFeedbackPaths());
 	return {
 		...OPENAPI_SPEC,
 		info: {
@@ -656,6 +659,10 @@ function platformSpec(): typeof OPENAPI_SPEC {
 				name: "credits",
 				description: "Prepaid archive credits.",
 			},
+			{
+				name: "feedback",
+				description: "Problem reports from API callers.",
+			},
 		],
 		components: {
 			...OPENAPI_SPEC.components,
@@ -675,6 +682,75 @@ function platformSpec(): typeof OPENAPI_SPEC {
 
 /** Metered archive + credits routes. Mounted only in platformSpec so the OSS
  *  document never advertises endpoints a self-hosted instance 404s. */
+function platformFeedbackPaths(): Record<string, unknown> {
+	return {
+		"/v1/feedback": {
+			post: {
+				tags: ["feedback"],
+				summary: "Report a problem",
+				description:
+					"File a problem report against a request that failed. Send the `request_id` from the error body and one line on what you were trying to do; the server attaches its own record of the failed call (kept 24 hours). Optional `Idempotency-Key` header: a repeat returns the first report's id with status `duplicate`.",
+				security: WRITE_SECURITY,
+				parameters: [
+					{
+						name: "Idempotency-Key",
+						in: "header",
+						required: false,
+						schema: { type: "string", maxLength: 128 },
+					},
+				],
+				requestBody: jsonBody({
+					type: "object",
+					required: ["intent"],
+					additionalProperties: false,
+					properties: {
+						intent: { type: "string", maxLength: 2000 },
+						request_id: {
+							type: "string",
+							pattern: "^[A-Za-z0-9._-]{8,64}$",
+						},
+						kind_hint: { type: "string", enum: [...FEEDBACK_KINDS] },
+						expected: { type: "object" },
+						evidence: {
+							type: "object",
+							additionalProperties: false,
+							properties: {
+								tx_id: { type: "string", maxLength: 128 },
+								block_height: { type: "integer", minimum: 0 },
+								contract_id: { type: "string", maxLength: 160 },
+								event_type: { type: "string", maxLength: 64 },
+								subgraph: { type: "string", maxLength: 64 },
+								table: { type: "string", maxLength: 64 },
+							},
+						},
+					},
+				}),
+				responses: {
+					"202": json200(
+						{
+							type: "object",
+							properties: {
+								id: { type: "string", format: "uuid" },
+								status: { type: "string", enum: ["accepted", "duplicate"] },
+								request_matched: {
+									type: "boolean",
+									description:
+										"True when request_id matched one of your failed requests from the last 24h.",
+								},
+							},
+							required: ["id", "status", "request_matched"],
+						},
+						"Report stored.",
+					),
+					"400": jsonError(ERROR_400),
+					"401": jsonError(ERROR_401),
+					"429": jsonError(ERROR_429),
+				},
+			},
+		},
+	};
+}
+
 function platformMeterPaths(): Record<string, unknown> {
 	const archiveBody = jsonBody({
 		type: "object",
