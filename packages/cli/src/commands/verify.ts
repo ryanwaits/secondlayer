@@ -35,6 +35,7 @@ import {
 	yellow,
 } from "../lib/output.ts";
 import { isOssMode } from "../lib/resolve-auth.ts";
+import { attachVerifyBlockCommand } from "./verify-block.ts";
 
 /**
  * `secondlayer verify` — compare local chain data against a signed archive manifest.
@@ -81,31 +82,41 @@ function statusLabel(status: RangeComparison["status"]): string {
 }
 
 export function attachVerifyCommand(cmd: Command): Command {
-	return cmd
-		.argument("[target]", "all | raw | decode:<name> | subgraph:<name>", "raw")
-		.option("--quick", "coverage/identity only (default)")
-		.option("--deep", "include semantic / scratch replay where available")
-		.option("--anchor", "require a verified archive signature")
-		.requiredOption(
-			"--against <manifest>",
-			"archive manifest: an https URL or a local file path",
-		)
-		.option("--from-block <n>", "first height to check")
-		.option("--to-block <n>", "last height to check")
-		.option("--counts", "also compare transaction/event row counts (slower)")
-		.option(
-			"--semantic",
-			"also recompute per-partition semantic digests locally and compare (slow: full re-stream)",
-		)
-		.option(
-			"--public-key <pem>",
-			"pin a signing key; default is the archive key built into this release",
-		)
-		.option("--insecure", "skip the manifest signature check (not recommended)")
-		.option("--json", "Output as JSON")
-		.addHelpText(
-			"after",
-			`
+	return (
+		cmd
+			.argument(
+				"[target]",
+				"all | raw | decode:<name> | subgraph:<name>",
+				"raw",
+			)
+			.option("--quick", "coverage/identity only (default)")
+			.option("--deep", "include semantic / scratch replay where available")
+			.option("--anchor", "require a verified archive signature")
+			// Required, but checked in the action: Commander enforces a parent's
+			// mandatory options on its subcommands too, and `verify block` has none.
+			.option(
+				"--against <manifest>",
+				"archive manifest: an https URL or a local file path (required)",
+			)
+			.option("--from-block <n>", "first height to check")
+			.option("--to-block <n>", "last height to check")
+			.option("--counts", "also compare transaction/event row counts (slower)")
+			.option(
+				"--semantic",
+				"also recompute per-partition semantic digests locally and compare (slow: full re-stream)",
+			)
+			.option(
+				"--public-key <pem>",
+				"pin a signing key; default is the archive key built into this release",
+			)
+			.option(
+				"--insecure",
+				"skip the manifest signature check (not recommended)",
+			)
+			.option("--json", "Output as JSON")
+			.addHelpText(
+				"after",
+				`
 Examples:
   $ secondlayer verify --against https://archive.secondlayer.tools/.../snapshots/<digest>.json
   $ secondlayer verify raw --against ./snapshot.json --from-block 8000000 --to-block 8499999
@@ -117,275 +128,288 @@ Exit codes:
   0  local data matches the archive
   1  divergence found (divergent ranges are listed)
   2  unanchored — reference unavailable or unverifiable`,
-		)
-		.action(async (targetArg, opts) => {
-			try {
-				const target = parseVerifyTarget(targetArg);
-				const mode = opts.deep ? "deep" : opts.anchor ? "anchor" : "quick";
-				const fromBlock =
-					opts.fromBlock === undefined
-						? undefined
-						: parseHeight(opts.fromBlock, "--from-block");
-				const toBlock =
-					opts.toBlock === undefined
-						? undefined
-						: parseHeight(opts.toBlock, "--to-block");
-				if (
-					fromBlock !== undefined &&
-					toBlock !== undefined &&
-					toBlock < fromBlock
-				) {
-					throw new Error("--to-block must be >= --from-block");
-				}
+			)
+			.action(async (targetArg, opts, command: Command) => {
+				if (opts.against === undefined)
+					command.error(
+						"error: required option '--against <manifest>' not specified",
+						{
+							code: "commander.missingMandatoryOptionValue",
+						},
+					);
+				try {
+					const target = parseVerifyTarget(targetArg);
+					const mode = opts.deep ? "deep" : opts.anchor ? "anchor" : "quick";
+					const fromBlock =
+						opts.fromBlock === undefined
+							? undefined
+							: parseHeight(opts.fromBlock, "--from-block");
+					const toBlock =
+						opts.toBlock === undefined
+							? undefined
+							: parseHeight(opts.toBlock, "--to-block");
+					if (
+						fromBlock !== undefined &&
+						toBlock !== undefined &&
+						toBlock < fromBlock
+					) {
+						throw new Error("--to-block must be >= --from-block");
+					}
 
-				const publicKey = await resolveArchivePublicKey({
-					explicitPem: opts.publicKey,
-					envPem:
-						process.env.ARCHIVE_SIGNING_PUBLIC_KEY ??
-						process.env.STREAMS_SIGNING_PUBLIC_KEY,
-					allowHostedApi: !isOssMode(),
-				});
-				const { manifest, origin } = await loadReference(opts.against, {
-					publicKeyPem: publicKey,
-				});
-				const signature = checkSignature(manifest, publicKey, !!opts.insecure);
-
-				if (!signature.verified && !opts.insecure) {
-					printError(`Cannot trust the reference: ${signature.reason}.`, {
-						hint: "Pass --public-key <pem> to pin a key, or --insecure to compare anyway (result is unverified).",
+					const publicKey = await resolveArchivePublicKey({
+						explicitPem: opts.publicKey,
+						envPem:
+							process.env.ARCHIVE_SIGNING_PUBLIC_KEY ??
+							process.env.STREAMS_SIGNING_PUBLIC_KEY,
+						allowHostedApi: !isOssMode(),
 					});
+					const { manifest, origin } = await loadReference(opts.against, {
+						publicKeyPem: publicKey,
+					});
+					const signature = checkSignature(
+						manifest,
+						publicKey,
+						!!opts.insecure,
+					);
+
+					if (!signature.verified && !opts.insecure) {
+						printError(`Cannot trust the reference: ${signature.reason}.`, {
+							hint: "Pass --public-key <pem> to pin a key, or --insecure to compare anyway (result is unverified).",
+						});
+						output({
+							json: opts.json,
+							data: {
+								...reportVerify({
+									target,
+									mode,
+									anchored: false,
+									detail: signature.reason,
+								}),
+								status: "unanchored",
+								reference: origin,
+								reason: signature.reason,
+							},
+							human: () => {},
+						});
+						process.exit(VERIFY_EXIT.UNANCHORED);
+					}
+
+					const reference = (manifest.range_digests ?? []).filter((d) => {
+						if (!datasetMatchesTarget(d.dataset, target)) return false;
+						if (fromBlock !== undefined && d.to_block < fromBlock) return false;
+						if (toBlock !== undefined && d.from_block > toBlock) return false;
+						return true;
+					});
+					if (reference.length === 0) {
+						printError("The reference publishes no digests for that range.", {
+							hint: "Check --from-block/--to-block against the manifest's coverage.",
+						});
+						process.exit(VERIFY_EXIT.UNANCHORED);
+					}
+
+					const db = getDb();
+					const local: RangeDigest[] = [];
+					let checked = 0;
+					for (const range of reference) {
+						local.push(
+							await computeRangeDigest(
+								db,
+								range.dataset,
+								range.from_block,
+								range.to_block,
+							),
+						);
+						checked++;
+						if (checked % 25 === 0 || checked === reference.length) {
+							note(`  checked ${checked}/${reference.length} ranges`);
+						}
+					}
+
+					const comparisons = compareRangeDigests(local, reference);
+
+					// Row counts are opt-in: on a full chain this is minutes rather than
+					// the ~90s the digest pass costs, and it rarely says anything the
+					// block digests did not already say.
+					const countChecks: RangeComparison[] = [];
+					if (opts.counts && manifest.partitions) {
+						for (const partition of manifest.partitions) {
+							if (partition.dataset === "blocks") continue;
+							if (fromBlock !== undefined && partition.to_block < fromBlock)
+								continue;
+							if (toBlock !== undefined && partition.from_block > toBlock)
+								continue;
+							const actual = await computeRangeDigest(
+								db,
+								partition.dataset as RangeDigest["dataset"],
+								partition.from_block,
+								partition.to_block,
+							);
+							countChecks.push({
+								dataset: partition.dataset as RangeDigest["dataset"],
+								from_block: partition.from_block,
+								to_block: partition.to_block,
+								status:
+									actual.row_count === partition.row_count
+										? "match"
+										: "count-mismatch",
+								expected_digest: null,
+								actual_digest: null,
+								expected_rows: partition.row_count,
+								actual_rows: actual.row_count,
+							});
+						}
+					}
+
+					const semanticChecks: PartitionSemanticComparison[] = [];
+					const referenceSemantic: PartitionSemanticDigest[] = (
+						manifest.partition_semantic_digests ?? []
+					).filter((d) => {
+						if (!datasetMatchesTarget(d.dataset, target)) return false;
+						if (fromBlock !== undefined && d.to_block < fromBlock) return false;
+						if (toBlock !== undefined && d.from_block > toBlock) return false;
+						return true;
+					});
+					if (opts.semantic || opts.deep) {
+						if (referenceSemantic.length === 0) {
+							warn(
+								"Reference publishes no semantic digests; --semantic had nothing to compare.",
+							);
+						} else {
+							note(
+								`Recomputing ${referenceSemantic.length} partition semantic digests (this is the slow pass).`,
+							);
+							const localSemantic: PartitionSemanticDigest[] = [];
+							let semanticDone = 0;
+							for (const partition of referenceSemantic) {
+								localSemantic.push(
+									await computePartitionSemanticDigest(
+										db,
+										partition.dataset,
+										partition.from_block,
+										partition.to_block,
+									),
+								);
+								semanticDone++;
+								if (
+									semanticDone % 5 === 0 ||
+									semanticDone === referenceSemantic.length
+								) {
+									note(
+										`  checked ${semanticDone}/${referenceSemantic.length} partitions`,
+									);
+								}
+							}
+							semanticChecks.push(
+								...comparePartitionSemanticDigests(
+									localSemantic,
+									referenceSemantic,
+								),
+							);
+						}
+					}
+
+					const all = [
+						...comparisons,
+						...countChecks,
+						...semanticChecks.map((s) => ({
+							dataset: s.dataset,
+							from_block: s.from_block,
+							to_block: s.to_block,
+							status: s.status,
+							expected_digest: s.expected_digest,
+							actual_digest: s.actual_digest,
+							expected_rows: s.expected_rows,
+							actual_rows: s.actual_rows,
+						})),
+					];
+					const diverged = all.filter((c) => c.status !== "match");
+					const verdict = reportVerify({
+						target,
+						mode,
+						diverged: diverged.length > 0,
+					});
+					const report = {
+						...verdict,
+						status: verdict.status,
+						reference: origin,
+						signature_verified: signature.verified,
+						ranges_checked: all.length,
+						semantic_checks: semanticChecks.length,
+						divergent_ranges: diverged,
+					};
+
 					output({
 						json: opts.json,
-						data: {
-							...reportVerify({
-								target,
-								mode,
-								anchored: false,
-								detail: signature.reason,
-							}),
-							status: "unanchored",
-							reference: origin,
-							reason: signature.reason,
-						},
-						human: () => {},
-					});
-					process.exit(VERIFY_EXIT.UNANCHORED);
-				}
-
-				const reference = (manifest.range_digests ?? []).filter((d) => {
-					if (!datasetMatchesTarget(d.dataset, target)) return false;
-					if (fromBlock !== undefined && d.to_block < fromBlock) return false;
-					if (toBlock !== undefined && d.from_block > toBlock) return false;
-					return true;
-				});
-				if (reference.length === 0) {
-					printError("The reference publishes no digests for that range.", {
-						hint: "Check --from-block/--to-block against the manifest's coverage.",
-					});
-					process.exit(VERIFY_EXIT.UNANCHORED);
-				}
-
-				const db = getDb();
-				const local: RangeDigest[] = [];
-				let checked = 0;
-				for (const range of reference) {
-					local.push(
-						await computeRangeDigest(
-							db,
-							range.dataset,
-							range.from_block,
-							range.to_block,
-						),
-					);
-					checked++;
-					if (checked % 25 === 0 || checked === reference.length) {
-						note(`  checked ${checked}/${reference.length} ranges`);
-					}
-				}
-
-				const comparisons = compareRangeDigests(local, reference);
-
-				// Row counts are opt-in: on a full chain this is minutes rather than
-				// the ~90s the digest pass costs, and it rarely says anything the
-				// block digests did not already say.
-				const countChecks: RangeComparison[] = [];
-				if (opts.counts && manifest.partitions) {
-					for (const partition of manifest.partitions) {
-						if (partition.dataset === "blocks") continue;
-						if (fromBlock !== undefined && partition.to_block < fromBlock)
-							continue;
-						if (toBlock !== undefined && partition.from_block > toBlock)
-							continue;
-						const actual = await computeRangeDigest(
-							db,
-							partition.dataset as RangeDigest["dataset"],
-							partition.from_block,
-							partition.to_block,
-						);
-						countChecks.push({
-							dataset: partition.dataset as RangeDigest["dataset"],
-							from_block: partition.from_block,
-							to_block: partition.to_block,
-							status:
-								actual.row_count === partition.row_count
-									? "match"
-									: "count-mismatch",
-							expected_digest: null,
-							actual_digest: null,
-							expected_rows: partition.row_count,
-							actual_rows: actual.row_count,
-						});
-					}
-				}
-
-				const semanticChecks: PartitionSemanticComparison[] = [];
-				const referenceSemantic: PartitionSemanticDigest[] = (
-					manifest.partition_semantic_digests ?? []
-				).filter((d) => {
-					if (!datasetMatchesTarget(d.dataset, target)) return false;
-					if (fromBlock !== undefined && d.to_block < fromBlock) return false;
-					if (toBlock !== undefined && d.from_block > toBlock) return false;
-					return true;
-				});
-				if (opts.semantic || opts.deep) {
-					if (referenceSemantic.length === 0) {
-						warn(
-							"Reference publishes no semantic digests; --semantic had nothing to compare.",
-						);
-					} else {
-						note(
-							`Recomputing ${referenceSemantic.length} partition semantic digests (this is the slow pass).`,
-						);
-						const localSemantic: PartitionSemanticDigest[] = [];
-						let semanticDone = 0;
-						for (const partition of referenceSemantic) {
-							localSemantic.push(
-								await computePartitionSemanticDigest(
-									db,
-									partition.dataset,
-									partition.from_block,
-									partition.to_block,
+						data: report,
+						human: () => {
+							if (diverged.length === 0) {
+								success(
+									`Local data matches the archive across ${all.length} ranges.`,
+								);
+								note(
+									signature.verified
+										? "  reference signature verified"
+										: "  reference signature NOT verified (--insecure)",
+								);
+								return;
+							}
+							warn(
+								`${diverged.length} of ${all.length} ranges diverge from the archive.`,
+							);
+							console.error("");
+							console.error(
+								formatTable(
+									["RANGE", "DATASET", "STATUS", "EXPECTED", "LOCAL"],
+									diverged.map((d) => [
+										`${d.from_block}-${d.to_block}`,
+										d.dataset,
+										statusLabel(d.status),
+										String(d.expected_rows),
+										String(d.actual_rows),
+									]),
 								),
 							);
-							semanticDone++;
-							if (
-								semanticDone % 5 === 0 ||
-								semanticDone === referenceSemantic.length
-							) {
-								note(
-									`  checked ${semanticDone}/${referenceSemantic.length} partitions`,
-								);
-							}
-						}
-						semanticChecks.push(
-							...comparePartitionSemanticDigests(
-								localSemantic,
-								referenceSemantic,
-							),
-						);
-					}
-				}
-
-				const all = [
-					...comparisons,
-					...countChecks,
-					...semanticChecks.map((s) => ({
-						dataset: s.dataset,
-						from_block: s.from_block,
-						to_block: s.to_block,
-						status: s.status,
-						expected_digest: s.expected_digest,
-						actual_digest: s.actual_digest,
-						expected_rows: s.expected_rows,
-						actual_rows: s.actual_rows,
-					})),
-				];
-				const diverged = all.filter((c) => c.status !== "match");
-				const verdict = reportVerify({
-					target,
-					mode,
-					diverged: diverged.length > 0,
-				});
-				const report = {
-					...verdict,
-					status: verdict.status,
-					reference: origin,
-					signature_verified: signature.verified,
-					ranges_checked: all.length,
-					semantic_checks: semanticChecks.length,
-					divergent_ranges: diverged,
-				};
-
-				output({
-					json: opts.json,
-					data: report,
-					human: () => {
-						if (diverged.length === 0) {
-							success(
-								`Local data matches the archive across ${all.length} ranges.`,
-							);
-							note(
-								signature.verified
-									? "  reference signature verified"
-									: "  reference signature NOT verified (--insecure)",
-							);
-							return;
-						}
-						warn(
-							`${diverged.length} of ${all.length} ranges diverge from the archive.`,
-						);
-						console.error("");
-						console.error(
-							formatTable(
-								["RANGE", "DATASET", "STATUS", "EXPECTED", "LOCAL"],
-								diverged.map((d) => [
-									`${d.from_block}-${d.to_block}`,
-									d.dataset,
-									statusLabel(d.status),
-									String(d.expected_rows),
-									String(d.actual_rows),
-								]),
-							),
-						);
-						console.error("");
-						console.error(
-							dim(
-								"These ranges hold different data than the signed archive. Repair with:",
-							),
-						);
-						const first = diverged[0];
-						if (first) {
+							console.error("");
 							console.error(
 								dim(
-									`  secondlayer repair --from-block ${first.from_block} --to-block ${first.to_block}`,
+									"These ranges hold different data than the signed archive. Repair with:",
 								),
 							);
-						}
-					},
-				});
+							const first = diverged[0];
+							if (first) {
+								console.error(
+									dim(
+										`  secondlayer repair --from-block ${first.from_block} --to-block ${first.to_block}`,
+									),
+								);
+							}
+						},
+					});
 
-				process.exit(
-					diverged.length === 0 ? VERIFY_EXIT.CLEAN : VERIFY_EXIT.DIVERGED,
-				);
-			} catch (err) {
-				const message = err instanceof Error ? err.message : String(err);
-				const hint = /pointer|leave the archive root/.test(message)
-					? "The archive pointer failed its integrity check. Pass --against the snapshot URL directly, and report this if the pointer is the official latest.json."
-					: /could not fetch/.test(message)
-						? "Check the archive URL and your network connection."
-						: "Set DATABASE_URL to the instance you want to verify.";
-				printError(message, { hint });
-				process.exit(VERIFY_EXIT.UNANCHORED);
-			}
-		});
+					process.exit(
+						diverged.length === 0 ? VERIFY_EXIT.CLEAN : VERIFY_EXIT.DIVERGED,
+					);
+				} catch (err) {
+					const message = err instanceof Error ? err.message : String(err);
+					const hint = /pointer|leave the archive root/.test(message)
+						? "The archive pointer failed its integrity check. Pass --against the snapshot URL directly, and report this if the pointer is the official latest.json."
+						: /could not fetch/.test(message)
+							? "Check the archive URL and your network connection."
+							: "Set DATABASE_URL to the instance you want to verify.";
+					printError(message, { hint });
+					process.exit(VERIFY_EXIT.UNANCHORED);
+				}
+			})
+	);
 }
 
 export function registerVerifyCommand(program: Command): void {
-	attachVerifyCommand(
+	const verify = attachVerifyCommand(
 		program
 			.command("verify")
 			.description(
-				"Compare local chain data against a signed archive (read-only; nothing is uploaded)",
+				"Compare local chain data against a signed archive, or prove one block with `verify block` (read-only)",
 			),
 	);
+	attachVerifyBlockCommand(verify);
 }

@@ -57,6 +57,7 @@
 	},
 	"devDependencies": {
 		"@antfu/ni": "^24.4.0",
+		"@secondlayer/verify": "workspace:*",
 		"@stacks/clarinet-sdk": "3.21.1",
 		"@types/bun": "^1.1.14",
 		"chalk": "^5.3.0",
