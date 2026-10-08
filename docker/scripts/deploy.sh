@@ -26,7 +26,7 @@ fi
 
 # Host timers run bun against this checkout (slack-gate → `ai`, staging-health).
 # Images ship their own node_modules; git reset above does not install. Without
-# this, host `ai` sat at 6.0.167 after 7.0.105 landed, `experimental_decide`
+# this, host `ai` sat at 6.0.167 after 7.0.105 landed, `experimental_evaluate`
 # crashed at import, and every page fail-opened past Jev.
 # Do not pass --production: `ai` is a root devDependency used at host runtime.
 install_host_js_deps() {
@@ -44,6 +44,7 @@ install_host_js_deps() {
 	fi
 	echo "📦 bun install --frozen-lockfile (host scripts)"
 	(cd /opt/secondlayer && "$bun_bin" install --frozen-lockfile --ignore-scripts)
+	# Smoke-import the API the shared classifier calls (experimental_decide, ai 7.0.133+).
 	(cd /opt/secondlayer && "$bun_bin" -e 'import { experimental_decide } from "ai"')
 }
 
