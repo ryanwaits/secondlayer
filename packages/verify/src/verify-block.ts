@@ -12,7 +12,7 @@ import {
 	rewardCycle,
 	verifyConsensusPreimage,
 } from "./burn.ts";
-import { type Bytes, hex, unhex } from "./bytes.ts";
+import { type Bytes, bytesEqual, hex, unhex } from "./bytes.ts";
 import { MAINNET_CHECKPOINT, type VerifyCheckpoint } from "./checkpoint.ts";
 import { type NakamotoHeader, blockId, parseNakamotoHeader } from "./header.ts";
 import { mapEntryKey } from "./keys.ts";
@@ -35,7 +35,7 @@ import {
 	type StateFailureCode,
 	verifyBlockState,
 } from "./state.ts";
-import type { WitnessLeaf } from "./witness.ts";
+import { type WitnessLeaf, parseWitness } from "./witness.ts";
 
 export type VerifyStep =
 	| "block"
@@ -292,6 +292,7 @@ export class BlockVerifier {
 			witness,
 			writes,
 			rows,
+			parentLeaves: await this.#parentLeaves(parentId, out.notes),
 			parentHolds: (leaf) => this.#parentHolds(parentId, leaf),
 		});
 		out.diff = state.diff;
@@ -349,6 +350,28 @@ export class BlockVerifier {
 			root: tip.stateIndexRoot,
 			headers,
 		});
+	}
+
+	/**
+	 * The parent's own trie leaves, from its witness checked against the
+	 * parent header. Optional evidence: when the source cannot serve it,
+	 * carried leaves fall back to per-leaf proofs (named) or stay unlabeled.
+	 */
+	async #parentLeaves(
+		parentId: string,
+		notes: string[],
+	): Promise<WitnessLeaf[] | undefined> {
+		try {
+			const parent = await this.#header(parentId, "names");
+			const w = parseWitness(await this.#source.getWitness(parentId));
+			if (bytesEqual(w.root, parent.stateIndexRoot)) return w.leaves;
+			notes.push(`parent witness ${parentId} root does not match its header`);
+		} catch (err) {
+			notes.push(
+				`parent witness ${parentId} unavailable: ${(err as Error).message}`,
+			);
+		}
+		return undefined;
 	}
 
 	/**
@@ -458,10 +481,7 @@ export class BlockVerifier {
 				continue;
 			}
 			const anchor = await this.#findAnchor(c + 1, lo, target);
-			this.#sets.set(
-				c + 1,
-				await this.#proveNextSet(c + 1, anchor, this.#sets.get(c) as SignerSet),
-			);
+			this.#sets.set(c + 1, await this.#proveNextSet(c + 1, anchor));
 			this.#anchors.set(c + 1, anchor);
 			lo = anchor;
 		}
@@ -532,20 +552,35 @@ export class BlockVerifier {
 	}
 
 	/**
-	 * Set `cycle` from `anchor`: the anchor must be signed by the previous
-	 * cycle's set, hold set `cycle` in its state (MARF proof), and be bound to
-	 * a burn block in the prepare phase, so set `cycle - 1` was the active one.
+	 * Set `cycle` from `anchor`: the anchor must be bound to a burn block in
+	 * `cycle`'s prepare phase, be signed by the set of the cycle that burn
+	 * height dictates (`cycle - 1`), and hold set `cycle` in its state (MARF
+	 * proof). Adjacent sets overlap enough that one block can clear both, so
+	 * the set is always chosen by proven burn height, never by which passes.
 	 */
-	async #proveNextSet(
-		cycle: number,
-		anchor: Probe,
-		previous: SignerSet,
-	): Promise<SignerSet> {
+	async #proveNextSet(cycle: number, anchor: Probe): Promise<SignerSet> {
 		const at = { cycle, blockId: anchor.id };
-		const sig = verifySignerSignatures(anchor.header, previous);
+		const { burnHeight } = await this.#bindBurn(
+			anchor.header,
+			"signer-set",
+			at,
+		);
+		const start = cycleStart(cycle);
+		if (burnHeight < start - MAINNET_PREPARE_LENGTH || burnHeight >= start)
+			fail({
+				step: "signer-set",
+				code: "anchor-outside-window",
+				message: `anchor burn height ${burnHeight} is outside cycle ${cycle}'s prepare phase ${start - MAINNET_PREPARE_LENGTH}..${start - 1}`,
+				...at,
+			});
+		const signing = rewardCycle(burnHeight);
+		const sig = verifySignerSignatures(
+			anchor.header,
+			this.#sets.get(signing) as SignerSet,
+		);
 		if (!sig.valid)
 			fail({
-				...signatureFailure(sig, "signer-set", cycle - 1),
+				...signatureFailure(sig, "signer-set", signing),
 				...at,
 				code: "anchor-unsigned",
 			});
@@ -588,20 +623,6 @@ export class BlockVerifier {
 				...at,
 			});
 		}
-
-		const { burnHeight } = await this.#bindBurn(
-			anchor.header,
-			"signer-set",
-			at,
-		);
-		const start = cycleStart(cycle);
-		if (burnHeight < start - MAINNET_PREPARE_LENGTH || burnHeight >= start)
-			fail({
-				step: "signer-set",
-				code: "anchor-outside-window",
-				message: `anchor burn height ${burnHeight} is outside cycle ${cycle}'s prepare phase ${start - MAINNET_PREPARE_LENGTH}..${start - 1}`,
-				...at,
-			});
 		return set;
 	}
 }

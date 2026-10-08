@@ -37,14 +37,18 @@ export const burn970269 = readJson<BurnFixture>("burn/preimage-970269.json");
 export interface FakeOptions {
 	/** Block ids the fake also serves by height: the first one at or above the asked height. */
 	heights?: string[];
-	/**
-	 * Burn heights for consensus hashes the fixtures hold no sortition
-	 * preimage for, served with an empty preimage: a search hint, never a
-	 * burn binding.
-	 */
-	burnHints?: Record<string, number>;
-	witnesses?: Record<string, Uint8Array>;
 }
+
+/** Witnesses the prod node's MARF yields for H (9,137,005) and its parent, by block id. */
+const e2eWitnesses = () =>
+	new Map(
+		readdirSync(join(DIR, "e2e"))
+			.filter((f) => f.endsWith(".witness"))
+			.map((f): [string, Uint8Array] => [
+				f.replace(/\.witness$/, ""),
+				new Uint8Array(readFileSync(join(DIR, "e2e", f))),
+			]),
+	);
 
 export class FakeSource implements ProofSource {
 	readonly log: string[] = [];
@@ -81,13 +85,14 @@ export class FakeSource implements ProofSource {
 				proof: unhex(p.proof),
 			});
 		}
-		this.preimages.set(burn970269.consensus_hash, {
-			preimage: unhex(burn970269.preimage),
-			burnHeight: burn970269.burn_height,
-		});
-		for (const [ch, burnHeight] of Object.entries(opts.burnHints ?? {}))
-			this.preimages.set(ch, { preimage: new Uint8Array(), burnHeight });
-		this.witnesses = new Map(Object.entries(opts.witnesses ?? {}));
+		for (const f of listFixtures("burn")) {
+			const b = readJson<BurnFixture>(`burn/${f}`);
+			this.preimages.set(b.consensus_hash, {
+				preimage: unhex(b.preimage),
+				burnHeight: b.burn_height,
+			});
+		}
+		this.witnesses = e2eWitnesses();
 	}
 
 	getBlock = async (ref: string | number): Promise<Uint8Array> => {

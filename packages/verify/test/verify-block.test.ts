@@ -16,8 +16,11 @@ import {
 	marfProofAncestors,
 	marfValue,
 	parseNakamotoHeader,
+	parseWitness,
+	rewardCycle,
 	unhex,
 	verifyBlock,
+	verifyConsensusPreimage,
 	verifyMarfProof,
 	verifySignerSignatures,
 } from "../src/index.ts";
@@ -27,7 +30,12 @@ import {
 	burn970269,
 	signerChain,
 } from "./fake-source.ts";
-import { type WitnessFixture, headerFile, readJson } from "./fixtures.ts";
+import {
+	type BurnFixture,
+	type WitnessFixture,
+	headerFile,
+	readJson,
+} from "./fixtures.ts";
 
 const B = signerChain.checkpoint; // 8,956,304: holds set 143
 const A = signerChain.a; // 9,055,250: cycle 143 prepare phase, holds set 144
@@ -36,6 +44,9 @@ const header = (id: string) => parseNakamotoHeader(headerFile(id));
 const chOf = (id: string) => hex(header(id).consensusHash);
 const setData = (cycle: number) =>
 	(signerChain.sets[String(cycle)]?.data as string).replace(/^0x/, "");
+const burn968449 = readJson<BurnFixture & { bitcoin_block_hash: string }>(
+	"burn/preimage-968449.json",
+);
 const BLOCK_970269 =
 	"00000000000000000001abf5e92c4e771c041ff3a9fde450c2291775641a801c";
 
@@ -93,12 +104,17 @@ describe("MAINNET_CHECKPOINT", () => {
 	});
 });
 
-describe("verifyBlock proves 9,137,005 from a cycle-144 checkpoint", () => {
-	test("bitcoin PoW, burn height, cycle and signatures pass; the missing witness is the only failure", async () => {
-		const source = new FakeSource();
-		const r = await verifyBlock(H, { source, checkpoint: checkpointA });
+describe("verifyBlock proves 9,137,005 end to end from MAINNET_CHECKPOINT", () => {
+	// Every byte is mainnet: B's baked set 143, Bitcoin 967,680..970,269, A's
+	// sortition preimage (burn 968,449, cycle 143's last prepare-phase block),
+	// the set-144 proof at A, H's preimage, and the witnesses of H and its parent.
+	const e2eSource = () => new FakeSource({ heights: [B, A, H] });
+
+	test("Bitcoin -> anchor A -> set 144 -> H's signatures -> witness root -> diff: ok", async () => {
+		const source = e2eSource();
+		const r = await verifyBlock(9137005, { source });
 		expect(r).toMatchObject({
-			ok: false,
+			ok: true,
 			height: 9137005,
 			blockId: H,
 			cycle: 144,
@@ -107,95 +123,147 @@ describe("verifyBlock proves 9,137,005 from a cycle-144 checkpoint", () => {
 			signerWeight: 2866n,
 			totalWeight: 4000n,
 			threshold: 2800n,
+			failures: [],
 		});
-		expect(r.failures).toEqual([
-			{
-				step: "witness",
-				code: "unavailable",
-				message: expect.stringContaining("no witness fixture"),
-			},
+		// 24 leaves: no state_writes on prod yet, so writes are proven but unnamed;
+		// one leaf is a copy of the parent's own trie; five are MARF bookkeeping.
+		const d = r.diff;
+		if (!d) throw new Error("no diff");
+		expect(d.named).toBe(false);
+		expect([d.writes.length, d.carried.length, d.internal.length]).toEqual([
+			18, 1, 5,
 		]);
-		// 967,681..970,269 in two batches of at most 2016.
-		expect(source.log.filter((l) => l.startsWith("bitcoin"))).toEqual([
-			"bitcoin 967681+2016",
-			"bitcoin 969697+573",
-		]);
-	});
-
-	test("by height, the block the source returns must have that height", async () => {
-		const source = new FakeSource({ heights: [H] });
-		const r = await verifyBlock(9137005, { source, checkpoint: checkpointA });
-		expect(r).toMatchObject({ blockId: H, cycle: 144, signerWeight: 2866n });
-		const wrong = await verifyBlock(9137000, {
-			source,
-			checkpoint: checkpointA,
-		});
-		expect(wrong.failures[0]).toMatchObject({
-			step: "block",
-			code: "height-mismatch",
-		});
-	});
-
-	test("blocks of one tenure reuse the burn proof and the synced Bitcoin chain", async () => {
-		const source = new FakeSource();
-		const v = new BlockVerifier({ source, checkpoint: checkpointA });
-		await v.verify(H);
-		const before = source.log.length;
-		const parent = hex(header(H).parentBlockId);
-		const r = await v.verify(parent);
-		expect(r).toMatchObject({ height: 9137004, cycle: 144 });
-		expect(r.failures.map((f) => f.step)).toEqual(["witness"]);
-		expect(source.log.slice(before)).toEqual([
-			`block ${parent}`,
-			`witness ${parent}`,
-		]);
-	});
-});
-
-describe("signer-set walk from MAINNET_CHECKPOINT (cycle 143 -> 144)", () => {
-	// The fixtures hold no sortition preimage for B's or A's consensus hash, so
-	// the fake serves burn heights for them as hints only. A's burn binding
-	// therefore cannot pass; everything before it runs on mainnet data.
-	const walkSource = () =>
-		new FakeSource({
-			heights: [B, A, H],
-			burnHints: { [chOf(B)]: 966300, [chOf(A)]: 968400 },
-		});
-
-	test("finds anchor A, checks it against set 143, proves set 144 in its state, then needs A's burn preimage", async () => {
-		const source = walkSource();
-		const r = await verifyBlock(H, { source });
-		expect(r).toMatchObject({ cycle: 144, burnHeight: 970269 });
-		expect(r.failures).toEqual([
-			{
-				step: "signer-set",
-				code: "preimage-mismatch",
-				message: expect.any(String),
-				cycle: 144,
-				blockId: A,
-			},
+		expect(d.writes.every((w) => !w.named)).toBe(true);
+		expect(r.notes).toEqual([
+			"source has no state_writes for block 9137005: 18 written leaves are proven in the block but unnamed",
 		]);
 		const path144 = signerChain.sets["144"]?.path as string;
 		expect(source.log).toEqual([
-			`block ${H}`,
+			"block 9137005",
 			`burn ${chOf(H)}`,
 			"bitcoin 967681+2016",
 			"bitcoin 969697+573",
+			// B's burn height is unknown (no hint), so the search bisects: one probe lands on A.
 			`burn ${chOf(B)}`,
-			// One interpolated probe lands in cycle 144's prepare phase.
-			"block 9051913",
+			"block 9046654",
 			`burn ${chOf(A)}`,
 			`marf ${path144}@${A}`,
 			...marfProofAncestors(
 				unhex(signerChain.sets["144"]?.proof as string),
 			).map((id) => `block ${id}`),
+			`witness ${H}`,
+			`block ${hex(header(H).parentBlockId)}`,
+			`witness ${hex(header(H).parentBlockId)}`,
 		]);
+	});
+
+	test("anchor A is bound to burn block 968,449, the last of cycle 143's prepare phase", () => {
+		expect(cycleStart(144) - 1).toBe(968449);
+		expect(rewardCycle(968449)).toBe(143);
+		expect(burn968449.stacks_block).toBe(A);
+		expect(
+			verifyConsensusPreimage(
+				header(A).consensusHash,
+				unhex(burn968449.preimage),
+			),
+		).toBe(burn968449.bitcoin_block_hash);
+	});
+
+	test("MARF height is the Stacks chain length: H's __MARF_BLOCK_HEIGHT_SELF holds 9,137,005", () => {
+		const w = parseWitness(new FakeSource().witnesses.get(H) as Uint8Array);
+		const self = w.leaves.find(
+			(l) => hex(l.path) === hex(marfPath("__MARF_BLOCK_HEIGHT_SELF")),
+		);
+		if (!self) throw new Error("no HEIGHT_SELF leaf");
+		const view = new DataView(self.valueHash.buffer, self.valueHash.byteOffset);
+		expect(view.getUint32(0, true)).toBe(9137005);
+		expect(Number(header(H).chainLength)).toBe(9137005);
+	});
+
+	test("a second block of the same cycle reuses the proven set and synced chain", async () => {
+		const source = e2eSource();
+		const v = new BlockVerifier({ source });
+		await v.verify(H);
+		const before = source.log.length;
+		const parent = hex(header(H).parentBlockId);
+		const r = await v.verify(parent);
+		expect(r).toMatchObject({ ok: true, height: 9137004, cycle: 144 });
+		// Same tenure: no burn, Bitcoin or signer-set requests. The grandparent
+		// has no fixture, so its witness is skipped with a note.
+		expect(source.log.slice(before)).toEqual([
+			`block ${parent}`,
+			`witness ${parent}`,
+			`block ${hex(header(parent).parentBlockId)}`,
+		]);
+		expect(r.notes[0]).toContain("unavailable");
+	});
+});
+
+describe("the signer set always comes from the proven burn height", () => {
+	test("overlapping sets: A also clears set 144", () => {
+		const r = verifySignerSignatures(header(A), decodeSignerSet(setData(144)));
+		expect(r.valid).toBe(true);
+	});
+
+	test("A verifies under set 143, the cycle its burn height 968,449 dictates", async () => {
+		const r = await verifyBlock(A, { source: new FakeSource() });
+		expect(r).toMatchObject({
+			cycle: 143,
+			burnHeight: 968449,
+			signerWeight: 3180n,
+		});
+		expect(r.failures.map((f) => f.step)).toEqual(["witness"]);
+	});
+
+	test("A is refused from a cycle-144 checkpoint even though set 144 would pass", async () => {
+		const r = await verifyBlock(A, {
+			source: new FakeSource(),
+			checkpoint: checkpointA,
+		});
+		expect(r.failures[0]).toMatchObject({
+			step: "signer-set",
+			code: "before-checkpoint",
+			cycle: 143,
+		});
+		expect(r.signerWeight).toBeUndefined();
+	});
+
+	test("a block in a cycle before the checkpoint's is refused", async () => {
+		const checkpoint = {
+			...checkpointA,
+			stacks: { ...checkpointA.stacks, cycle: 145 },
+		};
+		const r = await verifyBlock(H, { source: new FakeSource(), checkpoint });
+		expect(r.failures[0]).toMatchObject({
+			step: "signer-set",
+			code: "before-checkpoint",
+			cycle: 144,
+		});
+	});
+});
+
+describe("signer-set walk failures name the anchor", () => {
+	const walkSource = () => new FakeSource({ heights: [B, A, H] });
+	const path144 = signerChain.sets["144"]?.path as string;
+
+	test("an anchor preimage that does not hash to A's consensus hash", async () => {
+		const source = walkSource();
+		source.preimages.set(chOf(A), {
+			preimage: unhex(burn970269.preimage),
+			burnHeight: 968449,
+		});
+		const r = await verifyBlock(H, { source });
+		expect(r.failures[0]).toMatchObject({
+			step: "signer-set",
+			code: "preimage-mismatch",
+			cycle: 144,
+			blockId: A,
+		});
 	});
 
 	test("set 143's proof served for set 144 fails the anchor's set proof", async () => {
 		const source = walkSource();
 		const s143 = signerChain.sets["143"];
-		const path144 = signerChain.sets["144"]?.path as string;
 		source.marf.set(`${path144}@${A}`, {
 			data: s143?.data as string,
 			proof: unhex(s143?.proof as string),
@@ -233,30 +301,10 @@ describe("signer-set walk from MAINNET_CHECKPOINT (cycle 143 -> 144)", () => {
 		});
 	});
 
-	test("overlapping sets: A also clears set 144, so only its burn height fixes its cycle", () => {
-		const r = verifySignerSignatures(header(A), decodeSignerSet(setData(144)));
-		expect(r.valid).toBe(true);
-	});
-
-	test("a block in a cycle before the checkpoint's is refused", async () => {
-		const checkpoint = {
-			...checkpointA,
-			stacks: { ...checkpointA.stacks, cycle: 145 },
-		};
-		const r = await verifyBlock(H, { source: new FakeSource(), checkpoint });
-		expect(r.failures[0]).toMatchObject({
-			step: "signer-set",
-			code: "before-checkpoint",
-			cycle: 144,
-		});
-	});
-
 	test("no block in the prepare phase between the bounds fails the search", async () => {
-		const source = new FakeSource({
-			heights: [B, H],
-			burnHints: { [chOf(B)]: 966300 },
+		const r = await verifyBlock(H, {
+			source: new FakeSource({ heights: [B, H] }),
 		});
-		const r = await verifyBlock(H, { source });
 		expect(r.failures[0]).toMatchObject({
 			step: "signer-set",
 			code: "anchor-not-found",
@@ -366,9 +414,8 @@ describe("verifyBlock names the first broken link", () => {
 
 	test("a witness whose root is not the header's state root", async () => {
 		const other = readJson<WitnessFixture>("witness/witness-264.json");
-		const source = new FakeSource({
-			witnesses: { [H]: unhex(other.witness) },
-		});
+		const source = new FakeSource();
+		source.witnesses.set(H, unhex(other.witness));
 		const r = await run(source);
 		expect(r.failures).toEqual([
 			{

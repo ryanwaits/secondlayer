@@ -70,8 +70,18 @@ export interface BlockStateInput {
 	writes: StateWrite[] | null;
 	/** Indexed rows to prove against the diff. */
 	rows?: VmEventRow[];
-	/** True iff the leaf's value is stored at its path in the parent's state (proven by the caller). */
-	parentHolds: (leaf: WitnessLeaf) => Promise<boolean>;
+	/**
+	 * Leaves of the parent's own trie, from a parent witness whose root the
+	 * caller checked against the parent header: each is the parent state's
+	 * value at its path. Resolves carried leaves without a proof per leaf.
+	 */
+	parentLeaves?: WitnessLeaf[];
+	/**
+	 * True iff the leaf's value is stored at its path in the parent's state
+	 * (proven by the caller). Asked only with state_writes, for leaves the
+	 * parent's own trie does not explain.
+	 */
+	parentHolds?: (leaf: WitnessLeaf) => Promise<boolean>;
 }
 
 export interface BlockStateResult {
@@ -235,7 +245,8 @@ function checkRows(
  * recompute `stateRoot`, then every leaf is classified. With state_writes,
  * any leaf that is not a named write, a carried parent value or MARF
  * bookkeeping is a hidden write. Without them the diff is still proven
- * (every leaf is in the block) but returned unnamed.
+ * (every leaf is in the block): carried leaves are told apart only through
+ * `parentLeaves`, and the remaining writes come back unnamed.
  */
 export async function verifyBlockState(
 	input: BlockStateInput,
@@ -262,54 +273,53 @@ export async function verifyBlockState(
 	}
 	const { leaves } = witness;
 	const internal = internalEntries(input.height, input.parentBlockId, leaves);
-
-	if (input.writes === null) {
-		const d = classifyBlockDiff({
-			leaves,
-			writes: [],
-			internal,
-			parentValue: () => undefined,
-		});
-		out.diff = {
-			named: false,
-			writes: d.hidden.map((l) => ({ ...leafHex(l), named: false })),
-			carried: [],
-			internal: d.internal.map((l) => ({ ...leafHex(l), key: l.key })),
-		};
+	const named = input.writes !== null;
+	const last = lastWrites(input.writes ?? [], out.failures);
+	const writes = [...last].map(([k, w]): [string, string] => [k, w.value]);
+	// First pass with no parent values finds the leaves that need one.
+	const first = classifyBlockDiff({
+		leaves,
+		writes,
+		internal,
+		parentValue: () => undefined,
+	});
+	const inParent = new Map(
+		(input.parentLeaves ?? []).map((l) => [hex(l.path), hex(l.valueHash)]),
+	);
+	const carried = new Map<string, string>();
+	for (const leaf of first.hidden) {
+		const pathHex = hex(leaf.path);
+		if (
+			inParent.get(pathHex) === hex(leaf.valueHash) ||
+			(named && (await input.parentHolds?.(leaf)))
+		)
+			carried.set(pathHex, padded(leaf.valueHash));
+	}
+	const d = classifyBlockDiff({
+		leaves,
+		writes,
+		internal,
+		parentValue: (p) => carried.get(p),
+	});
+	out.diff = {
+		named,
+		writes: named
+			? d.writes.map((l) => ({
+					...leafHex(l),
+					key: l.key,
+					txIndex: last.get(l.key)?.txIndex ?? null,
+					named: true,
+				}))
+			: // Without names every unexplained leaf is a write we cannot label.
+				d.hidden.map((l) => ({ ...leafHex(l), named: false })),
+		carried: d.carried.map(leafHex),
+		internal: d.internal.map((l) => ({ ...leafHex(l), key: l.key })),
+	};
+	if (!named)
 		out.notes.push(
-			`source has no state_writes for block ${input.height}: ${d.hidden.length} leaves are proven in the block but unnamed (writes or carried copies)`,
+			`source has no state_writes for block ${input.height}: ${d.hidden.length} written leaves are proven in the block but unnamed`,
 		);
-	} else {
-		const last = lastWrites(input.writes, out.failures);
-		const writes = [...last].map(([k, w]): [string, string] => [k, w.value]);
-		// First pass with no parent values finds the leaves that need one.
-		const first = classifyBlockDiff({
-			leaves,
-			writes,
-			internal,
-			parentValue: () => undefined,
-		});
-		const carried = new Map<string, string>();
-		for (const leaf of first.hidden)
-			if (await input.parentHolds(leaf))
-				carried.set(hex(leaf.path), padded(leaf.valueHash));
-		const d = classifyBlockDiff({
-			leaves,
-			writes,
-			internal,
-			parentValue: (p) => carried.get(p),
-		});
-		out.diff = {
-			named: true,
-			writes: d.writes.map((l) => ({
-				...leafHex(l),
-				key: l.key,
-				txIndex: last.get(l.key)?.txIndex ?? null,
-				named: true,
-			})),
-			carried: d.carried.map(leafHex),
-			internal: d.internal.map((l) => ({ ...leafHex(l), key: l.key })),
-		};
+	else {
 		for (const l of d.hidden)
 			out.failures.push({
 				step: "names",
