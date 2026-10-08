@@ -155,6 +155,27 @@ Exit codes: `0` clean, `1` diverged, `2` unanchored (reference unreachable, sign
 
 Example: `secondlayer verify decode:ft_transfer --against ./snapshot.json --deep`
 
+### secondlayer verify block
+
+Prove one Stacks block from the checkpoint built into this release. Nothing else is trusted: every input comes from the API or a node, and a source that lies can fail a link but never pass one.
+
+Usage: `secondlayer verify block <height|index_block_hash> [--node <url>] [--checkpoint <file>] [--rows]` (add `--json` for machine output)
+
+Links, in order: Bitcoin headers from the checkpoint (proof-of-work, retargets) → burn block bound to the block's consensus hash → the cycle's signer set, proven forward from the checkpoint's → signer signatures (≥70% of weight) → state witness against the signed state root → the block's state diff → with `--rows`, the Index API's rows against that diff.
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--node <url>` | off | Read blocks and MARF proofs from this Stacks node RPC; witnesses, burn preimages, and Bitcoin headers still come from the API. |
+| `--checkpoint <file>` | built in | Trust this checkpoint JSON (`stacks.{header, cycle, signerSet}`, `bitcoin.{height, header}`) instead. |
+| `--rows` | off | Also fetch `state_writes` and `vm_events` for the block and prove them against its diff. Without it the diff is proven but its writes are unnamed. |
+| `--json` | off | Print the full verification result (`ok`, each proven value, `diff`, `failures`); signer weights are decimal strings. |
+
+Proofs come from `/v1/proofs/*` and `/v1/index/*` at `SECONDLAYER_API_URL` (or `--api-url`) with the same key as Index reads. Progress goes to stderr.
+
+Exit codes: `0` every link holds, `1` a link is broken (the first is named), `2` could not check (the source could not serve a link, or bad input).
+
+Example: `secondlayer verify block 9137005 --rows`
+
 ### secondlayer repair
 
 Replace local chain data that diverges from a signed archive. Dry-run by default. With `--apply`, a fixed block is rewritten together with its transactions and events from the archive's partitions for that height, in one transaction per partition, and all three datasets are re-verified. When the reference carries no transactions or events partition for a height, the block is rewritten alone, the run names the height with the remedy `secondlayer bootstrap --from-block H --to-block H`, and it exits 1; the stale rows underneath stay in place rather than becoming an unnamed hole.

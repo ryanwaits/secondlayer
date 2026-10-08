@@ -67,6 +67,8 @@ secondlayer observer --mode indexer
 
 `secondlayer verify [target]` compares local data to a signed archive. Target is `all`, `raw` (default), `decode:<name>`, or `subgraph:<name>`. `--quick` is identity; `--deep` is semantic; `--anchor` requires a verified signature. Flags live on [Verified archive](/docs/archive#flags).
 
+`secondlayer verify block <height|index_block_hash>` proves one Stacks block from the checkpoint built into the CLI, link by link: Bitcoin headers, burn block, signer set, signatures, state root, and state diff. Nothing else is trusted. `--rows` also proves the Index rows for the block against its diff, `--node <url>` reads blocks and MARF proofs from your node, `--checkpoint <file>` swaps the trusted starting point. Exit `0` proven, `1` a link is broken, `2` could not check.
+
 <Callout type="note" title="Signer-shared nodes skip retries">
 
 A block the node fails to deliver stays a gap. `secondlayer repair` fetches it from the archive with [archive credits](/docs/authentication#archive-credits). The full stanza: [Connect your node](/docs/self-host#connect-your-node).
