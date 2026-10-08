@@ -224,6 +224,10 @@
 		"./email": {
 			"types": "./dist/src/email/index.d.ts",
 			"import": "./dist/src/email/index.js"
+		},
+		"./classify": {
+			"types": "./dist/src/classify/index.d.ts",
+			"import": "./dist/src/classify/index.js"
 		}
 	},
 	"files": ["dist", "migrations"],
@@ -242,6 +246,14 @@
 		"kysely-postgres-js": "3.0.0",
 		"postgres": "^3.4.6",
 		"zod": "^4.3.6"
+	},
+	"peerDependencies": {
+		"ai": "7.0.133"
+	},
+	"peerDependenciesMeta": {
+		"ai": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

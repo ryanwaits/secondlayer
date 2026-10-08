@@ -59,11 +59,12 @@ const config: DefineConfigItem = defineConfig({
 		"src/node/hiro-pg-client.ts",
 		"src/node/archive-client.ts",
 		"src/email/index.ts",
+		"src/classify/index.ts",
 	],
 	format: ["esm"],
 	dts: true,
 	sourcemap: "linked",
 	minify: false,
-	external: ["kysely", "kysely-postgres-js", "postgres", "zod"],
+	external: ["ai", "kysely", "kysely-postgres-js", "postgres", "zod"],
 }) as DefineConfigItem;
 export default config;

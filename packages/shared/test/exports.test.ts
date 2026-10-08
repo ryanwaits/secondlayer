@@ -103,3 +103,9 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 	});
 });
+
+test("classify export", async () => {
+	const mod = await import("@secondlayer/shared/classify");
+	expect(mod.classify).toBeDefined();
+	expect(mod.resolveProvider).toBeDefined();
+});
