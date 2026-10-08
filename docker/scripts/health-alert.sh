@@ -34,6 +34,11 @@ CRITICAL_STATE_FILE="${HEALTH_CRITICAL_STATE_FILE:-$HEALTH_STATE_DIR/secondlayer
 # (30m) between re-pages while the stall is outstanding.
 CRITICAL_STALL_SECONDS=900
 CRITICAL_REPAGE_SECONDS=1800
+# A stall where the stacks node is at the same tip is upstream of ingest
+# (usually a chain-wide stall; mainnet has had 8-48m ones). It pages as
+# UPSTREAM, and escalates to CRITICAL on the first re-page past 60m, in case
+# it is our node that is stuck rather than the network.
+UPSTREAM_ESCALATE_SECONDS=3600
 
 INDEXER_CONTAINER="${INDEXER_CONTAINER:-secondlayer-indexer-1}"
 NODE_CONTAINER="${NODE_CONTAINER:-secondlayer-stacks-node-1}"
@@ -99,6 +104,27 @@ default_tip_query() {
     'SELECT max(height) FROM blocks WHERE canonical=true') 2>/dev/null
 }
 
+# Stacks node tip via /v2/info. The node URL comes from the env, else from the
+# indexer container (compose sets it there). Empty output = unknown.
+default_node_tip_query() {
+  local url="${STACKS_NODE_RPC_URL:-}"
+  [ -n "$url" ] || url=$(docker exec "$INDEXER_CONTAINER" printenv STACKS_NODE_RPC_URL 2>/dev/null)
+  [ -n "$url" ] || return 0
+  curl -s --max-time 10 "${url%/}/v2/info" 2>/dev/null \
+    | grep -o '"stacks_tip_height":[0-9]*' | cut -d: -f2
+}
+
+node_tip() {
+  local raw
+  if [ -n "${NODE_TIP_QUERY_CMD:-}" ]; then
+    raw=$(eval "$NODE_TIP_QUERY_CMD" 2>/dev/null || true)
+  else
+    raw=$(default_node_tip_query || true)
+  fi
+  raw=$(printf '%s' "$raw" | tr -d '[:space:]')
+  [[ "$raw" =~ ^[0-9]+$ ]] && printf '%s' "$raw"
+}
+
 if [ -n "${TIP_QUERY_CMD:-}" ]; then
   tip_raw=$(eval "$TIP_QUERY_CMD" 2>/dev/null || true)
 else
@@ -133,16 +159,35 @@ if [ -n "$prev_tip" ] && [ "$tip_value" = "$prev_tip" ]; then
   if [ "$tip_value" = "unreadable" ] || [ "$stalled_seconds" -ge "$CRITICAL_STALL_SECONDS" ]; then
     critical_exit=1
     duration_minutes=$(( stalled_seconds / 60 ))
+    upstream=0
     if [ "$tip_value" = "unreadable" ]; then
       critical_body="cannot read canonical tip — postgres unreachable for ${duration_minutes}m.
 Archive, decoders, and /v1 status cannot be confirmed."
     else
-      critical_body="chain ingest STALLED — canonical tip $tip_value unchanged for ${duration_minutes}m.
+      node_tip_value=$(node_tip)
+      if [ -n "$node_tip_value" ] && [ "$node_tip_value" -le "$tip_value" ]; then
+        if [ "$stalled_seconds" -lt "$UPSTREAM_ESCALATE_SECONDS" ]; then
+          upstream=1
+          critical_exit=0
+          critical_body="Stacks chain not advancing — node tip also $node_tip_value, ingest is caught up (${duration_minutes}m).
+Likely a chain-wide stall; escalates to CRITICAL after $(( UPSTREAM_ESCALATE_SECONDS / 60 ))m in case it is our node."
+        else
+          critical_body="Stacks node STALLED — node and canonical tip both $tip_value for ${duration_minutes}m.
+Too long for a chain-wide stall; check our node's sync and peers."
+        fi
+      else
+        critical_body="chain ingest STALLED — canonical tip $tip_value unchanged for ${duration_minutes}m (node tip ${node_tip_value:-unknown}).
 Archive, decoders, and /v1 are frozen behind it."
+      fi
     fi
 
     if [ "$prev_last_page" -eq 0 ] || [ $(( now_epoch - prev_last_page )) -ge "$CRITICAL_REPAGE_SECONDS" ]; then
-      critical_msg="🚨 CRITICAL: ${critical_body}
+      if [ "$upstream" -eq 1 ]; then
+        severity="⚠️ UPSTREAM"
+      else
+        severity="🚨 CRITICAL"
+      fi
+      critical_msg="${severity}: ${critical_body}
 First checks: docker logs $INDEXER_CONTAINER --tail 50
               docker logs $NODE_CONTAINER --tail 20"
       echo "$(date -u +%FT%TZ) $critical_msg"
