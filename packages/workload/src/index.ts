@@ -37,6 +37,7 @@ import {
 	getTenant,
 	listRunningTenants,
 } from "./control-db.ts";
+import { createFailedRequestRecorder } from "./failed-requests.ts";
 import { handleGatewayRequest } from "./gateway.ts";
 import { IntrospectClient } from "./introspect-client.ts";
 import {
@@ -118,6 +119,11 @@ async function main(): Promise<void> {
 	await ensureControlSchema(db);
 
 	const introspect = new IntrospectClient({ appServerUrl, workloadHostKey });
+	const failedRequests = createFailedRequestRecorder({
+		appServerUrl,
+		workloadHostKey,
+	});
+	const stopFailedRequests = failedRequests.start();
 	const rateLimit = createRateLimiter();
 
 	// The deployed target sha is derived from app-server's `/health`, not
@@ -235,6 +241,7 @@ async function main(): Promise<void> {
 			handleGatewayRequest(
 				{
 					introspect,
+					recordFailure: failedRequests.record,
 					resolveTenant: async (accountId) => {
 						const row = await getTenant(db, accountId);
 						if (row) ensureMeterSocket(accountId);
@@ -471,6 +478,7 @@ async function main(): Promise<void> {
 		clearInterval(memoryFlushLoop);
 		clearInterval(storageLoop);
 		clearInterval(creditsPollLoop);
+		stopFailedRequests();
 		// Before anything else stops: a tenant upgrade round is a child
 		// `docker compose up`; letting it finish avoids a half-recreated stack.
 		if (!(await upgradeRunner.drain(UPGRADE_DRAIN_MS))) {
