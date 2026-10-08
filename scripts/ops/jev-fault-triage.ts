@@ -20,7 +20,7 @@
  * including it would leak the label we are trying to reproduce.
  *
  * Design: the core is PURE (buildTriageState, triageQuestions, verdictFor,
- * summarize). IO — postgres, the AI Gateway call, the dynamic import of the
+ * summarize). IO — postgres, the classifier call, the dynamic import of the
  * indexer regex — lives in main() only, so the comparison logic is unit
  * testable with no database and no network. Run the test with:
  *
@@ -37,26 +37,32 @@
  *     FROM stage_failures ORDER BY created_at DESC LIMIT 200) t
  *   ) TO STDOUT" > failures.jsonl
  *
- * Exit codes: 0 ran and produced a summary, 2 inconclusive (missing
- * AI_GATEWAY_API_KEY, no db, or no rows to evaluate).
+ * Exit codes: 0 ran and produced a summary, 2 inconclusive (no
+ * classifier configured, no db, or no rows to evaluate).
  *
- * Env: AI_GATEWAY_API_KEY (required, .env.local is auto-loaded from repo
- * root). SOURCE_DATABASE_URL or DATABASE_URL (required unless --input).
+ * Env: classifier selection via CLASSIFIER (jev | kev | clef; default jev when
+ * AI_GATEWAY_API_KEY is set) plus the provider credentials: AI_GATEWAY_API_KEY,
+ * KEV_URL / KEV_API_KEY, CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN
+ * (.env.local is auto-loaded from repo root). SOURCE_DATABASE_URL or DATABASE_URL (required unless --input).
  * Cost: ~300-600 input tokens per failure at $0.042/M — a 25-row run is
  * well under a cent.
  */
 
-import { experimental_evaluate as evaluate } from "ai";
 import { Kysely, sql } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
+import {
+	type Answers,
+	type Question,
+	classify,
+	resolveProvider,
+} from "../../packages/shared/src/classify/index.ts";
 
 export const JEV_TRIAGE_SCHEMA_VERSION = 1 as const;
 
 const DEFAULT_SINCE_DAYS = 30;
 const DEFAULT_LIMIT = 25;
 const MAX_ERROR_CHARS = 4000;
-const JEV_MODEL = "typesafe-ai/jev";
 
 // ---------------------------------------------------------------------------
 // Domain types (pure)
@@ -182,7 +188,7 @@ export function triageQuestions() {
 				"critical: output is halted or corrupt, page someone now",
 			],
 		},
-	};
+	} satisfies Record<string, Question>;
 }
 
 export function verdictFor(opts: {
@@ -228,8 +234,10 @@ const PAGE_SEVERITY = 3;
 export function summarize(opts: {
 	verdicts: Verdict[];
 	warnings: string[];
+	/** Provider and model that produced the verdicts, e.g. "jev:typesafe-ai/jev". */
+	model: string;
 }): TriageSummary {
-	const { verdicts, warnings } = opts;
+	const { verdicts, warnings, model } = opts;
 	const evaluated = verdicts.filter((v) => v.agreement !== "skipped");
 	const count = (a: Agreement) =>
 		verdicts.filter((v) => v.agreement === a).length;
@@ -238,7 +246,7 @@ export function summarize(opts: {
 		.filter((s): s is number => s !== null);
 	return {
 		schema_version: JEV_TRIAGE_SCHEMA_VERSION,
-		model: JEV_MODEL,
+		model,
 		evaluated: evaluated.length,
 		skipped: count("skipped"),
 		agree: count("agree"),
@@ -393,60 +401,35 @@ async function loadRegexClassifier(): Promise<
 	}
 }
 
-type EvaluateResult = Awaited<ReturnType<typeof evaluate>>;
-
-function readAnswers(result: EvaluateResult): {
+export function readTriageAnswers(
+	answers: Answers<ReturnType<typeof triageQuestions>>,
+): {
 	jevClass: string | null;
 	jevProbabilities: Record<string, number> | null;
+	jevConfidence: number | null;
 	transientProbability: number | null;
 	severity: number | null;
 } {
-	const answers = result.answers as Record<
-		string,
-		{ type: string } & Record<string, unknown>
-	>;
 	const fc = answers.fault_class;
 	const tr = answers.transient;
 	const sv = answers.severity;
 	return {
-		jevClass: fc?.type === "choice" ? (fc.choice as string) : null,
-		jevProbabilities:
-			fc?.type === "choice"
-				? (fc.probabilities as Record<string, number>)
-				: null,
-		transientProbability:
-			tr?.type === "boolean" ? (tr.probability as number) : null,
-		severity: sv?.type === "score" ? (sv.score as number) : null,
+		jevClass: fc.type === "choice" ? fc.choice : null,
+		jevProbabilities: fc.type === "choice" ? fc.probabilities : null,
+		jevConfidence: fc.type === "choice" ? fc.confidence : null,
+		transientProbability: tr.type === "boolean" ? tr.probability : null,
+		severity: sv.type === "score" ? sv.score : null,
 	};
-}
-
-/** TypeSafe reports per-question confidence in provider metadata; the exact
- *  shape is not in the AI SDK docs, so read defensively. */
-function readConfidence(
-	result: EvaluateResult,
-	questionId: string,
-): number | null {
-	const meta = result.providerMetadata?.typesafe as
-		| Record<string, unknown>
-		| undefined;
-	const confidence = meta?.confidence;
-	if (typeof confidence === "number") return confidence;
-	if (confidence && typeof confidence === "object") {
-		const perQuestion = (confidence as Record<string, unknown>)[questionId];
-		if (typeof perQuestion === "number") return perQuestion;
-	}
-	return null;
 }
 
 async function main(): Promise<void> {
 	const args = parseArgs(process.argv.slice(2));
 	const warnings: string[] = [];
 
-	const apiKey = process.env.AI_GATEWAY_API_KEY;
-	if (!apiKey) {
+	const { name } = resolveProvider();
+	if (name === "rules") {
 		console.error(
-			"AI_GATEWAY_API_KEY is not set — add it to .env.local " +
-				"(Vercel dashboard → AI Gateway → API keys).",
+			"no classifier configured: set AI_GATEWAY_API_KEY, or CLASSIFIER=kev|clef with its credentials",
 		);
 		process.exit(2);
 	}
@@ -480,30 +463,18 @@ async function main(): Promise<void> {
 
 	const questions = triageQuestions();
 	const verdicts: Verdict[] = [];
+	let model = `${name}:unknown`;
+	let modelSeen = false;
 	for (const row of rows) {
 		const regexClass =
 			regexClassify && row.last_error ? regexClassify(row.last_error) : null;
-		try {
-			const result = await evaluate({
-				model: JEV_MODEL,
-				state: buildTriageState(row),
-				questions,
-			});
-			const a = readAnswers(result);
-			verdicts.push(
-				verdictFor({
-					row,
-					regexClass,
-					jevClass: a.jevClass,
-					jevProbabilities: a.jevProbabilities,
-					jevConfidence: readConfidence(result, "fault_class"),
-					transientProbability: a.transientProbability,
-					severity: a.severity,
-				}),
-			);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
-			warnings.push(`evaluate failed for ${row.stage_id}: ${message}`);
+		const result = await classify({
+			state: buildTriageState(row),
+			questions,
+			timeoutMs: 15000,
+		});
+		if (!result) {
+			warnings.push(`classifier returned no answer for ${row.stage_id}`);
 			verdicts.push(
 				verdictFor({
 					row,
@@ -515,10 +486,18 @@ async function main(): Promise<void> {
 					severity: null,
 				}),
 			);
+			continue;
 		}
+		if (!modelSeen) {
+			model = `${result.provider}:${result.modelId}`;
+			modelSeen = true;
+		}
+		verdicts.push(
+			verdictFor({ row, regexClass, ...readTriageAnswers(result.answers) }),
+		);
 	}
 
-	const summary = summarize({ verdicts, warnings });
+	const summary = summarize({ verdicts, warnings, model });
 	console.log(
 		args.json ? JSON.stringify(summary, null, 2) : formatReport(summary),
 	);

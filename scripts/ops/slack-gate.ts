@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 /**
- * Slack page gate — Jev classifies an ops message and we only POST to the
+ * Slack page gate — the configured classifier (`CLASSIFIER`, default jev when
+ * AI_GATEWAY_API_KEY is set) classifies an ops message and we only POST to the
  * webhook when the model is sure it is page-worthy.
  *
- * Thresholds live here, not in the prompt:
+ * Thresholds live here, not in the prompt, and were tuned on jev:
  *   page_now >= 0.8  AND  severity >= 3
  *
  * `--force` skips the model (health-alert CRITICAL stall — already decided).
@@ -17,13 +18,17 @@
  *   bun scripts/ops/slack-gate.ts --recovery --text "$msg"
  *   bun scripts/ops/slack-gate.ts --dry-run --text "$msg"
  *
- * Exit 0 always — a timer must not fail because Slack or Jev blipped.
+ * Exit 0 always — a timer must not fail because Slack or the classifier blipped.
  */
+
+import {
+	type Question,
+	classify,
+} from "../../packages/shared/src/classify/index.ts";
 
 export const SLACK_GATE_SCHEMA_VERSION = 1 as const;
 export const PAGE_NOW_MIN = 0.8;
 export const SEVERITY_MIN = 3;
-const JEV_MODEL = "typesafe-ai/jev";
 
 export const SLACK_GATE_QUESTIONS = {
 	kind: {
@@ -68,7 +73,7 @@ export const SLACK_GATE_QUESTIONS = {
 			"page: data plane stalled or corrupt right now",
 		],
 	},
-};
+} satisfies Record<string, Question>;
 
 export type GateDecision = {
 	post: boolean;
@@ -171,33 +176,23 @@ async function readText(args: Args): Promise<string> {
 	return await new Response(Bun.stdin.stream()).text();
 }
 
-async function classify(text: string): Promise<{
+async function classifyMessage(text: string): Promise<{
 	kind: string | null;
 	pageNow: number | null;
 	severity: number | null;
 }> {
-	if (!process.env.AI_GATEWAY_API_KEY) {
-		return { kind: null, pageNow: null, severity: null };
-	}
-	// Load inside classify so a stale host `ai` (missing experimental_evaluate)
-	// is a fail-open, not a load-time crash that skips decideGate entirely.
-	const { experimental_evaluate: evaluate } = await import("ai");
-	const result = await evaluate({
-		model: JEV_MODEL,
+	// No rules fn and no configured model: classify returns null, which keeps
+	// the fail-open path (reason: "fail_open").
+	const result = await classify({
 		state: text,
 		questions: SLACK_GATE_QUESTIONS,
 	});
-	const answers = result.answers as Record<
-		string,
-		{ type: string } & Record<string, unknown>
-	>;
-	const kind = answers.kind;
-	const page = answers.page_now;
-	const sev = answers.severity;
+	if (!result) return { kind: null, pageNow: null, severity: null };
+	const { kind, page_now, severity } = result.answers;
 	return {
-		kind: kind?.type === "choice" ? (kind.choice as string) : null,
-		pageNow: page?.type === "boolean" ? (page.probability as number) : null,
-		severity: sev?.type === "score" ? (sev.score as number) : null,
+		kind: kind.type === "choice" ? kind.choice : null,
+		pageNow: page_now.type === "boolean" ? page_now.probability : null,
+		severity: severity.type === "score" ? severity.score : null,
 	};
 }
 
@@ -221,7 +216,7 @@ async function main(): Promise<void> {
 	let severity: number | null = null;
 	if (!args.force && !args.recovery) {
 		try {
-			const classified = await classify(text);
+			const classified = await classifyMessage(text);
 			kind = classified.kind;
 			pageNow = classified.pageNow;
 			severity = classified.severity;

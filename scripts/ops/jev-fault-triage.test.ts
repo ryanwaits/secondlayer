@@ -3,6 +3,7 @@ import {
 	FAULT_TAXONOMY,
 	buildTriageState,
 	formatReport,
+	readTriageAnswers,
 	summarize,
 	triageQuestions,
 	verdictFor,
@@ -131,6 +132,7 @@ describe("summarize", () => {
 		const s = summarize({
 			verdicts: [mk("agree"), mk("agree"), mk("disagree"), mk("skipped")],
 			warnings: [],
+			model: "jev:typesafe-ai/jev",
 		});
 		expect(s.evaluated).toBe(3);
 		expect(s.agreement_rate).toBeCloseTo(2 / 3);
@@ -139,7 +141,11 @@ describe("summarize", () => {
 	});
 
 	it("returns null rate with no evaluated rows", () => {
-		const s = summarize({ verdicts: [], warnings: [] });
+		const s = summarize({
+			verdicts: [],
+			warnings: [],
+			model: "jev:typesafe-ai/jev",
+		});
 		expect(s.agreement_rate).toBeNull();
 		expect(s.mean_severity).toBeNull();
 	});
@@ -160,10 +166,53 @@ describe("formatReport", () => {
 				}),
 			],
 			warnings: ["test warning"],
+			model: "jev:typesafe-ai/jev",
 		});
 		const out = formatReport(s);
 		expect(out).toContain("disagree");
 		expect(out).toContain("decode.generic.v1");
 		expect(out).toContain("test warning");
+	});
+});
+
+describe("readTriageAnswers", () => {
+	it("maps choice, boolean and score answers", () => {
+		const r = readTriageAnswers({
+			fault_class: {
+				type: "choice",
+				choice: "version",
+				probabilities: { version: 0.8, omission: 0.2 },
+				confidence: 0.6,
+			},
+			transient: { type: "boolean", probability: 0.1, confidence: 0.8 },
+			severity: {
+				type: "score",
+				score: 2.5,
+				probabilities: { "2": 0.5, "3": 0.5 },
+				confidence: 0.5,
+			},
+		});
+		expect(r).toEqual({
+			jevClass: "version",
+			jevProbabilities: { version: 0.8, omission: 0.2 },
+			jevConfidence: 0.6,
+			transientProbability: 0.1,
+			severity: 2.5,
+		});
+	});
+
+	it("refusals give nulls", () => {
+		const r = readTriageAnswers({
+			fault_class: { type: "refusal" },
+			transient: { type: "refusal" },
+			severity: { type: "refusal" },
+		});
+		expect(r).toEqual({
+			jevClass: null,
+			jevProbabilities: null,
+			jevConfidence: null,
+			transientProbability: null,
+			severity: null,
+		});
 	});
 });
