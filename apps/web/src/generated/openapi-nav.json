@@ -57,6 +57,10 @@
 				"title": "The canonical block object"
 			},
 			{
+				"anchor": "state-write-object",
+				"title": "The state write object"
+			},
+			{
 				"anchor": "block-object",
 				"title": "The block object"
 			},
@@ -143,6 +147,11 @@
 				"anchor": "list-canonical-blocks",
 				"method": "GET",
 				"title": "Canonical block-hash map"
+			},
+			{
+				"anchor": "list-state-writes",
+				"method": "GET",
+				"title": "State writes"
 			},
 			{
 				"anchor": "list-blocks",

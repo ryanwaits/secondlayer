@@ -117,6 +117,12 @@ import {
 	getStackingResponse,
 } from "../index/stacking.ts";
 import {
+	STATE_WRITES_FILTERS,
+	type StateWritesReader,
+	getStateWritesResponse,
+	resolveStateWritesQuery,
+} from "../index/state-writes.ts";
+import {
 	type IndexTip,
 	type IndexTipProvider,
 	getIndexTip,
@@ -180,6 +186,7 @@ export type IndexRouterOptions = {
 	readFtTransfers?: FtTransfersReader;
 	readNftTransfers?: NftTransfersReader;
 	readCanonical?: CanonicalRangeReader;
+	readStateWrites?: StateWritesReader;
 	readBlocks?: BlocksReader;
 	readBlockByRef?: BlockByRefReader;
 	readTransactions?: TransactionsReader;
@@ -331,6 +338,13 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					description:
 						"Canonical block-hash map over a height range — one row per height (orphaned blocks excluded) so clients sync only the canonical chain. Returns canonical[] ({block_height, block_hash, parent_hash, burn_block_height, burn_block_hash}), next_cursor, tip.",
 					filters: CANONICAL_FILTERS,
+				},
+				{
+					path: "/v1/index/state-writes",
+					method: "GET",
+					description:
+						"The exact MARF writes each canonical block committed, in node order: {block_height, ordinal, tx_index, key, value_hex}. `block_height` reads one block. Present only from the height this instance's node subscribed to the state_writes observer key. No earlier history. Cursor: <block_height>:<ordinal>.",
+					filters: STATE_WRITES_FILTERS,
 				},
 				{
 					path: "/v1/index/blocks",
@@ -561,6 +575,27 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			next_cursor: response.next_cursor,
 		});
 		if (notModified) return notModified;
+		return c.json(response);
+	});
+
+	router.get("/state-writes", async (c) => {
+		const raw = new URL(c.req.url).searchParams;
+		validateQueryParams(raw, STATE_WRITES_FILTERS);
+		const query = resolveStateWritesQuery(raw);
+		const response = await getStateWritesResponse({
+			query,
+			tip: await getTip(),
+			readStateWrites: opts.readStateWrites,
+			readReorgs,
+		});
+		c.set("indexTip", response.tip);
+		const notModified = applyIndexCache(c, query, response.tip, {
+			state_writes: response.state_writes,
+			next_cursor: response.next_cursor,
+			reorgs: response.reorgs,
+		});
+		if (notModified) return notModified;
+		await meterRows(c, response.state_writes);
 		return c.json(response);
 	});
 

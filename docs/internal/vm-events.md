@@ -131,7 +131,7 @@ PoX-5 Index is already “the print log, not a position scoreboard.” Scoreboar
 
 The old fork's evaluator hook corrupted `var_set` / `map_*` rows. The fork's storage-layer collector (`events_keys` `"state_writes"`) replaces them for verification: `/new_block.state_writes[] = { tx_index | null, ordinal, key, value_hex }`, every changed MARF leaf in the block, in write order. `key` is the full MARF key (`vm::<contract>::0::map::<hex>`, `vm-account::<addr>::19`); `tx_index` is null for block-level writes.
 
-Ingest stores it 1:1 in `state_writes` (PK `(block_height, ordinal)`, FK `blocks` cascade, no tx FK) in the same transaction as `vm_events`: same replace-per-height, same reorg archive (`state_writes_archive`, id `block_height:ordinal`), same fork flip-back replay. Ingest only. No Index/Streams type, no archive dataset yet.
+Ingest stores it 1:1 in `state_writes` (PK `(block_height, ordinal)`, FK `blocks` cascade, no tx FK) in the same transaction as `vm_events`: same replace-per-height, same reorg archive (`state_writes_archive`, id `block_height:ordinal`), same fork flip-back replay. Read: `GET /v1/index/state-writes` (SDK `index.stateWrites`), same source tip, ordinal cursor and height-overlapped reorgs as the vm types. No Streams type, no archive dataset yet.
 
 ---
 

@@ -2516,6 +2516,56 @@
 					"result_hex": "0x0703"
 				}
 			},
+			"StateWrite": {
+				"title": "state write",
+				"type": "object",
+				"description": "One MARF write a block committed, as the node's `state_writes` observer key delivered it.",
+				"required": [
+					"cursor",
+					"block_height",
+					"ordinal",
+					"tx_index",
+					"key",
+					"value_hex"
+				],
+				"properties": {
+					"cursor": {
+						"type": "string",
+						"description": "`<block_height>:<ordinal>`. Pass as `cursor`."
+					},
+					"block_height": {
+						"type": "integer",
+						"description": "Stacks block height."
+					},
+					"ordinal": {
+						"type": "integer",
+						"description": "Position in the block's write order, from 0. A separate clock from event_index."
+					},
+					"tx_index": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"description": "The writing transaction's index in the block; null for block-level writes."
+					},
+					"key": {
+						"type": "string",
+						"description": "The full MARF key, e.g. `vm::<contract>::0::map::<hex>` or `vm-account::<address>::19`."
+					},
+					"value_hex": {
+						"type": "string",
+						"description": "The value written, hex as the node sent it."
+					}
+				},
+				"example": {
+					"cursor": "100:1",
+					"block_height": 100,
+					"ordinal": 1,
+					"tx_index": 0,
+					"key": "vm::ST3FEXKRAY93SR2MERXNSAXWGV9XSDNM1MVEFY5TH.store::0::map::0d0000000568656c6c6f",
+					"value_hex": "30313030303030303030303030303030303030303030303030303030303030303031"
+				}
+			},
 			"CanonicalBlock": {
 				"title": "canonical block",
 				"type": "object",
@@ -10781,6 +10831,146 @@
 										},
 										"tip": {
 											"$ref": "#/components/schemas/Tip"
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "A parameter, filter, cursor or body field was refused; `code` says which",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limited; retry after `Retry-After` seconds",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/index/state-writes": {
+			"get": {
+				"operationId": "listStateWrites",
+				"tags": [
+					"index"
+				],
+				"summary": "State writes",
+				"description": "The exact MARF writes each canonical block committed, in the node's write order: every changed leaf of the block's state trie, named. Oldest first; the cursor is `<block_height>:<ordinal>`. `block_height` reads one block. Present only from the height this instance's node subscribed to the `state_writes` observer key, with no earlier history. The window follows the ingest tip. `reorgs` overlaps by height.",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/Limit"
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"example": "7960000:3"
+						},
+						"description": "`<block_height>:<ordinal>` from a previous page's `next_cursor`. Resumes after it."
+					},
+					{
+						"name": "from_cursor",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Same as `cursor`. Mutually exclusive with it and with `from_height`."
+					},
+					{
+						"name": "from_height",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "First block height to read. Mutually exclusive with a cursor. With neither, the read starts one day behind the tip."
+					},
+					{
+						"name": "to_height",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Last block height to read, inclusive."
+					},
+					{
+						"name": "block_height",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Read one block: the same as `from_height` and `to_height` both set to it, which it excludes. A cursor with it must sit at that height."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Cursor-paginated envelope",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"state_writes",
+										"next_cursor",
+										"tip"
+									],
+									"properties": {
+										"state_writes": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/StateWrite"
+											}
+										},
+										"next_cursor": {
+											"type": [
+												"string",
+												"null"
+											],
+											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
+											"example": "7960000:42"
+										},
+										"tip": {
+											"$ref": "#/components/schemas/Tip"
+										},
+										"reorgs": {
+											"type": "array",
+											"description": "Reorgs that touched this page's height range. Reconcile anything you committed from a fork.",
+											"items": {
+												"$ref": "#/components/schemas/Reorg"
+											}
 										}
 									}
 								}

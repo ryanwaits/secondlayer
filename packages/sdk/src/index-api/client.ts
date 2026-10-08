@@ -487,6 +487,45 @@ export type CanonicalListParams = {
 export type CanonicalWalkParams = Omit<CanonicalListParams, "limit"> &
 	WalkOptions;
 
+// ── State writes (/v1/index/state-writes) ──────────────────────────
+
+/** One MARF write a block committed, in the node's write order. Present only
+ *  from the height the instance's node subscribed to `state_writes`. */
+export type IndexStateWrite = {
+	/** `<block_height>:<ordinal>`. */
+	cursor: string;
+	block_height: number;
+	/** Position in the block's write order: a separate clock from
+	 *  `event_index`. */
+	ordinal: number;
+	/** Null for block-level writes. */
+	tx_index: number | null;
+	/** Full MARF key, e.g. `vm::<contract>::0::map::<hex>`. */
+	key: string;
+	value_hex: string;
+};
+
+export type StateWritesEnvelope = {
+	state_writes: IndexStateWrite[];
+	next_cursor: string | null;
+	tip: IndexTip;
+	// Chain reorgs overlapping this page's heights; empty when none.
+	reorgs: IndexReorg[];
+};
+
+export type StateWritesListParams = {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	fromHeight?: number;
+	toHeight?: number;
+	/** One block. Excludes `fromHeight`/`toHeight`; a cursor must sit at it. */
+	blockHeight?: number;
+};
+
+export type StateWritesWalkParams = Omit<StateWritesListParams, "limit"> &
+	WalkOptions;
+
 // ── Blocks (/v1/index/blocks) ──────────────────────────────────────
 
 /** A block resource. Metadata is intentionally thin — only chain-linkage and
@@ -1809,6 +1848,18 @@ export class Index extends BaseClient {
 		): AsyncIterable<IndexCanonicalBlock> => this.walkCanonical(params),
 	};
 
+	/** Exact MARF writes per canonical block (`/v1/index/state-writes`). */
+	readonly stateWrites: {
+		list: (params?: StateWritesListParams) => Promise<StateWritesEnvelope>;
+		walk: (params?: StateWritesWalkParams) => AsyncIterable<IndexStateWrite>;
+	} = {
+		list: (params: StateWritesListParams = {}): Promise<StateWritesEnvelope> =>
+			this.listStateWrites(params),
+		walk: (
+			params: StateWritesWalkParams = {},
+		): AsyncIterable<IndexStateWrite> => this.walkStateWrites(params),
+	};
+
 	/** Canonical blocks: paginated `list`/`walk`, plus `get` by height or hash
 	 *  (resolves to null on 404). */
 	readonly blocks: {
@@ -2217,6 +2268,38 @@ export class Index extends BaseClient {
 			params,
 			(page) => this.listCanonical({ ...params, ...page }),
 			(e) => e.canonical,
+		);
+	}
+
+	private async listStateWrites(
+		params: StateWritesListParams & RequestSignal = {},
+	): Promise<StateWritesEnvelope> {
+		return this.request<StateWritesEnvelope>(
+			"GET",
+			`/v1/index/state-writes${buildQuery({
+				...indexPageQuery(params),
+				block_height: params.blockHeight,
+			})}`,
+			undefined,
+			{ signal: params.signal },
+		);
+	}
+
+	private walkStateWrites(
+		params: StateWritesWalkParams = {},
+	): AsyncGenerator<IndexStateWrite> {
+		return this.keysetWalk(
+			params,
+			(page) =>
+				this.listStateWrites({
+					...params,
+					...page,
+					// `blockHeight` is the window; the walk's default from_height
+					// would clash with it.
+					fromHeight:
+						params.blockHeight === undefined ? page.fromHeight : undefined,
+				}),
+			(e) => e.state_writes,
 		);
 	}
 

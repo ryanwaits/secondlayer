@@ -272,6 +272,119 @@ describe("SecondLayer Index client", () => {
 		expect(secondUrl.searchParams.get("cursor")).toBe("9000:0");
 	});
 
+	test("lists one block's state writes with auth", async () => {
+		const requests: Request[] = [];
+		globalThis.fetch = (async (input, init) => {
+			const request =
+				input instanceof Request ? input : new Request(input.toString(), init);
+			requests.push(request);
+			return jsonResponse({
+				state_writes: [
+					{
+						cursor: "100:0",
+						block_height: 100,
+						ordinal: 0,
+						tx_index: null,
+						key: "vm-account::SP1::19",
+						value_hex: "3031",
+					},
+				],
+				next_cursor: "100:0",
+				tip: TIP,
+				reorgs: [],
+			});
+		}) as typeof fetch;
+		const client = new SecondLayer({
+			baseUrl: "http://secondlayer.test",
+			apiKey: "sk-test",
+		});
+
+		const response = await client.index.stateWrites.list({
+			blockHeight: 100,
+			limit: 50,
+		});
+
+		const url = new URL(requests[0]?.url ?? "");
+		expect(url.pathname).toBe("/v1/index/state-writes");
+		expect(url.searchParams.get("block_height")).toBe("100");
+		expect(url.searchParams.get("limit")).toBe("50");
+		expect(url.searchParams.get("from_height")).toBeNull();
+		expect(requests[0]?.headers.get("Authorization")).toBe("Bearer sk-test");
+		expect(response.state_writes[0]?.tx_index).toBeNull();
+		expect(response.reorgs).toEqual([]);
+	});
+
+	test("walks one block's state writes without a clashing from_height", async () => {
+		const requests: Request[] = [];
+		const row = (ordinal: number) => ({
+			cursor: `100:${ordinal}`,
+			block_height: 100,
+			ordinal,
+			tx_index: 0,
+			key: `vm-account::SP1::${ordinal}`,
+			value_hex: "3031",
+		});
+		const pages = [
+			{
+				state_writes: [row(0), row(1)],
+				next_cursor: "100:1",
+				tip: TIP,
+				reorgs: [],
+			},
+			{ state_writes: [], next_cursor: null, tip: TIP, reorgs: [] },
+		];
+		globalThis.fetch = (async (input, init) => {
+			const request =
+				input instanceof Request ? input : new Request(input.toString(), init);
+			requests.push(request);
+			return jsonResponse(pages.shift());
+		}) as typeof fetch;
+		const client = new SecondLayer({
+			baseUrl: "http://secondlayer.test",
+			apiKey: "sk-test",
+		});
+		const seen: string[] = [];
+
+		for await (const write of client.index.stateWrites.walk({
+			blockHeight: 100,
+			batchSize: 2,
+		})) {
+			seen.push(write.cursor);
+		}
+
+		const firstUrl = new URL(requests[0]?.url ?? "");
+		const secondUrl = new URL(requests[1]?.url ?? "");
+		expect(seen).toEqual(["100:0", "100:1"]);
+		expect(firstUrl.searchParams.get("from_height")).toBeNull();
+		expect(firstUrl.searchParams.get("block_height")).toBe("100");
+		expect(secondUrl.searchParams.get("cursor")).toBe("100:1");
+		expect(secondUrl.searchParams.get("block_height")).toBe("100");
+	});
+
+	test("walks state writes from height 0 when no window is given", async () => {
+		const requests: Request[] = [];
+		globalThis.fetch = (async (input, init) => {
+			const request =
+				input instanceof Request ? input : new Request(input.toString(), init);
+			requests.push(request);
+			return jsonResponse({
+				state_writes: [],
+				next_cursor: null,
+				tip: TIP,
+				reorgs: [],
+			});
+		}) as typeof fetch;
+		const client = new SecondLayer({ baseUrl: "http://secondlayer.test" });
+
+		for await (const _ of client.index.stateWrites.walk()) {
+			// empty feed
+		}
+
+		const url = new URL(requests[0]?.url ?? "");
+		expect(url.pathname).toBe("/v1/index/state-writes");
+		expect(url.searchParams.get("from_height")).toBe("0");
+	});
+
 	test("lists blocks and fetches a single block by ref", async () => {
 		const block = {
 			cursor: "9000:0",

@@ -359,6 +359,34 @@ export const indexPaths = {
 			responses: envelopeWithoutReorgs("canonical", ref("CanonicalBlock")),
 		},
 	},
+	"/v1/index/state-writes": {
+		get: {
+			tags: ["index"],
+			summary: "State writes",
+			description:
+				"The exact MARF writes each canonical block committed, in the node's write order: every changed leaf of the block's state trie, named. Oldest first; the cursor is `<block_height>:<ordinal>`. `block_height` reads one block. Present only from the height this instance's node subscribed to the `state_writes` observer key, with no earlier history. The window follows the ingest tip. `reorgs` overlaps by height.",
+			security: READ_SECURITY,
+			parameters: [
+				LIMIT,
+				...INDEX_RANGE_PARAMS.map((p) =>
+					p.name === "cursor"
+						? {
+								...p,
+								description:
+									"`<block_height>:<ordinal>` from a previous page's `next_cursor`. Resumes after it.",
+							}
+						: p,
+				),
+				qp(
+					"block_height",
+					"integer",
+					false,
+					"Read one block: the same as `from_height` and `to_height` both set to it, which it excludes. A cursor with it must sit at that height.",
+				),
+			],
+			responses: envelope("state_writes", ref("StateWrite")),
+		},
+	},
 	"/v1/index/blocks": {
 		get: {
 			tags: ["index"],
@@ -997,6 +1025,55 @@ export const indexSchemas = {
 			],
 			result: true,
 			result_hex: "0x0703",
+		},
+	},
+	StateWrite: {
+		type: "object",
+		description:
+			"One MARF write a block committed, as the node's `state_writes` observer key delivered it.",
+		required: [
+			"cursor",
+			"block_height",
+			"ordinal",
+			"tx_index",
+			"key",
+			"value_hex",
+		],
+		properties: {
+			cursor: {
+				type: "string",
+				description: "`<block_height>:<ordinal>`. Pass as `cursor`.",
+			},
+			block_height: { type: "integer", description: "Stacks block height." },
+			ordinal: {
+				type: "integer",
+				description:
+					"Position in the block's write order, from 0. A separate clock from event_index.",
+			},
+			tx_index: {
+				type: ["integer", "null"],
+				description:
+					"The writing transaction's index in the block; null for block-level writes.",
+			},
+			key: {
+				type: "string",
+				description:
+					"The full MARF key, e.g. `vm::<contract>::0::map::<hex>` or `vm-account::<address>::19`.",
+			},
+			value_hex: {
+				type: "string",
+				description: "The value written, hex as the node sent it.",
+			},
+		},
+		// The observer contract fixture (indexer/test/fixtures/observer), verbatim.
+		example: {
+			cursor: "100:1",
+			block_height: 100,
+			ordinal: 1,
+			tx_index: 0,
+			key: "vm::ST3FEXKRAY93SR2MERXNSAXWGV9XSDNM1MVEFY5TH.store::0::map::0d0000000568656c6c6f",
+			value_hex:
+				"30313030303030303030303030303030303030303030303030303030303030303031",
 		},
 	},
 	CanonicalBlock: {
