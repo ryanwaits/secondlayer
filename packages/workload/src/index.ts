@@ -478,7 +478,7 @@ async function main(): Promise<void> {
 		clearInterval(memoryFlushLoop);
 		clearInterval(storageLoop);
 		clearInterval(creditsPollLoop);
-		stopFailedRequests();
+		await stopFailedRequests();
 		// Before anything else stops: a tenant upgrade round is a child
 		// `docker compose up`; letting it finish avoids a half-recreated stack.
 		if (!(await upgradeRunner.drain(UPGRADE_DRAIN_MS))) {

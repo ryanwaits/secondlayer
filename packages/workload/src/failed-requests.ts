@@ -32,8 +32,8 @@ export interface FailedRequestRecorder {
 	record(row: FailedRequestRecord): void;
 	/** Sends up to `maxBatch` per POST until empty; swallows errors. */
 	flush(): Promise<void>;
-	/** Starts the interval flush; the returned stop clears it and flushes once. */
-	start(): () => void;
+	/** Starts the interval flush; the returned stop clears it and resolves after the final flush. */
+	start(): () => Promise<void>;
 	size(): number;
 }
 
@@ -94,7 +94,7 @@ export function createFailedRequestRecorder(
 			const timer = setInterval(() => void flush(), flushIntervalMs);
 			return () => {
 				clearInterval(timer);
-				void flush();
+				return flush();
 			};
 		},
 		size: () => buffer.length,

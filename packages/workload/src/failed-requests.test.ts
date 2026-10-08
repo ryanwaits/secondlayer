@@ -130,8 +130,7 @@ describe("failed request recorder", () => {
 		});
 		const stop = r.start();
 		r.record(row(1));
-		stop();
-		await Bun.sleep(10);
+		await stop();
 		expect(calls.flatMap((c) => c.ids)).toEqual([row(1).request_id]);
 	});
 });
