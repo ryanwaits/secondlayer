@@ -25,6 +25,19 @@ Per-endpoint parameters and response codes: [API reference](/docs/api-reference)
 
 Cursor format is `<block_height>:<event_index>`. `tip.finalized_height` is the burn-confirmation finality boundary; rows at or below it never reorg, which is what a `finalizedOnly` consumer gates on.
 
+## Errors
+
+```json
+{
+  "error": "unknown query param: limt (did you mean limit?)",
+  "code": "VALIDATION_ERROR",
+  "request_id": "req_3f9a1c0b7d2e4a6f8b1c2d3e",
+  "feedback": { "url": "/v1/feedback" }
+}
+```
+
+Branch on `code`, not on the message. `request_id` matches the `X-Request-Id` response header (sent on every response); quote it in any report. `feedback.url` is where to report a gap: hosted points at `/v1/feedback`, self-hosted at the GitHub issue tracker.
+
 ## Pagination
 
 | Surface | Page size | Ordering |
