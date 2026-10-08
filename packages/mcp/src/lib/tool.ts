@@ -16,6 +16,41 @@ export function getRegisteredToolNames(): string[] {
 	return [...registeredToolNames];
 }
 
+/** API envelope fields worth handing back to the agent: the machine `code`,
+ *  the `request_id` to quote when reporting the failure, and where to report
+ *  it (`feedback.url`). Duck-typed: SDK errors (ApiError.body/code) and
+ *  apiRequest errors (body/code) both match; a plain Error yields {}. */
+export function envelopeFields(err: unknown): {
+	code?: string;
+	request_id?: string;
+	feedback?: { url: string };
+} {
+	if (!err || typeof err !== "object") return {};
+	const e = err as { code?: unknown; body?: unknown };
+	const body =
+		e.body && typeof e.body === "object"
+			? (e.body as Record<string, unknown>)
+			: {};
+	const code =
+		typeof e.code === "string"
+			? e.code
+			: typeof body.code === "string"
+				? body.code
+				: undefined;
+	const request_id =
+		typeof body.request_id === "string" ? body.request_id : undefined;
+	const fb = body.feedback as { url?: unknown } | undefined;
+	const feedback =
+		fb && typeof fb === "object" && typeof fb.url === "string"
+			? { url: fb.url }
+			: undefined;
+	return {
+		...(code ? { code } : {}),
+		...(request_id ? { request_id } : {}),
+		...(feedback ? { feedback } : {}),
+	};
+}
+
 /**
  * Type-safe wrapper around McpServer.tool() that avoids TS2589.
  *
@@ -57,7 +92,9 @@ export function defineTool<T>(
 				content: [
 					{
 						type: "text",
-						text: JSON.stringify({ error: { type, status, message } }),
+						text: JSON.stringify({
+							error: { type, status, message, ...envelopeFields(err) },
+						}),
 					},
 				],
 				isError: true,

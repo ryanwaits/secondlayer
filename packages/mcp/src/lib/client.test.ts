@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
 	HOSTED_KEY_HINT,
+	apiRequest,
 	getArchiveOpsClient,
 	keyHint,
 	readApiKey,
@@ -134,5 +135,51 @@ describe("hosted archive ops credentials", () => {
 		process.env.SECONDLAYER_API_KEY = "sk-sl_primary";
 		const client = getArchiveOpsClient();
 		expect(client).toBeDefined();
+	});
+});
+
+describe("apiRequest errors", () => {
+	const originalFetch = globalThis.fetch;
+	const savedUrl = process.env.SECONDLAYER_API_URL;
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+		if (savedUrl === undefined) {
+			delete process.env.SECONDLAYER_API_URL;
+		} else process.env.SECONDLAYER_API_URL = savedUrl;
+	});
+
+	async function caught(res: Response) {
+		process.env.SECONDLAYER_API_URL = "https://api.secondlayer.tools";
+		globalThis.fetch = (async () => res) as unknown as typeof fetch;
+		try {
+			await apiRequest("GET", "/x");
+		} catch (err) {
+			return err as Error & { status: number; code?: string; body?: unknown };
+		}
+		throw new Error("expected apiRequest to throw");
+	}
+
+	it("keeps the parsed body and code on a JSON error", async () => {
+		const body = {
+			error: "x",
+			code: "INVALID_COLUMN",
+			request_id: "req_abc12345",
+			feedback: { url: "/v1/feedback" },
+		};
+		const err = await caught(
+			new Response(JSON.stringify(body), { status: 400 }),
+		);
+		expect(err.status).toBe(400);
+		expect(err.code).toBe("INVALID_COLUMN");
+		expect((err.body as typeof body).request_id).toBe("req_abc12345");
+		expect(err.message).toContain("INVALID_COLUMN");
+	});
+
+	it("attaches no body or code to a plain-text error", async () => {
+		const err = await caught(new Response("Bad Gateway", { status: 502 }));
+		expect(err.status).toBe(502);
+		expect(err.body).toBeUndefined();
+		expect(err.code).toBeUndefined();
+		expect(err.message).toBe("Bad Gateway");
 	});
 });

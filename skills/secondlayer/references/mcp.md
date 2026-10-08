@@ -110,3 +110,4 @@ Resources:
 - Human-confirm delete, reindex, replay, and secret rotation.
 - Treat returned `signingSecret` values as one-time secrets.
 - Use `index_discover` / `contracts_find` to learn the vocabulary before querying.
+- When a tool fails, the error carries `code` and `request_id`. On `api.secondlayer.tools`, report a capability gap or wrong answer by POSTing `/v1/feedback` with `{ request_id, intent }` (what you were trying to answer). On a self-hosted instance, `feedback.url` points at a GitHub issue instead.

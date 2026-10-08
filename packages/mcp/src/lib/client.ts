@@ -97,11 +97,27 @@ export async function apiRequest<T>(
 	if (!res.ok) {
 		const text = await res.text().catch(() => "");
 		const needsKey = !apiKey && (res.status === 401 || res.status === 403);
+		let parsed: unknown;
+		try {
+			parsed = text ? JSON.parse(text) : undefined;
+		} catch {
+			parsed = undefined;
+		}
+		const code =
+			parsed &&
+			typeof parsed === "object" &&
+			typeof (parsed as { code?: unknown }).code === "string"
+				? (parsed as { code: string }).code
+				: undefined;
 		throw Object.assign(
 			new Error(
 				(text || `HTTP ${res.status}`) + (needsKey ? keyHint(baseUrl) : ""),
 			),
-			{ status: res.status },
+			{
+				status: res.status,
+				...(parsed !== undefined ? { body: parsed } : {}),
+				...(code ? { code } : {}),
+			},
 		);
 	}
 	if (res.status === 204) return undefined as T;
