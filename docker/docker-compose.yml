@@ -394,6 +394,15 @@ services:
       # sending and logs a warning, never throws.
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-secondlayer <noreply@secondlayer.tools>}
+      # Feedback-ticket classifier (shared classify). Unset → offline rules:
+      # undecided tickets route to human with no model answers stored.
+      CLASSIFIER: ${CLASSIFIER:-}
+      CLASSIFIER_MODEL: ${CLASSIFIER_MODEL:-}
+      AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY:-}
+      KEV_URL: ${KEV_URL:-}
+      KEV_API_KEY: ${KEV_API_KEY:-}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
