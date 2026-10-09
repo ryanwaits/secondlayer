@@ -34,6 +34,7 @@ export async function registerSubgraph(
 		handlerCode?: string;
 		sourceCode?: string;
 		pin?: string | null;
+		pinPreimage?: string | null;
 		verification?: SubgraphVerification | null;
 	},
 ): Promise<Subgraph> {
@@ -50,6 +51,7 @@ export async function registerSubgraph(
 		schema_name: data.schemaName ?? null,
 		start_block: data.startBlock ?? 0,
 		pin: data.pin ?? null,
+		pin_preimage: data.pinPreimage ?? null,
 		verification: data.verification
 			? jsonb<SubgraphVerification>(data.verification)
 			: null,
@@ -64,6 +66,7 @@ export async function registerSubgraph(
 		schema_name: data.schemaName ?? null,
 		start_block: data.startBlock ?? 0,
 		pin: values.pin,
+		pin_preimage: values.pin_preimage,
 		verification: values.verification,
 		updated_at: new Date(),
 	};
@@ -239,6 +242,7 @@ export async function updateSubgraphHandlerPath(
 		handlerCode?: string;
 		sourceCode?: string;
 		pin?: string | null;
+		pinPreimage?: string | null;
 		verification?: SubgraphVerification | null;
 	},
 ): Promise<void> {
@@ -249,6 +253,9 @@ export async function updateSubgraphHandlerPath(
 			...(opts?.handlerCode != null ? { handler_code: opts.handlerCode } : {}),
 			...(opts?.sourceCode != null ? { source_code: opts.sourceCode } : {}),
 			...(opts?.pin !== undefined ? { pin: opts.pin } : {}),
+			...(opts?.pinPreimage !== undefined
+				? { pin_preimage: opts.pinPreimage }
+				: {}),
 			...(opts?.verification !== undefined
 				? {
 						verification: opts.verification

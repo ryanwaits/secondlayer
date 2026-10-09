@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import pkg from "../package.json" with { type: "json" };
 import type { SubgraphFilter } from "../src/types.ts";
 import {
@@ -7,6 +8,7 @@ import {
 	computePin,
 	deriveVerification,
 	isDeterminismViolation,
+	pinPreimage,
 } from "../src/verification.ts";
 
 const C = "SP1HTBVD3JG9C05J7HBJTHGR0GGW7KXW28M5JS8QE.vault";
@@ -196,6 +198,20 @@ describe("computePin", () => {
 	test("stable for identical inputs", () => {
 		expect(computePin(base)).toBe(computePin({ ...base }));
 		expect(computePin(base)).toMatch(/^[0-9a-f]{64}$/);
+	});
+
+	test("is the sha256 of its stored preimage, which names every input", () => {
+		const preimage = pinPreimage(base);
+		expect(createHash("sha256").update(preimage).digest("hex")).toBe(
+			computePin(base),
+		);
+		expect(JSON.parse(preimage)).toEqual({
+			handlerHash: createHash("sha256").update(base.handlerCode).digest("hex"),
+			network: "mainnet",
+			runtime: SUBGRAPHS_RUNTIME,
+			schemaHash: base.schemaHash,
+			startBlock: 1_230_000,
+		});
 	});
 
 	test("binds the runtime version of this package", () => {

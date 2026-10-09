@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -541,5 +542,32 @@ describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
 		).json()) as { action: string; pin: string };
 		expect(edited.action).toBe("handler_updated");
 		expect(edited.pin).not.toBe(deployed.pin);
+	});
+
+	test("the source route serves the stored bundle and the preimage its pin hashes, so a client can recompute the pin", async () => {
+		const deployedBody = body(
+			VERIFIABLE,
+			STATE_SOURCE,
+			"ctx.insert('rows', { amount: 3n });",
+		);
+		const deployed = (await (await post(deployedBody)).json()) as {
+			pin: string;
+		};
+		const served = (await (
+			await app.request(`/subgraphs/${VERIFIABLE}/source`)
+		).json()) as {
+			handlerCode: string;
+			pin: string;
+			pinPreimage: string;
+		};
+		const sha = (s: string) => createHash("sha256").update(s).digest("hex");
+		expect(served.handlerCode).toBe(deployedBody.handlerCode);
+		expect(served.pin).toBe(deployed.pin);
+		expect(sha(served.pinPreimage)).toBe(served.pin);
+		expect(JSON.parse(served.pinPreimage)).toMatchObject({
+			handlerHash: sha(deployedBody.handlerCode),
+			network: "mainnet",
+			startBlock: 1,
+		});
 	});
 });

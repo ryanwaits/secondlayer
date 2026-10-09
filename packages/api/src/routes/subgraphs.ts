@@ -1630,15 +1630,29 @@ app.get("/:subgraphName/source", async (c) => {
 	const db = getDb();
 	const row = await db
 		.selectFrom("subgraphs")
-		.select(["source_code", "updated_at"])
+		.select([
+			"source_code",
+			"handler_code",
+			"pin",
+			"pin_preimage",
+			"updated_at",
+		])
 		.where("id", "=", subgraph.id)
 		.executeTakeFirst();
+	// What a replay runs and checks the pin against: the stored bundle and the
+	// canonical JSON its pin hashes. Null for local or older deploys.
+	const replayInputs = {
+		handlerCode: row?.handler_code ?? null,
+		pin: row?.pin ?? null,
+		pinPreimage: row?.pin_preimage ?? null,
+	};
 
 	if (!row || row.source_code === null) {
 		return c.json({
 			name: subgraph.name,
 			version: subgraph.version,
 			sourceCode: null,
+			...replayInputs,
 			readOnly: true,
 			reason: "deployed before source-capture — redeploy to enable chat edits",
 			updatedAt: (row?.updated_at ?? subgraph.updated_at).toISOString(),
@@ -1649,6 +1663,7 @@ app.get("/:subgraphName/source", async (c) => {
 		name: subgraph.name,
 		version: subgraph.version,
 		sourceCode: row.source_code,
+		...replayInputs,
 		readOnly: false,
 		updatedAt: row.updated_at.toISOString(),
 	});

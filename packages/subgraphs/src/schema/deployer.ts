@@ -6,7 +6,11 @@ import type {
 	SubgraphTable,
 } from "../types.ts";
 import { validateSubgraphDefinition } from "../validate.ts";
-import { type SubgraphVerification, computePin } from "../verification.ts";
+import {
+	type SubgraphVerification,
+	computePin,
+	pinPreimage,
+} from "../verification.ts";
 import {
 	TYPE_MAP,
 	emitIndexedColumnIndexDDL,
@@ -284,15 +288,19 @@ export async function deploySchema(
 	const { statements, hash } = generateSubgraphSQL(def, opts?.schemaName);
 	// Only a bundled handler is pinnable: a local deploy runs the source file
 	// in place, so there are no stored bytes for anyone to rebuild and compare.
-	const pin =
+	const pinInput =
 		opts?.handlerCode != null
-			? computePin({
+			? {
 					schemaHash: hash,
 					handlerCode: opts.handlerCode,
 					startBlock: def.startBlock,
 					network: opts.network ?? process.env.NETWORK ?? "mainnet",
-				})
+				}
 			: null;
+	const pin = pinInput ? computePin(pinInput) : null;
+	// Stored beside the pin so a client can recompute it: network and runtime
+	// are recorded nowhere else.
+	const preimage = pinInput ? pinPreimage(pinInput) : null;
 	const identity = pin ? { pin } : {};
 	const { getSubgraph, registerSubgraph } = await import(
 		"@secondlayer/shared/db/queries/subgraphs"
@@ -326,6 +334,7 @@ export async function deploySchema(
 		schemaName,
 		startBlock: def.startBlock,
 		pin,
+		pinPreimage: preimage,
 		verification: opts?.verification ?? null,
 	};
 
@@ -365,6 +374,7 @@ export async function deploySchema(
 				handlerCode: opts?.handlerCode,
 				sourceCode: opts?.sourceCode,
 				pin,
+				pinPreimage: preimage,
 				verification: opts?.verification ?? null,
 			});
 			return {

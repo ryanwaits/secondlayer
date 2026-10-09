@@ -36,6 +36,13 @@ export interface SubgraphSource {
 	name: string;
 	version: string;
 	sourceCode: string | null;
+	/** The bundled handler the runtime executes; null for local deploys. */
+	handlerCode?: string | null;
+	/** sha256 of `pinPreimage`; null for local deploys. */
+	pin?: string | null;
+	/** The canonical JSON the pin hashes (handler hash, network, runtime,
+	 *  schema hash, startBlock); null before it was stored. */
+	pinPreimage?: string | null;
 	readOnly: boolean;
 	reason?: string;
 	updatedAt: string;

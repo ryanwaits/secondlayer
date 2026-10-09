@@ -1301,7 +1301,7 @@
 					"summary": "Status of a tracked reindex/backfill operation (poll until terminal).",
 					"signature": null,
 					"file": "src/subgraphs/client.ts",
-					"line": 45
+					"line": 52
 				},
 				{
 					"name": "Subgraphs",
@@ -1309,7 +1309,7 @@
 					"summary": "",
 					"signature": "Subgraphs(options?: object): unknown",
 					"file": "src/subgraphs/client.ts",
-					"line": 148
+					"line": 155
 				},
 				{
 					"name": "SubgraphSpecFormat",

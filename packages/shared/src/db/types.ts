@@ -228,6 +228,9 @@ export interface SubgraphsTable {
 	/** sha256 over everything that shapes rows (schema, handler bundle,
 	 *  startBlock, network, runtime). NULL for unbundled or older deploys. */
 	pin: string | null;
+	/** The canonical JSON `pin` hashes, so a client can recompute it. NULL
+	 *  wherever `pin` is, and for deploys before migration 0158. */
+	pin_preimage: string | null;
 	/** Level derived at deploy. NULL (older deploys) = not verifiable. */
 	verification: SubgraphVerification | null;
 	created_at: Generated<Date>;

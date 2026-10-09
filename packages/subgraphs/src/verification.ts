@@ -286,19 +286,37 @@ function sha256(input: string): string {
 	return createHash("sha256").update(input).digest("hex");
 }
 
+/** What a pin commits to, as stored in `pin_preimage`. */
+export interface PinFields {
+	/** sha256 of the bundled handler, hex. */
+	handlerHash: string;
+	network: string;
+	runtime: string;
+	schemaHash: string;
+	startBlock: number | null;
+}
+
+/**
+ * The canonical JSON a pin is the sha256 of: fixed key order, primitives
+ * only. Stored beside the pin so anyone can recompute it from the served
+ * handler code.
+ */
+export function pinPreimage(input: PinInput): string {
+	const fields: PinFields = {
+		handlerHash: sha256(input.handlerCode),
+		network: input.network,
+		runtime: input.runtime ?? SUBGRAPHS_RUNTIME,
+		schemaHash: input.schemaHash,
+		startBlock: input.startBlock ?? null,
+	};
+	return JSON.stringify(fields);
+}
+
 /**
  * Content hash over everything that shapes a subgraph's rows. Unlike
  * `schema_hash`, it changes with the handler, `startBlock` and runtime, so
  * two deploys with the same pin produce the same rows from the same chain.
  */
 export function computePin(input: PinInput): string {
-	// Canonical JSON: fixed key order, primitives only.
-	const canonical = JSON.stringify({
-		handlerHash: sha256(input.handlerCode),
-		network: input.network,
-		runtime: input.runtime ?? SUBGRAPHS_RUNTIME,
-		schemaHash: input.schemaHash,
-		startBlock: input.startBlock ?? null,
-	});
-	return sha256(canonical);
+	return sha256(pinPreimage(input));
 }
