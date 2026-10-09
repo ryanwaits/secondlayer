@@ -198,10 +198,10 @@ export interface ProcessBlockResult {
  */
 export interface PreloadedBlockData {
 	block: import("@secondlayer/shared/db").Block;
-	txs: import("@secondlayer/shared/db").Transaction[];
+	txs: TxRecord[];
 	events: import("@secondlayer/shared/db").Event[];
-	/** Opt-in `vm_events` rows on the vm clock; see `BlockData.vmEvents`. */
-	vmEvents?: import("./batch-loader.ts").RuntimeEvent[];
+	/** Write events on the vm clock; see `BlockData.vmEvents`. */
+	vmEvents?: EventRecord[];
 }
 
 export interface ProcessBlockOptions {

@@ -207,6 +207,22 @@ export type IndexTransactionRow = {
 	smart_contract?: { contract_id: string | null } | null;
 };
 
+/** A `/v1/index/state-writes` row read with `tx_context=true`. */
+export type IndexStateWriteRow = {
+	block_height: number;
+	ordinal: number;
+	/** Null for block-level writes. */
+	tx_index: number | null;
+	key: string;
+	value_hex: string;
+	tx_id?: string | null;
+	tx_sender?: string | null;
+	tx_type?: string | null;
+	tx_status?: string | null;
+	tx_contract_id?: string | null;
+	tx_function_name?: string | null;
+};
+
 export type StreamsReorgRow = {
 	id: string;
 	detected_at: string;
@@ -437,6 +453,25 @@ export class IndexHttpClient {
 			{
 				event_type: eventType,
 				...(withTx ? { tx_context: "true" } : {}),
+				...(contractId ? { contract_id: contractId } : {}),
+			},
+		);
+	}
+
+	/** Every node storage write over the range, each with its writing tx
+	 *  (`tx_context=true`); scoped to one contract's keys when given. */
+	walkStateWrites(
+		fromHeight: number,
+		toHeight: number,
+		contractId?: string,
+	): Promise<IndexStateWriteRow[]> {
+		return this.walk<"state_writes", IndexStateWriteRow>(
+			"/v1/index/state-writes",
+			"state_writes",
+			fromHeight,
+			toHeight,
+			{
+				tx_context: "true",
 				...(contractId ? { contract_id: contractId } : {}),
 			},
 		);

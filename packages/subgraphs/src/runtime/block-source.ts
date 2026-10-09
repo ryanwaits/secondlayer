@@ -4,19 +4,29 @@ import {
 	BillingPausedError,
 	type IndexEventRow,
 	type IndexHttpClient,
+	type IndexStateWriteRow,
 	type IndexTransactionRow,
 	createInternalIndexHttpClient,
 } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
 import type { SubgraphDefinition, SubgraphFilter } from "../types.ts";
-import { type BlockData, loadBlockRange } from "./batch-loader.ts";
+import { deriveVerification } from "../verification.ts";
+import {
+	type BlockData,
+	type StateWriteFeed,
+	loadBlockRange,
+	stateWriteBlocks,
+} from "./batch-loader.ts";
 import { ObserverHttpBlockSource } from "./observer-http-source.ts";
+import { runsInRealm } from "./realm.ts";
 import {
 	reconstructBlock,
 	reconstructEvent,
 	reconstructTransaction,
 	reconstructTxFromEventRow,
 } from "./reconstruct.ts";
+import type { TxRecord } from "./source-matcher.ts";
+import type { StateWriteRow } from "./state-writes.ts";
 
 /**
  * Where the subgraph runtime reads canonical chain data. Today it taps the
@@ -140,8 +150,36 @@ export function sparseProbeTargets(
 	return targets;
 }
 
+/**
+ * The `state_writes` feed for a subgraph, or null when it keeps `vm_events`.
+ *
+ * Derived, never configured: only a subgraph running in the deterministic
+ * realm (stored level `state`) whose sources the CURRENT rules still derive
+ * as `state`. A subgraph stored as `state` before `map_insert` dropped to
+ * `events` keeps its `vm_events` feed: `state_writes` cannot tell an insert
+ * from a set, so it would silently lose those events.
+ */
+export function stateWriteFeed(
+	subgraph: SubgraphDefinition | undefined,
+): StateWriteFeed | null {
+	if (!subgraph || !runsInRealm(subgraph)) return null;
+	if (deriveVerification(subgraph).level !== "state") return null;
+	const contracts = new Set<string>();
+	for (const f of sourceFilters(subgraph)) {
+		const pinned = pinnedContracts(f);
+		// A source with no fixed contract (wildcard, factory) needs every
+		// contract's writes.
+		if (!pinned) return { contracts: null };
+		for (const id of pinned) contracts.add(id);
+	}
+	return { contracts: [...contracts] };
+}
+
 /** Reads directly from the shared indexer Postgres (the original behavior). */
 export class PostgresBlockSource implements BlockSource {
+	/** `feed`: read write events from `state_writes` (see {@link stateWriteFeed}). */
+	constructor(private readonly feed?: StateWriteFeed) {}
+
 	async getTip(): Promise<number> {
 		const progress = await getSourceDb()
 			.selectFrom("index_progress")
@@ -155,7 +193,9 @@ export class PostgresBlockSource implements BlockSource {
 		fromHeight: number,
 		toHeight: number,
 	): Promise<Map<number, BlockData>> {
-		return loadBlockRange(getSourceDb(), fromHeight, toHeight);
+		return loadBlockRange(getSourceDb(), fromHeight, toHeight, {
+			stateWrites: this.feed,
+		});
 	}
 }
 
@@ -294,6 +334,8 @@ export class PublicApiBlockSource implements BlockSource {
 		/** False for event-only subgraphs → skip walkTransactions, synthesize the
 		 *  tx from joined event context. Defaults true (safe / unchanged). */
 		private readonly needsTransactions = true,
+		/** Write events from `state_writes` instead of the vm event walks. */
+		private readonly feed?: StateWriteFeed,
 	) {}
 
 	/**
@@ -303,7 +345,11 @@ export class PublicApiBlockSource implements BlockSource {
 	 */
 	private walkTargets(): SparseProbeTarget[] {
 		const scoped = this.needsTransactions ? undefined : this.probeTargets;
-		return this.eventTypes.flatMap((eventType) => {
+		// Under a state_writes feed, write events come from the writes walk.
+		const types = this.feed
+			? this.eventTypes.filter((t) => !VM_INDEX_EVENT_TYPES.has(t))
+			: this.eventTypes;
+		return types.flatMap((eventType) => {
 			const own = scoped?.filter((t) => t.eventType === eventType);
 			return own?.length ? own : [{ eventType }];
 		});
@@ -356,7 +402,7 @@ export class PublicApiBlockSource implements BlockSource {
 		// Event-only subgraphs join tx context onto events (withTx) and skip the
 		// walkTransactions over-fetch entirely; tx-level sources fetch real txs.
 		const withTx = !this.needsTransactions;
-		const [blocks, txRows, eventLists] = await Promise.all([
+		const [blocks, txRows, eventLists, writes] = await Promise.all([
 			this.http.walkBlocks(fromHeight, toHeight),
 			this.needsTransactions
 				? this.http.walkTransactions(fromHeight, toHeight)
@@ -372,6 +418,7 @@ export class PublicApiBlockSource implements BlockSource {
 					),
 				),
 			),
+			this.feed ? this.walkWrites(fromHeight, toHeight, this.feed) : null,
 		]);
 		const events = dedupeEvents(eventLists.flat());
 
@@ -405,14 +452,73 @@ export class PublicApiBlockSource implements BlockSource {
 				bd.events.push(reconstructEvent(e));
 			}
 		}
+		if (writes) {
+			for (const [height, fed] of writes) {
+				const bd = map.get(height);
+				if (!bd) continue;
+				bd.txs.push(...fed.txs);
+				bd.vmEvents = fed.vmEvents;
+			}
+		}
 		// Canonical ordering — multi-type event walks merge here, per clock.
 		for (const bd of map.values()) {
-			bd.txs.sort((a, b) => a.tx_index - b.tx_index);
+			bd.txs.sort((a, b) => (a.tx_index ?? 0) - (b.tx_index ?? 0));
 			bd.events.sort((a, b) => a.event_index - b.event_index);
 			bd.vmEvents?.sort((a, b) => a.event_index - b.event_index);
 		}
 		return map;
 	}
+
+	/** Each height's named writes as events, the writing txs rebuilt from the
+	 *  joined `tx_*` fields. One walk per contract, merged in ordinal order. */
+	private async walkWrites(
+		fromHeight: number,
+		toHeight: number,
+		feed: StateWriteFeed,
+	): Promise<ReturnType<typeof stateWriteBlocks>> {
+		const walks = await Promise.all(
+			(feed.contracts ?? [undefined]).map((c) =>
+				this.http.walkStateWrites(fromHeight, toHeight, c),
+			),
+		);
+		const writesByHeight = new Map<number, Map<number, StateWriteRow>>();
+		const txsByHeight = new Map<number, Map<number, TxRecord>>();
+		for (const row of walks.flat()) {
+			const writes = writesByHeight.get(row.block_height) ?? new Map();
+			writes.set(row.ordinal, row);
+			writesByHeight.set(row.block_height, writes);
+			const tx = writeTx(row);
+			if (tx) {
+				const txs = txsByHeight.get(row.block_height) ?? new Map();
+				txs.set(row.tx_index as number, tx);
+				txsByHeight.set(row.block_height, txs);
+			}
+		}
+		return stateWriteBlocks(
+			new Map(
+				[...writesByHeight].map(([h, w]) => [
+					h,
+					[...w.values()].sort((a, b) => a.ordinal - b.ordinal),
+				]),
+			),
+			new Map([...txsByHeight].map(([h, t]) => [h, [...t.values()]])),
+		);
+	}
+}
+
+/** The writing tx a `tx_context=true` row carries; null for block-level
+ *  writes or a row whose tx the Index could not join. */
+function writeTx(row: IndexStateWriteRow): TxRecord | null {
+	if (row.tx_index === null || !row.tx_id) return null;
+	return {
+		tx_id: row.tx_id,
+		tx_index: row.tx_index,
+		type: row.tx_type ?? "",
+		sender: row.tx_sender ?? "",
+		status: row.tx_status ?? "",
+		contract_id: row.tx_contract_id ?? null,
+		function_name: row.tx_function_name ?? null,
+	};
 }
 
 /**
@@ -500,6 +606,12 @@ export class FallbackBlockSource implements BlockSource {
 
 const postgresBlockSource = new PostgresBlockSource();
 
+/** The Postgres tap for a subgraph: its `state_writes` feed when it has one. */
+function postgresSourceFor(subgraph?: SubgraphDefinition): BlockSource {
+	const feed = stateWriteFeed(subgraph);
+	return feed ? new PostgresBlockSource(feed) : postgresBlockSource;
+}
+
 /**
  * HTTP (Streams+Index) chain source for a set of decoded event types, wrapped so
  * it falls back to the Postgres tap when api is down. Used by the chain-trigger
@@ -561,14 +673,20 @@ export function resolveBlockSource(subgraph?: SubgraphDefinition): BlockSource {
 	) {
 		// Soft-depend on api: fall back to the Postgres tap per-call if the HTTP
 		// plane is down, so the processor keeps advancing instead of stalling.
+		const feed = stateWriteFeed(subgraph) ?? undefined;
 		return new FallbackBlockSource(
 			new PublicApiBlockSource(
 				buildHttpClient(),
 				referencedIndexEventTypes(subgraph),
-				canSparseScan(subgraph) ? sparseProbeTargets(subgraph) : undefined,
+				// The sparse probe reads vm_events; a state_writes feed walks
+				// every block instead of skipping on another table's rows.
+				canSparseScan(subgraph) && !feed
+					? sparseProbeTargets(subgraph)
+					: undefined,
 				needsTransactionData(subgraph),
+				feed,
 			),
-			postgresBlockSource,
+			postgresSourceFor(subgraph),
 		);
 	}
 	if (process.env.SUBGRAPH_SOURCE === "streams-index" && subgraph) {
@@ -576,5 +694,5 @@ export function resolveBlockSource(subgraph?: SubgraphDefinition): BlockSource {
 			subgraph: subgraph.name,
 		});
 	}
-	return postgresBlockSource;
+	return postgresSourceFor(subgraph);
 }

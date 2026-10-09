@@ -265,6 +265,15 @@ export function deterministicContext(
 
 // ── Loading ─────────────────────────────────────────────────────────────
 
+/** Definitions this module loaded into a realm. */
+const realmDefinitions = new WeakSet<SubgraphDefinition>();
+
+/** True for a definition {@link loadDeterministicDefinition} produced: a
+ *  stored `state` subgraph, whose inputs follow the realm (`state_writes`). */
+export function runsInRealm(def: SubgraphDefinition): boolean {
+	return realmDefinitions.has(def);
+}
+
 /**
  * Evaluate a bundled handler (ESM, as stored in `handler_code`) inside a
  * fresh deterministic realm and return its definition with every handler
@@ -309,5 +318,7 @@ export async function loadDeterministicDefinition(
 			return handler(event, facade);
 		};
 	}
-	return { ...def, sources, schema, handlers };
+	const loaded = { ...def, sources, schema, handlers };
+	realmDefinitions.add(loaded);
+	return loaded;
 }
