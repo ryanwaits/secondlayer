@@ -188,12 +188,14 @@ describe("verifyBlock proves 9,137,005 end to end from MAINNET_CHECKPOINT", () =
 		const parent = hex(header(H).parentBlockId);
 		const r = await v.verify(parent);
 		expect(r).toMatchObject({ ok: true, height: 9137004, cycle: 144 });
-		// Same tenure: no burn, Bitcoin or signer-set requests. The grandparent
-		// has no fixture, so its witness is skipped with a note.
+		// Same tenure: no burn, Bitcoin or signer-set requests, and the parent's
+		// header is already cached. The grandparent has no fixture (nor an epoch
+		// 2.x one), so its witness is skipped with a note.
+		const grandparent = hex(header(parent).parentBlockId);
 		expect(source.log.slice(before)).toEqual([
-			`block ${parent}`,
 			`witness ${parent}`,
-			`block ${hex(header(parent).parentBlockId)}`,
+			`block ${grandparent}`,
+			`epoch2 ${grandparent}`,
 		]);
 		expect(r.notes[0]).toContain("unavailable");
 	});

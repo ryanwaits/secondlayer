@@ -10,7 +10,7 @@ import {
 	hashAll,
 	hex,
 } from "./bytes.ts";
-import { type NakamotoHeader, blockId } from "./header.ts";
+import { type StacksHeader, blockId } from "./header.ts";
 
 /** MARFValue width: 32-byte value hash + 8 zero bytes. */
 export const MARF_VALUE_SIZE = 40;
@@ -51,6 +51,14 @@ export interface TrieNode {
 /** TrieHash::from_key: sha512/256(utf8(key)). */
 export const marfPath = (key: string): Bytes =>
 	sha512_256(new TextEncoder().encode(key));
+
+/**
+ * `__MARF_BLOCK_HEIGHT_TO_HASH::<height>` (index/marf.rs set_block_heights):
+ * block `height + 1` stores its parent's id here as a raw MARFValue, so a
+ * proof of it at any descendant names that descendant's ancestor at `height`.
+ */
+export const heightToHashKey = (height: number): string =>
+	`__MARF_BLOCK_HEIGHT_TO_HASH::${height}`;
 
 /** MARFValue::from_value: sha512/256(utf8(value)) padded to 40 bytes. */
 export function marfValue(value: string): Bytes {
@@ -329,6 +337,20 @@ export function marfProofAncestors(proof: Bytes): string[] {
 	return [...ids];
 }
 
+/**
+ * The 40-byte MARFValue a proof's leaf holds, or null for malformed bytes.
+ * Unverified: pass it to `verifyMarfProof` as `value`. For keys whose value
+ * is not a stored string (`__MARF_*` bookkeeping) this is the only copy.
+ */
+export function marfProofValue(proof: Bytes): Bytes | null {
+	try {
+		const leaf = decodeProof(proof)[0];
+		return leaf?.kind === "Leaf" ? leaf.value : null;
+	} catch {
+		return null;
+	}
+}
+
 export interface MarfProofInput {
 	/** Consensus-serialized TrieMerkleProof (`/v2/clarity/marf/<path>?proof=1`). */
 	proof: Bytes;
@@ -344,7 +366,7 @@ export interface MarfProofInput {
 	 * vouched for by header bytes (a bare root->id map would let a forged
 	 * ancestor trie through).
 	 */
-	headers: NakamotoHeader[];
+	headers: StacksHeader[];
 }
 
 /**

@@ -43,10 +43,27 @@ export interface VmEventRow {
 	raw_value?: string | null;
 }
 
+/** An epoch 2.x header and the consensus hash its index block hash commits to. */
+export interface Epoch2HeaderResponse {
+	/** Consensus-serialized StacksBlockHeader. */
+	header: Bytes;
+	consensusHash: Bytes;
+}
+
 export interface ProofSource {
 	/** Raw Nakamoto block bytes (header first), by block id or height. */
 	getBlock(ref: string | number): Promise<Bytes>;
-	/** MARF inclusion proof for a 32-byte path at `tipId`; null when the key is absent. */
+	/**
+	 * Epoch 2.x block header by index block hash: blocks below the checkpoint
+	 * from before Nakamoto. Without it only Nakamoto blocks verify.
+	 */
+	getEpoch2Header?(blockId: string): Promise<Epoch2HeaderResponse>;
+	/**
+	 * MARF inclusion proof for a 32-byte path at `tipId`; null when the key is
+	 * absent. Blocks below the checkpoint also ask for
+	 * `__MARF_BLOCK_HEIGHT_TO_HASH::<height>`, whose value is no stored string:
+	 * only `proof` is read for it.
+	 */
 	getMarfProof(
 		pathHex: string,
 		tipId: string,
@@ -129,6 +146,19 @@ const trimSlash = (s: string) => s.replace(/\/+$/, "");
 
 type MarfJson = { data: string; proof?: string; marf_proof?: string };
 
+type HeadersJson = { header?: unknown; consensus_hash?: unknown }[];
+
+/** The first entry of a node `/v2/headers/1?tip=<id>` answer: the tip itself. */
+const toEpoch2 = (url: string, j: HeadersJson | null): Epoch2HeaderResponse => {
+	const tip = required(url, j)[0];
+	if (typeof tip?.header !== "string" || typeof tip.consensus_hash !== "string")
+		throw new SourceError(url, 200, "answer needs header and consensus_hash");
+	return {
+		header: unhex(tip.header),
+		consensusHash: unhex(tip.consensus_hash),
+	};
+};
+
 const toMarf = (url: string, j: MarfJson | null): MarfProofResponse | null => {
 	if (j === null) return null;
 	const proof = j.proof ?? j.marf_proof;
@@ -182,14 +212,15 @@ async function pages<T>(
 // fields: nothing leaks through a spread, a log or JSON.stringify.
 
 /**
- * Every proof input from the Secondlayer API: `/v1/proofs/*` for blocks, MARF
- * proofs, witnesses, burn preimages and Bitcoin headers; the Index API for
+ * Every proof input from the Secondlayer API: `/v1/proofs/*` for blocks, epoch
+ * 2.x headers, MARF proofs, witnesses, burn preimages and Bitcoin headers; the Index API for
  * state_writes and vm_events, read only when verifyBlock gets `rows: true`.
  * Methods are own properties, so a partial source spreads over it:
  * `{ ...new SecondlayerProofSource(o), ...new NodeRpcProofSource(n) }`.
  */
 export class SecondlayerProofSource implements ProofSource {
 	getBlock: (ref: string | number) => Promise<Bytes>;
+	getEpoch2Header: (blockId: string) => Promise<Epoch2HeaderResponse>;
 	getMarfProof: (
 		pathHex: string,
 		tipId: string,
@@ -213,6 +244,11 @@ export class SecondlayerProofSource implements ProofSource {
 					? `${base}/v1/proofs/block/height/${ref}`
 					: `${base}/v1/proofs/block/${ref}`;
 			return required(url, await getBytes(url, http));
+		};
+
+		this.getEpoch2Header = async (blockId) => {
+			const url = `${base}/v1/proofs/epoch2-header/${blockId}`;
+			return toEpoch2(url, await getJson<HeadersJson>(url, http));
 		};
 
 		this.getMarfProof = async (pathHex, tipId) => {
@@ -270,13 +306,15 @@ export interface NodeRpcSourceOptions {
 }
 
 /**
- * Blocks and MARF proofs straight from a Stacks node's RPC. Witnesses, burn
- * preimages and Bitcoin headers need another source: spread this over one.
+ * Blocks, epoch 2.x headers and MARF proofs straight from a Stacks node's RPC.
+ * Witnesses, burn preimages and Bitcoin headers need another source: spread
+ * this over one.
  */
 export class NodeRpcProofSource
-	implements Pick<ProofSource, "getBlock" | "getMarfProof">
+	implements Pick<ProofSource, "getBlock" | "getEpoch2Header" | "getMarfProof">
 {
 	getBlock: (ref: string | number) => Promise<Bytes>;
+	getEpoch2Header: (blockId: string) => Promise<Epoch2HeaderResponse>;
 	getMarfProof: (
 		pathHex: string,
 		tipId: string,
@@ -292,6 +330,11 @@ export class NodeRpcProofSource
 					? `${base}/v3/blocks/height/${ref}`
 					: `${base}/v3/blocks/${ref}`;
 			return required(url, await getBytes(url, http));
+		};
+
+		this.getEpoch2Header = async (blockId) => {
+			const url = `${base}/v2/headers/1?tip=${blockId}`;
+			return toEpoch2(url, await getJson<HeadersJson>(url, http));
 		};
 
 		this.getMarfProof = async (pathHex, tipId) => {

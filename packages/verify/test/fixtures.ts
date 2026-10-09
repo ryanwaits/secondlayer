@@ -3,10 +3,13 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
-	type NakamotoHeader,
+	type Epoch2Header,
+	type StacksHeader,
 	blockId,
 	hex,
+	parseEpoch2Header,
 	parseNakamotoHeader,
+	unhex,
 } from "../src/index.ts";
 
 const DIR = join(import.meta.dir, "fixtures");
@@ -14,13 +17,24 @@ const DIR = join(import.meta.dir, "fixtures");
 export const readJson = <T>(rel: string): T =>
 	JSON.parse(readFileSync(join(DIR, rel), "utf8")) as T;
 
-/** Every fixture header, keyed by its recomputed block id. */
-export function loadHeaders(): Map<string, NakamotoHeader> {
-	const out = new Map<string, NakamotoHeader>();
+/** A node `/v2/headers` entry: hex header, consensus hash and parent id. */
+export interface Epoch2Fixture {
+	header: string;
+	consensus_hash: string;
+	parent_block_id: string;
+}
+
+/** Every fixture header, Nakamoto and epoch 2.x, keyed by its recomputed block id. */
+export function loadHeaders(): Map<string, StacksHeader> {
+	const out = new Map<string, StacksHeader>();
 	for (const f of readdirSync(join(DIR, "headers"))) {
 		const h = parseNakamotoHeader(
 			new Uint8Array(readFileSync(join(DIR, "headers", f))),
 		);
+		out.set(hex(blockId(h)), h);
+	}
+	for (const id of epoch2Ids()) {
+		const h = epoch2Header(id);
 		out.set(hex(blockId(h)), h);
 	}
 	return out;
@@ -28,6 +42,18 @@ export function loadHeaders(): Map<string, NakamotoHeader> {
 
 export const headerFile = (id: string): Uint8Array =>
 	new Uint8Array(readFileSync(join(DIR, "headers", `${id}.bin`)));
+
+/** Ids of the mainnet epoch 2.x headers (`epoch2/<id>.json`). */
+export const epoch2Ids = (): string[] =>
+	readdirSync(join(DIR, "epoch2")).map((f) => f.replace(/\.json$/, ""));
+
+export const epoch2File = (id: string): Epoch2Fixture =>
+	readJson<Epoch2Fixture>(`epoch2/${id}.json`);
+
+export const epoch2Header = (id: string): Epoch2Header => {
+	const f = epoch2File(id);
+	return parseEpoch2Header(unhex(f.header), unhex(f.consensus_hash));
+};
 
 export const listFixtures = (dir: string): string[] =>
 	readdirSync(join(DIR, dir))

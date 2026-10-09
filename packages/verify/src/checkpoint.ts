@@ -9,8 +9,9 @@
 //    `cycle-signer-set[C]` with its proof at X (`/v2/clarity/marf/<path>?tip=X&proof=1`,
 //    key `mapEntryKey(SIGNERS_CONTRACT, "cycle-signer-set", uintCV(C))`).
 // 3. Bitcoin: the retarget-period start (a multiple of 2016) at or below C's
-//    first burn block, 666050 + 2100 * C. Blocks whose burn height is below
-//    the Bitcoin checkpoint cannot be verified.
+//    first burn block, 666050 + 2100 * C. Blocks above X whose burn height
+//    is below the Bitcoin checkpoint cannot be verified; blocks below X are
+//    verified by hash chain from X instead.
 // 4. Add X's header, its proof ancestors and the set proof to test/fixtures:
 //    the checkpoint test re-proves the baked set against X.
 import type { Checkpoint } from "./bitcoin/chain.ts";
@@ -31,8 +32,8 @@ export interface VerifyCheckpoint {
 /**
  * Mainnet: Stacks block 8,956,304 (`3914ea5f…74bb`) holding the cycle 143
  * signer set (29 signers, weight 4000), and Bitcoin block 967,680 (a
- * retarget-period start inside cycle 143). Verifies blocks whose burn
- * height is 967,680 or later.
+ * retarget-period start inside cycle 143). Later blocks verify forward
+ * (burn height 967,680 or later); earlier ones by hash chain from 8,956,304.
  */
 export const MAINNET_CHECKPOINT: VerifyCheckpoint = {
 	stacks: {

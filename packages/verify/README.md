@@ -9,6 +9,13 @@ checkpoint -> Bitcoin headers (proof of work) -> burn block -> signer set (MARF 
            -> header signatures (70% of signer weight) -> state witness (state root) -> state diff
 ```
 
+Blocks below the checkpoint take a shorter chain. The checkpoint's header commits to every ancestor by hash, so no signatures are needed:
+
+```
+checkpoint -> block id at that height (parent links, or one MARF proof) -> header hashes to the id
+           -> state witness (state root) -> state diff
+```
+
 Every byte comes from a source you don't have to trust. A lying source can make a link fail, never pass. Powers `secondlayer verify block` in [`@secondlayer/cli`](https://www.npmjs.com/package/@secondlayer/cli).
 
 ## Install
@@ -43,6 +50,8 @@ const source = {
 };
 ```
 
+Heights below the checkpoint need no extra options: `verifyBlock(150_000, { source })` derives the direction. Within 16 blocks of a trusted block the verifier follows `parent_block_id` links. Farther down it asks the source for one MARF proof of `__MARF_BLOCK_HEIGHT_TO_HASH::<height>` at the checkpoint: each block writes its parent's id there, so the proof names the ancestor and is checked against the checkpoint's state root. Pre-Nakamoto (2.x) blocks need a source with `getEpoch2Header`, which both sources here implement.
+
 `verifyBlock` never throws for bad source data: it returns `ok: false` with `failures`, the first entry being the first broken link. Use `BlockVerifier` to verify many blocks from one checkpoint and reuse the synced Bitcoin headers and proven signer sets.
 
 By default only proofs are read, and proofs are free. Pass `rows: true` to also name every write and check the indexed rows: the source's `state_writes` and `vm_events` reads bill as Index rows on the Secondlayer API.
@@ -62,11 +71,14 @@ await verifyBlock(9_137_005, { source, rows: true });
 | Its state | the witness recomputes the header's state root |
 | Every key it wrote | `rows: true` and a source with `state_writes`: each written leaf is named, nothing hidden |
 | Indexed rows | `rows: true`: each `vm_events` row matches a leaf the block wrote |
+| Below the checkpoint: it is the checkpoint chain's block at that height | parent links or a MARF proof from the checkpoint's state root, then the header (Nakamoto or 2.x) hashes to that id |
 
 ## What it trusts, and what it doesn't cover
 
 - **The checkpoint.** `MAINNET_CHECKPOINT` (Stacks block 8,956,304, cycle 143 signers, Bitcoin block 967,680) is trusted as-is. Pass `checkpoint` to use your own.
-- **Bitcoin heights.** Blocks whose burn height is below the checkpoint's Bitcoin block can't be verified. Headers are checked for valid work, not compared against a competing chain, and reorgs past the synced tip are not followed.
+- **Bitcoin heights.** At or above the checkpoint, a block's burn block must be at or above the checkpoint's Bitcoin block. Below the checkpoint the burn block is checked only when it is (with the baked checkpoint it never is); the hash chain pins those blocks instead. Headers are checked for valid work, not compared against a competing chain, and reorgs past the synced tip are not followed.
+- **MARF proofs of `__MARF_*` keys.** The node's `/v2/clarity/marf` (also behind the API's `/v1/proofs/marf`) answers only keys with a stored value string, and these have none. Until a source serves them, blocks more than 16 below a trusted block fail `ancestry` as `unavailable`.
+- **Epoch 2.x consensus hashes.** A 2.x header commits to its parent's block hash, not its id. The id always comes from a trusted descendant (its header, or a MARF proof), and the source's consensus hash must hash with the header to it. State proofs for 2.x heights are against the anchored block's root, which covers the microblocks it confirms.
 - **Names need `rows: true` and `state_writes`.** Without them every write is still proven, but unnamed; `notes` says so.
 - **Not covered:** print events (Stacks headers don't commit to them) and transaction contents.
 

@@ -36,6 +36,10 @@ describe("SecondlayerProofSource", () => {
 		if (p === `/v1/proofs/block/${ID}`) return bytes(Uint8Array.of(1, 2));
 		if (p === "/v1/proofs/block/height/7") return bytes(Uint8Array.of(7));
 		if (p === `/v1/proofs/witness/${ID}`) return bytes(Uint8Array.of(3));
+		if (p === `/v1/proofs/epoch2-header/${ID}`)
+			return json([
+				{ header: "0700", consensus_hash: "dd", parent_block_id: ID },
+			]);
 		if (p.startsWith("/v1/proofs/marf/aa"))
 			return json({ data: "0x01", proof: "0a0b" });
 		if (p.startsWith("/v1/proofs/marf/")) return json({ error: "nf" }, 404);
@@ -64,6 +68,10 @@ describe("SecondlayerProofSource", () => {
 		expect(await s.getBlock(ID)).toEqual(Uint8Array.of(1, 2));
 		expect(await s.getBlock(7)).toEqual(Uint8Array.of(7));
 		expect(await s.getWitness(ID)).toEqual(Uint8Array.of(3));
+		expect(await s.getEpoch2Header(ID)).toEqual({
+			header: Uint8Array.of(7, 0),
+			consensusHash: Uint8Array.of(0xdd),
+		});
 		expect(await s.getMarfProof("aa", ID)).toEqual({
 			data: "0x01",
 			proof: Uint8Array.of(10, 11),
@@ -77,6 +85,7 @@ describe("SecondlayerProofSource", () => {
 			`${BASE}/v1/proofs/block/${ID}`,
 			`${BASE}/v1/proofs/block/height/7`,
 			`${BASE}/v1/proofs/witness/${ID}`,
+			`${BASE}/v1/proofs/epoch2-header/${ID}`,
 			`${BASE}/v1/proofs/marf/aa?tip=${ID}`,
 			`${BASE}/v1/proofs/burn/cc`,
 			`${BASE}/v1/proofs/bitcoin-headers?from=967681&count=1`,
@@ -92,6 +101,8 @@ describe("SecondlayerProofSource", () => {
 		});
 		expect(await s.getMarfProof("bb", ID)).toBeNull();
 		await expect(s.getWitness("ff")).rejects.toBeInstanceOf(SourceError);
+		// A Nakamoto or unknown id has no 2.x header: an error, never a guess.
+		await expect(s.getEpoch2Header("ff")).rejects.toBeInstanceOf(SourceError);
 	});
 
 	test("a busy witness slot is retried after retry-after", async () => {
@@ -171,11 +182,13 @@ describe("SecondlayerProofSource", () => {
 });
 
 describe("NodeRpcProofSource", () => {
-	test("reads blocks and MARF proofs from node RPC and spreads over another source", async () => {
+	test("reads blocks, 2.x headers and MARF proofs from node RPC and spreads over another source", async () => {
 		const node = mockFetch((url) => {
 			if (url.pathname === `/v3/blocks/${ID}`) return bytes(Uint8Array.of(4));
 			if (url.pathname === "/v3/blocks/height/8")
 				return bytes(Uint8Array.of(8));
+			if (url.pathname === "/v2/headers/1")
+				return json([{ header: "0701", consensus_hash: "ee" }]);
 			return json({ data: "0x02", marf_proof: "0c" });
 		});
 		const api = mockFetch(() => bytes(Uint8Array.of(5)));
@@ -197,10 +210,13 @@ describe("NodeRpcProofSource", () => {
 			proof: Uint8Array.of(12),
 		});
 		expect(hex(await source.getWitness(ID))).toBe("05");
+		const e2 = await source.getEpoch2Header?.(ID);
+		expect(e2 && hex(e2.header)).toBe("0701");
 		expect(node.calls.map((c) => c.url)).toEqual([
 			`http://node:20443/v3/blocks/${ID}`,
 			"http://node:20443/v3/blocks/height/8",
 			`http://node:20443/v2/clarity/marf/aa?tip=${ID}&proof=1`,
+			`http://node:20443/v2/headers/1?tip=${ID}`,
 		]);
 		expect(api.calls.map((c) => c.url)).toEqual([
 			`${BASE}/v1/proofs/witness/${ID}`,

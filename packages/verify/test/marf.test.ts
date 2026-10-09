@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
-	type NakamotoHeader,
+	type StacksHeader,
 	hex,
+	isEpoch2Header,
 	marfPath,
 	marfValue,
 	unhex,
@@ -18,10 +19,10 @@ const headers = loadHeaders();
 
 const cases = listFixtures("proofs").map((f) => {
 	const fx = readJson<ProofFixture>(`proofs/${f}`);
-	const tip = headers.get(fx.tip) as NakamotoHeader;
+	const tip = headers.get(fx.tip) as StacksHeader;
 	// Tip plus every ancestor the fixture's proof crosses, all from header bytes.
 	const ids = new Set([fx.tip, ...Object.values(fx.root_to_block)]);
-	const chain = [...ids].map((id) => headers.get(id) as NakamotoHeader);
+	const chain = [...ids].map((id) => headers.get(id) as StacksHeader);
 	return { name: f.slice(0, -5), fx, tip, chain };
 });
 
@@ -30,6 +31,13 @@ describe("verifyMarfProof", () => {
 		const hops = cases.map((c) => Object.keys(c.fx.root_to_block).length);
 		expect(Math.min(...hops)).toBe(1);
 		expect(Math.max(...hops)).toBeGreaterThan(1);
+	});
+
+	test("one proof at the checkpoint crosses into an epoch 2.x trie (block 64,819)", () => {
+		const crossing = cases.filter((c) => c.chain.some(isEpoch2Header));
+		expect(crossing.map((c) => c.name)).toEqual(["3914ea5f-f1fcd736bd11"]);
+		const e2 = crossing[0]?.chain.find(isEpoch2Header);
+		expect(e2?.chainLength).toBe(64819n);
 	});
 
 	for (const { name, fx, tip, chain } of cases) {

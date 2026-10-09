@@ -2,7 +2,12 @@
 // header root, every leaf of its trie named, and indexed rows against the diff.
 import { type Bytes, bytesEqual, hex, unhex } from "./bytes.ts";
 import { dataVarKey } from "./keys.ts";
-import { MARF_VALUE_SIZE, marfPath, marfValue } from "./marf.ts";
+import {
+	MARF_VALUE_SIZE,
+	heightToHashKey,
+	marfPath,
+	marfValue,
+} from "./marf.ts";
 import type { StateWrite, VmEventRow } from "./source.ts";
 import {
 	type WitnessLeaf,
@@ -93,7 +98,6 @@ export interface BlockStateResult {
 
 const INTERNAL = {
 	self: "__MARF_BLOCK_HEIGHT_SELF",
-	heightToHash: "__MARF_BLOCK_HEIGHT_TO_HASH",
 	hashToHeight: "__MARF_BLOCK_HASH_TO_HEIGHT",
 } as const;
 
@@ -118,7 +122,7 @@ function internalEntries(
 	leaves: WitnessLeaf[],
 ): [key: string, valueHex: string][] {
 	const out: [string, string][] = [[INTERNAL.self, heightValue(height)]];
-	const ownKey = `${INTERNAL.heightToHash}::${height}`;
+	const ownKey = heightToHashKey(height);
 	const ownPath = marfPath(ownKey);
 	const own = leaves.find((l) => bytesEqual(l.path, ownPath));
 	if (own) {
@@ -129,10 +133,7 @@ function internalEntries(
 		]);
 	}
 	if (height > 0) {
-		out.push([
-			`${INTERNAL.heightToHash}::${height - 1}`,
-			padded(parentBlockId),
-		]);
+		out.push([heightToHashKey(height - 1), padded(parentBlockId)]);
 		out.push([
 			`${INTERNAL.hashToHeight}::${hex(parentBlockId)}`,
 			heightValue(height - 1),

@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
 	type BurnPreimage,
+	type Epoch2HeaderResponse,
 	type MarfProofResponse,
 	type ProofSource,
 	parseNakamotoHeader,
@@ -13,6 +14,8 @@ import {
 	type BurnFixture,
 	type ProofFixture,
 	type SignerChainFixture,
+	epoch2File,
+	epoch2Ids,
 	headerFile,
 	listFixtures,
 	readJson,
@@ -57,6 +60,16 @@ export class FakeSource implements ProofSource {
 		readdirSync(join(DIR, "headers")).map((f) => {
 			const id = f.replace(/\.bin$/, "");
 			return [id, headerFile(id)];
+		}),
+	);
+	/** Mainnet epoch 2.x headers by block id, as node `/v2/headers` serves them. */
+	readonly epoch2 = new Map<string, Epoch2HeaderResponse>(
+		epoch2Ids().map((id) => {
+			const f = epoch2File(id);
+			return [
+				id,
+				{ header: unhex(f.header), consensusHash: unhex(f.consensus_hash) },
+			];
 		}),
 	);
 	readonly byHeight: [number, string][];
@@ -104,6 +117,13 @@ export class FakeSource implements ProofSource {
 		const raw = id && this.blocks.get(id);
 		if (!raw) throw new Error(`no fixture block ${ref}`);
 		return raw;
+	};
+
+	getEpoch2Header = async (id: string): Promise<Epoch2HeaderResponse> => {
+		this.log.push(`epoch2 ${id}`);
+		const h = this.epoch2.get(id);
+		if (!h) throw new Error(`no epoch 2.x fixture ${id}`);
+		return h;
 	};
 
 	getMarfProof = async (pathHex: string, tipId: string) => {

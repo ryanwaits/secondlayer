@@ -2,8 +2,12 @@
 // against Nakamoto headers with zero trust in the serving node.
 export { type Bytes, hex, unhex } from "./bytes.ts";
 export {
+	type Epoch2Header,
 	type NakamotoHeader,
+	type StacksHeader,
 	blockId,
+	isEpoch2Header,
+	parseEpoch2Header,
 	parseNakamotoHeader,
 	signerSignatureHash,
 } from "./header.ts";
@@ -48,6 +52,7 @@ export {
 export { MAINNET_CHECKPOINT, type VerifyCheckpoint } from "./checkpoint.ts";
 export {
 	type BurnPreimage,
+	type Epoch2HeaderResponse,
 	type MarfProofResponse,
 	NodeRpcProofSource,
 	type NodeRpcSourceOptions,
@@ -69,6 +74,7 @@ export {
 	verifyBlockState,
 } from "./state.ts";
 export {
+	type Ancestry,
 	type BlockVerification,
 	BlockVerifier,
 	type VerifyFailure,
