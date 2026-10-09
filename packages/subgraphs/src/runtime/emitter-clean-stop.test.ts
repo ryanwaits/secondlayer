@@ -32,10 +32,14 @@ const accountId = randomUUID();
 // (and, in the last case, the deadline it's given) drives the timing here.
 const ABSURDLY_LONG_POLL_MS = 5 * 60_000;
 
+// By id, not account: OSS mode stores every webhook with account_id "".
+const webhookIds: string[] = [];
+
 afterAll(async () => {
 	// webhook_outbox and webhook_deliveries both cascade on webhook delete
 	// (migration 0140 added the FK for deliveries) — one cleanup path.
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	if (webhookIds.length === 0) return;
+	await db.deleteFrom("webhooks").where("id", "in", webhookIds).execute();
 });
 
 async function waitFor(
@@ -76,6 +80,7 @@ describe("stopEmitter waits for in-flight work before resolving", () => {
 				timeoutMs: 5_000,
 				concurrency: 1,
 			});
+			webhookIds.push(webhook.id);
 
 			await db
 				.insertInto("webhook_outbox")
@@ -133,16 +138,22 @@ describe("stopEmitter waits for in-flight work before resolving", () => {
 	it("bounds the drain and reports the abandoned dispatch when a receiver never responds", async () => {
 		const STOP_DEADLINE_MS = 300;
 		let receivedCount = 0;
+		// Held past the stop deadline to pin the abandon path, then released in
+		// `finally` so the abandoned dispatch settles before cleanup runs.
+		let releaseReceiver = () => {};
+		const receiverHeld = new Promise<void>((resolve) => {
+			releaseReceiver = resolve;
+		});
 		const server = Bun.serve({
 			port: 0,
 			async fetch(req) {
 				await req.text();
 				receivedCount++;
-				// Never resolves within this test's window — pins the abandon path.
-				await new Promise(() => {});
-				return new Response("unreachable");
+				await receiverHeld;
+				return new Response("ok", { status: 200 });
 			},
 		});
+		let outboxId: string | undefined;
 
 		const stopEmitter = await startEmitter({
 			pollIntervalMs: ABSURDLY_LONG_POLL_MS,
@@ -162,8 +173,9 @@ describe("stopEmitter waits for in-flight work before resolving", () => {
 				timeoutMs: 10_000,
 				concurrency: 1,
 			});
+			webhookIds.push(webhook.id);
 
-			await db
+			const outbox = await db
 				.insertInto("webhook_outbox")
 				.values({
 					webhook_id: webhook.id,
@@ -176,7 +188,9 @@ describe("stopEmitter waits for in-flight work before resolving", () => {
 					payload: { sender: "SP1", recipient: "SP2", amount: "1" },
 					dedup_key: `test-clean-stop-hang-${randomUUID().slice(0, 8)}`,
 				})
-				.execute();
+				.returning("id")
+				.executeTakeFirstOrThrow();
+			outboxId = outbox.id;
 
 			await waitFor(() => receivedCount === 1, 3_000);
 			expect(receivedCount).toBe(1);
@@ -208,22 +222,23 @@ describe("stopEmitter waits for in-flight work before resolving", () => {
 			expect(deliveries.length).toBe(0);
 		} finally {
 			infoSpy.mockRestore();
-			server.stop(true);
-			// Closing the server fails the abandoned POST, and its dispatch then
-			// writes a failure row. Let that land before afterAll deletes the
-			// webhook, or the cascade and the insert can deadlock.
+			// The abandoned dispatch outlives stop(). Let it finish, then wait for
+			// its settle transaction (outbox row, then webhooks row) to commit:
+			// afterAll's webhook delete locks those rows in the opposite order via
+			// the outbox FK cascade, so racing it deadlocks. The delivery row is
+			// written before that transaction, so it can't be the signal.
+			releaseReceiver();
 			const deadline = Date.now() + 5_000;
-			while (Date.now() < deadline) {
-				const rows = await db
-					.selectFrom("webhook_deliveries as d")
-					.innerJoin("webhooks as w", "w.id", "d.webhook_id")
-					.select("d.id")
-					.where("w.account_id", "=", accountId)
-					.where("w.name", "like", "clean-stop-hang-%")
-					.execute();
-				if (rows.length > 0) break;
+			while (outboxId && Date.now() < deadline) {
+				const row = await db
+					.selectFrom("webhook_outbox")
+					.select("status")
+					.where("id", "=", outboxId)
+					.executeTakeFirst();
+				if (row?.status !== "pending") break;
 				await new Promise((r) => setTimeout(r, 25));
 			}
+			server.stop(true);
 		}
 	}, 15_000);
 });
