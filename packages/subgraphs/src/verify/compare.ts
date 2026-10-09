@@ -2,9 +2,16 @@
  * Replayed rows against served rows, per table, over the replay window.
  *
  * Both sides go through one canonical form, so a difference is a value
- * difference, never a Postgres-vs-memory representation one: `_id` and
- * `_created_at` are dropped, numbers become decimal strings, timestamps epoch
- * milliseconds, jsonb sorted-key JSON with bigints as decimal strings.
+ * difference, never a Postgres-vs-memory representation one: numbers become
+ * decimal strings, timestamps epoch milliseconds, jsonb sorted-key JSON with
+ * bigints as decimal strings.
+ *
+ * Only proven columns are compared: the declared columns and
+ * `_block_height` (the block of the row's first write, the same in Postgres
+ * and memory). Dropped: `_id` and `_created_at` (storage), and `_tx_id`,
+ * which is transaction attribution, unproven for state subgraphs: which tx
+ * made a write is not in the header-backed diff, and the Postgres flush keeps
+ * the last same-block writer where the memory store keeps the first.
  */
 import { createHash } from "node:crypto";
 import type { SubgraphSchema, SubgraphTable } from "../types.ts";
@@ -77,7 +84,7 @@ function canonicalValue(type: string | undefined, value: unknown): unknown {
 	}
 }
 
-/** Declared columns + `_block_height` + `_tx_id`, in a fixed order. */
+/** Declared columns + `_block_height`, in a fixed order. */
 function canonicalRow(
 	def: SubgraphTable,
 	row: Row,
@@ -87,7 +94,6 @@ function canonicalRow(
 	for (const c of columns)
 		out[c] = canonicalValue(def.columns[c]?.type, row[c]);
 	out._block_height = canonicalValue("uint", row._block_height);
-	out._tx_id = row._tx_id == null ? null : String(row._tx_id);
 	return out;
 }
 
@@ -158,10 +164,10 @@ export function compareRows(
 			const diff = [...counts].find(([, n]) => n !== 0);
 			if (diff) {
 				const [l, n] = diff;
-				const at = JSON.parse(l) as { _block_height: string; _tx_id: string };
+				const at = JSON.parse(l) as { _block_height: string };
 				fail(
 					table,
-					`row at (${at._block_height}, ${at._tx_id}): ${
+					`row at block ${at._block_height}: ${
 						n > 0
 							? "replayed but not served"
 							: "served but no proven input produces it"
@@ -199,11 +205,10 @@ export function compareRows(
 			const a = canonicalRow(def, s, columns);
 			const b = canonicalRow(def, row, columns);
 			// A key first written before the window keeps its original
-			// _block_height/_tx_id on the server (upserts never move them);
+			// _block_height on the server (upserts never move it);
 			// replay never saw that write, so only the columns are comparable.
 			if (heightOf(s) < from) {
 				a._block_height = b._block_height;
-				a._tx_id = b._tx_id;
 			}
 			const col = firstDifference(a, b);
 			if (col === undefined) summary.equal++;

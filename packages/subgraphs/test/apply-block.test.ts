@@ -193,9 +193,25 @@ const BLOCKS: PreloadedBlockData[] = [
 		[{ kind: "set", key: 2n, value: 9n }],
 		[{ kind: "var", value: 4n }],
 	]),
+	// A new key written by two txs in one block, and a delete then a re-insert
+	// in one block: the cases where the stores could disagree on row meta.
+	block(105, [
+		[{ kind: "set", key: 5n, value: 50n }],
+		[
+			{ kind: "set", key: 5n, value: 51n },
+			{ kind: "delete", key: 1n },
+		],
+		[{ kind: "set", key: 1n, value: 1n }],
+	]),
 ];
 
-/** Order-free, type-free row form: what both stores must agree on. */
+/**
+ * Order-free, type-free row form: what both stores must agree on. `_tx_id`
+ * is left out: it is transaction attribution, unproven for state subgraphs,
+ * and the Postgres flush keeps the LAST same-block writer of a new key while
+ * the memory store (like ON CONFLICT across blocks) keeps the FIRST.
+ * `_block_height` stays: both keep the block of the row's first write.
+ */
 function normalize(rows: Record<string, unknown>[]): string[] {
 	return rows
 		.map((row) => {
@@ -203,7 +219,7 @@ function normalize(rows: Record<string, unknown>[]): string[] {
 			for (const [k, v] of Object.entries(row).sort(([a], [b]) =>
 				a.localeCompare(b),
 			)) {
-				if (k === "_id" || k === "_created_at") continue;
+				if (k === "_id" || k === "_created_at" || k === "_tx_id") continue;
 				out[k] =
 					v instanceof Date
 						? v.getTime()

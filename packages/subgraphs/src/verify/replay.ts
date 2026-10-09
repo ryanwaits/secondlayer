@@ -321,7 +321,7 @@ export async function replayBlocks(
 			if (!v.diff?.named || !v.writes) {
 				out.failures.push({
 					step: "inputs",
-					message: `block ${h}: the source has no state_writes for it, so its writes cannot be named`,
+					message: `block ${h}: the source serves no state_writes for it (its node does not deliver them yet), so its writes cannot be named and the subgraph cannot be verified here`,
 					height: h,
 					unavailable: true,
 				});
