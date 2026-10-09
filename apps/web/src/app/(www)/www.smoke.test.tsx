@@ -68,6 +68,7 @@ describe("docs sidebar invariant", () => {
 	const expectedGroups = [
 		"Start",
 		"Products",
+		"Verify",
 		"Channels",
 		"Chain data",
 		"Operate",
