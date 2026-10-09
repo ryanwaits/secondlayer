@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -99,52 +99,76 @@ function isHandlerNotFoundError(err: unknown): boolean {
 	);
 }
 
-// Caches for hot-reload detection — only re-import when version changes
-const knownVersions = new Map<string, string>();
+/**
+ * What the processor must reload on: the deployed handler's content, not the
+ * version. A handler-only redeploy keeps the version (schema unchanged), so a
+ * version key served the old handler until restart. `pin` covers the bundle
+ * plus everything else that shapes rows; rows deployed before pins existed
+ * hash their stored bundle; a local deploy (no stored bundle) runs a file in
+ * place and keys on version + path, as before. The loading path (realm or
+ * plain import) is part of the key.
+ */
+export function handlerCacheKey(
+	sg: Pick<
+		Subgraph,
+		"pin" | "handler_code" | "handler_path" | "version" | "verification"
+	>,
+): string {
+	const path = sg.verification?.verifiable ? "realm" : "import";
+	const content =
+		sg.pin ??
+		(sg.handler_code != null
+			? createHash("sha256").update(sg.handler_code).digest("hex")
+			: `${sg.version}:${sg.handler_path}`);
+	return `${path}:${content}`;
+}
+
+// Hot-reload caches, keyed per subgraph by handlerCacheKey.
+const knownKeys = new Map<string, string>();
 const definitionCache = new Map<string, SubgraphDefinition>();
 
 /**
- * Load a SubgraphDefinition, reusing the cache unless the version changed.
- * On version change, writes latest handler_code from DB to disk and
- * cache-busts the dynamic import.
+ * Load a SubgraphDefinition, reusing the cache while the handler's content is
+ * unchanged. Exported for tests.
  */
-async function loadSubgraphDefinition(
+export async function loadSubgraphDefinition(
 	sg: Subgraph,
 ): Promise<SubgraphDefinition> {
+	const key = handlerCacheKey(sg);
 	const cached = definitionCache.get(sg.name);
-	if (cached && knownVersions.get(sg.name) === sg.version) {
+	if (cached && knownKeys.get(sg.name) === key) {
 		return cached;
 	}
 
 	let def: SubgraphDefinition;
 	if (sg.verification?.verifiable && sg.handler_code) {
-		// Verifiable (L2, scan-clean at deploy): run in the deterministic realm.
+		// Verifiable (state-level, scan-clean at deploy): run in the deterministic realm.
 		def = await loadDeterministicDefinition(sg.handler_code);
+	} else if (sg.handler_code) {
+		// Import the stored bundle from a data: URL, not a file. Bun caches
+		// directory listings, so a handler file written after the processor's
+		// first import is "not found"; the URL is also content-addressed, so a
+		// new bundle is always a new module and the same bundle reuses its own.
+		const url = `data:text/javascript;base64,${Buffer.from(sg.handler_code).toString("base64")}`;
+		const mod = await import(url);
+		def = mod.default ?? mod;
 	} else {
-		// Write latest handler code from DB to disk before importing
-		if (sg.handler_code) {
-			const { mkdirSync, writeFileSync } = await import("node:fs");
-			const { dirname } = await import("node:path");
-			mkdirSync(dirname(sg.handler_path), { recursive: true });
-			writeFileSync(sg.handler_path, sg.handler_code);
-		}
-
+		// Local deploy: the source file runs in place.
 		const mod = await import(handlerImportUrl(sg.handler_path));
 		def = mod.default ?? mod;
 	}
 
-	const prevVersion = knownVersions.get(sg.name);
-	knownVersions.set(sg.name, sg.version);
+	const prevKey = knownKeys.get(sg.name);
+	knownKeys.set(sg.name, key);
 	definitionCache.set(sg.name, def);
 
-	if (prevVersion && prevVersion !== sg.version) {
-		// A redeploy changes handler code/version, so drop the cached route
-		// alongside the handler def.
+	if (prevKey && prevKey !== key) {
+		// A redeploy changed the handler, so drop the cached route alongside
+		// the handler def.
 		invalidateSubgraphRoute(sg.name);
 		logger.info("Subgraph handler reloaded", {
 			subgraph: sg.name,
-			from: prevVersion,
-			to: sg.version,
+			version: sg.version,
 		});
 	}
 
@@ -154,9 +178,9 @@ async function loadSubgraphDefinition(
 /** Remove cached entries for subgraphs that no longer exist. */
 function cleanupCaches(active: Subgraph[]): void {
 	const names = new Set(active.map((sg) => sg.name));
-	for (const name of knownVersions.keys()) {
+	for (const name of knownKeys.keys()) {
 		if (!names.has(name)) {
-			knownVersions.delete(name);
+			knownKeys.delete(name);
 			definitionCache.delete(name);
 			invalidateSubgraphRoute(name);
 		}
