@@ -1,5 +1,39 @@
 # @secondlayer/cli
 
+## 19.4.0
+
+### Minor Changes
+
+- 49ab850: Recompute a state-level subgraph from proven blocks and check its served rows.
+
+  - cli: `secondlayer verify subgraph <name> --replay [--from H] [--to H]` proves every block in the range from the checkpoint, checks transactions and named writes, re-runs the served handler bundle in the deterministic realm and compares the served rows, one line per link (`pin`, `blocks`, `txs`, `inputs`, `handlers`, `rows`). Rows compare on declared columns and `_block_height`; `_tx_id` (tx attribution) is unproven and not compared. Exit `0` clean, `1` a broken link, `2` could not check (no `state_writes` on the instance, an inconclusive mid-history range, a subgraph that is not state-level).
+  - subgraphs: new `./verify` entry: `replaySubgraph`, `replayBlocks`, `compareRows`, `checkPin`, `replayContracts`, `loadDeterministicDefinition`.
+  - subgraphs: **`map_insert` sources derive level `events`.** Storage cannot tell an insert from a set; a stored `state` level updates on redeploy.
+  - subgraphs: a `state` subgraph reads its write events from `state_writes` once the instance holds them from its `startBlock` on (checked against the lowest `state_writes` height, cached per minute), and keeps `vm_events` otherwise. Nothing changes on an instance whose node does not deliver `state_writes`.
+  - subgraphs: deploys store `pin_preimage` (migration `0158`), the canonical JSON the pin hashes; `processBlock` runs through a pure `applyBlock` core shared with replay.
+  - shared: `decodeRawTx` moves to `@secondlayer/shared/node/tx-summary`; `pin_preimage` on subgraph rows; `IndexHttpClient.walkStateWrites` and `firstStateWriteHeight`.
+  - sdk: `index.stateWrites.list({ contractId, txContext })`; `SubgraphSource` carries `handlerCode`, `pin` and `pinPreimage`.
+  - api: `/v1/index/state-writes` takes `contract_id` and `tx_context`; free, rate-limited `GET /v1/proofs/writes/{height}`; `/api/subgraphs/:name/source` returns the handler bundle and pin preimage.
+  - indexer: imports `decodeRawTx` from shared.
+
+- 680401a: `verifyBlock` checks a block's transactions and names its writes by default.
+
+  - verify: new `txs` link between `signatures` and `witness`: every transaction in the block body parses, and the txids hash to the header's tx merkle root (`tx-root-mismatch` otherwise). `result.transactions` holds `{ txid, raw }` per transaction. Epoch 2.x blocks, and a source that serves the header only, skip it with a note. `txMerkleRoot` and `blockTransactions` are exported.
+  - verify: **new default.** The diff's writes are always named from the source's `getStateWrites` when it has any; `SecondlayerProofSource` now reads them from the free, rate-limited `/v1/proofs/writes/{height}` instead of the metered `/v1/index/state-writes`. A source with no writes for the block (404 or empty, as on the hosted API until its node delivers `state_writes`) or one that errors leaves the diff proven but unnamed with a note, never a failure. `result.writes` holds the named rows; each named `diff.writes` entry carries its proven `value`. `rows: true` now only adds the metered `vm_events` check.
+  - verify: `BlockVerification` also reports the authenticated header's `blockHash`, `consensusHash` and `timestamp`.
+  - cli: `secondlayer verify block` prints the `txs` line, names writes without `--rows`, and `--rows` only adds the `vm_events` check. `--json` lists transactions as txids.
+  - stacks: `splitTransactions(bytes, count)` splits back-to-back serialized transactions into each one's exact bytes.
+
+### Patch Changes
+
+- Updated dependencies [49ab850]
+- Updated dependencies [680401a]
+  - @secondlayer/subgraphs@6.5.0
+  - @secondlayer/shared@11.23.0
+  - @secondlayer/sdk@14.5.0
+  - @secondlayer/verify@0.3.0
+  - @secondlayer/stacks@6.2.0
+
 ## 19.3.0
 
 ### Minor Changes

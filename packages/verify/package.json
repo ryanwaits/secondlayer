@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/verify",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "Check a Stacks block yourself: Bitcoin headers, signer signatures and MARF state proofs, from one trusted checkpoint.",
 	"license": "MIT",
 	"repository": {
@@ -29,7 +29,7 @@
 	"dependencies": {
 		"@noble/curves": "2.0.1",
 		"@noble/hashes": "2.0.1",
-		"@secondlayer/stacks": "^6.1.1"
+		"@secondlayer/stacks": "^6.2.0"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
