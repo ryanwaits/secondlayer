@@ -1,4 +1,5 @@
 import type { SubgraphDetail } from "@secondlayer/shared/schemas/subgraphs";
+import { deriveVerification } from "@secondlayer/subgraphs/verification";
 import {
 	type PinCheck,
 	type ReplayFailure,
@@ -215,7 +216,11 @@ function report(r: Report, from: number, to: number): number {
 			`✓ ${r.name} ${n(from)}..${n(to)} recomputed from proven inputs. Trusted: only the checkpoint (Stacks ${stacks}, Bitcoin ${n(cp.bitcoin.height)}).`,
 		),
 	);
-	if (r.unproven.length) writeData(dim(`  unproven: ${r.unproven.join("; ")}`));
+	writeData(
+		dim(
+			`  unproven, so not compared: ${[...r.unproven, "rows compare declared columns and _block_height only"].join("; ")}`,
+		),
+	);
 	return VERIFY_EXIT.CLEAN;
 }
 
@@ -305,7 +310,8 @@ export async function runVerifySubgraph(
 			pin,
 			pinValue: served.pin ?? null,
 			contracts: Array.isArray(contracts) ? contracts : [],
-			unproven: level.unproven,
+			// This runtime's own rules for what replay leaves unproven.
+			unproven: deriveVerification(def).unproven,
 		};
 		if (pin.status !== "failed") {
 			// Read the served tables first: the closer to `to`, the fewer rows
@@ -387,8 +393,9 @@ What is proven, link by link:
 
 Starting after startBlock (--from) is inconclusive once a handler reads or
 merges rows written before the range (findOne, increment, a partial upsert).
-Not proven: which transaction made a write (event.tx, _tx_id) and writes
-overwritten within one block.
+Not proven, so not compared: which transaction made a write (event.tx,
+_tx_id) and writes overwritten within one block. Rows compare on their
+declared columns and _block_height.
 
 Reads are free: proofs and each block's state writes from /v1/proofs (rate
 limited; witnesses 2 per second, so 1,000 blocks take 8 minutes or more) and

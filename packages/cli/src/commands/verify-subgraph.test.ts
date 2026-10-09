@@ -203,7 +203,7 @@ describe("verify subgraph --replay", () => {
 				/^✓ rows {6}reserves: 2 equal {2}digest [0-9a-f]{4}…[0-9a-f]{4}$/,
 			),
 			"✓ pool-reserves 100..102 recomputed from proven inputs. Trusted: only the checkpoint (Stacks 8,956,304, Bitcoin 967,680).",
-			"  unproven: tx attribution of writes: event.tx, _tx_id (needs event proofs)",
+			"  unproven, so not compared: tx attribution of writes: event.tx, _tx_id (needs event proofs); intermediate writes within a block (needs event proofs); rows compare declared columns and _block_height only",
 		]);
 		expect(r.stderr).toContain("Replaying pool-reserves 100..102 (3 blocks)");
 	});
@@ -243,6 +243,23 @@ describe("verify subgraph --replay", () => {
 		);
 		expect(r.lines[4]).toBe(
 			"· handlers  not checked: an earlier link is broken",
+		);
+	});
+
+	test("an instance without state_writes cannot be verified: exit 2, never 1", async () => {
+		const r = await run({
+			verify: async (h) => ({
+				...verified(h),
+				diff: { named: false, writes: [], carried: [], internal: [] },
+				writes: undefined,
+			}),
+		});
+		expect(r.code).toBe(2);
+		expect(r.lines[3]).toBe(
+			"✗ inputs    block 102: the source serves no state_writes for it (its node does not deliver them yet), so its writes cannot be named and the subgraph cannot be verified here",
+		);
+		expect(r.lines.at(-1)).toBe(
+			"✗ Could not check the inputs link: the source could not serve it.",
 		);
 	});
 
@@ -320,7 +337,7 @@ describe("verify subgraph on the command line", () => {
 		for (const text of [
 			"pin       the served pin",
 			"rows      the served rows equal the recomputed ones",
-			"Not proven: which transaction made a write",
+			"Not proven, so not compared: which transaction made a write",
 			"Nothing bills as Index rows",
 			"$ secondlayer verify subgraph pool-reserves --replay",
 			"2  could not check",
