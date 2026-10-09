@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/verify",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"description": "Check a Stacks block yourself: Bitcoin headers, signer signatures and MARF state proofs, from one trusted checkpoint.",
 	"license": "MIT",
 	"repository": {
