@@ -421,10 +421,10 @@ export class SubgraphContext {
 					// Same entity? Compare on the upsert key — a plain insert (no
 					// key) can never target an existing row.
 					if (upsertKeys?.every((k) => valEq(row[k], clean[k]))) {
-						// Mirror ON CONFLICT DO UPDATE: non-key, non-meta cols only.
+						// Mirror ON CONFLICT DO UPDATE: non-key, non-system cols only.
 						const merged = { ...row };
 						for (const [k, v] of Object.entries(clean)) {
-							if (!upsertKeys.includes(k) && !k.startsWith("_")) merged[k] = v;
+							if (!upsertKeys.includes(k) && !isSystemColumn(k)) merged[k] = v;
 						}
 						return merged;
 					}
@@ -802,19 +802,25 @@ export class SubgraphContext {
 			const qualifiedTable = `"${this.pgSchemaName}"."${batch.table}"`;
 			const colList = batch.cols.map((c) => `"${c}"`).join(", ");
 
-			// Deduplicate by upsert key — last row wins (Postgres rejects duplicate keys in one INSERT)
+			// Collapse same-key rows (Postgres rejects duplicate keys in one
+			// INSERT) the way separate statements' ON CONFLICT would: user
+			// columns take the last write, system columns keep the first.
 			let rows = batch.rows;
 			if (batch.upsertKeys && batch.upsertKeys.length > 0) {
-				const uKeys = batch.upsertKeys;
-				const keyIndices = uKeys.map((k) => batch.cols.indexOf(k));
-				const seen = new Map<string, number>();
-				for (let i = 0; i < rows.length; i++) {
-					const key = keyIndices.map((ki) => rows[i][ki]).join("\0");
-					seen.set(key, i);
+				const keyIndices = batch.upsertKeys.map((k) => batch.cols.indexOf(k));
+				const byKey = new Map<string, string[]>();
+				for (const row of rows) {
+					const key = keyIndices.map((ki) => row[ki]).join("\0");
+					const first = byKey.get(key);
+					if (!first) {
+						byKey.set(key, [...row]);
+						continue;
+					}
+					batch.cols.forEach((c, ci) => {
+						if (!isSystemColumn(c)) first[ci] = row[ci] as string;
+					});
 				}
-				if (seen.size < rows.length) {
-					rows = Array.from(seen.values()).map((i) => rows[i]);
-				}
+				rows = [...byKey.values()];
 			}
 
 			const valuesList = rows.map((r) => `(${r.join(", ")})`).join(", ");
@@ -837,7 +843,7 @@ export class SubgraphContext {
 			if (batch.upsertKeys && batch.upsertKeys.length > 0) {
 				const batchKeys = batch.upsertKeys;
 				const updateCols = batch.cols.filter(
-					(c) => !batchKeys.includes(c) && !c.startsWith("_"),
+					(c) => !batchKeys.includes(c) && !isSystemColumn(c),
 				);
 				if (updateCols.length > 0) {
 					const setClauses = updateCols.map((c) => `"${c}" = EXCLUDED."${c}"`);
@@ -943,6 +949,17 @@ export class SubgraphContext {
 }
 
 // --- Helpers ---
+
+/**
+ * System columns (`_block_height`, `_tx_id`, `_created_at`, `_id`) record a
+ * row's creation. The write that creates a key sets them; a later upsert or
+ * increment on that key, earlier in the same block or in any later block,
+ * changes only user columns (last write wins) and never moves them. A key
+ * deleted and written again is a new row, so its new writer sets them.
+ */
+function isSystemColumn(col: string): boolean {
+	return col.startsWith("_");
+}
 
 /** Drop internal upsert control keys from an op's data. */
 function stripControlKeys(

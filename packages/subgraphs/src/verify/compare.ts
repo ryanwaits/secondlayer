@@ -10,8 +10,8 @@
  * `_block_height` (the block of the row's first write, the same in Postgres
  * and memory). Dropped: `_id` and `_created_at` (storage), and `_tx_id`,
  * which is transaction attribution, unproven for state subgraphs: which tx
- * made a write is not in the header-backed diff, and the Postgres flush keeps
- * the last same-block writer where the memory store keeps the first.
+ * made a write is not in the header-backed diff. (Both stores keep the
+ * creating write's `_tx_id`; it is dropped for proof, not for drift.)
  */
 import { createHash } from "node:crypto";
 import type { SubgraphSchema, SubgraphTable } from "../types.ts";
