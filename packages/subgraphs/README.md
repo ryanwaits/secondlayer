@@ -63,6 +63,7 @@ Every source needs a handler of the same name. Handlers write with `ctx.insert`,
 | `./testing` | `runSubgraphTest`, `createTestContext`, `buildEvent`: run handlers against real or built events before deploying |
 | `./runtime/replay` | `replayWebhook({ accountId, webhookId, fromBlock, toBlock })`: re-enqueue historical rows as outbox entries |
 | `./runtime/emitter` | Webhook egress checks used by the API (`checkEgressAllowed`) |
+| `./verify` | `replaySubgraph`, `compareRows`, `checkPin`: recompute a `state` subgraph from blocks proven with `@secondlayer/verify` and compare the served rows (powers `secondlayer verify subgraph --replay`) |
 
 ## Runtime
 

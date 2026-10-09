@@ -560,7 +560,10 @@ rm /tmp/snapshot.tar.zst
    eval-hook image is on this host, those keys add `vm_events`; flipping them
    on a Hiro-restored disk does **not** backfill history. Feeder then collapse:
    [genesis-feeder.md](../../docs/internal/runbook/genesis-feeder.md). Do not
-   flip the keys as a “fix” for empty `vm_events`.
+   flip the keys as a “fix” for empty `vm_events`. `"state_writes"` (same
+   image) records each block's named writes; `state`-level subgraphs read them
+   once the instance holds them from the subgraph's `startBlock`, and
+   `secondlayer verify subgraph --replay` needs them.
 3. Check firewall: app server port 3700 must be open from node server IP
 4. `disable_retries = false` in Config.toml — node retries failed deliveries. Integrity loop fills any remaining gaps via Hiro API
 

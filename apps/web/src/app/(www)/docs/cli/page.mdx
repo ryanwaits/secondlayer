@@ -69,6 +69,8 @@ secondlayer observer --mode indexer
 
 `secondlayer verify block <height|index_block_hash>` proves one Stacks block from the checkpoint built into the CLI, link by link: Bitcoin headers, burn block, signer set, signatures, transactions (against the header's tx merkle root), state root, and state diff. A block below the checkpoint is tied to it by hash instead (parent links, or one MARF proof of its id in the checkpoint's state), so it needs no signer links. Nothing else is trusted. The diff's writes are named from the block's `state_writes` (free, from `/v1/proofs/writes`); where the API has none for the block yet, the diff is still proven, listed as unnamed with a note. `--rows` also proves the Index `vm_events` rows for the block against its diff, billed as Index rows; `--node <url>` reads blocks and MARF proofs from your node, `--checkpoint <file>` swaps the trusted starting point. Exit `0` proven, `1` a link is broken, `2` could not check.
 
+`secondlayer verify subgraph <name> --replay` recomputes a `state` subgraph from blocks proven the same way and compares the served rows: links `pin`, `blocks`, `txs`, `inputs`, `handlers`, `rows`. `--from`/`--to` narrow the range (default `startBlock` to the served height). Exit `0` every row checks out, `1` a link is broken, `2` could not check (no `state_writes`, inconclusive, not `state`). See [Check rows](/docs/subgraphs/handlers#check-rows).
+
 <Callout type="note" title="Signer-shared nodes skip retries">
 
 A block the node fails to deliver stays a gap. `secondlayer repair` fetches it from the archive with [archive credits](/docs/authentication#archive-credits). The full stanza: [Connect your node](/docs/self-host#connect-your-node).

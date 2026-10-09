@@ -132,6 +132,36 @@ secondlayer subgraphs deploy subgraphs/pool-reserves.ts
 
 Verifiable handlers run in a locked-down realm that throws on the same list at runtime and retries the block rather than skip the event. The tradeoff: most event subgraphs stay advisory until event proofs ship. `pin` hashes the schema, bundle, `startBlock`, network and runtime version, so a handler-only redeploy changes it even when `schemaHash` does not.
 
+A `state` subgraph reads its writes from the node's `state_writes` once the instance holds them from its `startBlock` on, and from `vm_events` until then. Nothing to configure.
+
+## Check rows
+
+Recompute a `state` subgraph on your machine and compare it with the rows the API serves:
+
+```bash
+secondlayer verify subgraph pool-reserves --replay --from 1230000 --to 1231000
+```
+
+```text
+✓ pin       7f3c…a91e  handler, schema and startBlock match the deploy
+✓ blocks    1,001 proven from the checkpoint (2 MARF proofs, then parent links)
+✓ txs       4,812 transactions match their blocks' tx merkle roots
+✓ inputs    1,001 diffs fully named; 37 writes to amm-vault-v2-01
+✓ handlers  37 events, 0 handler errors, deterministic realm
+✓ rows      reserves: 14 equal  digest 9a1f…03be
+```
+
+| Link | Proves |
+| --- | --- |
+| `pin` | the served bundle, schema and `startBlock` are the ones the pin hashes |
+| `blocks` | every block in the range, from the checkpoint |
+| `txs` | each block's transactions hash to its header's tx merkle root |
+| `inputs` | each block's writes are named in full, nothing hidden |
+| `handlers` | the bundle runs in the deterministic realm over those writes |
+| `rows` | served rows equal the recomputed ones on declared columns and `_block_height` |
+
+`_tx_id` is not compared: which transaction made a write is unproven, as are writes overwritten within one block. A `--from` after `startBlock` is inconclusive (exit `2`) once a handler reads or merges earlier rows (`findOne`, `increment`, a partial upsert). Every read is free: proofs and state writes from `/v1/proofs/writes`, rows from `/v1/subgraphs`. Witnesses are limited to 2 per second, so 1,000 blocks take 8 minutes or more. An instance whose node does not deliver `state_writes` cannot be checked: exit `2`.
+
 export const metadata = {
 	title: "Writing handlers — Secondlayer Docs",
 	description:

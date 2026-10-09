@@ -11,6 +11,14 @@ and unmetered; archive bootstrap, backfill and reindex draw
 
 ## CLI — October 2026
 
+### Recompute a subgraph and check its rows: `secondlayer verify subgraph --replay`
+
+A `state` subgraph can now be checked end to end on your machine. `secondlayer verify subgraph <name> --replay` proves every block in the range from the checkpoint, checks each block's transactions against its header, names every write the block made, re-runs the deployed handler bundle in the deterministic realm, and compares the result with the rows the API serves. Rows compare on declared columns and `_block_height`; `_tx_id` is not compared, since which transaction made a write stays unproven. Reads are free. An instance without `state_writes` exits `2`. See [Check rows](/docs/subgraphs/handlers#check-rows).
+
+### `verify block` checks transactions and names writes by default
+
+`secondlayer verify block` adds a `txs` link: the block's transactions must hash to its header's tx merkle root. The state diff's writes are now named by default from `/v1/proofs/writes/{height}`, which is free and rate limited like the other proofs; where the instance has no writes for the block yet, the diff is still proven and listed as unnamed with a note. `--rows` now only adds the `vm_events` check, which bills as Index rows.
+
 ### Check a block yourself with `secondlayer verify block` (CLI 19.2)
 
 `secondlayer verify block <height>` proves a mainnet Stacks block on your machine instead of asking you to trust us or any node. It checks Bitcoin headers and their proof of work, ties the block to the Bitcoin block that elected it, proves that cycle's signer set and that 70% of signer weight signed, then rebuilds the block's state root from a witness and lists every state change the block made. The only thing it trusts is a checkpoint built into the CLI. A busy block takes a few seconds. It covers state: contract maps and variables, balances and nonces. Print events aren't committed in Stacks block headers, so they aren't covered yet. See the [CLI reference](/docs/cli).
@@ -48,6 +56,10 @@ Hosted reads of `/v1/index/blocks` are never billed and never return a `402`, ev
 ### Subgraphs whose rows anyone can recompute (CLI 19.3)
 
 Every deploy now reports a verification level and a `pin`. A subgraph whose sources are all state writes (`var_set`, `map_*`) is level `state`: its rows can be rebuilt from block headers, so a handler that reads `Date`, `Math.random`, `fetch`, timers or locale formatting is refused with `NONDETERMINISTIC_HANDLER`, naming each use by file, line and column. It then runs in a locked-down realm that rejects the same calls and any non-integer number in a row. Event sources are level `events` until event proofs ship; they deploy exactly as before and get the same findings as advice. `pin` hashes the schema, bundled handler, `startBlock`, network and runtime, so a handler-only redeploy changes it. Both show in `secondlayer subgraphs status` and the subgraph detail. Subgraphs deployed earlier show none until redeployed. See [Writing handlers](/docs/subgraphs/handlers#rows-anyone-can-recompute).
+
+### `map_insert` sources are level `events`; deploys store their pin preimage
+
+Storage holds an insert and a set alike, so a `map_insert` source now derives level `events` until event proofs ship; redeploy to update a stored level. A `state` subgraph reads its writes from `state_writes` once the instance holds them from its `startBlock` on, and keeps `vm_events` until then. Each deploy now stores the canonical JSON its `pin` hashes, served with the handler bundle so anyone can recompute the pin.
 
 If you self-host a subgraph on `var_set` or `map_*` sources whose handler uses one of those calls, it keeps running, but its next redeploy is refused. Take the value from `event`, `ctx.block.timestamp` or `ctx.tx` instead.
 
