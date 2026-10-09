@@ -51,6 +51,7 @@ A matched event delivers `chain.{trigger}.apply`. On `standard-webhooks` the bod
     "tx_id": "0x…",
     "block_hash": "0x…",
     "block_height": 8445086,
+    "block_time": "2026-05-01T11:59:48.000Z",
     "canonical": true,
     "event": {
       "type": "stx_transfer_event",
@@ -61,6 +62,8 @@ A matched event delivers `chain.{trigger}.apply`. On `standard-webhooks` the bod
   }
 }
 ```
+
+`block_time` is when the block was produced (ISO 8601), or `null` when it wasn't recorded.
 
 Other formats carry the exact same `data` value under a different key:
 

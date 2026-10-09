@@ -136,13 +136,18 @@ describe("emitSbtcSettlementOutbox", () => {
 
 		const rows = await db
 			.selectFrom("webhook_outbox")
-			.select(["event_type", "dedup_key"])
+			.select(["event_type", "dedup_key", "payload", "block_time"])
 			.where("webhook_id", "=", sub.id)
 			.execute();
 		expect(rows).toHaveLength(1);
 		expect(rows[0]?.event_type).toBe(
 			"chain.sbtc_withdrawal_swept_confirmed.apply",
 		);
+		const anchorTime = new Date((1_700_000_000 + HEIGHT) * 1000).toISOString();
+		expect((rows[0]?.payload as Record<string, unknown>).block_time).toBe(
+			anchorTime,
+		);
+		expect(rows[0]?.block_time?.toISOString()).toBe(anchorTime);
 		expect(rows[0]?.dedup_key).toBe(`settlement:${sub.id}:${SWEEP}`);
 	});
 

@@ -312,6 +312,8 @@ describe("emitChainOutbox (DB)", () => {
 		const rows = await outboxRows(sub.id);
 		expect(rows).toHaveLength(1);
 		expect(rows[0].block_time?.toISOString()).toBe(blockTime.toISOString());
+		const payload = rows[0].payload as Record<string, unknown>;
+		expect(payload.block_time).toBe(blockTime.toISOString());
 	});
 
 	it("leaves block_time null when not passed", async () => {
@@ -337,6 +339,41 @@ describe("emitChainOutbox (DB)", () => {
 		const rows = await outboxRows(sub.id);
 		expect(rows).toHaveLength(1);
 		expect(rows[0].block_time).toBeNull();
+		const payload = rows[0].payload as Record<string, unknown>;
+		expect(payload.block_time).toBeNull();
+	});
+
+	it("carries the block's time in an event-level payload", async () => {
+		const sub = await makeChainSub([{ type: "stx_transfer" }]);
+		const { sources, keyMeta } = buildSourcesMap([sub]);
+		const b = block(
+			[tx({ tx_id: "0xstx", type: "token_transfer" })],
+			[
+				ev({
+					tx_id: "0xstx",
+					event_index: 0,
+					type: "stx_transfer_event",
+					data: { sender: "A", recipient: "B", amount: "5" },
+				}),
+			],
+		);
+		const matches = evaluateBlock(b, sources, new Map());
+		const blockTime = new Date("2026-05-01T11:59:48.000Z");
+
+		const n = await emitChainOutbox(
+			db,
+			matches,
+			keyMeta,
+			100,
+			"0xblock",
+			blockTime,
+		);
+		expect(n).toBe(1);
+
+		const rows = await outboxRows(sub.id);
+		expect(rows[0].event_type).toBe("chain.stx_transfer.apply");
+		const payload = rows[0].payload as Record<string, unknown>;
+		expect(payload.block_time).toBe("2026-05-01T11:59:48.000Z");
 	});
 
 	it("emits one apply row per matched event for event-level triggers", async () => {

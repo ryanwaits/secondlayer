@@ -304,6 +304,7 @@ function applyRow(
 		action: "apply",
 		block_hash: blockHash,
 		block_height: blockHeight,
+		block_time: blockTime ? blockTime.toISOString() : null,
 		tx_id: txId,
 		canonical: true,
 		trigger: meta.triggerType,
@@ -664,6 +665,7 @@ export async function emitSbtcSettlementOutbox(
 			"e.amount",
 			"e.sender",
 			"b.hash as block_hash",
+			"b.timestamp as block_timestamp",
 		])
 		.execute();
 
@@ -729,12 +731,14 @@ type SettlementScanRow = {
 	amount: string | null;
 	sender: string | null;
 	block_hash: string;
+	block_timestamp: number;
 };
 
 function settlementApplyRow(
 	webhookId: string,
 	row: SettlementScanRow,
 ): InsertWebhookOutbox {
+	const blockTime = blockTimeOf({ timestamp: Number(row.block_timestamp) });
 	const event: SbtcWithdrawalSweptConfirmedEvent = {
 		topic: "withdrawal-swept-confirmed",
 		request_id: Number(row.request_id),
@@ -749,6 +753,7 @@ function settlementApplyRow(
 		action: "apply",
 		block_hash: row.block_hash,
 		block_height: Number(row.stacks_block_height),
+		block_time: blockTime ? blockTime.toISOString() : null,
 		tx_id: row.tx_id,
 		canonical: true,
 		trigger: SETTLEMENT_TRIGGER_TYPE,
@@ -767,5 +772,6 @@ function settlementApplyRow(
 		// Settlement fires on a Bitcoin confirmation, not a Stacks block — dedup on
 		// the sweep so a reorg→un-confirm→re-confirm cycle never re-delivers.
 		dedup_key: `settlement:${webhookId}:${row.sweep_txid}`,
+		...(blockTime ? { block_time: blockTime } : {}),
 	};
 }

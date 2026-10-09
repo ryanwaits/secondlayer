@@ -9,6 +9,12 @@ and has since returned: hosted Index, Streams, subgraphs and webhooks at
 and unmetered; archive bootstrap, backfill and reindex draw
 [credits](/docs/authentication#archive-credits).
 
+## Webhooks — October 2026
+
+### Deliveries carry the block's time
+
+Every chain delivery's `data` now has `block_time`, when the block was produced (ISO 8601), or `null` when it wasn't recorded. You no longer need a second read to timestamp an event. See [Delivery envelope](/docs/webhooks/deliveries).
+
 ## CLI — October 2026
 
 ### Recompute a subgraph and check its rows: `secondlayer verify subgraph --replay`

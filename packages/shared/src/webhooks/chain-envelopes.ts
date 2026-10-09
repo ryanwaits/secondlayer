@@ -64,6 +64,9 @@ export interface ChainApplyEnvelope {
 	/** Canonical block hash this delivery is anchored to. */
 	block_hash: string;
 	block_height: number;
+	/** When the block was produced (ISO 8601), or null when the source didn't record it. Lets a consumer
+	 *  timestamp the event without a second read. */
+	block_time: string | null;
 	tx_id: string;
 	/** Always true — only canonical applies are delivered. */
 	canonical: true;
@@ -263,6 +266,9 @@ export interface ChainApplyEnvelopeOf<
 	action: "apply";
 	block_hash: string;
 	block_height: number;
+	/** When the block was produced (ISO 8601), or null when the source didn't record it. Lets a consumer
+	 *  timestamp the event without a second read. */
+	block_time: string | null;
 	tx_id: string;
 	canonical: true;
 	trigger: TTrigger;
