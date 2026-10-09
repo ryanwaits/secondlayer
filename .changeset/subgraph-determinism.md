@@ -16,4 +16,4 @@ Derived verification level and pin for every subgraph deploy. Subgraphs whose so
 - subgraphs: `deriveVerification`, `computePin`, `SUBGRAPHS_RUNTIME`, the determinism rules (`@secondlayer/subgraphs/verification`), `NondeterminismError`, `loadDeterministicDefinition`; `deploySchema` stores `pin` and `verification`.
 - bundler: `scanHandlerDeterminism`; `bundleSubgraphCode` returns `findings` mapped to source positions.
 - shared: `SubgraphVerification`; `pin` and `verification` on subgraph rows, detail and deploy responses (migration `0157`).
-- cli: `subgraphs deploy` fails fast on a nondeterministic state-level handler and prints `verifiable` / `unproven` lines; `subgraphs status` shows `Pin` and `Verifiable`.
+- cli: `subgraphs deploy` fails fast on a nondeterministic state-level handler and prints `verification` / `unproven` lines; `subgraphs status` shows `Pin` and `Verification`.

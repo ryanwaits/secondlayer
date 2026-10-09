@@ -574,22 +574,23 @@ export function createSubgraphDeployPreview(
 }
 
 /**
- * The derived verification level as deploy/status lines:
- * `verifiable  state · pin 7f3c…a91e` plus what stays unproven, or
- * `verifiable  no · <why>`.
+ * The derived verification level as deploy lines:
+ * `verification  state · pin 7f3c…a91e` plus what stays unproven, or
+ * `verification  events · pin 7f3c…a91e · <why>`.
  */
 export function formatVerificationLines(
 	verification: SubgraphVerification | null | undefined,
 	pin?: string | null,
 ): string[] {
 	if (!verification) return [];
-	if (!verification.verifiable) {
-		return [`verifiable  no · ${verification.reasons.join(" · ")}`];
-	}
-	const shortPin = pin ? ` · pin ${pin.slice(0, 4)}…${pin.slice(-4)}` : "";
+	const head = [
+		verification.level,
+		...(pin ? [`pin ${pin.slice(0, 4)}…${pin.slice(-4)}`] : []),
+		...verification.reasons,
+	].join(" · ");
 	return [
-		`verifiable  ${verification.level}${shortPin}`,
-		...verification.unproven.map((u) => `unproven    ${u}`),
+		`verification  ${head}`,
+		...verification.unproven.map((u) => `unproven      ${u}`),
 	];
 }
 
@@ -598,12 +599,10 @@ export function formatVerificationStatus(
 	verification: SubgraphVerification | null | undefined,
 ): string {
 	if (!verification) return "unknown (deployed before levels were derived)";
-	if (verification.verifiable) {
-		return verification.unproven.length > 0
-			? `${verification.level} (unproven: ${verification.unproven.join("; ")})`
-			: verification.level;
-	}
-	return `no · ${verification.reasons.join(" · ")}`;
+	const head = [verification.level, ...verification.reasons].join(" · ");
+	return verification.unproven.length > 0
+		? `${head} (unproven: ${verification.unproven.join("; ")})`
+		: head;
 }
 
 /**
@@ -1634,7 +1633,7 @@ Examples:
 						["Name", subgraph.name],
 						["Version", subgraph.version],
 						["Pin", subgraph.pin ?? "none (deployed before pins)"],
-						["Verifiable", formatVerificationStatus(subgraph.verification)],
+						["Verification", formatVerificationStatus(subgraph.verification)],
 						[
 							"Status",
 							formatSubgraphStatus(subgraph.status, subgraph.health.lastError),

@@ -115,7 +115,7 @@ describe("bundleSubgraphCode determinism findings", () => {
 			bundled.findings,
 		);
 		expect(v.level).toBe("state");
-		expect(v.verifiable).toBe(false);
+		expect(v.reasons).not.toEqual([]);
 		expect(v.reasons).toEqual([
 			"subgraphs/pool-reserves.ts:11:45 Date: wall-clock time differs per run",
 		]);
@@ -160,7 +160,7 @@ describe("bundleSubgraphCode determinism findings", () => {
 		).not.toBe(first);
 	});
 
-	test("a clea state subgraph is verifiable", async () => {
+	test("a clean state subgraph has no reasons", async () => {
 		const bundled = await bundleSubgraphCode(
 			subgraph(
 				STATE_SOURCES,
@@ -169,6 +169,6 @@ describe("bundleSubgraphCode determinism findings", () => {
 		);
 		expect(bundled.findings).toEqual([]);
 		const v = deriveVerification({ sources: bundled.sources as never });
-		expect(v).toMatchObject({ level: "state", verifiable: true, reasons: [] });
+		expect(v).toMatchObject({ level: "state", reasons: [] });
 	});
 });

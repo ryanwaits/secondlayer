@@ -9,7 +9,7 @@ import { onControlPlane } from "../src/db/migration-role.ts";
  *   does, unlike schema_hash. NULL for local (unbundled) deploys and rows
  *   deployed before this column existed.
  * - `subgraphs.verification`: the level derived from sources and the handler
- *   scan (`{ level, verifiable, reasons, unproven }`). NULL = deployed before
+ *   scan (`{ level, reasons, unproven }`). NULL = deployed before
  *   derivation existed; the runtime treats it as not verifiable, so existing
  *   subgraphs keep today's execution path.
  */

@@ -467,7 +467,7 @@ describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
 		expect(res.status).toBe(422);
 		const json = (await res.json()) as {
 			code: string;
-			verification: { level: string; verifiable: boolean; reasons: string[] };
+			verification: { level: string; reasons: string[] };
 		};
 		expect(json.code).toBe("NONDETERMINISTIC_HANDLER");
 		expect(json.verification.level).toBe("state");
@@ -494,12 +494,11 @@ describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
 		expect(res.status).toBe(201);
 		const json = (await res.json()) as {
 			pin: string;
-			verification: { level: string; verifiable: boolean; reasons: string[] };
+			verification: { level: string; reasons: string[] };
 		};
 		expect(json.pin).toMatch(/^[0-9a-f]{64}$/);
 		expect(json.verification).toMatchObject({
 			level: "events",
-			verifiable: false,
 		});
 		expect(json.verification.reasons).toEqual([
 			'stx_transfer source "s" needs event proofs',
@@ -507,18 +506,18 @@ describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
 		]);
 	});
 
-	test("a clean subgraph on provable sources is verifiable; detail shows pin and level", async () => {
+	test("a clean subgraph on provable sources is state-level with no reasons; detail shows pin and level", async () => {
 		const res = await post(
 			body(VERIFIABLE, STATE_SOURCE, "ctx.insert('rows', { amount: 1n });"),
 		);
 		expect(res.status).toBe(201);
 		const deployed = (await res.json()) as {
 			pin: string;
-			verification: { level: string; verifiable: boolean };
+			verification: { level: string; reasons: string[] };
 		};
 		expect(deployed.verification).toMatchObject({
 			level: "state",
-			verifiable: true,
+			reasons: [],
 		});
 
 		const detail = (await (

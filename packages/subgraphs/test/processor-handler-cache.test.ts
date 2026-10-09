@@ -63,13 +63,12 @@ describe("processor handler cache", () => {
 		expect(handlerCacheKey(local)).not.toBe(
 			handlerCacheKey({ ...local, version: "1.0.1" }),
 		);
-		// Becoming verifiable switches the loading path, so it reloads too.
+		// Becoming state-level switches the loading path, so it reloads too.
 		expect(handlerCacheKey(a)).not.toBe(
 			handlerCacheKey({
 				...a,
 				verification: {
 					level: "state",
-					verifiable: true,
 					reasons: [],
 					unproven: [],
 				},

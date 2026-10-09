@@ -427,12 +427,11 @@ describe("subgraphs deploy verification line", () => {
 	const pin =
 		"7f3c0d5e9b21a4c86f0e3d17b5a92c4e8d61f07a3b9c25e4d8f1a06c7b3e5a91e";
 
-	it("names the level and a short pin when verifiable, then what stays unproven", () => {
+	it("names the level and a short pin for a state subgraph, then what stays unproven", () => {
 		expect(
 			formatVerificationLines(
 				{
 					level: "state",
-					verifiable: true,
 					reasons: [],
 					unproven: [
 						"tx attribution of writes: event.tx, _tx_id (needs event proofs)",
@@ -441,15 +440,14 @@ describe("subgraphs deploy verification line", () => {
 				pin,
 			),
 		).toEqual([
-			"verifiable  state · pin 7f3c…a91e",
-			"unproven    tx attribution of writes: event.tx, _tx_id (needs event proofs)",
+			"verification  state · pin 7f3c…a91e",
+			"unproven      tx attribution of writes: event.tx, _tx_id (needs event proofs)",
 		]);
 	});
 
-	it("says no and why otherwise, and nothing for a server that predates levels", () => {
+	it("adds the reasons otherwise, and nothing for a server that predates levels", () => {
 		const v = {
 			level: "events" as const,
-			verifiable: false,
 			reasons: [
 				"subgraphs/swaps.ts:41:12 Date: wall-clock time differs per run",
 				'print_event source "swaps" needs event proofs',
@@ -457,8 +455,11 @@ describe("subgraphs deploy verification line", () => {
 			unproven: [],
 		};
 		expect(formatVerificationLines(v, pin)).toEqual([
-			'verifiable  no · subgraphs/swaps.ts:41:12 Date: wall-clock time differs per run · print_event source "swaps" needs event proofs',
+			'verification  events · pin 7f3c…a91e · subgraphs/swaps.ts:41:12 Date: wall-clock time differs per run · print_event source "swaps" needs event proofs',
 		]);
+		expect(formatVerificationStatus(v)).toBe(
+			'events · subgraphs/swaps.ts:41:12 Date: wall-clock time differs per run · print_event source "swaps" needs event proofs',
+		);
 		expect(formatVerificationLines(undefined)).toEqual([]);
 		expect(formatVerificationStatus(null)).toBe(
 			"unknown (deployed before levels were derived)",

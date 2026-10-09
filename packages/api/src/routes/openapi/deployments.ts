@@ -846,7 +846,6 @@ export const deploymentsSchemas = {
 			pin: "7f3c0d5e9b21a4c86f0e3d17b5a92c4e8d61f07a3b9c25e4d8f1a06c7b3e5a91e",
 			verification: {
 				level: "events",
-				verifiable: false,
 				reasons: ['ft_transfer source "transfers" needs event proofs'],
 				unproven: [],
 			},
@@ -861,18 +860,19 @@ export const deploymentsSchemas = {
 		type: "object",
 		description:
 			"How far the subgraph's rows can be checked without trusting the server. Derived from its sources and a scan of its handler, never configured. `state`: every source is a named state write (`var_set`, `map_*`), provable from block headers; the handler must be deterministic and runs in a locked-down realm. `events`: a source or `ctx.client` read needs re-execution proofs, not served yet. `none`: a source can never be proven as written (trait scope, tip-first).",
-		required: ["level", "verifiable", "reasons", "unproven"],
+		required: ["level", "reasons", "unproven"],
 		properties: {
-			level: { type: "string", enum: ["state", "events", "none"] },
-			verifiable: {
-				type: "boolean",
-				description: "`true` only at `state` with a clean handler scan.",
+			level: {
+				type: "string",
+				enum: ["state", "events", "none"],
+				description:
+					"A deployed `state` subgraph is verifiable: one with any reason is refused at deploy.",
 			},
 			reasons: {
 				type: "array",
 				items: { type: "string" },
 				description:
-					"Why it is not verifiable: sources that need a higher level, and handler findings as `file:line:column name: reason`.",
+					"What stands between the subgraph and checkable rows: sources that need a higher level, and handler findings as `file:line:column name: reason`.",
 			},
 			unproven: {
 				type: "array",
@@ -1305,7 +1305,6 @@ export const deploymentsSchemas = {
 			pin: "7f3c0d5e9b21a4c86f0e3d17b5a92c4e8d61f07a3b9c25e4d8f1a06c7b3e5a91e",
 			verification: {
 				level: "events",
-				verifiable: false,
 				reasons: ['ft_transfer source "transfers" needs event proofs'],
 				unproven: [],
 			},

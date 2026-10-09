@@ -34,7 +34,6 @@ describe("deriveVerification", () => {
 		backfillMode?: "blocking" | "concurrent";
 		findings?: HandlerFinding[];
 		level: "state" | "events" | "none";
-		verifiable: boolean;
 		violation: boolean;
 		reasons: string[];
 	}> = [
@@ -46,7 +45,6 @@ describe("deriveVerification", () => {
 				d: { type: "map_delete", contractId: C },
 			},
 			level: "state",
-			verifiable: true,
 			violation: false,
 			reasons: [],
 		},
@@ -57,7 +55,6 @@ describe("deriveVerification", () => {
 				pools: { type: "var_set", factory: { from: "reg", field: "key" } },
 			},
 			level: "state",
-			verifiable: true,
 			violation: false,
 			reasons: [],
 		},
@@ -71,7 +68,6 @@ describe("deriveVerification", () => {
 				},
 			},
 			level: "events",
-			verifiable: false,
 			violation: false,
 			reasons: ['print_event source "swaps" needs event proofs'],
 		},
@@ -82,7 +78,6 @@ describe("deriveVerification", () => {
 				calls: { type: "contract_call", contractId: C },
 			},
 			level: "events",
-			verifiable: false,
 			violation: false,
 			reasons: ['contract_call source "calls" needs event proofs'],
 		},
@@ -90,7 +85,6 @@ describe("deriveVerification", () => {
 			name: "asset events",
 			sources: { t: { type: "ft_transfer", assetIdentifier: `${C}::t` } },
 			level: "events",
-			verifiable: false,
 			violation: false,
 			reasons: ['ft_transfer source "t" needs event proofs'],
 		},
@@ -98,7 +92,6 @@ describe("deriveVerification", () => {
 			name: "trait scope is never provable as written",
 			sources: { m: { type: "map_set", trait: "sip-010" } },
 			level: "none",
-			verifiable: false,
 			violation: false,
 			reasons: ['source "m": trait scope needs a proven contract registry'],
 		},
@@ -107,7 +100,6 @@ describe("deriveVerification", () => {
 			sources: { m: { type: "map_set", contractId: C } },
 			backfillMode: "concurrent",
 			level: "none",
-			verifiable: false,
 			violation: false,
 			reasons: ["backfillMode concurrent: tip-first order is not chain order"],
 		},
@@ -116,7 +108,6 @@ describe("deriveVerification", () => {
 			sources: { m: { type: "map_set", contractId: C } },
 			findings: [client],
 			level: "events",
-			verifiable: false,
 			violation: false,
 			reasons: [
 				"subgraph.ts:20:9 ctx.client: contract reads need re-execution proofs (needs event proofs)",
@@ -127,7 +118,6 @@ describe("deriveVerification", () => {
 			sources: { m: { type: "map_set", contractId: C } },
 			findings: [date],
 			level: "state",
-			verifiable: false,
 			violation: true,
 			reasons: ["subgraph.ts:12:5 Date: wall-clock time differs per run"],
 		},
@@ -136,7 +126,6 @@ describe("deriveVerification", () => {
 			sources: { t: { type: "stx_transfer" } },
 			findings: [date],
 			level: "events",
-			verifiable: false,
 			violation: false,
 			reasons: [
 				'stx_transfer source "t" needs event proofs',
@@ -152,10 +141,9 @@ describe("deriveVerification", () => {
 				c.findings,
 			);
 			expect(v.level).toBe(c.level);
-			expect(v.verifiable).toBe(c.verifiable);
 			expect(v.reasons).toEqual(c.reasons);
 			expect(isDeterminismViolation(v)).toBe(c.violation);
-			if (c.verifiable) {
+			if (c.reasons.length === 0) {
 				expect(v.unproven[0]).toContain("tx attribution");
 			} else {
 				expect(v.unproven).toEqual([]);

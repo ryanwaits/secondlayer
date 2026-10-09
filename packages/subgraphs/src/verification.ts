@@ -194,8 +194,10 @@ const MAX_LISTED_FINDINGS = 10;
 
 /**
  * Derive how far a subgraph's rows can be checked. Level = the highest any
- * source or handler read needs; `verifiable` additionally requires a clean
- * determinism scan. Never configured, never a flag.
+ * source or handler read needs. `reasons` lists everything standing between
+ * the subgraph and checkable rows; a `state` subgraph with any reason is
+ * refused at deploy, so every stored `state` row has none. Never configured,
+ * never a flag.
  */
 export function deriveVerification(
 	def: Pick<SubgraphDefinition, "sources" | "backfillMode">,
@@ -238,23 +240,22 @@ export function deriveVerification(
 		);
 	}
 
-	const verifiable = reasons.length === 0;
 	const writesMapInsert = Object.values(def.sources ?? {}).some(
 		(s) => (s as SubgraphFilter).type === "map_insert",
 	);
 	return {
 		level,
-		verifiable,
 		reasons,
-		unproven: verifiable
-			? [
-					"tx attribution of writes: event.tx, _tx_id (needs event proofs)",
-					"intermediate writes within a block (needs event proofs)",
-					...(writesMapInsert
-						? ["map_insert vs map_set (needs event proofs)"]
-						: []),
-				]
-			: [],
+		unproven:
+			reasons.length === 0
+				? [
+						"tx attribution of writes: event.tx, _tx_id (needs event proofs)",
+						"intermediate writes within a block (needs event proofs)",
+						...(writesMapInsert
+							? ["map_insert vs map_set (needs event proofs)"]
+							: []),
+					]
+				: [],
 	};
 }
 
@@ -263,7 +264,7 @@ export function deriveVerification(
  * the determinism contract is enforced, and the scan broke it.
  */
 export function isDeterminismViolation(v: SubgraphVerification): boolean {
-	return v.level === "state" && !v.verifiable;
+	return v.level === "state" && v.reasons.length > 0;
 }
 
 // ── Pin ─────────────────────────────────────────────────────────────────

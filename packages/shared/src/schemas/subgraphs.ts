@@ -44,7 +44,8 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
  * derived from its sources and a scan of its handler. Never configured.
  *
  * - `state`: every input is a named state write, provable from block headers.
- *   Handlers run in the deterministic realm; `verifiable` is true.
+ *   Handlers run in the deterministic realm. A deployed `state` subgraph is
+ *   verifiable: one with any reason is refused at deploy.
  * - `events`: an input (events, prints, tx results, `ctx.client`) needs
  *   re-execution proofs, which are not served yet.
  * - `none`: a source can never be proven as written (trait scope, tip-first
@@ -52,9 +53,9 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
  */
 export interface SubgraphVerification {
 	level: "state" | "events" | "none";
-	verifiable: boolean;
-	/** Why the subgraph is not verifiable, e.g. `print_event source "swaps" needs event proofs`
-	 *  or `subgraph.ts:41:12 Date: wall-clock time differs per run`. */
+	/** What stands between the subgraph and checkable rows, e.g.
+	 *  `print_event source "swaps" needs event proofs` or
+	 *  `subgraph.ts:41:12 Date: wall-clock time differs per run`. */
 	reasons: string[];
 	/** What stays unproven even at this level, e.g. tx attribution of writes. */
 	unproven: string[];

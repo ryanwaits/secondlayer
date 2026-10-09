@@ -13,7 +13,7 @@
  * and this realm together catch accidental nondeterminism; hostile code is
  * gVisor's job.
  *
- * Only subgraphs whose stored verification says `verifiable` load here.
+ * Only subgraphs whose stored verification level is `state` load here.
  * Everything else keeps the plain `import()` path, unchanged.
  */
 import vm from "node:vm";

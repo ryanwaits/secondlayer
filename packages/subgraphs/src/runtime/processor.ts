@@ -114,7 +114,7 @@ export function handlerCacheKey(
 		"pin" | "handler_code" | "handler_path" | "version" | "verification"
 	>,
 ): string {
-	const path = sg.verification?.verifiable ? "realm" : "import";
+	const path = sg.verification?.level === "state" ? "realm" : "import";
 	const content =
 		sg.pin ??
 		(sg.handler_code != null
@@ -141,7 +141,7 @@ export async function loadSubgraphDefinition(
 	}
 
 	let def: SubgraphDefinition;
-	if (sg.verification?.verifiable && sg.handler_code) {
+	if (sg.verification?.level === "state" && sg.handler_code) {
 		// Verifiable (state-level, scan-clean at deploy): run in the deterministic realm.
 		def = await loadDeterministicDefinition(sg.handler_code);
 	} else if (sg.handler_code) {
