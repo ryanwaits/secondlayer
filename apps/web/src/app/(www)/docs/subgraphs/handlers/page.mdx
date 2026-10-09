@@ -106,8 +106,34 @@ Scaffolds from the [print-schema endpoint](/docs/index#print-schemas): one `prin
 
 Deploys return advisory `warnings` when a handler reads an `event.data` field never observed for its topic (pinned `contractId` sources only). If the source **declares** a `prints` map, the same finding is an error and the deploy is refused: you stated the shape, so a mismatch is a defect rather than a hint.
 
+## Rows anyone can recompute
+
+A subgraph whose sources are all state writes (`var_set`, `map_set`, `map_insert`, `map_delete`) can be rebuilt from block headers alone, so its handlers must give the same rows on every run. The level is derived from your sources and a scan of the bundle, never configured:
+
+| `verification.level` | Sources | Handler findings |
+| --- | --- | --- |
+| `L2` | state writes only | refuse the deploy: `422 NONDETERMINISTIC_HANDLER`, each as `file:line:column` |
+| `L3` | events, prints, contract calls, or any `ctx.client` read | advice in `verification.reasons`; deploys as before |
+| `none` | `trait` scope, or `backfillMode: "concurrent"` | advice, as above |
+
+```text
+secondlayer subgraphs deploy subgraphs/pool-reserves.ts
+✓ Subgraph "pool-reserves" created → v1.0.0
+  verifiable  L2 · pin 7f3c…a91e
+  unproven    tx attribution of writes: event.tx, _tx_id (needs L3)
+```
+
+| Refused at `L2` | Use instead |
+| --- | --- |
+| `Date`, `performance`, timers, `fetch`, `process`, `crypto`, `Intl`, `toLocaleString` | values from `event`, `ctx.block`, `ctx.tx` |
+| `Math.random`, `Math.sin` and other approximated `Math` | `bigint` math; `Math.abs/min/max/floor/ceil/trunc/sign/round` |
+| non-integer or unsafe `number` in a row | `bigint` |
+| `findOne` calls in parallel (`Promise.all`) | `await` each read in turn |
+
+Verifiable handlers run in a locked-down realm that throws on the same list at runtime and retries the block rather than skip the event. The tradeoff: most event subgraphs stay advisory until event proofs ship. `pin` hashes the schema, bundle, `startBlock`, network and runtime version, so a handler-only redeploy changes it even when `schemaHash` does not.
+
 export const metadata = {
 	title: "Writing handlers — Secondlayer Docs",
 	description:
-		"Handler rules for Stacks subgraphs: atomic increments, block-pinned contract reads, and typed print payloads.",
+		"Handler rules for Stacks subgraphs: atomic increments, block-pinned contract reads, typed print payloads, and deterministic handlers.",
 };
