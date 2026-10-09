@@ -289,7 +289,7 @@ export async function catchUpSubgraph(
 	catchingUp.add(subgraphName);
 
 	try {
-		const source = resolveBlockSource(subgraph);
+		const source = await resolveBlockSource(subgraph);
 		const targetDb = getTargetDb();
 
 		// Re-read from DB to avoid stale lastProcessedBlock

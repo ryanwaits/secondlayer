@@ -363,10 +363,9 @@ export async function processBlock(
 		// The block source returns canonical blocks only, so a missing entry
 		// means the block is absent or non-canonical — skip either way.
 		const data = (
-			await resolveBlockSource(subgraph).loadBlockRange(
-				blockHeight,
-				blockHeight,
-			)
+			await (
+				await resolveBlockSource(subgraph)
+			).loadBlockRange(blockHeight, blockHeight)
 		).get(blockHeight);
 		if (!data) {
 			logger.debug("Block not found or non-canonical for subgraph processing", {

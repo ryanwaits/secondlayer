@@ -1,19 +1,28 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { getSourceDb } from "@secondlayer/shared/db";
 import { IndexHttpClient } from "@secondlayer/shared/index-http";
+import { applyBlock } from "../src/runtime/apply-block.ts";
 import { loadBlockRange } from "../src/runtime/batch-loader.ts";
 import {
 	PostgresBlockSource,
 	PublicApiBlockSource,
+	cachedCoverage,
+	dbStateWritesCoverage,
+	stateWriteContracts,
 	stateWriteFeed,
 } from "../src/runtime/block-source.ts";
+import {
+	MemoryStore,
+	MemorySubgraphContext,
+} from "../src/runtime/memory-store.ts";
 import { loadDeterministicDefinition } from "../src/runtime/realm.ts";
 import type { SubgraphDefinition } from "../src/types.ts";
 
 /**
  * A state subgraph's write events come from `state_writes`, the rows a
- * verifier names against the block's witness, on both block sources. Every
- * other subgraph keeps reading `vm_events`.
+ * verifier names against the block's witness, on both block sources, once
+ * the instance holds them from the subgraph's startBlock on. Every other
+ * subgraph, and every subgraph on an instance without them, keeps `vm_events`.
  */
 
 const POOL = "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-vault-v2-01";
@@ -23,10 +32,14 @@ const OTHER = "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm_vault";
 const handlerCode = (sources: Record<string, unknown>) => `
 var subgraph_default = {
 	name: "feed-test",
+	startBlock: 880000,
 	sources: ${JSON.stringify(sources)},
-	schema: { reserves: { columns: { token: { type: "text" } } } },
+	schema: { reserves: { columns: { token: { type: "text" }, amount: { type: "uint", nullable: true } } } },
 	handlers: { ${Object.keys(sources)
-		.map((k) => `${k}: () => {}`)
+		.map(
+			(k) =>
+				`${k}: (event, ctx) => { ctx.insert("reserves", { token: String(event.key ?? event.varName), amount: event.value ?? null }); }`,
+		)
 		.join(", ")} },
 };
 export { subgraph_default as default };
@@ -41,7 +54,7 @@ describe("which subgraphs read state_writes", () => {
 			reserve: { type: "map_set", contractId: POOL, map: "reserve" },
 			paused: { type: "var_set", contractId: OTHER, varName: "paused" },
 		});
-		expect(stateWriteFeed(def)).toEqual({ contracts: [POOL, OTHER] });
+		expect(stateWriteContracts(def)).toEqual({ contracts: [POOL, OTHER] });
 	});
 
 	test("a source with no fixed contract reads every contract's writes", async () => {
@@ -51,7 +64,7 @@ describe("which subgraphs read state_writes", () => {
 				contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.*",
 			},
 		});
-		expect(stateWriteFeed(def)).toEqual({ contracts: null });
+		expect(stateWriteContracts(def)).toEqual({ contracts: null });
 	});
 
 	test("the same definition imported outside the realm keeps vm_events", () => {
@@ -61,8 +74,8 @@ describe("which subgraphs read state_writes", () => {
 			schema: {},
 			handlers: { reserve: () => {} },
 		} as unknown as SubgraphDefinition;
-		expect(stateWriteFeed(def)).toBeNull();
-		expect(stateWriteFeed(undefined)).toBeNull();
+		expect(stateWriteContracts(def)).toBeNull();
+		expect(stateWriteContracts(undefined)).toBeNull();
 	});
 
 	test("a subgraph stored as state with a map_insert source keeps vm_events: state_writes cannot tell an insert from a set", async () => {
@@ -70,7 +83,47 @@ describe("which subgraphs read state_writes", () => {
 			reg: { type: "map_insert", contractId: POOL, map: "pools" },
 			reserve: { type: "map_set", contractId: POOL, map: "reserve" },
 		});
-		expect(stateWriteFeed(def)).toBeNull();
+		expect(stateWriteContracts(def)).toBeNull();
+	});
+});
+
+describe("the feed switches only once the instance holds state_writes for the subgraph's range", () => {
+	const sources = {
+		reserve: { type: "map_set", contractId: POOL, map: "reserve" },
+	};
+
+	test("no state_writes on the instance: today's feed", async () => {
+		const def = await realm(sources);
+		expect(await stateWriteFeed(def, async () => null)).toBeNull();
+	});
+
+	test("state_writes that begin after startBlock: today's feed, never a half-fed history", async () => {
+		const def = await realm(sources);
+		expect(await stateWriteFeed(def, async () => 880_001)).toBeNull();
+	});
+
+	test("state_writes from startBlock or earlier: the state_writes feed", async () => {
+		const def = await realm(sources);
+		expect(await stateWriteFeed(def, async () => 880_000)).toEqual({
+			contracts: [POOL],
+		});
+		expect(await stateWriteFeed(def, async () => 9)).toEqual({
+			contracts: [POOL],
+		});
+	});
+
+	test("coverage is read once per window, and a failed read counts as none", async () => {
+		let reads = 0;
+		const coverage = cachedCoverage(async () => {
+			reads++;
+			return 5;
+		}, 60_000);
+		expect([await coverage(), await coverage()]).toEqual([5, 5]);
+		expect(reads).toBe(1);
+		const failing = cachedCoverage(async () => {
+			throw new Error("relation state_writes does not exist");
+		});
+		expect(await failing()).toBeNull();
 	});
 });
 
@@ -146,7 +199,9 @@ function startFakeIndex() {
 		fetch(req) {
 			const url = new URL(req.url);
 			const from = Number(url.searchParams.get("from_height") ?? 0);
-			const to = Number(url.searchParams.get("to_height"));
+			const to = Number(
+				url.searchParams.get("to_height") ?? Number.MAX_SAFE_INTEGER,
+			);
 			const inRange = (h: number) => h >= from && h <= to;
 			if (url.pathname === "/v1/index/blocks") {
 				return Response.json({
@@ -319,6 +374,49 @@ describe.skipIf(!process.env.DATABASE_URL)(
 				["map_delete", 4, TXS[0]?.tx_id],
 			]);
 			expect(tap.get(H + 1)?.vmEvents?.map((e) => e.type)).toEqual(["var_set"]);
+		});
+
+		test("the Index API's coverage is its first state_writes row", async () => {
+			const client = new IndexHttpClient({
+				indexBaseUrl: `http://127.0.0.1:${fake.port}`,
+				streamsBaseUrl: `http://127.0.0.1:${fake.port}`,
+				indexApiKey: "",
+			});
+			expect(await client.firstStateWriteHeight()).toBe(H);
+		});
+
+		test("the DB tap's coverage is the lowest state_writes height", async () => {
+			dbStateWritesCoverage.forget();
+			const from = await dbStateWritesCoverage();
+			expect(from).not.toBeNull();
+			expect(from as number).toBeLessThanOrEqual(H);
+		});
+
+		test("handler rows: today's feed without coverage, state_writes with it", async () => {
+			const def = await realm({
+				reserve: { type: "map_set", contractId: POOL, map: "reserve" },
+			});
+			const rows = async (coverage: () => Promise<number | null>) => {
+				const feed = await stateWriteFeed(def, coverage);
+				const data = (
+					await new PostgresBlockSource(feed ?? undefined).loadBlockRange(H, H)
+				).get(H);
+				const store = new MemoryStore();
+				const ctx = new MemorySubgraphContext(
+					store,
+					def.schema,
+					{ height: H, hash: "0x", timestamp: 0, burnBlockHeight: 0 },
+					{ txId: "", sender: "", type: "", status: "" },
+				);
+				if (data) await applyBlock(def, data, ctx);
+				await ctx.commitOps();
+				return (store.tables.get("reserves") ?? []).map((r) => r.amount);
+			};
+			// Without coverage: exactly what vm_events says, as before.
+			expect(await rows(async () => null)).toEqual([0x999n]);
+			// With coverage: the named writes (a set then a delete; deletes are
+			// not matched by a map_set source).
+			expect(await rows(async () => 880_000)).toEqual([100n]);
 		});
 
 		test("without a feed the DB tap still reads vm_events", async () => {

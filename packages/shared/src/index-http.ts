@@ -477,6 +477,17 @@ export class IndexHttpClient {
 		);
 	}
 
+	/** Lowest height the Index serves `state_writes` for, or null when it has
+	 *  none (its node does not deliver them). One row. */
+	async firstStateWriteHeight(): Promise<number | null> {
+		const { items } = await this.getPage<"state_writes", IndexStateWriteRow>(
+			"/v1/index/state-writes",
+			"state_writes",
+			new URLSearchParams({ from_height: "0", limit: "1" }),
+		);
+		return items[0]?.block_height ?? null;
+	}
+
 	walkTransactions(
 		fromHeight: number,
 		toHeight: number,

@@ -177,13 +177,13 @@ describe("ObserverHttpBlockSource", () => {
 });
 
 describe("resolveBlockSource observer-http flag", () => {
-	test("default unset env → PostgresBlockSource", () => {
+	test("default unset env → PostgresBlockSource", async () => {
 		const prevSource = process.env.SUBGRAPH_SOURCE;
 		const prevUrl = process.env.OBSERVER_HTTP_URL;
 		try {
 			delete process.env.SUBGRAPH_SOURCE;
 			delete process.env.OBSERVER_HTTP_URL;
-			const source = resolveBlockSource();
+			const source = await resolveBlockSource();
 			expect(source).toBeInstanceOf(PostgresBlockSource);
 		} finally {
 			if (prevSource === undefined) delete process.env.SUBGRAPH_SOURCE;
@@ -193,7 +193,7 @@ describe("resolveBlockSource observer-http flag", () => {
 		}
 	});
 
-	test("SUBGRAPH_SOURCE=observer-http + OBSERVER_HTTP_URL → ObserverHttpBlockSource", () => {
+	test("SUBGRAPH_SOURCE=observer-http + OBSERVER_HTTP_URL → ObserverHttpBlockSource", async () => {
 		const prevSource = process.env.SUBGRAPH_SOURCE;
 		const prevUrl = process.env.OBSERVER_HTTP_URL;
 		const prevToken = process.env.OBSERVER_HTTP_EXPORT_TOKEN;
@@ -201,7 +201,7 @@ describe("resolveBlockSource observer-http flag", () => {
 			process.env.SUBGRAPH_SOURCE = "observer-http";
 			process.env.OBSERVER_HTTP_URL = "http://127.0.0.1:3700";
 			delete process.env.OBSERVER_HTTP_EXPORT_TOKEN;
-			const source = resolveBlockSource();
+			const source = await resolveBlockSource();
 			expect(source).toBeInstanceOf(ObserverHttpBlockSource);
 		} finally {
 			if (prevSource === undefined) delete process.env.SUBGRAPH_SOURCE;

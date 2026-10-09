@@ -185,7 +185,7 @@ async function processBlockRange(
 	totalErrors: number;
 	aborted: boolean;
 }> {
-	const source = resolveBlockSource(def);
+	const source = await resolveBlockSource(def);
 	const targetDb = getTargetDb();
 	const subgraphName = def.name;
 	const { fromBlock, toBlock, status } = opts;
@@ -698,7 +698,7 @@ export async function reindexSubgraph(
 	opts?: ReindexOptions,
 ): Promise<{ processed: number }> {
 	// Chain tip reads hit the block source; subgraph rows + tenant schemas live in target
-	const source = resolveBlockSource(def);
+	const source = await resolveBlockSource(def);
 	const targetDb = getTargetDb();
 	const client = getRawClient("target");
 	const subgraphName = def.name;

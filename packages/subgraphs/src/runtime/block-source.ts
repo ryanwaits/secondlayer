@@ -150,16 +150,69 @@ export function sparseProbeTargets(
 	return targets;
 }
 
+/** Lowest height this instance holds `state_writes` for; null when none. */
+export type StateWritesCoverage = () => Promise<number | null>;
+
+/** How long a coverage answer is reused. Coverage only appears (the node
+ *  starts delivering `state_writes`) or reaches lower (a backfill). */
+const COVERAGE_TTL_MS = 60_000;
+
+/** A coverage read cached per process; `forget` drops the cached answer. */
+export type CachedCoverage = StateWritesCoverage & { forget(): void };
+
+/** Cache a coverage read per process; a failed read counts as no coverage. */
+export function cachedCoverage(
+	read: () => Promise<number | null>,
+	ttlMs: number = COVERAGE_TTL_MS,
+): CachedCoverage {
+	let cached: { at: number; value: Promise<number | null> } | undefined;
+	const coverage = () => {
+		const now = Date.now();
+		if (!cached || now - cached.at > ttlMs) {
+			cached = { at: now, value: read().catch(() => null) };
+		}
+		return cached.value;
+	};
+	return Object.assign(coverage, {
+		forget: () => {
+			cached = undefined;
+		},
+	});
+}
+
+/** The DB tap's coverage: the lowest `state_writes` height, one PK probe. */
+export const dbStateWritesCoverage: CachedCoverage = cachedCoverage(
+	async () => {
+		const row = await getSourceDb()
+			.selectFrom("state_writes")
+			.select("block_height")
+			.orderBy("block_height", "asc")
+			.limit(1)
+			.executeTakeFirst();
+		return row ? Number(row.block_height) : null;
+	},
+);
+
+let httpCoverage: StateWritesCoverage | undefined;
+/** The Index API's coverage: the first `/v1/index/state-writes` row. */
+function httpStateWritesCoverage(): StateWritesCoverage {
+	httpCoverage ??= cachedCoverage(() =>
+		buildHttpClient().firstStateWriteHeight(),
+	);
+	return httpCoverage;
+}
+
 /**
- * The `state_writes` feed for a subgraph, or null when it keeps `vm_events`.
+ * The contracts whose writes a state subgraph would read from `state_writes`,
+ * or null when it keeps `vm_events` whatever the instance holds.
  *
- * Derived, never configured: only a subgraph running in the deterministic
- * realm (stored level `state`) whose sources the CURRENT rules still derive
- * as `state`. A subgraph stored as `state` before `map_insert` dropped to
- * `events` keeps its `vm_events` feed: `state_writes` cannot tell an insert
- * from a set, so it would silently lose those events.
+ * Only a subgraph running in the deterministic realm (stored level `state`)
+ * whose sources the CURRENT rules still derive as `state`. A subgraph stored
+ * as `state` before `map_insert` dropped to `events` keeps its `vm_events`
+ * feed: `state_writes` cannot tell an insert from a set, so it would silently
+ * lose those events.
  */
-export function stateWriteFeed(
+export function stateWriteContracts(
 	subgraph: SubgraphDefinition | undefined,
 ): StateWriteFeed | null {
 	if (!subgraph || !runsInRealm(subgraph)) return null;
@@ -173,6 +226,24 @@ export function stateWriteFeed(
 		for (const id of pinned) contracts.add(id);
 	}
 	return { contracts: [...contracts] };
+}
+
+/**
+ * The `state_writes` feed for a subgraph, or null when it keeps today's
+ * `vm_events` feed. Derived, never configured: a state subgraph switches only
+ * once this instance holds `state_writes` from the subgraph's `startBlock`
+ * on, so a node that does not deliver them (or started delivering them after
+ * the subgraph's range began) changes nothing.
+ */
+export async function stateWriteFeed(
+	subgraph: SubgraphDefinition | undefined,
+	coverage: StateWritesCoverage = dbStateWritesCoverage,
+): Promise<StateWriteFeed | null> {
+	const feed = stateWriteContracts(subgraph);
+	if (!feed) return null;
+	const from = await coverage();
+	if (from === null || from > (subgraph?.startBlock ?? 0)) return null;
+	return feed;
 }
 
 /** Reads directly from the shared indexer Postgres (the original behavior). */
@@ -607,8 +678,7 @@ export class FallbackBlockSource implements BlockSource {
 const postgresBlockSource = new PostgresBlockSource();
 
 /** The Postgres tap for a subgraph: its `state_writes` feed when it has one. */
-function postgresSourceFor(subgraph?: SubgraphDefinition): BlockSource {
-	const feed = stateWriteFeed(subgraph);
+function postgresSourceFor(feed: StateWriteFeed | null): BlockSource {
 	return feed ? new PostgresBlockSource(feed) : postgresBlockSource;
 }
 
@@ -653,7 +723,9 @@ export function buildHttpClient(): IndexHttpClient {
  * `SUBGRAPH_SOURCE=observer-http` pages internal observer-events (experimental).
  * Default stays on the Postgres tap.
  */
-export function resolveBlockSource(subgraph?: SubgraphDefinition): BlockSource {
+export async function resolveBlockSource(
+	subgraph?: SubgraphDefinition,
+): Promise<BlockSource> {
 	if (process.env.SUBGRAPH_SOURCE === "observer-http") {
 		const baseUrl = process.env.OBSERVER_HTTP_URL;
 		if (!baseUrl) {
@@ -673,7 +745,9 @@ export function resolveBlockSource(subgraph?: SubgraphDefinition): BlockSource {
 	) {
 		// Soft-depend on api: fall back to the Postgres tap per-call if the HTTP
 		// plane is down, so the processor keeps advancing instead of stalling.
-		const feed = stateWriteFeed(subgraph) ?? undefined;
+		// Both read the same feed, decided by the plane this source reads.
+		const feed =
+			(await stateWriteFeed(subgraph, httpStateWritesCoverage())) ?? undefined;
 		return new FallbackBlockSource(
 			new PublicApiBlockSource(
 				buildHttpClient(),
@@ -686,7 +760,7 @@ export function resolveBlockSource(subgraph?: SubgraphDefinition): BlockSource {
 				needsTransactionData(subgraph),
 				feed,
 			),
-			postgresSourceFor(subgraph),
+			postgresSourceFor(feed ?? null),
 		);
 	}
 	if (process.env.SUBGRAPH_SOURCE === "streams-index" && subgraph) {
@@ -694,5 +768,5 @@ export function resolveBlockSource(subgraph?: SubgraphDefinition): BlockSource {
 			subgraph: subgraph.name,
 		});
 	}
-	return postgresSourceFor(subgraph);
+	return postgresSourceFor(await stateWriteFeed(subgraph));
 }
