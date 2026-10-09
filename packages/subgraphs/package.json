@@ -29,6 +29,10 @@
 			"types": "./dist/validate.d.ts",
 			"import": "./dist/validate.js"
 		},
+		"./verification": {
+			"types": "./dist/verification.d.ts",
+			"import": "./dist/verification.js"
+		},
 		"./runtime/replay": {
 			"types": "./dist/runtime/replay.d.ts",
 			"import": "./dist/runtime/replay.js"

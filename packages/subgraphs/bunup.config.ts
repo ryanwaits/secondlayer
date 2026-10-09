@@ -5,6 +5,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/index.ts",
 		"src/types.ts",
 		"src/validate.ts",
+		"src/verification.ts",
 		"src/schema/index.ts",
 		"src/runtime/replay.ts",
 		"src/runtime/emitter.ts",
@@ -15,6 +16,6 @@ const config: DefineConfigItem = defineConfig({
 	sourcemap: "linked",
 	minify: false,
 	splitting: false,
-	external: ["@secondlayer/shared", "kysely", "zod"],
+	external: ["@secondlayer/shared", "esbuild", "kysely", "zod"],
 }) as DefineConfigItem;
 export default config;

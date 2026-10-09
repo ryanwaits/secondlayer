@@ -6,6 +6,7 @@ import type {
 	SubgraphTable,
 } from "../types.ts";
 import { validateSubgraphDefinition } from "../validate.ts";
+import { type SubgraphVerification, computePin } from "../verification.ts";
 import {
 	TYPE_MAP,
 	emitIndexedColumnIndexDDL,
@@ -263,11 +264,17 @@ export async function deploySchema(
 		schemaName?: string;
 		handlerCode?: string;
 		sourceCode?: string;
+		/** Derived level to store (see `deriveVerification`). */
+		verification?: SubgraphVerification;
+		/** Network baked into the pin. Defaults to `NETWORK`, then mainnet. */
+		network?: string;
 	},
 ): Promise<{
 	action: "created" | "unchanged" | "handler_updated" | "updated" | "reindexed";
 	subgraphId: string;
 	version: string;
+	/** Present when the deploy carried a bundled handler. */
+	pin?: string;
 	diff?: DeployDiff;
 	/** Non-fatal caveats the caller should surface (e.g. handler grafts at tip). */
 	warnings?: string[];
@@ -275,6 +282,18 @@ export async function deploySchema(
 	validateSubgraphDefinition(def);
 
 	const { statements, hash } = generateSubgraphSQL(def, opts?.schemaName);
+	// Only a bundled handler is pinnable: a local deploy runs the source file
+	// in place, so there are no stored bytes for anyone to rebuild and compare.
+	const pin =
+		opts?.handlerCode != null
+			? computePin({
+					schemaHash: hash,
+					handlerCode: opts.handlerCode,
+					startBlock: def.startBlock,
+					network: opts.network ?? process.env.NETWORK ?? "mainnet",
+				})
+			: null;
+	const identity = pin ? { pin } : {};
 	const { getSubgraph, registerSubgraph } = await import(
 		"@secondlayer/shared/db/queries/subgraphs"
 	);
@@ -306,6 +325,8 @@ export async function deploySchema(
 		sourceCode: opts?.sourceCode,
 		schemaName,
 		startBlock: def.startBlock,
+		pin,
+		verification: opts?.verification ?? null,
 	};
 
 	if (existing) {
@@ -325,7 +346,12 @@ export async function deploySchema(
 				await sql.raw(stmt).execute(ddlDb);
 			}
 			const sg = await registerSubgraph(db, regData);
-			return { action: "reindexed", subgraphId: sg.id, version: newVersion };
+			return {
+				action: "reindexed",
+				subgraphId: sg.id,
+				version: newVersion,
+				...identity,
+			};
 		}
 
 		if (existing.schema_hash === hash && !opts?.forceReindex) {
@@ -338,11 +364,14 @@ export async function deploySchema(
 			await updateSubgraphHandlerPath(db, def.name, handlerPath, {
 				handlerCode: opts?.handlerCode,
 				sourceCode: opts?.sourceCode,
+				pin,
+				verification: opts?.verification ?? null,
 			});
 			return {
 				action: handlerChanged ? "handler_updated" : "unchanged",
 				subgraphId: existing.id,
 				version: existing.version,
+				...identity,
 				// A handler-only change takes effect from the CURRENT tip: rows
 				// already indexed keep the old handler's output. Silent until now —
 				// say it, and name the fix.
@@ -367,7 +396,12 @@ export async function deploySchema(
 				await sql.raw(stmt).execute(ddlDb);
 			}
 			const sg = await registerSubgraph(db, regData);
-			return { action: "reindexed", subgraphId: sg.id, version: newVersion };
+			return {
+				action: "reindexed",
+				subgraphId: sg.id,
+				version: newVersion,
+				...identity,
+			};
 		}
 
 		if (existing.definition.schema) {
@@ -391,6 +425,7 @@ export async function deploySchema(
 					action: "reindexed",
 					subgraphId: sg.id,
 					version: newVersion,
+					...identity,
 					diff: deployDiff,
 				};
 			}
@@ -583,6 +618,7 @@ export async function deploySchema(
 				action: "updated",
 				subgraphId: sg.id,
 				version: newVersion,
+				...identity,
 				diff: deployDiff,
 			};
 		}
@@ -594,7 +630,12 @@ export async function deploySchema(
 	}
 
 	const sg = await registerSubgraph(db, regData);
-	return { action: "created", subgraphId: sg.id, version: newVersion };
+	return {
+		action: "created",
+		subgraphId: sg.id,
+		version: newVersion,
+		...identity,
+	};
 }
 
 function getDefault(type: string): string {

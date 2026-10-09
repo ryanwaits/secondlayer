@@ -82,6 +82,21 @@ export {
 	type ChainReadOptions,
 	type ErasedChainReadClient,
 } from "./runtime/chain-read.ts";
+export {
+	computePin,
+	deriveVerification,
+	formatFinding,
+	isDeterminismViolation,
+	SUBGRAPHS_RUNTIME,
+	type HandlerFinding,
+	type PinInput,
+	type SubgraphVerification,
+} from "./verification.ts";
+export {
+	HandlerReadError,
+	NondeterminismError,
+	loadDeterministicDefinition,
+} from "./runtime/realm.ts";
 export { generateSubgraphSQL } from "./schema/generator.ts";
 export {
 	generatePrismaSchema,

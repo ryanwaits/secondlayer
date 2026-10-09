@@ -30,6 +30,7 @@ import type { SubgraphDefinition } from "../types.ts";
 import { invalidateSubgraphRoute } from "./block-processor.ts";
 import { isCatchUpLeader, startCatchUpLeader } from "./catchup-leader.ts";
 import { catchUpSubgraph } from "./catchup.ts";
+import { loadDeterministicDefinition } from "./realm.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";
@@ -115,16 +116,22 @@ async function loadSubgraphDefinition(
 		return cached;
 	}
 
-	// Write latest handler code from DB to disk before importing
-	if (sg.handler_code) {
-		const { mkdirSync, writeFileSync } = await import("node:fs");
-		const { dirname } = await import("node:path");
-		mkdirSync(dirname(sg.handler_path), { recursive: true });
-		writeFileSync(sg.handler_path, sg.handler_code);
-	}
+	let def: SubgraphDefinition;
+	if (sg.verification?.verifiable && sg.handler_code) {
+		// Verifiable (L2, scan-clean at deploy): run in the deterministic realm.
+		def = await loadDeterministicDefinition(sg.handler_code);
+	} else {
+		// Write latest handler code from DB to disk before importing
+		if (sg.handler_code) {
+			const { mkdirSync, writeFileSync } = await import("node:fs");
+			const { dirname } = await import("node:path");
+			mkdirSync(dirname(sg.handler_path), { recursive: true });
+			writeFileSync(sg.handler_path, sg.handler_code);
+		}
 
-	const mod = await import(handlerImportUrl(sg.handler_path));
-	const def = mod.default ?? mod;
+		const mod = await import(handlerImportUrl(sg.handler_path));
+		def = mod.default ?? mod;
+	}
 
 	const prevVersion = knownVersions.get(sg.name);
 	knownVersions.set(sg.name, sg.version);
