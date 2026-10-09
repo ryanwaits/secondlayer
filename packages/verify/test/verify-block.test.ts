@@ -19,6 +19,7 @@ import {
 	parseNakamotoHeader,
 	parseWitness,
 	rewardCycle,
+	signerSignatureHash,
 	unhex,
 	verifyBlock,
 	verifyConsensusPreimage,
@@ -127,6 +128,10 @@ describe("verifyBlock proves 9,137,005 end to end from MAINNET_CHECKPOINT", () =
 			threshold: 2800n,
 			failures: [],
 		});
+		// The authenticated header's identity, for callers rebuilding the block.
+		expect(r.blockHash).toBe(hex(signerSignatureHash(header(H))));
+		expect(r.consensusHash).toBe(hex(header(H).consensusHash));
+		expect(r.timestamp).toBe(Number(header(H).timestamp));
 		// 24 leaves: no state_writes on prod yet, so writes are proven but unnamed;
 		// one leaf is a copy of the parent's own trie; five are MARF bookkeeping.
 		const d = r.diff;

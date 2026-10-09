@@ -29,6 +29,7 @@ import {
 	isEpoch2Header,
 	parseEpoch2Header,
 	parseNakamotoHeader,
+	signerSignatureHash,
 } from "./header.ts";
 import { mapEntryKey } from "./keys.ts";
 import {
@@ -130,6 +131,12 @@ export interface BlockVerification {
 	ok: boolean;
 	height?: number;
 	blockId?: string;
+	/** Nakamoto block hash (the header's signer sighash), hex. Absent for epoch 2.x. */
+	blockHash?: string;
+	/** The header's consensus hash, hex. */
+	consensusHash?: string;
+	/** Nakamoto header timestamp, Unix seconds. Absent for epoch 2.x. */
+	timestamp?: number;
 	/** The header's state_index_root, hex: what the witness must hash to. */
 	stateRoot?: string;
 	/** Set for blocks below the checkpoint, which need no signatures. */
@@ -361,7 +368,7 @@ export class BlockVerifier {
 		const height = Number(header.chainLength);
 		out.height = height;
 		out.blockId = id;
-		out.stateRoot = hex(header.stateIndexRoot);
+		describeHeader(header, out);
 
 		const burn = await this.bindBurn(header, "burn");
 		const cycle = rewardCycle(burn.burnHeight);
@@ -411,7 +418,7 @@ export class BlockVerifier {
 				message: `block ${id} claims height ${header.chainLength}, proven at ${height}`,
 			});
 		out.blockId = id;
-		out.stateRoot = hex(header.stateIndexRoot);
+		describeHeader(header, out);
 		await this.bindBurnBelow(header, out);
 		await this.checkTransactions(header, id, out);
 		await this.verifyState(header, id, out);
@@ -1019,6 +1026,16 @@ export class BlockVerifier {
 			});
 		}
 		return set;
+	}
+}
+
+/** The authenticated header's identity fields, for callers that rebuild the block. */
+function describeHeader(header: StacksHeader, out: BlockVerification): void {
+	out.stateRoot = hex(header.stateIndexRoot);
+	out.consensusHash = hex(header.consensusHash);
+	if (!isEpoch2Header(header)) {
+		out.blockHash = hex(signerSignatureHash(header));
+		out.timestamp = Number(header.timestamp);
 	}
 }
 
