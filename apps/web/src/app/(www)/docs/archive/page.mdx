@@ -141,13 +141,7 @@ Publishing is append-only. Each partition carries a SHA-256 over its bytes and a
 
 ## Assurance levels
 
-| Level | Means |
-| --- | --- |
-| `db-reconstructive` | Exports from one repeatable-read snapshot restore deterministically. Does not prove no historical callback was omitted. |
-| `node-attested` | Block identities (`hash`, `index_block_hash`) also match an independently synced stacks-node for the window in `node.json`. Transactions and events stay `db-reconstructive`: the node does not expose execution `raw_result` or events. |
-| `observer-attested` | Digests match independently retained raw observer history. |
-
-The manifest states its level per range. Most of the chain is `db-reconstructive`. A published `node.json` upgrades only the listed `coverage` window.
+The manifest states an assurance level per range: `db-reconstructive`, `node-attested`, or `observer-attested`. What each means: [Verify](/docs/verification#archive-assurance-levels).
 
 <Callout type="note" title="Not an SLA">
 
@@ -155,7 +149,7 @@ The archive is a best-effort public utility, not a hosted service. Verification 
 
 </Callout>
 
-[CLI](/docs/cli) for the full command set; [Verification](/docs/verification) for per-transaction inclusion proofs.
+[CLI](/docs/cli) for the full command set; [Verify](/docs/verification) for everything else you can check, from a transaction to a block.
 
 export const metadata = {
 	title: "Verified archive — Secondlayer Docs",

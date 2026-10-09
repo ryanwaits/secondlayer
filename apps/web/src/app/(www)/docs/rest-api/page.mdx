@@ -2,7 +2,7 @@
 
 Every `/v1` surface answers with the same envelope, cursor, and filter grammar, so one client shape reads Index, Streams, and subgraphs. Served at `http://127.0.0.1:3800` on your box (`SECONDLAYER_API_URL` overrides) or `https://api.secondlayer.tools` hosted, with your `SECONDLAYER_API_KEY` as a bearer token; tokens: [Authentication](/docs/authentication).
 
-Per-endpoint parameters and response codes: [API reference](/docs/api-reference).
+Per-endpoint parameters and response codes: [API reference](/docs/api-reference). Proof routes (`/v1/proofs/*`, `/v1/index/transactions/:tx_id/proof`): [Verify](/docs/verification#proofs-api).
 
 ## Response envelope
 
@@ -169,14 +169,6 @@ curl -X POST http://127.0.0.1:3800/v1/batch -H "content-type: application/json" 
 ```
 
 Results come back in order as `{ "results": [{ "path", "status", "body" }] }`. Each item runs through the same auth and limits as a direct call, with your `Authorization` header forwarded. Only paths under `/v1/index/`, `/v1/subgraphs`, `/v1/streams/` and `/v1/contracts` are allowed; anything else is a per-item `400`.
-
-## Transaction-inclusion proof
-
-```bash
-curl "http://127.0.0.1:3800/v1/index/transactions/0x<tx_id>/proof"
-```
-
-`GET /v1/index/transactions/:tx_id/proof` returns a trustless inclusion proof. Response body, trust levels, error codes, and the `@secondlayer/sdk` verifier: [Verification](/docs/verification#errors).
 
 export const metadata = {
 	title: "REST API — Secondlayer Docs",

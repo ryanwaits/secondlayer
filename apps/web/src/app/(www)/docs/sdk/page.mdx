@@ -45,7 +45,7 @@ Each surface documents its own calls:
 | Webhook on raw chain events | `sl.webhooks.create({ name, url, triggers })` | [Webhooks](/docs/webhooks#direct-chain-webhooks-no-subgraph) |
 | Re-deliver history | `sl.webhooks.replay(id, { fromBlock, toBlock })` | [Replay](/docs/webhooks#replay) |
 | Check a delivery signature | `verifyWebhookSignature`, `verifySecondlayerSignature` | [Receiving deliveries](/docs/webhooks/deliveries#verify-the-signature) |
-| Prove a tx is in a block | `verifyTransactionProof`, `fetchRewardSet` | [Verification](/docs/verification) |
+| Prove a tx is in a block | `verifyTransactionProof`, `fetchRewardSet` | [Verify](/docs/verification#prove-a-transaction) |
 | Tail the live firehose | `sl.streams.events.subscribe(opts)` | [Streams](/docs/streams#real-time-firehose-sse) |
 | Read subgraph tables | `sl.subgraphs.rows`, `sl.subgraphs.typed` | [Subgraphs](/docs/subgraphs#read-your-table) |
 | Stream or roll up rows | `subgraph.<table>.subscribe`, `.aggregate` | [Reading rows](/docs/subgraphs/reading) |
@@ -81,7 +81,7 @@ Reorgs rewind the cursor to the fork point and fire `onReorg`. Fold running bala
 
 ## Verifying responses
 
-`createStreamsClient({ apiKey })` verifies both REST reads (`X-Signature`) and SSE frames. The key is fetched once from `/public/streams/signing-key`; a rotated `X-Signature-KeyId` triggers a single refresh.
+`createStreamsClient({ apiKey })` verifies both REST reads (`X-Signature`) and SSE frames. The key is fetched once from `/public/streams/signing-key`; a rotated `X-Signature-KeyId` triggers a single refresh. Blocks, transactions, and subgraph rows: [Verify](/docs/verification).
 
 | `verify` | Behavior |
 | --- | --- |
