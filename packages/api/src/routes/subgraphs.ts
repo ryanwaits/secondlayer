@@ -4,6 +4,7 @@ import {
 	BundleSizeError,
 	bundleSubgraphCode,
 	extractSubgraphDefinition,
+	scanHandlerDeterminism,
 } from "@secondlayer/bundler";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb, getSourceDb } from "@secondlayer/shared/db";
@@ -39,6 +40,10 @@ import {
 import type { SubgraphSpecOptions } from "@secondlayer/shared/subgraphs/spec";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import { canSparseScan, sparseProbeTargets } from "@secondlayer/subgraphs";
+import {
+	deriveVerification,
+	isDeterminismViolation,
+} from "@secondlayer/subgraphs/verification";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { sql } from "kysely";
@@ -436,6 +441,25 @@ async function executeSubgraphDeploy(
 		);
 	}
 
+	// Derived, never configured. Provable (L2) sources put the handler under
+	// the determinism contract, so a scan finding refuses the deploy; every
+	// other subgraph carries the same findings as advice.
+	const verification = deriveVerification(
+		def,
+		scanHandlerDeterminism(handlerCode),
+	);
+	if (isDeterminismViolation(verification)) {
+		return c.json(
+			{
+				error: `Nondeterministic handler: ${verification.reasons.join("; ")}`,
+				code: "NONDETERMINISTIC_HANDLER",
+				hint: "This subgraph's sources are provable, so its handlers must give the same rows on every run. Derive values from event, ctx.block and ctx.tx only.",
+				verification,
+			},
+			422,
+		);
+	}
+
 	// A stack with no local chain can only feed sources the hosted Index/Streams
 	// plane serves; anything else would sit at height 0 on an empty local tap.
 	const noLocalChain = await hasNoLocalChain();
@@ -532,6 +556,7 @@ async function executeSubgraphDeploy(
 			dryRun: true,
 			schemaName: plan.schemaName,
 			statements: plan.statements,
+			verification,
 			...(printFieldWarnings.length > 0
 				? { warnings: printFieldWarnings }
 				: {}),
@@ -604,6 +629,7 @@ async function executeSubgraphDeploy(
 		handlerCode: data.handlerCode,
 		sourceCode: data.sourceCode,
 		forceReindex: data.startBlock !== undefined || startBlockChanged,
+		verification,
 	});
 
 	await cache.refresh();
@@ -713,6 +739,8 @@ async function executeSubgraphDeploy(
 			action: result.action,
 			subgraphId: result.subgraphId,
 			version: result.version,
+			...(result.pin ? { pin: result.pin } : {}),
+			verification,
 			start_block: deployStartBlock,
 			...(tipFirstHistory
 				? { live_from: tipFirstAnchor, history: tipFirstHistory }
@@ -1362,6 +1390,8 @@ export async function buildSubgraphDetailFromRow(
 		name: subgraph.name,
 		version: subgraph.version,
 		schemaHash: subgraph.schema_hash,
+		pin: subgraph.pin ?? null,
+		verification: subgraph.verification ?? null,
 		status: live.status,
 		lastProcessedBlock: sync.lastProcessedBlock,
 		...(description && { description }),
@@ -1567,6 +1597,8 @@ app.get("/:subgraphName", async (c) => {
 		name: subgraph.name,
 		version: subgraph.version,
 		schemaHash: subgraph.schema_hash,
+		pin: subgraph.pin ?? null,
+		verification: subgraph.verification ?? null,
 		status: live.status,
 		lastProcessedBlock: sync.lastProcessedBlock,
 		...(description && { description }),

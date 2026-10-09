@@ -869,6 +869,11 @@ export const subgraphsSchemas = {
 				description:
 					"sha256 of the definition's name, schema and sources. Changes only when they do.",
 			},
+			"x-secondlayer-pin": {
+				type: "string",
+				description:
+					"sha256 over the schema hash, bundled handler, startBlock, network and runtime. Absent for subgraphs deployed before pins existed.",
+			},
 			"x-secondlayer-generated-at": {
 				type: "string",
 				format: "date-time",
@@ -899,6 +904,11 @@ export const subgraphsSchemas = {
 			schemaHash: {
 				type: "string",
 				description: "sha256 of the definition's name, schema and sources.",
+			},
+			pin: {
+				type: "string",
+				description:
+					"sha256 over the schema hash, bundled handler, startBlock, network and runtime.",
 			},
 			generatedAt: {
 				type: "string",

@@ -280,7 +280,7 @@ export const deploymentsPaths = {
 				),
 				"409": OPERATION_IN_PROGRESS,
 				"422": jsonError(
-					"The definition deploys but would index wrong: a declared print field is never seen on-chain (`PRINT_FIELD_MISMATCH`), handlers write 0 rows against observed prints (`EMPTY_MAPPING`), or a tip-first deploy has delta handlers (`TIP_FIRST_NON_REPLAYABLE_HANDLER`) or a breaking schema change (`TIP_FIRST_BREAKING_CHANGE`)",
+					"The definition deploys but would index wrong: a declared print field is never seen on-chain (`PRINT_FIELD_MISMATCH`), handlers write 0 rows against observed prints (`EMPTY_MAPPING`), a tip-first deploy has delta handlers (`TIP_FIRST_NON_REPLAYABLE_HANDLER`) or a breaking schema change (`TIP_FIRST_BREAKING_CHANGE`), or a subgraph with provable sources has a nondeterministic handler (`NONDETERMINISTIC_HANDLER`, with `verification.reasons` naming each use)",
 				),
 			}),
 		},
@@ -786,6 +786,12 @@ export const deploymentsSchemas = {
 				description: "Registry id.",
 			},
 			version: { type: "string", description: "Version now deployed." },
+			pin: {
+				type: "string",
+				description:
+					"sha256 over the schema hash, bundled handler, startBlock, network and runtime version. Same pin, same rows from the same chain.",
+			},
+			verification: { $ref: "#/components/schemas/SubgraphVerification" },
 			start_block: {
 				type: "integer",
 				description: "Height indexing starts from.",
@@ -837,11 +843,43 @@ export const deploymentsSchemas = {
 			action: "created",
 			subgraphId: "b7e2d4a1-5c3f-4e8b-a0d9-2f6c1e8b7a34",
 			version: "1.0.0",
+			pin: "7f3c0d5e9b21a4c86f0e3d17b5a92c4e8d61f07a3b9c25e4d8f1a06c7b3e5a91e",
+			verification: {
+				level: "L3",
+				verifiable: false,
+				reasons: ['ft_transfer source "transfers" needs L3'],
+				unproven: [],
+			},
 			start_block: 8000000,
 			message: 'Subgraph "sbtc-flows" created',
 			reindexStarted: true,
 			operationId: EXAMPLE_OPERATION_ID,
 			estimatedEvents: 48210,
+		},
+	},
+	SubgraphVerification: {
+		type: "object",
+		description:
+			"How far the subgraph's rows can be checked without trusting the server. Derived from its sources and a scan of its handler, never configured. `L2`: every source is a named state write (`var_set`, `map_*`), provable from block headers; the handler must be deterministic and runs in a locked-down realm. `L3`: a source or `ctx.client` read needs re-execution proofs, not served yet. `none`: a source can never be proven as written (trait scope, tip-first).",
+		required: ["level", "verifiable", "reasons", "unproven"],
+		properties: {
+			level: { type: "string", enum: ["L2", "L3", "none"] },
+			verifiable: {
+				type: "boolean",
+				description: "`true` only at `L2` with a clean handler scan.",
+			},
+			reasons: {
+				type: "array",
+				items: { type: "string" },
+				description:
+					"Why it is not verifiable: sources that need a higher level, and handler findings as `file:line:column name: reason`.",
+			},
+			unproven: {
+				type: "array",
+				items: { type: "string" },
+				description:
+					"What stays unproven at this level, such as which tx made a write.",
+			},
 		},
 	},
 	DeployDryRun: {
@@ -863,6 +901,7 @@ export const deploymentsSchemas = {
 				items: { type: "string" },
 				description: "SQL statements, in order.",
 			},
+			verification: { $ref: "#/components/schemas/SubgraphVerification" },
 			warnings: {
 				type: "array",
 				items: { type: "string" },
@@ -1192,6 +1231,19 @@ export const deploymentsSchemas = {
 				type: "string",
 				description: "Hash of the table schema. Changes when the schema does.",
 			},
+			pin: {
+				type: ["string", "null"],
+				description:
+					"Hash of everything that shapes rows: schema hash, bundled handler, startBlock, network, runtime. Null for subgraphs deployed before pins existed.",
+			},
+			verification: {
+				oneOf: [
+					{ $ref: "#/components/schemas/SubgraphVerification" },
+					{ type: "null" },
+				],
+				description:
+					"Derived verification level. Null for subgraphs deployed before levels were derived.",
+			},
 			status: {
 				type: "string",
 				enum: [...SUBGRAPH_STATUSES],
@@ -1250,6 +1302,13 @@ export const deploymentsSchemas = {
 			version: "1.0.2",
 			schemaHash:
 				"4b9e1d27c83f0a65e2d7b14c9f06a38e5d21c7b90f4e6a83d15c2b7e09f4a6d1",
+			pin: "7f3c0d5e9b21a4c86f0e3d17b5a92c4e8d61f07a3b9c25e4d8f1a06c7b3e5a91e",
+			verification: {
+				level: "L3",
+				verifiable: false,
+				reasons: ['ft_transfer source "transfers" needs L3'],
+				unproven: [],
+			},
 			status: "active",
 			lastProcessedBlock: EXAMPLE_TIP,
 			sources: EXAMPLE_SOURCES,

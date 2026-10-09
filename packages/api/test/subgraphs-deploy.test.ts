@@ -393,3 +393,151 @@ describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
 		expect(body.dryRun).toBe(true);
 	});
 });
+
+// ── derived verification level + determinism enforcement (route) ────────
+
+describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
+	const VERIFIABLE = "determinism-l2-clean-sg";
+	const ADVISORY = "determinism-l3-date-sg";
+	const REFUSED = "determinism-l2-date-sg";
+
+	const app = new Hono();
+	app.onError(errorHandler);
+	app.route("/subgraphs", subgraphsRouter);
+
+	const L2_SOURCE = {
+		type: "map_set",
+		contractId: "SP123.vault",
+		map: "reserve",
+	};
+	const L3_SOURCE = { type: "stx_transfer" };
+
+	function body(name: string, source: object, handlerBody: string) {
+		const schema = { rows: { columns: { amount: { type: "uint" } } } };
+		const handlerCode = [
+			"function defineSubgraph(def) { return def; }",
+			"export default defineSubgraph({",
+			`  name: ${JSON.stringify(name)},`,
+			"  startBlock: 1,",
+			`  sources: { s: ${JSON.stringify(source)} },`,
+			`  schema: ${JSON.stringify(schema)},`,
+			"  handlers: {",
+			"    s: async (event, ctx) => {",
+			`      ${handlerBody}`,
+			"    },",
+			"  },",
+			"});",
+		].join("\n");
+		return { name, sources: { s: source }, schema, handlerCode };
+	}
+
+	const post = (b: object) =>
+		app.request("/subgraphs", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(b),
+		});
+
+	afterAll(async () => {
+		const db = getDb();
+		for (const name of [VERIFIABLE, ADVISORY, REFUSED]) {
+			pruneSubgraphHandlerFiles(
+				join(process.env.DATA_DIR ?? "./data", "subgraphs"),
+				name,
+			);
+			await db
+				.deleteFrom("subgraph_operations")
+				.where("subgraph_name", "=", name)
+				.execute();
+			await db.deleteFrom("subgraphs").where("name", "=", name).execute();
+			await sql`DROP SCHEMA IF EXISTS ${sql.id(pgSchemaName(name))} CASCADE`.execute(
+				db,
+			);
+		}
+	});
+
+	test("provable sources with Date.now() are refused with the handler position", async () => {
+		const res = await post(
+			body(
+				REFUSED,
+				L2_SOURCE,
+				"ctx.insert('rows', { amount: BigInt(Date.now()) });",
+			),
+		);
+		expect(res.status).toBe(422);
+		const json = (await res.json()) as {
+			code: string;
+			verification: { level: string; verifiable: boolean; reasons: string[] };
+		};
+		expect(json.code).toBe("NONDETERMINISTIC_HANDLER");
+		expect(json.verification.level).toBe("L2");
+		expect(json.verification.reasons).toEqual([
+			"handler.js:9:43 Date: wall-clock time differs per run",
+		]);
+		const db = getDb();
+		const row = await db
+			.selectFrom("subgraphs")
+			.select("id")
+			.where("name", "=", REFUSED)
+			.executeTakeFirst();
+		expect(row).toBeUndefined();
+	});
+
+	test("the same handler on unprovable sources deploys as before, with the finding as advice", async () => {
+		const res = await post(
+			body(
+				ADVISORY,
+				L3_SOURCE,
+				"ctx.insert('rows', { amount: BigInt(Date.now()) });",
+			),
+		);
+		expect(res.status).toBe(201);
+		const json = (await res.json()) as {
+			pin: string;
+			verification: { level: string; verifiable: boolean; reasons: string[] };
+		};
+		expect(json.pin).toMatch(/^[0-9a-f]{64}$/);
+		expect(json.verification).toMatchObject({ level: "L3", verifiable: false });
+		expect(json.verification.reasons).toEqual([
+			'stx_transfer source "s" needs L3',
+			"handler.js:9:43 Date: wall-clock time differs per run",
+		]);
+	});
+
+	test("a clean subgraph on provable sources is verifiable; detail shows pin and level", async () => {
+		const res = await post(
+			body(VERIFIABLE, L2_SOURCE, "ctx.insert('rows', { amount: 1n });"),
+		);
+		expect(res.status).toBe(201);
+		const deployed = (await res.json()) as {
+			pin: string;
+			verification: { level: string; verifiable: boolean };
+		};
+		expect(deployed.verification).toMatchObject({
+			level: "L2",
+			verifiable: true,
+		});
+
+		const detail = (await (
+			await app.request(`/subgraphs/${VERIFIABLE}`)
+		).json()) as { pin: string; schemaHash: string; verification: unknown };
+		expect(detail.pin).toBe(deployed.pin);
+		expect(detail.pin).not.toBe(detail.schemaHash);
+		expect(detail.verification).toEqual(deployed.verification);
+
+		// Same bytes redeployed: unchanged, same pin. A handler edit moves it.
+		const again = (await (
+			await post(
+				body(VERIFIABLE, L2_SOURCE, "ctx.insert('rows', { amount: 1n });"),
+			)
+		).json()) as { action: string; pin: string };
+		expect(again).toMatchObject({ action: "unchanged", pin: deployed.pin });
+		const edited = (await (
+			await post(
+				body(VERIFIABLE, L2_SOURCE, "ctx.insert('rows', { amount: 2n });"),
+			)
+		).json()) as { action: string; pin: string };
+		expect(edited.action).toBe("handler_updated");
+		expect(edited.pin).not.toBe(deployed.pin);
+	});
+});
