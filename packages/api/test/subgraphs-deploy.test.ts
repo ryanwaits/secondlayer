@@ -566,7 +566,8 @@ describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
 		expect(sha(served.pinPreimage)).toBe(served.pin);
 		expect(JSON.parse(served.pinPreimage)).toMatchObject({
 			handlerHash: sha(deployedBody.handlerCode),
-			network: "mainnet",
+			// The deployer pins the instance network (NETWORK, else mainnet).
+			network: process.env.NETWORK ?? "mainnet",
 			startBlock: 1,
 		});
 	});
