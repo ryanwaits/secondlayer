@@ -21,6 +21,7 @@ export class MemoryStore {
  */
 export class MemorySubgraphContext extends SubgraphContext {
 	private readonly store: MemoryStore;
+	private readonly tables: SubgraphSchema;
 
 	constructor(
 		store: MemoryStore,
@@ -32,6 +33,7 @@ export class MemorySubgraphContext extends SubgraphContext {
 		// context never flushes SQL.
 		super(undefined as never, "memory", schema, block, tx, false);
 		this.store = store;
+		this.tables = schema;
 	}
 
 	/** The one seam: committed rows come from memory, not Postgres. */
@@ -44,6 +46,82 @@ export class MemorySubgraphContext extends SubgraphContext {
 			Object.entries(where).every(([k, v]) => sameValue(row[k], v)),
 		);
 		return limit === undefined ? rows : rows.slice(0, limit);
+	}
+
+	/**
+	 * The first call whose outcome depends on rows committed before this
+	 * store began (a read, an update/delete/increment, or an upsert that
+	 * leaves a declared column to its prior value). Replay from mid-history
+	 * is inconclusive once one runs: the store lacks those earlier rows.
+	 */
+	readDependent: string | null = null;
+
+	private dependsOnPrior(what: string): void {
+		this.readDependent ??= what;
+	}
+
+	override findOne(
+		table: string,
+		where: Record<string, unknown>,
+	): Promise<Record<string, unknown> | null> {
+		this.dependsOnPrior(`findOne("${table}")`);
+		return super.findOne(table, where);
+	}
+
+	override findMany(
+		table: string,
+		where: Record<string, unknown>,
+	): Promise<Record<string, unknown>[]> {
+		this.dependsOnPrior(`findMany("${table}")`);
+		return super.findMany(table, where);
+	}
+
+	override update(
+		table: string,
+		where: Record<string, unknown>,
+		set: Record<string, unknown>,
+	): void {
+		this.dependsOnPrior(`update("${table}")`);
+		super.update(table, where, set);
+	}
+
+	override delete(table: string, where: Record<string, unknown>): void {
+		this.dependsOnPrior(`delete("${table}")`);
+		super.delete(table, where);
+	}
+
+	override increment(
+		table: string,
+		key: Record<string, unknown>,
+		deltas: Record<string, bigint | number>,
+	): void {
+		this.dependsOnPrior(`increment("${table}")`);
+		super.increment(table, key, deltas);
+	}
+
+	override upsert(
+		table: string,
+		key: Record<string, unknown>,
+		row: Record<string, unknown>,
+	): void {
+		const def = this.tables[table];
+		if (def) {
+			const keyCols = Object.keys(key);
+			const keyed = def.uniqueKeys?.some(
+				(uk) =>
+					uk.length === keyCols.length && uk.every((c) => keyCols.includes(c)),
+			);
+			const omitted = Object.keys(def.columns).find(
+				(c) => !(c in key) && !(c in row),
+			);
+			// Without a matching unique key the runtime reads to decide; with one,
+			// an omitted column keeps whatever the existing row held.
+			if (!keyed)
+				this.dependsOnPrior(`upsert("${table}") without a unique key`);
+			else if (omitted)
+				this.dependsOnPrior(`upsert("${table}") leaves "${omitted}" as it was`);
+		}
+		super.upsert(table, key, row);
 	}
 
 	/** Current rows of `table`, pending ops overlaid exactly as a read would. */

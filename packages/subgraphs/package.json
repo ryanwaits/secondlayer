@@ -44,6 +44,10 @@
 		"./testing": {
 			"types": "./dist/testing/index.d.ts",
 			"import": "./dist/testing/index.js"
+		},
+		"./verify": {
+			"types": "./dist/verify/index.d.ts",
+			"import": "./dist/verify/index.js"
 		}
 	},
 	"files": ["dist"],
@@ -57,12 +61,14 @@
 	"dependencies": {
 		"@secondlayer/shared": "^11.22.0",
 		"@secondlayer/stacks": "^6.1.0",
+		"@secondlayer/verify": "^0.2.0",
 		"esbuild": "^0.28.2",
 		"kysely": "0.28.17",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
+		"bunup": "0.16.32",
 		"typescript": "^5"
 	},
 	"publishConfig": {

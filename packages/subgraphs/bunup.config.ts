@@ -10,12 +10,23 @@ const config: DefineConfigItem = defineConfig({
 		"src/runtime/replay.ts",
 		"src/runtime/emitter.ts",
 		"src/testing/index.ts",
+		"src/verify/index.ts",
 	],
+	// Explicit source root: Bun.build's inferred common-ancestor flips to the
+	// package dir once the entry list grows past ~8, nesting output under
+	// dist/src and breaking every exports subpath.
+	sourceBase: "src",
 	format: ["esm"],
 	dts: true,
 	sourcemap: "linked",
 	minify: false,
 	splitting: false,
-	external: ["@secondlayer/shared", "esbuild", "kysely", "zod"],
+	external: [
+		"@secondlayer/shared",
+		"@secondlayer/verify",
+		"esbuild",
+		"kysely",
+		"zod",
+	],
 }) as DefineConfigItem;
 export default config;

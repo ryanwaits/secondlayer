@@ -178,7 +178,7 @@ export function stateWriteFeed(
 /** Reads directly from the shared indexer Postgres (the original behavior). */
 export class PostgresBlockSource implements BlockSource {
 	/** `feed`: read write events from `state_writes` (see {@link stateWriteFeed}). */
-	constructor(private readonly feed?: StateWriteFeed) {}
+	constructor(private readonly feed?: StateWriteFeed | undefined) {}
 
 	async getTip(): Promise<number> {
 		const progress = await getSourceDb()
@@ -330,12 +330,12 @@ export class PublicApiBlockSource implements BlockSource {
 		private readonly http: IndexHttpClient,
 		private readonly eventTypes: string[],
 		/** When set, enables the sparse-scan probe (event-scoped subgraphs). */
-		private readonly probeTargets?: SparseProbeTarget[],
+		private readonly probeTargets?: SparseProbeTarget[] | undefined,
 		/** False for event-only subgraphs → skip walkTransactions, synthesize the
 		 *  tx from joined event context. Defaults true (safe / unchanged). */
 		private readonly needsTransactions = true,
 		/** Write events from `state_writes` instead of the vm event walks. */
-		private readonly feed?: StateWriteFeed,
+		private readonly feed?: StateWriteFeed | undefined,
 	) {}
 
 	/**
