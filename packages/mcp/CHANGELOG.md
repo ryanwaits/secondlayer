@@ -1,5 +1,14 @@
 # @secondlayer/mcp
 
+## 9.0.5
+
+### Patch Changes
+
+- Updated dependencies [6ddce56]
+  - @secondlayer/subgraphs@6.4.0
+  - @secondlayer/bundler@0.7.0
+  - @secondlayer/shared@11.22.0
+
 ## 9.0.4
 
 ### Patch Changes
