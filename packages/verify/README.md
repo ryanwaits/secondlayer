@@ -45,7 +45,11 @@ const source = {
 
 `verifyBlock` never throws for bad source data: it returns `ok: false` with `failures`, the first entry being the first broken link. Use `BlockVerifier` to verify many blocks from one checkpoint and reuse the synced Bitcoin headers and proven signer sets.
 
-`SecondlayerProofSource` also reads `state_writes` and `vm_events` from the Index API, which bill as rows. To check proofs only, leave them out: `const { getStateWrites, getVmEvents, ...proofs } = source`.
+By default only proofs are read, and proofs are free. Pass `rows: true` to also name every write and check the indexed rows: the source's `state_writes` and `vm_events` reads bill as Index rows on the Secondlayer API.
+
+```ts
+await verifyBlock(9_137_005, { source, rows: true });
+```
 
 ## What it proves
 
@@ -56,14 +60,14 @@ const source = {
 | The Bitcoin chain | every header from the checkpoint: proof of work, retargets, median time |
 | The cycle's signers signed it | signer set proven by MARF against an earlier signed block, then 70% of weight |
 | Its state | the witness recomputes the header's state root |
-| Every key it wrote | with `state_writes`: each written leaf is named, nothing hidden |
-| Indexed rows | with `state_writes` and `vm_events`: each row matches a leaf the block wrote |
+| Every key it wrote | `rows: true` and a source with `state_writes`: each written leaf is named, nothing hidden |
+| Indexed rows | `rows: true`: each `vm_events` row matches a leaf the block wrote |
 
 ## What it trusts, and what it doesn't cover
 
 - **The checkpoint.** `MAINNET_CHECKPOINT` (Stacks block 8,956,304, cycle 143 signers, Bitcoin block 967,680) is trusted as-is. Pass `checkpoint` to use your own.
 - **Bitcoin heights.** Blocks whose burn height is below the checkpoint's Bitcoin block can't be verified. Headers are checked for valid work, not compared against a competing chain, and reorgs past the synced tip are not followed.
-- **Names need `state_writes`.** Without them every write is still proven, but unnamed; `notes` says so.
+- **Names need `rows: true` and `state_writes`.** Without them every write is still proven, but unnamed; `notes` says so.
 - **Not covered:** print events (Stacks headers don't commit to them) and transaction contents.
 
 ## Docs

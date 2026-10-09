@@ -105,6 +105,12 @@ export interface VerifyOptions {
 	source: ProofSource;
 	/** Defaults to MAINNET_CHECKPOINT. */
 	checkpoint?: VerifyCheckpoint;
+	/**
+	 * Also name the block's writes and prove its indexed rows: reads the
+	 * source's `getStateWrites` and `getVmEvents`, which bill as Index rows on
+	 * the Secondlayer API. Off by default, so verification reads proofs only.
+	 */
+	rows?: boolean;
 }
 
 class Broken extends Error {
@@ -196,35 +202,40 @@ interface Probe extends SearchPoint {
  * header chain, proven signer sets and fetched headers across calls.
  */
 export class BlockVerifier {
-	readonly #source: ProofSource;
-	readonly #checkpoint: VerifyCheckpoint;
-	readonly #chain: HeaderChain;
+	private readonly source: ProofSource;
+	private readonly checkpoint: VerifyCheckpoint;
+	private readonly rows: boolean;
+	private readonly chain: HeaderChain;
 	/** Proven signer sets by cycle. */
-	readonly #sets = new Map<number, SignerSet>();
+	private readonly sets = new Map<number, SignerSet>();
 	/** Where each proven set was anchored: the lower bound for the next search. */
-	readonly #anchors = new Map<number, SearchPoint>();
-	readonly #headers = new Map<string, NakamotoHeader>();
-	readonly #burns = new Map<string, { burnHeight: number; hash: string }>();
+	private readonly anchors = new Map<number, SearchPoint>();
+	private readonly headers = new Map<string, NakamotoHeader>();
+	private readonly burns = new Map<
+		string,
+		{ burnHeight: number; hash: string }
+	>();
 	/** Unverified source answers by consensus hash. */
-	readonly #preimages = new Map<string, BurnPreimage>();
-	readonly #start: { header: NakamotoHeader; id: string };
+	private readonly preimages = new Map<string, BurnPreimage>();
+	private readonly start: { header: NakamotoHeader; id: string };
 
 	constructor(opts: VerifyOptions) {
-		this.#source = opts.source;
-		this.#checkpoint = opts.checkpoint ?? MAINNET_CHECKPOINT;
-		const { stacks } = this.#checkpoint;
+		this.source = opts.source;
+		this.checkpoint = opts.checkpoint ?? MAINNET_CHECKPOINT;
+		this.rows = opts.rows ?? false;
+		const { stacks } = this.checkpoint;
 		const header = parseNakamotoHeader(unhex(stacks.header));
-		this.#start = { header, id: hex(blockId(header)) };
-		this.#headers.set(this.#start.id, header);
-		this.#sets.set(stacks.cycle, decodeSignerSet(stacks.signerSet));
-		this.#chain = HeaderChain.fromCheckpoint(this.#checkpoint.bitcoin);
+		this.start = { header, id: hex(blockId(header)) };
+		this.headers.set(this.start.id, header);
+		this.sets.set(stacks.cycle, decodeSignerSet(stacks.signerSet));
+		this.chain = HeaderChain.fromCheckpoint(this.checkpoint.bitcoin);
 	}
 
 	/** Verify one block by id (hex) or height. Never throws for bad source data. */
 	async verify(ref: string | number): Promise<BlockVerification> {
 		const out: BlockVerification = { ok: false, notes: [], failures: [] };
 		try {
-			await this.#verify(ref, out);
+			await this.run(ref, out);
 		} catch (err) {
 			if (!(err instanceof Broken)) throw err;
 			out.failures.unshift(err.failure);
@@ -233,8 +244,11 @@ export class BlockVerifier {
 		return out;
 	}
 
-	async #verify(ref: string | number, out: BlockVerification): Promise<void> {
-		const src = this.#source;
+	private async run(
+		ref: string | number,
+		out: BlockVerification,
+	): Promise<void> {
+		const src = this.source;
 		const raw = await fetchFor("block", `block ${ref}`, () =>
 			src.getBlock(ref),
 		);
@@ -257,13 +271,13 @@ export class BlockVerifier {
 		out.blockId = id;
 		out.stateRoot = hex(header.stateIndexRoot);
 
-		const burn = await this.#bindBurn(header, "burn");
+		const burn = await this.bindBurn(header, "burn");
 		const cycle = rewardCycle(burn.burnHeight);
 		out.burnHeight = burn.burnHeight;
 		out.bitcoinBlockHash = burn.hash;
 		out.cycle = cycle;
 
-		const set = await this.#signerSet(cycle, {
+		const set = await this.signerSet(cycle, {
 			height,
 			burn: burn.burnHeight,
 		});
@@ -276,7 +290,9 @@ export class BlockVerifier {
 		const witness = await fetchFor("witness", `witness ${id}`, () =>
 			src.getWitness(id),
 		);
-		const { getStateWrites, getVmEvents } = src;
+		const { getStateWrites, getVmEvents }: Partial<ProofSource> = this.rows
+			? src
+			: {};
 		const writes = getStateWrites
 			? await fetchFor("names", `state_writes ${height}`, () =>
 					getStateWrites.call(src, height),
@@ -295,8 +311,8 @@ export class BlockVerifier {
 			witness,
 			writes,
 			rows,
-			parentLeaves: await this.#parentLeaves(parentId, out.notes),
-			parentHolds: (leaf) => this.#parentHolds(parentId, leaf),
+			parentLeaves: await this.parentLeaves(parentId, out.notes),
+			parentHolds: (leaf) => this.parentHolds(parentId, leaf),
 		});
 		out.diff = state.diff;
 		if (rows) out.rowsChecked = state.rowsChecked;
@@ -305,17 +321,17 @@ export class BlockVerifier {
 	}
 
 	/** Header by id, from the cache or the source; the bytes must hash to `id`. */
-	async #header(
+	private async header(
 		id: string,
 		step: VerifyStep,
 		extra: Partial<VerifyFailure> = {},
 	): Promise<NakamotoHeader> {
-		const known = this.#headers.get(id);
+		const known = this.headers.get(id);
 		if (known) return known;
 		const raw = await fetchFor(
 			step,
 			`block ${id}`,
-			() => this.#source.getBlock(id),
+			() => this.source.getBlock(id),
 			extra,
 		);
 		const header = parseHeader(raw, step);
@@ -327,7 +343,7 @@ export class BlockVerifier {
 				blockId: id,
 				...extra,
 			});
-		this.#headers.set(id, header);
+		this.headers.set(id, header);
 		return header;
 	}
 
@@ -335,7 +351,7 @@ export class BlockVerifier {
 	 * Prove `value` at `path` in `tip`'s state, fetching the header of every
 	 * ancestor trie the proof crosses.
 	 */
-	async #proveAt(
+	private async proveAt(
 		tip: NakamotoHeader,
 		path: Bytes,
 		value: Bytes,
@@ -345,7 +361,7 @@ export class BlockVerifier {
 	): Promise<boolean> {
 		const headers = [tip];
 		for (const id of marfProofAncestors(proof))
-			headers.push(await this.#header(id, step, extra));
+			headers.push(await this.header(id, step, extra));
 		return verifyMarfProof({
 			proof,
 			path,
@@ -360,13 +376,13 @@ export class BlockVerifier {
 	 * parent header. Optional evidence: when the source cannot serve it,
 	 * carried leaves fall back to per-leaf proofs (named) or stay unlabeled.
 	 */
-	async #parentLeaves(
+	private async parentLeaves(
 		parentId: string,
 		notes: string[],
 	): Promise<WitnessLeaf[] | undefined> {
 		try {
-			const parent = await this.#header(parentId, "names");
-			const w = parseWitness(await this.#source.getWitness(parentId));
+			const parent = await this.header(parentId, "names");
+			const w = parseWitness(await this.source.getWitness(parentId));
 			if (bytesEqual(w.root, parent.stateIndexRoot)) return w.leaves;
 			notes.push(`parent witness ${parentId} root does not match its header`);
 		} catch (err) {
@@ -381,31 +397,34 @@ export class BlockVerifier {
 	 * A carried leaf holds the parent's value. The parent header is
 	 * authenticated by hash: its id is committed in the signed child header.
 	 */
-	async #parentHolds(parentId: string, leaf: WitnessLeaf): Promise<boolean> {
-		const parent = await this.#header(parentId, "names");
+	private async parentHolds(
+		parentId: string,
+		leaf: WitnessLeaf,
+	): Promise<boolean> {
+		const parent = await this.header(parentId, "names");
 		const pathHex = hex(leaf.path);
 		const answer = await fetchFor("names", `MARF ${pathHex} at parent`, () =>
-			this.#source.getMarfProof(pathHex, parentId),
+			this.source.getMarfProof(pathHex, parentId),
 		);
 		if (!answer) return false;
 		const value = new Uint8Array(MARF_VALUE_SIZE);
 		value.set(leaf.valueHash);
-		return this.#proveAt(parent, leaf.path, value, answer.proof, "names");
+		return this.proveAt(parent, leaf.path, value, answer.proof, "names");
 	}
 
 	/** Consensus hash -> PoW-verified burn block, via the sortition preimage. */
-	async #bindBurn(
+	private async bindBurn(
 		header: NakamotoHeader,
 		step: VerifyStep,
 		extra: Partial<VerifyFailure> = {},
 	): Promise<{ burnHeight: number; hash: string }> {
 		const ch = hex(header.consensusHash);
-		const known = this.#burns.get(ch);
+		const known = this.burns.get(ch);
 		if (known) return known;
 		const bp = await fetchFor(
 			step,
 			`burn preimage ${ch}`,
-			() => this.#preimage(ch),
+			() => this.preimage(ch),
 			extra,
 		);
 		const hash = verifyConsensusPreimage(header.consensusHash, bp.preimage);
@@ -416,34 +435,34 @@ export class BlockVerifier {
 				message: `preimage does not hash to consensus hash ${ch}`,
 				...extra,
 			});
-		if (bp.burnHeight < this.#chain.checkpointHeight)
+		if (bp.burnHeight < this.chain.checkpointHeight)
 			fail({
 				step,
 				code: "before-checkpoint",
-				message: `burn height ${bp.burnHeight} is below the Bitcoin checkpoint ${this.#chain.checkpointHeight}`,
+				message: `burn height ${bp.burnHeight} is below the Bitcoin checkpoint ${this.chain.checkpointHeight}`,
 				...extra,
 			});
-		await this.#syncBitcoin(bp.burnHeight);
-		const burnHeight = this.#chain.heightOf(hash);
+		await this.syncBitcoin(bp.burnHeight);
+		const burnHeight = this.chain.heightOf(hash);
 		if (burnHeight === undefined)
 			return fail({
 				step,
 				code: "burn-not-in-chain",
-				message: `burn block ${hash} is not in the verified Bitcoin chain (synced ${this.#chain.checkpointHeight}..${this.#chain.tip.height})`,
+				message: `burn block ${hash} is not in the verified Bitcoin chain (synced ${this.chain.checkpointHeight}..${this.chain.tip.height})`,
 				...extra,
 			});
 		const bound = { burnHeight, hash };
-		this.#burns.set(ch, bound);
+		this.burns.set(ch, bound);
 		return bound;
 	}
 
 	/** Extend the Bitcoin chain to `height`, validating PoW, retarget and MTP. */
-	async #syncBitcoin(height: number): Promise<void> {
-		while (this.#chain.tip.height < height) {
-			const from = this.#chain.tip.height + 1;
+	private async syncBitcoin(height: number): Promise<void> {
+		while (this.chain.tip.height < height) {
+			const from = this.chain.tip.height + 1;
 			const count = Math.min(BITCOIN_BATCH, height - from + 1);
 			const headers = await fetchFor("bitcoin", `bitcoin headers ${from}`, () =>
-				this.#source.getBitcoinHeaders(from, count),
+				this.source.getBitcoinHeaders(from, count),
 			);
 			if (headers.length === 0)
 				fail({
@@ -452,7 +471,7 @@ export class BlockVerifier {
 					message: `source has no Bitcoin headers from ${from}`,
 				});
 			try {
-				this.#chain.append(headers);
+				this.chain.append(headers);
 			} catch (err) {
 				if (!(err instanceof HeaderValidationError)) throw err;
 				fail({ step: "bitcoin", code: "invalid-header", message: err.message });
@@ -465,10 +484,13 @@ export class BlockVerifier {
 	 * set c+1 is read from an anchor block in c+1's prepare phase, whose
 	 * header set c signed.
 	 */
-	async #signerSet(cycle: number, target: SearchPoint): Promise<SignerSet> {
-		const known = this.#sets.get(cycle);
+	private async signerSet(
+		cycle: number,
+		target: SearchPoint,
+	): Promise<SignerSet> {
+		const known = this.sets.get(cycle);
 		if (known) return known;
-		const first = this.#checkpoint.stacks.cycle;
+		const first = this.checkpoint.stacks.cycle;
 		if (cycle < first)
 			fail({
 				step: "signer-set",
@@ -476,49 +498,49 @@ export class BlockVerifier {
 				message: `cycle ${cycle} precedes the checkpoint's cycle ${first}`,
 				cycle,
 			});
-		let lo = await this.#startPoint();
+		let lo = await this.startPoint();
 		for (let c = first; c < cycle; c++) {
-			const next = this.#sets.get(c + 1);
+			const next = this.sets.get(c + 1);
 			if (next) {
-				lo = this.#anchors.get(c + 1) ?? lo;
+				lo = this.anchors.get(c + 1) ?? lo;
 				continue;
 			}
-			const anchor = await this.#findAnchor(c + 1, lo, target);
-			this.#sets.set(c + 1, await this.#proveNextSet(c + 1, anchor));
-			this.#anchors.set(c + 1, anchor);
+			const anchor = await this.locateAnchor(c + 1, lo, target);
+			this.sets.set(c + 1, await this.proveNextSet(c + 1, anchor));
+			this.anchors.set(c + 1, anchor);
 			lo = anchor;
 		}
-		return this.#sets.get(cycle) as SignerSet;
+		return this.sets.get(cycle) as SignerSet;
 	}
 
 	/** The checkpoint block as a search bound; its burn height is a source hint. */
-	async #startPoint(): Promise<SearchPoint> {
-		const { header } = this.#start;
+	private async startPoint(): Promise<SearchPoint> {
+		const { header } = this.start;
 		const height = Number(header.chainLength);
 		try {
-			return { height, burn: await this.#burnHint(header) };
+			return { height, burn: await this.burnHint(header) };
 		} catch {
 			return { height };
 		}
 	}
 
-	async #burnHint(header: NakamotoHeader): Promise<number> {
+	private async burnHint(header: NakamotoHeader): Promise<number> {
 		const ch = hex(header.consensusHash);
 		return (
-			this.#burns.get(ch)?.burnHeight ?? (await this.#preimage(ch)).burnHeight
+			this.burns.get(ch)?.burnHeight ?? (await this.preimage(ch)).burnHeight
 		);
 	}
 
-	async #preimage(ch: string): Promise<BurnPreimage> {
-		let bp = this.#preimages.get(ch);
+	private async preimage(ch: string): Promise<BurnPreimage> {
+		let bp = this.preimages.get(ch);
 		if (!bp) {
-			bp = await this.#source.getBurnPreimage(ch);
-			this.#preimages.set(ch, bp);
+			bp = await this.source.getBurnPreimage(ch);
+			this.preimages.set(ch, bp);
 		}
 		return bp;
 	}
 
-	async #findAnchor(
+	private async locateAnchor(
 		cycle: number,
 		lo: SearchPoint,
 		hi: SearchPoint,
@@ -529,16 +551,16 @@ export class BlockVerifier {
 			const raw = await fetchFor(
 				"signer-set",
 				`block at height ${h}`,
-				() => this.#source.getBlock(h),
+				() => this.source.getBlock(h),
 				{ cycle },
 			);
 			const header = parseHeader(raw, "signer-set");
 			const id = hex(blockId(header));
-			this.#headers.set(id, header);
+			this.headers.set(id, header);
 			const burn = await fetchFor(
 				"signer-set",
 				`burn hint for block ${id}`,
-				() => this.#burnHint(header),
+				() => this.burnHint(header),
 				{ cycle, blockId: id },
 			);
 			return { height: Number(header.chainLength), burn, header, id };
@@ -561,13 +583,9 @@ export class BlockVerifier {
 	 * proof). Adjacent sets overlap enough that one block can clear both, so
 	 * the set is always chosen by proven burn height, never by which passes.
 	 */
-	async #proveNextSet(cycle: number, anchor: Probe): Promise<SignerSet> {
+	private async proveNextSet(cycle: number, anchor: Probe): Promise<SignerSet> {
 		const at = { cycle, blockId: anchor.id };
-		const { burnHeight } = await this.#bindBurn(
-			anchor.header,
-			"signer-set",
-			at,
-		);
+		const { burnHeight } = await this.bindBurn(anchor.header, "signer-set", at);
 		const start = cycleStart(cycle);
 		if (burnHeight < start - MAINNET_PREPARE_LENGTH || burnHeight >= start)
 			fail({
@@ -579,7 +597,7 @@ export class BlockVerifier {
 		const signing = rewardCycle(burnHeight);
 		const sig = verifySignerSignatures(
 			anchor.header,
-			this.#sets.get(signing) as SignerSet,
+			this.sets.get(signing) as SignerSet,
 		);
 		if (!sig.valid)
 			fail({
@@ -594,13 +612,13 @@ export class BlockVerifier {
 		const answer = await fetchFor(
 			"signer-set",
 			`signer set ${cycle} at ${anchor.id}`,
-			() => this.#source.getMarfProof(hex(path), anchor.id),
+			() => this.source.getMarfProof(hex(path), anchor.id),
 			at,
 		);
 		const value = answer?.data.replace(/^0x/, "") ?? "";
 		const proven =
 			answer !== null &&
-			(await this.#proveAt(
+			(await this.proveAt(
 				anchor.header,
 				path,
 				marfValue(value),

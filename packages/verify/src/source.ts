@@ -153,102 +153,113 @@ const VM_WRITE_TYPES = [
 ] as const;
 const PAGE = 1000;
 
+/** Follow `next_cursor` until a page comes back empty. Null when the first page 404s. */
+async function pages<T>(
+	field: string,
+	url: string,
+	http: HttpOptions,
+): Promise<T[] | null> {
+	const out: T[] = [];
+	let cursor: string | null = null;
+	for (;;) {
+		const page: string = cursor
+			? `${url}&cursor=${encodeURIComponent(cursor)}`
+			: url;
+		const j = await getJson<Record<string, unknown>>(page, http);
+		if (j === null) return cursor === null ? null : out;
+		const rows = j[field];
+		if (!Array.isArray(rows))
+			throw new SourceError(page, 200, `answer has no ${field} array`);
+		out.push(...(rows as T[]));
+		const next = j.next_cursor;
+		if (rows.length < PAGE || typeof next !== "string" || next === cursor)
+			return out;
+		cursor = next;
+	}
+}
+
+// Both sources keep their origin and account key in constructor closures, not
+// fields: nothing leaks through a spread, a log or JSON.stringify.
+
 /**
  * Every proof input from the Secondlayer API: `/v1/proofs/*` for blocks, MARF
  * proofs, witnesses, burn preimages and Bitcoin headers; the Index API for
- * state_writes and vm_events. Methods are own properties, so a partial source
- * spreads over it: `{ ...new SecondlayerProofSource(o), ...new NodeRpcProofSource(n) }`.
+ * state_writes and vm_events, read only when verifyBlock gets `rows: true`.
+ * Methods are own properties, so a partial source spreads over it:
+ * `{ ...new SecondlayerProofSource(o), ...new NodeRpcProofSource(n) }`.
  */
 export class SecondlayerProofSource implements ProofSource {
-	readonly #base: string;
-	readonly #http: HttpOptions;
+	getBlock: (ref: string | number) => Promise<Bytes>;
+	getMarfProof: (
+		pathHex: string,
+		tipId: string,
+	) => Promise<MarfProofResponse | null>;
+	getWitness: (blockId: string) => Promise<Bytes>;
+	getBurnPreimage: (consensusHash: string) => Promise<BurnPreimage>;
+	getBitcoinHeaders: (from: number, count: number) => Promise<string[]>;
+	getStateWrites: (height: number) => Promise<StateWrite[] | null>;
+	getVmEvents: (height: number) => Promise<VmEventRow[]>;
 
 	constructor(opts: SecondlayerSourceOptions) {
-		this.#base = trimSlash(opts.baseUrl);
-		this.#http = {
+		const base = trimSlash(opts.baseUrl);
+		const http: HttpOptions = {
 			headers: { authorization: `Bearer ${opts.apiKey}` },
 			fetch: opts.fetch,
 		};
-	}
 
-	getBlock = async (ref: string | number): Promise<Bytes> => {
-		const url =
-			typeof ref === "number"
-				? `${this.#base}/v1/proofs/block/height/${ref}`
-				: `${this.#base}/v1/proofs/block/${ref}`;
-		return required(url, await getBytes(url, this.#http));
-	};
+		this.getBlock = async (ref) => {
+			const url =
+				typeof ref === "number"
+					? `${base}/v1/proofs/block/height/${ref}`
+					: `${base}/v1/proofs/block/${ref}`;
+			return required(url, await getBytes(url, http));
+		};
 
-	getMarfProof = async (
-		pathHex: string,
-		tipId: string,
-	): Promise<MarfProofResponse | null> => {
-		const url = `${this.#base}/v1/proofs/marf/${pathHex}?tip=${tipId}`;
-		return toMarf(url, await getJson<MarfJson>(url, this.#http));
-	};
+		this.getMarfProof = async (pathHex, tipId) => {
+			const url = `${base}/v1/proofs/marf/${pathHex}?tip=${tipId}`;
+			return toMarf(url, await getJson<MarfJson>(url, http));
+		};
 
-	getWitness = async (blockId: string): Promise<Bytes> => {
-		const url = `${this.#base}/v1/proofs/witness/${blockId}`;
-		return required(url, await getBytes(url, this.#http));
-	};
+		this.getWitness = async (blockId) => {
+			const url = `${base}/v1/proofs/witness/${blockId}`;
+			return required(url, await getBytes(url, http));
+		};
 
-	getBurnPreimage = async (consensusHash: string): Promise<BurnPreimage> => {
-		const url = `${this.#base}/v1/proofs/burn/${consensusHash}`;
-		const j = required(
-			url,
-			await getJson<{ burn_height: number; preimage: string }>(url, this.#http),
-		);
-		return { preimage: unhex(j.preimage), burnHeight: j.burn_height };
-	};
+		this.getBurnPreimage = async (consensusHash) => {
+			const url = `${base}/v1/proofs/burn/${consensusHash}`;
+			const j = required(
+				url,
+				await getJson<{ burn_height: number; preimage: string }>(url, http),
+			);
+			return { preimage: unhex(j.preimage), burnHeight: j.burn_height };
+		};
 
-	getBitcoinHeaders = async (
-		from: number,
-		count: number,
-	): Promise<string[]> => {
-		const url = `${this.#base}/v1/proofs/bitcoin-headers?from=${from}&count=${count}`;
-		const j = required(
-			url,
-			await getJson<{ from: number; headers: string[] }>(url, this.#http),
-		);
-		if (j.from !== from)
-			throw new SourceError(url, 200, `headers start at ${j.from}`);
-		return j.headers;
-	};
+		this.getBitcoinHeaders = async (from, count) => {
+			const url = `${base}/v1/proofs/bitcoin-headers?from=${from}&count=${count}`;
+			const j = required(
+				url,
+				await getJson<{ from: number; headers: string[] }>(url, http),
+			);
+			if (j.from !== from)
+				throw new SourceError(url, 200, `headers start at ${j.from}`);
+			return j.headers;
+		};
 
-	getStateWrites = (height: number): Promise<StateWrite[] | null> =>
-		this.#pages<StateWrite>(
-			"state_writes",
-			`${this.#base}/v1/index/state-writes?block_height=${height}&limit=${PAGE}`,
-		);
+		this.getStateWrites = (height) =>
+			pages<StateWrite>(
+				"state_writes",
+				`${base}/v1/index/state-writes?block_height=${height}&limit=${PAGE}`,
+				http,
+			);
 
-	getVmEvents = async (height: number): Promise<VmEventRow[]> => {
-		const out: VmEventRow[] = [];
-		for (const type of VM_WRITE_TYPES) {
-			const url = `${this.#base}/v1/index/events?event_type=${type}&from_height=${height}&to_height=${height}&limit=${PAGE}`;
-			out.push(...((await this.#pages<VmEventRow>("events", url)) ?? []));
-		}
-		return out.sort((a, b) => a.event_index - b.event_index);
-	};
-
-	/** Follow `next_cursor` until a page comes back empty. Null when the first page 404s. */
-	async #pages<T>(field: string, url: string): Promise<T[] | null> {
-		const out: T[] = [];
-		let cursor: string | null = null;
-		for (;;) {
-			const page: string = cursor
-				? `${url}&cursor=${encodeURIComponent(cursor)}`
-				: url;
-			const j = await getJson<Record<string, unknown>>(page, this.#http);
-			if (j === null) return cursor === null ? null : out;
-			const rows = j[field];
-			if (!Array.isArray(rows))
-				throw new SourceError(page, 200, `answer has no ${field} array`);
-			out.push(...(rows as T[]));
-			const next = j.next_cursor;
-			if (rows.length < PAGE || typeof next !== "string" || next === cursor)
-				return out;
-			cursor = next;
-		}
+		this.getVmEvents = async (height) => {
+			const out: VmEventRow[] = [];
+			for (const type of VM_WRITE_TYPES) {
+				const url = `${base}/v1/index/events?event_type=${type}&from_height=${height}&to_height=${height}&limit=${PAGE}`;
+				out.push(...((await pages<VmEventRow>("events", url, http)) ?? []));
+			}
+			return out.sort((a, b) => a.event_index - b.event_index);
+		};
 	}
 }
 
@@ -265,27 +276,27 @@ export interface NodeRpcSourceOptions {
 export class NodeRpcProofSource
 	implements Pick<ProofSource, "getBlock" | "getMarfProof">
 {
-	readonly #base: string;
-	readonly #http: HttpOptions;
-
-	constructor(opts: NodeRpcSourceOptions) {
-		this.#base = trimSlash(opts.nodeUrl);
-		this.#http = { fetch: opts.fetch };
-	}
-
-	getBlock = async (ref: string | number): Promise<Bytes> => {
-		const url =
-			typeof ref === "number"
-				? `${this.#base}/v3/blocks/height/${ref}`
-				: `${this.#base}/v3/blocks/${ref}`;
-		return required(url, await getBytes(url, this.#http));
-	};
-
-	getMarfProof = async (
+	getBlock: (ref: string | number) => Promise<Bytes>;
+	getMarfProof: (
 		pathHex: string,
 		tipId: string,
-	): Promise<MarfProofResponse | null> => {
-		const url = `${this.#base}/v2/clarity/marf/${pathHex}?tip=${tipId}&proof=1`;
-		return toMarf(url, await getJson<MarfJson>(url, this.#http));
-	};
+	) => Promise<MarfProofResponse | null>;
+
+	constructor(opts: NodeRpcSourceOptions) {
+		const base = trimSlash(opts.nodeUrl);
+		const http: HttpOptions = { fetch: opts.fetch };
+
+		this.getBlock = async (ref) => {
+			const url =
+				typeof ref === "number"
+					? `${base}/v3/blocks/height/${ref}`
+					: `${base}/v3/blocks/${ref}`;
+			return required(url, await getBytes(url, http));
+		};
+
+		this.getMarfProof = async (pathHex, tipId) => {
+			const url = `${base}/v2/clarity/marf/${pathHex}?tip=${tipId}&proof=1`;
+			return toMarf(url, await getJson<MarfJson>(url, http));
+		};
+	}
 }

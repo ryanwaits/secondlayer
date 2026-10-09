@@ -197,6 +197,27 @@ describe("verifyBlock proves 9,137,005 end to end from MAINNET_CHECKPOINT", () =
 		]);
 		expect(r.notes[0]).toContain("unavailable");
 	});
+
+	test("state_writes and vm_events are read only with rows: true", async () => {
+		const reads: string[] = [];
+		const source = Object.assign(e2eSource(), {
+			getStateWrites: async (h: number) => {
+				reads.push(`state_writes ${h}`);
+				return null;
+			},
+			getVmEvents: async (h: number) => {
+				reads.push(`vm_events ${h}`);
+				return [];
+			},
+		});
+		const plain = await verifyBlock(H, { source });
+		expect(plain.ok).toBe(true);
+		expect(plain.rowsChecked).toBeUndefined();
+		expect(reads).toEqual([]);
+		const withRows = await verifyBlock(H, { source, rows: true });
+		expect(withRows).toMatchObject({ ok: true, rowsChecked: 0 });
+		expect(reads).toEqual(["state_writes 9137005", "vm_events 9137005"]);
+	});
 });
 
 describe("the signer set always comes from the proven burn height", () => {

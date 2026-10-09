@@ -95,10 +95,10 @@ function defaultSource(node?: string): ProofSource {
 }
 
 /**
- * The source verifyBlock sees: progress on the slow fetches, and the Index
- * reads (state_writes, vm_events) only when `rows` asks for them.
+ * The source verifyBlock sees: progress on the slow fetches. The verifier
+ * reads state_writes and vm_events only when given `rows: true`.
  */
-function prepareSource(src: ProofSource, rows: boolean): ProofSource {
+function prepareSource(src: ProofSource): ProofSource {
 	const out: ProofSource = {
 		getBlock: (ref) => src.getBlock(ref),
 		getMarfProof: (path, tip) => src.getMarfProof(path, tip),
@@ -113,9 +113,9 @@ function prepareSource(src: ProofSource, rows: boolean): ProofSource {
 		},
 	};
 	const { getStateWrites, getVmEvents } = src;
-	if (rows && getStateWrites)
+	if (getStateWrites)
 		out.getStateWrites = (height) => getStateWrites.call(src, height);
-	if (rows && getVmEvents)
+	if (getVmEvents)
 		out.getVmEvents = (height) => {
 			note(`  fetching indexed rows for ${n(height)}`);
 			return getVmEvents.call(src, height);
@@ -240,11 +240,8 @@ export async function runVerifyBlock(
 		checkpoint = opts.checkpoint
 			? await readCheckpoint(opts.checkpoint)
 			: MAINNET_CHECKPOINT;
-		const source = prepareSource(
-			deps.source ?? defaultSource(opts.node),
-			!!opts.rows,
-		);
-		verifier = new BlockVerifier({ source, checkpoint });
+		const source = prepareSource(deps.source ?? defaultSource(opts.node));
+		verifier = new BlockVerifier({ source, checkpoint, rows: !!opts.rows });
 	} catch (err) {
 		printError(err instanceof Error ? err.message : String(err));
 		return VERIFY_EXIT.UNANCHORED;
