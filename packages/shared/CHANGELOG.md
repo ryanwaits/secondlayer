@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.24.0
+
+### Minor Changes
+
+- 3553ac4: Chain webhook apply deliveries carry `block_time`, the block's time
+
 ## 11.23.0
 
 ### Minor Changes

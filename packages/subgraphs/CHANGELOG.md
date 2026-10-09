@@ -1,5 +1,16 @@
 # @secondlayer/subgraphs
 
+## 6.6.0
+
+### Minor Changes
+
+- 3553ac4: Chain webhook apply deliveries carry `block_time`, the block's time
+
+### Patch Changes
+
+- Updated dependencies [3553ac4]
+  - @secondlayer/shared@11.24.0
+
 ## 6.5.0
 
 ### Minor Changes

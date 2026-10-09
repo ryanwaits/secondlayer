@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/subgraphs",
-	"version": "6.5.0",
+	"version": "6.6.0",
 	"description": "Describe the Stacks data you want as one TypeScript file; it fills itself and survives reorgs.",
 	"license": "MIT",
 	"repository": {
@@ -59,7 +59,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/shared": "^11.23.0",
+		"@secondlayer/shared": "^11.24.0",
 		"@secondlayer/stacks": "^6.2.0",
 		"@secondlayer/verify": "^0.3.0",
 		"esbuild": "^0.28.2",

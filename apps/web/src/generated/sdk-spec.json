@@ -2151,7 +2151,7 @@
 					"summary": "One delivery body, generic over its trigger literal + matched-event shape.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 273
+					"line": 279
 				},
 				{
 					"name": "ChainApplyEnvelope",
@@ -2167,7 +2167,7 @@
 					"summary": "One `apply` envelope, generic over its trigger literal + matched-event shape.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 259
+					"line": 262
 				},
 				{
 					"name": "ChainEventEnvelope",
@@ -2175,7 +2175,7 @@
 					"summary": "Wrapper around an event-level trigger's matched event.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 231
+					"line": 234
 				},
 				{
 					"name": "ChainFtBurnData",
@@ -2183,7 +2183,7 @@
 					"summary": "`event.data` for an `ft_burn` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 185
+					"line": 188
 				},
 				{
 					"name": "ChainFtMintData",
@@ -2191,7 +2191,7 @@
 					"summary": "`event.data` for an `ft_mint` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 179
+					"line": 182
 				},
 				{
 					"name": "ChainFtTransferData",
@@ -2199,7 +2199,7 @@
 					"summary": "`event.data` for an `ft_transfer` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 172
+					"line": 175
 				},
 				{
 					"name": "ChainNftBurnData",
@@ -2207,7 +2207,7 @@
 					"summary": "`event.data` for an `nft_burn` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 208
+					"line": 211
 				},
 				{
 					"name": "ChainNftMintData",
@@ -2215,7 +2215,7 @@
 					"summary": "`event.data` for an `nft_mint` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 202
+					"line": 205
 				},
 				{
 					"name": "ChainNftTransferData",
@@ -2223,7 +2223,7 @@
 					"summary": "`event.data` for an `nft_transfer` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 195
+					"line": 198
 				},
 				{
 					"name": "ChainPrintEventData",
@@ -2231,7 +2231,7 @@
 					"summary": "`event.data` for a `print_event` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 218
+					"line": 221
 				},
 				{
 					"name": "ChainReorgOrphanedEntry",
@@ -2239,7 +2239,7 @@
 					"summary": "One orphaned delivery recalled by a reorg rollback.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 102
+					"line": 105
 				},
 				{
 					"name": "ChainReorgRollbackDelivery",
@@ -2247,7 +2247,7 @@
 					"summary": "Delivered once per affected webhook on a reorg (`type: \"chain.reorg.rollback\"`).",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 293
+					"line": 299
 				},
 				{
 					"name": "ChainReorgRollbackEnvelope",
@@ -2255,7 +2255,7 @@
 					"summary": "Delivered once per affected webhook on a reorg (`event_type: \"chain.reorg.rollback\"`).",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 117
+					"line": 120
 				},
 				{
 					"name": "ChainStxBurnData",
@@ -2263,7 +2263,7 @@
 					"summary": "`event.data` for a `stx_burn` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 161
+					"line": 164
 				},
 				{
 					"name": "ChainStxLockData",
@@ -2271,7 +2271,7 @@
 					"summary": "`event.data` for a `stx_lock` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 166
+					"line": 169
 				},
 				{
 					"name": "ChainStxMintData",
@@ -2279,7 +2279,7 @@
 					"summary": "`event.data` for a `stx_mint` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 156
+					"line": 159
 				},
 				{
 					"name": "ChainStxTransferData",
@@ -2287,7 +2287,7 @@
 					"summary": "`event.data` for a `stx_transfer` delivery.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 148
+					"line": 151
 				},
 				{
 					"name": "ChainTestDelivery",
@@ -2295,7 +2295,7 @@
 					"summary": "The `POST /webhooks/:id/test` ping (`type: \"chain.test.apply\"`) — not a real chain event.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 300
+					"line": 306
 				},
 				{
 					"name": "ChainTrigger",
@@ -2319,7 +2319,7 @@
 					"summary": "A tx-level trigger's matched event (`contract_call` / `contract_deploy`) — flat, no nested `data` key.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 243
+					"line": 246
 				},
 				{
 					"name": "ChainWebhookDelivery",
@@ -2327,7 +2327,7 @@
 					"summary": "The full wire body of a chain-webhook webhook delivery, as sent to a `format: \"standard-webhooks\"` webhook (the default) — `{ type, timestamp, data }`.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 342
+					"line": 348
 				},
 				{
 					"name": "ChainWebhookEnvelope",
@@ -2335,7 +2335,7 @@
 					"summary": "Any chain-webhook webhook body.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 126
+					"line": 129
 				},
 				{
 					"name": "CreateWebhookRequest",
@@ -2391,7 +2391,7 @@
 					"summary": "One Runes `apply` delivery body (`type: \"chain.rune_*.apply\"`).",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 286
+					"line": 292
 				},
 				{
 					"name": "RuneApplyEnvelope",
@@ -2399,7 +2399,7 @@
 					"summary": "Delivered when a Runes trigger (`rune_etch`/`rune_mint`/`rune_transfer`/ `rune_burn`) matches an event on the `chain=bitcoin` Streams clock (plan 059) — a separate wire shape from {@link ChainApply…",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 89
+					"line": 92
 				},
 				{
 					"name": "SbtcDepositEvent",
