@@ -42,6 +42,7 @@ export { dataVarKey, ftBalanceKey, mapEntryKey } from "./keys.ts";
 export {
 	type Checkpoint,
 	HeaderChain,
+	type HeaderRule,
 	HeaderValidationError,
 } from "./bitcoin/chain.ts";
 export { MAINNET_CHECKPOINT, type VerifyCheckpoint } from "./checkpoint.ts";
@@ -64,16 +65,15 @@ export {
 	type DiffWrite,
 	type ProvenDiff,
 	type StateFailure,
+	type StateFailureCode,
 	verifyBlockState,
 } from "./state.ts";
 export {
 	type BlockVerification,
 	BlockVerifier,
-	type SearchPoint,
 	type VerifyFailure,
 	type VerifyFailureCode,
 	type VerifyOptions,
 	type VerifyStep,
-	findAnchor,
 	verifyBlock,
 } from "./verify-block.ts";

@@ -9,7 +9,6 @@ import {
 	blockId,
 	cycleStart,
 	decodeSignerSet,
-	findAnchor,
 	hex,
 	mapEntryKey,
 	marfPath,
@@ -24,6 +23,7 @@ import {
 	verifyMarfProof,
 	verifySignerSignatures,
 } from "../src/index.ts";
+import { findAnchor } from "../src/verify-block.ts";
 import {
 	FakeSource,
 	bitcoinHeaders,
