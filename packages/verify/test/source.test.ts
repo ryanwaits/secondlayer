@@ -124,32 +124,28 @@ describe("SecondlayerProofSource", () => {
 		expect(m.calls.length).toBe(3);
 	});
 
-	test("state_writes follow next_cursor; a 404 means none for the block", async () => {
+	test("state_writes are one free proofs read per block; a 404 means none for the block", async () => {
 		const row = (ordinal: number) => ({
 			tx_index: 0,
 			ordinal,
 			key: `k${ordinal}`,
 			value_hex: "30",
 		});
-		const m = mockFetch((url) => {
-			if (url.searchParams.get("block_height") === "5")
-				return json({ error: "nf" }, 404);
-			return url.searchParams.get("cursor") === "c1"
-				? json({ state_writes: [row(1000)], next_cursor: "c2" })
+		const m = mockFetch((url) =>
+			url.pathname.endsWith("/5")
+				? json({ error: "nf" }, 404)
 				: json({
-						state_writes: Array.from({ length: 1000 }, (_, i) => row(i)),
-						next_cursor: "c1",
-					});
-		});
+						block_height: 9,
+						state_writes: Array.from({ length: 1500 }, (_, i) => row(i)),
+					}),
+		);
 		const s = new SecondlayerProofSource({
 			baseUrl: BASE,
 			apiKey: "k",
 			fetch: m.fetch,
 		});
-		expect((await s.getStateWrites(9))?.length).toBe(1001);
-		expect(m.calls[0]?.url).toBe(
-			`${BASE}/v1/index/state-writes?block_height=9&limit=1000`,
-		);
+		expect((await s.getStateWrites(9))?.length).toBe(1500);
+		expect(m.calls[0]?.url).toBe(`${BASE}/v1/proofs/writes/9`);
 		expect(await s.getStateWrites(5)).toBeNull();
 	});
 

@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { uintCV } from "@secondlayer/stacks/clarity";
 import {
 	BlockVerifier,
@@ -134,7 +136,9 @@ describe("verifyBlock proves 9,137,005 end to end from MAINNET_CHECKPOINT", () =
 			18, 1, 5,
 		]);
 		expect(d.writes.every((w) => !w.named)).toBe(true);
+		// The fixture is H's header alone, so there are no transactions to check.
 		expect(r.notes).toEqual([
+			`transactions not checked: the source served block ${H}'s header only`,
 			"source has no state_writes for block 9137005: 18 written leaves are proven in the block but unnamed",
 		]);
 		const path144 = signerChain.sets["144"]?.path as string;
@@ -197,10 +201,10 @@ describe("verifyBlock proves 9,137,005 end to end from MAINNET_CHECKPOINT", () =
 			`block ${grandparent}`,
 			`epoch2 ${grandparent}`,
 		]);
-		expect(r.notes[0]).toContain("unavailable");
+		expect(r.notes.some((n) => n.includes("unavailable"))).toBe(true);
 	});
 
-	test("state_writes and vm_events are read only with rows: true", async () => {
+	test("state_writes are always read to name the diff; vm_events only with rows: true", async () => {
 		const reads: string[] = [];
 		const source = Object.assign(e2eSource(), {
 			getStateWrites: async (h: number) => {
@@ -215,10 +219,63 @@ describe("verifyBlock proves 9,137,005 end to end from MAINNET_CHECKPOINT", () =
 		const plain = await verifyBlock(H, { source });
 		expect(plain.ok).toBe(true);
 		expect(plain.rowsChecked).toBeUndefined();
-		expect(reads).toEqual([]);
+		expect(reads).toEqual(["state_writes 9137005"]);
 		const withRows = await verifyBlock(H, { source, rows: true });
 		expect(withRows).toMatchObject({ ok: true, rowsChecked: 0 });
-		expect(reads).toEqual(["state_writes 9137005", "vm_events 9137005"]);
+		expect(reads).toEqual([
+			"state_writes 9137005",
+			"state_writes 9137005",
+			"vm_events 9137005",
+		]);
+	});
+
+	test("state writes the source lacks or fails to serve leave the diff unnamed, never a failure", async () => {
+		for (const getStateWrites of [
+			async () => [],
+			async () => {
+				throw new Error("HTTP 429");
+			},
+		]) {
+			const source = Object.assign(e2eSource(), { getStateWrites });
+			const r = await verifyBlock(H, { source });
+			expect(r.ok).toBe(true);
+			expect(r.diff?.named).toBe(false);
+			expect(r.writes).toBeUndefined();
+			expect(r.notes.at(-1)).toContain("proven in the block but unnamed");
+		}
+		const failing = Object.assign(e2eSource(), {
+			getStateWrites: async () => {
+				throw new Error("HTTP 429");
+			},
+		});
+		expect((await verifyBlock(H, { source: failing })).notes).toContain(
+			"state writes for block 9137005 unavailable: HTTP 429",
+		);
+	});
+
+	test("transactions that do not hash to the header's tx_merkle_root break the txs link before the witness is read", async () => {
+		const source = e2eSource();
+		const headerOnly = source.blocks.get(H) as Uint8Array;
+		// A real mainnet transaction, but not one of H's.
+		const other = unhex(
+			readFileSync(
+				join(import.meta.dir, "fixtures", "blocks", "8199502.hex"),
+				"utf8",
+			).trim(),
+		);
+		const body = other.subarray(parseNakamotoHeader(other).byteLength);
+		const forged = new Uint8Array(headerOnly.length + body.length);
+		forged.set(headerOnly);
+		forged.set(body, headerOnly.length);
+		source.blocks.set(H, forged);
+		const r = await verifyBlock(9137005, { source });
+		expect(r.ok).toBe(false);
+		expect(r.failures[0]).toMatchObject({
+			step: "txs",
+			code: "tx-root-mismatch",
+		});
+		expect(r.transactions).toBeUndefined();
+		expect(source.log).not.toContain(`witness ${H}`);
 	});
 });
 

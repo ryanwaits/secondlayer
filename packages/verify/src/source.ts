@@ -73,7 +73,10 @@ export interface ProofSource {
 	getBurnPreimage(consensusHash: string): Promise<BurnPreimage>;
 	/** Raw 80-byte Bitcoin headers (hex or bytes) from height `from`. */
 	getBitcoinHeaders(from: number, count: number): Promise<(string | Bytes)[]>;
-	/** Every MARF write of the block; null when the source has none for it. */
+	/**
+	 * Every MARF write of the block, in ordinal order; null (or empty) when
+	 * the source has none for it. Names the block's diff.
+	 */
 	getStateWrites?(height: number): Promise<StateWrite[] | null>;
 	/** Indexed vm_events write rows of the block, checked against its proven diff. */
 	getVmEvents?(height: number): Promise<VmEventRow[]>;
@@ -212,9 +215,10 @@ async function pages<T>(
 // fields: nothing leaks through a spread, a log or JSON.stringify.
 
 /**
- * Every proof input from the Secondlayer API: `/v1/proofs/*` for blocks, epoch
- * 2.x headers, MARF proofs, witnesses, burn preimages and Bitcoin headers; the Index API for
- * state_writes and vm_events, read only when verifyBlock gets `rows: true`.
+ * Every proof input from the Secondlayer API: `/v1/proofs/*` (free, rate
+ * limited) for blocks, epoch 2.x headers, MARF proofs, witnesses, burn
+ * preimages, Bitcoin headers and each block's state writes; the Index API
+ * (metered rows) for vm_events, read only when verifyBlock gets `rows: true`.
  * Methods are own properties, so a partial source spreads over it:
  * `{ ...new SecondlayerProofSource(o), ...new NodeRpcProofSource(n) }`.
  */
@@ -281,12 +285,14 @@ export class SecondlayerProofSource implements ProofSource {
 			return j.headers;
 		};
 
-		this.getStateWrites = (height) =>
-			pages<StateWrite>(
-				"state_writes",
-				`${base}/v1/index/state-writes?block_height=${height}&limit=${PAGE}`,
-				http,
-			);
+		this.getStateWrites = async (height) => {
+			const url = `${base}/v1/proofs/writes/${height}`;
+			const j = await getJson<{ state_writes?: unknown }>(url, http);
+			if (j === null) return null;
+			if (!Array.isArray(j.state_writes))
+				throw new SourceError(url, 200, "answer has no state_writes array");
+			return j.state_writes as StateWrite[];
+		};
 
 		this.getVmEvents = async (height) => {
 			const out: VmEventRow[] = [];

@@ -24,6 +24,8 @@ export interface DiffWrite {
 	valueHash: string;
 	/** Transaction of the last write; null for block-level writes. */
 	txIndex?: number | null;
+	/** The stored value string (hex of a Clarity value) the leaf holds; named writes only. */
+	value?: string;
 	/** False when the source had no state_writes: the leaf may also be a carried copy. */
 	named: boolean;
 }
@@ -309,6 +311,7 @@ export async function verifyBlockState(
 					...leafHex(l),
 					key: l.key,
 					txIndex: last.get(l.key)?.txIndex ?? null,
+					value: last.get(l.key)?.value,
 					named: true,
 				}))
 			: // Without names every unexplained leaf is a write we cannot label.

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -68,15 +68,20 @@ describe("verify block", () => {
 			"✓ burn        height 970,269  00000000000000000001abf5e92c4e771c041ff3a9fde450c2291775641a801c",
 			"✓ cycle       144, signer set proven forward from checkpoint cycle 143",
 			"✓ signatures  2,866 / 4,000 weight signed, threshold 2,800",
+			// The fixture is H's header alone: no transaction bytes to hash.
+			"· txs         not checked: no transaction bytes (epoch 2.x, or the source served the header only)",
 			expect.stringMatching(
 				/^✓ state root {2}[0-9a-f]{64} matches the witness$/,
 			),
-			"✓ diff        18 written (unnamed; --rows names them), 1 carried, 5 internal",
+			"✓ diff        18 written (unnamed), 1 carried, 5 internal",
 			"· rows        not checked (pass --rows)",
 			"✓ Block 9,137,005 is proven. Trusted: only the checkpoint (Stacks 8,956,304, Bitcoin 967,680).",
 		]);
-		// Progress is chrome: stderr only.
+		// Progress is chrome: stderr only. So is why the diff is unnamed.
 		expect(r.stderr).toContain("syncing Bitcoin headers 967,681..969,696");
+		expect(r.stderr).toContain(
+			"note: source has no state_writes for block 9137005: 18 written leaves are proven in the block but unnamed",
+		);
 	});
 
 	test("an index block hash names the same block", async () => {
@@ -92,8 +97,8 @@ describe("verify block", () => {
 		expect(r.code).toBe(1);
 		const lines = r.stdout.trim().split("\n");
 		expect(lines[4]).toStartWith("✓ signatures");
-		expect(lines[5]).toStartWith("✗ state root");
-		expect(lines[6]).toBe(
+		expect(lines[6]).toStartWith("✗ state root");
+		expect(lines[7]).toBe(
 			"· diff        not checked: an earlier link is broken",
 		);
 		expect(lines.at(-1)).toBe("✗ Not proven: the state root link is broken.");
@@ -134,7 +139,35 @@ describe("verify block", () => {
 		});
 	});
 
-	test("without --rows the Index API is never read; with it, both reads are made", async () => {
+	test("transactions that do not hash to the header's root break the txs link and exit 1", async () => {
+		const src = source();
+		const headerOnly = src.blocks.get(H) as Uint8Array;
+		// A real mainnet block's transactions, not H's.
+		const other = unhex(
+			readFileSync(
+				join(
+					import.meta.dir,
+					"../../../verify/test/fixtures/blocks/8199502.hex",
+				),
+				"utf8",
+			).trim(),
+		);
+		const body = other.subarray(parseNakamotoHeader(other).byteLength);
+		const forged = new Uint8Array(headerOnly.length + body.length);
+		forged.set(headerOnly);
+		forged.set(body, headerOnly.length);
+		src.blocks.set(H, forged);
+		const r = await run("9137005", {}, src);
+		expect(r.code).toBe(1);
+		const lines = r.stdout.trim().split("\n");
+		expect(lines[5]).toStartWith("✗ txs         transactions hash to ");
+		expect(lines[6]).toBe(
+			"· state root  not checked: an earlier link is broken",
+		);
+		expect(lines.at(-1)).toBe("✗ Not proven: the txs link is broken.");
+	});
+
+	test("state writes are always read to name the diff; vm_events only with --rows", async () => {
 		const reads: string[] = [];
 		const src = Object.assign(source(), {
 			getStateWrites: async (h: number) => {
@@ -147,9 +180,13 @@ describe("verify block", () => {
 			},
 		});
 		await run("9137005", {}, src);
-		expect(reads).toEqual([]);
+		expect(reads).toEqual(["state_writes 9137005"]);
 		await run("9137005", { rows: true }, src);
-		expect(reads).toEqual(["state_writes 9137005", "vm_events 9137005"]);
+		expect(reads).toEqual([
+			"state_writes 9137005",
+			"state_writes 9137005",
+			"vm_events 9137005",
+		]);
 	});
 
 	test("a block below the checkpoint shows its ancestry link instead of the signer links", async () => {
@@ -188,7 +225,10 @@ describe("verify block", () => {
 			"· cycle       not needed: the block is hash-chained to the checkpoint",
 			"· signatures  not needed: the block is hash-chained to the checkpoint",
 		]);
-		expect(lines[6]).toStartWith("✓ state root");
+		expect(lines[6]).toBe(
+			"· txs         not checked: no transaction bytes (epoch 2.x, or the source served the header only)",
+		);
+		expect(lines[7]).toStartWith("✓ state root");
 		expect(lines.at(-1)).toBe(
 			"✓ Block 2,000 is proven. Trusted: only the checkpoint (Stacks 8,956,304, Bitcoin 967,680).",
 		);
@@ -255,5 +295,8 @@ describe("verify block on the command line", () => {
 		expect(r.code).toBe(0);
 		expect(r.stdout).toContain("Nothing is trusted except the checkpoint");
 		expect(r.stdout).toContain("--rows");
+		expect(r.stdout).toContain(
+			"txs         the block's transactions hash to the tx merkle root",
+		);
 	});
 });

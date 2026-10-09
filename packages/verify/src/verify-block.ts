@@ -2,12 +2,13 @@
 //
 // At or above the checkpoint, forward:
 //   checkpoint ─▶ bitcoin headers (PoW) ─▶ burn height ─▶ cycle ─▶ signer set[cycle] (MARF-proven)
-//              ─▶ header N (signatures ≥ 70%) ─▶ witness N (root) ─▶ named diff ─▶ indexed rows
+//              ─▶ header N (signatures ≥ 70%) ─▶ txs N (tx merkle root) ─▶ witness N (root)
+//              ─▶ named diff ─▶ indexed rows
 //
 // Below it, backward: a trusted descendant's id commits to every ancestor by
 // hash, so no signatures are needed:
 //   checkpoint ─▶ id N (parent links, or one MARF proof of __MARF_BLOCK_HEIGHT_TO_HASH::N)
-//              ─▶ header N (hashes to id N) ─▶ witness N (root) ─▶ named diff ─▶ indexed rows
+//              ─▶ header N (hashes to id N) ─▶ txs N ─▶ witness N (root) ─▶ named diff ─▶ indexed rows
 //
 // Every input comes from an untrusted ProofSource; only the checkpoint is trusted.
 import { uintCV } from "@secondlayer/stacks/clarity";
@@ -45,12 +46,17 @@ import {
 	decodeSignerSet,
 	verifySignerSignatures,
 } from "./signers.ts";
-import type { BurnPreimage, ProofSource } from "./source.ts";
+import type { BurnPreimage, ProofSource, StateWrite } from "./source.ts";
 import {
 	type ProvenDiff,
 	type StateFailureCode,
 	verifyBlockState,
 } from "./state.ts";
+import {
+	type BlockTransaction,
+	TransactionsError,
+	blockTransactions,
+} from "./txs.ts";
 import { type WitnessLeaf, parseWitness } from "./witness.ts";
 
 export type VerifyStep =
@@ -60,6 +66,7 @@ export type VerifyStep =
 	| "burn"
 	| "signer-set"
 	| "signatures"
+	| "txs"
 	| "witness"
 	| "names"
 	| "rows";
@@ -69,6 +76,8 @@ export type VerifyFailureCode =
 	/** The source could not serve something the step needs. */
 	| "unavailable"
 	| "id-mismatch"
+	/** The block's transactions do not hash to its header's tx_merkle_root. */
+	| "tx-root-mismatch"
 	| "height-mismatch"
 	| "invalid-header"
 	| "preimage-mismatch"
@@ -132,7 +141,14 @@ export interface BlockVerification {
 	signerWeight?: bigint;
 	totalWeight?: bigint;
 	threshold?: bigint;
+	/**
+	 * The block's transactions, checked against the header's tx_merkle_root.
+	 * Absent for epoch 2.x blocks and when the source served the header only.
+	 */
+	transactions?: BlockTransaction[];
 	diff?: ProvenDiff;
+	/** Every state_writes row the names step checked, in ordinal order. */
+	writes?: StateWrite[];
 	/** vm_events rows proven against the diff. */
 	rowsChecked?: number;
 	notes: string[];
@@ -145,9 +161,10 @@ export interface VerifyOptions {
 	/** Defaults to MAINNET_CHECKPOINT. */
 	checkpoint?: VerifyCheckpoint;
 	/**
-	 * Also name the block's writes and prove its indexed rows: reads the
-	 * source's `getStateWrites` and `getVmEvents`, which bill as Index rows on
-	 * the Secondlayer API. Off by default, so verification reads proofs only.
+	 * Also prove the block's indexed vm_events rows against its diff: reads
+	 * the source's `getVmEvents`, which bill as Index rows on the Secondlayer
+	 * API. Off by default. Naming the diff's writes (`getStateWrites`, free on
+	 * `/v1/proofs`) is always on when the source has them.
 	 */
 	rows?: boolean;
 }
@@ -268,6 +285,9 @@ export class BlockVerifier {
 	>();
 	/** Unverified source answers by consensus hash. */
 	private readonly preimages = new Map<string, BurnPreimage>();
+	/** Raw bytes of the last few blocks fetched, so the txs step reuses the
+	 *  block an ancestry walk just read. Bounded: blocks can be megabytes. */
+	private readonly raws = new Map<string, Bytes>();
 	private readonly start: { header: NakamotoHeader; id: string };
 
 	constructor(opts: VerifyOptions) {
@@ -319,6 +339,7 @@ export class BlockVerifier {
 				this.source.getBlock(ref),
 			);
 			header = parseHeader(raw, "block");
+			this.rememberRaw(hex(blockId(header)), raw);
 		}
 		const id = hex(blockId(header));
 		const height = Number(header.chainLength);
@@ -357,6 +378,7 @@ export class BlockVerifier {
 		out.totalWeight = sig.totalWeight;
 		out.threshold = sig.threshold;
 		if (!sig.valid) fail(signatureFailure(sig, "signatures", cycle));
+		await this.checkTransactions(header, id, out);
 		await this.verifyState(header, id, out);
 	}
 
@@ -391,7 +413,50 @@ export class BlockVerifier {
 		out.blockId = id;
 		out.stateRoot = hex(header.stateIndexRoot);
 		await this.bindBurnBelow(header, out);
+		await this.checkTransactions(header, id, out);
 		await this.verifyState(header, id, out);
+	}
+
+	private rememberRaw(id: string, raw: Bytes): void {
+		this.raws.delete(id);
+		this.raws.set(id, raw);
+		while (this.raws.size > 4) {
+			const oldest = this.raws.keys().next().value as string;
+			this.raws.delete(oldest);
+		}
+	}
+
+	/**
+	 * The block's transactions against the authenticated header's
+	 * tx_merkle_root: binds every txid, sender, type and call target to the
+	 * signed (or hash-linked) header.
+	 */
+	private async checkTransactions(
+		header: StacksHeader,
+		id: string,
+		out: BlockVerification,
+	): Promise<void> {
+		if (isEpoch2Header(header)) {
+			out.notes.push("epoch 2.x: transactions not checked");
+			return;
+		}
+		const raw =
+			this.raws.get(id) ??
+			(await fetchFor("txs", `block ${id}`, () => this.source.getBlock(id)));
+		let txs: BlockTransaction[] | null;
+		try {
+			txs = blockTransactions(raw, header);
+		} catch (err) {
+			if (!(err instanceof TransactionsError)) throw err;
+			return fail({ step: "txs", code: err.code, message: err.message });
+		}
+		if (txs === null) {
+			out.notes.push(
+				`transactions not checked: the source served block ${id}'s header only`,
+			);
+			return;
+		}
+		out.transactions = txs;
 	}
 
 	/**
@@ -541,14 +606,9 @@ export class BlockVerifier {
 		const witness = await fetchFor("witness", `witness ${id}`, () =>
 			src.getWitness(id),
 		);
-		const { getStateWrites, getVmEvents }: Partial<ProofSource> = this.rows
-			? src
-			: {};
-		const writes = getStateWrites
-			? await fetchFor("names", `state_writes ${height}`, () =>
-					getStateWrites.call(src, height),
-				)
-			: null;
+		const writes = await this.stateWrites(height, out.notes);
+		if (writes) out.writes = writes;
+		const { getVmEvents }: Partial<ProofSource> = this.rows ? src : {};
 		const rows = getVmEvents
 			? await fetchFor("rows", `vm_events ${height}`, () =>
 					getVmEvents.call(src, height),
@@ -576,6 +636,28 @@ export class BlockVerifier {
 		if (rows) out.rowsChecked = state.rowsChecked;
 		out.notes.push(...state.notes);
 		out.failures.push(...state.failures);
+	}
+
+	/**
+	 * The block's state writes, to name its diff. Optional evidence: a source
+	 * with none for the block (404, empty) or that fails leaves the diff
+	 * proven but unnamed, with a note, never a failure.
+	 */
+	private async stateWrites(
+		height: number,
+		notes: string[],
+	): Promise<StateWrite[] | null> {
+		const { getStateWrites } = this.source;
+		if (!getStateWrites) return null;
+		try {
+			const writes = await getStateWrites.call(this.source, height);
+			return writes?.length ? writes : null;
+		} catch (err) {
+			notes.push(
+				`state writes for block ${height} unavailable: ${(err as Error).message}`,
+			);
+			return null;
+		}
 	}
 
 	/** Header by id, from the cache or the source; it must hash to `id`. */
@@ -612,6 +694,7 @@ export class BlockVerifier {
 		let raw: Bytes;
 		try {
 			raw = await src.getBlock(id);
+			this.rememberRaw(id, raw);
 		} catch (err) {
 			const reason = `block ${id}: ${(err as Error).message}`;
 			const { getEpoch2Header } = src;

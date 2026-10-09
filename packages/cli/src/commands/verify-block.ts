@@ -33,7 +33,7 @@ export interface VerifyBlockOptions {
 	node?: string;
 	/** Path to a checkpoint JSON that replaces the baked one. */
 	checkpoint?: string;
-	/** Also prove the Index API's rows for the block against its diff. */
+	/** Also prove the Index API's vm_events rows for the block against its diff. */
 	rows?: boolean;
 	json?: boolean;
 }
@@ -51,6 +51,7 @@ const LINKS: { step: VerifyStep; label: string }[] = [
 	{ step: "burn", label: "burn" },
 	{ step: "signer-set", label: "cycle" },
 	{ step: "signatures", label: "signatures" },
+	{ step: "txs", label: "txs" },
 	{ step: "witness", label: "state root" },
 	{ step: "names", label: "diff" },
 	{ step: "rows", label: "rows" },
@@ -87,7 +88,8 @@ async function readCheckpoint(path: string): Promise<VerifyCheckpoint> {
 	return cp;
 }
 
-function defaultSource(node?: string): ProofSource {
+/** The configured API's proofs, with blocks and MARF proofs from `node` when given. */
+export function defaultSource(node?: string): ProofSource {
 	const api = new SecondlayerProofSource({
 		baseUrl: resolveApiUrl(),
 		apiKey: resolveDataPlaneKey() ?? "",
@@ -97,7 +99,8 @@ function defaultSource(node?: string): ProofSource {
 
 /**
  * The source verifyBlock sees: progress on the slow fetches. The verifier
- * reads state_writes and vm_events only when given `rows: true`.
+ * always reads state_writes (free) to name the diff, and vm_events (metered)
+ * only when given `rows: true`.
  */
 function prepareSource(src: ProofSource): ProofSource {
 	const out: ProofSource = {
@@ -131,7 +134,6 @@ function linkDetail(
 	step: VerifyStep,
 	r: BlockVerification,
 	cp: VerifyCheckpoint,
-	rows: boolean,
 ): string {
 	switch (step) {
 		case "ancestry": {
@@ -158,6 +160,8 @@ function linkDetail(
 				: `${r.cycle}, signer set proven forward from checkpoint cycle ${cp.stacks.cycle}`;
 		case "signatures":
 			return `${n(r.signerWeight ?? 0n)} / ${n(r.totalWeight ?? 0n)} weight signed, threshold ${n(r.threshold ?? 0n)}`;
+		case "txs":
+			return `${n(r.transactions?.length ?? 0)} transactions match the tx merkle root`;
 		case "witness":
 			return `${r.stateRoot} matches the witness`;
 		case "names": {
@@ -166,7 +170,7 @@ function linkDetail(
 			const named = d.writes.filter((w) => w.named).length;
 			const written = named
 				? `${d.writes.length} written (${named} named, ${d.writes.length - named} unnamed)`
-				: `${d.writes.length} written (unnamed${rows ? "" : "; --rows names them"})`;
+				: `${d.writes.length} written (unnamed)`;
 			return `${written}, ${d.carried.length} carried, ${d.internal.length} internal`;
 		}
 		case "rows":
@@ -215,14 +219,15 @@ function report(
 			writeData(
 				dim(`· ${label}  not checked: the source serves no indexed rows`),
 			);
-		else
+		else if (link.step === "txs" && r.transactions === undefined)
 			writeData(
-				`${green("✓")} ${label}  ${linkDetail(link.step, r, cp, rows)}`,
+				dim(
+					`· ${label}  not checked: no transaction bytes (epoch 2.x, or the source served the header only)`,
+				),
 			);
+		else writeData(`${green("✓")} ${label}  ${linkDetail(link.step, r, cp)}`);
 	}
-	// Without --rows names were never asked for; the diff line already says so.
-	for (const line of r.notes)
-		if (rows || !line.includes("state_writes")) note(`  note: ${line}`);
+	for (const line of r.notes) note(`  note: ${line}`);
 
 	if (!first) {
 		const from = n(parseNakamotoHeader(unhex(cp.stacks.header)).chainLength);
@@ -243,10 +248,14 @@ function report(
 	);
 }
 
-/** bigint weights as decimal strings; everything else as verifyBlock returned it. */
+/** bigint weights as decimal strings, transactions as their txids; everything
+ *  else as verifyBlock returned it. */
 export function verificationJson(r: BlockVerification): string {
+	const { transactions, ...rest } = r;
 	return JSON.stringify(
-		r,
+		transactions
+			? { ...rest, transactions: transactions.map((t) => t.txid) }
+			: rest,
 		(_k, v) => (typeof v === "bigint" ? v.toString() : v),
 		2,
 	);
@@ -305,7 +314,7 @@ export function attachVerifyBlockCommand(verify: Command): Command {
 		)
 		.option(
 			"--rows",
-			"also prove the indexer's rows for the block (state_writes, vm_events) against its state diff",
+			"also prove the Index API's vm_events rows for the block against its state diff (billed as Index rows)",
 		)
 		.addHelpText(
 			"after",
@@ -317,9 +326,13 @@ What is proven, link by link:
   burn        the block's consensus hash commits to that Bitcoin block
   cycle       the reward cycle's signer set, proven forward from the checkpoint's set
   signatures  signers holding at least 70% of the weight signed the block header
+  txs         the block's transactions hash to the tx merkle root in its header
   state root  the state witness hashes to the root in the signed header
-  diff        every leaf the block wrote, carried, or kept as bookkeeping
-  rows        with --rows: the Index API's rows match that diff
+  diff        every leaf the block wrote, carried, or kept as bookkeeping; writes
+              are named from the block's state_writes (free, /v1/proofs/writes)
+              when the source has them, else listed as unnamed with a note
+  rows        with --rows: the Index API's vm_events rows match that diff
+              (billed as Index rows; everything else is free)
 
 Nothing is trusted except the checkpoint. Proofs come from the API
 (SECONDLAYER_API_URL, or --api-url) with your account key, or from a node

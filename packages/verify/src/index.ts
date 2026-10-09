@@ -74,6 +74,12 @@ export {
 	verifyBlockState,
 } from "./state.ts";
 export {
+	type BlockTransaction,
+	TransactionsError,
+	blockTransactions,
+	txMerkleRoot,
+} from "./txs.ts";
+export {
 	type Ancestry,
 	type BlockVerification,
 	BlockVerifier,
