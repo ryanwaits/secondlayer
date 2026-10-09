@@ -6,7 +6,7 @@ import {
 	watch,
 	writeFileSync,
 } from "node:fs";
-import { basename, dirname, extname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { confirm } from "@inquirer/prompts";
 import {
@@ -16,10 +16,16 @@ import {
 } from "@secondlayer/scaffold";
 import {
 	type SubgraphDetail,
+	type SubgraphVerification,
 	billingPausedCode,
 } from "@secondlayer/shared/schemas";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
+import {
+	type HandlerFinding,
+	deriveVerification,
+	isDeterminismViolation,
+} from "@secondlayer/subgraphs/verification";
 import type { Command } from "commander";
 import { generateSubgraphScaffold } from "../generators/subgraph-scaffold.ts";
 import { generateSubgraphConsumer } from "../generators/subgraphs.ts";
@@ -565,6 +571,62 @@ export function createSubgraphDeployPreview(
 			? { bundleSize: `${options.bundleBytes} bytes` }
 			: {}),
 	};
+}
+
+/**
+ * The derived verification level as deploy/status lines:
+ * `verifiable  L2 · pin 7f3c…a91e` plus what stays unproven, or
+ * `verifiable  no · <why>`.
+ */
+export function formatVerificationLines(
+	verification: SubgraphVerification | null | undefined,
+	pin?: string | null,
+): string[] {
+	if (!verification) return [];
+	if (!verification.verifiable) {
+		return [`verifiable  no · ${verification.reasons.join(" · ")}`];
+	}
+	const shortPin = pin ? ` · pin ${pin.slice(0, 4)}…${pin.slice(-4)}` : "";
+	return [
+		`verifiable  ${verification.level}${shortPin}`,
+		...verification.unproven.map((u) => `unproven    ${u}`),
+	];
+}
+
+/** One-cell form for `subgraphs status`. */
+export function formatVerificationStatus(
+	verification: SubgraphVerification | null | undefined,
+): string {
+	if (!verification) return "unknown (deployed before levels were derived)";
+	if (verification.verifiable) {
+		return verification.unproven.length > 0
+			? `${verification.level} (unproven: ${verification.unproven.join("; ")})`
+			: verification.level;
+	}
+	return `no · ${verification.reasons.join(" · ")}`;
+}
+
+/**
+ * Scan the bundle and derive the level the server will derive, so a
+ * nondeterministic handler on provable sources fails here, with positions in
+ * the author's files, before anything is uploaded.
+ */
+function checkDeterminism(
+	def: Pick<SubgraphDefinition, "sources" | "backfillMode">,
+	findings: HandlerFinding[],
+): SubgraphVerification {
+	const verification = deriveVerification(def, findings);
+	if (isDeterminismViolation(verification)) {
+		error(
+			"Nondeterministic handler. This subgraph's sources are provable, so its handlers must give the same rows on every run:",
+		);
+		for (const r of verification.reasons) error(`  ✗ ${r}`);
+		info(
+			"Derive values from event, ctx.block and ctx.tx only (no Date, Math.random, fetch, timers or locale formatting).",
+		);
+		process.exit(1);
+	}
+	return verification;
 }
 
 function printSubgraphDeployPreview(
@@ -1198,8 +1260,14 @@ Examples:
 
 						const source = derived?.source ?? (await readFile(absPath, "utf8"));
 						const { bundleSubgraphCode } = await import("@secondlayer/bundler");
-						const bundled = await bundleSubgraphCode(source);
+						const bundled = await bundleSubgraphCode(source, {
+							fileName: relative(process.cwd(), absPath),
+						});
 						const handlerCode = bundled.handlerCode;
+						const localVerification = checkDeterminism(
+							effectiveDef,
+							bundled.findings,
+						);
 
 						if (dryRun) {
 							printSubgraphDeployPreview(
@@ -1212,6 +1280,9 @@ Examples:
 									bundled: true,
 								},
 							);
+							for (const line of formatVerificationLines(localVerification)) {
+								info(`  ${line}`);
+							}
 							return;
 						}
 
@@ -1290,6 +1361,17 @@ Examples:
 						// observed on-chain) — surface but never block.
 						for (const w of result.warnings ?? []) warn(w);
 
+						// The server's derivation is authoritative; an older server
+						// that predates levels gets the local one.
+						const printVerification = () => {
+							for (const line of formatVerificationLines(
+								result.verification ?? localVerification,
+								result.pin,
+							)) {
+								info(`  ${line}`);
+							}
+						};
+
 						const printDeployFooter = async () => {
 							try {
 								const { apiUrl } = await resolveAuth();
@@ -1325,15 +1407,18 @@ Examples:
 							info(
 								`Subgraph "${effectiveDef.name}" is up to date (v${result.version} — no changes)`,
 							);
+							printVerification();
 						} else if (result.action === "handler_updated") {
 							success(
 								`Subgraph "${effectiveDef.name}" handler updated (v${result.version} — schema unchanged, no reindex needed)`,
 							);
+							printVerification();
 						} else if (result.action === "created") {
 							// Fresh deploy — no existing data to drop, no confirmation needed
 							success(
 								`Subgraph "${effectiveDef.name}" created → v${result.version}`,
 							);
+							printVerification();
 							await printDeployFooter();
 						} else if (result.action === "reindexed") {
 							// Show diff if available
@@ -1357,6 +1442,7 @@ Examples:
 							success(
 								`Subgraph "${effectiveDef.name}" updated → v${result.version} (reindexing)`,
 							);
+							printVerification();
 							await printDeployFooter();
 						} else {
 							// "updated" — additive changes, no confirmation needed
@@ -1371,10 +1457,31 @@ Examples:
 							success(
 								`Subgraph "${effectiveDef.name}" updated → v${result.version}`,
 							);
+							printVerification();
 							await printDeployFooter();
 						}
 					} else {
 						// ── Local deploy ───────────────────────────────────────
+						// The local processor runs the file itself, so the bundle is
+						// only scanned. Best effort: a file the bundler can't resolve
+						// from here still deploys, just without a derived level.
+						let findings: HandlerFinding[] | undefined;
+						try {
+							const { bundleSubgraphCode } = await import(
+								"@secondlayer/bundler"
+							);
+							findings = (
+								await bundleSubgraphCode(await readFile(absPath, "utf8"), {
+									fileName: relative(process.cwd(), absPath),
+								})
+							).findings;
+						} catch {
+							findings = undefined;
+						}
+						const verification = findings
+							? checkDeterminism(effectiveDef, findings)
+							: undefined;
+
 						if (dryRun) {
 							printSubgraphDeployPreview(
 								createSubgraphDeployPreview(validated),
@@ -1384,6 +1491,9 @@ Examples:
 									bundled: false,
 								},
 							);
+							for (const line of formatVerificationLines(verification)) {
+								info(`  ${line}`);
+							}
 							return;
 						}
 
@@ -1393,6 +1503,7 @@ Examples:
 						const db = getDb();
 						const result = await deploySchema(db, effectiveDef, absPath, {
 							forceReindex: startBlock !== undefined,
+							verification,
 						});
 
 						if (result.action === "unchanged") {
@@ -1415,6 +1526,9 @@ Examples:
 							success(
 								`Subgraph "${effectiveDef.name}" updated → v${result.version}`,
 							);
+						}
+						for (const line of formatVerificationLines(verification)) {
+							info(`  ${line}`);
 						}
 
 						await closeDb();
@@ -1519,6 +1633,8 @@ Examples:
 					formatKeyValue([
 						["Name", subgraph.name],
 						["Version", subgraph.version],
+						["Pin", subgraph.pin ?? "none (deployed before pins)"],
+						["Verifiable", formatVerificationStatus(subgraph.verification)],
 						[
 							"Status",
 							formatSubgraphStatus(subgraph.status, subgraph.health.lastError),

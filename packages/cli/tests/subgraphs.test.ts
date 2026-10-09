@@ -17,6 +17,8 @@ import {
 	formatOperationProgress,
 	formatOperationRange,
 	formatSubgraphStatus,
+	formatVerificationLines,
+	formatVerificationStatus,
 	installScaffoldDependencies,
 	operationDetailPairs,
 	ormFlagsConflictingWithPayloads,
@@ -419,4 +421,45 @@ describe("subgraphs deploy refuses to let a pipe answer the drop-and-reindex pro
 			rmSync(home, { recursive: true, force: true });
 		}
 	}, 30_000);
+});
+
+describe("subgraphs deploy verification line", () => {
+	const pin =
+		"7f3c0d5e9b21a4c86f0e3d17b5a92c4e8d61f07a3b9c25e4d8f1a06c7b3e5a91e";
+
+	it("names the level and a short pin when verifiable, then what stays unproven", () => {
+		expect(
+			formatVerificationLines(
+				{
+					level: "L2",
+					verifiable: true,
+					reasons: [],
+					unproven: ["tx attribution of writes: event.tx, _tx_id (needs L3)"],
+				},
+				pin,
+			),
+		).toEqual([
+			"verifiable  L2 · pin 7f3c…a91e",
+			"unproven    tx attribution of writes: event.tx, _tx_id (needs L3)",
+		]);
+	});
+
+	it("says no and why otherwise, and nothing for a server that predates levels", () => {
+		const v = {
+			level: "L3" as const,
+			verifiable: false,
+			reasons: [
+				"subgraphs/swaps.ts:41:12 Date: wall-clock time differs per run",
+				'print_event source "swaps" needs L3',
+			],
+			unproven: [],
+		};
+		expect(formatVerificationLines(v, pin)).toEqual([
+			'verifiable  no · subgraphs/swaps.ts:41:12 Date: wall-clock time differs per run · print_event source "swaps" needs L3',
+		]);
+		expect(formatVerificationLines(undefined)).toEqual([]);
+		expect(formatVerificationStatus(null)).toBe(
+			"unknown (deployed before levels were derived)",
+		);
+	});
 });
