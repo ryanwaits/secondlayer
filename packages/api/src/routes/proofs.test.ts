@@ -27,6 +27,11 @@ const CH = "cd".repeat(20);
 const MARF_PATH = "ef".repeat(32);
 const WITNESS = new Uint8Array([0x03, 0x00, 0xff, 0x10, 0x20]);
 const BLOCK = new Uint8Array([0x00, 0x01, 0x02, 0x03]);
+const EPOCH2_HEADER = {
+	consensus_hash: CH,
+	header: "07".repeat(247),
+	parent_block_id: "12".repeat(32),
+};
 
 const FREE_KEY = "sk-sl_proofs_free_fixture";
 const INTERNAL_KEY = "sk-sl_proofs_internal_fixture";
@@ -111,6 +116,9 @@ const node = Bun.serve({
 		}
 		if (url.pathname.startsWith("/v2/clarity/marf/")) {
 			return Response.json({ data: "0x0100", proof: "0x00ff" });
+		}
+		if (url.pathname === "/v2/headers/1") {
+			return Response.json([EPOCH2_HEADER]);
 		}
 		return new Response("unexpected", { status: 500 });
 	},
@@ -246,6 +254,14 @@ describe("proofs passthrough (self-hosted, loopback)", () => {
 		expect(res.status).toBe(404);
 	});
 
+	test("epoch2-header is the node's /v2/headers answer for that tip, cached immutable", async () => {
+		const res = await get(`/v1/proofs/epoch2-header/0x${ID}`);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual([EPOCH2_HEADER]);
+		expect(res.headers.get("cache-control")).toBe(IMMUTABLE_CACHE_CONTROL);
+		expect(seen).toEqual([`node /v2/headers/1?tip=${ID}`]);
+	});
+
 	test("marf asks the node for a proof pinned to the tip", async () => {
 		const res = await get(`/v1/proofs/marf/0x${MARF_PATH}?tip=0x${ID}`);
 		expect(res.status).toBe(200);
@@ -289,6 +305,8 @@ describe("proofs param validation", () => {
 		"/v1/proofs/bitcoin-headers?from=-1&count=1",
 		"/v1/proofs/bitcoin-headers?from=0",
 		`/v1/proofs/block/${CH}`,
+		`/v1/proofs/epoch2-header/${CH}`,
+		`/v1/proofs/epoch2-header/${ID}?tip=${ID}`,
 		"/v1/proofs/block/height/12a",
 		"/v1/proofs/block/height/01",
 		`/v1/proofs/marf/${MARF_PATH}`,

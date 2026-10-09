@@ -24,7 +24,7 @@ import { parseNonNegativeInteger } from "../parse-query.ts";
  *     state witnesses, consensus-hash preimages, Bitcoin headers.
  *     `PROOF_SIDECAR_URL`; unset → 503 on those routes.
  *   - the Stacks node RPC (`STACKS_NODE_RPC_URL`, the node the API already
- *     reads): signed blocks and MARF inclusion proofs.
+ *     reads): signed blocks, epoch 2.x headers and MARF inclusion proofs.
  *
  * Free: never metered, never refused for credits. Auth is the read-plane
  * rule (any account key hosted; loopback-open / instance token self-hosted).
@@ -292,6 +292,19 @@ export function createProofsRouter(opts: ProofsRouterOptions = {}) {
 			notFound: "no block with that index_block_hash",
 			timeoutMs: NODE_TIMEOUT_MS,
 			contentType: "application/octet-stream",
+			cache: IMMUTABLE_CACHE_CONTROL,
+		});
+	});
+
+	router.get("/epoch2-header/:index_block_hash", limited, (c) => {
+		validateQueryParams(new URL(c.req.url).searchParams, []);
+		const id = hash32(c.req.param("index_block_hash"), "index_block_hash");
+		// Pre-Nakamoto blocks have no `/v3/blocks` form. `/v2/headers/1?tip=`
+		// is the header plus the consensus hash its id commits to.
+		return node(c, `/v2/headers/1?tip=${id}`, {
+			notFound: "no epoch 2.x block with that index_block_hash",
+			timeoutMs: NODE_TIMEOUT_MS,
+			contentType: "application/json",
 			cache: IMMUTABLE_CACHE_CONTROL,
 		});
 	});

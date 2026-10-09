@@ -14,6 +14,14 @@ const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
 const INDEX_BLOCK_HASH_EXAMPLE =
 	"990152a894e12288960c8b68e5790ad7994f9d261e9ad8adc13c72e76f914339";
 
+/** Mainnet block 150,000, header shortened. */
+const EPOCH2_HEADER_EXAMPLE = {
+	consensus_hash: "0898651bac6711e8c7679d76bdf5ffb11e9d6f7c",
+	header: "070000004b4c5f4fb400000000000249f0…",
+	parent_block_id:
+		"d281730546550e66a5b734c49cba0867c3e379c6d39f7e819be44c64a9c03b9f",
+};
+
 const HASH32 = {
 	type: "string",
 	pattern: "^(0x)?[0-9a-fA-F]{64}$",
@@ -178,6 +186,26 @@ export const proofsPaths = {
 			),
 		},
 	},
+	"/v1/proofs/epoch2-header/{index_block_hash}": {
+		get: {
+			tags: ["proofs"],
+			summary: "Epoch 2.x block header by id",
+			description: `A pre-Nakamoto block's header from the Stacks node (\`/v2/headers/1?tip={id}\`), as the node's one-element array: \`header\` (consensus-serialized StacksBlockHeader, hex), \`consensus_hash\` and \`parent_block_id\`. The id is sha512/256(sha512/256(header) || consensus_hash): recompute it, then check state against the header's \`state_index_root\`. Nakamoto blocks are a 404 here; use the block route. ${FREE}`,
+			security: READ_SECURITY,
+			parameters: [INDEX_BLOCK_HASH_PARAM],
+			responses: responses(
+				json200(
+					{
+						type: "array",
+						items: ref("Epoch2Header"),
+						example: [EPOCH2_HEADER_EXAMPLE],
+					},
+					"The block's header and consensus hash",
+				),
+				"The node has no epoch 2.x block with that `index_block_hash`",
+			),
+		},
+	},
 	"/v1/proofs/marf/{path}": {
 		get: {
 			tags: ["proofs"],
@@ -267,6 +295,28 @@ export const proofsSchemas = {
 				"0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c",
 			],
 		},
+	},
+	Epoch2Header: {
+		type: "object",
+		description: "A pre-Nakamoto block header, as the node returns it.",
+		properties: {
+			consensus_hash: {
+				type: "string",
+				description:
+					"Consensus hash of the sortition that elected the block, hex.",
+			},
+			header: {
+				type: "string",
+				description:
+					"Consensus-serialized StacksBlockHeader (247 bytes), hex. Its sha512/256 is the block hash.",
+			},
+			parent_block_id: {
+				type: "string",
+				description:
+					"The parent's `index_block_hash`, hex. A hint: the header commits only to the parent's block hash.",
+			},
+		},
+		example: EPOCH2_HEADER_EXAMPLE,
 	},
 	MarfProof: {
 		type: "object",

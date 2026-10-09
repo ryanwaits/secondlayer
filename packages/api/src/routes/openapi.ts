@@ -75,6 +75,7 @@ export const OPERATION_IDS: Record<string, string> = {
 	"GET /v1/proofs/bitcoin-headers": "listBitcoinHeaders",
 	"GET /v1/proofs/block/{index_block_hash}": "getSignedBlock",
 	"GET /v1/proofs/block/height/{height}": "getSignedBlockByHeight",
+	"GET /v1/proofs/epoch2-header/{index_block_hash}": "getEpoch2Header",
 	"GET /v1/proofs/marf/{path}": "getMarfProof",
 	"GET /v1/streams": "discoverStreams",
 	"GET /v1/streams/events": "listStreamEvents",

@@ -365,6 +365,11 @@
 				"title": "Signed block by height"
 			},
 			{
+				"anchor": "get-epoch2-header",
+				"method": "GET",
+				"title": "Epoch 2.x block header by id"
+			},
+			{
 				"anchor": "get-marf-proof",
 				"method": "GET",
 				"title": "MARF inclusion proof"

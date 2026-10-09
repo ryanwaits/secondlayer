@@ -8326,6 +8326,29 @@
 					]
 				}
 			},
+			"Epoch2Header": {
+				"type": "object",
+				"description": "A pre-Nakamoto block header, as the node returns it.",
+				"properties": {
+					"consensus_hash": {
+						"type": "string",
+						"description": "Consensus hash of the sortition that elected the block, hex."
+					},
+					"header": {
+						"type": "string",
+						"description": "Consensus-serialized StacksBlockHeader (247 bytes), hex. Its sha512/256 is the block hash."
+					},
+					"parent_block_id": {
+						"type": "string",
+						"description": "The parent's `index_block_hash`, hex. A hint: the header commits only to the parent's block hash."
+					}
+				},
+				"example": {
+					"consensus_hash": "0898651bac6711e8c7679d76bdf5ffb11e9d6f7c",
+					"header": "070000004b4c5f4fb400000000000249f0…",
+					"parent_block_id": "d281730546550e66a5b734c49cba0867c3e379c6d39f7e819be44c64a9c03b9f"
+				}
+			},
 			"MarfProof": {
 				"title": "MARF proof",
 				"type": "object",
@@ -15635,6 +15658,107 @@
 					},
 					"404": {
 						"description": "The node has no block at that height",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limited; retry after `Retry-After` seconds",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "The node or proof sidecar could not be reached, or answered with an unexpected status (`PROOF_SOURCE_ERROR`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/proofs/epoch2-header/{index_block_hash}": {
+			"get": {
+				"operationId": "getEpoch2Header",
+				"tags": [
+					"proofs"
+				],
+				"summary": "Epoch 2.x block header by id",
+				"description": "A pre-Nakamoto block's header from the Stacks node (`/v2/headers/1?tip={id}`), as the node's one-element array: `header` (consensus-serialized StacksBlockHeader, hex), `consensus_hash` and `parent_block_id`. The id is sha512/256(sha512/256(header) || consensus_hash): recompute it, then check state against the header's `state_index_root`. Nakamoto blocks are a 404 here; use the block route. Free: never metered, never refused for credits. Bytes are passed through unchanged; verify them, do not trust them.",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "index_block_hash",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"pattern": "^(0x)?[0-9a-fA-F]{64}$",
+							"example": "990152a894e12288960c8b68e5790ad7994f9d261e9ad8adc13c72e76f914339"
+						},
+						"description": "The block's `index_block_hash`: 64 hex characters, `0x` optional."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The block's header and consensus hash",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Epoch2Header"
+									},
+									"example": [
+										{
+											"consensus_hash": "0898651bac6711e8c7679d76bdf5ffb11e9d6f7c",
+											"header": "070000004b4c5f4fb400000000000249f0…",
+											"parent_block_id": "d281730546550e66a5b734c49cba0867c3e379c6d39f7e819be44c64a9c03b9f"
+										}
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "A path or query parameter is malformed (`VALIDATION_ERROR`): hashes must be exact-length hex, heights non-negative integers",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "The node has no epoch 2.x block with that `index_block_hash`",
 						"content": {
 							"application/json": {
 								"schema": {
