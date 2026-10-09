@@ -103,6 +103,7 @@ const EXAMPLE_DEAD = {
 		block_hash:
 			"0xf9ff01e876f9276abc9f0fc79a4fbefc500bf2b93ed1effd0ef637ef84e10604",
 		block_height: 8700076,
+		block_time: "2026-05-01T11:59:48.000Z",
 		tx_id: EXAMPLE_TX,
 		canonical: true,
 		trigger: "ft_transfer",
