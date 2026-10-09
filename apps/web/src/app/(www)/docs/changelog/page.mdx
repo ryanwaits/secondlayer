@@ -15,6 +15,12 @@ and unmetered; archive bootstrap, backfill and reindex draw
 
 `secondlayer verify block <height>` proves a mainnet Stacks block on your machine instead of asking you to trust us or any node. It checks Bitcoin headers and their proof of work, ties the block to the Bitcoin block that elected it, proves that cycle's signer set and that 70% of signer weight signed, then rebuilds the block's state root from a witness and lists every state change the block made. The only thing it trusts is a checkpoint built into the CLI. A busy block takes a few seconds. It covers state: contract maps and variables, balances and nonces. Print events aren't committed in Stacks block headers, so they aren't covered yet. See the [CLI reference](/docs/cli).
 
+## SDK — October 2026
+
+### Run the same block check in your own code: `@secondlayer/verify` (0.1)
+
+The verifier behind `secondlayer verify block` is now its own package. `verifyBlock(height, { source })` returns `ok`, the proven state diff, and the first broken link when one fails. Read proofs from `/v1/proofs` with `SecondlayerProofSource` and any account key, or take blocks and MARF proofs from your own node with `NodeRpcProofSource`. It trusts only the checkpoint it ships with, which you can replace. It's 0.x: expect the lower-level exports (MARF, witness and signer helpers) to change before 1.0. See the [package README](https://github.com/ryanwaits/secondlayer/tree/main/packages/verify#readme).
+
 ## Index — October 2026
 
 ### Every error carries a request id you can report (SDK 14.4)

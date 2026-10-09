@@ -83,6 +83,7 @@ chain primitives (Clarity decoding, reads). Most apps only need `sdk`.
 | [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript SDK — Streams, Index, subgraphs, webhooks |
 | [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — instance tools for agents |
 | [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client — public/wallet, BNS |
+| [`@secondlayer/verify`](packages/verify/README.md) | Check a Stacks block yourself: Bitcoin headers, signers, state proofs |
 | [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()` — schema, triggers, handlers |
 | [`@secondlayer/shared`](packages/shared/README.md) | Shared db, schemas, crypto helpers |
 | [`@secondlayer/api`](packages/api/README.md) | REST API for the instance |
