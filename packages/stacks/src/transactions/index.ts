@@ -83,6 +83,7 @@ export {
 export {
 	deserializeTransaction,
 	deserializePostConditionWire,
+	splitTransactions,
 } from "./wire/deserialize.ts";
 
 export {

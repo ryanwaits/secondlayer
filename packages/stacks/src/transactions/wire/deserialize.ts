@@ -326,8 +326,34 @@ export function deserializeTransaction(
 ): StacksTransaction {
 	const bytes =
 		typeof input === "string" ? hexToBytes(without0x(input)) : input;
-	const r = new BytesReader(bytes);
+	return readTransaction(new BytesReader(bytes), meta);
+}
 
+/**
+ * Split `count` back-to-back consensus-serialized transactions (a block body
+ * after its u32 count) into each one's exact bytes, which hash to its txid.
+ * Transactions carry no length prefix, so each is parsed to find its end.
+ * Throws on a truncated or malformed transaction; bytes past the last one are
+ * left for the caller to judge.
+ */
+export function splitTransactions(
+	bytes: Uint8Array,
+	count: number,
+): Uint8Array[] {
+	const r = new BytesReader(bytes);
+	const out: Uint8Array[] = [];
+	for (let i = 0; i < count; i++) {
+		const start = r.offset;
+		readTransaction(r);
+		out.push(bytes.subarray(start, r.offset));
+	}
+	return out;
+}
+
+function readTransaction(
+	r: BytesReader,
+	meta?: { _multisig?: { publicKeys: string[] } },
+): StacksTransaction {
 	const tx: StacksTransaction = {
 		version: r.readUInt8(),
 		chainId: r.readUInt32BE(),
