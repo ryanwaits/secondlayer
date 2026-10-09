@@ -15,6 +15,7 @@ import type {
 	StageKind,
 } from "../coverage/constraints.ts";
 import type { BootstrapSource } from "../coverage/evaluate.ts";
+import type { SubgraphVerification } from "../schemas/subgraphs.ts";
 
 export type {
 	FailureClass,
@@ -224,6 +225,11 @@ export interface SubgraphsTable {
 	expires_at: Date | null;
 	/** (event type, contract) probe pairs persisted at deploy for weight classification. */
 	sparse_probe_targets: unknown | null;
+	/** sha256 over everything that shapes rows (schema, handler bundle,
+	 *  startBlock, network, runtime). NULL for unbundled or older deploys. */
+	pin: string | null;
+	/** Level derived at deploy. NULL (older deploys) = not verifiable. */
+	verification: SubgraphVerification | null;
 	created_at: Generated<Date>;
 	updated_at: Generated<Date>;
 }

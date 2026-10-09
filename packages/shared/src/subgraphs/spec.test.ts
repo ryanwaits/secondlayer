@@ -10,6 +10,7 @@ const detail: SubgraphDetail = {
 	name: "test-subgraph",
 	version: "1.2.3",
 	schemaHash: "hash-123",
+	pin: "pin-456",
 	status: "active",
 	lastProcessedBlock: 123,
 	description: "Indexes test listings.",
@@ -62,6 +63,7 @@ describe("subgraph spec generation", () => {
 		});
 
 		expect(schema.schemaHash).toBe("hash-123");
+		expect(schema.pin).toBe("pin-456");
 		expect(schema.tables.listings.endpoint).toBe(
 			"https://tenant.example.test/v1/subgraphs/test-subgraph/listings",
 		);
@@ -84,6 +86,7 @@ describe("subgraph spec generation", () => {
 			spec.paths["/v1/subgraphs/test-subgraph/listings/count"],
 		).toBeDefined();
 		expect(spec["x-secondlayer-schema-hash"]).toBe("hash-123");
+		expect(spec["x-secondlayer-pin"]).toBe("pin-456");
 	});
 
 	test("generates Markdown reference", () => {

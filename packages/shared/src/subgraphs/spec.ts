@@ -12,6 +12,7 @@ export interface SubgraphAgentSchema {
 	version: string;
 	description?: string;
 	schemaHash?: string;
+	pin?: string;
 	generatedAt: string;
 	serverUrl: string;
 	sources?: Record<string, unknown>;
@@ -299,6 +300,7 @@ export function generateSubgraphAgentSchema(
 		version: detail.version,
 		...(detail.description ? { description: detail.description } : {}),
 		...(detail.schemaHash ? { schemaHash: detail.schemaHash } : {}),
+		...(detail.pin ? { pin: detail.pin } : {}),
 		generatedAt: generatedAt(options),
 		serverUrl,
 		...(detail.sources ? { sources: detail.sources } : {}),
@@ -403,6 +405,7 @@ export function generateSubgraphOpenApi(
 		"x-secondlayer-subgraph": detail.name,
 		"x-secondlayer-version": detail.version,
 		"x-secondlayer-schema-hash": detail.schemaHash,
+		...(detail.pin ? { "x-secondlayer-pin": detail.pin } : {}),
 		"x-secondlayer-generated-at": generatedAt(options),
 		"x-secondlayer-sources": detail.sources ?? {},
 		"x-secondlayer-tables": Object.keys(detail.tables),
@@ -419,6 +422,7 @@ export function generateSubgraphMarkdown(
 		"",
 		`Version: ${detail.version}`,
 		detail.schemaHash ? `Schema hash: ${detail.schemaHash}` : undefined,
+		detail.pin ? `Pin: ${detail.pin}` : undefined,
 		`Server: ${agent.serverUrl}`,
 		"Responses use the `{ rows, next_cursor, tip }` envelope; paginate with `?cursor=<next_cursor>` and `_order=asc|desc` (`_offset` is rejected).",
 		"",

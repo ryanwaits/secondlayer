@@ -39,6 +39,27 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 		dryRun: z.boolean().optional(),
 	});
 
+/**
+ * How far a subgraph's rows can be checked without trusting the server,
+ * derived from its sources and a scan of its handler. Never configured.
+ *
+ * - `L2`: every input is a named state write, provable from block headers.
+ *   Handlers run in the deterministic realm; `verifiable` is true.
+ * - `L3`: an input (events, prints, tx results, `ctx.client`) needs
+ *   re-execution proofs, which are not served yet.
+ * - `none`: a source can never be proven as written (trait scope, tip-first
+ *   backfill).
+ */
+export interface SubgraphVerification {
+	level: "L2" | "L3" | "none";
+	verifiable: boolean;
+	/** Why the subgraph is not verifiable, e.g. `print_event source "swaps" needs L3`
+	 *  or `subgraph.ts:41:12 Date: wall-clock time differs per run`. */
+	reasons: string[];
+	/** What stays unproven even at this level, e.g. tx attribution of writes. */
+	unproven: string[];
+}
+
 export interface DeploySubgraphResponse {
 	action: "created" | "unchanged" | "handler_updated" | "updated" | "reindexed";
 	subgraphId: string;
@@ -54,6 +75,9 @@ export interface DeploySubgraphResponse {
 	estimatedEvents?: number;
 	/** Non-blocking deploy lints (e.g. handler reads a print field never observed on-chain). */
 	warnings?: string[];
+	/** sha256 identity of what was deployed; absent on unbundled deploys. */
+	pin?: string;
+	verification?: SubgraphVerification;
 	diff?: {
 		addedTables: string[];
 		removedTables: string[];
@@ -155,6 +179,11 @@ export interface SubgraphDetail {
 	name: string;
 	version: string;
 	schemaHash?: string;
+	/** sha256 over schema, handler bundle, startBlock, network and runtime.
+	 *  Null for subgraphs deployed before pins existed. */
+	pin?: string | null;
+	/** Null for subgraphs deployed before levels were derived. */
+	verification?: SubgraphVerification | null;
 	status: string;
 	lastProcessedBlock: number;
 	description?: string;

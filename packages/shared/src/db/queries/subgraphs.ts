@@ -1,6 +1,9 @@
 import { type Kysely, sql } from "kysely";
 import { isPlatformMode } from "../../mode.ts";
-import { BILLING_PAUSED_PREFIX } from "../../schemas/subgraphs.ts";
+import {
+	BILLING_PAUSED_PREFIX,
+	type SubgraphVerification,
+} from "../../schemas/subgraphs.ts";
 import { jsonb } from "../jsonb.ts";
 import type { Database, Subgraph } from "../types.ts";
 
@@ -30,6 +33,8 @@ export async function registerSubgraph(
 		startBlock?: number;
 		handlerCode?: string;
 		sourceCode?: string;
+		pin?: string | null;
+		verification?: SubgraphVerification | null;
 	},
 ): Promise<Subgraph> {
 	const accountId = localSubgraphAccountId(data.accountId);
@@ -44,6 +49,10 @@ export async function registerSubgraph(
 		source_code: data.sourceCode ?? null,
 		schema_name: data.schemaName ?? null,
 		start_block: data.startBlock ?? 0,
+		pin: data.pin ?? null,
+		verification: data.verification
+			? jsonb<SubgraphVerification>(data.verification)
+			: null,
 	};
 	const updateSet = {
 		version: data.version,
@@ -54,6 +63,8 @@ export async function registerSubgraph(
 		source_code: data.sourceCode ?? null,
 		schema_name: data.schemaName ?? null,
 		start_block: data.startBlock ?? 0,
+		pin: values.pin,
+		verification: values.verification,
 		updated_at: new Date(),
 	};
 
@@ -224,7 +235,12 @@ export async function updateSubgraphHandlerPath(
 	db: Kysely<Database>,
 	name: string,
 	handlerPath: string,
-	opts?: { handlerCode?: string; sourceCode?: string },
+	opts?: {
+		handlerCode?: string;
+		sourceCode?: string;
+		pin?: string | null;
+		verification?: SubgraphVerification | null;
+	},
 ): Promise<void> {
 	await db
 		.updateTable("subgraphs")
@@ -232,6 +248,14 @@ export async function updateSubgraphHandlerPath(
 			handler_path: handlerPath,
 			...(opts?.handlerCode != null ? { handler_code: opts.handlerCode } : {}),
 			...(opts?.sourceCode != null ? { source_code: opts.sourceCode } : {}),
+			...(opts?.pin !== undefined ? { pin: opts.pin } : {}),
+			...(opts?.verification !== undefined
+				? {
+						verification: opts.verification
+							? jsonb<SubgraphVerification>(opts.verification)
+							: null,
+					}
+				: {}),
 			updated_at: new Date(),
 		})
 		.where("name", "=", name)
