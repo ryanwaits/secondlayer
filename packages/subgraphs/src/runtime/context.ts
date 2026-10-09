@@ -313,7 +313,11 @@ export class SubgraphContext {
 	): Promise<Record<string, unknown>[]> {
 		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
 		const { clause } = buildWhereClause(where);
-		const query = `SELECT * FROM ${qualifiedTable} WHERE ${clause}${
+		// Insertion order (`_id`, every table's primary key), which the memory
+		// store also returns. Without it Postgres picks any matching row for
+		// findOne and any order for findMany, so the same handler over the same
+		// blocks could write different rows.
+		const query = `SELECT * FROM ${qualifiedTable} WHERE ${clause} ORDER BY "_id"${
 			limit !== undefined ? ` LIMIT ${limit}` : ""
 		}`;
 		const { rows } = await sql.raw(query).execute(this.db);

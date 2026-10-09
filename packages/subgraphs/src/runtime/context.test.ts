@@ -38,6 +38,7 @@ beforeAll(async () => {
 	await sql
 		.raw(
 			`CREATE TABLE "${pgSchemaName}"."transfers" (
+				_id BIGSERIAL PRIMARY KEY,
 				sender TEXT NOT NULL,
 				recipient TEXT NOT NULL,
 				amount NUMERIC(78, 0) NOT NULL,
@@ -50,6 +51,7 @@ beforeAll(async () => {
 	await sql
 		.raw(
 			`CREATE TABLE "${pgSchemaName}"."balances" (
+				_id BIGSERIAL PRIMARY KEY,
 				address TEXT NOT NULL,
 				balance NUMERIC(78, 0),
 				_block_height BIGINT NOT NULL,
@@ -220,6 +222,28 @@ describe("reads observe writes queued earlier in the same block", () => {
 		const rows = await ctx.findMany("balances", { address: a });
 		expect(rows).toHaveLength(1);
 		expect(BigInt(String(rows[0]?.balance))).toBe(11n);
+	});
+
+	it("committed reads come back in insertion order, whatever the heap order", async () => {
+		const sender = `SPORDER_${Date.now()}`;
+		const seed = makeCtx();
+		for (const amount of [1n, 2n, 3n]) {
+			seed.insert("transfers", { sender, recipient: "SP2", amount });
+		}
+		await seed.flush();
+		// Rewrite the first row: Postgres moves it to the heap's end, so an
+		// unordered scan would now return it last.
+		await sql
+			.raw(
+				`UPDATE "${pgSchemaName}"."transfers" SET recipient = 'SP3' WHERE sender = '${sender}' AND amount = 1`,
+			)
+			.execute(db);
+
+		const ctx = makeCtx();
+		const first = await ctx.findOne("transfers", { sender });
+		expect(BigInt(String(first?.amount))).toBe(1n);
+		const all = await ctx.findMany("transfers", { sender });
+		expect(all.map((r) => BigInt(String(r.amount)))).toEqual([1n, 2n, 3n]);
 	});
 });
 
