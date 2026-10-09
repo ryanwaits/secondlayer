@@ -9,7 +9,15 @@ export {
 } from "./extract.ts";
 export type { ExtractedSubgraph } from "./extract.ts";
 export { bundleSubgraphCode } from "./subgraph.ts";
-export type { SubgraphBundleResult } from "./subgraph.ts";
+export type {
+	BundleSubgraphOptions,
+	SubgraphBundleResult,
+} from "./subgraph.ts";
+export { scanHandlerDeterminism } from "./determinism.ts";
+export type {
+	DeterminismScanOptions,
+	ScanSourceMap,
+} from "./determinism.ts";
 export {
 	inferRepairMode,
 	inferRepairModeFromHandlers,
