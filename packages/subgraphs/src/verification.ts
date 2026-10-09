@@ -178,12 +178,15 @@ export function formatFinding(f: HandlerFinding): string {
 
 // ── Derived level ───────────────────────────────────────────────────────
 
-/** Sources whose every field is a named state write: provable per block
- *  from the header-backed witness plus `state_writes`. */
+/**
+ * Sources whose every field is a named state write: provable per block from
+ * the header-backed witness plus `state_writes`. Not `map_insert`: storage
+ * holds `(some v)` for an insert and a set alike, so telling them apart takes
+ * re-execution (event proofs).
+ */
 const STATE_SOURCE_TYPES: ReadonlySet<string> = new Set([
 	"var_set",
 	"map_set",
-	"map_insert",
 	"map_delete",
 ]);
 
@@ -216,6 +219,11 @@ export function deriveVerification(
 			reasons.push(
 				`source "${name}": trait scope needs a proven contract registry`,
 			);
+		} else if (filter.type === "map_insert") {
+			raise("events");
+			reasons.push(
+				`map_insert source "${name}": map_insert vs map_set needs event proofs`,
+			);
 		} else if (!STATE_SOURCE_TYPES.has(filter.type)) {
 			raise("events");
 			reasons.push(`${filter.type} source "${name}" needs event proofs`);
@@ -240,9 +248,6 @@ export function deriveVerification(
 		);
 	}
 
-	const writesMapInsert = Object.values(def.sources ?? {}).some(
-		(s) => (s as SubgraphFilter).type === "map_insert",
-	);
 	return {
 		level,
 		reasons,
@@ -251,9 +256,6 @@ export function deriveVerification(
 				? [
 						"tx attribution of writes: event.tx, _tx_id (needs event proofs)",
 						"intermediate writes within a block (needs event proofs)",
-						...(writesMapInsert
-							? ["map_insert vs map_set (needs event proofs)"]
-							: []),
 					]
 				: [],
 	};

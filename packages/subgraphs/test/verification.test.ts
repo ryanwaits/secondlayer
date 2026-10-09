@@ -51,12 +51,24 @@ describe("deriveVerification", () => {
 		{
 			name: "factory-scoped write source from a write source",
 			sources: {
-				reg: { type: "map_insert", contractId: C, map: "pools" },
+				reg: { type: "map_set", contractId: C, map: "pools" },
 				pools: { type: "var_set", factory: { from: "reg", field: "key" } },
 			},
 			level: "state",
 			violation: false,
 			reasons: [],
+		},
+		{
+			name: "map_insert needs event proofs: storage holds an insert and a set alike",
+			sources: {
+				reg: { type: "map_insert", contractId: C, map: "pools" },
+				m: { type: "map_set", contractId: C, map: "reserve" },
+			},
+			level: "events",
+			violation: false,
+			reasons: [
+				'map_insert source "reg": map_insert vs map_set needs event proofs',
+			],
 		},
 		{
 			name: "prints need re-execution",

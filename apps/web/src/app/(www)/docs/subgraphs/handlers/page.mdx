@@ -108,12 +108,12 @@ Deploys return advisory `warnings` when a handler reads an `event.data` field ne
 
 ## Rows anyone can recompute
 
-A subgraph whose sources are all state writes (`var_set`, `map_set`, `map_insert`, `map_delete`) can be rebuilt from block headers alone, so its handlers must give the same rows on every run. The level is derived from your sources and a scan of the bundle, never configured:
+A subgraph whose sources are all state writes (`var_set`, `map_set`, `map_delete`) can be rebuilt from block headers alone, so its handlers must give the same rows on every run. The level is derived from your sources and a scan of the bundle, never configured:
 
 | `verification.level` | Sources | Handler findings |
 | --- | --- | --- |
 | `state` | state writes only | refuse the deploy: `422 NONDETERMINISTIC_HANDLER`, each as `file:line:column` |
-| `events` | events, prints, contract calls, or any `ctx.client` read | advice in `verification.reasons`; deploys as before |
+| `events` | events, prints, contract calls, `map_insert`, or any `ctx.client` read | advice in `verification.reasons`; deploys as before |
 | `none` | `trait` scope, or `backfillMode: "concurrent"` | advice, as above |
 
 ```text
