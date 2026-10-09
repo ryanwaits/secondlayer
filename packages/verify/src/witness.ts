@@ -32,7 +32,7 @@ import {
 const WITNESS_VERSION = 3;
 const PATH_LEN = 32;
 /** stacks-common TrieHash::EMPTY = sha512/256 of the empty string. */
-export const TRIE_HASH_EMPTY = unhex(
+export const TRIE_HASH_EMPTY: Uint8Array = unhex(
 	"c672b8d1ef56ed28ab87c3622c5114069bdd3ad7b8f9737498d0c01ecef0967a",
 );
 const ZERO_BLOCK = new Uint8Array(32);
