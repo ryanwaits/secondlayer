@@ -23,6 +23,14 @@ already processed, so they refuse handlers that call `increment`, `update`,
 `findOne` or `findMany`. Those subgraphs deploy with the default blocking
 backfill and rebuild with `reindex`.
 
+## System columns
+
+Every row carries `_block_height` and `_tx_id`: the block and transaction
+that created it. An `upsert` or `increment` on an existing key changes your
+columns (last write wins) and leaves these alone, whether the first write was
+in an earlier block or earlier in the same one. A key deleted and written
+again is a new row, so the new writer's block and transaction are stored.
+
 ## Reading the chain from a handler
 
 Some facts aren't in any event. A token's `decimals`, a pool's reserves, an
