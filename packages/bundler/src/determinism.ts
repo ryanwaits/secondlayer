@@ -28,7 +28,7 @@ const LOCALE: ReadonlySet<string> = new Set(LOCALE_METHODS);
  * Statically scan bundled handler code (esbuild ESM output) against the
  * determinism contract: forbidden or unknown globals, inexact `Math`,
  * locale-sensitive methods, code generation, imports left unbundled, and
- * `ctx.client` reads (which need L3). Never executes the code.
+ * `ctx.client` reads (which need re-execution proofs). Never executes the code.
  *
  * Scoping is deliberately coarse: any name declared anywhere in the bundle
  * counts as local everywhere. That can miss a global hidden behind a
@@ -78,15 +78,20 @@ export function scanHandlerDeterminism(
 			} else if (member === "client") {
 				report(
 					node.name,
-					"needs-l3",
+					"needs-events",
 					"ctx.client",
-					"contract reads need L3 proofs",
+					"contract reads need re-execution proofs",
 				);
 			}
 		} else if (ts.isBindingElement(node)) {
 			const key = node.propertyName ?? node.name;
 			if (ts.isIdentifier(key) && key.text === "client") {
-				report(key, "needs-l3", "ctx.client", "contract reads need L3 proofs");
+				report(
+					key,
+					"needs-events",
+					"ctx.client",
+					"contract reads need re-execution proofs",
+				);
 			}
 		} else if (
 			ts.isCallExpression(node) &&

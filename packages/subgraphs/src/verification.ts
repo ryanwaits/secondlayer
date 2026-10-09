@@ -5,7 +5,7 @@
  *
  * A subgraph is never configured as verifiable. Its level is derived from
  * its sources plus a scan of the bundled handler, and only a subgraph whose
- * every input is provable today (L2: named state writes) has the contract
+ * every input is provable today (`state`: named state writes) has the contract
  * enforced. Everything else gets the same findings as advice.
  */
 import { createHash } from "node:crypto";
@@ -155,12 +155,12 @@ export const LOCALE_METHODS: readonly string[] = [
  * One thing the deploy scan found in a bundled handler.
  *
  * - `nondeterministic`: breaks the determinism contract. Fails the deploy of
- *   an L2 subgraph; advice for everything else.
- * - `needs-l3`: deterministic, but reads something only L3 can prove
+ *   a state subgraph; advice for everything else.
+ * - `needs-events`: deterministic, but reads something only re-execution proofs cover
  *   (`ctx.client`). Raises the level instead of failing.
  */
 export interface HandlerFinding {
-	kind: "nondeterministic" | "needs-l3";
+	kind: "nondeterministic" | "needs-events";
 	/** What was used, e.g. `Date`, `Math.random`, `import()`, `ctx.client`. */
 	name: string;
 	reason: string;
@@ -180,14 +180,14 @@ export function formatFinding(f: HandlerFinding): string {
 
 /** Sources whose every field is a named state write: provable per block
  *  from the header-backed witness plus `state_writes`. */
-const L2_SOURCE_TYPES: ReadonlySet<string> = new Set([
+const STATE_SOURCE_TYPES: ReadonlySet<string> = new Set([
 	"var_set",
 	"map_set",
 	"map_insert",
 	"map_delete",
 ]);
 
-const LEVEL_RANK = { L2: 0, L3: 1, none: 2 } as const;
+const LEVEL_RANK = { state: 0, events: 1, none: 2 } as const;
 
 /** Handler findings listed in `reasons`; the rest are counted. */
 const MAX_LISTED_FINDINGS = 10;
@@ -201,7 +201,7 @@ export function deriveVerification(
 	def: Pick<SubgraphDefinition, "sources" | "backfillMode">,
 	findings: readonly HandlerFinding[] = [],
 ): SubgraphVerification {
-	let level: keyof typeof LEVEL_RANK = "L2";
+	let level: keyof typeof LEVEL_RANK = "state";
 	const raise = (to: keyof typeof LEVEL_RANK) => {
 		if (LEVEL_RANK[to] > LEVEL_RANK[level]) level = to;
 	};
@@ -214,21 +214,21 @@ export function deriveVerification(
 			reasons.push(
 				`source "${name}": trait scope needs a proven contract registry`,
 			);
-		} else if (!L2_SOURCE_TYPES.has(filter.type)) {
-			raise("L3");
-			reasons.push(`${filter.type} source "${name}" needs L3`);
+		} else if (!STATE_SOURCE_TYPES.has(filter.type)) {
+			raise("events");
+			reasons.push(`${filter.type} source "${name}" needs event proofs`);
 		}
 	}
 	if (def.backfillMode === "concurrent") {
 		raise("none");
 		reasons.push("backfillMode concurrent: tip-first order is not chain order");
 	}
-	if (findings.some((f) => f.kind === "needs-l3")) raise("L3");
+	if (findings.some((f) => f.kind === "needs-events")) raise("events");
 	// A large bundled library can trip dozens of findings; list a few.
 	for (const f of findings.slice(0, MAX_LISTED_FINDINGS)) {
 		reasons.push(
-			f.kind === "needs-l3"
-				? `${formatFinding(f)} (needs L3)`
+			f.kind === "needs-events"
+				? `${formatFinding(f)} (needs event proofs)`
 				: formatFinding(f),
 		);
 	}
@@ -248,20 +248,22 @@ export function deriveVerification(
 		reasons,
 		unproven: verifiable
 			? [
-					"tx attribution of writes: event.tx, _tx_id (needs L3)",
-					"intermediate writes within a block (needs L3)",
-					...(writesMapInsert ? ["map_insert vs map_set (needs L3)"] : []),
+					"tx attribution of writes: event.tx, _tx_id (needs event proofs)",
+					"intermediate writes within a block (needs event proofs)",
+					...(writesMapInsert
+						? ["map_insert vs map_set (needs event proofs)"]
+						: []),
 				]
 			: [],
 	};
 }
 
 /**
- * True when the deploy must be refused: the sources are provable (L2), so
+ * True when the deploy must be refused: the sources are provable (`state`), so
  * the determinism contract is enforced, and the scan broke it.
  */
 export function isDeterminismViolation(v: SubgraphVerification): boolean {
-	return v.level === "L2" && !v.verifiable;
+	return v.level === "state" && !v.verifiable;
 }
 
 // ── Pin ─────────────────────────────────────────────────────────────────

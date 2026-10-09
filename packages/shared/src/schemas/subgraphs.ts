@@ -43,17 +43,17 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
  * How far a subgraph's rows can be checked without trusting the server,
  * derived from its sources and a scan of its handler. Never configured.
  *
- * - `L2`: every input is a named state write, provable from block headers.
+ * - `state`: every input is a named state write, provable from block headers.
  *   Handlers run in the deterministic realm; `verifiable` is true.
- * - `L3`: an input (events, prints, tx results, `ctx.client`) needs
+ * - `events`: an input (events, prints, tx results, `ctx.client`) needs
  *   re-execution proofs, which are not served yet.
  * - `none`: a source can never be proven as written (trait scope, tip-first
  *   backfill).
  */
 export interface SubgraphVerification {
-	level: "L2" | "L3" | "none";
+	level: "state" | "events" | "none";
 	verifiable: boolean;
-	/** Why the subgraph is not verifiable, e.g. `print_event source "swaps" needs L3`
+	/** Why the subgraph is not verifiable, e.g. `print_event source "swaps" needs event proofs`
 	 *  or `subgraph.ts:41:12 Date: wall-clock time differs per run`. */
 	reasons: string[];
 	/** What stays unproven even at this level, e.g. tx attribution of writes. */

@@ -431,31 +431,33 @@ describe("subgraphs deploy verification line", () => {
 		expect(
 			formatVerificationLines(
 				{
-					level: "L2",
+					level: "state",
 					verifiable: true,
 					reasons: [],
-					unproven: ["tx attribution of writes: event.tx, _tx_id (needs L3)"],
+					unproven: [
+						"tx attribution of writes: event.tx, _tx_id (needs event proofs)",
+					],
 				},
 				pin,
 			),
 		).toEqual([
-			"verifiable  L2 · pin 7f3c…a91e",
-			"unproven    tx attribution of writes: event.tx, _tx_id (needs L3)",
+			"verifiable  state · pin 7f3c…a91e",
+			"unproven    tx attribution of writes: event.tx, _tx_id (needs event proofs)",
 		]);
 	});
 
 	it("says no and why otherwise, and nothing for a server that predates levels", () => {
 		const v = {
-			level: "L3" as const,
+			level: "events" as const,
 			verifiable: false,
 			reasons: [
 				"subgraphs/swaps.ts:41:12 Date: wall-clock time differs per run",
-				'print_event source "swaps" needs L3',
+				'print_event source "swaps" needs event proofs',
 			],
 			unproven: [],
 		};
 		expect(formatVerificationLines(v, pin)).toEqual([
-			'verifiable  no · subgraphs/swaps.ts:41:12 Date: wall-clock time differs per run · print_event source "swaps" needs L3',
+			'verifiable  no · subgraphs/swaps.ts:41:12 Date: wall-clock time differs per run · print_event source "swaps" needs event proofs',
 		]);
 		expect(formatVerificationLines(undefined)).toEqual([]);
 		expect(formatVerificationStatus(null)).toBe(

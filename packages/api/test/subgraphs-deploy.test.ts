@@ -405,12 +405,12 @@ describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
 	app.onError(errorHandler);
 	app.route("/subgraphs", subgraphsRouter);
 
-	const L2_SOURCE = {
+	const STATE_SOURCE = {
 		type: "map_set",
 		contractId: "SP123.vault",
 		map: "reserve",
 	};
-	const L3_SOURCE = { type: "stx_transfer" };
+	const EVENT_SOURCE = { type: "stx_transfer" };
 
 	function body(name: string, source: object, handlerBody: string) {
 		const schema = { rows: { columns: { amount: { type: "uint" } } } };
@@ -460,7 +460,7 @@ describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
 		const res = await post(
 			body(
 				REFUSED,
-				L2_SOURCE,
+				STATE_SOURCE,
 				"ctx.insert('rows', { amount: BigInt(Date.now()) });",
 			),
 		);
@@ -470,7 +470,7 @@ describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
 			verification: { level: string; verifiable: boolean; reasons: string[] };
 		};
 		expect(json.code).toBe("NONDETERMINISTIC_HANDLER");
-		expect(json.verification.level).toBe("L2");
+		expect(json.verification.level).toBe("state");
 		expect(json.verification.reasons).toEqual([
 			"handler.js:9:43 Date: wall-clock time differs per run",
 		]);
@@ -487,7 +487,7 @@ describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
 		const res = await post(
 			body(
 				ADVISORY,
-				L3_SOURCE,
+				EVENT_SOURCE,
 				"ctx.insert('rows', { amount: BigInt(Date.now()) });",
 			),
 		);
@@ -497,16 +497,19 @@ describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
 			verification: { level: string; verifiable: boolean; reasons: string[] };
 		};
 		expect(json.pin).toMatch(/^[0-9a-f]{64}$/);
-		expect(json.verification).toMatchObject({ level: "L3", verifiable: false });
+		expect(json.verification).toMatchObject({
+			level: "events",
+			verifiable: false,
+		});
 		expect(json.verification.reasons).toEqual([
-			'stx_transfer source "s" needs L3',
+			'stx_transfer source "s" needs event proofs',
 			"handler.js:9:43 Date: wall-clock time differs per run",
 		]);
 	});
 
 	test("a clean subgraph on provable sources is verifiable; detail shows pin and level", async () => {
 		const res = await post(
-			body(VERIFIABLE, L2_SOURCE, "ctx.insert('rows', { amount: 1n });"),
+			body(VERIFIABLE, STATE_SOURCE, "ctx.insert('rows', { amount: 1n });"),
 		);
 		expect(res.status).toBe(201);
 		const deployed = (await res.json()) as {
@@ -514,7 +517,7 @@ describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
 			verification: { level: string; verifiable: boolean };
 		};
 		expect(deployed.verification).toMatchObject({
-			level: "L2",
+			level: "state",
 			verifiable: true,
 		});
 
@@ -528,13 +531,13 @@ describe.skipIf(!HAS_DB)("deploy verification level (route)", () => {
 		// Same bytes redeployed: unchanged, same pin. A handler edit moves it.
 		const again = (await (
 			await post(
-				body(VERIFIABLE, L2_SOURCE, "ctx.insert('rows', { amount: 1n });"),
+				body(VERIFIABLE, STATE_SOURCE, "ctx.insert('rows', { amount: 1n });"),
 			)
 		).json()) as { action: string; pin: string };
 		expect(again).toMatchObject({ action: "unchanged", pin: deployed.pin });
 		const edited = (await (
 			await post(
-				body(VERIFIABLE, L2_SOURCE, "ctx.insert('rows', { amount: 2n });"),
+				body(VERIFIABLE, STATE_SOURCE, "ctx.insert('rows', { amount: 2n });"),
 			)
 		).json()) as { action: string; pin: string };
 		expect(edited.action).toBe("handler_updated");

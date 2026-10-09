@@ -112,18 +112,18 @@ A subgraph whose sources are all state writes (`var_set`, `map_set`, `map_insert
 
 | `verification.level` | Sources | Handler findings |
 | --- | --- | --- |
-| `L2` | state writes only | refuse the deploy: `422 NONDETERMINISTIC_HANDLER`, each as `file:line:column` |
-| `L3` | events, prints, contract calls, or any `ctx.client` read | advice in `verification.reasons`; deploys as before |
+| `state` | state writes only | refuse the deploy: `422 NONDETERMINISTIC_HANDLER`, each as `file:line:column` |
+| `events` | events, prints, contract calls, or any `ctx.client` read | advice in `verification.reasons`; deploys as before |
 | `none` | `trait` scope, or `backfillMode: "concurrent"` | advice, as above |
 
 ```text
 secondlayer subgraphs deploy subgraphs/pool-reserves.ts
 ✓ Subgraph "pool-reserves" created → v1.0.0
-  verifiable  L2 · pin 7f3c…a91e
-  unproven    tx attribution of writes: event.tx, _tx_id (needs L3)
+  verifiable  state · pin 7f3c…a91e
+  unproven    tx attribution of writes: event.tx, _tx_id (needs event proofs)
 ```
 
-| Refused at `L2` | Use instead |
+| Refused at `state` | Use instead |
 | --- | --- |
 | `Date`, `performance`, timers, `fetch`, `process`, `crypto`, `Intl`, `toLocaleString` | values from `event`, `ctx.block`, `ctx.tx` |
 | `Math.random`, `Math.sin` and other approximated `Math` | `bigint` math; `Math.abs/min/max/floor/ceil/trunc/sign/round` |

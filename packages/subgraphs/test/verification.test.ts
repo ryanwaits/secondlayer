@@ -19,9 +19,9 @@ const date: HandlerFinding = {
 	column: 5,
 };
 const client: HandlerFinding = {
-	kind: "needs-l3",
+	kind: "needs-events",
 	name: "ctx.client",
-	reason: "contract reads need L3 proofs",
+	reason: "contract reads need re-execution proofs",
 	file: "subgraph.ts",
 	line: 20,
 	column: 9,
@@ -33,7 +33,7 @@ describe("deriveVerification", () => {
 		sources: Record<string, SubgraphFilter>;
 		backfillMode?: "blocking" | "concurrent";
 		findings?: HandlerFinding[];
-		level: "L2" | "L3" | "none";
+		level: "state" | "events" | "none";
 		verifiable: boolean;
 		violation: boolean;
 		reasons: string[];
@@ -45,7 +45,7 @@ describe("deriveVerification", () => {
 				m: { type: "map_set", contractId: C, map: "reserve" },
 				d: { type: "map_delete", contractId: C },
 			},
-			level: "L2",
+			level: "state",
 			verifiable: true,
 			violation: false,
 			reasons: [],
@@ -56,7 +56,7 @@ describe("deriveVerification", () => {
 				reg: { type: "map_insert", contractId: C, map: "pools" },
 				pools: { type: "var_set", factory: { from: "reg", field: "key" } },
 			},
-			level: "L2",
+			level: "state",
 			verifiable: true,
 			violation: false,
 			reasons: [],
@@ -70,10 +70,10 @@ describe("deriveVerification", () => {
 					prints: { swap: { amount: "uint" } },
 				},
 			},
-			level: "L3",
+			level: "events",
 			verifiable: false,
 			violation: false,
-			reasons: ['print_event source "swaps" needs L3'],
+			reasons: ['print_event source "swaps" needs event proofs'],
 		},
 		{
 			name: "contract calls need receipts",
@@ -81,18 +81,18 @@ describe("deriveVerification", () => {
 				m: { type: "map_set", contractId: C },
 				calls: { type: "contract_call", contractId: C },
 			},
-			level: "L3",
+			level: "events",
 			verifiable: false,
 			violation: false,
-			reasons: ['contract_call source "calls" needs L3'],
+			reasons: ['contract_call source "calls" needs event proofs'],
 		},
 		{
 			name: "asset events",
 			sources: { t: { type: "ft_transfer", assetIdentifier: `${C}::t` } },
-			level: "L3",
+			level: "events",
 			verifiable: false,
 			violation: false,
-			reasons: ['ft_transfer source "t" needs L3'],
+			reasons: ['ft_transfer source "t" needs event proofs'],
 		},
 		{
 			name: "trait scope is never provable as written",
@@ -112,34 +112,34 @@ describe("deriveVerification", () => {
 			reasons: ["backfillMode concurrent: tip-first order is not chain order"],
 		},
 		{
-			name: "ctx.client raises an L2 subgraph to L3",
+			name: "ctx.client raises a state subgraph to L3",
 			sources: { m: { type: "map_set", contractId: C } },
 			findings: [client],
-			level: "L3",
+			level: "events",
 			verifiable: false,
 			violation: false,
 			reasons: [
-				"subgraph.ts:20:9 ctx.client: contract reads need L3 proofs (needs L3)",
+				"subgraph.ts:20:9 ctx.client: contract reads need re-execution proofs (needs event proofs)",
 			],
 		},
 		{
-			name: "forbidden global in an L2 subgraph is a violation",
+			name: "forbidden global in a state subgraph is a violation",
 			sources: { m: { type: "map_set", contractId: C } },
 			findings: [date],
-			level: "L2",
+			level: "state",
 			verifiable: false,
 			violation: true,
 			reasons: ["subgraph.ts:12:5 Date: wall-clock time differs per run"],
 		},
 		{
-			name: "forbidden global in an L3 subgraph is advice",
+			name: "forbidden global in an events subgraph is advice",
 			sources: { t: { type: "stx_transfer" } },
 			findings: [date],
-			level: "L3",
+			level: "events",
 			verifiable: false,
 			violation: false,
 			reasons: [
-				'stx_transfer source "t" needs L3',
+				'stx_transfer source "t" needs event proofs',
 				"subgraph.ts:12:5 Date: wall-clock time differs per run",
 			],
 		},
@@ -176,12 +176,12 @@ describe("deriveVerification", () => {
 		expect(v.reasons.at(-1)).toBe("…and 3 more handler findings");
 	});
 
-	test("a needs-L3 finding past the listing cap still raises the level", () => {
+	test("a needs-events finding past the listing cap still raises the level", () => {
 		const v = deriveVerification(
 			{ sources: { m: { type: "map_set", contractId: C } } },
 			[...Array.from({ length: 10 }, () => date), client],
 		);
-		expect(v.level).toBe("L3");
+		expect(v.level).toBe("events");
 	});
 });
 

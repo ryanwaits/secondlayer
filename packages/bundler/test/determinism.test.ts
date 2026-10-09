@@ -68,13 +68,13 @@ describe("scanHandlerDeterminism", () => {
 				const h = async (e, ctx) => { await ctx.client.readOnly("x"); };
 				const k = async (e, { client }) => client;
 			`),
-		).toEqual(["needs-l3:ctx.client", "needs-l3:ctx.client"]);
+		).toEqual(["needs-events:ctx.client", "needs-events:ctx.client"]);
 	});
 });
 
-const L2_SOURCES = `
+const STATE_SOURCES = `
 	sources: { reserve: { type: "map_set", contractId: "SP1.vault", map: "reserve" } },`;
-const L3_SOURCES = `
+const EVENT_SOURCES = `
 	sources: { swaps: { type: "print_event", contractId: "SP1.amm", prints: { swap: { amount: "uint" } } } },`;
 const subgraph = (sources: string, handlerBody: string) => `
 import { defineSubgraph } from "@secondlayer/subgraphs";
@@ -92,10 +92,10 @@ export default defineSubgraph({
 `;
 
 describe("bundleSubgraphCode determinism findings", () => {
-	test("forbidden global in an L2 subgraph is a violation with its source position", async () => {
+	test("forbidden global in a state subgraph is a violation with its source position", async () => {
 		const bundled = await bundleSubgraphCode(
 			subgraph(
-				L2_SOURCES,
+				STATE_SOURCES,
 				'ctx.insert("reserves", { token: "a", at: Date.now() });',
 			),
 			{ fileName: "subgraphs/pool-reserves.ts" },
@@ -114,7 +114,7 @@ describe("bundleSubgraphCode determinism findings", () => {
 			{ sources: bundled.sources as never },
 			bundled.findings,
 		);
-		expect(v.level).toBe("L2");
+		expect(v.level).toBe("state");
 		expect(v.verifiable).toBe(false);
 		expect(v.reasons).toEqual([
 			"subgraphs/pool-reserves.ts:11:45 Date: wall-clock time differs per run",
@@ -122,10 +122,10 @@ describe("bundleSubgraphCode determinism findings", () => {
 		expect(isDeterminismViolation(v)).toBe(true);
 	});
 
-	test("the same code in an L3 subgraph is advice, not a violation", async () => {
+	test("the same code in an events subgraph is advice, not a violation", async () => {
 		const bundled = await bundleSubgraphCode(
 			subgraph(
-				L3_SOURCES,
+				EVENT_SOURCES,
 				'ctx.insert("reserves", { token: "a", at: Date.now() });',
 			),
 		);
@@ -133,17 +133,17 @@ describe("bundleSubgraphCode determinism findings", () => {
 			{ sources: bundled.sources as never },
 			bundled.findings,
 		);
-		expect(v.level).toBe("L3");
+		expect(v.level).toBe("events");
 		expect(isDeterminismViolation(v)).toBe(false);
 		expect(v.reasons).toEqual([
-			'print_event source "swaps" needs L3',
+			'print_event source "swaps" needs event proofs',
 			"subgraph.ts:11:45 Date: wall-clock time differs per run",
 		]);
 	});
 
 	test("rebuilding identical source yields the same pin; a handler edit changes it", async () => {
 		const source = subgraph(
-			L2_SOURCES,
+			STATE_SOURCES,
 			'ctx.upsert("reserves", { token: String(event.key) }, { at: event.value });',
 		);
 		const pinOf = async (code: string) =>
@@ -160,15 +160,15 @@ describe("bundleSubgraphCode determinism findings", () => {
 		).not.toBe(first);
 	});
 
-	test("a clean L2 subgraph is verifiable", async () => {
+	test("a clea state subgraph is verifiable", async () => {
 		const bundled = await bundleSubgraphCode(
 			subgraph(
-				L2_SOURCES,
+				STATE_SOURCES,
 				'ctx.upsert("reserves", { token: String(event.key) }, { at: event.value });',
 			),
 		);
 		expect(bundled.findings).toEqual([]);
 		const v = deriveVerification({ sources: bundled.sources as never });
-		expect(v).toMatchObject({ level: "L2", verifiable: true, reasons: [] });
+		expect(v).toMatchObject({ level: "state", verifiable: true, reasons: [] });
 	});
 });

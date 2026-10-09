@@ -575,7 +575,7 @@ export function createSubgraphDeployPreview(
 
 /**
  * The derived verification level as deploy/status lines:
- * `verifiable  L2 · pin 7f3c…a91e` plus what stays unproven, or
+ * `verifiable  state · pin 7f3c…a91e` plus what stays unproven, or
  * `verifiable  no · <why>`.
  */
 export function formatVerificationLines(

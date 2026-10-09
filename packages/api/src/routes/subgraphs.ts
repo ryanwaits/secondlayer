@@ -441,7 +441,7 @@ async function executeSubgraphDeploy(
 		);
 	}
 
-	// Derived, never configured. Provable (L2) sources put the handler under
+	// Derived, never configured. Provable (state-level) sources put the handler under
 	// the determinism contract, so a scan finding refuses the deploy; every
 	// other subgraph carries the same findings as advice.
 	const verification = deriveVerification(

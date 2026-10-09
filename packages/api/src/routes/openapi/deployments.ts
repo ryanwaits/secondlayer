@@ -845,9 +845,9 @@ export const deploymentsSchemas = {
 			version: "1.0.0",
 			pin: "7f3c0d5e9b21a4c86f0e3d17b5a92c4e8d61f07a3b9c25e4d8f1a06c7b3e5a91e",
 			verification: {
-				level: "L3",
+				level: "events",
 				verifiable: false,
-				reasons: ['ft_transfer source "transfers" needs L3'],
+				reasons: ['ft_transfer source "transfers" needs event proofs'],
 				unproven: [],
 			},
 			start_block: 8000000,
@@ -860,13 +860,13 @@ export const deploymentsSchemas = {
 	SubgraphVerification: {
 		type: "object",
 		description:
-			"How far the subgraph's rows can be checked without trusting the server. Derived from its sources and a scan of its handler, never configured. `L2`: every source is a named state write (`var_set`, `map_*`), provable from block headers; the handler must be deterministic and runs in a locked-down realm. `L3`: a source or `ctx.client` read needs re-execution proofs, not served yet. `none`: a source can never be proven as written (trait scope, tip-first).",
+			"How far the subgraph's rows can be checked without trusting the server. Derived from its sources and a scan of its handler, never configured. `state`: every source is a named state write (`var_set`, `map_*`), provable from block headers; the handler must be deterministic and runs in a locked-down realm. `events`: a source or `ctx.client` read needs re-execution proofs, not served yet. `none`: a source can never be proven as written (trait scope, tip-first).",
 		required: ["level", "verifiable", "reasons", "unproven"],
 		properties: {
-			level: { type: "string", enum: ["L2", "L3", "none"] },
+			level: { type: "string", enum: ["state", "events", "none"] },
 			verifiable: {
 				type: "boolean",
-				description: "`true` only at `L2` with a clean handler scan.",
+				description: "`true` only at `state` with a clean handler scan.",
 			},
 			reasons: {
 				type: "array",
@@ -1304,9 +1304,9 @@ export const deploymentsSchemas = {
 				"4b9e1d27c83f0a65e2d7b14c9f06a38e5d21c7b90f4e6a83d15c2b7e09f4a6d1",
 			pin: "7f3c0d5e9b21a4c86f0e3d17b5a92c4e8d61f07a3b9c25e4d8f1a06c7b3e5a91e",
 			verification: {
-				level: "L3",
+				level: "events",
 				verifiable: false,
-				reasons: ['ft_transfer source "transfers" needs L3'],
+				reasons: ['ft_transfer source "transfers" needs event proofs'],
 				unproven: [],
 			},
 			status: "active",

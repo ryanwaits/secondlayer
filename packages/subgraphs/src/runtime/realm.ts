@@ -1,5 +1,5 @@
 /**
- * Deterministic realm for verifiable (L2) subgraphs.
+ * Deterministic realm for verifiable (state-level) subgraphs.
  *
  * Handlers run in a `node:vm` context whose global object is a frozen
  * allow-list: every forbidden global ({@link FORBIDDEN_GLOBALS}) is a getter
@@ -222,7 +222,7 @@ export function deterministicContext(
 		},
 		get client(): never {
 			throw new NondeterminismError(
-				"ctx.client: contract reads need L3 proofs",
+				"ctx.client: contract reads need re-execution proofs",
 			);
 		},
 		insert(table, row) {
