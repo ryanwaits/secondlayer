@@ -266,8 +266,12 @@ export class JournalApplier {
 			// A row journaled (or an idle waiter registered) while this pass ran
 			// may have missed it: drain again before declaring idle.
 			if (this.notified) continue;
+			// Take the idle waiters this pass vouches for before awaiting: one
+			// that registers during the await came after the drain and waits
+			// for the next pass.
+			const idle = this.idleWaiters.splice(0);
 			await this.settleForeignWaiters();
-			for (const resolve of this.idleWaiters.splice(0)) resolve();
+			for (const resolve of idle) resolve();
 			await this.sleep(IDLE_POLL_MS);
 		}
 	}
