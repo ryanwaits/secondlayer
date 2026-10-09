@@ -1,5 +1,11 @@
 # @secondlayer/indexer
 
+## 1.17.2
+
+### Patch Changes
+
+- e43f978: Catch-up `whenIdle()` no longer resolves from a drain pass that started before the caller registered, so a waiter always sees the block that woke it applied.
+
 ## 1.17.1
 
 ### Patch Changes
