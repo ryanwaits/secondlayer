@@ -99,20 +99,31 @@ describe("a webhook's rows inserted while paused drain promptly once resumed", (
 			await toggleWebhookStatus(db, accountId, webhook.id, "active");
 			await notifyWebhooksChanged(db, accountId);
 
+			// Wait on the settled rows, not the receiver: a POST lands before its
+			// dispatch commits `delivered`, so the last request can arrive while
+			// its row still reads `pending`.
+			const outboxStatuses = async () =>
+				(
+					await db
+						.selectFrom("webhook_outbox")
+						.select(["status"])
+						.where("webhook_id", "=", webhook.id)
+						.execute()
+				).map((r) => r.status);
 			const deadline = Date.now() + 5_000;
-			while (received.length < 4 && Date.now() < deadline) {
+			let statuses = await outboxStatuses();
+			while (statuses.some((s) => s !== "delivered") && Date.now() < deadline) {
 				await new Promise((r) => setTimeout(r, 50));
+				statuses = await outboxStatuses();
 			}
 
 			expect(received.length).toBe(4);
-
-			const rows = await db
-				.selectFrom("webhook_outbox")
-				.select(["status"])
-				.where("webhook_id", "=", webhook.id)
-				.execute();
-			expect(rows).toHaveLength(4);
-			expect(rows.every((r) => r.status === "delivered")).toBe(true);
+			expect(statuses).toEqual([
+				"delivered",
+				"delivered",
+				"delivered",
+				"delivered",
+			]);
 		} finally {
 			server.stop();
 		}
