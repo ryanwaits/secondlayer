@@ -13,6 +13,7 @@ import { logger } from "@secondlayer/shared/logger";
 import { type Kysely, type Transaction, sql } from "kysely";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition } from "../types.ts";
+import { discoverFactoryAddresses, matchBlock } from "./apply-block.ts";
 import { resolveBlockSource } from "./block-source.ts";
 import {
 	type BlockMeta,
@@ -21,13 +22,8 @@ import {
 	type TxMeta,
 } from "./context.ts";
 import { emitWebhookOutbox } from "./outbox-emit.ts";
-import { buildEventPayload, runHandlers } from "./runner.ts";
-import {
-	type EventRecord,
-	type TxRecord,
-	matchSources,
-	readPath,
-} from "./source-matcher.ts";
+import { runHandlers } from "./runner.ts";
+import type { EventRecord, TxRecord } from "./source-matcher.ts";
 import { matcher } from "./webhook-state.ts";
 
 /**
@@ -101,63 +97,39 @@ export async function resolveFactoryContracts(
 	resolved: Map<string, ReadonlySet<string>>;
 	discovered: Array<{ sourceName: string; address: string }>;
 }> {
-	// Keyed by the DISCOVERING source (`factory.from`), not the consuming one:
-	// several sources can share one factory, and this way the extraction runs
-	// once per discovering source rather than once per consumer.
-	const factories = new Map<string, { from: string; field: string }>();
+	// Keyed by the DISCOVERING source (`factory.from`), not the consuming one.
+	const discoverers = new Set<string>();
 	for (const source of Object.values(subgraph.sources)) {
-		const factory = (source as { factory?: { from: string; field: string } })
-			.factory;
-		if (factory) factories.set(factory.from, factory);
+		const factory = (source as { factory?: { from: string } }).factory;
+		if (factory) discoverers.add(factory.from);
 	}
-	const resolved = new Map<string, ReadonlySet<string>>();
-	const discovered: Array<{ sourceName: string; address: string }> = [];
-	if (factories.size === 0) return { resolved, discovered };
+	const known = new Map<string, Set<string>>();
+	if (discoverers.size === 0) return { resolved: known, discovered: [] };
 
-	for (const [discoveringSource, factory] of factories) {
-		const known = new Set<string>();
-		// 1. Everything revealed at or below this height.
+	// 1. Everything revealed at or below this height.
+	for (const discoveringSource of discoverers) {
+		const set = new Set<string>();
 		try {
 			const rows = await sql<{ address: string }>`
 				SELECT address FROM ${sql.raw(`"${schemaName}"."_factory_addresses"`)}
 				WHERE source_name = ${discoveringSource} AND block_height <= ${blockHeight}
 			`.execute(db);
-			for (const row of rows.rows) known.add(row.address);
+			for (const row of rows.rows) set.add(row.address);
 		} catch {
 			// Table absent (first deploy before DDL, or a non-factory subgraph):
 			// treat as an empty set rather than failing the block.
 		}
-
-		// 2. This block's own reveals — before matching, so same-block events
-		//    from a new contract are not dropped.
-		const discovering = subgraph.sources[factory.from];
-		if (discovering) {
-			const matches = matchSources(
-				{ [factory.from]: discovering },
-				txs,
-				evts,
-				new Map(),
-				new Map(),
-				vmEvts,
-			);
-			for (const match of matches) {
-				for (const event of match.events ?? []) {
-					const payload = buildEventPayload(discovering, match.tx, event);
-					const value = readPath(payload, factory.field);
-					if (
-						typeof value === "string" &&
-						value.length > 0 &&
-						!known.has(value)
-					) {
-						known.add(value);
-						discovered.push({ sourceName: discoveringSource, address: value });
-					}
-				}
-			}
-		}
-		resolved.set(discoveringSource, known);
+		known.set(discoveringSource, set);
 	}
-	return { resolved, discovered };
+
+	// 2. This block's own reveals — before matching, so same-block events
+	//    from a new contract are not dropped.
+	const discovered = discoverFactoryAddresses(
+		subgraph,
+		{ txs, events: evts, vmEvents: vmEvts },
+		known,
+	);
+	return { resolved: known, discovered };
 }
 
 /** Persist this block's discoveries, stamped with the block that revealed
@@ -436,13 +408,10 @@ export async function processBlock(
 			evts,
 			vmEvts,
 		);
-	const matched = matchSources(
-		subgraph.sources,
-		txs,
-		evts,
-		traitContracts,
-		factoryContracts,
-		vmEvts,
+	const matched = matchBlock(
+		subgraph,
+		{ txs, events: evts, vmEvents: vmEvts },
+		{ trait: traitContracts, factory: factoryContracts },
 	);
 	result.matched = matched.length;
 

@@ -1,10 +1,8 @@
-import type { AbiContract } from "@secondlayer/stacks/clarity";
-import { normalizeAbi, toCamelCase } from "@secondlayer/stacks/clarity";
 import type { EventForFilter } from "../events.ts";
 import type { TypedSubgraphContext } from "../infer.ts";
-import type { ChainReadClient } from "../runtime/chain-read.ts";
 import { SubgraphContext } from "../runtime/context.ts";
 import type { BlockMeta, TxMeta } from "../runtime/context.ts";
+import { MemoryStore, MemorySubgraphContext } from "../runtime/memory-store.ts";
 import { buildEventPayload } from "../runtime/runner.ts";
 import type { SubgraphFilter, SubgraphSchema } from "../types.ts";
 
@@ -23,8 +21,6 @@ import type { SubgraphFilter, SubgraphSchema } from "../types.ts";
  * where-matching, and control-key handling all come from the one
  * implementation, so there is no second copy to drift.
  */
-
-const TEST_SCHEMA_NAME = "subgraph_test";
 
 function defaultBlock(overrides: Partial<BlockMeta> = {}): BlockMeta {
 	return {
@@ -70,114 +66,6 @@ export interface TestSubgraphContext<S extends SubgraphSchema>
 	opsCheckpoint(): number;
 }
 
-/** The real context, backed by an in-memory row store instead of Postgres. */
-class InMemorySubgraphContext extends SubgraphContext {
-	/** Committed rows per table (what a flush would have persisted). */
-	private readonly store = new Map<string, Record<string, unknown>[]>();
-
-	constructor(schema: SubgraphSchema, block: BlockMeta, tx: TxMeta) {
-		// `db` is never touched: `readRows` is overridden below, and the test
-		// context never flushes SQL.
-		super(undefined as never, TEST_SCHEMA_NAME, schema, block, tx, false);
-	}
-
-	/** The one seam: committed rows come from memory, not Postgres. */
-	protected override async readRows(
-		table: string,
-		where: Record<string, unknown>,
-		limit?: number,
-	): Promise<Record<string, unknown>[]> {
-		const rows = (this.store.get(table) ?? []).filter((row) =>
-			Object.entries(where).every(([k, v]) => sameValue(row[k], v)),
-		);
-		return limit === undefined ? rows : rows.slice(0, limit);
-	}
-
-	async rowsOf(table: string): Promise<Record<string, unknown>[]> {
-		// Overlay the pending ops exactly as a read would — so the assertion
-		// sees what the handler actually did, before any flush.
-		return this.overlayMany(table, {}, await this.readRows(table, {}));
-	}
-
-	/**
-	 * Offline `ctx.client`. A handler unit test has no node, so reads are
-	 * stubbed by `<contractId>.<function-name>`; an unstubbed read throws
-	 * naming the key, rather than silently returning undefined and failing the
-	 * assertion somewhere else.
-	 */
-	setReads(reads: Record<string, unknown>): void {
-		this._client = {
-			contract(contractId: string, abi: AbiContract) {
-				const camelToKebab = new Map<string, string>();
-				for (const fn of normalizeAbi(abi).functions) {
-					camelToKebab.set(toCamelCase(fn.name), fn.name);
-				}
-				const read = new Proxy(
-					{},
-					{
-						get(_target, prop: string) {
-							const fnName = camelToKebab.get(prop) ?? prop;
-							const key = `${contractId}.${fnName}`;
-							return async () => {
-								if (!(key in reads)) {
-									throw new Error(
-										`No stubbed chain read for "${key}" — pass it via createTestContext(schema, { reads: { "${key}": … } }).`,
-									);
-								}
-								return reads[key];
-							};
-						},
-					},
-				);
-				return { read } as never;
-			},
-		} as ChainReadClient;
-	}
-
-	/** Materialize pending ops into the store (an end-of-block flush). */
-	async commitOps(): Promise<void> {
-		const tables = new Set<string>();
-		for (const op of this.ops) tables.add(op.table);
-		for (const table of tables) {
-			this.store.set(table, await this.rowsOf(table));
-		}
-		this.ops.length = 0;
-	}
-
-	insertsSince(
-		checkpoint: number,
-	): Array<{ table: string; keys: string[]; row: Record<string, unknown> }> {
-		const out: Array<{
-			table: string;
-			keys: string[];
-			row: Record<string, unknown>;
-		}> = [];
-		for (const op of this.ops.slice(Math.max(0, checkpoint))) {
-			if (op.kind !== "insert") continue;
-			const row = { ...op.data };
-			out.push({
-				table: op.table,
-				keys: Object.keys(row).filter((k) => !k.startsWith("_")),
-				row,
-			});
-		}
-		return out;
-	}
-}
-
-/** Loose value equality across the bigint/number/string boundary decoded
- *  Clarity values straddle. */
-function sameValue(a: unknown, b: unknown): boolean {
-	if (a === b) return true;
-	if (
-		(typeof a === "bigint" || typeof a === "number") &&
-		(typeof b === "bigint" || typeof b === "number")
-	) {
-		return BigInt(a) === BigInt(b);
-	}
-	return String(a) === String(b);
-}
-
 /**
  * Build an in-memory context for a subgraph's schema.
  *
@@ -197,7 +85,8 @@ export function createTestContext<const S extends SubgraphSchema>(
 		reads?: Record<string, unknown>;
 	} = {},
 ): TestSubgraphContext<S> {
-	const impl = new InMemorySubgraphContext(
+	const impl = new MemorySubgraphContext(
+		new MemoryStore(),
 		schema,
 		defaultBlock(options.block),
 		defaultTx(options.tx),
