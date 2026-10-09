@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
 	computePin,
 	deriveVerification,
@@ -170,5 +172,19 @@ describe("bundleSubgraphCode determinism findings", () => {
 		expect(bundled.findings).toEqual([]);
 		const v = deriveVerification({ sources: bundled.sources as never });
 		expect(v).toMatchObject({ level: "state", reasons: [] });
+	});
+
+	test("the pool-reserves example bundles scan-clean at level state", async () => {
+		const source = readFileSync(
+			join(import.meta.dir, "../../subgraphs/examples/pool-reserves.ts"),
+			"utf8",
+		).replace('from "../src/define.ts"', 'from "@secondlayer/subgraphs"');
+		const bundled = await bundleSubgraphCode(source, {
+			fileName: "examples/pool-reserves.ts",
+		});
+		expect(bundled.findings).toEqual([]);
+		expect(
+			deriveVerification({ sources: bundled.sources as never }),
+		).toMatchObject({ level: "state", reasons: [] });
 	});
 });
