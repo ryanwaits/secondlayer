@@ -36,8 +36,10 @@ for (const rel of pkgPaths) {
 	const clPath = join(ROOT, dirname(rel), "CHANGELOG.md");
 
 	if (!existsSync(clPath)) {
-		// Published packages must have a changelog; private deploy-only ones may not.
-		if (!isPrivate) failures.push(`${name}: published but has no CHANGELOG.md`);
+		// Published packages must have a changelog; private deploy-only ones may
+		// not, nor a public one still at 0.0.0 awaiting its first `changeset version`.
+		if (!isPrivate && version !== "0.0.0")
+			failures.push(`${name}: published but has no CHANGELOG.md`);
 		continue;
 	}
 

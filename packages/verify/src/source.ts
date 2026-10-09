@@ -201,7 +201,10 @@ export class SecondlayerProofSource implements ProofSource {
 		return { preimage: unhex(j.preimage), burnHeight: j.burn_height };
 	};
 
-	getBitcoinHeaders = async (from: number, count: number) => {
+	getBitcoinHeaders = async (
+		from: number,
+		count: number,
+	): Promise<string[]> => {
 		const url = `${this.#base}/v1/proofs/bitcoin-headers?from=${from}&count=${count}`;
 		const j = required(
 			url,

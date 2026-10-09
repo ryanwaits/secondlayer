@@ -6,7 +6,7 @@
 	"workspaces": ["packages/*", "apps/*"],
 	"scripts": {
 		"prepare": "git config core.hooksPath .githooks || true",
-		"build": "bun run build:stacks && bun run build:shared && bun run build:platform && bun run build:subgraphs && bun run build:bundler && bun run build:scaffold && bun run build:sdk && bun run build:mcp && bun run build:cli",
+		"build": "bun run build:stacks && bun run build:shared && bun run build:platform && bun run build:subgraphs && bun run build:bundler && bun run build:scaffold && bun run build:sdk && bun run build:mcp && bun run build:verify && bun run build:cli",
 		"build:bundler": "bun run --filter @secondlayer/bundler build",
 		"build:cli": "bun run --filter @secondlayer/cli build",
 		"build:mcp": "bun run --filter @secondlayer/mcp build",
@@ -15,6 +15,7 @@
 		"build:stacks": "bun run --filter @secondlayer/stacks build",
 		"build:subgraphs": "bun run --filter @secondlayer/subgraphs build",
 		"build:shared": "bun run --filter @secondlayer/shared build",
+		"build:verify": "bun run --filter @secondlayer/verify build",
 		"build:platform": "bun run --filter @secondlayer/platform build",
 		"start": "bash scripts/dev.sh",
 		"db": "docker compose -f docker/docker-compose.dev.yml up -d --wait",

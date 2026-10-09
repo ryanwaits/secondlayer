@@ -40,15 +40,15 @@ export const MAINNET_PREPARE_LENGTH = 100;
 /** First burn height of reward cycle `cycle`. */
 export const cycleStart = (
 	cycle: number,
-	firstBurnHeight = MAINNET_FIRST_BURN_HEIGHT,
-	cycleLength = MAINNET_REWARD_CYCLE_LENGTH,
+	firstBurnHeight: number = MAINNET_FIRST_BURN_HEIGHT,
+	cycleLength: number = MAINNET_REWARD_CYCLE_LENGTH,
 ): number => firstBurnHeight + cycle * cycleLength;
 
 /** Reward cycle containing `burnHeight`. */
 export function rewardCycle(
 	burnHeight: number,
-	firstBurnHeight = MAINNET_FIRST_BURN_HEIGHT,
-	cycleLength = MAINNET_REWARD_CYCLE_LENGTH,
+	firstBurnHeight: number = MAINNET_FIRST_BURN_HEIGHT,
+	cycleLength: number = MAINNET_REWARD_CYCLE_LENGTH,
 ): number {
 	if (burnHeight < firstBurnHeight)
 		throw new Error(`burn height ${burnHeight} precedes the first burn block`);

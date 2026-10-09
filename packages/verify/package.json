@@ -1,15 +1,30 @@
 {
 	"name": "@secondlayer/verify",
 	"version": "0.0.0",
-	"private": true,
-	"type": "module",
-	"main": "./src/index.ts",
-	"exports": {
-		".": "./src/index.ts"
+	"description": "Check a Stacks block yourself: Bitcoin headers, signer signatures and MARF state proofs, from one trusted checkpoint.",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryanwaits/secondlayer.git",
+		"directory": "packages/verify"
 	},
+	"homepage": "https://github.com/ryanwaits/secondlayer/tree/main/packages/verify#readme",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": ["dist", "README.md"],
 	"scripts": {
+		"build": "bunup",
+		"dev": "bunup --watch",
+		"test": "bun test",
 		"typecheck": "tsc --noEmit",
-		"test": "bun test"
+		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
 		"@noble/curves": "2.0.1",
@@ -19,5 +34,8 @@
 	"devDependencies": {
 		"@types/bun": "latest",
 		"typescript": "^5"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }
