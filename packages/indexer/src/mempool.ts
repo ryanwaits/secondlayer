@@ -4,13 +4,13 @@ import type {
 	InsertMempoolTransaction,
 } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
+import { decodeRawTx } from "@secondlayer/shared/node/tx-summary";
 import {
 	hexToBytes,
 	txidFromBytes,
 	without0x,
 } from "@secondlayer/stacks/utils";
 import type { Kysely } from "kysely";
-import { decodeRawTx } from "./parser.ts";
 
 /**
  * Mempool (pending tx) ingest. The Stacks node's `/new_mempool_tx` callback

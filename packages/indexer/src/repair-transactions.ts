@@ -25,7 +25,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
-import { decodeRawTx } from "./parser.ts";
+import { decodeRawTx } from "@secondlayer/shared/node/tx-summary";
 
 // --- Config ---
 const HIRO_API_KEY = process.env.HIRO_API_KEY;

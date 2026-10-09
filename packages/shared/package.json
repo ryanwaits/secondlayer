@@ -225,6 +225,10 @@
 			"types": "./dist/src/node/archive-client.d.ts",
 			"import": "./dist/src/node/archive-client.js"
 		},
+		"./node/tx-summary": {
+			"types": "./dist/src/node/tx-summary.d.ts",
+			"import": "./dist/src/node/tx-summary.js"
+		},
 		"./email": {
 			"types": "./dist/src/email/index.d.ts",
 			"import": "./dist/src/email/index.js"

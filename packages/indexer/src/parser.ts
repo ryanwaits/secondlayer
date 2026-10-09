@@ -6,16 +6,8 @@ import type {
 	InsertVmEvent,
 } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
-import { serializeCV } from "@secondlayer/stacks/clarity";
+import { decodeRawTx } from "@secondlayer/shared/node/tx-summary";
 import { VM_NODE_TO_STORED_TYPE } from "@secondlayer/stacks/filters";
-import {
-	AddressHashMode,
-	type ContractCallPayload,
-	PayloadType,
-	type SmartContractPayload,
-	deserializeTransaction,
-} from "@secondlayer/stacks/transactions";
-import { AddressVersion, c32address } from "@secondlayer/stacks/utils";
 import type {
 	NewBlockPayload,
 	StateWritePayload,
@@ -79,94 +71,6 @@ async function fetchTxFromApi(txid: string): Promise<{
 		};
 	} catch (error) {
 		logger.debug("Error fetching tx from API", { txid, error: String(error) });
-		return null;
-	}
-}
-
-/**
- * Transaction type names matching what we store in the database
- */
-const TX_TYPE_NAMES: Record<PayloadType, string> = {
-	[PayloadType.TokenTransfer]: "token_transfer",
-	[PayloadType.SmartContract]: "smart_contract",
-	[PayloadType.VersionedSmartContract]: "smart_contract",
-	[PayloadType.ContractCall]: "contract_call",
-	[PayloadType.PoisonMicroblock]: "poison_microblock",
-	[PayloadType.Coinbase]: "coinbase",
-	[PayloadType.CoinbaseToAltRecipient]: "coinbase",
-	[PayloadType.TenureChange]: "tenure_change",
-	[PayloadType.NakamotoCoinbase]: "coinbase",
-};
-
-/**
- * Decode raw_tx hex to extract tx_type and sender_address. Exported for mempool
- * ingest, which has only the raw_tx and needs the same columnar fields without
- * the block-anchored (block_height/tx_index/result) machinery of
- * `parseTransaction`. Pure CPU (deserialize + c32), no network fallback.
- */
-export function decodeRawTx(
-	rawTx: string,
-	txid?: string,
-): {
-	txType: string;
-	sender: string;
-	contractId: string | null;
-	functionName: string | null;
-	functionArgs: string[] | null;
-} | null {
-	try {
-		const tx = deserializeTransaction(rawTx);
-
-		// Get tx type
-		const txType = TX_TYPE_NAMES[tx.payload.payloadType] ?? "unknown";
-
-		// Get sender address from spending condition
-		const { signer, hashMode } = tx.auth.spendingCondition;
-
-		// Determine address version based on tx version and hash mode
-		// tx.version: 0 = mainnet, 128 = testnet
-		const isMainnet = tx.version === 0;
-		const isSingleSig =
-			hashMode === AddressHashMode.P2PKH || hashMode === AddressHashMode.P2WPKH;
-
-		let addressVersion: AddressVersion;
-		if (isMainnet) {
-			addressVersion = isSingleSig
-				? AddressVersion.MainnetSingleSig
-				: AddressVersion.MainnetMultiSig;
-		} else {
-			addressVersion = isSingleSig
-				? AddressVersion.TestnetSingleSig
-				: AddressVersion.TestnetMultiSig;
-		}
-
-		const sender = c32address(addressVersion, signer);
-
-		// Extract contract details if applicable
-		let contractId: string | null = null;
-		let functionName: string | null = null;
-		let functionArgs: string[] | null = null;
-
-		if (tx.payload.payloadType === PayloadType.ContractCall) {
-			const payload = tx.payload as ContractCallPayload;
-			contractId = `${payload.contractAddress}.${payload.contractName}`;
-			functionName = payload.functionName;
-			functionArgs = payload.functionArgs?.map((cv) => serializeCV(cv)) ?? null;
-		} else if (
-			tx.payload.payloadType === PayloadType.SmartContract ||
-			tx.payload.payloadType === PayloadType.VersionedSmartContract
-		) {
-			const payload = tx.payload as SmartContractPayload;
-			contractId = `${sender}.${payload.contractName}`;
-		}
-
-		return { txType, sender, contractId, functionName, functionArgs };
-	} catch (error) {
-		// Some transactions can't be decoded - log for debugging and use fallback values
-		logger.warn("Failed to decode raw_tx", {
-			txid,
-			error: String(error).split("\n")[0],
-		});
 		return null;
 	}
 }
