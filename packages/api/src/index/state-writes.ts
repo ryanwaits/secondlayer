@@ -21,7 +21,8 @@ import { type IndexTip, indexSourceWindowTip } from "./tip.ts";
  *
  * Present only from the height this instance's node subscribed to the
  * `state_writes` observer key. Reads ride the `(block_height, ordinal)`
- * primary key; no other index.
+ * primary key; `tx_context` looks each writing tx up through
+ * `transactions_block_height_idx` within its own block.
  */
 export const STATE_WRITES_FILTERS = [
 	"limit",
@@ -30,7 +31,20 @@ export const STATE_WRITES_FILTERS = [
 	"from_height",
 	"to_height",
 	"block_height",
+	"contract_id",
+	"tx_context",
 ] as const;
+
+/** The writing transaction, joined when the read passed `tx_context=true`.
+ *  Null fields for block-level writes. */
+export type StateWriteTxContext = {
+	tx_id: string | null;
+	tx_sender: string | null;
+	tx_type: string | null;
+	tx_status: string | null;
+	tx_contract_id: string | null;
+	tx_function_name: string | null;
+};
 
 export type IndexStateWrite = {
 	cursor: string;
@@ -40,7 +54,7 @@ export type IndexStateWrite = {
 	tx_index: number | null;
 	key: string;
 	value_hex: string;
-};
+} & Partial<StateWriteTxContext>;
 
 export type StateWritesResponse = {
 	state_writes: IndexStateWrite[];
@@ -55,6 +69,10 @@ export type ReadStateWritesParams = {
 	fromHeight: number;
 	toHeight: number;
 	limit: number;
+	/** Only the data map and data var writes of this contract. */
+	contractId?: string;
+	/** Join the writing transaction onto each row. */
+	txContext?: boolean;
 	db?: Kysely<Database>;
 };
 
@@ -73,16 +91,38 @@ type StateWriteRow = {
 	tx_index: string | number | null;
 	key: string;
 	value_hex: string;
-};
+} & Partial<StateWriteTxContext>;
 
-/** Canonical `state_writes` in `(block_height, ordinal)` order. */
-export async function readStateWrites(
-	params: ReadStateWritesParams,
-): Promise<ReadStateWritesResult> {
-	if (params.toHeight < params.fromHeight) {
-		return { state_writes: [], next_cursor: null };
-	}
-	const db = params.db ?? getSourceDb();
+/** `<principal>.<contract-name>`, nothing else: the filter is a key prefix. */
+const CONTRACT_ID = /^S[0-9A-Z]{1,40}\.[a-zA-Z][a-zA-Z0-9_-]{0,127}$/;
+
+/**
+ * Every key a contract's data maps and vars live under (`vm::<c>::0::…`,
+ * `vm::<c>::1::…`, and its FT/NFT keys). `starts_with`, not LIKE: `_` in a
+ * contract name would be a wildcard.
+ */
+function contractKeyPrefix(contractId: string): string {
+	return `vm::${contractId}::`;
+}
+
+/** The tx at `(block_height, tx_index)`, looked up inside the write's own
+ *  block (one `transactions_block_height_idx` probe per block). */
+const TX_CONTEXT_JOIN = sql`
+	LEFT JOIN LATERAL (
+		SELECT t.tx_id, t.sender AS tx_sender, t.type AS tx_type,
+			t.status AS tx_status, t.contract_id AS tx_contract_id,
+			t.function_name AS tx_function_name
+		FROM transactions t
+		WHERE t.block_height = sw.block_height AND t.tx_index = sw.tx_index
+		LIMIT 1
+	) tx ON true`;
+
+const TX_CONTEXT_COLUMNS = sql`, tx.tx_id, tx.tx_sender, tx.tx_type, tx.tx_status, tx.tx_contract_id, tx.tx_function_name`;
+
+/** The page query, exported so a test can EXPLAIN it. */
+export function stateWritesQuery(
+	params: Omit<ReadStateWritesParams, "db">,
+): RawBuilder<StateWriteRow> {
 	const predicates: RawBuilder<unknown>[] = [
 		sql`b.canonical = true`,
 		sql`sw.block_height >= ${params.fromHeight}`,
@@ -93,15 +133,32 @@ export async function readStateWrites(
 			sql`(sw.block_height, sw.ordinal) > (${params.after.block_height}, ${params.after.event_index})`,
 		);
 	}
-
-	const { rows } = await sql<StateWriteRow>`
+	if (params.contractId) {
+		predicates.push(
+			sql`starts_with(sw.key, ${contractKeyPrefix(params.contractId)})`,
+		);
+	}
+	return sql<StateWriteRow>`
 		SELECT sw.block_height, sw.ordinal, sw.tx_index, sw.key, sw.value_hex
+			${params.txContext ? TX_CONTEXT_COLUMNS : sql``}
 		FROM state_writes sw
 		INNER JOIN blocks b ON b.height = sw.block_height
+		${params.txContext ? TX_CONTEXT_JOIN : sql``}
 		WHERE ${sql.join(predicates, sql` AND `)}
 		ORDER BY sw.block_height ASC, sw.ordinal ASC
 		LIMIT ${params.limit}
-	`.execute(db);
+	`;
+}
+
+/** Canonical `state_writes` in `(block_height, ordinal)` order. */
+export async function readStateWrites(
+	params: ReadStateWritesParams,
+): Promise<ReadStateWritesResult> {
+	if (params.toHeight < params.fromHeight) {
+		return { state_writes: [], next_cursor: null };
+	}
+	const db = params.db ?? getSourceDb();
+	const { rows } = await stateWritesQuery(params).execute(db);
 
 	const stateWrites = rows.map((row): IndexStateWrite => {
 		const blockHeight = Number(row.block_height);
@@ -116,12 +173,64 @@ export async function readStateWrites(
 			tx_index: row.tx_index === null ? null : Number(row.tx_index),
 			key: row.key,
 			value_hex: row.value_hex,
+			...(params.txContext
+				? {
+						tx_id: row.tx_id ?? null,
+						tx_sender: row.tx_sender ?? null,
+						tx_type: row.tx_type ?? null,
+						tx_status: row.tx_status ?? null,
+						tx_contract_id: row.tx_contract_id ?? null,
+						tx_function_name: row.tx_function_name ?? null,
+					}
+				: {}),
 		};
 	});
 	return {
 		state_writes: stateWrites,
 		next_cursor: stateWrites.at(-1)?.cursor ?? null,
 	};
+}
+
+/**
+ * One canonical block's writes, whole and in ordinal order: what
+ * `/v1/proofs/writes/{height}` serves for naming a block's diff. Empty when
+ * the block is not canonical or this node never delivered its writes.
+ */
+export async function readBlockStateWrites(
+	height: number,
+	db: Kysely<Database> = getSourceDb(),
+): Promise<Omit<IndexStateWrite, "cursor" | "block_height">[]> {
+	const { rows } = await sql<StateWriteRow>`
+		SELECT sw.ordinal, sw.tx_index, sw.key, sw.value_hex
+		FROM state_writes sw
+		INNER JOIN blocks b ON b.height = sw.block_height
+		WHERE sw.block_height = ${height} AND b.canonical = true
+		ORDER BY sw.ordinal ASC
+	`.execute(db);
+	return rows.map((row) => ({
+		ordinal: Number(row.ordinal),
+		tx_index: row.tx_index === null ? null : Number(row.tx_index),
+		key: row.key,
+		value_hex: row.value_hex,
+	}));
+}
+
+/** `contract_id` and `tx_context`, validated. */
+export function parseStateWritesFilters(query: URLSearchParams): {
+	contractId?: string;
+	txContext: boolean;
+} {
+	const contractId = query.get("contract_id") ?? undefined;
+	if (contractId !== undefined && !CONTRACT_ID.test(contractId)) {
+		throw new ValidationError(
+			"contract_id must be one contract principal, <address>.<contract-name>",
+		);
+	}
+	const raw = query.get("tx_context");
+	if (raw !== null && raw !== "true" && raw !== "false") {
+		throw new ValidationError("tx_context must be true or false");
+	}
+	return { contractId, txContext: raw === "true" };
 }
 
 /**
@@ -159,6 +268,7 @@ export async function getStateWritesResponse(opts: {
 	readStateWrites?: StateWritesReader;
 	readReorgs?: StreamsReorgsReader;
 }): Promise<StateWritesResponse> {
+	const filters = parseStateWritesFilters(opts.query);
 	// Writes land with the block: no decoder, so the source tip bounds them.
 	const tip = indexSourceWindowTip(opts.tip);
 	const base = parseIndexBaseQuery(opts.query, tip);
@@ -182,6 +292,7 @@ export async function getStateWritesResponse(opts: {
 		fromHeight: base.fromHeight,
 		toHeight: base.toHeight,
 		limit: base.limit,
+		...filters,
 	});
 
 	let span: IndexCursorInput[] = result.state_writes.map((row) => ({

@@ -446,3 +446,69 @@ describe("proofs mounted on the app", () => {
 		expect(res.status).toBe(200);
 	});
 });
+
+describe("state writes for naming a block's diff", () => {
+	const WRITES = [
+		{
+			ordinal: 0,
+			tx_index: null,
+			key: "__MARF_BLOCK_HEIGHT_SELF",
+			value_hex: "00",
+		},
+		{ ordinal: 1, tx_index: 0, key: "vm::SP.store::1::k", value_hex: "3031" },
+	];
+	const reads: number[] = [];
+	const readBlockWrites = async (height: number) => {
+		reads.push(height);
+		return height === 9137005 ? WRITES : [];
+	};
+
+	beforeEach(() => {
+		reads.length = 0;
+	});
+
+	test("serves the whole block's writes in ordinal order, short-cached", async () => {
+		const res = await get("/v1/proofs/writes/9137005", undefined, {
+			readBlockWrites,
+		});
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			block_height: 9137005,
+			state_writes: WRITES,
+		});
+		expect(res.headers.get("cache-control")).toBe(MUTABLE_CACHE_CONTROL);
+		expect(reads).toEqual([9137005]);
+	});
+
+	test("a block this node has no writes for is a 404, so a verifier degrades to unnamed", async () => {
+		const res = await get("/v1/proofs/writes/9137006", undefined, {
+			readBlockWrites,
+		});
+		expect(res.status).toBe(404);
+		expect(((await res.json()) as { code: string }).code).toBe("NOT_FOUND");
+	});
+
+	test("a malformed height never reaches the database", async () => {
+		for (const path of ["/v1/proofs/writes/12a", "/v1/proofs/writes/1?x=1"]) {
+			const res = await get(path, undefined, { readBlockWrites });
+			expect(res.status).toBe(400);
+		}
+		expect(reads).toEqual([]);
+	});
+
+	test("hosted reads take the default proofs bucket", async () => {
+		process.env.INSTANCE_MODE = "platform";
+		const { limit } = PROOFS_RATE_LIMITS.default;
+		for (let i = 0; i < limit; i++) {
+			const res = await get("/v1/proofs/writes/9137005", FREE_KEY, {
+				readBlockWrites,
+			});
+			expect(res.status).toBe(200);
+			expect(res.headers.get("x-ratelimit-limit")).toBe(String(limit));
+		}
+		const limited = await get("/v1/proofs/writes/9137005", FREE_KEY, {
+			readBlockWrites,
+		});
+		expect(limited.status).toBe(429);
+	});
+});

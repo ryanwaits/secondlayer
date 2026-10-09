@@ -2563,6 +2563,48 @@
 					"value_hex": {
 						"type": "string",
 						"description": "The value written, hex as the node sent it."
+					},
+					"tx_id": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Writing transaction's id. Only with `tx_context=true`; null for block-level writes."
+					},
+					"tx_sender": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Writing transaction's sender. Only with `tx_context=true`."
+					},
+					"tx_type": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Writing transaction's type. Only with `tx_context=true`."
+					},
+					"tx_status": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Writing transaction's status. Only with `tx_context=true`."
+					},
+					"tx_contract_id": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Contract the writing transaction called or deployed. Only with `tx_context=true`."
+					},
+					"tx_function_name": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Function the writing transaction called. Only with `tx_context=true`."
 					}
 				},
 				"example": {
@@ -8435,6 +8477,66 @@
 					"parent_block_id": "d281730546550e66a5b734c49cba0867c3e379c6d39f7e819be44c64a9c03b9f"
 				}
 			},
+			"BlockStateWrites": {
+				"title": "Block state writes",
+				"type": "object",
+				"description": "One block's MARF writes, whole, in write order.",
+				"required": [
+					"block_height",
+					"state_writes"
+				],
+				"properties": {
+					"block_height": {
+						"type": "integer",
+						"description": "Stacks block height."
+					},
+					"state_writes": {
+						"type": "array",
+						"description": "Every write of the block, ordinal 0 first.",
+						"items": {
+							"type": "object",
+							"required": [
+								"ordinal",
+								"tx_index",
+								"key",
+								"value_hex"
+							],
+							"properties": {
+								"ordinal": {
+									"type": "integer",
+									"description": "Position in the block's write order, from 0."
+								},
+								"tx_index": {
+									"type": [
+										"integer",
+										"null"
+									],
+									"description": "The writing transaction's index in the block; null for block-level writes."
+								},
+								"key": {
+									"type": "string",
+									"description": "The full MARF key."
+								},
+								"value_hex": {
+									"type": "string",
+									"description": "Hex of the stored value string's UTF-8 bytes, as the node sent it."
+								}
+							}
+						}
+					}
+				},
+				"example": {
+					"block_height": 9137005,
+					"state_writes": [
+						{
+							"ordinal": 0,
+							"tx_index": 0,
+							"key": "vm::SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-vault-v2-01::1::paused",
+							"value_hex": "3033"
+						}
+					]
+				}
+			},
 			"MarfProof": {
 				"title": "MARF proof",
 				"type": "object",
@@ -11062,6 +11164,24 @@
 							"type": "integer"
 						},
 						"description": "Read one block: the same as `from_height` and `to_height` both set to it, which it excludes. A cursor with it must sit at that height."
+					},
+					{
+						"name": "contract_id",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "One contract, `<address>.<contract-name>`: only keys under `vm::<contract_id>::` (its data maps, data vars and token balances). Exact, no wildcards."
+					},
+					{
+						"name": "tx_context",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "boolean"
+						},
+						"description": "`true` adds the writing transaction's `tx_id`, `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id` and `tx_function_name` to each row; null for block-level writes."
 					}
 				],
 				"responses": {
@@ -15845,6 +15965,97 @@
 					},
 					"404": {
 						"description": "The node has no epoch 2.x block with that `index_block_hash`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limited; retry after `Retry-After` seconds",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "The node or proof sidecar could not be reached, or answered with an unexpected status (`PROOF_SOURCE_ERROR`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/proofs/writes/{height}": {
+			"get": {
+				"operationId": "getBlockStateWrites",
+				"tags": [
+					"proofs"
+				],
+				"summary": "State writes of a block",
+				"description": "Every MARF write the canonical block at `height` committed, in the node's write order, from this instance's indexed `state_writes`: the names a verifier needs to label each written leaf of the block's witness. A write the witness does not hold, or a leaf no write names, fails that check, so the rows are checked, not trusted. 404 when the instance has no writes for the block (its node did not subscribe to `state_writes` at that height); verifiers then report the diff unnamed. Near the tip the block at a height can change, so this is short-cached. Free: never metered, never refused for credits. Bytes are passed through unchanged; verify them, do not trust them.",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "height",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "integer",
+							"minimum": 0,
+							"example": 9137005
+						},
+						"description": "Stacks block height."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The block's writes",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/BlockStateWrites"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "A path or query parameter is malformed (`VALIDATION_ERROR`): hashes must be exact-length hex, heights non-negative integers",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No `state_writes` for a canonical block at that height",
 						"content": {
 							"application/json": {
 								"schema": {

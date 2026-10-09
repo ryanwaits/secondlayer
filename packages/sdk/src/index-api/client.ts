@@ -503,6 +503,14 @@ export type IndexStateWrite = {
 	/** Full MARF key, e.g. `vm::<contract>::0::map::<hex>`. */
 	key: string;
 	value_hex: string;
+	/** The writing transaction, present only when `txContext: true` was
+	 *  passed; null for block-level writes. */
+	tx_id?: string | null;
+	tx_sender?: string | null;
+	tx_type?: string | null;
+	tx_status?: string | null;
+	tx_contract_id?: string | null;
+	tx_function_name?: string | null;
 };
 
 export type StateWritesEnvelope = {
@@ -521,6 +529,10 @@ export type StateWritesListParams = {
 	toHeight?: number;
 	/** One block. Excludes `fromHeight`/`toHeight`; a cursor must sit at it. */
 	blockHeight?: number;
+	/** One contract (`<address>.<name>`): only keys under `vm::<contractId>::`. */
+	contractId?: string;
+	/** Join the writing transaction's `tx_*` fields onto each row. */
+	txContext?: boolean;
 };
 
 export type StateWritesWalkParams = Omit<StateWritesListParams, "limit"> &
@@ -2279,6 +2291,8 @@ export class Index extends BaseClient {
 			`/v1/index/state-writes${buildQuery({
 				...indexPageQuery(params),
 				block_height: params.blockHeight,
+				contract_id: params.contractId,
+				tx_context: params.txContext ? "true" : undefined,
 			})}`,
 			undefined,
 			{ signal: params.signal },

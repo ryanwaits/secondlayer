@@ -334,6 +334,10 @@
 				"title": "The Bitcoin headers object"
 			},
 			{
+				"anchor": "block-state-writes-object",
+				"title": "The Block state writes object"
+			},
+			{
 				"anchor": "marf-proof-object",
 				"title": "The MARF proof object"
 			}
@@ -368,6 +372,11 @@
 				"anchor": "get-epoch2-header",
 				"method": "GET",
 				"title": "Epoch 2.x block header by id"
+			},
+			{
+				"anchor": "get-block-state-writes",
+				"method": "GET",
+				"title": "State writes of a block"
 			},
 			{
 				"anchor": "get-marf-proof",

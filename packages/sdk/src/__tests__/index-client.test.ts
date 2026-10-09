@@ -312,6 +312,18 @@ describe("SecondLayer Index client", () => {
 		expect(requests[0]?.headers.get("Authorization")).toBe("Bearer sk-test");
 		expect(response.state_writes[0]?.tx_index).toBeNull();
 		expect(response.reorgs).toEqual([]);
+		expect(url.searchParams.has("contract_id")).toBe(false);
+		expect(url.searchParams.has("tx_context")).toBe(false);
+
+		await client.index.stateWrites.list({
+			fromHeight: 100,
+			toHeight: 200,
+			contractId: "SP1.vault",
+			txContext: true,
+		});
+		const scoped = new URL(requests[1]?.url ?? "");
+		expect(scoped.searchParams.get("contract_id")).toBe("SP1.vault");
+		expect(scoped.searchParams.get("tx_context")).toBe("true");
 	});
 
 	test("walks one block's state writes without a clashing from_height", async () => {

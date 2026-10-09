@@ -206,6 +206,24 @@ export const proofsPaths = {
 			),
 		},
 	},
+	"/v1/proofs/writes/{height}": {
+		get: {
+			tags: ["proofs"],
+			summary: "State writes of a block",
+			description: `Every MARF write the canonical block at \`height\` committed, in the node's write order, from this instance's indexed \`state_writes\`: the names a verifier needs to label each written leaf of the block's witness. A write the witness does not hold, or a leaf no write names, fails that check, so the rows are checked, not trusted. 404 when the instance has no writes for the block (its node did not subscribe to \`state_writes\` at that height); verifiers then report the diff unnamed. Near the tip the block at a height can change, so this is short-cached. ${FREE}`,
+			security: READ_SECURITY,
+			parameters: [
+				{
+					...pp("height", "Stacks block height."),
+					schema: { type: "integer", minimum: 0, example: 9137005 },
+				},
+			],
+			responses: responses(
+				json200(ref("BlockStateWrites"), "The block's writes"),
+				"No `state_writes` for a canonical block at that height",
+			),
+		},
+	},
 	"/v1/proofs/marf/{path}": {
 		get: {
 			tags: ["proofs"],
@@ -317,6 +335,50 @@ export const proofsSchemas = {
 			},
 		},
 		example: EPOCH2_HEADER_EXAMPLE,
+	},
+	BlockStateWrites: {
+		type: "object",
+		description: "One block's MARF writes, whole, in write order.",
+		required: ["block_height", "state_writes"],
+		properties: {
+			block_height: { type: "integer", description: "Stacks block height." },
+			state_writes: {
+				type: "array",
+				description: "Every write of the block, ordinal 0 first.",
+				items: {
+					type: "object",
+					required: ["ordinal", "tx_index", "key", "value_hex"],
+					properties: {
+						ordinal: {
+							type: "integer",
+							description: "Position in the block's write order, from 0.",
+						},
+						tx_index: {
+							type: ["integer", "null"],
+							description:
+								"The writing transaction's index in the block; null for block-level writes.",
+						},
+						key: { type: "string", description: "The full MARF key." },
+						value_hex: {
+							type: "string",
+							description:
+								"Hex of the stored value string's UTF-8 bytes, as the node sent it.",
+						},
+					},
+				},
+			},
+		},
+		example: {
+			block_height: 9137005,
+			state_writes: [
+				{
+					ordinal: 0,
+					tx_index: 0,
+					key: "vm::SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-vault-v2-01::1::paused",
+					value_hex: "3033",
+				},
+			],
+		},
 	},
 	MarfProof: {
 		type: "object",

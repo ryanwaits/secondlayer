@@ -383,6 +383,18 @@ export const indexPaths = {
 					false,
 					"Read one block: the same as `from_height` and `to_height` both set to it, which it excludes. A cursor with it must sit at that height.",
 				),
+				qp(
+					"contract_id",
+					"string",
+					false,
+					"One contract, `<address>.<contract-name>`: only keys under `vm::<contract_id>::` (its data maps, data vars and token balances). Exact, no wildcards.",
+				),
+				qp(
+					"tx_context",
+					"boolean",
+					false,
+					"`true` adds the writing transaction's `tx_id`, `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id` and `tx_function_name` to each row; null for block-level writes.",
+				),
 			],
 			responses: envelope("state_writes", ref("StateWrite")),
 		},
@@ -1063,6 +1075,35 @@ export const indexSchemas = {
 			value_hex: {
 				type: "string",
 				description: "The value written, hex as the node sent it.",
+			},
+			tx_id: {
+				type: ["string", "null"],
+				description:
+					"Writing transaction's id. Only with `tx_context=true`; null for block-level writes.",
+			},
+			tx_sender: {
+				type: ["string", "null"],
+				description:
+					"Writing transaction's sender. Only with `tx_context=true`.",
+			},
+			tx_type: {
+				type: ["string", "null"],
+				description: "Writing transaction's type. Only with `tx_context=true`.",
+			},
+			tx_status: {
+				type: ["string", "null"],
+				description:
+					"Writing transaction's status. Only with `tx_context=true`.",
+			},
+			tx_contract_id: {
+				type: ["string", "null"],
+				description:
+					"Contract the writing transaction called or deployed. Only with `tx_context=true`.",
+			},
+			tx_function_name: {
+				type: ["string", "null"],
+				description:
+					"Function the writing transaction called. Only with `tx_context=true`.",
 			},
 		},
 		// The observer contract fixture (indexer/test/fixtures/observer), verbatim.

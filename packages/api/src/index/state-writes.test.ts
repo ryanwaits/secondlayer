@@ -6,7 +6,7 @@ import {
 	expect,
 	test,
 } from "bun:test";
-import { getSourceDb } from "@secondlayer/shared/db";
+import { getSourceDb, sql } from "@secondlayer/shared/db";
 import {
 	insertChainReorg,
 	readChainReorgsForRange,
@@ -19,8 +19,10 @@ import {
 	type ReadStateWritesParams,
 	type StateWritesReader,
 	getStateWritesResponse,
+	readBlockStateWrites,
 	readStateWrites,
 	resolveStateWritesQuery,
+	stateWritesQuery,
 } from "./state-writes.ts";
 import type { IndexTip } from "./tip.ts";
 
@@ -196,6 +198,31 @@ describe("GET /v1/index/state-writes", () => {
 		expect(res.status).toBe(400);
 	});
 
+	test("contract_id and tx_context reach the reader; malformed values are refused", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		let seen: ReadStateWritesParams | undefined;
+		const res = await app(async (p) => {
+			seen = p;
+			return { state_writes: [], next_cursor: null };
+		}).request(
+			`/v1/index/state-writes?block_height=${H}&contract_id=SP000000000000000000002Q6VF78.pox-4&tx_context=true`,
+		);
+		expect(res.status).toBe(200);
+		expect(seen?.contractId).toBe("SP000000000000000000002Q6VF78.pox-4");
+		expect(seen?.txContext).toBe(true);
+		for (const bad of [
+			"contract_id=SP000000000000000000002Q6VF78",
+			"contract_id=SP000000000000000000002Q6VF78.pox-*",
+			"contract_id=SP1.a,SP2.b",
+			"tx_context=yes",
+		]) {
+			const refused = await app(ONE_PAGE).request(
+				`/v1/index/state-writes?block_height=${H}&${bad}`,
+			);
+			expect(refused.status).toBe(400);
+		}
+	});
+
 	test("hosted reads need an account key", async () => {
 		process.env.INSTANCE_MODE = "platform";
 		const res = await app(ONE_PAGE).request(
@@ -218,6 +245,10 @@ describe.skipIf(!HAS_DB)("state_writes read", () => {
 		if (!db) return;
 		await db
 			.deleteFrom("state_writes")
+			.where("block_height", "in", HEIGHTS)
+			.execute();
+		await db
+			.deleteFrom("transactions")
 			.where("block_height", "in", HEIGHTS)
 			.execute();
 		await db.deleteFrom("blocks").where("height", "in", HEIGHTS).execute();
@@ -390,5 +421,135 @@ describe.skipIf(!HAS_DB)("state_writes read", () => {
 		} finally {
 			await db.deleteFrom("chain_reorgs").where("id", "=", reorg.id).execute();
 		}
+	});
+
+	const VAULT = "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm_vault";
+	// `_` is a LIKE wildcard: a LIKE filter on VAULT would match this one too.
+	const LOOKALIKE = "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.ammXvault";
+
+	async function seedKeyed(rows: Array<[number, number | null, string]>) {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("state_writes")
+			.values(
+				rows.map(([ordinal, tx_index, key]) => ({
+					block_height: H,
+					ordinal,
+					tx_index,
+					key,
+					value_hex: "3031",
+				})),
+			)
+			.execute();
+	}
+
+	async function seedTx(tx_index: number, tx_id: string) {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("transactions")
+			.values({
+				tx_id,
+				block_height: H,
+				tx_index,
+				type: "contract_call",
+				sender: "SP000000000000000000002Q6VF78",
+				status: "success",
+				contract_id: VAULT,
+				function_name: "swap",
+				raw_tx: "0x00",
+			})
+			.execute();
+	}
+
+	test("contract_id keeps one contract's keys, never a LIKE lookalike", async () => {
+		await seedBlocks();
+		await seedKeyed([
+			[0, 0, `vm::${VAULT}::0::reserve::0100`],
+			[1, 0, `vm::${LOOKALIKE}::0::reserve::0100`],
+			[2, null, `vm::${VAULT}::1::paused`],
+			[3, 0, "vm-account::SP000000000000000000002Q6VF78::stx"],
+		]);
+		const page = await read({ contractId: VAULT });
+		expect(page.state_writes.map((r) => r.ordinal)).toEqual([0, 2]);
+	});
+
+	test("tx_context joins the writing tx; a block-level write gets null tx fields", async () => {
+		await seedBlocks();
+		await seedTx(0, "0xsw-tx-0");
+		await seedTx(1, "0xsw-tx-1");
+		await seedKeyed([
+			[0, 1, `vm::${VAULT}::1::a`],
+			[1, null, `vm::${VAULT}::1::b`],
+		]);
+		const page = await read({ contractId: VAULT, txContext: true });
+		expect(page.state_writes.map(({ cursor, ...r }) => r)).toEqual([
+			{
+				block_height: H,
+				ordinal: 0,
+				tx_index: 1,
+				key: `vm::${VAULT}::1::a`,
+				value_hex: "3031",
+				tx_id: "0xsw-tx-1",
+				tx_sender: "SP000000000000000000002Q6VF78",
+				tx_type: "contract_call",
+				tx_status: "success",
+				tx_contract_id: VAULT,
+				tx_function_name: "swap",
+			},
+			{
+				block_height: H,
+				ordinal: 1,
+				tx_index: null,
+				key: `vm::${VAULT}::1::b`,
+				value_hex: "3031",
+				tx_id: null,
+				tx_sender: null,
+				tx_type: null,
+				tx_status: null,
+				tx_contract_id: null,
+				tx_function_name: null,
+			},
+		]);
+		// Without the flag, no tx fields at all.
+		expect(Object.keys((await read()).state_writes[0] ?? {})).not.toContain(
+			"tx_id",
+		);
+	});
+
+	test("the tx_context join finds each tx through the block_height index", async () => {
+		if (!db) throw new Error("missing db");
+		const plan = await db.transaction().execute(async (trx) => {
+			// Tiny CI tables favour a seq scan; forbid it to see whether the
+			// index can serve the join at all.
+			await sql`SET LOCAL enable_seqscan = off`.execute(trx);
+			const query = stateWritesQuery({
+				fromHeight: H,
+				toHeight: H,
+				limit: 1000,
+				contractId: VAULT,
+				txContext: true,
+			});
+			const { rows } = await sql<{
+				"QUERY PLAN": string;
+			}>`EXPLAIN ${query}`.execute(trx);
+			return rows.map((r) => r["QUERY PLAN"]).join("\n");
+		});
+		expect(plan).toMatch(
+			/Index (Only )?Scan using transactions_block_height_idx on transactions/,
+		);
+	});
+
+	test("a whole block for the proofs route: ordinal order, canonical only", async () => {
+		await seedBlocks({ [H + 1]: false });
+		await seedWrites([
+			[H, 1, 0],
+			[H, 0, null],
+			[H + 1, 0, 0],
+		]);
+		expect(
+			(await readBlockStateWrites(H, db ?? undefined)).map((r) => r.ordinal),
+		).toEqual([0, 1]);
+		expect(await readBlockStateWrites(H + 1, db ?? undefined)).toEqual([]);
+		expect(await readBlockStateWrites(H + 2, db ?? undefined)).toEqual([]);
 	});
 });

@@ -12,6 +12,7 @@ import {
 	type IndexTokenStore,
 	indexBearerAuth,
 } from "../index/auth.ts";
+import { readBlockStateWrites } from "../index/state-writes.ts";
 import { validateQueryParams } from "../middleware/validation.ts";
 import { parseNonNegativeInteger } from "../parse-query.ts";
 
@@ -26,6 +27,9 @@ import { parseNonNegativeInteger } from "../parse-query.ts";
  *     those routes.
  *   - the Stacks node RPC (`STACKS_NODE_RPC_URL`, the node the API already
  *     reads): signed blocks, epoch 2.x headers and MARF inclusion proofs.
+ *
+ * Plus one read of the indexer's own `state_writes`: the names of a block's
+ * writes, which a client checks against that block's witness.
  *
  * Free: never metered, never refused for credits. Auth is the read-plane
  * rule (any account key hosted; loopback-open / instance token self-hosted).
@@ -51,6 +55,8 @@ export type ProofsRouterOptions = {
 	/** Read per request so the operator's env is authoritative at call time. */
 	sidecarUrl?: () => string | undefined;
 	nodeRpcUrl?: () => string;
+	/** One canonical block's `state_writes`, in ordinal order. */
+	readBlockWrites?: typeof readBlockStateWrites;
 };
 
 type Bucket = keyof typeof PROOFS_RATE_LIMITS;
@@ -311,6 +317,27 @@ export function createProofsRouter(opts: ProofsRouterOptions = {}) {
 			timeoutMs: NODE_TIMEOUT_MS,
 			contentType: "application/json",
 			cache: IMMUTABLE_CACHE_CONTROL,
+		});
+	});
+
+	router.get("/writes/:height", limited, async (c) => {
+		validateQueryParams(new URL(c.req.url).searchParams, []);
+		const height = parseNonNegativeInteger(c.req.param("height"), "height");
+		const read = opts.readBlockWrites ?? readBlockStateWrites;
+		const writes = await read(height);
+		// Every block writes at least its MARF bookkeeping, so no rows means
+		// this node never delivered the block's writes (or it is not canonical).
+		if (writes.length === 0) {
+			return errorResponse(
+				c,
+				404,
+				"NOT_FOUND",
+				"no state_writes for a canonical block at that height",
+			);
+		}
+		// The canonical block at a height can change until it is final.
+		return c.json({ block_height: height, state_writes: writes }, 200, {
+			"cache-control": MUTABLE_CACHE_CONTROL,
 		});
 	});
 
