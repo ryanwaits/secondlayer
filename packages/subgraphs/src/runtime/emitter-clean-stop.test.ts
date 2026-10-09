@@ -120,16 +120,15 @@ describe("stopEmitter waits for in-flight work before resolving", () => {
 			expect(stopElapsedMs).toBeGreaterThanOrEqual(RECEIVER_DELAY_MS - 50);
 
 			// (a) + (b): the delivery row exists by the time stop() resolves —
-			// i.e. the insert happened BEFORE "stopped", never after.
+			// i.e. the insert happened BEFORE "stopped", never after. (Not checked
+			// via `dispatched_at` vs `Date.now()`: that compares the database's
+			// clock with this process's, and a 1ms skew fails it.)
 			const afterStop = await db
 				.selectFrom("webhook_deliveries")
-				.select(["id", "dispatched_at"])
+				.select("id")
 				.where("webhook_id", "=", webhook.id)
 				.execute();
 			expect(afterStop.length).toBe(1);
-			expect(afterStop[0]?.dispatched_at.getTime()).toBeLessThanOrEqual(
-				Date.now(),
-			);
 		} finally {
 			server.stop(true);
 		}
