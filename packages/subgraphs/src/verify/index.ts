@@ -16,6 +16,7 @@ export {
 	replayContracts,
 	replaySubgraph,
 } from "./replay.ts";
+export { loadDeterministicDefinition } from "../runtime/realm.ts";
 export {
 	type RowComparison,
 	type TableComparison,

@@ -230,6 +230,23 @@ export async function getSubgraphSourceApi(
 	return (await getPlatformClient()).subgraphs.getSource(name);
 }
 
+/** One page of a subgraph table over `/v1` (free reads), oldest `_id` first. */
+export async function getSubgraphRowsApi(
+	name: string,
+	table: string,
+	opts: { cursor?: string; limit?: number } = {},
+): Promise<{
+	rows: Record<string, unknown>[];
+	next_cursor: string | null;
+	tip: { block_height: number; subgraph_height: number };
+}> {
+	return (await getPlatformClient()).subgraphs.rows<Record<string, unknown>>(
+		name,
+		table,
+		opts,
+	);
+}
+
 // ── Index ───────────────────────────────────────────────────────────────
 
 /** Empirical per-topic print schema for a contract (anon-ok read; 404 → null). */

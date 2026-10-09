@@ -36,6 +36,7 @@ import {
 } from "../lib/output.ts";
 import { isOssMode } from "../lib/resolve-auth.ts";
 import { attachVerifyBlockCommand } from "./verify-block.ts";
+import { attachVerifySubgraphCommand } from "./verify-subgraph.ts";
 
 /**
  * `secondlayer verify` — compare local chain data against a signed archive manifest.
@@ -408,8 +409,9 @@ export function registerVerifyCommand(program: Command): void {
 		program
 			.command("verify")
 			.description(
-				"Compare local chain data against a signed archive, or prove one block with `verify block` (read-only)",
+				"Compare local chain data against a signed archive, prove one block with `verify block`, or recompute a subgraph with `verify subgraph --replay` (read-only)",
 			),
 	);
 	attachVerifyBlockCommand(verify);
+	attachVerifySubgraphCommand(verify);
 }
