@@ -47,7 +47,13 @@ Hosted reads of `/v1/index/blocks` are never billed and never return a `402`, ev
 
 ### Subgraphs whose rows anyone can recompute (CLI 19.3)
 
-Every deploy now reports a verification level and a `pin`. A subgraph whose sources are all state writes (`var_set`, `map_*`) is `L2`: its rows can be rebuilt from block headers, so a handler that reads `Date`, `Math.random`, `fetch`, timers or locale formatting is refused with `NONDETERMINISTIC_HANDLER`, naming each use by file, line and column. It then runs in a locked-down realm that rejects the same calls and any non-integer number in a row. Every other subgraph deploys exactly as before and gets the same findings as advice. `pin` hashes the schema, bundled handler, `startBlock`, network and runtime, so a handler-only redeploy changes it. Both show in `secondlayer subgraphs status` and the subgraph detail. Subgraphs deployed earlier show none until redeployed. See [Writing handlers](/docs/subgraphs/handlers#rows-anyone-can-recompute).
+Every deploy now reports a verification level and a `pin`. A subgraph whose sources are all state writes (`var_set`, `map_*`) is level `state`: its rows can be rebuilt from block headers, so a handler that reads `Date`, `Math.random`, `fetch`, timers or locale formatting is refused with `NONDETERMINISTIC_HANDLER`, naming each use by file, line and column. It then runs in a locked-down realm that rejects the same calls and any non-integer number in a row. Event sources are level `events` until event proofs ship; they deploy exactly as before and get the same findings as advice. `pin` hashes the schema, bundled handler, `startBlock`, network and runtime, so a handler-only redeploy changes it. Both show in `secondlayer subgraphs status` and the subgraph detail. Subgraphs deployed earlier show none until redeployed. See [Writing handlers](/docs/subgraphs/handlers#rows-anyone-can-recompute).
+
+If you self-host a subgraph on `var_set` or `map_*` sources whose handler uses one of those calls, it keeps running, but its next redeploy is refused. Take the value from `event`, `ctx.block.timestamp` or `ctx.tx` instead.
+
+### Handler redeploys apply without a restart
+
+A redeploy that changes only the handler (`handler_updated`) now takes effect on the next block. Before, the processor kept running the previous handler until it restarted. Separately, `ctx.findOne` and `ctx.findMany` now return committed rows in insertion order. A `findOne` whose filter matches several rows used to get whichever row Postgres found first, so a handler that depended on that could index differently after a reindex; it now always gets the oldest.
 
 ### Hosted subgraphs, private to your account (CLI 19.1)
 
