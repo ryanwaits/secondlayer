@@ -161,7 +161,7 @@ Prove one Stacks block from the checkpoint built into this release. Nothing else
 
 Usage: `secondlayer verify block <height|index_block_hash> [--node <url>] [--checkpoint <file>] [--rows]` (add `--json` for machine output)
 
-Links, in order: Bitcoin headers from the checkpoint (proof-of-work, retargets) → burn block bound to the block's consensus hash → the cycle's signer set, proven forward from the checkpoint's → signer signatures (≥70% of weight) → state witness against the signed state root → the block's state diff → with `--rows`, the Index API's rows against that diff.
+Links, in order: Bitcoin headers from the checkpoint (proof-of-work, retargets) → burn block bound to the block's consensus hash → the cycle's signer set, proven forward from the checkpoint's → signer signatures (≥70% of weight) → state witness against the signed state root → the block's state diff → with `--rows`, the Index API's rows against that diff. Below the checkpoint an `ancestry` link replaces the Bitcoin and signer links: the block's id is proven from the checkpoint by parent links (within 16 blocks) or one MARF proof of `__MARF_BLOCK_HEIGHT_TO_HASH::<height>`, then its header must hash to that id.
 
 | Flag | Default | Description |
 | --- | --- | --- |

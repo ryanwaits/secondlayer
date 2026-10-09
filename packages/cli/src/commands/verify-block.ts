@@ -45,6 +45,7 @@ export interface VerifyBlockDeps {
 
 /** The chain of links, in the order verifyBlock walks them. */
 const LINKS: { step: VerifyStep; label: string }[] = [
+	{ step: "ancestry", label: "ancestry" },
 	{ step: "block", label: "block" },
 	{ step: "bitcoin", label: "bitcoin" },
 	{ step: "burn", label: "burn" },
@@ -112,7 +113,9 @@ function prepareSource(src: ProofSource): ProofSource {
 			return src.getBitcoinHeaders(from, count);
 		},
 	};
-	const { getStateWrites, getVmEvents } = src;
+	const { getEpoch2Header, getStateWrites, getVmEvents } = src;
+	if (getEpoch2Header)
+		out.getEpoch2Header = (id) => getEpoch2Header.call(src, id);
 	if (getStateWrites)
 		out.getStateWrites = (height) => getStateWrites.call(src, height);
 	if (getVmEvents)
@@ -131,6 +134,18 @@ function linkDetail(
 	rows: boolean,
 ): string {
 	switch (step) {
+		case "ancestry": {
+			const a = r.ancestry;
+			if (!a) return "";
+			const checkpoint = parseNakamotoHeader(unhex(cp.stacks.header));
+			const start =
+				a.fromHeight === Number(checkpoint.chainLength)
+					? `the checkpoint ${n(a.fromHeight)}`
+					: `block ${n(a.fromHeight)}`;
+			return a.via === "marf"
+				? `${n(r.height ?? 0)} proven in the state of ${start} (one MARF proof)`
+				: `${n(r.height ?? 0)} reached from ${start} by parent links`;
+		}
 		case "block":
 			return `${n(r.height ?? 0)}  ${r.blockId}`;
 		case "bitcoin":
@@ -159,6 +174,17 @@ function linkDetail(
 	}
 }
 
+/**
+ * Links a block below the checkpoint skips: its id is pinned by hash from a
+ * trusted descendant, so no signer set or signatures; the burn block is bound
+ * only when the synced Bitcoin chain reaches it.
+ */
+function notNeeded(step: VerifyStep, r: BlockVerification): boolean {
+	if (!r.ancestry) return false;
+	if (step === "bitcoin" || step === "burn") return r.burnHeight === undefined;
+	return step === "signer-set" || step === "signatures";
+}
+
 /** One line per link, then the verdict. */
 function report(
 	r: BlockVerification,
@@ -172,11 +198,19 @@ function report(
 	for (const [i, link] of LINKS.entries()) {
 		const label = link.label.padEnd(LABEL_WIDTH);
 		const failure = r.failures.find((f) => f.step === link.step);
+		// Ancestry is a link only below the checkpoint.
+		if (link.step === "ancestry" && !failure && !r.ancestry) continue;
 		if (failure) writeData(`${red("✗")} ${label}  ${failure.message}`);
 		else if (link.step === "rows" && !rows)
 			writeData(dim(`· ${label}  not checked (pass --rows)`));
 		else if (i > broken)
 			writeData(dim(`· ${label}  not checked: an earlier link is broken`));
+		else if (notNeeded(link.step, r))
+			writeData(
+				dim(
+					`· ${label}  not needed: the block is hash-chained to the checkpoint`,
+				),
+			);
 		else if (link.step === "rows" && r.rowsChecked === undefined)
 			writeData(
 				dim(`· ${label}  not checked: the source serves no indexed rows`),
@@ -277,6 +311,8 @@ export function attachVerifyBlockCommand(verify: Command): Command {
 			"after",
 			`
 What is proven, link by link:
+  ancestry    below the checkpoint only: the block's id, from the checkpoint by
+              parent links or one MARF proof (signer links are then not needed)
   bitcoin     headers from the checkpoint to the block's burn block: proof-of-work and retargets
   burn        the block's consensus hash commits to that Bitcoin block
   cycle       the reward cycle's signer set, proven forward from the checkpoint's set

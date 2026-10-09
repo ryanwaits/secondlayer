@@ -1,8 +1,20 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { hex, parseNakamotoHeader, verifyBlock } from "@secondlayer/verify";
+import {
+	MAINNET_CHECKPOINT,
+	blockId,
+	hex,
+	marfPath,
+	parseNakamotoHeader,
+	unhex,
+	verifyBlock,
+} from "@secondlayer/verify";
+import { heightToHashKey } from "../../../verify/src/marf.ts";
 import { FakeSource, signerChain } from "../../../verify/test/fake-source.ts";
-import { headerFile } from "../../../verify/test/fixtures.ts";
+import { epoch2File, headerFile } from "../../../verify/test/fixtures.ts";
+import { buildHeightProof } from "../../../verify/test/marf-builder.ts";
 import { runVerifyBlock, verificationJson } from "./verify-block.ts";
 
 // Mainnet fixtures from @secondlayer/verify: checkpoint block 8,956,304 (set
@@ -11,6 +23,13 @@ const { checkpoint: B, a: A, h: H } = signerChain;
 const source = () => new FakeSource({ heights: [B, A, H] });
 const parentOf = (id: string) =>
 	hex(parseNakamotoHeader(headerFile(id)).parentBlockId);
+// Mainnet 2.x block 2,000 (witness fixture), and 150,000's header bytes for
+// the synthetic ancestor trie a proof of 2,000's id crosses.
+const B2000 =
+	"113e01ba3dd3e340af346d641e79887628e318e10f259eda0a692bed9f9d2f31";
+const ANCESTOR = epoch2File(
+	"7172a926a42a9356074c71facea8c6450398c97d717fd900884af2bb9102ffa1",
+);
 
 /** Run with stdout and stderr captured. */
 async function run(
@@ -131,6 +150,63 @@ describe("verify block", () => {
 		expect(reads).toEqual([]);
 		await run("9137005", { rows: true }, src);
 		expect(reads).toEqual(["state_writes 9137005", "vm_events 9137005"]);
+	});
+
+	test("a block below the checkpoint shows its ancestry link instead of the signer links", async () => {
+		// Synthetic tip over the checkpoint's bytes whose state names mainnet
+		// 2.x block 2,000 at its height (no source proves __MARF_ keys yet).
+		const p = buildHeightProof({
+			height: 2000,
+			id: B2000,
+			tipBytes: unhex(MAINNET_CHECKPOINT.stacks.header),
+			ancestorBytes: unhex(ANCESTOR.header),
+			ancestorCh: unhex(ANCESTOR.consensus_hash),
+		});
+		const src = new FakeSource();
+		src.marf.set(
+			`${hex(marfPath(heightToHashKey(2000)))}@${hex(blockId(p.tipHeader))}`,
+			{ data: "", proof: p.proof },
+		);
+		src.epoch2.set(p.ancestorId, p.ancestor);
+		const dir = mkdtempSync(join(tmpdir(), "verify-block-"));
+		const checkpoint = join(dir, "checkpoint.json");
+		writeFileSync(
+			checkpoint,
+			JSON.stringify({
+				...MAINNET_CHECKPOINT,
+				stacks: { ...MAINNET_CHECKPOINT.stacks, header: hex(p.tip) },
+			}),
+		);
+		const r = await run("2000", { checkpoint }, src);
+		expect(r.code).toBe(0);
+		const lines = r.stdout.trim().split("\n");
+		expect(lines.slice(0, 6)).toEqual([
+			"✓ ancestry    2,000 proven in the state of the checkpoint 8,956,304 (one MARF proof)",
+			`✓ block       2,000  ${B2000}`,
+			"· bitcoin     not needed: the block is hash-chained to the checkpoint",
+			"· burn        not needed: the block is hash-chained to the checkpoint",
+			"· cycle       not needed: the block is hash-chained to the checkpoint",
+			"· signatures  not needed: the block is hash-chained to the checkpoint",
+		]);
+		expect(lines[6]).toStartWith("✓ state root");
+		expect(lines.at(-1)).toBe(
+			"✓ Block 2,000 is proven. Trusted: only the checkpoint (Stacks 8,956,304, Bitcoin 967,680).",
+		);
+	});
+
+	test("an old block the source cannot tie to the checkpoint exits 2 at the ancestry link", async () => {
+		const r = await run("150000", {}, source());
+		expect(r.code).toBe(2);
+		const lines = r.stdout.trim().split("\n");
+		expect(lines[0]).toStartWith(
+			"✗ ancestry    source has no MARF proof of __MARF_BLOCK_HEIGHT_TO_HASH::150000",
+		);
+		expect(lines[1]).toBe(
+			"· block       not checked: an earlier link is broken",
+		);
+		expect(lines.at(-1)).toBe(
+			"✗ Could not check the ancestry link: the source could not serve it.",
+		);
 	});
 
 	test("bad input exits 2 before any fetch", async () => {
