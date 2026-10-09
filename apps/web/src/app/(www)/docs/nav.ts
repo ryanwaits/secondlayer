@@ -32,6 +32,9 @@ export interface DocsNavGroup {
  *   the decoded primitive on contracts everyone shares, not extra products
  *   and not a catalog. New protocols belong in the operator's consume()
  *   loop or a subgraph. Contract discovery + Chainhook stay in Chain data.
+ * - **Verify** is cross-cutting, not a product noun: one page for everything
+ *   you can check (a transaction, a block, an archive, subgraph rows), with
+ *   the products linking to it instead of restating it.
  * - **Start / Operate / Reference** are onboarding, ops, and lookup.
  *   Library pages for `@secondlayer/stacks` live at stacks.secondlayer.tools.
  */
@@ -86,6 +89,10 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		],
 	},
 	{
+		label: "Verify",
+		items: [{ title: "Verify", href: "/docs/verification" }],
+	},
+	{
 		label: "Channels",
 		items: [
 			{ title: "REST API", href: "/docs/rest-api" },
@@ -112,7 +119,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 	{
 		label: "Operate",
 		items: [
-			{ title: "Verification", href: "/docs/verification" },
 			{
 				title: "Deploy your app",
 				href: "/docs/deploy",
