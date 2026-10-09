@@ -210,19 +210,19 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 
 	"/docs/verification": [
 		card(
-			"Verify a tx proof",
-			"Fetch and recompute a transaction-inclusion proof.",
-			'/secondlayer Help me verify a Stacks transaction is in a block without trusting Secondlayer. Fetch `/v1/index/transactions/<tx_id>/proof`, run `verifyTransactionProof(proof)` from `@secondlayer/sdk` server-side, and explain whether I got `level: "anchored"` vs `"consensus"` and whether `ok` is true.',
+			"Verify a block",
+			"Prove one block from the checkpoint, link by link.",
+			"/secondlayer Run `secondlayer verify block <height>` against my instance and explain each link it prints (bitcoin, burn, cycle, signatures, txs, state root, diff), what the exit code (`0`, `1`, `2`) means, and what is still trusted: only the checkpoint.",
 		),
 		card(
-			"Go fully trustless",
-			"Resolve the reward set from your own node.",
-			'/secondlayer Make my proof verification fully trustless: after fetching the proof, call `fetchRewardSet({ nodeUrl, cycle })` against my own stacks-node, pass it into `verifyTransactionProof(proof, { rewardSet })`, and confirm `rewardSetSource` is `"provided"`.',
+			"Verify in code",
+			"Use @secondlayer/verify from a script.",
+			"/secondlayer Add `@secondlayer/verify` to my project and call `verifyBlock(height, { source })` with a `SecondlayerProofSource`, then switch to a `BlockVerifier` with `NodeRpcProofSource` spread over it so blocks and MARF proofs come from my own node. Throw `result.failures[0].message` when `ok` is false.",
 		),
 		card(
-			"Handle proof errors",
-			"React to 404/503 proof responses.",
-			"/secondlayer Help me handle the proof endpoint's error cases — `404 PROOF_UNAVAILABLE`, the fail-safe `503 PROOF_TX_SET_INCOMPLETE`, and the retryable `503 PROOF_NODE_UNAVAILABLE` — by writing a fetch wrapper that retries the node-unavailable case with backoff.",
+			"Prove a transaction",
+			"Fetch a proof and go fully trustless.",
+			'/secondlayer Fetch `/v1/index/transactions/<tx_id>/proof`, run `verifyTransactionProof(proof)` from `@secondlayer/sdk` server-side, then call `fetchRewardSet({ nodeUrl, cycle })` against my own stacks-node and pass it as `{ rewardSet }` until `rewardSetSource` is `"provided"`. Handle `404 PROOF_UNAVAILABLE` and retry `503 PROOF_NODE_UNAVAILABLE`.',
 		),
 	],
 
