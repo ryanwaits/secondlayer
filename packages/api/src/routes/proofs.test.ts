@@ -25,6 +25,9 @@ import {
 const ID = "ab".repeat(32);
 const CH = "cd".repeat(20);
 const MARF_PATH = "ef".repeat(32);
+/** A path the fake node 404s, as a stock node does `__MARF_*` keys. */
+const INTERNAL_MARF_PATH = "a9".repeat(32);
+const SIDECAR_MARF = { data: `0x${ID}${"00".repeat(8)}`, proof: "0x01ee" };
 const WITNESS = new Uint8Array([0x03, 0x00, 0xff, 0x10, 0x20]);
 const BLOCK = new Uint8Array([0x00, 0x01, 0x02, 0x03]);
 const EPOCH2_HEADER = {
@@ -90,6 +93,9 @@ const sidecar = Bun.serve({
 				preimage: "01".repeat(40),
 			});
 		}
+		if (url.pathname.startsWith("/marf/")) {
+			return Response.json(SIDECAR_MARF);
+		}
 		if (url.pathname === "/bitcoin/headers") {
 			return Response.json({
 				from: Number(url.searchParams.get("from")),
@@ -113,6 +119,9 @@ const node = Bun.serve({
 			return new Response(BLOCK, {
 				headers: { "content-type": "application/octet-stream" },
 			});
+		}
+		if (url.pathname === `/v2/clarity/marf/${INTERNAL_MARF_PATH}`) {
+			return new Response("Marf key hash not found", { status: 404 });
 		}
 		if (url.pathname.startsWith("/v2/clarity/marf/")) {
 			return Response.json({ data: "0x0100", proof: "0x00ff" });
@@ -269,6 +278,47 @@ describe("proofs passthrough (self-hosted, loopback)", () => {
 		expect(res.headers.get("cache-control")).toBe(IMMUTABLE_CACHE_CONTROL);
 		expect(seen).toEqual([
 			`node /v2/clarity/marf/${MARF_PATH}?tip=${ID}&proof=1`,
+		]);
+	});
+
+	test("a MARF key the node 404s is proven by the sidecar, same shape, cached immutable", async () => {
+		const res = await get(
+			`/v1/proofs/marf/${INTERNAL_MARF_PATH}?tip=${ID.toUpperCase()}`,
+		);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual(SIDECAR_MARF);
+		expect(res.headers.get("cache-control")).toBe(IMMUTABLE_CACHE_CONTROL);
+		expect(seen).toEqual([
+			`node /v2/clarity/marf/${INTERNAL_MARF_PATH}?tip=${ID}&proof=1`,
+			`sidecar /marf/${INTERNAL_MARF_PATH}?tip=${ID}`,
+		]);
+	});
+
+	test("a MARF key neither source has is a 404", async () => {
+		sidecarMode = "missing";
+		const res = await get(`/v1/proofs/marf/${INTERNAL_MARF_PATH}?tip=${ID}`);
+		expect(res.status).toBe(404);
+		expect(((await res.json()) as { code: string }).code).toBe("NOT_FOUND");
+		expect(seen).toHaveLength(2);
+	});
+
+	test("a MARF fallback to a busy sidecar is a 503 that keeps its retry-after", async () => {
+		sidecarMode = "busy";
+		const res = await get(`/v1/proofs/marf/${INTERNAL_MARF_PATH}?tip=${ID}`);
+		expect(res.status).toBe(503);
+		expect(res.headers.get("retry-after")).toBe("2");
+	});
+
+	test("without a sidecar, a MARF key the node 404s stays a 404", async () => {
+		const res = await get(
+			`/v1/proofs/marf/${INTERNAL_MARF_PATH}?tip=${ID}`,
+			undefined,
+			{ sidecarUrl: () => undefined },
+		);
+		expect(res.status).toBe(404);
+		expect(((await res.json()) as { code: string }).code).toBe("NOT_FOUND");
+		expect(seen).toEqual([
+			`node /v2/clarity/marf/${INTERNAL_MARF_PATH}?tip=${ID}&proof=1`,
 		]);
 	});
 

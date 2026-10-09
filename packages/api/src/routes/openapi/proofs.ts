@@ -210,7 +210,7 @@ export const proofsPaths = {
 		get: {
 			tags: ["proofs"],
 			summary: "MARF inclusion proof",
-			description: `A value and its MARF inclusion proof as of block \`tip\`, from the node (\`/v2/clarity/marf/{path}?proof=1\`). Fold the proof to a root and compare it with \`tip\`'s \`state_index_root\`. Inclusion only: a missing key is a 404, not a proof of absence. ${FREE}`,
+			description: `A value and its MARF inclusion proof as of block \`tip\`, from the node (\`/v2/clarity/marf/{path}?proof=1\`). Keys the node cannot serve because they hold no stored value string, such as the MARF's own \`__MARF_BLOCK_HEIGHT_TO_HASH::<height>\`, are proven by the proof sidecar from the MARF itself: same proof bytes, and \`data\` is the raw 40-byte leaf value. Fold the proof to a root and compare it with \`tip\`'s \`state_index_root\`. Inclusion only: a missing key is a 404, not a proof of absence. ${FREE}`,
 			security: READ_SECURITY,
 			parameters: [
 				{
@@ -325,7 +325,8 @@ export const proofsSchemas = {
 		properties: {
 			data: {
 				type: "string",
-				description: "The stored value, hex (`0x`-prefixed).",
+				description:
+					"The stored value, hex (`0x`-prefixed). For keys with no stored value (`__MARF_*`), the raw 40-byte leaf value instead.",
 			},
 			proof: {
 				type: "string",

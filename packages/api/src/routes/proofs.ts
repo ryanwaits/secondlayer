@@ -21,8 +21,9 @@ import { parseNonNegativeInteger } from "../parse-query.ts";
  * unchanged from two sources:
  *
  *   - the proof sidecar (`marf-witness serve`, private, beside the node):
- *     state witnesses, consensus-hash preimages, Bitcoin headers.
- *     `PROOF_SIDECAR_URL`; unset → 503 on those routes.
+ *     state witnesses, consensus-hash preimages, Bitcoin headers, and MARF
+ *     proofs the node cannot serve. `PROOF_SIDECAR_URL`; unset → 503 on
+ *     those routes.
  *   - the Stacks node RPC (`STACKS_NODE_RPC_URL`, the node the API already
  *     reads): signed blocks, epoch 2.x headers and MARF inclusion proofs.
  *
@@ -126,6 +127,8 @@ type ProxySpec = {
 	notFound: string;
 	/** Upstream response headers copied onto a 200. */
 	passHeaders?: readonly string[];
+	/** Answers an upstream 404 instead of NOT_FOUND: the next source to try. */
+	onNotFound?: () => Response | Promise<Response>;
 };
 
 /**
@@ -169,7 +172,9 @@ async function proxy(c: Context, url: string, spec: ProxySpec) {
 
 	await upstream.body?.cancel();
 	if (upstream.status === 404) {
-		return errorResponse(c, 404, "NOT_FOUND", spec.notFound);
+		return spec.onNotFound
+			? spec.onNotFound()
+			: errorResponse(c, 404, "NOT_FOUND", spec.notFound);
 	}
 	if (upstream.status === 503) {
 		const retryAfter = upstream.headers.get("retry-after");
@@ -314,11 +319,25 @@ export function createProofsRouter(opts: ProofsRouterOptions = {}) {
 		const path = hash32(c.req.param("path"), "path");
 		const tip = hash32(requiredQuery(c, "tip"), "tip");
 		// Pinned to a tip block, the proof is fixed.
-		return node(c, `/v2/clarity/marf/${path}?tip=${tip}&proof=1`, {
+		const spec = {
 			notFound: "no MARF entry at that path as of tip",
-			timeoutMs: NODE_TIMEOUT_MS,
 			contentType: "application/json",
 			cache: IMMUTABLE_CACHE_CONTROL,
+		} as const;
+		// The node 404s keys with no stored value string, such as the MARF's
+		// own `__MARF_BLOCK_HEIGHT_TO_HASH::<height>`. The sidecar proves any
+		// key from the MARF itself, same proof bytes, `data` the raw leaf value.
+		const fromSidecar = sidecarUrl()
+			? () =>
+					sidecar(c, `/marf/${path}?tip=${tip}`, {
+						...spec,
+						timeoutMs: SIDECAR_TIMEOUT_MS,
+					})
+			: undefined;
+		return node(c, `/v2/clarity/marf/${path}?tip=${tip}&proof=1`, {
+			...spec,
+			timeoutMs: NODE_TIMEOUT_MS,
+			onNotFound: fromSidecar,
 		});
 	});
 
