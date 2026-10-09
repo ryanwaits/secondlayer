@@ -77,7 +77,7 @@ await verifyBlock(9_137_005, { source, rows: true });
 
 - **The checkpoint.** `MAINNET_CHECKPOINT` (Stacks block 8,956,304, cycle 143 signers, Bitcoin block 967,680) is trusted as-is. Pass `checkpoint` to use your own.
 - **Bitcoin heights.** At or above the checkpoint, a block's burn block must be at or above the checkpoint's Bitcoin block. Below the checkpoint the burn block is checked only when it is (with the baked checkpoint it never is); the hash chain pins those blocks instead. Headers are checked for valid work, not compared against a competing chain, and reorgs past the synced tip are not followed.
-- **MARF proofs of `__MARF_*` keys.** The node's `/v2/clarity/marf` (also behind the API's `/v1/proofs/marf`) answers only keys with a stored value string, and these have none. Until a source serves them, blocks more than 16 below a trusted block fail `ancestry` as `unavailable`.
+- **MARF proofs of `__MARF_*` keys.** A node's `/v2/clarity/marf` answers only keys with a stored value string, and these have none. The API's `/v1/proofs/marf` falls back to its proof sidecar for them; with `NodeRpcProofSource` alone, blocks more than 16 below a trusted block fail `ancestry` as `unavailable`.
 - **Epoch 2.x consensus hashes.** A 2.x header commits to its parent's block hash, not its id. The id always comes from a trusted descendant (its header, or a MARF proof), and the source's consensus hash must hash with the header to it. State proofs for 2.x heights are against the anchored block's root, which covers the microblocks it confirms.
 - **Names need `rows: true` and `state_writes`.** Without them every write is still proven, but unnamed; `notes` says so.
 - **Not covered:** print events (Stacks headers don't commit to them) and transaction contents.

@@ -1,9 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
 	BlockVerifier,
+	MAINNET_CHECKPOINT,
 	NodeRpcProofSource,
 	type ProofSource,
 	SecondlayerProofSource,
+	blockId,
+	hex,
+	marfPath,
+	parseNakamotoHeader,
+	unhex,
 } from "../src/index.ts";
 
 // Mainnet blocks below MAINNET_CHECKPOINT (8,956,304), against live sources.
@@ -12,8 +18,9 @@ import {
 //
 // Blocks more than 16 below a trusted block need a MARF proof of
 // `__MARF_BLOCK_HEIGHT_TO_HASH::<height>`. A stock node cannot serve one
-// (`/v2/clarity/marf` answers only keys with a stored value string), so those
-// cases fail at `ancestry` with `unavailable` until the source can.
+// (`/v2/clarity/marf` answers only keys with a stored value string); the API
+// falls back to the proof sidecar's `/marf`. Those cases skip, with the
+// reason logged, while the source answers no such proof.
 const API_KEY = process.env.VERIFY_LIVE_API_KEY;
 const API_URL =
 	process.env.VERIFY_LIVE_API_URL ?? "https://api.secondlayer.tools";
@@ -29,6 +36,28 @@ function liveSource(): ProofSource {
 		: api;
 }
 
+/** Why the source cannot prove `__MARF_*` keys yet, or null when it can. */
+async function marfKeysUnavailable(): Promise<string | null> {
+	const key = "__MARF_BLOCK_HEIGHT_TO_HASH::1113075";
+	const tip = blockId(
+		parseNakamotoHeader(unhex(MAINNET_CHECKPOINT.stacks.header)),
+	);
+	try {
+		const answer = await liveSource().getMarfProof(
+			hex(marfPath(key)),
+			hex(tip),
+		);
+		return answer
+			? null
+			: `the source has no MARF proof of ${key} (proof sidecar /marf not deployed?)`;
+	} catch (err) {
+		return `the source could not prove ${key}: ${(err as Error).message}`;
+	}
+}
+
+const MARF_SKIP = API_KEY ? await marfKeysUnavailable() : null;
+if (MARF_SKIP) console.warn(`skipping live MARF-proof cases: ${MARF_SKIP}`);
+
 describe.if(Boolean(API_KEY))("verifyBlock below the checkpoint (live)", () => {
 	test("8,956,301: three parent links from the checkpoint", async () => {
 		const r = await new BlockVerifier({ source: liveSource() }).verify(8956301);
@@ -36,23 +65,35 @@ describe.if(Boolean(API_KEY))("verifyBlock below the checkpoint (live)", () => {
 		expect(r.ancestry?.via).toBe("parents");
 	}, 60_000);
 
-	test("1,113,075 (Nakamoto): one MARF proof from the checkpoint", async () => {
-		const r = await new BlockVerifier({ source: liveSource() }).verify(1113075);
-		expect(r.failures).toEqual([]);
-		expect(r).toMatchObject({
-			blockId:
-				"4cfffc0ee473d431f919093528e785ebb59813967ce49385c9c3e73cfc0596c0",
-			ancestry: { via: "marf" },
-		});
-	}, 120_000);
+	test.skipIf(Boolean(MARF_SKIP))(
+		"1,113,075 (Nakamoto): one MARF proof from the checkpoint",
+		async () => {
+			const r = await new BlockVerifier({ source: liveSource() }).verify(
+				1113075,
+			);
+			expect(r.failures).toEqual([]);
+			expect(r).toMatchObject({
+				blockId:
+					"4cfffc0ee473d431f919093528e785ebb59813967ce49385c9c3e73cfc0596c0",
+				ancestry: { via: "marf" },
+			});
+		},
+		120_000,
+	);
 
-	test("150,000 (epoch 2.x): one MARF proof, then the 2.x header", async () => {
-		const r = await new BlockVerifier({ source: liveSource() }).verify(150000);
-		expect(r.failures).toEqual([]);
-		expect(r).toMatchObject({
-			blockId:
-				"7172a926a42a9356074c71facea8c6450398c97d717fd900884af2bb9102ffa1",
-			ancestry: { via: "marf" },
-		});
-	}, 120_000);
+	test.skipIf(Boolean(MARF_SKIP))(
+		"150,000 (epoch 2.x): one MARF proof, then the 2.x header",
+		async () => {
+			const r = await new BlockVerifier({ source: liveSource() }).verify(
+				150000,
+			);
+			expect(r.failures).toEqual([]);
+			expect(r).toMatchObject({
+				blockId:
+					"7172a926a42a9356074c71facea8c6450398c97d717fd900884af2bb9102ffa1",
+				ancestry: { via: "marf" },
+			});
+		},
+		120_000,
+	);
 });
