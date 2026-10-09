@@ -39,7 +39,7 @@ COPY packages/bundler/package.json ./packages/bundler/
 COPY packages/scaffold/package.json ./packages/scaffold/
 COPY packages/platform/package.json ./packages/platform/
 COPY packages/bitcoin/package.json ./packages/bitcoin/
-# The cli's workspace devDependency; install fails if it cannot resolve.
+# A cli dependency resolved from the workspace; install fails if it cannot resolve.
 COPY packages/verify/package.json ./packages/verify/
 # Install dependencies
 RUN bun install
