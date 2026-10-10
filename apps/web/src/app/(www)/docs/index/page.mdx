@@ -282,7 +282,7 @@ curl "$SECONDLAYER_API_URL/v1/index/state-writes?block_height=8054704" \
 
 A row is `{ cursor, block_height, ordinal, tx_index, key, value_hex }`: `key` is the chain's storage key, `value_hex` the new value, and `tx_index` is `null` for block-level writes. The cursor is `<block_height>:<ordinal>`. `block_height` reads one block and excludes `from_height`/`to_height`.
 
-Rows exist only from the height your node first sent the `state_writes` observer key. There is no earlier history. On your own box the key needs the forked node image: [Connect your node](/docs/self-host/production#connect-your-node). Rows bill like event rows.
+Rows exist only from the height your node first sent the `state_writes` observer key. There is no earlier history. On your own box the key needs a node build that emits state writes, not yet the stock node. Rows bill like event rows.
 
 ## Decoded protocols
 
