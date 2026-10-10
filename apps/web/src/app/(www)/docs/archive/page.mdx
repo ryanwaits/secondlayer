@@ -13,10 +13,15 @@ Check your chain history against a signed canonical archive, repair what diverge
 | Plan a repair | `secondlayer repair --against <archive>` |
 | Write the repair | `secondlayer repair --against <archive> --apply` |
 | Restore a fresh instance | `secondlayer bootstrap --against <archive>` |
+| Price a hosted fetch | `secondlayer archive quote --against <archive>` |
+| Check from your instance's API | `POST /v1/archive/verify` |
+| Read the archive tip | `secondlayer archive latest` |
 | Read the node attestation | `GET attestations/<digest>/node.json` |
 | Read operational status | `GET status.json` |
 
 `<latest.json>` is the signed pointer. Start there.
+
+`secondlayer verify`, `repair` and `bootstrap` are the same commands as `secondlayer archive verify`, `archive repair` and `archive bootstrap`. Pick either form; the examples here use the short one.
 
 ## Check your data
 
@@ -74,6 +79,34 @@ Equal row counts with differing data means the same heights hold different block
 | `--insecure` | Compare without verifying the signature. Result is unverified. |
 | `--json` | Machine-readable report on stdout. |
 
+### From your instance's API
+
+`POST /v1/archive/verify` runs the same raw-identity check on the instance itself, read-only, with the archive URL in the body. It answers `clean`, `diverged` or `unanchored`, and a failed signature is a `200 unanchored`, never `clean`.
+
+```bash
+curl -X POST "$SECONDLAYER_API_URL/v1/archive/verify" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"against":"https://archive.secondlayer.tools/latest.json","from_block":0,"to_block":99999}'
+```
+
+```ts
+const result = await sl.archive.verify({
+  against: "https://archive.secondlayer.tools/latest.json",
+  fromBlock: 0,
+  toBlock: 99999,
+});
+```
+
+| Body field | Notes |
+| --- | --- |
+| `against` | `https` URL of `latest.json` or a snapshot manifest. Required. |
+| `target` | `raw` (default) or `all`. `decode:<name>` and `subgraph:<name>` answer `unanchored`: only raw datasets have digests here. |
+| `from_block` / `to_block` | Height window. Required once the manifest matches more than 40 ranges, or the call is a `400`. |
+| `insecure`, `public_key_pem` | Same meaning as the CLI flags. |
+
+The tradeoff against the CLI: identity digests only. `--deep` is CLI-only.
+
 ## Repair what diverges
 
 ```bash
@@ -121,7 +154,7 @@ Refuses a database that already holds blocks; use `secondlayer repair` for an ex
 
 ## Credits
 
-Bootstrap, backfill, and reindex fetch from the archive metered per partition bundle, quoted against your balance before anything is charged; verification is free. Buy with `secondlayer credits buy`; packs, balance, and how the quote/confirm flow works: [archive credits](/docs/authentication#archive-credits).
+Bootstrap, backfill, and reindex fetch from the archive metered per partition bundle, quoted against your balance before anything is charged; verification is free. `secondlayer archive quote --against <archive>` prices a fetch without charging; `--from-block`/`--to-block` narrow it, `--flow repair` prices a repair, and it exits `2` when your balance falls short. Buy with `secondlayer credits buy`; packs, balance, and how the quote/confirm flow works: [archive credits](/docs/authentication#archive-credits).
 
 ## What the archive is
 
