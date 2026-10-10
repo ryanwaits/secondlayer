@@ -1,141 +1,24 @@
 # Self-host
 
-The same product on your Postgres: two processes, Postgres and one container. No cluster, no queue. Bring your own node, or bundle one.
+The same product on your Postgres: one container, no cluster, no queue. Bring your own node, or bundle one.
 
-## Quick start
+## What you need
+
+A box with Docker, 4 GB RAM, and the CLI (`bun add -g @secondlayer/cli`). Mainnet full history needs a 600 GB SSD; see [Hardware](/docs/self-host/hardware).
+
+## Start it
 
 ```bash
 secondlayer setup
 ```
 
-One guided command: generates secrets, writes `docker-compose.yml` + `.env`
-into a target directory (`--dir`, default cwd — no manual copy-paste), brings
-the stack up, prints the observer stanza for an external node, restores
-verified history from the archive, and verifies the result. Without a TTY (or
-with `--yes`), it skips the prompts and runs from flags instead:
+One guided command: generates secrets, writes `docker-compose.yml` and `.env` into the current directory, brings the stack up, restores verified history from the archive, and verifies the result. With an external node, it prints the stanza to paste into your node's `Config.toml` ([details](/docs/self-host/production#connect-your-node)).
+
+The API listens on `http://127.0.0.1:3800`. Check it is up:
 
 ```bash
-secondlayer setup --yes \
-  --network mainnet --node-mode external
+curl http://127.0.0.1:3800/health
 ```
-
-`--network` and `--node-mode` are always required in that mode — there's no
-safe default for either. `--against` defaults to the official archive
-(`https://archive.secondlayer.tools/latest.json`); pass `--skip-bootstrap` to
-skip it instead — the index then holds only what your node sends from now on,
-full history only if the node itself syncs from genesis. `--skip-verify` skips
-the post-bootstrap check.
-
-API: `http://127.0.0.1:3800`. Health: `curl http://localhost:3800/health`.
-
-### Advanced / manual setup
-
-The same five steps `setup` runs, one at a time — useful for scripting a
-custom flow or debugging a step in isolation:
-
-```bash
-secondlayer init --network mainnet
-# Copy .env.local secrets into docker/oss/.env
-
-cd docker/oss
-docker compose up -d
-secondlayer observer --mode indexer --endpoint secondlayer:3700
-secondlayer bootstrap --against <manifest>
-secondlayer verify all --against <manifest>
-```
-
-<Callout type="warning" title="No light mode">
-
-No Hiro-REST backfill. Run a node, bundle one, or restore from the [archive](/docs/archive).
-
-</Callout>
-
-## Profiles
-
-| Profile | What runs |
-| --- | --- |
-| default | `postgres` + `secondlayer` (API, ingest, decoder, subgraph, webhooks) |
-| `full-node` | + bundled Stacks node and bitcoind |
-
-```bash
-docker compose --profile full-node up -d
-```
-
-`NODE_MODE` is `external` | `stacks` | `full`. `full` needs `BITCOIN_RPC_PASSWORD` and runs the `full-node` profile above. `stacks` behaves like `external` — bring your own Stacks node — there's no bundled-stacks-only profile, since a bundled node needs Bitcoin data from somewhere and we don't wire a public RPC default for it.
-
-### Connect your node
-
-With `NODE_MODE=external`, this entry in your node's `Config.toml` sends Secondlayer every block.
-
-```toml
-[[events_observer]]
-endpoint = "10.0.0.5:3700"
-events_keys = ["*"]
-timeout_ms = 500
-disable_retries = true
-```
-
-`secondlayer observer --mode signer-shared --endpoint 10.0.0.5:3700` prints it.
-
-| Field | `indexer` | `signer-shared` | Effect |
-| --- | --- | --- | --- |
-| `endpoint` | `host:port` | `host:port` | Where the node posts blocks. No scheme. |
-| `events_keys` | `["*"]` | `["*"]` | Every standard event. Unknown keys stop a stock node from starting. |
-| `timeout_ms` | `2000` | `500` | How long the node waits on each delivery. |
-| `disable_retries` | `false` | `true` | `false` retries until delivered, holding up the node meanwhile. |
-
-Node on another host:
-
-| Setting | Value | Why |
-| --- | --- | --- |
-| `INDEXER_PORT` in `.env` | `10.0.0.5:3700` | The default `127.0.0.1:3700` is unreachable off-box. |
-| `STACKS_NODE_RPC_URL` in `.env` | `http://<node-ip>:20443` | Polled for the tip when pushes stop. |
-| Firewall | `3700` open to the node's IP only | The observer port takes unauthenticated posts. |
-
-<Callout type="warning" title="Signer on the same node">
-
-Use `signer-shared`, so a stalled Secondlayer can't hold up the signer. Tradeoff: a missed block stays a gap until `secondlayer repair` pays [archive credits](/docs/authentication#archive-credits) to fetch it.
-
-</Callout>
-
-## Config
-
-Six required non-secrets, plus one compose derives for you. Secrets come from `secondlayer init`.
-
-| Key | Default | Notes |
-| --- | --- | --- |
-| `NETWORK` | `mainnet` | `mainnet`, `testnet`, `devnet` |
-| `DATABASE_URL` | compose | Injected; one Postgres |
-| `NODE_MODE` | `external` | `external`, `stacks`, `full` |
-| `DATA_DIR` | `/data` | Handler + runtime files |
-| `API_PORT` | `127.0.0.1:3800` | Publish spec for the API port |
-| `INDEXER_PORT` | `127.0.0.1:3700` | Publish spec for the observer port |
-| `API_PUBLISH_ADDR` | compose | Injected from the same `API_PORT` value the port is published with |
-
-Unknown keys and contradictions fail before ingest. From a checkout, `docker compose -f docker/oss/docker-compose.yml --env-file .env.local up -d` brings the stack up; `secondlayer setup` writes its own compose file and `.env` and runs the same command for you.
-
-### Instance token
-
-`secondlayer init` writes `INSTANCE_TOKEN` to `.env.local`. It opens your box. It is not the account key from [Keys and billing](/docs/authentication): never put `sk-sl_*` in `INSTANCE_TOKEN`, or the hex token in `SECONDLAYER_API_KEY`.
-
-| Surface | Credential | Behavior |
-| --- | --- | --- |
-| `/v1` on `127.0.0.1` | none | your Postgres, no meter |
-| `/v1` past loopback | `INSTANCE_TOKEN` | same header on Index, Streams, subgraphs |
-| Writes (`/api/subgraphs`, `/api/webhooks`, `/api/node`) | `INSTANCE_TOKEN` | loopback included |
-
-```bash
-# Local read: no key
-curl "http://127.0.0.1:3800/v1/index/events?limit=5"
-
-# Write: instance token, from 127.0.0.1 too
-curl -X POST http://127.0.0.1:3800/api/subgraphs/my-balances/reindex \
-  -H "Authorization: Bearer $INSTANCE_TOKEN"
-```
-
-Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On a keyless read, a wrong key is ignored; a matching token is used.
-
-`INSTANCE_TOKEN` is required in compose: the container process has to bind `0.0.0.0` or the published port never reaches it, and an instance that binds past loopback with no token refuses to start. `API_PUBLISH_ADDR` is how the API learns which of those two facts to serve on: it carries the publish spec, so with the default `127.0.0.1:3800` the `/v1` reads stay keyless, and changing `API_PORT` to `0.0.0.0:3800` makes every `/v1` request carry the token. Writes take the token either way;.
 
 ## Use these docs on your box
 
@@ -152,148 +35,24 @@ export INSTANCE_TOKEN=…            # from .env.local
 secondlayer subgraphs deploy ./my-subgraph.ts
 ```
 
-Leave `SECONDLAYER_API_KEY` for the hosted account: archive quote, fetch and credits read it as the account key, so setting it to the instance token breaks them. Keep `POSTGRES_PORT` and `INDEXER_PORT` on loopback. Consumers running elsewhere: [Deploy](/docs/deploy).
+Leave `SECONDLAYER_API_KEY` for the hosted account: archive quote, fetch and credits read it as the account key, so setting it to the instance token breaks them. Keep `POSTGRES_PORT` and `INDEXER_PORT` on loopback.
 
-### What differs on your box
+## Stop it
 
-| Area | On your box |
-| --- | --- |
-| Metering | None. Your Postgres, no meter, no rate limit |
-| Subgraph sources | Any. Hosted takes event filters, `contract_call` and `contract_deploy` |
-| Subgraph webhooks | Yes. Hosted runs [chain webhooks](/docs/webhooks#two-kinds) only |
-| Typed ORM schemas | `secondlayer codegen subgraph` needs direct Postgres, so it is self-host only |
-| Handler RPC calls | Set `STACKS_NODE_RPC_URL` on the subgraph processor, pointing at the node you already run |
-| History below your bootstrap floor | A metered [archive backfill](/docs/authentication#archive-credits) |
-| Webhook limits | Any `max_retries` and `timeout_ms`, no rate limits, egress as your network allows |
-| Proof routes | Witness, burn and Bitcoin-header routes answer `503 PROOFS_UNAVAILABLE` until `PROOF_SIDECAR_URL` points at a proof sidecar |
-| Error reports | No `/v1/feedback`. Error bodies link to a GitHub issue instead |
-
-## Verify and repair
+From the directory `setup` wrote. The index, chainstate, and keys survive.
 
 ```bash
-secondlayer verify all --against <manifest>
-secondlayer repair --against <manifest>          # plan
-secondlayer repair --against <manifest> --apply
+secondlayer uninstall            # dry run
+secondlayer uninstall --apply
 ```
 
-[Verified archive](/docs/archive#flags) owns flags and exit codes.
+## Next
 
-### Archive trust root
-
-Every archive manifest is checked against one key before `bootstrap`, `verify`, or `repair` act on it. The key comes from, in order: `--public-key`, `ARCHIVE_SIGNING_PUBLIC_KEY` in your env, and the key compiled into the CLI release. `setup` and `init` write that resolved key into `.env` so the instance verifies with no path to any Secondlayer host. Plaintext `http://` key sources are never consulted, and a signed `latest.json` pointer has to verify against the same key before its snapshot is followed.
-
-The tradeoff: rotating the archive key means a CLI release until a key ceremony lands. To pin a different archive, replace `ARCHIVE_SIGNING_PUBLIC_KEY` in `.env`; a value you set there survives `setup` re-runs.
-
-## Backup
-
-`secondlayer backup` writes one bundle: the index, plus the keys encrypted under a passphrase you supply.
-
-```bash
-secondlayer backup --out ./backups/$(date +%F)
-secondlayer restore --from ./backups/2026-08-16            # dry run
-secondlayer restore --from ./backups/2026-08-16 --apply
-```
-
-Pass `--passphrase`, or set `SECONDLAYER_BACKUP_PASSPHRASE`. `--no-secrets` writes a data-only bundle. A restore refuses before writing anything if the secrets key the instance will use is not the key the data was encrypted with, and `--force` is what lets it write over a database that already holds chain data.
-
-A restore is all or nothing: `pg_restore` runs in one transaction and stops on the first error, so a disk that fills mid-load leaves the target as it was rather than half replaced. The tradeoff is no parallel restore. After the load the canonical block range is compared with the manifest's scope; a dump that stops short of what it promised exits 1 instead of reporting success. The dump digest is streamed, so a multi-gigabyte bundle hashes without being read into memory.
-
-The bundle carries `INSTANCE_TOKEN`, `SECONDLAYER_SECRETS_KEY`, and `STREAMS_SIGNING_PRIVATE_KEY`. Losing those costs you more than losing the index, because the index can be rebuilt from the [archive](/docs/archive), the keys cannot. Store the bundle somewhere your Postgres backups are not.
-
-Confirm any restore with `secondlayer verify all --against <manifest>` before trusting the result. Take a backup before you [upgrade](#upgrade).
-
-## Upgrade
-
-Move from the image you run (X) to a later `v*` tag, or a git commit if you build from source (Y), keeping the database and the keys.
-
-```bash
-curl -s "$SECONDLAYER_API_URL/health"
-docker compose images
-secondlayer --version
-```
-
-Published images are `ghcr.io/ryanwaits/secondlayer-runtime:<tag>` ([releases](https://github.com/ryanwaits/secondlayer/releases)); `latest` moves, so pin a `v*` tag. One jump to Y; read every [changelog](/docs/changelog) entry dated after X first, since that page owns what broke. The CLI is a separate npm version: bump it to match the instance you land on.
-
-The index can be rebuilt from the [archive](/docs/archive). The keys cannot.
-
-| Keep | Why |
-| --- | --- |
-| `postgres_data` volume | chain, subgraph tables, webhook rows |
-| `subgraphs_data` volume | compiled handlers |
-| `SECONDLAYER_SECRETS_KEY` | decrypts webhook signing secrets in Postgres |
-| `INSTANCE_TOKEN` | callers; required at boot |
-| `STREAMS_SIGNING_PRIVATE_KEY`, `SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY` | platform signature on deliveries |
-| `POSTGRES_PASSWORD` | the volume already uses it |
-
-Losing `SECONDLAYER_SECRETS_KEY` makes every existing `whsec_` unreadable; rotate each webhook rather than minting a new master key ([signing secrets](/docs/authentication#webhook-signing-secrets)). A full dump of a mainnet index takes hours, so a filesystem snapshot of the volume is the faster [backup](#backup) if the host can take one.
-
-<Callout type="danger" title="Do not wipe the volume">
-
-`docker compose down -v` deletes `postgres_data`, and `secondlayer setup --force` mints a new secrets key that leaves existing webhook secrets unreadable. Stop with `docker compose down` (no `-v`). `setup` is not an upgrade: bootstrap refuses a database that already has blocks.
-
-</Callout>
-
-Pin Y, then restart. `pull` when compose already lists a `secondlayer` image; `git checkout` and `--build` when this directory is a checkout.
-
-```bash
-# published image: set image to .../secondlayer-runtime:<Y>
-docker compose pull
-docker compose up -d --remove-orphans
-```
-
-```bash
-git fetch
-git checkout <Y>
-docker compose down --remove-orphans
-docker compose up -d --build --remove-orphans
-```
-
-`--remove-orphans` stops services Y's compose file no longer lists. Migrations run at boot under an advisory lock, forward-only. Then confirm `/health` is ok and verify against the archive:
-
-```bash
-curl "$SECONDLAYER_API_URL/health"
-secondlayer verify all --against <manifest>
-```
-
-To roll back, pin X again. A migrated schema stays migrated, so roll back the image, not the database.
-
-## Guardrails
-
-Mainnet full history is large: the reference index measures ~500 GB, of which ~250 GB is `blocks`, `transactions`, and `events` and the rest is the decoded plane. Budget roughly 3 GB per 100k blocks for core datasets, or 6 GB with a broad decoder set, and remember those are averages over history that is much denser at the tip.
-
-| Setup | RAM | Disk |
-| --- | --- | --- |
-| App services, external node, mainnet | 4 GB | 600 GB |
-| App services, external node, testnet/devnet | 4 GB | 80 GB |
-| Bundled node, mainnet | 96 GB | 2.5 TB |
-
-Postgres `max_connections` ≥ 50. Compose sets the Postgres cache to 1 GB (`POSTGRES_SHARED_BUFFERS`). For a full-chain sync, give it about 25% of RAM: at the stock 128 MB, inserts wait on index reads from disk and the sync runs slower. The bundled-node figure is dominated by the chain itself: Stacks chainstate alone measures 1.3 TB, and bitcoind is additional.
-
-The runtime checks RAM, disk, and `max_connections` at start and refuses to boot below these floors, so an undersized box finds out before it spends hours acquiring an index it cannot hold. Disk is total filesystem capacity, not free space, since a healthy instance legitimately fills most of its disk. An unmeasurable dimension is reported and skipped rather than assumed bad.
-
-To run below a floor anyway:
-
-```bash
-SECONDLAYER_ALLOW_UNDERSIZED=true
-```
-
-That downgrades the refusal to a warning at every start. It exists so a box that was already undersized can still come back up after an upgrade: you keep the ability to run your own hardware, you just do it knowingly.
-
-## Running other teams' subgraphs
-
-A subgraph handler is code you deploy into the instance, so it runs with the instance's trust. That is fine for your own subgraphs. To run another team's on one box, give each team its own stack instead of sharing one: its own Postgres, its own network, and its `api` and `subgraph-processor` containers under gVisor (`runtime: runsc`) as a non-root user, with a read-only root filesystem and bounded memory, CPU and process count. [`docker/workload/tenant.compose.yml`](https://github.com/ryanwaits/secondlayer/blob/main/docker/workload/tenant.compose.yml) is the working shape. gVisor can't reach Docker's embedded DNS, so give each stack a static address for Postgres and a plain `resolv.conf`; the file explains both.
-
-## Not in the box
-
-- Multi-tenant catalog
-- A managed stack: [hosted subgraphs and webhooks](/docs/subgraphs/hosted) run on `api.secondlayer.tools` with an account key
-- Archive publisher (separate image)
-- Pay-per-call metering on your instance (the x402 rail was removed)
-
-Support is community: [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer).
+- [Run in production](/docs/self-host/production): scripted setup, your node, backup, upgrade
+- [Hardware](/docs/self-host/hardware): RAM, disk, and the floors enforced at start
 
 export const metadata = {
 	title: "Self-host — Secondlayer Docs",
 	description:
-		"Run Secondlayer on your own box: Postgres plus one container. Bootstrap from the archive, verify, upgrade, and what differs from the hosted API.",
+		"Run Secondlayer on your own box: Postgres plus one container. Start it locally, point the docs examples at it, stop it.",
 };
