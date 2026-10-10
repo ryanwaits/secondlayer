@@ -179,7 +179,7 @@ The transaction verifier uses Node's crypto (via `@secondlayer/shared`), so it i
 
 ## Proofs API
 
-The raw material `verify block` reads. Free, never metered. On the hosted API each account gets 20 requests per second, and 2 per second for witnesses. On a self-hosted instance, the witness, burn and Bitcoin-header routes answer `503 PROOFS_UNAVAILABLE` until `PROOF_SIDECAR_URL` points at a proof sidecar.
+The raw material `verify block` reads. Free, never metered. On the hosted API each account gets 20 requests per second, and 2 per second for witnesses. On your own box the witness, burn and Bitcoin-header routes need a proof sidecar: [Self-host](/docs/self-host#what-differs-on-your-box).
 
 | Route | Returns |
 | --- | --- |
