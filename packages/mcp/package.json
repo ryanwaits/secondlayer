@@ -29,6 +29,7 @@
 		"build": "bunup",
 		"dev": "bunup --watch",
 		"test": "bun test",
+		"tools": "bun scripts/sync-tools.ts",
 		"typecheck": "tsc --noEmit",
 		"prepublishOnly": "bun run build"
 	},

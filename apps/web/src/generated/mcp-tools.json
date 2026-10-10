@@ -1,0 +1,284 @@
+{
+	"tools": [
+		{
+			"name": "subgraphs_scaffold",
+			"group": "scaffold",
+			"description": "Generate a subgraph from observed print events when available; ABI token transfers or public functions only when the contract has never printed. Review the TypeScript, run subgraphs_test until ok: true with written >= 1, read skipped, then subgraphs_deploy. dryRun is DDL only."
+		},
+		{
+			"name": "subgraphs_backfill",
+			"group": "subgraphs",
+			"description": "Backfill a subgraph over a block range. Non-destructive forward fill (does not drop existing data) — unlike subgraphs_reindex, and the only data-fill path for BYO subgraphs (reindex is blocked there). Both blocks required. Returns an operationId — check subgraphs_status (health) or the REST operations endpoint to track progress."
+		},
+		{
+			"name": "subgraphs_delete",
+			"group": "subgraphs",
+			"description": "Delete a subgraph permanently."
+		},
+		{
+			"name": "subgraphs_deploy",
+			"group": "subgraphs",
+			"description": "Deploy a subgraph from TypeScript code. Pass the full defineSubgraph() source — it will be bundled, validated, and deployed. Optional startBlock overrides the source definition for this deploy. dryRun validates schema/DDL only and does not run handlers — call subgraphs_test first and deploy only when it returns ok: true with written >= 1. Call subgraphs_reindex separately if you need a forced reindex."
+		},
+		{
+			"name": "subgraphs_gaps",
+			"group": "subgraphs",
+			"description": "List indexing gaps (missing block ranges) for a subgraph. Each gap reports start/end/size, reason, and detected/resolved timestamps. Feed an unresolved gap's range into subgraphs_backfill to fill it. Defaults to unresolved gaps."
+		},
+		{
+			"name": "subgraphs_list",
+			"group": "subgraphs",
+			"description": "List all deployed subgraphs. Returns summary fields only; read rows with subgraphs_query."
+		},
+		{
+			"name": "subgraphs_operations",
+			"group": "subgraphs",
+			"description": "Operation history for a subgraph (deploy/reindex/backfill/stop), newest first — status, block range, progress, and error. THIS IS THE VERIFY CALL: after subgraphs_deploy, subgraphs_reindex, subgraphs_backfill, or subgraphs_stop, poll it with the returned operationId until `status` is terminal (completed/failed/cancelled) before reporting success. Omit operationId for the recent history."
+		},
+		{
+			"name": "subgraphs_query",
+			"group": "subgraphs",
+			"description": "Query rows from a subgraph table (max 200 rows), reading the open /v1 surface — { rows, next_cursor, tip } envelope, cursor-paginated (no offset). Filters support operators: \"amount.gte\": \"1000\", \"sender.neq\": \"SP...\", \"name.like\": \"%token%\". Available operators: eq, neq, gt, gte, lt, lte, like. To TAIL new rows (no streaming over MCP): sort=_id, order=desc for the latest, then poll forward with the filter {\"_id.gt\": \"<last _id seen>\"}, order=asc — when tailing with a `fields` list, include \"_id\" in it or the next poll filter cannot be formed. Fetch one row by id with {\"_id\": \"<id>\"}. The response's nextCursor resumes the same page: pass it back as `cursor` on the next call. The same rows are readable over HTTP at GET /v1/subgraphs/<name>/<table>; hand that URL to third parties."
+		},
+		{
+			"name": "subgraphs_reindex",
+			"group": "subgraphs",
+			"description": "Reindex a subgraph: drops and rebuilds the whole subgraph from its start block to chain tip. Takes no block range — use subgraphs_backfill to process a specific range. Returns an operationId — check subgraphs_status (health) or the REST operations endpoint to track progress to completion."
+		},
+		{
+			"name": "subgraphs_spec",
+			"group": "subgraphs",
+			"description": "Fetch a subgraph's self-describing spec — the tables, columns, filters, and read URLs a consumer needs, without guessing. `agent` (default) returns the compact JSON schema built for tool use, `openapi` the OpenAPI document for the subgraph's read routes, `markdown` human-readable docs. Read it before writing queries against an unfamiliar subgraph."
+		},
+		{
+			"name": "subgraphs_status",
+			"group": "subgraphs",
+			"description": "Get full details of a subgraph including schema, health (incl. health.emptyMapping when processed events wrote 0 rows), and table columns."
+		},
+		{
+			"name": "subgraphs_stop",
+			"group": "subgraphs",
+			"description": "Cancel an in-flight reindex or backfill operation for a subgraph. Returns the stop request status; check subgraphs_status (health) or the REST operations endpoint to confirm it reaches a terminal state."
+		},
+		{
+			"name": "subgraphs_test",
+			"group": "subgraphs",
+			"description": "Prove a subgraph mapping writes rows against Index data before deploy. Pass full defineSubgraph() source plus a height range. Returns ok/written/tables; EMPTY_MAPPING means events matched but 0 rows were written — read hint for observed event.data keys and do not invent fields. subgraphs_deploy dryRun is DDL only; do not deploy until ok: true with written >= 1."
+		},
+		{
+			"name": "webhooks_create",
+			"group": "webhooks",
+			"description": "Create a webhook. Two kinds (mutually exclusive): a SUBGRAPH webhook fires on a subgraph table's rows (set subgraphName + tableName + optional filter); a CHAIN webhook fires on raw chain events with no subgraph (set triggers). Returns `signingSecret` ONCE — forward it to the user so they can wire it into their receiver."
+		},
+		{
+			"name": "webhooks_dead",
+			"group": "webhooks",
+			"description": "List a webhook's dead-letter queue — deliveries that exhausted their retries, with the outbox id, payload, and last error. Diagnose the receiver first (webhooks_get for the URL/auth, webhooks_test for a live probe), then requeue rows with webhooks_requeue."
+		},
+		{
+			"name": "webhooks_delete",
+			"group": "webhooks",
+			"description": "Delete a webhook. Pending outbox rows are cascade-deleted."
+		},
+		{
+			"name": "webhooks_deliveries",
+			"group": "webhooks",
+			"description": "List recent delivery attempts for a webhook — status code, attempt count, error, duration, timestamps. THIS IS THE VERIFY CALL: after webhooks_create, webhooks_test, or webhooks_replay, read it to confirm the webhook actually landed (and to see the receiver's response when it didn't) instead of trusting the enqueue result."
+		},
+		{
+			"name": "webhooks_get",
+			"group": "webhooks",
+			"description": "Get full detail for a webhook (filter, auth, retry config, circuit state)."
+		},
+		{
+			"name": "webhooks_list",
+			"group": "webhooks",
+			"description": "List all webhooks for the current account. Returns summary fields (no secrets)."
+		},
+		{
+			"name": "webhooks_pause",
+			"group": "webhooks",
+			"description": "Pause a webhook: stops delivery attempts and stops queueing new ones. Nothing is deleted — resume picks the webhook back up from the tip. Verify with webhooks_get (status)."
+		},
+		{
+			"name": "webhooks_replay",
+			"group": "webhooks",
+			"description": "Replay a block range for a webhook. Replays run at 10% of batch capacity — use sparingly. Pass `force` (a short idempotency suffix) to re-run a range that was already replayed."
+		},
+		{
+			"name": "webhooks_requeue",
+			"group": "webhooks",
+			"description": "Requeue ONE dead-lettered delivery for another attempt, by its outbox id from webhooks_dead. Fix the receiver first — a requeue against a still-broken endpoint just dies again. Verify with webhooks_deliveries."
+		},
+		{
+			"name": "webhooks_resume",
+			"group": "webhooks",
+			"description": "Resume a paused webhook (also clears a tripped circuit breaker). Deliveries restart from the current tip — use webhooks_replay for the blocks missed while paused. Verify with webhooks_get (status)."
+		},
+		{
+			"name": "webhooks_rotate_secret",
+			"group": "webhooks",
+			"description": "Rotate a webhook's signing secret. Returns the NEW `signingSecret` ONCE — forward it to the user; deliveries signed with the old secret stop verifying as soon as this returns, so the receiver must be updated."
+		},
+		{
+			"name": "webhooks_test",
+			"group": "webhooks",
+			"description": "Send a one-off test webhook to a webhook's URL (built for its format, SSRF-guarded). Logged as a delivery row. Returns {ok, statusCode, error, durationMs, deliveryId}."
+		},
+		{
+			"name": "webhooks_update",
+			"group": "webhooks",
+			"description": "Patch a webhook (name, url, filter, authConfig, format, runtime, retry, timeout, concurrency)."
+		},
+		{
+			"name": "batch_query",
+			"group": "index",
+			"description": "Run up to 10 public /v1 reads in one round trip (POST /v1/batch). Each item keeps its own auth/quota/pay-per-call semantics; results return in order with per-item status. Paths must start with /v1/index, /v1/subgraphs, /v1/streams, or /v1/contracts."
+		},
+		{
+			"name": "index_blocks",
+			"group": "index",
+			"description": "List decoded blocks from Index. Reads are keyless."
+		},
+		{
+			"name": "index_contract_calls",
+			"group": "index",
+			"description": "List decoded contract calls from the Index (function name, args, result). Set `trait` (e.g. sip-010) to match calls to all contracts conforming to a standard. Note: contract-call cursors are a SEPARATE keyspace from event cursors — they are not interchangeable."
+		},
+		{
+			"name": "index_discover",
+			"group": "index",
+			"description": "Discover the Index vocabulary: every event type and its columns, allowed/equality filters, and required-non-null fields (and which types accept `trait`). Read this before building Index queries instead of guessing filters. Anonymous read."
+		},
+		{
+			"name": "index_events",
+			"group": "index",
+			"description": "List decoded chain events from the Index by event type. Use this for event types without a dedicated tool (stx_*, ft_mint/burn, nft_mint/burn, print), and for trait-scoped queries: set `trait` (e.g. sip-010) to match all contracts conforming to a standard — pair with contracts_find to discover traits. For ft/nft transfers without a trait prefer index_ft_transfers / index_nft_transfers."
+		},
+		{
+			"name": "index_ft_transfers",
+			"group": "index",
+			"description": "List decoded SIP-010 fungible-token transfers from Index. Reads are keyless."
+		},
+		{
+			"name": "index_nft_transfers",
+			"group": "index",
+			"description": "List decoded SIP-009 non-fungible-token transfers from Index. Reads are keyless."
+		},
+		{
+			"name": "index_print_schema",
+			"group": "index",
+			"description": "Empirical per-topic print payload schemas for a contract, inferred from sampled on-chain events: each topic's fields with observed Clarity types, decoded TS types, subgraph column types, and presence rates. Use before writing print_event subgraph handlers to learn what's on e.data. Anonymous read."
+		},
+		{
+			"name": "index_transactions",
+			"group": "index",
+			"description": "List decoded transactions from Index. Filter by type, sender, or contract. Reads are keyless."
+		},
+		{
+			"name": "streams_dumps",
+			"group": "streams",
+			"description": "List the Streams bulk parquet dumps manifest — coverage range, latest_finalized_cursor, and per-file metadata (block range, row count, size, sha256, signed URL). This is the cold backfill path for downloading all raw data; fetch the file URLs directly (e.g. with DuckDB). Requires the dumps base URL to be configured (SL_STREAMS_DUMPS_URL). For live reads use REST GET /v1/streams/events; for tip/lag use streams_tip."
+		},
+		{
+			"name": "streams_tip",
+			"group": "streams",
+			"description": "Current canonical chain tip as Streams sees it: block height/hash, burn height, finalized_height, lag_seconds, and the oldest seekable height/cursor for this key's retention window. Call it before a cursor walk to know where the stream ends, and after an ingest to check lag."
+		},
+		{
+			"name": "contracts_find",
+			"group": "contracts",
+			"description": "Discover deployed Stacks contracts conforming to a trait (e.g. \"sip-010\", \"sip-009\", \"sip-013\"). The discovery endpoint for \"which contracts implement X\". Reads are public."
+		},
+		{
+			"name": "contracts_get_abi",
+			"group": "contracts",
+			"description": "Fetch a single deployed contract's ABI from the registry (prod-safe). Returns the contract's metadata + full ABI (functions, maps, variables, fungible/non-fungible tokens). Returns not_found if the contract isn't in the registry. Use it to inspect a contract before subgraphs_scaffold."
+		},
+		{
+			"name": "codegen_index_schema",
+			"group": "codegen",
+			"description": "Generate an ORM schema for the Index tables (blocks, transactions, decoded_events, …) — the same output as `sl codegen index`. Returns the file contents as text; write it wherever your project keeps its schema. Use `tables` to emit only what you read."
+		},
+		{
+			"name": "instance_status",
+			"group": "instance",
+			"description": "Decoder health and empty-index diagnosis from GET /public/status. If state is empty-index, next tool is archive_bootstrap or setup. Poll until index.decoders are ok before treating Index as ready — do not start decoders. Then archive_verify, then codegen_index_schema. Do not download parquet."
+		},
+		{
+			"name": "archive_latest",
+			"group": "archive",
+			"description": "Signed pointer to the official archive tree (hosted). Needs SECONDLAYER_API_KEY (sk-sl_*), not INSTANCE_TOKEN. Use the returned origin as --against for archive_bootstrap. Do not download parquet."
+		},
+		{
+			"name": "archive_quote",
+			"group": "archive",
+			"description": "Price a hosted archive fetch (metered). Needs SECONDLAYER_API_KEY (sk-sl_*), not INSTANCE_TOKEN. Quote happens here; bootstrap/repair also quote inside the CLI. Do not download parquet."
+		},
+		{
+			"name": "archive_verify",
+			"group": "archive",
+			"description": "Read-only, free compare of this instance against a signed archive (POST /v1/archive/verify). unanchored means pin a key or check the URL — not that the instance is fine. After bootstrap, poll instance_status until decoders ok, then this, then codegen_index_schema. Do not download parquet."
+		},
+		{
+			"name": "credits_balance",
+			"group": "archive",
+			"description": "Archive credits balance at api.secondlayer.tools. Needs SECONDLAYER_API_KEY (sk-sl_*); INSTANCE_TOKEN is the instance."
+		},
+		{
+			"name": "archive_bootstrap",
+			"group": "setup",
+			"description": "Restore verified history into this instance (secondlayer bootstrap --against … --yes --json). Metered against the official archive; quote happens inside the CLI. After bootstrap, poll instance_status until decoders ok, then archive_verify, then codegen_index_schema. Do not download parquet."
+		},
+		{
+			"name": "archive_repair",
+			"group": "setup",
+			"description": "Plan (default) or apply a repair of local chain data against a signed archive. Metered when apply fetches from the official archive. After apply, poll instance_status until decoders ok, then archive_verify. Do not download parquet."
+		},
+		{
+			"name": "setup",
+			"group": "setup",
+			"description": "Non-interactive self-host onboarding (secondlayer setup --yes). If the index is empty, this or archive_bootstrap fills it. Bootstrap is metered against the official archive. After it returns, poll instance_status until index.decoders are ok, then archive_verify, then codegen_index_schema. Do not download parquet."
+		},
+		{
+			"name": "account_create_key",
+			"group": "account",
+			"description": "Mint an account key (sk-sl_*) for archive credits, quote, and fetch at api.secondlayer.tools. The returned `key` is shown ONCE.",
+			"hostedOnly": true
+		},
+		{
+			"name": "account_whoami",
+			"group": "account",
+			"description": "Show the archive account email at api.secondlayer.tools, not the self-host instance.",
+			"hostedOnly": true
+		}
+	],
+	"resources": [
+		{
+			"uri": "secondlayer://chain-triggers",
+			"description": "Chain-webhook trigger types and the filter fields each accepts (for webhooks_create triggers)."
+		},
+		{
+			"uri": "secondlayer://column-types",
+			"description": "Subgraph column types, SQL mappings, and options"
+		},
+		{
+			"uri": "secondlayer://context",
+			"description": "Live agent context — what exists (your subgraphs, webhooks, account), what you can do, and read-auth tiers. Read this first."
+		},
+		{
+			"uri": "secondlayer://filters",
+			"description": "Event filter types and their available fields"
+		},
+		{
+			"uri": "secondlayer://traits",
+			"description": "SIP trait standards the platform can classify and scaffold against — the valid values for contracts_find `trait` and subgraph scaffold `--trait`."
+		}
+	],
+	"resourceTemplates": [
+		{
+			"uriTemplate": "secondlayer://samples/{contractId}",
+			"description": "Decoded camelCase print samples for a contract (schema + up to 5 events). Use before writing a print_event handler."
+		}
+	]
+}
