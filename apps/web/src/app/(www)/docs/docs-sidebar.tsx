@@ -340,11 +340,18 @@ export function DocsSidebar() {
 					<div className="docs-nav-group" key={group.label}>
 						<div className="docs-nav-grouplabel">{group.label}</div>
 						{group.items.map((item) => {
-							// Sub-pages show only while the reader is somewhere under the
-							// parent, so a page with children costs one row like any other
-							// until it's the one being read.
+							// Sub-pages show only while the reader is somewhere in the
+							// section: under the parent's route, or on one of the children
+							// (some live at their own top-level route), so a page with
+							// children costs one row like any other until it's being read.
 							const inSection =
-								pathname === item.href || pathname.startsWith(`${item.href}/`);
+								pathname === item.href ||
+								pathname.startsWith(`${item.href}/`) ||
+								(item.items?.some(
+									(c) =>
+										pathname === c.href || pathname.startsWith(`${c.href}/`),
+								) ??
+									false);
 							return (
 								<div key={item.href} className="docs-nav-branch">
 									<Link
