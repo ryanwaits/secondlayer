@@ -20,23 +20,27 @@ export interface DocsNavGroup {
 }
 
 /**
- * Sidebar information architecture for the docs site.
+ * Sidebar information architecture for the docs site: five nouns by altitude.
  *
- * - **Products** is the five nouns by altitude: Archive (signed history) →
- *   Streams (raw) → Index (decoded) → Subgraphs (your schema) → Webhooks
- *   (push). Order is load-bearing; keep it.
- * - **Channels** are how you reach them (REST, CLI, SDK, MCP). SDK
- *   concepts (Sinks, Filters) sit with the SDK rather than competing with
- *   the nouns in Products.
- * - **Protocols** (PoX-5, sBTC, Runes) and contract discovery are sections of
- *   Index, not pages: the decoded primitive on contracts everyone shares,
- *   not extra products and not a catalog. New protocols belong in the
- *   operator's consume() loop or a subgraph.
+ * - **Start** is onboarding: Introduction, Keys and billing, and Self-host, a
+ *   short start page with Run in production and Hardware as children.
+ * - **Products** is Archive (signed history) → Streams (raw) → Index
+ *   (decoded) → Subgraphs (your schema) → Webhooks (push). Order is
+ *   load-bearing; keep it. Protocols (PoX-5, sBTC, Runes) and contract
+ *   discovery are sections of Index, not pages or products.
  * - **Verify** is cross-cutting, not a product noun: one page for everything
  *   you can check (a transaction, a block, an archive, subgraph rows), with
  *   the products linking to it instead of restating it.
- * - **Start / Operate / Reference** are onboarding, ops, and lookup.
- *   Library pages for `@secondlayer/stacks` live at stacks.secondlayer.tools.
+ * - **Tools** is how you drive it: CLI (Devnet is its local-dev child), SDK
+ *   (Sinks and Deploy your app are its children, Filters is a section), and
+ *   MCP and skills (the generated tool table plus the agent skill).
+ * - **Reference** is lookup: REST API conventions sit with the generated API
+ *   and SDK references and the changelog. Library pages for
+ *   `@secondlayer/stacks` live at stacks.secondlayer.tools.
+ *
+ * Children only past the terseness budget, split along a reader task so the
+ * parts only make sense under their parent. A topic that stands alone gets a
+ * top-level entry.
  */
 export const DOCS_NAV: DocsNavGroup[] = [
 	{
@@ -89,36 +93,28 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		items: [{ title: "Verify", href: "/docs/verification" }],
 	},
 	{
-		label: "Channels",
+		label: "Tools",
 		items: [
-			{ title: "REST API", href: "/docs/rest-api" },
-			{ title: "CLI", href: "/docs/cli" },
+			{
+				title: "CLI",
+				href: "/docs/cli",
+				items: [{ title: "Devnet", href: "/docs/devnet" }],
+			},
 			{
 				title: "SDK",
 				href: "/docs/sdk",
 				items: [
 					{ title: "Sinks", href: "/docs/sinks" },
-					{ title: "Write your own sink", href: "/docs/sinks/custom" },
-					{ title: "Filters", href: "/docs/filters" },
+					{ title: "Deploy your app", href: "/docs/deploy" },
 				],
 			},
-			{ title: "MCP", href: "/docs/mcp" },
-		],
-	},
-	{
-		label: "Operate",
-		items: [
-			{
-				title: "Deploy your app",
-				href: "/docs/deploy",
-				items: [{ title: "Docker and EC2", href: "/docs/deploy/docker" }],
-			},
-			{ title: "Devnet", href: "/docs/devnet" },
+			{ title: "MCP and skills", href: "/docs/mcp" },
 		],
 	},
 	{
 		label: "Reference",
 		items: [
+			{ title: "REST API", href: "/docs/rest-api" },
 			{ title: "API reference", href: "/docs/api-reference" },
 			{ title: "SDK reference", href: "/docs/sdk-reference" },
 			{ title: "Changelog", href: "/docs/changelog" },
