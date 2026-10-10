@@ -261,7 +261,7 @@ A store that can't delete (ClickHouse, parquet, an append log) can't implement `
 ```ts
 const sink: ConsumerSink<MyWriter> = {
   capabilities: { finalizedOnly: true },
-  // rollback is never called — throw if reached
+  // rollback is never called; throw if reached
   ...
 };
 ```
