@@ -13,15 +13,15 @@ The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP c
       "command": "npx",
       "args": ["-y", "@secondlayer/mcp"],
       "env": {
-        "SECONDLAYER_API_URL": "<your API URL>",
-        "SECONDLAYER_API_KEY": "<your sk-sl_ key>"
+        "SECONDLAYER_API_URL": "https://api.secondlayer.tools",
+        "SECONDLAYER_API_KEY": "<sk-sl_ key from /account/keys>"
       }
     }
   }
 }
 ```
 
-The values are the two variables from the [Introduction](/docs#get-started). The server uses `SECONDLAYER_API_KEY` on the hosted URL and `INSTANCE_TOKEN` elsewhere; on your own box, set `INSTANCE_TOKEN` instead of the key ([Self-host](/docs/self-host#use-these-docs-on-your-box)).
+A client's JSON `env` can't read your shell, so this block holds the hosted values from the [Introduction](/docs#get-started) literally. On your box, set `SECONDLAYER_API_URL` to `http://127.0.0.1:3800` and `INSTANCE_TOKEN` (from `.env.local`) instead of the key: [Self-host](/docs/self-host#use-these-docs-on-your-box).
 
 An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional `SECONDLAYER_MCP_SECRET` bearer auth for hosting the server behind a URL.
 

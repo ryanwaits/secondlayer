@@ -145,7 +145,7 @@ Every example in these docs reads `SECONDLAYER_API_URL` (and `SECONDLAYER_API_KE
 export SECONDLAYER_API_URL=http://127.0.0.1:3800
 ```
 
-Reads on a loopback bind need no key, and a header carrying an unknown or empty key is ignored there, so the same curl lines work unchanged. Writes over curl, and any read past loopback, send `Authorization: Bearer $INSTANCE_TOKEN`. The CLI and SDK send `INSTANCE_TOKEN` for you on any URL that is not the hosted API, so `secondlayer subgraphs deploy` needs only the token in your env:
+Reads on a loopback bind need no key, and a header carrying an unknown or empty key is ignored there, so the same curl lines work unchanged. Writes over curl, and any read past loopback, send `Authorization: Bearer $INSTANCE_TOKEN`. The CLI, SDK and MCP send `INSTANCE_TOKEN` for you on any URL that is not the hosted API, so `secondlayer subgraphs deploy` needs only the token in your env (MCP needs it in the client config's `env`, not just your shell):
 
 ```bash
 export INSTANCE_TOKEN=…            # from .env.local

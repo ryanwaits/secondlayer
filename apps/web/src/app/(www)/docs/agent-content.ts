@@ -393,6 +393,11 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"/secondlayer Help me use the docs examples against my own box: `export SECONDLAYER_API_URL=http://127.0.0.1:3800`, reads on loopback need no key, writes and any read past loopback send `Authorization: Bearer $INSTANCE_TOKEN` (the CLI and SDK send it for me). Leave `SECONDLAYER_API_KEY` alone, it is the hosted account key that archive credits read. Then deploy a subgraph against my instance and read it back with curl.",
 		),
 		card(
+			"Run published images",
+			"Pull ghcr images and pin a release tag.",
+			"/secondlayer Help me run Secondlayer from the published `ghcr.io/ryanwaits/secondlayer-*` images instead of building from source: pin a release tag, and swap the compose `build:` blocks for `image:`.",
+		),
+		card(
 			"Sync from genesis",
 			"Backfill, then deploy against your instance.",
 			"/secondlayer Walk me through a genesis sync with a Stacks node that is itself syncing from genesis (an already-synced node only sends new blocks): start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, `secondlayer verify all --against <manifest>`, then deploy a subgraph against my local instance with `SECONDLAYER_API_URL=http://127.0.0.1:3800` and `secondlayer subgraphs deploy`.",
