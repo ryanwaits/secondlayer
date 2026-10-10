@@ -104,7 +104,7 @@ function statusRetryable(status: number): boolean {
 /** Docs page for a status/code pair, when one exists. */
 function docsFor(status: number, code?: string): string | undefined {
 	if (code === "UPGRADE_REQUIRED" || status === 402)
-		return `${DOCS_BASE}/docs/authentication#pay-as-you-go-credits`;
+		return `${DOCS_BASE}/docs/authentication#what-it-costs`;
 	if (status === 429 || status === 401)
 		return `${DOCS_BASE}/docs/authentication`;
 	return undefined;

@@ -63,7 +63,7 @@ export function decidePreflight(input: {
 	}
 
 	messages.push(
-		`Refusing to start. Resize the box, or set ${UNDERSIZED_OVERRIDE}=true to proceed at your own risk. Sizing guidance: https://www.secondlayer.tools/docs/self-host#guardrails`,
+		`Refusing to start. Resize the box, or set ${UNDERSIZED_OVERRIDE}=true to proceed at your own risk. Sizing guidance: https://www.secondlayer.tools/docs/self-host/hardware`,
 	);
 	return { action: "refuse", messages };
 }
