@@ -36,14 +36,10 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"Stand up a checkpointed consumer end to end.",
 			"/secondlayer Help me build my own index on Secondlayer: run `secondlayer codegen index --target kysely` for the mirror schema, write a `consume()` loop that commits rows and the checkpoint in one transaction, handle `onReorg` by deleting from `fork_point_height` up, then point me at a deploy target.",
 		),
-		variant("subgraph-create"),
-	],
-
-	"/docs/quickstart": [
 		card(
 			"Run the quickstart",
 			"Drive the golden path to a live table.",
-			"/secondlayer Walk me through the quickstart end to end: `secondlayer setup` for the guided one-command install (secrets, docker-compose + .env, bootstrap from the archive, verify), `secondlayer subgraphs create my-balances --from-contract <my contract id>`, `secondlayer subgraphs deploy subgraphs/my-balances.ts`, then curl `http://127.0.0.1:3800/v1/subgraphs/my-balances/balances` to confirm it's live — no token on loopback. Or skip the box: export `SECONDLAYER_API_URL=https://api.secondlayer.tools` and `SECONDLAYER_API_KEY` (`sk-sl_*`, from /account/keys), deploy the same file, and read it from the hosted URL with the key as a bearer token.",
+			"/secondlayer Walk me through the quickstart end to end: install the CLI, export `SECONDLAYER_API_URL=https://api.secondlayer.tools` and `SECONDLAYER_API_KEY` (`sk-sl_*`, from /account/keys), `secondlayer subgraphs create my-balances --from-contract <my contract id>`, `secondlayer subgraphs deploy subgraphs/my-balances.ts` (set a `startBlock`), then curl `$SECONDLAYER_API_URL/v1/subgraphs/my-balances/balances` with `Authorization: Bearer $SECONDLAYER_API_KEY` to confirm it's live. If I'd rather run my own box, point me at /docs/self-host.",
 		),
 		card(
 			"Verify my setup",

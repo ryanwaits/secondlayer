@@ -1,6 +1,6 @@
-/** Shared Quickstart steps — consumed by the intro QuickstartPanel and the
- *  /docs/quickstart guided session. `kw` is the highlighted leading token of
- *  the command; `rest` is the remainder. No sample output by design. */
+/** Quickstart steps for the intro QuickstartPanel. `kw` is the highlighted
+ *  leading token of the command; `rest` is the remainder. `link` is an
+ *  optional pointer shown after the description. No sample output by design. */
 export interface QuickstartStep {
 	n: string;
 	tab: string;
@@ -8,6 +8,7 @@ export interface QuickstartStep {
 	desc: string;
 	kw: string;
 	rest: string;
+	link?: { label: string; href: string };
 }
 
 export const QUICKSTART_STEPS: QuickstartStep[] = [
@@ -21,11 +22,12 @@ export const QUICKSTART_STEPS: QuickstartStep[] = [
 	},
 	{
 		n: "02",
-		tab: "Key",
-		title: "Point it at the hosted API",
-		desc: "Create an sk-sl_ key at /account/keys; the CLI and SDK send it on api.secondlayer.tools. Prefer your own box? Run `secondlayer setup` instead (guided: secrets, docker-compose, verified history from the archive) and use http://127.0.0.1:3800 below, with the INSTANCE_TOKEN it prints.",
+		tab: "Variables",
+		title: "Set two variables",
+		desc: "Create an sk-sl_ key at /account/keys. The CLI and SDK send it on api.secondlayer.tools, and every example in these docs reads both variables.",
 		kw: "export",
 		rest: " SECONDLAYER_API_URL=https://api.secondlayer.tools SECONDLAYER_API_KEY=sk-sl_...",
+		link: { label: "Running your own box instead?", href: "/docs/self-host" },
 	},
 	{
 		n: "03",
@@ -39,7 +41,7 @@ export const QUICKSTART_STEPS: QuickstartStep[] = [
 		n: "04",
 		tab: "Deploy",
 		title: "Deploy it",
-		desc: "Hosted, it backfills from startBlock (set one: event and transaction rows it reads bill) and keeps the table live as new blocks arrive. On your own box with bootstrapped history it backfills from genesis.",
+		desc: "It backfills from startBlock (set one: the event and transaction rows it reads bill) and keeps the table live as new blocks arrive.",
 		kw: "secondlayer",
 		rest: " subgraphs deploy subgraphs/my-balances.ts",
 	},
@@ -47,8 +49,8 @@ export const QUICKSTART_STEPS: QuickstartStep[] = [
 		n: "05",
 		tab: "Query",
 		title: "Read it back",
-		desc: 'Rows serve the moment the first block lands; reads of your own tables are free. Send the key as a bearer token (self-host: http://127.0.0.1:3800, no token on loopback). Same read from the SDK — sl.subgraphs.rows("my-balances", "balances").',
+		desc: 'Rows serve the moment the first block lands; reads of your own tables are free. Same read from the SDK: sl.subgraphs.rows("my-balances", "balances").',
 		kw: "curl",
-		rest: ' -H "Authorization: Bearer $SECONDLAYER_API_KEY" https://api.secondlayer.tools/v1/subgraphs/my-balances/balances',
+		rest: ' -H "Authorization: Bearer $SECONDLAYER_API_KEY" "$SECONDLAYER_API_URL/v1/subgraphs/my-balances/balances"',
 	},
 ];

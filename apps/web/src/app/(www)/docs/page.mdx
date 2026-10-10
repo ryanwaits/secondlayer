@@ -2,7 +2,7 @@ import { QuickstartPanel } from "./quickstart-panel";
 
 # Instant data for apps on Bitcoin
 
-Decoded Stacks chain data, backfilled from genesis, reorg-safe and kept current. Your box or ours.
+Decoded Stacks chain data, backfilled from genesis, reorg-safe and kept current. An index you can check, not one you have to trust: [verify it yourself](/docs/verification).
 
 [Archive](/docs/archive) is the signed history an instance bootstraps from.
 [Streams](/docs/streams) hands you raw signed events.
@@ -16,7 +16,7 @@ Every serious Stacks app eventually needs data that no public API will ever buil
 
 Today that means writing an indexer. Not the fun part of it either — event ingestion, Clarity decoding, reorg rollback, backfilling years of history, and then operating the thing forever. It's a few weeks to get right and it never stops being yours.
 
-That work is what Secondlayer is. The chain data arrives decoded, backfilled, and reorg-safe, hosted or in a database you run. What you write is the part that's actually about your app.
+That work is what Secondlayer is. The chain data arrives decoded, backfilled, and reorg-safe. What you write is the part that's actually about your app.
 
 ## Do you already have an API layer?
 
@@ -25,7 +25,7 @@ That's the only choice you have to make. The decoding, the reorg handling, and t
 | Your situation | What you write | Called |
 | --- | --- | --- |
 | **Yes** — you run tRPC, GraphQL, Rails, something | A `consume()` loop: `onBatch` writes rows into your schema, `onReorg` rolls them back. `secondlayer codegen index` emits the mirror schema so your tables can't drift. Serve them however you already serve things. | **[Index](/docs/index)** |
-| **No** — and you'd rather not build one | One TypeScript file: sources, schema, handlers. You get the table *and* a REST API over it, hosted or on your own box. | **[Subgraphs](/docs/subgraphs)** |
+| **No** — and you'd rather not build one | One TypeScript file: sources, schema, handlers. You get the table *and* a REST API over it. | **[Subgraphs](/docs/subgraphs)** |
 | **I want to decode it myself** | A consumer over the signed raw firehose: bulk dumps, replay, automatic reorg rewind. This is what Index itself is built on. | **[Streams](/docs/streams)** |
 
 Subgraphs gives you a REST API you didn't write. That's the point — and the tradeoff. If you need your own API shape, don't use Subgraphs; use Index and keep your schema.
@@ -34,8 +34,10 @@ Subgraphs gives you a REST API you didn't write. That's the point — and the tr
 
 <QuickstartPanel />
 
+Prefer your own box? [Self-host](/docs/self-host) is the same product on your Postgres.
+
 export const metadata = {
 	title: "Docs — Secondlayer",
 	description:
-		"Instant data for apps on Bitcoin: decoded Stacks rows and TypeScript subgraphs, hosted or on your own box.",
+		"Instant data for apps on Bitcoin: decoded Stacks rows and TypeScript subgraphs, from a key to a live table in five commands.",
 };

@@ -48,7 +48,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				href: "/docs/self-host",
 				items: [{ title: "Upgrade", href: "/docs/self-host/upgrade" }],
 			},
-			{ title: "Quickstart", href: "/docs/quickstart" },
 			{ title: "Instance token and account key", href: "/docs/authentication" },
 		],
 	},

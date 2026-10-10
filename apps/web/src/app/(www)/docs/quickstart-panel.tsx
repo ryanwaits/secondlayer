@@ -1,12 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { CopyButton } from "./copy-button";
 import { QUICKSTART_STEPS } from "./quickstart-data";
 
-/** Compact embeddable Quickstart: a tabbed runner where each step shows a
- *  one-line description and its command (no output). Lives on the docs intro;
- *  the full walkthrough is /docs/quickstart. */
+/** Quickstart for the docs intro: a tabbed runner where each step shows a
+ *  one-line description and its command (no output). */
 export function QuickstartPanel() {
 	const [active, setActive] = useState(0);
 	const step = QUICKSTART_STEPS[active];
@@ -28,7 +28,15 @@ export function QuickstartPanel() {
 				))}
 			</div>
 			<div className="docs-qpanel-body">
-				<p className="docs-qpanel-label">{step.desc}</p>
+				<p className="docs-qpanel-label">
+					{step.desc}
+					{step.link ? (
+						<>
+							{" "}
+							<Link href={step.link.href}>{step.link.label}</Link>
+						</>
+					) : null}
+				</p>
 				<div className="docs-qpanel-cmd">
 					<span className="prompt">$</span>
 					<span>

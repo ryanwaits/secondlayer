@@ -189,6 +189,12 @@ const nextConfig: NextConfig = {
 				destination: "/docs/sinks",
 				permanent: true,
 			},
+			// Quickstart folded into the Introduction's Get started panel.
+			{
+				source: "/docs/quickstart",
+				destination: "/docs#get-started",
+				permanent: true,
+			},
 			{
 				source: "/docs/x402",
 				destination: "/docs/self-host",
