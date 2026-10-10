@@ -62,6 +62,21 @@ The bulk manifest is itself ed25519-signed and verified before any per-file `sha
 
 Where to run it: [Deploy](/docs/deploy).
 
+## From the CLI
+
+Every read has a `secondlayer streams` subcommand that prints JSON.
+
+| Command | Does |
+| --- | --- |
+| `tip` | Current canonical tip. |
+| `events` | One page of events; takes the REST filters as flags. |
+| `by-tx <txId>` | Every event a transaction emitted. |
+| `block-events <heightOrHash>` | Every event in one block. |
+| `canonical <height>` | Canonical block metadata at a height. |
+| `consume` | Long-running pull from a cursor, one event per line, until SIGINT or `--max-pages`. |
+| `reorgs` | Recent reorgs, cursor-paginated. |
+| `dumps` | Download finalized parquet dumps to a local dir, sha256-verified. |
+
 ## Read it directly
 
 ```bash
@@ -80,7 +95,7 @@ curl "$SECONDLAYER_API_URL/v1/streams/events?chain=bitcoin&rune=840000:3" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
-The tip and canonical block drop the burn-chain fields Stacks carries, since Bitcoin has no burn chain of its own. Events carry `ts`, the block's time. The rune catalog, per-rune activity feed, and balances live on [Index](/docs/runes); this is the raw event log underneath them.
+The tip and canonical block drop the burn-chain fields Stacks carries, since Bitcoin has no burn chain of its own. Events carry `ts`, the block's time. The rune catalog, per-rune activity feed, and balances live on [Index](/docs/index#runes); this is the raw event log underneath them.
 
 ### Two concerns, one loop
 
@@ -147,7 +162,7 @@ The server polls roughly every 1.5s from a tip held a couple of blocks back for 
 
 ### Per-frame signatures
 
-Each frame body is `{ event, sig, key_id }`; `sig` is an ed25519 signature over `JSON.stringify(event)`. The SDK verifies every frame by default against the key at `/public/streams/signing-key`. Lenient, strict, skip, and pinned-key modes: [SDK](/docs/sdk#signature-verification).
+Each frame body is `{ event, sig, key_id }`; `sig` is an ed25519 signature over `JSON.stringify(event)`. The SDK verifies every frame by default against the key at `/public/streams/signing-key`. Lenient, strict, skip, and pinned-key modes: [SDK](/docs/sdk#verifying-responses).
 
 Dated changes land in the [changelog](/docs/changelog).
 
