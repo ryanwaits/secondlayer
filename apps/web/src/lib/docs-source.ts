@@ -1,6 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { referenceMarkdown } from "@/app/(www)/docs/api-reference/spec";
+import {
+	mcpResourcesMarkdown,
+	mcpToolsMarkdown,
+} from "@/app/(www)/docs/mcp/tools";
 import { docsNavPages } from "@/app/(www)/docs/nav";
 
 /**
@@ -59,7 +63,14 @@ export async function readDocsMarkdown(href: string): Promise<string | null> {
 	const page = docsPages().find((p) => p.href === href);
 	if (!page) return null;
 	try {
-		const source = await readFile(sourcePath(href), "utf8");
+		let source = await readFile(sourcePath(href), "utf8");
+		// The MCP tables are components over the generated registry; swap in
+		// their markdown before mdxToMarkdown strips the tags.
+		if (href === "/docs/mcp") {
+			source = source
+				.replace("<McpResources />", mcpResourcesMarkdown())
+				.replace("<McpTools />", mcpToolsMarkdown());
+		}
 		const markdown = mdxToMarkdown(source);
 		// The reference's body is a component, which mdxToMarkdown strips; its
 		// markdown comes from the same spec the page renders.

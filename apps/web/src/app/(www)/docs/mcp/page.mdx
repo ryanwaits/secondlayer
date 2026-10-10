@@ -1,6 +1,8 @@
-# MCP
+import { McpResources, McpTools } from "./tool-table";
 
-Point Claude Code, Cursor, or any MCP client at Secondlayer so it can read and operate it directly.
+# MCP and skills
+
+Give Claude Code, Cursor, or any MCP client live access to Secondlayer, and teach it the rules for building on it.
 
 ## Connect
 
@@ -36,77 +38,17 @@ A token sent on a loopback read that did not need it is ignored, never rejected.
 
 ## Start here
 
-Read these **resources** before calling tools:
+Read `secondlayer://context` first, then any other resource you need, before calling tools.
 
-| Resource | What it returns |
-| --- | --- |
-| `secondlayer://context` | Live snapshot: your subgraphs, webhooks, chain tips, auth state, and what you can do. **Read first.** |
-| `secondlayer://filters` | Event filter types and the fields each accepts |
-| `secondlayer://column-types` | Subgraph column types, SQL mappings, and options |
-| `secondlayer://traits` | SIP standards you can classify and scaffold against (sip-009/010/013) |
-| `secondlayer://chain-triggers` | Chain-webhook trigger types and their filter fields |
+<McpResources />
 
-For Index specifically, call `index_discover` to learn every event type, its columns, and the filters it accepts before building queries.
+For Index, call `index_discover` first to learn every event type, its columns, and the filters it accepts.
 
 ## Tools
 
-Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` to poll.
+Reads are cursor-paginated. Writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` to poll. Account tools register only when `SECONDLAYER_API_URL` is the hosted API.
 
-### Index: decoded reads
-
-| Tool | What it does |
-| --- | --- |
-| `index_events` | Decoded events by `eventType` (stx/ft/nft mint·burn, print, …), with `trait` scoping |
-| `index_ft_transfers` | Decoded SIP-010 fungible-token transfers |
-| `index_nft_transfers` | Decoded SIP-009 non-fungible-token transfers |
-| `index_contract_calls` | Decoded contract calls: function, args, result |
-| `index_transactions` | Decoded transactions, filterable by type/sender/contract |
-| `index_blocks` | Decoded blocks |
-| `index_discover` | The Index vocabulary: event types, columns, allowed filters |
-| `index_print_schema` | Per-topic print payload schemas for a contract, inferred from on-chain history; read before writing `print_event` handlers |
-| `batch_query` | Up to 10 public `/v1` reads in one round trip |
-
-Boot-contract reads (`index_stacking`, pox-5, sBTC) are the same Index tools on shared contracts, not a second product.
-
-### Subgraphs: your own indexer
-
-| Tool | What it does |
-| --- | --- |
-| `subgraphs_deploy` | Deploy from `defineSubgraph()` source (instance Postgres or your own via database URL; `dryRun` previews DDL) |
-| `subgraphs_list` | List your deployed subgraphs |
-| `subgraphs_status` | Full detail: schema, health, table columns |
-| `subgraphs_query` | Query a table with operator filters (`amount.gte`, `name.like`, …) |
-| `subgraphs_gaps` | List missing block ranges |
-| `subgraphs_backfill` | Non-destructive forward fill of a block range |
-| `subgraphs_reindex` | Drop + rebuild the whole subgraph, start block to chain tip (no range) |
-| `subgraphs_stop` | Cancel an in-flight reindex/backfill |
-| `subgraphs_delete` | Delete a subgraph and its data |
-
-### Streams: raw firehose
-
-| Tool | What it does |
-| --- | --- |
-| `streams_dumps` | List the signed bulk dumps manifest (cold backfill). Live Streams reads are REST-only at `/v1/streams/*`. |
-
-### Webhooks: webhooks
-
-| Tool | What it does |
-| --- | --- |
-| `webhooks_create` | Create a subgraph- or chain-triggered webhook (returns `signingSecret` once) |
-| `webhooks_list` | List webhooks |
-| `webhooks_get` | Full detail: filter, auth, retry, circuit state |
-| `webhooks_update` | Patch url, filter, auth, retry, timeout, concurrency |
-| `webhooks_test` | Send a one-off SSRF-guarded test delivery |
-| `webhooks_replay` | Replay a block range |
-| `webhooks_delete` | Delete a webhook |
-
-### Contracts & scaffold
-
-| Tool | What it does |
-| --- | --- |
-| `contracts_find` | Discover deployed contracts conforming to a trait (sip-010/009/013) |
-| `contracts_get_abi` | Fetch a deployed contract's full ABI from the registry |
-| `subgraphs_scaffold` | Generate a subgraph scaffold from a contract's ABI |
+<McpTools />
 
 ## Notes
 
@@ -115,8 +57,18 @@ Boot-contract reads (`index_stacking`, pox-5, sBTC) are the same Index tools on 
 - **Tail without streaming.** For subgraph tables, sort `_id` desc for the latest, then poll forward with `{"_id.gt": "<last id>"}`, order asc.
 - See the [REST API](/docs/rest-api) for the underlying endpoints.
 
+## Agent skill
+
+The `secondlayer` skill teaches an agent the rules for building on Secondlayer: read the print schema before writing a handler, prove a mapping writes rows before deploying it.
+
+```bash
+bunx skills add ryanwaits/secondlayer --skill secondlayer -y
+```
+
+Use the skill when an agent writes code against Secondlayer. Use MCP when it needs live state: your subgraphs, webhooks, chain tips. The skill is static text that can't see your instance, and MCP can, so install both. Source: [`skills/secondlayer`](https://github.com/ryanwaits/secondlayer/tree/main/skills/secondlayer).
+
 export const metadata = {
-	title: "MCP — Secondlayer Docs",
+	title: "MCP and skills — Secondlayer Docs",
 	description:
-		"The Secondlayer MCP server: stdio and HTTP transports, resources, and tools for Index, Subgraphs, Streams, Webhooks, and contracts.",
+		"Connect an agent to Secondlayer: the MCP server's tools and resources, and the agent skill that carries the workflow rules.",
 };
