@@ -1,7 +1,6 @@
 "use client";
 
 import { Logo } from "@/components/logo";
-import { MobileNavCta } from "@/components/mobile-nav-cta";
 import apiNav from "@/generated/openapi-nav.json";
 import { clearAccountData } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
@@ -257,14 +256,13 @@ export function DocsSidebar() {
 
 	return (
 		<>
-			{/* Mobile bar: burger · wordmark · CTA. Replaces the topnav strip
+			{/* Mobile bar: wordmark · burger. Replaces the topnav strip
 			    below 768px; hidden on desktop. */}
 			<div className="docs-mobilebar">
 				<Link href="/" className="docs-mobilebar-brand">
 					<Logo size={22} />
 					<span>secondlayer</span>
 				</Link>
-				<MobileNavCta className="auth-bar-cta docs-mobilebar-cta" />
 				<button
 					type="button"
 					className="docs-burger"

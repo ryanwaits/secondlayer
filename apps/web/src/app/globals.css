@@ -6282,7 +6282,7 @@ button.docs-nav-item {
 	}
 }
 /* mobile drawer: the bar's hamburger toggles the sidebar. The mobile bar
-   (burger · wordmark · CTA) replaces the topnav strip and the floating
+   (wordmark · burger) replaces the topnav strip and the floating
    AuthBar below 768px; all of it hidden on desktop. */
 .docs-mobilebar,
 .docs-burger,
@@ -6332,10 +6332,6 @@ button.docs-nav-item {
 		color: var(--text-main);
 		text-decoration: none;
 	}
-	.docs-mobilebar-cta {
-		margin-left: auto;
-		text-decoration: none;
-	}
 	.docs-burger {
 		display: inline-flex;
 		align-items: center;
@@ -6343,8 +6339,7 @@ button.docs-nav-item {
 		width: 32px;
 		height: 32px;
 		flex: none;
-		/* bar gap is 8px — this brings the CTA→burger gap to ~12px */
-		margin-left: 4px;
+		margin-left: auto;
 		border: 1px solid var(--border);
 		background: var(--bg-elevated);
 		border-radius: 6px;

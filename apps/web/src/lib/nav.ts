@@ -40,8 +40,7 @@ export function isGroup(entry: NavEntry): entry is NavGroup {
 
 export const NAV: NavEntry[] = [
 	{ label: "Docs", href: "/docs" },
-	{ label: "Self-host", href: "/docs/self-host" },
-	{ label: "Archive", href: "/docs/archive" },
+	{ label: "Archive", href: "/archive" },
 	{ label: "Writing", href: "/writing" },
 ];
 
