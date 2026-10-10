@@ -6585,8 +6585,7 @@ button.docs-nav-item {
 	color: var(--text-main);
 	white-space: nowrap;
 }
-.docs-qpanel-copy,
-.docs-qs-term-copy {
+.docs-qpanel-copy {
 	margin-left: auto;
 	flex: 0 0 auto;
 	color: var(--copy-btn);
@@ -6598,138 +6597,11 @@ button.docs-nav-item {
 	transition: color 0.15s ease;
 }
 @media (hover: hover) {
-	.docs-qpanel-copy:hover,
-	.docs-qs-term-copy:hover {
+	.docs-qpanel-copy:hover {
 		color: var(--copy-btn-hover);
 	}
 }
 
-/* ════════════════════════════════════════════════
-   Docs — Quickstart page (guided terminal session)
-   ════════════════════════════════════════════════ */
-.docs-qs-meta {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin: 0 0 var(--spacing-sm);
-}
-.docs-qs-chip {
-	font-family: var(--font-mono-stack);
-	font-size: 11px;
-	letter-spacing: 0.03em;
-	color: var(--text-muted);
-	border: 1px solid var(--border);
-	border-radius: 999px;
-	padding: 4px 11px;
-	font-variant-numeric: tabular-nums;
-}
-.docs-qs-chip b {
-	color: var(--text-main);
-	font-weight: 500;
-}
-.docs-qs-rail {
-	position: relative;
-	margin: var(--spacing-md) 0 var(--spacing-sm);
-	padding-left: 40px;
-}
-.docs-qs-rail::before {
-	content: "";
-	position: absolute;
-	left: 11px;
-	top: 8px;
-	bottom: 30px;
-	width: 2px;
-	background: var(--border);
-}
-.docs-qs-step {
-	position: relative;
-	margin-bottom: 22px;
-}
-.docs-qs-dot {
-	position: absolute;
-	left: -40px;
-	top: 0;
-	width: 24px;
-	height: 24px;
-	border-radius: 999px;
-	display: grid;
-	place-items: center;
-	font-family: var(--font-mono-stack);
-	font-size: 11px;
-	font-weight: 500;
-	background: var(--bg-elevated);
-	border: 1px solid var(--border);
-	color: var(--text-main);
-	font-variant-numeric: tabular-nums;
-}
-.docs-qs-title {
-	font-family: var(--font-heading-stack);
-	font-size: 14px;
-	font-weight: 560;
-	color: var(--text-main);
-	margin: 2px 0 3px;
-}
-.docs-qs-desc {
-	font-size: 13px;
-	line-height: 1.45;
-	color: var(--text-muted);
-	margin-bottom: 10px;
-}
-.docs-qs-term {
-	border: 1px solid var(--border);
-	border-radius: 9px;
-	overflow: hidden;
-	background: var(--code-block-bg);
-}
-.docs-qs-term-top {
-	display: flex;
-	align-items: center;
-	padding: 8px 12px;
-	border-bottom: 1px solid var(--border);
-}
-.docs-qs-term-top .lbl {
-	font-family: var(--font-mono-stack);
-	font-size: 10px;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-	color: var(--text-muted);
-}
-.docs-qs-term-in {
-	padding: 12px 14px;
-	font-family: var(--font-mono-stack);
-	font-size: 12.5px;
-	line-height: 1.7;
-	white-space: pre-wrap;
-	word-break: break-all;
-}
-.docs-qs-term-in .prompt {
-	color: var(--text-muted);
-}
-.docs-qs-term-in .kw {
-	color: var(--text-main);
-}
-.docs-qs-done {
-	margin-top: var(--spacing-sm);
-	border: 1px solid var(--border);
-	background: var(--bg-chrome);
-	border-radius: 12px;
-	padding: 16px 18px;
-}
-.docs-qs-done strong {
-	font-family: var(--font-heading-stack);
-	font-size: 13.5px;
-	color: var(--text-main);
-}
-.docs-qs-done p {
-	font-size: 13px;
-	color: var(--text-prose);
-	margin: 5px 0 0;
-}
-.docs-article .docs-qs-done a {
-	color: var(--text-main);
-	text-decoration: underline;
-	text-underline-offset: 2px;
-}
 @media (max-width: 768px) {
 	.docs-surfaces {
 		grid-template-columns: 1fr;
