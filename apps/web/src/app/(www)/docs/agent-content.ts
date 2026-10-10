@@ -109,14 +109,6 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"/secondlayer Help me generate a typed ORM schema for my subgraph with `secondlayer codegen subgraph --target prisma|drizzle|kysely`, wire it into my app, and treat the tables as read-only. This needs direct Postgres access, so it is self-host only; hosted subgraphs are read over REST.",
 		),
 		card(
-			"Watch the backfill",
-			"Deploy, then watch the backfill drain.",
-			"/secondlayer Watch the genesis backfill with `secondlayer subgraphs status <name>` while reads already serve on `/v1/subgraphs/<name>/<table>`, and explain what the operation progress and ETA mean.",
-		),
-	],
-
-	"/docs/subgraphs/hosted": [
-		card(
 			"Deploy a hosted subgraph",
 			"Deploy to the hosted API with an account key.",
 			"/secondlayer Help me deploy a subgraph to the hosted API: set `SECONDLAYER_API_URL` and `SECONDLAYER_API_KEY` (`sk-sl_*` from /account/keys, see /docs#get-started), set a `startBlock` so the reindex is bounded (event and transaction rows bill), run `secondlayer subgraphs deploy`, then read `/v1/subgraphs/<name>/<table>` with the key as a bearer token. Check my sources are hostable (event filters, `contract_call`, `contract_deploy`) or tell me which one gets `SOURCE_NOT_HOSTABLE`.",
@@ -125,6 +117,11 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"Fix a failing hosted subgraph",
 			"Diagnose an `error` status after restarts.",
 			"/secondlayer My hosted subgraph is marked `error`. Run `secondlayer subgraphs status <name>`, explain that a processor that stalls or runs out of its 512 MB is restarted and marked `error` after 3 deaths at the same height, find the handler at that block, fix it, and redeploy.",
+		),
+		card(
+			"Watch the backfill",
+			"Deploy, then watch the backfill drain.",
+			"/secondlayer Watch the genesis backfill with `secondlayer subgraphs status <name>` while reads already serve on `/v1/subgraphs/<name>/<table>`, and explain what the operation progress and ETA mean.",
 		),
 	],
 

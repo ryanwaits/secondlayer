@@ -223,6 +223,11 @@ const nextConfig: NextConfig = {
 				permanent: true,
 			},
 			{
+				source: "/docs/subgraphs/hosted",
+				destination: "/docs/subgraphs",
+				permanent: true,
+			},
+			{
 				source: "/docs/x402",
 				destination: "/docs/self-host",
 				permanent: true,

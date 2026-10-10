@@ -2,9 +2,19 @@
 
 A deployed subgraph serves its tables four ways: paged REST, a live stream, a webhook, and a typed ORM schema over the same Postgres (the last two are self-host only).
 
+## Open reads
+
+| Route | Returns |
+| --- | --- |
+| `GET /v1/subgraphs` | Your instance's (or hosted account's) subgraphs |
+| `GET /v1/subgraphs/:name` | Metadata: tables, columns, indexing tip |
+| `GET /v1/subgraphs/:name/:table` | Rows; `/count`, `/aggregate` ([aggregates](/docs/rest-api#aggregates)), `/:id`, `/stream` (SSE) alongside |
+
+Reads send `Authorization: Bearer $SECONDLAYER_API_KEY`, with wildcard CORS, the same as `/v1/index` and `/v1/streams`. There is no per-subgraph visibility flag: hosted subgraphs are private to your account, and on your own box who can reach the instance is what your publish spec and reverse proxy decide ([Instance token](/docs/self-host/production#instance-token)). Full grammar: [API reference](/docs/api-reference).
+
 ## Pages, cursors, and sorting
 
-Pages are `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. Sort by one column instead with `?_sort=<column>&_order=asc|desc`, and the cursor pairs that column with `_id` as a tiebreaker, so pages stay stable even when values tie. Multi-column `_sort=a,b` and `jsonb` columns are rejected with `400`, and so is `_offset`. Full grammar: [REST API](/docs/rest-api).
+Pages are `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. Sort by one column instead with `?_sort=<column>&_order=asc|desc`, and the cursor pairs that column with `_id` as a tiebreaker, so pages stay stable even when values tie. The cursor's shape follows the sort: don't hand-construct one, and replaying it under a different `_sort`/`_order` is a `400`. Multi-column `_sort=a,b`, `jsonb` columns and `_offset` are also `400`, since deep `OFFSET` scans hurt on big tables. `_limit`, `_fields`, `_search` and column filters work as everywhere else: [REST API](/docs/rest-api).
 
 ```bash
 # top holders by amount, paginated
@@ -13,12 +23,7 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/asset-holdings/holdings" \
   -G -d "_limit=5" -d "_sort=amount" -d "_order=desc"
 ```
 
-Mark a column `indexed: true` if you plan to sort on it. Sorted reads get a
-`(column, _id)` index that matches the page order, so deep pages stay flat
-instead of re-sorting every tie group. Existing tables pick that index up on
-their next reindex or schema change.
-
-`GET /v1/subgraphs` lists your instance's (or hosted account's) subgraphs; `GET /v1/subgraphs/sbtc-flows` returns metadata. Row-by-id `/:table/:id`, counts `/:table/count`, rollups `/:table/aggregate`: see [aggregates](/docs/rest-api#aggregates) and the [API reference](/docs/api-reference).
+Mark a column `indexed: true` if you plan to sort on it. Sorted reads get a `(column, _id)` index that matches the page order, so deep pages stay flat. Existing tables pick it up on their next reindex or schema change. `_search` needs at least one column marked `search: true`; on a table with none it is a `400` rather than matching everything.
 
 ## Stream rows in real time
 
@@ -43,17 +48,7 @@ It uses the global `EventSource`, so browser or **Node ≥ 22** only. Wire contr
 
 ## Get told when it changes
 
-SSE holds a connection open, which is fine for a browser and wrong for a queue or a serverless function. To have rows delivered instead, point a webhook at any table in the subgraph. Subgraph webhooks are self-host only; on the hosted API, use a [chain webhook](/docs/webhooks#two-kinds).
-
-```bash
-secondlayer webhooks create sbtc-webhook \
-  --no-scaffold \
-  --subgraph sbtc-flows \
-  --table transfers \
-  --url https://your-app.com/webhooks/sbtc
-```
-
-Deliveries are signed, retried, and land in a dead-letter queue you can inspect and requeue. Full options, the delivery envelope, and signature verification: [Webhooks](/docs/webhooks).
+SSE holds a connection open, which suits a browser and not a queue. For delivery to a URL, point a [webhook](/docs/webhooks) at a table (self-host) or use a [chain webhook](/docs/webhooks#two-kinds) hosted.
 
 ## Typed ORM schemas (codegen)
 

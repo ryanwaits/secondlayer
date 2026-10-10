@@ -66,7 +66,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				items: [
 					{ title: "Writing handlers", href: "/docs/subgraphs/handlers" },
 					{ title: "Reading rows", href: "/docs/subgraphs/reading" },
-					{ title: "Hosted subgraphs", href: "/docs/subgraphs/hosted" },
 				],
 			},
 			{

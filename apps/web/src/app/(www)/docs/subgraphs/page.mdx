@@ -2,10 +2,6 @@
 
 One TypeScript file, and you get a table plus a REST API over it. You don't pick the API shape; if you need your own, use [Index](/docs/index).
 
-## Which sources run hosted
-
-[Hosted subgraphs](/docs/subgraphs/hosted) take every source the hosted Index can feed: an event filter (`stx_*`, `ft_*`, `nft_*`, `print_event`, `nested_contract_call`, `var_set`, `map_*`) or `contract_call` / `contract_deploy`, declared as an object keyed by source name. Deploy refuses anything else with `422 SOURCE_NOT_HOSTABLE`, naming the source. On your own box any source runs: [Self-host](/docs/self-host/production#what-differs-on-your-box).
-
 ## Define a subgraph
 
 One config file: named source filters, a table schema, and one handler per source, keyed by source name.
@@ -146,17 +142,20 @@ unstubbed read throws naming the key it wanted.
 
 ## Deploy
 
-First deploy backfills from `startBlock`; new blocks stream in after. Set a `startBlock`: the backfill bills the rows it reads.
+Hosted is the default path: one private stack per account, no box to run. Create an `sk-sl_*` key at [`/account/keys`](/account/keys), set the two variables from the [Introduction](/docs#get-started), and deploy (CLI 19.1 or later). The first deploy backfills from `startBlock`; new blocks stream in after.
 
 ```bash
-secondlayer subgraphs deploy ./subgraph.config.ts
+secondlayer subgraphs deploy ./subgraph.config.ts --start-block 8000000
 ```
 
 ```text
-Read:      <SECONDLAYER_API_URL>/v1/subgraphs/gamma-sales/sales
+✓ Subgraph "sbtc-flows" created → v1.0.0
+  verification  events · pin 7f3c…a91e · ft_transfer source "transfers" needs event proofs
+  REST:      <SECONDLAYER_API_URL>/v1/subgraphs/sbtc-flows/transfers
+  Watch:     secondlayer subgraphs status sbtc-flows
 ```
 
-Each deploy also prints its `pin` and [verification level](/docs/subgraphs/handlers#rows-anyone-can-recompute).
+Set a start block. Without one the subgraph reindexes from genesis, and every matching event and transaction row it reads bills ([what it costs](/docs/authentication#what-it-costs)). The `verification` line is the level your sources earn and `pin` hashes what you deployed: [Rows anyone can recompute](/docs/subgraphs/handlers#rows-anyone-can-recompute).
 
 <Callout type="tip" title="Tip-first deploys">
 
@@ -176,9 +175,20 @@ Rows Indexed       4,874
 Table Rows         balances: 4874
 ```
 
+## What runs hosted
+
+| | Hosted |
+| --- | --- |
+| Sources | Event filters (`stx_*`, `ft_*`, `nft_*`, `print_event`, `nested_contract_call`, `var_set`, `map_*`), `contract_call`, `contract_deploy`. Anything else: `422 SOURCE_NOT_HOSTABLE`, naming the source |
+| Isolation | Handlers run in a gVisor sandbox with 512 MB, reaching only Secondlayer's API and the public internet |
+| Visibility | Private. No public catalog, fork or marketplace |
+| Subgraph webhooks | Self-host only. [Chain webhooks](/docs/webhooks#two-kinds) work hosted |
+
+A processor that stalls or runs out of memory is restarted. After 3 deaths at the same height the subgraph is marked `error`: fix the handler and redeploy. On your own box any source runs: [Self-host](/docs/self-host/production#what-differs-on-your-box).
+
 ## Read your table
 
-Typed from the SDK, or REST at `/v1/subgraphs` with wildcard CORS.
+Typed from the SDK (`new SecondLayer()` reads `SECONDLAYER_API_URL` and `SECONDLAYER_API_KEY`), or REST at `/v1/subgraphs` with wildcard CORS.
 
 ```ts
 const { rows, next_cursor, tip } = await sl.subgraphs.rows(

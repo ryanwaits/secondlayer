@@ -43,7 +43,7 @@ describe("www marketing routes", () => {
 		expect(html).toContain("for apps on Bitcoin.");
 		expect(html).toContain("Your box or ours.");
 		expect(html).toContain("beside your node");
-		expect(html).toContain('href="/docs/subgraphs/hosted"');
+		expect(html).toContain('href="/docs/subgraphs"');
 		expect(html).toContain('href="/docs/webhooks"');
 		// No stats strip, and nothing withdrawn.
 		expect(html).not.toContain("Explore subgraphs is live");

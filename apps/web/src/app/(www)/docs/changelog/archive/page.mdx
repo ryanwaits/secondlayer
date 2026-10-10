@@ -64,7 +64,7 @@ over REST and MCP. See [SDK aggregates](/docs/sdk#aggregate-subgraph-rows).
 
 ### Safer schema changes on your own database
 
-For [bring-your-own-database](/docs/subgraphs#use-your-own-database--orm) subgraphs, a breaking schema change (removed table/column, changed type, or a forced reindex) is now **refused**, keeping your data intact.
+For [bring-your-own-database](/docs/subgraphs/reading#typed-orm-schemas-codegen) subgraphs, a breaking schema change (removed table/column, changed type, or a forced reindex) is now **refused**, keeping your data intact.
 
 - The deploy returns the exact migration plan: the `DROP SCHEMA … CASCADE` plus the rebuild DDL, so you can run it yourself and re-deploy.
 - `sl subgraphs deploy` prints the plan.

@@ -59,7 +59,7 @@ The server attaches its own record of the failed call (method, path, status, cod
 | Index | `limit` (default 200, max 1000) | Fixed by the keyset cursor, no order param |
 | Streams | `limit` (default 100, max 1000) | Fixed by the keyset cursor, no order param |
 
-Pass the previous response's `next_cursor` back as `cursor` (index and `/v1/subgraphs`). Index also accepts `from_cursor` (exclusive-start alias, mutually exclusive with `cursor`) and `from_height`/`to_height`.
+Pass the previous response's `next_cursor` back as `cursor` (index and `/v1/subgraphs`). Subgraph routes, sorting and `_search`: [Reading rows](/docs/subgraphs/reading). Index also accepts `from_cursor` (exclusive-start alias, mutually exclusive with `cursor`) and `from_height`/`to_height`.
 
 ## Filtering
 
@@ -78,20 +78,6 @@ Subgraph tables filter on any column, validated against the table's schema. Inde
 Any unrecognized query param returns `400`; the error suggests the closest valid param.
 
 </Callout>
-
-## /v1 subgraphs open reads
-
-| Route | Returns |
-| --- | --- |
-| `GET /v1/subgraphs` | Your instance's (or hosted account's) subgraphs |
-| `GET /v1/subgraphs/:name` | Metadata: tables, columns, indexing tip |
-| `GET /v1/subgraphs/:name/:table` | Rows; `/count`, `/aggregate`, `/:id`, `/stream` (SSE) alongside |
-
-Reads send `Authorization: Bearer $SECONDLAYER_API_KEY`, with wildcard CORS. Same rule on `/v1/index` and `/v1/streams`. There is no per-subgraph visibility flag: hosted subgraphs are private to your account, and on your own box who can reach the instance is what your publish spec and reverse proxy decide ([Instance token](/docs/self-host/production#instance-token)).
-
-Keyset pagination: `?cursor=<next_cursor>` resumes. By default the keyset is `_id`; add `?_sort=<column>&_order=asc|desc` to sort by one column instead (jsonb columns and multi-column `_sort=a,b` are rejected with `400`; the cursor pairs the sort column with `_id` as a tiebreaker, which only works for one column). `_order` on its own, with no `_sort`, is still `asc`/`desc` direction of the `_id` scan. The cursor's shape follows the sort: don't hand-construct one, and a cursor issued under one `_sort`/`_order` returns `400` if replayed under a different one. `_limit`, `_fields`, `_search`, and column filters work as everywhere else. `_offset` is **rejected with `400`**: deep `OFFSET` scans hurt on big tables.
-
-`_search` needs at least one column marked `search: true` in the subgraph's schema; on a table with none, it's rejected with `400` rather than silently matching everything.
 
 ## Streaming (SSE)
 

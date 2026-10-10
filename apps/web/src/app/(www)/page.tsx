@@ -193,7 +193,7 @@ export function HomeView() {
 									· GET /v1/subgraphs/pox5-stakes/stakes
 								</span>
 							</CodeWindow>
-							<Link href="/docs/subgraphs/hosted" className="home-go">
+							<Link href="/docs/subgraphs" className="home-go">
 								Build a subgraph
 							</Link>
 						</article>
