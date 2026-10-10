@@ -30,7 +30,7 @@ Anything a consumer can reach from another box is past loopback, so it needs `IN
 
 | Target | Process model | The one thing to get right |
 | --- | --- | --- |
-| **Same box** | Compose service or systemd unit | Zero network hop. [Docker and systemd](/docs/deploy/docker) |
+| **Same box** | Compose service or systemd unit | Zero network hop. [Docker and EC2](#docker-and-ec2) |
 | **Railway** | Persistent container | `railway.json` with `healthcheckPath: "/health"`; `PORT` arrives injected |
 | **Render** | Persistent container | `type: web`, never Background Worker: workers get no health check and no `PORT`; keep the public route read-only |
 | **Fly** | Persistent VM | `auto_stop_machines = false`, `min_machines_running = 1`, since scale-to-zero suspends an outbound-only loop minutes after deploy. Or skip persistence: run `mode: "bounded"` on a schedule |
@@ -80,9 +80,73 @@ A shell-form `CMD` makes `/bin/sh` PID 1, which swallows `SIGTERM`, so the loop 
 
 </Callout>
 
+## Docker and EC2
+
+No platform, no config schema: a container and something that restarts it.
+
+### Compose
+
+```yaml
+services:
+  indexer:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports: ["8080:8080"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on: [postgres]
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: sales
+    volumes: ["./data/postgres:/var/lib/postgresql/data"]
+```
+
+```bash
+docker compose up -d
+docker compose logs -f indexer
+```
+
+`restart: unless-stopped` covers crashes and host reboots. Docker's own `healthcheck` reports status but won't restart a wedged container on its own, so pair it with a supervisor or an external probe if you want that.
+
+<Callout type="tip" title="Stop grace period">
+
+`docker compose stop` sends `SIGTERM` and kills after 10s by default. A batch mid-commit against a slow database can exceed that, so raise it with `stop_grace_period: 60s` on the service.
+
+</Callout>
+
+### Bare systemd
+
+Skipping containers:
+
+```ini
+[Unit]
+After=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/bun run /srv/sales-index/indexer.ts
+EnvironmentFile=/srv/sales-index/.env
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`KillSignal=SIGTERM` and a generous `TimeoutStopSec` are what let the [shutdown handler](#handle-sigterm) finish its transaction before systemd escalates to `SIGKILL`.
+
 ## Bring your database
 
-`DATABASE_URL` is the consumer's own Postgres, separate from the instance's. Any Postgres works; keep it in the same region, since the loop commits a transaction per batch, so round-trip latency sets the backfill ceiling.
+`DATABASE_URL` is the consumer's own Postgres, separate from the instance's. Any Postgres works; keep it in the same region (or the same compose file), since the loop commits a transaction per batch, so round-trip latency sets the backfill ceiling. Point it at a managed instance when you'd rather not own backups.
 
 <Callout type="note" title="Backfill depth is your instance's history">
 
@@ -93,5 +157,5 @@ A shell-form `CMD` makes `/bin/sh` PID 1, which swallows `SIGTERM`, so the loop 
 export const metadata = {
 	title: "Deploy — Secondlayer Docs",
 	description:
-		"Where to run a checkpointed consumer against your own instance: same box, Railway, Render, or Fly, with the health, shutdown, and idempotency rules that make redeploys safe.",
+		"Where to run a checkpointed consumer against your own instance: same box (Docker, systemd, EC2), Railway, Render, or Fly, with the health, shutdown, and idempotency rules that make redeploys safe.",
 };
