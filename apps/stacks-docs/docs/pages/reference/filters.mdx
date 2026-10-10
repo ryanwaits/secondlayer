@@ -6,7 +6,7 @@ Describe a chain event once, then hand the same filter to Index, Streams, Webhoo
 
 ## The Four Surfaces
 
-This module only matters alongside a Secondlayer instance. If you use `@secondlayer/stacks` purely as a chain client, skip it. The surfaces are [Secondlayer platform](https://secondlayer.tools/docs) products reached through the `@secondlayer/sdk` client (`sl` below); the platform-side write-up is [secondlayer.tools/docs/filters](https://secondlayer.tools/docs/sdk#filters).
+This module only matters alongside a Secondlayer instance. If you use `@secondlayer/stacks` purely as a chain client, skip it. The surfaces are [Secondlayer platform](https://secondlayer.tools/docs) products reached through the `@secondlayer/sdk` client (`sl` below); the platform-side write-up is [secondlayer.tools/docs/sdk#filters](https://secondlayer.tools/docs/sdk#filters).
 
 - **Index** pulls decoded history over HTTP, paginated and cursor-based. `sl.index.events.list(f.toIndexParams())`. [Docs →](https://secondlayer.tools/docs/index)
 - **Streams** consumes events as they land: ordered, resumable, reorg-aware. `sl.streams.events.consume(f.toStreamsParams())`. [Docs →](https://secondlayer.tools/docs/streams)
