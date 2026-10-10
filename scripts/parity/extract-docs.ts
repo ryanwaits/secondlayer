@@ -22,6 +22,7 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { docsNavPages } from "../../apps/web/src/app/(www)/docs/nav";
+import mcpRegistry from "../../apps/web/src/generated/mcp-tools.json";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "../..");
 const SKILL_DIR = path.join(REPO_ROOT, "skills/secondlayer");
@@ -171,6 +172,12 @@ function collectSkillFiles(): SkillFile[] {
 
 // --- docs site surface ------------------------------------------------------
 
+/**
+ * /docs/mcp renders its tool table from the generated registry, not from MDX,
+ * so the MDX scan alone would report every tool as undocumented.
+ */
+const GENERATED_MCP_PAGE = "docs/mcp";
+
 function findMdxPages(dir: string, prefix = ""): string[] {
 	const pages: string[] = [];
 	for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
@@ -205,11 +212,17 @@ function collectSitePages(): SitePage[] {
 		const slug = dir === "" ? "docs" : `docs/${dir}`;
 		const content = readFileSync(path.join(DOCS_DIR, rel), "utf8");
 		const nav = navBySlug.get(slug);
+		const mentions = extractMentions(content, rel);
+		if (slug === GENERATED_MCP_PAGE) {
+			mentions.mcp = [
+				...new Set([...mentions.mcp, ...mcpRegistry.tools.map((t) => t.name)]),
+			];
+		}
 		return {
 			slug,
 			title: nav?.title ?? inferTitle(content, slug),
 			group: nav?.group ?? null,
-			mentions: extractMentions(content, rel),
+			mentions,
 		};
 	});
 }
