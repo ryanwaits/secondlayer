@@ -392,6 +392,9 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"Set the URL and the instance token for reads and writes.",
 			"/secondlayer Help me use the docs examples against my own box: `export SECONDLAYER_API_URL=http://127.0.0.1:3800`, reads on loopback need no key, writes and any read past loopback send `Authorization: Bearer $INSTANCE_TOKEN` (the CLI and SDK send it for me). Leave `SECONDLAYER_API_KEY` alone, it is the hosted account key that archive credits read. Then deploy a subgraph against my instance and read it back with curl.",
 		),
+	],
+
+	"/docs/self-host/production": [
 		card(
 			"Run published images",
 			"Pull ghcr images and pin a release tag.",
@@ -403,9 +406,22 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"/secondlayer Walk me through a genesis sync with a Stacks node that is itself syncing from genesis (an already-synced node only sends new blocks): start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, `secondlayer verify all --against <manifest>`, then deploy a subgraph against my local instance with `SECONDLAYER_API_URL=http://127.0.0.1:3800` and `secondlayer subgraphs deploy`.",
 		),
 		card(
+			"Back up the box",
+			"Bundle the index and keys, then prove a restore.",
+			"/secondlayer Help me back up my self-hosted Secondlayer instance: `secondlayer backup --out ./backups/$(date +%F)` with `--passphrase` or `SECONDLAYER_BACKUP_PASSPHRASE`, stored somewhere my Postgres backups are not (the bundle carries `INSTANCE_TOKEN`, `SECONDLAYER_SECRETS_KEY` and `STREAMS_SIGNING_PRIVATE_KEY`). Then dry-run `secondlayer restore --from <dir>`, apply with `--apply`, and confirm with `secondlayer verify all --against <manifest>`. Never `docker compose down -v`.",
+		),
+		card(
 			"Upgrade X to Y",
 			"Name the running image, pick a later tag, keep the keys.",
 			"/secondlayer Help me upgrade my self-hosted Secondlayer instance from X to Y. First identify X: `curl -s $SECONDLAYER_API_URL/health`, `docker compose images`, `secondlayer --version`. Ask me for Y (a `v*` tag from GitHub releases, or a git commit if I build from source). Read changelog entries dated after X at https://www.secondlayer.tools/docs/changelog. Keep `postgres_data`, `subgraphs_data` and `.env` (`SECONDLAYER_SECRETS_KEY`, `INSTANCE_TOKEN`, the signing keys); a new secrets key makes existing `whsec_` secrets unreadable. Never `docker compose down -v`, never `secondlayer setup --force`. Then pin Y and restart: published image `docker compose pull && docker compose up -d --remove-orphans`; git checkout `git checkout <Y>` then `docker compose down --remove-orphans` and `up -d --build --remove-orphans`. Confirm `/health` and `secondlayer verify all --against <manifest>`. To roll back, pin X: the schema stays migrated, so only the image rolls back.",
+		),
+	],
+
+	"/docs/self-host/hardware": [
+		card(
+			"Size my box",
+			"Pick RAM and disk before the sync starts.",
+			"/secondlayer Help me size a self-hosted Secondlayer box: app services with an external node need 4 GB RAM and a 600 GB SSD on mainnet (80 GB on testnet/devnet); a bundled node needs 96 GB RAM and 2.5 TB, 128 GB and 3 TB NVMe recommended. Check Postgres `max_connections` >= 50 and set `POSTGRES_SHARED_BUFFERS` to about 25% of RAM for a full-chain sync. The runtime refuses to boot below these floors unless `SECONDLAYER_ALLOW_UNDERSIZED=true`.",
 		),
 	],
 

@@ -44,7 +44,14 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		items: [
 			{ title: "Introduction", href: "/docs" },
 			{ title: "Keys and billing", href: "/docs/authentication" },
-			{ title: "Self-host", href: "/docs/self-host" },
+			{
+				title: "Self-host",
+				href: "/docs/self-host",
+				items: [
+					{ title: "Run in production", href: "/docs/self-host/production" },
+					{ title: "Hardware", href: "/docs/self-host/hardware" },
+				],
+			},
 		],
 	},
 	{
