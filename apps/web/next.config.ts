@@ -195,6 +195,12 @@ const nextConfig: NextConfig = {
 				destination: "/docs#get-started",
 				permanent: true,
 			},
+			// Upgrade folded into the single Self-host page.
+			{
+				source: "/docs/self-host/upgrade",
+				destination: "/docs/self-host#upgrade",
+				permanent: true,
+			},
 			{
 				source: "/docs/x402",
 				destination: "/docs/self-host",

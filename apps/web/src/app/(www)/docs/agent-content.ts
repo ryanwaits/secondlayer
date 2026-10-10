@@ -385,35 +385,22 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Bring up the stack",
 			"Run app services with Docker Compose.",
-			'/secondlayer Help me self-host Secondlayer: `bun add -g @secondlayer/cli`, then `secondlayer setup` — it writes secrets, docker-compose.yml, and .env into a target directory (no manual copy-paste), brings up postgres + the secondlayer container, and verifies `curl http://localhost:3800/health` for me. For an external node, it prints the observer stanza to paste into `Config.toml` (`endpoint = "secondlayer:3700"`); for a bundled node (`--node-mode stacks|full`) that step doesn\'t apply.',
+			'/secondlayer Help me self-host Secondlayer: `bun add -g @secondlayer/cli`, then `secondlayer setup` — it writes secrets, docker-compose.yml, and .env into a target directory (no manual copy-paste), brings up postgres + the secondlayer container, and verifies `curl http://127.0.0.1:3800/health` for me. For an external node, it prints the observer stanza to paste into `Config.toml` (`endpoint = "secondlayer:3700"`); for a bundled node (`--node-mode stacks|full`) that step doesn\'t apply.',
 		),
 		card(
-			"Run published images",
-			"Pull ghcr images and pin a safe tag.",
-			"/secondlayer Help me run Secondlayer from the published `ghcr.io/ryanwaits/secondlayer-*` images instead of building from source — pin a tag cut after the OSS read-parity fix (older tags return `402 UPGRADE_REQUIRED` on reads), and swap the compose `build:` blocks for `image:`.",
+			"Point the examples at my box",
+			"Set the URL and the instance token for reads and writes.",
+			"/secondlayer Help me use the docs examples against my own box: `export SECONDLAYER_API_URL=http://127.0.0.1:3800`, reads on loopback need no key, writes and any read past loopback send `Authorization: Bearer $INSTANCE_TOKEN` (the CLI and SDK send it for me). Leave `SECONDLAYER_API_KEY` alone, it is the hosted account key that archive credits read. Then deploy a subgraph against my instance and read it back with curl.",
 		),
 		card(
 			"Sync from genesis",
 			"Backfill, then deploy against your instance.",
-			"/secondlayer Walk me through a genesis sync with a Stacks node that is itself syncing from genesis (an already-synced node only sends new blocks): start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, `secondlayer verify all --against <manifest>`, then deploy a subgraph against my local instance with `SECONDLAYER_API_URL=http://localhost:3800` and `secondlayer subgraphs deploy`.",
+			"/secondlayer Walk me through a genesis sync with a Stacks node that is itself syncing from genesis (an already-synced node only sends new blocks): start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, `secondlayer verify all --against <manifest>`, then deploy a subgraph against my local instance with `SECONDLAYER_API_URL=http://127.0.0.1:3800` and `secondlayer subgraphs deploy`.",
 		),
-	],
-
-	"/docs/self-host/upgrade": [
 		card(
 			"Upgrade X to Y",
-			"Name the running image, pick a later tag, pull.",
-			"/secondlayer Help me upgrade my self-hosted Secondlayer instance from X to Y. First identify X: `curl -s http://127.0.0.1:3800/health`, `docker compose images`, `secondlayer --version`. Ask me for Y (a `v*` tag from GitHub releases, or a git commit if I build from source). Read changelog entries dated after X at https://www.secondlayer.tools/docs/changelog. Keep `postgres_data` and `.env` (`SECONDLAYER_SECRETS_KEY`, `INSTANCE_TOKEN`). Never `docker compose down -v`, never `secondlayer setup --force`. Then pin Y and restart: published image `docker compose pull && docker compose up -d --remove-orphans`; git checkout `git checkout <Y>` then `docker compose down --remove-orphans` and `up -d --build --remove-orphans`. Confirm `curl http://127.0.0.1:3800/health` and `secondlayer verify all --against <manifest>`.",
-		),
-		card(
-			"What to keep",
-			"Database volume and the keys that decrypt it.",
-			"/secondlayer Tell me exactly what to preserve before an upgrade: the `postgres_data` volume (chain, subgraphs, webhook rows), `subgraphs_data`, `SECONDLAYER_SECRETS_KEY` (decrypts `whsec_` secrets in Postgres), `INSTANCE_TOKEN`, and the webhook signing private keys. Explain that minting a new secrets key makes existing webhook HMAC secrets unreadable, and that `secondlayer backup` bundles the index plus those keys.",
-		),
-		card(
-			"Pin Y and roll back to X",
-			"Forward-only schema; roll back the image.",
-			"/secondlayer I want to pin a specific Secondlayer image tag Y (`ghcr.io/ryanwaits/secondlayer-runtime:<tag>`), not `latest`. Show me where that tag goes in docker-compose.yml, how to `docker compose pull` it, and how to roll back by pinning X again. Schema migrations are forward-only: rolling back the image leaves a migrated database, so only roll back if X can still read Y's schema.",
+			"Name the running image, pick a later tag, keep the keys.",
+			"/secondlayer Help me upgrade my self-hosted Secondlayer instance from X to Y. First identify X: `curl -s $SECONDLAYER_API_URL/health`, `docker compose images`, `secondlayer --version`. Ask me for Y (a `v*` tag from GitHub releases, or a git commit if I build from source). Read changelog entries dated after X at https://www.secondlayer.tools/docs/changelog. Keep `postgres_data`, `subgraphs_data` and `.env` (`SECONDLAYER_SECRETS_KEY`, `INSTANCE_TOKEN`, the signing keys); a new secrets key makes existing `whsec_` secrets unreadable. Never `docker compose down -v`, never `secondlayer setup --force`. Then pin Y and restart: published image `docker compose pull && docker compose up -d --remove-orphans`; git checkout `git checkout <Y>` then `docker compose down --remove-orphans` and `up -d --build --remove-orphans`. Confirm `/health` and `secondlayer verify all --against <manifest>`. To roll back, pin X: the schema stays migrated, so only the image rolls back.",
 		),
 	],
 
