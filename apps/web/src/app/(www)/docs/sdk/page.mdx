@@ -47,6 +47,9 @@ Each surface documents its own calls:
 | Read subgraph tables | `sl.subgraphs.rows`, `sl.subgraphs.typed` | [Subgraphs](/docs/subgraphs#read-your-table) |
 | Stream or roll up rows | `subgraph.<table>.subscribe`, `.aggregate` | [Reading rows](/docs/subgraphs/reading) |
 | Let a sink own the transaction | `kyselySink`, `drizzleSink`, `bunSqliteSink` | [Sinks](/docs/sinks) |
+| Describe one event for every surface | `on.ftMint(...)`, `.toIndexParams()` | [Filters](#filters) |
+
+A failed call throws `ApiError`. `ApiError.requestId` is the `request_id` to quote when you [report a problem](/docs/rest-api#report-a-problem-hosted).
 
 <Callout type="warning" title="trigger.* is not on.*">
 
@@ -93,8 +96,63 @@ Reorgs rewind the cursor to the fork point and fire `onReorg`. Fold running bala
 
 </Callout>
 
+## Filters
+
+Describe a chain event once and get the exact shape Index, Streams, Webhooks, and Subgraphs each expect.
+
+```ts
+import { on } from "@secondlayer/stacks/filters";
+
+const sbtcMints = on.ftMint({
+  assetIdentifier: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token",
+  minAmount: 100_000n,
+});
+
+await sl.index.events.list(sbtcMints.toIndexParams({ limit: 50 }));
+await sl.streams.events.list(sbtcMints.toStreamsParams());
+await sl.webhooks.create({ name: "sbtc-mints", url, triggers: [sbtcMints.toChainTrigger()] });
+```
+
+The surfaces disagree, and a spread hides it. Each projection converts explicitly:
+
+| Difference | Where |
+| --- | --- |
+| Print event is `print` on Index, `print_event` on Subgraphs | Index, Subgraphs |
+| `contract_call` and `contract_deploy` live on a different Index endpoint than events | Index |
+| Amounts are strings: a `bigint` in a `JSON.stringify` body throws at runtime, so `toChainTrigger()` turns `100_000n` into `"100000"` | Webhooks |
+| `trait` scoping exists | Index, Subgraphs, not Streams |
+
+### Unsupported members don't exist
+
+A filter type a surface doesn't support lacks that method, so the error names the problem. Field gating comes second: `trait` is absent from `toStreamsParams()`, and wildcards are Webhooks and Subgraphs only.
+
+```ts
+on.sbtcDeposit({}).toChainTrigger();   // ok: trigger-only event
+on.sbtcDeposit({}).toIndexParams();    // error: Property 'toIndexParams' does not exist
+```
+
+### Principals are validated
+
+A contract id where an asset identifier belongs is the most common copy-paste mistake, and it used to return zero rows. The factory now throws at construction, naming the field. The fields are still typed `string`, so it fails when the filter is built, not as a red squiggle.
+
+```ts
+on.ftTransfer({ assetIdentifier: "SP…token" });        // throws: that's a contract id
+on.ftTransfer({ assetIdentifier: "SP…token::token" }); // ok
+```
+
+### Subgraph sources
+
+`toSubgraphSource()` and `fromSubgraphSource()` round-trip without losing the `abi` literal that keeps `event.input` typed in a handler.
+
+```ts
+import { fromSubgraphSource } from "@secondlayer/stacks/filters";
+
+const source = fromSubgraphSource(subgraph.sources.swaps);
+await sl.index.events.list(source.toIndexParams({ limit: 10 }));
+```
+
 export const metadata = {
 	title: "SDK — Secondlayer Docs",
 	description:
-		"Typed TypeScript client for every Secondlayer surface: signatures, proofs, consumers, and webhooks.",
+		"Typed TypeScript client for every Secondlayer surface: signatures, proofs, consumers, webhooks, and filters.",
 };

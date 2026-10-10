@@ -189,6 +189,17 @@ const nextConfig: NextConfig = {
 				destination: "/docs/sinks",
 				permanent: true,
 			},
+			// Filters folded into the SDK page, custom sinks into Sinks.
+			{
+				source: "/docs/filters",
+				destination: "/docs/sdk#filters",
+				permanent: true,
+			},
+			{
+				source: "/docs/sinks/custom",
+				destination: "/docs/sinks#write-your-own-sink",
+				permanent: true,
+			},
 			// Quickstart folded into the Introduction's Get started panel.
 			{
 				source: "/docs/quickstart",
