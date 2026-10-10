@@ -44,7 +44,11 @@ const LLMS_TXT = `# Secondlayer: instant data for apps on Bitcoin
 - Full text, one file: https://secondlayer.tools/llms-full.txt
 - Any page as markdown: append .md — https://secondlayer.tools/docs/streams.md
 - SDK agent notes ship in the package: node_modules/@secondlayer/sdk/AGENTS.md
-- Deeper agent skill: bunx skills add ryanwaits/secondlayer
+- Verify: https://secondlayer.tools/docs/verification (check a block or
+  transaction yourself, @secondlayer/verify)
+- Env: examples read SECONDLAYER_API_URL and SECONDLAYER_API_KEY. On your own
+  box set the URL to http://127.0.0.1:3800
+- Deeper agent skill: bunx skills add ryanwaits/secondlayer --skill secondlayer -y
 `;
 
 export function GET() {
