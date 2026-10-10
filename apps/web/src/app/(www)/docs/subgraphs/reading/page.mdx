@@ -43,7 +43,7 @@ It uses the global `EventSource`, so browser or **Node ≥ 22** only. Wire contr
 
 ## Get told when it changes
 
-SSE holds a connection open, which is fine for a browser and wrong for a queue or a serverless function. To have rows delivered instead, point a webhook at any table in the subgraph. Subgraph webhooks are self-host only; on the hosted API, use a [chain webhook](/docs/webhooks#direct-chain-webhooks-no-subgraph).
+SSE holds a connection open, which is fine for a browser and wrong for a queue or a serverless function. To have rows delivered instead, point a webhook at any table in the subgraph. Subgraph webhooks are self-host only; on the hosted API, use a [chain webhook](/docs/webhooks#two-kinds).
 
 ```bash
 secondlayer webhooks create sbtc-webhook \

@@ -135,7 +135,7 @@ curl -X POST http://127.0.0.1:3800/api/subgraphs/my-balances/reindex \
 
 Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On a keyless read, a wrong key is ignored; a matching token is used.
 
-`INSTANCE_TOKEN` is required in compose: the container process binds `0.0.0.0` — it has to, or the published port never reaches it — and an instance that binds past loopback with no token refuses to start. `API_PUBLISH_ADDR` is how the API learns which of those two facts to serve on: it carries the publish spec, so with the default `127.0.0.1:3800` the `/v1` reads stay keyless, and changing `API_PORT` to `0.0.0.0:3800` makes every `/v1` request carry the token. Writes take the token either way;.
+`INSTANCE_TOKEN` is required in compose: the container process has to bind `0.0.0.0` or the published port never reaches it, and an instance that binds past loopback with no token refuses to start. `API_PUBLISH_ADDR` is how the API learns which of those two facts to serve on: it carries the publish spec, so with the default `127.0.0.1:3800` the `/v1` reads stay keyless, and changing `API_PORT` to `0.0.0.0:3800` makes every `/v1` request carry the token. Writes take the token either way;.
 
 ## Use these docs on your box
 
@@ -160,7 +160,7 @@ Leave `SECONDLAYER_API_KEY` for the hosted account: archive quote, fetch and cre
 | --- | --- |
 | Metering | None. Your Postgres, no meter, no rate limit |
 | Subgraph sources | Any. Hosted takes event filters, `contract_call` and `contract_deploy` |
-| Subgraph webhooks | Yes. Hosted runs [chain webhooks](/docs/webhooks#direct-chain-webhooks-no-subgraph) only |
+| Subgraph webhooks | Yes. Hosted runs [chain webhooks](/docs/webhooks#two-kinds) only |
 | Typed ORM schemas | `secondlayer codegen subgraph` needs direct Postgres, so it is self-host only |
 | Handler RPC calls | Set `STACKS_NODE_RPC_URL` on the subgraph processor, pointing at the node you already run |
 | History below your bootstrap floor | A metered [archive backfill](/docs/authentication#archive-credits) |

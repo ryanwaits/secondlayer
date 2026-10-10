@@ -39,7 +39,7 @@ Each surface documents its own calls:
 
 | Task | Call | Documented in |
 | --- | --- | --- |
-| Webhook on raw chain events | `sl.webhooks.create({ name, url, triggers })` | [Webhooks](/docs/webhooks#direct-chain-webhooks-no-subgraph) |
+| Webhook on raw chain events | `sl.webhooks.create({ name, url, triggers })` | [Webhooks](/docs/webhooks#two-kinds) |
 | Re-deliver history | `sl.webhooks.replay(id, { fromBlock, toBlock })` | [Replay](/docs/webhooks#replay) |
 | Check a delivery signature | `verifyWebhookSignature`, `verifySecondlayerSignature` | [Receiving deliveries](/docs/webhooks/deliveries#verify-the-signature) |
 | Prove a tx is in a block | `verifyTransactionProof`, `fetchRewardSet` | [Verify](/docs/verification#prove-a-transaction) |
