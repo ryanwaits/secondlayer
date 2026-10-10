@@ -362,7 +362,7 @@ for await (const e of sl.index.runes.activity.walk({ fromHeight: 900_000 })) {
 or any name form, spacers and case ignored — typing all 178k+ rune names would
 be huge and stale, so `list({ search })` covers discovery instead. Self-host
 with the `bitcoin` compose profile has data today; hosted follows. Full guide:
-[docs/runes](https://www.secondlayer.tools/docs/runes).
+[docs/index#runes](https://www.secondlayer.tools/docs/index#runes).
 
 ## Transaction-inclusion proofs
 

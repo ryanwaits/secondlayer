@@ -91,9 +91,9 @@ await sl.webhooks.create({
 
 Validation is strict per type: mints take `recipient` (no `sender`), burns take `sender` (no `recipient`); any field outside a type's set is rejected with a 400.
 
-Five sBTC peg triggers (`sbtcDeposit`, `sbtcWithdrawalCreate`, `sbtcWithdrawalAccept`, `sbtcWithdrawalReject`, `sbtcWithdrawalSweptConfirmed`) track the [sBTC settlement](/docs/sbtc-settlement) lifecycle.
+Five sBTC peg triggers (`sbtcDeposit`, `sbtcWithdrawalCreate`, `sbtcWithdrawalAccept`, `sbtcWithdrawalReject`, `sbtcWithdrawalSweptConfirmed`) track the [sBTC](/docs/index#sbtc) lifecycle.
 
-Four Runes triggers (`runeEtch`, `runeMint`, `runeTransfer`, `runeBurn`) match `chain=bitcoin` Streams events instead of a Stacks block; see [Runes](/docs/runes#get-a-webhook-on-rune-activity) for fields and the not-configured case.
+Four Runes triggers (`runeEtch`, `runeMint`, `runeTransfer`, `runeBurn`) match `chain=bitcoin` Streams events instead of a Stacks block; see [Runes](/docs/index#runes) for fields and the not-configured case.
 
 `POST /api/webhooks` accepts the same array. From the CLI, pass `--trigger` (repeatable, one JSON object each) or `--triggers-file` (a JSON array) instead of `--subgraph`/`--table`:
 

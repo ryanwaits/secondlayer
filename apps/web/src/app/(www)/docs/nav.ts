@@ -59,15 +59,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		items: [
 			{ title: "Archive", href: "/docs/archive" },
 			{ title: "Streams", href: "/docs/streams" },
-			{
-				title: "Index",
-				href: "/docs/index",
-				items: [
-					{ title: "PoX-5 events", href: "/docs/pox5-events" },
-					{ title: "sBTC settlement", href: "/docs/sbtc-settlement" },
-					{ title: "Runes", href: "/docs/runes" },
-				],
-			},
+			{ title: "Index", href: "/docs/index" },
 			{
 				title: "Subgraphs",
 				href: "/docs/subgraphs",
@@ -114,7 +106,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 	{
 		label: "Chain data",
 		items: [
-			{ title: "Contract discovery", href: "/docs/contracts" },
 			{ title: "Migrating from Chainhook", href: "/docs/migrate-chainhook" },
 		],
 	},

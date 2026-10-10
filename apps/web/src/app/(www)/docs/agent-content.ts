@@ -83,6 +83,21 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"Learn a contract's real print payload shape before designing tables.",
 			"/secondlayer Curl `/v1/index/contracts/<contract_id>/print-schema` and walk me through the per-topic fields — Clarity type, the `camel_name` on `event.data`, and which fields are always present vs optional — so I can design tables that won't silently null.",
 		),
+		card(
+			"Find contracts by standard",
+			"List every SIP-010/009/013 conformer, then index the whole standard.",
+			'/secondlayer Query `/v1/contracts?trait=sip-010&conformance=any` and explain declared vs inferred classification (`declared_traits` / `inferred_standards`), cursor-paginating with `next_cursor` until it is null. Then show a subgraph source that targets the trait instead of an address, e.g. `{ type: "ft_transfer", trait: "sip-010" }`, so contracts deployed later are indexed too, or scaffold one hit with `secondlayer subgraphs create <name> --from-contract <id>`. Point at /docs/index#find-contracts-by-standard.',
+		),
+		card(
+			"Read a block's state writes",
+			"See exactly which keys a block wrote.",
+			"/secondlayer Read the contract-state writes of one block with `sl.index.stateWrites.list({ blockHeight, contractId, txContext: true })` or `GET /v1/index/state-writes?block_height=<h>`. Explain the row (`key`, `value_hex`, `ordinal`, null `tx_index` for block-level writes), the `<block_height>:<ordinal>` cursor, and that rows exist only from the height my node first sent the `state_writes` observer key. Point at /docs/index#state-writes.",
+		),
+		card(
+			"Read PoX-5, sBTC, or Runes",
+			"Decoded protocol feeds on shared contracts.",
+			"/secondlayer Help me read a decoded protocol from Index. PoX-5: `GET /v1/index/pox5/events?topic=register-for-bond` or `sl.index.pox5.events.walk({ topic, signer })`. sBTC: `GET /v1/index/sbtc/withdrawals/:request_id` and its `settlement` object (`settlement_confirmed` is null when no sweep is observed yet, not a denial), plus `?settlement_confirmed=true|false` on the list. Runes: `sl.index.runes.list({ search })`, `runes.get(ref)` (null on 404), `runes.activity.walk({ address })`; explain the u128 string amounts and the Bitcoin tip with 6-confirmation finality. Point at /docs/index#decoded-protocols.",
+		),
 	],
 
 	"/docs/subgraphs": [
@@ -178,19 +193,6 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 	],
 
-	"/docs/pox5-events": [
-		card(
-			"Read bond prints",
-			"Index feed filtered by register-for-bond.",
-			"/secondlayer Show me how to read PoX-5 protocol-bond registrations from Index: GET /v1/index/pox5/events?topic=register-for-bond, and a chain webhook trigger print_event on SP000000000000000000002Q6VF78.pox-5 with that topic. Point at /docs/pox5-events and /docs/webhooks.",
-		),
-		card(
-			"Webhook on bond registrations",
-			"Chain webhook for register-for-bond prints.",
-			"/secondlayer Create a PoX-5 bond-registration webhook with `secondlayer webhooks create`: trigger print_event on SP000000000000000000002Q6VF78.pox-5 topic register-for-bond. Point at /docs/pox5-events and /docs/webhooks.",
-		),
-	],
-
 	"/docs/archive": [
 		card(
 			"Check local data against the archive",
@@ -224,60 +226,6 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"Prove a transaction",
 			"Fetch a proof and go fully trustless.",
 			'/secondlayer Fetch `/v1/index/transactions/<tx_id>/proof`, run `verifyTransactionProof(proof)` from `@secondlayer/sdk` server-side, then call `fetchRewardSet({ nodeUrl, cycle })` against my own stacks-node and pass it as `{ rewardSet }` until `rewardSetSource` is `"provided"`. Handle `404 PROOF_UNAVAILABLE` and retry `503 PROOF_NODE_UNAVAILABLE`.',
-		),
-	],
-
-	"/docs/sbtc-settlement": [
-		card(
-			"Check a peg-out's settlement",
-			"See if a withdrawal's BTC sweep actually landed.",
-			"/secondlayer Help me read BTC L1 settlement for an sBTC peg-out: GET `/v1/index/sbtc/withdrawals/:request_id`, then explain the `settlement` object — `sweep_txid`, `btc_confirmations`, `settlement_confirmed`, `btc_block_height`, `confirmed_at` — and what a `null` field means (the committed sweep hasn't been observed on Bitcoin yet, not a denial). Note deposits need no such check — `completed-deposit` only fires after the signers see BTC confirmations.",
-		),
-		card(
-			"List confirmed peg-outs",
-			"Filter withdrawals by Bitcoin settlement state.",
-			"/secondlayer Show me how to filter peg-outs by settlement: curl `/v1/index/sbtc/withdrawals?settlement_confirmed=true` for sweeps confirmed on Bitcoin and `?settlement_confirmed=false` for the pending set (accepted-but-not-confirmed, or no sweep yet). Explain the per-row `settlement_confirmed` flag and cursor-paginate with `next_cursor`.",
-		),
-		card(
-			"Get notified when a sweep confirms",
-			"Webhook the moment a peg-out settles on Bitcoin.",
-			"/secondlayer Help me set up sBTC settlement webhooks: `client.webhooks.create({ url, triggers: [trigger.sbtcWithdrawalSweptConfirmed()] })`. Explain that it fires once per sweep when `btc_confirmations` crosses the threshold (default 6), is forward-only (only settlements confirmed after I create it), and never double-fires on a reorg→un-confirm→re-confirm. Show the `chain.sbtc_withdrawal_swept_confirmed.apply` envelope shape and how to verify the signature.",
-		),
-	],
-
-	"/docs/runes": [
-		card(
-			"Read the rune catalog and one entry",
-			"List, search, and fetch a single rune by id or name.",
-			'/secondlayer Help me read Bitcoin Runes from Index: `sl.index.runes.list({ search: "dog", sort: "mints" })` for the catalog, and `sl.index.runes.get("840000:3")` for one entry (accepts an id or a name, spacers/case ignored). Explain the computed `supply` field and that `get` resolves to `null` on 404. Point at /docs/runes.',
-		),
-		card(
-			"Walk rune activity for an address",
-			"Page or stream etch/mint/transfer/burn events.",
-			"/secondlayer Help me read Runes activity from Index: `sl.index.runes.activity.list({ address, fromHeight })` for a page, or `for await (const e of sl.index.runes.activity.walk({ address }))` to sweep it. Explain the cursor shape, the `kind` filter (rune_etch/rune_mint/rune_transfer/rune_burn), and that reorgs on this feed are block-level (no event_index component). Point at /docs/runes.",
-		),
-		card(
-			"Webhook on rune transfers",
-			"Fire on rune activity instead of polling.",
-			'/secondlayer Create a Runes transfer webhook with `client.webhooks.create({ url, triggers: [trigger.runeTransfer({ rune: "840000:3", minAmount: "1000000" })] })`. Explain the other three triggers (runeEtch, runeMint, runeBurn), that a rune name is resolved to its id at create time, and that a name is rejected with a hint to use the id when the instance has no Runes data configured. Point at /docs/runes and /docs/webhooks.',
-		),
-	],
-
-	"/docs/contracts": [
-		card(
-			"Find contracts by trait",
-			"List every SIP-010/009/013 conformer.",
-			"/secondlayer Query `/v1/contracts?trait=sip-010&conformance=any`, explain declared vs inferred classification and the `declared_traits` / `inferred_standards` fields, and cursor-paginate with `next_cursor` until it's null.",
-		),
-		card(
-			"Index a whole standard",
-			"Trait-scoped subgraph source, no addresses.",
-			'/secondlayer Help me write a subgraph source that points at a trait instead of a contract — e.g. `{ type: "ft_transfer", trait: "sip-010" }` — so it indexes every conforming contract, including ones deployed later, then deploy and query it.',
-		),
-		card(
-			"Scaffold from a hit",
-			"Go from a registry result to a subgraph.",
-			"/secondlayer Pick a contract from `/v1/contracts` for the standard I name, then scaffold a subgraph from it with `secondlayer subgraphs create <name> --from-contract <id>` and deploy.",
 		),
 	],
 

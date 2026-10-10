@@ -141,7 +141,7 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/sbtc",
-				destination: "/docs/sbtc-settlement",
+				destination: "/docs/index#sbtc",
 				permanent: true,
 			},
 			{
@@ -199,6 +199,27 @@ const nextConfig: NextConfig = {
 			{
 				source: "/docs/self-host/upgrade",
 				destination: "/docs/self-host/production#upgrade",
+				permanent: true,
+			},
+			// Product satellites folded into their parent pages.
+			{
+				source: "/docs/contracts",
+				destination: "/docs/index#find-contracts-by-standard",
+				permanent: true,
+			},
+			{
+				source: "/docs/pox5-events",
+				destination: "/docs/index#pox-5",
+				permanent: true,
+			},
+			{
+				source: "/docs/sbtc-settlement",
+				destination: "/docs/index#sbtc",
+				permanent: true,
+			},
+			{
+				source: "/docs/runes",
+				destination: "/docs/index#runes",
 				permanent: true,
 			},
 			{

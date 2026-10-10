@@ -176,9 +176,43 @@ Sampled from indexed prints, raw Clarity hex deserialized for exact types, unifi
 
 Backs `secondlayer subgraphs create <name> --from-contract <contract_id>`; see [Subgraphs](/docs/subgraphs/handlers#typed-print-payloads).
 
-## Read it directly
+## Find contracts by standard
 
-Straight off your instance:
+Find every contract that conforms to a token standard, without keeping a list of addresses. A contract counts as **declared** when its source has `(impl-trait …)`, and **inferred** when its ABI matches the standard's shape.
+
+```bash
+curl -G "$SECONDLAYER_API_URL/v1/contracts" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  -d "trait=sip-010" -d "conformance=any"
+```
+
+```json
+{
+  "contracts": [
+    {
+      "contract_id": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.usda-token",
+      "deployer": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9",
+      "block_height": 21000,
+      "declared_traits": ["sip-010"],
+      "inferred_standards": ["sip-010"],
+      "abi_status": "fetched"
+    }
+  ],
+  "next_cursor": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.usda-token"
+}
+```
+
+| Param | Description |
+| --- | --- |
+| `trait` | `sip-009`, `sip-010`, or `sip-013`. Required. |
+| `conformance` | `declared`, `inferred`, or `any` (default). |
+| `limit` | 1 to 500, default 100. |
+| `cursor` | The previous `next_cursor`; `null` on the last page. |
+| `include` | `abi` adds each contract's ABI. |
+
+`GET /v1/contracts/{contract_id}` returns one contract. `trait` also filters the event and contract-call feeds, and a subgraph source can target a trait and pick up contracts deployed later: [Index by standard](/docs/subgraphs#index-by-standard-not-by-address).
+
+## Read it directly
 
 ```bash
 curl "$SECONDLAYER_API_URL/v1/index/events?event_type=stx_transfer&limit=20" \
@@ -187,71 +221,158 @@ curl "$SECONDLAYER_API_URL/v1/index/events?event_type=stx_transfer&limit=20" \
 
 | Endpoint | Returns | Filters beyond the common set |
 | --- | --- | --- |
-| `/v1/index/events` | Decoded events for a chosen `event_type` (+ `ft-transfers` / `nft-transfers` aliases) | `event_type` required; `asset_identifier` on `nft_*`; `contract_id` + decoded `payload` on `print`; no `contract_id` on `stx_*` |
-| `/v1/index/contract-calls` | Decoded contract-call transactions with `args` and `result` | `function_name`, `sender`, `trait`; cursors are a separate keyspace from events |
+| `/v1/index/events` | Decoded events for a chosen `event_type` (plus `ft-transfers` and `nft-transfers` aliases) | `event_type` required; `asset_identifier` on `nft_*`; `contract_id` and decoded `payload` on `print`; no `contract_id` on `stx_*` |
+| `/v1/index/contract-calls` | Decoded calls with `args` and `result`; own cursor keyspace | `function_name`, `sender`, `trait` |
+| `/v1/index/transactions` · `/{tx_id}` | Full transaction documents; `/{tx_id}/proof` is an inclusion proof ([Verify](/docs/verification)) | `type`, `sender`, `contract_id` |
+| `/v1/index/blocks` · `/{height_or_hash}` | Decoded blocks. Free on hosted | none |
+| `/v1/index/canonical` | One canonical block hash per height, orphans excluded | `from_height` |
+| `/v1/index/mempool` · `/{tx_id}` | Pending transactions with `received_at`; `404` once mined | `sender`, `type`, `contract_id`, `function_name` |
+| `/v1/index/state-writes` | Contract state writes per block ([State writes](#state-writes)) | `block_height`, `contract_id`, `tx_context` |
+| `/v1/index/pox5/events`, `/v1/index/pox/cycles`, `/v1/index/stacking` | [PoX-5](#pox-5) | `topic`, `staker`, `signer`, `reward_cycle` |
+| `/v1/index/sbtc/*` | [sBTC](#sbtc) | `settlement_confirmed` |
+| `/v1/index/runes*` | [Runes](#runes) | `rune`, `address`, `kind` |
 
-| `/v1/index/transactions` · `/{tx_id}` | Full transaction documents (fee, nonce, sponsored, post-conditions, decoded payload) | `type`, `sender`, `contract_id`; `/{tx_id}/proof` returns an inclusion proof ([Verify](/docs/verification)) |
-| `/v1/index/blocks` · `/{height_or_hash}` | Decoded blocks, list or single. Free on hosted: never billed, never a `402` | — |
-| `/v1/index/canonical` | Canonical block-hash map, one row per height, orphans excluded | `from_height` |
-| `/v1/index/mempool` · `/{tx_id}` | Pending transactions: no `block_height`/`result`, plus `received_at`; `404`s once mined, never cached | `sender`, `type`, `contract_id`, `function_name` |
+On the events and contract-call feeds, `contract_id` takes a comma-separated set (max 20): one cursor over a protocol's contracts. `tx_context=true` puts `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id` and `tx_function_name` on every event in one pass. For `print` events it is the only place the sender lives.
 
-Boot-contract feeds use the same verbs and envelope. They are Index on contracts everyone shares, not extra products. Your contract stays in `consume()` or a [subgraph](/docs/subgraphs).
+Every list response carries the collection, an opaque `next_cursor`, the chain `tip`, and `reorgs`. Full grammar: [API reference](/docs/api-reference). `GET /v1/index` describes itself at runtime, so an agent can learn each `event_type` without docs.
 
-| Endpoint | Returns | Filters beyond the common set |
-| --- | --- | --- |
-| `/v1/index/pox/cycles` · `/{reward_cycle}` | Reward cycles of the current PoX (PoX-5), exact to the node: totals, bond sats, sBTC custodied, rewards per token, `is_current`/`is_frozen`. `pox_version` marks the era. PoX-4 cycle history is final and not served here; rebuild it from `/v1/index/stacking` on a self-hosted instance. At the next PoX fork this endpoint follows the chain again. | cursor by `reward_cycle` |
-| `/v1/index/stacking` | Decoded PoX-4 stacking actions (historical: era ended at Epoch 4.0; live: `/v1/index/pox5/events`) | `function_name`, `stacker`, `caller` |
-| `/v1/index/pox5/events` | Decoded PoX-5 print events, all 19 topics ([PoX-5 events](/docs/pox5-events)) | `topic`, `staker`, `signer`, `signer_manager`, `bond_index`, `reward_cycle` |
-| `/v1/index/sbtc/*` | Decoded sBTC peg lifecycle ([sBTC settlement](/docs/sbtc-settlement)) | deposits, withdrawals, events, summary |
-
-Runes reads are a separate clock and envelope: `tip` is a Bitcoin block height, not a Stacks one, and only the activity feed's `reorgs` can ever be non-empty (the catalog and balances read reorg-corrected snapshots). See [Runes](/docs/runes).
-
-| Endpoint | Returns | Filters beyond the common set |
-| --- | --- | --- |
-| `/v1/index/runes` · `/{rune}` | Rune catalog: identity, computed supply, mint terms ([Runes](/docs/runes)) | `search`, `sort` |
-| `/v1/index/runes/activity` | Etch/mint/transfer/burn events, cursor `<block_height>:<event_index>` | `rune`, `address`, `kind`, `txid` |
-| `/v1/index/runes/balances` | Current per-outpoint balances | `address` or `outpoint` (exactly one), `rune` |
-
-On the events and contract-call feeds, `contract_id` also takes a comma-separated set (`?contract_id=SP1.a,SP1.b`, max 20): one cursor over a protocol's contracts instead of one consumer each. For "every contract of a standard" use `trait`, which picks up contracts deployed after you ship.
-
-`tx_context=true` collapses an N+1 walk into one pass: every event carries `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id`, `tx_function_name`. For `print` events, `tx_sender` is the only place the sender lives.
-
-Every list response carries the collection, an opaque `next_cursor`, the chain `tip`, and `reorgs`. Full grammar and response bodies: [API reference](/docs/api-reference). `GET /v1/index` describes itself at runtime, so an agent can learn each `event_type` without docs.
-
-`tip.block_height` is the committed height for the event type you just read, not a shared global number. Each decoded type (`ft_transfer`, `stx_transfer`, `print`, and so on) runs its own decoder, and they don't all sit at the same height. A `stx_transfer` read and an `ft_transfer` read against the same instance can report different tips at the same moment; both are correct for what they cover. `/v1/index/blocks` and `/v1/index/transactions` stay on the ingest tip (`source_block_height`) since raw blocks land with the chain, not with decode. If you cache a tip across event types, re-read it per response instead of reusing one number.
+`tip.block_height` is the height committed for the event type you just read, not a global number. Each decoded type runs its own decoder, so two reads can report different tips at once. `/v1/index/blocks` and `/v1/index/transactions` stay on the ingest tip (`source_block_height`). Re-read the tip per response.
 
 Built on [Streams](/docs/streams): the decoder on your instance reads the same raw firehose you can.
 
 ### Long-poll instead of tight-loop polling
 
-`/v1/index/events` and `/v1/index/blocks` take `wait` (seconds, max 25). With `wait`, an empty page — nothing past your `cursor`/`from_height` yet — holds the connection open instead of answering immediately, and returns the moment new data commits or `wait` elapses, whichever comes first. A page that already has rows answers right away regardless of `wait`.
+`/v1/index/events` and `/v1/index/blocks` take `wait` (seconds, max 25). An empty page holds the connection open until new data commits or `wait` elapses; a page with rows answers at once.
 
 ```
 GET /v1/index/events?event_type=ft_transfer&cursor=<last>&wait=25
 ```
 
-This replaces a `poll every N seconds` loop with `ask, then ask again` — same cursor logic, fewer empty round trips. A self-hosted instance from before `wait` shipped rejects the param (`400`); fall back to a plain poll loop on that response instead of retrying with `wait` forever.
+An instance from before `wait` shipped answers `400`; fall back to a plain poll loop.
 
-## Get told when it changes
-
-A `consume()` loop pulls. To be pushed instead, into a queue or a serverless function, a webhook POSTs matching chain events to your URL as they land:
-
-```bash
-secondlayer webhooks create amm-swaps \
-  --url https://my-app.com/webhook \
-  --trigger '{"type":"contract_call","contractId":"SP....amm","functionName":"swap-*"}'
-```
-
-Deliveries are signed, retried, and land in a dead-letter queue you can inspect and requeue. Full trigger grammar and the delivery envelope: [Webhooks](/docs/webhooks).
-
-## From the CLI and MCP
+### From the CLI and MCP
 
 ```bash
 secondlayer index transactions get 0x<tx_id>
 secondlayer index mempool --contract-id SP….token
 ```
 
-MCP exposes the primitive families as tools: `index_events`, `index_transactions`, `index_mempool`, `index_blocks`, and the rest. Boot-contract tools (`index_stacking`, pox-5, sBTC) are the same Index, on shared contracts.
+MCP tools: `index_events`, `index_ft_transfers`, `index_nft_transfers`, `index_contract_calls`, `index_transactions`, `index_blocks`, `index_print_schema`, `index_discover`, and `contracts_find` for standards. Mempool, state writes, PoX-5, sBTC and Runes have no tool; use REST or the SDK. To be pushed instead of pulling: [Webhooks](/docs/webhooks).
+
+## State writes
+
+The exact contract-state writes each canonical block committed, in node order. Use it to see which key a transaction changed, which events alone don't show.
+
+```ts
+const { state_writes, next_cursor } = await sl.index.stateWrites.list({
+  blockHeight: 8054704,
+  contractId: "SP1.vault", // only keys under this contract
+  txContext: true, // join the writing transaction
+});
+
+for await (const w of sl.index.stateWrites.walk({ fromHeight: 8_000_000 })) {
+  console.log(w.cursor, w.key, w.value_hex);
+}
+```
+
+```bash
+curl "$SECONDLAYER_API_URL/v1/index/state-writes?block_height=8054704" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
+```
+
+A row is `{ cursor, block_height, ordinal, tx_index, key, value_hex }`: `key` is the chain's storage key, `value_hex` the new value, and `tx_index` is `null` for block-level writes. The cursor is `<block_height>:<ordinal>`. `block_height` reads one block and excludes `from_height`/`to_height`.
+
+Rows exist only from the height your node first sent the `state_writes` observer key. There is no earlier history. On your own box the key needs the forked node image: [Connect your node](/docs/self-host/production#connect-your-node). Rows bill like event rows.
+
+## Decoded protocols
+
+Index on contracts everyone shares, with the same verbs and envelope as every other feed. Not products of their own: your contract stays in `consume()` or a [subgraph](/docs/subgraphs).
+
+### PoX-5
+
+Decoded prints from the `pox-5` boot contract (SIP-045, live since Bitcoin block 960,230), plus per-cycle totals. The print log, not a position scoreboard: positions and payouts are a subgraph you deploy.
+
+| Read | Route | SDK |
+| --- | --- | --- |
+| All 19 print topics | `/v1/index/pox5/events` | `pox5.events.list` / `walk` / `consume` |
+| Reward cycles of the current PoX | `/v1/index/pox/cycles` · `/{reward_cycle}` | `pox.cycles.list` / `walk` / `get` |
+| PoX-4 stacking actions (historical) | `/v1/index/stacking` | `stacking.list` / `walk` |
+
+```ts
+for await (const e of sl.index.pox5.events.walk({ topic: "stake", signer: "SP…" })) {
+  console.log(e.block_height, e.staker, e.amount_ustx);
+}
+
+const { events } = await sl.index.pox5.events.list({
+  topic: "register-for-bond",
+  fields: ["bond_index", "amount_sats"], // narrow the row to the columns you ask for
+});
+```
+
+Event filters: `topic`, `staker`, `signer`, `signerManager`, `bondIndex`, `rewardCycle`, `fromHeight`, `toHeight`, `confirmed`. `signer` alone returns a pool's full activity, claims and key grants included. `register-for-bond` rows carry `bond_index`, `amount_sats`, `is_l1_lock` and `data.btc-lockup`. `confirmed=true` holds a read to rows past the reorg margin.
+
+`pox5.events.consume()` is the checkpointed sweep, with the same options as [Build your index on it](#build-your-index-on-it). Cycles are exact to the node and follow the chain again at the next PoX fork. PoX-4 cycle history is final and not served; rebuild it from `/v1/index/stacking` on a self-hosted instance.
+
+### sBTC
+
+The peg lifecycle, decoded, plus Bitcoin confirmation of sweeps. A `withdrawal-accept` only means the signers committed to a sweep, so your instance checks `sweep_txid` against bitcoind (the bundled full-node profile or an external `BITCOIN_RPC`). Deposits need no check: `completed-deposit` fires after the signers see the confirmations.
+
+| Read | Route | SDK |
+| --- | --- | --- |
+| Raw peg log, six topics | `/v1/index/sbtc/events` | `sbtc.events.list` / `walk` / `consume` |
+| Completed deposits | `/v1/index/sbtc/deposits` · `/{bitcoin_txid}` | `sbtc.deposits.list` / `walk` / `consume` |
+| Withdrawal lifecycles | `/v1/index/sbtc/withdrawals` · `/{request_id}` | `sbtc.withdrawals.list` / `walk` / `get` |
+| Totals | `/v1/index/sbtc/summary` | none |
+
+A withdrawal carries a `settlement` object:
+
+```json
+{
+  "request_id": 42,
+  "status": "ACCEPTED",
+  "settlement": { "sweep_txid": "abcd…", "btc_confirmations": 7, "settlement_confirmed": true, "btc_block_height": 880321, "confirmed_at": "2026-06-01T00:00:00.000Z" }
+}
+```
+
+`settlement_confirmed` is `true` past the confirmation threshold, `false` while shallow, `null` when no sweep is observed yet (not a denial). The list takes it as a filter: `?settlement_confirmed=true` is confirmed peg-outs, `false` is the whole not-done bucket.
+
+<Callout type="note" title="Withdrawals have no consume">
+
+A withdrawal row mutates as it moves REQUESTED, ACCEPTED, settled, and a checkpoint only moves forward. Mirror the append-only `events` and derive status from the `withdrawal-*` topics; read `withdrawals.get(id)` for the assembled lifecycle.
+
+</Callout>
+
+Settlement is verified against your instance's bitcoind, not a custody guarantee: a signer set still controls the pegged UTXO. A Bitcoin reorg that un-confirms a sweep self-corrects on read. To be pushed: [Webhooks](/docs/webhooks#triggers).
+
+### Runes
+
+A catalog of etched runes, a per-rune activity log, and balances, on a Bitcoin tip instead of a Stacks one. A rune's id is `<block>:<tx>` of its etch (`840000:3`). Its name is a unique A-Z string; spacers (`•`) are display only, so `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` are one rune. Every `rune` field takes a `RuneRef`: an id or a name in any of those forms.
+
+<Callout type="note" title="Self-host today, hosted follows">
+
+Self-host with the `bitcoin` compose profile has Runes data now. Hosted answers `notes: "Runes data is not configured on this instance"` until it lands there.
+
+</Callout>
+
+| Read | Route | SDK |
+| --- | --- | --- |
+| Catalog | `/v1/index/runes` | `runes.list({ search, sort })` |
+| One rune | `/v1/index/runes/{rune}` | `runes.get(ref)`, `null` on 404 |
+| Current per-outpoint balances | `/v1/index/runes/balances` | `runes.balances({ address })` |
+| Etch, mint, transfer, burn log | `/v1/index/runes/activity` | `runes.activity.list` / `walk` |
+
+```ts
+await sl.index.runes.list({ search: "dog", sort: "mints" });
+await sl.index.runes.balances({ address: "bc1phnp234rd5hel0h8ulqvnq3zrww2td0a8q48hjcg7mv67j97jnxfq9ayczm" });
+
+for await (const e of sl.index.runes.activity.walk({ rune: "840000:3" })) {
+  console.log(e.kind, e.rune.spaced_name, e.amount);
+}
+```
+
+`search` prefix-matches the name and `sort` is etch order or busiest-first (`mints`). `balances` needs exactly one of `address` or `outpoint`, enforced by the types; `rune` narrows either. Activity filters: `rune`, `address`, `kind`, `txid`; its cursor is `<block_height>:<event_index>`. Amounts (`premine`, `supply`, `burned`, `mints`) are u128 decimal strings, never `Number()` them. `supply` is `premine + mints × terms.amount`. Txids come back without `0x`.
+
+A Bitcoin block needs 6 confirmations to count as final: `tip.finalized_height` is `tip.block_height - 6`. The catalog and balances read reorg-corrected snapshots, so their `reorgs` is always empty. Only `activity` is an append-only log, so only its `reorgs` can name replaced heights, at block level. The raw per-transaction events are on [Streams](/docs/streams#bitcoin-events-runes) with `chain=bitcoin`.
 
 export const metadata = {
 	title: "Index — Secondlayer Docs",
