@@ -10,25 +10,36 @@ bun add -g @secondlayer/cli
 
 The binary is `secondlayer`. `sl` is a short alias.
 
-## Common commands
+## Command map
 
-```bash
-secondlayer init --network mainnet
-secondlayer bootstrap --against <manifest>
-secondlayer observer
-secondlayer subgraphs create --from-contract <id>
-secondlayer subgraphs deploy
-secondlayer subgraphs list
-secondlayer webhooks create
-secondlayer context
-secondlayer verify all --against <manifest>
-secondlayer repair --against <archive>
-secondlayer credits buy --email you@example.com --pack 25
-secondlayer credits balance
-secondlayer credits refill --below 5 --pack 25
-```
+Every top-level `secondlayer` command, with the page that owns it.
 
-`--api-key` shape-routes hex to `INSTANCE_TOKEN` and `sk-sl_*` to `SECONDLAYER_API_KEY`. Instance commands refuse `api.secondlayer.tools`, except `secondlayer subgraphs` and `secondlayer webhooks`, which take `SECONDLAYER_API_KEY` against the hosted URL ([hosted subgraphs](/docs/subgraphs#deploy)). See [Keys and billing](/docs/authentication) and [Instance token](/docs/self-host/production#instance-token). [Verified archive](/docs/archive) owns `secondlayer verify` / `secondlayer repair`. [Self-host](/docs/self-host) is the compose loop. `secondlayer credits *` meters archive bootstrap/backfill and hosted Index/Streams reads; [archive credits](/docs/authentication#archive-credits).
+| Command | What it does | Docs |
+| --- | --- | --- |
+| `setup` | Guided self-host onboarding: secrets, compose, bootstrap, verify | [Self-host](/docs/self-host) |
+| `init` | Write the instance token and keys to `.env.local` | [Local runtime](#local-runtime) |
+| `bootstrap` | Restore chain history from a verified archive | [Local runtime](#local-runtime) |
+| `observer` | Print the node's `events_observer` stanza | [Run in production](/docs/self-host/production#connect-your-node) |
+| `whoami` | Show the instance and account targets | [Keys and billing](/docs/authentication) |
+| `subgraphs` | Create, deploy, query, reindex, and backfill subgraphs | [Subgraphs](/docs/subgraphs) |
+| `webhooks` | Create, test, pause, replay, and inspect webhook deliveries | [Webhooks](/docs/webhooks) |
+| `streams` | Read raw chain events, tips, reorgs, and bulk dumps | [Streams](/docs/streams) |
+| `index` | Query decoded events, transfers, contract calls, and blocks | [Index](/docs/index) |
+| `codegen` | Generate typed contract clients, prints, and ORM schemas | [below](#generate-typed-contract-clients) |
+| `devnet` | Run Secondlayer against a local Clarinet devnet | [Devnet](/docs/devnet) |
+| `status` | Local instance health | [Local runtime](#local-runtime) |
+| `doctor` | Diagnose the full stack | [Run in production](/docs/self-host/production) |
+| `config` | Read and write CLI configuration | `secondlayer config --help` |
+| `context` | Print an orientation snapshot of tips, subgraphs, webhooks, and operations | [MCP and skills](/docs/mcp) |
+| `verify` | Compare local data to a signed archive; prove one block; replay a subgraph | [Verify](/docs/verification) |
+| `repair` | Replace local data that diverges from a signed archive | [Verified archive](/docs/archive) |
+| `archive` | Price, fetch, verify, and repair against the hosted archive | [Verified archive](/docs/archive) |
+| `credits` | Buy, check, and auto-refill archive credits | [Keys and billing](/docs/authentication#archive-credits) |
+| `backup` | Write a restorable bundle of the index and keys | [Run in production](/docs/self-host/production#backup) |
+| `restore` | Restore an instance from a backup bundle | [Run in production](/docs/self-host/production#backup) |
+| `uninstall` | Stop the stack; the index and keys survive | [Self-host](/docs/self-host#stop-it) |
+
+`--api-key` shape-routes hex to `INSTANCE_TOKEN` and `sk-sl_*` to `SECONDLAYER_API_KEY`. Instance commands refuse `api.secondlayer.tools`, except `secondlayer subgraphs` and `secondlayer webhooks`, which take `SECONDLAYER_API_KEY` against the hosted URL ([hosted subgraphs](/docs/subgraphs#deploy)). Credentials: [Keys and billing](/docs/authentication) and [Instance token](/docs/self-host/production#instance-token).
 
 <Callout type="note" title="Chain webhooks">
 
