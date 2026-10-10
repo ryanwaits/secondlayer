@@ -1,40 +1,21 @@
-# Instance token and account key
+# Keys and billing
 
-Two credentials. The instance token opens your box. The account key identifies you on the hosted API: Index, Streams, subgraphs, webhooks and the archive.
+One account key opens everything hosted: Index, Streams, your subgraphs and webhooks, and the archive. Prepaid credits pay for it.
 
-## Your instance
+## Your key
 
-| Surface | Credential | Behavior |
-| --- | --- | --- |
-| `/v1` on `127.0.0.1` | none | your Postgres, no meter |
-| `/v1` past loopback | `INSTANCE_TOKEN` | same header on Index, Streams, subgraphs |
-| Writes (`/api/subgraphs`, webhooks, node) | `INSTANCE_TOKEN` | loopback included |
-
-`secondlayer init` writes `INSTANCE_TOKEN`. Send `Authorization: Bearer $INSTANCE_TOKEN`.
+[Sign in](https://www.secondlayer.tools/login) with your email. Your first key is shown once on [your account page](https://www.secondlayer.tools/account), where you can create more. Set it as `SECONDLAYER_API_KEY` ([Introduction](/docs#get-started)); the SDK, CLI and MCP pick it up on the hosted URL.
 
 ```bash
-# Local read — no key
-curl http://127.0.0.1:3800/v1/index/events?limit=5
-
-# Write — instance token, from 127.0.0.1 too
-curl -X POST http://127.0.0.1:3800/api/subgraphs/my-balances/reindex \
-  -H "Authorization: Bearer $INSTANCE_TOKEN"
+curl -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  "$SECONDLAYER_API_URL/v1/index/events?limit=5"
 ```
 
-Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On a keyless OSS read, a wrong key is ignored; a matching token is used.
+Your own box takes a different credential, the instance token: [Self-host](/docs/self-host#instance-token). Never put `sk-sl_*` in `INSTANCE_TOKEN`, or the hex token in `SECONDLAYER_API_KEY`.
 
-## Hosted API and archive
+## What it costs
 
-| Surface | Credential | Behavior |
-| --- | --- | --- |
-| `api.secondlayer.tools` `/v1` Index, Streams | `SECONDLAYER_API_KEY` (`sk-sl_*`) | required. Same prepaid credits as archive. Subgraphs and webhooks also run here on a hosted stack; see [Subgraphs](/docs/subgraphs) and [Webhooks](/docs/webhooks) |
-| Archive quote / fetch / credits | `SECONDLAYER_API_KEY` or `secondlayer login --credits` | required |
-
-Never put `sk-sl_*` in `INSTANCE_TOKEN`. Never put the hex token in `SECONDLAYER_API_KEY`.
-
-Get a key: [sign in](https://www.secondlayer.tools/login) with your email. Your first key is shown once on [your account page](https://www.secondlayer.tools/account), where you can create more.
-
-Hosted reads, live or history, priced the same:
+Reads, live or history, priced the same:
 
 | Rows delivered | Cost |
 | --- | --- |
@@ -50,6 +31,28 @@ Past the free monthly allowance, a key with no balance gets a `402` (`insufficie
 
 Your hosted stack (it runs your webhooks and subgraphs) bills memory at a minimum of 0.5 GB, about $10/mo while it runs, plus storage. A stopped stack bills no memory.
 
+## Spend cap
+
+Set a monthly cap on [your credits page](https://www.secondlayer.tools/account/credits#cap). It counts what you spend in credits this month.
+
+| At | What happens |
+| --- | --- |
+| 80% of the cap | an email, once a month |
+| the cap | reads past your free 1M rows answer `402 spend_cap_reached` until the next month; webhooks keep running |
+
+Raise the cap on the same page and reads resume. Remove it and there is no cap; the prepaid balance is the only limit.
+
+## Balance alerts
+
+At a zero balance your hosted stack stops within minutes: webhooks stop delivering (events are held) and subgraphs stop indexing until you add credits. Two switches on [your credits page](https://www.secondlayer.tools/account/credits) email you first.
+
+| Switch | Emails when |
+| --- | --- |
+| 7 days | runway drops under 7 days at your current spend |
+| 2 days | runway drops under 2 days, and again if the stack stops |
+
+A top-up that puts runway back over 7 days re-arms both.
+
 ## Archive credits
 
 Bootstrap, backfill, and reindex from the [signed public archive](/docs/archive) draw credits per partition bundle fetched; verification is always free. `bootstrap` and `repair` show the price against your balance before anything is charged. Every partition arrives over a short-lived presigned URL and is digest-checked before a row is written. Your first six repair bundles each month are free. Packs are $10, $25, $50, or $100. The prepaid balance is the hard cap.
@@ -59,7 +62,7 @@ secondlayer credits buy --email you@example.com --pack 25
 secondlayer credits balance
 ```
 
-`credits buy` opens a one-time card checkout against [archive.secondlayer.tools](https://archive.secondlayer.tools). `credits balance` and metered bootstrap need the account key or `secondlayer login --credits`.
+`credits buy` opens a one-time card checkout against [archive.secondlayer.tools](https://archive.secondlayer.tools). `credits balance` and metered bootstrap read `SECONDLAYER_API_KEY`.
 
 Auto-refill is off until you set it: `secondlayer credits refill --below 5 --pack 25`.
 
@@ -68,7 +71,7 @@ Auto-refill is off until you set it: `secondlayer credits refill --below 5 --pac
 A **signing secret** (`whsec_…`) is per-webhook and verifies an incoming webhook came from your instance (`verifyWebhookSignature`); see [Webhooks](/docs/webhooks). Never in `Authorization`. Rotate with `secondlayer webhooks rotate-secret`.
 
 export const metadata = {
-	title: "Authentication — Secondlayer Docs",
+	title: "Keys and billing — Secondlayer Docs",
 	description:
-		"Instance token for your box, account key for the hosted API, hosted subgraphs and webhooks, and archive, and the prepaid credits behind them.",
+		"Your account key, what hosted reads cost per row, spend caps, balance alerts, and the prepaid credits behind the archive.",
 };

@@ -51,14 +51,19 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 
 	"/docs/authentication": [
 		card(
-			"Understand the two credentials",
-			"Instance token for your box; account key for the hosted API, hosted subgraphs and webhooks, and archive.",
-			"/secondlayer Explain Secondlayer auth: two credentials. On my instance, `/v1` reads from loopback need no key, past loopback they send `Authorization: Bearer $INSTANCE_TOKEN`, and writes (`/api/subgraphs`, `/api/webhooks`, `/api/node`) send it always. Hosted `api.secondlayer.tools` (Index, Streams, your subgraphs and webhooks) and archive credits use `SECONDLAYER_API_KEY` (`sk-sl_*`). The SDK, MCP and CLI pick the key from the host. Never mix them. Help me wire the right one into my client and CI.",
+			"Wire my account key",
+			"Send the hosted key from the SDK, CLI, MCP and curl.",
+			"/secondlayer Help me wire my account key: export `SECONDLAYER_API_URL=https://api.secondlayer.tools` and `SECONDLAYER_API_KEY` (`sk-sl_*`, from /account/keys), confirm a read with `Authorization: Bearer $SECONDLAYER_API_KEY`, and set the same two variables in CI. The SDK, MCP and CLI pick the key from the host. Never put it in `INSTANCE_TOKEN`.",
 		),
 		card(
-			"Rotate a token or secret",
-			"Rotate the instance token or a webhook signing secret safely.",
-			"/secondlayer Help me rotate a secret. The instance token comes from `secondlayer init` — regenerate it and update every non-loopback caller. For a webhook signing secret run `secondlayer webhooks rotate-secret`. Then confirm nothing still references the old value.",
+			"Cap my spend",
+			"Spend cap and balance alerts before the first bill.",
+			"/secondlayer Help me avoid surprise bills: explain the 1M free rows a month, then set a monthly spend cap and both balance alerts at /account/credits. Tell me what `402 spend_cap_reached` and `402 insufficient_credits` mean and how to clear each.",
+		),
+		card(
+			"Rotate a webhook secret",
+			"Rotate a webhook signing secret safely.",
+			"/secondlayer Help me rotate a webhook signing secret: run `secondlayer webhooks rotate-secret`, update the receiver that calls `verifyWebhookSignature`, then confirm nothing still references the old value.",
 		),
 	],
 
