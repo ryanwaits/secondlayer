@@ -80,7 +80,7 @@ export const AGENT_SETUP = `Ensure setup once, skipping any step already done:
 - Skill: \`bunx skills add ryanwaits/secondlayer --skill secondlayer -y\`
 - CLI: \`bun add -g @secondlayer/cli\`
 - Instance: \`secondlayer init\` writes \`INSTANCE_TOKEN\`. Loopback \`/v1\` reads need no key.
-- Hosted/archive: export \`SECONDLAYER_API_KEY\` (\`sk-sl_*\`) or \`secondlayer login --credits\`, then \`secondlayer whoami\``;
+- Hosted/archive: export \`SECONDLAYER_API_KEY\` (\`sk-sl_*\`) or buy credits with \`secondlayer credits buy\` (\`balance\`, \`refill\`), then \`secondlayer whoami\``;
 
 function withSetup(body: string): string {
 	return `${AGENT_SETUP}
