@@ -1,0 +1,34 @@
+# Hardware
+
+What a self-hosted box needs, so you size it before the sync starts rather than after.
+
+Mainnet full history is large: the reference index measures ~500 GB, of which ~250 GB is `blocks`, `transactions`, and `events` and the rest is the decoded plane. Budget roughly 3 GB per 100k blocks for core datasets, or 6 GB with a broad decoder set, and remember those are averages over history that is much denser at the tip.
+
+| Setup | RAM | Disk |
+| --- | --- | --- |
+| App services, external node, mainnet | 4 GB | 600 GB |
+| App services, external node, testnet/devnet | 4 GB | 80 GB |
+| Bundled node, mainnet (floor) | 96 GB | 2.5 TB |
+| Bundled node, mainnet (recommended) | 128 GB | 3 TB NVMe |
+
+## Postgres
+
+Postgres `max_connections` ≥ 50. Compose sets the Postgres cache to 1 GB (`POSTGRES_SHARED_BUFFERS`). For a full-chain sync, give it about 25% of RAM: at the stock 128 MB, inserts wait on index reads from disk and the sync runs slower. The bundled-node figure is dominated by the chain itself: Stacks chainstate alone measures 1.3 TB, and bitcoind is additional.
+
+## Floors enforced at start
+
+The runtime checks RAM, disk, and `max_connections` at start and refuses to boot below these floors, so an undersized box finds out before it spends hours acquiring an index it cannot hold. Disk is total filesystem capacity, not free space, since a healthy instance legitimately fills most of its disk. An unmeasurable dimension is reported and skipped rather than assumed bad.
+
+To run below a floor anyway:
+
+```bash
+SECONDLAYER_ALLOW_UNDERSIZED=true
+```
+
+That downgrades the refusal to a warning at every start. It exists so a box that was already undersized can still come back up after an upgrade: you keep the ability to run your own hardware, you just do it knowingly.
+
+export const metadata = {
+	title: "Hardware — Secondlayer Docs",
+	description:
+		"RAM and disk for a self-hosted Secondlayer box, Postgres settings, and the size floors the runtime enforces at start.",
+};
