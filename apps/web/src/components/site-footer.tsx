@@ -7,6 +7,7 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 	{
 		title: "Surfaces",
 		links: [
+			{ label: "Archive", href: "/docs/archive" },
 			{ label: "Index", href: "/docs/index" },
 			{ label: "Streams", href: "/docs/streams" },
 			{ label: "Subgraphs", href: "/docs/subgraphs" },
@@ -19,6 +20,7 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 			{ label: "CLI", href: "/docs/cli" },
 			{ label: "SDK", href: "/docs/sdk" },
 			{ label: "MCP", href: "/docs/mcp" },
+			{ label: "Verify", href: "/docs/verification" },
 		],
 	},
 	{
