@@ -132,6 +132,11 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"Webhook on raw chain activity, no subgraph.",
 			"/secondlayer Help me create a chain webhook (no subgraph) with the SDK: build a `triggers` array with `trigger.*` factories — e.g. `trigger.contractCall({ contractId, functionName })` and `trigger.ftTransfer({ assetIdentifier, minAmount })` — pass it to `sl.webhooks.create`, and explain the `chain.{type}.apply` / `chain.reorg.rollback` delivery envelope. (Chain subs are SDK/REST/MCP, not the CLI's subgraph-only create.)",
 		),
+		card(
+			"Webhook on a protocol",
+			"PoX-5 registrations, sBTC settlement, or rune activity.",
+			'/secondlayer Help me create a chain webhook for a protocol with `sl.webhooks.create`. PoX-5 has no trigger of its own: use `trigger.printEvent({ contractId: "SP000000000000000000002Q6VF78.pox-5", topic: "register-for-bond" })`. sBTC: `trigger.sbtcWithdrawalSweptConfirmed()` fires once per sweep when `btc_confirmations` crosses the threshold (default 6), is forward-only, and never re-fires on a reorg. Runes: `trigger.runeTransfer({ rune: "840000:3", minAmount: "1000000" })`, with runeEtch, runeMint and runeBurn alongside; a rune name resolves to its id at create time. Point at /docs/webhooks#triggers.',
+		),
 		variant("webhook-diagnose"),
 		variant("webhook-test"),
 	],

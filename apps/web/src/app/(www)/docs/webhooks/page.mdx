@@ -2,29 +2,6 @@
 
 A signed POST to a URL you run, whenever a row you care about is written or a chain event you named happens.
 
-<Callout type="note" title="Renamed from Subscriptions">
-
-The product name is Webhooks: `secondlayer webhooks`, `sl.webhooks`, `webhooks_*`, and `/api/webhooks`. The old `subscriptions` names are gone. Tables were renamed in place on [upgrade](/docs/self-host/production#upgrade); rows stay. Test-ping bodies send `webhook_id`.
-
-</Callout>
-
-## Hosted limits
-
-Chain webhooks (triggers on raw events, no subgraph deployed) run on `api.secondlayer.tools` with an account key and prepaid credits. Webhooks on a subgraph table you deployed run on [your own box](/docs/self-host/production#what-differs-on-your-box). Delivery semantics (at-least-once, unordered, reorg rollback) are the same either way: [Receiving deliveries](/docs/webhooks/deliveries).
-
-| Limit | Hosted |
-| --- | --- |
-| `max_retries` | Capped at 7 |
-| `timeout_ms` | Capped at 30000 |
-| Rate limits | Per account: create/update/delete 30/min, `test` 10/min, `replay` 5/hour, reads 600/min |
-| Egress | Your webhook receiver and Secondlayer's read APIs only. A tenant's compose network can't reach another tenant or internal services |
-| Pricing | `webhook.event` per delivered event; retries are never billed |
-| Isolation | One full stack per account, never a shared runtime. Your data never shares a database or process with anyone else's. The same stack runs your hosted subgraphs, with handlers in a gVisor sandbox |
-
-## In the dashboard
-
-[`/account/webhooks`](/account/webhooks) lists a hosted account's webhooks and, per webhook, the last 100 delivery attempts, a diagnosis, and failed events waiting to be resent. From there you can send a test event, pause or resume, rotate the signing secret, resend a failed event (or all of them), and delete. Create and edit stay on the CLI/SDK — the dashboard never writes a webhook definition, only watches and fixes one.
-
 ## Create a webhook
 
 ```bash
@@ -88,12 +65,24 @@ await sl.webhooks.create({
 | `trigger.stxBurn` | `stx_burn` | `sender`, `minAmount` |
 | `trigger.stxLock` | `stx_lock` | `lockedAddress`, `minAmount` |
 | `trigger.printEvent` | `print_event` | `contractId`, `topic`, `trait` |
+| `trigger.sbtcDeposit` | `sbtc_deposit` | `sender`, `minAmount`, `maxAmount`, `bitcoinTxid`, `requestId` |
+| `trigger.sbtcWithdrawalCreate` | `sbtc_withdrawal_create` | `sender`, `minAmount`, `maxAmount`, `requestId` |
+| `trigger.sbtcWithdrawalAccept` | `sbtc_withdrawal_accept` | `requestId`, `sweepTxid` |
+| `trigger.sbtcWithdrawalReject` | `sbtc_withdrawal_reject` | `requestId` |
+| `trigger.sbtcWithdrawalSweptConfirmed` | `sbtc_withdrawal_swept_confirmed` | `requestId`, `sweepTxid` |
+| `trigger.runeEtch` | `rune_etch` | `rune` |
+| `trigger.runeMint` | `rune_mint` | `rune` |
+| `trigger.runeTransfer` | `rune_transfer` | `rune`, `address`, `minAmount` |
+| `trigger.runeBurn` | `rune_burn` | `rune` |
 
 Validation is strict per type: mints take `recipient` (no `sender`), burns take `sender` (no `recipient`); any field outside a type's set is rejected with a 400.
 
-Five sBTC peg triggers (`sbtcDeposit`, `sbtcWithdrawalCreate`, `sbtcWithdrawalAccept`, `sbtcWithdrawalReject`, `sbtcWithdrawalSweptConfirmed`) track the [sBTC](/docs/index#sbtc) lifecycle.
+### Protocol triggers
 
-Four Runes triggers (`runeEtch`, `runeMint`, `runeTransfer`, `runeBurn`) match `chain=bitcoin` Streams events instead of a Stacks block; see [Runes](/docs/index#runes) for fields and the not-configured case.
+The sBTC and Runes triggers read the same decoded protocols as [Index](/docs/index#decoded-protocols). PoX-5 has no trigger of its own: it is a `print_event` on the `pox-5` contract, e.g. `trigger.printEvent({ contractId: "SP000000000000000000002Q6VF78.pox-5", topic: "register-for-bond" })`.
+
+- `sbtc_withdrawal_swept_confirmed` fires **once** per sweep, when `btc_confirmations` first crosses the threshold (default 6). It is forward-only: settlements confirmed after you subscribe, never a backfill. A Bitcoin reorg that un-confirms a sweep never re-fires it.
+- The `rune_*` triggers match `chain=bitcoin` Streams events, not a Stacks block. `rune` takes an id or a name; a name is resolved to its id at create time, and an instance with no Runes data rejects a name with a hint to use the id.
 
 `POST /api/webhooks` accepts the same array. From the CLI, pass `--trigger` (repeatable, one JSON object each) or `--triggers-file` (a JSON array) instead of `--subgraph`/`--table`:
 
@@ -145,6 +134,22 @@ Replays are **idempotent**, **historical only**, and **never move the live curso
 
 Not a real chain event, so check `data.test` before treating a delivery as live.
 
+## Account webhooks
+
+[`/account/webhooks`](/account/webhooks) lists a hosted account's webhooks. Each detail page charts 7 days of delivered, waiting and gave-up events by the hour, lists the last 100 delivery attempts with a diagnosis, and holds failed events for resend. Open one delivery for its payload, response status and headers, and error. You can send a test event, pause or resume, rotate the signing secret, resend failed events, and delete. Create and edit stay on the CLI and SDK: the dashboard watches and fixes a webhook, it never writes a definition.
+
+The SDK reads the same views:
+
+```ts
+const activity = await sl.webhooks.activity(id); // hourly counts, waiting, lastSuccessAt, byEventType
+const { data } = await sl.webhooks.deliveries(id); // last 100 attempts, newest first
+const one = await sl.webhooks.delivery(id, data[0].id); // payload, responseHeaders, outboxStatus
+const { data: dead } = await sl.webhooks.dead(id);
+await sl.webhooks.requeue(id, dead[0].id);
+```
+
+`payload` is `null` once the event leaves the outbox, 7 days after delivery, and on test deliveries.
+
 ## Troubleshooting
 
 `secondlayer webhooks doctor <idOrName>` and the dashboard's detail page run the same five rules against your last 100 delivery attempts. Every rule is deterministic: no model, and it only states what the numbers prove. Each fires on a fixed threshold, listed below, and each reports evidence you can check yourself.
@@ -186,6 +191,19 @@ secondlayer webhooks update <idOrName> --timeout-ms 30000
 ### Delivery lag
 
 Fires when the median gap between a block's time and when we dispatched its event, over the newest 20 attempts, exceeds 60 seconds. This is latency on our side, not your receiver: no action needed on your end.
+
+## Hosted limits
+
+Chain webhooks (triggers on raw events, no subgraph deployed) run on `api.secondlayer.tools` with an account key and prepaid credits. Webhooks on a subgraph table you deployed run on [your own box](/docs/self-host/production#what-differs-on-your-box). Delivery semantics (at-least-once, unordered, reorg rollback) are the same either way: [Receiving deliveries](/docs/webhooks/deliveries).
+
+| Limit | Hosted |
+| --- | --- |
+| `max_retries` | Capped at 7 |
+| `timeout_ms` | Capped at 30000 |
+| Rate limits | Per account: create/update/delete 30/min, `test` 10/min, `replay` 5/hour, reads 600/min |
+| Egress | Your webhook receiver and Secondlayer's read APIs only. A tenant's compose network can't reach another tenant or internal services |
+| Pricing | $10 per 1M delivered events (`webhook.event`). Retries are never billed, and the rows read to match your triggers don't bill as `rows.delivered` |
+| Isolation | One full stack per account, never a shared runtime. Your data never shares a database or process with anyone else's. The same stack runs your hosted subgraphs, with handlers in a gVisor sandbox |
 
 export const metadata = {
 	title: "Webhooks — Secondlayer Docs",

@@ -28,10 +28,10 @@ export interface DocsNavGroup {
  * - **Channels** are how you reach them (REST, CLI, SDK, MCP). SDK
  *   concepts (Sinks, Filters) sit with the SDK rather than competing with
  *   the nouns in Products.
- * - **Boot-contract pages** (PoX-5, sBTC) hang under Index. They are
- *   the decoded primitive on contracts everyone shares, not extra products
- *   and not a catalog. New protocols belong in the operator's consume()
- *   loop or a subgraph. Contract discovery + Chainhook stay in Chain data.
+ * - **Protocols** (PoX-5, sBTC, Runes) and contract discovery are sections of
+ *   Index, not pages: the decoded primitive on contracts everyone shares,
+ *   not extra products and not a catalog. New protocols belong in the
+ *   operator's consume() loop or a subgraph.
  * - **Verify** is cross-cutting, not a product noun: one page for everything
  *   you can check (a transaction, a block, an archive, subgraph rows), with
  *   the products linking to it instead of restating it.
@@ -76,7 +76,10 @@ export const DOCS_NAV: DocsNavGroup[] = [
 						title: "Receiving deliveries",
 						href: "/docs/webhooks/deliveries",
 					},
-					{ title: "Event shapes", href: "/docs/webhooks/event-shapes" },
+					{
+						title: "Migrating from Chainhook",
+						href: "/docs/migrate-chainhook",
+					},
 				],
 			},
 		],
@@ -100,12 +103,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				],
 			},
 			{ title: "MCP", href: "/docs/mcp" },
-		],
-	},
-	{
-		label: "Chain data",
-		items: [
-			{ title: "Migrating from Chainhook", href: "/docs/migrate-chainhook" },
 		],
 	},
 	{

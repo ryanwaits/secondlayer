@@ -228,6 +228,11 @@ const nextConfig: NextConfig = {
 				permanent: true,
 			},
 			{
+				source: "/docs/webhooks/event-shapes",
+				destination: "/docs/webhooks/deliveries#event-shapes",
+				permanent: true,
+			},
+			{
 				source: "/docs/x402",
 				destination: "/docs/self-host",
 				permanent: true,
