@@ -28,7 +28,7 @@ secondlayer credits balance
 secondlayer credits refill --below 5 --pack 25
 ```
 
-`--api-key` shape-routes hex to `INSTANCE_TOKEN` and `sk-sl_*` to `SECONDLAYER_API_KEY`. Instance commands refuse `api.secondlayer.tools`, except `secondlayer subgraphs` and `secondlayer webhooks`, which take `SECONDLAYER_API_KEY` against the hosted URL ([hosted subgraphs](/docs/subgraphs/hosted)). See [Authentication](/docs/authentication). [Verified archive](/docs/archive) owns `secondlayer verify` / `secondlayer repair`. [Self-host](/docs/self-host) is the compose loop. `secondlayer credits *` meters archive bootstrap/backfill and hosted Index/Streams reads; [archive credits](/docs/authentication#archive-credits).
+`--api-key` shape-routes hex to `INSTANCE_TOKEN` and `sk-sl_*` to `SECONDLAYER_API_KEY`. Instance commands refuse `api.secondlayer.tools`, except `secondlayer subgraphs` and `secondlayer webhooks`, which take `SECONDLAYER_API_KEY` against the hosted URL ([hosted subgraphs](/docs/subgraphs/hosted)). See [Keys and billing](/docs/authentication) and [Instance token](/docs/self-host#instance-token). [Verified archive](/docs/archive) owns `secondlayer verify` / `secondlayer repair`. [Self-host](/docs/self-host) is the compose loop. `secondlayer credits *` meters archive bootstrap/backfill and hosted Index/Streams reads; [archive credits](/docs/authentication#archive-credits).
 
 <Callout type="note" title="Chain webhooks">
 
@@ -49,7 +49,7 @@ secondlayer observer --mode indexer
 | Command | Flag | Default | Notes |
 | --- | --- | --- | --- |
 | `secondlayer init` | `--network` | `STACKS_NETWORK` or `mainnet` | `mainnet`, `testnet`, or `devnet` |
-| | `--api-url` | `http://127.0.0.1:3800` | Local API |
+| | `--api-url` | the local API, port `3800` | Local API |
 | | `--force` | off | Overwrite generated values in `.env.local` |
 | `secondlayer status` | `--json` | off | Local instance health from `/public/status` |
 | `secondlayer bootstrap` | `--against` | required | Manifest URL or file |
@@ -60,7 +60,7 @@ secondlayer observer --mode indexer
 | | `-y, --yes` | off | Skip confirm |
 | | `--json` | off | Machine output |
 | `secondlayer observer` | `--mode` | `indexer` | `indexer` retries; `signer-shared` does not |
-| | `--endpoint` | `indexer:3700` (`127.0.0.1:3700` on devnet) | `host:port` only, no URL |
+| | `--endpoint` | `indexer:3700` (loopback `:3700` on devnet) | `host:port` only, no URL |
 | | `--network` | `STACKS_NETWORK` or `mainnet` | Loopback refused except devnet |
 
 `secondlayer bootstrap` refuses a non-empty database. Fix an existing instance with [`secondlayer repair`](/docs/archive). Exit `0` restored, `1` diverged, `2` refused.

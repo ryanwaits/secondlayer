@@ -4,7 +4,7 @@ The raw firehose, for when you want to decode it yourself. Most people want [Ind
 
 <Callout type="note" title="Auth">
 
-Loopback needs no token; an API published past loopback needs `INSTANCE_TOKEN` on every read. Hosted `api.secondlayer.tools` is keyed ([Authentication](/docs/authentication)). Cold history beyond what your instance holds restores from the signed archive ([archive credits](/docs/authentication#archive-credits)).
+Hosted reads are keyed ([Keys and billing](/docs/authentication)); on your own box see [Self-host](/docs/self-host#instance-token). Cold history beyond what your instance holds restores from the signed archive ([archive credits](/docs/authentication#archive-credits)).
 
 </Callout>
 
@@ -65,7 +65,8 @@ Where to run it: [Deploy](/docs/deploy).
 ## Read it directly
 
 ```bash
-curl "http://127.0.0.1:3800/v1/streams/events?types=ft_transfer&limit=100"
+curl "$SECONDLAYER_API_URL/v1/streams/events?types=ft_transfer&limit=100" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
 Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, and `from_height`/`to_height`: exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api-reference).
@@ -75,7 +76,8 @@ Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_ty
 `chain=bitcoin` serves Runes events (`rune_etch`, `rune_mint`, `rune_transfer`, `rune_burn`) on their own cursor space; a bitcoin cursor only resumes with `chain=bitcoin` set again. Stacks-only filters (`contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, `clock`) 400 here; `rune` and `address` are bitcoin-only.
 
 ```bash
-curl "http://127.0.0.1:3800/v1/streams/events?chain=bitcoin&rune=840000:3"
+curl "$SECONDLAYER_API_URL/v1/streams/events?chain=bitcoin&rune=840000:3" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
 The tip and canonical block drop the burn-chain fields Stacks carries, since Bitcoin has no burn chain of its own. Events carry `ts`, the block's time. The rune catalog, per-rune activity feed, and balances live on [Index](/docs/runes); this is the raw event log underneath them.
@@ -114,7 +116,8 @@ Over REST it's one JSON query param, and each event echoes the labels it hit:
 
 ```bash
 curl -G --data-urlencode 'filters={"peg":{"types":["ft_transfer"]}}' \
-  "http://127.0.0.1:3800/v1/streams/events"
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  "$SECONDLAYER_API_URL/v1/streams/events"
 ```
 
 ```json
@@ -128,7 +131,8 @@ Deliveries are idempotent, so retries never double-count. Fully-finalized pages 
 ## Real-time firehose (SSE)
 
 ```bash
-curl -N "http://127.0.0.1:3800/v1/streams/events/stream?types=ft_transfer"
+curl -N "$SECONDLAYER_API_URL/v1/streams/events/stream?types=ft_transfer" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
 `GET /v1/streams/events/stream` takes the same filters as `/events`, a start position via `cursor` (or `from_cursor`) or `from_height`, and a `ping` keepalive every 20s. With none it live-tails from the reorg-clamped tip. Wire contract: [REST API](/docs/rest-api#streaming-sse).

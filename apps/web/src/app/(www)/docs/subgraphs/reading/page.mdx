@@ -8,11 +8,10 @@ Pages are `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets 
 
 ```bash
 # top holders by amount, paginated
-curl http://127.0.0.1:3800/v1/subgraphs/asset-holdings/holdings \
+curl "$SECONDLAYER_API_URL/v1/subgraphs/asset-holdings/holdings" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   -G -d "_limit=5" -d "_sort=amount" -d "_order=desc"
 ```
-
-Hosted, use `https://api.secondlayer.tools` and add `-H "Authorization: Bearer $SECONDLAYER_API_KEY"`.
 
 Mark a column `indexed: true` if you plan to sort on it. Sorted reads get a
 `(column, _id)` index that matches the page order, so deep pages stay flat
@@ -26,7 +25,8 @@ their next reindex or schema change.
 Tail a table over Server-Sent Events from the tip, or `?since=<block_height>` to replay a height then tail live. Column filters work as query params.
 
 ```bash
-curl -N http://127.0.0.1:3800/v1/subgraphs/sbtc-flows/transfers/stream \
+curl -N "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers/stream" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   -G -d "since=8050000"
 ```
 

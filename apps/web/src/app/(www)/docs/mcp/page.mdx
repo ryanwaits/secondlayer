@@ -1,13 +1,11 @@
 # MCP
 
-Point Claude Code, Cursor, or any MCP client at the hosted API or your own instance so it can read and operate it directly.
+Point Claude Code, Cursor, or any MCP client at Secondlayer so it can read and operate it directly.
 
 ## Connect
 
 The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP client (Claude Code, Cursor, Claude Desktop):
 
-Hosted API:
-
 ```json
 {
   "mcpServers": {
@@ -15,32 +13,15 @@ Hosted API:
       "command": "npx",
       "args": ["-y", "@secondlayer/mcp"],
       "env": {
-        "SECONDLAYER_API_URL": "https://api.secondlayer.tools",
-        "SECONDLAYER_API_KEY": "<sk-sl_ key from /account/keys>"
+        "SECONDLAYER_API_URL": "<your API URL>",
+        "SECONDLAYER_API_KEY": "<your sk-sl_ key>"
       }
     }
   }
 }
 ```
 
-Self-host (your own instance):
-
-```json
-{
-  "mcpServers": {
-    "secondlayer": {
-      "command": "npx",
-      "args": ["-y", "@secondlayer/mcp"],
-      "env": {
-        "SECONDLAYER_API_URL": "http://127.0.0.1:3800",
-        "INSTANCE_TOKEN": "..."
-      }
-    }
-  }
-}
-```
-
-The MCP server uses `SECONDLAYER_API_KEY` automatically on the hosted URL and `INSTANCE_TOKEN` elsewhere. On a self-hosted instance, `INSTANCE_TOKEN` is optional for reads on loopback; anything published past loopback requires it, and the write tools require it always. See [Authentication](/docs/authentication).
+The values are the two variables from the [Introduction](/docs#get-started). The server uses `SECONDLAYER_API_KEY` on the hosted URL and `INSTANCE_TOKEN` elsewhere; on your own box, set `INSTANCE_TOKEN` instead of the key ([Self-host](/docs/self-host#use-these-docs-on-your-box)).
 
 An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional `SECONDLAYER_MCP_SECRET` bearer auth for hosting the server behind a URL.
 

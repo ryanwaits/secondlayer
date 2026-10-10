@@ -87,7 +87,7 @@ bun add @secondlayer/verify
 import { SecondlayerProofSource, verifyBlock } from "@secondlayer/verify";
 
 const source = new SecondlayerProofSource({
-  baseUrl: "https://api.secondlayer.tools",
+  baseUrl: process.env.SECONDLAYER_API_URL!,
   apiKey: process.env.SECONDLAYER_API_KEY!, // any account key; proofs are never billed
 });
 
@@ -119,7 +119,8 @@ Pass `rows: true` to also check the indexed `vm_events` rows (billed as Index ro
 `verifyTransactionProof` recomputes the txid, merkle root, block hash, and signer weight from one proof.
 
 ```bash
-curl "http://127.0.0.1:3800/v1/index/transactions/0x<tx_id>/proof"
+curl "$SECONDLAYER_API_URL/v1/index/transactions/0x<tx_id>/proof" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
 A `200` returns the raw transaction, raw header, merkle path, and (only when the reward set could be resolved) `consensus`.
@@ -133,7 +134,8 @@ A `200` returns the raw transaction, raw header, merkle path, and (only when the
 import { verifyTransactionProof } from "@secondlayer/sdk";
 
 const proof = await fetch(
-  `http://127.0.0.1:3800/v1/index/transactions/${txid}/proof`,
+  `${process.env.SECONDLAYER_API_URL}/v1/index/transactions/${txid}/proof`,
+  { headers: { Authorization: `Bearer ${process.env.SECONDLAYER_API_KEY}` } },
 ).then((r) => r.json());
 
 const result = verifyTransactionProof(proof);

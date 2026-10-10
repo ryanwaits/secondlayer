@@ -43,7 +43,7 @@ Branch on `code`, not on the message. `request_id` matches the `X-Request-Id` re
 Every error body on `api.secondlayer.tools` carries a `request_id`. When a call fails and you think the API is wrong or missing something, send that id back with one line on what you were trying to do:
 
 ```bash
-curl -X POST https://api.secondlayer.tools/v1/feedback \
+curl -X POST "$SECONDLAYER_API_URL/v1/feedback" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"request_id":"req_3f9a1c0b7d2e4a6f8b1c2d3e","intent":"list aeUSDC swaps for one sender since block 165000"}'
@@ -64,7 +64,8 @@ Pass the previous response's `next_cursor` back as `cursor` (index and `/v1/subg
 ## Filtering
 
 ```bash
-curl http://127.0.0.1:3800/v1/subgraphs/sbtc-flows/transfers \
+curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   -G \
   -d "sender=SP3PE7Q9...X44J" \
   -d "_order=desc"
@@ -95,7 +96,8 @@ Keyset pagination: `?cursor=<next_cursor>` resumes. By default the keyset is `_i
 ## Streaming (SSE)
 
 ```bash
-curl -N "http://127.0.0.1:3800/v1/streams/events/stream?types=ft_transfer"
+curl -N "$SECONDLAYER_API_URL/v1/streams/events/stream?types=ft_transfer" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
 Two endpoints push rows as Server-Sent Events (`Content-Type: text/event-stream`) over one long-lived connection, each with a `ping` keepalive every 20s.
@@ -110,7 +112,8 @@ Ergonomic clients: [Streams](/docs/streams#real-time-firehose-sse), [SDK](/docs/
 `GET /v1/subgraphs/:name/:table/aggregate` runs scalar aggregates over the same filtered set as the list and count endpoints.
 
 ```bash
-curl http://127.0.0.1:3800/v1/subgraphs/sbtc-flows/transfers/aggregate \
+curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers/aggregate" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   -G \
   -d "status=active" \
   -d "_count=true" \
@@ -147,7 +150,8 @@ Typed as `sl.subgraphs.typed(def).<table>.aggregate(spec)`, or untyped as `sl.su
 ## Print-event schemas
 
 ```bash
-curl "http://127.0.0.1:3800/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema"
+curl "$SECONDLAYER_API_URL/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
 `GET /v1/index/contracts/:contract_id/print-schema` returns per-topic print payload schemas inferred from indexed history; response shape in [Index](/docs/index#print-schemas).
@@ -160,7 +164,9 @@ curl "http://127.0.0.1:3800/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CT
 `POST /v1/batch` runs up to 10 `/v1` reads in one round trip, for agents and dashboards that pay per request in latency.
 
 ```bash
-curl -X POST http://127.0.0.1:3800/v1/batch -H "content-type: application/json" -d '{
+curl -X POST "$SECONDLAYER_API_URL/v1/batch" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  -H "content-type: application/json" -d '{
   "requests": [
     { "path": "/v1/index/pox5/events", "params": { "topic": "stake", "limit": 5 } },
     { "path": "/v1/streams/tip" }

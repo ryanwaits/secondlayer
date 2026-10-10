@@ -71,7 +71,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Query decoded events",
 			"Filter every event type + contract calls by contract, principal, or block.",
-			"/secondlayer Help me query the Index API. Ask me for an event_type (ft_transfer, stx_transfer, print, …) or contract calls, plus any contract/principal/block-range filter, then build the cursor-paginated request against `/v1/index/events` or `/v1/index/contract-calls` on my instance (loopback needs no key; hosted `api.secondlayer.tools` needs `SECONDLAYER_API_KEY`) and explain the response envelope.",
+			"/secondlayer Help me query the Index API. Ask me for an event_type (ft_transfer, stx_transfer, print, …) or contract calls, plus any contract/principal/block-range filter, then build the cursor-paginated request against `/v1/index/events` or `/v1/index/contract-calls` at `$SECONDLAYER_API_URL` with `Authorization: Bearer $SECONDLAYER_API_KEY` and explain the response envelope.",
 		),
 		card(
 			"Build a mirror index",
@@ -103,8 +103,8 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 	"/docs/subgraphs/hosted": [
 		card(
 			"Deploy a hosted subgraph",
-			"Deploy to api.secondlayer.tools with an account key.",
-			"/secondlayer Help me deploy a subgraph to the hosted API: export `SECONDLAYER_API_URL=https://api.secondlayer.tools` and `SECONDLAYER_API_KEY` (`sk-sl_*` from /account/keys), set a `startBlock` so the reindex is bounded (event and transaction rows bill), run `secondlayer subgraphs deploy`, then read `/v1/subgraphs/<name>/<table>` with the key as a bearer token. Check my sources are hostable (event filters, `contract_call`, `contract_deploy`) or tell me which one gets `SOURCE_NOT_HOSTABLE`.",
+			"Deploy to the hosted API with an account key.",
+			"/secondlayer Help me deploy a subgraph to the hosted API: set `SECONDLAYER_API_URL` and `SECONDLAYER_API_KEY` (`sk-sl_*` from /account/keys, see /docs#get-started), set a `startBlock` so the reindex is bounded (event and transaction rows bill), run `secondlayer subgraphs deploy`, then read `/v1/subgraphs/<name>/<table>` with the key as a bearer token. Check my sources are hostable (event filters, `contract_call`, `contract_deploy`) or tell me which one gets `SOURCE_NOT_HOSTABLE`.",
 		),
 		card(
 			"Fix a failing hosted subgraph",
@@ -128,7 +128,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Tail the firehose",
 			"Cursor-paginate the raw event stream.",
-			"/secondlayer Help me read the Streams firehose from my instance's `/v1/streams/events` (add `Authorization: Bearer $INSTANCE_TOKEN` off loopback; hosted `api.secondlayer.tools` uses `SECONDLAYER_API_KEY`): filter by `types` / `contract_id` / `sender`, page forward with `next_cursor`, and loop to stay live (deliveries are idempotent).",
+			"/secondlayer Help me read the Streams firehose from `$SECONDLAYER_API_URL/v1/streams/events` (send `Authorization: Bearer $SECONDLAYER_API_KEY`): filter by `types` / `contract_id` / `sender`, page forward with `next_cursor`, and loop to stay live (deliveries are idempotent).",
 		),
 		card(
 			"Build an indexer from zero",
@@ -159,7 +159,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Wire the SDK",
 			"One client, typed reads across every surface.",
-			'/secondlayer Help me wire `@secondlayer/sdk` into my app: create a `SecondLayer({ baseUrl: "http://127.0.0.1:3800", apiKey: process.env.INSTANCE_TOKEN })` client pointed at my instance, read subgraph rows with `sl.subgraphs.rows(name, table, opts)` → `{ rows, next_cursor, tip }`, and get a typed table client via `sl.subgraphs.typed(def)`. On `api.secondlayer.tools` the client reads `SECONDLAYER_API_KEY` itself (the key follows the host); `accountKey` is only for archive operations.',
+			"/secondlayer Help me wire `@secondlayer/sdk` into my app: create a `new SecondLayer()` client (it reads `SECONDLAYER_API_URL`), read subgraph rows with `sl.subgraphs.rows(name, table, opts)` → `{ rows, next_cursor, tip }`, and get a typed table client via `sl.subgraphs.typed(def)`. The key follows the host: `SECONDLAYER_API_KEY` on the hosted API, `INSTANCE_TOKEN` on my own box; `accountKey` is only for archive operations.",
 		),
 		card(
 			"Verify webhooks",
@@ -317,7 +317,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Stand up a local runtime",
 			"Guided setup, or init, bootstrap, print the observer stanza.",
-			"/secondlayer Help me run Secondlayer on my own box (or skip it: set `SECONDLAYER_API_URL=https://api.secondlayer.tools` and `SECONDLAYER_API_KEY` and `secondlayer subgraphs` / `webhooks` run hosted): `secondlayer setup` walks through network/node-mode, writes secrets + docker-compose + .env, brings the stack up, restores verified history, and verifies it — or step by step, `secondlayer init --network mainnet` writes `.env.local`, `secondlayer bootstrap --against <manifest>` restores verified history into an empty database, and `secondlayer observer --mode indexer` prints the `[[events_observer]]` stanza, then `secondlayer verify all --against <manifest>` checks the restore. Explain flags, exit codes, and when to use `--mode signer-shared`.",
+			"/secondlayer Help me run Secondlayer on my own box (or skip it: with `SECONDLAYER_API_URL` and `SECONDLAYER_API_KEY` set to the hosted values, `secondlayer subgraphs` / `webhooks` run hosted): `secondlayer setup` walks through network/node-mode, writes secrets + docker-compose + .env, brings the stack up, restores verified history, and verifies it — or step by step, `secondlayer init --network mainnet` writes `.env.local`, `secondlayer bootstrap --against <manifest>` restores verified history into an empty database, and `secondlayer observer --mode indexer` prints the `[[events_observer]]` stanza, then `secondlayer verify all --against <manifest>` checks the restore. Explain flags, exit codes, and when to use `--mode signer-shared`.",
 		),
 		variant("cli-operate"),
 		card(
@@ -354,7 +354,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Generate a client from the spec",
 			"Typed calls in my language, from the live spec.",
-			"/secondlayer Pull the OpenAPI description from my instance at `GET /v1/openapi.json` (or http://127.0.0.1:3800/v1/openapi.json) and generate a typed client in my language. Keep the operationIds as method names, since they are stable, and wire auth as the spec's optional bearer.",
+			"/secondlayer Pull the OpenAPI description from `GET $SECONDLAYER_API_URL/v1/openapi.json` and generate a typed client in my language. Keep the operationIds as method names, since they are stable, and wire auth as the spec's optional bearer.",
 		),
 		card(
 			"Use the SDK instead",
@@ -408,12 +408,12 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Spin up local devnet",
 			"Point a Clarinet project at a local Secondlayer stack.",
-			"/secondlayer From inside my Clarinet project, run `secondlayer devnet connect` — explain that it patches `settings/Devnet.toml` to forward events to the local indexer on `:3700`, writes `.secondlayer/docker-compose.yml`, and brings the stack up. Then start the chain with `clarinet devnet start` and confirm the api is live at `http://localhost:3800`.",
+			"/secondlayer From inside my Clarinet project, run `secondlayer devnet connect` — explain that it patches `settings/Devnet.toml` to forward events to the local indexer on `:3700`, writes `.secondlayer/docker-compose.yml`, and brings the stack up. Then start the chain with `clarinet devnet start` and confirm the api is live at `curl http://localhost:3800/health`.",
 		),
 		card(
 			"Deploy against devnet",
 			"Run a subgraph on local devnet blocks.",
-			"/secondlayer Help me deploy a subgraph against my local devnet: `SECONDLAYER_API_URL=http://localhost:3800 INSTANCE_TOKEN=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts` — the generated devnet stack ships that fixed local token, and deploys are writes, so they carry it. Then have me fire a contract call in the devnet and confirm the matching rows land by reading the subgraph's table with plain `curl` — the stack publishes the api on 127.0.0.1, so `/v1` reads need no token.",
+			"/secondlayer Help me deploy a subgraph against my local devnet: export `SECONDLAYER_API_URL=http://localhost:3800` and `INSTANCE_TOKEN=dev-instance-token`, then `secondlayer subgraphs deploy ./subgraph.ts` — the generated devnet stack ships that fixed local token, and deploys are writes, so they carry it. Then have me fire a contract call in the devnet and confirm the matching rows land by reading the subgraph's table with plain `curl $SECONDLAYER_API_URL/v1/subgraphs/<name>/<table>`: the stack publishes the api on loopback, so `/v1` reads need no token.",
 		),
 		card(
 			"Watch and tear down",

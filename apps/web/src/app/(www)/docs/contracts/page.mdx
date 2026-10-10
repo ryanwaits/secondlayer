@@ -7,7 +7,8 @@ Secondlayer classifies each deployed contract two ways: **declared**, by parsing
 ## Query by trait
 
 ```bash
-curl http://127.0.0.1:3800/v1/contracts \
+curl "$SECONDLAYER_API_URL/v1/contracts" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   -G -d "trait=sip-010" -d "conformance=any"
 ```
 

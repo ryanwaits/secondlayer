@@ -59,10 +59,14 @@ for await (const e of sl.index.runes.activity.walk({ address })) {
 Over REST, the same four reads sit under `/v1/index/runes`:
 
 ```bash
-curl "http://127.0.0.1:3800/v1/index/runes?search=dog&sort=mints"
-curl "http://127.0.0.1:3800/v1/index/runes/840000:3"
-curl "http://127.0.0.1:3800/v1/index/runes/balances?address=bc1phnp234rd5hel0h8ulqvnq3zrww2td0a8q48hjcg7mv67j97jnxfq9ayczm"
-curl "http://127.0.0.1:3800/v1/index/runes/activity?rune=840000:3&kind=rune_mint,rune_transfer"
+curl "$SECONDLAYER_API_URL/v1/index/runes?search=dog&sort=mints" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
+curl "$SECONDLAYER_API_URL/v1/index/runes/840000:3" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
+curl "$SECONDLAYER_API_URL/v1/index/runes/balances?address=bc1phnp234rd5hel0h8ulqvnq3zrww2td0a8q48hjcg7mv67j97jnxfq9ayczm" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
+curl "$SECONDLAYER_API_URL/v1/index/runes/activity?rune=840000:3&kind=rune_mint,rune_transfer" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
 ## `RuneRef`: an id or a name, no generated union
@@ -78,7 +82,8 @@ A Bitcoin block needs 6 confirmations before a Runes row counts as final; `tip.f
 The same data, undecoded and per-transaction, is on Streams with `chain=bitcoin`:
 
 ```bash
-curl "http://127.0.0.1:3800/v1/streams/events?chain=bitcoin&rune=840000:3"
+curl "$SECONDLAYER_API_URL/v1/streams/events?chain=bitcoin&rune=840000:3" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
 Its own cursor space: a bitcoin cursor only resumes with `chain=bitcoin` set again. Events carry `ts`, the block's time. Filters, tip, and canonical-block shapes: [Streams](/docs/streams#bitcoin-events-runes).

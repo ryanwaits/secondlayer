@@ -58,20 +58,20 @@ clarinet devnet start
 Point the CLI at the local API. There is no login: a deploy is a write, and the generated stack ships a fixed local token, `dev-instance-token`, for exactly that:
 
 ```bash
-SECONDLAYER_API_URL=http://localhost:3800 \
-INSTANCE_TOKEN=dev-instance-token \
+export SECONDLAYER_API_URL=http://localhost:3800
+export INSTANCE_TOKEN=dev-instance-token
 secondlayer subgraphs deploy ./subgraph.ts
 ```
 
 It is a local-dev value, not a secret; a real instance gets its own from `secondlayer init`.
 
-Fire a contract call in your devnet and the matching rows land in your subgraph's tables. Reading them back takes no credential at all — the compose publishes the API on `127.0.0.1` only, and `/v1` reads are keyless whenever the API is reachable from this box alone:
+Fire a contract call in your devnet and the matching rows land in your subgraph's tables. Reading them back takes no credential: the compose publishes the API on loopback only, and `/v1` reads are keyless whenever the API is reachable from this box alone.
 
 ```bash
-curl http://localhost:3800/v1/subgraphs/my-app/balances
+curl "$SECONDLAYER_API_URL/v1/subgraphs/my-app/balances"
 ```
 
-See [Authentication](/docs/authentication).
+See [Instance token](/docs/self-host#instance-token).
 
 ## Watch it work
 

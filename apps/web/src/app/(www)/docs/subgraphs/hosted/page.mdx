@@ -4,12 +4,7 @@ Deploy one TypeScript file to `api.secondlayer.tools` and read its table over RE
 
 ## Get a key and point the CLI at the hosted API
 
-Create an `sk-sl_*` key at [`/account/keys`](/account/keys). It needs CLI 19.1 or later.
-
-```bash
-export SECONDLAYER_API_URL=https://api.secondlayer.tools
-export SECONDLAYER_API_KEY=sk-sl_...
-```
+Create an `sk-sl_*` key at [`/account/keys`](/account/keys) and set the two variables from the [Introduction](/docs#get-started). It needs CLI 19.1 or later.
 
 ## Deploy
 
@@ -25,7 +20,7 @@ Set `startBlock` (or `--start-block`). Without one the subgraph reindexes from g
 ## Read rows
 
 ```bash
-curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
+curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   -G -d "_limit=10" -d "_order=desc"
 ```
@@ -33,11 +28,11 @@ curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
 ```ts
 import { SecondLayer } from "@secondlayer/sdk";
 
-const sl = new SecondLayer({ baseUrl: "https://api.secondlayer.tools" });
+const sl = new SecondLayer(); // reads SECONDLAYER_API_URL and SECONDLAYER_API_KEY
 const { rows } = await sl.subgraphs.rows("sbtc-flows", "transfers", { limit: 10 });
 ```
 
-On the hosted URL the SDK reads `SECONDLAYER_API_KEY` for you. Paging, sorting and streams: [Reading rows](/docs/subgraphs/reading).
+Paging, sorting and streams: [Reading rows](/docs/subgraphs/reading).
 
 ## What runs hosted
 

@@ -4,7 +4,7 @@ Decoded rows you sweep into your own tables. You write the loop; the decoding, t
 
 <Callout type="note" title="History">
 
-Reads on your own box hit your own Postgres: no meter, no rate limit. Hosted `api.secondlayer.tools` bills `rows.delivered`: 1M free per account per month, then $5 per 1M, and block headers are free. `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)). Loopback needs no token; hosted is keyed ([Authentication](/docs/authentication)).
+Reads on your own box hit your own Postgres: no meter, no rate limit. Hosted `api.secondlayer.tools` bills `rows.delivered`: 1M free per account per month, then $5 per 1M, and block headers are free. `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)). Hosted is keyed ([Keys and billing](/docs/authentication)); on your own box see [Self-host](/docs/self-host#instance-token).
 
 </Callout>
 
@@ -140,7 +140,8 @@ To prove a block or transaction rather than compare hashes: [Verify](/docs/verif
 Clarity ABIs don't describe `print` payloads, and the shape varies **per topic** within one contract.
 
 ```bash
-curl "http://127.0.0.1:3800/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema"
+curl "$SECONDLAYER_API_URL/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
 ```json
@@ -180,7 +181,8 @@ Backs `secondlayer subgraphs create <name> --from-contract <contract_id>`; see [
 Straight off your instance:
 
 ```bash
-curl "http://127.0.0.1:3800/v1/index/events?event_type=stx_transfer&limit=20"
+curl "$SECONDLAYER_API_URL/v1/index/events?event_type=stx_transfer&limit=20" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
 | Endpoint | Returns | Filters beyond the common set |

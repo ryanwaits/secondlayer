@@ -153,10 +153,10 @@ secondlayer subgraphs deploy ./subgraph.config.ts
 ```
 
 ```text
-Read:      http://127.0.0.1:3800/v1/subgraphs/gamma-sales/sales
+Read:      <SECONDLAYER_API_URL>/v1/subgraphs/gamma-sales/sales
 ```
 
-Against the hosted API (`SECONDLAYER_API_URL=https://api.secondlayer.tools`, `SECONDLAYER_API_KEY` set) the read URL is `https://api.secondlayer.tools/v1/subgraphs/gamma-sales/sales`. Each deploy also prints its `pin` and [verification level](/docs/subgraphs/handlers#rows-anyone-can-recompute).
+Each deploy also prints its `pin` and [verification level](/docs/subgraphs/handlers#rows-anyone-can-recompute).
 
 <Callout type="tip" title="Tip-first deploys">
 
@@ -189,11 +189,7 @@ const { rows, next_cursor, tip } = await sl.subgraphs.rows(
 ```
 
 ```bash
-curl http://127.0.0.1:3800/v1/subgraphs/sbtc-flows/transfers \
-  -G -d "_limit=10" -d "_order=desc"
-
-# hosted
-curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
+curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   -G -d "_limit=10" -d "_order=desc"
 ```

@@ -32,10 +32,12 @@ Every peg-out lifecycle carries a `settlement` object. `GET /v1/index/sbtc/withd
 
 ```bash
 # only peg-outs whose BTC sweep is confirmed
-curl "http://127.0.0.1:3800/v1/index/sbtc/withdrawals?settlement_confirmed=true"
+curl "$SECONDLAYER_API_URL/v1/index/sbtc/withdrawals?settlement_confirmed=true" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 
 # the complete "not done" bucket — not yet confirmed, or no sweep yet
-curl "http://127.0.0.1:3800/v1/index/sbtc/withdrawals?settlement_confirmed=false"
+curl "$SECONDLAYER_API_URL/v1/index/sbtc/withdrawals?settlement_confirmed=false" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
 ## Mirror the peg into your own tables
