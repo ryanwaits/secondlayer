@@ -91,7 +91,7 @@ Two endpoints push rows as Server-Sent Events (`Content-Type: text/event-stream`
 - `GET /v1/streams/events/stream`: raw chain event firehose. Same filters as `/v1/streams/events`, plus a start position (`cursor`/`from_cursor`/`from_height`); with none it live-tails from the reorg-clamped tip.
 - `GET /v1/subgraphs/:name/:table/stream`: new subgraph-table rows. Takes `?since=<block_height>` (replay from a height, then tail) plus the table's column filters.
 
-Ergonomic clients: [Streams](/docs/streams#real-time-firehose-sse), [SDK](/docs/sdk#subscribe-to-the-live-stream-sse).
+Ergonomic clients: [Streams](/docs/streams#real-time-firehose-sse), [Reading rows](/docs/subgraphs/reading#stream-rows-in-real-time).
 
 ## Aggregates
 

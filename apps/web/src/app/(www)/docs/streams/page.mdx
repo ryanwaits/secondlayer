@@ -158,7 +158,7 @@ The server polls roughly every 1.5s from a tip held a couple of blocks back for 
 
 </Callout>
 
-`client.events.subscribe(...)` auto-reconnects from the last delivered cursor and verifies per-frame signatures; see the [SDK](/docs/sdk#subscribe-to-the-live-stream-sse). Fan out to your backend instead with [Webhooks](/docs/webhooks).
+`client.events.subscribe(...)` auto-reconnects from the last delivered cursor and verifies per-frame signatures; verification modes are under [per-frame signatures](#per-frame-signatures). Fan out to your backend instead with [Webhooks](/docs/webhooks).
 
 ### Per-frame signatures
 
