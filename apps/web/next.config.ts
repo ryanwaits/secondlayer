@@ -195,10 +195,10 @@ const nextConfig: NextConfig = {
 				destination: "/docs#get-started",
 				permanent: true,
 			},
-			// Upgrade folded into the single Self-host page.
+			// Upgrade lives on the Run in production page.
 			{
 				source: "/docs/self-host/upgrade",
-				destination: "/docs/self-host#upgrade",
+				destination: "/docs/self-host/production#upgrade",
 				permanent: true,
 			},
 			{

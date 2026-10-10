@@ -28,7 +28,7 @@ secondlayer credits balance
 secondlayer credits refill --below 5 --pack 25
 ```
 
-`--api-key` shape-routes hex to `INSTANCE_TOKEN` and `sk-sl_*` to `SECONDLAYER_API_KEY`. Instance commands refuse `api.secondlayer.tools`, except `secondlayer subgraphs` and `secondlayer webhooks`, which take `SECONDLAYER_API_KEY` against the hosted URL ([hosted subgraphs](/docs/subgraphs/hosted)). See [Keys and billing](/docs/authentication) and [Instance token](/docs/self-host#instance-token). [Verified archive](/docs/archive) owns `secondlayer verify` / `secondlayer repair`. [Self-host](/docs/self-host) is the compose loop. `secondlayer credits *` meters archive bootstrap/backfill and hosted Index/Streams reads; [archive credits](/docs/authentication#archive-credits).
+`--api-key` shape-routes hex to `INSTANCE_TOKEN` and `sk-sl_*` to `SECONDLAYER_API_KEY`. Instance commands refuse `api.secondlayer.tools`, except `secondlayer subgraphs` and `secondlayer webhooks`, which take `SECONDLAYER_API_KEY` against the hosted URL ([hosted subgraphs](/docs/subgraphs/hosted)). See [Keys and billing](/docs/authentication) and [Instance token](/docs/self-host/production#instance-token). [Verified archive](/docs/archive) owns `secondlayer verify` / `secondlayer repair`. [Self-host](/docs/self-host) is the compose loop. `secondlayer credits *` meters archive bootstrap/backfill and hosted Index/Streams reads; [archive credits](/docs/authentication#archive-credits).
 
 <Callout type="note" title="Chain webhooks">
 
@@ -73,7 +73,7 @@ secondlayer observer --mode indexer
 
 <Callout type="note" title="Signer-shared nodes skip retries">
 
-A block the node fails to deliver stays a gap. `secondlayer repair` fetches it from the archive with [archive credits](/docs/authentication#archive-credits). The full stanza: [Connect your node](/docs/self-host#connect-your-node).
+A block the node fails to deliver stays a gap. `secondlayer repair` fetches it from the archive with [archive credits](/docs/authentication#archive-credits). The full stanza: [Connect your node](/docs/self-host/production#connect-your-node).
 
 </Callout>
 

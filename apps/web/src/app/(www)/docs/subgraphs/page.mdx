@@ -4,7 +4,7 @@ One TypeScript file, and you get a table plus a REST API over it. You don't pick
 
 ## Which sources run hosted
 
-[Hosted subgraphs](/docs/subgraphs/hosted) take every source the hosted Index can feed: an event filter (`stx_*`, `ft_*`, `nft_*`, `print_event`, `nested_contract_call`, `var_set`, `map_*`) or `contract_call` / `contract_deploy`, declared as an object keyed by source name. Deploy refuses anything else with `422 SOURCE_NOT_HOSTABLE`, naming the source. On your own box any source runs: [Self-host](/docs/self-host#what-differs-on-your-box).
+[Hosted subgraphs](/docs/subgraphs/hosted) take every source the hosted Index can feed: an event filter (`stx_*`, `ft_*`, `nft_*`, `print_event`, `nested_contract_call`, `var_set`, `map_*`) or `contract_call` / `contract_deploy`, declared as an object keyed by source name. Deploy refuses anything else with `422 SOURCE_NOT_HOSTABLE`, naming the source. On your own box any source runs: [Self-host](/docs/self-host/production#what-differs-on-your-box).
 
 ## Define a subgraph
 
