@@ -1,8 +1,9 @@
 /**
  * Parity-audit extractor for the MCP server surface.
  *
- * Calls the same `register*Tools` functions `packages/mcp/src/server.ts`
- * wires up (one throwaway McpServer per group, so each tool keeps its group),
+ * Registers every group in `TOOL_GROUPS` (`packages/mcp/src/tool-groups.ts`, the
+ * list `createServer()` loops over; one throwaway McpServer per group, so each
+ * tool keeps its group),
  * then reads the SDK's tool/resource registries directly. No server is
  * started, no transport is connected, no network call is made — tool
  * handlers and resource read callbacks never run.
@@ -15,14 +16,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerResources } from "../../packages/mcp/src/resources.ts";
-import { registerAccountTools } from "../../packages/mcp/src/tools/account.ts";
-import { registerCodegenTools } from "../../packages/mcp/src/tools/codegen.ts";
-import { registerContractTools } from "../../packages/mcp/src/tools/contracts.ts";
-import { registerIndexTools } from "../../packages/mcp/src/tools/index.ts";
-import { registerScaffoldTools } from "../../packages/mcp/src/tools/scaffold.ts";
-import { registerStreamsTools } from "../../packages/mcp/src/tools/streams.ts";
-import { registerSubgraphTools } from "../../packages/mcp/src/tools/subgraphs.ts";
-import { registerWebhookTools } from "../../packages/mcp/src/tools/webhooks.ts";
+import { TOOL_GROUPS } from "../../packages/mcp/src/tool-groups.ts";
 
 interface ParityItem {
 	id: string;
@@ -51,7 +45,13 @@ interface McpServerInternals {
 		string,
 		{ name: string; metadata?: { description?: string } }
 	>;
-	_registeredResourceTemplates: Record<string, unknown>;
+	_registeredResourceTemplates: Record<
+		string,
+		{
+			resourceTemplate: { uriTemplate: { toString(): string } };
+			metadata?: { description?: string };
+		}
+	>;
 }
 
 function internals(server: McpServer): McpServerInternals {
@@ -68,24 +68,12 @@ function freshServer(): McpServer {
 	return new McpServer({ name: "parity-extract", version: "0.0.0" });
 }
 
-// Mirror of the registration order in packages/mcp/src/server.ts.
-const GROUPS: Array<[group: string, register: (server: McpServer) => void]> = [
-	["account", registerAccountTools],
-	["scaffold", registerScaffoldTools],
-	["subgraphs", registerSubgraphTools],
-	["webhooks", registerWebhookTools],
-	["index", registerIndexTools],
-	["streams", registerStreamsTools],
-	["contracts", registerContractTools],
-	["codegen", registerCodegenTools],
-];
-
 // defineTool registers deprecated aliases with this description prefix; use
 // it to tag them so the parity audit can compare canonical names only.
 const ALIAS_PREFIX = "Deprecated alias for `";
 
 const items: ParityItem[] = [];
-for (const [group, register] of GROUPS) {
+for (const { group, register } of TOOL_GROUPS) {
 	const server = freshServer();
 	register(server);
 	for (const [name, tool] of Object.entries(
@@ -117,26 +105,21 @@ const resources: ParityResource[] = Object.entries(
 	id: uri,
 	description: resource.metadata?.description ?? "",
 }));
-const templateCount = Object.keys(
-	resourceInternals._registeredResourceTemplates ?? {},
-).length;
-if (templateCount > 0) {
-	throw new Error(
-		`found ${templateCount} resource template(s) — extend extract-mcp.ts to enumerate them`,
-	);
+// A resource template is one resource family (`secondlayer://samples/{id}`);
+// list it by its URI template so docs mentions match it like any other URI.
+for (const template of Object.values(
+	resourceInternals._registeredResourceTemplates,
+)) {
+	resources.push({
+		id: template.resourceTemplate.uriTemplate.toString(),
+		description: template.metadata?.description ?? "",
+	});
 }
 
 const surface: ParitySurface = {
 	surface: "mcp",
 	generatedFrom: [
-		"packages/mcp/src/server.ts",
-		"packages/mcp/src/tools/scaffold.ts",
-		"packages/mcp/src/tools/subgraphs.ts",
-		"packages/mcp/src/tools/webhooks.ts",
-		"packages/mcp/src/tools/index.ts",
-		"packages/mcp/src/tools/streams.ts",
-		"packages/mcp/src/tools/contracts.ts",
-		"packages/mcp/src/tools/codegen.ts",
+		"packages/mcp/src/tool-groups.ts",
 		"packages/mcp/src/resources.ts",
 	],
 	items,
