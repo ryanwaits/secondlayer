@@ -5,17 +5,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { resolveBaseUrl } from "@secondlayer/sdk";
 import { isHostedArchiveUrl } from "./lib/hosted.ts";
 import { registerResources } from "./resources.ts";
-import { registerAccountTools } from "./tools/account.ts";
-import { registerArchiveTools } from "./tools/archive.ts";
-import { registerCodegenTools } from "./tools/codegen.ts";
-import { registerContractTools } from "./tools/contracts.ts";
-import { registerIndexTools } from "./tools/index.ts";
-import { registerInstanceTools } from "./tools/instance.ts";
-import { registerScaffoldTools } from "./tools/scaffold.ts";
-import { registerSetupTools } from "./tools/setup.ts";
-import { registerStreamsTools } from "./tools/streams.ts";
-import { registerSubgraphTools } from "./tools/subgraphs.ts";
-import { registerWebhookTools } from "./tools/webhooks.ts";
+import { TOOL_GROUPS } from "./tool-groups.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(
@@ -28,19 +18,10 @@ export function createServer(): McpServer {
 		version: pkg.version,
 	});
 
-	registerScaffoldTools(server);
-	registerSubgraphTools(server);
-	registerWebhookTools(server);
-	registerIndexTools(server);
-	registerStreamsTools(server);
-	registerContractTools(server);
-	registerCodegenTools(server);
-	registerInstanceTools(server);
-	registerArchiveTools(server);
-	registerSetupTools(server);
-	const baseUrl = resolveBaseUrl();
-	if (isHostedArchiveUrl(baseUrl)) {
-		registerAccountTools(server);
+	const hosted = isHostedArchiveUrl(resolveBaseUrl());
+	for (const { register, hostedOnly } of TOOL_GROUPS) {
+		if (hostedOnly && !hosted) continue;
+		register(server);
 	}
 	registerResources(server);
 
