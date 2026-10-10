@@ -286,12 +286,12 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/docs/workflows",
-				destination: "/migration/v1-to-v2",
+				destination: "/docs/webhooks",
 				permanent: true,
 			},
 			{
 				source: "/docs/sentries",
-				destination: "/migration/v1-to-v2",
+				destination: "/docs/webhooks",
 				permanent: true,
 			},
 			// Library pages moved to stacks.secondlayer.tools (plan 012).
