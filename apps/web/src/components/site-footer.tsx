@@ -8,8 +8,8 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 		title: "Surfaces",
 		links: [
 			{ label: "Archive", href: "/docs/archive" },
-			{ label: "Index", href: "/docs/index" },
 			{ label: "Streams", href: "/docs/streams" },
+			{ label: "Index", href: "/docs/index" },
 			{ label: "Subgraphs", href: "/docs/subgraphs" },
 			{ label: "Webhooks", href: "/docs/webhooks" },
 		],
