@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 19.4.2
+
+### Patch Changes
+
+- 379ed53: `login` and `logout` show in `--help`. The archive credits errors already point at `secondlayer login --credits`.
+
 ## 19.4.1
 
 ### Patch Changes
