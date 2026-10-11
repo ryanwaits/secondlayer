@@ -62,7 +62,7 @@ secondlayer credits buy --email you@example.com --pack 25
 secondlayer credits balance
 ```
 
-`credits buy` opens a one-time card checkout against [archive.secondlayer.tools](https://archive.secondlayer.tools). `credits balance` and metered bootstrap read `SECONDLAYER_API_KEY`.
+`credits buy` opens a one-time card checkout against [archive.secondlayer.tools](https://archive.secondlayer.tools). `credits balance` and metered bootstrap use a `secondlayer login --credits` session if you have one, else `SECONDLAYER_API_KEY`.
 
 Auto-refill is off until you set it: `secondlayer credits refill --below 5 --pack 25`.
 
