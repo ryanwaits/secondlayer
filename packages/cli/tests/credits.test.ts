@@ -11,7 +11,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-	ARCHIVE_LOGIN_COMMAND,
+	ARCHIVE_AUTH_HINT,
 	CliHttpError,
 	httpArchiveOps,
 	resolveArchiveOpsBearer,
@@ -144,7 +144,7 @@ describe("archive credits bearer", () => {
 		}
 		expect(err).toBeInstanceOf(CliHttpError);
 		expect((err as CliHttpError).status).toBe(401);
-		expect((err as CliHttpError).message).toContain(ARCHIVE_LOGIN_COMMAND);
+		expect((err as CliHttpError).message).toContain(ARCHIVE_AUTH_HINT);
 		expect((err as CliHttpError).message).toContain(
 			"INSTANCE_TOKEN was ignored",
 		);
@@ -158,7 +158,7 @@ describe("archive credits bearer", () => {
 		} catch (e) {
 			message = (e as Error).message;
 		}
-		expect(message).toContain(ARCHIVE_LOGIN_COMMAND);
+		expect(message).toContain(ARCHIVE_AUTH_HINT);
 		expect(message).not.toContain("ignored");
 	});
 
@@ -184,6 +184,6 @@ describe("archive credits bearer", () => {
 		expect(err).toBeInstanceOf(CliHttpError);
 		expect((err as CliHttpError).status).toBe(401);
 		expect((err as CliHttpError).message).toContain("Invalid token format");
-		expect((err as CliHttpError).message).toContain(ARCHIVE_LOGIN_COMMAND);
+		expect((err as CliHttpError).message).toContain(ARCHIVE_AUTH_HINT);
 	});
 });

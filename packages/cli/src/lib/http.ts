@@ -140,8 +140,9 @@ export async function httpArchiveOpsAnon<T>(
 	return httpAt<T>(resolveArchiveOpsUrl(), path, opts);
 }
 
-/** The one command that fixes every archive credits auth failure. */
-export const ARCHIVE_LOGIN_COMMAND = "secondlayer login --credits";
+/** Remedy for every archive credits auth failure: the account key first, the login as the alternative. */
+export const ARCHIVE_AUTH_HINT =
+	"Set SECONDLAYER_API_KEY to your account key (sk-sl_…, from /account/keys), or run `secondlayer login --credits`.";
 
 /**
  * Credentials the archive credits merchant can validate: `sk-sl_` API keys
@@ -200,7 +201,7 @@ export async function httpArchiveOps<T>(
 			401,
 			"SESSION_EXPIRED",
 			{ error: "Not logged in" },
-			`Archive credits need a login. Run \`${ARCHIVE_LOGIN_COMMAND}\`.${ignoredEnvKeyNote(ignoredEnvKey)}`,
+			`Archive credits need an account key. ${ARCHIVE_AUTH_HINT}${ignoredEnvKeyNote(ignoredEnvKey)}`,
 		);
 	}
 	try {
@@ -214,7 +215,7 @@ export async function httpArchiveOps<T>(
 				401,
 				err.code,
 				err.body,
-				`Archive credits rejected the login (${err.message}). Run \`${ARCHIVE_LOGIN_COMMAND}\` again.${ignoredEnvKeyNote(ignoredEnvKey)}`,
+				`Archive credits rejected the credential (${err.message}). ${ARCHIVE_AUTH_HINT}${ignoredEnvKeyNote(ignoredEnvKey)}`,
 			);
 		}
 		throw err;

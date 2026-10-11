@@ -15,7 +15,7 @@ import {
 	quoteArchiveFetch,
 	shouldPromptForGatedFetch,
 } from "./archive-gate.ts";
-import { ARCHIVE_LOGIN_COMMAND, CliHttpError } from "./http.ts";
+import { ARCHIVE_AUTH_HINT, CliHttpError } from "./http.ts";
 
 /**
  * Pure-logic coverage for the CLI's archive gate client: the official-host
@@ -170,7 +170,9 @@ describe("quoteArchiveFetch", () => {
 			if (result.ok) return;
 			expect(result.kind).toBe("not_authed");
 			if (result.kind !== "not_authed") return;
-			expect(result.message).toContain(ARCHIVE_LOGIN_COMMAND);
+			expect(result.message).toContain(ARCHIVE_AUTH_HINT);
+			expect(result.message).toContain("SECONDLAYER_API_KEY");
+			expect(result.message).toContain("login --credits");
 		} finally {
 			server.stop(true);
 			await rm(home, { recursive: true, force: true });

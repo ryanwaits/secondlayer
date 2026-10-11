@@ -3,7 +3,7 @@ import type { Command } from "commander";
 import { resolveApiUrl, resolveArchiveOpsUrl } from "../lib/api-url.ts";
 import { loadConfig } from "../lib/config.ts";
 import {
-	ARCHIVE_LOGIN_COMMAND,
+	ARCHIVE_AUTH_HINT,
 	httpArchiveOps,
 	resolveArchiveOpsBearer,
 } from "../lib/http.ts";
@@ -105,9 +105,7 @@ export function registerWhoamiCommand(program: Command): void {
 					}
 					console.log(formatKeyValue(rows));
 					if (result.merchant.status === "missing") {
-						note(
-							`merchant identity missing - run \`${ARCHIVE_LOGIN_COMMAND}\``,
-						);
+						note(`merchant identity missing. ${ARCHIVE_AUTH_HINT}`);
 					}
 				},
 			});
