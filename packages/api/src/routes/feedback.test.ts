@@ -410,9 +410,10 @@ describe.skipIf(!HAS_DB)("mounted on the app", () => {
 		await _resetRateLimitStoreForTests();
 	});
 	afterEach(() => {
-		if (prevDevMode === undefined) process.env.DEV_MODE = undefined;
+		// Assigning `undefined` stores the string "undefined"; delete instead.
+		if (prevDevMode === undefined) delete process.env.DEV_MODE;
 		else process.env.DEV_MODE = prevDevMode;
-		if (prevMode === undefined) process.env.INSTANCE_MODE = undefined;
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
 		else process.env.INSTANCE_MODE = prevMode;
 	});
 

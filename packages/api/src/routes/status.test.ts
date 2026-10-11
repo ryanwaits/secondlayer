@@ -243,13 +243,8 @@ describe("/status and /public/status subgraph_processor gating", () => {
 	const ORIGINAL_INSTANCE_MODE = process.env.INSTANCE_MODE;
 
 	afterEach(() => {
-		if (ORIGINAL_INSTANCE_MODE === undefined) {
-			delete process.env.INSTANCE_MODE;
-		} else {
-			if (ORIGINAL_INSTANCE_MODE === undefined)
-				delete process.env.INSTANCE_MODE;
-			else process.env.INSTANCE_MODE = ORIGINAL_INSTANCE_MODE;
-		}
+		if (ORIGINAL_INSTANCE_MODE === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = ORIGINAL_INSTANCE_MODE;
 	});
 
 	test("platform mode: subgraph_processor is absent from both endpoints", async () => {

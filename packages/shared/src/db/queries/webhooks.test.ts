@@ -21,7 +21,9 @@ import {
 } from "./webhooks.ts";
 
 // Requires local Postgres via `bun run db` and migrations applied.
-// Account-scope tests need platform mode. Crypto still boots in tests.
+// Account-scope tests need platform mode (so the account-scoped cleanup below
+// finds its rows); afterAll restores the prior mode. Crypto still boots in tests.
+const priorInstanceMode = process.env.INSTANCE_MODE;
 process.env.INSTANCE_MODE = "platform";
 process.env.SECONDLAYER_SECRETS_KEY =
 	process.env.SECONDLAYER_SECRETS_KEY ??
@@ -45,6 +47,8 @@ afterAll(async () => {
 	// Don't closeDb() — destroying the shared singleton breaks sibling
 	// test files when `bun test` runs them together.
 	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	if (priorInstanceMode === undefined) delete process.env.INSTANCE_MODE;
+	else process.env.INSTANCE_MODE = priorInstanceMode;
 });
 
 beforeEach(async () => {

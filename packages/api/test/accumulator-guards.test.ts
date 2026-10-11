@@ -23,8 +23,11 @@ function appAs(accountId: string) {
 }
 
 describe.skipIf(SKIP)("accumulator backfill guards", () => {
+	let priorInstanceMode: string | undefined;
+
 	beforeAll(async () => {
 		const db = getDb();
+		priorInstanceMode = process.env.INSTANCE_MODE;
 		process.env.INSTANCE_MODE = "platform";
 		await db
 			.insertInto("accounts")
@@ -62,7 +65,8 @@ describe.skipIf(SKIP)("accumulator backfill guards", () => {
 			.where("name", "in", [ACC_SG, SAFE_SG])
 			.execute();
 		await db.deleteFrom("accounts").where("id", "=", ACCOUNT).execute();
-		delete process.env.INSTANCE_MODE;
+		if (priorInstanceMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = priorInstanceMode;
 	});
 
 	test("backfill on an increment subgraph → 422 BACKFILL_NON_REPLAYABLE_HANDLER", async () => {

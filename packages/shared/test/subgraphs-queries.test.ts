@@ -27,7 +27,12 @@ describe.skipIf(SKIP)("Subgraphs Queries", () => {
 		handlerPath: "/tmp/test-subgraph.ts",
 	};
 
+	// The OSS cases pin INSTANCE_MODE; restore it so later files keep theirs.
+	const priorInstanceMode = process.env.INSTANCE_MODE;
+
 	afterEach(async () => {
+		if (priorInstanceMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = priorInstanceMode;
 		const db = getDb();
 		await db.deleteFrom("subgraphs").execute();
 		// Clean up any PG schemas we created

@@ -1,12 +1,25 @@
-import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	mock,
+	test,
+} from "bun:test";
 import { Hono } from "hono";
 import { generateApiKey, hashToken } from "./keys.ts";
 import { requireAuth } from "./middleware.ts";
 
 // Local dev `.env` typically sets DEV_MODE=true to bypass auth — but this
 // test exercises the auth path, so force it off.
+const priorDevMode = process.env.DEV_MODE;
 beforeAll(() => {
 	process.env.DEV_MODE = "false";
+});
+afterAll(() => {
+	if (priorDevMode === undefined) delete process.env.DEV_MODE;
+	else process.env.DEV_MODE = priorDevMode;
 });
 
 // Mock DB — injected via requireAuth({ getDb }) instead of mock.module
