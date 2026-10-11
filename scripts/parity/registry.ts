@@ -468,26 +468,6 @@ export const capabilities: Capability[] = [
 		},
 	},
 	{
-		id: "subgraphs.publish",
-		title: "Publish / unpublish publicly",
-		kind: "write",
-		retiring:
-			"a hosted-namespace concept; the changelog lists subgraphs.publish() as removed with the account model and the sprint plan collapses public/private to local instance access. The CLI, SDK and MCP surfaces are already removed; only the two HTTP routes remain, so delete them to finish the retirement.",
-		recovery: {
-			PUBLIC_NAME_TAKEN: {
-				capability: "subgraphs.list",
-				hint: "choose a public name no other subgraph holds",
-			},
-		},
-		verify: "subgraphs.status",
-		surfaces: {
-			http: [
-				"POST /api/subgraphs/:subgraphName/publish",
-				"POST /api/subgraphs/:subgraphName/unpublish",
-			],
-		},
-	},
-	{
 		id: "subgraphs.delete",
 		title: "Delete a subgraph",
 		kind: "write",
