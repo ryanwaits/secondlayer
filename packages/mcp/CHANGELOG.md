@@ -1,5 +1,14 @@
 # @secondlayer/mcp
 
+## 9.0.6
+
+### Patch Changes
+
+- One shared list of tool groups registers the server's tools, so the docs tool table and the server can't disagree. The registered tools are unchanged.
+- Updated dependencies [61e6a8d]
+  - @secondlayer/sdk@14.5.1
+  - @secondlayer/shared@11.24.1
+
 ## 9.0.5
 
 ### Patch Changes

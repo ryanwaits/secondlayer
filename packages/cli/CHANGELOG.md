@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 19.4.1
+
+### Patch Changes
+
+- d15a615: Archive credits errors name the account key first.
+- Updated dependencies [61e6a8d]
+  - @secondlayer/sdk@14.5.1
+  - @secondlayer/shared@11.24.1
+
 ## 19.4.0
 
 ### Minor Changes

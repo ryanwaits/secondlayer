@@ -1,5 +1,13 @@
 # @secondlayer/sdk
 
+## 14.5.1
+
+### Patch Changes
+
+- 61e6a8d: Docs links in error and refusal messages point at live pages.
+- Updated dependencies [61e6a8d]
+  - @secondlayer/shared@11.24.1
+
 ## 14.5.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.24.1
+
+### Patch Changes
+
+- 61e6a8d: Docs links in error and refusal messages point at live pages.
+
 ## 11.24.0
 
 ### Minor Changes
