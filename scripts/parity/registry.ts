@@ -197,11 +197,11 @@ export const capabilities: Capability[] = [
 	// ── subgraphs ───────────────────────────────────────────────────────────
 	{
 		id: "subgraphs.scaffold",
-		title: "Author a new subgraph",
+		title: "Author or extend a subgraph",
 		kind: "write",
 		verify: "subgraphs.status",
 		surfaces: {
-			cli: ["subgraphs create", "subgraphs scaffold"],
+			cli: ["subgraphs create", "subgraphs scaffold", "subgraphs add"],
 			mcp: "subgraphs_scaffold",
 		},
 		naReason: {
@@ -224,10 +224,20 @@ export const capabilities: Capability[] = [
 		id: "subgraphs.test",
 		title: "Run subgraph tests",
 		kind: "lifecycle",
-		surfaces: { cli: "subgraphs test" },
+		surfaces: { cli: "subgraphs test", mcp: "subgraphs_test" },
 		naReason: {
 			sdk: "test harness ships in @secondlayer/subgraphs/testing",
-			mcp: "agents run tests through the CLI",
+			http: "local-only",
+		},
+	},
+	{
+		id: "subgraphs.preview",
+		title: "Preview per-event IN/OUT against sampled Index events",
+		kind: "read",
+		surfaces: { cli: "subgraphs preview" },
+		naReason: {
+			sdk: "composed from the Index client and @secondlayer/subgraphs/testing",
+			mcp: "agents prove a mapping with subgraphs_test",
 			http: "local-only",
 		},
 	},
@@ -297,7 +307,6 @@ export const capabilities: Capability[] = [
 			http: [
 				"GET /api/subgraphs/:subgraphName/schema.json",
 				"GET /api/subgraphs/:subgraphName/openapi.json",
-				"GET /api/subgraphs/:subgraphName/openapi",
 				"GET /api/subgraphs/:subgraphName/docs.md",
 				"GET /v1/subgraphs/:subgraphName/schema.json",
 				"GET /v1/subgraphs/:subgraphName/openapi.json",
@@ -410,6 +419,28 @@ export const capabilities: Capability[] = [
 		},
 	},
 	{
+		id: "subgraphs.violations",
+		title: "Print-validate violations",
+		kind: "read",
+		surfaces: { http: "GET /api/subgraphs/:subgraphName/violations" },
+		naReason: {
+			cli: "HTTP-only diagnostic read; no terminal verb yet",
+			sdk: "HTTP-only diagnostic read; no client method yet",
+			mcp: "HTTP-only diagnostic read; no tool yet",
+		},
+	},
+	{
+		id: "subgraphs.halt",
+		title: "Halt a subgraph that cannot make progress",
+		kind: "lifecycle",
+		surfaces: { http: "POST /api/subgraphs/:subgraphName/halt" },
+		naReason: {
+			cli: "called by the workload host with the instance token, not by users",
+			sdk: "called by the workload host with the instance token, not by users",
+			mcp: "called by the workload host with the instance token, not by users",
+		},
+	},
+	{
 		id: "subgraphs.operations",
 		title: "Operation history (the verify target)",
 		kind: "read",
@@ -441,7 +472,7 @@ export const capabilities: Capability[] = [
 		title: "Publish / unpublish publicly",
 		kind: "write",
 		retiring:
-			"a hosted-namespace concept; the changelog lists subgraphs.publish() as removed with the account model and the sprint plan collapses public/private to local instance access. Delete the routes and all four surfaces together.",
+			"a hosted-namespace concept; the changelog lists subgraphs.publish() as removed with the account model and the sprint plan collapses public/private to local instance access. The CLI, SDK and MCP surfaces are already removed; only the two HTTP routes remain, so delete them to finish the retirement.",
 		recovery: {
 			PUBLIC_NAME_TAKEN: {
 				capability: "subgraphs.list",
@@ -450,9 +481,6 @@ export const capabilities: Capability[] = [
 		},
 		verify: "subgraphs.status",
 		surfaces: {
-			cli: ["subgraphs publish", "subgraphs unpublish"],
-			sdk: ["subgraphs.publish", "subgraphs.unpublish"],
-			mcp: ["subgraphs_publish", "subgraphs_unpublish"],
 			http: [
 				"POST /api/subgraphs/:subgraphName/publish",
 				"POST /api/subgraphs/:subgraphName/unpublish",
@@ -616,6 +644,32 @@ export const capabilities: Capability[] = [
 			sdk: "webhooks.deliveries",
 			mcp: "webhooks_deliveries",
 			http: "GET /api/webhooks/:id/deliveries",
+		},
+	},
+	{
+		id: "webhooks.activity",
+		title: "Hourly delivery counts and queue depth",
+		kind: "read",
+		surfaces: {
+			sdk: "webhooks.activity",
+			http: "GET /api/webhooks/:id/activity",
+		},
+		naReason: {
+			cli: "dashboard chart data; terminals use webhooks deliveries and doctor",
+			mcp: "dashboard chart data; agents use webhooks_deliveries",
+		},
+	},
+	{
+		id: "webhooks.delivery",
+		title: "One delivery attempt with payload and response headers",
+		kind: "read",
+		surfaces: {
+			sdk: "webhooks.delivery",
+			http: "GET /api/webhooks/:id/deliveries/:deliveryId",
+		},
+		naReason: {
+			cli: "dashboard detail card; terminals list attempts with webhooks deliveries",
+			mcp: "dashboard detail card; agents list attempts with webhooks_deliveries",
 		},
 	},
 	{
