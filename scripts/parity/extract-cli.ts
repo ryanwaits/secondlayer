@@ -30,6 +30,7 @@ import {
 	registerObserverCommand,
 	registerRepairCommand,
 	registerRestoreCommand,
+	registerSetupCommand,
 	registerStatusCommand,
 	registerStreamsCommand,
 	registerSubgraphsCommand,
@@ -52,6 +53,56 @@ interface ParitySurface {
 	items: ParityItem[];
 }
 
+/**
+ * Every `register*Command` the extractor calls, in the order cli.ts registers
+ * them. Keys are checked against cli.ts below so a new command can't be
+ * invisible to the audit.
+ */
+const REGISTRARS: Record<string, (program: Command) => void> = {
+	registerSetupCommand,
+	registerInitCommand,
+	registerBootstrapCommand,
+	registerObserverCommand,
+	registerLoginCommand,
+	registerLogoutCommand,
+	registerWhoamiCommand,
+	registerSubgraphsCommand,
+	registerWebhooksCommand,
+	registerStreamsCommand,
+	registerIndexCommand,
+	registerCodegenCommand,
+	registerDevnetCommand,
+	registerStatusCommand,
+	registerDoctorCommand,
+	registerConfigCommand,
+	registerContextCommand,
+	registerVerifyCommand,
+	registerRepairCommand,
+	registerBackupCommand,
+	registerRestoreCommand,
+	registerUninstallCommand,
+	registerCreditsCommand,
+	registerArchiveCommand,
+};
+
+async function assertAllRegistrarsListed(): Promise<void> {
+	const cliSource = await Bun.file(
+		join(
+			dirname(fileURLToPath(import.meta.url)),
+			"../../packages/cli/src/cli.ts",
+		),
+	).text();
+	const called = new Set(
+		[...cliSource.matchAll(/\b(register\w+Command)\(/g)].map((m) => m[1]),
+	);
+	const missing = [...called].filter((name) => !(name in REGISTRARS));
+	if (missing.length > 0) {
+		throw new Error(
+			`cli.ts registers commands the extractor does not: ${missing.join(", ")}. Add them to REGISTRARS in scripts/parity/extract-cli.ts.`,
+		);
+	}
+}
+
 function buildProgram(): Command {
 	const program = new CommanderCommand()
 		.name("secondlayer")
@@ -59,29 +110,7 @@ function buildProgram(): Command {
 		.description("Secondlayer CLI — run a Stacks index on your own hardware");
 
 	// Mirror of the registration order in packages/cli/src/cli.ts.
-	registerInitCommand(program);
-	registerBootstrapCommand(program);
-	registerObserverCommand(program);
-	registerLoginCommand(program);
-	registerLogoutCommand(program);
-	registerWhoamiCommand(program);
-	registerSubgraphsCommand(program);
-	registerWebhooksCommand(program);
-	registerStreamsCommand(program);
-	registerIndexCommand(program);
-	registerCodegenCommand(program);
-	registerDevnetCommand(program);
-	registerStatusCommand(program);
-	registerDoctorCommand(program);
-	registerConfigCommand(program);
-	registerContextCommand(program);
-	registerVerifyCommand(program);
-	registerRepairCommand(program);
-	registerBackupCommand(program);
-	registerRestoreCommand(program);
-	registerUninstallCommand(program);
-	registerCreditsCommand(program);
-	registerArchiveCommand(program);
+	for (const register of Object.values(REGISTRARS)) register(program);
 
 	return program;
 }
@@ -126,6 +155,7 @@ function collectLeaves(
 	}
 }
 
+await assertAllRegistrarsListed();
 const program = buildProgram();
 const items: ParityItem[] = [];
 collectLeaves(program, [], false, items);
