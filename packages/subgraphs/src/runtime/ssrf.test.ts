@@ -15,6 +15,8 @@ process.env.DATABASE_URL =
 
 const db = getDb();
 const accountId = randomUUID();
+// By id, not account: OSS mode stores every webhook with account_id "".
+const webhookIds: string[] = [];
 let stopEmitter: (() => Promise<void>) | null = null;
 // Scope the env-var mutation to this suite's lifecycle. Sibling test
 // files set ALLOW_PRIVATE_EGRESS=true at module load; a bare
@@ -31,12 +33,11 @@ beforeAll(async () => {
 afterAll(async () => {
 	// Don't closeDb() — see emitter.test.ts comment.
 	await stopEmitter?.();
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
-	if (priorAllowEnv !== undefined) {
-		if (priorAllowEnv === undefined)
-			delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
-		else process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEnv;
-	}
+	if (webhookIds.length > 0)
+		await db.deleteFrom("webhooks").where("id", "in", webhookIds).execute();
+	if (priorAllowEnv === undefined)
+		delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
+	else process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEnv;
 });
 
 describe("SSRF egress guard", () => {
@@ -89,6 +90,7 @@ describe("SSRF egress guard", () => {
 				tableName: "transfers",
 				url: c.url,
 			});
+			webhookIds.push(webhook.id);
 			subs.push(webhook.id);
 			await db
 				.insertInto("webhook_outbox")
@@ -173,6 +175,7 @@ describe("SSRF egress guard — DNS rebinding", () => {
 			tableName: "transfers",
 			url: `http://${hostname}/hook`,
 		});
+		webhookIds.push(webhook.id);
 		await db
 			.insertInto("webhook_outbox")
 			.values({
@@ -210,6 +213,7 @@ describe("SSRF egress guard — DNS rebinding", () => {
 			tableName: "transfers",
 			url: `http://${hostname}/hook`,
 		});
+		webhookIds.push(webhook.id);
 		await db
 			.insertInto("webhook_outbox")
 			.values({

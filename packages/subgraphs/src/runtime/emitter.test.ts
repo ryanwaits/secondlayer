@@ -14,10 +14,13 @@ process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
 	"postgresql://postgres:postgres@127.0.0.1:5440/secondlayer";
 // Tests spin up localhost receivers — opt in to private egress.
+const priorAllowEgress = process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
 process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = "true";
 
 const db = getDb();
 const accountId = randomUUID();
+// By id, not account: OSS mode stores every webhook with account_id "".
+const webhookIds: string[] = [];
 let stopEmitter: (() => Promise<void>) | null = null;
 
 interface Received {
@@ -61,7 +64,11 @@ afterAll(async () => {
 	await stopEmitter?.();
 	// webhook_outbox and webhook_deliveries both cascade on webhook delete
 	// (migration 0140 added the FK for deliveries) — one cleanup path.
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	if (webhookIds.length > 0)
+		await db.deleteFrom("webhooks").where("id", "in", webhookIds).execute();
+	if (priorAllowEgress === undefined)
+		delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
+	else process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEgress;
 });
 
 describe("startEmitter end-to-end", () => {
@@ -76,6 +83,7 @@ describe("startEmitter end-to-end", () => {
 				url: receiver.url,
 				timeoutMs: 5_000,
 			});
+			webhookIds.push(webhook.id);
 
 			// Seed an outbox row directly — the block-processor hook is exercised
 			// elsewhere; here we want to prove the emitter drains + delivers.
@@ -174,6 +182,7 @@ describe("startEmitter end-to-end", () => {
 				url: receiver.url,
 				timeoutMs: 3_000,
 			});
+			webhookIds.push(webhook.id);
 
 			await db
 				.insertInto("webhook_outbox")
@@ -232,6 +241,7 @@ describe("startEmitter end-to-end", () => {
 				timeoutMs: 3_000,
 				concurrency: 20,
 			});
+			webhookIds.push(webhook.id);
 
 			await db
 				.insertInto("webhook_outbox")
@@ -310,6 +320,7 @@ describe("startEmitter end-to-end", () => {
 				url: receiver.url,
 				timeoutMs: 5_000,
 			});
+			webhookIds.push(webhook.id);
 			await db
 				.updateTable("webhooks")
 				.set({ status: "paused", updated_at: new Date() })

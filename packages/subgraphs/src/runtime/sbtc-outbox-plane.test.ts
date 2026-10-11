@@ -43,6 +43,8 @@ function blockSbtcSelect(real: Kysely<Database>): Kysely<Database> {
 
 let db: Kysely<Database>;
 let accountId: string;
+// By id, not account: OSS mode stores every webhook with account_id "".
+const webhookIds: string[] = [];
 
 beforeAll(() => {
 	db = getDb();
@@ -50,7 +52,8 @@ beforeAll(() => {
 });
 
 afterAll(async () => {
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	if (webhookIds.length > 0)
+		await db.deleteFrom("webhooks").where("id", "in", webhookIds).execute();
 	await db
 		.deleteFrom("sbtc_events")
 		.where("tx_id", "=", "0xplane-acc")
@@ -66,6 +69,7 @@ describe("emitSbtcOutbox plane safety", () => {
 			url: "https://webhook.site/xxx",
 			triggers: [{ type: "sbtc_withdrawal_accept" }],
 		});
+		webhookIds.push(webhook.id);
 
 		await db
 			.insertInto("sbtc_events")

@@ -18,10 +18,13 @@ process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
 	"postgresql://postgres:postgres@127.0.0.1:5440/secondlayer";
+const priorAllowEgress = process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
 process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = "true";
 
 const db = getDb();
 const accountId = randomUUID();
+// By id, not account: OSS mode stores every webhook with account_id "".
+const webhookIds: string[] = [];
 let stopEmitter: (() => Promise<void>) | null = null;
 
 const ROWS_PER_TICK = 6;
@@ -39,7 +42,11 @@ afterAll(async () => {
 	await stopEmitter?.();
 	// webhook_outbox and webhook_deliveries both cascade on webhook delete
 	// (migration 0140 added the FK for deliveries) — one cleanup path.
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	if (webhookIds.length > 0)
+		await db.deleteFrom("webhooks").where("id", "in", webhookIds).execute();
+	if (priorAllowEgress === undefined)
+		delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
+	else process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEgress;
 });
 
 describe("emitter under a sustained stream well within its own dispatch capacity", () => {
@@ -66,6 +73,7 @@ describe("emitter under a sustained stream well within its own dispatch capacity
 				timeoutMs: 5_000,
 				concurrency: CONCURRENCY,
 			});
+			webhookIds.push(webhook.id);
 
 			let tick = 0;
 			const ticks = DURATION_MS / TICK_MS;

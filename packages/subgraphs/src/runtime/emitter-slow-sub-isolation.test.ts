@@ -24,10 +24,13 @@ process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
 	"postgresql://postgres:postgres@127.0.0.1:5440/secondlayer";
+const priorAllowEgress = process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
 process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = "true";
 
 const db = getDb();
 const accountId = randomUUID();
+// By id, not account: OSS mode stores every webhook with account_id "".
+const webhookIds: string[] = [];
 let stopEmitter: (() => Promise<void>) | null = null;
 
 const ABSURDLY_LONG_POLL_MS = 5 * 60_000;
@@ -42,7 +45,11 @@ afterAll(async () => {
 	await stopEmitter?.();
 	// webhook_outbox and webhook_deliveries both cascade on webhook delete
 	// (migration 0140 added the FK for deliveries) — one cleanup path.
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	if (webhookIds.length > 0)
+		await db.deleteFrom("webhooks").where("id", "in", webhookIds).execute();
+	if (priorAllowEgress === undefined)
+		delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
+	else process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEgress;
 });
 
 describe("a slow webhook's dispatch must not delay an unrelated fast webhook's claim", () => {
@@ -77,6 +84,7 @@ describe("a slow webhook's dispatch must not delay an unrelated fast webhook's c
 				timeoutMs: 10_000,
 				concurrency: 2,
 			});
+			webhookIds.push(slowWebhook.id);
 			const { webhook: fastWebhook } = await createWebhook(db, {
 				accountId,
 				name: `fast-${randomUUID().slice(0, 8)}`,
@@ -86,6 +94,7 @@ describe("a slow webhook's dispatch must not delay an unrelated fast webhook's c
 				timeoutMs: 5_000,
 				concurrency: 4,
 			});
+			webhookIds.push(fastWebhook.id);
 
 			// Insert the slow row FIRST and give it time to be claimed and its
 			// dispatch to actually start (the receiver hasn't responded yet —

@@ -15,8 +15,14 @@ import type { SubgraphDefinition } from "../src/types.ts";
 
 // Requires local Postgres via `bun run db` and migrations applied.
 // Hosted contract: two webhooks may share a name across accounts.
-// Pin platform so createWebhook keeps account_id (OSS writes "").
+// Pin platform so createWebhook keeps account_id (OSS writes ""); afterAll
+// restores the prior mode so later files in this process keep theirs.
+const priorInstanceMode = process.env.INSTANCE_MODE;
 process.env.INSTANCE_MODE = "platform";
+afterAll(() => {
+	if (priorInstanceMode === undefined) delete process.env.INSTANCE_MODE;
+	else process.env.INSTANCE_MODE = priorInstanceMode;
+});
 if (!process.env.SECONDLAYER_SECRETS_KEY) {
 	process.env.SECONDLAYER_SECRETS_KEY = "a".repeat(64);
 }
@@ -53,7 +59,7 @@ async function cleanup() {
 		.deleteFrom("webhooks")
 		.where("subgraph_name", "=", SUBGRAPH_NAME)
 		.execute();
-	await db.deleteFrom("subgraphs").execute();
+	await db.deleteFrom("subgraphs").where("name", "=", SUBGRAPH_NAME).execute();
 }
 
 async function subscribe(name: string) {

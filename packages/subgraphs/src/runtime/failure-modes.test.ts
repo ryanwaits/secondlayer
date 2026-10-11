@@ -9,10 +9,13 @@ process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
 	"postgresql://postgres:postgres@127.0.0.1:5440/secondlayer";
+const priorAllowEgress = process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
 process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = "true";
 
 const db = getDb();
 const accountId = randomUUID();
+// By id, not account: OSS mode stores every webhook with account_id "".
+const webhookIds: string[] = [];
 let stopEmitter: (() => Promise<void>) | null = null;
 
 beforeAll(async () => {
@@ -22,7 +25,11 @@ beforeAll(async () => {
 afterAll(async () => {
 	// Don't closeDb() — see emitter.test.ts comment.
 	await stopEmitter?.();
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	if (webhookIds.length > 0)
+		await db.deleteFrom("webhooks").where("id", "in", webhookIds).execute();
+	if (priorAllowEgress === undefined)
+		delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
+	else process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEgress;
 });
 
 describe("failure modes", () => {
@@ -48,6 +55,7 @@ describe("failure modes", () => {
 				url: `http://127.0.0.1:${server.port}`,
 				timeoutMs: 2_000,
 			});
+			webhookIds.push(webhook.id);
 			const total = 5;
 			const rows = Array.from({ length: total }, (_, i) => ({
 				webhook_id: webhook.id,
@@ -102,6 +110,7 @@ describe("failure modes", () => {
 			url: "http://127.0.0.1:1",
 			timeoutMs: 1_000,
 		});
+		webhookIds.push(webhook.id);
 		// Simulate the block-processor tx rolling back mid-flight.
 		try {
 			await db.transaction().execute(async (tx) => {

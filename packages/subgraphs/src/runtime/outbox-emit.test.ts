@@ -15,6 +15,8 @@ process.env.DATABASE_URL =
 
 let db: Kysely<Database>;
 let accountId: string;
+// By id, not account: OSS mode stores every webhook with account_id "".
+const webhookIds: string[] = [];
 
 beforeAll(async () => {
 	db = getDb();
@@ -23,7 +25,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	// Don't closeDb() — see emitter.test.ts comment. Per-suite cleanup only.
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	if (webhookIds.length > 0)
+		await db.deleteFrom("webhooks").where("id", "in", webhookIds).execute();
 });
 
 describe("emitWebhookOutbox", () => {
@@ -36,6 +39,7 @@ describe("emitWebhookOutbox", () => {
 			url: "https://webhook.site/xxx",
 			filter: { amount: { gte: 100 } },
 		});
+		webhookIds.push(webhook.id);
 
 		const matcher = new WebhookMatcher();
 		await refreshMatcher(db);
@@ -112,6 +116,7 @@ describe("emitWebhookOutbox", () => {
 			tableName: "mints",
 			url: "https://webhook.site/xxx",
 		});
+		webhookIds.push(webhook.id);
 
 		const matcher = new WebhookMatcher();
 		matcher.setAll([webhook]);
@@ -128,6 +133,7 @@ describe("emitWebhookOutbox", () => {
 			],
 		};
 
+		const priorEmitOutbox = process.env.SECONDLAYER_EMIT_OUTBOX;
 		process.env.SECONDLAYER_EMIT_OUTBOX = "false";
 		try {
 			await db.transaction().execute(async (tx) => {
@@ -141,7 +147,9 @@ describe("emitWebhookOutbox", () => {
 				expect(n).toBe(0);
 			});
 		} finally {
-			delete process.env.SECONDLAYER_EMIT_OUTBOX;
+			if (priorEmitOutbox === undefined)
+				delete process.env.SECONDLAYER_EMIT_OUTBOX;
+			else process.env.SECONDLAYER_EMIT_OUTBOX = priorEmitOutbox;
 		}
 
 		const rows = await db

@@ -13,6 +13,8 @@ process.env.DATABASE_URL =
 
 let db: Kysely<Database>;
 let accountId: string;
+// By id, not account: OSS mode stores every webhook with account_id "".
+const webhookIds: string[] = [];
 let priorAllowEnv: string | undefined;
 
 // The delivery case posts to a local server, so it needs the private-egress
@@ -29,7 +31,8 @@ afterAll(async () => {
 	if (priorAllowEnv === undefined)
 		delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
 	else process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEnv;
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	if (webhookIds.length > 0)
+		await db.deleteFrom("webhooks").where("id", "in", webhookIds).execute();
 });
 
 describe("deliverTestEvent", () => {
@@ -44,6 +47,7 @@ describe("deliverTestEvent", () => {
 			url: "http://127.0.0.1:9/hook",
 			filter: {},
 		});
+		webhookIds.push(webhook.id);
 
 		const result = await deliverTestEvent(db, webhook);
 		expect(result.ok).toBe(false);
@@ -78,6 +82,7 @@ describe("deliverTestEvent", () => {
 				url: `http://127.0.0.1:${server.port}/hook`,
 				filter: {},
 			});
+			webhookIds.push(webhook.id);
 			const result = await deliverTestEvent(db, webhook);
 			expect(result.ok).toBe(true);
 			expect(captured).toBeTruthy();

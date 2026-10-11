@@ -13,6 +13,8 @@ process.env.DATABASE_URL =
 
 const db: Kysely<Database> = getDb();
 const accountId = randomUUID();
+// By id, not account: OSS mode stores every webhook with account_id "".
+const webhookIds: string[] = [];
 const TX = "0xsettle-acc";
 const HEIGHT = 970_000;
 const SWEEP = "0xsettle-sweep";
@@ -82,6 +84,12 @@ async function seedConfirmedSweep(confirmedAt: Date): Promise<void> {
 		.execute();
 }
 
+async function deleteCreatedWebhooks(): Promise<void> {
+	const ids = webhookIds.splice(0);
+	if (ids.length > 0)
+		await db.deleteFrom("webhooks").where("id", "in", ids).execute();
+}
+
 async function makeSub() {
 	const { webhook } = await createWebhook(db, {
 		accountId,
@@ -90,11 +98,12 @@ async function makeSub() {
 		url: "https://webhook.site/xxx",
 		triggers: [{ type: "sbtc_withdrawal_swept_confirmed" }],
 	});
+	webhookIds.push(webhook.id);
 	return webhook;
 }
 
 beforeEach(async () => {
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	await deleteCreatedWebhooks();
 	await db
 		.deleteFrom("sbtc_settlements")
 		.where("sweep_txid", "=", SWEEP)
@@ -104,7 +113,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
+	await deleteCreatedWebhooks();
 	await db
 		.deleteFrom("sbtc_settlements")
 		.where("sweep_txid", "=", SWEEP)
