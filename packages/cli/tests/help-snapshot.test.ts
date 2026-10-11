@@ -13,9 +13,9 @@ import { registerStreamsCommand } from "../src/commands/streams.ts";
 import { registerSubgraphsCommand } from "../src/commands/subgraphs.ts";
 
 /**
- * DX acceptance: top-level help shows init/bootstrap/observer and hides the
- * hosted login verb; retired hosted verbs (instance/account/keys/projects)
- * never reappear.
+ * DX acceptance: top-level help shows init/bootstrap/observer and login (the
+ * archive credits sign-in the CLI's own errors point at); retired hosted verbs
+ * (instance/account/keys/projects) never reappear.
  */
 /** The help screen as a user sees it, including `addHelpText` blocks. */
 function renderHelp(command: Command | undefined): string {
@@ -31,7 +31,7 @@ function renderHelp(command: Command | undefined): string {
 }
 
 describe("CLI help snapshot", () => {
-	test("init, bootstrap, and observer are listed; hosted verbs are absent", () => {
+	test("init, bootstrap, observer, and login are listed; retired hosted verbs are absent", () => {
 		const program = new Command().name("sl");
 		registerInitCommand(program);
 		registerBootstrapCommand(program);
@@ -43,7 +43,7 @@ describe("CLI help snapshot", () => {
 		expect(help).toMatch(/^\s+bootstrap\b/m);
 		expect(help).toMatch(/^\s+observer\b/m);
 		expect(help).not.toMatch(/^\s+instance\b/m);
-		expect(help).not.toMatch(/^\s+login\b/m);
+		expect(help).toMatch(/^\s+login\b/m);
 		expect(help).not.toMatch(/^\s+account\b/m);
 		expect(help).not.toMatch(/^\s+keys\b/m);
 		expect(help).not.toMatch(/^\s+projects\b/m);

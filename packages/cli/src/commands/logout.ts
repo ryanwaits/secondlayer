@@ -38,7 +38,7 @@ export async function runLogout(opts: LogoutOptions = {}): Promise<void> {
 
 export function registerLogoutCommand(program: Command): void {
 	program
-		.command("logout", { hidden: true })
+		.command("logout")
 		.description("Log out and revoke the local session")
 		.option(
 			"--credits",
