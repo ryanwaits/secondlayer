@@ -3,6 +3,7 @@
 import { AccountAvatar, AccountMenu } from "@/components/account-menu";
 import { GetStartedMenu } from "@/components/get-started-menu";
 import { GITHUB_URL, GitHubNavLink } from "@/components/github-nav-link";
+import { Logo } from "@/components/logo";
 import {
 	clearAccountData,
 	formatUsd,
@@ -56,16 +57,7 @@ export function MarketingNav({ stars = null }: { stars?: number | null }) {
 	return (
 		<nav className="marketing-nav" aria-label="Main">
 			<Link href="/" className="marketing-nav-brand">
-				<svg
-					viewBox="4 7 40 28"
-					width="22"
-					height="15"
-					fill="none"
-					aria-hidden="true"
-				>
-					<polygon points="8,25 28,17 42,25 22,33" className="logo-echo" />
-					<polygon points="8,19 28,11 42,19 22,27" className="logo-primary" />
-				</svg>
+				<Logo size={22} />
 				<span>secondlayer</span>
 			</Link>
 			<span className="marketing-nav-spacer" />

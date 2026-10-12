@@ -1,7 +1,14 @@
-export function Logo({ size = 20 }: { size?: number }) {
+export function Logo({
+	size = 20,
+	className,
+}: {
+	size?: number;
+	className?: string;
+}) {
 	return (
 		<svg
 			aria-hidden="true"
+			className={className}
 			viewBox="6 9 36 24"
 			width={size}
 			height={Math.round(size * (24 / 36))}

@@ -46,7 +46,7 @@ function MdxLink({
 	);
 }
 
-/** Page title — marketing's `.page-title` (Public Sans, 15px/500). */
+/** Page title — marketing's `.page-title` (Geist, 15px/500). */
 function MdxH1({ children }: { children?: ReactNode }) {
 	return <h1 className="page-title">{children}</h1>;
 }

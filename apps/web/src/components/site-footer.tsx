@@ -1,5 +1,6 @@
 "use client";
 
+import { Logo } from "@/components/logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -43,22 +44,7 @@ export function SiteFooter() {
 				<div className="site-footer-grid">
 					<div className="site-footer-brand">
 						<Link href="/" className="b">
-							<svg
-								viewBox="4 7 40 28"
-								width="22"
-								height="15"
-								fill="none"
-								aria-hidden="true"
-							>
-								<polygon
-									points="8,25 28,17 42,25 22,33"
-									className="logo-echo"
-								/>
-								<polygon
-									points="8,19 28,11 42,19 22,27"
-									className="logo-primary"
-								/>
-							</svg>
+							<Logo size={22} />
 							<span>secondlayer</span>
 						</Link>
 						<p>

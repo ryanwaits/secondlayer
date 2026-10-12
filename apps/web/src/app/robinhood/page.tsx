@@ -1,3 +1,4 @@
+import { Logo } from "@/components/logo";
 import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -49,23 +50,6 @@ const PHASES: {
 		body: "A Bitcoin relay on Ethereum checks the Stacks lock.",
 	},
 ];
-
-/** The secondlayer mark (same geometry as MarketingNav), neutral ink via CSS. */
-function SecondlayerMark({ width }: { width: number }) {
-	return (
-		<svg
-			viewBox="4 7 40 28"
-			width={width}
-			height={Math.round(width * (28 / 40))}
-			fill="none"
-			aria-hidden="true"
-			className="rh-mark"
-		>
-			<polygon points="8,25 28,17 42,25 22,33" className="logo-echo" />
-			<polygon points="8,19 28,11 42,19 22,27" className="logo-primary" />
-		</svg>
-	);
-}
 
 /**
  * An official vendor logo, unmodified: the dark asset on light ground, the
@@ -132,7 +116,7 @@ export default function RobinhoodPage() {
 		<div className="rh-page">
 			<header className="rh-nav">
 				<Link href="/" className="rh-brand">
-					<SecondlayerMark width={22} />
+					<Logo size={22} />
 					<span>secondlayer</span>
 				</Link>
 				<div className="rh-dest">
@@ -304,7 +288,7 @@ export default function RobinhoodPage() {
 				<span className="rh-mono">stacks ⇄ 4663</span>
 				<Link href="/" className="rh-built-by">
 					<span className="rh-built-by-label">Built by</span>
-					<SecondlayerMark width={17} />
+					<Logo size={17} />
 					<span className="rh-built-by-name">secondlayer</span>
 				</Link>
 				<span className="rh-tm">

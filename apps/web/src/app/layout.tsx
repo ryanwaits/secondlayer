@@ -3,7 +3,7 @@ import { LazyCommandPalette } from "@/components/command-palette/lazy";
 import { FastAnchorScroll } from "@/components/fast-anchor-scroll";
 import { AuthProvider } from "@/lib/auth";
 import type { Metadata, Viewport } from "next";
-import { Caveat, Fira_Code, Public_Sans, Sora } from "next/font/google";
+import { Caveat, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -12,17 +12,12 @@ export const viewport: Viewport = {
 	viewportFit: "cover",
 };
 
-const sora = Sora({
-	subsets: ["latin"],
-	variable: "--font-heading",
-});
-
-const publicSans = Public_Sans({
+const geist = Geist({
 	subsets: ["latin"],
 	variable: "--font-sans",
 });
 
-const firaCode = Fira_Code({
+const geistMono = Geist_Mono({
 	subsets: ["latin"],
 	variable: "--font-mono",
 });
@@ -64,7 +59,7 @@ export default function RootLayout({
 	return (
 		<html lang="en">
 			<body
-				className={`${publicSans.className} ${sora.variable} ${publicSans.variable} ${firaCode.variable} ${caveat.variable}`}
+				className={`${geist.className} ${geist.variable} ${geistMono.variable} ${caveat.variable}`}
 			>
 				<AuthProvider>
 					{children}
