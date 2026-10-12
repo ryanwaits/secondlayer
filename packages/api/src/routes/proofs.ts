@@ -1,10 +1,13 @@
 import { RateLimitError, ValidationError } from "@secondlayer/shared/errors";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { type Context, Hono, type MiddlewareHandler } from "hono";
+import { getClientIp } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import {
 	IMMUTABLE_CACHE_CONTROL,
 	MUTABLE_CACHE_CONTROL,
+	etag,
+	matchesIfNoneMatch,
 } from "../http/cache.ts";
 import {
 	DEFAULT_INDEX_TOKEN_STORE,
@@ -31,16 +34,23 @@ import { parseNonNegativeInteger } from "../parse-query.ts";
  * Plus one read of the indexer's own `state_writes`: the names of a block's
  * writes, which a client checks against that block's witness.
  *
- * Free: never metered, never refused for credits. Auth is the read-plane
- * rule (any account key hosted; loopback-open / instance token self-hosted).
- * Hosted reads are rate limited per account, witness in its own lower bucket
- * because each one is a MARF walk on the node box.
+ * Free: never metered, never refused for credits. No key is needed anywhere:
+ * the bytes are self-verifying. Hosted reads are rate limited per client IP,
+ * higher per account with a key; witness has its own lower bucket because
+ * each one is a MARF walk on the node box.
  */
 
-/** Sliding-window limits per account (hosted only). */
+/** Sliding windows (hosted only). An account key buys the higher limit;
+ *  anonymous callers share one window per client IP. */
 export const PROOFS_RATE_LIMITS = {
-	default: { limit: 20, windowMs: 1_000 },
-	witness: { limit: 2, windowMs: 1_000 },
+	account: {
+		default: { limit: 20, windowMs: 1_000 },
+		witness: { limit: 2, windowMs: 1_000 },
+	},
+	anonymous: {
+		default: { limit: 10, windowMs: 1_000 },
+		witness: { limit: 1, windowMs: 1_000 },
+	},
 } as const;
 
 /** `marf-witness serve` caps a header page at one difficulty period. */
@@ -59,20 +69,21 @@ export type ProofsRouterOptions = {
 	readBlockWrites?: typeof readBlockStateWrites;
 };
 
-type Bucket = keyof typeof PROOFS_RATE_LIMITS;
+type Bucket = keyof typeof PROOFS_RATE_LIMITS.account;
 
 function proofsRateLimit(bucket: Bucket): MiddlewareHandler<IndexEnv> {
-	const { limit, windowMs } = PROOFS_RATE_LIMITS[bucket];
 	return async (c, next) => {
 		// Self-host is single-tenant: the operator's own box, no fairness throttle.
 		if (!isPlatformMode()) return next();
 		const tenant = c.get("indexTenant");
-		if (!tenant || tenant.tier === "internal") return next();
-		const result = await getRateLimitStore().check(
-			`proofs:${bucket}:${tenant.tenant_id}`,
-			limit,
-			windowMs,
-		);
+		if (tenant?.tier === "internal") return next();
+		const { limit, windowMs } = tenant
+			? PROOFS_RATE_LIMITS.account[bucket]
+			: PROOFS_RATE_LIMITS.anonymous[bucket];
+		const key = tenant
+			? `proofs:${bucket}:${tenant.tenant_id}`
+			: `proofs:${bucket}:anon:${getClientIp(c)}`;
+		const result = await getRateLimitStore().check(key, limit, windowMs);
 		c.header("X-RateLimit-Limit", String(limit));
 		c.header(
 			"X-RateLimit-Remaining",
@@ -85,6 +96,23 @@ function proofsRateLimit(bucket: Bucket): MiddlewareHandler<IndexEnv> {
 		}
 		return next();
 	};
+}
+
+/** Bump when a proof route's response format changes, so cached copies revalidate. */
+const PROOF_FORMAT = "1";
+
+/** Immutable answers are a pure function of their (normalized) key, so the
+ *  ETag is too: a revalidation never reaches the sidecar or node. */
+function immutableTag(key: string): string {
+	return etag(`proofs:${PROOF_FORMAT}:${key}`);
+}
+
+function notModified(c: Context, tag: string): Response | null {
+	if (!matchesIfNoneMatch(c.req.header("if-none-match"), tag)) return null;
+	return c.body(null, 304, {
+		etag: tag,
+		"cache-control": IMMUTABLE_CACHE_CONTROL,
+	});
 }
 
 /** A 32-byte hash path param: 64 hex, optional `0x`. Returned bare lowercase,
@@ -129,6 +157,8 @@ type ProxySpec = {
 	contentType: "application/octet-stream" | "application/json";
 	/** Cache directive for a 200. */
 	cache: string;
+	/** ETag for a 200 (immutable routes only). */
+	etag?: string;
 	/** 404 message: what the source has no record of. */
 	notFound: string;
 	/** Upstream response headers copied onto a 200. */
@@ -167,6 +197,7 @@ async function proxy(c: Context, url: string, spec: ProxySpec) {
 			"content-type": spec.contentType,
 			"cache-control": spec.cache,
 		};
+		if (spec.etag) headers.etag = spec.etag;
 		for (const name of spec.passHeaders ?? []) {
 			const value = upstream.headers.get(name);
 			if (value !== null) headers[name] = value;
@@ -235,9 +266,14 @@ export function createProofsRouter(opts: ProofsRouterOptions = {}) {
 		});
 
 	const router = new Hono<IndexEnv>();
+	// Proofs are self-verifying bytes, so hosted serves them without a key
+	// (deliberate exception to the read-plane rule). A key only raises the limit.
 	router.use(
 		"*",
-		indexBearerAuth({ tokens: opts.tokens ?? DEFAULT_INDEX_TOKEN_STORE }),
+		indexBearerAuth({
+			tokens: opts.tokens ?? DEFAULT_INDEX_TOKEN_STORE,
+			allowAnon: true,
+		}),
 	);
 
 	const limited = proofsRateLimit("default");
@@ -245,7 +281,11 @@ export function createProofsRouter(opts: ProofsRouterOptions = {}) {
 	router.get("/witness/:index_block_hash", proofsRateLimit("witness"), (c) => {
 		validateQueryParams(new URL(c.req.url).searchParams, []);
 		const id = hash32(c.req.param("index_block_hash"), "index_block_hash");
+		const tag = immutableTag(`witness:${id}`);
+		const cached = notModified(c, tag);
+		if (cached) return cached;
 		return sidecar(c, `/witness/${id}`, {
+			etag: tag,
 			notFound: "no state witness for that block",
 			timeoutMs: SIDECAR_TIMEOUT_MS,
 			contentType: "application/octet-stream",
@@ -258,7 +298,11 @@ export function createProofsRouter(opts: ProofsRouterOptions = {}) {
 		validateQueryParams(new URL(c.req.url).searchParams, []);
 		const ch = hexParam(c.req.param("consensus_hash"), "consensus_hash", 40);
 		// A consensus hash commits to its burn block: the answer never changes.
+		const tag = immutableTag(`burn:${ch}`);
+		const cached = notModified(c, tag);
+		if (cached) return cached;
 		return sidecar(c, `/burn/${ch}`, {
+			etag: tag,
 			notFound: "no sortition with that consensus hash",
 			timeoutMs: SIDECAR_TIMEOUT_MS,
 			contentType: "application/json",
@@ -299,7 +343,11 @@ export function createProofsRouter(opts: ProofsRouterOptions = {}) {
 	router.get("/block/:index_block_hash", limited, (c) => {
 		validateQueryParams(new URL(c.req.url).searchParams, []);
 		const id = hash32(c.req.param("index_block_hash"), "index_block_hash");
+		const tag = immutableTag(`block:${id}`);
+		const cached = notModified(c, tag);
+		if (cached) return cached;
 		return node(c, `/v3/blocks/${id}`, {
+			etag: tag,
 			notFound: "no block with that index_block_hash",
 			timeoutMs: NODE_TIMEOUT_MS,
 			contentType: "application/octet-stream",
@@ -312,7 +360,11 @@ export function createProofsRouter(opts: ProofsRouterOptions = {}) {
 		const id = hash32(c.req.param("index_block_hash"), "index_block_hash");
 		// Pre-Nakamoto blocks have no `/v3/blocks` form. `/v2/headers/1?tip=`
 		// is the header plus the consensus hash its id commits to.
+		const tag = immutableTag(`epoch2-header:${id}`);
+		const cached = notModified(c, tag);
+		if (cached) return cached;
 		return node(c, `/v2/headers/1?tip=${id}`, {
+			etag: tag,
 			notFound: "no epoch 2.x block with that index_block_hash",
 			timeoutMs: NODE_TIMEOUT_MS,
 			contentType: "application/json",
@@ -346,7 +398,11 @@ export function createProofsRouter(opts: ProofsRouterOptions = {}) {
 		const path = hash32(c.req.param("path"), "path");
 		const tip = hash32(requiredQuery(c, "tip"), "tip");
 		// Pinned to a tip block, the proof is fixed.
+		const tag = immutableTag(`marf:${path}:${tip}`);
+		const cached = notModified(c, tag);
+		if (cached) return cached;
 		const spec = {
+			etag: tag,
 			notFound: "no MARF entry at that path as of tip",
 			contentType: "application/json",
 			cache: IMMUTABLE_CACHE_CONTROL,
