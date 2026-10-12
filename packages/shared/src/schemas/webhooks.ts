@@ -9,13 +9,6 @@ export const WEBHOOK_FORMATS = [
 	"raw",
 ] as const;
 
-export const WEBHOOK_RUNTIMES = [
-	"inngest",
-	"trigger",
-	"cloudflare",
-	"node",
-] as const;
-
 export const WEBHOOK_STATUSES = ["active", "paused", "error"] as const;
 
 /**
@@ -85,16 +78,6 @@ function timeoutMsField() {
 		});
 }
 
-export const WEBHOOK_FILTER_OPERATORS = [
-	"eq",
-	"neq",
-	"gt",
-	"gte",
-	"lt",
-	"lte",
-	"in",
-] as const;
-
 const webhookUrl = z
 	.string()
 	.trim()
@@ -105,40 +88,11 @@ const webhookUrl = z
 	);
 
 const name = z.string().trim().min(1).max(128);
-const resourceName = z.string().trim().min(1).max(128);
 
 export const WebhookStatusSchema: z.ZodType<WebhookStatus> =
 	z.enum(WEBHOOK_STATUSES);
 export const WebhookFormatSchema: z.ZodType<WebhookFormat> =
 	z.enum(WEBHOOK_FORMATS);
-export const WebhookRuntimeSchema: z.ZodType<WebhookRuntime> =
-	z.enum(WEBHOOK_RUNTIMES);
-
-export const WebhookFilterPrimitiveSchema: z.ZodType<WebhookFilterPrimitive> =
-	z.union([z.string(), z.number().finite(), z.boolean()]);
-
-export const WebhookFilterOperatorSchema: z.ZodType<WebhookFilterOperator> =
-	z.union([
-		z.object({ eq: WebhookFilterPrimitiveSchema }).strict(),
-		z.object({ neq: WebhookFilterPrimitiveSchema }).strict(),
-		z.object({ gt: z.union([z.string(), z.number().finite()]) }).strict(),
-		z.object({ gte: z.union([z.string(), z.number().finite()]) }).strict(),
-		z.object({ lt: z.union([z.string(), z.number().finite()]) }).strict(),
-		z.object({ lte: z.union([z.string(), z.number().finite()]) }).strict(),
-		z
-			.object({
-				in: z.array(WebhookFilterPrimitiveSchema).min(1),
-			})
-			.strict(),
-	]);
-
-export const WebhookFilterClauseSchema: z.ZodType<WebhookFilterClause> =
-	z.union([WebhookFilterPrimitiveSchema, WebhookFilterOperatorSchema]);
-
-export const WebhookFilterSchema: z.ZodType<WebhookFilter> = z.record(
-	z.string().min(1),
-	WebhookFilterClauseSchema,
-);
 
 // --- Chain triggers (direct chain-level webhooks) -----------------------
 // A chain webhook reacts to raw chain events matched directly off the
@@ -436,51 +390,22 @@ export const CHAIN_TRIGGER_FIELDS: Record<string, string[]> =
 	);
 
 export const CreateWebhookRequestSchema: z.ZodType<ParsedCreateWebhookRequest> =
-	z
-		.object({
-			name,
-			// Subgraph mode (kind=subgraph): subgraphName + tableName + optional filter.
-			subgraphName: resourceName.optional(),
-			tableName: resourceName.optional(),
-			filter: WebhookFilterSchema.optional(),
-			// Chain mode (kind=chain): triggers.
-			triggers: ChainTriggersSchema.optional(),
-			url: webhookUrl,
-			format: WebhookFormatSchema.default("standard-webhooks"),
-			runtime: WebhookRuntimeSchema.nullable().optional(),
-			authConfig: z.record(z.string(), z.unknown()).optional(),
-			maxRetries: maxRetriesField(),
-			timeoutMs: timeoutMsField(),
-			concurrency: z.number().int().min(1).max(100).optional(),
-		})
-		.refine(
-			(v) => {
-				const subgraphMode =
-					v.subgraphName !== undefined || v.tableName !== undefined;
-				const chainMode = v.triggers !== undefined;
-				if (chainMode && subgraphMode) return false;
-				if (chainMode) return true;
-				// Subgraph mode requires BOTH subgraphName and tableName.
-				return v.subgraphName !== undefined && v.tableName !== undefined;
-			},
-			{
-				message:
-					"provide either { subgraphName, tableName } for a subgraph webhook OR { triggers } for a chain webhook — not both",
-			},
-		)
-		.refine((v) => v.filter === undefined || v.triggers === undefined, {
-			message:
-				"`filter` applies to subgraph webhooks; chain webhooks use `triggers`",
-			path: ["filter"],
-		});
+	z.object({
+		name,
+		triggers: ChainTriggersSchema,
+		url: webhookUrl,
+		format: WebhookFormatSchema.default("standard-webhooks"),
+		authConfig: z.record(z.string(), z.unknown()).optional(),
+		maxRetries: maxRetriesField(),
+		timeoutMs: timeoutMsField(),
+		concurrency: z.number().int().min(1).max(100).optional(),
+	});
 
 export const UpdateWebhookRequestSchema: z.ZodType<UpdateWebhookRequest> = z
 	.object({
 		name: name.optional(),
 		url: webhookUrl.optional(),
-		filter: WebhookFilterSchema.optional(),
 		format: WebhookFormatSchema.optional(),
-		runtime: WebhookRuntimeSchema.nullable().optional(),
 		authConfig: z.record(z.string(), z.unknown()).optional(),
 		maxRetries: maxRetriesField(),
 		timeoutMs: timeoutMsField(),
@@ -502,23 +427,9 @@ export const ReplayWebhookRequestSchema: z.ZodType<ReplayWebhookRequest> = z
 	});
 
 export type WebhookStatus = (typeof WEBHOOK_STATUSES)[number];
-/** Polymorphic webhook mode (mirrors db/types `WebhookKind`). */
-export type WebhookKind = "subgraph" | "chain";
+/** Webhook kind (mirrors db/types `WebhookKind`). Chain events only. */
+export type WebhookKind = "chain";
 export type WebhookFormat = (typeof WEBHOOK_FORMATS)[number];
-export type WebhookRuntime = (typeof WEBHOOK_RUNTIMES)[number];
-export type WebhookFilterPrimitive = string | number | boolean;
-export type WebhookFilterOperator =
-	| { eq: WebhookFilterPrimitive }
-	| { neq: WebhookFilterPrimitive }
-	| { gt: string | number }
-	| { gte: string | number }
-	| { lt: string | number }
-	| { lte: string | number }
-	| { in: WebhookFilterPrimitive[] };
-export type WebhookFilterClause =
-	| WebhookFilterPrimitive
-	| WebhookFilterOperator;
-export type WebhookFilter = Record<string, WebhookFilterClause>;
 
 export type ChainTriggerType = (typeof CHAIN_TRIGGER_TYPES)[number];
 /** Non-negative integer amount over JSON (string for uint128 safety, or number). */
@@ -772,15 +683,9 @@ export const trigger = {
 
 export interface CreateWebhookRequest {
 	name: string;
-	/** Subgraph mode. */
-	subgraphName?: string;
-	tableName?: string;
-	filter?: WebhookFilter;
-	/** Chain mode. */
-	triggers?: ChainTrigger[];
+	triggers: ChainTrigger[];
 	url: string;
 	format?: WebhookFormat;
-	runtime?: WebhookRuntime | null;
 	authConfig?: Record<string, unknown>;
 	maxRetries?: number;
 	timeoutMs?: number;
@@ -795,9 +700,7 @@ export interface ParsedCreateWebhookRequest
 export interface UpdateWebhookRequest {
 	name?: string;
 	url?: string;
-	filter?: WebhookFilter;
 	format?: WebhookFormat;
-	runtime?: WebhookRuntime | null;
 	authConfig?: Record<string, unknown>;
 	maxRetries?: number;
 	timeoutMs?: number;
@@ -819,12 +722,7 @@ export interface WebhookSummary {
 	name: string;
 	status: WebhookStatus;
 	kind: WebhookKind;
-	/** Null for chain webhooks. */
-	subgraphName: string | null;
-	/** Null for chain webhooks. */
-	tableName: string | null;
 	format: WebhookFormat;
-	runtime: WebhookRuntime | null;
 	url: string;
 	lastDeliveryAt: string | null;
 	lastSuccessAt: string | null;
@@ -854,15 +752,14 @@ export interface WebhookAuth {
 }
 
 export interface WebhookDetail extends WebhookSummary {
-	filter: Record<string, unknown>;
-	/** Chain-trigger filters (chain webhooks only). */
-	triggers: ChainTrigger[] | null;
+	/** Chain-trigger filters. */
+	triggers: ChainTrigger[];
 	auth: WebhookAuth;
 	maxRetries: number;
 	timeoutMs: number;
 	concurrency: number;
 	lastError: string | null;
-	/** Set on a `kind="chain"` webhook when this instance's chain-trigger
+	/** Set when this instance's chain-trigger
 	 *  evaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the
 	 *  webhook will never fire until that's fixed. Null otherwise. Surfaced
 	 *  on create (so it's seen immediately) and on every read (so `secondlayer
@@ -924,8 +821,7 @@ export interface WebhookActivity {
 	nextAttemptAt: string | null;
 	lastSuccessAt: string | null;
 	/** 7-day counts per `event_type` (same 168-hour window as `hours`), e.g.
-	 *  `chain.stx_transfer.apply` or `<subgraph>.<table>.created` — the
-	 *  config card's per-trigger volume. */
+	 *  `chain.stx_transfer.apply` — the config card's per-trigger volume. */
 	byEventType: Record<string, number>;
 }
 
@@ -954,9 +850,8 @@ export interface WebhookDeliveryDetail {
 	blockHeight: number | null;
 	blockTime: string | null;
 	/** The row's position within its block/tx, from the outbox's `row_pk`
-	 *  (`rowIndex` for a subgraph row, `event_index` for a chain-trigger
-	 *  row). Null when `row_pk` carries neither — a settlement or reorg
-	 *  outbox row, or no outbox row at all. */
+	 *  (`event_index` for a chain-trigger row). Null when `row_pk` carries
+	 *  none — a settlement or reorg outbox row, or no outbox row at all. */
 	eventIndex: number | null;
 	payload: unknown | null;
 }
@@ -988,27 +883,6 @@ export interface DeadRow {
 	createdAt: string;
 }
 
-export interface WebhookSchemaColumn {
-	type?: unknown;
-}
-
-export interface WebhookSchemaTable {
-	columns: Record<string, WebhookSchemaColumn>;
-}
-
-export type WebhookSchemaTables = Record<string, WebhookSchemaTable>;
-
-const SCALAR_COLUMN_TYPES = new Set([
-	"text",
-	"uint",
-	"int",
-	"principal",
-	"boolean",
-	"timestamp",
-]);
-
-const COMPARISON_COLUMN_TYPES = new Set(["uint", "int", "timestamp"]);
-
 function formatIssuePath(path: PropertyKey[]): string {
 	return path.length > 0 ? `${path.map(String).join(".")}: ` : "";
 }
@@ -1017,71 +891,4 @@ export function formatWebhookSchemaErrors(error: z.ZodError): string[] {
 	return error.issues.map(
 		(issue) => `${formatIssuePath(issue.path)}${issue.message}`,
 	);
-}
-
-function operatorForClause(clause: WebhookFilterClause): string {
-	if (clause === null || typeof clause !== "object" || Array.isArray(clause)) {
-		return "eq";
-	}
-	return Object.keys(clause)[0] ?? "eq";
-}
-
-export function validateWebhookFilterForTable(input: {
-	subgraphName?: string;
-	tableName: string;
-	filter?: unknown;
-	tables: WebhookSchemaTables;
-}): string[] {
-	const errors: string[] = [];
-	const table = input.tables[input.tableName];
-	if (!table) {
-		const names = Object.keys(input.tables);
-		errors.push(
-			`Unknown table "${input.tableName}"${
-				input.subgraphName ? ` in subgraph "${input.subgraphName}"` : ""
-			}.${names.length > 0 ? ` Available tables: ${names.join(", ")}.` : ""}`,
-		);
-		return errors;
-	}
-
-	if (input.filter === undefined) return errors;
-
-	const parsed = WebhookFilterSchema.safeParse(input.filter);
-	if (!parsed.success) {
-		return formatWebhookSchemaErrors(parsed.error);
-	}
-
-	for (const [field, clause] of Object.entries(parsed.data)) {
-		const column = table.columns[field];
-		if (!column) {
-			errors.push(
-				`Unknown filter field "${field}" on table "${input.tableName}".`,
-			);
-			continue;
-		}
-
-		const columnType =
-			typeof column.type === "string" ? column.type.toLowerCase() : "";
-		if (!SCALAR_COLUMN_TYPES.has(columnType)) {
-			errors.push(
-				`Filter field "${field}" has unsupported type "${columnType || "unknown"}"; webhook filters require scalar columns.`,
-			);
-			continue;
-		}
-
-		const operator = operatorForClause(clause);
-		if (
-			(operator === "gt" ||
-				operator === "gte" ||
-				operator === "lt" ||
-				operator === "lte") &&
-			!COMPARISON_COLUMN_TYPES.has(columnType)
-		) {
-			errors.push(
-				`Operator "${operator}" is not supported for ${columnType} field "${field}".`,
-			);
-		}
-	}
-
-	return errors;
 }

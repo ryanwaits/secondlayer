@@ -127,8 +127,6 @@ export interface SubgraphSummary {
 	lastErrorAt?: string | null;
 	/** Last row mutation timestamp; powers per-card freshness. */
 	updatedAt?: string | null;
-	/** Number of webhooks attached to this subgraph. */
-	webhookCount?: number;
 	createdAt: string;
 }
 

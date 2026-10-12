@@ -6,8 +6,6 @@ import {
 	CreateWebhookRequestSchema,
 	ReplayWebhookRequestSchema,
 	UpdateWebhookRequestSchema,
-	WebhookFilterSchema,
-	validateWebhookFilterForTable,
 	webhookMaxRetriesCeiling,
 	webhookTimeoutMsCeiling,
 } from "./webhooks.ts";
@@ -46,46 +44,25 @@ describe("CHAIN_TRIGGER_FIELDS", () => {
 	});
 });
 
-const tables = {
-	transfers: {
-		columns: {
-			sender: { type: "principal" },
-			recipient: { type: "principal" },
-			amount: { type: "uint" },
-			memo: { type: "text" },
-			confirmed: { type: "boolean" },
-			metadata: { type: "jsonb" },
-		},
-	},
-} as const;
-
 describe("webhook schemas", () => {
-	it("accepts supported formats, runtimes, and filters on create", () => {
+	it("accepts supported formats and trigger limits on create", () => {
 		const parsed = CreateWebhookRequestSchema.parse({
 			name: "large-transfers",
-			subgraphName: "stx-transfers",
-			tableName: "transfers",
+			triggers: [{ type: "stx_transfer", minAmount: "1000000" }],
 			url: "https://example.com/webhook",
 			format: "standard-webhooks",
-			runtime: "node",
-			filter: {
-				amount: { gte: "1000000" },
-				sender: { in: ["SP1", "SP2"] },
-			},
 			maxRetries: 5,
 			timeoutMs: 10_000,
 			concurrency: 2,
 		});
 
 		expect(parsed.format).toBe("standard-webhooks");
-		expect(parsed.runtime).toBe("node");
 	});
 
 	it("defaults create format to standard-webhooks", () => {
 		const parsed = CreateWebhookRequestSchema.parse({
 			name: "default-format",
-			subgraphName: "stx-transfers",
-			tableName: "transfers",
+			triggers: [{ type: "stx_transfer" }],
 			url: "http://localhost:3000/webhook",
 		});
 
@@ -96,8 +73,7 @@ describe("webhook schemas", () => {
 		expect(() =>
 			CreateWebhookRequestSchema.parse({
 				name: "bad",
-				subgraphName: "sg",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: "ftp://example.com/webhook",
 				format: "xml",
 			}),
@@ -112,67 +88,10 @@ describe("webhook schemas", () => {
 			}),
 		).toThrow();
 	});
-
-	it("rejects unsupported filter objects", () => {
-		expect(
-			WebhookFilterSchema.safeParse({ amount: { between: [1, 2] } }),
-		).toMatchObject({ success: false });
-		expect(
-			WebhookFilterSchema.safeParse({ amount: { gt: 1, lt: 2 } }),
-		).toMatchObject({ success: false });
-		expect(WebhookFilterSchema.safeParse({ amount: [1, 2] })).toMatchObject({
-			success: false,
-		});
-	});
-
-	it("validates filters against subgraph table columns", () => {
-		expect(
-			validateWebhookFilterForTable({
-				subgraphName: "stx-transfers",
-				tableName: "transfers",
-				filter: { amount: { gte: "1000" }, sender: "SP1" },
-				tables,
-			}),
-		).toEqual([]);
-
-		expect(
-			validateWebhookFilterForTable({
-				tableName: "missing",
-				filter: {},
-				tables,
-			})[0],
-		).toContain('Unknown table "missing"');
-
-		expect(
-			validateWebhookFilterForTable({
-				tableName: "transfers",
-				filter: { unknown: "x" },
-				tables,
-			})[0],
-		).toBe('Unknown filter field "unknown" on table "transfers".');
-
-		expect(
-			validateWebhookFilterForTable({
-				tableName: "transfers",
-				filter: { memo: { gt: "abc" } },
-				tables,
-			})[0],
-		).toBe('Operator "gt" is not supported for text field "memo".');
-
-		expect(
-			validateWebhookFilterForTable({
-				tableName: "transfers",
-				filter: { metadata: "x" },
-				tables,
-			})[0],
-		).toBe(
-			'Filter field "metadata" has unsupported type "jsonb"; webhook filters require scalar columns.',
-		);
-	});
 });
 
 describe("chain webhooks (direct chain triggers)", () => {
-	it("accepts a chain webhook with triggers and no subgraph target", () => {
+	it("accepts a webhook with triggers", () => {
 		const parsed = CreateWebhookRequestSchema.parse({
 			name: "swaps",
 			url: "https://example.com/webhook",
@@ -186,7 +105,6 @@ describe("chain webhooks (direct chain triggers)", () => {
 			],
 		});
 		expect(parsed.triggers).toHaveLength(2);
-		expect(parsed.subgraphName).toBeUndefined();
 		expect(parsed.format).toBe("standard-webhooks");
 	});
 
@@ -205,30 +123,10 @@ describe("chain webhooks (direct chain triggers)", () => {
 		expect(parsed.triggers).toHaveLength(2);
 	});
 
-	it("rejects mixing subgraph target and triggers", () => {
+	it("rejects a create without triggers", () => {
 		const r = CreateWebhookRequestSchema.safeParse({
 			name: "x",
 			url: "https://x.com/h",
-			subgraphName: "sg",
-			tableName: "t",
-			triggers: [{ type: "contract_call" }],
-		});
-		expect(r.success).toBe(false);
-	});
-
-	it("rejects neither mode (no subgraph target, no triggers)", () => {
-		const r = CreateWebhookRequestSchema.safeParse({
-			name: "x",
-			url: "https://x.com/h",
-		});
-		expect(r.success).toBe(false);
-	});
-
-	it("rejects subgraph mode missing tableName", () => {
-		const r = CreateWebhookRequestSchema.safeParse({
-			name: "x",
-			url: "https://x.com/h",
-			subgraphName: "sg",
 		});
 		expect(r.success).toBe(false);
 	});
@@ -265,16 +163,6 @@ describe("chain webhooks (direct chain triggers)", () => {
 			name: "x",
 			url: "https://x.com/h",
 			triggers: [{ type: "stx_transfer", minAmount: "12.5" }],
-		});
-		expect(r.success).toBe(false);
-	});
-
-	it("rejects combining filter with triggers", () => {
-		const r = CreateWebhookRequestSchema.safeParse({
-			name: "x",
-			url: "https://x.com/h",
-			triggers: [{ type: "contract_call" }],
-			filter: { amount: { gte: "1" } },
 		});
 		expect(r.success).toBe(false);
 	});

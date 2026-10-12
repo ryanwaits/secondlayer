@@ -59,8 +59,7 @@ describe("webhooks queries", () => {
 	const baseInput = () => ({
 		accountId,
 		name: "test-sub",
-		subgraphName: "my-subgraph",
-		tableName: "transfers",
+		triggers: [{ type: "stx_transfer" }],
 		url: "https://webhook.site/abc",
 	});
 
@@ -108,11 +107,9 @@ describe("webhooks queries", () => {
 		const patched = await updateWebhook(db, accountId, webhook.id, {
 			url: "https://new.example/hook",
 			format: "inngest",
-			runtime: "inngest",
 		});
 		expect(patched?.url).toBe("https://new.example/hook");
 		expect(patched?.format).toBe("inngest");
-		expect(patched?.runtime).toBe("inngest");
 	});
 
 	it("toggleStatus pause resets circuit breaker", async () => {
@@ -165,12 +162,10 @@ describe("webhooks queries", () => {
 			.insertInto("webhook_outbox")
 			.values({
 				webhook_id: webhook.id,
-				subgraph_name: "my-subgraph",
-				table_name: "transfers",
 				block_height: 1,
 				tx_id: "0xdel",
-				row_pk: { id: "1" },
-				event_type: "my-subgraph.transfers.created",
+				row_pk: { event_index: 0 },
+				event_type: "chain.stx_transfer.apply",
 				payload: { amount: "1" },
 				dedup_key: `del-${webhook.id}`,
 			})
@@ -204,7 +199,7 @@ describe("webhooks queries", () => {
 		expect(outboxLeft).toHaveLength(0);
 	});
 
-	it("creates a chain webhook (kind=chain, triggers persisted, no subgraph target)", async () => {
+	it("persists triggers and stores kind=chain", async () => {
 		const triggers = [
 			{
 				type: "contract_call",
@@ -216,13 +211,10 @@ describe("webhooks queries", () => {
 		const { webhook, signingSecret } = await createWebhook(db, {
 			accountId,
 			name: "chain-sub",
-			kind: "chain",
 			triggers,
 			url: "https://webhook.site/chain",
 		});
 		expect(webhook.kind).toBe("chain");
-		expect(webhook.subgraph_name).toBeNull();
-		expect(webhook.table_name).toBeNull();
 		expect(webhook.triggers).toEqual(triggers);
 		expect(signingSecret).toMatch(/^[a-f0-9]{64}$/);
 
@@ -246,8 +238,7 @@ describe("webhooks local namespace (oss)", () => {
 		const { webhook } = await createWebhook(db, {
 			accountId: "acct-leftover",
 			name: "local-sub",
-			subgraphName: "sg",
-			tableName: "t",
+			triggers: [{ type: "stx_transfer" }],
 			url: "https://example.com/hook",
 		});
 		expect(webhook.account_id).toBe("");

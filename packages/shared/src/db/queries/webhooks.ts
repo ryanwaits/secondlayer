@@ -8,8 +8,6 @@ import type {
 	UpdateWebhook,
 	Webhook,
 	WebhookFormat,
-	WebhookKind,
-	WebhookRuntime,
 	WebhookStatus,
 } from "../types.ts";
 
@@ -23,17 +21,9 @@ export interface CreateWebhookInput {
 	accountId: string;
 	projectId?: string | null;
 	name: string;
-	/** Defaults to "subgraph". Chain webhooks set kind="chain" + triggers. */
-	kind?: WebhookKind;
-	/** Required for subgraph webhooks; omitted for chain. */
-	subgraphName?: string | null;
-	/** Required for subgraph webhooks; omitted for chain. */
-	tableName?: string | null;
-	/** Chain-trigger filter array. Required for chain webhooks. */
-	triggers?: unknown;
-	filter?: unknown;
+	/** Chain-trigger filter array. */
+	triggers: unknown;
 	format?: WebhookFormat;
-	runtime?: WebhookRuntime | null;
 	url: string;
 	authConfig?: unknown;
 	maxRetries?: number;
@@ -52,19 +42,14 @@ export async function createWebhook(
 	input: CreateWebhookInput,
 ): Promise<CreateWebhookResult> {
 	const signingSecret = generateSecret();
-	const kind: WebhookKind = input.kind ?? "subgraph";
 	const row: InsertWebhook = {
 		account_id: isPlatformMode() ? input.accountId : "",
 		project_id: input.projectId ?? null,
 		name: input.name,
 		status: "active",
-		kind,
-		subgraph_name: input.subgraphName ?? null,
-		table_name: input.tableName ?? null,
-		triggers: kind === "chain" ? ((input.triggers ?? []) as unknown) : null,
-		filter: input.filter ?? {},
+		kind: "chain",
+		triggers: input.triggers,
 		format: input.format ?? "standard-webhooks",
-		runtime: input.runtime ?? null,
 		url: input.url,
 		signing_secret_enc: encryptSecret(signingSecret),
 		auth_config: input.authConfig ?? {},
@@ -98,8 +83,7 @@ export async function listWebhooks(
 
 /**
  * All active chain webhooks across every account — the input to the global
- * trigger evaluator (one loop serves them all). Subgraph webhooks are
- * excluded; they emit via the subgraph flush path.
+ * trigger evaluator (one loop serves them all).
  */
 export async function listActiveChainWebhooks(
 	db: Kysely<Database>,
@@ -134,9 +118,7 @@ export async function getWebhookByName(
 
 export interface UpdateWebhookInput {
 	name?: string;
-	filter?: unknown;
 	format?: WebhookFormat;
-	runtime?: WebhookRuntime | null;
 	url?: string;
 	authConfig?: unknown;
 	maxRetries?: number;
@@ -152,9 +134,7 @@ export async function updateWebhook(
 ): Promise<Webhook | null> {
 	const update: UpdateWebhook = { updated_at: new Date() };
 	if (patch.name !== undefined) update.name = patch.name;
-	if (patch.filter !== undefined) update.filter = patch.filter;
 	if (patch.format !== undefined) update.format = patch.format;
-	if (patch.runtime !== undefined) update.runtime = patch.runtime;
 	if (patch.url !== undefined) update.url = patch.url;
 	if (patch.authConfig !== undefined) update.auth_config = patch.authConfig;
 	if (patch.maxRetries !== undefined) update.max_retries = patch.maxRetries;
