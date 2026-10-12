@@ -71,14 +71,14 @@ function binary200(description: string, headers?: Record<string, unknown>) {
 }
 
 const FREE =
-	"Free: never metered, never refused for credits. Bytes are passed through unchanged; verify them, do not trust them.";
+	"Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.";
 
 export const proofsPaths = {
 	"/v1/proofs/witness/{index_block_hash}": {
 		get: {
 			tags: ["proofs"],
 			summary: "State witness for a block",
-			description: `The block's MARF state witness (wire v3) from the proof sidecar: the trie nodes the block wrote, ancestor roots, and the names of every write. Recompute the root and compare it with the header's \`state_index_root\`; every changed leaf is a named write, a carried value, or an internal key, so a hidden write fails. Extracted on demand, so it has its own lower per-account rate limit. ${FREE}`,
+			description: `The block's MARF state witness (wire v3) from the proof sidecar: the trie nodes the block wrote, ancestor roots, and the names of every write. Recompute the root and compare it with the header's \`state_index_root\`; every changed leaf is a named write, a carried value, or an internal key, so a hidden write fails. Extracted on demand, so it has its own lower rate limit. ${FREE}`,
 			security: READ_SECURITY,
 			parameters: [INDEX_BLOCK_HASH_PARAM],
 			responses: responses(

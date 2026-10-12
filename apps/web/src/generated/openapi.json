@@ -15392,7 +15392,7 @@
 					"proofs"
 				],
 				"summary": "State witness for a block",
-				"description": "The block's MARF state witness (wire v3) from the proof sidecar: the trie nodes the block wrote, ancestor roots, and the names of every write. Recompute the root and compare it with the header's `state_index_root`; every changed leaf is a named write, a carried value, or an internal key, so a hidden write fails. Extracted on demand, so it has its own lower per-account rate limit. Free: never metered, never refused for credits. Bytes are passed through unchanged; verify them, do not trust them.",
+				"description": "The block's MARF state witness (wire v3) from the proof sidecar: the trie nodes the block wrote, ancestor roots, and the names of every write. Recompute the root and compare it with the header's `state_index_root`; every changed leaf is a named write, a carried value, or an internal key, so a hidden write fails. Extracted on demand, so it has its own lower rate limit. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
 					{
@@ -15508,7 +15508,7 @@
 					"proofs"
 				],
 				"summary": "Burn block behind a consensus hash",
-				"description": "The sortition preimage that hashes to a block header's `consensus_hash` (RIPEMD160(SHA256(preimage))). Bytes 4..36 of the preimage are the Bitcoin block hash, which pins the header's burn height against Bitcoin proof of work. Free: never metered, never refused for credits. Bytes are passed through unchanged; verify them, do not trust them.",
+				"description": "The sortition preimage that hashes to a block header's `consensus_hash` (RIPEMD160(SHA256(preimage))). Bytes 4..36 of the preimage are the Bitcoin block hash, which pins the header's burn height against Bitcoin proof of work. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
 					{
@@ -15609,7 +15609,7 @@
 					"proofs"
 				],
 				"summary": "Bitcoin block headers",
-				"description": "Raw 80-byte Bitcoin headers from `from`, at most 2016 (one difficulty period) per call. Check proof of work and linkage yourself from a checkpoint you trust. Free: never metered, never refused for credits. Bytes are passed through unchanged; verify them, do not trust them.",
+				"description": "Raw 80-byte Bitcoin headers from `from`, at most 2016 (one difficulty period) per call. Check proof of work and linkage yourself from a checkpoint you trust. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
 					{
@@ -15719,7 +15719,7 @@
 					"proofs"
 				],
 				"summary": "Signed block by id",
-				"description": "The consensus-serialized Nakamoto block from the Stacks node (`/v3/blocks/{id}`): header with signer signatures, then transactions. Recompute the block id from the header and check the signatures against the cycle's signer set. Free: never metered, never refused for credits. Bytes are passed through unchanged; verify them, do not trust them.",
+				"description": "The consensus-serialized Nakamoto block from the Stacks node (`/v3/blocks/{id}`): header with signer signatures, then transactions. Recompute the block id from the header and check the signatures against the cycle's signer set. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
 					{
@@ -15811,7 +15811,7 @@
 					"proofs"
 				],
 				"summary": "Signed block by height",
-				"description": "The node's block at a Stacks height (`/v3/blocks/height/{height}`), same bytes as the by-id route. Near the tip the block at a height can change, so this is short-cached; prefer the by-id route once you know the id. Free: never metered, never refused for credits. Bytes are passed through unchanged; verify them, do not trust them.",
+				"description": "The node's block at a Stacks height (`/v3/blocks/height/{height}`), same bytes as the by-id route. Near the tip the block at a height can change, so this is short-cached; prefer the by-id route once you know the id. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
 					{
@@ -15903,7 +15903,7 @@
 					"proofs"
 				],
 				"summary": "Epoch 2.x block header by id",
-				"description": "A pre-Nakamoto block's header from the Stacks node (`/v2/headers/1?tip={id}`), as the node's one-element array: `header` (consensus-serialized StacksBlockHeader, hex), `consensus_hash` and `parent_block_id`. The id is sha512/256(sha512/256(header) || consensus_hash): recompute it, then check state against the header's `state_index_root`. Nakamoto blocks are a 404 here; use the block route. Free: never metered, never refused for credits. Bytes are passed through unchanged; verify them, do not trust them.",
+				"description": "A pre-Nakamoto block's header from the Stacks node (`/v2/headers/1?tip={id}`), as the node's one-element array: `header` (consensus-serialized StacksBlockHeader, hex), `consensus_hash` and `parent_block_id`. The id is sha512/256(sha512/256(header) || consensus_hash): recompute it, then check state against the header's `state_index_root`. Nakamoto blocks are a 404 here; use the block route. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
 					{
@@ -16004,7 +16004,7 @@
 					"proofs"
 				],
 				"summary": "State writes of a block",
-				"description": "Every MARF write the canonical block at `height` committed, in the node's write order, from this instance's indexed `state_writes`: the names a verifier needs to label each written leaf of the block's witness. A write the witness does not hold, or a leaf no write names, fails that check, so the rows are checked, not trusted. 404 when the instance has no writes for the block (its node did not subscribe to `state_writes` at that height); verifiers then report the diff unnamed. Near the tip the block at a height can change, so this is short-cached. Free: never metered, never refused for credits. Bytes are passed through unchanged; verify them, do not trust them.",
+				"description": "Every MARF write the canonical block at `height` committed, in the node's write order, from this instance's indexed `state_writes`: the names a verifier needs to label each written leaf of the block's witness. A write the witness does not hold, or a leaf no write names, fails that check, so the rows are checked, not trusted. 404 when the instance has no writes for the block (its node did not subscribe to `state_writes` at that height); verifiers then report the diff unnamed. Near the tip the block at a height can change, so this is short-cached. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
 					{
@@ -16095,7 +16095,7 @@
 					"proofs"
 				],
 				"summary": "MARF inclusion proof",
-				"description": "A value and its MARF inclusion proof as of block `tip`, from the node (`/v2/clarity/marf/{path}?proof=1`). Keys the node cannot serve because they hold no stored value string, such as the MARF's own `__MARF_BLOCK_HEIGHT_TO_HASH::<height>`, are proven by the proof sidecar from the MARF itself: same proof bytes, and `data` is the raw 40-byte leaf value. Fold the proof to a root and compare it with `tip`'s `state_index_root`. Inclusion only: a missing key is a 404, not a proof of absence. Free: never metered, never refused for credits. Bytes are passed through unchanged; verify them, do not trust them.",
+				"description": "A value and its MARF inclusion proof as of block `tip`, from the node (`/v2/clarity/marf/{path}?proof=1`). Keys the node cannot serve because they hold no stored value string, such as the MARF's own `__MARF_BLOCK_HEIGHT_TO_HASH::<height>`, are proven by the proof sidecar from the MARF itself: same proof bytes, and `data` is the raw 40-byte leaf value. Fold the proof to a root and compare it with `tip`'s `state_index_root`. Inclusion only: a missing key is a 404, not a proof of absence. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
 					{

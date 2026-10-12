@@ -59,7 +59,7 @@ const HOSTED_SURFACES = [
 		path: "/v1/proofs",
 		description:
 			"Chain proofs to check Index rows without trusting this API: state witnesses, signed blocks, MARF proofs, burn-block preimages, Bitcoin headers. Proxied unchanged from the node and its proof sidecar.",
-		auth: "bearer required (any account key), free, rate limited per account",
+		auth: "no key needed; free; rate limited per IP, higher per account with a key",
 	},
 	{
 		name: "api-keys",

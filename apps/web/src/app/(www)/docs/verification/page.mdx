@@ -86,9 +86,8 @@ bun add @secondlayer/verify
 ```ts
 import { SecondlayerProofSource, verifyBlock } from "@secondlayer/verify";
 
-const source = new SecondlayerProofSource({
+const source = new SecondlayerProofSource({ // no key needed; add apiKey for higher rate limits
   baseUrl: process.env.SECONDLAYER_API_URL!,
-  apiKey: process.env.SECONDLAYER_API_KEY!, // any account key; proofs are never billed
 });
 
 const result = await verifyBlock(9_137_005, { source });
@@ -181,7 +180,7 @@ The transaction verifier uses Node's crypto (via `@secondlayer/shared`), so it i
 
 ## Proofs API
 
-The raw material `verify block` reads. Free, never metered. On the hosted API each account gets 20 requests per second, and 2 per second for witnesses. On your own box the witness, burn and Bitcoin-header routes need a proof sidecar: [Self-host](/docs/self-host/production#what-differs-on-your-box).
+The raw material `verify block` reads. Free, never metered, no key needed. On the hosted API each IP gets 10 requests per second, and 1 per second for witnesses; send an account key for 20 and 2. Answers addressed by a hash never change: they carry an ETag and `Cache-Control: immutable`. On your own box the witness, burn and Bitcoin-header routes need a proof sidecar: [Self-host](/docs/self-host/production#what-differs-on-your-box).
 
 | Route | Returns |
 | --- | --- |
