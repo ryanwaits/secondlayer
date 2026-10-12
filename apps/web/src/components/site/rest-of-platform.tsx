@@ -21,7 +21,7 @@ export function RestOfPlatform({
 					<Link href={p.href} key={p.href}>
 						<h3>{blurb?.title ?? p.line}</h3>
 						{blurb ? <p>{blurb.body}</p> : null}
-						<span className="go">Learn more →</span>
+						<span className="go">{p.noun} →</span>
 					</Link>
 				);
 			})}

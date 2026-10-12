@@ -366,7 +366,7 @@ export default function StreamsPage() {
 								Best when the shape is settled and you would rather read a
 								computed table than rebuild it on every boot.
 							</p>
-							<span className="go">Learn more →</span>
+							<span className="go">{subgraphs.noun} →</span>
 						</Link>
 						<Link href={webhooks.href}>
 							<h3>We hold the retry queue</h3>
@@ -374,7 +374,7 @@ export default function StreamsPage() {
 								Best when you want chain events pushed to your server, with
 								failed deliveries logged and requeueable.
 							</p>
-							<span className="go">Learn more →</span>
+							<span className="go">{webhooks.noun} →</span>
 						</Link>
 					</div>
 				</div>

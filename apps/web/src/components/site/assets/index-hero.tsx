@@ -2,7 +2,7 @@
 export function IndexHero() {
 	return (
 		<svg
-			viewBox="0 0 460 400"
+			viewBox="0 0 460 370"
 			role="img"
 			aria-label="Three decoded events stacked as cards, the front one an ft_transfer at block 8,948,506, leading to a next_cursor of 8948506:12"
 		>
@@ -102,9 +102,6 @@ export function IndexHero() {
 				className="f-on-pri"
 			>
 				next_cursor 8948506:12
-			</text>
-			<text x="200" y="386" fontSize="11" textAnchor="middle" className="f-sub">
-				tip 8,948,506 · finalized 8,948,262 · reorgs []
 			</text>
 		</svg>
 	);

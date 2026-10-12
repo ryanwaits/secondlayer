@@ -600,9 +600,9 @@
 	border-top: 1px solid var(--line);
 }
 .site .which a {
-	display: grid;
+	display: flex;
+	flex-direction: column;
 	gap: 10px;
-	align-content: start;
 	padding: 24px 24px 24px 0;
 	border-right: 1px solid var(--line);
 }
@@ -617,6 +617,8 @@
 	color: var(--sub);
 }
 .site .which .go {
+	margin-top: auto;
+	padding-top: 4px;
 	font-family: var(--font-mono-stack);
 	font-size: 12.5px;
 	color: var(--ink);

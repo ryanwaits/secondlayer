@@ -468,7 +468,7 @@ export default function ArchivePage() {
 				<div className="shell">
 					<div className="sec-head">
 						<Eyebrow noun="Rest of the platform" />
-						<h2>The same history, served three ways</h2>
+						<h2>Built on this history</h2>
 					</div>
 					<RestOfPlatform
 						exclude={["/p/archive"]}
@@ -484,6 +484,10 @@ export default function ArchivePage() {
 							"/p/subgraphs": {
 								title: "Your contract, as a table",
 								body: "Backfilled from this history and held at tip.",
+							},
+							"/p/webhooks": {
+								title: "Your server, told first",
+								body: "Chain events pushed to your endpoint as they land, with failed deliveries logged and requeueable.",
 							},
 						}}
 					/>
