@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 const SUB =
-	"Every Stacks block and Bitcoin rune, decoded from genesis and delivered at tip.";
+	"Every Stacks block, decoded from genesis and delivered at tip. Checkable against the chain.";
 
 export const metadata: Metadata = socialMeta({
 	title: "secondlayer · instant data for apps on Bitcoin",
@@ -229,7 +229,7 @@ export function HomeView() {
 								<span className="tb">9134950</span>
 								{"\n}\n"}
 								<span className="tok">200 OK</span>{" "}
-								<span className="tm">· delivered 0.8s after ingest</span>
+								<span className="tm">· signed ed25519</span>
 							</CodeWindow>
 							<Link href="/docs/webhooks" className="home-go">
 								Create a webhook
@@ -284,7 +284,7 @@ export function HomeView() {
 									["SP2507…4V39", "fastpool-max500", "14,750"],
 									["SP3KS5…XW6", "xverse-3", "980"],
 								]}
-								caption="GET /v1/index/pox5/events?signer=…"
+								caption="GET /v1/index/pox5/events?signer=… · example rows"
 							/>
 						</article>
 						<article className="home-ds-card">

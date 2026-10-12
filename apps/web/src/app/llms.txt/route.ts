@@ -1,7 +1,7 @@
 const LLMS_TXT = `# Secondlayer: instant data for apps on Bitcoin
 
-> Every Stacks block and Bitcoin rune, decoded from genesis and delivered at
-> tip. Hosted on api.secondlayer.tools (Index, Streams, Subgraphs, Webhooks),
+> Every Stacks block, decoded from genesis and delivered at tip. Checkable
+> against the chain. Bitcoin Runes on self-host today. Hosted on api.secondlayer.tools (Index, Streams, Subgraphs, Webhooks),
 > or self-hosted: Postgres plus one container beside your node.
 
 ## Start here
