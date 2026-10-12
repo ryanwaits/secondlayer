@@ -528,7 +528,8 @@ button.docs-nav-item {
 	}
 }
 
-/* callouts: note neutral, warning and danger red-tinted */
+/* callouts: plain surface (line border, paper fill); state is a leading 8px
+   dot plus the words: hollow ring for note, ok for tip, alarm for warning */
 .docs-callout {
 	position: relative;
 	margin-top: 20px;
@@ -539,16 +540,16 @@ button.docs-nav-item {
 }
 .docs-callout-icon {
 	position: absolute;
-	left: 16px;
-	top: 15px;
-	width: 16px;
-	height: 16px;
-	color: var(--sub);
+	left: 18px;
+	top: 20px;
+	width: 8px;
+	height: 8px;
+	box-sizing: border-box;
+	border: 1.5px solid var(--sub);
+	border-radius: 50%;
 }
 .docs-callout-icon svg {
-	display: block;
-	width: 100%;
-	height: 100%;
+	display: none;
 }
 .docs-article .docs-callout-title {
 	margin: 0;
@@ -566,23 +567,20 @@ button.docs-nav-item {
 	margin-top: 0;
 }
 .docs-callout-tip .docs-callout-icon {
-	color: var(--ink);
-}
-.docs-callout-warning,
-.docs-callout-danger {
-	background: color-mix(in srgb, var(--alarm) 6%, transparent);
-	border-color: color-mix(in srgb, var(--alarm) 35%, var(--line));
+	border-color: var(--ok);
+	background: var(--ok);
 }
 .docs-callout-warning .docs-callout-icon,
 .docs-callout-danger .docs-callout-icon {
-	color: var(--alarm);
+	border-color: var(--alarm);
+	background: var(--alarm);
 }
 .docs-banner {
 	margin-top: 24px;
 	padding: 16px 18px;
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	background: var(--soft);
+	background: var(--paper);
 }
 .docs-banner-label {
 	font: 11px var(--font-mono-stack);
@@ -671,7 +669,7 @@ button.docs-nav-item {
 }
 .docs-toc-list > a.active {
 	color: var(--ink);
-	border-left: 2px solid var(--ink);
+	border-left: 2px solid var(--pri);
 	padding-left: 11px;
 }
 .docs-toc-list > a.h3.active {
@@ -823,11 +821,19 @@ button.docs-nav-item {
 .docs-ra[aria-expanded="true"] .chev {
 	transform: rotate(180deg);
 }
-.docs-ra .ok {
-	color: var(--ok);
+/* flash states: the words plus a leading dot, no color wash */
+.docs-ra .ok::before,
+.docs-ra .bad::before {
+	content: "";
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	margin-right: 6px;
+	border-radius: 50%;
+	background: var(--ok);
 }
-.docs-ra .bad {
-	color: var(--alarm);
+.docs-ra .bad::before {
+	background: var(--alarm);
 }
 .docs-ra-key {
 	margin-left: auto;
@@ -1032,7 +1038,7 @@ html:has(.apiref) {
 .apiref-tag {
 	margin-top: 56px;
 	padding-top: 28px;
-	border-top: 1px solid var(--ink);
+	border-top: 1px solid var(--line);
 }
 .docs-article .apiref-tag-title {
 	margin: 0;
@@ -1278,7 +1284,6 @@ html:has(.apiref) {
 .apiref-status-bad,
 .apiref-statuses .apiref-status-warn {
 	color: var(--alarm);
-	border-color: color-mix(in srgb, var(--alarm) 35%, var(--line));
 }
 .apiref-response-bar .apiref-status {
 	color: var(--term-fg);
