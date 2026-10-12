@@ -1423,7 +1423,7 @@ so following one topic no longer means pulling all six.
 - `withdrawals` has no `consume` on purpose: the row is a lifecycle aggregate
   that mutates as a peg-out settles, and a forward-only cursor would commit it
   once and never see it change. Consume the append-only events instead; see
-  [sBTC settlement](/docs/sbtc-settlement#mirror-the-peg-into-your-own-tables).
+  [sBTC settlement](/docs/index#sbtc).
 
 ### Follow a whole protocol on one cursor
 
