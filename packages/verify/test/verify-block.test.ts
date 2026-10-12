@@ -4,13 +4,16 @@ import { join } from "node:path";
 import { uintCV } from "@secondlayer/stacks/clarity";
 import {
 	BlockVerifier,
+	LINKS,
 	MAINNET_CHECKPOINT,
 	MAINNET_PREPARE_LENGTH,
 	SIGNERS_CONTRACT,
 	type VerifyCheckpoint,
+	type VerifyStep,
 	blockId,
 	cycleStart,
 	decodeSignerSet,
+	describeLinks,
 	hex,
 	mapEntryKey,
 	marfPath,
@@ -576,5 +579,62 @@ describe("findAnchor", () => {
 			async () => linear(200_000),
 		);
 		expect(p).toBeNull();
+	});
+});
+
+describe("onStep reports each link as it passes", () => {
+	const e2eSource = () => new FakeSource({ heights: [B, A, H] });
+	const collect = () => {
+		const steps: VerifyStep[] = [];
+		return { steps, onStep: (step: VerifyStep) => steps.push(step) };
+	};
+
+	test("the steps received are exactly the links the result lists as ok, each once, in order", async () => {
+		const { steps, onStep } = collect();
+		const r = await verifyBlock(9137005, { source: e2eSource(), onStep });
+		const ok = describeLinks(r, MAINNET_CHECKPOINT)
+			.lines.filter((l) => l.status === "ok")
+			.map((l) => l.step);
+		expect(steps).toEqual(ok);
+		expect(new Set(steps).size).toBe(steps.length);
+	});
+
+	test("watching changes nothing in the result", async () => {
+		const plain = await verifyBlock(9137005, { source: e2eSource() });
+		const watched = await verifyBlock(9137005, {
+			source: e2eSource(),
+			onStep: () => {},
+		});
+		expect(watched).toEqual(plain);
+	});
+
+	test("a callback that throws does not break verification", async () => {
+		const r = await verifyBlock(9137005, {
+			source: e2eSource(),
+			onStep: () => {
+				throw new Error("ui crashed");
+			},
+		});
+		expect(r.ok).toBe(true);
+	});
+
+	test("no step at or after the broken link is reported", async () => {
+		const other = readJson<WitnessFixture>("witness/witness-264.json");
+		const source = e2eSource();
+		source.witnesses.set(H, unhex(other.witness));
+		const { steps, onStep } = collect();
+		const r = await verifyBlock(9137005, { source, onStep });
+		const broken = r.failures[0]?.step as VerifyStep;
+		expect(broken).toBe("witness");
+		const order = LINKS.map((l) => l.step);
+		for (const step of steps)
+			expect(order.indexOf(step)).toBeLessThan(order.indexOf(broken));
+		expect(steps).toEqual([
+			"block",
+			"bitcoin",
+			"burn",
+			"signer-set",
+			"signatures",
+		]);
 	});
 });

@@ -174,6 +174,11 @@ export interface VerifyOptions {
 	 * `/v1/proofs`) is always on when the source has them.
 	 */
 	rows?: boolean;
+	/**
+	 * Called once per link as it passes, in the order the verifier proves them.
+	 * Failures arrive in the result, not here.
+	 */
+	onStep?: (step: VerifyStep) => void;
 }
 
 class Broken extends Error {
@@ -274,6 +279,7 @@ export class BlockVerifier {
 	private readonly source: ProofSource;
 	private readonly checkpoint: VerifyCheckpoint;
 	private readonly rows: boolean;
+	private readonly onStep?: (step: VerifyStep) => void;
 	private readonly chain: HeaderChain;
 	/** Proven signer sets by cycle. */
 	private readonly sets = new Map<number, SignerSet>();
@@ -301,6 +307,7 @@ export class BlockVerifier {
 		this.source = opts.source;
 		this.checkpoint = opts.checkpoint ?? MAINNET_CHECKPOINT;
 		this.rows = opts.rows ?? false;
+		this.onStep = opts.onStep;
 		const { stacks } = this.checkpoint;
 		const header = parseNakamotoHeader(unhex(stacks.header));
 		this.start = { header, id: hex(blockId(header)) };
@@ -320,6 +327,13 @@ export class BlockVerifier {
 		}
 		out.ok = out.failures.length === 0;
 		return out;
+	}
+
+	/** Report a passed link. A throwing callback must not break verification. */
+	private passed(step: VerifyStep): void {
+		try {
+			this.onStep?.(step);
+		} catch {}
 	}
 
 	private async run(
@@ -369,22 +383,27 @@ export class BlockVerifier {
 		out.height = height;
 		out.blockId = id;
 		describeHeader(header, out);
+		this.passed("block");
 
 		const burn = await this.bindBurn(header, "burn");
 		const cycle = rewardCycle(burn.burnHeight);
 		out.burnHeight = burn.burnHeight;
 		out.bitcoinBlockHash = burn.hash;
 		out.cycle = cycle;
+		this.passed("bitcoin");
+		this.passed("burn");
 
 		const set = await this.signerSet(cycle, {
 			height,
 			burn: burn.burnHeight,
 		});
+		this.passed("signer-set");
 		const sig = verifySignerSignatures(header, set);
 		out.signerWeight = sig.signedWeight;
 		out.totalWeight = sig.totalWeight;
 		out.threshold = sig.threshold;
 		if (!sig.valid) fail(signatureFailure(sig, "signatures", cycle));
+		this.passed("signatures");
 		await this.checkTransactions(header, id, out);
 		await this.verifyState(header, id, out);
 	}
@@ -410,6 +429,7 @@ export class BlockVerifier {
 				message: `block ${claimed} is not on the checkpoint's chain: its block at height ${height} is ${id}`,
 				blockId: claimed,
 			});
+		this.passed("ancestry");
 		const header = await this.header(id, "block");
 		if (Number(header.chainLength) !== height)
 			fail({
@@ -419,6 +439,7 @@ export class BlockVerifier {
 			});
 		out.blockId = id;
 		describeHeader(header, out);
+		this.passed("block");
 		await this.bindBurnBelow(header, out);
 		await this.checkTransactions(header, id, out);
 		await this.verifyState(header, id, out);
@@ -464,6 +485,7 @@ export class BlockVerifier {
 			return;
 		}
 		out.transactions = txs;
+		this.passed("txs");
 	}
 
 	/**
@@ -600,6 +622,8 @@ export class BlockVerifier {
 		const burn = await this.bindBurn(header, "burn");
 		out.burnHeight = burn.burnHeight;
 		out.bitcoinBlockHash = burn.hash;
+		this.passed("bitcoin");
+		this.passed("burn");
 	}
 
 	/** Witness against the authenticated header's root, then the named diff and rows. */
@@ -643,6 +667,12 @@ export class BlockVerifier {
 		if (rows) out.rowsChecked = state.rowsChecked;
 		out.notes.push(...state.notes);
 		out.failures.push(...state.failures);
+		// Links pass in order up to the first one with a failure.
+		const broken = new Set(state.failures.map((f) => f.step));
+		for (const step of ["witness", "names", "rows"] as const) {
+			if (broken.has(step) || (step === "rows" && !rows)) break;
+			this.passed(step);
+		}
 	}
 
 	/**
