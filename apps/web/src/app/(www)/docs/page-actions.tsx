@@ -38,6 +38,18 @@ export function markdownPath(pathname: string): string {
 /** Chat apps that document a prefill link. Add a row here to add an app. */
 export const CHAT_TARGETS = [
 	{
+		id: "claude",
+		label: "Claude",
+		href: (prompt: string) =>
+			`https://claude.ai/new?q=${encodeURIComponent(prompt)}`,
+	},
+	{
+		id: "chatgpt",
+		label: "ChatGPT",
+		href: (prompt: string) =>
+			`https://chatgpt.com/?q=${encodeURIComponent(prompt)}`,
+	},
+	{
 		id: "cursor",
 		label: "Cursor",
 		href: (prompt: string) =>
