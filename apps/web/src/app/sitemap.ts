@@ -13,6 +13,8 @@ const ROUTES = [
 	"/streams",
 	"/subgraphs",
 	"/webhooks",
+	"/verify",
+	"/pricing",
 	"/writing",
 	"/robinhood",
 ] as const;

@@ -144,13 +144,15 @@ const nextConfig: NextConfig = {
 				destination: "/archive",
 				permanent: true,
 			},
-			// Hosted-era surfaces removed 2026-08: no plans to sell hosted, so
-			// pricing and status land on the archive (the paid surface).
+			// Sign-in links already in inboxes point at /verify?token=; the
+			// token handler now lives at /auth/verify.
 			{
-				source: "/pricing",
-				destination: "/archive",
-				permanent: true,
+				source: "/verify",
+				has: [{ type: "query", key: "token" }],
+				destination: "/auth/verify",
+				permanent: false,
 			},
+			// No hosted status page: it lands on the archive.
 			{
 				source: "/status",
 				destination: "/archive",
