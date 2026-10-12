@@ -3,6 +3,7 @@
 import { AccountAvatar, AccountMenu } from "@/components/account-menu";
 import { GetStartedMenu } from "@/components/get-started-menu";
 import { Logo } from "@/components/logo";
+import { ProductsMenu } from "@/components/products-menu";
 import {
 	clearAccountData,
 	formatUsd,
@@ -12,7 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { PRODUCTS, SITE_LINKS, isActive } from "@/lib/site";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Marketing bar: brand, a Products menu (the five products), Verify, Pricing,
@@ -30,36 +31,13 @@ export function MarketingNav() {
 	const { account, loading, logout } = useAuth();
 	const { billing } = useAccountData();
 	const [open, setOpen] = useState(false);
-	const [productsOpen, setProductsOpen] = useState(false);
-	const productsRef = useRef<HTMLDivElement>(null);
-	const onProduct = PRODUCTS.some((p) => isActive(pathname, p.href));
 
-	// Close menus on navigation; Escape and outside click close the Products
-	// panel; Escape closes the sheet and scroll locks while it is open.
+	// Close the sheet on navigation; Escape closes it and scroll locks while
+	// it is open.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the close trigger
 	useEffect(() => {
 		setOpen(false);
-		setProductsOpen(false);
 	}, [pathname]);
-	useEffect(() => {
-		if (!productsOpen) return;
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				setProductsOpen(false);
-				productsRef.current?.querySelector("button")?.focus();
-			}
-		};
-		const onClick = (e: MouseEvent) => {
-			if (!productsRef.current?.contains(e.target as Node))
-				setProductsOpen(false);
-		};
-		document.addEventListener("keydown", onKey);
-		document.addEventListener("click", onClick);
-		return () => {
-			document.removeEventListener("keydown", onKey);
-			document.removeEventListener("click", onClick);
-		};
-	}, [productsOpen]);
 	useEffect(() => {
 		if (!open) return;
 		const onKey = (e: KeyboardEvent) => {
@@ -83,42 +61,7 @@ export function MarketingNav() {
 				<span>secondlayer</span>
 			</Link>
 			<div className="mnav-links">
-				<div className="mnav-products" ref={productsRef}>
-					<button
-						type="button"
-						className="mnav-products-btn"
-						aria-expanded={productsOpen}
-						aria-controls="mnav-products-panel"
-						aria-current={onProduct ? "true" : undefined}
-						onClick={() => setProductsOpen((v) => !v)}
-					>
-						Products
-						<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-							<path
-								d="M2 3.5 5 6.5 8 3.5"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="1.3"
-							/>
-						</svg>
-					</button>
-					{productsOpen ? (
-						<div className="mnav-products-panel" id="mnav-products-panel">
-							{PRODUCTS.map((p) => (
-								<Link
-									key={p.href}
-									href={p.href}
-									className="mnav-products-item"
-									aria-current={isActive(pathname, p.href) ? "page" : undefined}
-								>
-									{p.noun}
-									<span className="v">{p.verb}</span>
-									<span className="l">{p.line}</span>
-								</Link>
-							))}
-						</div>
-					) : null}
-				</div>
+				<ProductsMenu className="mnav-products" />
 				{SITE_LINKS.map((l) => (
 					<Link
 						key={l.href}
@@ -183,7 +126,6 @@ export function MarketingNav() {
 					{PRODUCTS.map((p) => (
 						<Link key={p.href} href={p.href} className="mnav-sheet-product">
 							{p.noun}
-							<span className="v">{p.verb}</span>
 						</Link>
 					))}
 					<p className="mnav-sheet-label">More</p>

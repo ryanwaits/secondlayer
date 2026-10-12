@@ -3,74 +3,10 @@
 import { AccountAvatar, AccountMenu } from "@/components/account-menu";
 import { GetStartedMenu } from "@/components/get-started-menu";
 import { Logo } from "@/components/logo";
+import { ProductsMenu } from "@/components/products-menu";
 import { useAuth } from "@/lib/auth";
-import { PRODUCTS, isActive } from "@/lib/site";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 import { ModeToggle, useDocsDrawer } from "../app/(www)/docs/docs-mode";
-
-/** The five products as a disclosure; same data as the marketing bar. */
-function ProductsMenu() {
-	const pathname = usePathname();
-	const [open, setOpen] = useState(false);
-	const rootRef = useRef<HTMLDivElement>(null);
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the close trigger
-	useEffect(() => setOpen(false), [pathname]);
-	useEffect(() => {
-		if (!open) return;
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key !== "Escape") return;
-			setOpen(false);
-			rootRef.current?.querySelector("button")?.focus();
-		};
-		const onClick = (e: MouseEvent) => {
-			if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-		};
-		document.addEventListener("keydown", onKey);
-		document.addEventListener("click", onClick);
-		return () => {
-			document.removeEventListener("keydown", onKey);
-			document.removeEventListener("click", onClick);
-		};
-	}, [open]);
-
-	return (
-		<div className="docs-products" ref={rootRef}>
-			<button
-				type="button"
-				aria-expanded={open}
-				aria-controls="docs-products-panel"
-				onClick={() => setOpen((v) => !v)}
-			>
-				Products
-				<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-					<path
-						d="M2 3.5 5 6.5 8 3.5"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="1.3"
-					/>
-				</svg>
-			</button>
-			{open ? (
-				<div className="docs-products-panel" id="docs-products-panel">
-					{PRODUCTS.map((p) => (
-						<Link
-							key={p.href}
-							href={p.href}
-							aria-current={isActive(pathname, p.href) ? "page" : undefined}
-						>
-							{p.noun}
-							<span>{p.verb}</span>
-						</Link>
-					))}
-				</div>
-			) : null}
-		</div>
-	);
-}
 
 /**
  * Docs top bar: brand, the ⌘K search trigger (the command palette
@@ -128,7 +64,7 @@ export function DocsTopNav() {
 				</button>
 				<ModeToggle />
 				<nav className="docs-top-links" aria-label="Site">
-					<ProductsMenu />
+					<ProductsMenu className="docs-products" />
 					<Link href="/pricing">Pricing</Link>
 					{loading ? (
 						<span className="acct-chip-skeleton" aria-hidden="true" />

@@ -95,53 +95,23 @@
 	font-size: 14px;
 	color: var(--sub);
 }
-.docs-top-links a:hover,
-.docs-products > button:hover {
+.docs-top-links a:hover {
 	color: var(--ink);
 }
-.docs-products {
-	position: relative;
-}
-.docs-products > button {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	font: inherit;
-	color: inherit;
-	background: none;
-	border: 0;
-	cursor: pointer;
-}
-.docs-products > button[aria-expanded="true"] svg {
-	transform: rotate(180deg);
-}
-.docs-products-panel {
-	position: absolute;
+/* Products hover menu: right-aligned under the bar; ::before bridges the
+   gap so the pointer can travel from the button to the panel. */
+.docs-products .products-menu-panel {
 	top: calc(100% + 12px);
+	left: auto;
 	right: 0;
-	min-width: 200px;
-	padding: 6px;
-	background: var(--paper);
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	display: grid;
 }
-.docs-products-panel a {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: 16px;
-	padding: 7px 10px;
-	border-radius: 4px;
-	color: var(--ink);
-}
-.docs-products-panel a:hover,
-.docs-products-panel a[aria-current] {
-	background: var(--soft);
-}
-.docs-products-panel a span {
-	font: 12px var(--font-mono-stack);
-	color: var(--sub);
+.docs-products .products-menu-panel::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: -13px;
+	height: 13px;
 }
 .docs-top .imenu {
 	margin-left: 0;
