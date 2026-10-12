@@ -1,6 +1,6 @@
 # @secondlayer/verify
 
-Check a Stacks block yourself instead of trusting the API or node that served it. An index you can check, not one you have to trust.
+Check a Stacks block yourself instead of trusting the API or node that served it. Trust, and verify.
 
 `verifyBlock` walks one chain of links, from a checkpoint shipped in this package to the block's state:
 

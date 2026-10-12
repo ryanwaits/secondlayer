@@ -1208,9 +1208,9 @@ const CARDS: CardSpec[] = [
 	{
 		file: "verify.png",
 		eyebrow: "VERIFY",
-		line1: "An index you can check,",
-		line2: "not one you have|to trust.",
-		size: 54,
+		line1: "Trust,",
+		line2: "and verify.",
+		size: 88,
 		path: `${SITE}/verify`,
 		artifact: <ArtVerify />,
 	},

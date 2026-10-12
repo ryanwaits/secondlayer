@@ -255,7 +255,7 @@ export function HomeView() {
 				<div className="shell">
 					<div className="sec-head">
 						<Eyebrow noun="Verify" />
-						<h2>An index you can check, not one you have to trust.</h2>
+						<h2>Trust, and verify.</h2>
 						<p className="lede">
 							Each block's state proves back through the signer set to a Bitcoin
 							header. You run the check on your machine, and it never asks us
