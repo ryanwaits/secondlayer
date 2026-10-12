@@ -64,6 +64,7 @@ describe("docs site strip", () => {
 		expect(DOCS_STRIP.map((l) => l.label)).toEqual([
 			"Home",
 			"Archive",
+			"Pricing",
 			"Docs",
 			"Blog",
 		]);
