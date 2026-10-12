@@ -91,6 +91,7 @@ CONTROL_TABLES=(
   waitlist_signups
   api_failed_requests
   feedback_tickets
+  contact_requests
 )
 
 src_count() { psql "$SRC" -tAc "SELECT count(*) FROM $1" 2>/dev/null || echo "ERR"; }
