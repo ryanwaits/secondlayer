@@ -1,4 +1,5 @@
 import { CodeBlock } from "@/components/code-block";
+import { CopyButton } from "@/components/copy-button";
 import {
 	ButtonLink,
 	CloseBand,
@@ -441,10 +442,18 @@ export default function VerifyPage() {
 					</>
 				}
 				caption={
-					<span className="cmd">
-						<span className="cap">example</span>
-						<code>secondlayer verify block 9137005</code>
-					</span>
+					<>
+						<span className="cmd">
+							<code>secondlayer verify block 9137005</code>
+							<CopyButton
+								code="secondlayer verify block 9137005"
+								label="Copy"
+							/>
+						</span>
+						<span className="cap">
+							any block height or index_block_hash works
+						</span>
+					</>
 				}
 			/>
 		</main>
