@@ -9,6 +9,10 @@ const ROUTES = [
 	"/docs/self-host",
 	"/docs/archive",
 	"/archive",
+	"/index",
+	"/streams",
+	"/subgraphs",
+	"/webhooks",
 	"/writing",
 	"/robinhood",
 ] as const;

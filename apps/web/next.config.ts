@@ -106,12 +106,7 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/indexes",
-				destination: "/docs/index",
-				permanent: true,
-			},
-			{
-				source: "/streams",
-				destination: "/docs/streams",
+				destination: "/index",
 				permanent: true,
 			},
 			{
@@ -126,7 +121,7 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/subscriptions",
-				destination: "/docs/webhooks",
+				destination: "/webhooks",
 				permanent: true,
 			},
 			{
