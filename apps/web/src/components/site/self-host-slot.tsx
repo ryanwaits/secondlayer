@@ -14,8 +14,7 @@ export function SelfHostSlot({
 		<div className="band band-soft">
 			<div className="shell selfhost">
 				<div>
-					<span className="eyebrow">Self-host</span>
-					<h2 style={{ fontSize: 28, marginTop: 12 }}>{title}</h2>
+					<h2 style={{ fontSize: 28 }}>{title}</h2>
 				</div>
 				<div>
 					<p>{children}</p>

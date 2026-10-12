@@ -62,9 +62,6 @@ export function DeliveryLogArt() {
 				</text>
 			</g>
 			<path d="M0 148h400" className="s-line" strokeWidth="1" />
-			<text x="0" y="172" fontSize="9.5" className="f-sub">
-				retries free · logged · requeueable
-			</text>
 			<rect x="290" y="157" width="110" height="22" rx="11" className="f-hi" />
 			<text
 				x="345"

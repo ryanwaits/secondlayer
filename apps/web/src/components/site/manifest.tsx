@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 export interface ManifestRow {
 	dataset: string;
 	rows: string;
@@ -11,14 +9,10 @@ export interface ManifestRow {
 /** Signed-manifest table: yellow seal, dataset rows with ink share bars. */
 export function Manifest({
 	title,
-	meta,
 	rows,
-	footer,
 }: {
 	title: string;
-	meta?: string;
 	rows: readonly ManifestRow[];
-	footer?: ReactNode;
 }) {
 	return (
 		<div className="mani">
@@ -28,7 +22,6 @@ export function Manifest({
 					signed
 				</span>
 				<span className="t">{title}</span>
-				{meta ? <span className="sp">{meta}</span> : null}
 			</div>
 			<div className="tblwrap">
 				<table>
@@ -59,7 +52,6 @@ export function Manifest({
 					</tbody>
 				</table>
 			</div>
-			{footer ? <div className="mani-foot">{footer}</div> : null}
 		</div>
 	);
 }

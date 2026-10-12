@@ -1,6 +1,6 @@
 "use client";
 
-import { GITHUB_URL } from "@/components/github-nav-link";
+import { GITHUB_URL } from "@/lib/site";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";

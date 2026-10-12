@@ -1,5 +1,4 @@
 import { CodeBlock } from "@/components/code-block";
-import { GITHUB_URL } from "@/components/github-nav-link";
 import {
 	ButtonLink,
 	CloseBand,
@@ -16,6 +15,7 @@ import {
 } from "@/components/site";
 import { WebhooksHero } from "@/components/site/assets";
 import { socialMeta } from "@/lib/og";
+import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -173,10 +173,6 @@ export default function WebhooksPage() {
 						</p>
 						<div className="odo">
 							<span className="odo-n">27 triggers</span>
-							<span className="cap">
-								stx_transfer to rune_burn · 1 to 50 per webhook · wildcards and
-								traits
-							</span>
 						</div>
 					</div>
 					<div className="hero-art">
@@ -249,26 +245,15 @@ export default function WebhooksPage() {
 									Name the events you care about and the URL to send them to. It
 									starts at the chain tip, and the signing secret prints once.
 								</p>
-								<div className="chips">
-									{[
-										"1 to 50 triggers",
-										"* wildcards",
-										"trait: sip-010",
-										"minAmount",
-									].map((c) => (
-										<span className="chip" key={c}>
-											{c}
-										</span>
-									))}
-								</div>
 							</>
 						}
 						art={
-							<Terminal title="~/my-app" meta="secondlayer">
+							<Terminal title="~/my-app">
 								<pre>
-									<span className="t-a">{"❯"}</span>
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer webhooks create</span>
 									{
-										' secondlayer webhooks create amm-swaps \\\n    --url https://my-app.com/webhook \\\n    --trigger \'{"type":"contract_call",\n               "contractId":"SP….amm","functionName":"swap-*"}\' \\\n    --trigger \'{"type":"sbtc_deposit"}\'\n'
+										' amm-swaps \\\n    --url https://my-app.com/webhook \\\n    --trigger \'{"type":"contract_call",\n               "contractId":"SP….amm","functionName":"swap-*"}\' \\\n    --trigger \'{"type":"sbtc_deposit"}\'\n'
 									}
 									<span className="t-m">{"  triggers   2 validated"}</span>
 									{"\n"}
@@ -281,8 +266,9 @@ export default function WebhooksPage() {
 									{"\n"}
 									<span className="t-hit">{"  ✓ amm-swaps live"}</span>
 									{"\n"}
-									<span className="t-a">{"❯"}</span>
-									{" secondlayer webhooks test amm-swaps --post\n"}
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer webhooks test</span>
+									{" amm-swaps --post\n"}
 									<span className="t-hit">
 										{"  ✓ 200 · chain.test.apply · 63 ms"}
 									</span>
@@ -302,21 +288,10 @@ export default function WebhooksPage() {
 									also carries our ed25519 signature over the delivery id and
 									raw body, so a payload from anyone else fails both.
 								</p>
-								<div className="chips">
-									{[
-										"standard-webhooks",
-										"x-secondlayer-signature",
-										"keyid header for rotation",
-									].map((c) => (
-										<span className="chip" key={c}>
-											{c}
-										</span>
-									))}
-								</div>
 							</>
 						}
 						art={
-							<Terminal title="receiver.ts" meta="@secondlayer/sdk">
+							<Terminal title="receiver.ts" meta="typescript">
 								<CodeBlock code={RECEIVER} lang="typescript" />
 							</Terminal>
 						}
@@ -332,17 +307,6 @@ export default function WebhooksPage() {
 									may have arrived, including ones whose response never made it
 									back. Undo each entry and your state matches the chain again.
 								</p>
-								<div className="chips">
-									{[
-										"chain.reorg.rollback",
-										"fork_point_height",
-										"finality · 6 btc confirmations",
-									].map((c) => (
-										<span className="chip" key={c}>
-											{c}
-										</span>
-									))}
-								</div>
 							</>
 						}
 						art={
@@ -481,7 +445,6 @@ export default function WebhooksPage() {
 			<div className="band">
 				<div className="shell faq-grid">
 					<div className="sec-head" style={{ margin: 0 }}>
-						<Eyebrow noun="FAQ" />
 						<h2>Webhooks questions</h2>
 					</div>
 					<Faq
@@ -545,7 +508,6 @@ export default function WebhooksPage() {
 						</ButtonLink>
 					</>
 				}
-				caption="$10 per 1M delivered events · retries never billed"
 			/>
 		</main>
 	);

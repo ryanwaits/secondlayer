@@ -103,11 +103,8 @@ export function WebhooksHero() {
 			>
 				signed · ed25519
 			</text>
-			<text x="430" y="305" fontSize="11" textAnchor="end" className="f-sub">
-				retry not billed
-			</text>
 			<text x="10" y="374" fontSize="11" className="f-sub">
-				example log · at-least-once delivery
+				example log
 			</text>
 			<text x="10" y="392" fontSize="11" className="f-sub">
 				dedupe on (tx_id, event_index, block_hash)

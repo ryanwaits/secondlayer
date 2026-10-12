@@ -1,6 +1,6 @@
 const LABEL = {
 	live: "live",
-	rolling: "self-host today · hosted rolling out",
+	rolling: "rolling out",
 	soon: "Coming soon",
 } as const;
 

@@ -125,27 +125,23 @@ const TILES: readonly { icon: ReactNode; title: string; body: ReactNode }[] = [
 const COVERS: readonly {
 	covered: boolean;
 	title: string;
-	detail: string;
+	detail?: string;
 }[] = [
 	{
 		covered: true,
 		title: "Block headers and signatures",
-		detail: "Signer set, Bitcoin anchor, proof of work",
 	},
 	{
 		covered: true,
 		title: "Which transactions a block holds",
-		detail: "Tx inclusion against the merkle root",
 	},
 	{
 		covered: true,
 		title: "State changes",
-		detail: "Every map, var and balance write, via MARF",
 	},
 	{
 		covered: true,
 		title: "State subgraph rows",
-		detail: "Replay recomputes them from the pinned file",
 	},
 	{
 		covered: false,
@@ -185,10 +181,7 @@ export function HomeView() {
 					</div>
 					<nav className="spine" aria-label="Products">
 						<div className="spine-head">
-							<span className="eyebrow">
-								Five products · one key · hosted or on your box
-							</span>
-							<span className="cap">state checkable against the chain</span>
+							<span className="eyebrow">Five products</span>
 						</div>
 						{PRODUCTS.map((p) => (
 							<Link key={p.noun} href={p.href}>
@@ -212,10 +205,6 @@ export function HomeView() {
 					</div>
 					<div className="doors">
 						<div className="door">
-							<div className="tags">
-								<span className="chip">Index</span>
-								<span className="chip">Subgraphs</span>
-							</div>
 							<h3>Your contract, as a table.</h3>
 							<p>
 								Read decoded events by type, contract or address. When the shape
@@ -230,10 +219,6 @@ export function HomeView() {
 							</Link>
 						</div>
 						<div className="door">
-							<div className="tags">
-								<span className="chip">Webhooks</span>
-								<span className="chip">Streams</span>
-							</div>
 							<h3>Your server, told first.</h3>
 							<p>
 								Get a signed POST the moment a matching event lands, with
@@ -266,9 +251,11 @@ export function HomeView() {
 						<TrustChainArt />
 					</div>
 					<div className="verify-grid">
-						<Terminal title="~/app" meta="@secondlayer/verify">
+						<Terminal title="~/app">
 							<pre>
-								{"❯ secondlayer verify block 9137005\n"}
+								<span className="t-m">{"❯ "}</span>
+								<span className="t-a">secondlayer verify</span>
+								{" block 9137005\n"}
 								<span className="t-m">
 									{"  checkpoint         9,000,000 (shipped)\n"}
 									{"  bitcoin headers    "}
@@ -282,7 +269,9 @@ export function HomeView() {
 									{" every map, var and balance\n"}
 								</span>
 								<span className="t-hit">{"  ✓ block 9,137,005 verified"}</span>
-								{"❯ secondlayer verify subgraph sbtc-flows --replay\n"}
+								<span className="t-m">{"❯ "}</span>
+								<span className="t-a">secondlayer verify</span>
+								{" subgraph sbtc-flows --replay\n"}
 								<span className="t-hit">{"  ✓ rows recomputed · match"}</span>
 							</pre>
 						</Terminal>
@@ -297,16 +286,13 @@ export function HomeView() {
 									</span>
 									<span>
 										{c.title}
-										<span className="s">{c.detail}</span>
+										{c.detail ? <span className="s">{c.detail}</span> : null}
 									</span>
 								</li>
 							))}
 						</ul>
 					</div>
 					<div className="verify-foot">
-						<span className="cap">
-							proofs are free · /v1/proofs · npm i @secondlayer/verify
-						</span>
 						<ButtonLink href="/verify" variant="secondary">
 							How verification works
 						</ButtonLink>
@@ -360,7 +346,6 @@ export function HomeView() {
 									["03f0…be17", "n", "22,410,000"],
 								]}
 							/>
-							<span className="cap">example rows</span>
 						</div>
 						<div className="well">
 							<div className="well-top">
@@ -380,7 +365,6 @@ export function HomeView() {
 								]}
 								firstClass={(row) => (row[0] === "in" ? "tag-in" : "tag-out")}
 							/>
-							<span className="cap">example rows</span>
 						</div>
 						<div className="well">
 							<div className="well-top">
@@ -405,7 +389,6 @@ export function HomeView() {
 									<span>mismatches vs ord</span>
 								</div>
 							</div>
-							<span className="cap">parity at bitcoin block 968,557</span>
 						</div>
 						<div className="well">
 							<div className="well-top">
@@ -424,9 +407,9 @@ export function HomeView() {
 									["map_delete", "pending[u42]", "none"],
 								]}
 							/>
-							<span className="cap">example rows</span>
 						</div>
 					</div>
+					<span className="cap data-note">example rows</span>
 				</div>
 			</section>
 
@@ -453,14 +436,9 @@ export function HomeView() {
 								<li>Hosted subgraphs, isolated per account</li>
 								<li>Signed webhooks with free retries</li>
 							</ul>
-							<div className="mini">secondlayer login</div>
 							<div className="price">
 								<span className="cap">
 									1M rows free every month · then $5 per 1M
-								</span>
-								<span className="cap">
-									$2 per 1M past $50 a month · stack from ~$10/mo · stopped
-									stack $0
 								</span>
 							</div>
 						</div>
@@ -476,10 +454,8 @@ export function HomeView() {
 								<li>Reads over loopback need no key</li>
 								<li>Verify and repair against the public manifests</li>
 							</ul>
-							<div className="mini">secondlayer setup</div>
 							<div className="price">
 								<span className="cap">MIT · free forever</span>
-								<span className="cap">mainnet: 4 GB RAM · 600 GB SSD</span>
 							</div>
 							<Link className="more" href="/docs/self-host">
 								Self-host guide →
@@ -509,7 +485,6 @@ export function HomeView() {
 						</ButtonLink>
 					</>
 				}
-				caption="Start with 1M free rows a month. Verifying a block is free and runs on your machine."
 			/>
 		</main>
 	);

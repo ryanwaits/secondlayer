@@ -1,5 +1,4 @@
 import { CodeBlock } from "@/components/code-block";
-import { GITHUB_URL } from "@/components/github-nav-link";
 import {
 	ButtonLink,
 	CloseBand,
@@ -16,6 +15,7 @@ import {
 } from "@/components/site";
 import { StreamsHero } from "@/components/site/assets";
 import { socialMeta } from "@/lib/og";
+import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -70,10 +70,9 @@ export default function StreamsPage() {
 								Read the docs
 							</ButtonLink>
 						</div>
-						<p className="cap">$5 per 1M rows · first 1M free every month</p>
 						<Odometer
 							value={245540999}
-							label="events you can replay from genesis · snapshot signed 2026-09-09"
+							label="events you can replay from genesis"
 						/>
 					</div>
 					<div className="hero-art">
@@ -163,19 +162,6 @@ export default function StreamsPage() {
 									cursor and prints jsonl until you stop it. Filters run before
 									the wire, so a consumer for one asset pays for one asset.
 								</p>
-								<div className="chips">
-									{[
-										"--types · --not-types",
-										"--contract-id",
-										"--sender · --recipient",
-										"--batch-size",
-										"--max-pages",
-									].map((c) => (
-										<span className="chip" key={c}>
-											{c}
-										</span>
-									))}
-								</div>
 							</>
 						}
 						art={
@@ -201,10 +187,6 @@ export default function StreamsPage() {
 									<span className="t-a">{"8948507"}</span>
 									{',"event_index":8,"type":"ft_transfer"}'}
 								</pre>
-								<div className="tail-foot">
-									cursor 8948507:8 · ^C to stop · --cursor 8948507:8 resumes
-									here
-								</div>
 							</div>
 						}
 					/>
@@ -234,26 +216,30 @@ export default function StreamsPage() {
 							</>
 						}
 						art={
-							<Terminal title="~/consumer" meta="streams">
+							<Terminal title="~/consumer">
 								<pre>
-									<span className="t-a">{"❯"}</span>
-									{" secondlayer streams tip\n"}
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer streams tip</span>
+									{"\n"}
 									<span className="t-m">{"  block_height      8,948,506"}</span>
 									{"\n"}
 									<span className="t-m">{"  finalized_height  8,948,262"}</span>
 									{"\n\n"}
-									<span className="t-a">{"❯"}</span>
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer streams consume</span>
 									{
-										" secondlayer streams consume \\\n    --types ft_transfer,nft_transfer \\\n    --cursor 8948507:03 --batch-size 500 | jq -c '.type'\n\n"
+										" \\\n    --types ft_transfer,nft_transfer \\\n    --cursor 8948507:03 --batch-size 500 | jq -c '.type'\n\n"
 									}
-									<span className="t-a">{"❯"}</span>
-									{" secondlayer streams reorgs\n"}
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer streams reorgs</span>
+									{"\n"}
 									<span className="t-hit">
 										{"  ✓ none in the last 1,000 blocks"}
 									</span>
 									{"\n\n"}
-									<span className="t-a">{"❯"}</span>
-									{" secondlayer streams by-tx 0x9f2c…"}
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer streams by-tx</span>
+									{" 0x9f2c…"}
 								</pre>
 							</Terminal>
 						}
@@ -269,25 +255,15 @@ export default function StreamsPage() {
 									The SDK checks every frame against our published key by
 									default, so a tampered event fails before your code sees it.
 								</p>
-								<div className="chips">
-									{[
-										"SSE · ping every 20s",
-										"ed25519 per frame",
-										"auto-reconnect from last cursor",
-									].map((c) => (
-										<span className="chip" key={c}>
-											{c}
-										</span>
-									))}
-								</div>
 							</>
 						}
 						art={
-							<Terminal title="GET /v1/streams/events/stream" meta="live tail">
+							<Terminal title="GET /v1/streams/events/stream">
 								<pre>
-									<span className="t-a">{"❯"}</span>
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">curl</span>
 									{
-										' curl -N "$SL/v1/streams/events/stream?types=ft_transfer" \\\n    -H "authorization: Bearer sk-sl_…"\n\n'
+										' -N "$SL/v1/streams/events/stream?types=ft_transfer" \\\n    -H "authorization: Bearer sk-sl_…"\n\n'
 									}
 									<span className="t-m">{"data:"}</span>
 									{
@@ -295,9 +271,7 @@ export default function StreamsPage() {
 									}
 									<span className="t-a">{'"3f9a…c41e"'}</span>
 									{',\n  "key_id": "streams-2026"\n}\n'}
-									<span className="t-hit">
-										{"  ✓ signature verified · /public/streams/signing-key"}
-									</span>
+									<span className="t-hit">{"  ✓ signature verified"}</span>
 								</pre>
 							</Terminal>
 						}
@@ -315,21 +289,10 @@ export default function StreamsPage() {
 									the manifest's last finalized cursor. No gap and no duplicate
 									at the seam.
 								</p>
-								<div className="chips">
-									{[
-										"signed manifest",
-										"sha256 per file",
-										"DuckDB-ready parquet",
-									].map((c) => (
-										<span className="chip" key={c}>
-											{c}
-										</span>
-									))}
-								</div>
 							</>
 						}
 						art={
-							<Terminal title="backfill.ts" meta="@secondlayer/sdk">
+							<Terminal title="backfill.ts" meta="typescript">
 								<CodeBlock code={BACKFILL} lang="typescript" />
 							</Terminal>
 						}
@@ -371,10 +334,11 @@ export default function StreamsPage() {
 							)}
 						</div>
 					</div>
-					<Terminal title="GET /v1/streams/events" meta="your instance">
+					<Terminal title="GET /v1/streams/events">
 						<pre>
-							<span className="t-a">{"❯"}</span>
-							{' curl "$SL/v1/streams/events?chain=bitcoin&rune=840000:3"\n\n'}
+							<span className="t-m">{"❯ "}</span>
+							<span className="t-a">curl</span>
+							{' "$SL/v1/streams/events?chain=bitcoin&rune=840000:3"\n\n'}
 							<span className="t-m">{"{"}</span>
 							{
 								'\n  "events": [{ "type": "rune_transfer", "block_height": 968557,\n               "rune": "840000:3", "ts": … }],\n  "next_cursor": '
@@ -382,10 +346,6 @@ export default function StreamsPage() {
 							<span className="t-a">{'"968557:41"'}</span>
 							{"\n"}
 							<span className="t-m">{"}"}</span>
-							{"\n"}
-							<span className="t-m">
-								{"  example · a bitcoin cursor resumes only with chain=bitcoin"}
-							</span>
 						</pre>
 					</Terminal>
 				</div>
@@ -400,38 +360,21 @@ export default function StreamsPage() {
 						</h2>
 					</div>
 					<div className="which">
-						<Link href={streams.href} aria-current="page">
-							<span className="k">
-								{streams.noun} · {streams.verb} · this page
-							</span>
-							<h3>You hold the cursor</h3>
-							<p>
-								Best when you already run a sink and a supervisor, and want no
-								state on our side.
-							</p>
-							<span className="go">you are here</span>
-						</Link>
 						<Link href={subgraphs.href}>
-							<span className="k">
-								{subgraphs.noun} · {subgraphs.verb}
-							</span>
 							<h3>We hold the table</h3>
 							<p>
 								Best when the shape is settled and you would rather read a
 								computed table than rebuild it on every boot.
 							</p>
-							<span className="go">{subgraphs.href} →</span>
+							<span className="go">Learn more →</span>
 						</Link>
 						<Link href={webhooks.href}>
-							<span className="k">
-								{webhooks.noun} · {webhooks.verb}
-							</span>
 							<h3>We hold the retry queue</h3>
 							<p>
 								Best when you want chain events pushed to your server, with
 								failed deliveries logged and requeueable.
 							</p>
-							<span className="go">{webhooks.href} →</span>
+							<span className="go">Learn more →</span>
 						</Link>
 					</div>
 				</div>
@@ -444,23 +387,16 @@ export default function StreamsPage() {
 					</div>
 					<div className="rest">
 						<Link href={index.href}>
-							<span className="k">
-								{index.noun} · {index.verb}
-							</span>
 							<span className="n">Index</span>
 							<p>The decoded set these events come from, as typed rows.</p>
 						</Link>
 						<Link href={archive.href}>
-							<span className="k">
-								{archive.noun} · {archive.verb}
-							</span>
 							<span className="n">Archive</span>
 							<p>
 								The signed history behind the dumps. Checking your copy is free.
 							</p>
 						</Link>
 						<Link href="/verify">
-							<span className="k">Verify</span>
 							<span className="n">Verify</span>
 							<p>
 								Check blocks and state writes against the chain, with no trust
@@ -489,7 +425,6 @@ export default function StreamsPage() {
 			<div className="band">
 				<div className="shell faq-grid">
 					<div className="sec-head" style={{ margin: 0 }}>
-						<Eyebrow noun="FAQ" />
 						<h2>Streams questions</h2>
 					</div>
 					<Faq
@@ -561,7 +496,6 @@ export default function StreamsPage() {
 						</ButtonLink>
 					</>
 				}
-				caption="1M rows free every month · pulls from your own instance over loopback cost nothing per row"
 			/>
 		</main>
 	);

@@ -6,6 +6,8 @@
  * Client-safe: marketing-nav.tsx and site-footer.tsx are client components.
  */
 
+export const GITHUB_URL = "https://github.com/ryanwaits/secondlayer";
+
 export interface Product {
 	noun: string;
 	verb: string;

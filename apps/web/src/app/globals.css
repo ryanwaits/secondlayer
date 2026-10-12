@@ -4331,53 +4331,6 @@ body:has(.marketing-nav) .auth-bar {
 		color: var(--text-main);
 	}
 }
-.mnav-pill {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	height: 38px;
-	padding: 0 18px;
-	margin-left: 6px;
-	border-radius: 999px;
-	font-size: 0.875rem;
-	font-weight: 500;
-	text-decoration: none;
-	white-space: nowrap;
-	transition: background-color 150ms ease-out, border-color 150ms ease-out;
-}
-.mnav-pill.line {
-	border: 1px solid var(--border);
-	color: var(--text-main);
-	background: transparent;
-}
-.mnav-pill.solid {
-	background: var(--text-main);
-	color: var(--bg);
-}
-@media (hover: hover) {
-	.mnav-pill.line:hover {
-		border-color: var(--border-hover);
-	}
-	.mnav-pill.solid:hover {
-		background: color-mix(in srgb, var(--text-main) 88%, var(--bg));
-	}
-}
-.mnav-gh {
-	gap: 8px;
-}
-.mnav-gh-rule {
-	width: 1px;
-	align-self: stretch;
-	margin: 9px 0 9px 2px;
-	background: var(--border);
-}
-.mnav-gh-stars {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	color: var(--text-muted);
-	font-variant-numeric: tabular-nums;
-}
 .imenu {
 	position: relative;
 	margin-left: 6px;
@@ -4530,7 +4483,6 @@ body:has(.marketing-nav) .auth-bar {
 @media (max-width: 640px) {
 	/* Grok-style mobile bar: logo mark + burger only. */
 	.mnav-plain,
-	.mnav-pill.mnav-gh,
 	.marketing-nav-brand span {
 		display: none;
 	}

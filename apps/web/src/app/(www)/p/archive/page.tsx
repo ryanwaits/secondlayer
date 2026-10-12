@@ -1,4 +1,3 @@
-import { GITHUB_URL } from "@/components/github-nav-link";
 import {
 	ButtonLink,
 	CloseBand,
@@ -15,6 +14,7 @@ import {
 } from "@/components/site";
 import { ArchiveHero } from "@/components/site/assets";
 import { socialMeta } from "@/lib/og";
+import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -166,13 +166,7 @@ export default function ArchivePage() {
 								Read the docs
 							</ButtonLink>
 						</div>
-						<p className="cap">
-							verify · $0 forever · 18 free repair partitions every month
-						</p>
-						<Odometer
-							value={8948507}
-							label="blocks · count equals span 0 → 8,948,506 · snapshot signed 2026-09-09"
-						/>
+						<Odometer value={8948507} label="blocks, zero gaps" />
 					</div>
 					<div className="hero-art">
 						<ArchiveHero />
@@ -265,26 +259,15 @@ export default function ArchivePage() {
 									repair fetches only those partitions, checks each against its
 									signed digest before reading a row, and writes it back.
 								</p>
-								<div className="chips">
-									{[
-										"verify · $0",
-										"--deep · semantic digests",
-										"18 free partitions / month",
-										"exit 2 · balance short",
-									].map((c) => (
-										<span className="chip" key={c}>
-											{c}
-										</span>
-									))}
-								</div>
 							</>
 						}
 						art={
-							<Terminal title="~/instance" meta="read-only, then --apply">
+							<Terminal title="~/instance">
 								<pre>
-									<span className="t-a">{"❯"}</span>
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer verify</span>
 									{
-										" secondlayer verify all \\\n    --against https://archive.secondlayer.tools/latest.json\n"
+										" all \\\n    --against https://archive.secondlayer.tools/latest.json\n"
 									}
 									<span className="t-m">
 										{"  manifest    secondlayer-canonical v1 · mainnet"}
@@ -298,9 +281,10 @@ export default function ArchivePage() {
 										{"  broken      events 8,930,000 → 8,939,999"}
 									</span>
 									{"\n\n"}
-									<span className="t-a">{"❯"}</span>
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer repair</span>
 									{
-										" secondlayer repair --apply \\\n    --against https://archive.secondlayer.tools/latest.json\n"
+										" --apply \\\n    --against https://archive.secondlayer.tools/latest.json\n"
 									}
 									<span className="t-m">
 										{"  planned     1 partition · events"}
@@ -331,9 +315,7 @@ export default function ArchivePage() {
 									forward only; everything below is declared out of scope, so
 									verify doesn't read it as missing.
 								</p>
-								<p className="cap">
-									timings from the docs sample · your hardware will differ
-								</p>
+								<p className="cap">sample timings</p>
 							</>
 						}
 						art={
@@ -360,7 +342,6 @@ export default function ArchivePage() {
 										<i style={{ width: "0.49%" }} />
 									</div>
 								</div>
-								<p className="cap">bars to scale · 465.6 h vs 2.3 h</p>
 							</div>
 						}
 					/>
@@ -372,9 +353,6 @@ export default function ArchivePage() {
 								signed
 							</span>
 							<span className="t">secondlayer-canonical · v1 · mainnet</span>
-							<span className="sp">
-								promoted 2026-09-09 12:08:15Z · key fHQWzs9ML2WIYakf
-							</span>
 						</div>
 						<div className="tblwrap">
 							<table>
@@ -406,14 +384,6 @@ export default function ArchivePage() {
 									))}
 								</tbody>
 							</table>
-						</div>
-						<div className="mani-foot">
-							snapshot 2026-09-09 · assurance db-reconstructive · finality 6
-							bitcoin confirmations · blocks equals span, which is the zero-gap
-							claim in one subtraction
-							<br />
-							snapshot_digest
-							e4eab815eb54974a147d9383e4fe680a8bb44c9d0de2efac840cccaf3f3a595e
 						</div>
 					</div>
 				</div>
@@ -475,15 +445,6 @@ export default function ArchivePage() {
 							Every run is quoted first, and a short balance stops it before
 							anything is charged.
 						</p>
-						<div className="chips">
-							{["secondlayer archive quote", "secondlayer credits buy"].map(
-								(c) => (
-									<span className="chip" key={c}>
-										{c}
-									</span>
-								),
-							)}
-						</div>
 						<Meters
 							items={[
 								{
@@ -548,7 +509,6 @@ export default function ArchivePage() {
 			<div className="band">
 				<div className="shell faq-grid">
 					<div className="sec-head" style={{ margin: 0 }}>
-						<Eyebrow noun="FAQ" />
 						<h2>Archive questions</h2>
 					</div>
 					<Faq
@@ -607,7 +567,6 @@ export default function ArchivePage() {
 						</ButtonLink>
 					</>
 				}
-				caption="verify needs no account · repairs are quoted before they run"
 			/>
 		</main>
 	);

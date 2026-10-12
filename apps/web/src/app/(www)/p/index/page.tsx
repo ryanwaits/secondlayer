@@ -1,4 +1,3 @@
-import { GITHUB_URL } from "@/components/github-nav-link";
 import {
 	ButtonLink,
 	CloseBand,
@@ -17,6 +16,7 @@ import {
 } from "@/components/site";
 import { IndexHero } from "@/components/site/assets";
 import { socialMeta } from "@/lib/og";
+import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -98,11 +98,7 @@ export default function IndexPage() {
 								Read the docs
 							</ButtonLink>
 						</div>
-						<p className="cap">$5 per 1M rows · first 1M free every month</p>
-						<Odometer
-							value={245540999}
-							label="events decoded · 0 gaps · snapshot signed 2026-09-09"
-						/>
+						<Odometer value={245540999} label="events decoded" />
 					</div>
 					<div className="hero-art">
 						<IndexHero />
@@ -174,29 +170,15 @@ export default function IndexPage() {
 									Cursor, tip and reorgs come back on every list, in the same
 									shape a subgraph read returns. One reader covers both.
 								</p>
-								<div className="chips">
-									{[
-										"13 event types",
-										"contract · sender · recipient",
-										"height:index cursors",
-										"up to 20 contracts",
-									].map((c) => (
-										<span className="chip" key={c}>
-											{c}
-										</span>
-									))}
-								</div>
 							</>
 						}
 						art={
-							<Terminal
-								title="GET /v1/index/events"
-								meta="api.secondlayer.tools"
-							>
+							<Terminal title="GET /v1/index/events">
 								<pre>
-									<span className="t-a">{"❯"}</span>
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">curl</span>
 									{
-										' curl "$SL/v1/index/events?event_type=ft_transfer&limit=20" \\\n    -H "authorization: Bearer sk-sl_…"\n\n'
+										' "$SL/v1/index/events?event_type=ft_transfer&limit=20" \\\n    -H "authorization: Bearer sk-sl_…"\n\n'
 									}
 									<span className="t-m">{"{"}</span>
 									{
@@ -224,26 +206,15 @@ export default function IndexPage() {
 									own database against it read-only, as often as you like, and
 									repair only what is broken.
 								</p>
-								<div className="chips">
-									{[
-										"verify · $0",
-										"bootstrap",
-										"repair · $0.25 / bundle",
-										"6 free bundles / month",
-									].map((c) => (
-										<span className="chip" key={c}>
-											{c}
-										</span>
-									))}
-								</div>
 							</>
 						}
 						art={
-							<Terminal title="~/instance" meta="read-only">
+							<Terminal title="~/instance">
 								<pre>
-									<span className="t-a">{"❯"}</span>
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer verify</span>
 									{
-										" secondlayer verify all \\\n    --against https://archive.secondlayer.tools/latest.json\n"
+										" all \\\n    --against https://archive.secondlayer.tools/latest.json\n"
 									}
 									<span className="t-m">
 										{"  manifest    secondlayer-canonical v1 · mainnet"}
@@ -257,17 +228,18 @@ export default function IndexPage() {
 										{"  ✓ 0 broken ranges · 0 gaps · nothing uploaded"}
 									</span>
 									{"\n"}
-									<span className="t-a">{"❯"}</span>
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer repair</span>
 									{
-										" secondlayer repair --apply \\\n    --against https://archive.secondlayer.tools/latest.json\n"
+										" --apply \\\n    --against https://archive.secondlayer.tools/latest.json\n"
 									}
 									<span className="t-m">
-										{"  planned     3 partitions  ($0.25 bundle)"}
+										{"  planned     3 partitions · events"}
 									</span>
 									{"\n"}
 									<span className="t-m">{"  allowance   "}</span>
 									<span className="t-a">
-										{"6 of 6 free bundles left this month"}
+										{"15 of 18 free partitions left this month"}
 									</span>
 									{"\n"}
 									<span className="t-hit">{"  ✓ charged $0.00"}</span>
@@ -278,7 +250,6 @@ export default function IndexPage() {
 
 					<Manifest
 						title="secondlayer-canonical · v1 · mainnet"
-						meta="promoted 2026-09-09 12:08:15Z · key fHQWzs9ML2WIYakf"
 						rows={[
 							{
 								dataset: "events",
@@ -299,16 +270,6 @@ export default function IndexPage() {
 								coverage: "0 → 8,948,506",
 							},
 						]}
-						footer={
-							<>
-								assurance db-reconstructive · finality 6 bitcoin confirmations ·
-								blocks equals span, which is the zero-gap claim in one
-								subtraction
-								<br />
-								snapshot_digest
-								e4eab815eb54974a147d9383e4fe680a8bb44c9d0de2efac840cccaf3f3a595e
-							</>
-						}
 					/>
 
 					<Meters
@@ -419,7 +380,6 @@ export default function IndexPage() {
 			<div className="band">
 				<div className="shell faq-grid">
 					<div className="sec-head" style={{ margin: 0 }}>
-						<Eyebrow noun="FAQ" />
 						<h2>Index questions</h2>
 					</div>
 					<Faq
@@ -470,7 +430,6 @@ export default function IndexPage() {
 						</ButtonLink>
 					</>
 				}
-				caption="1M rows free every month · verifying the signed set needs no account at all"
 			/>
 		</main>
 	);

@@ -33,7 +33,7 @@ describe("/verify", () => {
 	});
 
 	test("proofs need no key and carry per-IP limits", () => {
-		expect(verify).toContain("no key needed");
+		expect(verify).toContain("No key needed");
 		expect(verify).toContain("10 req/s per IP (20 with a key)");
 		expect(verify).toContain("1 req/s for witnesses (2 with a key)");
 		expect(verify).not.toContain("req/s per account");
@@ -57,7 +57,6 @@ describe("/verify", () => {
 	test("illustrative values are labelled as examples", () => {
 		expect(verify).toContain("example output");
 		expect(verify).toContain("example checkpoint");
-		expect(verify).toContain("example block height");
 	});
 
 	test("the shared highlighter emits dual-theme shiki markup", async () => {
@@ -92,7 +91,6 @@ describe("/pricing", () => {
 
 	test("the sample statement is labelled as an example", () => {
 		expect(pricing).toContain("example statement");
-		expect(pricing).toContain("example cap");
 	});
 
 	test("no Sentinel units or plan tiers", () => {

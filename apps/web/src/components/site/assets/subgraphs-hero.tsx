@@ -40,20 +40,6 @@ export function SubgraphsHero() {
 				</text>
 			</g>
 
-			<path d="M320 145h12" className="s-ink" strokeWidth="1" />
-			<rect
-				x="332"
-				y="132"
-				width="108"
-				height="26"
-				rx="13"
-				className="f-paper s-ink"
-				strokeWidth="1"
-			/>
-			<text x="386" y="149" fontSize="11" textAnchor="middle" className="f-ink">
-				pin 7f3c…a91e
-			</text>
-
 			<path d="M170 180v38" className="s-ink" strokeWidth="1" />
 			<path
 				d="M165 212l5 7 5-7"
@@ -127,9 +113,6 @@ export function SubgraphsHero() {
 			</text>
 			<text x="422" y="368" fontSize="11" textAnchor="end" className="f-sub">
 				newest
-			</text>
-			<text x="230" y="402" fontSize="11" textAnchor="middle" className="f-sub">
-				tip 9,137,007 · subgraph 9,137,007 · blocks_behind 0
 			</text>
 		</svg>
 	);

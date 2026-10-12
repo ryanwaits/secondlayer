@@ -120,8 +120,7 @@ export function VerifyChainArt() {
 					Stacks 8,956,304
 				</text>
 				<text x="146" y="161" fontSize="10.5" className="f-sub">
-					Bitcoin 967,680 · cycle 143 signers · pass --checkpoint to trust your
-					own
+					example checkpoint · pass --checkpoint to use your own
 				</text>
 			</svg>
 

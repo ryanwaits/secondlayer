@@ -42,7 +42,6 @@ const FREE_ROWS_LABEL = `${FREE_ROWS_PER_MONTH / 1_000_000}M rows`;
 const MEMORY_USD_PER_GB_MONTH = Math.round(
 	MEMORY_USD_PER_GB_HOUR * HOURS_PER_MONTH,
 );
-const EXAMPLE_CAP_USD = 60;
 
 /** The example statement in the hero: every figure comes from the estimator math. */
 const EXAMPLE = {
@@ -131,7 +130,7 @@ export default function PricingPage() {
 			<div className="shell">
 				<div className="hero">
 					<div className="hero-copy">
-						<Eyebrow noun="Pricing" verb="usage only" />
+						<Eyebrow noun="Pricing" />
 						<h1>
 							Pay for rows delivered. <Highlight>Checking is free.</Highlight>
 						</h1>
@@ -213,10 +212,6 @@ export default function PricingPage() {
 								<span>Total</span>
 								<b>{usdExact(example.totalUsd)}</b>
 							</div>
-							<p className="stmt-foot">
-								debited from a prepaid balance · example cap{" "}
-								{usd(EXAMPLE_CAP_USD)} / month
-							</p>
 						</div>
 					</div>
 				</div>
@@ -397,7 +392,6 @@ export default function PricingPage() {
 			<div className="band">
 				<div className="shell faq-grid">
 					<div className="sec-head" style={{ margin: 0 }}>
-						<Eyebrow noun="FAQ" />
 						<h2>Pricing questions</h2>
 					</div>
 					<Faq
@@ -475,7 +469,6 @@ export default function PricingPage() {
 						</ButtonLink>
 					</>
 				}
-				caption="Every month, on every account · self-host free forever"
 			/>
 		</main>
 	);

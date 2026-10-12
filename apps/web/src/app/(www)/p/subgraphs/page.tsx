@@ -1,5 +1,4 @@
 import { CodeBlock } from "@/components/code-block";
-import { GITHUB_URL } from "@/components/github-nav-link";
 import {
 	ButtonLink,
 	CloseBand,
@@ -15,6 +14,7 @@ import {
 } from "@/components/site";
 import { SubgraphsHero } from "@/components/site/assets";
 import { socialMeta } from "@/lib/og";
+import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -104,16 +104,10 @@ export default function SubgraphsPage() {
 								Read the docs
 							</ButtonLink>
 						</div>
-						<p className="cap">
-							reading your tables is free · indexing bills rows read, first 1M
-							free every month
-						</p>
+						<p className="cap">Reading your tables is free</p>
 						<div className="odo">
 							<span className="odo-n word">1 file</span>
-							<span className="cap">
-								tables · REST API · client types · hosted per account since
-								2026-10-06
-							</span>
+							<span className="cap">tables · REST API · client types</span>
 						</div>
 					</div>
 					<div className="hero-art">
@@ -194,19 +188,6 @@ export default function SubgraphsPage() {
 									deploys later, and every token of a standard all fit the same
 									shape.
 								</p>
-								<div className="chips">
-									{[
-										"insert · update · upsert · increment",
-										"up to 20 contracts per source",
-										"factory discovery",
-										"trait: sip-010",
-										"--from-contract scaffold",
-									].map((c) => (
-										<span className="chip" key={c}>
-											{c}
-										</span>
-									))}
-								</div>
 							</>
 						}
 						art={
@@ -227,26 +208,14 @@ export default function SubgraphsPage() {
 									blocks stream in. Go live at the tip first if your handlers
 									only insert, and let history catch up behind.
 								</p>
-								<div className="chips">
-									{[
-										"--start-block",
-										"--tip-first",
-										"status · gaps · reindex",
-									].map((c) => (
-										<span className="chip" key={c}>
-											{c}
-										</span>
-									))}
-								</div>
 							</>
 						}
 						art={
-							<Terminal title="~/app" meta="secondlayer 19.4">
+							<Terminal title="~/app">
 								<pre>
-									<span className="t-a">{"❯"}</span>
-									{
-										" secondlayer subgraphs deploy subgraphs/sbtc-flows.ts \\\n    --start-block 8000000\n"
-									}
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer subgraphs deploy</span>
+									{" subgraphs/sbtc-flows.ts \\\n    --start-block 8000000\n"}
 									<span className="t-hit">
 										{'  ✓ Subgraph "sbtc-flows" created → v1.0.0'}
 									</span>
@@ -257,8 +226,9 @@ export default function SubgraphsPage() {
 										}
 									</span>
 									{"\n\n"}
-									<span className="t-a">{"❯"}</span>
-									{" secondlayer subgraphs status sbtc-flows\n"}
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer subgraphs status</span>
+									{" sbtc-flows\n"}
 									<span className="t-m">{"  Status       reindexing"}</span>
 									{"\n"}
 									<span className="t-m">
@@ -286,25 +256,10 @@ export default function SubgraphsPage() {
 									cursor and reports how far the table is behind the tip, in the
 									same envelope the index uses.
 								</p>
-								<div className="chips">
-									{[
-										"cursor paging",
-										"column filters",
-										"SSE row stream",
-										"wildcard CORS",
-									].map((c) => (
-										<span className="chip" key={c}>
-											{c}
-										</span>
-									))}
-								</div>
 							</>
 						}
 						art={
-							<Terminal
-								title="GET /v1/subgraphs/sbtc-flows/transfers"
-								meta="free to read"
-							>
+							<Terminal title="GET /v1/subgraphs/sbtc-flows/transfers">
 								<CodeBlock code={READ_EXAMPLE} lang="typescript" />
 							</Terminal>
 						}
@@ -363,8 +318,7 @@ export default function SubgraphsPage() {
 									<td>
 										Event filters, <code>contract_call</code>,{" "}
 										<code>contract_deploy</code>. Anything else is refused at
-										deploy, naming the source:{" "}
-										<span className="err">422 SOURCE_NOT_HOSTABLE</span>
+										deploy, naming the source.
 									</td>
 									<td>Any source</td>
 								</tr>
@@ -443,11 +397,12 @@ export default function SubgraphsPage() {
 							</>
 						}
 						art={
-							<Terminal title="~/app" meta="free · proofs">
+							<Terminal title="~/app">
 								<pre>
-									<span className="t-a">{"❯"}</span>
+									<span className="t-m">{"❯ "}</span>
+									<span className="t-a">secondlayer verify</span>
 									{
-										" secondlayer verify subgraph pool-reserves \\\n    --replay --from 1230000 --to 1231000\n"
+										" subgraph pool-reserves \\\n    --replay --from 1230000 --to 1231000\n"
 									}
 									<span className="t-ok">{"  ✓"}</span>
 									{" pin       7f3c…a91e  bundle, schema, startBlock\n"}
@@ -461,10 +416,6 @@ export default function SubgraphsPage() {
 									{" handlers  37 events, deterministic realm\n"}
 									<span className="t-hit">
 										{"  ✓ rows      reserves: 14 equal  digest 9a1f…03be"}
-									</span>
-									{"\n"}
-									<span className="t-m">
-										{'  exit 0 · 2 would mean "could not check", never a pass'}
 									</span>
 								</pre>
 							</Terminal>
@@ -564,7 +515,6 @@ export default function SubgraphsPage() {
 			<div className="band">
 				<div className="shell faq-grid">
 					<div className="sec-head" style={{ margin: 0 }}>
-						<Eyebrow noun="FAQ" />
 						<h2>Subgraph questions</h2>
 					</div>
 					<Faq
@@ -627,7 +577,6 @@ export default function SubgraphsPage() {
 						</ButtonLink>
 					</>
 				}
-				caption="1M rows free every month · reading your own tables is always free"
 			/>
 		</main>
 	);

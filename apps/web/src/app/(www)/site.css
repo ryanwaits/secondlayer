@@ -6,6 +6,17 @@
    reorgs only, data bars are ink. */
 
 /* ── page base ─────────────────────────────────────────────────────── */
+/* Terminals follow the theme on the docs code style: paper surface,
+   hairline, docs syntax colors (command = --yellow, as docs shell). */
+.site {
+	--term: var(--paper);
+	--term-raise: var(--soft);
+	--term-line: var(--line);
+	--term-fg: var(--ink);
+	--term-mute: var(--sub);
+	--term-acc: var(--yellow);
+	--term-ok: var(--ok);
+}
 .site {
 	background: var(--paper);
 	color: var(--ink);
@@ -352,7 +363,7 @@
 	color: var(--sub);
 }
 
-/* ── terminal (dark in both modes) ─────────────────────────────────── */
+/* ── terminal (follows the theme) ─────────────────────────────────── */
 .site .term {
 	background: var(--term);
 	border: 1px solid var(--term-line);
@@ -397,13 +408,11 @@
 }
 .site .t-hit {
 	display: block;
-	margin-inline: -16px;
-	padding-inline: 16px;
-	background: color-mix(in srgb, var(--term-ok) 12%, transparent);
 	color: var(--term-ok);
+	font-weight: 500;
 }
-/* docs CodeBlock inside a terminal: dark Shiki tokens in both modes, the
-   terminal's own ground, no docs margins or radius. */
+/* docs CodeBlock inside a terminal: docs Shiki tokens (global dark swap),
+   the terminal's own ground, no docs margins or radius. */
 .site .term .code-block-wrapper {
 	margin: 0;
 }
@@ -416,9 +425,6 @@
 	padding: 16px;
 	font-size: 12.5px;
 	line-height: 1.75;
-}
-.site .term .shiki span {
-	color: var(--shiki-dark) !important;
 }
 .site .term .copy-button {
 	background: var(--term-line);
@@ -469,12 +475,6 @@
 .site .mani-head .t {
 	font-family: var(--font-mono-stack);
 	font-size: 12.5px;
-}
-.site .mani-head .sp {
-	margin-left: auto;
-	font-family: var(--font-mono-stack);
-	font-size: 11.5px;
-	color: var(--sub);
 }
 .site .tblwrap {
 	overflow-x: auto;
@@ -528,15 +528,6 @@
 	height: 4px;
 	border-radius: 999px;
 	background: var(--ink);
-}
-.site .mani-foot {
-	padding: 12px 18px;
-	border-top: 1px solid var(--line);
-	font-family: var(--font-mono-stack);
-	font-size: 11.5px;
-	line-height: 1.7;
-	color: var(--sub);
-	overflow-wrap: anywhere;
 }
 
 /* ── meters ────────────────────────────────────────────────────────── */
@@ -620,11 +611,6 @@
 }
 .site .which a:last-child {
 	border-right: 0;
-}
-.site .which .k {
-	font-family: var(--font-mono-stack);
-	font-size: 12px;
-	color: var(--sub);
 }
 .site .which p {
 	font-size: 15px;
@@ -759,9 +745,6 @@
 	flex-wrap: wrap;
 	gap: 10px;
 }
-.site .close .cap {
-	margin-top: 18px;
-}
 
 /* ── marketing bar (root keeps .marketing-nav; structural rules live in
       globals.css: fixed bar, page padding, AuthBar hiding) ─────────── */
@@ -798,12 +781,12 @@
 	color: var(--sub);
 }
 .marketing-nav .mnav-plain[aria-current],
-.mnav-products-btn[aria-current] {
+.mnav-products .products-menu-btn[aria-current] {
 	color: var(--ink);
 	font-weight: 400;
 }
 .marketing-nav .mnav-plain[aria-current]::after,
-.mnav-products-btn[aria-current]::after {
+.mnav-products .products-menu-btn[aria-current]::after {
 	content: "";
 	position: absolute;
 	left: 0;
@@ -819,73 +802,53 @@
 	gap: 16px;
 }
 .mnav-products {
-	position: relative;
-	display: flex;
 	align-self: stretch;
 }
-.mnav-products-btn {
+.mnav-products .products-menu-btn {
+	font-size: 14.5px;
+}
+/* Products hover menu (components/products-menu.tsx), marketing + docs bars */
+.products-menu {
+	position: relative;
+	display: flex;
+}
+.products-menu-btn {
 	position: relative;
 	display: inline-flex;
 	align-items: center;
-	gap: 5px;
 	padding: 0;
 	border: 0;
 	background: none;
 	font: inherit;
-	font-size: 14.5px;
 	color: var(--sub);
 	cursor: pointer;
 }
-.mnav-products-btn:hover,
-.mnav-products-btn[aria-expanded="true"] {
+.products-menu-btn:hover,
+.products-menu-btn[aria-expanded="true"] {
 	color: var(--ink);
 }
-.mnav-products-btn[aria-current]::after {
-	right: 15px;
-}
-.mnav-products-btn svg {
-	flex: none;
-	transition: transform 150ms var(--ease-snappy);
-}
-.mnav-products-btn[aria-expanded="true"] svg {
-	transform: rotate(180deg);
-}
-.mnav-products-panel {
+.products-menu-panel {
 	position: absolute;
 	top: 100%;
 	left: -14px;
 	z-index: 80;
 	display: grid;
-	width: 320px;
+	min-width: 200px;
 	padding: 6px;
 	background: var(--paper);
 	border: 1px solid var(--line);
 	border-radius: 8px;
 }
-.mnav-products-item {
-	display: grid;
-	grid-template-columns: 92px 1fr;
-	gap: 10px;
-	padding: 9px 10px;
+.products-menu-panel a {
+	padding: 8px 12px;
 	border-radius: 4px;
+	font-size: 14.5px;
 	color: var(--ink);
 	text-decoration: none;
 }
-.mnav-products-item:hover,
-.mnav-products-item[aria-current] {
+.products-menu-panel a:hover,
+.products-menu-panel a[aria-current] {
 	background: var(--soft);
-}
-.mnav-products-item .v {
-	align-self: center;
-	font-family: var(--font-mono-stack);
-	font-size: 11.5px;
-	color: var(--sub);
-}
-.mnav-products-item .l {
-	grid-column: 1 / -1;
-	font-size: 13px;
-	line-height: 1.4;
-	color: var(--sub);
 }
 .marketing-nav :focus-visible {
 	outline: 2px solid var(--pri);
@@ -893,11 +856,11 @@
 }
 /* Full-height nav targets: ring a text-sized box instead of the whole bar. */
 .marketing-nav .mnav-plain:focus-visible,
-.mnav-products-btn:focus-visible {
+.mnav-products .products-menu-btn:focus-visible {
 	outline: none;
 }
 .marketing-nav .mnav-plain:focus-visible::before,
-.mnav-products-btn:focus-visible::before {
+.mnav-products .products-menu-btn:focus-visible::before {
 	content: "";
 	position: absolute;
 	inset: 17px -6px;
@@ -949,12 +912,6 @@
 	align-items: baseline;
 	justify-content: space-between;
 	gap: 12px;
-}
-.mnav-sheet-product .v {
-	font-family: var(--font-mono-stack);
-	font-size: 12px;
-	font-weight: 400;
-	color: var(--sub);
 }
 @media (max-width: 900px) {
 	.marketing-nav .mnav-links,
@@ -1194,11 +1151,6 @@
 .site .door + .door {
 	border-left: 1px solid var(--line);
 }
-.site .door .tags {
-	display: flex;
-	gap: 8px;
-	flex-wrap: wrap;
-}
 .site .door h3 {
 	font-size: clamp(22px, 2.4vw, 28px);
 	letter-spacing: -0.03em;
@@ -1362,6 +1314,10 @@
 	grid-template-columns: 1fr 1fr;
 	gap: 16px;
 }
+.site .data-note {
+	display: block;
+	margin-top: 14px;
+}
 .site .well {
 	border: 1px solid var(--line);
 	border-radius: 8px;
@@ -1504,19 +1460,6 @@
 	display: grid;
 	gap: 4px;
 }
-.site .mini {
-	font-family: var(--font-mono-stack);
-	font-size: 13px;
-	background: var(--paper);
-	border: 1px solid var(--line);
-	border-radius: 4px;
-	padding: 10px 12px;
-	overflow-x: auto;
-	white-space: nowrap;
-}
-.site .side.yours .mini {
-	background: var(--soft);
-}
 .site .fork-line {
 	margin-top: 20px;
 	display: flex;
@@ -1548,12 +1491,6 @@
 	max-width: 14ch;
 	letter-spacing: -0.05em;
 	line-height: 0.98;
-}
-.site.home .close .cap {
-	font-family: var(--font-sans-stack);
-	font-size: 18px;
-	max-width: 40ch;
-	margin-top: 28px;
 }
 
 /* ── product pages ─────────────────────────────────────────────────── */
@@ -1672,8 +1609,8 @@
 	height: 22px;
 	padding: 0 9px;
 	border-radius: 999px;
-	background: var(--term-acc);
-	color: #111111;
+	background: var(--hi);
+	color: var(--on-hi);
 	font-size: 10.5px;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
@@ -1700,14 +1637,6 @@
 	padding: 14px 16px;
 	font: 12px / 1.85 var(--font-mono-stack);
 	overflow-x: auto;
-}
-.site .tail-foot {
-	padding: 10px 16px;
-	border-top: 1px solid var(--term-line);
-	font-family: var(--font-mono-stack);
-	font-size: 11.5px;
-	color: var(--term-mute);
-	overflow-wrap: anywhere;
 }
 .site .cursor-row {
 	list-style: none;
@@ -1801,11 +1730,6 @@
 .site .rest a:last-child {
 	border-right: 0;
 }
-.site .rest .k {
-	font-family: var(--font-mono-stack);
-	font-size: 12px;
-	color: var(--sub);
-}
 .site .rest .n {
 	font-size: 19px;
 	letter-spacing: -0.02em;
@@ -1880,11 +1804,6 @@
 }
 .site .where td.mono {
 	font-size: 12.5px;
-}
-.site .where .err {
-	font-family: var(--font-mono-stack);
-	font-size: 12px;
-	color: var(--alarm);
 }
 @media (max-width: 700px) {
 	.site .where thead {
@@ -2533,20 +2452,6 @@
 	margin-top: 4px;
 	color: var(--term-fg);
 }
-.site.verify .exits {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px 14px;
-	padding: 10px 14px;
-	border-top: 1px solid var(--term-line);
-	font-family: var(--font-mono-stack);
-	font-size: 11px;
-	color: var(--term-mute);
-}
-.site.verify .exits b {
-	font-weight: 500;
-	color: var(--term-fg);
-}
 .site .band-ruled {
 	border-top: 1px solid var(--line);
 	padding-block: clamp(56px, 8vw, 104px);
@@ -2843,27 +2748,6 @@
 .site.verify .proofs + .chips {
 	margin-top: 16px;
 }
-.site.verify .close .cmd {
-	display: inline-flex;
-	align-items: center;
-	gap: 12px;
-	max-width: 100%;
-	padding: 6px 6px 6px 14px;
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	background: var(--soft);
-	color: var(--ink);
-}
-.site.verify .close .cmd code {
-	font-size: 13.5px;
-	white-space: nowrap;
-	overflow-x: auto;
-	min-width: 0;
-}
-.site.verify .close .cmd code::before {
-	content: "\276F\00a0";
-	color: var(--sub);
-}
 
 /* ── pricing page ──────────────────────────────────────────────────── */
 .site.pricing .stmt {
@@ -2935,11 +2819,6 @@
 .site.pricing .stmt-total b {
 	font: 500 26px / 1 var(--font-sans-stack);
 	letter-spacing: -0.03em;
-}
-.site.pricing .stmt-foot {
-	padding: 0 18px 14px;
-	font-size: 11px;
-	color: var(--sub);
 }
 
 .site.pricing .freegrid {
@@ -3207,17 +3086,10 @@
 	border: 1px solid var(--line);
 	border-radius: 8px;
 }
-.site.verify .chain-eg {
-	margin-top: 12px;
-}
 .site.verify .sdk-code {
 	display: grid;
 	gap: 10px;
 	min-width: 0;
-}
-.site.verify .close .cmd + .cap {
-	display: block;
-	margin-top: 10px;
 }
 
 /* ── contact ───────────────────────────────────────────────────────── */

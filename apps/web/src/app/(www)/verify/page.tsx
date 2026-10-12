@@ -1,5 +1,4 @@
 import { CodeBlock } from "@/components/code-block";
-import { CopyButton } from "@/components/copy-button";
 import {
 	ButtonLink,
 	CloseBand,
@@ -180,14 +179,12 @@ export default function VerifyPage() {
 								Read the docs
 							</ButtonLink>
 						</div>
-						<p className="cap">
-							Proofs are free · no key needed · @secondlayer/verify on npm
-						</p>
 					</div>
-					<Terminal title="~/app" meta="example output · mainnet">
+					<Terminal title="~/app" meta="example output">
 						<pre>
-							<span className="t-a">{"❯"}</span>
-							{" secondlayer verify block 9137005\n"}
+							<span className="t-m">{"❯ "}</span>
+							<span className="t-a">secondlayer verify</span>
+							{" block 9137005\n"}
 							<span className="t-ok">{"✓"}</span>
 							{" block       9,137,005  "}
 							<span className="t-m">{"2e5962b0…92f57ff"}</span>
@@ -216,17 +213,6 @@ export default function VerifyPage() {
 								{" Block 9,137,005 is proven. Trusted: only the checkpoint."}
 							</span>
 						</pre>
-						<div className="exits">
-							<span>
-								<b>exit 0</b> every link holds
-							</span>
-							<span>
-								<b>1</b> first broken link, named
-							</span>
-							<span>
-								<b>2</b> could not check
-							</span>
-						</div>
 					</Terminal>
 				</div>
 			</div>
@@ -251,17 +237,10 @@ export default function VerifyPage() {
 						</p>
 					</div>
 					<VerifyChainArt />
-					<p className="cap chain-eg">
-						example checkpoint, shown for illustration
-					</p>
 					<div className="chain-note">
 						<span>
 							<b>Below the checkpoint</b>, the block hash-chains to it: parent
 							links, or one MARF proof.
-						</span>
-						<span>
-							<b>Free</b> by default. <span className="mono">--rows</span> also
-							checks indexed rows, billed as Index rows.
 						</span>
 					</div>
 				</div>
@@ -396,7 +375,6 @@ export default function VerifyPage() {
 						<Terminal title="verify.ts" meta="bun add @secondlayer/verify">
 							<CodeBlock code={SDK_SNIPPET} lang="typescript" />
 						</Terminal>
-						<p className="cap">example block height</p>
 					</div>
 				</div>
 			</div>
@@ -430,8 +408,6 @@ export default function VerifyPage() {
 						</table>
 					</div>
 					<div className="chips">
-						<span className="chip">never metered</span>
-						<span className="chip">no key needed</span>
 						<span className="chip">10 req/s per IP (20 with a key)</span>
 						<span className="chip">1 req/s for witnesses (2 with a key)</span>
 						<span className="chip dash">
@@ -449,20 +425,6 @@ export default function VerifyPage() {
 						<ButtonLink href="/docs/verification" variant="secondary">
 							Read the Verify docs
 						</ButtonLink>
-					</>
-				}
-				caption={
-					<>
-						<span className="cmd">
-							<code>secondlayer verify block 9137005</code>
-							<CopyButton
-								code="secondlayer verify block 9137005"
-								label="Copy"
-							/>
-						</span>
-						<span className="cap">
-							any block height or index_block_hash works
-						</span>
 					</>
 				}
 			/>

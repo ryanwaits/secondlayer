@@ -144,13 +144,15 @@ export function BlockChecker({ source }: { source?: ProofSource }) {
 
 	return (
 		<div className="site block-checker">
-			<Terminal title="your browser" meta="live · mainnet">
+			<Terminal title="your browser">
 				<form className="bc-body" onSubmit={check}>
 					<div className="bc-row">
-						<span className="t-a" aria-hidden="true">
+						<span className="t-m" aria-hidden="true">
 							{"❯"}
 						</span>
-						<span className="bc-cmd">secondlayer verify block</span>
+						<span className="bc-cmd">
+							<span className="t-a">secondlayer verify</span> block
+						</span>
 						<input
 							className="bc-input"
 							value={input}

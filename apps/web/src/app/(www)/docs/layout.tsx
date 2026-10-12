@@ -1,6 +1,6 @@
 import { DocsTopNav } from "@/components/docs-top-nav";
-import { GITHUB_URL } from "@/components/github-nav-link";
 import { Logo } from "@/components/logo";
+import { GITHUB_URL } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";

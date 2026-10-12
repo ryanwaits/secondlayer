@@ -1,7 +1,6 @@
 "use client";
 
 import {
-	HOURS_PER_MONTH,
 	ROW_USD_PER_M_VOLUME,
 	VOLUME_TIER_MONTHLY_USD,
 	estimateMonth,
@@ -201,12 +200,7 @@ export function PricingEstimator() {
 					<span>Estimate</span>
 					<b>{usdExact(e.totalUsd)}</b>
 				</div>
-				<p className="note">
-					An estimate for a {HOURS_PER_MONTH}-hour month. The{" "}
-					{usd(ROW_USD_PER_M_VOLUME)} rate starts once the month's spend reaches{" "}
-					{usd(VOLUME_TIER_MONTHLY_USD)}, so it's applied at that point here.
-					Your statement is the exact figure.
-				</p>
+				<p className="note">Estimate. Your statement is the exact figure.</p>
 			</div>
 		</div>
 	);

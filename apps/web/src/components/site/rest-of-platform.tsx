@@ -19,12 +19,9 @@ export function RestOfPlatform({
 				const blurb = blurbs?.[p.href];
 				return (
 					<Link href={p.href} key={p.href}>
-						<span className="k">
-							{p.noun} · {p.verb}
-						</span>
 						<h3>{blurb?.title ?? p.line}</h3>
 						{blurb ? <p>{blurb.body}</p> : null}
-						<span className="go">{p.href} →</span>
+						<span className="go">Learn more →</span>
 					</Link>
 				);
 			})}

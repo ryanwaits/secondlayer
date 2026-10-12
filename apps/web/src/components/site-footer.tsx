@@ -1,7 +1,7 @@
 "use client";
 
-import { GITHUB_URL } from "@/components/github-nav-link";
 import { Logo } from "@/components/logo";
+import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
