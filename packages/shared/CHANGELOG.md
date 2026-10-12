@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 12.1.0
+
+### Minor Changes
+
+- 68a6e44: Talk to us: /contact stores every message in the database, then emails the operator (CONTACT_NOTIFY_EMAIL) with Reply-To set to the sender. sendEmail accepts replyTo.
+
 ## 12.0.0
 
 ### Major Changes
