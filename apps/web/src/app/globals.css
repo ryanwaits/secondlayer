@@ -74,9 +74,9 @@
 	--teal-bg: rgba(31, 69, 224, 0.06);
 
 	/* Writings figure library — role pair validated for light (#fff cards) */
-	--fig-role-a: #1f45e0;
-	--fig-role-b: #0a0a0a;
-	--fig-role-b-bg: rgba(10, 10, 10, 0.06);
+	--fig-role-a: var(--ink);
+	--fig-role-b: rgba(17, 17, 17, 0.42);
+	--fig-role-b-bg: rgba(17, 17, 17, 0.06);
 	--fig-alarm: #e3301e;
 	--fig-ok: #128a43;
 	--fig-bar: rgba(10, 10, 10, 0.16);
@@ -184,9 +184,9 @@
 		--teal-bg: rgba(58, 91, 255, 0.12);
 
 		/* Figure role pair validated for dark (#1a1a1a cards) — NOT --accent */
-		--fig-role-a: #3a5bff;
-		--fig-role-b: #ececec;
-		--fig-role-b-bg: rgba(236, 236, 236, 0.1);
+		--fig-role-a: var(--ink);
+		--fig-role-b: rgba(237, 237, 234, 0.45);
+		--fig-role-b-bg: rgba(237, 237, 234, 0.1);
 		--fig-alarm: #ff5a47;
 		--fig-ok: #3ccb7f;
 		--fig-bar: rgba(236, 236, 236, 0.2);
@@ -973,8 +973,8 @@ a mark {
 	position: relative;
 	width: 100%;
 	max-width: 400px;
-	border: 1px solid var(--border);
-	border-radius: 14px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
 	background: var(--bg-elevated, var(--bg));
 	padding: 2rem;
 }
@@ -1013,8 +1013,8 @@ a mark {
 	font-size: 14px;
 	color: var(--text-main);
 	background: var(--bg);
-	border: 1px solid var(--border);
-	border-radius: 10px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
 	padding: 12px 16px;
 	outline: none;
 	transition: border-color 0.2s ease;
@@ -1033,11 +1033,12 @@ a mark {
 	font-family: var(--font-sans-stack);
 	font-size: 14px;
 	font-weight: 500;
-	color: var(--bg);
-	background: var(--text-main);
-	border: 1px solid var(--text-main);
-	border-radius: 10px;
-	padding: 12px 16px;
+	color: var(--on-pri);
+	background: var(--pri);
+	border: 0;
+	border-radius: 4px;
+	height: 42px;
+	padding: 0 16px;
 	margin-top: 12px;
 	cursor: pointer;
 	transition: all 0.2s ease;
@@ -1054,7 +1055,7 @@ a mark {
 
 .login-error {
 	font-size: 13px;
-	color: #ef4444;
+	color: var(--alarm);
 	margin-top: 8px;
 }
 
@@ -1125,7 +1126,7 @@ a mark {
 	width: 6px;
 	height: 6px;
 	border-radius: 999px;
-	background: var(--accent);
+	background: var(--alarm);
 }
 .acct-chip-chev {
 	transition: transform 150ms ease-out;
@@ -1163,9 +1164,9 @@ a mark {
 	max-width: calc(100vw - 2rem);
 	padding: 6px;
 	background: var(--bg-elevated);
-	border: 1px solid var(--border);
-	border-radius: 10px;
-	box-shadow: 0 18px 44px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	box-shadow: none;
 	z-index: 80;
 }
 .acct-panel-head {
@@ -1196,24 +1197,26 @@ a mark {
 	display: block;
 	width: calc(100% - 8px);
 	margin: 6px 4px 2px;
-	padding: 7px 10px;
-	border: 1px solid var(--border);
-	border-radius: 6px;
-	background: var(--bg);
-	color: var(--text-main);
+	height: 34px;
+	padding: 0 10px;
+	border: 0;
+	border-radius: 4px;
+	background: var(--pri);
+	color: var(--on-pri);
 	font-size: 12.5px;
 	font-weight: 500;
 	cursor: pointer;
+	transition: opacity 150ms ease-out;
 }
 .acct-panel-add:hover {
-	border-color: var(--border-hover);
+	opacity: 0.88;
 }
 .acct-item {
 	display: block;
 	width: 100%;
 	padding: 8px 10px;
 	border: 0;
-	border-radius: 6px;
+	border-radius: 4px;
 	background: transparent;
 	text-align: left;
 	text-decoration: none;
@@ -1245,16 +1248,19 @@ a mark {
 }
 .acct-empty,
 .acct-result {
-	border-radius: 12px;
-	background: color-mix(in srgb, var(--accent) 5%, var(--bg));
-	border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--bg));
+	border-radius: 8px;
+	background: var(--soft);
+	border: 1px solid var(--line);
 }
 .acct-empty {
 	margin: 4px 4px 2px;
 	padding: 10px;
-	border-radius: 8px;
+	background: var(--paper);
 }
 .acct-empty-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	margin: 0;
 	font-size: 12.5px;
 	font-weight: 500;
@@ -1326,8 +1332,8 @@ a mark {
 	flex-direction: column;
 	gap: 3px;
 	padding: 9px 10px;
-	border: 1px solid var(--border);
-	border-radius: 6px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
 }
 .acct-stat-k {
 	font-size: 11px;
@@ -1344,9 +1350,9 @@ a mark {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	height: 44px;
+	height: 42px;
 	padding: 0 20px;
-	border-radius: 999px;
+	border-radius: 4px;
 	font-size: 14px;
 	font-weight: 500;
 	text-decoration: none;
@@ -1356,24 +1362,27 @@ a mark {
 }
 .acct-btn.solid {
 	border: 0;
-	background: var(--text-main);
-	color: var(--bg);
+	background: var(--pri);
+	color: var(--on-pri);
 }
 .acct-btn.solid:hover {
 	opacity: 0.88;
 }
 .acct-btn.line {
-	border: 1px solid var(--border);
-	background: var(--bg);
-	color: var(--text-main);
+	border: 1px solid var(--line);
+	background: transparent;
+	color: var(--ink);
 }
 .acct-btn.line:hover {
-	border-color: var(--border-hover);
+	border-color: var(--ink);
 }
 .acct-btn.danger {
-	border: 0;
-	background: #b91c1c;
-	color: #fff;
+	border: 1px solid var(--alarm);
+	background: transparent;
+	color: var(--alarm);
+}
+.acct-btn.danger:hover {
+	background: color-mix(in srgb, var(--alarm) 8%, transparent);
 }
 .acct-btn.full {
 	width: 100%;
@@ -1382,9 +1391,6 @@ a mark {
 	height: 34px;
 	padding: 0 14px;
 	font-size: 13px;
-}
-.acct-copyrow .acct-btn {
-	border-radius: 8px;
 }
 .acct-btn:disabled {
 	opacity: 0.5;
@@ -1419,7 +1425,7 @@ a mark {
 .acct-error {
 	margin: 0;
 	font-size: 13px;
-	color: #b91c1c;
+	color: var(--alarm);
 }
 .acct-pricing {
 	margin: 0;
@@ -1477,9 +1483,9 @@ a mark {
 	gap: 10px;
 	margin: 8px 0;
 	padding: 12px 14px;
-	border: 1px solid rgba(185, 28, 28, 0.25);
-	background: rgba(185, 28, 28, 0.04);
-	border-radius: 10px;
+	border: 1px solid var(--line);
+	background: var(--paper);
+	border-radius: 8px;
 }
 .acct-revoke-confirm p {
 	margin: 0;
@@ -1503,8 +1509,8 @@ a mark {
 .acct-name.inline {
 	margin-bottom: 20px;
 	padding: 16px;
-	border: 1px solid var(--border);
-	border-radius: 10px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
 }
 .acct-name label {
 	font-size: 13px;
@@ -1551,8 +1557,8 @@ a mark {
 	flex-direction: column;
 	gap: 6px;
 	padding: 16px;
-	border: 1px solid var(--border);
-	border-radius: 10px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
 	cursor: pointer;
 }
 .acct-pack input {
@@ -1562,8 +1568,8 @@ a mark {
 	height: 1px;
 }
 .acct-pack:has(input:checked) {
-	border-color: var(--text-main);
-	box-shadow: inset 0 0 0 1px var(--text-main);
+	border-color: var(--pri);
+	box-shadow: inset 0 0 0 1px var(--pri);
 }
 .acct-pack:has(input:focus-visible) {
 	outline: 2px solid var(--accent);
@@ -1592,7 +1598,7 @@ a mark {
 	color: var(--text-muted);
 }
 .acct-pack:has(input:checked) .acct-pack-dot {
-	border: 5px solid var(--text-main);
+	border: 5px solid var(--pri);
 }
 .acct-checkout {
 	display: flex;
@@ -1612,8 +1618,8 @@ a mark {
 	align-items: center;
 	gap: 12px;
 	padding: 14px;
-	border: 1px solid var(--border);
-	border-radius: 10px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
 }
 .acct-pending-title {
 	margin: 0;
@@ -1666,11 +1672,9 @@ a mark {
 	flex-direction: column;
 	background: var(--bg);
 	color: var(--text-main);
-	border: 1px solid var(--border);
-	border-radius: 10px;
-	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 1.625rem 3.375rem
-		rgba(0, 0, 0, 0.05), 0 1rem 2rem rgba(0, 0, 0, 0.035), 0 0.3125rem 0.5rem
-		rgba(0, 0, 0, 0.02);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	box-shadow: none;
 	overflow: hidden;
 	animation: acct-card-in 320ms var(--acct-card-ease);
 }
@@ -1739,24 +1743,24 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	align-items: center;
 	justify-content: center;
 	flex: none;
-	width: 36px;
-	height: 36px;
-	border: 1px solid var(--border);
-	border-radius: 999px;
-	background: var(--bg);
-	color: var(--text-main);
+	width: 34px;
+	height: 34px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	background: transparent;
+	color: var(--ink);
 	cursor: pointer;
 	transition: border-color 150ms ease-out;
 }
 .acct-card-icon:hover {
-	border-color: var(--border-hover);
+	border-color: var(--ink);
 }
 .acct-card-icon:disabled {
 	opacity: 0.35;
 	cursor: default;
 }
 .acct-card-icon:disabled:hover {
-	border-color: var(--border);
+	border-color: var(--line);
 }
 .acct-card-body {
 	flex: 1;
@@ -1827,7 +1831,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	display: block;
 	padding: 8px 12px;
 	border: 0;
-	border-radius: 6px;
+	border-radius: 4px;
 	background: transparent;
 	font-size: 14px;
 	text-align: left;
@@ -1836,9 +1840,14 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	cursor: pointer;
 }
 .acct-side-link[aria-current="page"] {
-	background: color-mix(in srgb, var(--text-main) 5%, transparent);
-	color: var(--text-main);
+	background: var(--soft);
+	border: 0;
+	box-shadow: none;
+	color: var(--ink);
 	font-weight: 500;
+}
+.acct-side-link:focus:not(:focus-visible) {
+	outline: none;
 }
 .acct-side-link.quiet {
 	font-size: 13px;
@@ -1862,9 +1871,10 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 .acct-h1 {
 	margin: 0;
 	font-family: var(--font-heading-stack);
-	font-size: 30px;
+	font-size: clamp(24px, 3vw, 32px);
 	font-weight: 500;
 	letter-spacing: -0.02em;
+	overflow-wrap: anywhere;
 	color: var(--text-main);
 }
 .acct-lede {
@@ -2009,7 +2019,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	color: var(--text-muted);
 }
 .use-table .use-credit {
-	color: var(--green);
+	color: var(--ok);
 }
 .use-table .use-free {
 	color: var(--text-muted);
@@ -2024,8 +2034,8 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	padding: 1px 6px;
 	border-radius: 999px;
 	font-size: 11px;
-	color: var(--red);
-	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 40%, transparent);
+	color: var(--alarm);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--alarm) 40%, transparent);
 }
 .use-empty {
 	padding: 20px 16px;
@@ -2042,12 +2052,24 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	gap: 12px;
 	padding: 14px 16px;
 	border-radius: 8px;
-	border: 1px dashed color-mix(in srgb, var(--red) 35%, var(--border));
+	border: 1px solid var(--line);
+	background: var(--paper);
 }
 .use-error p {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	margin: 0;
 	font-size: 13px;
 	color: var(--text-muted);
+}
+.use-error p::before {
+	content: "";
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 999px;
+	background: var(--alarm);
 }
 
 /* /account/credits — section header row: h2 left, aside right, same row */
@@ -2075,8 +2097,8 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 .use-runway {
 	display: grid;
 	grid-template-columns: 1.3fr 1fr 1fr;
-	border: 1px solid var(--border);
-	border-radius: 10px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
 	overflow: hidden;
 }
 .use-runway > div {
@@ -2127,17 +2149,14 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	background: currentColor;
 }
 .use-pill.ok {
-	color: var(--green);
-	background: color-mix(in srgb, var(--green) 10%, transparent);
+	color: var(--ok);
+	background: color-mix(in srgb, var(--ok) 10%, transparent);
 }
-.use-pill.low {
-	color: var(--yellow);
-	background: var(--yellow-bg);
-}
+.use-pill.low,
 .use-pill.crit,
 .use-pill.stopped {
-	color: var(--red);
-	background: var(--red-bg);
+	color: var(--alarm);
+	background: color-mix(in srgb, var(--alarm) 8%, transparent);
 }
 .use-runbar {
 	position: relative;
@@ -2152,12 +2171,10 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	border-radius: 999px;
 	background: var(--text-main);
 }
-.use-runbar.low i {
-	background: var(--yellow);
-}
+.use-runbar.low i,
 .use-runbar.crit i,
 .use-runbar.stopped i {
-	background: var(--red);
+	background: var(--alarm);
 }
 
 /* /account/credits — level banner */
@@ -2170,19 +2187,24 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	padding: 14px 16px;
 	border-radius: 8px;
 }
-.use-banner.low {
-	border: 1px solid color-mix(in srgb, var(--yellow) 35%, var(--border));
-	background: var(--yellow-bg);
-}
-.use-banner.crit,
-.use-banner.stopped,
-.use-banner.capped {
-	border: 1px solid color-mix(in srgb, var(--red) 35%, var(--border));
-	background: var(--red-bg);
+.use-banner {
+	border: 1px solid var(--line);
+	background: var(--paper);
 }
 .use-banner-t {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	margin: 0;
 	font-weight: 500;
+}
+.use-banner-t::before {
+	content: "";
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 999px;
+	background: var(--alarm);
 }
 .use-banner-l {
 	margin: 3px 0 0;
@@ -2193,8 +2215,8 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 
 /* /account/credits — spend + memory charts */
 .use-card {
-	border: 1px solid var(--border);
-	border-radius: 10px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
 	padding: 14px 16px;
 	display: flex;
 	flex-direction: column;
@@ -2274,12 +2296,10 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	width: 7px;
 	height: 7px;
 	border-radius: 999px;
-	background: var(--green);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
+	background: var(--ok);
 }
 .use-svc-state.off::before {
-	background: var(--red);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 18%, transparent);
+	background: var(--alarm);
 }
 .use-svc-grid {
 	display: grid;
@@ -2288,8 +2308,8 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 }
 .use-svc-grid > div {
 	padding: 9px 10px;
-	border: 1px solid var(--border);
-	border-radius: 6px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
@@ -2375,7 +2395,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	transform: translateX(14px);
 }
 .use-switch input:focus-visible + span {
-	outline: 2px solid var(--fig-role-a);
+	outline: 2px solid var(--accent);
 	outline-offset: 2px;
 }
 .use-switch input:disabled + span {
@@ -2416,14 +2436,16 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	flex-wrap: wrap;
 	padding: 14px 16px;
 	border-radius: 8px;
-	border: 1px solid var(--border);
+	border: 1px solid var(--line);
+	background: var(--paper);
 }
-.wh-notice.stop {
-	border-color: color-mix(in srgb, var(--red) 35%, var(--border));
-	background: color-mix(in srgb, var(--red) 5%, transparent);
-}
-.wh-notice.wait {
-	background: color-mix(in srgb, var(--text-main) 3%, transparent);
+.wh-notice.stop .wh-notice-t::before {
+	content: "";
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 999px;
+	background: var(--alarm);
 }
 .wh-notice-t {
 	margin: 0;
@@ -2514,13 +2536,17 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	background: currentColor;
 }
 .wh-pill.active {
-	color: var(--green);
+	color: var(--ok);
 }
 .wh-pill.paused {
-	color: var(--yellow);
+	color: var(--sub);
+}
+.wh-pill.paused::before {
+	background: transparent;
+	box-shadow: inset 0 0 0 1.5px currentColor;
 }
 .wh-pill.error {
-	color: var(--red);
+	color: var(--alarm);
 }
 
 .wh-tbl-wrap {
@@ -2582,10 +2608,10 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	outline-offset: -2px;
 }
 .wh-tbl .bad {
-	color: var(--red);
+	color: var(--alarm);
 }
 .wh-tbl .ok {
-	color: var(--green);
+	color: var(--ok);
 }
 .wh-tbl .dim {
 	color: var(--text-muted);
@@ -2610,10 +2636,10 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	font-size: 12.5px;
 }
 .wh-list-issue.bad {
-	color: var(--red);
+	color: var(--alarm);
 }
 .wh-list-issue.warn {
-	color: var(--yellow);
+	color: var(--sub);
 }
 .wh-list-issue-dismiss {
 	margin-left: 10px;
@@ -2736,6 +2762,10 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	align-items: center;
 	gap: 12px;
 	flex-wrap: wrap;
+	min-width: 0;
+}
+.wh-tbl td:first-child {
+	overflow-wrap: anywhere;
 }
 .wh-actions {
 	display: flex;
@@ -2816,7 +2846,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	align-items: center;
 	height: 22px;
 	padding: 0 8px;
-	border-radius: 6px;
+	border-radius: 4px;
 	background: var(--wash);
 	color: var(--text-main);
 	font-family: var(--font-mono-stack);
@@ -2838,10 +2868,11 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	color: var(--text-main);
 }
 .wh-sumline-warn i {
-	width: 6px;
-	height: 6px;
+	width: 8px;
+	height: 8px;
 	border-radius: 999px;
-	background: var(--yellow);
+	background: transparent;
+	box-shadow: inset 0 0 0 1.5px var(--sub);
 }
 .wh-sumline-warn b {
 	font-weight: 500;
@@ -2971,16 +3002,17 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	margin: 0;
 	padding: 10px 14px;
 	border-top: 1px solid var(--border);
-	background: color-mix(in srgb, var(--yellow) 7%, transparent);
+	background: var(--paper);
 	font-size: 13px;
 }
 .wh-tc-warn i {
 	flex: none;
-	width: 6px;
-	height: 6px;
-	margin-top: 7px;
+	width: 8px;
+	height: 8px;
+	margin-top: 6px;
 	border-radius: 999px;
-	background: var(--yellow);
+	background: transparent;
+	box-shadow: inset 0 0 0 1.5px var(--sub);
 }
 
 /* Insight card (plan 068): leads the detail page with the report's single
@@ -2988,25 +3020,35 @@ html[data-acct-card] .www > :not(.marketing-nav) {
  * rule. `--wh-sev` tints the border/wash per severity; `bad`/`warn` get a
  * color, `calm` stays neutral (existing status tokens, never `--accent`). */
 .wh-insight {
-	--wh-sev: var(--border);
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
-	border: 1px solid color-mix(in srgb, var(--wh-sev) 35%, var(--border));
+	border: 1px solid var(--line);
 	border-radius: 8px;
+	background: var(--paper);
 	padding: 14px 16px;
-}
-.wh-insight.bad {
-	--wh-sev: var(--red);
-}
-.wh-insight.warn {
-	--wh-sev: var(--yellow);
 }
 .wh-insight-h p {
 	margin: 0;
 }
 .wh-insight-h .t {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	font-weight: 500;
+}
+.wh-insight-h .t::before {
+	content: "";
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 999px;
+	background: transparent;
+	box-shadow: inset 0 0 0 1.5px var(--sub);
+}
+.wh-insight.bad .wh-insight-h .t::before {
+	background: var(--alarm);
+	box-shadow: none;
 }
 .wh-insight-h .l {
 	margin-top: 3px;
@@ -3019,8 +3061,8 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	gap: 6px 20px;
 	margin: 0;
 	padding: 10px 12px;
-	background: color-mix(in srgb, var(--wh-sev) 6%, transparent);
-	border-radius: 6px;
+	background: var(--soft);
+	border-radius: 4px;
 }
 .wh-insight-evidence > div {
 	display: flex;
@@ -3111,8 +3153,8 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	border-radius: 8px;
 	font-size: 12px;
 	background: var(--bg-elevated);
-	border: 1px solid var(--border);
-	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+	border: 1px solid var(--line);
+	box-shadow: none;
 }
 .wh-chart-tip-label {
 	margin-bottom: 5px;
@@ -3160,16 +3202,16 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	border: 0;
 	background: none;
 	padding: 8px 12px;
-	color: var(--text-muted);
+	color: var(--sub);
 	cursor: pointer;
-	border-bottom: 1.5px solid transparent;
+	border-bottom: 2px solid transparent;
 	margin-bottom: -1px;
 	white-space: nowrap;
 	font: inherit;
 }
 .wh-tabs button[aria-selected="true"] {
-	color: var(--text-main);
-	border-bottom-color: var(--text-main);
+	color: var(--ink);
+	border-bottom-color: var(--pri);
 	font-weight: 500;
 }
 .wh-tabs .n {
@@ -3184,10 +3226,10 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	font-size: 13px;
 }
 .wh-result .ok {
-	color: var(--green);
+	color: var(--ok);
 }
 .wh-result .bad {
-	color: var(--red);
+	color: var(--alarm);
 }
 .wh-result .dim {
 	color: var(--text-muted);
@@ -3207,7 +3249,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	background: var(--fig-alarm);
 }
 .wh-ribbon i.r {
-	background: var(--yellow);
+	background: var(--fig-role-b);
 }
 
 .wh-live {
@@ -3283,10 +3325,10 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	gap: 10px;
 }
 .wh-dl-status.ok {
-	color: var(--green);
+	color: var(--ok);
 }
 .wh-dl-status.bad {
-	color: var(--red);
+	color: var(--alarm);
 }
 .wh-dl-status span {
 	color: var(--text-main);
@@ -3329,14 +3371,13 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	margin: 0;
 	padding: 12px 14px;
 	border-radius: 8px;
-	background: color-mix(in srgb, var(--red) 6%, transparent);
+	border: 1px solid var(--line);
+	background: var(--paper);
 	font-size: 13px;
 }
 .wh-dl-err .wh-dl-dot {
-	margin-top: 6px;
-	color: var(--red);
-	width: 6px;
-	height: 6px;
+	margin-top: 5px;
+	color: var(--alarm);
 }
 
 .wh-code {
@@ -3405,10 +3446,10 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	gap: 2px;
 	width: min(360px, calc(100vw - 32px));
 	padding: 12px 14px;
-	border-radius: 10px;
-	border: 1px solid var(--border);
+	border-radius: 8px;
+	border: 1px solid var(--line);
 	background: var(--bg-elevated);
-	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+	box-shadow: none;
 	font-size: 13px;
 	color: var(--text-main);
 }
@@ -3419,19 +3460,16 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	color: var(--text-muted);
 	font-size: 12.5px;
 }
-.wh-toast-error {
-	border-color: color-mix(in srgb, var(--red) 35%, var(--border));
-}
 .wh-toast-error .wh-toast-title {
-	color: var(--red);
+	color: var(--alarm);
 }
 .wh-toast-success .wh-toast-title {
-	color: var(--green);
+	color: var(--ok);
 }
 .wh-toast-action {
 	margin-top: 6px;
 	align-self: flex-start;
-	border-radius: 6px;
+	border-radius: 4px;
 	border: 1px solid var(--border);
 	background: var(--bg);
 	color: var(--text-main);

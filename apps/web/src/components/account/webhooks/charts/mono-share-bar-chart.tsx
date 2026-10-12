@@ -19,7 +19,7 @@ import {
 const RATE_LIMITED_THRESHOLD_PCT = 50;
 
 /** Share of attempts answered 429, one bar per hour, oldest → newest. Bars at
- *  or above the rule's threshold are `--yellow`; the rest are `--fig-bar`. */
+ *  or above the rule's threshold are `--fig-role-b`; the rest are `--fig-bar`. */
 export function MonoShareBarChart({
 	hours,
 	height = 90,
@@ -41,7 +41,7 @@ export function MonoShareBarChart({
 							key={h.hour}
 							fill={
 								h.sharePct >= RATE_LIMITED_THRESHOLD_PCT
-									? "var(--yellow)"
+									? "var(--fig-role-b)"
 									: "var(--fig-bar)"
 							}
 						/>

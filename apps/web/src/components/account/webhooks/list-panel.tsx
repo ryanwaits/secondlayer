@@ -276,7 +276,7 @@ export function WebhooksListSection() {
 					<span className="acct-stat-k">Needs attention</span>
 					<span
 						className="acct-stat-v"
-						style={attention > 0 ? { color: "var(--red)" } : undefined}
+						style={attention > 0 ? { color: "var(--alarm)" } : undefined}
 					>
 						<NumberFlow value={attention} />
 					</span>

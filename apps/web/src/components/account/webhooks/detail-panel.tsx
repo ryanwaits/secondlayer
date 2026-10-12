@@ -631,7 +631,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 						{
 							dataKey: "waiting",
 							name: "Waiting to send",
-							color: "var(--fig-role-a)",
+							color: "var(--fig-role-b)",
 						},
 						{ dataKey: "gaveUp", name: "Gave up", color: "var(--fig-alarm)" },
 					]}
@@ -642,7 +642,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 						delivered
 					</span>
 					<span>
-						<i style={{ background: "var(--fig-role-a)" }} />
+						<i style={{ background: "var(--fig-role-b)" }} />
 						waiting to send
 					</span>
 					<span>
