@@ -1023,34 +1023,26 @@
 	display: block;
 	padding-block: clamp(56px, 9vw, 112px) clamp(64px, 9vw, 112px);
 }
-.site.home .hero h1 {
-	font-size: clamp(46px, 8.4vw, 108px);
-	line-height: 1.08;
-	letter-spacing: -0.05em;
-	max-width: 11ch;
-}
 .site.home .hero-copy {
-	gap: 26px;
-	align-content: start;
-	justify-items: stretch;
+	gap: 22px;
+	justify-items: center;
+	text-align: center;
 }
 .site.home .hero-row {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: end;
-	justify-content: space-between;
-	gap: 24px 48px;
+	display: grid;
+	justify-items: center;
+	gap: 28px;
 }
 .site.home .hero .sub {
 	font-size: clamp(17px, 1.7vw, 20px);
 	line-height: 1.5;
 	color: var(--sub);
-	max-width: 40ch;
+	max-width: 48ch;
 }
 .site.home .hero-cta {
 	display: grid;
 	gap: 12px;
-	justify-items: start;
+	justify-items: center;
 }
 .site.home .hero-cta .btns {
 	margin-top: 0;

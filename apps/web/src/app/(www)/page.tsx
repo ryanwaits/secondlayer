@@ -181,7 +181,9 @@ export function HomeView() {
 					</div>
 					<nav className="spine" aria-label="Products">
 						<div className="spine-head">
-							<span className="eyebrow">Five products</span>
+							<span className="eyebrow">
+								From signed history to your server
+							</span>
 						</div>
 						{PRODUCTS.map((p) => (
 							<Link key={p.noun} href={p.href}>
