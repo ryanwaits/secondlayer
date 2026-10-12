@@ -1,5 +1,5 @@
 /**
- * Crawls a running site breadth-first over same-origin links and fails on any
+ * Walks a running site breadth-first over same-origin links and fails on any
  * non-2xx page or missing #anchor.
  *
  * Usage: bun scripts/check-links.ts http://localhost:3100
