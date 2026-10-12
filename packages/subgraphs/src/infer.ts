@@ -111,8 +111,9 @@ export interface SubgraphTip {
 	blocks_behind: number;
 }
 
-/** A page of rows from `findMany`, keyset-paginated. `nextCursor` is `null`
- *  on the last page; pass it back as `cursor` to resume. */
+/** A page of rows from `findMany`, keyset-paginated. `nextCursor` is set on
+ *  every page that returned rows and `null` only on an empty page; pass it
+ *  back as `cursor` to resume (tail with `cursor = nextCursor ?? cursor`). */
 export interface FindManyPage<TRow> {
 	rows: TRow[];
 	nextCursor: string | null;

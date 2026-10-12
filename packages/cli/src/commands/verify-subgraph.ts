@@ -102,18 +102,21 @@ function parseHeight(
 	return Number(raw);
 }
 
-/** Every row of a served table, following cursors. */
-async function readTable(
+/** Every row of a served table, following cursors. Ends on an empty page or
+ *  one shorter than `pageSize` (the server returns a cursor on every page that
+ *  has rows, so a null cursor alone no longer marks the end). */
+export async function readTable(
 	fetchRows: NonNullable<VerifySubgraphDeps["fetchRows"]>,
 	name: string,
 	table: string,
+	pageSize = PAGE,
 ): Promise<Rows> {
 	const out: Rows = [];
 	let cursor: string | undefined;
 	for (;;) {
 		const page = await fetchRows(name, table, cursor);
 		out.push(...page.rows);
-		if (!page.next_cursor || page.rows.length === 0) return out;
+		if (!page.next_cursor || page.rows.length < pageSize) return out;
 		cursor = page.next_cursor;
 	}
 }

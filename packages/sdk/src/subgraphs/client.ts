@@ -69,6 +69,7 @@ export interface SubgraphOperationStatus {
 /** /v1 cursor envelope for subgraph table reads. */
 export interface SubgraphRowsEnvelope<T = unknown> {
 	rows: T[];
+	/** Set on every page that returned rows; `null` only on an empty page. */
 	next_cursor: string | null;
 	tip: {
 		block_height: number;
@@ -258,8 +259,10 @@ export class Subgraphs extends BaseClient {
 
 	/**
 	 * Open /v1 read: cursor-paginated rows. Anon works on an open instance;
-	 * pass an apiKey on the client where reads are closed. Resume with the
-	 * returned `next_cursor`.
+	 * pass an apiKey on the client where reads are closed. `next_cursor` is set
+	 * on every page that returned rows and is `null` only on an empty page, so a
+	 * poller tails with `cursor = page.next_cursor ?? cursor`. A paging loop
+	 * ends on an empty page (or one shorter than `limit`).
 	 */
 	async rows<T = unknown>(
 		name: string,
@@ -362,7 +365,8 @@ export class Subgraphs extends BaseClient {
 	 * const client = sl.subgraphs.typed(mySubgraph)
 	 * const page = await client.transfers.findMany({ where: { sender: 'SP...' } })
 	 * // page.rows: InferTableRow<typeof mySubgraph.schema.transfers>[]
-	 * // page.nextCursor: string | null — pass back as `cursor` to resume
+	 * // page.nextCursor: set whenever rows came back, null on an empty page.
+	 * // Tail new rows: cursor = page.nextCursor ?? cursor
 	 * ```
 	 */
 	typed<T extends { name: string; schema: Record<string, unknown> }>(

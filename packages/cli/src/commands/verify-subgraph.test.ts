@@ -20,6 +20,7 @@ import {
 import {
 	type VerifySubgraphDeps,
 	type VerifySubgraphOptions,
+	readTable,
 	runVerifySubgraph,
 } from "./verify-subgraph.ts";
 
@@ -349,5 +350,43 @@ describe("verify subgraph on the command line", () => {
 		const r = await spawn("verify", "subgraph", "pool-reserves");
 		expect(r.code).toBe(2);
 		expect(r.stderr).toContain("pass --replay");
+	});
+});
+
+describe("readTable paging", () => {
+	// A server that returns a cursor on every page that has rows, like /v1.
+	const serve = (pages: Record<string, unknown>[][]) => {
+		const calls: (string | undefined)[] = [];
+		const fetchRows = async (_n: string, _t: string, cursor?: string) => {
+			calls.push(cursor);
+			const index = cursor ? Number(cursor) : 0;
+			const rows = pages[index] ?? [];
+			return {
+				rows,
+				next_cursor: rows.length > 0 ? String(index + 1) : null,
+				tip: { subgraph_height: 1 },
+			};
+		};
+		return { fetchRows, calls };
+	};
+
+	test("a short final page ends the walk without another request", async () => {
+		const { fetchRows, calls } = serve([[{ a: 1 }, { a: 2 }], [{ a: 3 }]]);
+		const rows = await readTable(fetchRows, "g", "t", 2);
+		expect(rows).toEqual([{ a: 1 }, { a: 2 }, { a: 3 }]);
+		expect(calls).toEqual([undefined, "1"]);
+	});
+
+	test("a full final page is followed by one empty page, then stops", async () => {
+		const { fetchRows, calls } = serve([[{ a: 1 }, { a: 2 }]]);
+		const rows = await readTable(fetchRows, "g", "t", 2);
+		expect(rows).toEqual([{ a: 1 }, { a: 2 }]);
+		expect(calls).toEqual([undefined, "1"]);
+	});
+
+	test("an empty table is one request", async () => {
+		const { fetchRows, calls } = serve([]);
+		expect(await readTable(fetchRows, "g", "t", 2)).toEqual([]);
+		expect(calls).toEqual([undefined]);
 	});
 });
