@@ -559,7 +559,9 @@ app.get("/:subgraphName/:tableName", async (c) => {
 			| Record<string, unknown>
 			| undefined;
 		let nextCursor: string | null = null;
-		if (rows.length === parsed.limit && lastRow?._id != null) {
+		// Set on every page that returned rows, so a tailing poller resumes with
+		// `cursor = next_cursor ?? cursor`; an empty page has no position to give.
+		if (lastRow?._id != null) {
 			if (sortSpec) {
 				const rawSortValue = lastRow[sortSpec.column];
 				nextCursor = encodeSortedCursor(

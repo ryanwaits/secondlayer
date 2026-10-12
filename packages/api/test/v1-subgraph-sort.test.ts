@@ -9,6 +9,7 @@ import subgraphsRouter, {
 	startSubgraphCache,
 	stopSubgraphCache,
 } from "../src/routes/subgraphs.ts";
+import { decodeSortedCursor } from "../src/routes/v1-cursor.ts";
 import v1SubgraphsRouter from "../src/routes/v1-subgraphs.ts";
 
 // biome-ignore lint/suspicious/noExplicitAny: test JSON response typing
@@ -303,5 +304,75 @@ describe.skipIf(SKIP)("/v1 sorted keyset pagination (_sort/_order)", () => {
 		);
 		const body = (await res.json()) as Json;
 		expect(Object.keys(body.rows[0]).sort()).toEqual(["amount", "holder"]);
+	});
+
+	// ── next_cursor on every page that returned rows ─────────────────────────
+
+	test("a short page still returns a cursor; resuming from it yields an empty page with null", async () => {
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/holders?_limit=100`,
+		);
+		const body = (await res.json()) as Json;
+		expect(body.rows.length).toBe(14);
+		expect(body.next_cursor).toBe(String(body.rows[13]._id));
+
+		const tail = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/holders?_limit=100&cursor=${body.next_cursor}`,
+		);
+		const tailBody = (await tail.json()) as Json;
+		expect(tailBody.rows).toEqual([]);
+		expect(tailBody.next_cursor).toBeNull();
+	});
+
+	test("an empty first page has a null cursor", async () => {
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/holders?holder=nobody`,
+		);
+		const body = (await res.json()) as Json;
+		expect(body.rows).toEqual([]);
+		expect(body.next_cursor).toBeNull();
+	});
+
+	test("a short _sort page returns a decodable sorted cursor at the last row", async () => {
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/holders?_sort=amount&_order=desc&_limit=100`,
+		);
+		const body = (await res.json()) as Json;
+		expect(body.rows.length).toBe(14);
+		const last = body.rows[13];
+		expect(
+			decodeSortedCursor(body.next_cursor, { column: "amount", order: "desc" }),
+		).toEqual({ value: String(last.amount), id: String(last._id) });
+
+		const tail = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/holders?_sort=amount&_order=desc&_limit=100&cursor=${encodeURIComponent(body.next_cursor)}`,
+		);
+		const tailBody = (await tail.json()) as Json;
+		expect(tailBody.rows).toEqual([]);
+		expect(tailBody.next_cursor).toBeNull();
+	});
+
+	test("a short page with _fields excluding _id still returns a cursor and hides _id", async () => {
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/holders?_fields=holder&_limit=100`,
+		);
+		const body = (await res.json()) as Json;
+		expect(body.rows.length).toBe(14);
+		expect(Object.keys(body.rows[0])).toEqual(["holder"]);
+		expect(body.next_cursor).toMatch(/^\d+$/);
+	});
+
+	test("tailing with cursor = next_cursor ?? cursor keeps the position across empty polls", async () => {
+		const first = (await (
+			await app.request(`/v1/subgraphs/${SUBGRAPH_NAME}/holders?_limit=100`)
+		).json()) as Json;
+		let cursor: string = first.next_cursor;
+		const poll = (await (
+			await app.request(
+				`/v1/subgraphs/${SUBGRAPH_NAME}/holders?_limit=100&cursor=${cursor}`,
+			)
+		).json()) as Json;
+		cursor = poll.next_cursor ?? cursor;
+		expect(cursor).toBe(first.next_cursor);
 	});
 });
