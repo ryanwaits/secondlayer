@@ -41,6 +41,10 @@ A `state` subgraph can now be checked end to end on your machine. `secondlayer v
 
 ## SDK — October 2026
 
+### Check a block in your browser
+
+The Verify page and the verification docs now run the check live in your browser: type a height and watch each link turn green, computed on your machine against the free proofs API. `verifyBlock` takes `onStep` to report each link as it passes, and `describeLinks` turns a result into the lines and verdict, so you can build your own.
+
 ### Check a block without an account
 
 `@secondlayer/verify` and `/v1/proofs` no longer need a key. Check a block from a script, a wallet or a web page with `new SecondlayerProofSource()`; add a key for higher rate limits.
