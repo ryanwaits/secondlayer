@@ -103,7 +103,7 @@ interface HttpOptions {
 const MAX_ATTEMPTS = 3;
 const MAX_RETRY_SECONDS = 10;
 
-/** GET with retries on 503 (honoring retry-after); null on 404. */
+/** GET with retries on 429 and 503 (honoring retry-after); null on 404. */
 async function get(
 	url: string,
 	opts: HttpOptions,
@@ -117,7 +117,7 @@ async function get(
 		throw new SourceError(url, null, (err as Error).message);
 	}
 	if (res.status === 404) return null;
-	if (res.status === 503 && attempt < MAX_ATTEMPTS) {
+	if ((res.status === 503 || res.status === 429) && attempt < MAX_ATTEMPTS) {
 		const header = res.headers.get("retry-after");
 		const seconds = header === null ? 1 : Number(header);
 		const wait = Number.isFinite(seconds)
@@ -170,11 +170,17 @@ const toMarf = (url: string, j: MarfJson | null): MarfProofResponse | null => {
 	return { data: j.data, proof: unhex(proof) };
 };
 
+/** The hosted API. */
+export const DEFAULT_API_URL = "https://api.secondlayer.tools";
+
 export interface SecondlayerSourceOptions {
-	/** API origin, e.g. `https://api.secondlayer.tools`. */
-	baseUrl: string;
-	/** Account key, sent as `Authorization: Bearer`. */
-	apiKey: string;
+	/** API origin. Defaults to {@link DEFAULT_API_URL}. */
+	baseUrl?: string;
+	/**
+	 * Optional. Proofs are keyless; a key raises the rate limit. Required for
+	 * `rows: true` (metered Index reads). Sent as `Authorization: Bearer`.
+	 */
+	apiKey?: string;
 	fetch?: Fetch;
 }
 
@@ -235,10 +241,10 @@ export class SecondlayerProofSource implements ProofSource {
 	getStateWrites: (height: number) => Promise<StateWrite[] | null>;
 	getVmEvents: (height: number) => Promise<VmEventRow[]>;
 
-	constructor(opts: SecondlayerSourceOptions) {
-		const base = trimSlash(opts.baseUrl);
+	constructor(opts: SecondlayerSourceOptions = {}) {
+		const base = trimSlash(opts.baseUrl ?? DEFAULT_API_URL);
 		const http: HttpOptions = {
-			headers: { authorization: `Bearer ${opts.apiKey}` },
+			headers: opts.apiKey ? { authorization: `Bearer ${opts.apiKey}` } : {},
 			fetch: opts.fetch,
 		};
 
@@ -295,9 +301,17 @@ export class SecondlayerProofSource implements ProofSource {
 		};
 
 		this.getVmEvents = async (height) => {
+			const eventsUrl = (type: string) =>
+				`${base}/v1/index/events?event_type=${type}&from_height=${height}&to_height=${height}&limit=${PAGE}`;
+			if (!opts.apiKey)
+				throw new SourceError(
+					eventsUrl(VM_WRITE_TYPES[0]),
+					401,
+					"rows: true reads metered Index events and needs an apiKey",
+				);
 			const out: VmEventRow[] = [];
 			for (const type of VM_WRITE_TYPES) {
-				const url = `${base}/v1/index/events?event_type=${type}&from_height=${height}&to_height=${height}&limit=${PAGE}`;
+				const url = eventsUrl(type);
 				out.push(...((await pages<VmEventRow>("events", url, http)) ?? []));
 			}
 			return out.sort((a, b) => a.event_index - b.event_index);

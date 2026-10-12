@@ -92,7 +92,7 @@ async function readCheckpoint(path: string): Promise<VerifyCheckpoint> {
 export function defaultSource(node?: string): ProofSource {
 	const api = new SecondlayerProofSource({
 		baseUrl: resolveApiUrl(),
-		apiKey: resolveDataPlaneKey() ?? "",
+		apiKey: resolveDataPlaneKey(),
 	});
 	return node ? { ...api, ...new NodeRpcProofSource({ nodeUrl: node }) } : api;
 }

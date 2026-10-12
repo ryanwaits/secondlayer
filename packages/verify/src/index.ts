@@ -52,6 +52,7 @@ export {
 export { MAINNET_CHECKPOINT, type VerifyCheckpoint } from "./checkpoint.ts";
 export {
 	type BurnPreimage,
+	DEFAULT_API_URL,
 	type Epoch2HeaderResponse,
 	type MarfProofResponse,
 	NodeRpcProofSource,
