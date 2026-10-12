@@ -80,10 +80,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 						title: "Receiving deliveries",
 						href: "/docs/webhooks/deliveries",
 					},
-					{
-						title: "Migrating from Chainhook",
-						href: "/docs/migrate-chainhook",
-					},
 				],
 			},
 		],

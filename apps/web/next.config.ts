@@ -100,6 +100,11 @@ const nextConfig: NextConfig = {
 				permanent: false,
 			},
 			{
+				source: "/docs/migrate-chainhook",
+				destination: "/docs/webhooks#coming-from-chainhook",
+				permanent: true,
+			},
+			{
 				source: "/index-api",
 				destination: "/docs/index",
 				permanent: true,

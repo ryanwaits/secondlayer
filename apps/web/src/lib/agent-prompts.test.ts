@@ -17,6 +17,29 @@ describe("agent prompt registry", () => {
 		expect(text).not.toContain("subgraph");
 	});
 
+	test("chainhook migration prompt reads the webhooks page and names every trigger", () => {
+		const text = getAgentPrompt("migrate-from-chainhook");
+		expect(text).toContain("secondlayer.tools/docs/webhooks.md");
+		expect(text).toContain("secondlayer webhooks create");
+		for (const name of [
+			"contractCall",
+			"printEvent",
+			"ftMint",
+			"ftTransfer",
+			"ftBurn",
+			"nftMint",
+			"nftTransfer",
+			"nftBurn",
+			"stxMint",
+			"stxTransfer",
+			"stxLock",
+			"contractDeploy",
+		]) {
+			expect(text).toContain(`trigger.${name}`);
+		}
+		expect(text).not.toContain("—");
+	});
+
 	test("test fixture prompt forbids stored secret recovery and posting", () => {
 		const text = getAgentPrompt("webhook-test", {
 			webhookName: "whale-alerts",

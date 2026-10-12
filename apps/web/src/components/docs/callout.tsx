@@ -79,16 +79,19 @@ const ICONS: Record<CalloutType, ReactNode> = {
  * `<Callout type="tip" title="…">…</Callout>` works in any .mdx with no import.
  */
 export function Callout({
+	id,
 	type = "note",
 	title,
 	children,
 }: {
+	/** Anchor for deep links, e.g. `/docs/webhooks#coming-from-chainhook`. */
+	id?: string;
 	type?: CalloutType;
 	title?: ReactNode;
 	children?: ReactNode;
 }) {
 	return (
-		<div className={`docs-callout docs-callout-${type}`} role="note">
+		<div id={id} className={`docs-callout docs-callout-${type}`} role="note">
 			<span className="docs-callout-icon" aria-hidden="true">
 				{ICONS[type]}
 			</span>

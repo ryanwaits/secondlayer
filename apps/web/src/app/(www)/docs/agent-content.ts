@@ -392,29 +392,6 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"/secondlayer Walk me through watching the local stack: `secondlayer devnet status -w` for live ingest lag and recent rows, `secondlayer devnet logs indexer -f` to tail one service, then `secondlayer devnet down` to stop — or `secondlayer devnet down --purge` to wipe the local index volumes when I'm done.",
 		),
 	],
-
-	"/docs/migrate-chainhook": [
-		card(
-			"Convert my predicate",
-			"Map a Chainhook predicate to webhook triggers.",
-			"/secondlayer I'm moving from Hiro Chainhook to Secondlayer webhooks. I'll paste my predicate JSON — map each `if_this` scope to the matching `trigger.*` factory (`contract_call`→`trigger.contractCall`, `print_event`→`trigger.printEvent`, `ft_event`/`nft_event`/`stx_event`→the mint/transfer/burn factories, `contract_deployment`→`trigger.contractDeploy`), carry over `contract_identifier`/`method`/wildcards and any `trait` scope, and build one `sl.webhooks.create({ name, url, triggers })` call. Flag any scope with no direct trigger — like `txid`, which I query on `/v1/index` instead.",
-		),
-		card(
-			"Backfill predicate history",
-			"Replace a predicate's start_block with replay.",
-			"/secondlayer Chainhook predicates scan from a `start_block`; a Secondlayer webhook starts at the chain tip. Help me deliver the history I'm missing with `replay` over an existing webhook — explain that it's idempotent, capped at 100,000 blocks, and never moves the live cursor — then give me the exact call for the block range I name.",
-		),
-		card(
-			"Verify deliveries",
-			"Swap bearer-token auth for signature verification.",
-			"/secondlayer In Chainhook I authed webhooks with a bearer token; on Secondlayer the signature is the auth. Help me verify every delivery with `verifyWebhookSignature` from `@secondlayer/sdk` before I process it, then handle the `chain.{type}.apply` and `chain.reorg.rollback` envelopes so I undo anything I committed off an orphaned block.",
-		),
-		card(
-			"Move a self-hosted v1 stack",
-			"Run the indexer against your own node, same API.",
-			"/secondlayer I was running self-hosted Chainhook (v1). Help me stand up the Secondlayer indexer against my own Stacks node instead: point the node's `events_observer` at the indexer on `:3700`, then create webhooks with the same `sl.webhooks.create` API. Same triggers, my infrastructure.",
-		),
-	],
 };
 
 /** Last-resort default for an unknown slug — every real docs page has its own

@@ -62,6 +62,7 @@ export type AgentPromptId =
 	| "webhook-create"
 	| "webhook-diagnose"
 	| "webhook-test"
+	| "migrate-from-chainhook"
 	| "cli-operate"
 	| "mcp-install";
 
@@ -229,6 +230,27 @@ export const AGENT_PROMPTS: AgentPromptDefinition[] = [
 						}
 					: undefined,
 			)}`),
+	},
+	{
+		id: "migrate-from-chainhook",
+		title: "Migrate from Chainhook",
+		audience: "Developers moving Chainhook predicates to webhooks",
+		surface: "marketing",
+		description:
+			"Convert Chainhook predicates to Secondlayer webhook triggers and create commands.",
+		tags: ["webhooks", "cli"],
+		build: () =>
+			withSetup(`${WEBHOOKS_INTRO}
+
+/secondlayer Read https://secondlayer.tools/docs/webhooks.md, then convert my Chainhook predicates to Secondlayer chain webhooks. I will paste each predicate as JSON. Map its \`if_this\` scope to a trigger:
+- \`contract_call\` (contract_identifier, method) -> \`trigger.contractCall({ contractId, functionName, caller, trait })\`
+- \`print_event\` (contract_identifier, contains or matches_regex) -> \`trigger.printEvent({ contractId, topic, trait })\`
+- \`ft_event\` mint, transfer, burn -> \`trigger.ftMint\`, \`trigger.ftTransfer\`, \`trigger.ftBurn\` (assetIdentifier, minAmount, trait)
+- \`nft_event\` mint, transfer, burn -> \`trigger.nftMint\`, \`trigger.nftTransfer\`, \`trigger.nftBurn\` (assetIdentifier, trait)
+- \`stx_event\` mint, transfer, lock -> \`trigger.stxMint\`, \`trigger.stxTransfer\`, \`trigger.stxLock\` (recipient, sender, minAmount)
+- \`contract_deployment\` (deployer, implement_trait) -> \`trigger.contractDeploy({ deployer, contractName })\`, or scope by \`trait\`
+- \`txid\` has no trigger; read /v1/index by transaction instead.
+Carry over names with \`*\` wildcards. Behavior to keep in mind: apply and rollback become \`chain.{type}.apply\` per matched event plus \`chain.reorg.rollback\` when a block is orphaned; a webhook starts at the chain tip and never backfills, so use \`replay\` over an existing webhook for history; test on devnet before mainnet. For each predicate, output one \`secondlayer webhooks create <name> --url <url> --trigger '<json>'\` command, using the raw trigger shape from the Triggers section of that page, and flag any scope with no trigger.`),
 	},
 	{
 		id: "cli-operate",
