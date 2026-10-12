@@ -1219,14 +1219,14 @@ export type InsertSubgraphHealthSnapshot =
 export type SubgraphGap = Selectable<SubgraphGapsTable>;
 export type InsertSubgraphGap = Insertable<SubgraphGapsTable>;
 
-// ── Webhooks (subgraph event webhooks) ─────────────────────
+// ── Webhooks (chain event webhooks) ─────────────────────
 
 export type WebhookStatus = "active" | "paused" | "error";
 
-/** Polymorphic webhook mode: `subgraph` reacts to processed table rows;
- *  `chain` reacts to raw chain events matched directly off the Index/Streams
- *  clock (no subgraph). See migration 0088. */
-export type WebhookKind = "subgraph" | "chain";
+/** Webhooks react to raw chain events matched directly off the Index/Streams
+ *  clock. `chain` is the only kind since migration 0159 removed subgraph-row
+ *  webhooks; the column stays as the discriminator. */
+export type WebhookKind = "chain";
 export type WebhookFormat =
 	| "standard-webhooks"
 	| "inngest"
@@ -1234,7 +1234,6 @@ export type WebhookFormat =
 	| "cloudflare"
 	| "cloudevents"
 	| "raw";
-export type WebhookRuntime = "inngest" | "trigger" | "cloudflare" | "node";
 
 export interface WebhooksTable {
 	id: Generated<string>;
@@ -1243,17 +1242,11 @@ export interface WebhooksTable {
 	name: string;
 	status: ColumnType<WebhookStatus, WebhookStatus | undefined, WebhookStatus>;
 	kind: ColumnType<WebhookKind, WebhookKind | undefined, WebhookKind>;
-	/** Null for chain webhooks (CHECK webhooks_kind_shape). */
-	subgraph_name: string | null;
-	/** Null for chain webhooks (CHECK webhooks_kind_shape). */
-	table_name: string | null;
-	/** Chain-trigger filter array (the `SubgraphFilter` shape, JSON). Null for
-	 *  subgraph webhooks. Typed loosely here to avoid a shared→subgraphs
-	 *  import cycle; the Zod schema in schemas/webhooks.ts owns the shape. */
-	triggers: unknown | null;
-	filter: Generated<unknown>;
+	/** Chain-trigger filter array (the `SubgraphFilter` shape, JSON). Typed
+	 *  loosely here to avoid a shared→subgraphs import cycle; the Zod schema in
+	 *  schemas/webhooks.ts owns the shape. */
+	triggers: unknown;
 	format: ColumnType<WebhookFormat, WebhookFormat | undefined, WebhookFormat>;
-	runtime: WebhookRuntime | null;
 	url: string;
 	signing_secret_enc: Buffer;
 	auth_config: Generated<unknown>;
@@ -1279,10 +1272,6 @@ export interface WebhookOutboxTable {
 	id: Generated<string>;
 	webhook_id: string;
 	kind: ColumnType<WebhookKind, WebhookKind | undefined, WebhookKind>;
-	/** Null for chain-webhook rows. */
-	subgraph_name: string | null;
-	/** Null for chain-webhook rows. */
-	table_name: string | null;
 	block_height: number | bigint;
 	tx_id: string | null;
 	row_pk: unknown;

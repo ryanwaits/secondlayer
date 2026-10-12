@@ -217,4 +217,27 @@ describe.skipIf(!HAS_DB)("migration upgrade parity", () => {
 		},
 		BUILD_TIMEOUT_MS,
 	);
+
+	test(
+		"0159: webhooks carry no subgraph-row columns, kind is chain only",
+		async () => {
+			const fresh = await buildSchema("both");
+			for (const column of [
+				"webhooks.subgraph_name",
+				"webhooks.table_name",
+				"webhooks.filter",
+				"webhooks.runtime",
+				"webhook_outbox.subgraph_name",
+				"webhook_outbox.table_name",
+			]) {
+				expect(fresh[`column ${column}`]).toBeUndefined();
+			}
+			expect(fresh["index webhooks_matcher_idx"]).toBeUndefined();
+			expect(fresh["constraint webhooks.webhooks_kind_shape"]).toBeDefined();
+			expect(
+				fresh["constraint webhook_outbox.webhook_outbox_kind_chain"],
+			).toBeDefined();
+		},
+		BUILD_TIMEOUT_MS,
+	);
 });
