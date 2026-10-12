@@ -3,42 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useDocsMode } from "./docs-mode";
-
-/** Bottom-of-rail copy action — the topline "Copy page" button scrolls away,
- *  so the sticky rail keeps one within reach. Same payload: article innerText. */
-function TocCopy() {
-	const [copied, setCopied] = useState(false);
-	return (
-		<div className="docs-toc-foot">
-			<button
-				type="button"
-				className="docs-toc-copy"
-				onClick={() => {
-					const el = document.getElementById("docs-article");
-					if (!el) return;
-					navigator.clipboard.writeText(el.innerText);
-					setCopied(true);
-					setTimeout(() => setCopied(false), 1500);
-				}}
-			>
-				<svg
-					width="11"
-					height="11"
-					viewBox="0 0 16 16"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="1.5"
-					strokeLinecap="round"
-					aria-hidden="true"
-				>
-					<rect x="5" y="5" width="9" height="9" rx="1.5" />
-					<path d="M5 11H3.5A1.5 1.5 0 0 1 2 9.5V3.5A1.5 1.5 0 0 1 3.5 2h6A1.5 1.5 0 0 1 11 3.5V5" />
-				</svg>
-				{copied ? "Copied" : "Copy page"}
-			</button>
-		</div>
-	);
-}
+import { PageActions } from "./page-actions";
 
 interface Head {
 	id: string;
@@ -98,28 +63,27 @@ export function DocsToc() {
 
 	// Agent mode has its own layout — no right rail.
 	if (mode === "agent") return null;
-	// The API reference carries its own endpoint tree in the sidebar and needs
-	// the rail's width for its two-column sections.
-	if (pathname === "/docs/api-reference") return null;
-	if (heads.length === 0) return <aside className="docs-toc" />;
-
 	return (
-		<aside className="docs-toc">
-			<div className="docs-toc-label">On this page</div>
-			{heads.map((h) => {
-				const cls = [
-					h.level === 3 ? "h3" : "",
-					h.id === activeId ? "active" : "",
-				]
-					.filter(Boolean)
-					.join(" ");
-				return (
-					<a key={h.id} href={`#${h.id}`} className={cls || undefined}>
-						{h.text}
-					</a>
-				);
-			})}
-			<TocCopy />
+		<aside className="docs-toc" aria-label="On this page">
+			{heads.length > 0 ? (
+				<>
+					<div className="docs-toc-label">On this page</div>
+					{heads.map((h) => {
+						const cls = [
+							h.level === 3 ? "h3" : "",
+							h.id === activeId ? "active" : "",
+						]
+							.filter(Boolean)
+							.join(" ");
+						return (
+							<a key={h.id} href={`#${h.id}`} className={cls || undefined}>
+								{h.text}
+							</a>
+						);
+					})}
+				</>
+			) : null}
+			<PageActions />
 		</aside>
 	);
 }

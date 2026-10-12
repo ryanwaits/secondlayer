@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ReactNode, useState } from "react";
+import type { ReactNode } from "react";
 import { AgentView } from "./agent-view";
 import { useDocsMode } from "./docs-mode";
 import { docsNavPages } from "./nav";
+import { PageActions } from "./page-actions";
 
 function lookup(pathname: string) {
 	const pages = docsNavPages();
@@ -20,27 +21,8 @@ function lookup(pathname: string) {
 	};
 }
 
-function CopyPageButton() {
-	const [copied, setCopied] = useState(false);
-	return (
-		<button
-			type="button"
-			className="docs-copy-page"
-			onClick={() => {
-				const el = document.getElementById("docs-article");
-				if (!el) return;
-				navigator.clipboard.writeText(el.innerText);
-				setCopied(true);
-				setTimeout(() => setCopied(false), 1500);
-			}}
-		>
-			{copied ? "Copied" : "Copy page"}
-		</button>
-	);
-}
-
 /** Switches the docs body between the human reading view (MDX) and the
- *  agent-doc view, and renders the breadcrumb + copy-page chrome for human mode. */
+ *  agent-doc view, and renders the breadcrumb + page-actions chrome for human mode. */
 export function DocsView({ children }: { children: ReactNode }) {
 	const { mode } = useDocsMode();
 	const pathname = usePathname();
@@ -66,8 +48,17 @@ export function DocsView({ children }: { children: ReactNode }) {
 						<span aria-current="page">{info.title}</span>
 					</nav>
 				)}
-				<CopyPageButton />
 			</div>
+			{/* Below the rail's width the same rows sit in a disclosure. */}
+			<details className="docs-pa-m">
+				<summary>
+					Page actions
+					<svg viewBox="0 0 12 12" aria-hidden="true">
+						<path d="M3 4.5 6 7.5l3-3" />
+					</svg>
+				</summary>
+				<PageActions />
+			</details>
 			<article className="docs-article" id="docs-article">
 				{children}
 				{info && (info.prev || info.next) ? (
