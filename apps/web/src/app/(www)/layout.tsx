@@ -1,13 +1,12 @@
 import { MarketingNav } from "@/components/marketing-nav";
 import { SiteFooter } from "@/components/site-footer";
-import { readGithubStars } from "@/lib/github-stars";
 import type { ReactNode } from "react";
+import "./site.css";
 
-export default async function WwwLayout({ children }: { children: ReactNode }) {
-	const stars = await readGithubStars();
+export default function WwwLayout({ children }: { children: ReactNode }) {
 	return (
 		<div className="www">
-			<MarketingNav stars={stars} />
+			<MarketingNav />
 			{children}
 			<SiteFooter />
 		</div>

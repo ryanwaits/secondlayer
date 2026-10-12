@@ -24,7 +24,7 @@ const ROWS: Row[] = [
 ];
 
 /**
- * Signed-out primary action: one "Get started" pill with both ways in. Hosted
+ * Signed-out primary action: one "Start free" button with both ways in. Hosted
  * first (an API key, nothing to install), then self-host: the curl script,
  * package managers and the Claude Code skill. Every self-host row copies its
  * command.
@@ -68,7 +68,7 @@ export function GetStartedMenu() {
 				aria-controls={menuId}
 				onClick={() => setOpen((v) => !v)}
 			>
-				Get started
+				Start free
 				<svg
 					className="imenu-chev"
 					width="10"

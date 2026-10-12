@@ -1,19 +1,21 @@
 "use client";
 
+import { GITHUB_URL } from "@/components/github-nav-link";
 import { Logo } from "@/components/logo";
+import { PRODUCTS } from "@/lib/site";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const COLS: { title: string; links: { label: string; href: string }[] }[] = [
+interface FooterLink {
+	label: string;
+	href: string;
+	external?: boolean;
+}
+
+const COLS: { title: string; links: readonly FooterLink[] }[] = [
 	{
-		title: "Surfaces",
-		links: [
-			{ label: "Archive", href: "/docs/archive" },
-			{ label: "Streams", href: "/docs/streams" },
-			{ label: "Index", href: "/docs/index" },
-			{ label: "Subgraphs", href: "/docs/subgraphs" },
-			{ label: "Webhooks", href: "/docs/webhooks" },
-		],
+		title: "Products",
+		links: PRODUCTS.map((p) => ({ label: p.noun, href: p.href })),
 	},
 	{
 		title: "Developers",
@@ -21,19 +23,21 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 			{ label: "CLI", href: "/docs/cli" },
 			{ label: "SDK", href: "/docs/sdk" },
 			{ label: "MCP", href: "/docs/mcp" },
-			{ label: "Verify", href: "/docs/verification" },
+			{ label: "Verify", href: "/verify" },
 		],
 	},
 	{
 		title: "Resources",
 		links: [
+			{ label: "Pricing", href: "/pricing" },
 			{ label: "Blog", href: "/writing" },
 			{ label: "Changelog", href: "/docs/changelog" },
+			{ label: "GitHub", href: GITHUB_URL, external: true },
 		],
 	},
 ];
 
-/** Marketing-page footer (dotted rules, Field Notebook). Hidden on docs. */
+/** Marketing-page footer: brand, tagline, three link columns. Hidden on docs. */
 export function SiteFooter() {
 	const pathname = usePathname();
 	if (pathname.startsWith("/docs")) return null;
@@ -47,44 +51,37 @@ export function SiteFooter() {
 							<Logo size={22} />
 							<span>secondlayer</span>
 						</Link>
-						<p>
-							Instant data for apps on Bitcoin. Inspired by the ideas behind{" "}
+						<p className="site-footer-tag">Instant data for apps on Bitcoin.</p>
+						<p className="site-footer-credit">
+							Inspired by the ideas behind{" "}
 							<a
 								href="https://paragraph.com/@aulneau/project-kourier"
 								target="_blank"
 								rel="noopener noreferrer"
-								className="footer-kourier"
 							>
 								Project Kourier
 							</a>
 							.
 						</p>
-						<p className="site-footer-copy">
-							<span>© {new Date().getFullYear()} Secondlayer</span>
-						</p>
 					</div>
-					<div className="site-footer-cols">
-						{COLS.map((col) => (
-							<div className="site-footer-col" key={col.title}>
-								<h5>{col.title}</h5>
-								<ul>
-									{col.links.map((l) =>
-										l.href.startsWith("http") ? (
-											<li key={l.label}>
-												<a href={l.href} rel="noopener noreferrer">
-													{l.label}
-												</a>
-											</li>
+					{COLS.map((col) => (
+						<div className="site-footer-col" key={col.title}>
+							<h5>{col.title}</h5>
+							<ul>
+								{col.links.map((l) => (
+									<li key={l.label}>
+										{l.external ? (
+											<a href={l.href} rel="noopener noreferrer">
+												{l.label}
+											</a>
 										) : (
-											<li key={l.label}>
-												<Link href={l.href}>{l.label}</Link>
-											</li>
-										),
-									)}
-								</ul>
-							</div>
-						))}
-					</div>
+											<Link href={l.href}>{l.label}</Link>
+										)}
+									</li>
+								))}
+							</ul>
+						</div>
+					))}
 				</div>
 			</div>
 		</footer>

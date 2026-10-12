@@ -2,7 +2,6 @@
 
 import { AccountAvatar, AccountMenu } from "@/components/account-menu";
 import { GetStartedMenu } from "@/components/get-started-menu";
-import { GITHUB_URL, GitHubNavLink } from "@/components/github-nav-link";
 import { Logo } from "@/components/logo";
 import {
 	clearAccountData,
@@ -10,34 +9,57 @@ import {
 	useAccountData,
 } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
+import { PRODUCTS, SITE_LINKS, isActive } from "@/lib/site";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
- * Marketing bar (mock shell): brand left, quiet text links + the GitHub pill
- * right. Fixed 64px with the paper/85 + blur treatment from .marketing-nav.
- * Docs keeps its own chrome — this renders null there; DocsTopNav reuses
- * the same type, GitHub pill, and session chip. The floating AuthBar is
- * hidden wherever this bar is present (globals.css), so the bar owns the
- * top edge alone.
+ * Marketing bar: brand, a Products menu (the five products), Verify, Pricing,
+ * Docs, Blog; Sign in + Start free on the right. Fixed 64px. Docs keeps its
+ * own chrome, so this renders null there. The floating AuthBar is hidden
+ * wherever this bar is present (globals.css), so the bar owns the top edge.
  *
  * The right edge follows the session: signed out gets "Sign in" and the
- * Get started menu (hosted key or self-host install); signed in gets the
+ * Start free menu (hosted key or self-host install); signed in gets the
  * account chip; while the session check is in flight a blank chip holds the
  * space, so "Sign in" never flashes at someone who is already signed in.
  */
-export function MarketingNav({ stars = null }: { stars?: number | null }) {
+export function MarketingNav() {
 	const pathname = usePathname();
 	const { account, loading, logout } = useAuth();
 	const { billing } = useAccountData();
 	const [open, setOpen] = useState(false);
+	const [productsOpen, setProductsOpen] = useState(false);
+	const productsRef = useRef<HTMLDivElement>(null);
+	const onProduct = PRODUCTS.some((p) => isActive(pathname, p.href));
 
-	// Close the sheet on navigation and on Escape; lock scroll while open.
+	// Close menus on navigation; Escape and outside click close the Products
+	// panel; Escape closes the sheet and scroll locks while it is open.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the close trigger
 	useEffect(() => {
 		setOpen(false);
+		setProductsOpen(false);
 	}, [pathname]);
+	useEffect(() => {
+		if (!productsOpen) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				setProductsOpen(false);
+				productsRef.current?.querySelector("button")?.focus();
+			}
+		};
+		const onClick = (e: MouseEvent) => {
+			if (!productsRef.current?.contains(e.target as Node))
+				setProductsOpen(false);
+		};
+		document.addEventListener("keydown", onKey);
+		document.addEventListener("click", onClick);
+		return () => {
+			document.removeEventListener("keydown", onKey);
+			document.removeEventListener("click", onClick);
+		};
+	}, [productsOpen]);
 	useEffect(() => {
 		if (!open) return;
 		const onKey = (e: KeyboardEvent) => {
@@ -60,82 +82,116 @@ export function MarketingNav({ stars = null }: { stars?: number | null }) {
 				<Logo size={22} />
 				<span>secondlayer</span>
 			</Link>
+			<div className="mnav-links">
+				<div className="mnav-products" ref={productsRef}>
+					<button
+						type="button"
+						className="mnav-products-btn"
+						aria-expanded={productsOpen}
+						aria-controls="mnav-products-panel"
+						aria-current={onProduct ? "true" : undefined}
+						onClick={() => setProductsOpen((v) => !v)}
+					>
+						Products
+						<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+							<path
+								d="M2 3.5 5 6.5 8 3.5"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.3"
+							/>
+						</svg>
+					</button>
+					{productsOpen ? (
+						<div className="mnav-products-panel" id="mnav-products-panel">
+							{PRODUCTS.map((p) => (
+								<Link
+									key={p.href}
+									href={p.href}
+									className="mnav-products-item"
+									aria-current={isActive(pathname, p.href) ? "page" : undefined}
+								>
+									{p.noun}
+									<span className="v">{p.verb}</span>
+									<span className="l">{p.line}</span>
+								</Link>
+							))}
+						</div>
+					) : null}
+				</div>
+				{SITE_LINKS.map((l) => (
+					<Link
+						key={l.href}
+						href={l.href}
+						className="mnav-plain"
+						aria-current={isActive(pathname, l.href) ? "page" : undefined}
+					>
+						{l.label}
+					</Link>
+				))}
+			</div>
 			<span className="marketing-nav-spacer" />
-			<Link
-				href="/archive"
-				className="mnav-plain"
-				aria-current={pathname === "/archive" ? "page" : undefined}
-			>
-				Archive
-			</Link>
-			<Link href="/docs" className="mnav-plain">
-				Docs
-			</Link>
-			<Link
-				href="/writing"
-				className="mnav-plain"
-				aria-current={pathname.startsWith("/writing") ? "page" : undefined}
-			>
-				Blog
-			</Link>
-			{!loading && !account ? (
-				<Link
-					href="/login"
-					className="mnav-plain"
-					aria-current={pathname === "/login" ? "page" : undefined}
+			<div className="mnav-right">
+				{!loading && !account ? (
+					<Link
+						href="/login"
+						className="mnav-plain"
+						aria-current={pathname === "/login" ? "page" : undefined}
+					>
+						Sign in
+					</Link>
+				) : null}
+				{loading ? (
+					<span className="acct-chip-skeleton" aria-hidden="true" />
+				) : account ? (
+					<>
+						<AccountMenu account={account} onSignOut={logout} />
+						<span className="acct-mobile-avatar">
+							<AccountAvatar account={account} size={28} />
+						</span>
+					</>
+				) : (
+					<GetStartedMenu />
+				)}
+				<button
+					type="button"
+					className="mnav-burger"
+					aria-expanded={open}
+					aria-label={open ? "Close menu" : "Open menu"}
+					onClick={() => setOpen((v) => !v)}
 				>
-					Sign in
-				</Link>
-			) : null}
-			<GitHubNavLink stars={stars} />
-			{loading ? (
-				<span className="acct-chip-skeleton" aria-hidden="true" />
-			) : account ? (
-				<>
-					<AccountMenu account={account} onSignOut={logout} />
-					<span className="acct-mobile-avatar">
-						<AccountAvatar account={account} size={28} />
-					</span>
-				</>
-			) : (
-				<GetStartedMenu />
-			)}
-			<button
-				type="button"
-				className="mnav-burger"
-				aria-expanded={open}
-				aria-label={open ? "Close menu" : "Open menu"}
-				onClick={() => setOpen((v) => !v)}
-			>
-				<svg
-					width="16"
-					height="16"
-					viewBox="0 0 16 16"
-					stroke="currentColor"
-					strokeWidth="1.5"
-					strokeLinecap="round"
-					aria-hidden="true"
-				>
-					{open ? (
-						<path d="M3 3l10 10M13 3L3 13" />
-					) : (
-						<path d="M2 5h12M2 11h12" />
-					)}
-				</svg>
-			</button>
+					<svg
+						width="16"
+						height="16"
+						viewBox="0 0 16 16"
+						stroke="currentColor"
+						strokeWidth="1.5"
+						strokeLinecap="round"
+						aria-hidden="true"
+					>
+						{open ? (
+							<path d="M3 3l10 10M13 3L3 13" />
+						) : (
+							<path d="M2 5h12M2 11h12" />
+						)}
+					</svg>
+				</button>
+			</div>
 			{open ? (
 				<div className="mnav-sheet">
-					<Link href="/archive">Archive</Link>
-					<Link href="/docs">Docs</Link>
-					<Link href="/writing">Blog</Link>
-					<a
-						href={GITHUB_URL}
-						target="_blank"
-						rel="noopener noreferrer"
-						onClick={() => setOpen(false)}
-					>
-						GitHub{stars !== null ? ` · ★ ${stars}` : ""}
-					</a>
+					<p className="mnav-sheet-label">Products</p>
+					{PRODUCTS.map((p) => (
+						<Link key={p.href} href={p.href} className="mnav-sheet-product">
+							{p.noun}
+							<span className="v">{p.verb}</span>
+						</Link>
+					))}
+					<p className="mnav-sheet-label">More</p>
+					{SITE_LINKS.map((l) => (
+						<Link key={l.href} href={l.href}>
+							{l.label}
+						</Link>
+					))}
 					{account ? (
 						<div className="mnav-sheet-account">
 							<div className="acct-panel-head">
