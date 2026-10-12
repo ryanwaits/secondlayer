@@ -153,9 +153,6 @@ export default function ArchivePage() {
 	return (
 		<main className="site product">
 			<div className="shell">
-				<p className="crumb">
-					Products / <b>Archive</b>
-				</p>
 				<div className="hero">
 					<div className="hero-copy">
 						<Eyebrow noun={archive.noun} verb={archive.verb} />

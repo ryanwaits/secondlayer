@@ -155,9 +155,6 @@ export default function WebhooksPage() {
 	return (
 		<main className="site product">
 			<div className="shell">
-				<p className="crumb">
-					Products / <b>Webhooks</b>
-				</p>
 				<div className="hero">
 					<div className="hero-copy">
 						<Eyebrow noun={webhooks.noun} verb={webhooks.verb} />

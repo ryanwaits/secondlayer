@@ -85,9 +85,6 @@ export default function IndexPage() {
 	return (
 		<main className="site product">
 			<div className="shell">
-				<p className="crumb">
-					Products / <b>Index</b>
-				</p>
 				<div className="hero">
 					<div className="hero-copy">
 						<Eyebrow noun={index.noun} verb={index.verb} />

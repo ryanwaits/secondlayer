@@ -130,9 +130,6 @@ export default function PricingPage() {
 	return (
 		<main className="site pricing">
 			<div className="shell">
-				<p className="crumb">
-					<b>Pricing</b>
-				</p>
 				<div className="hero">
 					<div className="hero-copy">
 						<Eyebrow noun="Pricing" verb="usage only" />

@@ -91,9 +91,6 @@ export default function SubgraphsPage() {
 	return (
 		<main className="site product">
 			<div className="shell">
-				<p className="crumb">
-					Products / <b>Subgraphs</b>
-				</p>
 				<div className="hero">
 					<div className="hero-copy">
 						<Eyebrow noun={subgraphs.noun} verb={subgraphs.verb} />

@@ -154,22 +154,16 @@
 }
 
 /* ── hero parts ────────────────────────────────────────────────────── */
-.site .crumb {
-	padding-top: 28px;
-	font-family: var(--font-mono-stack);
-	font-size: 12px;
-	color: var(--sub);
-}
-.site .crumb b {
-	font-weight: 400;
-	color: var(--ink);
-}
 .site .hero {
 	display: grid;
 	grid-template-columns: 1.02fr 1fr;
 	gap: 56px;
 	align-items: center;
 	padding-block: clamp(36px, 6vw, 80px) clamp(48px, 7vw, 96px);
+}
+.site.pricing .hero {
+	/* The statement is taller than the copy; keep the H1 where other heroes start. */
+	align-items: start;
 }
 .site .hero > * {
 	min-width: 0;
@@ -274,7 +268,7 @@
 	gap: 8px;
 	align-content: start;
 	padding-top: 20px;
-	border-top: 1px solid var(--ink);
+	border-top: 1px solid var(--line);
 }
 .site .props svg {
 	width: 20px;
@@ -612,7 +606,7 @@
 .site .which {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-	border-top: 1px solid var(--ink);
+	border-top: 1px solid var(--line);
 }
 .site .which a {
 	display: grid;
@@ -1115,7 +1109,7 @@
 	justify-content: space-between;
 	gap: 6px 24px;
 	padding-bottom: 12px;
-	border-bottom: 1px solid var(--ink);
+	border-bottom: 1px solid var(--line);
 }
 .site .spine a {
 	display: grid;
@@ -1966,8 +1960,9 @@
 .site .limit {
 	font-size: 14.5px;
 	color: var(--sub);
-	border-left: 2px solid var(--ink);
-	padding-left: 14px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	padding: 12px 14px;
 	max-width: 34rem;
 }
 .site .limit b {
@@ -2118,7 +2113,7 @@
 	gap: 10px;
 	align-content: start;
 	padding-top: 20px;
-	border-top: 1px solid var(--ink);
+	border-top: 1px solid var(--line);
 	min-width: 0;
 }
 .site .ops p {
@@ -2275,7 +2270,7 @@
 	min-width: 10px;
 }
 .site .files {
-	border-top: 1px solid var(--ink);
+	border-top: 1px solid var(--line);
 }
 .site .files > div {
 	display: grid;
@@ -2375,7 +2370,7 @@
 }
 .site .panel {
 	background: var(--paper);
-	border: 1px solid var(--ink);
+	border: 1px solid var(--line);
 	border-radius: 8px;
 	overflow: hidden;
 }
@@ -2672,7 +2667,7 @@
 	color: var(--sub);
 }
 .site.verify .gaps {
-	border-top: 1px solid var(--ink);
+	border-top: 1px solid var(--line);
 }
 .site.verify .gap {
 	display: grid;
@@ -2872,7 +2867,7 @@
 
 /* ── pricing page ──────────────────────────────────────────────────── */
 .site.pricing .stmt {
-	border: 1px solid var(--ink);
+	border: 1px solid var(--line);
 	border-radius: 8px;
 	background: var(--paper);
 	font-family: var(--font-mono-stack);
@@ -2935,7 +2930,7 @@
 	align-items: baseline;
 	gap: 12px;
 	padding: 14px 18px;
-	border-top: 1px solid var(--ink);
+	border-top: 1px solid var(--line);
 }
 .site.pricing .stmt-total b {
 	font: 500 26px / 1 var(--font-sans-stack);
@@ -2950,7 +2945,7 @@
 .site.pricing .freegrid {
 	display: grid;
 	grid-template-columns: repeat(4, 1fr);
-	border-top: 1px solid var(--ink);
+	border-top: 1px solid var(--line);
 }
 .site.pricing .freegrid > div {
 	display: grid;
@@ -3167,7 +3162,7 @@
 	align-items: baseline;
 	gap: 12px;
 	padding-top: 12px;
-	border-top: 1px solid var(--ink);
+	border-top: 1px solid var(--line);
 }
 .site.pricing .total b {
 	font: 500 clamp(32px, 4vw, 44px) / 1 var(--font-sans-stack);
