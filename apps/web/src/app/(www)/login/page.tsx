@@ -124,7 +124,10 @@ export default function LoginPage() {
 							Or click the link in your email to sign in directly.
 						</p>
 						{devToken && (
-							<a href={`/verify?token=${devToken}`} className="login-dev-link">
+							<a
+								href={`/auth/verify?token=${devToken}`}
+								className="login-dev-link"
+							>
 								[DEV] Click to verify →
 							</a>
 						)}

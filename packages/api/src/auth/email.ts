@@ -16,7 +16,7 @@ export async function sendMagicLink(
 	}
 
 	const webUrl = process.env.WEB_URL ?? "https://secondlayer.tools";
-	const verifyUrl = `${webUrl}/verify?token=${token}`;
+	const verifyUrl = `${webUrl}/auth/verify?token=${token}`;
 
 	const { html, text } = renderEmail({
 		heading: "Your login code",

@@ -21,7 +21,7 @@ const examples: Record<string, ReturnType<typeof renderEmail>> = {
 		code: "482913",
 		cta: {
 			label: "Sign in to secondlayer",
-			url: "https://secondlayer.tools/verify?token=example-token",
+			url: "https://secondlayer.tools/auth/verify?token=example-token",
 		},
 		footnote:
 			"This expires in 15 minutes. If you didn't request this, you can safely ignore this email.",
