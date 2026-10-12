@@ -85,23 +85,21 @@ await sql.listen("sbtc_transfers", async (id) => {
 
 ### Hosted
 
-Hosted tables live in your account's private stack, so read them over the API. Poll and keep the last `_id` you handled:
+Hosted tables live in your account's private stack, so read them over the API. Poll and keep the last `next_cursor`:
 
 ```ts
-let cursor = await loadCursor(); // last _id handled, or undefined
+let cursor = await loadCursor(); // last next_cursor saved, or undefined
 
 for (;;) {
-  const { rows } = await sl.subgraphs.rows("sbtc-flows", "transfers", { cursor, order: "asc", limit: 100 });
-  for (const row of rows) {
-    await handle(row);
-    cursor = String(row._id);
-    await saveCursor(cursor);
-  }
-  if (rows.length < 100) await new Promise((r) => setTimeout(r, 5_000));
+  const res = await sl.subgraphs.rows("sbtc-flows", "transfers", { cursor, order: "asc", limit: 100 });
+  for (const row of res.rows) await handle(row);
+  cursor = res.next_cursor ?? cursor;
+  await saveCursor(cursor);
+  if (res.rows.length < 100) await new Promise((r) => setTimeout(r, 5_000));
 }
 ```
 
-With the default order the cursor is the row's `_id`, so a short page still tells you where to resume. A reorg rewrites the affected rows under new `_id`s: polling sees the new rows, not the removed ones, so wait until a row is a few blocks behind `tip` before you move money on it.
+`next_cursor` comes back on every page that has rows, and is `null` only on an empty page, so `cursor = res.next_cursor ?? cursor` keeps your place while nothing new arrives. A paging loop that reads a whole table ends on an empty or short page. A reorg rewrites the affected rows under new `_id`s: polling sees the new rows, not the removed ones, so wait until a row is a few blocks behind `tip` before you move money on it.
 
 ## Typed ORM schemas (codegen)
 

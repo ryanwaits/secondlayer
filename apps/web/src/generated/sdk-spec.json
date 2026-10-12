@@ -1309,7 +1309,7 @@
 					"summary": "",
 					"signature": "Subgraphs(options?: object): unknown",
 					"file": "src/subgraphs/client.ts",
-					"line": 155
+					"line": 156
 				},
 				{
 					"name": "SubgraphSpecFormat",

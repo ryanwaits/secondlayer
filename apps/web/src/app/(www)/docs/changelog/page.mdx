@@ -67,6 +67,10 @@ Hosted reads of `/v1/index/blocks` are never billed and never return a `402`, ev
 
 ## Subgraphs — October 2026
 
+### Subgraph reads return `next_cursor` on every page with rows
+
+`GET /v1/subgraphs/<name>/<table>` used to set `next_cursor` only on a full page. It now comes back on every page that has rows and is `null` only on an empty page, so a poller tails with `cursor = next_cursor ?? cursor`. A loop that pages through a whole table ends on an empty or short page, one request later than before when the last page was full. `secondlayer verify subgraph --replay` already stops on a short page. See [React to your rows](/docs/subgraphs/reading#react-to-your-rows).
+
 ### Subgraphs whose rows anyone can recompute (CLI 19.3)
 
 Every deploy now reports a verification level and a `pin`. A subgraph whose sources are all state writes (`var_set`, `map_*`) is level `state`: its rows can be rebuilt from block headers, so a handler that reads `Date`, `Math.random`, `fetch`, timers or locale formatting is refused with `NONDETERMINISTIC_HANDLER`, naming each use by file, line and column. It then runs in a locked-down realm that rejects the same calls and any non-integer number in a row. Event sources are level `events` until event proofs ship; they deploy exactly as before and get the same findings as advice. `pin` hashes the schema, bundled handler, `startBlock`, network and runtime, so a handler-only redeploy changes it. Both show in `secondlayer subgraphs status` and the subgraph detail. Subgraphs deployed earlier show none until redeployed. See [Writing handlers](/docs/subgraphs/handlers#rows-anyone-can-recompute).

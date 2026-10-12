@@ -290,7 +290,7 @@ export const subgraphsPaths = {
 		get: {
 			tags: ["subgraphs"],
 			summary: "List a table's rows",
-			description: `Rows from one subgraph table, keyset-paginated. By default pages walk \`_id\`; \`_sort\` walks one column instead, with \`_id\` as the tiebreaker. Pass \`next_cursor\` back as \`cursor\` to continue. \`_offset\` is refused (400): deep OFFSET scans hurt on big tables. \`_limit\` defaults to ${DEFAULT_LIMIT}.`,
+			description: `Rows from one subgraph table, keyset-paginated. By default pages walk \`_id\`; \`_sort\` walks one column instead, with \`_id\` as the tiebreaker. \`next_cursor\` is set on every page that returned rows and is \`null\` only on an empty page: pass it back as \`cursor\` to continue, or tail new rows with \`cursor = next_cursor ?? cursor\`. \`_offset\` is refused (400): deep OFFSET scans hurt on big tables. \`_limit\` defaults to ${DEFAULT_LIMIT}.`,
 			security: READ_SECURITY,
 			parameters: [
 				NAME_PARAM,
@@ -610,7 +610,7 @@ export const subgraphsSchemas = {
 			next_cursor: {
 				type: ["string", "null"],
 				description:
-					"Pass back as `cursor` for the next page. Set on every full page, so the page after the last full one can be empty. `null` on a short page, which means you are at the end. Without `_sort` it is the last row's `_id`; with `_sort` it is an opaque token.",
+					"Pass back as `cursor` to resume after this page. Set on every page that returned rows, including a short last page; `null` only on an empty page, which means you are caught up. To tail, keep the last cursor you got: `cursor = next_cursor ?? cursor`. Without `_sort` it is the last row's `_id`; with `_sort` it is an opaque token.",
 			},
 			tip: { $ref: "#/components/schemas/SubgraphTip" },
 		},
