@@ -93,7 +93,7 @@
 				}
 			},
 			"Reorg": {
-				"title": "reorg",
+				"title": "Reorg",
 				"type": "object",
 				"description": "A fork the indexer rolled back. Rows inside `orphaned_range` were replaced; undo anything you committed from them.",
 				"properties": {
@@ -260,7 +260,7 @@
 				}
 			},
 			"BatchResponse": {
-				"title": "batch response",
+				"title": "Batch response",
 				"type": "object",
 				"description": "The batch results.",
 				"required": [
@@ -334,7 +334,7 @@
 				}
 			},
 			"ArchiveVerifyResult": {
-				"title": "archive verification",
+				"title": "Archive verification",
 				"type": "object",
 				"description": "The outcome of an archive comparison.",
 				"required": [
@@ -467,7 +467,7 @@
 				}
 			},
 			"SubgraphRow": {
-				"title": "subgraph row",
+				"title": "Subgraph row",
 				"type": "object",
 				"description": "One row of a subgraph table. Every table has the four system columns below; the definition's own columns follow, each as its JSON type: `uint` and `int` (Postgres NUMERIC) as decimal strings, so values past 2^53 stay exact; `text` and `principal` as strings; `boolean` as a boolean; `timestamp` as an ISO 8601 string; `jsonb` as JSON. A `nullable` column can be `null`. `_fields` narrows the set.",
 				"required": [
@@ -539,7 +539,7 @@
 				}
 			},
 			"SubgraphRowsPage": {
-				"title": "subgraph rows page",
+				"title": "Subgraph rows page",
 				"type": "object",
 				"description": "One page of rows from `GET /v1/subgraphs/{name}/{table}`.",
 				"required": [
@@ -588,7 +588,7 @@
 				}
 			},
 			"SubgraphRowCount": {
-				"title": "subgraph row count",
+				"title": "Subgraph row count",
 				"type": "object",
 				"required": [
 					"count"
@@ -604,7 +604,7 @@
 				}
 			},
 			"SubgraphAggregates": {
-				"title": "subgraph aggregates",
+				"title": "Subgraph aggregates",
 				"type": "object",
 				"description": "Only the aggregates you asked for are present. Sums, minimums and maximums are strings so large values stay exact.",
 				"properties": {
@@ -738,7 +738,7 @@
 				}
 			},
 			"SubgraphDirectory": {
-				"title": "subgraph directory",
+				"title": "Subgraph directory",
 				"type": "object",
 				"required": [
 					"subgraphs",
@@ -808,7 +808,7 @@
 				}
 			},
 			"Subgraph": {
-				"title": "subgraph",
+				"title": "Subgraph",
 				"type": "object",
 				"description": "Metadata for one subgraph.",
 				"properties": {
@@ -945,7 +945,7 @@
 				}
 			},
 			"SubgraphOpenApiDocument": {
-				"title": "subgraph OpenAPI document",
+				"title": "Subgraph OpenAPI document",
 				"type": "object",
 				"description": "OpenAPI 3.1 document generated from the definition.",
 				"properties": {
@@ -1923,7 +1923,7 @@
 				}
 			},
 			"SubgraphAgentSchema": {
-				"title": "subgraph agent schema",
+				"title": "Subgraph agent schema",
 				"type": "object",
 				"description": "Compact description of a subgraph for agents and tools.",
 				"properties": {
@@ -2431,7 +2431,7 @@
 				}
 			},
 			"ContractCall": {
-				"title": "contract call",
+				"title": "Contract call",
 				"type": "object",
 				"description": "One top-level contract-call transaction, arguments and result decoded to JSON. Clarity integers come back as decimal strings.",
 				"required": [
@@ -2525,7 +2525,7 @@
 				}
 			},
 			"StateWrite": {
-				"title": "state write",
+				"title": "State write",
 				"type": "object",
 				"description": "One MARF write a block committed, as the node's `state_writes` observer key delivered it.",
 				"required": [
@@ -2617,7 +2617,7 @@
 				}
 			},
 			"CanonicalBlock": {
-				"title": "canonical block",
+				"title": "Canonical block",
 				"type": "object",
 				"description": "One height of the canonical chain: the hash, its parent, and the Bitcoin anchor. Every row is canonical.",
 				"required": [
@@ -2667,7 +2667,7 @@
 				}
 			},
 			"Block": {
-				"title": "block",
+				"title": "Block",
 				"type": "object",
 				"description": "A Stacks block: chain linkage and Bitcoin anchor. Only what ingest stores; no miner, tx count or cost data.",
 				"required": [
@@ -2799,7 +2799,7 @@
 				}
 			},
 			"Transaction": {
-				"title": "transaction",
+				"title": "Transaction",
 				"type": "object",
 				"description": "A confirmed transaction: stored columns plus what decodes from the raw bytes. Payload objects appear only for the matching `tx_type`. Decoded fields are `null` when the raw bytes do not decode (burnchain ops).",
 				"required": [
@@ -3058,7 +3058,7 @@
 				}
 			},
 			"MempoolTransaction": {
-				"title": "mempool transaction",
+				"title": "Mempool transaction",
 				"type": "object",
 				"description": "A pending transaction: the transaction document before it has a block, so no height, index, status or result, plus when this instance first saw it.",
 				"required": [
@@ -3246,7 +3246,7 @@
 				}
 			},
 			"TransactionProof": {
-				"title": "transaction proof",
+				"title": "Transaction proof",
 				"type": "object",
 				"description": "Everything needed to verify inclusion offline. Hex values have no `0x` prefix.",
 				"required": [
@@ -3382,7 +3382,7 @@
 				}
 			},
 			"PrintSchema": {
-				"title": "print schema",
+				"title": "Print schema",
 				"type": "object",
 				"description": "A contract's print payloads, grouped by `topic` and typed field by field from the events sampled.",
 				"required": [
@@ -4307,7 +4307,7 @@
 				}
 			},
 			"RuneEntry": {
-				"title": "rune entry",
+				"title": "Rune entry",
 				"type": "object",
 				"description": "One etched rune's full entry — identity, premine/mint/burn counters, computed supply, and mint terms.",
 				"required": [
@@ -4458,7 +4458,7 @@
 				}
 			},
 			"RuneEvent": {
-				"title": "rune event",
+				"title": "Rune event",
 				"type": "object",
 				"description": "One etch/mint/transfer/burn event from `rune_events`, with the rune's identity embedded so an activity feed never needs a second lookup to show a name.",
 				"required": [
@@ -4546,7 +4546,7 @@
 				}
 			},
 			"RuneBalance": {
-				"title": "rune balance",
+				"title": "Rune balance",
 				"type": "object",
 				"description": "A rune's balance on one unspent output, with the rune's identity embedded.",
 				"required": [
@@ -4595,7 +4595,7 @@
 				}
 			},
 			"RuneRefSummary": {
-				"title": "rune identity",
+				"title": "Rune identity",
 				"type": "object",
 				"description": "The rune identity bundle every Runes response embeds, so a client never needs a second lookup just to show a name.",
 				"required": [
@@ -6218,7 +6218,7 @@
 				}
 			},
 			"SubgraphBundle": {
-				"title": "subgraph bundle",
+				"title": "Subgraph bundle",
 				"type": "object",
 				"description": "A compiled subgraph. Everything but `ok` and `bundleSize` is the body for `POST /api/subgraphs`.",
 				"required": [
@@ -6301,7 +6301,7 @@
 				}
 			},
 			"DeployedSubgraph": {
-				"title": "deployed subgraph",
+				"title": "Deployed subgraph",
 				"type": "object",
 				"description": "One deployed subgraph, as the list returns it.",
 				"required": [
@@ -6632,7 +6632,7 @@
 				}
 			},
 			"DeployedSubgraphDetail": {
-				"title": "deployed subgraph detail",
+				"title": "Deployed subgraph detail",
 				"type": "object",
 				"description": "One deployed subgraph in full.",
 				"required": [
@@ -6866,7 +6866,7 @@
 				}
 			},
 			"SubgraphOperationQueued": {
-				"title": "queued operation",
+				"title": "Queued operation",
 				"type": "object",
 				"description": "A reindex or backfill accepted into the queue.",
 				"required": [
@@ -6914,7 +6914,7 @@
 				}
 			},
 			"SubgraphOperation": {
-				"title": "subgraph operation",
+				"title": "Subgraph operation",
 				"type": "object",
 				"description": "A reindex or backfill. One per subgraph can be queued or running at a time.",
 				"required": [
@@ -7074,7 +7074,7 @@
 				}
 			},
 			"SubgraphGap": {
-				"title": "subgraph gap",
+				"title": "Subgraph gap",
 				"type": "object",
 				"description": "A block range the subgraph did not process.",
 				"required": [
@@ -7130,7 +7130,7 @@
 				}
 			},
 			"SubgraphViolation": {
-				"title": "print validation skip",
+				"title": "Print validation skip",
 				"type": "object",
 				"description": "A print event skipped because its payload did not match the declared `prints` schema.",
 				"required": [
@@ -7191,7 +7191,7 @@
 				}
 			},
 			"WebhookSummary": {
-				"title": "webhook summary",
+				"title": "Webhook summary",
 				"type": "object",
 				"description": "A webhook as it appears in the list.",
 				"required": [
@@ -7305,7 +7305,7 @@
 				}
 			},
 			"Webhook": {
-				"title": "webhook",
+				"title": "Webhook",
 				"type": "object",
 				"description": "A webhook's full config and delivery health. Never includes the signing secret.",
 				"required": [
@@ -7517,7 +7517,7 @@
 				}
 			},
 			"WebhookWithSecret": {
-				"title": "webhook with its signing secret",
+				"title": "Webhook with its signing secret",
 				"type": "object",
 				"description": "Returned by create and rotate-secret only. The one place the signing secret appears.",
 				"required": [
@@ -7873,7 +7873,7 @@
 				}
 			},
 			"WebhookReplayResult": {
-				"title": "webhook replay",
+				"title": "Webhook replay",
 				"type": "object",
 				"description": "What a replay queued.",
 				"required": [
@@ -7902,7 +7902,7 @@
 				}
 			},
 			"WebhookTestResult": {
-				"title": "webhook test result",
+				"title": "Webhook test result",
 				"type": "object",
 				"description": "Outcome of one test delivery.",
 				"required": [
@@ -7950,7 +7950,7 @@
 				}
 			},
 			"WebhookDelivery": {
-				"title": "webhook delivery",
+				"title": "Webhook delivery",
 				"type": "object",
 				"description": "One HTTP attempt to deliver an event.",
 				"required": [
@@ -8042,7 +8042,7 @@
 				}
 			},
 			"WebhookDeadEvent": {
-				"title": "dead-lettered webhook event",
+				"title": "Dead-lettered webhook event",
 				"type": "object",
 				"description": "An event that used up its retries without a 2xx.",
 				"required": [
@@ -8130,7 +8130,7 @@
 				}
 			},
 			"ContractAbi": {
-				"title": "contract ABI",
+				"title": "Contract ABI",
 				"type": "object",
 				"description": "A Clarity contract interface, exactly as the Stacks node's `/v2/contracts/interface` returns it.",
 				"properties": {
@@ -8245,7 +8245,7 @@
 				}
 			},
 			"ProofBurnBlock": {
-				"title": "burn block proof",
+				"title": "Burn block proof",
 				"type": "object",
 				"description": "A sortition's consensus-hash preimage and the Bitcoin block it commits to.",
 				"properties": {
@@ -8400,7 +8400,7 @@
 				}
 			},
 			"InstanceFeatures": {
-				"title": "instance feature manifest",
+				"title": "Instance feature manifest",
 				"type": "object",
 				"description": "The declared mode and the modules this instance runs.",
 				"properties": {
@@ -8441,7 +8441,7 @@
 				}
 			},
 			"InstanceCatalog": {
-				"title": "instance catalog",
+				"title": "Instance catalog",
 				"type": "object",
 				"description": "What this instance is and holds.",
 				"properties": {
@@ -8556,7 +8556,7 @@
 				}
 			},
 			"InstanceMetrics": {
-				"title": "instance metrics",
+				"title": "Instance metrics",
 				"type": "object",
 				"description": "Operational vitals.",
 				"properties": {

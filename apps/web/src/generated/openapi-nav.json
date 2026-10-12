@@ -8,7 +8,7 @@
 			},
 			{
 				"anchor": "batch-response-object",
-				"title": "The batch response object"
+				"title": "The Batch response object"
 			}
 		],
 		"endpoints": [
@@ -50,35 +50,35 @@
 			},
 			{
 				"anchor": "contract-call-object",
-				"title": "The contract call object"
+				"title": "The Contract call object"
 			},
 			{
 				"anchor": "canonical-block-object",
-				"title": "The canonical block object"
+				"title": "The Canonical block object"
 			},
 			{
 				"anchor": "state-write-object",
-				"title": "The state write object"
+				"title": "The State write object"
 			},
 			{
 				"anchor": "block-object",
-				"title": "The block object"
+				"title": "The Block object"
 			},
 			{
 				"anchor": "transaction-object",
-				"title": "The transaction object"
+				"title": "The Transaction object"
 			},
 			{
 				"anchor": "transaction-proof-object",
-				"title": "The transaction proof object"
+				"title": "The Transaction proof object"
 			},
 			{
 				"anchor": "mempool-transaction-object",
-				"title": "The mempool transaction object"
+				"title": "The Mempool transaction object"
 			},
 			{
 				"anchor": "print-schema-object",
-				"title": "The print schema object"
+				"title": "The Print schema object"
 			},
 			{
 				"anchor": "stacking-action-object",
@@ -94,15 +94,15 @@
 			},
 			{
 				"anchor": "rune-entry-object",
-				"title": "The rune entry object"
+				"title": "The Rune entry object"
 			},
 			{
 				"anchor": "rune-event-object",
-				"title": "The rune event object"
+				"title": "The Rune event object"
 			},
 			{
 				"anchor": "rune-balance-object",
-				"title": "The rune balance object"
+				"title": "The Rune balance object"
 			},
 			{
 				"anchor": "sbtc-event-object",
@@ -278,7 +278,7 @@
 			},
 			{
 				"anchor": "reorg-object",
-				"title": "The reorg object"
+				"title": "The Reorg object"
 			},
 			{
 				"anchor": "streams-canonical-block-object",
@@ -327,7 +327,7 @@
 		"objects": [
 			{
 				"anchor": "proof-burn-block-object",
-				"title": "The burn block proof object"
+				"title": "The Burn block proof object"
 			},
 			{
 				"anchor": "bitcoin-headers-object",
@@ -390,31 +390,31 @@
 		"objects": [
 			{
 				"anchor": "subgraph-directory-object",
-				"title": "The subgraph directory object"
+				"title": "The Subgraph directory object"
 			},
 			{
 				"anchor": "subgraph-object",
-				"title": "The subgraph object"
+				"title": "The Subgraph object"
 			},
 			{
 				"anchor": "subgraph-open-api-document-object",
-				"title": "The subgraph OpenAPI document object"
+				"title": "The Subgraph OpenAPI document object"
 			},
 			{
 				"anchor": "subgraph-agent-schema-object",
-				"title": "The subgraph agent schema object"
+				"title": "The Subgraph agent schema object"
 			},
 			{
 				"anchor": "subgraph-rows-page-object",
-				"title": "The subgraph rows page object"
+				"title": "The Subgraph rows page object"
 			},
 			{
 				"anchor": "subgraph-row-count-object",
-				"title": "The subgraph row count object"
+				"title": "The Subgraph row count object"
 			},
 			{
 				"anchor": "subgraph-aggregates-object",
-				"title": "The subgraph aggregates object"
+				"title": "The Subgraph aggregates object"
 			}
 		],
 		"endpoints": [
@@ -475,7 +475,7 @@
 		"objects": [
 			{
 				"anchor": "archive-verify-result-object",
-				"title": "The archive verification object"
+				"title": "The Archive verification object"
 			}
 		],
 		"endpoints": [
@@ -491,31 +491,31 @@
 		"objects": [
 			{
 				"anchor": "deployed-subgraph-object",
-				"title": "The deployed subgraph object"
+				"title": "The Deployed subgraph object"
 			},
 			{
 				"anchor": "subgraph-bundle-object",
-				"title": "The subgraph bundle object"
+				"title": "The Subgraph bundle object"
 			},
 			{
 				"anchor": "deployed-subgraph-detail-object",
-				"title": "The deployed subgraph detail object"
+				"title": "The Deployed subgraph detail object"
 			},
 			{
 				"anchor": "subgraph-operation-queued-object",
-				"title": "The queued operation object"
+				"title": "The Queued operation object"
 			},
 			{
 				"anchor": "subgraph-operation-object",
-				"title": "The subgraph operation object"
+				"title": "The Subgraph operation object"
 			},
 			{
 				"anchor": "subgraph-gap-object",
-				"title": "The subgraph gap object"
+				"title": "The Subgraph gap object"
 			},
 			{
 				"anchor": "subgraph-violation-object",
-				"title": "The print validation skip object"
+				"title": "The Print validation skip object"
 			}
 		],
 		"endpoints": [
@@ -586,31 +586,31 @@
 		"objects": [
 			{
 				"anchor": "webhook-summary-object",
-				"title": "The webhook summary object"
+				"title": "The Webhook summary object"
 			},
 			{
 				"anchor": "webhook-with-secret-object",
-				"title": "The webhook with its signing secret object"
+				"title": "The Webhook with its signing secret object"
 			},
 			{
 				"anchor": "webhook-object",
-				"title": "The webhook object"
+				"title": "The Webhook object"
 			},
 			{
 				"anchor": "webhook-test-result-object",
-				"title": "The webhook test result object"
+				"title": "The Webhook test result object"
 			},
 			{
 				"anchor": "webhook-delivery-object",
-				"title": "The webhook delivery object"
+				"title": "The Webhook delivery object"
 			},
 			{
 				"anchor": "webhook-dead-event-object",
-				"title": "The dead-lettered webhook event object"
+				"title": "The Dead-lettered webhook event object"
 			},
 			{
 				"anchor": "webhook-replay-result-object",
-				"title": "The webhook replay object"
+				"title": "The Webhook replay object"
 			}
 		],
 		"endpoints": [
@@ -686,7 +686,7 @@
 		"objects": [
 			{
 				"anchor": "contract-abi-object",
-				"title": "The contract ABI object"
+				"title": "The Contract ABI object"
 			}
 		],
 		"endpoints": [
@@ -702,15 +702,15 @@
 		"objects": [
 			{
 				"anchor": "instance-catalog-object",
-				"title": "The instance catalog object"
+				"title": "The Instance catalog object"
 			},
 			{
 				"anchor": "instance-features-object",
-				"title": "The instance feature manifest object"
+				"title": "The Instance feature manifest object"
 			},
 			{
 				"anchor": "instance-metrics-object",
-				"title": "The instance metrics object"
+				"title": "The Instance metrics object"
 			}
 		],
 		"endpoints": [
