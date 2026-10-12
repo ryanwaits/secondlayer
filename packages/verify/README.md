@@ -30,15 +30,14 @@ bun add @secondlayer/verify
 ```ts
 import { SecondlayerProofSource, verifyBlock } from "@secondlayer/verify";
 
-const source = new SecondlayerProofSource({
-  baseUrl: "https://api.secondlayer.tools",
-  apiKey: process.env.SECONDLAYER_API_KEY!, // any account key; proofs are never billed
-});
+const source = new SecondlayerProofSource(); // hosted API, no key needed
 
 const result = await verifyBlock(9_137_005, { source });
 if (!result.ok) throw new Error(result.failures[0]?.message); // first broken link
 console.log(result.blockId, result.stateRoot, result.diff?.writes.length);
 ```
+
+Limits on the hosted API: 10 requests per second per IP (1 for witnesses). Pass `{ apiKey }` for 20 and 2; `rows: true` needs a key. The package runs in browsers as well as Node.
 
 With your own node, blocks and MARF proofs come from its RPC. Witnesses, burn preimages and Bitcoin headers still come from the API, checked the same way:
 
@@ -46,7 +45,7 @@ With your own node, blocks and MARF proofs come from its RPC. Witnesses, burn pr
 import { NodeRpcProofSource } from "@secondlayer/verify";
 
 const source = {
-  ...new SecondlayerProofSource({ baseUrl: "https://api.secondlayer.tools", apiKey }),
+  ...new SecondlayerProofSource(),
   ...new NodeRpcProofSource({ nodeUrl: "http://localhost:20443" }),
 };
 ```

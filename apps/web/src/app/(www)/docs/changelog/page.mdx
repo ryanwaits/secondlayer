@@ -31,6 +31,10 @@ A `state` subgraph can now be checked end to end on your machine. `secondlayer v
 
 ## SDK — October 2026
 
+### Check a block without an account
+
+`@secondlayer/verify` and `/v1/proofs` no longer need a key. Check a block from a script, a wallet or a web page with `new SecondlayerProofSource()`; add a key for higher rate limits.
+
 ### Check blocks older than the checkpoint (`@secondlayer/verify` 0.2)
 
 `verifyBlock` now proves any height, not just blocks after the checkpoint. A block below it is tied to the checkpoint by a hash chain: parent links for nearby blocks, one proof from the chain's own height index for distant ones, epoch 2.x blocks included. `secondlayer verify block <height>` shows that link. Nothing new to configure.
