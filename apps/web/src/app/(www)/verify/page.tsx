@@ -171,8 +171,7 @@ export default function VerifyPage() {
 					<div className="hero-copy">
 						<Eyebrow noun="Verify" />
 						<h1>
-							An index <Highlight>you can check,</Highlight> not one you have to
-							trust.
+							Trust, <Highlight>and verify.</Highlight>
 						</h1>
 						<p className="lede">{LEDE}</p>
 						<div className="btns">
