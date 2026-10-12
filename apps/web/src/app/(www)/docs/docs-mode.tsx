@@ -16,8 +16,19 @@ const DocsModeContext = createContext<{
 	setMode: (m: Mode) => void;
 }>({ mode: "human", setMode: () => {} });
 
+const DocsDrawerContext = createContext<{
+	open: boolean;
+	setOpen: (open: boolean) => void;
+}>({ open: false, setOpen: () => {} });
+
+/** Phone nav drawer: the top bar's burger opens it, the sidebar renders it. */
+export function useDocsDrawer() {
+	return useContext(DocsDrawerContext);
+}
+
 export function DocsModeProvider({ children }: { children: ReactNode }) {
 	const [mode, setModeState] = useState<Mode>("human");
+	const [drawerOpen, setDrawerOpen] = useState(false);
 
 	// `?mode=agent` wins over the saved choice — llms.txt hands that URL to
 	// agents, and it was inert (localStorage-only) until now, so the file was
@@ -76,7 +87,11 @@ export function DocsModeProvider({ children }: { children: ReactNode }) {
 
 	return (
 		<DocsModeContext.Provider value={{ mode, setMode }}>
-			{children}
+			<DocsDrawerContext.Provider
+				value={{ open: drawerOpen, setOpen: setDrawerOpen }}
+			>
+				{children}
+			</DocsDrawerContext.Provider>
 		</DocsModeContext.Provider>
 	);
 }
@@ -85,26 +100,21 @@ export function useDocsMode() {
 	return useContext(DocsModeContext);
 }
 
-/** Floating Human | Agent switch (every.to-style), painted in our tokens.
- *  Each tab leads with its [H] / [A] keycap (same style as the nav links) to
- *  signal the keyboard shortcut. */
+/** Human | Agent switch for the docs top bar. The shortcut hints (H / A,
+ *  ⌘←/→) live in the title and aria-keyshortcuts so the control stays quiet. */
 export function ModeToggle() {
 	const { mode, setMode } = useDocsMode();
 	return (
-		<div className="docs-mode-toggle" role="tablist" aria-label="Reading mode">
+		<div className="docs-seg" role="tablist" aria-label="Docs view">
 			<button
 				type="button"
 				role="tab"
 				aria-selected={mode === "human"}
 				aria-keyshortcuts="H"
 				title="Human view (H or ⌘←)"
-				className={mode === "human" ? "active" : ""}
 				onClick={() => setMode("human")}
 			>
-				<span className="docs-mode-key" aria-hidden="true">
-					[H]
-				</span>
-				<span className="docs-mode-label">Human</span>
+				Human
 			</button>
 			<button
 				type="button"
@@ -112,13 +122,9 @@ export function ModeToggle() {
 				aria-selected={mode === "agent"}
 				aria-keyshortcuts="A"
 				title="Agent view (A or ⌘→)"
-				className={mode === "agent" ? "active" : ""}
 				onClick={() => setMode("agent")}
 			>
-				<span className="docs-mode-key" aria-hidden="true">
-					[A]
-				</span>
-				<span className="docs-mode-label">Agent</span>
+				Agent
 			</button>
 		</div>
 	);

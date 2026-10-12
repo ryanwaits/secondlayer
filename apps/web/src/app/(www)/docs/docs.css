@@ -1,0 +1,205 @@
+/* Docs layout: top bar, then a three-column shell (sidebar, reading column,
+   rail). Tokens only; every color comes from the shared role tokens in
+   globals.css (--paper, --ink, --sub, --line, --soft, --pri, --hi, --alarm,
+   --term*). */
+
+/* ── top bar ── */
+.docs-top {
+	position: sticky;
+	top: env(safe-area-inset-top, 0px);
+	z-index: 40;
+	background: var(--paper);
+	border-bottom: 1px solid var(--line);
+}
+.docs-top-in {
+	height: 56px;
+	display: flex;
+	align-items: center;
+	gap: 18px;
+	padding-inline: 20px;
+}
+.docs-mark {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	flex: none;
+	font-weight: 500;
+	letter-spacing: -0.02em;
+	color: var(--ink);
+}
+.docs-mark-tag {
+	font: 12px var(--font-mono-stack);
+	color: var(--sub);
+	padding: 2px 6px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+}
+.docs-search {
+	flex: 1;
+	max-width: 360px;
+	height: 34px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 0 10px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--soft);
+	color: var(--sub);
+	font: 13.5px var(--font-sans-stack);
+	text-align: left;
+	cursor: pointer;
+}
+.docs-search:hover {
+	border-color: var(--sub);
+}
+.docs-search svg {
+	flex: none;
+}
+.docs-search kbd {
+	margin-left: auto;
+	font: 11px var(--font-mono-stack);
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	padding: 1px 5px;
+	background: var(--paper);
+}
+.docs-seg {
+	display: inline-flex;
+	flex: none;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	padding: 2px;
+	gap: 2px;
+}
+.docs-seg button {
+	font: 500 12.5px var(--font-sans-stack);
+	color: var(--sub);
+	background: none;
+	border: 0;
+	height: 26px;
+	padding: 0 10px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+.docs-seg button:hover:not([aria-selected="true"]) {
+	color: var(--ink);
+}
+.docs-seg button[aria-selected="true"] {
+	background: var(--ink);
+	color: var(--paper);
+}
+.docs-top-links {
+	display: flex;
+	gap: 18px;
+	margin-left: auto;
+	align-items: center;
+	font-size: 14px;
+	color: var(--sub);
+}
+.docs-top-links a:hover,
+.docs-products > button:hover {
+	color: var(--ink);
+}
+.docs-products {
+	position: relative;
+}
+.docs-products > button {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font: inherit;
+	color: inherit;
+	background: none;
+	border: 0;
+	cursor: pointer;
+}
+.docs-products > button[aria-expanded="true"] svg {
+	transform: rotate(180deg);
+}
+.docs-products-panel {
+	position: absolute;
+	top: calc(100% + 12px);
+	right: 0;
+	min-width: 200px;
+	padding: 6px;
+	background: var(--paper);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	display: grid;
+}
+.docs-products-panel a {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 7px 10px;
+	border-radius: 4px;
+	color: var(--ink);
+}
+.docs-products-panel a:hover,
+.docs-products-panel a[aria-current] {
+	background: var(--soft);
+}
+.docs-products-panel a span {
+	font: 12px var(--font-mono-stack);
+	color: var(--sub);
+}
+.docs-top .imenu {
+	margin-left: 0;
+}
+.docs-top .imenu-btn {
+	height: 32px;
+	padding: 0 12px;
+	border-radius: 4px;
+	background: var(--pri);
+	color: var(--on-pri);
+	font-size: 13.5px;
+}
+.docs-top .imenu-btn:hover {
+	opacity: 1;
+	background: color-mix(in srgb, var(--pri) 86%, var(--paper));
+}
+.docs-burger {
+	display: none;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	background: none;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	color: var(--ink);
+	cursor: pointer;
+}
+.docs-top :focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+
+@media (max-width: 860px) {
+	.docs-burger {
+		display: inline-flex;
+	}
+	.docs-top-links {
+		display: none;
+	}
+	.docs-search {
+		max-width: none;
+	}
+	.docs-search-long {
+		display: none;
+	}
+}
+@media (max-width: 560px) {
+	.docs-top-in {
+		padding-inline: 12px;
+		gap: 10px;
+	}
+	.docs-mark-tag,
+	.docs-mark-name,
+	.docs-search kbd {
+		display: none;
+	}
+}

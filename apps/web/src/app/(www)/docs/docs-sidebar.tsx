@@ -1,6 +1,5 @@
 "use client";
 
-import { Logo } from "@/components/logo";
 import apiNav from "@/generated/openapi-nav.json";
 import { clearAccountData } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
@@ -8,6 +7,7 @@ import { DOCS_STRIP } from "@/lib/nav";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useDocsDrawer } from "./docs-mode";
 import { DOCS_NAV } from "./nav";
 
 const API_REFERENCE = "/docs/api-reference";
@@ -218,7 +218,7 @@ function ApiReferenceNav({ active }: { active: string }) {
 export function DocsSidebar() {
 	const pathname = usePathname();
 	const { account, loading, logout } = useAuth();
-	const [open, setOpen] = useState(false);
+	const { open, setOpen } = useDocsDrawer();
 	const onReference = pathname === API_REFERENCE;
 	const activeSection = useActiveSection(onReference);
 
@@ -242,7 +242,7 @@ export function DocsSidebar() {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — close the drawer on navigation
 	useEffect(() => {
 		setOpen(false);
-	}, [pathname]);
+	}, [pathname, setOpen]);
 
 	// Close on Escape while the drawer is open.
 	useEffect(() => {
@@ -252,40 +252,10 @@ export function DocsSidebar() {
 		}
 		document.addEventListener("keydown", onKey);
 		return () => document.removeEventListener("keydown", onKey);
-	}, [open]);
+	}, [open, setOpen]);
 
 	return (
 		<>
-			{/* Mobile bar: wordmark · burger. Replaces the topnav strip
-			    below 768px; hidden on desktop. */}
-			<div className="docs-mobilebar">
-				<Link href="/" className="docs-mobilebar-brand">
-					<Logo size={22} />
-					<span>secondlayer</span>
-				</Link>
-				<button
-					type="button"
-					className="docs-burger"
-					aria-label="Open navigation"
-					aria-expanded={open}
-					onClick={() => setOpen(true)}
-				>
-					<svg
-						width="16"
-						height="16"
-						viewBox="0 0 16 16"
-						fill="none"
-						aria-hidden="true"
-					>
-						<path
-							d="M2.5 5.5h11M2.5 10.5h11"
-							stroke="currentColor"
-							strokeWidth="1.5"
-							strokeLinecap="round"
-						/>
-					</svg>
-				</button>
-			</div>
 			{open && (
 				<button
 					type="button"
@@ -295,12 +265,8 @@ export function DocsSidebar() {
 				/>
 			)}
 			<aside className={`docs-nav${open ? " open" : ""}`}>
-				<Link href="/" className="docs-nav-brand page-title-with-logo">
-					<Logo size={22} />
-					<span>secondlayer</span>
-				</Link>
-				{/* Site links live up here on mobile (the topnav strip is gone);
-				    desktop keeps them in the fixed top nav, so this group hides.
+				{/* Site links live up here on mobile (the top bar's links are gone);
+				    desktop keeps them in the top bar, so this group hides.
 				    Labeled "Site" because that's what it is — Home, Archive, Docs,
 				    Blog. It said "Products" until 2026-08, which told a mobile
 				    reader our products were "Home" and "Blog". */}

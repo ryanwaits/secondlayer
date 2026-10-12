@@ -3948,27 +3948,6 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	grid-template-columns: minmax(0, 1fr) 200px;
 	margin-left: 248px;
 	max-width: clamp(1072px, calc(100vw - 368px), 1400px);
-	padding-top: 64px;
-}
-/* full-width product nav, fixed beside the sidebar — does not scroll.
-   Type, GitHub pill, and account chip reuse the marketing bar's classes
-   (.mnav-plain, .mnav-pill, .acct-chip); this rule only places the strip. */
-.docs-topnav {
-	position: fixed;
-	top: 0;
-	left: 248px;
-	right: 0;
-	z-index: 30;
-	display: flex;
-	align-items: center;
-	justify-content: flex-end;
-	gap: 2px;
-	height: 64px;
-	padding: 0 32px;
-	border-bottom: 1px solid var(--border);
-	background: color-mix(in srgb, var(--bg) 85%, transparent);
-	-webkit-backdrop-filter: blur(12px);
-	backdrop-filter: blur(12px);
 }
 .docs-content {
 	grid-column: 1;
@@ -3980,29 +3959,15 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 .docs-nav {
 	/* fixed on the left — does not scroll or rubber-band with the content */
 	position: fixed;
-	top: 0;
+	top: 56px;
 	left: 0;
 	width: 248px;
-	height: 100vh;
+	height: calc(100vh - 56px);
 	overflow-y: auto;
 	z-index: 35;
 	background: var(--bg);
-	/* no top padding — the wordmark band aligns with the top nav row instead */
-	padding: 0 18px 60px 22px;
+	padding: 22px 18px 60px 22px;
 	border-right: 1px solid var(--border);
-}
-/* brand/home link at the top of the docs sidebar */
-.docs-nav-brand {
-	/* a 64px band that lines up with the top nav row */
-	display: flex;
-	align-items: center;
-	height: 64px;
-	margin: 0 0 22px 8px;
-	font-family: var(--font-heading-stack);
-	font-weight: 500;
-	font-size: 0.9375rem;
-	color: var(--text-main);
-	text-decoration: none;
 }
 .docs-nav-group {
 	margin-bottom: 22px;
@@ -4377,9 +4342,9 @@ button.docs-nav-item {
    past it and clipping the tail of a long list. */
 .docs-toc {
 	position: sticky;
-	top: 64px;
+	top: 56px;
 	align-self: start;
-	height: calc(100vh - 64px);
+	height: calc(100vh - 56px);
 	overflow-y: auto;
 	padding: 24px 22px 40px;
 }
@@ -4441,11 +4406,7 @@ button.docs-nav-item {
 		display: none;
 	}
 }
-/* mobile drawer: the bar's hamburger toggles the sidebar. The mobile bar
-   (wordmark · burger) replaces the topnav strip and the floating
-   AuthBar below 768px; all of it hidden on desktop. */
-.docs-mobilebar,
-.docs-burger,
+/* mobile drawer: the top bar's burger toggles the sidebar. */
 .docs-nav-overlay,
 .docs-nav-products {
 	display: none;
@@ -4454,10 +4415,6 @@ button.docs-nav-item {
 	.docs-shell {
 		grid-template-columns: 1fr;
 		margin-left: 0;
-		padding-top: 48px;
-	}
-	.docs-topnav {
-		display: none;
 	}
 	body:has(.docs-shell) .auth-bar {
 		display: none;
@@ -4465,46 +4422,6 @@ button.docs-nav-item {
 	.docs-content {
 		grid-column: 1;
 		padding: 24px 20px 100px;
-	}
-	.docs-mobilebar {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		z-index: 55;
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		height: 48px;
-		padding: 0 14px;
-		background: color-mix(in srgb, var(--bg) 88%, transparent);
-		-webkit-backdrop-filter: blur(8px);
-		backdrop-filter: blur(8px);
-		border-bottom: 1px solid var(--border);
-	}
-	.docs-mobilebar-brand {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		font-family: var(--font-heading-stack);
-		font-weight: 500;
-		font-size: 0.9375rem;
-		color: var(--text-main);
-		text-decoration: none;
-	}
-	.docs-burger {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 32px;
-		height: 32px;
-		flex: none;
-		margin-left: auto;
-		border: 1px solid var(--border);
-		background: var(--bg-elevated);
-		border-radius: 6px;
-		color: var(--text-main);
-		cursor: pointer;
 	}
 	/* product links live at the top of the drawer (the strip is gone) */
 	.docs-nav-products {
@@ -4518,10 +4435,10 @@ button.docs-nav-item {
 	}
 	.docs-nav {
 		position: fixed;
-		top: 0;
+		top: 56px;
 		left: 0;
 		bottom: 0;
-		height: 100vh;
+		height: auto;
 		width: 84vw;
 		max-width: 320px;
 		z-index: 65;
@@ -4537,7 +4454,7 @@ button.docs-nav-item {
 	.docs-nav-overlay {
 		display: block;
 		position: fixed;
-		inset: 0;
+		inset: 56px 0 0;
 		z-index: 64;
 		background: rgba(0, 0, 0, 0.4);
 		border: none;
@@ -4701,59 +4618,6 @@ button.docs-nav-item {
 		font-size: 10px;
 		padding: 10px 4px;
 	}
-}
-
-/* ════════════════════════════════════════════════
-   Docs — floating Human | Agent toggle
-   ════════════════════════════════════════════════ */
-.docs-mode-toggle {
-	position: fixed;
-	bottom: 22px;
-	left: 50%;
-	transform: translateX(-50%);
-	z-index: 300;
-	display: inline-flex;
-	padding: 4px;
-	gap: 3px;
-	background: var(--bg-elevated);
-	border: 1px solid var(--border);
-	border-radius: 999px;
-	box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.28), 0 2px 6px -2px
-		rgba(0, 0, 0, 0.08);
-}
-.docs-mode-toggle button {
-	display: inline-flex;
-	align-items: center;
-	font-family: var(--font-sans-stack);
-	font-size: 13px;
-	font-weight: 500;
-	color: var(--text-muted);
-	background: transparent;
-	border: none;
-	border-radius: 999px;
-	padding: 7px 16px;
-	cursor: pointer;
-	transition: color 0.15s ease, background 0.15s ease;
-}
-.docs-mode-toggle button:hover:not(.active) {
-	color: var(--text-main);
-}
-.docs-mode-toggle button.active {
-	color: var(--text-main);
-	background: color-mix(in srgb, var(--text-main) 5%, transparent);
-}
-/* [H] / [A] keycap — same treatment as .auth-bar-nav-key in the nav.
-   Inherits currentColor so it tints with the active tab. */
-.docs-mode-key {
-	font-family: var(--font-mono-stack);
-	font-size: 11px;
-	opacity: 0.5;
-}
-.docs-mode-label {
-	margin-left: 4px;
-}
-.docs-mode-toggle button.active .docs-mode-key {
-	opacity: 1;
 }
 
 /* ════════════════════════════════════════════════
