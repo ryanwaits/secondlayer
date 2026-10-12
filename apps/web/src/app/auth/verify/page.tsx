@@ -2,8 +2,14 @@
 
 import { useAuth } from "@/lib/auth";
 import { handOverNewKey } from "@/lib/new-key";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+
+/** Messages that say nothing the visitor can act on; they get the friendly copy. */
+const GENERIC_ERRORS = new Set(["", "internal error", "verification failed"]);
+const LINK_FAILED =
+	"That sign-in link didn't work. It may have expired or been used already.";
 
 function VerifyContent() {
 	const searchParams = useSearchParams();
@@ -21,7 +27,8 @@ function VerifyContent() {
 			handOverNewKey(apiKey);
 			window.location.href = "/account/keys";
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Verification failed");
+			const message = err instanceof Error ? err.message.trim() : "";
+			setError(GENERIC_ERRORS.has(message.toLowerCase()) ? "" : message);
 		}
 	}, [token, verify]);
 
@@ -42,13 +49,22 @@ function VerifyContent() {
 		);
 	}
 
-	if (error) {
+	if (error !== null) {
 		return (
 			<div
 				className="homepage"
 				style={{ textAlign: "center", paddingTop: 120 }}
 			>
-				<p style={{ color: "#ef4444" }}>{error}</p>
+				<p style={{ color: "var(--alarm)" }}>{error || LINK_FAILED}</p>
+				<p style={{ marginTop: 20 }}>
+					<Link
+						href="/login"
+						className="acct-btn solid"
+						style={{ display: "inline-flex" }}
+					>
+						Send a new link
+					</Link>
+				</p>
 			</div>
 		);
 	}
