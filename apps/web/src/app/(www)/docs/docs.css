@@ -725,6 +725,8 @@ button.docs-nav-item {
 		left: 0;
 		bottom: 0;
 		width: min(300px, 86vw);
+		/* top + bottom size the drawer; the grid's align-self would shrink it */
+		align-self: stretch;
 		height: auto;
 		z-index: 45;
 		background: var(--paper);
