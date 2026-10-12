@@ -38,7 +38,7 @@
 		{
 			"name": "subgraphs_query",
 			"group": "subgraphs",
-			"description": "Query rows from a subgraph table (max 200 rows), reading the open /v1 surface — { rows, next_cursor, tip } envelope, cursor-paginated (no offset). Filters support operators: \"amount.gte\": \"1000\", \"sender.neq\": \"SP...\", \"name.like\": \"%token%\". Available operators: eq, neq, gt, gte, lt, lte, like. To TAIL new rows (no streaming over MCP): sort=_id, order=desc for the latest, then poll forward with the filter {\"_id.gt\": \"<last _id seen>\"}, order=asc — when tailing with a `fields` list, include \"_id\" in it or the next poll filter cannot be formed. Fetch one row by id with {\"_id\": \"<id>\"}. The response's nextCursor resumes the same page: pass it back as `cursor` on the next call. The same rows are readable over HTTP at GET /v1/subgraphs/<name>/<table>; hand that URL to third parties."
+			"description": "Query rows from a subgraph table (max 200 rows), reading the open /v1 surface — { rows, next_cursor, tip } envelope, cursor-paginated (no offset). Filters support operators: \"amount.gte\": \"1000\", \"sender.neq\": \"SP...\", \"name.like\": \"%token%\". Available operators: eq, neq, gt, gte, lt, lte, like. Every page with rows returns next_cursor (null only when empty): pass it back as `cursor` to read the next page. To TAIL new rows (no streaming over MCP), poll with cursor = next_cursor ?? the cursor you sent. Fetch one row by id with {\"_id\": \"<id>\"}. The same rows are readable over HTTP at GET /v1/subgraphs/<name>/<table>; hand that URL to third parties."
 		},
 		{
 			"name": "subgraphs_reindex",

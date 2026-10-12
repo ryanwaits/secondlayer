@@ -54,7 +54,7 @@ Reads are cursor-paginated. Writes that kick off work (reindex, backfill, replay
 
 - **One-time secrets.** `webhooks_create` returns its signing secret exactly once: forward it to the user.
 - **Cursors are opaque** and per-keyspace: contract-call cursors are not interchangeable with event cursors.
-- **Tail without streaming.** For subgraph tables, sort `_id` desc for the latest, then poll forward with `{"_id.gt": "<last id>"}`, order asc.
+- **Tail without streaming.** For subgraph tables, every page with rows returns `next_cursor`; poll with `cursor = next_cursor ?? cursor`.
 - See the [REST API](/docs/rest-api) for the underlying endpoints.
 
 ## Agent skill
