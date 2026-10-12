@@ -3468,6 +3468,7 @@
 }
 .site .bc-out p {
 	margin: 0;
+	font: inherit;
 }
 .site .bc-out p + p,
 .site .bc-line + p {

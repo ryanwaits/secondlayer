@@ -8,6 +8,7 @@ import {
 	Terminal,
 } from "@/components/site";
 import { VerifyChainArt } from "@/components/site/assets";
+import { BlockChecker } from "@/components/verify/block-checker";
 import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 
@@ -175,7 +176,7 @@ export default function VerifyPage() {
 						</h1>
 						<p className="lede">{LEDE}</p>
 						<div className="btns">
-							<ButtonLink href="#check">Verify a block</ButtonLink>
+							<ButtonLink href="#try">Verify a block</ButtonLink>
 							<ButtonLink href="/docs/verification" variant="secondary">
 								Read the docs
 							</ButtonLink>
@@ -228,6 +229,16 @@ export default function VerifyPage() {
 							</span>
 						</div>
 					</Terminal>
+				</div>
+			</div>
+
+			<div className="band band-ruled" id="try">
+				<div className="shell">
+					<div className="sec-head">
+						<Eyebrow noun="Try it" />
+						<h2>Check a block in your browser.</h2>
+					</div>
+					<BlockChecker />
 				</div>
 			</div>
 

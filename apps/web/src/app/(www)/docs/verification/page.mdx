@@ -1,3 +1,5 @@
+import { BlockChecker } from "@/components/verify/block-checker";
+
 # Verify
 
 An index you can check, not one you have to trust.
@@ -31,6 +33,10 @@ The manifest states a level per range. Most of the chain is `db-reconstructive`;
 ## Check a block
 
 One command walks every link from the checkpoint to the block's state. It works at any height, including below the checkpoint.
+
+Try it in your browser, no install:
+
+<BlockChecker />
 
 ```bash
 secondlayer verify block 9137005
