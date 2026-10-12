@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	DEFAULT_API_URL,
 	NodeRpcProofSource,
 	type ProofSource,
 	SecondlayerProofSource,
@@ -122,6 +123,54 @@ describe("SecondlayerProofSource", () => {
 		});
 		expect(await s.getWitness(ID)).toEqual(Uint8Array.of(9));
 		expect(m.calls.length).toBe(3);
+	});
+
+	test("with no options it reads the hosted API with no authorization header", async () => {
+		const m = mockFetch(() => bytes(Uint8Array.of(1)));
+		const realFetch = globalThis.fetch;
+		globalThis.fetch = m.fetch as unknown as typeof fetch;
+		try {
+			await new SecondlayerProofSource().getBlock(ID);
+		} finally {
+			globalThis.fetch = realFetch;
+		}
+		expect(m.calls).toHaveLength(1);
+		expect(m.calls[0]?.url.startsWith(DEFAULT_API_URL)).toBe(true);
+		expect(m.calls[0]?.auth).toBeNull();
+	});
+
+	test("an apiKey is sent as a bearer token", async () => {
+		const m = mockFetch(() => bytes(Uint8Array.of(1)));
+		await new SecondlayerProofSource({
+			baseUrl: BASE,
+			apiKey: "sk-sl_k",
+			fetch: m.fetch,
+		}).getBlock(ID);
+		expect(m.calls[0]?.auth).toBe("Bearer sk-sl_k");
+	});
+
+	test("a 429 is retried after retry-after", async () => {
+		let n = 0;
+		const m = mockFetch(() =>
+			++n < 2
+				? new Response("slow down", {
+						status: 429,
+						headers: { "retry-after": "0" },
+					})
+				: bytes(Uint8Array.of(9)),
+		);
+		const s = new SecondlayerProofSource({ baseUrl: BASE, fetch: m.fetch });
+		expect(await s.getBlock(ID)).toEqual(Uint8Array.of(9));
+		expect(m.calls.length).toBe(2);
+	});
+
+	test("rows without a key fails before fetching", async () => {
+		const m = mockFetch(() => json({ events: [] }));
+		const s = new SecondlayerProofSource({ baseUrl: BASE, fetch: m.fetch });
+		const err = await s.getVmEvents(1).catch((e) => e);
+		expect(err).toBeInstanceOf(SourceError);
+		expect((err as SourceError).message).toContain("apiKey");
+		expect(m.calls).toHaveLength(0);
 	});
 
 	test("state_writes are one free proofs read per block; a 404 means none for the block", async () => {
