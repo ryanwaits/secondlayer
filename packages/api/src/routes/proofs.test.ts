@@ -151,11 +151,15 @@ function app(opts: Partial<ProofsRouterOptions> = {}) {
 	return a;
 }
 
-function get(path: string, key?: string, opts?: Partial<ProofsRouterOptions>) {
-	return app(opts).request(
-		path,
-		key ? { headers: { authorization: `Bearer ${key}` } } : undefined,
-	);
+function get(
+	path: string,
+	key?: string,
+	opts?: Partial<ProofsRouterOptions>,
+	headers: Record<string, string> = {},
+) {
+	return app(opts).request(path, {
+		headers: { ...headers, ...(key ? { authorization: `Bearer ${key}` } : {}) },
+	});
 }
 
 let prevMode: string | undefined;
@@ -194,6 +198,12 @@ describe("proofs passthrough (self-hosted, loopback)", () => {
 		expect(res.headers.get("cache-control")).toBe(IMMUTABLE_CACHE_CONTROL);
 		// Bare lowercase hex is what the sidecar parses.
 		expect(seen).toEqual([`sidecar /witness/${ID}`]);
+	});
+
+	test("self-host sets no rate limit headers", async () => {
+		const res = await get(`/v1/proofs/block/${ID}`);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("x-ratelimit-limit")).toBeNull();
 	});
 
 	test("an unknown block is a 404 in the API's error envelope", async () => {
@@ -379,17 +389,89 @@ describe("proofs on the hosted archive", () => {
 		process.env.INSTANCE_MODE = "platform";
 	});
 
-	test("an account key is required", async () => {
-		expect((await get(`/v1/proofs/block/${ID}`)).status).toBe(401);
-		expect(
-			(await get(`/v1/proofs/block/${ID}`, "sk-sl_not_a_key")).status,
-		).toBe(401);
-		expect((await get(`/v1/proofs/block/${ID}`, FREE_KEY)).status).toBe(200);
-		expect(seen).toEqual([`node /v3/blocks/${ID}`]);
+	const ANON = PROOFS_RATE_LIMITS.anonymous;
+	const fromIp = (ip: string) => ({ "x-forwarded-for": ip });
+	const block = (ip: string, key?: string) =>
+		get(`/v1/proofs/block/${ID}`, key, undefined, fromIp(ip));
+	const witness = (ip: string) =>
+		get(`/v1/proofs/witness/${ID}`, undefined, undefined, fromIp(ip));
+
+	test("no key is needed; an unknown key is served anonymously", async () => {
+		const none = await get(`/v1/proofs/block/${ID}`);
+		const unknown = await get(`/v1/proofs/block/${ID}`, "sk-sl_not_a_key");
+		const keyed = await get(`/v1/proofs/block/${ID}`, FREE_KEY);
+		expect([none.status, unknown.status, keyed.status]).toEqual([
+			200, 200, 200,
+		]);
+		expect(none.headers.get("x-ratelimit-limit")).toBe("10");
+		expect(unknown.headers.get("x-ratelimit-limit")).toBe("10");
+		expect(keyed.headers.get("x-ratelimit-limit")).toBe("20");
+	});
+
+	test("anonymous callers get their own window per client IP", async () => {
+		for (let i = 0; i < ANON.default.limit; i++) {
+			expect((await block("203.0.113.7")).status).toBe(200);
+		}
+		const limited = await block("203.0.113.7");
+		expect(limited.status).toBe(429);
+		expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
+		expect((await block("203.0.113.8")).status).toBe(200);
+	});
+
+	test("the client IP is the proxy-appended last entry, so a forged first entry does not reset the window", async () => {
+		for (let i = 0; i < ANON.default.limit; i++) {
+			await block("1.1.1.1, 203.0.113.9");
+		}
+		expect((await block("9.9.9.9, 203.0.113.9")).status).toBe(429);
+	});
+
+	test("anonymous witness reads get 1 per second", async () => {
+		expect((await witness("203.0.113.20")).status).toBe(200);
+		expect((await witness("203.0.113.20")).status).toBe(429);
+		expect(seen.filter((s) => s.startsWith("sidecar /witness"))).toHaveLength(
+			1,
+		);
+	});
+
+	test("an account key is never slower than anonymous", async () => {
+		for (let i = 0; i < ANON.default.limit; i++) {
+			await block("203.0.113.30");
+		}
+		expect((await block("203.0.113.30")).status).toBe(429);
+		expect((await block("203.0.113.30", FREE_KEY)).status).toBe(200);
+	});
+
+	test("hash-addressed proofs carry an ETag and a matching If-None-Match is a 304 that never reaches the upstream", async () => {
+		const revalidate = (path: string, tag: string) =>
+			get(path, undefined, undefined, { "if-none-match": tag });
+
+		const burn = await get(`/v1/proofs/burn/${CH}`);
+		expect(burn.status).toBe(200);
+		const burnTag = burn.headers.get("etag") ?? "";
+		expect(burnTag).not.toBe("");
+		const burn304 = await revalidate(`/v1/proofs/burn/${CH}`, burnTag);
+		expect(burn304.status).toBe(304);
+		expect(burn304.headers.get("cache-control")).toBe(IMMUTABLE_CACHE_CONTROL);
+		expect(seen.filter((s) => s.startsWith("sidecar /burn"))).toHaveLength(1);
+
+		const blockRes = await get(`/v1/proofs/block/${ID}`);
+		const blockTag = blockRes.headers.get("etag") ?? "";
+		expect(blockTag).not.toBe("");
+		const block304 = await revalidate(`/v1/proofs/block/${ID}`, blockTag);
+		expect(block304.status).toBe(304);
+		expect(seen.filter((s) => s.startsWith("node /v3/blocks/"))).toHaveLength(
+			1,
+		);
+	});
+
+	test("tip-relative routes have no ETag", async () => {
+		const res = await get("/v1/proofs/block/height/1");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("etag")).toBeNull();
 	});
 
 	test("witness has its own lower per-account bucket; other routes keep theirs", async () => {
-		const { limit } = PROOFS_RATE_LIMITS.witness;
+		const { limit } = PROOFS_RATE_LIMITS.account.witness;
 		for (let i = 0; i < limit; i++) {
 			const res = await get(`/v1/proofs/witness/${ID}`, FREE_KEY);
 			expect(res.status).toBe(200);
@@ -405,12 +487,12 @@ describe("proofs on the hosted archive", () => {
 		const burn = await get(`/v1/proofs/burn/${CH}`, FREE_KEY);
 		expect(burn.status).toBe(200);
 		expect(burn.headers.get("x-ratelimit-limit")).toBe(
-			String(PROOFS_RATE_LIMITS.default.limit),
+			String(PROOFS_RATE_LIMITS.account.default.limit),
 		);
 	});
 
 	test("the default bucket 429s past its limit", async () => {
-		const { limit } = PROOFS_RATE_LIMITS.default;
+		const { limit } = PROOFS_RATE_LIMITS.account.default;
 		for (let i = 0; i < limit; i++) {
 			expect((await get(`/v1/proofs/block/${ID}`, FREE_KEY)).status).toBe(200);
 		}
@@ -418,7 +500,7 @@ describe("proofs on the hosted archive", () => {
 	});
 
 	test("first-party internal keys are not throttled", async () => {
-		const { limit } = PROOFS_RATE_LIMITS.witness;
+		const { limit } = PROOFS_RATE_LIMITS.account.witness;
 		for (let i = 0; i <= limit; i++) {
 			const res = await get(`/v1/proofs/witness/${ID}`, INTERNAL_KEY);
 			expect(res.status).toBe(200);
@@ -498,7 +580,7 @@ describe("state writes for naming a block's diff", () => {
 
 	test("hosted reads take the default proofs bucket", async () => {
 		process.env.INSTANCE_MODE = "platform";
-		const { limit } = PROOFS_RATE_LIMITS.default;
+		const { limit } = PROOFS_RATE_LIMITS.account.default;
 		for (let i = 0; i < limit; i++) {
 			const res = await get("/v1/proofs/writes/9137005", FREE_KEY, {
 				readBlockWrites,
