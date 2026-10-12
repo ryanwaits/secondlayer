@@ -86,7 +86,8 @@ bun add @secondlayer/verify
 ```ts
 import { SecondlayerProofSource, verifyBlock } from "@secondlayer/verify";
 
-const source = new SecondlayerProofSource({ // no key needed; add apiKey for higher rate limits
+// No key needed; add apiKey for higher rate limits.
+const source = new SecondlayerProofSource({
   baseUrl: process.env.SECONDLAYER_API_URL!,
 });
 

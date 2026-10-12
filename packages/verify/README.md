@@ -57,7 +57,8 @@ Heights below the checkpoint need no extra options: `verifyBlock(150_000, { sour
 By default only proofs are read, and proofs are free. That includes the block's state writes (`/v1/proofs/writes/{height}`), which name every written leaf of the diff; `result.writes` holds them and each named `diff.writes` entry carries its proven `value`. A source with no writes for the block (the API answers 404 until its node delivers `state_writes` for that height) leaves the diff proven but unnamed, with a note; it is never a failure. Pass `rows: true` to also check the indexed `vm_events` rows, which bill as Index rows on the Secondlayer API.
 
 ```ts
-await verifyBlock(9_137_005, { source, rows: true });
+const keyed = new SecondlayerProofSource({ apiKey: process.env.SECONDLAYER_API_KEY });
+await verifyBlock(9_137_005, { source: keyed, rows: true });
 ```
 
 ## What it proves
