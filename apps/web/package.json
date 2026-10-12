@@ -17,6 +17,7 @@
 		"@number-flow/react": "^0.6.2",
 		"@secondlayer/sdk": "workspace:*",
 		"@secondlayer/stacks": "workspace:*",
+		"@secondlayer/verify": "workspace:*",
 		"@shikijs/langs": "4.0.2",
 		"liveline": "0.0.7",
 		"next": "16.3.8",
