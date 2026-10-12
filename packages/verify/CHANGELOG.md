@@ -1,5 +1,11 @@
 # @secondlayer/verify
 
+## 0.5.1
+
+### Patch Changes
+
+- README leads with "Trust, and verify."
+
 ## 0.5.0
 
 ### Minor Changes

@@ -1,5 +1,13 @@
 # @secondlayer/web
 
+## 0.13.2
+
+### Patch Changes
+
+- Marketing pages drop small captions, chips and meta; terminals follow light and dark on the docs code style; Products menu opens on hover with names only; archive credits form shows without a toggle.
+- Updated dependencies
+  - @secondlayer/verify@0.5.1
+
 ## 0.13.1
 
 ### Patch Changes

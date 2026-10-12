@@ -1,5 +1,11 @@
 # @secondlayer/mcp
 
+## 10.0.1
+
+### Patch Changes
+
+- 9be9752: `subgraphs_query` tells agents to tail with `cursor = next_cursor ?? cursor` instead of an `_id.gt` filter.
+
 ## 10.0.0
 
 ### Major Changes
