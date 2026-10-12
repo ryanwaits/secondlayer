@@ -1,4 +1,5 @@
 import { NotFoundTracker } from "@/components/not-found-tracker";
+import { PRODUCTS } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -24,12 +25,21 @@ export default function NotFound() {
 					<div className="index-year">Try</div>
 					<div className="prose www-manifest">
 						<p>
-							<Link href="/">Home</Link> · the manifest and the five layers.
+							<Link href="/">Home</Link> · instant data for apps on Bitcoin.
 						</p>
 						<p>
-							<Link href="/docs/sdk">SDK</Link> ·{" "}
-							<Link href="/docs/cli">CLI</Link> ·{" "}
-							<Link href="/docs/mcp">MCP</Link> · clients for every layer.
+							{PRODUCTS.map((p) => (
+								<span key={p.href}>
+									<Link href={p.href}>{p.noun}</Link>
+									{" · "}
+								</span>
+							))}
+							the five products.
+						</p>
+						<p>
+							<Link href="/docs">Docs</Link> ·{" "}
+							<Link href="/verify">Verify</Link> ·{" "}
+							<Link href="/pricing">Pricing</Link>.
 						</p>
 					</div>
 				</div>
