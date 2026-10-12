@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.13.3
+
+### Patch Changes
+
+- dae01e8: Block checker links each hash to an independent explorer and shows the command to rerun the check against your own node.
+
 ## 0.13.2
 
 ### Patch Changes
