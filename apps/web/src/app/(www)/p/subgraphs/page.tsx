@@ -26,7 +26,7 @@ export const metadata: Metadata = socialMeta({
 	title: "Subgraphs · secondlayer",
 	description: LEDE,
 	image: "/og/subgraphs.png",
-	path: "/subgraphs",
+	path: "/p/subgraphs",
 });
 
 const [, , index, subgraphs] = PRODUCTS;
@@ -515,7 +515,7 @@ export default function SubgraphsPage() {
 								webhook delivers the event itself, signed, retried and logged.
 							</p>
 							<pre>{WEBHOOK_CMD}</pre>
-							<Link className="go" href="/webhooks">
+							<Link className="go" href="/p/webhooks">
 								/webhooks →
 							</Link>
 						</div>
@@ -530,17 +530,17 @@ export default function SubgraphsPage() {
 						<h2>Same chain data, other surfaces</h2>
 					</div>
 					<RestOfPlatform
-						exclude={["/subgraphs", "/archive"]}
+						exclude={["/p/subgraphs", "/p/archive"]}
 						blurbs={{
-							"/index": {
+							"/p/index": {
 								title: "Before you know the shape",
 								body: "Query decoded events by type, contract or address while you work out which table you want.",
 							},
-							"/streams": {
+							"/p/streams": {
 								title: "You hold the cursor",
 								body: "Every event as a pull you resume yourself, when you already run a sink and want no state on our side.",
 							},
-							"/webhooks": {
+							"/p/webhooks": {
 								title: "We hold the retry queue",
 								body: "Chain events pushed to a URL you run, with failed deliveries logged and requeueable.",
 							},

@@ -16,7 +16,7 @@ export interface NavLink {
  */
 export const DOCS_STRIP: NavLink[] = [
 	{ label: "Home", href: "/" },
-	{ label: "Archive", href: "/archive" },
+	{ label: "Archive", href: "/p/archive" },
 	{ label: "Pricing", href: "/pricing" },
 	{ label: "Docs", href: "/docs" },
 	{ label: "Blog", href: "/writing" },

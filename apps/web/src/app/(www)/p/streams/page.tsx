@@ -27,7 +27,7 @@ export const metadata: Metadata = socialMeta({
 	title: "Streams · secondlayer",
 	description: LEDE,
 	image: "/og/streams.png",
-	path: "/streams",
+	path: "/p/streams",
 });
 
 const [archive, streams, index, subgraphs, webhooks] = PRODUCTS;

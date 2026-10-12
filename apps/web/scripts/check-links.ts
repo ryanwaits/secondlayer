@@ -12,11 +12,11 @@ const MAX_PAGES = 3000;
 
 const SEEDS = [
 	"/",
-	"/index",
-	"/streams",
-	"/subgraphs",
-	"/webhooks",
-	"/archive",
+	"/p/index",
+	"/p/streams",
+	"/p/subgraphs",
+	"/p/webhooks",
+	"/p/archive",
 	"/verify",
 	"/pricing",
 	"/docs",

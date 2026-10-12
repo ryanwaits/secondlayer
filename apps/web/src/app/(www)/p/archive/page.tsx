@@ -28,7 +28,7 @@ export const metadata: Metadata = socialMeta({
 	title: "Archive · secondlayer",
 	description: LEDE,
 	image: "/og/archive.png",
-	path: "/archive",
+	path: "/p/archive",
 });
 
 const [archive] = PRODUCTS;
@@ -513,17 +513,17 @@ export default function ArchivePage() {
 						<h2>The same history, served three ways</h2>
 					</div>
 					<RestOfPlatform
-						exclude={["/archive"]}
+						exclude={["/p/archive"]}
 						blurbs={{
-							"/index": {
+							"/p/index": {
 								title: "Typed rows from genesis",
 								body: "Query decoded events behind one key, with the same manifest to check against.",
 							},
-							"/streams": {
+							"/p/streams": {
 								title: "You hold the cursor",
 								body: "Every event in order, pulled from any point in history.",
 							},
-							"/subgraphs": {
+							"/p/subgraphs": {
 								title: "Your contract, as a table",
 								body: "Backfilled from this history and held at tip.",
 							},

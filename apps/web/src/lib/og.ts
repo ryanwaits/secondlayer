@@ -5,7 +5,7 @@ type SocialMetaInput = {
 	description: string;
 	/** Path to the 1200x630 share card under /public, e.g. "/og/archive.png" */
 	image: string;
-	/** Canonical route path, e.g. "/archive" */
+	/** Canonical route path, e.g. "/p/archive" */
 	path: string;
 };
 

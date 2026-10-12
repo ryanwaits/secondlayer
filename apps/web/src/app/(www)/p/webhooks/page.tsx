@@ -28,7 +28,7 @@ export const metadata: Metadata = socialMeta({
 	title: "Webhooks · secondlayer",
 	description: LEDE,
 	image: "/og/webhooks.png",
-	path: "/webhooks",
+	path: "/p/webhooks",
 });
 
 const [, , , , webhooks] = PRODUCTS;
@@ -447,17 +447,17 @@ export default function WebhooksPage() {
 						</h2>
 					</div>
 					<RestOfPlatform
-						exclude={["/webhooks", "/archive"]}
+						exclude={["/p/webhooks", "/p/archive"]}
 						blurbs={{
-							"/streams": {
+							"/p/streams": {
 								title: "You hold the cursor",
 								body: "Best when you already run a consumer and would rather pull than be pushed to.",
 							},
-							"/subgraphs": {
+							"/p/subgraphs": {
 								title: "We hold the table",
 								body: "Best when the shape is settled and you want rows to query, not events to process.",
 							},
-							"/index": {
+							"/p/index": {
 								title: "You ask, we answer",
 								body: "Best for history and lookups: every event from genesis, typed, behind one key.",
 							},

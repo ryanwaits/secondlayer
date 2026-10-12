@@ -36,9 +36,11 @@ describe("marketing shell", () => {
 	});
 
 	test("rest of the platform leaves out the excluded product", () => {
-		const html = renderToStaticMarkup(<RestOfPlatform exclude={["/index"]} />);
-		expect(html).not.toContain('href="/index"');
-		expect(html).toContain('href="/archive"');
+		const html = renderToStaticMarkup(
+			<RestOfPlatform exclude={["/p/index"]} />,
+		);
+		expect(html).not.toContain('href="/p/index"');
+		expect(html).toContain('href="/p/archive"');
 	});
 
 	test("a soon status is a neutral ring, never yellow", () => {

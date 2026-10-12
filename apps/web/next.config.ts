@@ -106,7 +106,29 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/indexes",
-				destination: "/index",
+				destination: "/p/index",
+				permanent: true,
+			},
+			// Product pages live under /p so no route (e.g. `index`) shadows the home page.
+			// No /index redirect: Next maps /index to /, so it would redirect home.
+			{
+				source: "/archive",
+				destination: "/p/archive",
+				permanent: true,
+			},
+			{
+				source: "/streams",
+				destination: "/p/streams",
+				permanent: true,
+			},
+			{
+				source: "/webhooks",
+				destination: "/p/webhooks",
+				permanent: true,
+			},
+			{
+				source: "/subgraphs",
+				destination: "/p/subgraphs",
 				permanent: true,
 			},
 			{
@@ -121,7 +143,7 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/subscriptions",
-				destination: "/webhooks",
+				destination: "/p/webhooks",
 				permanent: true,
 			},
 			{
@@ -141,7 +163,7 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/claim/:token",
-				destination: "/archive",
+				destination: "/p/archive",
 				permanent: true,
 			},
 			// Sign-in links already in inboxes point at /verify?token=; the
@@ -155,7 +177,7 @@ const nextConfig: NextConfig = {
 			// No hosted status page: it lands on the archive.
 			{
 				source: "/status",
-				destination: "/archive",
+				destination: "/p/archive",
 				permanent: true,
 			},
 			// 2026-08 self-host docs consolidation: platform-specific consumer

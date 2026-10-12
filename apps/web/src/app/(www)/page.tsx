@@ -225,7 +225,7 @@ export function HomeView() {
 							<div className="art">
 								<SubgraphTableArt />
 							</div>
-							<Link className="more" href="/subgraphs">
+							<Link className="more" href="/p/subgraphs">
 								Index and Subgraphs →
 							</Link>
 						</div>
@@ -243,7 +243,7 @@ export function HomeView() {
 							<div className="art">
 								<DeliveryLogArt />
 							</div>
-							<Link className="more" href="/webhooks">
+							<Link className="more" href="/p/webhooks">
 								Webhooks and Streams →
 							</Link>
 						</div>

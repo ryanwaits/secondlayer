@@ -20,11 +20,11 @@ mock.module("@/components/code-block", () => ({
 }));
 
 const pages = {
-	index: (await import("./index/page")).default,
-	streams: (await import("./streams/page")).default,
-	subgraphs: (await import("./subgraphs/page")).default,
-	webhooks: (await import("./webhooks/page")).default,
-	archive: (await import("./archive/page")).default,
+	index: (await import("./p/index/page")).default,
+	streams: (await import("./p/streams/page")).default,
+	subgraphs: (await import("./p/subgraphs/page")).default,
+	webhooks: (await import("./p/webhooks/page")).default,
+	archive: (await import("./p/archive/page")).default,
 } as const;
 
 const SLUGS = Object.keys(pages) as (keyof typeof pages)[];
@@ -34,9 +34,18 @@ function render(slug: keyof typeof pages): string {
 	return renderToStaticMarkup(<Page />);
 }
 
+describe("product routes", () => {
+	test("every product lives under /p so no route shadows the home page", () => {
+		for (const product of PRODUCTS) {
+			expect(product.href.startsWith("/p/")).toBe(true);
+			expect(product.href).not.toBe("/index");
+		}
+	});
+});
+
 describe("product pages", () => {
 	for (const slug of SLUGS) {
-		const product = PRODUCTS.find((p) => p.href === `/${slug}`);
+		const product = PRODUCTS.find((p) => p.href === `/p/${slug}`);
 
 		test(`/${slug} has one h1, its eyebrow verb and a docs link`, () => {
 			const html = render(slug);

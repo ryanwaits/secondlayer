@@ -21,7 +21,7 @@ export const actions: Action[] = [
 		label: "Subgraphs",
 		keywords: ["tables", "indexes", "data"],
 		category: "Platform",
-		href: "/subgraphs",
+		href: "/p/subgraphs",
 	},
 	// Account
 	{

@@ -28,7 +28,7 @@ export const metadata: Metadata = socialMeta({
 	title: "Index · secondlayer",
 	description: LEDE,
 	image: "/og/index.png",
-	path: "/index",
+	path: "/p/index",
 });
 
 const [, , index] = PRODUCTS;
@@ -384,17 +384,17 @@ export default function IndexPage() {
 						</h2>
 					</div>
 					<RestOfPlatform
-						exclude={["/index", "/archive"]}
+						exclude={["/p/index", "/p/archive"]}
 						blurbs={{
-							"/streams": {
+							"/p/streams": {
 								title: "You hold the cursor",
 								body: "Best when you already run a sink and a supervisor, and want no state on our side.",
 							},
-							"/subgraphs": {
+							"/p/subgraphs": {
 								title: "We hold the table",
 								body: "Best when the shape is settled and you would rather read a computed table than rebuild it on every boot.",
 							},
-							"/webhooks": {
+							"/p/webhooks": {
 								title: "We hold the retry queue",
 								body: "Best when you want chain events pushed to your server, with failed deliveries logged and requeueable.",
 							},

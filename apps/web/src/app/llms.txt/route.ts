@@ -13,11 +13,11 @@ const LLMS_TXT = `# Secondlayer: instant data for apps on Bitcoin
 - Docs: https://secondlayer.tools/docs
 
 ## Products
-- Archive: https://secondlayer.tools/archive. Signed history. Check your copy free.
-- Streams: https://secondlayer.tools/streams. Every event. You hold the cursor.
-- Index: https://secondlayer.tools/index. Typed rows from genesis.
-- Subgraphs: https://secondlayer.tools/subgraphs. Your contract, as a table.
-- Webhooks: https://secondlayer.tools/webhooks. Your server, told first.
+- Archive: https://secondlayer.tools/p/archive. Signed history. Check your copy free.
+- Streams: https://secondlayer.tools/p/streams. Every event. You hold the cursor.
+- Index: https://secondlayer.tools/p/index. Typed rows from genesis.
+- Subgraphs: https://secondlayer.tools/p/subgraphs. Your contract, as a table.
+- Webhooks: https://secondlayer.tools/p/webhooks. Your server, told first.
 - Verify: https://secondlayer.tools/verify. Check a block or transaction yourself.
 - Pricing: https://secondlayer.tools/pricing. 1M rows free per month.
 

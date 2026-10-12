@@ -17,31 +17,31 @@ export const PRODUCTS = [
 	{
 		noun: "Archive",
 		verb: "verifies",
-		href: "/archive",
+		href: "/p/archive",
 		line: "Signed history. Check your copy free.",
 	},
 	{
 		noun: "Streams",
 		verb: "hands you",
-		href: "/streams",
+		href: "/p/streams",
 		line: "Every event. You hold the cursor.",
 	},
 	{
 		noun: "Index",
 		verb: "decodes",
-		href: "/index",
+		href: "/p/index",
 		line: "Typed rows from genesis.",
 	},
 	{
 		noun: "Subgraphs",
 		verb: "fills",
-		href: "/subgraphs",
+		href: "/p/subgraphs",
 		line: "Your contract, as a table.",
 	},
 	{
 		noun: "Webhooks",
 		verb: "delivers",
-		href: "/webhooks",
+		href: "/p/webhooks",
 		line: "Your server, told first.",
 	},
 ] as const satisfies readonly Product[];
