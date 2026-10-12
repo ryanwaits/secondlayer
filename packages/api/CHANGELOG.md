@@ -1,5 +1,12 @@
 # @secondlayer/api
 
+## 1.52.6
+
+### Patch Changes
+
+- eb1a344: `/v1/proofs/*` serves anonymous requests (per-IP limits); hash-addressed proofs carry an ETag and answer 304.
+  - @secondlayer/subgraphs@6.6.2
+
 ## 1.52.5
 
 ### Patch Changes

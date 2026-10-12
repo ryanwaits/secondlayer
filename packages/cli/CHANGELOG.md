@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 19.4.3
+
+### Patch Changes
+
+- eb1a344: `verify block` works without a configured key.
+- Updated dependencies [eb1a344]
+  - @secondlayer/verify@0.4.0
+  - @secondlayer/subgraphs@6.6.2
+
 ## 19.4.2
 
 ### Patch Changes

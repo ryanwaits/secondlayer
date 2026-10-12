@@ -1,5 +1,12 @@
 # @secondlayer/subgraphs
 
+## 6.6.2
+
+### Patch Changes
+
+- Updated dependencies [eb1a344]
+  - @secondlayer/verify@0.4.0
+
 ## 6.6.1
 
 ### Patch Changes

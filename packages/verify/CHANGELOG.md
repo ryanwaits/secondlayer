@@ -1,5 +1,11 @@
 # @secondlayer/verify
 
+## 0.4.0
+
+### Minor Changes
+
+- eb1a344: Proofs need no key: `new SecondlayerProofSource()` reads the hosted API anonymously; `apiKey` raises the rate limit and is required only for `rows: true`. Retries 429 after `retry-after`. Runs in browsers.
+
 ## 0.3.0
 
 ### Minor Changes
