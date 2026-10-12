@@ -6,11 +6,12 @@
    reorgs only, data bars are ink. */
 
 /* ── page base ─────────────────────────────────────────────────────── */
-/* Terminals follow the theme on the docs code style: paper surface,
-   hairline, docs syntax colors (command = --yellow, as docs shell). */
+/* Terminals follow the theme on the docs code style: hairline, docs syntax
+   colors (command = --yellow, as docs shell). Surface inverts its ground so
+   it never sits white on white: soft on paper, paper on soft bands. */
 .site {
-	--term: var(--paper);
-	--term-raise: var(--soft);
+	--term: var(--soft);
+	--term-raise: var(--paper);
 	--term-line: var(--line);
 	--term-fg: var(--ink);
 	--term-mute: var(--sub);
@@ -303,6 +304,8 @@
 	padding-block: clamp(64px, 9vw, 128px);
 }
 .site .band-soft {
+	--term: var(--paper);
+	--term-raise: var(--soft);
 	background: var(--soft);
 	border-block: 1px solid var(--line);
 }
