@@ -10,15 +10,11 @@ describe("agent prompt registry", () => {
 		}
 	});
 
-	test("webhook prompt uses contextual subgraph and tables", () => {
-		const text = getAgentPrompt("webhook-create", {
-			subgraphName: "alex-swaps",
-			tables: ["swaps", "traders"],
-		});
-		expect(text).toContain('"alex-swaps"');
-		expect(text).toContain("`swaps`");
-		expect(text).toContain("`traders`");
-		expect(text).toContain("ask me only for the receiver runtime");
+	test("create prompt asks for triggers and a receiver URL, not a subgraph", () => {
+		const text = getAgentPrompt("webhook-create");
+		expect(text).toContain("which chain events to match");
+		expect(text).toContain("secondlayer webhooks create");
+		expect(text).not.toContain("subgraph");
 	});
 
 	test("test fixture prompt forbids stored secret recovery and posting", () => {

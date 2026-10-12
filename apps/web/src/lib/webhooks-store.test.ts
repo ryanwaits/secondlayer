@@ -38,10 +38,7 @@ function summary(id: string, name: string): WebhookSummary {
 		name,
 		status: "active",
 		kind: "chain",
-		subgraphName: null,
-		tableName: null,
 		format: "standard-webhooks",
-		runtime: "node",
 		url: "https://example.com/webhook",
 		lastDeliveryAt: null,
 		lastSuccessAt: null,
@@ -55,8 +52,7 @@ function summary(id: string, name: string): WebhookSummary {
 function detail(id: string, name: string): WebhookDetail {
 	return {
 		...summary(id, name),
-		filter: {},
-		triggers: null,
+		triggers: [{ type: "stx_transfer" }],
 		auth: { type: "none", headerNames: [], hasSecret: false },
 		maxRetries: 7,
 		timeoutMs: 10_000,

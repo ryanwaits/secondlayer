@@ -42,8 +42,6 @@ const PRIMARY_TITLE: Record<DoctorIssueCode, string> = {
 	last_error: "The last delivery failed",
 	circuit: "Your receiver is failing",
 	dead_letters: "Some events exhausted every retry",
-	subgraph_gaps: "The linked subgraph has gaps",
-	subgraph_catching_up: "The linked subgraph is still catching up",
 	no_deliveries: "No deliveries yet",
 	receiver_rate_limited: "Your receiver is rate-limiting us",
 	receiver_down: "Your receiver looks down",
@@ -62,10 +60,6 @@ const RULE_EXPLANATION: Record<DoctorIssueCode, string> = {
 		"Webhook delivery opened the circuit breaker after repeated failures, and pauses briefly between retries.",
 	dead_letters:
 		"At least one event exhausted every retry and stopped delivering.",
-	subgraph_gaps:
-		"The subgraph feeding this webhook has gaps in its indexed data.",
-	subgraph_catching_up:
-		"The subgraph feeding this webhook hasn't caught up to the chain tip yet.",
 	no_deliveries: "No delivery attempts have been logged for this webhook yet.",
 	receiver_rate_limited:
 		"Rule receiver_rate_limited: fires when at least 10 of the last 100 delivery attempts are 429s, and 429s are at least half of that window.",
@@ -102,10 +96,6 @@ function primaryLede(
 			return `Your receiver failed ${webhook.circuitFailures} times in a row, so deliveries are paused briefly between tries.`;
 		case "dead_letters":
 			return `${deadCount} event${deadCount === 1 ? "" : "s"} exhausted every retry and are waiting in Failed events, below.`;
-		case "subgraph_gaps":
-			return "The subgraph feeding this webhook has gaps in its data.";
-		case "subgraph_catching_up":
-			return "The subgraph feeding this webhook is still catching up to the chain tip; new matching rows may arrive later.";
 		case "no_deliveries":
 			return "No deliveries yet. Confirm your receiver is reachable, then send a test event.";
 		case "receiver_rate_limited":
@@ -121,19 +111,6 @@ function primaryLede(
 		default:
 			return "";
 	}
-}
-
-/** A fix `command` for the five new detectors only; the older flag checks
- *  point at the button already on this page (resume/test), so they carry no
- *  command here. */
-function legacyCommand(
-	issue: DoctorIssue,
-	webhook: WebhookDetail,
-): string | undefined {
-	if (issue.code === "subgraph_gaps" && webhook.subgraphName) {
-		return `secondlayer subgraphs gaps ${webhook.subgraphName}`;
-	}
-	return undefined;
 }
 
 /** Flag graphs (plan 070): shown only for the four codes with a detector
@@ -294,7 +271,7 @@ export function DiagnosisPanel({
 	if (!primary) return null;
 
 	const lede = primaryLede(primary, webhook, deadCount);
-	const command = primary.fix?.command ?? legacyCommand(primary, webhook);
+	const command = primary.fix?.command;
 	const rest = issues.filter((i) => i !== primary);
 	const extraEvidence =
 		primary.code === "receiver_down"

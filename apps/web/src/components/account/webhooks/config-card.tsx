@@ -242,40 +242,6 @@ export function unsetTriggerFields(trigger: ChainTrigger): string[] {
 	);
 }
 
-// ── Subgraph filter clauses — operators in words ────────────────────────
-
-const OPERATOR_WORDS: Record<string, string> = {
-	eq: "is",
-	neq: "is not",
-	gt: "greater than",
-	gte: "at least",
-	lt: "less than",
-	lte: "at most",
-	in: "is one of",
-};
-
-/** A subgraph filter clause is either a bare value (implicit `eq`) or an
- *  `{ op: value }` object. `neq ""` reads as "is not empty" — the common
- *  "this column was ever set" filter. */
-export function filterClauseWords(clause: unknown): {
-	op: string;
-	text: string;
-} {
-	if (clause === null || typeof clause !== "object" || Array.isArray(clause)) {
-		return { op: "is", text: String(clause) };
-	}
-	const entries = Object.entries(clause as Record<string, unknown>);
-	const [op, value] = entries[0] ?? ["eq", ""];
-	if (op === "neq" && value === "") return { op: "is not", text: "empty" };
-	if (op === "in" && Array.isArray(value)) {
-		return {
-			op: OPERATOR_WORDS.in ?? "is one of",
-			text: value.map((v) => shortenPrincipal(String(v))).join(", "),
-		};
-	}
-	return { op: OPERATOR_WORDS[op] ?? op, text: String(value) };
-}
-
 // ── Per-trigger volume (design 5) ───────────────────────────────────────
 
 /** `stx_transfer` → `chain.stx_transfer.apply`, the outbox `event_type` a
@@ -330,25 +296,7 @@ export function ConfigSummaryLine({
 	activity: WebhookActivity | null;
 	onOpen: () => void;
 }) {
-	if (webhook.kind === "subgraph") {
-		const filterCount = Object.keys(webhook.filter).length;
-		return (
-			<p className="wh-sumline">
-				Fires on{" "}
-				<code className="wh-chip">
-					{webhook.subgraphName}.{webhook.tableName}
-				</code>{" "}
-				{filterCount > 0
-					? `with ${pluralize(filterCount, "filter")}`
-					: "with no filters"}{" "}
-				·{" "}
-				<button type="button" className="wh-linklike" onClick={onOpen}>
-					See configuration
-				</button>
-			</p>
-		);
-	}
-	const triggers = webhook.triggers ?? [];
+	const triggers = webhook.triggers;
 	const filterCount = triggers.reduce(
 		(sum, t) => sum + setTriggerFields(t).length,
 		0,
@@ -416,10 +364,7 @@ export function ConfigRow({
 		auth.headerNames.length > 0
 			? ` + ${pluralize(auth.headerNames.length, "header")}`
 			: "";
-	const kindLabel =
-		webhook.kind === "chain"
-			? pluralize(webhook.triggers?.length ?? 0, "trigger")
-			: `${webhook.subgraphName}.${webhook.tableName}`;
+	const kindLabel = pluralize(webhook.triggers.length, "trigger");
 	return (
 		<div className="wh-cfg-row">
 			<span>Configuration</span>
@@ -526,54 +471,6 @@ function TriggerCard({
 	);
 }
 
-function SubgraphFireCard({
-	webhook,
-	activity,
-}: { webhook: WebhookDetail; activity: WebhookActivity | null }) {
-	const keys = Object.keys(webhook.filter);
-	// A subgraph webhook fires on one table; every outbox row for it counts,
-	// whatever the created/updated/deleted op — "sum all event types for the
-	// webhook" (design 5).
-	const count = activity
-		? Object.values(activity.byEventType).reduce((a, b) => a + b, 0)
-		: 0;
-	return (
-		<div className="wh-tc">
-			<div className="wh-tc-h">
-				<div className="l">
-					<span className="wh-chip">
-						{webhook.subgraphName}.{webhook.tableName}
-					</span>
-					<p className="sent">
-						New rows in <b>{webhook.tableName}</b> from your subgraph{" "}
-						<b>{webhook.subgraphName}</b> that match every filter
-					</p>
-				</div>
-				<div className="wh-tc-vol">
-					<b>{n(count)}</b>
-					matched, last 7 days
-				</div>
-			</div>
-			{keys.length > 0 ? (
-				<dl className="wh-tc-fields">
-					{keys.map((key) => {
-						const { op, text } = filterClauseWords(webhook.filter[key]);
-						return (
-							<div key={key} style={{ display: "contents" }}>
-								<dt>{key}</dt>
-								<dd>
-									<span className="op">{op}</span>
-									<span className="v">{text}</span>
-								</dd>
-							</div>
-						);
-					})}
-				</dl>
-			) : null}
-		</div>
-	);
-}
-
 function DeliveryFacts({ webhook }: { webhook: WebhookDetail }) {
 	const auth = webhook.auth;
 	return (
@@ -625,17 +522,9 @@ function DeliveryFacts({ webhook }: { webhook: WebhookDetail }) {
 }
 
 function configJson(webhook: WebhookDetail): string {
-	const body: Record<string, unknown> =
-		webhook.kind === "chain"
-			? { triggers: webhook.triggers }
-			: {
-					subgraph: webhook.subgraphName,
-					table: webhook.tableName,
-					filter: webhook.filter,
-				};
+	const body: Record<string, unknown> = { triggers: webhook.triggers };
 	body.url = webhook.url;
 	body.format = webhook.format;
-	if (webhook.runtime) body.runtime = webhook.runtime;
 	body.maxRetries = webhook.maxRetries;
 	body.timeoutMs = webhook.timeoutMs;
 	body.concurrency = webhook.concurrency;
@@ -656,7 +545,7 @@ export function ConfigCard({
 	onClose: () => void;
 }) {
 	if (!webhook) return null;
-	const triggers = webhook.triggers ?? [];
+	const triggers = webhook.triggers;
 	return (
 		<FloatingCard
 			open={webhook !== null}
@@ -692,25 +581,21 @@ export function ConfigCard({
 			</div>
 			{tab === "fires" ? (
 				<>
-					{webhook.kind === "chain" && triggers.length > 1 ? (
+					{triggers.length > 1 ? (
 						<p className="wh-cfg-rule">
 							Sends a delivery when <b>any</b> trigger matches. Inside a
 							trigger, <b>every</b> listed field must match.
 						</p>
 					) : null}
-					{webhook.kind === "chain" ? (
-						triggers.map((t, i) => (
-							<TriggerCard
-								// biome-ignore lint/suspicious/noArrayIndexKey: triggers are static per webhook
-								key={i}
-								trigger={t}
-								allTriggers={triggers}
-								activity={activity}
-							/>
-						))
-					) : (
-						<SubgraphFireCard webhook={webhook} activity={activity} />
-					)}
+					{triggers.map((t, i) => (
+						<TriggerCard
+							// biome-ignore lint/suspicious/noArrayIndexKey: triggers are static per webhook
+							key={i}
+							trigger={t}
+							allTriggers={triggers}
+							activity={activity}
+						/>
+					))}
 					<p className="acct-fine">
 						Created {formatDate(webhook.createdAt)}. Blocks while the webhook is
 						paused are skipped; replay a range with{" "}

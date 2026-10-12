@@ -4,7 +4,6 @@ import { CopyButton } from "@/components/copy-button";
 import type {
 	ChainTrigger,
 	WebhookFormat,
-	WebhookKind,
 	WebhookStatus,
 } from "@secondlayer/sdk";
 // Subpath import, not the main `@secondlayer/sdk` barrel: that barrel's
@@ -149,28 +148,11 @@ export function TriggerLine({ trigger }: { trigger: ChainTrigger }) {
 	);
 }
 
-/** The "Fires on" cell/fact: a subgraph webhook names its table; a chain
- *  webhook lists its triggers. `WebhookSummary` (the list endpoint) carries
- *  no `triggers` — only `WebhookDetail` does — so a chain row on the list
- *  falls back to a plain label instead of fabricating trigger detail. */
-export function FiresOn({
-	kind,
-	subgraphName,
-	tableName,
-	triggers,
-}: {
-	kind: WebhookKind;
-	subgraphName: string | null;
-	tableName: string | null;
-	triggers?: ChainTrigger[] | null;
-}) {
-	if (kind === "subgraph") {
-		return (
-			<code className="wh-mono">
-				{subgraphName}.{tableName}
-			</code>
-		);
-	}
+/** The "Fires on" cell/fact: the webhook's triggers. `WebhookSummary` (the
+ *  list endpoint) carries no `triggers` — only `WebhookDetail` does — so a
+ *  list row falls back to a plain label instead of fabricating trigger
+ *  detail. */
+export function FiresOn({ triggers }: { triggers?: ChainTrigger[] | null }) {
 	if (triggers && triggers.length > 0) {
 		return (
 			<span className="wh-trig-list">

@@ -332,11 +332,7 @@ export function WebhooksListSection() {
 											</span>
 										</td>
 										<td>
-											<FiresOn
-												kind={w.kind}
-												subgraphName={w.subgraphName}
-												tableName={w.tableName}
-											/>
+											<FiresOn />
 										</td>
 										<td>
 											<StatusPill status={displayStatus(w)} />

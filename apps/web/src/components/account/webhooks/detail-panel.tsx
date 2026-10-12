@@ -247,9 +247,6 @@ export function WebhookDetailSection({ id }: { id: string }) {
 
 	const rows = deliveries ?? [];
 	const deadRows = (dead ?? []).filter((r) => !locallyResent.has(r.id));
-	// `subgraph: null` — the dashboard never fetches subgraph status, so the
-	// two subgraph issue codes (subgraph_gaps/subgraph_catching_up) never fire
-	// here; the CLI passes the real subgraph status and can see them.
 	// Gated on deliveries *and* dead having loaded at least once (they can be
 	// cached from an earlier visit) — otherwise an empty `rows`/`deadRows`
 	// reads as "no deliveries yet" before the real logs ever arrive.
@@ -259,7 +256,6 @@ export function WebhookDetailSection({ id }: { id: string }) {
 					webhook,
 					deliveries: rows,
 					dead: deadRows,
-					subgraph: null,
 				})
 			: null;
 	const primary = report?.primary ?? null;

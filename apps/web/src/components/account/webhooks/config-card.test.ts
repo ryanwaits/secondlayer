@@ -8,7 +8,6 @@ import {
 	SENTENCE_FIELD_ORDER,
 	TRIGGER_NOUN,
 	chainEventType,
-	filterClauseWords,
 	formatTriggerAmount,
 	setTriggerFields,
 	triggerFieldCondition,
@@ -147,45 +146,6 @@ describe("setTriggerFields / unsetTriggerFields", () => {
 			"minAmount",
 			"maxAmount",
 		]);
-	});
-});
-
-describe("filterClauseWords — subgraph filter operators in words", () => {
-	test("a bare value is an implicit eq", () => {
-		expect(filterClauseWords("SP1")).toEqual({ op: "is", text: "SP1" });
-	});
-
-	test("every operator reads as words", () => {
-		expect(filterClauseWords({ eq: "x" })).toEqual({ op: "is", text: "x" });
-		expect(filterClauseWords({ neq: "x" })).toEqual({
-			op: "is not",
-			text: "x",
-		});
-		expect(filterClauseWords({ gt: 5 })).toEqual({
-			op: "greater than",
-			text: "5",
-		});
-		expect(filterClauseWords({ gte: 5 })).toEqual({
-			op: "at least",
-			text: "5",
-		});
-		expect(filterClauseWords({ lt: 5 })).toEqual({
-			op: "less than",
-			text: "5",
-		});
-		expect(filterClauseWords({ lte: 5 })).toEqual({ op: "at most", text: "5" });
-	});
-
-	test('`in` lists shortened values; `neq ""` reads as is-not-empty', () => {
-		expect(
-			filterClauseWords({
-				in: ["SP21YTSM60CAY6D011EZVEVNKXVW8FVZE198XEFFP", "SP2"],
-			}),
-		).toEqual({ op: "is one of", text: "SP21YT…EFFP, SP2" });
-		expect(filterClauseWords({ neq: "" })).toEqual({
-			op: "is not",
-			text: "empty",
-		});
 	});
 });
 

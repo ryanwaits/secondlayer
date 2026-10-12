@@ -16,8 +16,6 @@ export type AgentPromptSurface =
 	| "dashboard";
 
 export interface AgentPromptContext {
-	subgraphName?: string;
-	tables?: string[];
 	webhookId?: string;
 	webhookName?: string;
 	/**
@@ -33,7 +31,6 @@ export interface ObservedWebhookState {
 	status?: string;
 	url?: string;
 	format?: string;
-	runtime?: string | null;
 	/** ISO instant the state was read, so a stale paste is obvious. */
 	capturedAt?: string;
 	circuitOpenedAt?: string | null;
@@ -47,8 +44,6 @@ export interface ObservedWebhookState {
 	timeoutMs?: number;
 	deadCount?: number;
 	deadOldestBlock?: number | null;
-	sourceTable?: string;
-	sourceBlocksBehind?: number | null;
 }
 
 export interface AgentPromptDefinition {
@@ -74,7 +69,7 @@ const SUBGRAPHS_INTRO =
 	"Subgraphs are declarative SQL tables that auto-index Stacks blockchain activity into queryable Postgres tables. Define named sources, a typed schema, and handlers in TypeScript, then deploy and query.";
 
 const WEBHOOKS_INTRO =
-	"Webhooks deliver a signed POST to a URL you run whenever a subgraph row is written or a chain event you named happens.";
+	"Webhooks deliver a signed POST to a URL you run whenever a chain event you named happens.";
 
 export const AGENT_SETUP = `Ensure setup once, skipping any step already done:
 - Skill: \`bunx skills add ryanwaits/secondlayer --skill secondlayer -y\`
@@ -86,11 +81,6 @@ function withSetup(body: string): string {
 	return `${AGENT_SETUP}
 
 ${body}`.trim();
-}
-
-function formatTables(tables?: string[]): string {
-	if (!tables?.length) return "No table list is available yet.";
-	return `Known tables: ${tables.map((t) => `\`${t}\``).join(", ")}.`;
 }
 
 /**
@@ -113,19 +103,9 @@ function formatObserved(observed?: ObservedWebhookState): string {
 		lines.push(`- status: ${observed.status}${circuit}`);
 	}
 	if (observed.url) {
-		const shape = [observed.runtime, observed.format]
-			.filter(Boolean)
-			.join(", ");
-		lines.push(`- receiver: ${observed.url}${shape ? ` (${shape})` : ""}`);
-	}
-	if (observed.sourceTable) {
-		const lag =
-			observed.sourceBlocksBehind == null
-				? ""
-				: observed.sourceBlocksBehind === 0
-					? "; source at chain tip"
-					: `; source ${observed.sourceBlocksBehind} blocks behind chain tip`;
-		lines.push(`- source: ${observed.sourceTable}${lag}`);
+		lines.push(
+			`- receiver: ${observed.url}${observed.format ? ` (${observed.format})` : ""}`,
+		);
 	}
 	if (observed.lastError) {
 		lines.push(`- last error: ${observed.lastError}`);
@@ -183,58 +163,49 @@ export const AGENT_PROMPTS: AgentPromptDefinition[] = [
 		title: "Create a subgraph from a contract",
 		audience: "Developers indexing a Stacks contract",
 		surface: "marketing",
-		description:
-			"Scaffold, refine, deploy, query, and offer a webhook webhook.",
-		tags: ["subgraphs", "webhooks"],
+		description: "Scaffold, refine, deploy, and query a subgraph.",
+		tags: ["subgraphs"],
 		build: () =>
 			withSetup(`${SUBGRAPHS_INTRO}
 
-/secondlayer Help me create a subgraph from a Stacks contract. Ask me for the contract id and the events or function calls I care about. Scaffold with \`secondlayer subgraphs scaffold\` so the module package and dependencies are prepared, explain the generated named sources and tables, let me review or customize the handlers, deploy with \`secondlayer subgraphs deploy\`, query recent rows, then ask whether I want a webhook webhook.`),
+/secondlayer Help me create a subgraph from a Stacks contract. Ask me for the contract id and the events or function calls I care about. Scaffold with \`secondlayer subgraphs scaffold\` so the module package and dependencies are prepared, explain the generated named sources and tables, let me review or customize the handlers, deploy with \`secondlayer subgraphs deploy\`, query recent rows, then show me how to read them from my app.`),
 	},
 	{
 		id: "subgraph-alex-swaps",
 		title: "Index ALEX swaps",
 		audience: "Developers starting from a concrete DeFi example",
 		surface: "dashboard",
-		description:
-			"Scaffold a swap subgraph, deploy it, query rows, then offer a webhook.",
-		tags: ["subgraphs", "webhooks"],
+		description: "Scaffold a swap subgraph, deploy it, and query rows.",
+		tags: ["subgraphs"],
 		build: () =>
 			withSetup(`${SUBGRAPHS_INTRO}
 
-/secondlayer Scaffold a subgraph that indexes swap events from \`SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01\`. Use named object sources and \`event.data\` fields, deploy it, query recent swaps, then offer to create a webhook webhook.`),
+/secondlayer Scaffold a subgraph that indexes swap events from \`SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01\`. Use named object sources and \`event.data\` fields, deploy it, query recent swaps, then show me how to read them from my app.`),
 	},
 	{
 		id: "webhook-create",
-		title: "Create a receiver + webhook",
-		audience: "Developers wiring a subgraph table to a webhook",
+		title: "Create a webhook on chain events",
+		audience: "Developers wiring chain events to a receiver",
 		surface: "platform-empty-state",
 		description:
-			"Create a runtime receiver and webhook for a known subgraph table.",
-		tags: ["webhooks", "subgraphs"],
-		build: (context) => {
-			const subgraph = context?.subgraphName
-				? `"${context.subgraphName}"`
-				: "the subgraph I choose";
-			return withSetup(`${WEBHOOKS_INTRO}
+			"Create a webhook on chain events: pick the triggers, then a receiver URL.",
+		tags: ["webhooks"],
+		build: () =>
+			withSetup(`${WEBHOOKS_INTRO}
 
-/secondlayer Create a webhook webhook for subgraph ${subgraph}. ${formatTables(context?.tables)}
-
-Inspect the account state first. If the subgraph and table are already clear, ask me only for the receiver runtime (\`node\`, \`inngest\`, \`trigger\`, or \`cloudflare\`) and the HTTPS receiver URL. Then create the webhook, show the one-time signing secret, and generate a signed test fixture only after I provide that secret.`);
-		},
+/secondlayer Create a webhook on chain events. Inspect the account state first. Ask me only for the HTTPS receiver URL and which chain events to match (a contract call, a token transfer, sBTC, or runes), then build the \`triggers\` array from that and create the webhook with \`secondlayer webhooks create <name> --url <url> --trigger '<json>'\`. Show the one-time signing secret, and generate a signed test fixture only after I provide that secret.`),
 	},
 	{
 		id: "webhook-diagnose",
 		title: "Diagnose delivery failure",
 		audience: "Developers recovering a failing webhook",
 		surface: "platform-detail",
-		description:
-			"Inspect detail, deliveries, DLQ, linked subgraph health, and next steps.",
+		description: "Inspect detail, deliveries, DLQ, and next steps.",
 		tags: ["webhooks", "recovery"],
 		build: (context) =>
 			withSetup(`${WEBHOOKS_INTRO}
 
-/secondlayer Diagnose ${webhookRef(context)}. Inspect webhook detail, recent deliveries, dead-letter rows, and the linked subgraph state. Return the highest-priority findings first. If dead rows exist, propose inspecting them before requeueing selected rows. Do not replay a block range until I confirm exact from/to blocks.${formatObserved(context?.observed)}`),
+/secondlayer Diagnose ${webhookRef(context)}. Inspect webhook detail, recent deliveries, and dead-letter rows. Return the highest-priority findings first. If dead rows exist, propose inspecting them before requeueing selected rows. Do not replay a block range until I confirm exact from/to blocks.${formatObserved(context?.observed)}`),
 	},
 	{
 		id: "webhook-test",
@@ -255,8 +226,6 @@ Inspect the account state first. If the subgraph and table are already clear, as
 							// gets shared alongside a secret is worth avoiding.
 							url: context.observed.url,
 							format: context.observed.format,
-							runtime: context.observed.runtime,
-							sourceTable: context.observed.sourceTable,
 						}
 					: undefined,
 			)}`),

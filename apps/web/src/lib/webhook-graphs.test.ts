@@ -161,7 +161,6 @@ describe("responseTimeHistogram", () => {
 			webhook,
 			deliveries: rows,
 			dead: [],
-			subgraph: null,
 		});
 		const evidence = report.issues
 			.find((i) => i.code === "receiver_slow")
