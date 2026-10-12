@@ -517,46 +517,25 @@ by `_id`.
 
 Deprecated aliases (`sl.subscriptions`, `Subscriptions`) keep working for one release cycle.
 
-Signed HTTP POSTs. Webhooks are polymorphic — pick one kind:
-
-- **subgraph** — fires on rows written to a deployed subgraph table.
-- **chain** — fires on raw chain events with no subgraph. Forward-looking: it
-  starts at the chain tip and never backfills. The turnkey "webhook on a
-  contract / event / function / trait".
-
-```typescript
-// List / get
-const { data } = await sl.webhooks.list();
-const hook = await sl.webhooks.get(id);
-
-// Create a SUBGRAPH webhook — sink a subgraph table to a signed endpoint.
-// `signingSecret` is returned ONCE; store it in the receiver's env.
-const { webhook, signingSecret } = await sl.webhooks.create({
-  name: "whale-alerts",
-  subgraphName: "transfers",
-  tableName: "events",
-  url: "https://example.com/hooks/transfers",
-  format: "standard-webhooks", // or inngest | trigger | cloudflare | cloudevents | raw
-});
-```
-
-### Chain webhooks
-
-Pass `triggers` instead of `subgraphName`/`tableName`. The `trigger.*` builders
-are optional sugar — you can also pass raw objects (e.g.
-`{ type: "contract_call", contractId: "SP....amm", functionName: "swap-*" }`).
-All string fields accept `*` wildcards; `trait` scopes to contracts conforming
-to a SIP/trait (e.g. `"sip-010"`); amounts are non-negative integer strings
-(uint128-safe) or numbers.
+Signed HTTP POSTs on raw chain events. A webhook starts at the chain tip and
+never backfills; it is the turnkey "webhook on a contract / event / function /
+trait". To react to your subgraph rows, watch the table from your own Postgres
+or poll the subgraph API: see [React to your rows](https://www.secondlayer.tools/docs/subgraphs/reading#react-to-your-rows).
 
 ```typescript
 import { SecondLayer, trigger } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN });
 
+// List / get
+const { data } = await sl.webhooks.list();
+const hook = await sl.webhooks.get(id);
+
+// Create. `signingSecret` is returned ONCE; store it in the receiver's env.
 const { webhook, signingSecret } = await sl.webhooks.create({
   name: "amm-swaps",
   url: "https://my-app.com/webhook",
+  format: "standard-webhooks", // or inngest | trigger | cloudflare | cloudevents | raw
   triggers: [
     trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" }),
     trigger.ftTransfer({ trait: "sip-010", minAmount: "1000000" }),
@@ -564,23 +543,29 @@ const { webhook, signingSecret } = await sl.webhooks.create({
 });
 ```
 
+The `trigger.*` builders are optional sugar: you can also pass raw objects
+(e.g. `{ type: "contract_call", contractId: "SP....amm", functionName: "swap-*" }`).
+All string fields accept `*` wildcards; `trait` scopes to contracts conforming
+to a SIP/trait (e.g. `"sip-010"`); amounts are non-negative integer strings
+(uint128-safe) or numbers.
+
 One builder per event type:
 `trigger.stxTransfer` / `stxMint` / `stxBurn` / `stxLock`,
 `trigger.ftTransfer` / `ftMint` / `ftBurn`,
 `trigger.nftTransfer` / `nftMint` / `nftBurn`,
 `trigger.contractCall`, `trigger.contractDeploy`, `trigger.printEvent`.
 
-Delivery envelope (chain subs only): each apply is `chain.{type}.apply` with
+Delivery envelope: each apply is `chain.{type}.apply` with
 body `{ action: "apply", block_hash, block_height, tx_id, canonical, trigger,
 event }`. On reorg you get `chain.reorg.rollback` with `{ action: "rollback",
 fork_point_height, orphaned: [{ tx_id, event }] }`. Delivery is at-least-once: a
 tx surviving a reorg re-delivers an apply under its new `block_hash`, so key
 consumer state on `(tx_id, block_hash)`. Per-webhook HMAC signing (Standard
-Webhooks) is unchanged for both kinds.
+Webhooks) is unchanged.
 
 ```typescript
-// Lifecycle (both kinds)
-await sl.webhooks.update(id, { filter: { amount: { gte: "1000000" } } });
+// Lifecycle
+await sl.webhooks.update(id, { maxRetries: 10 });
 await sl.webhooks.pause(id);
 await sl.webhooks.resume(id);
 await sl.webhooks.rotateSecret(id); // returns new signing secret once
@@ -596,7 +581,7 @@ await sl.webhooks.requeue(id, outboxId);
 
 ### Verifying deliveries
 
-Every delivery — any kind, any `format` — also carries a universal authenticity
+Every delivery, any `format`, also carries a universal authenticity
 signature you can verify with one published key, no per-webhook secret. The
 headers are `webhook-id`, `x-secondlayer-signature`, and
 `x-secondlayer-signature-keyid`; the signed content is `` `${webhook-id}.${rawBody}` ``

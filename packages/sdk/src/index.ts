@@ -197,7 +197,6 @@ export { Webhooks, trigger } from "./webhooks/client.ts";
 export type {
 	WebhookStatus,
 	WebhookFormat,
-	WebhookRuntime,
 	WebhookKind,
 	WebhookSummary,
 	WebhookDetail,

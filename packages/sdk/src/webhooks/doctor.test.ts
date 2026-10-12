@@ -14,18 +14,14 @@ const baseDetail: WebhookDetail = {
 	id: "sub-1",
 	name: "whale-alerts",
 	status: "active",
-	kind: "subgraph",
-	subgraphName: "token-transfers",
-	tableName: "transfers",
-	triggers: null,
+	kind: "chain",
+	triggers: [{ type: "stx_transfer" }],
 	format: "standard-webhooks",
-	runtime: "node",
 	url: "https://example.com/webhook",
 	lastDeliveryAt: null,
 	lastSuccessAt: null,
 	createdAt: "2026-04-23T00:00:00.000Z",
 	updatedAt: "2026-04-23T00:00:00.000Z",
-	filter: {},
 	auth: { type: "none", headerNames: [], hasSecret: false },
 	maxRetries: 7,
 	timeoutMs: 10_000,
@@ -72,7 +68,7 @@ describe("isSuccessDelivery", () => {
 });
 
 describe("buildDoctorReport", () => {
-	it("generates doctor hints and issues for paused/error/DLQ/gap states", () => {
+	it("generates doctor hints and issues for paused/error/DLQ states", () => {
 		const report = buildDoctorReport({
 			webhook: {
 				...baseDetail,
@@ -82,37 +78,6 @@ describe("buildDoctorReport", () => {
 			},
 			deliveries: [delivery(500), delivery(200)],
 			dead: [deadRow],
-			subgraph: {
-				name: "token-transfers",
-				version: "1.0.0",
-				status: "active",
-				lastProcessedBlock: 90,
-				health: {
-					totalProcessed: 1,
-					totalErrors: 0,
-					errorRate: 0,
-					lastError: null,
-					lastErrorAt: null,
-					emptyMapping: false,
-				},
-				sync: {
-					status: "catching_up",
-					startBlock: 1,
-					lastProcessedBlock: 90,
-					chainTip: 100,
-					blocksRemaining: 10,
-					progress: 0.9,
-					gaps: {
-						count: 1,
-						totalMissingBlocks: 2,
-						ranges: [{ start: 10, end: 11, size: 2, reason: "test" }],
-					},
-					integrity: "gaps_detected",
-				},
-				tables: {},
-				createdAt: "2026-04-23T00:00:00.000Z",
-				updatedAt: "2026-04-23T00:00:00.000Z",
-			},
 		});
 
 		expect(report.deliverySummary).toMatchObject({
@@ -123,14 +88,11 @@ describe("buildDoctorReport", () => {
 		expect(report.deadCount).toBe(1);
 		expect(report.hints.join("\n")).toContain("Resume");
 		expect(report.hints.join("\n")).toContain("Dead-letter rows");
-		expect(report.hints.join("\n")).toContain("gaps");
 		expect(report.issues.map((i) => i.code)).toEqual([
 			"paused",
 			"last_error",
 			"circuit",
 			"dead_letters",
-			"subgraph_gaps",
-			"subgraph_catching_up",
 		]);
 		expect(report.issues.find((i) => i.code === "last_error")?.detail).toBe(
 			"receiver 500",
@@ -141,16 +103,12 @@ describe("buildDoctorReport", () => {
 		const report = buildDoctorReport({
 			webhook: {
 				...baseDetail,
-				kind: "chain",
-				subgraphName: null,
-				tableName: null,
 				triggers: [{ type: "contract_call" }],
 				warning:
 					"This instance's chain-trigger evaluator is not running (SUBGRAPH_SOURCE != \"streams-index\") — this chain webhook will never fire until that's set.",
 			},
 			deliveries: [],
 			dead: [],
-			subgraph: null,
 		});
 
 		expect(report.hints[0]).toContain("chain-trigger evaluator is not running");
@@ -162,15 +120,11 @@ describe("buildDoctorReport", () => {
 		const report = buildDoctorReport({
 			webhook: {
 				...baseDetail,
-				kind: "chain",
-				subgraphName: null,
-				tableName: null,
 				triggers: [{ type: "contract_call" }],
 				warning: null,
 			},
 			deliveries: [delivery(200)],
 			dead: [],
-			subgraph: null,
 		});
 
 		expect(report.hints.join("\n")).not.toContain("chain-trigger evaluator");
@@ -187,7 +141,6 @@ describe("buildDoctorReport", () => {
 			},
 			deliveries: [],
 			dead: [deadRow],
-			subgraph: null,
 		});
 		const severityByCode = Object.fromEntries(
 			report.issues.map((i) => [i.code, i.severity]),
@@ -230,7 +183,6 @@ describe("receiver_rate_limited detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		const issue = report.issues.find((i) => i.code === "receiver_rate_limited");
 		expect(issue).toBeDefined();
@@ -252,7 +204,6 @@ describe("receiver_rate_limited detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		expect(
 			report.issues.find((i) => i.code === "receiver_rate_limited"),
@@ -268,7 +219,6 @@ describe("receiver_rate_limited detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		expect(
 			report.issues.find((i) => i.code === "receiver_rate_limited"),
@@ -289,7 +239,6 @@ describe("receiver_down detector", () => {
 			webhook: { ...baseDetail, lastSuccessAt: "2026-04-22T00:00:00.000Z" },
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		const issue = report.issues.find((i) => i.code === "receiver_down");
 		expect(issue).toBeDefined();
@@ -311,7 +260,6 @@ describe("receiver_down detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		expect(
 			report.issues.find((i) => i.code === "receiver_down"),
@@ -334,7 +282,6 @@ describe("receiver_rejects detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		const issue = report.issues.find((i) => i.code === "receiver_rejects");
 		expect(issue).toBeDefined();
@@ -356,7 +303,6 @@ describe("receiver_rejects detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		expect(
 			report.issues.find((i) => i.code === "receiver_rejects"),
@@ -371,7 +317,6 @@ describe("receiver_rejects detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		expect(
 			report.issues.find((i) => i.code === "receiver_rejects"),
@@ -388,7 +333,6 @@ describe("receiver_slow detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		const issue = report.issues.find((i) => i.code === "receiver_slow");
 		expect(issue).toBeDefined();
@@ -406,7 +350,6 @@ describe("receiver_slow detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		expect(
 			report.issues.find((i) => i.code === "receiver_slow"),
@@ -421,7 +364,6 @@ describe("receiver_slow detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		expect(
 			report.issues.find((i) => i.code === "receiver_slow"),
@@ -441,7 +383,6 @@ describe("delivery_lag detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		const issue = report.issues.find((i) => i.code === "delivery_lag");
 		expect(issue).toBeDefined();
@@ -463,7 +404,6 @@ describe("delivery_lag detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		expect(
 			report.issues.find((i) => i.code === "delivery_lag"),
@@ -478,7 +418,6 @@ describe("delivery_lag detector", () => {
 			webhook: baseDetail,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		expect(
 			report.issues.find((i) => i.code === "delivery_lag"),
@@ -492,7 +431,6 @@ describe("primary", () => {
 			webhook: baseDetail,
 			deliveries: [mkDelivery({ statusCode: 200 })],
 			dead: [],
-			subgraph: null,
 		});
 		expect(report.primary).toBeNull();
 	});
@@ -502,7 +440,6 @@ describe("primary", () => {
 			webhook: { ...baseDetail, status: "paused" }, // warn
 			deliveries: [],
 			dead: [{ ...deadRow }], // bad
-			subgraph: null,
 		});
 		expect(report.primary?.code).toBe("dead_letters");
 		expect(report.primary?.severity).toBe("bad");
@@ -513,7 +450,6 @@ describe("primary", () => {
 			webhook: { ...baseDetail, circuitFailures: 3 }, // bad
 			deliveries: [mkDelivery({ statusCode: 200 })], // non-empty: no_deliveries stays quiet
 			dead: [{ ...deadRow }], // bad
-			subgraph: null,
 		});
 		expect(report.issues.map((i) => i.code)).toEqual([
 			"circuit",

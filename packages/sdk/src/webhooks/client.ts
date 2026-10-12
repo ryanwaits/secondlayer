@@ -30,7 +30,6 @@ export type {
 	WebhookDetail,
 	WebhookFormat,
 	WebhookKind,
-	WebhookRuntime,
 	WebhookStatus,
 	WebhookSummary,
 	WebhookTestResult,

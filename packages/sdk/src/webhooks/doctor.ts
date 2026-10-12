@@ -1,4 +1,3 @@
-import type { SubgraphDetail } from "@secondlayer/shared/schemas/subgraphs";
 import type {
 	DeadRow,
 	DeliveryRow,
@@ -44,8 +43,6 @@ export type DoctorIssueCode =
 	| "last_error"
 	| "circuit"
 	| "dead_letters"
-	| "subgraph_gaps"
-	| "subgraph_catching_up"
 	| "no_deliveries"
 	| "receiver_rate_limited"
 	| "receiver_down"
@@ -73,15 +70,6 @@ export interface DoctorReport {
 		last: DeliveryRow | null;
 	};
 	deadCount: number;
-	subgraph: {
-		name: string;
-		status: string;
-		syncStatus: string;
-		lastProcessedBlock: number;
-		chainTip: number;
-		gapCount: number;
-		integrity: string;
-	} | null;
 	/** CLI-facing next steps, one per issue, in the same order as `issues`. */
 	hints: string[];
 	issues: DoctorIssue[];
@@ -381,8 +369,6 @@ const CODE_PRIORITY: DoctorIssueCode[] = [
 	"receiver_slow",
 	"delivery_lag",
 	"no_deliveries",
-	"subgraph_gaps",
-	"subgraph_catching_up",
 ];
 
 function pickPrimary(issues: DoctorIssue[]): DoctorIssue | null {
@@ -407,21 +393,9 @@ export function buildDoctorReport(input: {
 	webhook: WebhookDetail;
 	deliveries: DeliveryRow[];
 	dead: DeadRow[];
-	subgraph?: SubgraphDetail | null;
 }): DoctorReport {
 	const successful = input.deliveries.filter(isSuccessDelivery).length;
 	const failed = input.deliveries.length - successful;
-	const subgraph = input.subgraph
-		? {
-				name: input.subgraph.name,
-				status: input.subgraph.status,
-				syncStatus: input.subgraph.sync.status,
-				lastProcessedBlock: input.subgraph.sync.lastProcessedBlock,
-				chainTip: input.subgraph.sync.chainTip,
-				gapCount: input.subgraph.sync.gaps.count,
-				integrity: input.subgraph.sync.integrity,
-			}
-		: null;
 
 	const hints: string[] = [];
 	const issues: DoctorIssue[] = [];
@@ -461,18 +435,6 @@ export function buildDoctorReport(input: {
 		);
 		issues.push({ code: "dead_letters", severity: "bad" });
 	}
-	if (subgraph?.gapCount && subgraph.gapCount > 0) {
-		hints.push(
-			`Linked subgraph has gaps; run secondlayer subgraphs gaps ${input.webhook.subgraphName}.`,
-		);
-		issues.push({ code: "subgraph_gaps", severity: "calm" });
-	}
-	if (subgraph?.syncStatus === "catching_up") {
-		hints.push(
-			"Linked subgraph is still catching up; new matching rows may arrive later.",
-		);
-		issues.push({ code: "subgraph_catching_up", severity: "calm" });
-	}
 
 	for (const detector of [
 		detectReceiverRateLimited,
@@ -494,7 +456,7 @@ export function buildDoctorReport(input: {
 
 	if (input.deliveries.length === 0) {
 		hints.push(
-			"No deliveries yet; confirm the table is receiving inserted rows that match the filter.",
+			"No deliveries yet; confirm a chain event matching one of the triggers has happened since the webhook was created.",
 		);
 		issues.push({ code: "no_deliveries", severity: "calm" });
 	}
@@ -511,7 +473,6 @@ export function buildDoctorReport(input: {
 			last: input.deliveries[0] ?? null,
 		},
 		deadCount: input.dead.length,
-		subgraph,
 		hints,
 		issues,
 		primary: pickPrimary(issues),
