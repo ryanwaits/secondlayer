@@ -5530,6 +5530,7 @@ html:has(.apiref) {
 	background: var(--code-bg);
 	border-radius: 4px;
 	padding: 1px 5px;
+	overflow-wrap: anywhere;
 }
 .apiref-group {
 	display: flex;
