@@ -1,5 +1,12 @@
 # @secondlayer/subgraphs
 
+## 7.0.1
+
+### Patch Changes
+
+- Updated dependencies [42a9138]
+  - @secondlayer/verify@0.5.0
+
 ## 7.0.0
 
 ### Major Changes

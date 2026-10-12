@@ -1,5 +1,11 @@
 # @secondlayer/verify
 
+## 0.5.0
+
+### Minor Changes
+
+- 42a9138: Check a block in your browser on the Verify page and the verification docs. `verifyBlock` takes `onStep` to report each link as it passes, and `describeLinks` turns a result into per-link lines and a verdict. `secondlayer verify block` renders through it, output unchanged.
+
 ## 0.4.0
 
 ### Minor Changes
