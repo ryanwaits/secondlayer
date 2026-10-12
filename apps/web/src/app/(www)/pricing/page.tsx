@@ -26,7 +26,6 @@ import {
 	usdExact,
 } from "@/lib/prices";
 import type { Metadata } from "next";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { PricingEstimator } from "./pricing-estimator";
 
@@ -383,56 +382,8 @@ export default function PricingPage() {
 				</div>
 			</div>
 
-			<div className="band band-soft">
+			<div className="band band-soft band-slim">
 				<div className="shell">
-					<div className="sec-head">
-						<Eyebrow noun="Hosted or self-host" />
-						<h2>Your box or ours</h2>
-					</div>
-					<div className="fork">
-						<div>
-							<h3>Ours</h3>
-							<p>
-								We run the node, the indexer and your stack. You pay for the
-								rows we deliver and the stack while it runs.
-							</p>
-							<ul>
-								<li>
-									Index and Streams from{" "}
-									<span className="mono">api.secondlayer.tools</span>
-								</li>
-								<li>Hosted subgraphs and webhooks on one private stack</li>
-								<li>Prepaid balance, monthly cap, statement by meter</li>
-							</ul>
-							<div className="refs">
-								<Link href="/login">Start free</Link>
-								<Link href="/docs/authentication">docs/authentication</Link>
-							</div>
-						</div>
-						<div>
-							<h3>Yours</h3>
-							<p>
-								Postgres plus one container beside your node. The same CLI, SDK
-								and <span className="mono">/v1</span> routes answer, at no cost
-								per row.
-							</p>
-							<ul>
-								<li>MIT licensed, free forever</li>
-								<li>
-									<span className="mono">bootstrap</span> from the signed
-									archive in hours
-								</li>
-								<li>
-									<span className="mono">verify</span> your own copy free, pay
-									only to repair
-								</li>
-							</ul>
-							<div className="refs">
-								<Link href="/docs/self-host">docs/self-host</Link>
-								<a href={GITHUB_URL}>GitHub</a>
-							</div>
-						</div>
-					</div>
 					<div className="talk">
 						<p>
 							Moving billions of rows, or need terms on paper?{" "}
