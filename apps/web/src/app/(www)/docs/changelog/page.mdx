@@ -11,6 +11,10 @@ and unmetered; archive bootstrap, backfill and reindex draw
 
 ## Webhooks — October 2026
 
+### Subgraph webhooks removed
+
+Webhooks fire on chain events only. Upgrading deletes any webhook on a subgraph table, and the API answers `400 SUBGRAPH_WEBHOOKS_REMOVED` for one. Your rows are yours: react to them from your Postgres, or poll the table hosted. See [React to your rows](/docs/subgraphs/reading#react-to-your-rows). Run `secondlayer webhooks list --json` before you upgrade to keep a record.
+
 ### Deliveries carry the block's time
 
 Every Stacks chain delivery's `data` now has `block_time`, when the block was produced (ISO 8601), or `null` when it wasn't recorded. You no longer need a second read to timestamp an event. See [Delivery envelope](/docs/webhooks/deliveries).
