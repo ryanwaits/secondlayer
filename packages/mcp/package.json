@@ -34,7 +34,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@modelcontextprotocol/sdk": "^1.29.0",
+		"@modelcontextprotocol/sdk": "^1.32.1",
 		"@secondlayer/bundler": "^0.7.0",
 		"@secondlayer/scaffold": "^1.6.1",
 		"@secondlayer/sdk": "^14.5.1",

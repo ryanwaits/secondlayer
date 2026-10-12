@@ -45,7 +45,7 @@
 		"@secondlayer/subgraphs": "^6.6.2",
 		"@secondlayer/verify": "^0.4.0",
 		"esbuild": "^0.28.2",
-		"smol-toml": "^1.8.0",
+		"smol-toml": "^1.9.1",
 		"zod": "^4.3.6"
 	},
 	"peerDependencies": {
