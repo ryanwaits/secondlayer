@@ -477,14 +477,13 @@ export const OPENAPI_SPEC = {
 					},
 					webhooks: {
 						type: "array",
-						description:
-							"Webhooks: `name`, `status`, `kind` (`subgraph` or `chain`).",
+						description: "Webhooks: `name`, `status`, `kind` (`chain`).",
 						items: {
 							type: "object",
 							properties: {
 								name: { type: "string" },
 								status: { type: "string", enum: [...WEBHOOK_STATUSES] },
-								kind: { type: "string", enum: ["subgraph", "chain"] },
+								kind: { type: "string", enum: ["chain"] },
 							},
 						},
 					},

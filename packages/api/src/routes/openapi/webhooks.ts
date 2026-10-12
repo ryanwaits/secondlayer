@@ -2,7 +2,6 @@ import {
 	CHAIN_TRIGGER_FIELDS,
 	CHAIN_TRIGGER_TYPES,
 	WEBHOOK_FORMATS,
-	WEBHOOK_RUNTIMES,
 	WEBHOOK_STATUSES,
 } from "@secondlayer/shared/schemas/webhooks";
 import {
@@ -37,7 +36,10 @@ function writeResponsesWithout200(extra: Record<string, unknown>) {
 
 // Mirrors `WebhookKind` in `@secondlayer/shared/schemas/webhooks` (a TS union,
 // no runtime constant).
-const WEBHOOK_KINDS = ["subgraph", "chain"];
+const WEBHOOK_KINDS = ["chain"];
+
+const SUBGRAPH_WEBHOOKS_REMOVED_NOTE =
+	"A body carrying `subgraphName`, `tableName` or `filter` is answered with `SUBGRAPH_WEBHOOKS_REMOVED`: subgraph webhooks were removed";
 
 // ── Example values (fake ids; block, tx and principals from mainnet) ──
 
@@ -67,10 +69,7 @@ const EXAMPLE_SUMMARY = {
 	name: "sbtc-moves",
 	status: "active",
 	kind: "chain",
-	subgraphName: null,
-	tableName: null,
 	format: "standard-webhooks",
-	runtime: null,
 	url: "https://example.com/webhooks/sbtc",
 	lastDeliveryAt: "2026-09-22T14:03:11.402Z",
 	lastSuccessAt: "2026-09-22T14:03:11.402Z",
@@ -82,7 +81,6 @@ const EXAMPLE_SUMMARY = {
 
 const EXAMPLE_DETAIL = {
 	...EXAMPLE_SUMMARY,
-	filter: {},
 	triggers: EXAMPLE_TRIGGERS,
 	auth: { type: "none", headerNames: [], hasSecret: false },
 	maxRetries: 7,
@@ -142,13 +140,6 @@ const FORMAT_PROP = {
 		"Payload and signing format. `standard-webhooks` signs with the webhook's secret; the others shape the body for that receiver.",
 };
 
-const RUNTIME_PROP = {
-	type: ["string", "null"],
-	enum: [...WEBHOOK_RUNTIMES, null],
-	description:
-		"Receiver runtime the CLI scaffolds for. Informational; `null` when none was chosen.",
-};
-
 const SUMMARY_PROPERTIES = {
 	id: { type: "string", format: "uuid", description: "Webhook id." },
 	name: {
@@ -165,18 +156,9 @@ const SUMMARY_PROPERTIES = {
 		type: "string",
 		enum: WEBHOOK_KINDS,
 		description:
-			"`subgraph` fires on rows a subgraph writes. `chain` fires on raw chain events matched by `triggers`.",
-	},
-	subgraphName: {
-		type: ["string", "null"],
-		description: "Source subgraph. `null` for chain webhooks.",
-	},
-	tableName: {
-		type: ["string", "null"],
-		description: "Source table in that subgraph. `null` for chain webhooks.",
+			"Always `chain`: webhooks fire on raw chain events matched by `triggers`.",
 	},
 	format: FORMAT_PROP,
-	runtime: RUNTIME_PROP,
 	url: { type: "string", description: "Delivery target." },
 	lastDeliveryAt: {
 		type: ["string", "null"],
@@ -271,13 +253,10 @@ const TUNING_PROPS = {
 
 const DETAIL_PROPERTIES = {
 	...SUMMARY_PROPERTIES,
-	filter: {
-		$ref: "#/components/schemas/WebhookFilter",
-	},
 	triggers: {
-		type: ["array", "null"],
+		type: "array",
 		items: { $ref: "#/components/schemas/ChainTrigger" },
-		description: "Chain triggers. `null` for subgraph webhooks.",
+		description: "Chain triggers.",
 	},
 	auth: AUTH_PROP,
 	maxRetries: TUNING_PROPS.maxRetries,
@@ -290,7 +269,7 @@ const DETAIL_PROPERTIES = {
 	warning: {
 		type: ["string", "null"],
 		description:
-			"Set on a `kind=\"chain\"` webhook when this instance's chain-trigger evaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the webhook will never fire until that's fixed. `null` otherwise.",
+			"Set when this instance's chain-trigger evaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the webhook will never fire until that's fixed. `null` otherwise.",
 	},
 };
 
@@ -406,7 +385,7 @@ export const webhooksPaths = {
 			tags: ["webhooks"],
 			summary: "Create a webhook",
 			description:
-				"Two modes, one per request. A subgraph webhook takes `subgraphName` + `tableName` and an optional column `filter`, checked against that table's schema. A chain webhook takes `triggers` and starts at the chain tip, with no backfill. The response carries the signing secret. This is the only time it is returned, so store it now; `rotate-secret` issues a new one.",
+				"Takes `triggers` and starts at the chain tip, with no backfill. The response carries the signing secret. This is the only time it is returned, so store it now; `rotate-secret` issues a new one.",
 			security: WRITE_SECURITY,
 			requestBody: jsonBody({
 				$ref: "#/components/schemas/CreateWebhookRequest",
@@ -416,9 +395,7 @@ export const webhooksPaths = {
 					{ $ref: "#/components/schemas/WebhookWithSecret" },
 					"Created. The body carries the signing secret, once",
 				),
-				"400": jsonError(
-					`${ERROR_400}. Also: both modes or neither, unknown subgraph or table, or a filter on a column that does not exist or is not a scalar`,
-				),
+				"400": jsonError(`${ERROR_400}. ${SUBGRAPH_WEBHOOKS_REMOVED_NOTE}`),
 				"409": jsonError("A webhook with that name already exists"),
 				"500": jsonError("The webhook could not be stored (`INTERNAL_ERROR`)"),
 			}),
@@ -441,7 +418,7 @@ export const webhooksPaths = {
 			tags: ["webhooks"],
 			summary: "Update a webhook",
 			description:
-				"Change any subset of fields; at least one is required. Mode, source table and `triggers` are fixed at create: to change them, create a new webhook. A new `filter` is checked against the subgraph table's schema.",
+				"Change any subset of fields; at least one is required. `triggers` are fixed at create: to change them, create a new webhook.",
 			security: WRITE_SECURITY,
 			parameters: [ID_PARAM],
 			requestBody: jsonBody({
@@ -452,6 +429,7 @@ export const webhooksPaths = {
 					{ $ref: "#/components/schemas/Webhook" },
 					"The updated webhook",
 				),
+				"400": jsonError(`${ERROR_400}. ${SUBGRAPH_WEBHOOKS_REMOVED_NOTE}`),
 				"404": NOT_FOUND,
 			}),
 		},
@@ -641,7 +619,7 @@ export const webhooksPaths = {
 			tags: ["webhooks"],
 			summary: "Replay a block range",
 			description:
-				"Queues historical events in a block range for redelivery, capped at 100,000 blocks. Replays are idempotent: the same range yields the same `replayId` and delivers nothing twice unless `force` is set. They drain through a 10% share of the outbox so live traffic keeps priority, and never move the live cursor. Subgraph webhooks deliver `<subgraph>.<table>.replay`; chain webhooks deliver the normal `chain.<type>.apply` envelope.",
+				"Queues historical events in a block range for redelivery, capped at 100,000 blocks. Replays are idempotent: the same range yields the same `replayId` and delivers nothing twice unless `force` is set. They drain through a 10% share of the outbox so live traffic keeps priority, and never move the live cursor. Replays deliver the normal `chain.<type>.apply` envelope.",
 			security: WRITE_SECURITY,
 			parameters: [ID_PARAM],
 			requestBody: jsonBody({
@@ -653,7 +631,7 @@ export const webhooksPaths = {
 					"Replay queued",
 				),
 				"400": jsonError(
-					`${ERROR_400}. Also: \`fromBlock\` after \`toBlock\`, a range over 100,000 blocks, or a subgraph that is not deployed`,
+					`${ERROR_400}. Also: \`fromBlock\` after \`toBlock\`, or a range over 100,000 blocks`,
 				),
 				"404": NOT_FOUND,
 				"500": jsonError("The replay could not be queued (`INTERNAL_ERROR`)"),
@@ -694,23 +672,6 @@ export const webhooksSchemas = {
 		},
 		example: { webhook: EXAMPLE_DETAIL, signingSecret: FAKE_SECRET },
 	},
-	WebhookFilter: {
-		type: "object",
-		description:
-			"Column filter for subgraph webhooks: `{ column: value }` for equality, or `{ column: { op: value } }` with `op` one of `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`. Columns must be scalar; `gt`/`gte`/`lt`/`lte` need a `uint`, `int` or `timestamp` column. All clauses must match. `{}` matches every row. Chain webhooks use `triggers` instead.",
-		additionalProperties: {
-			oneOf: [
-				{ type: "string" },
-				{ type: "number" },
-				{ type: "boolean" },
-				{ type: "object", minProperties: 1, maxProperties: 1 },
-			],
-		},
-		example: {
-			recipient: "SP1GBRTAXY96ZDYRQY4GR0M9JTXVYD2FGFRGV60FJ",
-			amount: { gte: 100000 },
-		},
-	},
 	ChainTrigger: {
 		type: "object",
 		description:
@@ -730,9 +691,8 @@ export const webhooksSchemas = {
 	},
 	CreateWebhookRequest: {
 		type: "object",
-		description:
-			"Send `subgraphName` + `tableName` (+ optional `filter`) for a subgraph webhook, or `triggers` for a chain webhook. Never both.",
-		required: ["name", "url"],
+		description: "Webhooks fire on chain events: send the `triggers` to match.",
+		required: ["name", "url", "triggers"],
 		properties: {
 			name: {
 				type: "string",
@@ -745,29 +705,15 @@ export const webhooksSchemas = {
 				description:
 					"Delivery target, `http://` or `https://`. Private addresses are refused at delivery time.",
 			},
-			subgraphName: {
-				type: "string",
-				maxLength: 128,
-				description: "Subgraph mode: the deployed subgraph to watch.",
-			},
-			tableName: {
-				type: "string",
-				maxLength: 128,
-				description: "Subgraph mode: the table in that subgraph.",
-			},
-			filter: {
-				$ref: "#/components/schemas/WebhookFilter",
-			},
 			triggers: {
 				type: "array",
 				minItems: 1,
 				maxItems: 50,
 				items: { $ref: "#/components/schemas/ChainTrigger" },
 				description:
-					"Chain mode: 1 to 50 triggers. An event matching any of them is delivered.",
+					"1 to 50 triggers. An event matching any of them is delivered.",
 			},
 			format: { ...FORMAT_PROP, default: "standard-webhooks" },
-			runtime: RUNTIME_PROP,
 			...TUNING_PROPS,
 		},
 		example: {
@@ -779,7 +725,7 @@ export const webhooksSchemas = {
 	UpdateWebhookRequest: {
 		type: "object",
 		description:
-			"Any subset of these fields, at least one. Mode, source and `triggers` cannot change.",
+			"Any subset of these fields, at least one. `triggers` cannot change.",
 		minProperties: 1,
 		properties: {
 			name: {
@@ -792,9 +738,7 @@ export const webhooksSchemas = {
 				type: "string",
 				description: "New delivery target, `http://` or `https://`.",
 			},
-			filter: { $ref: "#/components/schemas/WebhookFilter" },
 			format: FORMAT_PROP,
-			runtime: RUNTIME_PROP,
 			...TUNING_PROPS,
 		},
 		example: { url: "https://example.com/webhooks/sbtc-v2", maxRetries: 10 },
@@ -979,8 +923,7 @@ export const webhooksSchemas = {
 			},
 			eventType: {
 				type: "string",
-				description:
-					"Delivered `type`: `<subgraph>.<table>.<verb>` or `chain.<trigger>.apply`.",
+				description: "Delivered `type`, e.g. `chain.ft_transfer.apply`.",
 			},
 			attempt: {
 				type: "integer",

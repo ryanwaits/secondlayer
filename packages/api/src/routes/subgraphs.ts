@@ -1110,7 +1110,7 @@ app.get("/", async (c) => {
 
 	// Fetch live stats, chain tip, and gap summaries in parallel
 	const db = getDb();
-	const [liveResult, chainTip, gapSummaries, subCounts] = await Promise.all([
+	const [liveResult, chainTip, gapSummaries] = await Promise.all([
 		db
 			.selectFrom("subgraphs")
 			.select([
@@ -1131,23 +1131,10 @@ app.get("/", async (c) => {
 			.catch(() => [] as any[]),
 		getChainTip(),
 		getGapSummaryBySubgraph(db).catch(() => []),
-		db
-			.selectFrom("webhooks")
-			.select("subgraph_name")
-			.select((eb) => eb.fn.count<number>("id").as("count"))
-			.where("subgraph_name", "is not", null)
-			.groupBy("subgraph_name")
-			.execute()
-			.catch(() => [] as { subgraph_name: string | null; count: number }[]),
 	]);
 
 	const liveStats = new Map<string, (typeof liveResult)[0]>();
 	for (const r of liveResult) liveStats.set(r.id, r);
-
-	const subCountMap = new Map<string, number>();
-	for (const r of subCounts) {
-		if (r.subgraph_name) subCountMap.set(r.subgraph_name, Number(r.count));
-	}
 
 	const gapMap = new Map<
 		string,
@@ -1203,7 +1190,6 @@ app.get("/", async (c) => {
 				lastError: live?.last_error ?? null,
 				lastErrorAt: live?.last_error_at?.toISOString() ?? null,
 				updatedAt: (live?.updated_at ?? v.updated_at)?.toISOString() ?? null,
-				webhookCount: subCountMap.get(v.name) ?? 0,
 				createdAt: v.created_at.toISOString(),
 			};
 		}),

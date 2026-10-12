@@ -226,7 +226,6 @@ export const deploymentsPaths = {
 											lastError: null,
 											lastErrorAt: null,
 											updatedAt: "2026-09-23T14:02:11.000Z",
-											webhookCount: 1,
 											createdAt: "2026-09-21T09:14:52.000Z",
 										},
 									],
@@ -1059,10 +1058,6 @@ export const deploymentsSchemas = {
 				format: "date-time",
 				description: "Last registry update.",
 			},
-			webhookCount: {
-				type: "integer",
-				description: "Webhooks attached to this subgraph.",
-			},
 			createdAt: {
 				type: "string",
 				format: "date-time",
@@ -1089,7 +1084,6 @@ export const deploymentsSchemas = {
 			lastError: null,
 			lastErrorAt: null,
 			updatedAt: "2026-09-23T14:02:11.000Z",
-			webhookCount: 1,
 			createdAt: "2026-09-21T09:14:52.000Z",
 		},
 	},

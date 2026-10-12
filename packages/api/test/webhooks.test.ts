@@ -1,15 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import type { InsertWebhookOutbox } from "@secondlayer/shared/db";
-import { registerSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { __setReplayInFlightForTest } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
 import webhooksRouter from "../src/routes/webhooks.ts";
 
 const SKIP = !process.env.DATABASE_URL;
 const ACCOUNT_ID = "a5e10000-0000-4000-8000-000000000009";
-const SUBGRAPH_NAME = "webhooks-api-test";
-const DEDICATED_SUBGRAPH_NAME = "dedicated-webhooks-api-test";
 type TestEnv = {
 	Variables: {
 		accountId: string;
@@ -37,10 +34,6 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		await db.deleteFrom("webhook_outbox").execute();
 		await db.deleteFrom("webhooks").execute();
 		await db
-			.deleteFrom("subgraphs")
-			.where("name", "=", SUBGRAPH_NAME)
-			.execute();
-		await db
 			.insertInto("accounts")
 			.values({
 				id: ACCOUNT_ID,
@@ -48,26 +41,6 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			})
 			.onConflict((oc) => oc.column("id").doNothing())
 			.execute();
-		await registerSubgraph(db, {
-			name: SUBGRAPH_NAME,
-			version: "1.0.0",
-			definition: {
-				name: SUBGRAPH_NAME,
-				sources: {},
-				schema: {
-					transfers: {
-						columns: {
-							sender: { type: "principal" },
-							amount: { type: "uint" },
-							memo: { type: "text" },
-						},
-					},
-				},
-			},
-			schemaHash: "webhooks-api-test",
-			handlerPath: "/tmp/webhooks-api-test.js",
-			accountId: ACCOUNT_ID,
-		});
 	});
 
 	afterAll(async () => {
@@ -81,68 +54,76 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		await db.deleteFrom("webhook_deliveries").execute();
 		await db.deleteFrom("webhook_outbox").execute();
 		await db.deleteFrom("webhooks").execute();
-		await db
-			.deleteFrom("subgraphs")
-			.where("name", "=", SUBGRAPH_NAME)
-			.execute();
 		await db.deleteFrom("accounts").where("id", "=", ACCOUNT_ID).execute();
 	});
 
-	test("create rejects unknown table and filter fields", async () => {
-		const unknownTable = await app.request("/webhooks", {
+	test("create answers SUBGRAPH_WEBHOOKS_REMOVED for a body naming a subgraph table", async () => {
+		const res = await app.request("/webhooks", {
 			method: "POST",
 			body: JSON.stringify({
-				name: "bad-table",
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "missing",
-				url: "https://example.com/webhook",
-			}),
-		});
-		expect(unknownTable.status).toBe(400);
-		expect(await unknownTable.json()).toMatchObject({
-			error: expect.stringContaining('Unknown table "missing"'),
-		});
-
-		const unknownField = await app.request("/webhooks", {
-			method: "POST",
-			body: JSON.stringify({
-				name: "bad-field",
-				subgraphName: SUBGRAPH_NAME,
+				name: "removed-subgraph-webhook",
+				subgraphName: "sbtc-flows",
 				tableName: "transfers",
 				url: "https://example.com/webhook",
-				filter: { nope: "x" },
 			}),
 		});
-		expect(unknownField.status).toBe(400);
-		expect(await unknownField.json()).toMatchObject({
-			error: 'Unknown filter field "nope" on table "transfers".',
+		expect(res.status).toBe(400);
+		expect(await res.json()).toMatchObject({
+			code: "SUBGRAPH_WEBHOOKS_REMOVED",
+			error: expect.stringContaining(
+				"/docs/subgraphs/reading#react-to-your-rows",
+			),
 		});
 	});
 
-	test("valid filters create and update still works", async () => {
-		const created = await app.request("/webhooks", {
+	test("create answers SUBGRAPH_WEBHOOKS_REMOVED even when triggers are also sent", async () => {
+		const res = await app.request("/webhooks", {
 			method: "POST",
 			body: JSON.stringify({
-				name: "valid-filter",
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "transfers",
+				name: "removed-filter",
+				triggers: [{ type: "stx_transfer" }],
 				url: "https://example.com/webhook",
 				filter: { amount: { gte: "1000" } },
 			}),
 		});
-		expect(created.status).toBe(201);
-		const body = (await created.json()) as {
-			webhook: { id: string; filter: Record<string, unknown> };
-		};
-		expect(body.webhook.filter).toEqual({ amount: { gte: "1000" } });
+		expect(res.status).toBe(400);
+		expect(await res.json()).toMatchObject({
+			code: "SUBGRAPH_WEBHOOKS_REMOVED",
+		});
+	});
+
+	test("create without triggers is rejected", async () => {
+		const res = await app.request("/webhooks", {
+			method: "POST",
+			body: JSON.stringify({
+				name: "no-triggers",
+				url: "https://example.com/webhook",
+			}),
+		});
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string; code?: string };
+		expect(body.error).toContain("triggers");
+		expect(body.code).toBeUndefined();
+	});
+
+	test("update answers SUBGRAPH_WEBHOOKS_REMOVED for a body carrying filter", async () => {
+		const created = await app.request("/webhooks", {
+			method: "POST",
+			body: JSON.stringify({
+				name: "update-with-filter",
+				triggers: [{ type: "stx_transfer" }],
+				url: "https://example.com/webhook",
+			}),
+		});
+		const body = (await created.json()) as { webhook: { id: string } };
 
 		const updated = await app.request(`/webhooks/${body.webhook.id}`, {
 			method: "PATCH",
 			body: JSON.stringify({ filter: { sender: "SP1" } }),
 		});
-		expect(updated.status).toBe(200);
+		expect(updated.status).toBe(400);
 		expect(await updated.json()).toMatchObject({
-			filter: { sender: "SP1" },
+			code: "SUBGRAPH_WEBHOOKS_REMOVED",
 		});
 	});
 
@@ -151,8 +132,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			method: "POST",
 			body: JSON.stringify({
 				name: "auth-redaction",
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: "https://example.com/webhook",
 				authConfig: {
 					authType: "bearer",
@@ -197,8 +177,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			method: "POST",
 			body: JSON.stringify({
 				name: "auth-implicit-bearer",
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: "https://example.com/webhook",
 				authConfig: { token: "implicit-token" },
 			}),
@@ -216,8 +195,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			method: "POST",
 			body: JSON.stringify({
 				name: "auth-none",
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: "https://example.com/webhook",
 			}),
 		});
@@ -226,28 +204,6 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			type: "none",
 			headerNames: [],
 			hasSecret: false,
-		});
-	});
-
-	test("update rejects filter fields outside the subscribed table", async () => {
-		const created = await app.request("/webhooks", {
-			method: "POST",
-			body: JSON.stringify({
-				name: "bad-update-filter",
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "transfers",
-				url: "https://example.com/webhook",
-			}),
-		});
-		const body = (await created.json()) as { webhook: { id: string } };
-
-		const updated = await app.request(`/webhooks/${body.webhook.id}`, {
-			method: "PATCH",
-			body: JSON.stringify({ filter: { nope: "x" } }),
-		});
-		expect(updated.status).toBe(400);
-		expect(await updated.json()).toMatchObject({
-			error: 'Unknown filter field "nope" on table "transfers".',
 		});
 	});
 
@@ -269,8 +225,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			method: "POST",
 			body: JSON.stringify({
 				name: "replay-range-too-large",
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: "https://example.com/webhook",
 			}),
 		});
@@ -314,30 +269,12 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		}
 	});
 
-	test("create does not warn on a subgraph webhook regardless of SUBGRAPH_SOURCE", async () => {
-		const created = await app.request("/webhooks", {
-			method: "POST",
-			body: JSON.stringify({
-				name: "no-warning-subgraph-webhook",
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "transfers",
-				url: "https://example.com/webhook",
-			}),
-		});
-		expect(created.status).toBe(201);
-		const body = (await created.json()) as {
-			webhook: { warning: string | null };
-		};
-		expect(body.webhook.warning).toBeNull();
-	});
-
 	test("replay returns 409 when a replay is already in progress for the webhook", async () => {
 		const created = await app.request("/webhooks", {
 			method: "POST",
 			body: JSON.stringify({
 				name: "replay-concurrency",
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: "https://example.com/webhook",
 			}),
 		});
@@ -358,25 +295,22 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		}
 	});
 
-	// f052: replay against a webhook whose schema-declared table has no
-	// physical table underneath throws a raw Postgres "relation does not exist"
-	// error. That's exactly the kind of driver detail the route must not leak —
-	// it should collapse to the same generic 500 shape as the global handler.
-	test("replay swallows an unexpected DB error into a generic 500, not the raw driver message", async () => {
+	// Replay loads canonical blocks over HTTP from the Index API. When that
+	// fetch fails the raw network error must not leak to the client — it
+	// collapses to the same generic 500 shape as the global handler.
+	test("replay swallows an unexpected block-source error into a generic 500, not the raw error", async () => {
 		const created = await app.request("/webhooks", {
 			method: "POST",
 			body: JSON.stringify({
 				name: "replay-unexpected-error",
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: "https://example.com/webhook",
 			}),
 		});
 		const body = (await created.json()) as { webhook: { id: string } };
 
-		// The `transfers` table exists only in the subgraph's schema JSON, not as
-		// a physical Postgres table/schema — replayWebhook's raw SELECT will
-		// throw "relation ... does not exist".
+		// No Index API is reachable from the test process, so loading the block
+		// range throws a raw connection error.
 		const res = await app.request(`/webhooks/${body.webhook.id}/replay`, {
 			method: "POST",
 			body: JSON.stringify({ fromBlock: 0, toBlock: 10 }),
@@ -387,8 +321,8 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			error: "Internal Server Error",
 			code: "INTERNAL_ERROR",
 		});
-		expect(JSON.stringify(responseBody)).not.toContain("relation");
-		expect(JSON.stringify(responseBody)).not.toContain("does not exist");
+		expect(JSON.stringify(responseBody)).not.toContain("ECONNREFUSED");
+		expect(JSON.stringify(responseBody)).not.toContain("fetch");
 	});
 
 	test("deliveries report the delivered event's block time, or null without one", async () => {
@@ -396,8 +330,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			method: "POST",
 			body: JSON.stringify({
 				name: "deliveries-block-time",
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: "https://example.com/webhook",
 			}),
 		});
@@ -410,12 +343,10 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			.insertInto("webhook_outbox")
 			.values({
 				webhook_id: webhookId,
-				subgraph_name: SUBGRAPH_NAME,
-				table_name: "transfers",
 				block_height: 42,
 				tx_id: "0xtimed",
-				row_pk: { blockHeight: 42, txId: "0xtimed", rowIndex: 0 },
-				event_type: `${SUBGRAPH_NAME}.transfers.created`,
+				row_pk: { tx_id: "0xtimed", event_index: 0 },
+				event_type: "chain.stx_transfer.apply",
 				payload: { amount: "1" },
 				dedup_key: "deliveries-block-time-outbox",
 				block_time: blockTime,
@@ -459,8 +390,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			method: "POST",
 			body: JSON.stringify({
 				name: "deliveries-event-index",
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: "https://example.com/webhook",
 			}),
 		});
@@ -472,12 +402,10 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			.insertInto("webhook_outbox")
 			.values({
 				webhook_id: webhookId,
-				subgraph_name: SUBGRAPH_NAME,
-				table_name: "transfers",
 				block_height: 42,
 				tx_id: "0xindexed",
-				row_pk: { blockHeight: 42, txId: "0xindexed", rowIndex: 3 },
-				event_type: `${SUBGRAPH_NAME}.transfers.created`,
+				row_pk: { tx_id: "0xindexed", event_index: 3 },
+				event_type: "chain.stx_transfer.apply",
 				payload: { amount: "1" },
 				dedup_key: "deliveries-event-index-outbox",
 			})
@@ -520,8 +448,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			method: "POST",
 			body: JSON.stringify({
 				name,
-				subgraphName: SUBGRAPH_NAME,
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: "https://example.com/webhook",
 			}),
 		});
@@ -534,12 +461,10 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			Pick<InsertWebhookOutbox, "webhook_id" | "dedup_key">,
 	): InsertWebhookOutbox {
 		return {
-			subgraph_name: SUBGRAPH_NAME,
-			table_name: "transfers",
 			block_height: 1,
 			tx_id: "0xactivity",
-			row_pk: { blockHeight: 1, txId: "0xactivity", rowIndex: 0 },
-			event_type: `${SUBGRAPH_NAME}.transfers.created`,
+			row_pk: { tx_id: "0xactivity", event_index: 0 },
+			event_type: "chain.stx_transfer.apply",
 			payload: { amount: "1" },
 			...overrides,
 		};
@@ -830,7 +755,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		expect(detail.outboxStatus).toBe("dead");
 	});
 
-	test("delivery detail reads a chain-trigger row's event_index, not just a subgraph row's rowIndex", async () => {
+	test("delivery detail reads a chain-trigger row's event_index", async () => {
 		const webhookId = await createTestWebhook("delivery-detail-chain-index");
 		const db = getDb();
 		const outbox = await db
@@ -976,7 +901,6 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 
 describe.skipIf(SKIP)("Webhooks API pagination", () => {
 	const PAGINATION_ACCOUNT_ID = "a5e10000-0000-4000-8000-000000000010";
-	const PAGINATION_SUBGRAPH_NAME = "pagination-webhooks-api-test";
 	const app = new Hono<TestEnv>();
 	const originalInstanceMode = process.env.INSTANCE_MODE;
 	app.use("*", async (c, next) => {
@@ -998,10 +922,6 @@ describe.skipIf(SKIP)("Webhooks API pagination", () => {
 			.where("account_id", "=", PAGINATION_ACCOUNT_ID)
 			.execute();
 		await db
-			.deleteFrom("subgraphs")
-			.where("name", "=", PAGINATION_SUBGRAPH_NAME)
-			.execute();
-		await db
 			.insertInto("accounts")
 			.values({
 				id: PAGINATION_ACCOUNT_ID,
@@ -1009,24 +929,6 @@ describe.skipIf(SKIP)("Webhooks API pagination", () => {
 			})
 			.onConflict((oc) => oc.column("id").doNothing())
 			.execute();
-		await registerSubgraph(db, {
-			name: PAGINATION_SUBGRAPH_NAME,
-			version: "1.0.0",
-			definition: {
-				name: PAGINATION_SUBGRAPH_NAME,
-				sources: {},
-				schema: {
-					transfers: {
-						columns: {
-							sender: { type: "principal" },
-						},
-					},
-				},
-			},
-			schemaHash: "pagination-webhooks-api-test",
-			handlerPath: "/tmp/pagination-webhooks-api-test.js",
-			accountId: PAGINATION_ACCOUNT_ID,
-		});
 
 		// Seed 3 webhooks
 		for (let i = 1; i <= 3; i++) {
@@ -1034,8 +936,7 @@ describe.skipIf(SKIP)("Webhooks API pagination", () => {
 				method: "POST",
 				body: JSON.stringify({
 					name: `page-sub-${i}`,
-					subgraphName: PAGINATION_SUBGRAPH_NAME,
-					tableName: "transfers",
+					triggers: [{ type: "stx_transfer" }],
 					url: `https://example.com/webhook/${i}`,
 				}),
 			});
@@ -1053,10 +954,6 @@ describe.skipIf(SKIP)("Webhooks API pagination", () => {
 		await db
 			.deleteFrom("webhooks")
 			.where("account_id", "=", PAGINATION_ACCOUNT_ID)
-			.execute();
-		await db
-			.deleteFrom("subgraphs")
-			.where("name", "=", PAGINATION_SUBGRAPH_NAME)
 			.execute();
 		await db
 			.deleteFrom("accounts")
@@ -1105,27 +1002,6 @@ describe.skipIf(SKIP)("Webhooks API dedicated scope", () => {
 		await db.deleteFrom("webhook_deliveries").execute();
 		await db.deleteFrom("webhook_outbox").execute();
 		await db.deleteFrom("webhooks").execute();
-		await db
-			.deleteFrom("subgraphs")
-			.where("name", "=", DEDICATED_SUBGRAPH_NAME)
-			.execute();
-		await registerSubgraph(db, {
-			name: DEDICATED_SUBGRAPH_NAME,
-			version: "1.0.0",
-			definition: {
-				name: DEDICATED_SUBGRAPH_NAME,
-				sources: {},
-				schema: {
-					transfers: {
-						columns: {
-							sender: { type: "principal" },
-						},
-					},
-				},
-			},
-			schemaHash: "dedicated-webhooks-api-test",
-			handlerPath: "/tmp/dedicated-webhooks-api-test.js",
-		});
 	});
 
 	afterAll(async () => {
@@ -1139,10 +1015,6 @@ describe.skipIf(SKIP)("Webhooks API dedicated scope", () => {
 		await db.deleteFrom("webhook_deliveries").execute();
 		await db.deleteFrom("webhook_outbox").execute();
 		await db.deleteFrom("webhooks").execute();
-		await db
-			.deleteFrom("subgraphs")
-			.where("name", "=", DEDICATED_SUBGRAPH_NAME)
-			.execute();
 	});
 
 	test("create uses the tenant-local empty account scope", async () => {
@@ -1150,8 +1022,7 @@ describe.skipIf(SKIP)("Webhooks API dedicated scope", () => {
 			method: "POST",
 			body: JSON.stringify({
 				name: "dedicated-valid",
-				subgraphName: DEDICATED_SUBGRAPH_NAME,
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: "https://example.com/webhook",
 			}),
 		});

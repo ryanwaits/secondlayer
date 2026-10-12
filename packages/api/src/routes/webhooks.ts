@@ -1,7 +1,6 @@
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import type { OutboxStatus, Webhook } from "@secondlayer/shared/db";
-import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import {
 	createWebhook,
 	deleteWebhook,
@@ -20,9 +19,7 @@ import {
 	ReplayWebhookRequestSchema,
 	UpdateWebhookRequestSchema,
 	type WebhookAuth,
-	type WebhookSchemaTables,
 	formatWebhookSchemaErrors,
-	validateWebhookFilterForTable,
 } from "@secondlayer/shared/schemas/webhooks";
 import { RUNE_EVENT_TYPES } from "@secondlayer/shared/streams-rows";
 import { deliverTestEvent } from "@secondlayer/subgraphs/runtime/emitter";
@@ -42,8 +39,8 @@ import { InvalidJSONError } from "../middleware/error.ts";
 
 /**
  * Webhook CRUD routes. Platform mode scopes by accountId from auth.
- * Tenant/OSS modes use the local tenant DB namespace, where subgraphs and
- * webhooks are stored with the empty account id.
+ * Tenant/OSS modes use the local tenant DB namespace, where webhooks are
+ * stored with the empty account id.
  */
 const app = new Hono();
 
@@ -51,12 +48,7 @@ const app = new Hono();
 // packages/subgraphs/src/runtime/replay.ts). Anything else may carry raw
 // DB/driver detail, so it's genericized before reaching the client — the
 // "Webhook not found" sentinel is handled separately (-> 404).
-const KNOWN_REPLAY_ERRORS = [
-	"fromBlock must be <= toBlock",
-	"replay is only supported for subgraph or chain webhooks",
-];
-const SUBGRAPH_NOT_REGISTERED_RE =
-	/^Subgraph ".*" not registered — cannot replay its rows\. Deploy the subgraph first\.$/;
+const KNOWN_REPLAY_ERRORS = ["fromBlock must be <= toBlock"];
 // "replay range exceeds Nk blocks" (round thousands) or "replay range exceeds
 // N blocks" (a `WEBHOOK_REPLAY_MAX_BLOCKS` override that isn't a clean
 // multiple of 1000) — see `formatBlockCount` in runtime/replay.ts.
@@ -66,9 +58,7 @@ const UUID_RE =
 
 function isKnownReplayError(msg: string): boolean {
 	return (
-		KNOWN_REPLAY_ERRORS.includes(msg) ||
-		SUBGRAPH_NOT_REGISTERED_RE.test(msg) ||
-		REPLAY_RANGE_TOO_LARGE_RE.test(msg)
+		KNOWN_REPLAY_ERRORS.includes(msg) || REPLAY_RANGE_TOO_LARGE_RE.test(msg)
 	);
 }
 
@@ -78,10 +68,7 @@ function toSummary(sub: Webhook) {
 		name: sub.name,
 		status: sub.status,
 		kind: sub.kind,
-		subgraphName: sub.subgraph_name,
-		tableName: sub.table_name,
 		format: sub.format,
-		runtime: sub.runtime,
 		url: sub.url,
 		lastDeliveryAt: sub.last_delivery_at?.toISOString() ?? null,
 		lastSuccessAt: sub.last_success_at?.toISOString() ?? null,
@@ -96,14 +83,13 @@ function toSummary(sub: Webhook) {
 
 // The chain-trigger evaluator only runs when `SUBGRAPH_SOURCE=streams-index`
 // (see `startWebhookPlane` in @secondlayer/subgraphs/runtime/webhook-plane).
-// A `kind="chain"` webhook on any other instance is silently dead — no error,
+// A webhook on any other instance is silently dead — no error,
 // it just never fires — so surface it everywhere the webhook is read, not
 // just at creation.
 const CHAIN_EVALUATOR_IDLE_WARNING =
-	"This instance's chain-trigger evaluator is not running (SUBGRAPH_SOURCE != \"streams-index\") — this chain webhook will never fire until that's set.";
+	"This instance's chain-trigger evaluator is not running (SUBGRAPH_SOURCE != \"streams-index\") — this webhook will never fire until that's set.";
 
-function chainEvaluatorWarning(sub: Webhook): string | null {
-	if (sub.kind !== "chain") return null;
+function chainEvaluatorWarning(): string | null {
 	if (process.env.SUBGRAPH_SOURCE === "streams-index") return null;
 	return CHAIN_EVALUATOR_IDLE_WARNING;
 }
@@ -139,48 +125,34 @@ export function redactAuthConfig(
 function toDetail(sub: Webhook) {
 	return {
 		...toSummary(sub),
-		filter: sub.filter as Record<string, unknown>,
-		triggers: (sub.triggers ?? null) as ChainTrigger[] | null,
+		triggers: sub.triggers as ChainTrigger[],
 		auth: redactAuthConfig(sub.auth_config as Record<string, unknown>),
 		maxRetries: sub.max_retries,
 		timeoutMs: sub.timeout_ms,
 		concurrency: sub.concurrency,
 		lastError: sub.last_error,
-		warning: chainEvaluatorWarning(sub),
+		warning: chainEvaluatorWarning(),
 	};
 }
 
-function getDefinitionSchema(subgraph: {
-	definition: Record<string, unknown>;
-}): WebhookSchemaTables {
-	const schema = subgraph.definition.schema;
-	if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
-		return {};
-	}
-	return schema as WebhookSchemaTables;
+// Subgraph-row webhooks were removed. A pinned CLI or SDK still sending their
+// fields gets an explicit code instead of a generic "triggers required".
+// Delete this guard on the next major.
+const SUBGRAPH_WEBHOOK_FIELDS = ["subgraphName", "tableName", "filter"];
+
+function subgraphWebhooksRemoved(body: unknown): boolean {
+	return (
+		typeof body === "object" &&
+		body !== null &&
+		SUBGRAPH_WEBHOOK_FIELDS.some((field) => field in body)
+	);
 }
 
-async function validateWebhookTarget(input: {
-	accountId: string;
-	subgraphName: string;
-	tableName: string;
-	filter?: unknown;
-}): Promise<string[]> {
-	const subgraph = await getSubgraph(
-		getDb(),
-		input.subgraphName,
-		input.accountId,
-	);
-	if (!subgraph) {
-		return [`Subgraph not found: ${input.subgraphName}`];
-	}
-	return validateWebhookFilterForTable({
-		subgraphName: input.subgraphName,
-		tableName: input.tableName,
-		filter: input.filter,
-		tables: getDefinitionSchema(subgraph),
-	});
-}
+const SUBGRAPH_WEBHOOKS_REMOVED_RESPONSE = {
+	error:
+		"Subgraph webhooks were removed; webhooks fire on chain events only. React to your rows from your Postgres or the subgraph API: https://www.secondlayer.tools/docs/subgraphs/reading#react-to-your-rows",
+	code: "SUBGRAPH_WEBHOOKS_REMOVED",
+} as const;
 
 const RUNE_TRIGGER_TYPE_SET = new Set<string>(RUNE_EVENT_TYPES);
 
@@ -310,32 +282,16 @@ app.post("/", async (c) => {
 		throw new InvalidJSONError();
 	}
 
+	if (subgraphWebhooksRemoved(body)) {
+		return c.json(SUBGRAPH_WEBHOOKS_REMOVED_RESPONSE, 400);
+	}
+
 	const parsed = CreateWebhookRequestSchema.safeParse(body);
 	if (!parsed.success) {
 		const details = formatWebhookSchemaErrors(parsed.error);
 		return c.json({ error: details.join("; "), details }, 400);
 	}
 	const input = parsed.data;
-	// The schema guarantees exactly one mode: chain (triggers) XOR subgraph
-	// (subgraphName + tableName). Chain webhooks match raw chain events and
-	// have no subgraph table to validate a column filter against.
-	const isChain = input.triggers !== undefined;
-
-	if (!isChain) {
-		const validationErrors = await validateWebhookTarget({
-			accountId,
-			// Non-chain mode guarantees both are present (schema refine).
-			subgraphName: input.subgraphName as string,
-			tableName: input.tableName as string,
-			filter: input.filter,
-		});
-		if (validationErrors.length > 0) {
-			return c.json(
-				{ error: validationErrors.join("; "), details: validationErrors },
-				400,
-			);
-		}
-	}
 
 	const existing = await getWebhookByName(getDb(), accountId, input.name);
 	if (existing) {
@@ -344,22 +300,15 @@ app.post("/", async (c) => {
 
 	// Outside the try/catch below: a bad/unknown rune is a client error
 	// (ValidationError → 400 via the global handler), not an internal one.
-	const triggers = isChain
-		? await normalizeRuneTriggers(input.triggers as ChainTrigger[])
-		: undefined;
+	const triggers = await normalizeRuneTriggers(input.triggers);
 
 	try {
 		const { webhook, signingSecret } = await createWebhook(getDb(), {
 			accountId,
 			name: input.name,
-			kind: isChain ? "chain" : "subgraph",
-			subgraphName: isChain ? null : input.subgraphName,
-			tableName: isChain ? null : input.tableName,
 			triggers,
 			url: input.url,
 			format: input.format,
-			runtime: input.runtime ?? null,
-			filter: isChain ? {} : (input.filter ?? {}),
 			authConfig: input.authConfig ?? {},
 			maxRetries: input.maxRetries,
 			timeoutMs: input.timeoutMs,
@@ -403,6 +352,10 @@ app.patch("/:id", async (c) => {
 		throw new InvalidJSONError();
 	}
 
+	if (subgraphWebhooksRemoved(body)) {
+		return c.json(SUBGRAPH_WEBHOOKS_REMOVED_RESPONSE, 400);
+	}
+
 	const parsed = UpdateWebhookRequestSchema.safeParse(body);
 	if (!parsed.success) {
 		const details = formatWebhookSchemaErrors(parsed.error);
@@ -410,37 +363,10 @@ app.patch("/:id", async (c) => {
 	}
 	const patch = parsed.data;
 
-	if (patch.filter !== undefined) {
-		const current = await getWebhook(getDb(), accountId, id);
-		if (!current) return c.json({ error: "Webhook not found" }, 404);
-		// `filter` is a subgraph-table column filter; chain webhooks use
-		// `triggers` instead, so there's nothing to validate against a table here.
-		if (
-			current.kind === "subgraph" &&
-			current.subgraph_name &&
-			current.table_name
-		) {
-			const validationErrors = await validateWebhookTarget({
-				accountId,
-				subgraphName: current.subgraph_name,
-				tableName: current.table_name,
-				filter: patch.filter,
-			});
-			if (validationErrors.length > 0) {
-				return c.json(
-					{ error: validationErrors.join("; "), details: validationErrors },
-					400,
-				);
-			}
-		}
-	}
-
 	const updated = await updateWebhook(getDb(), accountId, id, {
 		name: patch.name,
 		url: patch.url,
 		format: patch.format,
-		runtime: patch.runtime,
-		filter: patch.filter,
 		authConfig: patch.authConfig,
 		maxRetries: patch.maxRetries,
 		timeoutMs: patch.timeoutMs,
@@ -702,12 +628,11 @@ app.get("/:id/activity", async (c) => {
 // (payload, event/tx/block info), left-joined since the outbox row may
 // already be compacted away (7-day retention on delivered rows).
 
-/** A subgraph row's `row_pk` carries `rowIndex`; a chain-trigger row carries
- *  `event_index`. Settlement and reorg rows carry neither. */
+/** A chain-trigger row's `row_pk` carries `event_index`. Settlement and reorg
+ *  rows carry neither. */
 function eventIndexFromRowPk(rowPk: unknown): number | null {
 	if (!rowPk || typeof rowPk !== "object") return null;
 	const pk = rowPk as Record<string, unknown>;
-	if (typeof pk.rowIndex === "number") return pk.rowIndex;
 	if (typeof pk.event_index === "number") return pk.event_index;
 	return null;
 }

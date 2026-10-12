@@ -6425,10 +6425,6 @@
 						"format": "date-time",
 						"description": "Last registry update."
 					},
-					"webhookCount": {
-						"type": "integer",
-						"description": "Webhooks attached to this subgraph."
-					},
 					"createdAt": {
 						"type": "string",
 						"format": "date-time",
@@ -6457,7 +6453,6 @@
 					"lastError": null,
 					"lastErrorAt": null,
 					"updatedAt": "2026-09-23T14:02:11.000Z",
-					"webhookCount": 1,
 					"createdAt": "2026-09-21T09:14:52.000Z"
 				}
 			},
@@ -7204,10 +7199,7 @@
 					"name",
 					"status",
 					"kind",
-					"subgraphName",
-					"tableName",
 					"format",
-					"runtime",
 					"url",
 					"lastDeliveryAt",
 					"lastSuccessAt",
@@ -7238,24 +7230,9 @@
 					"kind": {
 						"type": "string",
 						"enum": [
-							"subgraph",
 							"chain"
 						],
-						"description": "`subgraph` fires on rows a subgraph writes. `chain` fires on raw chain events matched by `triggers`."
-					},
-					"subgraphName": {
-						"type": [
-							"string",
-							"null"
-						],
-						"description": "Source subgraph. `null` for chain webhooks."
-					},
-					"tableName": {
-						"type": [
-							"string",
-							"null"
-						],
-						"description": "Source table in that subgraph. `null` for chain webhooks."
+						"description": "Always `chain`: webhooks fire on raw chain events matched by `triggers`."
 					},
 					"format": {
 						"type": "string",
@@ -7268,20 +7245,6 @@
 							"raw"
 						],
 						"description": "Payload and signing format. `standard-webhooks` signs with the webhook's secret; the others shape the body for that receiver."
-					},
-					"runtime": {
-						"type": [
-							"string",
-							"null"
-						],
-						"enum": [
-							"inngest",
-							"trigger",
-							"cloudflare",
-							"node",
-							null
-						],
-						"description": "Receiver runtime the CLI scaffolds for. Informational; `null` when none was chosen."
 					},
 					"url": {
 						"type": "string",
@@ -7331,10 +7294,7 @@
 					"name": "sbtc-moves",
 					"status": "active",
 					"kind": "chain",
-					"subgraphName": null,
-					"tableName": null,
 					"format": "standard-webhooks",
-					"runtime": null,
 					"url": "https://example.com/webhooks/sbtc",
 					"lastDeliveryAt": "2026-09-22T14:03:11.402Z",
 					"lastSuccessAt": "2026-09-22T14:03:11.402Z",
@@ -7353,10 +7313,7 @@
 					"name",
 					"status",
 					"kind",
-					"subgraphName",
-					"tableName",
 					"format",
-					"runtime",
 					"url",
 					"lastDeliveryAt",
 					"lastSuccessAt",
@@ -7364,7 +7321,6 @@
 					"circuitFailures",
 					"createdAt",
 					"updatedAt",
-					"filter",
 					"triggers",
 					"auth",
 					"maxRetries",
@@ -7395,24 +7351,9 @@
 					"kind": {
 						"type": "string",
 						"enum": [
-							"subgraph",
 							"chain"
 						],
-						"description": "`subgraph` fires on rows a subgraph writes. `chain` fires on raw chain events matched by `triggers`."
-					},
-					"subgraphName": {
-						"type": [
-							"string",
-							"null"
-						],
-						"description": "Source subgraph. `null` for chain webhooks."
-					},
-					"tableName": {
-						"type": [
-							"string",
-							"null"
-						],
-						"description": "Source table in that subgraph. `null` for chain webhooks."
+						"description": "Always `chain`: webhooks fire on raw chain events matched by `triggers`."
 					},
 					"format": {
 						"type": "string",
@@ -7425,20 +7366,6 @@
 							"raw"
 						],
 						"description": "Payload and signing format. `standard-webhooks` signs with the webhook's secret; the others shape the body for that receiver."
-					},
-					"runtime": {
-						"type": [
-							"string",
-							"null"
-						],
-						"enum": [
-							"inngest",
-							"trigger",
-							"cloudflare",
-							"node",
-							null
-						],
-						"description": "Receiver runtime the CLI scaffolds for. Informational; `null` when none was chosen."
 					},
 					"url": {
 						"type": "string",
@@ -7482,18 +7409,12 @@
 						"format": "date-time",
 						"description": "Last config or status change."
 					},
-					"filter": {
-						"$ref": "#/components/schemas/WebhookFilter"
-					},
 					"triggers": {
-						"type": [
-							"array",
-							"null"
-						],
+						"type": "array",
 						"items": {
 							"$ref": "#/components/schemas/ChainTrigger"
 						},
-						"description": "Chain triggers. `null` for subgraph webhooks."
+						"description": "Chain triggers."
 					},
 					"auth": {
 						"type": "object",
@@ -7556,7 +7477,7 @@
 							"string",
 							"null"
 						],
-						"description": "Set on a `kind=\"chain\"` webhook when this instance's chain-trigger evaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the webhook will never fire until that's fixed. `null` otherwise."
+						"description": "Set when this instance's chain-trigger evaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the webhook will never fire until that's fixed. `null` otherwise."
 					}
 				},
 				"example": {
@@ -7564,10 +7485,7 @@
 					"name": "sbtc-moves",
 					"status": "active",
 					"kind": "chain",
-					"subgraphName": null,
-					"tableName": null,
 					"format": "standard-webhooks",
-					"runtime": null,
 					"url": "https://example.com/webhooks/sbtc",
 					"lastDeliveryAt": "2026-09-22T14:03:11.402Z",
 					"lastSuccessAt": "2026-09-22T14:03:11.402Z",
@@ -7575,7 +7493,6 @@
 					"circuitFailures": 0,
 					"createdAt": "2026-09-20T09:12:45.118Z",
 					"updatedAt": "2026-09-20T09:12:45.118Z",
-					"filter": {},
 					"triggers": [
 						{
 							"type": "ft_transfer",
@@ -7622,10 +7539,7 @@
 						"name": "sbtc-moves",
 						"status": "active",
 						"kind": "chain",
-						"subgraphName": null,
-						"tableName": null,
 						"format": "standard-webhooks",
-						"runtime": null,
 						"url": "https://example.com/webhooks/sbtc",
 						"lastDeliveryAt": "2026-09-22T14:03:11.402Z",
 						"lastSuccessAt": "2026-09-22T14:03:11.402Z",
@@ -7633,7 +7547,6 @@
 						"circuitFailures": 0,
 						"createdAt": "2026-09-20T09:12:45.118Z",
 						"updatedAt": "2026-09-20T09:12:45.118Z",
-						"filter": {},
 						"triggers": [
 							{
 								"type": "ft_transfer",
@@ -7657,34 +7570,6 @@
 						"warning": null
 					},
 					"signingSecret": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-				}
-			},
-			"WebhookFilter": {
-				"type": "object",
-				"description": "Column filter for subgraph webhooks: `{ column: value }` for equality, or `{ column: { op: value } }` with `op` one of `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`. Columns must be scalar; `gt`/`gte`/`lt`/`lte` need a `uint`, `int` or `timestamp` column. All clauses must match. `{}` matches every row. Chain webhooks use `triggers` instead.",
-				"additionalProperties": {
-					"oneOf": [
-						{
-							"type": "string"
-						},
-						{
-							"type": "number"
-						},
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "object",
-							"minProperties": 1,
-							"maxProperties": 1
-						}
-					]
-				},
-				"example": {
-					"recipient": "SP1GBRTAXY96ZDYRQY4GR0M9JTXVYD2FGFRGV60FJ",
-					"amount": {
-						"gte": 100000
-					}
 				}
 			},
 			"ChainTrigger": {
@@ -7822,10 +7707,11 @@
 			},
 			"CreateWebhookRequest": {
 				"type": "object",
-				"description": "Send `subgraphName` + `tableName` (+ optional `filter`) for a subgraph webhook, or `triggers` for a chain webhook. Never both.",
+				"description": "Webhooks fire on chain events: send the `triggers` to match.",
 				"required": [
 					"name",
-					"url"
+					"url",
+					"triggers"
 				],
 				"properties": {
 					"name": {
@@ -7838,19 +7724,6 @@
 						"type": "string",
 						"description": "Delivery target, `http://` or `https://`. Private addresses are refused at delivery time."
 					},
-					"subgraphName": {
-						"type": "string",
-						"maxLength": 128,
-						"description": "Subgraph mode: the deployed subgraph to watch."
-					},
-					"tableName": {
-						"type": "string",
-						"maxLength": 128,
-						"description": "Subgraph mode: the table in that subgraph."
-					},
-					"filter": {
-						"$ref": "#/components/schemas/WebhookFilter"
-					},
 					"triggers": {
 						"type": "array",
 						"minItems": 1,
@@ -7858,7 +7731,7 @@
 						"items": {
 							"$ref": "#/components/schemas/ChainTrigger"
 						},
-						"description": "Chain mode: 1 to 50 triggers. An event matching any of them is delivered."
+						"description": "1 to 50 triggers. An event matching any of them is delivered."
 					},
 					"format": {
 						"type": "string",
@@ -7872,20 +7745,6 @@
 						],
 						"description": "Payload and signing format. `standard-webhooks` signs with the webhook's secret; the others shape the body for that receiver.",
 						"default": "standard-webhooks"
-					},
-					"runtime": {
-						"type": [
-							"string",
-							"null"
-						],
-						"enum": [
-							"inngest",
-							"trigger",
-							"cloudflare",
-							"node",
-							null
-						],
-						"description": "Receiver runtime the CLI scaffolds for. Informational; `null` when none was chosen."
 					},
 					"authConfig": {
 						"type": "object",
@@ -7929,7 +7788,7 @@
 			},
 			"UpdateWebhookRequest": {
 				"type": "object",
-				"description": "Any subset of these fields, at least one. Mode, source and `triggers` cannot change.",
+				"description": "Any subset of these fields, at least one. `triggers` cannot change.",
 				"minProperties": 1,
 				"properties": {
 					"name": {
@@ -7942,9 +7801,6 @@
 						"type": "string",
 						"description": "New delivery target, `http://` or `https://`."
 					},
-					"filter": {
-						"$ref": "#/components/schemas/WebhookFilter"
-					},
 					"format": {
 						"type": "string",
 						"enum": [
@@ -7956,20 +7812,6 @@
 							"raw"
 						],
 						"description": "Payload and signing format. `standard-webhooks` signs with the webhook's secret; the others shape the body for that receiver."
-					},
-					"runtime": {
-						"type": [
-							"string",
-							"null"
-						],
-						"enum": [
-							"inngest",
-							"trigger",
-							"cloudflare",
-							"node",
-							null
-						],
-						"description": "Receiver runtime the CLI scaffolds for. Informational; `null` when none was chosen."
 					},
 					"authConfig": {
 						"type": "object",
@@ -8221,7 +8063,7 @@
 					},
 					"eventType": {
 						"type": "string",
-						"description": "Delivered `type`: `<subgraph>.<table>.<verb>` or `chain.<trigger>.apply`."
+						"description": "Delivered `type`, e.g. `chain.ft_transfer.apply`."
 					},
 					"attempt": {
 						"type": "integer",
@@ -8643,7 +8485,7 @@
 					},
 					"webhooks": {
 						"type": "array",
-						"description": "Webhooks: `name`, `status`, `kind` (`subgraph` or `chain`).",
+						"description": "Webhooks: `name`, `status`, `kind` (`chain`).",
 						"items": {
 							"type": "object",
 							"properties": {
@@ -8661,7 +8503,6 @@
 								"kind": {
 									"type": "string",
 									"enum": [
-										"subgraph",
 										"chain"
 									]
 								}
@@ -16246,7 +16087,6 @@
 												"lastError": null,
 												"lastErrorAt": null,
 												"updatedAt": "2026-09-23T14:02:11.000Z",
-												"webhookCount": 1,
 												"createdAt": "2026-09-21T09:14:52.000Z"
 											}
 										]
@@ -17409,10 +17249,7 @@
 												"name": "sbtc-moves",
 												"status": "active",
 												"kind": "chain",
-												"subgraphName": null,
-												"tableName": null,
 												"format": "standard-webhooks",
-												"runtime": null,
 												"url": "https://example.com/webhooks/sbtc",
 												"lastDeliveryAt": "2026-09-22T14:03:11.402Z",
 												"lastSuccessAt": "2026-09-22T14:03:11.402Z",
@@ -17445,7 +17282,7 @@
 					"webhooks"
 				],
 				"summary": "Create a webhook",
-				"description": "Two modes, one per request. A subgraph webhook takes `subgraphName` + `tableName` and an optional column `filter`, checked against that table's schema. A chain webhook takes `triggers` and starts at the chain tip, with no backfill. The response carries the signing secret. This is the only time it is returned, so store it now; `rotate-secret` issues a new one.",
+				"description": "Takes `triggers` and starts at the chain tip, with no backfill. The response carries the signing secret. This is the only time it is returned, so store it now; `rotate-secret` issues a new one.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -17473,7 +17310,7 @@
 						}
 					},
 					"400": {
-						"description": "A parameter, filter, cursor or body field was refused; `code` says which. Also: both modes or neither, unknown subgraph or table, or a filter on a column that does not exist or is not a scalar",
+						"description": "A parameter, filter, cursor or body field was refused; `code` says which. A body carrying `subgraphName`, `tableName` or `filter` is answered with `SUBGRAPH_WEBHOOKS_REMOVED`: subgraph webhooks were removed",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -17588,7 +17425,7 @@
 					"webhooks"
 				],
 				"summary": "Update a webhook",
-				"description": "Change any subset of fields; at least one is required. Mode, source table and `triggers` are fixed at create: to change them, create a new webhook. A new `filter` is checked against the subgraph table's schema.",
+				"description": "Change any subset of fields; at least one is required. `triggers` are fixed at create: to change them, create a new webhook.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -17627,7 +17464,7 @@
 						}
 					},
 					"400": {
-						"description": "A parameter, filter, cursor or body field was refused; `code` says which",
+						"description": "A parameter, filter, cursor or body field was refused; `code` says which. A body carrying `subgraphName`, `tableName` or `filter` is answered with `SUBGRAPH_WEBHOOKS_REMOVED`: subgraph webhooks were removed",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -18370,7 +18207,7 @@
 					"webhooks"
 				],
 				"summary": "Replay a block range",
-				"description": "Queues historical events in a block range for redelivery, capped at 100,000 blocks. Replays are idempotent: the same range yields the same `replayId` and delivers nothing twice unless `force` is set. They drain through a 10% share of the outbox so live traffic keeps priority, and never move the live cursor. Subgraph webhooks deliver `<subgraph>.<table>.replay`; chain webhooks deliver the normal `chain.<type>.apply` envelope.",
+				"description": "Queues historical events in a block range for redelivery, capped at 100,000 blocks. Replays are idempotent: the same range yields the same `replayId` and delivers nothing twice unless `force` is set. They drain through a 10% share of the outbox so live traffic keeps priority, and never move the live cursor. Replays deliver the normal `chain.<type>.apply` envelope.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -18409,7 +18246,7 @@
 						}
 					},
 					"400": {
-						"description": "A parameter, filter, cursor or body field was refused; `code` says which. Also: `fromBlock` after `toBlock`, a range over 100,000 blocks, or a subgraph that is not deployed",
+						"description": "A parameter, filter, cursor or body field was refused; `code` says which. Also: `fromBlock` after `toBlock`, or a range over 100,000 blocks",
 						"content": {
 							"application/json": {
 								"schema": {
