@@ -4,6 +4,7 @@ import { GITHUB_URL } from "@/components/github-nav-link";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { docsNavPages } from "./nav";
 
 /** The MCP client config from /docs/mcp, verbatim. */
 export const MCP_CONFIG = `{
@@ -203,6 +204,11 @@ export function PageActions({
 		compact ? { title: label, "aria-label": label } : {};
 
 	const md = markdownPath(pathname);
+	// Only pages in the sidebar have a markdown twin (the changelog archive does
+	// not), so the rows that point at one are left off elsewhere.
+	const hasMarkdown = docsNavPages().some(
+		(page) => page.href === pathname.replace(/\/$/, ""),
+	);
 	const prompt = chatPrompt(pathname);
 	const copyLabel =
 		copy === "done"
@@ -264,29 +270,31 @@ export function PageActions({
 				</Icon>
 				<span>Scroll to top</span>
 			</button>
-			<button
-				type="button"
-				className="docs-ra"
-				{...tip("Copy as Markdown")}
-				onClick={async () => {
-					const ok = await copyMarkdown(md).catch(() => false);
-					flash(
-						() => setCopy(ok ? "done" : "failed"),
-						() => setCopy("idle"),
-					);
-				}}
-			>
-				<Icon>
-					<rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
-					<path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" />
-				</Icon>
-				<span
-					className={copy === "done" ? "ok" : copy === "failed" ? "bad" : ""}
-					aria-live="polite"
+			{hasMarkdown ? (
+				<button
+					type="button"
+					className="docs-ra"
+					{...tip("Copy as Markdown")}
+					onClick={async () => {
+						const ok = await copyMarkdown(md).catch(() => false);
+						flash(
+							() => setCopy(ok ? "done" : "failed"),
+							() => setCopy("idle"),
+						);
+					}}
 				>
-					{copyLabel}
-				</span>
-			</button>
+					<Icon>
+						<rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+						<path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" />
+					</Icon>
+					<span
+						className={copy === "done" ? "ok" : copy === "failed" ? "bad" : ""}
+						aria-live="polite"
+					>
+						{copyLabel}
+					</span>
+				</button>
+			) : null}
 
 			<Disclosure
 				label="Export"
@@ -299,9 +307,11 @@ export function PageActions({
 				onToggle={() => toggle("export")}
 				compact={compact}
 			>
-				<a href={md} target="_blank" rel="noopener noreferrer">
-					Markdown <span>{md}</span>
-				</a>
+				{hasMarkdown ? (
+					<a href={md} target="_blank" rel="noopener noreferrer">
+						Markdown <span>{md}</span>
+					</a>
+				) : null}
 				<a href="/llms.txt" target="_blank" rel="noopener noreferrer">
 					llms.txt <span>site index</span>
 				</a>
@@ -310,28 +320,30 @@ export function PageActions({
 				</a>
 			</Disclosure>
 
-			<Disclosure
-				label="Open in chat"
-				icon={
-					<Icon>
-						<path d="M9.5 2.5h4v4M13.5 2.5 7.5 8.5M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3" />
-					</Icon>
-				}
-				open={open === "chat"}
-				onToggle={() => toggle("chat")}
-				compact={compact}
-			>
-				{CHAT_TARGETS.map((t) => (
-					<a
-						key={t.id}
-						href={t.href(prompt)}
-						target="_blank"
-						rel="noopener noreferrer"
-					>
-						{t.label}
-					</a>
-				))}
-			</Disclosure>
+			{hasMarkdown ? (
+				<Disclosure
+					label="Open in chat"
+					icon={
+						<Icon>
+							<path d="M9.5 2.5h4v4M13.5 2.5 7.5 8.5M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3" />
+						</Icon>
+					}
+					open={open === "chat"}
+					onToggle={() => toggle("chat")}
+					compact={compact}
+				>
+					{CHAT_TARGETS.map((t) => (
+						<a
+							key={t.id}
+							href={t.href(prompt)}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{t.label}
+						</a>
+					))}
+				</Disclosure>
+			) : null}
 
 			<Disclosure
 				label="Connect to MCP"

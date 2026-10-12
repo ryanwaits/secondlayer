@@ -2,9 +2,11 @@ import { describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DOCS_NAV, docsNavPages } from "./nav";
 
+let pathname = "/docs/streams";
+
 // bun's mock.module is process-wide, so stub every export the app imports.
 mock.module("next/navigation", () => ({
-	usePathname: () => "/docs/streams",
+	usePathname: () => pathname,
 	useRouter: () => ({}),
 	useSearchParams: () => new URLSearchParams(),
 	useParams: () => ({}),
@@ -55,6 +57,20 @@ describe("docs page actions", () => {
 			const href = target.href(chatPrompt("/docs/streams"));
 			expect(href).toContain(encoded);
 			expect(html).toContain(href.replace(/&/g, "&amp;"));
+		}
+	});
+
+	test("a page without a markdown twin leaves off the rows that need one", () => {
+		pathname = "/docs/changelog/archive";
+		try {
+			const bare = renderToStaticMarkup(<PageActions />);
+			expect(bare).toContain("Edit on GitHub");
+			expect(bare).toContain("/llms.txt");
+			expect(bare).not.toContain("Copy as Markdown");
+			expect(bare).not.toContain("Open in chat");
+			expect(bare).not.toContain("changelog/archive.md");
+		} finally {
+			pathname = "/docs/streams";
 		}
 	});
 
