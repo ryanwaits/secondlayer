@@ -636,9 +636,19 @@ button.docs-nav-item {
 	top: 56px;
 	align-self: start;
 	height: calc(100vh - 56px);
-	overflow-y: auto;
-	padding: 36px 20px 40px 8px;
+	display: flex;
+	flex-direction: column;
+	padding: 36px 20px 24px 8px;
 	font-size: 13px;
+}
+/* The list scrolls on its own; the page actions stay in view below it. */
+.docs-toc-list {
+	flex: 0 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+.docs-toc .docs-acts {
+	flex: none;
 }
 .docs-toc-label {
 	margin: 0 0 10px;
@@ -647,24 +657,24 @@ button.docs-nav-item {
 	text-transform: uppercase;
 	color: var(--sub);
 }
-.docs-toc > a {
+.docs-toc-list > a {
 	display: block;
 	padding: 4px 0 4px 12px;
 	color: var(--sub);
 	border-left: 1px solid var(--line);
 }
-.docs-toc > a.h3 {
+.docs-toc-list > a.h3 {
 	padding-left: 24px;
 }
-.docs-toc > a:hover {
+.docs-toc-list > a:hover {
 	color: var(--ink);
 }
-.docs-toc > a.active {
+.docs-toc-list > a.active {
 	color: var(--ink);
 	border-left: 2px solid var(--ink);
 	padding-left: 11px;
 }
-.docs-toc > a.h3.active {
+.docs-toc-list > a.h3.active {
 	padding-left: 23px;
 }
 .docs-toc :focus-visible {
@@ -957,5 +967,437 @@ button.docs-nav-item {
 @media (max-width: 1180px) {
 	.docs-pa-m {
 		display: block;
+	}
+}
+
+/* ── API reference (generated from openapi.json) ──
+   Default: the guide shell, one column, request and response inline under each
+   section's params. "Full view" (rail toggle) puts prose left and a sticky
+   request/response column right, and narrows the rail to icons. */
+/* A 200k px page of highlighted code: a smooth glide to a far anchor paints
+   everything between, so jumps land instantly here (as Stripe's do). */
+html:has(.apiref) {
+	scroll-behavior: auto;
+}
+.docs-shell {
+	transition: grid-template-columns 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+	.docs-shell {
+		transition: none;
+	}
+}
+.docs-shell[data-view="split"] {
+	grid-template-columns: 248px minmax(0, 1fr) 56px;
+}
+.docs-shell[data-view="split"] .docs-article,
+.docs-shell[data-view="split"] .docs-topline {
+	max-width: none;
+}
+.apiref {
+	margin-top: 18px;
+}
+.apiref p {
+	margin: 0;
+}
+.apiref-toolbar {
+	display: flex;
+}
+.apiref-base {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 28px;
+	padding: 0 4px 0 10px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	font: 12px var(--font-mono-stack);
+	color: var(--sub);
+}
+.apiref-base select {
+	height: 24px;
+	border: 0;
+	background: transparent;
+	font: 12px var(--font-mono-stack);
+	color: var(--ink);
+	cursor: pointer;
+}
+/* Both base-URL variants are rendered; the root's data-base picks one. */
+.apiref[data-base="hosted"] .apiref-when-local,
+.apiref[data-base="local"] .apiref-when-hosted {
+	display: none;
+}
+.apiref-tag {
+	margin-top: 56px;
+	padding-top: 28px;
+	border-top: 1px solid var(--ink);
+}
+.docs-article .apiref-tag-title {
+	margin: 0;
+	font-size: 26px;
+	font-weight: 500;
+	letter-spacing: -0.035em;
+	text-transform: capitalize;
+	scroll-margin-top: 80px;
+}
+.docs-article .apiref-tag-desc {
+	margin-top: 8px;
+	max-width: 40rem;
+	color: var(--sub);
+}
+.apiref-section {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 20px;
+	padding: 40px 0;
+	border-bottom: 1px solid var(--line);
+	scroll-margin-top: 80px;
+}
+.apiref-section:last-child {
+	border-bottom: 0;
+}
+.docs-shell[data-view="split"] .apiref-section {
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 48px;
+}
+.apiref-main {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	min-width: 0;
+}
+.apiref-aside {
+	display: grid;
+	gap: 12px;
+	min-width: 0;
+	align-self: start;
+}
+/* StickyAsides sets `top` inline; it only takes effect once this sticks. */
+.docs-shell[data-view="split"] .apiref-aside {
+	position: sticky;
+}
+.apiref-eyebrow {
+	font: 500 11.5px var(--font-mono-stack);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--sub);
+}
+.docs-article .apiref-title {
+	margin: -6px 0 0;
+	font-size: 26px;
+	font-weight: 500;
+	line-height: 1.15;
+	letter-spacing: -0.035em;
+}
+.docs-article .apiref-title a {
+	color: inherit;
+	text-decoration: underline;
+	text-decoration-color: transparent;
+	text-underline-offset: 4px;
+}
+.docs-article .apiref-title a:hover {
+	text-decoration-color: var(--line);
+}
+.apiref-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 16px;
+	font: 12px var(--font-mono-stack);
+}
+.apiref-actions button,
+.docs-article .apiref-actions a {
+	font: inherit;
+	color: var(--sub);
+	background: none;
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+	text-decoration: none;
+}
+.apiref-actions button:hover,
+.docs-article .apiref-actions a:hover {
+	color: var(--ink);
+}
+.apiref-route {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+.apiref-verb {
+	font: 500 11.5px var(--font-mono-stack);
+	padding: 3px 7px;
+	border-radius: 4px;
+	background: var(--ink);
+	color: var(--paper);
+}
+.docs-article .apiref-path {
+	font: 13.5px var(--font-mono-stack);
+	padding: 2px 8px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	background: none;
+	word-break: break-all;
+}
+.apiref-pill {
+	font: 12px var(--font-mono-stack);
+	color: var(--sub);
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	padding: 1px 9px;
+}
+.apiref-desc,
+.apiref-returned-by {
+	font-size: 15.5px;
+	line-height: 1.7;
+}
+.apiref-returned-by {
+	font-size: 14.5px;
+	color: var(--sub);
+}
+.apiref-group {
+	display: flex;
+	flex-direction: column;
+	margin-top: 16px;
+}
+.docs-article .apiref-group-title {
+	margin: 0 0 4px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--line);
+	font: 500 11px var(--font-mono-stack);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--sub);
+}
+.apiref-fields {
+	display: flex;
+	flex-direction: column;
+}
+.apiref-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 12px 0;
+	border-bottom: 1px solid var(--line);
+	scroll-margin-top: 80px;
+}
+.apiref-field:target {
+	background: color-mix(in srgb, var(--pri) 7%, transparent);
+	box-shadow: -12px 0 0 color-mix(in srgb, var(--pri) 7%, transparent), 12px 0 0
+		color-mix(in srgb, var(--pri) 7%, transparent);
+}
+.apiref-field-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 8px;
+}
+.docs-article .apiref-field-name {
+	padding: 0;
+	background: none;
+	font: 500 13px var(--font-mono-stack);
+}
+.apiref-field-type {
+	font: 12px var(--font-mono-stack);
+	color: var(--sub);
+}
+.apiref-field-req {
+	font: 500 10.5px var(--font-mono-stack);
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	padding: 0 5px;
+}
+.docs-article .apiref-field-link {
+	margin-left: auto;
+	font: 12px var(--font-mono-stack);
+	color: var(--sub);
+	text-decoration: none;
+	opacity: 0;
+}
+.apiref-field:hover .apiref-field-link,
+.apiref-field-link:focus-visible {
+	opacity: 1;
+}
+.docs-article .apiref-field-desc {
+	font-size: 14.5px;
+	line-height: 1.6;
+	color: var(--sub);
+}
+.apiref-enum {
+	margin-top: 2px;
+}
+.apiref-enum summary {
+	width: max-content;
+	cursor: pointer;
+	font: 12px var(--font-mono-stack);
+	color: var(--sub);
+}
+.apiref-enum summary:hover {
+	color: var(--ink);
+}
+.apiref-enum-values {
+	margin-top: 8px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.docs-article .apiref-enum-values code {
+	font-size: 12px;
+}
+.docs-article .apiref-statuses {
+	margin: 14px 0 0;
+	padding: 0;
+	display: grid;
+	gap: 8px;
+}
+.docs-article .apiref-statuses li {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	font-size: 14.5px;
+	line-height: 1.5;
+	color: var(--sub);
+}
+.docs-article .apiref-statuses li::before {
+	content: none;
+}
+.apiref-status {
+	flex: none;
+	font: 500 11.5px var(--font-mono-stack);
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	padding: 0 7px;
+	color: var(--ink);
+}
+/* red only on failures */
+.apiref-status-bad,
+.apiref-statuses .apiref-status-warn {
+	color: var(--alarm);
+	border-color: color-mix(in srgb, var(--alarm) 35%, var(--line));
+}
+.apiref-response-bar .apiref-status {
+	color: var(--term-fg);
+	border-color: var(--term-line);
+}
+.apiref-response-bar .apiref-status-bad {
+	color: var(--alarm);
+}
+
+/* request / response: one dark ground */
+.apiref-request,
+.apiref-response {
+	min-width: 0;
+	border: 1px solid var(--term-line);
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--term);
+	color: var(--term-fg);
+}
+.apiref-request-bar,
+.apiref-response-bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 38px;
+	padding: 0 8px 0 14px;
+	border-bottom: 1px solid var(--term-line);
+	font: 12px var(--font-mono-stack);
+	color: var(--term-mute);
+}
+.apiref-response-bar {
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+.apiref-tab {
+	padding: 10px 0 8px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	background: none;
+	font: 12px var(--font-mono-stack);
+	color: var(--term-mute);
+	cursor: pointer;
+}
+.apiref-tab + .apiref-tab {
+	margin-left: 4px;
+}
+.apiref-tab[aria-selected="true"] {
+	color: var(--term-fg);
+	border-bottom-color: var(--term-fg);
+}
+.apiref-request-copy {
+	margin-left: auto;
+	width: 30px;
+	height: 26px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 0;
+	background: transparent;
+	color: var(--term-mute);
+	cursor: pointer;
+}
+.apiref-request-copy:hover {
+	color: var(--term-fg);
+}
+.apiref-code pre {
+	margin: 0;
+	padding: 12px 14px;
+	overflow: auto;
+	max-height: 420px;
+	font-size: 12px;
+	line-height: 1.7;
+	background: transparent !important;
+}
+.docs-shell[data-view="split"] .apiref-code pre {
+	max-height: min(460px, calc(100vh - 220px));
+}
+
+/* sidebar: the reference's tags and rows are plain children, like any
+   page's sub-pages; only the disclosure's default marker is hidden */
+.apiref-nav-group > summary {
+	cursor: pointer;
+	list-style: none;
+}
+.apiref-nav-group > summary::-webkit-details-marker {
+	display: none;
+}
+.apiref-nav-group .docs-nav-children .docs-nav-child {
+	padding-left: 32px;
+}
+
+/* rail in full view: list hidden in place, actions narrow to an icon column */
+.docs-shell[data-view="split"] .docs-toc {
+	overflow-x: hidden;
+	padding-right: 0;
+}
+.docs-shell[data-view="split"] .docs-toc-list {
+	width: 208px;
+	visibility: hidden;
+}
+.docs-shell[data-view="split"] .docs-acts {
+	width: 40px;
+	border-top-color: transparent;
+}
+.docs-shell[data-view="split"] .docs-ra {
+	justify-content: center;
+}
+.docs-shell[data-view="split"] .docs-ra > span,
+.docs-shell[data-view="split"] .docs-ra .chev,
+.docs-shell[data-view="split"] .docs-ra-key,
+.docs-shell[data-view="split"] .docs-ra-sub {
+	display: none;
+}
+@media (max-width: 1180px) {
+	.docs-shell[data-view="split"] {
+		grid-template-columns: 236px minmax(0, 1fr);
+	}
+}
+@media (max-width: 860px) {
+	.docs-shell[data-view="split"] {
+		grid-template-columns: minmax(0, 1fr);
 	}
 }

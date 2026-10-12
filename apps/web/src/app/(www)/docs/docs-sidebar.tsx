@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useDocsDrawer } from "./docs-mode";
+import { bareObjectTitle } from "./docs-toc";
 import { DOCS_NAV } from "./nav";
 
 const API_REFERENCE = "/docs/api-reference";
@@ -180,14 +181,20 @@ function useActiveSection(enabled: boolean): string {
 }
 
 /** The reference's tree, shown under its nav item while it's open: each tag's
- *  objects, then its endpoints, in page order. Tags and rows reuse the
- *  sidebar's own item and rail classes. */
+ *  objects, then its endpoints, in page order. Tags and rows are plain
+ *  children like any page's sub-pages. Only the tag being read is open (the
+ *  first, before the reader has scrolled to anything). */
 function ApiReferenceNav({ active }: { active: string }) {
+	const reading = apiNav.some((group) =>
+		[...group.objects, ...group.endpoints].some((row) => row.anchor === active),
+	);
 	return (
 		<div className="docs-nav-children">
-			{apiNav.map((group) => {
+			{apiNav.map((group, i) => {
 				const rows = [...group.objects, ...group.endpoints];
-				const open = rows.some((row) => row.anchor === active);
+				const open = reading
+					? rows.some((row) => row.anchor === active)
+					: i === 0;
 				return (
 					<details
 						key={group.tag}
@@ -202,9 +209,10 @@ function ApiReferenceNav({ active }: { active: string }) {
 								<a
 									key={row.anchor}
 									href={`#${row.anchor}`}
+									aria-current={row.anchor === active ? "location" : undefined}
 									className={`docs-nav-item docs-nav-child${row.anchor === active ? " active" : ""}`}
 								>
-									{row.title}
+									{bareObjectTitle(row.title)}
 								</a>
 							))}
 						</div>
