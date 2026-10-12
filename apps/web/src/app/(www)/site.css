@@ -3219,3 +3219,193 @@
 	display: block;
 	margin-top: 10px;
 }
+
+/* ── contact ───────────────────────────────────────────────────────── */
+.site.contact .contact-grid {
+	display: grid;
+	grid-template-columns: 1fr 1.1fr;
+	gap: 64px;
+	padding-block: 72px 96px;
+	align-items: start;
+}
+.site.contact .contact-copy {
+	display: grid;
+	gap: 20px;
+	align-content: start;
+}
+.site.contact .contact-reasons {
+	list-style: none;
+	margin: 8px 0 0;
+	padding: 0;
+	display: grid;
+	gap: 10px;
+}
+.site.contact .contact-reasons li {
+	display: flex;
+	gap: 10px;
+	align-items: baseline;
+	color: var(--ink);
+}
+.site.contact .contact-reasons li::before {
+	content: "✓";
+	color: var(--sub);
+}
+.site.contact .contact-form {
+	display: grid;
+	gap: 20px;
+}
+.site.contact .contact-two {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+}
+.site.contact .contact-field {
+	display: grid;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	min-width: 0;
+	align-content: start;
+}
+.site.contact .contact-field > label,
+.site.contact .contact-field > legend {
+	font-size: 14px;
+	font-weight: 500;
+	padding: 0;
+	display: flex;
+	gap: 8px;
+	align-items: baseline;
+}
+.site.contact input[type="text"],
+.site.contact input[type="email"],
+.site.contact textarea {
+	width: 100%;
+	font: 400 16px / 1.4 var(--font-sans-stack);
+	color: var(--ink);
+	background: transparent;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	padding: 10px 12px;
+	transition: border-color 150ms var(--ease-snappy);
+}
+.site.contact textarea {
+	resize: vertical;
+	min-height: 120px;
+}
+.site.contact input[type="text"]:hover,
+.site.contact input[type="email"]:hover,
+.site.contact textarea:hover {
+	border-color: var(--sub);
+}
+.site.contact input[type="text"]:focus-visible,
+.site.contact input[type="email"]:focus-visible,
+.site.contact textarea:focus-visible {
+	outline: 0;
+	border-color: var(--pri);
+	box-shadow: 0 0 0 2px var(--pri);
+}
+.site.contact input[aria-invalid="true"],
+.site.contact textarea[aria-invalid="true"] {
+	border-color: var(--alarm);
+}
+.site.contact .contact-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.site.contact .contact-pills label {
+	position: relative;
+	cursor: pointer;
+}
+.site.contact .contact-pills input {
+	position: absolute;
+	opacity: 0;
+	inset: 0;
+	margin: 0;
+	cursor: pointer;
+}
+.site.contact .contact-pills span {
+	display: inline-block;
+	padding: 7px 14px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	font-size: 14px;
+	transition: border-color 150ms var(--ease-snappy);
+}
+.site.contact .contact-pills label:hover span {
+	border-color: var(--sub);
+}
+.site.contact .contact-pills input:checked + span {
+	border-color: var(--ink);
+	box-shadow: inset 0 0 0 1px var(--ink);
+}
+.site.contact .contact-pills input:focus-visible + span {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+.site.contact .contact-err {
+	font-size: 14px;
+	color: var(--alarm);
+}
+.site.contact .contact-trap {
+	position: absolute;
+	left: -10000px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+.site.contact .contact-foot {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	align-items: center;
+}
+.site.contact .btn:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+.site.contact .contact-done {
+	display: grid;
+	gap: 12px;
+	justify-items: start;
+	padding: 28px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.site.contact .contact-seal {
+	background: var(--hi);
+	color: var(--on-hi);
+	font: 500 12px / 1 var(--font-mono-stack);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	padding: 6px 10px;
+	border-radius: 999px;
+}
+.site.contact .contact-done-title {
+	font-size: 22px;
+	font-weight: 500;
+	letter-spacing: -0.02em;
+}
+.site.contact .contact-done-body {
+	color: var(--sub);
+}
+@media (max-width: 860px) {
+	.site.contact .contact-grid {
+		grid-template-columns: 1fr;
+		gap: 40px;
+		padding-block: 48px 72px;
+	}
+}
+@media (max-width: 560px) {
+	.site.contact .contact-two {
+		grid-template-columns: 1fr;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.site.contact input,
+	.site.contact textarea,
+	.site.contact .contact-pills span {
+		transition: none;
+	}
+}

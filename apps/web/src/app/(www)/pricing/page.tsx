@@ -1,4 +1,3 @@
-import { GITHUB_URL } from "@/components/github-nav-link";
 import {
 	ButtonLink,
 	CloseBand,
@@ -388,7 +387,7 @@ export default function PricingPage() {
 								Tell us what you're building and we'll work out a contract.
 							</span>
 						</p>
-						<ButtonLink href={GITHUB_URL} variant="secondary">
+						<ButtonLink href="/contact?from=/pricing" variant="secondary">
 							Talk to us
 						</ButtonLink>
 					</div>

@@ -15,6 +15,7 @@ const ROUTES = [
 	"/p/webhooks",
 	"/verify",
 	"/pricing",
+	"/contact",
 	"/writing",
 	"/robinhood",
 ] as const;
