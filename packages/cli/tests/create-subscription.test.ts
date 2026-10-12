@@ -1,11 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	buildWebhookAuthConfig,
 	parseTriggersInput,
-	resolveRuntime,
 } from "../src/commands/create.ts";
 
 describe("create subscription tenant resolution", () => {
@@ -79,26 +78,6 @@ describe("parseTriggersInput", () => {
 	});
 });
 
-describe("webhooks create picks a runtime without a menu once flags are given", () => {
-	it("an explicit --runtime always wins", () => {
-		expect(resolveRuntime({ runtime: "inngest", subgraph: "g" })).toBe(
-			"inngest",
-		);
-	});
-
-	it("any of -s/-t/-u or --no-scaffold defaults the runtime to node", () => {
-		expect(resolveRuntime({ subgraph: "g" })).toBe("node");
-		expect(resolveRuntime({ table: "t" })).toBe("node");
-		expect(resolveRuntime({ url: "https://x.example/hook" })).toBe("node");
-		expect(resolveRuntime({ scaffold: false })).toBe("node");
-	});
-
-	it("no flags at all leaves the runtime to the interactive menu", () => {
-		expect(resolveRuntime({})).toBeUndefined();
-		expect(resolveRuntime({ scaffold: true })).toBeUndefined();
-	});
-});
-
 async function runCreate(
 	args: string[],
 	cwd: string,
@@ -128,39 +107,43 @@ async function runCreate(
 	return { exitCode, printed: stdout + stderr };
 }
 
-describe("webhooks create without a TTY", () => {
-	it("the documented flags-only example scaffolds a node receiver and exits 0, no menu", async () => {
-		const dir = mkdtempSync(join(tmpdir(), "sl-create-notty-"));
+describe("webhooks create validates its flags before any network call", () => {
+	it("without --url it exits 1 naming --url", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "sl-create-no-url-"));
 		try {
-			const { exitCode, printed } = await runCreate(
-				[
-					"my-sub",
-					"-s",
-					"my-graph",
-					"-t",
-					"transfers",
-					"-u",
-					"https://example.com/webhook",
-					"--skip-api",
-				],
-				dir,
-			);
-			expect(printed).not.toMatch(/Runtime\?/);
-			expect(printed).toMatch(/Scaffolding node template/);
-			expect(existsSync(join(dir, "my-sub", "package.json"))).toBe(true);
-			expect(exitCode).toBe(0);
+			const { exitCode, printed } = await runCreate(["my-hook"], dir);
+			expect(exitCode).toBe(1);
+			expect(printed).toMatch(/--url is required/);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
 	}, 30_000);
 
-	it("with no flags it exits 1 naming --runtime instead of exiting 0 having created nothing", async () => {
-		const dir = mkdtempSync(join(tmpdir(), "sl-create-notty-bare-"));
+	it("with --url but no trigger it exits 1 asking for one", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "sl-create-no-trigger-"));
 		try {
-			const { exitCode, printed } = await runCreate(["my-sub"], dir);
+			const { exitCode, printed } = await runCreate(
+				["my-hook", "-u", "https://example.com/webhook"],
+				dir,
+			);
 			expect(exitCode).toBe(1);
-			expect(printed).toMatch(/--runtime is required when stdin is not a TTY/);
-			expect(existsSync(join(dir, "my-sub"))).toBe(false);
+			expect(printed).toMatch(/at least one --trigger/);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	}, 30_000);
+
+	it("the removed subgraph and scaffold flags are unknown options", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "sl-create-removed-flags-"));
+		try {
+			for (const flag of ["--subgraph", "--table", "--runtime", "--filter"]) {
+				const { exitCode, printed } = await runCreate(
+					["my-hook", flag, "x"],
+					dir,
+				);
+				expect(exitCode).toBe(1);
+				expect(printed).toMatch(/unknown option/);
+			}
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}

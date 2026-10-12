@@ -17,7 +17,6 @@ interface ParsedFilterArg {
 	field: string;
 	operator: AnyOperator;
 	value: string;
-	explicitOperator: boolean;
 }
 
 function parseFilterArg(input: string): ParsedFilterArg {
@@ -45,11 +44,10 @@ function parseFilterArg(input: string): ParsedFilterArg {
 			field,
 			operator: operator as AnyOperator,
 			value,
-			explicitOperator: true,
 		};
 	}
 
-	return { field: key, operator: "eq", value, explicitOperator: false };
+	return { field: key, operator: "eq", value };
 }
 
 function parseFilterArgs(args?: string[]): ParsedFilterArg[] {
@@ -67,34 +65,5 @@ export function parseQueryFilters(
 				: `${filter.field}.${filter.operator}`;
 		filters[key] = filter.value;
 	}
-	return Object.keys(filters).length > 0 ? filters : undefined;
-}
-
-export function parseWebhookFilter(
-	args?: string[],
-): Record<string, unknown> | undefined {
-	const filters: Record<string, unknown> = {};
-	const seenFields = new Set<string>();
-
-	for (const filter of parseFilterArgs(args)) {
-		if (filter.operator === "like") {
-			throw new Error(
-				`Webhook filters do not support ".like". Supported operators: ${FILTER_OPERATORS.join(", ")}.`,
-			);
-		}
-		if (seenFields.has(filter.field)) {
-			throw new Error(
-				`Webhook filters support one condition per field; got multiple filters for "${filter.field}".`,
-			);
-		}
-		seenFields.add(filter.field);
-
-		if (!filter.explicitOperator || filter.operator === "eq") {
-			filters[filter.field] = filter.value;
-		} else {
-			filters[filter.field] = { [filter.operator]: filter.value };
-		}
-	}
-
 	return Object.keys(filters).length > 0 ? filters : undefined;
 }

@@ -172,10 +172,9 @@ Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--ou
 
 | Command | What it does |
 |---|---|
-| `secondlayer webhooks create <name> --subgraph <name> --table <name> [--runtime <inngest\|trigger\|cloudflare\|node>] [--url <url>]` | Subgraph webhook (optional local receiver scaffold). Runtime defaults to `node` once any of `-s/-t/-u` or `--no-scaffold` is given; the menu only appears in a terminal with no flags |
-| `secondlayer webhooks create <name> --url <url> --trigger '<json>'` | Chain webhook (repeat `--trigger` or pass `--triggers-file`) |
+| `secondlayer webhooks create <name> --url <url> --trigger '<json>'` | Create a webhook on chain events (repeat `--trigger` or pass `--triggers-file`) |
 | `secondlayer webhooks list` / `get <id\|name>` | List or show config + delivery state |
-| `secondlayer webhooks update <id\|name> --url <url> [--filter key.gte=value]` | Patch URL, filter, format, retry, etc. |
+| `secondlayer webhooks update <id\|name> --url <url>` | Patch URL, format, retry, etc. |
 | `secondlayer webhooks pause/resume <id\|name>` | Stop or restart delivery |
 | `secondlayer webhooks rotate-secret <id\|name>` | Rotate signing secret (printed once) |
 | `secondlayer webhooks deliveries/dead <id\|name>` | Recent attempts / dead-letter rows |
@@ -184,14 +183,13 @@ Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--ou
 | `secondlayer webhooks doctor/test <id\|name>` | Health check / signed fixture |
 
 Read/action commands support `--json`. Destructive commands prompt unless
-`-y` / `--yes`, default to no, and exit 1 when stdin is not a TTY. Filters are schema-aware: unknown tables/columns, bad operators,
-and non-scalar columns are rejected before the API call.
+`-y` / `--yes`, default to no, and exit 1 when stdin is not a TTY.
 
-Webhooks are **subgraph** (a table's rows) or **chain** (raw events, no
-subgraph). `secondlayer webhooks create` with `--subgraph`/`--table` makes the
-first. Pass `--trigger` or `--triggers-file` for the second. SDK, REST, and
-MCP take the same `triggers` array. Every other `secondlayer webhooks` command
-operates on both kinds.
+Webhooks fire on raw chain events. `secondlayer webhooks create` takes
+`--trigger` or `--triggers-file`; SDK, REST, and MCP take the same `triggers`
+array. To react to your subgraph rows, watch the table from your own Postgres
+or poll the subgraph API: see
+[React to your rows](https://www.secondlayer.tools/docs/subgraphs/reading#react-to-your-rows).
 
 ### Other
 

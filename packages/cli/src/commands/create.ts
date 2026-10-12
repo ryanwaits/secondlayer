@@ -1,16 +1,4 @@
-import {
-	chmodSync,
-	copyFileSync,
-	existsSync,
-	mkdirSync,
-	readFileSync,
-	readdirSync,
-	statSync,
-	writeFileSync,
-} from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { input, select } from "@inquirer/prompts";
+import { readFileSync } from "node:fs";
 import { SecondLayer } from "@secondlayer/sdk";
 import type { CreateWebhookRequest } from "@secondlayer/sdk";
 import {
@@ -18,79 +6,12 @@ import {
 	ChainTriggerSchema,
 } from "@secondlayer/shared/schemas/webhooks";
 import type { Command } from "commander";
-import { parseWebhookFilter } from "../lib/filter-params.ts";
-import { blue, error, info, success, warn } from "../lib/output.ts";
+import { blue, error, info, success } from "../lib/output.ts";
 import { resolveHostedAuth } from "../lib/resolve-auth.ts";
-import { validateWebhookTargetFromApi } from "../lib/webhook-validation.ts";
-
-/**
- * `secondlayer webhooks create <name> --runtime <runtime>`
- *
- * Copies a runtime template into `./{name}/`, string-replaces the template
- * variables, and provisions the webhook via the SDK so the emitter
- * starts pushing events to the dev server the moment the user boots it.
- */
-
-type Runtime = "inngest" | "trigger" | "cloudflare" | "node";
-
-const RUNTIMES: Runtime[] = ["inngest", "trigger", "cloudflare", "node"];
-
-const FORMAT_BY_RUNTIME: Record<Runtime, string> = {
-	inngest: "inngest",
-	trigger: "trigger",
-	cloudflare: "cloudflare",
-	node: "standard-webhooks",
-};
-
-function templatesRoot(): string {
-	// `src/commands/create.ts` → runtime path depends on build:
-	//   - Bundle: `dist/index.js` → package root is one level up
-	//   - Source (bun run): `src/commands/create.ts` → package root is two up
-	const here = dirname(fileURLToPath(import.meta.url));
-	const candidateDist = resolve(here, "..", "templates", "webhooks");
-	if (existsSync(candidateDist)) return candidateDist;
-	return resolve(here, "..", "..", "templates", "webhooks");
-}
-
-function copyTemplate(
-	src: string,
-	dest: string,
-	vars: Record<string, string>,
-): void {
-	if (!existsSync(src)) {
-		throw new Error(`template dir missing: ${src}`);
-	}
-	mkdirSync(dest, { recursive: true });
-	const entries = readdirSync(src);
-	for (const entry of entries) {
-		const from = join(src, entry);
-		const to = join(dest, entry);
-		const st = statSync(from);
-		if (st.isDirectory()) {
-			copyTemplate(from, to, vars);
-		} else {
-			const raw = readFileSync(from, "utf8");
-			const rendered = raw.replace(
-				/\{\{([A-Z_]+)\}\}/g,
-				(match, key) => vars[key] ?? match,
-			);
-			writeFileSync(to, rendered);
-		}
-	}
-}
 
 export interface CreateWebhookOptions {
-	runtime?: Runtime;
-	subgraph?: string;
-	table?: string;
 	url?: string;
 	authToken?: string;
-	skipApi?: boolean;
-	// commander's `--no-scaffold` declares an inverse boolean: opts.scaffold is
-	// true by default and becomes false when --no-scaffold is passed.
-	scaffold?: boolean;
-	filter?: string[];
-	// Chain-webhook mode: a `triggers` array instead of a subgraph table.
 	trigger?: string[];
 	triggersFile?: string;
 	format?: string;
@@ -145,100 +66,6 @@ export function parseTriggersInput(
 	});
 }
 
-/**
- * Pick the runtime without a menu whenever the reader has already said what
- * they want. Any of `-s/-t/-u` or `--no-scaffold` means a scripted call, and
- * a scripted call gets `node` (a plain HTTP receiver, `standard-webhooks`
- * format): the one runtime that needs no third-party account. An explicit
- * `--runtime` always wins. Returns `undefined` only when nothing was given,
- * which is the interactive case.
- */
-export function resolveRuntime(
-	opts: Pick<
-		CreateWebhookOptions,
-		"runtime" | "subgraph" | "table" | "url" | "scaffold"
-	>,
-): Runtime | undefined {
-	if (opts.runtime) return opts.runtime;
-	const scripted =
-		opts.subgraph !== undefined ||
-		opts.table !== undefined ||
-		opts.url !== undefined ||
-		opts.scaffold === false;
-	return scripted ? "node" : undefined;
-}
-
-/**
- * Refuse to open a prompt when stdin is not a TTY: a closed stdin renders
- * the menu and then exits 0 with nothing created, which reads as success.
- * Name the flag that was missing so the next run is a one-line fix.
- */
-function requireTtyFor(flag: string): void {
-	if (process.stdin.isTTY) return;
-	error(
-		`${flag} is required when stdin is not a TTY (no prompt can run). Pass it, or run from a terminal.`,
-	);
-	process.exit(1);
-}
-
-async function promptFor(
-	_name: string,
-	opts: CreateWebhookOptions,
-): Promise<{
-	runtime: Runtime;
-	subgraph: string;
-	table: string;
-	url: string;
-}> {
-	let runtime = resolveRuntime(opts);
-	if (runtime === undefined) {
-		requireTtyFor("--runtime");
-		runtime = (await select({
-			message: "Runtime?",
-			choices: RUNTIMES.map((r) => ({ name: r, value: r })),
-		})) as Runtime;
-	}
-
-	let subgraph = opts.subgraph;
-	if (subgraph === undefined) {
-		requireTtyFor("--subgraph");
-		subgraph = await input({
-			message: "Subgraph name (must already be deployed):",
-			validate: (v) => (v.trim().length > 0 ? true : "required"),
-		});
-	}
-
-	let table = opts.table;
-	if (table === undefined) {
-		requireTtyFor("--table");
-		table = await input({
-			message: "Table to subscribe to:",
-			validate: (v) => (v.trim().length > 0 ? true : "required"),
-		});
-	}
-
-	let url = opts.url;
-	if (url === undefined) {
-		requireTtyFor("--url");
-		url = await input({
-			message:
-				runtime === "inngest"
-					? "Inngest event endpoint URL (e.g. https://inn.gs/e/<KEY> or http://localhost:8288/e/<KEY>):"
-					: runtime === "trigger"
-						? "Trigger.dev task URL (e.g. https://api.trigger.dev/api/v1/tasks/<TASK_ID>/trigger):"
-						: runtime === "cloudflare"
-							? "Cloudflare Workflows instances URL:"
-							: "Your HTTP receiver URL (e.g. https://yourapp.example/webhook):",
-			validate: (v) =>
-				v.startsWith("http://") || v.startsWith("https://")
-					? true
-					: "must be http(s) URL",
-		});
-	}
-
-	return { runtime, subgraph, table, url };
-}
-
 export function buildWebhookAuthConfig(
 	authToken?: string,
 ): Record<string, unknown> | undefined {
@@ -251,191 +78,16 @@ export function buildWebhookAuthConfig(
 }
 
 /**
- * Write SIGNING_SECRET into `<targetDir>/.env`, seeding from `.env.example`
- * when present. The file holds a secret, so it is owner-only on every branch
- * (copyFileSync keeps the template's mode, hence the chmod after the copy).
- */
-export function writeSigningSecretEnv(
-	targetDir: string,
-	signingSecret: string,
-): string {
-	const envTarget = join(targetDir, ".env");
-	const envExample = join(targetDir, ".env.example");
-	if (existsSync(envExample) && !existsSync(envTarget)) {
-		copyFileSync(envExample, envTarget);
-		chmodSync(envTarget, 0o600);
-	}
-	if (!existsSync(envTarget)) {
-		writeFileSync(envTarget, `SIGNING_SECRET=${signingSecret}\n`, {
-			mode: 0o600,
-		});
-	} else {
-		const cur = readFileSync(envTarget, "utf8");
-		writeFileSync(
-			envTarget,
-			cur.match(/^SIGNING_SECRET=/m)
-				? cur.replace(/^SIGNING_SECRET=.*/m, `SIGNING_SECRET=${signingSecret}`)
-				: `${cur}\nSIGNING_SECRET=${signingSecret}\n`,
-			{ mode: 0o600 },
-		);
-		chmodSync(envTarget, 0o600);
-	}
-	return envTarget;
-}
-
-export async function createWebhook(
-	name: string,
-	opts: CreateWebhookOptions,
-): Promise<void> {
-	// Validate runtime BEFORE touching the filesystem. The template-dir lookup
-	// at copyTemplate() would otherwise throw `template dir missing` after
-	// mkdirSync had already created the target — leaving litter on disk.
-	if (opts.runtime && !RUNTIMES.includes(opts.runtime)) {
-		error(`Unknown --runtime "${opts.runtime}". Valid: ${RUNTIMES.join(", ")}`);
-		process.exit(1);
-	}
-	const { runtime, subgraph, table, url } = await promptFor(name, opts);
-	let filter: Record<string, unknown> | undefined;
-	let authConfig: Record<string, unknown> | undefined;
-	try {
-		filter = parseWebhookFilter(opts.filter);
-		authConfig = buildWebhookAuthConfig(opts.authToken);
-	} catch (err) {
-		error(err instanceof Error ? err.message : String(err));
-		process.exit(1);
-	}
-
-	let sl: SecondLayer | null = null;
-	if (!opts.skipApi) {
-		try {
-			sl = await getWebhookClient();
-			await validateWebhookTargetFromApi(sl, {
-				subgraphName: subgraph,
-				tableName: table,
-				filter,
-			});
-		} catch (err) {
-			error(err instanceof Error ? err.message : String(err));
-			process.exit(1);
-		}
-	}
-
-	const eventName = `${subgraph}.${table}.created`;
-	const targetDir = resolve(process.cwd(), name);
-	if (opts.scaffold !== false) {
-		if (existsSync(targetDir)) {
-			error(`Directory already exists: ${relative(process.cwd(), targetDir)}`);
-			process.exit(1);
-		}
-
-		const tplRoot = templatesRoot();
-		const tplDir = join(tplRoot, runtime);
-		info(`Scaffolding ${blue(runtime)} template at ${blue(targetDir)}`);
-		copyTemplate(tplDir, targetDir, {
-			NAME: name,
-			EVENT_NAME: eventName,
-			TASK_ID: `${subgraph}-${table}`,
-		});
-	}
-
-	// Provision the webhook via SDK unless --skip-api was passed (useful
-	// for offline template scaffolding while the user sets up auth first).
-	let signingSecret: string | null = null;
-	let provisioningFailed = false;
-	if (!opts.skipApi) {
-		try {
-			if (!sl) sl = await getWebhookClient();
-			const res = await sl.webhooks.create({
-				name,
-				subgraphName: subgraph,
-				tableName: table,
-				url,
-				format: FORMAT_BY_RUNTIME[runtime] as
-					| "inngest"
-					| "trigger"
-					| "cloudflare"
-					| "standard-webhooks",
-				runtime,
-				...(filter ? { filter } : {}),
-				...(authConfig ? { authConfig } : {}),
-			} as CreateWebhookRequest);
-			signingSecret = res.signingSecret;
-			success(`Webhook provisioned: ${blue(res.webhook.id)}`);
-		} catch (err) {
-			provisioningFailed = true;
-			warn(
-				`Webhook provisioning failed: ${err instanceof Error ? err.message : String(err)}`,
-			);
-			info(
-				"Template copied, but the webhook was not created. Fix the API error, remove the template directory, and rerun.",
-			);
-		}
-	}
-
-	// Write the signing secret to .env (creates if missing — all 4 templates
-	// now ship .env.example; even if a template doesn't, we still write).
-	let webhookStatus: string | undefined;
-	if (sl) {
-		try {
-			const list = await sl.webhooks.list();
-			const rows =
-				(list as { data?: Array<{ name: string; id: string; status: string }> })
-					.data ?? [];
-			const created = rows.find((s) => s.name === name);
-			webhookStatus = created?.status;
-		} catch {
-			// best-effort; don't block on read-back
-		}
-	}
-	if (signingSecret && opts.scaffold !== false) {
-		const envTarget = writeSigningSecretEnv(targetDir, signingSecret);
-		success(`Signing secret written to ${relative(process.cwd(), envTarget)}`);
-	} else if (signingSecret && opts.scaffold === false) {
-		// No scaffold dir to write to — surface the secret so the user can store it.
-		info(`Signing secret (store securely): ${signingSecret}`);
-	}
-
-	console.log();
-	if (provisioningFailed) {
-		error("Webhook was not created.");
-		process.exit(1);
-	}
-
-	const pausedLine =
-		webhookStatus === "paused"
-			? `Webhook is paused. Resume:\n  secondlayer webhooks resume ${name}\n  `
-			: "";
-	const runHint =
-		opts.scaffold === false
-			? `View deliveries:\n  secondlayer webhooks get ${name}`
-			: `cd ${name}\n  bun install\n  bun run dev`;
-	success(`Done. Next:\n  ${pausedLine}${runHint}`);
-}
-
-/**
  * `secondlayer webhooks create <name> --url <url> --trigger '<json>'`
  *
- * Chain-webhook path: no subgraph, no scaffold — provisions a direct
- * chain-level webhook (a `triggers` array) over the session-authed SDK.
- * Branched before `createWebhook`'s subgraph prompts so it never touches
- * the filesystem or the subgraph/table flow.
+ * Provisions a webhook (a `triggers` array) over the session-authed SDK.
  */
 export async function createChainWebhook(
 	name: string,
 	opts: CreateWebhookOptions,
 ): Promise<void> {
-	for (const [flag, value] of [
-		["--subgraph", opts.subgraph],
-		["--table", opts.table],
-		["--runtime", opts.runtime],
-	] as const) {
-		if (value !== undefined) {
-			error(`${flag} is not valid with --trigger/--triggers-file (chain mode)`);
-			process.exit(1);
-		}
-	}
 	if (!opts.url) {
-		error("--url is required when creating a chain webhook");
+		error("--url is required");
 		process.exit(1);
 	}
 
@@ -463,7 +115,7 @@ export async function createChainWebhook(
 		} as CreateWebhookRequest);
 		webhookId = res.webhook.id;
 		signingSecret = res.signingSecret;
-		success(`Chain webhook provisioned: ${blue(webhookId)}`);
+		success(`Webhook provisioned: ${blue(webhookId)}`);
 	} catch (err) {
 		error(
 			`Webhook provisioning failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -488,74 +140,28 @@ export async function getWebhookClient(): Promise<SecondLayer> {
 	return new SecondLayer({ baseUrl: apiUrl, apiKey: ephemeralKey });
 }
 
-/**
- * Register the webhook-receiver scaffolder onto `parent` under
- * `commandSpec`. Shared so it can mount as both `webhooks create` (canonical)
- * and the deprecated `create webhook`.
- */
-function addWebhookScaffold(
-	parent: Command,
-	commandSpec: string,
-	opts: { description: string; examplePrefix: string },
-): void {
+/** `secondlayer webhooks create <name>`. */
+export function addWebhooksCreateCommand(parent: Command): void {
 	parent
-		.command(commandSpec)
-		.description(opts.description)
-		.option(
-			"-r, --runtime <runtime>",
-			"inngest | trigger | cloudflare | node (default: node once -s/-t/-u or --no-scaffold is given; prompts only in a terminal with no flags)",
-		)
-		.option("-s, --subgraph <name>", "Subgraph to subscribe to")
-		.option("-t, --table <name>", "Table to subscribe to")
+		.command("create <name>")
+		.description("Create a webhook on raw chain events")
 		.option("-u, --url <url>", "Webhook URL")
 		.option(
 			"--auth-token <token>",
 			"Bearer token for receiver API auth; a flag lands in shell history and ps, so set it in the receiver's env and pass it here only for a throwaway token",
 		)
 		.option(
-			"--filter <kv...>",
-			"Filter as key=value (supports .eq/.neq/.gt/.gte/.lt/.lte suffixes)",
-		)
-		.option(
 			"--trigger <json...>",
-			'Chain-webhook trigger as JSON (repeatable), e.g. \'{"type":"sbtc_deposit"}\'',
+			'Chain trigger as JSON (repeatable), e.g. \'{"type":"sbtc_deposit"}\'',
 		)
-		.option(
-			"--triggers-file <path>",
-			"Chain-webhook triggers as a JSON array file",
-		)
-		.option(
-			"--format <format>",
-			"Chain mode delivery format (default standard-webhooks)",
-		)
-		.option("--skip-api", "Copy template only, don't call the API")
-		.option(
-			"--no-scaffold",
-			"Skip the local runtime template directory (webhook-only setups)",
-		)
+		.option("--triggers-file <path>", "Chain triggers as a JSON array file")
+		.option("--format <format>", "Delivery format (default standard-webhooks)")
 		.addHelpText(
 			"after",
 			`
 Examples:
-  $ ${opts.examplePrefix} my-sub -s my-graph -t transfers -u https://example.com/webhook
-  $ ${opts.examplePrefix} my-sub -s my-graph -t balances -r inngest --filter amount.gte=1000
-  $ ${opts.examplePrefix} my-hook -u https://example.com/webhook --trigger '{"type":"sbtc_deposit"}'`,
+  $ secondlayer webhooks create my-hook -u https://example.com/webhook --trigger '{"type":"sbtc_deposit"}'
+  $ secondlayer webhooks create my-hook -u https://example.com/webhook --triggers-file triggers.json`,
 		)
-		.action(async (name: string, options: CreateWebhookOptions) => {
-			// Chain mode: a `triggers` array, no subgraph/scaffold. Branch here so the
-			// subgraph-oriented prompts in createWebhook are never reached.
-			if (options.trigger?.length || options.triggersFile) {
-				await createChainWebhook(name, options);
-				return;
-			}
-			await createWebhook(name, options);
-		});
-}
-
-/** Canonical home: `secondlayer webhooks create <name>`. */
-export function addWebhooksCreateCommand(parent: Command): void {
-	addWebhookScaffold(parent, "create <name>", {
-		description: "Create a webhook receiver for a runtime",
-		examplePrefix: "secondlayer webhooks create",
-	});
+		.action(createChainWebhook);
 }

@@ -16,7 +16,6 @@ import {
 	pgDumpInvocation,
 	pgRestoreInvocation,
 } from "../src/commands/backup.ts";
-import { writeSigningSecretEnv } from "../src/commands/create.ts";
 import { downloadDumpTo, resolveDumpDest } from "../src/commands/streams.ts";
 
 /**
@@ -185,50 +184,6 @@ describe("backup and restore keep the database password off argv", () => {
 		} finally {
 			proc.kill();
 			await proc.exited;
-		}
-	});
-});
-
-describe("subscription scaffold .env is owner-only", () => {
-	const mode = (path: string) => statSync(path).mode & 0o777;
-
-	it("a fresh .env is written with mode 0600", () => {
-		const dir = mkdtempSync(join(tmpdir(), "sl-env-"));
-		try {
-			const target = writeSigningSecretEnv(dir, "whsec_x");
-			expect(mode(target)).toBe(0o600);
-		} finally {
-			rmSync(dir, { recursive: true, force: true });
-		}
-	});
-
-	it("a .env seeded from a world-readable .env.example is chmodded to 0600", async () => {
-		const dir = mkdtempSync(join(tmpdir(), "sl-env-"));
-		try {
-			await writeFile(join(dir, ".env.example"), "PORT=3000\n", {
-				mode: 0o644,
-			});
-			const target = writeSigningSecretEnv(dir, "whsec_x");
-			expect(mode(target)).toBe(0o600);
-			expect(await readFile(target, "utf8")).toContain(
-				"SIGNING_SECRET=whsec_x",
-			);
-		} finally {
-			rmSync(dir, { recursive: true, force: true });
-		}
-	});
-
-	it("an existing loose .env is tightened when the secret is rewritten", async () => {
-		const dir = mkdtempSync(join(tmpdir(), "sl-env-"));
-		try {
-			await writeFile(join(dir, ".env"), "SIGNING_SECRET=old\n", {
-				mode: 0o644,
-			});
-			const target = writeSigningSecretEnv(dir, "whsec_new");
-			expect(mode(target)).toBe(0o600);
-			expect(await readFile(target, "utf8")).toBe("SIGNING_SECRET=whsec_new\n");
-		} finally {
-			rmSync(dir, { recursive: true, force: true });
 		}
 	});
 });

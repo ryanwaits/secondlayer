@@ -6,19 +6,15 @@ import type {
 	SecondLayer,
 } from "@secondlayer/sdk";
 import { sign } from "@secondlayer/shared/crypto/standard-webhooks";
-import type { SubgraphDetail } from "@secondlayer/shared/schemas/subgraphs";
 import type {
-	ChainTrigger,
 	DeadRow,
 	DeliveryRow,
 	UpdateWebhookRequest,
 	WebhookDetail,
-	WebhookKind,
 	WebhookSummary,
 } from "@secondlayer/shared/schemas/webhooks";
 import type { Command } from "commander";
 import { handleApiError } from "../lib/api-client.ts";
-import { parseWebhookFilter } from "../lib/filter-params.ts";
 import {
 	blue,
 	confirmDestructive,
@@ -32,7 +28,6 @@ import {
 	yellow,
 } from "../lib/output.ts";
 import { assertInstanceOrAccountKey } from "../lib/resolve-auth.ts";
-import { validateWebhookTargetFromApi } from "../lib/webhook-validation.ts";
 import { addWebhooksCreateCommand } from "./create.ts";
 import { buildWebhookAuthConfig, getWebhookClient } from "./create.ts";
 
@@ -46,9 +41,6 @@ interface UpdateOptions extends CommonOptions {
 	url?: string;
 	authToken?: string;
 	format?: string;
-	runtime?: string;
-	filter?: string[];
-	clearFilter?: boolean;
 	maxRetries?: string;
 	timeoutMs?: string;
 	concurrency?: string;
@@ -146,20 +138,6 @@ export function buildWebhookUpdatePatch(
 	if (options.format) {
 		patch.format = options.format as UpdateWebhookRequest["format"];
 	}
-	if (options.runtime !== undefined) {
-		patch.runtime =
-			options.runtime === "none" || options.runtime === "null"
-				? null
-				: (options.runtime as NonNullable<UpdateWebhookRequest["runtime"]>);
-	}
-	if (options.clearFilter) patch.filter = {};
-	if (options.filter) {
-		if (options.clearFilter) {
-			throw new Error("Use either --filter or --clear-filter, not both");
-		}
-		patch.filter = (parseWebhookFilter(options.filter) ??
-			{}) as UpdateWebhookRequest["filter"];
-	}
 	const maxRetries = parseIntegerOption(options.maxRetries, "--max-retries", 0);
 	if (maxRetries !== undefined) patch.maxRetries = maxRetries;
 	const timeoutMs = parseIntegerOption(options.timeoutMs, "--timeout-ms", 100);
@@ -178,23 +156,14 @@ export function buildWebhookUpdatePatch(
 	return patch;
 }
 
-/** The Target column/field for a webhook. A subgraph webhook always has
- *  `subgraphName`/`tableName` (`subgraph.table`); a chain webhook has
- *  neither — `null.null` if rendered the same way — so it shows its trigger
- *  types when the caller has them (a `WebhookDetail`, which carries
- *  `triggers`), else falls back to the bare `"chain"` a `WebhookSummary`
- *  (the list response) is limited to. */
-export function formatWebhookTarget(sub: {
-	kind: WebhookKind;
-	subgraphName: string | null;
-	tableName: string | null;
-	triggers?: ChainTrigger[] | null;
-}): string {
-	if (sub.kind === "chain") {
-		const types = sub.triggers?.map((t) => t.type);
-		return types && types.length > 0 ? `chain.${types.join(",")}` : "chain";
-	}
-	return `${sub.subgraphName}.${sub.tableName}`;
+/** The Target column/field for a webhook: its trigger types when the caller
+ *  has them (a `WebhookDetail`, which carries `triggers`), else the bare
+ *  `"chain"` a `WebhookSummary` (the list response) is limited to. */
+export function formatWebhookTarget(
+	sub: WebhookSummary | WebhookDetail,
+): string {
+	const types = "triggers" in sub ? sub.triggers.map((t) => t.type) : [];
+	return types.length > 0 ? `chain.${types.join(",")}` : "chain";
 }
 
 /** "bearer token (set, hidden), headers: x-team" — never the credential or
@@ -224,7 +193,6 @@ function printWebhookDetail(sub: WebhookDetail): void {
 			["Status", sub.status],
 			["Target", formatWebhookTarget(sub)],
 			["Format", sub.format],
-			["Runtime", sub.runtime ?? "none"],
 			["URL", sub.url],
 			["Auth", formatAuthLine(sub.auth)],
 			["Last Delivery", sub.lastDeliveryAt ?? "none"],
@@ -240,8 +208,8 @@ function printWebhookDetail(sub: WebhookDetail): void {
 			["Updated", sub.updatedAt],
 		]),
 	);
-	console.log(dim("\nFilter:"));
-	console.log(JSON.stringify(sub.filter, null, 2));
+	console.log(dim("\nTriggers:"));
+	console.log(JSON.stringify(sub.triggers, null, 2));
 }
 
 /** CLI-only titles for each doctor issue code — kept separate from the
@@ -253,8 +221,6 @@ const DOCTOR_ISSUE_TITLES: Record<DoctorIssueCode, string> = {
 	last_error: "The last delivery failed",
 	circuit: "Your receiver is failing",
 	dead_letters: "Some events exhausted every retry",
-	subgraph_gaps: "The linked subgraph has gaps",
-	subgraph_catching_up: "The linked subgraph is still catching up",
 	no_deliveries: "No deliveries yet",
 	receiver_rate_limited: "Your receiver is rate-limiting us",
 	receiver_down: "Your receiver looks down",
@@ -295,7 +261,6 @@ export function formatDoctorReport(report: DoctorReport): string {
 			["Status", sub.status],
 			["Target", formatWebhookTarget(sub)],
 			["Format", sub.format],
-			["Runtime", sub.runtime ?? "none"],
 			["URL", sub.url],
 			[
 				"Circuit",
@@ -324,25 +289,6 @@ export function formatDoctorReport(report: DoctorReport): string {
 		].join("\n"),
 	];
 
-	if (report.subgraph) {
-		sections.push(
-			[
-				dim("\nLinked subgraph:"),
-				formatKeyValue([
-					["Name", report.subgraph.name],
-					["Status", report.subgraph.status],
-					["Sync", report.subgraph.syncStatus],
-					[
-						"Blocks",
-						`${report.subgraph.lastProcessedBlock} / ${report.subgraph.chainTip}`,
-					],
-					["Integrity", report.subgraph.integrity],
-					["Gaps", String(report.subgraph.gapCount)],
-				]),
-			].join("\n"),
-		);
-	}
-
 	if (report.primary) sections.push(formatPrimaryInsight(report.primary));
 
 	const primaryIndex = report.primary
@@ -362,40 +308,6 @@ export function printDoctorReport(report: DoctorReport): void {
 	console.log(formatDoctorReport(report));
 }
 
-function syntheticValue(type: string): unknown {
-	switch (type) {
-		case "uint":
-		case "int":
-			return "1000";
-		case "boolean":
-			return true;
-		case "timestamp":
-			return new Date(0).toISOString();
-		case "jsonb":
-			return {};
-		case "principal":
-			return "SP000000000000000000002Q6VF78";
-		default:
-			return "example";
-	}
-}
-
-export function buildSyntheticRow(
-	subgraph: SubgraphDetail | null,
-	tableName: string,
-) {
-	const table = subgraph?.tables[tableName];
-	if (!table) return { id: "example", value: "example" };
-	const row: Record<string, unknown> = {};
-	for (const [column, def] of Object.entries(table.columns)) {
-		if (column.startsWith("_")) continue;
-		row[column] = syntheticValue(def.type);
-	}
-	return Object.keys(row).length > 0
-		? row
-		: { id: "example", value: "example" };
-}
-
 export function resolveSigningSecret(
 	options: Pick<TestOptions, "signingSecret">,
 	env: Record<string, string | undefined> = process.env,
@@ -412,10 +324,7 @@ function shellQuote(value: string): string {
 }
 
 export function buildWebhookTestFixture(input: {
-	webhook: Pick<
-		WebhookDetail,
-		"id" | "kind" | "subgraphName" | "tableName" | "triggers" | "url"
-	>;
+	webhook: Pick<WebhookDetail, "id" | "triggers" | "url">;
 	row: Record<string, unknown>;
 	signingSecret: string;
 	nowSeconds?: number;
@@ -423,24 +332,17 @@ export function buildWebhookTestFixture(input: {
 }): { body: string; headers: Record<string, string>; curl: string } {
 	const nowSeconds = input.nowSeconds ?? Math.floor(Date.now() / 1000);
 	const sub = input.webhook;
-	const isChain = sub.kind === "chain";
-	// Chain subs deliver an apply envelope keyed `chain.{type}.apply`; subgraph
-	// subs deliver `{subgraph}.{table}.{created|updated|deleted}` (verb per row
-	// op) with the row as data — this preview shows a `.created` example.
-	const type = isChain
-		? `chain.${sub.triggers?.[0]?.type ?? "event"}.apply`
-		: `${sub.subgraphName}.${sub.tableName}.created`;
-	const data = isChain
-		? {
-				action: "apply",
-				canonical: true,
-				block_hash: "0xexampleblock",
-				block_height: 0,
-				tx_id: input.row.tx_id ?? "0xexampletransaction",
-				trigger: sub.triggers?.[0]?.type ?? "event",
-				event: input.row,
-			}
-		: input.row;
+	// Webhooks deliver an apply envelope keyed `chain.{type}.apply`.
+	const type = `chain.${sub.triggers[0]?.type ?? "event"}.apply`;
+	const data = {
+		action: "apply",
+		canonical: true,
+		block_hash: "0xexampleblock",
+		block_height: 0,
+		tx_id: input.row.tx_id ?? "0xexampletransaction",
+		trigger: sub.triggers[0]?.type ?? "event",
+		event: input.row,
+	};
 	const body = JSON.stringify({
 		type,
 		timestamp: new Date(nowSeconds * 1000).toISOString(),
@@ -465,36 +367,15 @@ export function buildWebhookTestFixture(input: {
 	return { body, headers, curl };
 }
 
-async function representativeRow(
-	client: SecondLayer,
-	sub: WebhookDetail,
-	subgraph: SubgraphDetail | null,
-): Promise<Record<string, unknown>> {
-	// Chain webhooks have no subgraph table to sample — use a synthetic
-	// chain event keyed off the first trigger.
-	if (sub.kind === "chain" || !sub.subgraphName || !sub.tableName) {
-		return {
-			tx_id: "0xexampletransaction",
-			contract_id: "SP000000000000000000002Q6VF78.example",
-			...(sub.triggers?.[0]?.type === "contract_call"
-				? { function_name: "example-fn" }
-				: {}),
-		};
-	}
-	try {
-		const { rows } = await client.subgraphs.rows(
-			sub.subgraphName,
-			sub.tableName,
-			{
-				sort: "_block_height",
-				order: "desc",
-				limit: 1,
-			},
-		);
-		const row = (rows as Record<string, unknown>[])[0];
-		if (row && typeof row === "object") return row;
-	} catch {}
-	return buildSyntheticRow(subgraph, sub.tableName);
+/** A synthetic (non-persisted) chain event keyed off the first trigger. */
+function representativeRow(sub: WebhookDetail): Record<string, unknown> {
+	return {
+		tx_id: "0xexampletransaction",
+		contract_id: "SP000000000000000000002Q6VF78.example",
+		...(sub.triggers[0]?.type === "contract_call"
+			? { function_name: "example-fn" }
+			: {}),
+	};
 }
 
 function printDeliveries(rows: DeliveryRow[]): void {
@@ -620,15 +501,6 @@ function attachWebhookSubcommands(parent: Command): void {
 			"--format <format>",
 			"standard-webhooks | inngest | trigger | cloudflare | cloudevents | raw",
 		)
-		.option(
-			"--runtime <runtime>",
-			"inngest | trigger | cloudflare | node | none",
-		)
-		.option(
-			"--filter <kv...>",
-			"Filter as key=value (supports .eq/.neq/.gt/.gte/.lt/.lte suffixes)",
-		)
-		.option("--clear-filter", "Replace filter with {}")
 		.option("--max-retries <n>", "Maximum delivery retries")
 		.option("--timeout-ms <n>", "Delivery timeout in milliseconds")
 		.option("--concurrency <n>", "Per-webhook delivery concurrency")
@@ -638,25 +510,13 @@ function attachWebhookSubcommands(parent: Command): void {
 			`
 Examples:
   $ secondlayer webhooks update my-sub --url https://example.com/hook
-  $ secondlayer webhooks update my-sub --filter amount.gte=1000 --max-retries 5
-  $ secondlayer webhooks update my-sub --clear-filter`,
+  $ secondlayer webhooks update my-sub --max-retries 5 --timeout-ms 20000`,
 		)
 		.action(async (idOrName: string, options: UpdateOptions) => {
 			try {
 				const client = await getWebhookClient();
 				const patch = buildWebhookUpdatePatch(options);
-				const { id, detail } = await resolveWebhookRef(client, idOrName);
-				if (
-					patch.filter !== undefined &&
-					detail.subgraphName &&
-					detail.tableName
-				) {
-					await validateWebhookTargetFromApi(client, {
-						subgraphName: detail.subgraphName,
-						tableName: detail.tableName,
-						filter: patch.filter,
-					});
-				}
+				const { id } = await resolveWebhookRef(client, idOrName);
 				const updated = await client.webhooks.update(id, patch);
 				if (options.json) printJson(updated);
 				else success(`Updated webhook ${blue(updated.name)}`);
@@ -877,19 +737,15 @@ Examples:
 			try {
 				const client = await getWebhookClient();
 				const { id, detail } = await resolveWebhookRef(client, idOrName);
-				const [deliveries, dead, subgraph] = await Promise.allSettled([
+				const [deliveries, dead] = await Promise.allSettled([
 					client.webhooks.deliveries(id),
 					client.webhooks.dead(id),
-					detail.subgraphName
-						? client.subgraphs.status(detail.subgraphName)
-						: Promise.resolve(null),
 				]);
 				const report = buildDoctorReport({
 					webhook: detail,
 					deliveries:
 						deliveries.status === "fulfilled" ? deliveries.value.data : [],
 					dead: dead.status === "fulfilled" ? dead.value.data : [],
-					subgraph: subgraph.status === "fulfilled" ? subgraph.value : null,
 				});
 				if (options.json) printJson(report);
 				else printDoctorReport(report);
@@ -918,10 +774,7 @@ Examples:
 				const signingSecret = resolveSigningSecret(options);
 				const client = await getWebhookClient();
 				const { detail } = await resolveWebhookRef(client, idOrName);
-				const subgraph = detail.subgraphName
-					? await client.subgraphs.status(detail.subgraphName).catch(() => null)
-					: null;
-				const row = await representativeRow(client, detail, subgraph);
+				const row = representativeRow(detail);
 				const fixture = buildWebhookTestFixture({
 					webhook: detail,
 					row,

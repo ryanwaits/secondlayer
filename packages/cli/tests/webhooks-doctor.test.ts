@@ -10,19 +10,15 @@ const webhook: WebhookDetail = {
 	id: "wh-1",
 	name: "pool-payouts",
 	status: "active",
-	kind: "subgraph",
-	subgraphName: "pool",
-	tableName: "payouts",
-	triggers: null,
+	kind: "chain",
+	triggers: [{ type: "stx_transfer" }],
 	format: "standard-webhooks",
-	runtime: "node",
 	url: "https://example.com/webhook",
 	lastDeliveryAt: "2026-04-23T00:10:00.000Z",
 	lastSuccessAt: "2026-04-22T23:00:00.000Z",
 	circuitOpenedAt: null,
 	createdAt: "2026-04-01T00:00:00.000Z",
 	updatedAt: "2026-04-01T00:00:00.000Z",
-	filter: {},
 	auth: { type: "none", headerNames: [], hasSecret: false },
 	maxRetries: 7,
 	timeoutMs: 10_000,
@@ -63,7 +59,6 @@ describe("formatDoctorReport", () => {
 			webhook,
 			deliveries,
 			dead: [],
-			subgraph: null,
 		});
 		expect(report.primary?.code).toBe("receiver_rate_limited");
 
@@ -100,7 +95,6 @@ describe("formatDoctorReport", () => {
 			webhook: { ...webhook, status: "paused" },
 			deliveries: slowDeliveries,
 			dead: [],
-			subgraph: null,
 		});
 		expect(report.issues.map((i) => i.code)).toEqual([
 			"paused",
@@ -137,7 +131,6 @@ describe("formatDoctorReport", () => {
 				},
 			],
 			dead: [],
-			subgraph: null,
 		});
 		expect(report.primary).toBeNull();
 
