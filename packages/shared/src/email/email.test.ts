@@ -120,6 +120,27 @@ describe("sendEmail", () => {
 		expect(capturedBody?.to).toEqual(["someone@example.com"]);
 	});
 
+	test("sets reply_to only when a reply-to address is given", async () => {
+		process.env.RESEND_API_KEY = "test-key";
+		const bodies: Record<string, unknown>[] = [];
+		globalThis.fetch = (async (_url: string, init: RequestInit) => {
+			bodies.push(JSON.parse(init.body as string));
+			return new Response("{}", { status: 200 });
+		}) as unknown as typeof fetch;
+
+		const base = {
+			to: "ops@example.com",
+			subject: "Subject",
+			html: "<p>hi</p>",
+			text: "hi",
+		};
+		await sendEmail(base);
+		await sendEmail({ ...base, replyTo: "sender@example.com" });
+
+		expect("reply_to" in bodies[0]).toBe(false);
+		expect(bodies[1].reply_to).toEqual(["sender@example.com"]);
+	});
+
 	test("throws with status and body excerpt on a non-2xx response", async () => {
 		process.env.RESEND_API_KEY = "test-key";
 		globalThis.fetch = (async () =>

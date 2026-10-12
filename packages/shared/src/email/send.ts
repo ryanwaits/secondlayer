@@ -12,6 +12,8 @@ export interface SendEmailInput {
 	subject: string;
 	html: string;
 	text: string;
+	/** Where a reply goes; omitted, replies go to the From address. */
+	replyTo?: string;
 }
 
 export type SendEmailResult = { skipped: true } | { skipped: false };
@@ -42,6 +44,7 @@ export async function sendEmail(
 			subject: input.subject,
 			html: input.html,
 			text: input.text,
+			...(input.replyTo ? { reply_to: [input.replyTo] } : {}),
 		}),
 	});
 

@@ -99,6 +99,7 @@ export const TABLE_TO_DB = {
 	// ── TARGET: public waitlist pages ──
 	waitlists: "target",
 	waitlist_signups: "target",
+	contact_requests: "target",
 	// ── TARGET: 24h hosted failed-request record (feedback evidence) ──
 	api_failed_requests: "target",
 	// ── TARGET: hosted problem reports ──

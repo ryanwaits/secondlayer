@@ -1036,6 +1036,7 @@ export interface Database {
 	sentinel_accounts: SentinelAccountsTable;
 	waitlists: WaitlistsTable;
 	waitlist_signups: WaitlistSignupsTable;
+	contact_requests: ContactRequestsTable;
 	api_failed_requests: ApiFailedRequestsTable;
 	feedback_tickets: FeedbackTicketsTable;
 }
@@ -1374,6 +1375,25 @@ export interface WaitlistSignupsTable {
 }
 
 /**
+ * A "Talk to us" message. Stored before the operator is emailed;
+ * `notified_at` stays null until the email goes out.
+ */
+export interface ContactRequestsTable {
+	id: Generated<string>;
+	name: string;
+	email: string;
+	company: string | null;
+	volume: "lt10m" | "10m-100m" | "100m-1b" | "gt1b" | "unsure" | null;
+	message: string;
+	source_page: string | null;
+	account_id: string | null;
+	/** Hex sha256 of the client IP, never the address. */
+	ip_hash: string | null;
+	notified_at: Date | null;
+	created_at: Generated<Date>;
+}
+
+/**
  * 24h hosted record of a failed API request, keyed by `request_id` and
  * scoped to the account that made it. `query` is redacted before insert.
  */
@@ -1421,3 +1441,6 @@ export type InsertFeedbackTicket = Insertable<FeedbackTicketsTable>;
 export type Waitlist = Selectable<WaitlistsTable>;
 export type WaitlistSignup = Selectable<WaitlistSignupsTable>;
 export type InsertWaitlistSignup = Insertable<WaitlistSignupsTable>;
+
+export type ContactRequest = Selectable<ContactRequestsTable>;
+export type InsertContactRequest = Insertable<ContactRequestsTable>;
