@@ -81,6 +81,12 @@ export {
 	txMerkleRoot,
 } from "./txs.ts";
 export {
+	LINKS,
+	type LinkLine,
+	type LinkStatus,
+	describeLinks,
+} from "./links.ts";
+export {
 	type Ancestry,
 	type BlockVerification,
 	BlockVerifier,

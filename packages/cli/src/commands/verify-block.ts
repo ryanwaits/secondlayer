@@ -2,14 +2,13 @@ import { readFile } from "node:fs/promises";
 import {
 	type BlockVerification,
 	BlockVerifier,
+	LINKS,
 	MAINNET_CHECKPOINT,
 	NodeRpcProofSource,
 	type ProofSource,
 	SecondlayerProofSource,
 	type VerifyCheckpoint,
-	type VerifyStep,
-	parseNakamotoHeader,
-	unhex,
+	describeLinks,
 } from "@secondlayer/verify";
 import type { Command } from "commander";
 import { dim, green, note, printError, red, writeData } from "../lib/output.ts";
@@ -43,19 +42,6 @@ export interface VerifyBlockDeps {
 	source?: ProofSource;
 }
 
-/** The chain of links, in the order verifyBlock walks them. */
-const LINKS: { step: VerifyStep; label: string }[] = [
-	{ step: "ancestry", label: "ancestry" },
-	{ step: "block", label: "block" },
-	{ step: "bitcoin", label: "bitcoin" },
-	{ step: "burn", label: "burn" },
-	{ step: "signer-set", label: "cycle" },
-	{ step: "signatures", label: "signatures" },
-	{ step: "txs", label: "txs" },
-	{ step: "witness", label: "state root" },
-	{ step: "names", label: "diff" },
-	{ step: "rows", label: "rows" },
-];
 const LABEL_WIDTH = Math.max(...LINKS.map((l) => l.label.length));
 
 const n = (v: number | bigint) => v.toLocaleString("en-US");
@@ -129,123 +115,23 @@ function prepareSource(src: ProofSource): ProofSource {
 	return out;
 }
 
-/** What each link proved, for the human view. */
-function linkDetail(
-	step: VerifyStep,
-	r: BlockVerification,
-	cp: VerifyCheckpoint,
-): string {
-	switch (step) {
-		case "ancestry": {
-			const a = r.ancestry;
-			if (!a) return "";
-			const checkpoint = parseNakamotoHeader(unhex(cp.stacks.header));
-			const start =
-				a.fromHeight === Number(checkpoint.chainLength)
-					? `the checkpoint ${n(a.fromHeight)}`
-					: `block ${n(a.fromHeight)}`;
-			return a.via === "marf"
-				? `${n(r.height ?? 0)} proven in the state of ${start} (one MARF proof)`
-				: `${n(r.height ?? 0)} reached from ${start} by parent links`;
-		}
-		case "block":
-			return `${n(r.height ?? 0)}  ${r.blockId}`;
-		case "bitcoin":
-			return `headers ${n(cp.bitcoin.height)}..${n(r.burnHeight ?? 0)}, proof-of-work and retargets checked`;
-		case "burn":
-			return `height ${n(r.burnHeight ?? 0)}  ${r.bitcoinBlockHash}`;
-		case "signer-set":
-			return r.cycle === cp.stacks.cycle
-				? `${r.cycle}, the checkpoint's own signer set`
-				: `${r.cycle}, signer set proven forward from checkpoint cycle ${cp.stacks.cycle}`;
-		case "signatures":
-			return `${n(r.signerWeight ?? 0n)} / ${n(r.totalWeight ?? 0n)} weight signed, threshold ${n(r.threshold ?? 0n)}`;
-		case "txs":
-			return `${n(r.transactions?.length ?? 0)} transactions match the tx merkle root`;
-		case "witness":
-			return `${r.stateRoot} matches the witness`;
-		case "names": {
-			const d = r.diff;
-			if (!d) return "";
-			const named = d.writes.filter((w) => w.named).length;
-			const written = named
-				? `${d.writes.length} written (${named} named, ${d.writes.length - named} unnamed)`
-				: `${d.writes.length} written (unnamed)`;
-			return `${written}, ${d.carried.length} carried, ${d.internal.length} internal`;
-		}
-		case "rows":
-			return `${n(r.rowsChecked ?? 0)} vm_events rows match the diff`;
-	}
-}
-
-/**
- * Links a block below the checkpoint skips: its id is pinned by hash from a
- * trusted descendant, so no signer set or signatures; the burn block is bound
- * only when the synced Bitcoin chain reaches it.
- */
-function notNeeded(step: VerifyStep, r: BlockVerification): boolean {
-	if (!r.ancestry) return false;
-	if (step === "bitcoin" || step === "burn") return r.burnHeight === undefined;
-	return step === "signer-set" || step === "signatures";
-}
-
 /** One line per link, then the verdict. */
 function report(
 	r: BlockVerification,
 	cp: VerifyCheckpoint,
 	rows: boolean,
 ): void {
-	const first = r.failures[0];
-	const broken = first
-		? LINKS.findIndex((l) => l.step === first.step)
-		: LINKS.length;
-	for (const [i, link] of LINKS.entries()) {
-		const label = link.label.padEnd(LABEL_WIDTH);
-		const failure = r.failures.find((f) => f.step === link.step);
-		// Ancestry is a link only below the checkpoint.
-		if (link.step === "ancestry" && !failure && !r.ancestry) continue;
-		if (failure) writeData(`${red("✗")} ${label}  ${failure.message}`);
-		else if (link.step === "rows" && !rows)
-			writeData(dim(`· ${label}  not checked (pass --rows)`));
-		else if (i > broken)
-			writeData(dim(`· ${label}  not checked: an earlier link is broken`));
-		else if (notNeeded(link.step, r))
-			writeData(
-				dim(
-					`· ${label}  not needed: the block is hash-chained to the checkpoint`,
-				),
-			);
-		else if (link.step === "rows" && r.rowsChecked === undefined)
-			writeData(
-				dim(`· ${label}  not checked: the source serves no indexed rows`),
-			);
-		else if (link.step === "txs" && r.transactions === undefined)
-			writeData(
-				dim(
-					`· ${label}  not checked: no transaction bytes (epoch 2.x, or the source served the header only)`,
-				),
-			);
-		else writeData(`${green("✓")} ${label}  ${linkDetail(link.step, r, cp)}`);
+	const { lines, verdict } = describeLinks(r, cp, { rows });
+	for (const line of lines) {
+		const label = line.label.padEnd(LABEL_WIDTH);
+		if (line.status === "failed")
+			writeData(`${red("✗")} ${label}  ${line.detail}`);
+		else if (line.status === "skipped")
+			writeData(dim(`· ${label}  ${line.detail}`));
+		else writeData(`${green("✓")} ${label}  ${line.detail}`);
 	}
 	for (const line of r.notes) note(`  note: ${line}`);
-
-	if (!first) {
-		const from = n(parseNakamotoHeader(unhex(cp.stacks.header)).chainLength);
-		writeData(
-			green(
-				`✓ Block ${n(r.height ?? 0)} is proven. Trusted: only the checkpoint (Stacks ${from}, Bitcoin ${n(cp.bitcoin.height)}).`,
-			),
-		);
-		return;
-	}
-	const label = LINKS[broken]?.label ?? first.step;
-	writeData(
-		red(
-			first.code === "unavailable"
-				? `✗ Could not check the ${label} link: the source could not serve it.`
-				: `✗ Not proven: the ${label} link is broken.`,
-		),
-	);
+	writeData(verdict.ok ? green(`✓ ${verdict.text}`) : red(`✗ ${verdict.text}`));
 }
 
 /** bigint weights as decimal strings, transactions as their txids; everything
