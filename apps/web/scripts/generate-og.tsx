@@ -174,41 +174,26 @@ function VLine({ height }: { height: number }) {
 // ── artifacts (flat, simplified from the page heroes) ────────────────────────
 
 function ArtHome() {
-	const rows: [string, string][] = [
-		["Archive", "verifies"],
-		["Streams", "hands you"],
-		["Index", "decodes"],
-		["Subgraphs", "fills"],
-		["Webhooks", "delivers"],
-	];
+	const nouns = ["Archive", "Streams", "Index", "Subgraphs", "Webhooks"];
 	return (
-		<div style={{ display: "flex", flexDirection: "column", width: 400 }}>
-			{rows.map(([noun, verb], i) => (
+		<div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+			{nouns.map((noun, i) => (
 				<div
 					key={noun}
-					style={{
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "space-between",
-						height: 76,
-						borderTop: i === 0 ? `1.5px solid ${INK}` : `1px solid ${LINE}`,
-						borderBottom: i === rows.length - 1 ? `1.5px solid ${INK}` : "none",
-					}}
+					style={{ display: "flex", alignItems: "center", gap: 18 }}
 				>
+					{i > 0 ? <span style={{ fontSize: 26, color: SUB }}>·</span> : null}
 					<span
 						style={{
 							fontFamily: "Geist",
 							fontWeight: 500,
-							fontSize: 38,
-							color: INK,
-							letterSpacing: -1.2,
+							fontSize: 30,
+							color: SUB,
+							letterSpacing: -0.6,
 						}}
 					>
 						{noun}
 					</span>
-					<T size={20} color={SUB}>
-						{verb}
-					</T>
 				</div>
 			))}
 		</div>
@@ -1024,6 +1009,9 @@ type CardSpec = {
 	artifact: React.ReactNode;
 	/** Highlight color behind line 2 (yellow; Robin Neon on the partner card). */
 	highlight?: string;
+	/** Center the headline with the artifact underneath (home), matching the
+	    centered home hero. Default is headline left, artifact right. */
+	centered?: boolean;
 };
 
 function Footer({ path }: { path: string }) {
@@ -1062,7 +1050,61 @@ function Footer({ path }: { path: string }) {
 	);
 }
 
+function CenteredFrame(spec: CardSpec) {
+	const { size } = spec;
+	const hl = spec.highlight ?? YELLOW;
+	const line = {
+		fontFamily: "Geist",
+		fontWeight: 500,
+		fontSize: size,
+		color: INK,
+		lineHeight: 1.1,
+		letterSpacing: -size * 0.04,
+	};
+	return (
+		<div
+			style={{
+				position: "relative",
+				width: "100%",
+				height: "100%",
+				display: "flex",
+				flexDirection: "column",
+				background: PAPER,
+				padding: "0 80px",
+				fontFamily: "Geist",
+			}}
+		>
+			<div
+				style={{
+					height: 540,
+					display: "flex",
+					flexDirection: "column",
+					alignItems: "center",
+					justifyContent: "center",
+					gap: 44,
+				}}
+			>
+				<div
+					style={{
+						display: "flex",
+						flexDirection: "column",
+						alignItems: "center",
+					}}
+				>
+					<span style={line}>{spec.line1}</span>
+					<span style={{ ...line, background: hl, padding: "0 16px" }}>
+						{spec.line2}
+					</span>
+				</div>
+				{spec.artifact}
+			</div>
+			<Footer path={spec.path} />
+		</div>
+	);
+}
+
 function Frame(spec: CardSpec) {
+	if (spec.centered) return <CenteredFrame {...spec} />;
 	const { size } = spec;
 	const hl = spec.highlight ?? YELLOW;
 	return (
@@ -1156,8 +1198,9 @@ const CARDS: CardSpec[] = [
 		eyebrow: null,
 		line1: "Instant data",
 		line2: "for apps on Bitcoin.",
-		size: 64,
+		size: 84,
 		path: SITE,
+		centered: true,
 		artifact: <ArtHome />,
 	},
 	{
