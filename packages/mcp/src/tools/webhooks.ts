@@ -34,7 +34,7 @@ export function registerWebhookTools(
 	defineTool<{ id: string }>(
 		server,
 		"webhooks_get",
-		"Get full detail for a webhook (filter, auth, retry config, circuit state).",
+		"Get full detail for a webhook (triggers, auth, retry config, circuit state).",
 		{ id: z.string().describe("Webhook id") },
 		async ({ id }) => {
 			const detail = await clientProvider().webhooks.get(id);
@@ -43,9 +43,7 @@ export function registerWebhookTools(
 	);
 	defineTool<{
 		name: string;
-		subgraphName?: string;
-		tableName?: string;
-		triggers?: ChainTrigger[];
+		triggers: ChainTrigger[];
 		url: string;
 		format?:
 			| "standard-webhooks"
@@ -54,23 +52,13 @@ export function registerWebhookTools(
 			| "cloudflare"
 			| "cloudevents"
 			| "raw";
-		runtime?: "inngest" | "trigger" | "cloudflare" | "node";
-		filter?: Record<string, unknown>;
 		authConfig?: Record<string, unknown>;
 	}>(
 		server,
 		"webhooks_create",
-		"Create a webhook. Two kinds (mutually exclusive): a SUBGRAPH webhook fires on a subgraph table's rows (set subgraphName + tableName + optional filter); a CHAIN webhook fires on raw chain events with no subgraph (set triggers). Returns `signingSecret` ONCE — forward it to the user so they can wire it into their receiver.",
+		"Create a webhook that fires on raw chain events (set triggers). Returns `signingSecret` ONCE — forward it to the user so they can wire it into their receiver.",
 		{
 			name: z.string().describe("Human-readable name, unique per account"),
-			subgraphName: z
-				.string()
-				.optional()
-				.describe("Subgraph to subscribe to (subgraph webhook)"),
-			tableName: z
-				.string()
-				.optional()
-				.describe("Table within the subgraph (subgraph webhook)"),
 			triggers: z
 				.array(
 					z.object({
@@ -90,9 +78,8 @@ export function registerWebhookTools(
 						maxAmount: z.union([z.string(), z.number()]).optional(),
 					}),
 				)
-				.optional()
 				.describe(
-					"Chain triggers (chain webhook) — provide INSTEAD of subgraphName/tableName. Each targets a raw chain event/tx; string fields accept `*` wildcards, `trait` scopes to a SIP/trait. Per-type accepted fields: see the secondlayer://chain-triggers resource. Forward-looking: starts at chain tip, no backfill.",
+					"Chain triggers. Each targets a raw chain event/tx; string fields accept `*` wildcards, `trait` scopes to a SIP/trait. Per-type accepted fields: see the secondlayer://chain-triggers resource. Forward-looking: starts at chain tip, no backfill.",
 				),
 			url: z.string().describe("Webhook URL"),
 			format: z
@@ -106,16 +93,6 @@ export function registerWebhookTools(
 				])
 				.optional()
 				.describe("Wire format (default standard-webhooks)"),
-			runtime: z
-				.enum(["inngest", "trigger", "cloudflare", "node"])
-				.optional()
-				.describe("Receiver runtime label (display only)"),
-			filter: z
-				.record(z.string(), z.unknown())
-				.optional()
-				.describe(
-					'Scalar filter DSL, e.g. {"amount": {"gte": 100}, "sender": "SP..."}',
-				),
 			authConfig: z
 				.record(z.string(), z.unknown())
 				.optional()
@@ -134,7 +111,6 @@ export function registerWebhookTools(
 		id: string;
 		name?: string;
 		url?: string;
-		filter?: Record<string, unknown>;
 		authConfig?: Record<string, unknown>;
 		format?:
 			| "standard-webhooks"
@@ -143,19 +119,17 @@ export function registerWebhookTools(
 			| "cloudflare"
 			| "cloudevents"
 			| "raw";
-		runtime?: "inngest" | "trigger" | "cloudflare" | "node" | null;
 		maxRetries?: number;
 		timeoutMs?: number;
 		concurrency?: number;
 	}>(
 		server,
 		"webhooks_update",
-		"Patch a webhook (name, url, filter, authConfig, format, runtime, retry, timeout, concurrency).",
+		"Patch a webhook (name, url, authConfig, format, retry, timeout, concurrency).",
 		{
 			id: z.string(),
 			name: z.string().optional().describe("Rename the webhook"),
 			url: z.string().optional(),
-			filter: z.record(z.string(), z.unknown()).optional(),
 			authConfig: z
 				.record(z.string(), z.unknown())
 				.optional()
@@ -169,10 +143,6 @@ export function registerWebhookTools(
 					"cloudevents",
 					"raw",
 				])
-				.optional(),
-			runtime: z
-				.enum(["inngest", "trigger", "cloudflare", "node"])
-				.nullable()
 				.optional(),
 			maxRetries: z.number().int().min(0).optional(),
 			timeoutMs: z.number().int().min(100).optional(),

@@ -89,13 +89,12 @@ Point the server at your instance with `SECONDLAYER_API_URL` (default
 `secondlayer init`. `account_*` tools appear only when the server is pointed at
 `https://api.secondlayer.tools`.
 
-### `webhooks_create` kinds
+### `webhooks_create` triggers
 
-Webhooks are polymorphic. Pass `subgraphName` + `tableName` for a
-**subgraph** webhook, or a `triggers` array for a **chain** webhook —
-a webhook on raw chain events (contract / event / function / trait) with no
-subgraph (e.g. `[{ "type": "contract_call", "contractId": "SP....amm",
-"functionName": "swap-*" }]`).
+Webhooks fire on raw chain events. Pass a `triggers` array (contract / event /
+function / trait), e.g. `[{ "type": "contract_call", "contractId":
+"SP....amm", "functionName": "swap-*" }]`. To react to subgraph rows, read the
+table from your own Postgres or poll the subgraph API.
 
 ### `subgraphs_query` enhancements
 
