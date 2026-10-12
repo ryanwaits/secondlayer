@@ -1,6 +1,20 @@
-import { CtaPill } from "@/components/home/cta-pill";
-import { Notation } from "@/components/notation";
+import {
+	ButtonLink,
+	CloseBand,
+	Eyebrow,
+	Highlight,
+	Split,
+	StatusDot,
+	Terminal,
+} from "@/components/site";
+import {
+	DeliveryLogArt,
+	RowsTable,
+	SubgraphTableArt,
+	TrustChainArt,
+} from "@/components/site/assets";
 import { socialMeta } from "@/lib/og";
+import { PRODUCTS } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -15,34 +29,128 @@ export const metadata: Metadata = socialMeta({
 	path: "/",
 });
 
-const WHY = [
+/** Longer hero lines. The short nav line lives in PRODUCTS. */
+const SPINE_LINE: Record<(typeof PRODUCTS)[number]["noun"], string> = {
+	Archive: "Signed history. Check your copy free, repair only what's broken.",
+	Streams: "Every event in order. You hold the cursor.",
+	Index: "Typed rows from genesis, filtered before they cost you.",
+	Subgraphs: "Your contract, as a table you query.",
+	Webhooks: "Your server, told first. Signed, retried, logged.",
+};
+
+function TileIcon({ children }: { children: ReactNode }) {
+	return (
+		<svg
+			viewBox="0 0 22 22"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth={1.5}
+			aria-hidden="true"
+		>
+			{children}
+		</svg>
+	);
+}
+
+const TILES: readonly { icon: ReactNode; title: string; body: ReactNode }[] = [
 	{
+		icon: (
+			<TileIcon>
+				<path d="M4 18V9a5 5 0 0 1 5-5h0M4 18h0M11 18v-6a4 4 0 0 1 4-4h3" />
+				<circle cx="4" cy="18" r="1.6" />
+				<circle cx="11" cy="18" r="1.6" />
+			</TileIcon>
+		),
 		title: "Forks, handled",
-		body: "Reorgs roll your rows back and forward on their own. No cleanup job.",
+		body: "Every page reports the tip, the finalized height and any reorg that crossed your cursor.",
 	},
 	{
+		icon: (
+			<TileIcon>
+				<rect x="2.5" y="7" width="5" height="8" rx="1" />
+				<rect x="14.5" y="7" width="5" height="8" rx="1" />
+				<path d="M9.5 11h3" strokeDasharray="1.5 1.5" />
+			</TileIcon>
+		),
 		title: "Gaps, hunted",
-		body: "A missing block stops the cursor instead of skipping it. Every height is checked.",
+		body: "Block count equals span, so a missing block shows up as arithmetic. Repair fetches just that range.",
 	},
 	{
+		icon: (
+			<TileIcon>
+				<path d="M3 11h16M3 11l4-4M3 11l4 4" />
+				<path d="M19 5v12" />
+			</TileIcon>
+		),
 		title: "History included",
+		body: "Backfill from genesis on the same rows you read live. No second pipeline for the past.",
+	},
+	{
+		icon: (
+			<TileIcon>
+				<rect x="5" y="4" width="4" height="14" rx="1" />
+				<rect x="13" y="4" width="4" height="14" rx="1" />
+			</TileIcon>
+		),
+		title: "Idle is free",
+		body: "A stopped stack costs nothing. Reading your own subgraph tables costs nothing.",
+	},
+	{
+		icon: (
+			<TileIcon>
+				<rect x="3" y="4" width="16" height="6" rx="1.5" />
+				<rect x="3" y="12" width="16" height="6" rx="1.5" />
+				<path d="M6 7h.01M6 15h.01" />
+			</TileIcon>
+		),
+		title: "Same API on your box",
 		body: (
 			<>
-				Backfill from genesis or any <code>startBlock</code>, then held at tip.
+				Point <code>SECONDLAYER_API_URL</code> at your instance. The CLI, SDK
+				and routes answer the same.
 			</>
 		),
 	},
 	{
-		title: "Idle is free",
-		body: "You pay for rows delivered, not for time. Block headers are free.",
-	},
-	{
-		title: "Same API, your box",
-		body: "Self-host runs the same code. Move either way without rewriting.",
-	},
-	{
+		icon: (
+			<TileIcon>
+				<path d="M5 7l4 4-4 4M11 16h6" />
+			</TileIcon>
+		),
 		title: "Your agent can drive",
-		body: "CLI, SDK, MCP and agent skills, all on the same key.",
+		body: "CLI · SDK · 50 MCP tools · a skill. Errors carry a request id your agent can report back.",
+	},
+];
+
+const COVERS: readonly {
+	covered: boolean;
+	title: string;
+	detail: string;
+}[] = [
+	{
+		covered: true,
+		title: "Block headers and signatures",
+		detail: "Signer set, Bitcoin anchor, proof of work",
+	},
+	{
+		covered: true,
+		title: "Which transactions a block holds",
+		detail: "Tx inclusion against the merkle root",
+	},
+	{
+		covered: true,
+		title: "State changes",
+		detail: "Every map, var and balance write, via MARF",
+	},
+	{
+		covered: true,
+		title: "State subgraph rows",
+		detail: "Replay recomputes them from the pinned file",
+	},
+	{
+		covered: false,
+		title: "Print events and tx results",
+		detail: "Not covered yet. Stacks headers don't commit to them.",
 	},
 ];
 
@@ -50,403 +158,359 @@ export default function Home() {
 	return <HomeView />;
 }
 
-function CodeWindow({
-	path,
-	meta,
-	children,
-}: {
-	path: string;
-	meta: string;
-	children: ReactNode;
-}) {
-	return (
-		<div className="home-code">
-			<div className="home-code-bar">
-				<i />
-				<i />
-				<i />
-				<span className="home-code-path">{path}</span>
-				<span className="home-code-meta">{meta}</span>
-			</div>
-			<pre>{children}</pre>
-		</div>
-	);
-}
-
-function Well({
-	head,
-	rows,
-	caption,
-}: {
-	head: { label: string; right?: boolean }[];
-	rows: ReactNode[][];
-	caption: string;
-}) {
-	return (
-		<div className="home-well">
-			<table>
-				<thead>
-					<tr>
-						{head.map((h) => (
-							<th key={h.label} className={h.right ? "r" : undefined}>
-								{h.label}
-							</th>
-						))}
-					</tr>
-				</thead>
-				<tbody>
-					{rows.map((row) => (
-						<tr key={String(row[0]) + String(row[1])}>
-							{row.map((cell, i) => (
-								<td
-									// biome-ignore lint/suspicious/noArrayIndexKey: static cells, fixed order
-									key={i}
-									className={head[i]?.right ? "r" : undefined}
-									colSpan={row.length < head.length ? head.length : undefined}
-								>
-									{cell}
-								</td>
-							))}
-						</tr>
-					))}
-				</tbody>
-			</table>
-			<p className="home-well-cap">{caption}</p>
-		</div>
-	);
-}
-
 export function HomeView() {
 	return (
-		<div className="home">
-			<section className="home-hero">
-				<h1>
-					Instant data
-					<br />
-					<Notation
-						type="highlight"
-						color="currentColor"
-						multiline
-						animationDuration={800}
-						delay={400}
-						coverage={0.72}
-					>
-						for apps on Bitcoin.
-					</Notation>
-				</h1>
-				<p className="home-sub">{SUB}</p>
-				<div className="home-hero-btns">
-					<Link href="/login" className="home-btn-solid">
-						Start free
-					</Link>
-					<Link href="/docs" className="home-btn-outline">
-						Read the docs
-					</Link>
+		<main className="site home" id="top">
+			<section className="hero">
+				<div className="shell">
+					<div className="hero-copy">
+						<h1>
+							Instant data
+							<br /> <Highlight>for apps on Bitcoin.</Highlight>
+						</h1>
+						<div className="hero-row">
+							<p className="sub">{SUB}</p>
+							<div className="hero-cta">
+								<div className="btns">
+									<ButtonLink href="/login">Start free</ButtonLink>
+									<ButtonLink href="/docs" variant="secondary">
+										Read the docs
+									</ButtonLink>
+								</div>
+								<span className="cap">
+									1M rows free every month · self-host free forever
+								</span>
+							</div>
+						</div>
+					</div>
+					<nav className="spine" aria-label="Products">
+						<div className="spine-head">
+							<span className="eyebrow">
+								Five products · one key · hosted or on your box
+							</span>
+							<span className="cap">state checkable against the chain</span>
+						</div>
+						{PRODUCTS.map((p) => (
+							<Link key={p.noun} href={p.href}>
+								<span className="n">{p.noun}</span>
+								<span className="v">{p.verb}</span>
+								<span className="d">{SPINE_LINE[p.noun]}</span>
+								<span className="ar" aria-hidden="true">
+									→
+								</span>
+							</Link>
+						))}
+					</nav>
 				</div>
-				<p className="home-hero-under">
-					1M rows free every month. Self-host free forever.
-				</p>
 			</section>
 
-			<section className="home-sec home-panel" id="products">
-				<div className="home-shell">
-					<div className="home-head">
+			<section className="band" id="doors">
+				<div className="shell">
+					<div className="sec-head">
+						<Eyebrow noun="Two ways in" />
 						<h2>Rows when you ask. Pushes when it happens.</h2>
-						<p>
-							Both read the same decoded chain. Pick the one that fits the app
-							you already run.
-						</p>
 					</div>
-					<div className="home-doors">
-						<article className="home-door">
-							<p className="home-lbl">I need rows to query</p>
+					<div className="doors">
+						<div className="door">
+							<div className="tags">
+								<span className="chip">Index</span>
+								<span className="chip">Subgraphs</span>
+							</div>
 							<h3>Your contract, as a table.</h3>
 							<p>
-								Query any decoded event from our API, or write one TypeScript
-								file and get your own tables with a REST API you didn&rsquo;t
-								write.
+								Read decoded events by type, contract or address. When the shape
+								settles, one TypeScript file becomes Postgres tables we keep at
+								tip, with types for your client.
 							</p>
-							<div className="home-chips">
-								<span className="home-chip">Index</span>
-								<span className="home-chip">Subgraphs</span>
+							<div className="art">
+								<SubgraphTableArt />
 							</div>
-							<CodeWindow
-								path="pox5-stakes.ts"
-								meta="secondlayer subgraphs deploy"
-							>
-								<span className="tm">
-									{"// one file: events in, your table out"}
-								</span>
-								{"\n"}
-								<span className="tb">export default</span>
-								{" defineSubgraph({\n  name: "}
-								<span className="tt">&quot;pox5-stakes&quot;</span>
-								{",\n  startBlock: "}
-								<span className="tt">8_740_000</span>
-								{",\n  sources: { stake: { type: "}
-								<span className="tt">&quot;print_event&quot;</span>
-								{",\n    contractId: "}
-								<span className="tt">&quot;SP000…002Q6VF78.pox-5&quot;</span>
-								{" } },\n  …\n});\n"}
-								<span className="tok">✓ deployed</span>{" "}
-								<span className="tm">
-									· GET /v1/subgraphs/pox5-stakes/stakes
-								</span>
-							</CodeWindow>
-							<Link href="/docs/subgraphs" className="home-go">
-								Build a subgraph
+							<Link className="more" href="/subgraphs">
+								Index and Subgraphs →
 							</Link>
-						</article>
-						<article className="home-door">
-							<p className="home-lbl">I need to react</p>
+						</div>
+						<div className="door">
+							<div className="tags">
+								<span className="chip">Webhooks</span>
+								<span className="chip">Streams</span>
+							</div>
 							<h3>Your server, told first.</h3>
 							<p>
-								A signed POST the moment a matching event lands, with retries,
-								replay and a log of every attempt. Or follow the ordered feed
-								yourself.
+								Get a signed POST the moment a matching event lands, with
+								retries we keep and log. Or pull the same events in order and
+								hold the cursor yourself.
 							</p>
-							<div className="home-chips">
-								<span className="home-chip">Webhooks</span>
-								<span className="home-chip">Streams</span>
+							<div className="art">
+								<DeliveryLogArt />
 							</div>
-							<CodeWindow path="POST https://your.app/hooks/sbtc" meta="signed">
-								<span className="tm">secondlayer-signature: t=…,v1=…</span>
-								{"\n{\n  "}
-								<span className="tt">&quot;type&quot;</span>
-								{": "}
-								<span className="tt">&quot;ft_transfer&quot;</span>
-								{",\n  "}
-								<span className="tt">&quot;asset&quot;</span>
-								{": "}
-								<span className="tt">&quot;…sbtc-token::sbtc-token&quot;</span>
-								{",\n  "}
-								<span className="tt">&quot;amount&quot;</span>
-								{": "}
-								<span className="tb">&quot;250000&quot;</span>
-								{",\n  "}
-								<span className="tt">&quot;block_height&quot;</span>
-								{": "}
-								<span className="tb">9134950</span>
-								{"\n}\n"}
-								<span className="tok">200 OK</span>{" "}
-								<span className="tm">· signed ed25519</span>
-							</CodeWindow>
-							<Link href="/docs/webhooks" className="home-go">
-								Create a webhook
+							<Link className="more" href="/webhooks">
+								Webhooks and Streams →
 							</Link>
-						</article>
+						</div>
 					</div>
 				</div>
 			</section>
 
-			<section className="home-sec" id="why">
-				<div className="home-shell">
-					<div className="home-head">
-						<h2>Built for apps that can&rsquo;t miss a block.</h2>
+			<section className="band" id="verify">
+				<div className="shell">
+					<div className="sec-head">
+						<Eyebrow noun="Verify" />
+						<h2>An index you can check, not one you have to trust.</h2>
+						<p className="lede">
+							Each block's state proves back through the signer set to a Bitcoin
+							header. You run the check on your machine, and it never asks us
+							anything.
+						</p>
 					</div>
-					<div className="home-why">
-						{WHY.map((w) => (
-							<div key={w.title}>
-								<h3>{w.title}</h3>
-								<p>{w.body}</p>
+					<div className="verify-trust">
+						<TrustChainArt />
+					</div>
+					<div className="verify-grid">
+						<Terminal title="~/app" meta="@secondlayer/verify">
+							<pre>
+								{"❯ secondlayer verify block 9137005\n"}
+								<span className="t-m">
+									{"  checkpoint         9,000,000 (shipped)\n"}
+									{"  bitcoin headers    "}
+									<span className="t-ok">✓</span>
+									{"\n  signer set         "}
+									<span className="t-ok">✓</span>
+									{"\n  tx merkle root     "}
+									<span className="t-ok">✓</span>
+									{"\n  state writes       "}
+									<span className="t-ok">✓</span>
+									{" every map, var and balance\n"}
+								</span>
+								<span className="t-hit">{"  ✓ block 9,137,005 verified"}</span>
+								{"❯ secondlayer verify subgraph sbtc-flows --replay\n"}
+								<span className="t-hit">{"  ✓ rows recomputed · match"}</span>
+							</pre>
+						</Terminal>
+						<ul className="covers" aria-label="What a check covers">
+							{COVERS.map((c) => (
+								<li key={c.title}>
+									<span
+										className={c.covered ? "k y" : "k n"}
+										aria-hidden="true"
+									>
+										{c.covered ? "✓" : "–"}
+									</span>
+									<span>
+										{c.title}
+										<span className="s">{c.detail}</span>
+									</span>
+								</li>
+							))}
+						</ul>
+					</div>
+					<div className="verify-foot">
+						<span className="cap">
+							proofs are free · /v1/proofs · npm i @secondlayer/verify
+						</span>
+						<ButtonLink href="/verify" variant="secondary">
+							How verification works
+						</ButtonLink>
+					</div>
+				</div>
+			</section>
+
+			<section className="band" id="reliability">
+				<div className="shell">
+					<div className="sec-head">
+						<Eyebrow noun="Reliability" />
+						<h2>Built for apps that can't miss a block.</h2>
+					</div>
+					<div className="tiles">
+						{TILES.map((t) => (
+							<div className="tile" key={t.title}>
+								{t.icon}
+								<h3>{t.title}</h3>
+								<p>{t.body}</p>
 							</div>
 						))}
 					</div>
 				</div>
 			</section>
 
-			<section className="home-sec home-panel" id="data">
-				<div className="home-shell">
-					<div className="home-head">
+			<section className="band" id="data">
+				<div className="shell">
+					<div className="sec-head">
+						<Eyebrow noun="Datasets" />
 						<h2>Data nobody else decodes.</h2>
-						<p>
-							The protocols that matter on Bitcoin, as typed rows, from the
-							first block they existed.
+						<p className="lede">
+							Same rows, same price as everything else. No premium for the hard
+							ones.
 						</p>
 					</div>
-					<div className="home-ds">
-						<article className="home-ds-card">
-							<div className="home-ds-tag">
-								<h3>PoX-5 stakes by signer</h3>
+					<div className="data">
+						<div className="well">
+							<div className="well-top">
+								<h3>PoX-5 by signer</h3>
+								<StatusDot state="live" />
 							</div>
 							<p>
-								Every stake, delegation and reward cycle, keyed to the signer
-								that holds it.
+								The pox-5 print log, decoded per signer and cycle since
+								activation at Bitcoin block 960,230.
 							</p>
-							<Well
-								head={[
-									{ label: "staker" },
-									{ label: "signer" },
-									{ label: "STX", right: true },
-								]}
+							<RowsTable
+								columns={["signer", "cycle", "stx locked"]}
 								rows={[
-									["SP15RG…CJ01", "native-pool", "60,000"],
-									["SP2507…4V39", "fastpool-max500", "14,750"],
-									["SP3KS5…XW6", "xverse-3", "980"],
+									["03a1…9f2c", "n", "41,250,000"],
+									["02c7…41b0", "n", "38,900,000"],
+									["03f0…be17", "n", "22,410,000"],
 								]}
-								caption="GET /v1/index/pox5/events?signer=… · example rows"
 							/>
-						</article>
-						<article className="home-ds-card">
-							<div className="home-ds-tag">
+							<span className="cap">example rows</span>
+						</div>
+						<div className="well">
+							<div className="well-top">
 								<h3>sBTC in and out</h3>
+								<StatusDot state="live" />
 							</div>
 							<p>
-								Deposits, withdrawals and token moves, so a supply or peg check
-								is one query.
+								Every deposit and withdrawal as one row, with the Bitcoin side
+								attached.
 							</p>
-							<Well
-								head={[
-									{ label: "kind" },
-									{ label: "block" },
-									{ label: "sats", right: true },
-								]}
+							<RowsTable
+								columns={["direction", "height", "sbtc"]}
 								rows={[
-									["deposit", "9134902", "250,000"],
-									["withdrawal", "9134811", "1,000,000"],
-									["transfer", "9134790", "48,210"],
+									["in", "9,137,002", "0.5000"],
+									["out", "9,137,004", "0.1200"],
+									["in", "9,137,006", "2.0000"],
 								]}
-								caption="GET /v1/index/sbtc/deposits · example rows"
+								firstClass={(row) => (row[0] === "in" ? "tag-in" : "tag-out")}
 							/>
-						</article>
-						<article className="home-ds-card">
-							<div className="home-ds-tag">
+							<span className="cap">example rows</span>
+						</div>
+						<div className="well">
+							<div className="well-top">
 								<h3>Runes</h3>
-								<span className="home-soon">Rolling out</span>
+								<StatusDot state="rolling" />
 							</div>
 							<p>
-								Every etching, mint and balance on Bitcoin, from block 840,000,
-								checked against ord.
+								Catalog, balances and activity from block 840,000, checked
+								against ord with the record published.
 							</p>
-							<Well
-								head={[
-									{ label: "rune" },
-									{ label: "id" },
-									{ label: "holders", right: true },
-								]}
-								rows={[
-									["DOG•GO•TO•THE•MOON", "840000:3", "…"],
-									[
-										<span key="n" className="home-well-note">
-											215,495 runes · 6.9M outpoints tracked
-										</span>,
-									],
-								]}
-								caption="GET /v1/index/runes/:id"
-							/>
-						</article>
-						<article className="home-ds-card">
-							<div className="home-ds-tag">
-								<h3>Clarity state changes</h3>
-								<span className="home-soon">Coming soon</span>
+							<div className="stats">
+								<div>
+									<b>441M</b>
+									<span>rune events</span>
+								</div>
+								<div>
+									<b>6.94M</b>
+									<span>outpoints</span>
+								</div>
+								<div>
+									<b>0</b>
+									<span>mismatches vs ord</span>
+								</div>
+							</div>
+							<span className="cap">parity at bitcoin block 968,557</span>
+						</div>
+						<div className="well">
+							<div className="well-top">
+								<h3>Clarity state writes</h3>
+								<StatusDot state="soon" />
 							</div>
 							<p>
-								Every map and variable write, and every contract call inside a
-								call, for contracts that never print a thing.
+								What a transaction changed inside a contract, including
+								contracts that never print.
 							</p>
-							<Well
-								head={[
-									{ label: "block" },
-									{ label: "op" },
-									{ label: "contract" },
-									{ label: "key" },
-								]}
+							<RowsTable
+								columns={["op", "key", "value"]}
 								rows={[
-									["9134950", "map-set", "…amm-pool-v2", "{ id: u42 }"],
-									["9134950", "var-set", "…amm-pool-v2", "total-supply"],
-									["9134950", "call", "…router → …amm-pool-v2", "swap-x-for-y"],
+									["map_set", "balances[SP2J…4K]", "u1200"],
+									["var_set", "total-supply", "u98400"],
+									["map_delete", "pending[u42]", "none"],
 								]}
-								caption="from the Clarity VM, in order · example rows"
 							/>
-						</article>
+							<span className="cap">example rows</span>
+						</div>
 					</div>
 				</div>
 			</section>
 
-			<section className="home-sec" id="pricing">
-				<div className="home-shell">
-					<div className="home-head">
+			<section className="band" id="box">
+				<div className="shell">
+					<div className="sec-head">
+						<Eyebrow noun="Hosting" />
 						<h2>Your box or ours.</h2>
-						<p className="home-fork-q">
-							Already run a Stacks node? Run it beside your node. If not, use
-							ours.
+						<p className="lede">
+							Same rows, same API, same proofs. You pay for what we run for you,
+							and checking our work stays free either way.
 						</p>
 					</div>
-					<div className="home-fork">
-						<div>
-							<div className="home-fork-body">
-								<p className="home-lbl">Hosted</p>
-								<h3>Ours, private to your account.</h3>
-								<ul>
-									<li>
-										<span>
-											Index, Streams, Subgraphs and Webhooks on{" "}
-											<code>api.secondlayer.tools</code>
-										</span>
-									</li>
-									<li>
-										<span>Your subgraphs run in your own sandboxed stack</span>
-									</li>
-									<li>
-										<span>Prepaid credits, spend caps, no surprise bills</span>
-									</li>
-								</ul>
-							</div>
-							<Link href="/login" className="home-btn-solid">
-								Start free
-							</Link>
-							<p className="home-fork-price">
-								1M rows free / month · then $5 per 1M · stack from ~$10/mo while
-								it runs
+					<div className="fork">
+						<div className="side ours">
+							<span className="eyebrow">Ours</span>
+							<h3>We run it.</h3>
+							<p>
+								A private stack per account, held at tip. Your subgraphs and
+								webhooks run on it, sandboxed from everyone else's.
 							</p>
+							<ul>
+								<li>Index and Streams reads with one key</li>
+								<li>Hosted subgraphs, isolated per account</li>
+								<li>Signed webhooks with free retries</li>
+							</ul>
+							<div className="mini">secondlayer login</div>
+							<div className="price">
+								<span className="cap">
+									1M rows free every month · then $5 per 1M
+								</span>
+								<span className="cap">
+									$2 per 1M past $50 a month · stack from ~$10/mo · stopped
+									stack $0
+								</span>
+							</div>
 						</div>
-						<div>
-							<div className="home-fork-body">
-								<p className="home-lbl">Self-host</p>
-								<h3>Yours, the same code.</h3>
-								<ul>
-									<li>
-										<span>
-											One container beside your node, rows in Postgres you
-											operate
-										</span>
-									</li>
-									<li>
-										<span>
-											Bootstrap from the signed archive, verify it for free
-										</span>
-									</li>
-									<li>
-										<span>MIT. No meter on anything you run</span>
-									</li>
-								</ul>
-								<CtaPill />
-							</div>
-							<Link href="/docs/self-host" className="home-btn-outline">
-								Self-host guide
-							</Link>
-							<p className="home-fork-price">
-								Free · archive bootstrap is the only paid part
+						<div className="side yours">
+							<span className="eyebrow">Yours</span>
+							<h3>You run it.</h3>
+							<p>
+								One container beside your node and Postgres. Bootstrap from the
+								signed archive in hours instead of replaying the chain.
 							</p>
+							<ul>
+								<li>Same CLI, SDK and routes</li>
+								<li>Reads over loopback need no key</li>
+								<li>Verify and repair against the public manifests</li>
+							</ul>
+							<div className="mini">secondlayer setup</div>
+							<div className="price">
+								<span className="cap">MIT · free forever</span>
+								<span className="cap">mainnet: 4 GB RAM · 600 GB SSD</span>
+							</div>
+							<Link className="more" href="/docs/self-host">
+								Self-host guide →
+							</Link>
 						</div>
 					</div>
+					<p className="fork-line">
+						Already run a Stacks node?{" "}
+						<Link href="/docs/self-host/production#connect-your-node">
+							Point its event observer at secondlayer
+						</Link>
+					</p>
 				</div>
 			</section>
 
-			<section className="home-sec home-panel home-close">
-				<div className="home-shell">
-					<h2>Ship on Bitcoin data today.</h2>
-					<p>Start with 1M free rows. No node to run.</p>
-					<div className="home-final-btns">
-						<Link href="/login" className="home-btn-solid">
-							Start free
-						</Link>
-						<Link href="/docs" className="home-btn-outline">
-							Read the docs
-						</Link>
-					</div>
-				</div>
-			</section>
-		</div>
+			<CloseBand
+				title={
+					<>
+						Ship on Bitcoin data <Highlight>today.</Highlight>
+					</>
+				}
+				cta={
+					<>
+						<ButtonLink href="/login">Start free</ButtonLink>
+						<ButtonLink href="/verify" variant="secondary">
+							Verify a block
+						</ButtonLink>
+					</>
+				}
+				caption="Start with 1M free rows a month. Verifying a block is free and runs on your machine."
+			/>
+		</main>
 	);
 }

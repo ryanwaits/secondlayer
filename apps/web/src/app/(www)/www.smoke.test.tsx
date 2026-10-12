@@ -2,21 +2,19 @@ import { describe, expect, mock, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DOCS_STRIP } from "@/lib/nav";
+import { PRODUCTS } from "@/lib/site";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DOCS_NAV, docsNavPages } from "./docs/nav";
 
-mock.module("@/components/home/cta-pill", () => ({
-	CtaPill: () => (
-		<button type="button" className="home-cmd">
-			bun add -g @secondlayer/cli
-		</button>
-	),
-}));
-
-mock.module("@/components/notation", () => ({
-	Notation: ({ children }: { children: React.ReactNode }) => (
-		<span>{children}</span>
-	),
+// bun's mock.module is process-wide, so stub every export the app imports.
+mock.module("next/navigation", () => ({
+	usePathname: () => "/",
+	useRouter: () => ({}),
+	useSearchParams: () => new URLSearchParams(),
+	useParams: () => ({}),
+	notFound: () => {},
+	redirect: () => {},
+	permanentRedirect: () => {},
 }));
 
 const { HomeView } = await import("./page");
@@ -30,12 +28,22 @@ describe("www marketing routes", () => {
 	 */
 	test("/ renders the landing page", () => {
 		const html = renderToStaticMarkup(<HomeView />);
-		expect(html).toContain('class="home"');
-		expect(html).toContain('class="home-hero"');
-		expect(html).toContain("<h1>");
-		expect(html).toContain('class="home-sub"');
-		expect(html).not.toContain("home-qs");
+		expect(html).toContain('class="site home"');
+		expect(html.match(/<h1>/g)).toHaveLength(1);
+		for (const p of PRODUCTS) expect(html).toContain(`href="${p.href}"`);
+		expect(html).toContain('href="/verify"');
 		expect(html).toContain('href="/docs/self-host"');
+		expect(html).toContain(
+			'href="/docs/self-host/production#connect-your-node"',
+		);
+		expect(html).toContain("for apps on Bitcoin.");
+		expect(html).toContain("Your box or ours.");
+		expect(html).toContain("beside your node");
+		expect(html).toContain("example rows");
+		expect(html).toContain("Coming soon");
+		expect(html).not.toContain("—");
+		expect(html).not.toContain("secondlayer-labs");
+		expect(html).not.toContain('href="#');
 	});
 
 	test("/ states the hosted and self-host paths and no withdrawn products", () => {
@@ -43,8 +51,8 @@ describe("www marketing routes", () => {
 		expect(html).toContain("for apps on Bitcoin.");
 		expect(html).toContain("Your box or ours.");
 		expect(html).toContain("beside your node");
-		expect(html).toContain('href="/docs/subgraphs"');
-		expect(html).toContain('href="/docs/webhooks"');
+		expect(html).toContain('href="/subgraphs"');
+		expect(html).toContain('href="/webhooks"');
 		// No stats strip, and nothing withdrawn.
 		expect(html).not.toContain("Explore subgraphs is live");
 		expect(html).not.toContain('href="/subgraphs/explore"');
