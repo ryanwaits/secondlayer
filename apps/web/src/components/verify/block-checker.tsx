@@ -2,7 +2,19 @@
 
 import { Terminal } from "@/components/site/terminal";
 import type { LinkLine, ProofSource, VerifyStep } from "@secondlayer/verify";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import {
+	type FormEvent,
+	type ReactNode,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
+import {
+	bitcoinBlockUrl,
+	bitcoinHeightUrl,
+	rerunCommand,
+	stacksBlockUrl,
+} from "./explorers";
 
 const DEFAULT_REF = "9137005";
 
@@ -15,6 +27,15 @@ type View =
 			kind: "done";
 			lines: LinkLine[];
 			verdict: { ok: boolean; text: string };
+			target: number | string;
+			below: boolean;
+			blockId?: string;
+			bitcoinBlockHash?: string;
+			checkpoint: {
+				stacksId: string;
+				stacksHeight: string;
+				bitcoinHeight: number;
+			};
 	  }
 	| { kind: "error"; message: string };
 
@@ -34,6 +55,78 @@ function Mark({ status }: { status: LinkLine["status"] | "pending" }) {
 	return <span className="t-m">{status === "pending" ? "…" : "·"}</span>;
 }
 
+/**
+ * Wrap the first occurrence of each match in a link. A match that is not in the
+ * text is skipped, so a reworded line degrades to plain text instead of throwing.
+ */
+export function linkify(
+	text: string,
+	links: { match: string; href: string }[],
+): ReactNode {
+	const found = links
+		.map((l) => ({ ...l, at: text.indexOf(l.match) }))
+		.filter((l) => l.match && l.at >= 0)
+		.sort((a, b) => a.at - b.at);
+	const out: ReactNode[] = [];
+	let cursor = 0;
+	for (const l of found) {
+		if (l.at < cursor) continue;
+		if (l.at > cursor) out.push(text.slice(cursor, l.at));
+		out.push(
+			<a key={l.at} href={l.href} target="_blank" rel="noopener noreferrer">
+				{l.match}
+			</a>,
+		);
+		cursor = l.at + l.match.length;
+	}
+	if (cursor < text.length) out.push(text.slice(cursor));
+	return out;
+}
+
+/** How to repeat the check without us. */
+export function RerunHint({
+	target,
+	below,
+}: {
+	target: number | string;
+	below: boolean;
+}) {
+	return (
+		<div className="bc-rerun">
+			<p className="t-m">Run it on your machine, against your own node:</p>
+			<p className="bc-code">
+				<span className="t-a" aria-hidden="true">
+					{"❯ "}
+				</span>
+				{rerunCommand(target, below)}
+			</p>
+			{below ? (
+				<p className="t-m">
+					A node alone can't serve proofs more than 16 blocks back; this reads
+					them from the public proofs API.
+				</p>
+			) : null}
+		</div>
+	);
+}
+
+/** The hashes a proven line prints, paired with the explorer that shows each. */
+function lineLinks(
+	step: VerifyStep,
+	view: { blockId?: string; bitcoinBlockHash?: string },
+): { match: string; href: string }[] {
+	if (step === "block" && view.blockId)
+		return [{ match: view.blockId, href: stacksBlockUrl(view.blockId) }];
+	if (step === "burn" && view.bitcoinBlockHash)
+		return [
+			{
+				match: view.bitcoinBlockHash,
+				href: bitcoinBlockUrl(view.bitcoinBlockHash),
+			},
+		];
+	return [];
+}
+
 function Row({
 	status,
 	label,
@@ -41,7 +134,7 @@ function Row({
 }: {
 	status: LinkLine["status"] | "pending";
 	label: string;
-	detail?: string;
+	detail?: ReactNode;
 }) {
 	return (
 		<div className="bc-line">
@@ -133,7 +226,20 @@ export function BlockChecker({ source }: { source?: ProofSource }) {
 						);
 				},
 			});
-			show({ kind: "done", ...verify.describeLinks(result, cp) });
+			const header = verify.parseNakamotoHeader(verify.unhex(cp.stacks.header));
+			show({
+				kind: "done",
+				...verify.describeLinks(result, cp),
+				target: ref,
+				below: !!result.ancestry,
+				blockId: result.blockId,
+				bitcoinBlockHash: result.bitcoinBlockHash,
+				checkpoint: {
+					stacksId: verify.hex(verify.blockId(header)),
+					stacksHeight: header.chainLength.toLocaleString("en-US"),
+					bitcoinHeight: cp.bitcoin.height,
+				},
+			});
 		} catch (err) {
 			show({
 				kind: "error",
@@ -199,13 +305,29 @@ export function BlockChecker({ source }: { source?: ProofSource }) {
 										key={l.step}
 										status={l.status}
 										label={l.label}
-										detail={l.detail}
+										detail={
+											l.detail && l.status === "ok"
+												? linkify(l.detail, lineLinks(l.step, view))
+												: l.detail
+										}
 									/>
 								))}
 								<p className={view.verdict.ok ? "t-ok" : "bc-fail"}>
 									{view.verdict.ok ? "✓ " : "✗ "}
-									{view.verdict.text}
+									{view.verdict.ok
+										? linkify(view.verdict.text, [
+												{
+													match: `Stacks ${view.checkpoint.stacksHeight}`,
+													href: stacksBlockUrl(view.checkpoint.stacksId),
+												},
+												{
+													match: `Bitcoin ${view.checkpoint.bitcoinHeight.toLocaleString("en-US")}`,
+													href: bitcoinHeightUrl(view.checkpoint.bitcoinHeight),
+												},
+											])
+										: view.verdict.text}
 								</p>
+								<RerunHint target={view.target} below={view.below} />
 							</>
 						) : null}
 						{view.kind === "error" ? (
