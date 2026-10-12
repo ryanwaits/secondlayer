@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 12.0.0
+
+### Major Changes
+
+- fe0bdd7: Webhooks fire on chain events only. Subgraph-row webhooks, their filter, row replay and the receiver scaffolder are removed; see /docs/subgraphs/reading#react-to-your-rows.
+
 ## 11.24.1
 
 ### Patch Changes

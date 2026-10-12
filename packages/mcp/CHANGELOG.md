@@ -1,5 +1,22 @@
 # @secondlayer/mcp
 
+## 10.0.0
+
+### Major Changes
+
+- fe0bdd7: Webhooks fire on chain events only. Subgraph-row webhooks, their filter, row replay and the receiver scaffolder are removed; see /docs/subgraphs/reading#react-to-your-rows.
+
+### Patch Changes
+
+- Patch dependency advisories: MCP TypeScript SDK 1.32 (OAuth client could send credentials to a server-chosen authorization server) and smol-toml 1.9 (quadratic-time parse).
+- Updated dependencies [fe0bdd7]
+- Updated dependencies [d0555af]
+  - @secondlayer/shared@12.0.0
+  - @secondlayer/subgraphs@7.0.0
+  - @secondlayer/sdk@15.0.0
+  - @secondlayer/bundler@0.7.1
+  - @secondlayer/scaffold@1.6.2
+
 ## 9.0.6
 
 ### Patch Changes

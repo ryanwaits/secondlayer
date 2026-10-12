@@ -1,5 +1,18 @@
 # @secondlayer/sdk
 
+## 15.0.0
+
+### Major Changes
+
+- fe0bdd7: Webhooks fire on chain events only. Subgraph-row webhooks, their filter, row replay and the receiver scaffolder are removed; see /docs/subgraphs/reading#react-to-your-rows.
+
+### Patch Changes
+
+- d0555af: Subgraph table reads return `next_cursor` on every page that has rows, `null` only when empty; tail with `cursor = next_cursor ?? cursor`. `secondlayer verify subgraph --replay` stops paging on a short page.
+- Updated dependencies [fe0bdd7]
+  - @secondlayer/shared@12.0.0
+  - @secondlayer/subgraphs@7.0.0
+
 ## 14.5.1
 
 ### Patch Changes

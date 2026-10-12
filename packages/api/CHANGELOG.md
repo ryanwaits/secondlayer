@@ -1,5 +1,18 @@
 # @secondlayer/api
 
+## 1.52.7
+
+### Patch Changes
+
+- Updated dependencies [fe0bdd7]
+- Updated dependencies [d0555af]
+  - @secondlayer/shared@12.0.0
+  - @secondlayer/subgraphs@7.0.0
+  - @secondlayer/sdk@15.0.0
+  - @secondlayer/indexer@1.17.3
+  - @secondlayer/platform@0.6.5
+  - @secondlayer/bundler@0.7.1
+
 ## 1.52.6
 
 ### Patch Changes

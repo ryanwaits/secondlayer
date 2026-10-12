@@ -1,5 +1,17 @@
 # @secondlayer/web
 
+## 0.12.0
+
+### Minor Changes
+
+- 7578571: Redesigned site: one brand (Geist, blue/yellow/red roles), product pages for Index, Streams, Subgraphs, Webhooks and Archive, new Verify and Pricing pages, per-page share cards.
+
+### Patch Changes
+
+- Updated dependencies [fe0bdd7]
+- Updated dependencies [d0555af]
+  - @secondlayer/sdk@15.0.0
+
 ## 0.11.16
 
 ### Patch Changes

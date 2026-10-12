@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/workload",
-	"version": "0.0.41",
+	"version": "0.0.42",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -12,7 +12,7 @@
 	},
 	"dependencies": {
 		"@secondlayer/platform": "workspace:*",
-		"@secondlayer/shared": "^11.24.1",
+		"@secondlayer/shared": "^12.0.0",
 		"postgres": "^3.4.6"
 	},
 	"devDependencies": {
