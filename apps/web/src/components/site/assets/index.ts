@@ -2,3 +2,8 @@ export { DeliveryLogArt } from "./delivery-log";
 export { RowsTable } from "./rows-table";
 export { SubgraphTableArt } from "./subgraph-table";
 export { TrustChainArt } from "./trust-chain";
+export { IndexHero } from "./index-hero";
+export { StreamsHero } from "./streams-hero";
+export { SubgraphsHero } from "./subgraphs-hero";
+export { WebhooksHero } from "./webhooks-hero";
+export { ArchiveHero } from "./archive-hero";
