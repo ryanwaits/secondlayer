@@ -2,6 +2,7 @@
 
 import { formatUsd, refreshUsage, useAccountData } from "@/lib/account-data";
 import { currentUtcMonth, monthLabel, monthParam } from "@/lib/usage";
+import { useAccountProblems } from "@/lib/use-account-problems";
 import {
 	dismissInsight,
 	formatRelative,
@@ -23,6 +24,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { AttentionList } from "../parts";
 import {
 	CliLine,
 	FiresOn,
@@ -181,6 +183,7 @@ export function WebhooksListSection() {
 	const state = useWebhooksList();
 	const router = useRouter();
 	const { usage } = useAccountData();
+	const problems = useAccountProblems();
 	const month = currentUtcMonth();
 	const monthKey = monthParam(month);
 	// Bumped on dismiss to force a re-read of localStorage on the next render
@@ -251,6 +254,7 @@ export function WebhooksListSection() {
 
 	return (
 		<>
+			<AttentionList problems={problems} />
 			<div className="acct-stats">
 				{webhookUsage ? (
 					<div className="acct-stat">

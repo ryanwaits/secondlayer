@@ -1,21 +1,39 @@
 "use client";
 
-import { clearAccountData } from "@/lib/account-data";
+import {
+	activeKeys,
+	clearAccountData,
+	refreshKeys,
+	useAccountData,
+} from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
+import { useWebhooksCache } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { Toaster } from "sonner";
 
-const TABS = [
-	{ href: "/account/keys", label: "API keys" },
-	{ href: "/account/credits", label: "Credits" },
-	{ href: "/account/webhooks", label: "Webhooks" },
+type Tab = { href: string; label: string; count?: "keys" | "webhooks" };
+
+const TABS: Tab[] = [
+	{ href: "/account", label: "Overview" },
+	{ href: "/account/keys", label: "API keys", count: "keys" },
+	{ href: "/account/credits", label: "Usage and billing" },
+	{ href: "/account/webhooks", label: "Webhooks", count: "webhooks" },
 ];
 
+/** Overview is `/account` itself, so it only matches exactly. */
+function isCurrent(pathname: string | null, href: string): boolean {
+	if (!pathname) return false;
+	if (href === "/account") return pathname === href;
+	return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 /**
- * The account pages: API keys and Credits under one side nav. The same flows
- * also open as sheets from the nav's account menu; these pages are the home
- * for them, and where Stripe returns a top-up.
+ * The account pages under one side nav: Overview is home, then keys, usage
+ * and billing, and webhooks. The keys and credits flows also open as sheets
+ * from the nav's account menu; these pages are the home for them, and where
+ * Stripe returns a top-up.
  */
 export default function AccountLayout({
 	children,
@@ -24,6 +42,19 @@ export default function AccountLayout({
 }) {
 	const { account, loading, logout } = useAuth();
 	const pathname = usePathname();
+	const { keys } = useAccountData();
+	const { list } = useWebhooksCache();
+	const signedIn = account !== null;
+
+	// The side nav shows how many keys there are on every account page.
+	useEffect(() => {
+		if (signedIn) refreshKeys();
+	}, [signedIn]);
+
+	const counts = {
+		keys: keys === null ? null : activeKeys(keys).length,
+		webhooks: list ? list.data.length : null,
+	};
 
 	// Signed out is the one case that still blocks: nothing account-specific
 	// ever mounts for a visitor who isn't authenticated. While `loading` is
@@ -57,13 +88,12 @@ export default function AccountLayout({
 						key={t.href}
 						href={t.href}
 						className="acct-side-link"
-						aria-current={
-							pathname === t.href || pathname?.startsWith(`${t.href}/`)
-								? "page"
-								: undefined
-						}
+						aria-current={isCurrent(pathname, t.href) ? "page" : undefined}
 					>
 						{t.label}
+						{t.count && counts[t.count] !== null ? (
+							<small>{counts[t.count]}</small>
+						) : null}
 					</Link>
 				))}
 				{account ? (

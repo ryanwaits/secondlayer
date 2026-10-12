@@ -2,19 +2,24 @@
 
 import { CreditsCard } from "@/components/account/credits-panel";
 import { KeysCard } from "@/components/account/keys-panel";
+import { countByDisplayStatus } from "@/components/account/webhooks/shared";
 import {
 	activeKeys,
 	clearAccountData,
 	formatUsd,
 	refreshBilling,
+	refreshCaps,
 	refreshKeys,
+	refreshUsage,
 	useAccountData,
 } from "@/lib/account-data";
+import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import type { Account } from "@/lib/types";
-import { ROWS_ALLOWANCE, formatRows } from "@/lib/usage";
+import { currentUtcMonth, monthParam } from "@/lib/usage";
+import { useAccountProblems } from "@/lib/use-account-problems";
+import { refreshList, useWebhooksCache } from "@/lib/webhooks-store";
+import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
-
-const CLI_INSTALL = "bun add -g @secondlayer/cli";
 
 export function AccountAvatar({
 	account,
@@ -35,28 +40,115 @@ export function AccountAvatar({
 	);
 }
 
-function Chevron({ open }: { open: boolean }) {
+/**
+ * The nav chip: avatar with a status dot, mono balance, the word "Account".
+ * Pure, so the healthy and alert looks render the same everywhere.
+ */
+export function AccountChip({
+	account,
+	balance,
+	alert,
+	open,
+	menuId,
+	onClick,
+}: {
+	account: Account;
+	balance: string | null;
+	alert: boolean;
+	open: boolean;
+	menuId?: string;
+	onClick?: () => void;
+}) {
 	return (
-		<svg
-			className="acct-chip-chev"
-			data-open={open ? "" : undefined}
-			width="10"
-			height="6"
-			viewBox="0 0 10 6"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="1.4"
-			strokeLinecap="round"
-			aria-hidden="true"
+		<button
+			type="button"
+			className={`acct-chip${alert ? " alert" : ""}`}
+			aria-expanded={open}
+			aria-controls={menuId}
+			aria-label={`Account menu, ${account.email}${balance ? `, balance ${balance}` : ""}${alert ? ", needs attention" : ""}`}
+			onClick={onClick}
 		>
-			<path d="M1 1l4 4 4-4" />
-		</svg>
+			<span className="acct-avatar-wrap">
+				<AccountAvatar account={account} />
+				<span className="acct-avatar-dot" aria-hidden="true" />
+			</span>
+			<span className="acct-chip-balance">{balance ?? "···"}</span>
+			<span className="acct-chip-sep" aria-hidden="true" />
+			<span className="acct-chip-label">Account</span>
+		</button>
+	);
+}
+
+/** The menu mirrors the side nav, so the two never disagree. */
+export function AccountMenuPanel({
+	id,
+	email,
+	caption,
+	keyCount,
+	spent,
+	webhooks,
+	onNavigate,
+	onKeys,
+	onCredits,
+	onSignOut,
+}: {
+	id?: string;
+	email: string;
+	caption: string;
+	keyCount: number | null;
+	spent: string | null;
+	/** "7 of 7", or null when the webhooks list hasn't loaded. */
+	webhooks: string | null;
+	onNavigate?: () => void;
+	onKeys?: () => void;
+	onCredits?: () => void;
+	onSignOut?: () => void;
+}) {
+	return (
+		<div className="acct-panel" id={id}>
+			<div className="acct-menu-top">
+				<b>{email}</b>
+				<span>{caption}</span>
+			</div>
+			<Link href="/account" className="acct-menu-open" onClick={onNavigate}>
+				<span>Open account</span>
+				<span aria-hidden="true">→</span>
+			</Link>
+			<button type="button" className="acct-menu-row" onClick={onKeys}>
+				<span>API keys</span>
+				<small>{keyCount ?? "—"}</small>
+			</button>
+			<Link
+				href="/account/credits"
+				className="acct-menu-row"
+				onClick={onNavigate}
+			>
+				<span>Usage and billing</span>
+				<small>{spent ?? "—"}</small>
+			</Link>
+			<Link
+				href="/account/webhooks"
+				className="acct-menu-row"
+				onClick={onNavigate}
+			>
+				<span>Webhooks</span>
+				<small>{webhooks ?? "—"}</small>
+			</Link>
+			<div className="acct-menu-rule" />
+			<button type="button" className="acct-menu-row" onClick={onCredits}>
+				<span>Add credits</span>
+				<small>Stripe</small>
+			</button>
+			<button type="button" className="acct-menu-row muted" onClick={onSignOut}>
+				<span>Sign out</span>
+			</button>
+		</div>
 	);
 }
 
 /**
- * Signed-in nav: an account chip (initial + balance) whose menu holds the
- * account at a glance and opens the keys and credits cards in place.
+ * Signed-in nav: a status chip whose menu leads to the account Overview and
+ * opens the keys and credits cards in place.
  */
 export function AccountMenu({
 	account,
@@ -65,10 +157,11 @@ export function AccountMenu({
 	account: Account;
 	onSignOut: () => void;
 }) {
-	const { billing, keys } = useAccountData();
+	const { billing, keys, burn, service } = useAccountData();
+	const { list } = useWebhooksCache();
+	const problems = useAccountProblems();
 	const [open, setOpen] = useState(false);
 	const [card, setCard] = useState<"keys" | "credits" | null>(null);
-	const [copied, setCopied] = useState(false);
 	const rootRef = useRef<HTMLDivElement>(null);
 	const menuId = useId();
 
@@ -76,9 +169,12 @@ export function AccountMenu({
 		refreshBilling();
 	}, []);
 
+	const serviceExists = service !== null && service.state !== "none";
 	useEffect(() => {
 		if (!open) return;
 		refreshKeys();
+		refreshUsage(monthParam(currentUtcMonth()));
+		refreshCaps();
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === "Escape") setOpen(false);
 		};
@@ -93,9 +189,18 @@ export function AccountMenu({
 		};
 	}, [open]);
 
+	// Listing webhooks goes through the account's hosted stack; only ask once
+	// we know one exists, so opening the menu never starts one.
+	useEffect(() => {
+		if (open && serviceExists) refreshList();
+	}, [open, serviceExists]);
+
 	const balance = billing ? formatUsd(billing.creditsUsdMicros) : null;
-	const empty = billing !== null && Number(billing.creditsUsdMicros) <= 0;
-	const keyCount = keys === null ? null : activeKeys(keys).length;
+	const days = daysLeftLabel(daysLeft(billing, burn));
+	const rows = list?.data ?? null;
+	const delivering = rows
+		? rows.length - countByDisplayStatus(rows, "error")
+		: 0;
 
 	function openCard(which: "keys" | "credits") {
 		setOpen(false);
@@ -104,113 +209,31 @@ export function AccountMenu({
 
 	return (
 		<div className="acct-menu" ref={rootRef}>
-			<button
-				type="button"
-				className="acct-chip"
-				aria-expanded={open}
-				aria-controls={menuId}
-				aria-label={`Account menu, ${account.email}${balance ? `, balance ${balance}` : ""}`}
+			<AccountChip
+				account={account}
+				balance={balance}
+				alert={problems.length > 0}
+				open={open}
+				menuId={menuId}
 				onClick={() => setOpen((v) => !v)}
-			>
-				<AccountAvatar account={account} />
-				{empty ? <span className="acct-chip-dot" aria-hidden="true" /> : null}
-				<span className="acct-chip-balance">{balance ?? "···"}</span>
-				<Chevron open={open} />
-			</button>
+			/>
 			{open ? (
-				<div className="acct-panel" id={menuId}>
-					<div className="acct-panel-head">
-						<AccountAvatar account={account} size={32} />
-						<div className="acct-panel-who">
-							<span className="acct-panel-email">{account.email}</span>
-							<span className="acct-muted">Hosted account</span>
-						</div>
-					</div>
-					{empty ? (
-						<div className="acct-empty">
-							<p className="acct-empty-title">No credits left</p>
-							<p className="acct-empty-line">
-								Your first {formatRows(ROWS_ALLOWANCE)} rows each month are
-								free. Past that, reads need credits.
-							</p>
-							<button
-								type="button"
-								className="acct-btn solid full small"
-								onClick={() => openCard("credits")}
-							>
-								Add credits
-							</button>
-						</div>
-					) : (
-						<>
-							<div className="acct-panel-stats">
-								<div className="acct-stat">
-									<span className="acct-stat-k">Balance</span>
-									<span className="acct-stat-v">{balance ?? "..."}</span>
-								</div>
-								<div className="acct-stat">
-									<span className="acct-stat-k">Spent this month</span>
-									<span className="acct-stat-v">
-										{billing
-											? formatUsd(billing.spentThisMonthUsdMicros)
-											: "..."}
-									</span>
-								</div>
-							</div>
-							<button
-								type="button"
-								className="acct-panel-add"
-								onClick={() => openCard("credits")}
-							>
-								Add credits
-							</button>
-						</>
-					)}
-					<div className="mnav-rule" />
-					<button
-						type="button"
-						className="acct-item"
-						onClick={() => openCard("keys")}
-					>
-						<span className="t">API keys</span>
-						<span className="d">
-							{keyCount === null
-								? "Create or revoke"
-								: `${keyCount} active · create or revoke`}
-						</span>
-					</button>
-					<a href="/docs/api-reference" className="acct-item">
-						<span className="t">API reference</span>
-						<span className="d">Endpoints and auth</span>
-					</a>
-					<div className="mnav-rule" />
-					<button
-						type="button"
-						className="acct-item"
-						onClick={() => {
-							navigator.clipboard.writeText(CLI_INSTALL).catch(() => {});
-							setCopied(true);
-							setTimeout(() => setCopied(false), 1200);
-						}}
-					>
-						<span className="t">
-							Install the CLI{copied ? " · copied" : ""}
-						</span>
-						<code className="d">{CLI_INSTALL}</code>
-					</button>
-					<div className="mnav-rule" />
-					<button
-						type="button"
-						className="acct-item muted"
-						onClick={() => {
-							setOpen(false);
-							clearAccountData();
-							onSignOut();
-						}}
-					>
-						<span className="t">Sign out</span>
-					</button>
-				</div>
+				<AccountMenuPanel
+					id={menuId}
+					email={account.email}
+					caption={["hosted", balance, days].filter(Boolean).join(" · ")}
+					keyCount={keys === null ? null : activeKeys(keys).length}
+					spent={billing ? formatUsd(billing.spentThisMonthUsdMicros) : null}
+					webhooks={rows ? `${delivering} of ${rows.length}` : null}
+					onNavigate={() => setOpen(false)}
+					onKeys={() => openCard("keys")}
+					onCredits={() => openCard("credits")}
+					onSignOut={() => {
+						setOpen(false);
+						clearAccountData();
+						onSignOut();
+					}}
+				/>
 			) : null}
 			<KeysCard open={card === "keys"} onClose={() => setCard(null)} />
 			<CreditsCard

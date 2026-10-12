@@ -15,14 +15,5 @@ export default function AccountKeysPage() {
 		setHandedOver(takeHandedOverKey());
 	}, []);
 
-	return (
-		<>
-			<h1 className="acct-h1">API keys</h1>
-			<p className="acct-lede">
-				A key reads the hosted API. Send it as{" "}
-				<code>Authorization: Bearer</code>.
-			</p>
-			<KeysSection handedOver={handedOver} />
-		</>
-	);
+	return <KeysSection handedOver={handedOver} />;
 }

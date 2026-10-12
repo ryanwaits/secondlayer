@@ -16,6 +16,7 @@ import {
 	runsOutDate,
 	toMemoryChartPoints,
 } from "@/lib/usage";
+import { AcctCard } from "../parts";
 
 /**
  * "Hosted stack" — memory, last 24 hours. Hidden entirely when the
@@ -57,64 +58,58 @@ export function HostedStackCard({ service }: { service: HostedStack }) {
 	const yTicks = memoryChartYTicks(service.memory24h);
 
 	return (
-		<>
-			<div className="h2row">
-				<h2 className="acct-h2">Hosted stack</h2>
-				<span className="aside">Runs your webhooks. One per account.</span>
+		<AcctCard title="Hosted stack" aside="Runs your webhooks. One per account.">
+			<div className="use-svc-top">
+				<div>
+					<p className="use-svc-name">Memory, last 24 hours</p>
+					<p className="use-svc-sub">{sub}</p>
+				</div>
+				<span className={`use-svc-state${running ? "" : " off"}`}>
+					{running ? "Running" : "Stopped"}
+				</span>
 			</div>
-			<section className="use-card" aria-label="Hosted stack">
-				<div className="use-svc-top">
-					<div>
-						<p className="use-svc-name">Memory, last 24 hours</p>
-						<p className="use-svc-sub">{sub}</p>
-					</div>
-					<span className={`use-svc-state${running ? "" : " off"}`}>
-						{running ? "Running" : "Stopped"}
+			<LazyMonoAreaLineChart
+				data={chartPoints}
+				height={144}
+				xDomain={[0, 24]}
+				xTicks={[0, 12, 24]}
+				xTickFormatter={memoryChartXTickFormatter}
+				yTicks={yTicks}
+				yTickFormatter={formatMemoryChartYTick}
+				referenceLineY={{
+					value: MEMORY_FLOOR_GB,
+					label: memoryMinimumLabel(running, latest?.observedGb ?? null),
+				}}
+				showEndpointDot={service.memory24h.length > 0}
+				valueName="Actual"
+				extraSeries={[{ dataKey: "billedGb", name: "Billed" }]}
+				tooltipFormatter={(v) => `${Number(v).toFixed(2)} GB`}
+			/>
+			<div className="use-svc-grid">
+				<div>
+					<span className="k">Billed memory</span>
+					<span className="v">
+						{running ? `${billedGb.toFixed(2)} GB` : "0 GB"}
 					</span>
 				</div>
-				<LazyMonoAreaLineChart
-					data={chartPoints}
-					height={144}
-					xDomain={[0, 24]}
-					xTicks={[0, 12, 24]}
-					xTickFormatter={memoryChartXTickFormatter}
-					yTicks={yTicks}
-					yTickFormatter={formatMemoryChartYTick}
-					referenceLineY={{
-						value: MEMORY_FLOOR_GB,
-						label: memoryMinimumLabel(running, latest?.observedGb ?? null),
-					}}
-					showEndpointDot={service.memory24h.length > 0}
-					valueName="Actual"
-					extraSeries={[{ dataKey: "billedGb", name: "Billed" }]}
-					tooltipFormatter={(v) => `${Number(v).toFixed(2)} GB`}
-				/>
-				<div className="use-svc-grid">
-					<div>
-						<span className="k">Billed memory</span>
-						<span className="v">
-							{running ? `${billedGb.toFixed(2)} GB` : "0 GB"}
-						</span>
-					</div>
-					<div>
-						<span className="k">Cost per hour</span>
-						<span className="v">
-							{running
-								? `$${(billedGb * MEMORY_RATE_USD_PER_GB_HOUR).toFixed(4)}`
-								: "$0.0000"}
-						</span>
-					</div>
-					<div>
-						<span className="k">This month</span>
-						<span className="v">{formatUsd(monthUsdMicros)}</span>
-					</div>
+				<div>
+					<span className="k">Cost per hour</span>
+					<span className="v">
+						{running
+							? `$${(billedGb * MEMORY_RATE_USD_PER_GB_HOUR).toFixed(4)}`
+							: "$0.0000"}
+					</span>
 				</div>
-				<p className="use-svc-note">
-					Memory is sampled every minute and charged hourly at $
-					{MEMORY_RATE_USD_PER_GB_HOUR} per GB-hour. A stopped service costs
-					nothing.
-				</p>
-			</section>
-		</>
+				<div>
+					<span className="k">This month</span>
+					<span className="v">{formatUsd(monthUsdMicros)}</span>
+				</div>
+			</div>
+			<p className="use-svc-note">
+				Memory is sampled every minute and charged hourly at $
+				{MEMORY_RATE_USD_PER_GB_HOUR} per GB-hour. A stopped service costs
+				nothing.
+			</p>
+		</AcctCard>
 	);
 }

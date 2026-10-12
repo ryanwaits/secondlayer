@@ -205,8 +205,8 @@ export function MarketingNav() {
 									</span>
 								</div>
 							</div>
-							<Link href="/account/keys" className="acct-btn solid full">
-								API keys
+							<Link href="/account" className="acct-btn solid full">
+								Open account
 							</Link>
 							<Link href="/account/credits" className="acct-btn line full">
 								Add credits

@@ -13,6 +13,7 @@ import type { ApiKey } from "@/lib/types";
 import { ROWS_ALLOWANCE, formatRows } from "@/lib/usage";
 import { useEffect, useState } from "react";
 import { FloatingCard } from "./floating-card";
+import { AccountHead } from "./parts";
 
 /** A new key, shown once, with the one thing to do about it: copy it. */
 export function NewKeyCard({ value }: { value: string }) {
@@ -298,6 +299,25 @@ export function KeysSection({ handedOver }: { handedOver: string | null }) {
 
 	return (
 		<>
+			<AccountHead
+				title="API keys"
+				sub={
+					<>
+						A key reads the hosted API. Send it as{" "}
+						<code>Authorization: Bearer</code>.
+					</>
+				}
+			>
+				{naming ? null : (
+					<button
+						type="button"
+						className="acct-btn solid small"
+						onClick={() => setNaming(true)}
+					>
+						Create a key
+					</button>
+				)}
+			</AccountHead>
 			{newKey ? <NewKeyCard value={newKey} /> : null}
 			{naming ? (
 				<NameKeyForm
@@ -309,17 +329,7 @@ export function KeysSection({ handedOver }: { handedOver: string | null }) {
 					onCancel={() => setNaming(false)}
 					cancelLabel="Cancel"
 				/>
-			) : (
-				<div className="acct-section-actions">
-					<button
-						type="button"
-						className="acct-btn solid"
-						onClick={() => setNaming(true)}
-					>
-						Create a key
-					</button>
-				</div>
-			)}
+			) : null}
 			<KeyList keys={keys} />
 			<p className="acct-fine left">
 				Endpoints: <a href="/docs/api-reference">API reference</a>. Your first{" "}

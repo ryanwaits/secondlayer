@@ -28,6 +28,7 @@ import {
 	spentUsdMicros,
 	toDailyChartRows,
 } from "@/lib/usage";
+import { AcctCard } from "../parts";
 
 const HATCH_PATTERN_ID = "credits-daily-spend-hatch";
 
@@ -62,126 +63,122 @@ export function SpendCard({
 	const nowReferenceDate = isCurrent ? dailyChartNowReferenceDate(days) : null;
 
 	return (
-		<>
-			<div className="h2row">
-				<h2 className="acct-h2">
-					{isCurrent ? `${monthName(month)} so far` : monthLabel(month)}
-				</h2>
+		<AcctCard
+			title={isCurrent ? `${monthName(month)} so far` : monthLabel(month)}
+			aside={
+				isCurrent ? (
+					<span className="mono">{nextChargeLabel(now, serviceState)}</span>
+				) : null
+			}
+			label="Spend by day"
+		>
+			<div className="use-spend-head">
+				<div>
+					<span className="use-rk">Spent</span>
+					<span className="v">{formatUsd(spent)}</span>
+				</div>
 				{isCurrent ? (
-					<span className="aside mono">
-						{nextChargeLabel(now, serviceState)}
+					<>
+						<div>
+							<span className="use-rk">Projected, {lastDayLabel}</span>
+							<span className="v proj">
+								{formatUsd(
+									projectedMonthEndUsdMicros(
+										spent,
+										rateDayUsdMicros,
+										fractionalDaysRemainingInMonth(now),
+									),
+								)}
+							</span>
+						</div>
+						<div>
+							<span className="use-rk">Next month at this rate</span>
+							<span className="v proj">
+								{formatUsd(nextMonthAtRateUsdMicros(rateDayUsdMicros, month))}
+							</span>
+						</div>
+					</>
+				) : null}
+			</div>
+			<LazyMonoStackedBarChart
+				data={chartRows}
+				height={170}
+				xAxisDataKey="date"
+				xAxisTicks={dailyChartXTicks(days, now.getUTCDate())}
+				xAxisTickFormatter={dailyChartXTickFormatter(monthShortLabel(month))}
+				yAxisTicks={yAxis.ticks}
+				yAxisTickFormatter={(v) => formatDailyChartYTick(v, yAxis.decimals)}
+				tooltipLabelFormatter={(date) =>
+					dailyChartXTickFormatter(monthShortLabel(month))(String(date))
+				}
+				tooltipFormatter={(v) => formatUsd(Number(v) * 1_000_000)}
+				referenceLineX={
+					nowReferenceDate
+						? { value: nowReferenceDate, label: "now" }
+						: undefined
+				}
+				patternDefs={
+					<pattern
+						id={HATCH_PATTERN_ID}
+						width={4}
+						height={4}
+						patternUnits="userSpaceOnUse"
+						patternTransform="rotate(45)"
+					>
+						<rect width={4} height={4} fill="transparent" />
+						<line
+							x1={0}
+							y1={0}
+							x2={0}
+							y2={4}
+							stroke="var(--fig-bar)"
+							strokeWidth={2}
+						/>
+					</pattern>
+				}
+				series={[
+					{
+						dataKey: "memUsd",
+						name: "Hosted stack memory",
+						color: "var(--fig-bar)",
+					},
+					{
+						dataKey: "eventsUsd",
+						name: "Webhook events",
+						color: "var(--fig-role-a)",
+					},
+					{
+						dataKey: "rowsUsd",
+						name: `Rows past free ${formatRows(ROWS_ALLOWANCE)}`,
+						color: "var(--fig-role-b)",
+					},
+					{
+						dataKey: "projectedUsd",
+						name: "Projected",
+						color: `url(#${HATCH_PATTERN_ID})`,
+					},
+				]}
+			/>
+			<div className="use-legend">
+				<span>
+					<i style={{ background: "var(--fig-bar)" }} />
+					Hosted stack memory
+				</span>
+				<span>
+					<i style={{ background: "var(--fig-role-a)" }} />
+					Webhook events
+				</span>
+				<span>
+					<i style={{ background: "var(--fig-role-b)" }} />
+					Rows past free {formatRows(ROWS_ALLOWANCE)}
+				</span>
+				{isCurrent ? (
+					<span>
+						<i className="proj" />
+						Projected
 					</span>
 				) : null}
 			</div>
-			<section className="use-card" aria-label="Spend by day">
-				<div className="use-spend-head">
-					<div>
-						<span className="use-rk">Spent</span>
-						<span className="v">{formatUsd(spent)}</span>
-					</div>
-					{isCurrent ? (
-						<>
-							<div>
-								<span className="use-rk">Projected, {lastDayLabel}</span>
-								<span className="v proj">
-									{formatUsd(
-										projectedMonthEndUsdMicros(
-											spent,
-											rateDayUsdMicros,
-											fractionalDaysRemainingInMonth(now),
-										),
-									)}
-								</span>
-							</div>
-							<div>
-								<span className="use-rk">Next month at this rate</span>
-								<span className="v proj">
-									{formatUsd(nextMonthAtRateUsdMicros(rateDayUsdMicros, month))}
-								</span>
-							</div>
-						</>
-					) : null}
-				</div>
-				<LazyMonoStackedBarChart
-					data={chartRows}
-					height={170}
-					xAxisDataKey="date"
-					xAxisTicks={dailyChartXTicks(days, now.getUTCDate())}
-					xAxisTickFormatter={dailyChartXTickFormatter(monthShortLabel(month))}
-					yAxisTicks={yAxis.ticks}
-					yAxisTickFormatter={(v) => formatDailyChartYTick(v, yAxis.decimals)}
-					tooltipLabelFormatter={(date) =>
-						dailyChartXTickFormatter(monthShortLabel(month))(String(date))
-					}
-					tooltipFormatter={(v) => formatUsd(Number(v) * 1_000_000)}
-					referenceLineX={
-						nowReferenceDate
-							? { value: nowReferenceDate, label: "now" }
-							: undefined
-					}
-					patternDefs={
-						<pattern
-							id={HATCH_PATTERN_ID}
-							width={4}
-							height={4}
-							patternUnits="userSpaceOnUse"
-							patternTransform="rotate(45)"
-						>
-							<rect width={4} height={4} fill="transparent" />
-							<line
-								x1={0}
-								y1={0}
-								x2={0}
-								y2={4}
-								stroke="var(--fig-bar)"
-								strokeWidth={2}
-							/>
-						</pattern>
-					}
-					series={[
-						{
-							dataKey: "memUsd",
-							name: "Hosted stack memory",
-							color: "var(--fig-bar)",
-						},
-						{
-							dataKey: "eventsUsd",
-							name: "Webhook events",
-							color: "var(--fig-role-a)",
-						},
-						{
-							dataKey: "rowsUsd",
-							name: `Rows past free ${formatRows(ROWS_ALLOWANCE)}`,
-							color: "var(--fig-role-b)",
-						},
-						{
-							dataKey: "projectedUsd",
-							name: "Projected",
-							color: `url(#${HATCH_PATTERN_ID})`,
-						},
-					]}
-				/>
-				<div className="use-legend">
-					<span>
-						<i style={{ background: "var(--fig-bar)" }} />
-						Hosted stack memory
-					</span>
-					<span>
-						<i style={{ background: "var(--fig-role-a)" }} />
-						Webhook events
-					</span>
-					<span>
-						<i style={{ background: "var(--fig-role-b)" }} />
-						Rows past free {formatRows(ROWS_ALLOWANCE)}
-					</span>
-					{isCurrent ? (
-						<span>
-							<i className="proj" />
-							Projected
-						</span>
-					) : null}
-				</div>
-			</section>
-		</>
+		</AcctCard>
 	);
 }
