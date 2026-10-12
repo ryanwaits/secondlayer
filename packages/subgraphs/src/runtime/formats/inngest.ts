@@ -8,9 +8,9 @@ import type { WebhookOutbox } from "@secondlayer/shared/db";
  * that on `webhook.url` directly — no auth header needed.
  *
  * Body per event:
- *   - `name`      — event name `<subgraph>.<table>.<created|updated|deleted>`
- *                    so it matches Inngest fn `event` triggers out of the box
- *   - `data`      — row payload
+ *   - `name`      — event name, e.g. `chain.stx_transfer.apply`, so it
+ *                    matches Inngest fn `event` triggers out of the box
+ *   - `data`      — event payload
  *   - `id`        — dedupes on Inngest's side (mirrors outbox id)
  *   - `ts`        — unix millis when the event occurred
  *   - `v`         — version tag, fixed at `"2026-04-23.v1"` for forward compat

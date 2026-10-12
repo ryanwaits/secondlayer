@@ -3,8 +3,7 @@ import { type Database, getTargetDb } from "@secondlayer/shared/db";
 import type { Webhook } from "@secondlayer/shared/db";
 import { getWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import { logger } from "@secondlayer/shared/logger";
-import { type Kysely, sql } from "kysely";
-import { pgSchemaName as defaultSchemaName } from "../schema/utils.ts";
+import type { Kysely } from "kysely";
 import {
 	type BlockSource,
 	PublicApiBlockSource,
@@ -21,7 +20,7 @@ import {
 } from "./trigger-evaluator.ts";
 
 /**
- * Replay historical subgraph rows as new outbox entries for a single
+ * Replay a historical block range as new outbox entries for a single
  * webhook. Rows are marked `is_replay=TRUE` so the emitter can
  * prioritize live deliveries (90/10 split) and the delivery log can
  * tag replays distinctly.
@@ -32,8 +31,6 @@ import {
  * user who actually wants to re-deliver the same range passes a
  * distinct `replayIdSuffix` (e.g. a timestamp) to get a fresh key.
  */
-
-const BATCH_SIZE = 500;
 
 /** Default cap on blocks per replay call — overridable via
  *  `WEBHOOK_REPLAY_MAX_BLOCKS` for an operator who wants a tighter (or, for a
@@ -91,26 +88,6 @@ export function __setReplayInFlightForTest(
 	else inFlightReplays.delete(webhookId);
 }
 
-function replayDedupKey(
-	subgraphName: string,
-	tableName: string,
-	row: Record<string, unknown>,
-	replayId: string,
-): string {
-	const canonical = `replay:${replayId}:${subgraphName}:${tableName}:${stableStringify(row)}`;
-	return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
-}
-
-function stableStringify(obj: Record<string, unknown>): string {
-	const keys = Object.keys(obj).sort();
-	return JSON.stringify(
-		keys.reduce<Record<string, unknown>>((acc, k) => {
-			acc[k] = obj[k];
-			return acc;
-		}, {}),
-	);
-}
-
 export interface ReplayInput {
 	accountId: string;
 	webhookId: string;
@@ -136,23 +113,6 @@ export interface ReplayResult {
 	scannedCount: number;
 }
 
-async function resolveSchemaName(
-	db: Kysely<Database>,
-	subgraphName: string,
-): Promise<string> {
-	const row = await db
-		.selectFrom("subgraphs")
-		.select("schema_name")
-		.where("name", "=", subgraphName)
-		.executeTakeFirst();
-	if (!row) {
-		throw new Error(
-			`Subgraph "${subgraphName}" not registered — cannot replay its rows. Deploy the subgraph first.`,
-		);
-	}
-	return row.schema_name ?? defaultSchemaName(subgraphName);
-}
-
 export async function replayWebhook(input: ReplayInput): Promise<ReplayResult> {
 	if (input.fromBlock > input.toBlock) {
 		throw new Error("fromBlock must be <= toBlock");
@@ -173,89 +133,7 @@ export async function replayWebhook(input: ReplayInput): Promise<ReplayResult> {
 	}
 	inFlightReplays.add(sub.id);
 	try {
-		// Chain subs have no processed table — they react to raw chain events.
-		// Replay re-runs the pure matcher over the canonical block range instead
-		// of scanning rows.
-		if (sub.kind === "chain") {
-			return await replayChainWebhook(db, sub, input);
-		}
-
-		const subgraphName = sub.subgraph_name;
-		const tableName = sub.table_name;
-		if (sub.kind !== "subgraph" || !subgraphName || !tableName) {
-			throw new Error(
-				"replay is only supported for subgraph or chain webhooks",
-			);
-		}
-
-		const schema = await resolveSchemaName(db, subgraphName);
-		const replayId = deterministicReplayId(
-			sub.id,
-			input.fromBlock,
-			input.toBlock,
-			input.replayIdSuffix,
-		);
-
-		let scanned = 0;
-		let enqueued = 0;
-		// Keyset pagination, not a positional skip-count: `_created_at` is written
-		// as the literal NOW() (one value per transaction, so identical for every
-		// row in a block), which makes (_block_height, _created_at) non-unique.
-		// Paging by skip-count over a non-unique sort lets tied rows reorder
-		// between pages and drop rows silently. `_id` is BIGSERIAL and total.
-		let lastId = 0n;
-
-		while (true) {
-			const { rows } = await sql<
-				Record<string, unknown>
-			>`SELECT * FROM ${sql.raw(`"${schema}"."${tableName}"`)}
-				WHERE _block_height >= ${sql.lit(input.fromBlock)}
-					AND _block_height <= ${sql.lit(input.toBlock)}
-					AND _id > ${sql.lit(lastId)}
-				ORDER BY _id ASC
-				LIMIT ${sql.lit(BATCH_SIZE)}`.execute(db);
-
-			if (rows.length === 0) break;
-			scanned += rows.length;
-
-			const inserts = rows.map((row) => ({
-				webhook_id: sub.id,
-				subgraph_name: subgraphName,
-				table_name: tableName,
-				block_height: Number(row._block_height),
-				tx_id: (row._tx_id as string | undefined) ?? null,
-				row_pk: {
-					blockHeight: Number(row._block_height),
-					txId: row._tx_id ?? "",
-					replayId,
-				},
-				event_type: `${subgraphName}.${tableName}.replay`,
-				payload: row,
-				dedup_key: replayDedupKey(subgraphName, tableName, row, replayId),
-				is_replay: true,
-			}));
-
-			const result = await db
-				.insertInto("webhook_outbox")
-				.values(inserts)
-				.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
-				.executeTakeFirst();
-			enqueued += Number(result.numInsertedOrUpdatedRows ?? 0);
-
-			lastId = BigInt(String(rows[rows.length - 1]?._id));
-			if (rows.length < BATCH_SIZE) break;
-		}
-
-		logger.info("Replay enqueued", {
-			webhook: sub.name,
-			replayId,
-			scanned,
-			enqueued,
-			fromBlock: input.fromBlock,
-			toBlock: input.toBlock,
-		});
-
-		return { replayId, enqueuedCount: enqueued, scannedCount: scanned };
+		return await replayChainWebhook(db, sub, input);
 	} finally {
 		inFlightReplays.delete(sub.id);
 	}
@@ -264,10 +142,10 @@ export async function replayWebhook(input: ReplayInput): Promise<ReplayResult> {
 const CHAIN_REPLAY_BATCH = 200;
 
 /**
- * Replay a chain webhook by re-running the pure matcher over a historical
- * canonical block range and emitting fresh apply rows. Unlike subgraph replay
- * there is no processed table to scan — the matcher is range-driven, so we
- * reload canonical blocks off the public Index/Streams clock and re-match.
+ * Replay a webhook by re-running the pure matcher over a historical
+ * canonical block range and emitting fresh apply rows. The matcher is
+ * range-driven, so we reload canonical blocks off the public Index/Streams
+ * clock and re-match.
  *
  * Rows are emitted with `is_replay=TRUE` and replay-namespaced dedup keys, and —
  * critically — this never advances `trigger_evaluator_state`: replay is

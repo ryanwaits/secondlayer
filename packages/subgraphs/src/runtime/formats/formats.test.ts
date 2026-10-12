@@ -16,13 +16,9 @@ function sub(overrides: Partial<Webhook>): Webhook {
 		project_id: null,
 		name: "test",
 		status: "active",
-		kind: "subgraph",
-		subgraph_name: "bitcoin",
-		table_name: "transfers",
-		triggers: null,
-		filter: {},
+		kind: "chain",
+		triggers: [{ type: "stx_transfer" }],
 		format: "standard-webhooks",
-		runtime: null,
 		url: "https://x",
 		signing_secret_enc: Buffer.from(""),
 		auth_config: {},
@@ -44,13 +40,11 @@ function outbox(): WebhookOutbox {
 	return {
 		id: "out-00000000-0000-0000-0000-000000000001",
 		webhook_id: "sub-00000000-0000-0000-0000-000000000001",
-		kind: "subgraph",
-		subgraph_name: "bitcoin",
-		table_name: "transfers",
+		kind: "chain",
 		block_height: 1000,
 		tx_id: "0xabc",
-		row_pk: { blockHeight: 1000, txId: "0xabc", rowIndex: 0 },
-		event_type: "bitcoin.transfers.created",
+		row_pk: { tx_id: "0xabc", event_index: 0 },
+		event_type: "chain.stx_transfer.apply",
 		payload: { sender: "SP1", recipient: "SP2", amount: "100" },
 		dedup_key: "k",
 		attempt: 0,
@@ -74,7 +68,7 @@ describe("format dispatcher", () => {
 		const nowSeconds = Math.floor(Date.now() / 1000);
 		const { body, headers } = buildForFormat(out, s, "whsec_dGVzdA==");
 		const parsed = JSON.parse(body);
-		expect(parsed.type).toBe("bitcoin.transfers.created");
+		expect(parsed.type).toBe("chain.stx_transfer.apply");
 		expect(parsed.data).toEqual({
 			sender: "SP1",
 			recipient: "SP2",
@@ -95,7 +89,7 @@ describe("format dispatcher", () => {
 		const { body, headers } = buildForFormat(outbox(), s, "");
 		const parsed = JSON.parse(body);
 		expect(Array.isArray(parsed)).toBe(true);
-		expect(parsed[0].name).toBe("bitcoin.transfers.created");
+		expect(parsed[0].name).toBe("chain.stx_transfer.apply");
 		expect(parsed[0].data).toEqual({
 			sender: "SP1",
 			recipient: "SP2",
@@ -128,7 +122,7 @@ describe("format dispatcher", () => {
 		const { body, headers } = buildForFormat(outbox(), s, "");
 		const parsed = JSON.parse(body);
 		expect(parsed.params.sender).toBe("SP1");
-		expect(parsed.params._type).toBe("bitcoin.transfers.created");
+		expect(parsed.params._type).toBe("chain.stx_transfer.apply");
 		expect(parsed.params._outboxId).toBe(outbox().id);
 		expect(headers.authorization).toBe("Bearer cf_token_xyz");
 	});
@@ -138,8 +132,8 @@ describe("format dispatcher", () => {
 		const { body, headers } = buildForFormat(outbox(), s, "");
 		const parsed = JSON.parse(body);
 		expect(parsed.specversion).toBe("1.0");
-		expect(parsed.type).toBe("bitcoin.transfers.created");
-		expect(parsed.source).toBe("secondlayer:bitcoin");
+		expect(parsed.type).toBe("chain.stx_transfer.apply");
+		expect(parsed.source).toBe("secondlayer:stacks");
 		expect(parsed.id).toBe(outbox().id);
 		expect(parsed.time).toBe(FIXED_CREATED_AT.toISOString());
 		expect(parsed.data).toEqual({
@@ -150,6 +144,20 @@ describe("format dispatcher", () => {
 		expect(headers["content-type"]).toBe(
 			"application/cloudevents+json; charset=utf-8",
 		);
+	});
+
+	it("cloudevents source is the bitcoin chain for a runes event", () => {
+		const s = sub({
+			format: "cloudevents",
+			triggers: [{ type: "rune_etch" }],
+		});
+		const out = {
+			...outbox(),
+			event_type: "chain.rune_etch.apply",
+			payload: { chain: "bitcoin", trigger: "rune_etch" },
+		};
+		const parsed = JSON.parse(buildForFormat(out, s, "").body);
+		expect(parsed.source).toBe("secondlayer:bitcoin");
 	});
 
 	it("raw emits bare row + user content-type + custom headers", () => {

@@ -64,7 +64,6 @@ describe("emitSbtcOutbox plane safety", () => {
 	it("reads sbtc_events from the source plane, not the outbox (target) handle", async () => {
 		const { webhook } = await createWebhook(db, {
 			accountId,
-			kind: "chain",
 			name: `sbtc-plane-${randomUUID().slice(0, 8)}`,
 			url: "https://webhook.site/xxx",
 			triggers: [{ type: "sbtc_withdrawal_accept" }],

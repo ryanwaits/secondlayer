@@ -93,7 +93,6 @@ async function deleteCreatedWebhooks(): Promise<void> {
 async function makeSub() {
 	const { webhook } = await createWebhook(db, {
 		accountId,
-		kind: "chain",
 		name: `swept-${randomUUID().slice(0, 8)}`,
 		url: "https://webhook.site/xxx",
 		triggers: [{ type: "sbtc_withdrawal_swept_confirmed" }],

@@ -78,8 +78,7 @@ describe("a slow webhook's dispatch must not delay an unrelated fast webhook's c
 			const { webhook: slowWebhook } = await createWebhook(db, {
 				accountId,
 				name: `slow-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: `http://localhost:${slowServer.port}`,
 				timeoutMs: 10_000,
 				concurrency: 2,
@@ -88,8 +87,7 @@ describe("a slow webhook's dispatch must not delay an unrelated fast webhook's c
 			const { webhook: fastWebhook } = await createWebhook(db, {
 				accountId,
 				name: `fast-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: `http://localhost:${fastServer.port}`,
 				timeoutMs: 5_000,
 				concurrency: 4,
@@ -105,12 +103,10 @@ describe("a slow webhook's dispatch must not delay an unrelated fast webhook's c
 				.insertInto("webhook_outbox")
 				.values({
 					webhook_id: slowWebhook.id,
-					subgraph_name: "bitcoin",
-					table_name: "transfers",
 					block_height: 1,
 					tx_id: "0xslow",
 					row_pk: { blockHeight: 1, txId: "0xslow", rowIndex: 0 },
-					event_type: "bitcoin.transfers.created" as const,
+					event_type: "chain.stx_transfer.apply" as const,
 					payload: { sender: "SP1", recipient: "SP2", amount: "1" },
 					dedup_key: `test-slow-${randomUUID().slice(0, 8)}`,
 				})
@@ -124,12 +120,10 @@ describe("a slow webhook's dispatch must not delay an unrelated fast webhook's c
 				.insertInto("webhook_outbox")
 				.values({
 					webhook_id: fastWebhook.id,
-					subgraph_name: "bitcoin",
-					table_name: "transfers",
 					block_height: 1,
 					tx_id: "0xfast",
 					row_pk: { blockHeight: 1, txId: "0xfast", rowIndex: 0 },
-					event_type: "bitcoin.transfers.created" as const,
+					event_type: "chain.stx_transfer.apply" as const,
 					payload: { sender: "SP3", recipient: "SP4", amount: "1" },
 					dedup_key: `test-fast-${randomUUID().slice(0, 8)}`,
 				})

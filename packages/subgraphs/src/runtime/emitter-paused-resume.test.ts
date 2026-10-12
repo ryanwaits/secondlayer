@@ -72,8 +72,7 @@ describe("a webhook's rows inserted while paused drain promptly once resumed", (
 			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `paused-resume-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: `http://localhost:${server.port}`,
 				timeoutMs: 5_000,
 				concurrency: 4,
@@ -87,12 +86,10 @@ describe("a webhook's rows inserted while paused drain promptly once resumed", (
 				.values(
 					Array.from({ length: 4 }, (_, i) => ({
 						webhook_id: webhook.id,
-						subgraph_name: "bitcoin",
-						table_name: "transfers",
 						block_height: 1,
 						tx_id: `0xpaused${i}`,
 						row_pk: { blockHeight: 1, txId: `0xpaused${i}`, rowIndex: i },
-						event_type: "bitcoin.transfers.created" as const,
+						event_type: "chain.stx_transfer.apply" as const,
 						payload: { sender: "SP1", recipient: "SP2", amount: String(i) },
 						dedup_key: `test-paused-resume-${i}-${randomUUID().slice(0, 8)}`,
 					})),

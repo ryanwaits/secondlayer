@@ -38,7 +38,6 @@ async function makeSub(): Promise<string> {
 	const { webhook } = await createWebhook(db, {
 		accountId,
 		name: `${NAME_PREFIX}${randomUUID()}`,
-		kind: "chain",
 		triggers: [{ type: "contract_call" }],
 		url: "https://webhook.site/reorg",
 	});
@@ -55,8 +54,6 @@ async function insertApply(
 	const row: InsertWebhookOutbox = {
 		webhook_id: webhookId,
 		kind: "chain",
-		subgraph_name: null,
-		table_name: null,
 		block_height: height,
 		tx_id: txId,
 		row_pk: { tx_id: txId, event_index: -1 },
@@ -121,8 +118,6 @@ async function insertRuneApply(
 	const row: InsertWebhookOutbox = {
 		webhook_id: webhookId,
 		kind: "chain",
-		subgraph_name: null,
-		table_name: null,
 		block_height: height,
 		tx_id: txId,
 		row_pk: { tx_id: txId, event_index: 0 },

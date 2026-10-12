@@ -34,8 +34,6 @@ function chainSub(triggers: ChainTrigger[], id = randomUUID()): Webhook {
 	return {
 		id,
 		kind: "chain",
-		subgraph_name: null,
-		table_name: null,
 		triggers,
 	} as unknown as Webhook;
 }
@@ -240,7 +238,6 @@ describe("emitChainOutbox (DB)", () => {
 		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `${NAME_PREFIX}${randomUUID()}`,
-			kind: "chain",
 			triggers,
 			url: "https://webhook.site/eval",
 		});
@@ -539,7 +536,6 @@ describe("evaluator restart: durable cursor + idempotent outbox", () => {
 		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `${NAME_PREFIX}${randomUUID()}`,
-			kind: "chain",
 			triggers,
 			url: "https://webhook.site/restart",
 		});

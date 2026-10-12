@@ -78,8 +78,7 @@ describe("startEmitter end-to-end", () => {
 			const { webhook, signingSecret } = await createWebhook(db, {
 				accountId,
 				name: `ok-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: receiver.url,
 				timeoutMs: 5_000,
 			});
@@ -91,12 +90,10 @@ describe("startEmitter end-to-end", () => {
 				.insertInto("webhook_outbox")
 				.values({
 					webhook_id: webhook.id,
-					subgraph_name: "bitcoin",
-					table_name: "transfers",
 					block_height: 1000,
 					tx_id: "0xaaa",
 					row_pk: { blockHeight: 1000, txId: "0xaaa", rowIndex: 0 },
-					event_type: "bitcoin.transfers.created",
+					event_type: "chain.stx_transfer.apply",
 					payload: { sender: "SP1", recipient: "SP2", amount: "100" },
 					dedup_key: `test-${randomUUID().slice(0, 12)}`,
 				})
@@ -124,7 +121,7 @@ describe("startEmitter end-to-end", () => {
 				type: string;
 				data: { sender: string };
 			};
-			expect(parsed.type).toBe("bitcoin.transfers.created");
+			expect(parsed.type).toBe("chain.stx_transfer.apply");
 			expect(parsed.data.sender).toBe("SP1");
 
 			// The receiver's `fetch` handler runs before the emitter even gets its
@@ -177,8 +174,7 @@ describe("startEmitter end-to-end", () => {
 			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `fail-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: receiver.url,
 				timeoutMs: 3_000,
 			});
@@ -188,12 +184,10 @@ describe("startEmitter end-to-end", () => {
 				.insertInto("webhook_outbox")
 				.values({
 					webhook_id: webhook.id,
-					subgraph_name: "bitcoin",
-					table_name: "transfers",
 					block_height: 2000,
 					tx_id: "0xbbb",
 					row_pk: { blockHeight: 2000, txId: "0xbbb", rowIndex: 0 },
-					event_type: "bitcoin.transfers.created",
+					event_type: "chain.stx_transfer.apply",
 					payload: { sender: "SP9", recipient: "SP10", amount: "5" },
 					dedup_key: `test-fail-${randomUUID().slice(0, 12)}`,
 				})
@@ -235,8 +229,7 @@ describe("startEmitter end-to-end", () => {
 			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `circuit-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: receiver.url,
 				timeoutMs: 3_000,
 				concurrency: 20,
@@ -248,8 +241,6 @@ describe("startEmitter end-to-end", () => {
 				.values(
 					Array.from({ length: 20 }, (_, rowIndex) => ({
 						webhook_id: webhook.id,
-						subgraph_name: "bitcoin",
-						table_name: "transfers",
 						block_height: 3000 + rowIndex,
 						tx_id: `0xcircuit${rowIndex}`,
 						row_pk: {
@@ -257,7 +248,7 @@ describe("startEmitter end-to-end", () => {
 							txId: `0xcircuit${rowIndex}`,
 							rowIndex,
 						},
-						event_type: "bitcoin.transfers.created",
+						event_type: "chain.stx_transfer.apply",
 						payload: { sender: "SP9", recipient: "SP10", amount: "5" },
 						dedup_key: `test-circuit-${randomUUID().slice(0, 12)}`,
 					})),
@@ -315,8 +306,7 @@ describe("startEmitter end-to-end", () => {
 			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `paused-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: receiver.url,
 				timeoutMs: 5_000,
 			});
@@ -331,12 +321,10 @@ describe("startEmitter end-to-end", () => {
 				.insertInto("webhook_outbox")
 				.values({
 					webhook_id: webhook.id,
-					subgraph_name: "bitcoin",
-					table_name: "transfers",
 					block_height: 4000,
 					tx_id: "0xpaused",
 					row_pk: { blockHeight: 4000, txId: "0xpaused", rowIndex: 0 },
-					event_type: "bitcoin.transfers.created",
+					event_type: "chain.stx_transfer.apply",
 					payload: { sender: "SP1", recipient: "SP2", amount: "1" },
 					dedup_key: `test-paused-${randomUUID().slice(0, 12)}`,
 				})

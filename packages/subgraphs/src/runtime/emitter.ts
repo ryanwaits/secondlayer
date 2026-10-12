@@ -17,7 +17,6 @@ import {
 import { type Kysely, sql } from "kysely";
 import { buildForFormat } from "./formats/index.ts";
 import { recordDelivery } from "./meter-socket.ts";
-import { refreshMatcher } from "./webhook-state.ts";
 
 /**
  * Webhook emitter — drains `webhook_outbox` and POSTs deliveries.
@@ -469,23 +468,18 @@ async function dispatchOne(
 	};
 }
 
-/** A representative (non-persisted) outbox row for a test delivery, shaped to the
- *  webhook's kind so `buildForFormat` produces a realistic body. */
+/** A representative (non-persisted) outbox row for a test delivery, so
+ *  `buildForFormat` produces a realistic body. */
 function buildTestOutboxRow(sub: Webhook): WebhookOutbox {
 	const now = new Date();
 	return {
 		id: randomUUID(),
 		webhook_id: sub.id,
 		kind: sub.kind,
-		subgraph_name: sub.subgraph_name ?? null,
-		table_name: sub.table_name ?? null,
 		block_height: 0,
 		tx_id: null,
 		row_pk: null,
-		event_type:
-			sub.kind === "chain"
-				? "chain.test.apply"
-				: `${sub.subgraph_name ?? "subgraph"}.${sub.table_name ?? "test"}.created`,
+		event_type: "chain.test.apply",
 		payload: {
 			test: true,
 			message: "Secondlayer test delivery",
@@ -1083,36 +1077,6 @@ export async function startEmitter(
 
 	logger.info("[emitter] started", { id: emitterId });
 
-	// Bootstrap matcher from active subs. Retry with backoff — if this
-	// stays broken, fail loud rather than run with an empty matcher (which
-	// would silently drop every block's outbox emissions until the next
-	// webhook CRUD fired `webhooks:changed`).
-	const MATCHER_BOOT_ATTEMPTS = 5;
-	let lastErr: unknown = null;
-	for (let i = 0; i < MATCHER_BOOT_ATTEMPTS; i++) {
-		try {
-			await refreshMatcher(db);
-			lastErr = null;
-			break;
-		} catch (err) {
-			lastErr = err;
-			const delayMs = 500 * 2 ** i; // 500ms, 1s, 2s, 4s, 8s
-			logger.warn("[emitter] matcher refresh failed, retrying", {
-				attempt: i + 1,
-				delayMs,
-				error: err instanceof Error ? err.message : String(err),
-			});
-			await new Promise((r) => setTimeout(r, delayMs));
-		}
-	}
-	if (lastErr) {
-		throw new Error(
-			`[emitter] matcher refresh failed ${MATCHER_BOOT_ATTEMPTS}×; aborting boot: ${
-				lastErr instanceof Error ? lastErr.message : String(lastErr)
-			}`,
-		);
-	}
-
 	// LISTEN on new outbox + sub changes. Both channels fire on the TARGET DB
 	// (webhook_outbox + webhooks are control-plane tables), so bind the
 	// listener there — under the split it is NOT `DATABASE_URL`.
@@ -1133,11 +1097,6 @@ export async function startEmitter(
 		"webhooks:changed",
 		() => {
 			if (!state.running) return;
-			void refreshMatcher(db).catch((err) =>
-				logger.error("[emitter] matcher refresh failed", {
-					error: err instanceof Error ? err.message : String(err),
-				}),
-			);
 			// A resume is exactly `webhooks:changed` — its rows were already
 			// released back to claimable (see claimAndDispatchOnce's paused-sub
 			// branch) as soon as we noticed the pause, so a resumed webhook's

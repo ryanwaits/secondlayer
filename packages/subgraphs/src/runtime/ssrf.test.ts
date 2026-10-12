@@ -86,8 +86,7 @@ describe("SSRF egress guard", () => {
 			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: c.name,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: c.url,
 			});
 			webhookIds.push(webhook.id);
@@ -96,12 +95,10 @@ describe("SSRF egress guard", () => {
 				.insertInto("webhook_outbox")
 				.values({
 					webhook_id: webhook.id,
-					subgraph_name: "bitcoin",
-					table_name: "transfers",
 					block_height: 1,
 					tx_id: "0x",
 					row_pk: { blockHeight: 1, txId: "0x", rowIndex: 0 },
-					event_type: "bitcoin.transfers.created",
+					event_type: "chain.stx_transfer.apply",
 					payload: { amount: "1" },
 					dedup_key: `ssrf-${randomUUID()}`,
 				})
@@ -171,8 +168,7 @@ describe("SSRF egress guard — DNS rebinding", () => {
 		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `rebind-${randomUUID().slice(0, 8)}`,
-			subgraphName: "bitcoin",
-			tableName: "transfers",
+			triggers: [{ type: "stx_transfer" }],
 			url: `http://${hostname}/hook`,
 		});
 		webhookIds.push(webhook.id);
@@ -180,12 +176,10 @@ describe("SSRF egress guard — DNS rebinding", () => {
 			.insertInto("webhook_outbox")
 			.values({
 				webhook_id: webhook.id,
-				subgraph_name: "bitcoin",
-				table_name: "transfers",
 				block_height: 1,
 				tx_id: "0x",
 				row_pk: { blockHeight: 1, txId: "0x", rowIndex: 0 },
-				event_type: "bitcoin.transfers.created",
+				event_type: "chain.stx_transfer.apply",
 				payload: { amount: "1" },
 				dedup_key: `ssrf-rebind-${randomUUID()}`,
 			})
@@ -209,8 +203,7 @@ describe("SSRF egress guard — DNS rebinding", () => {
 		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `metadata-${randomUUID().slice(0, 8)}`,
-			subgraphName: "bitcoin",
-			tableName: "transfers",
+			triggers: [{ type: "stx_transfer" }],
 			url: `http://${hostname}/hook`,
 		});
 		webhookIds.push(webhook.id);
@@ -218,12 +211,10 @@ describe("SSRF egress guard — DNS rebinding", () => {
 			.insertInto("webhook_outbox")
 			.values({
 				webhook_id: webhook.id,
-				subgraph_name: "bitcoin",
-				table_name: "transfers",
 				block_height: 1,
 				tx_id: "0x",
 				row_pk: { blockHeight: 1, txId: "0x", rowIndex: 0 },
-				event_type: "bitcoin.transfers.created",
+				event_type: "chain.stx_transfer.apply",
 				payload: { amount: "1" },
 				dedup_key: `ssrf-metadata-${randomUUID()}`,
 			})

@@ -18,19 +18,13 @@ import { bumpReorgEpoch, withSubgraphBlockLock } from "./catchup.ts";
  * here: delete rows where `_block_height >= blockHeight` from every
  * subgraph table, then reprocess `blockHeight` (subsequent heights will
  * be reprocessed as the indexer ingests new-chain blocks).
- *
- * Webhook receivers that already consumed the now-reverted events
- * need to know about the rollback. We emit one `<table>.reverted` event
- * per affected table per webhook. The receiver is expected to
- * reverse any side-effects keyed on the rolled-back rows; if they ignore
- * revert events, at least we provided the signal.
  */
 export async function handleSubgraphReorg(
 	blockHeight: number,
 	loadSubgraphDef: (sg: Subgraph) => Promise<SubgraphDefinition>,
 ): Promise<void> {
-	// The subgraphs registry + revert-event outbox and every subgraph's data
-	// plane live on the managed target DB.
+	// The subgraphs registry and every subgraph's data plane live on the
+	// managed target DB.
 	const targetDb = getTargetDb();
 	const activeSubgraphs = (await listSubgraphs(targetDb)).filter(
 		(v: Subgraph) => v.status === "active",
@@ -109,20 +103,7 @@ async function reorgOneSubgraph(
 	// Rows live on the managed target DB.
 	const client = getRawClient("target");
 
-	// Snapshot affected rows BEFORE deletion so we can surface them
-	// to webhook receivers as revert events. Cap at 1k rows
-	// per (table, reorg) to bound memory; deeper reverts are rare
-	// and at-volume the receiver should be reading from the table
-	// directly anyway.
 	const tableNames = Object.keys(schema);
-	const revertedByTable: Record<string, unknown[]> = {};
-	for (const tableName of tableNames) {
-		const rows = await client.unsafe<unknown[]>(
-			`SELECT * FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1 LIMIT 1000`,
-			[blockHeight],
-		);
-		if (rows.length > 0) revertedByTable[tableName] = rows;
-	}
 
 	// Revert table state. With a journal: restore each touched row to its
 	// pre-fork state (accumulators keep their history — fix-f040 B2), then
@@ -206,80 +187,9 @@ async function reorgOneSubgraph(
 		.where("block_height", ">=", blockHeight)
 		.execute();
 
-	// Emit revert events to dependent webhooks so receivers
-	// know to roll back. Insert into webhook_outbox with a
-	// stable dedup_key keyed on (webhook, table, height,
-	// "revert") so a duplicate reorg notification is a no-op.
-	for (const [tableName, rows] of Object.entries(revertedByTable)) {
-		if (rows.length === 0) continue;
-		await targetDb
-			.insertInto("webhook_outbox")
-			.columns([
-				"webhook_id",
-				"subgraph_name",
-				"table_name",
-				"block_height",
-				"event_type",
-				"payload",
-				"dedup_key",
-				"row_pk",
-				"status",
-			])
-			.expression((eb) =>
-				eb
-					.selectFrom("webhooks")
-					.select((eb2) => [
-						"id as webhook_id",
-						eb2.val(sg.name).as("subgraph_name"),
-						eb2.val(tableName).as("table_name"),
-						eb2.val(blockHeight).as("block_height"),
-						eb2.val(`${sg.name}.${tableName}.reverted`).as("event_type"),
-						eb2
-							.val(
-								JSON.stringify({
-									subgraph: sg.name,
-									table: tableName,
-									reorgFromHeight: blockHeight,
-									rows,
-								}),
-							)
-							.as("payload"),
-						eb2
-							.val(`reorg:${sg.name}:${tableName}:${blockHeight}`)
-							.as("dedup_key"),
-						eb2
-							.val({
-								subgraph: sg.name,
-								table: tableName,
-								reorgRoot: blockHeight,
-							})
-							.as("row_pk"),
-						eb2.val("pending").as("status"),
-					])
-					.where("subgraph_name", "=", sg.name)
-					.where("table_name", "=", tableName)
-					.where("status", "=", "active"),
-			)
-			.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
-			.execute()
-			.catch((err) => {
-				// Don't fail the reorg cleanup if the revert event
-				// emission errors — webhooks can't be more
-				// broken than they were pre-reorg.
-				logger.error("Failed to emit revert event for webhooks", {
-					event: "reorg_revert_emit_dropped",
-					subgraph: sg.name,
-					table: tableName,
-					blockHeight,
-					error: getErrorMessage(err),
-				});
-			});
-	}
-
 	logger.info("Subgraph reorg cleanup done", {
 		subgraph: sg.name,
 		blockHeight,
-		tablesAffected: Object.keys(revertedByTable).length,
 	});
 
 	// Reprocess the new canonical block. Subsequent blocks above

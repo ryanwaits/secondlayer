@@ -21,10 +21,8 @@ import {
 	SubgraphContext,
 	type TxMeta,
 } from "./context.ts";
-import { emitWebhookOutbox } from "./outbox-emit.ts";
 import { runHandlers } from "./runner.ts";
 import type { EventRecord, TxRecord } from "./source-matcher.ts";
-import { matcher } from "./webhook-state.ts";
 
 /**
  * The data-plane route for a subgraph: which schema its tables live in and the
@@ -595,15 +593,6 @@ export async function processBlock(
 				const flushStart = performance.now();
 				const manifest = await ctx.flush();
 				flushedWrites = manifest.count > 0;
-				if (manifest.count > 0) {
-					await emitWebhookOutbox(
-						tx,
-						subgraphName,
-						manifest,
-						matcher,
-						block.height,
-					);
-				}
 				flushMs = performance.now() - flushStart;
 			}
 

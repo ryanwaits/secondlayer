@@ -2,9 +2,9 @@
 
 Typed on-chain indexing for Stacks. Declare event filters + column schema with `defineSubgraph()`; the runtime decodes blocks, matches filters, runs your handlers inside a transactional context, and exposes the result as a Postgres schema you query over REST or SQL.
 
-Run subgraphs on your own instance, or hosted on `api.secondlayer.tools` with `secondlayer subgraphs deploy` and your account key (`SECONDLAYER_API_KEY`). Hosted subgraphs are private to your account and limited to event filters and `contract_call`/`contract_deploy` sources (`422 SOURCE_NOT_HOSTABLE` otherwise); set `startBlock`. Subgraph webhooks are self-host only.
+Run subgraphs on your own instance, or hosted on `api.secondlayer.tools` with `secondlayer subgraphs deploy` and your account key (`SECONDLAYER_API_KEY`). Hosted subgraphs are private to your account and limited to event filters and `contract_call`/`contract_deploy` sources (`422 SOURCE_NOT_HOSTABLE` otherwise); set `startBlock`.
 
-Subgraph rows fan out to HTTP subscribers through a post-flush outbox emitter — signed Standard Webhooks POSTs with retries, circuit breaker, and replay.
+Chain events fan out to HTTP subscribers through an outbox emitter: signed Standard Webhooks POSTs with retries, circuit breaker, and replay. To react to your subgraph rows, watch the table from your own Postgres or poll the subgraph API; see [React to your rows](https://www.secondlayer.tools/docs/subgraphs/reading#react-to-your-rows).
 
 ## Install
 
@@ -61,17 +61,17 @@ Every source needs a handler of the same name. Handlers write with `ctx.insert`,
 | `./schema` | Generator + deployer internals |
 | `./validate` | Shape + filter validation for deploys |
 | `./testing` | `runSubgraphTest`, `createTestContext`, `buildEvent`: run handlers against real or built events before deploying |
-| `./runtime/replay` | `replayWebhook({ accountId, webhookId, fromBlock, toBlock })`: re-enqueue historical rows as outbox entries |
+| `./runtime/replay` | `replayWebhook({ accountId, webhookId, fromBlock, toBlock })`: re-enqueue a historical block range as outbox entries |
 | `./runtime/emitter` | Webhook egress checks used by the API (`checkEgressAllowed`) |
 | `./verify` | `replaySubgraph`, `compareRows`, `checkPin`: recompute a `state` subgraph from blocks proven with `@secondlayer/verify` and compare the served rows (powers `secondlayer verify subgraph --replay`) |
 
 ## Runtime
 
-The processor runs as a service, not a library import: `bun run packages/subgraphs/src/service.ts` (the `subgraph-processor` container in `docker/`). It LISTENs on `indexer:new_block`, matches sources, runs handlers, flushes writes inside a transaction, and emits outbox rows for matching webhooks. Breaking schema changes trigger a reindex on deploy.
+The processor runs as a service, not a library import: `bun run packages/subgraphs/src/service.ts` (the `subgraph-processor` container in `docker/`). It LISTENs on `indexer:new_block`, matches sources, runs handlers, and flushes writes inside a transaction. Breaking schema changes trigger a reindex on deploy.
 
 ## Webhook emitter
 
-Every row written through `ctx.insert()` / `ctx.upsert()` is atomically enqueued to `webhook_outbox` for every active webhook whose filter matches — inside the same transaction as the flush, so a processor crash rolls back both.
+The trigger evaluator matches chain events against each active webhook's `triggers` and enqueues them to `webhook_outbox`.
 
 The emitter drains the outbox via `LISTEN webhooks:new_outbox` and `FOR UPDATE SKIP LOCKED` batch claims. Live deliveries win a 90/10 split over replays. Each row dispatches through the format builder matching the webhook's `format` column (`standard-webhooks`, `inngest`, `trigger`, `cloudflare`, `cloudevents`, `raw`). Retries follow `30s → 2m → 10m → 1h → 6h → 24h → 72h`. Twenty consecutive failures trips the per-sub circuit breaker and pauses the webhook.
 
@@ -81,7 +81,6 @@ Delivery bodies and response previews land in `webhook_deliveries`. Rows whose r
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `SECONDLAYER_EMIT_OUTBOX` | `true` | Set `false` to bypass outbox emission on every block (kill-switch). |
 | `SECONDLAYER_ALLOW_PRIVATE_EGRESS` | `false` | Allow the emitter to deliver to private IP ranges (localhost, 10/8, 172.16/12, 192.168/16, link-local, v6 mapped). Leave off in production. |
 | `SECONDLAYER_SECRETS_KEY` | — | 32-byte hex key for the AES-GCM envelope around webhook signing secrets. OSS mode auto-generates + persists to `.env.local`. |
 | `SUBGRAPH_REINDEX_BATCH_SIZE` | adaptive | Override the default historical block batch size used by reindex/backfill. |

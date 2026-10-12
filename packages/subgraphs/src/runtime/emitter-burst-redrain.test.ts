@@ -79,8 +79,7 @@ describe("emitter re-drains a burst instead of stranding rows that land mid-disp
 			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `burst-redrain-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: `http://localhost:${server.port}`,
 				timeoutMs: 5_000,
 				concurrency: CONCURRENCY,
@@ -89,12 +88,10 @@ describe("emitter re-drains a burst instead of stranding rows that land mid-disp
 
 			const row = (i: number) => ({
 				webhook_id: webhook.id,
-				subgraph_name: "bitcoin",
-				table_name: "transfers",
 				block_height: 1,
 				tx_id: `0xburst${i}`,
 				row_pk: { blockHeight: 1, txId: `0xburst${i}`, rowIndex: i },
-				event_type: "bitcoin.transfers.created" as const,
+				event_type: "chain.stx_transfer.apply" as const,
 				payload: { sender: "SP1", recipient: "SP2", amount: String(i) },
 				dedup_key: `test-burst-redrain-${i}-${randomUUID().slice(0, 8)}`,
 			});

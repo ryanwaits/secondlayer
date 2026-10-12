@@ -78,8 +78,7 @@ describe("stopEmitter waits for in-flight work before resolving", () => {
 			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `clean-stop-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: `http://localhost:${server.port}`,
 				timeoutMs: 5_000,
 				concurrency: 1,
@@ -90,12 +89,10 @@ describe("stopEmitter waits for in-flight work before resolving", () => {
 				.insertInto("webhook_outbox")
 				.values({
 					webhook_id: webhook.id,
-					subgraph_name: "bitcoin",
-					table_name: "transfers",
 					block_height: 1,
 					tx_id: "0xcleanstop",
 					row_pk: { blockHeight: 1, txId: "0xcleanstop", rowIndex: 0 },
-					event_type: "bitcoin.transfers.created" as const,
+					event_type: "chain.stx_transfer.apply" as const,
 					payload: { sender: "SP1", recipient: "SP2", amount: "1" },
 					dedup_key: `test-clean-stop-${randomUUID().slice(0, 8)}`,
 				})
@@ -167,8 +164,7 @@ describe("stopEmitter waits for in-flight work before resolving", () => {
 			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `clean-stop-hang-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: `http://localhost:${server.port}`,
 				// Longer than STOP_DEADLINE_MS so the webhook's own HTTP timeout
 				// never fires first — the assertion below is about stopEmitter's
@@ -182,12 +178,10 @@ describe("stopEmitter waits for in-flight work before resolving", () => {
 				.insertInto("webhook_outbox")
 				.values({
 					webhook_id: webhook.id,
-					subgraph_name: "bitcoin",
-					table_name: "transfers",
 					block_height: 1,
 					tx_id: "0xcleanstophang",
 					row_pk: { blockHeight: 1, txId: "0xcleanstophang", rowIndex: 0 },
-					event_type: "bitcoin.transfers.created" as const,
+					event_type: "chain.stx_transfer.apply" as const,
 					payload: { sender: "SP1", recipient: "SP2", amount: "1" },
 					dedup_key: `test-clean-stop-hang-${randomUUID().slice(0, 8)}`,
 				})

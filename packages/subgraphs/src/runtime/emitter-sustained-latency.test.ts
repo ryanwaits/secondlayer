@@ -67,8 +67,7 @@ describe("emitter under a sustained stream well within its own dispatch capacity
 			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `sustained-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: `http://localhost:${server.port}`,
 				timeoutMs: 5_000,
 				concurrency: CONCURRENCY,
@@ -83,12 +82,10 @@ describe("emitter under a sustained stream well within its own dispatch capacity
 					insertedAt.set(txId, Date.now());
 					return {
 						webhook_id: webhook.id,
-						subgraph_name: "bitcoin",
-						table_name: "transfers",
 						block_height: tick,
 						tx_id: txId,
 						row_pk: { blockHeight: tick, txId, rowIndex: i },
-						event_type: "bitcoin.transfers.created" as const,
+						event_type: "chain.stx_transfer.apply" as const,
 						payload: { sender: "SP1", recipient: "SP2", txId },
 						dedup_key: `test-sustained-${tick}-${i}-${randomUUID().slice(0, 6)}`,
 					};

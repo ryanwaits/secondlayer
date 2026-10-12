@@ -491,9 +491,7 @@ export class SubgraphContext {
 	 * Execute all batched writes in a single transaction.
 	 * Auto-populates _block_height, _tx_id, _created_at on inserts.
 	 *
-	 * Returns a {@link FlushManifest} describing every write so downstream
-	 * consumers (webhook emitter) can fan out outbox rows atomically
-	 * with the flush itself.
+	 * Returns a {@link FlushManifest} describing every write.
 	 */
 	async flush(): Promise<FlushManifest> {
 		if (this.ops.length === 0) return { count: 0, writes: [] };

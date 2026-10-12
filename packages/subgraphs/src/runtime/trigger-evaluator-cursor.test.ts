@@ -305,7 +305,6 @@ describe("chain evaluator vs. a block the source does not return", () => {
 		const { webhook } = await createWebhook(db, {
 			accountId: randomUUID(),
 			name: `${NAME_PREFIX}${randomUUID()}`,
-			kind: "chain",
 			triggers: [{ type: "stx_transfer" }],
 			url: "https://webhook.site/missing-block",
 		});

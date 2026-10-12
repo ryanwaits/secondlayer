@@ -6,16 +6,14 @@ import type { WebhookOutbox } from "@secondlayer/shared/db";
  * https://standardwebhooks.com
  *
  * Body shape: `{ type, timestamp, data }`
- *   - `type` — `<subgraph>.<table>.<verb>` where verb is `created`, `updated`,
- *     or `deleted`, mapped from the flush op so a receiver sees the full row
- *     lifecycle, not just the initial insert.
+ *   - `type` — the outbox `event_type`, e.g. `chain.stx_transfer.apply`.
  *   - `timestamp` — ISO 8601 at DISPATCH time (not row creation). Receivers
  *     verify `webhook-timestamp` against a tolerance window (default 300s per
  *     Svix); stamping at creation would fail verification on every retry
  *     beyond the first, since retries fire up to 72h after the row was
  *     written. The `webhook-id` header stays stable across retries for
  *     receiver dedup.
- *   - `data` — row payload (bigints already stringified by flush manifest).
+ *   - `data` — the event payload.
  *
  * Headers: the three standardwebhooks.com headers + Content-Type.
  */

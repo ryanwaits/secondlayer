@@ -176,8 +176,6 @@ export async function handleChainReorg(
 				rows.push({
 					webhook_id: webhookId,
 					kind: "chain",
-					subgraph_name: null,
-					table_name: null,
 					block_height: forkHeight,
 					tx_id: null,
 					row_pk: { fork_point_height: forkHeight },

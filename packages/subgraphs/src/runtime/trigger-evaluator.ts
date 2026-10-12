@@ -313,8 +313,6 @@ function applyRow(
 	return {
 		webhook_id: meta.webhookId,
 		kind: "chain",
-		subgraph_name: null,
-		table_name: null,
 		block_height: blockHeight,
 		tx_id: txId,
 		row_pk:
@@ -762,8 +760,6 @@ function settlementApplyRow(
 	return {
 		webhook_id: webhookId,
 		kind: "chain",
-		subgraph_name: null,
-		table_name: null,
 		block_height: Number(row.stacks_block_height),
 		tx_id: row.tx_id,
 		row_pk: { sweep_txid: row.sweep_txid },

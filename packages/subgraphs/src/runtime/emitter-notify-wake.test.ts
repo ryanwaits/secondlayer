@@ -63,8 +63,7 @@ describe("emitter NOTIFY wake (not the safety poll)", () => {
 			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `notify-wake-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: `http://localhost:${server.port}`,
 				timeoutMs: 5_000,
 			});
@@ -75,12 +74,10 @@ describe("emitter NOTIFY wake (not the safety poll)", () => {
 				.insertInto("webhook_outbox")
 				.values({
 					webhook_id: webhook.id,
-					subgraph_name: "bitcoin",
-					table_name: "transfers",
 					block_height: 1,
 					tx_id: "0xnotifywake",
 					row_pk: { blockHeight: 1, txId: "0xnotifywake", rowIndex: 0 },
-					event_type: "bitcoin.transfers.created",
+					event_type: "chain.stx_transfer.apply",
 					payload: { sender: "SP1", recipient: "SP2", amount: "1" },
 					dedup_key: `test-notify-wake-${randomUUID().slice(0, 12)}`,
 				})

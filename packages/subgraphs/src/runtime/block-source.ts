@@ -32,7 +32,7 @@ import type { StateWriteRow } from "./state-writes.ts";
  * Where the subgraph runtime reads canonical chain data. Today it taps the
  * indexer Postgres directly (`PostgresBlockSource`); the re-point adds a
  * `PublicApiBlockSource` that consumes the Streams clock + Index data over
- * HTTP. `matchSources` / handlers / flush / outbox are unchanged — only the
+ * HTTP. `matchSources` / handlers / flush are unchanged — only the
  * loader + tip swap behind this seam.
  */
 export interface BlockSource {

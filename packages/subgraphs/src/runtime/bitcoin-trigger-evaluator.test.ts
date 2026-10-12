@@ -67,7 +67,6 @@ async function makeSub(triggers: ChainTrigger[]): Promise<string> {
 	const { webhook } = await createWebhook(db, {
 		accountId,
 		name: `${NAME_PREFIX}${randomUUID()}`,
-		kind: "chain",
 		triggers,
 		url: "https://webhook.site/runes",
 	});

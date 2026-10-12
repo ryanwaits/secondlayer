@@ -50,8 +50,7 @@ describe("failure modes", () => {
 			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `killmid-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: `http://127.0.0.1:${server.port}`,
 				timeoutMs: 2_000,
 			});
@@ -59,12 +58,10 @@ describe("failure modes", () => {
 			const total = 5;
 			const rows = Array.from({ length: total }, (_, i) => ({
 				webhook_id: webhook.id,
-				subgraph_name: "bitcoin",
-				table_name: "transfers",
 				block_height: 100 + i,
 				tx_id: `0x${i}`,
 				row_pk: { blockHeight: 100 + i, txId: `0x${i}`, rowIndex: 0 },
-				event_type: "bitcoin.transfers.created",
+				event_type: "chain.stx_transfer.apply",
 				payload: { i },
 				dedup_key: `killmid-${randomUUID()}`,
 			}));
@@ -105,8 +102,7 @@ describe("failure modes", () => {
 		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `rollback-${randomUUID().slice(0, 8)}`,
-			subgraphName: "bitcoin",
-			tableName: "transfers",
+			triggers: [{ type: "stx_transfer" }],
 			url: "http://127.0.0.1:1",
 			timeoutMs: 1_000,
 		});
@@ -118,8 +114,6 @@ describe("failure modes", () => {
 					.insertInto("webhook_outbox")
 					.values({
 						webhook_id: webhook.id,
-						subgraph_name: "bitcoin",
-						table_name: "transfers",
 						block_height: 999_999,
 						tx_id: "0xrollback",
 						row_pk: {
@@ -127,7 +121,7 @@ describe("failure modes", () => {
 							txId: "0xrollback",
 							rowIndex: 0,
 						},
-						event_type: "bitcoin.transfers.created",
+						event_type: "chain.stx_transfer.apply",
 						payload: { x: 1 },
 						dedup_key: `rollback-${randomUUID()}`,
 					})

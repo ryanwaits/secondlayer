@@ -60,7 +60,6 @@ describe("replayChainWebhook sBTC coverage", () => {
 	it("emits sBTC lifecycle webhooks over a replayed block range", async () => {
 		const { webhook } = await createWebhook(db, {
 			accountId,
-			kind: "chain",
 			name: `replay-sbtc-${randomUUID().slice(0, 8)}`,
 			url: "https://webhook.site/xxx",
 			triggers: [{ type: "sbtc_withdrawal_accept" }],

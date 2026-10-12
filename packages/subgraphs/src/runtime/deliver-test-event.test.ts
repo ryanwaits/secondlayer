@@ -42,10 +42,8 @@ describe("deliverTestEvent", () => {
 		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `test-${randomUUID().slice(0, 8)}`,
-			subgraphName: "bitcoin",
-			tableName: "transfers",
+			triggers: [{ type: "stx_transfer" }],
 			url: "http://127.0.0.1:9/hook",
-			filter: {},
 		});
 		webhookIds.push(webhook.id);
 
@@ -77,10 +75,8 @@ describe("deliverTestEvent", () => {
 			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `dual-${randomUUID().slice(0, 8)}`,
-				subgraphName: "bitcoin",
-				tableName: "transfers",
+				triggers: [{ type: "stx_transfer" }],
 				url: `http://127.0.0.1:${server.port}/hook`,
-				filter: {},
 			});
 			webhookIds.push(webhook.id);
 			const result = await deliverTestEvent(db, webhook);
