@@ -1,13 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { createHash } from "node:crypto";
-import {
-	existsSync,
-	mkdtempSync,
-	readdirSync,
-	rmSync,
-	statSync,
-} from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import type { StreamsDumpFile } from "@secondlayer/sdk";
