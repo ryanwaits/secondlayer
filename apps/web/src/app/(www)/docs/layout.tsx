@@ -1,5 +1,8 @@
 import { DocsTopNav } from "@/components/docs-top-nav";
+import { GITHUB_URL } from "@/components/github-nav-link";
+import { Logo } from "@/components/logo";
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { DocsModeProvider } from "./docs-mode";
 import { DocsSidebar } from "./docs-sidebar";
@@ -44,6 +47,19 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
 				</main>
 				<DocsToc />
 			</div>
+			<footer className="docs-foot">
+				<div className="docs-foot-in">
+					<Logo size={18} />
+					<span>secondlayer docs</span>
+					<Link href="/docs/changelog">Changelog</Link>
+					<a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
+						GitHub
+					</a>
+					<span className="docs-foot-tag">
+						Instant data for apps on Bitcoin.
+					</span>
+				</div>
+			</footer>
 		</DocsModeProvider>
 	);
 }

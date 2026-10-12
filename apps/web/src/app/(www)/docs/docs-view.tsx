@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { AgentView } from "./agent-view";
@@ -7,8 +8,16 @@ import { useDocsMode } from "./docs-mode";
 import { docsNavPages } from "./nav";
 
 function lookup(pathname: string) {
-	const page = docsNavPages().find((p) => p.href === pathname);
-	return page ? { group: page.group, title: page.title } : null;
+	const pages = docsNavPages();
+	const at = pages.findIndex((p) => p.href === pathname);
+	if (at < 0) return null;
+	const page = pages[at];
+	return {
+		group: page.group,
+		title: page.title,
+		prev: pages[at - 1],
+		next: pages[at + 1],
+	};
 }
 
 function CopyPageButton() {
@@ -25,19 +34,6 @@ function CopyPageButton() {
 				setTimeout(() => setCopied(false), 1500);
 			}}
 		>
-			<svg
-				width="11"
-				height="11"
-				viewBox="0 0 16 16"
-				fill="none"
-				stroke="currentColor"
-				strokeWidth="1.5"
-				strokeLinecap="round"
-				aria-hidden="true"
-			>
-				<rect x="5" y="5" width="9" height="9" rx="1.5" />
-				<path d="M5 11H3.5A1.5 1.5 0 0 1 2 9.5V3.5A1.5 1.5 0 0 1 3.5 2h6A1.5 1.5 0 0 1 11 3.5V5" />
-			</svg>
 			{copied ? "Copied" : "Copy page"}
 		</button>
 	);
@@ -62,14 +58,36 @@ export function DocsView({ children }: { children: ReactNode }) {
 		<>
 			<div className="docs-topline">
 				{info && (
-					<span className="docs-crumb">
-						{info.group} <span className="sep">/</span> {info.title}
-					</span>
+					<nav className="docs-crumb" aria-label="Breadcrumb">
+						<Link href="/docs">Docs</Link>
+						<span className="sep">/</span>
+						<span>{info.group}</span>
+						<span className="sep">/</span>
+						<span aria-current="page">{info.title}</span>
+					</nav>
 				)}
 				<CopyPageButton />
 			</div>
 			<article className="docs-article" id="docs-article">
 				{children}
+				{info && (info.prev || info.next) ? (
+					<nav className="docs-pn" aria-label="Previous and next">
+						{info.prev ? (
+							<Link href={info.prev.href} rel="prev">
+								<span>← Previous</span>
+								<b>{info.prev.title}</b>
+							</Link>
+						) : (
+							<span />
+						)}
+						{info.next ? (
+							<Link href={info.next.href} rel="next">
+								<span>Next →</span>
+								<b>{info.next.title}</b>
+							</Link>
+						) : null}
+					</nav>
+				) : null}
 			</article>
 		</>
 	);
