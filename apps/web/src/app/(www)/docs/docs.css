@@ -11,12 +11,17 @@
 	background: var(--paper);
 	border-bottom: 1px solid var(--line);
 }
+/* Same 1360px frame as .docs-shell, inset 28px so the logo lines up with the
+   sidebar's text column (20px nav padding + 8px item padding); the right edge
+   mirrors it. */
 .docs-top-in {
 	height: 56px;
 	display: flex;
 	align-items: center;
 	gap: 18px;
-	padding-inline: 20px;
+	max-width: 1360px;
+	margin-inline: auto;
+	padding-inline: 28px;
 }
 .docs-mark {
 	display: inline-flex;
@@ -26,13 +31,6 @@
 	font-weight: 500;
 	letter-spacing: -0.02em;
 	color: var(--ink);
-}
-.docs-mark-tag {
-	font: 12px var(--font-mono-stack);
-	color: var(--sub);
-	padding: 2px 6px;
-	border: 1px solid var(--line);
-	border-radius: 4px;
 }
 .docs-search {
 	flex: 1;
@@ -197,7 +195,6 @@
 		padding-inline: 12px;
 		gap: 10px;
 	}
-	.docs-mark-tag,
 	.docs-mark-name,
 	.docs-search kbd {
 		display: none;

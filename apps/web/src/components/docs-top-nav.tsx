@@ -73,7 +73,7 @@ function ProductsMenu() {
 }
 
 /**
- * Docs top bar: brand + "docs" tag, the ⌘K search trigger (the command palette
+ * Docs top bar: brand, the ⌘K search trigger (the command palette
  * listens for clicks on `.dash-cmdk`), the Human/Agent switch, site links and
  * session chrome. Sign in never flashes for a session that is already in.
  */
@@ -103,7 +103,6 @@ export function DocsTopNav() {
 				<Link href="/" className="docs-mark" aria-label="secondlayer home">
 					<Logo size={22} />
 					<span className="docs-mark-name">secondlayer</span>
-					<span className="docs-mark-tag">docs</span>
 				</Link>
 				<button
 					type="button"
