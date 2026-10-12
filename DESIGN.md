@@ -1,78 +1,74 @@
 ---
 name: Secondlayer
-description: Self-hosted Stacks data platform — Grok Build-school shell on the house type stack (Sora + Public Sans + Fira Code); one alpha-ramp ink, one accent, terminal as the product stage.
+description: Instant data for apps on Bitcoin. Geist + Geist Mono, "Primaries" color roles (blue acts, yellow marks, red fails), neutrals everywhere else, the terminal as the product stage.
 register: brand
 colors:
-  paper: "#ffffff"
-  card: "#f8f6f2"
-  ink: "#0a0a0a"
-  ink-hover: "#1f2228"
-  ink-demoted: "#7d8187"
-  fog: "#7d8288"
-  pewter: "#aab0ba"
-  dove: "#d5d9e2"
-  accent: "#ff5c0a"
-  accent-hover: "#ffc285"
-  terminal-bg: "#151515"
-  terminal-raise: "#202020"
-  terminal-fg: "#d7d1c9"
-  terminal-muted: "#8d867e"
-  terminal-bright: "#f2ede5"
-  terminal-teal: "#29c6be"
-  error: "#ef4444"
-  success: "#22c55e"
-  warning: "#eab308"
+  light:
+    paper: "#ffffff"
+    ink: "#111111"
+    sub: "#5e5e5e"
+    line: "#e5e5e2"
+    soft: "#f5f5f2"
+    pri: "#1f45e0"
+    on-pri: "#ffffff"
+    hi: "#ffcc00"
+    on-hi: "#111111"
+    ok: "#128a43"
+    alarm: "#e3301e"
+  dark:
+    paper: "#0d0d0d"
+    ink: "#ededea"
+    sub: "#9a9a96"
+    line: "#262626"
+    soft: "#161616"
+    pri: "#3a5bff"
+    on-pri: "#ffffff"
+    hi: "#ffd21f"
+    on-hi: "#0d0d0d"
+    ok: "#3ccb7f"
+    alarm: "#ff5a47"
+  terminal:
+    ground-light-mode: "#121316"
+    ground-dark-mode: "#161719"
+    line-light-mode: "#24262b"
+    line-dark-mode: "#2a2c31"
+    fg: "#d9dbe0"
+    muted: "#8b9099"
+    ok: "#3ccb7f"
+    accent: "#ffd21f"
 typography:
   display:
-    fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
     fontSize: "clamp(2.25rem, 6vw, 3.75rem)"
     fontWeight: 500
     lineHeight: 1.0
     letterSpacing: "-0.025em"
   headline:
-    fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
     fontSize: "clamp(1.875rem, 4vw, 3rem)"
-    fontWeight: 400
+    fontWeight: 500
     lineHeight: 1.0
     letterSpacing: "-0.025em"
-  section:
-    fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "1.875rem"
-    fontWeight: 400
-    lineHeight: 1.2
-    letterSpacing: "-0.025em"
-  subhead:
-    fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "1.125rem"
-    fontWeight: 400
-    lineHeight: 1.625
-    letterSpacing: "0"
   body:
-    fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: "0"
-  list:
-    fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "0.875rem"
-    fontWeight: 400
-    lineHeight: 1.625
-    letterSpacing: "0"
   caption:
-    fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.75rem"
     fontWeight: 400
     lineHeight: 1.33
     letterSpacing: "0"
   mono:
-    fontFamily: "Fira Code, SFMono-Regular, Consolas, monospace"
+    fontFamily: "Geist Mono, ui-monospace, SFMono-Regular, Menlo, monospace"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.43
     letterSpacing: "0"
   terminal:
-    fontFamily: "Fira Code, SFMono-Regular, Consolas, monospace"
+    fontFamily: "Geist Mono, ui-monospace, SFMono-Regular, Menlo, monospace"
     fontSize: "0.75rem"
     fontWeight: 400
     lineHeight: 1.625
@@ -80,7 +76,6 @@ typography:
 rounded:
   sm: "4px"
   md: "8px"
-  xl: "12px"
   full: "999px"
 spacing:
   xxs: "0.5rem"
@@ -93,175 +88,121 @@ spacing:
   block: "50vh"
 components:
   button-solid:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.paper}"
+    backgroundColor: "{colors.light.pri}"
+    textColor: "{colors.light.on-pri}"
     rounded: "{rounded.full}"
     padding: "0 22px"
     height: "44px"
   button-outline:
     backgroundColor: "transparent"
-    textColor: "{colors.ink}"
-    border: "1px solid rgba(10,10,10,0.1)"
+    textColor: "{colors.light.ink}"
+    border: "1px solid {colors.light.line}"
     rounded: "{rounded.full}"
     padding: "0 22px"
     height: "44px"
-  announce-pill:
-    backgroundColor: "transparent"
-    border: "1px solid rgba(10,10,10,0.08)"
-    rounded: "{rounded.full}"
-    padding: "6px 6px 6px 10px"
   command-pill:
     backgroundColor: "transparent"
-    border: "1px solid rgba(10,10,10,0.1)"
-    rounded: "{rounded.xl}"
+    border: "1px solid {colors.light.line}"
+    rounded: "{rounded.md}"
     padding: "12px 16px"
   terminal-window:
-    backgroundColor: "{colors.terminal-bg}"
-    border: "1px solid rgba(255,255,255,0.08)"
-    rounded: "{rounded.xl}"
-  terminal-inner:
-    backgroundColor: "{colors.terminal-raise}"
-    border: "1px solid rgba(255,255,255,0.08)"
-    rounded: "{rounded.sm}"
-    padding: "8px 16px"
+    backgroundColor: "{colors.terminal.ground-light-mode}"
+    border: "1px solid {colors.terminal.line-light-mode}"
+    rounded: "{rounded.md}"
 ---
 
 # Design System: Secondlayer
 
-## 0. Token names ≠ CSS variable names
+## 0. Token names and CSS variable names
 
-The `colors:` block above is the brand palette. **Most of those names do not exist
-as CSS custom properties.** `globals.css` was written with its own vocabulary, so
-`var(--pewter)` resolves to nothing, silently voiding the whole declaration with
-no error in the console. Writing CSS from this document without checking has cost
-real time more than once.
+The `colors:` block above is the brand palette. `globals.css` exposes the same roles
+as custom properties and keeps its older names as aliases, so existing docs, account and
+writing markup restyles without edits. Grep `apps/web/src/app/globals.css` for the real
+name before writing CSS; an unknown `var(--x)` silently voids the whole declaration.
 
-Map before you write. Grep `apps/web/src/app/globals.css` for the real name.
-
-| This doc | Actual CSS variable | Note |
+| This doc | CSS variable | Legacy aliases |
 | --- | --- | --- |
-| `paper` | `--bg`, `--bg-elevated` | |
-| `card` | `--bg-chrome`, `--term-raise` | |
-| `ink` | `--text-main`, `--text-prose` | |
-| `ink-hover` | `--term-fg` (light theme) | |
-| `ink-demoted` | `--ink-demoted` | matches |
-| `pewter` | `--ink-demoted` **in dark theme** | same variable as `ink-demoted`, different theme |
-| `accent` | `--accent` | matches |
-| `accent-hover` | `--accent-hover` | matches |
-| `terminal-*` | `--term-*` | the `--term-*` set **in dark theme**; in light, `--term-bg` is `#ffffff` |
-| `error` / `success` / `warning` | `--red` / `--green` / `--yellow` | |
-| `fog`, `dove` | **no variable exists** | use the hex as a literal, and say why in a comment |
+| `paper` | `--paper` | `--bg`, `--bg-elevated` |
+| `soft` | `--soft` | `--bg-chrome`, `--bg-tab-active` |
+| `ink` | `--ink` | `--text-main`, `--text-prose` |
+| `sub` | `--sub` | `--text-muted` (alpha ramp) |
+| `line` | `--line` | `--border` |
+| `pri` / `on-pri` | `--pri` / `--on-pri` | `--accent`, `--accent-contrast`, `--blue`, `--teal` |
+| `hi` / `on-hi` | `--hi` / `--on-hi` | none; yellow fills only |
+| `ok` / `alarm` | `--ok` / `--alarm` | `--green` / `--red` |
+| `terminal.*` | `--term`, `--term-line`, `--term-fg`, `--term-mute`, `--term-ok`, `--term-acc` | `--term-bg`, `--term-border`, `--term-muted` |
 
-Two of these are outright traps: `pewter` and `ink-demoted` are the *same*
-variable in different themes, and the `terminal-*` palette describes how
-`--term-*` renders in **dark** — a light-theme editor surface is white, not
-`#151515`.
+`--yellow` is a readable status TEXT color (`#a37800` light, `#ffd21f` dark). Yellow
+FILLS use `--hi`. New work reads the role tokens, never literals.
 
 ## 1. Overview
 
-**Creative North Star: "The Quiet Install Page"**
+**Creative North Star: "Instant data for apps on Bitcoin."**
 
-Secondlayer's brand surface follows the Grok Build school (x.ai/build, studied 2026-08-14): a
-near-silent white page, the house type doing all the talking at restrained weights, and the
-product itself — a dark terminal — as the only image on the page. The page whispers; the
-terminal demonstrates. Nothing decorates.
-
-This replaces the previous "Field Notebook" editorial surface (hairline-rule chunking, Caveat
-hand-annotations). **The type stack is retained** — Sora display, Public Sans body, Fira Code
-mono — dressed in the new shell. The hand-annotation layer is **retired** (Caveat stays
-installed, opt-in only, never default). Reference captures of the
-source shell (stills + scroll-animation frame video) live in `design/reference/xai-build/`.
-The reference mockup implementing this system end-to-end is the "Beside Your Node" artifact.
+One brand, one system. A near-silent page in ink on paper, one family of type, three
+color roles that each mean exactly one thing, and the product itself, a dark terminal,
+as the only imagery. The page whispers; the terminal demonstrates. Nothing decorates.
 
 **Key characteristics:**
-- House pairing, restrained weights: Sora (display, 400/500) over Public Sans (body, 400/500),
-  Fira Code for data. Hierarchy is size + one weight step + alpha demotion, never 600+.
-- Ink is an alpha ramp, not a gray ramp. Muted text is `ink` at 50/45/40/25% alpha, so it stays
-  optically tinted by whatever sits behind it.
-- Hairlines are alpha too: `ink/8` and `ink/10` on light, `white/8` on dark.
-- The terminal is the imagery. No illustrations, no screenshots-in-browser-frames, no photos.
-  The dark TUI window carries every feature demonstration.
+- Geist for everything proportional, Geist Mono for data and the terminal. Weights 400 and
+  500 only. Hierarchy is size, one weight step, and tracking.
+- Radii are 4 / 8 / 999px. Nothing else.
+- No gradients, bevels, glows, or dot-grids. Flat SVG assets and the terminal are the only
+  imagery.
+- One dark terminal ground in both modes. The page changes theme; the terminal does not.
 - Motion is one idea: scroll-position opacity. Everything else is instant.
 
 ## 2. Colors
 
-Extracted verbatim from the source's `:root` (HSL triplets) and re-tokened for Secondlayer.
+### Roles
+| Role | Light | Dark | Means |
+|---|---|---|---|
+| paper | `#ffffff` | `#0d0d0d` | the page |
+| ink | `#111111` | `#ededea` | text, solid structure |
+| sub | `#5e5e5e` | `#9a9a96` | muted text |
+| line | `#e5e5e2` | `#262626` | hairlines |
+| soft | `#f5f5f2` | `#161616` | raised surface |
+| pri / on-pri | `#1f45e0` / `#ffffff` | `#3a5bff` / `#ffffff` | action: links, primary buttons, focus |
+| hi / on-hi | `#ffcc00` / `#111111` | `#ffd21f` / `#0d0d0d` | highlight: new, finalized, signed |
+| ok | `#128a43` | `#3ccb7f` | success state |
+| alarm | `#e3301e` | `#ff5a47` | failures and reorgs only |
 
-### Ground
-- **Paper** `#ffffff` (`0 0% 100%`): the page. Pure white, deliberately — the terminal supplies
-  all the darkness the page needs.
-- **Card / Ivory** `#f8f6f2` (`40 18% 97%`): the only raised-surface tint, warm not cool.
-- **Ink / Jet** `#0a0a0a` (`0 0% 4%`): all primary text and solid buttons. Hover state is
-  **Umbra** `#1f2228` (`221 12% 14%`).
-
-### The alpha ramp (signature)
-Muted text is never a picked gray. It is `ink` at fixed alphas:
-- `ink/50` — subheads
-- `ink/45` — checklists, feature pitches
-- `ink/40` — captions, `$` prompts, placeholder
-- `ink/25` — ghost chrome (theme toggle, "built with" pill)
-
-### Structural neutrals (borders, scrollbars, dark-mode ramp)
-`dove #d5d9e2` (222 19% 86%) · `pewter #aab0ba` (213 12% 70%) · `fog #7d8288` (216 4% 51%) ·
-`steel` (216 4% 22%) · `evenfall` (214 16% 28%) · `midnight` (214 58% 9%). Borders on light
-surfaces prefer `ink/8`–`ink/10` alpha over `dove`; `dove` is for scrollbar thumbs and inputs.
-
-### Accent
-- **Sunset** `#ff5c0a` (`22 100% 51.6%`), hover **Dawn** `#ffc285` (`37 100% 76%`): the single
-  chromatic voice — the NEW chip outline and the rare inline highlight (never the logo,
-  which stays neutral ink).
-  Footprint ≤5% of any screen. This replaces Signal Blue as the brand accent. If a future
-  re-brand swaps the accent hue, only this slot moves; everything else is ink-on-paper.
-
-### Terminal palette (dark, warm-tinted — never reused on the light page)
-- Window `#151515`, inner raised surfaces `#202020`, borders `rgba(255,255,255,0.08)`.
-- Text ramp: base `#d7d1c9` (warm off-white), muted `#8d867e`, bright `#f2ede5`.
-- One accent inside the terminal: teal `#29c6be` (prompt arrows, links). Semantic greens/reds
-  only as state.
-- Traffic dots, exact: red `#ff5f57`, yellow `#febc2e`, green `#28c840`, 9px circles.
-
-### Semantic (states only)
-success `#22c55e` · warning `#eab308` · error `#ef4444`. Paired with 8%-alpha backgrounds;
-never decorative.
+### Terminal (dark in both modes)
+Ground `#121316` (light mode) / `#161719` (dark mode); line `#24262b` / `#2a2c31`; text
+`#d9dbe0`; muted `#8b9099`; ok `#3ccb7f`; accent `#ffd21f`. Code uses the same palette
+through the Shiki theme: keywords and punctuation muted, identifiers plain, strings and
+numbers in the highlight yellow. No blue or red in code.
 
 ### Named rules
-**The One-Accent Rule.** Sunset appears in at most one place per viewport. The logo is
-neutral ink and does not spend the accent. Two orange things = zero signals.
-**The Alpha-Muted Rule.** Do not invent grays for secondary text; use the ink alphas above.
-**The Warm-Terminal Rule.** Terminal text is the warm ramp (`#d7d1c9` family), never pure white
-or cool gray. This warmth is what keeps the dark window from reading generic.
+**Blue acts.** Blue never decorates data. It marks what you can click or do.
+**Yellow marks.** Yellow never signals status. It marks new, finalized, signed.
+**Red fails.** Red appears only for failures and reorgs.
+**Neutrals carry the rest.** If it is not an action, a mark, or a failure, it is ink, sub,
+line, or soft. Muted text uses the `sub` role or the ink alpha ramp, never an invented gray.
 
 ## 3. Typography
 
-**Display:** Sora — retained house display face, worn lighter than before: 500 for the hero,
-400 for every other heading (the old 520–560 weights are retired).
-**Body:** Public Sans — 400/500 only.
-**Mono:** Fira Code — retained for commands, data, and the terminal stage.
-**Caveat:** installed but opt-in annotation-only; never on default surfaces.
-The source's proprietary faces (`universalSans`/`universalSansDisplay`, Geist Mono) inform
-sizing, tracking, and weight discipline only — the faces themselves stay ours.
+**Sans:** Geist, 400/500 only. **Mono:** Geist Mono, 400/500, `tabular-nums` for values.
+**Caveat:** installed for opt-in rough-notation only (writing); never on default surfaces.
+Headings and body are one family; headings differ by weight 500 and tracking.
 
-### Scale (extracted @1440)
-- **Hero display** — Sora 60px / 1.0, letter-spacing −0.025em (−1.5px @60). Two lines max, both ink. Line 1 weight 500; line 2 weight 400 (same face, never a second gray).
-  `text-wrap: balance`. Mobile floor 36px.
-- **Closing headline** — 48px / 1.0, weight **400**, −0.025em. One line.
-- **Section heading** — 30px / 1.2, weight **400**, −0.025em, paired with a 28px line icon at
-  `gap 12px`. (Display headings at ≤48px drop to weight 400 — the weight-500 treatment is for
-  the hero only.)
-- **Subhead** — 18px / 29.25px (1.625), `ink/50`, max-width 576px.
-- **Body** — 16px / 24px, weight 400.
-- **Checklist / feature list** — 14px / 22.75px (1.625), `ink/45`, 14px check glyph `#999`,
-  10px gap, 8px between rows.
-- **Caption** — 12px, `ink/40` (e.g. "Free to self-host" under the command pill).
-- **Mono command** — 14px / 20px Fira Code, `$` prompt at `ink/40`.
-- **Terminal body** — 12px / 19.5px (1.625); terminal inner chrome 11px / 17.875px.
+### Scale
+- **Hero display** — 60px / 1.0, 500, −0.025em. Two lines max. `text-wrap: balance`. Mobile floor 36px.
+- **Closing headline** — 48px / 1.0, 500, −0.025em. One line.
+- **Section heading** — 30px / 1.2, 500, −0.025em.
+- **Subhead** — 18px / 1.625, `sub`, max-width 576px.
+- **Body** — 16px / 24px, 400.
+- **Checklist / feature list** — 14px / 1.625, `sub`.
+- **Caption** — 12px, `sub`.
+- **Mono command** — 14px / 20px Geist Mono.
+- **Terminal body** — 12px / 1.625; inner chrome 11px.
 
 ### Named rules
-**The Two-Weight Rule.** 400 and 500 are the entire weight vocabulary on brand surfaces (Sora
-and Public Sans alike). Emphasis beyond that is size or alpha, never 600+.
+**The Two-Weight Rule.** 400 and 500 are the entire weight vocabulary. Emphasis beyond that
+is size or color role, never 600+.
 **The Tight-Display Rule.** Everything ≥30px carries −0.025em tracking. Body carries none.
-**The Mono-Is-Data Rule** (kept from v1). Values, hashes, endpoints, heights, commands: Fira
-Code with `tabular-nums`. Prose never mono; data never proportional.
+**The Mono-Is-Data Rule.** Values, hashes, endpoints, heights, commands: Geist Mono with
+`tabular-nums`. Prose never mono; data never proportional.
 
 ## 4. Shell & Layout
 
@@ -329,11 +270,11 @@ color shift, or the header retract, it does not ship on brand surfaces.
 ## 6. Components
 
 ### Logo
-The layered-parallelogram mark is **neutral ink** — like the source's own mark, it never
-carries the accent. Fill `#0a0a0a` on light, warm bright `#f2ede5` on dark, echo layer at 24%
-opacity. In app code the fill rides `var(--text-main)` (`.logo-primary` / `.logo-echo`); the
-static exports are `public/logo-light.svg` / `public/logo-dark.svg`. Wordmark beside it is
-ink, 16px/500, −0.01em.
+One mark, one component: `<Logo />` (`components/logo.tsx`), layered parallelograms, one
+geometry (`viewBox="6 9 36 24"`). The top layer is primary blue (`.logo-primary` fills
+`var(--pri)`); the back layer is ink at 24% (`.logo-echo`). Static exports: `app/icon.svg`
+(adapts to dark tabs), `public/logo-light.svg`, `public/logo-dark.svg`. Wordmark beside it
+is ink, 16px/500, −0.01em.
 
 ### Buttons
 - **Solid** (primary): ink fill, paper text, 44px, radius-full, pad `0 22px`, 15–16px/500.
@@ -356,11 +297,11 @@ No bullets, no rules: 14px check glyph `#999` + 14px/1.625 text at `ink/45`, `ga
 rows `space-y-2`. Items state facts, never invented metrics.
 
 ### Terminal window (the product stage)
-`#151515`, border `white/8`, radius 12px, self-contained:
+Ground `--term` (dark in both modes), border `--term-line`, radius 8px, self-contained:
 - Title bar: pad `8px 12px`, 9px traffic dots (exact hexes above), 12px mono path, right-aligned
   meta.
-- Body: pad 14px, Fira Code 12/19.5, warm ramp text, teal prompt `❯`.
-- Inner prompt/input rows: `#202020`, border `white/8`, radius 4px, pad `8px 16px`, 11px.
+- Body: pad 14px, Geist Mono 12/19.5, terminal fg/muted tokens, prompt `❯` in the terminal accent.
+- Inner prompt/input rows: raised terminal surface, border `--term-line`, radius 4px, pad `8px 16px`, 11px.
 - Diff/success highlight: green text on 8–14% green wash, full-bleed line.
 This is a **product depiction** (the sl CLI), not decorative chrome — it must always show
 plausible real output (real heights, real commands). Never wrap it in a fake browser frame.
@@ -373,39 +314,37 @@ instantly, close on `Esc` and outside-click, items 16px with 8px pad rows.
 Heading 16px ink 400 (not bold — column position does the work), links 16px `fog` hover ink.
 
 ### OG share cards
-1200×630, generated by `apps/web/scripts/generate-og.tsx` (`bun run og`): white paper, ink
-logo + wordmark over an `ink/10` header rule, Sora headline (both lines ink),
-Fira Code for all code/data artifacts in the ink alpha ramp, a faint sunset
-radial wash top-right. Same tokens as the site — an OG card is a page in miniature.
+1200×630, Geist, Primaries, per-page cards from `apps/web/scripts/generate-og.tsx`
+(`bun run og`). Same tokens as the site; an OG card is a page in miniature.
 
 ## 7. Registers
 
 - **Brand register** (`app/(www)`, landing, docs shells): everything above.
 - **Product register** (data tables): keeps its density and data-table DNA, adopts
   the new palette (paper/ink/alpha ramp) and the two-weight rule. Tables:
-  12px Fira Code rows, 10px caps headers at `ink/40` with 0.06em tracking, hairline `ink/8`
+  12px Geist Mono rows, 10px caps headers at `ink/40` with 0.06em tracking, hairline `ink/8`
   dividers, hover wash `ink/2`. Density never leaks into brand; whitespace never leaks into
   tables.
 
 ## 8. Do's and Don'ts
 
 ### Do
-- Set every muted text via the ink alpha ramp (50/45/40/25).
-- Use radius-full for every pill-shaped interactive; 12px for cards/terminal/command; 4px inside
+- Use the color roles for what they mean: blue acts, yellow marks, red fails.
+- Set muted text with `sub` or the ink alpha ramp.
+- Use radius-full for pill-shaped interactives; 8px for cards, terminal, command; 4px inside
   terminals.
-- Keep the terminal warm (`#d7d1c9` ramp) with a single teal accent.
-- Put real CLI output in every terminal (heights, commands, verify results). Honest copy only —
+- Keep the terminal dark in both modes with the terminal tokens.
+- Put real CLI output in every terminal (heights, commands, verify results). Honest copy only,
   no invented metrics, counts, or logos.
-- Ship the scroll-opacity mechanism exactly: 0.2 ↔ 1, 500ms, opacity only, reduced-motion safe.
-- Keep hero headlines ≤2 lines, ≤50 chars, both lines ink. Line 1 weight 500; line 2 weight 400.
+- Ship the scroll-opacity mechanism exactly: 0.2 to 1, 500ms, opacity only, reduced-motion safe.
+- Keep hero headlines at most 2 lines, 50 characters, both lines ink.
 
 ### Don't
-- **No new families.** The stack is Sora + Public Sans + Fira Code, full stop. No serif
-  display, no Caveat on default surfaces, no font additions.
-- **No hand-annotation layer.** Marker Pink, rough-notation circles, cursive notes: retired.
-- **No crypto/web3 neon**, no gradient text, no glassmorphism (the 12px header blur is the one
-  sanctioned blur), no card grids of identical feature tiles, no hero-metric blocks.
-- **No solid-gray muted text** where an ink alpha should be; no cool grays inside the terminal.
+- **No new families.** Geist + Geist Mono, full stop. Caveat only for opt-in notation.
+- **Blue never decorates data. Yellow never signals status. Red only for failures and reorgs.**
+- **No gradients, bevels, glows, dot-grids**, no gradient text, no glassmorphism (the 12px
+  header blur is the one sanctioned blur), no card grids of identical feature tiles, no
+  hero-metric blocks.
 - **No motion beyond the mechanism** — no fade-up-on-scroll for every element, no parallax, no
   bouncy hovers, no `transition: all`.
 - **No borders heavier than 1px**; no shadows on static surfaces (terminal and dropdowns may
@@ -413,13 +352,10 @@ radial wash top-right. Same tokens as the site — an OG card is a page in minia
 
 ## 9. Provenance
 
-Extracted live from https://x.ai/build on 2026-08-14 via agent-browser (computed styles +
-stylesheet tokens), supplemented by 4 user-supplied captures. Source fonts are proprietary
-(`universalSans`, `universalSansDisplay`, Geist Mono); the house stack (Sora + Public Sans +
-Fira Code) is retained by decision — the extraction contributes sizing, tracking, weight
-discipline, spacing, color, and motion only. Structural
-facts (grid `1fr/1.3fr` gap 64, sticky `top: calc(50vh − 220px)`, fade `opacity .2 → 1 @ 500ms
-cubic-bezier(0.4,0,0.2,1)`, header `64px + blur 12px @ 85% paper`) are measured, not eyeballed.
-Reference captures: `design/reference/xai-build/` (hero, skills-active, transition, close,
-footer stills + assembled scroll-sequence webm). The DNA is structural; copy, content, and
-product voice remain Secondlayer's.
+Shell structure was extracted from https://x.ai/build on 2026-08-14 via agent-browser
+(sizing, tracking, weight discipline, spacing, motion). Palette, type and logo were replaced
+by the founder-locked Primaries brand on 2026-10-12; the house stack is Geist + Geist Mono.
+Structural facts (grid `1fr/1.3fr` gap 64, sticky `top: calc(50vh − 220px)`, fade
+`opacity .2 → 1 @ 500ms cubic-bezier(0.4,0,0.2,1)`, header `64px + blur 12px @ 85% paper`)
+are measured, not eyeballed. Reference captures: `design/reference/xai-build/`. The DNA is
+structural; copy, content, and product voice remain Secondlayer's.
