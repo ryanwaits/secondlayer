@@ -98,7 +98,14 @@ export function RerunHint({
 				<span className="t-a" aria-hidden="true">
 					{"❯ "}
 				</span>
-				{rerunCommand(target, below)}
+				{rerunCommand(target, below)
+					.split(" ")
+					.map((word, i) => (
+						<span key={`${i}:${word}`}>
+							{i > 0 ? " " : null}
+							<span className="bc-word">{word}</span>
+						</span>
+					))}
 			</p>
 			{below ? (
 				<p className="t-m">

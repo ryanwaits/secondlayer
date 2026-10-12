@@ -3354,3 +3354,25 @@
 .site .bc-fail {
 	color: var(--alarm);
 }
+.site .bc-out a {
+	color: inherit;
+	text-decoration: underline;
+	text-decoration-color: var(--term-line);
+	text-underline-offset: 3px;
+}
+.site .bc-out a:hover {
+	text-decoration-color: currentColor;
+}
+.site .bc-rerun {
+	margin-top: 14px;
+	padding-top: 14px;
+	border-top: 1px solid var(--term-line);
+}
+.site .bc-word {
+	white-space: nowrap;
+}
+.site .bc-out .bc-code {
+	margin-block: 4px;
+	overflow-wrap: break-word;
+	user-select: all;
+}

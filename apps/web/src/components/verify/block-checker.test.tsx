@@ -49,10 +49,11 @@ describe("linkify", () => {
 });
 
 describe("rerun hint", () => {
+	const text = (node: React.ReactElement) =>
+		renderToStaticMarkup(node).replace(/<[^>]+>/g, "");
+
 	test("at the checkpoint it shows the node command and no proofs-API note", () => {
-		const out = renderToStaticMarkup(
-			<RerunHint target={9137005} below={false} />,
-		);
+		const out = text(<RerunHint target={9137005} below={false} />);
 		expect(out).toContain(
 			"bunx @secondlayer/cli verify block 9137005 --node http://&lt;your-node&gt;:20443",
 		);
@@ -60,8 +61,8 @@ describe("rerun hint", () => {
 	});
 
 	test("below the checkpoint it drops --node and explains why", () => {
-		const out = renderToStaticMarkup(<RerunHint target={150000} below />);
-		expect(out).toContain("bunx @secondlayer/cli verify block 150000<");
+		const out = text(<RerunHint target={150000} below />);
+		expect(out).toContain("bunx @secondlayer/cli verify block 150000A node");
 		expect(out).not.toContain("--node");
 		expect(out).toContain("more than 16 blocks back");
 	});
