@@ -505,42 +505,31 @@ secondlayer subgraphs scaffold --trait sip-010 -o subgraphs/all-tokens.ts    # a
 
 Deprecated aliases (`subscriptions`, `sl.subscriptions`, `subscriptions_*`) keep working for one release cycle.
 
-Manage subgraph table webhooks (webhook deliveries). Alias: `subs`. All subcommands take the credential and endpoint from the global `--api-key` / `--api-url` flags, or from `INSTANCE_TOKEN` / `SECONDLAYER_API_URL` in the environment. These are writes, so they send the token even on loopback.
+Manage webhooks (signed POSTs on raw chain events). Alias: `subs`. All subcommands take the credential and endpoint from the global `--api-key` / `--api-url` flags, or from `INSTANCE_TOKEN` / `SECONDLAYER_API_URL` in the environment. These are writes, so they send the token even on loopback.
 
 Webhook references (`<idOrName>`) accept the webhook UUID or its name. Ambiguous names error out — use the ID.
 
-Webhooks come in two kinds: **subgraph** (fires on subgraph table rows) and **chain** (fires on raw chain events, no subgraph). `create` here only makes subgraph webhooks; all other subcommands (`list`, `get`, `update`, `pause`, `resume`, `delete`, `deliveries`, etc.) operate on both kinds.
+Webhooks fire on raw chain events only, matched by `triggers`. To react to subgraph rows, watch the table from your own Postgres or poll the subgraph API (see the Reading rows docs).
 
 ### secondlayer webhooks create
 
-Scaffold a webhook receiver for a runtime and provision the webhook via the API. **Creates subgraph webhooks only** (fires on rows written to a subgraph table — `--subgraph` + `--table`). To create a **chain webhook** (raw chain events, no subgraph — `triggers`), use the SDK (`sl.webhooks.create({ triggers: [...] })`, see `references/sdk.md`), REST (`POST /api/webhooks` with `triggers`), or MCP (`webhooks_create` with `triggers`). The CLI has no `--triggers` flag.
+Create a webhook on chain events. The same `triggers` array works from the SDK (`sl.webhooks.create({ triggers: [...] })`, see `references/sdk.md`), REST (`POST /api/webhooks`), and MCP (`webhooks_create`).
 
-Usage: `secondlayer webhooks create <name>`
+Usage: `secondlayer webhooks create <name> --url <url> (--trigger <json> | --triggers-file <path>)`
 
 | Flag | Description |
 | --- | --- |
-| `-r, --runtime <runtime>` | `inngest` \| `trigger` \| `cloudflare` \| `node`. Defaults to `node` once any of `-s/-t/-u` or `--no-scaffold` is given; prompts only in a terminal with no flags. |
-| `-s, --subgraph <name>` | Subgraph to subscribe to. Prompts if omitted (exit 1 without a TTY). |
-| `-t, --table <name>` | Table to subscribe to. Prompts if omitted (exit 1 without a TTY). |
-| `-u, --url <url>` | Webhook URL. Prompts if omitted (exit 1 without a TTY). Must be http/https. |
+| `-u, --url <url>` | Webhook URL. Required. Must be http/https. |
+| `--trigger <json...>` | Repeatable. One trigger as a JSON object, e.g. `'{"type":"sbtc_deposit"}'`. |
+| `--triggers-file <path>` | A JSON array of triggers. |
+| `--format <format>` | Delivery format. Default `standard-webhooks`. |
 | `--auth-token <token>` | Bearer token for receiver-side auth. |
-| `--filter <kv...>` | Repeatable. `key=value` with `.eq/.neq/.gt/.gte/.lt/.lte` suffixes. |
 | `--api-key <key>` | `INSTANCE_TOKEN` override. |
 | `--api-url <url>` | `SECONDLAYER_API_URL` override. |
-| `--skip-api` | Copy template only; do NOT create the webhook via API. |
-| `--no-scaffold` | Skip the local runtime template directory (webhook-only setups — provisions webhook only). |
 
-Behavior:
-1. Validates target subgraph + table + filter via API (skipped with `--skip-api`).
-2. Copies template into `./<name>/` (skipped with `--no-scaffold`).
-3. POSTs `/api/webhooks` to create the webhook with the matching `format`/`runtime`.
-4. Writes returned `SIGNING_SECRET` into `./<name>/.env` (or prints if `--no-scaffold`).
+Behavior: each trigger is validated locally, then `POST /api/webhooks` creates the webhook. The signing secret prints once.
 
-`format` is derived from `runtime`: `inngest`→`inngest`, `trigger`→`trigger`, `cloudflare`→`cloudflare`, `node`→`standard-webhooks`.
-
-Example: `secondlayer webhooks create my-sub -r node -s my-watcher -t transfers -u https://app.example/webhook`
-
-Webhook-only (no scaffold): `secondlayer webhooks create notify --no-scaffold -r node -s my-watcher -t transfers -u https://app.example/webhook`
+Example: `secondlayer webhooks create my-hook -u https://app.example/webhook --trigger '{"type":"sbtc_deposit"}'`
 
 ### secondlayer webhooks list
 
@@ -577,16 +566,11 @@ Usage: `secondlayer webhooks update <idOrName>`
 | `--url <url>` | Webhook URL. |
 | `--auth-token <token>` | Set bearer-token auth config. |
 | `--format <format>` | `standard-webhooks` \| `inngest` \| `trigger` \| `cloudflare` \| `cloudevents` \| `raw`. |
-| `--runtime <runtime>` | `inngest` \| `trigger` \| `cloudflare` \| `node` \| `none` (also accepts `null`). |
-| `--filter <kv...>` | Repeatable. `key=value` with `.eq/.neq/.gt/.gte/.lt/.lte` suffixes. |
-| `--clear-filter` | Replace filter with `{}`. Mutually exclusive with `--filter`. |
 | `--max-retries <n>` | Max delivery retries (integer ≥ 0). |
 | `--timeout-ms <n>` | Delivery timeout (ms, ≥ 100). |
 | `--concurrency <n>` | Per-webhook delivery concurrency (≥ 1). |
 | `--json` | Output as JSON. |
 | `--api-key <key>` / `--api-url <url>` | API auth overrides. |
-
-If `--filter` is set, the new filter is validated against the target subgraph table before applying.
 
 ### secondlayer webhooks pause
 
@@ -687,7 +671,7 @@ Returns `replayId`, `enqueuedCount`, `scannedCount`.
 
 ### secondlayer webhooks doctor
 
-Diagnose webhook health (delivery stats, dead rows, linked subgraph sync, hints).
+Diagnose webhook health (delivery stats, dead rows, hints).
 
 Usage: `secondlayer webhooks doctor <idOrName>`
 
@@ -944,17 +928,17 @@ Mint STX (or call a SIP-010 faucet) on the connected Clarinet network. See `seco
 
 `secondlayer devnet connect` starts the webhook emitter and configures the stack to deliver webhooks locally: it shares one secrets key across the api and subgraph-processor (so the emitter can decrypt a webhook's signing secret) and sets `SECONDLAYER_ALLOW_PRIVATE_EGRESS` (so webhooks can reach a localhost receiver). To test:
 
-1. Deploy a subgraph (`secondlayer subgraphs deploy ./subgraph.ts`), then start a local chain with `clarinet devnet start`.
+1. Start a local chain with `clarinet devnet start`.
 2. Create a webhook on the local API, pointing at a webhook receiver on your host. The emitter runs in a container, so use `host.docker.internal` instead of `localhost`:
 
 ```bash
 curl -X POST http://localhost:3800/api/webhooks \
   -H 'Authorization: Bearer dev-instance-token' \
   -H 'Content-Type: application/json' \
-  -d '{"name":"my-hook","subgraphName":"my-app","tableName":"counter_calls","url":"http://host.docker.internal:9999/hook"}'
+  -d '{"name":"my-hook","triggers":[{"type":"contract_call","contractId":"ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.counter","functionName":"count"}],"url":"http://host.docker.internal:9999/hook"}'
 ```
 
-3. Fire a contract call. The matched row is delivered to your receiver as a signed Standard-Webhooks payload; inspect attempts with `secondlayer webhooks deliveries my-hook`.
+3. Fire a contract call. The matching event is delivered to your receiver as a signed Standard-Webhooks payload; inspect attempts with `secondlayer webhooks deliveries my-hook`.
 
 ---
 

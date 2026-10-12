@@ -12,7 +12,7 @@ decoded data, deploy TypeScript subgraphs. We operate a signed canonical
 archive on R2 and a hosted API at api.secondlayer.tools for Index, Streams,
 and chain webhooks — one self-host stack per hosted account, gatewayed
 (044). Private subgraphs run there too, in the same per-account stack (no
-public catalog). Subgraph webhooks stay self-host only. Prepaid credits buy archive bootstrap/backfill and hosted reads. Same
+public catalog). Prepaid credits buy archive bootstrap/backfill and hosted reads. Same
 balance. Bitcoin Runes and
 inscriptions are next, gated on demand (see **Bitcoin**).
 
@@ -94,7 +94,7 @@ decision recorded here.
 Five nouns on the plane: **Archive · Streams · Index · Subgraphs · Webhooks**.
 Two altitudes: primitives (Archive, Streams, Index) and opinionated products
 (Subgraphs = pull, a table you own; Webhooks = push, a signed POST to a URL
-you run). Product identity budget is one mono tag and one verb; each product
+you run, on a chain event). Product identity budget is one mono tag and one verb; each product
 has its own job, not its own world. Product pages are paths under
 `secondlayer.tools`, never subdomains. "Labs" is a GitHub org and legal
 entity only; it prints nowhere. Scenario study and rationale: PRODUCT.md, Brand Commitments.
@@ -158,8 +158,9 @@ decoding: cursor-paginated REST, SSE tail, signed manifests, replay from any
 height. For data/infra engineers building their own indexer or ETL. Also the
 internal data plane the decoders and subgraphs ride.
 
-**Webhooks** — a signed POST to a URL you run, on any subgraph table or raw
-chain event. The push product, the pull product's twin. The row you register
+**Webhooks** — a signed POST to a URL you run, on a chain event you named.
+Subgraph rows are pulled, not pushed: a trigger on your own Postgres or a cursor
+poll (removed 2026-10-12, plan 129). The push product, the pull product's twin. The row you register
 is still a *subscription* internally (product noun Webhooks, object
 subscription, the Stripe/Alchemy shape). Renamed from "Subscriptions"
 2026-09-12: that word collides with "not a monthly service" and every
@@ -170,7 +171,7 @@ offered hosted (044) — an `sk-sl_*` key and prepaid credits, no self-host
 instance required; the gateway resolves the key to that account's own
 tenant stack (one self-host stack per account, unchanged runtime, D1) and
 never forwards the customer key into it. Caps: `max_retries` ≤ 7,
-`timeout_ms` ≤ 30000. Subgraph webhooks stay self-host only until 046.
+`timeout_ms` ≤ 30000.
 
 **Archive** — the signed canonical history Index and Streams bootstrap from.
 `secondlayer verify`, `repair`, `bootstrap`. Free against public manifests;
@@ -257,14 +258,13 @@ Roadmap, decision log, gates, hosting: `docs/internal/bitcoin-runtime.md`.
 ## The golden path
 
 `docker compose up` → `secondlayer bootstrap` from the official archive →
-`secondlayer subgraphs create` → deploy → curl your table on localhost → attach a
-webhook. Forward-only from your own node is free and skips bootstrap.
+`secondlayer subgraphs create` → deploy → curl your table on localhost → react to rows
+from your Postgres. Forward-only from your own node is free and skips bootstrap.
 
 Hosted: Index, Streams, Subgraphs and Webhooks on api.secondlayer.tools with
 an account key. Hosted subgraphs and webhook delivery run in a private stack
 per account; there is no public catalog. Hostable subgraph sources are event
-filters and contract_call/contract_deploy. Subgraph webhooks are self-host
-only.
+filters and contract_call/contract_deploy.
 
 ## Pricing
 

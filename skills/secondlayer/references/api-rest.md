@@ -322,29 +322,14 @@ List this instance's webhooks.
 
 ### `POST /api/webhooks`
 
-Create. A webhook is one of two **kinds** (mutually exclusive):
-
-**Subgraph webhook** — fires on subgraph table rows (`subgraphName` + `tableName` + column `filter`):
-
-```json
-{
-  "name": "whale-alerts",
-  "subgraphName": "stx-transfers",
-  "tableName": "transfers",
-  "url": "https://my-app.com/webhook",
-  "format": "standard-webhooks",
-  "runtime": "node",
-  "filter": { "amount": { "gte": "1000000000" } },
-  "authConfig": { "authType": "bearer", "token": "secret-token" }
-}
-```
-
-**Chain webhook** — fires on raw chain events, **no subgraph** (`triggers`, 1..50). Forward-looking (starts at tip, no backfill):
+Create. A webhook fires on raw chain events (`triggers`, 1..50). Forward-looking (starts at tip, no backfill). A body carrying `subgraphName`, `tableName` or `filter` is answered `400 SUBGRAPH_WEBHOOKS_REMOVED`: subgraph-row webhooks were removed, so react to subgraph rows from your Postgres or the subgraph API.
 
 ```json
 {
   "name": "amm-swaps",
   "url": "https://my-app.com/webhook",
+  "format": "standard-webhooks",
+  "authConfig": { "authType": "bearer", "token": "secret-token" },
   "triggers": [
     { "type": "contract_call", "contractId": "SP...amm", "functionName": "swap-*" },
     { "type": "ft_transfer", "trait": "sip-010", "minAmount": "1000000" }

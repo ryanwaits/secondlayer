@@ -30,7 +30,7 @@ const LLMS_TXT = `# Secondlayer: instant data for apps on Bitcoin
   else returns 422 SOURCE_NOT_HOSTABLE.
 - After 3 stall or OOM deaths at one height a subgraph is marked error.
 - Set startBlock so the first deploy does not backfill from genesis.
-- Subgraph webhooks are self-host only. Hosted webhooks fire on chain events.
+- Webhooks fire on chain events. React to subgraph rows from your Postgres or the subgraph API.
 
 ## Batch
 - POST /v1/batch — up to 10 public /v1 reads in one round trip

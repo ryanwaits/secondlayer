@@ -31,7 +31,6 @@
 		"test:smoke": "bun test tests/smoke",
 		"test:stacks": "bun run --filter @secondlayer/stacks test",
 		"dry-run:webhook": "bun run scripts/dry-run/webhook-receiver.ts",
-		"dry-run:row-positive": "bun run scripts/dry-run/row-positive-subscriptions.ts",
 		"typecheck": "bun run --filter '*' typecheck",
 		"clean": "rm -rf packages/*/dist packages/*/node_modules node_modules",
 		"changeset": "changeset",

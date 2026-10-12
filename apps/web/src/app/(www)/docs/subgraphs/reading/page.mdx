@@ -1,6 +1,6 @@
 # Reading rows
 
-A deployed subgraph serves its tables four ways: paged REST, a live stream, a webhook, and a typed ORM schema over the same Postgres (the last two are self-host only).
+A deployed subgraph serves its tables three ways: paged REST, a live stream, and a typed ORM schema over the same Postgres (the last is self-host only).
 
 ## Open reads
 
@@ -14,7 +14,7 @@ Reads send `Authorization: Bearer $SECONDLAYER_API_KEY`, with wildcard CORS, the
 
 ## Pages, cursors, and sorting
 
-Pages are `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. Sort by one column instead with `?_sort=<column>&_order=asc|desc`, and the cursor pairs that column with `_id` as a tiebreaker, so pages stay stable even when values tie. The cursor's shape follows the sort: don't hand-construct one, and replaying it under a different `_sort`/`_order` is a `400`. Multi-column `_sort=a,b`, `jsonb` columns and `_offset` are also `400`, since deep `OFFSET` scans hurt on big tables. `_limit`, `_fields`, `_search` and column filters work as everywhere else: [REST API](/docs/rest-api).
+Pages are `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. Sort by one column instead with `?_sort=<column>&_order=asc|desc`, and the cursor pairs that column with `_id` as a tiebreaker, so pages stay stable even when values tie. The cursor's shape follows the sort: don't hand-construct a sorted cursor, and replaying it under a different `_sort`/`_order` is a `400`. Multi-column `_sort=a,b`, `jsonb` columns and `_offset` are also `400`, since deep `OFFSET` scans hurt on big tables. `_limit`, `_fields`, `_search` and column filters work as everywhere else: [REST API](/docs/rest-api).
 
 ```bash
 # top holders by amount, paginated
@@ -46,9 +46,62 @@ const unsubscribe = subgraph.transfers.subscribe(
 
 It uses the global `EventSource`, so browser or **Node ≥ 22** only. Wire contract: [Streaming (SSE)](/docs/rest-api#streaming-sse).
 
-## Get told when it changes
+## React to your rows
 
-SSE holds a connection open, which suits a browser and not a queue. For delivery to a URL, point a [webhook](/docs/webhooks) at a table (self-host) or use a [chain webhook](/docs/webhooks#two-kinds) hosted.
+Webhooks fire on chain events. To act when your subgraph writes a row, watch the table: it is your data.
+
+### On your own box
+
+Your tables live in your instance's Postgres, in schema `subgraph_<name>` (dashes become underscores). A trigger tells your app the moment a block's rows commit:
+
+```sql
+CREATE OR REPLACE FUNCTION notify_sbtc_transfers() RETURNS trigger AS $$
+BEGIN
+  PERFORM pg_notify('sbtc_transfers', NEW._id::text);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER sbtc_transfers_notify
+  AFTER INSERT OR UPDATE ON subgraph_sbtc_flows.transfers
+  FOR EACH ROW EXECUTE FUNCTION notify_sbtc_transfers();
+```
+
+```ts
+import postgres from "postgres";
+
+const sql = postgres(process.env.DATABASE_URL!); // your instance's Postgres
+
+await sql.listen("sbtc_transfers", async (id) => {
+  const [row] = await sql`SELECT * FROM subgraph_sbtc_flows.transfers WHERE _id = ${id}`;
+  if (row) await handle(row);
+});
+```
+
+- A notification goes out when the block commits, so you never act on a row that rolled back.
+- Send `_id`, not the row: a payload is capped at 8,000 bytes.
+- A notification sent while nothing listens is gone. On start, read rows past the last `_id` you handled, then listen.
+- A reindex or a destructive redeploy rebuilds the schema and drops your trigger. Create it from the script that deploys.
+
+### Hosted
+
+Hosted tables live in your account's private stack, so read them over the API. Poll and keep the last `_id` you handled:
+
+```ts
+let cursor = await loadCursor(); // last _id handled, or undefined
+
+for (;;) {
+  const { rows } = await sl.subgraphs.rows("sbtc-flows", "transfers", { cursor, order: "asc", limit: 100 });
+  for (const row of rows) {
+    await handle(row);
+    cursor = String(row._id);
+    await saveCursor(cursor);
+  }
+  if (rows.length < 100) await new Promise((r) => setTimeout(r, 5_000));
+}
+```
+
+With the default order the cursor is the row's `_id`, so a short page still tells you where to resume. A reorg rewrites the affected rows under new `_id`s: polling sees the new rows, not the removed ones, so wait until a row is a few blocks behind `tip` before you move money on it.
 
 ## Typed ORM schemas (codegen)
 
@@ -64,5 +117,5 @@ Generators: `--target prisma|drizzle|kysely`. Secondlayer owns the DDL, so treat
 export const metadata = {
 	title: "Reading rows — Secondlayer Docs",
 	description:
-		"Read a Stacks subgraph table: keyset pages and sorting, SSE streams, webhook delivery, and typed Prisma/Drizzle/Kysely schemas, hosted or self-host.",
+		"Read a Stacks subgraph table: keyset pages and sorting, SSE streams, reacting to new rows, and typed Prisma/Drizzle/Kysely schemas, hosted or self-host.",
 };

@@ -69,7 +69,7 @@ Subgraphs:
 
 Webhooks:
 
-- `webhooks_create` — creates either a subgraph webhook (`subgraphName` + `tableName`) or a **chain webhook** by passing `triggers` (array, 1..50) instead. Chain subs fire on raw chain events with no subgraph; see `references/sdk.md` for the trigger shapes (`contractCall`, `ftTransfer`, etc.).
+- `webhooks_create` — creates a webhook from `triggers` (array, 1..50). Webhooks fire on raw chain events; see `references/sdk.md` for the trigger shapes (`contractCall`, `ftTransfer`, etc.).
 - `webhooks_list`
 - `webhooks_get`
 - `webhooks_update`

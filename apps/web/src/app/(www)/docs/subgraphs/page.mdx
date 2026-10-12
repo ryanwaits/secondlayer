@@ -182,7 +182,6 @@ Table Rows         balances: 4874
 | Sources | Event filters (`stx_*`, `ft_*`, `nft_*`, `print_event`, `nested_contract_call`, `var_set`, `map_*`), `contract_call`, `contract_deploy`. Anything else: `422 SOURCE_NOT_HOSTABLE`, naming the source |
 | Isolation | Handlers run in a gVisor sandbox with 512 MB, reaching only Secondlayer's API and the public internet |
 | Visibility | Private. No public catalog, fork or marketplace |
-| Subgraph webhooks | Self-host only. [Chain webhooks](/docs/webhooks#two-kinds) work hosted |
 
 A processor that stalls or runs out of memory is restarted. After 3 deaths at the same height the subgraph is marked `error`: fix the handler and redeploy. On your own box any source runs: [Self-host](/docs/self-host/production#what-differs-on-your-box).
 
@@ -220,7 +219,7 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers" \
 }
 ```
 
-Paging, sorting, live streams, webhooks, and typed ORM schemas (self-host): [Reading rows](/docs/subgraphs/reading).
+Paging, sorting, live streams, reacting to new rows, and typed ORM schemas (self-host): [Reading rows](/docs/subgraphs/reading).
 
 export const metadata = {
 	title: "Subgraphs — Secondlayer Docs",

@@ -1041,11 +1041,7 @@ const client = getSubgraph(mySubgraph, { apiKey: process.env.INSTANCE_TOKEN });
 
 **All methods require `apiKey`.**
 
-A webhook is one of two **kinds** (mutually exclusive):
-- **`subgraph`** — fires on rows written to a deployed subgraph's table (`subgraphName` + `tableName` + column `filter`).
-- **`chain`** — fires on **raw chain events directly, no subgraph** (`triggers`). The turnkey "webhook on a contract / event-type / function-call (or any SIP-010/SIP-009/custom trait)". Built off the public Index/Streams clock; **forward-looking** (starts at chain tip, never backfills).
-
-Both kinds share the same delivery stack (retries, circuit breaker, 6 formats, per-webhook HMAC signing) and the same routes below.
+A webhook fires on **raw chain events** (`triggers`). The turnkey "webhook on a contract / event-type / function-call (or any SIP-010/SIP-009/custom trait)". Built off the public Index/Streams clock; **forward-looking** (starts at chain tip, never backfills). It has retries, a circuit breaker, 6 formats, and per-webhook HMAC signing. To react to subgraph rows, watch the table from your own Postgres or poll `sl.subgraphs.rows`.
 
 ### Shared types
 
@@ -1053,23 +1049,10 @@ Both kinds share the same delivery stack (retries, circuit breaker, 6 formats, p
 <!-- deprecated alias type names; prefer Webhook* -->
 type SubscriptionStatus /* deprecated alias */  = "active" | "paused" | "error";
 type SubscriptionFormat /* deprecated alias */  = "standard-webhooks" | "inngest" | "trigger" | "cloudflare" | "cloudevents" | "raw";
-type SubscriptionRuntime /* deprecated alias */ = "inngest" | "trigger" | "cloudflare" | "node";
 
-type SubscriptionFilter /* deprecated alias */Primitive = string | number | boolean;
-type SubscriptionFilter /* deprecated alias */Operator =
-  | { eq: SubscriptionFilterPrimitive } <!-- deprecated alias -->
-  | { neq: SubscriptionFilterPrimitive } <!-- deprecated alias -->
-  | { gt:  string | number }
-  | { gte: string | number }
-  | { lt:  string | number }
-  | { lte: string | number }
-  | { in:  SubscriptionFilterPrimitive[] }; <!-- deprecated alias -->
-type SubscriptionFilter /* deprecated alias */Clause = SubscriptionFilterPrimitive | SubscriptionFilterOperator;
-type SubscriptionFilter /* deprecated alias */ = Record<string, SubscriptionFilterClause>;
+type SubscriptionKind /* deprecated alias */ = "chain";
 
-type SubscriptionKind /* deprecated alias */ = "subgraph" | "chain";
-
-// Chain-trigger filter (the wire shape for chain webhooks). Amounts are
+// Chain-trigger filter (the wire shape for webhooks). Amounts are
 // non-negative integer strings (uint128-safe) or numbers.
 type ChainTrigger =
   | { type: "stx_transfer"; sender?: string; recipient?: string; minAmount?: string | number; maxAmount?: string | number }
@@ -1088,10 +1071,7 @@ interface SubscriptionSummary /* deprecated alias */ {
   name: string;
   status: SubscriptionStatus; <!-- deprecated alias -->
   kind: SubscriptionKind; <!-- deprecated alias -->
-  subgraphName: string | null;   // null for chain webhooks
-  tableName: string | null;      // null for chain webhooks
   format: SubscriptionFormat; <!-- deprecated alias -->
-  runtime: SubscriptionRuntime | null; <!-- deprecated alias -->
   url: string;
   lastDeliveryAt: string | null;
   lastSuccessAt: string | null;
@@ -1100,8 +1080,7 @@ interface SubscriptionSummary /* deprecated alias */ {
 }
 
 interface SubscriptionDetail /* deprecated alias */ extends SubscriptionSummary {
-  filter: Record<string, unknown>;
-  triggers: ChainTrigger[] | null;  // chain webhooks only
+  triggers: ChainTrigger[];
   authConfig: Record<string, unknown>;
   maxRetries: number;
   timeoutMs: number;
@@ -1112,9 +1091,9 @@ interface SubscriptionDetail /* deprecated alias */ extends SubscriptionSummary 
 }
 ```
 
-### Delivery envelope (chain webhooks)
+### Delivery envelope
 
-Chain deliveries carry an **apply / rollback** envelope so consumers can reconcile reorgs:
+Deliveries carry an **apply / rollback** envelope so consumers can reconcile reorgs:
 
 ```jsonc
 // chain.{eventType}.apply  — a matched canonical event
@@ -1142,14 +1121,8 @@ get(id: string): Promise<SubscriptionDetail> /* deprecated alias */
 interface CreateSubscriptionRequest /* deprecated alias */ {
   name: string;
   url: string;                              // must start with http(s)://
-  // Provide EITHER a subgraph target (subgraph webhook) ...
-  subgraphName?: string;
-  tableName?: string;
-  filter?: SubscriptionFilter; <!-- deprecated alias -->
-  // ... OR triggers (chain webhook). Mutually exclusive.
-  triggers?: ChainTrigger[];                // 1..50
+  triggers: ChainTrigger[];                 // 1..50
   format?: SubscriptionFormat;              // default "standard-webhooks" <!-- deprecated alias -->
-  runtime?: SubscriptionRuntime | null; <!-- deprecated alias -->
   authConfig?: Record<string, unknown>;
   maxRetries?: number;                      // 0..100
   timeoutMs?: number;                       // 100..300_000
@@ -1165,27 +1138,7 @@ interface CreateSubscriptionResponse /* deprecated alias */ {
 create(input: CreateSubscriptionRequest): Promise<CreateSubscriptionResponse> /* deprecated alias */
 ```
 
-**Subgraph webhook** — react to processed table rows:
-
-```ts
-const { webhook, signingSecret } = await sl.webhooks.create({
-  name: "whale-alerts",
-  subgraphName: "sbtc",
-  tableName: "transfers",
-  url: "https://example.com/webhooks/sbtc",
-  filter: {
-    amount: { gte: "100000000" }, // 1 sBTC = 1e8 sats
-    sender: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
-  },
-  format: "standard-webhooks",
-  maxRetries: 10,
-  timeoutMs: 10_000,
-});
-
-await secretStore.put(webhook.id, signingSecret); // store it NOW
-```
-
-**Chain webhook** — react to raw chain events, no subgraph. Use the `trigger.*` builders:
+Use the `trigger.*` builders. `signingSecret` is returned once:
 
 ```ts
 import { trigger } from "@secondlayer/sdk";
@@ -1200,7 +1153,7 @@ const { webhook, signingSecret } = await sl.webhooks.create({
 });
 ```
 
-`trigger` exposes one builder per event type: `stxTransfer/stxMint/stxBurn/stxLock`, `ftTransfer/ftMint/ftBurn`, `nftTransfer/nftMint/nftBurn`, `contractCall`, `contractDeploy`, `printEvent`. `update()` cannot switch a webhook's kind.
+`trigger` exposes one builder per event type: `stxTransfer/stxMint/stxBurn/stxLock`, `ftTransfer/ftMint/ftBurn`, `nftTransfer/nftMint/nftBurn`, `contractCall`, `contractDeploy`, `printEvent`. `update()` cannot change `triggers`.
 
 ### `update(id, patch)`
 
@@ -1208,9 +1161,7 @@ const { webhook, signingSecret } = await sl.webhooks.create({
 interface UpdateSubscriptionRequest /* deprecated alias */ {
   name?: string;
   url?: string;
-  filter?: SubscriptionFilter; <!-- deprecated alias -->
   format?: SubscriptionFormat; <!-- deprecated alias -->
-  runtime?: SubscriptionRuntime | null; <!-- deprecated alias -->
   authConfig?: Record<string, unknown>;
   maxRetries?: number;
   timeoutMs?: number;
@@ -1434,7 +1385,7 @@ app.post("/webhook", async (c) => {
     return c.text("Invalid signature", 401);
   }
   const { type, timestamp, data } = JSON.parse(raw);
-  // type === "<subgraph>.<table>.created", data === the row
+  // type === "chain.<trigger>.apply", data === the apply envelope
   return c.body(null, 204);
 });
 ```

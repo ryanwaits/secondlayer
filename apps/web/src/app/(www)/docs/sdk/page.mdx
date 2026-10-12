@@ -24,7 +24,7 @@ The key follows the host: on `api.secondlayer.tools` the client reads `SECONDLAY
 - `sl.index`: decoded rows: FT/NFT transfers, all event types, contract calls, and `printSchema(contractId)`.
 - `sl.contracts`: find deployed contracts by trait (SIP-009/010/013).
 - `sl.subgraphs`: your app-specific tables, plus open `/v1` reads (`rows`).
-- `sl.webhooks`: create and manage webhook webhooks (subgraph rows or raw chain events).
+- `sl.webhooks`: create and manage webhooks on raw chain events.
 
 ```ts
 const tip = await sl.streams.tip();
@@ -39,7 +39,7 @@ Each surface documents its own calls:
 
 | Task | Call | Documented in |
 | --- | --- | --- |
-| Webhook on raw chain events | `sl.webhooks.create({ name, url, triggers })` | [Webhooks](/docs/webhooks#two-kinds) |
+| Webhook on raw chain events | `sl.webhooks.create({ name, url, triggers })` | [Webhooks](/docs/webhooks#triggers) |
 | Re-deliver history | `sl.webhooks.replay(id, { fromBlock, toBlock })` | [Replay](/docs/webhooks#replay) |
 | Check a delivery signature | `verifyWebhookSignature`, `verifySecondlayerSignature` | [Receiving deliveries](/docs/webhooks/deliveries#verify-the-signature) |
 | Prove a tx is in a block | `verifyTransactionProof`, `fetchRewardSet` | [Verify](/docs/verification#prove-a-transaction) |

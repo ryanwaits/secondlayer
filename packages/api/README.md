@@ -199,9 +199,9 @@ POST   /api/webhooks/:id/dead/:outboxId/requeue
 POST   /api/webhooks/:id/replay            # replay a block range
 ```
 
-`POST /api/webhooks` accepts a `triggers` array (1..50) for a **chain**
-webhook, OR `subgraphName` + `tableName` for a **subgraph** webhook —
-mutually exclusive.
+`POST /api/webhooks` takes a `triggers` array (1..50). A body carrying
+`subgraphName`, `tableName` or `filter` is answered `400
+SUBGRAPH_WEBHOOKS_REMOVED`: webhooks fire on chain events only.
 
 ```bash
 curl -X POST -H "Authorization: Bearer $INSTANCE_TOKEN" \

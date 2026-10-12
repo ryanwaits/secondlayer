@@ -46,7 +46,7 @@ secondlayer webhooks deliveries <name>  # last ~100 attempts
 secondlayer webhooks dead <name>        # exhausted retries
 ```
 
-`doctor` checks: webhook status + circuit breaker state, recent delivery successes/failures, dead-letter count, linked subgraph status + gaps. Outputs next-step hints.
+`doctor` checks: webhook status + circuit breaker state, recent delivery successes/failures, dead-letter count, receiver rate limits, downtime, rejects, slowness, and delivery lag. Outputs next-step hints.
 
 **Common causes:**
 
@@ -145,7 +145,7 @@ The Streams errors do **not** extend `ApiError` — check them separately when w
 
 ## Things that look like bugs but aren't
 
-- **`webhook-timestamp` is dispatch time, not row creation time.** Standard Webhooks spec requires the timestamp to be within the tolerance window when signed; if Secondlayer signed at row creation and the row sat in the outbox for hours, every retry would fail verification. Stamping at dispatch and using `webhook-id` for dedup is correct.
+- **`webhook-timestamp` is dispatch time, not event creation time.** Standard Webhooks spec requires the timestamp to be within the tolerance window when signed; if Secondlayer signed at event creation and the event sat in the outbox for hours, every retry would fail verification. Stamping at dispatch and using `webhook-id` for dedup is correct.
 - **Schema additions don't reindex; schema removals/type changes do.** Add a column → ALTER TABLE, no reindex. Drop a column → drop + reindex. Confirm before approving.
 - **`startBlock` is honored only on first deploy** — once a subgraph has indexed past it, subsequent deploys ignore it. Use `--start-block` to override at deploy time (resets the position).
 

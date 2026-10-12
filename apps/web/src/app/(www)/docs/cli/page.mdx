@@ -42,9 +42,9 @@ Every top-level `secondlayer` command, with the page that owns it.
 
 `--api-key` shape-routes hex to `INSTANCE_TOKEN` and `sk-sl_*` to `SECONDLAYER_API_KEY`. Instance commands refuse `api.secondlayer.tools`, except `secondlayer subgraphs` and `secondlayer webhooks`, which take `SECONDLAYER_API_KEY` against the hosted URL ([hosted subgraphs](/docs/subgraphs#deploy)). Credentials: [Keys and billing](/docs/authentication) and [Instance token](/docs/self-host/production#instance-token).
 
-<Callout type="note" title="Chain webhooks">
+<Callout type="note" title="Webhook triggers">
 
-[Direct chain webhooks](/docs/webhooks#two-kinds) take `--trigger` / `--triggers-file` instead of `--subgraph` / `--table`. SDK and REST accept the same `triggers` array.
+`webhooks create` takes `--trigger` / `--triggers-file`; SDK and REST accept the same `triggers` array ([Triggers](/docs/webhooks#triggers)).
 
 </Callout>
 

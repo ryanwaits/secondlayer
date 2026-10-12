@@ -246,7 +246,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Deploy and subscribe",
 			"Subgraph and webhook lifecycle as tools.",
-			"/secondlayer Use `subgraphs_deploy` (run `dryRun` first to preview the DDL) for the contract I name, then `webhooks_create` for a webhook on a table — and capture the one-time `signingSecret` it returns.",
+			"/secondlayer Use `subgraphs_deploy` (run `dryRun` first to preview the DDL) for the contract I name, then `webhooks_create` for a webhook on the chain events I name — and capture the one-time `signingSecret` it returns.",
 		),
 	],
 

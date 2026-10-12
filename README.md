@@ -34,7 +34,7 @@ secondlayer subgraphs deploy subgraphs/my-contract.ts --start-block <recent-bloc
 secondlayer subgraphs query my-contract <table> --sort _block_height --order desc
 ```
 
-A **chain** webhook fires on raw events with no subgraph:
+A webhook fires on raw chain events:
 
 ```bash
 secondlayer webhooks create amm-swaps \

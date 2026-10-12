@@ -27,8 +27,8 @@ attestation loop over sBTC mints and pox-5 L1 lockups.
   Index join keys already exist (`/sbtc/deposits`, `/sbtc/events`,
   `/pox5/events`, …). Adapter:
   `SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter`.
-- **webhook names**: TBD (grant decision ~2026-10-01). Alerts as chain /
-  subgraph Webhooks owned by the deployments account. Alert on any mint or
+- **webhook names**: TBD (grant decision ~2026-10-01). Alerts as chain
+  Webhooks owned by the deployments account. Alert on any mint or
   lockup miss (mined / script_match / amount_match). Staging path exercises
   a synthetic fail.
 - **status page path**: `/sbtc-inclusion` under `secondlayer.tools`. Same

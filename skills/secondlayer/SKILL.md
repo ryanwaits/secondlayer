@@ -1,6 +1,6 @@
 ---
 name: secondlayer
-description: Use Secondlayer to build on the Stacks blockchain — index on-chain activity into typed Postgres tables (subgraphs), stream raw and decoded events (Streams + Index), deliver row-level webhooks (webhooks), and call Clarity contracts from a viem-style TypeScript SDK. Invoke this skill whenever the user mentions Secondlayer, `secondlayer`, the `@secondlayer/*` packages, Stacks indexing, sBTC, BNS, PoX/stacking, Clarity contract reads/calls, post-conditions, webhooks on chain events, or asks how to query, watch, or react to anything happening on the Stacks chain — even if they don't name Secondlayer explicitly.
+description: Use Secondlayer to build on the Stacks blockchain — index on-chain activity into typed Postgres tables (subgraphs), stream raw and decoded events (Streams + Index), deliver chain-event webhooks (webhooks), and call Clarity contracts from a viem-style TypeScript SDK. Invoke this skill whenever the user mentions Secondlayer, `secondlayer`, the `@secondlayer/*` packages, Stacks indexing, sBTC, BNS, PoX/stacking, Clarity contract reads/calls, post-conditions, webhooks on chain events, or asks how to query, watch, or react to anything happening on the Stacks chain — even if they don't name Secondlayer explicitly.
 ---
 
 # Secondlayer
@@ -19,7 +19,7 @@ Secondlayer is instant data for apps on Bitcoin: every Stacks block and Bitcoin 
 | **Raw (Streams)** | `@secondlayer/sdk` → `sl.streams` · REST `/v1/streams` · `secondlayer streams` | Cursor-paginated firehose of raw Stacks events (transfers, mints, burns, prints) with reorg awareness, Bitcoin-anchored finality (`finalized` per event, `finalized_height` on tip), `types`/`not_types` + `sender`/`recipient`/`contract_id` (single or comma-list) payload filters, signed responses (ed25519 `X-Signature`, opt-in SDK `verify`), and public bulk parquet dumps (`client.dumps` / `events.replay` / `secondlayer streams dumps`). |
 | **Decoded (Index)** | `@secondlayer/sdk` → `sl.index` · REST `/v1/index` · `secondlayer index` | Decoded SIP-010 (FT) and SIP-009 (NFT) transfers, all event types (`stx_*`, ft/nft mint/burn, print) via `events`, and decoded `contract-calls` — filtered by principal/contract/height. |
 | **Your schema (Subgraphs)** | `@secondlayer/subgraphs` + CLI · REST `/v1/subgraphs` (reads) · `/api/subgraphs` (writes) | TypeScript-authored indexers: declare filters + schema + handlers; the runtime materializes Postgres tables and exposes REST. Hosted: private to your account, run in your own stack. |
-| **Webhooks** | `sl.webhooks` · REST `/api/webhooks` · `secondlayer webhooks` | Standard-Webhooks-signed deliveries. Two kinds: **subgraph** webhooks fire on every row written by a subgraph; **chain** webhooks fire on raw chain events directly (no subgraph) via `triggers` (contract call / event type / trait). |
+| **Webhooks** | `sl.webhooks` · REST `/api/webhooks` · `secondlayer webhooks` | Standard-Webhooks-signed deliveries that fire on raw chain events via `triggers` (contract call / event type / trait). To react to subgraph rows, watch the table from your own Postgres or poll the subgraph API. |
 | **Chain client** | `@secondlayer/stacks` | viem-style SDK: public/wallet clients, `Cl.*`, `Pc.*`, `getContract`, BNS / PoX / sBTC / StackingDAO extensions. |
 | **CLI** | `@secondlayer/cli` (binary `secondlayer`) | Every one of the above is reachable from `secondlayer`. |
 
@@ -69,7 +69,7 @@ These are small enough to keep in the router. Everything else is in a reference 
 | Contracts (`/v1/contracts`, `sl.contracts`) | Loopback reads need no key. |
 | Index (`/v1/index`, `sl.index`, `secondlayer index`) | Loopback reads need no key. History is whatever this instance has bootstrapped. |
 | Streams (`/v1/streams`, `sl.streams`, `secondlayer streams`) | Loopback reads need no key. Public archive dumps need no instance key. |
-| Subgraphs (`/v1/subgraphs/*`) | Loopback reads need no key. No public/private flag; hosted subgraphs are private to your account (key required). Writes are `/api/subgraphs`, below. Hosted sources are event filters and `contract_call`/`contract_deploy` only (`422 SOURCE_NOT_HOSTABLE` otherwise); set `startBlock`. Subgraph webhooks are self-host only. |
+| Subgraphs (`/v1/subgraphs/*`) | Loopback reads need no key. No public/private flag; hosted subgraphs are private to your account (key required). Writes are `/api/subgraphs`, below. Hosted sources are event filters and `contract_call`/`contract_deploy` only (`422 SOURCE_NOT_HOSTABLE` otherwise); set `startBlock`. |
 
 One rule for the whole `/v1` read plane, identical on all four: open while the
 API is reachable only from this box, `Authorization: Bearer <INSTANCE_TOKEN>` on

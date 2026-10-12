@@ -38,7 +38,7 @@ import { WebhooksListSkeleton } from "./skeletons";
 const LIST_POLL_MS = 15_000;
 
 const CREATE_CMD =
-	"secondlayer webhooks create --name pool-payouts --trigger stx_transfer --url https://your.app/hook";
+	'secondlayer webhooks create pool-payouts --trigger \'{"type":"stx_transfer"}\' --url https://your.app/hook';
 
 type ListState =
 	| { kind: "loading" }

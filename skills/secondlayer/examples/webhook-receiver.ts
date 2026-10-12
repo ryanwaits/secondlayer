@@ -21,9 +21,9 @@ app.post("/webhook", async (c) => {
   }
 
   const payload = JSON.parse(raw) as {
-    type: string;                      // "<subgraph>.<table>.created"
+    type: string;                      // "chain.<trigger>.apply"
     timestamp: string;                 // ISO 8601 at dispatch time
-    data: Record<string, unknown>;     // the row
+    data: Record<string, unknown>;     // the apply envelope
   };
 
   // Dedup on `webhook-id` if your handler isn't idempotent — the same id

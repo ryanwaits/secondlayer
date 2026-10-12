@@ -127,7 +127,6 @@ Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On 
 | --- | --- |
 | Metering | None. Your Postgres, no meter, no rate limit |
 | Subgraph sources | Any. Hosted takes event filters, `contract_call` and `contract_deploy` |
-| Subgraph webhooks | Yes. Hosted runs [chain webhooks](/docs/webhooks#two-kinds) only |
 | Typed ORM schemas | `secondlayer codegen subgraph` needs direct Postgres, so it is self-host only |
 | Handler RPC calls | Set `STACKS_NODE_RPC_URL` on the subgraph processor, pointing at the node you already run |
 | History below your bootstrap floor | A metered [archive backfill](/docs/authentication#archive-credits) |
