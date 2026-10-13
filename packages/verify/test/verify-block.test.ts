@@ -118,7 +118,10 @@ describe("verifyBlock proves 9,137,005 end to end from CHECKPOINT_143", () => {
 
 	test("Bitcoin -> anchor A -> set 144 -> H's signatures -> witness root -> diff: ok", async () => {
 		const source = e2eSource();
-		const r = await verifyBlock(9137005, { source });
+		const r = await verifyBlock(9137005, {
+			checkpoint: CHECKPOINT_143,
+			source,
+		});
 		expect(r).toMatchObject({
 			ok: true,
 			height: 9137005,
@@ -194,7 +197,7 @@ describe("verifyBlock proves 9,137,005 end to end from CHECKPOINT_143", () => {
 
 	test("a second block of the same cycle reuses the proven set and synced chain", async () => {
 		const source = e2eSource();
-		const v = new BlockVerifier({ source });
+		const v = new BlockVerifier({ checkpoint: CHECKPOINT_143, source });
 		await v.verify(H);
 		const before = source.log.length;
 		const parent = hex(header(H).parentBlockId);
@@ -224,11 +227,15 @@ describe("verifyBlock proves 9,137,005 end to end from CHECKPOINT_143", () => {
 				return [];
 			},
 		});
-		const plain = await verifyBlock(H, { source });
+		const plain = await verifyBlock(H, { checkpoint: CHECKPOINT_143, source });
 		expect(plain.ok).toBe(true);
 		expect(plain.rowsChecked).toBeUndefined();
 		expect(reads).toEqual(["state_writes 9137005"]);
-		const withRows = await verifyBlock(H, { source, rows: true });
+		const withRows = await verifyBlock(H, {
+			checkpoint: CHECKPOINT_143,
+			source,
+			rows: true,
+		});
 		expect(withRows).toMatchObject({ ok: true, rowsChecked: 0 });
 		expect(reads).toEqual([
 			"state_writes 9137005",
@@ -245,7 +252,7 @@ describe("verifyBlock proves 9,137,005 end to end from CHECKPOINT_143", () => {
 			},
 		]) {
 			const source = Object.assign(e2eSource(), { getStateWrites });
-			const r = await verifyBlock(H, { source });
+			const r = await verifyBlock(H, { checkpoint: CHECKPOINT_143, source });
 			expect(r.ok).toBe(true);
 			expect(r.diff?.named).toBe(false);
 			expect(r.writes).toBeUndefined();
@@ -256,9 +263,10 @@ describe("verifyBlock proves 9,137,005 end to end from CHECKPOINT_143", () => {
 				throw new Error("HTTP 429");
 			},
 		});
-		expect((await verifyBlock(H, { source: failing })).notes).toContain(
-			"state writes for block 9137005 unavailable: HTTP 429",
-		);
+		expect(
+			(await verifyBlock(H, { checkpoint: CHECKPOINT_143, source: failing }))
+				.notes,
+		).toContain("state writes for block 9137005 unavailable: HTTP 429");
 	});
 
 	test("transactions that do not hash to the header's tx_merkle_root break the txs link before the witness is read", async () => {
@@ -276,7 +284,10 @@ describe("verifyBlock proves 9,137,005 end to end from CHECKPOINT_143", () => {
 		forged.set(headerOnly);
 		forged.set(body, headerOnly.length);
 		source.blocks.set(H, forged);
-		const r = await verifyBlock(9137005, { source });
+		const r = await verifyBlock(9137005, {
+			checkpoint: CHECKPOINT_143,
+			source,
+		});
 		expect(r.ok).toBe(false);
 		expect(r.failures[0]).toMatchObject({
 			step: "txs",
@@ -294,7 +305,10 @@ describe("the signer set always comes from the proven burn height", () => {
 	});
 
 	test("A verifies under set 143, the cycle its burn height 968,449 dictates", async () => {
-		const r = await verifyBlock(A, { source: new FakeSource() });
+		const r = await verifyBlock(A, {
+			checkpoint: CHECKPOINT_143,
+			source: new FakeSource(),
+		});
 		expect(r).toMatchObject({
 			cycle: 143,
 			burnHeight: 968449,
@@ -340,7 +354,7 @@ describe("signer-set walk failures name the anchor", () => {
 			preimage: unhex(burn970269.preimage),
 			burnHeight: 968449,
 		});
-		const r = await verifyBlock(H, { source });
+		const r = await verifyBlock(H, { checkpoint: CHECKPOINT_143, source });
 		expect(r.failures[0]).toMatchObject({
 			step: "signer-set",
 			code: "preimage-mismatch",
@@ -356,7 +370,7 @@ describe("signer-set walk failures name the anchor", () => {
 			data: s143?.data as string,
 			proof: unhex(s143?.proof as string),
 		});
-		const r = await verifyBlock(H, { source });
+		const r = await verifyBlock(H, { checkpoint: CHECKPOINT_143, source });
 		expect(r.failures[0]).toMatchObject({
 			step: "signer-set",
 			code: "set-proof-invalid",
@@ -368,7 +382,7 @@ describe("signer-set walk failures name the anchor", () => {
 	test("an anchor state without the next set fails the set proof", async () => {
 		const source = walkSource();
 		source.marf.clear();
-		const r = await verifyBlock(H, { source });
+		const r = await verifyBlock(H, { checkpoint: CHECKPOINT_143, source });
 		expect(r.failures[0]).toMatchObject({
 			step: "signer-set",
 			code: "set-proof-invalid",
@@ -380,7 +394,7 @@ describe("signer-set walk failures name the anchor", () => {
 		const raw = headerFile(A);
 		raw[1 + 8 + 8 + 20 + 32 + 32] ^= 1; // state root
 		source.blocks.set(A, raw);
-		const r = await verifyBlock(H, { source });
+		const r = await verifyBlock(H, { checkpoint: CHECKPOINT_143, source });
 		expect(r.failures[0]).toMatchObject({
 			step: "signer-set",
 			code: "anchor-unsigned",
@@ -391,6 +405,7 @@ describe("signer-set walk failures name the anchor", () => {
 
 	test("no block in the prepare phase between the bounds fails the search", async () => {
 		const r = await verifyBlock(H, {
+			checkpoint: CHECKPOINT_143,
 			source: new FakeSource({ heights: [B, H] }),
 		});
 		expect(r.failures[0]).toMatchObject({
@@ -591,7 +606,11 @@ describe("onStep reports each link as it passes", () => {
 
 	test("the steps received are exactly the links the result lists as ok, each once, in order", async () => {
 		const { steps, onStep } = collect();
-		const r = await verifyBlock(9137005, { source: e2eSource(), onStep });
+		const r = await verifyBlock(9137005, {
+			checkpoint: CHECKPOINT_143,
+			source: e2eSource(),
+			onStep,
+		});
 		const ok = describeLinks(r, CHECKPOINT_143)
 			.lines.filter((l) => l.status === "ok")
 			.map((l) => l.step);
@@ -600,8 +619,12 @@ describe("onStep reports each link as it passes", () => {
 	});
 
 	test("watching changes nothing in the result", async () => {
-		const plain = await verifyBlock(9137005, { source: e2eSource() });
+		const plain = await verifyBlock(9137005, {
+			checkpoint: CHECKPOINT_143,
+			source: e2eSource(),
+		});
 		const watched = await verifyBlock(9137005, {
+			checkpoint: CHECKPOINT_143,
 			source: e2eSource(),
 			onStep: () => {},
 		});
@@ -610,6 +633,7 @@ describe("onStep reports each link as it passes", () => {
 
 	test("a callback that throws does not break verification", async () => {
 		const r = await verifyBlock(9137005, {
+			checkpoint: CHECKPOINT_143,
 			source: e2eSource(),
 			onStep: () => {
 				throw new Error("ui crashed");
@@ -623,7 +647,11 @@ describe("onStep reports each link as it passes", () => {
 		const source = e2eSource();
 		source.witnesses.set(H, unhex(other.witness));
 		const { steps, onStep } = collect();
-		const r = await verifyBlock(9137005, { source, onStep });
+		const r = await verifyBlock(9137005, {
+			checkpoint: CHECKPOINT_143,
+			source,
+			onStep,
+		});
 		const broken = r.failures[0]?.step as VerifyStep;
 		expect(broken).toBe("witness");
 		const order = LINKS.map((l) => l.step);

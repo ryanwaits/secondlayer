@@ -34,6 +34,13 @@ const ANCESTOR = epoch2File(
 	"7172a926a42a9356074c71facea8c6450398c97d717fd900884af2bb9102ffa1",
 );
 
+/** Checkpoint 143 as the `--checkpoint` file every run uses unless a test names its own. */
+const CHECKPOINT_143_FILE = join(
+	mkdtempSync(join(tmpdir(), "verify-block-")),
+	"checkpoint-143.json",
+);
+writeFileSync(CHECKPOINT_143_FILE, JSON.stringify(CHECKPOINT_143));
+
 /** Run with stdout and stderr captured. */
 async function run(
 	ref: string,
@@ -52,7 +59,11 @@ async function run(
 		stderr += `${args.join(" ")}\n`;
 	};
 	try {
-		const code = await runVerifyBlock(ref, opts, { source: src });
+		const code = await runVerifyBlock(
+			ref,
+			{ checkpoint: CHECKPOINT_143_FILE, ...opts },
+			{ source: src },
+		);
 		return { code, stdout, stderr };
 	} finally {
 		process.stdout.write = write;
@@ -123,7 +134,10 @@ describe("verify block", () => {
 	test("--json prints verifyBlock's result with weights as decimal strings, and nothing else on stdout", async () => {
 		const r = await run("9137005", { json: true }, source());
 		expect(r.code).toBe(0);
-		const direct = await verifyBlock(9137005, { source: source() });
+		const direct = await verifyBlock(9137005, {
+			checkpoint: CHECKPOINT_143,
+			source: source(),
+		});
 		expect(JSON.parse(r.stdout)).toEqual(JSON.parse(verificationJson(direct)));
 		expect(JSON.parse(r.stdout)).toMatchObject({
 			ok: true,

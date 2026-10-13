@@ -34,7 +34,10 @@ describe("describeLinks", () => {
 		const source = new FakeSource({
 			heights: [signerChain.checkpoint, signerChain.a, H],
 		});
-		const result = await verifyBlock(9137005, { source });
+		const result = await verifyBlock(9137005, {
+			checkpoint: CHECKPOINT_143,
+			source,
+		});
 		const { lines, verdict } = describeLinks(result, CHECKPOINT_143);
 		expect(lines.map((l) => l.label)).toEqual(
 			LINKS.filter((l) => l.step !== "ancestry").map((l) => l.label),
@@ -66,7 +69,10 @@ describe("describeLinks", () => {
 		});
 		const other = readJson<WitnessFixture>("witness/witness-264.json");
 		source.witnesses.set(H, unhex(other.witness));
-		const result = await verifyBlock(9137005, { source });
+		const result = await verifyBlock(9137005, {
+			checkpoint: CHECKPOINT_143,
+			source,
+		});
 		const { lines, verdict } = describeLinks(result, CHECKPOINT_143);
 		const witness = lines.find((l) => l.label === "state root");
 		expect(witness?.status).toBe("failed");
@@ -89,7 +95,10 @@ describe("describeLinks", () => {
 		source.getBitcoinHeaders = async () => {
 			throw new Error("connection refused");
 		};
-		const result = await verifyBlock(9137005, { source });
+		const result = await verifyBlock(9137005, {
+			checkpoint: CHECKPOINT_143,
+			source,
+		});
 		const { lines, verdict } = describeLinks(result, CHECKPOINT_143);
 		expect(lines.find((l) => l.label === "bitcoin")?.status).toBe("failed");
 		expect(verdict).toEqual({

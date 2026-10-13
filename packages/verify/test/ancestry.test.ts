@@ -227,7 +227,10 @@ describe("verifyBlock below the checkpoint, by MARF proof", () => {
 	});
 
 	test("a source with no __MARF_ proofs cannot reach past the parent-link distance", async () => {
-		const r = await verifyBlock(2000, { source: new FakeSource() });
+		const r = await verifyBlock(2000, {
+			checkpoint: CHECKPOINT_143,
+			source: new FakeSource(),
+		});
 		expect(r.failures[0]).toMatchObject({
 			step: "ancestry",
 			code: "unavailable",
