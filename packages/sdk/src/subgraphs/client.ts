@@ -154,19 +154,30 @@ function buildSpecQueryString(options?: SubgraphSpecOptions): string {
 }
 
 export class Subgraphs extends BaseClient {
+	/**
+	 * List the subgraphs deployed to this instance.
+	 *
+	 * Each summary has the status, the last processed block against the chain tip, progress, `gapCount`, and an `integrity` flag.
+	 */
 	async list(): Promise<{ data: SubgraphSummary[] }> {
 		return this.request<{ data: SubgraphSummary[] }>("GET", "/api/subgraphs");
 	}
 
 	/**
-	 * The subgraph's current state — health, sync position, tables. The verify
-	 * step after a deploy, reindex, or backfill: poll it until `sync` catches
-	 * the tip.
+	 * Get a subgraph's health, sync position, and tables.
+	 *
+	 * The verify step after a deploy, reindex, or backfill: poll it until
+	 * `sync` catches the tip.
 	 */
 	async status(name: string): Promise<SubgraphDetail> {
 		return this.request<SubgraphDetail>("GET", `/api/subgraphs/${seg(name)}`);
 	}
 
+	/**
+	 * Get a subgraph's OpenAPI spec.
+	 *
+	 * Describes the REST routes generated for each table. Pass `serverUrl` to set the server the spec advertises.
+	 */
 	async openapi(
 		name: string,
 		options?: SubgraphSpecOptions,
@@ -177,6 +188,11 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
+	/**
+	 * Get a subgraph's schema as JSON, shaped for agents.
+	 *
+	 * Per table: the endpoints, columns, indexes, which fields are sortable, selectable, searchable, or filterable, and a ready example query. Pass `serverUrl` to set the server the endpoints use.
+	 */
 	async schema(
 		name: string,
 		options?: SubgraphSpecOptions,
@@ -187,6 +203,11 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
+	/**
+	 * Get a subgraph's generated API docs as Markdown text.
+	 *
+	 * Pass `serverUrl` to set the server the examples use.
+	 */
 	async markdown(name: string, options?: SubgraphSpecOptions): Promise<string> {
 		return this.requestText(
 			"GET",
@@ -195,7 +216,9 @@ export class Subgraphs extends BaseClient {
 	}
 
 	/**
-	 * Reindex always drops and rebuilds the whole subgraph, so it takes no
+	 * Rebuild a subgraph from scratch.
+	 *
+	 * A reindex always drops and rebuilds the whole subgraph, so it takes no
 	 * block range; the API rejects one with `REINDEX_RANGE_NOT_SUPPORTED`.
 	 * Use {@link backfill} to process a specific range. While a reindex or
 	 * backfill is already running the API answers 409 with code
@@ -208,6 +231,11 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
+	/**
+	 * Stop a running reindex or backfill.
+	 *
+	 * Requests the cancel and resolves with the `operationId` and a `cancel_requested` status. Poll {@link getOperation} until `status` is terminal. Throws a 404 with code `NO_OPERATION` when nothing is running.
+	 */
 	async stop(
 		name: string,
 	): Promise<{ message: string; operationId?: string; status?: string }> {
@@ -231,6 +259,11 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
+	/**
+	 * List the block ranges a subgraph is missing.
+	 *
+	 * Each gap has its `start`, `end`, `size`, `reason`, and when it was detected and resolved. `resolved` filters to resolved or open gaps; page with `limit` and `offset`. `meta` reports the total gap count and total missing blocks.
+	 */
 	async gaps(
 		name: string,
 		opts?: { limit?: number; offset?: number; resolved?: boolean },
@@ -246,6 +279,11 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
+	/**
+	 * Delete a subgraph and its tables.
+	 *
+	 * Permanent. The API cancels any running reindex or backfill first, waits up to 5 seconds for it to stop, then drops the subgraph's tables and registry entry. `force: true` is sent as `?force=true`.
+	 */
 	async delete(
 		name: string,
 		options?: { force?: boolean },
@@ -258,8 +296,10 @@ export class Subgraphs extends BaseClient {
 	}
 
 	/**
-	 * Open /v1 read: cursor-paginated rows. Anon works on an open instance;
-	 * pass an apiKey on the client where reads are closed. `next_cursor` is set
+	 * Read a table's rows, one cursor page at a time.
+	 *
+	 * Anon works on an open instance; pass an apiKey on the client where reads
+	 * are closed. `next_cursor` is set
 	 * on every page that returned rows and is `null` only on an empty page, so a
 	 * poller tails with `cursor = page.next_cursor ?? cursor`. A paging loop
 	 * ends on an empty page (or one shorter than `limit`).
@@ -291,8 +331,10 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
-	/** Status of a single operation (poll the `operationId` returned by
-	 *  reindex/backfill/stop until `status` is terminal). */
+	/** Get the status of one reindex, backfill, or stop operation.
+	 *
+	 *  Poll the `operationId` returned by `reindex`, `backfill`, or `stop`
+	 *  until `status` is terminal. */
 	async getOperation(
 		name: string,
 		operationId: string,
@@ -310,6 +352,11 @@ export class Subgraphs extends BaseClient {
 		return this.request<DeploySubgraphResponse>("POST", "/api/subgraphs", data);
 	}
 
+	/**
+	 * Get a deployed subgraph's source.
+	 *
+	 * Returns `sourceCode`, the bundled `handlerCode` the runtime executes, and the `pin` hash of what you deployed. `handlerCode` and `pin` are `null` for local deploys. A subgraph deployed before source was captured returns `sourceCode: null` and `readOnly: true` with a `reason`; redeploy it to capture the source.
+	 */
 	async getSource(name: string): Promise<SubgraphSource> {
 		return this.request<SubgraphSource>(
 			"GET",
@@ -329,8 +376,9 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
-	/** Open /v1 read: exact row count for a filtered set. Same auth posture as
-	 *  {@link rows}. */
+	/** Count the rows in a table that match a filter.
+	 *
+	 *  The count is exact. Same auth posture as {@link rows}. */
 	async count(
 		name: string,
 		table: string,
@@ -342,8 +390,9 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
-	/** Open /v1 read: scalar aggregates over a filtered set. Same auth posture
-	 *  as {@link rows}. */
+	/** Compute scalar aggregates over a table's matching rows.
+	 *
+	 *  Same auth posture as {@link rows}. */
 	async aggregate(
 		name: string,
 		table: string,

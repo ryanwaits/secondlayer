@@ -16,14 +16,6 @@ const REFERENCE = join(
 );
 
 const PENDING_DOCS = new Set([
-	"sl.subgraphs.list",
-	"sl.subgraphs.openapi",
-	"sl.subgraphs.schema",
-	"sl.subgraphs.markdown",
-	"sl.subgraphs.stop",
-	"sl.subgraphs.gaps",
-	"sl.subgraphs.delete",
-	"sl.subgraphs.getSource",
 	"sl.webhooks.list",
 	"sl.webhooks.get",
 	"sl.webhooks.create",

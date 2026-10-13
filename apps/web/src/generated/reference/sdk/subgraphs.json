@@ -5,11 +5,11 @@
 		{
 			"id": "list",
 			"path": "sl.subgraphs.list",
-			"summary": "",
-			"description": "",
+			"summary": "List the subgraphs deployed to this instance.",
+			"description": "List the subgraphs deployed to this instance.\n\nEach summary has the status, the last processed block against the chain tip, progress, `gapCount`, and an `integrity` flag.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 157
+				"line": 162
 			},
 			"rest": "GET /api/subgraphs",
 			"overloads": [
@@ -28,11 +28,11 @@
 		{
 			"id": "status",
 			"path": "sl.subgraphs.status",
-			"summary": "The subgraph's current state — health, sync position, tables.",
-			"description": "The subgraph's current state — health, sync position, tables. The verify\nstep after a deploy, reindex, or backfill: poll it until `sync` catches\nthe tip.",
+			"summary": "Get a subgraph's health, sync position, and tables.",
+			"description": "Get a subgraph's health, sync position, and tables.\n\nThe verify step after a deploy, reindex, or backfill: poll it until\n`sync` catches the tip.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 166
+				"line": 172
 			},
 			"rest": "GET /api/subgraphs/{name}",
 			"overloads": [
@@ -58,11 +58,11 @@
 		{
 			"id": "openapi",
 			"path": "sl.subgraphs.openapi",
-			"summary": "",
-			"description": "",
+			"summary": "Get a subgraph's OpenAPI spec.",
+			"description": "Get a subgraph's OpenAPI spec.\n\nDescribes the REST routes generated for each table. Pass `serverUrl` to set the server the spec advertises.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 170
+				"line": 181
 			},
 			"rest": "GET /api/subgraphs/{name}/openapi.json{options}",
 			"overloads": [
@@ -94,11 +94,11 @@
 		{
 			"id": "schema",
 			"path": "sl.subgraphs.schema",
-			"summary": "",
-			"description": "",
+			"summary": "Get a subgraph's schema as JSON, shaped for agents.",
+			"description": "Get a subgraph's schema as JSON, shaped for agents.\n\nPer table: the endpoints, columns, indexes, which fields are sortable, selectable, searchable, or filterable, and a ready example query. Pass `serverUrl` to set the server the endpoints use.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 180
+				"line": 196
 			},
 			"rest": "GET /api/subgraphs/{name}/schema.json{options}",
 			"overloads": [
@@ -130,11 +130,11 @@
 		{
 			"id": "markdown",
 			"path": "sl.subgraphs.markdown",
-			"summary": "",
-			"description": "",
+			"summary": "Get a subgraph's generated API docs as Markdown text.",
+			"description": "Get a subgraph's generated API docs as Markdown text.\n\nPass `serverUrl` to set the server the examples use.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 190
+				"line": 211
 			},
 			"rest": "GET /api/subgraphs/{name}/docs.md{options}",
 			"overloads": [
@@ -166,11 +166,11 @@
 		{
 			"id": "reindex",
 			"path": "sl.subgraphs.reindex",
-			"summary": "Reindex always drops and rebuilds the whole subgraph, so it takes no block range; the API rejects one with `REINDEX_RANGE_NOT_SUPPORTED`.",
-			"description": "Reindex always drops and rebuilds the whole subgraph, so it takes no\nblock range; the API rejects one with `REINDEX_RANGE_NOT_SUPPORTED`.\nUse `backfill` to process a specific range. While a reindex or\nbackfill is already running the API answers 409 with code\n`OPERATION_IN_PROGRESS`; poll `operations` until it finishes.",
+			"summary": "Rebuild a subgraph from scratch.",
+			"description": "Rebuild a subgraph from scratch.\n\nA reindex always drops and rebuilds the whole subgraph, so it takes no\nblock range; the API rejects one with `REINDEX_RANGE_NOT_SUPPORTED`.\nUse `backfill` to process a specific range. While a reindex or\nbackfill is already running the API answers 409 with code\n`OPERATION_IN_PROGRESS`; poll `operations` until it finishes.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 204
+				"line": 227
 			},
 			"rest": "POST /api/subgraphs/{name}/reindex",
 			"overloads": [
@@ -196,11 +196,11 @@
 		{
 			"id": "stop",
 			"path": "sl.subgraphs.stop",
-			"summary": "",
-			"description": "",
+			"summary": "Stop a running reindex or backfill.",
+			"description": "Stop a running reindex or backfill.\n\nRequests the cancel and resolves with the `operationId` and a `cancel_requested` status. Poll `getOperation` until `status` is terminal. Throws a 404 with code `NO_OPERATION` when nothing is running.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 211
+				"line": 239
 			},
 			"rest": "POST /api/subgraphs/{name}/stop",
 			"overloads": [
@@ -230,7 +230,7 @@
 			"description": "Process one block range. 409 `OPERATION_IN_PROGRESS` while another\nreindex or backfill runs on this subgraph.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 223
+				"line": 251
 			},
 			"rest": "POST /api/subgraphs/{name}/backfill",
 			"overloads": [
@@ -262,11 +262,11 @@
 		{
 			"id": "gaps",
 			"path": "sl.subgraphs.gaps",
-			"summary": "",
-			"description": "",
+			"summary": "List the block ranges a subgraph is missing.",
+			"description": "List the block ranges a subgraph is missing.\n\nEach gap has its `start`, `end`, `size`, `reason`, and when it was detected and resolved. `resolved` filters to resolved or open gaps; page with `limit` and `offset`. `meta` reports the total gap count and total missing blocks.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 234
+				"line": 267
 			},
 			"rest": "GET /api/subgraphs/{name}/gaps",
 			"overloads": [
@@ -298,11 +298,11 @@
 		{
 			"id": "delete",
 			"path": "sl.subgraphs.delete",
-			"summary": "",
-			"description": "",
+			"summary": "Delete a subgraph and its tables.",
+			"description": "Delete a subgraph and its tables.\n\nPermanent. The API cancels any running reindex or backfill first, waits up to 5 seconds for it to stop, then drops the subgraph's tables and registry entry. `force: true` is sent as `?force=true`.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 249
+				"line": 287
 			},
 			"rest": "DELETE /api/subgraphs/{name}",
 			"overloads": [
@@ -334,11 +334,11 @@
 		{
 			"id": "rows",
 			"path": "sl.subgraphs.rows",
-			"summary": "Open /v1 read: cursor-paginated rows.",
-			"description": "Open /v1 read: cursor-paginated rows. Anon works on an open instance;\npass an apiKey on the client where reads are closed. `next_cursor` is set\non every page that returned rows and is `null` only on an empty page, so a\npoller tails with `cursor = page.next_cursor ?? cursor`. A paging loop\nends on an empty page (or one shorter than `limit`).",
+			"summary": "Read a table's rows, one cursor page at a time.",
+			"description": "Read a table's rows, one cursor page at a time.\n\nAnon works on an open instance; pass an apiKey on the client where reads\nare closed. `next_cursor` is set\non every page that returned rows and is `null` only on an empty page, so a\npoller tails with `cursor = page.next_cursor ?? cursor`. A paging loop\nends on an empty page (or one shorter than `limit`).",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 267
+				"line": 307
 			},
 			"rest": "GET /v1/subgraphs/{name}/{table}{cursorQs}",
 			"overloads": [
@@ -386,7 +386,7 @@
 			"description": "Recent reindex/backfill operations for a subgraph, newest first.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 285
+				"line": 325
 			},
 			"rest": "GET /api/subgraphs/{name}/operations",
 			"overloads": [
@@ -412,11 +412,11 @@
 		{
 			"id": "getOperation",
 			"path": "sl.subgraphs.getOperation",
-			"summary": "Status of a single operation (poll the `operationId` returned by reindex/backfill/stop until `status` is terminal).",
-			"description": "Status of a single operation (poll the `operationId` returned by\nreindex/backfill/stop until `status` is terminal).",
+			"summary": "Get the status of one reindex, backfill, or stop operation.",
+			"description": "Get the status of one reindex, backfill, or stop operation.\n\nPoll the `operationId` returned by `reindex`, `backfill`, or `stop`\nuntil `status` is terminal.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 296
+				"line": 338
 			},
 			"rest": "GET /api/subgraphs/{name}/operations/{operationId}",
 			"overloads": [
@@ -452,7 +452,7 @@
 			"description": "Create or update a subgraph. A deploy that needs a rebuild queues one;\nif a reindex or backfill is already running the API answers 409 with\ncode `OPERATION_IN_PROGRESS` (an `ApiError`, not a dedicated class).",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 309
+				"line": 351
 			},
 			"rest": "POST /api/subgraphs",
 			"overloads": [
@@ -478,11 +478,11 @@
 		{
 			"id": "getSource",
 			"path": "sl.subgraphs.getSource",
-			"summary": "",
-			"description": "",
+			"summary": "Get a deployed subgraph's source.",
+			"description": "Get a deployed subgraph's source.\n\nReturns `sourceCode`, the bundled `handlerCode` the runtime executes, and the `pin` hash of what you deployed. `handlerCode` and `pin` are `null` for local deploys. A subgraph deployed before source was captured returns `sourceCode: null` and `readOnly: true` with a `reason`; redeploy it to capture the source.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 313
+				"line": 360
 			},
 			"rest": "GET /api/subgraphs/{name}/source",
 			"overloads": [
@@ -512,7 +512,7 @@
 			"description": "Bundle a TypeScript subgraph source on the server. Used by the web chat\nauthoring loop so Vercel's serverless runtime doesn't have to run esbuild.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 324
+				"line": 371
 			},
 			"rest": "POST /api/subgraphs/bundle",
 			"overloads": [
@@ -538,11 +538,11 @@
 		{
 			"id": "count",
 			"path": "sl.subgraphs.count",
-			"summary": "Open /v1 read: exact row count for a filtered set.",
-			"description": "Open /v1 read: exact row count for a filtered set. Same auth posture as `rows`.",
+			"summary": "Count the rows in a table that match a filter.",
+			"description": "Count the rows in a table that match a filter.\n\nThe count is exact. Same auth posture as `rows`.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 334
+				"line": 382
 			},
 			"rest": "GET /v1/subgraphs/{name}/{table}/count{params}",
 			"overloads": [
@@ -580,11 +580,11 @@
 		{
 			"id": "aggregate",
 			"path": "sl.subgraphs.aggregate",
-			"summary": "Open /v1 read: scalar aggregates over a filtered set.",
-			"description": "Open /v1 read: scalar aggregates over a filtered set. Same auth posture\nas `rows`.",
+			"summary": "Compute scalar aggregates over a table's matching rows.",
+			"description": "Compute scalar aggregates over a table's matching rows.\n\nSame auth posture as `rows`.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 347
+				"line": 396
 			},
 			"rest": "GET /v1/subgraphs/{name}/{table}/aggregate{params}",
 			"overloads": [
@@ -626,7 +626,7 @@
 			"description": "Returns a typed client for a subgraph defined with `defineSubgraph()`.\nRow types are inferred from the subgraph's schema literal types.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
-				"line": 372
+				"line": 421
 			},
 			"overloads": [
 				{
