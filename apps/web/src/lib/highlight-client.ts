@@ -1,5 +1,5 @@
 import type { HighlighterCore } from "shiki/core";
-import { monotonePurple, monotonePurpleDark } from "./syntax-theme";
+import { secondlayer, secondlayerDark } from "./syntax-theme";
 
 /**
  * Client-side counterpart to `highlight.ts` (server-only), for the delivery
@@ -29,7 +29,7 @@ async function getHighlighter(): Promise<HighlighterCore> {
 				import("@shikijs/langs/html").then((m) => m.default),
 			]);
 			return createHighlighterCore({
-				themes: [monotonePurple, monotonePurpleDark],
+				themes: [secondlayer, secondlayerDark],
 				langs: [json, html],
 				engine: createJavaScriptRegexEngine(),
 			});
@@ -49,8 +49,8 @@ export async function highlightClient(
 	return highlighter.codeToHtml(code, {
 		lang,
 		themes: {
-			light: "monotone-purple",
-			dark: "monotone-purple-dark",
+			light: "secondlayer",
+			dark: "secondlayer-dark",
 		},
 	});
 }

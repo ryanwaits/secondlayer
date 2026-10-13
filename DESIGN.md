@@ -7,6 +7,7 @@ colors:
     paper: "#ffffff"
     ink: "#111111"
     sub: "#5e5e5e"
+    faint: "#9b9b96"
     line: "#e5e5e2"
     soft: "#f5f5f2"
     pri: "#1f45e0"
@@ -19,6 +20,7 @@ colors:
     paper: "#1c1b19"
     ink: "#ece9e2"
     sub: "#b0aca2"
+    faint: "#7c786f"
     line: "#383631"
     soft: "#252420"
     pri: "#3a5bff"
@@ -121,6 +123,7 @@ name before writing CSS; an unknown `var(--x)` silently voids the whole declarat
 | `soft` | `--soft` | `--bg-chrome`, `--bg-tab-active` |
 | `ink` | `--ink` | `--text-main`, `--text-prose` |
 | `sub` | `--sub` | `--text-muted` (alpha ramp) |
+| `faint` | `--faint` | none; code punctuation, comments, line numbers |
 | `line` | `--line` | `--border` |
 | `pri` / `on-pri` | `--pri` / `--on-pri` | `--accent`, `--accent-contrast`, `--blue`, `--teal` |
 | `hi` / `on-hi` | `--hi` / `--on-hi` | none; yellow fills only |
@@ -155,6 +158,7 @@ as the only imagery. The page whispers; the terminal demonstrates. Nothing decor
 | paper | `#ffffff` | `#1c1b19` | the page |
 | ink | `#111111` | `#ece9e2` | text, solid structure |
 | sub | `#5e5e5e` | `#b0aca2` | muted text |
+| faint | `#9b9b96` | `#7c786f` | code punctuation, comments, line numbers |
 | line | `#e5e5e2` | `#383631` | hairlines |
 | soft | `#f5f5f2` | `#252420` | raised surface |
 | pri / on-pri | `#1f45e0` / `#ffffff` | `#3a5bff` / `#ffffff` | action: links, primary buttons, focus; one part of a product glyph |
