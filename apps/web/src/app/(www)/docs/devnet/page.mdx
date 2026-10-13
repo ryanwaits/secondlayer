@@ -36,7 +36,8 @@ Secondlayer stack up
 Pass `--no-up` to write `settings/Devnet.toml` and the compose file without starting containers, then bring it up yourself with `docker compose -f .secondlayer/docker-compose.yml up -d`.
 </Callout>
 
-### Options
+<details id="options">
+<summary>Options</summary>
 
 | Flag | Default | Purpose |
 | --- | --- | --- |
@@ -44,6 +45,8 @@ Pass `--no-up` to write `settings/Devnet.toml` and the compose file without star
 | `--image-tag <tag>` | `latest` | Published image tag to run |
 | `--owner <owner>` | Secondlayer namespace | ghcr image owner to pull from |
 | `--no-up` | — | Patch config + write compose without starting Docker |
+
+</details>
 
 ## Start the devnet
 
@@ -53,7 +56,8 @@ Start the devnet; it auto-deploys your contracts and streams every block to the 
 clarinet devnet start
 ```
 
-## Deploy a subgraph against it
+<details id="deploy-a-subgraph-against-it">
+<summary>Deploy a subgraph against it</summary>
 
 Point the CLI at the local API. There is no login: a deploy is a write, and the generated stack ships a fixed local token, `dev-instance-token`, for exactly that:
 
@@ -73,7 +77,10 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/my-app/balances"
 
 See [Instance token](/docs/self-host/production#instance-token).
 
-## Watch it work
+</details>
+
+<details id="watch-it-work">
+<summary>Watch it work</summary>
 
 ```bash
 secondlayer devnet status
@@ -99,12 +106,17 @@ Tail logs for the whole stack or one service (`indexer`, `api`, `subgraph-proces
 secondlayer devnet logs indexer -f
 ```
 
-## Tear down
+</details>
+
+<details id="tear-down">
+<summary>Tear down</summary>
 
 ```bash
 secondlayer devnet down            # stop the stack
 secondlayer devnet down --purge    # stop and wipe the local index volumes
 ```
+
+</details>
 
 export const agent = `
 - From inside a Clarinet project: 'secondlayer devnet connect' patches settings/Devnet.toml to forward events to the local indexer on :3700, writes .secondlayer/docker-compose.yml, and brings the stack up. Then 'clarinet devnet start'; confirm 'curl http://localhost:3800/health'.
