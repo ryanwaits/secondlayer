@@ -9,7 +9,7 @@
 			"description": "Callable: `index.ftTransfers(params)` ≡ `index.ftTransfers.list(params)`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1835
+				"line": 1863
 			},
 			"overloads": [
 				{
@@ -54,7 +54,7 @@
 			"description": "Read one page of fungible-token transfers, plus the cursor for the next.\n\nFilter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. Filters are equality only: there is no amount filter. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back. `reorgs` on the envelope lists forks that overlap the page.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1697
+				"line": 1721
 			},
 			"overloads": [
 				{
@@ -145,7 +145,7 @@
 			"description": "Iterate every fungible-token transfer, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1706
+				"line": 1730
 			},
 			"overloads": [
 				{
@@ -236,7 +236,7 @@
 			"description": "Callable: `index.nftTransfers(params)` ≡ `index.nftTransfers.list(params)`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1848
+				"line": 1876
 			},
 			"overloads": [
 				{
@@ -281,7 +281,7 @@
 			"description": "Read one page of NFT transfers, plus the cursor for the next.\n\nFilter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1725
+				"line": 1749
 			},
 			"overloads": [
 				{
@@ -372,7 +372,7 @@
 			"description": "Iterate every NFT transfer, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1734
+				"line": 1758
 			},
 			"overloads": [
 				{
@@ -463,7 +463,7 @@
 			"description": "Generic decoded events by `event_type` (the full /v1/index/events surface).\nCallable: `index.events(params)` ≡ `index.events.list(params)`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1862
+				"line": 1890
 			},
 			"overloads": [
 				{
@@ -508,7 +508,7 @@
 			"description": "Read one page of decoded events of one type.\n\n`eventType` is required: a decoded type (`ft_transfer`, `print`, ...) or a VM type (`nested_contract_call`, `map_set`, ...), and a literal narrows the row type. Scope with `contractId` (one id or up to 20) or `trait`, never both, plus `assetIdentifier`, `sender`, `recipient`, `functionName`, `caller`, `map`, `varName`, `txId`, and a height range. `txContext: true` joins the submitting transaction onto each event. `fields` returns only those columns and narrows the row type; it saves wire bytes but does not change what you are billed, since rows are metered, not columns.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1755
+				"line": 1779
 			},
 			"overloads": [
 				{
@@ -619,7 +619,7 @@
 			"description": "Iterate every decoded event of one type, paging for you.\n\nTakes the same filters as `list`, including `eventType`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1769
+				"line": 1793
 			},
 			"overloads": [
 				{
@@ -730,7 +730,7 @@
 			"description": "Run a checkpointed, reorg-aware indexer over decoded events.\n\nWrite your rows in `onBatch` and commit `ctx.cursor` in the same transaction; resume with `fromCursor`. Without `fromCursor` or `fromHeight` the API serves only its recent default window, so pass `fromHeight: 0` for a full backfill. A reorg at or below your checkpoint calls `onReorg`, then the loop re-reads from the fork point. Delivery is at-least-once, so keep writes idempotent. With a `sink`, the checkpoint and rollback are handled for you. `finalizedOnly` holds delivery to finalized rows, so no reorg handling is needed. `mode: \"tail\"` (default) keeps polling at the tip; `mode: \"bounded\"` returns on the first empty page. Resolves to `{ cursor, pages, emptyPolls }`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1783
+				"line": 1807
 			},
 			"overloads": [
 				{
@@ -769,7 +769,7 @@
 			"description": "Read one page of decoded contract calls.\n\nFilter by `contractId` (one id or up to 20) or `trait`, never both, plus `functionName`, `sender`, and a height range. Each row has the function name, arguments, result, and status. Pass `next_cursor` back as `cursor` to continue.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1900
+				"line": 1928
 			},
 			"overloads": [
 				{
@@ -798,7 +798,7 @@
 			"description": "Iterate every decoded contract call, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1906
+				"line": 1934
 			},
 			"overloads": [
 				{
@@ -827,7 +827,7 @@
 			"description": "Run a checkpointed, reorg-aware indexer over contract calls.\n\nWrite your rows in `onBatch` and commit `ctx.cursor` in the same transaction; resume with `fromCursor`. Without `fromCursor` or `fromHeight` the API serves only its recent default window, so pass `fromHeight: 0` for a full backfill. A reorg at or below your checkpoint calls `onReorg`, then the loop re-reads from the fork point. Delivery is at-least-once, so keep writes idempotent. With a `sink`, the checkpoint and rollback are handled for you. `finalizedOnly` holds delivery to finalized rows, so no reorg handling is needed. `mode: \"tail\"` (default) keeps polling at the tip; `mode: \"bounded\"` returns on the first empty page. Resolves to `{ cursor, pages, emptyPolls }`. Calls already carry `sender` and `function_name`, so there is no `txContext`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1914
+				"line": 1942
 			},
 			"overloads": [
 				{
@@ -856,7 +856,7 @@
 			"description": "Read one page of the canonical block-hash map.\n\nEach row is a block's hash, its parent hash, and its burn-chain anchor. Compare it with your own tables to confirm you follow the current chain.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1948
+				"line": 1976
 			},
 			"overloads": [
 				{
@@ -885,7 +885,7 @@
 			"description": "Iterate every canonical block hash, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1954
+				"line": 1982
 			},
 			"overloads": [
 				{
@@ -914,7 +914,7 @@
 			"description": "Read one page of the contract-state writes each block committed.\n\nRows are the exact key and value writes, in the node's write order (`ordinal`), so you can see which key a transaction changed when events alone do not show it. Filter by `blockHeight` (excludes `fromHeight` and `toHeight`) or `contractId`. `txContext: true` joins the writing transaction. Rows exist only from the height your node first subscribed to state writes.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1970
+				"line": 1998
 			},
 			"overloads": [
 				{
@@ -943,7 +943,7 @@
 			"description": "Iterate every state write, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1976
+				"line": 2004
 			},
 			"overloads": [
 				{
@@ -972,7 +972,7 @@
 			"description": "Read one page of canonical blocks.\n\nEach block has its hash, parent hash, burn-chain anchor, and `block_time`. Filter by a height range.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1993
+				"line": 2021
 			},
 			"overloads": [
 				{
@@ -1001,7 +1001,7 @@
 			"description": "Iterate every canonical block, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1999
+				"line": 2027
 			},
 			"overloads": [
 				{
@@ -1030,7 +1030,7 @@
 			"description": "Get one block by height or hash, or `null`.\n\nResolves to `null` when no such block exists (404).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2005
+				"line": 2033
 			},
 			"overloads": [
 				{
@@ -1059,7 +1059,7 @@
 			"description": "Read one page of full transaction documents.\n\nFilter by `type`, `sender`, `contractId`, and a height range. Each document has the decoded post conditions and the payload for its `tx_type`; enrichment fields are null when the raw transaction cannot be decoded. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `tx_id` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2023
+				"line": 2051
 			},
 			"overloads": [
 				{
@@ -1104,7 +1104,7 @@
 			"description": "Iterate every transaction document, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2034
+				"line": 2062
 			},
 			"overloads": [
 				{
@@ -1133,7 +1133,7 @@
 			"description": "Get one transaction by id, or `null`.\n\nResolves to `null` when the transaction is not found (404).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2040
+				"line": 2068
 			},
 			"overloads": [
 				{
@@ -1162,7 +1162,7 @@
 			"description": "Get a transaction's inclusion proof, or `null`.\n\nThe proof is the raw transaction, the Nakamoto block header, and the merkle path. Check it yourself with `verifyTransactionProof`; nothing in it needs to be trusted. Resolves to `null` on 404. A 503 (`PROOF_TX_SET_INCOMPLETE` or `PROOF_NODE_UNAVAILABLE`) throws an `ApiError`: the proof cannot be assembled on this deployment right now.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2046
+				"line": 2074
 			},
 			"overloads": [
 				{
@@ -1191,7 +1191,7 @@
 			"description": "Read one page of decoded PoX-4 stacking actions.\n\nOne row per stacking contract call. Filter by `functionName`, `stacker`, `caller`, and a height range. The feed is empty, with a `notes` hint, when the instance's PoX-4 decoder is disabled. For the current PoX, use `pox5.events` and `pox.cycles`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2068
+				"line": 2096
 			},
 			"overloads": [
 				{
@@ -1220,7 +1220,7 @@
 			"description": "Iterate every PoX-4 stacking action, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2074
+				"line": 2102
 			},
 			"overloads": [
 				{
@@ -1249,7 +1249,7 @@
 			"description": "Read one page of pending, unconfirmed transactions.\n\nFilter by `sender`, `type`, `contractId`, and `functionName`. There is no height filter: rows carry `received_at` and a sequence cursor instead of a block position.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2091
+				"line": 2119
 			},
 			"overloads": [
 				{
@@ -1278,7 +1278,7 @@
 			"description": "Iterate every pending transaction, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2097
+				"line": 2125
 			},
 			"overloads": [
 				{
@@ -1307,7 +1307,7 @@
 			"description": "Get one pending transaction, or `null`.\n\nResolves to `null` once the transaction has confirmed or dropped.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2105
+				"line": 2133
 			},
 			"overloads": [
 				{
@@ -1406,11 +1406,11 @@
 		{
 			"id": "sbtc.deposits.consume",
 			"path": "sl.index.sbtc.deposits.consume",
-			"summary": "Checkpointed sweep of completed deposits — append-only, so safe to mirror.",
-			"description": "Checkpointed sweep of completed deposits — append-only, so safe to\nmirror. See [`IndexConsumeOptions`](/docs/sdk-reference/index-api#t-IndexConsumeOptions).",
+			"summary": "Run a checkpointed, reorg-aware indexer over completed deposits.",
+			"description": "Run a checkpointed, reorg-aware indexer over completed deposits.\n\nDeposits are append-only, so they are safe to mirror. See [`IndexConsumeOptions`](/docs/sdk-reference/index-api#t-IndexConsumeOptions).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1121
+				"line": 1125
 			},
 			"overloads": [
 				{
@@ -1439,7 +1439,7 @@
 			"description": "Fetch a completed deposit by Bitcoin txid; 404 → null.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1129
+				"line": 1133
 			},
 			"overloads": [
 				{
@@ -1468,7 +1468,7 @@
 			"description": "Read one page of sBTC withdrawals, each with its current status.\n\nFilter by `status` (`REQUESTED`, `ACCEPTED`, `REJECTED`), `sender`, `requestId`, `settlementConfirmed`, and a height range. A row changes as the peg-out moves along, which is why withdrawals have no `consume`. `fields` returns only those columns and narrows the row type; `cursor` and `request_id` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1137
+				"line": 1141
 			},
 			"overloads": [
 				{
@@ -1513,7 +1513,7 @@
 			"description": "Iterate every sBTC withdrawal, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1146
+				"line": 1150
 			},
 			"overloads": [
 				{
@@ -1542,7 +1542,7 @@
 			"description": "Fetch a withdrawal's full lifecycle by request id; 404 → null.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1150
+				"line": 1154
 			},
 			"overloads": [
 				{
@@ -1571,7 +1571,7 @@
 			"description": "Read one page of the raw sBTC peg event log.\n\nFilter by `topic`, `sender`, `requestId`, `bitcoinTxid`, and a height range. `confirmed: true` keeps only events past the finality boundary.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1164
+				"line": 1168
 			},
 			"overloads": [
 				{
@@ -1600,7 +1600,7 @@
 			"description": "Iterate every sBTC peg event, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1170
+				"line": 1174
 			},
 			"overloads": [
 				{
@@ -1625,11 +1625,11 @@
 		{
 			"id": "sbtc.events.consume",
 			"path": "sl.index.sbtc.events.consume",
-			"summary": "Checkpointed sweep of the raw peg event log — append-only across all six topics.",
-			"description": "Checkpointed sweep of the raw peg event log — append-only across all\nsix topics. See [`IndexConsumeOptions`](/docs/sdk-reference/index-api#t-IndexConsumeOptions).",
+			"summary": "Run a checkpointed, reorg-aware indexer over the raw peg event log.",
+			"description": "Run a checkpointed, reorg-aware indexer over the raw peg event log.\n\nThe log is append-only across all six topics. See [`IndexConsumeOptions`](/docs/sdk-reference/index-api#t-IndexConsumeOptions).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1173
+				"line": 1181
 			},
 			"overloads": [
 				{
@@ -1654,11 +1654,11 @@
 		{
 			"id": "sbtc.summary",
 			"path": "sl.index.sbtc.summary",
-			"summary": "The peg scoreboard — a single all-time aggregate (no pagination).",
-			"description": "The peg scoreboard — a single all-time aggregate (no pagination).",
+			"summary": "Get the all-time sBTC peg scoreboard.",
+			"description": "Get the all-time sBTC peg scoreboard.\n\nA single aggregate, with no pagination.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1182
+				"line": 1194
 			},
 			"overloads": [
 				{
@@ -1680,7 +1680,7 @@
 			"description": "Read one page of PoX reward cycles, newest first.\n\n`cursor` is a `reward_cycle` number, and the page returns the cycles below it. `next_cursor` is the next cycle number to page from, or `null` at the end. This reports the current PoX (PoX-5); PoX-4 history is not served here, so read `stacking` for it.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1279
+				"line": 1291
 			},
 			"overloads": [
 				{
@@ -1709,7 +1709,7 @@
 			"description": "Iterate every reward cycle, paging for you.\n\nTakes the same filters as `list` (it pages by reward cycle number). Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1285
+				"line": 1297
 			},
 			"overloads": [
 				{
@@ -1734,11 +1734,11 @@
 		{
 			"id": "pox.cycles.get",
 			"path": "sl.index.pox.cycles.get",
-			"summary": "Fetch one reward cycle by number; 404 (unknown cycle, or below pox-5's first reward cycle 141 — final PoX-4 history, not served here) → null.",
-			"description": "Fetch one reward cycle by number; 404 (unknown cycle, or below pox-5's\nfirst reward cycle 141 — final PoX-4 history, not served here) → null.",
+			"summary": "Get one reward cycle by number, or `null`.",
+			"description": "Get one reward cycle by number, or `null`.\n\nResolves to `null` on 404: an unknown cycle, or one below pox-5's first\nreward cycle (141), whose PoX-4 history is final and not served here.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1288
+				"line": 1304
 			},
 			"overloads": [
 				{
@@ -1767,7 +1767,7 @@
 			"description": "Read one page of decoded PoX-5 staking events.\n\nFilter by `topic`, `staker`, `signer`, `signerManager`, `bondIndex`, `rewardCycle`, and a height range. `confirmed: true` keeps only rows past the finality boundary. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `topic` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1386
+				"line": 1402
 			},
 			"overloads": [
 				{
@@ -1812,7 +1812,7 @@
 			"description": "Iterate every PoX-5 event, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1395
+				"line": 1411
 			},
 			"overloads": [
 				{
@@ -1837,11 +1837,11 @@
 		{
 			"id": "pox5.events.consume",
 			"path": "sl.index.pox5.events.consume",
-			"summary": "Checkpointed sweep of the pox-5 print log — append-only across all 19 topics.",
-			"description": "Checkpointed sweep of the pox-5 print log — append-only across all\n19 topics. See [`IndexConsumeOptions`](/docs/sdk-reference/index-api#t-IndexConsumeOptions).",
+			"summary": "Run a checkpointed, reorg-aware indexer over PoX-5 events.",
+			"description": "Run a checkpointed, reorg-aware indexer over PoX-5 events.\n\nThe pox-5 print log is append-only across all 19 topics. See [`IndexConsumeOptions`](/docs/sdk-reference/index-api#t-IndexConsumeOptions).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1398
+				"line": 1418
 			},
 			"overloads": [
 				{
@@ -1870,7 +1870,7 @@
 			"description": "Read one page of Rune etch, mint, transfer, and burn events.\n\nFilter by `rune` (an id or a name), `address`, `kind`, `txid`, and a height range. The cursor is `<block_height>:<event_index>`, and the envelope's tip is a Bitcoin tip. `notes` says so when Runes is not configured on the instance.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1610
+				"line": 1634
 			},
 			"overloads": [
 				{
@@ -1899,7 +1899,7 @@
 			"description": "Iterate every Rune event, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1616
+				"line": 1640
 			},
 			"overloads": [
 				{
@@ -1928,7 +1928,7 @@
 			"description": "The rune catalog. `search` prefix-matches the name; `sort` is etch\norder (default) or busiest-first.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1597
+				"line": 1617
 			},
 			"overloads": [
 				{
@@ -1953,11 +1953,11 @@
 		{
 			"id": "runes.get",
 			"path": "sl.index.runes.get",
-			"summary": "One rune's full entry by id or name; `null` on 404 (no such rune, or Runes isn't configured on this instance).",
-			"description": "One rune's full entry by id or name; `null` on 404 (no such rune, or\nRunes isn't configured on this instance).",
+			"summary": "Get one rune by id or name, or `null`.",
+			"description": "Get one rune by id or name, or `null`.\n\nResolves to `null` on 404: no such rune, or Runes isn't configured on\nthis instance.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1600
+				"line": 1624
 			},
 			"overloads": [
 				{
@@ -1986,7 +1986,7 @@
 			"description": "Current per-outpoint rune balances by address or outpoint.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1602
+				"line": 1626
 			},
 			"overloads": [
 				{
@@ -2011,11 +2011,11 @@
 		{
 			"id": "discover",
 			"path": "sl.index.discover",
-			"summary": "Index discovery doc — the live vocabulary: every endpoint, each event type's columns, allowed/equality filters, and required-non-null fields.",
-			"description": "Index discovery doc — the live vocabulary: every endpoint, each event type's\ncolumns, allowed/equality filters, and required-non-null fields. Read this to\nlearn what's queryable (and which types accept `trait`) instead of hardcoding.",
+			"summary": "Get the live vocabulary of what Index can query.",
+			"description": "Get the live vocabulary of what Index can query.\n\nThe discovery doc lists every endpoint and each event type's columns,\nallowed and equality filters, and required-non-null fields. Read it to\nlearn what's queryable (and which types accept `trait`) instead of\nhardcoding.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1818
+				"line": 1845
 			},
 			"rest": "GET /v1/index",
 			"overloads": [
@@ -2034,11 +2034,11 @@
 		{
 			"id": "printSchema",
 			"path": "sl.index.printSchema",
-			"summary": "Empirical per-topic print payload schema for a contract — what topics it emits and each field's observed Clarity/TS/column types.",
-			"description": "Empirical per-topic print payload schema for a contract — what topics it\nemits and each field's observed Clarity/TS/column types. Anonymous read;\n404 → null.",
+			"summary": "Get the print payload schema a contract actually emits.",
+			"description": "Get the print payload schema a contract actually emits.\n\nLists the topics it emits and each field's observed Clarity, TS, and\ncolumn types. Anonymous read; resolves to `null` on 404.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1827
+				"line": 1855
 			},
 			"rest": "GET /v1/index/contracts/{contractId}/print-schema",
 			"overloads": [

@@ -148,8 +148,10 @@ export class SecondLayer extends BaseClient {
 	}
 
 	/**
-	 * Up to 10 public reads in one round trip (`POST /v1/batch`). Each item
-	 * is authorized on its own; the client's bearer token applies to every item.
+	 * Run up to 10 public reads in one round trip (`POST /v1/batch`).
+	 *
+	 * Each item is authorized on its own; the client's bearer token applies to
+	 * every item.
 	 */
 	async batch(
 		requests: Array<{
@@ -163,10 +165,12 @@ export class SecondLayer extends BaseClient {
 	}
 
 	/**
-	 * Assemble a {@link ContextSnapshot}: the same orientation an MCP agent
-	 * reads from `secondlayer://context`, available to any SDK/CLI consumer.
-	 * Reads run concurrently; a failed read lands as `{ value: null, error }`
-	 * on its field rather than rejecting the whole snapshot.
+	 * Get a one-call snapshot of your account and instance.
+	 *
+	 * Returns a {@link ContextSnapshot}: the same orientation an MCP agent reads
+	 * from `secondlayer://context`, available to any SDK or CLI consumer. Reads
+	 * run concurrently; a failed read lands as `{ value: null, error }` on its
+	 * field rather than rejecting the whole snapshot.
 	 */
 	async context(): Promise<ContextSnapshot> {
 		const [account, streamsTip, indexEnv, subgraphsRes, webhooksRes, instance] =

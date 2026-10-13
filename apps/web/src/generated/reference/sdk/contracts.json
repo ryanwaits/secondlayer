@@ -35,11 +35,11 @@
 		{
 			"id": "get",
 			"path": "sl.contracts.get",
-			"summary": "Fetch a single contract from the registry by id (the prod-safe ABI source).",
-			"description": "Fetch a single contract from the registry by id (the prod-safe ABI source).\nPass `{ includeAbi: true }` for the full ABI blob. Resolves null on 404.",
+			"summary": "Get one contract from the registry by id, or `null`.",
+			"description": "Get one contract from the registry by id, or `null`.\n\nThe prod-safe ABI source. Pass `{ includeAbi: true }` for the full ABI\nblob. Resolves to `null` on 404.",
 			"source": {
 				"file": "packages/sdk/src/contracts/client.ts",
-				"line": 67
+				"line": 69
 			},
 			"overloads": [
 				{

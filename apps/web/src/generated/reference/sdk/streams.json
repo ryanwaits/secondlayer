@@ -73,8 +73,8 @@
 		{
 			"id": "events.list",
 			"path": "sl.streams.events.list",
-			"summary": "Read one page of chain events, plus the cursor for the next page.",
-			"description": "Read one page of chain events, plus the cursor for the next page.\n\nNarrow with `types`, `notTypes`, `contractId`, `sender`, `recipient`,\n`assetIdentifier`, `fromHeight`/`toHeight`, or labelled `filters`.\nFilters match exactly, and an event type without a given field never\nmatches it. Pass `next_cursor` back as `cursor` to continue. The\nenvelope also carries the `tip` and any `reorgs`. To write the events\nsomewhere with a checkpoint, use `events.consume` instead.\n\nA literal `types` array narrows every row to those event types.\n`clock: \"vm\"` pages carry vm rows only (a parallel vocabulary,\n`event_index` = `ordinal`), never `StreamsEvent`; it is Stacks only.\n`chain: \"bitcoin\"` pages carry Runes rows only, on the bitcoin tip shape,\nand filter by `rune` or `address`.",
+			"summary": "Read one page of chain events and the next cursor.",
+			"description": "Read one page of chain events and the next cursor.\n\nNarrow with `types`, `notTypes`, `contractId`, `sender`, `recipient`,\n`assetIdentifier`, `fromHeight`/`toHeight`, or labelled `filters`.\nFilters match exactly, and an event type without a given field never\nmatches it. Pass `next_cursor` back as `cursor` to continue. The\nenvelope also carries the `tip` and any `reorgs`. To write the events\nsomewhere with a checkpoint, use `events.consume` instead.\n\nA literal `types` array narrows every row to those event types.\n`clock: \"vm\"` pages carry vm rows only (a parallel vocabulary,\n`event_index` = `ordinal`), never `StreamsEvent`; it is Stacks only.\n`chain: \"bitcoin\"` pages carry Runes rows only, on the bitcoin tip shape,\nand filter by `rune` or `address`.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
 				"line": 794

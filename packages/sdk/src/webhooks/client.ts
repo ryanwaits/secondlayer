@@ -129,8 +129,10 @@ export class Webhooks extends BaseClient {
 		);
 	}
 
-	/** Send a one-off test webhook to the webhook's URL (built for its
-	 *  format, SSRF-guarded). Logged as a delivery row, visible via deliveries. */
+	/** Send a one-off test delivery to a webhook's URL.
+	 *
+	 *  Built for the webhook's format and SSRF-guarded. Logged as a delivery
+	 *  row, visible via `deliveries`. */
 	async test(id: string): Promise<WebhookTestResult> {
 		return this.request<WebhookTestResult>(
 			"POST",

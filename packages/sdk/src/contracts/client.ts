@@ -61,8 +61,10 @@ export class Contracts extends BaseClient {
 	}
 
 	/**
-	 * Fetch a single contract from the registry by id (the prod-safe ABI source).
-	 * Pass `{ includeAbi: true }` for the full ABI blob. Resolves null on 404.
+	 * Get one contract from the registry by id, or `null`.
+	 *
+	 * The prod-safe ABI source. Pass `{ includeAbi: true }` for the full ABI
+	 * blob. Resolves to `null` on 404.
 	 */
 	async get(
 		contractId: string,

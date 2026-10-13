@@ -776,7 +776,7 @@ export type StreamsClient = {
 	consume(params?: StreamsConsumeParams): AsyncIterableIterator<StreamsBatch>;
 	events: {
 		/**
-		 * Read one page of chain events, plus the cursor for the next page.
+		 * Read one page of chain events and the next cursor.
 		 *
 		 * Narrow with `types`, `notTypes`, `contractId`, `sender`, `recipient`,
 		 * `assetIdentifier`, `fromHeight`/`toHeight`, or labelled `filters`.

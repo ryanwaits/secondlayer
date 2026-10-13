@@ -1116,8 +1116,12 @@ export interface SbtcResource {
 		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
 		 */
 		walk(params?: SbtcDepositsWalkParams): AsyncIterable<IndexSbtcDeposit>;
-		/** Checkpointed sweep of completed deposits — append-only, so safe to
-		 *  mirror. See {@link IndexConsumeOptions}. */
+		/**
+		 * Run a checkpointed, reorg-aware indexer over completed deposits.
+		 *
+		 * Deposits are append-only, so they are safe to mirror. See
+		 * {@link IndexConsumeOptions}.
+		 */
 		consume<TTx = never>(
 			params: SbtcDepositsConsumeParams<TTx> & { sink?: ConsumerSink<TTx> },
 		): Promise<{
@@ -1168,8 +1172,12 @@ export interface SbtcResource {
 		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
 		 */
 		walk(params?: SbtcEventsWalkParams): AsyncIterable<IndexSbtcEvent>;
-		/** Checkpointed sweep of the raw peg event log — append-only across all
-		 *  six topics. See {@link IndexConsumeOptions}. */
+		/**
+		 * Run a checkpointed, reorg-aware indexer over the raw peg event log.
+		 *
+		 * The log is append-only across all six topics. See
+		 * {@link IndexConsumeOptions}.
+		 */
 		consume<TTx = never>(
 			params: SbtcEventsConsumeParams<TTx> & { sink?: ConsumerSink<TTx> },
 		): Promise<{
@@ -1178,7 +1186,11 @@ export interface SbtcResource {
 			emptyPolls: number;
 		}>;
 	};
-	/** The peg scoreboard — a single all-time aggregate (no pagination). */
+	/**
+	 * Get the all-time sBTC peg scoreboard.
+	 *
+	 * A single aggregate, with no pagination.
+	 */
 	summary(): Promise<SbtcSummaryEnvelope>;
 }
 
@@ -1283,8 +1295,12 @@ export interface PoxResource {
 		 * Takes the same filters as `list` (it pages by reward cycle number). Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
 		 */
 		walk(params?: PoxCyclesWalkParams): AsyncIterable<IndexPoxCycle>;
-		/** Fetch one reward cycle by number; 404 (unknown cycle, or below pox-5's
-		 *  first reward cycle 141 — final PoX-4 history, not served here) → null. */
+		/**
+		 * Get one reward cycle by number, or `null`.
+		 *
+		 * Resolves to `null` on 404: an unknown cycle, or one below pox-5's first
+		 * reward cycle (141), whose PoX-4 history is final and not served here.
+		 */
 		get(rewardCycle: number): Promise<PoxCycleEnvelope | null>;
 	};
 }
@@ -1393,8 +1409,12 @@ export interface Pox5Resource {
 		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
 		 */
 		walk(params?: Pox5EventsWalkParams): AsyncIterable<IndexPox5Event>;
-		/** Checkpointed sweep of the pox-5 print log — append-only across all
-		 *  19 topics. See {@link IndexConsumeOptions}. */
+		/**
+		 * Run a checkpointed, reorg-aware indexer over PoX-5 events.
+		 *
+		 * The pox-5 print log is append-only across all 19 topics. See
+		 * {@link IndexConsumeOptions}.
+		 */
 		consume<TTx = never>(
 			params: Pox5EventsConsumeParams<TTx> & { sink?: ConsumerSink<TTx> },
 		): Promise<{
@@ -1595,8 +1615,12 @@ export interface RunesResource {
 	/** The rune catalog. `search` prefix-matches the name; `sort` is etch
 	 *  order (default) or busiest-first. */
 	list(params?: RunesListParams): Promise<RunesEnvelope>;
-	/** One rune's full entry by id or name; `null` on 404 (no such rune, or
-	 *  Runes isn't configured on this instance). */
+	/**
+	 * Get one rune by id or name, or `null`.
+	 *
+	 * Resolves to `null` on 404: no such rune, or Runes isn't configured on
+	 * this instance.
+	 */
 	get(rune: RuneRef): Promise<RuneEnvelope | null>;
 	/** Current per-outpoint rune balances by address or outpoint. */
 	balances(params: RuneBalancesListParams): Promise<RuneBalancesEnvelope>;
@@ -1811,18 +1835,22 @@ export class Index extends BaseClient {
 	}
 
 	/**
-	 * Index discovery doc — the live vocabulary: every endpoint, each event type's
-	 * columns, allowed/equality filters, and required-non-null fields. Read this to
-	 * learn what's queryable (and which types accept `trait`) instead of hardcoding.
+	 * Get the live vocabulary of what Index can query.
+	 *
+	 * The discovery doc lists every endpoint and each event type's columns,
+	 * allowed and equality filters, and required-non-null fields. Read it to
+	 * learn what's queryable (and which types accept `trait`) instead of
+	 * hardcoding.
 	 */
 	discover(): Promise<IndexDiscovery> {
 		return this.request<IndexDiscovery>("GET", "/v1/index");
 	}
 
 	/**
-	 * Empirical per-topic print payload schema for a contract — what topics it
-	 * emits and each field's observed Clarity/TS/column types. Anonymous read;
-	 * 404 → null.
+	 * Get the print payload schema a contract actually emits.
+	 *
+	 * Lists the topics it emits and each field's observed Clarity, TS, and
+	 * column types. Anonymous read; resolves to `null` on 404.
 	 */
 	async printSchema(contractId: string): Promise<PrintSchemaResponse | null> {
 		return this.requestOrNull<PrintSchemaResponse>(

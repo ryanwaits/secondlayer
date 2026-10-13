@@ -328,7 +328,7 @@
 					"summary": "`index.ftTransfers` — callable shorthand for `.list()`, with `.list`/`.walk` still available: `await sl.index.ftTransfers({ contractId })`.",
 					"signature": "FtTransfersResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1685
+					"line": 1709
 				},
 				{
 					"name": "FtTransfersWalkParams",
@@ -344,7 +344,7 @@
 					"summary": "",
 					"signature": "Index(options?: object): unknown",
 					"file": "src/index-api/client.ts",
-					"line": 1808
+					"line": 1832
 				},
 				{
 					"name": "INDEX_MAX_PAGE_SIZE",
@@ -368,7 +368,7 @@
 					"summary": "The Bitcoin chain tip a Runes read was served against — a separate clock from the Stacks {@link IndexTip}: Runes ingest tracks Bitcoin blocks, not Stacks ones.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1425
+					"line": 1445
 				},
 				{
 					"name": "IndexBlock",
@@ -384,7 +384,7 @@
 					"summary": "A Bitcoin fork the Runes indexer rolled back.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1435
+					"line": 1455
 				},
 				{
 					"name": "IndexCanonicalBlock",
@@ -416,7 +416,7 @@
 					"summary": "The `GET /v1/index` discovery doc — live endpoint + filter vocabulary.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1803
+					"line": 1827
 				},
 				{
 					"name": "IndexEvent",
@@ -448,7 +448,7 @@
 					"summary": "`index.events` — callable shorthand for `.list()`; `eventType` is required.",
 					"signature": "IndexEventsResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1741
+					"line": 1765
 				},
 				{
 					"name": "IndexEventType",
@@ -464,7 +464,7 @@
 					"summary": "Per-event-type filter vocabulary in the {@link IndexDiscovery} doc.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1793
+					"line": 1817
 				},
 				{
 					"name": "IndexFeedEnvelope",
@@ -592,7 +592,7 @@
 					"summary": "A raw decoded PoX-5 print event.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1302
+					"line": 1318
 				},
 				{
 					"name": "IndexPox5EventTopic",
@@ -600,7 +600,7 @@
 					"summary": "The decoded `pox-5` boot-contract print topics (SIP-045 Bitcoin Staking) — one source of truth in `@secondlayer/stacks/pox5` (already a dependency; the old \"SDK owns its own dependency surface\" rat…",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1297
+					"line": 1313
 				},
 				{
 					"name": "IndexPoxCycle",
@@ -608,7 +608,7 @@
 					"summary": "One pox-5 reward cycle, exact to the node.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1192
+					"line": 1204
 				},
 				{
 					"name": "IndexPoxCycleSigner",
@@ -616,7 +616,7 @@
 					"summary": "One signer's share of a pox-5 reward cycle.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1235
+					"line": 1247
 				},
 				{
 					"name": "IndexPrint",
@@ -640,7 +640,7 @@
 					"summary": "A rune's balance on one unspent output, with the rune's identity embedded.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1559
+					"line": 1579
 				},
 				{
 					"name": "IndexRuneEntry",
@@ -648,7 +648,7 @@
 					"summary": "One etched rune's full entry: identity, premine/mint/burn counters, computed supply, and mint terms.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1470
+					"line": 1490
 				},
 				{
 					"name": "IndexRuneEvent",
@@ -656,7 +656,7 @@
 					"summary": "One etch/mint/transfer/burn event, with the rune's identity embedded so an activity feed never needs a second lookup to show a name.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1520
+					"line": 1540
 				},
 				{
 					"name": "IndexRuneEventKind",
@@ -664,7 +664,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1512
+					"line": 1532
 				},
 				{
 					"name": "IndexRuneRefSummary",
@@ -672,7 +672,7 @@
 					"summary": "The rune identity bundle every Runes response embeds, so a client never needs a second lookup just to show a name next to an event or a balance.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1448
+					"line": 1468
 				},
 				{
 					"name": "IndexRuneTerms",
@@ -680,7 +680,7 @@
 					"summary": "Mint terms, or `null` for a premine-only rune that was never mintable.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1459
+					"line": 1479
 				},
 				{
 					"name": "IndexSbtcDeposit",
@@ -872,7 +872,7 @@
 					"summary": "`index.nftTransfers` — callable shorthand for `.list()` (see {@link FtTransfersResource}).",
 					"signature": "NftTransfersResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1713
+					"line": 1737
 				},
 				{
 					"name": "NftTransfersWalkParams",
@@ -888,7 +888,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1371
+					"line": 1387
 				},
 				{
 					"name": "Pox5EventsEnvelope",
@@ -896,7 +896,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1328
+					"line": 1344
 				},
 				{
 					"name": "Pox5EventsListParams",
@@ -904,7 +904,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1346
+					"line": 1362
 				},
 				{
 					"name": "Pox5EventsWalkParams",
@@ -912,7 +912,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1368
+					"line": 1384
 				},
 				{
 					"name": "Pox5Resource",
@@ -920,7 +920,7 @@
 					"summary": "`index.pox5` — decoded PoX-5 print events, the staking primitive from the epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1379
+					"line": 1395
 				},
 				{
 					"name": "PoxCycleEnvelope",
@@ -928,7 +928,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1256
+					"line": 1268
 				},
 				{
 					"name": "PoxCyclesEnvelope",
@@ -936,7 +936,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1247
+					"line": 1259
 				},
 				{
 					"name": "PoxCyclesListParams",
@@ -944,7 +944,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1262
+					"line": 1274
 				},
 				{
 					"name": "PoxCyclesWalkParams",
@@ -952,7 +952,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1268
+					"line": 1280
 				},
 				{
 					"name": "PoxResource",
@@ -960,7 +960,7 @@
 					"summary": "`index.pox` — reward cycles of the current PoX (PoX-5).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1272
+					"line": 1284
 				},
 				{
 					"name": "PrintSchemaResponse",
@@ -976,7 +976,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1535
+					"line": 1555
 				},
 				{
 					"name": "RuneActivityListParams",
@@ -984,7 +984,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1543
+					"line": 1563
 				},
 				{
 					"name": "RuneActivityWalkParams",
@@ -992,7 +992,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1555
+					"line": 1575
 				},
 				{
 					"name": "RuneBalancesEnvelope",
@@ -1000,7 +1000,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1569
+					"line": 1589
 				},
 				{
 					"name": "RuneBalancesListParams",
@@ -1008,7 +1008,7 @@
 					"summary": "Exactly one of `address`/`outpoint` is required — enforced at the type level, not just at runtime.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1580
+					"line": 1600
 				},
 				{
 					"name": "RuneEnvelope",
@@ -1016,7 +1016,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1507
+					"line": 1527
 				},
 				{
 					"name": "RuneId",
@@ -1024,7 +1024,7 @@
 					"summary": "A rune's `<block>:<tx>` id — the etch transaction's position, e.g.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1411
+					"line": 1431
 				},
 				{
 					"name": "RuneRef",
@@ -1032,7 +1032,7 @@
 					"summary": "A rune reference accepted by every Runes call: an id ({@link RuneId}) or a name, with or without spacers, in any case — `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` all resolve t…",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1420
+					"line": 1440
 				},
 				{
 					"name": "RunesEnvelope",
@@ -1040,7 +1040,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1487
+					"line": 1507
 				},
 				{
 					"name": "RunesListParams",
@@ -1048,7 +1048,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1498
+					"line": 1518
 				},
 				{
 					"name": "RunesResource",
@@ -1056,7 +1056,7 @@
 					"summary": "`index.runes` — the rune catalog, activity log, and balances.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1594
+					"line": 1614
 				},
 				{
 					"name": "SbtcDepositEnvelope",
@@ -2819,7 +2819,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/instance.ts",
-					"line": 15
+					"line": 25
 				},
 				{
 					"name": "ArchiveVerifyRangeStatus",
@@ -2827,7 +2827,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/instance.ts",
-					"line": 24
+					"line": 34
 				},
 				{
 					"name": "ArchiveVerifyResult",
@@ -2835,7 +2835,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/instance.ts",
-					"line": 30
+					"line": 40
 				},
 				{
 					"name": "buildDoctorReport",
@@ -3035,7 +3035,7 @@
 					"summary": "Hosted archive client plus instance `verify`.",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 110
+					"line": 160
 				},
 				{
 					"name": "shutdownSignal",

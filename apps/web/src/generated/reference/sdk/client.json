@@ -5,11 +5,11 @@
 		{
 			"id": "batch",
 			"path": "sl.batch",
-			"summary": "Up to 10 public reads in one round trip (`POST /v1/batch`).",
-			"description": "Up to 10 public reads in one round trip (`POST /v1/batch`). Each item\nis authorized on its own; the client's bearer token applies to every item.",
+			"summary": "Run up to 10 public reads in one round trip (`POST /v1/batch`).",
+			"description": "Run up to 10 public reads in one round trip (`POST /v1/batch`).\n\nEach item is authorized on its own; the client's bearer token applies to\nevery item.",
 			"source": {
 				"file": "packages/sdk/src/client.ts",
-				"line": 154
+				"line": 156
 			},
 			"rest": "POST /v1/batch",
 			"overloads": [
@@ -35,11 +35,11 @@
 		{
 			"id": "context",
 			"path": "sl.context",
-			"summary": "Assemble a [`ContextSnapshot`](/docs/sdk-reference/client#t-ContextSnapshot): the same orientation an MCP agent reads from `secondlayer://context`, available to any SDK/CLI consumer.",
-			"description": "Assemble a [`ContextSnapshot`](/docs/sdk-reference/client#t-ContextSnapshot): the same orientation an MCP agent\nreads from `secondlayer://context`, available to any SDK/CLI consumer.\nReads run concurrently; a failed read lands as `{ value: null, error }`\non its field rather than rejecting the whole snapshot.",
+			"summary": "Get a one-call snapshot of your account and instance.",
+			"description": "Get a one-call snapshot of your account and instance.\n\nReturns a [`ContextSnapshot`](/docs/sdk-reference/client#t-ContextSnapshot): the same orientation an MCP agent reads\nfrom `secondlayer://context`, available to any SDK or CLI consumer. Reads\nrun concurrently; a failed read lands as `{ value: null, error }` on its\nfield rather than rejecting the whole snapshot.",
 			"source": {
 				"file": "packages/sdk/src/client.ts",
-				"line": 171
+				"line": 175
 			},
 			"rest": "GET /api/accounts/me",
 			"overloads": [
