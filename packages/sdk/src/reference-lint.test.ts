@@ -16,16 +16,6 @@ const REFERENCE = join(
 );
 
 const PENDING_DOCS = new Set([
-	"sl.webhooks.list",
-	"sl.webhooks.get",
-	"sl.webhooks.create",
-	"sl.webhooks.update",
-	"sl.webhooks.pause",
-	"sl.webhooks.resume",
-	"sl.webhooks.delete",
-	"sl.webhooks.rotateSecret",
-	"sl.webhooks.replay",
-	"sl.webhooks.dead",
 	"sl.archive.latest",
 	"sl.archive.load",
 	"sl.archive.status",

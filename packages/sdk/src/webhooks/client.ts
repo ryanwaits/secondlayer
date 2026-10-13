@@ -41,18 +41,38 @@ export type {
 export { trigger } from "@secondlayer/shared/schemas/webhooks";
 
 export class Webhooks extends BaseClient {
+	/**
+	 * List your webhooks.
+	 *
+	 * Each summary has the status, format, URL, last delivery and last success, and the circuit breaker state (`circuitFailures`, `circuitOpenedAt`).
+	 */
 	async list(): Promise<{ data: WebhookSummary[] }> {
 		return this.request<{ data: WebhookSummary[] }>("GET", "/api/webhooks");
 	}
 
+	/**
+	 * Get one webhook's full configuration.
+	 *
+	 * Adds the triggers, the receiver's auth (redacted to header names and whether a secret is set), the retry and timeout limits, `lastError`, and a `warning` when this instance's trigger evaluator is not running.
+	 */
 	async get(id: string): Promise<WebhookDetail> {
 		return this.request<WebhookDetail>("GET", `/api/webhooks/${seg(id)}`);
 	}
 
+	/**
+	 * Create a webhook that POSTs chain events to your URL.
+	 *
+	 * Takes a `name`, a `url`, and `triggers` built with `trigger.*`; each trigger is validated before anything is provisioned, and an invalid one is a 400. The signing secret comes back once in `signingSecret`, so store it. A webhook starts at the chain tip and never backfills: use {@link replay} for history. Hosted accounts cap `maxRetries` at 7 and `timeoutMs` at 30000.
+	 */
 	async create(input: CreateWebhookRequest): Promise<CreateWebhookResponse> {
 		return this.request<CreateWebhookResponse>("POST", "/api/webhooks", input);
 	}
 
+	/**
+	 * Change a webhook's name, URL, format, auth, or delivery limits.
+	 *
+	 * Send only the fields to change: `name`, `url`, `format`, `authConfig`, `maxRetries`, `timeoutMs`, `concurrency`. Triggers are not part of an update. Resolves to the updated webhook.
+	 */
 	async update(
 		id: string,
 		patch: UpdateWebhookRequest,
@@ -64,6 +84,11 @@ export class Webhooks extends BaseClient {
 		);
 	}
 
+	/**
+	 * Stop deliveries without deleting the webhook.
+	 *
+	 * Resolves to the updated webhook. {@link resume} turns it back on.
+	 */
 	async pause(id: string): Promise<WebhookDetail> {
 		return this.request<WebhookDetail>(
 			"POST",
@@ -71,6 +96,11 @@ export class Webhooks extends BaseClient {
 		);
 	}
 
+	/**
+	 * Start delivering again after a pause.
+	 *
+	 * Also clears a circuit-breaker pause, which happens after 20 straight failed deliveries. Resolves to the updated webhook.
+	 */
 	async resume(id: string): Promise<WebhookDetail> {
 		return this.request<WebhookDetail>(
 			"POST",
@@ -78,10 +108,20 @@ export class Webhooks extends BaseClient {
 		);
 	}
 
+	/**
+	 * Delete a webhook.
+	 *
+	 * Resolves to `{ ok: true }`. Throws a 404 when the webhook does not exist.
+	 */
 	async delete(id: string): Promise<{ ok: true }> {
 		return this.request<{ ok: true }>("DELETE", `/api/webhooks/${seg(id)}`);
 	}
 
+	/**
+	 * Issue a new signing secret.
+	 *
+	 * The new secret comes back once in `signingSecret`. Update the receiver that calls `verifyWebhookSignature` with it: deliveries are signed with the new secret from now on.
+	 */
 	async rotateSecret(id: string): Promise<RotateSecretResponse> {
 		return this.request<RotateSecretResponse>(
 			"POST",
@@ -107,8 +147,10 @@ export class Webhooks extends BaseClient {
 		);
 	}
 
-	/** Hourly delivered/waiting/gave-up counts for the last 7 days, plus the
-	 *  current queue depth — the events chart on the detail page. */
+	/** Get a webhook's hourly delivery counts for the last 7 days.
+	 *
+	 *  Each hour has delivered, waiting, and gave-up counts, plus the current
+	 *  queue depth. This is the events chart on the detail page. */
 	async activity(id: string): Promise<WebhookActivity> {
 		return this.request<WebhookActivity>(
 			"GET",
@@ -116,8 +158,10 @@ export class Webhooks extends BaseClient {
 		);
 	}
 
-	/** One delivery attempt with its outbox context (payload, response
-	 *  headers) — the delivery card on the detail page. */
+	/** Get one delivery attempt with its payload and response.
+	 *
+	 *  Includes the outbox context (payload, response headers). This is the
+	 *  delivery card on the detail page. */
 	async delivery(
 		id: string,
 		deliveryId: string,
@@ -128,6 +172,11 @@ export class Webhooks extends BaseClient {
 		);
 	}
 
+	/**
+	 * Re-deliver historical events over an existing webhook.
+	 *
+	 * Pass `fromBlock` and `toBlock`; the range is capped at 100,000 blocks. A replay is historical only and never moves the live cursor. It is idempotent: the same range twice is a no-op, so pass any string as `force` to re-deliver it. Replays carry `is_replay` and use the standard `chain.{type}.apply` envelope. Resolves to `replayId`, `enqueuedCount`, and `scannedCount`. A second replay while one is running is a 409. `sbtc_withdrawal_swept_confirmed` is forward-only and never replayed. Hosted accounts get 5 replays an hour.
+	 */
 	async replay(
 		id: string,
 		range: { fromBlock: number; toBlock: number; force?: string },
@@ -139,6 +188,11 @@ export class Webhooks extends BaseClient {
 		);
 	}
 
+	/**
+	 * List the events a webhook gave up delivering.
+	 *
+	 * Returns up to 100 dead-lettered events, newest failure first. Each row's `id` is what {@link requeue} takes.
+	 */
 	async dead(id: string): Promise<{ data: DeadRow[] }> {
 		return this.request<{ data: DeadRow[] }>(
 			"GET",
