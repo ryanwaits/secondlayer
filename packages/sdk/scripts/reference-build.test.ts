@@ -103,6 +103,22 @@ const spec: Spec = {
 							{ returns: { schema: { type: "number" } } },
 						],
 					},
+					repeated: {
+						description: "One doc, listed per signature.",
+						"x-ts-function": true,
+						"x-ts-signatures": [
+							{
+								description: "One doc, listed per signature.",
+								returns: { schema: { type: "string" } },
+							},
+							{ returns: { schema: { type: "number" } } },
+							{
+								description: "One doc, listed per signature.",
+								returns: { schema: { type: "string" } },
+							},
+							{ returns: { schema: { type: "number" } } },
+						],
+					},
 				},
 			},
 		},
@@ -273,6 +289,12 @@ describe("overloads", () => {
 			"Shared by both overloads, see [`Tip`](/docs/ref/streams#t-Tip).",
 		);
 		expect(m?.overloads.map((o) => o.description)).toEqual(["", ""]);
+	});
+
+	test("one doc repeated across an overload's signatures is the method doc", () => {
+		const m = surface("streams").methods.find((x) => x.id === "repeated");
+		expect(m?.summary).toBe("One doc, listed per signature.");
+		expect(m?.overloads.map((o) => o.description)).toEqual(["", "", "", ""]);
 	});
 
 	test("a single-overload method carries its description on the method only", () => {

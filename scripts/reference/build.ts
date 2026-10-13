@@ -284,7 +284,9 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 	} {
 		const own = raw.signatures.map((s) => s.description ?? "");
 		const none = own.map(() => "");
-		const documented = own.filter(Boolean).length;
+		// openpkg repeats one declaration's doc across the signatures it lists
+		// for it, so count distinct docs, not documented signatures.
+		const documented = new Set(own.filter(Boolean)).size;
 		if (own.length === 1) {
 			return { methodDoc: own[0] || raw.description, overloadDocs: none };
 		}
@@ -293,7 +295,11 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 		}
 		// One doc in total: a shared first-declaration doc, unless it names its overload.
 		const first =
-			documented === 0 ? raw.description : documented === 1 ? own[0] : "";
+			documented === 0
+				? raw.description
+				: documented === 1
+					? (own.find(Boolean) ?? "")
+					: "";
 		if (first && !isOverloadSpecific(first)) {
 			return { methodDoc: first, overloadDocs: none };
 		}

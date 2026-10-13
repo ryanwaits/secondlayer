@@ -1101,12 +1101,20 @@ export type SbtcDepositsConsumeParams<TTx = never> = Omit<
  *  events, scoreboard). The only productized decoded sBTC peg feed on Stacks. */
 export interface SbtcResource {
 	deposits: {
-		/** Narrowing overload: `fields` shrinks the row type to exactly the
-		 *  requested columns plus {@link SbtcDepositAlwaysFields}. */
+		/**
+		 * Read one page of completed sBTC deposits.
+		 *
+		 * Filter by `sender`, `bitcoinTxid`, and a height range. `confirmed: true` keeps only deposits past the finality boundary. `fields` returns only those columns and narrows the row type; `cursor` and `block_height` always come back.
+		 */
 		list<const F extends keyof IndexSbtcDeposit & string>(
 			params: SbtcDepositsListParams & { fields: readonly F[] },
 		): Promise<SbtcDepositsEnvelope<SbtcDepositFields<F>>>;
 		list(params?: SbtcDepositsListParams): Promise<SbtcDepositsEnvelope>;
+		/**
+		 * Iterate every completed sBTC deposit, paging for you.
+		 *
+		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk(params?: SbtcDepositsWalkParams): AsyncIterable<IndexSbtcDeposit>;
 		/** Checkpointed sweep of completed deposits — append-only, so safe to
 		 *  mirror. See {@link IndexConsumeOptions}. */
@@ -1121,12 +1129,20 @@ export interface SbtcResource {
 		get(bitcoinTxid: string): Promise<SbtcDepositEnvelope | null>;
 	};
 	withdrawals: {
-		/** Narrowing overload: `fields` shrinks the row type to exactly the
-		 *  requested columns plus {@link SbtcWithdrawalAlwaysFields}. */
+		/**
+		 * Read one page of sBTC withdrawals, each with its current status.
+		 *
+		 * Filter by `status` (`REQUESTED`, `ACCEPTED`, `REJECTED`), `sender`, `requestId`, `settlementConfirmed`, and a height range. A row changes as the peg-out moves along, which is why withdrawals have no `consume`. `fields` returns only those columns and narrows the row type; `cursor` and `request_id` always come back.
+		 */
 		list<const F extends keyof IndexSbtcWithdrawal & string>(
 			params: SbtcWithdrawalsListParams & { fields: readonly F[] },
 		): Promise<SbtcWithdrawalsEnvelope<SbtcWithdrawalFields<F>>>;
 		list(params?: SbtcWithdrawalsListParams): Promise<SbtcWithdrawalsEnvelope>;
+		/**
+		 * Iterate every sBTC withdrawal, paging for you.
+		 *
+		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk(
 			params?: SbtcWithdrawalsWalkParams,
 		): AsyncIterable<IndexSbtcWithdrawal>;
@@ -1140,7 +1156,17 @@ export interface SbtcResource {
 		// the withdrawal-{create,accept,reject} topics instead.
 	};
 	events: {
+		/**
+		 * Read one page of the raw sBTC peg event log.
+		 *
+		 * Filter by `topic`, `sender`, `requestId`, `bitcoinTxid`, and a height range. `confirmed: true` keeps only events past the finality boundary.
+		 */
 		list(params?: SbtcEventsListParams): Promise<SbtcEventsEnvelope>;
+		/**
+		 * Iterate every sBTC peg event, paging for you.
+		 *
+		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk(params?: SbtcEventsWalkParams): AsyncIterable<IndexSbtcEvent>;
 		/** Checkpointed sweep of the raw peg event log — append-only across all
 		 *  six topics. See {@link IndexConsumeOptions}. */
@@ -1245,7 +1271,17 @@ export type PoxCyclesWalkParams = Omit<PoxCyclesListParams, "limit"> &
 /** `index.pox` — reward cycles of the current PoX (PoX-5). */
 export interface PoxResource {
 	cycles: {
+		/**
+		 * Read one page of PoX reward cycles, newest first.
+		 *
+		 * `cursor` is a `reward_cycle` number, and the page returns the cycles below it. `next_cursor` is the next cycle number to page from, or `null` at the end. This reports the current PoX (PoX-5); PoX-4 history is not served here, so read `stacking` for it.
+		 */
 		list(params?: PoxCyclesListParams): Promise<PoxCyclesEnvelope>;
+		/**
+		 * Iterate every reward cycle, paging for you.
+		 *
+		 * Takes the same filters as `list` (it pages by reward cycle number). Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk(params?: PoxCyclesWalkParams): AsyncIterable<IndexPoxCycle>;
 		/** Fetch one reward cycle by number; 404 (unknown cycle, or below pox-5's
 		 *  first reward cycle 141 — final PoX-4 history, not served here) → null. */
@@ -1342,12 +1378,20 @@ export type Pox5EventsConsumeParams<TTx = never> = Omit<
  *  epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there). */
 export interface Pox5Resource {
 	events: {
-		/** Narrowing overload: `fields` shrinks the row type to exactly the
-		 *  requested columns plus {@link Pox5EventAlwaysFields}. */
+		/**
+		 * Read one page of decoded PoX-5 staking events.
+		 *
+		 * Filter by `topic`, `staker`, `signer`, `signerManager`, `bondIndex`, `rewardCycle`, and a height range. `confirmed: true` keeps only rows past the finality boundary. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `topic` always come back.
+		 */
 		list<const F extends keyof IndexPox5Event & string>(
 			params: Pox5EventsListParams & { fields: readonly F[] },
 		): Promise<Pox5EventsEnvelope<Pox5EventFields<F>>>;
 		list(params?: Pox5EventsListParams): Promise<Pox5EventsEnvelope>;
+		/**
+		 * Iterate every PoX-5 event, paging for you.
+		 *
+		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk(params?: Pox5EventsWalkParams): AsyncIterable<IndexPox5Event>;
 		/** Checkpointed sweep of the pox-5 print log — append-only across all
 		 *  19 topics. See {@link IndexConsumeOptions}. */
@@ -1558,7 +1602,17 @@ export interface RunesResource {
 	balances(params: RuneBalancesListParams): Promise<RuneBalancesEnvelope>;
 	/** Etch/mint/transfer/burn events, cursor `<block_height>:<event_index>`. */
 	activity: {
+		/**
+		 * Read one page of Rune etch, mint, transfer, and burn events.
+		 *
+		 * Filter by `rune` (an id or a name), `address`, `kind`, `txid`, and a height range. The cursor is `<block_height>:<event_index>`, and the envelope's tip is a Bitcoin tip. `notes` says so when Runes is not configured on the instance.
+		 */
 		list(params?: RuneActivityListParams): Promise<RuneActivityEnvelope>;
+		/**
+		 * Iterate every Rune event, paging for you.
+		 *
+		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk(params?: RuneActivityWalkParams): AsyncIterable<IndexRuneEvent>;
 	};
 }
@@ -1635,15 +1689,20 @@ export interface FtTransfersResource {
 		params: FtTransfersListParams & { fields: readonly F[] },
 	): Promise<FtTransfersEnvelope<FtTransferFields<F>>>;
 	(params?: FtTransfersListParams): Promise<FtTransfersEnvelope>;
-	/** Narrowing overload: `fields` shrinks the row type to exactly the
-	 *  requested columns plus {@link FtTransferAlwaysFields}. */
+	/**
+	 * Read one page of fungible-token transfers, plus the cursor for the next.
+	 *
+	 * Filter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. Filters are equality only: there is no amount filter. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back. `reorgs` on the envelope lists forks that overlap the page.
+	 */
 	list<const F extends keyof FtTransfer & string>(
 		params: FtTransfersListParams & { fields: readonly F[] },
 	): Promise<FtTransfersEnvelope<FtTransferFields<F>>>;
 	list(params?: FtTransfersListParams): Promise<FtTransfersEnvelope>;
-	/** Narrowing overload, matching `list`: `walk` forwards `fields` to the
-	 *  wire, so without this the yielded rows are stripped while the type
-	 *  still promises every column. */
+	/**
+	 * Iterate every fungible-token transfer, paging for you.
+	 *
+	 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+	 */
 	walk<const F extends keyof FtTransfer & string>(
 		params: FtTransfersWalkParams & { fields: readonly F[] },
 	): AsyncIterable<FtTransferFields<F>>;
@@ -1658,13 +1717,20 @@ export interface NftTransfersResource {
 		params: NftTransfersListParams & { fields: readonly F[] },
 	): Promise<NftTransfersEnvelope<NftTransferFields<F>>>;
 	(params?: NftTransfersListParams): Promise<NftTransfersEnvelope>;
-	/** Narrowing overload: `fields` shrinks the row type to exactly the
-	 *  requested columns plus {@link NftTransferAlwaysFields}. */
+	/**
+	 * Read one page of NFT transfers, plus the cursor for the next.
+	 *
+	 * Filter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back.
+	 */
 	list<const F extends keyof NftTransfer & string>(
 		params: NftTransfersListParams & { fields: readonly F[] },
 	): Promise<NftTransfersEnvelope<NftTransferFields<F>>>;
 	list(params?: NftTransfersListParams): Promise<NftTransfersEnvelope>;
-	/** Narrowing overload, matching `list` (see {@link FtTransfersResource}). */
+	/**
+	 * Iterate every NFT transfer, paging for you.
+	 *
+	 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+	 */
 	walk<const F extends keyof NftTransfer & string>(
 		params: NftTransfersWalkParams & { fields: readonly F[] },
 	): AsyncIterable<NftTransferFields<F>>;
@@ -1681,9 +1747,11 @@ export interface IndexEventsResource {
 	<T extends IndexEventType>(
 		params: EventsListParams<T>,
 	): Promise<EventsEnvelope<T>>;
-	/** Narrowing overload: `fields` shrinks the returned row type to exactly
-	 *  the requested columns plus {@link IndexAlwaysFields}. `const F` means no
-	 *  `as const` at the call site. */
+	/**
+	 * Read one page of decoded events of one type.
+	 *
+	 * `eventType` is required: a decoded type (`ft_transfer`, `print`, ...) or a VM type (`nested_contract_call`, `map_set`, ...), and a literal narrows the row type. Scope with `contractId` (one id or up to 20) or `trait`, never both, plus `assetIdentifier`, `sender`, `recipient`, `functionName`, `caller`, `map`, `varName`, `txId`, and a height range. `txContext: true` joins the submitting transaction onto each event. `fields` returns only those columns and narrows the row type; it saves wire bytes but does not change what you are billed, since rows are metered, not columns.
+	 */
 	list<
 		T extends IndexEventType,
 		const F extends keyof IndexEventOf<T> & string,
@@ -1693,9 +1761,11 @@ export interface IndexEventsResource {
 	list<T extends IndexEventType>(
 		params: EventsListParams<T>,
 	): Promise<EventsEnvelope<T>>;
-	/** Narrowing overload, matching `list`: `walk` forwards `fields` to the
-	 *  wire, so without this the yielded rows are stripped while the type
-	 *  still promises every column. */
+	/**
+	 * Iterate every decoded event of one type, paging for you.
+	 *
+	 * Takes the same filters as `list`, including `eventType`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+	 */
 	walk<
 		T extends IndexEventType,
 		const F extends keyof IndexEventOf<T> & string,
@@ -1705,6 +1775,11 @@ export interface IndexEventsResource {
 	walk<T extends IndexEventType>(
 		params: EventsWalkParams<T>,
 	): AsyncIterable<IndexEventOf<T>>;
+	/**
+	 * Run a checkpointed, reorg-aware indexer over decoded events.
+	 *
+	 * Write your rows in `onBatch` and commit `ctx.cursor` in the same transaction; resume with `fromCursor`. Without `fromCursor` or `fromHeight` the API serves only its recent default window, so pass `fromHeight: 0` for a full backfill. A reorg at or below your checkpoint calls `onReorg`, then the loop re-reads from the fork point. Delivery is at-least-once, so keep writes idempotent. With a `sink`, the checkpoint and rollback are handled for you. `finalizedOnly` holds delivery to finalized rows, so no reorg handling is needed. `mode: "tail"` (default) keeps polling at the tip; `mode: "bounded"` returns on the first empty page. Resolves to `{ cursor, pages, emptyPolls }`.
+	 */
 	consume<T extends IndexEventType, TTx = never>(
 		// The redundant `sink` member gives TS a DIRECT inference site for TTx —
 		// inference does not reliably traverse the params alias intersection.
@@ -1817,10 +1892,25 @@ export class Index extends BaseClient {
 	);
 
 	readonly contractCalls: {
+		/**
+		 * Read one page of decoded contract calls.
+		 *
+		 * Filter by `contractId` (one id or up to 20) or `trait`, never both, plus `functionName`, `sender`, and a height range. Each row has the function name, arguments, result, and status. Pass `next_cursor` back as `cursor` to continue.
+		 */
 		list: (params?: ContractCallsListParams) => Promise<ContractCallsEnvelope>;
+		/**
+		 * Iterate every decoded contract call, paging for you.
+		 *
+		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk: (
 			params?: ContractCallsWalkParams,
 		) => AsyncIterable<IndexContractCall>;
+		/**
+		 * Run a checkpointed, reorg-aware indexer over contract calls.
+		 *
+		 * Write your rows in `onBatch` and commit `ctx.cursor` in the same transaction; resume with `fromCursor`. Without `fromCursor` or `fromHeight` the API serves only its recent default window, so pass `fromHeight: 0` for a full backfill. A reorg at or below your checkpoint calls `onReorg`, then the loop re-reads from the fork point. Delivery is at-least-once, so keep writes idempotent. With a `sink`, the checkpoint and rollback are handled for you. `finalizedOnly` holds delivery to finalized rows, so no reorg handling is needed. `mode: "tail"` (default) keeps polling at the tip; `mode: "bounded"` returns on the first empty page. Resolves to `{ cursor, pages, emptyPolls }`. Calls already carry `sender` and `function_name`, so there is no `txContext`.
+		 */
 		consume: <TTx = never>(
 			params: ContractCallsConsumeParams<TTx> & { sink?: ConsumerSink<TTx> },
 		) => Promise<{ cursor: string | null; pages: number; emptyPolls: number }>;
@@ -1850,7 +1940,17 @@ export class Index extends BaseClient {
 
 	/** Canonical block-hash map — sync only the current canonical chain. */
 	readonly canonical: {
+		/**
+		 * Read one page of the canonical block-hash map.
+		 *
+		 * Each row is a block's hash, its parent hash, and its burn-chain anchor. Compare it with your own tables to confirm you follow the current chain.
+		 */
 		list: (params?: CanonicalListParams) => Promise<CanonicalEnvelope>;
+		/**
+		 * Iterate every canonical block hash, paging for you.
+		 *
+		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk: (params?: CanonicalWalkParams) => AsyncIterable<IndexCanonicalBlock>;
 	} = {
 		list: (params: CanonicalListParams = {}): Promise<CanonicalEnvelope> =>
@@ -1862,7 +1962,17 @@ export class Index extends BaseClient {
 
 	/** Exact MARF writes per canonical block (`/v1/index/state-writes`). */
 	readonly stateWrites: {
+		/**
+		 * Read one page of the contract-state writes each block committed.
+		 *
+		 * Rows are the exact key and value writes, in the node's write order (`ordinal`), so you can see which key a transaction changed when events alone do not show it. Filter by `blockHeight` (excludes `fromHeight` and `toHeight`) or `contractId`. `txContext: true` joins the writing transaction. Rows exist only from the height your node first subscribed to state writes.
+		 */
 		list: (params?: StateWritesListParams) => Promise<StateWritesEnvelope>;
+		/**
+		 * Iterate every state write, paging for you.
+		 *
+		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk: (params?: StateWritesWalkParams) => AsyncIterable<IndexStateWrite>;
 	} = {
 		list: (params: StateWritesListParams = {}): Promise<StateWritesEnvelope> =>
@@ -1875,8 +1985,23 @@ export class Index extends BaseClient {
 	/** Canonical blocks: paginated `list`/`walk`, plus `get` by height or hash
 	 *  (resolves to null on 404). */
 	readonly blocks: {
+		/**
+		 * Read one page of canonical blocks.
+		 *
+		 * Each block has its hash, parent hash, burn-chain anchor, and `block_time`. Filter by a height range.
+		 */
 		list: (params?: BlocksListParams) => Promise<BlocksEnvelope>;
+		/**
+		 * Iterate every canonical block, paging for you.
+		 *
+		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk: (params?: BlocksWalkParams) => AsyncIterable<IndexBlock>;
+		/**
+		 * Get one block by height or hash, or `null`.
+		 *
+		 * Resolves to `null` when no such block exists (404).
+		 */
 		get: (ref: string | number) => Promise<BlockEnvelope | null>;
 	} = {
 		list: (params: BlocksListParams = {}): Promise<BlocksEnvelope> =>
@@ -1890,18 +2015,34 @@ export class Index extends BaseClient {
 	/** Full transaction documents: paginated `list`/`walk`, plus `get` by tx_id
 	 *  (resolves to null on 404). */
 	readonly transactions: {
-		/** Narrowing overload: `fields` shrinks the row type to exactly the
-		 *  requested columns plus {@link TransactionAlwaysFields}. Declared as
-		 *  an overloaded call signature because an arrow property cannot carry
-		 *  overloads. */
+		/**
+		 * Read one page of full transaction documents.
+		 *
+		 * Filter by `type`, `sender`, `contractId`, and a height range. Each document has the decoded post conditions and the payload for its `tx_type`; enrichment fields are null when the raw transaction cannot be decoded. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `tx_id` always come back.
+		 */
 		list: {
 			<const F extends keyof IndexTransaction & string>(
 				params: TransactionsListParams & { fields: readonly F[] },
 			): Promise<TransactionsEnvelope<TransactionFields<F>>>;
 			(params?: TransactionsListParams): Promise<TransactionsEnvelope>;
 		};
+		/**
+		 * Iterate every transaction document, paging for you.
+		 *
+		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk: (params?: TransactionsWalkParams) => AsyncIterable<IndexTransaction>;
+		/**
+		 * Get one transaction by id, or `null`.
+		 *
+		 * Resolves to `null` when the transaction is not found (404).
+		 */
 		get: (txId: string) => Promise<TransactionEnvelope | null>;
+		/**
+		 * Get a transaction's inclusion proof, or `null`.
+		 *
+		 * The proof is the raw transaction, the Nakamoto block header, and the merkle path. Check it yourself with `verifyTransactionProof`; nothing in it needs to be trusted. Resolves to `null` on 404. A 503 (`PROOF_TX_SET_INCOMPLETE` or `PROOF_NODE_UNAVAILABLE`) throws an `ApiError`: the proof cannot be assembled on this deployment right now.
+		 */
 		getProof: (txId: string) => Promise<TransactionProof | null>;
 	} = {
 		list: (
@@ -1919,7 +2060,17 @@ export class Index extends BaseClient {
 	/** Decoded PoX-4 stacking actions. Empty (with a `notes` hint) when the
 	 *  platform's PoX-4 decoder is disabled. */
 	readonly stacking: {
+		/**
+		 * Read one page of decoded PoX-4 stacking actions.
+		 *
+		 * One row per stacking contract call. Filter by `functionName`, `stacker`, `caller`, and a height range. The feed is empty, with a `notes` hint, when the instance's PoX-4 decoder is disabled. For the current PoX, use `pox5.events` and `pox.cycles`.
+		 */
 		list: (params?: StackingListParams) => Promise<StackingEnvelope>;
+		/**
+		 * Iterate every PoX-4 stacking action, paging for you.
+		 *
+		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk: (params?: StackingWalkParams) => AsyncIterable<IndexStackingAction>;
 	} = {
 		list: (params: StackingListParams = {}): Promise<StackingEnvelope> =>
@@ -1932,10 +2083,25 @@ export class Index extends BaseClient {
 	/** Pending (unconfirmed) transactions: paginated `list`/`walk`, plus `get` by
 	 *  tx_id (resolves to null when the tx has confirmed or dropped). */
 	readonly mempool: {
+		/**
+		 * Read one page of pending, unconfirmed transactions.
+		 *
+		 * Filter by `sender`, `type`, `contractId`, and `functionName`. There is no height filter: rows carry `received_at` and a sequence cursor instead of a block position.
+		 */
 		list: (params?: MempoolListParams) => Promise<MempoolEnvelope>;
+		/**
+		 * Iterate every pending transaction, paging for you.
+		 *
+		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+		 */
 		walk: (
 			params?: MempoolWalkParams,
 		) => AsyncIterable<IndexMempoolTransaction>;
+		/**
+		 * Get one pending transaction, or `null`.
+		 *
+		 * Resolves to `null` once the transaction has confirmed or dropped.
+		 */
 		get: (txId: string) => Promise<MempoolTransactionEnvelope | null>;
 	} = {
 		list: (params: MempoolListParams = {}): Promise<MempoolEnvelope> =>
