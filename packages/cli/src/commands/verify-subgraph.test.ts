@@ -13,6 +13,7 @@ import {
 } from "@secondlayer/subgraphs/verify";
 import {
 	type BlockVerification,
+	MAINNET_CHECKPOINT,
 	type StateWrite,
 	parseNakamotoHeader,
 	unhex,
@@ -189,6 +190,13 @@ async function run(setup: Setup, opts: VerifySubgraphOptions = {}) {
 	}
 }
 
+// The summary names whichever checkpoint ships, so it follows each rotation.
+const num = (n: number | bigint) => n.toLocaleString("en-US");
+const shippedHeight = parseNakamotoHeader(
+	unhex(MAINNET_CHECKPOINT.stacks.header),
+).chainLength;
+const SHIPPED_CHECKPOINT = `Stacks ${num(shippedHeight)}, Bitcoin ${num(MAINNET_CHECKPOINT.bitcoin.height)}`;
+
 describe("verify subgraph --replay", () => {
 	test("a clean range: every link holds, exit 0", async () => {
 		const r = await run({});
@@ -203,7 +211,7 @@ describe("verify subgraph --replay", () => {
 			expect.stringMatching(
 				/^✓ rows {6}reserves: 2 equal {2}digest [0-9a-f]{4}…[0-9a-f]{4}$/,
 			),
-			"✓ pool-reserves 100..102 recomputed from proven inputs. Trusted: only the checkpoint (Stacks 8,956,304, Bitcoin 967,680).",
+			`✓ pool-reserves 100..102 recomputed from proven inputs. Trusted: only the checkpoint (${SHIPPED_CHECKPOINT}).`,
 			"  unproven, so not compared: tx attribution of writes: event.tx, _tx_id (needs event proofs); intermediate writes within a block (needs event proofs); rows compare declared columns and _block_height only",
 		]);
 		expect(r.stderr).toContain("Replaying pool-reserves 100..102 (3 blocks)");
