@@ -676,6 +676,26 @@ button.docs-nav-item {
 		transition: none;
 	}
 }
+/* An untitled agent prompt in an article is just its code panel: the outer
+   card (border, padding) would nest a box inside the page's own container. */
+#docs-article .agent-prompt:not(:has(.agent-prompt-header)) {
+	background: none;
+	border: 0;
+	border-radius: 0;
+}
+#docs-article
+	.agent-prompt:not(:has(.agent-prompt-header))
+	.agent-prompt-code.code-block-wrapper {
+	margin: 14px 0 0;
+	border-color: var(--line);
+}
+#docs-article
+	.agent-prompt:not(:has(.agent-prompt-header))
+	.agent-prompt-toggle {
+	bottom: 12px;
+	background: var(--paper);
+	border-color: var(--line);
+}
 .docs-article ul,
 .docs-article ol {
 	margin: 14px 0 0;

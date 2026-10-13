@@ -5,13 +5,14 @@ import { getAgentPrompt } from "@/lib/agent-prompts";
 
 A signed POST to a URL you run, whenever a chain event you named happens. To act on your own subgraph rows, read them: [React to your rows](/docs/subgraphs/reading#react-to-your-rows).
 
-<Callout id="coming-from-chainhook" type="note" title="Coming from Chainhook?">
+<details id="coming-from-chainhook">
+<summary>Coming from Chainhook</summary>
 
 Hand your predicates to your agent; it maps each one to a trigger and writes the create commands.
 
 <AgentPromptBlock code={getAgentPrompt("migrate-from-chainhook")} />
 
-</Callout>
+</details>
 
 ## Create a webhook
 
