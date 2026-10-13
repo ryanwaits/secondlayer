@@ -1743,6 +1743,11 @@ portable. See the [Stacks SDK docs](https://stacks.secondlayer.tools/guide/trans
 
 Releases before July 2026 live in the [changelog archive](/docs/changelog/archive).
 
+export const agent = `
+- Ask the user which @secondlayer/sdk or cli version they run, or the date they last integrated, then report what shipped since, grouped by surface (Index, Subgraphs, Webhooks, Streams), flagging anything that affects their code.
+- To adopt a capability (Index consume() consumers, chain webhooks via triggers[], subgraph /aggregate, Streams events.replay({ from: 'genesis' })), wire it in with the exact SDK or CLI calls.
+`;
+
 export const metadata = {
 	title: "Changelog — Secondlayer Docs",
 	description: "Notable changes to the Secondlayer platform and SDKs.",

@@ -154,6 +154,12 @@ WantedBy=multi-user.target
 
 </Callout>
 
+export const agent = `
+- A consume() loop needs: a Dockerfile, a /health route bound to PORT, and a SIGTERM handler. Pick the matching recipe (Railway, Render, Fly, Vercel cron, Docker).
+- Production checks: writes are idempotent (conflict rule on every insert); rows and the checkpoint commit in one transaction; an AbortSignal is wired to SIGTERM so the in-flight batch commits before exit.
+- Dockerfile: install deps from the lockfile, bind the health server to PORT, use exec-form CMD so the process receives SIGTERM as PID 1 instead of a shell swallowing it.
+`;
+
 export const metadata = {
 	title: "Deploy — Secondlayer Docs",
 	description:

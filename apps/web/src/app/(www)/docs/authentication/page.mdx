@@ -70,6 +70,14 @@ Auto-refill is off until you set it: `secondlayer credits refill --below 5 --pac
 
 A **signing secret** (`whsec_…`) is per-webhook and verifies an incoming webhook came from your instance (`verifyWebhookSignature`); see [Webhooks](/docs/webhooks). Never in `Authorization`. Rotate with `secondlayer webhooks rotate-secret`.
 
+export const agent = `
+- Hosted: export SECONDLAYER_API_URL=https://api.secondlayer.tools and SECONDLAYER_API_KEY ('sk-sl_*', from /account/keys). Send it as 'Authorization: Bearer $SECONDLAYER_API_KEY'. The SDK, MCP and CLI pick the key from the host; set the same two variables in CI.
+- Never put the account key in INSTANCE_TOKEN.
+- 1M rows a month are free; set a monthly spend cap and both balance alerts at /account/credits.
+- '402 spend_cap_reached' means the monthly cap is hit; '402 insufficient_credits' means the balance is empty. Raise the cap or buy credits to clear each.
+- Rotate a webhook signing secret with 'secondlayer webhooks rotate-secret', update the receiver that calls verifyWebhookSignature, then confirm nothing still references the old value.
+`;
+
 export const metadata = {
 	title: "Keys and billing — Secondlayer Docs",
 	description:

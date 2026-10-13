@@ -184,6 +184,12 @@ The archive is a best-effort public utility, not a hosted service. Verification 
 
 [CLI](/docs/cli) for the full command set; [Verify](/docs/verification) for everything else you can check, from a transaction to a block.
 
+export const agent = `
+- Verify local data: 'secondlayer verify raw --against <latest.json>' (blocks, transactions, events), 'secondlayer verify decode:ft_transfer --against <latest.json> --deep' for one decoder, or 'secondlayer verify all'. Exit 0, 1, 2 as documented; --quick, --deep and --anchor change depth.
+- Repair: 'secondlayer repair --against <archive>' is a dry run; add --apply to write. It names exact heights, refuses unsigned objects, and never deletes local heights the archive lacks.
+- Bootstrap an empty instance: 'secondlayer bootstrap --against <manifest>'. A non-empty database is refused (use 'secondlayer repair'). Flags: --to-block, -y.
+`;
+
 export const metadata = {
 	title: "Verified archive — Secondlayer Docs",
 	description:

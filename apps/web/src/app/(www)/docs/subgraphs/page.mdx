@@ -221,6 +221,15 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers" \
 
 Paging, sorting, live streams, reacting to new rows, and typed ORM schemas (self-host): [Reading rows](/docs/subgraphs/reading).
 
+export const agent = `
+- Scaffold with 'secondlayer subgraphs scaffold'; use named object sources and event.data fields; then 'secondlayer subgraphs deploy' and query recent rows.
+- Typed ORM schema: 'secondlayer codegen subgraph --target prisma|drizzle|kysely'. Treat the tables as read-only. It needs direct Postgres access, so self-host only; hosted subgraphs are read over REST.
+- Hosted deploy: set SECONDLAYER_API_URL and SECONDLAYER_API_KEY, set a startBlock so the reindex is bounded (event and transaction rows bill), then read '/v1/subgraphs/<name>/<table>' with the key as a bearer token.
+- Hosted sources must be hostable (event filters, contract_call, contract_deploy); anything else fails with SOURCE_NOT_HOSTABLE.
+- A hosted processor that stalls or exceeds 512 MB is restarted, and marked 'error' after 3 deaths at the same height. Find the handler at that block, fix it, redeploy. Check with 'secondlayer subgraphs status <name>'.
+- Reads serve while the genesis backfill drains; watch it with 'secondlayer subgraphs status <name>'.
+`;
+
 export const metadata = {
 	title: "Subgraphs — Secondlayer Docs",
 	description:

@@ -215,6 +215,13 @@ The transaction proof above is [`/v1/index/transactions/{tx_id}/proof`](/docs/ap
 | Epoch 2.x transactions | Skipped with a note. |
 | Unnamed writes | Without `state_writes` for the block, writes are proven, not named. |
 
+export const agent = `
+- 'secondlayer verify block <height>' prints each link (bitcoin, burn, cycle, signatures, txs, state root, diff). Exit 0, 1, 2 as documented. Only the checkpoint stays trusted.
+- In code: @secondlayer/verify, verifyBlock(height, { source }) with a SecondlayerProofSource. For own-node proofs use a BlockVerifier with NodeRpcProofSource spread over it. When ok is false, throw result.failures[0].message.
+- Transaction proof: '/v1/index/transactions/<tx_id>/proof' then verifyTransactionProof(proof) from @secondlayer/sdk server-side. For full trustlessness pass fetchRewardSet({ nodeUrl, cycle }) from the user's own node as { rewardSet } until rewardSetSource is 'provided'.
+- Handle '404 PROOF_UNAVAILABLE'; retry '503 PROOF_NODE_UNAVAILABLE'.
+`;
+
 export const metadata = {
 	title: "Verify — Secondlayer Docs",
 	description:

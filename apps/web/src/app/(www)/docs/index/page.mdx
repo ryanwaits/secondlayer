@@ -380,6 +380,17 @@ for await (const e of sl.index.runes.activity.walk({ rune: "840000:3" })) {
 
 A Bitcoin block needs 6 confirmations to count as final: `tip.finalized_height` is `tip.block_height - 6`. The catalog and balances read reorg-corrected snapshots, so their `reorgs` is always empty. Only `activity` is an append-only log, so only its `reorgs` can name replaced heights, at block level. The raw per-transaction events are on [Streams](/docs/streams#bitcoin-events-runes) with `chain=bitcoin`.
 
+export const agent = `
+- Events: 'GET /v1/index/events' (event_type such as ft_transfer, stx_transfer, print) and 'GET /v1/index/contract-calls'; filter by contract, principal or block range; cursor-paginate.
+- Mirror index: 'secondlayer codegen index --target kysely' for the schema, then index.events.consume(). Write rows in onBatch, return the committed cursor, handle onReorg by deleting from the fork height (inclusive). Set fromHeight: 0 to backfill from genesis.
+- Print payloads: 'GET /v1/index/contracts/<contract_id>/print-schema' gives per-topic fields: Clarity type, camel_name on event.data, and which fields are always present versus optional. Read it before designing tables.
+- Contracts by standard: 'GET /v1/contracts?trait=sip-010&conformance=any'; classification is declared_traits versus inferred_standards; page with next_cursor until null. A subgraph source can target the trait instead of an address, e.g. { type: 'ft_transfer', trait: 'sip-010' }, so later deployments are indexed too.
+- State writes: sl.index.stateWrites.list({ blockHeight, contractId, txContext: true }) or 'GET /v1/index/state-writes?block_height=<h>'. Rows have key, value_hex, ordinal, and a null tx_index for block-level writes. Cursor is '<block_height>:<ordinal>'. Rows exist only from the height the node first sent the state_writes observer key.
+- PoX-5: 'GET /v1/index/pox5/events?topic=register-for-bond' or sl.index.pox5.events.walk({ topic, signer }).
+- sBTC: 'GET /v1/index/sbtc/withdrawals/:request_id' has a settlement object. settlement_confirmed null means no sweep observed yet, not a denial. List filter: '?settlement_confirmed=true|false'.
+- Runes: sl.index.runes.list({ search }), runes.get(ref) (null on 404), runes.activity.walk({ address }). Amounts are u128 strings; the Bitcoin tip has 6-confirmation finality.
+`;
+
 export const metadata = {
 	title: "Index — Secondlayer Docs",
 	description:

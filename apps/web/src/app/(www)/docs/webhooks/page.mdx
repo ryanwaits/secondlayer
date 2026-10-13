@@ -192,6 +192,18 @@ Webhooks run on `api.secondlayer.tools` with an account key and prepaid credits,
 | Pricing | $10 per 1M delivered events (`webhook.event`). Retries are never billed, and the rows read to match your triggers don't bill as `rows.delivered` |
 | Isolation | One full stack per account, never a shared runtime. Your data never shares a database or process with anyone else's. The same stack runs your hosted subgraphs, with handlers in a gVisor sandbox |
 
+export const agent = `
+- Create: 'secondlayer webhooks create <name> --url <url> --trigger '<json>'' or sl.webhooks.create with a triggers array built from trigger.* factories, e.g. trigger.contractCall({ contractId, functionName }) and trigger.ftTransfer({ assetIdentifier, minAmount }). Ask only for the HTTPS receiver URL and which chain events to match.
+- The signing secret is shown once; capture it. Generate a signed test fixture only from a secret the user provides; never request or recover the stored one.
+- Deliveries: 'chain.{type}.apply' per matched event, 'chain.reorg.rollback' when a block is orphaned.
+- A webhook starts at the chain tip and never backfills; use replay over an existing webhook for history.
+- PoX-5 has no trigger of its own: trigger.printEvent({ contractId: 'SP000000000000000000002Q6VF78.pox-5', topic: 'register-for-bond' }).
+- sBTC: trigger.sbtcWithdrawalSweptConfirmed() fires once per sweep when btc_confirmations crosses the threshold (default 6). It is forward-only and never re-fires on a reorg.
+- Runes: trigger.runeTransfer({ rune: '840000:3', minAmount: '1000000' }), with runeEtch, runeMint and runeBurn alongside. A rune name resolves to its id at create time.
+- Diagnose a failing webhook: inspect detail, recent deliveries and dead-letter rows, highest-priority findings first. Inspect dead rows before requeueing selected ones. Never replay a block range until the user confirms exact from/to blocks.
+- Chainhook migration: contract_call maps to trigger.contractCall, print_event to trigger.printEvent, ft/nft/stx events to the matching trigger.ft*/nft*/stx* factories, contract_deployment to trigger.contractDeploy. txid has no trigger; read /v1/index by transaction instead. Test on devnet before mainnet.
+`;
+
 export const metadata = {
 	title: "Webhooks — Secondlayer Docs",
 	description:

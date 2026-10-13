@@ -106,6 +106,12 @@ secondlayer devnet down            # stop the stack
 secondlayer devnet down --purge    # stop and wipe the local index volumes
 ```
 
+export const agent = `
+- From inside a Clarinet project: 'secondlayer devnet connect' patches settings/Devnet.toml to forward events to the local indexer on :3700, writes .secondlayer/docker-compose.yml, and brings the stack up. Then 'clarinet devnet start'; confirm 'curl http://localhost:3800/health'.
+- Deploy: export SECONDLAYER_API_URL=http://localhost:3800 and INSTANCE_TOKEN=dev-instance-token (the generated stack ships that fixed local token; deploys are writes, so they carry it), then 'secondlayer subgraphs deploy ./subgraph.ts'. Reads on loopback need no token: 'curl $SECONDLAYER_API_URL/v1/subgraphs/<name>/<table>'.
+- Watch: 'secondlayer devnet status -w' for live ingest lag and recent rows; 'secondlayer devnet logs indexer -f' to tail a service; 'secondlayer devnet down' to stop; 'secondlayer devnet down --purge' wipes the local index volumes.
+`;
+
 export const metadata = {
 	title: "Devnet — Secondlayer Docs",
 	description:

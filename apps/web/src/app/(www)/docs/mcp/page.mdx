@@ -67,6 +67,14 @@ bunx skills add ryanwaits/secondlayer --skill secondlayer -y
 
 Use the skill when an agent writes code against Secondlayer. Use MCP when it needs live state: your subgraphs, webhooks, chain tips. The skill is static text that can't see your instance, and MCP can, so install both. Source: [`skills/secondlayer`](https://github.com/ryanwaits/secondlayer/tree/main/skills/secondlayer).
 
+export const agent = `
+- Install: 'bunx @secondlayer/mcp' with SECONDLAYER_API_URL and INSTANCE_TOKEN for the instance. For hosted archive and credits tools also set SECONDLAYER_API_KEY.
+- Read first: the 'secondlayer://context' resource (instance state, chain tips, capabilities), plus 'secondlayer://filters' and 'secondlayer://chain-triggers'.
+- Read tools: index_discover to learn event types and filters, then index_events (or index_ft_transfers, index_contract_calls); cursor-paginate.
+- subgraphs_deploy: run with dryRun first to preview the DDL. webhooks_create returns a one-time signingSecret; capture it.
+- Webhook and subgraph tools: list, get, query, deploy, create, update, pause, resume, rotate-secret, deliveries, dead, requeue, replay.
+`;
+
 export const metadata = {
 	title: "MCP and skills — Secondlayer Docs",
 	description:

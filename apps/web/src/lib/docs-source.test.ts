@@ -3,6 +3,7 @@ import {
 	extractAgentNotes,
 	mdxToMarkdown,
 	readAllDocsMarkdown,
+	readDocsMarkdown,
 } from "./docs-source";
 
 describe("extractAgentNotes", () => {
@@ -49,6 +50,17 @@ describe("mdxToMarkdown", () => {
 		expect(md).toContain("Body text.");
 		expect(md).not.toContain("<details");
 		expect(md).not.toContain("<summary");
+	});
+});
+
+describe("readDocsMarkdown", () => {
+	test("ends a page with its agent notes then the shared setup", async () => {
+		const md = (await readDocsMarkdown("/docs/index")) ?? "";
+		expect(md).not.toContain("export const agent");
+		expect(md.indexOf("## Notes for agents")).toBeGreaterThan(0);
+		expect(md.indexOf("## Setup")).toBeGreaterThan(
+			md.indexOf("## Notes for agents"),
+		);
 	});
 });
 

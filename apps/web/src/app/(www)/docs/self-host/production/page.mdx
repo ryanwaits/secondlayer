@@ -238,6 +238,14 @@ A subgraph handler is code you deploy into the instance, so it runs with the ins
 
 Support is community: [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer).
 
+export const agent = `
+- Published images: 'ghcr.io/ryanwaits/secondlayer-*'. Pin a release tag and swap the compose build: blocks for image:.
+- Genesis sync needs a Stacks node that is itself syncing from genesis (an already-synced node only sends new blocks). Start with TIP_FOLLOWER_ENABLED=false, track 'curl http://localhost:3700/health | jq .block_height' against the chain tip, re-enable the tip follower, run 'secondlayer verify all --against <manifest>', then deploy with SECONDLAYER_API_URL=http://127.0.0.1:3800.
+- Backup: 'secondlayer backup --out ./backups/$(date +%F)' with --passphrase or SECONDLAYER_BACKUP_PASSPHRASE. The bundle carries INSTANCE_TOKEN, SECONDLAYER_SECRETS_KEY and STREAMS_SIGNING_PRIVATE_KEY, so store it apart from Postgres backups. Restore: 'secondlayer restore --from <dir>' is a dry run; --apply writes; confirm with 'secondlayer verify all --against <manifest>'.
+- Upgrade X to Y: identify X with 'curl -s $SECONDLAYER_API_URL/health', 'docker compose images', 'secondlayer --version'. Ask for Y (a v* tag from GitHub releases, or a git commit). Read changelog entries dated after X. Keep postgres_data, subgraphs_data and .env (a new SECONDLAYER_SECRETS_KEY makes existing whsec_ secrets unreadable). Published image: 'docker compose pull && docker compose up -d --remove-orphans'. Git checkout: 'git checkout <Y>', 'docker compose down --remove-orphans', 'up -d --build --remove-orphans'. Confirm /health and verify all. Rollback pins X; the schema stays migrated, so only the image rolls back.
+- Never 'docker compose down -v'. Never 'secondlayer setup --force'.
+`;
+
 export const metadata = {
 	title: "Run in production — Secondlayer Docs",
 	description:

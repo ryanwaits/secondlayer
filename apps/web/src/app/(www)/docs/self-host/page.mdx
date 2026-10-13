@@ -51,6 +51,12 @@ secondlayer uninstall --apply
 - [Run in production](/docs/self-host/production): scripted setup, your node, backup, upgrade
 - [Hardware](/docs/self-host/hardware): RAM, disk, and the floors enforced at start
 
+export const agent = `
+- 'bun add -g @secondlayer/cli' then 'secondlayer setup': writes secrets, docker-compose.yml and .env into a target directory, brings up postgres and the secondlayer container, and checks 'curl http://127.0.0.1:3800/health'. For an external node it prints the observer stanza for Config.toml (endpoint = 'secondlayer:3700'); for a bundled node (--node-mode stacks|full) that step does not apply.
+- Point the docs examples at the box: export SECONDLAYER_API_URL=http://127.0.0.1:3800. Loopback reads need no key; writes and any read past loopback send 'Authorization: Bearer $INSTANCE_TOKEN' (the CLI and SDK send it).
+- Leave SECONDLAYER_API_KEY alone: it is the hosted account key that archive credits read.
+`;
+
 export const metadata = {
 	title: "Self-host — Secondlayer Docs",
 	description:

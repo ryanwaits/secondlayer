@@ -162,6 +162,12 @@ curl -X POST "$SECONDLAYER_API_URL/v1/batch" \
 
 Results come back in order as `{ "results": [{ "path", "status", "body" }] }`. Each item runs through the same auth and limits as a direct call, with your `Authorization` header forwarded. Only paths under `/v1/index/`, `/v1/subgraphs`, `/v1/streams/` and `/v1/contracts` are allowed; anything else is a per-item `400`.
 
+export const agent = `
+- Envelope: rows under a named key (events, calls, rows) plus top-level next_cursor, tip and reorgs.
+- Pagination differs per surface: subgraph tables use _limit and _order (bare limit or order returns 400); Index uses limit plus cursor or from_height.
+- Aggregates: '/v1/subgraphs/<name>/<table>/aggregate' with _count, _sum, _min, _countDistinct. Results are lossless strings. Errors: NON_NUMERIC_COLUMN, TOO_MANY_AGGREGATES.
+`;
+
 export const metadata = {
 	title: "REST API — Secondlayer Docs",
 	description: "The shared envelope, cursor, and filter grammar across all surfaces.",

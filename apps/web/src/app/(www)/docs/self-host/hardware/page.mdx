@@ -27,6 +27,12 @@ SECONDLAYER_ALLOW_UNDERSIZED=true
 
 That downgrades the refusal to a warning at every start. It exists so a box that was already undersized can still come back up after an upgrade: you keep the ability to run your own hardware, you just do it knowingly.
 
+export const agent = `
+- Floors: app services with an external node need 4 GB RAM and a 600 GB SSD on mainnet (80 GB on testnet and devnet). A bundled node needs 96 GB RAM and 2.5 TB; 128 GB and 3 TB NVMe recommended.
+- Postgres max_connections must be at least 50. Set POSTGRES_SHARED_BUFFERS to about 25% of RAM for a full-chain sync.
+- The runtime refuses to boot below the floors unless SECONDLAYER_ALLOW_UNDERSIZED=true.
+`;
+
 export const metadata = {
 	title: "Hardware — Secondlayer Docs",
 	description:

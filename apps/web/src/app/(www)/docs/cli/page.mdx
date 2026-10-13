@@ -141,6 +141,13 @@ These work but get no further investment.
 - `secondlayer codegen subgraph --target prisma|drizzle|kysely`: typed ORM schema. See [Subgraphs](/docs/subgraphs/reading#typed-orm-schemas-codegen).
 
 
+export const agent = `
+- Operate through the 'secondlayer' CLI. Inspect subgraphs and webhooks with JSON output first. Get human confirmation before delete, reindex, rotate-secret, replay or requeue.
+- With SECONDLAYER_API_URL and SECONDLAYER_API_KEY set to the hosted values, 'secondlayer subgraphs' and 'webhooks' run hosted.
+- Local runtime: 'secondlayer setup' walks through network and node mode, writes secrets, docker-compose and .env, brings the stack up, restores verified history, and verifies. Step by step: 'secondlayer init --network mainnet' writes .env.local; 'secondlayer bootstrap --against <manifest>' restores into an empty database; 'secondlayer observer --mode indexer' prints the [[events_observer]] stanza; 'secondlayer verify all --against <manifest>' checks the restore (raw, decode:<name>, subgraph:<name>, --deep for semantic digests). Use --mode signer-shared where documented.
+- 'secondlayer subgraphs create <name> --from-contract <contract id>' infers typed print payloads from indexed history.
+`;
+
 export const metadata = {
 	title: "CLI — Secondlayer Docs",
 	description: "Deploy subgraphs and webhooks hosted or on your own box, init a local runtime, and bootstrap verified history with the secondlayer CLI.",

@@ -36,6 +36,14 @@ Subgraphs gives you a REST API you didn't write. That's the point — and the tr
 
 Prefer your own box? [Self-host](/docs/self-host) is the same product on your Postgres.
 
+export const agent = `
+- Quickstart: 'secondlayer subgraphs create my-balances --from-contract <contract id>', then 'secondlayer subgraphs deploy subgraphs/my-balances.ts' with a startBlock set.
+- Hosted: export SECONDLAYER_API_URL=https://api.secondlayer.tools and SECONDLAYER_API_KEY ('sk-sl_*', from /account/keys); read with 'Authorization: Bearer $SECONDLAYER_API_KEY'. Self-hosting: see /docs/self-host.
+- Own index: 'secondlayer codegen index --target kysely' for the mirror schema; write a consume() loop that commits rows and the checkpoint in one transaction; handle onReorg by deleting from fork_point_height up.
+- Before deploying, 'secondlayer status' confirms the instance is up and ingesting; 'secondlayer verify all' checks data against the signed archive.
+- Scaffold subgraphs with 'secondlayer subgraphs scaffold' so the module package and dependencies are prepared.
+`;
+
 export const metadata = {
 	title: "Docs — Secondlayer",
 	description:
