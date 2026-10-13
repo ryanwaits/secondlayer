@@ -1,239 +1,205 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
-	type CommandItem,
-	DOCS_ITEMS,
-	docsHeadingItems,
-} from "@/lib/command-center/items";
-import type { ScoredItem } from "@/lib/command-center/search";
-import {
-	type FindMatch,
-	cachedFind,
-	isWeakSearch,
-	matchItem,
-	mergeFind,
-	requestFind,
+	FUSED_GAP,
+	cachedNearest,
+	fuse,
+	fusedSure,
+	reorder,
+	requestNearest,
 	shouldFind,
 } from "./docs-find";
 
-const POOL: CommandItem[] = [
-	...DOCS_ITEMS,
-	...docsHeadingItems(
-		[
-			{
-				href: "/docs/streams",
-				anchor: "reorg-behavior",
-				title: "Reorg behavior",
-			},
-			{ href: "/docs/streams", anchor: "cursors", title: "Cursors" },
-			{ href: "/docs/webhooks", anchor: "triggers", title: "Triggers" },
-		],
-		(href) => href,
-	),
-];
-const BY_ID = new Map(POOL.map((i) => [i.id, i]));
-
-const item = (anchor: string) =>
-	BY_ID.get(`docs:/docs/streams#${anchor}`) as CommandItem;
-const strong = (i: CommandItem): ScoredItem => ({
-	item: i,
-	score: 300,
-	range: [0, 1],
-});
-const weak = (i: CommandItem): ScoredItem => ({
-	item: i,
-	score: 100,
-	range: null,
-});
-
-const reorgs: FindMatch = {
-	href: "/docs/streams",
-	anchor: "reorg-behavior",
-	title: "Reorg behavior",
-	confidence: 0.9,
-};
-
 describe("shouldFind", () => {
-	test("needs a weak local search and enough words or characters", () => {
-		expect(shouldFind("why are my rows doubled", true)).toBe(true);
-		expect(shouldFind("reorg", true)).toBe(false);
-		expect(shouldFind("subgraphs?!", true)).toBe(false);
-		expect(shouldFind("rollbackbehaviour", true)).toBe(true);
-		expect(shouldFind("a b c", true)).toBe(true);
-		expect(shouldFind("why are my rows doubled", false)).toBe(false);
+	test("needs an unsure text search and enough words or characters", () => {
+		expect(shouldFind("why are my rows doubled", false)).toBe(true);
+		expect(shouldFind("rollbackbehaviour", false)).toBe(true);
+		expect(shouldFind("reorg", false)).toBe(false);
+		expect(shouldFind("two words", false)).toBe(false);
+		expect(shouldFind("why are my rows doubled", true)).toBe(false);
 	});
 
 	test("stays under the longest query the API accepts", () => {
-		expect(shouldFind("word ".repeat(41), true)).toBe(false);
+		expect(shouldFind("a ".repeat(100).trim(), false)).toBe(true);
+		expect(shouldFind("a ".repeat(101).trim(), false)).toBe(false);
 	});
 });
 
-describe("isWeakSearch", () => {
-	test("a label match is strong, a paraphrase with no label match is weak", () => {
-		expect(isWeakSearch("reorg", POOL)).toBe(false);
-		expect(isWeakSearch("cursors", POOL)).toBe(false);
-		expect(isWeakSearch("why are my rows doubled after a fork", POOL)).toBe(
+describe("fuse", () => {
+	test("blends the two signals evenly over the union", () => {
+		const out = fuse(
+			[
+				{ id: "a", score: 10 },
+				{ id: "b", score: 2 },
+			],
+			[
+				{ id: "b", cos: 0.9 },
+				{ id: "c", cos: 0.1 },
+			],
+		);
+		// a: strong text, no cosine. b: weak text, strong cosine. c: nothing but weak cosine.
+		expect(out.map((f) => f.id)).toEqual(["b", "a", "c"]);
+		const sum = out.reduce((s, f) => s + f.score, 0);
+		expect(sum).toBeCloseTo(0, 9);
+	});
+
+	test("a section missing from one list scores that signal's minimum", () => {
+		const out = fuse(
+			[
+				{ id: "a", score: 4 },
+				{ id: "b", score: 1 },
+			],
+			[
+				{ id: "c", cos: 0.5 },
+				{ id: "d", cos: 0.1 },
+			],
+		);
+		const z = new Map(out.map((f) => [f.id, f.score]));
+		// a, b have no cosine: both sit at the cosine floor (d's), so a beats b on text.
+		expect(z.get("a")).toBeGreaterThan(z.get("b") as number);
+		// c, d have no text score: both sit at the text floor (b's), so c beats d on cosine.
+		expect(z.get("c")).toBeGreaterThan(z.get("d") as number);
+		// b is at the floor of both signals, like d.
+		expect(z.get("b")).toBeCloseTo(z.get("d") as number, 9);
+	});
+
+	test("one result, or identical scores, cannot divide by zero", () => {
+		expect(fuse([{ id: "a", score: 3 }], [])).toEqual([{ id: "a", score: 0 }]);
+		const flat = fuse(
+			[
+				{ id: "a", score: 1 },
+				{ id: "b", score: 1 },
+			],
+			[
+				{ id: "a", cos: 0.4 },
+				{ id: "b", cos: 0.4 },
+			],
+		);
+		expect(flat.every((f) => Number.isFinite(f.score))).toBe(true);
+	});
+});
+
+describe("fusedSure", () => {
+	test("needs the lead to clear the runner-up by the gap", () => {
+		expect(fusedSure([{ score: 2 + FUSED_GAP + 0.001 }, { score: 2 }])).toBe(
 			true,
 		);
-	});
-});
-
-describe("matchItem", () => {
-	test("resolves a section to its pool row and a page-only match to the page row", () => {
-		expect(matchItem(reorgs, BY_ID)?.id).toBe(
-			"docs:/docs/streams#reorg-behavior",
+		expect(fusedSure([{ score: 2 + FUSED_GAP - 0.01 }, { score: 2 }])).toBe(
+			false,
 		);
+		expect(fusedSure([{ score: 1 }])).toBe(true);
+		expect(fusedSure([])).toBe(false);
+	});
+});
+
+describe("reorder", () => {
+	const rows = ["a", "b", "c", "d", "e", "f"].map((id) => ({ id }));
+	const items = new Map(rows.map((r) => [r.id, r]));
+	const fused = ["e", "d", "c", "b", "a", "f"].map((id, i) => ({
+		id,
+		score: 10 - i,
+	}));
+	const ids = (list: { id: string }[]) => list.map((r) => r.id);
+
+	test("with nobody on a row, shows the fused top rows", () => {
 		expect(
-			matchItem(
-				{ href: "/docs/streams", title: "Streams", confidence: 0.9 },
-				BY_ID,
-			)?.id,
-		).toBe("docs:/docs/streams");
+			ids(
+				reorder({
+					fused,
+					items,
+					shown: rows.slice(0, 5),
+					pinned: null,
+					max: 5,
+				}),
+			),
+		).toEqual(["e", "d", "c", "b", "a"]);
 	});
 
-	test("a match outside the pool is dropped, never invented", () => {
-		expect(matchItem({ ...reorgs, anchor: "nope" }, BY_ID)).toBeNull();
+	test("the row the reader is on keeps its row and slot while the rest re-sort", () => {
+		expect(
+			ids(
+				reorder({
+					fused,
+					items,
+					shown: rows.slice(0, 5),
+					pinned: { id: "b", index: 1 },
+					max: 5,
+				}),
+			),
+		).toEqual(["e", "b", "d", "c", "a"]);
+	});
+
+	test("a pinned row the fusion dropped is kept, and the list never grows", () => {
+		const out = reorder({
+			fused: fused.filter((f) => f.id !== "a"),
+			items,
+			shown: rows.slice(0, 5),
+			pinned: { id: "a", index: 4 },
+			max: 5,
+		});
+		expect(ids(out)).toEqual(["e", "d", "c", "b", "a"]);
+		expect(out).toHaveLength(5);
+	});
+
+	test("cosine-only sections that are not in the pool are skipped, never invented", () => {
+		const out = reorder({
+			fused: [{ id: "ghost", score: 9 }, ...fused],
+			items,
+			shown: rows.slice(0, 5),
+			pinned: null,
+			max: 3,
+		});
+		expect(ids(out)).toEqual(["e", "d", "c"]);
 	});
 });
 
-describe("mergeFind", () => {
-	const local = [weak(item("cursors"))];
-	const lead = item("reorg-behavior");
-
-	test("no match leaves the text hits exactly as they were", () => {
-		const out = mergeFind({
-			hits: local,
-			match: null,
-			item: null,
-			selectedId: null,
-			max: 5,
-		});
-		expect(out.items.map((i) => i.id)).toEqual([item("cursors").id]);
-		expect(out.selected).toBe(0);
-	});
-
-	test("a confident match leads and is the default row", () => {
-		const out = mergeFind({
-			hits: local,
-			match: reorgs,
-			item: lead,
-			selectedId: null,
-			max: 5,
-		});
-		expect(out.items.map((i) => i.id)).toEqual([lead.id, item("cursors").id]);
-		expect(out.selected).toBe(0);
-	});
-
-	test("a fair match follows the strong text hits and precedes weak ones", () => {
-		const hits = [
-			strong(item("cursors")),
-			weak(BY_ID.get("docs:/docs/webhooks#triggers") as CommandItem),
-		];
-		const out = mergeFind({
-			hits,
-			match: { ...reorgs, confidence: 0.6 },
-			item: lead,
-			selectedId: null,
-			max: 5,
-		});
-		expect(out.items.map((i) => i.id)).toEqual([
-			item("cursors").id,
-			lead.id,
-			"docs:/docs/webhooks#triggers",
-		]);
-	});
-
-	test("a doubtful match changes nothing", () => {
-		const out = mergeFind({
-			hits: local,
-			match: { ...reorgs, confidence: 0.49 },
-			item: lead,
-			selectedId: null,
-			max: 5,
-		});
-		expect(out.items.map((i) => i.id)).toEqual([item("cursors").id]);
-	});
-
-	test("a match already among the hits appears once", () => {
-		const out = mergeFind({
-			hits: [weak(lead), weak(item("cursors"))],
-			match: reorgs,
-			item: lead,
-			selectedId: null,
-			max: 5,
-		});
-		expect(out.items.filter((i) => i.id === lead.id)).toHaveLength(1);
-		expect(out.items[0].id).toBe(lead.id);
-	});
-
-	test("the row the reader arrowed onto keeps its identity when the list changes", () => {
-		const out = mergeFind({
-			hits: local,
-			match: reorgs,
-			item: lead,
-			selectedId: item("cursors").id,
-			max: 5,
-		});
-		expect(out.items[out.selected].id).toBe(item("cursors").id);
-	});
-
-	test("never grows past the row cap", () => {
-		const many = POOL.slice(0, 8).map(weak);
-		const out = mergeFind({
-			hits: many,
-			match: reorgs,
-			item: lead,
-			selectedId: null,
-			max: 5,
-		});
-		expect(out.items).toHaveLength(5);
-		expect(out.items[0].id).toBe(lead.id);
-	});
-});
-
-describe("requestFind", () => {
+describe("requestNearest", () => {
 	const realFetch = globalThis.fetch;
 	afterEach(() => {
 		globalThis.fetch = realFetch;
 	});
+	const fakeFetch = (impl: (url: string, init: RequestInit) => Response) => {
+		const calls: { url: string; init: RequestInit }[] = [];
+		globalThis.fetch = (async (url: string, init: RequestInit) => {
+			calls.push({ url, init });
+			return impl(url, init);
+		}) as unknown as typeof fetch;
+		return calls;
+	};
 
 	test("posts the trimmed query without credentials and remembers the answer by normalized text", async () => {
-		let call = null as { url: string; init: RequestInit } | null;
-		globalThis.fetch = (async (url: string, init: RequestInit) => {
-			call = { url, init };
-			return Response.json({ match: reorgs });
-		}) as unknown as typeof fetch;
-		const got = await requestFind(
-			"  Why  are rows doubled ",
+		const calls = fakeFetch(() =>
+			Response.json({ results: [{ id: "docs:/docs/streams", cos: 0.8 }] }),
+		);
+		const out = await requestNearest(
+			"  Why are Rows  doubled ",
 			new AbortController().signal,
 		);
-		expect(got).toEqual(reorgs);
-		expect(call?.url.endsWith("/api/public/docs-find")).toBe(true);
-		expect(call?.init.credentials).toBe("omit");
-		expect(call?.init.body).toBe(
-			JSON.stringify({ q: "Why  are rows doubled" }),
-		);
-		expect(cachedFind("why are rows   DOUBLED")).toEqual(reorgs);
+		expect(out).toEqual([{ id: "docs:/docs/streams", cos: 0.8 }]);
+		expect(calls[0].url).toEndWith("/api/public/docs-find");
+		expect(JSON.parse(calls[0].init.body as string)).toEqual({
+			q: "Why are Rows  doubled",
+		});
+		expect(calls[0].init.credentials).toBe("omit");
+		expect(cachedNearest("why are rows doubled")).toEqual(out);
+		expect(cachedNearest("never asked this")).toBeUndefined();
 	});
 
-	test("a null answer is cached as asked-and-empty; errors and 429 are not cached and reject", async () => {
-		globalThis.fetch = (async () =>
-			Response.json({ match: null })) as unknown as typeof fetch;
-		await requestFind("nothing here matches", new AbortController().signal);
-		expect(cachedFind("nothing here matches")).toBeNull();
-
-		globalThis.fetch = (async () =>
-			new Response("slow down", { status: 429 })) as unknown as typeof fetch;
+	test("errors and 429 reject and are not cached", async () => {
+		fakeFetch(() => new Response("slow down", { status: 429 }));
 		await expect(
-			requestFind("too many requests today", new AbortController().signal),
+			requestNearest("rate limited query", new AbortController().signal),
 		).rejects.toThrow();
-		expect(cachedFind("too many requests today")).toBeUndefined();
+		expect(cachedNearest("rate limited query")).toBeUndefined();
 	});
 
-	test("a malformed match is treated as no match", async () => {
-		globalThis.fetch = (async () =>
-			Response.json({ match: { href: 3 } })) as unknown as typeof fetch;
+	test("malformed entries are dropped", async () => {
+		fakeFetch(() =>
+			Response.json({
+				results: [{ id: "docs:/docs/a", cos: 0.5 }, { id: 3 }, null, "x"],
+			}),
+		);
 		expect(
-			await requestFind("garbled answer here", new AbortController().signal),
-		).toBeNull();
+			await requestNearest("malformed entries", new AbortController().signal),
+		).toEqual([{ id: "docs:/docs/a", cos: 0.5 }]);
 	});
 });

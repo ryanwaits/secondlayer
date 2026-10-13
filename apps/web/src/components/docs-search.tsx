@@ -20,6 +20,14 @@ import {
 	search,
 } from "@/lib/docs-bm25";
 import { copyText } from "@/lib/docs-clipboard";
+import {
+	cachedNearest,
+	fuse,
+	fusedSure,
+	reorder,
+	requestNearest,
+	shouldFind,
+} from "@/lib/docs-find";
 import { buildPrompt, chipUrl } from "@/lib/docs-prompt";
 import { refreshList, useWebhooksCache } from "@/lib/webhooks-store";
 import { usePathname, useRouter } from "next/navigation";
@@ -72,6 +80,10 @@ type Row =
 	| { kind: "copy" };
 
 const MAX_HITS = 5;
+/** Text results handed to the fusion; the embedding side returns its own 30. */
+const FIND_POOL = 30;
+/** Idle time before an unsure search asks the API for its nearest sections. */
+const FIND_DEBOUNCE_MS = 250;
 const MAX_YOURS = 3;
 const MAX_EMPTY_DOCS = 4;
 const MAX_ATTACH_DOCS = 12;
@@ -133,6 +145,10 @@ export function DocsSearch() {
 	const [dismissed, setDismissed] = useState(false);
 	const [selected, setSelected] = useState(0);
 	const [busy, setBusy] = useState(false);
+	/** Bumped when a nearest-sections answer lands, so the rows read it from the cache. */
+	const [answers, setAnswers] = useState(0);
+	/** Row the reader arrowed or hovered onto and where it sits; a late answer never moves it. */
+	const arrowed = useRef<{ id: string; index: number } | null>(null);
 	/** Items attached with `@`; they feed the prompt and nothing else. */
 	const [chips, setChips] = useState<CommandItem[]>([]);
 	const { account } = useAuth();
@@ -196,11 +212,19 @@ export function DocsSearch() {
 		];
 	}, [attachFrag, chips, yours, ready]);
 
+	const plain = !verb && !commandMode && !attachMode && !!text;
+	const results = useMemo(
+		() => (plain && ready ? search(ready.index, text, FIND_POOL) : []),
+		[plain, ready, text],
+	);
+	const textSure = confident(results);
+	const findable = plain && !!ready && shouldFind(text, textSure);
+
 	/** `sure`: the top hit clearly beats the rest (nothing reads it yet). */
 	const { hits, sure } = useMemo(() => {
-		if (verb || commandMode || attachMode || !text) {
-			return { hits: [] as CommandItem[], sure: false };
-		}
+		// `answers` re-reads the cache when the API's answer lands.
+		void answers;
+		if (!plain) return { hits: [] as CommandItem[], sure: false };
 		if (!ready) {
 			return {
 				hits: rankCommandItems(text, BASE_POOL, frecencyBoosts())
@@ -210,14 +234,27 @@ export function DocsSearch() {
 				sure: false,
 			};
 		}
-		const results = search(ready.index, text, MAX_HITS);
+		const shown = results
+			.slice(0, MAX_HITS)
+			.map((r) => ready.items.get(r.id))
+			.filter((i): i is CommandItem => !!i);
+		const nearest = findable ? cachedNearest(text) : undefined;
+		if (!nearest?.length) return { hits: shown, sure: textSure };
+		const fused = fuse(
+			results.map((r) => ({ id: r.id, score: r.score })),
+			nearest,
+		);
 		return {
-			hits: results
-				.map((r) => ready.items.get(r.id))
-				.filter((i): i is CommandItem => !!i),
-			sure: confident(results),
+			hits: reorder({
+				fused,
+				items: ready.items,
+				shown,
+				pinned: arrowed.current,
+				max: MAX_HITS,
+			}),
+			sure: fusedSure(fused),
 		};
-	}, [verb, commandMode, attachMode, text, ready]);
+	}, [plain, ready, text, results, textSure, findable, answers]);
 
 	const rows = useMemo<Row[]>(() => {
 		if (attachMode) {
@@ -239,6 +276,30 @@ export function DocsSearch() {
 	const open = focused && !dismissed && (rows.length > 0 || manual !== null);
 	const activeId = open && !manual ? `${listId}-${selected}` : undefined;
 
+	// An unsure search that has sat idle asks for its nearest sections; typing on cancels it.
+	useEffect(() => {
+		if (!findable || cachedNearest(text) !== undefined) return;
+		const ctrl = new AbortController();
+		const timer = setTimeout(() => {
+			requestNearest(text, ctrl.signal).then(
+				() => setAnswers((n) => n + 1),
+				// Offline, rate limited, aborted: the text results stand.
+				() => {},
+			);
+		}, FIND_DEBOUNCE_MS);
+		return () => {
+			clearTimeout(timer);
+			ctrl.abort();
+		};
+	}, [findable, text]);
+
+	// A late answer re-sorts the rows; the selection stays on the row the
+	// reader was on, or on the new first row if they never moved.
+	useEffect(() => {
+		const row = arrowed.current;
+		setSelected(row ? (row.id === "to-prompt" ? hits.length : row.index) : 0);
+	}, [hits]);
+
 	// ⌘K / Ctrl+K focuses this field; the palette yields on docs pages.
 	useEffect(() => {
 		function onKeyDown(e: KeyboardEvent) {
@@ -253,6 +314,7 @@ export function DocsSearch() {
 	}, []);
 
 	function reset() {
+		arrowed.current = null;
 		setValue("");
 		setVerb(false);
 		setChips([]);
@@ -276,6 +338,7 @@ export function DocsSearch() {
 	}
 
 	function onChange(next: string) {
+		arrowed.current = null;
 		setDismissed(false);
 		setSelected(0);
 		setManual(null);
@@ -349,15 +412,22 @@ export function DocsSearch() {
 		}
 	}
 
+	/** Moves the selection by the reader's hand; late answers then leave that row alone. */
+	function select(index: number) {
+		setSelected(index);
+		const row = rows[index];
+		arrowed.current = row ? { id: rowKey(row), index } : null;
+	}
+
 	function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
 		if (e.key === "ArrowDown" || e.key === "ArrowUp") {
 			if (!rows.length) return;
 			e.preventDefault();
 			setDismissed(false);
-			setSelected((i) =>
+			select(
 				e.key === "ArrowDown"
-					? Math.min(i + 1, rows.length - 1)
-					: Math.max(i - 1, 0),
+					? Math.min(selected + 1, rows.length - 1)
+					: Math.max(selected - 1, 0),
 			);
 		} else if (e.key === "Enter" || (e.key === "Tab" && commandMode)) {
 			if (e.key === "Tab" && !rows.length) return;
@@ -508,7 +578,7 @@ export function DocsSearch() {
 										aria-selected={i === selected}
 										className="docs-search-opt"
 										data-kind={row.kind}
-										onMouseMove={() => setSelected(i)}
+										onMouseMove={() => select(i)}
 										onClick={() => pick(row)}
 									>
 										<RowBody row={row} text={text} reads={reads} />
