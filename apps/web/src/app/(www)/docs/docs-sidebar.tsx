@@ -7,7 +7,7 @@ import { DOCS_STRIP } from "@/lib/nav";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useDocsDrawer } from "./docs-mode";
+import { useDocsDrawer } from "./docs-drawer";
 import { bareObjectTitle } from "./docs-toc";
 import { DOCS_NAV } from "./nav";
 

@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { AgentView } from "./agent-view";
-import { useDocsMode } from "./docs-mode";
 import { docsNavPages } from "./nav";
 import { PageActions } from "./page-actions";
 
@@ -21,20 +19,10 @@ function lookup(pathname: string) {
 	};
 }
 
-/** Switches the docs body between the human reading view (MDX) and the
- *  agent-doc view, and renders the breadcrumb + page-actions chrome for human mode. */
+/** The breadcrumb + page-actions chrome around a docs page's MDX body. */
 export function DocsView({ children }: { children: ReactNode }) {
-	const { mode } = useDocsMode();
 	const pathname = usePathname();
 	const info = lookup(pathname);
-
-	// Agent mode replaces the page: the deck IS the view. The reference an
-	// agent needs lives at the page's raw-markdown endpoint (`<slug>.md`),
-	// which AgentView links — rendering the human article underneath just
-	// duplicated the page below the deck.
-	if (mode === "agent") {
-		return <AgentView slug={pathname} title={info?.title ?? "Docs"} />;
-	}
 
 	return (
 		<>

@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { useDocsMode } from "./docs-mode";
 import { PageActions } from "./page-actions";
 
 const API_REFERENCE = "/docs/api-reference";
@@ -96,10 +95,9 @@ function useFullView(enabled: boolean) {
  *  page actions sit below it. */
 export function DocsToc() {
 	const pathname = usePathname();
-	const { mode } = useDocsMode();
 	const [heads, setHeads] = useState<Head[]>([]);
 	const [activeId, setActiveId] = useState("");
-	const onReference = pathname === API_REFERENCE && mode === "human";
+	const onReference = pathname === API_REFERENCE;
 	const fullView = useFullView(onReference);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — re-read headings on route change
@@ -151,8 +149,6 @@ export function DocsToc() {
 		return () => observer.disconnect();
 	}, [heads]);
 
-	// Agent mode has its own layout — no right rail.
-	if (mode === "agent") return null;
 	return (
 		<aside className="docs-toc" aria-label="On this page">
 			{heads.length > 0 ? (

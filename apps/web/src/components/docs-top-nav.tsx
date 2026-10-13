@@ -6,12 +6,11 @@ import { Logo } from "@/components/logo";
 import { ProductsMenu } from "@/components/products-menu";
 import { useAuth } from "@/lib/auth";
 import Link from "next/link";
-import { ModeToggle, useDocsDrawer } from "../app/(www)/docs/docs-mode";
+import { useDocsDrawer } from "../app/(www)/docs/docs-drawer";
 
 /**
  * Docs top bar: brand, the ⌘K search trigger (the command palette
- * listens for clicks on `.dash-cmdk`), the Human/Agent switch, site links and
- * session chrome. Sign in never flashes for a session that is already in.
+ * listens for clicks on `.dash-cmdk`), site links and session chrome. Sign in never flashes for a session that is already in.
  */
 export function DocsTopNav() {
 	const { account, loading, logout } = useAuth();
@@ -62,7 +61,6 @@ export function DocsTopNav() {
 					</span>
 					<kbd>⌘K</kbd>
 				</button>
-				<ModeToggle />
 				<nav className="docs-top-links" aria-label="Site">
 					<ProductsMenu className="docs-products" />
 					<Link href="/pricing">Pricing</Link>

@@ -62,31 +62,6 @@
 	padding: 1px 5px;
 	background: var(--paper);
 }
-.docs-seg {
-	display: inline-flex;
-	flex: none;
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	padding: 2px;
-	gap: 2px;
-}
-.docs-seg button {
-	font: 500 12.5px var(--font-sans-stack);
-	color: var(--sub);
-	background: none;
-	border: 0;
-	height: 26px;
-	padding: 0 10px;
-	border-radius: 4px;
-	cursor: pointer;
-}
-.docs-seg button:hover:not([aria-selected="true"]) {
-	color: var(--ink);
-}
-.docs-seg button[aria-selected="true"] {
-	background: var(--ink);
-	color: var(--paper);
-}
 .docs-top-links {
 	display: flex;
 	gap: 18px;

@@ -4,7 +4,7 @@ import { GITHUB_URL } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { DocsModeProvider } from "./docs-mode";
+import { DocsDrawerProvider } from "./docs-drawer";
 import { DocsSidebar } from "./docs-sidebar";
 import { DocsToc } from "./docs-toc";
 import { DocsView } from "./docs-view";
@@ -37,7 +37,7 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
 	// DocsView switches the body between the human reading view and the
 	// agent-doc.
 	return (
-		<DocsModeProvider>
+		<DocsDrawerProvider>
 			<DocsScrollTop />
 			<DocsTopNav />
 			<div className="docs-shell">
@@ -60,6 +60,6 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
 					</span>
 				</div>
 			</footer>
-		</DocsModeProvider>
+		</DocsDrawerProvider>
 	);
 }
