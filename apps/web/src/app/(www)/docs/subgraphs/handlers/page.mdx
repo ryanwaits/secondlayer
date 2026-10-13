@@ -12,18 +12,24 @@ whenever a value accumulates:
 ctx.increment("balances", { holder }, { amount: -amount });
 ```
 
-The read-modify-write it replaces (`findOne` → compute → `upsert`) looks
-equivalent and isn't. Two events touching the same row in one block both read
-the stale value and the second write wins, so updates are silently lost. Deltas
-commute within a block, and a reorg rewind reverses them cleanly.
-
 The tradeoff: a delta is applied once per pass over a block. Tip-first deploys
 (`backfillMode: "concurrent"`) and `backfill` revisit blocks the live walk
 already processed, so they refuse handlers that call `increment`, `update`,
 `findOne` or `findMany`. Those subgraphs deploy with the default blocking
 backfill and rebuild with `reindex`.
 
-## System columns
+<details id="why-not-read-then-upsert">
+<summary>Why not read, compute, upsert</summary>
+
+The read-modify-write it replaces (`findOne` → compute → `upsert`) looks
+equivalent and isn't. Two events touching the same row in one block both read
+the stale value and the second write wins, so updates are silently lost. Deltas
+commute within a block, and a reorg rewind reverses them cleanly.
+
+</details>
+
+<details id="system-columns">
+<summary>System columns</summary>
 
 Every row carries `_block_height` and `_tx_id`: the block and transaction
 that created it. An `upsert` or `increment` on an existing key changes your
@@ -31,7 +37,10 @@ columns (last write wins) and leaves these alone, whether the first write was
 in an earlier block or earlier in the same one. A key deleted and written
 again is a new row, so the new writer's block and transaction are stored.
 
-## Reading the chain from a handler
+</details>
+
+<details id="reading-the-chain-from-a-handler">
+<summary>Reading the chain from a handler</summary>
 
 Some facts aren't in any event. A token's `decimals`, a pool's reserves, an
 NFT's metadata URI: those live in contract state, and without them `amount` is
@@ -76,7 +85,10 @@ Self-hosting: set `STACKS_NODE_RPC_URL` on the subgraph processor, pointing at
 the node you already run rather than a new service. See
 [self-host](/docs/self-host/production#config).
 
-## Typed print payloads
+</details>
+
+<details id="typed-print-payloads">
+<summary>Typed print payloads</summary>
 
 Clarity ABIs don't describe `print` payloads, so `event.data` is untyped. A `prints` map types it, discriminated on `event.topic`:
 
@@ -114,7 +126,10 @@ Scaffolds from the [print-schema endpoint](/docs/index#print-schemas): one `prin
 
 Deploys return advisory `warnings` when a handler reads an `event.data` field never observed for its topic (pinned `contractId` sources only). If the source **declares** a `prints` map, the same finding is an error and the deploy is refused: you stated the shape, so a mismatch is a defect rather than a hint.
 
-## Rows anyone can recompute
+</details>
+
+<details id="rows-anyone-can-recompute">
+<summary>Rows anyone can recompute</summary>
 
 A subgraph whose sources are all state writes (`var_set`, `map_set`, `map_delete`) can be rebuilt from block headers alone, so its handlers must give the same rows on every run. The level is derived from your sources and a scan of the bundle, never configured:
 
@@ -142,7 +157,10 @@ Verifiable handlers run in a locked-down realm that throws on the same list at r
 
 A `state` subgraph reads its writes from the node's `state_writes` once the instance holds them from its `startBlock` on, and from `vm_events` until then. Nothing to configure.
 
-## Check rows
+</details>
+
+<details id="check-rows">
+<summary>Check rows</summary>
 
 Recompute a `state` subgraph on your machine and compare it with the rows the API serves:
 
@@ -169,6 +187,8 @@ secondlayer verify subgraph pool-reserves --replay --from 1230000 --to 1231000
 | `rows` | served rows equal the recomputed ones on declared columns and `_block_height` |
 
 `_tx_id` is not compared: which transaction made a write is unproven, as are writes overwritten within one block. A `--from` after `startBlock` is inconclusive (exit `2`) once a handler reads or merges earlier rows (`findOne`, `increment`, a partial upsert). Every read is free: proofs and state writes from `/v1/proofs/writes`, rows from `/v1/subgraphs`. Witnesses are limited to 2 per second, so 1,000 blocks take 8 minutes or more. An instance whose node does not deliver `state_writes` cannot be checked: exit `2`.
+
+</details>
 
 export const metadata = {
 	title: "Writing handlers — Secondlayer Docs",
