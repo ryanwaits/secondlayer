@@ -1,0 +1,825 @@
+{
+	"slug": "archive",
+	"root": "sl.archive",
+	"methods": [
+		{
+			"id": "latest",
+			"path": "sl.archive.latest",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/types.ts",
+				"line": 110
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "against",
+							"type": "string",
+							"required": false,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "ArchiveLoadOptions",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<LoadedArchive>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "load",
+			"path": "sl.archive.load",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/types.ts",
+				"line": 110
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "against",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "ArchiveLoadOptions",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<LoadedArchive>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "status",
+			"path": "sl.archive.status",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/types.ts",
+				"line": 110
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [],
+					"returns": {
+						"type": "Promise<ArchiveStatus>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "partitions",
+			"path": "sl.archive.partitions",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/types.ts",
+				"line": 110
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "ref",
+							"type": "LoadedArchive",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "filter",
+							"type": "{ dataset?: ArchiveDataset; fromBlock?: number; toBlock?: number }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ArchivePartition[]",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "quote",
+			"path": "sl.archive.quote",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/types.ts",
+				"line": 110
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "input",
+							"type": "{ paths: string[]; flow: ArchiveFlow }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<ArchiveQuote>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "fetch",
+			"path": "sl.archive.fetch",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/types.ts",
+				"line": 110
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "input",
+							"type": "{ paths: string[]; flow: ArchiveFlow }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<ArchiveFetchResult>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "download",
+			"path": "sl.archive.download",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/types.ts",
+				"line": 110
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "partition",
+							"type": "ArchivePartition",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "{ url?: string }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<Uint8Array>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "credits.balance",
+			"path": "sl.archive.credits.balance",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/types.ts",
+				"line": 110
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [],
+					"returns": {
+						"type": "Promise<ArchiveCreditsBalance>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "credits.checkout",
+			"path": "sl.archive.credits.checkout",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/types.ts",
+				"line": 110
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "input",
+							"type": "{ email: string; pack: 10 | 25 | 50 | 100 }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<{ url: string }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "credits.refill",
+			"path": "sl.archive.credits.refill",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/types.ts",
+				"line": 110
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "input",
+							"type": "{ belowUsd: number; packUsd: 10 | 25 | 50 | 100 } | { off: true }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<{ belowUsd: number | null; packUsd: number | null }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "verify",
+			"path": "sl.archive.verify",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/types.ts",
+				"line": 111
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "input",
+							"type": "ArchiveVerifyInput",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<ArchiveVerifyResult>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "ArchiveCreditsBalance",
+			"summary": "",
+			"fields": [
+				{
+					"name": "creditsUsdMicros",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "refill",
+					"type": "{ belowUsd: number | null; packUsd: number | null; lastAt: string | null }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ArchiveDataset",
+			"summary": "",
+			"definition": "\"events\" | \"blocks\" | \"transactions\""
+		},
+		{
+			"name": "ArchiveFetchItem",
+			"summary": "",
+			"fields": [
+				{
+					"name": "path",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "url",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "expiresAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "chargedUsdMicros",
+					"type": "number",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ArchiveFetchResult",
+			"summary": "",
+			"fields": [
+				{
+					"name": "urls",
+					"type": "ArchiveFetchItem[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "chargedTotalUsdMicros",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "balanceAfterUsdMicros",
+					"type": "number",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ArchiveFlow",
+			"summary": "",
+			"definition": "\"bootstrap\" | \"repair\""
+		},
+		{
+			"name": "ArchiveLoadOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "insecure",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ArchiveManifest",
+			"summary": "",
+			"fields": [
+				{
+					"name": "network",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "coverage",
+					"type": "{ from_block: number; to_block: number }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "partition_size_blocks",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "range_digests",
+					"type": "RangeDigest[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "partitions",
+					"type": "ArchivePartition[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "signature",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "key_id",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ArchivePartition",
+			"summary": "",
+			"fields": [
+				{
+					"name": "dataset",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "from_block",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "to_block",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "path",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "row_count",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "byte_size",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sha256",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ArchiveQuote",
+			"summary": "",
+			"fields": [
+				{
+					"name": "partitions",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "bundles",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "usdMicros",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "usd",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "freeAllowanceAppliedMicros",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "allowanceRemainingBundles",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "balanceUsdMicros",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sufficient",
+					"type": "boolean",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ArchiveState",
+			"summary": "",
+			"definition": "\"fresh\" | \"lagging\" | \"stale\" | \"gap\" | \"failed-audit\" | \"source-unavailable\""
+		},
+		{
+			"name": "ArchiveStatus",
+			"summary": "",
+			"fields": [
+				{
+					"name": "schema_version",
+					"type": "1",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "network",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "state",
+					"type": "ArchiveState",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "detail",
+					"type": "string",
+					"required": true,
+					"description": "Human-facing one-liner explaining the state, including WHY."
+				},
+				{
+					"name": "generated_at",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "archive",
+					"type": "{ snapshot_digest: string | null; coverage_to_block: number | null; promoted_at: string | null; signing_key_id: string | null }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "source",
+					"type": "{ tip_height: number | null; finalized_height: number | null; decoder_head: number | null }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lag",
+					"type": "{ blocks_behind_finalized: number | null; blocks_behind_tip: number | null; seconds_since_promotion: number | null }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "audit",
+					"type": "{ complete: boolean; checked_at: string; } | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "signature",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "key_id",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ArchiveVerifyInput",
+			"summary": "",
+			"fields": [
+				{
+					"name": "against",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "target",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "fromBlock",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "toBlock",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "insecure",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "publicKeyPem",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ArchiveVerifyRangeStatus",
+			"summary": "",
+			"definition": "\"match\" | \"digest-mismatch\" | \"count-mismatch\" | \"missing\""
+		},
+		{
+			"name": "ArchiveVerifyResult",
+			"summary": "",
+			"fields": [
+				{
+					"name": "status",
+					"type": "\"clean\" | \"diverged\" | \"unanchored\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "target",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "against",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "signature",
+					"type": "{ verified: boolean; reason?: string }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "coverage",
+					"type": "{ from_block: number; to_block: number }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "ranges",
+					"type": "{ dataset: string; from_block: number; to_block: number; status: ArchiveVerifyRangeStatus; expected_digest: string | null; actual_digest: string | null }[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "reason",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "LoadedArchive",
+			"summary": "",
+			"fields": [
+				{
+					"name": "manifest",
+					"type": "ArchiveManifest",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "origin",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "root",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "isRemote",
+					"type": "boolean",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "signature",
+					"type": "{ verified: boolean; reason?: string }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "RangeDigest",
+			"summary": "",
+			"fields": [
+				{
+					"name": "dataset",
+					"type": "RangeDigestDataset",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "from_block",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "to_block",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "row_count",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "digest",
+					"type": "string | null",
+					"required": true,
+					"description": "null when the range holds no rows — an empty range has no digest, and\nthat is materially different from \"a digest that happens to be of zero\nrows\", which would compare equal across datasets."
+				},
+				{
+					"name": "digest_spec",
+					"type": "\"md5:sql-identity-v1\"",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "RangeDigestDataset",
+			"summary": "",
+			"definition": "\"events\" | \"blocks\" | \"transactions\""
+		}
+	]
+}

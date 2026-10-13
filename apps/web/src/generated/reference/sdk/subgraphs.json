@@ -1,0 +1,1619 @@
+{
+	"slug": "subgraphs",
+	"root": "sl.subgraphs",
+	"methods": [
+		{
+			"id": "list",
+			"path": "sl.subgraphs.list",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 157
+			},
+			"rest": "GET /api/subgraphs",
+			"overloads": [
+				{
+					"label": "",
+					"params": [],
+					"returns": {
+						"type": "Promise<{ data: SubgraphSummary[] }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "status",
+			"path": "sl.subgraphs.status",
+			"summary": "The subgraph's current state — health, sync position, tables.",
+			"description": "The subgraph's current state — health, sync position, tables. The verify\nstep after a deploy, reindex, or backfill: poll it until `sync` catches\nthe tip.",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 166
+			},
+			"rest": "GET /api/subgraphs/{name}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<SubgraphDetail>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "openapi",
+			"path": "sl.subgraphs.openapi",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 170
+			},
+			"rest": "GET /api/subgraphs/{name}/openapi.json{options}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "options",
+							"type": "SubgraphSpecOptions",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<Record<string, unknown>>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "schema",
+			"path": "sl.subgraphs.schema",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 180
+			},
+			"rest": "GET /api/subgraphs/{name}/schema.json{options}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "options",
+							"type": "SubgraphSpecOptions",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<SubgraphAgentSchema>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "markdown",
+			"path": "sl.subgraphs.markdown",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 190
+			},
+			"rest": "GET /api/subgraphs/{name}/docs.md{options}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "options",
+							"type": "SubgraphSpecOptions",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<string>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "reindex",
+			"path": "sl.subgraphs.reindex",
+			"summary": "Reindex always drops and rebuilds the whole subgraph, so it takes no block range; the API rejects one with `REINDEX_RANGE_NOT_SUPPORTED`.",
+			"description": "Reindex always drops and rebuilds the whole subgraph, so it takes no\nblock range; the API rejects one with `REINDEX_RANGE_NOT_SUPPORTED`.\nUse `backfill` to process a specific range. While a reindex or\nbackfill is already running the API answers 409 with code\n`OPERATION_IN_PROGRESS`; poll `operations` until it finishes.",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 204
+			},
+			"rest": "POST /api/subgraphs/{name}/reindex",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<ReindexResponse>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "stop",
+			"path": "sl.subgraphs.stop",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 211
+			},
+			"rest": "POST /api/subgraphs/{name}/stop",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<{ message: string; operationId?: string; status?: string }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "backfill",
+			"path": "sl.subgraphs.backfill",
+			"summary": "Process one block range.",
+			"description": "Process one block range. 409 `OPERATION_IN_PROGRESS` while another\nreindex or backfill runs on this subgraph.",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 223
+			},
+			"rest": "POST /api/subgraphs/{name}/backfill",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "options",
+							"type": "{ fromBlock: number; toBlock: number }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<ReindexResponse>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "gaps",
+			"path": "sl.subgraphs.gaps",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 234
+			},
+			"rest": "GET /api/subgraphs/{name}/gaps",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "{ limit?: number; offset?: number; resolved?: boolean }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<SubgraphGapsResponse>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "delete",
+			"path": "sl.subgraphs.delete",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 249
+			},
+			"rest": "DELETE /api/subgraphs/{name}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "options",
+							"type": "{ force?: boolean }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<{ message: string }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "rows",
+			"path": "sl.subgraphs.rows",
+			"summary": "Open /v1 read: cursor-paginated rows.",
+			"description": "Open /v1 read: cursor-paginated rows. Anon works on an open instance;\npass an apiKey on the client where reads are closed. `next_cursor` is set\non every page that returned rows and is `null` only on an empty page, so a\npoller tails with `cursor = page.next_cursor ?? cursor`. A paging loop\nends on an empty page (or one shorter than `limit`).",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 267
+			},
+			"rest": "GET /v1/subgraphs/{name}/{table}{cursorQs}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "table",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "params",
+							"type": "{ limit?: number; filters?: Record<string, string>; fields?: string; sort?: string; order?: string } & { cursor?: string }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<SubgraphRowsEnvelope<T>>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "operations",
+			"path": "sl.subgraphs.operations",
+			"summary": "Recent reindex/backfill operations for a subgraph, newest first.",
+			"description": "Recent reindex/backfill operations for a subgraph, newest first.",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 285
+			},
+			"rest": "GET /api/subgraphs/{name}/operations",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<{ operations: SubgraphOperationStatus[] }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "getOperation",
+			"path": "sl.subgraphs.getOperation",
+			"summary": "Status of a single operation (poll the `operationId` returned by reindex/backfill/stop until `status` is terminal).",
+			"description": "Status of a single operation (poll the `operationId` returned by\nreindex/backfill/stop until `status` is terminal).",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 296
+			},
+			"rest": "GET /api/subgraphs/{name}/operations/{operationId}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "operationId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<SubgraphOperationStatus>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "deploy",
+			"path": "sl.subgraphs.deploy",
+			"summary": "Create or update a subgraph.",
+			"description": "Create or update a subgraph. A deploy that needs a rebuild queues one;\nif a reindex or backfill is already running the API answers 409 with\ncode `OPERATION_IN_PROGRESS` (an `ApiError`, not a dedicated class).",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 309
+			},
+			"rest": "POST /api/subgraphs",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "data",
+							"type": "DeploySubgraphRequest",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<DeploySubgraphResponse>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "getSource",
+			"path": "sl.subgraphs.getSource",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 313
+			},
+			"rest": "GET /api/subgraphs/{name}/source",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<SubgraphSource>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "bundle",
+			"path": "sl.subgraphs.bundle",
+			"summary": "Bundle a TypeScript subgraph source on the server.",
+			"description": "Bundle a TypeScript subgraph source on the server. Used by the web chat\nauthoring loop so Vercel's serverless runtime doesn't have to run esbuild.",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 324
+			},
+			"rest": "POST /api/subgraphs/bundle",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "data",
+							"type": "{ code: string }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<BundleSubgraphResponse>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "count",
+			"path": "sl.subgraphs.count",
+			"summary": "Open /v1 read: exact row count for a filtered set.",
+			"description": "Open /v1 read: exact row count for a filtered set. Same auth posture as\n`rows`.",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 334
+			},
+			"rest": "GET /v1/subgraphs/{name}/{table}/count{params}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "table",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "params",
+							"type": "{ filters?: Record<string, string> }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<{ count: number }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "aggregate",
+			"path": "sl.subgraphs.aggregate",
+			"summary": "Open /v1 read: scalar aggregates over a filtered set.",
+			"description": "Open /v1 read: scalar aggregates over a filtered set. Same auth posture\nas `rows`.",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 347
+			},
+			"rest": "GET /v1/subgraphs/{name}/{table}/aggregate{params}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "name",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "table",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "params",
+							"type": "SubgraphAggregateParams",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<SubgraphAggregateResponse>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "typed",
+			"path": "sl.subgraphs.typed",
+			"summary": "Returns a typed client for a subgraph defined with `defineSubgraph()`.",
+			"description": "Returns a typed client for a subgraph defined with `defineSubgraph()`.\nRow types are inferred from the subgraph's schema literal types.",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/client.ts",
+				"line": 372
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "def",
+							"type": "T",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "InferSubgraphClient<T>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "BundleSubgraphResponse",
+			"summary": "",
+			"fields": [
+				{
+					"name": "ok",
+					"type": "true",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "description",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sources",
+					"type": "Record<string, Record<string, unknown>>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "schema",
+					"type": "Record<string, unknown>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "handlerCode",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sourceCode",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "bundleSize",
+					"type": "number",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "DeploySubgraphRequest",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "description",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sources",
+					"type": "Record<string, Record<string, unknown>>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "schema",
+					"type": "Record<string, unknown>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "handlerCode",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "startBlock",
+					"type": "number",
+					"required": false,
+					"description": "Override the definition's startBlock for this deploy only."
+				},
+				{
+					"name": "sourceCode",
+					"type": "string",
+					"required": false,
+					"description": "Original TypeScript source, persisted so chat can read/diff/edit later."
+				},
+				{
+					"name": "dryRun",
+					"type": "boolean",
+					"required": false,
+					"description": "Validate the definition + print the DDL plan without deploying."
+				}
+			]
+		},
+		{
+			"name": "DeploySubgraphResponse",
+			"summary": "",
+			"fields": [
+				{
+					"name": "action",
+					"type": "\"created\" | \"unchanged\" | \"handler_updated\" | \"updated\" | \"reindexed\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "subgraphId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "version",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "message",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "start_block",
+					"type": "number",
+					"required": false,
+					"description": "Effective indexing start height."
+				},
+				{
+					"name": "operationId",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "reindexStarted",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "estimatedEvents",
+					"type": "number",
+					"required": false,
+					"description": "Bounded candidate-event denominator for the reindex just started, when the\nop was classifiable as sparse/light. Absent for heavy ops (no upfront estimate\npossible) — check `sl subgraphs status` after ~30s for a rate-based ETA instead."
+				},
+				{
+					"name": "warnings",
+					"type": "string[]",
+					"required": false,
+					"description": "Non-blocking deploy lints (e.g. handler reads a print field never observed on-chain)."
+				},
+				{
+					"name": "pin",
+					"type": "string",
+					"required": false,
+					"description": "sha256 identity of what was deployed; absent on unbundled deploys."
+				},
+				{
+					"name": "verification",
+					"type": "SubgraphVerification",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "diff",
+					"type": "{ addedTables: string[]; removedTables: string[]; addedColumns: Record<string, string[]>; breakingChanges: string[] }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ReindexResponse",
+			"summary": "",
+			"fields": [
+				{
+					"name": "message",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "fromBlock",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "toBlock",
+					"type": "string | number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "operationId",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "\"queued\" | \"running\" | \"cancel_requested\"",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphAgentSchema",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "version",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "description",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "schemaHash",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "pin",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "generatedAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "serverUrl",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sources",
+					"type": "Record<string, unknown>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "tables",
+					"type": "Record<string, { endpoint: string; countEndpoint: string; aggregateEndpoint?: string; streamEndpoint?: string; rowCount: number; columns: Record<string, { type: string; nullable?: boolean; indexed?: boolean; searchable?: boolean; default?: string | number | boolean }>; indexes?: readonly readonly string[][]; uniqueKeys?: readonly readonly string[][]; query: { parameters: string[]; sortable: string[]; selectable: string[]; searchable: string[]; filters: string[] }; examples: { list: Record<string, unknown>; count: { count: number }; curl: string } }>",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphAggregateParams",
+			"summary": "",
+			"fields": [
+				{
+					"name": "filters",
+					"type": "Record<string, string>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "count",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "countDistinct",
+					"type": "string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sum",
+					"type": "string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "min",
+					"type": "string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "max",
+					"type": "string[]",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphAggregateResponse",
+			"summary": "",
+			"fields": [
+				{
+					"name": "count",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "countDistinct",
+					"type": "Record<string, number>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sum",
+					"type": "Record<string, string>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "min",
+					"type": "Record<string, string | null>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "max",
+					"type": "Record<string, string | null>",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphDetail",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "version",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "schemaHash",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "pin",
+					"type": "string | null",
+					"required": false,
+					"description": "sha256 over schema, handler bundle, startBlock, network and runtime.\nNull for subgraphs deployed before pins existed."
+				},
+				{
+					"name": "verification",
+					"type": "SubgraphVerification | null",
+					"required": false,
+					"description": "Null for subgraphs deployed before levels were derived."
+				},
+				{
+					"name": "status",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lastProcessedBlock",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "description",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sources",
+					"type": "Record<string, unknown>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "definition",
+					"type": "Record<string, unknown>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "health",
+					"type": "{ totalProcessed: number; totalErrors: number; errorRate: number; lastError: string | null; lastErrorAt: string | null; emptyMapping: boolean }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sync",
+					"type": "SubgraphSyncInfo",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tables",
+					"type": "Record<string, { endpoint: string; columns: Record<string, { type: string; nullable?: boolean; indexed?: boolean; searchable?: boolean; default?: string | number | boolean }>; rowCount: number; example: string; indexes?: readonly readonly string[][]; uniqueKeys?: readonly readonly string[][] }>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "createdAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "updatedAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphGapEntry",
+			"summary": "",
+			"fields": [
+				{
+					"name": "start",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "end",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "size",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "reason",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "detectedAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "resolvedAt",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphGapRange",
+			"summary": "",
+			"fields": [
+				{
+					"name": "start",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "end",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "size",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "reason",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphGapsResponse",
+			"summary": "",
+			"fields": [
+				{
+					"name": "data",
+					"type": "SubgraphGapEntry[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "meta",
+					"type": "{ total: number; totalMissingBlocks: number; limit: number; offset: number }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphOperationStatus",
+			"summary": "Status of a tracked reindex/backfill operation (poll until terminal).",
+			"fields": [
+				{
+					"name": "id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "subgraphName",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "kind",
+					"type": "\"reindex\" | \"backfill\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "\"queued\" | \"running\" | \"completed\" | \"failed\" | \"cancelled\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "fromBlock",
+					"type": "number | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "toBlock",
+					"type": "number | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "processedBlocks",
+					"type": "number | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "progress",
+					"type": "number | null",
+					"required": true,
+					"description": "0–1 fraction; null when no denominator is known yet. 1 when completed."
+				},
+				{
+					"name": "error",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "startedAt",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "finishedAt",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "createdAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "updatedAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphRowsEnvelope",
+			"summary": "",
+			"fields": [
+				{
+					"name": "rows",
+					"type": "T[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null",
+					"required": true,
+					"description": "Set on every page that returned rows; `null` only on an empty page."
+				},
+				{
+					"name": "tip",
+					"type": "{ block_height: number; subgraph_height: number; blocks_behind: number }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphSource",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "version",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sourceCode",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "handlerCode",
+					"type": "string | null",
+					"required": false,
+					"description": "The bundled handler the runtime executes; null for local deploys."
+				},
+				{
+					"name": "pin",
+					"type": "string | null",
+					"required": false,
+					"description": "sha256 of `pinPreimage`; null for local deploys."
+				},
+				{
+					"name": "pinPreimage",
+					"type": "string | null",
+					"required": false,
+					"description": "The canonical JSON the pin hashes (handler hash, network, runtime,\nschema hash, startBlock); null before it was stored."
+				},
+				{
+					"name": "readOnly",
+					"type": "boolean",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "reason",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "updatedAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphSpecOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "serverUrl",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "generatedAt",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphSummary",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "version",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lastProcessedBlock",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "totalProcessed",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "totalRows",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "totalErrors",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tables",
+					"type": "string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "chainTip",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sourceChainTip",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "targetBlock",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "progress",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "blocksRemaining",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "syncMode",
+					"type": "\"sync\" | \"reindex\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "gapCount",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "integrity",
+					"type": "\"complete\" | \"gaps_detected\" | \"history_filling\"",
+					"required": true,
+					"description": "history_filling = expected gaps while a tip-first backfill op runs."
+				},
+				{
+					"name": "lastError",
+					"type": "string | null",
+					"required": false,
+					"description": "Most recent indexing error reason + when it occurred, if any."
+				},
+				{
+					"name": "lastErrorAt",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "updatedAt",
+					"type": "string | null",
+					"required": false,
+					"description": "Last row mutation timestamp; powers per-card freshness."
+				},
+				{
+					"name": "createdAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphSyncInfo",
+			"summary": "",
+			"fields": [
+				{
+					"name": "status",
+					"type": "\"synced\" | \"catching_up\" | \"reindexing\" | \"error\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "mode",
+					"type": "\"sync\" | \"reindex\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "startBlock",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lastProcessedBlock",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "chainTip",
+					"type": "number",
+					"required": true,
+					"description": "Backward-compatible denominator for progress displays. During reindexing,\nthis is the reindex target block rather than the live source chain tip."
+				},
+				{
+					"name": "sourceChainTip",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "targetBlock",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "blocksRemaining",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "processedBlocks",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "totalBlocks",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "progress",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "queue",
+					"type": "{ position: number | null; estimatedEvents: number | null; estimatedStartSeconds: number | null }",
+					"required": false,
+					"description": "Present while the populating operation is queued: approximate claim\nposition + honest event denominator + naive start estimate."
+				},
+				{
+					"name": "estimatedEvents",
+					"type": "number",
+					"required": false,
+					"description": "Event-based progress for sparse syncs (block pct is meaningless when\nmost heights are skipped)."
+				},
+				{
+					"name": "processedEvents",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "etaSeconds",
+					"type": "number | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "gaps",
+					"type": "{ count: number; totalMissingBlocks: number; ranges: SubgraphGapRange[] }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "integrity",
+					"type": "\"complete\" | \"gaps_detected\" | \"history_filling\"",
+					"required": true,
+					"description": "history_filling = expected gaps while a tip-first backfill op runs."
+				}
+			]
+		},
+		{
+			"name": "SubgraphVerification",
+			"summary": "",
+			"fields": [
+				{
+					"name": "level",
+					"type": "\"events\" | \"state\" | \"none\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "reasons",
+					"type": "string[]",
+					"required": true,
+					"description": "What stands between the subgraph and checkable rows, e.g.\n`print_event source \"swaps\" needs event proofs` or\n`subgraph.ts:41:12 Date: wall-clock time differs per run`."
+				},
+				{
+					"name": "unproven",
+					"type": "string[]",
+					"required": true,
+					"description": "What stays unproven even at this level, e.g. tx attribution of writes."
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,1196 @@
+{
+	"slug": "webhooks",
+	"root": "sl.webhooks",
+	"methods": [
+		{
+			"id": "list",
+			"path": "sl.webhooks.list",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 44
+			},
+			"rest": "GET /api/webhooks",
+			"overloads": [
+				{
+					"label": "",
+					"params": [],
+					"returns": {
+						"type": "Promise<{ data: WebhookSummary[] }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "get",
+			"path": "sl.webhooks.get",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 48
+			},
+			"rest": "GET /api/webhooks/{id}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<WebhookDetail>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "create",
+			"path": "sl.webhooks.create",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 52
+			},
+			"rest": "POST /api/webhooks",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "input",
+							"type": "CreateWebhookRequest",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<CreateWebhookResponse>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "update",
+			"path": "sl.webhooks.update",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 56
+			},
+			"rest": "PATCH /api/webhooks/{id}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "patch",
+							"type": "UpdateWebhookRequest",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<WebhookDetail>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "pause",
+			"path": "sl.webhooks.pause",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 67
+			},
+			"rest": "POST /api/webhooks/{id}/pause",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<WebhookDetail>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "resume",
+			"path": "sl.webhooks.resume",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 74
+			},
+			"rest": "POST /api/webhooks/{id}/resume",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<WebhookDetail>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "delete",
+			"path": "sl.webhooks.delete",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 81
+			},
+			"rest": "DELETE /api/webhooks/{id}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<{ ok: true }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "rotateSecret",
+			"path": "sl.webhooks.rotateSecret",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 85
+			},
+			"rest": "POST /api/webhooks/{id}/rotate-secret",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<RotateSecretResponse>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "test",
+			"path": "sl.webhooks.test",
+			"summary": "Send a one-off test webhook to the webhook's URL (built for its format, SSRF-guarded).",
+			"description": "Send a one-off test webhook to the webhook's URL (built for its\nformat, SSRF-guarded). Logged as a delivery row, visible via deliveries.",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 94
+			},
+			"rest": "POST /api/webhooks/{id}/test",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<WebhookTestResult>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "deliveries",
+			"path": "sl.webhooks.deliveries",
+			"summary": "The last 100 delivery attempts, newest first.",
+			"description": "The last 100 delivery attempts, newest first. The server caps the window;\nthere is nothing to page.",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 103
+			},
+			"rest": "GET /api/webhooks/{id}/deliveries",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<{ data: DeliveryRow[] }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "activity",
+			"path": "sl.webhooks.activity",
+			"summary": "Hourly delivered/waiting/gave-up counts for the last 7 days, plus the current queue depth — the events chart on the detail page.",
+			"description": "Hourly delivered/waiting/gave-up counts for the last 7 days, plus the\ncurrent queue depth — the events chart on the detail page.",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 112
+			},
+			"rest": "GET /api/webhooks/{id}/activity",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<WebhookActivity>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "delivery",
+			"path": "sl.webhooks.delivery",
+			"summary": "One delivery attempt with its outbox context (payload, response headers) — the delivery card on the detail page.",
+			"description": "One delivery attempt with its outbox context (payload, response\nheaders) — the delivery card on the detail page.",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 121
+			},
+			"rest": "GET /api/webhooks/{id}/deliveries/{deliveryId}",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "deliveryId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<WebhookDeliveryDetail>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "replay",
+			"path": "sl.webhooks.replay",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 131
+			},
+			"rest": "POST /api/webhooks/{id}/replay",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "range",
+							"type": "{ fromBlock: number; toBlock: number; force?: string }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<ReplayResult>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "dead",
+			"path": "sl.webhooks.dead",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 142
+			},
+			"rest": "GET /api/webhooks/{id}/dead",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<{ data: DeadRow[] }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "requeue",
+			"path": "sl.webhooks.requeue",
+			"summary": "Push one dead-lettered event back onto the delivery queue.",
+			"description": "Push one dead-lettered event back onto the delivery queue. `outboxId` is\nthe `id` of a row from `dead`.",
+			"source": {
+				"file": "packages/sdk/src/webhooks/client.ts",
+				"line": 151
+			},
+			"rest": "POST /api/webhooks/{id}/dead/{outboxId}/requeue",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "id",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "outboxId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<{ ok: true }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "ChainTrigger",
+			"summary": "JSON mirror of the subgraph runtime's `SubgraphFilter` union.",
+			"definition": "{ type: \"stx_transfer\"; sender?: string; recipient?: string; minAmount?: ChainTriggerAmount; maxAmount?: ChainTriggerAmount; } | { type: \"stx_mint\"; recipient?: string; minAmount?: ChainTriggerAmount; } | { type: \"stx_burn\"; sender?: string; minAmount?: ChainTriggerAmount; } | { type: \"stx_lock\"; lockedAddress?: string; minAmount?: ChainTriggerAmount; } | ({ type: \"ft_transfer\"; assetIdentifier?: string; sender?: string; recipient?: string; minAmount?: ChainTriggerAmount; } & TraitScoped) | ({ type: \"ft_mint\"; assetIdentifier?: string; recipient?: string; minAmount?: ChainTriggerAmount; } & T…"
+		},
+		{
+			"name": "ChainTriggerAmount",
+			"summary": "",
+			"definition": "string | number"
+		},
+		{
+			"name": "CreateWebhookRequest",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "triggers",
+					"type": "ChainTrigger[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "url",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "format",
+					"type": "WebhookFormat",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "authConfig",
+					"type": "Record<string, unknown>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxRetries",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "timeoutMs",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "concurrency",
+					"type": "number",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "CreateWebhookResponse",
+			"summary": "",
+			"fields": [
+				{
+					"name": "webhook",
+					"type": "WebhookDetail",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "signingSecret",
+					"type": "string",
+					"required": true,
+					"description": "Plaintext signing secret — surfaced ONCE. Store it server-side."
+				}
+			]
+		},
+		{
+			"name": "DeadRow",
+			"summary": "",
+			"fields": [
+				{
+					"name": "id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "eventType",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "attempt",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "blockHeight",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "txId",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "payload",
+					"type": "Record<string, unknown>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "failedAt",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "createdAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "DeliveryRow",
+			"summary": "",
+			"fields": [
+				{
+					"name": "id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "attempt",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "statusCode",
+					"type": "number | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "errorMessage",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "durationMs",
+					"type": "number | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "responseBody",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "dispatchedAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "blockHeight",
+					"type": "number | null",
+					"required": true,
+					"description": "Null for test deliveries and events already compacted out of the\noutbox."
+				},
+				{
+					"name": "blockTime",
+					"type": "string | null",
+					"required": true,
+					"description": "ISO timestamp of the delivered event's block. `null` for test\ndeliveries, events already compacted out of the outbox, and rows\nwritten before this column existed."
+				},
+				{
+					"name": "txId",
+					"type": "string | null",
+					"required": true,
+					"description": "Null for test deliveries and events already compacted out of the\noutbox."
+				},
+				{
+					"name": "eventIndex",
+					"type": "number | null",
+					"required": true,
+					"description": "The row's position within its block/tx, from the outbox's `row_pk`.\nNull for test deliveries, compacted rows, and rows with neither shape\n(a settlement or reorg outbox row)."
+				}
+			]
+		},
+		{
+			"name": "ReplayResult",
+			"summary": "",
+			"fields": [
+				{
+					"name": "replayId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "enqueuedCount",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "scannedCount",
+					"type": "number",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "RotateSecretResponse",
+			"summary": "",
+			"fields": [
+				{
+					"name": "webhook",
+					"type": "WebhookDetail",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "signingSecret",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "TraitScoped",
+			"summary": "",
+			"fields": [
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "UpdateWebhookRequest",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "url",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "format",
+					"type": "WebhookFormat",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "authConfig",
+					"type": "Record<string, unknown>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxRetries",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "timeoutMs",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "concurrency",
+					"type": "number",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "WebhookActivity",
+			"summary": "",
+			"fields": [
+				{
+					"name": "hours",
+					"type": "WebhookActivityHour[]",
+					"required": true,
+					"description": "168 hours, oldest first."
+				},
+				{
+					"name": "waiting",
+					"type": "number",
+					"required": true,
+					"description": "Pending rows right now, no time bound."
+				},
+				{
+					"name": "nextAttemptAt",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lastSuccessAt",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "byEventType",
+					"type": "Record<string, number>",
+					"required": true,
+					"description": "7-day counts per `event_type` (same 168-hour window as `hours`), e.g.\n`chain.stx_transfer.apply` — the config card's per-trigger volume."
+				}
+			]
+		},
+		{
+			"name": "WebhookActivityHour",
+			"summary": "One hour of `webhook_outbox` activity (`GET /:id/activity`), zero-filled so the events chart always has 168 bars.",
+			"fields": [
+				{
+					"name": "hour",
+					"type": "string",
+					"required": true,
+					"description": "ISO timestamp, UTC hour start."
+				},
+				{
+					"name": "delivered",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "waiting",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "gaveUp",
+					"type": "number",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "WebhookAuth",
+			"summary": "What a webhook's receiver credentials look like once redacted for a response — never the bearer token, basic-auth string, or header values themselves, only enough to show what's set.",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"none\" | \"bearer\" | \"basic\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "headerNames",
+					"type": "string[]",
+					"required": true,
+					"description": "Keys of any extra headers the receiver expects — never their values."
+				},
+				{
+					"name": "hasSecret",
+					"type": "boolean",
+					"required": true,
+					"description": "True when a bearer token or basic-auth string is set, whatever it is."
+				}
+			]
+		},
+		{
+			"name": "WebhookDeliveryDetail",
+			"summary": "One delivery attempt with its outbox context, for the delivery card (`GET /:id/deliveries/:deliveryId`).",
+			"fields": [
+				{
+					"name": "id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "attempt",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "statusCode",
+					"type": "number | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "durationMs",
+					"type": "number | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "dispatchedAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "errorMessage",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "responseBody",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "responseHeaders",
+					"type": "Record<string, string> | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "outboxId",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "outboxStatus",
+					"type": "\"pending\" | \"delivered\" | \"dead\" | null",
+					"required": true,
+					"description": "The outbox row's own status — `null` once it's gone (compacted after\ndelivery, or never had one, e.g. a test delivery). Only `\"dead\"` means\na resend is possible: it's the one status `POST /:id/dead/:outboxId/\nrequeue` accepts."
+				},
+				{
+					"name": "eventType",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "txId",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "blockHeight",
+					"type": "number | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "blockTime",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "eventIndex",
+					"type": "number | null",
+					"required": true,
+					"description": "The row's position within its block/tx, from the outbox's `row_pk`\n(`event_index` for a chain-trigger row). Null when `row_pk` carries\nnone — a settlement or reorg outbox row, or no outbox row at all."
+				},
+				{
+					"name": "payload",
+					"type": "unknown",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "WebhookDetail",
+			"summary": "",
+			"fields": [
+				{
+					"name": "triggers",
+					"type": "ChainTrigger[]",
+					"required": true,
+					"description": "Chain-trigger filters."
+				},
+				{
+					"name": "auth",
+					"type": "WebhookAuth",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "maxRetries",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "timeoutMs",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "concurrency",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lastError",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "warning",
+					"type": "string | null",
+					"required": true,
+					"description": "Set when this instance's chain-trigger\nevaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the\nwebhook will never fire until that's fixed. Null otherwise. Surfaced\non create (so it's seen immediately) and on every read (so `secondlayer\nwebhooks doctor` reports it for a webhook created before the mismatch,\nor on an instance whose config changed since)."
+				},
+				{
+					"name": "id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "WebhookStatus",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "kind",
+					"type": "WebhookKind",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "format",
+					"type": "WebhookFormat",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "url",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lastDeliveryAt",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lastSuccessAt",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "circuitOpenedAt",
+					"type": "string | null",
+					"required": true,
+					"description": "When the circuit breaker paused this webhook (20 straight failures);\ncleared on resume. Present on the list summary (not detail-only) so a\nnumbers-only insight can be shown per row without a per-row fetch."
+				},
+				{
+					"name": "circuitFailures",
+					"type": "number",
+					"required": true,
+					"description": "Consecutive failed deliveries (reset to 0 on a success). On the\nsummary so the list can show a failing receiver per row without a\nper-row fetch."
+				},
+				{
+					"name": "createdAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "updatedAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "WebhookSummary",
+			"summary": "",
+			"fields": [
+				{
+					"name": "id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "WebhookStatus",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "kind",
+					"type": "WebhookKind",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "format",
+					"type": "WebhookFormat",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "url",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lastDeliveryAt",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lastSuccessAt",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "circuitOpenedAt",
+					"type": "string | null",
+					"required": true,
+					"description": "When the circuit breaker paused this webhook (20 straight failures);\ncleared on resume. Present on the list summary (not detail-only) so a\nnumbers-only insight can be shown per row without a per-row fetch."
+				},
+				{
+					"name": "circuitFailures",
+					"type": "number",
+					"required": true,
+					"description": "Consecutive failed deliveries (reset to 0 on a success). On the\nsummary so the list can show a failing receiver per row without a\nper-row fetch."
+				},
+				{
+					"name": "createdAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "updatedAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "WebhookTestResult",
+			"summary": "Result of a one-off test delivery (`POST /:id/test`).",
+			"fields": [
+				{
+					"name": "ok",
+					"type": "boolean",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "statusCode",
+					"type": "number | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "error",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "durationMs",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "deliveryId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		}
+	]
+}

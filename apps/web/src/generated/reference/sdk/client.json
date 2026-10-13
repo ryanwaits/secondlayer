@@ -1,0 +1,454 @@
+{
+	"slug": "client",
+	"root": "sl",
+	"methods": [
+		{
+			"id": "batch",
+			"path": "sl.batch",
+			"summary": "Up to 10 public reads in one round trip (`POST /v1/batch`).",
+			"description": "Up to 10 public reads in one round trip (`POST /v1/batch`). Each item\nis authorized on its own; the client's bearer token applies to every item.",
+			"source": {
+				"file": "packages/sdk/src/client.ts",
+				"line": 154
+			},
+			"rest": "POST /v1/batch",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "requests",
+							"type": "{ path: string; params?: Record<string, string | number | boolean> }[]",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<{ results: { path: string | null; status: number; body: unknown }[] }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "context",
+			"path": "sl.context",
+			"summary": "Assemble a [`ContextSnapshot`](/docs/sdk-reference/client#t-ContextSnapshot): the same orientation an MCP agent reads from `secondlayer://context`, available to any SDK/CLI consumer.",
+			"description": "Assemble a [`ContextSnapshot`](/docs/sdk-reference/client#t-ContextSnapshot): the same orientation an MCP agent\nreads from `secondlayer://context`, available to any SDK/CLI consumer.\nReads run concurrently; a failed read lands as `{ value: null, error }`\non its field rather than rejecting the whole snapshot.",
+			"source": {
+				"file": "packages/sdk/src/client.ts",
+				"line": 171
+			},
+			"rest": "GET /api/accounts/me",
+			"overloads": [
+				{
+					"label": "",
+					"params": [],
+					"returns": {
+						"type": "Promise<ContextSnapshot>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "ActiveSubgraphOperation",
+			"summary": "",
+			"fields": [
+				{
+					"name": "subgraph",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "operationId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "kind",
+					"type": "\"reindex\" | \"backfill\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "\"queued\" | \"running\" | \"completed\" | \"failed\" | \"cancelled\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "progress",
+					"type": "number | null",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ContextAccount",
+			"summary": "",
+			"fields": [
+				{
+					"name": "email",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ContextField",
+			"summary": "One snapshot field: the value, or `null` plus the error that produced it.",
+			"fields": [
+				{
+					"name": "value",
+					"type": "T | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "error",
+					"type": "ContextFieldError",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ContextFieldError",
+			"summary": "Why one snapshot field could not be read.",
+			"fields": [
+				{
+					"name": "message",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "code",
+					"type": "string",
+					"required": false,
+					"description": "Stable code from the API envelope (`UNAUTHORIZED`, `INDEX_NOT_READY`)\nor the SDK (`REQUEST_TIMEOUT`); absent for a bare transport failure."
+				},
+				{
+					"name": "status",
+					"type": "number",
+					"required": false,
+					"description": "HTTP status; `0` when the API could not be reached."
+				},
+				{
+					"name": "retryable",
+					"type": "boolean",
+					"required": true,
+					"description": "Whether the same read can succeed on a retry (429, 5xx, network)."
+				}
+			]
+		},
+		{
+			"name": "ContextSnapshot",
+			"summary": "A point-in-time orientation snapshot for an agent: the live tips and what this instance holds.",
+			"fields": [
+				{
+					"name": "account",
+					"type": "ContextField<ContextAccount>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "streamsTip",
+					"type": "ContextField<StreamsTip>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "indexTip",
+					"type": "ContextField<IndexTip>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "subgraphs",
+					"type": "ContextField<SubgraphSummary[]>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "webhooks",
+					"type": "ContextField<{ count: number; byStatus: Record<string, number> }>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "activeOperations",
+					"type": "ContextField<ActiveSubgraphOperation[]>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "instance",
+					"type": "ContextField<InstanceDiagnosis>",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "IndexTip",
+			"summary": "",
+			"fields": [
+				{
+					"name": "block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "finalized_height",
+					"type": "number",
+					"required": true,
+					"description": "Highest height treated as immutable (past the burn-confirmation\nfinality boundary). Rows at or below it never reorg — `finalizedOnly`\nconsumers gate on this, since Index rows carry no per-event flag."
+				},
+				{
+					"name": "lag_seconds",
+					"type": "number",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "InstanceDiagnosis",
+			"summary": "",
+			"fields": [
+				{
+					"name": "state",
+					"type": "InstanceState",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "overall",
+					"type": "string",
+					"required": true,
+					"description": "The API's own top-level verdict, passed through unmodified."
+				},
+				{
+					"name": "issues",
+					"type": "InstanceIssue[]",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "InstanceIssue",
+			"summary": "",
+			"fields": [
+				{
+					"name": "title",
+					"type": "string",
+					"required": true,
+					"description": "What is wrong, in one line."
+				},
+				{
+					"name": "detail",
+					"type": "string",
+					"required": false,
+					"description": "Why — assembled only from what the payload actually reports."
+				},
+				{
+					"name": "nextSteps",
+					"type": "string[]",
+					"required": true,
+					"description": "What to run next, most useful first."
+				}
+			]
+		},
+		{
+			"name": "InstanceState",
+			"summary": "",
+			"definition": "\"healthy\" | \"empty-index\" | \"degraded\""
+		},
+		{
+			"name": "StreamsTip",
+			"summary": "",
+			"fields": [
+				{
+					"name": "block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "block_hash",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "burn_block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "finalized_height",
+					"type": "number",
+					"required": false,
+					"description": "Highest Stacks block past the burn-confirmation finality boundary.\nOptional for back-compat; the API always sets it."
+				},
+				{
+					"name": "lag_seconds",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "oldest_seekable_height",
+					"type": "number | null",
+					"required": false,
+					"description": "Oldest height still seekable on the live API for the caller's tier\n(`tip - retention`). `null` = unlimited retention. Older reads must use the\ncold dumps lane. Optional for back-compat."
+				},
+				{
+					"name": "oldest_cursor",
+					"type": "string | null",
+					"required": false,
+					"description": "Oldest seekable cursor (`<oldest_seekable_height>:0`); `null` = unlimited."
+				}
+			]
+		},
+		{
+			"name": "SubgraphSummary",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "version",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lastProcessedBlock",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "totalProcessed",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "totalRows",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "totalErrors",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tables",
+					"type": "string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "chainTip",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sourceChainTip",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "targetBlock",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "progress",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "blocksRemaining",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "syncMode",
+					"type": "\"sync\" | \"reindex\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "gapCount",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "integrity",
+					"type": "\"complete\" | \"gaps_detected\" | \"history_filling\"",
+					"required": true,
+					"description": "history_filling = expected gaps while a tip-first backfill op runs."
+				},
+				{
+					"name": "lastError",
+					"type": "string | null",
+					"required": false,
+					"description": "Most recent indexing error reason + when it occurred, if any."
+				},
+				{
+					"name": "lastErrorAt",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "updatedAt",
+					"type": "string | null",
+					"required": false,
+					"description": "Last row mutation timestamp; powers per-card freshness."
+				},
+				{
+					"name": "createdAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		}
+	]
+}

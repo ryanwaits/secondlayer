@@ -1,0 +1,187 @@
+{
+	"slug": "instance",
+	"root": "sl.instance",
+	"methods": [
+		{
+			"id": "status",
+			"path": "sl.instance.status",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/instance.ts",
+				"line": 11
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [],
+					"returns": {
+						"type": "Promise<PublicStatus>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "diagnose",
+			"path": "sl.instance.diagnose",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/archive/instance.ts",
+				"line": 12
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [],
+					"returns": {
+						"type": "Promise<InstanceDiagnosis>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "InstanceDiagnosis",
+			"summary": "",
+			"fields": [
+				{
+					"name": "state",
+					"type": "InstanceState",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "overall",
+					"type": "string",
+					"required": true,
+					"description": "The API's own top-level verdict, passed through unmodified."
+				},
+				{
+					"name": "issues",
+					"type": "InstanceIssue[]",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "InstanceIssue",
+			"summary": "",
+			"fields": [
+				{
+					"name": "title",
+					"type": "string",
+					"required": true,
+					"description": "What is wrong, in one line."
+				},
+				{
+					"name": "detail",
+					"type": "string",
+					"required": false,
+					"description": "Why — assembled only from what the payload actually reports."
+				},
+				{
+					"name": "nextSteps",
+					"type": "string[]",
+					"required": true,
+					"description": "What to run next, most useful first."
+				}
+			]
+		},
+		{
+			"name": "InstanceState",
+			"summary": "",
+			"definition": "\"healthy\" | \"empty-index\" | \"degraded\""
+		},
+		{
+			"name": "PublicStatus",
+			"summary": "The subset of `/status` a diagnosis reads.",
+			"fields": [
+				{
+					"name": "status",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "chainTip",
+					"type": "number | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "chainIntegrity",
+					"type": "{ ok?: boolean; maxHeight?: number; reason?: string | null }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "streams",
+					"type": "{ status?: string; tip?: { lag_seconds?: number; block_height?: number; } | null }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "index",
+					"type": "{ status?: string; decoders?: PublicStatusDecoder[] }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "services",
+					"type": "PublicStatusService[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "timestamp",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PublicStatusDecoder",
+			"summary": "",
+			"fields": [
+				{
+					"name": "decoder",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PublicStatusService",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		}
+	]
+}

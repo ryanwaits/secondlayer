@@ -1,0 +1,3175 @@
+{
+	"slug": "streams",
+	"root": "sl.streams",
+	"methods": [
+		{
+			"id": "consume",
+			"path": "sl.streams.consume",
+			"summary": "Narrowing overload: a literal `types` array narrows every batch's event union to exactly those members.",
+			"description": "Narrowing overload: a literal `types` array narrows every batch's\nevent union to exactly those members.",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 773
+			},
+			"overloads": [
+				{
+					"label": "Stacks",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsConsumeCommon & { chain?: \"stacks\"; types?: readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]; notTypes?: readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]; contractId?: StreamsFilterValue; sender?: StreamsFilterValue; recipient?: StreamsFilterValue; assetIdentifier?: string; filters?: StreamsFilterMap } & { types: T }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "AsyncIterableIterator<StreamsBatch<StreamsEventOfTypes<T>, StreamsTip>, any, any>",
+						"description": ""
+					},
+					"description": "Narrowing overload: a literal `types` array narrows every batch's\nevent union to exactly those members."
+				},
+				{
+					"label": "Any chain",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsConsumeBitcoinParams | StreamsConsumeStacksParams",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "AsyncIterableIterator<StreamsBatch<StreamsEvent, StreamsTip>, any, any>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Bitcoin",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsConsumeBitcoinParams",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "AsyncIterableIterator<StreamsBatch<RuneStreamsEvent, StreamsBitcoinTip>, any, any>",
+						"description": ""
+					},
+					"description": "`chain: \"bitcoin\"` — batches carry Runes rows only, on the bitcoin tip\nshape (plan 059/061)."
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "events.list",
+			"path": "sl.streams.events.list",
+			"summary": "`clock: \"vm\"` pages carry vm rows only (a parallel vocabulary, `event_index` = `ordinal`).",
+			"description": "`clock: \"vm\"` pages carry vm rows only (a parallel vocabulary,\n`event_index` = `ordinal`). Never `StreamsEvent`. Stacks-only —\n`chain: \"bitcoin\"` has no `clock`.\n\n\nNarrowing overload, matching `consume`. Classic clock only —\n`clock: \"vm\"` is overload 1, and a general `StreamsEventsListParams`\nvariable (clock unresolved) is the wire-union fallback.\n\n\n`chain: \"bitcoin\"` pages carry Runes rows only, on the bitcoin tip\nshape (plan 059).\n\n\nUnresolved `chain`/`clock` on a general params variable: the wire union.",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 786
+			},
+			"overloads": [
+				{
+					"label": "Stacks",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsEventsListParamsCommon & { chain?: \"stacks\"; clock?: \"classic\" | \"vm\"; types?: readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\" | \"nested_contract_call\" | \"var_set\" | \"map_set\" | \"map_insert\" | \"map_delete\")[]; notTypes?: readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\" | \"nested_contract_call\" | \"var_set\" | \"map_set\" | \"map_insert\" | \"map_delete\")[]; contractId?: StreamsFilterValue; sender?: StreamsFilterValue; recipient?: StreamsFilterValue; assetIdentifier?: string; filters?: StreamsFilterMap } & { clock: \"vm\" }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsEventsEnvelope<VmStreamsEvent, StreamsTip>>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Stacks",
+					"params": [
+						{
+							"name": "params",
+							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; limit?: number; chain?: \"stacks\"; contractId?: StreamsFilterValue; sender?: StreamsFilterValue; recipient?: StreamsFilterValue; assetIdentifier?: string; filters?: StreamsFilterMap } & { types: T; notTypes?: readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]; clock?: \"classic\" }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsEventsEnvelope<StreamsEventOfTypes<T>, StreamsTip>>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Stacks",
+					"params": [
+						{
+							"name": "params",
+							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; limit?: number; chain?: \"stacks\"; contractId?: StreamsFilterValue; sender?: StreamsFilterValue; recipient?: StreamsFilterValue; assetIdentifier?: string; filters?: StreamsFilterMap } & { types?: readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]; notTypes?: readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]; clock?: \"classic\" }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsEventsEnvelope<StreamsEvent, StreamsTip>>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Any chain",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsEventsListParams",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsEventsEnvelope<StreamsWireEvent, StreamsTip>>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Bitcoin",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsEventsBitcoinListParams",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsEventsEnvelope<RuneStreamsEvent, StreamsBitcoinTip>>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "events.byTxId",
+			"path": "sl.streams.events.byTxId",
+			"summary": "`chain: \"bitcoin\"` — Runes events for one transaction.",
+			"description": "`chain: \"bitcoin\"` — Runes events for one transaction.",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 822
+			},
+			"overloads": [
+				{
+					"label": "Overload 1",
+					"params": [
+						{
+							"name": "txId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsEventsListEnvelope<StreamsEvent, StreamsTip>>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Bitcoin",
+					"params": [
+						{
+							"name": "txId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "{ chain: \"bitcoin\" }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsEventsListEnvelope<RuneStreamsEvent, StreamsBitcoinTip>>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "events.consume",
+			"path": "sl.streams.events.consume",
+			"summary": "`chain: \"bitcoin\"` — the checkpointed sweep over Runes events; see",
+			"description": "`chain: \"bitcoin\"` — the checkpointed sweep over Runes events; see\n\n[`StreamsEventsConsumeBitcoinParams`](/docs/sdk-reference/streams#t-StreamsEventsConsumeBitcoinParams)\n.",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 838
+			},
+			"overloads": [
+				{
+					"label": "Stacks",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsEventsConsumeParams<TTx, D, F> & { sink?: ConsumerSink<TTx> }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsEventsConsumeResult>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Bitcoin",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsEventsConsumeBitcoinParams<TTx> & { sink?: ConsumerSink<TTx> }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsEventsConsumeResult>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "events.replay",
+			"path": "sl.streams.events.replay",
+			"summary": "Backfill from bulk dumps, then continue live from the dump→live seam in one call.",
+			"description": "Backfill from bulk dumps, then continue live from the dump→live seam in\none call. Iterates finalized dump files (via `onDumpFile`) in block\norder, then tails live from the manifest's `latest_finalized_cursor`\n(exclusive input → no gap or duplicate at the seam). Requires\n`dumpsBaseUrl`.",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 861
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsEventsReplayParams",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsEventsConsumeResult>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "events.stream",
+			"path": "sl.streams.events.stream",
+			"summary": "`chain: \"bitcoin\"` — Runes events only (plan 059/061).",
+			"description": "`chain: \"bitcoin\"` — Runes events only (plan 059/061).\n\n\nNarrowing overload, matching `consume`.",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 872
+			},
+			"overloads": [
+				{
+					"label": "Stacks",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsEventsStreamCommon & { chain?: \"stacks\"; types?: readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]; notTypes?: readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]; contractId?: StreamsFilterValue; sender?: StreamsFilterValue; recipient?: StreamsFilterValue; assetIdentifier?: string; filters?: StreamsFilterMap } & { types: T }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "AsyncIterable<StreamsEventOfTypes<T>, any, any>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Any chain",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsEventsStreamBitcoinParams | StreamsEventsStreamStacksParams",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "AsyncIterable<StreamsEvent, any, any>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Bitcoin",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsEventsStreamBitcoinParams",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "AsyncIterable<RuneStreamsEvent, any, any>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "events.subscribe",
+			"path": "sl.streams.events.subscribe",
+			"summary": "`chain: \"bitcoin\"` — `onEvent` receives Runes rows (plan 059/061).",
+			"description": "`chain: \"bitcoin\"` — `onEvent` receives Runes rows (plan 059/061).",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 889
+			},
+			"overloads": [
+				{
+					"label": "Stacks",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsEventsSubscribeStacksParams",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "StreamsSubscription",
+						"description": ""
+					}
+				},
+				{
+					"label": "Bitcoin",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsEventsSubscribeBitcoinParams",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "StreamsSubscription",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "blocks.events",
+			"path": "sl.streams.blocks.events",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 893
+			},
+			"overloads": [
+				{
+					"label": "Overload 1",
+					"params": [
+						{
+							"name": "heightOrHash",
+							"type": "string | number",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsEventsListEnvelope<StreamsEvent, StreamsTip>>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Bitcoin",
+					"params": [
+						{
+							"name": "heightOrHash",
+							"type": "string | number",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "{ chain: \"bitcoin\" }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsEventsListEnvelope<RuneStreamsEvent, StreamsBitcoinTip>>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "reorgs.list",
+			"path": "sl.streams.reorgs.list",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 900
+			},
+			"overloads": [
+				{
+					"label": "Overload 1",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsReorgsListParams",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsReorgsListEnvelope>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Bitcoin",
+					"params": [
+						{
+							"name": "params",
+							"type": "StreamsReorgsListParams & { chain: \"bitcoin\" }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsReorgsListEnvelope>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "dumps.list",
+			"path": "sl.streams.dumps.list",
+			"summary": "Fetch and parse the latest dumps manifest.",
+			"description": "Fetch and parse the latest dumps manifest.",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 749
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [],
+					"returns": {
+						"type": "Promise<StreamsDumpsManifest>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "dumps.fileUrl",
+			"path": "sl.streams.dumps.fileUrl",
+			"summary": "Absolute URL for a manifest file.",
+			"description": "Absolute URL for a manifest file.",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 751
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "file",
+							"type": "StreamsDumpFile",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "string",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "dumps.download",
+			"path": "sl.streams.dumps.download",
+			"summary": "Download a parquet file and verify its sha256 against the manifest.",
+			"description": "Download a parquet file and verify its sha256 against the manifest.",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 753
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "file",
+							"type": "StreamsDumpFile",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<Uint8Array>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "canonical",
+			"path": "sl.streams.canonical",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 907
+			},
+			"overloads": [
+				{
+					"label": "Overload 1",
+					"params": [
+						{
+							"name": "height",
+							"type": "number",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsCanonicalBlock>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Bitcoin",
+					"params": [
+						{
+							"name": "height",
+							"type": "number",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "{ chain: \"bitcoin\" }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsBitcoinCanonicalBlock>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "tip",
+			"path": "sl.streams.tip",
+			"summary": "",
+			"description": "",
+			"source": {
+				"file": "packages/sdk/src/streams/types.ts",
+				"line": 912
+			},
+			"overloads": [
+				{
+					"label": "Overload 1",
+					"params": [],
+					"returns": {
+						"type": "Promise<StreamsTip>",
+						"description": ""
+					}
+				},
+				{
+					"label": "Bitcoin",
+					"params": [
+						{
+							"name": "opts",
+							"type": "{ chain: \"bitcoin\" }",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StreamsBitcoinTip>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "ConsumerBatchContext",
+			"summary": "What the loop knows at the end of a page, handed to `onBatch`.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null",
+					"required": true,
+					"description": "Checkpoint to commit alongside your rows."
+				},
+				{
+					"name": "height",
+					"type": "number | null",
+					"required": true,
+					"description": "Highest canonical block a row was DELIVERED from. `null` before the\nfirst row of a fresh consume. With a sparse filter this parks at the\nlast matching event — it measures event recency, not progress."
+				},
+				{
+					"name": "scannedHeight",
+					"type": "number | null",
+					"required": true,
+					"description": "Highest canonical block the sweep has VERIFIED through: an empty page\nis the server confirming nothing matches between the cursor and the\ntip, so a caught-up tail scans to the tip even when `height` is far\nbelow it. Rolls back with reorg rewinds."
+				},
+				{
+					"name": "tipHeight",
+					"type": "number",
+					"required": true,
+					"description": "Chain tip as of this page's read."
+				},
+				{
+					"name": "blocksBehind",
+					"type": "number | null",
+					"required": true,
+					"description": "`tipHeight - scannedHeight`, floored at 0 — the consumer's actual\nbacklog. `null` until a position is known. A caught-up consumer on a\nquiet contract reads ~0 here while `tipHeight - height` grows — that\ndifference is event age, not lag."
+				},
+				{
+					"name": "tip",
+					"type": "TTip",
+					"required": true,
+					"description": "The full tip for this page — `StreamsTip` or `IndexTip` depending on the\nsurface. Exposed here so a handler never needs the `envelope` parameter,\nwhich is the only way to reach it today and is also how the worst\n`finalizedOnly` mistake becomes reachable (`return envelope.next_cursor`\njumps the cursor past events that were filtered out and never delivered)."
+				},
+				{
+					"name": "reorgs",
+					"type": "readonly TReorg[]",
+					"required": true,
+					"description": "Reorgs reported alongside this page; empty when none. Rollback still\nbelongs in `onReorg` — this is for observability inside a batch."
+				}
+			]
+		},
+		{
+			"name": "ConsumerSink",
+			"summary": "A consumer sink: the destination adapter a consume loop writes through.",
+			"fields": [
+				{
+					"name": "_tx",
+					"type": "Tx",
+					"required": false,
+					"description": "Phantom marker carrying `Tx` in a directly-inferable position, so the\nconsume loops' `TTx` type parameter resolves from the `sink` option\n(never set at runtime)."
+				},
+				{
+					"name": "capabilities",
+					"type": "{ finalizedOnly?: boolean }",
+					"required": false,
+					"description": "Static capabilities, read by the loop before the first fetch to fail\nfast on impossible pairings."
+				},
+				{
+					"name": "loadCursor",
+					"type": "() => Promise<string | null>",
+					"required": true,
+					"description": "The committed checkpoint, or `null` on first run. Called once, before\nthe first page. Implementations may create their checkpoint storage\nhere and SHOULD validate their rollback preconditions (e.g. that every\ndeclared table carries the height column)."
+				},
+				{
+					"name": "commitBatch",
+					"type": "(cursor: string, write: (tx: Tx) => Promise<null> | null) => Promise<null>",
+					"required": true,
+					"description": "Apply one batch atomically: open a transaction, run `write(tx)` (the\nuser's inserts), and commit the rows AND `cursor` together. A throw\nfrom `write` must abort the whole transaction — leaving neither rows\nnor cursor, so a crashed batch is simply re-read on restart."
+				},
+				{
+					"name": "rollback",
+					"type": "(forkPointHeight: number, rewindCursor: string | null) => Promise<null>",
+					"required": true,
+					"description": "Roll the projection back to the fork: delete everything AT OR ABOVE\n`forkPointHeight` (inclusive `>=` — the new chain re-supplies the fork\nblock) and commit `rewindCursor` in the SAME transaction. Deleting\nwithout the rewound cursor is the classic silent-gap bug: a crash\nbetween the two writes resumes above the fork and the deleted range is\nnever re-read.\n\nOn a multi-fork page this is called once PER fork, every call with the\nsame `rewindCursor` (the lowest fork point) but its own\n`forkPointHeight` — scope the undo by `forkPointHeight` only (contract\ninvariant #11), and expect re-application after a crash (#10).\n\n`rewindCursor` is `null` only for a fork at genesis: clear the\ncheckpoint so the next run starts from the first event."
+				}
+			]
+		},
+		{
+			"name": "FtBurnPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "asset_identifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtMintPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "asset_identifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtTransferPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "asset_identifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MapDeletePayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contract_identifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "map_name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "raw_key",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MapWritePayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contract_identifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "map_name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "raw_key",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "raw_value",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NestedContractCallPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contract_identifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string | null",
+					"required": true,
+					"description": "tx-sender (the signer). `null` when the VM had none."
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": true,
+					"description": "The contract that issued `contract-call?`."
+				},
+				{
+					"name": "function_name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "function_args",
+					"type": "string[]",
+					"required": true,
+					"description": "Clarity hex per argument."
+				},
+				{
+					"name": "raw_result",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftBurnPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "asset_identifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "value",
+					"type": "StreamsClarityValue",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "raw_value",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftMintPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "asset_identifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "value",
+					"type": "StreamsClarityValue",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "raw_value",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftTransferPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "asset_identifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "value",
+					"type": "StreamsClarityValue",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "raw_value",
+					"type": "string",
+					"required": false,
+					"description": "Canonical serialized hex of `value`, when the stream carries it."
+				}
+			]
+		},
+		{
+			"name": "PrintPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contract_id",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "value",
+					"type": "unknown",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "raw_value",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "RuneEtchEntry",
+			"summary": "The etch a `rune_etch` event created — everything a consumer needs to render a fresh rune without a second lookup, minus what the envelope already carries (`rune_id`).",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": "No spacers, uppercase."
+				},
+				{
+					"name": "spaced_name",
+					"type": "string",
+					"required": true,
+					"description": "As etched, spacers included (e.g. `DOG•GO•TO•THE•MOON`)."
+				},
+				{
+					"name": "symbol",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "divisibility",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "premine",
+					"type": "string",
+					"required": true,
+					"description": "u128 decimal string. Never `Number()`."
+				},
+				{
+					"name": "turbo",
+					"type": "boolean",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "terms",
+					"type": "{ amount: string | null; cap: string | null; height_start: string | null; height_end: string | null; offset_start: string | null; offset_end: string | null; } | null",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "RuneEventPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "amount",
+					"type": "string",
+					"required": true,
+					"description": "u128 decimal string. Never `Number()`."
+				},
+				{
+					"name": "vout",
+					"type": "number",
+					"required": false,
+					"description": "The output this event landed on. Set on `rune_transfer` only — an etch\nor mint's allocation isn't tied to one output the way a transfer is\n(`packages/bitcoin/src/runes/updater.ts`)."
+				},
+				{
+					"name": "address",
+					"type": "string",
+					"required": false,
+					"description": "The output's mainnet address. Set on `rune_transfer` only, and only\nwhen the output has a standard scriptPubKey."
+				},
+				{
+					"name": "entry",
+					"type": "RuneEtchEntry",
+					"required": false,
+					"description": "`rune_etch` only — the entry this event created."
+				}
+			]
+		},
+		{
+			"name": "RuneEventType",
+			"summary": "",
+			"definition": "\"rune_etch\" | \"rune_mint\" | \"rune_transfer\" | \"rune_burn\""
+		},
+		{
+			"name": "RuneStreamsEvent",
+			"summary": "",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "chain",
+					"type": "\"bitcoin\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "block_hash",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx_id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx_index",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "event_index",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "event_type",
+					"type": "RuneEventType",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "rune_id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "payload",
+					"type": "RuneEventPayload",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "ts",
+					"type": "string",
+					"required": false,
+					"description": "The event's block time, ISO 8601. Absent when the indexer has no header\ntime for that block yet (rows written before block times were recorded,\nuntil backfilled)."
+				},
+				{
+					"name": "finalized",
+					"type": "boolean",
+					"required": false,
+					"description": "True when this event's block is past the finality boundary (immutable).\nOptional for back-compat with the same reasoning as `StreamsEventBase`."
+				}
+			]
+		},
+		{
+			"name": "StreamsBatch",
+			"summary": "One yielded page from [`StreamsClient.consume`](/docs/sdk-reference/streams#m-consume) — the `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to `cursor` (the checkpoint to persist and resume from).",
+			"fields": [
+				{
+					"name": "events",
+					"type": "TEvent[]",
+					"required": true,
+					"description": "Canonical events of this page, in cursor order."
+				},
+				{
+					"name": "cursor",
+					"type": "string | null",
+					"required": true,
+					"description": "Checkpoint after this page — pass back as `consume({ cursor })` to resume."
+				},
+				{
+					"name": "tip",
+					"type": "TTip",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "reorgs",
+					"type": "StreamsReorg[]",
+					"required": true,
+					"description": "Chain reorgs reported alongside this page; empty when none."
+				}
+			]
+		},
+		{
+			"name": "StreamsBatchContext",
+			"summary": "",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null",
+					"required": true,
+					"description": "Checkpoint to commit alongside your rows."
+				},
+				{
+					"name": "height",
+					"type": "number | null",
+					"required": true,
+					"description": "Highest canonical block a row was DELIVERED from. `null` before the\nfirst row of a fresh consume. With a sparse filter this parks at the\nlast matching event — it measures event recency, not progress."
+				},
+				{
+					"name": "scannedHeight",
+					"type": "number | null",
+					"required": true,
+					"description": "Highest canonical block the sweep has VERIFIED through: an empty page\nis the server confirming nothing matches between the cursor and the\ntip, so a caught-up tail scans to the tip even when `height` is far\nbelow it. Rolls back with reorg rewinds."
+				},
+				{
+					"name": "tipHeight",
+					"type": "number",
+					"required": true,
+					"description": "Chain tip as of this page's read."
+				},
+				{
+					"name": "blocksBehind",
+					"type": "number | null",
+					"required": true,
+					"description": "`tipHeight - scannedHeight`, floored at 0 — the consumer's actual\nbacklog. `null` until a position is known. A caught-up consumer on a\nquiet contract reads ~0 here while `tipHeight - height` grows — that\ndifference is event age, not lag."
+				},
+				{
+					"name": "tip",
+					"type": "unknown",
+					"required": true,
+					"description": "The full tip for this page — `StreamsTip` or `IndexTip` depending on the\nsurface. Exposed here so a handler never needs the `envelope` parameter,\nwhich is the only way to reach it today and is also how the worst\n`finalizedOnly` mistake becomes reachable (`return envelope.next_cursor`\njumps the cursor past events that were filtered out and never delivered)."
+				},
+				{
+					"name": "reorgs",
+					"type": "readonly unknown[]",
+					"required": true,
+					"description": "Reorgs reported alongside this page; empty when none. Rollback still\nbelongs in `onReorg` — this is for observability inside a batch."
+				}
+			],
+			"deprecated": {
+				"use": "ConsumerBatchContext"
+			}
+		},
+		{
+			"name": "StreamsBitcoinCanonicalBlock",
+			"summary": "`chain=bitcoin` canonical block (plan 059) — no burn-chain fields.",
+			"fields": [
+				{
+					"name": "block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "block_hash",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "is_canonical",
+					"type": "true",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsBitcoinTip",
+			"summary": "`chain=bitcoin` tip (plan 059) — no `burn_block_height`/retention fields, since Bitcoin has no burn chain of its own and Runes reads have no retention ladder.",
+			"fields": [
+				{
+					"name": "block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "block_hash",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "finalized_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lag_seconds",
+					"type": "number",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsCanonicalBlock",
+			"summary": "",
+			"fields": [
+				{
+					"name": "block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "block_hash",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "burn_block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "burn_block_hash",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "is_canonical",
+					"type": "true",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsClarityValue",
+			"summary": "",
+			"definition": "string | Record<string, unknown> | { hex: string; }"
+		},
+		{
+			"name": "StreamsConsumeBitcoinParams",
+			"summary": "`chain: \"bitcoin\"` (plan 059/061) — Runes batches, own cursor space.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null",
+					"required": false,
+					"description": "Resume strictly after this cursor; omit to start from the oldest seekable page."
+				},
+				{
+					"name": "batchSize",
+					"type": "number",
+					"required": false,
+					"description": "Events per page (the `limit` query param). Default 100."
+				},
+				{
+					"name": "intervalMs",
+					"type": "number",
+					"required": false,
+					"description": "Poll interval while caught up at the tip, in ms. Default 2000."
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "chain",
+					"type": "\"bitcoin\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "types",
+					"type": "readonly (\"rune_etch\" | \"rune_mint\" | \"rune_transfer\" | \"rune_burn\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "notTypes",
+					"type": "readonly (\"rune_etch\" | \"rune_mint\" | \"rune_transfer\" | \"rune_burn\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "rune",
+					"type": "string",
+					"required": false,
+					"description": "A RuneRef: an id (`840000:3`) or a name (`DOG•GO•TO•THE•MOON`)."
+				},
+				{
+					"name": "address",
+					"type": "string",
+					"required": false,
+					"description": "A mainnet address."
+				}
+			]
+		},
+		{
+			"name": "StreamsConsumeCommon",
+			"summary": "",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null",
+					"required": false,
+					"description": "Resume strictly after this cursor; omit to start from the oldest seekable page."
+				},
+				{
+					"name": "batchSize",
+					"type": "number",
+					"required": false,
+					"description": "Events per page (the `limit` query param). Default 100."
+				},
+				{
+					"name": "intervalMs",
+					"type": "number",
+					"required": false,
+					"description": "Poll interval while caught up at the tip, in ms. Default 2000."
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsConsumeStacksParams",
+			"summary": "`chain: \"stacks\"` (default, omit `chain` entirely).",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null",
+					"required": false,
+					"description": "Resume strictly after this cursor; omit to start from the oldest seekable page."
+				},
+				{
+					"name": "batchSize",
+					"type": "number",
+					"required": false,
+					"description": "Events per page (the `limit` query param). Default 100."
+				},
+				{
+					"name": "intervalMs",
+					"type": "number",
+					"required": false,
+					"description": "Poll interval while caught up at the tip, in ms. Default 2000."
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "chain",
+					"type": "\"stacks\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "types",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "notTypes",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "filters",
+					"type": "StreamsFilterMap",
+					"required": false,
+					"description": "Labelled OR-groups — same semantics as `events.consume`; each returned\nevent echoes the labels it matched."
+				}
+			]
+		},
+		{
+			"name": "StreamsDumpFile",
+			"summary": "One bulk parquet file in the dumps manifest.",
+			"fields": [
+				{
+					"name": "path",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "from_block",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "to_block",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "min_cursor",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "max_cursor",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "row_count",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "byte_size",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sha256",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "schema_version",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "created_at",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsDumpsManifest",
+			"summary": "",
+			"fields": [
+				{
+					"name": "dataset",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "network",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "version",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "schema_version",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "generated_at",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "producer_version",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "finality_lag_blocks",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "latest_finalized_cursor",
+					"type": "string | null",
+					"required": true,
+					"description": "Cursor at the end of the finalized bulk coverage — hand to live tailing."
+				},
+				{
+					"name": "coverage",
+					"type": "{ from_block: number; to_block: number }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "files",
+					"type": "StreamsDumpFile[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "signature",
+					"type": "string",
+					"required": false,
+					"description": "ed25519 signature over the manifest's canonical bytes. Absent on legacy\nunsigned manifests. Verified by `list()` when `verifyDumpsManifest` is on."
+				},
+				{
+					"name": "key_id",
+					"type": "string",
+					"required": false,
+					"description": "Short id of the signing public key."
+				}
+			]
+		},
+		{
+			"name": "StreamsEvent",
+			"summary": "A raw Streams event.",
+			"definition": "StreamsEventOf<\"stx_transfer\", StxTransferPayload> | StreamsEventOf<\"stx_mint\", StxMintPayload> | StreamsEventOf<\"stx_burn\", StxBurnPayload> | StreamsEventOf<\"stx_lock\", StxLockPayload> | StreamsEventOf<\"ft_transfer\", FtTransferPayload> | StreamsEventOf<\"ft_mint\", FtMintPayload> | StreamsEventOf<\"ft_burn\", FtBurnPayload> | StreamsEventOf<\"nft_transfer\", NftTransferPayload> | StreamsEventOf<\"nft_mint\", NftMintPayload> | StreamsEventOf<\"nft_burn\", NftBurnPayload> | StreamsEventOf<\"print\", PrintPayload>"
+		},
+		{
+			"name": "StreamsEventOf",
+			"summary": "",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string",
+					"required": true,
+					"description": "Globally unique, monotonic position of this event (`<block>:<index>`). Use\nit as the primary key of your projection rows — replaying a batch then\nupserts cleanly. Don't synthesize your own id from `tx_id`/`event_index`."
+				},
+				{
+					"name": "block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "block_hash",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "burn_block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx_id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx_index",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "event_index",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "ts",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "finalized",
+					"type": "boolean",
+					"required": false,
+					"description": "True when this event's block is past the finality boundary (immutable).\nOptional for back-compat; the API always sets it on Streams responses."
+				},
+				{
+					"name": "matched",
+					"type": "string[]",
+					"required": false,
+					"description": "Labels whose filter group this event satisfied, present only when the\nrequest used a labelled `filters` map. The SDK dispatches on it for you\n(`on.<label>`), so handlers rarely read it directly."
+				},
+				{
+					"name": "chain",
+					"type": "\"stacks\"",
+					"required": false,
+					"description": "Which chain this event came from (plan 059). Every Stacks Streams\nresponse sets this to `\"stacks\"`; optional here for back-compat with\nfixtures/tests that pre-date the field — the same reasoning as\n`finalized?`. Cursors stay per-chain but chain-agnostic in shape, so this\nis the only signal a mixed-chain caller can discriminate on."
+				},
+				{
+					"name": "event_type",
+					"type": "T",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "payload",
+					"type": "P",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsEventOfTypes",
+			"summary": "",
+			"definition": "Extract<StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload; }, { event_type: T[number]; }> | Extract<StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload; }, { event_type: T[number]; }> | Extract<StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload; }, { event_type: T[number]; }> | Extract<StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload; }, { event_type: T[number]; }> | Extract<StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload; }, { event_type: T[number]; }> | Extract<StreamsEventBase & { e…"
+		},
+		{
+			"name": "StreamsEventsBitcoinListParams",
+			"summary": "`chain: \"bitcoin\"` (plan 059) — Runes events, own cursor space.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "fromHeight",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "toHeight",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "limit",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "chain",
+					"type": "\"bitcoin\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "types",
+					"type": "readonly (\"rune_etch\" | \"rune_mint\" | \"rune_transfer\" | \"rune_burn\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "notTypes",
+					"type": "readonly (\"rune_etch\" | \"rune_mint\" | \"rune_transfer\" | \"rune_burn\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "rune",
+					"type": "string",
+					"required": false,
+					"description": "A RuneRef: an id (`840000:3`) or a name (`DOG•GO•TO•THE•MOON`)."
+				},
+				{
+					"name": "address",
+					"type": "string",
+					"required": false,
+					"description": "A mainnet address."
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsConsumeBitcoinParams",
+			"summary": "`chain: \"bitcoin\"` (plan 059/061) — the checkpointed sweep over Runes events.",
+			"fields": [
+				{
+					"name": "chain",
+					"type": "\"bitcoin\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sink",
+					"type": "ConsumerSink<TTx>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "onProgress",
+					"type": "(ctx: ConsumerBatchContext<unknown, unknown>) => null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "mode",
+					"type": "\"tail\" | \"bounded\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "finalizedOnly",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "types",
+					"type": "readonly (\"rune_etch\" | \"rune_mint\" | \"rune_transfer\" | \"rune_burn\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "notTypes",
+					"type": "readonly (\"rune_etch\" | \"rune_mint\" | \"rune_transfer\" | \"rune_burn\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "rune",
+					"type": "string",
+					"required": false,
+					"description": "A RuneRef: an id (`840000:3`) or a name (`DOG•GO•TO•THE•MOON`)."
+				},
+				{
+					"name": "address",
+					"type": "string",
+					"required": false,
+					"description": "A mainnet address."
+				},
+				{
+					"name": "batchSize",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "onBatch",
+					"type": "(events: RuneStreamsEvent[], envelope: StreamsEventsEnvelope<RuneStreamsEvent, StreamsBitcoinTip>, ctx: StreamsBatchContext & [TTx] extends [never] ? unknown : { tx: TTx }) => string | Promise<null> | Promise<string | undefined | null> | undefined | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "onReorg",
+					"type": "(reorg: StreamsReorg, ctx: StreamsReorgContext) => Promise<null> | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxRollbackDepth",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "retryCount",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "retryDelay",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "onError",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "emptyBackoffMs",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxPages",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxEmptyPolls",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "wake",
+					"type": "() => Promise<null>",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsConsumeParams",
+			"summary": "",
+			"fields": [
+				{
+					"name": "chain",
+					"type": "\"stacks\"",
+					"required": false,
+					"description": "`chain: \"stacks\"` (default, omit `chain` entirely) — the bitcoin branch\nis \n[`StreamsEventsConsumeBitcoinParams`](/docs/sdk-reference/streams#t-StreamsEventsConsumeBitcoinParams)\n, a separate overload with\nno `filters`/`on`/`decoded` (Stacks-only concepts)."
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "decoded",
+					"type": "D",
+					"required": false,
+					"description": "Deliver events pre-decoded as the flat, `event_type`-discriminated rows\nIndex serves (`IndexEvent`), so Streams consumption reads identically\nto Index consumption — no guard+decode pairs in your handler."
+				},
+				{
+					"name": "sink",
+					"type": "ConsumerSink<TTx>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "onProgress",
+					"type": "(ctx: ConsumerBatchContext<unknown, unknown>) => null",
+					"required": false,
+					"description": "Fires once per page, before `onBatch` and before any early return."
+				},
+				{
+					"name": "mode",
+					"type": "\"tail\" | \"bounded\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "finalizedOnly",
+					"type": "boolean",
+					"required": false,
+					"description": "Emit only finalized (immutable) events and never surface reorgs. The SDK\ncheckpoints at the last finalized event and re-reads the unfinalized tail\nuntil it settles. Trades finality lag for zero reorg handling; `onReorg` is\nignored."
+				},
+				{
+					"name": "types",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "notTypes",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "filters",
+					"type": "F",
+					"required": false,
+					"description": "Labelled filter groups. The groups OR together in ONE server-side scan,\nso two unrelated concerns share one page, one cursor, and one checkpoint\ninstead of two consume loops. Pair with `on` to handle each label."
+				},
+				{
+					"name": "on",
+					"type": "{ [K in keyof F]: ( events: StreamsEventForFilter<F[K], D>[], ctx: StreamsBatchContext & WithSinkTx<TTx>, ) => void | Promise<void>; }",
+					"required": false,
+					"description": "One handler per label in `filters`. Every label must be handled, so\nadding a label is a compile error until its handler exists.\n\nA label's declared `types` narrows its handler's events, so `payload` is\ntyped without an `event_type` guard. Labels are dispatched in declaration\norder: a label's own events stay in cursor order, but events of different\nlabels do not interleave within a page — add `onBatch` when you need\nstrict global order across labels."
+				},
+				{
+					"name": "batchSize",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "onBatch",
+					"type": "(events: D extends true ? IndexEvent[] : StreamsEvent[], envelope: StreamsEventsEnvelope<StreamsEvent, StreamsTip>, ctx: StreamsBatchContext & [TTx] extends [never] ? unknown : { tx: TTx }) => string | Promise<null> | Promise<string | undefined | null> | undefined | null",
+					"required": false,
+					"description": "Apply a page of canonical events. Persist `ctx.cursor` in the same\ntransaction as your writes. Returning a cursor overrides `ctx.cursor` as\nthe resume point (advanced manual control); returning nothing uses it.\n\nOptional only when `on` handles the page instead; a consume call with\nneither throws."
+				},
+				{
+					"name": "onReorg",
+					"type": "(reorg: StreamsReorg, ctx: StreamsReorgContext) => Promise<null> | null",
+					"required": false,
+					"description": "Roll your projection back to `reorg.fork_point_height`, persisting\n`ctx.cursor` in the same transaction. Called once per *new* reorg at or\nbelow the checkpoint (deduped in-memory, fork-ascending) before the SDK\nrewinds and re-reads the now-canonical events. A reorg whose fork sits\nabove the checkpoint is not a rollback (nothing past it was written) and\nis skipped. Omit it to ignore reorgs (events stay canonical, but stale\nrows from an orphaned fork are left in place).\n\nWith `onReorg` or a `sink` attached, every empty page also polls\n`reorgs.list` (one extra request per idle poll) so a fork that lands\nwhile the consumer idles at the tip is rolled back too."
+				},
+				{
+					"name": "maxRollbackDepth",
+					"type": "number",
+					"required": false,
+					"description": "Deepest rewind one reorg may make below the checkpoint before the loop\nrefuses with `ValidationError`. Default 1000 blocks. The fork point is\nserver supplied and drives a delete on every declared table, so raise\nthis only for a source you trust."
+				},
+				{
+					"name": "retryCount",
+					"type": "number",
+					"required": false,
+					"description": "Page-fetch retries after the first failure (429/5xx/network only —\n4xx and handler throws always propagate). Default 3; `0` disables."
+				},
+				{
+					"name": "retryDelay",
+					"type": "number",
+					"required": false,
+					"description": "Base retry delay in ms; the n-th retry waits `retryDelay * n`. A server\n`Retry-After` overrides it. Default 1000."
+				},
+				{
+					"name": "onError",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"required": false,
+					"description": "Void observer, called before each retry sleep (metrics/logging)."
+				},
+				{
+					"name": "emptyBackoffMs",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxPages",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxEmptyPolls",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "wake",
+					"type": "() => Promise<null>",
+					"required": false,
+					"description": "Cuts the empty-poll backoff short: on an empty page, the loop races\n`emptyBackoffMs` against this promise instead of sleeping the full\namount. Pass a function that resolves once when new data MIGHT be\navailable (e.g. a Postgres NOTIFY listener) — it is called fresh on\nevery empty page, never awaited more than once concurrently per page.\nThe backoff timer still runs underneath, so a wake source that never\nresolves (or a `wake` this call omits) degrades to the same polling\nbehavior as before."
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsConsumeResult",
+			"summary": "",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "pages",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "emptyPolls",
+					"type": "number",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsEnvelope",
+			"summary": "",
+			"fields": [
+				{
+					"name": "events",
+					"type": "TEvent[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tip",
+					"type": "TTip",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "reorgs",
+					"type": "StreamsReorg[]",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsListEnvelope",
+			"summary": "",
+			"fields": [
+				{
+					"name": "events",
+					"type": "TEvent[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tip",
+					"type": "TTip",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "reorgs",
+					"type": "StreamsReorg[]",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsListParams",
+			"summary": "",
+			"definition": "StreamsEventsStacksListParams | StreamsEventsBitcoinListParams"
+		},
+		{
+			"name": "StreamsEventsListParamsCommon",
+			"summary": "",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "fromHeight",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "toHeight",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "limit",
+					"type": "number",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsReplayParams",
+			"summary": "",
+			"fields": [
+				{
+					"name": "from",
+					"type": "string",
+					"required": false,
+					"description": "Start point: `\"genesis\"` (default) or a `<block>:<index>` cursor."
+				},
+				{
+					"name": "onDumpFile",
+					"type": "(file: StreamsDumpFile, ctx: { from: string | null }) => Promise<null> | null",
+					"required": true,
+					"description": "Called once per finalized dump file, in block order, before live tailing.\nProcess the parquet with your own tooling (e.g. DuckDB) — the SDK does not\ndecode parquet. Use `client.dumps.download(file)` to fetch + verify bytes.\n\nDelivery is file-granular and at-least-once: a file whose range straddles\n`from` is handed over whole. `ctx.from` is that cursor (`null` from\ngenesis); skip rows at or below it, or key rows by `cursor` so a re-run\nis an idempotent no-op. Files ending at or below `from` are not handed\nover at all."
+				},
+				{
+					"name": "onBatch",
+					"type": "(events: StreamsEvent[], envelope: StreamsEventsEnvelope<StreamsEvent, StreamsTip>) => string | Promise<string | undefined | null> | undefined | null",
+					"required": true,
+					"description": "Called per live page after the dump phase, like `consume`."
+				},
+				{
+					"name": "onReorg",
+					"type": "(reorg: StreamsReorg, ctx: StreamsReorgContext) => Promise<null> | null",
+					"required": false,
+					"description": "Called when the live-tail phase (after the dump backfill) crosses a reorg,\nbefore the cursor rewinds and re-reads the now-canonical events — same\ncontract as `consume`. The dump-backfill phase is finalized and never\nreorgs; omit this to leave stale rows from an orphaned fork in place."
+				},
+				{
+					"name": "mode",
+					"type": "\"tail\" | \"bounded\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "batchSize",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "emptyBackoffMs",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxPages",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxEmptyPolls",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "types",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]",
+					"required": false,
+					"description": "Narrow the LIVE TAIL after the dump phase. The dump files themselves are\nalways all-type (block-partitioned parquet) — filter those in your own\ntooling while processing each file."
+				},
+				{
+					"name": "notTypes",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "filters",
+					"type": "StreamsFilterMap",
+					"required": false,
+					"description": "Labelled OR-groups for the live tail, like `consume`."
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsStacksListParams",
+			"summary": "`chain: \"stacks\"` (default, omit `chain` entirely) — unchanged since before plan 059.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "fromHeight",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "toHeight",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "limit",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "chain",
+					"type": "\"stacks\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "clock",
+					"type": "\"classic\" | \"vm\"",
+					"required": false,
+					"description": "`vm` reads ordinal. Omit for Streams 1.0."
+				},
+				{
+					"name": "types",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\" | \"nested_contract_call\" | \"var_set\" | \"map_set\" | \"map_insert\" | \"map_delete\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "notTypes",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\" | \"nested_contract_call\" | \"var_set\" | \"map_set\" | \"map_insert\" | \"map_delete\")[]",
+					"required": false,
+					"description": "Event types to exclude (applied after `types`)."
+				},
+				{
+					"name": "contractId",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "filters",
+					"type": "StreamsFilterMap",
+					"required": false,
+					"description": "Labelled filter groups. The groups OR together in one scan and each\nreturned event carries the labels it matched (`event.matched`) — two\nunrelated concerns share one page, one cursor, one checkpoint."
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsStreamBitcoinParams",
+			"summary": "`chain: \"bitcoin\"` (plan 059/061) — Runes events, tailed the same way as the Stacks default.",
+			"fields": [
+				{
+					"name": "fromCursor",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "batchSize",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "emptyBackoffMs",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxPages",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxEmptyPolls",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "chain",
+					"type": "\"bitcoin\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "types",
+					"type": "readonly (\"rune_etch\" | \"rune_mint\" | \"rune_transfer\" | \"rune_burn\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "notTypes",
+					"type": "readonly (\"rune_etch\" | \"rune_mint\" | \"rune_transfer\" | \"rune_burn\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "rune",
+					"type": "string",
+					"required": false,
+					"description": "A RuneRef: an id (`840000:3`) or a name (`DOG•GO•TO•THE•MOON`)."
+				},
+				{
+					"name": "address",
+					"type": "string",
+					"required": false,
+					"description": "A mainnet address."
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsStreamCommon",
+			"summary": "",
+			"fields": [
+				{
+					"name": "fromCursor",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "batchSize",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "emptyBackoffMs",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxPages",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxEmptyPolls",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsStreamStacksParams",
+			"summary": "`chain: \"stacks\"` (default, omit `chain` entirely) — matches [`StreamsEventsStacksListParams`](/docs/sdk-reference/streams#t-StreamsEventsStacksListParams).",
+			"fields": [
+				{
+					"name": "fromCursor",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "batchSize",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "emptyBackoffMs",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxPages",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxEmptyPolls",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "chain",
+					"type": "\"stacks\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "types",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "notTypes",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "filters",
+					"type": "StreamsFilterMap",
+					"required": false,
+					"description": "Labelled filter groups; see \n`StreamsEventsListParams.filters`\n."
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsSubscribeBitcoinParams",
+			"summary": "`chain: \"bitcoin\"` (plan 059/061) — Runes events pushed live, on their own cursor space.",
+			"fields": [
+				{
+					"name": "fromCursor",
+					"type": "string | null",
+					"required": false,
+					"description": "Resume strictly after this cursor; omit to live-tail from the tip."
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "onError",
+					"type": "(err: unknown) => null",
+					"required": false,
+					"description": "Called on every failure. Transport errors (dropped socket, 5xx, 429, a\nstale connection, a throwing handler) reconnect from the last handled\ncursor with exponential backoff. Errors that a retry cannot fix (401,\n4xx, a bad signature) end the subscription and reject its `done`."
+				},
+				{
+					"name": "reconnectDelayMs",
+					"type": "number",
+					"required": false,
+					"description": "First reconnect pause in ms (default 1000). Doubles per consecutive\nfailure up to 30 s with jitter, resets once a frame arrives, and never\nundercuts a `Retry-After`."
+				},
+				{
+					"name": "staleAfterMs",
+					"type": "number",
+					"required": false,
+					"description": "Reconnect when no frame (pings included) arrives for this long (default\n60000, three server heartbeats). Catches a half-open socket that never\nerrors; set it above your instance's heartbeat interval."
+				},
+				{
+					"name": "chain",
+					"type": "\"bitcoin\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "types",
+					"type": "readonly (\"rune_etch\" | \"rune_mint\" | \"rune_transfer\" | \"rune_burn\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "notTypes",
+					"type": "readonly (\"rune_etch\" | \"rune_mint\" | \"rune_transfer\" | \"rune_burn\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "rune",
+					"type": "string",
+					"required": false,
+					"description": "A RuneRef: an id (`840000:3`) or a name (`DOG•GO•TO•THE•MOON`)."
+				},
+				{
+					"name": "address",
+					"type": "string",
+					"required": false,
+					"description": "A mainnet address."
+				},
+				{
+					"name": "onEvent",
+					"type": "(event: RuneStreamsEvent) => Promise<null> | null",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsEventsSubscribeStacksParams",
+			"summary": "`chain: \"stacks\"` (default, omit `chain` entirely).",
+			"fields": [
+				{
+					"name": "fromCursor",
+					"type": "string | null",
+					"required": false,
+					"description": "Resume strictly after this cursor; omit to live-tail from the tip."
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "onError",
+					"type": "(err: unknown) => null",
+					"required": false,
+					"description": "Called on every failure. Transport errors (dropped socket, 5xx, 429, a\nstale connection, a throwing handler) reconnect from the last handled\ncursor with exponential backoff. Errors that a retry cannot fix (401,\n4xx, a bad signature) end the subscription and reject its `done`."
+				},
+				{
+					"name": "reconnectDelayMs",
+					"type": "number",
+					"required": false,
+					"description": "First reconnect pause in ms (default 1000). Doubles per consecutive\nfailure up to 30 s with jitter, resets once a frame arrives, and never\nundercuts a `Retry-After`."
+				},
+				{
+					"name": "staleAfterMs",
+					"type": "number",
+					"required": false,
+					"description": "Reconnect when no frame (pings included) arrives for this long (default\n60000, three server heartbeats). Catches a half-open socket that never\nerrors; set it above your instance's heartbeat interval."
+				},
+				{
+					"name": "chain",
+					"type": "\"stacks\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "types",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "notTypes",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "filters",
+					"type": "StreamsFilterMap",
+					"required": false,
+					"description": "Labelled filter groups; see \n`StreamsEventsListParams.filters`\n."
+				},
+				{
+					"name": "onEvent",
+					"type": "(event: StreamsEvent) => Promise<null> | null",
+					"required": true,
+					"description": "Called for each pushed event, in order. The resume cursor advances only\nafter this resolves, so a handler that throws sees the same event again\non reconnect (at-least-once). Key durable writes by `cursor`."
+				}
+			]
+		},
+		{
+			"name": "StreamsFilterMap",
+			"summary": "",
+			"definition": "Record<string, StreamsLabelledFilter>"
+		},
+		{
+			"name": "StreamsFilterValue",
+			"summary": "",
+			"definition": "string | readonly string[]"
+		},
+		{
+			"name": "StreamsLabelledFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "types",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "StreamsFilterValue",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsReorg",
+			"summary": "",
+			"fields": [
+				{
+					"name": "detected_at",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "fork_point_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "orphaned_range",
+					"type": "{ from: string; to: string }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "new_canonical_tip",
+					"type": "string",
+					"required": true,
+					"description": "First position of the new canonical chain at the fork, `fork:0`\n(INCLUSIVE). Not an exclusive resume token — resuming directly from it\nskips `fork:0`. The consumer rewinds to the foot of `fork_point_height`\n(`Cursor.atHeight`) to re-read the new run from `fork:0` inclusive."
+				}
+			]
+		},
+		{
+			"name": "StreamsReorgContext",
+			"summary": "`cursor` is the rewind position the loop resumes from after `onReorg`: the foot of the fork point, or `null` for a fork at genesis.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsReorgsListEnvelope",
+			"summary": "",
+			"fields": [
+				{
+					"name": "reorgs",
+					"type": "StreamsReorg[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "next_since",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsReorgsListParams",
+			"summary": "",
+			"fields": [
+				{
+					"name": "since",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "limit",
+					"type": "number",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsSubscription",
+			"summary": "Handle for a live subscription: call it to unsubscribe.",
+			"fields": [
+				{
+					"name": "done",
+					"type": "Promise<null>",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsTip",
+			"summary": "",
+			"fields": [
+				{
+					"name": "block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "block_hash",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "burn_block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "finalized_height",
+					"type": "number",
+					"required": false,
+					"description": "Highest Stacks block past the burn-confirmation finality boundary.\nOptional for back-compat; the API always sets it."
+				},
+				{
+					"name": "lag_seconds",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "oldest_seekable_height",
+					"type": "number | null",
+					"required": false,
+					"description": "Oldest height still seekable on the live API for the caller's tier\n(`tip - retention`). `null` = unlimited retention. Older reads must use the\ncold dumps lane. Optional for back-compat."
+				},
+				{
+					"name": "oldest_cursor",
+					"type": "string | null",
+					"required": false,
+					"description": "Oldest seekable cursor (`<oldest_seekable_height>:0`); `null` = unlimited."
+				}
+			]
+		},
+		{
+			"name": "StreamsWireEvent",
+			"summary": "Anything `GET /v1/streams/events` can return: Streams 1.0 rows on the classic clock, vm rows on `clock=vm`, or Runes rows on `chain=bitcoin`.",
+			"definition": "RuneStreamsEvent | StreamsEvent | VmStreamsEvent"
+		},
+		{
+			"name": "StxBurnPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxLockPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "locked_address",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "locked_amount",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "unlock_height",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxMintPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxTransferPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "memo",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "VarSetPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contract_identifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "var_name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "raw_value",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "VmStreamsEvent",
+			"summary": "A Streams `clock=vm` row.",
+			"definition": "VmStreamsEventOf<\"nested_contract_call\", NestedContractCallPayload> | VmStreamsEventOf<\"var_set\", VarSetPayload> | VmStreamsEventOf<\"map_set\", MapWritePayload> | VmStreamsEventOf<\"map_insert\", MapWritePayload> | VmStreamsEventOf<\"map_delete\", MapDeletePayload>"
+		},
+		{
+			"name": "VmStreamsEventOf",
+			"summary": "",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string",
+					"required": true,
+					"description": "Globally unique, monotonic position of this event (`<block>:<index>`). Use\nit as the primary key of your projection rows — replaying a batch then\nupserts cleanly. Don't synthesize your own id from `tx_id`/`event_index`."
+				},
+				{
+					"name": "block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "block_hash",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "burn_block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx_id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx_index",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "event_index",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "ts",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "finalized",
+					"type": "boolean",
+					"required": false,
+					"description": "True when this event's block is past the finality boundary (immutable).\nOptional for back-compat; the API always sets it on Streams responses."
+				},
+				{
+					"name": "matched",
+					"type": "string[]",
+					"required": false,
+					"description": "Labels whose filter group this event satisfied, present only when the\nrequest used a labelled `filters` map. The SDK dispatches on it for you\n(`on.<label>`), so handlers rarely read it directly."
+				},
+				{
+					"name": "chain",
+					"type": "\"stacks\"",
+					"required": false,
+					"description": "Which chain this event came from (plan 059). Every Stacks Streams\nresponse sets this to `\"stacks\"`; optional here for back-compat with\nfixtures/tests that pre-date the field — the same reasoning as\n`finalized?`. Cursors stay per-chain but chain-agnostic in shape, so this\nis the only signal a mixed-chain caller can discriminate on."
+				},
+				{
+					"name": "event_type",
+					"type": "T",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "payload",
+					"type": "P",
+					"required": true,
+					"description": ""
+				}
+			]
+		}
+	]
+}

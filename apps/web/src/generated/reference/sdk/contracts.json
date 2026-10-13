@@ -1,0 +1,178 @@
+{
+	"slug": "contracts",
+	"root": "sl.contracts",
+	"methods": [
+		{
+			"id": "list",
+			"path": "sl.contracts.list",
+			"summary": "Find contracts conforming to `trait`.",
+			"description": "Find contracts conforming to `trait`. `trait` is required (server 400s without it).",
+			"source": {
+				"file": "packages/sdk/src/contracts/client.ts",
+				"line": 50
+			},
+			"rest": "GET /v1/contracts",
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "params",
+							"type": "ContractsListParams",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<ContractsEnvelope>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "get",
+			"path": "sl.contracts.get",
+			"summary": "Fetch a single contract from the registry by id (the prod-safe ABI source).",
+			"description": "Fetch a single contract from the registry by id (the prod-safe ABI source).\nPass `{ includeAbi: true }` for the full ABI blob. Resolves null on 404.",
+			"source": {
+				"file": "packages/sdk/src/contracts/client.ts",
+				"line": 67
+			},
+			"overloads": [
+				{
+					"label": "",
+					"params": [
+						{
+							"name": "contractId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "{ includeAbi?: boolean }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<ContractSummary | null>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "ContractConformance",
+			"summary": "Whether a trait match must be declared in source, inferred from ABI, or either.",
+			"definition": "\"declared\" | \"inferred\" | \"any\""
+		},
+		{
+			"name": "ContractsEnvelope",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contracts",
+					"type": "ContractSummary[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ContractsListParams",
+			"summary": "",
+			"fields": [
+				{
+					"name": "trait",
+					"type": "string",
+					"required": true,
+					"description": "Required. Trait identifier to match (e.g. \"sip-010\", or a fully-qualified trait)."
+				},
+				{
+					"name": "conformance",
+					"type": "ContractConformance",
+					"required": false,
+					"description": "Match source. Defaults to \"any\" server-side."
+				},
+				{
+					"name": "include",
+					"type": "\"abi\"",
+					"required": false,
+					"description": "Set to \"abi\" to include the full ABI blob in each row."
+				},
+				{
+					"name": "limit",
+					"type": "number",
+					"required": false,
+					"description": "Page size, 1–500 (default 100 server-side)."
+				},
+				{
+					"name": "cursor",
+					"type": "string",
+					"required": false,
+					"description": "Opaque cursor from a prior response's `next_cursor`."
+				}
+			]
+		},
+		{
+			"name": "ContractSummary",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contract_id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "deployer",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "declared_traits",
+					"type": "string[] | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "inferred_standards",
+					"type": "string[] | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "abi_status",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "abi",
+					"type": "unknown",
+					"required": false,
+					"description": "Present only when `include: \"abi\"` was requested."
+				}
+			]
+		}
+	]
+}
