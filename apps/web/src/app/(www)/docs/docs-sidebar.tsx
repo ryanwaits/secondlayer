@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { DOCS_STRIP } from "@/lib/nav";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useDocsDrawer } from "./docs-drawer";
 import { DOCS_NAV } from "./nav";
 
@@ -245,9 +245,10 @@ interface Head {
 	text: string;
 }
 
-/** The current page's h2s, nested under its row. Reads them from the rendered
- *  article (rehype-slug gives stable ids), skips any inside a collapsed
- *  `<details>`, and marks the topmost one in view as the place being read. */
+/** The open page's visible h2s, listed under its row. Reads them from the
+ *  rendered article (rehype-slug gives stable ids), skips any inside a
+ *  collapsed `<details>`, and marks the topmost one in view as the place being
+ *  read. */
 function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	const pathname = usePathname();
 	const [heads, setHeads] = useState<Head[]>([]);
@@ -267,7 +268,7 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 
 	// Scrollspy: the topmost heading in view is the active one.
 	useEffect(() => {
-		if (heads.length < 2) return;
+		if (heads.length === 0) return;
 		const observer = new IntersectionObserver(
 			(entries) => {
 				const visible = entries.filter((e) => e.isIntersecting);
@@ -286,7 +287,7 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 		return () => observer.disconnect();
 	}, [heads]);
 
-	if (heads.length < 2) return null;
+	if (heads.length === 0) return null;
 	return (
 		<div className="docs-nav-outline">
 			{heads.map((h) => (
@@ -319,7 +320,7 @@ export function DocsSidebar() {
 	useEffect(() => {
 		const nav = document.querySelector<HTMLElement>(".docs-nav");
 		const row = nav?.querySelector<HTMLElement>(
-			":scope > .docs-nav-group .docs-nav-branch > .docs-nav-item.active, :scope > .docs-nav-group .docs-nav-child.active",
+			":scope > .docs-nav-group .docs-nav-branch > .docs-nav-item.active",
 		);
 		if (!nav || !row) return;
 		revealNearest(nav, row);
@@ -392,51 +393,22 @@ export function DocsSidebar() {
 				{DOCS_NAV.map((group) => (
 					<div className="docs-nav-group" key={group.label}>
 						<div className="docs-nav-grouplabel">{group.label}</div>
-						{group.items.map((item) => {
-							// Sub-pages show only while the reader is somewhere in the
-							// section: under the parent's route, or on one of the children
-							// (some live at their own top-level route), so a page with
-							// children costs one row like any other until it's being read.
-							const inSection =
-								pathname === item.href ||
-								pathname.startsWith(`${item.href}/`) ||
-								(item.items?.some(
-									(c) =>
-										pathname === c.href || pathname.startsWith(`${c.href}/`),
-								) ??
-									false);
-							return (
-								<div key={item.href} className="docs-nav-branch">
-									<Link
-										href={item.href}
-										className={`docs-nav-item${pathname === item.href ? " active" : ""}`}
-									>
-										{item.title}
-									</Link>
-									{item.href === API_REFERENCE && onReference ? (
-										<ApiReferenceNav active={activeSection} />
-									) : null}
-									{item.items && inSection && (
-										<div className="docs-nav-children">
-											{item.items.map((child) => (
-												<Fragment key={child.href}>
-													<Link
-														href={child.href}
-														className={`docs-nav-item docs-nav-child${pathname === child.href ? " active" : ""}`}
-													>
-														{child.title}
-													</Link>
-													{pathname === child.href ? outline : null}
-												</Fragment>
-											))}
-										</div>
-									)}
-									{pathname === item.href && item.href !== API_REFERENCE
-										? outline
-										: null}
-								</div>
-							);
-						})}
+						{group.items.map((item) => (
+							<div key={item.href} className="docs-nav-branch">
+								<Link
+									href={item.href}
+									className={`docs-nav-item${pathname === item.href ? " active" : ""}`}
+								>
+									{item.title}
+								</Link>
+								{item.href === API_REFERENCE && onReference ? (
+									<ApiReferenceNav active={activeSection} />
+								) : null}
+								{pathname === item.href && item.href !== API_REFERENCE
+									? outline
+									: null}
+							</div>
+						))}
 					</div>
 				))}
 			</aside>
