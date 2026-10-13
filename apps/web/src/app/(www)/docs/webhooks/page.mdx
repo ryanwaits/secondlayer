@@ -5,14 +5,11 @@ import { getAgentPrompt } from "@/lib/agent-prompts";
 
 A signed POST to a URL you run, whenever a chain event you named happens. To act on your own subgraph rows, read them: [React to your rows](/docs/subgraphs#react-to-your-rows).
 
-<details id="coming-from-chainhook">
-<summary>Coming from Chainhook</summary>
+## Coming from Chainhook
 
 Hand your predicates to your agent; it maps each one to a trigger and writes the create commands.
 
 <AgentPromptBlock code={getAgentPrompt("migrate-from-chainhook")} />
-
-</details>
 
 ## Create a webhook
 
@@ -24,8 +21,7 @@ secondlayer webhooks create sbtc-deposits \
 
 What arrives and how to trust it: [Receive and verify](#receive-and-verify). A webhook starts at the chain tip and never backfills.
 
-<details id="triggers">
-<summary>Triggers</summary>
+### Triggers
 
 A webhook takes a `triggers` array (1–50). Use the `trigger.*` factories or the equivalent raw objects.
 
@@ -71,10 +67,7 @@ await sl.webhooks.create({
 
 Validation is strict per type: mints take `recipient` (no `sender`), burns take `sender` (no `recipient`); any field outside a type's set is rejected with a 400.
 
-</details>
-
-<details id="protocol-triggers">
-<summary>Protocol triggers</summary>
+### Protocol triggers
 
 The sBTC and Runes triggers read the same decoded protocols as [Index](/docs/index#decoded-protocols). PoX-5 has no trigger of its own: it is a `print_event` on the `pox-5` contract, e.g. `trigger.printEvent({ contractId: "SP000000000000000000002Q6VF78.pox-5", topic: "register-for-bond" })`.
 
@@ -92,10 +85,7 @@ secondlayer webhooks create amm-swaps \
 
 Each trigger is validated before provisioning; the signing secret prints once.
 
-</details>
-
-<details id="test-delivery">
-<summary>Test delivery</summary>
+### Test delivery
 
 `secondlayer webhooks test <idOrName> --post` sends a logged test delivery:
 
@@ -114,10 +104,7 @@ Each trigger is validated before provisioning; the signing secret prints once.
 
 Not a real chain event, so check `data.test` before treating a delivery as live.
 
-</details>
-
-<details id="hosted-limits">
-<summary>Hosted limits</summary>
+### Hosted limits
 
 Webhooks run on `api.secondlayer.tools` with an account key and prepaid credits, or on [your own box](/docs/self-host#what-differs-on-your-box). Delivery semantics (at-least-once, unordered, reorg rollback) are the same either way: [Receive and verify](#receive-and-verify).
 
@@ -129,8 +116,6 @@ Webhooks run on `api.secondlayer.tools` with an account key and prepaid credits,
 | Egress | Your webhook receiver and Secondlayer's read APIs only. A tenant's compose network can't reach another tenant or internal services |
 | Pricing | $10 per 1M delivered events (`webhook.event`). Retries are never billed, and the rows read to match your triggers don't bill as `rows.delivered` |
 | Isolation | One full stack per account, never a shared runtime. Your data never shares a database or process with anyone else's. The same stack runs your hosted subgraphs, with handlers in a gVisor sandbox |
-
-</details>
 
 ## Receive and verify
 
@@ -149,8 +134,7 @@ const valid = verifyWebhookSignature(rawBody, req.headers, secret);
 if (!valid) return new Response("bad signature", { status: 401 });
 ```
 
-<details id="ed25519-signature">
-<summary>ed25519 signature</summary>
+#### ed25519 signature
 
 **Every** delivery, in every format, also carries an ed25519 signature over `` `${webhook-id}.${rawBody}` ``. For `raw`, `cloudevents`, `trigger`, `cloudflare`, and `inngest`, which have no HMAC, it is the only auth.
 
@@ -170,10 +154,7 @@ if (!valid) return new Response("bad signature", { status: 401 });
 
 Fetch the public key once and cache it; rotate on the `keyid` header. Failed deliveries retry with backoff, then the circuit opens so a downed endpoint can't block the queue.
 
-</details>
-
-<details id="delivery-envelope">
-<summary>Delivery envelope</summary>
+#### Delivery envelope
 
 A matched event delivers `chain.{trigger}.apply`. On `standard-webhooks` the body is `{ type, timestamp, data }`:
 
@@ -217,10 +198,7 @@ A chain-webhook delivery and a [Streams](/docs/streams) event are structurally u
 
 </Callout>
 
-</details>
-
-<details id="decode-the-delivery">
-<summary>Decode the delivery</summary>
+#### Decode the delivery
 
 After the signature verifies, decode:
 
@@ -254,10 +232,7 @@ Delivery is at-least-once. Key your state on `(tx_id, event_index, block_hash)`:
 
 Per-trigger shapes for `data.event`: [Event shapes](#event-shapes).
 
-</details>
-
-<details id="event-shapes">
-<summary>Event shapes</summary>
+#### Event shapes
 
 What `data.event` holds, per trigger: event-level, tx-level, and sBTC.
 
@@ -342,10 +317,7 @@ The five sBTC triggers deliver a flat, already-typed `event` keyed by `topic`:
 
 `topic` is `completed-deposit`, `withdrawal-create`, `withdrawal-accept`, `withdrawal-reject`, or `withdrawal-swept-confirmed`. The settlement event instead carries `sweep_txid, btc_confirmations, btc_block_height, confirmed_at, amount, sender`, with no `bitcoin_txid`/`block_height`/`tx_id`.
 
-</details>
-
-<details id="reorg-rollback">
-<summary>Reorg rollback</summary>
+#### Reorg rollback
 
 On a reorg, `chain.reorg.rollback` covers everything that *may* have reached your endpoint, meaning any row the emitter claimed or attempted, not only one the server confirmed as delivered. A delivery whose response never made it back still counts as "may have arrived," so undo every entry the rollback lists.
 
@@ -372,12 +344,9 @@ A reorg delivers `chain.reorg.rollback` so you can undo anything committed off a
 
 </Callout>
 
-</details>
-
 ## Replay and recovery
 
-<details id="replay">
-<summary>Replay</summary>
+### Replay
 
 Re-deliver historical events over an existing webhook.
 
@@ -392,10 +361,7 @@ Replays are **idempotent**, **historical only**, and **never move the live curso
 
 `sbtc_withdrawal_swept_confirmed` fires on a Bitcoin confirmation rather than a Stacks block, so it is forward-only and never replayed. The CLI warns.
 
-</details>
-
-<details id="account-webhooks">
-<summary>Account webhooks</summary>
+### Account webhooks
 
 [`/account/webhooks`](/account/webhooks) lists a hosted account's webhooks. Each detail page charts 7 days of delivered, waiting and gave-up events by the hour, lists the last 100 delivery attempts with a diagnosis, and holds failed events for resend. Open one delivery for its payload, response status and headers, and error. You can send a test event, pause or resume, rotate the signing secret, resend failed events, and delete. Create and edit stay on the CLI and SDK: the dashboard watches and fixes a webhook, it never writes a definition.
 
@@ -411,14 +377,11 @@ await sl.webhooks.requeue(id, dead[0].id);
 
 `payload` is `null` once the event leaves the outbox, 7 days after delivery, and on test deliveries.
 
-</details>
-
 ## Troubleshooting
 
 `secondlayer webhooks doctor <idOrName>` and the dashboard's detail page run the same five rules against your last 100 delivery attempts. Every rule is deterministic: no model, and it only states what the numbers prove. Each fires on a fixed threshold, listed below, and each reports evidence you can check yourself.
 
-<details id="receiver-rate-limited">
-<summary>Receiver rate-limited</summary>
+### Receiver rate-limited
 
 Fires when at least 10 of the last 100 attempts are `429`s, and `429`s are at least half that window. Your receiver is answering, but throttling us.
 
@@ -428,10 +391,7 @@ Lower `--concurrency` on the webhook, or make your receiver honor the `Retry-Aft
 secondlayer webhooks update <idOrName> --concurrency 2
 ```
 
-</details>
-
-<details id="receiver-down">
-<summary>Receiver down</summary>
+### Receiver down
 
 Fires when the 5 most recent attempts are all `5xx` responses or got no response at all (timeout or connection failure). Check your receiver's health and logs, then confirm it's back with a test delivery:
 
@@ -439,10 +399,7 @@ Fires when the 5 most recent attempts are all `5xx` responses or got no response
 secondlayer webhooks test <idOrName>
 ```
 
-</details>
-
-<details id="receiver-rejects">
-<summary>Receiver rejects</summary>
+### Receiver rejects
 
 Fires when the 5 most recent attempts are all `4xx` responses other than `429`. Your receiver is reachable and actively rejecting the request: check auth config or signature verification first.
 
@@ -450,10 +407,7 @@ Fires when the 5 most recent attempts are all `4xx` responses other than `429`. 
 secondlayer webhooks test <idOrName>
 ```
 
-</details>
-
-<details id="receiver-slow">
-<summary>Receiver slow</summary>
+### Receiver slow
 
 Fires when the median response time of the newest 20 attempts is at least half this webhook's `timeoutMs`. Speed up your receiver, or raise the timeout (capped at 30s hosted):
 
@@ -461,14 +415,9 @@ Fires when the median response time of the newest 20 attempts is at least half t
 secondlayer webhooks update <idOrName> --timeout-ms 30000
 ```
 
-</details>
-
-<details id="delivery-lag">
-<summary>Delivery lag</summary>
+### Delivery lag
 
 Fires when the median gap between a block's time and when we dispatched its event, over the newest 20 attempts, exceeds 60 seconds. This is latency on our side, not your receiver: no action needed on your end.
-
-</details>
 
 export const agent = `
 - Create: 'secondlayer webhooks create <name> --url <url> --trigger '<json>'' or sl.webhooks.create with a triggers array built from trigger.* factories, e.g. trigger.contractCall({ contractId, functionName }) and trigger.ftTransfer({ assetIdentifier, minAmount }). Ask only for the HTTPS receiver URL and which chain events to match.

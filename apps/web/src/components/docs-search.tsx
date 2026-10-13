@@ -98,7 +98,7 @@ function wordCount(text: string): number {
 	return text.split(/\s+/).filter(Boolean).length;
 }
 
-/** Same page: scroll there and let the docs view open a `<details>` target. */
+/** Same page: jump to the anchor through a hash change. */
 function jumpOnPage(anchor: string | undefined) {
 	if (!anchor) {
 		window.scrollTo({ top: 0 });

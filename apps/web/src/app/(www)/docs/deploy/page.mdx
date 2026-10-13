@@ -26,8 +26,7 @@ INSTANCE_TOKEN=…                                 # required once the API is pu
 
 Anything a consumer can reach from another box is past loopback, so it needs `INSTANCE_TOKEN` set on the instance and in the consumer's env; see [Instance token](/docs/self-host#instance-token).
 
-<details id="pick-a-target">
-<summary>Pick a target</summary>
+### Pick a target
 
 | Target | Process model | The one thing to get right |
 | --- | --- | --- |
@@ -38,10 +37,7 @@ Anything a consumer can reach from another box is past loopback, so it needs `IN
 
 Same Dockerfile everywhere. The remote targets only work if they can reach your instance: a public bind with `INSTANCE_TOKEN`, or a shared private network.
 
-</details>
-
-<details id="make-writes-idempotent">
-<summary>Make writes idempotent</summary>
+### Make writes idempotent
 
 Delivery is at-least-once. A process killed between the read and the commit re-reads that page on restart, so every write needs a conflict rule:
 
@@ -51,10 +47,7 @@ Delivery is at-least-once. A process killed between the read and the commit re-r
 
 A [sink](/docs/sinks) commits rows and checkpoint in one transaction and injects the reorg rollback, so use one rather than hand-rolling the contract.
 
-</details>
-
-<details id="bind-a-port">
-<summary>Bind a port</summary>
+### Bind a port
 
 Railway, Render, and Fly mark a service unhealthy unless something answers over HTTP. A bare loop binds nothing and gets restarted forever.
 
@@ -67,10 +60,7 @@ Bun.serve({ port: Number(process.env.PORT ?? 8080), fetch: health.handler });
 
 Feed `health.record` from `onProgress`; wiring in [Sinks](/docs/sinks#health-and-shutdown). Gate on freshness, not lag: a genesis backfill sits millions of blocks behind the tip and is perfectly healthy. A wedged loop stops reporting pages, which is the restartable signal.
 
-</details>
-
-<details id="handle-sigterm">
-<summary>Handle SIGTERM</summary>
+### Handle SIGTERM
 
 Every redeploy arrives as `SIGTERM`. Pass an `AbortSignal` and `consume()` checks it at the top of the loop, never mid-batch, so the in-flight transaction always commits.
 
@@ -90,15 +80,11 @@ A shell-form `CMD` makes `/bin/sh` PID 1, which swallows `SIGTERM`, so the loop 
 
 </Callout>
 
-</details>
-
-<details id="docker-and-ec2">
-<summary>Docker and EC2</summary>
+### Docker and EC2
 
 No platform, no config schema: a container and something that restarts it.
 
-<details id="compose">
-<summary>Compose</summary>
+#### Compose
 
 ```yaml
 services:
@@ -136,10 +122,7 @@ docker compose logs -f indexer
 
 </Callout>
 
-</details>
-
-<details id="bare-systemd">
-<summary>Bare systemd</summary>
+#### Bare systemd
 
 Skipping containers:
 
@@ -161,12 +144,7 @@ WantedBy=multi-user.target
 
 `KillSignal=SIGTERM` and a generous `TimeoutStopSec` are what let the [shutdown handler](#handle-sigterm) finish its transaction before systemd escalates to `SIGKILL`.
 
-</details>
-
-</details>
-
-<details id="bring-your-database">
-<summary>Bring your database</summary>
+### Bring your database
 
 `DATABASE_URL` is the consumer's own Postgres, separate from the instance's. Any Postgres works; keep it in the same region (or the same compose file), since the loop commits a transaction per batch, so round-trip latency sets the backfill ceiling. Point it at a managed instance when you'd rather not own backups.
 
@@ -175,8 +153,6 @@ WantedBy=multi-user.target
 `fromHeight: 0` reaches as far back as your instance holds. Extending the instance below its bootstrap floor is metered [archive credits](/docs/authentication#archive-credits); consuming history it already has costs nothing.
 
 </Callout>
-
-</details>
 
 export const agent = `
 - A consume() loop needs: a Dockerfile, a /health route bound to PORT, and a SIGTERM handler. Pick the matching recipe (Railway, Render, Fly, Vercel cron, Docker).

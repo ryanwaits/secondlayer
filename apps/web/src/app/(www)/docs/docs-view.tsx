@@ -16,7 +16,6 @@ function lookup(pathname: string) {
 	if (at < 0) return null;
 	const page = pages[at];
 	return {
-		group: page.group,
 		title: page.title,
 		prev: pages[at - 1],
 		next: pages[at + 1],
@@ -24,7 +23,7 @@ function lookup(pathname: string) {
 }
 
 /** "Copy for agent" and ".md" for pages with a markdown twin: ghost pills
- *  right of the breadcrumb. */
+ *  above the article, right-aligned. */
 function PageActions({ pathname }: { pathname: string }) {
 	const [copy, setCopy] = useState<"idle" | "done" | "failed">("idle");
 	const timer = useRef(0);
@@ -51,7 +50,7 @@ function PageActions({ pathname }: { pathname: string }) {
 			<button
 				type="button"
 				className="docs-pill"
-				title="Page, collapsed sections and agent notes, as Markdown"
+				title="Page and agent notes, as Markdown"
 				onClick={async () => {
 					const ok = await copyMarkdown(md).catch(() => false);
 					setCopy(ok ? "done" : "failed");
@@ -77,7 +76,8 @@ function PageActions({ pathname }: { pathname: string }) {
 	);
 }
 
-/** Opens every `<details>` holding the element a hash names, then scrolls to it. */
+/** Opens every `<details>` holding the element a hash names (the changelog's
+ *  older releases), then scrolls to it. */
 function openHashTarget(hash: string) {
 	const id = decodeURIComponent(hash.replace(/^#/, ""));
 	const target = id ? document.getElementById(id) : null;
@@ -96,7 +96,7 @@ function openHashTarget(hash: string) {
 	if (opened) target.scrollIntoView();
 }
 
-/** The breadcrumb + page-actions chrome around a docs page's MDX body. */
+/** The page actions and previous/next chrome around a docs page's MDX body. */
 export function DocsView({ children }: { children: ReactNode }) {
 	const pathname = usePathname();
 	const info = lookup(pathname);
@@ -129,17 +129,6 @@ export function DocsView({ children }: { children: ReactNode }) {
 	return (
 		<>
 			<div className="docs-topline">
-				{info ? (
-					<nav className="docs-crumb" aria-label="Breadcrumb">
-						<Link href="/docs">Docs</Link>
-						<span className="sep">/</span>
-						<span>{info.group}</span>
-						<span className="sep">/</span>
-						<span aria-current="page">{info.title}</span>
-					</nav>
-				) : (
-					<span />
-				)}
 				<PageActions pathname={pathname} />
 			</div>
 			<article className="docs-article" id="docs-article">

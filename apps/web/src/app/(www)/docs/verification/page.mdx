@@ -15,8 +15,7 @@ Where Secondlayer can prove an answer, it serves the proof: a hash, a merkle pat
 | A block's Bitcoin anchor | Same check: Bitcoin headers from the checkpoint (proof of work, retargets), then the block's burn block | The checkpoint; headers are not compared against a competing chain |
 | A block's state writes | `/v1/proofs/writes/:height`, checked by `verify block` against the state root | The checkpoint; a block with no named writes is proven but unnamed |
 
-<details id="more-checks">
-<summary>Archives, rows, deliveries and frames</summary>
+### Archives, rows, deliveries and frames
 
 | Check | How | What you still trust |
 | --- | --- | --- |
@@ -26,10 +25,7 @@ Where Secondlayer can prove an answer, it serves the proof: a hash, a merkle pat
 | A webhook delivery | `verifyWebhookSignature` and the ed25519 signature. [Receive and verify](/docs/webhooks#verify-the-signature) | The signing secret or key: proves who sent it, not that the chain agrees |
 | A Streams frame | The SDK checks every frame's ed25519 signature. [SDK](/docs/sdk#verifying-responses) | The signing key, unless you pin it |
 
-</details>
-
-<details id="archive-assurance-levels">
-<summary>Archive assurance levels</summary>
+### Archive assurance levels
 
 The manifest states a level per range. Most of the chain is `db-reconstructive`; a published `node.json` upgrades only its `coverage` window.
 
@@ -38,8 +34,6 @@ The manifest states a level per range. Most of the chain is `db-reconstructive`;
 | `db-reconstructive` | Exports from one repeatable-read snapshot restore deterministically. Does not prove no historical callback was omitted. |
 | `node-attested` | Block identities also match an independently synced stacks-node. Transactions and events stay `db-reconstructive`. |
 | `observer-attested` | Digests match independently retained raw observer history. |
-
-</details>
 
 ## Check a block
 
@@ -66,22 +60,15 @@ secondlayer verify block 9137005
 ✓ Block 9,137,005 is proven. Trusted: only the checkpoint (Stacks 8,956,304, Bitcoin 967,680).
 ```
 
-<details id="blocks-below-the-checkpoint">
-<summary>Blocks below the checkpoint</summary>
+### Blocks below the checkpoint
 
 A block below the checkpoint skips the Bitcoin and signer links. The checkpoint's header commits to every ancestor by hash, so an `ancestry` link ties the block to it, by parent links or one MARF proof. The skipped links read `not needed: the block is hash-chained to the checkpoint`, and `txs` reads `not checked: no transaction bytes` for an epoch 2.x block or when the source served the header only.
 
-</details>
-
-<details id="exit-codes-and-cost">
-<summary>Exit codes and cost</summary>
+### Exit codes and cost
 
 Exit `0` every link holds, `1` a link is broken (the first is named), `2` could not check. The tradeoff: a lying source can fail a link but never pass one, and the price is work. The first check syncs Bitcoin headers from the checkpoint, and each block fetches a state witness.
 
-</details>
-
-<details id="flags">
-<summary>Flags</summary>
+### Flags
 
 | Flag | Effect |
 | --- | --- |
@@ -90,10 +77,7 @@ Exit `0` every link holds, `1` a link is broken (the first is named), `2` could 
 | `--rows` | Also check the indexed `vm_events` rows against the diff. Billed as Index rows; everything else is free |
 | `--json` | Full result on stdout |
 
-</details>
-
-<details id="in-your-code">
-<summary>In your code</summary>
+### In your code
 
 `@secondlayer/verify` is the same check as a library. `verifyBlock` never throws for bad source data; it returns `ok: false` and the first broken link.
 
@@ -132,10 +116,7 @@ const result = await verifier.verify(9_137_005);
 
 Pass `rows: true` to also check the indexed `vm_events` rows (billed as Index rows). `result.transactions` holds the block's checked transactions and `result.writes` its named writes. Its own code uses `fetch` and pure-JS crypto (`@noble`), with no Node built-ins.
 
-</details>
-
-<details id="prove-a-transaction">
-<summary>Prove a transaction</summary>
+### Prove a transaction
 
 `verifyTransactionProof` recomputes the txid, merkle root, block hash, and signer weight from one proof.
 
@@ -200,10 +181,7 @@ const trustless = verifyTransactionProof(proof, { rewardSet });
 
 The transaction verifier uses Node's crypto (via `@secondlayer/shared`), so it is server-side only.
 
-</details>
-
-<details id="proofs-api">
-<summary>Proofs API</summary>
+### Proofs API
 
 The raw material `verify block` reads. Free, never metered, no key needed. On the hosted API each IP gets 10 requests per second, and 1 per second for witnesses; send an account key for 20 and 2. Answers addressed by a hash never change: they carry an ETag and `Cache-Control: immutable`. On your own box the witness, burn and Bitcoin-header routes need a proof sidecar: [Self-host](/docs/self-host#what-differs-on-your-box).
 
@@ -220,10 +198,7 @@ The raw material `verify block` reads. Free, never metered, no key needed. On th
 
 The transaction proof above is [`/v1/index/transactions/{tx_id}/proof`](/docs/api/index#get-transaction-proof).
 
-</details>
-
-<details id="what-it-does-not-cover-yet">
-<summary>What it does not cover yet</summary>
+### What it does not cover yet
 
 | Gap | Effect |
 | --- | --- |
@@ -235,8 +210,6 @@ The transaction proof above is [`/v1/index/transactions/{tx_id}/proof`](/docs/ap
 | `__MARF_*` keys from a node alone | A node serves no proof for them, so with `NodeRpcProofSource` alone, blocks more than 16 below a trusted block fail `ancestry` as `unavailable`. |
 | Epoch 2.x transactions | Skipped with a note. |
 | Unnamed writes | Without `state_writes` for the block, writes are proven, not named. |
-
-</details>
 
 export const agent = `
 - 'secondlayer verify block <height>' prints each link (bitcoin, burn, cycle, signatures, txs, state root, diff). Exit 0, 1, 2 as documented. Only the checkpoint stays trusted.

@@ -29,8 +29,7 @@ await index.events.consume({
 
 Where to run it: [Deploy](/docs/deploy). To have the loop run for you: [Subgraphs](/docs/subgraphs).
 
-<details id="options">
-<summary>Options</summary>
+### Options
 
 | Option | Effect |
 | --- | --- |
@@ -41,10 +40,7 @@ Where to run it: [Deploy](/docs/deploy). To have the loop run for you: [Subgraph
 | `signal` | Abort checked between batches, never mid-commit: the in-flight batch always commits; see [Deploy](/docs/deploy#handle-sigterm) |
 | `index.contractCalls.consume()` | Same loop for decoded calls; already carries `sender`/`function_name`, so it needs no `txContext` |
 
-</details>
-
-<details id="mirror-schema">
-<summary>Mirror schema</summary>
+### Mirror schema
 
 `secondlayer codegen index` emits the mirror schema so your tables can't drift:
 
@@ -52,10 +48,7 @@ Where to run it: [Deploy](/docs/deploy). To have the loop run for you: [Subgraph
 secondlayer codegen index --target kysely   # also: prisma, drizzle, json-schema
 ```
 
-</details>
-
-<details id="reorgs">
-<summary>Reorgs</summary>
+### Reorgs
 
 Read envelopes carry a `reorgs` array: the reorganizations overlapping the page's height range, empty when none.
 
@@ -83,10 +76,7 @@ Both bounds are `<block_height>:<event_index>` cursors tracking decoded-event po
 
 Running balances: invert them in a sink's `onRollback` ([Sinks](/docs/sinks#rollback-is-height-stamped)).
 
-</details>
-
-<details id="progress-and-health">
-<summary>Progress and health</summary>
+### Progress and health
 
 `ctx` carries where the sweep has reached, so liveness needs no bookkeeping of its own.
 
@@ -112,21 +102,15 @@ for (const block of canonical) {
 
 To prove a block or transaction rather than compare hashes: [Verify](/docs/verification).
 
-</details>
-
-<details id="cost-and-history">
-<summary>Cost and history</summary>
+### Cost and history
 
 Reads on your own box hit your own Postgres: no meter, no rate limit. Hosted `api.secondlayer.tools` bills `rows.delivered` (1M free per account per month; rates and free block headers in [Keys and billing](/docs/authentication)). `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)). Hosted is keyed; on your own box see [Self-host](/docs/self-host#instance-token).
-
-</details>
 
 ## Other ways to read
 
 One page with `list()`, a one-off export with `walk()`. Neither checkpoints, so neither is a live index.
 
-<details id="list-walk-consume">
-<summary>list, walk, consume</summary>
+### list, walk, consume
 
 Every feed offers the same three verbs. They are not interchangeable.
 
@@ -144,10 +128,7 @@ await sl.index.events.consume({ eventType: "ft_transfer", onBatch }); // forever
 
 `walk()` into a database is a trap. It works, and it's right for a one-shot export or an analysis script. As a live index it fails three ways: no checkpoint, so a crash restarts from zero; reorgs are ignored, so a fork leaves orphaned rows behind forever; and it returns at the tip instead of following the chain. Writing rows you intend to keep is `consume()`.
 
-</details>
-
-<details id="plain-http">
-<summary>Plain HTTP</summary>
+### Plain HTTP
 
 ```bash
 curl "$SECONDLAYER_API_URL/v1/index/events?event_type=stx_transfer&limit=20" \
@@ -181,10 +162,7 @@ secondlayer index mempool --contract-id SP….token
 
 Tool names for agents are on [MCP and skills](/docs/mcp); see the [CLI](/docs/cli) for the rest. Mempool, state writes, PoX-5, sBTC and Runes have no MCP tool; use REST or the SDK. To be pushed instead of pulling: [Webhooks](/docs/webhooks).
 
-</details>
-
-<details id="print-schemas">
-<summary>Print schemas</summary>
+### Print schemas
 
 Clarity ABIs don't describe `print` payloads, and the shape varies **per topic** within one contract.
 
@@ -201,10 +179,7 @@ The response shape is in the [API reference](/docs/api/index#get-print-schema). 
 
 Backs `secondlayer subgraphs create <name> --from-contract <contract_id>`; see [Subgraphs](/docs/subgraphs#typed-print-payloads).
 
-</details>
-
-<details id="find-contracts-by-standard">
-<summary>Find contracts by standard</summary>
+### Find contracts by standard
 
 Find every contract that conforms to a token standard, without keeping a list of addresses. A contract counts as **declared** when its source has `(impl-trait …)`, and **inferred** when its ABI matches the standard's shape.
 
@@ -240,10 +215,7 @@ curl -G "$SECONDLAYER_API_URL/v1/contracts" \
 
 `GET /v1/contracts/{contract_id}` returns one contract. `trait` also filters the event and contract-call feeds, and a subgraph source can target a trait and pick up contracts deployed later: [Index by standard](/docs/subgraphs#index-by-standard-not-by-address).
 
-</details>
-
-<details id="state-writes">
-<summary>State writes</summary>
+### State writes
 
 The exact contract-state writes each canonical block committed, in node order. Use it to see which key a transaction changed, which events alone don't show.
 
@@ -268,14 +240,11 @@ A row is `{ cursor, block_height, ordinal, tx_index, key, value_hex }`: `key` is
 
 Rows exist only from the height your node first sent the `state_writes` observer key. There is no earlier history. On your own box the key needs a node build that emits state writes, not yet the stock node. Rows bill like event rows.
 
-</details>
-
 ## Decoded protocols
 
 Index on contracts everyone shares, with the same verbs and envelope as every other feed. Not products of their own: your contract stays in `consume()` or a [subgraph](/docs/subgraphs).
 
-<details id="pox-5">
-<summary>PoX-5</summary>
+### PoX-5
 
 Decoded prints from the `pox-5` boot contract (SIP-045, live since Bitcoin block 960,230), plus per-cycle totals. The print log, not a position scoreboard: positions and payouts are a subgraph you deploy.
 
@@ -300,10 +269,7 @@ Event filters: `topic`, `staker`, `signer`, `signerManager`, `bondIndex`, `rewar
 
 `pox5.events.consume()` is the checkpointed sweep, with the same options as [Build your index on it](#build-your-index-on-it). Cycles are exact to the node and follow the chain again at the next PoX fork. PoX-4 cycle history is final and not served; rebuild it from `/v1/index/stacking` on a self-hosted instance.
 
-</details>
-
-<details id="sbtc">
-<summary>sBTC</summary>
+### sBTC
 
 The peg lifecycle, decoded, plus Bitcoin confirmation of sweeps. A `withdrawal-accept` only means the signers committed to a sweep, so your instance checks `sweep_txid` against bitcoind (the bundled full-node profile or an external `BITCOIN_RPC`). Deposits need no check: `completed-deposit` fires after the signers see the confirmations.
 
@@ -334,10 +300,7 @@ A withdrawal row mutates as it moves REQUESTED, ACCEPTED, settled, and a checkpo
 
 Settlement is verified against your instance's bitcoind, not a custody guarantee: a signer set still controls the pegged UTXO. A Bitcoin reorg that un-confirms a sweep self-corrects on read. To be pushed: [Webhooks](/docs/webhooks#triggers).
 
-</details>
-
-<details id="runes">
-<summary>Runes</summary>
+### Runes
 
 A catalog of etched runes, a per-rune activity log, and balances, on a Bitcoin tip instead of a Stacks one. A rune's id is `<block>:<tx>` of its etch (`840000:3`). Its name is a unique A-Z string; spacers (`•`) are display only, so `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` are one rune. Every `rune` field takes a `RuneRef`: an id or a name in any of those forms.
 
@@ -368,8 +331,6 @@ for await (const e of sl.index.runes.activity.walk({ rune: "840000:3" })) {
 `search` prefix-matches the name and `sort` is etch order or busiest-first (`mints`). `balances` needs exactly one of `address` or `outpoint`, enforced by the types; `rune` narrows either. Activity filters: `rune`, `address`, `kind`, `txid`; its cursor is `<block_height>:<event_index>`. Amounts (`premine`, `supply`, `burned`, `mints`) are u128 decimal strings, never `Number()` them. `supply` is `premine + mints × terms.amount`. Txids come back without `0x`.
 
 A Bitcoin block needs 6 confirmations to count as final: `tip.finalized_height` is `tip.block_height - 6`. The catalog and balances read reorg-corrected snapshots, so their `reorgs` is always empty. Only `activity` is an append-only log, so only its `reorgs` can name replaced heights, at block level. The raw per-transaction events are on [Streams](/docs/streams#bitcoin-events-runes) with `chain=bitcoin`.
-
-</details>
 
 export const agent = `
 - Events: 'GET /v1/index/events' (event_type such as ft_transfer, stx_transfer, print) and 'GET /v1/index/contract-calls'; filter by contract, principal or block range; cursor-paginate.

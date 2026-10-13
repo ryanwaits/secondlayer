@@ -151,7 +151,7 @@ export type DocsHeading = {
 	href: string;
 	anchor: string;
 	title: string;
-	level: 2 | 3;
+	level: 2 | 3 | 4;
 };
 
 /** Pages generated from the spec: hundreds of repeated headings, searched by endpoint instead. */
@@ -173,15 +173,13 @@ function plainHeading(text: string): string {
 }
 
 /**
- * `##`/`###` headings and `<details id>` rows of one page's MDX, with the
- * anchors the rendered page carries: rehype-slug's for headings (a fresh
- * slugger per page repeats its `-1` suffixes), the authored id for rows.
+ * `##`–`####` headings of one page's MDX, with the anchors rehype-slug gives
+ * the rendered page (a fresh slugger per page repeats its `-1` suffixes).
  */
 export function headingsFromMdx(href: string, source: string): DocsHeading[] {
 	const slugger = new GithubSlugger();
 	const out: DocsHeading[] = [];
 	let fence: string | null = null;
-	let rowId: string | null = null;
 	for (const line of source.split("\n")) {
 		const mark = /^\s*(```+|~~~+)/.exec(line)?.[1];
 		if (mark) {
@@ -190,20 +188,7 @@ export function headingsFromMdx(href: string, source: string): DocsHeading[] {
 			continue;
 		}
 		if (fence) continue;
-		const open = /^<details\b[^>]*\bid="([^"]+)"/.exec(line);
-		if (open) {
-			rowId = open[1];
-			continue;
-		}
-		const summary = /^<summary>(.*)<\/summary>\s*$/.exec(line);
-		if (summary && rowId) {
-			const title = plainHeading(summary[1]);
-			if (!NOT_SEARCHABLE.has(title.toLowerCase()))
-				out.push({ href, anchor: rowId, title, level: 3 });
-			rowId = null;
-			continue;
-		}
-		const heading = /^(#{2,3})\s+(.+?)\s*#*\s*$/.exec(line);
+		const heading = /^(#{2,4})\s+(.+?)\s*#*\s*$/.exec(line);
 		if (!heading) continue;
 		const title = plainHeading(heading[2]);
 		// Slug every heading so duplicate suffixes line up, then drop the ones
@@ -214,7 +199,7 @@ export function headingsFromMdx(href: string, source: string): DocsHeading[] {
 			href,
 			anchor,
 			title,
-			level: heading[1].length as 2 | 3,
+			level: heading[1].length as DocsHeading["level"],
 		});
 	}
 	return out;
@@ -295,7 +280,7 @@ export async function docsSearchDocs(): Promise<DocsSearchDoc[]> {
 				let seen = 0;
 				const start = md.findIndex(
 					(l) =>
-						/^#{2,3}\s/.test(l) &&
+						/^#{2,4}\s/.test(l) &&
 						plainHeading(l.replace(/^#+\s*/, "")) === item.label &&
 						seen++ === skip,
 				);
@@ -303,7 +288,7 @@ export async function docsSearchDocs(): Promise<DocsSearchDoc[]> {
 					const rest: string[] = [];
 					for (
 						let i = start + 1;
-						i < md.length && !/^#{1,3}\s/.test(md[i]);
+						i < md.length && !/^#{1,4}\s/.test(md[i]);
 						i++
 					)
 						rest.push(md[i]);

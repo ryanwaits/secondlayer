@@ -18,8 +18,7 @@ const sl = new SecondLayer(); // reads SECONDLAYER_API_URL; the key follows the 
 
 The key follows the host: on `api.secondlayer.tools` the client reads `SECONDLAYER_API_KEY`; anywhere else, `INSTANCE_TOKEN` ([Self-host](/docs/self-host#use-these-docs-on-your-box)). `accountKey` is for archive operations only. See [Keys and billing](/docs/authentication).
 
-<details id="one-client-every-surface">
-<summary>One client, every surface</summary>
+### One client, every surface
 
 - `sl.streams`: raw, ordered chain events (cursor-paginated, replayable).
 - `sl.index`: decoded rows: FT/NFT transfers, all event types, contract calls, and `printSchema(contractId)`.
@@ -58,10 +57,7 @@ A failed call throws `ApiError`. `ApiError.requestId` is the `request_id` to quo
 
 </Callout>
 
-</details>
-
-<details id="checkpointed-consumer">
-<summary>Checkpointed consumer</summary>
+### Checkpointed consumer
 
 `consume` polls and commits a cursor so you never miss or double-process. Return the committed cursor from `onBatch`. Available on `sl.streams.events`, `sl.index.events` (takes `eventType`), and `sl.index.contractCalls`.
 
@@ -83,10 +79,7 @@ await sl.index.contractCalls.consume({
 
 Reorgs rewind the cursor to the fork point and fire `onReorg`. Fold running balances in a sink's `onRollback`, not there: [Sinks](/docs/sinks#rollback-is-height-stamped). `finalizedOnly` holds delivery to rows at or below `tip.finalized_height`, and `fromHeight: 0` backfills as far as your instance holds ([archive restore](/docs/authentication#archive-credits) is metered past that). Full options and the batch envelope: [Index](/docs/index#build-your-index-on-it).
 
-</details>
-
-<details id="verifying-responses">
-<summary>Verifying responses</summary>
+### Verifying responses
 
 `createStreamsClient({ apiKey })` verifies both REST reads (`X-Signature`) and SSE frames. The key is fetched once from `/public/streams/signing-key`; a rotated `X-Signature-KeyId` triggers a single refresh. Blocks, transactions, and subgraph rows: [Verify](/docs/verification).
 
@@ -103,10 +96,7 @@ Reorgs rewind the cursor to the fork point and fire `onReorg`. Fold running bala
 
 </Callout>
 
-</details>
-
-<details id="filters">
-<summary>Filters</summary>
+### Filters
 
 Describe a chain event once and get the exact shape Index, Streams, Webhooks, and Subgraphs each expect.
 
@@ -132,8 +122,7 @@ The surfaces disagree, and a spread hides it. Each projection converts explicitl
 | Amounts are strings: a `bigint` in a `JSON.stringify` body throws at runtime, so `toChainTrigger()` turns `100_000n` into `"100000"` | Webhooks |
 | `trait` scoping exists | Index, Subgraphs, not Streams |
 
-<details id="unsupported-members-dont-exist">
-<summary>Unsupported members don't exist</summary>
+#### Unsupported members don't exist
 
 A filter type a surface doesn't support lacks that method, so the error names the problem. Field gating comes second: `trait` is absent from `toStreamsParams()`, and wildcards are Webhooks and Subgraphs only.
 
@@ -142,10 +131,7 @@ on.sbtcDeposit({}).toChainTrigger();   // ok: trigger-only event
 on.sbtcDeposit({}).toIndexParams();    // error: Property 'toIndexParams' does not exist
 ```
 
-</details>
-
-<details id="principals-are-validated">
-<summary>Principals are validated</summary>
+#### Principals are validated
 
 A contract id where an asset identifier belongs is the most common copy-paste mistake, and it used to return zero rows. The factory now throws at construction, naming the field. The fields are still typed `string`, so it fails when the filter is built, not as a red squiggle.
 
@@ -154,10 +140,7 @@ on.ftTransfer({ assetIdentifier: "SP…token" });        // throws: that's a con
 on.ftTransfer({ assetIdentifier: "SP…token::token" }); // ok
 ```
 
-</details>
-
-<details id="subgraph-sources">
-<summary>Subgraph sources</summary>
+#### Subgraph sources
 
 `toSubgraphSource()` and `fromSubgraphSource()` round-trip without losing the `abi` literal that keeps `event.input` typed in a handler.
 
@@ -167,10 +150,6 @@ import { fromSubgraphSource } from "@secondlayer/stacks/filters";
 const source = fromSubgraphSource(subgraph.sources.swaps);
 await sl.index.events.list(source.toIndexParams({ limit: 10 }));
 ```
-
-</details>
-
-</details>
 
 export const agent = `
 - Client: new SecondLayer() reads SECONDLAYER_API_URL. Subgraph rows: sl.subgraphs.rows(name, table, opts) returns { rows, next_cursor, tip }; typed table client: sl.subgraphs.typed(def).

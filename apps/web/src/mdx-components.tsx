@@ -91,6 +91,15 @@ function MdxH3({ id, children }: { id?: string; children?: ReactNode }) {
 	);
 }
 
+/** A subsection's own subsection, same permalink. */
+function MdxH4({ id, children }: { id?: string; children?: ReactNode }) {
+	return (
+		<h4 id={id}>
+			<HeadingAnchor id={id}>{children}</HeadingAnchor>
+		</h4>
+	);
+}
+
 export function useMDXComponents(components: MDXComponents): MDXComponents {
 	return {
 		pre: MdxPre,
@@ -99,6 +108,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 		h1: MdxH1,
 		h2: MdxH2,
 		h3: MdxH3,
+		h4: MdxH4,
 		Callout,
 		Banner,
 		...components,

@@ -12,8 +12,7 @@ Read-only. Digests stay on your machine. Default target is `raw`.
 
 The archive is a best-effort public utility, not a hosted service. Verification is free and always will be.
 
-<details id="which-command">
-<summary>Which command</summary>
+### Which command
 
 | Job | Command |
 | --- | --- |
@@ -34,10 +33,7 @@ The archive is a best-effort public utility, not a hosted service. Verification 
 
 `secondlayer verify`, `repair` and `bootstrap` are the same commands as `secondlayer archive verify`, `archive repair` and `archive bootstrap`. Pick either form; the examples here use the short one.
 
-</details>
-
-<details id="targets">
-<summary>Targets</summary>
+### Targets
 
 | Target | Checks |
 | --- | --- |
@@ -48,10 +44,7 @@ The archive is a best-effort public utility, not a hosted service. Verification 
 
 No matching dataset in the manifest is exit `2`.
 
-</details>
-
-<details id="reading-the-output">
-<summary>Reading the output</summary>
+### Reading the output
 
 Clean output exits `0`. Divergence names the ranges:
 
@@ -67,10 +60,7 @@ These ranges hold different data than the signed archive.
 
 Equal row counts with differing data means the same heights hold different blocks: a fork point left on the losing branch.
 
-</details>
-
-<details id="exit-codes">
-<summary>Exit codes</summary>
+### Exit codes
 
 | Code | Meaning |
 | --- | --- |
@@ -80,10 +70,7 @@ Equal row counts with differing data means the same heights hold different block
 
 `2` is never success. Not being able to check differs from being fine.
 
-</details>
-
-<details id="flags">
-<summary>Flags</summary>
+### Flags
 
 | Flag | Effect |
 | --- | --- |
@@ -98,10 +85,7 @@ Equal row counts with differing data means the same heights hold different block
 | `--insecure` | Compare without verifying the signature. Result is unverified. |
 | `--json` | Machine-readable report on stdout. |
 
-</details>
-
-<details id="from-your-instances-api">
-<summary>From your instance's API</summary>
+### From your instance's API
 
 `POST /v1/archive/verify` runs the same raw-identity check on the instance itself, read-only, with the archive URL in the body. It answers `clean`, `diverged` or `unanchored`, and a failed signature is a `200 unanchored`, never `clean`. Body fields and responses: [API reference](/docs/api/instance#verify-archive).
 
@@ -115,10 +99,7 @@ const result = await sl.archive.verify({
 
 The tradeoff against the CLI: identity digests only. `--deep` is CLI-only.
 
-</details>
-
-<details id="repair-what-diverges">
-<summary>Repair what diverges</summary>
+### Repair what diverges
 
 ```bash
 secondlayer repair --against <archive>            # plan
@@ -143,10 +124,7 @@ Local heights absent from the archive are reported, never deleted, because trans
 
 Decoded rows are not rebuilt. Re-run your decoders for repaired ranges.
 
-</details>
-
-<details id="restore-a-fresh-instance">
-<summary>Restore a fresh instance</summary>
+### Restore a fresh instance
 
 ```bash
 secondlayer bootstrap --against <archive>
@@ -166,17 +144,11 @@ Refuses a database that already holds blocks; use `secondlayer repair` for an ex
 
 `--from-block <n>` restores forward-only: whole partitions starting at or after `n`, with everything below declared out of scope rather than missing, so `verify` doesn't read it as divergence. The tradeoff: the disk floor at boot is still the full-history one.
 
-</details>
-
-<details id="credits">
-<summary>Credits</summary>
+### Credits
 
 Bootstrap, backfill, and reindex fetch from the archive metered per partition bundle, quoted against your balance before anything is charged; verification is free. `secondlayer archive quote --against <archive>` prices a fetch without charging; `--from-block`/`--to-block` narrow it, `--flow repair` prices a repair, and it exits `2` when your balance falls short. Buy with `secondlayer credits buy`; packs, balance, and how the quote/confirm flow works: [archive credits](/docs/authentication#archive-credits).
 
-</details>
-
-<details id="what-the-archive-is">
-<summary>What the archive is</summary>
+### What the archive is
 
 Immutable, digest-addressed Parquet partitions on R2, published from a repeatable-read snapshot of a production Stacks index. Three datasets (blocks, transactions, events), partitioned by height.
 
@@ -192,14 +164,9 @@ Immutable, digest-addressed Parquet partitions on R2, published from a repeatabl
 
 Publishing is append-only. Each partition carries a SHA-256 over its bytes and a semantic-v1 digest over its canonical encoding. The manifest is ed25519-signed.
 
-</details>
-
-<details id="assurance-levels">
-<summary>Assurance levels</summary>
+### Assurance levels
 
 The manifest states an assurance level per range: `db-reconstructive`, `node-attested`, or `observer-attested`. What each means: [Verify](/docs/verification#archive-assurance-levels).
-
-</details>
 
 [CLI](/docs/cli) for the full command set; [Verify](/docs/verification) for everything else you can check, from a transaction to a block.
 

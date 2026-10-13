@@ -10,8 +10,7 @@ bun add -g @secondlayer/cli
 
 The binary is `secondlayer`. `sl` is a short alias.
 
-<details id="command-map">
-<summary>Command map</summary>
+### Command map
 
 Every top-level `secondlayer` command, with the page that owns it.
 
@@ -49,10 +48,7 @@ Every top-level `secondlayer` command, with the page that owns it.
 
 </Callout>
 
-</details>
-
-<details id="local-runtime">
-<summary>Local runtime</summary>
+### Local runtime
 
 Write keys, restore history, print the observer stanza.
 
@@ -92,8 +88,6 @@ secondlayer observer --mode indexer
 A block the node fails to deliver stays a gap. `secondlayer repair` fetches it from the archive with [archive credits](/docs/authentication#archive-credits). The full stanza: [Connect your node](/docs/self-host#connect-your-node).
 
 </Callout>
-
-</details>
 
 ## Scaffold from a contract
 
@@ -172,26 +166,19 @@ Start the devnet; it auto-deploys your contracts and streams every block to the 
 clarinet devnet start
 ```
 
-<details id="prerequisites">
-<summary>Prerequisites</summary>
+#### Prerequisites
 
 - [Clarinet](https://github.com/hirosystems/clarinet) and a Clarinet project (a directory with `Clarinet.toml`).
 - Docker (Docker Desktop or [OrbStack](https://orbstack.dev) on macOS).
 - The CLI: `bun add -g @secondlayer/cli`.
 
-</details>
-
-<details id="what-connect-does">
-<summary>What connect does</summary>
+#### What connect does
 
 - Patches `settings/Devnet.toml` so the devnet node forwards events to the local indexer (`stacks_node_events_observers = ["host.docker.internal:3700"]`).
 - Writes `.secondlayer/docker-compose.yml` for the published OSS images.
 - Brings the stack up with `docker compose up -d`.
 
-</details>
-
-<details id="options">
-<summary>Options</summary>
+#### Options
 
 | Flag | Default | Purpose |
 | --- | --- | --- |
@@ -204,10 +191,7 @@ clarinet devnet start
 Pass `--no-up` to write `settings/Devnet.toml` and the compose file without starting containers, then bring it up yourself with `docker compose -f .secondlayer/docker-compose.yml up -d`.
 </Callout>
 
-</details>
-
-<details id="deploy-a-subgraph-against-it">
-<summary>Deploy a subgraph against it</summary>
+#### Deploy a subgraph against it
 
 Point the CLI at the local API. There is no login: a deploy is a write, and the generated stack ships a fixed local token, `dev-instance-token`, for exactly that:
 
@@ -227,10 +211,7 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/my-app/balances"
 
 See [Instance token](/docs/self-host#instance-token).
 
-</details>
-
-<details id="watch-it-work">
-<summary>Watch it work</summary>
+#### Watch it work
 
 ```bash
 secondlayer devnet status
@@ -256,17 +237,12 @@ Tail logs for the whole stack or one service (`indexer`, `api`, `subgraph-proces
 secondlayer devnet logs indexer -f
 ```
 
-</details>
-
-<details id="tear-down">
-<summary>Tear down</summary>
+#### Tear down
 
 ```bash
 secondlayer devnet down            # stop the stack
 secondlayer devnet down --purge    # stop and wipe the local index volumes
 ```
-
-</details>
 
 ## Frozen features
 

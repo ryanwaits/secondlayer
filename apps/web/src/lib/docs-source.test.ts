@@ -102,19 +102,11 @@ describe("headingsFromMdx", () => {
 		]);
 	});
 
-	test("details rows use their authored id", () => {
-		const source = [
-			'<details id="cost-and-history">',
-			"<summary>Cost and history</summary>",
-			"</details>",
-		].join("\n");
+	test("fourth-level headings are sections too", () => {
+		const source = ["### Contract", "#### Prove it"].join("\n");
 		expect(headingsFromMdx("/docs/x", source)).toEqual([
-			{
-				href: "/docs/x",
-				anchor: "cost-and-history",
-				title: "Cost and history",
-				level: 3,
-			},
+			{ href: "/docs/x", anchor: "contract", title: "Contract", level: 3 },
+			{ href: "/docs/x", anchor: "prove-it", title: "Prove it", level: 4 },
 		]);
 	});
 });

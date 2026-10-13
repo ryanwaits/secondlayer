@@ -370,7 +370,7 @@ html:has(.docs-search input:focus) {
 	height: calc(100vh - 56px);
 	overflow-y: auto;
 	border-right: 1px solid var(--line);
-	/* 43px puts the first group label's baseline on the breadcrumb's (the
+	/* 43px puts the first group label's baseline on the page pills' row (the
 	   article's 36px top padding plus its pill row); the drawer resets it. */
 	padding: 43px 14px 40px 20px;
 	font-size: 14px;
@@ -402,21 +402,11 @@ button.docs-nav-item {
 }
 .docs-nav-item:hover {
 	color: var(--ink);
-	background: var(--soft);
 }
+/* The open page is marked by weight alone; its outline sits under it. */
 .docs-nav-item.active {
 	color: var(--ink);
-	background: color-mix(in srgb, var(--pri) 7%, transparent);
-}
-.docs-nav-item.active::before {
-	content: "";
-	position: absolute;
-	left: -12px;
-	top: 6px;
-	bottom: 6px;
-	width: 2px;
-	background: var(--pri);
-	border-radius: 2px;
+	font-weight: 500;
 }
 .docs-nav-item.docs-nav-child {
 	padding-left: 20px;
@@ -429,7 +419,9 @@ button.docs-nav-item {
 	border-left: 1px solid var(--line);
 }
 .docs-nav-outline a {
+	margin-left: -1px;
 	padding: 3px 10px;
+	border-left: 1px solid transparent;
 	font-size: 13px;
 	color: var(--sub);
 }
@@ -438,7 +430,7 @@ button.docs-nav-item {
 }
 .docs-nav-outline a.active {
 	color: var(--ink);
-	box-shadow: inset 1px 0 0 var(--ink);
+	border-left-color: var(--ink);
 }
 .docs-nav :focus-visible {
 	outline: 2px solid var(--pri);
@@ -468,25 +460,12 @@ button.docs-nav-item {
 .docs-topline {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: flex-end;
 	gap: 16px;
 	max-width: 720px;
 	margin-inline: auto;
 }
-.docs-crumb {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	font: 12px var(--font-mono-stack);
-	color: var(--sub);
-}
-.docs-crumb a:hover {
-	color: var(--ink);
-}
-.docs-crumb [aria-current] {
-	color: var(--ink);
-}
-/* Copy for agent, .md and Full view: ghost pills right of the breadcrumb */
+/* Copy for agent and .md: ghost pills above the article, right-aligned */
 .docs-pact {
 	display: flex;
 	flex: none;
@@ -579,6 +558,13 @@ button.docs-nav-item {
 	color: var(--ink);
 	scroll-margin-top: 80px;
 }
+.docs-article h4 {
+	margin: 24px 0 0;
+	font-size: 15px;
+	font-weight: 500;
+	color: var(--ink);
+	scroll-margin-top: 80px;
+}
 .docs-article .heading-anchor {
 	color: inherit;
 	text-decoration: none;
@@ -592,7 +578,8 @@ button.docs-nav-item {
 }
 @media (hover: hover) {
 	.docs-article h2:hover .heading-anchor::after,
-	.docs-article h3:hover .heading-anchor::after {
+	.docs-article h3:hover .heading-anchor::after,
+	.docs-article h4:hover .heading-anchor::after {
 		opacity: 1;
 	}
 }
@@ -629,20 +616,9 @@ button.docs-nav-item {
 	outline: none;
 }
 /**
- * "Go deeper" rows: native <details> in MDX, consecutive rows read as one list.
- * Summary is a plain short title; blank lines around the body keep markdown working.
- *
- *   <details>
- *   <summary>Options</summary>
- *
- *   | Option | Effect |
- *   | --- | --- |
- *   | `contractId` | One id, or up to 20 on one cursor. |
- *
- *   </details>
- *
- * Scoped to #docs-article so the API reference
- * disclosures keep their own styles.
+ * Docs sections are headings. The one native <details> left in docs MDX is
+ * the changelog's "Older releases" fold. Scoped to #docs-article so the API
+ * reference disclosures keep their own styles.
  */
 #docs-article details:not(.apiref-enum) {
 	border-bottom: 1px solid var(--line);
