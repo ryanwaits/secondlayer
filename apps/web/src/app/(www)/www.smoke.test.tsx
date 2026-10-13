@@ -33,9 +33,7 @@ describe("www marketing routes", () => {
 		for (const p of PRODUCTS) expect(html).toContain(`href="${p.href}"`);
 		expect(html).toContain('href="/verify"');
 		expect(html).toContain('href="/docs/self-host"');
-		expect(html).toContain(
-			'href="/docs/self-host/production#connect-your-node"',
-		);
+		expect(html).toContain('href="/docs/self-host#connect-your-node"');
 		expect(html).toContain("for apps on Bitcoin.");
 		expect(html).toContain("Your box or ours.");
 		expect(html).toContain("beside your node");

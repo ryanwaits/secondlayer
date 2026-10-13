@@ -16,8 +16,8 @@ Where Secondlayer can prove an answer, it serves the proof: a hash, a merkle pat
 | A block's state writes | `/v1/proofs/writes/:height`, checked by `verify block` against the state root | The checkpoint; a block with no named writes is proven but unnamed |
 | An archive bundle | `secondlayer bootstrap` and `repair` hash each partition against the signed digest before reading it. [Archive](/docs/archive#repair-what-diverges) | The archive signing key |
 | Your instance's history | `secondlayer verify raw --against <latest.json>`. [Archive](/docs/archive#check-your-data) | The archive signing key, and the range's [assurance level](#archive-assurance-levels) |
-| Subgraph rows | `secondlayer verify subgraph <name> --replay`. [Check rows](/docs/subgraphs/handlers#check-rows) | The checkpoint; only `state` subgraphs can be replayed |
-| A webhook delivery | `verifyWebhookSignature` and the ed25519 signature. [Receiving deliveries](/docs/webhooks/deliveries#verify-the-signature) | The signing secret or key: proves who sent it, not that the chain agrees |
+| Subgraph rows | `secondlayer verify subgraph <name> --replay`. [Check rows](/docs/subgraphs#check-rows) | The checkpoint; only `state` subgraphs can be replayed |
+| A webhook delivery | `verifyWebhookSignature` and the ed25519 signature. [Receiving deliveries](/docs/webhooks#verify-the-signature) | The signing secret or key: proves who sent it, not that the chain agrees |
 | A Streams frame | The SDK checks every frame's ed25519 signature. [SDK](/docs/sdk#verifying-responses) | The signing key, unless you pin it |
 
 ### Archive assurance levels
@@ -194,7 +194,7 @@ The transaction verifier uses Node's crypto (via `@secondlayer/shared`), so it i
 <details id="proofs-api">
 <summary>Proofs API</summary>
 
-The raw material `verify block` reads. Free, never metered, no key needed. On the hosted API each IP gets 10 requests per second, and 1 per second for witnesses; send an account key for 20 and 2. Answers addressed by a hash never change: they carry an ETag and `Cache-Control: immutable`. On your own box the witness, burn and Bitcoin-header routes need a proof sidecar: [Self-host](/docs/self-host/production#what-differs-on-your-box).
+The raw material `verify block` reads. Free, never metered, no key needed. On the hosted API each IP gets 10 requests per second, and 1 per second for witnesses; send an account key for 20 and 2. Answers addressed by a hash never change: they carry an ETag and `Cache-Control: immutable`. On your own box the witness, burn and Bitcoin-header routes need a proof sidecar: [Self-host](/docs/self-host#what-differs-on-your-box).
 
 | Route | Returns |
 | --- | --- |
@@ -218,7 +218,7 @@ The transaction proof above is [`/v1/index/transactions/{tx_id}/proof`](/docs/ap
 | --- | --- |
 | Print events and transaction results | Stacks headers don't commit to them, so no block check covers them. |
 | Which transaction made a write | The tx root binds each transaction's bytes, not which one wrote a leaf or whether it succeeded. |
-| `events` and `none` subgraphs | Only `state` subgraphs can be replayed. [Rows anyone can recompute](/docs/subgraphs/handlers#rows-anyone-can-recompute). |
+| `events` and `none` subgraphs | Only `state` subgraphs can be replayed. [Rows anyone can recompute](/docs/subgraphs#rows-anyone-can-recompute). |
 | The checkpoint | Trusted as-is. Pass your own to change that. |
 | Bitcoin reorgs | Headers are checked for valid work, not against a competing chain, and reorgs past the synced tip are not followed. |
 | `__MARF_*` keys from a node alone | A node serves no proof for them, so with `NodeRpcProofSource` alone, blocks more than 16 below a trusted block fail `ancestry` as `unavailable`. |

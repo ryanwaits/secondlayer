@@ -233,10 +233,73 @@ const nextConfig: NextConfig = {
 				destination: "/docs#get-started",
 				permanent: true,
 			},
-			// Upgrade lives on the Run in production page.
+			// Upgrade lives on the Self-host page.
 			{
 				source: "/docs/self-host/upgrade",
-				destination: "/docs/self-host/production#upgrade",
+				destination: "/docs/self-host#upgrade",
+				permanent: true,
+			},
+			// Child pages folded into their parents. Hashless on purpose: a browser
+			// keeps a shipped link's #fragment across the redirect, and each
+			// section kept its original id on the parent.
+			{
+				source: "/docs/self-host/production",
+				destination: "/docs/self-host",
+				permanent: true,
+			},
+			{
+				source: "/docs/self-host/production.md",
+				destination: "/docs/self-host.md",
+				permanent: true,
+			},
+			{
+				source: "/docs/self-host/hardware",
+				destination: "/docs/self-host",
+				permanent: true,
+			},
+			{
+				source: "/docs/self-host/hardware.md",
+				destination: "/docs/self-host.md",
+				permanent: true,
+			},
+			{
+				source: "/docs/subgraphs/handlers",
+				destination: "/docs/subgraphs",
+				permanent: true,
+			},
+			{
+				source: "/docs/subgraphs/handlers.md",
+				destination: "/docs/subgraphs.md",
+				permanent: true,
+			},
+			{
+				source: "/docs/subgraphs/reading",
+				destination: "/docs/subgraphs",
+				permanent: true,
+			},
+			{
+				source: "/docs/subgraphs/reading.md",
+				destination: "/docs/subgraphs.md",
+				permanent: true,
+			},
+			{
+				source: "/docs/webhooks/deliveries",
+				destination: "/docs/webhooks",
+				permanent: true,
+			},
+			{
+				source: "/docs/webhooks/deliveries.md",
+				destination: "/docs/webhooks.md",
+				permanent: true,
+			},
+			{
+				source: "/docs/devnet",
+				destination: "/docs/cli",
+				permanent: true,
+			},
+			{
+				source: "/docs/devnet.md",
+				destination: "/docs/cli.md",
 				permanent: true,
 			},
 			// The changelog archive folded into the changelog's Older releases.
@@ -273,7 +336,7 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/docs/webhooks/event-shapes",
-				destination: "/docs/webhooks/deliveries#event-shapes",
+				destination: "/docs/webhooks#event-shapes",
 				permanent: true,
 			},
 			{

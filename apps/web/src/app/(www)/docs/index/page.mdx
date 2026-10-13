@@ -2,7 +2,7 @@
 
 Decoded rows you sweep into your own tables. You write the loop; the decoding, the backfill, and the reorg rewind are done.
 
-1M rows free a month hosted, [no meter on your own box](/docs/self-host/production#instance-token).
+1M rows free a month hosted, [no meter on your own box](/docs/self-host#instance-token).
 
 ## Build your index on it
 
@@ -117,7 +117,7 @@ To prove a block or transaction rather than compare hashes: [Verify](/docs/verif
 <details id="cost-and-history">
 <summary>Cost and history</summary>
 
-Reads on your own box hit your own Postgres: no meter, no rate limit. Hosted `api.secondlayer.tools` bills `rows.delivered` (1M free per account per month; rates and free block headers in [Keys and billing](/docs/authentication)). `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)). Hosted is keyed; on your own box see [Self-host](/docs/self-host/production#instance-token).
+Reads on your own box hit your own Postgres: no meter, no rate limit. Hosted `api.secondlayer.tools` bills `rows.delivered` (1M free per account per month; rates and free block headers in [Keys and billing](/docs/authentication)). `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)). Hosted is keyed; on your own box see [Self-host](/docs/self-host#instance-token).
 
 </details>
 
@@ -199,7 +199,7 @@ The response shape is in the [API reference](/docs/api-reference#get-print-schem
 - Payloads with no `topic` string, or that aren't tuples, land under the `"*"` pseudo-topic with `non_tuple` set.
 - Cached five minutes (`max-age=300` + weak `ETag`).
 
-Backs `secondlayer subgraphs create <name> --from-contract <contract_id>`; see [Subgraphs](/docs/subgraphs/handlers#typed-print-payloads).
+Backs `secondlayer subgraphs create <name> --from-contract <contract_id>`; see [Subgraphs](/docs/subgraphs#typed-print-payloads).
 
 </details>
 

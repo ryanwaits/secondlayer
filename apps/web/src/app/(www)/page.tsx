@@ -466,7 +466,7 @@ export function HomeView() {
 					</div>
 					<p className="fork-line">
 						Already run a Stacks node?{" "}
-						<Link href="/docs/self-host/production#connect-your-node">
+						<Link href="/docs/self-host#connect-your-node">
 							Point its event observer at secondlayer
 						</Link>
 					</p>
