@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Summary ratchet for the generated SDK reference. Every public method needs a
- * first-sentence JSDoc summary. `PENDING_DOCS` lists the methods that still
- * lack one; it may only shrink. Document a method, then delete its line.
+ * Lint for the generated SDK reference. Every public method needs a JSDoc
+ * summary, and the summary is the at-a-glance "use it to" line, so it stays
+ * one short sentence in plain prose.
  *
  * Reads the generated JSON from disk (never imports `scripts/`, which would
  * break this package's `rootDir`). Regenerate with `bun run openpkg`.
@@ -15,72 +15,49 @@ const REFERENCE = join(
 	"../../../apps/web/src/generated/reference/sdk",
 );
 
-const PENDING_DOCS = new Set([
-	"sl.archive.latest",
-	"sl.archive.load",
-	"sl.archive.status",
-	"sl.archive.partitions",
-	"sl.archive.quote",
-	"sl.archive.fetch",
-	"sl.archive.download",
-	"sl.archive.credits.balance",
-	"sl.archive.credits.checkout",
-	"sl.archive.credits.refill",
-	"sl.archive.verify",
-	"sl.instance.status",
-	"sl.instance.diagnose",
-]);
+const MAX_SUMMARY_WORDS = 12;
 
 type Method = { path: string; summary: string };
 
-function readReferenceText(): string {
+function readSurface(slug: string): string {
+	return readFileSync(join(REFERENCE, `${slug}.json`), "utf8");
+}
+
+function readSlugs(): string[] {
 	const index = JSON.parse(
 		readFileSync(join(REFERENCE, "index.json"), "utf8"),
 	) as { surfaces: { slug: string }[] };
-	return index.surfaces
-		.map((s) => readFileSync(join(REFERENCE, `${s.slug}.json`), "utf8"))
-		.join("\n");
+	return index.surfaces.map((s) => s.slug);
 }
 
 function readMethods(): Method[] {
-	const index = JSON.parse(
-		readFileSync(join(REFERENCE, "index.json"), "utf8"),
-	) as {
-		surfaces: { slug: string }[];
-	};
-	return index.surfaces.flatMap(
-		(s) =>
-			(
-				JSON.parse(readFileSync(join(REFERENCE, `${s.slug}.json`), "utf8")) as {
-					methods: Method[];
-				}
-			).methods,
+	return readSlugs().flatMap(
+		(slug) => (JSON.parse(readSurface(slug)) as { methods: Method[] }).methods,
 	);
 }
 
-describe("SDK reference documentation ratchet", () => {
+describe("SDK reference documentation lint", () => {
 	const methods = readMethods();
 
-	test("every public method without a summary is listed in PENDING_DOCS", () => {
-		const missing = methods
-			.filter((m) => !m.summary && !PENDING_DOCS.has(m.path))
-			.map((m) => m.path);
-		expect(missing).toEqual([]);
+	test("every public method has a summary", () => {
+		expect(methods.filter((m) => !m.summary).map((m) => m.path)).toEqual([]);
 	});
 
-	test("a method that gained a summary is removed from PENDING_DOCS", () => {
-		const stale = methods
-			.filter((m) => m.summary && PENDING_DOCS.has(m.path))
+	test(`a summary is at most ${MAX_SUMMARY_WORDS} words`, () => {
+		const long = methods
+			.filter((m) => m.summary.split(/\s+/).length > MAX_SUMMARY_WORDS)
 			.map((m) => m.path);
-		expect(stale).toEqual([]);
+		expect(long).toEqual([]);
 	});
 
-	test("PENDING_DOCS names only methods that exist", () => {
-		const paths = new Set(methods.map((m) => m.path));
-		expect([...PENDING_DOCS].filter((p) => !paths.has(p))).toEqual([]);
+	test("a summary has no em dash", () => {
+		expect(
+			methods.filter((m) => /[—–]/.test(m.summary)).map((m) => m.path),
+		).toEqual([]);
 	});
 
 	test("public documentation never cites an internal plan number", () => {
-		expect(readReferenceText().match(/\bplan \d+/gi) ?? []).toEqual([]);
+		const text = readSlugs().map(readSurface).join("\n");
+		expect(text.match(/\bplan \d+/gi) ?? []).toEqual([]);
 	});
 });

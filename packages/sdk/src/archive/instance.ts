@@ -8,7 +8,17 @@ import {
 export type InstanceStatus = PublicStatus;
 
 export type InstanceClient = {
+	/**
+	 * Get the instance's public status report.
+	 *
+	 * Reads `GET /public/status`: the overall status, chain tip, chain integrity, and the state of each service and decoder.
+	 */
 	status(): Promise<InstanceStatus>;
+	/**
+	 * Turn the status report into a verdict with next steps.
+	 *
+	 * Resolves to a `state` (`healthy`, `empty-index`, or `degraded`), the API's own `overall` status, and a list of issues, each with the commands that resolve it. A fresh instance with no blocks indexed reads as `empty-index`, not broken.
+	 */
 	diagnose(): Promise<InstanceDiagnosis>;
 };
 

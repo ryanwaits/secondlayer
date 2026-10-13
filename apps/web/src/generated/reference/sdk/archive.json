@@ -5,11 +5,11 @@
 		{
 			"id": "latest",
 			"path": "sl.archive.latest",
-			"summary": "",
-			"description": "",
+			"summary": "Load the latest signed archive manifest.",
+			"description": "Load the latest signed archive manifest.\n\nReads `<archive>/latest.json` unless `against` names another manifest URL. The manifest's ed25519 signature is checked against the archive signing key, and a missing or invalid one throws `ArchiveSignatureError`. `insecure: true` skips the check; `signature.verified` on the result says whether it held.",
 			"source": {
 				"file": "packages/sdk/src/archive/types.ts",
-				"line": 110
+				"line": 160
 			},
 			"overloads": [
 				{
@@ -40,11 +40,11 @@
 		{
 			"id": "load",
 			"path": "sl.archive.load",
-			"summary": "",
-			"description": "",
+			"summary": "Load an archive manifest from a URL.",
+			"description": "Load an archive manifest from a URL.\n\nTakes http(s) URLs only; a local path throws a `ValidationError` and stays on the CLI. The signature check is the same as `latest`.",
 			"source": {
 				"file": "packages/sdk/src/archive/types.ts",
-				"line": 110
+				"line": 160
 			},
 			"overloads": [
 				{
@@ -75,11 +75,11 @@
 		{
 			"id": "status",
 			"path": "sl.archive.status",
-			"summary": "",
-			"description": "",
+			"summary": "Get the archive's current operational state.",
+			"description": "Get the archive's current operational state.\n\nReads the public `status.json`: `fresh`, `lagging`, `stale`, `gap`, `failed-audit`, or `source-unavailable`, plus how far the last signed publish reaches.",
 			"source": {
 				"file": "packages/sdk/src/archive/types.ts",
-				"line": 110
+				"line": 160
 			},
 			"overloads": [
 				{
@@ -97,11 +97,11 @@
 		{
 			"id": "partitions",
 			"path": "sl.archive.partitions",
-			"summary": "",
-			"description": "",
+			"summary": "List a loaded archive's partitions, optionally filtered.",
+			"description": "List a loaded archive's partitions, optionally filtered.\n\nRuns locally on the manifest you already loaded and makes no request. Filter by `dataset` (`blocks`, `transactions`, or `events`) and a block range.",
 			"source": {
 				"file": "packages/sdk/src/archive/types.ts",
-				"line": 110
+				"line": 160
 			},
 			"overloads": [
 				{
@@ -132,11 +132,11 @@
 		{
 			"id": "quote",
 			"path": "sl.archive.quote",
-			"summary": "",
-			"description": "",
+			"summary": "Price a fetch against your balance before you pay for it.",
+			"description": "Price a fetch against your balance before you pay for it.\n\nNothing is charged. `flow` is `bootstrap` or `repair`. The quote has the bundle count, the price in USD, the free repair allowance applied, your balance, and `sufficient`. Needs an account key (`sk-sl_*`), not an instance token.",
 			"source": {
 				"file": "packages/sdk/src/archive/types.ts",
-				"line": 110
+				"line": 160
 			},
 			"overloads": [
 				{
@@ -161,11 +161,11 @@
 		{
 			"id": "fetch",
 			"path": "sl.archive.fetch",
-			"summary": "",
-			"description": "",
+			"summary": "Get presigned download URLs for archive partitions.",
+			"description": "Get presigned download URLs for archive partitions.\n\nDraws credits per partition bundle; your first six repair bundles each month are free. Lists longer than 64 paths go out in batches of 64. Each URL is short-lived (`expiresAt`); pass it to `download`. An empty balance throws `InsufficientArchiveCreditsError` with the shortfall. Needs an account key (`sk-sl_*`).",
 			"source": {
 				"file": "packages/sdk/src/archive/types.ts",
-				"line": 110
+				"line": 160
 			},
 			"overloads": [
 				{
@@ -190,11 +190,11 @@
 		{
 			"id": "download",
 			"path": "sl.archive.download",
-			"summary": "",
-			"description": "",
+			"summary": "Download a partition's bytes and verify them.",
+			"description": "Download a partition's bytes and verify them.\n\nThe sha256 is checked against the manifest, and a mismatch throws `ArchiveSignatureError`. On the official archive host you must pass the presigned `url` from `fetch`, or it throws a `ValidationError`; any other host downloads straight from its archive tree.",
 			"source": {
 				"file": "packages/sdk/src/archive/types.ts",
-				"line": 110
+				"line": 160
 			},
 			"overloads": [
 				{
@@ -225,11 +225,11 @@
 		{
 			"id": "credits.balance",
 			"path": "sl.archive.credits.balance",
-			"summary": "",
-			"description": "",
+			"summary": "Get your archive credit balance.",
+			"description": "Get your archive credit balance.\n\nReturns `creditsUsdMicros` (millionths of a dollar, as a string) and your auto-refill setting. Needs an account key (`sk-sl_*`).",
 			"source": {
 				"file": "packages/sdk/src/archive/types.ts",
-				"line": 110
+				"line": 160
 			},
 			"overloads": [
 				{
@@ -247,11 +247,11 @@
 		{
 			"id": "credits.checkout",
 			"path": "sl.archive.credits.checkout",
-			"summary": "",
-			"description": "",
+			"summary": "Start a card checkout for a credit pack.",
+			"description": "Start a card checkout for a credit pack.\n\n`pack` is the dollar amount: 10, 25, 50, or 100. Resolves to the checkout `url`. Needs no account key.",
 			"source": {
 				"file": "packages/sdk/src/archive/types.ts",
-				"line": 110
+				"line": 160
 			},
 			"overloads": [
 				{
@@ -276,11 +276,11 @@
 		{
 			"id": "credits.refill",
 			"path": "sl.archive.credits.refill",
-			"summary": "",
-			"description": "",
+			"summary": "Set or turn off automatic credit refill.",
+			"description": "Set or turn off automatic credit refill.\n\nPass `belowUsd` and `packUsd` to buy a pack whenever the balance drops below the threshold, or `{ off: true }` to stop. Needs an account key (`sk-sl_*`).",
 			"source": {
 				"file": "packages/sdk/src/archive/types.ts",
-				"line": 110
+				"line": 160
 			},
 			"overloads": [
 				{
@@ -305,11 +305,11 @@
 		{
 			"id": "verify",
 			"path": "sl.archive.verify",
-			"summary": "",
-			"description": "",
+			"summary": "Check your instance's data against a signed archive.",
+			"description": "Check your instance's data against a signed archive.\n\nRuns `POST /v1/archive/verify` on your instance: read-only, and it compares raw identity digests only (the deep semantic check is CLI-only). Resolves to `clean`, `diverged`, or `unanchored`; a failed signature is `unanchored`, never `clean`. Narrow the check with `fromBlock` and `toBlock`. Verification is free.",
 			"source": {
 				"file": "packages/sdk/src/archive/types.ts",
-				"line": 111
+				"line": 166
 			},
 			"overloads": [
 				{

@@ -5,11 +5,11 @@
 		{
 			"id": "status",
 			"path": "sl.instance.status",
-			"summary": "",
-			"description": "",
+			"summary": "Get the instance's public status report.",
+			"description": "Get the instance's public status report.\n\nReads `GET /public/status`: the overall status, chain tip, chain integrity, and the state of each service and decoder.",
 			"source": {
 				"file": "packages/sdk/src/archive/instance.ts",
-				"line": 11
+				"line": 16
 			},
 			"overloads": [
 				{
@@ -27,11 +27,11 @@
 		{
 			"id": "diagnose",
 			"path": "sl.instance.diagnose",
-			"summary": "",
-			"description": "",
+			"summary": "Turn the status report into a verdict with next steps.",
+			"description": "Turn the status report into a verdict with next steps.\n\nResolves to a `state` (`healthy`, `empty-index`, or `degraded`), the API's own `overall` status, and a list of issues, each with the commands that resolve it. A fresh instance with no blocks indexed reads as `empty-index`, not broken.",
 			"source": {
 				"file": "packages/sdk/src/archive/instance.ts",
-				"line": 12
+				"line": 22
 			},
 			"overloads": [
 				{
