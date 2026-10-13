@@ -157,7 +157,7 @@ as the only imagery. The page whispers; the terminal demonstrates. Nothing decor
 | sub | `#5e5e5e` | `#b0aca2` | muted text |
 | line | `#e5e5e2` | `#383631` | hairlines |
 | soft | `#f5f5f2` | `#252420` | raised surface |
-| pri / on-pri | `#1f45e0` / `#ffffff` | `#3a5bff` / `#ffffff` | action: links, primary buttons, focus |
+| pri / on-pri | `#1f45e0` / `#ffffff` | `#3a5bff` / `#ffffff` | action: links, primary buttons, focus; one part of a product glyph |
 | hi / on-hi | `#ffcc00` / `#111111` | `#efc54a` / `#141414` | highlight: new, finalized, signed |
 | ok | `#128a43` | `#5cc28f` | success state |
 | alarm | `#e3301e` | `#ff5a47` | failures and reorgs only |
@@ -174,7 +174,9 @@ Dark mode is warm charcoal ("Stone"), mirroring light mode's warm off-white; it 
 the ground off black so long copy reads at 7.6:1 for `sub`.
 
 ### Named rules
-**Blue acts.** Blue never decorates data. It marks what you can click or do.
+**Blue acts.** Blue never decorates data. It marks what you can click or do. One
+exception, carried by the brand mark: a product glyph may draw one part in blue, the
+part its claim is about, the way the logo's top layer is blue (see Product glyphs).
 **Yellow marks.** Yellow never signals status. It marks new, finalized, signed.
 **Red fails.** Red appears only for failures and reorgs.
 **Neutrals carry the rest.** If it is not an action, a mark, or a failure, it is ink, sub,
@@ -275,6 +277,14 @@ geometry (`viewBox="6 9 36 24"`). The top layer is primary blue (`.logo-primary`
 `var(--pri)`); the back layer is ink at 24% (`.logo-echo`). Static exports: `app/icon.svg`
 (adapts to dark tabs), `public/logo-light.svg`, `public/logo-dark.svg`. Wordmark beside it
 is ink, 16px/500, −0.01em.
+
+### Product glyphs
+One set, `components/site/icons.tsx`, for the props rows on the product pages. Common
+shapes (lock, terminal, branch, shield), never invented ones, each used once across the
+pages. 20-unit grid with 2 of padding, rendered at 20px; 1.2 stroke, round caps and
+joins, 2-unit corners, currentColor, no fills except the play mark. At most one accent
+part per glyph: `glyph-pri` (blue) for what the claim is about, `glyph-alarm` (red) for
+a failure. Some glyphs carry none. Only the layers glyph uses the logo's slant.
 
 ### Buttons
 - **Solid** (primary): ink fill, paper text, 44px, radius-full, pad `0 22px`, 15–16px/500.

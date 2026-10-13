@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 /**
  * Product-page glyphs: common shapes in the house hand. 20-unit grid with 2 of
  * padding, 1.2 stroke, round ends, currentColor. Each shape is used once across
- * the /p pages. Neutral by default; `glyph-alarm` marks the failure part only
- * (DESIGN.md: red fails, blue never decorates).
+ * the /p pages. At most one accent part per glyph (DESIGN.md, Product glyphs):
+ * `glyph-pri` for what the claim is about, `glyph-alarm` for a failure.
  */
 function Glyph({ children }: { children: ReactNode }) {
 	return (
@@ -26,7 +26,8 @@ export function LockIcon() {
 	return (
 		<Glyph>
 			<rect x="4" y="9" width="12" height="8.5" rx="2" />
-			<path d="M7 9V6.5a3 3 0 0 1 6 0V9M10 12.25v2" />
+			<path d="M7 9V6.5a3 3 0 0 1 6 0V9" />
+			<path className="glyph-pri" d="M10 12.25v2" />
 		</Glyph>
 	);
 }
@@ -35,8 +36,8 @@ export function LockIcon() {
 export function LayersIcon() {
 	return (
 		<Glyph>
-			<path d="M3 6 11.75 2.5 17 6 8.25 9.5Z" />
-			<path d="M3 10 8.25 13.5 17 10M3 14 8.25 17.5 17 14" />
+			<path d="M3 6 11.75 2.5 17 6 8.25 9.5ZM3 14 8.25 17.5 17 14" />
+			<path className="glyph-pri" d="M3 10 8.25 13.5 17 10" />
 		</Glyph>
 	);
 }
@@ -44,7 +45,7 @@ export function LayersIcon() {
 export function DownloadIcon() {
 	return (
 		<Glyph>
-			<path d="M10 3v9M6.5 8.5 10 12l3.5-3.5" />
+			<path className="glyph-pri" d="M10 3v9M6.5 8.5 10 12l3.5-3.5" />
 			<path d="M3.5 13v2a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-2" />
 		</Glyph>
 	);
@@ -54,7 +55,11 @@ export function PlayIcon() {
 	return (
 		<Glyph>
 			<circle cx="10" cy="10" r="7" />
-			<path d="M8.5 7.25v5.5L12.75 10Z" fill="currentColor" />
+			<path
+				className="glyph-pri"
+				d="M8.5 7.25v5.5L12.75 10Z"
+				fill="currentColor"
+			/>
 		</Glyph>
 	);
 }
@@ -63,7 +68,8 @@ export function TerminalIcon() {
 	return (
 		<Glyph>
 			<rect x="2.5" y="3.5" width="15" height="13" rx="2" />
-			<path d="m6 8 2.5 2L6 12M10.5 12.5h3.5" />
+			<path className="glyph-pri" d="m6 8 2.5 2L6 12" />
+			<path d="M10.5 12.5h3.5" />
 		</Glyph>
 	);
 }
@@ -73,7 +79,7 @@ export function BranchIcon() {
 		<Glyph>
 			<path d="M5.5 3v9.5M14.5 7.5a7 7 0 0 1-7 7" />
 			<circle cx="5.5" cy="14.5" r="2" />
-			<circle cx="14.5" cy="5.5" r="2" />
+			<circle className="glyph-pri" cx="14.5" cy="5.5" r="2" />
 		</Glyph>
 	);
 }
@@ -90,7 +96,7 @@ export function MailIcon() {
 	return (
 		<Glyph>
 			<rect x="2.5" y="4.5" width="15" height="11" rx="2" />
-			<path d="m3 5.5 7 5.5 7-5.5" />
+			<path className="glyph-pri" d="m3 5.5 7 5.5 7-5.5" />
 		</Glyph>
 	);
 }
@@ -99,7 +105,7 @@ export function ShieldCheckIcon() {
 	return (
 		<Glyph>
 			<path d="M10 2.5 16 5v5c0 3.6-2.6 6.2-6 7.5-3.4-1.3-6-3.9-6-7.5V5Z" />
-			<path d="m7.25 10 2 2 3.5-3.75" />
+			<path className="glyph-pri" d="m7.25 10 2 2 3.5-3.75" />
 		</Glyph>
 	);
 }
@@ -134,7 +140,7 @@ export function BoxIcon() {
 export function KeyIcon() {
 	return (
 		<Glyph>
-			<circle cx="7" cy="13" r="3.5" />
+			<circle className="glyph-pri" cx="7" cy="13" r="3.5" />
 			<path d="m9.5 10.5 7-7M14 6l2 2M12 8l1.5 1.5" />
 		</Glyph>
 	);
@@ -144,7 +150,7 @@ export function HistoryIcon() {
 	return (
 		<Glyph>
 			<path d="M3.5 10a6.5 6.5 0 1 0 1.9-4.6L3.5 7.3M3.5 3.5v3.8h3.8" />
-			<path d="M10 6.5V10l2.5 1.5" />
+			<path className="glyph-pri" d="M10 6.5V10l2.5 1.5" />
 		</Glyph>
 	);
 }

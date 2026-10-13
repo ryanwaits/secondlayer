@@ -297,8 +297,12 @@
 	color: var(--ink);
 	margin-bottom: 6px;
 }
+/* glyph accents set color, so a part's stroke and any currentColor fill follow */
+.site .glyph-pri {
+	color: var(--pri);
+}
 .site .glyph-alarm {
-	stroke: var(--alarm);
+	color: var(--alarm);
 }
 .site .props p {
 	font-size: 15px;
