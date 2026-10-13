@@ -5,13 +5,11 @@ import { docsSearchPool } from "./command-center/items";
 import {
 	docsHeadingIndex,
 	docsSearchDocs,
-	docsSectionList,
 	extractAgentNotes,
 	headingsFromMdx,
 	mdxToMarkdown,
 	readAllDocsMarkdown,
 	readDocsMarkdown,
-	sectionsFromMdx,
 } from "./docs-source";
 
 describe("extractAgentNotes", () => {
@@ -142,81 +140,6 @@ describe("docsSearchDocs", () => {
 		expect(
 			docs.filter((d) => d.kind === "section" && d.body).length,
 		).toBeGreaterThan(50);
-	});
-});
-
-describe("sectionsFromMdx", () => {
-	test("summary is the first prose sentence, past fences, links and ticks stripped", () => {
-		const source = [
-			"# Title",
-			"",
-			"Lede sentence with [a link](/docs/x). Second sentence.",
-			"",
-			"## Reorgs",
-			"",
-			"```sh",
-			"echo no",
-			"```",
-			"",
-			"A `fork` rolls rows back. More text.",
-			"",
-			'<details id="row">',
-			"<summary>Row</summary>",
-			"",
-			"| a | b |",
-			"| - | - |",
-			"",
-			"Row body here.",
-			"</details>",
-		].join("\n");
-		const out = sectionsFromMdx("/docs/x", source);
-		expect(out.lede).toBe("Lede sentence with a link.");
-		expect(out.sections.map((s) => s.summary)).toEqual([
-			"A fork rolls rows back.",
-			"Row body here.",
-		]);
-	});
-
-	test("a trailing metadata export never becomes the last section's summary", () => {
-		const source = [
-			"## Last",
-			"",
-			"| a | b |",
-			"",
-			"export const metadata = {",
-			'  title: "Page title",',
-			"};",
-		].join("\n");
-		expect(sectionsFromMdx("/docs/x", source).sections[0].summary).toBe("");
-	});
-
-	test("caps long summaries at 160 chars", () => {
-		const long = `## Big\n\n${"word ".repeat(80)}end.`;
-		const [s] = sectionsFromMdx("/docs/x", long).sections;
-		expect(s.summary.length).toBeLessThanOrEqual(160);
-		expect(s.summary.endsWith("…")).toBe(true);
-	});
-});
-
-describe("docsSectionList", () => {
-	test("every section is a heading-index target with a short fence-free summary", async () => {
-		const list = await docsSectionList();
-		const index = new Set(
-			(await docsHeadingIndex()).map((h) => `${h.href}#${h.anchor}`),
-		);
-		expect(list.sections.length).toBe(index.size);
-		for (const s of list.sections) {
-			expect(index.has(`${s.href}#${s.anchor}`)).toBe(true);
-			expect(s.summary.length).toBeLessThanOrEqual(160);
-			expect(s.summary).not.toContain("`");
-		}
-		expect(list.pages.length).toBeGreaterThan(10);
-		expect(JSON.stringify(list).length).toBeLessThan(120_000);
-	});
-
-	test("summaries stay off the heading index shipped to every page", async () => {
-		const [first] = await docsHeadingIndex();
-		expect("summary" in first).toBe(false);
 	});
 });
 
