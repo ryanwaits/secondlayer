@@ -10,7 +10,7 @@ import type {
  * dashboard's webhook detail page. Moved out of the CLI (unchanged behavior)
  * so the web can build the same judgment without printing CLI-command text.
  *
- * Plan 068 adds five deterministic, numbers-only detectors on top of the
+ * Five deterministic, numbers-only detectors sit on top of the
  * existing flag checks: no model, no history beyond the deliveries window
  * already fetched. Thresholds are named constants below, conservative on
  * purpose — a wrong insight costs more trust than a missed one.
@@ -80,12 +80,12 @@ export interface DoctorReport {
 }
 
 // ── Detector thresholds ─────────────────────────────────────────────
-// Named constants, not config (plan 068). Tune from real data at the 054
-// spike — until then these stay conservative.
+// Named constants, not config. Tune from real data; until then these stay
+// conservative.
 
 const RATE_LIMITED_MIN_ATTEMPTS = 10;
 const RATE_LIMITED_MIN_RATIO = 0.5;
-// Exported: the status pill's "auto-failing" rule (plan 070) reuses this
+// Exported: the status pill's "auto-failing" rule reuses this
 // instead of duplicating the number.
 export const DOWN_MIN_CONSECUTIVE = 5;
 const REJECTS_MIN_CONSECUTIVE = 5;

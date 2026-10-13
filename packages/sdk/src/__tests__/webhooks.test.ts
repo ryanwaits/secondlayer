@@ -233,7 +233,7 @@ describe("decodeChainWebhook", () => {
 		);
 	});
 
-	// Bitcoin-sourced (plan 060) — a separate wire shape from a Stacks apply:
+	// Bitcoin-sourced — a separate wire shape from a Stacks apply:
 	// `chain`/`event_index` at the top level, no `canonical`, `event` is the
 	// plain Streams `RuneEventPayload` (no nested `.data`).
 	test("decodes a rune_transfer apply delivery (Bitcoin-sourced, chain=bitcoin)", () => {

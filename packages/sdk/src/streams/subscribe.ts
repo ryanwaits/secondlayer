@@ -144,7 +144,7 @@ export function subscribeStreamsEvents(opts: {
 					sender: params.sender,
 					recipient: params.recipient,
 					asset_identifier: params.assetIdentifier,
-					// `chain: "bitcoin"` only (plan 059/061) — missing here meant a
+					// `chain: "bitcoin"` only — missing here meant a
 					// bitcoin subscribe silently ignored these filters.
 					rune: params.rune,
 					address: params.address,

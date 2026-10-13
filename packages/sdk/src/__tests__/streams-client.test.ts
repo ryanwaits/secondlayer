@@ -433,7 +433,7 @@ describe("createStreamsClient", () => {
 		expect(requests).toBe(2);
 	});
 
-	// Plan 059: chain=bitcoin (Runes events) has its own cursor/filter vocab.
+	// chain=bitcoin (Runes events) has its own cursor/filter vocab.
 	test("chain=bitcoin sends rune/address query params, not Stacks ones", async () => {
 		const requests: Request[] = [];
 		const client = createStreamsClient({
@@ -491,7 +491,7 @@ describe("createStreamsClient", () => {
 	});
 
 	/** One Runes page, reused by the chain=bitcoin consume/stream/top-level
-	 *  consume tests below (plan 059/061). */
+	 *  consume tests below. */
 	function bitcoinRunesPage() {
 		return {
 			events: [

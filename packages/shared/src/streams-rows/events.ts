@@ -121,7 +121,7 @@ export type StreamsEventBase = {
 	 */
 	matched?: string[];
 	/**
-	 * Which chain this event came from (plan 059). Every Stacks Streams
+	 * Which chain this event came from. Every Stacks Streams
 	 * response sets this to `"stacks"`; optional here for back-compat with
 	 * fixtures/tests that pre-date the field — the same reasoning as
 	 * `finalized?`. Cursors stay per-chain but chain-agnostic in shape, so this

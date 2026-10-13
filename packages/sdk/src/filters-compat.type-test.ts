@@ -30,8 +30,8 @@ export function _filterCompatChecks(): void {
 	).toMatchTypeOf<EventsListParams>();
 
 	// Streams: list and consume both accept the projection spread. Pinned to
-	// the Stacks branch (`chain: "bitcoin"` has no contractId/assetIdentifier —
-	// plan 059) since this projection is a Stacks-only filter.
+	// the Stacks branch (`chain: "bitcoin"` has no contractId/assetIdentifier)
+	// since this projection is a Stacks-only filter.
 	expectTypeOf(ft.toStreamsParams()).toMatchTypeOf<
 		Pick<
 			StreamsEventsStacksListParams,

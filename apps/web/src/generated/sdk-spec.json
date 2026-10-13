@@ -1839,7 +1839,7 @@
 				{
 					"name": "StreamsBitcoinCanonicalBlock",
 					"kind": "type",
-					"summary": "`chain=bitcoin` canonical block (plan 059) — no burn-chain fields.",
+					"summary": "`chain=bitcoin` canonical block — no burn-chain fields.",
 					"signature": null,
 					"file": "src/streams/types.ts",
 					"line": 90
@@ -1847,7 +1847,7 @@
 				{
 					"name": "StreamsBitcoinTip",
 					"kind": "type",
-					"summary": "`chain=bitcoin` tip (plan 059) — no `burn_block_height`/retention fields, since Bitcoin has no burn chain of its own and Runes reads have no retention ladder.",
+					"summary": "`chain=bitcoin` tip — no `burn_block_height`/retention fields, since Bitcoin has no burn chain of its own and Runes reads have no retention ladder.",
 					"signature": null,
 					"file": "src/streams/types.ts",
 					"line": 74
@@ -1871,7 +1871,7 @@
 				{
 					"name": "StreamsConsumeBitcoinParams",
 					"kind": "type",
-					"summary": "`chain: \"bitcoin\"` (plan 059/061) — Runes batches, own cursor space.",
+					"summary": "`chain: \"bitcoin\"` — Runes batches, own cursor space.",
 					"signature": null,
 					"file": "src/streams/types.ts",
 					"line": 640
@@ -1935,7 +1935,7 @@
 				{
 					"name": "StreamsEventsBitcoinListParams",
 					"kind": "type",
-					"summary": "`chain: \"bitcoin\"` (plan 059) — Runes events, own cursor space.",
+					"summary": "`chain: \"bitcoin\"` — Runes events, own cursor space.",
 					"signature": null,
 					"file": "src/streams/types.ts",
 					"line": 205
@@ -1943,7 +1943,7 @@
 				{
 					"name": "StreamsEventsConsumeBitcoinParams",
 					"kind": "type",
-					"summary": "`chain: \"bitcoin\"` (plan 059/061) — the checkpointed sweep over Runes events.",
+					"summary": "`chain: \"bitcoin\"` — the checkpointed sweep over Runes events.",
 					"signature": null,
 					"file": "src/streams/types.ts",
 					"line": 554
@@ -1991,7 +1991,7 @@
 				{
 					"name": "StreamsEventsStacksListParams",
 					"kind": "type",
-					"summary": "`chain: \"stacks\"` (default, omit `chain` entirely) — unchanged since before plan 059.",
+					"summary": "`chain: \"stacks\"` (default, omit `chain` entirely) — unchanged since before Runes events were added.",
 					"signature": null,
 					"file": "src/streams/types.ts",
 					"line": 178
@@ -1999,7 +1999,7 @@
 				{
 					"name": "StreamsEventsStreamBitcoinParams",
 					"kind": "type",
-					"summary": "`chain: \"bitcoin\"` (plan 059/061) — Runes events, tailed the same way as the Stacks default.",
+					"summary": "`chain: \"bitcoin\"` — Runes events, tailed the same way as the Stacks default.",
 					"signature": null,
 					"file": "src/streams/types.ts",
 					"line": 247
@@ -2023,7 +2023,7 @@
 				{
 					"name": "StreamsEventsSubscribeBitcoinParams",
 					"kind": "type",
-					"summary": "`chain: \"bitcoin\"` (plan 059/061) — Runes events pushed live, on their own cursor space.",
+					"summary": "`chain: \"bitcoin\"` — Runes events pushed live, on their own cursor space.",
 					"signature": null,
 					"file": "src/streams/types.ts",
 					"line": 310

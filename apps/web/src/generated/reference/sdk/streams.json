@@ -5,16 +5,16 @@
 		{
 			"id": "consume",
 			"path": "sl.streams.consume",
-			"summary": "",
-			"description": "",
+			"summary": "Read Streams page by page as an async iterator.",
+			"description": "Read Streams page by page as an async iterator.\n\nYields one [`StreamsBatch`](/docs/sdk-reference/streams#t-StreamsBatch) per events page, so each yield is exactly\none API call. Empty pages are skipped; at the tip the iterator polls again\nevery `intervalMs` (default 2000) until `signal` aborts.\n\nReorgs appear on `batch.reorgs`, but the cursor is not rewound for you.\nUse `events.consume` with `onReorg` when you need rollback.\n\nA literal `types` array narrows every batch's event union to those types.\n`chain: \"bitcoin\"` batches carry Runes rows only, on the bitcoin tip shape.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 773
+				"line": 770
 			},
 			"overloads": [
 				{
 					"label": "Stacks",
-					"description": "Narrowing overload: a literal `types` array narrows every batch's\nevent union to exactly those members.",
+					"description": "",
 					"typeParams": [
 						{
 							"name": "T",
@@ -53,7 +53,7 @@
 				},
 				{
 					"label": "Bitcoin",
-					"description": "`chain: \"bitcoin\"` — batches carry Runes rows only, on the bitcoin tip\nshape (plan 059/061).",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -73,16 +73,16 @@
 		{
 			"id": "events.list",
 			"path": "sl.streams.events.list",
-			"summary": "",
-			"description": "",
+			"summary": "Read one page of chain events, plus the cursor for the next page.",
+			"description": "Read one page of chain events, plus the cursor for the next page.\n\nNarrow with `types`, `notTypes`, `contractId`, `sender`, `recipient`,\n`assetIdentifier`, `fromHeight`/`toHeight`, or labelled `filters`.\nFilters match exactly, and an event type without a given field never\nmatches it. Pass `next_cursor` back as `cursor` to continue. The\nenvelope also carries the `tip` and any `reorgs`. To write the events\nsomewhere with a checkpoint, use `events.consume` instead.\n\nA literal `types` array narrows every row to those event types.\n`clock: \"vm\"` pages carry vm rows only (a parallel vocabulary,\n`event_index` = `ordinal`), never `StreamsEvent`; it is Stacks only.\n`chain: \"bitcoin\"` pages carry Runes rows only, on the bitcoin tip shape,\nand filter by `rune` or `address`.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 786
+				"line": 794
 			},
 			"overloads": [
 				{
 					"label": "Stacks",
-					"description": "`clock: \"vm\"` pages carry vm rows only (a parallel vocabulary,\n`event_index` = `ordinal`). Never `StreamsEvent`. Stacks-only —\n`chain: \"bitcoin\"` has no `clock`.\n\n\nNarrowing overload, matching `consume`. Classic clock only —\n`clock: \"vm\"` is overload 1, and a general `StreamsEventsListParams`\nvariable (clock unresolved) is the wire-union fallback.\n\n\n`chain: \"bitcoin\"` pages carry Runes rows only, on the bitcoin tip\nshape (plan 059).\n\n\nUnresolved `chain`/`clock` on a general params variable: the wire union.",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -166,11 +166,11 @@
 		{
 			"id": "events.byTxId",
 			"path": "sl.streams.events.byTxId",
-			"summary": "",
-			"description": "",
+			"summary": "Read every event a transaction emitted.",
+			"description": "Read every event a transaction emitted.\n\nReturns the events and the `tip`, with no `next_cursor`: one transaction\nis one response.\n\n`chain: \"bitcoin\"` returns the Runes events for one Bitcoin transaction.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 822
+				"line": 831
 			},
 			"overloads": [
 				{
@@ -191,7 +191,7 @@
 				},
 				{
 					"label": "Bitcoin",
-					"description": "`chain: \"bitcoin\"` — Runes events for one transaction.",
+					"description": "",
 					"params": [
 						{
 							"name": "txId",
@@ -217,11 +217,11 @@
 		{
 			"id": "events.consume",
 			"path": "sl.streams.events.consume",
-			"summary": "",
-			"description": "",
+			"summary": "Run a checkpointed indexer that rewinds on reorgs.",
+			"description": "Run a checkpointed indexer that rewinds on reorgs.\n\nWrite your rows in `onBatch` and commit `ctx.cursor` in the same\ntransaction; resume with `fromCursor`. Reorgs at or below your checkpoint\ncall `onReorg`, then the loop re-reads from the fork point. Delivery is\nat-least-once, so keep writes idempotent. With a `sink`, the checkpoint\nand rollback are handled for you. `mode: \"tail\"` (default) keeps polling\nat the tip; `mode: \"bounded\"` returns on the first empty page. It also\nstops on `maxPages`, `maxEmptyPolls`, or `signal`. Pass `finalizedOnly`\nto skip reorg handling entirely.\n\n`chain: \"bitcoin\"` sweeps Runes events; see [`StreamsEventsConsumeBitcoinParams`](/docs/sdk-reference/streams#t-StreamsEventsConsumeBitcoinParams).",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 838
+				"line": 851
 			},
 			"overloads": [
 				{
@@ -242,7 +242,7 @@
 				},
 				{
 					"label": "Bitcoin",
-					"description": "`chain: \"bitcoin\"` — the checkpointed sweep over Runes events; see [`StreamsEventsConsumeBitcoinParams`](/docs/sdk-reference/streams#t-StreamsEventsConsumeBitcoinParams).",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -262,11 +262,11 @@
 		{
 			"id": "events.replay",
 			"path": "sl.streams.events.replay",
-			"summary": "Backfill from bulk dumps, then continue live from the dump→live seam in one call.",
-			"description": "Backfill from bulk dumps, then continue live from the dump→live seam in\none call. Iterates finalized dump files (via `onDumpFile`) in block\norder, then tails live from the manifest's `latest_finalized_cursor`\n(exclusive input → no gap or duplicate at the seam). Requires\n`dumpsBaseUrl`.",
+			"summary": "Backfill from bulk dumps, then continue live in one call.",
+			"description": "Backfill from bulk dumps, then continue live in one call.\n\nHands each finalized dump file to `onDumpFile` in block order, then tails\nlive from the manifest's `latest_finalized_cursor`, with no gap or\nduplicate at the seam. A file that straddles `from` is delivered whole,\nso skip the rows at or below it. Requires `dumpsBaseUrl`.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 861
+				"line": 875
 			},
 			"overloads": [
 				{
@@ -291,11 +291,11 @@
 		{
 			"id": "events.stream",
 			"path": "sl.streams.events.stream",
-			"summary": "",
-			"description": "",
+			"summary": "Read events one at a time as an async iterator.",
+			"description": "Read events one at a time as an async iterator.\n\nFor live processors and watch-style apps that keep their own state. It\ntails indefinitely and stops when `signal`, `maxPages`, or\n`maxEmptyPolls` ends it. There is no checkpoint or reorg handling; use\n`events.consume` for that.\n\nA literal `types` array narrows every event to those types.\n`chain: \"bitcoin\"` yields Runes events only.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 872
+				"line": 889
 			},
 			"overloads": [
 				{
@@ -332,7 +332,7 @@
 				},
 				{
 					"label": "Bitcoin",
-					"description": "`chain: \"bitcoin\"` — Runes events only (plan 059/061).\n\n\nNarrowing overload, matching `consume`.",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -352,11 +352,11 @@
 		{
 			"id": "events.subscribe",
 			"path": "sl.streams.events.subscribe",
-			"summary": "",
-			"description": "",
+			"summary": "Get each new event pushed to `onEvent` as it lands.",
+			"description": "Get each new event pushed to `onEvent` as it lands.\n\nReconnects from the last handled cursor after a transport error, and\nverifies each frame's ed25519 signature when the client has `verify` on.\nReturns an unsubscribe function whose `done` promise settles when the\nloop ends. Not reorg-aware: an event delivered and then orphaned is never\nretracted. Durable writers use `events.consume`.\n\n`chain: \"bitcoin\"` delivers Runes rows to `onEvent`.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 889
+				"line": 907
 			},
 			"overloads": [
 				{
@@ -377,7 +377,7 @@
 				},
 				{
 					"label": "Bitcoin",
-					"description": "`chain: \"bitcoin\"` — `onEvent` receives Runes rows (plan 059/061).",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -397,11 +397,11 @@
 		{
 			"id": "blocks.events",
 			"path": "sl.streams.blocks.events",
-			"summary": "",
-			"description": "",
+			"summary": "Read every event in one block, by height or hash.",
+			"description": "Read every event in one block, by height or hash.\n\nReturns the events and the `tip`, with no `next_cursor`.\n\n`chain: \"bitcoin\"` returns the Runes events in one Bitcoin block.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 893
+				"line": 918
 			},
 			"overloads": [
 				{
@@ -448,11 +448,11 @@
 		{
 			"id": "reorgs.list",
 			"path": "sl.streams.reorgs.list",
-			"summary": "",
-			"description": "",
+			"summary": "List chain reorgs since a cursor.",
+			"description": "List chain reorgs since a cursor.\n\n`since` is required. Each reorg gives its `fork_point_height` and the\norphaned range. Page with `next_since`.\n\n`chain: \"bitcoin\"` lists Bitcoin reorgs, on their own cursor space.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 900
+				"line": 933
 			},
 			"overloads": [
 				{
@@ -573,11 +573,11 @@
 		{
 			"id": "canonical",
 			"path": "sl.streams.canonical",
-			"summary": "",
-			"description": "",
+			"summary": "Get the canonical block at a height.",
+			"description": "Get the canonical block at a height.\n\nReturns the block hash and, on Stacks, the burn block it anchors to.\n\n`chain: \"bitcoin\"` returns the Bitcoin block, without burn-chain fields.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 907
+				"line": 947
 			},
 			"overloads": [
 				{
@@ -624,11 +624,11 @@
 		{
 			"id": "tip",
 			"path": "sl.streams.tip",
-			"summary": "",
-			"description": "",
+			"summary": "Get the current chain tip.",
+			"description": "Get the current chain tip.\n\nReturns the tip height and hash, `finalized_height`, and `lag_seconds`. On\nStacks it also reports the oldest height your tier can seek; older reads\ncome from the bulk dumps.\n\n`chain: \"bitcoin\"` returns the Bitcoin tip, without burn-chain or retention\nfields.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 912
+				"line": 962
 			},
 			"overloads": [
 				{
@@ -1289,7 +1289,7 @@
 		},
 		{
 			"name": "StreamsBitcoinCanonicalBlock",
-			"summary": "`chain=bitcoin` canonical block (plan 059) — no burn-chain fields.",
+			"summary": "`chain=bitcoin` canonical block — no burn-chain fields.",
 			"fields": [
 				{
 					"name": "block_height",
@@ -1313,7 +1313,7 @@
 		},
 		{
 			"name": "StreamsBitcoinTip",
-			"summary": "`chain=bitcoin` tip (plan 059) — no `burn_block_height`/retention fields, since Bitcoin has no burn chain of its own and Runes reads have no retention ladder.",
+			"summary": "`chain=bitcoin` tip — no `burn_block_height`/retention fields, since Bitcoin has no burn chain of its own and Runes reads have no retention ladder.",
 			"fields": [
 				{
 					"name": "block_height",
@@ -1384,7 +1384,7 @@
 		},
 		{
 			"name": "StreamsConsumeBitcoinParams",
-			"summary": "`chain: \"bitcoin\"` (plan 059/061) — Runes batches, own cursor space.",
+			"summary": "`chain: \"bitcoin\"` — Runes batches, own cursor space.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -1773,7 +1773,7 @@
 					"name": "chain",
 					"type": "\"stacks\"",
 					"required": false,
-					"description": "Which chain this event came from (plan 059). Every Stacks Streams\nresponse sets this to `\"stacks\"`; optional here for back-compat with\nfixtures/tests that pre-date the field — the same reasoning as\n`finalized?`. Cursors stay per-chain but chain-agnostic in shape, so this\nis the only signal a mixed-chain caller can discriminate on."
+					"description": "Which chain this event came from. Every Stacks Streams\nresponse sets this to `\"stacks\"`; optional here for back-compat with\nfixtures/tests that pre-date the field — the same reasoning as\n`finalized?`. Cursors stay per-chain but chain-agnostic in shape, so this\nis the only signal a mixed-chain caller can discriminate on."
 				},
 				{
 					"name": "event_type",
@@ -1796,7 +1796,7 @@
 		},
 		{
 			"name": "StreamsEventsBitcoinListParams",
-			"summary": "`chain: \"bitcoin\"` (plan 059) — Runes events, own cursor space.",
+			"summary": "`chain: \"bitcoin\"` — Runes events, own cursor space.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -1856,7 +1856,7 @@
 		},
 		{
 			"name": "StreamsEventsConsumeBitcoinParams",
-			"summary": "`chain: \"bitcoin\"` (plan 059/061) — the checkpointed sweep over Runes events.",
+			"summary": "`chain: \"bitcoin\"` — the checkpointed sweep over Runes events.",
 			"fields": [
 				{
 					"name": "chain",
@@ -2359,7 +2359,7 @@
 		},
 		{
 			"name": "StreamsEventsStacksListParams",
-			"summary": "`chain: \"stacks\"` (default, omit `chain` entirely) — unchanged since before plan 059.",
+			"summary": "`chain: \"stacks\"` (default, omit `chain` entirely) — unchanged since before Runes events were added.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -2443,7 +2443,7 @@
 		},
 		{
 			"name": "StreamsEventsStreamBitcoinParams",
-			"summary": "`chain: \"bitcoin\"` (plan 059/061) — Runes events, tailed the same way as the Stacks default.",
+			"summary": "`chain: \"bitcoin\"` — Runes events, tailed the same way as the Stacks default.",
 			"fields": [
 				{
 					"name": "fromCursor",
@@ -2647,7 +2647,7 @@
 		},
 		{
 			"name": "StreamsEventsSubscribeBitcoinParams",
-			"summary": "`chain: \"bitcoin\"` (plan 059/061) — Runes events pushed live, on their own cursor space.",
+			"summary": "`chain: \"bitcoin\"` — Runes events pushed live, on their own cursor space.",
 			"fields": [
 				{
 					"name": "fromCursor",
@@ -3189,7 +3189,7 @@
 					"name": "chain",
 					"type": "\"stacks\"",
 					"required": false,
-					"description": "Which chain this event came from (plan 059). Every Stacks Streams\nresponse sets this to `\"stacks\"`; optional here for back-compat with\nfixtures/tests that pre-date the field — the same reasoning as\n`finalized?`. Cursors stay per-chain but chain-agnostic in shape, so this\nis the only signal a mixed-chain caller can discriminate on."
+					"description": "Which chain this event came from. Every Stacks Streams\nresponse sets this to `\"stacks\"`; optional here for back-compat with\nfixtures/tests that pre-date the field — the same reasoning as\n`finalized?`. Cursors stay per-chain but chain-agnostic in shape, so this\nis the only signal a mixed-chain caller can discriminate on."
 				},
 				{
 					"name": "event_type",

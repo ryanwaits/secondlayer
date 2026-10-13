@@ -16,16 +16,6 @@ const REFERENCE = join(
 );
 
 const PENDING_DOCS = new Set([
-	"sl.streams.consume",
-	"sl.streams.events.list",
-	"sl.streams.events.byTxId",
-	"sl.streams.events.consume",
-	"sl.streams.events.stream",
-	"sl.streams.events.subscribe",
-	"sl.streams.blocks.events",
-	"sl.streams.reorgs.list",
-	"sl.streams.canonical",
-	"sl.streams.tip",
 	"sl.index.ftTransfers.list",
 	"sl.index.ftTransfers.walk",
 	"sl.index.nftTransfers.list",
@@ -99,6 +89,15 @@ const PENDING_DOCS = new Set([
 
 type Method = { path: string; summary: string };
 
+function readReferenceText(): string {
+	const index = JSON.parse(
+		readFileSync(join(REFERENCE, "index.json"), "utf8"),
+	) as { surfaces: { slug: string }[] };
+	return index.surfaces
+		.map((s) => readFileSync(join(REFERENCE, `${s.slug}.json`), "utf8"))
+		.join("\n");
+}
+
 function readMethods(): Method[] {
 	const index = JSON.parse(
 		readFileSync(join(REFERENCE, "index.json"), "utf8"),
@@ -135,5 +134,9 @@ describe("SDK reference documentation ratchet", () => {
 	test("PENDING_DOCS names only methods that exist", () => {
 		const paths = new Set(methods.map((m) => m.path));
 		expect([...PENDING_DOCS].filter((p) => !paths.has(p))).toEqual([]);
+	});
+
+	test("public documentation never cites an internal plan number", () => {
+		expect(readReferenceText().match(/\bplan \d+/gi) ?? []).toEqual([]);
 	});
 });

@@ -1,5 +1,5 @@
 /**
- * CI gate (type level, plan 059/061): `chain: "bitcoin"` narrows every
+ * CI gate (type level): `chain: "bitcoin"` narrows every
  * Streams read/write surface (`events.list`, `events.stream`,
  * `events.subscribe`, `events.consume`, and the top-level `consume`) to
  * `RuneStreamsEvent` and restricts `types` to `RuneEventType` — a Stacks type

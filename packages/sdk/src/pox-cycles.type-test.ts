@@ -1,5 +1,5 @@
 /**
- * Type-level test for `index.pox.cycles` (plan 078 — SDK major). Checked by
+ * Type-level test for `index.pox.cycles`. Checked by
  * `tsc` (src is included), never bundled nor run.
  *
  * `pox/cycles` now reports the CURRENT PoX (PoX-5): `pox_version` is a

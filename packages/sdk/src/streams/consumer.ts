@@ -114,7 +114,7 @@ export async function applyReorgs<
 type StreamsEventsFetchParams = {
 	cursor?: string | null;
 	limit: number;
-	/** `bitcoin` reads Runes events instead of the Stacks default (plan 059).
+	/** `bitcoin` reads Runes events instead of the Stacks default.
 	 *  See {@link StreamsEventsStreamParams.chain}'s untyped-events caveat. */
 	chain?: "stacks" | "bitcoin";
 	types?: readonly string[];

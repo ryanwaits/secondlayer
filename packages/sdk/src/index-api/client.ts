@@ -1157,7 +1157,7 @@ export interface SbtcResource {
 }
 
 // ── PoX reward cycles (/v1/index/pox/cycles) ───────────────────────
-// Reports the CURRENT PoX (PoX-5, plan 078). PoX-4 history is final and not
+// Reports the CURRENT PoX (PoX-5). PoX-4 history is final and not
 // served here — see `index.stacking` for the per-call PoX-4 feed. At the
 // next PoX fork, `pox_version` flips and this shape changes again; the
 // resource path stays `index.pox.cycles`.
