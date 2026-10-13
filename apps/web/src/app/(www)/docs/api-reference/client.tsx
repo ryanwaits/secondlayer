@@ -250,31 +250,3 @@ export function SectionActions({ anchor }: { anchor: string }) {
 		</div>
 	);
 }
-
-/**
- * Long examples preview their first lines and expand in place. The block
- * never scrolls vertically, so the wheel always moves its container.
- */
-export function ExpandableCode({
-	lines,
-	children,
-}: {
-	lines: number;
-	children: ReactNode;
-}) {
-	const [open, setOpen] = useState(false);
-	return (
-		<div className="apiref-long" data-open={open ? "true" : undefined}>
-			{children}
-			{open ? null : (
-				<button
-					type="button"
-					className="apiref-expand"
-					onClick={() => setOpen(true)}
-				>
-					Show all {lines} lines
-				</button>
-			)}
-		</div>
-	);
-}

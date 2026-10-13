@@ -506,14 +506,6 @@ button.docs-nav-item {
 	outline: 2px solid var(--pri);
 	outline-offset: 2px;
 }
-.docs-pill-full {
-	display: none;
-}
-@media (min-width: 1181px) {
-	.docs-pill-full {
-		display: inline-flex;
-	}
-}
 .docs-article .page-title {
 	margin: 18px 0 0;
 	font-size: clamp(32px, 4vw, 42px);
@@ -1262,14 +1254,57 @@ html[data-acct-card] .docs-content {
 	gap: 18px 36px;
 	align-items: start;
 }
+/* Full view, as Stripe's reference does it: the request and response column
+   sticks to the top and is never taller than the drawer. The request keeps
+   its capped height; the response takes what is left and scrolls inside. */
+.acct-card-body:has(.apiref-drawer[data-view="split"]) {
+	container-type: size;
+}
 .apiref-drawer[data-view="split"] .apiref-detail > .apiref-aside {
-	display: grid;
+	display: flex;
+	flex-direction: column;
 	grid-column: 2;
 	grid-row: 1 / span 2;
 	gap: 12px;
 	min-width: 0;
+	max-height: 100cqh;
 	position: sticky;
 	top: 0;
+}
+.apiref-drawer[data-view="split"] .apiref-aside > .apiref-request {
+	flex: none;
+}
+.apiref-drawer[data-view="split"] .apiref-aside > .apiref-response {
+	display: flex;
+	flex-direction: column;
+	min-height: 160px;
+}
+.apiref-drawer[data-view="split"] .apiref-response > .apiref-code {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+.apiref-drawer[data-view="split"] .apiref-response > .apiref-code pre {
+	min-height: 0;
+	max-height: none;
+}
+/* Full view toggle: the right pane of the window icon fills when on. */
+.apiref-full-toggle .fill {
+	fill: currentColor;
+	stroke: none;
+	opacity: 0;
+	transition: opacity 150ms ease-out;
+}
+.apiref-full-toggle[aria-pressed="true"] {
+	border-color: var(--ink);
+}
+.apiref-full-toggle[aria-pressed="true"] .fill {
+	opacity: 0.9;
+}
+@media (prefers-reduced-motion: reduce) {
+	.apiref-full-toggle .fill {
+		transition: none;
+	}
 }
 .apiref-drawer[data-view="split"] .apiref-detail > .apiref-main {
 	grid-column: 1;
@@ -1578,40 +1613,19 @@ html[data-acct-card] .docs-content {
 .apiref-request-copy:hover {
 	color: var(--ar-fg);
 }
-/* Full height: code never scrolls vertically inside the drawer (the wheel
-   always moves the drawer); long lines scroll sideways. A tall request column
-   in Full view scrolls with the drawer until its bottom lands. */
+/* Fixed heights, as Stripe's reference: a request scrolls inside after
+   366px, a response after 480px (in Full view it fills the column instead). */
 .apiref-code pre {
 	margin: 0;
 	padding: 12px 14px;
-	overflow-x: auto;
-	overflow-y: hidden;
+	overflow: auto;
 	font-size: 12px;
 	line-height: 1.7;
 	background: transparent !important;
 }
-
-/* Extreme examples: first 40 lines (12px x 1.7 + 12px top pad), faded, until
-   "Show all" expands them in place. */
-.apiref-long:not([data-open]) .apiref-code {
-	max-height: calc(40 * 12px * 1.7 + 12px);
-	overflow: hidden;
-	mask-image: linear-gradient(to bottom, #000 70%, transparent);
+.apiref-request .apiref-code pre {
+	max-height: 366px;
 }
-.apiref-expand {
-	display: block;
-	width: 100%;
-	padding: 9px 14px;
-	border: 0;
-	border-top: 1px solid var(--ar-line);
-	background: transparent;
-	font: 12px var(--font-mono-stack);
-	color: var(--ar-mute);
-	text-align: left;
-	cursor: pointer;
-}
-@media (hover: hover) {
-	.apiref-expand:hover {
-		color: var(--ar-fg);
-	}
+.apiref-response .apiref-code pre {
+	max-height: 480px;
 }

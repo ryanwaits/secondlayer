@@ -1,12 +1,7 @@
 import { highlight } from "@/lib/highlight";
 import Link from "next/link";
 import { Fragment } from "react";
-import {
-	ApiHashRedirect,
-	BaseUrlSwitch,
-	CodeTabs,
-	ExpandableCode,
-} from "./client";
+import { ApiHashRedirect, BaseUrlSwitch, CodeTabs } from "./client";
 import { ApiDrawerHost, type DrawerDetail } from "./drawer";
 import { anchorPages, pageContent } from "./page-content";
 import { API_PAGES, apiPageHref, findApiPage } from "./pages";
@@ -80,31 +75,19 @@ function TokenStyles() {
 	return <style>{[...tokenRules.values()].join("")}</style>;
 }
 
-/** Only extreme examples (a whole OpenAPI document) collapse; everything
-    else renders at full height. */
-const LONG_LINES = 300;
-
-type Block = { html: string; lines: number };
+type Block = { html: string };
 
 async function highlightBlock(code: string, lang: string): Promise<Block> {
-	return {
-		html: classifyTokens(await highlight(code, lang)),
-		lines: code.split("\n").length,
-	};
+	return { html: classifyTokens(await highlight(code, lang)) };
 }
 
 function Code({ block }: { block: Block }) {
-	const body = (
+	return (
 		<div
 			className="apiref-code"
 			// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki output, server-rendered from our own spec
 			dangerouslySetInnerHTML={{ __html: block.html }}
 		/>
-	);
-	return block.lines > LONG_LINES ? (
-		<ExpandableCode lines={block.lines}>{body}</ExpandableCode>
-	) : (
-		body
 	);
 }
 

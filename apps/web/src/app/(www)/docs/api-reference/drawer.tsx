@@ -26,8 +26,6 @@ export type DrawerDetail = {
 const VIEW_KEY = "docs-apiref-examples";
 /** Full view needs the width for the docs beside a sticky request column. */
 const WIDE_QUERY = "(min-width: 1181px)";
-/** Breathing room kept under a sticky column taller than the drawer. */
-const STICK_BOTTOM = 24;
 
 /**
  * Full view: the docs on the left, the request and response sticky on the
@@ -84,36 +82,6 @@ function useFullView(active: boolean) {
 	}, [active, toggle]);
 
 	return { split: on && wide, wide, on, toggle };
-}
-
-/**
- * In Full view the request column sticks to the top of the drawer's scroll
- * area. One taller than the area would hide its tail until the end, so it gets
- * a negative `top` and scrolls until its bottom lands, then sticks there.
- */
-function useStickyAside(
-	root: React.RefObject<HTMLElement | null>,
-	enabled: boolean,
-	key: string | null,
-) {
-	// biome-ignore lint/correctness/useExhaustiveDependencies: key re-measures when the content swaps
-	useEffect(() => {
-		const aside = root.current?.querySelector<HTMLElement>(".apiref-aside");
-		const scroller = root.current?.closest<HTMLElement>(".acct-card-body");
-		if (!enabled || !aside || !scroller) return;
-		const place = () => {
-			const top = `${Math.min(0, scroller.clientHeight - aside.offsetHeight - STICK_BOTTOM)}px`;
-			if (aside.style.top !== top) aside.style.top = top;
-		};
-		place();
-		const observer = new ResizeObserver(place);
-		observer.observe(aside);
-		observer.observe(scroller);
-		return () => {
-			observer.disconnect();
-			aside.style.top = "";
-		};
-	}, [enabled, key, root]);
 }
 
 /**
@@ -200,8 +168,6 @@ export function ApiDrawerHost({
 		bodyRef.current?.closest(".acct-card-body")?.scrollTo({ top: 0 });
 	}, [openId]);
 
-	useStickyAside(bodyRef, view.split, openId);
-
 	// Links inside the drawer: another endpoint of this page replaces the
 	// content; one on another API page navigates there with its hash.
 	const onDrawerClick = (e: React.MouseEvent) => {
@@ -235,13 +201,31 @@ export function ApiDrawerHost({
 				view.wide ? (
 					<button
 						type="button"
-						className="docs-pill docs-pill-full"
+						className="acct-card-icon apiref-full-toggle"
+						aria-label="Full view"
 						aria-pressed={view.on}
 						aria-keyshortcuts="F"
 						title="Full view (F)"
 						onClick={view.toggle}
 					>
-						Full view
+						{/* A window split in two; the right pane fills when on. */}
+						<svg
+							width="16"
+							height="16"
+							viewBox="0 0 16 16"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.5"
+							strokeLinejoin="round"
+							aria-hidden="true"
+						>
+							<rect x="2" y="3" width="12" height="10" rx="1.5" />
+							<path d="M8.5 3v10" />
+							<path
+								className="fill"
+								d="M8.5 3H12.5a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5H8.5z"
+							/>
+						</svg>
 					</button>
 				) : null
 			}
