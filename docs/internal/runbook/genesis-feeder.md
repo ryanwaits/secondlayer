@@ -32,7 +32,7 @@ never emit one.
 
 Temporary Hetzner Cloud box in Falkenstein. One compose project
 `secondlayer-feeder` on this VM (not node-server, not app-server). Prod
-`node-server` stays `ghcr.io/stacks-network/stacks-core:4.0.1` with
+`node-server` stays `ghcr.io/stacks-network/stacks-core:4.0.5` with
 `events_keys = ["*"]`. IBD is running.
 
 | | |

@@ -193,8 +193,8 @@ services:
 
   stacks-node:
     # Consensus-critical: a moved tag here is a node running different fork
-    # rules than the indexer was tested against. Digest-pinned to 4.0.1.
-    image: ghcr.io/stacks-network/stacks-core:4.0.1@sha256:ceb768f881ef52a1d2792a2b4a89d81e092b1df11293b04c31ce36613c3f9711
+    # rules than the indexer was tested against. Digest-pinned to 4.0.5.
+    image: ghcr.io/stacks-network/stacks-core:4.0.5@sha256:51aa7bf6f990b99fa010ebb23abe78653cf1f1d129ab8e7d88b1fe11a403c97d
     volumes:
       - ${STACKS_DATA_DIR:-./data/stacks}:/stacks-blockchain/data
       - ./Config.toml:/stacks-blockchain/Config.toml:ro

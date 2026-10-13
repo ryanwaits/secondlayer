@@ -148,8 +148,8 @@ services:
     profiles: ["full-node"]
 
   stacks-node:
-    # Consensus-critical — digest-pinned to 4.0.1. See docker/oss/docker-compose.yml.
-    image: ghcr.io/stacks-network/stacks-core:4.0.1@sha256:ceb768f881ef52a1d2792a2b4a89d81e092b1df11293b04c31ce36613c3f9711
+    # Consensus-critical — digest-pinned to 4.0.5. See docker/oss/docker-compose.yml.
+    image: ghcr.io/stacks-network/stacks-core:4.0.5@sha256:51aa7bf6f990b99fa010ebb23abe78653cf1f1d129ab8e7d88b1fe11a403c97d
     volumes:
       - \${STACKS_DATA_DIR:-./data/stacks}:/stacks-blockchain/data
       - ./Config.toml:/stacks-blockchain/Config.toml:ro

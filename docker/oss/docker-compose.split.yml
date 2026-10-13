@@ -258,7 +258,7 @@ services:
     profiles: ["node"]
 
   stacks-node:
-    image: ghcr.io/stacks-network/stacks-core:4.0.1
+    image: ghcr.io/stacks-network/stacks-core:4.0.5
     volumes:
       - ${STACKS_DATA_DIR:-./data/stacks}:/stacks-blockchain/data
       - ./Config.toml:/stacks-blockchain/Config.toml:ro
