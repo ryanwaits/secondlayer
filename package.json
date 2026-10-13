@@ -34,7 +34,7 @@
 		"typecheck": "bun run --filter '*' typecheck",
 		"clean": "rm -rf packages/*/dist packages/*/node_modules node_modules",
 		"changeset": "changeset",
-		"version": "changeset version && biome check --write --no-errors-on-unmatched packages/*/package.json apps/*/package.json && bun run --filter @secondlayer/sdk openpkg && bun run --filter @secondlayer/api openapi && bun run scripts/ci/check-changelogs.ts && bun run scripts/ci/check-site-changelog.ts",
+		"version": "changeset version && biome check --write --no-errors-on-unmatched packages/*/package.json apps/*/package.json && bun run --filter @secondlayer/sdk openpkg && bun run --filter @secondlayer/api openapi && bun run scripts/ci/check-changelogs.ts && bun run scripts/ci/check-site-changelog.ts && bun run scripts/ci/check-verify-checkpoint.ts",
 		"check:changelogs": "bun run scripts/ci/check-changelogs.ts",
 		"release": "bun run build && changeset publish"
 	},
