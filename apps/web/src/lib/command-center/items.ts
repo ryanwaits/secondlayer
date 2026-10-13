@@ -77,3 +77,36 @@ export const DOCS_FALLBACK: CommandItem = {
 	href: "/docs",
 	newTab: true,
 };
+
+/** The docs field's per-section rows: one per `##`/`###` heading, sub = its page. */
+export function docsHeadingItems(
+	index: { href: string; anchor: string; title: string }[],
+	titleFor: (href: string) => string,
+): CommandItem[] {
+	return index.map((h) => ({
+		id: `docs:${h.href}#${h.anchor}`,
+		group: "docs" as const,
+		label: h.title,
+		sub: titleFor(h.href),
+		href: `${h.href}#${h.anchor}`,
+	}));
+}
+
+/** One row per generated API endpoint, jumping into the reference. */
+export function docsEndpointItems(
+	nav: {
+		tag: string;
+		endpoints: { anchor: string; method: string; title: string }[];
+	}[],
+): CommandItem[] {
+	return nav.flatMap((group) =>
+		group.endpoints.map((e) => ({
+			id: `docs:/docs/api-reference#${e.anchor}`,
+			group: "docs" as const,
+			label: e.title,
+			sub: "endpoint",
+			href: `/docs/api-reference#${e.anchor}`,
+			keywords: [e.method, group.tag],
+		})),
+	);
+}

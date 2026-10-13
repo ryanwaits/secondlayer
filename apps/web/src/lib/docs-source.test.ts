@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+	docsHeadingIndex,
 	extractAgentNotes,
+	headingsFromMdx,
 	mdxToMarkdown,
 	readAllDocsMarkdown,
 	readDocsMarkdown,
@@ -68,5 +70,58 @@ describe("readAllDocsMarkdown", () => {
 	test("includes the shared setup section exactly once", async () => {
 		const all = await readAllDocsMarkdown();
 		expect(all.match(/^## Setup$/gm)?.length).toBe(1);
+	});
+});
+
+describe("headingsFromMdx", () => {
+	test("slugs headings like rehype-slug, repeats get suffixes, fences are skipped", () => {
+		const source = [
+			"# Title",
+			"## Reorgs",
+			"```sh",
+			"## not a heading",
+			"```",
+			"### `consume()` basics",
+			"## Reorgs",
+			"## Notes for agents",
+		].join("\n");
+		const out = headingsFromMdx("/docs/x", source);
+		expect(out.map((h) => h.anchor)).toEqual([
+			"reorgs",
+			"consume-basics",
+			"reorgs-1",
+		]);
+		expect(out.map((h) => h.title)).toEqual([
+			"Reorgs",
+			"consume() basics",
+			"Reorgs",
+		]);
+	});
+
+	test("details rows use their authored id", () => {
+		const source = [
+			'<details id="cost-and-history">',
+			"<summary>Cost and history</summary>",
+			"</details>",
+		].join("\n");
+		expect(headingsFromMdx("/docs/x", source)).toEqual([
+			{
+				href: "/docs/x",
+				anchor: "cost-and-history",
+				title: "Cost and history",
+				level: 3,
+			},
+		]);
+	});
+});
+
+describe("docsHeadingIndex", () => {
+	test("covers the Index page, skips generated pages and agent notes, no duplicate targets", async () => {
+		const index = await docsHeadingIndex();
+		expect(index.some((h) => h.href === "/docs/index")).toBe(true);
+		expect(index.some((h) => h.href === "/docs/api-reference")).toBe(false);
+		expect(index.some((h) => /^notes for agents$/i.test(h.title))).toBe(false);
+		const keys = index.map((h) => `${h.href}#${h.anchor}`);
+		expect(new Set(keys).size).toBe(keys.length);
 	});
 });

@@ -7,6 +7,7 @@ import {
 } from "@/app/(www)/docs/mcp/tools";
 import { docsNavPages } from "@/app/(www)/docs/nav";
 import { AGENT_SETUP } from "@/lib/agent-prompts";
+import GithubSlugger from "github-slugger";
 
 /**
  * Reads the docs' own MDX as plain markdown, so an agent can fetch a page
@@ -131,4 +132,92 @@ export async function readAllDocsMarkdown(): Promise<string> {
 	}
 	parts.push(AGENT_SETUP_MD);
 	return parts.join("\n\n---\n\n");
+}
+
+export type DocsHeading = {
+	href: string;
+	anchor: string;
+	title: string;
+	level: 2 | 3;
+};
+
+/** Pages generated from the spec: hundreds of repeated headings, searched by endpoint instead. */
+const GENERATED_PAGES = new Set([
+	"/docs/api-reference",
+	"/docs/sdk-reference",
+	"/docs/changelog",
+]);
+
+const NOT_SEARCHABLE = new Set(["notes for agents", "setup"]);
+
+/** Heading text as the rendered page shows it: no code ticks, links, or emphasis. */
+function plainHeading(text: string): string {
+	return text
+		.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+		.replace(/[`*_]/g, "")
+		.trim();
+}
+
+/**
+ * `##`/`###` headings and `<details id>` rows of one page's MDX, with the
+ * anchors the rendered page carries: rehype-slug's for headings (a fresh
+ * slugger per page repeats its `-1` suffixes), the authored id for rows.
+ */
+export function headingsFromMdx(href: string, source: string): DocsHeading[] {
+	const slugger = new GithubSlugger();
+	const out: DocsHeading[] = [];
+	let fence: string | null = null;
+	let rowId: string | null = null;
+	for (const line of source.split("\n")) {
+		const mark = /^\s*(```+|~~~+)/.exec(line)?.[1];
+		if (mark) {
+			if (!fence) fence = mark[0];
+			else if (mark[0] === fence) fence = null;
+			continue;
+		}
+		if (fence) continue;
+		const open = /^<details\b[^>]*\bid="([^"]+)"/.exec(line);
+		if (open) {
+			rowId = open[1];
+			continue;
+		}
+		const summary = /^<summary>(.*)<\/summary>\s*$/.exec(line);
+		if (summary && rowId) {
+			const title = plainHeading(summary[1]);
+			if (!NOT_SEARCHABLE.has(title.toLowerCase()))
+				out.push({ href, anchor: rowId, title, level: 3 });
+			rowId = null;
+			continue;
+		}
+		const heading = /^(#{2,3})\s+(.+?)\s*#*\s*$/.exec(line);
+		if (!heading) continue;
+		const title = plainHeading(heading[2]);
+		// Slug every heading so duplicate suffixes line up, then drop the ones
+		// that are not worth a search row.
+		const anchor = slugger.slug(title);
+		if (NOT_SEARCHABLE.has(title.toLowerCase())) continue;
+		out.push({
+			href,
+			anchor,
+			title,
+			level: heading[1].length as 2 | 3,
+		});
+	}
+	return out;
+}
+
+/** Every searchable section of every hand-written docs page, sidebar-ordered. */
+export async function docsHeadingIndex(): Promise<DocsHeading[]> {
+	const pages = docsPages().filter((p) => !GENERATED_PAGES.has(p.href));
+	const perPage = await Promise.all(
+		pages.map(async (page) => {
+			try {
+				const source = await readFile(sourcePath(page.href), "utf8");
+				return headingsFromMdx(page.href, extractAgentNotes(source).rest);
+			} catch {
+				return [];
+			}
+		}),
+	);
+	return perPage.flat();
 }
