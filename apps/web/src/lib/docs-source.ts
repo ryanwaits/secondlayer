@@ -1,5 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import {
+	API_PAGES,
+	apiPageHref,
+	findApiPage,
+	pageMarkdown,
+} from "@/app/(www)/docs/api-reference/pages";
 import { referenceMarkdown } from "@/app/(www)/docs/api-reference/spec";
 import {
 	mcpResourcesMarkdown,
@@ -108,10 +114,13 @@ export async function readDocsMarkdown(
 		const markdown = mdxToMarkdown(rest);
 		// The reference's body is a component, which mdxToMarkdown strips; its
 		// markdown comes from the same spec the page renders.
+		const apiPage = findApiPage(href.replace(/^\/docs\/api\//, ""));
 		let out =
 			href === "/docs/api-reference"
 				? `${markdown}\n\n${referenceMarkdown()}`
-				: markdown;
+				: apiPage && href.startsWith("/docs/api/")
+					? `${markdown}\n\n${pageMarkdown(apiPage)}`
+					: markdown;
 		if (notes) out += `\n\n## Notes for agents\n\n${notes}`;
 		if (setup) out += `\n\n${AGENT_SETUP_MD}`;
 		return out;
@@ -148,6 +157,7 @@ export type DocsHeading = {
 /** Pages generated from the spec: hundreds of repeated headings, searched by endpoint instead. */
 const GENERATED_PAGES = new Set([
 	"/docs/api-reference",
+	...API_PAGES.map((p) => apiPageHref(p.slug)),
 	"/docs/sdk-reference",
 	"/docs/changelog",
 ]);

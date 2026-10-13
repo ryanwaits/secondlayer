@@ -3,6 +3,8 @@ import {
 	type Endpoint,
 	type ObjectEntry,
 	allEndpoints,
+	endpointMarkdown,
+	objectMarkdown,
 	objectsByTag,
 } from "./spec";
 
@@ -23,7 +25,6 @@ export type ApiFamily = {
 export type ApiPage = {
 	slug: string;
 	title: string;
-	lede: string;
 	tags: string[];
 	families: ApiFamily[];
 };
@@ -32,14 +33,8 @@ export const API_PAGES: ApiPage[] = [
 	{
 		slug: "index",
 		title: "Index API",
-		lede: "Decoded events, blocks, transactions, mempool, PoX, Runes and sBTC, read over plain HTTP with cursors.",
 		tags: ["index"],
 		families: [
-			{
-				title: "Discovery",
-				summary: "What this index serves and how fresh it is.",
-				paths: ["/v1/index"],
-			},
 			{
 				title: "Events",
 				summary: "Decoded events and the transfers and calls built from them.",
@@ -91,12 +86,16 @@ export const API_PAGES: ApiPage[] = [
 				summary: "Peg-ins, peg-outs and the peg summary.",
 				paths: ["/v1/index/sbtc/*"],
 			},
+			{
+				title: "Discovery",
+				summary: "What this index serves.",
+				paths: ["/v1/index"],
+			},
 		],
 	},
 	{
 		slug: "streams",
 		title: "Streams API",
-		lede: "The raw event firehose in chain order, a live tail, and the reorg history.",
 		tags: ["streams"],
 		families: [
 			{
@@ -123,7 +122,6 @@ export const API_PAGES: ApiPage[] = [
 	{
 		slug: "proofs",
 		title: "Proofs API",
-		lede: "Signed blocks, Bitcoin anchoring and state proofs you can check yourself.",
 		tags: ["proofs"],
 		families: [
 			{
@@ -150,7 +148,6 @@ export const API_PAGES: ApiPage[] = [
 	{
 		slug: "subgraphs",
 		title: "Subgraphs API",
-		lede: "Read your subgraph's tables, describe them, and deploy and operate them.",
 		tags: ["subgraphs", "deployments"],
 		families: [
 			{
@@ -182,7 +179,6 @@ export const API_PAGES: ApiPage[] = [
 	{
 		slug: "webhooks",
 		title: "Webhooks API",
-		lede: "Create webhooks, inspect their deliveries, and recover what a receiver missed.",
 		tags: ["webhooks"],
 		families: [
 			{
@@ -215,7 +211,6 @@ export const API_PAGES: ApiPage[] = [
 	{
 		slug: "instance",
 		title: "Instance API",
-		lede: "Discovery, batch reads and the endpoints of a self-hosted instance.",
 		tags: ["general", "instance", "archive", "node"],
 		families: [
 			{
@@ -307,6 +302,29 @@ export function pageContent(page: ApiPage): PageContent {
 		families,
 		objects: page.tags.flatMap((tag) => objects.get(tag) ?? []),
 	};
+}
+
+/** A page's families, endpoints and objects as markdown, one level below the
+ *  page's own `#` title. The same spec text the drawer renders. */
+export function pageMarkdown(page: ApiPage): string {
+	const { families, objects } = pageContent(page);
+	const demote = (md: string) => md.replace(/^(#{2,3}) /gm, "#$1 ");
+	return [
+		...families.map((family) =>
+			[
+				`## ${family.title}`,
+				family.summary,
+				...family.endpoints.map((e) => demote(endpointMarkdown(e))),
+			].join("\n\n"),
+		),
+		...(objects.length
+			? [
+					["## Objects", ...objects.map((o) => demote(objectMarkdown(o)))].join(
+						"\n\n",
+					),
+				]
+			: []),
+	].join("\n\n");
 }
 
 /** Every endpoint and object anchor with the page slug that holds it. */

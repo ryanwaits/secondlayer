@@ -56,13 +56,94 @@
     ]
   },
   "/docs/api-reference": {
-    "hash": "2b353091611b79d2",
+    "hash": "ad4f6d7d198c091b",
     "phrasings": [
-      "full list of api endpoints and parameters",
-      "openapi spec for secondlayer api",
-      "shareable link for api endpoint docs",
-      "api field definitions reference",
-      "generated api reference documentation"
+      "openapi spec for all endpoints",
+      "full api endpoint reference",
+      "list every api object schema",
+      "generated api documentation pages",
+      "api reference by job type",
+      "look up endpoint parameters and responses",
+      "swagger docs for the api",
+      "where to find api object definitions"
+    ]
+  },
+  "/docs/api/index": {
+    "hash": "9c5b616f385bd109",
+    "phrasings": [
+      "get decoded rows over http",
+      "index api endpoints list",
+      "query indexed data with get requests",
+      "how to fetch decoded blockchain rows",
+      "v1 index endpoint examples",
+      "http api for decoded events",
+      "retrieve rows without a client library",
+      "which url path to call for index data"
+    ]
+  },
+  "/docs/api/instance": {
+    "hash": "f16c47f41a4d8543",
+    "phrasings": [
+      "self hosted instance api endpoints",
+      "batch read requests on node",
+      "check archive node availability",
+      "discover catalog of available datasets",
+      "node health and discovery api",
+      "batch multiple reads in one call",
+      "self hosted node reads over http",
+      "instance catalog endpoint"
+    ]
+  },
+  "/docs/api/proofs": {
+    "hash": "e2a5397638e43bdf",
+    "phrasings": [
+      "verify api response with signed blocks",
+      "bitcoin anchoring of blocks",
+      "state proof verification api",
+      "check answer without trusting the server",
+      "signed block headers endpoint",
+      "prove data integrity from node",
+      "merkle proof for query results",
+      "how to anchor state to bitcoin"
+    ]
+  },
+  "/docs/api/streams": {
+    "hash": "1ff1b0549226a32d",
+    "phrasings": [
+      "stream events in chain order",
+      "server sent events live tail",
+      "how to subscribe to live blockchain events",
+      "get reorg history for a chain",
+      "raw event feed api",
+      "follow new blocks in real time",
+      "detect chain reorganizations via api",
+      "sse endpoint for streaming events"
+    ]
+  },
+  "/docs/api/subgraphs": {
+    "hash": "ff4540bb96a97c17",
+    "phrasings": [
+      "deploy a subgraph via api",
+      "describe subgraph tables endpoint",
+      "read rows from subgraph tables",
+      "operate subgraph programmatically",
+      "list subgraph schema tables",
+      "manage subgraph deployments api",
+      "how to query my subgraph data",
+      "subgraph management endpoints"
+    ]
+  },
+  "/docs/api/webhooks": {
+    "hash": "173c49fad5c8f027",
+    "phrasings": [
+      "create webhook endpoint for events",
+      "list webhook delivery attempts",
+      "replay missed webhook deliveries",
+      "retry failed webhook calls",
+      "webhook delivery logs api",
+      "recover events receiver missed",
+      "how to register a webhook url",
+      "webhook api for event notifications"
     ]
   },
   "/docs/archive": {

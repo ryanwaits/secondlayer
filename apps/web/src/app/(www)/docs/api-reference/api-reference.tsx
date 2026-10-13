@@ -1,4 +1,5 @@
 import { highlight } from "@/lib/highlight";
+import Link from "next/link";
 import { Fragment, type ReactNode, cache } from "react";
 import {
 	BaseUrlSwitch,
@@ -7,6 +8,7 @@ import {
 	SectionActions,
 	StickyAsides,
 } from "./client";
+import { API_PAGES, apiPageHref, findApiPage, pageContent } from "./pages";
 import {
 	type Endpoint,
 	type ObjectEntry,
@@ -408,6 +410,122 @@ async function ObjectSection({ entry }: { entry: ObjectEntry }) {
 				</aside>
 			) : null}
 		</section>
+	);
+}
+
+/** A family heading, marked up like an MDX `##` so the page reads as one. */
+function FamilyHeading({
+	id,
+	title,
+	count,
+}: { id: string; title: string; count: number }) {
+	return (
+		<div className="section-heading-wrap">
+			<hr />
+			<h2 id={id} className="section-heading" data-count={count}>
+				<a href={`#${id}`} className="heading-anchor">
+					{title}
+				</a>
+			</h2>
+		</div>
+	);
+}
+
+function EndpointRow({ endpoint }: { endpoint: Endpoint }) {
+	return (
+		<a href={`#${endpoint.anchor}`} className="apiref-row" data-endpoint-row>
+			<span
+				className={`apiref-verb apiref-verb-${endpoint.method.toLowerCase()}`}
+			>
+				{endpoint.method}
+			</span>
+			<code className="apiref-row-path">{endpoint.path}</code>
+			<span className="apiref-row-sum">
+				{endpoint.op.summary ?? endpoint.op.operationId}
+			</span>
+		</a>
+	);
+}
+
+function ObjectRow({ entry }: { entry: ObjectEntry }) {
+	return (
+		<a href={`#${entry.anchor}`} className="apiref-row" data-endpoint-row>
+			<span className="apiref-verb apiref-verb-object">Object</span>
+			<code className="apiref-row-path">{entry.name}</code>
+			<span className="apiref-row-sum">{objectTitle(entry.name)}</span>
+		</a>
+	);
+}
+
+/**
+ * One API page: every endpoint at a glance, by family, then the page's
+ * objects. Each row links to its anchor; the drawer opens it.
+ */
+export function ApiPage({ slug }: { slug: string }) {
+	const page = findApiPage(slug);
+	if (!page) throw new Error(`No API reference page "${slug}"`);
+	const { families, objects } = pageContent(page);
+	return (
+		<div className="apiref" data-base="hosted">
+			<div className="apiref-toolbar">
+				<BaseUrlSwitch />
+			</div>
+			{families.map((family) => (
+				<section key={family.id} aria-label={family.title}>
+					<FamilyHeading
+						id={family.id}
+						title={family.title}
+						count={family.endpoints.length}
+					/>
+					<p className="apiref-family-desc">{family.summary}</p>
+					<div className="apiref-rows">
+						{family.endpoints.map((endpoint) => (
+							<EndpointRow key={endpoint.anchor} endpoint={endpoint} />
+						))}
+					</div>
+				</section>
+			))}
+			{objects.length ? (
+				<section aria-label="Objects">
+					<FamilyHeading id="objects" title="Objects" count={objects.length} />
+					<p className="apiref-family-desc">
+						The shapes this page's endpoints return.
+					</p>
+					<div className="apiref-rows">
+						{objects.map((entry) => (
+							<ObjectRow key={entry.anchor} entry={entry} />
+						))}
+					</div>
+				</section>
+			) : null}
+		</div>
+	);
+}
+
+/** The reference's front page: the six pages, with what each one covers. */
+export function ApiPageList() {
+	return (
+		<>
+			<div className="apiref-rows apiref-pages">
+				{API_PAGES.map((page) => {
+					const { families } = pageContent(page);
+					const count = families.reduce((n, f) => n + f.endpoints.length, 0);
+					return (
+						<Link
+							key={page.slug}
+							href={apiPageHref(page.slug)}
+							className="apiref-row"
+						>
+							<span className="apiref-row-name">{page.title}</span>
+							<span className="apiref-row-sum">
+								{families.map((f) => f.title).join(" · ")}
+							</span>
+							<span className="apiref-row-count">{count}</span>
+						</Link>
+					);
+				})}
+			</div>
+		</>
 	);
 }
 

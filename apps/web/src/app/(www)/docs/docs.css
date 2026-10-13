@@ -1113,6 +1113,96 @@ button.docs-nav-item {
 	max-width: 40rem;
 	color: var(--sub);
 }
+/* An API page: every endpoint of a family on one line. Hover and the open
+   row color the path and summary primary blue; no row background. */
+.docs-article .apiref-family-desc {
+	margin-top: 10px;
+	font-size: 15px;
+	color: var(--sub);
+}
+.apiref-rows {
+	margin-top: 16px;
+	border-top: 1px solid var(--line);
+}
+.docs-article .apiref-row {
+	display: grid;
+	grid-template-columns: 64px minmax(0, 1.25fr) minmax(0, 1fr);
+	align-items: baseline;
+	gap: 4px 16px;
+	padding: 11px 0;
+	border-bottom: 1px solid var(--line);
+	color: var(--ink);
+	text-decoration: none;
+}
+.apiref-row .apiref-verb {
+	justify-self: start;
+	min-width: 44px;
+	text-align: center;
+}
+.apiref-verb-object {
+	background: none;
+	border: 1px solid var(--line);
+	color: var(--sub);
+}
+.docs-article .apiref-row-path,
+.docs-article .apiref-row-name {
+	padding: 0;
+	background: none;
+	font: 13.5px var(--font-mono-stack);
+	color: inherit;
+	overflow-wrap: anywhere;
+}
+.docs-article .apiref-row-name {
+	font: 500 15px var(--font-sans-stack);
+}
+.apiref-row-sum {
+	font-size: 14.5px;
+	color: var(--sub);
+}
+.apiref-row-count {
+	justify-self: end;
+	font: 12px var(--font-mono-stack);
+	color: var(--sub);
+}
+.docs-article .apiref-row:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+@media (hover: hover) {
+	.docs-article .apiref-row:hover .apiref-row-path,
+	.docs-article .apiref-row:hover .apiref-row-name,
+	.docs-article .apiref-row:hover .apiref-row-sum {
+		color: var(--pri);
+	}
+}
+.docs-article .apiref-row[data-open] .apiref-row-path,
+.docs-article .apiref-row[data-open] .apiref-row-name,
+.docs-article .apiref-row[data-open] .apiref-row-sum {
+	color: var(--pri);
+}
+.apiref-pages .apiref-row {
+	grid-template-columns: 140px minmax(0, 1fr) 40px;
+}
+@media (max-width: 640px) {
+	.docs-article .apiref-row {
+		grid-template-columns: 64px minmax(0, 1fr);
+	}
+	.apiref-row-sum {
+		grid-column: 2;
+	}
+	.apiref-pages .apiref-row {
+		grid-template-columns: minmax(0, 1fr) 40px;
+	}
+	.apiref-pages .apiref-row-sum {
+		grid-column: 1;
+		grid-row: 2;
+	}
+}
+.docs-nav-count {
+	margin-left: 6px;
+	font-size: 11.5px;
+	color: var(--sub);
+}
 .apiref-section {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);

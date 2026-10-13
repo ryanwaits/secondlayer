@@ -1,8 +1,10 @@
-import { ApiReference } from "./api-reference";
+import { ApiPageList } from "./api-reference";
 
 # API reference
 
-Every endpoint, parameter, and field, generated from the API's own OpenAPI description, with a link you can share for each one.
+Every endpoint and object, generated from the API's own OpenAPI description, in six pages by job. Each page lists its endpoints at a glance; click one to open its request, parameters and response.
+
+<ApiPageList />
 
 <Callout type="note" title="Start here">
 
@@ -10,10 +12,8 @@ The [SDK](/docs/sdk) already walks cursors, checkpoints, and rewinds reorgs. Cre
 
 </Callout>
 
-<ApiReference />
-
 export const agent = `
-- Every endpoint and object is generated from the OpenAPI spec at 'https://secondlayer.tools/docs/api-reference.md'; link sections as 'https://secondlayer.tools/docs/api-reference#<anchor>'.
+- Every endpoint and object is generated from the OpenAPI spec at 'https://secondlayer.tools/docs/api-reference.md'; the pages by job are 'https://secondlayer.tools/docs/api/<index|streams|proofs|subgraphs|webhooks|instance>' (each with a .md twin).
 - One endpoint as markdown: 'https://secondlayer.tools/docs/api-reference/<anchor>.md', where <anchor> is its operationId in kebab case (e.g. list-pox5-events).
 - Base URL: hosted needs SECONDLAYER_API_KEY; a loopback instance needs no key. Page by passing next_cursor back as cursor, and undo rows named in reorgs[].
 - Live spec: 'GET $SECONDLAYER_API_URL/v1/openapi.json'. operationIds are stable, so keep them as method names; auth is an optional bearer.
@@ -23,5 +23,5 @@ export const agent = `
 export const metadata = {
 	title: "API reference — Secondlayer Docs",
 	description:
-		"Every Secondlayer endpoint with parameters, objects, and example requests and responses, generated from the API's OpenAPI description.",
+		"Every Secondlayer endpoint with parameters, objects, and example requests and responses, in six pages by job, generated from the API's OpenAPI description.",
 };

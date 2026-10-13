@@ -1,6 +1,5 @@
 "use client";
 
-import apiNav from "@/generated/openapi-nav.json";
 import { clearAccountData } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import { DOCS_STRIP } from "@/lib/nav";
@@ -9,18 +8,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useDocsDrawer } from "./docs-drawer";
 import { DOCS_NAV } from "./nav";
-
-const API_REFERENCE = "/docs/api-reference";
-
-/** "The Reorg object" lists as "Reorg" in the sidebar. */
-function bareObjectTitle(title: string): string {
-	return title.replace(/^The (.+) object$/, "$1");
-}
-
-/** A jump's hold ends once the page has sat still for this many frames. */
-const STILL_FRAMES = 6;
-/** How many times a settled jump that missed its section is re-landed. */
-const MAX_CORRECTIONS = 3;
 
 /** Gap kept between a revealed row and the sidebar's edge. */
 const REVEAL_MARGIN = 8;
@@ -39,210 +26,11 @@ function revealNearest(nav: HTMLElement, row: HTMLElement) {
 	}
 }
 
-/**
- * The section of the reference being read: the last one whose top has passed
- * the line where a jump to its anchor lands (the page's scroll-padding plus
- * the section's scroll-margin, so a clicked section is always the one read).
- * Recomputed per frame on scroll and mirrored into the URL hash. A clicked
- * link is active at once and holds through its smooth scroll (until the page
- * stops moving, or the reader scrolls themselves), so the sections it passes
- * neither flash in the sidebar nor rewrite the URL. Stillness is watched per
- * frame rather than via `scrollend`, which Safari lacks and some Chromes fire
- * mid-animation.
- */
-function useActiveSection(enabled: boolean): string {
-	const [active, setActive] = useState("");
-	useEffect(() => {
-		if (!enabled) return;
-		let frame = 0;
-		let watch = 0;
-		let target = "";
-		// The sections and the line don't change while scrolling; read them
-		// once (the line again on resize, where the mobile scroll-padding
-		// applies), not per frame.
-		const sections = [
-			...document.querySelectorAll<HTMLElement>(".apiref-section"),
-		];
-		const measureLine = () => {
-			const padding = Number.parseFloat(
-				getComputedStyle(document.documentElement).scrollPaddingTop,
-			);
-			const margin = sections[0]
-				? Number.parseFloat(getComputedStyle(sections[0]).scrollMarginTop)
-				: 0;
-			return (padding || 0) + (margin || 0) + 8;
-		};
-		let line = measureLine();
-		const onResize = () => {
-			line = measureLine();
-		};
-		const compute = () => {
-			frame = 0;
-			if (target) return;
-			let current = "";
-			for (const section of sections) {
-				if (section.getBoundingClientRect().top > line) break;
-				current = section.id;
-			}
-			// At the page's end, a short last section never reaches the line;
-			// the one the URL names wins while it's on screen.
-			const atEnd =
-				window.innerHeight + window.scrollY >=
-				document.documentElement.scrollHeight - 2;
-			const named = document.getElementById(
-				decodeURIComponent(location.hash.slice(1)),
-			);
-			if (atEnd && named?.classList.contains("apiref-section")) {
-				const top = named.getBoundingClientRect().top;
-				if (top >= 0 && top < window.innerHeight) current = named.id;
-			}
-			setActive(current);
-			// Keep the URL on the section being read, so a copied or reloaded
-			// link lands there. replaceState adds no history entries.
-			if (current && location.hash !== `#${current}`) {
-				history.replaceState(history.state, "", `#${current}`);
-			}
-		};
-		const release = () => {
-			cancelAnimationFrame(watch);
-			if (!target) return;
-			target = "";
-			compute();
-		};
-		const onScroll = () => {
-			if (target) return;
-			if (!frame) frame = requestAnimationFrame(compute);
-		};
-		const hold = (id: string) => {
-			const section = document.getElementById(id);
-			if (!section?.classList.contains("apiref-section")) return;
-			setActive(id);
-			target = id;
-			let lastY = window.scrollY;
-			let still = 0;
-			let corrections = 0;
-			cancelAnimationFrame(watch);
-			const tick = () => {
-				still = window.scrollY === lastY ? still + 1 : 0;
-				lastY = window.scrollY;
-				if (still < STILL_FRAMES) {
-					watch = requestAnimationFrame(tick);
-					return;
-				}
-				// A jump aimed before the page finished laying out (a fresh
-				// load's native hash scroll) can settle off target; land it.
-				const top = section.getBoundingClientRect().top;
-				if ((top < 0 || top > line) && corrections < MAX_CORRECTIONS) {
-					corrections++;
-					still = 0;
-					section.scrollIntoView({ behavior: "instant", block: "start" });
-					watch = requestAnimationFrame(tick);
-					return;
-				}
-				release();
-			};
-			watch = requestAnimationFrame(tick);
-		};
-		const onHash = () => hold(decodeURIComponent(location.hash.slice(1)));
-		// The smooth scroll starts on click, a frame or two before hashchange;
-		// holding from the click keeps that first frame from counting.
-		const onClick = (event: MouseEvent) => {
-			const link = (event.target as Element | null)?.closest?.("a");
-			const href = link?.getAttribute("href");
-			if (href?.startsWith("#")) hold(decodeURIComponent(href.slice(1)));
-		};
-		// Arriving on a section's link: land on it at once and hold it, rather
-		// than let the smooth scroll's passing sections rewrite the URL.
-		const arrived = document.getElementById(
-			decodeURIComponent(location.hash.slice(1)),
-		);
-		if (arrived?.classList.contains("apiref-section")) {
-			hold(arrived.id);
-			arrived.scrollIntoView({ behavior: "instant", block: "start" });
-		} else {
-			compute();
-		}
-		window.addEventListener("scroll", onScroll, { passive: true });
-		window.addEventListener("resize", onResize);
-		window.addEventListener("hashchange", onHash);
-		document.addEventListener("click", onClick, true);
-		// The reader taking over ends a jump's hold at once.
-		for (const type of ["wheel", "touchstart", "keydown"]) {
-			window.addEventListener(type, release, { passive: true });
-		}
-		return () => {
-			window.removeEventListener("scroll", onScroll);
-			window.removeEventListener("resize", onResize);
-			window.removeEventListener("hashchange", onHash);
-			document.removeEventListener("click", onClick, true);
-			for (const type of ["wheel", "touchstart", "keydown"]) {
-				window.removeEventListener(type, release);
-			}
-			cancelAnimationFrame(frame);
-			cancelAnimationFrame(watch);
-		};
-	}, [enabled]);
-
-	// Keep the active row visible inside the sidebar's own scroll area.
-	useEffect(() => {
-		if (!active) return;
-		const row = document.querySelector<HTMLElement>(
-			`.docs-nav a[href="#${CSS.escape(active)}"]`,
-		);
-		const nav = row?.closest<HTMLElement>(".docs-nav");
-		if (!row || !nav) return;
-		revealNearest(nav, row);
-	}, [active]);
-
-	return active;
-}
-
-/** The reference's tree, shown under its nav item while it's open: each tag's
- *  objects, then its endpoints, in page order. Tags and rows are plain
- *  children like any page's sub-pages. Only the tag being read is open (the
- *  first, before the reader has scrolled to anything). */
-function ApiReferenceNav({ active }: { active: string }) {
-	const reading = apiNav.some((group) =>
-		[...group.objects, ...group.endpoints].some((row) => row.anchor === active),
-	);
-	return (
-		<div className="docs-nav-children">
-			{apiNav.map((group, i) => {
-				const rows = [...group.objects, ...group.endpoints];
-				const open = reading
-					? rows.some((row) => row.anchor === active)
-					: i === 0;
-				return (
-					<details
-						key={group.tag}
-						className="apiref-nav-group"
-						open={open || undefined}
-					>
-						<summary className="docs-nav-item docs-nav-child">
-							{group.tag.charAt(0).toUpperCase() + group.tag.slice(1)}
-						</summary>
-						<div className="docs-nav-children">
-							{rows.map((row) => (
-								<a
-									key={row.anchor}
-									href={`#${row.anchor}`}
-									aria-current={row.anchor === active ? "location" : undefined}
-									className={`docs-nav-item docs-nav-child${row.anchor === active ? " active" : ""}`}
-								>
-									{bareObjectTitle(row.title)}
-								</a>
-							))}
-						</div>
-					</details>
-				);
-			})}
-		</div>
-	);
-}
-
 interface Head {
 	id: string;
 	text: string;
+	/** Endpoints under an API family heading. */
+	count?: string;
 }
 
 /** The open page's visible h2s, listed under its row. Reads them from the
@@ -261,7 +49,11 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 			article?.querySelectorAll<HTMLElement>("h2[id]") ?? [],
 		)
 			.filter((h) => !h.closest("details"))
-			.map((h) => ({ id: h.id, text: h.textContent ?? "" }));
+			.map((h) => ({
+				id: h.id,
+				text: h.textContent ?? "",
+				count: h.dataset.count,
+			}));
 		setHeads(found);
 		setActiveId(found[0]?.id ?? "");
 	}, [pathname]);
@@ -299,6 +91,7 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 					onClick={onNavigate}
 				>
 					{h.text}
+					{h.count ? <span className="docs-nav-count">{h.count}</span> : null}
 				</a>
 			))}
 		</div>
@@ -309,8 +102,6 @@ export function DocsSidebar() {
 	const pathname = usePathname();
 	const { account, loading, logout } = useAuth();
 	const { open, setOpen } = useDocsDrawer();
-	const onReference = pathname === API_REFERENCE;
-	const activeSection = useActiveSection(onReference);
 	// A hash click doesn't change the route, so the phone drawer closes here.
 	const outline = <PageOutline onNavigate={() => setOpen(false)} />;
 
@@ -401,12 +192,7 @@ export function DocsSidebar() {
 								>
 									{item.title}
 								</Link>
-								{item.href === API_REFERENCE && onReference ? (
-									<ApiReferenceNav active={activeSection} />
-								) : null}
-								{pathname === item.href && item.href !== API_REFERENCE
-									? outline
-									: null}
+								{pathname === item.href ? outline : null}
 							</div>
 						))}
 					</div>

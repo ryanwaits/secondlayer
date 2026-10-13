@@ -22,8 +22,12 @@ export interface DocsNavGroup {
  * - **Tools** is how you drive it: CLI (with its local devnet), SDK (Filters
  *   is a section), Sinks, Deploy your app, and MCP and skills (the generated
  *   tool table plus the agent skill).
- * - **Reference** is lookup: REST API conventions sit with the generated API
- *   and SDK references and the changelog. Library pages for
+ * - **API** is the HTTP reference in six pages by job (Index, Streams,
+ *   Proofs, Subgraphs, Webhooks, Instance), generated from the OpenAPI
+ *   description; each endpoint opens in a drawer. Pages are assigned in
+ *   `api-reference/pages.ts`.
+ * - **Reference** is lookup: REST API conventions sit with the API index,
+ *   the SDK reference and the changelog. Library pages for
  *   `@secondlayer/stacks` live at stacks.secondlayer.tools.
  *
  * Pages only: no page has child pages. A new topic is a top-level row or a
@@ -61,6 +65,17 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "Sinks", href: "/docs/sinks" },
 			{ title: "Deploy your app", href: "/docs/deploy" },
 			{ title: "MCP and skills", href: "/docs/mcp" },
+		],
+	},
+	{
+		label: "API",
+		items: [
+			{ title: "Index API", href: "/docs/api/index" },
+			{ title: "Streams API", href: "/docs/api/streams" },
+			{ title: "Proofs API", href: "/docs/api/proofs" },
+			{ title: "Subgraphs API", href: "/docs/api/subgraphs" },
+			{ title: "Webhooks API", href: "/docs/api/webhooks" },
+			{ title: "Instance API", href: "/docs/api/instance" },
 		],
 	},
 	{

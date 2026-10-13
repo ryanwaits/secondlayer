@@ -1,0 +1,19 @@
+import { ApiPage } from "../../api-reference/api-reference";
+
+# Proofs API
+
+Signed blocks, Bitcoin anchoring and state proofs, so you can check an answer instead of trusting it. How to run the checks is on [Verify](/docs/verification); envelope and cursors are in [REST conventions](/docs/rest-api).
+
+<ApiPage slug="proofs" />
+
+export const agent = `
+- Base: 'GET $SECONDLAYER_API_URL/v1/proofs/<endpoint>' with 'Authorization: Bearer $SECONDLAYER_API_KEY'.
+- Check proofs locally with @secondlayer/verify rather than trusting the response body.
+- One endpoint as markdown: 'https://secondlayer.tools/docs/api-reference/<anchor>.md', e.g. get-signed-block.
+`;
+
+export const metadata = {
+	title: "Proofs API — Secondlayer Docs",
+	description:
+		"Every Proofs endpoint: signed blocks, Bitcoin anchoring and state proofs, with parameters and example requests.",
+};

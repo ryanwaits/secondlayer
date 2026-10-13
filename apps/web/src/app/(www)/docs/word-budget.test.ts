@@ -6,7 +6,8 @@ import { docsNavPages } from "./nav";
 /** Docs page contract: about 120 words visible per `##` section on entry. Collapsed <details> and code don't count. */
 const BUDGET = 120;
 
-/** Generated or log pages the contract does not apply to. */
+/** Generated or log pages the contract does not apply to (the six API pages
+ *  under /docs/api/ are generated from the spec too). */
 const EXEMPT = new Set([
 	"/docs/api-reference",
 	"/docs/sdk-reference",
@@ -46,7 +47,7 @@ function sectionWords(mdx: string): { section: string; words: number }[] {
 }
 
 const counts = docsNavPages()
-	.filter((p) => !EXEMPT.has(p.href))
+	.filter((p) => !EXEMPT.has(p.href) && !p.href.startsWith("/docs/api/"))
 	.flatMap((p) =>
 		sectionWords(readFileSync(pageFile(p.href), "utf8")).map((s) => ({
 			...s,

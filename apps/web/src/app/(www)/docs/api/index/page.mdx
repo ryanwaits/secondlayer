@@ -1,0 +1,20 @@
+import { ApiPage } from "../../api-reference/api-reference";
+
+# Index API
+
+Decoded rows over plain HTTP, every endpoint a `GET` under `/v1/index`. Envelope, cursors and filters work the same on all of them: see [REST conventions](/docs/rest-api).
+
+<ApiPage slug="index" />
+
+export const agent = `
+- Base: 'GET $SECONDLAYER_API_URL/v1/index/<endpoint>' with 'Authorization: Bearer $SECONDLAYER_API_KEY' on hosted; a loopback instance needs no key.
+- List endpoints return a cursor envelope; page by passing next_cursor back as cursor, and undo rows named in reorgs[].
+- One endpoint as markdown: 'https://secondlayer.tools/docs/api-reference/<anchor>.md', e.g. list-ft-transfers.
+- Prefer @secondlayer/sdk (index.*) over hand-rolled paging.
+`;
+
+export const metadata = {
+	title: "Index API — Secondlayer Docs",
+	description:
+		"Every Index endpoint: decoded events, blocks, transactions, mempool, PoX, Runes and sBTC, with parameters and example requests.",
+};

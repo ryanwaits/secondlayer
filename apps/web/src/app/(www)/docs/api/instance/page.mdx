@@ -1,0 +1,20 @@
+import { ApiPage } from "../../api-reference/api-reference";
+
+# Instance API
+
+Discovery and batch reads, plus the catalog, archive check and node reads of a self-hosted instance. Envelope and cursors are in [REST conventions](/docs/rest-api); running an instance is [Self-host](/docs/self-host).
+
+<ApiPage slug="instance" />
+
+export const agent = `
+- Discovery: 'GET $SECONDLAYER_API_URL/v1' lists every surface this instance serves; 'GET /v1/openapi.json' is the live OpenAPI document.
+- Batch several public reads in one request with 'POST /v1/batch'.
+- Instance endpoints use $INSTANCE_TOKEN on a self-hosted box; a loopback instance needs no key.
+- One endpoint as markdown: 'https://secondlayer.tools/docs/api-reference/<anchor>.md', e.g. batch-read.
+`;
+
+export const metadata = {
+	title: "Instance API — Secondlayer Docs",
+	description:
+		"Every Instance endpoint: discovery and batch, your instance, the archive check and node reads, with parameters and example requests.",
+};
