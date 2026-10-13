@@ -27,7 +27,8 @@ A client's JSON `env` can't read your shell, so this block holds the hosted valu
 
 An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional `SECONDLAYER_MCP_SECRET` bearer auth for hosting the server behind a URL.
 
-## Authentication
+<details id="authentication">
+<summary>Authentication</summary>
 
 | Surface | Reads | Writes |
 | --- | --- | --- |
@@ -36,7 +37,10 @@ An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional
 
 A token sent on a loopback read that did not need it is ignored, never rejected.
 
-## Start here
+</details>
+
+<details id="start-here">
+<summary>Start here</summary>
 
 Read `secondlayer://context` first, then any other resource you need, before calling tools.
 
@@ -44,18 +48,26 @@ Read `secondlayer://context` first, then any other resource you need, before cal
 
 For Index, call `index_discover` first to learn every event type, its columns, and the filters it accepts.
 
-## Tools
+</details>
+
+<details id="tools">
+<summary>Tools</summary>
 
 Reads are cursor-paginated. Writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` to poll. Account tools register only when `SECONDLAYER_API_URL` is the hosted API.
 
 <McpTools />
 
-## Notes
+</details>
+
+<details id="notes">
+<summary>Notes</summary>
 
 - **One-time secrets.** `webhooks_create` returns its signing secret exactly once: forward it to the user.
 - **Cursors are opaque** and per-keyspace: contract-call cursors are not interchangeable with event cursors.
 - **Tail without streaming.** For subgraph tables, every page with rows returns `next_cursor`; poll with `cursor = next_cursor ?? cursor`.
 - See the [REST API](/docs/rest-api) for the underlying endpoints.
+
+</details>
 
 ## Agent skill
 
