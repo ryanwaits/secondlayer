@@ -368,6 +368,66 @@ button.docs-nav-item {
 	outline: 2px solid var(--pri);
 	outline-offset: 2px;
 }
+/**
+ * "Go deeper" rows: native <details> in MDX, consecutive rows read as one list.
+ * Summary is a plain short title; blank lines around the body keep markdown working.
+ *
+ *   <details>
+ *   <summary>Options</summary>
+ *
+ *   | Option | Effect |
+ *   | --- | --- |
+ *   | `contractId` | One id, or up to 20 on one cursor. |
+ *
+ *   </details>
+ *
+ * Scoped to #docs-article so the phone page-actions and API reference
+ * disclosures keep their own styles.
+ */
+#docs-article :not(details) + details:not(.apiref-enum) {
+	border-top: 1px solid var(--line);
+}
+#docs-article details:not(.apiref-enum) {
+	border-bottom: 1px solid var(--line);
+}
+#docs-article details:not(.apiref-enum) > summary {
+	list-style: none;
+	cursor: pointer;
+	display: grid;
+	grid-template-columns: 14px minmax(0, 1fr);
+	gap: 10px;
+	align-items: baseline;
+	padding: 10px 2px;
+	font-size: 14.5px;
+	font-weight: 500;
+}
+#docs-article details:not(.apiref-enum) > summary::-webkit-details-marker {
+	display: none;
+}
+#docs-article details:not(.apiref-enum) > summary::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-right: 1.5px solid var(--sub);
+	border-bottom: 1.5px solid var(--sub);
+	transform: rotate(-45deg) translateY(-2px);
+	transition: transform 0.15s;
+}
+#docs-article details[open]:not(.apiref-enum) > summary::before {
+	transform: rotate(45deg) translateY(-3px);
+}
+#docs-article details:not(.apiref-enum) > :not(summary) {
+	margin-left: 24px;
+	max-width: calc(100% - 24px);
+}
+#docs-article details:not(.apiref-enum) > :last-child {
+	margin-bottom: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+	#docs-article details:not(.apiref-enum) > summary::before {
+		transition: none;
+	}
+}
 .docs-article ul,
 .docs-article ol {
 	margin: 14px 0 0;
