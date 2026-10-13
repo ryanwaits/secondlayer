@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 20.1.0
+
+### Minor Changes
+
+- d3392ab: Add `index runes` (list, get, balances, activity) and `--chain bitcoin` on `streams events`, `by-tx`, `consume` and `reorgs`.
+
 ## 20.0.1
 
 ### Patch Changes
