@@ -3766,15 +3766,13 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 		color: var(--shiki-dark) !important;
 	}
 }
-/* Terminal surfaces are dark in both modes: force the dark token set on the
-   terminal ground (transparent so --term-bg shows, not Shiki's). */
-
-/* Terminal surfaces are dark in both modes: force the dark token set on the
-   terminal ground (transparent so --term-bg shows, not Shiki's). */
+/* Code on a themed ground (the API reference follows the page theme) keeps
+   its own background; the macOS-window terminals are dark in both modes and
+   force the dark token set. */
 :is(.apiref-request, .apiref-response, .mpx-win) .shiki {
 	background-color: transparent !important;
 }
-:is(.apiref-request, .apiref-response, .mpx-win) .shiki span {
+.mpx-win .shiki span {
 	color: var(--shiki-dark) !important;
 }
 /* ── Agent Prompt Block ────────────────────────────────────────── */

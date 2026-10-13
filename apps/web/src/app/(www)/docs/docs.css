@@ -1302,22 +1302,39 @@ button.docs-nav-item {
 	color: var(--alarm);
 }
 .apiref-response-bar .apiref-status {
-	color: var(--term-fg);
-	border-color: var(--term-line);
+	color: var(--ar-fg);
+	border-color: var(--ar-line);
 }
 .apiref-response-bar .apiref-status-bad {
 	color: var(--alarm);
 }
 
-/* request / response: one dark ground */
+/* request / response: the guides' code surface in light mode (soft ground,
+   hairline, the Shiki light tokens); the terminal ground in dark mode. */
+.apiref-request,
+.apiref-response {
+	--ar-bg: var(--soft);
+	--ar-line: var(--line);
+	--ar-fg: var(--ink);
+	--ar-mute: var(--sub);
+}
+@media (prefers-color-scheme: dark) {
+	.apiref-request,
+	.apiref-response {
+		--ar-bg: var(--term);
+		--ar-line: var(--term-line);
+		--ar-fg: var(--term-fg);
+		--ar-mute: var(--term-mute);
+	}
+}
 .apiref-request,
 .apiref-response {
 	min-width: 0;
-	border: 1px solid var(--term-line);
+	border: 1px solid var(--ar-line);
 	border-radius: 8px;
 	overflow: hidden;
-	background: var(--term);
-	color: var(--term-fg);
+	background: var(--ar-bg);
+	color: var(--ar-fg);
 }
 .apiref-request-bar,
 .apiref-response-bar {
@@ -1326,9 +1343,9 @@ button.docs-nav-item {
 	gap: 10px;
 	min-height: 38px;
 	padding: 0 8px 0 14px;
-	border-bottom: 1px solid var(--term-line);
+	border-bottom: 1px solid var(--ar-line);
 	font: 12px var(--font-mono-stack);
-	color: var(--term-mute);
+	color: var(--ar-mute);
 }
 .apiref-response-bar {
 	font-size: 11px;
@@ -1341,15 +1358,15 @@ button.docs-nav-item {
 	border-bottom: 2px solid transparent;
 	background: none;
 	font: 12px var(--font-mono-stack);
-	color: var(--term-mute);
+	color: var(--ar-mute);
 	cursor: pointer;
 }
 .apiref-tab + .apiref-tab {
 	margin-left: 4px;
 }
 .apiref-tab[aria-selected="true"] {
-	color: var(--term-fg);
-	border-bottom-color: var(--term-fg);
+	color: var(--ar-fg);
+	border-bottom-color: var(--ar-fg);
 }
 .apiref-request-copy {
 	margin-left: auto;
@@ -1360,11 +1377,11 @@ button.docs-nav-item {
 	justify-content: center;
 	border: 0;
 	background: transparent;
-	color: var(--term-mute);
+	color: var(--ar-mute);
 	cursor: pointer;
 }
 .apiref-request-copy:hover {
-	color: var(--term-fg);
+	color: var(--ar-fg);
 }
 /* Full height: code never scrolls vertically inside the page (the wheel
    always moves the page); long lines scroll sideways. Tall asides in Full
@@ -1391,16 +1408,16 @@ button.docs-nav-item {
 	width: 100%;
 	padding: 9px 14px;
 	border: 0;
-	border-top: 1px solid var(--term-line);
+	border-top: 1px solid var(--ar-line);
 	background: transparent;
 	font: 12px var(--font-mono-stack);
-	color: var(--term-mute);
+	color: var(--ar-mute);
 	text-align: left;
 	cursor: pointer;
 }
 @media (hover: hover) {
 	.apiref-expand:hover {
-		color: var(--term-fg);
+		color: var(--ar-fg);
 	}
 }
 
