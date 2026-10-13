@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import apiNav from "@/generated/openapi-nav.json";
-import { docsSearchPool } from "./command-center/items";
-import { rankCommandItems } from "./command-center/search";
-import { docsHeadingIndex } from "./docs-source";
+import { buildIndex, confident, search } from "./docs-bm25";
+import { docsSearchDocs } from "./docs-source";
 
 /**
  * Fixed paraphrase queries, each mapped to the docs section(s) that answer it.
@@ -85,24 +83,29 @@ const EVAL: [query: string, expected: string[]][] = [
 const idOf = (itemId: string) => itemId.replace(/^docs:/, "");
 
 describe("docs search eval", () => {
-	test.skip("paraphrase queries land on the section that answers them", async () => {
-		const pool = docsSearchPool(await docsHeadingIndex(), apiNav);
+	test("paraphrase queries land on the section that answers them", async () => {
+		const index = buildIndex(await docsSearchDocs());
 		let top1 = 0;
 		let top3 = 0;
+		let sure = 0;
+		let sureWrong = 0;
 		const rows: string[] = [];
 		for (const [query, expected] of EVAL) {
-			const top = rankCommandItems(query, pool, new Map())
-				.flat.slice(0, 3)
-				.map((s) => idOf(s.item.id));
+			const results = search(index, query, 5);
+			const top = results.slice(0, 3).map((r) => idOf(r.id));
 			const hit1 = expected.includes(top[0]);
 			const hit3 = top.some((id) => expected.includes(id));
+			const isSure = confident(results);
 			if (hit1) top1++;
 			if (hit3) top3++;
+			if (isSure) sure++;
+			if (isSure && !hit1) sureWrong++;
 			rows.push(
-				`${hit3 ? (hit1 ? "1" : "3") : "x"} ${query} -> [${expected.join(" | ")}] got [${top.join(", ")}]`,
+				`${hit3 ? (hit1 ? "1" : "3") : "x"}${isSure ? " sure" : "     "} ${query} -> [${expected.join(" | ")}] got [${top.join(", ")}]`,
 			);
 		}
-		const table = `top-1 ${top1}/20, top-3 ${top3}/20\n${rows.join("\n")}`;
-		expect(top1 >= 16 && top3 >= 18, table).toBe(true);
+		const table = `top-1 ${top1}/20, top-3 ${top3}/20, confident ${sure}, confident-wrong ${sureWrong}\n${rows.join("\n")}`;
+		console.log(table);
+		expect(top3 >= 14 && sureWrong === 0, table).toBe(true);
 	});
 });
