@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { Index } from "@secondlayer/sdk";
+import { Index, type IndexRuneEventKind } from "@secondlayer/sdk";
 import {
 	DECODED_EVENT_TYPES,
 	type DecodedEventType,
@@ -77,7 +77,60 @@ function fail(action: string, err: unknown): never {
 	process.exit(1);
 }
 
+const RUNE_SORTS = ["number", "mints"] as const;
+const RUNE_KINDS = ["etch", "mint", "transfer", "burn"] as const;
+
+/** `--sort` for `runes`: the SDK's two orderings, anything else refused. */
+export function parseRuneSort(
+	value?: string,
+): (typeof RUNE_SORTS)[number] | undefined {
+	if (value === undefined) return undefined;
+	if (!RUNE_SORTS.includes(value as (typeof RUNE_SORTS)[number])) {
+		throw new Error(
+			`invalid --sort "${value}"; expected one of: ${RUNE_SORTS.join(", ")}`,
+		);
+	}
+	return value as (typeof RUNE_SORTS)[number];
+}
+
+/** `--kind etch,burn` becomes `["rune_etch", "rune_burn"]`. */
+export function parseRuneKinds(
+	value?: string,
+): IndexRuneEventKind[] | undefined {
+	if (value === undefined) return undefined;
+	return value.split(",").map((raw) => {
+		const name = raw.trim();
+		if (!RUNE_KINDS.includes(name as (typeof RUNE_KINDS)[number])) {
+			throw new Error(
+				`invalid --kind "${name}"; expected one or more of: ${RUNE_KINDS.join(", ")}`,
+			);
+		}
+		return `rune_${name}` as IndexRuneEventKind;
+	});
+}
+
+/** Exactly one of `--address` / `--outpoint` selects whose balances to read. */
+export function runeBalanceSubject(o: {
+	address?: string;
+	outpoint?: string;
+}): { address: string } | { outpoint: string } {
+	if (o.address !== undefined && o.outpoint === undefined) {
+		return { address: o.address };
+	}
+	if (o.outpoint !== undefined && o.address === undefined) {
+		return { outpoint: o.outpoint };
+	}
+	throw new Error("pass --address or --outpoint (one of them)");
+}
+
 type ListOptions = {
+	search?: string;
+	sort?: string;
+	rune?: string;
+	address?: string;
+	outpoint?: string;
+	kind?: string;
+	txid?: string;
 	contractId?: string;
 	sender?: string;
 	recipient?: string;
@@ -377,6 +430,102 @@ export function registerIndexCommand(program: Command): void {
 				emitOne(await client().mempool.get(txId), `pending tx ${txId}`, o.json);
 			} catch (err) {
 				fail("get mempool tx", err);
+			}
+		});
+
+	// `runes` and its subcommands share --cursor/--limit/--json; Commander hands
+	// a flag placed after the subcommand to the parent, so subcommands read
+	// optsWithGlobals() instead of their own options.
+	const runes = index
+		.command("runes")
+		.description("List etched runes (Bitcoin; run `runes get <rune>` for one)")
+		.option("--search <prefix>", "Name prefix, spacers and case ignored")
+		.option("--sort <order>", "number (etch order) or mints (busiest first)")
+		.option("--cursor <cursor>", "Resume token from a previous next_cursor")
+		.option("--limit <n>", "Rows per page")
+		.option("--json", "Print the full envelope as JSON")
+		.action(async (o: ListOptions) => {
+			try {
+				emit(
+					await client().runes.list({
+						search: o.search,
+						sort: parseRuneSort(o.sort),
+						cursor: o.cursor,
+						limit: o.limit ? Number.parseInt(o.limit, 10) : undefined,
+					}),
+					o.json,
+				);
+			} catch (err) {
+				fail("list runes", err);
+			}
+		});
+
+	runes
+		.command("get <rune>")
+		.description("Get one rune by id (840000:3) or name, any spacing or case")
+		.option("--json", "Print as JSON")
+		.action(async (rune: string, _o: ListOptions, cmd: Command) => {
+			const o = cmd.optsWithGlobals<ListOptions>();
+			try {
+				emitOne(await client().runes.get(rune), `rune ${rune}`, o.json);
+			} catch (err) {
+				fail("get rune", err);
+			}
+		});
+
+	runes
+		.command("balances")
+		.description("Current rune balances by address or outpoint (Bitcoin)")
+		.option("--address <address>", "Bitcoin address")
+		.option("--outpoint <txid:vout>", "Unspent output")
+		.option("--rune <ref>", "Narrow to one rune (id or name)")
+		.option("--cursor <cursor>", "Resume token from a previous next_cursor")
+		.option("--limit <n>", "Rows per page")
+		.option("--json", "Print the full envelope as JSON")
+		.action(async (_o: ListOptions, cmd: Command) => {
+			const o = cmd.optsWithGlobals<ListOptions>();
+			try {
+				emit(
+					await client().runes.balances({
+						...runeBalanceSubject(o),
+						rune: o.rune,
+						cursor: o.cursor,
+						limit: o.limit ? Number.parseInt(o.limit, 10) : undefined,
+					}),
+					o.json,
+				);
+			} catch (err) {
+				fail("list rune balances", err);
+			}
+		});
+
+	runes
+		.command("activity")
+		.description("List rune etches, mints, transfers and burns (Bitcoin)")
+		.option("--rune <ref>", "Filter by rune (id or name)")
+		.option("--address <address>", "Filter by Bitcoin address")
+		.option("--kind <kinds>", `Comma list of ${RUNE_KINDS.join(", ")}`)
+		.option("--txid <txid>", "Filter by Bitcoin transaction id")
+		.option("--from-height <n>", "Start Bitcoin block height (inclusive)")
+		.option("--to-height <n>", "End Bitcoin block height (inclusive)")
+		.option("--cursor <cursor>", "Resume token from a previous next_cursor")
+		.option("--limit <n>", "Rows per page")
+		.option("--json", "Print the full envelope as JSON")
+		.action(async (_o: ListOptions, cmd: Command) => {
+			const o = cmd.optsWithGlobals<ListOptions>();
+			try {
+				emit(
+					await client().runes.activity.list({
+						...heightParams(o),
+						rune: o.rune,
+						address: o.address,
+						kind: parseRuneKinds(o.kind),
+						txid: o.txid,
+					}),
+					o.json,
+				);
+			} catch (err) {
+				fail("list rune activity", err);
 			}
 		});
 }
