@@ -177,6 +177,19 @@ describe("sectionsFromMdx", () => {
 		]);
 	});
 
+	test("a trailing metadata export never becomes the last section's summary", () => {
+		const source = [
+			"## Last",
+			"",
+			"| a | b |",
+			"",
+			"export const metadata = {",
+			'  title: "Page title",',
+			"};",
+		].join("\n");
+		expect(sectionsFromMdx("/docs/x", source).sections[0].summary).toBe("");
+	});
+
 	test("caps long summaries at 160 chars", () => {
 		const long = `## Big\n\n${"word ".repeat(80)}end.`;
 		const [s] = sectionsFromMdx("/docs/x", long).sections;

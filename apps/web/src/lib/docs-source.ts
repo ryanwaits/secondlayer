@@ -219,7 +219,11 @@ export function sectionsFromMdx(
 		flush();
 		target = next;
 	};
-	for (const line of source.split("\n")) {
+	const body = source.replace(
+		/^export const metadata\s*=\s*\{[\s\S]*?\n\};?[ \t]*$/m,
+		"",
+	);
+	for (const line of body.split("\n")) {
 		const mark = /^\s*(```+|~~~+)/.exec(line)?.[1];
 		if (mark) {
 			if (!fence) {
