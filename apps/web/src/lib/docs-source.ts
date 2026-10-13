@@ -6,7 +6,11 @@ import {
 	mcpToolsMarkdown,
 } from "@/app/(www)/docs/mcp/tools";
 import { docsNavPages } from "@/app/(www)/docs/nav";
+import docsPhrasings from "@/generated/docs-phrasings.json";
+import apiNav from "@/generated/openapi-nav.json";
 import { AGENT_SETUP } from "@/lib/agent-prompts";
+import { docsSearchPool } from "@/lib/command-center/items";
+import type { DocsSearchDoc } from "@/lib/docs-bm25";
 import GithubSlugger from "github-slugger";
 
 /**
@@ -220,4 +224,94 @@ export async function docsHeadingIndex(): Promise<DocsHeading[]> {
 		}),
 	);
 	return perPage.flat();
+}
+
+/** Markdown reduced to prose: no fences, links, markup, or tags. */
+function proseOf(markdown: string): string {
+	return markdown
+		.replace(/```[\s\S]*?```/g, "")
+		.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+		.replace(/[`*_>|#]/g, "")
+		.replace(/<[^>]+>/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+/** The first two sentences of some markdown, capped for the search index. */
+function leadOf(markdown: string): string {
+	const prose = proseOf(markdown);
+	return (prose.match(/[^.!?]+[.!?]+/g) ?? [prose])
+		.slice(0, 2)
+		.join(" ")
+		.slice(0, 400);
+}
+
+/**
+ * Every docs search candidate (pages, sections, endpoints) with the text
+ * ranked against: title, page, generated phrasings, and a short body. Ids match
+ * `docsSearchPool`; the browser fetches this as `/docs/search-index.json`.
+ */
+export async function docsSearchDocs(): Promise<DocsSearchDoc[]> {
+	const pool = docsSearchPool(await docsHeadingIndex(), apiNav, docsPhrasings);
+	const lines = new Map<string, string[]>();
+	/** Sections of one page sharing a title are matched in document order. */
+	const taken = new Map<string, number>();
+	const docs: DocsSearchDoc[] = [];
+	for (const item of pool) {
+		const href = item.href ?? "";
+		const [path, anchor] = href.split("#");
+		const kind =
+			item.sub === "endpoint" ? "endpoint" : anchor ? "section" : "page";
+		let body = "";
+		if (kind !== "endpoint") {
+			if (!lines.has(path)) {
+				lines.set(
+					path,
+					((await readDocsMarkdown(path, { setup: false })) ?? "").split("\n"),
+				);
+			}
+			const md = lines.get(path) as string[];
+			if (kind === "page") {
+				const end = md.findIndex((l) => /^##\s/.test(l));
+				body = leadOf(
+					md
+						.filter((l, i) => (end < 0 || i < end) && !/^#\s/.test(l))
+						.join("\n"),
+				);
+			} else {
+				const key = `${path}\0${item.label}`;
+				const skip = taken.get(key) ?? 0;
+				taken.set(key, skip + 1);
+				let seen = 0;
+				const start = md.findIndex(
+					(l) =>
+						/^#{2,3}\s/.test(l) &&
+						plainHeading(l.replace(/^#+\s*/, "")) === item.label &&
+						seen++ === skip,
+				);
+				if (start >= 0) {
+					const rest: string[] = [];
+					for (
+						let i = start + 1;
+						i < md.length && !/^#{1,3}\s/.test(md[i]);
+						i++
+					)
+						rest.push(md[i]);
+					body = leadOf(rest.join("\n"));
+				}
+			}
+		}
+		docs.push({
+			id: item.id,
+			href,
+			label: item.label,
+			sub: item.sub ?? "",
+			kind,
+			title: item.label,
+			page: item.sub ?? "",
+			phrasings: (item.keywords ?? []).filter((k) => k !== "docs"),
+			body,
+		});
+	}
+	return docs;
 }

@@ -1,0 +1,154 @@
+/**
+ * BM25F over the docs search index: pure, dependency-free, runs in the browser.
+ * The index (`/docs/search-index.json`) is compiled at build time; postings are
+ * built once on first use.
+ */
+
+export type DocsSearchDoc = {
+	/** `docs:<href>` for a page, `docs:<href>#<anchor>` for a section or endpoint. */
+	id: string;
+	href: string;
+	label: string;
+	sub: string;
+	kind: "page" | "section" | "endpoint";
+	title: string;
+	/** Parent page or group name. */
+	page: string;
+	/** Plain-language queries written per section at build time. */
+	phrasings: string[];
+	/** First two sentences under the heading; empty for endpoints. */
+	body: string;
+};
+
+/** Generic English function words only; nothing domain-specific. */
+const STOPWORDS = new Set(
+	"a an the of to in on for and or is are was be my me i it its do does how what why when where which who with without from at by as this that these those can we you your our get got up out about into over after before than then so if not no".split(
+		" ",
+	),
+);
+
+const SUFFIXES = ["ing", "ly", "ed", "er", "es", "s"];
+
+const FIELD_WEIGHTS = { title: 3, phrasings: 2, page: 1, body: 1 } as const;
+type Field = keyof typeof FIELD_WEIGHTS;
+const FIELDS = Object.keys(FIELD_WEIGHTS) as Field[];
+
+const K1 = 1.2;
+const B = 0.75;
+/** Top score must beat the runner-up by this ratio to count as a sure hit. */
+const CONFIDENT_RATIO = 1.4;
+
+/** Strip one suffix when the word keeps at least three characters. */
+function stem(word: string): string {
+	for (const suffix of SUFFIXES) {
+		if (word.length > suffix.length + 2 && word.endsWith(suffix)) {
+			return word.slice(0, -suffix.length);
+		}
+	}
+	return word;
+}
+
+export function tokenize(text: string): string[] {
+	return text
+		.toLowerCase()
+		.split(/[^a-z0-9]+/)
+		.filter((w) => w && !STOPWORDS.has(w))
+		.map(stem);
+}
+
+export type DocsSearchIndex = {
+	ids: string[];
+	/** Per doc, per field: term → count. */
+	tf: Map<string, number>[][];
+	/** Per doc, per field: token count. */
+	len: number[][];
+	avgLen: number[];
+	/** Term → docs containing it in any field. */
+	postings: Map<string, number[]>;
+};
+
+export function buildIndex(docs: DocsSearchDoc[]): DocsSearchIndex {
+	const tf: Map<string, number>[][] = [];
+	const len: number[][] = [];
+	const totals = FIELDS.map(() => 0);
+	const postings = new Map<string, number[]>();
+
+	docs.forEach((doc, d) => {
+		const text: Record<Field, string> = {
+			title: doc.title,
+			phrasings: doc.phrasings.join(" "),
+			page: doc.page,
+			body: doc.body,
+		};
+		const seen = new Set<string>();
+		const counts: Map<string, number>[] = [];
+		const lengths: number[] = [];
+		FIELDS.forEach((field, f) => {
+			const tokens = tokenize(text[field]);
+			const m = new Map<string, number>();
+			for (const t of tokens) {
+				m.set(t, (m.get(t) ?? 0) + 1);
+				seen.add(t);
+			}
+			counts.push(m);
+			lengths.push(tokens.length);
+			totals[f] += tokens.length;
+		});
+		tf.push(counts);
+		len.push(lengths);
+		for (const t of seen) {
+			const list = postings.get(t);
+			if (list) list.push(d);
+			else postings.set(t, [d]);
+		}
+	});
+
+	return {
+		ids: docs.map((d) => d.id),
+		tf,
+		len,
+		avgLen: totals.map((t) => t / Math.max(docs.length, 1)),
+		postings,
+	};
+}
+
+/** Top `k` docs for a query, best first; docs with no query term are omitted. */
+export function search(
+	index: DocsSearchIndex,
+	query: string,
+	k: number,
+): { id: string; score: number }[] {
+	const n = index.ids.length;
+	const scores = new Map<number, number>();
+	for (const term of new Set(tokenize(query))) {
+		const docs = index.postings.get(term);
+		if (!docs) continue;
+		const idf = Math.log(1 + (n - docs.length + 0.5) / (docs.length + 0.5));
+		for (const d of docs) {
+			let weighted = 0;
+			FIELDS.forEach((field, f) => {
+				const count = index.tf[d][f].get(term);
+				if (!count) return;
+				const norm = 1 - B + (B * index.len[d][f]) / (index.avgLen[f] || 1);
+				weighted += (FIELD_WEIGHTS[field] * count) / norm;
+			});
+			scores.set(
+				d,
+				(scores.get(d) ?? 0) + (idf * weighted * (K1 + 1)) / (weighted + K1),
+			);
+		}
+	}
+	return [...scores]
+		.sort((a, b) => b[1] - a[1] || a[0] - b[0])
+		.slice(0, k)
+		.map(([d, score]) => ({ id: index.ids[d], score }));
+}
+
+/** A sure hit: the top result clearly beats the runner-up (or stands alone). */
+export function confident(results: { score: number }[]): boolean {
+	if (!results.length || results[0].score <= 0) return false;
+	return (
+		results.length === 1 ||
+		results[0].score / results[1].score >= CONFIDENT_RATIO
+	);
+}

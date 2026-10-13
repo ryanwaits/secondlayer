@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import docsPhrasings from "@/generated/docs-phrasings.json";
+import apiNav from "@/generated/openapi-nav.json";
+import { docsSearchPool } from "./command-center/items";
 import {
 	docsHeadingIndex,
+	docsSearchDocs,
 	extractAgentNotes,
 	headingsFromMdx,
 	mdxToMarkdown,
@@ -112,6 +116,30 @@ describe("headingsFromMdx", () => {
 				level: 3,
 			},
 		]);
+	});
+});
+
+describe("docsSearchDocs", () => {
+	test("covers exactly the search pool, with prose-only bodies", async () => {
+		const docs = await docsSearchDocs();
+		const pool = docsSearchPool(
+			await docsHeadingIndex(),
+			apiNav,
+			docsPhrasings,
+		);
+		expect(docs.map((d) => d.id)).toEqual(pool.map((p) => p.id));
+		expect(new Set(docs.map((d) => d.kind))).toEqual(
+			new Set(["page", "section", "endpoint"]),
+		);
+		for (const d of docs) {
+			expect(d.body).not.toContain("```");
+			expect(d.body).not.toContain("export const");
+			expect(d.body.length).toBeLessThanOrEqual(400);
+			if (d.kind === "endpoint") expect(d.body).toBe("");
+		}
+		expect(
+			docs.filter((d) => d.kind === "section" && d.body).length,
+		).toBeGreaterThan(50);
 	});
 });
 
