@@ -210,7 +210,7 @@ Each frame body is `{ event, sig, key_id }`; `sig` is an ed25519 signature over 
 
 export const agent = `
 - Firehose: 'GET $SECONDLAYER_API_URL/v1/streams/events' with 'Authorization: Bearer $SECONDLAYER_API_KEY'. Filter by types, contract_id, sender; page forward with next_cursor; deliveries are idempotent, so loop to stay live.
-- Indexer: streams.events.consume. Write rows in onBatch and return next_cursor as the checkpoint; roll back in onReorg from reorg.fork_point_height (inclusive).
+- Indexer: streams.events.consume. Write rows in onBatch and return ctx.cursor (or nothing), never envelope.next_cursor; a finalizedOnly consumer throws on it; roll back in onReorg from reorg.fork_point_height (inclusive).
 - Cold history: events.replay({ from: 'genesis' }), then tail live at the seam.
 - Bulk dumps: 'secondlayer streams dumps' (sha256-verified against the signed manifest); query locally in DuckDB with read_parquet('./**/*.parquet'). No indexer required.
 `;
