@@ -2,17 +2,40 @@
 
 The raw firehose, for when you want to decode it yourself. Most people want [Index](/docs/index); this is what Index is built on.
 
-<Callout type="note" title="Auth">
-
 Hosted reads are keyed ([Keys and billing](/docs/authentication)); on your own box see [Self-host](/docs/self-host/production#instance-token). Cold history beyond what your instance holds restores from the signed archive ([archive credits](/docs/authentication#archive-credits)).
-
-</Callout>
 
 ## Build an indexer on it
 
-`events.consume` is the checkpointed consumer with automatic reorg rewind; see [Index](/docs/index#build-your-index-on-it). Reorgs rewind to the fork point and re-deliver, inclusive of the fork block; delivery is at-least-once, so keep writes idempotent. Only forks at or below your checkpoint roll back (a fork above it has nothing to undo), a rewind deeper than `maxRollbackDepth` (default 1000 blocks) is refused before anything is deleted, and on empty pages the loop polls `reorgs.list` so a fork that lands while idle at the tip is caught too, at the cost of one extra request per idle poll. A fork at genesis hands `onReorg` a `null` cursor.
+`events.consume` is the checkpointed consumer with automatic reorg rewind; the loop is the one on [Index](/docs/index#build-your-index-on-it).
 
-For cold history, `events.replay` backfills from the signed bulk dumps, then tails live from the manifest's `latest_finalized_cursor`, no gap or dupe at the seam:
+```ts
+await sl.streams.events.consume({
+  types: ["ft_transfer"],
+  fromCursor: await db.loadCheckpoint(), // null on first run
+  onBatch: async (events, envelope, ctx) => {
+    await db.transaction(async (tx) => {
+      await tx.insertEvents(events);
+      await tx.saveCheckpoint(ctx.cursor); // commits with the rows
+    });
+    return ctx.cursor;
+  },
+  onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
+});
+```
+
+Where to run it: [Deploy](/docs/deploy). Dated changes land in the [changelog](/docs/changelog).
+
+<details id="reorg-behavior">
+<summary>Reorg behavior</summary>
+
+Reorgs rewind to the fork point and re-deliver, inclusive of the fork block; delivery is at-least-once, so keep writes idempotent. Only forks at or below your checkpoint roll back (a fork above it has nothing to undo), a rewind deeper than `maxRollbackDepth` (default 1000 blocks) is refused before anything is deleted, and on empty pages the loop polls `reorgs.list` so a fork that lands while idle at the tip is caught too, at the cost of one extra request per idle poll. A fork at genesis hands `onReorg` a `null` cursor.
+
+</details>
+
+<details id="cold-history">
+<summary>Cold history</summary>
+
+`events.replay` backfills from the signed bulk dumps, then tails live from the manifest's `latest_finalized_cursor`, no gap or dupe at the seam:
 
 ```ts
 await streams.events.replay({
@@ -30,7 +53,10 @@ await streams.events.replay({
 
 `from: "genesis"` covers every window the dumps hold; the manifest's `coverage` reports that range, which starts where the dump program began, not chain block 1. Pass a cursor for a partial backfill.
 
-### Dumps + DuckDB
+</details>
+
+<details id="dumps-and-duckdb">
+<summary>Dumps and DuckDB</summary>
 
 Plain parquet. Pull a verified range and query it locally:
 
@@ -60,9 +86,10 @@ The bulk manifest is itself ed25519-signed and verified before any per-file `sha
 
 </Callout>
 
-Where to run it: [Deploy](/docs/deploy).
+</details>
 
-## From the CLI
+<details id="from-the-cli">
+<summary>From the CLI</summary>
 
 Every read has a `secondlayer streams` subcommand that prints JSON.
 
@@ -77,16 +104,22 @@ Every read has a `secondlayer streams` subcommand that prints JSON.
 | `reorgs` | Recent reorgs, cursor-paginated. |
 | `dumps` | Download finalized parquet dumps to a local dir, sha256-verified. |
 
-## Read it directly
+</details>
+
+<details id="read-it-directly">
+<summary>Read it directly</summary>
 
 ```bash
 curl "$SECONDLAYER_API_URL/v1/streams/events?types=ft_transfer&limit=100" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
-Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, and `from_height`/`to_height`: exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api-reference).
+Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, and `from_height`/`to_height`: exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api-reference#list-stream-events).
 
-### Bitcoin events (Runes)
+</details>
+
+<details id="bitcoin-events-runes">
+<summary>Bitcoin events (Runes)</summary>
 
 `chain=bitcoin` serves Runes events (`rune_etch`, `rune_mint`, `rune_transfer`, `rune_burn`) on their own cursor space; a bitcoin cursor only resumes with `chain=bitcoin` set again. Stacks-only filters (`contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, `clock`) 400 here; `rune` and `address` are bitcoin-only.
 
@@ -97,7 +130,10 @@ curl "$SECONDLAYER_API_URL/v1/streams/events?chain=bitcoin&rune=840000:3" \
 
 The tip and canonical block drop the burn-chain fields Stacks carries, since Bitcoin has no burn chain of its own. Events carry `ts`, the block's time. The rune catalog, per-rune activity feed, and balances live on [Index](/docs/index#runes); this is the raw event log underneath them.
 
-### Two concerns, one loop
+</details>
+
+<details id="two-concerns-one-loop">
+<summary>Two concerns, one loop</summary>
 
 A flat filter is one AND-ed set, so tracking sBTC mints *and* treasury spends
 meant two consume loops, two cursors, two checkpoints, or fetching the union
@@ -143,7 +179,10 @@ SSE takes the same param, so `subscribe` narrows the same way.
 
 Deliveries are idempotent, so retries never double-count. Fully-finalized pages are served `Cache-Control: public, immutable` with an `ETag` (`304` on `If-None-Match`); the moving tip stays short-lived.
 
-## Real-time firehose (SSE)
+</details>
+
+<details id="real-time-firehose-sse">
+<summary>Real-time firehose (SSE)</summary>
 
 ```bash
 curl -N "$SECONDLAYER_API_URL/v1/streams/events/stream?types=ft_transfer" \
@@ -160,11 +199,14 @@ The server polls roughly every 1.5s from a tip held a couple of blocks back for 
 
 `client.events.subscribe(...)` auto-reconnects from the last delivered cursor and verifies per-frame signatures; verification modes are under [per-frame signatures](#per-frame-signatures). Fan out to your backend instead with [Webhooks](/docs/webhooks).
 
-### Per-frame signatures
+</details>
+
+<details id="per-frame-signatures">
+<summary>Per-frame signatures</summary>
 
 Each frame body is `{ event, sig, key_id }`; `sig` is an ed25519 signature over `JSON.stringify(event)`. The SDK verifies every frame by default against the key at `/public/streams/signing-key`. Lenient, strict, skip, and pinned-key modes: [SDK](/docs/sdk#verifying-responses).
 
-Dated changes land in the [changelog](/docs/changelog).
+</details>
 
 export const agent = `
 - Firehose: 'GET $SECONDLAYER_API_URL/v1/streams/events' with 'Authorization: Bearer $SECONDLAYER_API_KEY'. Filter by types, contract_id, sender; page forward with next_cursor; deliveries are idempotent, so loop to stay live.

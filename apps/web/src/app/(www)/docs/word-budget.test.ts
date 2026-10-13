@@ -11,7 +11,6 @@ const PENDING_REWRITE = new Set<string>([
 	"/docs/authentication",
 	"/docs/self-host/production",
 	"/docs/archive",
-	"/docs/streams",
 	"/docs/subgraphs",
 	"/docs/subgraphs/handlers",
 	"/docs/subgraphs/reading",
