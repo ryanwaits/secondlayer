@@ -50,8 +50,15 @@
 	font: 400 13px / var(--lh) var(--font-mono-stack);
 	font-variant-numeric: tabular-nums;
 	tab-size: 2;
+	/* One column as wide as the widest row, so a short marked row fills the scroll width. */
+	display: grid;
+	grid-template-columns: minmax(max-content, 1fr);
 }
-.cb.bare .cb-body {
+/* Bare blocks clear the floating Copy on the rows, so fills still reach the edge. */
+.cb.bare .row,
+.cb.bare .co,
+.cb.bare .fold,
+.cb.bare .more {
 	padding-right: 64px;
 }
 .cb.bare > .copy {
@@ -98,6 +105,9 @@
 	width: 2ch;
 	color: var(--faint);
 	user-select: none;
+}
+.cb-body.soft-wrap {
+	grid-template-columns: minmax(0, 1fr);
 }
 .cb-body.soft-wrap .row {
 	min-width: 0;
@@ -171,15 +181,22 @@
 }
 .cb .co-caret {
 	position: absolute;
-	top: 2px;
-	left: calc(14px + var(--gut) + var(--col) * 1ch + 0.5ch);
-	width: 9px;
-	height: 9px;
-	border-top: 1px solid var(--line);
-	border-left: 1px solid var(--line);
-	background: var(--paper);
-	transform: rotate(45deg);
+	top: 0;
+	left: calc(14px + var(--gut) + var(--col) * 1ch + 0.5ch - 6.5px);
 	z-index: 1;
+	display: block;
+	width: 13px;
+	height: 7px;
+	color: var(--line);
+	pointer-events: none;
+}
+.cb .co-caret path:first-child {
+	fill: var(--paper);
+}
+.cb .co-caret path:last-child {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1;
 }
 .cb .co-box {
 	max-width: 56ch;

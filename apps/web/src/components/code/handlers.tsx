@@ -218,7 +218,11 @@ export function renderTokens(
 export function CalloutRow({ col, text }: { col: number; text: string }) {
 	return (
 		<div className="co" style={{ "--col": col } as CSSProperties}>
-			<span className="co-caret" />
+			{/* Base sits on the box's top border: the fill hides the border under it, the stroke continues it. */}
+			<svg className="co-caret" viewBox="0 0 13 7" aria-hidden="true">
+				<path d="M0.5 7 V6.5 L6.5 0.5 L12.5 6.5 V7 Z" />
+				<path d="M0.5 6.5 L6.5 0.5 L12.5 6.5" />
+			</svg>
 			<div className="co-box">{text}</div>
 		</div>
 	);
