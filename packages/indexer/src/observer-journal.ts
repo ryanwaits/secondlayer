@@ -133,6 +133,15 @@ export async function markObserverProcessed(
 		result: fields.result,
 		error: null,
 	});
+	// The node redelivered identical bytes and they succeeded: earlier failures
+	// of this exact body are resolved. `failed` stays "unresolved".
+	await db
+		.updateTable("observer_journal")
+		.set({ status: "retried" })
+		.where("status", "=", "failed")
+		.where("raw_body_sha256", "=", receipt.rawBodySha256)
+		.where("sequence", "<", receipt.sequence)
+		.execute();
 }
 
 export async function markObserverFailed(
