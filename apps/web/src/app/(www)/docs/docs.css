@@ -251,6 +251,7 @@ button.docs-nav-item {
 }
 .docs-article {
 	max-width: 720px;
+	margin-inline: auto;
 }
 .docs-topline {
 	display: flex;
@@ -258,6 +259,7 @@ button.docs-nav-item {
 	justify-content: space-between;
 	gap: 16px;
 	max-width: 720px;
+	margin-inline: auto;
 }
 .docs-crumb {
 	display: flex;
