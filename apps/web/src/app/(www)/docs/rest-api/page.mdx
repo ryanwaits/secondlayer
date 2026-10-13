@@ -62,7 +62,7 @@ The server attaches its own record of the failed call (method, path, status, cod
 | Index | `limit` (default 200, max 1000) | Fixed by the keyset cursor, no order param |
 | Streams | `limit` (default 100, max 1000) | Fixed by the keyset cursor, no order param |
 
-Pass the previous response's `next_cursor` back as `cursor` (index and `/v1/subgraphs`). Subgraph routes, sorting and `_search`: [Reading rows](/docs/subgraphs#read-rows). Index also accepts `from_cursor` (exclusive-start alias, mutually exclusive with `cursor`) and `from_height`/`to_height`.
+Pass the previous response's `next_cursor` back as `cursor` (index and `/v1/subgraphs`). Subgraph routes, sorting and `_search`: [Read rows](/docs/subgraphs#read-rows). Index also accepts `from_cursor` (exclusive-start alias, mutually exclusive with `cursor`) and `from_height`/`to_height`.
 
 ## Filtering
 
@@ -95,7 +95,7 @@ Two endpoints push rows as Server-Sent Events (`Content-Type: text/event-stream`
 - `GET /v1/streams/events/stream`: raw chain event firehose. Same filters as `/v1/streams/events`, plus a start position (`cursor`/`from_cursor`/`from_height`); with none it live-tails from the reorg-clamped tip.
 - `GET /v1/subgraphs/:name/:table/stream`: new subgraph-table rows. Takes `?since=<block_height>` (replay from a height, then tail) plus the table's column filters.
 
-Ergonomic clients: [Streams](/docs/streams#real-time-firehose-sse), [Reading rows](/docs/subgraphs#stream-rows-in-real-time).
+Ergonomic clients: [Streams](/docs/streams#real-time-firehose-sse), [Read rows](/docs/subgraphs#stream-rows-in-real-time).
 
 </details>
 

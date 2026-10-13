@@ -42,11 +42,11 @@ Each surface documents its own calls:
 | --- | --- | --- |
 | Webhook on raw chain events | `sl.webhooks.create({ name, url, triggers })` | [Webhooks](/docs/webhooks#triggers) |
 | Re-deliver history | `sl.webhooks.replay(id, { fromBlock, toBlock })` | [Replay](/docs/webhooks#replay) |
-| Check a delivery signature | `verifyWebhookSignature`, `verifySecondlayerSignature` | [Receiving deliveries](/docs/webhooks#verify-the-signature) |
+| Check a delivery signature | `verifyWebhookSignature`, `verifySecondlayerSignature` | [Receive and verify](/docs/webhooks#verify-the-signature) |
 | Prove a tx is in a block | `verifyTransactionProof`, `fetchRewardSet` | [Verify](/docs/verification#prove-a-transaction) |
 | Tail the live firehose | `sl.streams.events.subscribe(opts)` | [Streams](/docs/streams#real-time-firehose-sse) |
 | Read subgraph tables | `sl.subgraphs.rows`, `sl.subgraphs.typed` | [Subgraphs](/docs/subgraphs#read-your-table) |
-| Stream or roll up rows | `subgraph.<table>.subscribe`, `.aggregate` | [Reading rows](/docs/subgraphs#read-rows) |
+| Stream or roll up rows | `subgraph.<table>.subscribe`, `.aggregate` | [Read rows](/docs/subgraphs#read-rows) |
 | Let a sink own the transaction | `kyselySink`, `drizzleSink`, `bunSqliteSink` | [Sinks](/docs/sinks) |
 | Describe one event for every surface | `on.ftMint(...)`, `.toIndexParams()` | [Filters](#filters) |
 
