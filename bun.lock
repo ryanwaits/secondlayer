@@ -60,6 +60,7 @@
         "@types/node": "^22.15.0",
         "@types/react": "^19.1.0",
         "@types/react-dom": "^19.1.0",
+        "ai": "7.0.133",
         "typescript": "^5.8.0",
       },
     },
