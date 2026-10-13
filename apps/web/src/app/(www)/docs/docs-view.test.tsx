@@ -44,10 +44,10 @@ describe("docs page chrome", () => {
 	});
 
 	test("a page without a markdown twin omits the pills but keeps the edit link", () => {
-		const bare = render("/docs/changelog/archive");
+		const bare = render("/docs/not-in-the-sidebar");
 		expect(bare).toContain("Edit on GitHub");
 		expect(bare).not.toContain("Copy for agent");
-		expect(bare).not.toContain("changelog/archive.md");
+		expect(bare).not.toContain("not-in-the-sidebar.md");
 	});
 
 	test("full view appears only on the api reference", () => {

@@ -97,7 +97,6 @@ describe("docs sidebar invariant", () => {
 
 		const glob = new Bun.Glob("**/page.mdx");
 		for (const path of glob.scanSync({ cwd: docsRoot })) {
-			if (path === "changelog/archive/page.mdx") continue;
 			const href =
 				path === "page.mdx"
 					? "/docs"

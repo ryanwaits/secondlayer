@@ -239,6 +239,12 @@ const nextConfig: NextConfig = {
 				destination: "/docs/self-host/production#upgrade",
 				permanent: true,
 			},
+			// The changelog archive folded into the changelog's Older releases.
+			{
+				source: "/docs/changelog/archive",
+				destination: "/docs/changelog#older-releases",
+				permanent: true,
+			},
 			// Product satellites folded into their parent pages.
 			{
 				source: "/docs/contracts",
