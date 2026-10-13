@@ -36,6 +36,7 @@ import openApiRouter from "./routes/openapi.ts";
 import proofsRouter from "./routes/proofs.ts";
 import publicContactRouter from "./routes/public-contact.ts";
 import publicCreditsRouter from "./routes/public-credits.ts";
+import publicDocsFindRouter from "./routes/public-docs-find.ts";
 import publicWaitlistRouter from "./routes/public-waitlist.ts";
 import statusRouter from "./routes/status.ts";
 import streamsRouter from "./routes/streams.ts";
@@ -163,6 +164,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.use("/api/public/waitlist/*", ipRateLimit(60));
 		app.route("/api/public/waitlist", publicWaitlistRouter);
 		app.route("/api/public/contact", publicContactRouter);
+		app.route("/api/public/docs-find", publicDocsFindRouter);
 	}
 
 	app.use("/status", resourceAuth);
