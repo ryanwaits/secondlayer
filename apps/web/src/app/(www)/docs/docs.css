@@ -1047,21 +1047,7 @@ button.docs-nav-item {
 }
 
 /* ── API reference (generated from openapi.json) ──
-   Default: the guide shell, one column, request and response inline under each
-   section's params. "Full view" (pill by the breadcrumb) puts prose left and a
-   sticky request/response column right. */
-.docs-shell {
-	transition: grid-template-columns 180ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-@media (prefers-reduced-motion: reduce) {
-	.docs-shell {
-		transition: none;
-	}
-}
-.docs-shell[data-view="split"] .docs-article,
-.docs-shell[data-view="split"] .docs-topline {
-	max-width: none;
-}
+   Each page lists its endpoints as rows; the drawer shows one endpoint. */
 .apiref {
 	margin-top: 18px;
 }
@@ -1095,24 +1081,6 @@ button.docs-nav-item {
 html:not([data-base="local"]) .apiref-when-local,
 html[data-base="local"] .apiref-when-hosted {
 	display: none;
-}
-.apiref-tag {
-	margin-top: 56px;
-	padding-top: 28px;
-	border-top: 1px solid var(--line);
-}
-.docs-article .apiref-tag-title {
-	margin: 0;
-	font-size: 26px;
-	font-weight: 500;
-	letter-spacing: -0.035em;
-	text-transform: capitalize;
-	scroll-margin-top: 80px;
-}
-.docs-article .apiref-tag-desc {
-	margin-top: 8px;
-	max-width: 40rem;
-	color: var(--sub);
 }
 /* An API page: every endpoint of a family on one line. Hover and the open
    row color the path and summary primary blue; no row background. */
@@ -1204,21 +1172,6 @@ html[data-base="local"] .apiref-when-hosted {
 	font-size: 11.5px;
 	color: var(--sub);
 }
-.apiref-section {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr);
-	gap: 20px;
-	padding: 40px 0;
-	border-bottom: 1px solid var(--line);
-	scroll-margin-top: 80px;
-}
-.apiref-section:last-child {
-	border-bottom: 0;
-}
-.docs-shell[data-view="split"] .apiref-section {
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	gap: 48px;
-}
 .apiref-main {
 	display: flex;
 	flex-direction: column;
@@ -1230,10 +1183,6 @@ html[data-base="local"] .apiref-when-hosted {
 	gap: 12px;
 	min-width: 0;
 	align-self: start;
-}
-/* StickyAsides sets `top` inline; it only takes effect once this sticks. */
-.docs-shell[data-view="split"] .apiref-aside {
-	position: sticky;
 }
 /* The endpoint drawer: the account pages' floating card holding one endpoint.
    It sits outside the article, so it carries its own text and code defaults.
@@ -1356,28 +1305,6 @@ html[data-base="local"] .apiref-when-hosted {
 	color: var(--ink);
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
-}
-.apiref-eyebrow {
-	font: 500 11.5px var(--font-mono-stack);
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var(--sub);
-}
-.docs-article .apiref-title {
-	margin: -6px 0 0;
-	font-size: 26px;
-	font-weight: 500;
-	line-height: 1.15;
-	letter-spacing: -0.035em;
-}
-.docs-article .apiref-title a {
-	color: inherit;
-	text-decoration: underline;
-	text-decoration-color: transparent;
-	text-underline-offset: 4px;
-}
-.docs-article .apiref-title a:hover {
-	text-decoration-color: var(--line);
 }
 .apiref-actions {
 	display: flex;
@@ -1640,9 +1567,9 @@ html[data-base="local"] .apiref-when-hosted {
 .apiref-request-copy:hover {
 	color: var(--ar-fg);
 }
-/* Full height: code never scrolls vertically inside the page (the wheel
-   always moves the page); long lines scroll sideways. Tall asides in Full
-   view scroll with the page via StickyAsides. */
+/* Full height: code never scrolls vertically inside the drawer (the wheel
+   always moves the drawer); long lines scroll sideways. A tall request column
+   in Full view scrolls with the drawer until its bottom lands. */
 .apiref-code pre {
 	margin: 0;
 	padding: 12px 14px;
@@ -1676,17 +1603,4 @@ html[data-base="local"] .apiref-when-hosted {
 	.apiref-expand:hover {
 		color: var(--ar-fg);
 	}
-}
-
-/* sidebar: the reference's tags and rows are plain children, like any
-   page's sub-pages; only the disclosure's default marker is hidden */
-.apiref-nav-group > summary {
-	cursor: pointer;
-	list-style: none;
-}
-.apiref-nav-group > summary::-webkit-details-marker {
-	display: none;
-}
-.apiref-nav-group .docs-nav-children .docs-nav-child {
-	padding-left: 32px;
 }

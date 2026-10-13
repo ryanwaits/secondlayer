@@ -50,10 +50,15 @@ describe("docs page chrome", () => {
 		expect(bare).not.toContain("not-in-the-sidebar.md");
 	});
 
-	test("full view appears only on the api reference", () => {
+	test("full view lives in the endpoint drawer, not in any page's chrome", () => {
 		expect(html).not.toContain("Full view");
-		const reference = render("/docs/api-reference");
-		expect(reference).toContain("Full view");
-		expect(reference).toContain('aria-pressed="false"');
+		expect(render("/docs/api-reference")).not.toContain("Full view");
+		expect(render("/docs/api/index")).not.toContain("Full view");
+	});
+
+	test("an api page offers Copy for agent and its .md twin", () => {
+		const page = render("/docs/api/index");
+		expect(page).toContain("Copy for agent");
+		expect(page).toContain('href="/docs/api/index.md"');
 	});
 });
