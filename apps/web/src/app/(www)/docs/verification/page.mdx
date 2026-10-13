@@ -55,22 +55,22 @@ secondlayer verify block 9137005
 ✓ Block 9,137,005 is proven. Trusted: only the checkpoint (Stacks 8,956,304, Bitcoin 967,680).
 ```
 
-A block below the checkpoint skips the Bitcoin and signer links. The checkpoint's header commits to every ancestor by hash, so an `ancestry` link ties the block to it, by parent links or one MARF proof.
+<details id="blocks-below-the-checkpoint">
+<summary>Blocks below the checkpoint</summary>
 
-```text
-secondlayer verify block 150000
-✓ ancestry    150,000 proven in the state of the checkpoint 8,956,304 (one MARF proof)
-✓ block       150,000  7172a926a42a9356074c71facea8c6450398c97d717fd900884af2bb9102ffa1
-· bitcoin     not needed: the block is hash-chained to the checkpoint
-· burn        not needed: the block is hash-chained to the checkpoint
-· cycle       not needed: the block is hash-chained to the checkpoint
-· signatures  not needed: the block is hash-chained to the checkpoint
-· txs         not checked: no transaction bytes (epoch 2.x, or the source served the header only)
-✓ state root  02597d48762b69ffc823fd5a723d16f0324a7fcb6e77796b2316c9ffaed589a0 matches the witness
-✓ diff        729 written (unnamed), 3 carried, 5 internal
-· rows        not checked (pass --rows)
-✓ Block 150,000 is proven. Trusted: only the checkpoint (Stacks 8,956,304, Bitcoin 967,680).
-```
+A block below the checkpoint skips the Bitcoin and signer links. The checkpoint's header commits to every ancestor by hash, so an `ancestry` link ties the block to it, by parent links or one MARF proof. The skipped links read `not needed: the block is hash-chained to the checkpoint`, and `txs` reads `not checked: no transaction bytes` for an epoch 2.x block or when the source served the header only.
+
+</details>
+
+<details id="exit-codes-and-cost">
+<summary>Exit codes and cost</summary>
+
+Exit `0` every link holds, `1` a link is broken (the first is named), `2` could not check. The tradeoff: a lying source can fail a link but never pass one, and the price is work. The first check syncs Bitcoin headers from the checkpoint, and each block fetches a state witness.
+
+</details>
+
+<details id="flags">
+<summary>Flags</summary>
 
 | Flag | Effect |
 | --- | --- |
@@ -79,9 +79,10 @@ secondlayer verify block 150000
 | `--rows` | Also check the indexed `vm_events` rows against the diff. Billed as Index rows; everything else is free |
 | `--json` | Full result on stdout |
 
-Exit `0` every link holds, `1` a link is broken (the first is named), `2` could not check. The tradeoff: a lying source can fail a link but never pass one, and the price is work. The first check syncs Bitcoin headers from the checkpoint, and each block fetches a state witness.
+</details>
 
-## In your code
+<details id="in-your-code">
+<summary>In your code</summary>
 
 `@secondlayer/verify` is the same check as a library. `verifyBlock` never throws for bad source data; it returns `ok: false` and the first broken link.
 
@@ -120,7 +121,10 @@ const result = await verifier.verify(9_137_005);
 
 Pass `rows: true` to also check the indexed `vm_events` rows (billed as Index rows). `result.transactions` holds the block's checked transactions and `result.writes` its named writes. Its own code uses `fetch` and pure-JS crypto (`@noble`), with no Node built-ins.
 
-## Prove a transaction
+</details>
+
+<details id="prove-a-transaction">
+<summary>Prove a transaction</summary>
 
 `verifyTransactionProof` recomputes the txid, merkle root, block hash, and signer weight from one proof.
 
@@ -185,7 +189,10 @@ const trustless = verifyTransactionProof(proof, { rewardSet });
 
 The transaction verifier uses Node's crypto (via `@secondlayer/shared`), so it is server-side only.
 
-## Proofs API
+</details>
+
+<details id="proofs-api">
+<summary>Proofs API</summary>
 
 The raw material `verify block` reads. Free, never metered, no key needed. On the hosted API each IP gets 10 requests per second, and 1 per second for witnesses; send an account key for 20 and 2. Answers addressed by a hash never change: they carry an ETag and `Cache-Control: immutable`. On your own box the witness, burn and Bitcoin-header routes need a proof sidecar: [Self-host](/docs/self-host/production#what-differs-on-your-box).
 
@@ -202,7 +209,10 @@ The raw material `verify block` reads. Free, never metered, no key needed. On th
 
 The transaction proof above is [`/v1/index/transactions/{tx_id}/proof`](/docs/api-reference#get-transaction-proof).
 
-## What it does not cover yet
+</details>
+
+<details id="what-it-does-not-cover-yet">
+<summary>What it does not cover yet</summary>
 
 | Gap | Effect |
 | --- | --- |
@@ -214,6 +224,8 @@ The transaction proof above is [`/v1/index/transactions/{tx_id}/proof`](/docs/ap
 | `__MARF_*` keys from a node alone | A node serves no proof for them, so with `NodeRpcProofSource` alone, blocks more than 16 below a trusted block fail `ancestry` as `unavailable`. |
 | Epoch 2.x transactions | Skipped with a note. |
 | Unnamed writes | Without `state_writes` for the block, writes are proven, not named. |
+
+</details>
 
 export const agent = `
 - 'secondlayer verify block <height>' prints each link (bitcoin, burn, cycle, signatures, txs, state root, diff). Exit 0, 1, 2 as documented. Only the checkpoint stays trusted.

@@ -10,7 +10,6 @@ const BUDGET = 400;
 const PENDING_REWRITE = new Set<string>([
 	"/docs/authentication",
 	"/docs/self-host/production",
-	"/docs/verification",
 	"/docs/cli",
 	"/docs/sdk",
 	"/docs/sinks",
