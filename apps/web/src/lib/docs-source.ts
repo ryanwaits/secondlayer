@@ -162,68 +162,193 @@ function plainHeading(text: string): string {
 		.trim();
 }
 
+const SUMMARY_MAX = 160;
+
+/** Prose as plain text: no links, code ticks, emphasis, or inline tags. */
+function plainProse(text: string): string {
+	return text
+		.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+		.replace(/<[^>]+>/g, "")
+		.replace(/[`*_]/g, "")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+/** First sentence of a paragraph, capped at 160 chars on a word boundary. */
+function firstSentence(paragraph: string): string {
+	const text = plainProse(paragraph);
+	const end = /[.!?](?=\s|$)/.exec(text);
+	const sentence = end ? text.slice(0, end.index + 1) : text;
+	if (sentence.length <= SUMMARY_MAX) return sentence;
+	const cut = sentence.slice(0, SUMMARY_MAX - 1);
+	return `${cut.slice(0, cut.lastIndexOf(" ")).replace(/[,;:]$/, "")}…`;
+}
+
+/** A line that continues a prose paragraph, not markup, a list, or data. */
+function isProse(line: string): boolean {
+	return !/^\s*(<|\||>|\{|\}|import |export |[-*]\s|\d+\.\s|#)/.test(line);
+}
+
+export type DocsSection = DocsHeading & { summary: string };
+
 /**
- * `##`/`###` headings and `<details id>` rows of one page's MDX, with the
- * anchors the rendered page carries: rehype-slug's for headings (a fresh
- * slugger per page repeats its `-1` suffixes), the authored id for rows.
+ * One page's searchable sections plus its lede (first sentence under the H1).
+ * Sections are `##`/`###` headings and `<details id>` rows, with the anchors
+ * the rendered page carries: rehype-slug's for headings (a fresh slugger per
+ * page repeats its `-1` suffixes), the authored id for rows. A summary is the
+ * first prose sentence of the section (fences, tables, and lists skipped).
  */
-export function headingsFromMdx(href: string, source: string): DocsHeading[] {
+export function sectionsFromMdx(
+	href: string,
+	source: string,
+): { lede: string; sections: DocsSection[] } {
 	const slugger = new GithubSlugger();
-	const out: DocsHeading[] = [];
+	const sections: DocsSection[] = [];
+	const ledeSlot = { summary: "" };
+	let seenH1 = false;
 	let fence: string | null = null;
 	let rowId: string | null = null;
+	let target: { summary: string } | null = null;
+	let para: string[] = [];
+	const flush = () => {
+		if (target && !target.summary && para.length)
+			target.summary = firstSentence(para.join(" "));
+		para = [];
+	};
+	const retarget = (next: { summary: string } | null) => {
+		flush();
+		target = next;
+	};
 	for (const line of source.split("\n")) {
 		const mark = /^\s*(```+|~~~+)/.exec(line)?.[1];
 		if (mark) {
-			if (!fence) fence = mark[0];
-			else if (mark[0] === fence) fence = null;
+			if (!fence) {
+				flush();
+				fence = mark[0];
+			} else if (mark[0] === fence) fence = null;
 			continue;
 		}
 		if (fence) continue;
-		const open = /^<details\b[^>]*\bid="([^"]+)"/.exec(line);
-		if (open) {
-			rowId = open[1];
+		const detail = /^<details\b[^>]*\bid="([^"]+)"/.exec(line);
+		if (detail) {
+			retarget(null);
+			rowId = detail[1];
 			continue;
 		}
 		const summary = /^<summary>(.*)<\/summary>\s*$/.exec(line);
 		if (summary && rowId) {
 			const title = plainHeading(summary[1]);
-			if (!NOT_SEARCHABLE.has(title.toLowerCase()))
-				out.push({ href, anchor: rowId, title, level: 3 });
+			if (NOT_SEARCHABLE.has(title.toLowerCase())) retarget(null);
+			else {
+				const entry: DocsSection = {
+					href,
+					anchor: rowId,
+					title,
+					level: 3,
+					summary: "",
+				};
+				sections.push(entry);
+				retarget(entry);
+			}
 			rowId = null;
 			continue;
 		}
+		if (!seenH1 && /^#\s+\S/.test(line)) {
+			seenH1 = true;
+			retarget(ledeSlot);
+			continue;
+		}
 		const heading = /^(#{2,3})\s+(.+?)\s*#*\s*$/.exec(line);
-		if (!heading) continue;
-		const title = plainHeading(heading[2]);
-		// Slug every heading so duplicate suffixes line up, then drop the ones
-		// that are not worth a search row.
-		const anchor = slugger.slug(title);
-		if (NOT_SEARCHABLE.has(title.toLowerCase())) continue;
-		out.push({
-			href,
-			anchor,
-			title,
-			level: heading[1].length as 2 | 3,
-		});
+		if (heading) {
+			const title = plainHeading(heading[2]);
+			// Slug every heading so duplicate suffixes line up, then drop the
+			// ones that are not worth a search row.
+			const anchor = slugger.slug(title);
+			if (NOT_SEARCHABLE.has(title.toLowerCase())) {
+				retarget(null);
+				continue;
+			}
+			const entry: DocsSection = {
+				href,
+				anchor,
+				title,
+				level: heading[1].length as 2 | 3,
+				summary: "",
+			};
+			sections.push(entry);
+			retarget(entry);
+			continue;
+		}
+		if (!target) continue;
+		if (!line.trim() || !isProse(line)) flush();
+		else if (!target.summary) para.push(line.trim());
 	}
-	return out;
+	flush();
+	return { lede: ledeSlot.summary, sections };
+}
+
+/** `##`/`###` headings and `<details id>` rows of one page's MDX. */
+export function headingsFromMdx(href: string, source: string): DocsHeading[] {
+	return sectionsFromMdx(href, source).sections.map(
+		({ summary: _summary, ...heading }) => heading,
+	);
+}
+
+/** Each hand-written docs page with its lede and sections, sidebar-ordered. */
+async function scanDocsPages(): Promise<
+	{ page: DocsPage; lede: string; sections: DocsSection[] }[]
+> {
+	const pages = docsPages().filter((p) => !GENERATED_PAGES.has(p.href));
+	return Promise.all(
+		pages.map(async (page) => {
+			try {
+				const source = await readFile(sourcePath(page.href), "utf8");
+				return {
+					page,
+					...sectionsFromMdx(page.href, extractAgentNotes(source).rest),
+				};
+			} catch {
+				return { page, lede: "", sections: [] };
+			}
+		}),
+	);
 }
 
 /** Every searchable section of every hand-written docs page, sidebar-ordered. */
 export async function docsHeadingIndex(): Promise<DocsHeading[]> {
-	const pages = docsPages().filter((p) => !GENERATED_PAGES.has(p.href));
-	const perPage = await Promise.all(
-		pages.map(async (page) => {
-			try {
-				const source = await readFile(sourcePath(page.href), "utf8");
-				return headingsFromMdx(page.href, extractAgentNotes(source).rest);
-			} catch {
-				return [];
-			}
-		}),
+	const scanned = await scanDocsPages();
+	return scanned.flatMap((p) =>
+		p.sections.map(({ summary: _summary, ...heading }) => heading),
 	);
-	return perPage.flat();
+}
+
+export type DocsSectionList = {
+	pages: { href: string; title: string; lede: string }[];
+	sections: { href: string; anchor: string; title: string; summary: string }[];
+};
+
+/**
+ * The public section list the semantic finder reads: pages with their ledes,
+ * sections with summaries. Summaries live here, not on `docsHeadingIndex`,
+ * which ships to every docs page.
+ */
+export async function docsSectionList(): Promise<DocsSectionList> {
+	const scanned = await scanDocsPages();
+	return {
+		pages: scanned.map(({ page, lede }) => ({
+			href: page.href,
+			title: page.title,
+			lede,
+		})),
+		sections: scanned.flatMap((p) =>
+			p.sections.map(({ href, anchor, title, summary }) => ({
+				href,
+				anchor,
+				title,
+				summary,
+			})),
+		),
+	};
 }
 
 /** Markdown reduced to prose: no fences, links, markup, or tags. */
