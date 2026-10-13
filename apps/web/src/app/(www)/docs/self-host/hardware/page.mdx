@@ -11,11 +11,15 @@ Mainnet full history is large: the reference index measures ~500 GB, of which ~2
 | Bundled node, mainnet (floor) | 96 GB | 2.5 TB |
 | Bundled node, mainnet (recommended) | 128 GB | 3 TB NVMe |
 
-## Postgres
+<details id="postgres">
+<summary>Postgres</summary>
 
 Postgres `max_connections` ≥ 50. Compose sets the Postgres cache to 1 GB (`POSTGRES_SHARED_BUFFERS`). For a full-chain sync, give it about 25% of RAM: at the stock 128 MB, inserts wait on index reads from disk and the sync runs slower. The bundled-node figure is dominated by the chain itself: Stacks chainstate alone measures 1.3 TB, and bitcoind is additional.
 
-## Floors enforced at start
+</details>
+
+<details id="floors-enforced-at-start">
+<summary>Floors enforced at start</summary>
 
 The runtime checks RAM, disk, and `max_connections` at start and refuses to boot below these floors, so an undersized box finds out before it spends hours acquiring an index it cannot hold. Disk is total filesystem capacity, not free space, since a healthy instance legitimately fills most of its disk. An unmeasurable dimension is reported and skipped rather than assumed bad.
 
@@ -26,6 +30,8 @@ SECONDLAYER_ALLOW_UNDERSIZED=true
 ```
 
 That downgrades the refusal to a warning at every start. It exists so a box that was already undersized can still come back up after an upgrade: you keep the ability to run your own hardware, you just do it knowingly.
+
+</details>
 
 export const agent = `
 - Floors: app services with an external node need 4 GB RAM and a 600 GB SSD on mainnet (80 GB on testnet and devnet). A bundled node needs 96 GB RAM and 2.5 TB; 128 GB and 3 TB NVMe recommended.
