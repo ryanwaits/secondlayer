@@ -8,13 +8,15 @@ import type {
 	StreamsDumpFile,
 	StreamsEvent,
 	StreamsEventType,
+	StreamsEventsConsumeParams,
 	StreamsEventsEnvelope,
+	StreamsEventsListParams,
 	StreamsReorg,
 	StreamsReorgContext,
 	StreamsReorgsListEnvelope,
 	StreamsTip,
 } from "@secondlayer/sdk";
-import { STREAMS_EVENT_TYPES } from "@secondlayer/shared";
+import { RUNE_EVENT_TYPES, STREAMS_EVENT_TYPES } from "@secondlayer/shared";
 import type { Command } from "commander";
 import { error as logError, note, writeData } from "../lib/output.ts";
 import { resolveApiUrl, resolveDataPlaneKey } from "../lib/resolve-auth.ts";
@@ -120,23 +122,58 @@ export async function downloadDumpTo(
 	return bytes;
 }
 
-function parseTypes(
+/** `--chain`: omitted means Stacks, so nothing is forwarded for it. */
+export function parseChain(value?: string): "bitcoin" | undefined {
+	if (value === undefined || value === "stacks") return undefined;
+	if (value !== "bitcoin") {
+		throw new Error(`invalid --chain "${value}"; expected stacks or bitcoin`);
+	}
+	return "bitcoin";
+}
+
+/** Validate against the chain's own vocab: Rune events on bitcoin, decoded
+ *  Stacks events otherwise. */
+export function parseTypes(
 	value?: string,
 	flag = "--types",
-): StreamsEventType[] | undefined {
+	chain?: "bitcoin",
+): string[] | undefined {
 	if (!value) return undefined;
+	const valid: readonly string[] =
+		chain === "bitcoin" ? RUNE_EVENT_TYPES : VALID_TYPES;
 	const parts = value.split(",").map((s) => s.trim());
 	for (const p of parts) {
-		if (!VALID_TYPES.includes(p as StreamsEventType)) {
+		if (!valid.includes(p)) {
 			throw new Error(
-				`invalid ${flag} value "${p}"; expected one of: ${VALID_TYPES.join(", ")}`,
+				`invalid ${flag} value "${p}"; expected one of: ${valid.join(", ")}`,
 			);
 		}
 	}
-	return parts as StreamsEventType[];
+	return parts;
+}
+
+/** Contract, sender and recipient filters are Stacks-only; on bitcoin the SDK
+ *  would drop them and widen the stream, so refuse instead. */
+function rejectStacksFilters(
+	chain: "bitcoin" | undefined,
+	o: { contractId?: string; sender?: string; recipient?: string },
+): void {
+	if (chain !== "bitcoin") return;
+	for (const [flag, value] of [
+		["--contract-id", o.contractId],
+		["--sender", o.sender],
+		["--recipient", o.recipient],
+	] as const) {
+		if (value !== undefined) {
+			throw new Error(`${flag} is Stacks-only; drop it with --chain bitcoin`);
+		}
+	}
 }
 
 /** Parse a single-or-comma-list filter into a string (one) or string[] (many). */
+const CHAIN_HELP =
+	"stacks (default) or bitcoin (Runes events, their own cursors)";
+
 function parseList(value?: string): string | string[] | undefined {
 	if (value === undefined) return undefined;
 	const parts = value
@@ -236,9 +273,10 @@ export function registerStreamsCommand(program: Command): void {
 	const events = streams
 		.command("events")
 		.description("List events (cursor-paginated; one page per call)")
+		.option("--chain <chain>", CHAIN_HELP)
 		.option(
 			"--types <types>",
-			`comma-separated event types (${VALID_TYPES.join(", ")})`,
+			`comma-separated event types (${VALID_TYPES.join(", ")}; ${RUNE_EVENT_TYPES.join(", ")} with --chain bitcoin)`,
 		)
 		.option(
 			"--event-type <type>",
@@ -260,10 +298,12 @@ Examples:
   $ secondlayer streams events --types stx_transfer,print --limit 50
   $ secondlayer streams events --not-types print --contract-id SP00....token,SP01....token
   $ secondlayer streams events --sender SP1...,SP2... --from-block 150000 --to-block 160000
-  $ secondlayer streams events --cursor 150000:3`,
+  $ secondlayer streams events --cursor 150000:3
+  $ secondlayer streams events --chain bitcoin --types rune_mint --limit 50`,
 		)
 		.action(
 			async (options: {
+				chain?: string;
 				types?: string;
 				eventType?: string;
 				notTypes?: string;
@@ -276,9 +316,16 @@ Examples:
 				limit?: string;
 			}) => {
 				try {
-					const envelope: StreamsEventsEnvelope = await client().events.list({
-						types: parseTypes(options.types ?? options.eventType),
-						notTypes: parseTypes(options.notTypes, "--not-types"),
+					const chain = parseChain(options.chain);
+					rejectStacksFilters(chain, options);
+					const envelope = await client().events.list({
+						chain,
+						types: parseTypes(
+							options.types ?? options.eventType,
+							"--types",
+							chain,
+						),
+						notTypes: parseTypes(options.notTypes, "--not-types", chain),
 						contractId: parseList(options.contractId),
 						sender: parseList(options.sender),
 						recipient: parseList(options.recipient),
@@ -286,7 +333,7 @@ Examples:
 						fromHeight: parseHeight(options.fromBlock, "--from-block"),
 						toHeight: parseHeight(options.toBlock, "--to-block"),
 						limit: parseLimit(options.limit),
-					});
+					} as StreamsEventsListParams);
 					writeData(JSON.stringify(envelope, null, 2));
 				} catch (err) {
 					logError(err instanceof Error ? err.message : String(err));
@@ -298,10 +345,17 @@ Examples:
 	events
 		.command("by-tx <txId>")
 		.description("List all events emitted by a single transaction")
+		.option("--chain <chain>", CHAIN_HELP)
 		.option("--json", "Output as JSON (streams always emits JSON)")
-		.action(async (txId: string) => {
+		.action(async (txId: string, _o: { chain?: string }, cmd: Command) => {
+			// `events` declares --chain too; Commander hands a flag placed after
+			// `by-tx` to the parent, so read the merged options.
+			const options = cmd.optsWithGlobals<{ chain?: string }>();
 			try {
-				const envelope = await client().events.byTxId(txId);
+				const chain = parseChain(options.chain);
+				const envelope = chain
+					? await client().events.byTxId(txId, { chain })
+					: await client().events.byTxId(txId);
 				writeData(JSON.stringify(envelope, null, 2));
 			} catch (err) {
 				logError(err instanceof Error ? err.message : String(err));
@@ -314,9 +368,10 @@ Examples:
 		.description(
 			"Long-running pull from a cursor; emits one event per line (jsonl) until SIGINT or --max-pages",
 		)
+		.option("--chain <chain>", CHAIN_HELP)
 		.option(
 			"--types <types>",
-			`comma-separated event types (${VALID_TYPES.join(", ")})`,
+			`comma-separated event types (${VALID_TYPES.join(", ")}; ${RUNE_EVENT_TYPES.join(", ")} with --chain bitcoin)`,
 		)
 		.option("--not-types <types>", "comma-separated event types to exclude")
 		.option("--contract-id <ids>", "comma-separated contract identifier(s)")
@@ -334,6 +389,7 @@ Examples:
 		)
 		.action(
 			async (options: {
+				chain?: string;
 				types?: string;
 				notTypes?: string;
 				contractId?: string;
@@ -346,6 +402,8 @@ Examples:
 				try {
 					const batchSize = parseLimit(options.batchSize) ?? 100;
 					const maxPages = parseMaxPages(options.maxPages);
+					const chain = parseChain(options.chain);
+					rejectStacksFilters(chain, options);
 					note(
 						'# streaming events to stdout (jsonl); reorgs appear inline as {"kind":"reorg"}; next_cursor printed to stderr',
 					);
@@ -354,9 +412,10 @@ Examples:
 						stderr: (line) => process.stderr.write(`${line}\n`),
 					});
 					await client().events.consume({
+						chain,
 						fromCursor: options.cursor,
-						types: parseTypes(options.types),
-						notTypes: parseTypes(options.notTypes, "--not-types"),
+						types: parseTypes(options.types, "--types", chain),
+						notTypes: parseTypes(options.notTypes, "--not-types", chain),
 						contractId: parseList(options.contractId),
 						sender: parseList(options.sender),
 						recipient: parseList(options.recipient),
@@ -365,7 +424,7 @@ Examples:
 						maxPages,
 						onBatch: handlers.onBatch,
 						onReorg: handlers.onReorg,
-					});
+					} as StreamsEventsConsumeParams);
 				} catch (err) {
 					logError(err instanceof Error ? err.message : String(err));
 					process.exit(1);
@@ -380,20 +439,26 @@ Examples:
 			"--since <cursor>",
 			"start cursor (block_height:event_index)",
 		)
+		.option("--chain <chain>", CHAIN_HELP)
 		.option("--limit <n>", "page size (default 100)", "100")
 		.option("--json", "Output as JSON (streams always emits JSON)")
-		.action(async (options: { since: string; limit?: string }) => {
-			try {
-				const envelope: StreamsReorgsListEnvelope = await client().reorgs.list({
-					since: options.since,
-					limit: parseLimit(options.limit),
-				});
-				writeData(JSON.stringify(envelope, null, 2));
-			} catch (err) {
-				logError(err instanceof Error ? err.message : String(err));
-				process.exit(1);
-			}
-		});
+		.action(
+			async (options: { since: string; chain?: string; limit?: string }) => {
+				try {
+					const chain = parseChain(options.chain);
+					const envelope: StreamsReorgsListEnvelope =
+						await client().reorgs.list({
+							...(chain && { chain }),
+							since: options.since,
+							limit: parseLimit(options.limit),
+						});
+					writeData(JSON.stringify(envelope, null, 2));
+				} catch (err) {
+					logError(err instanceof Error ? err.message : String(err));
+					process.exit(1);
+				}
+			},
+		);
 
 	// --- dumps ---
 	const runDumps = async (options: {
