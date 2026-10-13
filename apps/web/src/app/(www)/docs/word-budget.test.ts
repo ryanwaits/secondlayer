@@ -8,7 +8,6 @@ const BUDGET = 400;
 
 /** Pages not yet rewritten to the contract. Plans remove entries as they rewrite pages; never add one. */
 const PENDING_REWRITE = new Set<string>([
-	"/docs/self-host/production",
 	"/docs/cli",
 	"/docs/sdk",
 	"/docs/sinks",

@@ -13,7 +13,14 @@ secondlayer setup --yes \
 
 `--network` and `--node-mode` are always required in that mode, since there is no safe default for either. `--against` defaults to the official archive (`https://archive.secondlayer.tools/latest.json`); pass `--skip-bootstrap` to skip it instead. The index then holds only what your node sends from now on, full history only if the node itself syncs from genesis. `--skip-verify` skips the post-bootstrap check. `--dir` sets where `docker-compose.yml` and `.env` are written (default cwd).
 
-### Advanced / manual setup
+<Callout type="warning" title="No light mode">
+
+No Hiro-REST backfill. Run a node, bundle one, or restore from the [archive](/docs/archive).
+
+</Callout>
+
+<details id="advanced--manual-setup">
+<summary>Advanced / manual setup</summary>
 
 The same five steps `setup` runs, one at a time, useful for scripting a custom flow or debugging a step in isolation:
 
@@ -28,13 +35,10 @@ secondlayer bootstrap --against <manifest>
 secondlayer verify all --against <manifest>
 ```
 
-<Callout type="warning" title="No light mode">
+</details>
 
-No Hiro-REST backfill. Run a node, bundle one, or restore from the [archive](/docs/archive).
-
-</Callout>
-
-## Profiles
+<details id="profiles">
+<summary>Profiles</summary>
 
 | Profile | What runs |
 | --- | --- |
@@ -47,7 +51,10 @@ docker compose --profile full-node up -d
 
 `NODE_MODE` is `external` | `stacks` | `full`. `full` needs `BITCOIN_RPC_PASSWORD` and runs the `full-node` profile above. `stacks` behaves like `external`: bring your own Stacks node. There is no bundled-stacks-only profile, since a bundled node needs Bitcoin data from somewhere and we don't wire a public RPC default for it. Sizing for each: [Hardware](/docs/self-host/hardware).
 
-### Connect your node
+</details>
+
+<details id="connect-your-node">
+<summary>Connect your node</summary>
 
 With `NODE_MODE=external`, this entry in your node's `Config.toml` sends Secondlayer every block.
 
@@ -82,7 +89,10 @@ Use `signer-shared`, so a stalled Secondlayer can't hold up the signer. Tradeoff
 
 </Callout>
 
-## Config
+</details>
+
+<details id="config">
+<summary>Config</summary>
 
 Six required non-secrets, plus one compose derives for you. Secrets come from `secondlayer init`.
 
@@ -98,7 +108,10 @@ Six required non-secrets, plus one compose derives for you. Secrets come from `s
 
 Unknown keys and contradictions fail before ingest. From a checkout, `docker compose -f docker/oss/docker-compose.yml --env-file .env.local up -d` brings the stack up; `secondlayer setup` writes its own compose file and `.env` and runs the same command for you.
 
-### Instance token
+</details>
+
+<details id="instance-token">
+<summary>Instance token</summary>
 
 `secondlayer init` writes `INSTANCE_TOKEN` to `.env.local`. It opens your box. It is not the account key from [Keys and billing](/docs/authentication): never put `sk-sl_*` in `INSTANCE_TOKEN`, or the hex token in `SECONDLAYER_API_KEY`.
 
@@ -121,7 +134,10 @@ Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On 
 
 `INSTANCE_TOKEN` is required in compose: the container process has to bind `0.0.0.0` or the published port never reaches it, and an instance that binds past loopback with no token refuses to start. `API_PUBLISH_ADDR` is how the API learns which of those two facts to serve on: it carries the publish spec, so with the default `127.0.0.1:3800` the `/v1` reads stay keyless, and changing `API_PORT` to `0.0.0.0:3800` makes every `/v1` request carry the token. Writes take the token either way.
 
-## What differs on your box
+</details>
+
+<details id="what-differs-on-your-box">
+<summary>What differs on your box</summary>
 
 | Area | On your box |
 | --- | --- |
@@ -136,7 +152,10 @@ Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On 
 
 Consumers running on another box: [Deploy your app](/docs/deploy).
 
-## Verify and repair
+</details>
+
+<details id="verify-and-repair">
+<summary>Verify and repair</summary>
 
 ```bash
 secondlayer verify all --against <manifest>
@@ -146,13 +165,19 @@ secondlayer repair --against <manifest> --apply
 
 [Verified archive](/docs/archive#flags) owns flags and exit codes.
 
-### Archive trust root
+</details>
+
+<details id="archive-trust-root">
+<summary>Archive trust root</summary>
 
 Every archive manifest is checked against one key before `bootstrap`, `verify`, or `repair` act on it. The key comes from, in order: `--public-key`, `ARCHIVE_SIGNING_PUBLIC_KEY` in your env, and the key compiled into the CLI release. `setup` and `init` write that resolved key into `.env` so the instance verifies with no path to any Secondlayer host. Plaintext `http://` key sources are never consulted, and a signed `latest.json` pointer has to verify against the same key before its snapshot is followed.
 
 The tradeoff: rotating the archive key means a CLI release until a key ceremony lands. To pin a different archive, replace `ARCHIVE_SIGNING_PUBLIC_KEY` in `.env`; a value you set there survives `setup` re-runs.
 
-## Backup
+</details>
+
+<details id="backup">
+<summary>Backup</summary>
 
 `secondlayer backup` writes one bundle: the index, plus the keys encrypted under a passphrase you supply.
 
@@ -170,7 +195,10 @@ The bundle carries `INSTANCE_TOKEN`, `SECONDLAYER_SECRETS_KEY`, and `STREAMS_SIG
 
 Confirm any restore with `secondlayer verify all --against <manifest>` before trusting the result. Take a backup before you [upgrade](#upgrade).
 
-## Upgrade
+</details>
+
+<details id="upgrade">
+<summary>Upgrade</summary>
 
 Move from the image you run (X) to a later `v*` tag, or a git commit if you build from source (Y), keeping the database and the keys.
 
@@ -225,11 +253,17 @@ secondlayer verify all --against <manifest>
 
 To roll back, pin X again. A migrated schema stays migrated, so roll back the image, not the database.
 
-## Running other teams' subgraphs
+</details>
+
+<details id="running-other-teams-subgraphs">
+<summary>Running other teams' subgraphs</summary>
 
 A subgraph handler is code you deploy into the instance, so it runs with the instance's trust. That is fine for your own subgraphs. To run another team's on one box, give each team its own stack instead of sharing one: its own Postgres, its own network, and its `api` and `subgraph-processor` containers under gVisor (`runtime: runsc`) as a non-root user, with a read-only root filesystem and bounded memory, CPU and process count. [`docker/workload/tenant.compose.yml`](https://github.com/ryanwaits/secondlayer/blob/main/docker/workload/tenant.compose.yml) is the working shape. gVisor can't reach Docker's embedded DNS, so give each stack a static address for Postgres and a plain `resolv.conf`; the file explains both.
 
-## Not in the box
+</details>
+
+<details id="not-in-the-box">
+<summary>Not in the box</summary>
 
 - Multi-tenant catalog
 - A managed stack: [hosted subgraphs](/docs/subgraphs#deploy) and [webhooks](/docs/webhooks) run on `api.secondlayer.tools` with an account key
@@ -237,6 +271,8 @@ A subgraph handler is code you deploy into the instance, so it runs with the ins
 - Pay-per-call metering on your instance (the x402 rail was removed)
 
 Support is community: [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer).
+
+</details>
 
 export const agent = `
 - Published images: 'ghcr.io/ryanwaits/secondlayer-*'. Pin a release tag and swap the compose build: blocks for image:.
