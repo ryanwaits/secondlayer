@@ -652,7 +652,12 @@
 					}
 				}
 			],
-			"examples": []
+			"examples": [
+				{
+					"file": "packages/sdk/examples/subgraphs/typed.ts",
+					"code": "import { SecondLayer } from \"@secondlayer/sdk\";\nimport { defineSubgraph } from \"@secondlayer/subgraphs\";\n\nconst sbtcFlows = defineSubgraph({\n\tname: \"sbtc-flows\",\n\tstartBlock: 8000000,\n\tsources: {\n\t\ttransfers: {\n\t\t\ttype: \"ft_transfer\",\n\t\t\tassetIdentifier:\n\t\t\t\t\"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token\",\n\t\t},\n\t},\n\tschema: {\n\t\ttransfers: {\n\t\t\tcolumns: {\n\t\t\t\tamount: { type: \"uint\" },\n\t\t\t\tsender: { type: \"principal\" },\n\t\t\t\trecipient: { type: \"principal\" },\n\t\t\t},\n\t\t},\n\t},\n\thandlers: {\n\t\ttransfers: (event, ctx) => {\n\t\t\tctx.insert(\"transfers\", {\n\t\t\t\tamount: event.amount,\n\t\t\t\tsender: event.sender,\n\t\t\t\trecipient: event.recipient,\n\t\t\t});\n\t\t},\n\t},\n});\n\nconst sl = new SecondLayer();\n\n// !callout[/typed/] Table names and column types come from the schema literal above.\nconst subgraph = sl.subgraphs.typed(sbtcFlows);\n\nconst page = await subgraph.transfers.findMany({\n\twhere: { amount: { gte: 1_000_000n } },\n\torderBy: { amount: \"desc\" },\n\tlimit: 10,\n\tfields: [\"sender\", \"recipient\", \"amount\"],\n});\n\nfor (const row of page.rows) {\n\t// !callout[/row.amount/] uint columns come back as bigint.\n\tconsole.log(row.sender, row.recipient, row.amount);\n}\n\n// !callout[/nextCursor/] Set on every page that returned rows. Pass it back as `cursor` to continue.\nconsole.log(page.nextCursor);\n"
+				}
+			]
 		}
 	],
 	"types": [

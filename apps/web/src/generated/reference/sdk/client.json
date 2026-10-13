@@ -6,10 +6,10 @@
 			"id": "batch",
 			"path": "sl.batch",
 			"summary": "Run up to 10 public reads in one round trip (`POST /v1/batch`).",
-			"description": "Run up to 10 public reads in one round trip (`POST /v1/batch`).\n\nEach item is authorized on its own; the client's bearer token applies to\nevery item.",
+			"description": "Run up to 10 public reads in one round trip (`POST /v1/batch`).\n\nEach item is authorized on its own; the client's bearer token applies to\nevery item. Results come back in order as `{ path, status, body }`. Only\npaths under `/v1/index/`, `/v1/subgraphs`, `/v1/streams/`, and\n`/v1/contracts` are allowed; anything else is a per-item 400.",
 			"source": {
 				"file": "packages/sdk/src/client.ts",
-				"line": 156
+				"line": 158
 			},
 			"rest": "POST /v1/batch",
 			"overloads": [
@@ -30,7 +30,12 @@
 					}
 				}
 			],
-			"examples": []
+			"examples": [
+				{
+					"file": "packages/sdk/examples/client/batch.ts",
+					"code": "import { SecondLayer } from \"@secondlayer/sdk\";\n\nconst sl = new SecondLayer();\n\nconst { results } = await sl.batch([\n\t{ path: \"/v1/streams/tip\" },\n\t{ path: \"/v1/index/pox5/events\", params: { topic: \"stake\", limit: 5 } },\n]);\n\nfor (const result of results) {\n\t// !callout[/status/] Each item has its own status, so one failed read does not fail the batch.\n\tconsole.log(result.path, result.status);\n}\n"
+				}
+			]
 		},
 		{
 			"id": "context",
@@ -39,7 +44,7 @@
 			"description": "Get a one-call snapshot of your account and instance.\n\nReturns a [`ContextSnapshot`](/docs/sdk-reference/client#t-ContextSnapshot): the same orientation an MCP agent reads\nfrom `secondlayer://context`, available to any SDK or CLI consumer. Reads\nrun concurrently; a failed read lands as `{ value: null, error }` on its\nfield rather than rejecting the whole snapshot.",
 			"source": {
 				"file": "packages/sdk/src/client.ts",
-				"line": 175
+				"line": 177
 			},
 			"rest": "GET /api/accounts/me",
 			"overloads": [

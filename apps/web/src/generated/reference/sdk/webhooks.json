@@ -83,7 +83,12 @@
 					}
 				}
 			],
-			"examples": []
+			"examples": [
+				{
+					"file": "packages/sdk/examples/webhooks/create.ts",
+					"code": "import { SecondLayer, trigger } from \"@secondlayer/sdk\";\n\nconst sl = new SecondLayer();\n\nconst { webhook, signingSecret } = await sl.webhooks.create({\n\tname: \"sbtc-mints\",\n\turl: \"https://my-app.com/webhook\",\n\ttriggers: [\n\t\ttrigger.ftMint({\n\t\t\tassetIdentifier:\n\t\t\t\t\"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token\",\n\t\t}),\n\t],\n});\n\nconsole.log(`created ${webhook.id} (${webhook.status})`);\n// !callout[/signingSecret/] Returned once. Store it: verifyWebhookSignature needs it to check each delivery.\nconsole.log(`WEBHOOK_SECRET=${signingSecret}`);\n"
+				}
+			]
 		},
 		{
 			"id": "update",
@@ -401,7 +406,12 @@
 					}
 				}
 			],
-			"examples": []
+			"examples": [
+				{
+					"file": "packages/sdk/examples/webhooks/replay.ts",
+					"code": "import { SecondLayer } from \"@secondlayer/sdk\";\n\nconst id = process.argv[2];\nif (!id) throw new Error(\"usage: bun replay.ts <webhook id>\");\n\nconst sl = new SecondLayer();\nconst range = { fromBlock: 8_000_000, toBlock: 8_050_000 };\n\nconst first = await sl.webhooks.replay(id, range);\nconsole.log(first.replayId, first.scannedCount, first.enqueuedCount);\n\n// !callout[/force/] The same range twice is a no-op. Pass any string as `force` to re-deliver it.\nconst again = await sl.webhooks.replay(id, { ...range, force: \"retry-1\" });\nconsole.log(again.replayId);\n"
+				}
+			]
 		},
 		{
 			"id": "dead",

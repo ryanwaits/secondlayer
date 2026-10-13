@@ -151,7 +151,9 @@ export class SecondLayer extends BaseClient {
 	 * Run up to 10 public reads in one round trip (`POST /v1/batch`).
 	 *
 	 * Each item is authorized on its own; the client's bearer token applies to
-	 * every item.
+	 * every item. Results come back in order as `{ path, status, body }`. Only
+	 * paths under `/v1/index/`, `/v1/subgraphs`, `/v1/streams/`, and
+	 * `/v1/contracts` are allowed; anything else is a per-item 400.
 	 */
 	async batch(
 		requests: Array<{

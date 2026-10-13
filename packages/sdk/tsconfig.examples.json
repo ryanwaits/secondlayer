@@ -1,0 +1,14 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"declaration": false,
+		"declarationMap": false,
+		"sourceMap": false,
+		"paths": {
+			"@secondlayer/sdk": ["./src/index.ts"],
+			"@secondlayer/sdk/*": ["./src/*"]
+		}
+	},
+	"include": ["examples/**/*.ts"],
+	"exclude": ["node_modules"]
+}
