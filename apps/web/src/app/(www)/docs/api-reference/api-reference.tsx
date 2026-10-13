@@ -3,6 +3,7 @@ import { Fragment, type ReactNode, cache } from "react";
 import {
 	BaseUrlSwitch,
 	CodeTabs,
+	ExpandableCode,
 	SectionActions,
 	StickyAsides,
 } from "./client";
@@ -78,16 +79,28 @@ function classifyTokens(html: string): { html: string; css: string } {
 	return { html: out, css: rules.join("") };
 }
 
+/** Only extreme examples (a whole OpenAPI document) collapse; everything
+    else renders at full height. */
+const LONG_LINES = 300;
+
 async function Code({ code, lang }: { code: string; lang: string }) {
 	const { html, css } = classifyTokens(await highlight(code, lang));
+	const lines = code.split("\n").length;
+	const block = (
+		<div
+			className="apiref-code"
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki output, server-rendered from our own spec
+			dangerouslySetInnerHTML={{ __html: html }}
+		/>
+	);
 	return (
 		<>
 			{css ? <style>{css}</style> : null}
-			<div
-				className="apiref-code"
-				// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki output, server-rendered from our own spec
-				dangerouslySetInnerHTML={{ __html: html }}
-			/>
+			{lines > LONG_LINES ? (
+				<ExpandableCode lines={lines}>{block}</ExpandableCode>
+			) : (
+				block
+			)}
 		</>
 	);
 }

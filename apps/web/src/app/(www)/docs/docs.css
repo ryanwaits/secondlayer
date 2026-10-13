@@ -1312,17 +1312,42 @@ button.docs-nav-item {
 .apiref-request-copy:hover {
 	color: var(--term-fg);
 }
+/* Full height: code never scrolls vertically inside the page (the wheel
+   always moves the page); long lines scroll sideways. Tall asides in Full
+   view scroll with the page via StickyAsides. */
 .apiref-code pre {
 	margin: 0;
 	padding: 12px 14px;
-	overflow: auto;
-	max-height: 420px;
+	overflow-x: auto;
+	overflow-y: hidden;
 	font-size: 12px;
 	line-height: 1.7;
 	background: transparent !important;
 }
-.docs-shell[data-view="split"] .apiref-code pre {
-	max-height: min(460px, calc(100vh - 220px));
+
+/* Extreme examples: first 40 lines (12px x 1.7 + 12px top pad), faded, until
+   "Show all" expands them in place. */
+.apiref-long:not([data-open]) .apiref-code {
+	max-height: calc(40 * 12px * 1.7 + 12px);
+	overflow: hidden;
+	mask-image: linear-gradient(to bottom, #000 70%, transparent);
+}
+.apiref-expand {
+	display: block;
+	width: 100%;
+	padding: 9px 14px;
+	border: 0;
+	border-top: 1px solid var(--term-line);
+	background: transparent;
+	font: 12px var(--font-mono-stack);
+	color: var(--term-mute);
+	text-align: left;
+	cursor: pointer;
+}
+@media (hover: hover) {
+	.apiref-expand:hover {
+		color: var(--term-fg);
+	}
 }
 
 /* sidebar: the reference's tags and rows are plain children, like any
