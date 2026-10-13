@@ -1,5 +1,6 @@
 "use client";
 
+import { scrollWindowTo } from "@/lib/scroll";
 import { GITHUB_URL } from "@/lib/site";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -267,15 +268,7 @@ export function PageActions({
 				type="button"
 				className="docs-ra"
 				{...tip("Scroll to top")}
-				onClick={() =>
-					window.scrollTo({
-						top: 0,
-						behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
-							.matches
-							? "auto"
-							: "smooth",
-					})
-				}
+				onClick={() => scrollWindowTo(0)}
 			>
 				<Icon>
 					<path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" />

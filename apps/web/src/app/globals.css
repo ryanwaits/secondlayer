@@ -53,7 +53,6 @@
 	--selection-text: #111;
 	--link-underline: #d9d9d9;
 	--link-underline-hover: #666;
-	--notation-label: #4a4a4a;
 	--copy-btn: rgba(0, 0, 0, 0.25);
 	--copy-btn-hover: rgba(0, 0, 0, 0.5);
 	--copy-btn-hover-bg: rgba(0, 0, 0, 0.04);
@@ -105,7 +104,7 @@
 	--spacing-xl: 4rem;
 	--spacing-xxl: 3.5rem;
 
-	--duration-snappy: 200ms;
+	--duration-snappy: 150ms;
 	--ease-snappy: cubic-bezier(0.4, 0, 0.2, 1);
 	--duration-smooth: 500ms;
 	--ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
@@ -159,7 +158,6 @@
 		--selection-text: #ececec;
 		--link-underline: #4a4740;
 		--link-underline-hover: #999;
-		--notation-label: #b0b0b0;
 		--copy-btn: rgba(255, 255, 255, 0.25);
 		--copy-btn-hover: rgba(255, 255, 255, 0.5);
 		--copy-btn-hover-bg: rgba(255, 255, 255, 0.06);
@@ -202,8 +200,9 @@
 	padding: 0;
 }
 
+/* No global smooth scroll: browser-driven scrolls (focus, find, back) stay
+   instant. Same-page # links get a short glide in FastAnchorScroll. */
 html {
-	scroll-behavior: smooth;
 	scroll-padding-top: 5.25rem;
 	-webkit-text-size-adjust: 100%;
 }
@@ -265,7 +264,7 @@ a {
 }
 
 .homepage > * {
-	animation: staggerIn 0.4s ease both;
+	animation: staggerIn 240ms ease-out both;
 }
 
 .homepage > *:nth-child(1) {
@@ -432,7 +431,7 @@ a {
 	text-decoration-color: var(--link-underline);
 	text-underline-offset: 3px;
 	text-decoration-thickness: 1px;
-	transition: all 0.2s ease;
+	transition: text-decoration-color 150ms ease;
 }
 
 .prose a:hover {
@@ -607,64 +606,9 @@ a mark {
 
 /* ── Beta bracket ────────────────────────────────────────────────── */
 
-/* ── Badge (hand-drawn pink circle) ──────────────────────────────── */
-
-@keyframes rough-notation-dash {
-	to {
-		stroke-dashoffset: 0;
-	}
-}
-
 /* ── Props / API reference ───────────────────────────────────────── */
 
 /* ── Back link ───────────────────────────────────────────────────── */
-
-/* ── Notation (rough-notation annotations) ───────────────────────── */
-.notation-wrap {
-	display: inline;
-}
-
-.notation-target {
-	display: inline;
-}
-
-.notation-block-wrap {
-	position: relative;
-}
-
-.notation-label {
-	position: absolute;
-	font-family: var(--font-cursive), cursive;
-	font-size: 22px;
-	font-weight: 460;
-	color: var(--notation-label);
-	white-space: nowrap;
-	pointer-events: none;
-}
-
-.notation-label[data-position="right"] {
-	right: -140px;
-	top: 50%;
-	transform: translateY(-50%) rotate(-2deg);
-}
-
-.notation-label[data-position="left"] {
-	left: -140px;
-	top: 50%;
-	transform: translateY(-50%) rotate(2deg);
-}
-
-.notation-label[data-position="top"] {
-	top: -32px;
-	left: 50%;
-	transform: translateX(-50%) rotate(-2deg);
-}
-
-.notation-label[data-position="bottom"] {
-	bottom: -32px;
-	left: 50%;
-	transform: translateX(-50%) rotate(-2deg);
-}
 
 /* ── Footer ──────────────────────────────────────────────────────── */
 .footer {
@@ -741,15 +685,6 @@ a mark {
 		border-bottom: 1px solid var(--border);
 		margin-bottom: 2px;
 	}
-	/* Stack name over description; let it wrap instead of truncating */
-	/* Beta bracket — on mobile the cursive side-label folds under
-	   the list as a small italic note so it never sits off-screen */
-	/* Hide all rough-notation SVGs on mobile. They render into document.body
-	   with computed bounds that look broken at narrow widths, and the
-	   repositioned cursive labels carry the same meaning cleanly. */
-	svg.rough-annotation {
-		display: none !important;
-	}
 	/* ── Article layout ─────────────────────────────────────────── */
 	/* ToC becomes a clearly-labeled "Contents" card, flush with
 	   article width, separated by a full hairline. Feels editorial
@@ -798,22 +733,6 @@ a mark {
 		bottom: 24px;
 	}
 	/* ── Props / API reference rows ─────────────────────────────── */
-	/* ── Notation cursive labels ─────────────────────────────────
-	   Absolute labels positioned -140px off the side have no room.
-	   Reposition below the target, slightly smaller. */
-	.notation-label[data-position="right"],
-	.notation-label[data-position="left"] {
-		right: auto;
-		left: 0;
-		top: 100%;
-		margin-top: 6px;
-		transform: rotate(-1.5deg);
-		font-size: 16px;
-	}
-	.notation-label[data-position="top"],
-	.notation-label[data-position="bottom"] {
-		font-size: 16px;
-	}
 	/* Footer */
 	.footer {
 		padding: 32px 0 64px;
@@ -865,7 +784,7 @@ a mark {
 	font-weight: 460;
 	color: var(--text-muted);
 	text-decoration: none;
-	transition: color 0.2s ease;
+	transition: color 150ms ease;
 	cursor: pointer;
 	background: none;
 	border: none;
@@ -1009,7 +928,7 @@ a mark {
 	border-radius: 4px;
 	padding: 12px 16px;
 	outline: none;
-	transition: border-color 0.2s ease;
+	transition: border-color 150ms ease;
 }
 
 .login-input:focus {
@@ -1033,11 +952,13 @@ a mark {
 	padding: 0 16px;
 	margin-top: 12px;
 	cursor: pointer;
-	transition: all 0.2s ease;
+	transition: opacity 150ms ease, transform 100ms ease-out;
 }
 
-.login-submit:hover {
-	opacity: 0.85;
+@media (hover: hover) {
+	.login-submit:hover {
+		opacity: 0.85;
+	}
 }
 
 .login-submit:disabled {
@@ -1354,31 +1275,49 @@ a mark {
 	text-decoration: none;
 	white-space: nowrap;
 	cursor: pointer;
-	transition: opacity 150ms ease-out, border-color 150ms ease-out;
+	transition: opacity 150ms ease, border-color 150ms ease, background-color
+		150ms ease, transform 100ms ease-out;
 }
 .acct-btn.solid {
 	border: 0;
 	background: var(--pri);
 	color: var(--on-pri);
 }
-.acct-btn.solid:hover {
-	opacity: 0.88;
+@media (hover: hover) {
+	.acct-btn.solid:hover {
+		opacity: 0.88;
+	}
+	.acct-btn.line:hover {
+		border-color: var(--ink);
+	}
+	.acct-btn.danger:hover {
+		background: color-mix(in srgb, var(--alarm) 8%, transparent);
+	}
+}
+/* Press feedback: buttons answer the finger before the network does. */
+.acct-btn:active:not(:disabled),
+.login-submit:active:not(:disabled) {
+	transform: scale(0.97);
+}
+@media (prefers-reduced-motion: reduce) {
+	.acct-btn,
+	.login-submit {
+		transition: none;
+	}
+	.acct-btn:active:not(:disabled),
+	.login-submit:active:not(:disabled) {
+		transform: none;
+	}
 }
 .acct-btn.line {
 	border: 1px solid var(--line);
 	background: transparent;
 	color: var(--ink);
 }
-.acct-btn.line:hover {
-	border-color: var(--ink);
-}
 .acct-btn.danger {
 	border: 1px solid var(--alarm);
 	background: transparent;
 	color: var(--alarm);
-}
-.acct-btn.danger:hover {
-	background: color-mix(in srgb, var(--alarm) 8%, transparent);
 }
 .acct-btn.full {
 	width: 100%;
@@ -1672,7 +1611,7 @@ a mark {
 	border-radius: 8px;
 	box-shadow: none;
 	overflow: hidden;
-	animation: acct-card-in 320ms var(--acct-card-ease);
+	animation: acct-card-in 240ms var(--acct-card-ease);
 }
 .acct-card:focus {
 	outline: none;
@@ -1689,7 +1628,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 		scale(0.995);
 }
 .www > :not(.marketing-nav) {
-	transition: transform 320ms var(--acct-card-ease);
+	transition: transform 240ms var(--acct-card-ease);
 }
 @media (prefers-reduced-motion: reduce) {
 	.acct-card {
@@ -3879,7 +3818,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 .agent-prompt-scroll {
 	overflow: hidden;
 	min-width: 0;
-	transition: max-height 0.3s ease;
+	transition: max-height 200ms ease-out;
 }
 
 .agent-prompt-collapsed {
@@ -3901,7 +3840,8 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	border-radius: 6px;
 	padding: 4px 14px;
 	cursor: pointer;
-	transition: all 0.15s;
+	transition: color 150ms ease, border-color 150ms ease, background-color 150ms
+		ease;
 	z-index: 3;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -8140,7 +8080,9 @@ body:has(.rh-page) .auth-bar {
 	border-radius: 999px;
 	font-size: 14px;
 	color: var(--text-muted);
-	transition: all var(--duration-snappy) var(--ease-snappy);
+	transition: color var(--duration-snappy) var(--ease-snappy), border-color
+		var(--duration-snappy) var(--ease-snappy), background-color
+		var(--duration-snappy) var(--ease-snappy);
 }
 .rh-seg input:checked + span {
 	background: var(--text-main);

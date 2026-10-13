@@ -949,11 +949,6 @@ button.docs-nav-item {
    Default: the guide shell, one column, request and response inline under each
    section's params. "Full view" (rail toggle) puts prose left and a sticky
    request/response column right, and narrows the rail to icons. */
-/* A 200k px page of highlighted code: a smooth glide to a far anchor paints
-   everything between, so jumps land instantly here (as Stripe's do). */
-html:has(.apiref) {
-	scroll-behavior: auto;
-}
 .docs-shell {
 	transition: grid-template-columns 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }

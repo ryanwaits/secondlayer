@@ -129,30 +129,36 @@
 	font: 500 15px / 1 var(--font-sans-stack);
 	letter-spacing: -0.005em;
 	cursor: pointer;
-	transition: background-color 150ms var(--ease-snappy), border-color 150ms
-		var(--ease-snappy), color 150ms var(--ease-snappy);
+	transition: background-color 150ms ease, border-color 150ms ease, color 150ms
+		ease, transform 100ms ease-out;
 }
 .site .btn-pri {
 	background: var(--pri);
 	color: var(--on-pri);
 }
-.site .btn-pri:hover {
-	background: color-mix(in srgb, var(--pri) 86%, var(--paper));
-}
 .site .btn-sec {
 	border-color: var(--line);
 	color: var(--ink);
-}
-.site .btn-sec:hover {
-	border-color: var(--ink);
 }
 .site .btn-ghost {
 	border-color: var(--line);
 	color: var(--ink);
 	background: transparent;
 }
-.site .btn-ghost:hover {
-	border-color: var(--sub);
+@media (hover: hover) {
+	.site .btn-pri:hover {
+		background: color-mix(in srgb, var(--pri) 86%, var(--paper));
+	}
+	.site .btn-sec:hover {
+		border-color: var(--ink);
+	}
+	.site .btn-ghost:hover {
+		border-color: var(--sub);
+	}
+}
+/* Press feedback: the button answers before the page does. */
+.site .btn:active:not(:disabled) {
+	transform: scale(0.97);
 }
 .site .btn-sm {
 	height: 34px;
@@ -162,6 +168,9 @@
 @media (prefers-reduced-motion: reduce) {
 	.site .btn {
 		transition: none;
+	}
+	.site .btn:active:not(:disabled) {
+		transform: none;
 	}
 }
 
@@ -1082,12 +1091,18 @@
 	margin-inline: -0.1em;
 	background: linear-gradient(var(--hi), var(--hi)) 0 0.14em / 0% 1.08em
 		no-repeat;
-	transition: background-size 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.28s;
+	transition: background-size 200ms cubic-bezier(0.23, 1, 0.32, 1), color 200ms
+		cubic-bezier(0.23, 1, 0.32, 1);
 }
-.site .spine a:hover .n,
 .site .spine a:focus-visible .n {
 	background-size: 100% 1.08em;
 	color: var(--on-hi);
+}
+@media (hover: hover) {
+	.site .spine a:hover .n {
+		background-size: 100% 1.08em;
+		color: var(--on-hi);
+	}
 }
 .site .spine .v {
 	font-family: var(--font-mono-stack);

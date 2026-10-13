@@ -34,7 +34,7 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.11.16",
+      "version": "0.13.3",
       "dependencies": {
         "@mdx-js/loader": "^3.1.1",
         "@mdx-js/react": "^3.1.1",
@@ -52,7 +52,6 @@
         "recharts": "^3.10.1",
         "rehype-slug": "^6.0.0",
         "remark-gfm": "^4.0.1",
-        "rough-notation": "^0.5.1",
         "shiki": "4.0.2",
         "sonner": "^2.0.8",
       },
@@ -65,7 +64,7 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.52.6",
+      "version": "1.53.0",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@aws-sdk/s3-request-presigner": "3.1042.0",
@@ -102,7 +101,7 @@
     },
     "packages/bundler": {
       "name": "@secondlayer/bundler",
-      "version": "0.7.0",
+      "version": "0.7.1",
       "dependencies": {
         "@secondlayer/subgraphs": "^6.4.0",
         "esbuild": "^0.28.2",
@@ -114,7 +113,7 @@
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "19.4.3",
+      "version": "20.0.1",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -154,7 +153,7 @@
     },
     "packages/indexer": {
       "name": "@secondlayer/indexer",
-      "version": "1.17.2",
+      "version": "1.17.3",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@aws-sdk/lib-storage": "^3.1108.0",
@@ -170,7 +169,7 @@
     },
     "packages/mcp": {
       "name": "@secondlayer/mcp",
-      "version": "9.0.6",
+      "version": "10.0.1",
       "bin": {
         "mcp": "./dist/bin.js",
         "secondlayer-mcp": "./dist/bin.js",
@@ -194,7 +193,7 @@
     },
     "packages/platform": {
       "name": "@secondlayer/platform",
-      "version": "0.6.4",
+      "version": "0.6.6",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.17",
@@ -208,7 +207,7 @@
     },
     "packages/scaffold": {
       "name": "@secondlayer/scaffold",
-      "version": "1.6.1",
+      "version": "1.6.2",
       "dependencies": {
         "@secondlayer/stacks": "^6.0.0",
         "@secondlayer/subgraphs": "^6.0.0",
@@ -220,11 +219,11 @@
     },
     "packages/sdk": {
       "name": "@secondlayer/sdk",
-      "version": "14.5.1",
+      "version": "15.0.0",
       "dependencies": {
-        "@secondlayer/shared": "^11.24.1",
+        "@secondlayer/shared": "^12.0.0",
         "@secondlayer/stacks": "^6.2.0",
-        "@secondlayer/subgraphs": "^6.5.0",
+        "@secondlayer/subgraphs": "^7.0.0",
       },
       "devDependencies": {
         "@openpkg-ts/cli": "^0.11.3",
@@ -247,7 +246,7 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "11.24.1",
+      "version": "12.1.0",
       "dependencies": {
         "@secondlayer/stacks": "^6.2.0",
         "kysely": "0.28.17",
@@ -296,11 +295,11 @@
     },
     "packages/subgraphs": {
       "name": "@secondlayer/subgraphs",
-      "version": "6.6.2",
+      "version": "7.0.1",
       "dependencies": {
-        "@secondlayer/shared": "^11.24.0",
+        "@secondlayer/shared": "^12.0.0",
         "@secondlayer/stacks": "^6.2.0",
-        "@secondlayer/verify": "^0.4.0",
+        "@secondlayer/verify": "^0.5.0",
         "esbuild": "^0.28.2",
         "kysely": "0.28.17",
         "zod": "^4.3.6",
@@ -313,7 +312,7 @@
     },
     "packages/verify": {
       "name": "@secondlayer/verify",
-      "version": "0.4.0",
+      "version": "0.5.1",
       "dependencies": {
         "@noble/curves": "2.0.1",
         "@noble/hashes": "2.0.1",
@@ -326,7 +325,7 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.4.4",
+      "version": "1.4.6",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
         "@secondlayer/shared": "^11.24.1",
@@ -341,7 +340,7 @@
     },
     "packages/workload": {
       "name": "@secondlayer/workload",
-      "version": "0.0.41",
+      "version": "0.0.43",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
         "@secondlayer/shared": "^11.24.1",
@@ -2564,8 +2563,6 @@
     "rolldown": ["rolldown@1.2.8", "", { "dependencies": { "@oxc-project/types": "=0.149.0", "@rolldown/pluginutils": "^1.0.0" }, "optionalDependencies": { "@rolldown/binding-android-arm-eabi": "1.2.8", "@rolldown/binding-android-arm64": "1.2.8", "@rolldown/binding-darwin-arm64": "1.2.8", "@rolldown/binding-darwin-x64": "1.2.8", "@rolldown/binding-freebsd-x64": "1.2.8", "@rolldown/binding-linux-arm-gnueabihf": "1.2.8", "@rolldown/binding-linux-arm64-gnu": "1.2.8", "@rolldown/binding-linux-arm64-musl": "1.2.8", "@rolldown/binding-linux-ppc64-gnu": "1.2.8", "@rolldown/binding-linux-s390x-gnu": "1.2.8", "@rolldown/binding-linux-x64-gnu": "1.2.8", "@rolldown/binding-linux-x64-musl": "1.2.8", "@rolldown/binding-openharmony-arm64": "1.2.8", "@rolldown/binding-win32-arm64-msvc": "1.2.8", "@rolldown/binding-win32-x64-msvc": "1.2.8" }, "bin": { "rolldown": "./bin/cli.mjs" } }, "sha512-Z67nTmhZe7anqnM/EjI392w5i/ANUinjip7QYsOyN37oayduxt3ksdX0hf5OOamkAd53BiIHfbfSzfUmzKFQqQ=="],
 
     "rollup": ["rollup@4.63.2", "", { "dependencies": { "@types/estree": "1.0.9" }, "optionalDependencies": { "@napi-rs/lzma-linux-x64-gnu": "1.5.1", "@rollup/rollup-android-arm-eabi": "4.63.2", "@rollup/rollup-android-arm64": "4.63.2", "@rollup/rollup-darwin-arm64": "4.63.2", "@rollup/rollup-darwin-x64": "4.63.2", "@rollup/rollup-freebsd-arm64": "4.63.2", "@rollup/rollup-freebsd-x64": "4.63.2", "@rollup/rollup-linux-arm-gnueabihf": "4.63.2", "@rollup/rollup-linux-arm-musleabihf": "4.63.2", "@rollup/rollup-linux-arm64-gnu": "4.63.2", "@rollup/rollup-linux-arm64-musl": "4.63.2", "@rollup/rollup-linux-loong64-gnu": "4.63.2", "@rollup/rollup-linux-loong64-musl": "4.63.2", "@rollup/rollup-linux-ppc64-gnu": "4.63.2", "@rollup/rollup-linux-ppc64-musl": "4.63.2", "@rollup/rollup-linux-riscv64-gnu": "4.63.2", "@rollup/rollup-linux-riscv64-musl": "4.63.2", "@rollup/rollup-linux-s390x-gnu": "4.63.2", "@rollup/rollup-linux-x64-gnu": "4.63.2", "@rollup/rollup-linux-x64-musl": "4.63.2", "@rollup/rollup-openbsd-x64": "4.63.2", "@rollup/rollup-openharmony-arm64": "4.63.2", "@rollup/rollup-win32-arm64-msvc": "4.63.2", "@rollup/rollup-win32-ia32-msvc": "4.63.2", "@rollup/rollup-win32-x64-gnu": "4.63.2", "@rollup/rollup-win32-x64-msvc": "4.63.2", "fsevents": "~2.3.2" }, "bin": { "rollup": "dist/bin/rollup" } }, "sha512-l5eyksV4tPBj6lJyEa37YzIOCSOV7lkZzEHUdpjWZbtD7wTcFYmEYXSgm5bT4vV+dZLb9rBG1W9GROOG4NS4Ew=="],
-
-    "rough-notation": ["rough-notation@0.5.1", "", {}, "sha512-ITHofTzm13cWFVfoGsh/4c/k2Mg8geKgBCwex71UZLnNuw403tCRjYPQ68jSAd37DMbZIePXPjDgY0XdZi9HPw=="],
 
     "roughjs": ["roughjs@4.6.6", "", { "dependencies": { "hachure-fill": "^0.5.2", "path-data-parser": "^0.1.0", "points-on-curve": "^0.2.0", "points-on-path": "^0.2.1" } }, "sha512-ZUz/69+SYpFN/g/lUlo2FXcIjRkSu3nDarreVdGGndHEBJ6cXPdKguS8JGxwj5HA5xIbVKSmLgr5b3AWxtRfvQ=="],
 

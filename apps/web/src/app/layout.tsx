@@ -3,7 +3,7 @@ import { LazyCommandPalette } from "@/components/command-palette/lazy";
 import { FastAnchorScroll } from "@/components/fast-anchor-scroll";
 import { AuthProvider } from "@/lib/auth";
 import type { Metadata, Viewport } from "next";
-import { Caveat, Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -20,11 +20,6 @@ const geist = Geist({
 const geistMono = Geist_Mono({
 	subsets: ["latin"],
 	variable: "--font-mono",
-});
-
-const caveat = Caveat({
-	subsets: ["latin"],
-	variable: "--font-cursive",
 });
 
 export const metadata: Metadata = {
@@ -59,7 +54,7 @@ export default function RootLayout({
 	return (
 		<html lang="en">
 			<body
-				className={`${geist.className} ${geist.variable} ${geistMono.variable} ${caveat.variable}`}
+				className={`${geist.className} ${geist.variable} ${geistMono.variable}`}
 			>
 				<AuthProvider>
 					{children}

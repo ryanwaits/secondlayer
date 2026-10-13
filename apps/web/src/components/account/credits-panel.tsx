@@ -17,6 +17,7 @@ import {
 	updateCap,
 	useAccountData,
 } from "@/lib/account-data";
+import { scrollToElement } from "@/lib/scroll";
 import {
 	type BalanceLevel,
 	type HostedStack,
@@ -340,11 +341,10 @@ function LevelBanner({
 			<button
 				type="button"
 				className="acct-btn"
-				onClick={() =>
-					document
-						.getElementById("packs")
-						?.scrollIntoView({ behavior: "smooth" })
-				}
+				onClick={() => {
+					const el = document.getElementById("packs");
+					if (el) scrollToElement(el);
+				}}
 			>
 				Add credits
 			</button>
@@ -387,9 +387,10 @@ function CapBanner({
 			<button
 				type="button"
 				className="acct-btn"
-				onClick={() =>
-					document.getElementById("cap")?.scrollIntoView({ behavior: "smooth" })
-				}
+				onClick={() => {
+					const el = document.getElementById("cap");
+					if (el) scrollToElement(el);
+				}}
 			>
 				Change cap
 			</button>
