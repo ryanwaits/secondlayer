@@ -5,6 +5,7 @@ export { Faq } from "./faq";
 export { Highlight } from "./highlight";
 export { Manifest } from "./manifest";
 export { Meters } from "./meters";
+export { LiveEventsOdometer } from "./live-odometer";
 export { Odometer } from "./odometer";
 export { Props } from "./props";
 export { RestOfPlatform } from "./rest-of-platform";

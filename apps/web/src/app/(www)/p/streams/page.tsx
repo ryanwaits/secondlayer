@@ -5,8 +5,8 @@ import {
 	Eyebrow,
 	Faq,
 	Highlight,
+	LiveEventsOdometer,
 	Meters,
-	Odometer,
 	Props,
 	SelfHostSlot,
 	Split,
@@ -14,6 +14,7 @@ import {
 	Terminal,
 } from "@/components/site";
 import { StreamsHero } from "@/components/site/assets";
+import { getLiveEvents, getSignedCounts } from "@/lib/chain-stats";
 import { socialMeta } from "@/lib/og";
 import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
@@ -53,7 +54,8 @@ const CURSORS: readonly { at: string; label: string }[] = [
 	{ at: "…", label: "tip" },
 ];
 
-export default function StreamsPage() {
+export default async function StreamsPage() {
+	const liveEvents = await getLiveEvents(await getSignedCounts());
 	return (
 		<main className="site product">
 			<div className="shell">
@@ -70,8 +72,8 @@ export default function StreamsPage() {
 								Read the docs
 							</ButtonLink>
 						</div>
-						<Odometer
-							value={245540999}
+						<LiveEventsOdometer
+							initial={liveEvents}
 							label="events you can replay from genesis"
 						/>
 					</div>

@@ -1,5 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { PRODUCTS } from "@/lib/site";
+import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CHAIN_TRIGGER_TYPES } from "../../../../../packages/shared/src/schemas/webhooks";
 
@@ -29,9 +30,24 @@ const pages = {
 
 const SLUGS = Object.keys(pages) as (keyof typeof pages)[];
 
+// Index, Streams and Archive are async (they read the signed manifest and the
+// live event total). Render every page once with fetch offline, so they take
+// the shipped fallback figures and the run never touches the network.
+const realFetch = globalThis.fetch;
+globalThis.fetch = (() =>
+	Promise.reject(new Error("offline in tests"))) as unknown as typeof fetch;
+const HTML = Object.fromEntries(
+	await Promise.all(
+		SLUGS.map(async (slug) => {
+			const Page = pages[slug] as () => ReactNode | Promise<ReactNode>;
+			return [slug, renderToStaticMarkup(await Page())] as const;
+		}),
+	),
+) as Record<keyof typeof pages, string>;
+globalThis.fetch = realFetch;
+
 function render(slug: keyof typeof pages): string {
-	const Page = pages[slug];
-	return renderToStaticMarkup(<Page />);
+	return HTML[slug];
 }
 
 describe("product routes", () => {

@@ -4,9 +4,9 @@ import {
 	Eyebrow,
 	Faq,
 	Highlight,
+	LiveEventsOdometer,
 	Manifest,
 	Meters,
-	Odometer,
 	Props,
 	RestOfPlatform,
 	SelfHostSlot,
@@ -15,6 +15,12 @@ import {
 	Terminal,
 } from "@/components/site";
 import { IndexHero } from "@/components/site/assets";
+import {
+	formatCount,
+	getLiveEvents,
+	getSignedCounts,
+	manifestRows,
+} from "@/lib/chain-stats";
 import { socialMeta } from "@/lib/og";
 import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
@@ -81,7 +87,11 @@ const DATASETS: readonly {
 	},
 ];
 
-export default function IndexPage() {
+export default async function IndexPage() {
+	const signed = await getSignedCounts();
+	const liveEvents = await getLiveEvents(signed);
+	const toBlock = formatCount(signed.toBlock);
+	const blocks = formatCount(signed.blocks);
 	return (
 		<main className="site product">
 			<div className="shell">
@@ -98,7 +108,7 @@ export default function IndexPage() {
 								Read the docs
 							</ButtonLink>
 						</div>
-						<Odometer value={245540999} label="events decoded" />
+						<LiveEventsOdometer initial={liveEvents} label="events decoded" />
 					</div>
 					<div className="hero-art">
 						<IndexHero />
@@ -221,7 +231,7 @@ export default function IndexPage() {
 									</span>
 									{"\n"}
 									<span className="t-m">
-										{"  coverage    0 → 8,948,506   (8,948,507 blocks)"}
+										{`  coverage    0 → ${toBlock}   (${blocks} blocks)`}
 									</span>
 									{"\n"}
 									<span className="t-hit">
@@ -250,26 +260,7 @@ export default function IndexPage() {
 
 					<Manifest
 						title="secondlayer-canonical · v1 · mainnet"
-						rows={[
-							{
-								dataset: "events",
-								rows: "245,540,999",
-								share: 86.53,
-								coverage: "0 → 8,948,506",
-							},
-							{
-								dataset: "transactions",
-								rows: "29,267,775",
-								share: 10.31,
-								coverage: "0 → 8,948,506",
-							},
-							{
-								dataset: "blocks",
-								rows: "8,948,507",
-								share: 3.15,
-								coverage: "0 → 8,948,506",
-							},
-						]}
+						rows={manifestRows(signed)}
 					/>
 
 					<Meters
@@ -388,10 +379,10 @@ export default function IndexPage() {
 								q: "How do I know the history is complete?",
 								a: (
 									<>
-										The manifest publishes coverage (0 → 8,948,506) and a block
-										count (8,948,507). Count equals span, so there is no room
-										for a gap. <code>secondlayer verify</code> checks your own
-										copy against the signed document for free.
+										The manifest publishes coverage (0 → {toBlock}) and a block
+										count ({blocks}). Count equals span, so there is no room for
+										a gap. <code>secondlayer verify</code> checks your own copy
+										against the signed document for free.
 									</>
 								),
 							},

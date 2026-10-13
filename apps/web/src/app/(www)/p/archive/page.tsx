@@ -13,6 +13,7 @@ import {
 	Terminal,
 } from "@/components/site";
 import { ArchiveHero } from "@/components/site/assets";
+import { formatCount, getSignedCounts, manifestRows } from "@/lib/chain-stats";
 import { socialMeta } from "@/lib/og";
 import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
@@ -72,31 +73,12 @@ const JOBS: readonly {
 	},
 ];
 
-const MANIFEST: readonly {
-	dataset: string;
-	rows: string;
-	share: number;
-	fetch: string;
-}[] = [
-	{
-		dataset: "events",
-		rows: "245,540,999",
-		share: 86.53,
-		fetch: "$0.15 / partition",
-	},
-	{
-		dataset: "transactions",
-		rows: "29,267,775",
-		share: 10.31,
-		fetch: "$0.05 / partition",
-	},
-	{
-		dataset: "blocks",
-		rows: "8,948,507",
-		share: 3.15,
-		fetch: "$0.05 / partition",
-	},
-];
+/** Partition fetch price per dataset; rows and shares come from the manifest. */
+const FETCH: Record<string, string> = {
+	events: "$0.15 / partition",
+	transactions: "$0.05 / partition",
+	blocks: "$0.05 / partition",
+};
 
 const FILES: readonly { path: string; body: string }[] = [
 	{
@@ -149,7 +131,10 @@ const LEVELS: readonly {
 	},
 ];
 
-export default function ArchivePage() {
+export default async function ArchivePage() {
+	const signed = await getSignedCounts();
+	const toBlock = formatCount(signed.toBlock);
+	const blocks = formatCount(signed.blocks);
 	return (
 		<main className="site product">
 			<div className="shell">
@@ -166,7 +151,7 @@ export default function ArchivePage() {
 								Read the docs
 							</ButtonLink>
 						</div>
-						<Odometer value={8948507} label="blocks, zero gaps" />
+						<Odometer value={signed.blocks} label="blocks, zero gaps" />
 					</div>
 					<div className="hero-art">
 						<ArchiveHero />
@@ -274,7 +259,7 @@ export default function ArchivePage() {
 									</span>
 									{"\n"}
 									<span className="t-m">
-										{"  coverage    0 → 8,948,506   (8,948,507 blocks)"}
+										{`  coverage    0 → ${toBlock}   (${blocks} blocks)`}
 									</span>
 									{"\n"}
 									<span className="t-m">
@@ -366,7 +351,7 @@ export default function ArchivePage() {
 									</tr>
 								</thead>
 								<tbody>
-									{MANIFEST.map((r) => (
+									{manifestRows(signed).map((r) => (
 										<tr key={r.dataset}>
 											<td>{r.dataset}</td>
 											<td className="num">{r.rows}</td>
@@ -378,8 +363,8 @@ export default function ArchivePage() {
 													</span>
 												</div>
 											</td>
-											<td className="mono">0 → 8,948,506</td>
-											<td className="num">{r.fetch}</td>
+											<td className="mono">{r.coverage}</td>
+											<td className="num">{FETCH[r.dataset]}</td>
 										</tr>
 									))}
 								</tbody>
@@ -530,7 +515,7 @@ export default function ArchivePage() {
 							},
 							{
 								q: "How do I know the history is complete?",
-								a: "The manifest publishes coverage (0 → 8,948,506) and a block count (8,948,507). Count equals span, so there is no room for a gap. The per-height digest sidecar lets verify find exactly which range differs.",
+								a: `The manifest publishes coverage (0 → ${toBlock}) and a block count (${blocks}). Count equals span, so there is no room for a gap. The per-height digest sidecar lets verify find exactly which range differs.`,
 							},
 							{
 								q: "What does db-reconstructive mean for me?",
