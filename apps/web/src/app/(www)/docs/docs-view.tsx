@@ -112,8 +112,8 @@ function PageActions({ pathname }: { pathname: string }) {
 
 	useEffect(() => () => clearTimeout(timer.current), []);
 
-	// Only pages in the sidebar have a markdown twin (the changelog archive
-	// does not), so the pills that point at one are left off elsewhere.
+	// Only pages in the sidebar have a markdown twin, so the pills that point
+	// at one are left off elsewhere.
 	const hasMarkdown = docsNavPages().some(
 		(page) => page.href === pathname.replace(/\/$/, ""),
 	);
