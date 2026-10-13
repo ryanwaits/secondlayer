@@ -354,6 +354,8 @@ Self-host with the `bitcoin` compose profile has Runes data now. Hosted answers 
 | Current per-outpoint balances | `/v1/index/runes/balances` | `runes.balances({ address })` |
 | Etch, mint, transfer, burn log | `/v1/index/runes/activity` | `runes.activity.list` / `walk` |
 
+From the terminal: `secondlayer index runes [--search <prefix>] [--sort number|mints]`, `runes get <rune>`, `runes balances --address <addr>` (or `--outpoint <txid:vout>`), and `runes activity [--rune] [--address] [--kind etch,mint,transfer,burn] [--txid]`.
+
 ```ts
 await sl.index.runes.list({ search: "dog", sort: "mints" });
 await sl.index.runes.balances({ address: "bc1phnp234rd5hel0h8ulqvnq3zrww2td0a8q48hjcg7mv67j97jnxfq9ayczm" });
