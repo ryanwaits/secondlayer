@@ -2,11 +2,7 @@
 
 Check the signature, decode the body, and undo anything a reorg orphans.
 
-<Callout type="warning" title="Delivery semantics">
-
-Delivery is **at-least-once** and **unordered**: dedupe on `(tx_id, event_index, block_hash)` and don't assume arrival order matches chain order. On a reorg, `chain.reorg.rollback` covers everything that *may* have reached your endpoint, meaning any row the emitter claimed or attempted, not only one the server confirmed as delivered. A delivery whose response never made it back still counts as "may have arrived," so undo every entry the rollback lists.
-
-</Callout>
+Delivery is **at-least-once** and **unordered**: dedupe on `(tx_id, event_index, block_hash)` and don't assume arrival order matches chain order.
 
 ## Verify the signature
 
@@ -18,6 +14,9 @@ import { verifyWebhookSignature } from "@secondlayer/sdk";
 const valid = verifyWebhookSignature(rawBody, req.headers, secret);
 if (!valid) return new Response("bad signature", { status: 401 });
 ```
+
+<details id="ed25519-signature">
+<summary>ed25519 signature</summary>
 
 **Every** delivery, in every format, also carries an ed25519 signature over `` `${webhook-id}.${rawBody}` ``. For `raw`, `cloudevents`, `trigger`, `cloudflare`, and `inngest`, which have no HMAC, it is the only auth.
 
@@ -37,7 +36,10 @@ if (!valid) return new Response("bad signature", { status: 401 });
 
 Fetch the public key once and cache it; rotate on the `keyid` header. Failed deliveries retry with backoff, then the circuit opens so a downed endpoint can't block the queue.
 
-## Delivery envelope
+</details>
+
+<details id="delivery-envelope">
+<summary>Delivery envelope</summary>
 
 A matched event delivers `chain.{trigger}.apply`. On `standard-webhooks` the body is `{ type, timestamp, data }`:
 
@@ -81,17 +83,15 @@ A chain-webhook delivery and a [Streams](/docs/streams) event are structurally u
 
 </Callout>
 
-Verify the signature, then decode:
+</details>
+
+<details id="decode-the-delivery">
+<summary>Decode the delivery</summary>
+
+After the signature verifies, decode:
 
 ```ts
-import {
-  decodeChainWebhook,
-  decodeClarityValue,
-  verifyWebhookSignature,
-} from "@secondlayer/sdk";
-
-const valid = verifyWebhookSignature(rawBody, req.headers, secret);
-if (!valid) return new Response("bad signature", { status: 401 });
+import { decodeChainWebhook, decodeClarityValue } from "@secondlayer/sdk";
 
 const delivery = decodeChainWebhook(rawBody); // throws if the body isn't a chain.* delivery
 
@@ -120,11 +120,14 @@ Delivery is at-least-once. Key your state on `(tx_id, event_index, block_hash)`:
 
 Per-trigger shapes for `data.event`: [Event shapes](#event-shapes).
 
-## Event shapes
+</details>
+
+<details id="event-shapes">
+<summary>Event shapes</summary>
 
 What `data.event` holds, per trigger: event-level, tx-level, and sBTC.
 
-### Event-level triggers
+**Event-level triggers**
 
 For `stx_*`, `ft_*`, `nft_*`, and `print_event`, `data.event` is `{ tx_id, type, event_index, data }`:
 
@@ -164,7 +167,7 @@ For `stx_*`, `ft_*`, `nft_*`, and `print_event`, `data.event` is `{ tx_id, type,
 }
 ```
 
-### Tx-level triggers: `contract_call` / `contract_deploy`
+**Tx-level triggers: `contract_call` / `contract_deploy`**
 
 `data.event` is flat, with no nested `.data`:
 
@@ -187,7 +190,7 @@ For `stx_*`, `ft_*`, `nft_*`, and `print_event`, `data.event` is `{ tx_id, type,
 
 </Callout>
 
-### sBTC triggers
+**sBTC triggers**
 
 The five sBTC triggers deliver a flat, already-typed `event` keyed by `topic`:
 
@@ -205,7 +208,12 @@ The five sBTC triggers deliver a flat, already-typed `event` keyed by `topic`:
 
 `topic` is `completed-deposit`, `withdrawal-create`, `withdrawal-accept`, `withdrawal-reject`, or `withdrawal-swept-confirmed`. The settlement event instead carries `sweep_txid, btc_confirmations, btc_block_height, confirmed_at, amount, sender`, with no `bitcoin_txid`/`block_height`/`tx_id`.
 
-## Reorg rollback
+</details>
+
+<details id="reorg-rollback">
+<summary>Reorg rollback</summary>
+
+On a reorg, `chain.reorg.rollback` covers everything that *may* have reached your endpoint, meaning any row the emitter claimed or attempted, not only one the server confirmed as delivered. A delivery whose response never made it back still counts as "may have arrived," so undo every entry the rollback lists.
 
 A reorg delivers `chain.reorg.rollback` so you can undo anything committed off an orphaned block. Each entry is `{ tx_id, event }`, carrying the event body from the original apply:
 
@@ -229,6 +237,8 @@ A reorg delivers `chain.reorg.rollback` so you can undo anything committed off a
 `orphaned` is capped at 500 entries per webhook. If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list. Entries carry no `trigger` tag, because a rollback lists every previously-delivered apply regardless of which trigger matched, so you must know what you configured in order to read an entry's shape.
 
 </Callout>
+
+</details>
 
 export const metadata = {
 	title: "Receiving deliveries — Secondlayer Docs",
