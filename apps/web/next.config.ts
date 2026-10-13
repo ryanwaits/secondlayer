@@ -407,7 +407,9 @@ const nextConfig: NextConfig = {
 
 // Turbopack requires string-form remark/rehype plugins (functions can't be
 // serialized into its pipeline). Code highlighting is handled per-block by a
-// custom `pre` component (mdx-components.tsx) reusing our Shiki highlight().
+// custom `pre` component (mdx-components.tsx), which renders `<Code>`.
+// remark-code-meta is registered by absolute path: the loader resolves string
+// plugins from node_modules, so a relative "./src/…" path is not found in dev.
 const withMDX = createMDX({
 	options: {
 		remarkPlugins: [

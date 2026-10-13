@@ -1,0 +1,271 @@
+/* Code surfaces. Role tokens only: ink/sub/faint for syntax, line for the one
+   hairline, soft for marked rows, hi for marks, pri for what you can act on. */
+.cb {
+	--lh: 22px;
+	--bar: 40px;
+	position: relative;
+	min-width: 0;
+	margin-top: var(--spacing-sm);
+	margin-bottom: var(--spacing-sm);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--paper);
+	color: var(--ink);
+}
+.cb-bar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	height: var(--bar);
+	padding: 0 6px 0 14px;
+	border-bottom: 1px solid var(--line);
+	font: 400 12px / 1 var(--font-mono-stack);
+	color: var(--sub);
+}
+.cb-bar .r {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 100%;
+	margin-left: auto;
+}
+.cb-bar .lang {
+	font-size: 11px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--faint);
+}
+.cb-bar .exit {
+	padding-right: 8px;
+	color: var(--alarm);
+}
+.cb-bar .exit.zero {
+	color: var(--ok);
+}
+.cb-body {
+	--gut: 0px;
+	overflow-x: auto;
+	padding-block: 12px;
+	font: 400 13px / var(--lh) var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	tab-size: 2;
+}
+.cb.bare .cb-body {
+	padding-right: 64px;
+}
+.cb.bare > .copy {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	background: var(--paper);
+	opacity: 0;
+}
+.cb.bare:hover > .copy,
+.cb.bare > .copy:focus-visible,
+.cb.bare > .copy[data-done] {
+	opacity: 1;
+}
+@media (hover: none) {
+	.cb.bare > .copy {
+		opacity: 1;
+	}
+}
+
+.cb .row {
+	display: flex;
+	min-width: max-content;
+	min-height: var(--lh);
+	padding-inline: 14px;
+	white-space: pre;
+}
+.cb .row .ln {
+	flex: none;
+	width: var(--lnw, 2ch);
+	margin-right: 18px;
+	text-align: right;
+	color: var(--faint);
+	user-select: none;
+}
+.cb .row .sign {
+	flex: none;
+	width: 2ch;
+	color: var(--faint);
+	user-select: none;
+}
+.cb .row .prompt {
+	flex: none;
+	width: 2ch;
+	color: var(--faint);
+	user-select: none;
+}
+.cb-body.soft-wrap .row {
+	min-width: 0;
+}
+.cb-body.soft-wrap .tx {
+	flex: 1;
+	min-width: 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+/* Syntax ladder: tokens carry --shiki-light / --shiki-dark from the theme. */
+.cb .tx span {
+	color: var(--shiki-light, inherit);
+}
+@media (prefers-color-scheme: dark) {
+	.cb .tx span {
+		color: var(--shiki-dark, inherit);
+	}
+}
+.cb .tx .b {
+	font-weight: 500;
+}
+
+/* Handlers */
+.cb .hi,
+.cb .act {
+	margin-inline: -1px;
+	padding: 1px 3px;
+	background: var(--hi);
+	color: var(--on-hi);
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+.cb .act {
+	margin-inline: 0;
+	padding: 1px 5px;
+	border-radius: 4px;
+	background: var(--pri);
+	color: var(--on-pri);
+}
+.cb .hi *,
+.cb .act * {
+	color: inherit !important;
+}
+.cb .bad,
+.cb .bad * {
+	color: var(--alarm) !important;
+}
+.cb .row.mline {
+	background: var(--soft);
+}
+.cb .row.mline .ln {
+	color: var(--ink);
+}
+.cb .row.add .sign {
+	color: var(--ok);
+}
+.cb .row.del .tx,
+.cb .row.del .tx * {
+	color: var(--faint) !important;
+	font-weight: 400 !important;
+}
+.cb:not(.unfocus) .row.dim {
+	opacity: 0.35;
+}
+.cb .co {
+	position: relative;
+	min-width: 0;
+	padding: 6px 14px 8px calc(14px + var(--gut));
+}
+.cb .co-caret {
+	position: absolute;
+	top: 2px;
+	left: calc(14px + var(--gut) + var(--col) * 1ch + 0.5ch);
+	width: 9px;
+	height: 9px;
+	border-top: 1px solid var(--line);
+	border-left: 1px solid var(--line);
+	background: var(--paper);
+	transform: rotate(45deg);
+	z-index: 1;
+}
+.cb .co-box {
+	max-width: 56ch;
+	padding: 8px 12px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	background: var(--paper);
+	color: var(--ink);
+	font: 400 13px / 1.5 var(--font-sans-stack);
+	white-space: normal;
+}
+.cb .fold,
+.cb .more {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	padding: 0 14px 0 calc(14px + var(--gut));
+	border: 0;
+	background: none;
+	color: var(--sub);
+	font: inherit;
+	text-align: left;
+	white-space: pre;
+	cursor: pointer;
+}
+.cb .more {
+	margin-top: 8px;
+	margin-bottom: -4px;
+	padding-top: 8px;
+	border-top: 1px solid var(--line);
+}
+.cb .fold .cnt {
+	color: var(--faint);
+	font-size: 12px;
+}
+.cb .fold:hover,
+.cb .more:hover {
+	color: var(--pri);
+}
+.cb .copy,
+.cb .ghost {
+	padding: 6px 11px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: none;
+	color: var(--ink);
+	font: 400 12px / 1 var(--font-sans-stack);
+	cursor: pointer;
+}
+.cb .copy:hover,
+.cb .ghost:hover {
+	border-color: var(--pri);
+	color: var(--pri);
+}
+.cb .copy[data-done] {
+	border-color: var(--pri);
+	background: var(--pri);
+	color: var(--on-pri);
+}
+@media (prefers-reduced-motion: no-preference) {
+	.cb .row {
+		transition: opacity 160ms;
+	}
+	.cb .copy,
+	.cb .ghost {
+		transition: color 120ms, background-color 120ms, border-color 120ms;
+	}
+}
+
+/* Docs: the article sets the rhythm. */
+.docs-article .cb {
+	margin-top: 18px;
+}
+
+/* Inside a product terminal: the terminal's own ground, no card. */
+.site .term .cb {
+	--paper: transparent;
+	--ink: var(--term-fg);
+	--sub: var(--term-mute);
+	--faint: var(--term-mute);
+	--line: var(--term-line);
+	margin: 0;
+	border: 0;
+	border-radius: 0;
+}
+.site .term .cb .tx span {
+	color: var(--shiki-dark, inherit);
+}

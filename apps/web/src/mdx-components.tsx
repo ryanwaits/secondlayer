@@ -1,20 +1,26 @@
-import { CodeBlock } from "@/components/code-block";
+import { Code } from "@/components/code/code";
 import { Banner, Callout } from "@/components/docs/callout";
 import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-/** Fenced code block: MDX renders <pre><code class="language-x">…</code></pre>.
- *  Pull the language + source off the inner <code> and hand it to our Shiki
- *  CodeBlock — the same component marketing article pages use. */
+/** Fenced code block: MDX renders <pre><code class="language-x" data-meta="…">…</code></pre>.
+ *  Pull the language, the fence options (remark-code-meta) and the source off
+ *  the inner <code> and hand them to the one `<Code>` renderer. */
 function MdxPre({ children }: { children?: ReactNode }) {
 	const codeEl = children as
-		| { props?: { className?: string; children?: ReactNode } }
+		| {
+				props?: {
+					className?: string;
+					children?: ReactNode;
+					"data-meta"?: string;
+				};
+		  }
 		| undefined;
 	const className = codeEl?.props?.className ?? "";
 	const lang = /language-(\w[\w.-]*)/.exec(className)?.[1] ?? "text";
 	const code = String(codeEl?.props?.children ?? "");
-	return <CodeBlock code={code} lang={lang} />;
+	return <Code code={code} lang={lang} meta={codeEl?.props?.["data-meta"]} />;
 }
 
 /** Inline `code` styling rule: API endpoints/routes get the branded blue

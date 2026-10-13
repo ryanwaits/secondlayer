@@ -430,12 +430,8 @@
 	color: var(--term-ok);
 	font-weight: 500;
 }
-/* docs CodeBlock inside a terminal: docs Shiki tokens (global dark swap),
-   the terminal's own ground, no docs margins or radius. */
-.site .term .code-block-wrapper {
-	margin: 0;
-}
-.site .term .code-block-wrapper pre,
+/* Shiki HTML inside a terminal: the terminal's own ground, no docs margins
+   or radius. (`<Code>` inside a terminal is themed in code.css.) */
 .site .term .shiki {
 	background: transparent !important;
 	background-color: transparent !important;

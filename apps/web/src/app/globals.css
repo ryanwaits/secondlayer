@@ -516,19 +516,6 @@ a mark {
 }
 
 /* ── Code blocks ─────────────────────────────────────────────────── */
-.code-block {
-	background: var(--code-block-bg);
-	font-family: var(--font-mono-stack);
-	font-size: 0.8125rem;
-	font-weight: 400;
-	line-height: 1.55;
-	padding: var(--spacing-xs);
-	border-radius: 6px;
-	overflow-x: auto;
-	margin-top: var(--spacing-sm);
-	margin-bottom: var(--spacing-sm);
-}
-
 /* Shiki-rendered code blocks */
 .code-block-wrapper {
 	margin-top: var(--spacing-sm);
@@ -702,7 +689,6 @@ a mark {
 		padding-right: 10px;
 	}
 	/* ── Code blocks ────────────────────────────────────────────── */
-	.code-block,
 	.code-block-wrapper pre {
 		font-size: 0.75rem;
 		line-height: 1.6;
@@ -756,7 +742,6 @@ a mark {
 		line-height: 21px;
 	}
 
-	.code-block,
 	.code-block-wrapper pre {
 		padding: 12px 14px;
 		font-size: 0.7rem;
