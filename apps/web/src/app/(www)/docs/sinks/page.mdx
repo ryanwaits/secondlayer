@@ -2,26 +2,6 @@
 
 A sink is the destination your consume loop writes through. It owns the checkpoint, the transaction boundary, and the reorg rollback, so your handler only inserts rows.
 
-## The problem it removes
-
-Hand-rolled, a correct consumer is about ninety lines, most of them not about
-your data:
-
-```ts
-// load the cursor, in your own table
-// begin a transaction
-//   insert rows
-//   write the cursor — in the SAME transaction, or a crash between them
-//   either replays the batch or skips it
-// commit
-// on reorg: delete rows at _block_height >= fork_point_height (INCLUSIVE),
-//   rewind the cursor, both atomically
-```
-
-Miss the shared transaction and you double-count on restart. Use `>` instead of
-`>=` and one block of orphaned rows survives the fork. Skip `onReorg` and
-nothing errors; you keep rows from a chain that no longer exists.
-
 ## With a sink
 
 ```ts
@@ -75,7 +55,31 @@ A sink makes rollback unconditional: omitting `onReorg` no longer skips reorgs.
 
 Any other store: [write your own](#write-your-own-sink) and prove it with the conformance kit.
 
-## Keyed on the query builder, not the driver
+<details id="the-problem-it-removes">
+<summary>The problem it removes</summary>
+
+Hand-rolled, a correct consumer is about ninety lines, most of them not about
+your data:
+
+```ts
+// load the cursor, in your own table
+// begin a transaction
+//   insert rows
+//   write the cursor — in the SAME transaction, or a crash between them
+//   either replays the batch or skips it
+// commit
+// on reorg: delete rows at _block_height >= fork_point_height (INCLUSIVE),
+//   rewind the cursor, both atomically
+```
+
+Miss the shared transaction and you double-count on restart. Use `>` instead of
+`>=` and one block of orphaned rows survives the fork. Skip `onReorg` and
+nothing errors; you keep rows from a chain that no longer exists.
+
+</details>
+
+<details id="keyed-on-the-query-builder-not-the-driver">
+<summary>Keyed on the query builder, not the driver</summary>
 
 `kyselySink(db, …)` takes a [Kysely](https://kysely.dev) instance because a bare
 `pg.Pool` carries no schema type: `tables` would go unchecked and `ctx.tx`
@@ -85,7 +89,10 @@ with your schema objects.
 kysely and drizzle-orm are optional peer dependencies; the root entry stays
 dependency-free.
 
-## Rollback is height-stamped
+</details>
+
+<details id="rollback-is-height-stamped">
+<summary>Rollback is height-stamped</summary>
 
 v1 deletes `height >= fork_point_height` from every declared table. That is
 correct for one-row-per-event tables, which is why `height` is required.
@@ -126,13 +133,19 @@ kyselySink(db, {
 });
 ```
 
-## Resuming
+</details>
+
+<details id="resuming">
+<summary>Resuming</summary>
 
 The sink loads its committed cursor on start, so a restart continues with no
 arguments. An explicit `fromCursor` overrides the position for replaying a
 range; the sink still initializes.
 
-## Health and shutdown
+</details>
+
+<details id="health-and-shutdown">
+<summary>Health and shutdown</summary>
 
 ```ts
 import { consumerHealth, shutdownSignal } from "@secondlayer/sdk";
@@ -151,11 +164,15 @@ await sl.streams.events.consume({
 `consumerHealth` returns a `record` to feed from `onProgress` and a `handler`
 you mount yourself; the SDK never starts a server for you.
 
-## Write your own sink
+</details>
+
+<details id="write-your-own-sink">
+<summary>Write your own sink</summary>
 
 `createSink(driver, options)` from `@secondlayer/sdk/sinks/core` owns the transaction sequences and guards; your driver only speaks your database's dialect.
 
-### The contract
+<details id="the-contract">
+<summary>The contract</summary>
 
 Three methods, thirteen invariants. Each one is silent in production when violated, so the conformance kit tests them mechanically.
 
@@ -183,7 +200,10 @@ interface ConsumerSink<Tx> {
 | 12 | Throw, don't swallow; no internal retry |
 | 13 | One writer per checkpoint id; a lock must fail loudly, never block |
 
-### The driver
+</details>
+
+<details id="the-driver">
+<summary>The driver</summary>
 
 A complete [postgres.js](https://github.com/porsager/postgres) sink:
 
@@ -233,7 +253,10 @@ export function postgresJsSink(
 
 Identifiers arrive pre-validated (`[A-Za-z_][A-Za-z0-9_]*`), safe to interpolate after `quoteIdent`. Values stay bound parameters. `acquireLock` is the optional seventh method: throw when another writer holds your id.
 
-### Prove it
+</details>
+
+<details id="prove-it">
+<summary>Prove it</summary>
 
 `@secondlayer/sdk/sinks/testing` probes every invariant against your real store: torn batches, cursor replay, inclusive `>=`, mismatched rollback pairs, lock contention.
 
@@ -254,7 +277,10 @@ attachSinkConformance(test, {
 
 One probe per test; the `test` argument accepts bun:test, vitest, or jest. Every shipped sink passes this exact kit in CI. `insertRow` must be replay-safe, so upsert keyed on `key`.
 
-### Append-only stores
+</details>
+
+<details id="append-only-stores">
+<summary>Append-only stores</summary>
 
 A store that can't delete (ClickHouse, parquet, an append log) can't implement `rollback`. Declare it:
 
@@ -268,13 +294,20 @@ const sink: ConsumerSink<MyWriter> = {
 
 The loop refuses to run without `finalizedOnly: true`, at startup, before data flows. Finalized rows never reorg; deterministic replay makes `cursor` a dedup token for exactly-once reads.
 
-### Store caveats
+</details>
+
+<details id="store-caveats">
+<summary>Store caveats</summary>
 
 | Store | Caveat |
 | --- | --- |
 | Prisma | `$transaction` defaults to a 5s interactive timeout, so raise it; writes through the GLOBAL client escape the lent `tx` silently |
 | libsql / Turso remote | 5s write lock; remote statement-per-request can't hold the commit transaction open, so local files only |
 | ClickHouse / parquet | No deletes: `capabilities: { finalizedOnly: true }`, dedup on `cursor` |
+
+</details>
+
+</details>
 
 export const metadata = {
 	title: "Sinks — Secondlayer Docs",

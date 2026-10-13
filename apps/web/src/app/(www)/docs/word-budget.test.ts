@@ -7,11 +7,7 @@ import { docsNavPages } from "./nav";
 const BUDGET = 400;
 
 /** Pages not yet rewritten to the contract. Plans remove entries as they rewrite pages; never add one. */
-const PENDING_REWRITE = new Set<string>([
-	"/docs/sinks",
-	"/docs/deploy",
-	"/docs/rest-api",
-]);
+const PENDING_REWRITE = new Set<string>(["/docs/deploy", "/docs/rest-api"]);
 
 /** Generated or log pages the contract does not apply to. */
 const EXEMPT = new Set([
