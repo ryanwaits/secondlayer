@@ -10,6 +10,7 @@ import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { Hono } from "hono";
 import { sql } from "kysely";
+import { eventsTotal } from "../lib/events-total.ts";
 import {
 	type StreamsDumpsFreshness,
 	getStreamsBulkManifest,
@@ -41,6 +42,13 @@ type PublicIndexDecoder = {
 type PublicIndexStatus = {
 	status: PublicIndexDecoderStatus;
 	decoders: PublicIndexDecoder[];
+};
+
+type PublicStatusIndex = PublicIndexStatus & {
+	/** Canonical chain events stored — the set the signed archive counts as
+	 *  its `events` dataset. Served from an in-memory counter refreshed every
+	 *  ~10s (`lib/events-total.ts`); null until the first count lands. */
+	events_total: number | null;
 };
 
 type SemanticHealthStatus = "ok" | "degraded" | "unavailable";
@@ -318,7 +326,10 @@ app.get("/public/status", async (c) => {
 	const chainTip = streamsTip?.block_height ?? null;
 	const decodersHealth: DecodersHealth | null =
 		decodersResult.status === "fulfilled" ? decodersResult.value : null;
-	const index = publicIndexStatusFromDecoderHealth(decodersHealth);
+	const index: PublicStatusIndex = {
+		...publicIndexStatusFromDecoderHealth(decodersHealth),
+		events_total: eventsTotal.read(),
+	};
 	const dumps: StreamsDumpsFreshness = streamsDumpsFreshness({
 		manifest:
 			dumpsManifestResult.status === "fulfilled"
@@ -366,6 +377,9 @@ app.get("/public/status", async (c) => {
 					reason: "check_failed",
 				};
 
+	// Keyless and polled by every open marketing tab: a short shared-cache TTL
+	// lets a CDN absorb the load (events_total itself refreshes every ~10s).
+	c.header("Cache-Control", "public, max-age=5, s-maxage=5");
 	return c.json({
 		status: chainIntegrity.ok ? overallPublicStatus(services) : "degraded",
 		chainTip,

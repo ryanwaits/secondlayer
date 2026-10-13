@@ -239,6 +239,22 @@ describe("/status node status", () => {
 	});
 });
 
+describe("/public/status events total + caching", () => {
+	test("index carries events_total (number or null) and a short shared-cache TTL", async () => {
+		const res = await statusApp.request("/public/status");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toBe(
+			"public, max-age=5, s-maxage=5",
+		);
+		const body = (await res.json()) as {
+			index: { status: string; decoders: unknown[]; events_total?: unknown };
+		};
+		expect("events_total" in body.index).toBe(true);
+		const total = body.index.events_total;
+		expect(total === null || typeof total === "number").toBe(true);
+	});
+});
+
 describe("/status and /public/status subgraph_processor gating", () => {
 	const ORIGINAL_INSTANCE_MODE = process.env.INSTANCE_MODE;
 
