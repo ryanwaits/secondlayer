@@ -39,11 +39,19 @@ export default defineSubgraph({
 });
 ```
 
-Each handler gets `(event, ctx)`: `ctx.tx` / `ctx.block` for metadata, `ctx.insert` / `update` / `upsert` / `delete` / `increment` for writes, `ctx.findOne` / `findMany` to read rows back. Accumulating a value, reading contract state, and typing a `print` payload each have a rule worth knowing: [Writing handlers](/docs/subgraphs/handlers).
+Accumulating a value, reading contract state, and typing a `print` payload each have a rule worth knowing: [Writing handlers](/docs/subgraphs/handlers).
+
+<details id="handler-context">
+<summary>Handler context</summary>
+
+Each handler gets `(event, ctx)`: `ctx.tx` / `ctx.block` for metadata, `ctx.insert` / `update` / `upsert` / `delete` / `increment` for writes, `ctx.findOne` / `findMany` to read rows back.
 
 A `contract_call` source with a `functionName` types `event.input` from the contract's ABI. `secondlayer subgraphs deploy` fetches it from the deployed contract, so you don't paste it. Pass `abi` yourself for wildcard, multi-contract or trait sources, or a local deploy.
 
-### Hoisting the schema
+</details>
+
+<details id="hoisting-the-schema">
+<summary>Hoisting the schema</summary>
 
 Pull `schema` out of the call with `defineSchema()` when a handler grows
 enough to factor a helper, and the helper stays fully typed:
@@ -67,7 +75,10 @@ export default defineSubgraph({ name: "balances", schema, sources, handlers });
 
 With only the definition in scope, `InferContext<typeof def>` gives the same typed `ctx`.
 
-## Indexing a contract set
+</details>
+
+<details id="indexing-a-contract-set">
+<summary>Indexing a contract set</summary>
 
 `contractId` takes an array, so a router plus its pools is one source and one
 handler instead of twelve of each:
@@ -98,7 +109,10 @@ events (discovery runs before matching), and the discovered set is rolled
 back on a reorg like any other chain-derived state, so an address announced on
 an orphaned fork stops matching.
 
-## Index by standard, not by address
+</details>
+
+<details id="index-by-standard-not-by-address">
+<summary>Index by standard, not by address</summary>
 
 `trait` resolves to **every contract Secondlayer classifies as that standard**, including ones deployed after you ship:
 
@@ -111,7 +125,10 @@ sources: {
 
 Traits: `sip-009`, `sip-010`, `sip-013`. A reindex backfills each contract from its deploy block and bills the rows it reads. [Find contracts by standard](/docs/index#find-contracts-by-standard) queries the set directly.
 
-## Test before you deploy
+</details>
+
+<details id="test-before-you-deploy">
+<summary>Test before you deploy</summary>
 
 ```bash
 secondlayer subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
@@ -140,6 +157,8 @@ Handlers that read the chain get stubbed reads instead of a node, so pass
 `reads: { "<contract>.<function-name>": value }` to `createTestContext`. An
 unstubbed read throws naming the key it wanted.
 
+</details>
+
 ## Deploy
 
 Hosted is the default path: one private stack per account, no box to run. Create an `sk-sl_*` key at [`/account/keys`](/account/keys), set the two variables from the [Introduction](/docs#get-started), and deploy (CLI 19.1 or later). The first deploy backfills from `startBlock`; new blocks stream in after.
@@ -157,11 +176,15 @@ secondlayer subgraphs deploy ./subgraph.config.ts --start-block 8000000
 
 Set a start block. Without one the subgraph reindexes from genesis, and every matching event and transaction row it reads bills ([what it costs](/docs/authentication#what-it-costs)). The `verification` line is the level your sources earn and `pin` hashes what you deployed: [Rows anyone can recompute](/docs/subgraphs/handlers#rows-anyone-can-recompute).
 
-<Callout type="tip" title="Tip-first deploys">
+<details id="tip-first-deploys">
+<summary>Tip-first deploys</summary>
 
 `--tip-first` (or `backfillMode: "concurrent"`) goes live at the tip, so rows are queryable in seconds while history backfills. The history fill revisits blocks, so it only takes handlers that write with `insert` or a full-row `upsert`. A handler that calls `update`, `increment`, `findOne` or `findMany` is refused with `TIP_FIRST_NON_REPLAYABLE_HANDLER`; deploy it with the default blocking backfill. The same rule applies to `secondlayer subgraphs backfill`: use `reindex` for a clean rebuild instead.
 
-</Callout>
+</details>
+
+<details id="check-status">
+<summary>Check status</summary>
 
 `secondlayer subgraphs status`, with backfill draining while the table already serves reads:
 
@@ -175,7 +198,10 @@ Rows Indexed       4,874
 Table Rows         balances: 4874
 ```
 
-## What runs hosted
+</details>
+
+<details id="what-runs-hosted">
+<summary>What runs hosted</summary>
 
 | | Hosted |
 | --- | --- |
@@ -185,7 +211,10 @@ Table Rows         balances: 4874
 
 A processor that stalls or runs out of memory is restarted. After 3 deaths at the same height the subgraph is marked `error`: fix the handler and redeploy. On your own box any source runs: [Self-host](/docs/self-host/production#what-differs-on-your-box).
 
-## Read your table
+</details>
+
+<details id="read-your-table">
+<summary>Read your table</summary>
 
 Typed from the SDK (`new SecondLayer()` reads `SECONDLAYER_API_URL` and `SECONDLAYER_API_KEY`), or REST at `/v1/subgraphs` with wildcard CORS.
 
@@ -220,6 +249,8 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers" \
 ```
 
 Paging, sorting, live streams, reacting to new rows, and typed ORM schemas (self-host): [Reading rows](/docs/subgraphs/reading).
+
+</details>
 
 export const agent = `
 - Scaffold with 'secondlayer subgraphs scaffold'; use named object sources and event.data fields; then 'secondlayer subgraphs deploy' and query recent rows.
