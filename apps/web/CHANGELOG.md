@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.13.5
+
+### Patch Changes
+
+- Product page props use one shared glyph set, each shape used once and red only on failures; docs code examples render full height instead of scrolling inside the page, and the OpenAPI document example expands on demand.
+
 ## 0.13.4
 
 ### Patch Changes
