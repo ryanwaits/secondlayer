@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
 	type Bytes,
-	MAINNET_CHECKPOINT,
 	type VerifyCheckpoint,
 	blockId,
 	hex,
@@ -15,7 +14,12 @@ import {
 } from "../src/index.ts";
 import { heightToHashKey, marfProofValue } from "../src/marf.ts";
 import { FakeSource, signerChain } from "./fake-source.ts";
-import { epoch2File, epoch2Header, headerFile } from "./fixtures.ts";
+import {
+	CHECKPOINT_143,
+	epoch2File,
+	epoch2Header,
+	headerFile,
+} from "./fixtures.ts";
 import { type HeightProof, buildHeightProof } from "./marf-builder.ts";
 
 // Mainnet 2.x block 2,000 (its witness is a fixture) and its parent 1,999.
@@ -36,7 +40,7 @@ const A = epoch2File(
 const heightProof = (
 	height: number,
 	id: string,
-	tipBytes: Bytes = unhex(MAINNET_CHECKPOINT.stacks.header),
+	tipBytes: Bytes = unhex(CHECKPOINT_143.stacks.header),
 ): HeightProof =>
 	buildHeightProof({
 		height,
@@ -102,8 +106,8 @@ describe("a __MARF_BLOCK_HEIGHT_TO_HASH proof", () => {
 
 /** A checkpoint whose state root is the synthetic tip's: what the proof is checked against. */
 const checkpointAt = (tip: Bytes): VerifyCheckpoint => ({
-	...MAINNET_CHECKPOINT,
-	stacks: { ...MAINNET_CHECKPOINT.stacks, header: hex(tip) },
+	...CHECKPOINT_143,
+	stacks: { ...CHECKPOINT_143.stacks, header: hex(tip) },
 });
 
 /** Fixtures plus the proof at the tip and the ancestor trie's 2.x header. */
@@ -262,7 +266,7 @@ describe("verifyBlock below the checkpoint, by parent links", () => {
 			cycle: 144,
 			signerSet: (signerChain.sets["144"]?.data as string).replace(/^0x/, ""),
 		},
-		bitcoin: MAINNET_CHECKPOINT.bitcoin,
+		bitcoin: CHECKPOINT_143.bitcoin,
 	};
 
 	test("9,137,004: its header hashes to the parent id H commits to", async () => {

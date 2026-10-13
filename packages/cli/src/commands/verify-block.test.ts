@@ -3,7 +3,6 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-	MAINNET_CHECKPOINT,
 	blockId,
 	hex,
 	marfPath,
@@ -13,7 +12,11 @@ import {
 } from "@secondlayer/verify";
 import { heightToHashKey } from "../../../verify/src/marf.ts";
 import { FakeSource, signerChain } from "../../../verify/test/fake-source.ts";
-import { epoch2File, headerFile } from "../../../verify/test/fixtures.ts";
+import {
+	CHECKPOINT_143,
+	epoch2File,
+	headerFile,
+} from "../../../verify/test/fixtures.ts";
 import { buildHeightProof } from "../../../verify/test/marf-builder.ts";
 import { runVerifyBlock, verificationJson } from "./verify-block.ts";
 
@@ -195,7 +198,7 @@ describe("verify block", () => {
 		const p = buildHeightProof({
 			height: 2000,
 			id: B2000,
-			tipBytes: unhex(MAINNET_CHECKPOINT.stacks.header),
+			tipBytes: unhex(CHECKPOINT_143.stacks.header),
 			ancestorBytes: unhex(ANCESTOR.header),
 			ancestorCh: unhex(ANCESTOR.consensus_hash),
 		});
@@ -210,8 +213,8 @@ describe("verify block", () => {
 		writeFileSync(
 			checkpoint,
 			JSON.stringify({
-				...MAINNET_CHECKPOINT,
-				stacks: { ...MAINNET_CHECKPOINT.stacks, header: hex(p.tip) },
+				...CHECKPOINT_143,
+				stacks: { ...CHECKPOINT_143.stacks, header: hex(p.tip) },
 			}),
 		);
 		const r = await run("2000", { checkpoint }, src);

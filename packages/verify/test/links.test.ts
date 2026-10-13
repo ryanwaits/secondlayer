@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
 	LINKS,
-	MAINNET_CHECKPOINT,
 	type VerifyCheckpoint,
 	blockId,
 	describeLinks,
@@ -12,7 +11,12 @@ import {
 } from "../src/index.ts";
 import { heightToHashKey } from "../src/marf.ts";
 import { FakeSource, signerChain } from "./fake-source.ts";
-import { type WitnessFixture, epoch2File, readJson } from "./fixtures.ts";
+import {
+	CHECKPOINT_143,
+	type WitnessFixture,
+	epoch2File,
+	readJson,
+} from "./fixtures.ts";
 import { buildHeightProof } from "./marf-builder.ts";
 
 const H = signerChain.h;
@@ -31,7 +35,7 @@ describe("describeLinks", () => {
 			heights: [signerChain.checkpoint, signerChain.a, H],
 		});
 		const result = await verifyBlock(9137005, { source });
-		const { lines, verdict } = describeLinks(result, MAINNET_CHECKPOINT);
+		const { lines, verdict } = describeLinks(result, CHECKPOINT_143);
 		expect(lines.map((l) => l.label)).toEqual(
 			LINKS.filter((l) => l.step !== "ancestry").map((l) => l.label),
 		);
@@ -63,7 +67,7 @@ describe("describeLinks", () => {
 		const other = readJson<WitnessFixture>("witness/witness-264.json");
 		source.witnesses.set(H, unhex(other.witness));
 		const result = await verifyBlock(9137005, { source });
-		const { lines, verdict } = describeLinks(result, MAINNET_CHECKPOINT);
+		const { lines, verdict } = describeLinks(result, CHECKPOINT_143);
 		const witness = lines.find((l) => l.label === "state root");
 		expect(witness?.status).toBe("failed");
 		expect(witness?.detail).toBe(result.failures[0]?.message);
@@ -86,7 +90,7 @@ describe("describeLinks", () => {
 			throw new Error("connection refused");
 		};
 		const result = await verifyBlock(9137005, { source });
-		const { lines, verdict } = describeLinks(result, MAINNET_CHECKPOINT);
+		const { lines, verdict } = describeLinks(result, CHECKPOINT_143);
 		expect(lines.find((l) => l.label === "bitcoin")?.status).toBe("failed");
 		expect(verdict).toEqual({
 			ok: false,
@@ -98,7 +102,7 @@ describe("describeLinks", () => {
 		const p = buildHeightProof({
 			height: 2000,
 			id: B2000,
-			tipBytes: unhex(MAINNET_CHECKPOINT.stacks.header),
+			tipBytes: unhex(CHECKPOINT_143.stacks.header),
 			ancestorBytes: unhex(ANCESTOR.header),
 			ancestorCh: unhex(ANCESTOR.consensus_hash),
 		});
@@ -109,8 +113,8 @@ describe("describeLinks", () => {
 		);
 		source.epoch2.set(p.ancestorId, p.ancestor);
 		const checkpoint: VerifyCheckpoint = {
-			...MAINNET_CHECKPOINT,
-			stacks: { ...MAINNET_CHECKPOINT.stacks, header: hex(p.tip) },
+			...CHECKPOINT_143,
+			stacks: { ...CHECKPOINT_143.stacks, header: hex(p.tip) },
 		};
 		const result = await verifyBlock(2000, { source, checkpoint });
 		const { lines, verdict } = describeLinks(result, checkpoint);

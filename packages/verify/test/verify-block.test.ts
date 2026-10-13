@@ -5,7 +5,6 @@ import { uintCV } from "@secondlayer/stacks/clarity";
 import {
 	BlockVerifier,
 	LINKS,
-	MAINNET_CHECKPOINT,
 	MAINNET_PREPARE_LENGTH,
 	SIGNERS_CONTRACT,
 	type VerifyCheckpoint,
@@ -38,6 +37,7 @@ import {
 } from "./fake-source.ts";
 import {
 	type BurnFixture,
+	CHECKPOINT_143,
 	type WitnessFixture,
 	headerFile,
 	readJson,
@@ -59,7 +59,7 @@ const BLOCK_970269 =
 /** Checkpoint at A: set 144 trusted, so H needs no walk. */
 const checkpointA: VerifyCheckpoint = {
 	stacks: { header: hex(headerFile(A)), cycle: 144, signerSet: setData(144) },
-	bitcoin: MAINNET_CHECKPOINT.bitcoin,
+	bitcoin: CHECKPOINT_143.bitcoin,
 };
 
 /** Prove a fixture signer set at its block with the headers its proof crosses. */
@@ -76,8 +76,8 @@ function provesSet(cycle: number, value: string): boolean {
 	});
 }
 
-describe("MAINNET_CHECKPOINT", () => {
-	const cp = MAINNET_CHECKPOINT;
+describe("checkpoint 143 fixture", () => {
+	const cp = CHECKPOINT_143;
 	const stacks = parseNakamotoHeader(unhex(cp.stacks.header));
 
 	test("is Stacks block 8,956,304 and its baked set is the one MARF-proven at that block", () => {
@@ -104,13 +104,13 @@ describe("MAINNET_CHECKPOINT", () => {
 	});
 
 	test("block A is signed by the baked set 143 and proves set 144: a valid next checkpoint", () => {
-		const set143 = decodeSignerSet(MAINNET_CHECKPOINT.stacks.signerSet);
+		const set143 = decodeSignerSet(CHECKPOINT_143.stacks.signerSet);
 		expect(verifySignerSignatures(header(A), set143).valid).toBe(true);
 		expect(provesSet(144, setData(144))).toBe(true);
 	});
 });
 
-describe("verifyBlock proves 9,137,005 end to end from MAINNET_CHECKPOINT", () => {
+describe("verifyBlock proves 9,137,005 end to end from CHECKPOINT_143", () => {
 	// Every byte is mainnet: B's baked set 143, Bitcoin 967,680..970,269, A's
 	// sortition preimage (burn 968,449, cycle 143's last prepare-phase block),
 	// the set-144 proof at A, H's preimage, and the witnesses of H and its parent.
@@ -592,7 +592,7 @@ describe("onStep reports each link as it passes", () => {
 	test("the steps received are exactly the links the result lists as ok, each once, in order", async () => {
 		const { steps, onStep } = collect();
 		const r = await verifyBlock(9137005, { source: e2eSource(), onStep });
-		const ok = describeLinks(r, MAINNET_CHECKPOINT)
+		const ok = describeLinks(r, CHECKPOINT_143)
 			.lines.filter((l) => l.status === "ok")
 			.map((l) => l.step);
 		expect(steps).toEqual(ok);
