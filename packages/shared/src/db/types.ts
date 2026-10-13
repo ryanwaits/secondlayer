@@ -855,7 +855,11 @@ export interface PendingForkBlocksTable {
 	received_at: Generated<Date>;
 }
 
-export type ObserverJournalStatus = "received" | "processed" | "failed";
+export type ObserverJournalStatus =
+	| "received"
+	| "processed"
+	| "failed"
+	| "retried";
 
 /**
  * Exact observer callback receipt. `raw_body` is immutable evidence; the
