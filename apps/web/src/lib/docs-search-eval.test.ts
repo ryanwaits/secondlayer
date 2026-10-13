@@ -23,7 +23,7 @@ const EVAL: [query: string, expected: string[]][] = [
 	[
 		"is my webhook signed",
 		[
-			"/docs/webhooks/deliveries#verify-the-signature",
+			"/docs/webhooks#verify-the-signature",
 			"/docs/authentication#webhook-signing-secrets",
 		],
 	],
@@ -53,7 +53,7 @@ const EVAL: [query: string, expected: string[]][] = [
 		"type safe client for my events",
 		[
 			"/docs/cli#generate-typed-contract-clients",
-			"/docs/subgraphs/handlers#typed-print-payloads",
+			"/docs/subgraphs#typed-print-payloads",
 		],
 	],
 	["what changed in the latest release", ["/docs/changelog"]],
@@ -69,14 +69,14 @@ const EVAL: [query: string, expected: string[]][] = [
 	["delete rows after a reorg", ["/docs/sinks#rollback-is-height-stamped"]],
 	[
 		"run tests against a local chain",
-		["/docs/devnet", "/docs/devnet#start-the-devnet"],
+		["/docs/cli#local-chain", "/docs/cli#start-the-devnet"],
 	],
 	["hook up claude to secondlayer", ["/docs/mcp#connect", "/docs/mcp"]],
 	[
 		"export everything to parquet",
 		["/docs/streams#dumps-and-duckdb", "/docs/archive#what-the-archive-is"],
 	],
-	["how big a machine do i need", ["/docs/self-host/hardware"]],
+	["how big a machine do i need", ["/docs/self-host#hardware"]],
 	[
 		"query rows over http without the sdk",
 		["/docs/index#plain-http", "/docs/rest-api"],
