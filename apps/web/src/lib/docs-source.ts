@@ -208,7 +208,7 @@ export function sectionsFromMdx(
 	let seenH1 = false;
 	let fence: string | null = null;
 	let rowId: string | null = null;
-	let target: { summary: string } | null = null;
+	let target = null as { summary: string } | null;
 	let para: string[] = [];
 	const flush = () => {
 		if (target && !target.summary && para.length)
