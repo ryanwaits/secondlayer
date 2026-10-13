@@ -128,7 +128,7 @@ describe("chipUrl", () => {
 		);
 		expect(
 			chipUrl({
-				href: "/docs/api-reference#list-pox5-events",
+				href: "/docs/api/index#list-pox5-events",
 				sub: "endpoint",
 			}),
 		).toBe("https://secondlayer.tools/docs/api-reference/list-pox5-events.md");

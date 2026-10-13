@@ -209,16 +209,16 @@ The raw material `verify block` reads. Free, never metered, no key needed. On th
 
 | Route | Returns |
 | --- | --- |
-| [`/v1/proofs/block/height/{height}`](/docs/api-reference#get-signed-block-by-height) | Signed block by height |
-| [`/v1/proofs/block/{index_block_hash}`](/docs/api-reference#get-signed-block) | Signed block by id |
-| [`/v1/proofs/witness/{index_block_hash}`](/docs/api-reference#get-state-witness) | State witness the header's state root must hash to |
-| [`/v1/proofs/writes/{height}`](/docs/api-reference#get-block-state-writes) | Every written leaf of the block, named |
-| [`/v1/proofs/marf/{path}`](/docs/api-reference#get-marf-proof) | MARF inclusion proof for a key at a block |
-| [`/v1/proofs/burn/{consensus_hash}`](/docs/api-reference#get-burn-block-proof) | Burn block a consensus hash commits to |
-| [`/v1/proofs/bitcoin-headers`](/docs/api-reference#list-bitcoin-headers) | Raw Bitcoin headers from a height |
-| [`/v1/proofs/epoch2-header/{index_block_hash}`](/docs/api-reference#get-epoch2-header) | Epoch 2.x header by id |
+| [`/v1/proofs/block/height/{height}`](/docs/api/proofs#get-signed-block-by-height) | Signed block by height |
+| [`/v1/proofs/block/{index_block_hash}`](/docs/api/proofs#get-signed-block) | Signed block by id |
+| [`/v1/proofs/witness/{index_block_hash}`](/docs/api/proofs#get-state-witness) | State witness the header's state root must hash to |
+| [`/v1/proofs/writes/{height}`](/docs/api/proofs#get-block-state-writes) | Every written leaf of the block, named |
+| [`/v1/proofs/marf/{path}`](/docs/api/proofs#get-marf-proof) | MARF inclusion proof for a key at a block |
+| [`/v1/proofs/burn/{consensus_hash}`](/docs/api/proofs#get-burn-block-proof) | Burn block a consensus hash commits to |
+| [`/v1/proofs/bitcoin-headers`](/docs/api/proofs#list-bitcoin-headers) | Raw Bitcoin headers from a height |
+| [`/v1/proofs/epoch2-header/{index_block_hash}`](/docs/api/proofs#get-epoch2-header) | Epoch 2.x header by id |
 
-The transaction proof above is [`/v1/index/transactions/{tx_id}/proof`](/docs/api-reference#get-transaction-proof).
+The transaction proof above is [`/v1/index/transactions/{tx_id}/proof`](/docs/api/index#get-transaction-proof).
 
 </details>
 

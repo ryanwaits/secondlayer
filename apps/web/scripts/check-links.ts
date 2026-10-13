@@ -66,10 +66,15 @@ while (queue.length > 0 && seen.size <= MAX_PAGES) {
 	const type = res.headers.get("content-type") ?? "";
 	if (!type.includes("text/html")) continue;
 	const html = await res.text();
+	// An API page's endpoints open in a drawer rather than sit in the page, so
+	// their anchors are the rows that open them.
 	htmlIds.set(
 		path,
 		new Set(
-			[...html.matchAll(/\b(?:id|name)="([^"]+)"/g)].map((m) => m[1] as string),
+			[
+				...html.matchAll(/\b(?:id|name)="([^"]+)"/g),
+				...html.matchAll(/\bhref="#([^"]+)"[^>]*\bdata-endpoint-row\b/g),
+			].map((m) => m[1] as string),
 		),
 	);
 	if (finalUrl.origin !== new URL(base).origin) continue;

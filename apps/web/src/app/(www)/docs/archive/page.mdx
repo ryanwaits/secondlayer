@@ -103,7 +103,7 @@ Equal row counts with differing data means the same heights hold different block
 <details id="from-your-instances-api">
 <summary>From your instance's API</summary>
 
-`POST /v1/archive/verify` runs the same raw-identity check on the instance itself, read-only, with the archive URL in the body. It answers `clean`, `diverged` or `unanchored`, and a failed signature is a `200 unanchored`, never `clean`. Body fields and responses: [API reference](/docs/api-reference#verify-archive).
+`POST /v1/archive/verify` runs the same raw-identity check on the instance itself, read-only, with the archive URL in the body. It answers `clean`, `diverged` or `unanchored`, and a failed signature is a `200 unanchored`, never `clean`. Body fields and responses: [API reference](/docs/api/instance#verify-archive).
 
 ```ts
 const result = await sl.archive.verify({

@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useState } from "react";
+import { resolveAnchor } from "./resolve-anchor";
 
 const BASE_KEY = "apiref-base";
 type Base = "hosted" | "local";
@@ -178,6 +179,29 @@ export function CopyText({
 			)}
 		</button>
 	);
+}
+
+/**
+ * The reference used to be one page, with an anchor per endpoint. A link
+ * that still carries one (`/docs/api-reference#list-pox5-events`) lands here;
+ * the hash isn't sent to the server, so this moves it to the API page that
+ * holds the anchor, where the drawer opens it. No hash, or one that names no
+ * endpoint, stays on the index.
+ */
+export function ApiHashRedirect({
+	owners,
+}: { owners: Record<string, string> }) {
+	useEffect(() => {
+		const go = () => {
+			const anchor = resolveAnchor(owners, location.hash);
+			if (anchor)
+				location.replace(`/docs/api/${owners[anchor]}${location.hash}`);
+		};
+		go();
+		window.addEventListener("hashchange", go);
+		return () => window.removeEventListener("hashchange", go);
+	}, [owners]);
+	return null;
 }
 
 /** The prompt to hand a coding agent for one endpoint, copyable as plain text. */

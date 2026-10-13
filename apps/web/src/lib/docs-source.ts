@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { pageMarkdown } from "@/app/(www)/docs/api-reference/page-content";
 import {
 	API_PAGES,
 	apiPageHref,
 	findApiPage,
-	pageMarkdown,
 } from "@/app/(www)/docs/api-reference/pages";
 import { referenceMarkdown } from "@/app/(www)/docs/api-reference/spec";
 import {

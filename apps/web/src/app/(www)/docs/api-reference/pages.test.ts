@@ -1,11 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import {
-	API_PAGES,
-	anchorPages,
-	familiesClaiming,
-	pageContent,
-	pageForTag,
-} from "./pages";
+import { anchorPages, pageContent } from "./page-content";
+import { API_PAGES, familiesClaiming, pageForTag } from "./pages";
 import { allEndpoints, objectsByTag } from "./spec";
 
 describe("api reference pages", () => {

@@ -1,3 +1,4 @@
+import { apiPageHref, pageForTag } from "@/app/(www)/docs/api-reference/pages";
 import { docsNavPages } from "@/app/(www)/docs/nav";
 import { actions } from "@/lib/actions/registry";
 
@@ -101,23 +102,27 @@ export function docsHeadingItems(
 	}));
 }
 
-/** One row per generated API endpoint, jumping into the reference. */
+/** One row per generated API endpoint, jumping to it on the API page that
+ *  holds it (the page opens its drawer). */
 export function docsEndpointItems(
 	nav: {
 		tag: string;
 		endpoints: { anchor: string; method: string; title: string }[];
 	}[],
 ): CommandItem[] {
-	return nav.flatMap((group) =>
-		group.endpoints.map((e) => ({
-			id: `docs:/docs/api-reference#${e.anchor}`,
+	return nav.flatMap((group) => {
+		const page = pageForTag(group.tag);
+		if (!page) return [];
+		const base = apiPageHref(page.slug);
+		return group.endpoints.map((e) => ({
+			id: `docs:${base}#${e.anchor}`,
 			group: "docs" as const,
 			label: e.title,
 			sub: "endpoint",
-			href: `/docs/api-reference#${e.anchor}`,
+			href: `${base}#${e.anchor}`,
 			keywords: [e.method, group.tag],
-		})),
-	);
+		}));
+	});
 }
 
 /** The docs field's whole search pool: pages, sections, and API endpoints. */

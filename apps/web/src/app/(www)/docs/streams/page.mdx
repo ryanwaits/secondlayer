@@ -114,7 +114,7 @@ curl "$SECONDLAYER_API_URL/v1/streams/events?types=ft_transfer&limit=100" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
-Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, and `from_height`/`to_height`: exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api-reference#list-stream-events).
+Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, and `from_height`/`to_height`: exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api/streams#list-stream-events).
 
 </details>
 

@@ -1,15 +1,15 @@
 import { highlight } from "@/lib/highlight";
 import Link from "next/link";
 import { Fragment } from "react";
-import { BaseUrlSwitch, CodeTabs, ExpandableCode } from "./client";
-import { ApiDrawerHost, type DrawerDetail } from "./drawer";
 import {
-	API_PAGES,
-	anchorPages,
-	apiPageHref,
-	findApiPage,
-	pageContent,
-} from "./pages";
+	ApiHashRedirect,
+	BaseUrlSwitch,
+	CodeTabs,
+	ExpandableCode,
+} from "./client";
+import { ApiDrawerHost, type DrawerDetail } from "./drawer";
+import { anchorPages, pageContent } from "./page-content";
+import { API_PAGES, apiPageHref, findApiPage } from "./pages";
 import { endpointPrompt, objectPrompt } from "./prompt";
 import {
 	type Endpoint,
@@ -549,6 +549,7 @@ export async function ApiPage({ slug }: { slug: string }) {
 export function ApiPageList() {
 	return (
 		<div className="apiref-rows apiref-pages">
+			<ApiHashRedirect owners={anchorPages()} />
 			{API_PAGES.map((page) => {
 				const { families } = pageContent(page);
 				const count = families.reduce((n, f) => n + f.endpoints.length, 0);

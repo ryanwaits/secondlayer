@@ -21,12 +21,14 @@ describe("docs search items", () => {
 		expect(items.every((i) => i.id === `docs:${i.href}`)).toBe(true);
 	});
 
-	test("endpoint items link into the reference with the endpoint sub", () => {
+	test("endpoint items link to the API page that holds them with the endpoint sub", () => {
 		const items = docsEndpointItems(apiNav);
 		expect(items.length).toBeGreaterThan(0);
 		for (const i of items) {
 			expect(i.sub).toBe("endpoint");
-			expect(i.href?.startsWith("/docs/api-reference#")).toBe(true);
+			expect(i.href).toMatch(
+				/^\/docs\/api\/(index|streams|proofs|subgraphs|webhooks|instance)#/,
+			);
 		}
 	});
 

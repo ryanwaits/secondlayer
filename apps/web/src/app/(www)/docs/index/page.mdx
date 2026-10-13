@@ -154,7 +154,7 @@ curl "$SECONDLAYER_API_URL/v1/index/events?event_type=stx_transfer&limit=20" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
-Every endpoint, filter and response shape is in the [API reference](/docs/api-reference#list-events). `GET /v1/index` describes itself at runtime, so an agent can learn each `event_type` without docs.
+Every endpoint, filter and response shape is in the [API reference](/docs/api/index#list-events). `GET /v1/index` describes itself at runtime, so an agent can learn each `event_type` without docs.
 
 On the events and contract-call feeds, `contract_id` takes a comma-separated set (max 20): one cursor over a protocol's contracts. `tx_context=true` puts `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id` and `tx_function_name` on every event in one pass. For `print` events it is the only place the sender lives.
 
@@ -193,7 +193,7 @@ curl "$SECONDLAYER_API_URL/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTS
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
-The response shape is in the [API reference](/docs/api-reference#get-print-schema). Sampled from indexed prints, raw Clarity hex deserialized for exact types, unified per topic. `camel_name` is what a handler sees on `event.data`.
+The response shape is in the [API reference](/docs/api/index#get-print-schema). Sampled from indexed prints, raw Clarity hex deserialized for exact types, unified per topic. `camel_name` is what a handler sees on `event.data`.
 
 - Optional fields report an `optional_some_rate`.
 - Payloads with no `topic` string, or that aren't tuples, land under the `"*"` pseudo-topic with `non_tuple` set.

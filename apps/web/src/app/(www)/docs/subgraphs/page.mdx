@@ -474,7 +474,7 @@ Mark a column `indexed: true` if you plan to sort on it. Sorted reads get a `(co
 <details id="open-reads">
 <summary>Open reads</summary>
 
-Reads send `Authorization: Bearer $SECONDLAYER_API_KEY`, with wildcard CORS, the same as `/v1/index` and `/v1/streams`. There is no per-subgraph visibility flag: hosted subgraphs are private to your account, and on your own box who can reach the instance is what your publish spec and reverse proxy decide ([Instance token](/docs/self-host#instance-token)). Every route and parameter (rows, `/count`, `/aggregate`, `/:id`, `/stream`): [API reference](/docs/api-reference#list-subgraph-rows). Aggregate grammar: [aggregates](/docs/rest-api#aggregates).
+Reads send `Authorization: Bearer $SECONDLAYER_API_KEY`, with wildcard CORS, the same as `/v1/index` and `/v1/streams`. There is no per-subgraph visibility flag: hosted subgraphs are private to your account, and on your own box who can reach the instance is what your publish spec and reverse proxy decide ([Instance token](/docs/self-host#instance-token)). Every route and parameter (rows, `/count`, `/aggregate`, `/:id`, `/stream`): [API reference](/docs/api/subgraphs#list-subgraph-rows). Aggregate grammar: [aggregates](/docs/rest-api#aggregates).
 
 </details>
 

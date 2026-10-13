@@ -12,7 +12,7 @@ const MAX_URLS = 12;
 export function chipUrl(item: { href?: string; sub?: string }): string | null {
 	if (!item.href) return null;
 	const [path, anchor] = item.href.split("#");
-	if (path === "/docs/api-reference" && item.sub === "endpoint" && anchor) {
+	if (path.startsWith("/docs/api/") && item.sub === "endpoint" && anchor) {
 		return `${SITE}/docs/api-reference/${anchor}.md`;
 	}
 	return `${SITE}${markdownPath(path)}${anchor ? `#${anchor}` : ""}`;
