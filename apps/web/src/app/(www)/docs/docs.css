@@ -40,6 +40,13 @@
 	min-width: 0;
 	max-width: 440px;
 }
+/* The page's scroll-padding-top clears the sticky top bar for anchor jumps,
+   but the browser also applies it when revealing the caret: the field sits
+   inside that padding, so every keystroke scrolled the page up. While the
+   field has focus there is no anchor jump to clear. */
+html:has(.docs-search input:focus) {
+	scroll-padding-top: 0;
+}
 .docs-search-field {
 	height: 34px;
 	display: flex;
