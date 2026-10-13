@@ -110,3 +110,16 @@ export function docsEndpointItems(
 		})),
 	);
 }
+
+/** The docs field's whole search pool: pages, sections, and API endpoints. */
+export function docsSearchPool(
+	headings: { href: string; anchor: string; title: string }[],
+	apiNav: Parameters<typeof docsEndpointItems>[0],
+): CommandItem[] {
+	const titles = new Map(DOCS_ITEMS.map((i) => [i.href, i.label]));
+	return [
+		...DOCS_ITEMS,
+		...docsHeadingItems(headings, (href) => titles.get(href) ?? href),
+		...docsEndpointItems(apiNav),
+	];
+}

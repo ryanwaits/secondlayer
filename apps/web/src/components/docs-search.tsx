@@ -6,8 +6,7 @@ import { useAuth } from "@/lib/auth";
 import {
 	type CommandItem,
 	DOCS_ITEMS,
-	docsEndpointItems,
-	docsHeadingItems,
+	docsSearchPool,
 } from "@/lib/command-center/items";
 import { frecencyBoosts, recordSelection } from "@/lib/command-center/recents";
 import { rankCommandItems } from "@/lib/command-center/search";
@@ -101,14 +100,7 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 	/** The prompt, shown for hand-copying when the clipboard refuses. */
 	const [manual, setManual] = useState<string | null>(null);
 
-	const pool = useMemo(() => {
-		const titles = new Map(DOCS_ITEMS.map((i) => [i.href, i.label]));
-		return [
-			...DOCS_ITEMS,
-			...docsHeadingItems(headings, (href) => titles.get(href) ?? href),
-			...docsEndpointItems(apiNav),
-		];
-	}, [headings]);
+	const pool = useMemo(() => docsSearchPool(headings, apiNav), [headings]);
 
 	const yours = useMemo<CommandItem[]>(
 		() =>
