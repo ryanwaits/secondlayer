@@ -3,7 +3,7 @@ import { getAgentPrompt } from "@/lib/agent-prompts";
 
 # Webhooks
 
-A signed POST to a URL you run, whenever a chain event you named happens. To act on your own subgraph rows, read them: [React to your rows](/docs/subgraphs/reading#react-to-your-rows).
+A signed POST to a URL you run, whenever a chain event you named happens. To act on your own subgraph rows, read them: [React to your rows](/docs/subgraphs#react-to-your-rows).
 
 <details id="coming-from-chainhook">
 <summary>Coming from Chainhook</summary>
@@ -22,7 +22,7 @@ secondlayer webhooks create sbtc-deposits \
   --trigger '{"type":"sbtc_deposit"}'
 ```
 
-What arrives and how to trust it: [Receiving deliveries](/docs/webhooks/deliveries). A webhook starts at the chain tip and never backfills.
+What arrives and how to trust it: [Receive and verify](#receive-and-verify). A webhook starts at the chain tip and never backfills.
 
 <details id="triggers">
 <summary>Triggers</summary>
@@ -94,24 +94,6 @@ Each trigger is validated before provisioning; the signing secret prints once.
 
 </details>
 
-<details id="replay">
-<summary>Replay</summary>
-
-Re-deliver historical events over an existing webhook.
-
-```ts
-const { replayId, enqueuedCount, scannedCount } = await sl.webhooks.replay(id, {
-  fromBlock: 8000000,
-  toBlock: 8050000,
-});
-```
-
-Replays are **idempotent**, **historical only**, and **never move the live cursor**. The range is capped at **100,000 blocks**. Replays are flagged `is_replay` and deliver the standard `chain.{type}.apply` envelope.
-
-`sbtc_withdrawal_swept_confirmed` fires on a Bitcoin confirmation rather than a Stacks block, so it is forward-only and never replayed. The CLI warns.
-
-</details>
-
 <details id="test-delivery">
 <summary>Test delivery</summary>
 
@@ -134,6 +116,284 @@ Not a real chain event, so check `data.test` before treating a delivery as live.
 
 </details>
 
+<details id="hosted-limits">
+<summary>Hosted limits</summary>
+
+Webhooks run on `api.secondlayer.tools` with an account key and prepaid credits, or on [your own box](/docs/self-host#what-differs-on-your-box). Delivery semantics (at-least-once, unordered, reorg rollback) are the same either way: [Receive and verify](#receive-and-verify).
+
+| Limit | Hosted |
+| --- | --- |
+| `max_retries` | Capped at 7 |
+| `timeout_ms` | Capped at 30000 |
+| Rate limits | Per account: create/update/delete 30/min, `test` 10/min, `replay` 5/hour, reads 600/min |
+| Egress | Your webhook receiver and Secondlayer's read APIs only. A tenant's compose network can't reach another tenant or internal services |
+| Pricing | $10 per 1M delivered events (`webhook.event`). Retries are never billed, and the rows read to match your triggers don't bill as `rows.delivered` |
+| Isolation | One full stack per account, never a shared runtime. Your data never shares a database or process with anyone else's. The same stack runs your hosted subgraphs, with handlers in a gVisor sandbox |
+
+</details>
+
+## Receive and verify
+
+Check the signature, decode the body, and undo anything a reorg orphans.
+
+Delivery is **at-least-once** and **unordered**: dedupe on `(tx_id, event_index, block_hash)` and don't assume arrival order matches chain order.
+
+### Verify the signature
+
+On the default `standard-webhooks` format, every delivery carries a per-webhook HMAC. Pass the **raw body first**.
+
+```ts
+import { verifyWebhookSignature } from "@secondlayer/sdk";
+
+const valid = verifyWebhookSignature(rawBody, req.headers, secret);
+if (!valid) return new Response("bad signature", { status: 401 });
+```
+
+<details id="ed25519-signature">
+<summary>ed25519 signature</summary>
+
+**Every** delivery, in every format, also carries an ed25519 signature over `` `${webhook-id}.${rawBody}` ``. For `raw`, `cloudevents`, `trigger`, `cloudflare`, and `inngest`, which have no HMAC, it is the only auth.
+
+| Header | Purpose |
+| --- | --- |
+| `webhook-id` | Unique delivery id (also the signed prefix) |
+| `x-secondlayer-signature` | ed25519 signature, base64 |
+| `x-secondlayer-signature-keyid` | Id of the signing key used |
+
+```ts
+import { verifySecondlayerSignature } from "@secondlayer/sdk";
+
+// Public key (ed25519, SPKI PEM) from GET /public/streams/signing-key
+const valid = verifySecondlayerSignature(rawBody, req.headers, publicKeyPem);
+if (!valid) return new Response("bad signature", { status: 401 });
+```
+
+Fetch the public key once and cache it; rotate on the `keyid` header. Failed deliveries retry with backoff, then the circuit opens so a downed endpoint can't block the queue.
+
+</details>
+
+<details id="delivery-envelope">
+<summary>Delivery envelope</summary>
+
+A matched event delivers `chain.{trigger}.apply`. On `standard-webhooks` the body is `{ type, timestamp, data }`:
+
+```json
+{
+  "type": "chain.stx_transfer.apply",
+  "timestamp": "2026-05-01T12:00:00.000Z",
+  "data": {
+    "action": "apply",
+    "trigger": "stx_transfer",
+    "tx_id": "0x…",
+    "block_hash": "0x…",
+    "block_height": 8445086,
+    "block_time": "2026-05-01T11:59:48.000Z",
+    "canonical": true,
+    "event": {
+      "type": "stx_transfer_event",
+      "event_index": 2240,
+      "tx_id": "0x…",
+      "data": { "memo": "", "amount": "1853058049", "sender": "SM….pool", "recipient": "SP…" }
+    }
+  }
+}
+```
+
+`block_time` is when the block was produced (ISO 8601), or `null` when it wasn't recorded.
+
+Other formats carry the exact same `data` value under a different key:
+
+| Format | Where `data` lives |
+| --- | --- |
+| `raw` | the body IS `data`, no wrapper |
+| `cloudevents` | `{ specversion, type, source, id, time, datacontenttype, data }` |
+| `inngest` | a JSON array: `[{ name, data, id, ts, v }]` |
+| `trigger` | `{ payload: data, options: { idempotencyKey } }`; the key is `payload`, not `data` |
+| `cloudflare` | `{ params: { ...data, _type, _outboxId } }`, spread flat rather than nested |
+
+<Callout type="warning" title="This is not a Streams event">
+
+A chain-webhook delivery and a [Streams](/docs/streams) event are structurally unrelated, so don't parse one as the other. Streams events are `{ event_type, payload, cursor, block_height, … }`; a chain-webhook delivery is `{ type, timestamp, data: { trigger, event } }`.
+
+</Callout>
+
+</details>
+
+<details id="decode-the-delivery">
+<summary>Decode the delivery</summary>
+
+After the signature verifies, decode:
+
+```ts
+import { decodeChainWebhook, decodeClarityValue } from "@secondlayer/sdk";
+
+const delivery = decodeChainWebhook(rawBody); // throws if the body isn't a chain.* delivery
+
+if ("trigger" in delivery.data) {
+  switch (delivery.data.trigger) {
+    case "stx_transfer":
+      delivery.data.event.data.amount; // fully typed
+      break;
+    case "contract_call":
+      // event is flat here (no nested `.data`); function_args are raw hex
+      delivery.data.event.function_args?.map(decodeClarityValue);
+      break;
+  }
+}
+```
+
+`decodeChainWebhook` narrows to `ChainWebhookDelivery`, a discriminated union keyed on `data.trigger` (both exported from `@secondlayer/sdk`). It understands only the `standard-webhooks` envelope, so unwrap other formats first.
+
+<Callout type="tip" title="Discriminate on data.trigger, never event.type">
+
+`event.type` is NOT a consistent trigger name: it's `stx_transfer_event` for `stx_transfer`, the bare Stacks tx type (`contract_call`) for `contract_call`, and the node's raw event name (`contract_event`) for `print_event`. `data.trigger` is the one field that's always the trigger you subscribed with; switch on it, not `event.type`.
+
+</Callout>
+
+Delivery is at-least-once. Key your state on `(tx_id, event_index, block_hash)`: one tx can fire multiple event-level deliveries sharing a `tx_id`, so `event_index` (`-1` for tx-level triggers) keeps them distinct.
+
+Per-trigger shapes for `data.event`: [Event shapes](#event-shapes).
+
+</details>
+
+<details id="event-shapes">
+<summary>Event shapes</summary>
+
+What `data.event` holds, per trigger: event-level, tx-level, and sBTC.
+
+**Event-level triggers**
+
+For `stx_*`, `ft_*`, `nft_*`, and `print_event`, `data.event` is `{ tx_id, type, event_index, data }`:
+
+| Trigger | `event.type` | `event.data` fields |
+| --- | --- | --- |
+| `stx_transfer` | `stx_transfer_event` | `sender?, recipient?, amount, memo` |
+| `stx_mint` | `stx_mint_event` | `recipient?, amount` |
+| `stx_burn` | `stx_burn_event` | `sender?, amount` |
+| `stx_lock` | `stx_lock_event` | `locked_address, locked_amount, unlock_height` |
+| `ft_transfer` | `ft_transfer_event` | `asset_identifier, sender?, recipient?, amount` |
+| `ft_mint` | `ft_mint_event` | `asset_identifier, recipient?, amount` |
+| `ft_burn` | `ft_burn_event` | `asset_identifier, sender?, amount` |
+| `nft_transfer` | `nft_transfer_event` | `asset_identifier, sender?, recipient?, raw_value` |
+| `nft_mint` | `nft_mint_event` | `asset_identifier, recipient?, raw_value` |
+| `nft_burn` | `nft_burn_event` | `asset_identifier, sender?, raw_value` |
+| `print_event` | `contract_event` | `topic, contract_identifier, value, raw_value` |
+
+<Callout type="warning" title="Three traps in this table">
+
+- Fields marked `?` are **omitted entirely** when not applicable, and `JSON.stringify` drops them. A `stx_mint` delivery has no `sender` key at all; it is never sent as `sender: null`.
+- NFT deliveries carry only `raw_value` (canonical hex of the token-id Clarity value). There is no decoded `value` field on `nft_*` events.
+- `print_event`'s delivered `event.type` is the node's raw name `contract_event`, not `print_event_event`. Its contract field is `contract_identifier`, not `contract_id`.
+
+</Callout>
+
+```json
+"event": {
+  "type": "contract_event",
+  "event_index": 0,
+  "tx_id": "0x…",
+  "data": {
+    "topic": "print",
+    "contract_identifier": "SP….registry",
+    "value": { "updated": true },
+    "raw_value": "0x0c00000001…"
+  }
+}
+```
+
+**Tx-level triggers: `contract_call` / `contract_deploy`**
+
+`data.event` is flat, with no nested `.data`:
+
+```json
+"event": {
+  "tx_id": "0x…",
+  "type": "contract_call",
+  "sender": "SP…",
+  "status": "success",
+  "contract_id": "SP….amm",
+  "function_name": "swap-x-for-y",
+  "function_args": ["0x0100000000000000000000000000002710"],
+  "result_hex": "0x0703"
+}
+```
+
+<Callout type="warning" title="function_args are raw hex">
+
+`function_args` are RAW, undecoded Clarity-value hex strings in call order, so decode them yourself with `decodeClarityValue` from `@secondlayer/sdk`. For a `contract_deploy` trigger, `event.type` is `smart_contract` (the underlying Stacks tx type) rather than `contract_deploy`, and `function_name`/`function_args`/`result_hex` are all `null` (no function call to report).
+
+</Callout>
+
+**sBTC triggers**
+
+The five sBTC triggers deliver a flat, already-typed `event` keyed by `topic`:
+
+```json
+"event": {
+  "topic": "completed-deposit",
+  "request_id": 42,
+  "sender": "SP…",
+  "amount": "5000000",
+  "bitcoin_txid": "…",
+  "block_height": 123456,
+  "tx_id": "0x…"
+}
+```
+
+`topic` is `completed-deposit`, `withdrawal-create`, `withdrawal-accept`, `withdrawal-reject`, or `withdrawal-swept-confirmed`. The settlement event instead carries `sweep_txid, btc_confirmations, btc_block_height, confirmed_at, amount, sender`, with no `bitcoin_txid`/`block_height`/`tx_id`.
+
+</details>
+
+<details id="reorg-rollback">
+<summary>Reorg rollback</summary>
+
+On a reorg, `chain.reorg.rollback` covers everything that *may* have reached your endpoint, meaning any row the emitter claimed or attempted, not only one the server confirmed as delivered. A delivery whose response never made it back still counts as "may have arrived," so undo every entry the rollback lists.
+
+A reorg delivers `chain.reorg.rollback` so you can undo anything committed off an orphaned block. Each entry is `{ tx_id, event }`, carrying the event body from the original apply:
+
+```json
+{
+  "type": "chain.reorg.rollback",
+  "timestamp": "2026-05-01T12:00:00.000Z",
+  "data": {
+    "action": "rollback",
+    "fork_point_height": 123450,
+    "orphaned": [
+      { "tx_id": "0x…", "event": { "type": "stx_transfer_event", "event_index": 2240, "tx_id": "0x…", "data": { "…": "…" } } }
+    ],
+    "truncated": false
+  }
+}
+```
+
+<Callout type="warning" title="orphaned is capped at 500">
+
+`orphaned` is capped at 500 entries per webhook. If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list. Entries carry no `trigger` tag, because a rollback lists every previously-delivered apply regardless of which trigger matched, so you must know what you configured in order to read an entry's shape.
+
+</Callout>
+
+</details>
+
+## Replay and recovery
+
+<details id="replay">
+<summary>Replay</summary>
+
+Re-deliver historical events over an existing webhook.
+
+```ts
+const { replayId, enqueuedCount, scannedCount } = await sl.webhooks.replay(id, {
+  fromBlock: 8000000,
+  toBlock: 8050000,
+});
+```
+
+Replays are **idempotent**, **historical only**, and **never move the live cursor**. The range is capped at **100,000 blocks**. Replays are flagged `is_replay` and deliver the standard `chain.{type}.apply` envelope.
+
+`sbtc_withdrawal_swept_confirmed` fires on a Bitcoin confirmation rather than a Stacks block, so it is forward-only and never replayed. The CLI warns.
+
+</details>
+
 <details id="account-webhooks">
 <summary>Account webhooks</summary>
 
@@ -150,22 +410,6 @@ await sl.webhooks.requeue(id, dead[0].id);
 ```
 
 `payload` is `null` once the event leaves the outbox, 7 days after delivery, and on test deliveries.
-
-</details>
-
-<details id="hosted-limits">
-<summary>Hosted limits</summary>
-
-Webhooks run on `api.secondlayer.tools` with an account key and prepaid credits, or on [your own box](/docs/self-host/production#what-differs-on-your-box). Delivery semantics (at-least-once, unordered, reorg rollback) are the same either way: [Receiving deliveries](/docs/webhooks/deliveries).
-
-| Limit | Hosted |
-| --- | --- |
-| `max_retries` | Capped at 7 |
-| `timeout_ms` | Capped at 30000 |
-| Rate limits | Per account: create/update/delete 30/min, `test` 10/min, `replay` 5/hour, reads 600/min |
-| Egress | Your webhook receiver and Secondlayer's read APIs only. A tenant's compose network can't reach another tenant or internal services |
-| Pricing | $10 per 1M delivered events (`webhook.event`). Retries are never billed, and the rows read to match your triggers don't bill as `rows.delivered` |
-| Isolation | One full stack per account, never a shared runtime. Your data never shares a database or process with anyone else's. The same stack runs your hosted subgraphs, with handlers in a gVisor sandbox |
 
 </details>
 
@@ -241,5 +485,5 @@ export const agent = `
 export const metadata = {
 	title: "Webhooks — Secondlayer Docs",
 	description:
-		"Push raw chain events to your endpoint as signed POSTs.",
+		"Push raw chain events to your endpoint as signed POSTs: create, verify and decode deliveries, replay, troubleshoot.",
 };
