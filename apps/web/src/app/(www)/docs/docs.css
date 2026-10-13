@@ -370,7 +370,9 @@ html:has(.docs-search input:focus) {
 	height: calc(100vh - 56px);
 	overflow-y: auto;
 	border-right: 1px solid var(--line);
-	padding: 22px 14px 40px 20px;
+	/* 43px puts the first group label's baseline on the breadcrumb's (the
+	   article's 36px top padding plus its pill row); the drawer resets it. */
+	padding: 43px 14px 40px 20px;
 	font-size: 14px;
 }
 .docs-nav-group {
@@ -1020,6 +1022,7 @@ button.docs-nav-item {
 	}
 	.docs-nav {
 		grid-row: auto;
+		padding-top: 22px;
 	}
 	.docs-content,
 	.docs-foot {
