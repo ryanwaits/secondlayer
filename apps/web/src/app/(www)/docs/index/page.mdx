@@ -12,11 +12,6 @@ Reads on your own box hit your own Postgres: no meter, no rate limit. Hosted `ap
 
 Every feed offers the same three verbs. They are not interchangeable.
 
-| Verb | Gives you | Follows cursors | Checkpoints | Reorgs | Ends |
-| --- | --- | --- | --- | --- | --- |
-| `list()` | One page plus the envelope | No; you pass `cursor` back | No | Reports `reorgs[]`; you act | Immediately |
-| `walk()` | An async iterable of rows | Yes, automatically | No | Ignored | On catching the tip |
-| `consume()` | A loop calling your `onBatch` | Yes, automatically | Yes; you commit the cursor | Rewinds and fires `onReorg` | Never; tails until aborted |
 
 ```ts
 const { rows, next_cursor } = await sl.index.blocks.list({ limit: 10 }); // one page
@@ -29,6 +24,17 @@ await sl.index.events.consume({ eventType: "ft_transfer", onBatch }); // forever
 It works, and it's right for a one-shot export or an analysis script. As a live index it fails three ways: no checkpoint, so a crash restarts from zero; reorgs are ignored, so a fork leaves orphaned rows behind forever; and it returns at the tip instead of following the chain. Writing rows you intend to keep is `consume()`.
 
 </Callout>
+
+<details>
+<summary>Verb comparison</summary>
+
+| Verb | Gives you | Follows cursors | Checkpoints | Reorgs | Ends |
+| --- | --- | --- | --- | --- | --- |
+| `list()` | One page plus the envelope | No; you pass `cursor` back | No | Reports `reorgs[]`; you act | Immediately |
+| `walk()` | An async iterable of rows | Yes, automatically | No | Ignored | On catching the tip |
+| `consume()` | A loop calling your `onBatch` | Yes, automatically | Yes; you commit the cursor | Rewinds and fires `onReorg` | Never; tails until aborted |
+
+</details>
 
 ## Build your index on it
 
