@@ -24,6 +24,7 @@
 		"dev": "bunup --watch",
 		"test": "bun test",
 		"typecheck": "tsc --noEmit",
+		"rotate-checkpoint": "bun scripts/rotate-checkpoint.ts",
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {

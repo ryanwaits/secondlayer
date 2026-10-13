@@ -13,6 +13,8 @@ import {
 	unhex,
 } from "../src/index.ts";
 
+export type { CheckpointFixture } from "../scripts/rotate-checkpoint.ts";
+
 const DIR = join(import.meta.dir, "fixtures");
 
 export const readJson = <T>(rel: string): T =>
