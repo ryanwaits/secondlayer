@@ -1,5 +1,5 @@
-/* Docs layout: top bar, then a three-column shell (sidebar, reading column,
-   rail). Tokens only; every color comes from the shared role tokens in
+/* Docs layout: top bar, then a two-column shell (sidebar, reading column).
+   Tokens only; every color comes from the shared role tokens in
    globals.css (--paper, --ink, --sub, --line, --soft, --pri, --hi, --alarm,
    --term*). */
 
@@ -149,7 +149,7 @@
 /* ── shell ── */
 .docs-shell {
 	display: grid;
-	grid-template-columns: 248px minmax(0, 1fr) 236px;
+	grid-template-columns: 248px minmax(0, 1fr);
 	max-width: 1360px;
 	margin-inline: auto;
 }
@@ -212,6 +212,24 @@ button.docs-nav-item {
 	padding-left: 20px;
 	font-size: 13.5px;
 }
+/* The current page's h2s, nested under its row */
+.docs-nav-outline {
+	display: grid;
+	margin: 2px 0 6px 12px;
+	border-left: 1px solid var(--line);
+}
+.docs-nav-outline a {
+	padding: 3px 10px;
+	font-size: 13px;
+	color: var(--sub);
+}
+.docs-nav-outline a:hover {
+	color: var(--ink);
+}
+.docs-nav-outline a.active {
+	color: var(--ink);
+	box-shadow: inset 1px 0 0 var(--ink);
+}
 .docs-nav :focus-visible {
 	outline: 2px solid var(--pri);
 	outline-offset: 2px;
@@ -253,6 +271,55 @@ button.docs-nav-item {
 }
 .docs-crumb [aria-current] {
 	color: var(--ink);
+}
+/* Copy for agent, .md and Full view: ghost pills right of the breadcrumb */
+.docs-pact {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 6px;
+}
+.docs-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 28px;
+	padding: 0 11px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: transparent;
+	color: var(--ink);
+	font: 12.5px / 1 var(--font-sans-stack);
+	white-space: nowrap;
+	text-decoration: none;
+	cursor: pointer;
+}
+.docs-pill:hover,
+.docs-pill[aria-pressed="true"] {
+	border-color: var(--sub);
+}
+.docs-pill svg {
+	width: 13px;
+	height: 13px;
+	flex: none;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+.docs-pill:focus-visible,
+.docs-edit:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+.docs-pill-full {
+	display: none;
+}
+@media (min-width: 1181px) {
+	.docs-pill-full {
+		display: inline-flex;
+	}
 }
 .docs-article .page-title {
 	margin: 18px 0 0;
@@ -356,7 +423,7 @@ button.docs-nav-item {
  *
  *   </details>
  *
- * Scoped to #docs-article so the phone page-actions and API reference
+ * Scoped to #docs-article so the API reference
  * disclosures keep their own styles.
  */
 #docs-article :not(details) + details:not(.apiref-enum) {
@@ -629,57 +696,16 @@ button.docs-nav-item {
 	grid-column: 2;
 	text-align: right;
 }
-
-/* ── right rail: on this page ── */
-.docs-toc {
-	position: sticky;
-	top: 56px;
-	align-self: start;
-	height: calc(100vh - 56px);
-	display: flex;
-	flex-direction: column;
-	padding: 36px 20px 24px 8px;
-	font-size: 13px;
-}
-/* The list scrolls on its own; the page actions stay in view below it. */
-.docs-toc-list {
-	flex: 0 1 auto;
-	min-height: 0;
-	overflow-y: auto;
-}
-.docs-toc .docs-acts {
-	flex: none;
-}
-.docs-toc-label {
-	margin: 0 0 10px;
-	font: 500 11px var(--font-mono-stack);
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var(--sub);
-}
-.docs-toc-list > a {
+.docs-article .docs-edit {
 	display: block;
-	padding: 4px 0 4px 12px;
+	margin-top: 20px;
+	text-align: center;
+	font: 12px var(--font-mono-stack);
 	color: var(--sub);
-	border-left: 1px solid var(--line);
+	text-decoration: none;
 }
-.docs-toc-list > a.h3 {
-	padding-left: 24px;
-}
-.docs-toc-list > a:hover {
+.docs-article .docs-edit:hover {
 	color: var(--ink);
-}
-.docs-toc-list > a.active {
-	color: var(--ink);
-	border-left: 2px solid var(--pri);
-	padding-left: 11px;
-}
-.docs-toc-list > a.h3.active {
-	padding-left: 23px;
-}
-.docs-toc :focus-visible {
-	outline: 2px solid var(--pri);
-	outline-offset: 2px;
 }
 
 /* ── docs footer ── */
@@ -704,13 +730,10 @@ button.docs-nav-item {
 	margin-left: auto;
 }
 
-/* ── narrower than the rail: two columns ── */
+/* ── narrower: a slimmer sidebar ── */
 @media (max-width: 1180px) {
 	.docs-shell {
 		grid-template-columns: 236px minmax(0, 1fr);
-	}
-	.docs-toc {
-		display: none;
 	}
 }
 
@@ -773,217 +796,10 @@ button.docs-nav-item {
 	}
 }
 
-/* ── page actions (rail under the TOC; phone disclosure) ── */
-.docs-acts {
-	margin-top: 20px;
-	padding-top: 14px;
-	border-top: 1px solid var(--line);
-	display: grid;
-	gap: 1px;
-}
-.docs-acts,
-.docs-ra-sub {
-	min-width: 0;
-}
-.docs-ra {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	width: 100%;
-	min-height: 32px;
-	padding: 5px 0;
-	background: none;
-	border: 0;
-	border-radius: 4px;
-	color: var(--sub);
-	font: 13px / 1.3 var(--font-sans-stack);
-	text-align: left;
-	cursor: pointer;
-}
-.docs-ra:hover,
-.docs-ra[aria-expanded="true"],
-.docs-ra[aria-pressed="true"] {
-	color: var(--ink);
-}
-.docs-ra svg {
-	width: 16px;
-	height: 16px;
-	flex: none;
-}
-.docs-ra svg.gh {
-	fill: currentColor;
-	stroke: none;
-}
-.docs-ra .chev {
-	width: 12px;
-	height: 12px;
-	margin-left: auto;
-	transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.docs-ra[aria-expanded="true"] .chev {
-	transform: rotate(180deg);
-}
-/* flash states: the words plus a leading dot, no color wash */
-.docs-ra .ok::before,
-.docs-ra .bad::before {
-	content: "";
-	display: inline-block;
-	width: 8px;
-	height: 8px;
-	margin-right: 6px;
-	border-radius: 50%;
-	background: var(--ok);
-}
-.docs-ra .bad::before {
-	background: var(--alarm);
-}
-.docs-ra-key {
-	margin-left: auto;
-	padding: 0 5px;
-	border: 1px solid var(--line);
-	border-radius: 4px;
-	font: 10.5px / 16px var(--font-mono-stack);
-	opacity: 0;
-	transition: opacity 120ms;
-}
-.docs-ra:hover .docs-ra-key,
-.docs-ra:focus-visible .docs-ra-key {
-	opacity: 1;
-}
-.docs-ra-sub {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr);
-	gap: 2px;
-	padding: 2px 0 10px 26px;
-}
-.docs-ra-sub[hidden] {
-	display: none;
-}
-.docs-ra-sub > a {
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
-	padding: 4px 0;
-	color: var(--sub);
-	font: 12.5px var(--font-sans-stack);
-}
-.docs-ra-sub > a:hover {
-	color: var(--ink);
-}
-.docs-ra-sub > a span {
-	font: 11px var(--font-mono-stack);
-	opacity: 0.8;
-}
-.docs-mt {
-	margin-top: 4px;
-	background: var(--term);
-	border: 1px solid var(--term-line);
-	border-radius: 8px;
-}
-.docs-mt-bar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	padding: 4px 6px 4px 12px;
-	border-bottom: 1px solid var(--term-line);
-	font: 10.5px var(--font-mono-stack);
-	letter-spacing: 0.04em;
-	color: var(--term-mute);
-}
-.docs-mt-bar button {
-	height: 22px;
-	padding: 0 7px;
-	border-radius: 4px;
-	border: 1px solid var(--term-line);
-	background: none;
-	color: var(--term-mute);
-	font: 11px var(--font-mono-stack);
-	cursor: pointer;
-}
-.docs-mt-bar button:hover {
-	color: var(--term-fg);
-}
-.docs-mt pre {
-	margin: 0;
-	padding: 10px 12px;
-	overflow-x: auto;
-	color: var(--term-fg);
-	font: 11px / 1.6 var(--font-mono-stack);
-	white-space: pre;
-}
-.docs-ra-note {
-	margin-top: 4px;
-	font-size: 12px;
-	line-height: 1.5;
-	color: var(--sub);
-}
-.docs-ra-note a {
-	color: var(--ink);
-	text-decoration: underline;
-	text-underline-offset: 2px;
-}
-.docs-acts :focus-visible {
-	outline: 2px solid var(--pri);
-	outline-offset: 2px;
-}
-
-/* phone: the rail is hidden, so the same rows sit under the breadcrumb */
-.docs-pa-m {
-	display: none;
-	max-width: 720px;
-	margin-top: 12px;
-	padding: 0 12px;
-	border: 1px solid var(--line);
-	border-radius: 8px;
-}
-.docs-pa-m summary {
-	list-style: none;
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	min-height: 40px;
-	font: 13px var(--font-sans-stack);
-	color: var(--sub);
-}
-.docs-pa-m summary::-webkit-details-marker {
-	display: none;
-}
-.docs-pa-m summary svg {
-	width: 12px;
-	height: 12px;
-	margin-left: auto;
-	fill: none;
-	stroke: currentColor;
-	stroke-width: 1.5;
-	transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.docs-pa-m[open] summary {
-	color: var(--ink);
-}
-.docs-pa-m[open] summary svg {
-	transform: rotate(180deg);
-}
-.docs-pa-m .docs-acts {
-	margin-top: 0;
-	padding: 4px 0 8px;
-	border-top: 0;
-}
-.docs-pa-m :focus-visible {
-	outline: 2px solid var(--pri);
-	outline-offset: 2px;
-}
-@media (max-width: 1180px) {
-	.docs-pa-m {
-		display: block;
-	}
-}
-
 /* ── API reference (generated from openapi.json) ──
    Default: the guide shell, one column, request and response inline under each
-   section's params. "Full view" (rail toggle) puts prose left and a sticky
-   request/response column right, and narrows the rail to icons. */
+   section's params. "Full view" (pill by the breadcrumb) puts prose left and a
+   sticky request/response column right. */
 .docs-shell {
 	transition: grid-template-columns 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -991,9 +807,6 @@ button.docs-nav-item {
 	.docs-shell {
 		transition: none;
 	}
-}
-.docs-shell[data-view="split"] {
-	grid-template-columns: 248px minmax(0, 1fr) 56px;
 }
 .docs-shell[data-view="split"] .docs-article,
 .docs-shell[data-view="split"] .docs-topline {
@@ -1396,37 +1209,4 @@ button.docs-nav-item {
 }
 .apiref-nav-group .docs-nav-children .docs-nav-child {
 	padding-left: 32px;
-}
-
-/* rail in full view: list hidden in place, actions narrow to an icon column */
-.docs-shell[data-view="split"] .docs-toc {
-	overflow-x: hidden;
-	padding-right: 0;
-}
-.docs-shell[data-view="split"] .docs-toc-list {
-	width: 208px;
-	visibility: hidden;
-}
-.docs-shell[data-view="split"] .docs-acts {
-	width: 40px;
-	border-top-color: transparent;
-}
-.docs-shell[data-view="split"] .docs-ra {
-	justify-content: center;
-}
-.docs-shell[data-view="split"] .docs-ra > span,
-.docs-shell[data-view="split"] .docs-ra .chev,
-.docs-shell[data-view="split"] .docs-ra-key,
-.docs-shell[data-view="split"] .docs-ra-sub {
-	display: none;
-}
-@media (max-width: 1180px) {
-	.docs-shell[data-view="split"] {
-		grid-template-columns: 236px minmax(0, 1fr);
-	}
-}
-@media (max-width: 860px) {
-	.docs-shell[data-view="split"] {
-		grid-template-columns: minmax(0, 1fr);
-	}
 }

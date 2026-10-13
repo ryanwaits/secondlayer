@@ -6,12 +6,16 @@ import { useAuth } from "@/lib/auth";
 import { DOCS_STRIP } from "@/lib/nav";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useDocsDrawer } from "./docs-drawer";
-import { bareObjectTitle } from "./docs-toc";
 import { DOCS_NAV } from "./nav";
 
 const API_REFERENCE = "/docs/api-reference";
+
+/** "The Reorg object" lists as "Reorg" in the sidebar. */
+function bareObjectTitle(title: string): string {
+	return title.replace(/^The (.+) object$/, "$1");
+}
 
 /** A jump's hold ends once the page has sat still for this many frames. */
 const STILL_FRAMES = 6;
@@ -223,12 +227,78 @@ function ApiReferenceNav({ active }: { active: string }) {
 	);
 }
 
+interface Head {
+	id: string;
+	text: string;
+}
+
+/** The current page's h2s, nested under its row. Reads them from the rendered
+ *  article (rehype-slug gives stable ids), skips any inside a collapsed
+ *  `<details>`, and marks the topmost one in view as the place being read. */
+function PageOutline({ onNavigate }: { onNavigate: () => void }) {
+	const pathname = usePathname();
+	const [heads, setHeads] = useState<Head[]>([]);
+	const [activeId, setActiveId] = useState("");
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — re-read headings on route change
+	useEffect(() => {
+		const article = document.getElementById("docs-article");
+		const found = Array.from(
+			article?.querySelectorAll<HTMLElement>("h2[id]") ?? [],
+		)
+			.filter((h) => !h.closest("details"))
+			.map((h) => ({ id: h.id, text: h.textContent ?? "" }));
+		setHeads(found);
+		setActiveId(found[0]?.id ?? "");
+	}, [pathname]);
+
+	// Scrollspy: the topmost heading in view is the active one.
+	useEffect(() => {
+		if (heads.length < 2) return;
+		const observer = new IntersectionObserver(
+			(entries) => {
+				const visible = entries.filter((e) => e.isIntersecting);
+				if (visible.length === 0) return;
+				const top = visible.reduce((a, b) =>
+					a.boundingClientRect.top < b.boundingClientRect.top ? a : b,
+				);
+				setActiveId(top.target.id);
+			},
+			{ rootMargin: "-80px 0px -65% 0px", threshold: 0 },
+		);
+		for (const h of heads) {
+			const el = document.getElementById(h.id);
+			if (el) observer.observe(el);
+		}
+		return () => observer.disconnect();
+	}, [heads]);
+
+	if (heads.length < 2) return null;
+	return (
+		<div className="docs-nav-outline">
+			{heads.map((h) => (
+				<a
+					key={h.id}
+					href={`#${h.id}`}
+					aria-current={h.id === activeId ? "location" : undefined}
+					className={h.id === activeId ? "active" : undefined}
+					onClick={onNavigate}
+				>
+					{h.text}
+				</a>
+			))}
+		</div>
+	);
+}
+
 export function DocsSidebar() {
 	const pathname = usePathname();
 	const { account, loading, logout } = useAuth();
 	const { open, setOpen } = useDocsDrawer();
 	const onReference = pathname === API_REFERENCE;
 	const activeSection = useActiveSection(onReference);
+	// A hash click doesn't change the route, so the phone drawer closes here.
+	const outline = <PageOutline onNavigate={() => setOpen(false)} />;
 
 	// Bring the current page's row into view on arrival. A row already on
 	// screen stays put; one below the fold lands near the top of the sidebar.
@@ -340,16 +410,21 @@ export function DocsSidebar() {
 									{item.items && inSection && (
 										<div className="docs-nav-children">
 											{item.items.map((child) => (
-												<Link
-													key={child.href}
-													href={child.href}
-													className={`docs-nav-item docs-nav-child${pathname === child.href ? " active" : ""}`}
-												>
-													{child.title}
-												</Link>
+												<Fragment key={child.href}>
+													<Link
+														href={child.href}
+														className={`docs-nav-item docs-nav-child${pathname === child.href ? " active" : ""}`}
+													>
+														{child.title}
+													</Link>
+													{pathname === child.href ? outline : null}
+												</Fragment>
 											))}
 										</div>
 									)}
+									{pathname === item.href && item.href !== API_REFERENCE
+										? outline
+										: null}
 								</div>
 							);
 						})}

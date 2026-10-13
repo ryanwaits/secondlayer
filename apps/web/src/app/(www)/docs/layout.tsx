@@ -6,7 +6,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { DocsDrawerProvider } from "./docs-drawer";
 import { DocsSidebar } from "./docs-sidebar";
-import { DocsToc } from "./docs-toc";
 import { DocsView } from "./docs-view";
 import "./docs.css";
 import { DocsScrollTop } from "./scroll-top";
@@ -33,9 +32,7 @@ export const metadata: Metadata = {
 };
 
 export default function DocsLayout({ children }: { children: ReactNode }) {
-	// The top bar spans the page; the shell below is sidebar, article, rail.
-	// DocsView switches the body between the human reading view and the
-	// agent-doc.
+	// The top bar spans the page; the shell below is sidebar and article.
 	return (
 		<DocsDrawerProvider>
 			<DocsScrollTop />
@@ -45,7 +42,6 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
 				<main className="docs-content">
 					<DocsView>{children}</DocsView>
 				</main>
-				<DocsToc />
 			</div>
 			<footer className="docs-foot">
 				<div className="docs-foot-in">
