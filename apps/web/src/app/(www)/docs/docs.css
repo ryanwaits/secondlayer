@@ -68,7 +68,7 @@
 }
 .docs-search-field input {
 	flex: 1;
-	min-width: 120px;
+	min-width: 0;
 	border: 0;
 	outline: 0;
 	background: transparent;
@@ -96,6 +96,25 @@
 	padding: 3px 5px;
 	background: var(--paper);
 	color: var(--sub);
+}
+.docs-search-chips {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	max-width: 58%;
+	overflow-x: auto;
+	white-space: nowrap;
+	scrollbar-width: none;
+}
+.docs-search-chips::-webkit-scrollbar {
+	display: none;
+}
+.docs-search-chip-label {
+	max-width: 140px;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 .docs-search-chip {
 	flex: none;
@@ -165,6 +184,9 @@
 	white-space: nowrap;
 	color: var(--sub);
 	font-size: 13px;
+}
+.docs-search-opt[data-kind="copy"] .docs-search-label {
+	flex: none;
 }
 .docs-search-label.mono,
 .docs-search-sub.mono {

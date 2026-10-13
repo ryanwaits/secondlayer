@@ -317,6 +317,12 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 		}
 	}
 
+	const reads = [
+		"reads this page",
+		...(chips.length ? [chips.map((c) => `@${c.label}`).join(" ")] : []),
+		...(account ? ["your account"] : []),
+	].join(" + ");
+
 	const placeholder = verb
 		? "Describe the task for your agent"
 		: "Search, /prompt, @ for context";
@@ -336,38 +342,45 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 			<div className="docs-search-field">
 				<SearchIcon />
 				{verb ? (
-					<span className="docs-search-chip">
-						/prompt
-						<button
-							type="button"
-							aria-label="Remove /prompt"
-							onMouseDown={(e) => e.preventDefault()}
-							onClick={() => {
-								setVerb(false);
-								setChips([]);
-								inputRef.current?.focus();
-							}}
-						>
-							×
-						</button>
-					</span>
+					<div className="docs-search-chips">
+						<span className="docs-search-chip">
+							/prompt
+							<button
+								type="button"
+								aria-label="Remove /prompt"
+								onMouseDown={(e) => e.preventDefault()}
+								onClick={() => {
+									setVerb(false);
+									setChips([]);
+									inputRef.current?.focus();
+								}}
+							>
+								×
+							</button>
+						</span>
+						{chips.map((chip) => (
+							<span key={chip.id} className="docs-search-chip">
+								<span
+									className="docs-search-chip-label"
+									title={`@${chip.label}`}
+								>
+									@{chip.label}
+								</span>
+								<button
+									type="button"
+									aria-label={`Remove @${chip.label}`}
+									onMouseDown={(e) => e.preventDefault()}
+									onClick={() => {
+										setChips((c) => c.filter((x) => x.id !== chip.id));
+										inputRef.current?.focus();
+									}}
+								>
+									×
+								</button>
+							</span>
+						))}
+					</div>
 				) : null}
-				{chips.map((chip) => (
-					<span key={chip.id} className="docs-search-chip">
-						@{chip.label}
-						<button
-							type="button"
-							aria-label={`Remove @${chip.label}`}
-							onMouseDown={(e) => e.preventDefault()}
-							onClick={() => {
-								setChips((c) => c.filter((x) => x.id !== chip.id));
-								inputRef.current?.focus();
-							}}
-						>
-							×
-						</button>
-					</span>
-				))}
 				<input
 					ref={inputRef}
 					type="text"
@@ -441,7 +454,7 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 										onMouseMove={() => setSelected(i)}
 										onClick={() => pick(row)}
 									>
-										<RowBody row={row} text={text} />
+										<RowBody row={row} text={text} reads={reads} />
 									</div>
 								))}
 							</div>
@@ -471,7 +484,15 @@ function rowKey(row: Row): string {
 	return row.kind === "hit" || row.kind === "attach" ? row.item.id : row.kind;
 }
 
-function RowBody({ row, text }: { row: Row; text: string }) {
+function RowBody({
+	row,
+	text,
+	reads,
+}: {
+	row: Row;
+	text: string;
+	reads: string;
+}) {
 	if (row.kind === "command") {
 		return (
 			<>
@@ -486,7 +507,7 @@ function RowBody({ row, text }: { row: Row; text: string }) {
 		return (
 			<>
 				<span className="docs-search-label">Copy the prompt</span>
-				<span className="docs-search-sub">reads this page</span>
+				<span className="docs-search-sub">{reads}</span>
 				<span className="docs-search-meta">↵</span>
 			</>
 		);
