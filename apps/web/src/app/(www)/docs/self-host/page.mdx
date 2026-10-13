@@ -20,7 +20,8 @@ The API listens on `http://127.0.0.1:3800`. Check it is up:
 curl http://127.0.0.1:3800/health
 ```
 
-## Use these docs on your box
+<details id="use-these-docs-on-your-box">
+<summary>Use these docs on your box</summary>
 
 Every example in these docs reads `SECONDLAYER_API_URL` (and `SECONDLAYER_API_KEY` where a header is shown). On your box, point the URL at your own API.
 
@@ -37,7 +38,10 @@ secondlayer subgraphs deploy ./my-subgraph.ts
 
 Leave `SECONDLAYER_API_KEY` for the hosted account: archive quote, fetch and credits read it as the account key, so setting it to the instance token breaks them. Keep `POSTGRES_PORT` and `INDEXER_PORT` on loopback.
 
-## Stop it
+</details>
+
+<details id="stop-it">
+<summary>Stop it</summary>
 
 From the directory `setup` wrote. The index, chainstate, and keys survive.
 
@@ -46,10 +50,7 @@ secondlayer uninstall            # dry run
 secondlayer uninstall --apply
 ```
 
-## Next
-
-- [Run in production](/docs/self-host/production): scripted setup, your node, backup, upgrade
-- [Hardware](/docs/self-host/hardware): RAM, disk, and the floors enforced at start
+</details>
 
 export const agent = `
 - 'bun add -g @secondlayer/cli' then 'secondlayer setup': writes secrets, docker-compose.yml and .env into a target directory, brings up postgres and the secondlayer container, and checks 'curl http://127.0.0.1:3800/health'. For an external node it prints the observer stanza for Config.toml (endpoint = 'secondlayer:3700'); for a bundled node (--node-mode stacks|full) that step does not apply.
