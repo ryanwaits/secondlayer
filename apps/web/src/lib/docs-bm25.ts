@@ -63,6 +63,8 @@ export type DocsSearchIndex = {
 	/** Per doc, per field: token count. */
 	len: number[][];
 	avgLen: number[];
+	/** Per doc: the stemmed tokens of its title, for exact and prefix matches. */
+	titles: string[][];
 	/** Term → docs containing it in any field. */
 	postings: Map<string, number[]>;
 };
@@ -72,6 +74,7 @@ export function buildIndex(docs: DocsSearchDoc[]): DocsSearchIndex {
 	const len: number[][] = [];
 	const totals = FIELDS.map(() => 0);
 	const postings = new Map<string, number[]>();
+	const titles: string[][] = [];
 
 	docs.forEach((doc, d) => {
 		const text: Record<Field, string> = {
@@ -94,6 +97,7 @@ export function buildIndex(docs: DocsSearchDoc[]): DocsSearchIndex {
 			lengths.push(tokens.length);
 			totals[f] += tokens.length;
 		});
+		titles.push(tokenize(doc.title));
 		tf.push(counts);
 		len.push(lengths);
 		for (const t of seen) {
@@ -105,6 +109,7 @@ export function buildIndex(docs: DocsSearchDoc[]): DocsSearchIndex {
 
 	return {
 		ids: docs.map((d) => d.id),
+		titles,
 		tf,
 		len,
 		avgLen: totals.map((t) => t / Math.max(docs.length, 1)),
@@ -112,15 +117,34 @@ export function buildIndex(docs: DocsSearchDoc[]): DocsSearchIndex {
 	};
 }
 
-/** Top `k` docs for a query, best first; docs with no query term are omitted. */
+export type DocsSearchResult = {
+	id: string;
+	score: number;
+	/** 2: title equals the query; 1: title starts with it; 0: anything else. */
+	tier: 0 | 1 | 2;
+};
+
+/** Compares stemmed title tokens to the stemmed query tokens, in order. */
+function titleTier(title: string[], query: string[]): 0 | 1 | 2 {
+	if (!query.length || title.length < query.length) return 0;
+	if (!query.every((t, i) => title[i] === t)) return 0;
+	return title.length === query.length ? 2 : 1;
+}
+
+/**
+ * Top `k` docs for a query, best first; docs with no query term are omitted.
+ * Order: exact title, then title prefix, then everything else; each tier by
+ * BM25 score, then doc order.
+ */
 export function search(
 	index: DocsSearchIndex,
 	query: string,
 	k: number,
-): { id: string; score: number }[] {
+): DocsSearchResult[] {
 	const n = index.ids.length;
+	const queryTokens = tokenize(query);
 	const scores = new Map<number, number>();
-	for (const term of new Set(tokenize(query))) {
+	for (const term of new Set(queryTokens)) {
 		const docs = index.postings.get(term);
 		if (!docs) continue;
 		const idf = Math.log(1 + (n - docs.length + 0.5) / (docs.length + 0.5));
@@ -139,14 +163,25 @@ export function search(
 		}
 	}
 	return [...scores]
-		.sort((a, b) => b[1] - a[1] || a[0] - b[0])
+		.map(([d, score]) => ({
+			d,
+			score,
+			tier: titleTier(index.titles[d], queryTokens),
+		}))
+		.sort((a, b) => b.tier - a.tier || b.score - a.score || a.d - b.d)
 		.slice(0, k)
-		.map(([d, score]) => ({ id: index.ids[d], score }));
+		.map(({ d, score, tier }) => ({ id: index.ids[d], score, tier }));
 }
 
-/** A sure hit: the top result clearly beats the runner-up (or stands alone). */
-export function confident(results: { score: number }[]): boolean {
+/**
+ * A sure hit: an exact title match, or the top score clearly beats the
+ * runner-up (or stands alone).
+ */
+export function confident(
+	results: { score: number; tier?: number }[],
+): boolean {
 	if (!results.length || results[0].score <= 0) return false;
+	if (results[0].tier === 2) return true;
 	return (
 		results.length === 1 ||
 		results[0].score / results[1].score >= CONFIDENT_RATIO

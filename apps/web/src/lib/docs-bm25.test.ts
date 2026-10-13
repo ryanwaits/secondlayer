@@ -57,6 +57,23 @@ describe("search", () => {
 		expect(search(index, "purple elephant", 3)).toEqual([]);
 	});
 
+	test("an exact title outranks a prefix title outranks a stronger body match", () => {
+		const tiered = buildIndex([
+			doc("body", {
+				title: "Overview",
+				body: "reorg reorg reorg reorg reorg reorg",
+			}),
+			doc("prefix", { title: "Reorg rollback" }),
+			doc("exact", { title: "Reorgs" }),
+		]);
+		const out = search(tiered, "reorg", 3);
+		expect(out.map((r) => [r.id, r.tier])).toEqual([
+			["exact", 2],
+			["prefix", 1],
+			["body", 0],
+		]);
+	});
+
 	test("respects k", () => {
 		expect(search(index, "webhooks", 1)).toHaveLength(1);
 	});
@@ -72,6 +89,11 @@ describe("confident", () => {
 		expect(confident([{ score: 1 }])).toBe(true);
 	});
 
+	test("an exact title match is confident whatever the runner-up scores", () => {
+		expect(confident([{ score: 1, tier: 2 }, { score: 1 }])).toBe(true);
+		expect(confident([{ score: 1, tier: 1 }, { score: 1 }])).toBe(false);
+	});
+
 	test("top must beat the runner-up by 1.4x", () => {
 		expect(confident([{ score: 1.4 }, { score: 1 }])).toBe(true);
 		expect(confident([{ score: 1.39 }, { score: 1 }])).toBe(false);
@@ -79,6 +101,14 @@ describe("confident", () => {
 });
 
 describe("on the real docs index", () => {
+	test("typing a heading lands on it first", async () => {
+		const index = buildIndex(await docsSearchDocs());
+		const first = (q: string) => search(index, q, 5)[0].id;
+		expect(first("reorg")).toBe("docs:/docs/index#reorgs");
+		expect(first("webhooks")).toBe("docs:/docs/webhooks");
+		expect(first("receiver down")).toBe("docs:/docs/webhooks#receiver-down");
+	});
+
 	test("one query ranks in under 5 ms", async () => {
 		const index = buildIndex(await docsSearchDocs());
 		search(index, "warm up", 5);
