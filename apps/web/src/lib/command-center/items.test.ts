@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import apiNav from "@/generated/openapi-nav.json";
 import { docsHeadingIndex } from "../docs-source";
-import { DOCS_ITEMS, docsEndpointItems, docsHeadingItems } from "./items";
+import {
+	DOCS_ITEMS,
+	docsEndpointItems,
+	docsHeadingItems,
+	docsSearchPool,
+} from "./items";
 import { rankCommandItems } from "./search";
 
 const titleFor = (href: string) =>
@@ -39,5 +44,31 @@ describe("docs search items", () => {
 				.map((h) => h.href?.split("#")[0]),
 		);
 		expect(pages.size).toBeGreaterThanOrEqual(2);
+	});
+
+	test("a section's phrasing finds it first; the palette's pages carry none", async () => {
+		const headings = await docsHeadingIndex();
+		const phrasings = {
+			"/docs/index#reorgs": {
+				phrasings: ["why are my rows doubled after a fork"],
+			},
+			"/docs/index": { phrasings: ["decoded chain data for apps"] },
+		};
+		const pool = docsSearchPool(headings, apiNav, phrasings);
+		const { flat } = rankCommandItems(
+			"rows doubled after a fork",
+			pool,
+			new Map(),
+		);
+		expect(flat[0]?.item.id).toBe("docs:/docs/index#reorgs");
+		const page = rankCommandItems(
+			"decoded chain data for apps",
+			pool,
+			new Map(),
+		);
+		expect(page.flat[0]?.item.id).toBe("docs:/docs/index");
+		expect(DOCS_ITEMS.flatMap((i) => i.keywords ?? [])).not.toContain(
+			"decoded chain data for apps",
+		);
 	});
 });

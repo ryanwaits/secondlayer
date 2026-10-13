@@ -1,4 +1,5 @@
 import { docsNavPages } from "@/app/(www)/docs/nav";
+import docsPhrasings from "@/generated/docs-phrasings.json";
 import { actions } from "@/lib/actions/registry";
 
 /**
@@ -78,10 +79,18 @@ export const DOCS_FALLBACK: CommandItem = {
 	newTab: true,
 };
 
+/**
+ * Plain-language queries written per section at build time (`bun run
+ * docs:phrasings`), keyed by `href#anchor` or `href`. They match as keywords,
+ * so a paraphrase finds its section with no model call at search time.
+ */
+export type Phrasings = Record<string, { phrasings: string[] }>;
+
 /** The docs field's per-section rows: one per `##`/`###` heading, sub = its page. */
 export function docsHeadingItems(
 	index: { href: string; anchor: string; title: string }[],
 	titleFor: (href: string) => string,
+	phrasings: Phrasings = {},
 ): CommandItem[] {
 	return index.map((h) => ({
 		id: `docs:${h.href}#${h.anchor}`,
@@ -89,6 +98,7 @@ export function docsHeadingItems(
 		label: h.title,
 		sub: titleFor(h.href),
 		href: `${h.href}#${h.anchor}`,
+		keywords: phrasings[`${h.href}#${h.anchor}`]?.phrasings,
 	}));
 }
 
@@ -115,11 +125,22 @@ export function docsEndpointItems(
 export function docsSearchPool(
 	headings: { href: string; anchor: string; title: string }[],
 	apiNav: Parameters<typeof docsEndpointItems>[0],
+	phrasings: Phrasings = docsPhrasings,
 ): CommandItem[] {
 	const titles = new Map(DOCS_ITEMS.map((i) => [i.href, i.label]));
 	return [
-		...DOCS_ITEMS,
-		...docsHeadingItems(headings, (href) => titles.get(href) ?? href),
+		...DOCS_ITEMS.map((page) => ({
+			...page,
+			keywords: [
+				...(page.keywords ?? []),
+				...(page.href ? (phrasings[page.href]?.phrasings ?? []) : []),
+			],
+		})),
+		...docsHeadingItems(
+			headings,
+			(href) => titles.get(href) ?? href,
+			phrasings,
+		),
 		...docsEndpointItems(apiNav),
 	];
 }
