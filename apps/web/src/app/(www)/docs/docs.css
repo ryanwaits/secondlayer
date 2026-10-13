@@ -1239,7 +1239,42 @@ html[data-base="local"] .apiref-when-hosted {
 .apiref-aside > .apiref-response {
 	order: 3;
 }
-/* Full view widens the card only; the page keeps its usual nudge. */
+/* On docs pages the card's page nudge moves only the content column: the top
+   bar and sidebar stay put. Same distance and easing as the account nudge
+   (a quarter of the card plus its inset), capped so the article stops short of
+   the sidebar: the slack is the content padding plus the article's centering
+   margin (shell width less sidebar, padding and the 720px article, halved),
+   less a 16px gap. Nothing moves on a narrow screen. */
+html[data-acct-card]:has(.docs-shell) .www > :not(.marketing-nav) {
+	transform: none;
+}
+.docs-content {
+	transition: transform 240ms var(--acct-card-ease);
+}
+html[data-acct-card] .docs-content {
+	transform: translateX(
+		calc(
+			-1 *
+			min(
+				(var(--acct-card-w) + var(--acct-card-inset)) /
+				4,
+				32px +
+				max(0px, (min(100vw, 1360px) - 1064px) / 2)
+			)
+		)
+	);
+}
+@media (max-width: 900px) {
+	html[data-acct-card] .docs-content {
+		transform: none;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.docs-content {
+		transition: none;
+	}
+}
+/* Full view widens the card only; the nudge stays capped as above. */
 .acct-card:has(.apiref-drawer[data-view="split"]) {
 	width: min(1080px, calc(100vw - var(--acct-card-inset) * 2));
 	transition: width 180ms cubic-bezier(0.16, 1, 0.3, 1);
