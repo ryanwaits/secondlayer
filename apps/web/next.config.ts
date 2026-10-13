@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import createMDX from "@next/mdx";
 import type { NextConfig } from "next";
 
@@ -409,7 +410,10 @@ const nextConfig: NextConfig = {
 // custom `pre` component (mdx-components.tsx) reusing our Shiki highlight().
 const withMDX = createMDX({
 	options: {
-		remarkPlugins: [["remark-gfm"]],
+		remarkPlugins: [
+			["remark-gfm"],
+			[resolve(process.cwd(), "src/lib/remark-code-meta.mjs")],
+		],
 		rehypePlugins: [["rehype-slug"]],
 	},
 });
