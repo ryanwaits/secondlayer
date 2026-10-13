@@ -73,7 +73,7 @@
 		"@secondlayer/subgraphs": "^7.0.0"
 	},
 	"devDependencies": {
-		"@openpkg-ts/cli": "^0.11.3",
+		"@openpkg-ts/cli": "^0.13.2",
 		"@types/bun": "latest",
 		"@types/pg": "^8.15.0",
 		"bunup": "0.16.32",

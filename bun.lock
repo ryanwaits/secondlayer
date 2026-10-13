@@ -34,7 +34,7 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.13.3",
+      "version": "0.13.7",
       "dependencies": {
         "@mdx-js/loader": "^3.1.1",
         "@mdx-js/react": "^3.1.1",
@@ -66,18 +66,18 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.53.0",
+      "version": "1.54.0",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@aws-sdk/s3-request-presigner": "3.1042.0",
         "@secondlayer/bitcoin": "workspace:*",
-        "@secondlayer/bundler": "^0.7.0",
-        "@secondlayer/indexer": "^1.17.1",
+        "@secondlayer/bundler": "^0.7.1",
+        "@secondlayer/indexer": "^1.17.3",
         "@secondlayer/platform": "workspace:*",
-        "@secondlayer/sdk": "^14.5.1",
-        "@secondlayer/shared": "^11.24.1",
+        "@secondlayer/sdk": "^15.0.0",
+        "@secondlayer/shared": "^12.1.0",
         "@secondlayer/stacks": "^6.2.0",
-        "@secondlayer/subgraphs": "^6.6.2",
+        "@secondlayer/subgraphs": "^7.0.0",
         "ai": "7.0.133",
         "hono": "^4.0.0",
         "stripe": "^22.0.2",
@@ -106,7 +106,7 @@
       "name": "@secondlayer/bundler",
       "version": "0.7.1",
       "dependencies": {
-        "@secondlayer/subgraphs": "^6.4.0",
+        "@secondlayer/subgraphs": "^7.0.0",
         "esbuild": "^0.28.2",
         "typescript": "^5",
       },
@@ -116,7 +116,7 @@
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "20.0.1",
+      "version": "20.1.0",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -126,13 +126,13 @@
         "@biomejs/wasm-nodejs": "^1.9.0",
         "@dsnp/parquetjs": "~1.8.8",
         "@inquirer/prompts": "^8.2.0",
-        "@secondlayer/bundler": "^0.7.0",
-        "@secondlayer/scaffold": "^1.6.1",
-        "@secondlayer/sdk": "^14.5.1",
-        "@secondlayer/shared": "^11.24.1",
+        "@secondlayer/bundler": "^0.7.1",
+        "@secondlayer/scaffold": "^1.6.2",
+        "@secondlayer/sdk": "^15.0.0",
+        "@secondlayer/shared": "^12.0.0",
         "@secondlayer/stacks": "^6.2.0",
-        "@secondlayer/subgraphs": "^6.6.2",
-        "@secondlayer/verify": "^0.4.0",
+        "@secondlayer/subgraphs": "^7.0.1",
+        "@secondlayer/verify": "^0.5.0",
         "esbuild": "^0.28.2",
         "smol-toml": "^1.9.1",
         "zod": "^4.3.6",
@@ -161,8 +161,8 @@
         "@aws-sdk/client-s3": "^3.1042.0",
         "@aws-sdk/lib-storage": "^3.1108.0",
         "@dsnp/parquetjs": "~1.8.8",
-        "@secondlayer/sdk": "^14.5.0",
-        "@secondlayer/shared": "^11.23.0",
+        "@secondlayer/sdk": "^15.0.0",
+        "@secondlayer/shared": "^12.0.0",
         "@secondlayer/stacks": "^6.2.0",
       },
       "devDependencies": {
@@ -181,12 +181,12 @@
       },
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.32.1",
-        "@secondlayer/bundler": "^0.7.0",
-        "@secondlayer/scaffold": "^1.6.1",
-        "@secondlayer/sdk": "^14.5.1",
-        "@secondlayer/shared": "^11.24.1",
+        "@secondlayer/bundler": "^0.7.1",
+        "@secondlayer/scaffold": "^1.6.2",
+        "@secondlayer/sdk": "^15.0.0",
+        "@secondlayer/shared": "^12.0.0",
         "@secondlayer/stacks": "^6.1.1",
-        "@secondlayer/subgraphs": "^6.4.0",
+        "@secondlayer/subgraphs": "^7.0.0",
         "zod": "^4.3.6",
       },
       "devDependencies": {
@@ -213,7 +213,7 @@
       "version": "1.6.2",
       "dependencies": {
         "@secondlayer/stacks": "^6.0.0",
-        "@secondlayer/subgraphs": "^6.0.0",
+        "@secondlayer/subgraphs": "^7.0.0",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -229,7 +229,7 @@
         "@secondlayer/subgraphs": "^7.0.0",
       },
       "devDependencies": {
-        "@openpkg-ts/cli": "^0.11.3",
+        "@openpkg-ts/cli": "^0.13.2",
         "@types/bun": "latest",
         "@types/pg": "^8.15.0",
         "bunup": "0.16.32",
@@ -315,7 +315,7 @@
     },
     "packages/verify": {
       "name": "@secondlayer/verify",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "dependencies": {
         "@noble/curves": "2.0.1",
         "@noble/hashes": "2.0.1",
@@ -331,7 +331,7 @@
       "version": "1.4.6",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
-        "@secondlayer/shared": "^11.24.1",
+        "@secondlayer/shared": "^12.1.0",
         "ai": "7.0.133",
         "kysely": "0.28.17",
         "stripe": "^22.0.2",
@@ -346,7 +346,7 @@
       "version": "0.0.43",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
-        "@secondlayer/shared": "^11.24.1",
+        "@secondlayer/shared": "^12.1.0",
         "postgres": "^3.4.6",
       },
       "devDependencies": {
@@ -823,11 +823,11 @@
 
     "@number-flow/react": ["@number-flow/react@0.6.2", "", { "dependencies": { "esm-env": "^1.1.4", "number-flow": "0.6.2" }, "peerDependencies": { "react": "^18 || ^19", "react-dom": "^18 || ^19" } }, "sha512-WjZuV4aA+vhRCgCF+adGLgFVVAJ8vdvq6EchRT2FiBIgElTXtDOA3YgkcMr9UHpvpS9v4H70AB5wZv0D9jc3QA=="],
 
-    "@openpkg-ts/cli": ["@openpkg-ts/cli@0.11.3", "", { "dependencies": { "@openpkg-ts/sdk": "^0.51.0" }, "bin": { "openpkg": "dist/index.js" } }, "sha512-uRzXlH6HPGgKgvE/JvSZ+Wm+Vl2zrRLHgffBth70wx9E/yZ+1dG/APaDmGFQzL2aJ161HXuyCKL39jh2foLy6A=="],
+    "@openpkg-ts/cli": ["@openpkg-ts/cli@0.13.2", "", { "dependencies": { "@openpkg-ts/sdk": "^0.55.0" }, "bin": { "openpkg": "dist/index.js" } }, "sha512-AMJtGtlKXX4GZPBlIuBFR4dFnZc/BhvyoF7IC9ZCNyc3H/+tRLWdKp5XLITeFYvxSNdbRQJorxM/+Tcl2abXFg=="],
 
-    "@openpkg-ts/sdk": ["@openpkg-ts/sdk@0.51.0", "", { "dependencies": { "@openpkg-ts/spec": "^0.50.0", "picomatch": "4.0.3", "typescript": "^5.0.0" }, "peerDependencies": { "shiki": "^1.0.0" }, "optionalPeers": ["shiki"] }, "sha512-p/HBBOdPyMlCG+7aXOQAxfLKZbyqntsR1iVSN+pPl9E2aI8EaoUe6IK9Pwznr5F4X4uCE809GdQhWAROT2h/xw=="],
+    "@openpkg-ts/sdk": ["@openpkg-ts/sdk@0.55.3", "", { "dependencies": { "@openpkg-ts/spec": "^0.55.0", "picomatch": "4.0.3", "typescript": "^5.0.0 || ^6.0.0" }, "peerDependencies": { "shiki": "^1.0.0" }, "optionalPeers": ["shiki"] }, "sha512-wl1FcHkGuKr/ElG+XO7JiVn6+IzV6mkBeyImhtuYlh2lV/ZZlhAA1dJrXtY2T79vz4GZ78fsl9v/frwNxGWD1w=="],
 
-    "@openpkg-ts/spec": ["@openpkg-ts/spec@0.50.0", "", { "dependencies": { "ajv": "^8.17.1", "ajv-formats": "^3.0.1" } }, "sha512-WoWGJEREh6wdmA9UQqkgCJgCjMdwq2ccn+DGJaaAIZdu/X5bPzG8jvlwuoJyhSbBSu/QgwV+tkV2BfEvPauLQA=="],
+    "@openpkg-ts/spec": ["@openpkg-ts/spec@0.55.0", "", { "dependencies": { "ajv": "^8.17.1", "ajv-formats": "^3.0.1" } }, "sha512-mVRsq2wDjxYhRMEw+FL+extuS3Mnu22i8/KEiaCZ/LIuT/AcFDE4D1e5388DvogW30HtZJFmMmUBqgB6ywkMxQ=="],
 
     "@oxc-minify/binding-android-arm64": ["@oxc-minify/binding-android-arm64@0.77.3", "", { "os": "android", "cpu": "arm64" }, "sha512-9bGiDHSkPr6eaP4+/2DQerG+V69Ut4mezL1JtBTk54Iyc6tNsoHa9s+3wJSUHesXEgiHd/IxwuSXRtD9yC3VhQ=="],
 
