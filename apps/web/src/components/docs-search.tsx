@@ -1,6 +1,8 @@
 "use client";
 
 import apiNav from "@/generated/openapi-nav.json";
+import { refreshKeys, useAccountData } from "@/lib/account-data";
+import { useAuth } from "@/lib/auth";
 import {
 	type CommandItem,
 	DOCS_ITEMS,
@@ -9,9 +11,11 @@ import {
 } from "@/lib/command-center/items";
 import { frecencyBoosts, recordSelection } from "@/lib/command-center/recents";
 import { rankCommandItems } from "@/lib/command-center/search";
+import { accountSummary, keyHint } from "@/lib/docs-account-summary";
 import { SITE, markdownPath } from "@/lib/docs-agent";
 import { copyText } from "@/lib/docs-clipboard";
-import { buildPrompt } from "@/lib/docs-prompt";
+import { buildPrompt, chipUrl } from "@/lib/docs-prompt";
+import { refreshList, useWebhooksCache } from "@/lib/webhooks-store";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -25,10 +29,16 @@ export type DocsHeadingEntry = {
 type Row =
 	| { kind: "command" }
 	| { kind: "hit"; item: CommandItem }
+	| { kind: "attach"; item: CommandItem }
 	| { kind: "to-prompt" }
 	| { kind: "copy" };
 
 const MAX_HITS = 5;
+const MAX_YOURS = 3;
+const MAX_EMPTY_DOCS = 4;
+/** `@` at the start or after a space, running to the end of the input. */
+const ATTACH = /(^|\s)@(\S*)$/;
+const WEBHOOK_PREFIX = "webhook:";
 const PROMPT_VERB = /^\/prompt\s+/;
 
 function wordCount(text: string): number {
@@ -82,6 +92,12 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 	const [dismissed, setDismissed] = useState(false);
 	const [selected, setSelected] = useState(0);
 	const [busy, setBusy] = useState(false);
+	/** Items attached with `@`; they feed the prompt and nothing else. */
+	const [chips, setChips] = useState<CommandItem[]>([]);
+	const { account } = useAuth();
+	const { keys } = useAccountData();
+	const { list } = useWebhooksCache();
+	const fetchedAccount = useRef(false);
 	/** The prompt, shown for hand-copying when the clipboard refuses. */
 	const [manual, setManual] = useState<string | null>(null);
 
@@ -94,18 +110,64 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 		];
 	}, [headings]);
 
+	const yours = useMemo<CommandItem[]>(
+		() =>
+			account
+				? (list?.data ?? []).map((w) => ({
+						id: `${WEBHOOK_PREFIX}${w.id}`,
+						group: "webhooks" as const,
+						label: w.name,
+						sub:
+							w.circuitFailures > 0
+								? `${w.status} · ${w.circuitFailures} failing`
+								: w.status,
+						badge: { text: "live", tone: "live" as const },
+					}))
+				: [],
+		[account, list],
+	);
+
 	const text = value.trim();
 	const commandMode = !verb && /^\/[\w-]*$/.test(value);
+	const attachFrag = ATTACH.exec(value)?.[2];
+	const attachMode = attachFrag !== undefined;
+
+	const attachItems = useMemo(() => {
+		if (attachFrag === undefined) return [];
+		const taken = new Set(chips.map((c) => c.id));
+		const free = (i: CommandItem) => !taken.has(i.id);
+		const mine = yours.filter(free);
+		if (!attachFrag) {
+			return [
+				...mine.slice(0, MAX_YOURS),
+				...DOCS_ITEMS.filter(free).slice(0, MAX_EMPTY_DOCS),
+			];
+		}
+		const ranked = rankCommandItems(
+			attachFrag,
+			[...mine, ...pool.filter(free)],
+			frecencyBoosts(),
+		)
+			.flat.map((s) => s.item)
+			.filter((i) => i.id !== "docs:fallback");
+		return [
+			...ranked.filter((i) => i.group === "webhooks").slice(0, MAX_YOURS),
+			...ranked.filter((i) => i.group !== "webhooks"),
+		];
+	}, [attachFrag, chips, yours, pool]);
 
 	const hits = useMemo(() => {
-		if (verb || commandMode || !text) return [];
+		if (verb || commandMode || attachMode || !text) return [];
 		return rankCommandItems(text, pool, frecencyBoosts())
 			.flat.map((s) => s.item)
 			.filter((i) => i.id !== "docs:fallback")
 			.slice(0, MAX_HITS);
-	}, [verb, commandMode, text, pool]);
+	}, [verb, commandMode, attachMode, text, pool]);
 
 	const rows = useMemo<Row[]>(() => {
+		if (attachMode) {
+			return attachItems.map((item): Row => ({ kind: "attach", item }));
+		}
 		if (commandMode) {
 			return "prompt".startsWith(value.slice(1).toLowerCase())
 				? [{ kind: "command" }]
@@ -117,7 +179,7 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 			...hits.map((item): Row => ({ kind: "hit", item })),
 			{ kind: "to-prompt" },
 		];
-	}, [commandMode, value, text, verb, hits]);
+	}, [attachMode, attachItems, commandMode, value, text, verb, hits]);
 
 	const open = focused && !dismissed && (rows.length > 0 || manual !== null);
 	const activeId = open && !manual ? `${listId}-${selected}` : undefined;
@@ -138,7 +200,23 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 	function reset() {
 		setValue("");
 		setVerb(false);
+		setChips([]);
 		setManual(null);
+		setSelected(0);
+	}
+
+	/** Signed-in readers' lists load the first time the field is focused. */
+	function loadAccount() {
+		if (!account || fetchedAccount.current) return;
+		fetchedAccount.current = true;
+		void refreshKeys();
+		void refreshList().catch(() => {});
+	}
+
+	function attach(item: CommandItem) {
+		setChips((c) => [...c, item]);
+		setVerb(true);
+		setValue((v) => v.replace(ATTACH, "$1"));
 		setSelected(0);
 	}
 
@@ -165,15 +243,26 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 		} catch {
 			// Build without the page's notes.
 		}
+		const attached = chips
+			.filter((c) => c.id.startsWith(WEBHOOK_PREFIX))
+			.map((c) => c.id.slice(WEBHOOK_PREFIX.length));
+		const summary = account
+			? accountSummary({ keys, webhooks: list?.data ?? null, attached })
+			: "";
 		const prompt = buildPrompt({
 			task,
 			pageMd,
 			pageUrl: `${SITE}${markdownPath(pathname)}`,
+			extraUrls: chips.flatMap((c) => chipUrl(c) ?? []),
+			account: summary || undefined,
+			key: account ? keyHint(keys) : null,
 		});
 		const ok = await copyText(prompt);
 		setBusy(false);
 		if (ok) {
-			toast(`Prompt copied · ${wordCount(prompt)} words`);
+			toast(
+				`Prompt copied · ${wordCount(prompt)} words${summary ? " · filled in from your account" : ""}`,
+			);
 			reset();
 			inputRef.current?.blur();
 		} else {
@@ -196,6 +285,8 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 		if (row.kind === "command") {
 			setVerb(true);
 			setValue("");
+		} else if (row.kind === "attach") {
+			attach(row.item);
 		} else if (row.kind === "hit") {
 			openItem(row.item);
 		} else {
@@ -220,8 +311,9 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 		} else if (e.key === "Escape") {
 			if (open) setDismissed(true);
 			else inputRef.current?.blur();
-		} else if (e.key === "Backspace" && !value && verb) {
-			setVerb(false);
+		} else if (e.key === "Backspace" && !value) {
+			if (chips.length) setChips((c) => c.slice(0, -1));
+			else if (verb) setVerb(false);
 		}
 	}
 
@@ -252,6 +344,7 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 							onMouseDown={(e) => e.preventDefault()}
 							onClick={() => {
 								setVerb(false);
+								setChips([]);
 								inputRef.current?.focus();
 							}}
 						>
@@ -259,6 +352,22 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 						</button>
 					</span>
 				) : null}
+				{chips.map((chip) => (
+					<span key={chip.id} className="docs-search-chip">
+						@{chip.label}
+						<button
+							type="button"
+							aria-label={`Remove @${chip.label}`}
+							onMouseDown={(e) => e.preventDefault()}
+							onClick={() => {
+								setChips((c) => c.filter((x) => x.id !== chip.id));
+								inputRef.current?.focus();
+							}}
+						>
+							×
+						</button>
+					</span>
+				))}
 				<input
 					ref={inputRef}
 					type="text"
@@ -275,6 +384,7 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 					onFocus={() => {
 						setFocused(true);
 						setDismissed(false);
+						loadAccount();
 					}}
 					onKeyDown={onKeyDown}
 				/>
@@ -306,10 +416,13 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 						</div>
 					) : (
 						<>
-							{!commandMode && !verb && hits.length === 0 ? (
+							{!commandMode && !verb && !attachMode && hits.length === 0 ? (
 								<p className="docs-search-empty">
 									No page or section matches “{text}”.
 								</p>
+							) : null}
+							{attachMode && rows.length === 0 ? (
+								<p className="docs-search-empty">Nothing to attach.</p>
 							) : null}
 							{/* biome-ignore lint/a11y/useFocusableInteractive: combobox pattern, focus stays in the input */}
 							{/* biome-ignore lint/a11y/useSemanticElements: a custom combobox list, not a native select */}
@@ -336,7 +449,16 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 					)}
 					<p className="docs-search-hint" aria-hidden="true">
 						<span>↑↓ move</span>
-						<span>↵ {verb ? "copy" : commandMode ? "pick" : "open"}</span>
+						<span>
+							↵{" "}
+							{attachMode
+								? "attach"
+								: verb
+									? "copy"
+									: commandMode
+										? "pick"
+										: "open"}
+						</span>
 						<span>esc close</span>
 					</p>
 				</div>
@@ -346,7 +468,7 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 }
 
 function rowKey(row: Row): string {
-	return row.kind === "hit" ? row.item.id : row.kind;
+	return row.kind === "hit" || row.kind === "attach" ? row.item.id : row.kind;
 }
 
 function RowBody({ row, text }: { row: Row; text: string }) {
@@ -383,6 +505,9 @@ function RowBody({ row, text }: { row: Row; text: string }) {
 			<span className="docs-search-label">{row.item.label}</span>
 			{row.item.sub ? (
 				<span className="docs-search-sub mono">{row.item.sub}</span>
+			) : null}
+			{row.kind === "attach" && row.item.badge ? (
+				<span className="docs-search-meta">{row.item.badge.text}</span>
 			) : null}
 		</>
 	);
