@@ -7,8 +7,9 @@ type Base = "hosted" | "local";
 
 /**
  * Which base URL every cURL on the page targets. Both variants are rendered
- * on the server; this only flips `data-base` on the reference root, and CSS
- * shows the matching one. Remembered per viewer; storage is optional.
+ * on the server; this only flips `data-base` on the page root, and CSS
+ * shows the matching one, in the page and in the drawer (which sits outside
+ * the reference). Remembered per viewer; storage is optional.
  */
 export function BaseUrlSwitch() {
 	const [base, setBase] = useState<Base>("hosted");
@@ -23,13 +24,18 @@ export function BaseUrlSwitch() {
 	}, []);
 
 	useEffect(() => {
-		document.querySelector(".apiref")?.setAttribute("data-base", base);
+		document.documentElement.setAttribute("data-base", base);
 		try {
 			localStorage.setItem(BASE_KEY, base);
 		} catch {
 			// Not persisted; the choice still applies to this visit.
 		}
 	}, [base]);
+
+	useEffect(
+		() => () => document.documentElement.removeAttribute("data-base"),
+		[],
+	);
 
 	return (
 		<label className="apiref-base">
@@ -112,7 +118,7 @@ async function copyFetched(url: string): Promise<void> {
 	await navigator.clipboard.writeText(await text());
 }
 
-function CopyText({
+export function CopyText({
 	text,
 	fetchFrom,
 	label,
@@ -174,6 +180,25 @@ function CopyText({
 	);
 }
 
+/** The prompt to hand a coding agent for one endpoint, copyable as plain text. */
+export function PromptBlock({ text }: { text: string }) {
+	return (
+		<div className="apiref-prompt">
+			<div className="apiref-prompt-bar">
+				<span>Prompt for your agent</span>
+				<CopyText
+					text={text}
+					label="Copy prompt"
+					className="apiref-prompt-copy"
+				>
+					Copy
+				</CopyText>
+			</div>
+			<pre className="apiref-prompt-text">{text}</pre>
+		</div>
+	);
+}
+
 /** Copy link · Copy as Markdown · Open .md, for one section. */
 export function SectionActions({ anchor }: { anchor: string }) {
 	// The section's markdown twin, served statically by the docs .md route;
@@ -202,44 +227,9 @@ export function SectionActions({ anchor }: { anchor: string }) {
 	);
 }
 
-const STICK_TOP = 110;
-const STICK_BOTTOM = 24;
-
-/**
- * Asides stick at the top, but one taller than the viewport would hide its
- * tail until the section ends. Those get a negative `top`, so they scroll with
- * the page until their bottom lands, then stick there.
- *
- * Sets `top` itself, not an inherited custom property: a custom property would
- * restyle every highlighted token under each aside (~55ms on this page). All
- * heights are read before any write, and unchanged values aren't rewritten.
- */
-export function StickyAsides() {
-	useEffect(() => {
-		const asides = [...document.querySelectorAll<HTMLElement>(".apiref-aside")];
-		const place = () => {
-			const tops = asides.map(
-				(aside) =>
-					`${Math.min(STICK_TOP, window.innerHeight - aside.offsetHeight - STICK_BOTTOM)}px`,
-			);
-			asides.forEach((aside, i) => {
-				if (aside.style.top !== tops[i]) aside.style.top = tops[i];
-			});
-		};
-		const observer = new ResizeObserver(place);
-		for (const aside of asides) observer.observe(aside);
-		window.addEventListener("resize", place);
-		return () => {
-			observer.disconnect();
-			window.removeEventListener("resize", place);
-		};
-	}, []);
-	return null;
-}
-
 /**
  * Long examples preview their first lines and expand in place. The block
- * never scrolls vertically, so the wheel always moves the page.
+ * never scrolls vertically, so the wheel always moves its container.
  */
 export function ExpandableCode({
 	lines,

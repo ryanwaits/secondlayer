@@ -1,14 +1,16 @@
 import { highlight } from "@/lib/highlight";
 import Link from "next/link";
-import { Fragment, type ReactNode, cache } from "react";
+import { Fragment } from "react";
+import { BaseUrlSwitch, CodeTabs, ExpandableCode } from "./client";
+import { ApiDrawerHost, type DrawerDetail } from "./drawer";
 import {
-	BaseUrlSwitch,
-	CodeTabs,
-	ExpandableCode,
-	SectionActions,
-	StickyAsides,
-} from "./client";
-import { API_PAGES, apiPageHref, findApiPage, pageContent } from "./pages";
+	API_PAGES,
+	anchorPages,
+	apiPageHref,
+	findApiPage,
+	pageContent,
+} from "./pages";
+import { endpointPrompt, objectPrompt } from "./prompt";
 import {
 	type Endpoint,
 	type ObjectEntry,
@@ -20,13 +22,11 @@ import {
 	objectAnchor,
 	objectName,
 	objectTitle,
-	objectsByTag,
 	paramGroups,
 	responseExample,
 	returnedObject,
 	sdkSample,
 	successContentType,
-	tagGroups,
 	typeLabel,
 } from "./spec";
 
@@ -48,8 +48,8 @@ function Prose({ text }: { text?: string }) {
 	);
 }
 
-/** Token classes already defined in this render. */
-const definedTokens = cache(() => new Set<string>());
+/** Token classes seen by any highlighted block, with their rules. */
+const tokenRules = new Map<string, string>();
 
 /** FNV-1a, base 36: a short name that is the same for the same style. */
 function tokenClass(style: string): string {
@@ -61,49 +61,50 @@ function tokenClass(style: string): string {
 }
 
 /**
- * Shiki puts a ~100-char inline style on every token: 24k spans here, which
- * the page then ships twice (HTML and RSC payload) for 9 distinct styles.
- * Each style becomes a class instead, and the first block to use one emits
- * its rule. Same custom properties, so the dark-mode `var(--shiki-dark)`
- * rules apply unchanged.
+ * Shiki puts a ~100-char inline style on every token: tens of thousands of
+ * spans on a page, for 9 distinct styles. Each style becomes a class instead.
+ * Same custom properties, so the dark-mode `var(--shiki-dark)` rules apply
+ * unchanged. The rules are collected here and written once per page by
+ * `TokenStyles`, after every block on the page has been highlighted, because
+ * the blocks themselves only reach the page when a drawer opens one.
  */
-function classifyTokens(html: string): { html: string; css: string } {
-	const defined = definedTokens();
-	const rules: string[] = [];
-	const out = html.replace(/<span style="([^"]*)">/g, (_, style: string) => {
+function classifyTokens(html: string): string {
+	return html.replace(/<span style="([^"]*)">/g, (_, style: string) => {
 		const name = tokenClass(style);
-		if (!defined.has(name)) {
-			defined.add(name);
-			rules.push(`.${name}{${style}}`);
-		}
+		if (!tokenRules.has(name)) tokenRules.set(name, `.${name}{${style}}`);
 		return `<span class="${name}">`;
 	});
-	return { html: out, css: rules.join("") };
+}
+
+function TokenStyles() {
+	return <style>{[...tokenRules.values()].join("")}</style>;
 }
 
 /** Only extreme examples (a whole OpenAPI document) collapse; everything
     else renders at full height. */
 const LONG_LINES = 300;
 
-async function Code({ code, lang }: { code: string; lang: string }) {
-	const { html, css } = classifyTokens(await highlight(code, lang));
-	const lines = code.split("\n").length;
-	const block = (
+type Block = { html: string; lines: number };
+
+async function highlightBlock(code: string, lang: string): Promise<Block> {
+	return {
+		html: classifyTokens(await highlight(code, lang)),
+		lines: code.split("\n").length,
+	};
+}
+
+function Code({ block }: { block: Block }) {
+	const body = (
 		<div
 			className="apiref-code"
 			// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki output, server-rendered from our own spec
-			dangerouslySetInnerHTML={{ __html: html }}
+			dangerouslySetInnerHTML={{ __html: block.html }}
 		/>
 	);
-	return (
-		<>
-			{css ? <style>{css}</style> : null}
-			{lines > LONG_LINES ? (
-				<ExpandableCode lines={lines}>{block}</ExpandableCode>
-			) : (
-				block
-			)}
-		</>
+	return block.lines > LONG_LINES ? (
+		<ExpandableCode lines={block.lines}>{body}</ExpandableCode>
+	) : (
+		body
 	);
 }
 
@@ -187,7 +188,7 @@ function statusTone(code: string): string {
 
 function Methods({ endpoint }: { endpoint: Endpoint }) {
 	return (
-		<div className="apiref-route">
+		<span className="apiref-route">
 			<span
 				className={`apiref-verb apiref-verb-${endpoint.method.toLowerCase()}`}
 			>
@@ -197,46 +198,53 @@ function Methods({ endpoint }: { endpoint: Endpoint }) {
 			{endpoint.selfHostOnly ? (
 				<span className="apiref-pill">Self-hosted instances</span>
 			) : null}
-		</div>
+		</span>
 	);
 }
 
-async function RequestPanel({ endpoint }: { endpoint: Endpoint }) {
-	const hosted = curlFor(endpoint, "hosted");
-	const local = curlFor(endpoint, "local");
-	const sdk = sdkSample(endpoint.op);
+function RequestPanel({
+	endpoint,
+	hosted,
+	local,
+	sdk,
+}: {
+	endpoint: Endpoint;
+	hosted: Block;
+	local: Block;
+	sdk: Block | null;
+}) {
+	const curlText = curlFor(
+		endpoint,
+		endpoint.selfHostOnly ? "local" : "hosted",
+	);
 	// Panels travel as an array into CodeTabs, so each one needs its own key.
 	const curlPanel = (
 		<Fragment key="curl">
 			<div className="apiref-when-hosted">
-				<Code code={hosted} lang="bash" />
+				<Code block={hosted} />
 			</div>
 			<div className="apiref-when-local">
-				<Code code={local} lang="bash" />
+				<Code block={local} />
 			</div>
 		</Fragment>
 	);
-	const labels = ["cURL", ...(sdk ? ["SDK"] : [])];
-	const panels: ReactNode[] = [
-		curlPanel,
-		...(sdk ? [<Code key="sdk" code={sdk} lang="typescript" />] : []),
-	];
+	const sdkText = sdkSample(endpoint.op);
 	return (
 		<CodeTabs
-			labels={labels}
-			panels={panels}
-			copyText={[endpoint.selfHostOnly ? local : hosted, ...(sdk ? [sdk] : [])]}
+			labels={["cURL", ...(sdk ? ["SDK"] : [])]}
+			panels={[curlPanel, ...(sdk ? [<Code key="sdk" block={sdk} />] : [])]}
+			copyText={[curlText, ...(sdkText ? [sdkText] : [])]}
 		/>
 	);
 }
 
-async function ResponsePanel({
+function ResponsePanel({
 	title,
-	example,
+	block,
 	status,
 }: {
 	title: string;
-	example: unknown;
+	block: Block;
 	status?: string;
 }) {
 	return (
@@ -249,12 +257,19 @@ async function ResponsePanel({
 					</span>
 				) : null}
 			</div>
-			<Code code={JSON.stringify(example, null, 2)} lang="json" />
+			<Code block={block} />
 		</div>
 	);
 }
 
-async function EndpointSection({ endpoint }: { endpoint: Endpoint }) {
+type HrefFor = (anchor: string) => string;
+
+/** One endpoint's drawer content: the docs, the request and the response,
+ *  highlighted here on the server so the browser only ever receives markup. */
+async function endpointDetail(
+	endpoint: Endpoint,
+	hrefFor: HrefFor,
+): Promise<DrawerDetail> {
 	const { op, anchor } = endpoint;
 	const returned = returnedObject(op);
 	const example = responseExample(op);
@@ -263,15 +278,21 @@ async function EndpointSection({ endpoint }: { endpoint: Endpoint }) {
 	);
 	const contentType = successContentType(op);
 	const fields = bodyFields(op);
-	return (
-		<section id={anchor} className="apiref-section">
-			<div className="apiref-main">
-				<div className="apiref-eyebrow">{endpoint.tag}</div>
-				<h3 className="apiref-title">
-					<a href={`#${anchor}`}>{op.summary ?? op.operationId}</a>
-				</h3>
-				<SectionActions anchor={anchor} />
-				<Methods endpoint={endpoint} />
+	const sdk = sdkSample(op);
+	const [hosted, local, sdkBlock, responseBlock] = await Promise.all([
+		highlightBlock(curlFor(endpoint, "hosted"), "bash"),
+		highlightBlock(curlFor(endpoint, "local"), "bash"),
+		sdk ? highlightBlock(sdk, "typescript") : null,
+		example !== undefined
+			? highlightBlock(JSON.stringify(example, null, 2), "json")
+			: null,
+	]);
+	return {
+		title: op.summary ?? op.operationId,
+		subtitle: <Methods endpoint={endpoint} />,
+		prompt: endpointPrompt(endpoint),
+		main: (
+			<>
 				{op.description ? (
 					<p className="apiref-desc">
 						<Prose text={op.description} />
@@ -311,14 +332,14 @@ async function EndpointSection({ endpoint }: { endpoint: Endpoint }) {
 							{returned.list ? (
 								<>
 									A cursor envelope. <code>{returned.key}</code> holds{" "}
-									<a href={`#${objectAnchor(returned.name)}`}>
+									<a href={hrefFor(objectAnchor(returned.name))}>
 										{objectName(returned.name)} objects
 									</a>
 									.
 								</>
 							) : (
 								<>
-									<a href={`#${objectAnchor(returned.name)}`}>
+									<a href={hrefFor(objectAnchor(returned.name))}>
 										{objectTitle(returned.name)}
 									</a>
 									.
@@ -345,31 +366,41 @@ async function EndpointSection({ endpoint }: { endpoint: Endpoint }) {
 						))}
 					</ul>
 				</div>
-			</div>
-			<aside className="apiref-aside" aria-label="Example request and response">
-				<RequestPanel endpoint={endpoint} />
-				{example !== undefined ? (
-					<ResponsePanel
-						title="Response"
-						example={example}
-						status={successCode}
-					/>
-				) : null}
-			</aside>
-		</section>
-	);
+			</>
+		),
+		request: (
+			<RequestPanel
+				endpoint={endpoint}
+				hosted={hosted}
+				local={local}
+				sdk={sdkBlock}
+			/>
+		),
+		response: responseBlock ? (
+			<ResponsePanel
+				title="Response"
+				block={responseBlock}
+				status={successCode}
+			/>
+		) : null,
+	};
 }
 
-async function ObjectSection({ entry }: { entry: ObjectEntry }) {
+async function objectDetail(
+	entry: ObjectEntry,
+	hrefFor: HrefFor,
+): Promise<DrawerDetail> {
 	const { schema, anchor } = entry;
-	return (
-		<section id={anchor} className="apiref-section">
-			<div className="apiref-main">
-				<div className="apiref-eyebrow">Object</div>
-				<h3 className="apiref-title">
-					<a href={`#${anchor}`}>{objectTitle(entry.name)}</a>
-				</h3>
-				<SectionActions anchor={anchor} />
+	const example =
+		schema.example !== undefined
+			? await highlightBlock(JSON.stringify(schema.example, null, 2), "json")
+			: null;
+	return {
+		title: objectTitle(entry.name),
+		subtitle: "Object",
+		prompt: objectPrompt(entry),
+		main: (
+			<>
 				{schema.description ? (
 					<p className="apiref-desc">
 						<Prose text={schema.description} />
@@ -380,7 +411,7 @@ async function ObjectSection({ entry }: { entry: ObjectEntry }) {
 					{entry.returnedBy.map((e, i) => (
 						<Fragment key={e.anchor}>
 							{i > 0 ? ", " : ""}
-							<a href={`#${e.anchor}`}>{e.op.summary ?? e.op.operationId}</a>
+							<a href={hrefFor(e.anchor)}>{e.op.summary ?? e.op.operationId}</a>
 						</Fragment>
 					))}
 				</p>
@@ -400,17 +431,13 @@ async function ObjectSection({ entry }: { entry: ObjectEntry }) {
 						))}
 					</div>
 				</div>
-			</div>
-			{schema.example !== undefined ? (
-				<aside className="apiref-aside" aria-label="Example object">
-					<ResponsePanel
-						title={objectTitle(entry.name)}
-						example={schema.example}
-					/>
-				</aside>
-			) : null}
-		</section>
-	);
+			</>
+		),
+		request: null,
+		response: example ? (
+			<ResponsePanel title={objectTitle(entry.name)} block={example} />
+		) : null,
+	};
 }
 
 /** A family heading, marked up like an MDX `##` so the page reads as one. */
@@ -459,14 +486,28 @@ function ObjectRow({ entry }: { entry: ObjectEntry }) {
 
 /**
  * One API page: every endpoint at a glance, by family, then the page's
- * objects. Each row links to its anchor; the drawer opens it.
+ * objects. Each row links to its anchor; the drawer opens it. The drawer's
+ * content is rendered here, once per row, and handed to the client host
+ * keyed by anchor, so the page itself ships rows and the host ships markup.
  */
-export function ApiPage({ slug }: { slug: string }) {
+export async function ApiPage({ slug }: { slug: string }) {
 	const page = findApiPage(slug);
 	if (!page) throw new Error(`No API reference page "${slug}"`);
 	const { families, objects } = pageContent(page);
+	const owners = anchorPages();
+	const hrefFor: HrefFor = (anchor) =>
+		owners[anchor] ? `${apiPageHref(owners[anchor])}#${anchor}` : `#${anchor}`;
+	const endpoints = families.flatMap((f) => f.endpoints);
+	const entries = await Promise.all([
+		...endpoints.map(
+			async (e) => [e.anchor, await endpointDetail(e, hrefFor)] as const,
+		),
+		...objects.map(
+			async (o) => [o.anchor, await objectDetail(o, hrefFor)] as const,
+		),
+	]);
 	return (
-		<div className="apiref" data-base="hosted">
+		<div className="apiref">
 			<div className="apiref-toolbar">
 				<BaseUrlSwitch />
 			</div>
@@ -498,6 +539,8 @@ export function ApiPage({ slug }: { slug: string }) {
 					</div>
 				</section>
 			) : null}
+			<TokenStyles />
+			<ApiDrawerHost details={Object.fromEntries(entries)} />
 		</div>
 	);
 }
@@ -505,57 +548,24 @@ export function ApiPage({ slug }: { slug: string }) {
 /** The reference's front page: the six pages, with what each one covers. */
 export function ApiPageList() {
 	return (
-		<>
-			<div className="apiref-rows apiref-pages">
-				{API_PAGES.map((page) => {
-					const { families } = pageContent(page);
-					const count = families.reduce((n, f) => n + f.endpoints.length, 0);
-					return (
-						<Link
-							key={page.slug}
-							href={apiPageHref(page.slug)}
-							className="apiref-row"
-						>
-							<span className="apiref-row-name">{page.title}</span>
-							<span className="apiref-row-sum">
-								{families.map((f) => f.title).join(" · ")}
-							</span>
-							<span className="apiref-row-count">{count}</span>
-						</Link>
-					);
-				})}
-			</div>
-		</>
-	);
-}
-
-export async function ApiReference() {
-	const groups = tagGroups();
-	const objects = objectsByTag();
-	return (
-		<div className="apiref" data-base="hosted">
-			<div className="apiref-toolbar">
-				<BaseUrlSwitch />
-			</div>
-			<StickyAsides />
-			{groups.map((group) => (
-				<div key={group.name} className="apiref-tag">
-					<h2 id={group.name} className="apiref-tag-title">
-						{group.name}
-					</h2>
-					{group.description ? (
-						<p className="apiref-tag-desc">
-							<Prose text={group.description} />
-						</p>
-					) : null}
-					{(objects.get(group.name) ?? []).map((entry) => (
-						<ObjectSection key={entry.name} entry={entry} />
-					))}
-					{group.endpoints.map((endpoint) => (
-						<EndpointSection key={endpoint.anchor} endpoint={endpoint} />
-					))}
-				</div>
-			))}
+		<div className="apiref-rows apiref-pages">
+			{API_PAGES.map((page) => {
+				const { families } = pageContent(page);
+				const count = families.reduce((n, f) => n + f.endpoints.length, 0);
+				return (
+					<Link
+						key={page.slug}
+						href={apiPageHref(page.slug)}
+						className="apiref-row"
+					>
+						<span className="apiref-row-name">{page.title}</span>
+						<span className="apiref-row-sum">
+							{families.map((f) => f.title).join(" · ")}
+						</span>
+						<span className="apiref-row-count">{count}</span>
+					</Link>
+				);
+			})}
 		</div>
 	);
 }

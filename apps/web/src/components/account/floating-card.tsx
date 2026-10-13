@@ -18,6 +18,7 @@ export function FloatingCard({
 	expandHref,
 	onExpand,
 	headerActions,
+	ignoreOutside,
 	footer,
 	children,
 }: {
@@ -36,6 +37,9 @@ export function FloatingCard({
 	 *  buttons. */
 	headerActions?: React.ReactNode;
 	footer?: React.ReactNode;
+	/** A pointerdown on a target this returns true for does not close the card
+	 *  (a row that swaps the card's content in place, say). */
+	ignoreOutside?: (target: Element) => boolean;
 	children: React.ReactNode;
 }) {
 	const cardRef = useRef<HTMLDialogElement>(null);
@@ -44,6 +48,8 @@ export function FloatingCard({
 	// re-focus) on every render because of that.
 	const onCloseRef = useRef(onClose);
 	onCloseRef.current = onClose;
+	const ignoreOutsideRef = useRef(ignoreOutside);
+	ignoreOutsideRef.current = ignoreOutside;
 
 	useEffect(() => {
 		if (!open) return;
@@ -54,7 +60,10 @@ export function FloatingCard({
 			if (e.key === "Escape") onCloseRef.current();
 		};
 		const onPointerDown = (e: PointerEvent) => {
-			if (!cardRef.current?.contains(e.target as Node)) onCloseRef.current();
+			const target = e.target as Element;
+			if (cardRef.current?.contains(target)) return;
+			if (ignoreOutsideRef.current?.(target)) return;
+			onCloseRef.current();
 		};
 		document.addEventListener("keydown", onKey);
 		document.addEventListener("pointerdown", onPointerDown);
