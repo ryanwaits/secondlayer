@@ -14,13 +14,22 @@ Where Secondlayer can prove an answer, it serves the proof: a hash, a merkle pat
 | A block, any height, with its transactions | `secondlayer verify block <height>`, `verifyBlock`. [Details](#check-a-block) | The checkpoint shipped in the release |
 | A block's Bitcoin anchor | Same check: Bitcoin headers from the checkpoint (proof of work, retargets), then the block's burn block | The checkpoint; headers are not compared against a competing chain |
 | A block's state writes | `/v1/proofs/writes/:height`, checked by `verify block` against the state root | The checkpoint; a block with no named writes is proven but unnamed |
+
+<details id="more-checks">
+<summary>Archives, rows, deliveries and frames</summary>
+
+| Check | How | What you still trust |
+| --- | --- | --- |
 | An archive bundle | `secondlayer bootstrap` and `repair` hash each partition against the signed digest before reading it. [Archive](/docs/archive#repair-what-diverges) | The archive signing key |
 | Your instance's history | `secondlayer verify raw --against <latest.json>`. [Archive](/docs/archive#check-your-data) | The archive signing key, and the range's [assurance level](#archive-assurance-levels) |
 | Subgraph rows | `secondlayer verify subgraph <name> --replay`. [Check rows](/docs/subgraphs#check-rows) | The checkpoint; only `state` subgraphs can be replayed |
-| A webhook delivery | `verifyWebhookSignature` and the ed25519 signature. [Receiving deliveries](/docs/webhooks#verify-the-signature) | The signing secret or key: proves who sent it, not that the chain agrees |
+| A webhook delivery | `verifyWebhookSignature` and the ed25519 signature. [Receive and verify](/docs/webhooks#verify-the-signature) | The signing secret or key: proves who sent it, not that the chain agrees |
 | A Streams frame | The SDK checks every frame's ed25519 signature. [SDK](/docs/sdk#verifying-responses) | The signing key, unless you pin it |
 
-### Archive assurance levels
+</details>
+
+<details id="archive-assurance-levels">
+<summary>Archive assurance levels</summary>
 
 The manifest states a level per range. Most of the chain is `db-reconstructive`; a published `node.json` upgrades only its `coverage` window.
 
@@ -29,6 +38,8 @@ The manifest states a level per range. Most of the chain is `db-reconstructive`;
 | `db-reconstructive` | Exports from one repeatable-read snapshot restore deterministically. Does not prove no historical callback was omitted. |
 | `node-attested` | Block identities also match an independently synced stacks-node. Transactions and events stay `db-reconstructive`. |
 | `observer-attested` | Digests match independently retained raw observer history. |
+
+</details>
 
 ## Check a block
 

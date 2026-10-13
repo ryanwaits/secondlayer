@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { docsNavPages } from "./nav";
 
-/** Docs page contract: ≤400 words visible on entry. Collapsed <details> and code don't count. */
-const BUDGET = 400;
+/** Docs page contract: about 120 words visible per `##` section on entry. Collapsed <details> and code don't count. */
+const BUDGET = 120;
 
 /** Generated or log pages the contract does not apply to. */
 const EXEMPT = new Set([
@@ -33,18 +33,34 @@ function visibleWords(mdx: string): number {
 	return text.split(/\s+/).filter((w) => /[A-Za-z0-9]/.test(w)).length;
 }
 
+/** Visible words per `##` section; text before the first `##` is the intro. */
+function sectionWords(mdx: string): { section: string; words: number }[] {
+	// Fenced code can hold lines that start with "## " (shell comments); blank them before splitting.
+	const flat = mdx.replace(/^(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1[ \t]*$/gm, (m) =>
+		m.replace(/^## /gm, "#  "),
+	);
+	return flat.split(/^## /m).map((chunk, i) => ({
+		section: i === 0 ? "intro" : (chunk.split("\n", 1)[0] ?? "").trim(),
+		words: visibleWords(i === 0 ? chunk : `## ${chunk}`),
+	}));
+}
+
 const counts = docsNavPages()
 	.filter((p) => !EXEMPT.has(p.href))
-	.map((p) => ({
-		href: p.href,
-		words: visibleWords(readFileSync(pageFile(p.href), "utf8")),
-	}));
+	.flatMap((p) =>
+		sectionWords(readFileSync(pageFile(p.href), "utf8")).map((s) => ({
+			...s,
+			href: p.href,
+		})),
+	);
 
 describe("docs word budget", () => {
-	test("every page stays within the entry budget", () => {
+	test("every section stays within the entry budget", () => {
 		const over = counts.filter((c) => c.words > BUDGET);
 		expect(
-			over.map((c) => `${c.href}: ${c.words} words (max ${BUDGET})`),
+			over.map(
+				(c) => `${c.href} › ${c.section}: ${c.words} words (max ${BUDGET})`,
+			),
 		).toEqual([]);
 	});
 });

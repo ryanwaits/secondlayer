@@ -644,9 +644,6 @@ button.docs-nav-item {
  * Scoped to #docs-article so the API reference
  * disclosures keep their own styles.
  */
-#docs-article :not(details) + details:not(.apiref-enum) {
-	border-top: 1px solid var(--line);
-}
 #docs-article details:not(.apiref-enum) {
 	border-bottom: 1px solid var(--line);
 }
