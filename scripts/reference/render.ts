@@ -218,6 +218,13 @@ function render(schema: Schema | undefined, ctx: RenderContext): Rendered {
 
 	const union = schema.anyOf ?? schema.oneOf;
 	if (union?.length) {
+		// openpkg stops expanding arms once its schema budget runs out (an array
+		// loses its `items`), but the node's own text is still the real type.
+		if (tsType) {
+			// Still walk the arms so referenced types are recorded.
+			for (const arm of union) render(arm, ctx);
+			return { text: tsType, kind: "union" };
+		}
 		const ordered = [...union].sort(
 			(a, b) => Number(isNullish(a)) - Number(isNullish(b)),
 		);

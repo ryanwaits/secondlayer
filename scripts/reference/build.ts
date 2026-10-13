@@ -62,13 +62,11 @@ export type ParamDoc = {
 	type: string;
 	required: boolean;
 	description: string;
-	fields?: Field[];
 };
 
 export type Overload = {
 	label: string;
 	description?: string;
-	signature: string;
 	params: ParamDoc[];
 	returns: { type: string; description: string };
 };
@@ -212,51 +210,20 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 		return 1;
 	}
 
-	function inlineFields(
-		schema: Schema | undefined,
-		ctx: RenderContext,
-	): Field[] | undefined {
-		if (!schema) return undefined;
-		const arms = schema.allOf ?? [schema];
-		const inline = arms.filter(
-			(a) => !a.$ref && Object.keys(a.properties ?? {}).length > 0,
-		);
-		if (!inline.length) return undefined;
-		const byName = new Map<string, Field>();
-		for (const arm of inline) {
-			const required = new Set(arm.required ?? []);
-			for (const [name, value] of Object.entries(arm.properties ?? {})) {
-				byName.set(name, {
-					name,
-					type: renderType(value, ctx),
-					required: required.has(name),
-					description: value.description ?? "",
-				});
-			}
-		}
-		return [...byName.values()];
-	}
-
 	function buildOverload(
-		path: string,
 		sig: Signature,
 		label: string,
 		multiple: boolean,
 		ctx: RenderContext,
 	): Overload {
-		const params: ParamDoc[] = (sig.parameters ?? []).map((p) => {
-			const fields = inlineFields(p.schema, ctx);
-			return {
-				name: p.name,
-				type: renderType(p.schema, ctx),
-				required: p.required !== false,
-				description: p.description ?? "",
-				...(fields ? { fields } : {}),
-			};
-		});
+		const params: ParamDoc[] = (sig.parameters ?? []).map((p) => ({
+			name: p.name,
+			type: renderType(p.schema, ctx),
+			required: p.required !== false,
+			description: p.description ?? "",
+		}));
 		const overload: Overload = {
 			label,
-			signature: renderDeclaration(path, sig, ctx),
 			params,
 			returns: {
 				type: renderReturns(sig.returns, ctx),
@@ -292,7 +259,7 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 						: multiple
 							? `Overload ${i + 1}`
 							: "";
-			return buildOverload(path, sig, label, multiple, ctx);
+			return buildOverload(sig, label, multiple, ctx);
 		});
 		const description =
 			overloads.find((o) => o.description)?.description ??
@@ -493,9 +460,6 @@ export function buildReference(
 				if (o.description) o.description = linkify(o.description, symbols);
 				for (const p of o.params) {
 					p.description = linkify(p.description, symbols);
-					for (const f of p.fields ?? []) {
-						f.description = linkify(f.description, symbols);
-					}
 				}
 				o.returns.description = linkify(o.returns.description, symbols);
 			}
