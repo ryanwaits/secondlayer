@@ -316,16 +316,16 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 	name: "monotone-purple-dark",
 	type: "dark",
 	colors: {
-		"editor.background": "#161719",
-		"editor.foreground": "#d9dbe0",
-		"editorLineNumber.foreground": "#4a4d55",
+		"editor.background": "#252420",
+		"editor.foreground": "#e3e0d9",
+		"editorLineNumber.foreground": "#5a5750",
 		"editor.selectionBackground": "#2a2c31",
 	},
 	settings: [
-		{ settings: { foreground: "#d9dbe0" } },
+		{ settings: { foreground: "#e3e0d9" } },
 		{
 			scope: ["comment", "punctuation.definition.comment"],
-			settings: { foreground: "#8b9099", fontStyle: "italic" },
+			settings: { foreground: "#b0aca2", fontStyle: "italic" },
 		},
 		{
 			scope: [
@@ -340,7 +340,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"keyword.control.from",
 				"keyword.control.as",
 			],
-			settings: { foreground: "#8b9099", fontStyle: "bold" },
+			settings: { foreground: "#b0aca2", fontStyle: "bold" },
 		},
 		{
 			scope: [
@@ -349,11 +349,11 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"string.template",
 				"punctuation.definition.string",
 			],
-			settings: { foreground: "#ffd21f" },
+			settings: { foreground: "#e6c15c" },
 		},
 		{
 			scope: ["constant.numeric"],
-			settings: { foreground: "#ffd21f" },
+			settings: { foreground: "#e6c15c" },
 		},
 		{
 			scope: [
@@ -361,16 +361,16 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"constant.language.boolean",
 				"variable.language.this",
 			],
-			settings: { foreground: "#ffd21f" },
+			settings: { foreground: "#e6c15c" },
 		},
 		{
 			scope: ["entity.name.function", "support.function", "meta.function-call"],
-			settings: { foreground: "#d9dbe0" },
+			settings: { foreground: "#e3e0d9" },
 		},
 		// Shell builtins
 		{
 			scope: ["support.function.builtin"],
-			settings: { foreground: "#ffd21f", fontStyle: "bold" },
+			settings: { foreground: "#e6c15c", fontStyle: "bold" },
 		},
 		// Shell variables
 		{
@@ -379,17 +379,17 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"variable.other.normal",
 				"punctuation.definition.variable",
 			],
-			settings: { foreground: "#ffd21f" },
+			settings: { foreground: "#e6c15c" },
 		},
 		// Pipes and redirects
 		{
 			scope: ["keyword.operator.pipe", "keyword.operator.redirect"],
-			settings: { foreground: "#8b9099" },
+			settings: { foreground: "#b0aca2" },
 		},
 		// Command-line flags
 		{
 			scope: ["variable.parameter.option", "punctuation.definition.parameter"],
-			settings: { foreground: "#8b9099" },
+			settings: { foreground: "#b0aca2" },
 		},
 		// Shell — command name (curl, git, …) pops accent + bold
 		{
@@ -398,17 +398,17 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"entity.name.command.shell",
 				"entity.name.function.call.shell",
 			],
-			settings: { foreground: "#ffd21f", fontStyle: "bold" },
+			settings: { foreground: "#e6c15c", fontStyle: "bold" },
 		},
 		// Shell — option flags (-H, --flag) via constant.other.option
 		{
 			scope: ["constant.other.option"],
-			settings: { foreground: "#8b9099" },
+			settings: { foreground: "#b0aca2" },
 		},
 		// Shell — quoted-string arguments
 		{
 			scope: ["string.quoted.double.shell", "string.quoted.single.shell"],
-			settings: { foreground: "#ffd21f" },
+			settings: { foreground: "#e6c15c" },
 		},
 		{
 			scope: [
@@ -417,11 +417,11 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"support.type",
 				"support.class",
 			],
-			settings: { foreground: "#d9dbe0" },
+			settings: { foreground: "#e3e0d9" },
 		},
 		{
 			scope: ["variable", "variable.other", "variable.parameter"],
-			settings: { foreground: "#d9dbe0" },
+			settings: { foreground: "#e3e0d9" },
 		},
 		{
 			scope: [
@@ -430,7 +430,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"meta.object-literal.key",
 				"support.type.property-name",
 			],
-			settings: { foreground: "#8b9099" },
+			settings: { foreground: "#b0aca2" },
 		},
 		{
 			scope: [
@@ -440,7 +440,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"keyword.operator.comparison",
 				"keyword.operator.logical",
 			],
-			settings: { foreground: "#8b9099" },
+			settings: { foreground: "#b0aca2" },
 		},
 		{
 			scope: [
@@ -449,42 +449,42 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"punctuation.separator",
 				"punctuation.terminator",
 			],
-			settings: { foreground: "#8b9099" },
+			settings: { foreground: "#b0aca2" },
 		},
 		{
 			scope: ["punctuation.definition.template-expression"],
-			settings: { foreground: "#d9dbe0" },
+			settings: { foreground: "#e3e0d9" },
 		},
 		{
 			scope: ["entity.name.tag", "punctuation.definition.tag"],
-			settings: { foreground: "#d9dbe0" },
+			settings: { foreground: "#e3e0d9" },
 		},
 		{
 			scope: ["entity.other.attribute-name"],
-			settings: { foreground: "#8b9099" },
+			settings: { foreground: "#b0aca2" },
 		},
 		{
 			scope: ["string.regexp"],
-			settings: { foreground: "#ffd21f" },
+			settings: { foreground: "#e6c15c" },
 		},
 		{
 			scope: ["meta.decorator", "punctuation.decorator"],
-			settings: { foreground: "#ffd21f" },
+			settings: { foreground: "#e6c15c" },
 		},
 		// Markdown — inline code
 		{
 			scope: ["markup.inline.raw", "markup.raw"],
-			settings: { foreground: "#ffd21f" },
+			settings: { foreground: "#e6c15c" },
 		},
 		// Markdown — list markers
 		{
 			scope: ["punctuation.definition.list.begin.markdown"],
-			settings: { foreground: "#8b9099" },
+			settings: { foreground: "#b0aca2" },
 		},
 		// Markdown — headings
 		{
 			scope: ["markup.heading", "entity.name.section"],
-			settings: { foreground: "#d9dbe0", fontStyle: "bold" },
+			settings: { foreground: "#e3e0d9", fontStyle: "bold" },
 		},
 		// Markdown — bold/italic
 		{
@@ -501,7 +501,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"support.type.property-name.json",
 				"meta.structure.dictionary.key.json string",
 			],
-			settings: { foreground: "#8b9099" },
+			settings: { foreground: "#b0aca2" },
 		},
 		// JSON — string values pop accent (LiveKit-style payload view)
 		{
@@ -511,7 +511,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"meta.structure.dictionary.value.json punctuation.definition.string",
 				"meta.structure.array.json punctuation.definition.string",
 			],
-			settings: { foreground: "#ffd21f" },
+			settings: { foreground: "#e6c15c" },
 		},
 		// JSON — numbers, booleans, and null in values pop accent too.
 		{
@@ -521,7 +521,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"meta.structure.dictionary.value.json constant.language",
 				"meta.structure.array.json constant.language",
 			],
-			settings: { foreground: "#ffd21f" },
+			settings: { foreground: "#e6c15c" },
 		},
 	],
 };

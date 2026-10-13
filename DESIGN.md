@@ -16,22 +16,17 @@ colors:
     ok: "#128a43"
     alarm: "#e3301e"
   dark:
-    paper: "#0d0d0d"
-    ink: "#ededea"
-    sub: "#9a9a96"
-    line: "#262626"
-    soft: "#161616"
+    paper: "#1c1b19"
+    ink: "#ece9e2"
+    sub: "#b0aca2"
+    line: "#383631"
+    soft: "#252420"
     pri: "#3a5bff"
     on-pri: "#ffffff"
-    hi: "#ffd21f"
-    on-hi: "#0d0d0d"
-    ok: "#3ccb7f"
+    hi: "#efc54a"
+    on-hi: "#141414"
+    ok: "#5cc28f"
     alarm: "#ff5a47"
-  terminal:
-    ground-light-mode: "#121316"
-    ground-dark-mode: "#161719"
-    line-light-mode: "#24262b"
-    line-dark-mode: "#2a2c31"
     fg: "#d9dbe0"
     muted: "#8b9099"
     ok: "#3ccb7f"
@@ -157,21 +152,26 @@ as the only imagery. The page whispers; the terminal demonstrates. Nothing decor
 ### Roles
 | Role | Light | Dark | Means |
 |---|---|---|---|
-| paper | `#ffffff` | `#0d0d0d` | the page |
-| ink | `#111111` | `#ededea` | text, solid structure |
-| sub | `#5e5e5e` | `#9a9a96` | muted text |
-| line | `#e5e5e2` | `#262626` | hairlines |
-| soft | `#f5f5f2` | `#161616` | raised surface |
+| paper | `#ffffff` | `#1c1b19` | the page |
+| ink | `#111111` | `#ece9e2` | text, solid structure |
+| sub | `#5e5e5e` | `#b0aca2` | muted text |
+| line | `#e5e5e2` | `#383631` | hairlines |
+| soft | `#f5f5f2` | `#252420` | raised surface |
 | pri / on-pri | `#1f45e0` / `#ffffff` | `#3a5bff` / `#ffffff` | action: links, primary buttons, focus |
-| hi / on-hi | `#ffcc00` / `#111111` | `#ffd21f` / `#0d0d0d` | highlight: new, finalized, signed |
-| ok | `#128a43` | `#3ccb7f` | success state |
+| hi / on-hi | `#ffcc00` / `#111111` | `#efc54a` / `#141414` | highlight: new, finalized, signed |
+| ok | `#128a43` | `#5cc28f` | success state |
 | alarm | `#e3301e` | `#ff5a47` | failures and reorgs only |
 
-### Terminal (dark in both modes)
-Ground `#121316` (light mode) / `#161719` (dark mode); line `#24262b` / `#2a2c31`; text
-`#d9dbe0`; muted `#8b9099`; ok `#3ccb7f`; accent `#ffd21f`. Code uses the same palette
-through the Shiki theme: keywords and punctuation muted, identifiers plain, strings and
-numbers in the highlight yellow. No blue or red in code.
+### Code surfaces (terminals and code windows)
+Follow the theme on the docs code style. The surface inverts its ground so it never
+sits white on white: `soft` over `paper` sections, `paper` over `soft` bands. One `line`
+hairline, no tinted rows. Code uses the docs Shiki theme: keywords and punctuation
+muted, identifiers plain, strings and numbers in the syntax yellow (`#a37800` light,
+`#e6c15c` dark); shell command names take the same yellow. Checks are `ok` text. No
+blue or red in code.
+
+Dark mode is warm charcoal ("Stone"), mirroring light mode's warm off-white; it lifts
+the ground off black so long copy reads at 7.6:1 for `sub`.
 
 ### Named rules
 **Blue acts.** Blue never decorates data. It marks what you can click or do.
