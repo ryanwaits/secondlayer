@@ -10,13 +10,16 @@ Decoded Stacks chain data, backfilled from genesis, reorg-safe and kept current.
 [Subgraphs](/docs/subgraphs) fills a table you define.
 [Webhooks](/docs/webhooks) posts to a URL you run.
 
-## Why this exists
+<details id="why-this-exists">
+<summary>Why this exists</summary>
 
 Every serious Stacks app eventually needs data that no public API will ever build for it, because the data is specific to your contract. Positions per user. Volume per pool. Whatever your product is actually about.
 
 Today that means writing an indexer. Not the fun part of it either — event ingestion, Clarity decoding, reorg rollback, backfilling years of history, and then operating the thing forever. It's a few weeks to get right and it never stops being yours.
 
 That work is what Secondlayer is. The chain data arrives decoded, backfilled, and reorg-safe. What you write is the part that's actually about your app.
+
+</details>
 
 ## Do you already have an API layer?
 
@@ -28,9 +31,11 @@ That's the only choice you have to make. The decoding, the reorg handling, and t
 | **No** — and you'd rather not build one | One TypeScript file: sources, schema, handlers. You get the table *and* a REST API over it. | **[Subgraphs](/docs/subgraphs)** |
 | **I want to decode it myself** | A consumer over the signed raw firehose: bulk dumps, replay, automatic reorg rewind. This is what Index itself is built on. | **[Streams](/docs/streams)** |
 
-Subgraphs gives you a REST API you didn't write. That's the point — and the tradeoff. If you need your own API shape, don't use Subgraphs; use Index and keep your schema.
+Subgraphs gives you a REST API you didn't write. That's the point, and the tradeoff. If you need your own API shape, use Index and keep your schema.
 
 ## Get started
+
+Using an agent? `bunx skills add ryanwaits/secondlayer --skill secondlayer -y`
 
 <QuickstartPanel />
 
