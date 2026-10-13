@@ -1,20 +1,19 @@
 /**
- * Docs search finder: snaps a weak search to the docs section that covers it.
+ * Docs search finder: the sections nearest in meaning to a query.
  *
- *   POST /api/public/docs-find  { q }  →  { match: { href, anchor?, title, confidence } | null }
+ *   POST /api/public/docs-find  { q }  →  { results: [{ id, cos }] }   (top 30)
  *
  * Mounted only in platform mode. The browser calls it directly so the rate
- * limit sees the visitor's IP. A shared classifier call (jev) picks a page,
- * then a section of that page, from the published section list; it only ever
- * chooses among options, so the route cannot be used as a general model. The
- * query is never echoed or logged. Every failure answers `{ match: null }`
- * and the search stays text-only.
+ * limit sees the visitor's IP. The route embeds the query with the model the
+ * published section vectors were built with and returns cosines against them;
+ * the browser fuses that with its own text scores. It never generates text, so
+ * it cannot be used as a general model. The query is never echoed or logged.
+ * Every failure answers `{ results: [] }` and the search stays text-only.
  */
 
 import { logger } from "@secondlayer/shared";
-import { classify } from "@secondlayer/shared/classify";
-import type { Question } from "@secondlayer/shared/classify";
 import { RateLimitError } from "@secondlayer/shared/errors";
+import { embed } from "ai";
 import { Hono } from "hono";
 import { getClientIp } from "../auth/http.ts";
 import {
@@ -28,228 +27,155 @@ const MAX_Q = 200;
 const MINUTE_LIMIT = 30;
 const DAY_LIMIT = 400;
 const DAY_MS = 86_400_000;
-const CLASSIFY_TIMEOUT_MS = 2500;
-const SECTIONS_TTL_MS = 600_000;
-const SECTIONS_FETCH_TIMEOUT_MS = 3000;
+const EMBED_TIMEOUT_MS = 2500;
+const VECTORS_TTL_MS = 600_000;
+const VECTORS_FETCH_TIMEOUT_MS = 3000;
 const ANSWER_TTL_MS = 3_600_000;
 const ANSWER_CACHE_MAX = 500;
-const DEFAULT_SECTIONS_URL = "https://www.secondlayer.tools/docs/sections.json";
+const TOP_K = 30;
+const DEFAULT_VECTORS_URL = "https://www.secondlayer.tools/docs/vectors.json";
 
-/** The classifier takes 2-255 options and 64 questions; one slot is the escape. */
-const MAX_SECTIONS_PER_PAGE = 254;
-const MAX_PAGES = 63;
-/** Mirrors the shared classifier's question-id rule. */
-const QUESTION_ID = /^[A-Za-z0-9_.-]{1,100}$/;
-const WHOLE_PAGE = "_page";
-const NONE = "none";
-
-export type SectionList = {
-	pages: { href: string; title: string; lede: string }[];
-	sections: { href: string; anchor: string; title: string; summary: string }[];
+/** The file `bun run docs:vectors` writes, served at /docs/vectors.json. */
+export type VectorFile = {
+	model: string;
+	dims: number;
+	items: { id: string; hash: string; scale: number; q: string }[];
 };
 
-export type DocsMatch = {
-	href: string;
-	anchor?: string;
-	title: string;
-	confidence: number;
+export type Nearest = { id: string; cos: number };
+
+/** The vectors decoded once: row `i` of `matrix` belongs to `ids[i]`. */
+export type VectorIndex = {
+	model: string;
+	dims: number;
+	ids: string[];
+	matrix: Float32Array;
 };
 
-type Outcome = "hit" | "none" | "null";
-
-export type Catalog = {
-	questions: Record<string, Question>;
-	pageIds: Map<string, SectionList["pages"][number]>;
-	sectionsByPage: Map<string, Map<string, SectionList["sections"][number]>>;
-};
-
-/** `/docs/self-host/production` → `self-host.production`; `/docs` → `docs`. */
-export function pageQuestionId(href: string): string {
-	const rel = href.replace(/^\/docs\/?/, "");
-	return rel ? rel.replace(/\//g, ".") : "docs";
+function isVectorFile(value: unknown): value is VectorFile {
+	const v = value as VectorFile | null;
+	return (
+		!!v &&
+		typeof v.model === "string" &&
+		Number.isInteger(v.dims) &&
+		v.dims > 0 &&
+		Array.isArray(v.items)
+	);
 }
 
-const describe = (title: string, text: string) =>
-	text ? `${title}: ${text}` : title;
-
-/** The page question plus one section question per page that has sections. */
-export function buildCatalog(list: SectionList): Catalog {
-	const pageIds = new Map<string, SectionList["pages"][number]>();
-	for (const page of list.pages) {
-		const id = pageQuestionId(page.href);
-		if (!QUESTION_ID.test(`s.${id}`) || pageIds.has(id)) continue;
-		if (pageIds.size >= MAX_PAGES) {
-			logger.warn("docs_find.pages_capped", { max: MAX_PAGES });
-			break;
+/** Dequantizes int8 rows; rows of the wrong length are dropped. */
+export function decodeVectors(file: VectorFile): VectorIndex {
+	const rows = file.items.filter(
+		(i) =>
+			typeof i.id === "string" &&
+			typeof i.scale === "number" &&
+			typeof i.q === "string" &&
+			Buffer.from(i.q, "base64").length === file.dims,
+	);
+	const matrix = new Float32Array(rows.length * file.dims);
+	rows.forEach((row, r) => {
+		const bytes = new Int8Array(Buffer.from(row.q, "base64"));
+		for (let d = 0; d < file.dims; d++) {
+			matrix[r * file.dims + d] = bytes[d] * row.scale;
 		}
-		pageIds.set(id, page);
-	}
-
-	const questions: Record<string, Question> = {};
-	const sectionsByPage = new Map<
-		string,
-		Map<string, SectionList["sections"][number]>
-	>();
-	const pageCriteria: Record<string, string> = {};
-	for (const [id, page] of pageIds) {
-		pageCriteria[id] = describe(page.title, page.lede);
-		const own = list.sections.filter((s) => s.href === page.href);
-		if (own.length === 0) continue;
-		if (own.length > MAX_SECTIONS_PER_PAGE) {
-			logger.warn("docs_find.sections_capped", {
-				page: id,
-				max: MAX_SECTIONS_PER_PAGE,
-			});
-		}
-		const kept = new Map<string, SectionList["sections"][number]>();
-		const criteria: Record<string, string> = {
-			[WHOLE_PAGE]: "The page as a whole.",
-		};
-		for (const s of own.slice(0, MAX_SECTIONS_PER_PAGE)) {
-			if (s.anchor === WHOLE_PAGE || kept.has(s.anchor)) continue;
-			kept.set(s.anchor, s);
-			criteria[s.anchor] = describe(s.title, s.summary);
-		}
-		sectionsByPage.set(id, kept);
-		questions[`s.${id}`] = {
-			type: "choice",
-			instructions:
-				"A developer typed this into the docs search. Pick the section where the answer is.",
-			criteria,
-		};
-	}
-	pageCriteria[NONE] = "The question is not about these docs.";
-	questions.page = {
-		type: "choice",
-		instructions:
-			"A developer typed this into the docs search. Pick the page where the answer is.",
-		criteria: pageCriteria,
-	};
-	return { questions, pageIds, sectionsByPage };
-}
-
-type ClassifyFn = (input: {
-	state: string;
-	questions: Record<string, Question>;
-	timeoutMs: number;
-}) => Promise<{
-	answers: Record<
-		string,
-		{ type: string; choice?: string; confidence?: number }
-	>;
-} | null>;
-
-/** Reads the page answer, then that page's section answer, into one match. */
-export function pickMatch(
-	catalog: Catalog,
-	answers: NonNullable<Awaited<ReturnType<ClassifyFn>>>["answers"],
-): DocsMatch | null {
-	const pageAnswer = answers.page;
-	if (
-		!pageAnswer ||
-		pageAnswer.type !== "choice" ||
-		pageAnswer.choice === undefined ||
-		pageAnswer.choice === NONE
-	)
-		return null;
-	const page = catalog.pageIds.get(pageAnswer.choice);
-	if (!page) return null;
-	const pageConfidence = pageAnswer.confidence ?? 0;
-	const sectionAnswer = answers[`s.${pageAnswer.choice}`];
-	const pageMatch: DocsMatch = {
-		href: page.href,
-		title: page.title,
-		confidence: round(pageConfidence),
-	};
-	if (
-		!sectionAnswer ||
-		sectionAnswer.type !== "choice" ||
-		sectionAnswer.choice === undefined ||
-		sectionAnswer.choice === WHOLE_PAGE
-	)
-		return pageMatch;
-	const section = catalog.sectionsByPage
-		.get(pageAnswer.choice)
-		?.get(sectionAnswer.choice);
-	if (!section) return pageMatch;
+	});
 	return {
-		href: section.href,
-		anchor: section.anchor,
-		title: section.title,
-		confidence: round(Math.min(pageConfidence, sectionAnswer.confidence ?? 0)),
+		model: file.model,
+		dims: file.dims,
+		ids: rows.map((r) => r.id),
+		matrix,
 	};
 }
 
-const round = (n: number) => Math.round(n * 1000) / 1000;
+/** First `dims` values, scaled to unit length. */
+export function unitPrefix(vector: number[], dims: number): Float32Array {
+	const out = Float32Array.from(vector.slice(0, dims));
+	const norm = Math.hypot(...out) || 1;
+	for (let i = 0; i < out.length; i++) out[i] /= norm;
+	return out;
+}
+
+/** Cosine of the query against every row (rows are unit length), best `k` first. */
+export function nearest(
+	index: VectorIndex,
+	query: Float32Array,
+	k: number,
+): Nearest[] {
+	const { dims, matrix, ids } = index;
+	const scored: Nearest[] = [];
+	for (let r = 0; r < ids.length; r++) {
+		let dot = 0;
+		for (let d = 0; d < dims; d++) dot += matrix[r * dims + d] * query[d];
+		scored.push({ id: ids[r], cos: Math.round(dot * 10_000) / 10_000 });
+	}
+	return scored.sort((a, b) => b.cos - a.cos).slice(0, k);
+}
 
 /** Lowercased, whitespace-collapsed: the cache key for a query. */
 const normalize = (q: string) => q.toLowerCase().replace(/\s+/g, " ");
 
-function bucket(match: DocsMatch | null): string {
-	if (!match) return "none";
-	if (match.confidence >= 0.85) return "high";
-	return match.confidence >= 0.5 ? "mid" : "low";
-}
-
-function isSectionList(value: unknown): value is SectionList {
-	const v = value as SectionList | null;
-	return !!v && Array.isArray(v.pages) && Array.isArray(v.sections);
-}
-
-/** Section list from a fixed URL, cached 10 min, last good copy kept on failure. */
-export function createSectionSource(opts?: {
+/** Section vectors from a fixed URL, cached 10 min, last good copy kept on failure. */
+export function createVectorSource(opts?: {
 	fetchImpl?: typeof fetch;
 	now?: () => number;
 }) {
 	const doFetch = opts?.fetchImpl ?? fetch;
 	const now = opts?.now ?? Date.now;
-	let cached: { at: number; list: SectionList; catalog: Catalog } | null = null;
+	let cached: { at: number; index: VectorIndex } | null = null;
 	let inflight: Promise<void> | null = null;
 
 	async function refresh() {
-		const url = process.env.DOCS_SECTIONS_URL?.trim() || DEFAULT_SECTIONS_URL;
+		const url = process.env.DOCS_VECTORS_URL?.trim() || DEFAULT_VECTORS_URL;
 		try {
 			const res = await doFetch(url, {
-				signal: AbortSignal.timeout(SECTIONS_FETCH_TIMEOUT_MS),
+				signal: AbortSignal.timeout(VECTORS_FETCH_TIMEOUT_MS),
 			});
 			if (!res.ok) throw new Error(`status ${res.status}`);
-			const list: unknown = await res.json();
-			if (!isSectionList(list)) throw new Error("unexpected shape");
-			cached = { at: now(), list, catalog: buildCatalog(list) };
+			const file: unknown = await res.json();
+			if (!isVectorFile(file)) throw new Error("unexpected shape");
+			cached = { at: now(), index: decodeVectors(file) };
 		} catch (err) {
-			logger.warn("docs_find.sections_unavailable", {
+			logger.warn("docs_find.vectors_unavailable", {
 				error: err instanceof Error ? err.message : String(err),
 			});
 		}
 	}
 
-	return async function get(): Promise<Catalog | null> {
-		if (!cached || now() - cached.at > SECTIONS_TTL_MS) {
+	return async function get(): Promise<VectorIndex | null> {
+		if (!cached || now() - cached.at > VECTORS_TTL_MS) {
 			inflight ??= refresh().finally(() => {
 				inflight = null;
 			});
 			await inflight;
 		}
-		return cached?.catalog ?? null;
+		return cached?.index ?? null;
 	};
 }
 
+export type EmbedQuery = (input: {
+	model: string;
+	value: string;
+	signal: AbortSignal;
+}) => Promise<number[]>;
+
+const embedViaGateway: EmbedQuery = async ({ model, value, signal }) =>
+	(await embed({ model, value, abortSignal: signal, maxRetries: 0 })).embedding;
+
 export function createDocsFindRouter(opts?: {
 	rateLimitStore?: RateLimitStore;
-	catalog?: () => Promise<Catalog | null>;
-	classify?: ClassifyFn;
+	vectors?: () => Promise<VectorIndex | null>;
+	embedQuery?: EmbedQuery;
 	now?: () => number;
 }) {
 	const app = new Hono();
-	const getCatalog = opts?.catalog ?? createSectionSource();
+	const getVectors = opts?.vectors ?? createVectorSource();
 	const now = opts?.now ?? Date.now;
-	const run: ClassifyFn =
-		opts?.classify ?? ((input) => classify(input) as ReturnType<ClassifyFn>);
-	const answers = new Map<string, { at: number; match: DocsMatch | null }>();
+	const embedQuery = opts?.embedQuery ?? embedViaGateway;
+	const answers = new Map<string, { at: number; results: Nearest[] }>();
 
-	function remember(key: string, match: DocsMatch | null) {
+	function remember(key: string, results: Nearest[]) {
 		answers.delete(key);
-		answers.set(key, { at: now(), match });
+		answers.set(key, { at: now(), results });
 		if (answers.size > ANSWER_CACHE_MAX) {
 			const oldest = answers.keys().next().value;
 			if (oldest !== undefined) answers.delete(oldest);
@@ -288,31 +214,33 @@ export function createDocsFindRouter(opts?: {
 		const key = normalize(q);
 		const hit = answers.get(key);
 		if (hit && started - hit.at < ANSWER_TTL_MS) {
-			remember(key, hit.match);
-			return c.json({ match: hit.match });
+			remember(key, hit.results);
+			return c.json({ results: hit.results });
 		}
 
-		let match: DocsMatch | null = null;
-		let outcome: Outcome = "null";
-		const catalog = await getCatalog();
-		if (catalog) {
-			const result = await run({
-				state: q,
-				questions: catalog.questions,
-				timeoutMs: CLASSIFY_TIMEOUT_MS,
-			});
-			if (result) {
-				match = pickMatch(catalog, result.answers);
-				outcome = match ? "hit" : "none";
+		let results: Nearest[] = [];
+		let outcome: "ok" | "no_vectors" | "embed_failed" = "no_vectors";
+		const index = await getVectors();
+		if (index) {
+			try {
+				const embedding = await embedQuery({
+					model: index.model,
+					value: q,
+					signal: AbortSignal.timeout(EMBED_TIMEOUT_MS),
+				});
+				if (embedding.length < index.dims) throw new RangeError("short vector");
+				results = nearest(index, unitPrefix(embedding, index.dims), TOP_K);
+				outcome = "ok";
+				remember(key, results);
+			} catch (err) {
+				outcome = "embed_failed";
+				logger.warn("docs_find.embed_failed", {
+					error: err instanceof Error ? err.name : "unknown",
+				});
 			}
 		}
-		if (outcome !== "null") remember(key, match);
-		logger.info("docs_find", {
-			ms: now() - started,
-			outcome,
-			confidence: bucket(match),
-		});
-		return c.json({ match });
+		logger.info("docs_find", { ms: now() - started, outcome });
+		return c.json({ results });
 	});
 
 	return app;
