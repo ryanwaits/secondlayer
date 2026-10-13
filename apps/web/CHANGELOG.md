@@ -1,5 +1,12 @@
 # @secondlayer/web
 
+## 0.13.7
+
+### Patch Changes
+
+- Updated dependencies [3ad8d2e]
+  - @secondlayer/verify@0.5.2
+
 ## 0.13.6
 
 ### Patch Changes
