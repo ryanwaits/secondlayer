@@ -14,6 +14,7 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -29,6 +30,7 @@
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -48,8 +50,8 @@
 		{
 			"id": "ftTransfers.list",
 			"path": "sl.index.ftTransfers.list",
-			"summary": "Narrowing overload: `fields` shrinks the row type to exactly the requested columns plus `FtTransferAlwaysFields`.",
-			"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `FtTransferAlwaysFields`.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1640
@@ -57,6 +59,14 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `FtTransferAlwaysFields`.",
+					"typeParams": [
+						{
+							"name": "F",
+							"constraint": "keyof FtTransfer & string",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -68,11 +78,11 @@
 					"returns": {
 						"type": "Promise<FtTransfersEnvelope<FtTransferFields<F>>>",
 						"description": ""
-					},
-					"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `FtTransferAlwaysFields`."
+					}
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -88,6 +98,14 @@
 				},
 				{
 					"label": "Overload 3",
+					"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `FtTransferAlwaysFields`.",
+					"typeParams": [
+						{
+							"name": "F",
+							"constraint": "keyof FtTransfer & string",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -99,11 +117,11 @@
 					"returns": {
 						"type": "Promise<FtTransfersEnvelope<FtTransferFields<F>>>",
 						"description": ""
-					},
-					"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `FtTransferAlwaysFields`."
+					}
 				},
 				{
 					"label": "Overload 4",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -123,8 +141,8 @@
 		{
 			"id": "ftTransfers.walk",
 			"path": "sl.index.ftTransfers.walk",
-			"summary": "Narrowing overload, matching `list`: `walk` forwards `fields` to the wire, so without this the yielded rows are stripped while the type still promises every column.",
-			"description": "Narrowing overload, matching `list`: `walk` forwards `fields` to the\nwire, so without this the yielded rows are stripped while the type\nstill promises every column.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1647
@@ -132,6 +150,14 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "Narrowing overload, matching `list`: `walk` forwards `fields` to the\nwire, so without this the yielded rows are stripped while the type\nstill promises every column.",
+					"typeParams": [
+						{
+							"name": "F",
+							"constraint": "keyof FtTransfer & string",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -143,11 +169,11 @@
 					"returns": {
 						"type": "AsyncIterable<FtTransferFields<F>, any, any>",
 						"description": ""
-					},
-					"description": "Narrowing overload, matching `list`: `walk` forwards `fields` to the\nwire, so without this the yielded rows are stripped while the type\nstill promises every column."
+					}
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -163,6 +189,14 @@
 				},
 				{
 					"label": "Overload 3",
+					"description": "Narrowing overload, matching `list`: `walk` forwards `fields` to the\nwire, so without this the yielded rows are stripped while the type\nstill promises every column.",
+					"typeParams": [
+						{
+							"name": "F",
+							"constraint": "keyof FtTransfer & string",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -174,11 +208,11 @@
 					"returns": {
 						"type": "AsyncIterable<FtTransferFields<F>, any, any>",
 						"description": ""
-					},
-					"description": "Narrowing overload, matching `list`: `walk` forwards `fields` to the\nwire, so without this the yielded rows are stripped while the type\nstill promises every column."
+					}
 				},
 				{
 					"label": "Overload 4",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -207,6 +241,7 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -222,6 +257,7 @@
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -241,8 +277,8 @@
 		{
 			"id": "nftTransfers.list",
 			"path": "sl.index.nftTransfers.list",
-			"summary": "Narrowing overload: `fields` shrinks the row type to exactly the requested columns plus `NftTransferAlwaysFields`.",
-			"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `NftTransferAlwaysFields`.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1663
@@ -250,6 +286,14 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `NftTransferAlwaysFields`.",
+					"typeParams": [
+						{
+							"name": "F",
+							"constraint": "keyof NftTransfer & string",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -261,11 +305,11 @@
 					"returns": {
 						"type": "Promise<NftTransfersEnvelope<NftTransferFields<F>>>",
 						"description": ""
-					},
-					"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `NftTransferAlwaysFields`."
+					}
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -281,6 +325,14 @@
 				},
 				{
 					"label": "Overload 3",
+					"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `NftTransferAlwaysFields`.",
+					"typeParams": [
+						{
+							"name": "F",
+							"constraint": "keyof NftTransfer & string",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -292,11 +344,11 @@
 					"returns": {
 						"type": "Promise<NftTransfersEnvelope<NftTransferFields<F>>>",
 						"description": ""
-					},
-					"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `NftTransferAlwaysFields`."
+					}
 				},
 				{
 					"label": "Overload 4",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -316,8 +368,8 @@
 		{
 			"id": "nftTransfers.walk",
 			"path": "sl.index.nftTransfers.walk",
-			"summary": "Narrowing overload, matching `list` (see `FtTransfersResource`).",
-			"description": "Narrowing overload, matching `list` (see `FtTransfersResource`).",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1668
@@ -325,6 +377,14 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "Narrowing overload, matching `list` (see `FtTransfersResource`).",
+					"typeParams": [
+						{
+							"name": "F",
+							"constraint": "keyof NftTransfer & string",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -336,11 +396,11 @@
 					"returns": {
 						"type": "AsyncIterable<NftTransferFields<F>, any, any>",
 						"description": ""
-					},
-					"description": "Narrowing overload, matching `list` (see `FtTransfersResource`)."
+					}
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -356,6 +416,14 @@
 				},
 				{
 					"label": "Overload 3",
+					"description": "Narrowing overload, matching `list` (see `FtTransfersResource`).",
+					"typeParams": [
+						{
+							"name": "F",
+							"constraint": "keyof NftTransfer & string",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -367,11 +435,11 @@
 					"returns": {
 						"type": "AsyncIterable<NftTransferFields<F>, any, any>",
 						"description": ""
-					},
-					"description": "Narrowing overload, matching `list` (see `FtTransfersResource`)."
+					}
 				},
 				{
 					"label": "Overload 4",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -400,6 +468,7 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -415,6 +484,7 @@
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -434,8 +504,8 @@
 		{
 			"id": "events.list",
 			"path": "sl.index.events.list",
-			"summary": "Narrowing overload: `fields` shrinks the returned row type to exactly the requested columns plus `IndexAlwaysFields`.",
-			"description": "Narrowing overload: `fields` shrinks the returned row type to exactly\nthe requested columns plus `IndexAlwaysFields`. `const F` means no\n`as const` at the call site.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1687
@@ -443,6 +513,18 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "Narrowing overload: `fields` shrinks the returned row type to exactly\nthe requested columns plus `IndexAlwaysFields`. `const F` means no\n`as const` at the call site.",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "IndexEventType"
+						},
+						{
+							"name": "F",
+							"constraint": "keyof IndexEventOf<T> & string",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -454,11 +536,17 @@
 					"returns": {
 						"type": "Promise<EventsEnvelope<T, IndexEventFields<T, F>>>",
 						"description": ""
-					},
-					"description": "Narrowing overload: `fields` shrinks the returned row type to exactly\nthe requested columns plus `IndexAlwaysFields`. `const F` means no\n`as const` at the call site."
+					}
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "IndexEventType"
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -474,6 +562,18 @@
 				},
 				{
 					"label": "Overload 3",
+					"description": "Narrowing overload: `fields` shrinks the returned row type to exactly\nthe requested columns plus `IndexAlwaysFields`. `const F` means no\n`as const` at the call site.",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "IndexEventType"
+						},
+						{
+							"name": "F",
+							"constraint": "keyof IndexEventOf<T> & string",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -485,11 +585,17 @@
 					"returns": {
 						"type": "Promise<EventsEnvelope<T, IndexEventFields<T, F>>>",
 						"description": ""
-					},
-					"description": "Narrowing overload: `fields` shrinks the returned row type to exactly\nthe requested columns plus `IndexAlwaysFields`. `const F` means no\n`as const` at the call site."
+					}
 				},
 				{
 					"label": "Overload 4",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "IndexEventType"
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -509,8 +615,8 @@
 		{
 			"id": "events.walk",
 			"path": "sl.index.events.walk",
-			"summary": "Narrowing overload, matching `list`: `walk` forwards `fields` to the wire, so without this the yielded rows are stripped while the type still promises every column.",
-			"description": "Narrowing overload, matching `list`: `walk` forwards `fields` to the\nwire, so without this the yielded rows are stripped while the type\nstill promises every column.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1699
@@ -518,6 +624,18 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "Narrowing overload, matching `list`: `walk` forwards `fields` to the\nwire, so without this the yielded rows are stripped while the type\nstill promises every column.",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "IndexEventType"
+						},
+						{
+							"name": "F",
+							"constraint": "keyof IndexEventOf<T> & string",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -529,11 +647,17 @@
 					"returns": {
 						"type": "AsyncIterable<IndexEventFields<T, F>, any, any>",
 						"description": ""
-					},
-					"description": "Narrowing overload, matching `list`: `walk` forwards `fields` to the\nwire, so without this the yielded rows are stripped while the type\nstill promises every column."
+					}
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "IndexEventType"
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -549,6 +673,18 @@
 				},
 				{
 					"label": "Overload 3",
+					"description": "Narrowing overload, matching `list`: `walk` forwards `fields` to the\nwire, so without this the yielded rows are stripped while the type\nstill promises every column.",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "IndexEventType"
+						},
+						{
+							"name": "F",
+							"constraint": "keyof IndexEventOf<T> & string",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -560,11 +696,17 @@
 					"returns": {
 						"type": "AsyncIterable<IndexEventFields<T, F>, any, any>",
 						"description": ""
-					},
-					"description": "Narrowing overload, matching `list`: `walk` forwards `fields` to the\nwire, so without this the yielded rows are stripped while the type\nstill promises every column."
+					}
 				},
 				{
 					"label": "Overload 4",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "IndexEventType"
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -593,6 +735,17 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "IndexEventType"
+						},
+						{
+							"name": "TTx",
+							"default": "never"
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -621,6 +774,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -649,6 +803,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -677,6 +832,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -705,6 +861,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -733,6 +890,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -761,6 +919,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -789,6 +948,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -817,6 +977,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -845,6 +1006,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -873,6 +1035,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "ref",
@@ -892,8 +1055,8 @@
 		{
 			"id": "transactions.list",
 			"path": "sl.index.transactions.list",
-			"summary": "Narrowing overload: `fields` shrinks the row type to exactly the requested columns plus `TransactionAlwaysFields` .",
-			"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus \n`TransactionAlwaysFields`\n. Declared as\nan overloaded call signature because an arrow property cannot carry\noverloads.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1897
@@ -901,6 +1064,7 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `TransactionAlwaysFields`. Declared as\nan overloaded call signature because an arrow property cannot carry\noverloads.",
 					"params": [
 						{
 							"name": "params",
@@ -916,6 +1080,7 @@
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -944,6 +1109,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -972,6 +1138,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "txId",
@@ -1000,6 +1167,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "txId",
@@ -1028,6 +1196,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1056,6 +1225,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1084,6 +1254,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1112,6 +1283,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1140,6 +1312,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "txId",
@@ -1159,8 +1332,8 @@
 		{
 			"id": "sbtc.deposits.list",
 			"path": "sl.index.sbtc.deposits.list",
-			"summary": "Narrowing overload: `fields` shrinks the row type to exactly the requested columns plus `SbtcDepositAlwaysFields` .",
-			"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus \n`SbtcDepositAlwaysFields`\n.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1106
@@ -1168,6 +1341,7 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `SbtcDepositAlwaysFields`.",
 					"params": [
 						{
 							"name": "params",
@@ -1183,6 +1357,7 @@
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1211,6 +1386,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1231,7 +1407,7 @@
 			"id": "sbtc.deposits.consume",
 			"path": "sl.index.sbtc.deposits.consume",
 			"summary": "Checkpointed sweep of completed deposits — append-only, so safe to mirror.",
-			"description": "Checkpointed sweep of completed deposits — append-only, so safe to\nmirror. See \n[`IndexConsumeOptions`](/docs/sdk-reference/index-api#t-IndexConsumeOptions)\n.",
+			"description": "Checkpointed sweep of completed deposits — append-only, so safe to\nmirror. See [`IndexConsumeOptions`](/docs/sdk-reference/index-api#t-IndexConsumeOptions).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1113
@@ -1239,6 +1415,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1267,6 +1444,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "bitcoinTxid",
@@ -1286,8 +1464,8 @@
 		{
 			"id": "sbtc.withdrawals.list",
 			"path": "sl.index.sbtc.withdrawals.list",
-			"summary": "Narrowing overload: `fields` shrinks the row type to exactly the requested columns plus `SbtcWithdrawalAlwaysFields` .",
-			"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus \n`SbtcWithdrawalAlwaysFields`\n.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1126
@@ -1295,6 +1473,7 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `SbtcWithdrawalAlwaysFields`.",
 					"params": [
 						{
 							"name": "params",
@@ -1310,6 +1489,7 @@
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1338,6 +1518,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1366,6 +1547,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "requestId",
@@ -1394,6 +1576,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1422,6 +1605,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1442,7 +1626,7 @@
 			"id": "sbtc.events.consume",
 			"path": "sl.index.sbtc.events.consume",
 			"summary": "Checkpointed sweep of the raw peg event log — append-only across all six topics.",
-			"description": "Checkpointed sweep of the raw peg event log — append-only across all\nsix topics. See \n[`IndexConsumeOptions`](/docs/sdk-reference/index-api#t-IndexConsumeOptions)\n.",
+			"description": "Checkpointed sweep of the raw peg event log — append-only across all\nsix topics. See [`IndexConsumeOptions`](/docs/sdk-reference/index-api#t-IndexConsumeOptions).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1147
@@ -1450,6 +1634,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1478,6 +1663,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [],
 					"returns": {
 						"type": "Promise<SbtcSummaryEnvelope>",
@@ -1499,6 +1685,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1527,6 +1714,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1555,6 +1743,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "rewardCycle",
@@ -1574,8 +1763,8 @@
 		{
 			"id": "pox5.events.list",
 			"path": "sl.index.pox5.events.list",
-			"summary": "Narrowing overload: `fields` shrinks the row type to exactly the requested columns plus `Pox5EventAlwaysFields` .",
-			"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus \n`Pox5EventAlwaysFields`\n.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1347
@@ -1583,6 +1772,7 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "Narrowing overload: `fields` shrinks the row type to exactly the\nrequested columns plus `Pox5EventAlwaysFields`.",
 					"params": [
 						{
 							"name": "params",
@@ -1598,6 +1788,7 @@
 				},
 				{
 					"label": "Overload 2",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1626,6 +1817,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1646,7 +1838,7 @@
 			"id": "pox5.events.consume",
 			"path": "sl.index.pox5.events.consume",
 			"summary": "Checkpointed sweep of the pox-5 print log — append-only across all 19 topics.",
-			"description": "Checkpointed sweep of the pox-5 print log — append-only across all\n19 topics. See \n[`IndexConsumeOptions`](/docs/sdk-reference/index-api#t-IndexConsumeOptions)\n.",
+			"description": "Checkpointed sweep of the pox-5 print log — append-only across all\n19 topics. See [`IndexConsumeOptions`](/docs/sdk-reference/index-api#t-IndexConsumeOptions).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
 				"line": 1354
@@ -1654,6 +1846,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1682,6 +1875,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1710,6 +1904,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1738,6 +1933,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1766,6 +1962,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "rune",
@@ -1794,6 +1991,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -1823,6 +2021,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [],
 					"returns": {
 						"type": "Promise<IndexDiscovery>",
@@ -1845,6 +2044,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "contractId",
@@ -7057,7 +7257,7 @@
 					"name": "fields",
 					"type": "readonly (\"cursor\" | \"sender\" | \"recipient\" | \"block_height\" | \"event_type\" | \"block_time\" | \"tx_id\" | \"tx_index\" | \"event_index\" | \"contract_id\" | \"asset_identifier\" | \"value\")[]",
 					"required": false,
-					"description": "Columns to return (see \n`FtTransfersListParams.fields`\n)."
+					"description": "Columns to return (see `FtTransfersListParams.fields`)."
 				},
 				{
 					"name": "cursor",
@@ -7171,7 +7371,7 @@
 					"name": "fields",
 					"type": "readonly (\"cursor\" | \"sender\" | \"recipient\" | \"block_height\" | \"event_type\" | \"block_time\" | \"tx_id\" | \"tx_index\" | \"event_index\" | \"contract_id\" | \"asset_identifier\" | \"value\")[]",
 					"required": false,
-					"description": "Columns to return (see \n`FtTransfersListParams.fields`\n)."
+					"description": "Columns to return (see `FtTransfersListParams.fields`)."
 				},
 				{
 					"name": "retryCount",
@@ -7885,7 +8085,7 @@
 					"name": "reorgs",
 					"type": "IndexBtcReorg[]",
 					"required": true,
-					"description": "Always empty — see \n`RunesEnvelope.reorgs`\n."
+					"description": "Always empty — see `RunesEnvelope.reorgs`."
 				},
 				{
 					"name": "notes",
@@ -7920,7 +8120,7 @@
 		},
 		{
 			"name": "RuneRef",
-			"summary": "A rune reference accepted by every Runes call: an id (`RuneId`) or a name, with or without spacers, in any case — `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` all resolve t…",
+			"summary": "A rune reference accepted by every Runes call: an id (`RuneId`) or a name, with or without spacers, in any case — `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` all resolve to the same rune.",
 			"definition": "`${number}:${number}` | (string & {})"
 		},
 		{

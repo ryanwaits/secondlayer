@@ -15,6 +15,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [],
 					"returns": {
 						"type": "Promise<{ data: SubgraphSummary[] }>",
@@ -37,6 +38,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -66,6 +68,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -101,6 +104,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -136,6 +140,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -171,6 +176,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -200,6 +206,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -229,6 +236,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -264,6 +272,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -299,6 +308,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -334,6 +344,13 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"default": "unknown"
+						}
+					],
 					"params": [
 						{
 							"name": "name",
@@ -375,6 +392,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -404,6 +422,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -439,6 +458,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "data",
@@ -468,6 +488,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -497,6 +518,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "data",
@@ -517,7 +539,7 @@
 			"id": "count",
 			"path": "sl.subgraphs.count",
 			"summary": "Open /v1 read: exact row count for a filtered set.",
-			"description": "Open /v1 read: exact row count for a filtered set. Same auth posture as\n`rows`.",
+			"description": "Open /v1 read: exact row count for a filtered set. Same auth posture as `rows`.",
 			"source": {
 				"file": "packages/sdk/src/subgraphs/client.ts",
 				"line": 334
@@ -526,6 +548,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -567,6 +590,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "name",
@@ -607,6 +631,13 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "{ name: string; schema: Record<string, unknown> }"
+						}
+					],
 					"params": [
 						{
 							"name": "def",

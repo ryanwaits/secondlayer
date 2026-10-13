@@ -64,7 +64,7 @@
 		},
 		{
 			"name": "buildListIssue",
-			"summary": "The list page's own reduced detector: computed from `WebhookSummary` alone (no deliveries, no dead-letter rows — the list endpoint returns neither, and fetching per-row detail or deliveries here wo…",
+			"summary": "The list page's own reduced detector: computed from `WebhookSummary` alone (no deliveries, no dead-letter rows — the list endpoint returns neither, and fetching per-row detail or deliveries here would fan out one request per row).",
 			"signature": "buildListIssue(webhook: { status: WebhookStatus; circuitOpenedAt: string | null; lastSuccessAt: string | null }): DoctorIssue | null",
 			"source": {
 				"file": "packages/sdk/src/webhooks/doctor.ts",
@@ -73,7 +73,7 @@
 		},
 		{
 			"name": "consumeIndexFeed",
-			"summary": "Checkpointed pull loop over a cursor-paginated Index feed — the Index port of `consumeStreamsEvents`, sharing its contract: at-least-once delivery, client-owned checkpoints (`onBatch` may return th…",
+			"summary": "Checkpointed pull loop over a cursor-paginated Index feed — the Index port of `consumeStreamsEvents`, sharing its contract: at-least-once delivery, client-owned checkpoints (`onBatch` may return the cursor it committed), and automatic reorg rewind to the lowest fresh fork point.",
 			"signature": "consumeIndexFeed<TItem extends IndexFeedItem, TEnvelope extends IndexFeedEnvelope, TTx = never>(opts: IndexConsumeOptions<TItem, TEnvelope, TTx> & { fetchPage: IndexFeedFetcher<TEnvelope>; itemsOf: (envelope: TEnvelope) => TItem[] }): Promise<{ cursor: string | null; pages: number; emptyPolls: number }>",
 			"source": {
 				"file": "packages/sdk/src/index-api/consumer.ts",
@@ -118,7 +118,7 @@
 		},
 		{
 			"name": "decode",
-			"summary": "Decode a raw Streams event into the SAME flat, `event_type`-discriminated row shape Index serves — so Streams consumption reads identically to Index consumption, with one call instead of eleven gua…",
+			"summary": "Decode a raw Streams event into the SAME flat, `event_type`-discriminated row shape Index serves — so Streams consumption reads identically to Index consumption, with one call instead of eleven guard+decode pairs.",
 			"signature": "decode(event: StreamsEvent): IndexEvent",
 			"source": {
 				"file": "packages/sdk/src/streams/decode.ts",
@@ -244,7 +244,7 @@
 		},
 		{
 			"name": "fetchRewardSet",
-			"summary": "Resolve a reward set directly from a stacks-node (`/v3/stacker_set/{cycle}`), so a caller can verify the consensus layer against a node IT trusts rather than the reward set Secondlayer embedded in …",
+			"summary": "Resolve a reward set directly from a stacks-node (`/v3/stacker_set/{cycle}`), so a caller can verify the consensus layer against a node IT trusts rather than the reward set Secondlayer embedded in the proof.",
 			"signature": "fetchRewardSet(opts: { nodeUrl: string; cycle: number; fetchImpl?: typeof fetch }): Promise<RewardSet | null>",
 			"source": {
 				"file": "packages/sdk/src/proofs.ts",
@@ -472,7 +472,7 @@
 		{
 			"name": "ApiError",
 			"parent": "SecondLayerError",
-			"summary": "Error thrown by {@link SecondLayer} when an API request fails."
+			"summary": "Error thrown by `SecondLayer` when an API request fails."
 		},
 		{
 			"name": "ArchiveAuthError",

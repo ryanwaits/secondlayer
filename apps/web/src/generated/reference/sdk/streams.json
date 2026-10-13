@@ -5,8 +5,8 @@
 		{
 			"id": "consume",
 			"path": "sl.streams.consume",
-			"summary": "Narrowing overload: a literal `types` array narrows every batch's event union to exactly those members.",
-			"description": "Narrowing overload: a literal `types` array narrows every batch's\nevent union to exactly those members.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
 				"line": 773
@@ -14,6 +14,14 @@
 			"overloads": [
 				{
 					"label": "Stacks",
+					"description": "Narrowing overload: a literal `types` array narrows every batch's\nevent union to exactly those members.",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "readonly StreamsEventType[]",
+							"const": true
+						}
+					],
 					"params": [
 						{
 							"name": "params",
@@ -25,11 +33,11 @@
 					"returns": {
 						"type": "AsyncIterableIterator<StreamsBatch<StreamsEventOfTypes<T>, StreamsTip>, any, any>",
 						"description": ""
-					},
-					"description": "Narrowing overload: a literal `types` array narrows every batch's\nevent union to exactly those members."
+					}
 				},
 				{
 					"label": "Any chain",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -45,6 +53,7 @@
 				},
 				{
 					"label": "Bitcoin",
+					"description": "`chain: \"bitcoin\"` — batches carry Runes rows only, on the bitcoin tip\nshape (plan 059/061).",
 					"params": [
 						{
 							"name": "params",
@@ -56,8 +65,7 @@
 					"returns": {
 						"type": "AsyncIterableIterator<StreamsBatch<RuneStreamsEvent, StreamsBitcoinTip>, any, any>",
 						"description": ""
-					},
-					"description": "`chain: \"bitcoin\"` — batches carry Runes rows only, on the bitcoin tip\nshape (plan 059/061)."
+					}
 				}
 			],
 			"examples": []
@@ -65,8 +73,8 @@
 		{
 			"id": "events.list",
 			"path": "sl.streams.events.list",
-			"summary": "`clock: \"vm\"` pages carry vm rows only (a parallel vocabulary, `event_index` = `ordinal`).",
-			"description": "`clock: \"vm\"` pages carry vm rows only (a parallel vocabulary,\n`event_index` = `ordinal`). Never `StreamsEvent`. Stacks-only —\n`chain: \"bitcoin\"` has no `clock`.\n\n\nNarrowing overload, matching `consume`. Classic clock only —\n`clock: \"vm\"` is overload 1, and a general `StreamsEventsListParams`\nvariable (clock unresolved) is the wire-union fallback.\n\n\n`chain: \"bitcoin\"` pages carry Runes rows only, on the bitcoin tip\nshape (plan 059).\n\n\nUnresolved `chain`/`clock` on a general params variable: the wire union.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
 				"line": 786
@@ -74,6 +82,7 @@
 			"overloads": [
 				{
 					"label": "Stacks",
+					"description": "`clock: \"vm\"` pages carry vm rows only (a parallel vocabulary,\n`event_index` = `ordinal`). Never `StreamsEvent`. Stacks-only —\n`chain: \"bitcoin\"` has no `clock`.\n\n\nNarrowing overload, matching `consume`. Classic clock only —\n`clock: \"vm\"` is overload 1, and a general `StreamsEventsListParams`\nvariable (clock unresolved) is the wire-union fallback.\n\n\n`chain: \"bitcoin\"` pages carry Runes rows only, on the bitcoin tip\nshape (plan 059).\n\n\nUnresolved `chain`/`clock` on a general params variable: the wire union.",
 					"params": [
 						{
 							"name": "params",
@@ -89,6 +98,7 @@
 				},
 				{
 					"label": "Stacks",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -104,6 +114,7 @@
 				},
 				{
 					"label": "Stacks",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -119,6 +130,7 @@
 				},
 				{
 					"label": "Any chain",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -134,6 +146,7 @@
 				},
 				{
 					"label": "Bitcoin",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -153,8 +166,8 @@
 		{
 			"id": "events.byTxId",
 			"path": "sl.streams.events.byTxId",
-			"summary": "`chain: \"bitcoin\"` — Runes events for one transaction.",
-			"description": "`chain: \"bitcoin\"` — Runes events for one transaction.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
 				"line": 822
@@ -162,6 +175,7 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "",
 					"params": [
 						{
 							"name": "txId",
@@ -177,6 +191,7 @@
 				},
 				{
 					"label": "Bitcoin",
+					"description": "`chain: \"bitcoin\"` — Runes events for one transaction.",
 					"params": [
 						{
 							"name": "txId",
@@ -202,8 +217,8 @@
 		{
 			"id": "events.consume",
 			"path": "sl.streams.events.consume",
-			"summary": "`chain: \"bitcoin\"` — the checkpointed sweep over Runes events; see",
-			"description": "`chain: \"bitcoin\"` — the checkpointed sweep over Runes events; see\n\n[`StreamsEventsConsumeBitcoinParams`](/docs/sdk-reference/streams#t-StreamsEventsConsumeBitcoinParams)\n.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
 				"line": 838
@@ -211,6 +226,7 @@
 			"overloads": [
 				{
 					"label": "Stacks",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -226,6 +242,7 @@
 				},
 				{
 					"label": "Bitcoin",
+					"description": "`chain: \"bitcoin\"` — the checkpointed sweep over Runes events; see [`StreamsEventsConsumeBitcoinParams`](/docs/sdk-reference/streams#t-StreamsEventsConsumeBitcoinParams).",
 					"params": [
 						{
 							"name": "params",
@@ -254,6 +271,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -273,8 +291,8 @@
 		{
 			"id": "events.stream",
 			"path": "sl.streams.events.stream",
-			"summary": "`chain: \"bitcoin\"` — Runes events only (plan 059/061).",
-			"description": "`chain: \"bitcoin\"` — Runes events only (plan 059/061).\n\n\nNarrowing overload, matching `consume`.",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
 				"line": 872
@@ -282,6 +300,7 @@
 			"overloads": [
 				{
 					"label": "Stacks",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -297,6 +316,7 @@
 				},
 				{
 					"label": "Any chain",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -312,6 +332,7 @@
 				},
 				{
 					"label": "Bitcoin",
+					"description": "`chain: \"bitcoin\"` — Runes events only (plan 059/061).\n\n\nNarrowing overload, matching `consume`.",
 					"params": [
 						{
 							"name": "params",
@@ -331,8 +352,8 @@
 		{
 			"id": "events.subscribe",
 			"path": "sl.streams.events.subscribe",
-			"summary": "`chain: \"bitcoin\"` — `onEvent` receives Runes rows (plan 059/061).",
-			"description": "`chain: \"bitcoin\"` — `onEvent` receives Runes rows (plan 059/061).",
+			"summary": "",
+			"description": "",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
 				"line": 889
@@ -340,6 +361,7 @@
 			"overloads": [
 				{
 					"label": "Stacks",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -355,6 +377,7 @@
 				},
 				{
 					"label": "Bitcoin",
+					"description": "`chain: \"bitcoin\"` — `onEvent` receives Runes rows (plan 059/061).",
 					"params": [
 						{
 							"name": "params",
@@ -383,6 +406,7 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "",
 					"params": [
 						{
 							"name": "heightOrHash",
@@ -398,6 +422,7 @@
 				},
 				{
 					"label": "Bitcoin",
+					"description": "",
 					"params": [
 						{
 							"name": "heightOrHash",
@@ -432,6 +457,7 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -447,6 +473,7 @@
 				},
 				{
 					"label": "Bitcoin",
+					"description": "",
 					"params": [
 						{
 							"name": "params",
@@ -475,6 +502,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [],
 					"returns": {
 						"type": "Promise<StreamsDumpsManifest>",
@@ -496,6 +524,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "file",
@@ -524,6 +553,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "file",
@@ -552,6 +582,7 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "",
 					"params": [
 						{
 							"name": "height",
@@ -567,6 +598,7 @@
 				},
 				{
 					"label": "Bitcoin",
+					"description": "",
 					"params": [
 						{
 							"name": "height",
@@ -601,6 +633,7 @@
 			"overloads": [
 				{
 					"label": "Overload 1",
+					"description": "",
 					"params": [],
 					"returns": {
 						"type": "Promise<StreamsTip>",
@@ -609,6 +642,7 @@
 				},
 				{
 					"label": "Bitcoin",
+					"description": "",
 					"params": [
 						{
 							"name": "opts",
@@ -1966,7 +2000,7 @@
 					"name": "chain",
 					"type": "\"stacks\"",
 					"required": false,
-					"description": "`chain: \"stacks\"` (default, omit `chain` entirely) — the bitcoin branch\nis \n[`StreamsEventsConsumeBitcoinParams`](/docs/sdk-reference/streams#t-StreamsEventsConsumeBitcoinParams)\n, a separate overload with\nno `filters`/`on`/`decoded` (Stacks-only concepts)."
+					"description": "`chain: \"stacks\"` (default, omit `chain` entirely) — the bitcoin branch\nis [`StreamsEventsConsumeBitcoinParams`](/docs/sdk-reference/streams#t-StreamsEventsConsumeBitcoinParams), a separate overload with\nno `filters`/`on`/`decoded` (Stacks-only concepts)."
 				},
 				{
 					"name": "fromCursor",
@@ -2607,7 +2641,7 @@
 					"name": "filters",
 					"type": "StreamsFilterMap",
 					"required": false,
-					"description": "Labelled filter groups; see \n`StreamsEventsListParams.filters`\n."
+					"description": "Labelled filter groups; see `StreamsEventsListParams.filters`."
 				}
 			]
 		},
@@ -2763,7 +2797,7 @@
 					"name": "filters",
 					"type": "StreamsFilterMap",
 					"required": false,
-					"description": "Labelled filter groups; see \n`StreamsEventsListParams.filters`\n."
+					"description": "Labelled filter groups; see `StreamsEventsListParams.filters`."
 				},
 				{
 					"name": "onEvent",

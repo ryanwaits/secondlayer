@@ -15,6 +15,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "requests",
@@ -44,6 +45,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [],
 					"returns": {
 						"type": "Promise<ContextSnapshot>",

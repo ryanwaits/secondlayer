@@ -15,6 +15,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [],
 					"returns": {
 						"type": "Promise<{ data: WebhookSummary[] }>",
@@ -37,6 +38,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
@@ -66,6 +68,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "input",
@@ -95,6 +98,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
@@ -130,6 +134,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
@@ -159,6 +164,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
@@ -188,6 +194,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
@@ -217,6 +224,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
@@ -246,6 +254,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
@@ -275,6 +284,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
@@ -304,6 +314,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
@@ -333,6 +344,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
@@ -368,6 +380,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
@@ -403,6 +416,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
@@ -432,6 +446,7 @@
 			"overloads": [
 				{
 					"label": "",
+					"description": "",
 					"params": [
 						{
 							"name": "id",
