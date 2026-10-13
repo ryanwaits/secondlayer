@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.13.4
+
+### Patch Changes
+
+- 2f839c1: Event counts on Index and Streams tick live from the hosted index; product pages read row counts from the signed archive manifest; scrolling is instant, transitions are tighter and buttons give press feedback.
+
 ## 0.13.3
 
 ### Patch Changes

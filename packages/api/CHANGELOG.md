@@ -1,5 +1,11 @@
 # @secondlayer/api
 
+## 1.54.0
+
+### Minor Changes
+
+- f1a23d1: `GET /public/status` reports `index.events_total`, the count of canonical chain events stored (the archive's `events` dataset), served from an in-memory counter refreshed every ~10s. The response now sends `Cache-Control: public, max-age=5, s-maxage=5`.
+
 ## 1.53.0
 
 ### Minor Changes
