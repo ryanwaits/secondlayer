@@ -6,9 +6,6 @@ import { docsNavPages } from "./nav";
 /** Docs page contract: ≤400 words visible on entry. Collapsed <details> and code don't count. */
 const BUDGET = 400;
 
-/** Pages not yet rewritten to the contract. Plans remove entries as they rewrite pages; never add one. */
-const PENDING_REWRITE = new Set<string>(["/docs/rest-api"]);
-
 /** Generated or log pages the contract does not apply to. */
 const EXEMPT = new Set([
 	"/docs/api-reference",
@@ -44,23 +41,10 @@ const counts = docsNavPages()
 	}));
 
 describe("docs word budget", () => {
-	test("pages that follow the contract stay within the entry budget", () => {
-		const over = counts.filter(
-			(c) => !PENDING_REWRITE.has(c.href) && c.words > BUDGET,
-		);
+	test("every page stays within the entry budget", () => {
+		const over = counts.filter((c) => c.words > BUDGET);
 		expect(
 			over.map((c) => `${c.href}: ${c.words} words (max ${BUDGET})`),
-		).toEqual([]);
-	});
-
-	test("pending pages are still over budget, so the set only shrinks", () => {
-		const fixed = counts.filter(
-			(c) => PENDING_REWRITE.has(c.href) && c.words <= BUDGET,
-		);
-		expect(
-			fixed.map(
-				(c) => `${c.href}: ${c.words} words, remove from PENDING_REWRITE`,
-			),
 		).toEqual([]);
 	});
 });

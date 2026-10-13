@@ -2,7 +2,7 @@
 
 Every `/v1` surface answers with the same envelope, cursor, and filter grammar, so one client shape reads Index, Streams, and subgraphs. Served at `SECONDLAYER_API_URL`, with your `SECONDLAYER_API_KEY` as a bearer token ([Keys and billing](/docs/authentication)). On your own box: [Self-host](/docs/self-host#use-these-docs-on-your-box).
 
-Per-endpoint parameters and response codes: [API reference](/docs/api-reference). Proof routes (`/v1/proofs/*`, `/v1/index/transactions/:tx_id/proof`): [Verify](/docs/verification#proofs-api).
+Per-endpoint parameters and response codes: [API reference](/docs/api-reference). Print-event schemas: [`get-print-schema`](/docs/api-reference#get-print-schema). Proof routes (`/v1/proofs/*`, `/v1/index/transactions/:tx_id/proof`): [Verify](/docs/verification#proofs-api).
 
 ## Response envelope
 
@@ -38,7 +38,8 @@ Cursor format is `<block_height>:<event_index>`. `tip.finalized_height` is the b
 
 Branch on `code`, not on the message. `request_id` matches the `X-Request-Id` response header (sent on every response); quote it in any report. `feedback.url` is where to report a gap.
 
-## Report a problem (hosted)
+<details id="report-a-problem-hosted">
+<summary>Report a problem (hosted)</summary>
 
 Every error body on `api.secondlayer.tools` carries a `request_id`. When a call fails and you think the API is wrong or missing something, send that id back with one line on what you were trying to do:
 
@@ -50,6 +51,8 @@ curl -X POST "$SECONDLAYER_API_URL/v1/feedback" \
 ```
 
 The server attaches its own record of the failed call (method, path, status, code; kept 24 hours), so you don't resend it. Optional fields: `kind_hint` (`missing_capability`, `bug`, `schema_gap`, `docs_mismatch`, `perf`), `expected` (what you wanted back), and `evidence` (`tx_id`, `block_height`, `contract_id`, `event_type`, `subgraph`, `table`). An `Idempotency-Key` header makes retries safe.
+
+</details>
 
 ## Pagination
 
@@ -79,7 +82,8 @@ Any unrecognized query param returns `400`; the error suggests the closest valid
 
 </Callout>
 
-## Streaming (SSE)
+<details id="streaming-sse">
+<summary>Streaming (SSE)</summary>
 
 ```bash
 curl -N "$SECONDLAYER_API_URL/v1/streams/events/stream?types=ft_transfer" \
@@ -93,7 +97,10 @@ Two endpoints push rows as Server-Sent Events (`Content-Type: text/event-stream`
 
 Ergonomic clients: [Streams](/docs/streams#real-time-firehose-sse), [Reading rows](/docs/subgraphs/reading#stream-rows-in-real-time).
 
-## Aggregates
+</details>
+
+<details id="aggregates">
+<summary>Aggregates</summary>
 
 `GET /v1/subgraphs/:name/:table/aggregate` runs scalar aggregates over the same filtered set as the list and count endpoints.
 
@@ -133,19 +140,10 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers/aggregate" \
 
 Typed as `sl.subgraphs.typed(def).<table>.aggregate(spec)`, or untyped as `sl.subgraphs.aggregate(name, table, params)`: signatures in the [SDK reference](/docs/sdk-reference).
 
-## Print-event schemas
+</details>
 
-```bash
-curl "$SECONDLAYER_API_URL/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema" \
-  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
-```
-
-`GET /v1/index/contracts/:contract_id/print-schema` returns per-topic print payload schemas inferred from indexed history; response shape in [Index](/docs/index#print-schemas).
-
-- Cached `Cache-Control: public, max-age=300` with a weak `ETag`; send `If-None-Match` for `304`.
-- Takes **no query params**; any param is rejected with `400 VALIDATION_ERROR`.
-
-## Batch reads
+<details id="batch-reads">
+<summary>Batch reads</summary>
 
 `POST /v1/batch` runs up to 10 `/v1` reads in one round trip, for agents and dashboards that pay per request in latency.
 
@@ -161,6 +159,8 @@ curl -X POST "$SECONDLAYER_API_URL/v1/batch" \
 ```
 
 Results come back in order as `{ "results": [{ "path", "status", "body" }] }`. Each item runs through the same auth and limits as a direct call, with your `Authorization` header forwarded. Only paths under `/v1/index/`, `/v1/subgraphs`, `/v1/streams/` and `/v1/contracts` are allowed; anything else is a per-item `400`.
+
+</details>
 
 export const agent = `
 - Envelope: rows under a named key (events, calls, rows) plus top-level next_cursor, tip and reorgs.
