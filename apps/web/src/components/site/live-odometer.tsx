@@ -1,15 +1,11 @@
 "use client";
 
+import { PUBLIC_API_URL } from "@/lib/public-api";
 import { readEventsTotal } from "@/lib/status-fields";
 import { useSyncExternalStore } from "react";
 import { Odometer } from "./odometer";
 
-const STATUS_URL = `${
-	process.env.NEXT_PUBLIC_SECONDLAYER_API_URL ??
-	(process.env.NODE_ENV === "production"
-		? "https://api.secondlayer.tools"
-		: "http://localhost:3800")
-}/public/status`;
+const STATUS_URL = `${PUBLIC_API_URL}/public/status`;
 const POLL_MS = 10_000;
 
 /**

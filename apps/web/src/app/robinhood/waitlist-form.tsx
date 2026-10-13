@@ -1,5 +1,6 @@
 "use client";
 
+import { PUBLIC_API_URL } from "@/lib/public-api";
 import { type FormEvent, useState } from "react";
 
 // First option is preselected. Issuer goes last so the "team" tag on the
@@ -55,8 +56,9 @@ export function WaitlistForm() {
 
 		setStatus({ kind: "sending" });
 		try {
-			const res = await fetch("/api/public/waitlist", {
+			const res = await fetch(`${PUBLIC_API_URL}/api/public/waitlist`, {
 				method: "POST",
+				credentials: "omit",
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({
 					list: "robinhood",

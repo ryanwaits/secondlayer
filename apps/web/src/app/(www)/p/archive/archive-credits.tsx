@@ -1,5 +1,6 @@
 "use client";
 
+import { PUBLIC_API_URL } from "@/lib/public-api";
 import { useRef, useState } from "react";
 
 const PACKS = [10, 25, 50, 100] as const;
@@ -26,8 +27,9 @@ export function ArchiveCredits() {
 		setBusy(true);
 		setError(null);
 		try {
-			const res = await fetch("/api/public/credits/checkout", {
+			const res = await fetch(`${PUBLIC_API_URL}/api/public/credits/checkout`, {
 				method: "POST",
+				credentials: "omit",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ email, amount }),
 			});

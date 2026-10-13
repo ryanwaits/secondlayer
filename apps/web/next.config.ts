@@ -45,7 +45,9 @@ const nextConfig: NextConfig = {
 							// from us-assets.i.posthog.com), and interpolating an env var into
 							// a security header means an unset var silently renders a policy
 							// with no PostHog origin at all.
-							"connect-src 'self' https://*.posthog.com",
+							// The browser calls the API directly for public forms, the status
+							// odometer and the block checker.
+							"connect-src 'self' https://*.posthog.com https://api.secondlayer.tools",
 							"worker-src 'self' blob: data:",
 							"frame-ancestors 'none'",
 							"base-uri 'self'",

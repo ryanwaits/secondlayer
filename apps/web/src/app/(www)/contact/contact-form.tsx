@@ -1,5 +1,6 @@
 "use client";
 
+import { PUBLIC_API_URL } from "@/lib/public-api";
 import { type FormEvent, useState } from "react";
 
 // Values match the API's CONTACT_VOLUMES.
@@ -47,8 +48,9 @@ export function ContactForm({ from }: { from?: string }) {
 
 		setStatus({ kind: "sending" });
 		try {
-			const res = await fetch("/api/public/contact", {
+			const res = await fetch(`${PUBLIC_API_URL}/api/public/contact`, {
 				method: "POST",
+				credentials: "omit",
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({
 					name,
