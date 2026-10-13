@@ -177,10 +177,54 @@ function PageActions({ pathname }: { pathname: string }) {
 	);
 }
 
+/** Opens every `<details>` holding the element a hash names, then scrolls to it. */
+function openHashTarget(hash: string) {
+	const id = decodeURIComponent(hash.replace(/^#/, ""));
+	const target = id ? document.getElementById(id) : null;
+	if (!target) return;
+	let opened = false;
+	for (
+		let d = target.closest("details");
+		d;
+		d = d.parentElement?.closest("details") ?? null
+	) {
+		if (!d.open) {
+			d.open = true;
+			opened = true;
+		}
+	}
+	if (opened) target.scrollIntoView();
+}
+
 /** The breadcrumb + page-actions chrome around a docs page's MDX body. */
 export function DocsView({ children }: { children: ReactNode }) {
 	const pathname = usePathname();
 	const info = lookup(pathname);
+
+	// Deep links open the collapsed row they point at: on load, on hash/history
+	// navigation, and on same-page link clicks (client-side links fire neither event).
+	// biome-ignore lint/correctness/useExhaustiveDependencies: re-run on every page change
+	useEffect(() => {
+		const fromLocation = () => openHashTarget(window.location.hash);
+		const fromClick = (e: MouseEvent) => {
+			const a = (e.target as Element).closest<HTMLAnchorElement>(
+				"a[href*='#']",
+			);
+			if (!a) return;
+			const url = new URL(a.href, window.location.href);
+			if (url.pathname === window.location.pathname) openHashTarget(url.hash);
+		};
+		const article = document.getElementById("docs-article");
+		fromLocation();
+		window.addEventListener("hashchange", fromLocation);
+		window.addEventListener("popstate", fromLocation);
+		article?.addEventListener("click", fromClick);
+		return () => {
+			window.removeEventListener("hashchange", fromLocation);
+			window.removeEventListener("popstate", fromLocation);
+			article?.removeEventListener("click", fromClick);
+		};
+	}, [pathname]);
 
 	return (
 		<>
