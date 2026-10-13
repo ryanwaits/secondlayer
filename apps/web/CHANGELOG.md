@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.13.6
+
+### Patch Changes
+
+- Product page glyphs draw one part in blue, the part each claim is about; failures stay red.
+
 ## 0.13.5
 
 ### Patch Changes
