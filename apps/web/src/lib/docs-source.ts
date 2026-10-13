@@ -6,6 +6,7 @@ import {
 	mcpToolsMarkdown,
 } from "@/app/(www)/docs/mcp/tools";
 import { docsNavPages } from "@/app/(www)/docs/nav";
+import { AGENT_SETUP } from "@/lib/agent-prompts";
 
 /**
  * Reads the docs' own MDX as plain markdown, so an agent can fetch a page
@@ -18,6 +19,9 @@ import { docsNavPages } from "@/app/(www)/docs/nav";
  */
 
 const DOCS_ROOT = join(process.cwd(), "src", "app", "(www)", "docs");
+
+/** The shared agent setup steps as a markdown section; one source with the prompts. */
+const AGENT_SETUP_MD = `## Setup\n\n${AGENT_SETUP}`;
 
 export type DocsPage = { href: string; title: string; group: string };
 
@@ -33,6 +37,23 @@ function sourcePath(href: string): string {
 }
 
 /**
+ * A page's `export const agent = \`…\`` block: advice for coding agents, never
+ * rendered on the page, appended to its `.md`. The template literal must not
+ * contain backticks or `${`; write code as plain words or single quotes.
+ */
+export function extractAgentNotes(source: string): {
+	notes: string | null;
+	rest: string;
+} {
+	const match = /^export const agent\s*=\s*`([\s\S]*?)`;?\s*$/m.exec(source);
+	if (!match) return { notes: null, rest: source };
+	return {
+		notes: match[1].trim(),
+		rest: source.replace(match[0], ""),
+	};
+}
+
+/**
  * MDX → markdown. Deliberately conservative: unwrap the component shells that
  * carry prose, drop the metadata export, and leave every fence, table, and link
  * exactly as authored.
@@ -44,6 +65,10 @@ export function mdxToMarkdown(source: string): string {
 			.replace(/export const metadata\s*=\s*\{[\s\S]*?\n\};?\n?/g, "")
 			.replace(/^export .*$/gm, "")
 			.replace(/^import .*$/gm, "")
+			// Native disclosures: markdown readers get a plain heading.
+			.replace(/^<details\b[^>]*>\s*$/gm, "")
+			.replace(/^<\/details>\s*$/gm, "")
+			.replace(/^<summary>(.*)<\/summary>\s*$/gm, "### $1")
 			// <Callout type="warning" title="..."> … </Callout> → a quoted aside.
 			.replace(
 				/<Callout[^>]*title="([^"]*)"[^>]*>/g,
@@ -59,7 +84,10 @@ export function mdxToMarkdown(source: string): string {
 }
 
 /** One page as markdown, or null when the href isn't a docs page. */
-export async function readDocsMarkdown(href: string): Promise<string | null> {
+export async function readDocsMarkdown(
+	href: string,
+	{ setup = true }: { setup?: boolean } = {},
+): Promise<string | null> {
 	const page = docsPages().find((p) => p.href === href);
 	if (!page) return null;
 	try {
@@ -71,12 +99,17 @@ export async function readDocsMarkdown(href: string): Promise<string | null> {
 				.replace("<McpResources />", mcpResourcesMarkdown())
 				.replace("<McpTools />", mcpToolsMarkdown());
 		}
-		const markdown = mdxToMarkdown(source);
+		const { notes, rest } = extractAgentNotes(source);
+		const markdown = mdxToMarkdown(rest);
 		// The reference's body is a component, which mdxToMarkdown strips; its
 		// markdown comes from the same spec the page renders.
-		return href === "/docs/api-reference"
-			? `${markdown}\n\n${referenceMarkdown()}`
-			: markdown;
+		let out =
+			href === "/docs/api-reference"
+				? `${markdown}\n\n${referenceMarkdown()}`
+				: markdown;
+		if (notes) out += `\n\n## Notes for agents\n\n${notes}`;
+		if (setup) out += `\n\n${AGENT_SETUP_MD}`;
+		return out;
 	} catch {
 		return null;
 	}
@@ -89,12 +122,13 @@ export async function readDocsMarkdown(href: string): Promise<string | null> {
 export async function readAllDocsMarkdown(): Promise<string> {
 	const parts: string[] = [];
 	for (const page of docsPages()) {
-		const md = await readDocsMarkdown(page.href);
+		const md = await readDocsMarkdown(page.href, { setup: false });
 		if (!md) continue;
 		parts.push(
 			`<!-- source: https://secondlayer.tools${page.href} -->\n` +
 				`# ${page.group} / ${page.title}\n\n${md}`,
 		);
 	}
+	parts.push(AGENT_SETUP_MD);
 	return parts.join("\n\n---\n\n");
 }
