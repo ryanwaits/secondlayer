@@ -1,5 +1,6 @@
 import { DocsTopNav } from "@/components/docs-top-nav";
 import { Logo } from "@/components/logo";
+import { docsHeadingIndex } from "@/lib/docs-source";
 import { GITHUB_URL } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -31,12 +32,15 @@ export const metadata: Metadata = {
 	},
 };
 
-export default function DocsLayout({ children }: { children: ReactNode }) {
+export default async function DocsLayout({
+	children,
+}: { children: ReactNode }) {
+	const headings = await docsHeadingIndex();
 	// The top bar spans the page; the shell below is sidebar and article.
 	return (
 		<DocsDrawerProvider>
 			<DocsScrollTop />
-			<DocsTopNav />
+			<DocsTopNav headings={headings} />
 			<div className="docs-shell">
 				<DocsSidebar />
 				<main className="docs-content">

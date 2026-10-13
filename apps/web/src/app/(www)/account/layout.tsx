@@ -11,7 +11,6 @@ import { useWebhooksCache } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { Toaster } from "sonner";
 
 type Tab = { href: string; label: string; count?: "keys" | "webhooks" };
 
@@ -119,21 +118,6 @@ export default function AccountLayout({
 				</button>
 			</nav>
 			<main className="acct-main">{children}</main>
-			<Toaster
-				position="bottom-right"
-				toastOptions={{
-					unstyled: true,
-					classNames: {
-						toast: "wh-toast",
-						title: "wh-toast-title",
-						description: "wh-toast-desc",
-						actionButton: "wh-toast-action",
-						cancelButton: "wh-toast-cancel",
-						error: "wh-toast-error",
-						success: "wh-toast-success",
-					},
-				}}
-			/>
 		</div>
 	);
 }

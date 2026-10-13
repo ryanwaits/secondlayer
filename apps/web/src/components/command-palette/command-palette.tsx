@@ -70,6 +70,8 @@ export function CommandPalette() {
 	useEffect(() => {
 		function onKeyDown(e: KeyboardEvent) {
 			if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+				// Docs pages put ⌘K on their own search field.
+				if (document.querySelector("[data-docs-search]")) return;
 				e.preventDefault();
 				if (open) closePalette();
 				else openPalette();

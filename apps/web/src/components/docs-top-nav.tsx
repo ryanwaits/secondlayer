@@ -1,6 +1,7 @@
 "use client";
 
 import { AccountAvatar, AccountMenu } from "@/components/account-menu";
+import { type DocsHeadingEntry, DocsSearch } from "@/components/docs-search";
 import { GetStartedMenu } from "@/components/get-started-menu";
 import { Logo } from "@/components/logo";
 import { ProductsMenu } from "@/components/products-menu";
@@ -9,10 +10,10 @@ import Link from "next/link";
 import { useDocsDrawer } from "../app/(www)/docs/docs-drawer";
 
 /**
- * Docs top bar: brand, the ⌘K search trigger (the command palette
- * listens for clicks on `.dash-cmdk`), site links and session chrome. Sign in never flashes for a session that is already in.
+ * Docs top bar: brand, the ⌘K search field, site links and session chrome.
+ * Sign in never flashes for a session that is already in.
  */
-export function DocsTopNav() {
+export function DocsTopNav({ headings }: { headings: DocsHeadingEntry[] }) {
 	const { account, loading, logout } = useAuth();
 	const { open, setOpen } = useDocsDrawer();
 
@@ -39,28 +40,7 @@ export function DocsTopNav() {
 					<Logo size={22} />
 					<span className="docs-mark-name">secondlayer</span>
 				</Link>
-				<button
-					type="button"
-					className="docs-search dash-cmdk"
-					aria-label="Search docs"
-				>
-					<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-						<circle
-							cx="7"
-							cy="7"
-							r="5"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="1.5"
-						/>
-						<path d="m11 11 3.5 3.5" stroke="currentColor" strokeWidth="1.5" />
-					</svg>
-					<span>
-						Search
-						<span className="docs-search-long"> docs, commands, endpoints</span>
-					</span>
-					<kbd>⌘K</kbd>
-				</button>
+				<DocsSearch headings={headings} />
 				<nav className="docs-top-links" aria-label="Site">
 					<ProductsMenu className="docs-products" />
 					<Link href="/pricing">Pricing</Link>

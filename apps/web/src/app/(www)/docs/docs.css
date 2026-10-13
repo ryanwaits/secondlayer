@@ -32,35 +32,190 @@
 	letter-spacing: -0.02em;
 	color: var(--ink);
 }
+/* Top-nav search: a real field in the old button's slot. The menu hangs
+   below it, attached, and only exists while there is text to act on. */
 .docs-search {
+	position: relative;
 	flex: 1;
-	max-width: 360px;
+	min-width: 0;
+	max-width: 440px;
+}
+.docs-search-field {
 	height: 34px;
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 0 10px;
+	padding: 0 6px 0 10px;
 	border: 1px solid var(--line);
 	border-radius: 8px;
 	background: var(--soft);
 	color: var(--sub);
-	font: 13.5px var(--font-sans-stack);
-	text-align: left;
-	cursor: pointer;
 }
-.docs-search:hover {
+.docs-search-field:hover {
 	border-color: var(--sub);
 }
-.docs-search svg {
+.docs-search-field:focus-within,
+.docs-search[data-open] .docs-search-field {
+	background: var(--paper);
+	border-color: var(--sub);
+}
+.docs-search[data-open] .docs-search-field {
+	border-radius: 8px 8px 0 0;
+	border-bottom-color: transparent;
+}
+.docs-search-field svg {
 	flex: none;
 }
-.docs-search kbd {
-	margin-left: auto;
-	font: 11px var(--font-mono-stack);
+.docs-search-field input {
+	flex: 1;
+	min-width: 120px;
+	border: 0;
+	outline: 0;
+	background: transparent;
+	color: var(--ink);
+	font: 13.5px var(--font-sans-stack);
+	padding: 6px 0;
+}
+/* The field's border carries focus; the input inside gets no ring of its own. */
+.docs-top .docs-search-field input:focus-visible {
+	outline: 0;
+}
+.docs-search-field input::placeholder {
+	color: var(--sub);
+	opacity: 1;
+}
+.docs-search-keys {
+	display: flex;
+	gap: 4px;
+	flex: none;
+}
+.docs-search-keys kbd {
+	font: 11px / 1 var(--font-mono-stack);
 	border: 1px solid var(--line);
 	border-radius: 4px;
-	padding: 1px 5px;
+	padding: 3px 5px;
 	background: var(--paper);
+	color: var(--sub);
+}
+.docs-search-chip {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 4px 4px 4px 8px;
+	border: 1px solid currentColor;
+	border-radius: 999px;
+	color: var(--pri);
+	font: 12px / 1 var(--font-mono-stack);
+	white-space: nowrap;
+}
+.docs-search-chip button {
+	border: 0;
+	background: none;
+	color: var(--sub);
+	cursor: pointer;
+	padding: 0 3px;
+	font: 14px / 1 var(--font-sans-stack);
+}
+.docs-search-chip button:hover {
+	color: var(--ink);
+}
+.docs-search-menu {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	z-index: 50;
+	max-height: 360px;
+	overflow-y: auto;
+	padding: 6px;
+	background: var(--paper);
+	border: 1px solid var(--sub);
+	border-top: 1px solid var(--line);
+	border-radius: 0 0 8px 8px;
+}
+.docs-search-menu ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+.docs-search-opt {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	padding: 8px 10px;
+	border-radius: 6px;
+	font-size: 14px;
+	color: var(--ink);
+	cursor: pointer;
+}
+.docs-search-opt[aria-selected="true"] {
+	background: var(--soft);
+}
+.docs-search-label {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.docs-search-sub {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--sub);
+	font-size: 13px;
+}
+.docs-search-label.mono,
+.docs-search-sub.mono {
+	font-family: var(--font-mono-stack);
+}
+.docs-search-label.mono {
+	font-size: 13.5px;
+	color: var(--pri);
+}
+.docs-search-sub.mono {
+	font-size: 11.5px;
+	margin-left: auto;
+	flex: none;
+}
+.docs-search-meta {
+	margin-left: auto;
+	flex: none;
+	color: var(--sub);
+	font: 11.5px var(--font-mono-stack);
+}
+.docs-search-empty {
+	padding: 8px 10px;
+	font-size: 13px;
+	color: var(--sub);
+}
+.docs-search-hint {
+	display: flex;
+	gap: 14px;
+	margin: 6px 0 0;
+	padding: 8px 10px 4px;
+	border-top: 1px solid var(--line);
+	font: 11px / 1 var(--font-mono-stack);
+	color: var(--sub);
+}
+.docs-search-manual {
+	padding: 6px;
+}
+.docs-search-manual p {
+	margin: 0 0 8px;
+	font-size: 13px;
+	color: var(--sub);
+}
+.docs-search-manual textarea {
+	width: 100%;
+	resize: vertical;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	background: var(--soft);
+	color: var(--ink);
+	padding: 8px 10px;
+	font: 12px / 1.5 var(--font-mono-stack);
 }
 .docs-top-links {
 	display: flex;
@@ -131,8 +286,29 @@
 	.docs-search {
 		max-width: none;
 	}
-	.docs-search-long {
+}
+@media (max-width: 760px) {
+	/* The menu spans the header, not the field. */
+	.docs-top-in {
+		position: relative;
+	}
+	.docs-search {
+		position: static;
+	}
+	.docs-search-keys,
+	.docs-search-hint {
 		display: none;
+	}
+	.docs-search-menu {
+		top: 56px;
+		left: 0;
+		right: 0;
+		border-top: 1px solid var(--line);
+		border-color: var(--line);
+	}
+	.docs-search[data-open] .docs-search-field {
+		border-radius: 8px;
+		border-bottom-color: var(--sub);
 	}
 }
 @media (max-width: 560px) {
@@ -140,8 +316,7 @@
 		padding-inline: 12px;
 		gap: 10px;
 	}
-	.docs-mark-name,
-	.docs-search kbd {
+	.docs-mark-name {
 		display: none;
 	}
 }
