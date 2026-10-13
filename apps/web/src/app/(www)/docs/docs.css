@@ -362,6 +362,10 @@ html:has(.docs-search input:focus) {
 .docs-nav {
 	position: sticky;
 	top: 56px;
+	/* Spans the article's row and the footer's, so the page ending (or a row
+	   opening near the end) never releases the sticky sidebar. */
+	grid-column: 1;
+	grid-row: 1 / span 2;
 	align-self: start;
 	height: calc(100vh - 56px);
 	overflow-y: auto;
@@ -451,6 +455,8 @@ button.docs-nav-item {
 /* ── article ── */
 .docs-content {
 	min-width: 0;
+	grid-column: 2;
+	grid-row: 1;
 	padding: 36px 48px 56px;
 }
 .docs-article {
@@ -615,6 +621,10 @@ button.docs-nav-item {
 .docs-article button:focus-visible {
 	outline: 2px solid var(--pri);
 	outline-offset: 2px;
+}
+/* The ring is for keyboard focus; a mouse click on a row shows none. */
+#docs-article summary:focus:not(:focus-visible) {
+	outline: none;
 }
 /**
  * "Go deeper" rows: native <details> in MDX, consecutive rows read as one list.
@@ -936,12 +946,15 @@ button.docs-nav-item {
 
 /* ── docs footer ── */
 .docs-foot {
+	grid-column: 2;
+	grid-row: 2;
+	padding-inline: 48px;
 	border-top: 1px solid var(--line);
 }
 .docs-foot-in {
-	max-width: 1360px;
+	max-width: 720px;
 	margin-inline: auto;
-	padding: 18px 20px;
+	padding: 18px 0;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -1005,8 +1018,19 @@ button.docs-nav-item {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 	}
+	.docs-nav {
+		grid-row: auto;
+	}
+	.docs-content,
+	.docs-foot {
+		grid-column: 1;
+		grid-row: auto;
+	}
 	.docs-content {
 		padding: 24px 16px 48px;
+	}
+	.docs-foot {
+		padding-inline: 16px;
 	}
 	.docs-pn {
 		grid-template-columns: 1fr;

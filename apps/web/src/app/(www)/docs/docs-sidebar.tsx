@@ -22,6 +22,23 @@ const STILL_FRAMES = 6;
 /** How many times a settled jump that missed its section is re-landed. */
 const MAX_CORRECTIONS = 3;
 
+/** Gap kept between a revealed row and the sidebar's edge. */
+const REVEAL_MARGIN = 8;
+
+/**
+ * Scrolls the sidebar only if `row` is not fully inside it, and only by the
+ * distance that brings it just inside (never re-centres), so rows that are
+ * already visible never move when the active section changes.
+ */
+function revealNearest(nav: HTMLElement, row: HTMLElement) {
+	const r = row.getBoundingClientRect();
+	const n = nav.getBoundingClientRect();
+	if (r.top < n.top) nav.scrollTop -= n.top + REVEAL_MARGIN - r.top;
+	else if (r.bottom > n.bottom) {
+		nav.scrollTop += r.bottom - (n.bottom - REVEAL_MARGIN);
+	}
+}
+
 /**
  * The section of the reference being read: the last one whose top has passed
  * the line where a jump to its anchor lands (the page's scroll-padding plus
@@ -174,11 +191,7 @@ function useActiveSection(enabled: boolean): string {
 		);
 		const nav = row?.closest<HTMLElement>(".docs-nav");
 		if (!row || !nav) return;
-		const r = row.getBoundingClientRect();
-		const n = nav.getBoundingClientRect();
-		if (r.top < n.top + 40 || r.bottom > n.bottom - 40) {
-			nav.scrollTop += r.top - n.top - n.height / 3;
-		}
+		revealNearest(nav, row);
 	}, [active]);
 
 	return active;
@@ -301,7 +314,7 @@ export function DocsSidebar() {
 	const outline = <PageOutline onNavigate={() => setOpen(false)} />;
 
 	// Bring the current page's row into view on arrival. A row already on
-	// screen stays put; one below the fold lands near the top of the sidebar.
+	// screen stays put; one off screen moves in by the least distance.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — reveal the active row per page
 	useEffect(() => {
 		const nav = document.querySelector<HTMLElement>(".docs-nav");
@@ -309,11 +322,7 @@ export function DocsSidebar() {
 			":scope > .docs-nav-group .docs-nav-branch > .docs-nav-item.active, :scope > .docs-nav-group .docs-nav-child.active",
 		);
 		if (!nav || !row) return;
-		const r = row.getBoundingClientRect();
-		const n = nav.getBoundingClientRect();
-		if (r.top < n.top || r.bottom > n.bottom) {
-			nav.scrollTop += r.top - n.top - 96;
-		}
+		revealNearest(nav, row);
 	}, [pathname]);
 
 	// Close the mobile drawer whenever the route changes (i.e. a link is tapped).

@@ -32,7 +32,8 @@ export const metadata: Metadata = {
 };
 
 export default function DocsLayout({ children }: { children: ReactNode }) {
-	// The top bar spans the page; the shell below is sidebar and article.
+	// The top bar spans the page; the shell below is the sidebar beside the
+	// article and footer, so the sidebar's sticky range runs to the page's end.
 	return (
 		<DocsDrawerProvider>
 			<DocsScrollTop />
@@ -42,20 +43,20 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
 				<main className="docs-content">
 					<DocsView>{children}</DocsView>
 				</main>
+				<footer className="docs-foot">
+					<div className="docs-foot-in">
+						<Logo size={18} />
+						<span>secondlayer docs</span>
+						<Link href="/docs/changelog">Changelog</Link>
+						<a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
+							GitHub
+						</a>
+						<span className="docs-foot-tag">
+							Instant data for apps on Bitcoin.
+						</span>
+					</div>
+				</footer>
 			</div>
-			<footer className="docs-foot">
-				<div className="docs-foot-in">
-					<Logo size={18} />
-					<span>secondlayer docs</span>
-					<Link href="/docs/changelog">Changelog</Link>
-					<a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-						GitHub
-					</a>
-					<span className="docs-foot-tag">
-						Instant data for apps on Bitcoin.
-					</span>
-				</div>
-			</footer>
 		</DocsDrawerProvider>
 	);
 }
