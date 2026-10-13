@@ -12,7 +12,7 @@ import {
 	unhex,
 } from "../src/index.ts";
 
-// Mainnet blocks below MAINNET_CHECKPOINT (8,956,304), against live sources.
+// Mainnet blocks below MAINNET_CHECKPOINT, against live sources.
 // Off unless VERIFY_LIVE_API_KEY is set. VERIFY_LIVE_NODE_URL (optional) serves
 // blocks, 2.x headers and MARF proofs from a node instead of the API.
 //
