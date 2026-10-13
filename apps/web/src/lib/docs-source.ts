@@ -15,6 +15,7 @@ import { docsNavPages } from "@/app/(www)/docs/nav";
 import docsPhrasings from "@/generated/docs-phrasings.json";
 import apiNav from "@/generated/openapi-nav.json";
 import { AGENT_SETUP } from "@/lib/agent-prompts";
+import { stripAnnotations } from "@/lib/code/annotations";
 import { docsSearchPool } from "@/lib/command-center/items";
 import type { DocsSearchDoc } from "@/lib/docs-bm25";
 import GithubSlugger from "github-slugger";
@@ -72,6 +73,16 @@ export function extractAgentNotes(source: string): {
 export function mdxToMarkdown(source: string): string {
 	return (
 		source
+			// Annotation comments (`// !mark`) are rendering hints; readers of the
+			// markdown and the search index get plain code. The info string stays.
+			.replace(
+				/^(`{3,}|~{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/gm,
+				(_m, fence: string, info: string, body: string) =>
+					`${fence}${info}\n${stripAnnotations(
+						body.replace(/\n$/, ""),
+						info.trim().split(/\s+/)[0] ?? "",
+					)}\n${fence}`,
+			)
 			// `export const metadata = {...}` — build-time only, never content.
 			.replace(/export const metadata\s*=\s*\{[\s\S]*?\n\};?\n?/g, "")
 			.replace(/^export .*$/gm, "")

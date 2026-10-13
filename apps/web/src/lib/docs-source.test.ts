@@ -57,6 +57,28 @@ describe("mdxToMarkdown", () => {
 		expect(md).not.toContain("<details");
 		expect(md).not.toContain("<summary");
 	});
+
+	test("annotation comments in fences never reach the markdown", () => {
+		const md = mdxToMarkdown(
+			[
+				"```ts consumer.ts lines",
+				"const a = 1;",
+				"// !mark[/a/]",
+				"const b = 2;",
+				"```",
+				"",
+				"```sh",
+				"# !callout note",
+				"bun add x",
+				"```",
+			].join("\n"),
+		);
+		expect(md).toContain("```ts consumer.ts lines");
+		expect(md).toContain("const a = 1;\nconst b = 2;");
+		expect(md).toContain("```sh\nbun add x\n```");
+		expect(md).not.toContain("!mark");
+		expect(md).not.toContain("!callout");
+	});
 });
 
 describe("readDocsMarkdown", () => {

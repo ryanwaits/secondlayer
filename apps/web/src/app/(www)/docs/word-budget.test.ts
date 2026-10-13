@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseAnnotations } from "@/lib/code/annotations";
 import { docsNavPages } from "./nav";
 
 /** Docs page contract: a `##` section opens with at most 120 words before its first subheading. Code doesn't count. */
@@ -33,12 +34,22 @@ function visibleWords(mdx: string): number {
 	return text.split(/\s+/).filter((w) => /[A-Za-z0-9]/.test(w)).length;
 }
 
+const FENCE = /^(`{3,}|~{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/gm;
+
+/** A fence reads as its `!callout` notes: they are prose the reader sees, so they count; the code does not. */
+function fencesToCallouts(mdx: string): string {
+	return mdx.replace(FENCE, (_m, _fence, info: string, body: string) =>
+		parseAnnotations(body, info.trim().split(/\s+/)[0] ?? "")
+			.annotations.filter((a) => a.name === "callout")
+			.map((a) => a.value)
+			.join("\n"),
+	);
+}
+
 /** Lead words per `##` section: its text up to the first `###`/`####`; text before the first `##` is the intro. */
 function sectionWords(mdx: string): { section: string; words: number }[] {
-	// Fenced code can hold lines that start with "#" (shell comments); blank them before splitting.
-	const flat = mdx.replace(/^(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1[ \t]*$/gm, (m) =>
-		m.replace(/^#/gm, " "),
-	);
+	// Fenced code can hold lines that start with "#" (shell comments); reduce each fence to its callout text before splitting.
+	const flat = fencesToCallouts(mdx);
 	return flat.split(/^## /m).map((chunk, i) => {
 		const lead = chunk.split(/^#{3,4} /m, 1)[0] ?? "";
 		return {
