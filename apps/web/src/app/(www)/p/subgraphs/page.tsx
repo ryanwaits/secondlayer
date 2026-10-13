@@ -13,6 +13,7 @@ import {
 	Terminal,
 } from "@/components/site";
 import { SubgraphsHero } from "@/components/site/assets";
+import { BoxIcon, FileXIcon, UndoIcon } from "@/components/site/icons";
 import { socialMeta } from "@/lib/og";
 import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
@@ -118,50 +119,17 @@ export default function SubgraphsPage() {
 				<Props
 					items={[
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<path d="M5 3.5h7l3 3v10H5z" />
-									<path d="M8 10h4M8 13h4" />
-								</svg>
-							),
+							icon: <FileXIcon />,
 							title: "A schema change breaks the build",
 							body: "Handlers and client types come from the same file, so a renamed column fails in your editor, not in production.",
 						},
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<path d="M15.5 7A6 6 0 1 0 16 12" />
-									<path d="M16 3.5V7h-3.5" />
-								</svg>
-							),
+							icon: <UndoIcon />,
 							title: "Reorgs roll your rows back",
 							body: "An orphaned block takes its rows with it, and the canonical ones replace them. No cleanup job to write.",
 						},
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<rect x="3" y="4" width="14" height="12" rx="1.5" />
-									<path d="M6.5 10.2 8.6 12l4.6-4.6" />
-								</svg>
-							),
+							icon: <BoxIcon />,
 							title: "Tested on real blocks first",
 							body: (
 								<>

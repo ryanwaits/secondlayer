@@ -15,6 +15,7 @@ import {
 	Terminal,
 } from "@/components/site";
 import { IndexHero } from "@/components/site/assets";
+import { FilterIcon, MailIcon, ShieldCheckIcon } from "@/components/site/icons";
 import {
 	formatCount,
 	getLiveEvents,
@@ -118,50 +119,17 @@ export default async function IndexPage() {
 				<Props
 					items={[
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<rect x="2.5" y="3.5" width="15" height="13" rx="1.5" />
-									<path d="M2.5 7.8h15M2.5 12h15" />
-								</svg>
-							),
+							icon: <FilterIcon />,
 							title: "No schema decisions up front",
 							body: "Filter events by type, contract, sender or recipient before you commit to a table shape.",
 						},
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<circle cx="10" cy="10" r="6.5" />
-									<path d="M10 6.2V10l2.8 1.8" />
-								</svg>
-							),
+							icon: <MailIcon />,
 							title: "Finality is in the envelope",
 							body: "Every page reports the tip, the finalized height and any reorg that crossed your cursor.",
 						},
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<path d="M10 2.6 16.5 6v5.2c0 3-2.8 5.2-6.5 6.2-3.7-1-6.5-3.2-6.5-6.2V6z" />
-									<path d="M7.4 10.2 9.4 12l3.4-3.6" />
-								</svg>
-							),
+							icon: <ShieldCheckIcon />,
 							title: "You can audit the whole set",
 							body: "Coverage, row counts and a digest are published and signed. Checking your copy costs nothing.",
 						},

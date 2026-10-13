@@ -14,6 +14,7 @@ import {
 	Terminal,
 } from "@/components/site";
 import { StreamsHero } from "@/components/site/assets";
+import { BranchIcon, PlayIcon, TerminalIcon } from "@/components/site/icons";
 import { getLiveEvents, getSignedCounts } from "@/lib/chain-stats";
 import { socialMeta } from "@/lib/og";
 import { GITHUB_URL } from "@/lib/site";
@@ -85,18 +86,7 @@ export default async function StreamsPage() {
 				<Props
 					items={[
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<path d="M4 10a6 6 0 1 0 2-4.5" />
-									<path d="M4 3v3.5h3.5" />
-								</svg>
-							),
+							icon: <PlayIcon />,
 							title: "Resume, don't restart",
 							body: (
 								<>
@@ -107,17 +97,7 @@ export default async function StreamsPage() {
 							),
 						},
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<path d="M4 6h12M4 10h8M4 14h10" />
-								</svg>
-							),
+							icon: <TerminalIcon />,
 							title: "jsonl, so pipe it anywhere",
 							body: (
 								<>
@@ -127,18 +107,7 @@ export default async function StreamsPage() {
 							),
 						},
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<path d="M3 15 8 9l3 3 6-7" />
-									<path d="M13 5h4v4" />
-								</svg>
-							),
+							icon: <BranchIcon />,
 							title: "Reorgs are a list you can read",
 							body: (
 								<>

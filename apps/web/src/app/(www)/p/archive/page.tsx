@@ -13,6 +13,7 @@ import {
 	Terminal,
 } from "@/components/site";
 import { ArchiveHero } from "@/components/site/assets";
+import { DownloadIcon, LayersIcon, LockIcon } from "@/components/site/icons";
 import { formatCount, getSignedCounts, manifestRows } from "@/lib/chain-stats";
 import { socialMeta } from "@/lib/og";
 import { GITHUB_URL } from "@/lib/site";
@@ -161,49 +162,17 @@ export default async function ArchivePage() {
 				<Props
 					items={[
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<rect x="3" y="8.5" width="14" height="9" rx="1.5" />
-									<path d="M6.5 8.5V6a3.5 3.5 0 0 1 7 0v2.5" />
-								</svg>
-							),
+							icon: <LockIcon />,
 							title: "Nothing leaves your machine",
 							body: "Verify reads your database and the public manifest. No upload, no account, no charge.",
 						},
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<path d="M3 10h4l2-4 2 8 2-4h4" />
-								</svg>
-							),
+							icon: <LayersIcon />,
 							title: "Repair touches only what broke",
 							body: "Each fix is one transaction per partition, so an interrupted repair leaves no half-corrected range.",
 						},
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<circle cx="10" cy="10" r="6.5" />
-									<path d="M10 6.2V10l2.8 1.8" />
-								</svg>
-							),
+							icon: <DownloadIcon />,
 							title: "A fresh box in hours",
 							body: "Bootstrap restores from signed partitions instead of replaying the chain, then follows your node forward.",
 						},

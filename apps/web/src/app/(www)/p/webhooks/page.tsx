@@ -14,6 +14,7 @@ import {
 	Terminal,
 } from "@/components/site";
 import { WebhooksHero } from "@/components/site/assets";
+import { HistoryIcon, KeyIcon, ListXIcon } from "@/components/site/icons";
 import { socialMeta } from "@/lib/og";
 import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
@@ -183,50 +184,17 @@ export default function WebhooksPage() {
 				<Props
 					items={[
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<path d="M10 2.6 16.5 6v5.2c0 3-2.8 5.2-6.5 6.2-3.7-1-6.5-3.2-6.5-6.2V6z" />
-									<path d="M7.4 10.2 9.4 12l3.4-3.6" />
-								</svg>
-							),
+							icon: <KeyIcon />,
 							title: "Signed in every format",
 							body: "Every delivery carries an ed25519 signature, whatever body shape you pick. Check it with one published public key.",
 						},
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<path d="M16 6.5a6.5 6.5 0 1 0 1.2 5.5" />
-									<path d="M16 3v4h-4" />
-								</svg>
-							),
+							icon: <HistoryIcon />,
 							title: "Forks undo themselves",
 							body: "A reorg sends one rollback listing everything that may have reached you, so your state follows the chain back.",
 						},
 						{
-							icon: (
-								<svg
-									viewBox="0 0 20 20"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									aria-hidden="true"
-								>
-									<path d="M3 15V5M3 15h14" />
-									<path d="M6 12l3-3 3 2 4-5" />
-								</svg>
-							),
+							icon: <ListXIcon />,
 							title: "Failures you can read",
 							body: "The last 100 attempts, with a diagnosis. Failed events wait for you to resend them, so nothing is silently dropped.",
 						},

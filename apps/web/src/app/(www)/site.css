@@ -297,6 +297,9 @@
 	color: var(--ink);
 	margin-bottom: 6px;
 }
+.site .glyph-alarm {
+	stroke: var(--alarm);
+}
 .site .props p {
 	font-size: 15px;
 	color: var(--sub);
