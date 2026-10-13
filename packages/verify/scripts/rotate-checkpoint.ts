@@ -155,6 +155,15 @@ async function main() {
 		const t0 = performance.now();
 		const r = await verifyBlock(h, { source, checkpoint: OLD });
 		probes++;
+		// Blocks burned before the Bitcoin checkpoint cannot be verified (the
+		// checkpoint only syncs forward), and they are before cycle C by definition.
+		const early = r.failures[0]?.code === "before-checkpoint";
+		if (!r.ok && early) {
+			console.log(
+				`probe ${probes}: height ${fmt(h)} burns before Bitcoin checkpoint ${fmt(OLD.bitcoin.height)}, so before cycle ${C}`,
+			);
+			return false;
+		}
 		if (!r.ok)
 			throw new Error(
 				`verifyBlock(${h}) from the current checkpoint failed: ${JSON.stringify(r.failures[0])}`,
