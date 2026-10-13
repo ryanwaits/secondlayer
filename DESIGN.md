@@ -166,13 +166,67 @@ as the only imagery. The page whispers; the terminal demonstrates. Nothing decor
 | ok | `#128a43` | `#5cc28f` | success state |
 | alarm | `#e3301e` | `#ff5a47` | failures and reorgs only |
 
-### Code surfaces (terminals and code windows)
-Follow the theme on the docs code style. The surface inverts its ground so it never
-sits white on white: `soft` over `paper` sections, `paper` over `soft` bands. One `line`
-hairline, no tinted rows. Code uses the docs Shiki theme: keywords and punctuation
-muted, identifiers plain, strings and numbers in the syntax yellow (`#a37800` light,
-`#e6c15c` dark); shell command names take the same yellow. Checks are `ok` text. No
-blue or red in code.
+### Code surfaces
+One renderer (`<Code>`, `components/code/`) draws every code block: paper ground, one
+`line` hairline, 8px radius, Geist Mono 13px on a 22px row. No syntax hue.
+
+**Syntax is a four-step ladder.** Calls, commands and env vars: `ink` at 500. Identifiers,
+strings, numbers: `ink`. Keywords, object keys, flags: `sub`. Punctuation, quotes,
+comments, line numbers: `faint`. Structure comes from the ladder and one weight step, so
+color stays free to mean something.
+
+**Roles inside code.**
+- `hi` (yellow) marks: a `!mark` token fill or soft row, a lit reference.
+- `pri` (blue) acts: links, Copy on hover, the selected tab, the figure cursor pill.
+  `!mark … blue` exists in figures only.
+- `alarm` (red) is output and errors only: `⚠`/`✗` lines, a non-zero exit chip,
+  `!mark … red` in `text` blocks. Never in source code.
+- `ok` (green) is the diff `+` sign, `✓` output and an exit 0 chip. Removed diff lines are
+  `faint`, never red.
+- No tinted rows, with one exception: `!mark` lines and lit references take the `soft` row.
+- Inside a product terminal the block drops its card and reads the terminal's own tokens.
+
+**Authoring a fence.** The info string after the language sets the frame:
+
+| Option | Does |
+|---|---|
+| `consumer.ts` (a bare word with `.`, `/` or `~`) | Title bar with language and Copy. No title: no bar, Copy floats in on hover. |
+| `lines` / `lines=31` | Line numbers, starting at 1 or at N. |
+| `nocopy` | No Copy button. `text` blocks never have one. |
+| `wrap` | Soft-wrap with the prompt as its own column. |
+| `max=N` | Clamp to N lines (default 30) with "Show more", only when 4 or more lines would hide. |
+| `exit=N` | Exit chip in the bar: green for 0, red otherwise. |
+
+An annotation is a whole comment line, `<comment> !name(range)[/regex/flags] value`, that
+targets the next line and then leaves the output, the `.md` twin and the Copy text.
+`(2:4)` picks lines relative to the comment, `[/re/]` the first match per line, `[/re/g]`
+all of them. The comment token is `//` (ts, js, json), `#` (sh, toml, text), `--` (sql) or
+`;;` (clarity).
+
+| Annotation | Renders | Limit per fence |
+|---|---|---|
+| `!mark` | Lines: soft row. Tokens: yellow fill. `red` for `text` output. | 2 |
+| `!callout[/re/] text` | A note under the line, caret at the token's column | 3 |
+| `!focus(1:4)` | Other lines fade; "Show all" in the bar restores them | 1 |
+| `!diff +` / `!diff -` | Gutter sign; removed lines faint and left out of Copy | none |
+| `!collapse(1:12)` | One summary row with the line count, opens on click | none |
+
+`lib/code/budget.test.ts` fails the build past those limits, on an unknown name, on `blue`
+outside figures and on `red` outside `text`. A callout counts toward its section's 120-word
+lead. Most blocks stay plain: annotate only when the paragraph points at a token or line.
+
+**Which format when.**
+
+| Pattern | When | Treatment |
+|---|---|---|
+| Hero | The section's one working example | Title = file, up to 3 callouts |
+| Setup | Install, export, 1-3 line commands | `sh`, no title |
+| Command, output | A command and what it prints | One `text` transcript (`$` line, then output), titled with the cwd |
+| Request, response | curl and SDK for the same call, then JSON | Tabs plus a `response.json` block |
+| Payload | JSON over 12 lines | `!collapse` the parts the section skips, `!mark` the one it discusses |
+| Variants | Same shape per event type or option | One block each, or tabs |
+| Before, after | Migration or breaking change | One block with `!diff` |
+| Long file | More than 20 lines of a real file | Title = path, default clamp, `lines=N` for excerpts |
 
 Dark mode is warm charcoal ("Stone"), mirroring light mode's warm off-white; it lifts
 the ground off black so long copy reads at 7.6:1 for `sub`.
