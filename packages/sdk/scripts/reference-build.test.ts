@@ -62,6 +62,47 @@ const spec: Spec = {
 							{ returns: { schema: { $ref: "#/types/Tip" } } },
 						],
 					},
+					stream: {
+						description:
+							'`chain: "bitcoin"` — Runes only; see\n\n{@link \nTip\n}\n.',
+						"x-ts-function": true,
+						"x-ts-signatures": [
+							{
+								parameters: [
+									{
+										name: "p",
+										required: true,
+										schema: { $ref: "#/types/BitcoinParams" },
+									},
+								],
+								returns: { schema: { $ref: "#/types/Tip" } },
+							},
+							{
+								typeParameters: [
+									{ name: "T", constraint: "readonly string[]", const: true },
+								],
+								parameters: [
+									{
+										name: "p",
+										required: true,
+										schema: { $ref: "#/types/StacksParams" },
+									},
+								],
+								returns: { schema: { $ref: "#/types/Tip" } },
+							},
+						],
+					},
+					shared: {
+						"x-ts-function": true,
+						"x-ts-signatures": [
+							{
+								description:
+									"Shared by both overloads, see {@link Tip}. More text.",
+								returns: { schema: { type: "string" } },
+							},
+							{ returns: { schema: { type: "number" } } },
+						],
+					},
 				},
 			},
 		},
@@ -206,20 +247,48 @@ describe("overloads", () => {
 		});
 	});
 
-	test("overload descriptions stay on their overload and the method takes the first", () => {
+	test("each documented overload keeps its own doc and the method gets none", () => {
 		const m = surface("streams").methods.find((x) => x.id === "events.list");
 		expect(m?.overloads.map((o) => o.description)).toEqual([
 			"Stacks rows. See [`StreamsLike.tip`](/docs/ref/streams#m-tip).",
 			"Runes rows.",
 		]);
-		expect(m?.summary).toContain("Stacks rows.");
-		expect(m?.description).not.toContain("Runes rows.");
+		expect(m?.summary).toBe("");
+		expect(m?.description).toBe("");
+	});
+
+	test("an overload's own doc never becomes the method summary", () => {
+		const m = surface("streams").methods.find((x) => x.id === "stream");
+		expect(m?.summary).toBe("");
+		const bitcoin = m?.overloads.find((o) => o.label === "Bitcoin");
+		expect(bitcoin?.description).toContain("Runes only");
+		expect(m?.overloads.find((o) => o.label === "Stacks")?.description).toBe(
+			"",
+		);
+	});
+
+	test("a doc shared by overloads becomes the method doc, not an overload doc", () => {
+		const m = surface("streams").methods.find((x) => x.id === "shared");
+		expect(m?.summary).toBe(
+			"Shared by both overloads, see [`Tip`](/docs/ref/streams#t-Tip).",
+		);
+		expect(m?.overloads.map((o) => o.description)).toEqual(["", ""]);
 	});
 
 	test("a single-overload method carries its description on the method only", () => {
 		const m = surface("client").methods[0];
 		expect(m?.summary).toBe("Check the connection.");
-		expect(m?.overloads[0]?.description).toBeUndefined();
+		expect(m?.overloads[0]?.description).toBe("");
+	});
+
+	test("type parameters are kept per overload and omitted when absent", () => {
+		const m = surface("streams").methods.find((x) => x.id === "stream");
+		const generic = m?.overloads.find((o) => o.label === "Stacks");
+		expect(generic?.typeParams).toEqual([
+			{ name: "T", constraint: "readonly string[]", const: true },
+		]);
+		const plain = m?.overloads.find((o) => o.label === "Bitcoin");
+		expect(plain && "typeParams" in plain).toBe(false);
 	});
 });
 
@@ -272,9 +341,23 @@ describe("linkify", () => {
 		expect(linkify("See {@link Nope}.", symbols)).toBe("See `Nope`.");
 	});
 
-	test("a {@link} split across lines still resolves", () => {
-		expect(linkify("see \n{@link \nTip\n}\n.", symbols)).toContain(
-			"[`Tip`](/docs/ref/streams#t-Tip)",
+	test("a {@link} padded with newlines stays inline in its sentence", () => {
+		expect(linkify("see\n\n{@link \nTip\n}\n.", symbols)).toBe(
+			"see [`Tip`](/docs/ref/streams#t-Tip).",
+		);
+	});
+
+	test("a mid-sentence {@link} keeps the words on both sides", () => {
+		expect(linkify("Reads {@link Tip} and then stops.", symbols)).toBe(
+			"Reads [`Tip`](/docs/ref/streams#t-Tip) and then stops.",
+		);
+	});
+
+	test("an overload doc padded around a link reads as one sentence", () => {
+		const m = surface("streams").methods.find((x) => x.id === "stream");
+		const bitcoin = m?.overloads.find((o) => o.label === "Bitcoin");
+		expect(bitcoin?.description).toBe(
+			'`chain: "bitcoin"` — Runes only; see [`Tip`](/docs/ref/streams#t-Tip).',
 		);
 	});
 });

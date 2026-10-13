@@ -64,9 +64,18 @@ export type ParamDoc = {
 	description: string;
 };
 
+export type TypeParam = {
+	name: string;
+	constraint?: string;
+	default?: string;
+	const?: true;
+};
+
 export type Overload = {
 	label: string;
-	description?: string;
+	/** This overload's own JSDoc (markdown); "" when it has none. */
+	description: string;
+	typeParams?: TypeParam[];
 	params: ParamDoc[];
 	returns: { type: string; description: string };
 };
@@ -134,7 +143,13 @@ export function summarize(description: string | undefined): string {
 	const firstPara = description.split("\n\n")[0]?.replace(/\s+/g, " ").trim();
 	if (!firstPara) return "";
 	const sentence = firstPara.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? firstPara;
-	return sentence.length > 200 ? `${sentence.slice(0, 197)}…` : sentence;
+	return sentence.length > 400 ? `${sentence.slice(0, 397)}…` : sentence;
+}
+
+/** A doc that only makes sense for one overload (`chain: "bitcoin"` — …, "Narrowing overload: …"). */
+export function isOverloadSpecific(doc: string): boolean {
+	const head = doc.slice(0, 200);
+	return /^\s*`[\w.]+:\s*"[^"]*"`/.test(head) || /\boverload\b/i.test(head);
 }
 
 /** `{@link X}` → a markdown link when `X` has a home, inline code when it does not. */
@@ -142,13 +157,28 @@ export function linkify(
 	text: string,
 	symbols: Readonly<Record<string, string>>,
 ): string {
+	// openpkg pads inline tags with newlines ("see\n\n{@link X}\n."), which would
+	// split the sentence; the replacement stays inline.
 	return text.replace(
-		/\{@link(?:code|plain)?\s+([^}\s]+)(?:\s+([^}]*))?\}/g,
-		(_match, target: string, label: string | undefined) => {
+		/(\s*)\{@link(?:code|plain)?\s+([^}\s]+)(?:\s+([^}]*?))?\s*\}(\s*)([.,;:!?)]?)/g,
+		(
+			_match,
+			before: string,
+			target: string,
+			label: string | undefined,
+			after: string,
+			punctuation: string,
+		) => {
 			const shown = label?.trim();
 			const href = symbols[target];
-			if (!href) return `\`${shown || target}\``;
-			return shown ? `[${shown}](${href})` : `[\`${target}\`](${href})`;
+			const link = href
+				? shown
+					? `[${shown}](${href})`
+					: `[\`${target}\`](${href})`
+				: `\`${shown || target}\``;
+			const lead = before.includes("\n") ? " " : before;
+			const trail = punctuation ? "" : after.includes("\n") ? " " : after;
+			return `${lead}${link}${trail}${punctuation}`;
 		},
 	);
 }
@@ -213,7 +243,7 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 	function buildOverload(
 		sig: Signature,
 		label: string,
-		multiple: boolean,
+		description: string,
 		ctx: RenderContext,
 	): Overload {
 		const params: ParamDoc[] = (sig.parameters ?? []).map((p) => ({
@@ -222,16 +252,54 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 			required: p.required !== false,
 			description: p.description ?? "",
 		}));
+		const typeParams: TypeParam[] = (sig.typeParameters ?? []).map((t) => ({
+			name: t.name,
+			...(t.constraint ? { constraint: t.constraint } : {}),
+			...(t.default ? { default: t.default } : {}),
+			...(t.const ? { const: true as const } : {}),
+		}));
 		const overload: Overload = {
 			label,
+			description,
+			...(typeParams.length ? { typeParams } : {}),
 			params,
 			returns: {
 				type: renderReturns(sig.returns, ctx),
 				description: sig.returns?.description ?? "",
 			},
 		};
-		if (multiple && sig.description) overload.description = sig.description;
 		return overload;
+	}
+
+	/**
+	 * Which doc belongs to the method and which to a single overload. openpkg
+	 * copies the first declaration's JSDoc onto the method, so a doc is the
+	 * method's own only when it is not marked overload-specific and either it is
+	 * the only doc or the method has a doc of its own that differs from the
+	 * first overload's. Everything else stays on its overload.
+	 */
+	function splitDocs(raw: RawMethod): {
+		methodDoc: string;
+		overloadDocs: string[];
+	} {
+		const own = raw.signatures.map((s) => s.description ?? "");
+		const none = own.map(() => "");
+		const documented = own.filter(Boolean).length;
+		if (own.length === 1) {
+			return { methodDoc: own[0] || raw.description, overloadDocs: none };
+		}
+		if (raw.description && documented > 0 && raw.description !== own[0]) {
+			return { methodDoc: raw.description, overloadDocs: own };
+		}
+		// One doc in total: a shared first-declaration doc, unless it names its overload.
+		const first =
+			documented === 0 ? raw.description : documented === 1 ? own[0] : "";
+		if (first && !isOverloadSpecific(first)) {
+			return { methodDoc: first, overloadDocs: none };
+		}
+		const overloadDocs = documented === 0 ? [...none] : own;
+		if (documented === 0 && first) overloadDocs[0] = first;
+		return { methodDoc: "", overloadDocs };
 	}
 
 	function buildMethod(
@@ -241,15 +309,16 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 	): Method {
 		const id = raw.segments.join(".");
 		const path = [rootPath, ...raw.segments].join(".");
-		const ordered = raw.signatures
+		const ranked = raw.signatures
 			.map((sig, index) => ({ sig, index }))
 			.sort(
 				(a, b) =>
 					overloadRank(a.sig) - overloadRank(b.sig) || a.index - b.index,
-			)
-			.map((x) => x.sig);
+			);
+		const ordered = ranked.map((x) => x.sig);
 		const multiple = ordered.length > 1;
-		const overloads = ordered.map((sig, i) => {
+		const { methodDoc, overloadDocs } = splitDocs(raw);
+		const overloads = ranked.map(({ sig, index }, i) => {
 			const found = overloadVariants(sig);
 			const label =
 				found.length === 1 && found[0] !== undefined
@@ -259,12 +328,9 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 						: multiple
 							? `Overload ${i + 1}`
 							: "";
-			return buildOverload(sig, label, multiple, ctx);
+			return buildOverload(sig, label, overloadDocs[index] ?? "", ctx);
 		});
-		const description =
-			overloads.find((o) => o.description)?.description ??
-			ordered.find((s) => s.description)?.description ??
-			raw.description;
+		const description = methodDoc;
 		const tags = [...raw.tags, ...ordered.flatMap((s) => s.tags ?? [])];
 
 		let source: Method["source"] = null;
@@ -284,7 +350,7 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 		return {
 			id,
 			path,
-			summary: summarize(description),
+			summary: "",
 			description,
 			...(deprecated ? { deprecated } : {}),
 			source,
@@ -318,7 +384,7 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 		const exported = walker.entry(name);
 		const doc: TypeDoc = {
 			name,
-			summary: summarize(exported?.description ?? type.description),
+			summary: exported?.description ?? type.description ?? "",
 		};
 		const byName = new Map<string, Field>();
 		for (const f of fieldsOf(type.schema, ctx)) byName.set(f.name, f);
@@ -378,7 +444,11 @@ function statusOf(entry: Entry): number | undefined {
 	return typeof value === "number" ? value : undefined;
 }
 
-function errorsOf(spec: Spec, base: string) {
+function errorsOf(
+	spec: Spec,
+	base: string,
+	symbols: Readonly<Record<string, string>>,
+) {
 	const byName = new Map(spec.exports.map((e) => [e.name, e]));
 	const descends = (entry: Entry, depth = 0): boolean => {
 		if (!entry.extends || depth > 10) return false;
@@ -393,7 +463,7 @@ function errorsOf(spec: Spec, base: string) {
 			return {
 				name: e.name,
 				parent: e.extends ?? base,
-				summary: summarize(e.description),
+				summary: summarize(linkify(e.description ?? "", symbols)),
 				...(status !== undefined ? { status } : {}),
 			};
 		})
@@ -455,9 +525,9 @@ export function buildReference(
 	for (const surface of surfaces) {
 		for (const m of surface.methods) {
 			m.description = linkify(m.description, symbols);
-			m.summary = linkify(m.summary, symbols);
+			m.summary = summarize(m.description);
 			for (const o of m.overloads) {
-				if (o.description) o.description = linkify(o.description, symbols);
+				o.description = linkify(o.description, symbols);
 				for (const p of o.params) {
 					p.description = linkify(p.description, symbols);
 				}
@@ -465,7 +535,7 @@ export function buildReference(
 			}
 		}
 		for (const t of surface.types) {
-			t.summary = linkify(t.summary, symbols);
+			t.summary = summarize(linkify(t.summary, symbols));
 			for (const f of t.fields ?? []) {
 				f.description = linkify(f.description, symbols);
 			}
@@ -477,7 +547,7 @@ export function buildReference(
 		.filter((e) => e.kind === "function" && e.signatures?.[0])
 		.map((e) => ({
 			name: e.name,
-			summary: linkify(summarize(e.description), symbols),
+			summary: summarize(linkify(e.description ?? "", symbols)),
 			signature: renderDeclaration(
 				e.name,
 				e.signatures?.[0] as Signature,
@@ -506,7 +576,7 @@ export function buildReference(
 			};
 		}),
 		helpers,
-		errors: config.errorBase ? errorsOf(spec, config.errorBase) : [],
+		errors: config.errorBase ? errorsOf(spec, config.errorBase, symbols) : [],
 		symbols: Object.fromEntries(
 			Object.entries(symbols).sort(([a], [b]) => a.localeCompare(b)),
 		),
