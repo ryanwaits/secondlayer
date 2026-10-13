@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import vectors from "@/generated/docs-vectors.json";
 import { buildIndex, confident, search } from "./docs-bm25";
+import { fuse, fusedSure, shouldFind } from "./docs-find";
+import queryVectors from "./docs-search-eval.vectors.json";
 import { docsSearchDocs } from "./docs-source";
 
 /**
@@ -82,30 +85,91 @@ const EVAL: [query: string, expected: string[]][] = [
 
 const idOf = (itemId: string) => itemId.replace(/^docs:/, "");
 
+type Packed = { scale: number; q: string };
+
+/** int8 base64 back to floats; both sides are stored at unit length. */
+const unpack = ({ scale, q }: Packed) =>
+	Array.from(new Int8Array(Buffer.from(q, "base64")), (i) => i * scale);
+
+const sections = vectors.items.map((i) => ({ id: i.id, vec: unpack(i) }));
+
+/** Top 30 sections by cosine to the stored query vector, as the API returns them. */
+function nearest(query: string) {
+	const q = unpack((queryVectors.queries as Record<string, Packed>)[query]);
+	return sections
+		.map(({ id, vec }) => ({
+			id,
+			cos: vec.reduce((sum, x, d) => sum + x * q[d], 0),
+		}))
+		.sort((a, b) => b.cos - a.cos)
+		.slice(0, 30);
+}
+
+type Tally = { top1: number; top3: number; sure: number; sureWrong: number };
+
+function summarize(t: Tally) {
+	return `top-1 ${t.top1}/20, top-3 ${t.top3}/20, confident ${t.sure}, confident-wrong ${t.sureWrong}`;
+}
+
 describe("docs search eval", () => {
+	test("every search candidate has a section vector from the same model", async () => {
+		const have = new Set(vectors.items.map((i) => i.id));
+		const missing = (await docsSearchDocs())
+			.map((d) => d.id)
+			.filter((id) => !have.has(id));
+		expect(missing).toEqual([]);
+		expect(vectors.model).toBe(queryVectors.model);
+		expect(vectors.dims).toBe(queryVectors.dims);
+	});
+
 	test("paraphrase queries land on the section that answers them", async () => {
 		const index = buildIndex(await docsSearchDocs());
-		let top1 = 0;
-		let top3 = 0;
-		let sure = 0;
-		let sureWrong = 0;
+		const text: Tally = { top1: 0, top3: 0, sure: 0, sureWrong: 0 };
+		const fused: Tally = { top1: 0, top3: 0, sure: 0, sureWrong: 0 };
 		const rows: string[] = [];
+		const misses: string[] = [];
 		for (const [query, expected] of EVAL) {
-			const results = search(index, query, 5);
-			const top = results.slice(0, 3).map((r) => idOf(r.id));
+			const results = search(index, query, 30);
+			const textTop = results.slice(0, 3).map((r) => idOf(r.id));
+			const text1 = expected.includes(textTop[0]);
+			const textSure = confident(results);
+			text.top1 += text1 ? 1 : 0;
+			text.top3 += textTop.some((id) => expected.includes(id)) ? 1 : 0;
+			text.sure += textSure ? 1 : 0;
+			text.sureWrong += textSure && !text1 ? 1 : 0;
+
+			// What the reader sees: text results when sure, else the fused order.
+			let top = textTop;
+			let isSure = textSure;
+			if (!textSure && shouldFind(query, false)) {
+				const order = fuse(
+					results.map((r) => ({ id: r.id, score: r.score })),
+					nearest(query),
+				);
+				top = order.slice(0, 3).map((f) => idOf(f.id));
+				isSure = fusedSure(order);
+			}
 			const hit1 = expected.includes(top[0]);
 			const hit3 = top.some((id) => expected.includes(id));
-			const isSure = confident(results);
-			if (hit1) top1++;
-			if (hit3) top3++;
-			if (isSure) sure++;
-			if (isSure && !hit1) sureWrong++;
+			fused.top1 += hit1 ? 1 : 0;
+			fused.top3 += hit3 ? 1 : 0;
+			fused.sure += isSure ? 1 : 0;
+			fused.sureWrong += isSure && !hit1 ? 1 : 0;
 			rows.push(
 				`${hit3 ? (hit1 ? "1" : "3") : "x"}${isSure ? " sure" : "     "} ${query} -> [${expected.join(" | ")}] got [${top.join(", ")}]`,
 			);
+			if (!hit1) {
+				misses.push(
+					`${hit3 ? "top3" : "miss"} ${query}: got [${top.join(", ")}]`,
+				);
+			}
 		}
-		const table = `top-1 ${top1}/20, top-3 ${top3}/20, confident ${sure}, confident-wrong ${sureWrong}\n${rows.join("\n")}`;
+		const table = `text only: ${summarize(text)}\nfused:     ${summarize(fused)}\n${rows.join("\n")}`;
 		console.log(table);
-		expect(top3 >= 14 && sureWrong === 0, table).toBe(true);
+		expect(
+			text.top3 >= 14 && text.sureWrong === 0,
+			`text only: ${summarize(text)}`,
+		).toBe(true);
+		expect(fused.top3 >= 17 && fused.sureWrong <= 1, table).toBe(true);
 	});
 });
