@@ -201,8 +201,8 @@ HEALTHCHECK NONE
 # migrate then follow: an oss instance starts from an empty database (no
 # runes_checkpoint table yet), and `follow`'s own catch-up loop assumes
 # migrations already ran. `--smol` caps the in-memory Runes state — 7-12 GiB
-# with it vs 18.2 GiB without (plan 062, D12); a full backfill peaked at
-# 17.1 GiB with it and OOM-killed at 22g without it.
+# with it vs 18.2 GiB without (plan 062, D12). A full backfill from empty
+# completes under 22g with it at the default FLUSH_INTERVAL (100).
 CMD ["sh", "-c", "bun run packages/bitcoin/src/cli.ts migrate && exec bun --smol run packages/bitcoin/src/cli.ts follow"]
 
 # =============================================================================

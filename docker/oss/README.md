@@ -32,11 +32,11 @@ Runes activity. It needs a Bitcoin node with `txindex=1` — either the bundled
 `BITCOIN_RPC_*` vars in `.env`.
 
 - Memory: 22 GB limit. `follow` runs with Bun's `--smol` flag, which keeps its
-  in-memory Runes state around 7-12 GB (18.2 GB without it); a full backfill
-  from empty peaks around 17.1 GB. That figure assumes the default flush
-  interval (250 blocks between DB flushes during catch-up) — a higher
-  `FLUSH_INTERVAL` trades memory for fewer, larger flushes and can OOM at this
-  chain height.
+  in-memory Runes state around 7-12 GB (18.2 GB without it). A full backfill
+  from empty completes under the limit with the default flush interval (100
+  blocks between DB flushes during catch-up); a higher `FLUSH_INTERVAL`
+  trades memory for fewer, larger flushes and can OOM in the dense
+  840,000-900,000 range.
 - Upgrades: existing installs get the `bitcoin` database created automatically
   by the `runes` service's first `migrate` run — no manual step. (A brand-new
   install instead gets it from postgres's own init script, provisioned the

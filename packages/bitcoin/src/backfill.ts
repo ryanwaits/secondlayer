@@ -180,9 +180,10 @@ export async function resolveBlockCommitments(
 }
 
 export const GENESIS_HEIGHT = 840_000;
-// 1000 OOMs at 22g at current chain height (plan 083); 250 plus `--smol`
-// peaked at 17.1 GiB on the same run — the only measured-safe default.
-export const DEFAULT_FLUSH_INTERVAL = 250;
+// The only value proven on a full backfill from empty: 1000 OOMs at 22g at
+// current chain height, 250 OOMed at 20g in the dense 840k-900k range, 100
+// completed (2026-09-30, before the state-memory cuts, so with margin now).
+export const DEFAULT_FLUSH_INTERVAL = 100;
 
 export class ContinuityError extends Error {
 	constructor(
