@@ -13,7 +13,8 @@ curl -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
 
 Your own box takes a different credential, the instance token: [Self-host](/docs/self-host/production#instance-token). Never put `sk-sl_*` in `INSTANCE_TOKEN`, or the hex token in `SECONDLAYER_API_KEY`.
 
-## What it costs
+<details id="what-it-costs">
+<summary>What it costs</summary>
 
 Reads, live or history, priced the same:
 
@@ -31,7 +32,10 @@ Past the free monthly allowance, a key with no balance gets a `402` (`insufficie
 
 Your hosted stack (it runs your webhooks and subgraphs) bills memory at a minimum of 0.5 GB, about $10/mo while it runs, plus storage. A stopped stack bills no memory.
 
-## Spend cap
+</details>
+
+<details id="spend-cap">
+<summary>Spend cap</summary>
 
 Set a monthly cap on [your credits page](https://www.secondlayer.tools/account/credits#cap). It counts what you spend in credits this month.
 
@@ -42,7 +46,10 @@ Set a monthly cap on [your credits page](https://www.secondlayer.tools/account/c
 
 Raise the cap on the same page and reads resume. Remove it and there is no cap; the prepaid balance is the only limit.
 
-## Balance alerts
+</details>
+
+<details id="balance-alerts">
+<summary>Balance alerts</summary>
 
 At a zero balance your hosted stack stops within minutes: webhooks stop delivering (events are held) and subgraphs stop indexing until you add credits; your tables are kept and it starts again on top-up. Two switches on [your credits page](https://www.secondlayer.tools/account/credits) email you first.
 
@@ -53,7 +60,10 @@ At a zero balance your hosted stack stops within minutes: webhooks stop deliveri
 
 A top-up that puts runway back over 7 days re-arms both.
 
-## Archive credits
+</details>
+
+<details id="archive-credits">
+<summary>Archive credits</summary>
 
 Bootstrap, backfill, and reindex from the [signed public archive](/docs/archive) draw credits per partition bundle fetched; verification is always free. `bootstrap` and `repair` show the price against your balance before anything is charged. Every partition arrives over a short-lived presigned URL and is digest-checked before a row is written. Your first six repair bundles each month are free. Packs are $10, $25, $50, or $100. The prepaid balance is the hard cap.
 
@@ -66,9 +76,14 @@ secondlayer credits balance
 
 Auto-refill is off until you set it: `secondlayer credits refill --below 5 --pack 25`.
 
-## Webhook signing secrets
+</details>
+
+<details id="webhook-signing-secrets">
+<summary>Webhook signing secrets</summary>
 
 A **signing secret** (`whsec_…`) is per-webhook and verifies an incoming webhook came from your instance (`verifyWebhookSignature`); see [Webhooks](/docs/webhooks). Never in `Authorization`. Rotate with `secondlayer webhooks rotate-secret`.
+
+</details>
 
 export const agent = `
 - Hosted: export SECONDLAYER_API_URL=https://api.secondlayer.tools and SECONDLAYER_API_KEY ('sk-sl_*', from /account/keys). Send it as 'Authorization: Bearer $SECONDLAYER_API_KEY'. The SDK, MCP and CLI pick the key from the host; set the same two variables in CI.
