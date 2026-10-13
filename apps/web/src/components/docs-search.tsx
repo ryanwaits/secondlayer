@@ -12,6 +12,13 @@ import { frecencyBoosts, recordSelection } from "@/lib/command-center/recents";
 import { rankCommandItems } from "@/lib/command-center/search";
 import { accountSummary, keyHint } from "@/lib/docs-account-summary";
 import { SITE, markdownPath } from "@/lib/docs-agent";
+import {
+	type DocsSearchDoc,
+	type DocsSearchIndex,
+	buildIndex,
+	confident,
+	search,
+} from "@/lib/docs-bm25";
 import { copyText } from "@/lib/docs-clipboard";
 import { buildPrompt, chipUrl } from "@/lib/docs-prompt";
 import { refreshList, useWebhooksCache } from "@/lib/webhooks-store";
@@ -19,11 +26,43 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-export type DocsHeadingEntry = {
-	href: string;
-	anchor: string;
-	title: string;
-};
+/** The precompiled docs index with its postings built and rows ready to render. */
+type LoadedIndex = { index: DocsSearchIndex; items: Map<string, CommandItem> };
+
+let loaded: LoadedIndex | null = null;
+let loading: Promise<LoadedIndex> | null = null;
+
+/** Fetched once per page load, on the first focus of the field. */
+function loadIndex(): Promise<LoadedIndex> {
+	loading ??= fetch("/docs/search-index.json")
+		.then((res) => {
+			if (!res.ok) throw new Error(`search index ${res.status}`);
+			return res.json() as Promise<DocsSearchDoc[]>;
+		})
+		.then((docs) => {
+			loaded = {
+				index: buildIndex(docs),
+				items: new Map(docs.map((d) => [d.id, docItem(d)])),
+			};
+			return loaded;
+		})
+		.catch((err) => {
+			// A failed fetch retries on the next focus.
+			loading = null;
+			throw err;
+		});
+	return loading;
+}
+
+function docItem(doc: DocsSearchDoc): CommandItem {
+	return {
+		id: doc.id,
+		group: "docs",
+		label: doc.label,
+		sub: doc.sub,
+		href: doc.href,
+	};
+}
 
 type Row =
 	| { kind: "command" }
@@ -35,6 +74,9 @@ type Row =
 const MAX_HITS = 5;
 const MAX_YOURS = 3;
 const MAX_EMPTY_DOCS = 4;
+const MAX_ATTACH_DOCS = 12;
+/** Pages and endpoints only: what can be ranked before the index arrives. */
+const BASE_POOL = docsSearchPool([], apiNav, {});
 /** `@` at the start or after a space, running to the end of the input. */
 const ATTACH = /(^|\s)@(\S*)$/;
 const WEBHOOK_PREFIX = "webhook:";
@@ -78,7 +120,7 @@ function SearchIcon() {
  * The docs top-nav search: type to search pages, sections and endpoints,
  * `/prompt` to copy a prompt for a coding agent. Runs entirely in the browser.
  */
-export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
+export function DocsSearch() {
 	const router = useRouter();
 	const pathname = usePathname();
 	const listId = useId();
@@ -100,7 +142,7 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 	/** The prompt, shown for hand-copying when the clipboard refuses. */
 	const [manual, setManual] = useState<string | null>(null);
 
-	const pool = useMemo(() => docsSearchPool(headings, apiNav), [headings]);
+	const [ready, setReady] = useState<LoadedIndex | null>(loaded);
 
 	const yours = useMemo<CommandItem[]>(
 		() =>
@@ -137,24 +179,45 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 		}
 		const ranked = rankCommandItems(
 			attachFrag,
-			[...mine, ...pool.filter(free)],
+			[...mine, ...(ready ? [] : BASE_POOL.filter(free))],
 			frecencyBoosts(),
 		)
 			.flat.map((s) => s.item)
 			.filter((i) => i.id !== "docs:fallback");
+		const docs = ready
+			? search(ready.index, attachFrag, MAX_ATTACH_DOCS + chips.length)
+					.map((r) => ready.items.get(r.id))
+					.filter((i): i is CommandItem => !!i && free(i))
+					.slice(0, MAX_ATTACH_DOCS)
+			: ranked.filter((i) => i.group !== "webhooks");
 		return [
 			...ranked.filter((i) => i.group === "webhooks").slice(0, MAX_YOURS),
-			...ranked.filter((i) => i.group !== "webhooks"),
+			...docs,
 		];
-	}, [attachFrag, chips, yours, pool]);
+	}, [attachFrag, chips, yours, ready]);
 
-	const hits = useMemo(() => {
-		if (verb || commandMode || attachMode || !text) return [];
-		return rankCommandItems(text, pool, frecencyBoosts())
-			.flat.map((s) => s.item)
-			.filter((i) => i.id !== "docs:fallback")
-			.slice(0, MAX_HITS);
-	}, [verb, commandMode, attachMode, text, pool]);
+	/** `sure`: the top hit clearly beats the rest (nothing reads it yet). */
+	const { hits, sure } = useMemo(() => {
+		if (verb || commandMode || attachMode || !text) {
+			return { hits: [] as CommandItem[], sure: false };
+		}
+		if (!ready) {
+			return {
+				hits: rankCommandItems(text, BASE_POOL, frecencyBoosts())
+					.flat.map((s) => s.item)
+					.filter((i) => i.id !== "docs:fallback")
+					.slice(0, MAX_HITS),
+				sure: false,
+			};
+		}
+		const results = search(ready.index, text, MAX_HITS);
+		return {
+			hits: results
+				.map((r) => ready.items.get(r.id))
+				.filter((i): i is CommandItem => !!i),
+			sure: confident(results),
+		};
+	}, [verb, commandMode, attachMode, text, ready]);
 
 	const rows = useMemo<Row[]>(() => {
 		if (attachMode) {
@@ -390,6 +453,7 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 						setFocused(true);
 						setDismissed(false);
 						loadAccount();
+						void loadIndex().then(setReady, () => {});
 					}}
 					onKeyDown={onKeyDown}
 				/>
@@ -401,6 +465,7 @@ export function DocsSearch({ headings }: { headings: DocsHeadingEntry[] }) {
 			{open ? (
 				<div
 					className="docs-search-menu"
+					data-confident={sure || undefined}
 					role="presentation"
 					onMouseDown={(e) => {
 						// Keep focus in the input while a row is clicked.

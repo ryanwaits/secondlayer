@@ -1,7 +1,7 @@
 "use client";
 
 import { AccountAvatar, AccountMenu } from "@/components/account-menu";
-import { type DocsHeadingEntry, DocsSearch } from "@/components/docs-search";
+import { DocsSearch } from "@/components/docs-search";
 import { GetStartedMenu } from "@/components/get-started-menu";
 import { Logo } from "@/components/logo";
 import { ProductsMenu } from "@/components/products-menu";
@@ -13,7 +13,7 @@ import { useDocsDrawer } from "../app/(www)/docs/docs-drawer";
  * Docs top bar: brand, the ⌘K search field, site links and session chrome.
  * Sign in never flashes for a session that is already in.
  */
-export function DocsTopNav({ headings }: { headings: DocsHeadingEntry[] }) {
+export function DocsTopNav() {
 	const { account, loading, logout } = useAuth();
 	const { open, setOpen } = useDocsDrawer();
 
@@ -40,7 +40,7 @@ export function DocsTopNav({ headings }: { headings: DocsHeadingEntry[] }) {
 					<Logo size={22} />
 					<span className="docs-mark-name">secondlayer</span>
 				</Link>
-				<DocsSearch headings={headings} />
+				<DocsSearch />
 				<nav className="docs-top-links" aria-label="Site">
 					<ProductsMenu className="docs-products" />
 					<Link href="/pricing">Pricing</Link>

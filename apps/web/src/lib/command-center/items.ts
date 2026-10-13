@@ -1,5 +1,4 @@
 import { docsNavPages } from "@/app/(www)/docs/nav";
-import docsPhrasings from "@/generated/docs-phrasings.json";
 import { actions } from "@/lib/actions/registry";
 
 /**
@@ -125,7 +124,7 @@ export function docsEndpointItems(
 export function docsSearchPool(
 	headings: { href: string; anchor: string; title: string }[],
 	apiNav: Parameters<typeof docsEndpointItems>[0],
-	phrasings: Phrasings = docsPhrasings,
+	phrasings: Phrasings,
 ): CommandItem[] {
 	const titles = new Map(DOCS_ITEMS.map((i) => [i.href, i.label]));
 	return [
