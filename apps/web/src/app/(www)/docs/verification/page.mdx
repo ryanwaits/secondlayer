@@ -43,11 +43,8 @@ Try it in your browser, no install:
 
 <BlockChecker />
 
-```bash
-secondlayer verify block 9137005
-```
-
-```text
+```text ~/secondlayer exit=0
+$ secondlayer verify block 9137005
 ✓ block       9,137,005  2e5962b00b8f243e1a4b5a1b7ff3076618ce5e737e30c019bc61e461c92f57ff
 ✓ bitcoin     headers 967,680..970,269, proof-of-work and retargets checked
 ✓ burn        height 970,269  00000000000000000001abf5e92c4e771c041ff3a9fde450c2291775641a801c
@@ -85,7 +82,7 @@ Exit `0` every link holds, `1` a link is broken (the first is named), `2` could 
 bun add @secondlayer/verify
 ```
 
-```ts
+```ts verify-block.ts
 import { SecondlayerProofSource, verifyBlock } from "@secondlayer/verify";
 
 // No key needed; add apiKey for higher rate limits.
@@ -93,7 +90,9 @@ const source = new SecondlayerProofSource({
   baseUrl: process.env.SECONDLAYER_API_URL!,
 });
 
+// !callout[/verifyBlock/] Never throws on bad source data.
 const result = await verifyBlock(9_137_005, { source });
+// !callout[/failures/] The first broken link.
 if (!result.ok) throw new Error(result.failures[0]?.message);
 console.log(result.blockId, result.stateRoot, result.diff?.writes.length);
 ```
@@ -120,17 +119,12 @@ Pass `rows: true` to also check the indexed `vm_events` rows (billed as Index ro
 
 `verifyTransactionProof` recomputes the txid, merkle root, block hash, and signer weight from one proof.
 
+<CodeTabs sync="lang">
+
 ```bash
 curl "$SECONDLAYER_API_URL/v1/index/transactions/0x<tx_id>/proof" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
-
-A `200` returns the raw transaction, raw header, merkle path, and (only when the reward set could be resolved) `consensus`.
-
-| Level | Checks |
-| --- | --- |
-| `anchored` | `txid` to merkle path to the header's `tx_merkle_root`, plus header self-consistency. Any Stacks node can corroborate it. |
-| `consensus` | Also recovers the header's signer signatures and confirms at least 70% of the reward cycle's signer weight signed. |
 
 ```ts
 import { verifyTransactionProof } from "@secondlayer/sdk";
@@ -145,6 +139,15 @@ const result = verifyTransactionProof(proof);
 // result.signerWeightBps ~ 7000+, result.rewardSetSource === "embedded"
 ```
 
+</CodeTabs>
+
+A `200` returns the raw transaction, raw header, merkle path, and (only when the reward set could be resolved) `consensus`.
+
+| Level | Checks |
+| --- | --- |
+| `anchored` | `txid` to merkle path to the header's `tx_merkle_root`, plus header self-consistency. Any Stacks node can corroborate it. |
+| `consensus` | Also recovers the header's signer signatures and confirms at least 70% of the reward cycle's signer weight signed. |
+
 ```ts
 type TransactionProofVerifyResult = {
   level: "anchored" | "consensus";
@@ -153,6 +156,7 @@ type TransactionProofVerifyResult = {
   headerSelfConsistent: boolean;
   signerWeightBps?: number;
   thresholdMet?: boolean;
+  // !callout[/rewardSetSource/] "embedded" trusts Secondlayer for the signer set.
   rewardSetSource?: "provided" | "embedded";
   ok: boolean;
   errors: string[];
