@@ -87,16 +87,16 @@ components:
   button-solid:
     backgroundColor: "{colors.light.pri}"
     textColor: "{colors.light.on-pri}"
-    rounded: "{rounded.full}"
-    padding: "0 22px"
-    height: "44px"
+    rounded: "{rounded.sm}"
+    padding: "0 18px"
+    height: "42px"
   button-outline:
     backgroundColor: "transparent"
     textColor: "{colors.light.ink}"
     border: "1px solid {colors.light.line}"
-    rounded: "{rounded.full}"
-    padding: "0 22px"
-    height: "44px"
+    rounded: "{rounded.sm}"
+    padding: "0 18px"
+    height: "42px"
   command-pill:
     backgroundColor: "transparent"
     border: "1px solid {colors.light.line}"
@@ -314,8 +314,8 @@ is size or color role, never 600+.
 ### Header
 Fixed, `height 64px`, full-width, background `paper/85` + `backdrop-blur 12px`, no border at
 rest, `transition 200ms`. Contents: wordmark left; center nav links 16px/400 (Products,
-Developers, Company, Pricing pattern); right: outline pill + solid pill pair. Solid CTA may be
-a split button (label + chevron cell).
+Developers, Company, Pricing pattern); right: one primary "Start free" button (`.btn-sm` size, 34px)
+with a chevron that opens the install menu.
 
 ### Containers
 - Hero and closing copy: `max-width 768px`, centered, text-center.
@@ -340,8 +340,8 @@ gated behind `@media (hover: hover)`). First section starts ~64–80px below the
 - Mobile: terminal instances render inline under each copy block (`mt-6`), sticky column hidden.
 
 ### Closing CTA
-Centered 768px: headline 48/400 → subhead → command pill → **36px** → button pair (outline
-"Read docs" + solid "Get started", both 44px radius-full, gap 14px).
+Centered 768px: headline 48/400 → subhead → command pill → **36px** → button pair (primary
+"Start free" + secondary "Verify a block", both 42px, 4px radius, gap 10px).
 
 ### Footer
 Top hairline. Left identity block (wordmark, © line) + **dashed** vertical rule
@@ -390,10 +390,12 @@ part per glyph: `glyph-pri` (blue) for what the claim is about, `glyph-alarm` (r
 a failure. Some glyphs carry none. Only the layers glyph uses the logo's slant.
 
 ### Buttons
-- **Solid** (primary): ink fill, paper text, 44px, radius-full, pad `0 22px`, 15–16px/500.
-  Hover → umbra. Nav-sized variant 38px.
-- **Outline**: transparent, border `ink/10`, hover border `ink/20`. Same geometry.
-- **Split CTA**: solid pill with a chevron cell separated by a `paper/20` hairline.
+- **Primary** (`.btn-pri`): `pri` fill, `on-pri` text, 42px, 4px radius, pad `0 18px`,
+  Geist 15px/500. Hover mixes 14% paper into `pri`.
+- **Secondary** (`.btn-sec`): `line` border, ink text, hover border ink.
+- **Ghost** (`.btn-ghost`): `line` border, transparent, hover border `sub`.
+- **Small** (`.btn-sm`): 34px, pad `0 13px`, 14px. The nav "Start free" uses this size.
+- Disabled is 50% opacity. Press scales to 0.97 (off under reduced motion).
 - Focus: `:focus-visible` 2px `pri` outline, 2px offset — never animated, never a glow.
 
 ### Choice (pick one value)
@@ -487,8 +489,8 @@ Heading 16px ink 400 (not bold — column position does the work), links 16px `f
 ### Do
 - Use the color roles for what they mean: blue acts, yellow marks, red fails.
 - Set muted text with `sub` or the ink alpha ramp.
-- Use radius-full for pill-shaped interactives; 8px for cards, code figures, command; 4px inside
-  inputs.
+- Use 4px for buttons, controls and inputs; 8px for cards, code figures, command. Full radius
+  only for the non-button pills: announcement pill, hero link hover, "built with", `<Pick>` chips.
 - Put real CLI output in every transcript (heights, commands, verify results). Honest copy only,
   no invented metrics, counts, or logos.
 - Ship the scroll-opacity mechanism exactly: 0.2 to 1, 500ms, opacity only, reduced-motion safe.
