@@ -469,7 +469,24 @@ button.docs-nav-item {
 	max-width: 720px;
 	margin-inline: auto;
 }
-/* Copy for agent and .md: ghost pills above the article, right-aligned */
+/* Wide screens: the pills ride the title's first line, so the title starts
+   level with the sidebar's first label. Narrow screens keep them on a row above. */
+@media (min-width: 861px) {
+	.docs-topline {
+		position: relative;
+		height: 0;
+	}
+	.docs-topline .docs-pact {
+		position: absolute;
+		top: 8px;
+		right: 0;
+	}
+	.docs-topline:has(.docs-pact) + .docs-article .page-title {
+		margin-top: 0;
+		padding-right: 136px;
+	}
+}
+/* Copy and .md: ghost pills, right-aligned */
 .docs-pact {
 	display: flex;
 	flex: none;

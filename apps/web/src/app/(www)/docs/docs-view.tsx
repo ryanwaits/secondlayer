@@ -22,7 +22,7 @@ function lookup(pathname: string) {
 	};
 }
 
-/** "Copy for agent" and ".md" for pages with a markdown twin: ghost pills
+/** "Copy" (the page and its agent notes) and ".md" for pages with a markdown twin: ghost pills
  *  above the article, right-aligned. */
 function PageActions({ pathname }: { pathname: string }) {
 	const [copy, setCopy] = useState<"idle" | "done" | "failed">("idle");
@@ -39,11 +39,7 @@ function PageActions({ pathname }: { pathname: string }) {
 
 	const md = markdownPath(pathname);
 	const label =
-		copy === "done"
-			? "Copied"
-			: copy === "failed"
-				? "Couldn't copy"
-				: "Copy for agent";
+		copy === "done" ? "Copied" : copy === "failed" ? "Couldn't copy" : "Copy";
 
 	return (
 		<div className="docs-pact">

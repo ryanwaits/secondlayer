@@ -32,8 +32,8 @@ function render(at: string): string {
 describe("docs page chrome", () => {
 	const html = render("/docs/streams");
 
-	test("a page with a markdown twin offers Copy for agent and the .md link", () => {
-		expect(html).toContain("Copy for agent");
+	test("a page with a markdown twin offers Copy and the .md link", () => {
+		expect(html).toContain("Page and agent notes, as Markdown");
 		expect(html).toContain('href="/docs/streams.md"');
 	});
 
@@ -46,7 +46,7 @@ describe("docs page chrome", () => {
 	test("a page without a markdown twin omits the pills but keeps the edit link", () => {
 		const bare = render("/docs/not-in-the-sidebar");
 		expect(bare).toContain("Edit on GitHub");
-		expect(bare).not.toContain("Copy for agent");
+		expect(bare).not.toContain("Page and agent notes, as Markdown");
 		expect(bare).not.toContain("not-in-the-sidebar.md");
 	});
 
@@ -56,9 +56,9 @@ describe("docs page chrome", () => {
 		expect(render("/docs/api/index")).not.toContain("Full view");
 	});
 
-	test("an api page offers Copy for agent and its .md twin", () => {
+	test("an api page offers Copy and its .md twin", () => {
 		const page = render("/docs/api/index");
-		expect(page).toContain("Copy for agent");
+		expect(page).toContain("Page and agent notes, as Markdown");
 		expect(page).toContain('href="/docs/api/index.md"');
 	});
 });
