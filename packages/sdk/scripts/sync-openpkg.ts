@@ -16,8 +16,6 @@ await extractReference({
 	variable: "sl",
 	docsBase: "/docs/sdk-reference",
 	out: "apps/web/src/generated/reference/sdk",
-	// Read by the current docs page until it moves to the files above.
-	legacyOut: "apps/web/src/generated/sdk-spec.json",
 	variant: { key: "chain", default: "stacks" },
 	errorBase: "SecondLayerError",
 	surfaces: [

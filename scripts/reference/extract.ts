@@ -15,7 +15,6 @@ import {
 	type ReferenceIO,
 	buildReference,
 } from "./build";
-import { distillLegacySpec } from "./legacy-spec";
 import type { Spec } from "./walk";
 
 export const REPO_ROOT = join(import.meta.dir, "../..");
@@ -25,8 +24,6 @@ export type ExtractConfig = ReferenceConfig & {
 	entry: string;
 	/** Output directory relative to the repo root. */
 	out: string;
-	/** Also write the old single-file distillation here (relative to repo root). */
-	legacyOut?: string;
 };
 
 /** Reads repo-relative sources and `<package>/examples/<surface>/<method id>.ts`. */
@@ -94,12 +91,6 @@ export async function extractReference(config: ExtractConfig): Promise<void> {
 	await mkdir(outDir, { recursive: true });
 	for (const [name, data] of Object.entries(files)) {
 		await writeFile(join(outDir, name), format(data));
-	}
-
-	if (config.legacyOut) {
-		const legacy = join(REPO_ROOT, config.legacyOut);
-		await mkdir(join(legacy, ".."), { recursive: true });
-		await writeFile(legacy, format(distillLegacySpec(spec, pkg)));
 	}
 
 	const methods = Object.values(files).reduce(
