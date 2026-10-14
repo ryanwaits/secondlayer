@@ -11,6 +11,7 @@
 		"og": "bun scripts/generate-og.tsx",
 		"docs:phrasings": "bun scripts/docs-phrasings.ts",
 		"docs:vectors": "bun scripts/docs-vectors.ts",
+		"docs:tips": "bun scripts/docs-tips.ts",
 		"docs:check-examples": "bun scripts/check-doc-examples.ts"
 	},
 	"dependencies": {
