@@ -167,19 +167,6 @@ export function HomeView() {
 			<section className="hero">
 				<div className="shell">
 					<div className="hero-copy">
-						<p className="hero-badge">
-							<span className="hero-badge-label">Coming soon</span>
-							<span>
-								<ChainLink chain="runes" href="#runes-data">
-									Runes
-								</ChainLink>{" "}
-								and{" "}
-								<ChainLink chain="clarity" href="#clarity-state-writes">
-									Clarity
-								</ChainLink>{" "}
-								contract state, including inner contract calls.
-							</span>
-						</p>
 						<h1>
 							Instant data for apps on
 							<br /> Bitcoin. <Highlight>Proof included.</Highlight>

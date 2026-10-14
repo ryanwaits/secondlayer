@@ -1550,34 +1550,6 @@
 	letter-spacing: -0.05em;
 	line-height: 0.98;
 }
-/* Above the headline, a badge for what lands next. */
-.site.home .hero-badge {
-	justify-self: start;
-	display: inline-flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 6px 10px;
-	padding: 5px 14px 5px 5px;
-	border: 1px solid var(--line);
-	border-radius: 999px;
-	font-size: 14px;
-	line-height: 1.5;
-	color: var(--sub);
-}
-.site.home .hero-badge-label {
-	padding: 2px 9px;
-	border-radius: 999px;
-	background: var(--soft);
-	font: 500 11px / 16px var(--font-mono-stack);
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-	color: var(--ink);
-}
-@media (max-width: 640px) {
-	.site.home .hero-badge {
-		border-radius: 12px;
-	}
-}
 /* A chain named in the hero's sub: its mark as a chip, then the name as an
    underlined link, held together on one line. */
 .site .chain {
