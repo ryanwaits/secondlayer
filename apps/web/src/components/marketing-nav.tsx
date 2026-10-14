@@ -1,7 +1,6 @@
 "use client";
 
 import { AccountAvatar, AccountMenu } from "@/components/account-menu";
-import { GetStartedMenu } from "@/components/get-started-menu";
 import { Logo } from "@/components/logo";
 import { ProductsMenu } from "@/components/products-menu";
 import {
@@ -94,7 +93,9 @@ export function MarketingNav() {
 						</span>
 					</>
 				) : (
-					<GetStartedMenu />
+					<Link href="/login" className="start-free">
+						Start free
+					</Link>
 				)}
 				<button
 					type="button"

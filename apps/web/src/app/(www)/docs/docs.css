@@ -273,10 +273,8 @@ html:has(.docs-search input:focus) {
 	top: -13px;
 	height: 13px;
 }
-.docs-top .imenu {
+.docs-top .start-free {
 	margin-left: 0;
-}
-.docs-top .imenu-btn {
 	height: 32px;
 	padding: 0 12px;
 	border-radius: 4px;
@@ -284,7 +282,7 @@ html:has(.docs-search input:focus) {
 	color: var(--on-pri);
 	font-size: 13.5px;
 }
-.docs-top .imenu-btn:hover {
+.docs-top .start-free:hover {
 	opacity: 1;
 	background: color-mix(in srgb, var(--pri) 86%, var(--paper));
 }

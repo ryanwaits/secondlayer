@@ -3883,113 +3883,26 @@ body:has(.marketing-nav) .auth-bar {
 		color: var(--text-main);
 	}
 }
-.imenu {
-	position: relative;
-	margin-left: 6px;
-}
-.imenu-btn {
+.start-free {
 	display: inline-flex;
 	align-items: center;
-	gap: 8px;
 	height: 38px;
+	margin-left: 6px;
 	padding: 0 16px;
-	border: none;
 	border-radius: 999px;
 	background: var(--text-main);
 	color: var(--bg);
 	font-size: 0.875rem;
 	font-weight: 500;
-	cursor: pointer;
+	text-decoration: none;
 	transition: opacity 150ms ease-out;
 }
-.imenu-btn:hover {
+.start-free:hover {
 	opacity: 0.85;
 }
-.imenu-chev {
-	transition: transform 150ms ease-out;
-}
-.imenu-chev[data-open] {
-	transform: rotate(180deg);
-}
-.imenu-panel {
-	position: absolute;
-	top: calc(100% + 10px);
-	right: 0;
-	width: 400px;
-	max-width: calc(100vw - 2rem);
-	background: var(--bg-elevated);
-	border: 1px solid var(--border);
-	border-radius: 14px;
-	padding: 8px;
-	box-shadow: 0 18px 44px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
-	z-index: 80;
-}
-.imenu-head {
-	margin: 6px 10px 8px;
-	font-family: var(--font-mono-stack);
-	font-size: 0.65rem;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var(--text-muted);
-}
-.imenu-row {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	width: 100%;
-	padding: 10px;
-	border: none;
-	border-radius: 8px;
-	background: transparent;
-	text-align: left;
-	cursor: pointer;
-}
-.imenu-row:hover {
-	background: color-mix(in srgb, var(--text-main) 4%, transparent);
-}
-.imenu-row-text {
-	display: flex;
-	flex-direction: column;
-	gap: 3px;
-	min-width: 0;
-	flex: 1;
-}
-.imenu-row-title {
-	font-size: 0.875rem;
-	font-weight: 500;
-	color: var(--text-main);
-}
-.imenu-row-cmd {
-	font-family: var(--font-mono-stack);
-	font-size: 0.75rem;
-	color: var(--text-muted);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-.imenu-link {
-	text-decoration: none;
-}
-.imenu-row-desc {
-	font-size: 0.75rem;
-	line-height: 1.35;
-	color: var(--text-muted);
-}
-.imenu-rule {
-	height: 1px;
-	margin: 6px 4px;
-	background: var(--border);
-	opacity: 0.7;
-}
-.imenu-copy {
-	flex: none;
-	color: var(--text-muted);
-}
-.imenu-row:hover .imenu-copy {
-	color: var(--text-main);
-}
+/* Phones reach sign-up from the burger sheet. */
 @media (max-width: 640px) {
-	.imenu {
+	.start-free {
 		display: none;
 	}
 }
@@ -4041,16 +3954,6 @@ body:has(.marketing-nav) .auth-bar {
 	.mnav-burger {
 		display: inline-flex;
 	}
-}
-
-/* ── get-started menu: visually hidden live region ─────────────────── */
-.acr-visually-hidden {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
 }
 
 .mnav-rule {

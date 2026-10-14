@@ -2,7 +2,6 @@
 
 import { AccountAvatar, AccountMenu } from "@/components/account-menu";
 import { DocsSearch } from "@/components/docs-search";
-import { GetStartedMenu } from "@/components/get-started-menu";
 import { Logo } from "@/components/logo";
 import { ProductsMenu } from "@/components/products-menu";
 import { useAuth } from "@/lib/auth";
@@ -56,7 +55,9 @@ export function DocsTopNav() {
 					) : (
 						<>
 							<Link href="/login">Sign in</Link>
-							<GetStartedMenu />
+							<Link href="/login" className="start-free">
+								Start free
+							</Link>
 						</>
 					)}
 				</nav>
