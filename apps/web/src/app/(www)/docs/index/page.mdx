@@ -8,21 +8,24 @@ Decoded rows you sweep into your own tables. You write the loop; the decoding, t
 
 `consume()` is a checkpointed consumer with automatic reorg rewind: write rows in `onBatch`, return the cursor you committed, and a crash resumes from your checkpoint.
 
-```ts
+```ts index.ts
 import { Index } from "@secondlayer/sdk";
 
 const index = new Index();
 await index.events.consume({
   eventType: "ft_transfer",
   fromCursor: await db.loadCheckpoint(), // null on first run
-  fromHeight: 0, // first run: backfill from genesis
+  // !callout[/fromHeight/] First run backfills from genesis.
+  fromHeight: 0,
   onBatch: async (events, envelope, ctx) => {
     await db.transaction(async (tx) => {
       for (const t of events) await tx.upsertTransfer(t);
-      await tx.saveCheckpoint(ctx.cursor); // commits with the rows
+      // !callout[/saveCheckpoint/] Commits with the rows.
+      await tx.saveCheckpoint(ctx.cursor);
     });
     return ctx.cursor;
   },
+  // !callout[/onReorg/] Delete from the fork height, inclusive.
   onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
 });
 ```
@@ -52,12 +55,13 @@ secondlayer codegen index --target kysely   # also: prisma, drizzle, json-schema
 
 Read envelopes carry a `reorgs` array: the reorganizations overlapping the page's height range, empty when none.
 
-```json
+```json response.json
 {
   "reorgs": [
     {
       "id": "...",
       "detected_at": "2026-06-05T12:00:00Z",
+      // !mark[/fork_point_height/]
       "fork_point_height": 892100,
       "old_index_block_hash": "0x…",
       "new_index_block_hash": "0x…",
@@ -115,6 +119,7 @@ One page with `list()`, a one-off export with `walk()`. Neither checkpoints, so 
 Every feed offers the same three verbs. They are not interchangeable.
 
 ```ts
+// !ref[/next_cursor/] next
 const { rows, next_cursor } = await sl.index.blocks.list({ limit: 10 }); // one page
 for await (const t of sl.index.ftTransfers.walk({ contractId })) {} // every row, once
 await sl.index.events.consume({ eventType: "ft_transfer", onBatch }); // forever, resumable
@@ -139,7 +144,7 @@ Every endpoint, filter and response shape is in the [API reference](/docs/api/in
 
 On the events and contract-call feeds, `contract_id` takes a comma-separated set (max 20): one cursor over a protocol's contracts. `tx_context=true` puts `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id` and `tx_function_name` on every event in one pass. For `print` events it is the only place the sender lives.
 
-Every list response carries the collection, an opaque `next_cursor`, the chain `tip`, and `reorgs`.
+Every list response carries the collection, an opaque [`next_cursor`](hover:next), the chain `tip`, and `reorgs`.
 
 `tip.block_height` is the height committed for the event type you just read, not a global number. Each decoded type runs its own decoder, so two reads can report different tips at once. `/v1/index/blocks` and `/v1/index/transactions` stay on the ingest tip (`source_block_height`). Re-read the tip per response.
 
@@ -189,7 +194,7 @@ curl -G "$SECONDLAYER_API_URL/v1/contracts" \
   -d "trait=sip-010" -d "conformance=any"
 ```
 
-```json
+```json response.json status=200
 {
   "contracts": [
     {
@@ -201,6 +206,7 @@ curl -G "$SECONDLAYER_API_URL/v1/contracts" \
       "abi_status": "fetched"
     }
   ],
+  // !ref[/next_cursor/] next
   "next_cursor": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.usda-token"
 }
 ```
@@ -210,7 +216,7 @@ curl -G "$SECONDLAYER_API_URL/v1/contracts" \
 | `trait` | `sip-009`, `sip-010`, or `sip-013`. Required. |
 | `conformance` | `declared`, `inferred`, or `any` (default). |
 | `limit` | 1 to 500, default 100. |
-| `cursor` | The previous `next_cursor`; `null` on the last page. |
+| `cursor` | The previous [`next_cursor`](hover:next); `null` on the last page. |
 | `include` | `abi` adds each contract's ABI. |
 
 `GET /v1/contracts/{contract_id}` returns one contract. `trait` also filters the event and contract-call feeds, and a subgraph source can target a trait and pick up contracts deployed later: [Index by standard](/docs/subgraphs#index-by-standard-not-by-address).
@@ -218,6 +224,13 @@ curl -G "$SECONDLAYER_API_URL/v1/contracts" \
 ### State writes
 
 The exact contract-state writes each canonical block committed, in node order. Use it to see which key a transaction changed, which events alone don't show.
+
+<CodeTabs sync="lang">
+
+```bash
+curl "$SECONDLAYER_API_URL/v1/index/state-writes?block_height=8054704" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
+```
 
 ```ts
 const { state_writes, next_cursor } = await sl.index.stateWrites.list({
@@ -231,10 +244,7 @@ for await (const w of sl.index.stateWrites.walk({ fromHeight: 8_000_000 })) {
 }
 ```
 
-```bash
-curl "$SECONDLAYER_API_URL/v1/index/state-writes?block_height=8054704" \
-  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
-```
+</CodeTabs>
 
 A row is `{ cursor, block_height, ordinal, tx_index, key, value_hex }`: `key` is the chain's storage key, `value_hex` the new value, and `tx_index` is `null` for block-level writes. The cursor is `<block_height>:<ordinal>`. `block_height` reads one block and excludes `from_height`/`to_height`.
 
