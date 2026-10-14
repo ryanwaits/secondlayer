@@ -62,29 +62,30 @@
 	padding-right: 64px;
 }
 .cb.bare > .copy,
-.cb.bare > .use-key {
+.cb.bare > .key-ctl {
 	position: absolute;
 	top: 8px;
 	right: 8px;
 	background: var(--paper);
 	opacity: 0;
 }
-.cb.bare > .use-key {
+.cb.bare > .key-ctl {
 	right: 72px;
 }
 .cb.bare.key .row {
-	padding-right: 176px;
+	padding-right: 300px;
 }
 .cb.bare:hover > .copy,
-.cb.bare:hover > .use-key,
+.cb.bare:hover > .key-ctl,
 .cb.bare > .copy:focus-visible,
-.cb.bare > .use-key:focus-visible,
+.cb.bare > .key-ctl:focus-within,
+.cb.bare > .key-ctl:has([data-key-chip]:not([hidden])),
 .cb.bare > .copy[data-done] {
 	opacity: 1;
 }
 @media (hover: none) {
 	.cb.bare > .copy,
-	.cb.bare > .use-key {
+	.cb.bare > .key-ctl {
 		opacity: 1;
 	}
 }
@@ -261,8 +262,7 @@
 .cb .more:hover {
 	color: var(--pri);
 }
-.cb .copy,
-.cb .ghost {
+.cb .copy {
 	padding: 6px 11px;
 	border: 1px solid var(--line);
 	border-radius: 999px;
@@ -271,8 +271,7 @@
 	font: 400 12px / 1 var(--font-sans-stack);
 	cursor: pointer;
 }
-.cb .copy:hover,
-.cb .ghost:hover {
+.cb .copy:hover {
 	border-color: var(--pri);
 	color: var(--pri);
 }
@@ -285,8 +284,7 @@
 	.cb .row {
 		transition: opacity 160ms;
 	}
-	.cb .copy,
-	.cb .ghost {
+	.cb .copy {
 		transition: color 120ms, background-color 120ms, border-color 120ms;
 	}
 }
@@ -749,7 +747,152 @@
 	display: inline;
 	width: auto;
 }
-.cb .use-key[data-state="on"] {
+/* The filled key: blue in its slot, its row tinted so the eye finds it. */
+.cb [data-key-slot][data-key] .ks-real {
+	color: var(--pri);
+}
+.cb .row:has([data-key-slot][data-key]) {
+	background: color-mix(in srgb, var(--pri) 6%, transparent);
+}
+
+/* Key controls are links, not buttons: grey to sign in, blue to act. */
+.cb .key-ctl {
+	display: inline-flex;
+	align-items: center;
+	gap: 14px;
+}
+.cb .key-ctl > [hidden] {
+	display: none;
+}
+.cb .key-link {
+	padding: 6px 0;
+	border: 0;
+	background: none;
+	color: var(--pri);
+	font: 400 12px / 1 var(--font-sans-stack);
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, var(--pri) 35%, transparent);
+	text-underline-offset: 3px;
+	cursor: pointer;
+}
+.cb .key-link:hover {
+	text-decoration-color: currentColor;
+}
+.cb .key-link:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+.cb .key-signin {
+	color: var(--sub);
+	text-decoration-color: var(--line);
+}
+.cb .key-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 0;
+	border: 0;
+	background: none;
+	color: var(--ink);
+	font: 400 12px / 1 var(--font-mono-stack);
+	cursor: pointer;
+}
+.cb .key-chip::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--ok);
+}
+.cb .key-chip[data-state="expired"] {
+	color: var(--alarm);
+}
+.cb .key-chip[data-state="expired"]::before {
+	background: var(--alarm);
+}
+.cb .key-note {
+	margin: 0;
+	padding: 9px 14px;
+	border-top: 1px solid var(--line);
+	background: var(--soft);
+	color: var(--sub);
+	font: 400 12px / 1.4 var(--font-sans-stack);
+}
+
+/* The chip's panel, in the top layer; placed under the chip by the key module. */
+.key-panel {
+	position: fixed;
+	inset: auto;
+	width: 360px;
+	max-width: calc(100vw - 32px);
+	margin: 0;
+	padding: 16px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--paper);
+	color: var(--ink);
+	box-shadow: 0 8px 24px rgb(0 0 0 / 0.08);
+	font: 400 13px / 1.55 var(--font-sans-stack);
+}
+.key-panel p {
+	margin: 0 0 12px;
+	color: var(--sub);
+}
+.key-panel .kp-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--ink);
+	font-weight: 600;
+	font-size: 14px;
+}
+.key-panel .kp-head::before {
+	content: "";
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--ok);
+}
+.key-panel[data-state="expired"] .kp-head::before {
+	background: var(--alarm);
+}
+.key-panel dl {
+	display: grid;
+	grid-template-columns: 64px 1fr;
+	gap: 6px 0;
+	margin: 0 0 12px;
+	padding: 10px 0;
+	border-block: 1px solid var(--line);
+	font-size: 12px;
+}
+.key-panel dt {
+	color: var(--faint);
+}
+.key-panel dd {
+	margin: 0;
+}
+.key-panel .kp-actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+.key-panel .kp-forget {
+	padding: 6px 11px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: none;
+	color: var(--ink);
+	font: 400 12px / 1 var(--font-sans-stack);
+	cursor: pointer;
+}
+.key-panel .kp-forget:hover {
 	border-color: var(--pri);
 	color: var(--pri);
+}
+.key-panel .kp-forget[hidden] {
+	display: none;
+}
+.key-panel a {
+	color: var(--pri);
+	text-decoration: none;
 }

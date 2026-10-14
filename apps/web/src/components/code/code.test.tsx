@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { LADDER_HEXES } from "@/lib/syntax-theme";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Code, type CodeProps } from "./code";
+import { KEY_CONTROLS } from "./handlers";
 
 /** `Code` is an async server component; resolve it, then render its sync tree. */
 async function html(props: CodeProps): Promise<string> {
@@ -381,14 +382,25 @@ describe("docs key slots", () => {
 	const curl =
 		'curl https://api.secondlayer.tools/v1/streams/tip -H "Authorization: Bearer $SECONDLAYER_API_KEY"';
 
-	test("a copyable block naming the key variable gets a hidden control and a blocked slot", async () => {
+	test("a copyable block naming the key variable gets hidden controls and a blocked slot", async () => {
 		const out = await html({ lang: "sh", title: "tip", code: curl });
-		expect(out).toContain(
-			'<button type="button" class="ghost use-key" data-use-key hidden>Use my key</button>',
-		);
+		expect(out).toContain(KEY_CONTROLS);
+		expect(KEY_CONTROLS).toContain("data-key-signin hidden");
+		expect(KEY_CONTROLS).toContain("data-key-chip");
+		expect(KEY_CONTROLS).toContain("data-use-key hidden>Fill in a docs key<");
 		expect(out).toMatch(
 			/<span class="ph-no-capture" data-key-slot><span[^>]*>\$SECONDLAYER_API_KEY<\/span><\/span>/,
 		);
+	});
+
+	test("an SDK sample reading the key from the environment gets a quoted slot", async () => {
+		const out = await html({
+			lang: "ts",
+			title: "client.ts",
+			code: "const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY });",
+		});
+		expect(out).toContain("data-use-key hidden");
+		expect(out).toContain("data-key-slot data-quote>");
 	});
 
 	test("a bare block floats the control beside Copy", async () => {

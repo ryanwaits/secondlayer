@@ -1,11 +1,12 @@
 import { parseAnnotations, parseFenceOptions } from "@/lib/code/annotations";
-import { KEY_VAR } from "@/lib/code/base-url";
+import { KEY_PLACEHOLDERS } from "@/lib/code/base-url";
 import { outputTone } from "@/lib/code/output";
 import { tipTable } from "@/lib/code/tip-table";
 import { type ThemedToken, tokenize } from "@/lib/highlight";
 import type { CSSProperties } from "react";
 import "./code.css";
 import {
+	KEY_CONTROLS,
 	type Plan,
 	type Variant,
 	calloutRow,
@@ -119,7 +120,9 @@ export async function renderCode({
 
 	// Only a block Copy can take from carries a key slot; output never does.
 	const hasKey =
-		!options.nocopy && !isText && display.some((l) => l.includes(KEY_VAR));
+		!options.nocopy &&
+		!isText &&
+		display.some((l) => KEY_PLACEHOLDERS.some((p) => l.includes(p)));
 	const plan = planAnnotations(parsed, {
 		key: hasKey,
 		display,
@@ -216,11 +219,8 @@ export async function renderCode({
 		copyable && !tabbed
 			? '<button type="button" class="copy" data-copy-button>Copy</button>'
 			: "";
-	// Hidden until the page's key module finds a signed-in reader (never server-rendered visible).
-	const useKey =
-		copyable && hasKey && !tabbed
-			? '<button type="button" class="ghost use-key" data-use-key hidden>Use my key</button>'
-			: "";
+	// Hidden until the page knows who is reading (never server-rendered visible).
+	const useKey = copyable && hasKey && !tabbed ? KEY_CONTROLS : "";
 	const barTitle = title ?? options.title;
 	const hasBar =
 		!tabbed &&

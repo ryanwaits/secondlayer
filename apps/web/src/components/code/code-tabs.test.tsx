@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Code } from "./code";
 import { CodeTabs } from "./code-tabs";
+import { KEY_CONTROLS } from "./handlers";
 
 /** CodeTabs is an async server component: resolve it, then render the element it returns. */
 async function tabs(props: {
@@ -142,9 +143,7 @@ describe("CodeTabs docs key", () => {
 			],
 		});
 		expect(html.match(/data-use-key/g)?.length).toBe(1);
-		expect(html).toContain(
-			'<span class="r"><button type="button" class="ghost use-key"',
-		);
+		expect(html).toContain(`<span class="r">${KEY_CONTROLS}`);
 	});
 
 	test("no control when no pane names it", async () => {

@@ -24,8 +24,9 @@ export function CodeClient() {
 	const pathname = usePathname();
 	const { account, loading } = useAuth();
 
-	// "Use my key": the key module loads only for a signed-in reader on a page
-	// that has a sample to fill. Signed out, any key this tab held is dropped.
+	// The docs key: the key module loads only for a signed-in reader on a page
+	// that has a sample to fill. Signed out, any key this tab held is dropped and
+	// the samples offer a sign-in link instead.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: `pathname` re-runs the scan for the samples a soft navigation brings in
 	useEffect(() => {
 		if (loading) return;
@@ -36,6 +37,10 @@ export function CodeClient() {
 				// Storage is optional.
 			}
 			window.dispatchEvent(new Event(DOCS_KEY_FORGET));
+			for (const link of document.querySelectorAll<HTMLElement>(
+				"[data-key-signin]",
+			))
+				link.hidden = false;
 			return;
 		}
 		const load = () => import("./use-key").then((m) => m.activate(account.id));
@@ -141,6 +146,11 @@ export function CodeClient() {
 
 			if (target.closest("[data-use-key]")) {
 				import("./use-key").then((m) => m.useKey());
+				return;
+			}
+			const chip = target.closest<HTMLElement>("[data-key-chip]");
+			if (chip) {
+				import("./use-key").then((m) => m.togglePanel(chip));
 				return;
 			}
 

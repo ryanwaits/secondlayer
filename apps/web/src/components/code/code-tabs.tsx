@@ -2,7 +2,7 @@ import { parseFenceOptions } from "@/lib/code/annotations";
 import { Children, type ReactNode } from "react";
 import { figureOf, frameOf, renderCode } from "./code";
 import { type Fence, fenceOf } from "./fence";
-import { type Variant, esc, escAttr } from "./handlers";
+import { KEY_CONTROLS, type Variant, esc, escAttr } from "./handlers";
 
 const LANG_LABEL: Record<string, string> = {
 	bash: "cURL",
@@ -63,9 +63,7 @@ export async function CodeTabs({
 		),
 	);
 	// One control for the group: the visible pane's Copy is the one that reads the key.
-	const useKey = panes.some((pane) => pane.hasKey)
-		? '<button type="button" class="ghost use-key" data-use-key hidden>Use my key</button>'
-		: "";
+	const useKey = panes.some((pane) => pane.hasKey) ? KEY_CONTROLS : "";
 	const buttons = tabs
 		.map(
 			(tab, i) =>

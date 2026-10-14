@@ -1,5 +1,10 @@
 import type { Annotation, ParsedCode } from "@/lib/code/annotations";
-import { BASE_SWAPS, KEY_SWAP, KEY_VAR } from "@/lib/code/base-url";
+import {
+	BASE_SWAPS,
+	KEY_EXPR,
+	KEY_PLACEHOLDERS,
+	KEY_SWAP,
+} from "@/lib/code/base-url";
 import { hasComment, scanLine } from "@/lib/code/tip-scan.mjs";
 import type { Tip, TipTable } from "@/lib/code/tip-table";
 import type { ThemedToken } from "@/lib/highlight";
@@ -20,6 +25,8 @@ export type MarkRange = {
 	options?: string[];
 	/** `swap`: the index into `BASE_SWAPS` the Base URL switch rewrites. */
 	swap?: number;
+	/** `key`: the slot takes the key as a string literal (an SDK sample), not bare (a shell sample). */
+	quote?: boolean;
 };
 
 /** A tip's payload: a table entry, or just the words of a hand `!tip`. */
@@ -284,13 +291,19 @@ function addBaseSwaps(lines: LinePlan[], display: string[]) {
 function addKeySlots(lines: LinePlan[], display: string[]) {
 	lines.forEach((line, i) => {
 		const text = display[i] ?? "";
-		for (
-			let at = text.indexOf(KEY_VAR);
-			at >= 0;
-			at = text.indexOf(KEY_VAR, at + 1)
-		)
-			if (!overlaps(line.ranges, at, at + KEY_VAR.length))
-				line.ranges.push({ start: at, end: at + KEY_VAR.length, kind: "key" });
+		for (const placeholder of KEY_PLACEHOLDERS)
+			for (
+				let at = text.indexOf(placeholder);
+				at >= 0;
+				at = text.indexOf(placeholder, at + 1)
+			)
+				if (!overlaps(line.ranges, at, at + placeholder.length))
+					line.ranges.push({
+						start: at,
+						end: at + placeholder.length,
+						kind: "key",
+						quote: placeholder === KEY_EXPR,
+					});
 	});
 }
 
@@ -355,6 +368,17 @@ export const esc = (text: string) =>
 /** `esc` for a value inside a quoted attribute. */
 export const escAttr = (text: string) => esc(text).replace(/"/g, "&quot;");
 
+/**
+ * A keyed sample's controls, all hidden until the page knows who is reading:
+ * signed out, a sign-in link; signed in, the key's chip and its action.
+ */
+export const KEY_CONTROLS =
+	'<span class="key-ctl">' +
+	'<a class="key-link key-signin" href="/login" data-key-signin hidden>Sign in to fill in a docs key</a>' +
+	'<button type="button" class="key-chip mono" data-key-chip aria-haspopup="dialog" aria-expanded="false" hidden></button>' +
+	'<button type="button" class="key-link use-key" data-use-key hidden>Fill in a docs key</button>' +
+	"</span>";
+
 /** A range's wrapper: marks fill, tips explain, errors squiggle, swaps wait for the Base URL switch. */
 function wrap(range: MarkRange, inner: string): string {
 	switch (range.kind) {
@@ -371,7 +395,7 @@ function wrap(range: MarkRange, inner: string): string {
 				? `<span class="ph-no-capture" data-key-slot data-swap="${range.swap}">${inner}</span>`
 				: `<span data-swap="${range.swap}">${inner}</span>`;
 		case "key":
-			return `<span class="ph-no-capture" data-key-slot>${inner}</span>`;
+			return `<span class="ph-no-capture" data-key-slot${range.quote ? " data-quote" : ""}>${inner}</span>`;
 		// Invisible until the scope script lights it.
 		case "ref":
 			return `<span class="ref" data-ref="${escAttr(range.name ?? "")}">${inner}</span>`;
