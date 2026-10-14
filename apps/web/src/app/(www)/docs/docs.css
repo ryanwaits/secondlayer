@@ -487,8 +487,7 @@ button.docs-nav-item {
 	text-decoration: none;
 	cursor: pointer;
 }
-.docs-pill:hover,
-.docs-pill[aria-pressed="true"] {
+.docs-pill:hover {
 	border-color: var(--sub);
 }
 .docs-pill svg {
