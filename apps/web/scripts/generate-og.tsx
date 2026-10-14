@@ -12,6 +12,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { STACKS_SYMBOL_PATH } from "../src/app/robinhood/stacks-symbol";
+import { type Chain, MARKS } from "../src/components/site/chain-marks";
 import { POSTS } from "../src/lib/writing";
 
 const FONT_DIR = join(process.cwd(), "src/assets/og-fonts");
@@ -173,27 +174,82 @@ function VLine({ height }: { height: number }) {
 
 // ── artifacts (flat, simplified from the page heroes) ────────────────────────
 
+/** One mark from the site's chips, colored inline (satori has no CSS). */
+function Mark({ chain, size }: { chain: Chain; size: number }) {
+	const { size: box, shapes, colors } = MARKS[chain];
+	return (
+		<svg
+			width={size}
+			height={size}
+			viewBox={`0 0 ${box} ${box}`}
+			aria-hidden="true"
+		>
+			{shapes.map((shape, i) =>
+				"rx" in shape ? (
+					<rect
+						// biome-ignore lint/suspicious/noArrayIndexKey: fixed shapes, never reordered
+						key={i}
+						width={box}
+						height={box}
+						rx={shape.rx}
+						fill={colors[shape.role]}
+					/>
+				) : shape.stroke ? (
+					<path
+						// biome-ignore lint/suspicious/noArrayIndexKey: fixed shapes, never reordered
+						key={i}
+						d={shape.d}
+						transform={shape.transform}
+						fill="none"
+						stroke={colors[shape.role]}
+						strokeWidth={9}
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					/>
+				) : (
+					<path
+						// biome-ignore lint/suspicious/noArrayIndexKey: fixed shapes, never reordered
+						key={i}
+						d={shape.d}
+						transform={shape.transform}
+						fill={colors[shape.role]}
+					/>
+				),
+			)}
+		</svg>
+	);
+}
+
+/** The home card names what it indexes, each with its mark, as the site does. */
 function ArtHome() {
-	const nouns = ["Archive", "Streams", "Index", "Subgraphs", "Webhooks"];
+	const chains: [Chain, string][] = [
+		["stacks", "Stacks"],
+		["sbtc", "sBTC"],
+		["runes", "Runes"],
+		["bitcoin", "Bitcoin"],
+	];
 	return (
 		<div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-			{nouns.map((noun, i) => (
+			{chains.map(([chain, name], i) => (
 				<div
-					key={noun}
+					key={chain}
 					style={{ display: "flex", alignItems: "center", gap: 18 }}
 				>
 					{i > 0 ? <span style={{ fontSize: 26, color: SUB }}>·</span> : null}
-					<span
-						style={{
-							fontFamily: "Geist",
-							fontWeight: 500,
-							fontSize: 30,
-							color: SUB,
-							letterSpacing: -0.6,
-						}}
-					>
-						{noun}
-					</span>
+					<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+						<Mark chain={chain} size={30} />
+						<span
+							style={{
+								fontFamily: "Geist",
+								fontWeight: 500,
+								fontSize: 30,
+								color: SUB,
+								letterSpacing: -0.6,
+							}}
+						>
+							{name}
+						</span>
+					</div>
 				</div>
 			))}
 		</div>

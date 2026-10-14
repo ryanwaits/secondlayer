@@ -28,10 +28,10 @@ export const metadata: Metadata = {
 	// previews on shared links.
 	metadataBase: new URL("https://www.secondlayer.tools"),
 	title: "secondlayer",
-	description: "Instant data for apps on Bitcoin.",
+	description: "Instant data for apps on Bitcoin. Proof included.",
 	openGraph: {
 		title: "secondlayer",
-		description: "Instant data for apps on Bitcoin.",
+		description: "Instant data for apps on Bitcoin. Proof included.",
 		siteName: "secondlayer",
 		type: "website",
 		images: [
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 	twitter: {
 		card: "summary_large_image",
 		title: "secondlayer",
-		description: "Instant data for apps on Bitcoin.",
+		description: "Instant data for apps on Bitcoin. Proof included.",
 		images: ["/og/home.png"],
 	},
 };

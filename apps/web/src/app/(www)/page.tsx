@@ -14,10 +14,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 const SUB =
-	"Index Stacks and Runes from their first block, stream new ones as they land, and prove Stacks data back to Bitcoin. Runes on hosted is coming soon.";
+	"Index Stacks and Runes from their first block, stream new ones as they land, and prove Stacks data back to Bitcoin.";
 
 export const metadata: Metadata = socialMeta({
-	title: "secondlayer · instant data for apps on Bitcoin",
+	title: "secondlayer · instant data for apps on Bitcoin, proof included",
 	description: `${SUB} Hosted, or on your own box.`,
 	image: "/og/home.png",
 	path: "/",
