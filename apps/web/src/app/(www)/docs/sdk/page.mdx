@@ -49,7 +49,7 @@ Each surface documents its own calls:
 | Let a sink own the transaction | `kyselySink`, `drizzleSink`, `bunSqliteSink` | [Sinks](/docs/sinks) |
 | Describe one event for every surface | `on.ftMint(...)`, `.toIndexParams()` | [Filters](#filters) |
 
-A failed call throws `ApiError`. `ApiError.requestId` is the `request_id` to quote when you [report a problem](/docs/rest-api#report-a-problem-hosted).
+A failed call throws `ApiError`. `ApiError.requestId` is the `request_id` to quote when you [report a problem](tip:/docs/rest-api#report-a-problem-hosted).
 
 <Callout type="warning" title="trigger.* is not on.*">
 
