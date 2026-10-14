@@ -4,11 +4,11 @@ import robots from "./robots";
 const [rule] = [robots().rules].flat();
 
 describe("robots", () => {
-	test("crawlers are kept out of the internal lab", () => {
+	test("robots.txt disallows the internal lab", () => {
 		expect(rule.disallow).toContain("/lab");
 	});
 
-	test("the public site stays crawlable", () => {
+	test("robots.txt allows the public site", () => {
 		expect(rule.allow).toBe("/");
 	});
 });
