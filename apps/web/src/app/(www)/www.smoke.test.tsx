@@ -51,7 +51,7 @@ describe("www marketing routes", () => {
 	test("/ states the hosted and self-host paths and no withdrawn products", async () => {
 		const html = await renderAsync(<HomeView />);
 		// Runes is self-host only until hosted lands; the hero lists it as coming.
-		expect(html).toMatch(/Coming soon:.*Runes/);
+		expect(html).toMatch(/Coming soon<\/span>.*Runes/);
 		expect(html).toContain("Your box or ours.");
 		expect(html).toContain("beside your node");
 		expect(html).toContain('href="/p/subgraphs"');
