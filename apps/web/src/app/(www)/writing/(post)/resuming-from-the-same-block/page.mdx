@@ -10,6 +10,7 @@ import {
 	InlineSpark,
 	Sidenote,
 } from "@/components/figures";
+import { ChainLink } from "@/components/site/chain-link";
 import { postMeta } from "@/lib/writing";
 import { SelectivityExplorer } from "./selectivity-explorer";
 
@@ -23,7 +24,7 @@ Restart an indexer built on a consume loop and it prints something like this:
 resuming from 8637064:1
 ```
 
-Which is fine, except it printed the same thing yesterday, and the chain tip is forty thousand blocks past that cursor now. It's tempting to read this as a stuck consumer: surely "continue where you left off" should mean the *last place you checked*, not the last place you found something.
+Which is fine, except it printed the same thing yesterday, and the <ChainLink chain="stacks" href="/p/index">Stacks</ChainLink> chain tip is forty thousand blocks past that cursor now. It's tempting to read this as a stuck consumer: surely "continue where you left off" should mean the *last place you checked*, not the last place you found something.
 
 The consumer is caught up. Those really are two different places, and expecting the checkpoint to track the last place you *looked* rather than the last place you *kept something* is where the confusion starts.
 
@@ -85,7 +86,7 @@ On a busy feed all three heights travel together, which is why the distinction i
 
 ## What a poll actually is
 
-A consumer never reads blocks, on restart or at any other time. The server already read every block, decoded every event, and filed the results in a sorted index: a card catalog that took millions of blocks of effort to build, maintained so nobody has to walk the shelves again. The consumer's entire relationship with the chain is one question, asked every 500 milliseconds:
+A consumer never reads blocks, on restart or at any other time. The server already read every block, decoded every <ChainLink chain="clarity">Clarity</ChainLink> event, and filed the results in a sorted index: a card catalog that took millions of blocks of effort to build, maintained so nobody has to walk the shelves again. The consumer's entire relationship with the chain is one question, asked every 500 milliseconds:
 
 ```
 GET /v1/index/contract-calls
