@@ -1,0 +1,1353 @@
+{
+	"slug": "event-types",
+	"root": "",
+	"from": "@secondlayer/stacks/filters",
+	"methods": [],
+	"constants": [
+		{
+			"name": "CHAIN_EVENT_FILTER_TYPES",
+			"summary": "Every chain-event filter member across all four surfaces: the 10 decoded token/STX types, the three contract-shaped types (spelled as subgraphs and triggers spell them — Index/Streams project `print_event` → `print`), and the five sBTC lifecycle types (Webhooks-only).",
+			"type": "[\"stx_transfer\", \"stx_mint\", \"stx_burn\", \"stx_lock\", \"ft_transfer\", \"ft_mint\", \"ft_burn\", \"nft_transfer\", \"nft_mint\", \"nft_burn\", \"contract_call\", \"contract_deploy\", \"print_event\", \"nested_contract_call\", \"var_set\", \"map_set\", \"map_insert\", \"map_delete\", \"sbtc_deposit\", \"sbtc_withdrawal_create\", \"sbtc_withdrawal_accept\", \"sbtc_withdrawal_reject\", \"sbtc_withdrawal_swept_confirmed\"]",
+			"source": {
+				"file": "packages/stacks/src/filters/event-types.ts",
+				"line": 54
+			}
+		},
+		{
+			"name": "DECODED_EVENT_TYPES",
+			"summary": "The decoded event types.",
+			"type": "[\"stx_transfer\", \"stx_mint\", \"stx_burn\", \"stx_lock\", \"ft_transfer\", \"ft_mint\", \"ft_burn\", \"nft_transfer\", \"nft_mint\", \"nft_burn\", \"print\"]",
+			"source": {
+				"file": "packages/stacks/src/filters/event-types.ts",
+				"line": 7
+			}
+		},
+		{
+			"name": "VM_EVENT_TYPES",
+			"summary": "Opt-in node vm_events, stored names.",
+			"type": "[\"nested_contract_call\", \"var_set\", \"map_set\", \"map_insert\", \"map_delete\"]",
+			"source": {
+				"file": "packages/stacks/src/filters/event-types.ts",
+				"line": 26
+			}
+		},
+		{
+			"name": "VM_NODE_TO_STORED_TYPE",
+			"summary": "Node `/new_block.vm_events[].type` → stored/Index/Streams name.",
+			"type": "{ contract_call_event: \"nested_contract_call\"; var_set_event: \"var_set\"; map_set_event: \"map_set\"; map_insert_event: \"map_insert\"; map_delete_event: \"map_delete\" }",
+			"source": {
+				"file": "packages/stacks/src/filters/event-types.ts",
+				"line": 40
+			}
+		}
+	],
+	"types": [
+		{
+			"name": "AbiBuffer",
+			"summary": "",
+			"fields": [
+				{
+					"name": "buff",
+					"type": "{ length: L }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiContract",
+			"summary": "",
+			"fields": [
+				{
+					"name": "functions",
+					"type": "readonly AbiFunction[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "maps",
+					"type": "readonly AbiMap[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "variables",
+					"type": "readonly AbiVariable[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "fungible_tokens",
+					"type": "readonly AbiFungibleToken[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "non_fungible_tokens",
+					"type": "readonly AbiNonFungibleToken[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "implemented_traits",
+					"type": "readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "defined_traits",
+					"type": "readonly AbiTraitDefinition[]",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiFunction",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "access",
+					"type": "FunctionAccess",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "args",
+					"type": "readonly FunctionArg[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "outputs",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiFungibleToken",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiListType",
+			"summary": "",
+			"fields": [
+				{
+					"name": "list",
+					"type": "{ type: AbiType; length: number }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiMap",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "key",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "value",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiNonFungibleToken",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiOptionalType",
+			"summary": "",
+			"fields": [
+				{
+					"name": "optional",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiResponseType",
+			"summary": "",
+			"fields": [
+				{
+					"name": "response",
+					"type": "{ ok: AbiType; error: AbiType }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiStringAscii",
+			"summary": "",
+			"fields": [
+				{
+					"name": "string-ascii",
+					"type": "{ length: L }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiStringUtf8",
+			"summary": "",
+			"fields": [
+				{
+					"name": "string-utf8",
+					"type": "{ length: L }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiTraitDefinition",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "functions",
+					"type": "readonly AbiTraitFunction[]",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiTraitFunction",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "access",
+					"type": "TraitFunctionAccess",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "args",
+					"type": "readonly FunctionArg[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "outputs",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiTupleType",
+			"summary": "",
+			"fields": [
+				{
+					"name": "tuple",
+					"type": "readonly { name: string; type: AbiType }[]",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiType",
+			"summary": "",
+			"definition": "AbiPrimitiveType | AbiListType | AbiTupleType | AbiOptionalType | AbiResponseType"
+		},
+		{
+			"name": "AbiVariable",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "access",
+					"type": "VariableAccess",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AssetIdentifier",
+			"summary": "`<contract>::<asset-name>` — the shape a fungible/non-fungible asset filter takes, expressed so the compiler can check it.",
+			"definition": "`${string}::${string}` | `${string}*${string}`"
+		},
+		{
+			"name": "ChainEventFilter",
+			"summary": "A canonical chain-event filter: the spec fields plus the projections its member supports.",
+			"fields": [
+				{
+					"name": "toChainTrigger",
+					"type": "() => ChainTriggerOf<S>",
+					"required": true,
+					"description": "Wire trigger for `webhooks.create({ triggers: [...] })`. BigInt\namounts become strings here — the one sanctioned boundary."
+				}
+			]
+		},
+		{
+			"name": "ChainEventFilterSpec",
+			"summary": "",
+			"definition": "StxTransferSpec | StxMintSpec | StxBurnSpec | StxLockSpec | FtTransferSpec | FtMintSpec | FtBurnSpec | NftTransferSpec | NftMintSpec | NftBurnSpec | ContractCallSpec | ContractDeploySpec | NestedContractCallSpec | VarSetSpec | MapSetSpec | MapInsertSpec | MapDeleteSpec | PrintEventSpec | SbtcDepositSpec | SbtcWithdrawalCreateSpec | SbtcWithdrawalAcceptSpec | SbtcWithdrawalRejectSpec | SbtcWithdrawalSweptConfirmedSpec"
+		},
+		{
+			"name": "ChainTriggerOf",
+			"summary": "Wire shape of a chain trigger (Webhooks), derived per member from the spec: same fields, with `bigint` amounts stringified (uint128 exceeds JS safe integers) and the type-only `abi`/`prints` decorations dropped.",
+			"definition": "{ // bigint amounts stringify at the JSON boundary; a contract SET is not // expressible (the wire takes ONE contract per trigger, and // `toChainTrigger()` throws rather than silently taking the first). [K in keyof Omit<S, \"abi\" | \"prints\" | \"factory\">]: | Exclude<S[K], bigint | readonly string[]> // A bigint amount arrives as a decimal string; `bigint extends S[K]` // (not the reverse) so it still fires for `bigint | undefined`. | (bigint extends S[K] ? string : never); }"
+		},
+		{
+			"name": "ChainTriggerShape",
+			"summary": "Loose trigger shape (any member).",
+			"definition": "ChainTriggerOf<ChainEventFilterSpec>"
+		},
+		{
+			"name": "ContractCallsParamsShape",
+			"summary": "Params fragment for `index.contractCalls.*`.",
+			"fields": [
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": "A spec's contract set passes through verbatim (the API takes up to 20)."
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": "Populated from the spec's `caller` — the endpoint filters by tx sender,\nwhich is the caller."
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ContractCallSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"contract_call\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": "One contract id, or a set of them (max 20). Mirrors the subgraphs\nfilter — a router plus its pools is one source, not N."
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "abi",
+					"type": "AbiContract",
+					"required": false,
+					"description": "Contract ABI (`as const`) — preserved literally so `toSubgraphSource()`\nkeeps typing `event.input` in `defineSubgraph`."
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ContractDeploySpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"contract_deploy\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "deployer",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtBurnSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtMintSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtTransferSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FunctionAccess",
+			"summary": "",
+			"definition": "\"public\" | \"read-only\" | \"private\""
+		},
+		{
+			"name": "FunctionArg",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "IndexEventsParamsShape",
+			"summary": "Params fragment for `index.events.*` (spread into list/walk/consume).",
+			"fields": [
+				{
+					"name": "eventType",
+					"type": "\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"nested_contract_call\" | \"var_set\" | \"map_set\" | \"map_insert\" | \"map_delete\" | \"print\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": "A spec's contract set passes through verbatim (the API takes up to 20)."
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "varName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MapDeleteSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"map_delete\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MapInsertSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"map_insert\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MapSetSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"map_set\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NestedContractCallSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nested_contract_call\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftBurnSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftMintSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftTransferSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PrintEventSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"print_event\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": "One contract id, or a set of them (max 20)."
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "prints",
+					"type": "Record<string, Record<string, PrintFieldType>>",
+					"required": false,
+					"description": "Per-topic field schema — preserved literally so `toSubgraphSource()`\nkeeps the discriminated-union narrowing of `event.data`."
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PrintFieldType",
+			"summary": "One declared print field — structural mirror of `PrintField` in `@secondlayer/subgraphs`.",
+			"definition": "PrintScalarType | { type: PrintFieldType; optional: true; } | { tuple: Record<string, PrintFieldType>; } | { list: PrintFieldType; }"
+		},
+		{
+			"name": "PrintScalarType",
+			"summary": "Scalar print field types (structural mirror of the subgraphs `ColumnType`).",
+			"definition": "\"boolean\" | \"principal\" | \"uint\" | \"int\" | \"text\" | \"timestamp\" | \"jsonb\""
+		},
+		{
+			"name": "SbtcDepositSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"sbtc_deposit\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "bitcoinTxid",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "requestId",
+					"type": "number",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SbtcWithdrawalAcceptSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"sbtc_withdrawal_accept\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "requestId",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sweepTxid",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SbtcWithdrawalCreateSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"sbtc_withdrawal_create\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "requestId",
+					"type": "number",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SbtcWithdrawalRejectSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"sbtc_withdrawal_reject\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "requestId",
+					"type": "number",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SbtcWithdrawalSweptConfirmedSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"sbtc_withdrawal_swept_confirmed\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "requestId",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sweepTxid",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SpecFor",
+			"summary": "",
+			"definition": "Extract<StxTransferSpec, { type: T; }> | Extract<StxMintSpec, { type: T; }> | Extract<StxBurnSpec, { type: T; }> | Extract<StxLockSpec, { type: T; }> | Extract<FtTransferSpec, { type: T; }> | Extract<FtMintSpec, { type: T; }> | Extract<FtBurnSpec, { type: T; }> | Extract<NftTransferSpec, { type: T; }> | Extract<NftMintSpec, { type: T; }> | Extract<NftBurnSpec, { type: T; }> | Extract<ContractCallSpec, { type: T; }> | Extract<ContractDeploySpec, { type: T; }> | Extract<NestedContractCallSpec, { type: T; }> | Extract<VarSetSpec, { type: T; }> | Extract<MapSetSpec, { type: T; }> | Extract<MapIns…"
+		},
+		{
+			"name": "StreamsParamsShape",
+			"summary": "Params fragment for classic `streams.events.*` (Streams 1.0).",
+			"fields": [
+				{
+					"name": "types",
+					"type": "readonly (\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"print\")[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StreamsVmParamsShape",
+			"summary": "VM member projection: `clock` is the `\"vm\"` literal so SDK overload 1 matches.",
+			"fields": [
+				{
+					"name": "types",
+					"type": "[T]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "clock",
+					"type": "\"vm\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxBurnSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxLockSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_lock\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lockedAddress",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxMintSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxTransferSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphMemberType",
+			"summary": "The members expressible as subgraph sources (everything but the Webhooks-only sBTC lifecycle types).",
+			"definition": "\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"contract_call\" | \"contract_deploy\" | \"print_event\" | \"nested_contract_call\" | \"var_set\" | \"map_set\" | \"map_insert\" | \"map_delete\""
+		},
+		{
+			"name": "SubgraphSourceSpec",
+			"summary": "A subgraph-source-shaped filter object (the `toSubgraphSource()` output / `fromSubgraphSource()` input).",
+			"definition": "StxTransferSpec | StxMintSpec | StxBurnSpec | StxLockSpec | FtTransferSpec | FtMintSpec | FtBurnSpec | NftTransferSpec | NftMintSpec | NftBurnSpec | ContractCallSpec | ContractDeploySpec | NestedContractCallSpec | VarSetSpec | MapSetSpec | MapInsertSpec | MapDeleteSpec | PrintEventSpec"
+		},
+		{
+			"name": "TraitFunctionAccess",
+			"summary": "",
+			"definition": "\"public\" | \"read-only\""
+		},
+		{
+			"name": "VariableAccess",
+			"summary": "",
+			"definition": "\"constant\" | \"variable\""
+		},
+		{
+			"name": "VarSetSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"var_set\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "varName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		}
+	]
+}

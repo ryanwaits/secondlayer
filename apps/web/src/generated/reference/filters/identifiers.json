@@ -1,0 +1,524 @@
+{
+	"slug": "identifiers",
+	"root": "",
+	"from": "@secondlayer/stacks/filters",
+	"methods": [
+		{
+			"id": "assertAssetIdentifier",
+			"path": "assertAssetIdentifier",
+			"summary": "Throw unless `value` looks like `SP….contract::asset` (or a wildcard).",
+			"description": "Throw unless `value` looks like `SP….contract::asset` (or a wildcard).",
+			"source": {
+				"file": "packages/stacks/src/filters/validate.ts",
+				"line": 67
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "field",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "value",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "void",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "assetId",
+			"path": "assetId",
+			"summary": "Narrow a runtime string to an [`AssetIdentifier`](/docs/filters-reference#t-AssetIdentifier), validating it.",
+			"description": "Narrow a runtime string to an [`AssetIdentifier`](/docs/filters-reference#t-AssetIdentifier), validating it.\n\nThe escape hatch for config-driven values: `assetId(process.env.ASSET!)`\nthrows on a contract id instead of letting it through to a zero-row query.",
+			"source": {
+				"file": "packages/stacks/src/filters/validate.ts",
+				"line": 32
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "value",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "AssetIdentifier",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "assertContractId",
+			"path": "assertContractId",
+			"summary": "Throw unless `value` is a contract id `SP….name` (or a wildcard).",
+			"description": "Throw unless `value` is a contract id `SP….name` (or a wildcard).",
+			"source": {
+				"file": "packages/stacks/src/filters/validate.ts",
+				"line": 84
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "field",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "value",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "void",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "assertPrincipalish",
+			"path": "assertPrincipalish",
+			"summary": "Throw unless `value` is a principal or a wildcard pattern.",
+			"description": "Throw unless `value` is a principal or a wildcard pattern. The factories\ncall this so a swapped argument (asset id where a sender belongs, typo'd\naddress) fails at construction — not as a silent zero-row query.",
+			"source": {
+				"file": "packages/stacks/src/filters/validate.ts",
+				"line": 57
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "field",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "value",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "void",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "hasWildcard",
+			"path": "hasWildcard",
+			"summary": "Tells whether a value contains a `*` wildcard.",
+			"description": "Tells whether a value contains a `*` wildcard.\n\nWebhooks and Subgraph sources match `*` wildcards in principal and\nidentifier patterns; every other surface treats the value literally.",
+			"source": {
+				"file": "packages/stacks/src/filters/validate.ts",
+				"line": 50
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "value",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "boolean",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "isPrincipal",
+			"path": "isPrincipal",
+			"summary": "`true` for a standard (`SP…`/`ST…`) or contract (`SP….name`) principal.",
+			"description": "`true` for a standard (`SP…`/`ST…`) or contract (`SP….name`) principal.\nShares `parsePrincipal` with the ABI guards so the two surfaces can't\ndisagree about what a principal is.",
+			"source": {
+				"file": "packages/stacks/src/filters/validate.ts",
+				"line": 40
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "value",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "value is Principal",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "AssetIdentifier",
+			"summary": "`<contract>::<asset-name>` — the shape a fungible/non-fungible asset filter takes, expressed so the compiler can check it.",
+			"definition": "`${string}::${string}` | `${string}*${string}`"
+		},
+		{
+			"name": "Principal",
+			"summary": "A validated Stacks principal (standard or contract).",
+			"fields": [
+				{
+					"name": "toString",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a string representation of a string."
+				},
+				{
+					"name": "charAt",
+					"type": "(pos: number) => string",
+					"required": true,
+					"description": "Returns the character at the specified index."
+				},
+				{
+					"name": "charCodeAt",
+					"type": "(index: number) => number",
+					"required": true,
+					"description": "Returns the Unicode value of the character at the specified location."
+				},
+				{
+					"name": "concat",
+					"type": "(strings?: string[]) => string",
+					"required": true,
+					"description": "Returns a string that contains the concatenation of two or more strings."
+				},
+				{
+					"name": "indexOf",
+					"type": "(searchString: string, position?: number) => number",
+					"required": true,
+					"description": "Returns the position of the first occurrence of a substring."
+				},
+				{
+					"name": "lastIndexOf",
+					"type": "(searchString: string, position?: number) => number",
+					"required": true,
+					"description": "Returns the last occurrence of a substring in the string."
+				},
+				{
+					"name": "localeCompare",
+					"type": "{ (that: string): number; (that: string, locales?: string | string[], options?: Intl.CollatorOptions): number; (that: string, locales?: Intl.LocalesArgument, options?: Intl.CollatorOptions): number; }",
+					"required": true,
+					"description": "Determines whether two strings are equivalent in the current locale.\n\n\nDetermines whether two strings are equivalent in the current or specified locale."
+				},
+				{
+					"name": "match",
+					"type": "{ (regexp: string | RegExp): RegExpMatchArray | null; (matcher: { [Symbol.match](string: string): RegExpMatchArray | null; }): RegExpMatchArray | null; }",
+					"required": true,
+					"description": "Matches a string with a regular expression, and returns an array containing the results of that search.\n\n\nMatches a string or an object that supports being matched against, and returns an array\ncontaining the results of that search, or null if no matches are found."
+				},
+				{
+					"name": "replace",
+					"type": "{ (searchValue: string | RegExp, replaceValue: string): string; (searchValue: string | RegExp, replacer: (substring: string, ...args: any[]) => string): string; (searchValue: { [Symbol.replace](string: string, replaceValue: string): string; }, replaceValue: string): string; (searchValue: { [Symbol.replace](string: string, replacer: (substring: string, ...args: any[]) => string): string; }, replacer: (substring: string, ...args: any[]) => string): string; }",
+					"required": true,
+					"description": "Replaces text in a string, using a regular expression or search string.\n\n\nPasses a string and `replaceValue` to the `[Symbol.replace]` method on `searchValue`. This method is expected to implement its own replacement algorithm.\n\n\nReplaces text in a string, using an object that supports replacement within a string."
+				},
+				{
+					"name": "search",
+					"type": "{ (regexp: string | RegExp): number; (searcher: { [Symbol.search](string: string): number; }): number; }",
+					"required": true,
+					"description": "Finds the first substring match in a regular expression search."
+				},
+				{
+					"name": "slice",
+					"type": "(start?: number, end?: number) => string",
+					"required": true,
+					"description": "Returns a section of a string."
+				},
+				{
+					"name": "split",
+					"type": "{ (separator: string | RegExp, limit?: number): string[]; (splitter: { [Symbol.split](string: string, limit?: number): string[]; }, limit?: number): string[]; }",
+					"required": true,
+					"description": "Split a string into substrings using the specified separator and return them as an array."
+				},
+				{
+					"name": "substring",
+					"type": "(start: number, end?: number) => string",
+					"required": true,
+					"description": "Returns the substring at the specified location within a String object."
+				},
+				{
+					"name": "toLowerCase",
+					"type": "() => string",
+					"required": true,
+					"description": "Converts all the alphabetic characters in a string to lowercase."
+				},
+				{
+					"name": "toLocaleLowerCase",
+					"type": "{ (locales?: string | string[]): string; (locales?: Intl.LocalesArgument): string; }",
+					"required": true,
+					"description": "Converts all alphabetic characters to lowercase, taking into account the host environment's current locale."
+				},
+				{
+					"name": "toUpperCase",
+					"type": "() => string",
+					"required": true,
+					"description": "Converts all the alphabetic characters in a string to uppercase."
+				},
+				{
+					"name": "toLocaleUpperCase",
+					"type": "{ (locales?: string | string[]): string; (locales?: Intl.LocalesArgument): string; }",
+					"required": true,
+					"description": "Returns a string where all alphabetic characters have been converted to uppercase, taking into account the host environment's current locale."
+				},
+				{
+					"name": "trim",
+					"type": "() => string",
+					"required": true,
+					"description": "Removes the leading and trailing white space and line terminator characters from a string."
+				},
+				{
+					"name": "length",
+					"type": "number",
+					"required": true,
+					"description": "Returns the length of a String object."
+				},
+				{
+					"name": "substr",
+					"type": "(from: number, length?: number) => string",
+					"required": true,
+					"description": "Gets a substring beginning at the specified location and having the specified length."
+				},
+				{
+					"name": "valueOf",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns the primitive value of the specified object."
+				},
+				{
+					"name": "codePointAt",
+					"type": "(pos: number) => number | undefined",
+					"required": true,
+					"description": "Returns a nonnegative integer Number less than 1114112 (0x110000) that is the code point\nvalue of the UTF-16 encoded code point starting at the string element at position pos in\nthe String resulting from converting this object to a String.\nIf there is no element at that position, the result is undefined.\nIf a valid UTF-16 surrogate pair does not begin at pos, the result is the code unit at pos."
+				},
+				{
+					"name": "includes",
+					"type": "(searchString: string, position?: number) => boolean",
+					"required": true,
+					"description": "Returns true if searchString appears as a substring of the result of converting this\nobject to a String, at one or more positions that are\ngreater than or equal to position; otherwise, returns false."
+				},
+				{
+					"name": "endsWith",
+					"type": "(searchString: string, endPosition?: number) => boolean",
+					"required": true,
+					"description": "Returns true if the sequence of elements of searchString converted to a String is the\nsame as the corresponding elements of this object (converted to a String) starting at\nendPosition – length(this). Otherwise returns false."
+				},
+				{
+					"name": "normalize",
+					"type": "{ (form: \"NFC\" | \"NFD\" | \"NFKC\" | \"NFKD\"): string; (form?: string): string; }",
+					"required": true,
+					"description": "Returns the String value result of normalizing the string into the normalization form\nnamed by form as specified in Unicode Standard Annex #15, Unicode Normalization Forms."
+				},
+				{
+					"name": "repeat",
+					"type": "(count: number) => string",
+					"required": true,
+					"description": "Returns a String value that is made from count copies appended together. If count is 0,\nthe empty string is returned."
+				},
+				{
+					"name": "startsWith",
+					"type": "(searchString: string, position?: number) => boolean",
+					"required": true,
+					"description": "Returns true if the sequence of elements of searchString converted to a String is the\nsame as the corresponding elements of this object (converted to a String) starting at\nposition. Otherwise returns false."
+				},
+				{
+					"name": "anchor",
+					"type": "(name: string) => string",
+					"required": true,
+					"description": "Returns an `<a>` HTML anchor element and sets the name attribute to the text value"
+				},
+				{
+					"name": "big",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a `<big>` HTML element"
+				},
+				{
+					"name": "blink",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a `<blink>` HTML element"
+				},
+				{
+					"name": "bold",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a `<b>` HTML element"
+				},
+				{
+					"name": "fixed",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a `<tt>` HTML element"
+				},
+				{
+					"name": "fontcolor",
+					"type": "(color: string) => string",
+					"required": true,
+					"description": "Returns a `<font>` HTML element and sets the color attribute value"
+				},
+				{
+					"name": "fontsize",
+					"type": "{ (size: number): string; (size: string): string; }",
+					"required": true,
+					"description": "Returns a `<font>` HTML element and sets the size attribute value"
+				},
+				{
+					"name": "italics",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns an `<i>` HTML element"
+				},
+				{
+					"name": "link",
+					"type": "(url: string) => string",
+					"required": true,
+					"description": "Returns an `<a>` HTML element and sets the href attribute value"
+				},
+				{
+					"name": "small",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a `<small>` HTML element"
+				},
+				{
+					"name": "strike",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a `<strike>` HTML element"
+				},
+				{
+					"name": "sub",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a `<sub>` HTML element"
+				},
+				{
+					"name": "sup",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a `<sup>` HTML element"
+				},
+				{
+					"name": "padStart",
+					"type": "(maxLength: number, fillString?: string) => string",
+					"required": true,
+					"description": "Pads the current string with a given string (possibly repeated) so that the resulting string reaches a given length.\nThe padding is applied from the start (left) of the current string."
+				},
+				{
+					"name": "padEnd",
+					"type": "(maxLength: number, fillString?: string) => string",
+					"required": true,
+					"description": "Pads the current string with a given string (possibly repeated) so that the resulting string reaches a given length.\nThe padding is applied from the end (right) of the current string."
+				},
+				{
+					"name": "trimEnd",
+					"type": "() => string",
+					"required": true,
+					"description": "Removes the trailing white space and line terminator characters from a string."
+				},
+				{
+					"name": "trimStart",
+					"type": "() => string",
+					"required": true,
+					"description": "Removes the leading white space and line terminator characters from a string."
+				},
+				{
+					"name": "trimLeft",
+					"type": "() => string",
+					"required": true,
+					"description": "Removes the leading white space and line terminator characters from a string."
+				},
+				{
+					"name": "trimRight",
+					"type": "() => string",
+					"required": true,
+					"description": "Removes the trailing white space and line terminator characters from a string."
+				},
+				{
+					"name": "matchAll",
+					"type": "(regexp: RegExp) => RegExpStringIterator<RegExpExecArray>",
+					"required": true,
+					"description": "Matches a string with a regular expression, and returns an iterable of matches\ncontaining the results of that search."
+				},
+				{
+					"name": "replaceAll",
+					"type": "{ (searchValue: string | RegExp, replaceValue: string): string; (searchValue: string | RegExp, replacer: (substring: string, ...args: any[]) => string): string; }",
+					"required": true,
+					"description": "Replace all instances of a substring in a string, using a regular expression or search string."
+				},
+				{
+					"name": "at",
+					"type": "(index: number) => string | undefined",
+					"required": true,
+					"description": "Returns a new String consisting of the single UTF-16 code unit located at the specified index."
+				},
+				{
+					"name": "isWellFormed",
+					"type": "() => boolean",
+					"required": true,
+					"description": "Returns true if all leading surrogates and trailing surrogates appear paired and in order."
+				},
+				{
+					"name": "toWellFormed",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a string where all lone or out-of-order surrogates have been replaced by the Unicode replacement character (U+FFFD)."
+				},
+				{
+					"name": "__principal",
+					"type": "unique symbol",
+					"required": true,
+					"description": ""
+				}
+			]
+		}
+	]
+}

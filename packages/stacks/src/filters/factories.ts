@@ -310,11 +310,15 @@ const DECODED_MEMBERS = new Set<ChainEventFilterType>([
 	"print_event",
 ]);
 
-/** Build a canonical filter: validated spec + the projections its member
- *  supports (methods are attached per member at runtime, matching the
- *  type-level gating exactly). `const F` preserves field literals — a
- *  `prints`/`abi` declaration keeps its exact type through
- *  `toSubgraphSource()`, which is what feeds `defineSubgraph` narrowing. */
+/**
+ * Builds a canonical filter from a member type and its fields.
+ *
+ * It validates the spec and attaches the projections its member supports.
+ * Methods are attached per member at runtime, matching the type-level gating
+ * exactly. `const F` preserves field literals, so a `prints` or `abi`
+ * declaration keeps its exact type through `toSubgraphSource()`, which is what
+ * feeds `defineSubgraph` narrowing.
+ */
 export function makeChainEventFilter<
 	T extends ChainEventFilterType,
 	const F extends Omit<SpecFor<T>, "type">,
@@ -341,10 +345,11 @@ export function makeChainEventFilter<
 }
 
 /**
- * Rehydrate a canonical filter from a subgraph-source-shaped object (the
- * inverse of `toSubgraphSource`). Powers migration and the round-trip
- * property gate: `toSubgraphSource(fromSubgraphSource(f))` must deep-equal
- * `f` for every production subgraph source.
+ * Rebuilds a canonical filter from a subgraph source object.
+ *
+ * It is the inverse of `toSubgraphSource`. It powers migration and the
+ * round-trip property gate: `toSubgraphSource(fromSubgraphSource(f))` must
+ * deep-equal `f` for every production subgraph source.
  */
 export function fromSubgraphSource(
 	source: SubgraphSourceSpec,
@@ -362,22 +367,78 @@ type Fields<T extends ChainEventFilterType> = Omit<SpecFor<T>, "type">;
  *  annotation on exported values (an inferred object of generic factories
  *  collapses to `{}` in the emitted declarations). */
 export interface OnNamespace {
+	/**
+	 * Matches STX transfers.
+	 *
+	 * @param fields The members of {@link StxTransferSpec}, without `type`.
+	 */
 	stxTransfer(
 		fields?: Fields<"stx_transfer">,
 	): ChainEventFilter<"stx_transfer">;
+	/**
+	 * Matches STX mints.
+	 *
+	 * @param fields The members of {@link StxMintSpec}, without `type`.
+	 */
 	stxMint(fields?: Fields<"stx_mint">): ChainEventFilter<"stx_mint">;
+	/**
+	 * Matches STX burns.
+	 *
+	 * @param fields The members of {@link StxBurnSpec}, without `type`.
+	 */
 	stxBurn(fields?: Fields<"stx_burn">): ChainEventFilter<"stx_burn">;
+	/**
+	 * Matches STX lock events.
+	 *
+	 * @param fields The members of {@link StxLockSpec}, without `type`.
+	 */
 	stxLock(fields?: Fields<"stx_lock">): ChainEventFilter<"stx_lock">;
+	/**
+	 * Matches fungible token transfers.
+	 *
+	 * @param fields The members of {@link FtTransferSpec}, without `type`.
+	 */
 	ftTransfer(fields?: Fields<"ft_transfer">): ChainEventFilter<"ft_transfer">;
+	/**
+	 * Matches fungible token mints.
+	 *
+	 * @param fields The members of {@link FtMintSpec}, without `type`.
+	 */
 	ftMint(fields?: Fields<"ft_mint">): ChainEventFilter<"ft_mint">;
+	/**
+	 * Matches fungible token burns.
+	 *
+	 * @param fields The members of {@link FtBurnSpec}, without `type`.
+	 */
 	ftBurn(fields?: Fields<"ft_burn">): ChainEventFilter<"ft_burn">;
+	/**
+	 * Matches NFT transfers.
+	 *
+	 * @param fields The members of {@link NftTransferSpec}, without `type`.
+	 */
 	nftTransfer(
 		fields?: Fields<"nft_transfer">,
 	): ChainEventFilter<"nft_transfer">;
+	/**
+	 * Matches NFT mints.
+	 *
+	 * @param fields The members of {@link NftMintSpec}, without `type`.
+	 */
 	nftMint(fields?: Fields<"nft_mint">): ChainEventFilter<"nft_mint">;
+	/**
+	 * Matches NFT burns.
+	 *
+	 * @param fields The members of {@link NftBurnSpec}, without `type`.
+	 */
 	nftBurn(fields?: Fields<"nft_burn">): ChainEventFilter<"nft_burn">;
-	/** `abi` literals are preserved (`const A`) so `toSubgraphSource()` keeps
-	 *  typing `event.input` inside `defineSubgraph`. */
+	/**
+	 * Matches contract calls.
+	 *
+	 * `abi` literals are preserved (`const A`), so `toSubgraphSource()` keeps
+	 * typing `event.input` inside `defineSubgraph`.
+	 *
+	 * @param fields The members of {@link ContractCallSpec}, without `type`.
+	 */
 	contractCall<const A extends AbiContract | undefined = undefined>(
 		fields?: Omit<SpecFor<"contract_call">, "type" | "abi"> & { abi?: A },
 	): ChainEventFilter<
@@ -389,12 +450,23 @@ export interface OnNamespace {
 				abi?: A;
 			}
 	>;
+	/**
+	 * Matches contract deployments.
+	 *
+	 * @param fields The members of {@link ContractDeploySpec}, without `type`.
+	 */
 	contractDeploy(
 		fields?: Fields<"contract_deploy">,
 	): ChainEventFilter<"contract_deploy">;
-	/** Canonical member is `print_event` (as Subgraphs and Webhooks spell
-	 *  it); `toIndexParams`/`toStreamsParams` project to `print`. `prints`
-	 *  literals are preserved (`const P`) for per-topic `event.data` narrowing. */
+	/**
+	 * Matches `print` events.
+	 *
+	 * The canonical member is `print_event`, as Subgraphs and Webhooks spell it;
+	 * `toIndexParams` and `toStreamsParams` project to `print`. `prints` literals
+	 * are preserved (`const P`), so `event.data` narrows per topic.
+	 *
+	 * @param fields The members of {@link PrintEventSpec}, without `type`.
+	 */
 	print<
 		const P extends
 			| Record<string, Record<string, PrintFieldType>>
@@ -410,25 +482,85 @@ export interface OnNamespace {
 				prints?: P;
 			}
 	>;
+	/**
+	 * Matches contract calls made from inside another contract.
+	 *
+	 * @param fields The members of {@link NestedContractCallSpec}, without `type`.
+	 */
 	nestedCall(
 		fields?: Fields<"nested_contract_call">,
 	): ChainEventFilter<"nested_contract_call">;
+	/**
+	 * Matches data variable writes.
+	 *
+	 * @param fields The members of {@link VarSetSpec}, without `type`.
+	 */
 	varSet(fields?: Fields<"var_set">): ChainEventFilter<"var_set">;
+	/**
+	 * Matches `map-set` writes.
+	 *
+	 * @param fields The members of {@link MapSetSpec}, without `type`.
+	 */
 	mapSet(fields?: Fields<"map_set">): ChainEventFilter<"map_set">;
+	/**
+	 * Matches `map-insert` writes.
+	 *
+	 * @param fields The members of {@link MapInsertSpec}, without `type`.
+	 */
 	mapInsert(fields?: Fields<"map_insert">): ChainEventFilter<"map_insert">;
+	/**
+	 * Matches `map-delete` writes.
+	 *
+	 * @param fields The members of {@link MapDeleteSpec}, without `type`.
+	 */
 	mapDelete(fields?: Fields<"map_delete">): ChainEventFilter<"map_delete">;
+	/**
+	 * Matches sBTC deposits.
+	 *
+	 * Webhooks only: it has no Index, Streams or subgraph projection.
+	 *
+	 * @param fields The members of {@link SbtcDepositSpec}, without `type`.
+	 */
 	sbtcDeposit(
 		fields?: Fields<"sbtc_deposit">,
 	): ChainEventFilter<"sbtc_deposit">;
+	/**
+	 * Matches sBTC withdrawal requests.
+	 *
+	 * Webhooks only: it has no Index, Streams or subgraph projection.
+	 *
+	 * @param fields The members of {@link SbtcWithdrawalCreateSpec}, without `type`.
+	 */
 	sbtcWithdrawalCreate(
 		fields?: Fields<"sbtc_withdrawal_create">,
 	): ChainEventFilter<"sbtc_withdrawal_create">;
+	/**
+	 * Matches accepted sBTC withdrawals.
+	 *
+	 * Webhooks only: it has no Index, Streams or subgraph projection.
+	 *
+	 * @param fields The members of {@link SbtcWithdrawalAcceptSpec}, without `type`.
+	 */
 	sbtcWithdrawalAccept(
 		fields?: Fields<"sbtc_withdrawal_accept">,
 	): ChainEventFilter<"sbtc_withdrawal_accept">;
+	/**
+	 * Matches rejected sBTC withdrawals.
+	 *
+	 * Webhooks only: it has no Index, Streams or subgraph projection.
+	 *
+	 * @param fields The members of {@link SbtcWithdrawalRejectSpec}, without `type`.
+	 */
 	sbtcWithdrawalReject(
 		fields?: Fields<"sbtc_withdrawal_reject">,
 	): ChainEventFilter<"sbtc_withdrawal_reject">;
+	/**
+	 * Matches sBTC withdrawals whose sweep has confirmed.
+	 *
+	 * Webhooks only: it has no Index, Streams or subgraph projection.
+	 *
+	 * @param fields The members of {@link SbtcWithdrawalSweptConfirmedSpec}, without `type`.
+	 */
 	sbtcWithdrawalSweptConfirmed(
 		fields?: Fields<"sbtc_withdrawal_swept_confirmed">,
 	): ChainEventFilter<"sbtc_withdrawal_swept_confirmed">;

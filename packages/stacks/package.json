@@ -115,6 +115,7 @@
 		"build": "rm -rf dist && bunup",
 		"test": "bun test",
 		"typecheck": "tsc --noEmit",
+		"openpkg": "bun scripts/sync-openpkg.ts",
 		"prepublishOnly": "bun run build"
 	},
 	"publishConfig": {

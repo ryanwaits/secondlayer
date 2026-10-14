@@ -1,0 +1,1738 @@
+{
+	"slug": "builders",
+	"root": "",
+	"from": "@secondlayer/stacks/filters",
+	"methods": [
+		{
+			"id": "fromSubgraphSource",
+			"path": "fromSubgraphSource",
+			"summary": "Rebuilds a canonical filter from a subgraph source object.",
+			"description": "Rebuilds a canonical filter from a subgraph source object.\n\nIt is the inverse of `toSubgraphSource`. It powers migration and the\nround-trip property gate: `toSubgraphSource(fromSubgraphSource(f))` must\ndeep-equal `f` for every production subgraph source.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 354
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "source",
+							"type": "SubgraphSourceSpec",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<SubgraphMemberType>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "makeChainEventFilter",
+			"path": "makeChainEventFilter",
+			"summary": "Builds a canonical filter from a member type and its fields.",
+			"description": "Builds a canonical filter from a member type and its fields.\n\nIt validates the spec and attaches the projections its member supports.\nMethods are attached per member at runtime, matching the type-level gating\nexactly. `const F` preserves field literals, so a `prints` or `abi`\ndeclaration keeps its exact type through `toSubgraphSource()`, which is what\nfeeds `defineSubgraph` narrowing.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 322
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "ChainEventFilterType"
+						},
+						{
+							"name": "F",
+							"constraint": "Omit<SpecFor<T>, \"type\">",
+							"const": true
+						}
+					],
+					"params": [
+						{
+							"name": "type",
+							"type": "T",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "fields",
+							"type": "F",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<T, { type: T } & F>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.stxTransfer",
+			"path": "on.stxTransfer",
+			"summary": "Matches STX transfers.",
+			"description": "Matches STX transfers.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 588
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"stx_transfer\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"stx_transfer\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.stxMint",
+			"path": "on.stxMint",
+			"summary": "Matches STX mints.",
+			"description": "Matches STX mints.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 590
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"stx_mint\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"stx_mint\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.stxBurn",
+			"path": "on.stxBurn",
+			"summary": "Matches STX burns.",
+			"description": "Matches STX burns.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 592
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"stx_burn\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"stx_burn\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.stxLock",
+			"path": "on.stxLock",
+			"summary": "Matches STX lock events.",
+			"description": "Matches STX lock events.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 594
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"stx_lock\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"stx_lock\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.ftTransfer",
+			"path": "on.ftTransfer",
+			"summary": "Matches fungible token transfers.",
+			"description": "Matches fungible token transfers.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 596
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"ft_transfer\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"ft_transfer\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.ftMint",
+			"path": "on.ftMint",
+			"summary": "Matches fungible token mints.",
+			"description": "Matches fungible token mints.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 598
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"ft_mint\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"ft_mint\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.ftBurn",
+			"path": "on.ftBurn",
+			"summary": "Matches fungible token burns.",
+			"description": "Matches fungible token burns.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 600
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"ft_burn\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"ft_burn\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.nftTransfer",
+			"path": "on.nftTransfer",
+			"summary": "Matches NFT transfers.",
+			"description": "Matches NFT transfers.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 602
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"nft_transfer\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"nft_transfer\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.nftMint",
+			"path": "on.nftMint",
+			"summary": "Matches NFT mints.",
+			"description": "Matches NFT mints.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 604
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"nft_mint\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"nft_mint\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.nftBurn",
+			"path": "on.nftBurn",
+			"summary": "Matches NFT burns.",
+			"description": "Matches NFT burns.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 606
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"nft_burn\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"nft_burn\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.contractCall",
+			"path": "on.contractCall",
+			"summary": "Matches contract calls.",
+			"description": "Matches contract calls.\n\n`abi` literals are preserved (`const A`), so `toSubgraphSource()` keeps\ntyping `event.input` inside `defineSubgraph`.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 608
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "{ factory?: { from: string; field: string }; trait?: string; contractId?: string | readonly string[]; functionName?: string; caller?: string } & { abi?: A }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"contract_call\", { type: \"contract_call\" } & { factory?: { from: string; field: string }; trait?: string; contractId?: string | readonly string[]; functionName?: string; caller?: string } & { abi?: A }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.contractDeploy",
+			"path": "on.contractDeploy",
+			"summary": "Matches contract deployments.",
+			"description": "Matches contract deployments.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 611
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"contract_deploy\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"contract_deploy\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.print",
+			"path": "on.print",
+			"summary": "Matches `print` events.",
+			"description": "Matches `print` events.\n\nThe canonical member is `print_event`, as Subgraphs and Webhooks spell it;\n`toIndexParams` and `toStreamsParams` project to `print`. `prints` literals\nare preserved (`const P`), so `event.data` narrows per topic.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 615
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "{ factory?: { from: string; field: string }; trait?: string; contractId?: string | readonly string[]; topic?: string } & { prints?: P }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"print_event\", { type: \"print_event\" } & { factory?: { from: string; field: string }; trait?: string; contractId?: string | readonly string[]; topic?: string } & { prints?: P }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.nestedCall",
+			"path": "on.nestedCall",
+			"summary": "Matches contract calls made from inside another contract.",
+			"description": "Matches contract calls made from inside another contract.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 624
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"nested_contract_call\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"nested_contract_call\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.varSet",
+			"path": "on.varSet",
+			"summary": "Matches data variable writes.",
+			"description": "Matches data variable writes.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 626
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"var_set\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"var_set\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.mapSet",
+			"path": "on.mapSet",
+			"summary": "Matches `map-set` writes.",
+			"description": "Matches `map-set` writes.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 628
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"map_set\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"map_set\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.mapInsert",
+			"path": "on.mapInsert",
+			"summary": "Matches `map-insert` writes.",
+			"description": "Matches `map-insert` writes.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 630
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"map_insert\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"map_insert\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.mapDelete",
+			"path": "on.mapDelete",
+			"summary": "Matches `map-delete` writes.",
+			"description": "Matches `map-delete` writes.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 632
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"map_delete\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"map_delete\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.sbtcDeposit",
+			"path": "on.sbtcDeposit",
+			"summary": "Matches sBTC deposits.",
+			"description": "Matches sBTC deposits.\n\nWebhooks only: it has no Index, Streams or subgraph projection.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 634
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"sbtc_deposit\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"sbtc_deposit\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.sbtcWithdrawalCreate",
+			"path": "on.sbtcWithdrawalCreate",
+			"summary": "Matches sBTC withdrawal requests.",
+			"description": "Matches sBTC withdrawal requests.\n\nWebhooks only: it has no Index, Streams or subgraph projection.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 636
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"sbtc_withdrawal_create\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"sbtc_withdrawal_create\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.sbtcWithdrawalAccept",
+			"path": "on.sbtcWithdrawalAccept",
+			"summary": "Matches accepted sBTC withdrawals.",
+			"description": "Matches accepted sBTC withdrawals.\n\nWebhooks only: it has no Index, Streams or subgraph projection.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 638
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"sbtc_withdrawal_accept\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"sbtc_withdrawal_accept\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.sbtcWithdrawalReject",
+			"path": "on.sbtcWithdrawalReject",
+			"summary": "Matches rejected sBTC withdrawals.",
+			"description": "Matches rejected sBTC withdrawals.\n\nWebhooks only: it has no Index, Streams or subgraph projection.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 640
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"sbtc_withdrawal_reject\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"sbtc_withdrawal_reject\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "on.sbtcWithdrawalSweptConfirmed",
+			"path": "on.sbtcWithdrawalSweptConfirmed",
+			"summary": "Matches sBTC withdrawals whose sweep has confirmed.",
+			"description": "Matches sBTC withdrawals whose sweep has confirmed.\n\nWebhooks only: it has no Index, Streams or subgraph projection.",
+			"source": {
+				"file": "packages/stacks/src/filters/factories.ts",
+				"line": 642
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "fields",
+							"type": "Fields<\"sbtc_withdrawal_swept_confirmed\">",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEventFilter<\"sbtc_withdrawal_swept_confirmed\">",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "AbiBuffer",
+			"summary": "",
+			"fields": [
+				{
+					"name": "buff",
+					"type": "{ length: L }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiContract",
+			"summary": "",
+			"fields": [
+				{
+					"name": "functions",
+					"type": "readonly AbiFunction[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "maps",
+					"type": "readonly AbiMap[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "variables",
+					"type": "readonly AbiVariable[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "fungible_tokens",
+					"type": "readonly AbiFungibleToken[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "non_fungible_tokens",
+					"type": "readonly AbiNonFungibleToken[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "implemented_traits",
+					"type": "readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "defined_traits",
+					"type": "readonly AbiTraitDefinition[]",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiFunction",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "access",
+					"type": "FunctionAccess",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "args",
+					"type": "readonly FunctionArg[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "outputs",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiFungibleToken",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiListType",
+			"summary": "",
+			"fields": [
+				{
+					"name": "list",
+					"type": "{ type: AbiType; length: number }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiMap",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "key",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "value",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiNonFungibleToken",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiOptionalType",
+			"summary": "",
+			"fields": [
+				{
+					"name": "optional",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiResponseType",
+			"summary": "",
+			"fields": [
+				{
+					"name": "response",
+					"type": "{ ok: AbiType; error: AbiType }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiStringAscii",
+			"summary": "",
+			"fields": [
+				{
+					"name": "string-ascii",
+					"type": "{ length: L }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiStringUtf8",
+			"summary": "",
+			"fields": [
+				{
+					"name": "string-utf8",
+					"type": "{ length: L }",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiTraitDefinition",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "functions",
+					"type": "readonly AbiTraitFunction[]",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiTraitFunction",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "access",
+					"type": "TraitFunctionAccess",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "args",
+					"type": "readonly FunctionArg[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "outputs",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiTupleType",
+			"summary": "",
+			"fields": [
+				{
+					"name": "tuple",
+					"type": "readonly { name: string; type: AbiType }[]",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AbiType",
+			"summary": "",
+			"definition": "AbiPrimitiveType | AbiListType | AbiTupleType | AbiOptionalType | AbiResponseType"
+		},
+		{
+			"name": "AbiVariable",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "access",
+					"type": "VariableAccess",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "AssetIdentifier",
+			"summary": "`<contract>::<asset-name>` — the shape a fungible/non-fungible asset filter takes, expressed so the compiler can check it.",
+			"definition": "`${string}::${string}` | `${string}*${string}`"
+		},
+		{
+			"name": "ChainEventFilter",
+			"summary": "A canonical chain-event filter: the spec fields plus the projections its member supports.",
+			"fields": [
+				{
+					"name": "toChainTrigger",
+					"type": "() => ChainTriggerOf<S>",
+					"required": true,
+					"description": "Wire trigger for `webhooks.create({ triggers: [...] })`. BigInt\namounts become strings here — the one sanctioned boundary."
+				}
+			]
+		},
+		{
+			"name": "ContractCallSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"contract_call\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": "One contract id, or a set of them (max 20). Mirrors the subgraphs\nfilter — a router plus its pools is one source, not N."
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "abi",
+					"type": "AbiContract",
+					"required": false,
+					"description": "Contract ABI (`as const`) — preserved literally so `toSubgraphSource()`\nkeeps typing `event.input` in `defineSubgraph`."
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ContractDeploySpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"contract_deploy\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "deployer",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "Fields",
+			"summary": "",
+			"definition": "Fields<T>"
+		},
+		{
+			"name": "FtBurnSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtMintSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtTransferSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FunctionAccess",
+			"summary": "",
+			"definition": "\"public\" | \"read-only\" | \"private\""
+		},
+		{
+			"name": "FunctionArg",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "AbiType",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MapDeleteSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"map_delete\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MapInsertSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"map_insert\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MapSetSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"map_set\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NestedContractCallSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nested_contract_call\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftBurnSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftMintSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftTransferSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PrintEventSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"print_event\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": "One contract id, or a set of them (max 20)."
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "prints",
+					"type": "Record<string, Record<string, PrintFieldType>>",
+					"required": false,
+					"description": "Per-topic field schema — preserved literally so `toSubgraphSource()`\nkeeps the discriminated-union narrowing of `event.data`."
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PrintFieldType",
+			"summary": "One declared print field — structural mirror of `PrintField` in `@secondlayer/subgraphs`.",
+			"definition": "PrintScalarType | { type: PrintFieldType; optional: true; } | { tuple: Record<string, PrintFieldType>; } | { list: PrintFieldType; }"
+		},
+		{
+			"name": "StxBurnSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxLockSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_lock\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lockedAddress",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxMintSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxTransferSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphMemberType",
+			"summary": "The members expressible as subgraph sources (everything but the Webhooks-only sBTC lifecycle types).",
+			"definition": "\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"contract_call\" | \"contract_deploy\" | \"print_event\" | \"nested_contract_call\" | \"var_set\" | \"map_set\" | \"map_insert\" | \"map_delete\""
+		},
+		{
+			"name": "SubgraphSourceSpec",
+			"summary": "A subgraph-source-shaped filter object (the `toSubgraphSource()` output / `fromSubgraphSource()` input).",
+			"definition": "StxTransferSpec | StxMintSpec | StxBurnSpec | StxLockSpec | FtTransferSpec | FtMintSpec | FtBurnSpec | NftTransferSpec | NftMintSpec | NftBurnSpec | ContractCallSpec | ContractDeploySpec | NestedContractCallSpec | VarSetSpec | MapSetSpec | MapInsertSpec | MapDeleteSpec | PrintEventSpec"
+		},
+		{
+			"name": "TraitFunctionAccess",
+			"summary": "",
+			"definition": "\"public\" | \"read-only\""
+		},
+		{
+			"name": "VariableAccess",
+			"summary": "",
+			"definition": "\"constant\" | \"variable\""
+		},
+		{
+			"name": "VarSetSpec",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"var_set\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "varName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		}
+	]
+}

@@ -3,6 +3,7 @@
 // @secondlayer/stacks because it is the leaf of the dependency graph
 // (shared → stacks), so no package can drift a private copy upward:
 // @secondlayer/shared re-exports it for back-compat.
+/** The decoded event types. Index and Streams expose the same set. */
 export const DECODED_EVENT_TYPES = [
 	"stx_transfer",
 	"stx_mint",

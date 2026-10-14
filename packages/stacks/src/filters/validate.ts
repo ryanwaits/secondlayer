@@ -41,9 +41,12 @@ export function isPrincipal(value: string): value is Principal {
 	return parsePrincipal(value) !== null;
 }
 
-/** Webhooks and Subgraph sources match `*` wildcards in
- *  principal/identifier patterns; every
- *  other surface treats the value literally. */
+/**
+ * Tells whether a value contains a `*` wildcard.
+ *
+ * Webhooks and Subgraph sources match `*` wildcards in principal and
+ * identifier patterns; every other surface treats the value literally.
+ */
 export function hasWildcard(value: string): boolean {
 	return value.includes("*");
 }
