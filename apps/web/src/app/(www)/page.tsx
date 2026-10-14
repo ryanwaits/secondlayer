@@ -266,7 +266,7 @@ export function HomeView() {
 			<CloseBand
 				title={
 					<>
-						Ship on Bitcoin data <Highlight>today.</Highlight>
+						Ship with secondlayer <Highlight>today.</Highlight>
 					</>
 				}
 				cta={
