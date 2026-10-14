@@ -46,9 +46,8 @@ describe("www marketing routes", () => {
 
 	test("/ says what is live and what is coming, and no withdrawn products", async () => {
 		const html = await renderAsync(<HomeView />);
-		// Runes is self-host only until hosted lands; the home page lists it as coming.
-		expect(html).toMatch(/Coming soon<\/span>.*id="runes-data"/);
-		expect(html).toContain('id="clarity-state-writes"');
+		// Clarity contract state is listed as coming, not live.
+		expect(html).toMatch(/Coming soon<\/span>.*id="clarity-state-writes"/);
 		expect(html).toContain('href="/p/subgraphs"');
 		expect(html).toContain('href="/p/webhooks"');
 		// No stats strip, and nothing withdrawn.

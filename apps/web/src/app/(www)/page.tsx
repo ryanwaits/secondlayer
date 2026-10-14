@@ -243,16 +243,9 @@ export function HomeView() {
 						<div className="next-col">
 							<StatusDot state="soon" />
 							<p>
-								<span id="runes-data">
-									<ChainLink chain="runes" href="/docs/index#runes">
-										Runes
-									</ChainLink>{" "}
-									indexing
-								</span>{" "}
 								<span id="clarity-state-writes">
-									and <ChainLink chain="clarity">Clarity</ChainLink> contract
-									state: every map and variable write, including inner contract
-									calls.
+									<ChainLink chain="clarity">Clarity</ChainLink> contract state:
+									every map and variable write, including inner contract calls.
 								</span>
 							</p>
 							<div className="next-example">
