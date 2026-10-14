@@ -1,4 +1,9 @@
-import { Children, type ReactNode, isValidElement } from "react";
+import {
+	Children,
+	type ReactElement,
+	type ReactNode,
+	isValidElement,
+} from "react";
 import { Code } from "./code";
 import { CodeScope } from "./code-scope";
 import { fenceOf } from "./fence";
@@ -36,11 +41,14 @@ export function Step(_props: StepProps) {
  */
 export async function CodeSteps({ children }: { children?: ReactNode }) {
 	const nodes = Children.toArray(children);
-	const steps = nodes.filter(
-		(n): n is React.ReactElement<StepProps> =>
-			isValidElement(n) && n.type === Step,
-	);
-	const fence = nodes.map(fenceOf).find((f) => f !== null);
+	const isStep = (n: ReactNode): n is ReactElement<StepProps> =>
+		isValidElement(n) && n.type === Step;
+	const steps = nodes.filter(isStep);
+	// A step's children are prose, which `fenceOf` would misread as code.
+	const fence = nodes
+		.filter((n) => !isStep(n))
+		.map(fenceOf)
+		.find(Boolean);
 	if (!fence || !steps.length) return null;
 	return (
 		<div className="cs" data-steps>
@@ -58,9 +66,7 @@ export async function CodeSteps({ children }: { children?: ReactNode }) {
 					</div>
 				))}
 			</div>
-			<div className="cs-stick">
-				<Code {...fence} />
-			</div>
+			<div className="cs-stick">{await Code(fence)}</div>
 		</div>
 	);
 }
