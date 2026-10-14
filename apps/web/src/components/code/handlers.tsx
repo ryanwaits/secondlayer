@@ -488,9 +488,14 @@ export function calloutRow(col: number, text: string): string {
 	return `<div class="co" style="--col:${col}"><span class="co-caret">^</span>${esc(text)}</div>`;
 }
 
-/** A figure's margin note: pinned to its row by index, the line number saying which one. */
-export function figureNote(row: number, line: number, text: string): string {
-	return `<p class="cf-note" style="--i:${row}"><b>${line}</b><span>${esc(text)}</span></p>`;
+/** A figure's margin note: pinned to its row by index, the line number saying which one; `note` pairs it with its row. */
+export function figureNote(
+	row: number,
+	line: number,
+	text: string,
+	note: number,
+): string {
+	return `<p class="cf-note" style="--i:${row}" data-note="${note}"><b>${line}</b><span>${esc(text)}</span></p>`;
 }
 
 /** The compiler's words under the line it rejects. */

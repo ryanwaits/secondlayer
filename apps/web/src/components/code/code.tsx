@@ -136,6 +136,12 @@ export async function renderCode({
 	if (figure && (options.wrap || plan.collapses.length || plan.hasError))
 		throw new Error("figures take no wrap, !collapse or !error");
 	const notes: string[] = [];
+	/** A noted row and its notes share an ordinal, so hovering the token can light its note. */
+	const noteOf = new Map<number, number>();
+	if (figure)
+		plan.lines.forEach((l, i) => {
+			if (l.callouts.length) noteOf.set(i, noteOf.size);
+		});
 	const tokens: ThemedToken[][] = isText
 		? await Promise.all(
 				display.map(
@@ -181,7 +187,7 @@ export async function renderCode({
 			.filter(Boolean)
 			.join(" ");
 		return [
-			`<div class="${classes}"${line.refs.length ? ` data-refs="${escAttr(line.refs.join(" "))}"` : ""}>`,
+			`<div class="${classes}"${noteOf.has(i) ? ` data-note="${noteOf.get(i)}"` : ""}${line.refs.length ? ` data-refs="${escAttr(line.refs.join(" "))}"` : ""}>`,
 			options.lines ? `<span class="ln">${i + start}</span>` : "",
 			plan.hasDiff
 				? `<span class="sign">${line.diff === "+" ? "+" : line.diff === "-" ? "−" : " "}</span>`
@@ -194,7 +200,7 @@ export async function renderCode({
 				: `${renderTokens(tokens[i] ?? [], line.ranges)}</div>`,
 			...line.callouts.map((c) => {
 				if (!figure) return calloutRow(c.col, c.text);
-				notes.push(figureNote(i, i + start, c.text));
+				notes.push(figureNote(i, i + start, c.text, noteOf.get(i) ?? 0));
 				return "";
 			}),
 			...line.errors.map(errorRow),

@@ -315,9 +315,13 @@ describe("figure variant", () => {
 		const out = await html({ lang: "ts", variant: "figure", code: source });
 		expect(out).not.toContain('class="co"');
 		expect(out).toContain(
-			'<p class="cf-note" style="--i:1"><b>2</b><span>null on the first run</span></p>',
+			'<p class="cf-note" style="--i:1" data-note="0"><b>2</b><span>null on the first run</span></p>',
 		);
-		expect(out).toContain('<p class="cf-note" style="--i:2"><b>3</b>');
+		expect(out).toContain(
+			'<p class="cf-note" style="--i:2" data-note="1"><b>3</b>',
+		);
+		// A noted row carries its note's ordinal, so hovering its token lights the note.
+		expect(out).toContain('class="row g noted" data-note="1"');
 		// Lines are numbered, and a noted row's number takes ink.
 		expect(out).toContain('<span class="ln">1</span>');
 		expect(out).toContain('class="row g noted"');
