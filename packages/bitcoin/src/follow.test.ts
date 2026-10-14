@@ -13,6 +13,7 @@ import { Kysely, sql } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 import { migrateToLatest } from "./db/migrate.ts";
+import { dropReadIndexes } from "./db/read-indexes.ts";
 import { loadState, openStore } from "./db/store.ts";
 import type { Database } from "./db/types.ts";
 import {
@@ -275,6 +276,15 @@ class FakeNotifier implements BlockNotifier {
 }
 
 const GENESIS_HEIGHT = 840_000;
+
+async function readIndexNames(db: Kysely<Database>): Promise<Set<string>> {
+	const result = await sql<{ indexname: string }>`
+		select indexname from pg_indexes
+		where tablename = 'rune_events'
+			and indexname in ('rune_events_address_height_event_index_idx', 'rune_events_txid_idx')
+	`.execute(db);
+	return new Set(result.rows.map((r) => r.indexname));
+}
 
 describe.skipIf(!testUrl)("follow", () => {
 	// biome-ignore lint/style/noNonNullAssertion: describe.skipIf(!testUrl) guards this whole block
@@ -569,6 +579,40 @@ describe.skipIf(!testUrl)("follow", () => {
 		const state = await import("./db/store.ts").then((m) => m.loadState(db));
 		expect(state.height).toBe(GENESIS_HEIGHT);
 		expect(notifier.callCount).toBe(0);
+	});
+
+	test("runFollow rebuilds missing read indexes after its catch-up, never before it", async () => {
+		await dropReadIndexes(db);
+		const chain = new FakeChain();
+		let prev = chain.mine(GENESIS_HEIGHT, GENESIS_ANCHOR_HASH);
+		// Tip UNDO_DEPTH+8 ahead of the fresh checkpoint: the first pass
+		// batch-backfills 8 blocks, flushing (and snapshotting) as it goes.
+		for (let h = GENESIS_HEIGHT + 1; h <= GENESIS_HEIGHT + 19; h++) {
+			prev = chain.mine(h, prev);
+		}
+
+		const duringCatchUp: Promise<Set<string>>[] = [];
+		const deps: FollowDeps = {
+			db,
+			rpc: chain,
+			until: GENESIS_HEIGHT + 19,
+			flushInterval: 3,
+			onFlush: () => {
+				duringCatchUp.push(readIndexNames(db));
+			},
+		};
+		await runFollow(deps, new FakeNotifier());
+
+		expect(duringCatchUp.length).toBeGreaterThan(0);
+		for (const names of await Promise.all(duringCatchUp)) {
+			expect(names).toEqual(new Set());
+		}
+		expect(await readIndexNames(db)).toEqual(
+			new Set([
+				"rune_events_address_height_event_index_idx",
+				"rune_events_txid_idx",
+			]),
+		);
 	});
 
 	test("syncOnce's batch catch-up honors flushInterval, not backfill.ts's DEFAULT_FLUSH_INTERVAL", async () => {

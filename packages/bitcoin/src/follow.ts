@@ -369,29 +369,35 @@ export function createHeartbeatTracker(
  * call) is swallowed — it's a signal, not the critical path, and `syncOnce`
  * itself is what surfaces a real RPC failure.
  *
- * Calls `ensureReadIndexes` once, before the loop starts (plan 089): a
- * backfill that dropped the two large `rune_events` read indexes and then
- * died mid-run — before its own end-of-run `ensureReadIndexes` — would
+ * Calls `ensureReadIndexes` once, after the first pass catches up (plan
+ * 089): a backfill that dropped the two large `rune_events` read indexes and
+ * then died mid-run — before its own end-of-run `ensureReadIndexes` — would
  * otherwise leave a follower running against `rune_events` with those
- * indexes missing indefinitely. Idempotent either way (`CREATE INDEX IF NOT
- * EXISTS`), so this is a no-op when they're already there.
+ * indexes missing indefinitely. After the first pass, not before it: a
+ * restart mid-backfill would otherwise build both indexes over the whole
+ * table only for the resumed backfill to drop them again seconds later.
+ * Idempotent (`CREATE INDEX IF NOT EXISTS`), so a no-op when they're there.
  */
 export async function runFollow(
 	deps: FollowDeps,
 	notifier: BlockNotifier,
 	signal?: AbortSignal,
 ): Promise<void> {
-	await ensureReadIndexes(deps.db);
-
 	const heartbeat = createHeartbeatTracker(deps.now);
 
 	// Loaded on the first pass, then carried across passes: a new block applies
 	// to the state already in memory instead of reloading every balance row.
 	let carried: RuneState | undefined;
+	let readIndexesEnsured = false;
 
 	while (!signal?.aborted) {
 		const { state } = await syncOnce(deps, carried);
 		carried = state;
+
+		if (!readIndexesEnsured) {
+			await ensureReadIndexes(deps.db);
+			readIndexesEnsured = true;
+		}
 
 		if (deps.onHeartbeat) {
 			try {

@@ -68,8 +68,8 @@ export async function dropReadIndexes(db: Kysely<Database>): Promise<void> {
 
 /**
  * Creates both deferred indexes if missing — idempotent, safe to call
- * whether or not a backfill actually dropped them (`follow`'s startup calls
- * this unconditionally, see `follow.ts`). Runs in one transaction with
+ * whether or not a backfill actually dropped them (`follow` calls this once
+ * after its first pass, see `follow.ts`). Runs in one transaction with
  * `statement_timeout` disabled for it: a full-table index build on
  * `rune_events` routinely exceeds any sane default timeout, the same reason
  * migration 0005 itself disables it.
