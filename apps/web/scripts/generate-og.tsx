@@ -793,7 +793,6 @@ function ArtDocs() {
 // The /robinhood round trip: the original SIP-010 and its ERC-20 twin, linked
 // 1:1 — the same twin cards as the page, full strength, since they are the
 // point of the card rather than background texture.
-const NEON = "#ccff00"; // Robin Neon, headline highlight only
 
 function TwinToken({
 	coin,
@@ -1282,7 +1281,6 @@ const CARDS: CardSpec[] = [
 		line2: "Bridge the original.",
 		size: 60,
 		path: `${SITE}/robinhood`,
-		highlight: NEON,
 		artifact: <ArtRobinhood />,
 	},
 ];
