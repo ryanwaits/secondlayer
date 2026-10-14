@@ -383,6 +383,15 @@ body:has(.lab) .auth-bar {
 }
 .lab-in {
 	padding: 24px 20px;
+	border-radius: 0 0 7px 7px;
+}
+.lab-in > :first-child,
+.lab-in > .lab-w > :first-child {
+	margin-top: 0;
+}
+.lab-in > :last-child,
+.lab-in > .lab-w > :last-child {
+	margin-bottom: 0;
 }
 
 /* The code ladder picks its step with a media query too (code.css), so a frame
@@ -392,4 +401,238 @@ body:has(.lab) .auth-bar {
 }
 .lab-fr[data-mode="dark"] .cb :is(.t-ink, .t-sub, .t-faint, .t-x) {
 	color: var(--shiki-dark);
+}
+
+/* ── story page ────────────────────────────────────────────────────── */
+.lab-head {
+	max-width: 46rem;
+	margin-bottom: 24px;
+}
+.lab-eyebrow {
+	margin: 0 0 8px;
+	color: var(--sub);
+	font: 400 12px / 1.5 var(--font-mono-stack);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+.lab-head h1 {
+	margin: 0;
+	font-size: 30px;
+	line-height: 1.2;
+	font-weight: 500;
+	letter-spacing: -0.025em;
+}
+.lab-rule {
+	margin: 8px 0 0;
+	color: var(--sub);
+	font-size: 16px;
+	line-height: 1.5;
+}
+.lab-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 28px;
+	margin: 16px 0 0;
+}
+.lab-meta div {
+	display: flex;
+	gap: 8px;
+}
+.lab-meta dt {
+	color: var(--faint);
+	font: 400 12px / 20px var(--font-mono-stack);
+}
+.lab-meta dd {
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	color: var(--sub);
+	font: 400 12px / 20px var(--font-mono-stack);
+}
+
+.lab-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px 32px;
+	margin-bottom: 16px;
+}
+.lab-field {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+.lab-field > span:first-child {
+	color: var(--sub);
+	font: 400 12px / 1 var(--font-mono-stack);
+}
+/* A Choice is a size container, so it has no intrinsic width of its own. */
+.lab-toolbar .choice {
+	width: 340px;
+	max-width: 100%;
+}
+.lab-pane .choice {
+	width: 560px;
+	max-width: 100%;
+}
+.lab-range input {
+	width: 200px;
+	accent-color: var(--ink);
+}
+.lab-range output {
+	min-width: 5ch;
+	font: 400 12px / 1 var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+}
+
+/* ── stage: light and dark frames, one viewport ───────────────────── */
+.lab-frames {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+	align-items: start;
+}
+.lab-stage[data-stack] .lab-frames {
+	grid-template-columns: minmax(0, 1fr);
+}
+@media (max-width: 1100px) {
+	.lab-frames {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+.lab-stage[data-theme="light"] .lab-fr[data-mode="dark"],
+.lab-stage[data-theme="dark"] .lab-fr[data-mode="light"] {
+	display: none;
+}
+.lab-stage[data-theme="light"] .lab-frames,
+.lab-stage[data-theme="dark"] .lab-frames {
+	grid-template-columns: minmax(0, 1fr);
+}
+.lab-stage[data-vp="400"] .lab-in {
+	max-width: 400px;
+	margin-inline: auto;
+	padding-inline: 0;
+	border-inline: 1px dashed var(--line);
+}
+.lab-w {
+	max-width: var(--lab-w, 100%);
+}
+
+/* A forced :focus-visible, to show the ring without a keyboard. */
+.lab-focus {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+
+/* ── specimens ─────────────────────────────────────────────────────── */
+.lab-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+.lab-stack p {
+	margin: 0;
+}
+.lab-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+}
+.lab-note {
+	color: var(--sub);
+	font: 400 12px / 1.5 var(--font-mono-stack);
+}
+.lab-type {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.lab-swatches {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 14px;
+}
+.lab-swatch {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+.lab-swatch i {
+	display: block;
+	height: 44px;
+	margin-bottom: 6px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+}
+.lab-swatch code {
+	font: 400 12px / 1.5 var(--font-mono-stack);
+}
+.lab-swatch span {
+	color: var(--sub);
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+/* ── panel ─────────────────────────────────────────────────────────── */
+.lab-panel {
+	margin-top: 32px;
+}
+.lab-pane {
+	padding-top: 20px;
+}
+.lab-pane[hidden] {
+	display: none;
+}
+.lab-pane .lab-field + .lab-field {
+	margin-top: 16px;
+}
+.lab-props {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+.lab-props th {
+	padding: 8px 12px 8px 0;
+	border-bottom: 1px solid var(--line);
+	color: var(--faint);
+	font: 400 11px / 1.5 var(--font-mono-stack);
+	letter-spacing: 0.06em;
+	text-align: left;
+	text-transform: uppercase;
+}
+.lab-props td {
+	padding: 10px 12px 10px 0;
+	border-bottom: 1px solid var(--line);
+	vertical-align: top;
+}
+.lab-props code {
+	font: 400 12px / 1.5 var(--font-mono-stack);
+}
+.lab-rules {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 24px;
+	max-width: 52rem;
+}
+@media (max-width: 700px) {
+	.lab-rules {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+.lab-rules h3 {
+	margin: 0 0 8px;
+	font-size: 14px;
+	font-weight: 500;
+}
+.lab-rules ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.lab-rules li {
+	padding: 8px 0;
+	border-top: 1px solid var(--line);
+	color: var(--sub);
+	line-height: 1.5;
 }
