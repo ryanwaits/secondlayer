@@ -18,7 +18,9 @@ export function TrustChainArt() {
 		<>
 			<svg
 				className="asset trust-wide"
-				viewBox="0 0 820 132"
+				// One unit of margin each side: the first box's stroke sits on x=0
+				// and would lose its outer half to the viewBox edge.
+				viewBox="-1 0 822 132"
 				role="img"
 				aria-label={LABEL}
 			>
