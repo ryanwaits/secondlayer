@@ -1,5 +1,5 @@
 /**
- * Single source for the marketing shell: the five products (names, verbs,
+ * Single source for the marketing shell: the five products (names, verb lines,
  * order, routes) and the top-bar links. The nav, footer, home spine and
  * "rest of the platform" all read this. Adding a product = one entry.
  *
@@ -18,31 +18,31 @@ export interface Product {
 export const PRODUCTS = [
 	{
 		noun: "Archive",
-		verb: "verifies",
+		verb: "Restore signed history",
 		href: "/p/archive",
 		line: "Signed history. Check your copy free.",
 	},
 	{
 		noun: "Streams",
-		verb: "hands you",
+		verb: "Stream raw events",
 		href: "/p/streams",
 		line: "Every event. You hold the cursor.",
 	},
 	{
 		noun: "Index",
-		verb: "decodes",
+		verb: "Query decoded rows",
 		href: "/p/index",
 		line: "Typed rows from genesis.",
 	},
 	{
 		noun: "Subgraphs",
-		verb: "fills",
+		verb: "Index your contract",
 		href: "/p/subgraphs",
 		line: "Your contract, as a table.",
 	},
 	{
 		noun: "Webhooks",
-		verb: "delivers",
+		verb: "Get told first",
 		href: "/p/webhooks",
 		line: "Your server, told first.",
 	},
