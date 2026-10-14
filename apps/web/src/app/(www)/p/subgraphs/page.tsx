@@ -171,7 +171,6 @@ export default function SubgraphsPage() {
 			<div className="band band-soft">
 				<div className="shell">
 					<Split
-						wide
 						copy={
 							<>
 								<Eyebrow noun="The file" />
@@ -217,7 +216,6 @@ export default function SubgraphsPage() {
 					/>
 
 					<Split
-						wide
 						copy={
 							<>
 								<Eyebrow noun="The read" />

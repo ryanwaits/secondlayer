@@ -241,7 +241,6 @@ export default function WebhooksPage() {
 
 					<Split
 						flip
-						wide
 						copy={
 							<>
 								<Eyebrow noun="Check it's us" />
@@ -266,7 +265,6 @@ export default function WebhooksPage() {
 					/>
 
 					<Split
-						wide
 						copy={
 							<>
 								<Eyebrow noun="Reorgs" />

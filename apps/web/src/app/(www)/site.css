@@ -353,13 +353,27 @@
 .site .split.flip > .art {
 	order: -1;
 }
-/* A code figure and its margin notes need the room: copy beside a wide figure. */
-.site .split.wide {
-	grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.8fr);
-	gap: 40px;
-}
-.site .split.wide.flip {
-	grid-template-columns: minmax(0, 1.8fr) minmax(0, 0.7fr);
+/* A code figure's notes hang off its outer edge (code.css); art first puts them
+   on the left, reading toward the frame. */
+@media (min-width: 1101px) {
+	.site .split.flip .cf {
+		margin-right: 0;
+		margin-left: var(--notes-short);
+	}
+	.site .split.flip .cf .cf-notes {
+		right: 100%;
+		left: auto;
+		padding-inline: 0 36px;
+	}
+	.site .split.flip .cf .cf-note {
+		right: 36px;
+		left: auto;
+		flex-direction: row-reverse;
+	}
+	.site .split.flip .cf .cf-note::before {
+		right: -36px;
+		left: auto;
+	}
 }
 .site .split .copy {
 	display: grid;
@@ -367,9 +381,7 @@
 	justify-items: start;
 }
 @media (max-width: 920px) {
-	.site .split,
-	.site .split.wide,
-	.site .split.wide.flip {
+	.site .split {
 		grid-template-columns: 1fr;
 		gap: 28px;
 	}

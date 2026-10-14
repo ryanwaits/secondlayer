@@ -435,7 +435,7 @@ const META: Record<StoryId, Meta> = {
 		usage: `<Code variant="figure" lang="sol" title="evm/src/Twin.sol" code={source} />`,
 		dos: [
 			"At most three margin callouts, each token marked yellow.",
-			"Beside copy, use the wide split so the code and its notes both fit.",
+			"Beside copy, the notes hang off the outer edge; keep them short.",
 			"Show plausible real output: real heights, real commands.",
 		],
 		donts: [

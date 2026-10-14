@@ -160,6 +160,7 @@ export default async function StreamsPage() {
 			<div className="band band-soft">
 				<div className="shell">
 					<Split
+						flip
 						copy={
 							<>
 								<Eyebrow noun="The consumer" />
@@ -199,7 +200,6 @@ export default async function StreamsPage() {
 					/>
 
 					<Split
-						flip
 						copy={
 							<>
 								<Eyebrow noun="The cursor" />
@@ -230,6 +230,7 @@ export default async function StreamsPage() {
 					/>
 
 					<Split
+						flip
 						copy={
 							<>
 								<Eyebrow noun="The firehose" />
@@ -253,8 +254,6 @@ export default async function StreamsPage() {
 					/>
 
 					<Split
-						flip
-						wide
 						copy={
 							<>
 								<Eyebrow noun="History" />

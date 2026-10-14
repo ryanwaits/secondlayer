@@ -600,33 +600,47 @@
 	}
 }
 
-/* Figure: product pages. Callouts leave the block and sit in the margin on a
-   hairline leader at their row; the line number says which line a note is for. */
+/* Figure: product pages. The frame keeps its column like any code block; its
+   notes hang off the outer edge, off grid, on a hairline leader at their row,
+   the line number saying which line a note is for. Where the page margin is
+   short the frame gives up only the difference; narrow screens list the notes
+   under it. */
+.cf,
+.cb-tabs.figure {
+	--notes: 16rem;
+	--notes-short: max(
+		0px,
+		calc(var(--notes) + 16px - max(24px, (100vw - 1072px) / 2))
+	);
+}
 .cf {
 	--lh: 22px;
 	--bar: 40px;
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 17rem);
+	position: relative;
 	margin-top: var(--spacing-sm);
+	margin-right: var(--notes-short);
 	margin-bottom: var(--spacing-sm);
 }
 .cf > .cb {
 	margin: 0;
 }
 .cf .cf-notes {
-	position: relative;
+	position: absolute;
+	inset-block: 0;
+	left: 100%;
+	width: var(--notes);
 	padding-left: 36px;
 }
 .cf .cf-note {
 	position: absolute;
 	top: calc(var(--nt) + var(--i) * var(--lh));
-	right: 0;
 	left: 36px;
 	display: flex;
 	gap: 10px;
 	margin: 0;
 	color: var(--sub);
 	font: 400 13px / var(--lh) var(--font-sans-stack);
+	white-space: nowrap;
 }
 .cf .cf-note::before {
 	content: "";
@@ -644,35 +658,60 @@
 .cb .row.noted .ln {
 	color: var(--ink);
 }
-/* A tab group's figure keeps its notes inside the frame, under the tab bar. */
+/* A tab group's figure: the group gives up the room, and its notes leave the frame too. */
+.cb-tabs.figure:has(.cf) {
+	margin-right: var(--notes-short);
+	overflow: visible;
+}
 .cb-tabs.figure .cf {
 	margin: 0;
 }
-/* `right` resolves against the padding edge, so padding on .cf-notes never insets it. */
-.cb-tabs.figure .cf .cf-note {
-	right: 14px;
+.cb-tabs.figure .cb.tabbed {
+	border-radius: 0 0 7px 7px;
 }
-@media (max-width: 960px) {
-	.cf,
-	.cb-tabs.figure .cf {
-		grid-template-columns: minmax(0, 1fr);
-		gap: 14px;
+/* Notes rest faded; hovering a noted token (or the note) brings it up to ink.
+   Pairs are matched by ordinal, and a figure holds at most three notes. */
+@media (hover: hover) and (min-width: 1101px) {
+	.cf .cf-note,
+	.cf .cf-note b {
+		color: var(--faint);
+		transition: color 160ms ease-out;
 	}
-	.cb-tabs.figure .cf {
-		gap: 0;
+	.cf .cf-note:hover,
+	.cf:has(.row[data-note="0"] mark:hover) .cf-note[data-note="0"],
+	.cf:has(.row[data-note="1"] mark:hover) .cf-note[data-note="1"],
+	.cf:has(.row[data-note="2"] mark:hover) .cf-note[data-note="2"] {
+		color: var(--sub);
+	}
+	.cf .cf-note:hover b,
+	.cf:has(.row[data-note="0"] mark:hover) .cf-note[data-note="0"] b,
+	.cf:has(.row[data-note="1"] mark:hover) .cf-note[data-note="1"] b,
+	.cf:has(.row[data-note="2"] mark:hover) .cf-note[data-note="2"] b {
+		color: var(--ink);
+	}
+}
+@media (max-width: 1100px) {
+	.cf,
+	.cb-tabs.figure:has(.cf) {
+		margin-right: 0;
 	}
 	.cf .cf-notes {
+		position: static;
 		display: grid;
 		gap: 6px;
+		width: auto;
+		margin-top: 14px;
 		padding-left: 0;
 	}
 	.cb-tabs.figure .cf .cf-notes {
+		margin: 0;
 		padding: 12px 14px;
 		border-top: 1px solid var(--line);
 	}
 	.cf .cf-note {
 		position: static;
 		line-height: 1.5;
+		white-space: normal;
 	}
 	.cf .cf-note::before {
 		display: none;

@@ -20,7 +20,7 @@ await client.events.consume({
   types: ["print"],
   // !callout[/locker/] Only the locker's prints
   contractId: locker,
-  // !callout[/true/] Counts a lock once Bitcoin finalizes it
+  // !callout[/true/] Only Bitcoin-final locks count
   finalizedOnly: true,
   // !callout[/config\.fromCursor/] Every start rescans from deploy
   fromCursor: config.fromCursor,
