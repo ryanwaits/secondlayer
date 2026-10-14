@@ -51,7 +51,7 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 			.filter((h) => !h.closest("details"))
 			.map((h) => ({
 				id: h.id,
-				text: h.textContent ?? "",
+				text: h.dataset.outline ?? h.textContent ?? "",
 				count: h.dataset.count,
 			}));
 		setHeads(found);

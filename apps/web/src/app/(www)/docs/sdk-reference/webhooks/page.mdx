@@ -1,0 +1,21 @@
+import { SdkEyebrow, SdkSurfacePage } from "../sdk-reference";
+
+<SdkEyebrow title="Webhooks" />
+
+# `sl.webhooks`
+
+Create webhooks, read their deliveries and replay history. The same data the [Webhooks API](/docs/api/webhooks) serves over HTTP.
+
+<SdkSurfacePage slug="webhooks" />
+
+export const agent = `
+- Methods live on 'sl.webhooks' of 'const sl = new SecondLayer()'. Signatures and overloads are generated from the SDK source.
+- To check a delivery you receive, use verifyWebhookSignature from the Helpers page, not a method here.
+- A method's REST twin is linked on its entry; the Webhooks API page serves the same data over HTTP.
+`;
+
+export const metadata = {
+	title: "sl.webhooks (SDK reference) — Secondlayer Docs",
+	description:
+		"Every sl.webhooks method with its signature, overloads and parameters, read from the SDK's TypeScript source.",
+};

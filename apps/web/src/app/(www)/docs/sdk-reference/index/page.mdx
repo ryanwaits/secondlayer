@@ -1,0 +1,21 @@
+import { SdkEyebrow, SdkSurfacePage } from "../sdk-reference";
+
+<SdkEyebrow title="Index" />
+
+# `sl.index`
+
+Decoded rows: transfers, events, contract calls, blocks, transactions, sBTC, PoX and Runes. The same data the [Index API](/docs/api/index) serves over HTTP.
+
+<SdkSurfacePage slug="index" />
+
+export const agent = `
+- Methods live on 'sl.index' of 'const sl = new SecondLayer()'. Signatures and overloads are generated from the SDK source.
+- Most feeds come in three forms: list (one page), walk (every page) and, for some, consume (a checkpointed loop).
+- A method's REST twin is linked on its entry; the Index API page serves the same data over HTTP.
+`;
+
+export const metadata = {
+	title: "sl.index (SDK reference) — Secondlayer Docs",
+	description:
+		"Every sl.index method with its signature, overloads and parameters, read from the SDK's TypeScript source.",
+};

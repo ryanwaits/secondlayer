@@ -1,3 +1,5 @@
+import { sdkPages } from "./sdk-reference/pages";
+
 export interface DocsNavItem {
 	title: string;
 	href: string;
@@ -26,8 +28,11 @@ export interface DocsNavGroup {
  *   Proofs, Subgraphs, Webhooks, Instance), generated from the OpenAPI
  *   description; each endpoint opens in a drawer. Pages are assigned in
  *   `api-reference/pages.ts`.
- * - **Reference** is lookup: REST API conventions sit with the API index,
- *   the SDK reference and the changelog. Library pages for
+ * - **SDK reference** is the client, one page per surface (`sl.streams`,
+ *   `sl.index`, ...) plus helpers and errors, generated from the SDK's own
+ *   source. Pages are listed in `sdk-reference/pages.ts`.
+ * - **Reference** is lookup: REST API conventions sit with the API index
+ *   and the changelog. Library pages for
  *   `@secondlayer/stacks` live at stacks.secondlayer.tools.
  *
  * Pages only: no page has child pages. A new topic is a top-level row or a
@@ -79,11 +84,14 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		],
 	},
 	{
+		label: "SDK reference",
+		items: sdkPages().map(({ title, href }) => ({ title, href })),
+	},
+	{
 		label: "Reference",
 		items: [
 			{ title: "REST conventions", href: "/docs/rest-api" },
 			{ title: "API reference", href: "/docs/api-reference" },
-			{ title: "SDK reference", href: "/docs/sdk-reference" },
 			{ title: "Changelog", href: "/docs/changelog" },
 		],
 	},

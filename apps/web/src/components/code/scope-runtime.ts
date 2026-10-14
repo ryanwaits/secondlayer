@@ -1,7 +1,8 @@
 /**
  * The scope script. Prose reaches code through names (`!ref`, `!pick`) and this
  * resolves them in the DOM, within one scope: a docs `##` section, a whole
- * writing post, or a `<CodeSteps>` block. Blocks stay server components; they
+ * writing post, a `<CodeSteps>` block, or an element marked `data-scope`
+ * (an entry of the generated SDK reference). Blocks stay server components; they
  * only carry `data-ref`, `data-refs` and `data-pick` hooks.
  */
 
@@ -13,6 +14,9 @@ const SECTION_START = ".section-heading-wrap";
 function scopeOf(el: Element): Scope {
 	const steps = el.closest("[data-steps]");
 	if (steps) return [steps];
+	// A generated entry (one SDK method) is its own scope.
+	const own = el.closest("[data-scope]");
+	if (own) return [own];
 	const article = el.closest(".docs-article, .writing-article");
 	if (!article) return [document.body];
 	// A post is one scope.

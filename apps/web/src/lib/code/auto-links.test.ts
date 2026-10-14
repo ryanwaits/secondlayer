@@ -8,7 +8,7 @@ const table = buildLinkTable({
 	symbols: {
 		ConsumerBatchContext: "/docs/sdk-reference/streams#t-ConsumerBatchContext",
 		"sl.streams.events.consume": "/docs/sdk-reference/streams#m-events-consume",
-		"sl.index.events.list": "/docs/sdk-reference/index-api#m-events-list",
+		"sl.index.events.list": "/docs/sdk-reference/index#m-events-list",
 	},
 	endpoints: [
 		{

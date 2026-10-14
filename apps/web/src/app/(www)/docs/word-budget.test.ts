@@ -9,11 +9,7 @@ const BUDGET = 120;
 
 /** Generated or log pages the contract does not apply to (the six API pages
  *  under /docs/api/ are generated from the spec too). */
-const EXEMPT = new Set([
-	"/docs/api-reference",
-	"/docs/sdk-reference",
-	"/docs/changelog",
-]);
+const EXEMPT = new Set(["/docs/api-reference", "/docs/changelog"]);
 
 function pageFile(href: string): string {
 	const rel =
@@ -60,7 +56,12 @@ function sectionWords(mdx: string): { section: string; words: number }[] {
 }
 
 const counts = docsNavPages()
-	.filter((p) => !EXEMPT.has(p.href) && !p.href.startsWith("/docs/api/"))
+	.filter(
+		(p) =>
+			!EXEMPT.has(p.href) &&
+			!p.href.startsWith("/docs/api/") &&
+			!p.href.startsWith("/docs/sdk-reference"),
+	)
 	.flatMap((p) =>
 		sectionWords(readFileSync(pageFile(p.href), "utf8")).map((s) => ({
 			...s,

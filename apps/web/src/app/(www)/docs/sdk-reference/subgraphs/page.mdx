@@ -1,0 +1,21 @@
+import { SdkEyebrow, SdkSurfacePage } from "../sdk-reference";
+
+<SdkEyebrow title="Subgraphs" />
+
+# `sl.subgraphs`
+
+Deploy a subgraph, read its rows and watch its operations. The same data the [Subgraphs API](/docs/api/subgraphs) serves over HTTP.
+
+<SdkSurfacePage slug="subgraphs" />
+
+export const agent = `
+- Methods live on 'sl.subgraphs' of 'const sl = new SecondLayer()'. Signatures and overloads are generated from the SDK source.
+- 'typed' returns a client for a subgraph defined with defineSubgraph(), with its tables as typed members.
+- A method's REST twin is linked on its entry; the Subgraphs API page serves the same data over HTTP.
+`;
+
+export const metadata = {
+	title: "sl.subgraphs (SDK reference) — Secondlayer Docs",
+	description:
+		"Every sl.subgraphs method with its signature, overloads and parameters, read from the SDK's TypeScript source.",
+};

@@ -78,6 +78,7 @@ describe("docs sidebar invariant", () => {
 		"Verify",
 		"Tools",
 		"API",
+		"SDK reference",
 		"Reference",
 	] as const;
 

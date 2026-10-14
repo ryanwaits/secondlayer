@@ -1542,3 +1542,482 @@ html[data-acct-card] .docs-content {
 	max-height: 480px;
 	overflow: auto;
 }
+
+/* ── SDK reference (generated from the SDK's own source) ──
+   One page per surface: an at-a-glance table, then each method in full, then
+   the types they use. Ported from the approved mock; tables are borderless
+   rows here, so they undo the card style `.docs-article table` gives prose. */
+.docs-article .page-title code {
+	padding: 0;
+	background: none;
+	font: inherit;
+	font-family: var(--font-mono-stack);
+	letter-spacing: -0.03em;
+}
+.docs-article .sdkr-eyebrow {
+	margin: 0;
+	font: 500 12px / 1 var(--font-mono-stack);
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--ink);
+}
+.sdkr-eyebrow span {
+	color: var(--sub);
+}
+.sdkr {
+	display: grid;
+	gap: 24px;
+	margin-top: 18px;
+	min-width: 0;
+}
+.sdkr-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 14px;
+	font-size: 13px;
+	color: var(--sub);
+}
+.sdkr-meta .v {
+	padding: 3px 7px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	font: 12px var(--font-mono-stack);
+	color: var(--ink);
+}
+.docs-article .sdkr-meta a {
+	color: var(--pri);
+	text-decoration: none;
+}
+.docs-article .sdkr-meta a:hover {
+	text-decoration: underline;
+}
+.sdkr-filter {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	max-width: 360px;
+	height: 38px;
+	padding: 0 12px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	color: var(--faint);
+}
+.sdkr-filter:focus-within {
+	border-color: var(--pri);
+}
+.sdkr-filter input {
+	width: 100%;
+	border: 0;
+	background: none;
+	font: 400 14px var(--font-mono-stack);
+	color: var(--ink);
+	outline: none;
+}
+.sdkr-filter input::placeholder {
+	color: var(--faint);
+}
+.docs-article .sdkr-none {
+	margin: 0;
+	font-size: 14px;
+	color: var(--sub);
+}
+.sdkr-glance-wrap,
+.sdkr-params-wrap {
+	overflow-x: auto;
+}
+.docs-article .sdkr table.sdkr-t {
+	display: table;
+	margin: 0;
+	border: 0;
+	border-radius: 0;
+	overflow: visible;
+	font-size: 14px;
+}
+.docs-article .sdkr .sdkr-t tbody td {
+	padding: 9px 12px 9px 0;
+	border-bottom: 1px solid var(--line);
+	font-variant-numeric: normal;
+	vertical-align: top;
+}
+.docs-article .sdkr .sdkr-t tbody tr:last-child td {
+	border-bottom: 1px solid var(--line);
+}
+.docs-article .sdkr .sdkr-glance tr:first-child td {
+	border-top: 1px solid var(--line);
+}
+.docs-article .sdkr .sdkr-glance td.mn {
+	font: 13px / 1.5 var(--font-mono-stack);
+	white-space: nowrap;
+}
+.docs-article .sdkr .sdkr-glance td.mn a {
+	color: var(--ink);
+	text-decoration: none;
+}
+@media (hover: hover) {
+	.docs-article .sdkr .sdkr-glance tr:hover td.mn a {
+		color: var(--pri);
+	}
+}
+.docs-article .sdkr .sdkr-glance td.ret {
+	max-width: 22ch;
+	overflow: hidden;
+	font: 12.5px / 1.5 var(--font-mono-stack);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--faint);
+}
+.docs-article .sdkr .sdkr-glance td.use {
+	color: var(--sub);
+}
+@media (max-width: 640px) {
+	.docs-article .sdkr .sdkr-glance td.ret {
+		display: none;
+	}
+}
+
+/* a method entry */
+.sdkr-m {
+	display: grid;
+	gap: 18px;
+	margin-top: 24px;
+	padding-top: 28px;
+	border-top: 1px solid var(--ink);
+	min-width: 0;
+}
+.docs-article .sdkr-m > * {
+	margin: 0;
+}
+.sdkr-mh {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px 14px;
+}
+.docs-article .sdkr-mh h2 {
+	margin: 0;
+	font: 500 1.125rem / 1.3 var(--font-mono-stack);
+	letter-spacing: -0.01em;
+	overflow-wrap: anywhere;
+	scroll-margin-top: 80px;
+}
+.docs-article .sdkr-mh h2 a {
+	text-decoration: none;
+}
+.sdkr-mh .obj {
+	font-weight: 400;
+	color: var(--sub);
+}
+.sdkr-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-left: auto;
+	font-size: 12.5px;
+}
+.docs-article .sdkr-chip {
+	padding: 3px 10px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	color: var(--sub);
+	text-decoration: none;
+	white-space: nowrap;
+}
+.docs-article a.sdkr-chip:hover {
+	border-color: var(--pri);
+	color: var(--pri);
+}
+.sdkr-chip .mono {
+	font: 12px var(--font-mono-stack);
+	color: var(--ink);
+}
+.docs-article .sdkr-sum {
+	max-width: 66ch;
+	font-size: 16px;
+	line-height: 1.6;
+	color: var(--sub);
+}
+.docs-article .sdkr-sum + .sdkr-sum {
+	margin-top: -6px;
+}
+.docs-article .sdkr-sum code {
+	background: none;
+	padding: 0;
+	font-size: 0.875em;
+	color: var(--ink);
+}
+.sdkr-sub {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+}
+.docs-article .sdkr-sub h3 {
+	margin: 0;
+	font-size: 15px;
+	letter-spacing: 0;
+}
+.sdkr-sub span,
+.sdkr-faint {
+	font-size: 13px;
+	color: var(--faint);
+}
+.docs-article .sdkr .sdkr-lbl {
+	margin: 16px 0 6px;
+	font: 400 11px / 1 var(--font-mono-stack);
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--faint);
+}
+.docs-article .sdkr .sdkr-group:first-child .sdkr-lbl {
+	margin-top: 0;
+}
+.docs-article .sdkr-params td.pn,
+.docs-article .sdkr-errors td.pn {
+	width: 34%;
+}
+.docs-article .sdkr-params td.pn code,
+.docs-article .sdkr-errors td.pn code {
+	padding: 0;
+	background: none;
+	font: 13px var(--font-mono-stack);
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+.sdkr-t td.pn .t {
+	display: block;
+	margin-top: 2px;
+	font: 12px / 1.5 var(--font-mono-stack);
+	color: var(--faint);
+	overflow-wrap: anywhere;
+}
+.sdkr-t td.pn .req {
+	margin-left: 6px;
+	font: 10.5px var(--font-mono-stack);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--ink);
+}
+.sdkr-t td.pn .only {
+	display: block;
+	margin-top: 2px;
+	font-size: 12px;
+	color: var(--sub);
+}
+.docs-article .sdkr .sdkr-t td.pd {
+	line-height: 1.55;
+	color: var(--sub);
+}
+.docs-article .sdkr .sdkr-t td.pd code {
+	padding: 0;
+	background: none;
+	font-size: 0.875em;
+	white-space: normal;
+	color: var(--ink);
+}
+/* A parameter row is a mention: hovering it lights its token in the code. */
+.docs-article .sdkr-prow {
+	margin: 0;
+	padding: 0;
+	text-decoration: none;
+	background: none;
+	color: inherit;
+}
+.docs-article .sdkr-prow.lit {
+	background: none;
+	color: inherit;
+}
+.docs-article .sdkr-prow.lit td.pn > code {
+	margin-left: -3px;
+	padding: 1px 3px;
+	background: var(--hi);
+	color: var(--on-hi);
+}
+.sdkr-disclosures {
+	display: grid;
+}
+.docs-article .sdkr details summary b {
+	font: 500 13px var(--font-mono-stack);
+	color: var(--ink);
+}
+.sdkr-kv {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 0 18px;
+	margin: 0;
+	padding: 4px 0 14px;
+	font-size: 13.5px;
+}
+.sdkr-kv > div {
+	display: contents;
+}
+.sdkr-kv dt,
+.sdkr-kv dd {
+	margin: 0;
+	padding: 7px 0;
+	border-top: 1px solid var(--line);
+}
+.docs-article .sdkr-kv dt code {
+	padding: 0;
+	background: none;
+	font: 12.5px var(--font-mono-stack);
+}
+.sdkr-kv dd {
+	color: var(--sub);
+}
+.docs-article .sdkr-kv dd code {
+	padding: 0;
+	background: none;
+	font-size: 0.9em;
+	color: var(--ink);
+}
+@media (max-width: 640px) {
+	.sdkr-kv {
+		grid-template-columns: 1fr;
+	}
+	.sdkr-kv dd {
+		border-top: 0;
+		padding-top: 0;
+	}
+	.docs-article .sdkr-params td.pn {
+		width: auto;
+	}
+	/* a parameter is a card of its own on a phone: name and type, then what it does */
+	.docs-article .sdkr .sdkr-params tr,
+	.docs-article .sdkr .sdkr-errors tr {
+		display: block;
+		padding: 10px 0;
+		border-bottom: 1px solid var(--line);
+	}
+	.docs-article .sdkr .sdkr-params tbody td,
+	.docs-article .sdkr .sdkr-errors tbody td {
+		display: block;
+		padding: 0;
+		border: 0;
+	}
+	.docs-article .sdkr .sdkr-params td.pd:not(:empty),
+	.docs-article .sdkr .sdkr-errors td.pd:not(:empty) {
+		margin-top: 4px;
+	}
+}
+
+/* types on this page */
+.sdkr-typelist {
+	display: grid;
+}
+.sdkr-tr {
+	display: grid;
+	grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+	gap: 14px;
+	padding: 9px 0;
+	border-top: 1px solid var(--line);
+	font-size: 13.5px;
+	color: var(--sub);
+	scroll-margin-top: 80px;
+}
+.docs-article .sdkr-tr > code {
+	align-self: start;
+	padding: 0;
+	background: none;
+	font: 13px var(--font-mono-stack);
+	color: var(--ink);
+	overflow-wrap: anywhere;
+}
+.docs-article .sdkr-tr.dep > code {
+	text-decoration: line-through;
+	color: var(--faint);
+}
+.docs-article .sdkr-tr .sdkr-def {
+	padding: 0;
+	background: none;
+	font: 12.5px var(--font-mono-stack);
+	color: var(--faint);
+	overflow-wrap: anywhere;
+}
+.sdkr-tr:target {
+	background: var(--soft);
+}
+@media (max-width: 640px) {
+	.sdkr-tr {
+		grid-template-columns: 1fr;
+		gap: 2px;
+	}
+}
+
+/* overview map and error tree */
+.sdkr-map {
+	display: grid;
+	gap: 18px;
+}
+.sdkr-root {
+	justify-self: start;
+	padding: 10px 14px;
+	border: 1.5px solid var(--ink);
+	border-radius: 8px;
+	font: 500 14px var(--font-mono-stack);
+}
+.sdkr-root span {
+	font-weight: 400;
+	color: var(--sub);
+}
+.sdkr-kids {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+	gap: 10px;
+}
+.sdkr-map > .sdkr-kids {
+	margin-left: 18px;
+	padding-left: 22px;
+	border-left: 1px solid var(--faint);
+}
+.docs-article .sdkr-box {
+	display: grid;
+	gap: 4px;
+	align-content: start;
+	min-width: 0;
+	padding: 10px 12px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	color: var(--ink);
+	text-decoration: none;
+}
+.sdkr-box b {
+	font: 500 13.5px var(--font-mono-stack);
+	overflow-wrap: anywhere;
+}
+.sdkr-box span {
+	font-size: 12.5px;
+	color: var(--sub);
+}
+.sdkr-box em {
+	font: normal 12px var(--font-mono-stack);
+	color: var(--faint);
+}
+@media (hover: hover) {
+	.docs-article a.sdkr-box:hover {
+		border-color: var(--ink);
+	}
+}
+.sdkr-maprow {
+	display: grid;
+	gap: 8px;
+}
+.docs-article .sdkr .sdkr-lbl:first-child {
+	margin-top: 0;
+}
+.docs-article .sdkr-tree {
+	margin: 0;
+	padding: 12px 16px;
+	overflow-x: auto;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	font: 13px / 1.9 var(--font-mono-stack);
+	color: var(--sub);
+	white-space: pre;
+}
+.sdkr-tree b {
+	font-weight: 500;
+	color: var(--ink);
+}
+.docs-article .sdkr-tree a {
+	text-decoration: none;
+}

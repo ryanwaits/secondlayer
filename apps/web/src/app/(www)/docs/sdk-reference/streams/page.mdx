@@ -1,0 +1,21 @@
+import { SdkEyebrow, SdkSurfacePage } from "../sdk-reference";
+
+<SdkEyebrow title="Streams" />
+
+# `sl.streams`
+
+Every Stacks event in order, as a loop you checkpoint or a page you read. The same data the [Streams API](/docs/api/streams) serves over HTTP.
+
+<SdkSurfacePage slug="streams" />
+
+export const agent = `
+- Methods live on 'sl.streams' of 'const sl = new SecondLayer()'. Signatures and overloads are generated from the SDK source.
+- Prefer a checkpointed consume loop over hand-rolled paging; save the cursor in the same transaction as your rows.
+- A method's REST twin is linked on its entry; the Streams API page serves the same data over HTTP.
+`;
+
+export const metadata = {
+	title: "sl.streams (SDK reference) — Secondlayer Docs",
+	description:
+		"Every sl.streams method with its signature, overloads and parameters, read from the SDK's TypeScript source.",
+};

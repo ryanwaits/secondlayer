@@ -81,7 +81,10 @@ describe("CodeTabs", () => {
 				<Code key="b" lang="ts" code="await sl.streams.tip();" />,
 			],
 		});
-		expect(html).not.toContain('class="lk"');
+		// Only the TypeScript pane links (to its SDK method); the cURL pane opted out.
+		expect(html.match(/class="lk"/g)).toHaveLength(1);
+		expect(html).toContain('href="/docs/sdk-reference/streams#m-tip"');
+		expect(html).not.toContain('href="/docs/api/streams');
 		const linked = await tabs({
 			children: <Code lang="sh" code="curl $URL/v1/streams/tip" />,
 		});

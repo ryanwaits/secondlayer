@@ -1,0 +1,20 @@
+import { SdkEyebrow, SdkSurfacePage } from "../sdk-reference";
+
+<SdkEyebrow title="Client" />
+
+# Client
+
+What the client does itself, beside its surfaces: batched reads and the one-call account snapshot. Constructor options are in the [SDK guide](/docs/sdk).
+
+<SdkSurfacePage slug="client" />
+
+export const agent = `
+- These methods are on 'sl' itself ('sl.batch', 'sl.context'), not on a surface.
+- 'sl.batch' sends up to 10 public reads as one POST /v1/batch; its REST twin is linked on the entry.
+`;
+
+export const metadata = {
+	title: "Client (SDK reference) — Secondlayer Docs",
+	description:
+		"The methods on the Secondlayer client itself, batch and context, with signatures read from the SDK's TypeScript source.",
+};

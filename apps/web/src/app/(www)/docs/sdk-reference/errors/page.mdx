@@ -1,0 +1,20 @@
+import { SdkErrorsPage, SdkEyebrow } from "../sdk-reference";
+
+<SdkEyebrow title="Errors" />
+
+# Errors
+
+Every error class the SDK throws, rooted at `SecondLayerError`. Catch the root to handle all of them, or a subclass to handle one.
+
+<SdkErrorsPage />
+
+export const agent = `
+- Every SDK error extends SecondLayerError; match on the class, not the message.
+- Status codes shown are the HTTP status the class stands for.
+`;
+
+export const metadata = {
+	title: "Errors (SDK reference) — Secondlayer Docs",
+	description:
+		"Every error class @secondlayer/sdk throws, as a family tree with each class's HTTP status and meaning.",
+};

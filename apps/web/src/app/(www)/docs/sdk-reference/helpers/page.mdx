@@ -1,0 +1,20 @@
+import { SdkEyebrow, SdkHelpersPage } from "../sdk-reference";
+
+<SdkEyebrow title="Helpers" />
+
+# Helpers
+
+Functions you import from `@secondlayer/sdk` rather than call on the client: decoders and type guards, signature and proof checks, and consume-loop helpers.
+
+<SdkHelpersPage />
+
+export const agent = `
+- These are named exports: 'import { verifyWebhookSignature } from "@secondlayer/sdk"'. They are not methods on the client.
+- A name on this page is a real export of the shipped package.
+`;
+
+export const metadata = {
+	title: "Helpers (SDK reference) — Secondlayer Docs",
+	description:
+		"Every function @secondlayer/sdk exports for you to import directly, with its signature, read from the TypeScript source.",
+};

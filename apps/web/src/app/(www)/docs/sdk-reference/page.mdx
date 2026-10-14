@@ -1,24 +1,20 @@
-import { SdkSpecView } from "./spec-view";
+import { SdkOverview } from "./sdk-reference";
 
 # SDK reference
 
-Every export of `@secondlayer/sdk`, extracted from its TypeScript source.
+Every method on the client, read from the SDK's own source. One page per surface: pick one below, or start with the [SDK guide](/docs/sdk).
 
-<Callout type="note" title="Start with the guide">
-
-This is the index. [SDK](/docs/sdk) explains the client, checkpointed consumers, and signature verification, and routes you to whichever surface owns the rest.
-
-</Callout>
-
-<SdkSpecView />
+<SdkOverview />
 
 export const agent = `
-- Find the export by asking what the user is building, then name the exact export, show its signature, and give a snippet against a real contract.
-- When the user is pinned to an older @secondlayer/sdk, compare their version to the current surface and list added or deprecated exports.
+- The client is 'const sl = new SecondLayer()'; every surface hangs off it ('sl.streams', 'sl.index', 'sl.subgraphs', 'sl.webhooks', 'sl.archive', 'sl.contracts', 'sl.instance'), plus 'sl.batch' and 'sl.context' on the client itself.
+- One page per surface at 'https://secondlayer.tools/docs/sdk-reference/<client|streams|index|subgraphs|webhooks|archive|contracts|instance|helpers|errors>' (each with a .md twin): signatures, overloads, parameters and the types they use.
+- Everything is generated from the shipped package, so a name on these pages is a real export. Find the method by asking what the user is building, then show its signature and a snippet.
+- When the user is pinned to an older @secondlayer/sdk, compare their version to the one stated on each page before suggesting a method.
 `;
 
 export const metadata = {
 	title: "SDK reference — Secondlayer Docs",
 	description:
-		"Every export of @secondlayer/sdk with its kind, signature, and source, extracted from TypeScript with openpkg, so it can't drift from the shipped package.",
+		"Every method on the Secondlayer client, one page per surface, with signatures, parameters and examples read from the TypeScript source with openpkg so they can't drift from the shipped package.",
 };
