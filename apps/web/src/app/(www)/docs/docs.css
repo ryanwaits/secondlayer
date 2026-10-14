@@ -387,6 +387,30 @@ html:has(.docs-search input:focus) {
 	text-transform: uppercase;
 	color: var(--faint);
 }
+/* A collapsible group's label is its toggle: the same line, a caret like an
+   API page's, and a taller hit area that leaves the layout alone. */
+button.docs-nav-grouplabel {
+	position: relative;
+	display: flex;
+	align-items: center;
+	width: 100%;
+	border: 0;
+	background: none;
+	cursor: pointer;
+	text-align: left;
+}
+button.docs-nav-grouplabel::after {
+	content: "";
+	position: absolute;
+	inset: -6px 0;
+}
+button.docs-nav-grouplabel:hover {
+	color: var(--ink);
+}
+/* Folded, its label is the whole group. */
+button.docs-nav-grouplabel[aria-expanded="false"] {
+	margin-bottom: 0;
+}
 .docs-nav-item {
 	display: flex;
 	align-items: center;
@@ -415,7 +439,7 @@ button.docs-nav-item {
 	color: var(--faint);
 	transition: transform 0.15s;
 }
-.docs-nav-item[aria-expanded="true"] .docs-nav-caret {
+[aria-expanded="true"] > .docs-nav-caret {
 	transform: rotate(90deg);
 }
 /* The open page is marked by weight alone; its outline sits under it. */

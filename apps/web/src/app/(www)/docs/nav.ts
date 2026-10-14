@@ -7,27 +7,30 @@ export interface DocsNavItem {
 export interface DocsNavGroup {
 	label: string;
 	items: DocsNavItem[];
+	/** Folds behind its label until the open page is one of its rows. */
+	collapsible?: boolean;
 }
 
 /**
  * Sidebar information architecture for the docs site: five nouns by altitude.
  *
- * - **Start** is onboarding: Introduction, Keys and billing, and Self-host
- *   (start it, run it in production, size the hardware, upgrade).
+ * - **Start** is onboarding: Introduction, Keys and billing, Self-host
+ *   (start it, run it in production, size the hardware, upgrade), and Verify:
+ *   one page for everything you can check (a transaction, a block, an
+ *   archive, subgraph rows), with the products linking to it instead of
+ *   restating it.
  * - **Products** is Archive (signed history) → Streams (raw) → Index
  *   (decoded) → Subgraphs (your schema) → Webhooks (push). Order is
  *   load-bearing; keep it. Protocols (PoX-5, sBTC, Runes) and contract
- *   discovery are sections of Index, not pages or products.
- * - **Verify** is cross-cutting, not a product noun: one page for everything
- *   you can check (a transaction, a block, an archive, subgraph rows), with
- *   the products linking to it instead of restating it.
+ *   discovery are sections of Index, not pages or products. Folds, like
+ *   Tools, so the API reference sits near the top.
  * - **Tools** is how you drive it: CLI (with its local devnet), SDK (Filters
  *   is a section), Sinks, Deploy your app, and MCP and skills (the generated
  *   tool table plus the agent skill).
- * - **API** is the HTTP reference in six pages by job (Index, Streams,
- *   Proofs, Subgraphs, Webhooks, Instance), generated from the OpenAPI
- *   description; each endpoint opens in a drawer. Pages are assigned in
- *   `api-reference/pages.ts`.
+ * - **API reference** is the HTTP reference in six pages by job (Index,
+ *   Streams, Proofs, Subgraphs, Webhooks, Instance), generated from the
+ *   OpenAPI description; the open page lists its endpoints under its row.
+ *   Pages are assigned in `api-reference/pages.ts`.
  * - **SDK reference** is the client, one page per surface (`sl.streams`,
  *   `sl.index`, ...) plus helpers and errors, generated from the SDK's own
  *   source. Pages are listed in `sdk-reference/pages.ts`.
@@ -46,10 +49,12 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "Introduction", href: "/docs" },
 			{ title: "Keys and billing", href: "/docs/authentication" },
 			{ title: "Self-host", href: "/docs/self-host" },
+			{ title: "Verify", href: "/docs/verification" },
 		],
 	},
 	{
 		label: "Products",
+		collapsible: true,
 		items: [
 			{ title: "Archive", href: "/docs/archive" },
 			{ title: "Streams", href: "/docs/streams" },
@@ -59,11 +64,8 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		],
 	},
 	{
-		label: "Verify",
-		items: [{ title: "Verify", href: "/docs/verification" }],
-	},
-	{
 		label: "Tools",
+		collapsible: true,
 		items: [
 			{ title: "CLI", href: "/docs/cli" },
 			{ title: "SDK", href: "/docs/sdk" },
