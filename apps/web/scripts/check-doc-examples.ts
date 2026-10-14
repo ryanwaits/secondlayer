@@ -60,11 +60,6 @@ const IGNORED_CODES = new Set([
  */
 const KNOWN_FAILING: { where: string; reason: string }[] = [
 	{
-		where: "docs/sdk/page.mdx fence 8",
-		reason:
-			"fromSubgraphSource returns a filter over every subgraph member type, which has no toIndexParams; whether the page should narrow the source or the SDK should expose the projection is undecided",
-	},
-	{
 		where: "docs/sinks/page.mdx fence 7",
 		reason:
 			"insertRow's tx is typed by makeSink, whose postgresJsSink the page never imports; a postgres.js transaction type needs the page's own setup shown",

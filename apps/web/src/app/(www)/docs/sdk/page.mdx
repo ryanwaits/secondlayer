@@ -61,16 +61,19 @@ A failed call throws `ApiError`. `ApiError.requestId` is the `request_id` to quo
 
 `consume` polls and commits a cursor so you never miss or double-process. Return the committed cursor from `onBatch`. Available on `sl.streams.events`, `sl.index.events` (takes `eventType`), and `sl.index.contractCalls`.
 
-```ts
+```ts consumer.ts
 await sl.index.contractCalls.consume({
   contractId: "SP...marketplace-v4",
   functionName: "purchase-asset",
   fromCursor: await loadCheckpoint(), // null on first run
-  fromHeight: 0,                      // first run: backfill as far as the instance holds
+  // !callout[/fromHeight/] First run backfills as far as the instance holds.
+  fromHeight: 0,
   onBatch: async (calls, envelope, ctx) => {
     await commitRowsAndCheckpoint(calls, ctx.cursor);
+    // !callout[/return/] Return the cursor you committed.
     return ctx.cursor;
   },
+  // !callout[/onReorg/] Fires after the cursor rewinds.
   onReorg: async (reorg) => {
     await rollbackFromHeight(reorg.fork_point_height); // inclusive of the fork block
   },
@@ -128,7 +131,8 @@ A filter type a surface doesn't support lacks that method, so the error names th
 
 ```ts
 on.sbtcDeposit({}).toChainTrigger();   // ok: trigger-only event
-on.sbtcDeposit({}).toIndexParams();    // error: Property 'toIndexParams' does not exist
+// !error[/toIndexParams/] Property 'toIndexParams' does not exist
+on.sbtcDeposit({}).toIndexParams();
 ```
 
 #### Principals are validated
@@ -136,7 +140,8 @@ on.sbtcDeposit({}).toIndexParams();    // error: Property 'toIndexParams' does n
 A contract id where an asset identifier belongs is the most common copy-paste mistake, and it used to return zero rows. The factory now throws at construction, naming the field. The fields are still typed `string`, so it fails when the filter is built, not as a red squiggle.
 
 ```ts
-on.ftTransfer({ assetIdentifier: "SP…token" });        // throws: that's a contract id
+// !callout[/assetIdentifier/] Throws at runtime: that's a contract id.
+on.ftTransfer({ assetIdentifier: "SP…token" });
 on.ftTransfer({ assetIdentifier: "SP…token::token" }); // ok
 ```
 
@@ -148,7 +153,7 @@ on.ftTransfer({ assetIdentifier: "SP…token::token" }); // ok
 import { fromSubgraphSource } from "@secondlayer/stacks/filters";
 
 const source = fromSubgraphSource(subgraph.sources.swaps);
-await sl.index.events.list(source.toIndexParams({ limit: 10 }));
+const same = source.toSubgraphSource(); // the swaps source again, abi literal intact
 ```
 
 export const agent = `
