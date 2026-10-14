@@ -168,6 +168,7 @@ const rewardSet = await fetchRewardSet({
   nodeUrl: "https://your-stacks-node:20443",
   cycle: proof.consensus.reward_cycle,
 });
+if (!rewardSet) throw new Error("your node has no reward set for that cycle");
 
 const trustless = verifyTransactionProof(proof, { rewardSet });
 // trustless.rewardSetSource === "provided"

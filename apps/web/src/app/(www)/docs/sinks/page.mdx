@@ -21,6 +21,7 @@ await sl.streams.events.consume({
   }),
   onBatch: async (events, _envelope, ctx) => {
     for (const event of events) {
+      if (event.event_type !== "ft_transfer") continue; // narrows `payload`
       await ctx.tx.insertInto("transfers").values({
         cursor: event.cursor,
         sender: event.payload.sender,
