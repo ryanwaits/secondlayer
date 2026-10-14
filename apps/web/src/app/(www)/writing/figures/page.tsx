@@ -1,10 +1,8 @@
+import { Code } from "@/components/code/code";
 import {
-	AnnotatedCode,
-	AnnotatedPayload,
 	BarChart,
 	BeforeAfter,
 	CellStrip,
-	CodeDiff,
 	CopyBlock,
 	CrossHighlight,
 	DeltaBars,
@@ -44,6 +42,31 @@ export const metadata: Metadata = {
 		"The reusable visual vocabulary for writings posts: every figure a post can reach for, as live reference implementations.",
 	robots: { index: false, follow: false },
 };
+
+const PAYLOAD = `{
+  // !callout[/"checkpoint"/] the receipt: last delivered cursor, committed with your rows.
+  "checkpoint": "8637064:1",
+  "last_delivered_height": 8637064,
+  // !callout[/"scanned_height"/] verified-through position; rides the tip when caught up.
+  "scanned_height": 8676502,
+  // !callout[/"blocks_behind"/] tip minus scanned. Backlog, not event age.
+  "blocks_behind": 0
+}`;
+
+const LOGIC = `await driver.transact(async (tx) => {
+  // !callout[/acquireLock/] a second writer fails loudly here, before touching data.
+  await driver.acquireLock?.(tx);
+  await write(tx);
+  // !callout[/writeCursor/] cursor last, in the same transaction as the rows it describes.
+  await driver.writeCursor(tx, cursor);
+});`;
+
+const DIFF = `SELECT pg_try_advisory_xact_lock(
+-- !diff -
+  hashtext($1)   -- int4: collides across ids
+-- !diff +
+  hashtextextended($1, 0)   -- int8
+)`;
 
 function Specimen({
 	id,
@@ -248,53 +271,23 @@ export default function FigureLibraryPage() {
 				id="A4"
 				name={
 					<>
-						<code>&lt;AnnotatedPayload&gt;</code>: a wire shape, explained in
-						place
+						<code>!callout</code> on <code>json</code>: a wire shape, explained
+						in place
 					</>
 				}
-				tier="interactive"
+				tier="no js"
 				use={
 					<>
-						<b>Use when</b> explaining a JSON/wire shape field by field. Hover
-						or focus a field to light its note; on touch, tap toggles. Fields
-						are real buttons, keyboard reachable.
+						<b>Use when</b> explaining a JSON/wire shape field by field. The
+						note sits under its field, caret at the key. Three notes at most per
+						block.
 					</>
 				}
 			>
-				<AnnotatedPayload
-					segments={[
-						'{\n  "checkpoint": ',
-						{ id: "n1", text: '"8637064:1"' },
-						',\n  "last_delivered_height": ',
-						{ id: "n2", text: "8637064" },
-						',\n  "scanned_height": ',
-						{ id: "n3", text: "8676502" },
-						',\n  "blocks_behind": ',
-						{ id: "n4", text: "0" },
-						"\n}",
-					]}
-					notes={[
-						{
-							id: "n1",
-							label: "checkpoint",
-							body: "the receipt, last delivered cursor, committed with your rows.",
-						},
-						{
-							id: "n2",
-							label: "last_delivered_height",
-							body: "event recency; parks on a quiet filter.",
-						},
-						{
-							id: "n3",
-							label: "scanned_height",
-							body: "verified-through position; rides the tip when caught up.",
-						},
-						{
-							id: "n4",
-							label: "blocks_behind",
-							body: "tip − scanned. Backlog, not event age.",
-						},
-					]}
+				<Code
+					lang="json"
+					title="GET /v1/subgraphs/sbtc-flows/checkpoint"
+					code={PAYLOAD}
 				/>
 			</Specimen>
 
@@ -329,83 +322,38 @@ export default function FigureLibraryPage() {
 				id="A6"
 				name={
 					<>
-						<code>&lt;AnnotatedCode&gt;</code>: logic, explained line by line
+						<code>!callout</code> on <code>ts</code>: logic, explained line by
+						line
 					</>
 				}
-				tier="interactive"
+				tier="no js"
 				use={
 					<>
-						<b>Use when</b> the argument is the ORDER of operations. A4&rsquo;s
-						sibling: payloads get field notes, logic gets line notes. Lines are
-						buttons; hover, focus, or tap.
+						<b>Use when</b> the argument is the ORDER of operations. Payloads
+						get field notes, logic gets line notes: the same annotation, a
+						different target.
 					</>
 				}
 			>
-				<AnnotatedCode
-					lines={[
-						{ code: "await driver.transact(async (tx) => {", note: "a6n1" },
-						{ code: "  await driver.acquireLock?.(tx);", note: "a6n2" },
-						{ code: "  await write(tx);", note: "a6n3" },
-						{ code: "  await driver.writeCursor(tx, cursor);", note: "a6n4" },
-						{ code: "});", note: "a6n1" },
-					]}
-					notes={[
-						{
-							id: "a6n1",
-							label: "one transaction",
-							body: "everything inside commits together or not at all.",
-						},
-						{
-							id: "a6n2",
-							label: "lock first",
-							body: "a second writer fails loudly here, before touching data.",
-						},
-						{
-							id: "a6n3",
-							label: "the handler's rows",
-							body: "user inserts go through the lent tx.",
-						},
-						{
-							id: "a6n4",
-							label: "cursor last, same tx",
-							body: "the receipt rides with the rows it describes.",
-						},
-					]}
-				/>
+				<Code lang="ts" title="driver.ts" code={LOGIC} />
 			</Specimen>
 
 			<Specimen
 				id="A7"
 				name={
 					<>
-						<code>&lt;CodeDiff&gt;</code>: what changed, tinted
+						<code>!diff</code>: what changed, signed
 					</>
 				}
-				tier="interactive"
+				tier="no js"
 				use={
 					<>
-						<b>Use when</b> a migration or fix is the story. Deletions tinted
-						alarm, additions tinted ok, both at 8%: semantic colors, never the
-						role palette. The &ldquo;result&rdquo; view is what a reader copies.
+						<b>Use when</b> a migration or fix is the story. Removed lines fade,
+						added lines carry a green plus; Copy takes the result.
 					</>
 				}
 			>
-				<CodeDiff
-					lines={[
-						{ text: "SELECT pg_try_advisory_xact_lock(" },
-						{
-							text: "  hashtext($1)   -- int4: collides across ids",
-							op: "del",
-						},
-						{ text: "  hashtextextended($1, 0)   -- int8", op: "add" },
-						{ text: ")" },
-					]}
-					result={[
-						"SELECT pg_try_advisory_xact_lock(",
-						"  hashtextextended($1, 0)",
-						")",
-					]}
-				/>
+				<Code lang="sql" title="advisory-lock.sql" code={DIFF} />
 			</Specimen>
 
 			<Specimen

@@ -18,8 +18,9 @@ pair).
 | A1 | `<StatTile>` | one number IS the point | value + label + optional delta/spark; tabular-nums |
 | A2 | `<TermPair>` | two concepts to hold apart | side-by-side hairline cards; role carried by a dot marker + colored term, never an accent stripe (impeccable ban) |
 | A3 | `<Matrix>` | 2×2 tradeoff / asymmetry | cells carry cost chips (cheap/dear semantic colors) |
-| A4 | `<AnnotatedPayload>` | explaining a JSON/wire shape | hover/tap a field → its annotation highlights; keyboard focusable |
 | A5 | `<Sidenote>` | tangents, sources, precision hedges | numbered margin notes ≥1100px, inline-expandable below; tap target ≥44px |
+
+Code, payloads and diffs are not figures: write them as `<Code>` blocks with annotation comments (`!callout`, `!mark`, `!diff`, `!focus`). The grammar lives in `components/code/` and DESIGN.md §6.
 
 ## B — Diagrams (medium interactivity)
 
@@ -54,8 +55,6 @@ pair).
 
 | id | component | use when | interaction |
 | --- | --- | --- | --- |
-| A6 | `<AnnotatedCode>` | explaining LOGIC line by line (A4 is for data shapes) | hover/tap a line → margin note lights; numbered line callouts |
-| A7 | `<CodeDiff>` | migrations, before/after refactors | toggle old/new or unified view; changed lines tinted (ok/alarm at 8%) |
 | A8 | `<InvariantList>` | numbered contracts (the 13 sink invariants) | each row anchor-linkable, click expands the failure story |
 | A9 | `<Term>` | first use of a coined term (receipt, bookmark, sink) | dotted underline; hover/tap shows the definition; one shared glossary per post |
 | A10 | `<SpecSheet>` | key-value facts about one thing (an endpoint, a table) | static; mono rows, house data-table voice |
