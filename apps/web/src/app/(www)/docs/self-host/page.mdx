@@ -101,7 +101,7 @@ docker compose --profile full-node up -d
 
 With `NODE_MODE=external`, this entry in your node's `Config.toml` sends Secondlayer every block.
 
-```toml
+```toml Config.toml
 [[events_observer]]
 endpoint = "10.0.0.5:3700"
 events_keys = ["*"]
