@@ -397,6 +397,51 @@
 	display: none;
 }
 
+/* Prose that points at code. A mention marks (yellow), a focus link acts (blue). */
+.mention {
+	margin: 0 -2px;
+	padding: 0 2px;
+	border: 0;
+	background: none;
+	font: inherit;
+	color: var(--ink);
+	cursor: default;
+	text-decoration: underline dotted var(--faint);
+	text-decoration-thickness: 1.5px;
+	text-underline-offset: 5px;
+}
+.mention.lit {
+	background: var(--hi);
+	color: var(--on-hi);
+	text-decoration: none;
+}
+.mention code {
+	font: 400 0.875em / 1 var(--font-mono-stack);
+}
+.flink {
+	margin: 0 -3px;
+	padding: 0 3px;
+	border: 0;
+	border-radius: 4px;
+	background: none;
+	font: inherit;
+	color: var(--pri);
+	cursor: pointer;
+	text-decoration: underline dotted var(--pri);
+	text-decoration-thickness: 1.5px;
+	text-underline-offset: 5px;
+}
+.flink[aria-pressed="true"] {
+	background: var(--pri);
+	color: var(--on-pri);
+	text-decoration: none;
+}
+.mention:focus-visible,
+.flink:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+
 /* Docs: the article sets the rhythm. */
 .docs-article .cb {
 	margin-top: 18px;

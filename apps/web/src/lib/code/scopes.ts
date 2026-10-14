@@ -66,6 +66,12 @@ export function proseProblems(file: string, source: string): string[] {
 	const whole = file.startsWith("writing/");
 	for (const scope of scopesOf(source, whole)) {
 		const where = `${file} "${scope.where}"`;
+		const refs = declared(scope, "ref");
+		for (const m of scope.prose.matchAll(/\]\((hover|focus):([^)]*)\)/g))
+			if (!refs.has(m[2] ?? ""))
+				found.push(
+					`${where}: ${m[1]}:${m[2]} has no !ref ${m[2]} in the section`,
+				);
 		const picks = declared(scope, "pick");
 		if (picks.size > 1)
 			found.push(

@@ -1,6 +1,7 @@
 import { Code } from "@/components/code/code";
 import { CodeTabs } from "@/components/code/code-tabs";
 import { fenceFromCode } from "@/components/code/fence";
+import { FocusLink, Mention } from "@/components/code/prose";
 import { Banner, Callout } from "@/components/docs/callout";
 import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
@@ -28,11 +29,16 @@ function MdxCode({ children }: { children?: ReactNode }) {
 }
 
 /** Internal links use next/link; external open in a new tab. Styling comes
- *  from `.docs-article a` (mirrors marketing `.prose a`). */
+ *  from `.docs-article a` (mirrors marketing `.prose a`). `hover:name` and
+ *  `focus:name` are not links: they point at a `!ref` in the same section. */
 function MdxLink({
 	href = "",
 	children,
 }: { href?: string; children?: ReactNode }) {
+	if (href.startsWith("hover:"))
+		return <Mention name={href.slice("hover:".length)}>{children}</Mention>;
+	if (href.startsWith("focus:"))
+		return <FocusLink name={href.slice("focus:".length)}>{children}</FocusLink>;
 	if (href.startsWith("/") || href.startsWith("#")) {
 		return <Link href={href}>{children}</Link>;
 	}

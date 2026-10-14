@@ -40,6 +40,15 @@ describe("extractAgentNotes", () => {
 	});
 });
 
+describe("mdxToMarkdown prose that points at code", () => {
+	test("a mention or focus link reads as its text", () => {
+		const md = mdxToMarkdown(
+			"Ends with [a `next_cursor`](hover:next); [save it](focus:save) and [see](/docs/x).",
+		);
+		expect(md).toBe("Ends with a `next_cursor`; save it and [see](/docs/x).");
+	});
+});
+
 describe("mdxToMarkdown", () => {
 	test("turns multi-line details into a heading with no html left", () => {
 		const md = mdxToMarkdown(

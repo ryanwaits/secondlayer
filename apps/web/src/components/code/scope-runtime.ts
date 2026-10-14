@@ -67,12 +67,52 @@ function focusRef(scope: Scope, name: string | null) {
 	}
 }
 
+const touchOnly = () => matchMedia("(hover: none)").matches;
+
+/** Mentions light on hover and keyboard focus; the pointer moving between a mention's own children does not count. */
+function onMention(event: Event, on: boolean) {
+	const from = event.target instanceof Element ? event.target : null;
+	const mention = from?.closest<HTMLElement>(".mention");
+	const to = (event as MouseEvent).relatedTarget;
+	// On touch the emulated hover and the focus a tap gives would fight the toggle below.
+	if (!mention || touchOnly() || (to instanceof Node && mention.contains(to)))
+		return;
+	light(scopeOf(mention), mention.dataset.hover ?? "", on);
+}
+
+function onClick(event: MouseEvent) {
+	if (!(event.target instanceof Element)) return;
+	const mention = event.target.closest<HTMLElement>(".mention");
+	// A tap has no hover: it toggles.
+	if (mention && touchOnly()) {
+		light(
+			scopeOf(mention),
+			mention.dataset.hover ?? "",
+			!mention.classList.contains("lit"),
+		);
+		return;
+	}
+	const flink = event.target.closest<HTMLElement>(".flink");
+	if (flink) {
+		const scope = scopeOf(flink);
+		const on = flink.getAttribute("aria-pressed") !== "true";
+		for (const other of find(scope, ".flink"))
+			other.setAttribute("aria-pressed", String(other === flink && on));
+		focusRef(scope, on ? (flink.dataset.focus ?? null) : null);
+	}
+}
+
 let mounted = false;
 
 /** Install the page's delegated listeners once; later calls are no-ops. */
 export function mountScope() {
 	if (mounted) return;
 	mounted = true;
+	document.addEventListener("mouseover", (e) => onMention(e, true));
+	document.addEventListener("mouseout", (e) => onMention(e, false));
+	document.addEventListener("focusin", (e) => onMention(e, true));
+	document.addEventListener("focusout", (e) => onMention(e, false));
+	document.addEventListener("click", onClick);
 }
 
 export { find, focusRef, hasName, light, scopeOf };

@@ -25,6 +25,23 @@ describe("scopes", () => {
 	});
 });
 
+describe("mention and focus links", () => {
+	const block = fence("// !ref[/next_cursor/] next\nx(page.next_cursor);");
+
+	test("a hover or focus name needs a !ref in the same section", () => {
+		const source = `## One\n${block}\n[a](hover:next) [b](focus:next)\n## Two\n[c](hover:next) [d](focus:gone)`;
+		expect(proseProblems("docs/x/page.mdx", source)).toEqual([
+			'docs/x/page.mdx "Two": hover:next has no !ref next in the section',
+			'docs/x/page.mdx "Two": focus:gone has no !ref gone in the section',
+		]);
+	});
+
+	test("in a post a ref anywhere satisfies a mention anywhere", () => {
+		const source = `[a](hover:next)\n## One\n${block}`;
+		expect(proseProblems("writing/(post)/p/page.mdx", source)).toEqual([]);
+	});
+});
+
 describe("pick budget", () => {
 	const two = `## Section\n${fence("// !pick[/a/] one: a | b\na();")}\n${fence("// !pick[/c/] two: c | d\nc();")}`;
 
