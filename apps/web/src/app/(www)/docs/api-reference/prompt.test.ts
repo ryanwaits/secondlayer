@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { endpointPrompt, objectPrompt } from "./prompt";
+import { endpointPrompt, objectPrompt, promptParts } from "./prompt";
 import {
 	allEndpoints,
 	findEndpoint,
@@ -14,7 +14,7 @@ function endpoint(anchor: string) {
 }
 
 describe("agent prompt", () => {
-	test("a list endpoint reads its markdown, pages by cursor and names its rows", () => {
+	test("a list endpoint reads its markdown, pages by cursor, names its rows and ends there", () => {
 		const prompt = endpointPrompt(endpoint("list-ft-transfers"));
 		expect(prompt).toContain(
 			"Read https://secondlayer.tools/docs/api-reference/list-ft-transfers.md first.",
@@ -23,7 +23,7 @@ describe("agent prompt", () => {
 		expect(prompt).toContain("Bearer $SECONDLAYER_API_KEY");
 		expect(prompt).toContain("next_cursor");
 		expect(prompt).toContain("reorgs[]");
-		expect(prompt).toContain("Task: <what you want built with this data>");
+		expect(prompt).not.toContain("Task:");
 	});
 
 	test("a self-hosted endpoint authenticates with the instance token", () => {
@@ -48,5 +48,20 @@ describe("agent prompt", () => {
 		const prompt = objectPrompt(first);
 		expect(prompt).toContain(`${first.anchor}.md`);
 		expect(prompt).toContain(first.returnedBy[0].path);
+	});
+
+	test("prompt parts shorten the markdown URL to its file name and keep the link", () => {
+		const parts = promptParts(endpointPrompt(endpoint("list-ft-transfers")));
+		const link = parts.find((p) => p.text === "list-ft-transfers.md");
+		expect(link).toBeDefined();
+		expect(link?.href?.endsWith("/list-ft-transfers.md")).toBe(true);
+	});
+
+	test("prompt parts join back to the copied text", () => {
+		const prompt = endpointPrompt(endpoint("list-ft-transfers"));
+		const joined = promptParts(prompt)
+			.map((p) => p.href ?? p.text)
+			.join("");
+		expect(joined).toBe(prompt);
 	});
 });
