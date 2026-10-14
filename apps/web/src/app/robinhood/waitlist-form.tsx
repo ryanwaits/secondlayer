@@ -1,5 +1,6 @@
 "use client";
 
+import { Choice } from "@/components/choice";
 import { PUBLIC_API_URL } from "@/lib/public-api";
 import { type FormEvent, useState } from "react";
 
@@ -115,23 +116,17 @@ export function WaitlistForm() {
 
 	return (
 		<form className="rh-form" onSubmit={onSubmit} noValidate>
-			<fieldset className="rh-field">
-				<legend className="rh-label">I'm a</legend>
-				<div className="rh-seg">
-					{ROLES.map((r, i) => (
-						<label key={r.value}>
-							<input
-								type="radio"
-								name="role"
-								id={`role-${r.value}`}
-								value={r.value}
-								defaultChecked={i === 0}
-							/>
-							<span>{r.label}</span>
-						</label>
-					))}
-				</div>
-			</fieldset>
+			<div className="rh-field">
+				<span className="rh-label" id="role-label">
+					I'm a
+				</span>
+				<Choice
+					name="role"
+					labelledBy="role-label"
+					options={ROLES}
+					defaultValue={ROLES[0].value}
+				/>
+			</div>
 			<div className="rh-two">
 				<div className="rh-field">
 					<label className="rh-label" htmlFor="token">

@@ -398,43 +398,6 @@ body:has(.rh) .auth-bar {
 		grid-template-columns: 1fr;
 	}
 }
-.rh-seg {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-}
-.rh-seg label {
-	position: relative;
-	cursor: pointer;
-}
-.rh-seg input {
-	position: absolute;
-	inset: 0;
-	margin: 0;
-	opacity: 0;
-	cursor: pointer;
-}
-.rh-seg span {
-	display: inline-flex;
-	align-items: center;
-	height: 34px;
-	padding: 0 14px;
-	border: 1px solid var(--line);
-	border-radius: 999px;
-	font-size: 14px;
-	color: var(--sub);
-	transition: color 150ms ease, border-color 150ms ease, background-color 150ms
-		ease;
-}
-.rh-seg input:checked + span {
-	border-color: var(--ink);
-	background: var(--ink);
-	color: var(--paper);
-}
-.rh-seg input:focus-visible + span {
-	outline: 2px solid var(--pri);
-	outline-offset: 2px;
-}
 .rh-form-foot {
 	display: flex;
 	flex-wrap: wrap;
