@@ -216,5 +216,6 @@ describe("the other pages", () => {
 		expect(helpers).toContain('id="h-verifyWebhookSignature"');
 		const errors = await render(<SdkErrorsPage />);
 		expect(errors).toContain('id="e-AuthError"');
+		expect(errors).toContain('id="e-SecondLayerError"');
 	});
 });

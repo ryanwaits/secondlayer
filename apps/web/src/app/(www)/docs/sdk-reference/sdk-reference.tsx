@@ -434,7 +434,9 @@ export function SdkErrorsPage() {
 	const tree = errorTree(m.errors);
 	return (
 		<div className="sdkr">
-			<Html html={errorTreeHtml(tree)} />
+			<div id={errorAnchor(tree[0]?.name ?? "")}>
+				<Html html={errorTreeHtml(tree)} />
+			</div>
 			<div className="sdkr-params-wrap">
 				<table className="sdkr-t sdkr-errors">
 					<tbody>
