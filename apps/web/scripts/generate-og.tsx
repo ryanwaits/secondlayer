@@ -1008,9 +1008,10 @@ type CardSpec = {
 	artifact: React.ReactNode;
 	/** Highlight color behind line 2 (yellow; Robin Neon on the partner card). */
 	highlight?: string;
-	/** Center the headline with the artifact underneath (home), matching the
-	    centered home hero. Default is headline left, artifact right. */
-	centered?: boolean;
+	/** Headline across the card's full width with the artifact underneath
+	    (home), matching the home hero. Default is headline left, artifact
+	    right. */
+	wide?: boolean;
 };
 
 function Footer({ path }: { path: string }) {
@@ -1049,7 +1050,7 @@ function Footer({ path }: { path: string }) {
 	);
 }
 
-function CenteredFrame(spec: CardSpec) {
+function WideFrame(spec: CardSpec) {
 	const { size } = spec;
 	const hl = spec.highlight ?? YELLOW;
 	const line = {
@@ -1058,7 +1059,7 @@ function CenteredFrame(spec: CardSpec) {
 		fontSize: size,
 		color: INK,
 		lineHeight: 1.1,
-		letterSpacing: -size * 0.04,
+		letterSpacing: -size * 0.05,
 	};
 	return (
 		<div
@@ -1078,7 +1079,7 @@ function CenteredFrame(spec: CardSpec) {
 					height: 540,
 					display: "flex",
 					flexDirection: "column",
-					alignItems: "center",
+					alignItems: "flex-start",
 					justifyContent: "center",
 					gap: 44,
 				}}
@@ -1087,11 +1088,18 @@ function CenteredFrame(spec: CardSpec) {
 					style={{
 						display: "flex",
 						flexDirection: "column",
-						alignItems: "center",
+						alignItems: "flex-start",
 					}}
 				>
 					<span style={line}>{spec.line1}</span>
-					<span style={{ ...line, background: hl, padding: "0 16px" }}>
+					<span
+						style={{
+							...line,
+							background: hl,
+							padding: "0 16px",
+							marginLeft: -16,
+						}}
+					>
 						{spec.line2}
 					</span>
 				</div>
@@ -1103,7 +1111,7 @@ function CenteredFrame(spec: CardSpec) {
 }
 
 function Frame(spec: CardSpec) {
-	if (spec.centered) return <CenteredFrame {...spec} />;
+	if (spec.wide) return <WideFrame {...spec} />;
 	const { size } = spec;
 	const hl = spec.highlight ?? YELLOW;
 	return (
@@ -1197,9 +1205,9 @@ const CARDS: CardSpec[] = [
 		eyebrow: null,
 		line1: "Instant data",
 		line2: "for apps on Bitcoin.",
-		size: 84,
+		size: 104,
 		path: SITE,
-		centered: true,
+		wide: true,
 		artifact: <ArtHome />,
 	},
 	{

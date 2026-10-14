@@ -184,9 +184,7 @@ export function HomeView() {
 										Read the docs
 									</ButtonLink>
 								</div>
-								<span className="cap">
-									1M rows free every month · self-host free forever
-								</span>
+								<span className="cap">1M rows free every month</span>
 							</div>
 						</div>
 					</div>

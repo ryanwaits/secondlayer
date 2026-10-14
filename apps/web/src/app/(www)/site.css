@@ -1115,26 +1115,29 @@
 	display: block;
 	padding-block: clamp(56px, 9vw, 112px) clamp(64px, 9vw, 112px);
 }
+/* The headline sits left at the closing band's size; the line under it
+   pairs the sub with the actions on the right, as the band does. */
 .site.home .hero-copy {
-	gap: 22px;
-	justify-items: center;
-	text-align: center;
+	gap: 28px;
+	justify-items: stretch;
 }
 .site.home .hero-row {
-	display: grid;
-	justify-items: center;
-	gap: 28px;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: end;
+	justify-content: space-between;
+	gap: 24px 48px;
 }
 .site.home .hero .sub {
 	font-size: clamp(17px, 1.7vw, 20px);
 	line-height: 1.5;
 	color: var(--sub);
-	max-width: 48ch;
+	max-width: 44ch;
 }
 .site.home .hero-cta {
 	display: grid;
 	gap: 12px;
-	justify-items: center;
+	justify-items: start;
 }
 .site.home .hero-cta .btns {
 	margin-top: 0;
@@ -1576,11 +1579,20 @@
 .site.home .close {
 	padding-block: clamp(80px, 12vw, 160px);
 }
+.site.home .hero h1,
 .site.home .close h2 {
 	font-size: clamp(38px, 6vw, 76px);
 	max-width: 14ch;
 	letter-spacing: -0.05em;
 	line-height: 0.98;
+}
+/* The hero breaks its own lines; its highlighted line hangs its padding
+   into the margin so both lines start on one edge. */
+.site.home .hero h1 {
+	max-width: none;
+}
+.site.home .hero h1 .hl {
+	margin-left: -0.1em;
 }
 
 /* ── product pages ─────────────────────────────────────────────────── */
