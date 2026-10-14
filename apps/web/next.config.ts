@@ -19,7 +19,9 @@ const nextConfig: NextConfig = {
 		// and financial actions (revoke key, cancel plan), and the magic-link
 		// verify page reads its token from the URL. Nothing in this app
 		// legitimately iframes it (grep for "iframe" across src/ turns up
-		// nothing), so denying framing outright is safe.
+		// nothing), so denying framing outright is safe. One exception: the
+		// Lab's 400px viewport frames its own /lab/frame/* pages, same-origin
+		// only, and those routes 404 outside dev/preview (labEnabled()).
 		//
 		// The CSP below ships report-only. A strict enforcing policy can break
 		// inline styles — enforcing it is a follow-up, not part of this change.
@@ -55,6 +57,10 @@ const nextConfig: NextConfig = {
 						].join("; "),
 					},
 				],
+			},
+			{
+				source: "/lab/frame/:path*",
+				headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
 			},
 		];
 	},

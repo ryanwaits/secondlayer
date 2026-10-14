@@ -1,3 +1,4 @@
+import { RELAYER_READ, TWIN_MINT } from "@/app/robinhood/samples";
 import { Choice } from "@/components/choice";
 import { Code } from "@/components/code/code";
 import { CodeTabs } from "@/components/code/code-tabs";
@@ -31,37 +32,6 @@ export type Story = (typeof STORY_INDEX)[number] & {
 	dos?: string[];
 	donts?: string[];
 };
-
-/** The twin's `mint`, verbatim from the Robinhood page's Twin.sol figure. */
-const TWIN_MINT = String.raw`function mint(uint256 lockNonce, address to, uint256 amount) external {
-    // !callout[/minter/] Phase 0: a 2-of-2 Safe
-    if (msg.sender != minter) revert NotMinter();
-    // !callout[/minted\[lockNonce\]/] One mint per Stacks lock
-    if (minted[lockNonce]) revert AlreadyMinted(lockNonce);
-    if (amount == 0) revert ZeroAmount();
-    minted[lockNonce] = true;
-    _mint(to, amount);
-    // !callout[/Minted/] Public, and names its lock
-    emit Minted(lockNonce, to, amount);
-}`;
-
-/** How the relayer reads locks, from the Robinhood page's sources.ts figure. */
-const RELAYER_READ = String.raw`const client = createStreamsClient({
-  baseUrl: config.apiUrl,
-  apiKey: config.apiKey,
-});
-await client.events.consume({
-  types: ["print"],
-  // !callout[/locker/] Only the locker's prints
-  contractId: locker,
-  // !callout[/true/] Counts a lock once Bitcoin finalizes it
-  finalizedOnly: true,
-  // !callout[/config\.fromCursor/] Every start rescans from deploy
-  fromCursor: config.fromCursor,
-  mode: once ? "bounded" : "tail",
-  signal,
-  onBatch: (events) => onLocks(events.flatMap(decodeLock)),
-});`;
 
 const STREAM_SETUP = `const client = createStreamsClient({ apiKey });
 await client.events.consume({
@@ -769,7 +739,7 @@ const META: Record<StoryId, Meta> = {
 			"apps/web/src/app/(www)/site.css",
 		],
 		design: "§6 Buttons",
-		rule: "Focus is a 2px pri outline, 2px offset: never animated, never a glow.",
+		rule: "Flat 4px buttons: pri fill for the one action, line border for the rest.",
 		variants: [
 			{
 				id: "kinds",
@@ -844,8 +814,17 @@ const META: Record<StoryId, Meta> = {
 		],
 		usage: `<ButtonLink href="#join">Join the waitlist</ButtonLink>
 <ButtonLink href="#phases" variant="secondary">What's trusted today</ButtonLink>`,
-		dos: ["Use :focus-visible for the ring, so a mouse click never draws it."],
-		donts: ["No transition on focus, no glow, no transition: all."],
+		dos: [
+			"Primary is 42px, 4px radius, pri fill; hover mixes 14% paper into pri.",
+			"Secondary and ghost use a line border; hover darkens it to ink or sub.",
+			"Small is 34px; the nav Start free uses it.",
+			"Disabled is 50% opacity; press scales to 0.97, off under reduced motion.",
+			"Focus is a 2px pri outline, 2px offset, on :focus-visible so a mouse click never draws it.",
+		],
+		donts: [
+			"No pills, no ink fills.",
+			"No transition on focus, no glow, no transition: all.",
+		],
 	},
 	callout: {
 		src: ["apps/web/src/components/docs/callout.tsx"],

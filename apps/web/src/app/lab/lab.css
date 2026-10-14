@@ -507,11 +507,31 @@ body:has(.lab) .auth-bar {
 .lab-stage[data-theme="dark"] .lab-frames {
 	grid-template-columns: minmax(0, 1fr);
 }
-.lab-stage[data-vp="400"] .lab-in {
-	max-width: 400px;
-	margin-inline: auto;
+.lab-vps {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 16px;
+}
+.lab-vp {
+	display: block;
+	max-width: 100%;
+	border: 1px dashed var(--line);
+	border-radius: 8px;
+	background: transparent;
+}
+/* A frame route is the whole iframe document: no chrome, no caption, no
+   gutter, and no min-height, so the iframe can size to its content. */
+.lab-solo {
+	min-height: 0;
+}
+.lab-solo .lab-fr {
+	border: 0;
+	border-radius: 0;
+}
+.lab-solo .lab-in {
 	padding-inline: 0;
-	border-inline: 1px dashed var(--line);
+	border-radius: 0;
 }
 .lab-w {
 	max-width: var(--lab-w, 100%);

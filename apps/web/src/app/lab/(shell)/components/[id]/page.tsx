@@ -1,8 +1,9 @@
 import { Code } from "@/components/code/code";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { STORIES, type Story, getStory } from "../../stories";
-import { StoryView } from "../../story-controls";
+import { LabFrame, MODES } from "../../../frame";
+import { STORIES, type Story, getStory } from "../../../stories";
+import { StoryView } from "../../../story-controls";
 
 type Params = { id: string };
 
@@ -16,11 +17,6 @@ export async function generateMetadata({
 	const story = getStory((await params).id);
 	return { title: story ? `${story.title} · Lab` : "Lab" };
 }
-
-const MODES = [
-	{ mode: "light", label: "Light" },
-	{ mode: "dark", label: "Dark" },
-] as const;
 
 function Rules({ story }: { story: Story }) {
 	return (
@@ -62,18 +58,13 @@ export default async function StoryPage({
 		node: (
 			<div className="lab-frames">
 				{MODES.map(({ mode, label }) => (
-					<section key={mode} className="lab-fr" data-mode={mode}>
-						<span className="lab-fr-cap">{label}</span>
-						<div className="site lab-in">
-							{story.width ? (
-								<div className="lab-w">
-									{variant.render(`${variant.id}-${mode}`)}
-								</div>
-							) : (
-								variant.render(`${variant.id}-${mode}`)
-							)}
-						</div>
-					</section>
+					<LabFrame
+						key={mode}
+						story={story}
+						variant={variant}
+						mode={mode}
+						caption={label}
+					/>
 				))}
 			</div>
 		),
@@ -148,6 +139,7 @@ export default async function StoryPage({
 			</header>
 			<StoryView
 				key={story.id}
+				storyId={story.id}
 				variants={variants}
 				width={story.width}
 				stack={story.stack}

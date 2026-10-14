@@ -5,7 +5,14 @@ import { Choice } from "@/components/choice";
 import { Logo } from "@/components/logo";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
+import {
+	type CSSProperties,
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import type { NavItem } from "./tree";
 
 const DESIGN_URL =
@@ -123,6 +130,7 @@ const VIEWPORTS = [
 const VIEW_KEY = "lab:view";
 
 export type StoryViewProps = {
+	storyId: string;
 	/** Each variant's frames, rendered on the server; the view only shows one. */
 	variants: { id: string; label: string; node: ReactNode }[];
 	width?: { min: number; max: number; value: number };
@@ -132,11 +140,58 @@ export type StoryViewProps = {
 };
 
 /**
+ * A frame route in an iframe, as tall as its content. Same origin, so the
+ * document is readable: its height is measured on load and followed with a
+ * ResizeObserver, which the cleanup disconnects.
+ */
+function FrameEmbed({ src, title }: { src: string; title: string }) {
+	const ref = useRef<HTMLIFrameElement>(null);
+	const [height, setHeight] = useState(0);
+	const observer = useRef<ResizeObserver | null>(null);
+
+	const attach = useCallback(() => {
+		const root = ref.current?.contentDocument?.documentElement;
+		if (!root) return;
+		observer.current?.disconnect();
+		// offsetHeight is the content's height; scrollHeight never drops below the frame's.
+		const measure = () => setHeight(root.offsetHeight);
+		measure();
+		observer.current = new ResizeObserver(measure);
+		observer.current.observe(root);
+	}, []);
+
+	// The frame may finish loading before hydration, so onLoad alone can miss it.
+	useEffect(() => {
+		if (ref.current?.contentDocument?.readyState === "complete") attach();
+		return () => observer.current?.disconnect();
+	}, [attach]);
+
+	return (
+		<iframe
+			ref={ref}
+			className="lab-vp"
+			src={src}
+			title={title}
+			width={400}
+			height={height || 200}
+			onLoad={attach}
+		/>
+	);
+}
+
+/**
  * The story's controls. Every variant and pane is already in the page as
  * server markup; this component only chooses which one is visible, which theme
- * frames show and how wide the stage is.
+ * frames show and how wide the stage is. The 400 viewport swaps the inline
+ * frames for iframes, since only an iframe has a viewport of its own.
  */
-export function StoryView({ variants, width, stack, panes }: StoryViewProps) {
+export function StoryView({
+	storyId,
+	variants,
+	width,
+	stack,
+	panes,
+}: StoryViewProps) {
 	const [theme, setTheme] = useState("both");
 	const [viewport, setViewport] = useState("desktop");
 	const [variant, setVariant] = useState(variants[0]?.id ?? "");
@@ -201,11 +256,26 @@ export function StoryView({ variants, width, stack, panes }: StoryViewProps) {
 				data-stack={stack || undefined}
 				style={width ? ({ "--lab-w": `${px}px` } as CSSProperties) : undefined}
 			>
-				{variants.map((v) => (
-					<div key={v.id} hidden={v.id !== variant}>
-						{v.node}
+				{viewport === "400" ? (
+					<div className="lab-vps">
+						{THEMES.filter(
+							(t) =>
+								t.value !== "both" && (theme === "both" || theme === t.value),
+						).map((t) => (
+							<FrameEmbed
+								key={`${variant}-${t.value}`}
+								src={`/lab/frame/${storyId}/${variant}/${t.value}`}
+								title={`${t.label} frame at 400px`}
+							/>
+						))}
 					</div>
-				))}
+				) : (
+					variants.map((v) => (
+						<div key={v.id} hidden={v.id !== variant}>
+							{v.node}
+						</div>
+					))
+				)}
 			</div>
 			<div className="lab-panel">
 				<div className="tabbar" role="tablist">
