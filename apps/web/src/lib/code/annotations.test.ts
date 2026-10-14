@@ -152,6 +152,9 @@ describe("markdownFence", () => {
 		expect(
 			markdownFence("ts", "a\n// !callout[/b/] hi\nb\n// !mark\nc").body,
 		).toBe("a\n// hi\nb\nc");
+		expect(markdownFence("ts", "f({\n// !callout hi\n  a: 1,\n})").body).toBe(
+			"f({\n  // hi\n  a: 1,\n})",
+		);
 		expect(markdownFence("sh", "# !callout note\nx").body).toBe("# note\nx");
 		expect(markdownFence("clarity", ";; !callout n\n(x)").body).toBe(
 			";; n\n(x)",

@@ -167,7 +167,9 @@ export function markdownFence(
 		if (token)
 			for (const a of annotations)
 				if (a.name === "callout" && a.from === i)
-					out.push(`${isDiff ? "  " : ""}${token} ${a.value}`);
+					out.push(
+						`${isDiff ? "  " : ""}${/^\s*/.exec(line)?.[0]}${token} ${a.value}`,
+					);
 		out.push(isDiff ? `${signs.get(i) ?? " "} ${line}` : line);
 	});
 	return {
