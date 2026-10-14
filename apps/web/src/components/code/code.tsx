@@ -1,5 +1,5 @@
 import { parseAnnotations, parseFenceOptions } from "@/lib/code/annotations";
-import { KEY_PLACEHOLDERS } from "@/lib/code/base-url";
+import { KEY_PLACEHOLDERS, KEY_SWAP } from "@/lib/code/base-url";
 import { outputTone } from "@/lib/code/output";
 import { tipTable } from "@/lib/code/tip-table";
 import { type ThemedToken, tokenize } from "@/lib/highlight";
@@ -229,16 +229,18 @@ export async function renderCode({
 		copyable && !tabbed
 			? '<button type="button" class="copy" data-copy-button>Copy</button>'
 			: "";
-	// Hidden until the page knows who is reading (never server-rendered visible).
 	const barTitle = title ?? options.title;
 	const hasBar =
 		!tabbed &&
 		(Boolean(barTitle) || options.exit != null || options.status != null);
+	// Hidden until the page knows who is reading (never server-rendered visible).
 	const useKey = copyable && hasKey && !tabbed && hasBar ? KEY_CONTROLS : "";
 	// A bare block's key controls leave the frame for a margin note on the key's own line.
 	const bareKey = copyable && hasKey && !tabbed && !hasBar;
 	const keyLine = plan.lines.findIndex((l) =>
-		l.ranges.some((r) => r.kind === "key"),
+		l.ranges.some(
+			(r) => r.kind === "key" || (r.kind === "swap" && r.swap === KEY_SWAP),
+		),
 	);
 	// Callout, error and fold rows have their own heights, so row-index alignment only holds before them.
 	const margin =

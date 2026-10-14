@@ -445,6 +445,16 @@ describe("docs key slots", () => {
 		expect(frame).not.toContain("data-use-key");
 	});
 
+	test("a bare block with a Base URL switch still gets the key note", async () => {
+		const out = await html({
+			lang: "sh",
+			meta: "base",
+			code: `echo start\n${curl}`,
+		});
+		expect(out).toContain('class="cf key"');
+		expect(out).toContain("data-key-note><b>2</b>");
+	});
+
 	test("a callout before the key line sends the note under the block", async () => {
 		const out = await html({
 			lang: "ts",
