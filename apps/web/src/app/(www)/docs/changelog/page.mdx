@@ -449,12 +449,34 @@ Reads are unchanged: rows still come from `/api/subgraphs/<name>/<table>` on you
 
 No shim, old spellings error instead of quietly working. One door per capability now:
 
-- `subgraphs cancel` → `subgraphs stop`
-- `streams pull` → `streams dumps`
-- `subgraphs codegen` → `codegen subgraph` (or `codegen prints` for `--payloads`)
-- `subgraphs client` → `codegen client`
-- `index codegen` → `codegen index`
-- `contracts generate` / `contracts gen` → `codegen contracts` (the `contracts` group held nothing else, so it's gone too)
+```bash
+# !diff -
+secondlayer subgraphs cancel
+# !diff +
+secondlayer subgraphs stop
+# !diff -
+secondlayer streams pull
+# !diff +
+secondlayer streams dumps
+# !diff -
+secondlayer subgraphs codegen
+# !diff +
+secondlayer codegen subgraph
+# !diff -
+secondlayer subgraphs client
+# !diff +
+secondlayer codegen client
+# !diff -
+secondlayer index codegen
+# !diff +
+secondlayer codegen index
+# !diff -
+secondlayer contracts generate
+# !diff +
+secondlayer codegen contracts
+```
+
+`subgraphs codegen --payloads` is now `codegen prints`. `contracts gen` was the same alias, and the `contracts` group held nothing else, so it's gone too.
 
 `codegen subgraph` now defaults `--target` to `kysely`, matching every other codegen surface. The retired alias defaulted to `prisma`, pass `--target prisma` if you relied on that.
 
