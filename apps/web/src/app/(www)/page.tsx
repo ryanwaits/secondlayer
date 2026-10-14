@@ -257,15 +257,15 @@ export function HomeView() {
 							</p>
 							<div className="next-example">
 								<RowsTable
-									columns={["op", "key", "value"]}
+									columns={["op", "contract", "key", "value"]}
 									rows={[
-										["map_set", "balances[SP2J…4K]", "u1200"],
-										["var_set", "total-supply", "u98400"],
-										["map_delete", "pending[u42]", "none"],
+										["map_set", "amm-pool", "reserves[u1]", "u98400"],
+										["map_set", "sbtc-token", "balances[SP2J…4K]", "u1200"],
+										["map_delete", "amm-pool", "pending[u42]", "none"],
 									]}
 								/>
 								<span className="cap">
-									example rows · Clarity contract state
+									example rows · one swap; sbtc-token is an inner call
 								</span>
 							</div>
 						</div>
