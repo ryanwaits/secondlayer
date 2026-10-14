@@ -2,6 +2,7 @@ import { parseAnnotations, parseFenceOptions } from "@/lib/code/annotations";
 import { linkTable } from "@/lib/code/link-table";
 import { outputTone } from "@/lib/code/output";
 import { type ThemedToken, tokenize } from "@/lib/highlight";
+import type { CSSProperties } from "react";
 import "./code.css";
 import {
 	type Plan,
@@ -10,6 +11,7 @@ import {
 	errorRow,
 	esc,
 	escAttr,
+	figureNote,
 	planAnnotations,
 	renderTokens,
 } from "./handlers";
@@ -22,6 +24,7 @@ const LANG_LABEL: Record<string, string> = {
 	typescript: "ts",
 	javascript: "js",
 	bash: "sh",
+	solidity: "sol",
 };
 
 export type CodeProps = {
@@ -55,6 +58,10 @@ export type RenderedCode = {
 	/** Whether Copy has anything to give. */
 	copyable: boolean;
 	html: string;
+	/** A figure's margin notes as markup, or "" when it has none. */
+	notes: string;
+	/** Where the first row starts below the figure's top edge, for the notes to align to. */
+	noteTop: string;
 };
 
 /**
@@ -75,6 +82,9 @@ export async function renderCode({
 	tabbed = false,
 }: CodeProps): Promise<RenderedCode> {
 	const options = parseFenceOptions(`${lang} ${meta ?? ""}`);
+	const figure = variant === "figure";
+	// Figures number their lines.
+	if (figure && !options.lines) options.lines = 1;
 	const source = code.replace(/^\n+/, "").trimEnd();
 	const parsed = parseAnnotations(source, options.lang);
 	const isText = options.lang === "text";
@@ -98,6 +108,10 @@ export async function renderCode({
 		links: links && !isText ? linkTable() : null,
 		base: options.base,
 	});
+	// Notes sit beside rows by index, so nothing may change a row's height or hide one.
+	if (figure && (options.wrap || plan.collapses.length || plan.hasError))
+		throw new Error("figures take no wrap, !collapse or !error");
+	const notes: string[] = [];
 	const tokens: ThemedToken[][] = isText
 		? await Promise.all(
 				display.map(
@@ -136,6 +150,7 @@ export async function renderCode({
 			gutterRows && "g",
 			tone && `o-${tone}`,
 			line.mline && "mline",
+			figure && line.callouts.length && "noted",
 			line.diff === "+" && "add",
 			line.diff === "-" && "del",
 			line.dim && "dim",
@@ -154,12 +169,16 @@ export async function renderCode({
 			gutterRows
 				? `<span class="tx">${renderTokens(tokens[i] ?? [], line.ranges)}</span></div>`
 				: `${renderTokens(tokens[i] ?? [], line.ranges)}</div>`,
-			...line.callouts.map((c) => calloutRow(c.col, c.text)),
+			...line.callouts.map((c) => {
+				if (!figure) return calloutRow(c.col, c.text);
+				notes.push(figureNote(i, i + start, c.text));
+				return "";
+			}),
 			...line.errors.map(errorRow),
 		].join("");
 	};
 
-	const max = options.max ?? DEFAULT_MAX;
+	const max = options.max ?? (figure ? Number.POSITIVE_INFINITY : DEFAULT_MAX);
 	const clampAt = parsed.lines.length - max >= MIN_HIDDEN ? max : null;
 	const rows = bodyRows(plan, parsed.lines, row, clampAt);
 
@@ -199,12 +218,37 @@ export async function renderCode({
 		className: tabbed ? "cb tabbed" : hasBar ? "cb" : "cb bare",
 		copyable,
 		html: `${bar}${body}${hasBar ? "" : copy}`,
+		notes: notes.join(""),
+		// The frame's border, the bar, then the body's padding; a tab group's bar sits outside the pane.
+		noteTop: tabbed ? "12px" : hasBar ? "calc(var(--bar) + 13px)" : "13px",
 	};
 }
 
+/** A block's frame as markup. */
+export const frameOf = (r: RenderedCode) =>
+	`<div class="${r.className}"${r.copyable ? " data-copyable" : ""}>${r.html}</div>`;
+
+/** A figure: the frame beside its notes (`.fig`), or the bare frame when it has none. */
+export const figureOf = (r: RenderedCode) =>
+	r.notes
+		? `<div class="fig" style="--nt:${r.noteTop}">${frameOf(r)}<div class="notes">${r.notes}</div></div>`
+		: frameOf(r);
+
 /** `renderCode` as one element: the block's frame, its contents a single string. */
 export async function Code(props: CodeProps) {
-	const { className, copyable, html } = await renderCode(props);
+	const rendered = await renderCode(props);
+	const { className, copyable, html } = rendered;
+	if (rendered.notes)
+		return (
+			<div
+				className="fig"
+				style={{ "--nt": rendered.noteTop } as CSSProperties}
+				// biome-ignore lint/security/noDangerouslySetInnerHtml: built by `renderCode`, which escapes every dynamic value
+				dangerouslySetInnerHTML={{
+					__html: `${frameOf(rendered)}<div class="notes">${rendered.notes}</div>`,
+				}}
+			/>
+		);
 	return (
 		<div
 			className={className}

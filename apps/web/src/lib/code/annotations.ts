@@ -83,6 +83,7 @@ const COMMENT_TOKEN: Record<string, string> = {
 	ini: "#",
 	sql: "--",
 	clarity: ";;",
+	solidity: "//",
 };
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

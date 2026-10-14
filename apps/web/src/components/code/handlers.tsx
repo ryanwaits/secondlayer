@@ -125,6 +125,8 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 	}));
 	/** Spans a callout points at: not drawn, but no automatic link goes there. */
 	const pointed: { row: number; start: number; end: number }[] = [];
+	/** Figure callouts mark their token, unless the author already marked it. */
+	const noted: { row: number; start: number; end: number }[] = [];
 	const focus = new Set<number>();
 	const collapses: Plan["collapses"] = [];
 	let hasError = false;
@@ -146,6 +148,12 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 					});
 			} else if (a.name === "callout") {
 				line.callouts.push({ col: hit?.index ?? 0, text: a.value });
+				if (hit && ctx.variant === "figure")
+					noted.push({
+						row: i,
+						start: hit.index,
+						end: hit.index + hit[0].length,
+					});
 				if (hit)
 					pointed.push({
 						row: i,
@@ -211,6 +219,11 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 			lines[Math.min(a.to, lines.length - 1)]?.errors.push(a.value);
 		if (a.name === "collapse" && a.from < lines.length)
 			collapses.push({ from: a.from, to: Math.min(a.to, lines.length - 1) });
+	}
+	for (const n of noted) {
+		const line = lines[n.row];
+		if (line && !overlaps(line.ranges, n.start, n.end))
+			line.ranges.push({ start: n.start, end: n.end, kind: "hi" });
 	}
 	if (focus.size)
 		lines.forEach((line, i) => {
@@ -422,6 +435,11 @@ export function renderTokens(
 export function calloutRow(col: number, text: string): string {
 	// The caret's base sits on the box's top border: the fill hides the border under it, the stroke continues it.
 	return `<div class="co" style="--col:${col}"><svg class="co-caret" viewBox="0 0 13 7" aria-hidden="true"><path d="M0.5 7 V6.5 L6.5 0.5 L12.5 6.5 V7 Z"/><path d="M0.5 6.5 L6.5 0.5 L12.5 6.5"/></svg><div class="co-box">${esc(text)}</div></div>`;
+}
+
+/** A figure's margin note: pinned to its row by index, the line number saying which one. */
+export function figureNote(row: number, line: number, text: string): string {
+	return `<p class="fnote" style="--i:${row}"><b>${line}</b><span>${esc(text)}</span></p>`;
 }
 
 /** The compiler's words under the line it rejects. */

@@ -152,6 +152,17 @@ describe("markup", () => {
 		expect(out).not.toContain("--shiki-light");
 	});
 
+	test("a sol fence tokenizes onto the ladder, not one plain token", async () => {
+		const out = await html({
+			lang: "sol",
+			meta: "vault.sol",
+			code: "function deposit(uint256 amount) external payable {}",
+		});
+		expect(out).toContain('class="t-ink');
+		expect(out.match(/<span class="t-/g)?.length).toBeGreaterThan(3);
+		expect(out).toContain(">sol<");
+	});
+
 	test("the stylesheet mirrors the theme's ladder", () => {
 		const css = readFileSync(join(import.meta.dir, "code.css"), "utf8");
 		for (const [step, hex] of Object.entries(LADDER_HEXES)) {
@@ -199,5 +210,74 @@ describe("base url swap", () => {
 			code: "curl https://api.secondlayer.tools/v1/streams/tip",
 		});
 		expect(out).not.toContain("data-swap");
+	});
+});
+
+describe("figure variant", () => {
+	const source = [
+		"await sl.streams.consume({",
+		"  // !callout[/fromCursor/] null on the first run",
+		"  fromCursor: db.load(),",
+		"  // !mark[/ctx.cursor/] blue",
+		"  // !callout[/ctx.cursor/] saved with the rows",
+		"  save: ctx.cursor,",
+		"});",
+	].join("\n");
+
+	test("callouts leave the block for the margin, keyed to their row and line number", async () => {
+		const out = await html({ lang: "ts", variant: "figure", code: source });
+		expect(out).not.toContain('class="co"');
+		expect(out).toContain(
+			'<p class="fnote" style="--i:1"><b>2</b><span>null on the first run</span></p>',
+		);
+		expect(out).toContain('<p class="fnote" style="--i:2"><b>3</b>');
+		// Lines are numbered, and a noted row's number takes ink.
+		expect(out).toContain('<span class="ln">1</span>');
+		expect(out).toContain('class="row g noted"');
+	});
+
+	test("each callout marks its token, except one the author marked blue", async () => {
+		const out = await html({ lang: "ts", variant: "figure", code: source });
+		expect(out).toMatch(
+			/<mark class="hi"><span[^>]*>fromCursor<\/span><\/mark>/,
+		);
+		expect(out).toContain('<mark class="act">');
+		expect(out.match(/<mark class="hi">/g)).toHaveLength(1);
+	});
+
+	test("a figure without callouts is just the block, and docs keep inline callouts", async () => {
+		const bare = await html({
+			lang: "ts",
+			variant: "figure",
+			code: "const a = 1;",
+		});
+		expect(bare).not.toContain('class="notes"');
+		const docs = await html({
+			lang: "ts",
+			code: "// !callout[/send/] note\nsend();",
+		});
+		expect(docs).toContain('class="co"');
+		expect(docs).not.toContain("fnote");
+	});
+
+	test("a figure does not clamp long source behind Show more", async () => {
+		const lines = Array.from({ length: 40 }, (_, i) => `const v${i} = ${i};`);
+		const out = await html({
+			lang: "ts",
+			variant: "figure",
+			code: lines.join("\n"),
+		});
+		expect(out).not.toContain("data-more");
+	});
+
+	test("options that move rows off their notes are refused", async () => {
+		await expect(
+			html({
+				lang: "ts",
+				variant: "figure",
+				meta: "wrap",
+				code: "const a = 1;",
+			}),
+		).rejects.toThrow("figures take no");
 	});
 });

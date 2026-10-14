@@ -99,4 +99,30 @@ describe("CodeTabs", () => {
 	test("a group of nothing renders nothing", async () => {
 		expect(await CodeTabs({ children: null })).toBeNull();
 	});
+
+	test("a figure group keeps each pane's margin notes inside that pane", async () => {
+		const html = await tabs({
+			sync: "chain",
+			variant: "figure",
+			children: [
+				fence("ts", "// !callout[/send/] first note\nsend();", "a.ts"),
+				fence("sol", "// !callout[/emit/] second note\nemit Sent();", "b.sol"),
+			],
+		});
+		const panels = html.split('role="tabpanel"').slice(1);
+		expect(panels).toHaveLength(2);
+		// The visible pane holds its own note and not the other pane's.
+		expect(panels[0]).toContain("first note");
+		expect(panels[0]).not.toContain("second note");
+		expect(panels[0]).not.toContain(" hidden>");
+		// The hidden pane carries the other note, hidden with it.
+		expect(panels[1]).toMatch(/^ data-tab="b.sol" hidden>/);
+		expect(panels[1]).toContain("second note");
+		expect(html.match(/class="notes"/g)).toHaveLength(2);
+		// The tab bar stays above both, outside any pane.
+		expect(html.indexOf('role="tablist"')).toBeLessThan(
+			html.indexOf('role="tabpanel"'),
+		);
+		expect(html).toContain("cb cb-tabs figure");
+	});
 });

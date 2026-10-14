@@ -105,6 +105,15 @@ describe("parseAnnotations", () => {
 		]);
 	});
 
+	test("a sol fence reads // annotations like any C-family language", () => {
+		const parsed = parseAnnotations(
+			"// !callout[/nonReentrant/] blocks re-entry\nfunction f() external nonReentrant {}",
+			"sol",
+		);
+		expect(parsed.lines).toEqual(["function f() external nonReentrant {}"]);
+		expect(parsed.annotations[0]?.name).toBe("callout");
+	});
+
 	test("json fences accept // annotations", () => {
 		const parsed = parseAnnotations('{\n  // !mark\n  "a": 1\n}', "json");
 		expect(parsed.lines).toEqual(["{", '  "a": 1', "}"]);

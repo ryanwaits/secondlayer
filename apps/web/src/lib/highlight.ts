@@ -5,7 +5,7 @@ import { secondlayer, secondlayerDark } from "./syntax-theme";
 
 let highlighterPromise: Promise<HighlighterCore> | null = null;
 
-/** Fine-grained Shiki with the JavaScript regex engine: no wasm, only our nine languages. */
+/** Fine-grained Shiki with the JavaScript regex engine: no wasm, only our ten languages. */
 function getHighlighter() {
 	if (!highlighterPromise) {
 		highlighterPromise = createHighlighterCore({
@@ -20,6 +20,7 @@ function getHighlighter() {
 				import("@shikijs/langs/markdown"),
 				import("@shikijs/langs/toml"),
 				import("@shikijs/langs/clarity"),
+				import("@shikijs/langs/solidity"),
 			],
 			engine: createJavaScriptRegexEngine(),
 		});
@@ -38,6 +39,7 @@ const LANG_ALIASES: Record<string, string> = {
 	node: "javascript",
 	"node.js": "javascript",
 	nodejs: "javascript",
+	sol: "solidity",
 };
 
 const SUPPORTED_LANGS = new Set([
@@ -50,6 +52,7 @@ const SUPPORTED_LANGS = new Set([
 	"markdown",
 	"toml",
 	"clarity",
+	"solidity",
 ]);
 
 export function normalizeLang(lang: string): string {

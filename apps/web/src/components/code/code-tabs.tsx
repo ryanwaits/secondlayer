@@ -1,8 +1,8 @@
 import { parseFenceOptions } from "@/lib/code/annotations";
 import { Children, type ReactNode } from "react";
-import { renderCode } from "./code";
+import { figureOf, frameOf, renderCode } from "./code";
 import { type Fence, fenceOf } from "./fence";
-import { esc, escAttr } from "./handlers";
+import { type Variant, esc, escAttr } from "./handlers";
 
 const LANG_LABEL: Record<string, string> = {
 	bash: "cURL",
@@ -36,12 +36,14 @@ function tabOf(fence: Fence): Tab {
  * stored, so a new page starts on its default tab. In MDX, put the fences
  * inside `<CodeTabs sync="lang">` separated by blank lines. Server-rendered
  * markup, one string like a single block; the page's one `CodeClient` listener
- * does the switching.
+ * does the switching. In a `figure` group each pane is its own figure: its
+ * margin notes live inside the pane, so they swap with the tab.
  */
 export async function CodeTabs({
 	sync,
+	variant = "docs",
 	children,
-}: { sync?: string; children?: ReactNode }) {
+}: { sync?: string; variant?: Variant; children?: ReactNode }) {
 	const tabs = Children.toArray(children).flatMap((child) => {
 		const fence = fenceOf(child);
 		return fence ? [tabOf(fence)] : [];
@@ -55,6 +57,7 @@ export async function CodeTabs({
 				meta: tab.meta,
 				title: tab.title,
 				links: tab.links,
+				variant,
 				tabbed: true,
 			}),
 		),
@@ -68,12 +71,12 @@ export async function CodeTabs({
 	const body = panes
 		.map(
 			(pane, i) =>
-				`<div role="tabpanel" data-tab="${escAttr(tabs[i]?.key ?? "")}"${i ? " hidden" : ""}><div class="${pane.className}"${pane.copyable ? " data-copyable" : ""}>${pane.html}</div></div>`,
+				`<div role="tabpanel" data-tab="${escAttr(tabs[i]?.key ?? "")}"${i ? " hidden" : ""}>${variant === "figure" ? figureOf(pane) : frameOf(pane)}</div>`,
 		)
 		.join("");
 	return (
 		<div
-			className="cb cb-tabs"
+			className={`cb cb-tabs${variant === "figure" ? " figure" : ""}`}
 			data-sync={sync}
 			// biome-ignore lint/security/noDangerouslySetInnerHtml: built here from escaped values and `renderCode` output
 			dangerouslySetInnerHTML={{
