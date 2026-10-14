@@ -250,6 +250,7 @@ export type RuneEventPayload = {
 	entry?: RuneEtchEntry;
 };
 
+/** A Bitcoin rune event as Streams serves it. */
 export type RuneStreamsEvent = {
 	cursor: string;
 	chain: "bitcoin";
@@ -270,7 +271,10 @@ export type RuneStreamsEvent = {
 	finalized?: boolean;
 };
 
-/** Anything `GET /v1/streams/events` can return: Streams 1.0 rows on the
- *  classic clock, vm rows on `clock=vm`, or Runes rows on `chain=bitcoin`. A
- *  response never mixes chains or clocks. */
+/**
+ * Any row `GET /v1/streams/events` can return.
+ *
+ * Stacks rows on the classic clock, vm rows on `clock=vm`, or Runes rows on
+ * `chain=bitcoin`. A response never mixes chains or clocks.
+ */
 export type StreamsWireEvent = StreamsEvent | VmStreamsEvent | RuneStreamsEvent;

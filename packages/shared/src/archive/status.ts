@@ -40,6 +40,7 @@ export type ArchiveState =
 	| "failed-audit"
 	| "source-unavailable";
 
+/** The archive's state, coverage, and a plain-language reason. */
 export type ArchiveStatus = {
 	schema_version: typeof ARCHIVE_STATUS_SCHEMA_VERSION;
 	network: string;

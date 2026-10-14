@@ -17,6 +17,7 @@ import type { PartitionSemanticDigest } from "./semantic-digest.ts";
  * (`<root>/snapshots/<digest>.json`).
  */
 
+/** One archive file: dataset, block range, path, rows, bytes. */
 export type ArchivePartition = {
 	dataset: string;
 	from_block: number;

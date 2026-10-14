@@ -53,6 +53,7 @@ export interface InstanceIssue {
 
 export type InstanceState = "healthy" | "empty-index" | "degraded";
 
+/** An instance's state, the API verdict, and the issues found. */
 export interface InstanceDiagnosis {
 	state: InstanceState;
 	/** The API's own top-level verdict, passed through unmodified. */

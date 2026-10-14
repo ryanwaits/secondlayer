@@ -16,6 +16,7 @@ import type { Writable } from "node:stream";
  * two subtly different CSV encoders.
  */
 
+/** The three archive datasets: blocks, transactions, and events. */
 export type ArchiveDataset = "blocks" | "transactions" | "events";
 
 /** Row shapes exactly as the archive's Parquet columns are named. */

@@ -2,11 +2,13 @@ import type { SubgraphDetail } from "../schemas/subgraphs.ts";
 
 export type SubgraphSpecFormat = "openapi" | "agent" | "markdown";
 
+/** Options for generating a subgraph's agent schema. */
 export interface SubgraphSpecOptions {
 	serverUrl?: string;
 	generatedAt?: string;
 }
 
+/** A subgraph's tables and columns in a form agents can read. */
 export interface SubgraphAgentSchema {
 	name: string;
 	version: string;

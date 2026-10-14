@@ -2,6 +2,7 @@ import { z } from "zod";
 
 // ── Deploy Subgraph Request ─────────────────────────────────────────────────
 
+/** The body for deploying a subgraph: sources, schema, and handler code. */
 export interface DeploySubgraphRequest {
 	name: string;
 	description?: string;
@@ -61,6 +62,7 @@ export interface SubgraphVerification {
 	unproven: string[];
 }
 
+/** What a deploy did, the version, and where indexing starts. */
 export interface DeploySubgraphResponse {
 	action: "created" | "unchanged" | "handler_updated" | "updated" | "reindexed";
 	subgraphId: string;
@@ -104,6 +106,7 @@ export function billingPausedCode(
 		: null;
 }
 
+/** A subgraph's name, status, and indexing progress. */
 export interface SubgraphSummary {
 	name: string;
 	version: string;
@@ -174,6 +177,7 @@ export interface SubgraphSyncInfo {
 	integrity: "complete" | "gaps_detected" | "history_filling";
 }
 
+/** A subgraph's version, pin, status, tables, and sources. */
 export interface SubgraphDetail {
 	name: string;
 	version: string;
@@ -231,6 +235,7 @@ export interface SubgraphGapEntry {
 	resolvedAt: string | null;
 }
 
+/** Missing block ranges in a subgraph, with totals. */
 export interface SubgraphGapsResponse {
 	data: SubgraphGapEntry[];
 	meta: {
@@ -241,6 +246,7 @@ export interface SubgraphGapsResponse {
 	};
 }
 
+/** A queued reindex and the block range it covers. */
 export interface ReindexResponse {
 	message: string;
 	fromBlock: number;

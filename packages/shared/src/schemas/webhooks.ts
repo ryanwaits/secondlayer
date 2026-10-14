@@ -681,6 +681,7 @@ export const trigger = {
 	}),
 } as const;
 
+/** The body for creating a webhook: name, triggers, URL, delivery options. */
 export interface CreateWebhookRequest {
 	name: string;
 	triggers: ChainTrigger[];
@@ -697,6 +698,7 @@ export interface ParsedCreateWebhookRequest
 	format: WebhookFormat;
 }
 
+/** The fields of a webhook you can change. */
 export interface UpdateWebhookRequest {
 	name?: string;
 	url?: string;
@@ -717,6 +719,7 @@ export interface ReplayWebhookRequest {
 
 export type ParsedReplayWebhookRequest = ReplayWebhookRequest;
 
+/** A webhook's name, status, format, and URL. */
 export interface WebhookSummary {
 	id: string;
 	name: string;
@@ -751,6 +754,7 @@ export interface WebhookAuth {
 	hasSecret: boolean;
 }
 
+/** A webhook with its triggers, auth, retry, and timeout settings. */
 export interface WebhookDetail extends WebhookSummary {
 	/** Chain-trigger filters. */
 	triggers: ChainTrigger[];
@@ -768,17 +772,20 @@ export interface WebhookDetail extends WebhookSummary {
 	warning: string | null;
 }
 
+/** The new webhook and its signing secret, shown once. */
 export interface CreateWebhookResponse {
 	webhook: WebhookDetail;
 	/** Plaintext signing secret — surfaced ONCE. Store it server-side. */
 	signingSecret: string;
 }
 
+/** The webhook and its new signing secret. */
 export interface RotateSecretResponse {
 	webhook: WebhookDetail;
 	signingSecret: string;
 }
 
+/** One delivery attempt: status code, error, duration, and response. */
 export interface DeliveryRow {
 	id: string;
 	attempt: number;
@@ -813,6 +820,7 @@ export interface WebhookActivityHour {
 	gaveUp: number;
 }
 
+/** A week of hourly delivery counts and what is waiting now. */
 export interface WebhookActivity {
 	/** 168 hours, oldest first. */
 	hours: WebhookActivityHour[];
@@ -825,11 +833,14 @@ export interface WebhookActivity {
 	byEventType: Record<string, number>;
 }
 
-/** One delivery attempt with its outbox context, for the delivery card
- *  (`GET /:id/deliveries/:deliveryId`). `payload`/`outboxId`/`eventType`/
- *  `txId`/`blockHeight`/`blockTime`/`eventIndex` are null once the outbox
- *  row is gone (compacted after 7 days) or for a test delivery, which never
- *  had one. */
+/**
+ * One delivery attempt with its outbox context.
+ *
+ * Serves the delivery card (`GET /:id/deliveries/:deliveryId`). `payload`,
+ * `outboxId`, `eventType`, `txId`, `blockHeight`, `blockTime`, and `eventIndex`
+ * are null once the outbox row is gone (compacted after 7 days) or for a test
+ * delivery, which never had one.
+ */
 export interface WebhookDeliveryDetail {
 	id: string;
 	attempt: number;
@@ -856,6 +867,7 @@ export interface WebhookDeliveryDetail {
 	payload: unknown | null;
 }
 
+/** How many events a replay scanned and enqueued. */
 export interface ReplayResult {
 	replayId: string;
 	enqueuedCount: number;
@@ -872,6 +884,7 @@ export interface WebhookTestResult {
 	deliveryId: string;
 }
 
+/** A delivery that ran out of retries. */
 export interface DeadRow {
 	id: string;
 	eventType: string;

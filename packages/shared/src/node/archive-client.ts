@@ -35,6 +35,7 @@ export interface ReplayResult {
 	errors: number;
 }
 
+/** Options for replaying archive blocks, with a progress callback. */
 export interface ReplayOptions {
 	onProgress?: (count: number, height: number) => void;
 }
