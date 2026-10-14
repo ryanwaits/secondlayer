@@ -354,13 +354,16 @@
     ]
   },
   "/docs/authentication#your-key": {
-    "hash": "f4b8437b53ed65fb",
+    "hash": "385b59e2c235a2e7",
     "phrasings": [
-      "where to find my stacks api key",
-      "sign in stacks account email",
-      "first api key not showing",
-      "create additional api keys stacks",
-      "lost stacks api key where is it"
+      "where do i find my api key",
+      "api key shown only once",
+      "how to create a new api key",
+      "lost my api key what now",
+      "generate additional api keys account page",
+      "how do i get my first key",
+      "sign in to get api key",
+      "api key not showing on account"
     ]
   },
   "/docs/changelog": {
