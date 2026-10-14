@@ -64,6 +64,10 @@ export async function CodeTabs({
 	);
 	// One control for the group: the visible pane's Copy is the one that reads the key.
 	const useKey = panes.some((pane) => pane.hasKey) ? KEY_CONTROLS : "";
+	// Like a single block: no Copy when no pane can be copied (`nocopy`, output).
+	const copy = panes.some((pane) => pane.copyable)
+		? '<button type="button" class="copy" data-copy-button>Copy</button>'
+		: "";
 	const buttons = tabs
 		.map(
 			(tab, i) =>
@@ -82,7 +86,7 @@ export async function CodeTabs({
 			data-sync={sync}
 			// biome-ignore lint/security/noDangerouslySetInnerHtml: built here from escaped values and `renderCode` output
 			dangerouslySetInnerHTML={{
-				__html: `<div class="cb-bar"><span class="tabbar mono" role="tablist">${buttons}</span><span class="r">${useKey}<button type="button" class="copy" data-copy-button>Copy</button></span></div>${body}`,
+				__html: `<div class="cb-bar"><span class="tabbar mono" role="tablist">${buttons}</span><span class="r">${useKey}${copy}</span></div>${body}`,
 			}}
 		/>
 	);

@@ -78,6 +78,16 @@ describe("CodeTabs", () => {
 		expect(html.match(/data-copyable/g)).toHaveLength(1);
 	});
 
+	test("a group with nothing to copy draws no Copy", async () => {
+		const html = await tabs({
+			children: [
+				<Code key="a" lang="text" code="out" />,
+				<Code key="b" lang="ts" meta="nocopy" code="const b = 1;" />,
+			],
+		});
+		expect(html).not.toContain("data-copy-button");
+	});
+
 	test("a <Code> child keeps its own tip names", async () => {
 		const html = await tabs({
 			children: [
