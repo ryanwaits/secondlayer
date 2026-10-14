@@ -50,7 +50,7 @@ describe("docs page chrome", () => {
 		expect(bare).not.toContain("not-in-the-sidebar.md");
 	});
 
-	test("full view lives in the endpoint drawer, not in any page's chrome", () => {
+	test("no page chrome offers a full-view toggle", () => {
 		expect(html).not.toContain("Full view");
 		expect(render("/docs/api-reference")).not.toContain("Full view");
 		expect(render("/docs/api/index")).not.toContain("Full view");

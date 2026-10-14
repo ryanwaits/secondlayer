@@ -1,7 +1,13 @@
 "use client";
 
-import { BASE_SWAPS, type Base } from "@/lib/code/base-url";
-import { type ReactNode, useEffect, useState } from "react";
+import {
+	BASE_SWAPS,
+	type Base,
+	HOSTED_BASE,
+	LOCAL_BASE,
+} from "@/lib/code/base-url";
+import { Fragment, type ReactNode, useEffect, useId, useState } from "react";
+import type { PromptPart } from "./prompt";
 import { resolveAnchor } from "./resolve-anchor";
 
 const BASE_KEY = "apiref-base";
@@ -24,10 +30,9 @@ function applyBase(scope: ParentNode, base: Base) {
 /**
  * Which base URL every cURL on the page targets. The examples render once,
  * with the hosted base wrapped in `data-swap` spans; this flips `data-base` on
- * the page root and rewrites those spans in place, in the page and in the
- * drawer (which sits outside the reference and mounts its content when a row
- * opens, so new spans are rewritten as they arrive). Copy reads `data-base` to
- * match. Remembered per viewer; storage is optional.
+ * the page root and rewrites those spans in place. Every example is in the
+ * page at render time; the observer also covers code that mounts late. Copy
+ * reads `data-base` to match. Remembered per viewer; storage is optional.
  */
 export function BaseUrlSwitch() {
 	const [base, setBase] = useState<Base>("hosted");
@@ -100,6 +105,7 @@ async function copyFetched(url: string): Promise<void> {
 
 export function CopyText({
 	text,
+	getText,
 	fetchFrom,
 	label,
 	className,
@@ -107,6 +113,8 @@ export function CopyText({
 }: {
 	/** The text itself, or (fetchFrom) a URL to fetch it from on click. */
 	text?: string;
+	/** Read on click, ahead of `text`, for values that depend on page state. */
+	getText?: () => string;
 	fetchFrom?: string;
 	label: string;
 	className?: string;
@@ -121,7 +129,7 @@ export function CopyText({
 			onClick={() => {
 				const write = fetchFrom
 					? copyFetched(fetchFrom)
-					: navigator.clipboard.writeText(text ?? "");
+					: navigator.clipboard.writeText(getText ? getText() : (text ?? ""));
 				write.then(() => {
 					setCopied(true);
 					setTimeout(() => setCopied(false), 1400);
@@ -164,7 +172,7 @@ export function CopyText({
  * The reference used to be one page, with an anchor per endpoint. A link
  * that still carries one (`/docs/api-reference#list-pox5-events`) lands here;
  * the hash isn't sent to the server, so this moves it to the API page that
- * holds the anchor, where the drawer opens it. No hash, or one that names no
+ * holds the anchor, where the section sits. No hash, or one that names no
  * endpoint, stays on the index.
  */
 export function ApiHashRedirect({
@@ -183,22 +191,70 @@ export function ApiHashRedirect({
 	return null;
 }
 
-/** The prompt to hand a coding agent for one endpoint, copyable as plain text. */
-export function PromptBlock({ text }: { text: string }) {
+/**
+ * The prompt to hand a coding agent for one endpoint: one row with a Show
+ * toggle and a Copy button. Show reveals the text, with the markdown URL as a
+ * link and env vars in weight; Copy always writes the plain text.
+ */
+export function PromptBar({
+	text,
+	parts,
+}: { text: string; parts: PromptPart[] }) {
+	const id = useId();
+	const [open, setOpen] = useState(false);
 	return (
-		<div className="apiref-prompt">
+		<div className="apiref-prompt" data-open={open ? "" : undefined}>
 			<div className="apiref-prompt-bar">
-				<span>Prompt for your agent</span>
+				<span className="apiref-prompt-label">Agent prompt</span>
+				<button
+					type="button"
+					className="apiref-prompt-toggle"
+					aria-expanded={open}
+					aria-controls={id}
+					onClick={() => setOpen(!open)}
+				>
+					{open ? "Hide" : "Show"}
+				</button>
 				<CopyText
 					text={text}
 					label="Copy prompt"
 					className="apiref-prompt-copy"
 				>
-					Copy
+					Copy prompt
 				</CopyText>
 			</div>
-			<pre className="apiref-prompt-text">{text}</pre>
+			<pre id={id} className="apiref-prompt-text" hidden={!open}>
+				{parts.map((part, i) =>
+					part.href ? (
+						// biome-ignore lint/suspicious/noArrayIndexKey: static split of an immutable prompt
+						<a key={i} href={part.href}>
+							{part.text}
+						</a>
+					) : part.strong ? (
+						// biome-ignore lint/suspicious/noArrayIndexKey: static split of an immutable prompt
+						<b key={i}>{part.text}</b>
+					) : (
+						// biome-ignore lint/suspicious/noArrayIndexKey: static split of an immutable prompt
+						<Fragment key={i}>{part.text}</Fragment>
+					),
+				)}
+			</pre>
 		</div>
+	);
+}
+
+/** Copies an endpoint's full URL for the page's current Base URL choice. */
+export function CopyUrl({ path }: { path: string }) {
+	return (
+		<CopyText
+			label="Copy URL"
+			className="apiref-copy-url"
+			getText={() =>
+				(document.documentElement.getAttribute("data-base") === "local"
+					? LOCAL_BASE
+					: HOSTED_BASE) + path
+			}
+		/>
 	);
 }
 

@@ -418,6 +418,7 @@ button.docs-nav-item {
 }
 /* The current page's h2s, nested under its row */
 .docs-nav-outline {
+	grid-template-columns: minmax(0, 1fr);
 	display: grid;
 	margin: 2px 0 6px 12px;
 	border-left: 1px solid var(--line);
@@ -468,6 +469,14 @@ button.docs-nav-item {
 	gap: 16px;
 	max-width: 720px;
 	margin-inline: auto;
+}
+/* An API page runs wide for its two columns; its own prose stays readable. */
+.docs-article:has(.apiref-ep),
+.docs-topline:has(+ .docs-article .apiref-ep) {
+	max-width: none;
+}
+.docs-article:has(.apiref-ep) > :not(.apiref) {
+	max-width: 720px;
 }
 /* Wide screens: the pills ride the title's first line, so the title starts
    level with the sidebar's first label. Narrow screens keep them on a row above. */
@@ -1035,7 +1044,8 @@ button.docs-nav-item {
 }
 
 /* ── API reference (generated from openapi.json) ──
-   Each page lists its endpoints as rows; the drawer shows one endpoint. */
+   Each page opens with an index of rows, then every endpoint in full: the docs
+   on the left, the agent prompt, request and response sticky on the right. */
 .apiref {
 	margin-top: 18px;
 }
@@ -1090,11 +1100,6 @@ button.docs-nav-item {
 	min-width: 44px;
 	text-align: center;
 }
-.apiref-verb-object {
-	background: none;
-	border: 1px solid var(--line);
-	color: var(--sub);
-}
 .docs-article .apiref-row-path,
 .docs-article .apiref-row-name {
 	padding: 0;
@@ -1126,11 +1131,6 @@ button.docs-nav-item {
 		color: var(--pri);
 	}
 }
-.docs-article .apiref-row[data-open] .apiref-row-path,
-.docs-article .apiref-row[data-open] .apiref-row-name,
-.docs-article .apiref-row[data-open] .apiref-row-sum {
-	color: var(--pri);
-}
 .apiref-pages .apiref-row {
 	grid-template-columns: 140px minmax(0, 1fr) 40px;
 }
@@ -1160,66 +1160,117 @@ button.docs-nav-item {
 	gap: 14px;
 	min-width: 0;
 }
-.apiref-aside {
+/* One endpoint: id row, description, then docs beside a sticky column. */
+.apiref-ep {
+	margin-top: 48px;
+	padding-top: 40px;
+	border-top: 1px solid var(--line);
+	scroll-margin-top: 72px;
+}
+.apiref-family-desc + .apiref-ep {
+	margin-top: 24px;
+	padding-top: 0;
+	border-top: 0;
+}
+.apiref-ep-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px 24px;
+}
+.docs-article .apiref-ep-title {
+	margin: 0 0 10px;
+	font-size: 26px;
+	line-height: 1.2;
+	font-weight: 500;
+	letter-spacing: -0.025em;
+}
+.apiref-ep-cols {
 	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 40px;
+	margin-top: 24px;
+	align-items: start;
+}
+/* Sticks while its endpoint's docs scroll past, never taller than the screen. */
+.apiref-aside {
+	position: sticky;
+	top: 72px;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	gap: 12px;
 	min-width: 0;
-	align-self: start;
+	max-height: calc(100vh - 88px);
+	overflow-y: auto;
 }
-/* The endpoint drawer: the account pages' floating card holding one endpoint.
-   It sits outside the article, so it carries its own text and code defaults.
-   Single column: prompt, request, docs, response. Full view: the docs left,
-   the request and response sticky right. */
-.apiref-drawer {
-	font-size: 15px;
-	color: var(--ink);
+@media (max-width: 1180px) {
+	.apiref-ep-cols {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.apiref-aside {
+		position: static;
+		max-height: none;
+		overflow: visible;
+	}
 }
-.apiref-drawer p {
-	margin: 0;
+.docs-article .apiref-index-label {
+	margin-top: 20px;
+	font: 500 11px var(--font-sans-stack);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--faint);
 }
-.apiref-drawer a {
-	color: var(--ink);
-	text-decoration: underline;
-	text-decoration-color: var(--line);
-	text-underline-offset: 3px;
+.docs-article .apiref-index-label:first-child {
+	margin-top: 0;
 }
-.apiref-drawer a:hover {
-	text-decoration-color: var(--pri);
+.apiref-index {
+	margin-top: 24px;
 }
-.apiref-drawer a:focus-visible,
-.apiref-drawer button:focus-visible,
-.apiref-drawer summary:focus-visible {
+.apiref-index .apiref-rows {
+	margin-top: 8px;
+}
+.docs-nav-outline .docs-nav-ep {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding-left: 18px;
+	font-size: 12.5px;
+}
+.docs-nav-ep-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.docs-nav-outline .docs-nav-verb {
+	flex: none;
+	width: 34px;
+	padding: 1px 0;
+	text-align: center;
+	font-size: 9.5px;
+	border-radius: 3px;
+}
+.apiref-copy-url {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: none;
+	color: var(--faint);
+	cursor: pointer;
+}
+.apiref-copy-url:hover {
+	background: var(--soft);
+	color: var(--pri);
+}
+.apiref-copy-url:focus-visible {
 	outline: 2px solid var(--pri);
 	outline-offset: 2px;
-}
-.apiref-drawer :not(pre) > code {
-	font-family: var(--font-mono-stack);
-	font-size: 0.86em;
-	padding: 1px 5px;
-	border-radius: 4px;
-	background: var(--code-bg);
-	color: var(--ink);
-}
-.apiref-detail {
-	display: flex;
-	flex-direction: column;
-	gap: 18px;
-}
-.apiref-detail > .apiref-prompt {
-	order: 0;
-}
-.apiref-detail > .apiref-main {
-	order: 2;
-}
-/* The aside's panels join the column: request above the docs, response below. */
-.apiref-detail > .apiref-aside {
-	display: contents;
-}
-.apiref-aside > .apiref-request {
-	order: 1;
-}
-.apiref-aside > .apiref-response {
-	order: 3;
 }
 /* On docs pages the card's page nudge moves only the content column: the top
    bar and sidebar stay put. Same distance and easing as the account nudge
@@ -1256,117 +1307,78 @@ html[data-acct-card] .docs-content {
 		transition: none;
 	}
 }
-/* Full view widens the card only; the nudge stays capped as above. */
-.acct-card:has(.apiref-drawer[data-view="split"]) {
-	width: min(1080px, calc(100vw - var(--acct-card-inset) * 2));
-	transition: width 180ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.apiref-drawer[data-view="split"] .apiref-detail {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	grid-template-rows: auto 1fr;
-	gap: 18px 36px;
-	align-items: start;
-}
-/* Full view, as Stripe's reference does it: the request and response column
-   sticks to the top and is never taller than the drawer. The request keeps
-   its capped height; the response takes what is left and scrolls inside. */
-.acct-card-body:has(.apiref-drawer[data-view="split"]) {
-	container-type: size;
-}
-.apiref-drawer[data-view="split"] .apiref-detail > .apiref-aside {
-	display: flex;
-	flex-direction: column;
-	grid-column: 2;
-	grid-row: 1 / span 2;
-	gap: 12px;
-	min-width: 0;
-	max-height: 100cqh;
-	position: sticky;
-	top: 0;
-}
-.apiref-drawer[data-view="split"] .apiref-aside > .apiref-request {
-	flex: none;
-}
-.apiref-drawer[data-view="split"] .apiref-aside > .apiref-response {
-	display: flex;
-	flex-direction: column;
-	min-height: 160px;
-}
-.apiref-drawer[data-view="split"] .apiref-response > .cb {
-	display: flex;
-	flex: 1;
-	flex-direction: column;
-	min-height: 0;
-}
-.apiref-drawer[data-view="split"] .apiref-response .cb-body {
-	flex: 1;
-	min-height: 0;
-	max-height: none;
-}
-/* Full view toggle: the right pane of the window icon fills when on. */
-.apiref-full-toggle .fill {
-	fill: currentColor;
-	stroke: none;
-	opacity: 0;
-	transition: opacity 150ms ease-out;
-}
-.apiref-full-toggle[aria-pressed="true"] {
-	border-color: var(--ink);
-}
-.apiref-full-toggle[aria-pressed="true"] .fill {
-	opacity: 0.9;
-}
-@media (prefers-reduced-motion: reduce) {
-	.apiref-full-toggle .fill {
-		transition: none;
-	}
-}
-.apiref-drawer[data-view="split"] .apiref-detail > .apiref-main {
-	grid-column: 1;
-	grid-row: 2;
-}
-.apiref-drawer[data-view="split"] .apiref-detail > .apiref-prompt {
-	grid-column: 1;
-	grid-row: 1;
-}
 .apiref-prompt {
-	display: grid;
-	gap: 8px;
 	min-width: 0;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--paper);
 }
 .apiref-prompt-bar {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	font: 500 11px var(--font-mono-stack);
-	letter-spacing: 0.08em;
+	gap: 8px;
+	min-height: 44px;
+	padding: 6px 6px 6px 14px;
+}
+.apiref-prompt-label {
+	margin-right: auto;
+	font: 500 11px var(--font-sans-stack);
+	letter-spacing: 0.06em;
 	text-transform: uppercase;
+	color: var(--faint);
+}
+.apiref-prompt-toggle {
+	padding: 4px 6px;
+	border: 0;
+	background: none;
+	font: 13px var(--font-sans-stack);
 	color: var(--sub);
+	cursor: pointer;
+}
+.apiref-prompt-toggle:hover {
+	color: var(--pri);
+}
+.apiref-prompt-toggle:focus-visible,
+.apiref-prompt-copy:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
 }
 .apiref-prompt-copy {
-	padding: 3px 10px;
-	border: 1px solid var(--line);
-	border-radius: 999px;
-	background: none;
-	font: 12px var(--font-sans-stack);
-	letter-spacing: 0;
-	text-transform: none;
-	color: var(--ink);
+	min-width: 104px;
+	height: 30px;
+	padding: 0 12px;
+	border: 0;
+	border-radius: 4px;
+	background: var(--pri);
+	font: 500 13px var(--font-sans-stack);
+	color: var(--on-pri);
 	cursor: pointer;
 }
 .apiref-prompt-copy:hover {
-	border-color: var(--sub);
+	background: color-mix(in srgb, var(--pri) 86%, var(--paper));
 }
 .apiref-prompt-text {
 	margin: 0;
-	padding: 12px 14px;
-	border-radius: 8px;
-	background: var(--soft);
+	padding: 12px 14px 14px;
+	border-top: 1px solid var(--line);
+	background: none;
 	font: 12px / 1.7 var(--font-mono-stack);
 	color: var(--ink);
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
+}
+.apiref-prompt-text[hidden] {
+	display: none;
+}
+.apiref-prompt-text a {
+	color: var(--pri);
+	text-decoration: none;
+}
+.apiref-prompt-text a:hover {
+	text-decoration: underline;
+}
+.apiref-prompt-text b {
+	font-weight: 500;
 }
 .apiref-actions {
 	display: flex;
@@ -1422,6 +1434,12 @@ html[data-acct-card] .docs-content {
 .apiref-verb-delete {
 	background: var(--verb-delete);
 	color: var(--on-verb);
+}
+/* After the verb rules: same specificity as the base pill, so order decides. */
+.apiref-verb-object {
+	background: none;
+	border: 1px solid var(--line);
+	color: var(--sub);
 }
 .apiref-path {
 	font: 13.5px var(--font-mono-stack);
@@ -1570,7 +1588,7 @@ html[data-acct-card] .docs-content {
 }
 
 /* request / response: the one code renderer. A request scrolls inside after
-   366px and a response after 480px; Full view fills the column instead. */
+   366px and a response after 480px. */
 .apiref-request .cb,
 .apiref-response .cb {
 	margin: 0;

@@ -2,11 +2,16 @@ import { Code } from "@/components/code/code";
 import { CodeTabs } from "@/components/code/code-tabs";
 import Link from "next/link";
 import { Fragment } from "react";
-import { ApiHashRedirect, BaseUrlSwitch } from "./client";
-import { ApiDrawerHost, type DrawerDetail } from "./drawer";
+import {
+	ApiHashRedirect,
+	BaseUrlSwitch,
+	CopyUrl,
+	PromptBar,
+	SectionActions,
+} from "./client";
 import { anchorPages, pageContent } from "./page-content";
 import { API_PAGES, apiPageHref, findApiPage } from "./pages";
-import { endpointPrompt, objectPrompt } from "./prompt";
+import { endpointPrompt, objectPrompt, promptParts } from "./prompt";
 import {
 	type Endpoint,
 	type ObjectEntry,
@@ -122,6 +127,7 @@ function statusTone(code: string): string {
 	return "warn";
 }
 
+/** The route row: method pill, path, a copy-URL icon, and a self-host note. */
 function Methods({ endpoint }: { endpoint: Endpoint }) {
 	return (
 		<span className="apiref-route">
@@ -131,6 +137,7 @@ function Methods({ endpoint }: { endpoint: Endpoint }) {
 				{endpoint.method}
 			</span>
 			<code className="apiref-path">{endpoint.path}</code>
+			<CopyUrl path={endpoint.path} />
 			{endpoint.selfHostOnly ? (
 				<span className="apiref-pill">Self-hosted instances</span>
 			) : null}
@@ -175,10 +182,15 @@ function ResponsePanel({
 
 type HrefFor = (anchor: string) => string;
 
-/** One endpoint's drawer content: the docs, the request and the response,
- *  rendered here on the server so the browser only ever receives markup. */
-function endpointDetail(endpoint: Endpoint, hrefFor: HrefFor): DrawerDetail {
+/** One endpoint in full: the docs on the left, and on the right (sticky) the
+ *  agent prompt, the request and the response. Rendered on the server. */
+function EndpointSection({
+	endpoint,
+	hrefFor,
+}: { endpoint: Endpoint; hrefFor: HrefFor }) {
 	const { op, anchor } = endpoint;
+	const title = op.summary ?? op.operationId;
+	const prompt = endpointPrompt(endpoint);
 	const returned = returnedObject(op);
 	const example = responseExample(op);
 	const successCode = Object.keys(op.responses ?? {}).find((c) =>
@@ -186,148 +198,193 @@ function endpointDetail(endpoint: Endpoint, hrefFor: HrefFor): DrawerDetail {
 	);
 	const contentType = successContentType(op);
 	const fields = bodyFields(op);
-	return {
-		title: op.summary ?? op.operationId,
-		subtitle: <Methods endpoint={endpoint} />,
-		prompt: endpointPrompt(endpoint),
-		main: (
-			<>
-				{op.description ? (
-					<p className="apiref-desc">
-						<Prose text={op.description} />
-					</p>
-				) : null}
+	return (
+		<section className="apiref-ep" aria-labelledby={anchor}>
+			<div className="apiref-ep-head">
+				<div className="apiref-ep-id">
+					<h3
+						id={anchor}
+						className="apiref-ep-title"
+						data-outline-child=""
+						data-outline={title}
+						data-verb={endpoint.method.toLowerCase()}
+					>
+						<a href={`#${anchor}`} className="heading-anchor">
+							{title}
+						</a>
+					</h3>
+					<Methods endpoint={endpoint} />
+				</div>
+				<SectionActions anchor={anchor} />
+			</div>
+			{op.description ? (
+				<p className="apiref-desc">
+					<Prose text={op.description} />
+				</p>
+			) : null}
+			<div className="apiref-ep-cols">
+				<div className="apiref-main">
+					{paramGroups(op).map((group) => (
+						<div key={group.title} className="apiref-group">
+							<h4 className="apiref-group-title">{group.title}</h4>
+							<ParamList anchor={anchor} params={group.params} />
+						</div>
+					))}
 
-				{paramGroups(op).map((group) => (
-					<div key={group.title} className="apiref-group">
-						<h4 className="apiref-group-title">{group.title}</h4>
-						<ParamList anchor={anchor} params={group.params} />
-					</div>
-				))}
+					{fields.length ? (
+						<div className="apiref-group">
+							<h4 className="apiref-group-title">Body</h4>
+							<div className="apiref-fields">
+								{fields.map((f) => (
+									<FieldRow
+										key={f.name}
+										id={`${anchor}.body.${f.name}`}
+										name={f.name}
+										type={typeLabel(f.schema)}
+										required={f.required}
+										description={f.schema.description}
+										schema={f.schema}
+									/>
+								))}
+							</div>
+						</div>
+					) : null}
 
-				{fields.length ? (
 					<div className="apiref-group">
-						<h4 className="apiref-group-title">Body</h4>
+						<h4 className="apiref-group-title">Returns</h4>
+						{returned ? (
+							<p className="apiref-desc">
+								{returned.list ? (
+									<>
+										A cursor envelope. <code>{returned.key}</code> holds{" "}
+										<a href={hrefFor(objectAnchor(returned.name))}>
+											{objectName(returned.name)} objects
+										</a>
+										.
+									</>
+								) : (
+									<>
+										<a href={hrefFor(objectAnchor(returned.name))}>
+											{objectTitle(returned.name)}
+										</a>
+										.
+									</>
+								)}
+							</p>
+						) : contentType && contentType !== "application/json" ? (
+							<p className="apiref-desc">
+								<code>{contentType}</code>
+							</p>
+						) : null}
+						<ul className="apiref-statuses">
+							{Object.entries(op.responses ?? {}).map(([code, res]) => (
+								<li key={code}>
+									<span
+										className={`apiref-status apiref-status-${statusTone(code)}`}
+									>
+										{code}
+									</span>
+									<span>
+										<Prose text={res.description} />
+									</span>
+								</li>
+							))}
+						</ul>
+					</div>
+				</div>
+				<aside
+					className="apiref-aside"
+					aria-label="Agent prompt, request and response"
+				>
+					<PromptBar text={prompt} parts={promptParts(prompt)} />
+					<RequestPanel endpoint={endpoint} />
+					{example !== undefined ? (
+						<ResponsePanel
+							title="Response"
+							example={example}
+							status={successCode}
+						/>
+					) : null}
+				</aside>
+			</div>
+		</section>
+	);
+}
+
+/** One object in full, laid out like an endpoint: attributes on the left, the
+ *  prompt and the example object on the right. */
+function ObjectSection({
+	entry,
+	hrefFor,
+}: { entry: ObjectEntry; hrefFor: HrefFor }) {
+	const { schema, anchor } = entry;
+	const title = objectTitle(entry.name);
+	const prompt = objectPrompt(entry);
+	return (
+		<section className="apiref-ep" aria-labelledby={anchor}>
+			<div className="apiref-ep-head">
+				<div className="apiref-ep-id">
+					<h3
+						id={anchor}
+						className="apiref-ep-title"
+						data-outline-child=""
+						data-outline={title}
+					>
+						<a href={`#${anchor}`} className="heading-anchor">
+							{title}
+						</a>
+					</h3>
+					<span className="apiref-verb apiref-verb-object">Object</span>
+				</div>
+				<SectionActions anchor={anchor} />
+			</div>
+			{schema.description ? (
+				<p className="apiref-desc">
+					<Prose text={schema.description} />
+				</p>
+			) : null}
+			<div className="apiref-ep-cols">
+				<div className="apiref-main">
+					<p className="apiref-returned-by">
+						Returned by{" "}
+						{entry.returnedBy.map((e, i) => (
+							<Fragment key={e.anchor}>
+								{i > 0 ? ", " : ""}
+								<a href={hrefFor(e.anchor)}>
+									{e.op.summary ?? e.op.operationId}
+								</a>
+							</Fragment>
+						))}
+					</p>
+					<div className="apiref-group">
+						<h4 className="apiref-group-title">Attributes</h4>
 						<div className="apiref-fields">
-							{fields.map((f) => (
+							{Object.entries(schema.properties ?? {}).map(([name, s]) => (
 								<FieldRow
-									key={f.name}
-									id={`${anchor}.body.${f.name}`}
-									name={f.name}
-									type={typeLabel(f.schema)}
-									required={f.required}
-									description={f.schema.description}
-									schema={f.schema}
+									key={name}
+									id={`${anchor.replace(/-object$/, "")}.${name}`}
+									name={name}
+									type={typeLabel(s)}
+									required={schema.required?.includes(name)}
+									description={s.description}
+									schema={s}
 								/>
 							))}
 						</div>
 					</div>
-				) : null}
-
-				<div className="apiref-group">
-					<h4 className="apiref-group-title">Returns</h4>
-					{returned ? (
-						<p className="apiref-desc">
-							{returned.list ? (
-								<>
-									A cursor envelope. <code>{returned.key}</code> holds{" "}
-									<a href={hrefFor(objectAnchor(returned.name))}>
-										{objectName(returned.name)} objects
-									</a>
-									.
-								</>
-							) : (
-								<>
-									<a href={hrefFor(objectAnchor(returned.name))}>
-										{objectTitle(returned.name)}
-									</a>
-									.
-								</>
-							)}
-						</p>
-					) : contentType && contentType !== "application/json" ? (
-						<p className="apiref-desc">
-							<code>{contentType}</code>
-						</p>
+				</div>
+				<aside
+					className="apiref-aside"
+					aria-label="Agent prompt and example object"
+				>
+					<PromptBar text={prompt} parts={promptParts(prompt)} />
+					{schema.example !== undefined ? (
+						<ResponsePanel title={title} example={schema.example} />
 					) : null}
-					<ul className="apiref-statuses">
-						{Object.entries(op.responses ?? {}).map(([code, res]) => (
-							<li key={code}>
-								<span
-									className={`apiref-status apiref-status-${statusTone(code)}`}
-								>
-									{code}
-								</span>
-								<span>
-									<Prose text={res.description} />
-								</span>
-							</li>
-						))}
-					</ul>
-				</div>
-			</>
-		),
-		request: <RequestPanel endpoint={endpoint} />,
-		response:
-			example !== undefined ? (
-				<ResponsePanel
-					title="Response"
-					example={example}
-					status={successCode}
-				/>
-			) : null,
-	};
-}
-
-function objectDetail(entry: ObjectEntry, hrefFor: HrefFor): DrawerDetail {
-	const { schema, anchor } = entry;
-	return {
-		title: objectTitle(entry.name),
-		subtitle: "Object",
-		prompt: objectPrompt(entry),
-		main: (
-			<>
-				{schema.description ? (
-					<p className="apiref-desc">
-						<Prose text={schema.description} />
-					</p>
-				) : null}
-				<p className="apiref-returned-by">
-					Returned by{" "}
-					{entry.returnedBy.map((e, i) => (
-						<Fragment key={e.anchor}>
-							{i > 0 ? ", " : ""}
-							<a href={hrefFor(e.anchor)}>{e.op.summary ?? e.op.operationId}</a>
-						</Fragment>
-					))}
-				</p>
-				<div className="apiref-group">
-					<h4 className="apiref-group-title">Attributes</h4>
-					<div className="apiref-fields">
-						{Object.entries(schema.properties ?? {}).map(([name, s]) => (
-							<FieldRow
-								key={name}
-								id={`${anchor.replace(/-object$/, "")}.${name}`}
-								name={name}
-								type={typeLabel(s)}
-								required={schema.required?.includes(name)}
-								description={s.description}
-								schema={s}
-							/>
-						))}
-					</div>
-				</div>
-			</>
-		),
-		request: null,
-		response:
-			schema.example !== undefined ? (
-				<ResponsePanel
-					title={objectTitle(entry.name)}
-					example={schema.example}
-				/>
-			) : null,
-	};
+				</aside>
+			</div>
+		</section>
+	);
 }
 
 /** A family heading, marked up like an MDX `##` so the page reads as one. */
@@ -350,7 +407,7 @@ function FamilyHeading({
 
 function EndpointRow({ endpoint }: { endpoint: Endpoint }) {
 	return (
-		<a href={`#${endpoint.anchor}`} className="apiref-row" data-endpoint-row>
+		<a href={`#${endpoint.anchor}`} className="apiref-row">
 			<span
 				className={`apiref-verb apiref-verb-${endpoint.method.toLowerCase()}`}
 			>
@@ -366,7 +423,7 @@ function EndpointRow({ endpoint }: { endpoint: Endpoint }) {
 
 function ObjectRow({ entry }: { entry: ObjectEntry }) {
 	return (
-		<a href={`#${entry.anchor}`} className="apiref-row" data-endpoint-row>
+		<a href={`#${entry.anchor}`} className="apiref-row">
 			<span className="apiref-verb apiref-verb-object">Object</span>
 			<code className="apiref-row-path">{entry.name}</code>
 			<span className="apiref-row-sum">{objectTitle(entry.name)}</span>
@@ -375,10 +432,10 @@ function ObjectRow({ entry }: { entry: ObjectEntry }) {
 }
 
 /**
- * One API page: every endpoint at a glance, by family, then the page's
- * objects. Each row links to its anchor; the drawer opens it. The drawer's
- * content is rendered here, once per row, and handed to the client host
- * keyed by anchor, so the page itself ships rows and the host ships markup.
+ * One API page as one long scroll. A compact index of every endpoint and
+ * object comes first (plain in-page links), then each family's endpoints in
+ * full, then the page's objects. The docs sidebar lists each section and
+ * follows the one on screen.
  */
 export function ApiPage({ slug }: { slug: string }) {
 	const page = findApiPage(slug);
@@ -387,16 +444,33 @@ export function ApiPage({ slug }: { slug: string }) {
 	const owners = anchorPages();
 	const hrefFor: HrefFor = (anchor) =>
 		owners[anchor] ? `${apiPageHref(owners[anchor])}#${anchor}` : `#${anchor}`;
-	const endpoints = families.flatMap((f) => f.endpoints);
-	const entries = [
-		...endpoints.map((e) => [e.anchor, endpointDetail(e, hrefFor)] as const),
-		...objects.map((o) => [o.anchor, objectDetail(o, hrefFor)] as const),
-	];
 	return (
 		<div className="apiref">
 			<div className="apiref-toolbar">
 				<BaseUrlSwitch />
 			</div>
+			<nav className="apiref-index" aria-label="Endpoints on this page">
+				{families.map((family) => (
+					<Fragment key={family.id}>
+						<p className="apiref-index-label">{family.title}</p>
+						<div className="apiref-rows">
+							{family.endpoints.map((endpoint) => (
+								<EndpointRow key={endpoint.anchor} endpoint={endpoint} />
+							))}
+						</div>
+					</Fragment>
+				))}
+				{objects.length ? (
+					<>
+						<p className="apiref-index-label">Objects</p>
+						<div className="apiref-rows">
+							{objects.map((entry) => (
+								<ObjectRow key={entry.anchor} entry={entry} />
+							))}
+						</div>
+					</>
+				) : null}
+			</nav>
 			{families.map((family) => (
 				<section key={family.id} aria-label={family.title}>
 					<FamilyHeading
@@ -405,11 +479,13 @@ export function ApiPage({ slug }: { slug: string }) {
 						count={family.endpoints.length}
 					/>
 					<p className="apiref-family-desc">{family.summary}</p>
-					<div className="apiref-rows">
-						{family.endpoints.map((endpoint) => (
-							<EndpointRow key={endpoint.anchor} endpoint={endpoint} />
-						))}
-					</div>
+					{family.endpoints.map((endpoint) => (
+						<EndpointSection
+							key={endpoint.anchor}
+							endpoint={endpoint}
+							hrefFor={hrefFor}
+						/>
+					))}
 				</section>
 			))}
 			{objects.length ? (
@@ -418,14 +494,11 @@ export function ApiPage({ slug }: { slug: string }) {
 					<p className="apiref-family-desc">
 						The shapes this page's endpoints return.
 					</p>
-					<div className="apiref-rows">
-						{objects.map((entry) => (
-							<ObjectRow key={entry.anchor} entry={entry} />
-						))}
-					</div>
+					{objects.map((entry) => (
+						<ObjectSection key={entry.anchor} entry={entry} hrefFor={hrefFor} />
+					))}
 				</section>
 			) : null}
-			<ApiDrawerHost details={Object.fromEntries(entries)} />
 		</div>
 	);
 }
