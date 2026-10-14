@@ -201,7 +201,7 @@ export function WaitlistForm() {
 					signing up.
 				</p>
 				<button
-					className="rh-btn"
+					className="btn btn-pri"
 					type="submit"
 					disabled={status.kind === "sending"}
 				>

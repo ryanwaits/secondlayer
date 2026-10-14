@@ -1,9 +1,20 @@
+import { Code } from "@/components/code/code";
 import { Logo } from "@/components/logo";
+import {
+	ButtonLink,
+	Eyebrow,
+	Highlight,
+	Props,
+	Split,
+} from "@/components/site";
+import { HistoryIcon, LockIcon, UndoIcon } from "@/components/site/icons";
 import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 import Link from "next/link";
+import "../(www)/site.css";
+import "./robinhood.css";
 import { RequestedTokens } from "./requested-tokens";
-import { StacksSymbol } from "./stacks-symbol";
+import { TwinsHero } from "./twins-hero";
 import { WaitlistForm } from "./waitlist-form";
 
 export const metadata: Metadata = socialMeta({
@@ -22,12 +33,12 @@ const PHASES: {
 	status?: string;
 }[] = [
 	{
-		key: "Phase 0 · now",
+		key: "Phase 0",
 		title: "2-of-2 custodian",
 		body: "Demo token only. Proves the asset moves end to end.",
 		now: true,
-		// Keep in step with the Endowment decision (submitted 2026-09-22).
-		status: "grant requested",
+		// Keep in step with the Endowment decision (not awarded as of 2026-10-13).
+		status: "built · grant pending",
 	},
 	{
 		key: "Phase 1",
@@ -50,6 +61,21 @@ const PHASES: {
 		body: "A Bitcoin relay on Ethereum checks the Stacks lock.",
 	},
 ];
+
+/** The contract calls of one round trip, as the bridge README draws them. Example values. */
+const ROUND_TRIP = `LOCK ON STACKS
+locker.lock(demo-token, u1000, 0x7a1f…c4)
+  lock nonce   17
+# !callout[/6 of 6/] the twin mints only after Bitcoin finality
+  waiting      6 of 6 bitcoin confirmations
+  safe         2-of-2 signed
+✓ Twin.mint(17, 0x7a1f…c4, 1000) on chain 4663
+
+BURN ON ROBINHOOD CHAIN
+Twin.burn(1000, "SP2J…R4K")
+  burn id      0x3f0e…91
+  multisig     2-of-2 signed
+✓ locker.release(0x3f0e…91, demo-token, SP2J…R4K, u1000)`;
 
 /**
  * An official vendor logo, unmodified: the dark asset on light ground, the
@@ -104,200 +130,220 @@ const STACKS_LOGO = {
 };
 
 /**
- * Waitlist microsite for the Stacks ⇄ Robinhood Chain SIP-010 bridge.
- * Standalone chrome (no MarketingNav): secondlayer mark left, the official
- * Robinhood Chain logo alone on the right. Their brand rules
- * (docs.robinhood.com/chain/brand-guidelines) forbid combining the logo with
- * other branding or text and any recolor, so it is an unmodified asset from
- * their pack, shown black on white / white on dark, never styled.
+ * Waitlist microsite for the Stacks ⇄ Robinhood Chain SIP-010 bridge, on the
+ * marketing kit (`.site`) with standalone chrome (no MarketingNav):
+ * secondlayer mark left, the official Robinhood Chain logo alone on the right.
+ * Their brand rules (docs.robinhood.com/chain/brand-guidelines) forbid
+ * combining the logo with other branding or text and any recolor, so it is an
+ * unmodified asset from their pack, shown black on white / white on dark,
+ * never styled. Robin Neon stays on the chain 4663 side of the hero art.
  */
 export default function RobinhoodPage() {
 	return (
-		<div className="rh-page">
+		<div className="site rh">
 			<header className="rh-nav">
-				<Link href="/" className="rh-brand">
-					<Logo size={22} />
-					<span>secondlayer</span>
-				</Link>
-				<div className="rh-dest">
-					<span className="rh-dest-label">Compatible with</span>
-					<VendorLogo {...ROBINHOOD_CHAIN_LOGO} height={20} />
+				<div className="shell">
+					<Link href="/" className="rh-brand">
+						<Logo size={22} />
+						<span>secondlayer</span>
+					</Link>
+					<div className="rh-dest">
+						<span className="cap rh-dest-label">Compatible with</span>
+						<VendorLogo {...ROBINHOOD_CHAIN_LOGO} height={20} />
+					</div>
 				</div>
 			</header>
 
 			<main>
-				<section className="rh-hero">
-					<div className="rh-pill">
-						<b>SIP-010</b> Stacks → chain 4663 → Stacks
-					</div>
-					<h1>
-						Don't mint a copy. <em>Bridge the original.</em>
-					</h1>
-					<p className="rh-lede">
-						Bridge your Stacks token to Robinhood Chain and back. Lock it on
-						Stacks and an ERC-20 twin mints after 6 Bitcoin confirmations. Burn
-						the twin to release the original.
-					</p>
-					<div className="rh-cta">
-						<a className="rh-btn" href="#join">
-							Join the waitlist →
-						</a>
-						<a className="rh-btn rh-btn-ghost" href="#phases">
-							What's trusted today
-						</a>
-					</div>
-					{/* Each logo stands alone with its own clear space: Robinhood
-					    Chain's rules forbid combining their mark with other
-					    branding or text, so no lockup and no logo inside a sentence. */}
-					<div
-						className="rh-route"
-						aria-label="Route: Stacks to Robinhood Chain and back"
-					>
-						<div className="rh-route-end">
-							<VendorLogo {...STACKS_LOGO} height={17} />
-							<span className="rh-route-cap">SIP-010 · locked</span>
-						</div>
-						<span className="rh-route-arrow" aria-hidden="true">
-							⇄
-						</span>
-						<div className="rh-route-end">
-							{/* 20px is Robinhood Chain's minimum logo height. */}
-							<VendorLogo {...ROBINHOOD_CHAIN_LOGO} height={20} />
-							<span className="rh-route-cap">ERC-20 · chain 4663</span>
-						</div>
-					</div>
-				</section>
-
-				<section className="rh-stage">
-					<div className="rh-copy">
-						<p className="rh-eyebrow">1:1 backing</p>
-						<h2>Each ERC-20 is minted against a locked SIP-010.</h2>
-						<p>
-							The locker on Stacks holds the original, and supply on Robinhood
-							Chain matches it 1:1. No lock, no mint. No burn, no release. In
-							Phase 0 that's a rule the signers follow, not one the contracts
-							enforce.
-						</p>
-						<dl className="rh-facts">
-							<div>
-								<dt>Source</dt>
-								<dd>Stacks · SIP-010</dd>
+				<div className="shell">
+					<div className="hero">
+						<div className="hero-copy">
+							<Eyebrow noun="Bridge" verb="SIP-010 ⇄ ERC-20" />
+							<h1>
+								Don't mint a copy. <Highlight>Bridge the original.</Highlight>
+							</h1>
+							<p className="lede">
+								Bridge your Stacks token to Robinhood Chain and back. Lock it on
+								Stacks and an ERC-20 twin mints after 6 Bitcoin confirmations.
+								Burn the twin to release the original.
+							</p>
+							<div className="btns">
+								<ButtonLink href="#join">Join the waitlist</ButtonLink>
+								<ButtonLink href="#phases" variant="secondary">
+									What's trusted today
+								</ButtonLink>
 							</div>
-							<div>
-								<dt>Destination</dt>
-								<dd>Robinhood Chain · 4663</dd>
-							</div>
-							<div>
-								<dt>Mint waits for</dt>
-								<dd>6 BTC confirmations</dd>
-							</div>
-							<div>
-								<dt>Phase 0 signers</dt>
-								<dd>2-of-2</dd>
-							</div>
-						</dl>
-					</div>
-					<figure
-						className="rh-twins"
-						aria-label="Two token cards: 1,000 of a SIP-010 token locked on Stacks, and its twin, 1,000 of an ERC-20 live on Robinhood Chain, linked one to one"
-					>
-						<div className="rh-tok">
-							<span className="rh-coin rh-coin-stacks">
-								<StacksSymbol size={18} />
-							</span>
-							<span className="rh-tok-name">SIP-010</span>
-							<span className="rh-tok-amt">
-								1,000
-								<small className="rh-state is-locked">locked</small>
-							</span>
-							<span className="rh-tok-meta">Stacks</span>
-						</div>
-						<div className="rh-tok-link">
-							<span className="rh-tok-rail" />
-							<span className="rh-tok-link-label">
-								<b>1 : 1</b> · minted after 6 BTC confirmations
-								<br />
-								burn the twin to unlock
-							</span>
-						</div>
-						<div className="rh-tok">
-							{/* Official Robinhood Chain feather avatar (black on Robin
-							    Neon, an approved pairing), unmodified. */}
-							<img
-								className="rh-coin"
-								src="/robinhood-chain/feather.jpg"
-								alt=""
-								width={36}
-								height={36}
-							/>
-							<span className="rh-tok-name">ERC-20</span>
-							<span className="rh-tok-amt">
-								1,000
-								<small className="rh-state is-live">live</small>
-							</span>
-							<span className="rh-tok-meta">chain 4663</span>
-						</div>
-					</figure>
-				</section>
-
-				<section className="rh-phases" id="phases">
-					<p className="rh-eyebrow">What's trusted today</p>
-					<h2>Custodial first. Keys come out one phase at a time.</h2>
-					<ol className="rh-phase-grid">
-						{PHASES.map((p) => (
-							<li
-								key={p.key}
-								className={p.now ? "rh-phase is-now" : "rh-phase"}
+							{/* Each logo stands alone with its own clear space: Robinhood
+							    Chain's rules forbid combining their mark with other
+							    branding or text, so no lockup and no logo inside a sentence. */}
+							<div
+								className="rh-route"
+								aria-label="Route: Stacks to Robinhood Chain and back"
 							>
-								<span className="rh-phase-key">{p.key}</span>
-								<h3>{p.title}</h3>
-								<p>{p.body}</p>
-								{p.status && (
-									<span className="rh-phase-status">{p.status}</span>
-								)}
-							</li>
-						))}
-					</ol>
-					<p className="rh-note">
-						<strong>Don't bridge value on Phase 0.</strong> The signers hold the
-						locker. Phase 1 is the earliest point a community token should move
-						for real. Phase 0 is up for a Stacks Endowment grant, requested
-						September 2026 and under review.
-					</p>
-				</section>
-
-				<section className="rh-join" id="join">
-					<div className="rh-copy">
-						<p className="rh-eyebrow">Waitlist</p>
-						<h2>Want your token on Robinhood Chain?</h2>
-						<p>
-							Tokens are added one at a time. Each gets its own registry entry
-							once we've checked its supply can't be minted around the bridge.
-						</p>
-						<p>
-							The waitlist sets the order. Issuers and teams go first for Phase
-							1; holders show us where the demand is.
-						</p>
-						<RequestedTokens />
+								<div className="rh-route-end">
+									<VendorLogo {...STACKS_LOGO} height={17} />
+									<span className="cap">SIP-010 · locked</span>
+								</div>
+								<span className="rh-route-arrow" aria-hidden="true">
+									⇄
+								</span>
+								<div className="rh-route-end">
+									{/* 20px is Robinhood Chain's minimum logo height. */}
+									<VendorLogo {...ROBINHOOD_CHAIN_LOGO} height={20} />
+									<span className="cap">ERC-20 · chain 4663</span>
+								</div>
+							</div>
+						</div>
+						<div className="hero-art">
+							<TwinsHero />
+						</div>
 					</div>
-					<WaitlistForm />
-				</section>
+
+					<Props
+						items={[
+							{
+								icon: <LockIcon />,
+								title: "Backed one to one",
+								body: "Each ERC-20 is minted against a SIP-010 the locker holds. No lock, no mint.",
+							},
+							{
+								icon: <HistoryIcon />,
+								title: "Mints wait for Bitcoin",
+								body: "A twin mints only after its lock has 6 Bitcoin confirmations.",
+							},
+							{
+								icon: <UndoIcon />,
+								title: "Burn to come home",
+								body: "Burning the twin releases the original on Stacks to the address you name.",
+							},
+						]}
+					/>
+				</div>
+
+				<div className="band band-soft">
+					<div className="shell">
+						<Split
+							copy={
+								<>
+									<Eyebrow noun="1:1 backing" />
+									<h2>Each ERC-20 is minted against a locked SIP-010</h2>
+									<p className="lede">
+										The locker on Stacks holds the original, and supply on
+										Robinhood Chain matches it 1:1. No lock, no mint. No burn,
+										no release. In Phase 0 that's a rule the signers follow, not
+										one the contracts enforce.
+									</p>
+									<dl className="rh-facts">
+										<div>
+											<dt>Source</dt>
+											<dd>Stacks · SIP-010</dd>
+										</div>
+										<div>
+											<dt>Destination</dt>
+											<dd>Robinhood Chain · 4663</dd>
+										</div>
+										<div>
+											<dt>Mint waits for</dt>
+											<dd>6 BTC confirmations</dd>
+										</div>
+										<div>
+											<dt>Phase 0 signers</dt>
+											<dd>2-of-2</dd>
+										</div>
+									</dl>
+								</>
+							}
+							art={
+								<div className="art">
+									<Code
+										code={ROUND_TRIP}
+										lang="text"
+										title="round trip · demo token"
+									/>
+									<p className="cap">
+										Example values. Phase 0 moves a demo token only.
+									</p>
+								</div>
+							}
+						/>
+					</div>
+				</div>
+
+				<div className="band" id="phases">
+					<div className="shell">
+						<div className="sec-head">
+							<Eyebrow noun="What's trusted today" />
+							<h2>Custodial first. Keys come out one phase at a time.</h2>
+						</div>
+						<ol className="rh-phases">
+							{PHASES.map((p) => (
+								<li
+									key={p.key}
+									className={p.now ? "rh-phase is-now" : "rh-phase"}
+								>
+									<span className="rh-phase-key">
+										{p.key}
+										{p.now && <span className="seal">now</span>}
+									</span>
+									<h3>{p.title}</h3>
+									<p>{p.body}</p>
+									{p.status && (
+										<span className="status soon">
+											<i />
+											{p.status}
+										</span>
+									)}
+								</li>
+							))}
+						</ol>
+						<p className="rh-note">
+							<i />
+							<span>
+								<strong>Don't bridge value on Phase 0.</strong> The signers hold
+								the locker. Phase 1 is the earliest point a community token
+								should move for real. Phase 0 is built and tested but not yet
+								deployed, and its Stacks Endowment grant is still under review.
+							</span>
+						</p>
+					</div>
+				</div>
+
+				<div className="band band-soft" id="join">
+					<div className="shell rh-join">
+						<div className="copy">
+							<Eyebrow noun="Waitlist" />
+							<h2>Want your token on Robinhood Chain?</h2>
+							<p>
+								Tokens are added one at a time. Each gets its own registry entry
+								once we've checked its supply can't be minted around the bridge.
+							</p>
+							<p>
+								The waitlist sets the order. Issuers and teams go first for
+								Phase 1; holders show us where the demand is.
+							</p>
+							<RequestedTokens />
+						</div>
+						<WaitlistForm />
+					</div>
+				</div>
 			</main>
 
 			<footer className="rh-footer">
-				<span className="rh-mono">stacks ⇄ 4663</span>
-				<Link href="/" className="rh-built-by">
-					<span className="rh-built-by-label">Built by</span>
-					<Logo size={17} />
-					<span className="rh-built-by-name">secondlayer</span>
-				</Link>
-				<span className="rh-tm">
-					Robinhood Chain and the Robinhood Chain logo are trademarks of
-					Robinhood Markets, Inc. The Stacks name and logo belong to their
-					owner. Both are used here only to identify compatibility. This bridge
-					is an independent project, not an official Robinhood or Stacks
-					product, and is not sponsored or endorsed by either.
-				</span>
+				<div className="shell">
+					<span className="mono">stacks ⇄ 4663</span>
+					<Link href="/" className="rh-built-by">
+						<span>Built by</span>
+						<Logo size={17} />
+						<span className="rh-built-by-name">secondlayer</span>
+					</Link>
+					<span className="rh-tm">
+						Robinhood Chain and the Robinhood Chain logo are trademarks of
+						Robinhood Markets, Inc. The Stacks name and logo belong to their
+						owner. Both are used here only to identify compatibility. This
+						bridge is an independent project, not an official Robinhood or
+						Stacks product, and is not sponsored or endorsed by either.
+					</span>
+				</div>
 			</footer>
 		</div>
 	);
