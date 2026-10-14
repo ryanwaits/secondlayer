@@ -394,7 +394,34 @@ a failure. Some glyphs carry none. Only the layers glyph uses the logo's slant.
   Hover → umbra. Nav-sized variant 38px.
 - **Outline**: transparent, border `ink/10`, hover border `ink/20`. Same geometry.
 - **Split CTA**: solid pill with a chevron cell separated by a `paper/20` hairline.
-- Focus: `:focus-visible` 2px ink outline, 3px offset — never animated, never a glow.
+- Focus: `:focus-visible` 2px `pri` outline, 2px offset — never animated, never a glow.
+
+### Choice (pick one value)
+`<Choice>`: a radio fieldset drawn as joined cells in a 1px `line` frame, 4px corner, cells
+`8px 14px`, Geist 13.5px/500 `sub`. The chosen cell is ink fill with paper text; hover turns
+text ink; focus is a 2px `pri` outline inside the cell. Form fields pass `defaultValue` and
+submit as radios; view switches pass `value` + `onChange`. Three rules hold across Choice,
+Amount picker and Tabs:
+- **A chosen value is ink.** Never `pri`; blue is the action and the current tab.
+- **The current tab is blue** (see Tabs).
+- **One shape: 4px, joined.** Full-radius pills stay only for inline prose chips (`<Pick>`).
+Narrow rule: more than three options, or a container under 360px, stacks into one joined
+column (dividers move to the top edge, labels left-aligned). It is a container query on the
+fieldset; no script measures anything.
+
+### Amount picker (pick one amount)
+`<AmountPicker>`: same radios as Choice, laid out as a grid of 4px boxes, 52px tall, Geist
+20px/500 tabular, four columns and two under 480px of container width. An optional caption
+sits under the amount in 12px `sub`. Selected is a 1px ink border on a `soft` fill: no
+inset ring, no radio dot, no `pri`, because the blue Buy button sits right under it.
+
+### Tabs
+`.tabbar`: `gap 20px` over a 1px `line` baseline. A tab has no radius, `sub` at rest, ink on
+hover; the selected tab is ink with a 2px `pri` underline on the baseline. Label font follows
+the content: `.tabbar.mono` (Geist Mono 12px) for code bars, Geist 14px for panels; a `.n`
+count badge is supported. The strip scrolls sideways when it overflows. Markup stays the
+caller's (`role=tablist` / `tab`, `aria-selected`). The 2px tab underline is the only
+exception to "No borders heavier than 1px".
 
 ### Announcement pill (hero)
 Radius-full container, border `ink/8`, 38px: accent-outline NEW chip (26px, 11.5px/600 caps) +
@@ -475,7 +502,7 @@ Heading 16px ink 400 (not bold — column position does the work), links 16px `f
   hero-metric blocks.
 - **No motion beyond the mechanism** — no fade-up-on-scroll for every element, no parallax, no
   bouncy hovers, no `transition: all`.
-- **No borders heavier than 1px**; no shadows on static surfaces (terminal and dropdowns may
+- **No borders heavier than 1px** (the 2px selected-tab underline is the one exception); no shadows on static surfaces (terminal and dropdowns may
   carry one soft shadow; nothing else).
 
 ## 9. Provenance
