@@ -117,6 +117,9 @@ services:
       # Shared rate-limit store. Unset → process-local limits (single-instance
       # only). Fails open if Redis is unreachable.
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      # Runes reads + `chain=bitcoin` Streams. Unset → those routes answer
+      # "Runes data is not configured".
+      BITCOIN_DATABASE_URL: ${BITCOIN_DATABASE_URL:-}
       PORT: 3800
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
