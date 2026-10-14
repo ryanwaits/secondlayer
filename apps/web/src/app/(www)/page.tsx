@@ -201,10 +201,7 @@ export function HomeView() {
 					<div className="sec-head">
 						<Eyebrow noun="Datasets" />
 						<h2>Data nobody else decodes.</h2>
-						<p className="lede">
-							Same rows, same price as everything else. No premium for the hard
-							ones.
-						</p>
+						<p className="lede">Same rows, same price as everything else.</p>
 					</div>
 					<div className="next-cols">
 						<div className="next-col">
