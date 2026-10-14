@@ -11,25 +11,22 @@
 	background: var(--paper);
 	border-bottom: 1px solid var(--line);
 }
-/* Same 1360px frame as .docs-shell, inset 28px so the logo lines up with the
-   sidebar's text column (20px nav padding + 8px item padding); the right edge
-   mirrors it. */
+/* Full width, flush with the sidebar below it. */
 .docs-top-in {
 	height: 56px;
 	display: flex;
 	align-items: center;
-	gap: 18px;
-	max-width: 1360px;
-	margin-inline: auto;
-	padding-inline: 28px;
+	gap: 24px;
+	padding-inline: max(16px, env(safe-area-inset-left, 0px))
+		max(16px, env(safe-area-inset-right, 0px));
 }
 .docs-mark {
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
 	flex: none;
+	font-size: 15px;
 	font-weight: 500;
-	letter-spacing: -0.02em;
 	color: var(--ink);
 }
 /* Top-nav search: a real field in the old button's slot. The menu hangs
@@ -38,7 +35,7 @@
 	position: relative;
 	flex: 1;
 	min-width: 0;
-	max-width: 440px;
+	max-width: 420px;
 }
 /* The page's scroll-padding-top clears the sticky top bar for anchor jumps,
    but the browser also applies it when revealing the caret: the field sits
@@ -52,11 +49,11 @@ html:has(.docs-search input:focus) {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 0 6px 0 10px;
+	padding: 0 8px 0 12px;
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	background: var(--soft);
-	color: var(--sub);
+	background: var(--paper);
+	color: var(--faint);
 }
 .docs-search-field:hover {
 	border-color: var(--sub);
@@ -80,7 +77,7 @@ html:has(.docs-search input:focus) {
 	outline: 0;
 	background: transparent;
 	color: var(--ink);
-	font: 13.5px var(--font-sans-stack);
+	font: 14px var(--font-sans-stack);
 	padding: 6px 0;
 }
 /* The field's border carries focus; the input inside gets no ring of its own. */
@@ -88,7 +85,7 @@ html:has(.docs-search input:focus) {
 	outline: 0;
 }
 .docs-search-field input::placeholder {
-	color: var(--sub);
+	color: var(--faint);
 	opacity: 1;
 }
 .docs-search-keys {
@@ -97,10 +94,10 @@ html:has(.docs-search input:focus) {
 	flex: none;
 }
 .docs-search-keys kbd {
-	font: 11px / 1 var(--font-mono-stack);
+	font: 11px / 18px var(--font-mono-stack);
 	border: 1px solid var(--line);
 	border-radius: 4px;
-	padding: 3px 5px;
+	padding: 0 6px;
 	background: var(--paper);
 	color: var(--sub);
 }
@@ -357,9 +354,7 @@ html:has(.docs-search input:focus) {
 /* ── shell ── */
 .docs-shell {
 	display: grid;
-	grid-template-columns: 248px minmax(0, 1fr);
-	max-width: 1360px;
-	margin-inline: auto;
+	grid-template-columns: 264px minmax(0, 1fr);
 }
 
 /* ── sidebar ── */
@@ -374,26 +369,32 @@ html:has(.docs-search input:focus) {
 	height: calc(100vh - 56px);
 	overflow-y: auto;
 	border-right: 1px solid var(--line);
-	/* 43px puts the first group label's baseline on the page pills' row (the
-	   article's 36px top padding plus its pill row); the drawer resets it. */
-	padding: 43px 14px 40px 20px;
+	padding: 20px 12px 96px max(12px, env(safe-area-inset-left, 0px));
 	font-size: 14px;
 }
-.docs-nav-group {
-	margin-bottom: 20px;
+.docs-nav-group + .docs-nav-group {
+	margin-top: 18px;
+}
+/* The phone-only Site group is hidden here; the first group starts flush. */
+.docs-nav-products + .docs-nav-group {
+	margin-top: 0;
 }
 .docs-nav-grouplabel {
-	margin: 0 0 6px 8px;
-	font: 500 11px var(--font-mono-stack);
-	letter-spacing: 0.08em;
+	margin: 0 0 6px;
+	padding: 0 8px;
+	font: 500 11px / 16px var(--font-sans-stack);
+	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	color: var(--sub);
+	color: var(--faint);
 }
 .docs-nav-item {
-	display: block;
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	position: relative;
 	padding: 5px 8px;
 	border-radius: 4px;
+	line-height: 20px;
 	color: var(--sub);
 }
 button.docs-nav-item {
@@ -405,7 +406,17 @@ button.docs-nav-item {
 	text-align: left;
 }
 .docs-nav-item:hover {
+	background: var(--soft);
 	color: var(--ink);
+}
+.docs-nav-caret {
+	flex: none;
+	margin-left: auto;
+	color: var(--faint);
+	transition: transform 0.15s;
+}
+.docs-nav-item[aria-expanded="true"] .docs-nav-caret {
+	transform: rotate(90deg);
 }
 /* The open page is marked by weight alone; its outline sits under it. */
 .docs-nav-item.active {
@@ -471,9 +482,13 @@ button.docs-nav-item {
 	margin-inline: auto;
 }
 /* An API page runs wide for its two columns; its own prose stays readable. */
+/* An API page runs wide for its two columns: 40px gutters, 1112px at most. */
+.docs-content:has(.apiref-ep) {
+	padding: 40px 40px 140px;
+}
 .docs-article:has(.apiref-ep),
 .docs-topline:has(+ .docs-article .apiref-ep) {
-	max-width: none;
+	max-width: 1112px;
 }
 .docs-article:has(.apiref-ep) > :not(.apiref) {
 	max-width: 720px;
@@ -537,18 +552,18 @@ button.docs-nav-item {
 }
 .docs-article .page-title {
 	margin: 18px 0 0;
-	font-size: clamp(32px, 4vw, 42px);
+	font-size: clamp(36px, 4vw, 44px);
 	font-weight: 500;
-	line-height: 1.08;
-	letter-spacing: -0.04em;
+	line-height: 1.05;
+	letter-spacing: -0.025em;
 	text-wrap: balance;
 	color: var(--ink);
 }
 .docs-article .page-title + p {
-	margin-top: 12px;
-	max-width: 38rem;
+	margin-top: 16px;
+	max-width: 62ch;
 	font-size: 18px;
-	line-height: 1.5;
+	line-height: 1.6;
 	color: var(--sub);
 }
 /* The rule above each section is the mock's gap, not a line. */
@@ -965,13 +980,6 @@ button.docs-nav-item {
 	margin-left: auto;
 }
 
-/* ── narrower: a slimmer sidebar ── */
-@media (max-width: 1180px) {
-	.docs-shell {
-		grid-template-columns: 236px minmax(0, 1fr);
-	}
-}
-
 /* ── phone: sidebar becomes a drawer behind the top bar's burger ── */
 @media (max-width: 860px) {
 	.docs-shell {
@@ -1009,6 +1017,9 @@ button.docs-nav-item {
 		display: block;
 		padding-bottom: 12px;
 		border-bottom: 1px solid var(--line);
+	}
+	.docs-nav-products + .docs-nav-group {
+		margin-top: 18px;
 	}
 	.docs-nav-products-grid {
 		display: grid;
@@ -1058,53 +1069,65 @@ button.docs-nav-item {
 .apiref-base {
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	height: 28px;
-	padding: 0 4px 0 10px;
+	gap: 10px;
+	height: 34px;
+	padding: 0 6px 0 12px;
 	border: 1px solid var(--line);
 	border-radius: 999px;
-	font: 12px var(--font-mono-stack);
-	color: var(--sub);
+	font: 13px var(--font-mono-stack);
+	color: var(--faint);
 }
 .apiref-base select {
-	height: 24px;
+	height: 28px;
 	border: 0;
 	background: transparent;
-	font: 12px var(--font-mono-stack);
+	font: 13px var(--font-mono-stack);
 	color: var(--ink);
 	cursor: pointer;
 }
-/* An API page: every endpoint of a family on one line. Hover and the open
-   row color the path and summary primary blue; no row background. */
+/* An API page's index: each family's heading and summary, then every
+   endpoint on one line. Hover colors the path and summary primary blue; no
+   row background. */
+.apiref-family {
+	margin-top: 48px;
+}
+.docs-article .apiref-family-title {
+	margin: 0 0 6px;
+	font: 500 26px / 1.2 var(--font-sans-stack);
+	letter-spacing: -0.025em;
+	scroll-margin-top: 80px;
+}
+.docs-article .apiref-family-title a {
+	color: inherit;
+	text-decoration: none;
+}
 .docs-article .apiref-family-desc {
-	margin-top: 10px;
-	font-size: 15px;
+	margin-bottom: 14px;
+	line-height: 24px;
 	color: var(--sub);
 }
 .apiref-rows {
-	margin-top: 16px;
 	border-top: 1px solid var(--line);
 }
 .docs-article .apiref-row {
 	display: grid;
-	grid-template-columns: 64px minmax(0, 1.25fr) minmax(0, 1fr);
-	align-items: baseline;
-	gap: 4px 16px;
-	padding: 11px 0;
+	grid-template-columns: 68px minmax(0, 1fr) minmax(0, 1fr);
+	align-items: center;
+	gap: 4px 12px;
+	min-height: 52px;
+	padding: 10px 4px;
 	border-bottom: 1px solid var(--line);
 	color: var(--ink);
 	text-decoration: none;
 }
 .apiref-row .apiref-verb {
 	justify-self: start;
-	min-width: 44px;
-	text-align: center;
 }
 .docs-article .apiref-row-path,
 .docs-article .apiref-row-name {
 	padding: 0;
 	background: none;
-	font: 13.5px var(--font-mono-stack);
+	font: 14px / 24px var(--font-mono-stack);
 	color: inherit;
 	overflow-wrap: anywhere;
 }
@@ -1112,7 +1135,8 @@ button.docs-nav-item {
 	font: 500 15px var(--font-sans-stack);
 }
 .apiref-row-sum {
-	font-size: 14.5px;
+	font-size: 15px;
+	line-height: 24px;
 	color: var(--sub);
 }
 .apiref-row-count {
@@ -1149,28 +1173,18 @@ button.docs-nav-item {
 		grid-row: 2;
 	}
 }
-.docs-nav-count {
-	margin-left: 6px;
-	font-size: 11.5px;
-	color: var(--sub);
-}
 .apiref-main {
 	display: flex;
 	flex-direction: column;
-	gap: 14px;
+	gap: 32px;
 	min-width: 0;
 }
 /* One endpoint: id row, description, then docs beside a sticky column. */
 .apiref-ep {
-	margin-top: 48px;
-	padding-top: 40px;
+	margin-top: 64px;
+	padding-top: 56px;
 	border-top: 1px solid var(--line);
-	scroll-margin-top: 72px;
-}
-.apiref-family-desc + .apiref-ep {
-	margin-top: 24px;
-	padding-top: 0;
-	border-top: 0;
+	scroll-margin-top: 64px;
 }
 .apiref-ep-head {
 	display: flex;
@@ -1179,29 +1193,36 @@ button.docs-nav-item {
 	justify-content: space-between;
 	gap: 8px 24px;
 }
+.apiref-ep-id {
+	flex: 1 1 360px;
+	min-width: 0;
+}
 .docs-article .apiref-ep-title {
-	margin: 0 0 10px;
-	font-size: 26px;
-	line-height: 1.2;
+	/* With the page's 84px scroll padding, a jump lands the section's rule
+	   just under the top bar. */
+	scroll-margin-top: 36px;
+	margin: 0 0 12px;
+	font-size: 34px;
+	line-height: 1.15;
 	font-weight: 500;
 	letter-spacing: -0.025em;
 }
 .apiref-ep-cols {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	gap: 40px;
-	margin-top: 24px;
+	gap: 48px;
+	margin-top: 36px;
 	align-items: start;
 }
 /* Sticks while its endpoint's docs scroll past, never taller than the screen. */
 .apiref-aside {
 	position: sticky;
-	top: 72px;
+	top: 80px;
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
-	gap: 12px;
+	gap: 16px;
 	min-width: 0;
-	max-height: calc(100vh - 88px);
+	max-height: calc(100vh - 96px);
 	overflow-y: auto;
 }
 @media (max-width: 1180px) {
@@ -1214,28 +1235,43 @@ button.docs-nav-item {
 		overflow: visible;
 	}
 }
-.docs-article .apiref-index-label {
-	margin-top: 20px;
-	font: 500 11px var(--font-sans-stack);
+@media (max-width: 900px) {
+	.docs-article .apiref-ep-title {
+		font-size: 28px;
+	}
+}
+.docs-nav-outline:has(.docs-nav-ep) {
+	margin: 2px 0 8px 12px;
+	padding-left: 8px;
+}
+/* API pages: families read as labels, endpoints as rows marked by a wash. */
+.docs-nav-outline .docs-nav-ep {
+	margin-left: 0;
+	border-left: 0;
+}
+.docs-nav-outline .docs-nav-fam {
+	padding: 10px 8px 4px;
+	font: 500 10.5px / 16px var(--font-sans-stack);
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var(--faint);
-}
-.docs-article .apiref-index-label:first-child {
-	margin-top: 0;
-}
-.apiref-index {
-	margin-top: 24px;
-}
-.apiref-index .apiref-rows {
-	margin-top: 8px;
 }
 .docs-nav-outline .docs-nav-ep {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding-left: 18px;
-	font-size: 12.5px;
+	padding: 5px 8px;
+	border-radius: 4px;
+	font-size: 13.5px;
+	line-height: 20px;
+}
+.docs-nav-outline .docs-nav-ep:hover {
+	background: var(--soft);
+}
+.docs-nav-outline .docs-nav-ep.active {
+	background: var(--soft);
+	color: var(--ink);
+	font-weight: 500;
 }
 .docs-nav-ep-name {
 	min-width: 0;
@@ -1245,9 +1281,12 @@ button.docs-nav-item {
 }
 .docs-nav-outline .docs-nav-verb {
 	flex: none;
-	width: 34px;
-	padding: 1px 0;
-	text-align: center;
+	display: inline-grid;
+	place-items: center;
+	width: 38px;
+	min-width: 0;
+	height: 17px;
+	padding: 0;
 	font-size: 9.5px;
 	border-radius: 3px;
 }
@@ -1292,7 +1331,7 @@ html[data-acct-card] .docs-content {
 				(var(--acct-card-w) + var(--acct-card-inset)) /
 				4,
 				32px +
-				max(0px, (min(100vw, 1360px) - 1064px) / 2)
+				max(0px, (100vw - 1080px) / 2)
 			)
 		)
 	);
@@ -1316,13 +1355,13 @@ html[data-acct-card] .docs-content {
 .apiref-prompt-bar {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	min-height: 44px;
+	gap: 12px;
+	min-height: 46px;
 	padding: 6px 6px 6px 14px;
 }
 .apiref-prompt-label {
 	margin-right: auto;
-	font: 500 11px var(--font-sans-stack);
+	font: 500 11px / 16px var(--font-sans-stack);
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var(--faint);
@@ -1331,7 +1370,7 @@ html[data-acct-card] .docs-content {
 	padding: 4px 6px;
 	border: 0;
 	background: none;
-	font: 13px var(--font-sans-stack);
+	font: 13px / 24px var(--font-sans-stack);
 	color: var(--sub);
 	cursor: pointer;
 }
@@ -1345,7 +1384,7 @@ html[data-acct-card] .docs-content {
 }
 .apiref-prompt-copy {
 	min-width: 104px;
-	height: 30px;
+	height: 32px;
 	padding: 0 12px;
 	border: 0;
 	border-radius: 4px;
@@ -1385,7 +1424,9 @@ html[data-acct-card] .docs-content {
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 6px 16px;
-	font: 12px var(--font-mono-stack);
+	padding-top: 10px;
+	font: 13px / 24px var(--font-sans-stack);
+	white-space: nowrap;
 }
 .apiref-actions button,
 .apiref-actions a {
@@ -1399,17 +1440,22 @@ html[data-acct-card] .docs-content {
 }
 .apiref-actions button:hover,
 .apiref-actions a:hover {
-	color: var(--ink);
+	color: var(--pri);
 }
 .apiref-route {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 8px;
+	gap: 10px;
 }
 .apiref-verb {
-	font: 500 11.5px var(--font-mono-stack);
-	padding: 3px 7px;
+	display: inline-grid;
+	place-items: center;
+	min-width: 52px;
+	height: 24px;
+	padding: 0 8px;
+	font: 500 12px / 1 var(--font-mono-stack);
+	letter-spacing: 0.02em;
 	border-radius: 4px;
 	background: var(--ink);
 	color: var(--paper);
@@ -1441,13 +1487,12 @@ html[data-acct-card] .docs-content {
 	border: 1px solid var(--line);
 	color: var(--sub);
 }
-.apiref-path {
-	font: 13.5px var(--font-mono-stack);
-	padding: 2px 8px;
-	border: 1px solid var(--line);
-	border-radius: 4px;
+.docs-article .apiref-path {
+	min-width: 0;
+	padding: 0;
 	background: none;
-	word-break: break-all;
+	font: 15px / 24px var(--font-mono-stack);
+	overflow-wrap: anywhere;
 }
 .apiref-pill {
 	font: 12px var(--font-mono-stack);
@@ -1456,10 +1501,21 @@ html[data-acct-card] .docs-content {
 	border-radius: 999px;
 	padding: 1px 9px;
 }
-.apiref-desc,
+/* The endpoint's lead under its route; the Returns line keeps body ink. */
+.apiref-ep > .apiref-desc {
+	max-width: 64ch;
+	margin-top: 18px;
+	line-height: 1.65;
+	color: var(--sub);
+}
+.docs-article .apiref-group .apiref-desc {
+	margin: 12px 0 10px;
+	font-size: 15px;
+	line-height: 24px;
+	color: var(--ink);
+}
 .apiref-returned-by {
 	max-width: 72ch;
-	font-size: 15.5px;
 	line-height: 1.7;
 }
 .apiref-returned-by {
@@ -1469,14 +1525,13 @@ html[data-acct-card] .docs-content {
 .apiref-group {
 	display: flex;
 	flex-direction: column;
-	margin-top: 16px;
 }
 .docs-article .apiref-group-title {
-	margin: 0 0 4px;
+	margin: 0;
 	padding-bottom: 8px;
 	border-bottom: 1px solid var(--line);
-	font: 500 11px var(--font-sans-stack);
-	letter-spacing: 0.08em;
+	font: 500 11px / 16px var(--font-sans-stack);
+	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var(--faint);
 	scroll-margin-top: 80px;
@@ -1488,7 +1543,7 @@ html[data-acct-card] .docs-content {
 .apiref-field {
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	gap: 4px;
 	padding: 12px 0;
 	border-bottom: 1px solid var(--line);
 	scroll-margin-top: 80px;
@@ -1501,23 +1556,21 @@ html[data-acct-card] .docs-content {
 .apiref-field-head {
 	display: flex;
 	flex-wrap: wrap;
-	align-items: center;
-	gap: 4px 8px;
+	align-items: baseline;
+	gap: 4px 10px;
 }
-.apiref-field-name {
+.docs-article .apiref-field-name {
 	padding: 0;
 	background: none;
-	font: 500 13px var(--font-mono-stack);
+	font: 500 13.5px var(--font-mono-stack);
 }
 .apiref-field-type {
 	font: 12px var(--font-mono-stack);
 	color: var(--sub);
 }
 .apiref-field-req {
-	font: 500 10.5px var(--font-mono-stack);
-	border: 1px solid var(--line);
-	border-radius: 4px;
-	padding: 0 5px;
+	font: 12px var(--font-sans-stack);
+	color: var(--ink);
 }
 .apiref-field-link {
 	margin-left: auto;
@@ -1530,8 +1583,8 @@ html[data-acct-card] .docs-content {
 .apiref-field-link:focus-visible {
 	opacity: 1;
 }
-.apiref-field-desc {
-	font-size: 14.5px;
+.docs-article .apiref-field-desc {
+	font-size: 14px;
 	line-height: 1.6;
 	color: var(--sub);
 }
@@ -1556,20 +1609,19 @@ html[data-acct-card] .docs-content {
 .apiref-enum-values code {
 	font-size: 12px;
 }
-.apiref-statuses {
-	margin: 14px 0 0;
+.docs-article .apiref-statuses {
+	margin: 0;
 	padding: 0;
 	display: grid;
-	gap: 8px;
 }
 .apiref-statuses li {
 	display: flex;
 	align-items: baseline;
 	gap: 10px;
 	margin: 0;
-	padding: 0;
-	font-size: 14.5px;
-	line-height: 1.5;
+	padding: 6px 0;
+	font-size: 14px;
+	line-height: 24px;
 	color: var(--sub);
 }
 .apiref-statuses li::before {
@@ -1577,30 +1629,72 @@ html[data-acct-card] .docs-content {
 }
 .apiref-status {
 	flex: none;
-	font: 500 11.5px var(--font-mono-stack);
+	font: 500 12px / 20px var(--font-mono-stack);
 	border: 1px solid var(--line);
 	border-radius: 999px;
 	padding: 0 7px;
 	color: var(--ink);
 }
 /* red only on failures */
+.apiref-status-ok {
+	color: var(--ok);
+}
 .apiref-status-bad,
 .apiref-statuses .apiref-status-warn {
 	color: var(--alarm);
 }
 
-/* request / response: the one code renderer. A request scrolls inside after
-   366px and a response after 480px. */
-.apiref-request .cb,
-.apiref-response .cb {
+/* request / response: the one code renderer, scrolling inside after 440px. */
+.docs-article .apiref-request .cb,
+.docs-article .apiref-response .cb {
+	--bar: 44px;
 	margin: 0;
 }
-.apiref-request .cb-body {
-	max-height: 366px;
-	overflow: auto;
+/* In the side column the bar reads as a panel header: sans title and tabs, a
+   status chip, text-style Copy. */
+.apiref-aside .cb-bar {
+	font: 13px / 1 var(--font-sans-stack);
 }
+.apiref-aside .cb-bar .tabbar {
+	gap: 8px;
+}
+.apiref-aside .cb-bar .tabbar button {
+	padding: 0 6px;
+	font: 500 13px / 1 var(--font-sans-stack);
+}
+.apiref-aside .cb-body {
+	padding-block: 14px;
+}
+.apiref-aside .cb .row {
+	padding-inline: 16px;
+}
+.apiref-aside .cb-body.hang .row {
+	padding-left: calc(16px + 2ch);
+}
+.apiref-aside .cb-bar .lang {
+	margin-right: 6px;
+	font-family: var(--font-mono-stack);
+	letter-spacing: 0.04em;
+}
+.apiref-aside .cb-bar .status {
+	padding: 0 7px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	font: 500 12px / 20px var(--font-mono-stack);
+}
+.apiref-aside .cb .copy {
+	padding: 5px 8px;
+	border: 0;
+	border-radius: 4px;
+	font: 500 12.5px var(--font-sans-stack);
+	color: var(--sub);
+}
+.apiref-aside .cb .copy:hover {
+	color: var(--pri);
+}
+.apiref-request .cb-body,
 .apiref-response .cb-body {
-	max-height: 480px;
+	max-height: 440px;
 	overflow: auto;
 }
 

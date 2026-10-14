@@ -1,7 +1,7 @@
 import { Code } from "@/components/code/code";
 import { CodeTabs } from "@/components/code/code-tabs";
 import Link from "next/link";
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import {
 	ApiHashRedirect,
 	BaseUrlSwitch,
@@ -186,8 +186,9 @@ type HrefFor = (anchor: string) => string;
  *  agent prompt, the request and the response. Rendered on the server. */
 function EndpointSection({
 	endpoint,
+	family,
 	hrefFor,
-}: { endpoint: Endpoint; hrefFor: HrefFor }) {
+}: { endpoint: Endpoint; family: string; hrefFor: HrefFor }) {
 	const { op, anchor } = endpoint;
 	const title = op.summary ?? op.operationId;
 	const prompt = endpointPrompt(endpoint);
@@ -205,7 +206,7 @@ function EndpointSection({
 					<h3
 						id={anchor}
 						className="apiref-ep-title"
-						data-outline-child=""
+						data-outline-child={family}
 						data-outline={title}
 						data-verb={endpoint.method.toLowerCase()}
 					>
@@ -327,7 +328,7 @@ function ObjectSection({
 					<h3
 						id={anchor}
 						className="apiref-ep-title"
-						data-outline-child=""
+						data-outline-child="objects"
 						data-outline={title}
 					>
 						<a href={`#${anchor}`} className="heading-anchor">
@@ -387,24 +388,6 @@ function ObjectSection({
 	);
 }
 
-/** A family heading, marked up like an MDX `##` so the page reads as one. */
-function FamilyHeading({
-	id,
-	title,
-	count,
-}: { id: string; title: string; count: number }) {
-	return (
-		<div className="section-heading-wrap">
-			<hr />
-			<h2 id={id} className="section-heading" data-count={count}>
-				<a href={`#${id}`} className="heading-anchor">
-					{title}
-				</a>
-			</h2>
-		</div>
-	);
-}
-
 function EndpointRow({ endpoint }: { endpoint: Endpoint }) {
 	return (
 		<a href={`#${endpoint.anchor}`} className="apiref-row">
@@ -431,10 +414,36 @@ function ObjectRow({ entry }: { entry: ObjectEntry }) {
 	);
 }
 
+/** One family in the page's index: heading, summary, a row per entry. The
+ *  heading is the family's anchor and its label in the docs sidebar. */
+function FamilyIndex({
+	id,
+	title,
+	summary,
+	children,
+}: {
+	id: string;
+	title: string;
+	summary: string;
+	children: ReactNode;
+}) {
+	return (
+		<div className="apiref-family">
+			<h2 id={id} className="apiref-family-title" data-outline-family="">
+				<a href={`#${id}`} className="heading-anchor">
+					{title}
+				</a>
+			</h2>
+			<p className="apiref-family-desc">{summary}</p>
+			<div className="apiref-rows">{children}</div>
+		</div>
+	);
+}
+
 /**
- * One API page as one long scroll. A compact index of every endpoint and
- * object comes first (plain in-page links), then each family's endpoints in
- * full, then the page's objects. The docs sidebar lists each section and
+ * One API page as one long scroll. An index of every endpoint and object
+ * comes first, grouped by family (plain in-page links), then every endpoint
+ * in full, then the page's objects. The docs sidebar lists each section and
  * follows the one on screen.
  */
 export function ApiPage({ slug }: { slug: string }) {
@@ -451,54 +460,42 @@ export function ApiPage({ slug }: { slug: string }) {
 			</div>
 			<nav className="apiref-index" aria-label="Endpoints on this page">
 				{families.map((family) => (
-					<Fragment key={family.id}>
-						<p className="apiref-index-label">{family.title}</p>
-						<div className="apiref-rows">
-							{family.endpoints.map((endpoint) => (
-								<EndpointRow key={endpoint.anchor} endpoint={endpoint} />
-							))}
-						</div>
-					</Fragment>
-				))}
-				{objects.length ? (
-					<>
-						<p className="apiref-index-label">Objects</p>
-						<div className="apiref-rows">
-							{objects.map((entry) => (
-								<ObjectRow key={entry.anchor} entry={entry} />
-							))}
-						</div>
-					</>
-				) : null}
-			</nav>
-			{families.map((family) => (
-				<section key={family.id} aria-label={family.title}>
-					<FamilyHeading
+					<FamilyIndex
+						key={family.id}
 						id={family.id}
 						title={family.title}
-						count={family.endpoints.length}
+						summary={family.summary}
+					>
+						{family.endpoints.map((endpoint) => (
+							<EndpointRow key={endpoint.anchor} endpoint={endpoint} />
+						))}
+					</FamilyIndex>
+				))}
+				{objects.length ? (
+					<FamilyIndex
+						id="objects"
+						title="Objects"
+						summary="The shapes this page's endpoints return."
+					>
+						{objects.map((entry) => (
+							<ObjectRow key={entry.anchor} entry={entry} />
+						))}
+					</FamilyIndex>
+				) : null}
+			</nav>
+			{families.flatMap((family) =>
+				family.endpoints.map((endpoint) => (
+					<EndpointSection
+						key={endpoint.anchor}
+						endpoint={endpoint}
+						family={family.id}
+						hrefFor={hrefFor}
 					/>
-					<p className="apiref-family-desc">{family.summary}</p>
-					{family.endpoints.map((endpoint) => (
-						<EndpointSection
-							key={endpoint.anchor}
-							endpoint={endpoint}
-							hrefFor={hrefFor}
-						/>
-					))}
-				</section>
+				)),
+			)}
+			{objects.map((entry) => (
+				<ObjectSection key={entry.anchor} entry={entry} hrefFor={hrefFor} />
 			))}
-			{objects.length ? (
-				<section aria-label="Objects">
-					<FamilyHeading id="objects" title="Objects" count={objects.length} />
-					<p className="apiref-family-desc">
-						The shapes this page's endpoints return.
-					</p>
-					{objects.map((entry) => (
-						<ObjectSection key={entry.anchor} entry={entry} hrefFor={hrefFor} />
-					))}
-				</section>
-			) : null}
 		</div>
 	);
 }

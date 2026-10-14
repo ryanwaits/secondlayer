@@ -29,10 +29,10 @@ function revealNearest(nav: HTMLElement, row: HTMLElement) {
 interface Head {
 	id: string;
 	text: string;
-	/** Endpoints under an API family heading. */
-	count?: string;
-	/** An endpoint or object section, nested under its family heading. */
-	child?: boolean;
+	/** An API family heading, shown as a label over its endpoints. */
+	family?: boolean;
+	/** An endpoint or object section: the id of the family it nests under. */
+	child?: string;
 	/** The endpoint's HTTP method, lowercase, for its pill. */
 	verb?: string;
 }
@@ -41,7 +41,8 @@ interface Head {
  *  rendered article (rehype-slug gives stable ids), skips any inside a
  *  collapsed `<details>`, and marks the topmost one in view as the place being
  *  read. An h3 marked `data-outline-child` (an API endpoint or object) is
- *  listed too, nested under its family, with its method pill when it has one.
+ *  listed too, under the family whose id the attribute carries, with its
+ *  method pill when it has one.
  *  Other docs pages have no such h3s, so their outline is unchanged. */
 function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	const pathname = usePathname();
@@ -51,7 +52,7 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — re-read headings on route change
 	useEffect(() => {
 		const article = document.getElementById("docs-article");
-		const found = Array.from(
+		const all = Array.from(
 			article?.querySelectorAll<HTMLElement>(
 				"h2[id], h3[id][data-outline-child]",
 			) ?? [],
@@ -60,10 +61,19 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 			.map((h) => ({
 				id: h.id,
 				text: h.dataset.outline ?? h.textContent ?? "",
-				count: h.dataset.count,
-				child: h.hasAttribute("data-outline-child"),
+				family: h.hasAttribute("data-outline-family"),
+				child: h.dataset.outlineChild,
 				verb: h.dataset.verb,
 			}));
+		// The family headings sit together in the page's index, ahead of the
+		// sections, so each family's sections are pulled up under it.
+		const found = all.flatMap((h) =>
+			h.family
+				? [h, ...all.filter((c) => c.child === h.id)]
+				: h.child
+					? []
+					: [h],
+		);
 		setHeads(found);
 		setActiveId(found[0]?.id ?? "");
 	}, [pathname]);
@@ -90,34 +100,78 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	}, [heads]);
 
 	if (heads.length === 0) return null;
+	// An API page lists its endpoints as a tree: an Overview row for the
+	// index at the top, family headings as plain labels.
+	const tree = heads.some((h) => h.child);
+	const atOverview =
+		tree && (heads.find((h) => h.id === activeId)?.family ?? true);
 	return (
 		<div className="docs-nav-outline">
-			{heads.map((h) => (
+			{tree ? (
 				<a
-					key={h.id}
-					href={`#${h.id}`}
-					aria-current={h.id === activeId ? "location" : undefined}
-					className={
-						[h.child ? "docs-nav-ep" : "", h.id === activeId ? "active" : ""]
-							.filter(Boolean)
-							.join(" ") || undefined
-					}
-					onClick={onNavigate}
+					href={pathname}
+					aria-current={atOverview ? "location" : undefined}
+					className={`docs-nav-ep${atOverview ? " active" : ""}`}
+					onClick={(e) => {
+						e.preventDefault();
+						window.scrollTo({ top: 0 });
+						history.replaceState(history.state, "", pathname);
+						onNavigate();
+					}}
 				>
-					{h.verb ? (
-						<span className={`apiref-verb apiref-verb-${h.verb} docs-nav-verb`}>
-							{h.verb === "delete" ? "DEL" : h.verb.toUpperCase()}
-						</span>
-					) : null}
-					{h.child ? (
-						<span className="docs-nav-ep-name">{h.text}</span>
-					) : (
-						h.text
-					)}
-					{h.count ? <span className="docs-nav-count">{h.count}</span> : null}
+					Overview
 				</a>
-			))}
+			) : null}
+			{heads.map((h) =>
+				h.family ? (
+					<div key={h.id} className="docs-nav-fam">
+						{h.text}
+					</div>
+				) : (
+					<a
+						key={h.id}
+						href={`#${h.id}`}
+						aria-current={h.id === activeId ? "location" : undefined}
+						className={
+							[h.child ? "docs-nav-ep" : "", h.id === activeId ? "active" : ""]
+								.filter(Boolean)
+								.join(" ") || undefined
+						}
+						onClick={onNavigate}
+					>
+						{h.verb ? (
+							<span
+								className={`apiref-verb apiref-verb-${h.verb} docs-nav-verb`}
+							>
+								{h.verb === "delete" ? "DEL" : h.verb.toUpperCase()}
+							</span>
+						) : null}
+						{h.child ? (
+							<span className="docs-nav-ep-name">{h.text}</span>
+						) : (
+							h.text
+						)}
+					</a>
+				),
+			)}
 		</div>
+	);
+}
+
+function Chevron() {
+	return (
+		<svg
+			className="docs-nav-caret"
+			width="12"
+			height="12"
+			viewBox="0 0 12 12"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			aria-hidden="true"
+		>
+			<path d="m4.5 3 3 3-3 3" />
+		</svg>
 	);
 }
 
@@ -127,6 +181,12 @@ export function DocsSidebar() {
 	const { open, setOpen } = useDocsDrawer();
 	// A hash click doesn't change the route, so the phone drawer closes here.
 	const outline = <PageOutline onNavigate={() => setOpen(false)} />;
+	// The open API page's endpoint tree folds under its row.
+	const [folded, setFolded] = useState(false);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — each page opens unfolded
+	useEffect(() => {
+		setFolded(false);
+	}, [pathname]);
 
 	// Bring the current page's row into view on arrival. A row already on
 	// screen stays put; one off screen moves in by the least distance.
@@ -207,17 +267,31 @@ export function DocsSidebar() {
 				{DOCS_NAV.map((group) => (
 					<div className="docs-nav-group" key={group.label}>
 						<div className="docs-nav-grouplabel">{group.label}</div>
-						{group.items.map((item) => (
-							<div key={item.href} className="docs-nav-branch">
-								<Link
-									href={item.href}
-									className={`docs-nav-item${pathname === item.href ? " active" : ""}`}
-								>
-									{item.title}
-								</Link>
-								{pathname === item.href ? outline : null}
-							</div>
-						))}
+						{group.items.map((item) => {
+							const current = pathname === item.href;
+							const tree = item.href.startsWith("/docs/api/");
+							return (
+								<div key={item.href} className="docs-nav-branch">
+									<Link
+										href={item.href}
+										className={`docs-nav-item${current ? " active" : ""}`}
+										aria-expanded={tree ? current && !folded : undefined}
+										onClick={
+											current && tree
+												? (e) => {
+														e.preventDefault();
+														setFolded(!folded);
+													}
+												: undefined
+										}
+									>
+										{item.title}
+										{tree ? <Chevron /> : null}
+									</Link>
+									{current && !(tree && folded) ? outline : null}
+								</div>
+							);
+						})}
 					</div>
 				))}
 			</aside>
