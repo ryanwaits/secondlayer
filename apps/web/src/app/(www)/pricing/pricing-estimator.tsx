@@ -1,5 +1,6 @@
 "use client";
 
+import { Choice } from "@/components/choice";
 import {
 	ROW_USD_PER_M_VOLUME,
 	VOLUME_TIER_MONTHLY_USD,
@@ -9,6 +10,10 @@ import {
 } from "@/lib/prices";
 import { useState } from "react";
 
+const STACK_OPTIONS = [
+	{ value: "running", label: "Running" },
+	{ value: "stopped", label: "None or stopped" },
+] as const;
 const ROWS = [
 	0, 100e3, 250e3, 500e3, 1e6, 2e6, 5e6, 10e6, 20e6, 50e6, 100e6, 250e6, 500e6,
 	1e9,
@@ -102,22 +107,13 @@ export function PricingEstimator() {
 					<div className="top">
 						<span id="est-stack">Hosted stack</span>
 					</div>
-					<fieldset className="seg" aria-labelledby="est-stack">
-						<button
-							type="button"
-							aria-pressed={running}
-							onClick={() => setRunning(true)}
-						>
-							Running
-						</button>
-						<button
-							type="button"
-							aria-pressed={!running}
-							onClick={() => setRunning(false)}
-						>
-							None or stopped
-						</button>
-					</fieldset>
+					<Choice
+						name="est-stack"
+						labelledBy="est-stack"
+						options={STACK_OPTIONS}
+						value={running ? "running" : "stopped"}
+						onChange={(v) => setRunning(v === "running")}
+					/>
 					<span className="hint">
 						Needed for hosted webhooks and subgraphs.
 					</span>

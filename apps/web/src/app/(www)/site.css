@@ -2942,31 +2942,6 @@
 .site.pricing .ctl[aria-disabled="true"] {
 	opacity: 0.45;
 }
-.site.pricing .seg {
-	margin: 0;
-	padding: 0;
-	min-width: 0;
-	display: inline-flex;
-	width: max-content;
-	border: 1px solid var(--line);
-	border-radius: 4px;
-	overflow: hidden;
-}
-.site.pricing .seg button {
-	padding: 8px 14px;
-	border: 0;
-	background: transparent;
-	font: 500 13.5px var(--font-sans-stack);
-	color: var(--sub);
-	cursor: pointer;
-}
-.site.pricing .seg button + button {
-	border-left: 1px solid var(--line);
-}
-.site.pricing .seg button[aria-pressed="true"] {
-	background: var(--ink);
-	color: var(--paper);
-}
 .site.pricing .est-out {
 	display: grid;
 	gap: 14px;
