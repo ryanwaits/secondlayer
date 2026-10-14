@@ -34,8 +34,10 @@ export function isOfficialArchive(reference: {
 	}
 }
 
+/** Whether an archive purchase is a bootstrap or a repair. */
 export type ArchiveFlow = "bootstrap" | "repair";
 
+/** The price of an archive request, after any free allowance. */
 export type ArchiveQuote = {
 	partitions: number;
 	bundles: number;
