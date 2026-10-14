@@ -61,6 +61,39 @@ export function CodeClient() {
 		return () => arrivals.disconnect();
 	}, [account, loading, pathname]);
 
+	// Tips: the module loads on the first page that has one, and a soft
+	// navigation closes whatever was open. A tip that mounts later (the API
+	// drawer) loads it when it arrives.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: `pathname` re-runs the scan for the tips a soft navigation brings in
+	useEffect(() => {
+		const load = () =>
+			import("./tips").then((m) => {
+				m.dismiss();
+				m.activate();
+			});
+		if (document.querySelector(".tip")) {
+			load();
+			return;
+		}
+		// The page we left may have left a popover open.
+		if (document.querySelector(".tip-box"))
+			import("./tips").then((m) => m.dismiss());
+		const arrivals = new MutationObserver((records) => {
+			for (const record of records)
+				for (const node of record.addedNodes)
+					if (
+						node instanceof Element &&
+						(node.matches(".tip") || node.querySelector(".tip"))
+					) {
+						arrivals.disconnect();
+						load();
+						return;
+					}
+		});
+		arrivals.observe(document.body, { childList: true, subtree: true });
+		return () => arrivals.disconnect();
+	}, [pathname]);
+
 	useEffect(() => {
 		const onClick = (event: MouseEvent) => {
 			const target = event.target;

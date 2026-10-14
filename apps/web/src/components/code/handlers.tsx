@@ -483,10 +483,9 @@ export function renderTokens(
 		.join("");
 }
 
-/** A note under its line, caret at the token's column (monospace makes `ch` exact). */
+/** A note under its line: a faint caret at the token's column (monospace makes `ch` exact), then the words. */
 export function calloutRow(col: number, text: string): string {
-	// The caret's base sits on the box's top border: the fill hides the border under it, the stroke continues it.
-	return `<div class="co" style="--col:${col}"><svg class="co-caret" viewBox="0 0 13 7" aria-hidden="true"><path d="M0.5 7 V6.5 L6.5 0.5 L12.5 6.5 V7 Z"/><path d="M0.5 6.5 L6.5 0.5 L12.5 6.5"/></svg><div class="co-box">${esc(text)}</div></div>`;
+	return `<div class="co" style="--col:${col}"><span class="co-caret">^</span>${esc(text)}</div>`;
 }
 
 /** A figure's margin note: pinned to its row by index, the line number saying which one. */

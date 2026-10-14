@@ -344,6 +344,10 @@ describe("figure variant", () => {
 			code: "// !callout[/send/] note\nsend();",
 		});
 		expect(docs).toContain('class="co"');
+		// A caret and the words: no box.
+		expect(docs).toContain('<span class="co-caret">^</span>note');
+		expect(docs).not.toContain("co-box");
+		expect(docs).not.toContain("<svg");
 		expect(docs).not.toContain("cf-note");
 	});
 

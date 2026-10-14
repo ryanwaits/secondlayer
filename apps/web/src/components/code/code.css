@@ -220,39 +220,17 @@
 .cb .row.rdim {
 	opacity: 0.35;
 }
+/* A callout: a faint caret at the token's column, then its words. No box. */
 .cb .co {
-	position: relative;
 	min-width: 0;
-	padding: 6px 14px 8px calc(14px + var(--gut));
+	padding: 1px 14px 6px calc(14px + var(--gut) + var(--col) * 1ch + 2ch);
+	text-indent: -2ch;
+	color: var(--faint);
+	font: 400 13px / var(--lh) var(--font-mono-stack);
+	white-space: normal;
 }
 .cb .co-caret {
-	position: absolute;
-	top: 0;
-	left: calc(14px + var(--gut) + var(--col) * 1ch + 0.5ch - 6.5px);
-	z-index: 1;
-	display: block;
-	width: 13px;
-	height: 7px;
-	color: var(--line);
-	pointer-events: none;
-}
-.cb .co-caret path:first-child {
-	fill: var(--paper);
-}
-.cb .co-caret path:last-child {
-	fill: none;
-	stroke: currentColor;
-	stroke-width: 1;
-}
-.cb .co-box {
-	max-width: 56ch;
-	padding: 8px 12px;
-	border: 1px solid var(--line);
-	border-radius: 4px;
-	background: var(--paper);
-	color: var(--ink);
-	font: 400 13px / 1.5 var(--font-sans-stack);
-	white-space: normal;
+	margin-right: 1ch;
 }
 .cb .fold,
 .cb .more {
@@ -325,6 +303,87 @@
 }
 .cb .row.o-head {
 	color: var(--faint);
+}
+
+/* tip: a name the reader can ask about. Hover or focus says what it is, click opens the details. */
+.cb .tip {
+	text-decoration: underline dotted var(--faint);
+	text-decoration-thickness: 1.5px;
+	text-underline-offset: 4px;
+	cursor: default;
+}
+.cb .tip:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+.tip-box {
+	position: fixed;
+	z-index: 60;
+	max-width: min(360px, calc(100vw - 16px));
+	padding: 8px 10px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	background: var(--paper);
+	color: var(--ink);
+	font: 400 13px / 1.45 var(--font-sans-stack);
+	animation: tip-in 120ms ease-out;
+	/* A tooltip never takes the pointer; the popover does. */
+	pointer-events: none;
+}
+.tip-box.tip-pop {
+	max-width: min(440px, calc(100vw - 16px));
+	padding: 10px 12px;
+	pointer-events: auto;
+}
+.tip-box p {
+	margin: 0;
+}
+.tip-box .tip-hint,
+.tip-box .tip-more {
+	margin-top: 4px;
+	color: var(--faint);
+	font-size: 12px;
+}
+.tip-sig {
+	display: block;
+	margin-top: 8px;
+	padding: 6px 8px;
+	border-radius: 4px;
+	background: var(--soft);
+	font: 400 12.5px / 1.5 var(--font-mono-stack);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.tip-fields {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 2px 12px;
+	margin: 8px 0 0;
+	font: 400 12.5px / 1.5 var(--font-mono-stack);
+}
+.tip-fields dt {
+	color: var(--ink);
+}
+.tip-fields dd {
+	margin: 0;
+	color: var(--faint);
+	overflow-wrap: anywhere;
+}
+@keyframes tip-in {
+	from {
+		opacity: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.tip-box {
+		animation: none;
+	}
+}
+/* A tip on its own reference page lights the entry it names, the way a parameter row lights its token. */
+.sdkr-tr.lit,
+.sdkr-mh.lit,
+.sdkr-mh h2.lit {
+	background: var(--soft);
 }
 
 /* error: the mistake, then the compiler's words. */
