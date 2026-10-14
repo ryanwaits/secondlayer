@@ -63,7 +63,7 @@ export function pageContent(page: ApiPage): PageContent {
 }
 
 /** A page's families, endpoints and objects as markdown, one level below the
- *  page's own `#` title. The same spec text the drawer renders. */
+ *  page's own `#` title. The same spec text the page renders. */
 export function pageMarkdown(page: ApiPage): string {
 	const { families, objects } = pageContent(page);
 	const demote = (md: string) => md.replace(/^(#{2,3}) /gm, "#$1 ");

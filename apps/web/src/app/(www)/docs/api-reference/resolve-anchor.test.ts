@@ -3,7 +3,7 @@ import { resolveAnchor } from "./resolve-anchor";
 
 const anchors = { "list-ft-transfers": 1, "ft-transfer-object": 1 };
 
-describe("drawer hash", () => {
+describe("section hash", () => {
 	test("an endpoint or object anchor opens itself", () => {
 		expect(resolveAnchor(anchors, "#list-ft-transfers")).toBe(
 			"list-ft-transfers",

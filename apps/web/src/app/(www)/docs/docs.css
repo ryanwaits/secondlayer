@@ -1458,6 +1458,7 @@ html[data-acct-card] .docs-content {
 }
 .apiref-desc,
 .apiref-returned-by {
+	max-width: 72ch;
 	font-size: 15.5px;
 	line-height: 1.7;
 }
@@ -1470,14 +1471,15 @@ html[data-acct-card] .docs-content {
 	flex-direction: column;
 	margin-top: 16px;
 }
-.apiref-group-title {
+.docs-article .apiref-group-title {
 	margin: 0 0 4px;
 	padding-bottom: 8px;
 	border-bottom: 1px solid var(--line);
-	font: 500 11px var(--font-mono-stack);
+	font: 500 11px var(--font-sans-stack);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: var(--sub);
+	color: var(--faint);
+	scroll-margin-top: 80px;
 }
 .apiref-fields {
 	display: flex;
