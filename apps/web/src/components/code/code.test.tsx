@@ -31,6 +31,20 @@ describe("output rules", () => {
 		expect(out).toMatch(/<div class="row g"><span class="prompt">\$<\/span>/);
 	});
 
+	test("a multi-line quoted shell argument gets one prompt, on its command", async () => {
+		const out = await html({
+			lang: "bash",
+			code: [
+				"curl -X POST https://api.secondlayer.tools/v1/batch \\",
+				"  --json '{",
+				'  "requests": []',
+				"}'",
+				"echo done",
+			].join("\n"),
+		});
+		expect(out.match(/class="prompt">\$</g)?.length).toBe(2);
+	});
+
 	test("the exit chip and the status chip pick their tone from the number", async () => {
 		const ok = await html({ lang: "text", meta: "exit=0", code: "done" });
 		expect(ok).toContain('class="exit zero"');

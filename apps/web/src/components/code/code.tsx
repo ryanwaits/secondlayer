@@ -111,7 +111,12 @@ export async function renderCode({
 			carrying = quoted || /\\$/.test(line);
 			return command ? "$" : "";
 		}
-		if (isShell) return isShellCommand(line, parsed.lines[i - 1]) ? "$" : "";
+		if (isShell) {
+			// A line inside an open single quote (a multi-line `--json '…'`) is the argument, not a new command.
+			const command = !quoted && isShellCommand(line, parsed.lines[i - 1]);
+			if ((line.split("'").length - 1) % 2 === 1) quoted = !quoted;
+			return command ? "$" : "";
+		}
 		return null;
 	});
 	const display = parsed.lines.map((line, i) =>
