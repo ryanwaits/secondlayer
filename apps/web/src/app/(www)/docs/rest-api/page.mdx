@@ -6,7 +6,7 @@ Per-endpoint parameters and response codes: [API reference](/docs/api-reference)
 
 ## Response envelope
 
-```json
+```json response.json status=200
 {
   "events": [{ "block_height": 8054704, "event_index": 12 }],
   "next_cursor": "8054704:12",
@@ -15,7 +15,7 @@ Per-endpoint parameters and response codes: [API reference](/docs/api-reference)
 }
 ```
 
-```json
+```json response.json status=200
 {
   "rows": [{ "_id": 48138, "block_height": 8054704 }],
   "next_cursor": "48137",
@@ -27,9 +27,10 @@ Cursor format is `<block_height>:<event_index>`. `tip.finalized_height` is the b
 
 ## Errors
 
-```json
+```json response.json status=400
 {
   "error": "unknown query param: limt (did you mean limit?)",
+  // !mark[/code/]
   "code": "VALIDATION_ERROR",
   "request_id": "req_3f9a1c0b7d2e4a6f8b1c2d3e",
   "feedback": { "url": "/v1/feedback" }
@@ -42,7 +43,7 @@ Branch on `code`, not on the message. `request_id` matches the `X-Request-Id` re
 
 Every error body on `api.secondlayer.tools` carries a `request_id`. When a call fails and you think the API is wrong or missing something, send that id back with one line on what you were trying to do:
 
-```bash
+```bash wrap
 curl -X POST "$SECONDLAYER_API_URL/v1/feedback" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   -H "Content-Type: application/json" \
@@ -108,7 +109,7 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers/aggregate" \
   -d "_countDistinct=sender"
 ```
 
-```json
+```json response.json status=200
 {
   "count": 42,
   "countDistinct": { "sender": 7 },
