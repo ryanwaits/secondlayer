@@ -16,7 +16,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 const SUB =
-	"Every Stacks block indexed from genesis and streamed at tip. Each one provable to the Bitcoin block it settled on. Runes indexed from the first etch, on self-host today.";
+	"Index Stacks and Runes from their first block, stream new ones as they land, and prove Stacks data back to Bitcoin. Runes on hosted is coming soon.";
 
 export const metadata: Metadata = socialMeta({
 	title: "secondlayer · instant data for apps on Bitcoin",
@@ -173,23 +173,27 @@ export function HomeView() {
 						</h1>
 						<div className="hero-row">
 							<p className="sub">
-								Every{" "}
+								Index{" "}
 								<ChainLink chain="stacks" href="/p/index">
 									Stacks
 								</ChainLink>{" "}
-								block indexed from genesis and streamed at tip. Each one
-								provable to the{" "}
-								<ChainLink chain="bitcoin" href="/verify#chain">
-									Bitcoin
-								</ChainLink>{" "}
-								block it settled on.{" "}
+								and{" "}
 								<ChainLink chain="runes" href="/docs/index#runes">
 									Runes
 								</ChainLink>{" "}
-								indexed from the first etch, on self-host today.
+								from their first block, stream new ones as they land, and prove
+								Stacks data back to{" "}
+								<ChainLink chain="bitcoin" href="/verify#chain">
+									Bitcoin
+								</ChainLink>
+								.
 							</p>
 							<p className="hero-note">
 								Coming soon:{" "}
+								<ChainLink chain="runes" href="#runes-data">
+									Runes
+								</ChainLink>{" "}
+								on hosted, and{" "}
 								<ChainLink chain="clarity" href="#clarity-state-writes">
 									Clarity
 								</ChainLink>{" "}
@@ -335,7 +339,7 @@ export function HomeView() {
 								firstClass={(row) => (row[0] === "in" ? "tag-in" : "tag-out")}
 							/>
 						</div>
-						<div className="well">
+						<div className="well" id="runes-data">
 							<div className="well-top">
 								<h3>Runes</h3>
 								<StatusDot state="rolling" />
