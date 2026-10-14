@@ -1,16 +1,33 @@
 "use client";
 
+import { BASE_SWAPS, type Base } from "@/lib/code/base-url";
 import { type ReactNode, useEffect, useState } from "react";
 import { resolveAnchor } from "./resolve-anchor";
 
 const BASE_KEY = "apiref-base";
-type Base = "hosted" | "local";
+
+/** Show `base`'s value in every swappable span under `scope`. */
+function applyBase(scope: ParentNode, base: Base) {
+	for (const el of scope.querySelectorAll<HTMLElement>("[data-swap]")) {
+		const swap = BASE_SWAPS[Number(el.dataset.swap)];
+		if (!swap) continue;
+		// Token spans inside keep their color; the first text node takes the whole value.
+		const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+		let first = true;
+		for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+			n.nodeValue = first ? swap[base === "local" ? 1 : 0] : "";
+			first = false;
+		}
+	}
+}
 
 /**
- * Which base URL every cURL on the page targets. Both variants are rendered
- * on the server; this only flips `data-base` on the page root, and CSS
- * shows the matching one, in the page and in the drawer (which sits outside
- * the reference). Remembered per viewer; storage is optional.
+ * Which base URL every cURL on the page targets. The examples render once,
+ * with the hosted base wrapped in `data-swap` spans; this flips `data-base` on
+ * the page root and rewrites those spans in place, in the page and in the
+ * drawer (which sits outside the reference and mounts its content when a row
+ * opens, so new spans are rewritten as they arrive). Copy reads `data-base` to
+ * match. Remembered per viewer; storage is optional.
  */
 export function BaseUrlSwitch() {
 	const [base, setBase] = useState<Base>("hosted");
@@ -31,6 +48,14 @@ export function BaseUrlSwitch() {
 		} catch {
 			// Not persisted; the choice still applies to this visit.
 		}
+		applyBase(document, base);
+		const arrivals = new MutationObserver((records) => {
+			for (const record of records)
+				for (const node of record.addedNodes)
+					if (node instanceof Element) applyBase(node, base);
+		});
+		arrivals.observe(document.body, { childList: true, subtree: true });
+		return () => arrivals.disconnect();
 	}, [base]);
 
 	useEffect(
@@ -50,52 +75,6 @@ export function BaseUrlSwitch() {
 				<option value="local">127.0.0.1:3800</option>
 			</select>
 		</label>
-	);
-}
-
-/** cURL / SDK tabs over server-rendered panels. */
-export function CodeTabs({
-	labels,
-	panels,
-	copyText,
-}: {
-	labels: string[];
-	panels: ReactNode[];
-	copyText: string[];
-}) {
-	const [active, setActive] = useState(0);
-	return (
-		<div className="apiref-request">
-			<div className="apiref-request-bar" role="tablist">
-				{labels.map((label, i) => (
-					<button
-						key={label}
-						type="button"
-						role="tab"
-						aria-selected={active === i}
-						className="apiref-tab"
-						onClick={() => setActive(i)}
-					>
-						{label}
-					</button>
-				))}
-				<CopyText
-					text={copyText[active] ?? ""}
-					label="Copy request"
-					className="apiref-request-copy"
-				/>
-			</div>
-			{panels.map((panel, i) => (
-				<div
-					key={labels[i]}
-					role="tabpanel"
-					hidden={active !== i}
-					className="apiref-request-body"
-				>
-					{panel}
-				</div>
-			))}
-		</div>
 	);
 }
 

@@ -3753,10 +3753,9 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 		color: var(--shiki-dark) !important;
 	}
 }
-/* Code on a themed ground (the API reference follows the page theme) keeps
-   its own background; the macOS-window terminals are dark in both modes and
-   force the dark token set. */
-:is(.apiref-request, .apiref-response, .mpx-win) .shiki {
+/* The macOS-window terminals keep their own ground and are dark in both
+   modes, so they force the dark token set. */
+.mpx-win .shiki {
 	background-color: transparent !important;
 }
 .mpx-win .shiki span {
@@ -3841,106 +3840,6 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	}
 	.agent-prompt-toggle:hover {
 		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
-	}
-}
-
-/* ════════════════════════════════════════════════
-   Docs — Quickstart panel (tabbed runner: label + command)
-   ════════════════════════════════════════════════ */
-.docs-qpanel {
-	border: 1px solid var(--border);
-	border-radius: 12px;
-	background: var(--bg-elevated);
-	overflow: hidden;
-	margin: var(--spacing-sm) 0;
-}
-.docs-qpanel-tabs {
-	display: flex;
-	border-bottom: 1px solid var(--border);
-}
-.docs-qpanel-tab {
-	flex: 1;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 7px;
-	padding: 11px 8px;
-	font-family: var(--font-mono-stack);
-	font-size: 11px;
-	letter-spacing: 0.04em;
-	color: var(--text-muted);
-	background: transparent;
-	border: none;
-	border-right: 1px solid var(--border);
-	cursor: pointer;
-	transition: color 0.15s ease, background 0.15s ease;
-}
-.docs-qpanel-tab:last-child {
-	border-right: none;
-}
-.docs-qpanel-tab .n {
-	font-variant-numeric: tabular-nums;
-	opacity: 0.6;
-}
-.docs-qpanel-tab[aria-selected="true"] {
-	color: var(--text-main);
-	background: color-mix(in srgb, var(--text-main) 5%, transparent);
-}
-.docs-qpanel-tab[aria-selected="true"] .n {
-	opacity: 1;
-}
-.docs-qpanel-body {
-	padding: 16px 18px;
-}
-.docs-qpanel-label {
-	font-size: 13px;
-	line-height: 1.45;
-	color: var(--text-prose);
-	margin-bottom: 10px;
-}
-.docs-qpanel-cmd {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	background: var(--code-block-bg);
-	border: 1px solid var(--border);
-	border-radius: 8px;
-	padding: 11px 13px;
-	font-family: var(--font-mono-stack);
-	font-size: 12.5px;
-	overflow-x: auto;
-}
-.docs-qpanel-cmd .prompt {
-	color: var(--text-muted);
-}
-.docs-qpanel-cmd .kw {
-	color: var(--text-main);
-}
-.docs-qpanel-cmd .rest {
-	color: var(--text-main);
-	white-space: nowrap;
-}
-.docs-qpanel-copy {
-	margin-left: auto;
-	flex: 0 0 auto;
-	color: var(--copy-btn);
-	background: none;
-	border: none;
-	cursor: pointer;
-	display: inline-flex;
-	padding: 2px;
-	transition: color 0.15s ease;
-}
-@media (hover: hover) {
-	.docs-qpanel-copy:hover {
-		color: var(--copy-btn-hover);
-	}
-}
-
-@media (max-width: 768px) {
-	.docs-qpanel-tab {
-		font-size: 10px;
-		padding: 10px 4px;
 	}
 }
 

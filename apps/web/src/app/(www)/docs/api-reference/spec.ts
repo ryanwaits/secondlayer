@@ -1,4 +1,5 @@
 import raw from "@/generated/openapi.json";
+import { HOSTED_BASE, LOCAL_BASE } from "@/lib/code/base-url";
 
 /**
  * The API reference's view of the OpenAPI description. Everything the page,
@@ -61,9 +62,6 @@ type Spec = {
 const SPEC = raw as unknown as Spec;
 
 const METHODS = ["get", "post", "put", "patch", "delete"] as const;
-
-export const HOSTED_BASE = "https://api.secondlayer.tools";
-export const LOCAL_BASE = "http://127.0.0.1:3800";
 
 /** Tags that exist only on a self-hosted instance: the `/api` write plane and
  *  the instance catalog. Their examples always use the local base URL. */
