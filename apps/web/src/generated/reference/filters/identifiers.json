@@ -10,7 +10,7 @@
 			"description": "Throw unless `value` looks like `SP….contract::asset` (or a wildcard).",
 			"source": {
 				"file": "packages/stacks/src/filters/validate.ts",
-				"line": 67
+				"line": 68
 			},
 			"overloads": [
 				{
@@ -45,7 +45,7 @@
 			"description": "Narrow a runtime string to an [`AssetIdentifier`](/docs/filters-reference#t-AssetIdentifier), validating it.\n\nThe escape hatch for config-driven values: `assetId(process.env.ASSET!)`\nthrows on a contract id instead of letting it through to a zero-row query.",
 			"source": {
 				"file": "packages/stacks/src/filters/validate.ts",
-				"line": 32
+				"line": 33
 			},
 			"overloads": [
 				{
@@ -74,7 +74,7 @@
 			"description": "Throw unless `value` is a contract id `SP….name` (or a wildcard).",
 			"source": {
 				"file": "packages/stacks/src/filters/validate.ts",
-				"line": 84
+				"line": 85
 			},
 			"overloads": [
 				{
@@ -109,7 +109,7 @@
 			"description": "Throw unless `value` is a principal or a wildcard pattern. The factories\ncall this so a swapped argument (asset id where a sender belongs, typo'd\naddress) fails at construction — not as a silent zero-row query.",
 			"source": {
 				"file": "packages/stacks/src/filters/validate.ts",
-				"line": 57
+				"line": 58
 			},
 			"overloads": [
 				{
@@ -144,7 +144,7 @@
 			"description": "Tells whether a value contains a `*` wildcard.\n\nWebhooks and Subgraph sources match `*` wildcards in principal and\nidentifier patterns; every other surface treats the value literally.",
 			"source": {
 				"file": "packages/stacks/src/filters/validate.ts",
-				"line": 50
+				"line": 51
 			},
 			"overloads": [
 				{
@@ -173,7 +173,7 @@
 			"description": "`true` for a standard (`SP…`/`ST…`) or contract (`SP….name`) principal.\nShares `parsePrincipal` with the ABI guards so the two surfaces can't\ndisagree about what a principal is.",
 			"source": {
 				"file": "packages/stacks/src/filters/validate.ts",
-				"line": 40
+				"line": 41
 			},
 			"overloads": [
 				{
@@ -199,7 +199,7 @@
 	"types": [
 		{
 			"name": "AssetIdentifier",
-			"summary": "`<contract>::<asset-name>` — the shape a fungible/non-fungible asset filter takes, expressed so the compiler can check it.",
+			"summary": "A fungible or non-fungible asset identifier: `<contract>::<asset-name>`.",
 			"definition": "`${string}::${string}` | `${string}*${string}`"
 		},
 		{

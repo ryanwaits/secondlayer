@@ -227,16 +227,20 @@ export type ChainEventFilterSpec =
 	| SbtcWithdrawalRejectSpec
 	| SbtcWithdrawalSweptConfirmedSpec;
 
+/** The filter spec for one chain event type. */
 export type SpecFor<T extends ChainEventFilterType> = Extract<
 	ChainEventFilterSpec,
 	{ type: T }
 >;
 
-/** The members expressible as subgraph sources (everything but the
- *  Webhooks-only sBTC lifecycle types). Instantiating
- *  `ChainEventFilter<SubgraphMemberType>` keeps `toSubgraphSource` present:
- *  the conditional in `ProjectionsFor` evaluates over this whole union
- *  (non-distributive at an instantiated site), and every member qualifies. */
+/**
+ * The members you can use as subgraph sources.
+ *
+ * Everything but the Webhooks-only sBTC lifecycle types. Instantiating
+ * `ChainEventFilter<SubgraphMemberType>` keeps `toSubgraphSource` present: the
+ * conditional in `ProjectionsFor` evaluates over this whole union
+ * (non-distributive at an instantiated site), and every member qualifies.
+ */
 export type SubgraphMemberType = Exclude<
 	ChainEventFilterType,
 	`sbtc_${string}`
@@ -391,10 +395,11 @@ export type ProjectionsFor<T extends ChainEventFilterType, S> = {
 			{});
 
 /**
- * A canonical chain-event filter: the spec fields plus the projections its
- * member supports. Write the filter once; project it to a query
- * (`toIndexParams`), a stream (`toStreamsParams`), a webhook trigger
- * (`toChainTrigger`), or a subgraph source (`toSubgraphSource`).
+ * A chain-event filter: the spec fields plus its member's projections.
+ *
+ * Write the filter once; project it to a query (`toIndexParams`), a stream
+ * (`toStreamsParams`), a webhook trigger (`toChainTrigger`), or a subgraph
+ * source (`toSubgraphSource`).
  */
 export type ChainEventFilter<
 	T extends ChainEventFilterType = ChainEventFilterType,

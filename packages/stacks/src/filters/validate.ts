@@ -5,21 +5,22 @@ import { parsePrincipal } from "../utils/address.ts";
 export type Principal = string & { readonly __principal: unique symbol };
 
 /**
- * `<contract>::<asset-name>` — the shape a fungible/non-fungible asset filter
- * takes, expressed so the compiler can check it.
+ * A fungible or non-fungible asset identifier: `<contract>::<asset-name>`.
+ *
+ * This is the shape an asset filter takes, expressed so the compiler can check it.
  *
  * The most common mistake in this API is passing a CONTRACT ID
  * (`SP….sbtc-token`) where an asset identifier (`SP….sbtc-token::sbtc-token`)
  * belongs, and the failure mode is a query that quietly returns zero rows. The
  * two differ structurally by `::`, so a template-literal type catches it at the
- * call site — no brand, no cast, literals just work.
+ * call site. No brand, no cast, literals just work.
  *
  * A value that is only known at runtime (config, env) is not narrow enough on
  * purpose; run it through {@link assetId} once, which validates and narrows.
  *
- * Wildcard patterns (Webhooks/Subgraphs-only) are admitted by the second arm — they
- * are legitimately not full identifiers (`SPB.*`), and the runtime validator
- * short-circuits on them for the same reason.
+ * Wildcard patterns (Webhooks/Subgraphs-only) are admitted by the second arm.
+ * They are legitimately not full identifiers (`SPB.*`), and the runtime
+ * validator short-circuits on them for the same reason.
  */
 export type AssetIdentifier = `${string}::${string}` | `${string}*${string}`;
 

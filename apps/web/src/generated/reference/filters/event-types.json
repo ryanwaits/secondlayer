@@ -337,12 +337,12 @@
 		},
 		{
 			"name": "AssetIdentifier",
-			"summary": "`<contract>::<asset-name>` — the shape a fungible/non-fungible asset filter takes, expressed so the compiler can check it.",
+			"summary": "A fungible or non-fungible asset identifier: `<contract>::<asset-name>`.",
 			"definition": "`${string}::${string}` | `${string}*${string}`"
 		},
 		{
 			"name": "ChainEventFilter",
-			"summary": "A canonical chain-event filter: the spec fields plus the projections its member supports.",
+			"summary": "A chain-event filter: the spec fields plus its member's projections.",
 			"fields": [
 				{
 					"name": "toChainTrigger",
@@ -1122,7 +1122,7 @@
 		},
 		{
 			"name": "SpecFor",
-			"summary": "",
+			"summary": "The filter spec for one chain event type.",
 			"definition": "Extract<StxTransferSpec, { type: T; }> | Extract<StxMintSpec, { type: T; }> | Extract<StxBurnSpec, { type: T; }> | Extract<StxLockSpec, { type: T; }> | Extract<FtTransferSpec, { type: T; }> | Extract<FtMintSpec, { type: T; }> | Extract<FtBurnSpec, { type: T; }> | Extract<NftTransferSpec, { type: T; }> | Extract<NftMintSpec, { type: T; }> | Extract<NftBurnSpec, { type: T; }> | Extract<ContractCallSpec, { type: T; }> | Extract<ContractDeploySpec, { type: T; }> | Extract<NestedContractCallSpec, { type: T; }> | Extract<VarSetSpec, { type: T; }> | Extract<MapSetSpec, { type: T; }> | Extract<MapIns…"
 		},
 		{
@@ -1295,7 +1295,7 @@
 		},
 		{
 			"name": "SubgraphMemberType",
-			"summary": "The members expressible as subgraph sources (everything but the Webhooks-only sBTC lifecycle types).",
+			"summary": "The members you can use as subgraph sources.",
 			"definition": "\"stx_transfer\" | \"stx_mint\" | \"stx_burn\" | \"stx_lock\" | \"ft_transfer\" | \"ft_mint\" | \"ft_burn\" | \"nft_transfer\" | \"nft_mint\" | \"nft_burn\" | \"contract_call\" | \"contract_deploy\" | \"print_event\" | \"nested_contract_call\" | \"var_set\" | \"map_set\" | \"map_insert\" | \"map_delete\""
 		},
 		{
