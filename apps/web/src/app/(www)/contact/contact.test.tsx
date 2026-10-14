@@ -54,10 +54,6 @@ describe("/contact", () => {
 		expect(contact).toContain('tabindex="-1"');
 		expect(contact).toContain('aria-hidden="true"');
 	});
-
-	test("promises a human reply without a mailing list", () => {
-		expect(contact).toContain("Replies come from a person, not a list.");
-	});
 });
 
 describe("/pricing talk to us", () => {

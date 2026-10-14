@@ -188,7 +188,6 @@ export function ContactForm({ from }: { from?: string }) {
 				>
 					{status.kind === "sending" ? "Sending…" : "Send message"}
 				</button>
-				<p className="cap">Replies come from a person, not a list.</p>
 			</div>
 		</form>
 	);
