@@ -215,12 +215,12 @@ export function HomeView() {
 									Stacks
 								</ChainLink>
 								, decoded per signer and cycle since activation at Bitcoin block
-								960,230. And every sBTC deposit and withdrawal as one row, with
-								its{" "}
-								<ChainLink chain="bitcoin" href="/docs/index#sbtc">
-									Bitcoin
+								960,230. And every{" "}
+								<ChainLink chain="sbtc" href="/docs/index#sbtc">
+									sBTC
 								</ChainLink>{" "}
-								side attached.
+								deposit and withdrawal as one row, with its Bitcoin side
+								attached.
 							</p>
 						</div>
 						<div className="next-col">

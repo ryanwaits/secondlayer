@@ -1414,6 +1414,12 @@
 .site .chain-clarity .chain-fg {
 	fill: #f7f8f9;
 }
+.site .chain-sbtc .chain-bg {
+	fill: #fc6432;
+}
+.site .chain-sbtc .chain-fg {
+	fill: #ffffff;
+}
 .site .chain-runes .chain-bg {
 	fill: var(--ink);
 }
