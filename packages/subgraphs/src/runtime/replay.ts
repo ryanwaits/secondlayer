@@ -107,6 +107,7 @@ function deterministicReplayId(
 	return createHash("sha256").update(canonical).digest("hex").slice(0, 16);
 }
 
+/** How many events a replay scanned and enqueued. */
 export interface ReplayResult {
 	replayId: string;
 	enqueuedCount: number;

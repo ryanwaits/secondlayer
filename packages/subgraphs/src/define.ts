@@ -22,8 +22,11 @@ export type TypedHandlers<
 	S extends SubgraphSchema,
 > = { [K in keyof Sources]-?: HandlerFn<Sources[K], S> };
 
-/** Subgraph definition with `sources`/`schema` literals preserved for typed
- * handlers and downstream query-client inference (`getSubgraph`). */
+/**
+ * A subgraph definition that keeps `sources` and `schema` literals typed.
+ *
+ * Preserved for typed handlers and downstream query-client inference (`getSubgraph`).
+ */
 export type TypedSubgraphDefinition<
 	Sources extends Record<string, SubgraphFilter>,
 	S extends SubgraphSchema,

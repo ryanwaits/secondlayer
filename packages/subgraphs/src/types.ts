@@ -38,7 +38,7 @@ export interface SubgraphTable {
 	uniqueKeys?: readonly (readonly string[])[];
 }
 
-/** Subgraph schema — maps table names to table definitions */
+/** Maps table names to table definitions. */
 export type SubgraphSchema = Record<string, SubgraphTable>;
 
 // ── SubgraphFilter ──────────────────────────────────────────────────
@@ -326,7 +326,7 @@ export type PrintEventFilter =
 	| TraitPrintEventFilter
 	| UnpinnedPrintEventFilter;
 
-/** All subgraph filter types — discriminated on `type` */
+/** A subgraph filter, discriminated on `type`. */
 export type SubgraphFilter =
 	| StxTransferFilter
 	| StxMintFilter

@@ -141,7 +141,7 @@
 			"description": "Run handlers against pre-built sample payloads in memory (no Index, no\nPostgres). Deploy uses this with print-schema dummy events to refuse\nEMPTY_MAPPING before DDL apply.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 461
+				"line": 465
 			},
 			"overloads": [
 				{
@@ -176,7 +176,7 @@
 			"description": "Apply local handlers to Index rows in memory. Fail-closed: matched events\nwith zero written rows is EMPTY_MAPPING (the bns-names field-mapping shape).",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 276
+				"line": 278
 			},
 			"overloads": [
 				{
@@ -205,7 +205,7 @@
 			"description": "Map an Index contract-call row onto the ContractCallEvent handler shape.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 179
+				"line": 181
 			},
 			"overloads": [
 				{
@@ -234,7 +234,7 @@
 			"description": "Map an Index event row onto the payload shape a handler expects.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 107
+				"line": 109
 			},
 			"overloads": [
 				{
@@ -271,7 +271,7 @@
 		},
 		{
 			"name": "ChainReadOptions",
-			"summary": "",
+			"summary": "Options for a contract read, such as cache mode.",
 			"fields": [
 				{
 					"name": "cache",
@@ -377,7 +377,7 @@
 		},
 		{
 			"name": "EventRecord",
-			"summary": "",
+			"summary": "An event as a subgraph source matcher reads it.",
 			"fields": [
 				{
 					"name": "id",
@@ -926,7 +926,7 @@
 		},
 		{
 			"name": "ProbeHandlersDef",
-			"summary": "",
+			"summary": "A subgraph's schema, sources, and handlers, for a probe run.",
 			"fields": [
 				{
 					"name": "schema",
@@ -950,7 +950,7 @@
 		},
 		{
 			"name": "ProbeHandlersResult",
-			"summary": "",
+			"summary": "How many events matched and rows a probe wrote.",
 			"fields": [
 				{
 					"name": "matched",
@@ -980,7 +980,7 @@
 		},
 		{
 			"name": "RunSubgraphTestInput",
-			"summary": "",
+			"summary": "A subgraph's schema, handlers, sources, and the events to run.",
 			"fields": [
 				{
 					"name": "schema",
@@ -1160,12 +1160,12 @@
 		},
 		{
 			"name": "SubgraphFilter",
-			"summary": "All subgraph filter types — discriminated on `type`",
+			"summary": "A subgraph filter, discriminated on `type`.",
 			"definition": "StxTransferFilter | StxMintFilter | StxBurnFilter | StxLockFilter | FtTransferFilter | FtMintFilter | FtBurnFilter | NftTransferFilter | NftMintFilter | NftBurnFilter | ContractCallFilter | ContractDeployFilter | PrintEventFilter | NestedContractCallFilter | VarSetFilter | MapWriteFilter"
 		},
 		{
 			"name": "SubgraphSchema",
-			"summary": "Subgraph schema — maps table names to table definitions",
+			"summary": "Maps table names to table definitions.",
 			"definition": "Record<string, SubgraphTable>"
 		},
 		{
@@ -1194,7 +1194,7 @@
 		},
 		{
 			"name": "SubgraphTestResult",
-			"summary": "",
+			"summary": "The outcome of a test run: matches, writes, and table rows.",
 			"fields": [
 				{
 					"name": "ok",
@@ -1464,7 +1464,7 @@
 		},
 		{
 			"name": "TxRecord",
-			"summary": "",
+			"summary": "A transaction as a subgraph source matcher reads it.",
 			"fields": [
 				{
 					"name": "tx_id",

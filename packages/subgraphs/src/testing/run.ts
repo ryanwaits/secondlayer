@@ -62,6 +62,7 @@ export interface EventTrace {
 	outs: Array<{ table: string; keys: string[] }>;
 }
 
+/** The outcome of a test run: matches, writes, and table rows. */
 export interface SubgraphTestResult {
 	ok: boolean;
 	code?: "EMPTY_MAPPING" | "NO_EVENTS" | "NO_SOURCES";
@@ -80,6 +81,7 @@ export interface SubgraphTestResult {
 	unusedInKeys?: string[];
 }
 
+/** A subgraph's schema, handlers, sources, and the events to run. */
 export interface RunSubgraphTestInput {
 	schema: SubgraphSchema;
 	handlers: Record<string, unknown>;
@@ -440,12 +442,14 @@ export async function runSubgraphTest(
 	};
 }
 
+/** A subgraph's schema, sources, and handlers, for a probe run. */
 export interface ProbeHandlersDef {
 	schema: SubgraphSchema;
 	sources: Record<string, { type: string; [key: string]: unknown }>;
 	handlers: Record<string, unknown>;
 }
 
+/** How many events matched and rows a probe wrote. */
 export interface ProbeHandlersResult {
 	matched: number;
 	written: number;

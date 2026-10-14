@@ -9,7 +9,7 @@
 			"description": "Generates PostgreSQL DDL statements for a subgraph definition.\nCreates a dedicated schema `subgraph_<name>` with one table per schema entry,\neach with auto-columns and indexes.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/generator.ts",
-				"line": 234
+				"line": 235
 			},
 			"overloads": [
 				{
@@ -44,7 +44,7 @@
 			"description": "Generates a Prisma schema for a subgraph's tables.\n\nSet `modelsOnly` to emit just the `model` blocks, to compose with your own\nschema.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/prisma.ts",
-				"line": 101
+				"line": 102
 			},
 			"overloads": [
 				{
@@ -79,7 +79,7 @@
 			"description": "Generates Drizzle table definitions for a subgraph's tables.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/drizzle.ts",
-				"line": 93
+				"line": 94
 			},
 			"overloads": [
 				{
@@ -114,7 +114,7 @@
 			"description": "Generates Kysely table interfaces for a subgraph's tables.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/kysely.ts",
-				"line": 55
+				"line": 56
 			},
 			"overloads": [
 				{
@@ -149,7 +149,7 @@
 			"description": "Generates a typed schema for Index tables.\n\n`target` picks Prisma, Kysely, Drizzle or JSON Schema. Use `tables` to limit\nthe output. Prisma omits tables with no read-set key.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/index-codegen.ts",
-				"line": 267
+				"line": 269
 			},
 			"overloads": [
 				{
@@ -210,7 +210,7 @@
 			"description": "Deploys a subgraph schema to the database.\n\nA new subgraph gets its schema and tables created and registered. The same\nschema hash only updates the handler path. An additive change adds columns\nand tables in place, and a breaking change reindexes by dropping and\nrecreating the tables.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/deployer.ts",
-				"line": 262
+				"line": 265
 			},
 			"overloads": [
 				{
@@ -257,7 +257,7 @@
 			"description": "Compare two multi-table subgraph schemas and return differences.\n\nIndex-only changes (`indexed`/`search` flags, composite `indexes`) are\nreported separately from data-shape changes: an index never requires a\nrebuild, so it must never land in `changed`/breaking — flipping\n`indexed: true` on a populated column used to cost a full reindex.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/deployer.ts",
-				"line": 97
+				"line": 98
 			},
 			"overloads": [
 				{
@@ -292,7 +292,7 @@
 			"description": "Tells whether a schema diff is breaking, with the reasons.\n\nBreaking means removed tables, removed columns, changed column types or\nremoved `uniqueKeys`, which handler upserts conflict on. Index-flag and\ncomposite-index changes are never breaking.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/deployer.ts",
-				"line": 163
+				"line": 164
 			},
 			"overloads": [
 				{
@@ -321,7 +321,7 @@
 			"description": "Render the DDL a deploy would run, without executing.\nPowers `--dry-run`: the user reviews exactly what a deploy does first.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/deployer.ts",
-				"line": 243
+				"line": 246
 			},
 			"overloads": [
 				{
@@ -358,7 +358,7 @@
 		},
 		{
 			"name": "ChainReadOptions",
-			"summary": "",
+			"summary": "Options for a contract read, such as cache mode.",
 			"fields": [
 				{
 					"name": "cache",
@@ -507,7 +507,7 @@
 		},
 		{
 			"name": "DeployDiff",
-			"summary": "",
+			"summary": "The tables and columns a deploy adds, removes, or breaks.",
 			"fields": [
 				{
 					"name": "addedTables",
@@ -549,7 +549,7 @@
 		},
 		{
 			"name": "DeployPlan",
-			"summary": "",
+			"summary": "The schema name and SQL a deploy will run.",
 			"fields": [
 				{
 					"name": "schemaName",
@@ -573,7 +573,7 @@
 		},
 		{
 			"name": "DrizzleGenOptions",
-			"summary": "",
+			"summary": "Options for generating Drizzle table definitions.",
 			"fields": [
 				{
 					"name": "schemaName",
@@ -711,7 +711,7 @@
 		},
 		{
 			"name": "GeneratedSQL",
-			"summary": "",
+			"summary": "The SQL statements for a subgraph's tables and their hash.",
 			"fields": [
 				{
 					"name": "statements",
@@ -729,7 +729,7 @@
 		},
 		{
 			"name": "IndexCodegenOptions",
-			"summary": "Options for `runIndexCodegen`.",
+			"summary": "Options for generating the Index schema: tables, schema name.",
 			"fields": [
 				{
 					"name": "tables",
@@ -753,12 +753,12 @@
 		},
 		{
 			"name": "IndexCodegenTarget",
-			"summary": "Emit a portable, typed schema for the public Index read domain (blocks, decoded events, transactions, stacking, sBTC, BNS, …) from the single-sourced `SOURCE_READ_TYPES` registry.",
+			"summary": "A portable, typed schema target for the public Index read domain.",
 			"definition": "\"prisma\" | \"kysely\" | \"drizzle\" | \"json-schema\""
 		},
 		{
 			"name": "KyselyGenOptions",
-			"summary": "",
+			"summary": "Options for generating Kysely table interfaces.",
 			"fields": [
 				{
 					"name": "schemaName",
@@ -1002,7 +1002,7 @@
 		},
 		{
 			"name": "PrismaGenOptions",
-			"summary": "",
+			"summary": "Options for generating Prisma models.",
 			"fields": [
 				{
 					"name": "schemaName",
@@ -1284,7 +1284,7 @@
 		},
 		{
 			"name": "SubgraphFilter",
-			"summary": "All subgraph filter types — discriminated on `type`",
+			"summary": "A subgraph filter, discriminated on `type`.",
 			"definition": "StxTransferFilter | StxMintFilter | StxBurnFilter | StxLockFilter | FtTransferFilter | FtMintFilter | FtBurnFilter | NftTransferFilter | NftMintFilter | NftBurnFilter | ContractCallFilter | ContractDeployFilter | PrintEventFilter | NestedContractCallFilter | VarSetFilter | MapWriteFilter"
 		},
 		{
@@ -1294,7 +1294,7 @@
 		},
 		{
 			"name": "SubgraphSchema",
-			"summary": "Subgraph schema — maps table names to table definitions",
+			"summary": "Maps table names to table definitions.",
 			"definition": "Record<string, SubgraphTable>"
 		},
 		{
@@ -1323,7 +1323,7 @@
 		},
 		{
 			"name": "TableDiff",
-			"summary": "",
+			"summary": "Tables added, removed, or changed between two schemas.",
 			"fields": [
 				{
 					"name": "addedTables",

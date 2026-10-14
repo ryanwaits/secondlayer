@@ -80,6 +80,7 @@ function renderTable(tableName: string, table: SubgraphTable): string {
 	return `model ${pascalCase(tableName)} {\n${lines.join("\n")}\n\n${block.join("\n")}\n}`;
 }
 
+/** Options for generating Prisma models. */
 export interface PrismaGenOptions {
 	/** Postgres schema the tables live in (account-scoped). */
 	schemaName?: string;

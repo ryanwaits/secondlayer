@@ -10,7 +10,7 @@
 			"description": "Checks a served pin against the served bundle.\n\nThe preimage must hash to the pin, and name this handler code, this schema\nand this `startBlock`. A runtime other than this package's is only a note,\nsince rows can still match.",
 			"source": {
 				"file": "packages/subgraphs/src/verify/replay.ts",
-				"line": 155
+				"line": 158
 			},
 			"overloads": [
 				{
@@ -45,7 +45,7 @@
 			"description": "The replay loop over an injected verifier.",
 			"source": {
 				"file": "packages/subgraphs/src/verify/replay.ts",
-				"line": 233
+				"line": 236
 			},
 			"overloads": [
 				{
@@ -80,7 +80,7 @@
 			"description": "Lists the contracts a state subgraph's writes come from.\n\nIt returns an error when a source does not fix one, because completeness\nwould then need every contract's writes.",
 			"source": {
 				"file": "packages/subgraphs/src/verify/replay.ts",
-				"line": 118
+				"line": 120
 			},
 			"overloads": [
 				{
@@ -109,7 +109,7 @@
 			"description": "Verifies every block in a range and recomputes the subgraph's tables.\n\nThe range is `[from, to]`, and blocks are verified from the checkpoint.",
 			"source": {
 				"file": "packages/subgraphs/src/verify/replay.ts",
-				"line": 447
+				"line": 450
 			},
 			"overloads": [
 				{
@@ -138,7 +138,7 @@
 			"description": "Compares replayed tables with the served ones over a block range.\n\nRows are matched on `_block_height` within `[from, to]`. Keyed tables, by\ntheir first `uniqueKeys` tuple, compare row by row, and unkeyed tables\ncompare as multisets.",
 			"source": {
 				"file": "packages/subgraphs/src/verify/compare.ts",
-				"line": 124
+				"line": 126
 			},
 			"overloads": [
 				{
@@ -180,7 +180,7 @@
 			"type": "512",
 			"source": {
 				"file": "packages/subgraphs/src/verify/replay.ts",
-				"line": 95
+				"line": 97
 			}
 		}
 	],
@@ -192,7 +192,7 @@
 		},
 		{
 			"name": "ChainReadOptions",
-			"summary": "",
+			"summary": "Options for a contract read, such as cache mode.",
 			"fields": [
 				{
 					"name": "cache",
@@ -587,7 +587,7 @@
 		},
 		{
 			"name": "PinCheck",
-			"summary": "",
+			"summary": "Whether a served pin matches the served bundle.",
 			"definition": "{ status: \"ok\"; notes: string[]; } | { status: \"unchecked\"; notes: string[]; } | { status: \"failed\"; failure: ReplayFailure; notes: string[]; }"
 		},
 		{
@@ -704,7 +704,7 @@
 		},
 		{
 			"name": "ReplayOptions",
-			"summary": "",
+			"summary": "What to replay: proof source, handler bundle, and block range.",
 			"fields": [
 				{
 					"name": "source",
@@ -752,7 +752,7 @@
 		},
 		{
 			"name": "ReplayResult",
-			"summary": "",
+			"summary": "The outcome of a replay: pass or fail, blocks covered, failures.",
 			"fields": [
 				{
 					"name": "ok",
@@ -841,12 +841,12 @@
 		},
 		{
 			"name": "Row",
-			"summary": "",
+			"summary": "A table row as a plain column-to-value record.",
 			"definition": "Record<string, unknown>"
 		},
 		{
 			"name": "RowComparison",
-			"summary": "",
+			"summary": "Replayed tables compared with served tables, and any mismatches.",
 			"fields": [
 				{
 					"name": "failures",
@@ -1122,7 +1122,7 @@
 		},
 		{
 			"name": "SubgraphFilter",
-			"summary": "All subgraph filter types — discriminated on `type`",
+			"summary": "A subgraph filter, discriminated on `type`.",
 			"definition": "StxTransferFilter | StxMintFilter | StxBurnFilter | StxLockFilter | FtTransferFilter | FtMintFilter | FtBurnFilter | NftTransferFilter | NftMintFilter | NftBurnFilter | ContractCallFilter | ContractDeployFilter | PrintEventFilter | NestedContractCallFilter | VarSetFilter | MapWriteFilter"
 		},
 		{
@@ -1132,7 +1132,7 @@
 		},
 		{
 			"name": "SubgraphSchema",
-			"summary": "Subgraph schema — maps table names to table definitions",
+			"summary": "Maps table names to table definitions.",
 			"definition": "Record<string, SubgraphTable>"
 		},
 		{

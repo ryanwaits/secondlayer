@@ -85,6 +85,7 @@ function renderTable(
 	return `export const ${varName} = sg.table("${tableName}", {\n${cols.join("\n")}\n}${extrasBlock});`;
 }
 
+/** Options for generating Drizzle table definitions. */
 export interface DrizzleGenOptions {
 	schemaName?: string;
 }

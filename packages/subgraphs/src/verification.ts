@@ -274,6 +274,7 @@ export function isDeterminismViolation(v: SubgraphVerification): boolean {
 
 // ── Pin ─────────────────────────────────────────────────────────────────
 
+/** What a pin is computed from: schema hash, handler code, network. */
 export interface PinInput {
 	/** Existing `schema_hash` (name + schema + sources). */
 	schemaHash: string;

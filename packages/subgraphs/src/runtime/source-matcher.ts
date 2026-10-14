@@ -7,6 +7,7 @@ export interface MatchedTx {
 	sourceName: string;
 }
 
+/** A transaction as a subgraph source matcher reads it. */
 export type TxRecord = {
 	tx_id: string;
 	type: string;
@@ -20,6 +21,7 @@ export type TxRecord = {
 	raw_result?: string | null;
 };
 
+/** An event as a subgraph source matcher reads it. */
 export type EventRecord = {
 	id: string;
 	tx_id: string;

@@ -44,6 +44,7 @@ import type { Kysely } from "kysely";
  */
 export type ChainReadCacheMode = "per-block" | "contract-constant";
 
+/** Options for a contract read, such as cache mode. */
 export type ChainReadOptions = { cache?: ChainReadCacheMode };
 
 /**

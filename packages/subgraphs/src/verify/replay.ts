@@ -55,6 +55,7 @@ export interface ReplayFailure {
 	unavailable?: boolean;
 }
 
+/** The outcome of a replay: pass or fail, blocks covered, failures. */
 export interface ReplayResult {
 	ok: boolean;
 	/** Set when the range starts after startBlock and a handler read or merged earlier rows. */
@@ -77,6 +78,7 @@ export interface ReplayResult {
 	failures: ReplayFailure[];
 }
 
+/** What to replay: proof source, handler bundle, and block range. */
 export interface ReplayOptions {
 	/** Needs `getStateWrites`: the names are what feed the handlers. */
 	source: ProofSource;
@@ -140,6 +142,7 @@ export function replayContracts(
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
+/** Whether a served pin matches the served bundle. */
 export type PinCheck =
 	| { status: "ok"; notes: string[] }
 	| { status: "unchecked"; notes: string[] }

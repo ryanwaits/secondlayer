@@ -98,7 +98,7 @@
 		},
 		{
 			"name": "ChainReadOptions",
-			"summary": "",
+			"summary": "Options for a contract read, such as cache mode.",
 			"fields": [
 				{
 					"name": "cache",
@@ -821,7 +821,7 @@
 		},
 		{
 			"name": "SubgraphFilter",
-			"summary": "All subgraph filter types — discriminated on `type`",
+			"summary": "A subgraph filter, discriminated on `type`.",
 			"definition": "StxTransferFilter | StxMintFilter | StxBurnFilter | StxLockFilter | FtTransferFilter | FtMintFilter | FtBurnFilter | NftTransferFilter | NftMintFilter | NftBurnFilter | ContractCallFilter | ContractDeployFilter | PrintEventFilter | NestedContractCallFilter | VarSetFilter | MapWriteFilter"
 		},
 		{
@@ -831,7 +831,7 @@
 		},
 		{
 			"name": "SubgraphSchema",
-			"summary": "Subgraph schema — maps table names to table definitions",
+			"summary": "Maps table names to table definitions.",
 			"definition": "Record<string, SubgraphTable>"
 		},
 		{

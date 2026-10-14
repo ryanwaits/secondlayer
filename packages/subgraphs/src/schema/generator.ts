@@ -16,6 +16,7 @@ export const TYPE_MAP: Record<ColumnType, string> = {
 	jsonb: "JSONB",
 };
 
+/** The SQL statements for a subgraph's tables and their hash. */
 export interface GeneratedSQL {
 	statements: string[];
 	hash: string;

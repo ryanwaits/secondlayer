@@ -9,7 +9,7 @@
 			"description": "Content hash over everything that shapes a subgraph's rows. Unlike\n`schema_hash`, it changes with the handler, `startBlock` and runtime, so\ntwo deploys with the same pin produce the same rows from the same chain.",
 			"source": {
 				"file": "packages/subgraphs/src/verification.ts",
-				"line": 323
+				"line": 324
 			},
 			"overloads": [
 				{
@@ -173,7 +173,7 @@
 		},
 		{
 			"name": "ChainReadOptions",
-			"summary": "",
+			"summary": "Options for a contract read, such as cache mode.",
 			"fields": [
 				{
 					"name": "cache",
@@ -618,7 +618,7 @@
 		},
 		{
 			"name": "PinInput",
-			"summary": "",
+			"summary": "What a pin is computed from: schema hash, handler code, network.",
 			"fields": [
 				{
 					"name": "schemaHash",
@@ -969,7 +969,7 @@
 		},
 		{
 			"name": "SubgraphFilter",
-			"summary": "All subgraph filter types — discriminated on `type`",
+			"summary": "A subgraph filter, discriminated on `type`.",
 			"definition": "StxTransferFilter | StxMintFilter | StxBurnFilter | StxLockFilter | FtTransferFilter | FtMintFilter | FtBurnFilter | NftTransferFilter | NftMintFilter | NftBurnFilter | ContractCallFilter | ContractDeployFilter | PrintEventFilter | NestedContractCallFilter | VarSetFilter | MapWriteFilter"
 		},
 		{
@@ -979,7 +979,7 @@
 		},
 		{
 			"name": "SubgraphSchema",
-			"summary": "Subgraph schema — maps table names to table definitions",
+			"summary": "Maps table names to table definitions.",
 			"definition": "Record<string, SubgraphTable>"
 		},
 		{

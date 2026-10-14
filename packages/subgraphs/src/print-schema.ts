@@ -34,6 +34,7 @@ export interface InferredPrintField {
 	optional_some_rate?: number;
 }
 
+/** The fields seen in one `print` topic, with counts and heights. */
 export interface InferredTopicSchema {
 	topic: string;
 	count: number;

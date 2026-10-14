@@ -46,6 +46,7 @@ function renderTable(tableName: string, table: SubgraphTable): string {
 	return `export interface ${pascalCase(tableName)} {\n${lines.join("\n")}\n}`;
 }
 
+/** Options for generating Kysely table interfaces. */
 export interface KyselyGenOptions {
 	/** Postgres schema the tables live in (account-scoped). */
 	schemaName?: string;

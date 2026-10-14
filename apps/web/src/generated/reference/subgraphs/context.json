@@ -9,7 +9,7 @@
 			"description": "Reads a contract's read-only functions at the block being processed.\n\nResults are untyped here. Call it through `readContractAt` to get typed\nresults from the contract's ABI.",
 			"source": {
 				"file": "packages/subgraphs/src/runtime/chain-read.ts",
-				"line": 129
+				"line": 130
 			},
 			"overloads": [
 				{
@@ -366,7 +366,7 @@
 		},
 		{
 			"name": "ChainReadOptions",
-			"summary": "",
+			"summary": "Options for a contract read, such as cache mode.",
 			"fields": [
 				{
 					"name": "cache",

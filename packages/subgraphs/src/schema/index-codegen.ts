@@ -20,12 +20,14 @@ import { pascalCase, snakeToCamel } from "./utils.ts";
  * no read-set key and are omitted from Prisma output (other targets still emit them).
  */
 
+/** A portable, typed schema target for the public Index read domain. */
 export type IndexCodegenTarget =
 	| "prisma"
 	| "kysely"
 	| "drizzle"
 	| "json-schema";
 
+/** Options for generating the Index schema: tables, schema name. */
 export interface IndexCodegenOptions {
 	/** Restrict output to these Index tables (default: all). */
 	tables?: string[];

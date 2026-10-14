@@ -17,6 +17,7 @@ import { createHash } from "node:crypto";
 import type { SubgraphSchema, SubgraphTable } from "../types.ts";
 import type { ReplayFailure } from "./replay.ts";
 
+/** A table row as a plain column-to-value record. */
 type Row = Record<string, unknown>;
 
 export interface TableComparison {
@@ -31,6 +32,7 @@ export interface TableComparison {
 	servedDigest: string;
 }
 
+/** Replayed tables compared with served tables, and any mismatches. */
 export interface RowComparison {
 	failures: ReplayFailure[];
 	tables: TableComparison[];

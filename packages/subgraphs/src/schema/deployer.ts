@@ -31,6 +31,7 @@ function toJsonSafe(obj: unknown): unknown {
 	);
 }
 
+/** Tables added, removed, or changed between two schemas. */
 export interface TableDiff {
 	/** Tables added to the schema */
 	addedTables: string[];
@@ -196,6 +197,7 @@ function bumpPatch(version: string): string {
 	return `${parts[0]}.${parts[1]}.${Number.isNaN(patch) ? 1 : patch + 1}`;
 }
 
+/** The tables and columns a deploy adds, removes, or breaks. */
 export interface DeployDiff {
 	addedTables: string[];
 	removedTables: string[];
@@ -228,6 +230,7 @@ function toDeployDiff(diff: TableDiff | null, reasons: string[]): DeployDiff {
 	};
 }
 
+/** The schema name and SQL a deploy will run. */
 export interface DeployPlan {
 	schemaName: string;
 	/** `DROP SCHEMA … CASCADE` a destructive rebuild would run first. */

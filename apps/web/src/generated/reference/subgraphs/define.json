@@ -9,7 +9,7 @@
 			"description": "Declares a schema you can hoist out of `defineSubgraph()` and reuse.\n\nIt keeps the schema's literal types, so table names and row columns stay\nchecked in helpers typed `TypedSubgraphContext<typeof schema>`. `as const`\nalone does not work: it produces `readonly` arrays that a mutable\n`uniqueKeys` rejects, and a bare literal widens `type` to `string`.",
 			"source": {
 				"file": "packages/subgraphs/src/define.ts",
-				"line": 92
+				"line": 95
 			},
 			"overloads": [
 				{
@@ -45,7 +45,7 @@
 			"description": "Declares a subgraph and keeps its source and schema literal types.\n\nHandlers are typed per source, and the schema drives query-client inference.\nIt returns its argument unchanged.",
 			"source": {
 				"file": "packages/subgraphs/src/define.ts",
-				"line": 57
+				"line": 60
 			},
 			"overloads": [
 				{
@@ -137,7 +137,7 @@
 			"description": "Camelizes object keys recursively, the way print payloads are.\n\nIt uses the print-payload helper, not ABI `toCamelCase`, which strips `-STX`\nand prefixes leading digits.",
 			"source": {
 				"file": "packages/subgraphs/src/print-schema.ts",
-				"line": 62
+				"line": 63
 			},
 			"overloads": [
 				{
@@ -166,7 +166,7 @@
 			"description": "Infers per-topic field schemas from sampled print events. Counts and\nheight bounds cover ALL rows of a topic (cheap); only a bounded subset is\ndeserialized for typing. Rows with missing/undecodable hex still count but\ncontribute nothing to typing.",
 			"source": {
 				"file": "packages/subgraphs/src/print-schema.ts",
-				"line": 357
+				"line": 358
 			},
 			"overloads": [
 				{
@@ -202,7 +202,7 @@
 		},
 		{
 			"name": "ChainReadOptions",
-			"summary": "",
+			"summary": "Options for a contract read, such as cache mode.",
 			"fields": [
 				{
 					"name": "cache",
@@ -666,7 +666,7 @@
 		},
 		{
 			"name": "InferredTopicSchema",
-			"summary": "",
+			"summary": "The fields seen in one `print` topic, with counts and heights.",
 			"fields": [
 				{
 					"name": "topic",
@@ -1631,7 +1631,7 @@
 		},
 		{
 			"name": "SubgraphFilter",
-			"summary": "All subgraph filter types — discriminated on `type`",
+			"summary": "A subgraph filter, discriminated on `type`.",
 			"definition": "StxTransferFilter | StxMintFilter | StxBurnFilter | StxLockFilter | FtTransferFilter | FtMintFilter | FtBurnFilter | NftTransferFilter | NftMintFilter | NftBurnFilter | ContractCallFilter | ContractDeployFilter | PrintEventFilter | NestedContractCallFilter | VarSetFilter | MapWriteFilter"
 		},
 		{
@@ -1641,7 +1641,7 @@
 		},
 		{
 			"name": "SubgraphSchema",
-			"summary": "Subgraph schema — maps table names to table definitions",
+			"summary": "Maps table names to table definitions.",
 			"definition": "Record<string, SubgraphTable>"
 		},
 		{
@@ -1759,7 +1759,7 @@
 		},
 		{
 			"name": "TypedSubgraphDefinition",
-			"summary": "Subgraph definition with `sources`/`schema` literals preserved for typed handlers and downstream query-client inference (`getSubgraph`).",
+			"summary": "A subgraph definition that keeps `sources` and `schema` literals typed.",
 			"fields": [
 				{
 					"name": "name",
