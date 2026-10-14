@@ -1,6 +1,7 @@
 import { Code } from "@/components/code/code";
 import { ButtonLink, CloseBand, Eyebrow, Highlight } from "@/components/site";
 import { VerifyChainArt } from "@/components/site/assets";
+import { VERIFY_SDK } from "@/components/site/verify-code";
 import { BlockChecker } from "@/components/verify/block-checker";
 import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
@@ -14,26 +15,6 @@ export const metadata: Metadata = socialMeta({
 	image: "/og/verify.png",
 	path: "/verify",
 });
-
-const SDK_SNIPPET = `import {
-  SecondlayerProofSource,
-  verifyBlock,
-} from "@secondlayer/verify";
-
-// !callout[/No key needed/] proofs are never billed
-// No key needed; add apiKey for higher rate limits.
-const source = new SecondlayerProofSource({
-  baseUrl: "https://api.secondlayer.tools",
-});
-
-// !callout[/verifyBlock/] proven on your machine
-const result = await verifyBlock(9_137_005, { source });
-
-// !callout[/result.ok/] fails with the first broken link
-if (!result.ok) {
-  throw new Error(result.failures[0]?.message); // first broken link
-}
-console.log(result.stateRoot, result.diff?.writes.length);`;
 
 const EXAMPLE = `$ secondlayer verify block 9137005
 ✓ block       9,137,005  2e5962b0…92f57ff
@@ -352,7 +333,7 @@ export default function VerifyPage() {
 							lang="ts"
 							variant="figure"
 							title="verify.ts"
-							code={SDK_SNIPPET}
+							code={VERIFY_SDK}
 						/>
 					</div>
 				</div>

@@ -1,4 +1,5 @@
 import { Code } from "@/components/code/code";
+import { CodeTabs } from "@/components/code/code-tabs";
 import {
 	ButtonLink,
 	CloseBand,
@@ -9,6 +10,7 @@ import {
 } from "@/components/site";
 import { RowsTable, TrustChainArt } from "@/components/site/assets";
 import { ChainLink } from "@/components/site/chain-link";
+import { VERIFY_SDK } from "@/components/site/verify-code";
 import { socialMeta } from "@/lib/og";
 import { PRODUCTS } from "@/lib/site";
 import type { Metadata } from "next";
@@ -146,16 +148,19 @@ const COVERS: readonly {
 	},
 ];
 
-const VERIFY = `$ secondlayer verify block 9137005
-  checkpoint         9,000,000 (shipped)
-  ✓ bitcoin headers
-  ✓ signer set
-  ✓ tx merkle root
-  ✓ state writes     every map, var and balance
-  ✓ block 9,137,005 verified
+/** Real `verify block` output, each check noted with the link in the chain it proves. */
+const VERIFY_CLI = `$ secondlayer verify block 9137005
+# !callout[/proof of work checked/] proves the Bitcoin header
+✓ bitcoin       headers 967,680..970,269, proof of work checked
+# !callout[/threshold 2,800/] proves the signer set
+✓ signatures    2,866 / 4,000 weight, threshold 2,800
+✓ transactions  2 match the transaction merkle root
+# !callout[/matches the witness/] proves the state root
+✓ state root    8103be4b…191f0cd5 matches the witness
+✓ Block 9,137,005 is proven. Trusted: only the checkpoint.
 
 $ secondlayer verify subgraph sbtc-flows --replay
-  ✓ rows recomputed · match`;
+✓ rows recomputed, match`;
 
 export default function Home() {
 	return <HomeView />;
@@ -233,11 +238,20 @@ export function HomeView() {
 					<div className="verify-trust">
 						<TrustChainArt />
 					</div>
-					<div className="verify-grid">
-						<div className="art">
-							<Code lang="text" title="~/app" code={VERIFY} />
-						</div>
-						<ul className="covers" aria-label="What a check covers">
+					<div className="verify-figure">
+						<CodeTabs variant="figure">
+							<Code lang="text" title="CLI" meta="nocopy" code={VERIFY_CLI} />
+							<Code lang="ts" title="SDK" meta="nocopy" code={VERIFY_SDK} />
+						</CodeTabs>
+						<p className="verify-alt">
+							No terminal?{" "}
+							<Link href="/verify#try">Check a block in your browser</Link> on
+							the Verify page.
+						</p>
+					</div>
+					<div className="verify-covers">
+						<p className="covers-title">What a check covers</p>
+						<ul className="covers">
 							{COVERS.map((c) => (
 								<li key={c.title}>
 									<span
