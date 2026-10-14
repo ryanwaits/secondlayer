@@ -13,6 +13,7 @@ import {
 	docsSearchDocs,
 	extractAgentNotes,
 	headingsFromMdx,
+	leadUnder,
 	mdxToMarkdown,
 	readAllDocsMarkdown,
 	readDocsMarkdown,
@@ -219,5 +220,15 @@ describe("docsHeadingIndex", () => {
 		expect(index.some((h) => /^notes for agents$/i.test(h.title))).toBe(false);
 		const keys = index.map((h) => `${h.href}#${h.anchor}`);
 		expect(new Set(keys).size).toBe(keys.length);
+	});
+});
+
+describe("leadUnder", () => {
+	test("keeps underscores inside inline code and strips emphasis in prose", () => {
+		const source =
+			"## Token\n\nRun `INSTANCE_TOKEN` and _word_ with `request_id`.\n";
+		expect(leadUnder(source, "token", "test")).toBe(
+			"Run INSTANCE_TOKEN and word with request_id.",
+		);
 	});
 });

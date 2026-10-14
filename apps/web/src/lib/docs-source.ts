@@ -316,7 +316,12 @@ function proseOf(markdown: string): string {
 	return markdown
 		.replace(/```[\s\S]*?```/g, "")
 		.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-		.replace(/[`*_>|#]/g, "")
+		.split(/(`[^`]*`)/)
+		.map((part, i) =>
+			// Odd parts are inline code: drop the backticks, keep every character.
+			i % 2 ? part.slice(1, -1) : part.replace(/[*_>|#]/g, ""),
+		)
+		.join("")
 		.replace(/<[^>]+>/g, " ")
 		.replace(/\s+/g, " ")
 		.trim();
