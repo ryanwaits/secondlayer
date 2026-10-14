@@ -40,21 +40,46 @@ function commentText(body: string): string {
 	return (tag === -1 ? lines : lines.slice(0, tag)).join("\n").trim();
 }
 
-/** Type docs of one package's source, by type name. */
-function readTypeDocs(srcDir: string): Map<string, string> {
-	const docs = new Map<string, string>();
-	if (!existsSync(srcDir)) return docs;
+/** `type Name = Other;`: a name for one other type, nothing added. */
+const BARE_ALIAS =
+	/^[ \t]*(?:export\s+)?(?:declare\s+)?type\s+([A-Za-z_$][\w$]*)\s*=\s*([A-Za-z_$][\w$]*)\s*;/gm;
+
+const TYPE_DECLARATION =
+	/^[ \t]*(?:export\s+)?(?:declare\s+)?(?:type|interface)\s+([A-Za-z_$][\w$]*)\s*(?:<|=|\{|extends)/gm;
+
+type TypeNotes = {
+	/** Every type name the source declares. */
+	declared: Set<string>;
+	docs: Map<string, string>;
+	aliases: Map<string, string>;
+};
+
+/** Type docs and bare aliases of one package's source, by type name. */
+function readTypeNotes(srcDir: string): TypeNotes {
+	const notes: TypeNotes = {
+		declared: new Set(),
+		docs: new Map(),
+		aliases: new Map(),
+	};
+	if (!existsSync(srcDir)) return notes;
 	for (const file of readdirSync(srcDir, { recursive: true })) {
 		const rel = String(file);
 		if (!rel.endsWith(".ts") || /\.(type-)?test\.ts$/.test(rel)) continue;
 		const text = readFileSync(join(srcDir, rel), "utf8");
+		for (const m of text.matchAll(TYPE_DECLARATION))
+			if (m[1]) notes.declared.add(m[1]);
 		for (const m of text.matchAll(TYPE_DOC)) {
 			const name = m[2];
 			const doc = commentText(m[1] ?? "");
-			if (name && doc && !docs.has(name)) docs.set(name, doc);
+			if (name && doc && !notes.docs.has(name)) notes.docs.set(name, doc);
+		}
+		for (const m of text.matchAll(BARE_ALIAS)) {
+			const [, name, target] = m;
+			if (name && target && !notes.aliases.has(name))
+				notes.aliases.set(name, target);
 		}
 	}
-	return docs;
+	return notes;
 }
 
 /** Reads repo-relative sources and `<package>/examples/<surface>/<method id>.ts`. */
@@ -63,21 +88,36 @@ export function fileSystemIO(
 	packageDir: string,
 ): ReferenceIO {
 	let declared: Set<string> | undefined;
-	let docs: Map<string, string> | undefined;
-	return {
-		typeDoc(name) {
-			if (!docs) {
-				// The package's own comments win; workspace siblings fill in the
-				// types its signatures borrow (`@secondlayer/shared`).
-				docs = readTypeDocs(join(repoRoot, packageDir, "src"));
-				for (const sibling of readdirSync(join(repoRoot, "packages")))
-					for (const [n, d] of readTypeDocs(
-						join(repoRoot, "packages", sibling, "src"),
-					))
-						if (!docs.has(n)) docs.set(n, d);
+	let notes: TypeNotes | undefined;
+	/**
+	 * The package's own source wins; siblings fill in the types its signatures
+	 * borrow, but never a name it declares itself. `shared` comes first: it is
+	 * where the workspace's common types live.
+	 */
+	const typeNotes = (): TypeNotes => {
+		if (!notes) {
+			const merged = readTypeNotes(join(repoRoot, packageDir, "src"));
+			const siblings = readdirSync(join(repoRoot, "packages")).sort(
+				(a, b) => Number(b === "shared") - Number(a === "shared"),
+			);
+			for (const sibling of siblings) {
+				const more = readTypeNotes(join(repoRoot, "packages", sibling, "src"));
+				for (const name of more.declared) {
+					if (merged.declared.has(name)) continue;
+					merged.declared.add(name);
+					const doc = more.docs.get(name);
+					if (doc) merged.docs.set(name, doc);
+					const alias = more.aliases.get(name);
+					if (alias) merged.aliases.set(name, alias);
+				}
 			}
-			return docs.get(name);
-		},
+			notes = merged;
+		}
+		return notes;
+	};
+	return {
+		typeDoc: (name) => typeNotes().docs.get(name),
+		aliasOf: (name) => typeNotes().aliases.get(name),
 		declares(name) {
 			if (!declared) {
 				declared = new Set();

@@ -91,6 +91,11 @@ export type ReferenceIO = {
 	 * description of its own; the comment is read from source instead.
 	 */
 	typeDoc?(name: string): string | undefined;
+	/**
+	 * The type a declaration only renames (`type Bytes = Uint8Array`). A rename
+	 * of a type the spec does not hold is shown as that name, not its members.
+	 */
+	aliasOf?(name: string): string | undefined;
 };
 
 export type Field = {
@@ -499,9 +504,16 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 			summary:
 				exported?.description || type.description || io.typeDoc?.(name) || "",
 		};
+		// A rename of a type outside the spec (`Bytes = Uint8Array`) is shown as
+		// that name, not as the members of the type it renames.
+		const alias = io.aliasOf?.(name);
 		const byName = new Map<string, Field>();
-		for (const f of fieldsOf(type.schema, ctx)) byName.set(f.name, f);
-		if (byName.size) {
+		if (!alias || known.has(alias)) {
+			for (const f of fieldsOf(type.schema, ctx)) byName.set(f.name, f);
+		}
+		if (alias && !known.has(alias)) {
+			doc.definition = alias;
+		} else if (byName.size) {
 			doc.fields = [...byName.values()];
 		} else if (type.kind !== "class") {
 			const text = renderType(type.schema, ctx);

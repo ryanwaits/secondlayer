@@ -380,6 +380,31 @@ describe("type docs from source", () => {
 		).toBeUndefined();
 	});
 
+	test("a bare alias names the type it renames", () => {
+		const io = (code: string) => {
+			const dir = join(root, String(Math.random()).slice(2));
+			mkdirSync(join(dir, "packages/pkg/src"), { recursive: true });
+			writeFileSync(join(dir, "packages/pkg/src/a.ts"), code);
+			return fileSystemIO(dir, "packages/pkg");
+		};
+		expect(io("export type Bytes = Uint8Array;\n").aliasOf?.("Bytes")).toBe(
+			"Uint8Array",
+		);
+		expect(
+			io("export type Pair = [a: 1];\n").aliasOf?.("Pair"),
+		).toBeUndefined();
+	});
+
+	test("a rename of a type outside the spec shows the name, not its members", () => {
+		const io: ReferenceIO = {
+			...noIO,
+			aliasOf: (name) => (name === "Page" ? "Uint8Array" : undefined),
+		};
+		const page = surface("streams", io).types.find((t) => t.name === "Page");
+		expect(page?.definition).toBe("Uint8Array");
+		expect(page?.fields).toBeUndefined();
+	});
+
 	test("a type with no description of its own takes the source comment", () => {
 		const io: ReferenceIO = {
 			...noIO,
