@@ -56,16 +56,16 @@
     ]
   },
   "/docs/api-reference": {
-    "hash": "ad4f6d7d198c091b",
+    "hash": "2a96923f24479250",
     "phrasings": [
-      "openapi spec for all endpoints",
-      "full api endpoint reference",
-      "list every api object schema",
-      "generated api documentation pages",
-      "api reference by job type",
-      "look up endpoint parameters and responses",
-      "swagger docs for the api",
-      "where to find api object definitions"
+      "full list of api endpoints",
+      "api objects and schema reference",
+      "generated openapi docs for api",
+      "where are the api endpoint docs",
+      "browse all api endpoints by job",
+      "openapi specification reference pages",
+      "what endpoints does the api expose",
+      "api reference documentation index"
     ]
   },
   "/docs/api/index": {
@@ -354,16 +354,16 @@
     ]
   },
   "/docs/authentication#your-key": {
-    "hash": "385b59e2c235a2e7",
+    "hash": "c01b74b2a4f53225",
     "phrasings": [
       "where do i find my api key",
-      "api key shown only once",
+      "lost my api key how to get another",
       "how to create a new api key",
-      "lost my api key what now",
-      "generate additional api keys account page",
-      "how do i get my first key",
-      "sign in to get api key",
-      "api key not showing on account"
+      "first api key shown only once",
+      "sign in with email to get key",
+      "where to see api key on account page",
+      "api key not showing after signup",
+      "how many api keys can i create"
     ]
   },
   "/docs/changelog": {
@@ -1001,15 +1001,16 @@
     ]
   },
   "/docs/sdk#install": {
-    "hash": "533216687d249f14",
+    "hash": "e0e4d3d837186597",
     "phrasings": [
-      "which api key env var does sdk read",
-      "secondlayer sdk api key environment variable",
-      "self host sdk instance token setup",
-      "sdk key not working on self hosted",
-      "install secondlayer sdk client api key",
-      "sdk reads wrong env variable for key",
-      "where to put api key for secondlayer"
+      "how to install the sdk",
+      "set secondlayer api url environment variable",
+      "sdk client wrong host endpoint",
+      "configure sdk base url",
+      "sdk cannot connect to api host",
+      "install sdk package setup steps",
+      "change api host for client",
+      "secondlayer api url env var"
     ]
   },
   "/docs/sdk#one-client-every-surface": {
