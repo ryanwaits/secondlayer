@@ -12,13 +12,17 @@
 	border-bottom: 1px solid var(--line);
 }
 /* Full width, flush with the sidebar below it. */
+/* The bar and the shell under it share one 1440px frame, so a wide screen
+   gets margins instead of a stretched page. */
 .docs-top-in {
 	height: 56px;
 	display: flex;
 	align-items: center;
 	gap: 24px;
-	padding-inline: max(16px, env(safe-area-inset-left, 0px))
-		max(16px, env(safe-area-inset-right, 0px));
+	max-width: 1440px;
+	margin-inline: auto;
+	padding-inline: max(24px, env(safe-area-inset-left, 0px))
+		max(24px, env(safe-area-inset-right, 0px));
 }
 .docs-mark {
 	display: inline-flex;
@@ -353,6 +357,8 @@ html:has(.docs-search input:focus) {
 .docs-shell {
 	display: grid;
 	grid-template-columns: 264px minmax(0, 1fr);
+	max-width: 1440px;
+	margin-inline: auto;
 }
 
 /* ── sidebar ── */
@@ -367,7 +373,7 @@ html:has(.docs-search input:focus) {
 	height: calc(100vh - 56px);
 	overflow-y: auto;
 	border-right: 1px solid var(--line);
-	padding: 20px 12px 96px max(12px, env(safe-area-inset-left, 0px));
+	padding: 28px 16px 96px max(16px, env(safe-area-inset-left, 0px));
 	font-size: 14px;
 }
 .docs-nav-group + .docs-nav-group {
@@ -492,7 +498,7 @@ button.docs-nav-item {
 	min-width: 0;
 	grid-column: 2;
 	grid-row: 1;
-	padding: 40px 40px 56px;
+	padding: 48px 56px 64px;
 }
 .docs-article,
 .docs-topline {
@@ -983,7 +989,7 @@ button.docs-nav-item {
 .docs-foot {
 	grid-column: 2;
 	grid-row: 2;
-	padding-inline: 40px;
+	padding-inline: 56px;
 	border-top: 1px solid var(--line);
 }
 .docs-foot-in {
@@ -1339,9 +1345,9 @@ button.docs-nav-item {
 /* On docs pages the card's page nudge moves only the content column: the top
    bar and sidebar stay put. Same distance and easing as the account nudge
    (a quarter of the card plus its inset), capped so the article stops short of
-   the sidebar: the slack is the content padding plus the frame's centering
-   margin (viewport less sidebar, padding and the 1112px frame, halved),
-   less a 16px gap. Nothing moves on a narrow screen. */
+   the sidebar: the slack is the content padding less a 24px gap (the 1440px
+   shell leaves the frame no centering margin). Nothing moves on a narrow
+   screen. */
 html[data-acct-card]:has(.docs-shell) .www > :not(.marketing-nav) {
 	transform: none;
 }
@@ -1350,15 +1356,7 @@ html[data-acct-card]:has(.docs-shell) .www > :not(.marketing-nav) {
 }
 html[data-acct-card] .docs-content {
 	transform: translateX(
-		calc(
-			-1 *
-			min(
-				(var(--acct-card-w) + var(--acct-card-inset)) /
-				4,
-				24px +
-				max(0px, (100vw - 1456px) / 2)
-			)
-		)
+		calc(-1 * min((var(--acct-card-w) + var(--acct-card-inset)) / 4, 32px))
 	);
 }
 @media (max-width: 900px) {
