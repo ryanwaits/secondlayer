@@ -1451,14 +1451,16 @@
     ]
   },
   "/docs/streams#dumps-and-duckdb": {
-    "hash": "9f8a03c72d7b6cd4",
+    "hash": "f1201f23ac38bcfe",
     "phrasings": [
-      "duckdb query parquet export",
-      "export stream events to parquet",
-      "load parquet dump into duckdb",
-      "bulk download blockchain events parquet",
-      "analyze secondlayer data with sql locally",
-      "parquet files for stream history"
+      "export stream data to parquet",
+      "query stream dumps with duckdb",
+      "parquet files from streams",
+      "how to load stream data into duckdb",
+      "stream dump format for analytics",
+      "read parquet dumps locally",
+      "stream export without database",
+      "duckdb query parquet export"
     ]
   },
   "/docs/streams#from-the-cli": {
@@ -1574,14 +1576,16 @@
     ]
   },
   "/docs/subgraphs#deploy": {
-    "hash": "118a2dff4d661c97",
+    "hash": "6725d6c3b9280c72",
     "phrasings": [
-      "how to deploy a subgraph",
       "hosted subgraph deployment default",
-      "one private stack per account subgraph",
-      "deploy subgraph without running own server",
-      "subgraph hosting setup steps",
-      "publish subgraph to hosted service"
+      "do i need to run my own node for subgraph",
+      "deploy subgraph without hosting server",
+      "private stack per account subgraph",
+      "how to publish subgraph to hosted service",
+      "subgraph deploy no infrastructure needed",
+      "hosted vs self hosted subgraph deploy",
+      "where to deploy subgraph hosted option"
     ]
   },
   "/docs/subgraphs#handler-context": {
@@ -1808,15 +1812,16 @@
     ]
   },
   "/docs/verification#prove-a-transaction": {
-    "hash": "ee4e540e77ec6e29",
+    "hash": "edc9f5d6ee1ad057",
     "phrasings": [
-      "verify a stacks transaction merkle proof",
-      "check txid is included in a block",
+      "verify transaction proof in one call",
+      "check txid and merkle root from proof",
       "verifytransactionproof example",
-      "confirm transaction signer weight from proof",
-      "validate block hash and merkle root for tx",
-      "how to prove a transaction was mined",
-      "transaction inclusion proof verification steps"
+      "validate block hash and signer weight",
+      "how to prove a transaction was included",
+      "merkle proof transaction verification steps",
+      "confirm transaction inclusion without full node",
+      "verify signer weight in proof"
     ]
   },
   "/docs/verification#what-it-does-not-cover-yet": {
