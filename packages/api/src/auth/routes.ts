@@ -1,9 +1,17 @@
-import { getDb } from "@secondlayer/shared/db";
+import { getDb, sql } from "@secondlayer/shared/db";
+import { AuthorizationError, RateLimitError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { z } from "zod";
 import { getClientIp } from "./http.ts";
 import { requireAuth } from "./middleware.ts";
-import { assertCanMint, mintApiKey, resolveMintProduct } from "./mint.ts";
+import {
+	DOCS_KEY_DAILY_LIMIT,
+	assertCanMint,
+	mintApiKey,
+	mintDocsKey,
+	resolveMintProduct,
+} from "./mint.ts";
+import { getRateLimitStore } from "./rate-limit-store.ts";
 
 // No tier field: every key mints at the single metered tier (see mint.ts).
 // A legacy `tier` in the body is silently stripped by zod.
@@ -40,6 +48,40 @@ app.post("/", requireAuth(), async (c) => {
 	return c.json(minted, 201);
 });
 
+// Docs key: a read-only (Streams + Index), 24h key for code samples. Dashboard
+// session only: an API key (any product) can never mint one, so a leaked key
+// can't be turned into a fresh credential. The plaintext is in this response
+// once and is never logged or stored (only the hash is).
+app.post("/docs", requireAuth(), async (c) => {
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
+	const ctx = c as any;
+	c.header("Cache-Control", "no-store");
+	if (!ctx.get("session")) {
+		throw new AuthorizationError(
+			"A docs key is minted from a signed-in session, not an API key.",
+		);
+	}
+	const accountId = ctx.get("accountId") as string;
+	const limit = await getRateLimitStore().check(
+		`docs-key:${accountId}`,
+		DOCS_KEY_DAILY_LIMIT,
+		24 * 60 * 60 * 1000,
+		{ failClosed: true },
+	);
+	if (!limit.allowed) {
+		c.header("Retry-After", String(limit.retryAfter));
+		throw new RateLimitError("Docs key limit reached for today");
+	}
+	const minted = await mintDocsKey(getDb(), {
+		accountId,
+		ip: getClientIp(c),
+	});
+	return c.json(
+		{ key: minted.key, prefix: minted.prefix, expiresAt: minted.expiresAt },
+		201,
+	);
+});
+
 // List keys (requires auth, scoped to account)
 app.get("/", requireAuth(), async (c) => {
 	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
@@ -57,8 +99,16 @@ app.get("/", requireAuth(), async (c) => {
 			"tier",
 			"created_at",
 			"last_used_at",
+			"expires_at",
 		])
 		.where("account_id", "=", accountId)
+		// An expired docs key disappears from the list.
+		.where((eb) =>
+			eb.or([
+				eb("expires_at", "is", null),
+				eb("expires_at", ">", sql<Date>`now()`),
+			]),
+		)
 		.orderBy("created_at", "desc")
 		.execute();
 
@@ -72,6 +122,7 @@ app.get("/", requireAuth(), async (c) => {
 			tier: k.tier,
 			createdAt: k.created_at.toISOString(),
 			lastUsedAt: k.last_used_at?.toISOString() ?? null,
+			expiresAt: k.expires_at?.toISOString() ?? null,
 		})),
 	});
 });

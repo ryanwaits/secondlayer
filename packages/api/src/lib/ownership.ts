@@ -17,6 +17,7 @@ export async function getAccountKeyIds(
 		.select("id")
 		.where("account_id", "=", accountId)
 		.where("status", "=", "active")
+		.where("product", "!=", "docs")
 		.execute();
 	return keys.map((k) => k.id);
 }
@@ -74,6 +75,7 @@ export async function resolveApiKeyIdForWrite(
 		.select("id")
 		.where("account_id", "=", accountId)
 		.where("status", "=", "active")
+		.where("product", "!=", "docs")
 		.orderBy("created_at", "asc")
 		.limit(1)
 		.executeTakeFirst();

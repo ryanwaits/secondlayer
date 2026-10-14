@@ -5,7 +5,7 @@ import {
 } from "@secondlayer/shared/errors";
 import { SENTINEL_KEY_PREFIX, generateApiKey } from "./keys.ts";
 
-export type MintProduct = "account" | "sentinel";
+export type MintProduct = "account" | "sentinel" | "docs";
 
 /**
  * The single tier every minted key gets. Plan/tier selection is retired —
@@ -81,6 +81,8 @@ export async function assertUnderKeyCeiling(
 		.select((eb) => eb.fn.countAll<string>().as("active"))
 		.where("account_id", "=", accountId)
 		.where("status", "=", "active")
+		// Docs keys are ephemeral (24h) and never count toward the ceiling.
+		.where("product", "!=", "docs")
 		.executeTakeFirstOrThrow();
 	if (Number(row.active) >= MAX_ACTIVE_KEYS) {
 		throw new AuthorizationError(
@@ -111,6 +113,8 @@ export async function mintApiKey(
 		ip: string;
 		/** First-party service key (unmetered, unthrottled). Internal routes only. */
 		internal?: boolean;
+		/** Hard expiry; enforced on every lookup. Set only on `docs` keys. */
+		expiresAt?: Date;
 	},
 ): Promise<MintedKey> {
 	const { raw, hash, prefix } = generateApiKey(
@@ -128,6 +132,7 @@ export async function mintApiKey(
 			product: input.product,
 			areas: input.areas ?? null,
 			tier: input.internal ? INTERNAL_MINT_TIER : DEFAULT_MINT_TIER,
+			expires_at: input.expiresAt ?? null,
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();
@@ -159,4 +164,40 @@ export async function revokeKeysByName(
 		.where("name", "=", name)
 		.where("status", "=", "active")
 		.execute();
+}
+
+/** Lifetime of a docs key. */
+export const DOCS_KEY_TTL_MS = 24 * 60 * 60 * 1000;
+export const DOCS_KEY_NAME = "Docs key";
+/** Docs keys minted per account per rolling day. */
+export const DOCS_KEY_DAILY_LIMIT = 10;
+
+/**
+ * Mint the account's docs key: revoke any previous active docs key, then mint a
+ * fresh `docs`-product key that expires in 24h. One transaction, so an account
+ * never has two active docs keys (a partial unique index backs this up).
+ */
+export async function mintDocsKey(
+	db: ReturnType<typeof getDb>,
+	input: { accountId: string; ip: string; now?: Date },
+): Promise<MintedKey & { expiresAt: string }> {
+	const now = input.now ?? new Date();
+	const expiresAt = new Date(now.getTime() + DOCS_KEY_TTL_MS);
+	const minted = await db.transaction().execute(async (trx) => {
+		await trx
+			.updateTable("api_keys")
+			.set({ status: "revoked", revoked_at: now })
+			.where("account_id", "=", input.accountId)
+			.where("product", "=", "docs")
+			.where("status", "=", "active")
+			.execute();
+		return mintApiKey(trx, {
+			accountId: input.accountId,
+			name: DOCS_KEY_NAME,
+			product: "docs",
+			ip: input.ip,
+			expiresAt,
+		});
+	});
+	return { ...minted, expiresAt: expiresAt.toISOString() };
 }

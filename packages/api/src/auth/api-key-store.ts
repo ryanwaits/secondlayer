@@ -1,4 +1,4 @@
-import { getDb as defaultGetDb } from "@secondlayer/shared/db";
+import { getDb as defaultGetDb, sql } from "@secondlayer/shared/db";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { instanceTokenMatches } from "../instance-bind.ts";
 import { hashToken } from "./keys.ts";
@@ -42,16 +42,30 @@ type ApiKeyTokenStoreOptions<TTenant extends ProductTenant> = {
 
 async function lookupAccountApiKey(
 	tokenHash: string,
-	_product: ProductScope,
+	product: ProductScope,
 	getDb: typeof defaultGetDb,
 ): Promise<ApiKeyRecord | null> {
 	const db = getDb();
-	// Account keys only — scoped streams/index rows are retired (auth-007).
+	// Account keys, plus short-lived `docs` keys on the Streams and Index read
+	// planes only (never a plane that could do more than read). Scoped
+	// streams/index rows are retired (auth-007). Expiry is enforced here, on
+	// every lookup, in SQL: a key past `expires_at` is simply not found.
 	const row = await db
 		.selectFrom("api_keys")
 		.select(["account_id", "status", "tier"])
 		.where("key_hash", "=", tokenHash)
-		.where("product", "=", "account")
+		.where((eb) => {
+			const account = eb("product", "=", "account");
+			return product === "streams" || product === "index"
+				? eb.or([account, eb("product", "=", "docs")])
+				: account;
+		})
+		.where((eb) =>
+			eb.or([
+				eb("expires_at", "is", null),
+				eb("expires_at", ">", sql<Date>`now()`),
+			]),
+		)
 		.executeTakeFirst();
 
 	if (!row) return null;

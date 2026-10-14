@@ -53,6 +53,7 @@ export function requireAuth(opts?: {
 						.selectFrom("api_keys")
 						.select("account_id")
 						.where("key_hash", "=", devHash)
+						.where("product", "!=", "docs")
 						.executeTakeFirst();
 					if (key) c.set("accountId", key.account_id);
 				}
@@ -120,6 +121,23 @@ export function requireAuth(opts?: {
 
 			if (keyRecord.status !== "active") {
 				throw new AuthenticationError("Invalid API key");
+			}
+
+			// Expired keys (docs keys, 24h) are refused exactly like revoked ones,
+			// before any product logic, on every lookup.
+			if (
+				keyRecord.expires_at &&
+				keyRecord.expires_at.getTime() <= Date.now()
+			) {
+				throw new AuthorizationError("API key has been revoked");
+			}
+
+			// Docs keys read Streams and Index and nothing else: the management
+			// plane (keys, webhooks, billing, archive fetch, feedback) is 403.
+			if (keyRecord.product === "docs") {
+				throw new AuthorizationError(
+					"Docs keys can only read Streams and Index.",
+				);
 			}
 
 			// Account keys only. Product keys (e.g. `sentinel`) are resolved
