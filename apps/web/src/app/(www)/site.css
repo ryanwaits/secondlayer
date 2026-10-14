@@ -1265,26 +1265,6 @@
 		max-width: 300px;
 	}
 }
-/* One tabbed figure under the chain, then the coverage as a two-column list. */
-.site .verify-figure {
-	margin-top: 28px;
-	min-width: 0;
-}
-.site .verify-alt {
-	margin-top: 12px;
-	font-size: 14.5px;
-	color: var(--sub);
-}
-.site .verify-alt a {
-	color: var(--ink);
-	text-decoration: underline;
-	text-decoration-color: var(--line);
-	text-decoration-thickness: 1.5px;
-	text-underline-offset: 0.22em;
-}
-.site .verify-alt a:hover {
-	text-decoration-color: currentColor;
-}
 .site .verify-covers {
 	margin-top: 28px;
 }
@@ -1338,7 +1318,7 @@
 .site .verify-foot {
 	display: flex;
 	flex-wrap: wrap;
-	justify-content: space-between;
+	justify-content: flex-start;
 	gap: 12px 24px;
 	margin-top: 20px;
 	align-items: center;
