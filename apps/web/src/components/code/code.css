@@ -602,8 +602,9 @@
 .cb-tabs.figure .cf {
 	margin: 0;
 }
-.cb-tabs.figure .cf .cf-notes {
-	padding-right: 14px;
+/* `right` resolves against the padding edge, so padding on .cf-notes never insets it. */
+.cb-tabs.figure .cf .cf-note {
+	right: 14px;
 }
 @media (max-width: 960px) {
 	.cf,
