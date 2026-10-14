@@ -125,11 +125,31 @@ export function docsEndpointItems(
 	});
 }
 
-/** The docs field's whole search pool: pages, sections, and API endpoints. */
+/** One row per SDK method, jumping to its entry on its surface's page. */
+export function docsMethodItems(
+	nav: { slug: string; methods: { anchor: string; path: string }[] }[],
+): CommandItem[] {
+	return nav.flatMap((surface) =>
+		surface.methods.map((m) => {
+			const href = `/docs/sdk-reference/${surface.slug}#${m.anchor}`;
+			return {
+				id: `docs:${href}`,
+				group: "docs" as const,
+				label: m.path,
+				sub: "method",
+				href,
+				keywords: ["sdk", surface.slug],
+			};
+		}),
+	);
+}
+
+/** The docs field's whole search pool: pages, sections, API endpoints and SDK methods. */
 export function docsSearchPool(
 	headings: { href: string; anchor: string; title: string }[],
 	apiNav: Parameters<typeof docsEndpointItems>[0],
 	phrasings: Phrasings,
+	sdkNav: Parameters<typeof docsMethodItems>[0] = [],
 ): CommandItem[] {
 	const titles = new Map(DOCS_ITEMS.map((i) => [i.href, i.label]));
 	return [
@@ -146,5 +166,6 @@ export function docsSearchPool(
 			phrasings,
 		),
 		...docsEndpointItems(apiNav),
+		...docsMethodItems(sdkNav),
 	];
 }

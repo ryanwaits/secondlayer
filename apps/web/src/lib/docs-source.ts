@@ -12,6 +12,9 @@ import {
 	mcpToolsMarkdown,
 } from "@/app/(www)/docs/mcp/tools";
 import { docsNavPages } from "@/app/(www)/docs/nav";
+import { sdkPageMarkdown } from "@/app/(www)/docs/sdk-reference/markdown";
+import { SDK_BASE, sdkPages } from "@/app/(www)/docs/sdk-reference/pages";
+import { methodNav } from "@/app/(www)/docs/sdk-reference/reference";
 import docsPhrasings from "@/generated/docs-phrasings.json";
 import apiNav from "@/generated/openapi-nav.json";
 import { AGENT_SETUP } from "@/lib/agent-prompts";
@@ -128,12 +131,15 @@ export async function readDocsMarkdown(
 		// The reference's body is a component, which mdxToMarkdown strips; its
 		// markdown comes from the same spec the page renders.
 		const apiPage = findApiPage(href.replace(/^\/docs\/api\//, ""));
+		const sdkBody = sdkPageMarkdown(href);
 		let out =
 			href === "/docs/api-reference"
 				? `${markdown}\n\n${referenceMarkdown()}`
 				: apiPage && href.startsWith("/docs/api/")
 					? `${markdown}\n\n${pageMarkdown(apiPage)}`
-					: markdown;
+					: sdkBody
+						? `${markdown}\n\n${sdkBody}`
+						: markdown;
 		if (notes) out += `\n\n## Notes for agents\n\n${notes}`;
 		if (setup) out += `\n\n${AGENT_SETUP_MD}`;
 		return out;
@@ -171,7 +177,7 @@ export type DocsHeading = {
 const GENERATED_PAGES = new Set([
 	"/docs/api-reference",
 	...API_PAGES.map((p) => apiPageHref(p.slug)),
-	"/docs/sdk-reference",
+	...sdkPages().map((p) => p.href),
 	"/docs/changelog",
 ]);
 
@@ -260,7 +266,21 @@ function leadOf(markdown: string): string {
  * `docsSearchPool`; the browser fetches this as `/docs/search-index.json`.
  */
 export async function docsSearchDocs(): Promise<DocsSearchDoc[]> {
-	const pool = docsSearchPool(await docsHeadingIndex(), apiNav, docsPhrasings);
+	const sdkNav = methodNav();
+	const summaries = new Map(
+		sdkNav.flatMap((s) =>
+			s.methods.map((m) => [
+				`docs:${SDK_BASE}/${s.slug}#${m.anchor}`,
+				m.summary,
+			]),
+		),
+	);
+	const pool = docsSearchPool(
+		await docsHeadingIndex(),
+		apiNav,
+		docsPhrasings,
+		sdkNav,
+	);
 	const lines = new Map<string, string[]>();
 	/** Sections of one page sharing a title are matched in document order. */
 	const taken = new Map<string, number>();
@@ -269,9 +289,16 @@ export async function docsSearchDocs(): Promise<DocsSearchDoc[]> {
 		const href = item.href ?? "";
 		const [path, anchor] = href.split("#");
 		const kind =
-			item.sub === "endpoint" ? "endpoint" : anchor ? "section" : "page";
+			item.sub === "endpoint"
+				? "endpoint"
+				: item.sub === "method"
+					? "method"
+					: anchor
+						? "section"
+						: "page";
 		let body = "";
-		if (kind !== "endpoint") {
+		if (kind === "method") body = summaries.get(item.id) ?? "";
+		else if (kind !== "endpoint") {
 			if (!lines.has(path)) {
 				lines.set(
 					path,

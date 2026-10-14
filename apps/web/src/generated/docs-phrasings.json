@@ -1019,17 +1019,137 @@
     ]
   },
   "/docs/sdk-reference": {
-    "hash": "1c2d10baddfcb9b6",
+    "hash": "b86b635f4f4068ff",
     "phrasings": [
-      "secondlayer sdk exports list",
-      "what functions does secondlayer sdk export",
-      "secondlayer sdk typescript api methods",
-      "how to call secondlayer sdk client",
-      "secondlayer sdk function signatures",
-      "secondlayer npm package exported types",
-      "find secondlayer sdk method parameters",
-      "secondlayer sdk typescript types reference",
-      "which secondlayer sdk helpers are available"
+      "sdk methods list stacks",
+      "all client methods api",
+      "stacks sdk function reference",
+      "what methods does the client expose",
+      "sdk source method signatures",
+      "stacks api client methods overview",
+      "list of sdk calls"
+    ]
+  },
+  "/docs/sdk-reference/archive": {
+    "hash": "ff4ec9de56f486b9",
+    "phrasings": [
+      "verify archive manifest signature",
+      "load signed archive manifest",
+      "price missing data archive download",
+      "fetch missing blockchain data archive",
+      "check data against manifest",
+      "stacks archive sdk verify data",
+      "how much does archive fetch cost"
+    ]
+  },
+  "/docs/sdk-reference/client": {
+    "hash": "5442c569f357e25c",
+    "phrasings": [
+      "batch reads stacks sdk client",
+      "get account snapshot one call",
+      "how to batch multiple reads",
+      "stacks client fetch account balance all at once",
+      "sdk client configuration options",
+      "batched rpc reads javascript",
+      "single call account state stacks"
+    ]
+  },
+  "/docs/sdk-reference/contracts": {
+    "hash": "90471722847f7d0c",
+    "phrasings": [
+      "find contracts implementing trait",
+      "get contract from registry by id",
+      "sip-010 conforming contracts search",
+      "list contracts matching trait clarity",
+      "lookup clarity contract registry",
+      "stacks contract trait conformance query",
+      "fetch contract source by identifier"
+    ]
+  },
+  "/docs/sdk-reference/errors": {
+    "hash": "8de5375fb44a92ea",
+    "phrasings": [
+      "secondlayer sdk error classes list",
+      "secondlayererror subclasses",
+      "catch errors thrown by secondlayer sdk",
+      "what does secondlayererror mean",
+      "handle sdk exception types",
+      "secondlayer sdk throws error when",
+      "how to check error type in secondlayer",
+      "secondlayer error handling examples"
+    ]
+  },
+  "/docs/sdk-reference/helpers": {
+    "hash": "9c563b35e5a1ee37",
+    "phrasings": [
+      "secondlayer sdk import helper functions",
+      "decode values with secondlayer sdk",
+      "type guard for secondlayer responses",
+      "verify signature with secondlayer sdk",
+      "check proof in secondlayer sdk",
+      "how to consume stream loop secondlayer",
+      "secondlayer sdk decoders and type guards",
+      "which sdk functions are not client methods"
+    ]
+  },
+  "/docs/sdk-reference/index": {
+    "hash": "528414f34c4efba2",
+    "phrasings": [
+      "decoded stacks transfers query",
+      "get sbtc transactions decoded",
+      "query stacks contract call rows",
+      "decoded blocks and transactions api",
+      "runes indexed data stacks",
+      "pox cycle data query",
+      "list stacks events decoded rows"
+    ]
+  },
+  "/docs/sdk-reference/instance": {
+    "hash": "6be0fdaabc9e231f",
+    "phrasings": [
+      "check instance status report",
+      "instance health verdict next steps",
+      "stacks node status sdk",
+      "is my instance healthy",
+      "instance public status endpoint",
+      "what to do if instance unhealthy",
+      "sdk instance status check"
+    ]
+  },
+  "/docs/sdk-reference/streams": {
+    "hash": "f03b536196d2dfc9",
+    "phrasings": [
+      "stream stacks events in order",
+      "checkpoint event loop stacks",
+      "paginate stacks events",
+      "read stacks events page by page",
+      "consume blockchain events sdk",
+      "stacks event stream sdk example",
+      "resume event consumer from checkpoint"
+    ]
+  },
+  "/docs/sdk-reference/subgraphs": {
+    "hash": "c09f9ecfc9809a12",
+    "phrasings": [
+      "deploy stacks subgraph",
+      "read subgraph rows sdk",
+      "monitor subgraph operations",
+      "how to publish a subgraph",
+      "subgraph query results stacks",
+      "check subgraph deployment status",
+      "stacks subgraph sdk example"
+    ]
+  },
+  "/docs/sdk-reference/webhooks": {
+    "hash": "8755a2e9daa2a643",
+    "phrasings": [
+      "create stacks webhook",
+      "webhook delivery history stacks",
+      "replay failed webhook deliveries",
+      "list webhook deliveries api",
+      "stacks webhook sdk example",
+      "retry missed webhook events",
+      "webhooks not firing blockchain events"
     ]
   },
   "/docs/self-host": {
@@ -1294,14 +1414,16 @@
     ]
   },
   "/docs/streams#build-an-indexer-on-it": {
-    "hash": "91bcffac31ad66c2",
+    "hash": "4b7ee823c453a349",
     "phrasings": [
-      "events consume checkpointed consumer example",
-      "build indexer using event stream",
-      "automatic reorg rewind consumer loop",
-      "events.consume checkpoint resume indexer",
-      "stream consumer loop code example",
-      "how to write indexer on raw events"
+      "how to write a stacks indexer",
+      "checkpointed event consumer stacks",
+      "handle chain reorgs in indexer",
+      "events.consume example loop",
+      "resume stacks events after restart",
+      "rewind indexer on reorg",
+      "stacks blockchain event stream tutorial",
+      "process stacks events reliably"
     ]
   },
   "/docs/streams#cold-history": {

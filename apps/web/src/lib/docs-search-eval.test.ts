@@ -114,7 +114,9 @@ function summarize(t: Tally) {
 describe("docs search eval", () => {
 	test("every search candidate has a section vector from the same model", async () => {
 		const have = new Set(vectors.items.map((i) => i.id));
+		// SDK methods are found by name in the text search and are not embedded.
 		const missing = (await docsSearchDocs())
+			.filter((d) => d.kind !== "method")
 			.map((d) => d.id)
 			.filter((id) => !have.has(id));
 		expect(missing).toEqual([]);

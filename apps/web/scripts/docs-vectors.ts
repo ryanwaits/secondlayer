@@ -61,7 +61,9 @@ async function main() {
 		console.error("AI_GATEWAY_API_KEY is not set; nothing embedded.");
 		process.exit(1);
 	}
-	const docs = await docsSearchDocs();
+	// SDK methods are looked up by name, in the text search; embedded, 118 near
+	// neighbours would crowd the nearest sections a paraphrase is after.
+	const docs = (await docsSearchDocs()).filter((d) => d.kind !== "method");
 	const existing: VectorFile | null = await readFile(OUT, "utf8")
 		.then((t) => JSON.parse(t) as VectorFile)
 		.catch(() => null);

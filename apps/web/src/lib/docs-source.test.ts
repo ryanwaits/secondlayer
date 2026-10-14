@@ -1,4 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import {
+	manifest,
+	methodNav,
+	surface,
+} from "@/app/(www)/docs/sdk-reference/reference";
 import docsPhrasings from "@/generated/docs-phrasings.json";
 import apiNav from "@/generated/openapi-nav.json";
 import { docsSearchPool } from "./command-center/items";
@@ -149,10 +154,24 @@ describe("docsSearchDocs", () => {
 			await docsHeadingIndex(),
 			apiNav,
 			docsPhrasings,
+			methodNav(),
 		);
 		expect(docs.map((d) => d.id)).toEqual(pool.map((p) => p.id));
 		expect(new Set(docs.map((d) => d.kind))).toEqual(
-			new Set(["page", "section", "endpoint"]),
+			new Set(["page", "section", "endpoint", "method"]),
+		);
+		const methods = docs.filter((d) => d.kind === "method");
+		expect(methods.length).toBe(
+			manifest().surfaces.reduce((n, s) => n + s.methodCount, 0),
+		);
+		// A method is found by its path and described by its summary.
+		const consume = methods.find(
+			(d) => d.label === "sl.streams.events.consume",
+		);
+		expect(consume?.href).toBe("/docs/sdk-reference/streams#m-events-consume");
+		expect(consume?.body).toBe(
+			surface("streams").methods.find((m) => m.id === "events.consume")
+				?.summary,
 		);
 		for (const d of docs) {
 			expect(d.body).not.toContain("```");

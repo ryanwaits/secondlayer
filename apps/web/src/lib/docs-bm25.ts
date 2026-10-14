@@ -10,7 +10,7 @@ export type DocsSearchDoc = {
 	href: string;
 	label: string;
 	sub: string;
-	kind: "page" | "section" | "endpoint";
+	kind: "page" | "section" | "endpoint" | "method";
 	title: string;
 	/** Parent page or group name. */
 	page: string;
@@ -67,6 +67,25 @@ export type DocsSearchIndex = {
 	titles: string[][];
 	/** Term → docs containing it in any field. */
 	postings: Map<string, number[]>;
+	/** Per doc: what its score is multiplied by (see `LANE_KINDS`). */
+	weight: number[];
+	/** Term → docs of the main lane containing it; with `size`, what IDF is computed from. */
+	df: Map<string, number>;
+	/** Docs in the main lane. */
+	size: number;
+};
+
+/**
+ * SDK methods are a lane of their own. They are many, and a prose question
+ * matches their summaries by accident ("get notified when sbtc is deposited"
+ * is not a request for `sl.index.sbtc.deposits.list`), so their scores are
+ * halved: a query that names one still wins its title tier, and otherwise
+ * pages, sections and endpoints come first. They do not count toward IDF or
+ * average field length either, so adding them never moves how those rank
+ * against each other.
+ */
+const LANE_KINDS: Partial<Record<DocsSearchDoc["kind"], number>> = {
+	method: 0.5,
 };
 
 export function buildIndex(docs: DocsSearchDoc[]): DocsSearchIndex {
@@ -74,7 +93,9 @@ export function buildIndex(docs: DocsSearchDoc[]): DocsSearchIndex {
 	const len: number[][] = [];
 	const totals = FIELDS.map(() => 0);
 	const postings = new Map<string, number[]>();
+	const df = new Map<string, number>();
 	const titles: string[][] = [];
+	let size = 0;
 
 	docs.forEach((doc, d) => {
 		const text: Record<Field, string> = {
@@ -83,6 +104,8 @@ export function buildIndex(docs: DocsSearchDoc[]): DocsSearchIndex {
 			page: doc.page,
 			body: doc.body,
 		};
+		const main = LANE_KINDS[doc.kind] === undefined;
+		if (main) size++;
 		const seen = new Set<string>();
 		const counts: Map<string, number>[] = [];
 		const lengths: number[] = [];
@@ -95,7 +118,7 @@ export function buildIndex(docs: DocsSearchDoc[]): DocsSearchIndex {
 			}
 			counts.push(m);
 			lengths.push(tokens.length);
-			totals[f] += tokens.length;
+			if (main) totals[f] += tokens.length;
 		});
 		titles.push(tokenize(doc.title));
 		tf.push(counts);
@@ -104,6 +127,7 @@ export function buildIndex(docs: DocsSearchDoc[]): DocsSearchIndex {
 			const list = postings.get(t);
 			if (list) list.push(d);
 			else postings.set(t, [d]);
+			if (main) df.set(t, (df.get(t) ?? 0) + 1);
 		}
 	});
 
@@ -112,8 +136,11 @@ export function buildIndex(docs: DocsSearchDoc[]): DocsSearchIndex {
 		titles,
 		tf,
 		len,
-		avgLen: totals.map((t) => t / Math.max(docs.length, 1)),
+		avgLen: totals.map((t) => t / Math.max(size, 1)),
 		postings,
+		weight: docs.map((d) => LANE_KINDS[d.kind] ?? 1),
+		df,
+		size,
 	};
 }
 
@@ -141,13 +168,13 @@ export function search(
 	query: string,
 	k: number,
 ): DocsSearchResult[] {
-	const n = index.ids.length;
 	const queryTokens = tokenize(query);
 	const scores = new Map<number, number>();
 	for (const term of new Set(queryTokens)) {
 		const docs = index.postings.get(term);
 		if (!docs) continue;
-		const idf = Math.log(1 + (n - docs.length + 0.5) / (docs.length + 0.5));
+		const have = index.df.get(term) ?? 0;
+		const idf = Math.log(1 + (index.size - have + 0.5) / (have + 0.5));
 		for (const d of docs) {
 			let weighted = 0;
 			FIELDS.forEach((field, f) => {
@@ -163,9 +190,9 @@ export function search(
 		}
 	}
 	return [...scores]
-		.map(([d, score]) => ({
+		.map(([d, raw]) => ({
 			d,
-			score,
+			score: raw * (index.weight[d] ?? 1),
 			tier: titleTier(index.titles[d], queryTokens),
 		}))
 		.sort((a, b) => b.tier - a.tier || b.score - a.score || a.d - b.d)
