@@ -272,8 +272,10 @@ interface Probe extends SearchPoint {
 }
 
 /**
- * Verifies blocks from one checkpoint against one source, caching the Bitcoin
- * header chain, proven signer sets and fetched headers across calls.
+ * Verifies blocks from one checkpoint against one source.
+ *
+ * It caches the Bitcoin header chain, proven signer sets and fetched headers
+ * across calls.
  */
 export class BlockVerifier {
 	private readonly source: ProofSource;

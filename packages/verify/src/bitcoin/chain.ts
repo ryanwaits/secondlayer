@@ -45,6 +45,11 @@ export type HeaderRule =
 	| "version"
 	| "proof-of-work";
 
+/**
+ * Thrown when a Bitcoin header fails a validation rule.
+ *
+ * `rule` names the rule and `height` the header that failed it.
+ */
 export class HeaderValidationError extends Error {
 	override readonly name = "HeaderValidationError";
 	constructor(
@@ -78,6 +83,7 @@ export interface ChainEntry {
 
 const hex8 = (n: number) => `0x${n.toString(16).padStart(8, "0")}`;
 
+/** A validated chain of Bitcoin headers, grown forward from a checkpoint. */
 export class HeaderChain {
 	private readonly entries: ChainEntry[] = [];
 	private readonly heights = new Map<string, number>();
@@ -88,6 +94,7 @@ export class HeaderChain {
 		private readonly periodStartTime: number,
 	) {}
 
+	/** Starts a header chain at a checkpoint. */
 	static fromCheckpoint(checkpoint: Checkpoint): HeaderChain {
 		const { height } = checkpoint;
 		if (!Number.isSafeInteger(height) || height < 0) {
@@ -149,6 +156,7 @@ export class HeaderChain {
 		return this.heights.get(hashHex.toLowerCase());
 	}
 
+	/** The header entry at a height, if the chain has one. */
 	headerAt(height: number): ChainEntry | undefined {
 		return this.entries[height - this.base];
 	}

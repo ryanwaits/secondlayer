@@ -48,7 +48,7 @@ export interface TrieNode {
 	ptrs: TriePtr[];
 }
 
-/** TrieHash::from_key: sha512/256(utf8(key)). */
+/** Hashes a key to its MARF path: sha512/256 of the UTF-8 key. */
 export const marfPath = (key: string): Bytes =>
 	sha512_256(new TextEncoder().encode(key));
 
@@ -60,7 +60,7 @@ export const marfPath = (key: string): Bytes =>
 export const heightToHashKey = (height: number): string =>
 	`__MARF_BLOCK_HEIGHT_TO_HASH::${height}`;
 
-/** MARFValue::from_value: sha512/256(utf8(value)) padded to 40 bytes. */
+/** Hashes a value to its MARF value: sha512/256, padded to 40 bytes. */
 export function marfValue(value: string): Bytes {
 	const v = new Uint8Array(MARF_VALUE_SIZE);
 	v.set(sha512_256(new TextEncoder().encode(value)));
@@ -313,11 +313,12 @@ function verifySteps(
 }
 
 /**
- * Block ids of the ancestor tries a proof crosses: each one is the backptr a
- * descendant trie follows toward the leaf. `verifyMarfProof` needs every one's
- * header. Read from untrusted proof bytes, so they are only fetch hints; the
- * proof still fails unless each header hashes to the id the trie committed.
- * Malformed proofs yield no ids.
+ * Lists the ancestor tries a MARF proof crosses.
+ *
+ * Each id is the backptr a descendant trie follows toward the leaf, and
+ * `verifyMarfProof` needs every one's header. They are read from untrusted
+ * proof bytes, so they are only fetch hints: the proof still fails unless each
+ * header hashes to the id the trie committed. Malformed proofs yield no ids.
  */
 export function marfProofAncestors(proof: Bytes): string[] {
 	let steps: ProofStep[];
@@ -370,9 +371,11 @@ export interface MarfProofInput {
 }
 
 /**
- * TrieMerkleProof::verify. True iff `value` is stored at `path` in the MARF
- * whose tip root is `root`. Inclusion only: MARF proofs cannot prove absence.
- * Malformed proof bytes verify false.
+ * Verifies a MARF inclusion proof.
+ *
+ * It is true only when `value` is stored at `path` in the MARF whose tip root
+ * is `root`. Inclusion only: MARF proofs cannot prove absence. Malformed proof
+ * bytes verify false.
  */
 export function verifyMarfProof(input: MarfProofInput): boolean {
 	const rootToBlock = new Map<string, Bytes>();

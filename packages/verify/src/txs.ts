@@ -16,9 +16,11 @@ const LEAF_TAG = new Uint8Array([0x00]);
 const NODE_TAG = new Uint8Array([0x01]);
 
 /**
- * tx_merkle_root over txids: leaf = H(0x00 ‖ txid), node = H(0x01 ‖ l ‖ r),
- * an odd level duplicates its last node, and a lone leaf is still paired with
- * itself (one-tx blocks hash H(0x01 ‖ leaf ‖ leaf)).
+ * Computes the `tx_merkle_root` over transaction ids.
+ *
+ * A leaf is H(0x00 ‖ txid) and a node is H(0x01 ‖ l ‖ r). An odd level
+ * duplicates its last node, and a lone leaf is still paired with itself, so a
+ * one-transaction block hashes H(0x01 ‖ leaf ‖ leaf).
  */
 export function txMerkleRoot(txids: Bytes[]): Bytes {
 	if (txids.length === 0) throw new Error("no transactions");
@@ -38,6 +40,7 @@ export function txMerkleRoot(txids: Bytes[]): Bytes {
 	return level[0] as Bytes;
 }
 
+/** Thrown for a malformed block body or a transaction root mismatch. */
 export class TransactionsError extends Error {
 	constructor(
 		readonly code: "malformed" | "tx-root-mismatch",
@@ -48,10 +51,12 @@ export class TransactionsError extends Error {
 }
 
 /**
- * The block's transactions, each hashed to its txid, checked against the
- * header's tx_merkle_root. The body after `header.byteLength` is a u32 count
- * then the transactions back to back. Null when the bytes are the header
- * alone (a source that serves headers only): nothing to check. Throws
+ * Hashes a block's transactions and checks them against the header.
+ *
+ * Each transaction is hashed to its txid and checked against the header's
+ * `tx_merkle_root`. The body after `header.byteLength` is a u32 count, then the
+ * transactions back to back. It returns null when the bytes are the header
+ * alone, as a source that serves headers only does. It throws
  * {@link TransactionsError} on a malformed body, trailing bytes or a root
  * mismatch.
  */

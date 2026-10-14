@@ -1,0 +1,319 @@
+{
+	"slug": "bitcoin",
+	"root": "",
+	"methods": [
+		{
+			"id": "HeaderChain.fromCheckpoint",
+			"path": "HeaderChain.fromCheckpoint",
+			"summary": "Starts a header chain at a checkpoint.",
+			"description": "Starts a header chain at a checkpoint.",
+			"source": {
+				"file": "packages/verify/src/bitcoin/chain.ts",
+				"line": 98
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "checkpoint",
+							"type": "Checkpoint",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "HeaderChain",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "HeaderChain.heightOf",
+			"path": "HeaderChain.heightOf",
+			"summary": "Height of a header in this chain by display-order hash, or undefined.",
+			"description": "Height of a header in this chain by display-order hash, or undefined.",
+			"source": {
+				"file": "packages/verify/src/bitcoin/chain.ts",
+				"line": 155
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "hashHex",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "number | undefined",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "HeaderChain.headerAt",
+			"path": "HeaderChain.headerAt",
+			"summary": "The header entry at a height, if the chain has one.",
+			"description": "The header entry at a height, if the chain has one.",
+			"source": {
+				"file": "packages/verify/src/bitcoin/chain.ts",
+				"line": 160
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "height",
+							"type": "number",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "ChainEntry | undefined",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "HeaderChain.append",
+			"path": "HeaderChain.append",
+			"summary": "Validates and appends headers in order.",
+			"description": "Validates and appends headers in order. All-or-nothing: if any header\nfails, the chain is left exactly as it was and the error is thrown.",
+			"source": {
+				"file": "packages/verify/src/bitcoin/chain.ts",
+				"line": 168
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "headers",
+							"type": "Iterable<string | Uint8Array, any, any>",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "void",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "HeaderValidationError",
+			"path": "new HeaderValidationError",
+			"summary": "Thrown when a Bitcoin header fails a validation rule.",
+			"description": "Thrown when a Bitcoin header fails a validation rule.\n\n`rule` names the rule and `height` the header that failed it.",
+			"source": {
+				"file": "packages/verify/src/bitcoin/chain.ts",
+				"line": 53
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "height",
+							"type": "number",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "rule",
+							"type": "HeaderRule",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "detail",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"constants": [
+		{
+			"name": "MAINNET_CHECKPOINT",
+			"summary": "Mainnet: Stacks block 9,055,251 (`10cb4e95…c5be`) holding the cycle 144 signer set (31 signers, weight 4000), and Bitcoin block 967,680 (a retarget-period start at or below cycle 144's first burn block 968,450).",
+			"type": "VerifyCheckpoint",
+			"source": {
+				"file": "packages/verify/src/checkpoint-mainnet.ts",
+				"line": 11
+			}
+		}
+	],
+	"types": [
+		{
+			"name": "BlockHeader",
+			"summary": "",
+			"fields": [
+				{
+					"name": "version",
+					"type": "number",
+					"required": true,
+					"description": "Signed 32-bit version field."
+				},
+				{
+					"name": "prevHash",
+					"type": "string",
+					"required": true,
+					"description": "Display-order hex of the previous block hash."
+				},
+				{
+					"name": "merkleRoot",
+					"type": "string",
+					"required": true,
+					"description": "Display-order hex of the merkle root."
+				},
+				{
+					"name": "time",
+					"type": "number",
+					"required": true,
+					"description": "Unix timestamp, seconds."
+				},
+				{
+					"name": "bits",
+					"type": "number",
+					"required": true,
+					"description": "Compact-encoded target."
+				},
+				{
+					"name": "nonce",
+					"type": "number",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ChainEntry",
+			"summary": "",
+			"fields": [
+				{
+					"name": "height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "hash",
+					"type": "string",
+					"required": true,
+					"description": "Display-order hex."
+				},
+				{
+					"name": "header",
+					"type": "BlockHeader",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "raw",
+					"type": "Uint8Array",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "Checkpoint",
+			"summary": "",
+			"fields": [
+				{
+					"name": "height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "header",
+					"type": "string | Uint8Array<ArrayBufferLike>",
+					"required": true,
+					"description": "Raw 80-byte header, bytes or hex. Trusted without validation."
+				},
+				{
+					"name": "periodStartTime",
+					"type": "number",
+					"required": false,
+					"description": "Timestamp of the first block of the checkpoint's difficulty period\n(height − height % 2016). Required when the checkpoint is not itself a\nperiod start; needed to verify the next retarget."
+				}
+			]
+		},
+		{
+			"name": "HeaderChain",
+			"summary": "A validated chain of Bitcoin headers, grown forward from a checkpoint.",
+			"fields": [
+				{
+					"name": "tip",
+					"type": "ChainEntry",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "totalWork",
+					"type": "bigint",
+					"required": true,
+					"description": "Work summed from the checkpoint (inclusive) to the tip; not chainwork since genesis."
+				},
+				{
+					"name": "checkpointHeight",
+					"type": "number",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "HeaderRule",
+			"summary": "",
+			"definition": "\"checkpoint\" | \"format\" | \"prev-link\" | \"bits\" | \"retarget\" | \"median-time-past\" | \"version\" | \"proof-of-work\""
+		},
+		{
+			"name": "VerifyCheckpoint",
+			"summary": "",
+			"fields": [
+				{
+					"name": "stacks",
+					"type": "{ header: string; cycle: number; signerSet: string }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "bitcoin",
+					"type": "Checkpoint",
+					"required": true,
+					"description": "Retarget-boundary Bitcoin header at or below the first burn block of `stacks.cycle`."
+				}
+			]
+		}
+	]
+}

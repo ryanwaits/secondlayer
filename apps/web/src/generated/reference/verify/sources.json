@@ -1,0 +1,956 @@
+{
+	"slug": "sources",
+	"root": "",
+	"methods": [
+		{
+			"id": "NodeRpcProofSource",
+			"path": "new NodeRpcProofSource",
+			"summary": "Reads blocks, epoch 2.x headers and MARF proofs from a Stacks node.",
+			"description": "Reads blocks, epoch 2.x headers and MARF proofs from a Stacks node.\n\nIt uses the node's RPC. Witnesses, burn preimages and Bitcoin headers need\nanother source: spread this over one.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 358
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "opts",
+							"type": "NodeRpcSourceOptions",
+							"required": true,
+							"description": "",
+							"fields": [
+								{
+									"name": "nodeUrl",
+									"type": "string",
+									"required": true,
+									"description": "Stacks node RPC origin, e.g. `http://localhost:20443`."
+								},
+								{
+									"name": "fetch",
+									"type": "Fetch",
+									"required": false,
+									"description": ""
+								}
+							]
+						}
+					],
+					"returns": {
+						"type": "",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "NodeRpcProofSource.getBlock",
+			"path": "NodeRpcProofSource.getBlock",
+			"summary": "Raw block bytes, header first, by block id or height.",
+			"description": "Raw block bytes, header first, by block id or height.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 362
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "ref",
+							"type": "string | number",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<Bytes>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "NodeRpcProofSource.getEpoch2Header",
+			"path": "NodeRpcProofSource.getEpoch2Header",
+			"summary": "An epoch 2.x header and its consensus hash, by index block hash.",
+			"description": "An epoch 2.x header and its consensus hash, by index block hash.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 364
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "blockId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<Epoch2HeaderResponse>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "NodeRpcProofSource.getMarfProof",
+			"path": "NodeRpcProofSource.getMarfProof",
+			"summary": "A MARF inclusion proof for a path at a tip.",
+			"description": "A MARF inclusion proof for a path at a tip.\n\nIt is null when the key is absent.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 370
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "pathHex",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "tipId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<MarfProofResponse | null>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "SecondlayerProofSource",
+			"path": "new SecondlayerProofSource",
+			"summary": "Reads every proof input from the Secondlayer API.",
+			"description": "Reads every proof input from the Secondlayer API.\n\nBlocks, epoch 2.x headers, MARF proofs, witnesses, burn preimages, Bitcoin\nheaders and each block's state writes come from `/v1/proofs/*`, which is free\nand rate limited. Indexed `vm_events` rows come from the Index API as metered\nrows, and are read only when `verifyBlock` gets `rows: true`. Methods are own\nproperties, so a partial source spreads over it:\n`{ ...new SecondlayerProofSource(o), ...new NodeRpcProofSource(n) }`.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 239
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "opts",
+							"type": "SecondlayerSourceOptions",
+							"required": false,
+							"description": "",
+							"fields": [
+								{
+									"name": "baseUrl",
+									"type": "string",
+									"required": false,
+									"description": "API origin. Defaults to [`DEFAULT_API_URL`](/docs/verify-reference#c-DEFAULT_API_URL)."
+								},
+								{
+									"name": "apiKey",
+									"type": "string",
+									"required": false,
+									"description": "Optional. Proofs are keyless; a key raises the rate limit. Required for\n`rows: true` (metered Index reads). Sent as `Authorization: Bearer`."
+								},
+								{
+									"name": "fetch",
+									"type": "Fetch",
+									"required": false,
+									"description": ""
+								}
+							]
+						}
+					],
+					"returns": {
+						"type": "",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "SecondlayerProofSource.getBlock",
+			"path": "SecondlayerProofSource.getBlock",
+			"summary": "Raw block bytes, header first, by block id or height.",
+			"description": "Raw block bytes, header first, by block id or height.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 241
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "ref",
+							"type": "string | number",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<Bytes>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "SecondlayerProofSource.getEpoch2Header",
+			"path": "SecondlayerProofSource.getEpoch2Header",
+			"summary": "An epoch 2.x header and its consensus hash, by index block hash.",
+			"description": "An epoch 2.x header and its consensus hash, by index block hash.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 243
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "blockId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<Epoch2HeaderResponse>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "SecondlayerProofSource.getMarfProof",
+			"path": "SecondlayerProofSource.getMarfProof",
+			"summary": "A MARF inclusion proof for a path at a tip.",
+			"description": "A MARF inclusion proof for a path at a tip.\n\nIt is null when the key is absent.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 249
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "pathHex",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "tipId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<MarfProofResponse | null>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "SecondlayerProofSource.getWitness",
+			"path": "SecondlayerProofSource.getWitness",
+			"summary": "The state witness for a block.",
+			"description": "The state witness for a block.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 254
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "blockId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<Bytes>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "SecondlayerProofSource.getBurnPreimage",
+			"path": "SecondlayerProofSource.getBurnPreimage",
+			"summary": "The burn preimage behind a consensus hash.",
+			"description": "The burn preimage behind a consensus hash.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 256
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "consensusHash",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<BurnPreimage>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "SecondlayerProofSource.getBitcoinHeaders",
+			"path": "SecondlayerProofSource.getBitcoinHeaders",
+			"summary": "Raw 80-byte Bitcoin headers, `count` of them from height `from`.",
+			"description": "Raw 80-byte Bitcoin headers, `count` of them from height `from`.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 258
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "from",
+							"type": "number",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "count",
+							"type": "number",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<string[]>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "SecondlayerProofSource.getStateWrites",
+			"path": "SecondlayerProofSource.getStateWrites",
+			"summary": "Every MARF write of a block, in ordinal order.",
+			"description": "Every MARF write of a block, in ordinal order.\n\nIt is null when there are none.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 264
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "height",
+							"type": "number",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<StateWrite[] | null>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "SecondlayerProofSource.getVmEvents",
+			"path": "SecondlayerProofSource.getVmEvents",
+			"summary": "The indexed `vm_events` write rows of a block, from the Index API.",
+			"description": "The indexed `vm_events` write rows of a block, from the Index API.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 266
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "height",
+							"type": "number",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<VmEventRow[]>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "SourceError",
+			"path": "new SourceError",
+			"summary": "Thrown when a proof source request fails.",
+			"description": "Thrown when a proof source request fails.\n\nIt carries the request `url`, the HTTP `status` (null when there was none)\nand the detail.",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 91
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "url",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "status",
+							"type": "number | null",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "detail",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"constants": [
+		{
+			"name": "DEFAULT_API_URL",
+			"summary": "The hosted API.",
+			"type": "\"https://api.secondlayer.tools\"",
+			"source": {
+				"file": "packages/verify/src/source.ts",
+				"line": 180
+			}
+		}
+	],
+	"types": [
+		{
+			"name": "BurnPreimage",
+			"summary": "Sortition preimage behind a consensus hash.",
+			"fields": [
+				{
+					"name": "preimage",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "burnHeight",
+					"type": "number",
+					"required": true,
+					"description": "The source's claimed burn height: a hint for how far to sync Bitcoin headers, never trusted."
+				}
+			]
+		},
+		{
+			"name": "Bytes",
+			"summary": "",
+			"fields": [
+				{
+					"name": "BYTES_PER_ELEMENT",
+					"type": "number",
+					"required": true,
+					"description": "The size in bytes of each element in the array."
+				},
+				{
+					"name": "buffer",
+					"type": "ArrayBufferLike",
+					"required": true,
+					"description": "The ArrayBuffer instance referenced by the array."
+				},
+				{
+					"name": "byteLength",
+					"type": "number",
+					"required": true,
+					"description": "The length in bytes of the array."
+				},
+				{
+					"name": "byteOffset",
+					"type": "number",
+					"required": true,
+					"description": "The offset in bytes of the array."
+				},
+				{
+					"name": "copyWithin",
+					"type": "(target: number, start: number, end?: number) => Bytes",
+					"required": true,
+					"description": "Returns the this object after copying a section of the array identified by start and end\nto the same array starting at position target"
+				},
+				{
+					"name": "every",
+					"type": "(predicate: (value: number, index: number, array: Bytes) => unknown, thisArg?: any) => boolean",
+					"required": true,
+					"description": "Determines whether all the members of an array satisfy the specified test."
+				},
+				{
+					"name": "fill",
+					"type": "(value: number, start?: number, end?: number) => Bytes",
+					"required": true,
+					"description": "Changes all array elements from `start` to `end` index to a static `value` and returns the modified array"
+				},
+				{
+					"name": "filter",
+					"type": "(predicate: (value: number, index: number, array: Bytes) => any, thisArg?: any) => Uint8Array",
+					"required": true,
+					"description": "Returns the elements of an array that meet the condition specified in a callback function."
+				},
+				{
+					"name": "find",
+					"type": "(predicate: (value: number, index: number, obj: Bytes) => boolean, thisArg?: any) => number | undefined",
+					"required": true,
+					"description": "Returns the value of the first element in the array where predicate is true, and undefined\notherwise."
+				},
+				{
+					"name": "findIndex",
+					"type": "(predicate: (value: number, index: number, obj: Bytes) => boolean, thisArg?: any) => number",
+					"required": true,
+					"description": "Returns the index of the first element in the array where predicate is true, and -1\notherwise."
+				},
+				{
+					"name": "forEach",
+					"type": "(callbackfn: (value: number, index: number, array: Bytes) => void, thisArg?: any) => void",
+					"required": true,
+					"description": "Performs the specified action for each element in an array."
+				},
+				{
+					"name": "indexOf",
+					"type": "(searchElement: number, fromIndex?: number) => number",
+					"required": true,
+					"description": "Returns the index of the first occurrence of a value in an array."
+				},
+				{
+					"name": "join",
+					"type": "(separator?: string) => string",
+					"required": true,
+					"description": "Adds all the elements of an array separated by the specified separator string."
+				},
+				{
+					"name": "lastIndexOf",
+					"type": "(searchElement: number, fromIndex?: number) => number",
+					"required": true,
+					"description": "Returns the index of the last occurrence of a value in an array."
+				},
+				{
+					"name": "length",
+					"type": "number",
+					"required": true,
+					"description": "The length of the array."
+				},
+				{
+					"name": "map",
+					"type": "(callbackfn: (value: number, index: number, array: Bytes) => number, thisArg?: any) => Uint8Array",
+					"required": true,
+					"description": "Calls a defined callback function on each element of an array, and returns an array that\ncontains the results."
+				},
+				{
+					"name": "reduce",
+					"type": "{ (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number): number; (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number, initialValue: number): number; <U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: Bytes) => U, initialValue: U): U; }",
+					"required": true,
+					"description": "Calls the specified callback function for all the elements in an array. The return value of\nthe callback function is the accumulated result, and is provided as an argument in the next\ncall to the callback function."
+				},
+				{
+					"name": "reduceRight",
+					"type": "{ (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number): number; (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number, initialValue: number): number; <U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: Bytes) => U, initialValue: U): U; }",
+					"required": true,
+					"description": "Calls the specified callback function for all the elements in an array, in descending order.\nThe return value of the callback function is the accumulated result, and is provided as an\nargument in the next call to the callback function."
+				},
+				{
+					"name": "reverse",
+					"type": "() => Bytes",
+					"required": true,
+					"description": "Reverses the elements in an Array."
+				},
+				{
+					"name": "set",
+					"type": "(array: ArrayLike<number>, offset?: number) => void",
+					"required": true,
+					"description": "Sets a value or an array of values."
+				},
+				{
+					"name": "slice",
+					"type": "(start?: number, end?: number) => Uint8Array",
+					"required": true,
+					"description": "Returns a section of an array."
+				},
+				{
+					"name": "some",
+					"type": "(predicate: (value: number, index: number, array: Bytes) => unknown, thisArg?: any) => boolean",
+					"required": true,
+					"description": "Determines whether the specified callback function returns true for any element of an array."
+				},
+				{
+					"name": "sort",
+					"type": "(compareFn?: (a: number, b: number) => number) => Bytes",
+					"required": true,
+					"description": "Sorts an array."
+				},
+				{
+					"name": "subarray",
+					"type": "(begin?: number, end?: number) => Uint8Array",
+					"required": true,
+					"description": "Gets a new Uint8Array view of the ArrayBuffer store for this array, referencing the elements\nat begin, inclusive, up to end, exclusive."
+				},
+				{
+					"name": "toLocaleString",
+					"type": "{ (): string; (locales: string | string[], options?: Intl.NumberFormatOptions): string; }",
+					"required": true,
+					"description": "Converts a number to a string by using the current locale."
+				},
+				{
+					"name": "toString",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a string representation of an array."
+				},
+				{
+					"name": "valueOf",
+					"type": "() => Bytes",
+					"required": true,
+					"description": "Returns the primitive value of the specified object."
+				},
+				{
+					"name": "entries",
+					"type": "() => ArrayIterator<[number, number]>",
+					"required": true,
+					"description": "Returns an array of key, value pairs for every entry in the array"
+				},
+				{
+					"name": "keys",
+					"type": "() => ArrayIterator<number>",
+					"required": true,
+					"description": "Returns an list of keys in the array"
+				},
+				{
+					"name": "values",
+					"type": "() => ArrayIterator<number>",
+					"required": true,
+					"description": "Returns an list of values in the array"
+				},
+				{
+					"name": "includes",
+					"type": "(searchElement: number, fromIndex?: number) => boolean",
+					"required": true,
+					"description": "Determines whether an array includes a certain element, returning true or false as appropriate."
+				},
+				{
+					"name": "toBase64",
+					"type": "(options?: { alphabet?: \"base64\" | \"base64url\"; omitPadding?: boolean }) => string",
+					"required": true,
+					"description": "Convert the Uint8Array to a base64 encoded string"
+				},
+				{
+					"name": "setFromBase64",
+					"type": "(base64: string, offset?: number) => { read: number; written: number }",
+					"required": true,
+					"description": "Set the contents of the Uint8Array from a base64 encoded string"
+				},
+				{
+					"name": "toHex",
+					"type": "() => string",
+					"required": true,
+					"description": "Convert the Uint8Array to a hex encoded string"
+				},
+				{
+					"name": "setFromHex",
+					"type": "(hex: string) => { read: number; written: number }",
+					"required": true,
+					"description": "Set the contents of the Uint8Array from a hex encoded string"
+				},
+				{
+					"name": "at",
+					"type": "(index: number) => number | undefined",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "Epoch2HeaderResponse",
+			"summary": "An epoch 2.x header and the consensus hash its index block hash commits to.",
+			"fields": [
+				{
+					"name": "header",
+					"type": "Bytes",
+					"required": true,
+					"description": "Consensus-serialized StacksBlockHeader."
+				},
+				{
+					"name": "consensusHash",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "Fetch",
+			"summary": "",
+			"definition": "(url: string, init?: RequestInit) => Promise<Response>"
+		},
+		{
+			"name": "MarfProofResponse",
+			"summary": "Node RPC `/v2/clarity/marf/<path>?proof=1` answer.",
+			"fields": [
+				{
+					"name": "data",
+					"type": "string",
+					"required": true,
+					"description": "Value string as Clarity stored it (hex for Clarity values), 0x prefix tolerated."
+				},
+				{
+					"name": "proof",
+					"type": "Bytes",
+					"required": true,
+					"description": "Consensus-serialized TrieMerkleProof."
+				}
+			]
+		},
+		{
+			"name": "NodeRpcSourceOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "nodeUrl",
+					"type": "string",
+					"required": true,
+					"description": "Stacks node RPC origin, e.g. `http://localhost:20443`."
+				},
+				{
+					"name": "fetch",
+					"type": "Fetch",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ProofSource",
+			"summary": "",
+			"fields": [
+				{
+					"name": "getBlock",
+					"type": "(ref: string | number) => Promise<Bytes>",
+					"required": true,
+					"description": "Raw Nakamoto block bytes (header first), by block id or height."
+				},
+				{
+					"name": "getEpoch2Header",
+					"type": "(blockId: string) => Promise<Epoch2HeaderResponse>",
+					"required": false,
+					"description": "Epoch 2.x block header by index block hash: blocks below the checkpoint\nfrom before Nakamoto. Without it only Nakamoto blocks verify."
+				},
+				{
+					"name": "getMarfProof",
+					"type": "(pathHex: string, tipId: string) => Promise<MarfProofResponse | null>",
+					"required": true,
+					"description": "MARF inclusion proof for a 32-byte path at `tipId`; null when the key is\nabsent. Blocks below the checkpoint also ask for\n`__MARF_BLOCK_HEIGHT_TO_HASH::<height>`, whose value is no stored string:\nonly `proof` is read for it."
+				},
+				{
+					"name": "getWitness",
+					"type": "(blockId: string) => Promise<Bytes>",
+					"required": true,
+					"description": "State witness (wire v3) for a block."
+				},
+				{
+					"name": "getBurnPreimage",
+					"type": "(consensusHash: string) => Promise<BurnPreimage>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "getBitcoinHeaders",
+					"type": "(from: number, count: number) => Promise<(string | Bytes)[]>",
+					"required": true,
+					"description": "Raw 80-byte Bitcoin headers (hex or bytes) from height `from`."
+				},
+				{
+					"name": "getStateWrites",
+					"type": "(height: number) => Promise<StateWrite[] | null>",
+					"required": false,
+					"description": "Every MARF write of the block, in ordinal order; null (or empty) when\nthe source has none for it. Names the block's diff."
+				},
+				{
+					"name": "getVmEvents",
+					"type": "(height: number) => Promise<VmEventRow[]>",
+					"required": false,
+					"description": "Indexed vm_events write rows of the block, checked against its proven diff."
+				}
+			]
+		},
+		{
+			"name": "SecondlayerSourceOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "baseUrl",
+					"type": "string",
+					"required": false,
+					"description": "API origin. Defaults to [`DEFAULT_API_URL`](/docs/verify-reference#c-DEFAULT_API_URL)."
+				},
+				{
+					"name": "apiKey",
+					"type": "string",
+					"required": false,
+					"description": "Optional. Proofs are keyless; a key raises the rate limit. Required for\n`rows: true` (metered Index reads). Sent as `Authorization: Bearer`."
+				},
+				{
+					"name": "fetch",
+					"type": "Fetch",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StateWrite",
+			"summary": "One storage-layer MARF write (`state_writes` row), in block write order.",
+			"fields": [
+				{
+					"name": "tx_index",
+					"type": "number | null",
+					"required": true,
+					"description": "Null for block-level writes outside any transaction."
+				},
+				{
+					"name": "ordinal",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "key",
+					"type": "string",
+					"required": true,
+					"description": "Full MARF key, e.g. `vm::<contract>::0::<map>::<key hex>`."
+				},
+				{
+					"name": "value_hex",
+					"type": "string",
+					"required": true,
+					"description": "Hex of the stored value string's UTF-8 bytes."
+				}
+			]
+		},
+		{
+			"name": "VmEventRow",
+			"summary": "A `vm_events` write row, as the Index API serves it.",
+			"fields": [
+				{
+					"name": "event_type",
+					"type": "\"var_set\" | \"map_set\" | \"map_insert\" | \"map_delete\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "event_index",
+					"type": "number",
+					"required": true,
+					"description": "The row's ordinal within the block."
+				},
+				{
+					"name": "tx_id",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "tx_index",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contract_id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "var_name",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "raw_key",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "raw_value",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				}
+			]
+		}
+	]
+}

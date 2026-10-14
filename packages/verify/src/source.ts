@@ -82,6 +82,12 @@ export interface ProofSource {
 	getVmEvents?(height: number): Promise<VmEventRow[]>;
 }
 
+/**
+ * Thrown when a proof source request fails.
+ *
+ * It carries the request `url`, the HTTP `status` (null when there was none)
+ * and the detail.
+ */
 export class SourceError extends Error {
 	override readonly name = "SourceError";
 	constructor(
@@ -221,24 +227,42 @@ async function pages<T>(
 // fields: nothing leaks through a spread, a log or JSON.stringify.
 
 /**
- * Every proof input from the Secondlayer API: `/v1/proofs/*` (free, rate
- * limited) for blocks, epoch 2.x headers, MARF proofs, witnesses, burn
- * preimages, Bitcoin headers and each block's state writes; the Index API
- * (metered rows) for vm_events, read only when verifyBlock gets `rows: true`.
- * Methods are own properties, so a partial source spreads over it:
+ * Reads every proof input from the Secondlayer API.
+ *
+ * Blocks, epoch 2.x headers, MARF proofs, witnesses, burn preimages, Bitcoin
+ * headers and each block's state writes come from `/v1/proofs/*`, which is free
+ * and rate limited. Indexed `vm_events` rows come from the Index API as metered
+ * rows, and are read only when `verifyBlock` gets `rows: true`. Methods are own
+ * properties, so a partial source spreads over it:
  * `{ ...new SecondlayerProofSource(o), ...new NodeRpcProofSource(n) }`.
  */
 export class SecondlayerProofSource implements ProofSource {
+	/** Raw block bytes, header first, by block id or height. */
 	getBlock: (ref: string | number) => Promise<Bytes>;
+	/** An epoch 2.x header and its consensus hash, by index block hash. */
 	getEpoch2Header: (blockId: string) => Promise<Epoch2HeaderResponse>;
+	/**
+	 * A MARF inclusion proof for a path at a tip.
+	 *
+	 * It is null when the key is absent.
+	 */
 	getMarfProof: (
 		pathHex: string,
 		tipId: string,
 	) => Promise<MarfProofResponse | null>;
+	/** The state witness for a block. */
 	getWitness: (blockId: string) => Promise<Bytes>;
+	/** The burn preimage behind a consensus hash. */
 	getBurnPreimage: (consensusHash: string) => Promise<BurnPreimage>;
+	/** Raw 80-byte Bitcoin headers, `count` of them from height `from`. */
 	getBitcoinHeaders: (from: number, count: number) => Promise<string[]>;
+	/**
+	 * Every MARF write of a block, in ordinal order.
+	 *
+	 * It is null when there are none.
+	 */
 	getStateWrites: (height: number) => Promise<StateWrite[] | null>;
+	/** The indexed `vm_events` write rows of a block, from the Index API. */
 	getVmEvents: (height: number) => Promise<VmEventRow[]>;
 
 	constructor(opts: SecondlayerSourceOptions = {}) {
@@ -326,15 +350,23 @@ export interface NodeRpcSourceOptions {
 }
 
 /**
- * Blocks, epoch 2.x headers and MARF proofs straight from a Stacks node's RPC.
- * Witnesses, burn preimages and Bitcoin headers need another source: spread
- * this over one.
+ * Reads blocks, epoch 2.x headers and MARF proofs from a Stacks node.
+ *
+ * It uses the node's RPC. Witnesses, burn preimages and Bitcoin headers need
+ * another source: spread this over one.
  */
 export class NodeRpcProofSource
 	implements Pick<ProofSource, "getBlock" | "getEpoch2Header" | "getMarfProof">
 {
+	/** Raw block bytes, header first, by block id or height. */
 	getBlock: (ref: string | number) => Promise<Bytes>;
+	/** An epoch 2.x header and its consensus hash, by index block hash. */
 	getEpoch2Header: (blockId: string) => Promise<Epoch2HeaderResponse>;
+	/**
+	 * A MARF inclusion proof for a path at a tip.
+	 *
+	 * It is null when the key is absent.
+	 */
 	getMarfProof: (
 		pathHex: string,
 		tipId: string,

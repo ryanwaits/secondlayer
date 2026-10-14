@@ -1,0 +1,1410 @@
+{
+	"slug": "proofs",
+	"root": "",
+	"methods": [
+		{
+			"id": "hex",
+			"path": "hex",
+			"summary": "Encodes bytes as a lowercase hex string.",
+			"description": "Encodes bytes as a lowercase hex string.",
+			"source": {
+				"file": "packages/verify/src/bytes.ts",
+				"line": 8
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "b",
+							"type": "Bytes",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "string",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "unhex",
+			"path": "unhex",
+			"summary": "Hex to bytes; tolerates a 0x prefix.",
+			"description": "Hex to bytes; tolerates a 0x prefix.",
+			"source": {
+				"file": "packages/verify/src/bytes.ts",
+				"line": 11
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "s",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Bytes",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "blockId",
+			"path": "blockId",
+			"summary": "Computes a header's block id, also called the index block hash.",
+			"description": "Computes a header's block id, also called the index block hash.\n\nThe id is sha512/256(block_hash || consensus_hash). A Nakamoto block hash is\nits signer signature hash; a 2.x one hashes the whole header.",
+			"source": {
+				"file": "packages/verify/src/header.ts",
+				"line": 160
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "h",
+							"type": "StacksHeader",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Bytes",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "isEpoch2Header",
+			"path": "isEpoch2Header",
+			"summary": "Narrows a Stacks header to an epoch 2.x header.",
+			"description": "Narrows a Stacks header to an epoch 2.x header.",
+			"source": {
+				"file": "packages/verify/src/header.ts",
+				"line": 151
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "h",
+							"type": "StacksHeader",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "h is Epoch2Header",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "parseEpoch2Header",
+			"path": "parseEpoch2Header",
+			"summary": "Parses the epoch 2.x block header at the start of `raw`.",
+			"description": "Parses the epoch 2.x block header at the start of `raw`.\n\n`raw` is a header from `/v2/headers`, or block bytes from `/v2/blocks/<id>`.\n`consensusHash` is the 20-byte hash of the sortition that elected the block.",
+			"source": {
+				"file": "packages/verify/src/header.ts",
+				"line": 124
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "raw",
+							"type": "Bytes",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "consensusHash",
+							"type": "Bytes",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Epoch2Header",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "parseNakamotoHeader",
+			"path": "parseNakamotoHeader",
+			"summary": "Parse the NakamotoBlockHeader at the start of raw block bytes (`/v3/blocks/<id>`).",
+			"description": "Parse the NakamotoBlockHeader at the start of raw block bytes\n(`/v3/blocks/<id>`). Handles v0 and v1 (v1 appends `problematic_txs`).",
+			"source": {
+				"file": "packages/verify/src/header.ts",
+				"line": 35
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "raw",
+							"type": "Bytes",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "NakamotoHeader",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "signerSignatureHash",
+			"path": "signerSignatureHash",
+			"summary": "Hashes a Nakamoto header the way its signers sign it.",
+			"description": "Hashes a Nakamoto header the way its signers sign it.\n\nIt is sha512/256 over every header field except the signer signatures, which\nis also the header's `block_hash`.",
+			"source": {
+				"file": "packages/verify/src/header.ts",
+				"line": 86
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "h",
+							"type": "NakamotoHeader",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Bytes",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "marfPath",
+			"path": "marfPath",
+			"summary": "Hashes a key to its MARF path: sha512/256 of the UTF-8 key.",
+			"description": "Hashes a key to its MARF path: sha512/256 of the UTF-8 key.",
+			"source": {
+				"file": "packages/verify/src/marf.ts",
+				"line": 52
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "key",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Bytes",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "marfProofAncestors",
+			"path": "marfProofAncestors",
+			"summary": "Lists the ancestor tries a MARF proof crosses.",
+			"description": "Lists the ancestor tries a MARF proof crosses.\n\nEach id is the backptr a descendant trie follows toward the leaf, and\n`verifyMarfProof` needs every one's header. They are read from untrusted\nproof bytes, so they are only fetch hints: the proof still fails unless each\nheader hashes to the id the trie committed. Malformed proofs yield no ids.",
+			"source": {
+				"file": "packages/verify/src/marf.ts",
+				"line": 323
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "proof",
+							"type": "Bytes",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "string[]",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "marfValue",
+			"path": "marfValue",
+			"summary": "Hashes a value to its MARF value: sha512/256, padded to 40 bytes.",
+			"description": "Hashes a value to its MARF value: sha512/256, padded to 40 bytes.",
+			"source": {
+				"file": "packages/verify/src/marf.ts",
+				"line": 64
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "value",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Bytes",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "verifyMarfProof",
+			"path": "verifyMarfProof",
+			"summary": "Verifies a MARF inclusion proof.",
+			"description": "Verifies a MARF inclusion proof.\n\nIt is true only when `value` is stored at `path` in the MARF whose tip root\nis `root`. Inclusion only: MARF proofs cannot prove absence. Malformed proof\nbytes verify false.",
+			"source": {
+				"file": "packages/verify/src/marf.ts",
+				"line": 380
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "input",
+							"type": "MarfProofInput",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "boolean",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "classifyBlockDiff",
+			"path": "classifyBlockDiff",
+			"summary": "Classify every leaf of block N's trie against the claimed write set.",
+			"description": "Classify every leaf of block N's trie against the claimed write set.\nEach leaf must be a claimed write, a carried (unchanged) parent value, or a\nMARF-internal key; anything else is a hidden write.",
+			"source": {
+				"file": "packages/verify/src/witness.ts",
+				"line": 179
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "input",
+							"type": "BlockDiffInput",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "BlockDiff",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "parseWitness",
+			"path": "parseWitness",
+			"summary": "Parse a v2 state witness and recompute its root.",
+			"description": "Parse a v2 state witness and recompute its root. Throws on malformed input.\nThe result proves nothing until `root` equals a header's state_index_root.",
+			"source": {
+				"file": "packages/verify/src/witness.ts",
+				"line": 60
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "bytes",
+							"type": "Bytes",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "StateWitness",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "decodeSignerSet",
+			"path": "decodeSignerSet",
+			"summary": "Decodes a `cycle-signer-set` value from the `.signers` contract.",
+			"description": "Decodes a `cycle-signer-set` value from the `.signers` contract.\n\nThe value is hex or bytes, as stored in the MARF:\n`(some (list (tuple (signer principal) (weight uint) ...)))`.",
+			"source": {
+				"file": "packages/verify/src/signers.ts",
+				"line": 24
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "value",
+							"type": "string | Bytes",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "SignerSet",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "verifySignerSignatures",
+			"path": "verifySignerSignatures",
+			"summary": "Sums the weight of the signers who signed a block header.",
+			"description": "Sums the weight of the signers who signed a block header.\n\nIt recovers each header signature's key over `signer_signature_hash`, maps it\nto its mainnet p2pkh principal, and sums weights from `set`. The set must be\nthe one for the reward cycle of the tenure-electing burn block.",
+			"source": {
+				"file": "packages/verify/src/signers.ts",
+				"line": 65
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "header",
+							"type": "NakamotoHeader",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "set",
+							"type": "SignerSet",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "SignerCheck",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "cycleStart",
+			"path": "cycleStart",
+			"summary": "First burn height of reward cycle `cycle`.",
+			"description": "First burn height of reward cycle `cycle`.",
+			"source": {
+				"file": "packages/verify/src/burn.ts",
+				"line": 42
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "cycle",
+							"type": "number",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "firstBurnHeight",
+							"type": "number",
+							"required": false,
+							"description": ""
+						},
+						{
+							"name": "cycleLength",
+							"type": "number",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "number",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "rewardCycle",
+			"path": "rewardCycle",
+			"summary": "Reward cycle containing `burnHeight`.",
+			"description": "Reward cycle containing `burnHeight`.",
+			"source": {
+				"file": "packages/verify/src/burn.ts",
+				"line": 49
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "burnHeight",
+							"type": "number",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "firstBurnHeight",
+							"type": "number",
+							"required": false,
+							"description": ""
+						},
+						{
+							"name": "cycleLength",
+							"type": "number",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "number",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "verifyConsensusPreimage",
+			"path": "verifyConsensusPreimage",
+			"summary": "Check `preimage` against a 20-byte consensus hash.",
+			"description": "Check `preimage` against a 20-byte consensus hash. Returns the burn block\nhash as hex, already in Bitcoin display order (as `bitcoin-cli\ngetblockhash` prints it), or null when the preimage does not match.",
+			"source": {
+				"file": "packages/verify/src/burn.ts",
+				"line": 23
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "consensusHash",
+							"type": "Bytes",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "preimage",
+							"type": "Bytes",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "string | null",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "dataVarKey",
+			"path": "dataVarKey",
+			"summary": "The MARF key of a data variable: `vm::<contract>::1::<var>`.",
+			"description": "The MARF key of a data variable: `vm::<contract>::1::<var>`.",
+			"source": {
+				"file": "packages/verify/src/keys.ts",
+				"line": 20
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "contractId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "varName",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "string",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "ftBalanceKey",
+			"path": "ftBalanceKey",
+			"summary": "The MARF key of a fungible token balance: `vm::<contract>::2::<token>::<principal json>`.",
+			"description": "The MARF key of a fungible token balance: `vm::<contract>::2::<token>::<principal json>`.\n\nThe holder is serde-JSON PrincipalData, e.g. `{\"Standard\":[22,[...20 bytes]]}`.",
+			"source": {
+				"file": "packages/verify/src/keys.ts",
+				"line": 29
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "contractId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "tokenName",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "holder",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "string",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "mapEntryKey",
+			"path": "mapEntryKey",
+			"summary": "The MARF key of a map entry: `vm::<contract>::0::<map>::<serialized key hex>`.",
+			"description": "The MARF key of a map entry: `vm::<contract>::0::<map>::<serialized key hex>`.",
+			"source": {
+				"file": "packages/verify/src/keys.ts",
+				"line": 11
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "contractId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "mapName",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "key",
+							"type": "ClarityValue",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "string",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"constants": [
+		{
+			"name": "SIGNERS_CONTRACT",
+			"summary": "Boot contract holding `cycle-signer-set`, one entry per reward cycle.",
+			"type": "\"SP000000000000000000002Q6VF78.signers\"",
+			"source": {
+				"file": "packages/verify/src/signers.ts",
+				"line": 13
+			}
+		},
+		{
+			"name": "MAINNET_FIRST_BURN_HEIGHT",
+			"summary": "Mainnet PoX parameters (first_burnchain_block_height, reward_cycle_length).",
+			"type": "666050",
+			"source": {
+				"file": "packages/verify/src/burn.ts",
+				"line": 35
+			}
+		},
+		{
+			"name": "MAINNET_PREPARE_LENGTH",
+			"summary": "Mainnet prepare phase: the last 100 burn blocks of a cycle pick the next cycle's signers.",
+			"type": "100",
+			"source": {
+				"file": "packages/verify/src/burn.ts",
+				"line": 39
+			}
+		},
+		{
+			"name": "MAINNET_REWARD_CYCLE_LENGTH",
+			"summary": "Burn blocks in a mainnet reward cycle.",
+			"type": "2100",
+			"source": {
+				"file": "packages/verify/src/burn.ts",
+				"line": 37
+			}
+		}
+	],
+	"types": [
+		{
+			"name": "BlockDiff",
+			"summary": "",
+			"fields": [
+				{
+					"name": "writes",
+					"type": "ClassifiedLeaf[]",
+					"required": true,
+					"description": "Leaves matching a claimed write (path and value)."
+				},
+				{
+					"name": "carried",
+					"type": "WitnessLeaf[]",
+					"required": true,
+					"description": "Unclaimed leaves holding the parent's value: copied forward, not written."
+				},
+				{
+					"name": "internal",
+					"type": "ClassifiedLeaf[]",
+					"required": true,
+					"description": "Leaves matching a `__MARF_*` bookkeeping entry."
+				},
+				{
+					"name": "hidden",
+					"type": "WitnessLeaf[]",
+					"required": true,
+					"description": "Leaves nothing explains: an unreported write. Non-empty = reject."
+				},
+				{
+					"name": "missing",
+					"type": "string[]",
+					"required": true,
+					"description": "Claimed write keys with no leaf holding the claimed value. Non-empty = reject."
+				},
+				{
+					"name": "complete",
+					"type": "boolean",
+					"required": true,
+					"description": "No hidden leaves and no missing writes: the claimed writes are the block's complete diff."
+				}
+			]
+		},
+		{
+			"name": "BlockDiffInput",
+			"summary": "",
+			"fields": [
+				{
+					"name": "leaves",
+					"type": "WitnessLeaf[]",
+					"required": true,
+					"description": "`parseWitness(bytes).leaves`, from a witness whose root was checked."
+				},
+				{
+					"name": "writes",
+					"type": "[string, string][]",
+					"required": true,
+					"description": "Claimed writes of the block: [key, value string] as stored by Clarity."
+				},
+				{
+					"name": "internal",
+					"type": "[string, string][]",
+					"required": true,
+					"description": "MARF bookkeeping keys (`__MARF_*`) with their raw 40-byte MARFValue hex, derived from the header chain."
+				},
+				{
+					"name": "parentValue",
+					"type": "(pathHex: string) => string | undefined",
+					"required": true,
+					"description": "Value at `pathHex` in the PARENT block's state (40-byte MARFValue hex), already proven by the caller."
+				}
+			]
+		},
+		{
+			"name": "Bytes",
+			"summary": "",
+			"fields": [
+				{
+					"name": "BYTES_PER_ELEMENT",
+					"type": "number",
+					"required": true,
+					"description": "The size in bytes of each element in the array."
+				},
+				{
+					"name": "buffer",
+					"type": "ArrayBufferLike",
+					"required": true,
+					"description": "The ArrayBuffer instance referenced by the array."
+				},
+				{
+					"name": "byteLength",
+					"type": "number",
+					"required": true,
+					"description": "The length in bytes of the array."
+				},
+				{
+					"name": "byteOffset",
+					"type": "number",
+					"required": true,
+					"description": "The offset in bytes of the array."
+				},
+				{
+					"name": "copyWithin",
+					"type": "(target: number, start: number, end?: number) => Bytes",
+					"required": true,
+					"description": "Returns the this object after copying a section of the array identified by start and end\nto the same array starting at position target"
+				},
+				{
+					"name": "every",
+					"type": "(predicate: (value: number, index: number, array: Bytes) => unknown, thisArg?: any) => boolean",
+					"required": true,
+					"description": "Determines whether all the members of an array satisfy the specified test."
+				},
+				{
+					"name": "fill",
+					"type": "(value: number, start?: number, end?: number) => Bytes",
+					"required": true,
+					"description": "Changes all array elements from `start` to `end` index to a static `value` and returns the modified array"
+				},
+				{
+					"name": "filter",
+					"type": "(predicate: (value: number, index: number, array: Bytes) => any, thisArg?: any) => Uint8Array",
+					"required": true,
+					"description": "Returns the elements of an array that meet the condition specified in a callback function."
+				},
+				{
+					"name": "find",
+					"type": "(predicate: (value: number, index: number, obj: Bytes) => boolean, thisArg?: any) => number | undefined",
+					"required": true,
+					"description": "Returns the value of the first element in the array where predicate is true, and undefined\notherwise."
+				},
+				{
+					"name": "findIndex",
+					"type": "(predicate: (value: number, index: number, obj: Bytes) => boolean, thisArg?: any) => number",
+					"required": true,
+					"description": "Returns the index of the first element in the array where predicate is true, and -1\notherwise."
+				},
+				{
+					"name": "forEach",
+					"type": "(callbackfn: (value: number, index: number, array: Bytes) => void, thisArg?: any) => void",
+					"required": true,
+					"description": "Performs the specified action for each element in an array."
+				},
+				{
+					"name": "indexOf",
+					"type": "(searchElement: number, fromIndex?: number) => number",
+					"required": true,
+					"description": "Returns the index of the first occurrence of a value in an array."
+				},
+				{
+					"name": "join",
+					"type": "(separator?: string) => string",
+					"required": true,
+					"description": "Adds all the elements of an array separated by the specified separator string."
+				},
+				{
+					"name": "lastIndexOf",
+					"type": "(searchElement: number, fromIndex?: number) => number",
+					"required": true,
+					"description": "Returns the index of the last occurrence of a value in an array."
+				},
+				{
+					"name": "length",
+					"type": "number",
+					"required": true,
+					"description": "The length of the array."
+				},
+				{
+					"name": "map",
+					"type": "(callbackfn: (value: number, index: number, array: Bytes) => number, thisArg?: any) => Uint8Array",
+					"required": true,
+					"description": "Calls a defined callback function on each element of an array, and returns an array that\ncontains the results."
+				},
+				{
+					"name": "reduce",
+					"type": "{ (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number): number; (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number, initialValue: number): number; <U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: Bytes) => U, initialValue: U): U; }",
+					"required": true,
+					"description": "Calls the specified callback function for all the elements in an array. The return value of\nthe callback function is the accumulated result, and is provided as an argument in the next\ncall to the callback function."
+				},
+				{
+					"name": "reduceRight",
+					"type": "{ (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number): number; (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number, initialValue: number): number; <U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: Bytes) => U, initialValue: U): U; }",
+					"required": true,
+					"description": "Calls the specified callback function for all the elements in an array, in descending order.\nThe return value of the callback function is the accumulated result, and is provided as an\nargument in the next call to the callback function."
+				},
+				{
+					"name": "reverse",
+					"type": "() => Bytes",
+					"required": true,
+					"description": "Reverses the elements in an Array."
+				},
+				{
+					"name": "set",
+					"type": "(array: ArrayLike<number>, offset?: number) => void",
+					"required": true,
+					"description": "Sets a value or an array of values."
+				},
+				{
+					"name": "slice",
+					"type": "(start?: number, end?: number) => Uint8Array",
+					"required": true,
+					"description": "Returns a section of an array."
+				},
+				{
+					"name": "some",
+					"type": "(predicate: (value: number, index: number, array: Bytes) => unknown, thisArg?: any) => boolean",
+					"required": true,
+					"description": "Determines whether the specified callback function returns true for any element of an array."
+				},
+				{
+					"name": "sort",
+					"type": "(compareFn?: (a: number, b: number) => number) => Bytes",
+					"required": true,
+					"description": "Sorts an array."
+				},
+				{
+					"name": "subarray",
+					"type": "(begin?: number, end?: number) => Uint8Array",
+					"required": true,
+					"description": "Gets a new Uint8Array view of the ArrayBuffer store for this array, referencing the elements\nat begin, inclusive, up to end, exclusive."
+				},
+				{
+					"name": "toLocaleString",
+					"type": "{ (): string; (locales: string | string[], options?: Intl.NumberFormatOptions): string; }",
+					"required": true,
+					"description": "Converts a number to a string by using the current locale."
+				},
+				{
+					"name": "toString",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a string representation of an array."
+				},
+				{
+					"name": "valueOf",
+					"type": "() => Bytes",
+					"required": true,
+					"description": "Returns the primitive value of the specified object."
+				},
+				{
+					"name": "entries",
+					"type": "() => ArrayIterator<[number, number]>",
+					"required": true,
+					"description": "Returns an array of key, value pairs for every entry in the array"
+				},
+				{
+					"name": "keys",
+					"type": "() => ArrayIterator<number>",
+					"required": true,
+					"description": "Returns an list of keys in the array"
+				},
+				{
+					"name": "values",
+					"type": "() => ArrayIterator<number>",
+					"required": true,
+					"description": "Returns an list of values in the array"
+				},
+				{
+					"name": "includes",
+					"type": "(searchElement: number, fromIndex?: number) => boolean",
+					"required": true,
+					"description": "Determines whether an array includes a certain element, returning true or false as appropriate."
+				},
+				{
+					"name": "toBase64",
+					"type": "(options?: { alphabet?: \"base64\" | \"base64url\"; omitPadding?: boolean }) => string",
+					"required": true,
+					"description": "Convert the Uint8Array to a base64 encoded string"
+				},
+				{
+					"name": "setFromBase64",
+					"type": "(base64: string, offset?: number) => { read: number; written: number }",
+					"required": true,
+					"description": "Set the contents of the Uint8Array from a base64 encoded string"
+				},
+				{
+					"name": "toHex",
+					"type": "() => string",
+					"required": true,
+					"description": "Convert the Uint8Array to a hex encoded string"
+				},
+				{
+					"name": "setFromHex",
+					"type": "(hex: string) => { read: number; written: number }",
+					"required": true,
+					"description": "Set the contents of the Uint8Array from a hex encoded string"
+				},
+				{
+					"name": "at",
+					"type": "(index: number) => number | undefined",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ClassifiedLeaf",
+			"summary": "",
+			"fields": [
+				{
+					"name": "key",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "path",
+					"type": "Bytes",
+					"required": true,
+					"description": "Full 32-byte trie path: `marfPath(key)`."
+				},
+				{
+					"name": "valueHash",
+					"type": "Bytes",
+					"required": true,
+					"description": "32-byte value hash (first 32 bytes of the MARFValue; the tail is zero)."
+				}
+			]
+		},
+		{
+			"name": "Epoch2Header",
+			"summary": "Epoch 2.x anchored block header.",
+			"fields": [
+				{
+					"name": "version",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "burnSpent",
+					"type": "bigint",
+					"required": true,
+					"description": "total_work.burn: burn spent on the fork so far."
+				},
+				{
+					"name": "chainLength",
+					"type": "bigint",
+					"required": true,
+					"description": "total_work.work: the Stacks chain length (one per anchored block)."
+				},
+				{
+					"name": "vrfProof",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "parentBlockHash",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "parentMicroblock",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "parentMicroblockSequence",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "txMerkleRoot",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "stateIndexRoot",
+					"type": "Bytes",
+					"required": true,
+					"description": "Covers the block and the parent microblock stream it confirms."
+				},
+				{
+					"name": "microblockPubkeyHash",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "blockHash",
+					"type": "Bytes",
+					"required": true,
+					"description": "sha512/256 of the serialized header."
+				},
+				{
+					"name": "consensusHash",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MarfProofInput",
+			"summary": "",
+			"fields": [
+				{
+					"name": "proof",
+					"type": "Bytes",
+					"required": true,
+					"description": "Consensus-serialized TrieMerkleProof (`/v2/clarity/marf/<path>?proof=1`)."
+				},
+				{
+					"name": "path",
+					"type": "Bytes",
+					"required": true,
+					"description": "Leaf path: `marfPath(key)`."
+				},
+				{
+					"name": "value",
+					"type": "Bytes",
+					"required": true,
+					"description": "40-byte MARFValue: `marfValue(valueString)`."
+				},
+				{
+					"name": "root",
+					"type": "Bytes",
+					"required": true,
+					"description": "Tip state_index_root, from a header the caller authenticated."
+				},
+				{
+					"name": "headers",
+					"type": "StacksHeader[]",
+					"required": true,
+					"description": "Tip header plus every ancestor header the proof crosses. Each contributes\nstate_index_root -> recomputed block id, so ancestor roots are only ever\nvouched for by header bytes (a bare root->id map would let a forged\nancestor trie through)."
+				}
+			]
+		},
+		{
+			"name": "NakamotoHeader",
+			"summary": "",
+			"fields": [
+				{
+					"name": "version",
+					"type": "number",
+					"required": true,
+					"description": "Low 7 bits = header version; high bit = shadow block."
+				},
+				{
+					"name": "chainLength",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "burnSpent",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "consensusHash",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "parentBlockId",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "txMerkleRoot",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "stateIndexRoot",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "timestamp",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "minerSignature",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "signerSignatures",
+					"type": "Bytes[]",
+					"required": true,
+					"description": "65-byte recoverable signatures: recovery id, r, s."
+				},
+				{
+					"name": "signerSighashPreimage",
+					"type": "Bytes",
+					"required": true,
+					"description": "Header bytes minus the signer_signature vec: the signer sighash preimage."
+				},
+				{
+					"name": "byteLength",
+					"type": "number",
+					"required": true,
+					"description": "Serialized header length; block bytes after this are the transactions."
+				}
+			]
+		},
+		{
+			"name": "SignerCheck",
+			"summary": "",
+			"fields": [
+				{
+					"name": "valid",
+					"type": "boolean",
+					"required": true,
+					"description": "Signed weight meets the threshold, and every signature is a distinct known signer."
+				},
+				{
+					"name": "signedWeight",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "totalWeight",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "threshold",
+					"type": "bigint",
+					"required": true,
+					"description": "ceil(total * 7 / 10)."
+				},
+				{
+					"name": "signers",
+					"type": "string[]",
+					"required": true,
+					"description": "Recovered signer principals that counted, in signature order."
+				},
+				{
+					"name": "unknown",
+					"type": "string[]",
+					"required": true,
+					"description": "Recovered principals not in the set."
+				},
+				{
+					"name": "duplicates",
+					"type": "string[]",
+					"required": true,
+					"description": "Principals that signed more than once."
+				},
+				{
+					"name": "invalid",
+					"type": "number",
+					"required": true,
+					"description": "Signatures that do not recover (malformed or high-S)."
+				}
+			]
+		},
+		{
+			"name": "SignerSet",
+			"summary": "Signer principal -> weight.",
+			"fields": [
+				{
+					"name": "clear",
+					"type": "() => void",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "delete",
+					"type": "(key: string) => boolean",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "forEach",
+					"type": "(callbackfn: (value: bigint, key: string, map: Map<string, bigint>) => void, thisArg?: any) => void",
+					"required": true,
+					"description": "Executes a provided function once per each key/value pair in the Map, in insertion order."
+				},
+				{
+					"name": "get",
+					"type": "(key: string) => bigint | undefined",
+					"required": true,
+					"description": "Returns a specified element from the Map object. If the value that is associated to the provided key is an object, then you will get a reference to that object and any change made to that object will effectively modify it inside the Map."
+				},
+				{
+					"name": "has",
+					"type": "(key: string) => boolean",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "set",
+					"type": "(key: string, value: bigint) => SignerSet",
+					"required": true,
+					"description": "Adds a new element with a specified key and value to the Map. If an element with the same key already exists, the element will be updated."
+				},
+				{
+					"name": "size",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "entries",
+					"type": "() => MapIterator<[string, bigint]>",
+					"required": true,
+					"description": "Returns an iterable of key, value pairs for every entry in the map."
+				},
+				{
+					"name": "keys",
+					"type": "() => MapIterator<string>",
+					"required": true,
+					"description": "Returns an iterable of keys in the map"
+				},
+				{
+					"name": "values",
+					"type": "() => MapIterator<bigint>",
+					"required": true,
+					"description": "Returns an iterable of values in the map"
+				}
+			]
+		},
+		{
+			"name": "StacksHeader",
+			"summary": "",
+			"definition": "NakamotoHeader | Epoch2Header"
+		},
+		{
+			"name": "StateWitness",
+			"summary": "",
+			"fields": [
+				{
+					"name": "root",
+					"type": "Bytes",
+					"required": true,
+					"description": "Recomputed trie root; compare to the authenticated header's state_index_root."
+				},
+				{
+					"name": "ancestorRoots",
+					"type": "Bytes[]",
+					"required": true,
+					"description": "Skip-list ancestor trie roots folded into `root`."
+				},
+				{
+					"name": "leaves",
+					"type": "WitnessLeaf[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "nodes",
+					"type": "number",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "WitnessLeaf",
+			"summary": "",
+			"fields": [
+				{
+					"name": "path",
+					"type": "Bytes",
+					"required": true,
+					"description": "Full 32-byte trie path: `marfPath(key)`."
+				},
+				{
+					"name": "valueHash",
+					"type": "Bytes",
+					"required": true,
+					"description": "32-byte value hash (first 32 bytes of the MARFValue; the tail is zero)."
+				}
+			]
+		}
+	]
+}

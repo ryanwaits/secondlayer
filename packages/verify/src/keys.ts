@@ -7,7 +7,7 @@ import { unhex } from "./bytes.ts";
 /** clarity_db.rs StoreType discriminants (formatted in decimal inside keys). */
 const StoreType = { DataMap: 0, Variable: 1, FungibleToken: 2 } as const;
 
-/** `vm::<contract>::0::<map>::<serialized key hex>` (make_key_for_data_map_entry). */
+/** The MARF key of a map entry: `vm::<contract>::0::<map>::<serialized key hex>`. */
 export function mapEntryKey(
 	contractId: string,
 	mapName: string,
@@ -16,14 +16,15 @@ export function mapEntryKey(
 	return `vm::${contractId}::${StoreType.DataMap}::${mapName}::${serializeCV(key)}`;
 }
 
-/** `vm::<contract>::1::<var>` (make_key_for_trip, StoreType::Variable). */
+/** The MARF key of a data variable: `vm::<contract>::1::<var>`. */
 export function dataVarKey(contractId: string, varName: string): string {
 	return `vm::${contractId}::${StoreType.Variable}::${varName}`;
 }
 
 /**
- * `vm::<contract>::2::<token>::<principal json>` (get_ft_balance). The holder
- * is serde-JSON PrincipalData, e.g. `{"Standard":[22,[...20 bytes]]}`.
+ * The MARF key of a fungible token balance: `vm::<contract>::2::<token>::<principal json>`.
+ *
+ * The holder is serde-JSON PrincipalData, e.g. `{"Standard":[22,[...20 bytes]]}`.
  */
 export function ftBalanceKey(
 	contractId: string,

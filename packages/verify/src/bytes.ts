@@ -4,6 +4,7 @@ import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils.js";
 
 export type Bytes = Uint8Array;
 
+/** Encodes bytes as a lowercase hex string. */
 export const hex = (b: Bytes): string => bytesToHex(b);
 
 /** Hex to bytes; tolerates a 0x prefix. */

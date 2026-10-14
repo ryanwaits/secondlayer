@@ -90,9 +90,11 @@ function notNeeded(step: VerifyStep, r: BlockVerification): boolean {
 }
 
 /**
- * One line per link, then the verdict: the human view of a verification,
- * shared by the CLI and the browser checker. Ancestry appears only below the
- * checkpoint. `rows` says whether the caller asked for the rows link.
+ * Describes a verification as one line per link and a verdict.
+ *
+ * It is the human view, shared by the CLI and the browser checker. Ancestry
+ * appears only below the checkpoint. `rows` says whether the caller asked for
+ * the rows link.
  */
 export function describeLinks(
 	r: BlockVerification,

@@ -1,0 +1,1389 @@
+{
+	"slug": "verify-block",
+	"root": "",
+	"methods": [
+		{
+			"id": "verifyBlockState",
+			"path": "verifyBlockState",
+			"summary": "Verifies a block's state against an authenticated header.",
+			"description": "Verifies a block's state against an authenticated header.\n\nThe witness must recompute `stateRoot`, then every leaf is classified. With\nstate writes, any leaf that is not a named write, a carried parent value or\nMARF bookkeeping is a hidden write. Without them the diff is still proven,\nsince every leaf is in the block: carried leaves are told apart only through\n`parentLeaves`, and the remaining writes come back unnamed.",
+			"source": {
+				"file": "packages/verify/src/state.ts",
+				"line": 255
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "input",
+							"type": "BlockStateInput",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<BlockStateResult>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "TransactionsError",
+			"path": "new TransactionsError",
+			"summary": "Thrown for a malformed block body or a transaction root mismatch.",
+			"description": "Thrown for a malformed block body or a transaction root mismatch.",
+			"source": {
+				"file": "packages/verify/src/txs.ts",
+				"line": 44
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "code",
+							"type": "\"malformed\" | \"tx-root-mismatch\"",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "message",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "blockTransactions",
+			"path": "blockTransactions",
+			"summary": "Hashes a block's transactions and checks them against the header.",
+			"description": "Hashes a block's transactions and checks them against the header.\n\nEach transaction is hashed to its txid and checked against the header's\n`tx_merkle_root`. The body after `header.byteLength` is a u32 count, then the\ntransactions back to back. It returns null when the bytes are the header\nalone, as a source that serves headers only does. It throws [`TransactionsError`](/docs/verify-reference#m-TransactionsError) on a malformed body, trailing bytes or a root\nmismatch.",
+			"source": {
+				"file": "packages/verify/src/txs.ts",
+				"line": 63
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "raw",
+							"type": "Bytes",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "header",
+							"type": "NakamotoHeader",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "BlockTransaction[] | null",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "txMerkleRoot",
+			"path": "txMerkleRoot",
+			"summary": "Computes the `tx_merkle_root` over transaction ids.",
+			"description": "Computes the `tx_merkle_root` over transaction ids.\n\nA leaf is H(0x00 ‖ txid) and a node is H(0x01 ‖ l ‖ r). An odd level\nduplicates its last node, and a lone leaf is still paired with itself, so a\none-transaction block hashes H(0x01 ‖ leaf ‖ leaf).",
+			"source": {
+				"file": "packages/verify/src/txs.ts",
+				"line": 25
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "txids",
+							"type": "Bytes[]",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Bytes",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "describeLinks",
+			"path": "describeLinks",
+			"summary": "Describes a verification as one line per link and a verdict.",
+			"description": "Describes a verification as one line per link and a verdict.\n\nIt is the human view, shared by the CLI and the browser checker. Ancestry\nappears only below the checkpoint. `rows` says whether the caller asked for\nthe rows link.",
+			"source": {
+				"file": "packages/verify/src/links.ts",
+				"line": 99
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "r",
+							"type": "BlockVerification",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "cp",
+							"type": "VerifyCheckpoint",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "{ rows?: boolean }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "{ lines: LinkLine[]; verdict: { ok: boolean; text: string } }",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "BlockVerifier",
+			"path": "new BlockVerifier",
+			"summary": "Verifies blocks from one checkpoint against one source.",
+			"description": "Verifies blocks from one checkpoint against one source.\n\nIt caches the Bitcoin header chain, proven signer sets and fetched headers\nacross calls.",
+			"source": {
+				"file": "packages/verify/src/verify-block.ts",
+				"line": 280
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "opts",
+							"type": "VerifyOptions",
+							"required": true,
+							"description": "",
+							"fields": [
+								{
+									"name": "source",
+									"type": "ProofSource",
+									"required": true,
+									"description": ""
+								},
+								{
+									"name": "checkpoint",
+									"type": "VerifyCheckpoint",
+									"required": false,
+									"description": "Defaults to MAINNET_CHECKPOINT."
+								},
+								{
+									"name": "rows",
+									"type": "boolean",
+									"required": false,
+									"description": "Also prove the block's indexed vm_events rows against its diff: reads\nthe source's `getVmEvents`, which bill as Index rows on the Secondlayer\nAPI. Off by default. Naming the diff's writes (`getStateWrites`, free on\n`/v1/proofs`) is always on when the source has them."
+								},
+								{
+									"name": "onStep",
+									"type": "(step: VerifyStep) => void",
+									"required": false,
+									"description": "Called once per link as it passes, in the order the verifier proves them.\nFailures arrive in the result, not here."
+								}
+							]
+						}
+					],
+					"returns": {
+						"type": "",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "BlockVerifier.verify",
+			"path": "BlockVerifier.verify",
+			"summary": "Verify one block by id (hex) or height.",
+			"description": "Verify one block by id (hex) or height. Never throws for bad source data.",
+			"source": {
+				"file": "packages/verify/src/verify-block.ts",
+				"line": 322
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "ref",
+							"type": "string | number",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<BlockVerification>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "verifyBlock",
+			"path": "verifyBlock",
+			"summary": "One-shot: verify a block from a checkpoint (MAINNET_CHECKPOINT by default).",
+			"description": "One-shot: verify a block from a checkpoint (MAINNET_CHECKPOINT by default).",
+			"source": {
+				"file": "packages/verify/src/verify-block.ts",
+				"line": 1140
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "ref",
+							"type": "string | number",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "VerifyOptions",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<BlockVerification>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"constants": [
+		{
+			"name": "LINKS",
+			"summary": "The chain of links, in the order verifyBlock walks them.",
+			"type": "readonly { step: VerifyStep; label: string }[]",
+			"source": {
+				"file": "packages/verify/src/links.ts",
+				"line": 17
+			}
+		}
+	],
+	"types": [
+		{
+			"name": "Ancestry",
+			"summary": "How a block below the checkpoint was tied to it.",
+			"fields": [
+				{
+					"name": "fromHeight",
+					"type": "number",
+					"required": true,
+					"description": "Trusted descendant it was proven from: the checkpoint, or a block proven below it earlier."
+				},
+				{
+					"name": "fromBlockId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "via",
+					"type": "\"parents\" | \"marf\"",
+					"required": true,
+					"description": "`parents`: each header hashes to the parent id its child commits to.\n`marf`: one MARF proof of `__MARF_BLOCK_HEIGHT_TO_HASH::<height>` against\nthe descendant's state root."
+				}
+			]
+		},
+		{
+			"name": "BlockStateInput",
+			"summary": "",
+			"fields": [
+				{
+					"name": "height",
+					"type": "number",
+					"required": true,
+					"description": "MARF height of the block (its Stacks chain length)."
+				},
+				{
+					"name": "parentBlockId",
+					"type": "Bytes",
+					"required": true,
+					"description": "Parent block id from the authenticated header."
+				},
+				{
+					"name": "stateRoot",
+					"type": "Bytes",
+					"required": true,
+					"description": "state_index_root from the authenticated header."
+				},
+				{
+					"name": "witness",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "writes",
+					"type": "StateWrite[] | null",
+					"required": true,
+					"description": "The block's state_writes; null when the source has none (names unavailable)."
+				},
+				{
+					"name": "rows",
+					"type": "VmEventRow[]",
+					"required": false,
+					"description": "Indexed rows to prove against the diff."
+				},
+				{
+					"name": "parentLeaves",
+					"type": "WitnessLeaf[]",
+					"required": false,
+					"description": "Leaves of the parent's own trie, from a parent witness whose root the\ncaller checked against the parent header: each is the parent state's\nvalue at its path. Resolves carried leaves without a proof per leaf."
+				},
+				{
+					"name": "parentHolds",
+					"type": "(leaf: WitnessLeaf) => Promise<boolean>",
+					"required": false,
+					"description": "True iff the leaf's value is stored at its path in the parent's state\n(proven by the caller). Asked only with state_writes, for leaves the\nparent's own trie does not explain."
+				}
+			]
+		},
+		{
+			"name": "BlockStateResult",
+			"summary": "",
+			"fields": [
+				{
+					"name": "diff",
+					"type": "ProvenDiff",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "rowsChecked",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "notes",
+					"type": "string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "failures",
+					"type": "StateFailure[]",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "BlockTransaction",
+			"summary": "",
+			"fields": [
+				{
+					"name": "txid",
+					"type": "string",
+					"required": true,
+					"description": "sha512/256 of the transaction bytes, hex."
+				},
+				{
+					"name": "raw",
+					"type": "Bytes",
+					"required": true,
+					"description": "The consensus-serialized transaction."
+				}
+			]
+		},
+		{
+			"name": "BlockVerification",
+			"summary": "",
+			"fields": [
+				{
+					"name": "ok",
+					"type": "boolean",
+					"required": true,
+					"description": "Every step passed. At or above the checkpoint: header, burn binding,\nsignatures, state root, names and rows. Below it: ancestry, header,\nstate root, names and rows (and the burn binding when Bitcoin reaches it)."
+				},
+				{
+					"name": "height",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "blockId",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "blockHash",
+					"type": "string",
+					"required": false,
+					"description": "Nakamoto block hash (the header's signer sighash), hex. Absent for epoch 2.x."
+				},
+				{
+					"name": "consensusHash",
+					"type": "string",
+					"required": false,
+					"description": "The header's consensus hash, hex."
+				},
+				{
+					"name": "timestamp",
+					"type": "number",
+					"required": false,
+					"description": "Nakamoto header timestamp, Unix seconds. Absent for epoch 2.x."
+				},
+				{
+					"name": "stateRoot",
+					"type": "string",
+					"required": false,
+					"description": "The header's state_index_root, hex: what the witness must hash to."
+				},
+				{
+					"name": "ancestry",
+					"type": "Ancestry",
+					"required": false,
+					"description": "Set for blocks below the checkpoint, which need no signatures."
+				},
+				{
+					"name": "cycle",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "burnHeight",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "bitcoinBlockHash",
+					"type": "string",
+					"required": false,
+					"description": "Display-order hex."
+				},
+				{
+					"name": "signerWeight",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "totalWeight",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "threshold",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "transactions",
+					"type": "BlockTransaction[]",
+					"required": false,
+					"description": "The block's transactions, checked against the header's tx_merkle_root.\nAbsent for epoch 2.x blocks and when the source served the header only."
+				},
+				{
+					"name": "diff",
+					"type": "ProvenDiff",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "writes",
+					"type": "StateWrite[]",
+					"required": false,
+					"description": "Every state_writes row the names step checked, in ordinal order."
+				},
+				{
+					"name": "rowsChecked",
+					"type": "number",
+					"required": false,
+					"description": "vm_events rows proven against the diff."
+				},
+				{
+					"name": "notes",
+					"type": "string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "failures",
+					"type": "VerifyFailure[]",
+					"required": true,
+					"description": "Empty when ok. The first entry is the first broken link."
+				}
+			]
+		},
+		{
+			"name": "BurnPreimage",
+			"summary": "Sortition preimage behind a consensus hash.",
+			"fields": [
+				{
+					"name": "preimage",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "burnHeight",
+					"type": "number",
+					"required": true,
+					"description": "The source's claimed burn height: a hint for how far to sync Bitcoin headers, never trusted."
+				}
+			]
+		},
+		{
+			"name": "Bytes",
+			"summary": "",
+			"fields": [
+				{
+					"name": "BYTES_PER_ELEMENT",
+					"type": "number",
+					"required": true,
+					"description": "The size in bytes of each element in the array."
+				},
+				{
+					"name": "buffer",
+					"type": "ArrayBufferLike",
+					"required": true,
+					"description": "The ArrayBuffer instance referenced by the array."
+				},
+				{
+					"name": "byteLength",
+					"type": "number",
+					"required": true,
+					"description": "The length in bytes of the array."
+				},
+				{
+					"name": "byteOffset",
+					"type": "number",
+					"required": true,
+					"description": "The offset in bytes of the array."
+				},
+				{
+					"name": "copyWithin",
+					"type": "(target: number, start: number, end?: number) => Bytes",
+					"required": true,
+					"description": "Returns the this object after copying a section of the array identified by start and end\nto the same array starting at position target"
+				},
+				{
+					"name": "every",
+					"type": "(predicate: (value: number, index: number, array: Bytes) => unknown, thisArg?: any) => boolean",
+					"required": true,
+					"description": "Determines whether all the members of an array satisfy the specified test."
+				},
+				{
+					"name": "fill",
+					"type": "(value: number, start?: number, end?: number) => Bytes",
+					"required": true,
+					"description": "Changes all array elements from `start` to `end` index to a static `value` and returns the modified array"
+				},
+				{
+					"name": "filter",
+					"type": "(predicate: (value: number, index: number, array: Bytes) => any, thisArg?: any) => Uint8Array",
+					"required": true,
+					"description": "Returns the elements of an array that meet the condition specified in a callback function."
+				},
+				{
+					"name": "find",
+					"type": "(predicate: (value: number, index: number, obj: Bytes) => boolean, thisArg?: any) => number | undefined",
+					"required": true,
+					"description": "Returns the value of the first element in the array where predicate is true, and undefined\notherwise."
+				},
+				{
+					"name": "findIndex",
+					"type": "(predicate: (value: number, index: number, obj: Bytes) => boolean, thisArg?: any) => number",
+					"required": true,
+					"description": "Returns the index of the first element in the array where predicate is true, and -1\notherwise."
+				},
+				{
+					"name": "forEach",
+					"type": "(callbackfn: (value: number, index: number, array: Bytes) => void, thisArg?: any) => void",
+					"required": true,
+					"description": "Performs the specified action for each element in an array."
+				},
+				{
+					"name": "indexOf",
+					"type": "(searchElement: number, fromIndex?: number) => number",
+					"required": true,
+					"description": "Returns the index of the first occurrence of a value in an array."
+				},
+				{
+					"name": "join",
+					"type": "(separator?: string) => string",
+					"required": true,
+					"description": "Adds all the elements of an array separated by the specified separator string."
+				},
+				{
+					"name": "lastIndexOf",
+					"type": "(searchElement: number, fromIndex?: number) => number",
+					"required": true,
+					"description": "Returns the index of the last occurrence of a value in an array."
+				},
+				{
+					"name": "length",
+					"type": "number",
+					"required": true,
+					"description": "The length of the array."
+				},
+				{
+					"name": "map",
+					"type": "(callbackfn: (value: number, index: number, array: Bytes) => number, thisArg?: any) => Uint8Array",
+					"required": true,
+					"description": "Calls a defined callback function on each element of an array, and returns an array that\ncontains the results."
+				},
+				{
+					"name": "reduce",
+					"type": "{ (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number): number; (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number, initialValue: number): number; <U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: Bytes) => U, initialValue: U): U; }",
+					"required": true,
+					"description": "Calls the specified callback function for all the elements in an array. The return value of\nthe callback function is the accumulated result, and is provided as an argument in the next\ncall to the callback function."
+				},
+				{
+					"name": "reduceRight",
+					"type": "{ (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number): number; (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number, initialValue: number): number; <U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: Bytes) => U, initialValue: U): U; }",
+					"required": true,
+					"description": "Calls the specified callback function for all the elements in an array, in descending order.\nThe return value of the callback function is the accumulated result, and is provided as an\nargument in the next call to the callback function."
+				},
+				{
+					"name": "reverse",
+					"type": "() => Bytes",
+					"required": true,
+					"description": "Reverses the elements in an Array."
+				},
+				{
+					"name": "set",
+					"type": "(array: ArrayLike<number>, offset?: number) => void",
+					"required": true,
+					"description": "Sets a value or an array of values."
+				},
+				{
+					"name": "slice",
+					"type": "(start?: number, end?: number) => Uint8Array",
+					"required": true,
+					"description": "Returns a section of an array."
+				},
+				{
+					"name": "some",
+					"type": "(predicate: (value: number, index: number, array: Bytes) => unknown, thisArg?: any) => boolean",
+					"required": true,
+					"description": "Determines whether the specified callback function returns true for any element of an array."
+				},
+				{
+					"name": "sort",
+					"type": "(compareFn?: (a: number, b: number) => number) => Bytes",
+					"required": true,
+					"description": "Sorts an array."
+				},
+				{
+					"name": "subarray",
+					"type": "(begin?: number, end?: number) => Uint8Array",
+					"required": true,
+					"description": "Gets a new Uint8Array view of the ArrayBuffer store for this array, referencing the elements\nat begin, inclusive, up to end, exclusive."
+				},
+				{
+					"name": "toLocaleString",
+					"type": "{ (): string; (locales: string | string[], options?: Intl.NumberFormatOptions): string; }",
+					"required": true,
+					"description": "Converts a number to a string by using the current locale."
+				},
+				{
+					"name": "toString",
+					"type": "() => string",
+					"required": true,
+					"description": "Returns a string representation of an array."
+				},
+				{
+					"name": "valueOf",
+					"type": "() => Bytes",
+					"required": true,
+					"description": "Returns the primitive value of the specified object."
+				},
+				{
+					"name": "entries",
+					"type": "() => ArrayIterator<[number, number]>",
+					"required": true,
+					"description": "Returns an array of key, value pairs for every entry in the array"
+				},
+				{
+					"name": "keys",
+					"type": "() => ArrayIterator<number>",
+					"required": true,
+					"description": "Returns an list of keys in the array"
+				},
+				{
+					"name": "values",
+					"type": "() => ArrayIterator<number>",
+					"required": true,
+					"description": "Returns an list of values in the array"
+				},
+				{
+					"name": "includes",
+					"type": "(searchElement: number, fromIndex?: number) => boolean",
+					"required": true,
+					"description": "Determines whether an array includes a certain element, returning true or false as appropriate."
+				},
+				{
+					"name": "toBase64",
+					"type": "(options?: { alphabet?: \"base64\" | \"base64url\"; omitPadding?: boolean }) => string",
+					"required": true,
+					"description": "Convert the Uint8Array to a base64 encoded string"
+				},
+				{
+					"name": "setFromBase64",
+					"type": "(base64: string, offset?: number) => { read: number; written: number }",
+					"required": true,
+					"description": "Set the contents of the Uint8Array from a base64 encoded string"
+				},
+				{
+					"name": "toHex",
+					"type": "() => string",
+					"required": true,
+					"description": "Convert the Uint8Array to a hex encoded string"
+				},
+				{
+					"name": "setFromHex",
+					"type": "(hex: string) => { read: number; written: number }",
+					"required": true,
+					"description": "Set the contents of the Uint8Array from a hex encoded string"
+				},
+				{
+					"name": "at",
+					"type": "(index: number) => number | undefined",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "Checkpoint",
+			"summary": "",
+			"fields": [
+				{
+					"name": "height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "header",
+					"type": "string | Uint8Array<ArrayBufferLike>",
+					"required": true,
+					"description": "Raw 80-byte header, bytes or hex. Trusted without validation."
+				},
+				{
+					"name": "periodStartTime",
+					"type": "number",
+					"required": false,
+					"description": "Timestamp of the first block of the checkpoint's difficulty period\n(height − height % 2016). Required when the checkpoint is not itself a\nperiod start; needed to verify the next retarget."
+				}
+			]
+		},
+		{
+			"name": "DiffLeaf",
+			"summary": "",
+			"fields": [
+				{
+					"name": "key",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "path",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "valueHash",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "DiffWrite",
+			"summary": "",
+			"fields": [
+				{
+					"name": "key",
+					"type": "string",
+					"required": false,
+					"description": "MARF key, when a state_writes row names the leaf."
+				},
+				{
+					"name": "path",
+					"type": "string",
+					"required": true,
+					"description": "Leaf path, hex."
+				},
+				{
+					"name": "valueHash",
+					"type": "string",
+					"required": true,
+					"description": "sha512/256 of the stored value string, hex."
+				},
+				{
+					"name": "txIndex",
+					"type": "number | null",
+					"required": false,
+					"description": "Transaction of the last write; null for block-level writes."
+				},
+				{
+					"name": "value",
+					"type": "string",
+					"required": false,
+					"description": "The stored value string (hex of a Clarity value) the leaf holds; named writes only."
+				},
+				{
+					"name": "named",
+					"type": "boolean",
+					"required": true,
+					"description": "False when the source had no state_writes: the leaf may also be a carried copy."
+				}
+			]
+		},
+		{
+			"name": "Epoch2HeaderResponse",
+			"summary": "An epoch 2.x header and the consensus hash its index block hash commits to.",
+			"fields": [
+				{
+					"name": "header",
+					"type": "Bytes",
+					"required": true,
+					"description": "Consensus-serialized StacksBlockHeader."
+				},
+				{
+					"name": "consensusHash",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "LinkLine",
+			"summary": "",
+			"fields": [
+				{
+					"name": "step",
+					"type": "VerifyStep",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "label",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "LinkStatus",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "detail",
+					"type": "string",
+					"required": true,
+					"description": "What the link proved, why it failed, or why it was not checked."
+				}
+			]
+		},
+		{
+			"name": "LinkStatus",
+			"summary": "",
+			"definition": "\"ok\" | \"failed\" | \"skipped\""
+		},
+		{
+			"name": "MarfProofResponse",
+			"summary": "Node RPC `/v2/clarity/marf/<path>?proof=1` answer.",
+			"fields": [
+				{
+					"name": "data",
+					"type": "string",
+					"required": true,
+					"description": "Value string as Clarity stored it (hex for Clarity values), 0x prefix tolerated."
+				},
+				{
+					"name": "proof",
+					"type": "Bytes",
+					"required": true,
+					"description": "Consensus-serialized TrieMerkleProof."
+				}
+			]
+		},
+		{
+			"name": "NakamotoHeader",
+			"summary": "",
+			"fields": [
+				{
+					"name": "version",
+					"type": "number",
+					"required": true,
+					"description": "Low 7 bits = header version; high bit = shadow block."
+				},
+				{
+					"name": "chainLength",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "burnSpent",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "consensusHash",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "parentBlockId",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "txMerkleRoot",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "stateIndexRoot",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "timestamp",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "minerSignature",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "signerSignatures",
+					"type": "Bytes[]",
+					"required": true,
+					"description": "65-byte recoverable signatures: recovery id, r, s."
+				},
+				{
+					"name": "signerSighashPreimage",
+					"type": "Bytes",
+					"required": true,
+					"description": "Header bytes minus the signer_signature vec: the signer sighash preimage."
+				},
+				{
+					"name": "byteLength",
+					"type": "number",
+					"required": true,
+					"description": "Serialized header length; block bytes after this are the transactions."
+				}
+			]
+		},
+		{
+			"name": "ProofSource",
+			"summary": "",
+			"fields": [
+				{
+					"name": "getBlock",
+					"type": "(ref: string | number) => Promise<Bytes>",
+					"required": true,
+					"description": "Raw Nakamoto block bytes (header first), by block id or height."
+				},
+				{
+					"name": "getEpoch2Header",
+					"type": "(blockId: string) => Promise<Epoch2HeaderResponse>",
+					"required": false,
+					"description": "Epoch 2.x block header by index block hash: blocks below the checkpoint\nfrom before Nakamoto. Without it only Nakamoto blocks verify."
+				},
+				{
+					"name": "getMarfProof",
+					"type": "(pathHex: string, tipId: string) => Promise<MarfProofResponse | null>",
+					"required": true,
+					"description": "MARF inclusion proof for a 32-byte path at `tipId`; null when the key is\nabsent. Blocks below the checkpoint also ask for\n`__MARF_BLOCK_HEIGHT_TO_HASH::<height>`, whose value is no stored string:\nonly `proof` is read for it."
+				},
+				{
+					"name": "getWitness",
+					"type": "(blockId: string) => Promise<Bytes>",
+					"required": true,
+					"description": "State witness (wire v3) for a block."
+				},
+				{
+					"name": "getBurnPreimage",
+					"type": "(consensusHash: string) => Promise<BurnPreimage>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "getBitcoinHeaders",
+					"type": "(from: number, count: number) => Promise<(string | Bytes)[]>",
+					"required": true,
+					"description": "Raw 80-byte Bitcoin headers (hex or bytes) from height `from`."
+				},
+				{
+					"name": "getStateWrites",
+					"type": "(height: number) => Promise<StateWrite[] | null>",
+					"required": false,
+					"description": "Every MARF write of the block, in ordinal order; null (or empty) when\nthe source has none for it. Names the block's diff."
+				},
+				{
+					"name": "getVmEvents",
+					"type": "(height: number) => Promise<VmEventRow[]>",
+					"required": false,
+					"description": "Indexed vm_events write rows of the block, checked against its proven diff."
+				}
+			]
+		},
+		{
+			"name": "ProvenDiff",
+			"summary": "",
+			"fields": [
+				{
+					"name": "named",
+					"type": "boolean",
+					"required": true,
+					"description": "Every leaf is named (state_writes served) and classified."
+				},
+				{
+					"name": "writes",
+					"type": "DiffWrite[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "carried",
+					"type": "DiffLeaf[]",
+					"required": true,
+					"description": "Unchanged values copied forward from the parent (proven at the parent)."
+				},
+				{
+					"name": "internal",
+					"type": "DiffLeaf[]",
+					"required": true,
+					"description": "`__MARF_BLOCK_*` bookkeeping."
+				}
+			]
+		},
+		{
+			"name": "StateFailure",
+			"summary": "",
+			"fields": [
+				{
+					"name": "step",
+					"type": "\"witness\" | \"names\" | \"rows\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "code",
+					"type": "StateFailureCode",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "message",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "key",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "path",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "ordinal",
+					"type": "number",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StateFailureCode",
+			"summary": "",
+			"definition": "\"malformed\" | \"root-mismatch\" | \"bad-write\" | \"hidden-write\" | \"missing-write\" | \"key-not-written\" | \"value-mismatch\" | \"bad-row\""
+		},
+		{
+			"name": "StateWrite",
+			"summary": "One storage-layer MARF write (`state_writes` row), in block write order.",
+			"fields": [
+				{
+					"name": "tx_index",
+					"type": "number | null",
+					"required": true,
+					"description": "Null for block-level writes outside any transaction."
+				},
+				{
+					"name": "ordinal",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "key",
+					"type": "string",
+					"required": true,
+					"description": "Full MARF key, e.g. `vm::<contract>::0::<map>::<key hex>`."
+				},
+				{
+					"name": "value_hex",
+					"type": "string",
+					"required": true,
+					"description": "Hex of the stored value string's UTF-8 bytes."
+				}
+			]
+		},
+		{
+			"name": "VerifyCheckpoint",
+			"summary": "",
+			"fields": [
+				{
+					"name": "stacks",
+					"type": "{ header: string; cycle: number; signerSet: string }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "bitcoin",
+					"type": "Checkpoint",
+					"required": true,
+					"description": "Retarget-boundary Bitcoin header at or below the first burn block of `stacks.cycle`."
+				}
+			]
+		},
+		{
+			"name": "VerifyFailure",
+			"summary": "",
+			"fields": [
+				{
+					"name": "step",
+					"type": "VerifyStep",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "code",
+					"type": "VerifyFailureCode",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "message",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "cycle",
+					"type": "number",
+					"required": false,
+					"description": "Reward cycle being proven (signer-set step)."
+				},
+				{
+					"name": "blockId",
+					"type": "string",
+					"required": false,
+					"description": "Block the failure is about, when not the target."
+				},
+				{
+					"name": "key",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "path",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "ordinal",
+					"type": "number",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "VerifyFailureCode",
+			"summary": "",
+			"definition": "\"malformed\" | \"root-mismatch\" | \"bad-write\" | \"hidden-write\" | \"missing-write\" | \"key-not-written\" | \"value-mismatch\" | \"bad-row\" | \"tx-root-mismatch\" | \"unavailable\" | \"id-mismatch\" | \"height-mismatch\" | \"invalid-header\" | \"preimage-mismatch\" | \"burn-not-in-chain\" | \"before-checkpoint\" | \"not-ancestor\" | \"ancestry-proof-invalid\" | \"anchor-not-found\" | \"anchor-outside-window\" | \"anchor-unsigned\" | \"set-proof-invalid\" | \"below-threshold\" | \"unknown-signer\" | \"duplicate-signer\" | \"bad-signature\""
+		},
+		{
+			"name": "VerifyOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "source",
+					"type": "ProofSource",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "checkpoint",
+					"type": "VerifyCheckpoint",
+					"required": false,
+					"description": "Defaults to MAINNET_CHECKPOINT."
+				},
+				{
+					"name": "rows",
+					"type": "boolean",
+					"required": false,
+					"description": "Also prove the block's indexed vm_events rows against its diff: reads\nthe source's `getVmEvents`, which bill as Index rows on the Secondlayer\nAPI. Off by default. Naming the diff's writes (`getStateWrites`, free on\n`/v1/proofs`) is always on when the source has them."
+				},
+				{
+					"name": "onStep",
+					"type": "(step: VerifyStep) => void",
+					"required": false,
+					"description": "Called once per link as it passes, in the order the verifier proves them.\nFailures arrive in the result, not here."
+				}
+			]
+		},
+		{
+			"name": "VerifyStep",
+			"summary": "",
+			"definition": "\"witness\" | \"names\" | \"rows\" | \"ancestry\" | \"block\" | \"bitcoin\" | \"burn\" | \"signer-set\" | \"signatures\" | \"txs\""
+		},
+		{
+			"name": "VmEventRow",
+			"summary": "A `vm_events` write row, as the Index API serves it.",
+			"fields": [
+				{
+					"name": "event_type",
+					"type": "\"var_set\" | \"map_set\" | \"map_insert\" | \"map_delete\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "event_index",
+					"type": "number",
+					"required": true,
+					"description": "The row's ordinal within the block."
+				},
+				{
+					"name": "tx_id",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "tx_index",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contract_id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "var_name",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "raw_key",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "raw_value",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "WitnessLeaf",
+			"summary": "",
+			"fields": [
+				{
+					"name": "path",
+					"type": "Bytes",
+					"required": true,
+					"description": "Full 32-byte trie path: `marfPath(key)`."
+				},
+				{
+					"name": "valueHash",
+					"type": "Bytes",
+					"required": true,
+					"description": "32-byte value hash (first 32 bytes of the MARFValue; the tail is zero)."
+				}
+			]
+		}
+	]
+}

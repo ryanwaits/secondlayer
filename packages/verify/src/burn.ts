@@ -33,6 +33,7 @@ export function verifyConsensusPreimage(
 
 /** Mainnet PoX parameters (first_burnchain_block_height, reward_cycle_length). */
 export const MAINNET_FIRST_BURN_HEIGHT = 666050;
+/** Burn blocks in a mainnet reward cycle. */
 export const MAINNET_REWARD_CYCLE_LENGTH = 2100;
 /** Mainnet prepare phase: the last 100 burn blocks of a cycle pick the next cycle's signers. */
 export const MAINNET_PREPARE_LENGTH = 100;

@@ -78,8 +78,10 @@ export function parseNakamotoHeader(raw: Bytes): NakamotoHeader {
 }
 
 /**
- * NakamotoBlockHeader::signer_signature_hash: sha512/256 over every header field
- * except the signer signatures. Also the header's block_hash.
+ * Hashes a Nakamoto header the way its signers sign it.
+ *
+ * It is sha512/256 over every header field except the signer signatures, which
+ * is also the header's `block_hash`.
  */
 export const signerSignatureHash = (h: NakamotoHeader): Bytes =>
 	sha512_256(h.signerSighashPreimage);
@@ -114,9 +116,10 @@ export type StacksHeader = NakamotoHeader | Epoch2Header;
 export const EPOCH2_HEADER_LENGTH = 247;
 
 /**
- * Parse the epoch 2.x StacksBlockHeader at the start of `raw` (a header from
- * `/v2/headers`, or block bytes from `/v2/blocks/<id>`), with the 20-byte
- * consensus hash of the sortition that elected it.
+ * Parses the epoch 2.x block header at the start of `raw`.
+ *
+ * `raw` is a header from `/v2/headers`, or block bytes from `/v2/blocks/<id>`.
+ * `consensusHash` is the 20-byte hash of the sortition that elected the block.
  */
 export function parseEpoch2Header(
 	raw: Bytes,
@@ -144,13 +147,15 @@ export function parseEpoch2Header(
 	};
 }
 
+/** Narrows a Stacks header to an epoch 2.x header. */
 export const isEpoch2Header = (h: StacksHeader): h is Epoch2Header =>
 	"parentBlockHash" in h;
 
 /**
- * StacksBlockId (index block hash) = sha512/256(block_hash || consensus_hash).
- * A Nakamoto block hash is its signer signature hash; a 2.x one hashes the
- * whole header.
+ * Computes a header's block id, also called the index block hash.
+ *
+ * The id is sha512/256(block_hash || consensus_hash). A Nakamoto block hash is
+ * its signer signature hash; a 2.x one hashes the whole header.
  */
 export const blockId = (h: StacksHeader): Bytes =>
 	hashAll([

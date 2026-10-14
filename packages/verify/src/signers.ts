@@ -16,8 +16,10 @@ export const SIGNERS_CONTRACT = "SP000000000000000000002Q6VF78.signers";
 export type SignerSet = Map<string, bigint>;
 
 /**
- * Decode the `.signers` `cycle-signer-set` map value (hex or bytes, as stored
- * in the MARF): `(some (list (tuple (signer principal) (weight uint) ...)))`.
+ * Decodes a `cycle-signer-set` value from the `.signers` contract.
+ *
+ * The value is hex or bytes, as stored in the MARF:
+ * `(some (list (tuple (signer principal) (weight uint) ...)))`.
  */
 export function decodeSignerSet(value: string | Bytes): SignerSet {
 	const cv = deserializeCV(typeof value === "string" ? value : hex(value));
@@ -54,9 +56,11 @@ export interface SignerCheck {
 }
 
 /**
- * Recover each header signature's key over signer_signature_hash, map it to
- * its mainnet p2pkh principal, and sum weights from `set`. The set must be the
- * one for the reward cycle of the tenure-electing burn block.
+ * Sums the weight of the signers who signed a block header.
+ *
+ * It recovers each header signature's key over `signer_signature_hash`, maps it
+ * to its mainnet p2pkh principal, and sums weights from `set`. The set must be
+ * the one for the reward cycle of the tenure-electing burn block.
  */
 export function verifySignerSignatures(
 	header: NakamotoHeader,

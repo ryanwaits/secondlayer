@@ -244,11 +244,12 @@ function checkRows(
 }
 
 /**
- * Verify block state against an authenticated header: the witness must
- * recompute `stateRoot`, then every leaf is classified. With state_writes,
- * any leaf that is not a named write, a carried parent value or MARF
- * bookkeeping is a hidden write. Without them the diff is still proven
- * (every leaf is in the block): carried leaves are told apart only through
+ * Verifies a block's state against an authenticated header.
+ *
+ * The witness must recompute `stateRoot`, then every leaf is classified. With
+ * state writes, any leaf that is not a named write, a carried parent value or
+ * MARF bookkeeping is a hidden write. Without them the diff is still proven,
+ * since every leaf is in the block: carried leaves are told apart only through
  * `parentLeaves`, and the remaining writes come back unnamed.
  */
 export async function verifyBlockState(
