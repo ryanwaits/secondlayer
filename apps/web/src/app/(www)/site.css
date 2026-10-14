@@ -1302,7 +1302,7 @@
 .site .next-example {
 	display: grid;
 	gap: 10px;
-	margin-top: 36px;
+	margin-top: 8px;
 }
 .site .rows {
 	overflow-x: auto;

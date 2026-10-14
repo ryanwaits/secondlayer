@@ -46,8 +46,8 @@ describe("www marketing routes", () => {
 
 	test("/ says what is live and what is coming, and no withdrawn products", async () => {
 		const html = await renderAsync(<HomeView />);
-		// Runes is self-host only until hosted lands; its line says so.
-		expect(html).toMatch(/id="runes-data".*self-host has it today/);
+		// Runes is self-host only until hosted lands; the home page lists it as coming.
+		expect(html).toMatch(/Coming soon<\/span>.*id="runes-data"/);
 		expect(html).toContain('id="clarity-state-writes"');
 		expect(html).toContain('href="/p/subgraphs"');
 		expect(html).toContain('href="/p/webhooks"');

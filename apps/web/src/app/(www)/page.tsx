@@ -222,6 +222,23 @@ export function HomeView() {
 								deposit and withdrawal as one row, with its Bitcoin side
 								attached.
 							</p>
+							<div className="next-example">
+								<RowsTable
+									columns={[
+										"direction",
+										"height",
+										"bitcoin transaction",
+										"sbtc",
+									]}
+									rows={[
+										["in", "9,137,002", "7c1e…a0", "0.5000"],
+										["out", "9,137,004", "e93b…41", "0.1200"],
+										["in", "9,137,006", "2fd0…9c", "2.0000"],
+									]}
+									firstClass={(row) => (row[0] === "in" ? "tag-in" : "tag-out")}
+								/>
+								<span className="cap">example rows · sBTC in and out</span>
+							</div>
 						</div>
 						<div className="next-col">
 							<StatusDot state="soon" />
@@ -230,27 +247,28 @@ export function HomeView() {
 									<ChainLink chain="runes" href="/docs/index#runes">
 										Runes
 									</ChainLink>{" "}
-									on hosted, from block 840,000, checked against ord with 0
-									mismatches; self-host has it today.
+									indexing
 								</span>{" "}
 								<span id="clarity-state-writes">
-									And <ChainLink chain="clarity">Clarity</ChainLink> contract
+									and <ChainLink chain="clarity">Clarity</ChainLink> contract
 									state: every map and variable write, including inner contract
 									calls.
 								</span>
 							</p>
+							<div className="next-example">
+								<RowsTable
+									columns={["op", "key", "value"]}
+									rows={[
+										["map_set", "balances[SP2J…4K]", "u1200"],
+										["var_set", "total-supply", "u98400"],
+										["map_delete", "pending[u42]", "none"],
+									]}
+								/>
+								<span className="cap">
+									example rows · Clarity contract state
+								</span>
+							</div>
 						</div>
-					</div>
-					<div className="next-example">
-						<RowsTable
-							columns={["op", "key", "value"]}
-							rows={[
-								["map_set", "balances[SP2J…4K]", "u1200"],
-								["var_set", "total-supply", "u98400"],
-								["map_delete", "pending[u42]", "none"],
-							]}
-						/>
-						<span className="cap">example rows · Clarity contract state</span>
 					</div>
 				</div>
 			</section>
