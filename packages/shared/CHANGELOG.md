@@ -1,5 +1,14 @@
 # @secondlayer/shared
 
+## 12.1.1
+
+### Patch Changes
+
+- f617184: `api_keys` gains `expires_at` and a `docs` product (migration 0164): short-lived, read-only keys for code samples.
+- eb522f5: Observer journal gains a `retried` status: a failed delivery is marked retried once the same body is processed later.
+- Updated dependencies [cbe0950]
+  - @secondlayer/stacks@6.2.1
+
 ## 12.1.0
 
 ### Minor Changes

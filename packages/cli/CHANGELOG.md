@@ -1,5 +1,22 @@
 # @secondlayer/cli
 
+## 20.1.1
+
+### Patch Changes
+
+- 008ad3b: Self-host compose runs stacks-node 4.0.5 (block-production fixes; chainstate from 4.0.x carries over).
+- Updated dependencies [e7f44a9]
+- Updated dependencies [f617184]
+- Updated dependencies [eb522f5]
+- Updated dependencies [cbe0950]
+- Updated dependencies [7e873a2]
+- Updated dependencies [69dc928]
+  - @secondlayer/sdk@15.0.1
+  - @secondlayer/shared@12.1.1
+  - @secondlayer/stacks@6.2.1
+  - @secondlayer/subgraphs@7.0.2
+  - @secondlayer/verify@0.5.3
+
 ## 20.1.0
 
 ### Minor Changes

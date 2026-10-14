@@ -1,5 +1,18 @@
 # @secondlayer/subgraphs
 
+## 7.0.2
+
+### Patch Changes
+
+- 7e873a2: Documentation only: every exported function now has a short description, and the handler context methods are documented.
+- Updated dependencies [f617184]
+- Updated dependencies [eb522f5]
+- Updated dependencies [cbe0950]
+- Updated dependencies [69dc928]
+  - @secondlayer/shared@12.1.1
+  - @secondlayer/stacks@6.2.1
+  - @secondlayer/verify@0.5.3
+
 ## 7.0.1
 
 ### Patch Changes

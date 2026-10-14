@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/shared",
-	"version": "12.1.0",
+	"version": "12.1.1",
 	"description": "Internal building blocks shared across Secondlayer packages.",
 	"license": "MIT",
 	"repository": {
@@ -249,7 +249,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/stacks": "^6.2.0",
+		"@secondlayer/stacks": "^6.2.1",
 		"kysely": "0.28.17",
 		"kysely-postgres-js": "3.0.0",
 		"postgres": "^3.4.6",

@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 6.2.1
+
+### Patch Changes
+
+- cbe0950: Documentation only: every `on.*` filter builder and validator in `@secondlayer/stacks/filters` now has a short description.
+
 ## 6.2.0
 
 ### Minor Changes

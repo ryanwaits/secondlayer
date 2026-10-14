@@ -1,5 +1,13 @@
 # @secondlayer/verify
 
+## 0.5.3
+
+### Patch Changes
+
+- 69dc928: Documentation only: every exported function, proof source and error class now has a short description.
+- Updated dependencies [cbe0950]
+  - @secondlayer/stacks@6.2.1
+
 ## 0.5.2
 
 ### Patch Changes

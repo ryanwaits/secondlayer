@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/verify",
-	"version": "0.5.2",
+	"version": "0.5.3",
 	"generator": "openpkg 0.13.2",
 	"surfaces": [
 		{

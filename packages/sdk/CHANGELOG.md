@@ -1,5 +1,18 @@
 # @secondlayer/sdk
 
+## 15.0.1
+
+### Patch Changes
+
+- e7f44a9: Documentation only: every public method now has a short description, and the reference carries type-checked examples.
+- Updated dependencies [f617184]
+- Updated dependencies [eb522f5]
+- Updated dependencies [cbe0950]
+- Updated dependencies [7e873a2]
+  - @secondlayer/shared@12.1.1
+  - @secondlayer/stacks@6.2.1
+  - @secondlayer/subgraphs@7.0.2
+
 ## 15.0.0
 
 ### Major Changes
