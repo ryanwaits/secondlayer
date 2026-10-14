@@ -1,4 +1,6 @@
 import { Code } from "@/components/code/code";
+import { CodeClient } from "@/components/code/code-client";
+import { CodeTabs } from "@/components/code/code-tabs";
 import { Logo } from "@/components/logo";
 import {
 	ButtonLink,
@@ -62,20 +64,36 @@ const PHASES: {
 	},
 ];
 
-/** The contract calls of one round trip, as the bridge README draws them. Example values. */
-const ROUND_TRIP = `LOCK ON STACKS
-locker.lock(demo-token, u1000, 0x7a1f…c4)
-  lock nonce   17
-# !callout[/6 of 6/] the twin mints only after Bitcoin finality
-  waiting      6 of 6 bitcoin confirmations
-  safe         2-of-2 signed
-✓ Twin.mint(17, 0x7a1f…c4, 1000) on chain 4663
+/** The twin's `mint`, verbatim from evm/src/Twin.sol. */
+const TWIN_MINT = String.raw`function mint(uint256 lockNonce, address to, uint256 amount) external {
+    // !callout[/minter/] Phase 0: a 2-of-2 Safe
+    if (msg.sender != minter) revert NotMinter();
+    // !callout[/minted\[lockNonce\]/] One mint per Stacks lock
+    if (minted[lockNonce]) revert AlreadyMinted(lockNonce);
+    if (amount == 0) revert ZeroAmount();
+    minted[lockNonce] = true;
+    _mint(to, amount);
+    // !callout[/Minted/] Public, and names its lock
+    emit Minted(lockNonce, to, amount);
+}`;
 
-BURN ON ROBINHOOD CHAIN
-Twin.burn(1000, "SP2J…R4K")
-  burn id      0x3f0e…91
-  multisig     2-of-2 signed
-✓ locker.release(0x3f0e…91, demo-token, SP2J…R4K, u1000)`;
+/** How the relayer reads locks, from relayer/src/sources.ts. */
+const RELAYER_READ = String.raw`const client = createStreamsClient({
+  baseUrl: config.apiUrl,
+  apiKey: config.apiKey,
+});
+await client.events.consume({
+  types: ["print"],
+  // !callout[/locker/] Only the locker's prints
+  contractId: locker,
+  // !callout[/true/] Counts a lock once Bitcoin finalizes it
+  finalizedOnly: true,
+  // !callout[/config\.fromCursor/] Every start rescans from deploy
+  fromCursor: config.fromCursor,
+  mode: once ? "bounded" : "tail",
+  signal,
+  onBatch: (events) => onLocks(events.flatMap(decodeLock)),
+});`;
 
 /**
  * An official vendor logo, unmodified: the dark asset on light ground, the
@@ -141,6 +159,7 @@ const STACKS_LOGO = {
 export default function RobinhoodPage() {
 	return (
 		<div className="site rh">
+			<CodeClient />
 			<header className="rh-nav">
 				<div className="shell">
 					<Link href="/" className="rh-brand">
@@ -222,50 +241,44 @@ export default function RobinhoodPage() {
 
 				<div className="band band-soft">
 					<div className="shell">
-						<Split
-							copy={
-								<>
-									<Eyebrow noun="1:1 backing" />
-									<h2>Each ERC-20 is minted against a locked SIP-010</h2>
-									<p className="lede">
-										The locker on Stacks holds the original, and supply on
-										Robinhood Chain matches it 1:1. No lock, no mint. No burn,
-										no release. In Phase 0 that's a rule the signers follow, not
-										one the contracts enforce.
-									</p>
-									<dl className="rh-facts">
-										<div>
-											<dt>Source</dt>
-											<dd>Stacks · SIP-010</dd>
-										</div>
-										<div>
-											<dt>Destination</dt>
-											<dd>Robinhood Chain · 4663</dd>
-										</div>
-										<div>
-											<dt>Mint waits for</dt>
-											<dd>6 BTC confirmations</dd>
-										</div>
-										<div>
-											<dt>Phase 0 signers</dt>
-											<dd>2-of-2</dd>
-										</div>
-									</dl>
-								</>
-							}
-							art={
-								<div className="art">
-									<Code
-										code={ROUND_TRIP}
-										lang="text"
-										title="round trip · demo token"
-									/>
-									<p className="cap">
-										Example values. Phase 0 moves a demo token only.
-									</p>
+						<div className="rh-rt-head">
+							<div>
+								<Eyebrow noun="1:1 backing" />
+								<h2>No lock, no mint. In code.</h2>
+								<p className="lede">
+									The twin on Robinhood Chain mints only against a lock on
+									Stacks, once per lock, and only from the Phase 0 signers. The
+									relayer finds each lock through secondlayer Streams, finalized
+									only.
+								</p>
+							</div>
+							<dl className="rh-facts">
+								<div>
+									<dt>Source</dt>
+									<dd>Stacks · SIP-010</dd>
 								</div>
-							}
-						/>
+								<div>
+									<dt>Destination</dt>
+									<dd>Robinhood Chain · 4663</dd>
+								</div>
+								<div>
+									<dt>Mint waits for</dt>
+									<dd>6 BTC confirmations</dd>
+								</div>
+								<div>
+									<dt>Phase 0 signers</dt>
+									<dd>2-of-2</dd>
+								</div>
+							</dl>
+						</div>
+						<CodeTabs variant="figure">
+							<Code lang="sol" title="evm/src/Twin.sol" code={TWIN_MINT} />
+							<Code
+								lang="ts"
+								title="relayer/src/sources.ts"
+								code={RELAYER_READ}
+							/>
+						</CodeTabs>
 					</div>
 				</div>
 

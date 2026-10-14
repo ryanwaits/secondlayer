@@ -94,11 +94,23 @@ body:has(.rh) .auth-bar {
 	color: var(--faint);
 }
 
-/* 1:1 facts beside the round trip */
+/* 1:1 backing: head row (copy + facts), then the tabbed figure at shell width */
+.rh-rt-head {
+	display: grid;
+	grid-template-columns: 1.2fr 1fr;
+	gap: 56px;
+	align-items: end;
+	margin-bottom: 40px;
+}
+@media (max-width: 920px) {
+	.rh-rt-head {
+		grid-template-columns: 1fr;
+		gap: 28px;
+	}
+}
 .rh-facts {
 	width: 100%;
-	max-width: 32rem;
-	margin: 8px 0 0;
+	margin: 0;
 	border-top: 1px solid var(--line);
 }
 .rh-facts div {
@@ -116,13 +128,6 @@ body:has(.rh) .auth-bar {
 	margin: 0;
 	font: 400 13px / 1.5 var(--font-mono-stack);
 	text-align: right;
-}
-.rh .art {
-	display: grid;
-	gap: 10px;
-}
-.rh .art .cb {
-	margin: 0;
 }
 
 /* phases: one hairline row, ink rule over the current phase */
