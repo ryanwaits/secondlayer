@@ -21,12 +21,12 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 
 | Field | Value |
 |---|---|
-| Phase | **2: Gate-2 soak day 0 started 2026-09-30 (oss profile on feeder)**. Soak ends 2026-10-14. Remaining Gate 2 bar: 14 days at tip, daily spot parity green, 2 weekly frozen parity 0/0 |
+| Phase | **3: prod migration (plan 095).** Gate 2 PASSED 2026-10-14 after 14 days at tip on the feeder. Next: rebuild from empty on app-server `/data/bitcoin` (md3), digests vs the feeder, switch `BITCOIN_DATABASE_URL` (founder go), Gate 3 |
 | Executor plan | `plans/037-bitcoin-runes-decoder-spike.md` (done, Gate 1); `plans/039-runes-backfill-integrity-and-profile.md` (done); `plans/057-runes-tip-follow-and-reorg.md` (done, steps 1–8); `plans/070-runes-follow-rpc-wait.md` (done); `plans/076-*` (rpc timeout/retry, follow heartbeat — done, deployed to feeder) |
 | Spike host | `stacks-feeder` (Hetzner Cloud `cpx62`, FSN, 4T volume), shared with Stacks genesis IBD |
 | Bitcoin source | node-server bitcoind `37.27.171.220:8332` (full, txindex), feeder IP already allowlisted |
 | Prod impact | none. No prod box changes through Phase 2 |
-| Last updated | 2026-09-30 (oss-profile follower `btc-oss-runes-1` at tip on the feeder; boot-from-empty proven; day-0 spot and frozen parity 0 mismatches; daily spot timer enabled) |
+| Last updated | 2026-10-14 (Gate 2 row filled; follower `btc-oss-runes-1` at tip, lag 0; daily spot parity 0 mismatches through 971,364; default `FLUSH_INTERVAL` 100) |
 | Pending cleanup | `btc_gate1` (pre-057 `btc`, Gate 1 state) left in place on `btc-pg` — reviewer drops it after 24h of clean `follow`, not the executor |
 
 ## Phases and gates
@@ -46,7 +46,7 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 |---|---|---|
 | 0 | `ord` Runes index at tip with size + time recorded; RPC benchmark recorded; demand threshold (D14) met; D4, D6 decided | **partial (2026-09-22):** demand MET (founder confirms users, go); benchmark recorded; D4/D5/D6 LOCKED; contention clear. Remaining: `ord` at tip + size/time + rune counts |
 | 1 | Decode diff 0 mismatches on the sample; entry + balance diff 0 at C1, C2, C3 (D17); supply invariant holds at every flush 840,000 → C3; backfill wall time + PG size recorded; fail-closed tests pass (invariant break, prev-hash break) | **PASS (2026-09-26):** decode diff 0 mismatches (~101,282 txs sampled: block 840,000 full, 840,001-840,021 full, block 850,000 full, one-per-10k 850,000-960,000, 840,022-840,099 not separately covered); C1 (841,000) 0 entry / 0 balance mismatches; C2 (900,000) 0 entry / 0 balance mismatches, on the replayed DB (plan 051), adopted as main 2026-09-25 (plan 056 step 0); C3 (968,557) 0 entry / 0 balance mismatches, rune counts 215,215 = 215,215, outpoint counts 6,941,422 = 6,941,422 (plan 056 step 4). Backfill wall time + PG size recorded at all three checkpoints |
-| 2 | ≥14 days at tip, continuous parity green, one reorg handled (live or injected on regtest), oss compose profile boots from empty and reaches tip | **in progress** (soak day 0 2026-09-30, ends 2026-10-14) |
+| 2 | ≥14 days at tip, continuous parity green, one reorg handled (live or injected on regtest), oss compose profile boots from empty and reaches tip | **PASS (2026-10-14):** at tip 2026-09-30 → 2026-10-14, follower heartbeat lag 0, no OOM kill since 2026-09-30 (kernel log). Daily spot parity 15/15 green, 100 runes each, 0 mismatches, 969,325 → 971,364 (`spot-history.log`). Frozen parity vs `ord` 0/0 twice: 969,332 (runes 215,495 = 215,495, outpoints 6,934,190 = 6,934,190) and 970,648 (215,792 = 215,792, 6,919,785 = 6,919,785), 0 entry / 0 balance mismatches. Live reorg 2026-10-04 19:33Z at 969,888 (1 block, fork point 969,887) recorded in `btc_reorgs`; hashes at 969,887 and 969,888 match bitcoind. Boot from empty 2026-09-30 at `FLUSH_INTERVAL` 100 (250 OOMs at 20g in the dense range), now the default. Evidence: `/data/feeder/btc-parity/soak/` on `stacks-feeder` |
 | 3 | Prod host at tip with parity green; digests match feeder at the same height; routing switched; Bitcoin containers removed from feeder | pending |
 
 ## Decision log
