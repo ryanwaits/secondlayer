@@ -253,7 +253,7 @@ export default function SubgraphsPage() {
 							},
 							{
 								k: "Hosted stack",
-								v: "~$10 / mo",
+								v: "~$10 / month",
 								p: "Memory from a 0.5 GB floor while it runs, plus storage. A stopped stack bills no memory.",
 							},
 						].map((m) => (

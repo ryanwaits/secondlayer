@@ -1,7 +1,7 @@
 const STEPS = [
 	{ name: "Bitcoin header", note: "proof of work" },
 	{ name: "Signer set", note: "≥70% of weight" },
-	{ name: "Stacks block", note: "tx merkle root" },
+	{ name: "Stacks block", note: "transaction root" },
 	{ name: "State root", note: "MARF proof" },
 	{ name: "Your row", note: "checked" },
 ] as const;

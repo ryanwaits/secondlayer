@@ -231,11 +231,11 @@ if ("trigger" in delivery.data) {
 
 <Callout type="tip" title="Discriminate on data.trigger, never event.type">
 
-`event.type` is NOT a consistent trigger name: it's `stx_transfer_event` for `stx_transfer`, the bare Stacks tx type (`contract_call`) for `contract_call`, and the node's raw event name (`contract_event`) for `print_event`. `data.trigger` is the one field that's always the trigger you subscribed with; switch on it, not `event.type`.
+`event.type` is NOT a consistent trigger name: it's `stx_transfer_event` for `stx_transfer`, the bare Stacks transaction type (`contract_call`) for `contract_call`, and the node's raw event name (`contract_event`) for `print_event`. `data.trigger` is the one field that's always the trigger you subscribed with; switch on it, not `event.type`.
 
 </Callout>
 
-Delivery is at-least-once. Key your state on `(tx_id, event_index, block_hash)`: one tx can fire multiple event-level deliveries sharing a `tx_id`, so `event_index` (`-1` for tx-level triggers) keeps them distinct.
+Delivery is at-least-once. Key your state on `(tx_id, event_index, block_hash)`: one transaction can fire multiple event-level deliveries sharing a `tx_id`, so `event_index` (`-1` for transaction-level triggers) keeps them distinct.
 
 Per-trigger shapes for `data.event`: [Event shapes](#event-shapes).
 

@@ -145,7 +145,7 @@ const COVERS: readonly {
 	},
 	{
 		covered: false,
-		title: "Print events and tx results",
+		title: "Print events and transaction results",
 		detail: "Not covered yet. Stacks headers don't commit to them.",
 	},
 ];

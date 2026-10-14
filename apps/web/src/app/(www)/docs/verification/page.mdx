@@ -132,7 +132,7 @@ import { verifyTransactionProof } from "@secondlayer/sdk";
 const proof = await fetch(
   `${process.env.SECONDLAYER_API_URL}/v1/index/transactions/${txid}/proof`,
   { headers: { Authorization: `Bearer ${process.env.SECONDLAYER_API_KEY}` } },
-).then((r) => r.json());
+).then((response) => response.json());
 
 const result = verifyTransactionProof(proof);
 // result.ok === true, result.level === "consensus"
@@ -208,7 +208,7 @@ The transaction proof above is [`/v1/index/transactions/{tx_id}/proof`](/docs/ap
 | Gap | Effect |
 | --- | --- |
 | Print events and transaction results | Stacks headers don't commit to them, so no block check covers them. |
-| Which transaction made a write | The tx root binds each transaction's bytes, not which one wrote a leaf or whether it succeeded. |
+| Which transaction made a write | The transaction root binds each transaction's bytes, not which one wrote a leaf or whether it succeeded. |
 | `events` and `none` subgraphs | Only `state` subgraphs can be replayed. [Rows anyone can recompute](/docs/subgraphs#rows-anyone-can-recompute). |
 | The checkpoint | Trusted as-is. Pass your own to change that. |
 | Bitcoin reorgs | Headers are checked for valid work, not against a competing chain, and reorgs past the synced tip are not followed. |

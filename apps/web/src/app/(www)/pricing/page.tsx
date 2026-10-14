@@ -341,7 +341,7 @@ export default function PricingPage() {
 										Signed partitions fetched for bootstrap, backfill or repair.
 									</td>
 									<td className="price">
-										{usd(ARCHIVE_PARTITION_USD)} blocks or tx
+										{usd(ARCHIVE_PARTITION_USD)} blocks or transactions
 										<small>
 											{usd(ARCHIVE_EVENTS_PARTITION_USD)} events · per partition
 										</small>

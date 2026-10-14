@@ -139,8 +139,8 @@ await sl.streams.events.consume({
     treasury: { types: ["stx_transfer"], sender: TREASURY },
   },
   on: {
-    peg: (events) => events.map((e) => e.payload.asset_identifier),
-    treasury: (events) => events.map((e) => e.payload.sender),
+    peg: (events) => events.map((event) => event.payload.asset_identifier),
+    treasury: (events) => events.map((event) => event.payload.sender),
   },
 });
 ```

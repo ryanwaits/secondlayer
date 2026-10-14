@@ -117,16 +117,16 @@ kyselySink(db, {
       .where("block_height", ">=", forkPointHeight)
       .selectAll()
       .execute();
-    for (const e of doomed) {
+    for (const row of doomed) {
       await tx
         .updateTable("balances")
-        .set({ amount: sql`amount - ${e.amount}::numeric` })
-        .where("holder", "=", e.recipient)
+        .set({ amount: sql`amount - ${row.amount}::numeric` })
+        .where("holder", "=", row.recipient)
         .execute();
       await tx
         .updateTable("balances")
-        .set({ amount: sql`amount + ${e.amount}::numeric` })
-        .where("holder", "=", e.sender)
+        .set({ amount: sql`amount + ${row.amount}::numeric` })
+        .where("holder", "=", row.sender)
         .execute();
     }
   },
@@ -204,19 +204,19 @@ export function postgresJsSink(
   sql: postgres.Sql,
   options: { id: string; tables: readonly string[]; height: string },
 ) {
-  const cp = quoteIdent("sl_consumer_checkpoints");
+  const checkpoints = quoteIdent("sl_consumer_checkpoints");
   const driver: SinkDriver<Tx> = {
-    transact: (fn) => sql.begin((tx) => fn(tx as Tx)) as Promise<never>,
+    transact: (work) => sql.begin((tx) => work(tx as Tx)) as Promise<never>,
     async ensureCheckpointStore() {
-      await sql.unsafe(`CREATE TABLE IF NOT EXISTS ${cp} (id text PRIMARY KEY, cursor text NOT NULL)`);
+      await sql.unsafe(`CREATE TABLE IF NOT EXISTS ${checkpoints} (id text PRIMARY KEY, cursor text NOT NULL)`);
     },
     async readCursor() {
-      const rows = await sql.unsafe(`SELECT cursor FROM ${cp} WHERE id = $1`, [options.id]);
+      const rows = await sql.unsafe(`SELECT cursor FROM ${checkpoints} WHERE id = $1`, [options.id]);
       return rows[0]?.cursor ?? null;
     },
     async writeCursor(tx, cursor) {
       await tx.unsafe(
-        `INSERT INTO ${cp} (id, cursor) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET cursor = excluded.cursor`,
+        `INSERT INTO ${checkpoints} (id, cursor) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET cursor = excluded.cursor`,
         [options.id, cursor],
       );
     },

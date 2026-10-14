@@ -29,9 +29,9 @@ describe("/verify", () => {
 
 	test("proofs need no key and carry per-IP limits", () => {
 		expect(verify).toContain("No key needed");
-		expect(verify).toContain("10 req/s per IP (20 with a key)");
-		expect(verify).toContain("1 req/s for witnesses (2 with a key)");
-		expect(verify).not.toContain("req/s per account");
+		expect(verify).toContain("10 requests/s per IP (20 with a key)");
+		expect(verify).toContain("1 request/s for witnesses (2 with a key)");
+		expect(verify).not.toContain("requests/s per account");
 		expect(verify).not.toContain("SECONDLAYER_API_KEY");
 		expect(verify).not.toContain("trustless");
 	});
@@ -75,7 +75,7 @@ describe("/pricing", () => {
 		expect(pricing).toContain("$2 / 1M once the month passes $50");
 		expect(pricing).toContain("$0.028 / GB-hour");
 		expect(pricing).toContain("$10 / 1M events");
-		expect(pricing).toContain("$0.05 blocks or tx");
+		expect(pricing).toContain("$0.05 blocks or transactions");
 		expect(pricing).toContain("$43.32");
 	});
 

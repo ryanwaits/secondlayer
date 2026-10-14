@@ -101,8 +101,8 @@ const GAPS: readonly { name: string; why: string }[] = [
 		why: "Same reason. Whether a call succeeded isn't in the header.",
 	},
 	{
-		name: "Which tx made a write",
-		why: "The tx root binds each transaction's bytes, not which one wrote a leaf.",
+		name: "Which transaction made a write",
+		why: "The transaction root binds each transaction's bytes, not which one wrote a leaf.",
 	},
 	{
 		name: "Bitcoin reorgs",
@@ -139,7 +139,7 @@ const LADDER: readonly {
 	{
 		n: "04",
 		name: "Every write, named",
-		body: "Inner contract calls and writes that never print, with the tx that made them.",
+		body: "Inner contract calls and writes that never print, with the transaction that made them.",
 		state: "soon",
 	},
 ];
@@ -387,8 +387,10 @@ export default function VerifyPage() {
 						</table>
 					</div>
 					<div className="chips">
-						<span className="chip">10 req/s per IP (20 with a key)</span>
-						<span className="chip">1 req/s for witnesses (2 with a key)</span>
+						<span className="chip">10 requests/s per IP (20 with a key)</span>
+						<span className="chip">
+							1 request/s for witnesses (2 with a key)
+						</span>
 						<span className="chip dash">
 							self-host: needs the proof sidecar
 						</span>

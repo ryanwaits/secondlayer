@@ -4,14 +4,14 @@ export function StreamsHero() {
 		<svg
 			viewBox="0 0 460 400"
 			role="img"
-			aria-label="A consumer reading events in order. Five events are shown by block height and event index; the third, 8948507:03, is the saved cursor. Finalized blocks are marked; the last two events sit above the finalized height."
+			aria-label="A consumer reading events in order. Five events are shown by block height and event index; the third, 8948507:03, is the saved cursor. Finalized blocks, six Bitcoin confirmations deep, are marked; the last two events sit above the finalized height."
 		>
 			<text x="20" y="34" fontSize="11.5" className="f-sub">
 				block_height
 			</text>
 			<rect x="20" y="48" width="244" height="22" rx="4" className="f-hi" />
 			<text x="32" y="63" fontSize="11.5" className="f-on-hi">
-				finalized · 6 btc conf
+				finalized · 6 confirmations
 			</text>
 			<g strokeWidth="1">
 				<rect

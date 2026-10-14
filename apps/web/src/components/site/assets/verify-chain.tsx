@@ -1,7 +1,7 @@
 const LINKS = [
 	{ name: "Bitcoin headers", note: "proof of work" },
 	{ name: "Signer set", note: "≥ 70% of weight signed" },
-	{ name: "Stacks block", note: "tx merkle root" },
+	{ name: "Stacks block", note: "transaction root" },
 	{ name: "State root", note: "witness + MARF" },
 ] as const;
 

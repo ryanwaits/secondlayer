@@ -38,7 +38,7 @@ Where to run it: [Deploy](/docs/deploy). To have the loop run for you: [Subgraph
 | --- | --- |
 | `eventType` | A literal narrows the rows: `"ft_transfer"` hands `onBatch` typed `amount`/`sender`, `"print"` hands it `payload.topic`. No discriminant check to write |
 | `contractId` | One id, or an array to follow a whole protocol on one cursor: `["…sbtc-token", "…sbtc-registry"]`, up to 20. Mutually exclusive with `trait` |
-| `txContext: true` | Joins the submitting tx into each event (`tx_sender`, `tx_type`, …). Same on `walk` and `list`; every row carries its submitting tx, so no per-event `/v1/index/transactions` call |
+| `txContext: true` | Joins the submitting transaction into each event (`tx_sender`, `tx_type`, …). Same on `walk` and `list`; every row carries its submitting transaction, so no per-event `/v1/index/transactions` call |
 | `finalizedOnly: true` | Holds delivery to rows at or below `tip.finalized_height`; finalized data never reorgs, so `onReorg` is unnecessary |
 | `signal` | Abort checked between batches, never mid-commit: the in-flight batch always commits; see [Deploy](/docs/deploy#handle-sigterm) |
 | `index.contractCalls.consume()` | Same loop for decoded calls; already carries `sender`/`function_name`, so it needs no `txContext` |
@@ -239,8 +239,8 @@ const { state_writes, next_cursor } = await sl.index.stateWrites.list({
   txContext: true, // join the writing transaction
 });
 
-for await (const w of sl.index.stateWrites.walk({ fromHeight: 8_000_000 })) {
-  console.log(w.cursor, w.key, w.value_hex);
+for await (const write of sl.index.stateWrites.walk({ fromHeight: 8_000_000 })) {
+  console.log(write.cursor, write.key, write.value_hex);
 }
 ```
 
@@ -265,8 +265,8 @@ Decoded prints from the `pox-5` boot contract (SIP-045, live since Bitcoin block
 | PoX-4 stacking actions (historical) | `/v1/index/stacking` | `stacking.list` / `walk` |
 
 ```ts
-for await (const e of sl.index.pox5.events.walk({ topic: "stake", signer: "SP…" })) {
-  console.log(e.block_height, e.staker, e.amount_ustx);
+for await (const event of sl.index.pox5.events.walk({ topic: "stake", signer: "SP…" })) {
+  console.log(event.block_height, event.staker, event.amount_ustx);
 }
 
 const { events } = await sl.index.pox5.events.list({
@@ -312,7 +312,7 @@ Settlement is verified against your instance's bitcoind, not a custody guarantee
 
 ### Runes
 
-A catalog of etched runes, a per-rune activity log, and balances, on a Bitcoin tip instead of a Stacks one. A rune's id is `<block>:<tx>` of its etch (`840000:3`). Its name is a unique A-Z string; spacers (`•`) are display only, so `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` are one rune. Every `rune` field takes a `RuneRef`: an id or a name in any of those forms.
+A catalog of etched runes, a per-rune activity log, and balances, on a Bitcoin tip instead of a Stacks one. A rune's id is `<block>:<transaction index>` of its etch (`840000:3`). Its name is a unique A-Z string; spacers (`•`) are display only, so `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` are one rune. Every `rune` field takes a `RuneRef`: an id or a name in any of those forms.
 
 <Callout type="note" title="Self-host today, hosted follows">
 
@@ -327,14 +327,14 @@ Self-host with the `bitcoin` compose profile has Runes data now. Hosted answers 
 | Current per-outpoint balances | `/v1/index/runes/balances` | `runes.balances({ address })` |
 | Etch, mint, transfer, burn log | `/v1/index/runes/activity` | `runes.activity.list` / `walk` |
 
-From the terminal: `secondlayer index runes [--search <prefix>] [--sort number|mints]`, `runes get <rune>`, `runes balances --address <addr>` (or `--outpoint <txid:vout>`), and `runes activity [--rune] [--address] [--kind etch,mint,transfer,burn] [--txid]`.
+From the terminal: `secondlayer index runes [--search <prefix>] [--sort number|mints]`, `runes get <rune>`, `runes balances --address <address>` (or `--outpoint <txid:vout>`), and `runes activity [--rune] [--address] [--kind etch,mint,transfer,burn] [--txid]`.
 
 ```ts
 await sl.index.runes.list({ search: "dog", sort: "mints" });
 await sl.index.runes.balances({ address: "bc1phnp234rd5hel0h8ulqvnq3zrww2td0a8q48hjcg7mv67j97jnxfq9ayczm" });
 
-for await (const e of sl.index.runes.activity.walk({ rune: "840000:3" })) {
-  console.log(e.kind, e.rune.spaced_name, e.amount);
+for await (const activity of sl.index.runes.activity.walk({ rune: "840000:3" })) {
+  console.log(activity.kind, activity.rune.spaced_name, activity.amount);
 }
 ```
 
