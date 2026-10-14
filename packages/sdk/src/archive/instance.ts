@@ -22,6 +22,7 @@ export type InstanceClient = {
 	diagnose(): Promise<InstanceDiagnosis>;
 };
 
+/** What to verify against, and the optional block range. */
 export type ArchiveVerifyInput = {
 	against: string;
 	target?: string;
@@ -37,6 +38,7 @@ export type ArchiveVerifyRangeStatus =
 	| "count-mismatch"
 	| "missing";
 
+/** Whether the archive is clean, diverged, or unanchored, by range. */
 export type ArchiveVerifyResult = {
 	status: "clean" | "diverged" | "unanchored";
 	target: string;

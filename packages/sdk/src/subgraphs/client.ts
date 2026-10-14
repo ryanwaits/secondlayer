@@ -32,6 +32,7 @@ import {
 	serializeWhere,
 } from "./serialize.ts";
 
+/** A deployed subgraph's source code, handler bundle, and pin. */
 export interface SubgraphSource {
 	name: string;
 	version: string;
@@ -78,6 +79,7 @@ export interface SubgraphRowsEnvelope<T = unknown> {
 	};
 }
 
+/** A deployed subgraph's bundled sources, schema, and handler code. */
 export interface BundleSubgraphResponse {
 	ok: true;
 	name: string;

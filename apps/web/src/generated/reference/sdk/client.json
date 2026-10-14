@@ -7,7 +7,7 @@
 		"description": "",
 		"source": {
 			"file": "packages/sdk/src/client.ts",
-			"line": 110
+			"line": 111
 		},
 		"overloads": [
 			{
@@ -110,7 +110,7 @@
 			"description": "Run up to 10 public reads in one round trip (`POST /v1/batch`).\n\nEach item is authorized on its own; the client's bearer token applies to\nevery item. Results come back in order as `{ path, status, body }`. Only\npaths under `/v1/index/`, `/v1/subgraphs`, `/v1/streams/`, and\n`/v1/contracts` are allowed; anything else is a per-item 400.",
 			"source": {
 				"file": "packages/sdk/src/client.ts",
-				"line": 158
+				"line": 159
 			},
 			"rest": "POST /v1/batch",
 			"overloads": [
@@ -145,7 +145,7 @@
 			"description": "Get a one-call snapshot of your account and instance.\n\nReturns a [`ContextSnapshot`](/docs/sdk-reference/client#t-ContextSnapshot): the same orientation an MCP agent reads\nfrom `secondlayer://context`, available to any SDK or CLI consumer. Reads\nrun concurrently; a failed read lands as `{ value: null, error }` on its\nfield rather than rejecting the whole snapshot.",
 			"source": {
 				"file": "packages/sdk/src/client.ts",
-				"line": 177
+				"line": 178
 			},
 			"rest": "GET /api/accounts/me",
 			"overloads": [
@@ -261,7 +261,7 @@
 		},
 		{
 			"name": "ContextSnapshot",
-			"summary": "A point-in-time orientation snapshot for an agent: the live tips and what this instance holds.",
+			"summary": "A point-in-time orientation snapshot: live tips and what this instance holds.",
 			"fields": [
 				{
 					"name": "account",
@@ -345,7 +345,7 @@
 		},
 		{
 			"name": "FetchLike",
-			"summary": "A minimal fetch signature for dependency injection, matching `@secondlayer/sdk`'s `FetchLike` (`sdk/src/base.ts`).",
+			"summary": "",
 			"definition": "(input: string | URL | Request, init?: RequestInit) => Promise<Response>"
 		},
 		{
@@ -374,7 +374,7 @@
 		},
 		{
 			"name": "InstanceDiagnosis",
-			"summary": "",
+			"summary": "An instance's state, the API verdict, and the issues found.",
 			"fields": [
 				{
 					"name": "state",
@@ -427,7 +427,7 @@
 		},
 		{
 			"name": "StreamsTip",
-			"summary": "",
+			"summary": "The chain tip: latest block, Bitcoin anchor, and finality boundary.",
 			"fields": [
 				{
 					"name": "block_height",
@@ -475,7 +475,7 @@
 		},
 		{
 			"name": "SubgraphSummary",
-			"summary": "",
+			"summary": "A subgraph's name, status, and indexing progress.",
 			"fields": [
 				{
 					"name": "name",

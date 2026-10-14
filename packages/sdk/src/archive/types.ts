@@ -4,9 +4,12 @@ import type { ArchiveVerifyInput, ArchiveVerifyResult } from "./instance.ts";
 
 export type { ArchiveStatus };
 
+/** The three archive datasets: blocks, transactions, and events. */
 export type ArchiveDataset = "blocks" | "transactions" | "events";
+/** Whether an archive purchase is a bootstrap or a repair. */
 export type ArchiveFlow = "bootstrap" | "repair";
 
+/** One archive file: dataset, block range, path, rows, bytes. */
 export type ArchivePartition = {
 	dataset: string;
 	from_block: number;
@@ -28,6 +31,7 @@ export type ArchiveManifest = {
 	[key: string]: unknown;
 };
 
+/** A loaded archive manifest with its origin and signature check. */
 export type LoadedArchive = {
 	manifest: ArchiveManifest;
 	origin: string;
@@ -36,6 +40,7 @@ export type LoadedArchive = {
 	signature: { verified: boolean; reason?: string };
 };
 
+/** The price of an archive request, after any free allowance. */
 export type ArchiveQuote = {
 	partitions: number;
 	bundles: number;
@@ -54,12 +59,14 @@ export type ArchiveFetchItem = {
 	chargedUsdMicros: number;
 };
 
+/** Download links for archive partitions and what they cost. */
 export type ArchiveFetchResult = {
 	urls: ArchiveFetchItem[];
 	chargedTotalUsdMicros: number;
 	balanceAfterUsdMicros: number;
 };
 
+/** Your archive credit balance and its refill settings. */
 export type ArchiveCreditsBalance = {
 	creditsUsdMicros: string;
 	refill: {
@@ -69,6 +76,7 @@ export type ArchiveCreditsBalance = {
 	};
 };
 
+/** Options for loading an archive manifest. */
 export type ArchiveLoadOptions = {
 	insecure?: boolean;
 };

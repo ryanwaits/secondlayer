@@ -48,6 +48,7 @@ export type {
 	StxTransferPayload,
 } from "@secondlayer/shared/streams-rows";
 
+/** The chain tip: latest block, Bitcoin anchor, and finality boundary. */
 export type StreamsTip = {
 	block_height: number;
 	block_hash: string;
@@ -68,9 +69,12 @@ export type StreamsTip = {
 	oldest_cursor?: string | null;
 };
 
-/** `chain=bitcoin` tip — no `burn_block_height`/retention fields,
- *  since Bitcoin has no burn chain of its own and Runes reads have no
- *  retention ladder. Returned by `tip({ chain: "bitcoin" })`. */
+/**
+ * The Bitcoin tip, without burn-chain or retention fields.
+ *
+ * Bitcoin has no burn chain of its own, and Runes reads have no retention
+ * ladder. Returned by `tip({ chain: "bitcoin" })`.
+ */
 export type StreamsBitcoinTip = {
 	block_height: number;
 	block_hash: string;
@@ -78,6 +82,7 @@ export type StreamsBitcoinTip = {
 	lag_seconds: number;
 };
 
+/** A canonical Stacks block with its Bitcoin anchor. */
 export type StreamsCanonicalBlock = {
 	block_height: number;
 	block_hash: string;
@@ -86,7 +91,7 @@ export type StreamsCanonicalBlock = {
 	is_canonical: true;
 };
 
-/** `chain=bitcoin` canonical block — no burn-chain fields. */
+/** A Bitcoin canonical block, without burn-chain fields. */
 export type StreamsBitcoinCanonicalBlock = {
 	block_height: number;
 	block_hash: string;
@@ -106,6 +111,7 @@ export type StreamsReorg = {
 	new_canonical_tip: string;
 };
 
+/** One page of events with the next cursor, tip, and reorgs. */
 export type StreamsEventsEnvelope<TEvent = StreamsEvent, TTip = StreamsTip> = {
 	events: TEvent[];
 	next_cursor: string | null;
@@ -113,27 +119,33 @@ export type StreamsEventsEnvelope<TEvent = StreamsEvent, TTip = StreamsTip> = {
 	reorgs: StreamsReorg[];
 };
 
+/** One page of events with the tip and reorgs, no cursor. */
 export type StreamsEventsListEnvelope<
 	TEvent = StreamsEvent,
 	TTip = StreamsTip,
 > = Omit<StreamsEventsEnvelope<TEvent, TTip>, "next_cursor">;
 
-/** The StreamsEvent union narrowed to a `types` selection — what a
- *  const-generic `types: ["ft_transfer"]` buys at the type level. */
+/**
+ * The event union narrowed to a `types` selection.
+ *
+ * A const-generic `types: ["ft_transfer"]` narrows the event type.
+ */
 export type StreamsEventOfTypes<T extends readonly StreamsEventType[]> =
 	Extract<StreamsEvent, { event_type: T[number] }>;
 
+/** A starting point and limit for listing reorgs. */
 export type StreamsReorgsListParams = {
 	since: string;
 	limit?: number;
 };
 
+/** A list of reorgs and the cursor to resume from. */
 export type StreamsReorgsListEnvelope = {
 	reorgs: StreamsReorg[];
 	next_since: string | null;
 };
 
-/** A filter that matches a single value or any value in a list. */
+/** A single value or a list of values to match. */
 export type StreamsFilterValue = string | readonly string[];
 
 /**
@@ -166,6 +178,7 @@ export type StreamsEventForFilter<F, D extends boolean = false> = F extends {
 		? IndexEvent
 		: StreamsEvent;
 
+/** Cursor, height range, and limit shared by every list call. */
 type StreamsEventsListParamsCommon = {
 	cursor?: string | null;
 	fromHeight?: number;
@@ -195,12 +208,13 @@ export type StreamsEventsStacksListParams = StreamsEventsListParamsCommon & {
 };
 
 /**
- * `chain: "bitcoin"` — Runes events, own cursor space. `types` is
- * restricted to {@link RuneEventType} at the type level, so e.g.
- * `{ chain: "bitcoin", types: ["ft_transfer"] }` is a compile error rather
- * than a silent 400 at request time. `contractId`/`sender`/`recipient`/
- * `assetIdentifier`/`filters`/`clock` don't exist on this branch — they're
- * Stacks-only (the server 400s on them too).
+ * List options for Runes events, with their own cursor space.
+ *
+ * `types` is restricted to `RuneEventType` at the type level, so e.g. `{ chain:
+ * "bitcoin", types: ["ft_transfer"] }` is a compile error rather than a silent
+ * 400 at request time. `contractId`, `sender`, `recipient`, `assetIdentifier`,
+ * `filters`, and `clock` don't exist on this branch; they're Stacks-only (the
+ * server 400s on them too).
  */
 export type StreamsEventsBitcoinListParams = StreamsEventsListParamsCommon & {
 	chain: "bitcoin";
@@ -212,10 +226,12 @@ export type StreamsEventsBitcoinListParams = StreamsEventsListParamsCommon & {
 	address?: string;
 };
 
+/** Chain, cursor, height range, and filters for listing Streams events. */
 export type StreamsEventsListParams =
 	| StreamsEventsStacksListParams
 	| StreamsEventsBitcoinListParams;
 
+/** Cursor, batching, and stop options shared by every event stream. */
 type StreamsEventsStreamCommon = {
 	fromCursor?: string | null;
 	batchSize?: number;
@@ -225,8 +241,12 @@ type StreamsEventsStreamCommon = {
 	signal?: AbortSignal;
 };
 
-/** `chain: "stacks"` (default, omit `chain` entirely) — matches
- *  {@link StreamsEventsStacksListParams}. */
+/**
+ * Stream options for Stacks events, the default chain.
+ *
+ * `chain: "stacks"` is the default, so omit `chain` entirely. Matches
+ * `StreamsEventsStacksListParams`.
+ */
 export type StreamsEventsStreamStacksParams = StreamsEventsStreamCommon & {
 	chain?: "stacks";
 	types?: readonly StreamsEventType[];
@@ -239,11 +259,14 @@ export type StreamsEventsStreamStacksParams = StreamsEventsStreamCommon & {
 	filters?: StreamsFilterMap;
 };
 
-/** `chain: "bitcoin"` — Runes events, tailed the same way as
- *  the Stacks default. `types` is restricted to {@link RuneEventType} at the
- *  type level, matching {@link StreamsEventsBitcoinListParams}.
- *  `contractId`/`sender`/`recipient`/`assetIdentifier`/`filters` don't exist
- *  on this branch — they're Stacks-only. */
+/**
+ * Stream options for Runes events, tailed like the Stacks default.
+ *
+ * `types` is restricted to `RuneEventType` at the type level, matching
+ * `StreamsEventsBitcoinListParams`. `contractId`, `sender`, `recipient`,
+ * `assetIdentifier`, and `filters` don't exist on this branch; they're
+ * Stacks-only.
+ */
 export type StreamsEventsStreamBitcoinParams = StreamsEventsStreamCommon & {
 	chain: "bitcoin";
 	types?: readonly RuneEventType[];
@@ -304,9 +327,12 @@ export type StreamsEventsSubscribeStacksParams =
 		onEvent: (event: StreamsEvent) => void | Promise<void>;
 	};
 
-/** `chain: "bitcoin"` — Runes events pushed live, on their own
- *  cursor space. `contractId`/`sender`/`recipient`/`assetIdentifier`/`filters`
- *  don't exist on this branch — they're Stacks-only. */
+/**
+ * Options for pushing Runes events live, on their own cursor space.
+ *
+ * `contractId`, `sender`, `recipient`, `assetIdentifier`, and `filters` don't
+ * exist on this branch; they're Stacks-only.
+ */
 export type StreamsEventsSubscribeBitcoinParams =
 	StreamsEventsSubscribeCommon & {
 		chain: "bitcoin";
@@ -401,6 +427,7 @@ export type StreamsBatchContext = ConsumerBatchContext;
  *  in the same transaction as the rollback. */
 export type StreamsReorgContext = { cursor: string | null };
 
+/** Options for consuming Streams events: cursor, batching, filters, handler. */
 export type StreamsEventsConsumeParams<
 	TTx = never,
 	D extends boolean = false,
@@ -543,13 +570,14 @@ export type StreamsEventsConsumeParams<
 };
 
 /**
- * `chain: "bitcoin"` — the checkpointed sweep over Runes
- * events. A separate, simpler type from {@link StreamsEventsConsumeParams}
- * rather than a widened union member: `filters`/`on`/`decoded` are Stacks-only
- * concepts (labelled OR-groups and Index-shaped projection have no Runes
- * equivalent yet), so `onBatch` is the only way in and is required. Reorg
- * rewind still works the same way (bitcoin reorgs carry the same
- * `fork_point_height` + `new_canonical_tip` shape as Stacks ones).
+ * Options for the checkpointed sweep over Runes events.
+ *
+ * A separate, simpler type from `StreamsEventsConsumeParams` rather than a
+ * widened union member: `filters`, `on`, and `decoded` are Stacks-only concepts
+ * (labelled OR-groups and Index-shaped projection have no Runes equivalent
+ * yet), so `onBatch` is the only way in and is required. Reorg rewind still
+ * works the same way (bitcoin reorgs carry the same `fork_point_height` and
+ * `new_canonical_tip` shape as Stacks ones).
  */
 export type StreamsEventsConsumeBitcoinParams<TTx = never> = {
 	chain: "bitcoin";
@@ -595,9 +623,10 @@ export type StreamsEventsConsumeBitcoinParams<TTx = never> = {
 };
 
 /**
- * One yielded page from {@link StreamsClient.consume} — the
- * `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to
- * `cursor` (the checkpoint to persist and resume from).
+ * One page yielded by `consume`, with `cursor` to persist and resume.
+ *
+ * It is the `GET /v1/streams/events` envelope verbatim, with `next_cursor`
+ * renamed to `cursor`.
  */
 export type StreamsBatch<TEvent = StreamsEvent, TTip = StreamsTip> = {
 	/** Canonical events of this page, in cursor order. */
@@ -609,6 +638,7 @@ export type StreamsBatch<TEvent = StreamsEvent, TTip = StreamsTip> = {
 	reorgs: StreamsReorg[];
 };
 
+/** Cursor, batch size, and polling options shared by every consume loop. */
 type StreamsConsumeCommon = {
 	/** Resume strictly after this cursor; omit to start from the oldest seekable page. */
 	cursor?: string | null;
@@ -634,9 +664,12 @@ export type StreamsConsumeStacksParams = StreamsConsumeCommon & {
 	filters?: StreamsFilterMap;
 };
 
-/** `chain: "bitcoin"` — Runes batches, own cursor space.
- *  `contractId`/`sender`/`recipient`/`assetIdentifier`/`filters` don't exist
- *  on this branch — they're Stacks-only. */
+/**
+ * Consume options for Runes batches, with their own cursor space.
+ *
+ * `contractId`, `sender`, `recipient`, `assetIdentifier`, and `filters` don't
+ * exist on this branch; they're Stacks-only.
+ */
 export type StreamsConsumeBitcoinParams = StreamsConsumeCommon & {
 	chain: "bitcoin";
 	types?: readonly RuneEventType[];
@@ -651,12 +684,14 @@ export type StreamsConsumeParams =
 	| StreamsConsumeStacksParams
 	| StreamsConsumeBitcoinParams;
 
+/** Where a consume loop stopped: cursor, pages read, empty polls. */
 export type StreamsEventsConsumeResult = {
 	cursor: string | null;
 	pages: number;
 	emptyPolls: number;
 };
 
+/** Options for replaying history from dump files, then tailing live. */
 export type StreamsEventsReplayParams = {
 	/** Start point: `"genesis"` (default) or a `<block>:<index>` cursor. */
 	from?: "genesis" | string;
@@ -725,6 +760,7 @@ export type StreamsDumpFile = {
 	created_at: string;
 };
 
+/** The index of finalized Parquet dump files for one dataset. */
 export type StreamsDumpsManifest = {
 	dataset: string;
 	network: string;

@@ -12,6 +12,7 @@ import { BaseClient, type SecondLayerOptions, buildQuery } from "../base.ts";
 /** Whether a trait match must be declared in source, inferred from ABI, or either. */
 export type ContractConformance = "declared" | "inferred" | "any";
 
+/** Trait, conformance, and paging for listing contracts. */
 export interface ContractsListParams {
 	/** Required. Trait identifier to match (e.g. "sip-010", or a fully-qualified trait). */
 	trait: string;
@@ -25,6 +26,7 @@ export interface ContractsListParams {
 	cursor?: string;
 }
 
+/** A deployed contract with its traits, standards, and ABI status. */
 export interface ContractSummary {
 	contract_id: string;
 	deployer: string;
@@ -36,6 +38,7 @@ export interface ContractSummary {
 	abi?: unknown;
 }
 
+/** One page of contracts and the cursor for the next page. */
 export interface ContractsEnvelope {
 	contracts: ContractSummary[];
 	next_cursor: string | null;

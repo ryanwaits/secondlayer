@@ -49,6 +49,7 @@ export type IndexReorg = {
 	new_canonical_tip: string;
 };
 
+/** A decoded fungible-token transfer: sender, recipient, asset, amount. */
 export type FtTransfer = {
 	cursor: string;
 	block_height: number;
@@ -64,6 +65,7 @@ export type FtTransfer = {
 	amount: string;
 };
 
+/** One page of fungible-token transfers, with the cursor, tip, and reorgs. */
 export type FtTransfersEnvelope<TRow = FtTransfer> = {
 	events: TRow[];
 	next_cursor: string | null;
@@ -82,6 +84,7 @@ export type FtTransferFields<F extends keyof FtTransfer & string> = Pick<
 	(F | FtTransferAlwaysFields) & keyof FtTransfer
 >;
 
+/** Column selection, paging, and filters for listing token transfers. */
 export type FtTransfersListParams = {
 	/**
 	 * Columns to return. The server projects the row, so an unrequested column
@@ -123,9 +126,11 @@ export type WalkOptions = PageRetryOptions & {
 /** Per-request signal the private list methods thread into `request`. */
 type RequestSignal = { signal?: AbortSignal };
 
+/** `FtTransfersListParams` without `limit`, plus walk options. */
 export type FtTransfersWalkParams = Omit<FtTransfersListParams, "limit"> &
 	WalkOptions;
 
+/** A decoded non-fungible-token transfer: sender, recipient, asset, value. */
 export type NftTransfer = {
 	cursor: string;
 	block_height: number;
@@ -141,6 +146,7 @@ export type NftTransfer = {
 	value: string;
 };
 
+/** One page of non-fungible-token transfers, with the cursor, tip, and reorgs. */
 export type NftTransfersEnvelope<TRow = NftTransfer> = {
 	events: TRow[];
 	next_cursor: string | null;
@@ -158,6 +164,7 @@ export type NftTransferFields<F extends keyof NftTransfer & string> = Pick<
 	(F | NftTransferAlwaysFields) & keyof NftTransfer
 >;
 
+/** Column selection, paging, and filters for listing NFT transfers. */
 export type NftTransfersListParams = {
 	/** Columns to return (see {@link FtTransfersListParams.fields}). */
 	fields?: readonly (keyof NftTransfer & string)[];
@@ -172,6 +179,7 @@ export type NftTransfersListParams = {
 	toHeight?: number;
 };
 
+/** `NftTransfersListParams` without `limit`, plus walk options. */
 export type NftTransfersWalkParams = Omit<NftTransfersListParams, "limit"> &
 	WalkOptions;
 
@@ -197,6 +205,7 @@ type IndexEventBase = {
 	tx_function_name?: string | null;
 };
 
+/** A fungible-token transfer event. */
 export type IndexFtTransfer = IndexEventBase & {
 	event_type: "ft_transfer";
 	asset_identifier: string;
@@ -204,6 +213,7 @@ export type IndexFtTransfer = IndexEventBase & {
 	recipient: string;
 	amount: string;
 };
+/** A non-fungible-token transfer event. */
 export type IndexNftTransfer = IndexEventBase & {
 	event_type: "nft_transfer";
 	asset_identifier: string;
@@ -211,6 +221,7 @@ export type IndexNftTransfer = IndexEventBase & {
 	recipient: string;
 	value: string;
 };
+/** An STX transfer event. */
 export type IndexStxTransfer = IndexEventBase & {
 	event_type: "stx_transfer";
 	sender: string;
@@ -218,51 +229,60 @@ export type IndexStxTransfer = IndexEventBase & {
 	amount: string;
 	memo: string | null;
 };
+/** An STX mint event. */
 export type IndexStxMint = IndexEventBase & {
 	event_type: "stx_mint";
 	recipient: string;
 	amount: string;
 };
+/** An STX burn event. */
 export type IndexStxBurn = IndexEventBase & {
 	event_type: "stx_burn";
 	sender: string;
 	amount: string;
 };
+/** An STX lock event with its unlock height. */
 export type IndexStxLock = IndexEventBase & {
 	event_type: "stx_lock";
 	sender: string;
 	amount: string;
 	payload: { unlock_height: string | null };
 };
+/** A fungible-token mint event. */
 export type IndexFtMint = IndexEventBase & {
 	event_type: "ft_mint";
 	asset_identifier: string;
 	recipient: string;
 	amount: string;
 };
+/** A fungible-token burn event. */
 export type IndexFtBurn = IndexEventBase & {
 	event_type: "ft_burn";
 	asset_identifier: string;
 	sender: string;
 	amount: string;
 };
+/** A non-fungible-token mint event. */
 export type IndexNftMint = IndexEventBase & {
 	event_type: "nft_mint";
 	asset_identifier: string;
 	recipient: string;
 	value: string;
 };
+/** A non-fungible-token burn event. */
 export type IndexNftBurn = IndexEventBase & {
 	event_type: "nft_burn";
 	asset_identifier: string;
 	sender: string;
 	value: string;
 };
+/** A contract `print` event with its topic and value. */
 export type IndexPrint = IndexEventBase & {
 	event_type: "print";
 	payload: { topic: string | null; value: unknown; raw_value: string | null };
 };
 
+/** A contract call made from inside another contract call. */
 export type IndexNestedContractCall = IndexEventBase & {
 	event_type: "nested_contract_call";
 	sender: string | null;
@@ -271,23 +291,27 @@ export type IndexNestedContractCall = IndexEventBase & {
 	function_args: unknown;
 	raw_result: string | null;
 };
+/** A contract data variable write. */
 export type IndexVarSet = IndexEventBase & {
 	event_type: "var_set";
 	var_name: string;
 	raw_value: string;
 };
+/** A contract map entry overwrite. */
 export type IndexMapSet = IndexEventBase & {
 	event_type: "map_set";
 	map: string;
 	raw_key: string;
 	raw_value: string;
 };
+/** A new contract map entry. */
 export type IndexMapInsert = IndexEventBase & {
 	event_type: "map_insert";
 	map: string;
 	raw_key: string;
 	raw_value: string;
 };
+/** A contract map entry deletion. */
 export type IndexMapDelete = IndexEventBase & {
 	event_type: "map_delete";
 	map: string;
@@ -325,6 +349,7 @@ export type IndexEventFields<
 	F extends keyof IndexEventOf<T> & string,
 > = Pick<IndexEventOf<T>, (F | IndexAlwaysFields) & keyof IndexEventOf<T>>;
 
+/** One page of decoded events, with the cursor, tip, and reorgs. */
 export type EventsEnvelope<
 	T extends IndexEventType = IndexEventType,
 	TRow = IndexEventOf<T>,
@@ -343,6 +368,7 @@ export type IndexEventOf<T extends IndexEventType> = Extract<
 	{ event_type: T }
 >;
 
+/** Event type, paging, and filters for listing decoded events. */
 export type EventsListParams<T extends IndexEventType = IndexEventType> = {
 	/** Decoded types or VM types (`nested_contract_call`, `map_set`, …). */
 	eventType: T;
@@ -388,6 +414,7 @@ export type EventsListParams<T extends IndexEventType = IndexEventType> = {
 	fields?: readonly (keyof IndexEventOf<T> & string)[];
 };
 
+/** `EventsListParams` without `limit`, plus walk options. */
 export type EventsWalkParams<T extends IndexEventType = IndexEventType> = Omit<
 	EventsListParams<T>,
 	"limit"
@@ -408,6 +435,7 @@ export type EventsConsumeParams<
 
 // ── Contract calls (/v1/index/contract-calls) ──────────────────────
 
+/** A decoded contract call: contract, function, sender, arguments, result. */
 export type IndexContractCall = {
 	cursor: string;
 	block_height: number;
@@ -423,6 +451,7 @@ export type IndexContractCall = {
 	result_hex: string | null;
 };
 
+/** One page of contract calls, with the cursor, tip, and reorgs. */
 export type ContractCallsEnvelope = {
 	contract_calls: IndexContractCall[];
 	next_cursor: string | null;
@@ -431,6 +460,7 @@ export type ContractCallsEnvelope = {
 	reorgs: IndexReorg[];
 };
 
+/** Paging and contract filters for listing contract calls. */
 export type ContractCallsListParams = {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -447,6 +477,7 @@ export type ContractCallsListParams = {
 	trait?: string;
 };
 
+/** `ContractCallsListParams` without `limit`, plus walk options. */
 export type ContractCallsWalkParams = Omit<ContractCallsListParams, "limit"> &
 	WalkOptions;
 
@@ -470,12 +501,14 @@ export type IndexCanonicalBlock = {
 	burn_block_hash: string | null;
 };
 
+/** One page of canonical blocks, with the next cursor and chain tip. */
 export type CanonicalEnvelope = {
 	canonical: IndexCanonicalBlock[];
 	next_cursor: string | null;
 	tip: IndexTip;
 };
 
+/** Paging and height filters for listing canonical blocks. */
 export type CanonicalListParams = {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -484,6 +517,7 @@ export type CanonicalListParams = {
 	toHeight?: number;
 };
 
+/** `CanonicalListParams` without `limit`, plus walk options. */
 export type CanonicalWalkParams = Omit<CanonicalListParams, "limit"> &
 	WalkOptions;
 
@@ -513,6 +547,7 @@ export type IndexStateWrite = {
 	tx_function_name?: string | null;
 };
 
+/** One page of contract state writes, with the cursor, tip, and reorgs. */
 export type StateWritesEnvelope = {
 	state_writes: IndexStateWrite[];
 	next_cursor: string | null;
@@ -521,6 +556,7 @@ export type StateWritesEnvelope = {
 	reorgs: IndexReorg[];
 };
 
+/** Paging and filters for listing contract state writes. */
 export type StateWritesListParams = {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -535,6 +571,7 @@ export type StateWritesListParams = {
 	txContext?: boolean;
 };
 
+/** `StateWritesListParams` without `limit`, plus walk options. */
 export type StateWritesWalkParams = Omit<StateWritesListParams, "limit"> &
 	WalkOptions;
 
@@ -553,17 +590,20 @@ export type IndexBlock = {
 	canonical: boolean;
 };
 
+/** One page of blocks, with the next cursor and chain tip. */
 export type BlocksEnvelope = {
 	blocks: IndexBlock[];
 	next_cursor: string | null;
 	tip: IndexTip;
 };
 
+/** One block and the chain tip. */
 export type BlockEnvelope = {
 	block: IndexBlock;
 	tip: IndexTip;
 };
 
+/** Paging and height filters for listing blocks. */
 export type BlocksListParams = {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -572,6 +612,7 @@ export type BlocksListParams = {
 	toHeight?: number;
 };
 
+/** `BlocksListParams` without `limit`, plus walk options. */
 export type BlocksWalkParams = Omit<BlocksListParams, "limit"> & WalkOptions;
 
 // ── Transactions (/v1/index/transactions) ──────────────────────────
@@ -656,6 +697,7 @@ export type IndexTransaction = {
 	tenure_change?: { cause: number };
 };
 
+/** One page of transactions, with the cursor, tip, and reorgs. */
 export type TransactionsEnvelope<TRow = IndexTransaction> = {
 	transactions: TRow[];
 	next_cursor: string | null;
@@ -664,6 +706,7 @@ export type TransactionsEnvelope<TRow = IndexTransaction> = {
 	reorgs: IndexReorg[];
 };
 
+/** One transaction and the chain tip. */
 export type TransactionEnvelope = {
 	transaction: IndexTransaction;
 	tip: IndexTip;
@@ -678,6 +721,7 @@ export type TransactionFields<F extends keyof IndexTransaction & string> = Pick<
 	(F | TransactionAlwaysFields) & keyof IndexTransaction
 >;
 
+/** Column selection, paging, and filters for listing transactions. */
 export type TransactionsListParams = {
 	/**
 	 * Columns to return. The server projects the row, so an unrequested column
@@ -695,6 +739,7 @@ export type TransactionsListParams = {
 	toHeight?: number;
 };
 
+/** `TransactionsListParams` without `limit`, plus walk options. */
 export type TransactionsWalkParams = Omit<TransactionsListParams, "limit"> &
 	WalkOptions;
 
@@ -726,6 +771,7 @@ export type IndexStackingAction = {
 	result_ok: boolean;
 };
 
+/** One page of stacking actions, with the cursor, tip, and reorgs. */
 export type StackingEnvelope = {
 	stacking: IndexStackingAction[];
 	next_cursor: string | null;
@@ -736,6 +782,7 @@ export type StackingEnvelope = {
 	notes?: string;
 };
 
+/** Paging and filters for listing stacking actions. */
 export type StackingListParams = {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -747,6 +794,7 @@ export type StackingListParams = {
 	toHeight?: number;
 };
 
+/** `StackingListParams` without `limit`, plus walk options. */
 export type StackingWalkParams = Omit<StackingListParams, "limit"> &
 	WalkOptions;
 
@@ -778,17 +826,20 @@ export type IndexMempoolTransaction = {
 	tenure_change?: { cause: number };
 };
 
+/** One page of pending transactions, with the next cursor and chain tip. */
 export type MempoolEnvelope = {
 	mempool: IndexMempoolTransaction[];
 	next_cursor: string | null;
 	tip: IndexTip;
 };
 
+/** One pending transaction and the chain tip. */
 export type MempoolTransactionEnvelope = {
 	transaction: IndexMempoolTransaction;
 	tip: IndexTip;
 };
 
+/** Paging and sender filters for listing pending transactions. */
 export type MempoolListParams = {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -801,14 +852,16 @@ export type MempoolListParams = {
 	functionName?: string;
 };
 
+/** `MempoolListParams` without `limit`, plus walk options. */
 export type MempoolWalkParams = Omit<MempoolListParams, "limit"> & WalkOptions;
 
 // ── Print schema (/v1/index/contracts/:contract_id/print-schema) ───
 
 /**
- * Empirical per-topic print payload schema for a contract, inferred from
- * sampled on-chain events. `topics` is sorted by count desc; `sampled` is true
- * when the contract has more print events than the windows examined.
+ * Per-topic print payload schema for a contract, inferred from sampled events.
+ *
+ * `topics` is sorted by count desc; `sampled` is true when the contract has
+ * more print events than the windows examined.
  */
 export type PrintSchemaResponse = {
 	contract_id: string;
@@ -853,8 +906,12 @@ export type IndexSbtcDeposit = {
 /** A deposit fetched by Bitcoin txid — always terminal, hence `status`. */
 export type IndexSbtcDepositDetail = IndexSbtcDeposit & { status: "COMPLETED" };
 
-/** A peg-out collapsed to one row per `request_id`, with lifecycle `status`
- *  derived from the latest accept/reject. */
+/**
+ * A peg-out as one row per request, with its latest status.
+ *
+ * Collapsed to one row per `request_id`, with lifecycle `status` derived from
+ * the latest accept/reject.
+ */
 export type IndexSbtcWithdrawal = {
 	cursor: string;
 	request_id: number;
@@ -913,8 +970,11 @@ export type IndexSbtcWithdrawalDetail = {
 	finalized: boolean;
 };
 
-/** A raw decoded sBTC protocol-state event — the full `sbtc_events` row, one
- *  per event across all topics. */
+/**
+ * A raw decoded sBTC protocol-state event, one per event.
+ *
+ * It is the full `sbtc_events` row, one per event across all topics.
+ */
 export type IndexSbtcEvent = {
 	cursor: string;
 	block_height: number;
@@ -955,6 +1015,7 @@ export type IndexSbtcSummary = {
 	sbtc_supply_sats: string | null;
 };
 
+/** One page of sBTC deposits, with the cursor, tip, and reorgs. */
 export type SbtcDepositsEnvelope<TRow = IndexSbtcDeposit> = {
 	deposits: TRow[];
 	next_cursor: string | null;
@@ -965,11 +1026,13 @@ export type SbtcDepositsEnvelope<TRow = IndexSbtcDeposit> = {
 	notes?: string;
 };
 
+/** One sBTC deposit and the chain tip. */
 export type SbtcDepositEnvelope = {
 	deposit: IndexSbtcDepositDetail;
 	tip: IndexTip;
 };
 
+/** One page of sBTC withdrawals, with the cursor, tip, and reorgs. */
 export type SbtcWithdrawalsEnvelope<TRow = IndexSbtcWithdrawal> = {
 	withdrawals: TRow[];
 	next_cursor: string | null;
@@ -978,11 +1041,13 @@ export type SbtcWithdrawalsEnvelope<TRow = IndexSbtcWithdrawal> = {
 	notes?: string;
 };
 
+/** One sBTC withdrawal and the chain tip. */
 export type SbtcWithdrawalEnvelope = {
 	withdrawal: IndexSbtcWithdrawalDetail;
 	tip: IndexTip;
 };
 
+/** One page of sBTC events, with the cursor, tip, and reorgs. */
 export type SbtcEventsEnvelope = {
 	events: IndexSbtcEvent[];
 	next_cursor: string | null;
@@ -991,12 +1056,14 @@ export type SbtcEventsEnvelope = {
 	notes?: string;
 };
 
+/** The sBTC totals and the chain tip. */
 export type SbtcSummaryEnvelope = {
 	summary: IndexSbtcSummary;
 	tip: IndexTip;
 	notes?: string;
 };
 
+/** Column selection, paging, and filters for listing sBTC deposits. */
 export type SbtcDepositsListParams = {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -1024,6 +1091,7 @@ export type SbtcDepositFields<F extends keyof IndexSbtcDeposit & string> = Pick<
 	(F | SbtcDepositAlwaysFields) & keyof IndexSbtcDeposit
 >;
 
+/** `SbtcDepositsListParams` without `limit`, plus walk options. */
 export type SbtcDepositsWalkParams = Omit<SbtcDepositsListParams, "limit"> &
 	WalkOptions;
 
@@ -1037,6 +1105,7 @@ export type SbtcWithdrawalFields<F extends keyof IndexSbtcWithdrawal & string> =
 		(F | SbtcWithdrawalAlwaysFields) & keyof IndexSbtcWithdrawal
 	>;
 
+/** Column selection, paging, and filters for listing sBTC withdrawals. */
 export type SbtcWithdrawalsListParams = {
 	/**
 	 * Columns to return. The server projects the row, so an unrequested column
@@ -1058,12 +1127,14 @@ export type SbtcWithdrawalsListParams = {
 	toHeight?: number;
 };
 
+/** `SbtcWithdrawalsListParams` without `limit`, plus walk options. */
 export type SbtcWithdrawalsWalkParams = Omit<
 	SbtcWithdrawalsListParams,
 	"limit"
 > &
 	WalkOptions;
 
+/** Paging and filters for listing sBTC events. */
 export type SbtcEventsListParams = {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -1077,6 +1148,7 @@ export type SbtcEventsListParams = {
 	toHeight?: number;
 };
 
+/** `SbtcEventsListParams` without `limit`, plus walk options. */
 export type SbtcEventsWalkParams = Omit<SbtcEventsListParams, "limit"> &
 	WalkOptions;
 
@@ -1256,6 +1328,7 @@ export type IndexPoxCycleSigner = {
 	rewards_claimed: string;
 };
 
+/** One page of reward cycles, newest first, with the next cursor. */
 export type PoxCyclesEnvelope = {
 	/** The PoX version this response reports. Currently 5. */
 	pox_version: 5;
@@ -1265,18 +1338,21 @@ export type PoxCyclesEnvelope = {
 	tip: IndexTip;
 };
 
+/** One reward cycle with its signers and the chain tip. */
 export type PoxCycleEnvelope = {
 	pox_version: 5;
 	cycle: IndexPoxCycle & { signers: IndexPoxCycleSigner[] };
 	tip: IndexTip;
 };
 
+/** Paging for listing reward cycles. */
 export type PoxCyclesListParams = {
 	/** A `reward_cycle` to page from; the page returns cycles below it (descending). */
 	cursor?: number | null;
 	limit?: number;
 };
 
+/** `PoxCyclesListParams` without `limit`, plus walk options. */
 export type PoxCyclesWalkParams = Omit<PoxCyclesListParams, "limit"> &
 	WalkOptions;
 
@@ -1341,6 +1417,7 @@ export type IndexPox5Event = {
 	data: unknown;
 };
 
+/** One page of PoX-5 events, with the cursor, tip, and reorgs. */
 export type Pox5EventsEnvelope<TRow = IndexPox5Event> = {
 	events: TRow[];
 	next_cursor: string | null;
@@ -1359,6 +1436,7 @@ export type Pox5EventFields<F extends keyof IndexPox5Event & string> = Pick<
 	(F | Pox5EventAlwaysFields) & keyof IndexPox5Event
 >;
 
+/** Column selection, paging, and filters for listing PoX-5 events. */
 export type Pox5EventsListParams = {
 	/**
 	 * Columns to return. The server projects the row, so an unrequested column
@@ -1381,6 +1459,7 @@ export type Pox5EventsListParams = {
 	toHeight?: number;
 };
 
+/** `Pox5EventsListParams` without `limit`, plus walk options. */
 export type Pox5EventsWalkParams = Omit<Pox5EventsListParams, "limit"> &
 	WalkOptions;
 
@@ -1431,11 +1510,13 @@ export interface Pox5Resource {
 export type RuneId = `${number}:${number}`;
 
 /**
- * A rune reference accepted by every Runes call: an id ({@link RuneId}) or a
- * name, with or without spacers, in any case — `DOG•GO•TO•THE•MOON`,
- * `dog.go.to.the.moon` and `doggotothemoon` all resolve to the same rune.
- * Typing every rune name is a no (178k runes and growing — a generated union
- * would be huge and stale on day one); `list({ search })` covers discovery.
+ * A rune id or name, in any case, with or without spacers.
+ *
+ * `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` all resolve
+ * to the same rune.
+ *
+ * Typing every rune name is a no: 178k runes and growing, so a generated union
+ * would be huge and stale on day one. `list({ search })` covers discovery.
  */
 export type RuneRef = RuneId | (string & {});
 
@@ -1485,8 +1566,11 @@ export type IndexRuneTerms = {
 	offset_end: string | null;
 };
 
-/** One etched rune's full entry: identity, premine/mint/burn counters,
- *  computed supply, and mint terms. */
+/**
+ * One etched rune: identity, counters, supply, and mint terms.
+ *
+ * Counters cover premine, mint, and burn; supply is computed.
+ */
 export type IndexRuneEntry = IndexRuneRefSummary & {
 	/** Etch sequence number (u128 decimal string) — 0 is genesis. */
 	number: string;
@@ -1504,6 +1588,7 @@ export type IndexRuneEntry = IndexRuneRefSummary & {
 	terms: IndexRuneTerms | null;
 };
 
+/** One page of runes, with the cursor and Bitcoin tip. */
 export type RunesEnvelope<TRow = IndexRuneEntry> = {
 	runes: TRow[];
 	next_cursor: string | null;
@@ -1515,6 +1600,7 @@ export type RunesEnvelope<TRow = IndexRuneEntry> = {
 	notes?: string;
 };
 
+/** Name search, sort order, and paging for listing runes. */
 export type RunesListParams = {
 	/** Name prefix, spacers and case ignored (`dog` matches `DOG•GO•TO•THE•MOON`). */
 	search?: string;
@@ -1524,6 +1610,7 @@ export type RunesListParams = {
 	limit?: number;
 };
 
+/** One rune and the Bitcoin tip. */
 export type RuneEnvelope = {
 	rune: IndexRuneEntry;
 	tip: IndexBitcoinTip;
@@ -1535,8 +1622,11 @@ export type IndexRuneEventKind =
 	| "rune_transfer"
 	| "rune_burn";
 
-/** One etch/mint/transfer/burn event, with the rune's identity embedded so an
- *  activity feed never needs a second lookup to show a name. */
+/**
+ * One rune etch, mint, transfer, or burn, with the rune's identity.
+ *
+ * The identity is embedded so an activity feed needs no second lookup to show a name.
+ */
 export type IndexRuneEvent = {
 	cursor: string;
 	block_height: number;
@@ -1552,6 +1642,7 @@ export type IndexRuneEvent = {
 	rune: IndexRuneRefSummary;
 };
 
+/** One page of rune events, with the cursor, Bitcoin tip, and reorgs. */
 export type RuneActivityEnvelope<TRow = IndexRuneEvent> = {
 	events: TRow[];
 	next_cursor: string | null;
@@ -1560,6 +1651,7 @@ export type RuneActivityEnvelope<TRow = IndexRuneEvent> = {
 	notes?: string;
 };
 
+/** Paging and height filters for listing rune events. */
 export type RuneActivityListParams = {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -1572,6 +1664,7 @@ export type RuneActivityListParams = {
 	txid?: string;
 };
 
+/** `RuneActivityListParams` without `limit`, plus walk options. */
 export type RuneActivityWalkParams = Omit<RuneActivityListParams, "limit"> &
 	WalkOptions;
 
@@ -1586,6 +1679,7 @@ export type IndexRuneBalance = {
 	amount: string;
 };
 
+/** One page of rune balances, with the cursor and Bitcoin tip. */
 export type RuneBalancesEnvelope<TRow = IndexRuneBalance> = {
 	balances: TRow[];
 	next_cursor: string | null;
@@ -1595,8 +1689,11 @@ export type RuneBalancesEnvelope<TRow = IndexRuneBalance> = {
 	notes?: string;
 };
 
-/** Exactly one of `address`/`outpoint` is required — enforced at the type
- *  level, not just at runtime. */
+/**
+ * Rune balance filters; exactly one of `address` or `outpoint`.
+ *
+ * Enforced at the type level, not just at runtime.
+ */
 export type RuneBalancesListParams = (
 	| { address: string; outpoint?: never }
 	| { outpoint: string; address?: never }
@@ -1821,9 +1918,12 @@ export type IndexEventTypeFilters = {
 	required_non_null?: string[];
 };
 
-/** The `GET /v1/index` discovery doc — live endpoint + filter vocabulary.
- *  Shape is intentionally open (the server may add fields); the agent-relevant
- *  parts are the per-type filter rules. */
+/**
+ * The `GET /v1/index` discovery doc: live endpoints and filter vocabulary.
+ *
+ * Shape is intentionally open (the server may add fields); the agent-relevant
+ * parts are the per-type filter rules.
+ */
 export type IndexDiscovery = {
 	event_type_filters?: Record<string, IndexEventTypeFilters>;
 	[key: string]: unknown;

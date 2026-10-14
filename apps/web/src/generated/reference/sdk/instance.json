@@ -50,7 +50,7 @@
 	"types": [
 		{
 			"name": "InstanceDiagnosis",
-			"summary": "",
+			"summary": "An instance's state, the API verdict, and the issues found.",
 			"fields": [
 				{
 					"name": "state",

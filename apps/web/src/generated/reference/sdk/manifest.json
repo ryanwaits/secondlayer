@@ -95,7 +95,7 @@
 			"signature": "contextField<T>(read: Promise<T>): Promise<ContextField<T>>",
 			"source": {
 				"file": "packages/sdk/src/client.ts",
-				"line": 80
+				"line": 81
 			}
 		},
 		{
@@ -149,7 +149,7 @@
 			"signature": "decodeFtBurn(event: StreamsEvent): DecodedFtBurn",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 504
+				"line": 508
 			}
 		},
 		{
@@ -158,7 +158,7 @@
 			"signature": "decodeFtMint(event: StreamsEvent): DecodedFtMint",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 500
+				"line": 504
 			}
 		},
 		{
@@ -167,7 +167,7 @@
 			"signature": "decodeFtTransfer(event: StreamsEvent): DecodedFtTransfer",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 300
+				"line": 304
 			}
 		},
 		{
@@ -176,7 +176,7 @@
 			"signature": "decodeNftBurn(event: StreamsEvent): DecodedNftBurn",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 512
+				"line": 516
 			}
 		},
 		{
@@ -185,7 +185,7 @@
 			"signature": "decodeNftMint(event: StreamsEvent): DecodedNftMint",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 508
+				"line": 512
 			}
 		},
 		{
@@ -194,7 +194,7 @@
 			"signature": "decodeNftTransfer(event: StreamsEvent): DecodedNftTransfer",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 323
+				"line": 327
 			}
 		},
 		{
@@ -203,7 +203,7 @@
 			"signature": "decodePrint(event: StreamsEvent): DecodedPrint",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 351
+				"line": 355
 			}
 		},
 		{
@@ -212,7 +212,7 @@
 			"signature": "decodeStxBurn(event: StreamsEvent): DecodedStxBurn",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 407
+				"line": 411
 			}
 		},
 		{
@@ -221,7 +221,7 @@
 			"signature": "decodeStxLock(event: StreamsEvent): DecodedStxLock",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 428
+				"line": 432
 			}
 		},
 		{
@@ -230,7 +230,7 @@
 			"signature": "decodeStxMint(event: StreamsEvent): DecodedStxMint",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 403
+				"line": 407
 			}
 		},
 		{
@@ -239,7 +239,7 @@
 			"signature": "decodeStxTransfer(event: StreamsEvent): DecodedStxTransfer",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 399
+				"line": 403
 			}
 		},
 		{
@@ -266,7 +266,7 @@
 			"signature": "isFtBurn(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"ft_burn\" }",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 501
+				"line": 505
 			}
 		},
 		{
@@ -275,7 +275,7 @@
 			"signature": "isFtMint(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"ft_mint\" }",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 497
+				"line": 501
 			}
 		},
 		{
@@ -284,7 +284,7 @@
 			"signature": "isFtTransfer(event: StreamsEvent): event is StreamsEventOf<\"ft_transfer\", FtTransferPayload>",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 299
+				"line": 303
 			}
 		},
 		{
@@ -302,7 +302,7 @@
 			"signature": "isNftBurn(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"nft_burn\" }",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 509
+				"line": 513
 			}
 		},
 		{
@@ -311,7 +311,7 @@
 			"signature": "isNftMint(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"nft_mint\" }",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 505
+				"line": 509
 			}
 		},
 		{
@@ -320,7 +320,7 @@
 			"signature": "isNftTransfer(event: StreamsEvent): event is StreamsEventOf<\"nft_transfer\", NftTransferPayload>",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 322
+				"line": 326
 			}
 		},
 		{
@@ -329,7 +329,7 @@
 			"signature": "isPrint(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"print\" }",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 348
+				"line": 352
 			}
 		},
 		{
@@ -338,7 +338,7 @@
 			"signature": "isStxBurn(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"stx_burn\" }",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 404
+				"line": 408
 			}
 		},
 		{
@@ -347,7 +347,7 @@
 			"signature": "isStxLock(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"stx_lock\" }",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 425
+				"line": 429
 			}
 		},
 		{
@@ -356,7 +356,7 @@
 			"signature": "isStxMint(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"stx_mint\" }",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 400
+				"line": 404
 			}
 		},
 		{
@@ -365,7 +365,7 @@
 			"signature": "isStxTransfer(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"stx_transfer\" }",
 			"source": {
 				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-				"line": 396
+				"line": 400
 			}
 		},
 		{

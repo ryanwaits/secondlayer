@@ -9,7 +9,7 @@
 			"description": "Callable: `index.ftTransfers(params)` ≡ `index.ftTransfers.list(params)`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1863
+				"line": 1963
 			},
 			"overloads": [
 				{
@@ -54,7 +54,7 @@
 			"description": "Read one page of fungible-token transfers, plus the cursor for the next.\n\nFilter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. Filters are equality only: there is no amount filter. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back. `reorgs` on the envelope lists forks that overlap the page.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1721
+				"line": 1818
 			},
 			"overloads": [
 				{
@@ -145,7 +145,7 @@
 			"description": "Iterate every fungible-token transfer, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1730
+				"line": 1827
 			},
 			"overloads": [
 				{
@@ -236,7 +236,7 @@
 			"description": "Callable: `index.nftTransfers(params)` ≡ `index.nftTransfers.list(params)`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1876
+				"line": 1976
 			},
 			"overloads": [
 				{
@@ -281,7 +281,7 @@
 			"description": "Read one page of NFT transfers, plus the cursor for the next.\n\nFilter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1749
+				"line": 1846
 			},
 			"overloads": [
 				{
@@ -372,7 +372,7 @@
 			"description": "Iterate every NFT transfer, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1758
+				"line": 1855
 			},
 			"overloads": [
 				{
@@ -463,7 +463,7 @@
 			"description": "Generic decoded events by `event_type` (the full /v1/index/events surface).\nCallable: `index.events(params)` ≡ `index.events.list(params)`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1890
+				"line": 1990
 			},
 			"overloads": [
 				{
@@ -508,7 +508,7 @@
 			"description": "Read one page of decoded events of one type.\n\n`eventType` is required: a decoded type (`ft_transfer`, `print`, ...) or a VM type (`nested_contract_call`, `map_set`, ...), and a literal narrows the row type. Scope with `contractId` (one id or up to 20) or `trait`, never both, plus `assetIdentifier`, `sender`, `recipient`, `functionName`, `caller`, `map`, `varName`, `txId`, and a height range. `txContext: true` joins the submitting transaction onto each event. `fields` returns only those columns and narrows the row type; it saves wire bytes but does not change what you are billed, since rows are metered, not columns.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1779
+				"line": 1876
 			},
 			"overloads": [
 				{
@@ -619,7 +619,7 @@
 			"description": "Iterate every decoded event of one type, paging for you.\n\nTakes the same filters as `list`, including `eventType`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1793
+				"line": 1890
 			},
 			"overloads": [
 				{
@@ -730,7 +730,7 @@
 			"description": "Run a checkpointed, reorg-aware indexer over decoded events.\n\nWrite your rows in `onBatch` and commit `ctx.cursor` in the same transaction; resume with `fromCursor`. Without `fromCursor` or `fromHeight` the API serves only its recent default window, so pass `fromHeight: 0` for a full backfill. A reorg at or below your checkpoint calls `onReorg`, then the loop re-reads from the fork point. Delivery is at-least-once, so keep writes idempotent. With a `sink`, the checkpoint and rollback are handled for you. `finalizedOnly` holds delivery to finalized rows, so no reorg handling is needed. `mode: \"tail\"` (default) keeps polling at the tip; `mode: \"bounded\"` returns on the first empty page. Resolves to `{ cursor, pages, emptyPolls }`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1807
+				"line": 1904
 			},
 			"overloads": [
 				{
@@ -774,7 +774,7 @@
 			"description": "Read one page of decoded contract calls.\n\nFilter by `contractId` (one id or up to 20) or `trait`, never both, plus `functionName`, `sender`, and a height range. Each row has the function name, arguments, result, and status. Pass `next_cursor` back as `cursor` to continue.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1928
+				"line": 2028
 			},
 			"overloads": [
 				{
@@ -803,7 +803,7 @@
 			"description": "Iterate every decoded contract call, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1934
+				"line": 2034
 			},
 			"overloads": [
 				{
@@ -832,7 +832,7 @@
 			"description": "Run a checkpointed, reorg-aware indexer over contract calls.\n\nWrite your rows in `onBatch` and commit `ctx.cursor` in the same transaction; resume with `fromCursor`. Without `fromCursor` or `fromHeight` the API serves only its recent default window, so pass `fromHeight: 0` for a full backfill. A reorg at or below your checkpoint calls `onReorg`, then the loop re-reads from the fork point. Delivery is at-least-once, so keep writes idempotent. With a `sink`, the checkpoint and rollback are handled for you. `finalizedOnly` holds delivery to finalized rows, so no reorg handling is needed. `mode: \"tail\"` (default) keeps polling at the tip; `mode: \"bounded\"` returns on the first empty page. Resolves to `{ cursor, pages, emptyPolls }`. Calls already carry `sender` and `function_name`, so there is no `txContext`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1942
+				"line": 2042
 			},
 			"overloads": [
 				{
@@ -861,7 +861,7 @@
 			"description": "Read one page of the canonical block-hash map.\n\nEach row is a block's hash, its parent hash, and its burn-chain anchor. Compare it with your own tables to confirm you follow the current chain.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1976
+				"line": 2076
 			},
 			"overloads": [
 				{
@@ -890,7 +890,7 @@
 			"description": "Iterate every canonical block hash, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1982
+				"line": 2082
 			},
 			"overloads": [
 				{
@@ -919,7 +919,7 @@
 			"description": "Read one page of the contract-state writes each block committed.\n\nRows are the exact key and value writes, in the node's write order (`ordinal`), so you can see which key a transaction changed when events alone do not show it. Filter by `blockHeight` (excludes `fromHeight` and `toHeight`) or `contractId`. `txContext: true` joins the writing transaction. Rows exist only from the height your node first subscribed to state writes.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1998
+				"line": 2098
 			},
 			"overloads": [
 				{
@@ -948,7 +948,7 @@
 			"description": "Iterate every state write, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2004
+				"line": 2104
 			},
 			"overloads": [
 				{
@@ -977,7 +977,7 @@
 			"description": "Read one page of canonical blocks.\n\nEach block has its hash, parent hash, burn-chain anchor, and `block_time`. Filter by a height range.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2021
+				"line": 2121
 			},
 			"overloads": [
 				{
@@ -1006,7 +1006,7 @@
 			"description": "Iterate every canonical block, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2027
+				"line": 2127
 			},
 			"overloads": [
 				{
@@ -1035,7 +1035,7 @@
 			"description": "Get one block by height or hash, or `null`.\n\nResolves to `null` when no such block exists (404).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2033
+				"line": 2133
 			},
 			"overloads": [
 				{
@@ -1064,7 +1064,7 @@
 			"description": "Read one page of full transaction documents.\n\nFilter by `type`, `sender`, `contractId`, and a height range. Each document has the decoded post conditions and the payload for its `tx_type`; enrichment fields are null when the raw transaction cannot be decoded. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `tx_id` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2051
+				"line": 2151
 			},
 			"overloads": [
 				{
@@ -1109,7 +1109,7 @@
 			"description": "Iterate every transaction document, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2062
+				"line": 2162
 			},
 			"overloads": [
 				{
@@ -1138,7 +1138,7 @@
 			"description": "Get one transaction by id, or `null`.\n\nResolves to `null` when the transaction is not found (404).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2068
+				"line": 2168
 			},
 			"overloads": [
 				{
@@ -1167,7 +1167,7 @@
 			"description": "Get a transaction's inclusion proof, or `null`.\n\nThe proof is the raw transaction, the Nakamoto block header, and the merkle path. Check it yourself with `verifyTransactionProof`; nothing in it needs to be trusted. Resolves to `null` on 404. A 503 (`PROOF_TX_SET_INCOMPLETE` or `PROOF_NODE_UNAVAILABLE`) throws an `ApiError`: the proof cannot be assembled on this deployment right now.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2074
+				"line": 2174
 			},
 			"overloads": [
 				{
@@ -1201,7 +1201,7 @@
 			"description": "Read one page of decoded PoX-4 stacking actions.\n\nOne row per stacking contract call. Filter by `functionName`, `stacker`, `caller`, and a height range. The feed is empty, with a `notes` hint, when the instance's PoX-4 decoder is disabled. For the current PoX, use `pox5.events` and `pox.cycles`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2096
+				"line": 2196
 			},
 			"overloads": [
 				{
@@ -1230,7 +1230,7 @@
 			"description": "Iterate every PoX-4 stacking action, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2102
+				"line": 2202
 			},
 			"overloads": [
 				{
@@ -1259,7 +1259,7 @@
 			"description": "Read one page of pending, unconfirmed transactions.\n\nFilter by `sender`, `type`, `contractId`, and `functionName`. There is no height filter: rows carry `received_at` and a sequence cursor instead of a block position.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2119
+				"line": 2219
 			},
 			"overloads": [
 				{
@@ -1288,7 +1288,7 @@
 			"description": "Iterate every pending transaction, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2125
+				"line": 2225
 			},
 			"overloads": [
 				{
@@ -1317,7 +1317,7 @@
 			"description": "Get one pending transaction, or `null`.\n\nResolves to `null` once the transaction has confirmed or dropped.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2133
+				"line": 2233
 			},
 			"overloads": [
 				{
@@ -1346,7 +1346,7 @@
 			"description": "Read one page of completed sBTC deposits.\n\nFilter by `sender`, `bitcoinTxid`, and a height range. `confirmed: true` keeps only deposits past the finality boundary. `fields` returns only those columns and narrows the row type; `cursor` and `block_height` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1109
+				"line": 1181
 			},
 			"overloads": [
 				{
@@ -1391,7 +1391,7 @@
 			"description": "Iterate every completed sBTC deposit, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1118
+				"line": 1190
 			},
 			"overloads": [
 				{
@@ -1420,7 +1420,7 @@
 			"description": "Run a checkpointed, reorg-aware indexer over completed deposits.\n\nDeposits are append-only, so they are safe to mirror. See [`IndexConsumeOptions`](/docs/sdk-reference/index#t-IndexConsumeOptions).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1125
+				"line": 1197
 			},
 			"overloads": [
 				{
@@ -1449,7 +1449,7 @@
 			"description": "Fetch a completed deposit by Bitcoin txid; 404 → null.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1133
+				"line": 1205
 			},
 			"overloads": [
 				{
@@ -1478,7 +1478,7 @@
 			"description": "Read one page of sBTC withdrawals, each with its current status.\n\nFilter by `status` (`REQUESTED`, `ACCEPTED`, `REJECTED`), `sender`, `requestId`, `settlementConfirmed`, and a height range. A row changes as the peg-out moves along, which is why withdrawals have no `consume`. `fields` returns only those columns and narrows the row type; `cursor` and `request_id` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1141
+				"line": 1213
 			},
 			"overloads": [
 				{
@@ -1523,7 +1523,7 @@
 			"description": "Iterate every sBTC withdrawal, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1150
+				"line": 1222
 			},
 			"overloads": [
 				{
@@ -1552,7 +1552,7 @@
 			"description": "Fetch a withdrawal's full lifecycle by request id; 404 → null.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1154
+				"line": 1226
 			},
 			"overloads": [
 				{
@@ -1581,7 +1581,7 @@
 			"description": "Read one page of the raw sBTC peg event log.\n\nFilter by `topic`, `sender`, `requestId`, `bitcoinTxid`, and a height range. `confirmed: true` keeps only events past the finality boundary.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1168
+				"line": 1240
 			},
 			"overloads": [
 				{
@@ -1610,7 +1610,7 @@
 			"description": "Iterate every sBTC peg event, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1174
+				"line": 1246
 			},
 			"overloads": [
 				{
@@ -1639,7 +1639,7 @@
 			"description": "Run a checkpointed, reorg-aware indexer over the raw peg event log.\n\nThe log is append-only across all six topics. See [`IndexConsumeOptions`](/docs/sdk-reference/index#t-IndexConsumeOptions).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1181
+				"line": 1253
 			},
 			"overloads": [
 				{
@@ -1668,7 +1668,7 @@
 			"description": "Get the all-time sBTC peg scoreboard.\n\nA single aggregate, with no pagination.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1194
+				"line": 1266
 			},
 			"overloads": [
 				{
@@ -1690,7 +1690,7 @@
 			"description": "Read one page of PoX reward cycles, newest first.\n\n`cursor` is a `reward_cycle` number, and the page returns the cycles below it. `next_cursor` is the next cycle number to page from, or `null` at the end. This reports the current PoX (PoX-5); PoX-4 history is not served here, so read `stacking` for it.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1291
+				"line": 1367
 			},
 			"overloads": [
 				{
@@ -1719,7 +1719,7 @@
 			"description": "Iterate every reward cycle, paging for you.\n\nTakes the same filters as `list` (it pages by reward cycle number). Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1297
+				"line": 1373
 			},
 			"overloads": [
 				{
@@ -1748,7 +1748,7 @@
 			"description": "Get one reward cycle by number, or `null`.\n\nResolves to `null` on 404: an unknown cycle, or one below pox-5's first\nreward cycle (141), whose PoX-4 history is final and not served here.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1304
+				"line": 1380
 			},
 			"overloads": [
 				{
@@ -1777,7 +1777,7 @@
 			"description": "Read one page of decoded PoX-5 staking events.\n\nFilter by `topic`, `staker`, `signer`, `signerManager`, `bondIndex`, `rewardCycle`, and a height range. `confirmed: true` keeps only rows past the finality boundary. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `topic` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1402
+				"line": 1481
 			},
 			"overloads": [
 				{
@@ -1822,7 +1822,7 @@
 			"description": "Iterate every PoX-5 event, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1411
+				"line": 1490
 			},
 			"overloads": [
 				{
@@ -1851,7 +1851,7 @@
 			"description": "Run a checkpointed, reorg-aware indexer over PoX-5 events.\n\nThe pox-5 print log is append-only across all 19 topics. See [`IndexConsumeOptions`](/docs/sdk-reference/index#t-IndexConsumeOptions).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1418
+				"line": 1497
 			},
 			"overloads": [
 				{
@@ -1880,7 +1880,7 @@
 			"description": "Read one page of Rune etch, mint, transfer, and burn events.\n\nFilter by `rune` (an id or a name), `address`, `kind`, `txid`, and a height range. The cursor is `<block_height>:<event_index>`, and the envelope's tip is a Bitcoin tip. `notes` says so when Runes is not configured on the instance.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1634
+				"line": 1731
 			},
 			"overloads": [
 				{
@@ -1909,7 +1909,7 @@
 			"description": "Iterate every Rune event, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1640
+				"line": 1737
 			},
 			"overloads": [
 				{
@@ -1938,7 +1938,7 @@
 			"description": "The rune catalog. `search` prefix-matches the name; `sort` is etch\norder (default) or busiest-first.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1617
+				"line": 1714
 			},
 			"overloads": [
 				{
@@ -1967,7 +1967,7 @@
 			"description": "Get one rune by id or name, or `null`.\n\nResolves to `null` on 404: no such rune, or Runes isn't configured on\nthis instance.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1624
+				"line": 1721
 			},
 			"overloads": [
 				{
@@ -1996,7 +1996,7 @@
 			"description": "Current per-outpoint rune balances by address or outpoint.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1626
+				"line": 1723
 			},
 			"overloads": [
 				{
@@ -2025,7 +2025,7 @@
 			"description": "Get the live vocabulary of what Index can query.\n\nThe discovery doc lists every endpoint and each event type's columns,\nallowed and equality filters, and required-non-null fields. Read it to\nlearn what's queryable (and which types accept `trait`) instead of\nhardcoding.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1845
+				"line": 1945
 			},
 			"rest": "GET /v1/index",
 			"overloads": [
@@ -2048,7 +2048,7 @@
 			"description": "Get the print payload schema a contract actually emits.\n\nLists the topics it emits and each field's observed Clarity, TS, and\ncolumn types. Anonymous read; resolves to `null` on 404.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1855
+				"line": 1955
 			},
 			"rest": "GET /v1/index/contracts/{contractId}/print-schema",
 			"overloads": [
@@ -2075,7 +2075,7 @@
 	"types": [
 		{
 			"name": "BlockEnvelope",
-			"summary": "",
+			"summary": "One block and the chain tip.",
 			"fields": [
 				{
 					"name": "block",
@@ -2093,7 +2093,7 @@
 		},
 		{
 			"name": "BlocksEnvelope",
-			"summary": "",
+			"summary": "One page of blocks, with the next cursor and chain tip.",
 			"fields": [
 				{
 					"name": "blocks",
@@ -2117,7 +2117,7 @@
 		},
 		{
 			"name": "BlocksListParams",
-			"summary": "",
+			"summary": "Paging and height filters for listing blocks.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -2153,7 +2153,7 @@
 		},
 		{
 			"name": "BlocksWalkParams",
-			"summary": "",
+			"summary": "`BlocksListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -2213,7 +2213,7 @@
 		},
 		{
 			"name": "CanonicalEnvelope",
-			"summary": "",
+			"summary": "One page of canonical blocks, with the next cursor and chain tip.",
 			"fields": [
 				{
 					"name": "canonical",
@@ -2237,7 +2237,7 @@
 		},
 		{
 			"name": "CanonicalListParams",
-			"summary": "",
+			"summary": "Paging and height filters for listing canonical blocks.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -2273,7 +2273,7 @@
 		},
 		{
 			"name": "CanonicalWalkParams",
-			"summary": "",
+			"summary": "`CanonicalListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -2422,7 +2422,7 @@
 		},
 		{
 			"name": "ContractCallsEnvelope",
-			"summary": "",
+			"summary": "One page of contract calls, with the cursor, tip, and reorgs.",
 			"fields": [
 				{
 					"name": "contract_calls",
@@ -2452,7 +2452,7 @@
 		},
 		{
 			"name": "ContractCallsListParams",
-			"summary": "",
+			"summary": "Paging and contract filters for listing contract calls.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -2512,7 +2512,7 @@
 		},
 		{
 			"name": "ContractCallsWalkParams",
-			"summary": "",
+			"summary": "`ContractCallsListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -2596,7 +2596,7 @@
 		},
 		{
 			"name": "EventsEnvelope",
-			"summary": "",
+			"summary": "One page of decoded events, with the cursor, tip, and reorgs.",
 			"fields": [
 				{
 					"name": "events",
@@ -2626,7 +2626,7 @@
 		},
 		{
 			"name": "EventsListParams",
-			"summary": "",
+			"summary": "Event type, paging, and filters for listing decoded events.",
 			"fields": [
 				{
 					"name": "eventType",
@@ -2740,7 +2740,7 @@
 		},
 		{
 			"name": "EventsWalkParams",
-			"summary": "",
+			"summary": "`EventsListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -2878,7 +2878,7 @@
 		},
 		{
 			"name": "FtTransfer",
-			"summary": "",
+			"summary": "A decoded fungible-token transfer: sender, recipient, asset, amount.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -2980,7 +2980,7 @@
 		},
 		{
 			"name": "FtTransfersEnvelope",
-			"summary": "",
+			"summary": "One page of fungible-token transfers, with the cursor, tip, and reorgs.",
 			"fields": [
 				{
 					"name": "events",
@@ -3010,7 +3010,7 @@
 		},
 		{
 			"name": "FtTransfersListParams",
-			"summary": "",
+			"summary": "Column selection, paging, and filters for listing token transfers.",
 			"fields": [
 				{
 					"name": "fields",
@@ -3076,7 +3076,7 @@
 		},
 		{
 			"name": "FtTransfersWalkParams",
-			"summary": "",
+			"summary": "`FtTransfersListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -3454,7 +3454,7 @@
 		},
 		{
 			"name": "IndexContractCall",
-			"summary": "",
+			"summary": "A decoded contract call: contract, function, sender, arguments, result.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -3532,7 +3532,7 @@
 		},
 		{
 			"name": "IndexDiscovery",
-			"summary": "The `GET /v1/index` discovery doc — live endpoint + filter vocabulary.",
+			"summary": "The `GET /v1/index` discovery doc: live endpoints and filter vocabulary.",
 			"fields": [
 				{
 					"name": "event_type_filters",
@@ -3603,7 +3603,7 @@
 		},
 		{
 			"name": "IndexFtBurn",
-			"summary": "",
+			"summary": "A fungible-token burn event.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -3705,7 +3705,7 @@
 		},
 		{
 			"name": "IndexFtMint",
-			"summary": "",
+			"summary": "A fungible-token mint event.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -3807,7 +3807,7 @@
 		},
 		{
 			"name": "IndexFtTransfer",
-			"summary": "",
+			"summary": "A fungible-token transfer event.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -3915,7 +3915,7 @@
 		},
 		{
 			"name": "IndexMapDelete",
-			"summary": "",
+			"summary": "A contract map entry deletion.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -4011,7 +4011,7 @@
 		},
 		{
 			"name": "IndexMapInsert",
-			"summary": "",
+			"summary": "A new contract map entry.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -4113,7 +4113,7 @@
 		},
 		{
 			"name": "IndexMapSet",
-			"summary": "",
+			"summary": "A contract map entry overwrite.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -4317,7 +4317,7 @@
 		},
 		{
 			"name": "IndexNestedContractCall",
-			"summary": "",
+			"summary": "A contract call made from inside another contract call.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -4431,7 +4431,7 @@
 		},
 		{
 			"name": "IndexNftBurn",
-			"summary": "",
+			"summary": "A non-fungible-token burn event.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -4533,7 +4533,7 @@
 		},
 		{
 			"name": "IndexNftMint",
-			"summary": "",
+			"summary": "A non-fungible-token mint event.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -4635,7 +4635,7 @@
 		},
 		{
 			"name": "IndexNftTransfer",
-			"summary": "",
+			"summary": "A non-fungible-token transfer event.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -5048,7 +5048,7 @@
 		},
 		{
 			"name": "IndexPrint",
-			"summary": "",
+			"summary": "A contract `print` event with its topic and value.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -5222,7 +5222,7 @@
 		},
 		{
 			"name": "IndexRuneEntry",
-			"summary": "One etched rune's full entry: identity, premine/mint/burn counters, computed supply, and mint terms.",
+			"summary": "One etched rune: identity, counters, supply, and mint terms.",
 			"fields": [
 				{
 					"name": "id",
@@ -5318,7 +5318,7 @@
 		},
 		{
 			"name": "IndexRuneEvent",
-			"summary": "One etch/mint/transfer/burn event, with the rune's identity embedded so an activity feed never needs a second lookup to show a name.",
+			"summary": "One rune etch, mint, transfer, or burn, with the rune's identity.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -5629,7 +5629,7 @@
 		},
 		{
 			"name": "IndexSbtcEvent",
-			"summary": "A raw decoded sBTC protocol-state event — the full `sbtc_events` row, one per event across all topics.",
+			"summary": "A raw decoded sBTC protocol-state event, one per event.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -5839,7 +5839,7 @@
 		},
 		{
 			"name": "IndexSbtcWithdrawal",
-			"summary": "A peg-out collapsed to one row per `request_id`, with lifecycle `status` derived from the latest accept/reject.",
+			"summary": "A peg-out as one row per request, with its latest status.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -6217,7 +6217,7 @@
 		},
 		{
 			"name": "IndexStxBurn",
-			"summary": "",
+			"summary": "An STX burn event.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -6313,7 +6313,7 @@
 		},
 		{
 			"name": "IndexStxLock",
-			"summary": "",
+			"summary": "An STX lock event with its unlock height.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -6415,7 +6415,7 @@
 		},
 		{
 			"name": "IndexStxMint",
-			"summary": "",
+			"summary": "An STX mint event.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -6511,7 +6511,7 @@
 		},
 		{
 			"name": "IndexStxTransfer",
-			"summary": "",
+			"summary": "An STX transfer event.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -6763,7 +6763,7 @@
 		},
 		{
 			"name": "IndexVarSet",
-			"summary": "",
+			"summary": "A contract data variable write.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -6907,7 +6907,7 @@
 		},
 		{
 			"name": "InferredTopicSchema",
-			"summary": "",
+			"summary": "The fields seen in one `print` topic, with counts and heights.",
 			"fields": [
 				{
 					"name": "topic",
@@ -6949,7 +6949,7 @@
 		},
 		{
 			"name": "MempoolEnvelope",
-			"summary": "",
+			"summary": "One page of pending transactions, with the next cursor and chain tip.",
 			"fields": [
 				{
 					"name": "mempool",
@@ -6973,7 +6973,7 @@
 		},
 		{
 			"name": "MempoolListParams",
-			"summary": "",
+			"summary": "Paging and sender filters for listing pending transactions.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -7021,7 +7021,7 @@
 		},
 		{
 			"name": "MempoolTransactionEnvelope",
-			"summary": "",
+			"summary": "One pending transaction and the chain tip.",
 			"fields": [
 				{
 					"name": "transaction",
@@ -7039,7 +7039,7 @@
 		},
 		{
 			"name": "MempoolWalkParams",
-			"summary": "",
+			"summary": "`MempoolListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -7129,7 +7129,7 @@
 		},
 		{
 			"name": "NftTransfer",
-			"summary": "",
+			"summary": "A decoded non-fungible-token transfer: sender, recipient, asset, value.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -7231,7 +7231,7 @@
 		},
 		{
 			"name": "NftTransfersEnvelope",
-			"summary": "",
+			"summary": "One page of non-fungible-token transfers, with the cursor, tip, and reorgs.",
 			"fields": [
 				{
 					"name": "events",
@@ -7261,7 +7261,7 @@
 		},
 		{
 			"name": "NftTransfersListParams",
-			"summary": "",
+			"summary": "Column selection, paging, and filters for listing NFT transfers.",
 			"fields": [
 				{
 					"name": "fields",
@@ -7327,7 +7327,7 @@
 		},
 		{
 			"name": "NftTransfersWalkParams",
-			"summary": "",
+			"summary": "`NftTransfersListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -7465,7 +7465,7 @@
 		},
 		{
 			"name": "Pox5EventsEnvelope",
-			"summary": "",
+			"summary": "One page of PoX-5 events, with the cursor, tip, and reorgs.",
 			"fields": [
 				{
 					"name": "events",
@@ -7501,7 +7501,7 @@
 		},
 		{
 			"name": "Pox5EventsListParams",
-			"summary": "",
+			"summary": "Column selection, paging, and filters for listing PoX-5 events.",
 			"fields": [
 				{
 					"name": "fields",
@@ -7585,7 +7585,7 @@
 		},
 		{
 			"name": "Pox5EventsWalkParams",
-			"summary": "",
+			"summary": "`Pox5EventsListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -7693,7 +7693,7 @@
 		},
 		{
 			"name": "PoxCycleEnvelope",
-			"summary": "",
+			"summary": "One reward cycle with its signers and the chain tip.",
 			"fields": [
 				{
 					"name": "pox_version",
@@ -7717,7 +7717,7 @@
 		},
 		{
 			"name": "PoxCyclesEnvelope",
-			"summary": "",
+			"summary": "One page of reward cycles, newest first, with the next cursor.",
 			"fields": [
 				{
 					"name": "pox_version",
@@ -7747,7 +7747,7 @@
 		},
 		{
 			"name": "PoxCyclesListParams",
-			"summary": "",
+			"summary": "Paging for listing reward cycles.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -7765,7 +7765,7 @@
 		},
 		{
 			"name": "PoxCyclesWalkParams",
-			"summary": "",
+			"summary": "`PoxCyclesListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -7807,7 +7807,7 @@
 		},
 		{
 			"name": "PrintSchemaResponse",
-			"summary": "Empirical per-topic print payload schema for a contract, inferred from sampled on-chain events.",
+			"summary": "Per-topic print payload schema for a contract, inferred from sampled events.",
 			"fields": [
 				{
 					"name": "contract_id",
@@ -7891,7 +7891,7 @@
 		},
 		{
 			"name": "RuneActivityEnvelope",
-			"summary": "",
+			"summary": "One page of rune events, with the cursor, Bitcoin tip, and reorgs.",
 			"fields": [
 				{
 					"name": "events",
@@ -7927,7 +7927,7 @@
 		},
 		{
 			"name": "RuneActivityListParams",
-			"summary": "",
+			"summary": "Paging and height filters for listing rune events.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -7987,7 +7987,7 @@
 		},
 		{
 			"name": "RuneActivityWalkParams",
-			"summary": "",
+			"summary": "`RuneActivityListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -8071,7 +8071,7 @@
 		},
 		{
 			"name": "RuneBalancesEnvelope",
-			"summary": "",
+			"summary": "One page of rune balances, with the cursor and Bitcoin tip.",
 			"fields": [
 				{
 					"name": "balances",
@@ -8107,12 +8107,12 @@
 		},
 		{
 			"name": "RuneBalancesListParams",
-			"summary": "Exactly one of `address`/`outpoint` is required — enforced at the type level, not just at runtime.",
+			"summary": "Rune balance filters; exactly one of `address` or `outpoint`.",
 			"definition": "({ address: string; outpoint?: never; } | { outpoint: string; address?: never; }) & { rune?: RuneRef; cursor?: string | null; limit?: number; }"
 		},
 		{
 			"name": "RuneEnvelope",
-			"summary": "",
+			"summary": "One rune and the Bitcoin tip.",
 			"fields": [
 				{
 					"name": "rune",
@@ -8130,12 +8130,12 @@
 		},
 		{
 			"name": "RuneRef",
-			"summary": "A rune reference accepted by every Runes call: an id (`RuneId`) or a name, with or without spacers, in any case — `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` all resolve to the same rune.",
+			"summary": "A rune id or name, in any case, with or without spacers.",
 			"definition": "`${number}:${number}` | (string & {})"
 		},
 		{
 			"name": "RunesEnvelope",
-			"summary": "",
+			"summary": "One page of runes, with the cursor and Bitcoin tip.",
 			"fields": [
 				{
 					"name": "runes",
@@ -8171,7 +8171,7 @@
 		},
 		{
 			"name": "RunesListParams",
-			"summary": "",
+			"summary": "Name search, sort order, and paging for listing runes.",
 			"fields": [
 				{
 					"name": "search",
@@ -8201,7 +8201,7 @@
 		},
 		{
 			"name": "SbtcDepositEnvelope",
-			"summary": "",
+			"summary": "One sBTC deposit and the chain tip.",
 			"fields": [
 				{
 					"name": "deposit",
@@ -8237,7 +8237,7 @@
 		},
 		{
 			"name": "SbtcDepositsEnvelope",
-			"summary": "",
+			"summary": "One page of sBTC deposits, with the cursor, tip, and reorgs.",
 			"fields": [
 				{
 					"name": "deposits",
@@ -8273,7 +8273,7 @@
 		},
 		{
 			"name": "SbtcDepositsListParams",
-			"summary": "",
+			"summary": "Column selection, paging, and filters for listing sBTC deposits.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -8333,7 +8333,7 @@
 		},
 		{
 			"name": "SbtcDepositsWalkParams",
-			"summary": "",
+			"summary": "`SbtcDepositsListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -8417,7 +8417,7 @@
 		},
 		{
 			"name": "SbtcEventsEnvelope",
-			"summary": "",
+			"summary": "One page of sBTC events, with the cursor, tip, and reorgs.",
 			"fields": [
 				{
 					"name": "events",
@@ -8453,7 +8453,7 @@
 		},
 		{
 			"name": "SbtcEventsListParams",
-			"summary": "",
+			"summary": "Paging and filters for listing sBTC events.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -8519,7 +8519,7 @@
 		},
 		{
 			"name": "SbtcEventsWalkParams",
-			"summary": "",
+			"summary": "`SbtcEventsListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -8609,7 +8609,7 @@
 		},
 		{
 			"name": "SbtcSummaryEnvelope",
-			"summary": "",
+			"summary": "The sBTC totals and the chain tip.",
 			"fields": [
 				{
 					"name": "summary",
@@ -8633,7 +8633,7 @@
 		},
 		{
 			"name": "SbtcWithdrawalEnvelope",
-			"summary": "",
+			"summary": "One sBTC withdrawal and the chain tip.",
 			"fields": [
 				{
 					"name": "withdrawal",
@@ -8669,7 +8669,7 @@
 		},
 		{
 			"name": "SbtcWithdrawalsEnvelope",
-			"summary": "",
+			"summary": "One page of sBTC withdrawals, with the cursor, tip, and reorgs.",
 			"fields": [
 				{
 					"name": "withdrawals",
@@ -8705,7 +8705,7 @@
 		},
 		{
 			"name": "SbtcWithdrawalsListParams",
-			"summary": "",
+			"summary": "Column selection, paging, and filters for listing sBTC withdrawals.",
 			"fields": [
 				{
 					"name": "fields",
@@ -8782,7 +8782,7 @@
 		},
 		{
 			"name": "SbtcWithdrawalsWalkParams",
-			"summary": "",
+			"summary": "`SbtcWithdrawalsListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -8883,7 +8883,7 @@
 		},
 		{
 			"name": "StackingEnvelope",
-			"summary": "",
+			"summary": "One page of stacking actions, with the cursor, tip, and reorgs.",
 			"fields": [
 				{
 					"name": "stacking",
@@ -8919,7 +8919,7 @@
 		},
 		{
 			"name": "StackingListParams",
-			"summary": "",
+			"summary": "Paging and filters for listing stacking actions.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -8973,7 +8973,7 @@
 		},
 		{
 			"name": "StackingWalkParams",
-			"summary": "",
+			"summary": "`StackingListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -9051,7 +9051,7 @@
 		},
 		{
 			"name": "StateWritesEnvelope",
-			"summary": "",
+			"summary": "One page of contract state writes, with the cursor, tip, and reorgs.",
 			"fields": [
 				{
 					"name": "state_writes",
@@ -9081,7 +9081,7 @@
 		},
 		{
 			"name": "StateWritesListParams",
-			"summary": "",
+			"summary": "Paging and filters for listing contract state writes.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -9135,7 +9135,7 @@
 		},
 		{
 			"name": "StateWritesWalkParams",
-			"summary": "",
+			"summary": "`StateWritesListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -9213,7 +9213,7 @@
 		},
 		{
 			"name": "TransactionEnvelope",
-			"summary": "",
+			"summary": "One transaction and the chain tip.",
 			"fields": [
 				{
 					"name": "transaction",
@@ -9309,7 +9309,7 @@
 		},
 		{
 			"name": "TransactionsEnvelope",
-			"summary": "",
+			"summary": "One page of transactions, with the cursor, tip, and reorgs.",
 			"fields": [
 				{
 					"name": "transactions",
@@ -9339,7 +9339,7 @@
 		},
 		{
 			"name": "TransactionsListParams",
-			"summary": "",
+			"summary": "Column selection, paging, and filters for listing transactions.",
 			"fields": [
 				{
 					"name": "fields",
@@ -9399,7 +9399,7 @@
 		},
 		{
 			"name": "TransactionsWalkParams",
-			"summary": "",
+			"summary": "`TransactionsListParams` without `limit`, plus walk options.",
 			"fields": [
 				{
 					"name": "cursor",

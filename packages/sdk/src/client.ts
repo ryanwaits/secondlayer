@@ -52,10 +52,11 @@ export interface ContextField<T> {
 }
 
 /**
- * A point-in-time orientation snapshot for an agent: the live tips and what
- * this instance holds. Every field is a {@link ContextField}, so a missing
- * value says why it is missing (API unreachable, token rejected, index still
- * catching up) instead of a bare `null`. `context()` itself never throws.
+ * A point-in-time orientation snapshot: live tips and what this instance holds.
+ *
+ * Every field is a `ContextField`, so a missing value says why it is missing
+ * (API unreachable, token rejected, index still catching up) instead of a bare
+ * `null`. `context()` itself never throws.
  */
 export interface ContextSnapshot {
 	/** Token identity from `/api/accounts/me`. A self-hosted instance has no

@@ -493,7 +493,7 @@
 		},
 		{
 			"name": "CreateWebhookRequest",
-			"summary": "",
+			"summary": "The body for creating a webhook: name, triggers, URL, delivery options.",
 			"fields": [
 				{
 					"name": "name",
@@ -547,7 +547,7 @@
 		},
 		{
 			"name": "CreateWebhookResponse",
-			"summary": "",
+			"summary": "The new webhook and its signing secret, shown once.",
 			"fields": [
 				{
 					"name": "webhook",
@@ -565,7 +565,7 @@
 		},
 		{
 			"name": "DeadRow",
-			"summary": "",
+			"summary": "A delivery that ran out of retries.",
 			"fields": [
 				{
 					"name": "id",
@@ -619,7 +619,7 @@
 		},
 		{
 			"name": "DeliveryRow",
-			"summary": "",
+			"summary": "One delivery attempt: status code, error, duration, and response.",
 			"fields": [
 				{
 					"name": "id",
@@ -691,7 +691,7 @@
 		},
 		{
 			"name": "ReplayResult",
-			"summary": "",
+			"summary": "How many events a replay scanned and enqueued.",
 			"fields": [
 				{
 					"name": "replayId",
@@ -715,7 +715,7 @@
 		},
 		{
 			"name": "RotateSecretResponse",
-			"summary": "",
+			"summary": "The webhook and its new signing secret.",
 			"fields": [
 				{
 					"name": "webhook",
@@ -745,7 +745,7 @@
 		},
 		{
 			"name": "UpdateWebhookRequest",
-			"summary": "",
+			"summary": "The fields of a webhook you can change.",
 			"fields": [
 				{
 					"name": "name",
@@ -793,7 +793,7 @@
 		},
 		{
 			"name": "WebhookActivity",
-			"summary": "",
+			"summary": "A week of hourly delivery counts and what is waiting now.",
 			"fields": [
 				{
 					"name": "hours",
@@ -883,7 +883,7 @@
 		},
 		{
 			"name": "WebhookDeliveryDetail",
-			"summary": "One delivery attempt with its outbox context, for the delivery card (`GET /:id/deliveries/:deliveryId`).",
+			"summary": "One delivery attempt with its outbox context.",
 			"fields": [
 				{
 					"name": "id",
@@ -985,7 +985,7 @@
 		},
 		{
 			"name": "WebhookDetail",
-			"summary": "",
+			"summary": "A webhook with its triggers, auth, retry, and timeout settings.",
 			"fields": [
 				{
 					"name": "triggers",
@@ -1105,7 +1105,7 @@
 		},
 		{
 			"name": "WebhookSummary",
-			"summary": "",
+			"summary": "A webhook's name, status, format, and URL.",
 			"fields": [
 				{
 					"name": "id",
