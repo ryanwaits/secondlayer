@@ -2,7 +2,7 @@ import { Code } from "@/components/code/code";
 import { CodeSteps, Step } from "@/components/code/code-steps";
 import { CodeTabs } from "@/components/code/code-tabs";
 import { fenceFromCode } from "@/components/code/fence";
-import { FocusLink, Mention, Pick } from "@/components/code/prose";
+import { FocusLink, Mention, Pick, Tip } from "@/components/code/prose";
 import { Banner, Callout } from "@/components/docs/callout";
 import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
@@ -31,7 +31,8 @@ function MdxCode({ children }: { children?: ReactNode }) {
 
 /** Internal links use next/link; external open in a new tab. Styling comes
  *  from `.docs-article a` (mirrors marketing `.prose a`). `hover:name` and
- *  `focus:name` are not links: they point at a `!ref` in the same section. */
+ *  `focus:name` are not links: they point at a `!ref` in the same section.
+ *  `tip:/docs/page#section` is not a link either: it explains a word in place. */
 function MdxLink({
 	href = "",
 	children,
@@ -40,6 +41,8 @@ function MdxLink({
 		return <Mention name={href.slice("hover:".length)}>{children}</Mention>;
 	if (href.startsWith("focus:"))
 		return <FocusLink name={href.slice("focus:".length)}>{children}</FocusLink>;
+	if (href.startsWith("tip:"))
+		return <Tip href={href.slice("tip:".length)}>{children}</Tip>;
 	if (href.startsWith("/") || href.startsWith("#")) {
 		return <Link href={href}>{children}</Link>;
 	}

@@ -305,14 +305,14 @@
 	color: var(--faint);
 }
 
-/* tip: a name the reader can ask about. Hover or focus says what it is, click opens the details. */
-.cb .tip {
+/* tip: a name the reader can ask about, in code or prose. Hover or focus says what it is, click opens the details. */
+.tip {
 	text-decoration: underline dotted var(--faint);
 	text-decoration-thickness: 1.5px;
 	text-underline-offset: 4px;
 	cursor: default;
 }
-.cb .tip:focus-visible {
+.tip:focus-visible {
 	outline: 2px solid var(--pri);
 	outline-offset: 2px;
 }

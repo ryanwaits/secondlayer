@@ -1,3 +1,4 @@
+import { sectionLead } from "@/lib/docs-source";
 import type { ReactNode } from "react";
 import { CodeScope } from "./code-scope";
 
@@ -41,6 +42,29 @@ export function Pick({
 			</span>
 			<CodeScope />
 		</>
+	);
+}
+
+/**
+ * `[text](tip:/docs/page#section)`: a word the reader may ask about. Hover or
+ * focus shows the first sentence under that heading, read from the page's own
+ * MDX at build time, so the tip cannot drift from the section it summarizes.
+ * It never links: the words are all it has. The page's `CodeClient` wakes it.
+ */
+export async function Tip({
+	href,
+	children,
+}: { href: string; children?: ReactNode }) {
+	const summary = await sectionLead(href);
+	return (
+		<span
+			className="tip"
+			// biome-ignore lint/a11y/noNoninteractiveTabindex: a tip is read on focus, like a code token's
+			tabIndex={0}
+			data-tip={JSON.stringify({ summary })}
+		>
+			{children}
+		</span>
 	);
 }
 
