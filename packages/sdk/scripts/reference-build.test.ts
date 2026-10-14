@@ -336,7 +336,9 @@ describe("types", () => {
 
 describe("symbols", () => {
 	test("methods and types map to anchors on their surface page", () => {
-		const index = build()["index.json"] as { symbols: Record<string, string> };
+		const index = build()["manifest.json"] as {
+			symbols: Record<string, string>;
+		};
 		expect(index.symbols["sl.streams.events.list"]).toBe(
 			"/docs/ref/streams#m-events-list",
 		);

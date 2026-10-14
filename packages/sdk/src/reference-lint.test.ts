@@ -25,7 +25,7 @@ function readSurface(slug: string): string {
 
 function readSlugs(): string[] {
 	const index = JSON.parse(
-		readFileSync(join(REFERENCE, "index.json"), "utf8"),
+		readFileSync(join(REFERENCE, "manifest.json"), "utf8"),
 	) as { surfaces: { slug: string }[] };
 	return index.surfaces.map((s) => s.slug);
 }

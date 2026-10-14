@@ -588,7 +588,7 @@ export function buildReference(
 		),
 	};
 
-	const files: BuildResult["files"] = { "index.json": index };
+	const files: BuildResult["files"] = { "manifest.json": index };
 	for (const s of surfaces) files[`${s.slug}.json`] = s;
 	return { files, unresolved: builder.walker.unresolved };
 }

@@ -1,0 +1,1021 @@
+{
+	"package": "@secondlayer/sdk",
+	"version": "15.0.0",
+	"generator": "openpkg 0.13.2",
+	"surfaces": [
+		{
+			"slug": "streams",
+			"title": "Streams",
+			"root": "sl.streams",
+			"methodCount": 14
+		},
+		{
+			"slug": "index",
+			"title": "Index",
+			"root": "sl.index",
+			"methodCount": 53
+		},
+		{
+			"slug": "subgraphs",
+			"title": "Subgraphs",
+			"root": "sl.subgraphs",
+			"methodCount": 19
+		},
+		{
+			"slug": "webhooks",
+			"title": "Webhooks",
+			"root": "sl.webhooks",
+			"methodCount": 15
+		},
+		{
+			"slug": "archive",
+			"title": "Archive",
+			"root": "sl.archive",
+			"methodCount": 11
+		},
+		{
+			"slug": "contracts",
+			"title": "Contracts",
+			"root": "sl.contracts",
+			"methodCount": 2
+		},
+		{
+			"slug": "instance",
+			"title": "Instance",
+			"root": "sl.instance",
+			"methodCount": 2
+		},
+		{
+			"slug": "client",
+			"title": "Client",
+			"root": "sl",
+			"methodCount": 2
+		}
+	],
+	"helpers": [
+		{
+			"name": "buildDoctorReport",
+			"summary": "",
+			"signature": "buildDoctorReport(input: { webhook: WebhookDetail; deliveries: DeliveryRow[]; dead: DeadRow[] }): DoctorReport",
+			"source": {
+				"file": "packages/sdk/src/webhooks/doctor.ts",
+				"line": 392
+			}
+		},
+		{
+			"name": "buildListIssue",
+			"summary": "The list page's own reduced detector: computed from `WebhookSummary` alone (no deliveries, no dead-letter rows — the list endpoint returns neither, and fetching per-row detail or deliveries here would fan out one request per row).",
+			"signature": "buildListIssue(webhook: { status: WebhookStatus; circuitOpenedAt: string | null; lastSuccessAt: string | null }): DoctorIssue | null",
+			"source": {
+				"file": "packages/sdk/src/webhooks/doctor.ts",
+				"line": 490
+			}
+		},
+		{
+			"name": "consumeIndexFeed",
+			"summary": "Checkpointed pull loop over a cursor-paginated Index feed — the Index port of `consumeStreamsEvents`, sharing its contract: at-least-once delivery, client-owned checkpoints (`onBatch` may return the cursor it committed), and automatic reorg rewind to the lowest fresh fork point.",
+			"signature": "consumeIndexFeed<TItem extends IndexFeedItem, TEnvelope extends IndexFeedEnvelope, TTx = never>(opts: IndexConsumeOptions<TItem, TEnvelope, TTx> & { fetchPage: IndexFeedFetcher<TEnvelope>; itemsOf: (envelope: TEnvelope) => TItem[] }): Promise<{ cursor: string | null; pages: number; emptyPolls: number }>",
+			"source": {
+				"file": "packages/sdk/src/index-api/consumer.ts",
+				"line": 122
+			}
+		},
+		{
+			"name": "consumerHealth",
+			"summary": "Liveness for a consume loop.",
+			"signature": "consumerHealth(options?: { staleAfterMs?: number }): ConsumerHealth",
+			"source": {
+				"file": "packages/sdk/src/consumer-ops.ts",
+				"line": 31
+			}
+		},
+		{
+			"name": "contextField",
+			"summary": "Fold one read into a [`ContextField`](/docs/sdk-reference/client#t-ContextField): the value, or `null` with the failure described.",
+			"signature": "contextField<T>(read: Promise<T>): Promise<ContextField<T>>",
+			"source": {
+				"file": "packages/sdk/src/client.ts",
+				"line": 80
+			}
+		},
+		{
+			"name": "createArchiveClient",
+			"summary": "",
+			"signature": "createArchiveClient(options?: CreateArchiveClientOptions): ArchiveClient",
+			"source": {
+				"file": "packages/sdk/src/archive/client.ts",
+				"line": 95
+			}
+		},
+		{
+			"name": "createStreamsClient",
+			"summary": "",
+			"signature": "createStreamsClient(options: CreateStreamsClientOptions): StreamsClient",
+			"source": {
+				"file": "packages/sdk/src/streams/client.ts",
+				"line": 160
+			}
+		},
+		{
+			"name": "decode",
+			"summary": "Decode a raw Streams event into the SAME flat, `event_type`-discriminated row shape Index serves — so Streams consumption reads identically to Index consumption, with one call instead of eleven guard+decode pairs.",
+			"signature": "decode(event: StreamsEvent): IndexEvent",
+			"source": {
+				"file": "packages/sdk/src/streams/decode.ts",
+				"line": 25
+			}
+		},
+		{
+			"name": "decodeChainWebhook",
+			"summary": "Decode + narrow a chain webhook delivery body into a typed `ChainWebhookDelivery`.",
+			"signature": "decodeChainWebhook(rawBody: string): ChainWebhookDelivery",
+			"source": {
+				"file": "packages/sdk/src/webhooks/verify.ts",
+				"line": 256
+			}
+		},
+		{
+			"name": "decodeClarityValue",
+			"summary": "Decode a hex-encoded Clarity value to JSON-safe JS (uints as strings, buffers as `0x…` hex, tuples as objects).",
+			"signature": "decodeClarityValue(hex: string): unknown",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 6
+			}
+		},
+		{
+			"name": "decodeFtBurn",
+			"summary": "",
+			"signature": "decodeFtBurn(event: StreamsEvent): DecodedFtBurn",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 504
+			}
+		},
+		{
+			"name": "decodeFtMint",
+			"summary": "",
+			"signature": "decodeFtMint(event: StreamsEvent): DecodedFtMint",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 500
+			}
+		},
+		{
+			"name": "decodeFtTransfer",
+			"summary": "",
+			"signature": "decodeFtTransfer(event: StreamsEvent): DecodedFtTransfer",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 300
+			}
+		},
+		{
+			"name": "decodeNftBurn",
+			"summary": "",
+			"signature": "decodeNftBurn(event: StreamsEvent): DecodedNftBurn",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 512
+			}
+		},
+		{
+			"name": "decodeNftMint",
+			"summary": "",
+			"signature": "decodeNftMint(event: StreamsEvent): DecodedNftMint",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 508
+			}
+		},
+		{
+			"name": "decodeNftTransfer",
+			"summary": "",
+			"signature": "decodeNftTransfer(event: StreamsEvent): DecodedNftTransfer",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 323
+			}
+		},
+		{
+			"name": "decodePrint",
+			"summary": "",
+			"signature": "decodePrint(event: StreamsEvent): DecodedPrint",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 351
+			}
+		},
+		{
+			"name": "decodeStxBurn",
+			"summary": "",
+			"signature": "decodeStxBurn(event: StreamsEvent): DecodedStxBurn",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 407
+			}
+		},
+		{
+			"name": "decodeStxLock",
+			"summary": "",
+			"signature": "decodeStxLock(event: StreamsEvent): DecodedStxLock",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 428
+			}
+		},
+		{
+			"name": "decodeStxMint",
+			"summary": "",
+			"signature": "decodeStxMint(event: StreamsEvent): DecodedStxMint",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 403
+			}
+		},
+		{
+			"name": "decodeStxTransfer",
+			"summary": "",
+			"signature": "decodeStxTransfer(event: StreamsEvent): DecodedStxTransfer",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 399
+			}
+		},
+		{
+			"name": "fetchRewardSet",
+			"summary": "Resolve a reward set directly from a stacks-node (`/v3/stacker_set/{cycle}`), so a caller can verify the consensus layer against a node IT trusts rather than the reward set Secondlayer embedded in the proof.",
+			"signature": "fetchRewardSet(opts: { nodeUrl: string; cycle: number; fetchImpl?: typeof fetch }): Promise<RewardSet | null>",
+			"source": {
+				"file": "packages/sdk/src/proofs.ts",
+				"line": 84
+			}
+		},
+		{
+			"name": "getSubgraph",
+			"summary": "Returns a typed client for a subgraph defined with `defineSubgraph()`.",
+			"signature": "getSubgraph<T extends { name: string; schema: Record<string, unknown> }>(def: T, options?: Subgraphs | SecondLayer | { baseUrl?: string; apiKey?: string; accountKey?: string; fetchImpl?: FetchLike; dumpsBaseUrl?: string; archiveBaseUrl?: string; archiveOpsUrl?: string; origin?: \"cli\" | \"mcp\" | \"session\"; verify?: boolean | { publicKey: string; }; verifyDumpsManifest?: boolean; requestTimeoutMs?: number; etagCache?: false | EtagCache }): InferSubgraphClient<T>",
+			"source": {
+				"file": "packages/sdk/src/subgraphs/get-subgraph.ts",
+				"line": 20
+			}
+		},
+		{
+			"name": "isFtBurn",
+			"summary": "",
+			"signature": "isFtBurn(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"ft_burn\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"ft_burn\" }",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 501
+			}
+		},
+		{
+			"name": "isFtMint",
+			"summary": "",
+			"signature": "isFtMint(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"ft_mint\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"ft_mint\" }",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 497
+			}
+		},
+		{
+			"name": "isFtTransfer",
+			"summary": "",
+			"signature": "isFtTransfer(event: StreamsEvent): event is StreamsEventOf<\"ft_transfer\", FtTransferPayload>",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 299
+			}
+		},
+		{
+			"name": "isHostedApiUrl",
+			"summary": "True when `url` is the hosted Secondlayer API (`api.secondlayer.tools`).",
+			"signature": "isHostedApiUrl(url: string): boolean",
+			"source": {
+				"file": "packages/sdk/src/base.ts",
+				"line": 141
+			}
+		},
+		{
+			"name": "isNftBurn",
+			"summary": "",
+			"signature": "isNftBurn(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"nft_burn\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"nft_burn\" }",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 509
+			}
+		},
+		{
+			"name": "isNftMint",
+			"summary": "",
+			"signature": "isNftMint(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"nft_mint\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"nft_mint\" }",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 505
+			}
+		},
+		{
+			"name": "isNftTransfer",
+			"summary": "",
+			"signature": "isNftTransfer(event: StreamsEvent): event is StreamsEventOf<\"nft_transfer\", NftTransferPayload>",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 322
+			}
+		},
+		{
+			"name": "isPrint",
+			"summary": "",
+			"signature": "isPrint(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"print\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"print\" }",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 348
+			}
+		},
+		{
+			"name": "isStxBurn",
+			"summary": "",
+			"signature": "isStxBurn(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"stx_burn\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"stx_burn\" }",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 404
+			}
+		},
+		{
+			"name": "isStxLock",
+			"summary": "",
+			"signature": "isStxLock(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"stx_lock\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"stx_lock\" }",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 425
+			}
+		},
+		{
+			"name": "isStxMint",
+			"summary": "",
+			"signature": "isStxMint(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"stx_mint\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"stx_mint\" }",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 400
+			}
+		},
+		{
+			"name": "isStxTransfer",
+			"summary": "",
+			"signature": "isStxTransfer(event: StreamsEvent): event is StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"ft_mint\"; payload: FtMintPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"ft_burn\"; payload: FtBurnPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"nft_transfer\"; payload: NftTransferPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"nft_mint\"; payload: NftMintPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"nft_burn\"; payload: NftBurnPayload } & { event_type: \"stx_transfer\" } | StreamsEventBase & { event_type: \"print\"; payload: PrintPayload } & { event_type: \"stx_transfer\" }",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 396
+			}
+		},
+		{
+			"name": "isSuccessDelivery",
+			"summary": "Webhook diagnosis, shared by `secondlayer webhooks doctor` and the dashboard's webhook detail page.",
+			"signature": "isSuccessDelivery(row: DeliveryRow): boolean",
+			"source": {
+				"file": "packages/sdk/src/webhooks/doctor.ts",
+				"line": 19
+			}
+		},
+		{
+			"name": "parseRetryAfter",
+			"summary": "Parse a `Retry-After` header: delta-seconds or an HTTP-date.",
+			"signature": "parseRetryAfter(value?: string | null): number | undefined",
+			"source": {
+				"file": "packages/sdk/src/errors.ts",
+				"line": 262
+			}
+		},
+		{
+			"name": "resolveAccountKey",
+			"summary": "Resolve the hosted account key for archive quote/fetch/credits.",
+			"signature": "resolveAccountKey(accountKey?: string): string | undefined",
+			"source": {
+				"file": "packages/sdk/src/base.ts",
+				"line": 171
+			}
+		},
+		{
+			"name": "resolveApiKey",
+			"summary": "Resolve the bearer credential; the key follows the host.",
+			"signature": "resolveApiKey(apiKey?: string, baseUrl?: string): string | undefined",
+			"source": {
+				"file": "packages/sdk/src/base.ts",
+				"line": 155
+			}
+		},
+		{
+			"name": "resolveBaseUrl",
+			"summary": "",
+			"signature": "resolveBaseUrl(explicit?: string): string",
+			"source": {
+				"file": "packages/sdk/src/base.ts",
+				"line": 131
+			}
+		},
+		{
+			"name": "shutdownSignal",
+			"summary": "An `AbortSignal` wired to SIGTERM/SIGINT (redeploys arrive as SIGTERM).",
+			"signature": "shutdownSignal(options?: { signals?: readonly (\"SIGTERM\" | \"SIGINT\")[] }): AbortSignal",
+			"source": {
+				"file": "packages/sdk/src/consumer-ops.ts",
+				"line": 78
+			}
+		},
+		{
+			"name": "toJsonSafe",
+			"summary": "Make a cvToValue result JSON-serializable: Clarity (u)ints decode to bigint, which JSON.stringify can't handle — convert recursively to strings.",
+			"signature": "toJsonSafe(value: unknown): unknown",
+			"source": {
+				"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+				"line": 3
+			}
+		},
+		{
+			"name": "verifySecondlayerSignature",
+			"summary": "Verify the universal Secondlayer authenticity signature that every delivery carries, regardless of body format (`raw`, `cloudevents`, `standard-webhooks`, …).",
+			"signature": "verifySecondlayerSignature(rawBody: string, headers: WebhookHeaderInput, publicKeyPem: string): boolean",
+			"source": {
+				"file": "packages/sdk/src/webhooks/verify.ts",
+				"line": 208
+			}
+		},
+		{
+			"name": "verifyStandardWebhooksHeaders",
+			"summary": "",
+			"signature": "verifyStandardWebhooksHeaders(body: string, headers: StandardWebhooksHeaders | Record<string, string | string[] | undefined>, secret: string, opts?: VerifyOptions): boolean",
+			"source": {
+				"file": "packages/shared/dist/src/crypto/standard-webhooks.d.ts",
+				"line": 32
+			}
+		},
+		{
+			"name": "verifyTransactionProof",
+			"summary": "Verify a transaction-inclusion proof.",
+			"signature": "verifyTransactionProof(proof: TransactionProof, opts?: { rewardSet?: RewardSet }): TransactionProofVerifyResult",
+			"source": {
+				"file": "packages/sdk/src/proofs.ts",
+				"line": 117
+			}
+		},
+		{
+			"name": "verifyWebhookSignature",
+			"summary": "Verify a Secondlayer webhook delivery signature.",
+			"signature": "verifyWebhookSignature(rawBody: string, headers: WebhookHeaderInput, secret: string, toleranceSeconds?: number): boolean",
+			"source": {
+				"file": "packages/sdk/src/webhooks/verify.ts",
+				"line": 157
+			}
+		}
+	],
+	"errors": [
+		{
+			"name": "ApiError",
+			"parent": "SecondLayerError",
+			"summary": "Error thrown by `SecondLayer` when an API request fails."
+		},
+		{
+			"name": "ArchiveAuthError",
+			"parent": "SecondLayerError",
+			"summary": "Thrown on a 401 from the archive ops host (quote/fetch/credits)."
+		},
+		{
+			"name": "ArchiveGateNotConfiguredError",
+			"parent": "SecondLayerError",
+			"summary": "Thrown on a 503 when the archive fetch gate is unconfigured."
+		},
+		{
+			"name": "ArchiveSignatureError",
+			"parent": "SecondLayerError",
+			"summary": "Thrown when an archive manifest signature is missing or does not verify."
+		},
+		{
+			"name": "AuthError",
+			"parent": "ApiError",
+			"summary": "Thrown on a 401 by both the instance clients and Streams.",
+			"status": 401
+		},
+		{
+			"name": "InsufficientArchiveCreditsError",
+			"parent": "SecondLayerError",
+			"summary": "Thrown on a 402 from archive fetch — prepaid credits do not cover the quote."
+		},
+		{
+			"name": "RateLimitError",
+			"parent": "ApiError",
+			"summary": "Thrown on a 429 by both the instance clients and Streams.",
+			"status": 429
+		},
+		{
+			"name": "StreamsServerError",
+			"parent": "ApiError",
+			"summary": "Thrown on a 5xx from the Streams API, and on a failed signing-key fetch."
+		},
+		{
+			"name": "StreamsSignatureError",
+			"parent": "SecondLayerError",
+			"summary": "Thrown when response signature verification is enabled and fails."
+		},
+		{
+			"name": "ValidationError",
+			"parent": "ApiError",
+			"summary": "Thrown on a 4xx the caller can fix (bad cursor, bad params)."
+		}
+	],
+	"symbols": {
+		"ActiveSubgraphOperation": "/docs/sdk-reference/client#t-ActiveSubgraphOperation",
+		"ArchiveCreditsBalance": "/docs/sdk-reference/archive#t-ArchiveCreditsBalance",
+		"ArchiveDataset": "/docs/sdk-reference/archive#t-ArchiveDataset",
+		"ArchiveFetchItem": "/docs/sdk-reference/archive#t-ArchiveFetchItem",
+		"ArchiveFetchResult": "/docs/sdk-reference/archive#t-ArchiveFetchResult",
+		"ArchiveFlow": "/docs/sdk-reference/archive#t-ArchiveFlow",
+		"ArchiveLoadOptions": "/docs/sdk-reference/archive#t-ArchiveLoadOptions",
+		"ArchiveManifest": "/docs/sdk-reference/archive#t-ArchiveManifest",
+		"ArchivePartition": "/docs/sdk-reference/archive#t-ArchivePartition",
+		"ArchiveQuote": "/docs/sdk-reference/archive#t-ArchiveQuote",
+		"ArchiveState": "/docs/sdk-reference/archive#t-ArchiveState",
+		"ArchiveStatus": "/docs/sdk-reference/archive#t-ArchiveStatus",
+		"ArchiveVerifyInput": "/docs/sdk-reference/archive#t-ArchiveVerifyInput",
+		"ArchiveVerifyRangeStatus": "/docs/sdk-reference/archive#t-ArchiveVerifyRangeStatus",
+		"ArchiveVerifyResult": "/docs/sdk-reference/archive#t-ArchiveVerifyResult",
+		"BlockEnvelope": "/docs/sdk-reference/index#t-BlockEnvelope",
+		"BlocksEnvelope": "/docs/sdk-reference/index#t-BlocksEnvelope",
+		"BlocksListParams": "/docs/sdk-reference/index#t-BlocksListParams",
+		"BlocksWalkParams": "/docs/sdk-reference/index#t-BlocksWalkParams",
+		"BundleSubgraphResponse": "/docs/sdk-reference/subgraphs#t-BundleSubgraphResponse",
+		"CanonicalEnvelope": "/docs/sdk-reference/index#t-CanonicalEnvelope",
+		"CanonicalListParams": "/docs/sdk-reference/index#t-CanonicalListParams",
+		"CanonicalWalkParams": "/docs/sdk-reference/index#t-CanonicalWalkParams",
+		"ChainTrigger": "/docs/sdk-reference/webhooks#t-ChainTrigger",
+		"ChainTriggerAmount": "/docs/sdk-reference/webhooks#t-ChainTriggerAmount",
+		"ColumnType": "/docs/sdk-reference/index#t-ColumnType",
+		"ConsumerBatchContext": "/docs/sdk-reference/streams#t-ConsumerBatchContext",
+		"ConsumerSink": "/docs/sdk-reference/streams#t-ConsumerSink",
+		"ContextAccount": "/docs/sdk-reference/client#t-ContextAccount",
+		"ContextField": "/docs/sdk-reference/client#t-ContextField",
+		"ContextFieldError": "/docs/sdk-reference/client#t-ContextFieldError",
+		"ContextSnapshot": "/docs/sdk-reference/client#t-ContextSnapshot",
+		"ContractCallsEnvelope": "/docs/sdk-reference/index#t-ContractCallsEnvelope",
+		"ContractCallsListParams": "/docs/sdk-reference/index#t-ContractCallsListParams",
+		"ContractCallsWalkParams": "/docs/sdk-reference/index#t-ContractCallsWalkParams",
+		"ContractConformance": "/docs/sdk-reference/contracts#t-ContractConformance",
+		"Contracts.get": "/docs/sdk-reference/contracts#m-get",
+		"Contracts.list": "/docs/sdk-reference/contracts#m-list",
+		"ContractsEnvelope": "/docs/sdk-reference/contracts#t-ContractsEnvelope",
+		"ContractsListParams": "/docs/sdk-reference/contracts#t-ContractsListParams",
+		"ContractSummary": "/docs/sdk-reference/contracts#t-ContractSummary",
+		"CreateWebhookRequest": "/docs/sdk-reference/webhooks#t-CreateWebhookRequest",
+		"CreateWebhookResponse": "/docs/sdk-reference/webhooks#t-CreateWebhookResponse",
+		"DeadRow": "/docs/sdk-reference/webhooks#t-DeadRow",
+		"DeliveryRow": "/docs/sdk-reference/webhooks#t-DeliveryRow",
+		"DeploySubgraphRequest": "/docs/sdk-reference/subgraphs#t-DeploySubgraphRequest",
+		"DeploySubgraphResponse": "/docs/sdk-reference/subgraphs#t-DeploySubgraphResponse",
+		"EventsEnvelope": "/docs/sdk-reference/index#t-EventsEnvelope",
+		"EventsListParams": "/docs/sdk-reference/index#t-EventsListParams",
+		"EventsWalkParams": "/docs/sdk-reference/index#t-EventsWalkParams",
+		"FtBurnPayload": "/docs/sdk-reference/streams#t-FtBurnPayload",
+		"FtMintPayload": "/docs/sdk-reference/streams#t-FtMintPayload",
+		"FtTransfer": "/docs/sdk-reference/index#t-FtTransfer",
+		"FtTransferFields": "/docs/sdk-reference/index#t-FtTransferFields",
+		"FtTransferPayload": "/docs/sdk-reference/streams#t-FtTransferPayload",
+		"FtTransfersEnvelope": "/docs/sdk-reference/index#t-FtTransfersEnvelope",
+		"FtTransfersListParams": "/docs/sdk-reference/index#t-FtTransfersListParams",
+		"FtTransfersResource.list": "/docs/sdk-reference/index#m-ftTransfers-list",
+		"FtTransfersResource.walk": "/docs/sdk-reference/index#m-ftTransfers-walk",
+		"FtTransfersWalkParams": "/docs/sdk-reference/index#t-FtTransfersWalkParams",
+		"Index.blocks.get": "/docs/sdk-reference/index#m-blocks-get",
+		"Index.blocks.list": "/docs/sdk-reference/index#m-blocks-list",
+		"Index.blocks.walk": "/docs/sdk-reference/index#m-blocks-walk",
+		"Index.canonical.list": "/docs/sdk-reference/index#m-canonical-list",
+		"Index.canonical.walk": "/docs/sdk-reference/index#m-canonical-walk",
+		"Index.contractCalls.consume": "/docs/sdk-reference/index#m-contractCalls-consume",
+		"Index.contractCalls.list": "/docs/sdk-reference/index#m-contractCalls-list",
+		"Index.contractCalls.walk": "/docs/sdk-reference/index#m-contractCalls-walk",
+		"Index.discover": "/docs/sdk-reference/index#m-discover",
+		"Index.events": "/docs/sdk-reference/index#m-events",
+		"Index.ftTransfers": "/docs/sdk-reference/index#m-ftTransfers",
+		"Index.mempool.get": "/docs/sdk-reference/index#m-mempool-get",
+		"Index.mempool.list": "/docs/sdk-reference/index#m-mempool-list",
+		"Index.mempool.walk": "/docs/sdk-reference/index#m-mempool-walk",
+		"Index.nftTransfers": "/docs/sdk-reference/index#m-nftTransfers",
+		"Index.printSchema": "/docs/sdk-reference/index#m-printSchema",
+		"Index.stacking.list": "/docs/sdk-reference/index#m-stacking-list",
+		"Index.stacking.walk": "/docs/sdk-reference/index#m-stacking-walk",
+		"Index.stateWrites.list": "/docs/sdk-reference/index#m-stateWrites-list",
+		"Index.stateWrites.walk": "/docs/sdk-reference/index#m-stateWrites-walk",
+		"Index.transactions.get": "/docs/sdk-reference/index#m-transactions-get",
+		"Index.transactions.getProof": "/docs/sdk-reference/index#m-transactions-getProof",
+		"Index.transactions.list": "/docs/sdk-reference/index#m-transactions-list",
+		"Index.transactions.walk": "/docs/sdk-reference/index#m-transactions-walk",
+		"IndexBitcoinTip": "/docs/sdk-reference/index#t-IndexBitcoinTip",
+		"IndexBlock": "/docs/sdk-reference/index#t-IndexBlock",
+		"IndexBtcReorg": "/docs/sdk-reference/index#t-IndexBtcReorg",
+		"IndexCanonicalBlock": "/docs/sdk-reference/index#t-IndexCanonicalBlock",
+		"IndexConsumeOptions": "/docs/sdk-reference/index#t-IndexConsumeOptions",
+		"IndexContractCall": "/docs/sdk-reference/index#t-IndexContractCall",
+		"IndexDiscovery": "/docs/sdk-reference/index#t-IndexDiscovery",
+		"IndexEventFields": "/docs/sdk-reference/index#t-IndexEventFields",
+		"IndexEventOf": "/docs/sdk-reference/index#t-IndexEventOf",
+		"IndexEventsResource.consume": "/docs/sdk-reference/index#m-events-consume",
+		"IndexEventsResource.list": "/docs/sdk-reference/index#m-events-list",
+		"IndexEventsResource.walk": "/docs/sdk-reference/index#m-events-walk",
+		"IndexEventTypeFilters": "/docs/sdk-reference/index#t-IndexEventTypeFilters",
+		"IndexFtBurn": "/docs/sdk-reference/index#t-IndexFtBurn",
+		"IndexFtMint": "/docs/sdk-reference/index#t-IndexFtMint",
+		"IndexFtTransfer": "/docs/sdk-reference/index#t-IndexFtTransfer",
+		"IndexMapDelete": "/docs/sdk-reference/index#t-IndexMapDelete",
+		"IndexMapInsert": "/docs/sdk-reference/index#t-IndexMapInsert",
+		"IndexMapSet": "/docs/sdk-reference/index#t-IndexMapSet",
+		"IndexMempoolTransaction": "/docs/sdk-reference/index#t-IndexMempoolTransaction",
+		"IndexNestedContractCall": "/docs/sdk-reference/index#t-IndexNestedContractCall",
+		"IndexNftBurn": "/docs/sdk-reference/index#t-IndexNftBurn",
+		"IndexNftMint": "/docs/sdk-reference/index#t-IndexNftMint",
+		"IndexNftTransfer": "/docs/sdk-reference/index#t-IndexNftTransfer",
+		"IndexPostCondition": "/docs/sdk-reference/index#t-IndexPostCondition",
+		"IndexPox5Event": "/docs/sdk-reference/index#t-IndexPox5Event",
+		"IndexPoxCycle": "/docs/sdk-reference/index#t-IndexPoxCycle",
+		"IndexPoxCycleSigner": "/docs/sdk-reference/index#t-IndexPoxCycleSigner",
+		"IndexPrint": "/docs/sdk-reference/index#t-IndexPrint",
+		"IndexReorg": "/docs/sdk-reference/index#t-IndexReorg",
+		"IndexRuneBalance": "/docs/sdk-reference/index#t-IndexRuneBalance",
+		"IndexRuneEntry": "/docs/sdk-reference/index#t-IndexRuneEntry",
+		"IndexRuneEvent": "/docs/sdk-reference/index#t-IndexRuneEvent",
+		"IndexRuneEventKind": "/docs/sdk-reference/index#t-IndexRuneEventKind",
+		"IndexRuneRefSummary": "/docs/sdk-reference/index#t-IndexRuneRefSummary",
+		"IndexRuneTerms": "/docs/sdk-reference/index#t-IndexRuneTerms",
+		"IndexSbtcDeposit": "/docs/sdk-reference/index#t-IndexSbtcDeposit",
+		"IndexSbtcDepositDetail": "/docs/sdk-reference/index#t-IndexSbtcDepositDetail",
+		"IndexSbtcEvent": "/docs/sdk-reference/index#t-IndexSbtcEvent",
+		"IndexSbtcSummary": "/docs/sdk-reference/index#t-IndexSbtcSummary",
+		"IndexSbtcWithdrawal": "/docs/sdk-reference/index#t-IndexSbtcWithdrawal",
+		"IndexSbtcWithdrawalDetail": "/docs/sdk-reference/index#t-IndexSbtcWithdrawalDetail",
+		"IndexSbtcWithdrawalPhase": "/docs/sdk-reference/index#t-IndexSbtcWithdrawalPhase",
+		"IndexStackingAction": "/docs/sdk-reference/index#t-IndexStackingAction",
+		"IndexStateWrite": "/docs/sdk-reference/index#t-IndexStateWrite",
+		"IndexStxBurn": "/docs/sdk-reference/index#t-IndexStxBurn",
+		"IndexStxLock": "/docs/sdk-reference/index#t-IndexStxLock",
+		"IndexStxMint": "/docs/sdk-reference/index#t-IndexStxMint",
+		"IndexStxTransfer": "/docs/sdk-reference/index#t-IndexStxTransfer",
+		"IndexTip": "/docs/sdk-reference/index#t-IndexTip",
+		"IndexTransaction": "/docs/sdk-reference/index#t-IndexTransaction",
+		"IndexVarSet": "/docs/sdk-reference/index#t-IndexVarSet",
+		"InferredPrintField": "/docs/sdk-reference/index#t-InferredPrintField",
+		"InferredTopicSchema": "/docs/sdk-reference/index#t-InferredTopicSchema",
+		"InstanceClient.diagnose": "/docs/sdk-reference/instance#m-diagnose",
+		"InstanceClient.status": "/docs/sdk-reference/instance#m-status",
+		"InstanceDiagnosis": "/docs/sdk-reference/instance#t-InstanceDiagnosis",
+		"InstanceIssue": "/docs/sdk-reference/instance#t-InstanceIssue",
+		"InstanceState": "/docs/sdk-reference/instance#t-InstanceState",
+		"LoadedArchive": "/docs/sdk-reference/archive#t-LoadedArchive",
+		"MapDeletePayload": "/docs/sdk-reference/streams#t-MapDeletePayload",
+		"MapWritePayload": "/docs/sdk-reference/streams#t-MapWritePayload",
+		"MempoolEnvelope": "/docs/sdk-reference/index#t-MempoolEnvelope",
+		"MempoolListParams": "/docs/sdk-reference/index#t-MempoolListParams",
+		"MempoolTransactionEnvelope": "/docs/sdk-reference/index#t-MempoolTransactionEnvelope",
+		"MempoolWalkParams": "/docs/sdk-reference/index#t-MempoolWalkParams",
+		"MerkleProofStep": "/docs/sdk-reference/index#t-MerkleProofStep",
+		"NestedContractCallPayload": "/docs/sdk-reference/streams#t-NestedContractCallPayload",
+		"NftBurnPayload": "/docs/sdk-reference/streams#t-NftBurnPayload",
+		"NftMintPayload": "/docs/sdk-reference/streams#t-NftMintPayload",
+		"NftTransfer": "/docs/sdk-reference/index#t-NftTransfer",
+		"NftTransferFields": "/docs/sdk-reference/index#t-NftTransferFields",
+		"NftTransferPayload": "/docs/sdk-reference/streams#t-NftTransferPayload",
+		"NftTransfersEnvelope": "/docs/sdk-reference/index#t-NftTransfersEnvelope",
+		"NftTransfersListParams": "/docs/sdk-reference/index#t-NftTransfersListParams",
+		"NftTransfersResource.list": "/docs/sdk-reference/index#m-nftTransfers-list",
+		"NftTransfersResource.walk": "/docs/sdk-reference/index#m-nftTransfers-walk",
+		"NftTransfersWalkParams": "/docs/sdk-reference/index#t-NftTransfersWalkParams",
+		"PageRetryOptions": "/docs/sdk-reference/index#t-PageRetryOptions",
+		"Pox5EventFields": "/docs/sdk-reference/index#t-Pox5EventFields",
+		"Pox5EventsEnvelope": "/docs/sdk-reference/index#t-Pox5EventsEnvelope",
+		"Pox5EventsListParams": "/docs/sdk-reference/index#t-Pox5EventsListParams",
+		"Pox5EventsWalkParams": "/docs/sdk-reference/index#t-Pox5EventsWalkParams",
+		"Pox5Resource.events.consume": "/docs/sdk-reference/index#m-pox5-events-consume",
+		"Pox5Resource.events.list": "/docs/sdk-reference/index#m-pox5-events-list",
+		"Pox5Resource.events.walk": "/docs/sdk-reference/index#m-pox5-events-walk",
+		"PoxCycleEnvelope": "/docs/sdk-reference/index#t-PoxCycleEnvelope",
+		"PoxCyclesEnvelope": "/docs/sdk-reference/index#t-PoxCyclesEnvelope",
+		"PoxCyclesListParams": "/docs/sdk-reference/index#t-PoxCyclesListParams",
+		"PoxCyclesWalkParams": "/docs/sdk-reference/index#t-PoxCyclesWalkParams",
+		"PoxResource.cycles.get": "/docs/sdk-reference/index#m-pox-cycles-get",
+		"PoxResource.cycles.list": "/docs/sdk-reference/index#m-pox-cycles-list",
+		"PoxResource.cycles.walk": "/docs/sdk-reference/index#m-pox-cycles-walk",
+		"PrintPayload": "/docs/sdk-reference/streams#t-PrintPayload",
+		"PrintSchemaResponse": "/docs/sdk-reference/index#t-PrintSchemaResponse",
+		"PublicStatus": "/docs/sdk-reference/instance#t-PublicStatus",
+		"PublicStatusDecoder": "/docs/sdk-reference/instance#t-PublicStatusDecoder",
+		"PublicStatusService": "/docs/sdk-reference/instance#t-PublicStatusService",
+		"RangeDigest": "/docs/sdk-reference/archive#t-RangeDigest",
+		"RangeDigestDataset": "/docs/sdk-reference/archive#t-RangeDigestDataset",
+		"ReindexResponse": "/docs/sdk-reference/subgraphs#t-ReindexResponse",
+		"ReplayResult": "/docs/sdk-reference/webhooks#t-ReplayResult",
+		"RewardSet": "/docs/sdk-reference/index#t-RewardSet",
+		"RewardSetSigner": "/docs/sdk-reference/index#t-RewardSetSigner",
+		"RotateSecretResponse": "/docs/sdk-reference/webhooks#t-RotateSecretResponse",
+		"RuneActivityEnvelope": "/docs/sdk-reference/index#t-RuneActivityEnvelope",
+		"RuneActivityListParams": "/docs/sdk-reference/index#t-RuneActivityListParams",
+		"RuneActivityWalkParams": "/docs/sdk-reference/index#t-RuneActivityWalkParams",
+		"RuneBalancesEnvelope": "/docs/sdk-reference/index#t-RuneBalancesEnvelope",
+		"RuneBalancesListParams": "/docs/sdk-reference/index#t-RuneBalancesListParams",
+		"RuneEnvelope": "/docs/sdk-reference/index#t-RuneEnvelope",
+		"RuneEtchEntry": "/docs/sdk-reference/streams#t-RuneEtchEntry",
+		"RuneEventPayload": "/docs/sdk-reference/streams#t-RuneEventPayload",
+		"RuneEventType": "/docs/sdk-reference/streams#t-RuneEventType",
+		"RuneRef": "/docs/sdk-reference/index#t-RuneRef",
+		"RunesEnvelope": "/docs/sdk-reference/index#t-RunesEnvelope",
+		"RunesListParams": "/docs/sdk-reference/index#t-RunesListParams",
+		"RunesResource.activity.list": "/docs/sdk-reference/index#m-runes-activity-list",
+		"RunesResource.activity.walk": "/docs/sdk-reference/index#m-runes-activity-walk",
+		"RunesResource.balances": "/docs/sdk-reference/index#m-runes-balances",
+		"RunesResource.get": "/docs/sdk-reference/index#m-runes-get",
+		"RunesResource.list": "/docs/sdk-reference/index#m-runes-list",
+		"RuneStreamsEvent": "/docs/sdk-reference/streams#t-RuneStreamsEvent",
+		"SbtcDepositEnvelope": "/docs/sdk-reference/index#t-SbtcDepositEnvelope",
+		"SbtcDepositFields": "/docs/sdk-reference/index#t-SbtcDepositFields",
+		"SbtcDepositsEnvelope": "/docs/sdk-reference/index#t-SbtcDepositsEnvelope",
+		"SbtcDepositsListParams": "/docs/sdk-reference/index#t-SbtcDepositsListParams",
+		"SbtcDepositsWalkParams": "/docs/sdk-reference/index#t-SbtcDepositsWalkParams",
+		"SbtcEventsEnvelope": "/docs/sdk-reference/index#t-SbtcEventsEnvelope",
+		"SbtcEventsListParams": "/docs/sdk-reference/index#t-SbtcEventsListParams",
+		"SbtcEventsWalkParams": "/docs/sdk-reference/index#t-SbtcEventsWalkParams",
+		"SbtcResource.deposits.consume": "/docs/sdk-reference/index#m-sbtc-deposits-consume",
+		"SbtcResource.deposits.get": "/docs/sdk-reference/index#m-sbtc-deposits-get",
+		"SbtcResource.deposits.list": "/docs/sdk-reference/index#m-sbtc-deposits-list",
+		"SbtcResource.deposits.walk": "/docs/sdk-reference/index#m-sbtc-deposits-walk",
+		"SbtcResource.events.consume": "/docs/sdk-reference/index#m-sbtc-events-consume",
+		"SbtcResource.events.list": "/docs/sdk-reference/index#m-sbtc-events-list",
+		"SbtcResource.events.walk": "/docs/sdk-reference/index#m-sbtc-events-walk",
+		"SbtcResource.summary": "/docs/sdk-reference/index#m-sbtc-summary",
+		"SbtcResource.withdrawals.get": "/docs/sdk-reference/index#m-sbtc-withdrawals-get",
+		"SbtcResource.withdrawals.list": "/docs/sdk-reference/index#m-sbtc-withdrawals-list",
+		"SbtcResource.withdrawals.walk": "/docs/sdk-reference/index#m-sbtc-withdrawals-walk",
+		"SbtcSummaryEnvelope": "/docs/sdk-reference/index#t-SbtcSummaryEnvelope",
+		"SbtcWithdrawalEnvelope": "/docs/sdk-reference/index#t-SbtcWithdrawalEnvelope",
+		"SbtcWithdrawalFields": "/docs/sdk-reference/index#t-SbtcWithdrawalFields",
+		"SbtcWithdrawalsEnvelope": "/docs/sdk-reference/index#t-SbtcWithdrawalsEnvelope",
+		"SbtcWithdrawalsListParams": "/docs/sdk-reference/index#t-SbtcWithdrawalsListParams",
+		"SbtcWithdrawalStatus": "/docs/sdk-reference/index#t-SbtcWithdrawalStatus",
+		"SbtcWithdrawalsWalkParams": "/docs/sdk-reference/index#t-SbtcWithdrawalsWalkParams",
+		"SecondLayer.batch": "/docs/sdk-reference/client#m-batch",
+		"SecondLayer.context": "/docs/sdk-reference/client#m-context",
+		"SecondLayerArchive.credits.balance": "/docs/sdk-reference/archive#m-credits-balance",
+		"SecondLayerArchive.credits.checkout": "/docs/sdk-reference/archive#m-credits-checkout",
+		"SecondLayerArchive.credits.refill": "/docs/sdk-reference/archive#m-credits-refill",
+		"SecondLayerArchive.download": "/docs/sdk-reference/archive#m-download",
+		"SecondLayerArchive.fetch": "/docs/sdk-reference/archive#m-fetch",
+		"SecondLayerArchive.latest": "/docs/sdk-reference/archive#m-latest",
+		"SecondLayerArchive.load": "/docs/sdk-reference/archive#m-load",
+		"SecondLayerArchive.partitions": "/docs/sdk-reference/archive#m-partitions",
+		"SecondLayerArchive.quote": "/docs/sdk-reference/archive#m-quote",
+		"SecondLayerArchive.status": "/docs/sdk-reference/archive#m-status",
+		"SecondLayerArchive.verify": "/docs/sdk-reference/archive#m-verify",
+		"sl.archive.credits.balance": "/docs/sdk-reference/archive#m-credits-balance",
+		"sl.archive.credits.checkout": "/docs/sdk-reference/archive#m-credits-checkout",
+		"sl.archive.credits.refill": "/docs/sdk-reference/archive#m-credits-refill",
+		"sl.archive.download": "/docs/sdk-reference/archive#m-download",
+		"sl.archive.fetch": "/docs/sdk-reference/archive#m-fetch",
+		"sl.archive.latest": "/docs/sdk-reference/archive#m-latest",
+		"sl.archive.load": "/docs/sdk-reference/archive#m-load",
+		"sl.archive.partitions": "/docs/sdk-reference/archive#m-partitions",
+		"sl.archive.quote": "/docs/sdk-reference/archive#m-quote",
+		"sl.archive.status": "/docs/sdk-reference/archive#m-status",
+		"sl.archive.verify": "/docs/sdk-reference/archive#m-verify",
+		"sl.batch": "/docs/sdk-reference/client#m-batch",
+		"sl.context": "/docs/sdk-reference/client#m-context",
+		"sl.contracts.get": "/docs/sdk-reference/contracts#m-get",
+		"sl.contracts.list": "/docs/sdk-reference/contracts#m-list",
+		"sl.index.blocks.get": "/docs/sdk-reference/index#m-blocks-get",
+		"sl.index.blocks.list": "/docs/sdk-reference/index#m-blocks-list",
+		"sl.index.blocks.walk": "/docs/sdk-reference/index#m-blocks-walk",
+		"sl.index.canonical.list": "/docs/sdk-reference/index#m-canonical-list",
+		"sl.index.canonical.walk": "/docs/sdk-reference/index#m-canonical-walk",
+		"sl.index.contractCalls.consume": "/docs/sdk-reference/index#m-contractCalls-consume",
+		"sl.index.contractCalls.list": "/docs/sdk-reference/index#m-contractCalls-list",
+		"sl.index.contractCalls.walk": "/docs/sdk-reference/index#m-contractCalls-walk",
+		"sl.index.discover": "/docs/sdk-reference/index#m-discover",
+		"sl.index.events": "/docs/sdk-reference/index#m-events",
+		"sl.index.events.consume": "/docs/sdk-reference/index#m-events-consume",
+		"sl.index.events.list": "/docs/sdk-reference/index#m-events-list",
+		"sl.index.events.walk": "/docs/sdk-reference/index#m-events-walk",
+		"sl.index.ftTransfers": "/docs/sdk-reference/index#m-ftTransfers",
+		"sl.index.ftTransfers.list": "/docs/sdk-reference/index#m-ftTransfers-list",
+		"sl.index.ftTransfers.walk": "/docs/sdk-reference/index#m-ftTransfers-walk",
+		"sl.index.mempool.get": "/docs/sdk-reference/index#m-mempool-get",
+		"sl.index.mempool.list": "/docs/sdk-reference/index#m-mempool-list",
+		"sl.index.mempool.walk": "/docs/sdk-reference/index#m-mempool-walk",
+		"sl.index.nftTransfers": "/docs/sdk-reference/index#m-nftTransfers",
+		"sl.index.nftTransfers.list": "/docs/sdk-reference/index#m-nftTransfers-list",
+		"sl.index.nftTransfers.walk": "/docs/sdk-reference/index#m-nftTransfers-walk",
+		"sl.index.pox.cycles.get": "/docs/sdk-reference/index#m-pox-cycles-get",
+		"sl.index.pox.cycles.list": "/docs/sdk-reference/index#m-pox-cycles-list",
+		"sl.index.pox.cycles.walk": "/docs/sdk-reference/index#m-pox-cycles-walk",
+		"sl.index.pox5.events.consume": "/docs/sdk-reference/index#m-pox5-events-consume",
+		"sl.index.pox5.events.list": "/docs/sdk-reference/index#m-pox5-events-list",
+		"sl.index.pox5.events.walk": "/docs/sdk-reference/index#m-pox5-events-walk",
+		"sl.index.printSchema": "/docs/sdk-reference/index#m-printSchema",
+		"sl.index.runes.activity.list": "/docs/sdk-reference/index#m-runes-activity-list",
+		"sl.index.runes.activity.walk": "/docs/sdk-reference/index#m-runes-activity-walk",
+		"sl.index.runes.balances": "/docs/sdk-reference/index#m-runes-balances",
+		"sl.index.runes.get": "/docs/sdk-reference/index#m-runes-get",
+		"sl.index.runes.list": "/docs/sdk-reference/index#m-runes-list",
+		"sl.index.sbtc.deposits.consume": "/docs/sdk-reference/index#m-sbtc-deposits-consume",
+		"sl.index.sbtc.deposits.get": "/docs/sdk-reference/index#m-sbtc-deposits-get",
+		"sl.index.sbtc.deposits.list": "/docs/sdk-reference/index#m-sbtc-deposits-list",
+		"sl.index.sbtc.deposits.walk": "/docs/sdk-reference/index#m-sbtc-deposits-walk",
+		"sl.index.sbtc.events.consume": "/docs/sdk-reference/index#m-sbtc-events-consume",
+		"sl.index.sbtc.events.list": "/docs/sdk-reference/index#m-sbtc-events-list",
+		"sl.index.sbtc.events.walk": "/docs/sdk-reference/index#m-sbtc-events-walk",
+		"sl.index.sbtc.summary": "/docs/sdk-reference/index#m-sbtc-summary",
+		"sl.index.sbtc.withdrawals.get": "/docs/sdk-reference/index#m-sbtc-withdrawals-get",
+		"sl.index.sbtc.withdrawals.list": "/docs/sdk-reference/index#m-sbtc-withdrawals-list",
+		"sl.index.sbtc.withdrawals.walk": "/docs/sdk-reference/index#m-sbtc-withdrawals-walk",
+		"sl.index.stacking.list": "/docs/sdk-reference/index#m-stacking-list",
+		"sl.index.stacking.walk": "/docs/sdk-reference/index#m-stacking-walk",
+		"sl.index.stateWrites.list": "/docs/sdk-reference/index#m-stateWrites-list",
+		"sl.index.stateWrites.walk": "/docs/sdk-reference/index#m-stateWrites-walk",
+		"sl.index.transactions.get": "/docs/sdk-reference/index#m-transactions-get",
+		"sl.index.transactions.getProof": "/docs/sdk-reference/index#m-transactions-getProof",
+		"sl.index.transactions.list": "/docs/sdk-reference/index#m-transactions-list",
+		"sl.index.transactions.walk": "/docs/sdk-reference/index#m-transactions-walk",
+		"sl.instance.diagnose": "/docs/sdk-reference/instance#m-diagnose",
+		"sl.instance.status": "/docs/sdk-reference/instance#m-status",
+		"sl.streams.blocks.events": "/docs/sdk-reference/streams#m-blocks-events",
+		"sl.streams.canonical": "/docs/sdk-reference/streams#m-canonical",
+		"sl.streams.consume": "/docs/sdk-reference/streams#m-consume",
+		"sl.streams.dumps.download": "/docs/sdk-reference/streams#m-dumps-download",
+		"sl.streams.dumps.fileUrl": "/docs/sdk-reference/streams#m-dumps-fileUrl",
+		"sl.streams.dumps.list": "/docs/sdk-reference/streams#m-dumps-list",
+		"sl.streams.events.byTxId": "/docs/sdk-reference/streams#m-events-byTxId",
+		"sl.streams.events.consume": "/docs/sdk-reference/streams#m-events-consume",
+		"sl.streams.events.list": "/docs/sdk-reference/streams#m-events-list",
+		"sl.streams.events.replay": "/docs/sdk-reference/streams#m-events-replay",
+		"sl.streams.events.stream": "/docs/sdk-reference/streams#m-events-stream",
+		"sl.streams.events.subscribe": "/docs/sdk-reference/streams#m-events-subscribe",
+		"sl.streams.reorgs.list": "/docs/sdk-reference/streams#m-reorgs-list",
+		"sl.streams.tip": "/docs/sdk-reference/streams#m-tip",
+		"sl.subgraphs.aggregate": "/docs/sdk-reference/subgraphs#m-aggregate",
+		"sl.subgraphs.backfill": "/docs/sdk-reference/subgraphs#m-backfill",
+		"sl.subgraphs.bundle": "/docs/sdk-reference/subgraphs#m-bundle",
+		"sl.subgraphs.count": "/docs/sdk-reference/subgraphs#m-count",
+		"sl.subgraphs.delete": "/docs/sdk-reference/subgraphs#m-delete",
+		"sl.subgraphs.deploy": "/docs/sdk-reference/subgraphs#m-deploy",
+		"sl.subgraphs.gaps": "/docs/sdk-reference/subgraphs#m-gaps",
+		"sl.subgraphs.getOperation": "/docs/sdk-reference/subgraphs#m-getOperation",
+		"sl.subgraphs.getSource": "/docs/sdk-reference/subgraphs#m-getSource",
+		"sl.subgraphs.list": "/docs/sdk-reference/subgraphs#m-list",
+		"sl.subgraphs.markdown": "/docs/sdk-reference/subgraphs#m-markdown",
+		"sl.subgraphs.openapi": "/docs/sdk-reference/subgraphs#m-openapi",
+		"sl.subgraphs.operations": "/docs/sdk-reference/subgraphs#m-operations",
+		"sl.subgraphs.reindex": "/docs/sdk-reference/subgraphs#m-reindex",
+		"sl.subgraphs.rows": "/docs/sdk-reference/subgraphs#m-rows",
+		"sl.subgraphs.schema": "/docs/sdk-reference/subgraphs#m-schema",
+		"sl.subgraphs.status": "/docs/sdk-reference/subgraphs#m-status",
+		"sl.subgraphs.stop": "/docs/sdk-reference/subgraphs#m-stop",
+		"sl.subgraphs.typed": "/docs/sdk-reference/subgraphs#m-typed",
+		"sl.webhooks.activity": "/docs/sdk-reference/webhooks#m-activity",
+		"sl.webhooks.create": "/docs/sdk-reference/webhooks#m-create",
+		"sl.webhooks.dead": "/docs/sdk-reference/webhooks#m-dead",
+		"sl.webhooks.delete": "/docs/sdk-reference/webhooks#m-delete",
+		"sl.webhooks.deliveries": "/docs/sdk-reference/webhooks#m-deliveries",
+		"sl.webhooks.delivery": "/docs/sdk-reference/webhooks#m-delivery",
+		"sl.webhooks.get": "/docs/sdk-reference/webhooks#m-get",
+		"sl.webhooks.list": "/docs/sdk-reference/webhooks#m-list",
+		"sl.webhooks.pause": "/docs/sdk-reference/webhooks#m-pause",
+		"sl.webhooks.replay": "/docs/sdk-reference/webhooks#m-replay",
+		"sl.webhooks.requeue": "/docs/sdk-reference/webhooks#m-requeue",
+		"sl.webhooks.resume": "/docs/sdk-reference/webhooks#m-resume",
+		"sl.webhooks.rotateSecret": "/docs/sdk-reference/webhooks#m-rotateSecret",
+		"sl.webhooks.test": "/docs/sdk-reference/webhooks#m-test",
+		"sl.webhooks.update": "/docs/sdk-reference/webhooks#m-update",
+		"Sleep": "/docs/sdk-reference/index#t-Sleep",
+		"StackingEnvelope": "/docs/sdk-reference/index#t-StackingEnvelope",
+		"StackingListParams": "/docs/sdk-reference/index#t-StackingListParams",
+		"StackingWalkParams": "/docs/sdk-reference/index#t-StackingWalkParams",
+		"StateWritesEnvelope": "/docs/sdk-reference/index#t-StateWritesEnvelope",
+		"StateWritesListParams": "/docs/sdk-reference/index#t-StateWritesListParams",
+		"StateWritesWalkParams": "/docs/sdk-reference/index#t-StateWritesWalkParams",
+		"StreamsBatch": "/docs/sdk-reference/streams#t-StreamsBatch",
+		"StreamsBatchContext": "/docs/sdk-reference/streams#t-StreamsBatchContext",
+		"StreamsBitcoinCanonicalBlock": "/docs/sdk-reference/streams#t-StreamsBitcoinCanonicalBlock",
+		"StreamsBitcoinTip": "/docs/sdk-reference/streams#t-StreamsBitcoinTip",
+		"StreamsCanonicalBlock": "/docs/sdk-reference/streams#t-StreamsCanonicalBlock",
+		"StreamsClarityValue": "/docs/sdk-reference/streams#t-StreamsClarityValue",
+		"StreamsClient.blocks.events": "/docs/sdk-reference/streams#m-blocks-events",
+		"StreamsClient.canonical": "/docs/sdk-reference/streams#m-canonical",
+		"StreamsClient.consume": "/docs/sdk-reference/streams#m-consume",
+		"StreamsClient.events.byTxId": "/docs/sdk-reference/streams#m-events-byTxId",
+		"StreamsClient.events.consume": "/docs/sdk-reference/streams#m-events-consume",
+		"StreamsClient.events.list": "/docs/sdk-reference/streams#m-events-list",
+		"StreamsClient.events.replay": "/docs/sdk-reference/streams#m-events-replay",
+		"StreamsClient.events.stream": "/docs/sdk-reference/streams#m-events-stream",
+		"StreamsClient.events.subscribe": "/docs/sdk-reference/streams#m-events-subscribe",
+		"StreamsClient.reorgs.list": "/docs/sdk-reference/streams#m-reorgs-list",
+		"StreamsClient.tip": "/docs/sdk-reference/streams#m-tip",
+		"StreamsConsumeBitcoinParams": "/docs/sdk-reference/streams#t-StreamsConsumeBitcoinParams",
+		"StreamsConsumeCommon": "/docs/sdk-reference/streams#t-StreamsConsumeCommon",
+		"StreamsConsumeStacksParams": "/docs/sdk-reference/streams#t-StreamsConsumeStacksParams",
+		"StreamsDumpFile": "/docs/sdk-reference/streams#t-StreamsDumpFile",
+		"StreamsDumps.download": "/docs/sdk-reference/streams#m-dumps-download",
+		"StreamsDumps.fileUrl": "/docs/sdk-reference/streams#m-dumps-fileUrl",
+		"StreamsDumps.list": "/docs/sdk-reference/streams#m-dumps-list",
+		"StreamsDumpsManifest": "/docs/sdk-reference/streams#t-StreamsDumpsManifest",
+		"StreamsEvent": "/docs/sdk-reference/streams#t-StreamsEvent",
+		"StreamsEventOf": "/docs/sdk-reference/streams#t-StreamsEventOf",
+		"StreamsEventOfTypes": "/docs/sdk-reference/streams#t-StreamsEventOfTypes",
+		"StreamsEventsBitcoinListParams": "/docs/sdk-reference/streams#t-StreamsEventsBitcoinListParams",
+		"StreamsEventsConsumeBitcoinParams": "/docs/sdk-reference/streams#t-StreamsEventsConsumeBitcoinParams",
+		"StreamsEventsConsumeParams": "/docs/sdk-reference/streams#t-StreamsEventsConsumeParams",
+		"StreamsEventsConsumeResult": "/docs/sdk-reference/streams#t-StreamsEventsConsumeResult",
+		"StreamsEventsEnvelope": "/docs/sdk-reference/streams#t-StreamsEventsEnvelope",
+		"StreamsEventsListEnvelope": "/docs/sdk-reference/streams#t-StreamsEventsListEnvelope",
+		"StreamsEventsListParams": "/docs/sdk-reference/streams#t-StreamsEventsListParams",
+		"StreamsEventsListParamsCommon": "/docs/sdk-reference/streams#t-StreamsEventsListParamsCommon",
+		"StreamsEventsReplayParams": "/docs/sdk-reference/streams#t-StreamsEventsReplayParams",
+		"StreamsEventsStacksListParams": "/docs/sdk-reference/streams#t-StreamsEventsStacksListParams",
+		"StreamsEventsStreamBitcoinParams": "/docs/sdk-reference/streams#t-StreamsEventsStreamBitcoinParams",
+		"StreamsEventsStreamCommon": "/docs/sdk-reference/streams#t-StreamsEventsStreamCommon",
+		"StreamsEventsStreamStacksParams": "/docs/sdk-reference/streams#t-StreamsEventsStreamStacksParams",
+		"StreamsEventsSubscribeBitcoinParams": "/docs/sdk-reference/streams#t-StreamsEventsSubscribeBitcoinParams",
+		"StreamsEventsSubscribeStacksParams": "/docs/sdk-reference/streams#t-StreamsEventsSubscribeStacksParams",
+		"StreamsFilterMap": "/docs/sdk-reference/streams#t-StreamsFilterMap",
+		"StreamsFilterValue": "/docs/sdk-reference/streams#t-StreamsFilterValue",
+		"StreamsLabelledFilter": "/docs/sdk-reference/streams#t-StreamsLabelledFilter",
+		"StreamsReorg": "/docs/sdk-reference/streams#t-StreamsReorg",
+		"StreamsReorgContext": "/docs/sdk-reference/streams#t-StreamsReorgContext",
+		"StreamsReorgsListEnvelope": "/docs/sdk-reference/streams#t-StreamsReorgsListEnvelope",
+		"StreamsReorgsListParams": "/docs/sdk-reference/streams#t-StreamsReorgsListParams",
+		"StreamsSubscription": "/docs/sdk-reference/streams#t-StreamsSubscription",
+		"StreamsTip": "/docs/sdk-reference/streams#t-StreamsTip",
+		"StreamsWireEvent": "/docs/sdk-reference/streams#t-StreamsWireEvent",
+		"StxBurnPayload": "/docs/sdk-reference/streams#t-StxBurnPayload",
+		"StxLockPayload": "/docs/sdk-reference/streams#t-StxLockPayload",
+		"StxMintPayload": "/docs/sdk-reference/streams#t-StxMintPayload",
+		"StxTransferPayload": "/docs/sdk-reference/streams#t-StxTransferPayload",
+		"SubgraphAgentSchema": "/docs/sdk-reference/subgraphs#t-SubgraphAgentSchema",
+		"SubgraphAggregateParams": "/docs/sdk-reference/subgraphs#t-SubgraphAggregateParams",
+		"SubgraphAggregateResponse": "/docs/sdk-reference/subgraphs#t-SubgraphAggregateResponse",
+		"SubgraphDetail": "/docs/sdk-reference/subgraphs#t-SubgraphDetail",
+		"SubgraphGapEntry": "/docs/sdk-reference/subgraphs#t-SubgraphGapEntry",
+		"SubgraphGapRange": "/docs/sdk-reference/subgraphs#t-SubgraphGapRange",
+		"SubgraphGapsResponse": "/docs/sdk-reference/subgraphs#t-SubgraphGapsResponse",
+		"SubgraphOperationStatus": "/docs/sdk-reference/subgraphs#t-SubgraphOperationStatus",
+		"SubgraphRowsEnvelope": "/docs/sdk-reference/subgraphs#t-SubgraphRowsEnvelope",
+		"Subgraphs.aggregate": "/docs/sdk-reference/subgraphs#m-aggregate",
+		"Subgraphs.backfill": "/docs/sdk-reference/subgraphs#m-backfill",
+		"Subgraphs.bundle": "/docs/sdk-reference/subgraphs#m-bundle",
+		"Subgraphs.count": "/docs/sdk-reference/subgraphs#m-count",
+		"Subgraphs.delete": "/docs/sdk-reference/subgraphs#m-delete",
+		"Subgraphs.deploy": "/docs/sdk-reference/subgraphs#m-deploy",
+		"Subgraphs.gaps": "/docs/sdk-reference/subgraphs#m-gaps",
+		"Subgraphs.getOperation": "/docs/sdk-reference/subgraphs#m-getOperation",
+		"Subgraphs.getSource": "/docs/sdk-reference/subgraphs#m-getSource",
+		"Subgraphs.list": "/docs/sdk-reference/subgraphs#m-list",
+		"Subgraphs.markdown": "/docs/sdk-reference/subgraphs#m-markdown",
+		"Subgraphs.openapi": "/docs/sdk-reference/subgraphs#m-openapi",
+		"Subgraphs.operations": "/docs/sdk-reference/subgraphs#m-operations",
+		"Subgraphs.reindex": "/docs/sdk-reference/subgraphs#m-reindex",
+		"Subgraphs.rows": "/docs/sdk-reference/subgraphs#m-rows",
+		"Subgraphs.schema": "/docs/sdk-reference/subgraphs#m-schema",
+		"Subgraphs.status": "/docs/sdk-reference/subgraphs#m-status",
+		"Subgraphs.stop": "/docs/sdk-reference/subgraphs#m-stop",
+		"Subgraphs.typed": "/docs/sdk-reference/subgraphs#m-typed",
+		"SubgraphSource": "/docs/sdk-reference/subgraphs#t-SubgraphSource",
+		"SubgraphSpecOptions": "/docs/sdk-reference/subgraphs#t-SubgraphSpecOptions",
+		"SubgraphSummary": "/docs/sdk-reference/subgraphs#t-SubgraphSummary",
+		"SubgraphSyncInfo": "/docs/sdk-reference/subgraphs#t-SubgraphSyncInfo",
+		"SubgraphVerification": "/docs/sdk-reference/subgraphs#t-SubgraphVerification",
+		"TraitScoped": "/docs/sdk-reference/webhooks#t-TraitScoped",
+		"TransactionEnvelope": "/docs/sdk-reference/index#t-TransactionEnvelope",
+		"TransactionFields": "/docs/sdk-reference/index#t-TransactionFields",
+		"TransactionProof": "/docs/sdk-reference/index#t-TransactionProof",
+		"TransactionsEnvelope": "/docs/sdk-reference/index#t-TransactionsEnvelope",
+		"TransactionsListParams": "/docs/sdk-reference/index#t-TransactionsListParams",
+		"TransactionsWalkParams": "/docs/sdk-reference/index#t-TransactionsWalkParams",
+		"UpdateWebhookRequest": "/docs/sdk-reference/webhooks#t-UpdateWebhookRequest",
+		"VarSetPayload": "/docs/sdk-reference/streams#t-VarSetPayload",
+		"VmStreamsEvent": "/docs/sdk-reference/streams#t-VmStreamsEvent",
+		"VmStreamsEventOf": "/docs/sdk-reference/streams#t-VmStreamsEventOf",
+		"WebhookActivity": "/docs/sdk-reference/webhooks#t-WebhookActivity",
+		"WebhookActivityHour": "/docs/sdk-reference/webhooks#t-WebhookActivityHour",
+		"WebhookAuth": "/docs/sdk-reference/webhooks#t-WebhookAuth",
+		"WebhookDeliveryDetail": "/docs/sdk-reference/webhooks#t-WebhookDeliveryDetail",
+		"WebhookDetail": "/docs/sdk-reference/webhooks#t-WebhookDetail",
+		"Webhooks.activity": "/docs/sdk-reference/webhooks#m-activity",
+		"Webhooks.create": "/docs/sdk-reference/webhooks#m-create",
+		"Webhooks.dead": "/docs/sdk-reference/webhooks#m-dead",
+		"Webhooks.delete": "/docs/sdk-reference/webhooks#m-delete",
+		"Webhooks.deliveries": "/docs/sdk-reference/webhooks#m-deliveries",
+		"Webhooks.delivery": "/docs/sdk-reference/webhooks#m-delivery",
+		"Webhooks.get": "/docs/sdk-reference/webhooks#m-get",
+		"Webhooks.list": "/docs/sdk-reference/webhooks#m-list",
+		"Webhooks.pause": "/docs/sdk-reference/webhooks#m-pause",
+		"Webhooks.replay": "/docs/sdk-reference/webhooks#m-replay",
+		"Webhooks.requeue": "/docs/sdk-reference/webhooks#m-requeue",
+		"Webhooks.resume": "/docs/sdk-reference/webhooks#m-resume",
+		"Webhooks.rotateSecret": "/docs/sdk-reference/webhooks#m-rotateSecret",
+		"Webhooks.test": "/docs/sdk-reference/webhooks#m-test",
+		"Webhooks.update": "/docs/sdk-reference/webhooks#m-update",
+		"WebhookSummary": "/docs/sdk-reference/webhooks#t-WebhookSummary",
+		"WebhookTestResult": "/docs/sdk-reference/webhooks#t-WebhookTestResult"
+	}
+}

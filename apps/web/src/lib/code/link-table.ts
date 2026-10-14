@@ -28,7 +28,7 @@ function referenceSymbols(): Record<string, string> {
 	for (const surface of readdirSync(REFERENCE, { withFileTypes: true })) {
 		if (!surface.isDirectory()) continue;
 		const index = JSON.parse(
-			readFileSync(join(REFERENCE, surface.name, "index.json"), "utf8"),
+			readFileSync(join(REFERENCE, surface.name, "manifest.json"), "utf8"),
 		) as { symbols?: Record<string, string> };
 		Object.assign(symbols, index.symbols);
 	}

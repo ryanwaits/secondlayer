@@ -1,6 +1,6 @@
 /**
  * Generates a package's docs reference from its own TypeScript source, via
- * openpkg: `apps/web/src/generated/reference/<package>/` with an `index.json`
+ * openpkg: `apps/web/src/generated/reference/<package>/` with an `manifest.json`
  * and one `<surface>.json` per surface.
  *
  * Callers pass a config; see `packages/sdk/scripts/sync-openpkg.ts`.

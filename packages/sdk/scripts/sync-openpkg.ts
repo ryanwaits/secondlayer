@@ -22,8 +22,7 @@ await extractReference({
 	errorBase: "SecondLayerError",
 	surfaces: [
 		{ slug: "streams", title: "Streams", member: "streams" },
-		// Not "index": `index.json` is the package manifest.
-		{ slug: "index-api", title: "Index", member: "index" },
+		{ slug: "index", title: "Index", member: "index" },
 		{ slug: "subgraphs", title: "Subgraphs", member: "subgraphs" },
 		{ slug: "webhooks", title: "Webhooks", member: "webhooks" },
 		{ slug: "archive", title: "Archive", member: "archive" },
