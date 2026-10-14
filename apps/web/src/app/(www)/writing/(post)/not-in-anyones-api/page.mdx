@@ -40,7 +40,7 @@ None of that is about your product. All of it is between you and the screen you 
 
 ## What we made instead
 
-Secondlayer is that work, already done, running on your hardware.
+Secondlayer is that work, already done: we run it for you, or it runs on your hardware.
 
 It sits next to a Stacks node and turns the chain into decoded rows in a database you operate. History comes from a [signed archive](/p/archive), so you restore in hours instead of syncing for two weeks. Reorgs roll back cleanly because that's the whole job and we've been wrong about it enough times to get it right.
 
@@ -129,15 +129,15 @@ I'd rather put that trade in front of you than have you find it in week three. A
 
 ## What it costs
 
-The runtime is MIT. Running it, indexing forward from your own node, deploying tables, all of it free, and free in the boring sense where there's no tier above it.
+You pay for rows delivered: 1M free every month, then [$5 per million](/pricing), whether they come live or from history. Checking our work is free. [Verify the archive](/verify), replay it, compare your rows against it, and none of that is billed.
 
-What costs money is history. We operate a signed archive of the whole chain, and pulling a large restore or a deep backfill out of it is [the metered part](/pricing). You can [verify the archive](/verify) for free, replay it for free, and check our work against it for free. You pay when you want us to hand you 243 million rows instead of you spending two weeks producing them yourself.
+Self-host is MIT, and free in the boring sense where there's no tier above it. Run it beside your own node and the only thing you'd ever pay us for is a large restore out of the signed archive, instead of spending two weeks producing those rows yourself.
 
-That's the split, and it's deliberate: you're never paying for queries against your own database, because that would be a strange thing to charge for.
+You're never paying for queries against your own database, because that would be a strange thing to charge for.
 
 ## What it isn't
 
-It's not a hosted API. There's no endpoint of ours in your critical path. The thing runs on your box, and if we disappeared tomorrow your app would keep serving.
+It's not a lock-in. Hosted or on your own box, it's the same API, the same rows and the same proofs, so you can move either way without rewriting your app.
 
 It's not a chatbot or a natural-language layer. You write TypeScript and SQL, same as always.
 
