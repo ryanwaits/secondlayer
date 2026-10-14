@@ -436,6 +436,30 @@
 	color: var(--on-pri);
 	text-decoration: none;
 }
+.picker {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	vertical-align: 1px;
+}
+.picker button {
+	padding: 5px 10px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: none;
+	font: 400 13px / 1 var(--font-mono-stack);
+	color: var(--sub);
+	cursor: pointer;
+}
+.picker button:hover {
+	border-color: var(--pri);
+	color: var(--pri);
+}
+.picker button[aria-pressed="true"] {
+	border-color: var(--ink);
+	color: var(--ink);
+}
+.picker button:focus-visible,
 .mention:focus-visible,
 .flink:focus-visible {
 	outline: 2px solid var(--pri);

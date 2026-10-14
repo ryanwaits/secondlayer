@@ -73,6 +73,9 @@ export function proseProblems(file: string, source: string): string[] {
 					`${where}: ${m[1]}:${m[2]} has no !ref ${m[2]} in the section`,
 				);
 		const picks = declared(scope, "pick");
+		for (const m of scope.prose.matchAll(/<Pick\s+name="([^"]*)"/g))
+			if (!picks.has(m[1] ?? ""))
+				found.push(`${where}: <Pick name="${m[1]}"> has no !pick ${m[1]}`);
 		if (picks.size > 1)
 			found.push(
 				`${where}: ${picks.size} pick names (${[...picks].join(", ")}), max 1 per section`,

@@ -92,6 +92,11 @@ function onClick(event: MouseEvent) {
 		);
 		return;
 	}
+	const chip = event.target.closest<HTMLElement>("[data-choose]");
+	if (chip) {
+		choose(chip);
+		return;
+	}
 	const flink = event.target.closest<HTMLElement>(".flink");
 	if (flink) {
 		const scope = scopeOf(flink);
@@ -102,12 +107,51 @@ function onClick(event: MouseEvent) {
 	}
 }
 
-let mounted = false;
+/** Fill each empty `<Pick>` with chips from the options its section's `!pick` declares. */
+function setUpPickers() {
+	for (const picker of document.querySelectorAll<HTMLElement>(
+		"[data-picker]:not([data-ready])",
+	)) {
+		picker.dataset.ready = "";
+		const name = picker.dataset.picker ?? "";
+		const declaring = find(
+			scopeOf(picker),
+			`[data-pick="${name}"][data-opts]`,
+		)[0];
+		if (!declaring) continue;
+		const now = declaring.textContent;
+		for (const option of (declaring.dataset.opts ?? "").split("|")) {
+			const chip = document.createElement("button");
+			chip.type = "button";
+			chip.dataset.choose = name;
+			chip.textContent = option;
+			chip.setAttribute("aria-pressed", String(option === now));
+			picker.append(chip);
+		}
+	}
+}
 
-/** Install the page's delegated listeners once; later calls are no-ops. */
+/** Choosing rewrites every token the name marks in the section; Copy reads the rows, so it follows. */
+function choose(chip: HTMLElement) {
+	const name = chip.dataset.choose ?? "";
+	const value = chip.textContent ?? "";
+	const scope = scopeOf(chip);
+	for (const el of find(scope, `[data-pick="${name}"]`)) el.textContent = value;
+	for (const other of find(scope, "[data-choose]"))
+		if (other.dataset.choose === name)
+			other.setAttribute("aria-pressed", String(other === chip));
+}
+
+let listening = false;
+
+/**
+ * Install the page's delegated listeners once, then wake whatever this page
+ * rendered. Every `<CodeScope>` calls it, so it is safe to call again.
+ */
 export function mountScope() {
-	if (mounted) return;
-	mounted = true;
+	setUpPickers();
+	if (listening) return;
+	listening = true;
 	document.addEventListener("mouseover", (e) => onMention(e, true));
 	document.addEventListener("mouseout", (e) => onMention(e, false));
 	document.addEventListener("focusin", (e) => onMention(e, true));

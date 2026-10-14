@@ -56,6 +56,13 @@ describe("pick budget", () => {
 		expect(proseProblems("docs/x/page.mdx", split)).toEqual([]);
 	});
 
+	test("a Pick chip row needs the !pick it drives", () => {
+		const source = `## S\n<Pick name="event" />\n${fence("// !pick[/a/] event: a | b\na();")}\n## T\n<Pick name="event" />`;
+		expect(proseProblems("docs/x/page.mdx", source)).toEqual([
+			'docs/x/page.mdx "T": <Pick name="event"> has no !pick event',
+		]);
+	});
+
 	test("in a post the whole file is the section", () => {
 		expect(proseProblems("writing/(post)/p/page.mdx", two)[0]).toContain(
 			"2 pick names",

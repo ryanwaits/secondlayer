@@ -23,6 +23,20 @@ export function Mention({
 	);
 }
 
+/**
+ * Chips that choose the value of a `!pick` token for the whole section, and
+ * with it what Copy gives. The options come from the fence that declares them
+ * (`!pick[/re/] name: a | b | c`), so the prose names only the pick.
+ */
+export function Pick({ name }: { name: string }) {
+	return (
+		<>
+			<span className="picker" data-picker={name} />
+			<CodeScope />
+		</>
+	);
+}
+
 /** Blue, because clicking changes the code: it focuses the rows holding `name`. Again clears. */
 export function FocusLink({
 	name,
