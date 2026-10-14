@@ -115,9 +115,11 @@ function firstDifference(
 }
 
 /**
- * Compare the replayed tables with the served ones over `[from, to]` on
- * `_block_height`. Keyed tables (first `uniqueKeys` tuple) compare row by
- * row; unkeyed tables as multisets.
+ * Compares replayed tables with the served ones over a block range.
+ *
+ * Rows are matched on `_block_height` within `[from, to]`. Keyed tables, by
+ * their first `uniqueKeys` tuple, compare row by row, and unkeyed tables
+ * compare as multisets.
  */
 export function compareRows(
 	schema: SubgraphSchema,

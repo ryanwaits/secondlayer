@@ -120,6 +120,12 @@ export interface ErasedChainReadClient {
 	// `abi: unknown`, not `AbiContract`: naming the ABI type here drags its
 	// (deeply recursive) definition into every structural comparison of a
 	// subgraph definition. `readContractAt` constrains it properly.
+	/**
+	 * Reads a contract's read-only functions at the block being processed.
+	 *
+	 * Results are untyped here. Call it through `readContractAt` to get typed
+	 * results from the contract's ABI.
+	 */
 	contract(
 		contractId: string,
 		abi: unknown,
@@ -130,8 +136,13 @@ export interface ErasedChainReadClient {
 }
 
 /**
- * Typed read methods for one contract, from a handler.
+ * Reads a contract's read-only functions from a handler, with typed results.
  *
+ * Pass `ctx`, the contract id and its ABI. Every call is pinned to the block
+ * being processed. Set `options.cache` to `"contract-constant"` to fetch a
+ * value once per contract instead of once per block.
+ *
+ * @example
  * ```ts
  * const token = readContractAt(ctx, contractId, SIP010_ABI, {
  *   cache: "contract-constant",

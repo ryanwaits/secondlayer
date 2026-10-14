@@ -1,0 +1,1604 @@
+{
+	"slug": "testing",
+	"root": "",
+	"from": "@secondlayer/subgraphs/testing",
+	"methods": [
+		{
+			"id": "buildEvent",
+			"path": "buildEvent",
+			"summary": "Builds a handler-shaped event for a source, typed by that source's filter.",
+			"description": "Builds a handler-shaped event for a source, typed by that source's filter.\n\n`data` supplies the decoded, camelCased fields the runtime would have\nproduced. Transaction metadata is filled in.",
+			"source": {
+				"file": "packages/subgraphs/src/testing/harness.ts",
+				"line": 127
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "F",
+							"constraint": "SubgraphFilter",
+							"const": true
+						}
+					],
+					"params": [
+						{
+							"name": "source",
+							"type": "F",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "payload",
+							"type": "Record<string, unknown>",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "options",
+							"type": "{ tx?: { txId?: string; sender?: string; type?: string; status?: string; contractId?: string | null; functionName?: string | null } }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "EventForFilter<F>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "buildEventPayload",
+			"path": "buildEventPayload",
+			"summary": "Build a typed event payload based on the source filter type.",
+			"description": "Build a typed event payload based on the source filter type.\nReturns the payload the handler will receive.",
+			"source": {
+				"file": "packages/subgraphs/src/runtime/runner.ts",
+				"line": 147
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "filter",
+							"type": "SubgraphFilter",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "tx",
+							"type": "TxRecord",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "event",
+							"type": "EventRecord | null",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Record<string, unknown>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "createTestContext",
+			"path": "createTestContext",
+			"summary": "Builds an in-memory context for a subgraph's schema.",
+			"description": "Builds an in-memory context for a subgraph's schema.\n\nIt is the real handler context with its row store swapped for memory, so\nreads see earlier writes. Use `ctx.rows(table)` to inspect what a handler\nwrote.",
+			"source": {
+				"file": "packages/subgraphs/src/testing/harness.ts",
+				"line": 83
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "S",
+							"constraint": "SubgraphSchema",
+							"const": true
+						}
+					],
+					"params": [
+						{
+							"name": "schema",
+							"type": "S",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "options",
+							"type": "{ block?: { height?: number; hash?: string; timestamp?: number; burnBlockHeight?: number; indexBlockHash?: string | null }; tx?: { txId?: string; sender?: string; type?: string; status?: string; contractId?: string | null; functionName?: string | null }; reads?: Record<string, unknown> }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "TestSubgraphContext<S>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "probeHandlers",
+			"path": "probeHandlers",
+			"summary": "Run handlers against pre-built sample payloads in memory (no Index, no Postgres).",
+			"description": "Run handlers against pre-built sample payloads in memory (no Index, no\nPostgres). Deploy uses this with print-schema dummy events to refuse\nEMPTY_MAPPING before DDL apply.",
+			"source": {
+				"file": "packages/subgraphs/src/testing/run.ts",
+				"line": 461
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "def",
+							"type": "ProbeHandlersDef",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "samples",
+							"type": "{ source: string; event: Record<string, unknown> }[]",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<ProbeHandlersResult>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "runSubgraphTest",
+			"path": "runSubgraphTest",
+			"summary": "Apply local handlers to Index rows in memory.",
+			"description": "Apply local handlers to Index rows in memory. Fail-closed: matched events\nwith zero written rows is EMPTY_MAPPING (the bns-names field-mapping shape).",
+			"source": {
+				"file": "packages/subgraphs/src/testing/run.ts",
+				"line": 276
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "input",
+							"type": "RunSubgraphTestInput",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<SubgraphTestResult>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "toContractCallPayload",
+			"path": "toContractCallPayload",
+			"summary": "Map an Index contract-call row onto the ContractCallEvent handler shape.",
+			"description": "Map an Index contract-call row onto the ContractCallEvent handler shape.",
+			"source": {
+				"file": "packages/subgraphs/src/testing/run.ts",
+				"line": 179
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "row",
+							"type": "IndexContractCallRow",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Record<string, unknown>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "toHandlerPayload",
+			"path": "toHandlerPayload",
+			"summary": "Map an Index event row onto the payload shape a handler expects.",
+			"description": "Map an Index event row onto the payload shape a handler expects.",
+			"source": {
+				"file": "packages/subgraphs/src/testing/run.ts",
+				"line": 107
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "_filter",
+							"type": "{ type: string } | undefined",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "row",
+							"type": "IndexEventRow",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Record<string, unknown>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "ChainReadCacheMode",
+			"summary": "How long a read stays valid.",
+			"definition": "\"per-block\" | \"contract-constant\""
+		},
+		{
+			"name": "ChainReadOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "cache",
+					"type": "ChainReadCacheMode",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ColumnType",
+			"summary": "Supported column types for subgraph schemas",
+			"definition": "ColumnType<string | null, string | null | undefined, string | null>"
+		},
+		{
+			"name": "ContractCallFilter",
+			"summary": "Contract event filters",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"contract_call\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": "One contract id, or a SET of them (max 20) — the standard DeFi shape is\na router plus N pools, which used to cost N near-identical sources and\nhandlers. Payload types are identical per `type`, so one handler serves\nthe set and `event.contractId` disambiguates.\n\nSupports `*` wildcards (e.g. `\"SP1ABC….pool-*\"`). Mutually exclusive\nwith `trait`, which resolves its own set per block."
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "abi",
+					"type": "AbiContract",
+					"required": false,
+					"description": "Contract ABI (pass it `as const`) used to type `event.input` — the named,\ndecoded function arguments. Dev-provided; serialized into the deployed\ndefinition and used at runtime to decode args by name. Omit to keep\n`event.args` as a positional `unknown[]`.\n\nRequired whenever `functionName` is set. `secondlayer subgraphs deploy`\nfills it in from the deployed contract for a single concrete\n`contractId`; pass it yourself for wildcard, multi-contract or trait\nsources, or a local deploy (`normalizeAbi()` from\n`@secondlayer/stacks/clarity`)."
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ContractDeployFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"contract_deploy\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "deployer",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ErasedChainReadClient",
+			"summary": "`ChainReadClient` with the ABI generic erased.",
+			"fields": [
+				{
+					"name": "contract",
+					"type": "(contractId: string, abi: unknown, options?: ChainReadOptions) => { read: Record<string, (args?: Record<string, unknown>) => Promise<unknown>> }",
+					"required": true,
+					"description": "Reads a contract's read-only functions at the block being processed.\n\nResults are untyped here. Call it through `readContractAt` to get typed\nresults from the contract's ABI."
+				}
+			]
+		},
+		{
+			"name": "EventForFilter",
+			"summary": "The event payload a handler receives for a given source filter.",
+			"definition": "F extends { type: \"print_event\"; } ? PrintEventFor<F> : F extends { type: \"ft_transfer\" } ? FtTransferPayload : F extends { type: \"ft_mint\" } ? FtMintPayload : F extends { type: \"ft_burn\" } ? FtBurnPayload : F extends { type: \"nft_transfer\" } ? NftTransferPayload : F extends { type: \"nft_mint\" } ? NftMintPayload : F extends { type: \"nft_burn\" } ? NftBurnPayload : F extends { type: \"stx_transfer\" } ? StxTransferPayload : F extends { type: \"stx_mint\" } ? StxMintPayload : F extends { type: \"stx_burn\" } ? StxBurnPayload : F extends { type: \"stx_lock\" } ? StxLockPayload : F extends { type: \"contra…"
+		},
+		{
+			"name": "EventRecord",
+			"summary": "",
+			"fields": [
+				{
+					"name": "id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx_id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "event_index",
+					"type": "number",
+					"required": true,
+					"description": "Classic `event_index`, or `ordinal` when `clock === \"vm\"`."
+				},
+				{
+					"name": "data",
+					"type": "unknown",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "clock",
+					"type": "\"vm\"",
+					"required": false,
+					"description": "Set on opt-in `vm_events` rows. Two clocks never sort or dedupe together."
+				}
+			]
+		},
+		{
+			"name": "EventTrace",
+			"summary": "Per-event IN/OUT trace for `subgraphs preview`.",
+			"fields": [
+				{
+					"name": "source",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "blockHeight",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "txId",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "inKeys",
+					"type": "string[]",
+					"required": true,
+					"description": "Camelized event.data keys (or contract-call field names)."
+				},
+				{
+					"name": "outs",
+					"type": "{ table: string; keys: string[] }[]",
+					"required": true,
+					"description": "Tables written by this event; empty when the mapping wrote nothing."
+				}
+			]
+		},
+		{
+			"name": "FtBurnFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtMintFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtTransferFilter",
+			"summary": "FT event filters",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "IndexContractCallRow",
+			"summary": "Structural Index contract-call row.",
+			"fields": [
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "function_name",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "args",
+					"type": "unknown",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "result",
+					"type": "unknown",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "result_hex",
+					"type": "unknown",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "tx_id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "cursor",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "IndexEventRow",
+			"summary": "Structural Index event row (avoids an SDK dep on this package).",
+			"fields": [
+				{
+					"name": "event_type",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "payload",
+					"type": "unknown",
+					"required": false,
+					"description": "Print events carry `{ topic, value }`; other types vary."
+				},
+				{
+					"name": "sender",
+					"type": "unknown",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "unknown",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "unknown",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "asset_identifier",
+					"type": "unknown",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "value",
+					"type": "unknown",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "cursor",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "IndexTestRow",
+			"summary": "",
+			"definition": "IndexEventRow | IndexContractCallRow"
+		},
+		{
+			"name": "MapWriteFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"map_set\" | \"map_insert\" | \"map_delete\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NestedContractCallFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nested_contract_call\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftBurnFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftMintFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftTransferFilter",
+			"summary": "NFT event filters",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PinnedPrintEventFilter",
+			"summary": "Pinned to one or more contract ids with no trait — `prints` is required so `event.data` is typed and empty-table handlers cannot typecheck.",
+			"fields": [
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "\"print_event\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "undefined",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "prints",
+					"type": "PrintEventPrints",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PrintEventPrints",
+			"summary": "Per-topic field schema for a print_event source.",
+			"definition": "Record<string, Record<string, PrintField>>"
+		},
+		{
+			"name": "PrintField",
+			"summary": "One declared field of a print payload.",
+			"definition": "ColumnType | { type: PrintField; optional: true; } | { tuple: Record<string, PrintField>; } | { list: PrintField; }"
+		},
+		{
+			"name": "ProbeHandlersDef",
+			"summary": "",
+			"fields": [
+				{
+					"name": "schema",
+					"type": "SubgraphSchema",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sources",
+					"type": "Record<string, { type: string; [key: string]: unknown }>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "handlers",
+					"type": "Record<string, unknown>",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ProbeHandlersResult",
+			"summary": "",
+			"fields": [
+				{
+					"name": "matched",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "written",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tables",
+					"type": "string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "firstEventKeys",
+					"type": "string[]",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "RunSubgraphTestInput",
+			"summary": "",
+			"fields": [
+				{
+					"name": "schema",
+					"type": "SubgraphSchema",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "handlers",
+					"type": "Record<string, unknown>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sources",
+					"type": "Record<string, SubgraphTestSource>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "events",
+					"type": "Record<string, IndexTestRow[]>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "trace",
+					"type": "boolean",
+					"required": false,
+					"description": "Collect per-event IN/OUT traces (preview)."
+				}
+			]
+		},
+		{
+			"name": "StxBurnFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxLockFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_lock\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lockedAddress",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxMintFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxTransferFilter",
+			"summary": "STX event filters",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphColumn",
+			"summary": "Column definition in a subgraph table",
+			"fields": [
+				{
+					"name": "type",
+					"type": "ColumnType",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "nullable",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "indexed",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "search",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "default",
+					"type": "string | number | boolean",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphFilter",
+			"summary": "All subgraph filter types — discriminated on `type`",
+			"definition": "StxTransferFilter | StxMintFilter | StxBurnFilter | StxLockFilter | FtTransferFilter | FtMintFilter | FtBurnFilter | NftTransferFilter | NftMintFilter | NftBurnFilter | ContractCallFilter | ContractDeployFilter | PrintEventFilter | NestedContractCallFilter | VarSetFilter | MapWriteFilter"
+		},
+		{
+			"name": "SubgraphSchema",
+			"summary": "Subgraph schema — maps table names to table definitions",
+			"definition": "Record<string, SubgraphTable>"
+		},
+		{
+			"name": "SubgraphTable",
+			"summary": "Table definition within a subgraph schema.",
+			"fields": [
+				{
+					"name": "columns",
+					"type": "Record<string, SubgraphColumn>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "indexes",
+					"type": "readonly readonly string[][]",
+					"required": false,
+					"description": "Composite indexes (each entry is an array of column names)"
+				},
+				{
+					"name": "uniqueKeys",
+					"type": "readonly readonly string[][]",
+					"required": false,
+					"description": "Unique key constraints (each entry is an array of column names). Required for upsert."
+				}
+			]
+		},
+		{
+			"name": "SubgraphTestResult",
+			"summary": "",
+			"fields": [
+				{
+					"name": "ok",
+					"type": "boolean",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "code",
+					"type": "\"EMPTY_MAPPING\" | \"NO_EVENTS\" | \"NO_SOURCES\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "matched",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "written",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tables",
+					"type": "{ name: string; rows: number; sampleRow?: Record<string, unknown> }[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "firstEvent",
+					"type": "{ source: string; data?: unknown }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "hint",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "traces",
+					"type": "EventTrace[]",
+					"required": false,
+					"description": "Present when `trace: true`."
+				},
+				{
+					"name": "unusedInKeys",
+					"type": "string[]",
+					"required": false,
+					"description": "Keys present on every matched IN and never written to any OUT column."
+				}
+			]
+		},
+		{
+			"name": "SubgraphTestSource",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "TestSubgraphContext",
+			"summary": "An in-memory subgraph context for tests.",
+			"fields": [
+				{
+					"name": "rows",
+					"type": "(table: keyof S & string) => Promise<Record<string, unknown>[]>",
+					"required": true,
+					"description": "Current rows of `table`, INCLUDING writes queued by the handler you just\nran (the same read-your-writes overlay the runtime uses). Drop straight\ninto `toMatchInlineSnapshot()`."
+				},
+				{
+					"name": "commit",
+					"type": "() => Promise<void>",
+					"required": true,
+					"description": "Commit pending writes into the in-memory store, as an end-of-block flush\nwould — call between blocks when a test spans several."
+				},
+				{
+					"name": "setTx",
+					"type": "(tx: { txId?: string; sender?: string; type?: string; status?: string; contractId?: string | null; functionName?: string | null }) => void",
+					"required": true,
+					"description": "Swap the transaction metadata handlers see (`ctx.tx`)."
+				},
+				{
+					"name": "pendingInsertsSince",
+					"type": "(checkpoint: number) => { table: string; keys: string[]; row: Record<string, unknown> }[]",
+					"required": true,
+					"description": "Insert ops queued since `opsCheckpoint()`, for preview IN/OUT traces."
+				},
+				{
+					"name": "opsCheckpoint",
+					"type": "() => number",
+					"required": true,
+					"description": "Length of the pending-ops queue (same as runtime `opsCheckpoint`)."
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "block",
+					"type": "{ height: number; hash: string; timestamp: number; burnBlockHeight: number; indexBlockHash?: string | null }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "client",
+					"type": "ErasedChainReadClient",
+					"required": true,
+					"description": "Read-only contract calls pinned to this block. Erased here for the same\nreason as on `SubgraphContext`: an ABI-generic method on a structurally\ncompared interface exceeds TS's instantiation budget. Wrap it with\n`readContractAt(ctx, id, abi)` for full ABI typing at the call site."
+				},
+				{
+					"name": "insert",
+					"type": "(table: T, row: WriteRow<S[T]>) => void",
+					"required": true,
+					"description": "Queues a new row for a table.\n\nWrites are batched and applied together when the block commits.\n`_block_height` and `_tx_id` are filled in for you."
+				},
+				{
+					"name": "update",
+					"type": "(table: T, where: RowWhere<S, T>, set: Partial<{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }>) => void",
+					"required": true,
+					"description": "Queues an update to the rows matching `where`.\n\n`set` holds only the columns to change."
+				},
+				{
+					"name": "upsert",
+					"type": "(table: T, key: K, row: Omit<{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }, keyof K> & Partial<{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }>) => void",
+					"required": true,
+					"description": "Inserts a row, or updates the one with the same key.\n\n`key` should match a `uniqueKeys` constraint of the table. Without one the\nwrite falls back to a lookup first and logs a warning."
+				},
+				{
+					"name": "delete",
+					"type": "(table: T, where: RowWhere<S, T>) => void",
+					"required": true,
+					"description": "Queues deletion of the rows matching `where`."
+				},
+				{
+					"name": "increment",
+					"type": "(table: T, key: Partial<{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }>, deltas: Record<string, Record<ColumnName<S, T>, number | bigint>[string] | undefined>) => void",
+					"required": true,
+					"description": "Adds signed deltas to a counter row, creating it if missing.\n\nIt compiles to `INSERT … ON CONFLICT (key) DO UPDATE SET col =\nCOALESCE(col,0) + delta`. Deltas commute, so it is the reorg-safe way to\nkeep running totals such as per-cycle aggregates and balances. It needs a\n`uniqueKeys` constraint matching `key`, and deltas may be `number` or\n`bigint`."
+				},
+				{
+					"name": "findOne",
+					"type": "(table: T, where: RowWhere<S, T>) => Promise<SystemRow & { [K in keyof T[\"columns\"]]: InferColumnType<T[\"columns\"][K]>; } | null>",
+					"required": true,
+					"description": "Returns the first row matching `where`, or `null`.\n\nReads see the writes queued earlier in the same block, and rows come back\nin insertion order."
+				},
+				{
+					"name": "findMany",
+					"type": "(table: T, where: RowWhere<S, T>) => Promise<SystemRow & { [K in keyof T[\"columns\"]]: InferColumnType<T[\"columns\"][K]>; }[]>",
+					"required": true,
+					"description": "Returns every row matching `where`, in insertion order.\n\nReads see the writes queued earlier in the same block."
+				}
+			]
+		},
+		{
+			"name": "TraitPrintEventFilter",
+			"summary": "Trait-scoped print source (optionally narrowed by contractId).",
+			"fields": [
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "\"print_event\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "prints",
+					"type": "PrintEventPrints",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "TxMeta",
+			"summary": "Transaction metadata available in handlers",
+			"fields": [
+				{
+					"name": "txId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "TxRecord",
+			"summary": "",
+			"fields": [
+				{
+					"name": "tx_id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx_index",
+					"type": "number",
+					"required": false,
+					"description": "Position within the block — the runner sorts dispatch into chain order."
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "function_name",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "function_args",
+					"type": "unknown",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "raw_result",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "UnpinnedPrintEventFilter",
+			"summary": "Unpinned / factory-only print source (no contractId).",
+			"fields": [
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "\"print_event\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "undefined",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "prints",
+					"type": "PrintEventPrints",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "VarSetFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"var_set\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "varName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		}
+	]
+}

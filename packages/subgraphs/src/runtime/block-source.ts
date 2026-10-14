@@ -74,9 +74,13 @@ export interface BlockSource {
  *  everything that isn't their token. */
 export type SparseProbeTarget = { eventType: string; contractId?: string };
 
-/** Sparse scanning is sound only when EVERY source is an event-type filter —
- *  a contract_call/contract_deploy source matches transactions, which the
- *  event probe can't see. */
+/**
+ * Tells whether a subgraph can skip blocks without its events.
+ *
+ * Sparse scanning is sound only when every source is an event-type filter. A
+ * `contract_call` or `contract_deploy` source matches transactions, which the
+ * event probe cannot see.
+ */
 export function canSparseScan(subgraph: SubgraphDefinition): boolean {
 	if (Array.isArray(subgraph.sources)) return false;
 	const filters = sourceFilters(subgraph);
@@ -116,9 +120,11 @@ function pinnedContracts(filter: SubgraphFilter): string[] | null {
 }
 
 /**
- * The (decoded event type, contract scope) pairs a subgraph's filters can
- * match. One function feeds BOTH the sparse probe and the event walks, so a
- * new contract-pinning filter field is added here once.
+ * Lists the event types and contract scopes a subgraph's filters match.
+ *
+ * Each target is a decoded event type with an optional contract scope. One
+ * function feeds both the sparse probe and the event walks, so a new
+ * contract-pinning filter field is added here once.
  *
  * Per event type: if ANY filter for it is unscoped, a single unscoped target
  * covers everything (today's behavior); otherwise one target per distinct
@@ -365,12 +371,13 @@ export function referencedIndexEventTypes(
 }
 
 /**
- * streams-index eligibility: every source must be a known event-type or
- * contract_call/contract_deploy filter (no array-style sources, which leak the
- * unreconstructable `_eventId`). Trait scope IS allowed — trait resolution
- * reads the contract registry on the platform DB (`targetDb`), which the
- * processor always holds, so it's source-independent. Everything else stays on
- * the DB tap.
+ * Tells whether a subgraph's sources can be read from the Streams index.
+ *
+ * Every source must be a known event-type, `contract_call` or
+ * `contract_deploy` filter, and array-style sources never qualify because they
+ * leak the unreconstructable `_eventId`. Trait scope is allowed: trait
+ * resolution reads the contract registry on the platform database, which the
+ * processor always holds. Everything else stays on the database tap.
  */
 export function isStreamsIndexEligible(subgraph: SubgraphDefinition): boolean {
 	if (Array.isArray(subgraph.sources)) return false;

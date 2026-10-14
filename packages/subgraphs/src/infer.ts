@@ -287,12 +287,29 @@ export interface TypedSubgraphContext<S extends SubgraphSchema> {
 	 * `readContractAt(ctx, id, abi)` for full ABI typing at the call site.
 	 */
 	client: ErasedChainReadClient;
+	/**
+	 * Queues a new row for a table.
+	 *
+	 * Writes are batched and applied together when the block commits.
+	 * `_block_height` and `_tx_id` are filled in for you.
+	 */
 	insert<T extends TableName<S>>(table: T, row: WriteRow<S[T]>): void;
+	/**
+	 * Queues an update to the rows matching `where`.
+	 *
+	 * `set` holds only the columns to change.
+	 */
 	update<T extends TableName<S>>(
 		table: T,
 		where: RowWhere<S, T>,
 		set: Partial<WriteRow<S[T]>>,
 	): void;
+	/**
+	 * Inserts a row, or updates the one with the same key.
+	 *
+	 * `key` should match a `uniqueKeys` constraint of the table. Without one the
+	 * write falls back to a lookup first and logs a warning.
+	 */
 	upsert<T extends TableName<S>, K extends Partial<WriteRow<S[T]>>>(
 		table: T,
 		key: K,
@@ -300,22 +317,37 @@ export interface TypedSubgraphContext<S extends SubgraphSchema> {
 		// `row` — only the remaining required columns must be supplied.
 		row: Omit<WriteRow<S[T]>, keyof K> & Partial<WriteRow<S[T]>>,
 	): void;
+	/** Queues deletion of the rows matching `where`. */
 	delete<T extends TableName<S>>(table: T, where: RowWhere<S, T>): void;
 	/**
-	 * Atomic accumulator — `INSERT … ON CONFLICT (key) DO UPDATE SET col =
-	 * COALESCE(col,0) + delta`. Deltas commute, so it's the reorg-safe primitive
-	 * for running totals (per-cycle aggregates, balances). Requires a `uniqueKeys`
-	 * constraint matching `key`; deltas may be `number` or `bigint`.
+	 * Adds signed deltas to a counter row, creating it if missing.
+	 *
+	 * It compiles to `INSERT … ON CONFLICT (key) DO UPDATE SET col =
+	 * COALESCE(col,0) + delta`. Deltas commute, so it is the reorg-safe way to
+	 * keep running totals such as per-cycle aggregates and balances. It needs a
+	 * `uniqueKeys` constraint matching `key`, and deltas may be `number` or
+	 * `bigint`.
 	 */
 	increment<T extends TableName<S>>(
 		table: T,
 		key: Partial<WriteRow<S[T]>>,
 		deltas: Partial<Record<ColumnName<S, T>, bigint | number>>,
 	): void;
+	/**
+	 * Returns the first row matching `where`, or `null`.
+	 *
+	 * Reads see the writes queued earlier in the same block, and rows come back
+	 * in insertion order.
+	 */
 	findOne<T extends TableName<S>>(
 		table: T,
 		where: RowWhere<S, T>,
 	): Promise<InferTableRow<S[T]> | null>;
+	/**
+	 * Returns every row matching `where`, in insertion order.
+	 *
+	 * Reads see the writes queued earlier in the same block.
+	 */
 	findMany<T extends TableName<S>>(
 		table: T,
 		where: RowWhere<S, T>,

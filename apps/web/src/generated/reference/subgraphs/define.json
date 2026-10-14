@@ -1,0 +1,1923 @@
+{
+	"slug": "define",
+	"root": "",
+	"methods": [
+		{
+			"id": "defineSchema",
+			"path": "defineSchema",
+			"summary": "Declares a schema you can hoist out of `defineSubgraph()` and reuse.",
+			"description": "Declares a schema you can hoist out of `defineSubgraph()` and reuse.\n\nIt keeps the schema's literal types, so table names and row columns stay\nchecked in helpers typed `TypedSubgraphContext<typeof schema>`. `as const`\nalone does not work: it produces `readonly` arrays that a mutable\n`uniqueKeys` rejects, and a bare literal widens `type` to `string`.",
+			"source": {
+				"file": "packages/subgraphs/src/define.ts",
+				"line": 92
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "S",
+							"constraint": "SubgraphSchema",
+							"const": true
+						}
+					],
+					"params": [
+						{
+							"name": "schema",
+							"type": "S",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "S",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "defineSubgraph",
+			"path": "defineSubgraph",
+			"summary": "Declares a subgraph and keeps its source and schema literal types.",
+			"description": "Declares a subgraph and keeps its source and schema literal types.\n\nHandlers are typed per source, and the schema drives query-client inference.\nIt returns its argument unchanged.",
+			"source": {
+				"file": "packages/subgraphs/src/define.ts",
+				"line": 57
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "Sources",
+							"constraint": "Record<string, SubgraphFilter>",
+							"const": true
+						},
+						{
+							"name": "S",
+							"constraint": "SubgraphSchema",
+							"const": true
+						}
+					],
+					"params": [
+						{
+							"name": "def",
+							"type": "TypedSubgraphDefinition<Sources, S>",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "TypedSubgraphDefinition<Sources, S>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "filterFieldsByType",
+			"path": "filterFieldsByType",
+			"summary": "Lists the fields each source filter type accepts.",
+			"description": "Lists the fields each source filter type accepts.\n\nThe list is derived from `SubgraphFilterSchema`. Agent-facing surfaces\nsuch as the MCP filters reference used to keep a parallel copy by hand;\nderiving it means adding a field to a filter can never leave the\ndocumentation behind.",
+			"source": {
+				"file": "packages/subgraphs/src/validate.ts",
+				"line": 471
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [],
+					"returns": {
+						"type": "{ type: string; fields: string[] }[]",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "validateSubgraphDefinition",
+			"path": "validateSubgraphDefinition",
+			"summary": "Validates a subgraph definition and returns the parsed result.",
+			"description": "Validates a subgraph definition and returns the parsed result.\n\nIt throws when the definition is invalid.",
+			"source": {
+				"file": "packages/subgraphs/src/validate.ts",
+				"line": 459
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "def",
+							"type": "unknown",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "SubgraphDefinition",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "camelizeKeys",
+			"path": "camelizeKeys",
+			"summary": "Camelizes object keys recursively, the way print payloads are.",
+			"description": "Camelizes object keys recursively, the way print payloads are.\n\nIt uses the print-payload helper, not ABI `toCamelCase`, which strips `-STX`\nand prefixes leading digits.",
+			"source": {
+				"file": "packages/subgraphs/src/print-schema.ts",
+				"line": 62
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "obj",
+							"type": "unknown",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "unknown",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "inferPrintTopics",
+			"path": "inferPrintTopics",
+			"summary": "Infers per-topic field schemas from sampled print events.",
+			"description": "Infers per-topic field schemas from sampled print events. Counts and\nheight bounds cover ALL rows of a topic (cheap); only a bounded subset is\ndeserialized for typing. Rows with missing/undecodable hex still count but\ncontribute nothing to typing.",
+			"source": {
+				"file": "packages/subgraphs/src/print-schema.ts",
+				"line": 357
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "samples",
+							"type": "PrintSample[]",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "InferredTopicSchema[]",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "AnyEvent",
+			"summary": "Union of every event payload.",
+			"definition": "StxTransferPayload | StxMintPayload | StxBurnPayload | StxLockPayload | FtTransferPayload | FtMintPayload | FtBurnPayload | NftTransferPayload | NftMintPayload | NftBurnPayload | ContractCallEvent | ContractDeployPayload | PrintEventPayload | NestedContractCallPayload | VarSetPayload | MapDeletePayload | MapWritePayload"
+		},
+		{
+			"name": "ChainReadCacheMode",
+			"summary": "How long a read stays valid.",
+			"definition": "\"per-block\" | \"contract-constant\""
+		},
+		{
+			"name": "ChainReadOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "cache",
+					"type": "ChainReadCacheMode",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ColumnType",
+			"summary": "Supported column types for subgraph schemas",
+			"definition": "ColumnType<string | null, string | null | undefined, string | null>"
+		},
+		{
+			"name": "ContractCallEvent",
+			"summary": "Event shape passed to contract_call handlers.",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"contract_call\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": "Transaction sender (the principal who signed the tx). Always non-null."
+				},
+				{
+					"name": "contractId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "args",
+					"type": "unknown[]",
+					"required": true,
+					"description": "Positional decoded Clarity values — order matches the ABI parameter list."
+				},
+				{
+					"name": "result",
+					"type": "unknown",
+					"required": true,
+					"description": "Decoded return value from the contract function, or null."
+				},
+				{
+					"name": "resultHex",
+					"type": "string | null",
+					"required": true,
+					"description": "Raw hex-encoded result value."
+				},
+				{
+					"name": "tx",
+					"type": "{ txId: string; sender: string; type: string; status: string; contractId: string | null; functionName: string | null }",
+					"required": true,
+					"description": "Transaction metadata."
+				}
+			]
+		},
+		{
+			"name": "ContractCallFilter",
+			"summary": "Contract event filters",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"contract_call\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": "One contract id, or a SET of them (max 20) — the standard DeFi shape is\na router plus N pools, which used to cost N near-identical sources and\nhandlers. Payload types are identical per `type`, so one handler serves\nthe set and `event.contractId` disambiguates.\n\nSupports `*` wildcards (e.g. `\"SP1ABC….pool-*\"`). Mutually exclusive\nwith `trait`, which resolves its own set per block."
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "abi",
+					"type": "AbiContract",
+					"required": false,
+					"description": "Contract ABI (pass it `as const`) used to type `event.input` — the named,\ndecoded function arguments. Dev-provided; serialized into the deployed\ndefinition and used at runtime to decode args by name. Omit to keep\n`event.args` as a positional `unknown[]`.\n\nRequired whenever `functionName` is set. `secondlayer subgraphs deploy`\nfills it in from the deployed contract for a single concrete\n`contractId`; pass it yourself for wildcard, multi-contract or trait\nsources, or a local deploy (`normalizeAbi()` from\n`@secondlayer/stacks/clarity`)."
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ContractCallPayload",
+			"summary": "Contract-call payload.",
+			"definition": "F extends { abi: infer A extends AbiContract; functionName: infer N extends string; } ? N extends ExtractFunctionNames<A> ? ContractCallEvent & { input: ExtractFunctionArgs<A, N> } : ContractCallEvent : ContractCallEvent"
+		},
+		{
+			"name": "ContractDeployFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"contract_deploy\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "deployer",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ContractDeployPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contractId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "deployer",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ErasedChainReadClient",
+			"summary": "`ChainReadClient` with the ABI generic erased.",
+			"fields": [
+				{
+					"name": "contract",
+					"type": "(contractId: string, abi: unknown, options?: ChainReadOptions) => { read: Record<string, (args?: Record<string, unknown>) => Promise<unknown>> }",
+					"required": true,
+					"description": "Reads a contract's read-only functions at the block being processed.\n\nResults are untyped here. Call it through `readContractAt` to get typed\nresults from the contract's ABI."
+				}
+			]
+		},
+		{
+			"name": "EventForFilter",
+			"summary": "The event payload a handler receives for a given source filter.",
+			"definition": "F extends { type: \"print_event\"; } ? PrintEventFor<F> : F extends { type: \"ft_transfer\" } ? FtTransferPayload : F extends { type: \"ft_mint\" } ? FtMintPayload : F extends { type: \"ft_burn\" } ? FtBurnPayload : F extends { type: \"nft_transfer\" } ? NftTransferPayload : F extends { type: \"nft_mint\" } ? NftMintPayload : F extends { type: \"nft_burn\" } ? NftBurnPayload : F extends { type: \"stx_transfer\" } ? StxTransferPayload : F extends { type: \"stx_mint\" } ? StxMintPayload : F extends { type: \"stx_burn\" } ? StxBurnPayload : F extends { type: \"stx_lock\" } ? StxLockPayload : F extends { type: \"contra…"
+		},
+		{
+			"name": "FactoryScope",
+			"summary": "Scope a source to a DYNAMIC address set discovered from another source's events, instead of a fixed contract list.",
+			"fields": [
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtBurnFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtBurnPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtMintFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtMintPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtTransferFilter",
+			"summary": "FT event filters",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtTransferPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "InferContext",
+			"summary": "The typed handler context for a subgraph definition — for annotating helpers extracted out of a handler:",
+			"definition": "D extends { schema: infer S extends SubgraphSchema; } ? TypedSubgraphContext<S> : never"
+		},
+		{
+			"name": "InferredPrintField",
+			"summary": "",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": "Original kebab-case tuple key (the `topic` discriminant is excluded)"
+				},
+				{
+					"name": "camel_name",
+					"type": "string",
+					"required": true,
+					"description": "What handlers see on `e.data` — exact runner camelization"
+				},
+				{
+					"name": "clarity_type",
+					"type": "string",
+					"required": true,
+					"description": "Rendered Clarity type; buff/string lengths are the max observed"
+				},
+				{
+					"name": "ts_type",
+					"type": "string",
+					"required": true,
+					"description": "Decoded handler value type (uint→bigint, buffer→string, …)"
+				},
+				{
+					"name": "column_type",
+					"type": "ColumnType",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "always_present",
+					"type": "boolean",
+					"required": true,
+					"description": "Present in 100% of this topic's decoded samples"
+				},
+				{
+					"name": "optional_some_rate",
+					"type": "number",
+					"required": false,
+					"description": "Only when optional observed: share of present samples that were some"
+				}
+			]
+		},
+		{
+			"name": "InferredTopicSchema",
+			"summary": "",
+			"fields": [
+				{
+					"name": "topic",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "count",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "first_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "last_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "non_tuple",
+					"type": "boolean",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "fields",
+					"type": "InferredPrintField[]",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MapDeletePayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contractId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "rawKey",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "key",
+					"type": "unknown",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MapWriteFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"map_set\" | \"map_insert\" | \"map_delete\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MapWritePayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contractId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "rawKey",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "key",
+					"type": "unknown",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "rawValue",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "value",
+					"type": "unknown",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NestedContractCallFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nested_contract_call\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NestedContractCallPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contractId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "args",
+					"type": "unknown[]",
+					"required": true,
+					"description": "Decoded `function_args`."
+				},
+				{
+					"name": "arguments",
+					"type": "string[]",
+					"required": true,
+					"description": "Original hex `function_args`, preserved."
+				},
+				{
+					"name": "rawResult",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "result",
+					"type": "unknown",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftBurnFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftBurnPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tokenId",
+					"type": "unknown",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftMintFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftMintPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tokenId",
+					"type": "unknown",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftTransferFilter",
+			"summary": "NFT event filters",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftTransferPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tokenId",
+					"type": "unknown",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PinnedPrintEventFilter",
+			"summary": "Pinned to one or more contract ids with no trait — `prints` is required so `event.data` is typed and empty-table handlers cannot typecheck.",
+			"fields": [
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "\"print_event\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "undefined",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "prints",
+					"type": "PrintEventPrints",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PrintDataOf",
+			"summary": "`event.data` for one topic: declared fields typed, with `{ optional: true }` fields made optional KEYS (a field observed on only some events must not be typed as always present).",
+			"definition": "unknown"
+		},
+		{
+			"name": "PrintEventFilter",
+			"summary": "Print-event filter.",
+			"definition": "PinnedPrintEventFilter | TraitPrintEventFilter | UnpinnedPrintEventFilter"
+		},
+		{
+			"name": "PrintEventFor",
+			"summary": "Print event typed per topic.",
+			"definition": "F extends { prints: infer P extends Record<string, Record<string, PrintField>>; } ? { [K in keyof P]: { contractId: string; topic: K; data: PrintDataOf<P[K]>; tx: TxMeta; }; }[keyof P] : PrintEventPayload"
+		},
+		{
+			"name": "PrintEventPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contractId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": true,
+					"description": "Decoded print topic (the Clarity tuple's `topic` field), or \"\"."
+				},
+				{
+					"name": "data",
+					"type": "Record<string, unknown>",
+					"required": true,
+					"description": "Remaining decoded tuple fields, camelCased. Empty object when the print\nvalue isn't a tuple. Narrow per `topic` to access typed fields."
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PrintEventPrints",
+			"summary": "Per-topic field schema for a print_event source.",
+			"definition": "Record<string, Record<string, PrintField>>"
+		},
+		{
+			"name": "PrintField",
+			"summary": "One declared field of a print payload.",
+			"definition": "ColumnType | { type: PrintField; optional: true; } | { tuple: Record<string, PrintField>; } | { list: PrintField; }"
+		},
+		{
+			"name": "PrintFieldToTS",
+			"summary": "TS type of one declared print field (nested tuples and lists included).",
+			"definition": "F extends ColumnType ? ColumnToTS<F> : F extends { type: infer Inner; optional: true } ? PrintFieldToTS<Inner> : F extends { tuple: infer T extends Record<string, PrintField> } ? PrintDataOf<T> : F extends { list: infer Item } ? PrintFieldToTS<Item>[] : unknown"
+		},
+		{
+			"name": "PrintSample",
+			"summary": "Empirical print-payload schema inference.",
+			"fields": [
+				{
+					"name": "blockHeight",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "rawHex",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "RowValue",
+			"summary": "Scalar types that can appear as row values",
+			"definition": "string | number | bigint | boolean | Record<string, unknown> | unknown[] | null | undefined"
+		},
+		{
+			"name": "StxBurnFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxBurnPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxLockFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_lock\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lockedAddress",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxLockPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "lockedAddress",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lockedAmount",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "unlockHeight",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxMintFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxMintPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxTransferFilter",
+			"summary": "STX event filters",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxTransferPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "memo",
+					"type": "string",
+					"required": true,
+					"description": "Memo string, or \"\" when none was attached."
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphColumn",
+			"summary": "Column definition in a subgraph table",
+			"fields": [
+				{
+					"name": "type",
+					"type": "ColumnType",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "nullable",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "indexed",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "search",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "default",
+					"type": "string | number | boolean",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphContext",
+			"summary": "Context passed to subgraph handlers during event processing",
+			"fields": [
+				{
+					"name": "block",
+					"type": "{ height: number; hash: string; timestamp: number; burnBlockHeight: number; indexBlockHash?: string | null }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "client",
+					"type": "ErasedChainReadClient",
+					"required": true,
+					"description": "Read-only contract calls pinned to this block. Cached, so the same\n(contract, function, args) is fetched once per block rather than once\nper event.\n\nErased here on purpose: this interface is compared structurally wherever\na subgraph definition is passed around, and carrying an ABI-generic\nmethod pushes those comparisons past TS's instantiation depth. Handlers\nreceive `TypedSubgraphContext`, which exposes the fully typed version."
+				},
+				{
+					"name": "insert",
+					"type": "(table: string, row: Record<string, unknown>) => void",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "update",
+					"type": "(table: string, where: Record<string, unknown>, set: Record<string, unknown>) => void",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "upsert",
+					"type": "(table: string, key: Record<string, unknown>, row: Record<string, unknown>) => void",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "delete",
+					"type": "(table: string, where: Record<string, unknown>) => void",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "increment",
+					"type": "(table: string, key: Record<string, unknown>, deltas: Record<string, number | bigint>) => void",
+					"required": true,
+					"description": "Atomic counter update — the blessed accumulator primitive. Applies\n`col = COALESCE(col, 0) + delta` per column (insert-or-add); deltas may\nbe negative. Requires a uniqueKeys constraint matching `key`. Prefer\nthis over read-modify-write handlers for running totals."
+				},
+				{
+					"name": "findOne",
+					"type": "(table: string, where: Record<string, unknown>) => Promise<Record<string, unknown> | null>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "findMany",
+					"type": "(table: string, where: Record<string, unknown>) => Promise<Record<string, unknown>[]>",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphDefinition",
+			"summary": "Complete subgraph definition",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": "Unique subgraph name (lowercase, alphanumeric + hyphens)"
+				},
+				{
+					"name": "description",
+					"type": "string",
+					"required": false,
+					"description": "Human description"
+				},
+				{
+					"name": "startBlock",
+					"type": "number",
+					"required": false,
+					"description": "Block height to start indexing from (default: 1)"
+				},
+				{
+					"name": "backfillMode",
+					"type": "\"blocking\" | \"concurrent\"",
+					"required": false,
+					"description": "'concurrent' = tip-first: live at tip now, history backfills behind.\nRequires order-tolerant handlers. Default 'blocking'."
+				},
+				{
+					"name": "sources",
+					"type": "Record<string, SubgraphFilter>",
+					"required": true,
+					"description": "Named source filters — keys become handler keys"
+				},
+				{
+					"name": "schema",
+					"type": "SubgraphSchema",
+					"required": true,
+					"description": "Tables in this subgraph"
+				},
+				{
+					"name": "handlers",
+					"type": "Record<string, SubgraphHandler>",
+					"required": true,
+					"description": "Handler functions, one per source, keyed by source name"
+				}
+			]
+		},
+		{
+			"name": "SubgraphFilter",
+			"summary": "All subgraph filter types — discriminated on `type`",
+			"definition": "StxTransferFilter | StxMintFilter | StxBurnFilter | StxLockFilter | FtTransferFilter | FtMintFilter | FtBurnFilter | NftTransferFilter | NftMintFilter | NftBurnFilter | ContractCallFilter | ContractDeployFilter | PrintEventFilter | NestedContractCallFilter | VarSetFilter | MapWriteFilter"
+		},
+		{
+			"name": "SubgraphHandler",
+			"summary": "Handler function that processes events and writes to the subgraph",
+			"definition": "(event: Record<string, unknown>, ctx: SubgraphContext) => Promise<void> | void"
+		},
+		{
+			"name": "SubgraphSchema",
+			"summary": "Subgraph schema — maps table names to table definitions",
+			"definition": "Record<string, SubgraphTable>"
+		},
+		{
+			"name": "SubgraphTable",
+			"summary": "Table definition within a subgraph schema.",
+			"fields": [
+				{
+					"name": "columns",
+					"type": "Record<string, SubgraphColumn>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "indexes",
+					"type": "readonly readonly string[][]",
+					"required": false,
+					"description": "Composite indexes (each entry is an array of column names)"
+				},
+				{
+					"name": "uniqueKeys",
+					"type": "readonly readonly string[][]",
+					"required": false,
+					"description": "Unique key constraints (each entry is an array of column names). Required for upsert."
+				}
+			]
+		},
+		{
+			"name": "TraitPrintEventFilter",
+			"summary": "Trait-scoped print source (optionally narrowed by contractId).",
+			"fields": [
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "\"print_event\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "prints",
+					"type": "PrintEventPrints",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "TxMeta",
+			"summary": "Transaction metadata available in handlers",
+			"fields": [
+				{
+					"name": "txId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "TypedHandlers",
+			"summary": "Handlers keyed by source name, one per source.",
+			"definition": "{ [K in keyof Sources]-?: HandlerFn<Sources[K], S> }"
+		},
+		{
+			"name": "TypedSubgraphDefinition",
+			"summary": "Subgraph definition with `sources`/`schema` literals preserved for typed handlers and downstream query-client inference (`getSubgraph`).",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": "Unique subgraph name (lowercase, alphanumeric + hyphens)"
+				},
+				{
+					"name": "description",
+					"type": "string",
+					"required": false,
+					"description": "Human description"
+				},
+				{
+					"name": "startBlock",
+					"type": "number",
+					"required": false,
+					"description": "Block height to start indexing from (default: 1)"
+				},
+				{
+					"name": "backfillMode",
+					"type": "\"blocking\" | \"concurrent\"",
+					"required": false,
+					"description": "'concurrent' = tip-first: live at tip now, history backfills behind.\nRequires order-tolerant handlers. Default 'blocking'."
+				},
+				{
+					"name": "sources",
+					"type": "Sources",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "schema",
+					"type": "S",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "handlers",
+					"type": "TypedHandlers<Sources, S>",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "UnpinnedPrintEventFilter",
+			"summary": "Unpinned / factory-only print source (no contractId).",
+			"fields": [
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "\"print_event\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "undefined",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "prints",
+					"type": "PrintEventPrints",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "VarSetFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"var_set\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "varName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "VarSetPayload",
+			"summary": "",
+			"fields": [
+				{
+					"name": "contractId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "varName",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "rawValue",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "value",
+					"type": "unknown",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				}
+			]
+		}
+	]
+}

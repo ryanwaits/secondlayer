@@ -110,8 +110,10 @@ const STEP_OF: Partial<Record<VerifyStep, ReplayStep>> = {
 const EMPTY_TX: TxMeta = { txId: "", sender: "", type: "", status: "" };
 
 /**
- * The contracts a state subgraph's writes come from, or an error when a
- * source does not fix one: completeness would need every contract's writes.
+ * Lists the contracts a state subgraph's writes come from.
+ *
+ * It returns an error when a source does not fix one, because completeness
+ * would then need every contract's writes.
  */
 export function replayContracts(
 	def: Pick<SubgraphDefinition, "sources">,
@@ -144,9 +146,11 @@ export type PinCheck =
 	| { status: "failed"; failure: ReplayFailure; notes: string[] };
 
 /**
- * The served pin against the served bundle: the preimage must hash to the
- * pin, and name this handler code, this schema and this startBlock. A runtime
- * other than this package's is a note: rows can still match.
+ * Checks a served pin against the served bundle.
+ *
+ * The preimage must hash to the pin, and name this handler code, this schema
+ * and this `startBlock`. A runtime other than this package's is only a note,
+ * since rows can still match.
  */
 export function checkPin(
 	served: {
@@ -435,7 +439,11 @@ function cacheWitnesses(source: ProofSource): ProofSource {
 	return out;
 }
 
-/** Verify every block in `[from, to]` from the checkpoint and recompute the subgraph's tables. */
+/**
+ * Verifies every block in a range and recomputes the subgraph's tables.
+ *
+ * The range is `[from, to]`, and blocks are verified from the checkpoint.
+ */
 export async function replaySubgraph(
 	opts: ReplayOptions,
 ): Promise<ReplayResult> {

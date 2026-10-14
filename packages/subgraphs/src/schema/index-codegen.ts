@@ -258,6 +258,12 @@ function generatePrisma(
 	return `${header}\n\n${models.join("\n\n")}\n`;
 }
 
+/**
+ * Generates a typed schema for Index tables.
+ *
+ * `target` picks Prisma, Kysely, Drizzle or JSON Schema. Use `tables` to limit
+ * the output. Prisma omits tables with no read-set key.
+ */
 export function generateIndexSchema(
 	target: IndexCodegenTarget,
 	opts: IndexCodegenOptions = {},

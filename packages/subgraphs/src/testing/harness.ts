@@ -67,8 +67,13 @@ export interface TestSubgraphContext<S extends SubgraphSchema>
 }
 
 /**
- * Build an in-memory context for a subgraph's schema.
+ * Builds an in-memory context for a subgraph's schema.
  *
+ * It is the real handler context with its row store swapped for memory, so
+ * reads see earlier writes. Use `ctx.rows(table)` to inspect what a handler
+ * wrote.
+ *
+ * @example
  * ```ts
  * const ctx = createTestContext(bns.schema, { block: { height: 167_484 } });
  * await bns.handlers.bns!(buildEvent(bns.sources.bns, { … }), ctx);
@@ -106,10 +111,12 @@ export function createTestContext<const S extends SubgraphSchema>(
 }
 
 /**
- * Build a handler-shaped event payload for a source, typed by that source's
- * filter. `data` supplies the decoded, camelCased fields the runtime would
- * have produced; block/tx metadata is filled in.
+ * Builds a handler-shaped event for a source, typed by that source's filter.
  *
+ * `data` supplies the decoded, camelCased fields the runtime would have
+ * produced. Transaction metadata is filled in.
+ *
+ * @example
  * ```ts
  * buildEvent(bns.sources.bns, {
  *   topic: "name-register",

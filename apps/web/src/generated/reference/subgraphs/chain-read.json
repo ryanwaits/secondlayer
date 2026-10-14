@@ -1,0 +1,100 @@
+{
+	"slug": "chain-read",
+	"root": "",
+	"methods": [
+		{
+			"id": "readContractAt",
+			"path": "readContractAt",
+			"summary": "Reads a contract's read-only functions from a handler, with typed results.",
+			"description": "Reads a contract's read-only functions from a handler, with typed results.\n\nPass `ctx`, the contract id and its ABI. Every call is pinned to the block\nbeing processed. Set `options.cache` to `\"contract-constant\"` to fetch a\nvalue once per contract instead of once per block.",
+			"source": {
+				"file": "packages/subgraphs/src/runtime/chain-read.ts",
+				"line": 153
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "C",
+							"constraint": "AbiContract",
+							"const": true
+						}
+					],
+					"params": [
+						{
+							"name": "ctx",
+							"type": "{ client: ErasedChainReadClient }",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "contractId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "abi",
+							"type": "C",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "options",
+							"type": "ChainReadOptions",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "{ read: ChainReadMethods<C> }",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "ChainReadCacheMode",
+			"summary": "How long a read stays valid.",
+			"definition": "\"per-block\" | \"contract-constant\""
+		},
+		{
+			"name": "ChainReadError",
+			"summary": ""
+		},
+		{
+			"name": "ChainReadMethods",
+			"summary": "The camelCased read methods of an ABI.",
+			"definition": "{ [N in ExtractReadOnlyFunctions<C> as ToCamelCase<N>]: ChainReadMethod< ExtractFunctionArgs<C, N>, Promise<UnwrapResponse<ExtractFunctionOutput<C, N>>> >; }"
+		},
+		{
+			"name": "ChainReadOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "cache",
+					"type": "ChainReadCacheMode",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ErasedChainReadClient",
+			"summary": "`ChainReadClient` with the ABI generic erased.",
+			"fields": [
+				{
+					"name": "contract",
+					"type": "(contractId: string, abi: unknown, options?: ChainReadOptions) => { read: Record<string, (args?: Record<string, unknown>) => Promise<unknown>> }",
+					"required": true,
+					"description": "Reads a contract's read-only functions at the block being processed.\n\nResults are untyped here. Call it through `readContractAt` to get typed\nresults from the contract's ABI."
+				}
+			]
+		}
+	]
+}

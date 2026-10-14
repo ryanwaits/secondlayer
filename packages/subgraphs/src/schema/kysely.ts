@@ -51,6 +51,7 @@ export interface KyselyGenOptions {
 	schemaName?: string;
 }
 
+/** Generates Kysely table interfaces for a subgraph's tables. */
 export function generateKyselySchema(
 	def: SubgraphDefinition,
 	opts: KyselyGenOptions = {},

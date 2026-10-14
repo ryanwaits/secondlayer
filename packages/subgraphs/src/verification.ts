@@ -172,6 +172,7 @@ export interface HandlerFinding {
 	column: number;
 }
 
+/** Formats a handler finding as `file:line:column name: reason`. */
 export function formatFinding(f: HandlerFinding): string {
 	return `${f.file}:${f.line}:${f.column} ${f.name}: ${f.reason}`;
 }
@@ -262,8 +263,10 @@ export function deriveVerification(
 }
 
 /**
- * True when the deploy must be refused: the sources are provable (`state`), so
- * the determinism contract is enforced, and the scan broke it.
+ * Tells whether a deploy must be refused for breaking determinism.
+ *
+ * It is refused when the sources are provable (`state`), so the determinism
+ * contract is enforced, and the scan broke it.
  */
 export function isDeterminismViolation(v: SubgraphVerification): boolean {
 	return v.level === "state" && v.reasons.length > 0;

@@ -89,6 +89,7 @@ export interface DrizzleGenOptions {
 	schemaName?: string;
 }
 
+/** Generates Drizzle table definitions for a subgraph's tables. */
 export function generateDrizzleSchema(
 	def: SubgraphDefinition,
 	opts: DrizzleGenOptions = {},

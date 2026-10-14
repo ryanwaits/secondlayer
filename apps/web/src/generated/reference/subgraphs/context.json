@@ -1,0 +1,788 @@
+{
+	"slug": "context",
+	"root": "",
+	"methods": [
+		{
+			"id": "ctx.client.contract",
+			"path": "ctx.client.contract",
+			"summary": "Reads a contract's read-only functions at the block being processed.",
+			"description": "Reads a contract's read-only functions at the block being processed.\n\nResults are untyped here. Call it through `readContractAt` to get typed\nresults from the contract's ABI.",
+			"source": {
+				"file": "packages/subgraphs/src/runtime/chain-read.ts",
+				"line": 129
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "contractId",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "abi",
+							"type": "unknown",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "options",
+							"type": "ChainReadOptions",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "{ read: Record<string, (args?: Record<string, unknown>) => Promise<unknown>> }",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "ctx.insert",
+			"path": "ctx.insert",
+			"summary": "Queues a new row for a table.",
+			"description": "Queues a new row for a table.\n\nWrites are batched and applied together when the block commits.\n`_block_height` and `_tx_id` are filled in for you.",
+			"source": {
+				"file": "packages/subgraphs/src/infer.ts",
+				"line": 296
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "TableName<S>"
+						}
+					],
+					"params": [
+						{
+							"name": "table",
+							"type": "T",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "row",
+							"type": "WriteRow<S[T]>",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "void",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "ctx.update",
+			"path": "ctx.update",
+			"summary": "Queues an update to the rows matching `where`.",
+			"description": "Queues an update to the rows matching `where`.\n\n`set` holds only the columns to change.",
+			"source": {
+				"file": "packages/subgraphs/src/infer.ts",
+				"line": 302
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "TableName<S>"
+						}
+					],
+					"params": [
+						{
+							"name": "table",
+							"type": "T",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "where",
+							"type": "RowWhere<S, T>",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "set",
+							"type": "Partial<{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }>",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "void",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "ctx.upsert",
+			"path": "ctx.upsert",
+			"summary": "Inserts a row, or updates the one with the same key.",
+			"description": "Inserts a row, or updates the one with the same key.\n\n`key` should match a `uniqueKeys` constraint of the table. Without one the\nwrite falls back to a lookup first and logs a warning.",
+			"source": {
+				"file": "packages/subgraphs/src/infer.ts",
+				"line": 313
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "TableName<S>"
+						},
+						{
+							"name": "K",
+							"constraint": "Partial<WriteRow<S[T]>>"
+						}
+					],
+					"params": [
+						{
+							"name": "table",
+							"type": "T",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "key",
+							"type": "K",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "row",
+							"type": "Omit<{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }, keyof K> & Partial<{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }>",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "void",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "ctx.delete",
+			"path": "ctx.delete",
+			"summary": "Queues deletion of the rows matching `where`.",
+			"description": "Queues deletion of the rows matching `where`.",
+			"source": {
+				"file": "packages/subgraphs/src/infer.ts",
+				"line": 321
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "TableName<S>"
+						}
+					],
+					"params": [
+						{
+							"name": "table",
+							"type": "T",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "where",
+							"type": "RowWhere<S, T>",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "void",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "ctx.increment",
+			"path": "ctx.increment",
+			"summary": "Adds signed deltas to a counter row, creating it if missing.",
+			"description": "Adds signed deltas to a counter row, creating it if missing.\n\nIt compiles to `INSERT … ON CONFLICT (key) DO UPDATE SET col =\nCOALESCE(col,0) + delta`. Deltas commute, so it is the reorg-safe way to\nkeep running totals such as per-cycle aggregates and balances. It needs a\n`uniqueKeys` constraint matching `key`, and deltas may be `number` or\n`bigint`.",
+			"source": {
+				"file": "packages/subgraphs/src/infer.ts",
+				"line": 331
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "TableName<S>"
+						}
+					],
+					"params": [
+						{
+							"name": "table",
+							"type": "T",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "key",
+							"type": "Partial<{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }>",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "deltas",
+							"type": "Record<string, Record<ColumnName<S, T>, number | bigint>[string] | undefined>",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "void",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "ctx.findOne",
+			"path": "ctx.findOne",
+			"summary": "Returns the first row matching `where`, or `null`.",
+			"description": "Returns the first row matching `where`, or `null`.\n\nReads see the writes queued earlier in the same block, and rows come back\nin insertion order.",
+			"source": {
+				"file": "packages/subgraphs/src/infer.ts",
+				"line": 342
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "TableName<S>"
+						}
+					],
+					"params": [
+						{
+							"name": "table",
+							"type": "T",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "where",
+							"type": "RowWhere<S, T>",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<SystemRow & { [K in keyof T[\"columns\"]]: InferColumnType<T[\"columns\"][K]>; } | null>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "ctx.findMany",
+			"path": "ctx.findMany",
+			"summary": "Returns every row matching `where`, in insertion order.",
+			"description": "Returns every row matching `where`, in insertion order.\n\nReads see the writes queued earlier in the same block.",
+			"source": {
+				"file": "packages/subgraphs/src/infer.ts",
+				"line": 351
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"typeParams": [
+						{
+							"name": "T",
+							"constraint": "TableName<S>"
+						}
+					],
+					"params": [
+						{
+							"name": "table",
+							"type": "T",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "where",
+							"type": "RowWhere<S, T>",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<SystemRow & { [K in keyof T[\"columns\"]]: InferColumnType<T[\"columns\"][K]>; }[]>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "AggregateResult",
+			"summary": "Result shape inferred from an `AggregateSpec`.",
+			"definition": "(A[\"count\"] extends true ? { count: number } : unknown) & (A[\"countDistinct\"] extends readonly string[] ? { countDistinct: Record<ColsOf<A, \"countDistinct\">, number> } : unknown) & (A[\"sum\"] extends readonly string[] ? { sum: Record<ColsOf<A, \"sum\">, string> } : unknown) & (A[\"min\"] extends readonly string[] ? { min: Record<ColsOf<A, \"min\">, string | null> } : unknown) & (A[\"max\"] extends readonly string[] ? { max: Record<ColsOf<A, \"max\">, string | null> } : unknown)"
+		},
+		{
+			"name": "ChainReadCacheMode",
+			"summary": "How long a read stays valid.",
+			"definition": "\"per-block\" | \"contract-constant\""
+		},
+		{
+			"name": "ChainReadOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "cache",
+					"type": "ChainReadCacheMode",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ColumnToTS",
+			"summary": "Maps a ColumnType string literal to its TypeScript equivalent",
+			"definition": "T extends \"uint\" | \"int\" ? bigint : T extends \"text\" | \"principal\" | \"timestamp\" ? string : T extends \"boolean\" ? boolean : T extends \"jsonb\" ? Record<string, unknown> : unknown"
+		},
+		{
+			"name": "ComparisonFilter",
+			"summary": "Comparison operators for a scalar value",
+			"fields": [
+				{
+					"name": "eq",
+					"type": "T",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "neq",
+					"type": "T",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "gt",
+					"type": "T",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "gte",
+					"type": "T",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "lt",
+					"type": "T",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "lte",
+					"type": "T",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "in",
+					"type": "T[]",
+					"required": false,
+					"description": "Match any value in the set."
+				},
+				{
+					"name": "notIn",
+					"type": "T[]",
+					"required": false,
+					"description": "Match none of the values in the set."
+				},
+				{
+					"name": "like",
+					"type": "string",
+					"required": false,
+					"description": "SQL ILIKE pattern (case-insensitive); `%`/`_` wildcards. Strings only."
+				}
+			]
+		},
+		{
+			"name": "ErasedChainReadClient",
+			"summary": "`ChainReadClient` with the ABI generic erased.",
+			"fields": [
+				{
+					"name": "contract",
+					"type": "(contractId: string, abi: unknown, options?: ChainReadOptions) => { read: Record<string, (args?: Record<string, unknown>) => Promise<unknown>> }",
+					"required": true,
+					"description": "Reads a contract's read-only functions at the block being processed.\n\nResults are untyped here. Call it through `readContractAt` to get typed\nresults from the contract's ABI."
+				}
+			]
+		},
+		{
+			"name": "FindManyOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "where",
+					"type": "{ [K in keyof TRow]?: TRow[K] | ComparisonFilter<TRow[K]>; } & SystemWhereAliases",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "orderBy",
+					"type": "unknown & SystemOrderByAliases",
+					"required": false,
+					"description": "Single-column object, e.g. `{ price: \"desc\" }`. `/v1` sorts by one\ncolumn only (the keyset cursor pairs it with `_id` as a tiebreaker) —\na second key throws at call time, since a plain object type can't\nreject \"more than one key\" at compile time."
+				},
+				{
+					"name": "limit",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "cursor",
+					"type": "string",
+					"required": false,
+					"description": "Resume from a previous page's `nextCursor`."
+				},
+				{
+					"name": "fields",
+					"type": "(keyof TRow & string)[]",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FindManyPage",
+			"summary": "A page of rows from `findMany`, keyset-paginated.",
+			"fields": [
+				{
+					"name": "rows",
+					"type": "TRow[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "nextCursor",
+					"type": "string | null",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tip",
+					"type": "SubgraphTip",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "InferColumnType",
+			"summary": "Infer TS type for a single column definition, respecting nullable",
+			"definition": "C[\"type\"] extends ColumnType ? C[\"nullable\"] extends true ? ColumnToTS<C[\"type\"]> | null : ColumnToTS<C[\"type\"]> : unknown"
+		},
+		{
+			"name": "InferSubgraphClient",
+			"summary": "Infer a typed client object from a subgraph definition shape",
+			"definition": "T extends { schema: infer S } ? { [K in keyof S]: S[K] extends SubgraphTable ? SubgraphTableClient<InferTableRow<S[K]>> : never; } : never"
+		},
+		{
+			"name": "InferTableRow",
+			"summary": "Infer the row shape for a single table definition",
+			"definition": "SystemRow & { [K in keyof T[\"columns\"]]: InferColumnType<T[\"columns\"][K]>; }"
+		},
+		{
+			"name": "SubgraphTip",
+			"summary": "Wire tip: chain height, subgraph's processed height, and the gap between them — same object on every `/v1` row/page response.",
+			"fields": [
+				{
+					"name": "block_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "subgraph_height",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "blocks_behind",
+					"type": "number",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubscribeOptions",
+			"summary": "Options for the realtime row stream (SSE).",
+			"fields": [
+				{
+					"name": "where",
+					"type": "{ [K in keyof TRow]?: TRow[K] | ComparisonFilter<TRow[K]>; } & SystemWhereAliases",
+					"required": false,
+					"description": "Same column filters as `findMany`, applied server-side per row."
+				},
+				{
+					"name": "since",
+					"type": "number",
+					"required": false,
+					"description": "Replay rows from this block height, then tail live. Omit for go-forward only."
+				},
+				{
+					"name": "onError",
+					"type": "(err: unknown) => void",
+					"required": false,
+					"description": "Called on stream/connection errors."
+				}
+			]
+		},
+		{
+			"name": "SystemOrderByAliases",
+			"summary": "",
+			"fields": [
+				{
+					"name": "blockHeight",
+					"type": "\"asc\" | \"desc\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "txId",
+					"type": "\"asc\" | \"desc\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "createdAt",
+					"type": "\"asc\" | \"desc\"",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "id",
+					"type": "\"asc\" | \"desc\"",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SystemRow",
+			"summary": "Shape of system columns on every returned row (camelCase, underscore-prefixed)",
+			"fields": [
+				{
+					"name": "_id",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "_blockHeight",
+					"type": "bigint",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "_txId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "_createdAt",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SystemWhereAliases",
+			"summary": "",
+			"fields": [
+				{
+					"name": "blockHeight",
+					"type": "bigint | ComparisonFilter<bigint>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "txId",
+					"type": "string | ComparisonFilter<string>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "createdAt",
+					"type": "string | ComparisonFilter<string>",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "id",
+					"type": "string | ComparisonFilter<string>",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "TxMeta",
+			"summary": "Transaction metadata available in handlers",
+			"fields": [
+				{
+					"name": "txId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "TypedSubgraphContext",
+			"summary": "Schema-typed handler context.",
+			"fields": [
+				{
+					"name": "block",
+					"type": "{ height: number; hash: string; timestamp: number; burnBlockHeight: number; indexBlockHash?: string | null }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "client",
+					"type": "ErasedChainReadClient",
+					"required": true,
+					"description": "Read-only contract calls pinned to this block. Erased here for the same\nreason as on `SubgraphContext`: an ABI-generic method on a structurally\ncompared interface exceeds TS's instantiation budget. Wrap it with\n`readContractAt(ctx, id, abi)` for full ABI typing at the call site."
+				},
+				{
+					"name": "insert",
+					"type": "(table: T, row: WriteRow<S[T]>) => void",
+					"required": true,
+					"description": "Queues a new row for a table.\n\nWrites are batched and applied together when the block commits.\n`_block_height` and `_tx_id` are filled in for you."
+				},
+				{
+					"name": "update",
+					"type": "(table: T, where: RowWhere<S, T>, set: Partial<{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }>) => void",
+					"required": true,
+					"description": "Queues an update to the rows matching `where`.\n\n`set` holds only the columns to change."
+				},
+				{
+					"name": "upsert",
+					"type": "(table: T, key: K, row: Omit<{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }, keyof K> & Partial<{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }>) => void",
+					"required": true,
+					"description": "Inserts a row, or updates the one with the same key.\n\n`key` should match a `uniqueKeys` constraint of the table. Without one the\nwrite falls back to a lookup first and logs a warning."
+				},
+				{
+					"name": "delete",
+					"type": "(table: T, where: RowWhere<S, T>) => void",
+					"required": true,
+					"description": "Queues deletion of the rows matching `where`."
+				},
+				{
+					"name": "increment",
+					"type": "(table: T, key: Partial<{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }>, deltas: Record<string, Record<ColumnName<S, T>, number | bigint>[string] | undefined>) => void",
+					"required": true,
+					"description": "Adds signed deltas to a counter row, creating it if missing.\n\nIt compiles to `INSERT … ON CONFLICT (key) DO UPDATE SET col =\nCOALESCE(col,0) + delta`. Deltas commute, so it is the reorg-safe way to\nkeep running totals such as per-cycle aggregates and balances. It needs a\n`uniqueKeys` constraint matching `key`, and deltas may be `number` or\n`bigint`."
+				},
+				{
+					"name": "findOne",
+					"type": "(table: T, where: RowWhere<S, T>) => Promise<SystemRow & { [K in keyof T[\"columns\"]]: InferColumnType<T[\"columns\"][K]>; } | null>",
+					"required": true,
+					"description": "Returns the first row matching `where`, or `null`.\n\nReads see the writes queued earlier in the same block, and rows come back\nin insertion order."
+				},
+				{
+					"name": "findMany",
+					"type": "(table: T, where: RowWhere<S, T>) => Promise<SystemRow & { [K in keyof T[\"columns\"]]: InferColumnType<T[\"columns\"][K]>; }[]>",
+					"required": true,
+					"description": "Returns every row matching `where`, in insertion order.\n\nReads see the writes queued earlier in the same block."
+				}
+			]
+		},
+		{
+			"name": "WhereInput",
+			"summary": "Where clause — each column accepts a scalar (eq) or comparison object",
+			"definition": "{ [K in keyof TRow]?: TRow[K] | ComparisonFilter<TRow[K]>; }"
+		},
+		{
+			"name": "WriteRow",
+			"summary": "Row shape accepted by `ctx.insert`.",
+			"definition": "{ [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? never : K]: WriteColumnType<T[\"columns\"][K]>; } & { [K in keyof T[\"columns\"] as IsOptionalColumn<T[\"columns\"][K]> extends true ? K : never]?: WriteColumnType<T[\"columns\"][K]>; }"
+		}
+	]
+}

@@ -92,6 +92,12 @@ export interface PrismaGenOptions {
 	modelsOnly?: boolean;
 }
 
+/**
+ * Generates a Prisma schema for a subgraph's tables.
+ *
+ * Set `modelsOnly` to emit just the `model` blocks, to compose with your own
+ * schema.
+ */
 export function generatePrismaSchema(
 	def: SubgraphDefinition,
 	opts: PrismaGenOptions = {},

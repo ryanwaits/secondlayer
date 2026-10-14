@@ -1,0 +1,1517 @@
+{
+	"slug": "schema",
+	"root": "",
+	"methods": [
+		{
+			"id": "generateSubgraphSQL",
+			"path": "generateSubgraphSQL",
+			"summary": "Generates PostgreSQL DDL statements for a subgraph definition.",
+			"description": "Generates PostgreSQL DDL statements for a subgraph definition.\nCreates a dedicated schema `subgraph_<name>` with one table per schema entry,\neach with auto-columns and indexes.",
+			"source": {
+				"file": "packages/subgraphs/src/schema/generator.ts",
+				"line": 234
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "def",
+							"type": "SubgraphDefinition",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "schemaNameOverride",
+							"type": "string",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "GeneratedSQL",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "generatePrismaSchema",
+			"path": "generatePrismaSchema",
+			"summary": "Generates a Prisma schema for a subgraph's tables.",
+			"description": "Generates a Prisma schema for a subgraph's tables.\n\nSet `modelsOnly` to emit just the `model` blocks, to compose with your own\nschema.",
+			"source": {
+				"file": "packages/subgraphs/src/schema/prisma.ts",
+				"line": 101
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "def",
+							"type": "SubgraphDefinition",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "PrismaGenOptions",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "string",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "generateDrizzleSchema",
+			"path": "generateDrizzleSchema",
+			"summary": "Generates Drizzle table definitions for a subgraph's tables.",
+			"description": "Generates Drizzle table definitions for a subgraph's tables.",
+			"source": {
+				"file": "packages/subgraphs/src/schema/drizzle.ts",
+				"line": 93
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "def",
+							"type": "SubgraphDefinition",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "DrizzleGenOptions",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "string",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "generateKyselySchema",
+			"path": "generateKyselySchema",
+			"summary": "Generates Kysely table interfaces for a subgraph's tables.",
+			"description": "Generates Kysely table interfaces for a subgraph's tables.",
+			"source": {
+				"file": "packages/subgraphs/src/schema/kysely.ts",
+				"line": 55
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "def",
+							"type": "SubgraphDefinition",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "KyselyGenOptions",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "string",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "generateIndexSchema",
+			"path": "generateIndexSchema",
+			"summary": "Generates a typed schema for Index tables.",
+			"description": "Generates a typed schema for Index tables.\n\n`target` picks Prisma, Kysely, Drizzle or JSON Schema. Use `tables` to limit\nthe output. Prisma omits tables with no read-set key.",
+			"source": {
+				"file": "packages/subgraphs/src/schema/index-codegen.ts",
+				"line": 267
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "target",
+							"type": "IndexCodegenTarget",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "IndexCodegenOptions",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "string",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "pgSchemaName",
+			"path": "pgSchemaName",
+			"summary": "Convert a subgraph name to its PostgreSQL schema name.",
+			"description": "Convert a subgraph name to its PostgreSQL schema name.",
+			"source": null,
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "subgraphName",
+							"type": "string",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "string",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "deploySchema",
+			"path": "deploySchema",
+			"summary": "Deploys a subgraph schema to the database.",
+			"description": "Deploys a subgraph schema to the database.\n\nA new subgraph gets its schema and tables created and registered. The same\nschema hash only updates the handler path. An additive change adds columns\nand tables in place, and a breaking change reindexes by dropping and\nrecreating the tables.",
+			"source": {
+				"file": "packages/subgraphs/src/schema/deployer.ts",
+				"line": 262
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "db",
+							"type": "AnyDb",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "def",
+							"type": "SubgraphDefinition",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "handlerPath",
+							"type": "string",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "{ forceReindex?: boolean; apiKeyId?: string; accountId?: string; schemaName?: string; handlerCode?: string; sourceCode?: string; verification?: SubgraphVerification; network?: string }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<{ action: \"created\" | \"unchanged\" | \"handler_updated\" | \"updated\" | \"reindexed\"; subgraphId: string; version: string; pin?: string; diff?: DeployDiff; warnings?: string[] }>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "diffSchema",
+			"path": "diffSchema",
+			"summary": "Compare two multi-table subgraph schemas and return differences.",
+			"description": "Compare two multi-table subgraph schemas and return differences.\n\nIndex-only changes (`indexed`/`search` flags, composite `indexes`) are\nreported separately from data-shape changes: an index never requires a\nrebuild, so it must never land in `changed`/breaking — flipping\n`indexed: true` on a populated column used to cost a full reindex.",
+			"source": {
+				"file": "packages/subgraphs/src/schema/deployer.ts",
+				"line": 97
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "existing",
+							"type": "SubgraphSchema",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "incoming",
+							"type": "SubgraphSchema",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "TableDiff",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "hasBreakingChanges",
+			"path": "hasBreakingChanges",
+			"summary": "Tells whether a schema diff is breaking, with the reasons.",
+			"description": "Tells whether a schema diff is breaking, with the reasons.\n\nBreaking means removed tables, removed columns, changed column types or\nremoved `uniqueKeys`, which handler upserts conflict on. Index-flag and\ncomposite-index changes are never breaking.",
+			"source": {
+				"file": "packages/subgraphs/src/schema/deployer.ts",
+				"line": 163
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "diff",
+							"type": "TableDiff",
+							"required": true,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "{ breaking: boolean; reasons: string[] }",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
+			"id": "renderDeployPlan",
+			"path": "renderDeployPlan",
+			"summary": "Render the DDL a deploy would run, without executing.",
+			"description": "Render the DDL a deploy would run, without executing.\nPowers `--dry-run`: the user reviews exactly what a deploy does first.",
+			"source": {
+				"file": "packages/subgraphs/src/schema/deployer.ts",
+				"line": 243
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "def",
+							"type": "SubgraphDefinition",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "schemaName",
+							"type": "string",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "DeployPlan",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		}
+	],
+	"types": [
+		{
+			"name": "ChainReadCacheMode",
+			"summary": "How long a read stays valid.",
+			"definition": "\"per-block\" | \"contract-constant\""
+		},
+		{
+			"name": "ChainReadOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "cache",
+					"type": "ChainReadCacheMode",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ColumnDiff",
+			"summary": "",
+			"fields": [
+				{
+					"name": "added",
+					"type": "string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "removed",
+					"type": "string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "changed",
+					"type": "string[]",
+					"required": true,
+					"description": "Data-shape changes (type/nullable/default) — breaking."
+				},
+				{
+					"name": "indexChanged",
+					"type": "string[]",
+					"required": true,
+					"description": "Only the `indexed`/`search` flags differ — index DDL, never a rebuild."
+				}
+			]
+		},
+		{
+			"name": "ColumnType",
+			"summary": "Supported column types for subgraph schemas",
+			"definition": "ColumnType<string | null, string | null | undefined, string | null>"
+		},
+		{
+			"name": "ConstraintDiff",
+			"summary": "",
+			"fields": [
+				{
+					"name": "addedUniqueKeys",
+					"type": "string[][]",
+					"required": true,
+					"description": "New uniqueKeys entries → `ALTER TABLE … ADD CONSTRAINT` (additive)."
+				},
+				{
+					"name": "removedUniqueKeys",
+					"type": "string[][]",
+					"required": true,
+					"description": "Removed uniqueKeys entries — breaking: handler upserts may target them."
+				},
+				{
+					"name": "addedIndexes",
+					"type": "string[][]",
+					"required": true,
+					"description": "New composite `indexes` entries → CREATE INDEX (additive)."
+				},
+				{
+					"name": "removedIndexes",
+					"type": "string[][]",
+					"required": true,
+					"description": "Removed composite `indexes` entries → DROP INDEX (additive)."
+				}
+			]
+		},
+		{
+			"name": "ContractCallFilter",
+			"summary": "Contract event filters",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"contract_call\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": "One contract id, or a SET of them (max 20) — the standard DeFi shape is\na router plus N pools, which used to cost N near-identical sources and\nhandlers. Payload types are identical per `type`, so one handler serves\nthe set and `event.contractId` disambiguates.\n\nSupports `*` wildcards (e.g. `\"SP1ABC….pool-*\"`). Mutually exclusive\nwith `trait`, which resolves its own set per block."
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "abi",
+					"type": "AbiContract",
+					"required": false,
+					"description": "Contract ABI (pass it `as const`) used to type `event.input` — the named,\ndecoded function arguments. Dev-provided; serialized into the deployed\ndefinition and used at runtime to decode args by name. Omit to keep\n`event.args` as a positional `unknown[]`.\n\nRequired whenever `functionName` is set. `secondlayer subgraphs deploy`\nfills it in from the deployed contract for a single concrete\n`contractId`; pass it yourself for wildcard, multi-contract or trait\nsources, or a local deploy (`normalizeAbi()` from\n`@secondlayer/stacks/clarity`)."
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ContractDeployFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"contract_deploy\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "deployer",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "DeployDiff",
+			"summary": "",
+			"fields": [
+				{
+					"name": "addedTables",
+					"type": "string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "removedTables",
+					"type": "string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "addedColumns",
+					"type": "Record<string, string[]>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "breakingChanges",
+					"type": "string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "indexChanges",
+					"type": "Record<string, string[]>",
+					"required": false,
+					"description": "Columns whose only change was the `indexed`/`search` flag (index DDL applied in place)."
+				},
+				{
+					"name": "addedUniqueKeys",
+					"type": "Record<string, string[][]>",
+					"required": false,
+					"description": "uniqueKeys added in place via ALTER TABLE … ADD CONSTRAINT."
+				}
+			]
+		},
+		{
+			"name": "DeployPlan",
+			"summary": "",
+			"fields": [
+				{
+					"name": "schemaName",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "dropStatement",
+					"type": "string",
+					"required": true,
+					"description": "`DROP SCHEMA … CASCADE` a destructive rebuild would run first."
+				},
+				{
+					"name": "statements",
+					"type": "string[]",
+					"required": true,
+					"description": "DDL the deploy will run."
+				}
+			]
+		},
+		{
+			"name": "DrizzleGenOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "schemaName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "ErasedChainReadClient",
+			"summary": "`ChainReadClient` with the ABI generic erased.",
+			"fields": [
+				{
+					"name": "contract",
+					"type": "(contractId: string, abi: unknown, options?: ChainReadOptions) => { read: Record<string, (args?: Record<string, unknown>) => Promise<unknown>> }",
+					"required": true,
+					"description": "Reads a contract's read-only functions at the block being processed.\n\nResults are untyped here. Call it through `readContractAt` to get typed\nresults from the contract's ABI."
+				}
+			]
+		},
+		{
+			"name": "FtBurnFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtMintFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FtTransferFilter",
+			"summary": "FT event filters",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"ft_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "GeneratedSQL",
+			"summary": "",
+			"fields": [
+				{
+					"name": "statements",
+					"type": "string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "hash",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "IndexCodegenOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "tables",
+					"type": "string[]",
+					"required": false,
+					"description": "Restrict output to these Index tables (default: all)."
+				},
+				{
+					"name": "schemaName",
+					"type": "string",
+					"required": false,
+					"description": "Postgres schema to qualify table names with (default: bare names)."
+				},
+				{
+					"name": "datasourceEnv",
+					"type": "string",
+					"required": false,
+					"description": "Prisma only: datasource url env var (default DATABASE_URL)."
+				}
+			]
+		},
+		{
+			"name": "IndexCodegenTarget",
+			"summary": "Emit a portable, typed schema for the public Index read domain (blocks, decoded events, transactions, stacking, sBTC, BNS, …) from the single-sourced `SOURCE_READ_TYPES` registry.",
+			"definition": "\"prisma\" | \"kysely\" | \"drizzle\" | \"json-schema\""
+		},
+		{
+			"name": "KyselyGenOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "schemaName",
+					"type": "string",
+					"required": false,
+					"description": "Postgres schema the tables live in (account-scoped)."
+				}
+			]
+		},
+		{
+			"name": "MapWriteFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"map_set\" | \"map_insert\" | \"map_delete\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NestedContractCallFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nested_contract_call\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "caller",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftBurnFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftMintFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "NftTransferFilter",
+			"summary": "NFT event filters",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"nft_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "AssetIdentifier",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PinnedPrintEventFilter",
+			"summary": "Pinned to one or more contract ids with no trait — `prints` is required so `event.data` is typed and empty-table handlers cannot typecheck.",
+			"fields": [
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "\"print_event\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "undefined",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "prints",
+					"type": "PrintEventPrints",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "PrintEventPrints",
+			"summary": "Per-topic field schema for a print_event source.",
+			"definition": "Record<string, Record<string, PrintField>>"
+		},
+		{
+			"name": "PrintField",
+			"summary": "One declared field of a print payload.",
+			"definition": "ColumnType | { type: PrintField; optional: true; } | { tuple: Record<string, PrintField>; } | { list: PrintField; }"
+		},
+		{
+			"name": "PrismaGenOptions",
+			"summary": "",
+			"fields": [
+				{
+					"name": "schemaName",
+					"type": "string",
+					"required": false,
+					"description": "Postgres schema the tables live in (account-scoped)."
+				},
+				{
+					"name": "datasourceEnv",
+					"type": "string",
+					"required": false,
+					"description": "env var the datasource url reads from."
+				},
+				{
+					"name": "modelsOnly",
+					"type": "boolean",
+					"required": false,
+					"description": "Emit only the `model` blocks (no datasource/generator). Lets users compose\nthese models with their own schema via Prisma's `prismaSchemaFolder`."
+				}
+			]
+		},
+		{
+			"name": "StxBurnFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_burn\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxLockFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_lock\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "lockedAddress",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxMintFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_mint\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "StxTransferFilter",
+			"summary": "STX event filters",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"stx_transfer\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "recipient",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "minAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "maxAmount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphColumn",
+			"summary": "Column definition in a subgraph table",
+			"fields": [
+				{
+					"name": "type",
+					"type": "ColumnType",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "nullable",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "indexed",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "search",
+					"type": "boolean",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "default",
+					"type": "string | number | boolean",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphContext",
+			"summary": "Context passed to subgraph handlers during event processing",
+			"fields": [
+				{
+					"name": "block",
+					"type": "{ height: number; hash: string; timestamp: number; burnBlockHeight: number; indexBlockHash?: string | null }",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "tx",
+					"type": "TxMeta",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "client",
+					"type": "ErasedChainReadClient",
+					"required": true,
+					"description": "Read-only contract calls pinned to this block. Cached, so the same\n(contract, function, args) is fetched once per block rather than once\nper event.\n\nErased here on purpose: this interface is compared structurally wherever\na subgraph definition is passed around, and carrying an ABI-generic\nmethod pushes those comparisons past TS's instantiation depth. Handlers\nreceive `TypedSubgraphContext`, which exposes the fully typed version."
+				},
+				{
+					"name": "insert",
+					"type": "(table: string, row: Record<string, unknown>) => void",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "update",
+					"type": "(table: string, where: Record<string, unknown>, set: Record<string, unknown>) => void",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "upsert",
+					"type": "(table: string, key: Record<string, unknown>, row: Record<string, unknown>) => void",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "delete",
+					"type": "(table: string, where: Record<string, unknown>) => void",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "increment",
+					"type": "(table: string, key: Record<string, unknown>, deltas: Record<string, number | bigint>) => void",
+					"required": true,
+					"description": "Atomic counter update — the blessed accumulator primitive. Applies\n`col = COALESCE(col, 0) + delta` per column (insert-or-add); deltas may\nbe negative. Requires a uniqueKeys constraint matching `key`. Prefer\nthis over read-modify-write handlers for running totals."
+				},
+				{
+					"name": "findOne",
+					"type": "(table: string, where: Record<string, unknown>) => Promise<Record<string, unknown> | null>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "findMany",
+					"type": "(table: string, where: Record<string, unknown>) => Promise<Record<string, unknown>[]>",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "SubgraphDefinition",
+			"summary": "Complete subgraph definition",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string",
+					"required": true,
+					"description": "Unique subgraph name (lowercase, alphanumeric + hyphens)"
+				},
+				{
+					"name": "description",
+					"type": "string",
+					"required": false,
+					"description": "Human description"
+				},
+				{
+					"name": "startBlock",
+					"type": "number",
+					"required": false,
+					"description": "Block height to start indexing from (default: 1)"
+				},
+				{
+					"name": "backfillMode",
+					"type": "\"blocking\" | \"concurrent\"",
+					"required": false,
+					"description": "'concurrent' = tip-first: live at tip now, history backfills behind.\nRequires order-tolerant handlers. Default 'blocking'."
+				},
+				{
+					"name": "sources",
+					"type": "Record<string, SubgraphFilter>",
+					"required": true,
+					"description": "Named source filters — keys become handler keys"
+				},
+				{
+					"name": "schema",
+					"type": "SubgraphSchema",
+					"required": true,
+					"description": "Tables in this subgraph"
+				},
+				{
+					"name": "handlers",
+					"type": "Record<string, SubgraphHandler>",
+					"required": true,
+					"description": "Handler functions, one per source, keyed by source name"
+				}
+			]
+		},
+		{
+			"name": "SubgraphFilter",
+			"summary": "All subgraph filter types — discriminated on `type`",
+			"definition": "StxTransferFilter | StxMintFilter | StxBurnFilter | StxLockFilter | FtTransferFilter | FtMintFilter | FtBurnFilter | NftTransferFilter | NftMintFilter | NftBurnFilter | ContractCallFilter | ContractDeployFilter | PrintEventFilter | NestedContractCallFilter | VarSetFilter | MapWriteFilter"
+		},
+		{
+			"name": "SubgraphHandler",
+			"summary": "Handler function that processes events and writes to the subgraph",
+			"definition": "(event: Record<string, unknown>, ctx: SubgraphContext) => Promise<void> | void"
+		},
+		{
+			"name": "SubgraphSchema",
+			"summary": "Subgraph schema — maps table names to table definitions",
+			"definition": "Record<string, SubgraphTable>"
+		},
+		{
+			"name": "SubgraphTable",
+			"summary": "Table definition within a subgraph schema.",
+			"fields": [
+				{
+					"name": "columns",
+					"type": "Record<string, SubgraphColumn>",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "indexes",
+					"type": "readonly readonly string[][]",
+					"required": false,
+					"description": "Composite indexes (each entry is an array of column names)"
+				},
+				{
+					"name": "uniqueKeys",
+					"type": "readonly readonly string[][]",
+					"required": false,
+					"description": "Unique key constraints (each entry is an array of column names). Required for upsert."
+				}
+			]
+		},
+		{
+			"name": "TableDiff",
+			"summary": "",
+			"fields": [
+				{
+					"name": "addedTables",
+					"type": "string[]",
+					"required": true,
+					"description": "Tables added to the schema"
+				},
+				{
+					"name": "removedTables",
+					"type": "string[]",
+					"required": true,
+					"description": "Tables removed from the schema"
+				},
+				{
+					"name": "tables",
+					"type": "Record<string, ColumnDiff>",
+					"required": true,
+					"description": "Per-table column diffs (only for tables present in both)"
+				},
+				{
+					"name": "constraints",
+					"type": "Record<string, ConstraintDiff>",
+					"required": true,
+					"description": "Per-table uniqueKeys / composite-index diffs (tables present in both)"
+				}
+			]
+		},
+		{
+			"name": "TraitPrintEventFilter",
+			"summary": "Trait-scoped print source (optionally narrowed by contractId).",
+			"fields": [
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "\"print_event\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "prints",
+					"type": "PrintEventPrints",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "TxMeta",
+			"summary": "Transaction metadata available in handlers",
+			"fields": [
+				{
+					"name": "txId",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "sender",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "status",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "functionName",
+					"type": "string | null",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "UnpinnedPrintEventFilter",
+			"summary": "Unpinned / factory-only print source (no contractId).",
+			"fields": [
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "\"print_event\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "topic",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "undefined",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "prints",
+					"type": "PrintEventPrints",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "VarSetFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"var_set\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "varName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		}
+	]
+}

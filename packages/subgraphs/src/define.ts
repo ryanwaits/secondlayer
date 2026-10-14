@@ -34,8 +34,10 @@ export type TypedSubgraphDefinition<
 };
 
 /**
- * Identity function that preserves `sources` and `schema` literal types so
- * handlers are typed per source and the schema drives query-client inference.
+ * Declares a subgraph and keeps its source and schema literal types.
+ *
+ * Handlers are typed per source, and the schema drives query-client inference.
+ * It returns its argument unchanged.
  *
  * @example
  * ```ts
@@ -62,9 +64,14 @@ export function defineSubgraph<
 }
 
 /**
- * Identity helper that preserves a schema literal's exact types so it can be
- * HOISTED out of the `defineSubgraph()` call and reused:
+ * Declares a schema you can hoist out of `defineSubgraph()` and reuse.
  *
+ * It keeps the schema's literal types, so table names and row columns stay
+ * checked in helpers typed `TypedSubgraphContext<typeof schema>`. `as const`
+ * alone does not work: it produces `readonly` arrays that a mutable
+ * `uniqueKeys` rejects, and a bare literal widens `type` to `string`.
+ *
+ * @example
  * ```ts
  * export const schema = defineSchema({
  *   balances: {
@@ -73,19 +80,14 @@ export function defineSubgraph<
  *   },
  * });
  *
- * // An extracted helper keeps the full typed surface — table names and row
- * // columns are still checked:
+ * // An extracted helper keeps the full typed surface: table names and row
+ * // columns are still checked.
  * function credit(ctx: TypedSubgraphContext<typeof schema>, holder: string) {
  *   ctx.increment("balances", { holder }, { amount: 1n });
  * }
  *
  * export default defineSubgraph({ name: "balances", schema, sources, handlers });
  * ```
- *
- * `as const` alone does not work here (it produces `readonly` arrays that a
- * mutable `uniqueKeys` rejected) and a bare literal widens `type` to `string`.
- * That gap is why the shipped starter typed its helper `ctx: any` — and in
- * doing so modelled a non-commutative read-modify-write the docs warn against.
  */
 export function defineSchema<const S extends SubgraphSchema>(schema: S): S {
 	return schema;

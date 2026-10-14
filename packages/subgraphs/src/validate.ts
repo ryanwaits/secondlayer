@@ -452,17 +452,21 @@ export const SubgraphDefinitionSchema: z.ZodType<SubgraphDefinition> = z
 	}) as unknown as z.ZodType<SubgraphDefinition>;
 
 /**
- * Validates a subgraph definition, returning the parsed result or throwing on failure.
+ * Validates a subgraph definition and returns the parsed result.
+ *
+ * It throws when the definition is invalid.
  */
 export function validateSubgraphDefinition(def: unknown): SubgraphDefinition {
 	return SubgraphDefinitionSchema.parse(def);
 }
 
 /**
- * Per-source-type field vocabulary, DERIVED from
- * {@link SubgraphFilterSchema}. Agent-facing surfaces (the MCP filters
- * reference) used to hand-maintain a parallel copy of this list; deriving it
- * means adding a field to a filter can never leave the documentation behind.
+ * Lists the fields each source filter type accepts.
+ *
+ * The list is derived from {@link SubgraphFilterSchema}. Agent-facing surfaces
+ * such as the MCP filters reference used to keep a parallel copy by hand;
+ * deriving it means adding a field to a filter can never leave the
+ * documentation behind.
  */
 export function filterFieldsByType(): Array<{
 	type: string;

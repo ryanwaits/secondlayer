@@ -275,9 +275,10 @@ export function runsInRealm(def: SubgraphDefinition): boolean {
 }
 
 /**
- * Evaluate a bundled handler (ESM, as stored in `handler_code`) inside a
- * fresh deterministic realm and return its definition with every handler
- * wrapped to receive the {@link deterministicContext} facade.
+ * Loads a bundled handler into a fresh deterministic realm.
+ *
+ * The bundle is ESM, as stored in `handler_code`. The returned definition has
+ * every handler wrapped to receive the {@link deterministicContext} facade.
  */
 export async function loadDeterministicDefinition(
 	handlerCode: string,

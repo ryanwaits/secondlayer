@@ -154,10 +154,11 @@ export function diffSchema(
 }
 
 /**
- * Returns true if the diff contains any breaking changes
- * (removed tables, removed columns, changed column types, or removed
- * uniqueKeys — handler upserts `ON CONFLICT` against those).
- * Index-flag and composite-index changes are never breaking.
+ * Tells whether a schema diff is breaking, with the reasons.
+ *
+ * Breaking means removed tables, removed columns, changed column types or
+ * removed `uniqueKeys`, which handler upserts conflict on. Index-flag and
+ * composite-index changes are never breaking.
  */
 export function hasBreakingChanges(diff: TableDiff): {
 	breaking: boolean;
@@ -251,11 +252,12 @@ export function renderDeployPlan(
 }
 
 /**
- * Deploy a subgraph schema to the database.
- * - New subgraph → CREATE SCHEMA + tables + register
- * - Same hash → no-op (handler path updated)
- * - Additive change → ALTER TABLE ADD COLUMN / CREATE TABLE for new tables
- * - Breaking change → auto-reindex (drop + recreate)
+ * Deploys a subgraph schema to the database.
+ *
+ * A new subgraph gets its schema and tables created and registered. The same
+ * schema hash only updates the handler path. An additive change adds columns
+ * and tables in place, and a breaking change reindexes by dropping and
+ * recreating the tables.
  */
 export async function deploySchema(
 	db: AnyDb,

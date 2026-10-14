@@ -53,8 +53,12 @@ export function camelizeDataKey(str: string): string {
 	return str.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
 }
 
-/** Recursively camelize object keys with the print-payload helper (not ABI
- *  `toCamelCase` — that one strips `-STX` and prefixes leading digits). */
+/**
+ * Camelizes object keys recursively, the way print payloads are.
+ *
+ * It uses the print-payload helper, not ABI `toCamelCase`, which strips `-STX`
+ * and prefixes leading digits.
+ */
 export function camelizeKeys(obj: unknown): unknown {
 	if (obj === null || obj === undefined) return obj;
 	if (typeof obj !== "object") return obj;
