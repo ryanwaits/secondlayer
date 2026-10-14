@@ -405,8 +405,8 @@ Amount picker and Tabs:
 - **A chosen value is ink.** Never `pri`; blue is the action and the current tab.
 - **The current tab is blue** (see Tabs).
 - **One shape: 4px, joined.** Full-radius pills stay only for inline prose chips (`<Pick>`).
-Narrow rule: more than three options, or a container under 310px, stacks into one joined
-column (dividers move to the top edge, labels left-aligned). It is a container query on the
+Narrow rule: a container under 310px stacks into one joined column (dividers move to the
+top edge, labels left-aligned), however many options it has. It is a container query on the
 fieldset; no script measures anything.
 
 ### Amount picker (pick one amount)
