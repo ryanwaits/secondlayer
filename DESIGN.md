@@ -1,6 +1,6 @@
 ---
 name: Secondlayer
-description: Instant data for apps on Bitcoin. Geist + Geist Mono, "Primaries" color roles (blue acts, yellow marks, red fails), neutrals everywhere else, the terminal as the product stage.
+description: Instant data for apps on Bitcoin. Geist + Geist Mono, "Primaries" color roles (blue acts, yellow marks, red fails), neutrals everywhere else, code figures as the product stage.
 register: brand
 colors:
   light:
@@ -102,9 +102,9 @@ components:
     border: "1px solid {colors.light.line}"
     rounded: "{rounded.md}"
     padding: "12px 16px"
-  terminal-window:
-    backgroundColor: "{colors.terminal.ground-light-mode}"
-    border: "1px solid {colors.terminal.line-light-mode}"
+  code-figure:
+    backgroundColor: "{colors.light.paper}"
+    border: "1px solid {colors.light.line}"
     rounded: "{rounded.md}"
 ---
 
@@ -138,16 +138,15 @@ FILLS use `--hi`. New work reads the role tokens, never literals.
 **Creative North Star: "Instant data for apps on Bitcoin."**
 
 One brand, one system. A near-silent page in ink on paper, one family of type, three
-color roles that each mean exactly one thing, and the product itself, a dark terminal,
-as the only imagery. The page whispers; the terminal demonstrates. Nothing decorates.
+color roles that each mean exactly one thing, and the product itself, shown as code
+figures, as the only imagery. The page whispers; the code demonstrates. Nothing decorates.
 
 **Key characteristics:**
-- Geist for everything proportional, Geist Mono for data and the terminal. Weights 400 and
+- Geist for everything proportional, Geist Mono for data and code. Weights 400 and
   500 only. Hierarchy is size, one weight step, and tracking.
 - Radii are 4 / 8 / 999px. Nothing else.
-- No gradients, bevels, glows, or dot-grids. Flat SVG assets and the terminal are the only
+- No gradients, bevels, glows, or dot-grids. Flat SVG assets and code figures are the only
   imagery.
-- One dark terminal ground in both modes. The page changes theme; the terminal does not.
 - Motion is one idea: scroll-position opacity. Everything else is instant.
 
 ## 2. Colors
@@ -184,7 +183,7 @@ color stays free to mean something.
 - `ok` (green) is the diff `+` sign, `✓` output and an exit 0 chip. Removed diff lines are
   `faint`, never red.
 - No tinted rows, with one exception: `!mark` lines and lit references take the `soft` row.
-- Inside a product terminal the block drops its card and reads the terminal's own tokens.
+- A product page's code is a figure (see §6, Code figure); there is no separate terminal ground.
 
 **Authoring a fence.** The info string after the language sets the frame:
 
@@ -410,15 +409,31 @@ a check for 1.2s, no toast.
 No bullets, no rules: 14px check glyph `#999` + 14px/1.625 text at `ink/45`, `gap 10px`,
 rows `space-y-2`. Items state facts, never invented metrics.
 
-### Terminal window (the product stage)
-Ground `--term` (dark in both modes), border `--term-line`, radius 8px, self-contained:
-- Title bar: pad `8px 12px`, 9px traffic dots (exact hexes above), 12px mono path, right-aligned
-  meta.
-- Body: pad 14px, Geist Mono 12/19.5, terminal fg/muted tokens, prompt `❯` in the terminal accent.
-- Inner prompt/input rows: raised terminal surface, border `--term-line`, radius 4px, pad `8px 16px`, 11px.
-- Diff/success highlight: green text on 8–14% green wash, full-bleed line.
-This is a **product depiction** (the sl CLI), not decorative chrome — it must always show
-plausible real output (real heights, real commands). Never wrap it in a fake browser frame.
+### Code figure (the product stage)
+Product pages show the product as `<Code variant="figure">` on paper with the `line`
+hairline, the same renderer as docs. Rules:
+- Source files are figures: numbered lines, at most three margin callouts, each callout's
+  token marked yellow. Callouts leave the block and sit in a 17rem margin column on a 28px
+  `faint` hairline leader at their row, in Geist 13px with the line number in mono ink. At
+  960px and below the notes stack under the block and leaders drop. A figure takes no
+  `wrap`, `!collapse` or `!error` (notes align to rows by index) and never clamps.
+- `!mark … blue` only where the page's own diagram already draws the cursor in blue (Streams).
+- Transcripts are `text` fences, not figures: no line numbers, `$` prompt column, output
+  tones by rule (`✓` ok, `⚠`/`✗` alarm, headers faint), `exit=N` when the code matters. No
+  traffic dots and no hand-built spans. A shell command carries on while a line ends in a
+  backslash or a single quote is open.
+- A figure beside copy takes the wide split (`<Split wide>`, copy 0.7fr, figure 1.8fr) so
+  the code and its notes both fit; long source lines scroll inside the block.
+- No client interaction on marketing pages: no `ref`, `pick` or focus links, so the scope
+  script never loads. Copy and tabs are the page's single delegated listener.
+- `<CodeTabs variant="figure">`: each tab pane is its own figure. The tab bar sits above
+  the pane's code and notes inside one frame, and the notes live in the pane, so they swap
+  with the tab. Same 960px stacking, with the notes under the code and a hairline above them.
+- Languages: ts, tsx, js, bash, json, sql, toml, markdown, clarity and solidity (`sol`).
+- The live block checker on `/verify` is the one interactive transcript: the same frame
+  and tokens (`.cb`, `.cb-bar`, `ink`/`sub`/`ok`), no dots.
+This is a **product depiction**, not decorative chrome: it must always show plausible real
+output (real heights, real commands). Never wrap it in a fake browser frame.
 
 ### Nav
 Wordmark + dropdown labels (16px/400, chevron 12px) + text links + button pair. Dropdowns open
@@ -445,10 +460,9 @@ Heading 16px ink 400 (not bold — column position does the work), links 16px `f
 ### Do
 - Use the color roles for what they mean: blue acts, yellow marks, red fails.
 - Set muted text with `sub` or the ink alpha ramp.
-- Use radius-full for pill-shaped interactives; 8px for cards, terminal, command; 4px inside
-  terminals.
-- Keep the terminal dark in both modes with the terminal tokens.
-- Put real CLI output in every terminal (heights, commands, verify results). Honest copy only,
+- Use radius-full for pill-shaped interactives; 8px for cards, code figures, command; 4px inside
+  inputs.
+- Put real CLI output in every transcript (heights, commands, verify results). Honest copy only,
   no invented metrics, counts, or logos.
 - Ship the scroll-opacity mechanism exactly: 0.2 to 1, 500ms, opacity only, reduced-motion safe.
 - Keep hero headlines at most 2 lines, 50 characters, both lines ink.

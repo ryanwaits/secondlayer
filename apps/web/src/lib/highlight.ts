@@ -89,7 +89,7 @@ export async function tokenize(
 	}).tokens;
 }
 
-/** Dual-theme Shiki HTML, for surfaces not yet on `<Code>`. */
+/** Dual-theme Shiki HTML, for the two surfaces that need Shiki's own markup: the agent prompt card and the writing hero art. Code blocks go through `<Code>`. */
 export async function highlight(
 	code: string,
 	lang = "typescript",
