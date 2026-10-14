@@ -553,7 +553,7 @@ export function ConfigCard({
 			title="Configuration"
 			subtitle={`${webhook.name} · edit with the CLI or SDK`}
 		>
-			<div className="wh-tabs" role="tablist" style={{ marginTop: 0 }}>
+			<div className="tabbar" role="tablist">
 				<button
 					type="button"
 					role="tab"

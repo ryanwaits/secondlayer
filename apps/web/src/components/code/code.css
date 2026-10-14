@@ -355,28 +355,14 @@
 	color: var(--alarm);
 }
 
-/* Tabs: one bar, one Copy, panes are fences. The selected tab underlines in pri. */
-.cb .tabs {
-	display: flex;
-	gap: 18px;
+/* Tabs: one bar, one Copy, panes are fences. The tab strip is the shared
+   .tabbar; inside the bar the bar's own border is the baseline. */
+.cb-bar .tabbar {
 	height: 100%;
+	box-shadow: none;
 }
-.cb .tabs button {
+.cb-bar .tabbar button {
 	height: 100%;
-	padding: 0;
-	border: 0;
-	border-bottom: 2px solid transparent;
-	background: none;
-	color: var(--faint);
-	font: 400 12px / 1 var(--font-mono-stack);
-	cursor: pointer;
-}
-.cb .tabs button[aria-selected="true"] {
-	border-bottom-color: var(--pri);
-	color: var(--ink);
-}
-.cb .tabs button:not([aria-selected="true"]):hover {
-	color: var(--ink);
 }
 .cb-tabs > .cb-bar {
 	padding-left: 14px;

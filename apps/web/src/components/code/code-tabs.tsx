@@ -80,7 +80,7 @@ export async function CodeTabs({
 			data-sync={sync}
 			// biome-ignore lint/security/noDangerouslySetInnerHtml: built here from escaped values and `renderCode` output
 			dangerouslySetInnerHTML={{
-				__html: `<div class="cb-bar"><span class="tabs" role="tablist">${buttons}</span><span class="r"><button type="button" class="copy" data-copy-button>Copy</button></span></div>${body}`,
+				__html: `<div class="cb-bar"><span class="tabbar mono" role="tablist">${buttons}</span><span class="r"><button type="button" class="copy" data-copy-button>Copy</button></span></div>${body}`,
 			}}
 		/>
 	);

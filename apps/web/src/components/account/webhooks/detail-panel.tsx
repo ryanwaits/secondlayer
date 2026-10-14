@@ -658,7 +658,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 
 			<AttemptRibbon rows={rows} />
 
-			<div className="wh-tabs" role="tablist">
+			<div className="tabbar" role="tablist">
 				<button
 					type="button"
 					role="tab"

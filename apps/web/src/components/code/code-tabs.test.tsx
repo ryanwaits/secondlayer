@@ -52,6 +52,13 @@ describe("CodeTabs", () => {
 		expect(html.match(/data-copyable/g)).toHaveLength(2);
 	});
 
+	test("the tab strip is the shared mono tab bar in both variants", async () => {
+		for (const variant of ["docs", "figure"] as const) {
+			const html = await tabs({ variant, children: fence("ts", "x") });
+			expect(html).toContain('<span class="tabbar mono" role="tablist">');
+		}
+	});
+
 	test("the group carries its sync key", async () => {
 		const html = await tabs({ sync: "lang", children: fence("ts", "x") });
 		expect(html).toContain('data-sync="lang"');

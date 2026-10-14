@@ -3029,36 +3029,6 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	font-weight: 500;
 }
 
-.wh-tabs {
-	display: flex;
-	gap: 2px;
-	border-bottom: 1px solid var(--border);
-	margin-top: 8px;
-	overflow-x: auto;
-}
-.wh-tabs button {
-	border: 0;
-	background: none;
-	padding: 8px 12px;
-	color: var(--sub);
-	cursor: pointer;
-	border-bottom: 2px solid transparent;
-	margin-bottom: -1px;
-	white-space: nowrap;
-	font: inherit;
-}
-.wh-tabs button[aria-selected="true"] {
-	color: var(--ink);
-	border-bottom-color: var(--pri);
-	font-weight: 500;
-}
-.wh-tabs .n {
-	margin-left: 6px;
-	font-family: var(--font-mono-stack);
-	font-size: 11px;
-	color: var(--text-muted);
-}
-
 .wh-result {
 	margin: 0;
 	font-size: 13px;
@@ -7371,6 +7341,60 @@ a.acct-strip-link:hover .acct-strip-k {
 }
 @media (prefers-reduced-motion: reduce) {
 	.amount-box {
+		transition: none;
+	}
+}
+
+/* ── Tabs: move between panes ──
+ * The current tab is ink text on a 2px --pri underline over the 1px --line
+ * baseline: the one stroke heavier than 1px. Markup is each caller's
+ * (role=tablist / tab, aria-selected). The baseline is an inset shadow so
+ * the sideways-scrolling bar can't clip the underline. */
+.tabbar {
+	display: flex;
+	gap: 20px;
+	overflow-x: auto;
+	box-shadow: inset 0 -1px 0 var(--line);
+}
+.tabbar button {
+	position: relative;
+	flex: none;
+	height: 40px;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--sub);
+	font: 400 14px/1 var(--font-sans-stack);
+	white-space: nowrap;
+	cursor: pointer;
+	transition: color var(--duration-snappy) var(--ease-snappy);
+}
+.tabbar.mono button {
+	font: 400 12px/1 var(--font-mono-stack);
+}
+.tabbar button:hover,
+.tabbar button[aria-selected="true"] {
+	color: var(--ink);
+}
+.tabbar button[aria-selected="true"]::after {
+	content: "";
+	position: absolute;
+	inset: auto 0 0;
+	height: 2px;
+	background: var(--pri);
+}
+.tabbar button:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: -2px;
+}
+.tabbar .n {
+	margin-left: 6px;
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--text-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+	.tabbar button {
 		transition: none;
 	}
 }

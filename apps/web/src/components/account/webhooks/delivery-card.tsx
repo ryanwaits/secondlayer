@@ -296,7 +296,7 @@ export function DeliveryCard({
 				</p>
 			) : null}
 
-			<div className="wh-tabs" role="tablist">
+			<div className="tabbar" role="tablist">
 				<button
 					type="button"
 					role="tab"
