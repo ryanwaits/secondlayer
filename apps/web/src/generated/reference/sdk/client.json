@@ -1,6 +1,107 @@
 {
 	"slug": "client",
 	"root": "sl",
+	"constructor": {
+		"name": "SecondLayer",
+		"summary": "",
+		"description": "",
+		"source": {
+			"file": "packages/sdk/src/client.ts",
+			"line": 110
+		},
+		"overloads": [
+			{
+				"label": "",
+				"description": "",
+				"params": [
+					{
+						"name": "options",
+						"type": "{ baseUrl?: string; apiKey?: string; accountKey?: string; fetchImpl?: FetchLike; dumpsBaseUrl?: string; archiveBaseUrl?: string; archiveOpsUrl?: string; origin?: \"cli\" | \"mcp\" | \"session\"; verify?: boolean | { publicKey: string; }; verifyDumpsManifest?: boolean; requestTimeoutMs?: number; etagCache?: false | EtagCache }",
+						"required": false,
+						"description": "",
+						"fields": [
+							{
+								"name": "baseUrl",
+								"type": "string",
+								"required": false,
+								"description": "Base URL of the instance API (trailing slashes are stripped)."
+							},
+							{
+								"name": "apiKey",
+								"type": "string",
+								"required": false,
+								"description": "Bearer token for authenticated requests. Defaults to\n`SECONDLAYER_API_KEY` on `api.secondlayer.tools`, `INSTANCE_TOKEN`\nelsewhere."
+							},
+							{
+								"name": "accountKey",
+								"type": "string",
+								"required": false,
+								"description": "Hosted account key (`sk-sl_*`). Env `SECONDLAYER_API_KEY`. Used by\n`sl.archive` quote/fetch/credits; reaches `/v1` and `/api` only through\n`apiKey` when the base URL is the hosted API."
+							},
+							{
+								"name": "fetchImpl",
+								"type": "FetchLike",
+								"required": false,
+								"description": "Fetch implementation. Tests and edge runtimes can provide their own."
+							},
+							{
+								"name": "dumpsBaseUrl",
+								"type": "string",
+								"required": false,
+								"description": "Public base URL for Streams bulk parquet dumps (the cold backfill plane).\nRequired for `streams.dumps.*`; without it the dumps client falls back to\nits built-in default."
+							},
+							{
+								"name": "archiveBaseUrl",
+								"type": "string",
+								"required": false,
+								"description": "Public base URL for the signed canonical archive tree. Defaults to\n`https://archive.secondlayer.tools`. Reaches `sl.archive`."
+							},
+							{
+								"name": "archiveOpsUrl",
+								"type": "string",
+								"required": false,
+								"description": "Credits and fetch-gate API. Defaults to `https://api.secondlayer.tools`,\nnot `baseUrl`. Reaches `sl.archive` quote/fetch/credits."
+							},
+							{
+								"name": "origin",
+								"type": "\"cli\" | \"mcp\" | \"session\"",
+								"required": false,
+								"description": "Deploy origin label sent as `x-sl-origin` (telemetry). Defaults to `cli`."
+							},
+							{
+								"name": "verify",
+								"type": "boolean | { publicKey: string; }",
+								"required": false,
+								"description": "Check the ed25519 signature on every Streams read. Omit for lenient\n(verify when signed, pass through unsigned self-host responses), `true`\nor `{ publicKey }` for strict, `false` for off. Reaches `sl.streams`."
+							},
+							{
+								"name": "verifyDumpsManifest",
+								"type": "boolean",
+								"required": false,
+								"description": "Check the dumps manifest signature before trusting any file hash\n(default on). Reaches `sl.streams.dumps`."
+							},
+							{
+								"name": "requestTimeoutMs",
+								"type": "number",
+								"required": false,
+								"description": "How long one request may take, headers and body, before it fails with a\nretryable `ApiError` (default 30 000 ms). A hung socket then trips the\nretry policy instead of stalling a walk or consume loop forever. `0`\ndisables the timeout."
+							},
+							{
+								"name": "etagCache",
+								"type": "false | EtagCache",
+								"required": false,
+								"description": "Where GET responses carrying an `ETag` are kept, so a repeat read sends\n`If-None-Match` and a finalized page comes back as a free `304`.\nDefaults to an in-memory store of the last 64 pages. Pass your own to\nkeep it across processes (a file, a KV), or `false` to turn it off."
+							}
+						]
+					}
+				],
+				"returns": {
+					"type": "",
+					"description": ""
+				}
+			}
+		]
+	},
 	"methods": [
 		{
 			"id": "batch",
@@ -205,6 +306,47 @@
 					"description": ""
 				}
 			]
+		},
+		{
+			"name": "EtagCache",
+			"summary": "Storage for `etagCache`.",
+			"fields": [
+				{
+					"name": "get",
+					"type": "(key: string) => EtagEntry | Promise<EtagEntry | undefined> | undefined",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "set",
+					"type": "(key: string, entry: EtagEntry) => Promise<void> | void",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "EtagEntry",
+			"summary": "One cached GET response: its validator and the body it validated.",
+			"fields": [
+				{
+					"name": "etag",
+					"type": "string",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "body",
+					"type": "string",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "FetchLike",
+			"summary": "",
+			"definition": "(input: string | URL | Request, init?: RequestInit) => Promise<Response>"
 		},
 		{
 			"name": "IndexTip",

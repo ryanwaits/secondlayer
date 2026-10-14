@@ -259,7 +259,8 @@ function render(schema: Schema | undefined, ctx: RenderContext): Rendered {
 	}
 
 	if (schema.type === "null") {
-		return atom(tsType === "undefined" ? "undefined" : "null");
+		// openpkg encodes `void` and `undefined` as `type: "null"` with the real name in `x-ts-type`.
+		return atom(tsType === "void" || tsType === "undefined" ? tsType : "null");
 	}
 
 	if (schema.type === "object" || schema.properties) {

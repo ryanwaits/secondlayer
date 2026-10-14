@@ -92,6 +92,26 @@ describe("renderType", () => {
 		expect(renderType(schema, ctx())).toBe("string | undefined");
 	});
 
+	test("void return renders as void; only a real null renders null", () => {
+		const returns = (x: string | undefined): Schema => ({
+			type: "null",
+			...(x ? { "x-ts-type": x } : {}),
+		});
+		expect(renderType(returns("void"), ctx())).toBe("void");
+		expect(renderType(returns("undefined"), ctx())).toBe("undefined");
+		expect(renderType(returns(undefined), ctx())).toBe("null");
+		expect(
+			renderType(
+				{
+					type: "object",
+					"x-ts-type": "Promise",
+					"x-ts-type-arguments": [returns("void")],
+				},
+				ctx(),
+			),
+		).toBe("Promise<void>");
+	});
+
 	test("string enums become literal unions and single values a literal", () => {
 		expect(renderType({ type: "string", enum: ["a", "b"] }, ctx())).toBe(
 			'"a" | "b"',

@@ -26,6 +26,11 @@ await extractReference({
 		{ slug: "archive", title: "Archive", member: "archive" },
 		{ slug: "contracts", title: "Contracts", member: "contracts" },
 		{ slug: "instance", title: "Instance", member: "instance" },
-		{ slug: "client", title: "Client", only: ["batch", "context"] },
+		{
+			slug: "client",
+			title: "Client",
+			only: ["batch", "context"],
+			withConstructor: true,
+		},
 	],
 });

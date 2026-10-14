@@ -260,7 +260,7 @@
 			"examples": [
 				{
 					"file": "packages/sdk/examples/streams/events.consume.ts",
-					"code": "import { Database } from \"bun:sqlite\";\nimport { SecondLayer } from \"@secondlayer/sdk\";\n\nconst db = new Database(\"transfers.sqlite\");\ndb.run(`create table if not exists transfers (\n  cursor text primary key,\n  block_height integer not null,\n  sender text not null,\n  recipient text not null,\n  amount text not null\n)`);\ndb.run(\n\t\"create table if not exists checkpoint (id integer primary key check (id = 1), cursor text)\",\n);\n\nconst sl = new SecondLayer();\nconst saved = db\n\t.query<{ cursor: string | null }, []>(\"select cursor from checkpoint\")\n\t.get();\n\nawait sl.streams.events.consume({\n\ttypes: [\"ft_transfer\"],\n\t// !callout[/fromCursor/] Null on the first run, so the sweep starts at the beginning.\n\tfromCursor: saved?.cursor ?? null,\n\tonBatch: (events, _envelope, ctx) => {\n\t\tdb.transaction(() => {\n\t\t\tfor (const event of events) {\n\t\t\t\t// !callout[/event_type/] Each event is a union until you check its type.\n\t\t\t\tif (event.event_type !== \"ft_transfer\") continue;\n\t\t\t\tdb.query(\"insert or replace into transfers values (?, ?, ?, ?, ?)\").run(\n\t\t\t\t\tevent.cursor,\n\t\t\t\t\tevent.block_height,\n\t\t\t\t\tevent.payload.sender,\n\t\t\t\t\tevent.payload.recipient,\n\t\t\t\t\tevent.payload.amount,\n\t\t\t\t);\n\t\t\t}\n\t\t\t// !callout[/ctx.cursor/] Commit the checkpoint in the same transaction as the rows.\n\t\t\tdb.query(\"insert or replace into checkpoint values (1, ?)\").run(\n\t\t\t\tctx.cursor,\n\t\t\t);\n\t\t})();\n\t\treturn ctx.cursor;\n\t},\n\tonReorg: (reorg, ctx) => {\n\t\tdb.transaction(() => {\n\t\t\t// !callout[/>=/] The fork block itself is replaced, so delete from it upward.\n\t\t\tdb.query(\"delete from transfers where block_height >= ?\").run(\n\t\t\t\treorg.fork_point_height,\n\t\t\t);\n\t\t\tdb.query(\"insert or replace into checkpoint values (1, ?)\").run(\n\t\t\t\tctx.cursor,\n\t\t\t);\n\t\t})();\n\t},\n});\n"
+					"code": "import { Database } from \"bun:sqlite\";\nimport { SecondLayer } from \"@secondlayer/sdk\";\n\nconst db = new Database(\"transfers.sqlite\");\ndb.run(`create table if not exists transfers (\n  cursor text primary key,\n  block_height integer not null,\n  sender text not null,\n  recipient text not null,\n  amount text not null\n)`);\ndb.run(\n\t\"create table if not exists checkpoint (id integer primary key check (id = 1), cursor text)\",\n);\n\nconst sl = new SecondLayer();\nconst saved = db\n\t.query<{ cursor: string | null }, []>(\"select cursor from checkpoint\")\n\t.get();\n\nawait sl.streams.events.consume({\n\ttypes: [\"ft_transfer\"],\n\t// !callout[/fromCursor/] Null on the first run, so the sweep starts at the beginning.\n\tfromCursor: saved?.cursor ?? null,\n\tonBatch: (events, _envelope, ctx) => {\n\t\tdb.transaction(() => {\n\t\t\tfor (const event of events) {\n\t\t\t\tif (event.event_type !== \"ft_transfer\") continue;\n\t\t\t\tdb.query(\"insert or replace into transfers values (?, ?, ?, ?, ?)\").run(\n\t\t\t\t\tevent.cursor,\n\t\t\t\t\tevent.block_height,\n\t\t\t\t\tevent.payload.sender,\n\t\t\t\t\tevent.payload.recipient,\n\t\t\t\t\tevent.payload.amount,\n\t\t\t\t);\n\t\t\t}\n\t\t\t// !callout[/ctx.cursor/] Commit the checkpoint in the same transaction as the rows.\n\t\t\tdb.query(\"insert or replace into checkpoint values (1, ?)\").run(\n\t\t\t\tctx.cursor,\n\t\t\t);\n\t\t})();\n\t\treturn ctx.cursor;\n\t},\n\tonReorg: (reorg, ctx) => {\n\t\tdb.transaction(() => {\n\t\t\t// !callout[/>=/] The fork block itself is replaced, so delete from it upward.\n\t\t\tdb.query(\"delete from transfers where block_height >= ?\").run(\n\t\t\t\treorg.fork_point_height,\n\t\t\t);\n\t\t\tdb.query(\"insert or replace into checkpoint values (1, ?)\").run(\n\t\t\t\tctx.cursor,\n\t\t\t);\n\t\t})();\n\t},\n});\n"
 				}
 			]
 		},
@@ -748,13 +748,13 @@
 				},
 				{
 					"name": "commitBatch",
-					"type": "(cursor: string, write: (tx: Tx) => Promise<null> | null) => Promise<null>",
+					"type": "(cursor: string, write: (tx: Tx) => Promise<void> | void) => Promise<void>",
 					"required": true,
 					"description": "Apply one batch atomically: open a transaction, run `write(tx)` (the\nuser's inserts), and commit the rows AND `cursor` together. A throw\nfrom `write` must abort the whole transaction — leaving neither rows\nnor cursor, so a crashed batch is simply re-read on restart."
 				},
 				{
 					"name": "rollback",
-					"type": "(forkPointHeight: number, rewindCursor: string | null) => Promise<null>",
+					"type": "(forkPointHeight: number, rewindCursor: string | null) => Promise<void>",
 					"required": true,
 					"description": "Roll the projection back to the fork: delete everything AT OR ABOVE\n`forkPointHeight` (inclusive `>=` — the new chain re-supplies the fork\nblock) and commit `rewindCursor` in the SAME transaction. Deleting\nwithout the rewound cursor is the classic silent-gap bug: a crash\nbetween the two writes resumes above the fork and the deleted range is\nnever re-read.\n\nOn a multi-fork page this is called once PER fork, every call with the\nsame `rewindCursor` (the lowest fork point) but its own\n`forkPointHeight` — scope the undo by `forkPointHeight` only (contract\ninvariant #11), and expect re-application after a crash (#10).\n\n`rewindCursor` is `null` only for a fork at genesis: clear the\ncheckpoint so the next run starts from the first event."
 				}
@@ -1893,7 +1893,7 @@
 				},
 				{
 					"name": "onProgress",
-					"type": "(ctx: ConsumerBatchContext<unknown, unknown>) => null",
+					"type": "(ctx: ConsumerBatchContext<unknown, unknown>) => void",
 					"required": false,
 					"description": ""
 				},
@@ -1941,13 +1941,13 @@
 				},
 				{
 					"name": "onBatch",
-					"type": "(events: RuneStreamsEvent[], envelope: StreamsEventsEnvelope<RuneStreamsEvent, StreamsBitcoinTip>, ctx: StreamsBatchContext & [TTx] extends [never] ? unknown : { tx: TTx }) => string | Promise<null> | Promise<string | undefined | null> | undefined | null",
+					"type": "(events: RuneStreamsEvent[], envelope: StreamsEventsEnvelope<RuneStreamsEvent, StreamsBitcoinTip>, ctx: StreamsBatchContext & [TTx] extends [never] ? unknown : { tx: TTx }) => string | Promise<void> | Promise<string | undefined | null> | undefined | null | void",
 					"required": true,
 					"description": ""
 				},
 				{
 					"name": "onReorg",
-					"type": "(reorg: StreamsReorg, ctx: StreamsReorgContext) => Promise<null> | null",
+					"type": "(reorg: StreamsReorg, ctx: StreamsReorgContext) => Promise<void> | void",
 					"required": false,
 					"description": ""
 				},
@@ -1971,7 +1971,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": ""
 				},
@@ -2001,7 +2001,7 @@
 				},
 				{
 					"name": "wake",
-					"type": "() => Promise<null>",
+					"type": "() => Promise<void>",
 					"required": false,
 					"description": ""
 				}
@@ -2037,7 +2037,7 @@
 				},
 				{
 					"name": "onProgress",
-					"type": "(ctx: ConsumerBatchContext<unknown, unknown>) => null",
+					"type": "(ctx: ConsumerBatchContext<unknown, unknown>) => void",
 					"required": false,
 					"description": "Fires once per page, before `onBatch` and before any early return."
 				},
@@ -2109,13 +2109,13 @@
 				},
 				{
 					"name": "onBatch",
-					"type": "(events: D extends true ? IndexEvent[] : StreamsEvent[], envelope: StreamsEventsEnvelope<StreamsEvent, StreamsTip>, ctx: StreamsBatchContext & [TTx] extends [never] ? unknown : { tx: TTx }) => string | Promise<null> | Promise<string | undefined | null> | undefined | null",
+					"type": "(events: D extends true ? IndexEvent[] : StreamsEvent[], envelope: StreamsEventsEnvelope<StreamsEvent, StreamsTip>, ctx: StreamsBatchContext & [TTx] extends [never] ? unknown : { tx: TTx }) => string | Promise<void> | Promise<string | undefined | null> | undefined | null | void",
 					"required": false,
 					"description": "Apply a page of canonical events. Persist `ctx.cursor` in the same\ntransaction as your writes. Returning a cursor overrides `ctx.cursor` as\nthe resume point (advanced manual control); returning nothing uses it.\n\nOptional only when `on` handles the page instead; a consume call with\nneither throws."
 				},
 				{
 					"name": "onReorg",
-					"type": "(reorg: StreamsReorg, ctx: StreamsReorgContext) => Promise<null> | null",
+					"type": "(reorg: StreamsReorg, ctx: StreamsReorgContext) => Promise<void> | void",
 					"required": false,
 					"description": "Roll your projection back to `reorg.fork_point_height`, persisting\n`ctx.cursor` in the same transaction. Called once per *new* reorg at or\nbelow the checkpoint (deduped in-memory, fork-ascending) before the SDK\nrewinds and re-reads the now-canonical events. A reorg whose fork sits\nabove the checkpoint is not a rollback (nothing past it was written) and\nis skipped. Omit it to ignore reorgs (events stay canonical, but stale\nrows from an orphaned fork are left in place).\n\nWith `onReorg` or a `sink` attached, every empty page also polls\n`reorgs.list` (one extra request per idle poll) so a fork that lands\nwhile the consumer idles at the tip is rolled back too."
 				},
@@ -2139,7 +2139,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging)."
 				},
@@ -2169,7 +2169,7 @@
 				},
 				{
 					"name": "wake",
-					"type": "() => Promise<null>",
+					"type": "() => Promise<void>",
 					"required": false,
 					"description": "Cuts the empty-poll backoff short: on an empty page, the loop races\n`emptyBackoffMs` against this promise instead of sleeping the full\namount. Pass a function that resolves once when new data MIGHT be\navailable (e.g. a Postgres NOTIFY listener) — it is called fresh on\nevery empty page, never awaited more than once concurrently per page.\nThe backoff timer still runs underneath, so a wake source that never\nresolves (or a `wake` this call omits) degrades to the same polling\nbehavior as before."
 				}
@@ -2300,7 +2300,7 @@
 				},
 				{
 					"name": "onDumpFile",
-					"type": "(file: StreamsDumpFile, ctx: { from: string | null }) => Promise<null> | null",
+					"type": "(file: StreamsDumpFile, ctx: { from: string | null }) => Promise<void> | void",
 					"required": true,
 					"description": "Called once per finalized dump file, in block order, before live tailing.\nProcess the parquet with your own tooling (e.g. DuckDB) — the SDK does not\ndecode parquet. Use `client.dumps.download(file)` to fetch + verify bytes.\n\nDelivery is file-granular and at-least-once: a file whose range straddles\n`from` is handed over whole. `ctx.from` is that cursor (`null` from\ngenesis); skip rows at or below it, or key rows by `cursor` so a re-run\nis an idempotent no-op. Files ending at or below `from` are not handed\nover at all."
 				},
@@ -2312,7 +2312,7 @@
 				},
 				{
 					"name": "onReorg",
-					"type": "(reorg: StreamsReorg, ctx: StreamsReorgContext) => Promise<null> | null",
+					"type": "(reorg: StreamsReorg, ctx: StreamsReorgContext) => Promise<void> | void",
 					"required": false,
 					"description": "Called when the live-tail phase (after the dump backfill) crosses a reorg,\nbefore the cursor rewinds and re-reads the now-canonical events — same\ncontract as `consume`. The dump-backfill phase is finalized and never\nreorgs; omit this to leave stale rows from an orphaned fork in place."
 				},
@@ -2678,7 +2678,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown) => null",
+					"type": "(err: unknown) => void",
 					"required": false,
 					"description": "Called on every failure. Transport errors (dropped socket, 5xx, 429, a\nstale connection, a throwing handler) reconnect from the last handled\ncursor with exponential backoff. Errors that a retry cannot fix (401,\n4xx, a bad signature) end the subscription and reject its `done`."
 				},
@@ -2726,7 +2726,7 @@
 				},
 				{
 					"name": "onEvent",
-					"type": "(event: RuneStreamsEvent) => Promise<null> | null",
+					"type": "(event: RuneStreamsEvent) => Promise<void> | void",
 					"required": true,
 					"description": ""
 				}
@@ -2750,7 +2750,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown) => null",
+					"type": "(err: unknown) => void",
 					"required": false,
 					"description": "Called on every failure. Transport errors (dropped socket, 5xx, 429, a\nstale connection, a throwing handler) reconnect from the last handled\ncursor with exponential backoff. Errors that a retry cannot fix (401,\n4xx, a bad signature) end the subscription and reject its `done`."
 				},
@@ -2816,7 +2816,7 @@
 				},
 				{
 					"name": "onEvent",
-					"type": "(event: StreamsEvent) => Promise<null> | null",
+					"type": "(event: StreamsEvent) => Promise<void> | void",
 					"required": true,
 					"description": "Called for each pushed event, in order. The resume cursor advances only\nafter this resolves, so a handler that throws sees the same event again\non reconnect (at-least-once). Key durable writes by `cursor`."
 				}
@@ -2952,7 +2952,7 @@
 			"fields": [
 				{
 					"name": "done",
-					"type": "Promise<null>",
+					"type": "Promise<void>",
 					"required": true,
 					"description": ""
 				}

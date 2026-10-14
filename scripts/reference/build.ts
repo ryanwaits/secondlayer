@@ -25,6 +25,8 @@ export type SurfaceConfig = {
 	member?: string;
 	/** Client methods that make up this surface (`batch`, `context`). */
 	only?: string[];
+	/** Document the client class's constructor on this surface. */
+	withConstructor?: boolean;
 };
 
 export type ReferenceConfig = {
@@ -62,6 +64,8 @@ export type ParamDoc = {
 	type: string;
 	required: boolean;
 	description: string;
+	/** An options object's own fields, with their docs (constructors). */
+	fields?: Field[];
 };
 
 export type TypeParam = {
@@ -102,9 +106,20 @@ export type TypeDoc = {
 	deprecated?: Deprecation;
 };
 
+export type Constructor = {
+	/** The class it constructs (`SecondLayer`). */
+	name: string;
+	summary: string;
+	description: string;
+	source: { file: string; line: number } | null;
+	overloads: Overload[];
+};
+
 export type SurfaceFile = {
 	slug: string;
 	root: string;
+	/** The client class's constructor, on the surface that asks for it. */
+	constructor?: Constructor;
 	methods: Method[];
 	types: TypeDoc[];
 };
@@ -245,13 +260,18 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 		label: string,
 		description: string,
 		ctx: RenderContext,
+		expand = false,
 	): Overload {
-		const params: ParamDoc[] = (sig.parameters ?? []).map((p) => ({
-			name: p.name,
-			type: renderType(p.schema, ctx),
-			required: p.required !== false,
-			description: p.description ?? "",
-		}));
+		const params: ParamDoc[] = (sig.parameters ?? []).map((p) => {
+			const fields = expand && p.schema ? fieldsOf(p.schema, ctx) : [];
+			return {
+				name: p.name,
+				type: renderType(p.schema, ctx),
+				required: p.required !== false,
+				description: p.description ?? "",
+				...(fields.length ? { fields } : {}),
+			};
+		});
 		const typeParams: TypeParam[] = (sig.typeParameters ?? []).map((t) => ({
 			name: t.name,
 			...(t.constraint ? { constraint: t.constraint } : {}),
@@ -424,7 +444,31 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 		return [...done.values()].sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	return { walker, known, buildMethod, typesFor };
+	/** The class's constructor signatures; options objects open into documented fields. */
+	function buildConstructor(
+		entry: Entry,
+		ctx: RenderContext,
+	): Constructor | null {
+		const signatures = entry.signatures ?? [];
+		if (!signatures.length) return null;
+		const overloads = signatures.map((sig) => {
+			const overload = buildOverload(sig, "", sig.description ?? "", ctx, true);
+			// A constructor returns its class; the signature does not repeat it.
+			return { ...overload, returns: { type: "", description: "" } };
+		});
+		const file = entry.source
+			? normalizeFile(entry.source.file, config.package)
+			: null;
+		return {
+			name: entry.name,
+			summary: "",
+			description: entry.description ?? "",
+			source: file && entry.source ? { file, line: entry.source.line } : null,
+			overloads,
+		};
+	}
+
+	return { walker, known, buildMethod, buildConstructor, typesFor };
 }
 
 function attachExamples(
@@ -500,6 +544,9 @@ export function buildReference(
 			: config.variable;
 		const refs = new Set<string>();
 		const ctx: RenderContext = { known: builder.known, refs, external };
+		const ctor = surface.withConstructor
+			? builder.buildConstructor(client, ctx)
+			: null;
 		const seen = new Set<string>();
 		const methods: Method[] = [];
 		const owners = new Map<string, string>();
@@ -524,11 +571,34 @@ export function buildReference(
 		for (const t of types) {
 			symbols[t.name] ??= `${config.docsBase}/${surface.slug}#t-${t.name}`;
 		}
-		surfaces.push({ slug: surface.slug, root, methods, types });
+		surfaces.push({
+			slug: surface.slug,
+			root,
+			...(ctor ? { constructor: ctor } : {}),
+			methods,
+			types,
+		});
 	}
 
 	// Second pass: descriptions can only link once every surface has a home.
 	for (const surface of surfaces) {
+		// `constructor` is also every object's inherited function: only an own key counts.
+		const ctor = Object.prototype.hasOwnProperty.call(surface, "constructor")
+			? surface.constructor
+			: undefined;
+		if (ctor) {
+			ctor.description = linkify(ctor.description, symbols);
+			ctor.summary = summarize(ctor.description);
+			for (const o of ctor.overloads) {
+				o.description = linkify(o.description, symbols);
+				for (const p of o.params) {
+					p.description = linkify(p.description, symbols);
+					for (const f of p.fields ?? []) {
+						f.description = linkify(f.description, symbols);
+					}
+				}
+			}
+		}
 		for (const m of surface.methods) {
 			m.description = linkify(m.description, symbols);
 			m.summary = summarize(m.description);

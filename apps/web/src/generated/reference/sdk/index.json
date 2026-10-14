@@ -2193,7 +2193,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -2313,7 +2313,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -2408,13 +2408,13 @@
 				},
 				{
 					"name": "commitBatch",
-					"type": "(cursor: string, write: (tx: Tx) => Promise<null> | null) => Promise<null>",
+					"type": "(cursor: string, write: (tx: Tx) => Promise<void> | void) => Promise<void>",
 					"required": true,
 					"description": "Apply one batch atomically: open a transaction, run `write(tx)` (the\nuser's inserts), and commit the rows AND `cursor` together. A throw\nfrom `write` must abort the whole transaction — leaving neither rows\nnor cursor, so a crashed batch is simply re-read on restart."
 				},
 				{
 					"name": "rollback",
-					"type": "(forkPointHeight: number, rewindCursor: string | null) => Promise<null>",
+					"type": "(forkPointHeight: number, rewindCursor: string | null) => Promise<void>",
 					"required": true,
 					"description": "Roll the projection back to the fork: delete everything AT OR ABOVE\n`forkPointHeight` (inclusive `>=` — the new chain re-supplies the fork\nblock) and commit `rewindCursor` in the SAME transaction. Deleting\nwithout the rewound cursor is the classic silent-gap bug: a crash\nbetween the two writes resumes above the fork and the deleted range is\nnever re-read.\n\nOn a multi-fork page this is called once PER fork, every call with the\nsame `rewindCursor` (the lowest fork point) but its own\n`forkPointHeight` — scope the undo by `forkPointHeight` only (contract\ninvariant #11), and expect re-application after a crash (#10).\n\n`rewindCursor` is `null` only for a fork at genesis: clear the\ncheckpoint so the next run starts from the first event."
 				}
@@ -2576,7 +2576,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -2858,7 +2858,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -3146,7 +3146,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -3380,19 +3380,19 @@
 				},
 				{
 					"name": "onProgress",
-					"type": "(ctx: ConsumerBatchContext) => null",
+					"type": "(ctx: ConsumerBatchContext) => void",
 					"required": false,
 					"description": "Fires once per page, before `onBatch` and before any early return —\nan empty page still proves the loop is alive. Feed it to\n`consumerHealth().record`."
 				},
 				{
 					"name": "onBatch",
-					"type": "(items: TItem[], envelope: TEnvelope, ctx: ConsumerBatchContext & [TTx] extends [never] ? unknown : { tx: TTx }) => string | Promise<null> | Promise<string | undefined | null> | undefined | null",
+					"type": "(items: TItem[], envelope: TEnvelope, ctx: ConsumerBatchContext & [TTx] extends [never] ? unknown : { tx: TTx }) => string | Promise<void> | Promise<string | undefined | null> | undefined | null | void",
 					"required": true,
 					"description": ""
 				},
 				{
 					"name": "onReorg",
-					"type": "(reorg: IndexReorg, ctx: { cursor: string | null }) => Promise<null> | null",
+					"type": "(reorg: IndexReorg, ctx: { cursor: string | null }) => Promise<void> | void",
 					"required": false,
 					"description": "Called once per new reorg at or below the checkpoint, before the loop\nrewinds to `ctx.cursor` (`null` = pre-genesis) and re-reads. A reorg\nwhose fork sits ABOVE the checkpoint is not a rollback: nothing past\nit was written, so it is noted and the page is read as normal."
 				},
@@ -3446,7 +3446,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep. Cannot change the retry\ndecision — the policy owns it."
 				}
@@ -7091,7 +7091,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -7397,7 +7397,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -7433,7 +7433,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				}
@@ -7673,7 +7673,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -7787,7 +7787,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -8051,7 +8051,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -8397,7 +8397,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -8589,7 +8589,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -8858,7 +8858,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -8879,7 +8879,7 @@
 		{
 			"name": "Sleep",
 			"summary": "",
-			"definition": "(ms: number, signal?: AbortSignal) => Promise<null>"
+			"definition": "(ms: number, signal?: AbortSignal) => Promise<void>"
 		},
 		{
 			"name": "StackingEnvelope",
@@ -9031,7 +9031,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -9193,7 +9193,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},
@@ -9463,7 +9463,7 @@
 				},
 				{
 					"name": "onError",
-					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => null",
+					"type": "(err: unknown, ctx: { attempt: number; retriesLeft: number; delayMs: number }) => void",
 					"required": false,
 					"description": "Void observer, called before each retry sleep (metrics/logging). The\nretry policy owns the decision; this cannot change it."
 				},

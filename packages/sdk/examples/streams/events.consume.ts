@@ -25,7 +25,6 @@ await sl.streams.events.consume({
 	onBatch: (events, _envelope, ctx) => {
 		db.transaction(() => {
 			for (const event of events) {
-				// !callout[/event_type/] Each event is a union until you check its type.
 				if (event.event_type !== "ft_transfer") continue;
 				db.query("insert or replace into transfers values (?, ?, ?, ?, ?)").run(
 					event.cursor,
