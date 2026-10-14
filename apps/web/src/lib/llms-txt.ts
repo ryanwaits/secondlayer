@@ -3,8 +3,8 @@ import { SITE, markdownPath } from "./docs-agent";
 
 const INTRO = `# Secondlayer: instant data for apps on Bitcoin
 
-> Every Stacks block, decoded from genesis and delivered at tip. Checkable
-> against the chain. Bitcoin Runes on self-host today. Hosted on api.secondlayer.tools (Index, Streams, Subgraphs, Webhooks),
+> Every Stacks block indexed from genesis and streamed at tip. Each one
+> provable to the Bitcoin block it settled on. Bitcoin Runes on self-host today. Hosted on api.secondlayer.tools (Index, Streams, Subgraphs, Webhooks),
 > or self-hosted: Postgres plus one container beside your node.
 
 ## Shortest path

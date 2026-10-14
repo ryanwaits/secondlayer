@@ -960,11 +960,9 @@
 	border-radius: 4px;
 }
 
-/* Start free: the primary button (GetStartedMenu keeps its panel) */
-.marketing-nav .imenu {
+/* Start free: the primary button, straight to sign-up */
+.marketing-nav .start-free {
 	margin-left: 0;
-}
-.marketing-nav .imenu-btn {
 	height: 34px;
 	padding: 0 13px;
 	border-radius: 4px;
@@ -974,7 +972,7 @@
 	letter-spacing: -0.005em;
 	transition: background-color 150ms var(--ease-snappy);
 }
-.marketing-nav .imenu-btn:hover {
+.marketing-nav .start-free:hover {
 	opacity: 1;
 	background: color-mix(in srgb, var(--pri) 86%, var(--paper));
 }
@@ -1122,17 +1120,40 @@
 	justify-items: stretch;
 }
 .site.home .hero-row {
-	display: flex;
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
 	align-items: end;
-	justify-content: space-between;
-	gap: 24px 48px;
+	gap: 12px 48px;
+}
+/* The actions sit level with the sub; the note hangs under the sub alone. */
+.site.home .hero .sub {
+	grid-row: 1;
+}
+.site.home .hero-note {
+	grid-row: 2;
+	grid-column: 1;
+}
+.site.home .hero-cta {
+	grid-row: 1;
+	grid-column: 2;
+}
+@media (max-width: 1080px) {
+	.site.home .hero-row {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.site.home .hero-cta {
+		grid-row: 3;
+		grid-column: 1;
+		margin-top: 12px;
+	}
 }
 .site.home .hero .sub {
 	font-size: clamp(17px, 1.7vw, 20px);
 	line-height: 1.5;
 	color: var(--sub);
-	max-width: 44ch;
+	/* As wide as the row allows beside the actions, lines evened out. */
+	max-width: 36em;
+	text-wrap: pretty;
 }
 .site.home .hero-cta {
 	display: grid;
@@ -1157,7 +1178,8 @@
 }
 .site .spine a {
 	display: grid;
-	grid-template-columns: 180px 130px minmax(0, 1fr) 24px;
+	/* The second column fits the longest verb line on one line. */
+	grid-template-columns: 180px 200px minmax(0, 1fr) 24px;
 	gap: 16px;
 	padding: 20px 0;
 	border-bottom: 1px solid var(--line);
@@ -1226,39 +1248,7 @@
 	}
 }
 
-/* doors */
-.site .doors {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	overflow: hidden;
-}
-.site .door {
-	padding: clamp(24px, 3.4vw, 40px);
-	display: grid;
-	gap: 18px;
-	align-content: start;
-	min-width: 0;
-}
-.site .door + .door {
-	border-left: 1px solid var(--line);
-}
-.site .door h3 {
-	font-size: clamp(22px, 2.4vw, 28px);
-	letter-spacing: -0.03em;
-	line-height: 1.15;
-}
-.site .door p {
-	color: var(--sub);
-	max-width: 46ch;
-}
-.site .door .art {
-	background: var(--soft);
-	border-radius: 8px;
-	padding: 20px;
-	margin-top: 6px;
-}
+/* a section's trailing link */
 .site .more {
 	font-size: 14.5px;
 	font-weight: 500;
@@ -1267,15 +1257,6 @@
 }
 .site .more:hover {
 	color: var(--pri);
-}
-@media (max-width: 860px) {
-	.site .doors {
-		grid-template-columns: 1fr;
-	}
-	.site .door + .door {
-		border-left: 0;
-		border-top: 1px solid var(--line);
-	}
 }
 
 /* verify. One chain graphic per width; the selectors carry `svg.asset` so
@@ -1586,6 +1567,70 @@
 	letter-spacing: -0.05em;
 	line-height: 0.98;
 }
+/* Under the hero's sub, a smaller note on what lands next. */
+.site.home .hero-note {
+	font-size: 14.5px;
+	line-height: 1.5;
+	color: var(--faint);
+}
+/* A chain named in the hero's sub: its mark as a chip, then the name as an
+   underlined link, held together on one line. */
+.site .chain {
+	white-space: nowrap;
+	color: var(--ink);
+	text-decoration: underline;
+	text-decoration-color: var(--line);
+	text-decoration-thickness: 1.5px;
+	text-underline-offset: 0.22em;
+}
+.site .chain:hover {
+	text-decoration-color: currentColor;
+}
+.site .chain-mark {
+	display: inline-block;
+	width: 1.05em;
+	height: 1.05em;
+	margin: 0 0.28em 0 0.06em;
+	vertical-align: -0.2em;
+}
+.site .chain-mark svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+/* Each chain's own brand colors, not ours. */
+.site .chain-stacks .chain-bg {
+	fill: #fc6432;
+}
+.site .chain-stacks .chain-fg {
+	fill: #ffffff;
+}
+.site .chain-bitcoin .chain-bg {
+	fill: #f7931a;
+}
+.site .chain-bitcoin .chain-fg {
+	fill: #ffffff;
+}
+/* Clarity's square is near-black: a hairline keeps its edge on a dark page. */
+.site .chain-clarity {
+	border-radius: 0.32em;
+	box-shadow: 0 0 0 1px var(--line);
+}
+.site .chain-clarity .chain-bg {
+	fill: #13171a;
+}
+.site .chain-clarity .chain-dim {
+	fill: #7e858b;
+}
+.site .chain-clarity .chain-fg {
+	fill: #f7f8f9;
+}
+.site .chain-runes .chain-bg {
+	fill: var(--ink);
+}
+.site .chain-runes .chain-fg {
+	stroke: var(--paper);
+}
 /* The hero breaks its own lines; its highlighted line hangs its padding
    into the margin so both lines start on one edge. */
 .site.home .hero h1 {
@@ -1593,6 +1638,7 @@
 }
 .site.home .hero h1 .hl {
 	margin-left: -0.1em;
+	white-space: nowrap;
 }
 
 /* ── product pages ─────────────────────────────────────────────────── */

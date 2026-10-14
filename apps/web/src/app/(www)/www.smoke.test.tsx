@@ -34,19 +34,24 @@ describe("www marketing routes", () => {
 		expect(html).toContain('href="/verify"');
 		expect(html).toContain('href="/docs/self-host"');
 		expect(html).toContain('href="/docs/self-host#connect-your-node"');
-		expect(html).toContain("for apps on Bitcoin.");
+		expect(html).toContain("Proof included.");
 		expect(html).toContain("Your box or ours.");
 		expect(html).toContain("beside your node");
 		expect(html).toContain("example rows");
 		expect(html).toContain("Coming soon");
 		expect(html).not.toContain("—");
 		expect(html).not.toContain("secondlayer-labs");
-		expect(html).not.toContain('href="#');
+		// An in-page link must land on something; a bare "#" is a placeholder.
+		for (const [, id] of html.matchAll(/href="#([^"]*)"/g)) {
+			expect(id).not.toBe("");
+			expect(html).toContain(`id="${id}"`);
+		}
 	});
 
 	test("/ states the hosted and self-host paths and no withdrawn products", async () => {
 		const html = await renderAsync(<HomeView />);
-		expect(html).toContain("for apps on Bitcoin.");
+		// Runes is self-host only until hosted lands; the hero must say so.
+		expect(html).toContain("on self-host today.");
 		expect(html).toContain("Your box or ours.");
 		expect(html).toContain("beside your node");
 		expect(html).toContain('href="/p/subgraphs"');

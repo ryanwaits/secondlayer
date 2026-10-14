@@ -7,12 +7,8 @@ import {
 	Split,
 	StatusDot,
 } from "@/components/site";
-import {
-	DeliveryLogArt,
-	RowsTable,
-	SubgraphTableArt,
-	TrustChainArt,
-} from "@/components/site/assets";
+import { RowsTable, TrustChainArt } from "@/components/site/assets";
+import { ChainLink } from "@/components/site/chain-link";
 import { socialMeta } from "@/lib/og";
 import { PRODUCTS } from "@/lib/site";
 import type { Metadata } from "next";
@@ -20,7 +16,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 const SUB =
-	"Every Stacks block, decoded from genesis and delivered at tip. Checkable against the chain.";
+	"Every Stacks block indexed from genesis and streamed at tip. Each one provable to the Bitcoin block it settled on. Runes indexed from the first etch, on self-host today.";
 
 export const metadata: Metadata = socialMeta({
 	title: "secondlayer · instant data for apps on Bitcoin",
@@ -172,11 +168,33 @@ export function HomeView() {
 				<div className="shell">
 					<div className="hero-copy">
 						<h1>
-							Instant data
-							<br /> <Highlight>for apps on Bitcoin.</Highlight>
+							Instant data for apps on
+							<br /> Bitcoin. <Highlight>Proof included.</Highlight>
 						</h1>
 						<div className="hero-row">
-							<p className="sub">{SUB}</p>
+							<p className="sub">
+								Every{" "}
+								<ChainLink chain="stacks" href="/p/index">
+									Stacks
+								</ChainLink>{" "}
+								block indexed from genesis and streamed at tip. Each one
+								provable to the{" "}
+								<ChainLink chain="bitcoin" href="/verify#chain">
+									Bitcoin
+								</ChainLink>{" "}
+								block it settled on.{" "}
+								<ChainLink chain="runes" href="/docs/index#runes">
+									Runes
+								</ChainLink>{" "}
+								indexed from the first etch, on self-host today.
+							</p>
+							<p className="hero-note">
+								Coming soon:{" "}
+								<ChainLink chain="clarity" href="#clarity-state-writes">
+									Clarity
+								</ChainLink>{" "}
+								contract state, including inner contract calls.
+							</p>
 							<div className="hero-cta">
 								<div className="btns">
 									<ButtonLink href="/login">Start free</ButtonLink>
@@ -205,45 +223,6 @@ export function HomeView() {
 							</Link>
 						))}
 					</nav>
-				</div>
-			</section>
-
-			<section className="band" id="doors">
-				<div className="shell">
-					<div className="sec-head">
-						<Eyebrow noun="Two ways in" />
-						<h2>Rows when you ask. Pushes when it happens.</h2>
-					</div>
-					<div className="doors">
-						<div className="door">
-							<h3>Your contract, as a table.</h3>
-							<p>
-								Read decoded events by type, contract or address. When the shape
-								settles, one TypeScript file becomes Postgres tables we keep at
-								tip, with types for your client.
-							</p>
-							<div className="art">
-								<SubgraphTableArt />
-							</div>
-							<Link className="more" href="/p/subgraphs">
-								Index and Subgraphs →
-							</Link>
-						</div>
-						<div className="door">
-							<h3>Your server, told first.</h3>
-							<p>
-								Get a signed POST the moment a matching event lands, with
-								retries we keep and log. Or pull the same events in order and
-								hold the cursor yourself.
-							</p>
-							<div className="art">
-								<DeliveryLogArt />
-							</div>
-							<Link className="more" href="/p/webhooks">
-								Webhooks and Streams →
-							</Link>
-						</div>
-					</div>
 				</div>
 			</section>
 
@@ -380,7 +359,7 @@ export function HomeView() {
 								</div>
 							</div>
 						</div>
-						<div className="well">
+						<div className="well" id="clarity-state-writes">
 							<div className="well-top">
 								<h3>Clarity state writes</h3>
 								<StatusDot state="soon" />

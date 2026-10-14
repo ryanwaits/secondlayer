@@ -1052,6 +1052,9 @@ function Footer({ path }: { path: string }) {
 
 function WideFrame(spec: CardSpec) {
 	const { size } = spec;
+	const [plain, marked] = spec.line2.includes("|")
+		? spec.line2.split("|")
+		: ["", spec.line2];
 	const hl = spec.highlight ?? YELLOW;
 	const line = {
 		fontFamily: "Geist",
@@ -1092,16 +1095,22 @@ function WideFrame(spec: CardSpec) {
 					}}
 				>
 					<span style={line}>{spec.line1}</span>
-					<span
-						style={{
-							...line,
-							background: hl,
-							padding: "0 16px",
-							marginLeft: -16,
-						}}
-					>
-						{spec.line2}
-					</span>
+					{/* "plain|highlighted": line 2 can lead with unmarked words. */}
+					<div style={{ display: "flex", alignItems: "baseline" }}>
+						{plain ? (
+							<span style={{ ...line, marginRight: 22 }}>{plain}</span>
+						) : null}
+						<span
+							style={{
+								...line,
+								background: hl,
+								padding: "0 16px",
+								marginLeft: plain ? 0 : -16,
+							}}
+						>
+							{marked}
+						</span>
+					</div>
 				</div>
 				{spec.artifact}
 			</div>
@@ -1203,16 +1212,16 @@ const CARDS: CardSpec[] = [
 	{
 		file: "home.png",
 		eyebrow: null,
-		line1: "Instant data",
-		line2: "for apps on Bitcoin.",
-		size: 104,
+		line1: "Instant data for apps on",
+		line2: "Bitcoin.|Proof included.",
+		size: 88,
 		path: SITE,
 		wide: true,
 		artifact: <ArtHome />,
 	},
 	{
 		file: "index.png",
-		eyebrow: "INDEX · DECODES",
+		eyebrow: "INDEX · QUERY DECODED ROWS",
 		line1: "The whole chain,",
 		line2: "already decoded.",
 		size: 68,
@@ -1221,7 +1230,7 @@ const CARDS: CardSpec[] = [
 	},
 	{
 		file: "streams.png",
-		eyebrow: "STREAMS · HANDS YOU",
+		eyebrow: "STREAMS · STREAM RAW EVENTS",
 		line1: "Hold your",
 		line2: "own cursor.",
 		size: 88,
@@ -1230,7 +1239,7 @@ const CARDS: CardSpec[] = [
 	},
 	{
 		file: "subgraphs.png",
-		eyebrow: "SUBGRAPHS · FILLS",
+		eyebrow: "SUBGRAPHS · INDEX YOUR CONTRACT",
 		line1: "Your contract,",
 		line2: "as a table.",
 		size: 80,
@@ -1239,7 +1248,7 @@ const CARDS: CardSpec[] = [
 	},
 	{
 		file: "webhooks.png",
-		eyebrow: "WEBHOOKS · DELIVERS",
+		eyebrow: "WEBHOOKS · GET TOLD FIRST",
 		line1: "Your server,",
 		line2: "told first.",
 		size: 88,
@@ -1248,7 +1257,7 @@ const CARDS: CardSpec[] = [
 	},
 	{
 		file: "archive.png",
-		eyebrow: "ARCHIVE · VERIFIES",
+		eyebrow: "ARCHIVE · RESTORE SIGNED HISTORY",
 		line1: "Signed history.",
 		line2: "Check your copy|for free.",
 		size: 60,
