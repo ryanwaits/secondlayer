@@ -31,12 +31,18 @@ interface Head {
 	text: string;
 	/** Endpoints under an API family heading. */
 	count?: string;
+	/** An endpoint or object section, nested under its family heading. */
+	child?: boolean;
+	/** The endpoint's HTTP method, lowercase, for its pill. */
+	verb?: string;
 }
 
 /** The open page's visible h2s, listed under its row. Reads them from the
  *  rendered article (rehype-slug gives stable ids), skips any inside a
  *  collapsed `<details>`, and marks the topmost one in view as the place being
- *  read. */
+ *  read. An h3 marked `data-outline-child` (an API endpoint or object) is
+ *  listed too, nested under its family, with its method pill when it has one.
+ *  Other docs pages have no such h3s, so their outline is unchanged. */
 function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	const pathname = usePathname();
 	const [heads, setHeads] = useState<Head[]>([]);
@@ -46,13 +52,17 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	useEffect(() => {
 		const article = document.getElementById("docs-article");
 		const found = Array.from(
-			article?.querySelectorAll<HTMLElement>("h2[id]") ?? [],
+			article?.querySelectorAll<HTMLElement>(
+				"h2[id], h3[id][data-outline-child]",
+			) ?? [],
 		)
 			.filter((h) => !h.closest("details"))
 			.map((h) => ({
 				id: h.id,
 				text: h.dataset.outline ?? h.textContent ?? "",
 				count: h.dataset.count,
+				child: h.hasAttribute("data-outline-child"),
+				verb: h.dataset.verb,
 			}));
 		setHeads(found);
 		setActiveId(found[0]?.id ?? "");
@@ -87,10 +97,23 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 					key={h.id}
 					href={`#${h.id}`}
 					aria-current={h.id === activeId ? "location" : undefined}
-					className={h.id === activeId ? "active" : undefined}
+					className={
+						[h.child ? "docs-nav-ep" : "", h.id === activeId ? "active" : ""]
+							.filter(Boolean)
+							.join(" ") || undefined
+					}
 					onClick={onNavigate}
 				>
-					{h.text}
+					{h.verb ? (
+						<span className={`apiref-verb apiref-verb-${h.verb} docs-nav-verb`}>
+							{h.verb === "delete" ? "DEL" : h.verb.toUpperCase()}
+						</span>
+					) : null}
+					{h.child ? (
+						<span className="docs-nav-ep-name">{h.text}</span>
+					) : (
+						h.text
+					)}
 					{h.count ? <span className="docs-nav-count">{h.count}</span> : null}
 				</a>
 			))}
