@@ -446,10 +446,6 @@ body:has(.rh) .auth-bar {
 	font-size: 13px;
 	color: var(--alarm);
 }
-.rh .btn:disabled {
-	opacity: 0.5;
-	cursor: progress;
-}
 .rh-done {
 	display: grid;
 	gap: 8px;

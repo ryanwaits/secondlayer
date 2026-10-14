@@ -156,6 +156,10 @@
 		border-color: var(--sub);
 	}
 }
+.site .btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
 /* Press feedback: the button answers before the page does. */
 .site .btn:active:not(:disabled) {
 	transform: scale(0.97);
@@ -2440,10 +2444,6 @@
 	align-items: center;
 	gap: 12px;
 }
-.site .panel .btn:disabled {
-	opacity: 0.45;
-	cursor: not-allowed;
-}
 .site .panel .note {
 	font-size: 13.5px;
 	color: var(--sub);
@@ -3247,10 +3247,6 @@
 	flex-wrap: wrap;
 	gap: 16px;
 	align-items: center;
-}
-.site.contact .btn:disabled {
-	opacity: 0.6;
-	cursor: default;
 }
 .site.contact .contact-done {
 	display: grid;
