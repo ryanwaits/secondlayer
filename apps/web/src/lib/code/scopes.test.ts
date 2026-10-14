@@ -75,10 +75,31 @@ describe("pick budget", () => {
 	});
 
 	test("a Pick chip row needs the !pick it drives", () => {
-		const source = `## S\n<Pick name="event" />\n${fence("// !pick[/a/] event: a | b\na();")}\n## T\n<Pick name="event" />`;
+		const source = `## S\n<Pick name="event" default="a" />\n${fence("// !pick[/a/] event: a | b\na();")}\n## T\n<Pick name="event" default="a" />`;
 		expect(proseProblems("docs/x/page.mdx", source)).toEqual([
 			'docs/x/page.mdx "T": <Pick name="event"> has no !pick event',
 		]);
+	});
+
+	test("a Pick default is the first option, so no-JS prose reads right", () => {
+		const block = fence("// !pick[/a/] event: a | b\na();");
+		expect(
+			proseProblems(
+				"docs/x/page.mdx",
+				`## S\n<Pick name="event" default="a" />\n${block}`,
+			),
+		).toEqual([]);
+		expect(
+			proseProblems(
+				"docs/x/page.mdx",
+				`## S\n<Pick name="event" default="b" />\n${block}`,
+			),
+		).toEqual([
+			'docs/x/page.mdx "S": <Pick name="event"> needs default="a" (the first !pick option)',
+		]);
+		expect(
+			proseProblems("docs/x/page.mdx", `## S\n<Pick name="event" />\n${block}`),
+		).toHaveLength(1);
 	});
 
 	test("in a post the whole file is the section", () => {

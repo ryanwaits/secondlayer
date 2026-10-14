@@ -26,12 +26,19 @@ export function Mention({
 /**
  * Chips that choose the value of a `!pick` token for the whole section, and
  * with it what Copy gives. The options come from the fence that declares them
- * (`!pick[/re/] name: a | b | c`), so the prose names only the pick.
+ * (`!pick[/re/] name: a | b | c`). `default` is that fence's first option: it
+ * is the text a reader sees before (or without) JavaScript, and the budget test
+ * checks it against the declaration.
  */
-export function Pick({ name }: { name: string }) {
+export function Pick({
+	name,
+	default: first,
+}: { name: string; default: string }) {
 	return (
 		<>
-			<span className="picker" data-picker={name} />
+			<span className="picker" data-picker={name}>
+				{first}
+			</span>
 			<CodeScope />
 		</>
 	);

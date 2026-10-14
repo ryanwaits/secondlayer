@@ -60,6 +60,19 @@ export function declared(scope: Scope, verb: "ref" | "pick"): Set<string> {
 	return names;
 }
 
+/** The first option of each `!pick name: a | b` declaration: what a `<Pick>` shows without JavaScript. */
+function firstOptions(scope: Scope): Map<string, string> {
+	const first = new Map<string, string>();
+	for (const f of scope.fences)
+		for (const a of parseAnnotations(f.body, f.lang).annotations) {
+			if (a.name !== "pick") continue;
+			const [name, options] = a.value.split(":");
+			const option = options?.split("|")[0]?.trim();
+			if (name && option) first.set(name.trim(), option);
+		}
+	return first;
+}
+
 /** Problems with one MDX file's prose-to-code wiring, as lines for a test to print. */
 export function proseProblems(file: string, source: string): string[] {
 	const found: string[] = [];
@@ -78,9 +91,17 @@ export function proseProblems(file: string, source: string): string[] {
 			if (!refs.has(m[1] ?? ""))
 				found.push(`${where}: <Step ref="${m[1]}"> has no !ref ${m[1]}`);
 		const picks = declared(scope, "pick");
-		for (const m of scope.prose.matchAll(/<Pick\s+name="([^"]*)"/g))
-			if (!picks.has(m[1] ?? ""))
-				found.push(`${where}: <Pick name="${m[1]}"> has no !pick ${m[1]}`);
+		const firsts = firstOptions(scope);
+		for (const m of scope.prose.matchAll(/<Pick\b([^>]*?)\/?>/g)) {
+			const name = /\bname="([^"]*)"/.exec(m[1] ?? "")?.[1] ?? "";
+			const given = /\bdefault="([^"]*)"/.exec(m[1] ?? "")?.[1];
+			if (!picks.has(name))
+				found.push(`${where}: <Pick name="${name}"> has no !pick ${name}`);
+			else if (given !== firsts.get(name))
+				found.push(
+					`${where}: <Pick name="${name}"> needs default="${firsts.get(name)}" (the first !pick option)`,
+				);
+		}
 		if (picks.size > 1)
 			found.push(
 				`${where}: ${picks.size} pick names (${[...picks].join(", ")}), max 1 per section`,

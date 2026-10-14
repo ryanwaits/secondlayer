@@ -129,6 +129,7 @@ function setUpPickers() {
 		)[0];
 		if (!declaring) continue;
 		const now = declaring.textContent;
+		picker.replaceChildren();
 		for (const option of (declaring.dataset.opts ?? "").split("|")) {
 			const chip = document.createElement("button");
 			chip.type = "button";
