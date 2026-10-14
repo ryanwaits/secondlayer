@@ -13,7 +13,9 @@ db.run(
 	"create table if not exists checkpoint (id integer primary key check (id = 1), cursor text)",
 );
 
-const sl = new SecondLayer();
+const sl = new SecondLayer({
+	apiKey: process.env.SECONDLAYER_API_KEY,
+});
 const saved = db
 	.query<{ cursor: string | null }, []>("select cursor from checkpoint")
 	.get();

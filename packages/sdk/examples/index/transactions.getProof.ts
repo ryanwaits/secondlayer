@@ -3,7 +3,9 @@ import { SecondLayer, verifyTransactionProof } from "@secondlayer/sdk";
 const txId = process.argv[2];
 if (!txId) throw new Error("usage: bun transactions.getProof.ts <tx_id>");
 
-const sl = new SecondLayer();
+const sl = new SecondLayer({
+	apiKey: process.env.SECONDLAYER_API_KEY,
+});
 
 const proof = await sl.index.transactions.getProof(txId);
 // !callout[/proof/] Null when the transaction is not found.

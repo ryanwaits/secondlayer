@@ -31,7 +31,9 @@ const sbtcFlows = defineSubgraph({
 	},
 });
 
-const sl = new SecondLayer();
+const sl = new SecondLayer({
+	apiKey: process.env.SECONDLAYER_API_KEY,
+});
 
 // !callout[/typed/] Table names and column types come from the schema literal above.
 const subgraph = sl.subgraphs.typed(sbtcFlows);

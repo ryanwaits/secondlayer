@@ -1,6 +1,7 @@
 import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({
+	apiKey: process.env.SECONDLAYER_API_KEY,
 	dumpsBaseUrl: process.env.STREAMS_DUMPS_BASE_URL,
 });
 

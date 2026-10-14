@@ -13,10 +13,10 @@ bun add @secondlayer/sdk
 ```ts
 import { SecondLayer } from "@secondlayer/sdk";
 
-const sl = new SecondLayer(); // reads SECONDLAYER_API_URL; the key follows the host
+const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY });
 ```
 
-The key follows the host: on `api.secondlayer.tools` the client reads `SECONDLAYER_API_KEY`; anywhere else, `INSTANCE_TOKEN` ([Self-host](/docs/self-host#use-these-docs-on-your-box)). `accountKey` is for archive operations only. See [Keys and billing](/docs/authentication).
+The client reads `SECONDLAYER_API_URL` for the host. Leave `apiKey` out and the key follows the host: on `api.secondlayer.tools` the client reads `SECONDLAYER_API_KEY`; anywhere else, `INSTANCE_TOKEN` ([Self-host](/docs/self-host#use-these-docs-on-your-box)). `accountKey` is for archive operations only. See [Keys and billing](/docs/authentication).
 
 ### One client, every surface
 

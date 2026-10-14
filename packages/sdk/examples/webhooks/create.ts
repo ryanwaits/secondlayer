@@ -1,6 +1,8 @@
 import { SecondLayer, trigger } from "@secondlayer/sdk";
 
-const sl = new SecondLayer();
+const sl = new SecondLayer({
+	apiKey: process.env.SECONDLAYER_API_KEY,
+});
 
 const { webhook, signingSecret } = await sl.webhooks.create({
 	name: "sbtc-mints",

@@ -13,7 +13,9 @@ db.exec(`create table if not exists transfers (
   amount text not null
 )`);
 
-const sl = new SecondLayer();
+const sl = new SecondLayer({
+	apiKey: process.env.SECONDLAYER_API_KEY,
+});
 
 await sl.index.events.consume({
 	eventType: "ft_transfer",

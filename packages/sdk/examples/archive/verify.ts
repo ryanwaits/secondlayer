@@ -1,6 +1,8 @@
 import { SecondLayer } from "@secondlayer/sdk";
 
-const sl = new SecondLayer();
+const sl = new SecondLayer({
+	apiKey: process.env.SECONDLAYER_API_KEY,
+});
 
 const result = await sl.archive.verify({
 	against: "https://archive.secondlayer.tools/latest.json",

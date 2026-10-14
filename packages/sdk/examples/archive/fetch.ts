@@ -1,6 +1,8 @@
 import { SecondLayer } from "@secondlayer/sdk";
 
-const sl = new SecondLayer();
+const sl = new SecondLayer({
+	apiKey: process.env.SECONDLAYER_API_KEY,
+});
 
 const manifest = await sl.archive.latest();
 const wanted = sl.archive.partitions(manifest, {
