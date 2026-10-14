@@ -39,6 +39,16 @@ describe("/contact", () => {
 		}
 	});
 
+	test("submits the volume as a form field, one radio per bucket, none preselected", () => {
+		const radios = contact.match(/<input[^>]*type="radio"[^>]*>/g) ?? [];
+		expect(radios).toHaveLength(5);
+		for (const tag of radios) {
+			expect(tag).toContain('name="volume"');
+			expect(tag).not.toMatch(/\schecked/);
+		}
+		expect(contact).toContain('aria-labelledby="contact-volume"');
+	});
+
 	test("hides a honeypot input named website from people and assistive tech", () => {
 		expect(contact).toContain('name="website"');
 		expect(contact).toContain('tabindex="-1"');

@@ -1,5 +1,6 @@
 "use client";
 
+import { Choice } from "@/components/choice";
 import { PUBLIC_API_URL } from "@/lib/public-api";
 import { type FormEvent, useState } from "react";
 
@@ -146,17 +147,12 @@ export function ContactForm({ from }: { from?: string }) {
 					autoComplete="organization"
 				/>
 			</div>
-			<fieldset className="contact-field">
-				<legend>Rows a month, roughly</legend>
-				<div className="contact-pills">
-					{VOLUMES.map((v) => (
-						<label key={v.value}>
-							<input type="radio" name="volume" value={v.value} />
-							<span>{v.label}</span>
-						</label>
-					))}
-				</div>
-			</fieldset>
+			<div className="contact-field">
+				<span className="contact-legend" id="contact-volume">
+					Rows a month, roughly
+				</span>
+				<Choice name="volume" labelledBy="contact-volume" options={VOLUMES} />
+			</div>
 			<div className="contact-field">
 				<label htmlFor="contact-message">What you're building</label>
 				<textarea
