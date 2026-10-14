@@ -9,6 +9,8 @@ export const ANNOTATION_NAMES = [
 	"collapse",
 	"link",
 	"error",
+	"ref",
+	"pick",
 ] as const;
 
 export type FenceOptions = {

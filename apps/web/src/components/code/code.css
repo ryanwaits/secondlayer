@@ -166,7 +166,8 @@
 
 /* Handlers */
 .cb .hi,
-.cb .act {
+.cb .act,
+.cb .ref.lit {
 	margin-inline: -1px;
 	padding: 1px 3px;
 	background: var(--hi);
@@ -182,17 +183,20 @@
 	color: var(--on-pri);
 }
 .cb .hi *,
-.cb .act * {
+.cb .act *,
+.cb .ref.lit * {
 	color: inherit !important;
 }
 .cb .bad,
 .cb .bad * {
 	color: var(--alarm) !important;
 }
-.cb .row.mline {
+.cb .row.mline,
+.cb .row.lit {
 	background: var(--soft);
 }
-.cb .row.mline .ln {
+.cb .row.mline .ln,
+.cb .row.lit .ln {
 	color: var(--ink);
 }
 .cb .row.add .sign {
@@ -203,7 +207,8 @@
 	color: var(--faint) !important;
 	font-weight: 400 !important;
 }
-.cb:not(.unfocus) .row.dim {
+.cb:not(.unfocus) .row.dim,
+.cb .row.rdim {
 	opacity: 0.35;
 }
 .cb .co {

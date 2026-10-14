@@ -83,6 +83,8 @@ export function mdxToMarkdown(source: string): string {
 						info.trim().split(/\s+/)[0] ?? "",
 					)}\n${fence}`,
 			)
+			// Prose that points at code (`[text](hover:name)`) reads as its text.
+			.replace(/\[([^\]]*)\]\((?:hover|focus):[^)]*\)/g, "$1")
 			// `export const metadata = {...}` — build-time only, never content.
 			.replace(/export const metadata\s*=\s*\{[\s\S]*?\n\};?\n?/g, "")
 			.replace(/^export .*$/gm, "")

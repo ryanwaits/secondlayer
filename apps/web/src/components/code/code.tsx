@@ -9,6 +9,7 @@ import {
 	calloutRow,
 	errorRow,
 	esc,
+	escAttr,
 	planAnnotations,
 	renderTokens,
 } from "./handlers";
@@ -142,7 +143,7 @@ export async function renderCode({
 			.filter(Boolean)
 			.join(" ");
 		return [
-			`<div class="${classes}">`,
+			`<div class="${classes}"${line.refs.length ? ` data-refs="${escAttr(line.refs.join(" "))}"` : ""}>`,
 			options.lines ? `<span class="ln">${i + start}</span>` : "",
 			plan.hasDiff
 				? `<span class="sign">${line.diff === "+" ? "+" : line.diff === "-" ? "−" : " "}</span>`

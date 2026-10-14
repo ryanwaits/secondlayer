@@ -7,6 +7,7 @@ import {
 	parseAnnotations,
 	parseFenceOptions,
 } from "./annotations";
+import { proseProblems } from "./scopes";
 
 /** A block that marks everything marks nothing: these limits keep color meaningful. */
 const LIMITS = { mark: 2, callout: 3, focus: 1 } as const;
@@ -35,6 +36,13 @@ function fences(): Fence[] {
 
 const all = fences();
 
+function proseWiring(): string[] {
+	const found: string[] = [];
+	for (const file of new Glob("**/*.mdx").scanSync(ROOT))
+		found.push(...proseProblems(file, readFileSync(join(ROOT, file), "utf8")));
+	return found;
+}
+
 function problems(): string[] {
 	const found: string[] = [];
 	for (const f of all) {
@@ -59,6 +67,10 @@ function problems(): string[] {
 describe("code annotation budgets", () => {
 	test("every docs fence stays within the annotation budgets", () => {
 		expect(problems()).toEqual([]);
+	});
+
+	test("every section's prose points only at code that exists", () => {
+		expect(proseWiring()).toEqual([]);
 	});
 
 	test("the scan finds the docs' fences", () => {

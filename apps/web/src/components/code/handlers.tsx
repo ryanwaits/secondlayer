@@ -10,9 +10,13 @@ export type Variant = "docs" | "figure";
 export type MarkRange = {
 	start: number;
 	end: number;
-	kind: "hi" | "act" | "bad" | "link" | "err" | "swap";
+	kind: "hi" | "act" | "bad" | "link" | "err" | "swap" | "ref" | "pick";
 	/** `link`: where it goes. */
 	href?: string;
+	/** `ref` and `pick`: the name prose reaches it by. */
+	name?: string;
+	/** `pick`: the options, on the occurrence that declares them. */
+	options?: string[];
 	/** `swap`: the index into `BASE_SWAPS` the Base URL switch rewrites. */
 	swap?: number;
 };
@@ -26,6 +30,8 @@ export type LinePlan = {
 	callouts: { col: number; text: string }[];
 	/** Compiler messages shown under the row. */
 	errors: string[];
+	/** `!ref` without a selector: names that point at the whole row. */
+	refs: string[];
 };
 
 export type Plan = {
@@ -75,6 +81,31 @@ function markKind(a: Annotation, ctx: Context): "hi" | "act" | "bad" {
 	throw new Error(`!mark color must be yellow, blue or red, got "${color}"`);
 }
 
+const NAME = /^[\w-]+$/;
+
+/** A `!ref` or `!pick` name: a word the prose links to, safe inside an attribute list. */
+function refName(a: Annotation, verb: string): string {
+	if (!NAME.test(a.value))
+		throw new Error(`!${verb} needs a name of letters, digits, - or _`);
+	return a.value;
+}
+
+/** `event: ft_transfer | nft_mint` declares the options; a bare `event` joins a declared name. */
+function parsePick(value: string): { name: string; options?: string[] } {
+	const colon = value.indexOf(":");
+	const name = (colon < 0 ? value : value.slice(0, colon)).trim();
+	if (!NAME.test(name))
+		throw new Error("!pick needs a name of letters, digits, - or _");
+	if (colon < 0) return { name };
+	const options = value
+		.slice(colon + 1)
+		.split("|")
+		.map((o) => o.trim())
+		.filter(Boolean);
+	if (options.length < 2) throw new Error("!pick needs two or more options");
+	return { name, options };
+}
+
 const overlaps = (ranges: MarkRange[], start: number, end: number) =>
 	ranges.some((r) => start < r.end && end > r.start);
 
@@ -90,6 +121,7 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 		dim: false,
 		callouts: [],
 		errors: [],
+		refs: [],
 	}));
 	/** Spans a callout points at: not drawn, but no automatic link goes there. */
 	const pointed: { row: number; start: number; end: number }[] = [];
@@ -135,6 +167,28 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 					kind: "link",
 					href: a.value,
 				});
+			} else if (a.name === "ref") {
+				const name = refName(a, "ref");
+				if (a.regex)
+					for (const m of hits)
+						line.ranges.push({
+							start: m.index,
+							end: m.index + m[0].length,
+							kind: "ref",
+							name,
+						});
+				else if (!line.refs.includes(name)) line.refs.push(name);
+			} else if (a.name === "pick") {
+				if (!a.regex) throw new Error("!pick needs a [/token/]");
+				const { name, options } = parsePick(a.value);
+				if (hit)
+					line.ranges.push({
+						start: hit.index,
+						end: hit.index + hit[0].length,
+						kind: "pick",
+						name,
+						options,
+					});
 			} else if (a.name === "error") {
 				hasError = true;
 				const text = ctx.display[i] ?? "";
@@ -248,6 +302,15 @@ function wrap(range: MarkRange, inner: string): string {
 			return `<span class="squig">${inner}</span>`;
 		case "swap":
 			return `<span data-swap="${range.swap}">${inner}</span>`;
+		// Invisible until the scope script lights it.
+		case "ref":
+			return `<span class="ref" data-ref="${escAttr(range.name ?? "")}">${inner}</span>`;
+		case "pick": {
+			const opts = range.options
+				? ` data-opts="${escAttr(range.options.join("|"))}"`
+				: "";
+			return `<mark class="hi" data-pick="${escAttr(range.name ?? "")}"${opts}>${inner}</mark>`;
+		}
 		case "link": {
 			const href = range.href ?? "";
 			// Internal links navigate through the router (CodeClient); others open a new tab.
