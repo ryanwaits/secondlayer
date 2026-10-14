@@ -4,7 +4,7 @@ A sink is the destination your consume loop writes through. It owns the checkpoi
 
 ## With a sink
 
-```ts
+```ts indexer.ts
 import { SecondLayer } from "@secondlayer/sdk";
 import { kyselySink } from "@secondlayer/sdk/sinks/kysely";
 
@@ -19,9 +19,11 @@ await sl.streams.events.consume({
     tables: ["transfers"],     // rolled back on reorg
     height: "height",          // the column carrying block height
   }),
+  // !callout[/onBatch/] The return value is ignored.
   onBatch: async (events, _envelope, ctx) => {
     for (const event of events) {
       if (event.event_type !== "ft_transfer") continue; // narrows `payload`
+      // !callout[/ctx\.tx/] Rows and checkpoint commit together.
       await ctx.tx.insertInto("transfers").values({
         cursor: event.cursor,
         sender: event.payload.sender,
@@ -65,15 +67,17 @@ your data:
 // load the cursor, in your own table
 // begin a transaction
 //   insert rows
+// !ref(1:2) txn
 //   write the cursor — in the SAME transaction, or a crash between them
 //   either replays the batch or skips it
 // commit
+// !ref(1:2) fork
 // on reorg: delete rows at _block_height >= fork_point_height (INCLUSIVE),
 //   rewind the cursor, both atomically
 ```
 
-Miss the shared transaction and you double-count on restart. Use `>` instead of
-`>=` and one block of orphaned rows survives the fork. Skip `onReorg` and
+[Miss the shared transaction](focus:txn) and you double-count on restart. [Use `>` instead of
+`>=`](focus:fork) and one block of orphaned rows survives the fork. Skip `onReorg` and
 nothing errors; you keep rows from a chain that no longer exists.
 
 ### Keyed on the query builder, not the driver
@@ -97,7 +101,7 @@ the doomed facts are still visible. Remaining facts are `height < fork`.
 Throwing aborts the rewind. A [subgraph](/docs/subgraphs) still owns this
 if you do not want to keep the events.
 
-```ts
+```ts sink.ts
 import { sql } from "kysely";
 import { kyselySink } from "@secondlayer/sdk/sinks/kysely";
 
@@ -105,9 +109,11 @@ kyselySink(db, {
   id: "sbtc",
   tables: ["transfers"],
   height: "block_height",
+  // !callout[/onRollback/] Same transaction, before the delete.
   onRollback: async (tx, { forkPointHeight }) => {
     const doomed = await tx
       .selectFrom("transfers")
+      // !callout[/>=/] Inclusive of the fork block.
       .where("block_height", ">=", forkPointHeight)
       .selectAll()
       .execute();
@@ -188,7 +194,7 @@ interface ConsumerSink<Tx> {
 
 A complete [postgres.js](https://github.com/porsager/postgres) sink:
 
-```ts
+```ts postgres-sink.ts
 import postgres from "postgres";
 import { createSink, quoteIdent, type SinkDriver } from "@secondlayer/sdk/sinks/core";
 
@@ -240,13 +246,22 @@ Identifiers arrive pre-validated (`[A-Za-z_][A-Za-z0-9_]*`), safe to interpolate
 
 ```ts
 import { test } from "bun:test";
+import postgres from "postgres";
 import { attachSinkConformance } from "@secondlayer/sdk/sinks/testing";
+
+const sql = postgres(process.env.DATABASE_URL!);
 
 attachSinkConformance(test, {
   makeSink: () => postgresJsSink(sql, { id: "conformance", tables: ["rows"], height: "height" }),
-  reset: () => sql`TRUNCATE rows, sl_consumer_checkpoints`,
-  insertRow: (tx, height, key) =>
-    tx`INSERT INTO rows (key, height) VALUES (${key}, ${height}) ON CONFLICT DO NOTHING`,
+  reset: async () => {
+    await sql`TRUNCATE rows, sl_consumer_checkpoints`;
+  },
+  insertRow: async (tx: postgres.TransactionSql, height, key) => {
+    await tx.unsafe(
+      "INSERT INTO rows (key, height) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [key, height],
+    );
+  },
   readRows: () => sql`SELECT height, key FROM rows`,
   readCursor: async () =>
     (await sql`SELECT cursor FROM sl_consumer_checkpoints WHERE id = 'conformance'`)[0]?.cursor ?? null,

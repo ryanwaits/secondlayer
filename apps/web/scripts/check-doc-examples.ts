@@ -58,13 +58,7 @@ const IGNORED_CODES = new Set([
  * a path, the fence's index in that file, and why. A fence that starts passing
  * must leave this list (the check fails until it does), so it can only shrink.
  */
-const KNOWN_FAILING: { where: string; reason: string }[] = [
-	{
-		where: "docs/sinks/page.mdx fence 7",
-		reason:
-			"insertRow's tx is typed by makeSink, whose postgresJsSink the page never imports; a postgres.js transaction type needs the page's own setup shown",
-	},
-];
+const KNOWN_FAILING: { where: string; reason: string }[] = [];
 
 /** An undeclared name is `any`, except a `db` handed to `kyselySink`: `any` there infers an `unknown` schema whose `keyof` is `never`. */
 function ambientType(name: string, source: string): string {
