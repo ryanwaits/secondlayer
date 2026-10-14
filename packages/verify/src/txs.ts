@@ -5,6 +5,7 @@ import { splitTransactions } from "@secondlayer/stacks/transactions";
 import { type Bytes, bytesEqual, concat, hex } from "./bytes.ts";
 import type { NakamotoHeader } from "./header.ts";
 
+/** A transaction's id and its consensus-serialized bytes. */
 export interface BlockTransaction {
 	/** sha512/256 of the transaction bytes, hex. */
 	txid: string;

@@ -5,6 +5,7 @@ import type { BlockVerification, VerifyStep } from "./verify-block.ts";
 
 export type LinkStatus = "ok" | "failed" | "skipped";
 
+/** One verification step with its status and what it proved. */
 export interface LinkLine {
 	step: VerifyStep;
 	label: string;

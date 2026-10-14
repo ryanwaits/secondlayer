@@ -65,6 +65,7 @@ export interface StateFailure {
 	ordinal?: number;
 }
 
+/** A block's height, parent, and state root to check rows against. */
 export interface BlockStateInput {
 	/** MARF height of the block (its Stacks chain length). */
 	height: number;
@@ -91,6 +92,7 @@ export interface BlockStateInput {
 	parentHolds?: (leaf: WitnessLeaf) => Promise<boolean>;
 }
 
+/** The proven diff, rows checked, notes, and failures. */
 export interface BlockStateResult {
 	diff?: ProvenDiff;
 	rowsChecked: number;

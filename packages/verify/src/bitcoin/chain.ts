@@ -35,6 +35,7 @@ export const MEDIAN_TIME_SPAN = 11;
 /** Mainnet height from which version ≥ 4 is required (BIP65; implies BIP34/66). */
 export const BIP65_HEIGHT = 388_381;
 
+/** A Bitcoin header rule a chain check can fail on. */
 export type HeaderRule =
 	| "checkpoint"
 	| "format"
@@ -61,6 +62,7 @@ export class HeaderValidationError extends Error {
 	}
 }
 
+/** A trusted Bitcoin header that anchors header validation. */
 export interface Checkpoint {
 	height: number;
 	/** Raw 80-byte header, bytes or hex. Trusted without validation. */
@@ -73,6 +75,7 @@ export interface Checkpoint {
 	periodStartTime?: number;
 }
 
+/** A Bitcoin header with its height, hash, and raw bytes. */
 export interface ChainEntry {
 	height: number;
 	/** Display-order hex. */

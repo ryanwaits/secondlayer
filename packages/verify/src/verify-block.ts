@@ -122,6 +122,7 @@ export interface Ancestry {
 	via: "parents" | "marf";
 }
 
+/** The result of verifying a block, step by step. */
 export interface BlockVerification {
 	/**
 	 * Every step passed. At or above the checkpoint: header, burn binding,
@@ -163,6 +164,7 @@ export interface BlockVerification {
 	failures: VerifyFailure[];
 }
 
+/** The proof source, checkpoint, and row checking for a block verify. */
 export interface VerifyOptions {
 	source: ProofSource;
 	/** Defaults to MAINNET_CHECKPOINT. */

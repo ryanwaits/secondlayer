@@ -44,6 +44,7 @@ export interface WitnessLeaf {
 	valueHash: Bytes;
 }
 
+/** A recomputed trie root, its ancestor roots, and leaves. */
 export interface StateWitness {
 	/** Recomputed trie root; compare to the authenticated header's state_index_root. */
 	root: Bytes;
@@ -139,6 +140,7 @@ const leafHolds = (leaf: WitnessLeaf, value: Bytes): boolean =>
 	value.length === MARF_VALUE_SIZE &&
 	bytesEqual(padValue(leaf.valueHash), value);
 
+/** The witness leaves, claimed writes, and bookkeeping keys to classify. */
 export interface BlockDiffInput {
 	/** `parseWitness(bytes).leaves`, from a witness whose root was checked. */
 	leaves: WitnessLeaf[];
@@ -154,6 +156,7 @@ export interface ClassifiedLeaf extends WitnessLeaf {
 	key: string;
 }
 
+/** A block's witnessed leaves, split into writes, carried, and internal. */
 export interface BlockDiff {
 	/** Leaves matching a claimed write (path and value). */
 	writes: ClassifiedLeaf[];

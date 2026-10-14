@@ -6,6 +6,7 @@
 // new checkpoint from this one.
 import type { Checkpoint } from "./bitcoin/chain.ts";
 
+/** A trusted Stacks header and signer set to start verification from. */
 export interface VerifyCheckpoint {
 	stacks: {
 		/** Raw Nakamoto header (hex) of a trusted block whose state holds `signerSet`. */

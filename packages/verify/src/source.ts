@@ -43,7 +43,7 @@ export interface VmEventRow {
 	raw_value?: string | null;
 }
 
-/** An epoch 2.x header and the consensus hash its index block hash commits to. */
+/** An epoch 2.x header and the consensus hash it commits to. */
 export interface Epoch2HeaderResponse {
 	/** Consensus-serialized StacksBlockHeader. */
 	header: Bytes;
@@ -179,6 +179,7 @@ const toMarf = (url: string, j: MarfJson | null): MarfProofResponse | null => {
 /** The hosted API. */
 export const DEFAULT_API_URL = "https://api.secondlayer.tools";
 
+/** Options for reading proofs from the Secondlayer API. */
 export interface SecondlayerSourceOptions {
 	/** API origin. Defaults to {@link DEFAULT_API_URL}. */
 	baseUrl?: string;
@@ -343,6 +344,7 @@ export class SecondlayerProofSource implements ProofSource {
 	}
 }
 
+/** Options for reading proofs from a Stacks node. */
 export interface NodeRpcSourceOptions {
 	/** Stacks node RPC origin, e.g. `http://localhost:20443`. */
 	nodeUrl: string;

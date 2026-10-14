@@ -352,6 +352,7 @@ export function marfProofValue(proof: Bytes): Bytes | null {
 	}
 }
 
+/** A MARF proof with the leaf path and value it covers. */
 export interface MarfProofInput {
 	/** Consensus-serialized TrieMerkleProof (`/v2/clarity/marf/<path>?proof=1`). */
 	proof: Bytes;

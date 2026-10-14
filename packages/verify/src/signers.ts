@@ -38,6 +38,7 @@ export function decodeSignerSet(value: string | Bytes): SignerSet {
 	return set;
 }
 
+/** Whether the signed weight meets the threshold with known signers. */
 export interface SignerCheck {
 	/** Signed weight meets the threshold, and every signature is a distinct known signer. */
 	valid: boolean;

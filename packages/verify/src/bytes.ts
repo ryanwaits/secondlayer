@@ -2,6 +2,7 @@
 import { sha512_256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils.js";
 
+/** A byte string, held as a Uint8Array. */
 export type Bytes = Uint8Array;
 
 /** Encodes bytes as a lowercase hex string. */

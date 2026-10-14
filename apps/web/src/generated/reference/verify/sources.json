@@ -9,7 +9,7 @@
 			"description": "Reads blocks, epoch 2.x headers and MARF proofs from a Stacks node.\n\nIt uses the node's RPC. Witnesses, burn preimages and Bitcoin headers need\nanother source: spread this over one.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 358
+				"line": 360
 			},
 			"overloads": [
 				{
@@ -52,7 +52,7 @@
 			"description": "Raw block bytes, header first, by block id or height.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 362
+				"line": 364
 			},
 			"overloads": [
 				{
@@ -81,7 +81,7 @@
 			"description": "An epoch 2.x header and its consensus hash, by index block hash.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 364
+				"line": 366
 			},
 			"overloads": [
 				{
@@ -110,7 +110,7 @@
 			"description": "A MARF inclusion proof for a path at a tip.\n\nIt is null when the key is absent.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 370
+				"line": 372
 			},
 			"overloads": [
 				{
@@ -145,7 +145,7 @@
 			"description": "Reads every proof input from the Secondlayer API.\n\nBlocks, epoch 2.x headers, MARF proofs, witnesses, burn preimages, Bitcoin\nheaders and each block's state writes come from `/v1/proofs/*`, which is free\nand rate limited. Indexed `vm_events` rows come from the Index API as metered\nrows, and are read only when `verifyBlock` gets `rows: true`. Methods are own\nproperties, so a partial source spreads over it:\n`{ ...new SecondlayerProofSource(o), ...new NodeRpcProofSource(n) }`.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 239
+				"line": 240
 			},
 			"overloads": [
 				{
@@ -194,7 +194,7 @@
 			"description": "Raw block bytes, header first, by block id or height.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 241
+				"line": 242
 			},
 			"overloads": [
 				{
@@ -223,7 +223,7 @@
 			"description": "An epoch 2.x header and its consensus hash, by index block hash.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 243
+				"line": 244
 			},
 			"overloads": [
 				{
@@ -252,7 +252,7 @@
 			"description": "A MARF inclusion proof for a path at a tip.\n\nIt is null when the key is absent.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 249
+				"line": 250
 			},
 			"overloads": [
 				{
@@ -287,7 +287,7 @@
 			"description": "The state witness for a block.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 254
+				"line": 255
 			},
 			"overloads": [
 				{
@@ -316,7 +316,7 @@
 			"description": "The burn preimage behind a consensus hash.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 256
+				"line": 257
 			},
 			"overloads": [
 				{
@@ -345,7 +345,7 @@
 			"description": "Raw 80-byte Bitcoin headers, `count` of them from height `from`.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 258
+				"line": 259
 			},
 			"overloads": [
 				{
@@ -380,7 +380,7 @@
 			"description": "Every MARF write of a block, in ordinal order.\n\nIt is null when there are none.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 264
+				"line": 265
 			},
 			"overloads": [
 				{
@@ -409,7 +409,7 @@
 			"description": "The indexed `vm_events` write rows of a block, from the Index API.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 266
+				"line": 267
 			},
 			"overloads": [
 				{
@@ -505,229 +505,12 @@
 		},
 		{
 			"name": "Bytes",
-			"summary": "",
-			"fields": [
-				{
-					"name": "BYTES_PER_ELEMENT",
-					"type": "number",
-					"required": true,
-					"description": "The size in bytes of each element in the array."
-				},
-				{
-					"name": "buffer",
-					"type": "ArrayBufferLike",
-					"required": true,
-					"description": "The ArrayBuffer instance referenced by the array."
-				},
-				{
-					"name": "byteLength",
-					"type": "number",
-					"required": true,
-					"description": "The length in bytes of the array."
-				},
-				{
-					"name": "byteOffset",
-					"type": "number",
-					"required": true,
-					"description": "The offset in bytes of the array."
-				},
-				{
-					"name": "copyWithin",
-					"type": "(target: number, start: number, end?: number) => Bytes",
-					"required": true,
-					"description": "Returns the this object after copying a section of the array identified by start and end\nto the same array starting at position target"
-				},
-				{
-					"name": "every",
-					"type": "(predicate: (value: number, index: number, array: Bytes) => unknown, thisArg?: any) => boolean",
-					"required": true,
-					"description": "Determines whether all the members of an array satisfy the specified test."
-				},
-				{
-					"name": "fill",
-					"type": "(value: number, start?: number, end?: number) => Bytes",
-					"required": true,
-					"description": "Changes all array elements from `start` to `end` index to a static `value` and returns the modified array"
-				},
-				{
-					"name": "filter",
-					"type": "(predicate: (value: number, index: number, array: Bytes) => any, thisArg?: any) => Uint8Array",
-					"required": true,
-					"description": "Returns the elements of an array that meet the condition specified in a callback function."
-				},
-				{
-					"name": "find",
-					"type": "(predicate: (value: number, index: number, obj: Bytes) => boolean, thisArg?: any) => number | undefined",
-					"required": true,
-					"description": "Returns the value of the first element in the array where predicate is true, and undefined\notherwise."
-				},
-				{
-					"name": "findIndex",
-					"type": "(predicate: (value: number, index: number, obj: Bytes) => boolean, thisArg?: any) => number",
-					"required": true,
-					"description": "Returns the index of the first element in the array where predicate is true, and -1\notherwise."
-				},
-				{
-					"name": "forEach",
-					"type": "(callbackfn: (value: number, index: number, array: Bytes) => void, thisArg?: any) => void",
-					"required": true,
-					"description": "Performs the specified action for each element in an array."
-				},
-				{
-					"name": "indexOf",
-					"type": "(searchElement: number, fromIndex?: number) => number",
-					"required": true,
-					"description": "Returns the index of the first occurrence of a value in an array."
-				},
-				{
-					"name": "join",
-					"type": "(separator?: string) => string",
-					"required": true,
-					"description": "Adds all the elements of an array separated by the specified separator string."
-				},
-				{
-					"name": "lastIndexOf",
-					"type": "(searchElement: number, fromIndex?: number) => number",
-					"required": true,
-					"description": "Returns the index of the last occurrence of a value in an array."
-				},
-				{
-					"name": "length",
-					"type": "number",
-					"required": true,
-					"description": "The length of the array."
-				},
-				{
-					"name": "map",
-					"type": "(callbackfn: (value: number, index: number, array: Bytes) => number, thisArg?: any) => Uint8Array",
-					"required": true,
-					"description": "Calls a defined callback function on each element of an array, and returns an array that\ncontains the results."
-				},
-				{
-					"name": "reduce",
-					"type": "{ (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number): number; (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number, initialValue: number): number; <U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: Bytes) => U, initialValue: U): U; }",
-					"required": true,
-					"description": "Calls the specified callback function for all the elements in an array. The return value of\nthe callback function is the accumulated result, and is provided as an argument in the next\ncall to the callback function."
-				},
-				{
-					"name": "reduceRight",
-					"type": "{ (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number): number; (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number, initialValue: number): number; <U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: Bytes) => U, initialValue: U): U; }",
-					"required": true,
-					"description": "Calls the specified callback function for all the elements in an array, in descending order.\nThe return value of the callback function is the accumulated result, and is provided as an\nargument in the next call to the callback function."
-				},
-				{
-					"name": "reverse",
-					"type": "() => Bytes",
-					"required": true,
-					"description": "Reverses the elements in an Array."
-				},
-				{
-					"name": "set",
-					"type": "(array: ArrayLike<number>, offset?: number) => void",
-					"required": true,
-					"description": "Sets a value or an array of values."
-				},
-				{
-					"name": "slice",
-					"type": "(start?: number, end?: number) => Uint8Array",
-					"required": true,
-					"description": "Returns a section of an array."
-				},
-				{
-					"name": "some",
-					"type": "(predicate: (value: number, index: number, array: Bytes) => unknown, thisArg?: any) => boolean",
-					"required": true,
-					"description": "Determines whether the specified callback function returns true for any element of an array."
-				},
-				{
-					"name": "sort",
-					"type": "(compareFn?: (a: number, b: number) => number) => Bytes",
-					"required": true,
-					"description": "Sorts an array."
-				},
-				{
-					"name": "subarray",
-					"type": "(begin?: number, end?: number) => Uint8Array",
-					"required": true,
-					"description": "Gets a new Uint8Array view of the ArrayBuffer store for this array, referencing the elements\nat begin, inclusive, up to end, exclusive."
-				},
-				{
-					"name": "toLocaleString",
-					"type": "{ (): string; (locales: string | string[], options?: Intl.NumberFormatOptions): string; }",
-					"required": true,
-					"description": "Converts a number to a string by using the current locale."
-				},
-				{
-					"name": "toString",
-					"type": "() => string",
-					"required": true,
-					"description": "Returns a string representation of an array."
-				},
-				{
-					"name": "valueOf",
-					"type": "() => Bytes",
-					"required": true,
-					"description": "Returns the primitive value of the specified object."
-				},
-				{
-					"name": "entries",
-					"type": "() => ArrayIterator<[number, number]>",
-					"required": true,
-					"description": "Returns an array of key, value pairs for every entry in the array"
-				},
-				{
-					"name": "keys",
-					"type": "() => ArrayIterator<number>",
-					"required": true,
-					"description": "Returns an list of keys in the array"
-				},
-				{
-					"name": "values",
-					"type": "() => ArrayIterator<number>",
-					"required": true,
-					"description": "Returns an list of values in the array"
-				},
-				{
-					"name": "includes",
-					"type": "(searchElement: number, fromIndex?: number) => boolean",
-					"required": true,
-					"description": "Determines whether an array includes a certain element, returning true or false as appropriate."
-				},
-				{
-					"name": "toBase64",
-					"type": "(options?: { alphabet?: \"base64\" | \"base64url\"; omitPadding?: boolean }) => string",
-					"required": true,
-					"description": "Convert the Uint8Array to a base64 encoded string"
-				},
-				{
-					"name": "setFromBase64",
-					"type": "(base64: string, offset?: number) => { read: number; written: number }",
-					"required": true,
-					"description": "Set the contents of the Uint8Array from a base64 encoded string"
-				},
-				{
-					"name": "toHex",
-					"type": "() => string",
-					"required": true,
-					"description": "Convert the Uint8Array to a hex encoded string"
-				},
-				{
-					"name": "setFromHex",
-					"type": "(hex: string) => { read: number; written: number }",
-					"required": true,
-					"description": "Set the contents of the Uint8Array from a hex encoded string"
-				},
-				{
-					"name": "at",
-					"type": "(index: number) => number | undefined",
-					"required": true,
-					"description": ""
-				}
-			]
+			"summary": "A byte string, held as a Uint8Array.",
+			"definition": "Uint8Array"
 		},
 		{
 			"name": "Epoch2HeaderResponse",
-			"summary": "An epoch 2.x header and the consensus hash its index block hash commits to.",
+			"summary": "An epoch 2.x header and the consensus hash it commits to.",
 			"fields": [
 				{
 					"name": "header",
@@ -768,7 +551,7 @@
 		},
 		{
 			"name": "NodeRpcSourceOptions",
-			"summary": "",
+			"summary": "Options for reading proofs from a Stacks node.",
 			"fields": [
 				{
 					"name": "nodeUrl",
@@ -786,7 +569,7 @@
 		},
 		{
 			"name": "ProofSource",
-			"summary": "Where proof inputs come from.",
+			"summary": "",
 			"fields": [
 				{
 					"name": "getBlock",
@@ -840,7 +623,7 @@
 		},
 		{
 			"name": "SecondlayerSourceOptions",
-			"summary": "",
+			"summary": "Options for reading proofs from the Secondlayer API.",
 			"fields": [
 				{
 					"name": "baseUrl",

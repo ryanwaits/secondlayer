@@ -9,7 +9,7 @@
 			"description": "Starts a header chain at a checkpoint.",
 			"source": {
 				"file": "packages/verify/src/bitcoin/chain.ts",
-				"line": 98
+				"line": 101
 			},
 			"overloads": [
 				{
@@ -38,7 +38,7 @@
 			"description": "Height of a header in this chain by display-order hash, or undefined.",
 			"source": {
 				"file": "packages/verify/src/bitcoin/chain.ts",
-				"line": 155
+				"line": 158
 			},
 			"overloads": [
 				{
@@ -67,7 +67,7 @@
 			"description": "The header entry at a height, if the chain has one.",
 			"source": {
 				"file": "packages/verify/src/bitcoin/chain.ts",
-				"line": 160
+				"line": 163
 			},
 			"overloads": [
 				{
@@ -96,7 +96,7 @@
 			"description": "Validates and appends headers in order. All-or-nothing: if any header\nfails, the chain is left exactly as it was and the error is thrown.",
 			"source": {
 				"file": "packages/verify/src/bitcoin/chain.ts",
-				"line": 168
+				"line": 171
 			},
 			"overloads": [
 				{
@@ -125,7 +125,7 @@
 			"description": "Thrown when a Bitcoin header fails a validation rule.\n\n`rule` names the rule and `height` the header that failed it.",
 			"source": {
 				"file": "packages/verify/src/bitcoin/chain.ts",
-				"line": 53
+				"line": 54
 			},
 			"overloads": [
 				{
@@ -216,7 +216,7 @@
 		},
 		{
 			"name": "ChainEntry",
-			"summary": "",
+			"summary": "A Bitcoin header with its height, hash, and raw bytes.",
 			"fields": [
 				{
 					"name": "height",
@@ -246,7 +246,7 @@
 		},
 		{
 			"name": "Checkpoint",
-			"summary": "",
+			"summary": "A trusted Bitcoin header that anchors header validation.",
 			"fields": [
 				{
 					"name": "height",
@@ -294,12 +294,12 @@
 		},
 		{
 			"name": "HeaderRule",
-			"summary": "",
+			"summary": "A Bitcoin header rule a chain check can fail on.",
 			"definition": "\"checkpoint\" | \"format\" | \"prev-link\" | \"bits\" | \"retarget\" | \"median-time-past\" | \"version\" | \"proof-of-work\""
 		},
 		{
 			"name": "VerifyCheckpoint",
-			"summary": "",
+			"summary": "A trusted Stacks header and signer set to start verification from.",
 			"fields": [
 				{
 					"name": "stacks",

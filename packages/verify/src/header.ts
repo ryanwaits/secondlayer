@@ -4,6 +4,7 @@
 import { sha512_256 } from "@noble/hashes/sha2.js";
 import { type Bytes, Reader, concat, hashAll } from "./bytes.ts";
 
+/** A Nakamoto-era Stacks block header. */
 export interface NakamotoHeader {
 	/** Low 7 bits = header version; high bit = shadow block. */
 	version: number;
@@ -110,6 +111,7 @@ export interface Epoch2Header {
 	consensusHash: Bytes;
 }
 
+/** A Stacks block header from either era. */
 export type StacksHeader = NakamotoHeader | Epoch2Header;
 
 /** StacksBlockHeader is fixed width: no signatures, no variable fields. */

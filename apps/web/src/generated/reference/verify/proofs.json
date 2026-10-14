@@ -9,7 +9,7 @@
 			"description": "Encodes bytes as a lowercase hex string.",
 			"source": {
 				"file": "packages/verify/src/bytes.ts",
-				"line": 8
+				"line": 9
 			},
 			"overloads": [
 				{
@@ -38,7 +38,7 @@
 			"description": "Hex to bytes; tolerates a 0x prefix.",
 			"source": {
 				"file": "packages/verify/src/bytes.ts",
-				"line": 11
+				"line": 12
 			},
 			"overloads": [
 				{
@@ -67,7 +67,7 @@
 			"description": "Computes a header's block id, also called the index block hash.\n\nThe id is sha512/256(block_hash || consensus_hash). A Nakamoto block hash is\nits signer signature hash; a 2.x one hashes the whole header.",
 			"source": {
 				"file": "packages/verify/src/header.ts",
-				"line": 160
+				"line": 162
 			},
 			"overloads": [
 				{
@@ -96,7 +96,7 @@
 			"description": "Narrows a Stacks header to an epoch 2.x header.",
 			"source": {
 				"file": "packages/verify/src/header.ts",
-				"line": 151
+				"line": 153
 			},
 			"overloads": [
 				{
@@ -125,7 +125,7 @@
 			"description": "Parses the epoch 2.x block header at the start of `raw`.\n\n`raw` is a header from `/v2/headers`, or block bytes from `/v2/blocks/<id>`.\n`consensusHash` is the 20-byte hash of the sortition that elected the block.",
 			"source": {
 				"file": "packages/verify/src/header.ts",
-				"line": 124
+				"line": 126
 			},
 			"overloads": [
 				{
@@ -160,7 +160,7 @@
 			"description": "Parse the NakamotoBlockHeader at the start of raw block bytes\n(`/v3/blocks/<id>`). Handles v0 and v1 (v1 appends `problematic_txs`).",
 			"source": {
 				"file": "packages/verify/src/header.ts",
-				"line": 35
+				"line": 36
 			},
 			"overloads": [
 				{
@@ -189,7 +189,7 @@
 			"description": "Hashes a Nakamoto header the way its signers sign it.\n\nIt is sha512/256 over every header field except the signer signatures, which\nis also the header's `block_hash`.",
 			"source": {
 				"file": "packages/verify/src/header.ts",
-				"line": 86
+				"line": 87
 			},
 			"overloads": [
 				{
@@ -305,7 +305,7 @@
 			"description": "Verifies a MARF inclusion proof.\n\nIt is true only when `value` is stored at `path` in the MARF whose tip root\nis `root`. Inclusion only: MARF proofs cannot prove absence. Malformed proof\nbytes verify false.",
 			"source": {
 				"file": "packages/verify/src/marf.ts",
-				"line": 380
+				"line": 381
 			},
 			"overloads": [
 				{
@@ -334,7 +334,7 @@
 			"description": "Classify every leaf of block N's trie against the claimed write set.\nEach leaf must be a claimed write, a carried (unchanged) parent value, or a\nMARF-internal key; anything else is a hidden write.",
 			"source": {
 				"file": "packages/verify/src/witness.ts",
-				"line": 179
+				"line": 182
 			},
 			"overloads": [
 				{
@@ -363,7 +363,7 @@
 			"description": "Parse a v2 state witness and recompute its root. Throws on malformed input.\nThe result proves nothing until `root` equals a header's state_index_root.",
 			"source": {
 				"file": "packages/verify/src/witness.ts",
-				"line": 60
+				"line": 61
 			},
 			"overloads": [
 				{
@@ -421,7 +421,7 @@
 			"description": "Sums the weight of the signers who signed a block header.\n\nIt recovers each header signature's key over `signer_signature_hash`, maps it\nto its mainnet p2pkh principal, and sums weights from `set`. The set must be\nthe one for the reward cycle of the tenure-electing burn block.",
 			"source": {
 				"file": "packages/verify/src/signers.ts",
-				"line": 65
+				"line": 66
 			},
 			"overloads": [
 				{
@@ -725,7 +725,7 @@
 	"types": [
 		{
 			"name": "BlockDiff",
-			"summary": "",
+			"summary": "A block's witnessed leaves, split into writes, carried, and internal.",
 			"fields": [
 				{
 					"name": "writes",
@@ -767,7 +767,7 @@
 		},
 		{
 			"name": "BlockDiffInput",
-			"summary": "",
+			"summary": "The witness leaves, claimed writes, and bookkeeping keys to classify.",
 			"fields": [
 				{
 					"name": "leaves",
@@ -797,225 +797,8 @@
 		},
 		{
 			"name": "Bytes",
-			"summary": "",
-			"fields": [
-				{
-					"name": "BYTES_PER_ELEMENT",
-					"type": "number",
-					"required": true,
-					"description": "The size in bytes of each element in the array."
-				},
-				{
-					"name": "buffer",
-					"type": "ArrayBufferLike",
-					"required": true,
-					"description": "The ArrayBuffer instance referenced by the array."
-				},
-				{
-					"name": "byteLength",
-					"type": "number",
-					"required": true,
-					"description": "The length in bytes of the array."
-				},
-				{
-					"name": "byteOffset",
-					"type": "number",
-					"required": true,
-					"description": "The offset in bytes of the array."
-				},
-				{
-					"name": "copyWithin",
-					"type": "(target: number, start: number, end?: number) => Bytes",
-					"required": true,
-					"description": "Returns the this object after copying a section of the array identified by start and end\nto the same array starting at position target"
-				},
-				{
-					"name": "every",
-					"type": "(predicate: (value: number, index: number, array: Bytes) => unknown, thisArg?: any) => boolean",
-					"required": true,
-					"description": "Determines whether all the members of an array satisfy the specified test."
-				},
-				{
-					"name": "fill",
-					"type": "(value: number, start?: number, end?: number) => Bytes",
-					"required": true,
-					"description": "Changes all array elements from `start` to `end` index to a static `value` and returns the modified array"
-				},
-				{
-					"name": "filter",
-					"type": "(predicate: (value: number, index: number, array: Bytes) => any, thisArg?: any) => Uint8Array",
-					"required": true,
-					"description": "Returns the elements of an array that meet the condition specified in a callback function."
-				},
-				{
-					"name": "find",
-					"type": "(predicate: (value: number, index: number, obj: Bytes) => boolean, thisArg?: any) => number | undefined",
-					"required": true,
-					"description": "Returns the value of the first element in the array where predicate is true, and undefined\notherwise."
-				},
-				{
-					"name": "findIndex",
-					"type": "(predicate: (value: number, index: number, obj: Bytes) => boolean, thisArg?: any) => number",
-					"required": true,
-					"description": "Returns the index of the first element in the array where predicate is true, and -1\notherwise."
-				},
-				{
-					"name": "forEach",
-					"type": "(callbackfn: (value: number, index: number, array: Bytes) => void, thisArg?: any) => void",
-					"required": true,
-					"description": "Performs the specified action for each element in an array."
-				},
-				{
-					"name": "indexOf",
-					"type": "(searchElement: number, fromIndex?: number) => number",
-					"required": true,
-					"description": "Returns the index of the first occurrence of a value in an array."
-				},
-				{
-					"name": "join",
-					"type": "(separator?: string) => string",
-					"required": true,
-					"description": "Adds all the elements of an array separated by the specified separator string."
-				},
-				{
-					"name": "lastIndexOf",
-					"type": "(searchElement: number, fromIndex?: number) => number",
-					"required": true,
-					"description": "Returns the index of the last occurrence of a value in an array."
-				},
-				{
-					"name": "length",
-					"type": "number",
-					"required": true,
-					"description": "The length of the array."
-				},
-				{
-					"name": "map",
-					"type": "(callbackfn: (value: number, index: number, array: Bytes) => number, thisArg?: any) => Uint8Array",
-					"required": true,
-					"description": "Calls a defined callback function on each element of an array, and returns an array that\ncontains the results."
-				},
-				{
-					"name": "reduce",
-					"type": "{ (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number): number; (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number, initialValue: number): number; <U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: Bytes) => U, initialValue: U): U; }",
-					"required": true,
-					"description": "Calls the specified callback function for all the elements in an array. The return value of\nthe callback function is the accumulated result, and is provided as an argument in the next\ncall to the callback function."
-				},
-				{
-					"name": "reduceRight",
-					"type": "{ (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number): number; (callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Bytes) => number, initialValue: number): number; <U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: Bytes) => U, initialValue: U): U; }",
-					"required": true,
-					"description": "Calls the specified callback function for all the elements in an array, in descending order.\nThe return value of the callback function is the accumulated result, and is provided as an\nargument in the next call to the callback function."
-				},
-				{
-					"name": "reverse",
-					"type": "() => Bytes",
-					"required": true,
-					"description": "Reverses the elements in an Array."
-				},
-				{
-					"name": "set",
-					"type": "(array: ArrayLike<number>, offset?: number) => void",
-					"required": true,
-					"description": "Sets a value or an array of values."
-				},
-				{
-					"name": "slice",
-					"type": "(start?: number, end?: number) => Uint8Array",
-					"required": true,
-					"description": "Returns a section of an array."
-				},
-				{
-					"name": "some",
-					"type": "(predicate: (value: number, index: number, array: Bytes) => unknown, thisArg?: any) => boolean",
-					"required": true,
-					"description": "Determines whether the specified callback function returns true for any element of an array."
-				},
-				{
-					"name": "sort",
-					"type": "(compareFn?: (a: number, b: number) => number) => Bytes",
-					"required": true,
-					"description": "Sorts an array."
-				},
-				{
-					"name": "subarray",
-					"type": "(begin?: number, end?: number) => Uint8Array",
-					"required": true,
-					"description": "Gets a new Uint8Array view of the ArrayBuffer store for this array, referencing the elements\nat begin, inclusive, up to end, exclusive."
-				},
-				{
-					"name": "toLocaleString",
-					"type": "{ (): string; (locales: string | string[], options?: Intl.NumberFormatOptions): string; }",
-					"required": true,
-					"description": "Converts a number to a string by using the current locale."
-				},
-				{
-					"name": "toString",
-					"type": "() => string",
-					"required": true,
-					"description": "Returns a string representation of an array."
-				},
-				{
-					"name": "valueOf",
-					"type": "() => Bytes",
-					"required": true,
-					"description": "Returns the primitive value of the specified object."
-				},
-				{
-					"name": "entries",
-					"type": "() => ArrayIterator<[number, number]>",
-					"required": true,
-					"description": "Returns an array of key, value pairs for every entry in the array"
-				},
-				{
-					"name": "keys",
-					"type": "() => ArrayIterator<number>",
-					"required": true,
-					"description": "Returns an list of keys in the array"
-				},
-				{
-					"name": "values",
-					"type": "() => ArrayIterator<number>",
-					"required": true,
-					"description": "Returns an list of values in the array"
-				},
-				{
-					"name": "includes",
-					"type": "(searchElement: number, fromIndex?: number) => boolean",
-					"required": true,
-					"description": "Determines whether an array includes a certain element, returning true or false as appropriate."
-				},
-				{
-					"name": "toBase64",
-					"type": "(options?: { alphabet?: \"base64\" | \"base64url\"; omitPadding?: boolean }) => string",
-					"required": true,
-					"description": "Convert the Uint8Array to a base64 encoded string"
-				},
-				{
-					"name": "setFromBase64",
-					"type": "(base64: string, offset?: number) => { read: number; written: number }",
-					"required": true,
-					"description": "Set the contents of the Uint8Array from a base64 encoded string"
-				},
-				{
-					"name": "toHex",
-					"type": "() => string",
-					"required": true,
-					"description": "Convert the Uint8Array to a hex encoded string"
-				},
-				{
-					"name": "setFromHex",
-					"type": "(hex: string) => { read: number; written: number }",
-					"required": true,
-					"description": "Set the contents of the Uint8Array from a hex encoded string"
-				},
-				{
-					"name": "at",
-					"type": "(index: number) => number | undefined",
-					"required": true,
-					"description": ""
-				}
-			]
+			"summary": "A byte string, held as a Uint8Array.",
+			"definition": "Uint8Array"
 		},
 		{
 			"name": "ClassifiedLeaf",
@@ -1121,7 +904,7 @@
 		},
 		{
 			"name": "MarfProofInput",
-			"summary": "",
+			"summary": "A MARF proof with the leaf path and value it covers.",
 			"fields": [
 				{
 					"name": "proof",
@@ -1157,7 +940,7 @@
 		},
 		{
 			"name": "NakamotoHeader",
-			"summary": "",
+			"summary": "A Nakamoto-era Stacks block header.",
 			"fields": [
 				{
 					"name": "version",
@@ -1235,7 +1018,7 @@
 		},
 		{
 			"name": "SignerCheck",
-			"summary": "",
+			"summary": "Whether the signed weight meets the threshold with known signers.",
 			"fields": [
 				{
 					"name": "valid",
@@ -1355,12 +1138,12 @@
 		},
 		{
 			"name": "StacksHeader",
-			"summary": "",
+			"summary": "A Stacks block header from either era.",
 			"definition": "NakamotoHeader | Epoch2Header"
 		},
 		{
 			"name": "StateWitness",
-			"summary": "",
+			"summary": "A recomputed trie root, its ancestor roots, and leaves.",
 			"fields": [
 				{
 					"name": "root",
