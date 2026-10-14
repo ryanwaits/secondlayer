@@ -1,5 +1,13 @@
 # @secondlayer/shared
 
+## 12.1.2
+
+### Patch Changes
+
+- Every exported type a method signature names now has a one-line TSDoc summary, so editors and the reference show what each type is. Comments only, no runtime change.
+- Updated dependencies
+  - @secondlayer/stacks@6.2.2
+
 ## 12.1.1
 
 ### Patch Changes

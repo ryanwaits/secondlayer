@@ -1,5 +1,17 @@
 # @secondlayer/cli
 
+## 20.1.2
+
+### Patch Changes
+
+- Every exported type a method signature names now has a one-line TSDoc summary, so editors and the reference show what each type is. Comments only, no runtime change.
+- Updated dependencies
+  - @secondlayer/sdk@15.0.2
+  - @secondlayer/shared@12.1.2
+  - @secondlayer/stacks@6.2.2
+  - @secondlayer/subgraphs@7.0.3
+  - @secondlayer/verify@0.5.4
+
 ## 20.1.1
 
 ### Patch Changes
