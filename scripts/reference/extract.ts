@@ -30,13 +30,54 @@ export type ExtractConfig = ReferenceConfig & {
 	out: string;
 };
 
+/** A doc comment directly above a `type` or `interface` declaration. */
+const TYPE_DOC =
+	/\/\*\*((?:(?!\*\/)[\s\S])*?)\*\/[ \t]*\n[ \t]*(?:export\s+)?(?:declare\s+)?(?:type|interface)\s+([A-Za-z_$][\w$]*)\s*(?:<|=|\{|extends)/g;
+
+function commentText(body: string): string {
+	const lines = body.split("\n").map((l) => l.replace(/^\s*\*\s?/, "").trim());
+	const tag = lines.findIndex((l) => l.startsWith("@"));
+	return (tag === -1 ? lines : lines.slice(0, tag)).join("\n").trim();
+}
+
+/** Type docs of one package's source, by type name. */
+function readTypeDocs(srcDir: string): Map<string, string> {
+	const docs = new Map<string, string>();
+	if (!existsSync(srcDir)) return docs;
+	for (const file of readdirSync(srcDir, { recursive: true })) {
+		const rel = String(file);
+		if (!rel.endsWith(".ts") || /\.(type-)?test\.ts$/.test(rel)) continue;
+		const text = readFileSync(join(srcDir, rel), "utf8");
+		for (const m of text.matchAll(TYPE_DOC)) {
+			const name = m[2];
+			const doc = commentText(m[1] ?? "");
+			if (name && doc && !docs.has(name)) docs.set(name, doc);
+		}
+	}
+	return docs;
+}
+
 /** Reads repo-relative sources and `<package>/examples/<surface>/<method id>.ts`. */
 export function fileSystemIO(
 	repoRoot: string,
 	packageDir: string,
 ): ReferenceIO {
 	let declared: Set<string> | undefined;
+	let docs: Map<string, string> | undefined;
 	return {
+		typeDoc(name) {
+			if (!docs) {
+				// The package's own comments win; workspace siblings fill in the
+				// types its signatures borrow (`@secondlayer/shared`).
+				docs = readTypeDocs(join(repoRoot, packageDir, "src"));
+				for (const sibling of readdirSync(join(repoRoot, "packages")))
+					for (const [n, d] of readTypeDocs(
+						join(repoRoot, "packages", sibling, "src"),
+					))
+						if (!docs.has(n)) docs.set(n, d);
+			}
+			return docs.get(name);
+		},
 		declares(name) {
 			if (!declared) {
 				declared = new Set();

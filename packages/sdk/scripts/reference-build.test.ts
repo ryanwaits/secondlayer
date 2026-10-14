@@ -334,6 +334,62 @@ describe("types", () => {
 	});
 });
 
+describe("type docs from source", () => {
+	const root = mkdtempSync(join(tmpdir(), "reference-type-docs-"));
+	afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+	function typeDoc(name: string, files: Record<string, string>) {
+		const dir = join(root, String(Math.random()).slice(2));
+		for (const [file, code] of Object.entries(files)) {
+			const abs = join(dir, file);
+			mkdirSync(join(abs, ".."), { recursive: true });
+			writeFileSync(abs, code);
+		}
+		return fileSystemIO(dir, "packages/pkg").typeDoc?.(name);
+	}
+
+	test("the comment above a declaration is its doc, up to the first tag", () => {
+		const doc = typeDoc("Tip", {
+			"packages/pkg/src/a.ts":
+				"/**\n * Where the chain ends.\n * @example x\n */\nexport interface Tip {}\n",
+		});
+		expect(doc).toBe("Where the chain ends.");
+	});
+
+	test("a generic alias keeps its doc", () => {
+		const doc = typeDoc("Fields", {
+			"packages/pkg/src/a.ts":
+				"/** Picks columns. */\nexport type Fields<T> = Pick<T, never>;\n",
+		});
+		expect(doc).toBe("Picks columns.");
+	});
+
+	test("the package's own comment wins over a sibling's", () => {
+		const doc = typeDoc("Tip", {
+			"packages/other/src/a.ts": "/** Theirs. */\nexport type Tip = number;\n",
+			"packages/pkg/src/a.ts": "/** Ours. */\nexport type Tip = string;\n",
+		});
+		expect(doc).toBe("Ours.");
+	});
+
+	test("a declaration without a comment has no doc", () => {
+		expect(
+			typeDoc("Tip", {
+				"packages/pkg/src/a.ts": "export type Tip = string;\n",
+			}),
+		).toBeUndefined();
+	});
+
+	test("a type with no description of its own takes the source comment", () => {
+		const io: ReferenceIO = {
+			...noIO,
+			typeDoc: (name) => (name === "Page" ? "A page of rows." : undefined),
+		};
+		const page = surface("streams", io).types.find((t) => t.name === "Page");
+		expect(page?.summary).toBe("A page of rows.");
+	});
+});
+
 describe("symbols", () => {
 	test("methods and types map to anchors on their surface page", () => {
 		const index = build()["manifest.json"] as {

@@ -488,7 +488,7 @@
 		},
 		{
 			"name": "ChainTriggerAmount",
-			"summary": "",
+			"summary": "Non-negative integer amount over JSON (string for uint128 safety, or number).",
 			"definition": "string | number"
 		},
 		{

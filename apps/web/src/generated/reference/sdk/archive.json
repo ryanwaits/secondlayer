@@ -363,7 +363,7 @@
 		},
 		{
 			"name": "ArchiveDataset",
-			"summary": "",
+			"summary": "The three canonical archive datasets (`export-snapshot.ts`'s `CanonicalDataset`, duplicated as a literal union here rather than imported — this route must not depend on `@secondlayer/indexer` for its pricing surface).",
 			"definition": "\"events\" | \"blocks\" | \"transactions\""
 		},
 		{

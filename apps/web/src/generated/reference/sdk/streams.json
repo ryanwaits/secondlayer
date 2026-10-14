@@ -1394,7 +1394,7 @@
 		},
 		{
 			"name": "StreamsClarityValue",
-			"summary": "",
+			"summary": "A Clarity value as Streams serves it: the canonical hex string, a typed object carrying that hex (`{ hex }`), or a decoded Clarity-JSON object.",
 			"definition": "string | Record<string, unknown> | { hex: string; }"
 		},
 		{
@@ -1806,7 +1806,7 @@
 		},
 		{
 			"name": "StreamsEventOfTypes",
-			"summary": "",
+			"summary": "The StreamsEvent union narrowed to a `types` selection — what a const-generic `types: [\"ft_transfer\"]` buys at the type level.",
 			"definition": "Extract<StreamsEventBase & { event_type: \"stx_transfer\"; payload: StxTransferPayload; }, { event_type: T[number]; }> | Extract<StreamsEventBase & { event_type: \"stx_mint\"; payload: StxMintPayload; }, { event_type: T[number]; }> | Extract<StreamsEventBase & { event_type: \"stx_burn\"; payload: StxBurnPayload; }, { event_type: T[number]; }> | Extract<StreamsEventBase & { event_type: \"stx_lock\"; payload: StxLockPayload; }, { event_type: T[number]; }> | Extract<StreamsEventBase & { event_type: \"ft_transfer\"; payload: FtTransferPayload; }, { event_type: T[number]; }> | Extract<StreamsEventBase & { e…"
 		},
 		{
@@ -2824,17 +2824,17 @@
 		},
 		{
 			"name": "StreamsFilterMap",
-			"summary": "",
+			"summary": "A map of label → filter group.",
 			"definition": "Record<string, StreamsLabelledFilter>"
 		},
 		{
 			"name": "StreamsFilterValue",
-			"summary": "",
+			"summary": "A filter that matches a single value or any value in a list.",
 			"definition": "string | readonly string[]"
 		},
 		{
 			"name": "StreamsLabelledFilter",
-			"summary": "",
+			"summary": "One labelled filter group.",
 			"fields": [
 				{
 					"name": "types",

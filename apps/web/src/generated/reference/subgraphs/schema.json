@@ -729,7 +729,7 @@
 		},
 		{
 			"name": "IndexCodegenOptions",
-			"summary": "",
+			"summary": "Options for `runIndexCodegen`.",
 			"fields": [
 				{
 					"name": "tables",

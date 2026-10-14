@@ -1036,7 +1036,7 @@
 		},
 		{
 			"name": "ProofSource",
-			"summary": "",
+			"summary": "Where proof inputs come from.",
 			"fields": [
 				{
 					"name": "getBlock",

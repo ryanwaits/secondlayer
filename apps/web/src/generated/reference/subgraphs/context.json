@@ -638,7 +638,7 @@
 		},
 		{
 			"name": "SystemWhereAliases",
-			"summary": "",
+			"summary": "No-prefix aliases for system columns accepted in where/orderBy inputs.",
 			"fields": [
 				{
 					"name": "blockHeight",

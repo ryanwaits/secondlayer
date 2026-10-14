@@ -945,7 +945,7 @@
 		},
 		{
 			"name": "SubgraphAggregateParams",
-			"summary": "",
+			"summary": "Request shape for `GET /v1/subgraphs/:subgraphName/:tableName/aggregate`.",
 			"fields": [
 				{
 					"name": "filters",
@@ -987,7 +987,7 @@
 		},
 		{
 			"name": "SubgraphAggregateResponse",
-			"summary": "",
+			"summary": "Aggregate response.",
 			"fields": [
 				{
 					"name": "count",
@@ -1293,7 +1293,7 @@
 		},
 		{
 			"name": "SubgraphRowsEnvelope",
-			"summary": "",
+			"summary": "/v1 cursor envelope for subgraph table reads.",
 			"fields": [
 				{
 					"name": "rows",
@@ -1629,7 +1629,7 @@
 		},
 		{
 			"name": "SubgraphVerification",
-			"summary": "",
+			"summary": "How far a subgraph's rows can be checked without trusting the server, derived from its sources and a scan of its handler.",
 			"fields": [
 				{
 					"name": "level",

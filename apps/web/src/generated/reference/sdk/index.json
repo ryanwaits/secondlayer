@@ -2333,7 +2333,7 @@
 		},
 		{
 			"name": "ColumnType",
-			"summary": "",
+			"summary": "Supported column types for subgraph schemas",
 			"definition": "\"boolean\" | \"text\" | \"uint\" | \"int\" | \"principal\" | \"timestamp\" | \"jsonb\""
 		},
 		{
@@ -2956,7 +2956,7 @@
 		},
 		{
 			"name": "FtTransferFields",
-			"summary": "",
+			"summary": "An ft-transfer row narrowed to the requested columns plus the always-present ones.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -7111,7 +7111,7 @@
 		},
 		{
 			"name": "MerkleProofStep",
-			"summary": "",
+			"summary": "One authentication-path step: the sibling hash and which side it's on.",
 			"fields": [
 				{
 					"name": "position",
@@ -7207,7 +7207,7 @@
 		},
 		{
 			"name": "NftTransferFields",
-			"summary": "",
+			"summary": "An nft-transfer row narrowed to the requested columns plus the always-present ones.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -7417,7 +7417,7 @@
 		},
 		{
 			"name": "PageRetryOptions",
-			"summary": "",
+			"summary": "Options shared by both consume loops' page-fetch retry.",
 			"fields": [
 				{
 					"name": "retryCount",
@@ -7441,7 +7441,7 @@
 		},
 		{
 			"name": "Pox5EventFields",
-			"summary": "",
+			"summary": "A Pox5Event row narrowed to the requested columns plus the always-present ones.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -8219,7 +8219,7 @@
 		},
 		{
 			"name": "SbtcDepositFields",
-			"summary": "",
+			"summary": "A deposit row narrowed to the requested columns plus the always-present ones.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -8651,7 +8651,7 @@
 		},
 		{
 			"name": "SbtcWithdrawalFields",
-			"summary": "",
+			"summary": "A SbtcWithdrawal row narrowed to the requested columns plus the always-present ones.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -9231,7 +9231,7 @@
 		},
 		{
 			"name": "TransactionFields",
-			"summary": "",
+			"summary": "A Transaction row narrowed to the requested columns plus the always-present ones.",
 			"fields": [
 				{
 					"name": "cursor",

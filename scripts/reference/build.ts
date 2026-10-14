@@ -85,6 +85,12 @@ export type ReferenceIO = {
 	 * documents only what it declares. Absent: every type counts as its own.
 	 */
 	declares?(name: string): boolean;
+	/**
+	 * The JSDoc written above a type's declaration. openpkg describes only what
+	 * the entry exports, so a type reached through a signature has no
+	 * description of its own; the comment is read from source instead.
+	 */
+	typeDoc?(name: string): string | undefined;
 };
 
 export type Field = {
@@ -490,7 +496,8 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 		const exported = walker.entry(name);
 		const doc: TypeDoc = {
 			name,
-			summary: exported?.description ?? type.description ?? "",
+			summary:
+				exported?.description || type.description || io.typeDoc?.(name) || "",
 		};
 		const byName = new Map<string, Field>();
 		for (const f of fieldsOf(type.schema, ctx)) byName.set(f.name, f);

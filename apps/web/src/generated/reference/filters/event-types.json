@@ -56,7 +56,7 @@
 		},
 		{
 			"name": "AbiContract",
-			"summary": "",
+			"summary": "Full Clarity contract ABI including functions, maps, variables, and token definitions.",
 			"fields": [
 				{
 					"name": "functions",
@@ -104,7 +104,7 @@
 		},
 		{
 			"name": "AbiFunction",
-			"summary": "",
+			"summary": "A single Clarity function definition with name, access level, arguments, and return type.",
 			"fields": [
 				{
 					"name": "name",
@@ -308,7 +308,7 @@
 		},
 		{
 			"name": "AbiType",
-			"summary": "",
+			"summary": "Discriminated union of all Clarity value types (primitives, buffers, lists, tuples, optionals, responses).",
 			"definition": "AbiPrimitiveType | AbiListType | AbiTupleType | AbiOptionalType | AbiResponseType"
 		},
 		{

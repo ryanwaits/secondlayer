@@ -1,10 +1,28 @@
 {
 	"symbols": {
+		"ArchiveDataset": {
+			"kind": "type",
+			"summary": "The three canonical archive datasets (export-snapshot.ts's CanonicalDataset, duplicated as a literal union here rather than imported.",
+			"route": "/docs/sdk-reference/archive",
+			"anchor": "t-ArchiveDataset"
+		},
 		"ChainTrigger": {
 			"kind": "type",
 			"summary": "JSON mirror of the subgraph runtime's SubgraphFilter union.",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "t-ChainTrigger"
+		},
+		"ChainTriggerAmount": {
+			"kind": "type",
+			"summary": "Non-negative integer amount over JSON (string for uint128 safety, or number).",
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-ChainTriggerAmount"
+		},
+		"ColumnType": {
+			"kind": "type",
+			"summary": "Supported column types for subgraph schemas",
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-ColumnType"
 		},
 		"ConsumerBatchContext": {
 			"kind": "type",
@@ -197,6 +215,32 @@
 			],
 			"route": "/docs/sdk-reference/client",
 			"anchor": "t-EtagEntry"
+		},
+		"FetchLike": {
+			"kind": "type",
+			"summary": "A minimal fetch signature for dependency injection, matching @secondlayer/sdk's FetchLike (sdk/src/base.ts).",
+			"route": "/docs/sdk-reference/client",
+			"anchor": "t-FetchLike"
+		},
+		"FtTransferFields": {
+			"kind": "type",
+			"summary": "An ft-transfer row narrowed to the requested columns plus the always-present ones.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "event_type",
+					"type": "\"ft_transfer\""
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-FtTransferFields"
 		},
 		"FtTransfersResource.list": {
 			"kind": "method",
@@ -1395,6 +1439,42 @@
 			"route": "/docs/sdk-reference/instance",
 			"anchor": "m-status"
 		},
+		"MerkleProofStep": {
+			"kind": "type",
+			"summary": "One authentication-path step: the sibling hash and which side it's on.",
+			"fields": [
+				{
+					"name": "position",
+					"type": "\"left\" | \"right\""
+				},
+				{
+					"name": "hash",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-MerkleProofStep"
+		},
+		"NftTransferFields": {
+			"kind": "type",
+			"summary": "An nft-transfer row narrowed to the requested columns plus the always-present ones.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "event_type",
+					"type": "\"nft_transfer\""
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-NftTransferFields"
+		},
 		"NftTransfersResource.list": {
 			"kind": "method",
 			"summary": "Read one page of NFT transfers, plus the cursor for the next.",
@@ -1408,6 +1488,46 @@
 			"sig": "sl.index.nftTransfers.walk(params: …): AsyncIterable<NftTransferFields<F>, any, any>",
 			"route": "/docs/sdk-reference/index",
 			"anchor": "m-nftTransfers-walk"
+		},
+		"PageRetryOptions": {
+			"kind": "type",
+			"summary": "Options shared by both consume loops' page-fetch retry.",
+			"fields": [
+				{
+					"name": "retryCount",
+					"type": "number"
+				},
+				{
+					"name": "retryDelay",
+					"type": "number"
+				},
+				{
+					"name": "onError",
+					"type": "…"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-PageRetryOptions"
+		},
+		"Pox5EventFields": {
+			"kind": "type",
+			"summary": "A Pox5Event row narrowed to the requested columns plus the always-present ones.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "topic",
+					"type": "IndexPox5EventTopic"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-Pox5EventFields"
 		},
 		"Pox5Resource.events.consume": {
 			"kind": "method",
@@ -1606,6 +1726,22 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "m-runes-list"
 		},
+		"SbtcDepositFields": {
+			"kind": "type",
+			"summary": "A deposit row narrowed to the requested columns plus the always-present ones.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcDepositFields"
+		},
 		"SbtcResource.deposits.consume": {
 			"kind": "method",
 			"summary": "Run a checkpointed, reorg-aware indexer over completed deposits.",
@@ -1682,6 +1818,22 @@
 			"sig": "sl.index.sbtc.withdrawals.walk(params?: SbtcWithdrawalsWalkParams): AsyncIterable<IndexSbtcWithdrawal, any, any>",
 			"route": "/docs/sdk-reference/index",
 			"anchor": "m-sbtc-withdrawals-walk"
+		},
+		"SbtcWithdrawalFields": {
+			"kind": "type",
+			"summary": "A SbtcWithdrawal row narrowed to the requested columns plus the always-present ones.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "request_id",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcWithdrawalFields"
 		},
 		"SecondLayer.batch": {
 			"kind": "method",
@@ -2668,6 +2820,12 @@
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsBitcoinTip"
 		},
+		"StreamsClarityValue": {
+			"kind": "type",
+			"summary": "A Clarity value as Streams serves it: the canonical hex string, a typed object carrying that hex ({ hex }), or a decoded Clarity-JSON object.",
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsClarityValue"
+		},
 		"StreamsClient.blocks.events": {
 			"kind": "method",
 			"summary": "Read every event in one block, by height or hash.",
@@ -2894,6 +3052,12 @@
 			"summary": "A raw Streams event.",
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsEvent"
+		},
+		"StreamsEventOfTypes": {
+			"kind": "type",
+			"summary": "The StreamsEvent union narrowed to a types selection — what a const-generic types: [\"ft_transfer\"] buys at the type level.",
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsEventOfTypes"
 		},
 		"StreamsEventsBitcoinListParams": {
 			"kind": "type",
@@ -3182,6 +3346,46 @@
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsEventsSubscribeStacksParams"
 		},
+		"StreamsFilterMap": {
+			"kind": "type",
+			"summary": "A map of label → filter group.",
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsFilterMap"
+		},
+		"StreamsFilterValue": {
+			"kind": "type",
+			"summary": "A filter that matches a single value or any value in a list.",
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsFilterValue"
+		},
+		"StreamsLabelledFilter": {
+			"kind": "type",
+			"summary": "One labelled filter group.",
+			"fields": [
+				{
+					"name": "types",
+					"type": "…"
+				},
+				{
+					"name": "contractId",
+					"type": "StreamsFilterValue"
+				},
+				{
+					"name": "sender",
+					"type": "StreamsFilterValue"
+				},
+				{
+					"name": "recipient",
+					"type": "StreamsFilterValue"
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsLabelledFilter"
+		},
 		"StreamsReorgContext": {
 			"kind": "type",
 			"summary": "cursor is the rewind position the loop resumes from after onReorg: the foot of the fork point, or null for a fork at genesis.",
@@ -3211,6 +3415,66 @@
 			"summary": "Anything GET /v1/streams/events can return: Streams 1.0 rows on the classic clock, vm rows on clock=vm, or Runes rows on chain=bitcoin.",
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsWireEvent"
+		},
+		"SubgraphAggregateParams": {
+			"kind": "type",
+			"summary": "Request shape for GET /v1/subgraphs/:subgraphName/:tableName/aggregate.",
+			"fields": [
+				{
+					"name": "filters",
+					"type": "Record<string, string>"
+				},
+				{
+					"name": "count",
+					"type": "boolean"
+				},
+				{
+					"name": "countDistinct",
+					"type": "string[]"
+				},
+				{
+					"name": "sum",
+					"type": "string[]"
+				},
+				{
+					"name": "min",
+					"type": "string[]"
+				},
+				{
+					"name": "max",
+					"type": "string[]"
+				}
+			],
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-SubgraphAggregateParams"
+		},
+		"SubgraphAggregateResponse": {
+			"kind": "type",
+			"summary": "Aggregate response.",
+			"fields": [
+				{
+					"name": "count",
+					"type": "number"
+				},
+				{
+					"name": "countDistinct",
+					"type": "Record<string, number>"
+				},
+				{
+					"name": "sum",
+					"type": "Record<string, string>"
+				},
+				{
+					"name": "min",
+					"type": "Record<string, string | null>"
+				},
+				{
+					"name": "max",
+					"type": "Record<string, string | null>"
+				}
+			],
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-SubgraphAggregateResponse"
 		},
 		"SubgraphOperationStatus": {
 			"kind": "type",
@@ -3252,6 +3516,26 @@
 			"more": 5,
 			"route": "/docs/sdk-reference/subgraphs",
 			"anchor": "t-SubgraphOperationStatus"
+		},
+		"SubgraphRowsEnvelope": {
+			"kind": "type",
+			"summary": "/v1 cursor envelope for subgraph table reads.",
+			"fields": [
+				{
+					"name": "rows",
+					"type": "T[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "…"
+				}
+			],
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-SubgraphRowsEnvelope"
 		},
 		"Subgraphs.aggregate": {
 			"kind": "method",
@@ -3385,6 +3669,46 @@
 			"sig": "sl.subgraphs.typed(def: T): InferSubgraphClient<T>",
 			"route": "/docs/sdk-reference/subgraphs",
 			"anchor": "m-typed"
+		},
+		"SubgraphVerification": {
+			"kind": "type",
+			"summary": "How far a subgraph's rows can be checked without trusting the server, derived from its sources and a scan of its handler.",
+			"fields": [
+				{
+					"name": "level",
+					"type": "\"events\" | \"state\" | \"none\""
+				},
+				{
+					"name": "reasons",
+					"type": "string[]"
+				},
+				{
+					"name": "unproven",
+					"type": "string[]"
+				}
+			],
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-SubgraphVerification"
+		},
+		"TransactionFields": {
+			"kind": "type",
+			"summary": "A Transaction row narrowed to the requested columns plus the always-present ones.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-TransactionFields"
 		},
 		"TransactionProof": {
 			"kind": "type",
@@ -3649,6 +3973,72 @@
 			],
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "t-WebhookTestResult"
+		},
+		"AbiContract": {
+			"kind": "type",
+			"summary": "Full Clarity contract ABI including functions, maps, variables, and token definitions.",
+			"fields": [
+				{
+					"name": "functions",
+					"type": "readonly AbiFunction[]"
+				},
+				{
+					"name": "maps",
+					"type": "readonly AbiMap[]"
+				},
+				{
+					"name": "variables",
+					"type": "readonly AbiVariable[]"
+				},
+				{
+					"name": "fungible_tokens",
+					"type": "readonly AbiFungibleToken[]"
+				},
+				{
+					"name": "non_fungible_tokens",
+					"type": "readonly AbiNonFungibleToken[]"
+				},
+				{
+					"name": "implemented_traits",
+					"type": "readonly string[]"
+				},
+				{
+					"name": "defined_traits",
+					"type": "readonly AbiTraitDefinition[]"
+				}
+			],
+			"route": "/docs/filters-reference",
+			"anchor": "t-AbiContract"
+		},
+		"AbiFunction": {
+			"kind": "type",
+			"summary": "A single Clarity function definition with name, access level, arguments, and return type.",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string"
+				},
+				{
+					"name": "access",
+					"type": "FunctionAccess"
+				},
+				{
+					"name": "args",
+					"type": "readonly FunctionArg[]"
+				},
+				{
+					"name": "outputs",
+					"type": "AbiType"
+				}
+			],
+			"route": "/docs/filters-reference",
+			"anchor": "t-AbiFunction"
+		},
+		"AbiType": {
+			"kind": "type",
+			"summary": "Discriminated union of all Clarity value types (primitives, buffers, lists, tuples, optionals, responses).",
+			"route": "/docs/filters-reference",
+			"anchor": "t-AbiType"
 		},
 		"assertAssetIdentifier": {
 			"kind": "method",
@@ -4140,12 +4530,6 @@
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-ColumnToTS"
 		},
-		"ColumnType": {
-			"kind": "type",
-			"summary": "Supported column types for subgraph schemas",
-			"route": "/docs/subgraphs-reference",
-			"anchor": "t-ColumnType"
-		},
 		"compareRows": {
 			"kind": "method",
 			"summary": "Compares replayed tables with the served ones over a block range.",
@@ -4584,6 +4968,26 @@
 			"sig": "hasBreakingChanges(diff: TableDiff): { breaking: boolean; reasons: string[] }",
 			"route": "/docs/subgraphs-reference",
 			"anchor": "m-hasBreakingChanges"
+		},
+		"IndexCodegenOptions": {
+			"kind": "type",
+			"summary": "Options for runIndexCodegen.",
+			"fields": [
+				{
+					"name": "tables",
+					"type": "string[]"
+				},
+				{
+					"name": "schemaName",
+					"type": "string"
+				},
+				{
+					"name": "datasourceEnv",
+					"type": "string"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-IndexCodegenOptions"
 		},
 		"IndexContractCallRow": {
 			"kind": "type",
@@ -5176,6 +5580,30 @@
 			],
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-SystemRow"
+		},
+		"SystemWhereAliases": {
+			"kind": "type",
+			"summary": "No-prefix aliases for system columns accepted in where/orderBy inputs.",
+			"fields": [
+				{
+					"name": "blockHeight",
+					"type": "bigint | ComparisonFilter<bigint>"
+				},
+				{
+					"name": "txId",
+					"type": "string | ComparisonFilter<string>"
+				},
+				{
+					"name": "createdAt",
+					"type": "string | ComparisonFilter<string>"
+				},
+				{
+					"name": "id",
+					"type": "string | ComparisonFilter<string>"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-SystemWhereAliases"
 		},
 		"TestSubgraphContext": {
 			"kind": "type",
@@ -5796,6 +6224,46 @@
 			"sig": "parseWitness(bytes: Bytes): StateWitness",
 			"route": "/docs/verify-reference",
 			"anchor": "m-parseWitness"
+		},
+		"ProofSource": {
+			"kind": "type",
+			"summary": "Where proof inputs come from.",
+			"fields": [
+				{
+					"name": "getBlock",
+					"type": "(ref: string | number) => Promise<Bytes>"
+				},
+				{
+					"name": "getEpoch2Header",
+					"type": "…"
+				},
+				{
+					"name": "getMarfProof",
+					"type": "…"
+				},
+				{
+					"name": "getWitness",
+					"type": "(blockId: string) => Promise<Bytes>"
+				},
+				{
+					"name": "getBurnPreimage",
+					"type": "…"
+				},
+				{
+					"name": "getBitcoinHeaders",
+					"type": "…"
+				},
+				{
+					"name": "getStateWrites",
+					"type": "…"
+				},
+				{
+					"name": "getVmEvents",
+					"type": "…"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-ProofSource"
 		},
 		"rewardCycle": {
 			"kind": "method",

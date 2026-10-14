@@ -345,7 +345,7 @@
 		},
 		{
 			"name": "FetchLike",
-			"summary": "",
+			"summary": "A minimal fetch signature for dependency injection, matching `@secondlayer/sdk`'s `FetchLike` (`sdk/src/base.ts`).",
 			"definition": "(input: string | URL | Request, init?: RequestInit) => Promise<Response>"
 		},
 		{
