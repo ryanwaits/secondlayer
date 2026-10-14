@@ -11,17 +11,23 @@ Hosted reads are keyed ([Keys and billing](/docs/authentication)); on your own b
 ```ts
 await sl.streams.events.consume({
   types: ["ft_transfer"],
+  // !ref[/fromCursor/] next
+  // !ref open
   fromCursor: await db.loadCheckpoint(), // null on first run
   onBatch: async (events, envelope, ctx) => {
+    // !ref(1:4) save
     await db.transaction(async (tx) => {
       await tx.insertEvents(events);
       await tx.saveCheckpoint(ctx.cursor); // commits with the rows
     });
     return ctx.cursor;
   },
+  // !ref reorg
   onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
 });
 ```
+
+A consumer [opens at your checkpoint](focus:open), [writes rows and cursor in one transaction](focus:save), and [rewinds when a reorg lands](focus:reorg). Each page ends with [`next_cursor`](hover:next); hand it back as [`fromCursor`](hover:next) and the next page starts right after it.
 
 Where to run it: [Deploy](/docs/deploy). Dated changes land in the [changelog](/docs/changelog).
 
@@ -42,6 +48,7 @@ await streams.events.replay({
   },
   async onBatch(events, envelope) {
     await db.insertEvents(events);
+    // !ref[/next_cursor/] next
     return envelope.next_cursor;
   },
 });

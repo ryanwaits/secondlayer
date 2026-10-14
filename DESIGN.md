@@ -214,6 +214,8 @@ all of them. The comment token is `//` (ts, js, json), `#` (sh, toml, text), `--
 | `!collapse(1:12)` | One summary row with the line count, opens on click | none |
 | `!link[/re/] href` | Dotted blue underline to `href`; first match only, internal paths navigate in place | none |
 | `!error[/re/] message` | Wavy red underline and the compiler's `✗ message` under the line; turns Copy off | none |
+| `!ref(1:3) name` / `!ref[/re/g] name` | Nothing until prose or a step reaches it; then `hi` on the tokens and `soft` on the rows | none |
+| `!pick[/re/] name: a \| b \| c` | The token is a `hi` value the `<Pick>` chips rewrite; Copy follows. Options are declared once, later fences repeat just `name` | 1 name per section |
 
 `!error` is for compile-time errors only: a mistake the compiler really reports, with its
 words. A runtime failure is a `text` transcript, which colors itself (below).
@@ -238,7 +240,24 @@ language (`sh` is cURL) or the fence's title, with one Copy for the visible pane
 switches every group with the same `sync` key on that page; nothing is stored. The API
 reference's request and the intro quickstart are `<CodeTabs>`.
 
-`lib/code/budget.test.ts` fails the build past those limits, on an unknown name, on `blue`
+**Prose drives code.** Names resolve by DOM within one scope: a docs `##` section, or a
+whole writing post. Without JavaScript all of it reads as prose beside complete code; the
+scope script (`scope-runtime.ts`) loads only on pages that render one of these.
+- `[text](hover:name)` is a mention: hover, keyboard focus or a tap (on `hover: none`
+  screens) lights every `!ref name` token and row in the scope, and its sibling mentions,
+  in `hi`.
+- `[text](focus:name)` is a focus link, `pri` because it changes the code: it dims the
+  rows that do not hold `name`; again clears.
+- `<Pick name="x" />` renders chips for the section's `!pick x`; the selected chip takes
+  the `ink` border. Choosing rewrites the tokens, so Copy follows.
+- `<CodeSteps>` with `<Step ref="x" title="…">` and one fence, **writing posts only**: the
+  block sticks while steps scroll past, the step crossing mid-viewport focuses and lights
+  its `ref`, inactive steps sit at 0.4 opacity, swaps are instant (the sticky-terminal
+  rule), a click or Enter jumps to a step. Under 880px the block sticks above the steps.
+
+`lib/code/budget.test.ts` fails the build past those limits, on a `hover:`, `focus:`,
+`<Step ref>` or `<Pick>` name with no matching `!ref`/`!pick` in its scope, on a second
+`!pick` name in a scope, on `<CodeSteps>` outside `writing/`, on an unknown name, on `blue`
 outside figures and on `red` outside `text`. A callout counts toward its section's 120-word
 lead. Most blocks stay plain: annotate only when the paragraph points at a token or line.
 

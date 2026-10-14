@@ -31,18 +31,40 @@ The consumer is caught up. Those really are two different places, and expecting 
 
 A consumer's health endpoint reports three different heights, and the whole story lives in the gaps between them:
 
+<CodeSteps>
+<Step ref="tip" title="The chain tip">
+
+`tip_height` is the chain tip; easy.
+
+</Step>
+<Step ref="delivered" title="The last delivery">
+
+`last_delivered_height` is the block of the last event that matched this consumer's filter and landed in its database.
+
+</Step>
+<Step ref="scanned" title="The verified ground">
+
+`scanned_height` is how far the consumer has *verified*: the height below which it can prove there is nothing addressed to it.
+
+</Step>
+
 ```json
 {
   "ok": true,
   "checkpoint": "8637064:1",
+  // !ref delivered
   "last_delivered_height": 8637064,
+  // !ref scanned
   "scanned_height": 8676502,
+  // !ref tip
   "tip_height": 8676502,
   "blocks_behind": 0
 }
 ```
 
-`tip_height` is the chain tip; easy. `last_delivered_height` is the block of the last event that matched this consumer's filter and landed in its database. And `scanned_height` is how far the consumer has *verified*: the height below which it can prove there is nothing addressed to it. Laid on the chain itself, the three heights tell the story of a marketplace that went quiet:
+</CodeSteps>
+
+Laid on the chain itself, the three heights tell the story of a marketplace that went quiet:
 
 <FigShell
 	n={1}
