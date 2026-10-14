@@ -31,7 +31,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 const LEDE =
-	"Every Stacks event from genesis, typed and paginated behind one key. Checkable against a signed manifest.";
+	"Write an indexer against every Stacks event since genesis, in one TypeScript file. Run it on Railway, Render, Fly or your own box. We meter the rows it reads.";
 
 export const metadata: Metadata = socialMeta({
 	title: "Index · secondlayer",
@@ -78,7 +78,10 @@ const DEPLOY = `import { consumerHealth } from "@secondlayer/sdk";
 const health = consumerHealth();
 const shutdown = new AbortController();
 
-Bun.serve({ port: Number(process.env.PORT), fetch: health.handler });
+Bun.serve({
+  port: Number(process.env.PORT),
+  fetch: health.handler,
+});
 process.on("SIGTERM", () => shutdown.abort());
 
 await secondlayer.index.events.consume({
@@ -113,7 +116,7 @@ services:
   min_machines_running = 1`,
 	},
 	{
-		title: "docker-compose.yml",
+		title: "compose.yml",
 		lang: "yaml",
 		code: `services:
   indexer:
@@ -215,7 +218,7 @@ export default async function IndexPage() {
 						</h1>
 						<p className="lede">{LEDE}</p>
 						<div className="btns">
-							<ButtonLink href="/login">Query the index</ButtonLink>
+							<ButtonLink href="/login">Build an indexer</ButtonLink>
 							<ButtonLink href="/docs/index" variant="secondary">
 								Read the docs
 							</ButtonLink>
@@ -296,6 +299,7 @@ export default async function IndexPage() {
 					/>
 
 					<Split
+						flip
 						copy={
 							<>
 								<Eyebrow noun="Deploy" />
@@ -314,7 +318,9 @@ export default async function IndexPage() {
 										),
 									)}
 								</div>
-								<Link href="/docs/deploy">docs/deploy</Link>
+								<Link className="more" href="/docs/deploy">
+									Deploy guide →
+								</Link>
 							</>
 						}
 						art={
@@ -569,7 +575,7 @@ export default async function IndexPage() {
 			<CloseBand
 				title={
 					<>
-						Read your first decoded event <Highlight>today</Highlight>
+						Ship your first indexer <Highlight>today</Highlight>
 					</>
 				}
 				cta={

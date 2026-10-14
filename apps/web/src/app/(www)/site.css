@@ -361,6 +361,9 @@
 	display: grid;
 	gap: 16px;
 }
+.site .art.stack > * {
+	margin-block: 0;
+}
 /* A code figure's notes hang off its outer edge (code.css); art first puts them
    on the left, reading toward the frame. */
 @media (min-width: 1101px) {
