@@ -73,7 +73,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		],
 	},
 	{
-		label: "API",
+		label: "API reference",
 		items: [
 			{ title: "Index API", href: "/docs/api/index" },
 			{ title: "Streams API", href: "/docs/api/streams" },
