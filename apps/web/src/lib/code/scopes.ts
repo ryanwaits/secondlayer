@@ -72,6 +72,11 @@ export function proseProblems(file: string, source: string): string[] {
 				found.push(
 					`${where}: ${m[1]}:${m[2]} has no !ref ${m[2]} in the section`,
 				);
+		if (!whole && /<CodeSteps[\s>]/.test(scope.prose))
+			found.push(`${where}: <CodeSteps> is for writing posts only`);
+		for (const m of scope.prose.matchAll(/<Step\s+ref="([^"]*)"/g))
+			if (!refs.has(m[1] ?? ""))
+				found.push(`${where}: <Step ref="${m[1]}"> has no !ref ${m[1]}`);
 		const picks = declared(scope, "pick");
 		for (const m of scope.prose.matchAll(/<Pick\s+name="([^"]*)"/g))
 			if (!picks.has(m[1] ?? ""))

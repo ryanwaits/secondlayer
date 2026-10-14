@@ -92,6 +92,11 @@ function onClick(event: MouseEvent) {
 		);
 		return;
 	}
+	const step = event.target.closest<HTMLElement>(".cs-step");
+	if (step && !event.target.closest("a, button")) {
+		jumpTo(step);
+		return;
+	}
 	const chip = event.target.closest<HTMLElement>("[data-choose]");
 	if (chip) {
 		choose(chip);
@@ -142,6 +147,67 @@ function choose(chip: HTMLElement) {
 			other.setAttribute("aria-pressed", String(other === chip));
 }
 
+/** Make `name` the active step: mark it, focus its rows, light its tokens. */
+function stepTo(container: HTMLElement, name: string) {
+	const scope = [container];
+	for (const step of find(scope, ".cs-step")) {
+		const on = step.dataset.step === name;
+		step.classList.toggle("on", on);
+		if (on) step.setAttribute("aria-current", "step");
+		else step.removeAttribute("aria-current");
+	}
+	for (const el of find(scope, ".ref.lit, .row.lit, .mention.lit"))
+		el.classList.remove("lit");
+	focusRef(scope, name);
+	light(scope, name, true);
+}
+
+/** One observer per steps block: the step crossing the middle of the viewport is the active one. */
+function setUpSteps() {
+	for (const container of document.querySelectorAll<HTMLElement>(
+		"[data-steps]:not([data-ready])",
+	)) {
+		container.dataset.ready = "";
+		// Steps take the keyboard only once the script can act on them.
+		for (const step of container.querySelectorAll<HTMLElement>(".cs-step"))
+			step.tabIndex = 0;
+		const first = container.querySelector<HTMLElement>(".cs-step");
+		if (first) stepTo(container, first.dataset.step ?? "");
+		if (!("IntersectionObserver" in window)) continue;
+		const observer = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries)
+					if (entry.isIntersecting && entry.target instanceof HTMLElement)
+						stepTo(container, entry.target.dataset.step ?? "");
+			},
+			{ rootMargin: "-45% 0px -50% 0px" },
+		);
+		for (const step of container.querySelectorAll(".cs-step"))
+			observer.observe(step);
+	}
+}
+
+/** Jump to a step: activate it and bring it to the middle. */
+function jumpTo(step: HTMLElement) {
+	const container = step.closest<HTMLElement>("[data-steps]");
+	if (!container) return;
+	stepTo(container, step.dataset.step ?? "");
+	step.scrollIntoView({
+		block: "center",
+		behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+			? "auto"
+			: "smooth",
+	});
+}
+
+function onKey(event: KeyboardEvent) {
+	const step = (event.target as Element).closest<HTMLElement>(".cs-step");
+	if (step && event.target === step && [" ", "Enter"].includes(event.key)) {
+		event.preventDefault();
+		jumpTo(step);
+	}
+}
+
 let listening = false;
 
 /**
@@ -150,8 +216,10 @@ let listening = false;
  */
 export function mountScope() {
 	setUpPickers();
+	setUpSteps();
 	if (listening) return;
 	listening = true;
+	document.addEventListener("keydown", onKey);
 	document.addEventListener("mouseover", (e) => onMention(e, true));
 	document.addEventListener("mouseout", (e) => onMention(e, false));
 	document.addEventListener("focusin", (e) => onMention(e, true));

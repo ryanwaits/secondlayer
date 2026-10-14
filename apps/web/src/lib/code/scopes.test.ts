@@ -42,6 +42,24 @@ describe("mention and focus links", () => {
 	});
 });
 
+describe("steps", () => {
+	const steps = `<CodeSteps>\n<Step ref="open" title="t">\n\nbody\n\n</Step>\n${fence("// !ref(1) open\nx();")}\n</CodeSteps>`;
+
+	test("steps in a docs page fail", () => {
+		expect(proseProblems("docs/x/page.mdx", `## S\n${steps}`)).toEqual([
+			'docs/x/page.mdx "S": <CodeSteps> is for writing posts only',
+		]);
+	});
+
+	test("steps in a post pass when every step has its ref", () => {
+		expect(proseProblems("writing/(post)/p/page.mdx", steps)).toEqual([]);
+		const missing = steps.replace("!ref(1) open", "!ref(1) other");
+		expect(proseProblems("writing/(post)/p/page.mdx", missing)).toEqual([
+			'writing/(post)/p/page.mdx "intro": <Step ref="open"> has no !ref open',
+		]);
+	});
+});
+
 describe("pick budget", () => {
 	const two = `## Section\n${fence("// !pick[/a/] one: a | b\na();")}\n${fence("// !pick[/c/] two: c | d\nc();")}`;
 

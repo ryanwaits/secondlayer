@@ -1,4 +1,5 @@
 import { Code } from "@/components/code/code";
+import { CodeSteps, Step } from "@/components/code/code-steps";
 import { CodeTabs } from "@/components/code/code-tabs";
 import { fenceFromCode } from "@/components/code/fence";
 import { FocusLink, Mention, Pick } from "@/components/code/prose";
@@ -116,6 +117,8 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 		Banner,
 		CodeTabs,
 		Pick,
+		CodeSteps,
+		Step,
 		...components,
 	};
 }
