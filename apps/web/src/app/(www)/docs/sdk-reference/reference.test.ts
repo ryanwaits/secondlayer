@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { stripAnnotations } from "@/lib/code/annotations";
 import { docsNavPages } from "../nav";
-import { paramGroupsHtml } from "./html";
+import { errorTreeHtml, mapBoxHtml, paramGroupsHtml } from "./html";
 import { resolveLegacy } from "./legacy";
 import { sdkPageMarkdown } from "./markdown";
 import { paragraphs, parseInline } from "./markdown-text";
@@ -11,6 +11,7 @@ import { SDK_BASE, SDK_SURFACES, sdkPages } from "./pages";
 import {
 	OPTIONS_SHOWN,
 	callbackArgs,
+	constructorEntry,
 	errorTree,
 	exampleWithRefs,
 	fieldsOfType,
@@ -257,6 +258,36 @@ describe("method entries", () => {
 		expect(html).toContain("<code>&lt;b&gt;</code>");
 		expect(html).toContain('class="mention sdkr-prow" data-hover="x"');
 	});
+
+	test("an error's summary and a box's blurb render their code spans, a box drops links", () => {
+		const tree = errorTreeHtml(
+			[
+				{ prefix: "", name: "Root", note: "", summary: "" },
+				{
+					prefix: "└─ ",
+					name: "ApiError",
+					note: "",
+					summary: "Thrown by `SecondLayer` when a [request](/x) fails.",
+				},
+			],
+			(n) => `/e#${n}`,
+		);
+		expect(tree).toContain("<code>SecondLayer</code>");
+		expect(tree).not.toContain("`");
+		expect(tree).toContain('<a href="/e#ApiError"><b>ApiError</b></a>');
+		const box = mapBoxHtml(
+			"/h",
+			"retry",
+			"Parse a `Retry-After` [header](/y).",
+		);
+		expect(box).toContain("<code>Retry-After</code>");
+		expect(box.match(/<a /g)).toHaveLength(1);
+	});
+
+	test("a void or undefined return reaches the glance table as written", () => {
+		const m1 = surface("streams").methods.flatMap((x) => x.overloads);
+		expect(JSON.stringify(m1)).not.toContain("=> null");
+	});
 });
 
 describe("examples", () => {
@@ -267,6 +298,30 @@ describe("examples", () => {
 			expect(() =>
 				exampleWithRefs(`// !${verb} x\nconst x = 1;`, new Set(), "e.ts"),
 			).toThrow(/e\.ts/);
+	});
+
+	test("the docs budget holds here too: at most 3 callouts and 2 marks", () => {
+		const lines = (verb: string, n: number) =>
+			Array.from(
+				{ length: n },
+				(_, i) => `// !${verb}[/x${i}/] note\nx${i};`,
+			).join("\n");
+		expect(() => exampleWithRefs(lines("callout", 3), new Set())).not.toThrow();
+		expect(() =>
+			exampleWithRefs(lines("callout", 4), new Set(), "e.ts"),
+		).toThrow(/4 !callout.*budget is 3/);
+		expect(() => exampleWithRefs(lines("mark", 3), new Set())).toThrow(
+			/budget is 2/,
+		);
+	});
+
+	test("every example file in the SDK package passes", () => {
+		for (const s of m.surfaces)
+			for (const method of surface(s.slug).methods)
+				for (const ex of method.examples)
+					expect(() =>
+						exampleWithRefs(ex.code, new Set(), ex.file),
+					).not.toThrow();
 	});
 
 	test("a key the params name gets a ref; a property access of the same name does not", () => {
@@ -334,6 +389,44 @@ describe("old anchors", () => {
 		expect(resolveLegacy(owners, "")).toBeNull();
 		expect(resolveLegacy(owners, "#%E0%A4%A")).toBeNull();
 		expect(resolveLegacy(owners, "#constructor")).toBeNull();
+	});
+});
+
+describe("constructor", () => {
+	test("the client surface has one, and only it: other surfaces inherit nothing", () => {
+		const ctor = constructorEntry(surface("client"));
+		expect(ctor?.path).toBe("new SecondLayer");
+		const rows = paramRows(ctor as NonNullable<typeof ctor>, new Map());
+		expect(rows.map((r) => r.name)).toContain("baseUrl");
+		expect(rows.find((r) => r.name === "baseUrl")?.description).toContain(
+			"Base URL",
+		);
+		for (const slug of ["streams", "index", "webhooks"])
+			expect(constructorEntry(surface(slug))).toBeNull();
+	});
+
+	test("its signature is the call with an options object and no return type", () => {
+		const ctor = constructorEntry(surface("client"));
+		if (!ctor) throw new Error("no constructor");
+		const code = stripAnnotations(
+			signatureOf(
+				ctor,
+				ctor.overloads[0] as NonNullable<(typeof ctor.overloads)[0]>,
+				new Set(),
+			),
+			"ts",
+		);
+		expect(code.startsWith("new SecondLayer(")).toBe(true);
+		expect(code.trimEnd().endsWith(")")).toBe(true);
+		expect(code).toContain("baseUrl?: string;");
+	});
+
+	test("the markdown twin lists it first", () => {
+		const md = sdkPageMarkdown("/docs/sdk-reference/client") ?? "";
+		expect(md.indexOf("### new SecondLayer(options)")).toBeGreaterThan(-1);
+		expect(md.indexOf("### new SecondLayer(options)")).toBeLessThan(
+			md.indexOf("### sl.batch"),
+		);
 	});
 });
 

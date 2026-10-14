@@ -2,6 +2,7 @@ import { esc, escAttr } from "@/components/code/handlers";
 import { type Piece, parseInline } from "./markdown-text";
 import {
 	type Callback,
+	type ErrorLine,
 	type Field,
 	type Method,
 	type ParamGroup,
@@ -21,21 +22,56 @@ import {
  * render this way for the same reason. Every dynamic value goes through `esc`.
  */
 
-function piecesHtml(pieces: Piece[]): string {
+function piecesHtml(pieces: Piece[], links: boolean): string {
 	return pieces
 		.map((p) =>
 			p.kind === "text"
 				? esc(p.text)
 				: p.kind === "code"
 					? `<code>${esc(p.text)}</code>`
-					: `<a href="${escAttr(p.href)}"${/^[/#]/.test(p.href) ? "" : ' target="_blank" rel="noreferrer"'}>${piecesHtml(p.label)}</a>`,
+					: links
+						? `<a href="${escAttr(p.href)}"${/^[/#]/.test(p.href) ? "" : ' target="_blank" rel="noreferrer"'}>${piecesHtml(p.label, links)}</a>`
+						: piecesHtml(p.label, links),
 		)
 		.join("");
 }
 
-/** One line of JSDoc prose (inline code and links) as markup. */
-export function inlineHtml(text: string): string {
-	return piecesHtml(parseInline(text.replace(/\s*\n\s*/g, " ").trim()));
+/**
+ * One line of JSDoc prose (inline code and links) as markup. `links: false`
+ * keeps a link's text and drops the anchor, for prose that sits inside a link.
+ */
+export function inlineHtml(text: string, { links = true } = {}): string {
+	return piecesHtml(parseInline(text.replace(/\s*\n\s*/g, " ").trim()), links);
+}
+
+/** A box on the overview (it is a link, so its prose carries no links of its own). */
+export function mapBoxHtml(
+	href: string,
+	name: string,
+	blurb: string,
+	meta?: string,
+): string {
+	return `<a class="sdkr-box" href="${escAttr(href)}"><b>${esc(name)}</b><span>${inlineHtml(blurb, { links: false })}</span>${meta ? `<em>${esc(meta)}</em>` : ""}</a>`;
+}
+
+/** The error family as a preformatted tree; a class without a status says what it is, as inline prose. */
+export function errorTreeHtml(
+	lines: ErrorLine[],
+	href?: (name: string) => string,
+): string {
+	const rows = lines
+		.map((l) => {
+			const name = href
+				? `<a href="${escAttr(href(l.name))}"><b>${esc(l.name)}</b></a>`
+				: `<b>${esc(l.name)}</b>`;
+			const note = l.note ? ` ${esc(l.note)}` : "";
+			const summary = l.summary
+				? ` <span class="sdkr-faint">${inlineHtml(l.summary, { links: false })}</span>`
+				: "";
+			return `${esc(l.prefix)}${name}${note}${summary}\n`;
+		})
+		.join("");
+	return `<pre class="sdkr-tree">${rows}</pre>`;
 }
 
 function paramTable(rows: ParamRow[]): string {
@@ -103,7 +139,7 @@ export function glanceHtml(methods: Method[]): string {
 		.map((m) => {
 			const first = m.overloads[0];
 			const args = (first?.params ?? []).map((p) => p.name).join(", ");
-			return `<tr data-q="${escAttr(`${m.path} ${m.summary}`.toLowerCase())}"><td class="mn"><a href="#${methodAnchor(m.id)}">${esc(m.id)}(${esc(args)})</a></td><td class="ret">${first ? esc(glanceReturn(first.returns.type)) : ""}</td><td class="use">${inlineHtml(m.summary)}</td></tr>`;
+			return `<tr data-q="${escAttr(`${m.path} ${m.summary}`.toLowerCase())}"><td class="mn"><a href="#${methodAnchor(m.id)}">${esc(m.path.startsWith("new ") ? m.path : m.id)}(${esc(args)})</a></td><td class="ret">${first ? esc(glanceReturn(first.returns.type)) : ""}</td><td class="use">${inlineHtml(m.summary)}</td></tr>`;
 		})
 		.join("");
 	return `<table class="sdkr-t sdkr-glance"><tbody>${rows}</tbody></table>`;

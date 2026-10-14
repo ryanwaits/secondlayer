@@ -13,6 +13,9 @@ export const ANNOTATION_NAMES = [
 	"pick",
 ] as const;
 
+/** A block that marks everything marks nothing: per-block limits that keep color meaningful (budget.test.ts, and the SDK reference's examples). */
+export const ANNOTATION_LIMITS = { mark: 2, callout: 3, focus: 1 } as const;
+
 export type FenceOptions = {
 	lang: string;
 	title?: string;

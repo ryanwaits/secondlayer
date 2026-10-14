@@ -3,22 +3,24 @@ import { CodeScope } from "@/components/code/code-scope";
 import { CodeTabs } from "@/components/code/code-tabs";
 import { GITHUB_URL } from "@/lib/site";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { apiPageHref, pageForTag } from "../api-reference/pages";
 import { allEndpoints, curlFor } from "../api-reference/spec";
 import { GlanceFilter, SdkHashRedirect } from "./client";
 import {
 	disclosuresHtml,
+	errorTreeHtml,
 	glanceHtml,
+	mapBoxHtml,
 	paramGroupsHtml,
 	typeListHtml,
 } from "./html";
-import { Paragraphs, Text, plain } from "./markdown-text";
+import { Paragraphs, Text } from "./markdown-text";
 import { SDK_BASE, SDK_SURFACES, findSurface } from "./pages";
 import {
 	type Method,
 	type TypeDoc,
 	callbackArgs,
+	constructorEntry,
 	errorAnchor,
 	errorTree,
 	exampleWithRefs,
@@ -239,6 +241,8 @@ export async function SdkSurfacePage({ slug }: { slug: string }) {
 	const data = surface(slug);
 	const m = manifest();
 	const types = typeMap(data);
+	const ctor = constructorEntry(data);
+	const entries = ctor ? [ctor, ...data.methods] : data.methods;
 	return (
 		<div className="sdkr">
 			<CodeScope />
@@ -257,11 +261,11 @@ export async function SdkSurfacePage({ slug }: { slug: string }) {
 				{info.api ? <Link href={info.api.href}>{info.api.title}</Link> : null}
 			</div>
 
-			<GlanceFilter count={data.methods.length}>
-				<Html html={glanceHtml(data.methods)} />
+			<GlanceFilter count={entries.length}>
+				<Html html={glanceHtml(entries)} />
 			</GlanceFilter>
 
-			{data.methods.map((method) => (
+			{entries.map((method) => (
 				<MethodEntry key={method.id} method={method} types={types} />
 			))}
 
@@ -330,16 +334,7 @@ export function SdkErrorsPage() {
 	const tree = errorTree(m.errors);
 	return (
 		<div className="sdkr">
-			<pre className="sdkr-tree">
-				{tree.map((line) => (
-					<span key={line.name} className="sdkr-tree-row">
-						{line.prefix}
-						<b>{line.name}</b>
-						{line.note ? ` ${line.note}` : ""}
-						{"\n"}
-					</span>
-				))}
-			</pre>
+			<Html html={errorTreeHtml(tree)} />
 			<div className="sdkr-params-wrap">
 				<table className="sdkr-t sdkr-errors">
 					<tbody>
@@ -364,21 +359,6 @@ export function SdkErrorsPage() {
 	);
 }
 
-function MapBox({
-	href,
-	name,
-	blurb,
-	meta,
-}: { href: string; name: string; blurb: string; meta?: string }): ReactNode {
-	return (
-		<Link className="sdkr-box" href={href}>
-			<b>{name}</b>
-			<span>{blurb}</span>
-			{meta ? <em>{meta}</em> : null}
-		</Link>
-	);
-}
-
 /** The client drawn as a map: the root, its surfaces with counts, the helpers, the errors. */
 export function SdkOverview() {
 	const m = manifest();
@@ -399,8 +379,9 @@ export function SdkOverview() {
 				<div className="sdkr-root">
 					const sl = new SecondLayer() <span>· {m.package}</span>
 				</div>
-				<div className="sdkr-kids">
-					{SDK_SURFACES.map((s) => {
+				<Html
+					className="sdkr-kids"
+					html={SDK_SURFACES.map((s) => {
 						const count = counts.get(s.slug) ?? 0;
 						const name =
 							s.slug === "client"
@@ -408,49 +389,42 @@ export function SdkOverview() {
 										.methods.map((x) => x.path)
 										.join(" · ")
 								: (m.surfaces.find((x) => x.slug === s.slug)?.root ?? s.title);
-						return (
-							<MapBox
-								key={s.slug}
-								href={`${SDK_BASE}/${s.slug}`}
-								name={name}
-								blurb={s.blurb}
-								meta={`${count} ${count === 1 ? "method" : "methods"}`}
-							/>
+						return mapBoxHtml(
+							`${SDK_BASE}/${s.slug}`,
+							name,
+							s.blurb,
+							`${count} ${count === 1 ? "method" : "methods"}`,
 						);
-					})}
-				</div>
+					}).join("")}
+				/>
 				<div className="sdkr-maprow">
 					<p className="sdkr-lbl">Helpers you import directly</p>
-					<div className="sdkr-kids">
-						{featured.map((h) => (
-							<MapBox
-								key={h.name}
-								href={`${SDK_BASE}/helpers#${helperAnchor(h.name)}`}
-								name={h.name}
-								blurb={plain(h.summary)}
-							/>
-						))}
-						<MapBox
-							href={`${SDK_BASE}/helpers`}
-							name={`All ${m.helpers.length} helpers`}
-							blurb="Decoders, type guards, signature and proof checks"
-						/>
-					</div>
+					<Html
+						className="sdkr-kids"
+						html={[
+							...featured.map((h) =>
+								mapBoxHtml(
+									`${SDK_BASE}/helpers#${helperAnchor(h.name)}`,
+									h.name,
+									h.summary,
+								),
+							),
+							mapBoxHtml(
+								`${SDK_BASE}/helpers`,
+								`All ${m.helpers.length} helpers`,
+								"Decoders, type guards, signature and proof checks",
+							),
+						].join("")}
+					/>
 				</div>
 				<div className="sdkr-maprow">
 					<p className="sdkr-lbl">Errors</p>
-					<pre className="sdkr-tree">
-						{errorTree(m.errors).map((line) => (
-							<span key={line.name} className="sdkr-tree-row">
-								{line.prefix}
-								<Link href={`${SDK_BASE}/errors#${errorAnchor(line.name)}`}>
-									<b>{line.name}</b>
-								</Link>
-								{line.note ? ` ${line.note}` : ""}
-								{"\n"}
-							</span>
-						))}
-					</pre>
+					<Html
+						html={errorTreeHtml(
+							errorTree(m.errors),
+							(name) => `${SDK_BASE}/errors#${errorAnchor(name)}`,
+						)}
+					/>
 				</div>
 			</div>
 		</div>

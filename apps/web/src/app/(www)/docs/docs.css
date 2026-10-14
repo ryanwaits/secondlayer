@@ -2021,3 +2021,13 @@ html[data-acct-card] .docs-content {
 .docs-article .sdkr-tree a {
 	text-decoration: none;
 }
+
+/* grid children that hold wide content (a tree, a row of boxes) shrink instead of widening the page */
+.sdkr > *,
+.sdkr-map,
+.sdkr-map > * {
+	min-width: 0;
+}
+.sdkr-maprow {
+	grid-template-columns: minmax(0, 1fr);
+}

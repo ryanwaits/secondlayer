@@ -4,6 +4,7 @@ import {
 	type Field,
 	type Method,
 	type TypeDoc,
+	constructorEntry,
 	manifest,
 	paramRows,
 	restTarget,
@@ -96,7 +97,9 @@ function surfaceMarkdown(slug: string): string {
 	const types = typeMap(data);
 	const out = [
 		"## Methods",
-		...data.methods.map((m) => methodMarkdown(m, types)),
+		...[constructorEntry(data), ...data.methods]
+			.filter((m) => m !== null)
+			.map((m) => methodMarkdown(m, types)),
 	];
 	if (data.types.length)
 		out.push("## Types", data.types.map(typeMarkdown).join("\n"));

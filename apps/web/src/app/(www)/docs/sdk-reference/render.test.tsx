@@ -73,6 +73,25 @@ describe("a surface page", () => {
 		const html = await render(<SdkSurfacePage slug="webhooks" />);
 		expect(html).toContain('href="/docs/api/webhooks#');
 	});
+
+	test("the client page opens with the constructor, its options documented", async () => {
+		const html = await render(<SdkSurfacePage slug="client" />);
+		const ctor = html.indexOf('id="m-SecondLayer"');
+		expect(ctor).toBeGreaterThan(-1);
+		expect(ctor).toBeLessThan(html.indexOf('id="m-batch"'));
+		const entry = html.slice(ctor, html.indexOf('id="m-batch"'));
+		expect(entry).toContain("new ");
+		expect(entry).toContain('data-hover="baseUrl"');
+		expect(entry).toContain("Base URL of the instance API");
+		// A constructor's signature does not end in a return type.
+		expect(entry).not.toContain("): SecondLayer");
+	});
+
+	test("a void callback renders void, never null", async () => {
+		const streams = await render(<SdkSurfacePage slug="streams" />);
+		expect(streams).toContain("=&gt; void");
+		expect(streams).not.toContain("=&gt; null");
+	});
 });
 
 describe("the reference's own links", () => {

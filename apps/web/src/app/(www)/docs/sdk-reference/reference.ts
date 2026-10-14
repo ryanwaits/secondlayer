@@ -14,7 +14,7 @@ import webhooks from "@/generated/reference/sdk/webhooks.json";
  * `sdk-reference.tsx` and the markdown twin both read it, so the two cannot
  * disagree.
  */
-import { parseAnnotations } from "@/lib/code/annotations";
+import { ANNOTATION_LIMITS, parseAnnotations } from "@/lib/code/annotations";
 
 export type Field = {
 	name: string;
@@ -34,7 +34,8 @@ export type Overload = {
 	label: string;
 	description: string;
 	typeParams?: TypeParam[];
-	params: Field[];
+	params: (Field & { fields?: Field[] })[];
+	/** An empty type is a constructor: it returns its class and the signature says nothing. */
 	returns: { type: string; description: string };
 };
 
@@ -60,9 +61,18 @@ export type TypeDoc = {
 	deprecated?: Deprecation;
 };
 
+export type Constructor = {
+	name: string;
+	summary: string;
+	description: string;
+	source: { file: string; line: number } | null;
+	overloads: Overload[];
+};
+
 export type Surface = {
 	slug: string;
 	root: string;
+	constructor?: Constructor;
 	methods: Method[];
 	types: TypeDoc[];
 };
@@ -209,12 +219,14 @@ export function signatureOf(
 	const params = overload.params.map(
 		(p) => `${p.name}${p.required ? "" : "?"}: ${formatType(p.type, 2, 76)}`,
 	);
-	const returns = formatType(overload.returns.type, 0, 80);
-	const oneLine = `${head}(${params.join(", ")}): ${returns}`;
+	const returns = overload.returns.type
+		? `: ${formatType(overload.returns.type, 0, 80)}`
+		: "";
+	const oneLine = `${head}(${params.join(", ")})${returns}`;
 	const code =
 		oneLine.length <= 88 && !oneLine.includes("\n")
 			? oneLine
-			: `${head}(${params.length ? `\n${params.map((p) => indentLines(p, 2)).join(",\n")},\n` : ""}): ${returns}`;
+			: `${head}(${params.length ? `\n${params.map((p) => indentLines(p, 2)).join(",\n")},\n` : ""})${returns}`;
 	return withRefs(code, refNames, `^${escapeRegex(method.path)}`, "method");
 }
 
@@ -262,11 +274,20 @@ export function exampleWithRefs(
 	names: ReadonlySet<string>,
 	file = "example",
 ): string {
-	for (const a of parseAnnotations(code, "typescript").annotations)
+	const { annotations } = parseAnnotations(code, "typescript");
+	for (const a of annotations)
 		if (!EXAMPLE_ANNOTATIONS.has(a.name))
 			throw new Error(
 				`${file}: "!${a.name}" is not allowed in a reference example (only ${[...EXAMPLE_ANNOTATIONS].join(", ")}).`,
 			);
+	// The docs budget, one rule everywhere (budget.test.ts holds the docs fences to it).
+	for (const name of ["callout", "mark"] as const) {
+		const n = annotations.filter((a) => a.name === name).length;
+		if (n > ANNOTATION_LIMITS[name])
+			throw new Error(
+				`${file}: ${n} !${name} annotations, the docs budget is ${ANNOTATION_LIMITS[name]}.`,
+			);
+	}
 	const out: string[] = [];
 	for (const line of code.split("\n")) {
 		if (!/^\s*\/\//.test(line)) {
@@ -354,7 +375,7 @@ export function paramRows(
 	method.overloads.forEach((overload, at) => {
 		const nested = overload.params.length > 1;
 		for (const param of overload.params) {
-			const opened = fieldsOfType(param.type, types);
+			const opened = param.fields ?? fieldsOfType(param.type, types);
 			const fields: Field[] = opened
 				? opened.map((f) => ({
 						...f,
@@ -474,6 +495,25 @@ export function returnFields(
 	return types.get(baseName(type) ?? "")?.fields ?? [];
 }
 
+/**
+ * A surface's constructor as a method entry (`new SecondLayer(options)`), or
+ * null. `constructor` is also every object's inherited function, so only an
+ * own key counts.
+ */
+export function constructorEntry(s: Surface): Method | null {
+	const ctor = Object.hasOwn(s, "constructor") ? s.constructor : undefined;
+	if (!ctor) return null;
+	return {
+		id: ctor.name,
+		path: `new ${ctor.name}`,
+		summary: ctor.summary,
+		description: ctor.description,
+		source: ctor.source,
+		overloads: ctor.overloads,
+		examples: [],
+	};
+}
+
 export function typeMap(s: Surface): Map<string, TypeDoc> {
 	return new Map(s.types.map((t) => [t.name, t]));
 }
@@ -501,7 +541,14 @@ export function restTarget(rest: string): { method: string; path: string } {
 
 // ── errors ─────────────────────────────────────────────────────────────
 
-export type ErrorLine = { prefix: string; name: string; note: string };
+export type ErrorLine = {
+	prefix: string;
+	name: string;
+	/** The HTTP status, or a label for the root. */
+	note: string;
+	/** What the class is (inline markdown), for a class that has no status. */
+	summary: string;
+};
 
 /** The error family as tree lines: the root (the parent no listed error extends past), then each class under its parent. */
 export function errorTree(errors: Manifest["errors"]): ErrorLine[] {
@@ -521,12 +568,18 @@ export function errorTree(errors: Manifest["errors"]): ErrorLine[] {
 				prefix: `${lead}${last ? "└─ " : "├─ "}`,
 				name: kid.name,
 				note: kid.status ? String(kid.status) : "",
+				summary: kid.status ? "" : kid.summary,
 			});
 			walk(kid.name, `${lead}${last ? "   " : "│  "}`);
 		});
 	};
 	for (const root of roots) {
-		lines.push({ prefix: "", name: root, note: "root of the family" });
+		lines.push({
+			prefix: "",
+			name: root,
+			note: "root of the family",
+			summary: "",
+		});
 		walk(root, "");
 	}
 	return lines;

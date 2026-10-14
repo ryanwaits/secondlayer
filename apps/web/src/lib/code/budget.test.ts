@@ -3,14 +3,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Glob } from "bun";
 import {
+	ANNOTATION_LIMITS,
 	ANNOTATION_NAMES,
 	parseAnnotations,
 	parseFenceOptions,
 } from "./annotations";
 import { proseProblems } from "./scopes";
 
-/** A block that marks everything marks nothing: these limits keep color meaningful. */
-const LIMITS = { mark: 2, callout: 3, focus: 1 } as const;
+const LIMITS = ANNOTATION_LIMITS;
 
 const ROOT = join(import.meta.dir, "..", "..", "app", "(www)");
 const FENCE = /^(`{3,}|~{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/gm;
