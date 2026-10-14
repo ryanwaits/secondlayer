@@ -438,6 +438,11 @@
 	gap: 4px;
 	vertical-align: 1px;
 }
+/* Straight under a heading it sits where the first paragraph would (docs.css: p margin 14px). */
+:is(h2, h3, h4) + .picker {
+	display: flex;
+	margin-top: 14px;
+}
 .picker button {
 	padding: 5px 10px;
 	border: 1px solid var(--line);
