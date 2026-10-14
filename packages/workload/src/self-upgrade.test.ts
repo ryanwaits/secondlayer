@@ -80,7 +80,7 @@ describe("workload-self-upgrade.sh", () => {
 		return (await git(seed, "rev-parse", "HEAD")).stdout;
 	}
 
-	function run() {
+	function run(env: Record<string, string> = {}) {
 		return sh(["bash", SCRIPT], checkout, {
 			PATH: `${shimDir}:${process.env.PATH}`,
 			WORKLOAD_CHECKOUT_DIR: checkout,
@@ -91,6 +91,7 @@ describe("workload-self-upgrade.sh", () => {
 			WORKLOAD_HEALTH_TIMEOUT: "2",
 			WORKLOAD_IDLE_TIMEOUT: "3",
 			APP_SERVER_URL: `http://127.0.0.1:${server.port}`,
+			...env,
 		});
 	}
 
@@ -203,7 +204,9 @@ describe("workload-self-upgrade.sh", () => {
 	test("the restart waits while a tenant upgrade round is in flight", async () => {
 		deployedSha = await commitFile("packages/workload/new.txt", "x");
 		busyPolls = 2;
-		const res = await run();
+		// Bash SECONDS is whole-second, so the default 3s deadline can arrive in
+		// ~2s on a slow runner; give the idle wait room to finish its polls.
+		const res = await run({ WORKLOAD_IDLE_TIMEOUT: "15" });
 		expect(res.code).toBe(0);
 		expect(res.stdout).toContain("tenant upgrade round in flight");
 		expect(res.stdout).not.toContain("WARNING");

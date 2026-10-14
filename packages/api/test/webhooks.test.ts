@@ -310,19 +310,32 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		const body = (await created.json()) as { webhook: { id: string } };
 
 		// No Index API is reachable from the test process, so loading the block
-		// range throws a raw connection error.
-		const res = await app.request(`/webhooks/${body.webhook.id}/replay`, {
-			method: "POST",
-			body: JSON.stringify({ fromBlock: 0, toBlock: 10 }),
-		});
-		expect(res.status).toBe(500);
-		const responseBody = await res.json();
-		expect(responseBody).toEqual({
-			error: "Internal Server Error",
-			code: "INTERNAL_ERROR",
-		});
-		expect(JSON.stringify(responseBody)).not.toContain("ECONNREFUSED");
-		expect(JSON.stringify(responseBody)).not.toContain("fetch");
+		// range throws a raw connection error. Point the client at a closed local
+		// port: the default host `api` is a DNS lookup that can take ~1s per
+		// attempt on a CI runner, and the client retries, which outruns the test
+		// timeout.
+		const previousIndexUrl = process.env.SUBGRAPH_INDEX_API_URL;
+		process.env.SUBGRAPH_INDEX_API_URL = "http://127.0.0.1:9";
+		try {
+			const res = await app.request(`/webhooks/${body.webhook.id}/replay`, {
+				method: "POST",
+				body: JSON.stringify({ fromBlock: 0, toBlock: 10 }),
+			});
+			expect(res.status).toBe(500);
+			const responseBody = await res.json();
+			expect(responseBody).toEqual({
+				error: "Internal Server Error",
+				code: "INTERNAL_ERROR",
+			});
+			expect(JSON.stringify(responseBody)).not.toContain("ECONNREFUSED");
+			expect(JSON.stringify(responseBody)).not.toContain("fetch");
+		} finally {
+			if (previousIndexUrl === undefined) {
+				delete process.env.SUBGRAPH_INDEX_API_URL;
+			} else {
+				process.env.SUBGRAPH_INDEX_API_URL = previousIndexUrl;
+			}
+		}
 	});
 
 	test("deliveries report the delivered event's block time, or null without one", async () => {
