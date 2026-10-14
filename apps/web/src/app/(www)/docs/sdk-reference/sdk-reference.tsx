@@ -106,12 +106,12 @@ function tabLabels(method: Method): string[] {
 	});
 }
 
-/** Most type tips one entry's signatures carry. */
-const TIPS_PER_ENTRY = 2;
+/** Type tips one entry's signatures carry: one. */
+const TIPS_PER_ENTRY = 1;
 
 /**
  * The type names an entry's signatures may tip: ones the tip table knows, first
- * on the page, at most two. The page passes one ledger down the entries in the
+ * on the page, one. The page passes one ledger down the entries in the
  * order they render, so a name is explained where it first appears.
  */
 function entryTips(

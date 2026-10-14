@@ -237,7 +237,7 @@ em dash, URL or `/docs` path; the build fails otherwise. A name without a summar
 | Surface | Tips | Rule |
 |---|---|---|
 | Guides (`/docs/*` hand-written) | ~25 | Methods and endpoints, first mention on the page, at most 2 per `##` |
-| SDK and package reference | ~70 | Types in signatures that have a summary, first on the page, at most 2 per entry; examples, helpers and cURL none |
+| SDK and package reference | ~160 | Types in signatures that have a summary, first on the page, at most 1 per entry; examples, helpers and cURL none |
 | Product (`/p/*`, `/verify`) | 0 | None, test-enforced |
 | API pages, changelog, writing, `/docs` hub | 0 | None |
 

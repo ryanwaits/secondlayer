@@ -52,7 +52,7 @@ describe("a surface page", () => {
 		);
 	});
 
-	test("signatures tip types: two per entry at most, each name once per page, examples none", async () => {
+	test("signatures tip types: one per entry at most, each name once per page, examples none", async () => {
 		const html = await render(<SdkSurfacePage slug="streams" />);
 		const entries = html.split('<section class="sdkr-m"').slice(1);
 		const owner = new Map<string, number>();
@@ -62,7 +62,7 @@ describe("a surface page", () => {
 					(m) => m[1] as string,
 				),
 			);
-			expect(anchors.size, `entry ${at}`).toBeLessThanOrEqual(2);
+			expect(anchors.size, `entry ${at}`).toBeLessThanOrEqual(1);
 			for (const anchor of anchors) {
 				expect(owner.has(anchor), `${anchor} tipped twice`).toBe(false);
 				owner.set(anchor, at);
