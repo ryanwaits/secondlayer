@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Choice } from "@/components/choice";
+import { useId, useState } from "react";
 import { mergeMarkers } from "./collide";
 
 export type TrackMarker = {
@@ -24,6 +25,7 @@ export type TrackState = { label: string; markers: TrackMarker[] };
  */
 export function PositionTrack({ states }: { states: TrackState[] }) {
 	const [idx, setIdx] = useState(0);
+	const name = useId();
 	const markers = states[idx].markers;
 	const groups = mergeMarkers(markers);
 
@@ -31,17 +33,16 @@ export function PositionTrack({ states }: { states: TrackState[] }) {
 		<div>
 			{states.length > 1 && (
 				<div className="fig-controls">
-					{states.map((s, i) => (
-						<button
-							key={s.label}
-							type="button"
-							className="fig-btn"
-							aria-pressed={i === idx}
-							onClick={() => setIdx(i)}
-						>
-							{s.label}
-						</button>
-					))}
+					<Choice
+						name={name}
+						legend="State"
+						options={states.map((s, i) => ({
+							value: String(i),
+							label: s.label,
+						}))}
+						value={String(idx)}
+						onChange={(v) => setIdx(Number(v))}
+					/>
 				</div>
 			)}
 			<div className="fig-track">

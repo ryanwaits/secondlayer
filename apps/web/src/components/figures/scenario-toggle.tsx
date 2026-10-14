@@ -1,6 +1,7 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { Choice } from "@/components/choice";
+import { type ReactNode, useId, useState } from "react";
 
 /**
  * D2 ScenarioToggle — two (or more) named worlds to compare. Segmented
@@ -15,21 +16,18 @@ export function ScenarioToggle({
 	panels: ReactNode[];
 }) {
 	const [idx, setIdx] = useState(0);
+	const name = useId();
 
 	return (
 		<div>
 			<div className="fig-controls">
-				{labels.map((label, i) => (
-					<button
-						key={label}
-						type="button"
-						className="fig-btn"
-						aria-pressed={i === idx}
-						onClick={() => setIdx(i)}
-					>
-						{label}
-					</button>
-				))}
+				<Choice
+					name={name}
+					legend="Scenario"
+					options={labels.map((label, i) => ({ value: String(i), label }))}
+					value={String(idx)}
+					onChange={(v) => setIdx(Number(v))}
+				/>
 			</div>
 			{panels[idx]}
 		</div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Choice } from "@/components/choice";
+import { useId, useState } from "react";
 
 export type BaMarker = {
 	id: string;
@@ -25,23 +26,20 @@ export type BaState = {
  */
 export function BeforeAfter({ states }: { states: BaState[] }) {
 	const [idx, setIdx] = useState(0);
+	const name = useId();
 	const state = states[idx];
 	const zone = state.zone;
 
 	return (
 		<div>
 			<div className="fig-controls">
-				{states.map((s, i) => (
-					<button
-						key={s.label}
-						type="button"
-						className="fig-btn"
-						aria-pressed={i === idx}
-						onClick={() => setIdx(i)}
-					>
-						{s.label}
-					</button>
-				))}
+				<Choice
+					name={name}
+					legend="State"
+					options={states.map((s, i) => ({ value: String(i), label: s.label }))}
+					value={String(idx)}
+					onChange={(v) => setIdx(Number(v))}
+				/>
 			</div>
 			<div className="fig-ba-track">
 				<div className="fig-rail" />

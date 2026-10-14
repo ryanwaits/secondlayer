@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Choice } from "@/components/choice";
+import { useEffect, useId, useRef, useState } from "react";
 import { useReducedMotion } from "./use-reduced-motion";
 
 export type TreeNode = {
@@ -41,6 +42,7 @@ export function TreeWalk({
 }) {
 	const [seekIdx, setSeekIdx] = useState<number | null>(null);
 	const [litCount, setLitCount] = useState(0);
+	const name = useId();
 	const reduced = useReducedMotion();
 	const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -79,17 +81,13 @@ export function TreeWalk({
 	return (
 		<div>
 			<div className="fig-controls">
-				{seeks.map((s, i) => (
-					<button
-						key={s.label}
-						type="button"
-						className="fig-btn"
-						aria-pressed={seekIdx === i}
-						onClick={() => start(i)}
-					>
-						{s.label}
-					</button>
-				))}
+				<Choice
+					name={name}
+					legend="Key to seek"
+					options={seeks.map((s, i) => ({ value: String(i), label: s.label }))}
+					value={seekIdx === null ? "" : String(seekIdx)}
+					onChange={(v) => start(Number(v))}
+				/>
 			</div>
 			<svg
 				className="fig-tree-svg"
