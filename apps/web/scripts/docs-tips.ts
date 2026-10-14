@@ -26,25 +26,7 @@ import {
 	methodAnchor,
 	surface,
 } from "../src/app/(www)/docs/sdk-reference/reference";
-
-export type Tip = {
-	kind: "method" | "type" | "endpoint";
-	summary: string;
-	/** Methods: one line from the first overload. */
-	sig?: string;
-	/** Types: the first fields. */
-	fields?: { name: string; type: string }[];
-	/** Fields past the ones listed. */
-	more?: number;
-	/** Where the entry lives, for same-page row light-up only. Never rendered as a link. */
-	route: string;
-	anchor: string;
-};
-
-export type TipTable = {
-	symbols: Record<string, Tip>;
-	endpoints: { path: string; method: string; tip: Tip }[];
-};
+import type { Tip, TipTable } from "../src/lib/code/tip-table";
 
 const WEB = join(import.meta.dir, "..");
 const DOCS = join(WEB, "src", "app", "(www)", "docs");

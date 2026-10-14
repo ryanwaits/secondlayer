@@ -40,35 +40,7 @@ describe("output rules", () => {
 	});
 });
 
-describe("link and error handlers", () => {
-	test("!link wraps the token once and an internal path stays on the site", async () => {
-		const out = await html({
-			lang: "ts",
-			code: [
-				"// !link[/consume/] /docs/streams",
-				"sl.consume(); consume();",
-			].join("\n"),
-		});
-		expect(out.match(/class="lk"/g)).toHaveLength(1);
-		expect(out).toContain('href="/docs/streams"');
-		expect(out).not.toContain("target=");
-	});
-
-	test("!link to another site opens a new tab", async () => {
-		const out = await html({
-			lang: "ts",
-			code: "// !link[/consume/] https://example.com/x\nconsume();",
-		});
-		expect(out).toContain('href="https://example.com/x"');
-		expect(out).toContain('target="_blank"');
-	});
-
-	test("!link needs a token and a destination", async () => {
-		await expect(html({ lang: "ts", code: "// !link\nx" })).rejects.toThrow(
-			"!link needs",
-		);
-	});
-
+describe("error handler", () => {
 	test("!error squiggles the token, prints the message and turns Copy off", async () => {
 		const out = await html({
 			lang: "ts",
@@ -96,33 +68,148 @@ describe("link and error handlers", () => {
 	});
 });
 
-describe("automatic links", () => {
-	test("an endpoint path in a command links to its API page", async () => {
+describe("tips", () => {
+	const tips = ["sl.streams.tip", "/v1/streams/tip", "ConsumerBatchContext"];
+
+	test("a hand tip wraps the token once and carries its text in an attribute", async () => {
+		const out = await html({
+			lang: "ts",
+			code: [
+				"// !tip[/consume/] Reads one page.",
+				"sl.consume(); consume();",
+			].join("\n"),
+		});
+		expect(out.match(/class="tip"/g)).toHaveLength(1);
+		expect(out).toContain('tabindex="0"');
+		expect(out).toContain("data-tip=");
+		expect(out).toContain("Reads one page.");
+		// The words ride in the attribute, so Copy (which reads text) is unchanged.
+		expect(out.replace(/<[^>]*>/g, "")).not.toContain("Reads one page.");
+	});
+
+	test("a hand tip needs a token and its text", async () => {
+		await expect(html({ lang: "ts", code: "// !tip\nx" })).rejects.toThrow(
+			"!tip needs",
+		);
+		await expect(html({ lang: "ts", code: "// !tip[/x/]\nx" })).rejects.toThrow(
+			"!tip needs",
+		);
+	});
+
+	test("a name the page allowed is tipped, once, with its summary", async () => {
+		const out = await html({
+			lang: "ts",
+			tips,
+			code: "await sl.streams.tip();\nawait sl.streams.tip();",
+		});
+		expect(out.match(/class="tip"/g)).toHaveLength(1);
+		expect(out).toContain("data-tip=");
+		expect(out).toContain("&quot;kind&quot;:&quot;method&quot;");
+	});
+
+	test("a name the page did not allow is plain text", async () => {
+		const none = await html({ lang: "ts", code: "await sl.streams.tip();" });
+		expect(none).not.toContain('class="tip"');
+		const other = await html({
+			lang: "ts",
+			tips: ["ConsumerBatchContext"],
+			code: "await sl.streams.tip();",
+		});
+		expect(other).not.toContain('class="tip"');
+	});
+
+	test("an endpoint path in a command gets a tooltip, not a link", async () => {
 		const out = await html({
 			lang: "sh",
+			tips,
 			code: 'curl "$SECONDLAYER_API_URL/v1/streams/tip"',
 		});
-		expect(out).toMatch(/<a class="lk" href="\/docs\/api\/streams#[a-z-]+"/);
+		expect(out).toContain('class="tip"');
+		expect(out).toContain("&quot;kind&quot;:&quot;endpoint&quot;");
+		expect(out).not.toContain("<a ");
 	});
 
-	test("output is never linked, nor a surface that opts out", async () => {
-		const text = await html({ lang: "text", code: "GET /v1/streams/tip" });
-		expect(text).not.toContain('class="lk"');
-		const off = await html({
-			lang: "sh",
-			code: "curl /v1/streams/tip",
-			links: false,
-		});
-		expect(off).not.toContain('class="lk"');
-	});
-
-	test("a manual link keeps its token from also being linked automatically", async () => {
+	test("output is never tipped", async () => {
 		const out = await html({
-			lang: "sh",
-			code: "# !link[/v1/streams/tip/] /docs/streams\ncurl $URL/v1/streams/tip",
+			lang: "text",
+			tips,
+			code: "GET /v1/streams/tip",
 		});
-		expect(out).toContain('href="/docs/streams"');
-		expect(out).not.toContain("/docs/api/streams#");
+		expect(out).not.toContain('class="tip"');
+	});
+
+	test("a name a callout points at is plain on every line of the block", async () => {
+		const out = await html({
+			lang: "ts",
+			tips,
+			code: [
+				"import type { ConsumerBatchContext } from 'x';",
+				"// !callout[/ConsumerBatchContext/] the shape",
+				"let a: ConsumerBatchContext;",
+			].join("\n"),
+		});
+		expect(out).not.toContain('class="tip"');
+	});
+
+	test("a line with a comment, a mark or a callout is never tipped automatically", async () => {
+		for (const code of [
+			"await sl.streams.tip(); // tip",
+			"// !mark[/await/]\nawait sl.streams.tip();",
+			"// !callout[/await/] note\nawait sl.streams.tip();",
+		])
+			expect(await html({ lang: "ts", tips, code })).not.toContain(
+				'class="tip"',
+			);
+	});
+
+	test("a ref line still tips: refs are plumbing, not explanation", async () => {
+		const out = await html({
+			lang: "ts",
+			tips,
+			code: "// !ref[/params/] params\nfunction f(params: ConsumerBatchContext) {}",
+		});
+		expect(out).toContain('class="tip"');
+	});
+
+	test("a mark on the token wins over an automatic tip", async () => {
+		const out = await html({
+			lang: "ts",
+			tips,
+			code: "// !mark[/ConsumerBatchContext/]\nlet a: ConsumerBatchContext;",
+		});
+		expect(out).not.toContain('class="tip"');
+		expect(out).toContain('<mark class="hi">');
+	});
+
+	test("a hand tip beats an automatic one for the same line", async () => {
+		const out = await html({
+			lang: "ts",
+			tips,
+			code: "// !tip[/a/] mine\nlet a: ConsumerBatchContext;",
+		});
+		expect(out.match(/class="tip"/g)).toHaveLength(1);
+		expect(out).toContain("mine");
+	});
+
+	test("with tips present, Copy's text is the plain source", async () => {
+		const out = await html({
+			lang: "ts",
+			tips,
+			code: "let a: ConsumerBatchContext;",
+		});
+		expect(out.replace(/<[^>]*>/g, "")).toContain(
+			"let a: ConsumerBatchContext;",
+		);
+		expect(out.replace(/<[^>]*>/g, "")).not.toContain("kind");
+	});
+
+	test("!focus and !link are no longer annotations", async () => {
+		const { ANNOTATION_NAMES } = await import("@/lib/code/annotations");
+		expect(ANNOTATION_NAMES).not.toContain("focus");
+		expect(ANNOTATION_NAMES).not.toContain("link");
+		const out = await html({ lang: "ts", code: "// !focus\nconst a = 1;" });
+		expect(out).not.toContain("dim");
+		expect(out).not.toContain("data-unfocus");
 	});
 });
 

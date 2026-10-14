@@ -217,7 +217,6 @@
 	color: var(--faint) !important;
 	font-weight: 400 !important;
 }
-.cb:not(.unfocus) .row.dim,
 .cb .row.rdim {
 	opacity: 0.35;
 }
@@ -326,18 +325,6 @@
 }
 .cb .row.o-head {
 	color: var(--faint);
-}
-
-/* link: what you can act on. Anchors in docs reset to the code's own color. */
-.cb a.lk {
-	color: inherit;
-	text-decoration: underline dotted var(--pri);
-	text-decoration-thickness: 1.5px;
-	text-underline-offset: 4px;
-}
-.cb a.lk:hover,
-.cb a.lk:hover * {
-	color: var(--pri) !important;
 }
 
 /* error: the mistake, then the compiler's words. */

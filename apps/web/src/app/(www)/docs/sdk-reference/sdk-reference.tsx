@@ -142,12 +142,7 @@ async function MethodEntry({
 		return endpoint ? (
 			<CodeTabs key={ex.file} sync="lang">
 				{ts}
-				<Code
-					lang="bash"
-					title="cURL"
-					code={curlFor(endpoint, "hosted")}
-					links={false}
-				/>
+				<Code lang="bash" title="cURL" code={curlFor(endpoint, "hosted")} />
 			</CodeTabs>
 		) : (
 			ts

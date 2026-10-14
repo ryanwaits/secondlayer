@@ -1,7 +1,7 @@
 import { parseAnnotations, parseFenceOptions } from "@/lib/code/annotations";
 import { KEY_VAR } from "@/lib/code/base-url";
-import { linkTable } from "@/lib/code/link-table";
 import { outputTone } from "@/lib/code/output";
+import { tipTable } from "@/lib/code/tip-table";
 import { type ThemedToken, tokenize } from "@/lib/highlight";
 import type { CSSProperties } from "react";
 import "./code.css";
@@ -37,8 +37,12 @@ export type CodeProps = {
 	/** A bar title the fence info string cannot spell (words, not a path). */
 	title?: string;
 	variant?: Variant;
-	/** Link SDK symbols and endpoint paths to the reference. On unless the surface is the reference. */
-	links?: boolean;
+	/**
+	 * The names that may carry an automatic tip (SDK methods, types, endpoint
+	 * path templates). Absent: none, so a block tips only what its author wrote
+	 * with `!tip`. The page decides which (remark-code-tips.mjs, the reference).
+	 */
+	tips?: readonly string[];
 	/** Inside `<CodeTabs>`: the tab group draws the frame, the bar and Copy. */
 	tabbed?: boolean;
 };
@@ -81,7 +85,7 @@ export async function renderCode({
 	meta,
 	title,
 	variant = "docs",
-	links = true,
+	tips,
 	tabbed = false,
 }: CodeProps): Promise<RenderedCode> {
 	const options = parseFenceOptions(`${lang} ${meta ?? ""}`);
@@ -121,8 +125,11 @@ export async function renderCode({
 		display,
 		lang: options.lang,
 		variant,
-		// Output is never linked: it is what a command printed, not what to write.
-		links: links && !isText ? linkTable() : null,
+		// Output is never tipped: it is what a command printed, not what to write.
+		tips:
+			tips?.length && !isText
+				? { table: tipTable, allow: new Set(tips) }
+				: null,
 		base: options.base,
 	});
 	// Notes sit beside rows by index, so nothing may change a row's height or hide one.
@@ -170,7 +177,6 @@ export async function renderCode({
 			figure && line.callouts.length && "noted",
 			line.diff === "+" && "add",
 			line.diff === "-" && "del",
-			line.dim && "dim",
 		]
 			.filter(Boolean)
 			.join(" ");
@@ -212,10 +218,7 @@ export async function renderCode({
 	const barTitle = title ?? options.title;
 	const hasBar =
 		!tabbed &&
-		(Boolean(barTitle) ||
-			options.exit != null ||
-			options.status != null ||
-			plan.focus);
+		(Boolean(barTitle) || options.exit != null || options.status != null);
 	const body = `<div class="cb-body${options.wrap ? " soft-wrap" : ""}${hanging ? " hang" : ""}" style="--gut:calc(${gutter});--lnw:${lineNumberWidth}ch">${rows}</div>`;
 	const bar = hasBar
 		? `<div class="cb-bar">${
@@ -230,10 +233,6 @@ export async function renderCode({
 				isText
 					? ""
 					: `<span class="lang">${esc(LANG_LABEL[options.lang] ?? options.lang)}</span>`
-			}${
-				plan.focus
-					? '<button type="button" class="ghost" data-unfocus>Show all</button>'
-					: ""
 			}${useKey}${copy}</span></div>`
 		: "";
 	return {

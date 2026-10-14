@@ -77,26 +77,21 @@ describe("CodeTabs", () => {
 		expect(html.match(/data-copyable/g)).toHaveLength(1);
 	});
 
-	test("a <Code> child keeps its own link setting", async () => {
+	test("a <Code> child keeps its own tip names", async () => {
 		const html = await tabs({
 			children: [
+				<Code key="a" lang="sh" code="curl $URL/v1/streams/tip" />,
 				<Code
-					key="a"
-					lang="sh"
-					code="curl $URL/v1/streams/tip"
-					links={false}
+					key="b"
+					lang="ts"
+					code="await sl.streams.tip();"
+					tips={["sl.streams.tip"]}
 				/>,
-				<Code key="b" lang="ts" code="await sl.streams.tip();" />,
 			],
 		});
-		// Only the TypeScript pane links (to its SDK method); the cURL pane opted out.
-		expect(html.match(/class="lk"/g)).toHaveLength(1);
-		expect(html).toContain('href="/docs/sdk-reference/streams#m-tip"');
-		expect(html).not.toContain('href="/docs/api/streams');
-		const linked = await tabs({
-			children: <Code lang="sh" code="curl $URL/v1/streams/tip" />,
-		});
-		expect(linked).toContain('class="lk"');
+		// Only the TypeScript pane tips; the cURL pane was given no names.
+		expect(html.match(/class="tip"/g)).toHaveLength(1);
+		expect(html).not.toContain("<a ");
 	});
 
 	test("a label from the fence is escaped", async () => {

@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/lib/auth";
 import { DOCS_KEY_FORGET, DOCS_KEY_STORE } from "@/lib/code/docs-key-store";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 /** Show one pane of a tab group; a group without that tab stays as it is. */
@@ -21,7 +21,6 @@ function selectTab(group: HTMLElement, key: string) {
  * with `data-*` hooks; Copy reads the block's own rows.
  */
 export function CodeClient() {
-	const router = useRouter();
 	const pathname = usePathname();
 	const { account, loading } = useAuth();
 
@@ -112,20 +111,6 @@ export function CodeClient() {
 				return;
 			}
 
-			// An internal link in a block is plain markup; the router makes it a soft navigation.
-			const link = target.closest<HTMLAnchorElement>("a.lk");
-			const to = link?.getAttribute("href");
-			if (
-				to?.startsWith("/") &&
-				!event.defaultPrevented &&
-				event.button === 0 &&
-				!(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
-			) {
-				event.preventDefault();
-				router.push(to);
-				return;
-			}
-
 			const tab = target.closest<HTMLElement>("button[data-tab]");
 			const group = tab?.closest<HTMLElement>(".cb-tabs");
 			if (tab && group) {
@@ -156,15 +141,9 @@ export function CodeClient() {
 				more.remove();
 				return;
 			}
-
-			const unfocus = target.closest<HTMLElement>("[data-unfocus]");
-			if (unfocus) {
-				const off = unfocus.closest(".cb")?.classList.toggle("unfocus");
-				unfocus.textContent = off ? "Focus" : "Show all";
-			}
 		};
 		document.addEventListener("click", onClick);
 		return () => document.removeEventListener("click", onClick);
-	}, [router]);
+	}, []);
 	return null;
 }

@@ -56,7 +56,7 @@ export async function CodeTabs({
 				lang: tab.lang,
 				meta: tab.meta,
 				title: tab.title,
-				links: tab.links,
+				tips: tab.tips,
 				variant,
 				tabbed: true,
 			}),

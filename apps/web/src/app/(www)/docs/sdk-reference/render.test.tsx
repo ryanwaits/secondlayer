@@ -97,20 +97,25 @@ describe("a surface page", () => {
 });
 
 describe("the reference's own links", () => {
-	test("a docs fence naming a reference type links to its entry now that the page exists", async () => {
+	test("a block naming a reference type tips it, and the tip knows its entry", async () => {
 		const html = renderBlock(
 			await Code({
 				lang: "ts",
+				tips: ["ConsumerBatchContext"],
 				code: "function onBatch(ctx: ConsumerBatchContext) {}",
 			}),
 		);
-		expect(html).toContain('class="lk"');
+		expect(html).toContain('class="tip"');
 		expect(html).toContain(
-			'href="/docs/sdk-reference/streams#t-ConsumerBatchContext"',
+			"&quot;route&quot;:&quot;/docs/sdk-reference/streams&quot;",
 		);
+		expect(html).toContain(
+			"&quot;anchor&quot;:&quot;t-ConsumerBatchContext&quot;",
+		);
+		expect(html).not.toContain("<a ");
 	});
 
-	test("a type link lands on a row of the types list", async () => {
+	test("a tip's entry is a row of the types list", async () => {
 		const html = await render(<SdkSurfacePage slug="streams" />);
 		expect(html).toContain('id="t-ConsumerBatchContext"');
 	});
@@ -164,40 +169,34 @@ describe("a function-first package page", () => {
 	});
 });
 
-describe("links across packages", () => {
-	test("a docs fence naming a subgraphs function links to its entry on the package page", async () => {
+describe("tips across packages", () => {
+	const entry = (route: string, anchor: string) =>
+		`&quot;route&quot;:&quot;${route}&quot;,&quot;anchor&quot;:&quot;${anchor}&quot;`;
+
+	test("a subgraphs function tips with its entry on the package page", async () => {
 		const html = renderBlock(
 			await Code({
 				lang: "ts",
+				tips: ["defineSubgraph"],
 				code: "export default defineSubgraph({ name: 'x' });",
 			}),
 		);
-		expect(html).toContain('class="lk"');
-		expect(html).toContain('href="/docs/subgraphs-reference#m-defineSubgraph"');
+		expect(html).toContain('class="tip"');
+		expect(html).toContain(
+			entry("/docs/subgraphs-reference", "m-defineSubgraph"),
+		);
 	});
 
-	test("a verify class and a filters builder link the same way", async () => {
-		const verify = renderBlock(
+	test("a filters builder tips the same way", async () => {
+		const filters = renderBlock(
 			await Code({
 				lang: "ts",
-				code: "const s = new SecondlayerProofSource();",
+				tips: ["on.ftTransfer"],
+				code: "const f = on.ftTransfer({});",
 			}),
 		);
-		expect(verify).toContain(
-			'href="/docs/verify-reference#m-SecondlayerProofSource"',
-		);
-		const filters = renderBlock(
-			await Code({ lang: "ts", code: "const f = on.ftTransfer({});" }),
-		);
-		expect(filters).toContain('href="/docs/filters-reference#m-on-ftTransfer"');
-	});
-
-	test("the SDK keeps a name two packages both declare", async () => {
-		const html = renderBlock(
-			await Code({ lang: "ts", code: "let p: FtTransferPayload;" }),
-		);
-		expect(html).toContain(
-			'href="/docs/sdk-reference/streams#t-FtTransferPayload"',
+		expect(filters).toContain(
+			entry("/docs/filters-reference", "m-on-ftTransfer"),
 		);
 	});
 });

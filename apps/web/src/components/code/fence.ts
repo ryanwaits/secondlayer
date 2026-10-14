@@ -8,15 +8,24 @@ export type Fence = {
 	meta?: string;
 	/** A title the info string cannot spell. */
 	title?: string;
-	/** `false` when a `<Code>` opted out of automatic links. */
-	links?: boolean;
+	/** The names this block may tip automatically. */
+	tips?: readonly string[];
 };
 
 type CodeElement = {
-	props?: { className?: string; children?: ReactNode; "data-meta"?: string };
+	props?: {
+		className?: string;
+		children?: ReactNode;
+		"data-meta"?: string;
+		"data-tips"?: string;
+	};
 };
 
-/** A fence from MDX's `<code class="language-x" data-meta="…">`; remark-code-meta puts the info string on `data-meta`. */
+/**
+ * A fence from MDX's `<code class="language-x" data-meta="…">`; remark-code-meta
+ * puts the info string on `data-meta`, and remark-code-tips the names the page
+ * lets this block tip on `data-tips` (space separated).
+ */
 export function fenceFromCode(codeEl: CodeElement | undefined): Fence | null {
 	if (!codeEl?.props) return null;
 	return {
@@ -24,6 +33,7 @@ export function fenceFromCode(codeEl: CodeElement | undefined): Fence | null {
 		lang:
 			/language-(\w[\w.-]*)/.exec(codeEl.props.className ?? "")?.[1] ?? "text",
 		meta: codeEl.props["data-meta"],
+		tips: codeEl.props["data-tips"]?.split(" ").filter(Boolean),
 	};
 }
 
@@ -34,14 +44,14 @@ type FenceProps = {
 	lang?: string;
 	meta?: string;
 	title?: string;
-	links?: boolean;
+	tips?: readonly string[];
 };
 
 /** A fence from either shape it travels in: an MDX `<pre>` or a `<Code code lang meta>` element a component built. */
 export function fenceOf(node: ReactNode): Fence | null {
 	if (!isValidElement<FenceProps>(node)) return null;
-	const { code, lang, meta, title, links, children } = node.props;
+	const { code, lang, meta, title, tips, children } = node.props;
 	if (typeof code === "string")
-		return { code, lang: lang ?? "text", meta, title, links };
+		return { code, lang: lang ?? "text", meta, title, tips };
 	return fenceFromCode(children);
 }

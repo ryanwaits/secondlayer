@@ -1,6 +1,7 @@
 import type { Annotation, ParsedCode } from "@/lib/code/annotations";
-import { type LinkTable, autoLinks } from "@/lib/code/auto-links";
 import { BASE_SWAPS, KEY_SWAP, KEY_VAR } from "@/lib/code/base-url";
+import { hasComment, scanLine } from "@/lib/code/tip-scan.mjs";
+import type { Tip, TipTable } from "@/lib/code/tip-table";
 import type { ThemedToken } from "@/lib/highlight";
 import { ladderStep } from "@/lib/syntax-theme";
 
@@ -10,9 +11,9 @@ export type Variant = "docs" | "figure";
 export type MarkRange = {
 	start: number;
 	end: number;
-	kind: "hi" | "act" | "bad" | "link" | "err" | "swap" | "ref" | "pick" | "key";
-	/** `link`: where it goes. */
-	href?: string;
+	kind: "hi" | "act" | "bad" | "tip" | "err" | "swap" | "ref" | "pick" | "key";
+	/** `tip`: what the tooltip and popover show. */
+	tip?: TipData;
 	/** `ref` and `pick`: the name prose reaches it by. */
 	name?: string;
 	/** `pick`: the options, on the occurrence that declares them. */
@@ -21,12 +22,14 @@ export type MarkRange = {
 	swap?: number;
 };
 
+/** A tip's payload: a table entry, or just the words of a hand `!tip`. */
+export type TipData = { summary: string } & Partial<Omit<Tip, "summary">>;
+
 export type LinePlan = {
 	ranges: MarkRange[];
 	/** `!mark` without a selector: the whole row takes the soft fill. */
 	mline: boolean;
 	diff?: "+" | "-";
-	dim: boolean;
 	callouts: { col: number; text: string }[];
 	/** Compiler messages shown under the row. */
 	errors: string[];
@@ -36,7 +39,6 @@ export type LinePlan = {
 
 export type Plan = {
 	lines: LinePlan[];
-	focus: boolean;
 	/** Any `!error`: the block shows a mistake, so it never offers Copy. */
 	hasError: boolean;
 	collapses: { from: number; to: number }[];
@@ -48,8 +50,8 @@ type Context = {
 	display: string[];
 	lang: string;
 	variant: Variant;
-	/** Automatic reference links; absent when the block must not link. */
-	links?: LinkTable | null;
+	/** Automatic tips: the table, and the names this block may tip. Absent when the block gets none. */
+	tips?: { table: TipTable; allow: ReadonlySet<string> } | null;
 	/** Wrap the hosted base URL and credential for the Base URL switch. */
 	base?: boolean;
 	/** Wrap each credential placeholder so a signed-in reader's docs key can fill it. */
@@ -111,29 +113,37 @@ function parsePick(value: string): { name: string; options?: string[] } {
 const overlaps = (ranges: MarkRange[], start: number, end: number) =>
 	ranges.some((r) => start < r.end && end > r.start);
 
+/** Annotations that explain their line: a line carrying one needs no automatic tip. Refs are plumbing, not explanation. */
+const EXPLAINS = new Set(["callout", "mark", "error", "tip", "pick", "diff"]);
+
 /**
  * Turn the parsed annotations into what each row needs: mark ranges, soft rows,
- * diff signs, dimming, callouts, links, errors and fold ranges. Unknown names
- * are ignored here and reported by the budget test.
+ * diff signs, callouts, tips, errors and fold ranges. Unknown names are ignored
+ * here and reported by the budget test.
  */
 export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 	const lines: LinePlan[] = parsed.lines.map(() => ({
 		ranges: [],
 		mline: false,
-		dim: false,
 		callouts: [],
 		errors: [],
 		refs: [],
 	}));
-	/** Spans a callout points at: not drawn, but no automatic link goes there. */
+	/** Spans a callout points at: not drawn, but the names there get no automatic tip, anywhere in the block. */
 	const pointed: { row: number; start: number; end: number }[] = [];
 	/** Figure callouts mark their token, unless the author already marked it. */
 	const noted: { row: number; start: number; end: number }[] = [];
-	const focus = new Set<number>();
+	/** Hand tips wait until every other range is placed: a mark, ref or error on the token wins. */
+	const handTips: { row: number; start: number; end: number; text: string }[] =
+		[];
+	/** Rows an explaining annotation targets. */
+	const explained = new Set<number>();
 	const collapses: Plan["collapses"] = [];
 	let hasError = false;
 	for (const a of parsed.annotations) {
-		let linked = false;
+		if (EXPLAINS.has(a.name))
+			for (let i = a.from; i <= a.to && i < lines.length; i++) explained.add(i);
+		let tipped = false;
 		for (let i = a.from; i <= a.to && i < lines.length; i++) {
 			const line = lines[i];
 			if (!line) continue;
@@ -162,20 +172,19 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 						start: hit.index,
 						end: hit.index + hit[0].length,
 					});
-			} else if (a.name === "focus") focus.add(i);
-			else if (a.name === "diff" && (a.value === "+" || a.value === "-"))
+			} else if (a.name === "diff" && (a.value === "+" || a.value === "-"))
 				line.diff = a.value;
-			else if (a.name === "link") {
+			else if (a.name === "tip") {
 				if (!a.regex || !a.value)
-					throw new Error("!link needs a [/token/] and a destination");
+					throw new Error("!tip needs a [/token/] and its text");
 				// First occurrence only, within the annotation's lines.
-				if (linked || !hit) continue;
-				linked = true;
-				line.ranges.push({
+				if (tipped || !hit) continue;
+				tipped = true;
+				handTips.push({
+					row: i,
 					start: hit.index,
 					end: hit.index + hit[0].length,
-					kind: "link",
-					href: a.value,
+					text: a.value,
 				});
 			} else if (a.name === "ref") {
 				const name = refName(a, "ref");
@@ -227,16 +236,21 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 		if (line && !overlaps(line.ranges, n.start, n.end))
 			line.ranges.push({ start: n.start, end: n.end, kind: "hi" });
 	}
-	if (focus.size)
-		lines.forEach((line, i) => {
-			line.dim = !focus.has(i);
-		});
 	if (ctx.base) addBaseSwaps(lines, ctx.display);
 	if (ctx.key) addKeySlots(lines, ctx.display);
-	if (ctx.links) addAutoLinks(lines, ctx, ctx.links, pointed);
+	for (const t of handTips) {
+		const line = lines[t.row];
+		if (line && !overlaps(line.ranges, t.start, t.end))
+			line.ranges.push({
+				start: t.start,
+				end: t.end,
+				kind: "tip",
+				tip: { summary: t.text },
+			});
+	}
+	if (ctx.tips) addAutoTips(lines, ctx, ctx.tips, pointed, explained);
 	return {
 		lines,
-		focus: focus.size > 0,
 		hasError,
 		collapses: collapses
 			.sort((x, y) => x.from - y.from)
@@ -280,31 +294,52 @@ function addKeySlots(lines: LinePlan[], display: string[]) {
 	});
 }
 
-/** Names the reference knows become links, once per block, never inside another range. */
-function addAutoLinks(
+/** A table entry as a tip's payload. */
+function tipData(table: TipTable, name: string): TipData | null {
+	const tip =
+		table.symbols[name] ?? table.endpoints.find((e) => e.path === name)?.tip;
+	return tip ?? null;
+}
+
+/**
+ * The names the page allowed become tips: each once per block, never inside
+ * another range, never where a callout points (on any line), never on a line
+ * the author annotated or commented. One channel per token.
+ */
+function addAutoTips(
 	lines: LinePlan[],
 	ctx: Context,
-	table: LinkTable,
+	tips: NonNullable<Context["tips"]>,
 	pointed: { row: number; start: number; end: number }[],
+	explained: ReadonlySet<number>,
 ) {
-	const linked = new Set<string>();
+	const scan = (row: number) =>
+		scanLine(ctx.display[row] ?? "", ctx.lang, tips.table);
+	const shielded = new Set<string>();
+	for (const p of pointed)
+		for (const hit of scan(p.row))
+			if (hit.start < p.end && hit.end > p.start) shielded.add(hit.name);
+	const tipped = new Set<string>();
 	lines.forEach((line, i) => {
-		const found = autoLinks(
-			ctx.display[i] ?? "",
-			ctx.lang,
-			table,
-			linked,
-			(start, end) =>
-				overlaps(line.ranges, start, end) ||
-				pointed.some((p) => p.row === i && start < p.end && end > p.start),
-		);
-		for (const l of found)
+		if (explained.has(i) || hasComment(ctx.display[i] ?? "", ctx.lang)) return;
+		for (const hit of scan(i)) {
+			if (
+				!tips.allow.has(hit.name) ||
+				shielded.has(hit.name) ||
+				tipped.has(hit.name) ||
+				overlaps(line.ranges, hit.start, hit.end)
+			)
+				continue;
+			const data = tipData(tips.table, hit.name);
+			if (!data) continue;
+			tipped.add(hit.name);
 			line.ranges.push({
-				start: l.start,
-				end: l.end,
-				kind: "link",
-				href: l.href,
+				start: hit.start,
+				end: hit.end,
+				kind: "tip",
+				tip: data,
 			});
+		}
 	});
 }
 
@@ -320,7 +355,7 @@ export const esc = (text: string) =>
 /** `esc` for a value inside a quoted attribute. */
 export const escAttr = (text: string) => esc(text).replace(/"/g, "&quot;");
 
-/** A range's wrapper: marks fill, links go, errors squiggle, swaps wait for the Base URL switch. */
+/** A range's wrapper: marks fill, tips explain, errors squiggle, swaps wait for the Base URL switch. */
 function wrap(range: MarkRange, inner: string): string {
 	switch (range.kind) {
 		case "hi":
@@ -346,14 +381,9 @@ function wrap(range: MarkRange, inner: string): string {
 				: "";
 			return `<mark class="hi" data-pick="${escAttr(range.name ?? "")}"${opts}>${inner}</mark>`;
 		}
-		case "link": {
-			const href = range.href ?? "";
-			// Internal links navigate through the router (CodeClient); others open a new tab.
-			const external = /^[/#]/.test(href)
-				? ""
-				: ' target="_blank" rel="noopener noreferrer"';
-			return `<a class="lk" href="${escAttr(href)}"${external}>${inner}</a>`;
-		}
+		// The payload rides in an attribute, not as child text: Copy reads the row's text.
+		case "tip":
+			return `<span class="tip" tabindex="0" data-tip="${escAttr(JSON.stringify(range.tip))}">${inner}</span>`;
 	}
 }
 

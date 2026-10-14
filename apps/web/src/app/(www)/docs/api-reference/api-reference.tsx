@@ -145,13 +145,8 @@ function RequestPanel({ endpoint }: { endpoint: Endpoint }) {
 	return (
 		<div className="apiref-request">
 			<CodeTabs sync="lang">
-				<Code
-					lang="bash"
-					meta="base"
-					code={curlFor(endpoint, "hosted")}
-					links={false}
-				/>
-				{sdk ? <Code lang="ts" code={sdk} links={false} /> : null}
+				<Code lang="bash" meta="base" code={curlFor(endpoint, "hosted")} />
+				{sdk ? <Code lang="ts" code={sdk} /> : null}
 			</CodeTabs>
 		</div>
 	);
@@ -173,7 +168,6 @@ function ResponsePanel({
 				meta={status ? `status=${status}` : undefined}
 				title={title}
 				code={JSON.stringify(example, null, 2)}
-				links={false}
 			/>
 		</div>
 	);

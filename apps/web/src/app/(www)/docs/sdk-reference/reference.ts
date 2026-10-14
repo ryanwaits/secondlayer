@@ -335,7 +335,7 @@ export function withRefs(
 }
 
 /** What an example file may annotate with: marks that explain, never ones that change what the block shows. */
-const EXAMPLE_ANNOTATIONS = new Set(["callout", "mark", "link"]);
+const EXAMPLE_ANNOTATIONS = new Set(["callout", "mark"]);
 
 /**
  * Example code with a `!ref` above each line that names a field as an object
