@@ -1,4 +1,5 @@
 import { RELAYER_READ, TWIN_MINT } from "@/app/robinhood/samples";
+import { AccountChip, AccountMenuPanel } from "@/components/account-menu";
 import { Choice } from "@/components/choice";
 import { Code } from "@/components/code/code";
 import { CodeTabs } from "@/components/code/code-tabs";
@@ -190,6 +191,39 @@ const stack = (children: ReactNode) => (
 );
 
 const row = (children: ReactNode) => <div className="lab-row">{children}</div>;
+
+const LAB_ACCOUNT = {
+	id: "lab",
+	email: "you@example.com",
+	displayName: null,
+	bio: null,
+	avatarUrl: null,
+	createdAt: "2026-04-01T00:00:00Z",
+};
+
+/** A slice of the nav bar, so the open menu hangs off a real hairline. */
+const navSlice = (children: ReactNode) => (
+	<div style={{ position: "relative", height: 360 }}>
+		<div
+			style={{
+				display: "flex",
+				justifyContent: "flex-end",
+				alignItems: "center",
+				height: 56,
+				paddingRight: 16,
+				borderBottom: "1px solid var(--line)",
+				background: "var(--paper)",
+			}}
+		>
+			<div
+				className="acct-menu"
+				style={{ "--acct-drop": "12px" } as CSSProperties}
+			>
+				{children}
+			</div>
+		</div>
+	</div>
+);
 
 const FACTS = [
 	["Source", "Stacks · SIP-010"],
@@ -857,6 +891,66 @@ const META: Record<StoryId, Meta> = {
 		usage: `<Callout type="warning" title="Phase 0">
   Don't bridge value on Phase 0.
 </Callout>`,
+	},
+	"account-menu": {
+		src: ["apps/web/src/components/account-menu.tsx"],
+		rule: "Open is ink, never blue: in the nav, blue marks the page you are on.",
+		stack: true,
+		variants: [
+			{
+				id: "open",
+				label: "Open",
+				render: () =>
+					navSlice(
+						<>
+							<AccountChip
+								account={LAB_ACCOUNT}
+								balance="$29.02"
+								alert={false}
+								open
+							/>
+							<AccountMenuPanel
+								email="you@example.com"
+								caption="hosted · about 88 days left"
+								keyCount={5}
+								spent="$30.92"
+								webhooks="7 of 7"
+							/>
+						</>,
+					),
+			},
+			{
+				id: "trigger",
+				label: "Trigger",
+				render: () =>
+					row(
+						<>
+							<AccountChip
+								account={LAB_ACCOUNT}
+								balance="$29.02"
+								alert={false}
+								open={false}
+							/>
+							<AccountChip
+								account={LAB_ACCOUNT}
+								balance="$0.42"
+								alert
+								open={false}
+							/>
+							<AccountChip
+								account={LAB_ACCOUNT}
+								balance={null}
+								alert={false}
+								open={false}
+							/>
+						</>,
+					),
+			},
+		],
+		usage: "<AccountMenu account={account} onSignOut={logout} />",
+		donts: [
+			"No status dot or round avatar; low balance turns the tile and amount red.",
+		],
 	},
 	"eyebrow-facts": {
 		src: [

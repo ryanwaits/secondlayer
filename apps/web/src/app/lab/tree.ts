@@ -10,6 +10,7 @@ export const STORY_INDEX = [
 	{ id: "amount-picker", group: "Controls", title: "Amount picker" },
 	{ id: "tabs", group: "Controls", title: "Tabs" },
 	{ id: "buttons", group: "Controls", title: "Buttons" },
+	{ id: "account-menu", group: "Controls", title: "Account menu" },
 	{ id: "callout", group: "Content", title: "Callout" },
 	{ id: "eyebrow-facts", group: "Content", title: "Eyebrow, facts, status" },
 ] as const;
