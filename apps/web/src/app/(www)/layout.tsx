@@ -1,3 +1,4 @@
+import { AnchorFlash } from "@/components/anchor-flash";
 import { CodeClient } from "@/components/code/code-client";
 import { MarketingNav } from "@/components/marketing-nav";
 import { SiteFooter } from "@/components/site-footer";
@@ -12,6 +13,7 @@ export default function WwwLayout({ children }: { children: ReactNode }) {
 			{children}
 			<SiteFooter />
 			<CodeClient />
+			<AnchorFlash />
 			<Toaster
 				position="bottom-right"
 				toastOptions={{

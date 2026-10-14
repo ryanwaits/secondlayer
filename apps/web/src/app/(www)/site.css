@@ -3394,3 +3394,37 @@
 	overflow-wrap: break-word;
 	user-select: all;
 }
+
+/* ── anchor flash: where a jump landed, in brand yellow, then gone ── */
+.anchor-flash {
+	position: relative;
+	isolation: isolate;
+	width: fit-content;
+}
+.anchor-flash::after {
+	content: "";
+	position: absolute;
+	inset: -0.2em -0.45em;
+	z-index: -1;
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--hi) 40%, transparent);
+	pointer-events: none;
+	animation: anchor-flash 2.4s ease both;
+}
+@keyframes anchor-flash {
+	0% {
+		opacity: 0;
+	}
+	8%,
+	35% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.anchor-flash::after {
+		animation-timing-function: steps(1, end);
+	}
+}
