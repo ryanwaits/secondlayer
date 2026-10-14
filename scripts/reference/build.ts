@@ -15,7 +15,7 @@ import {
 	renderReturns,
 	renderType,
 } from "./render";
-import { locate, restFor } from "./source";
+import { hasHiddenConstructor, locate, restFor } from "./source";
 import { type Entry, type RawMethod, type Spec, Walker } from "./walk";
 
 export type SurfaceConfig = {
@@ -29,27 +29,62 @@ export type SurfaceConfig = {
 	withConstructor?: boolean;
 };
 
-export type ReferenceConfig = {
+type BaseConfig = {
 	/** Package directory relative to the repo root. */
 	package: string;
-	/** Exported class the surfaces hang off. */
-	client: string;
-	/** Variable name used in rendered paths (`sl`). */
-	variable: string;
 	/** URL prefix the docs pages live under; anchors are appended to it. */
 	docsBase: string;
-	surfaces: SurfaceConfig[];
 	/** Property that discriminates overloads (`chain`), and the variant listed first. */
 	variant?: { key: string; default: string };
 	/** Errors are exported classes descending from this one. */
 	errorBase?: string;
 };
 
+/** A client class whose members are the surfaces (`sl.streams`). */
+export type ClientReferenceConfig = BaseConfig & {
+	/** Exported class the surfaces hang off. */
+	client: string;
+	/** Variable name used in rendered paths (`sl`). */
+	variable: string;
+	surfaces: SurfaceConfig[];
+};
+
+/**
+ * One section of a function-first package. An export belongs to the first
+ * group that claims it by name, by `@group` tag or by source file; a function,
+ * class or constant no group claims fails the build.
+ */
+export type GroupConfig = {
+	slug: string;
+	title: string;
+	/** Package-relative source files (`src/define.ts`) whose exports belong here. */
+	files?: RegExp;
+	/** Exports carrying this JSDoc `@group` tag. */
+	tag?: string;
+	/** Import specifier when it differs from the package (`@secondlayer/subgraphs/testing`). */
+	from?: string;
+	/** Exports claimed by name (re-exports whose declaration sits in another package). */
+	names?: string[];
+	/** Document an exported interface's methods under `root` instead of top-level exports. */
+	members?: { type: string; root: string };
+};
+
+/** A package of top-level functions, classes and constants, sectioned into groups. */
+export type FunctionReferenceConfig = BaseConfig & { groups: GroupConfig[] };
+
+export type ReferenceConfig = ClientReferenceConfig | FunctionReferenceConfig;
+
 export type ReferenceIO = {
 	/** Source text by repo-relative path, or undefined when absent. */
 	readText(path: string): string | undefined;
 	/** Example files for a surface, as `{ id, file, code }` (id = method id). */
 	examples(surface: string): { id: string; file: string; code: string }[];
+	/**
+	 * Whether the package's own source declares a type of this name. openpkg
+	 * follows types into sibling workspace packages; a function-first package
+	 * documents only what it declares. Absent: every type counts as its own.
+	 */
+	declares?(name: string): boolean;
 };
 
 export type Field = {
@@ -115,12 +150,26 @@ export type Constructor = {
 	overloads: Overload[];
 };
 
+/** An exported value that is not callable (`MAINNET_CHECKPOINT`). */
+export type Constant = {
+	name: string;
+	summary: string;
+	/** The value's type as text; a literal reads as itself. */
+	type: string;
+	source: { file: string; line: number } | null;
+};
+
 export type SurfaceFile = {
 	slug: string;
+	/** Function groups: where the names import from, when not the package itself. */
+	from?: string;
+	/** `sl.streams` for a client surface; empty for a function group. */
 	root: string;
 	/** The client class's constructor, on the surface that asks for it. */
 	constructor?: Constructor;
 	methods: Method[];
+	/** Function groups only: exported values that are not callable. */
+	constants?: Constant[];
 	types: TypeDoc[];
 };
 
@@ -222,6 +271,8 @@ function variantLabel(value: string): string {
 type Variants = string[];
 
 function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
+	/** A function-first package documents declarations, not a client's request paths. */
+	const functionMode = "groups" in config;
 	const walker = new Walker(spec);
 	const known = new Set<string>([
 		...spec.types.map((t) => t.name),
@@ -334,7 +385,7 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 		ctx: RenderContext,
 	): Method {
 		const id = raw.segments.join(".");
-		const path = [rootPath, ...raw.segments].join(".");
+		const path = [rootPath, ...raw.segments].filter(Boolean).join(".");
 		const ranked = raw.signatures
 			.map((sig, index) => ({ sig, index }))
 			.sort(
@@ -361,14 +412,16 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 
 		let source: Method["source"] = null;
 		let rest: string | undefined;
-		if (raw.owner?.source) {
+		// A declaration openpkg followed into another package's `.d.ts` is not ours to link.
+		const ours = !functionMode || raw.owner?.source?.file.startsWith("src/");
+		if (raw.owner?.source && ours) {
 			const file = normalizeFile(raw.owner.source.file, config.package);
 			const text = io.readText(file);
 			const at = text
 				? locate(text, raw.owner.source.line, raw.ownerPath)
 				: null;
 			source = { file, line: at?.line ?? raw.owner.source.line };
-			if (text && raw.owner.kind === "class") {
+			if (text && raw.owner.kind === "class" && !functionMode) {
 				rest = restFor(text, raw.owner.source.line, raw.ownerPath) ?? undefined;
 			}
 		}
@@ -404,7 +457,34 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 		}));
 	}
 
+	/**
+	 * A class listed among the types: its summary and its getters. Its type
+	 * schema also carries private members, so the public `members` are read.
+	 */
+	function describeClass(cls: Entry, ctx: RenderContext): TypeDoc {
+		const fields: Field[] = (cls.members ?? [])
+			.filter(
+				(m) =>
+					m.kind === "getter" && (!m.visibility || m.visibility === "public"),
+			)
+			.map((m) => ({
+				name: m.name,
+				type: renderType(m.schema, ctx),
+				required: true,
+				description: m.description ?? m.schema?.description ?? "",
+			}));
+		const deprecated = deprecation(cls.tags ?? []);
+		return {
+			name: cls.name,
+			summary: cls.description ?? "",
+			...(fields.length ? { fields } : {}),
+			...(deprecated ? { deprecated } : {}),
+		};
+	}
+
 	function describeType(name: string, ctx: RenderContext): TypeDoc | null {
+		const cls = functionMode ? walker.entry(name) : undefined;
+		if (cls?.kind === "class") return describeClass(cls, ctx);
 		const type = walker.typeEntry(name);
 		if (!type?.schema) return null;
 		const exported = walker.entry(name);
@@ -435,6 +515,7 @@ function createBuilder(spec: Spec, config: ReferenceConfig, io: ReferenceIO) {
 		while (queue.length) {
 			const name = queue.shift();
 			if (!name || done.has(name) || external.has(name)) continue;
+			if (functionMode && io.declares && !io.declares(name)) continue;
 			const refs = new Set<string>();
 			const doc = describeType(name, { known, refs, external });
 			if (!doc) continue;
@@ -520,9 +601,58 @@ function errorsOf(
 		.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function buildReference(
+/** Second pass: descriptions can only link once every surface has a home. */
+function linkSurfaces(
+	surfaces: SurfaceFile[],
+	symbols: Readonly<Record<string, string>>,
+): void {
+	for (const surface of surfaces) {
+		// `constructor` is also every object's inherited function: only an own key counts.
+		const ctor = Object.prototype.hasOwnProperty.call(surface, "constructor")
+			? surface.constructor
+			: undefined;
+		if (ctor) {
+			ctor.description = linkify(ctor.description, symbols);
+			ctor.summary = summarize(ctor.description);
+			for (const o of ctor.overloads) {
+				o.description = linkify(o.description, symbols);
+				for (const p of o.params) {
+					p.description = linkify(p.description, symbols);
+					for (const f of p.fields ?? []) {
+						f.description = linkify(f.description, symbols);
+					}
+				}
+			}
+		}
+		for (const m of surface.methods) {
+			m.description = linkify(m.description, symbols);
+			m.summary = summarize(m.description);
+			for (const o of m.overloads) {
+				o.description = linkify(o.description, symbols);
+				for (const p of o.params) {
+					p.description = linkify(p.description, symbols);
+					for (const f of p.fields ?? []) {
+						f.description = linkify(f.description, symbols);
+					}
+				}
+				o.returns.description = linkify(o.returns.description, symbols);
+			}
+		}
+		for (const c of surface.constants ?? []) {
+			c.summary = summarize(linkify(c.summary, symbols));
+		}
+		for (const t of surface.types) {
+			t.summary = summarize(linkify(t.summary, symbols));
+			for (const f of t.fields ?? []) {
+				f.description = linkify(f.description, symbols);
+			}
+		}
+	}
+}
+
+function buildClientReference(
 	spec: Spec,
-	config: ReferenceConfig,
+	config: ClientReferenceConfig,
 	io: ReferenceIO,
 	generator: string,
 ): BuildResult {
@@ -580,43 +710,7 @@ export function buildReference(
 		});
 	}
 
-	// Second pass: descriptions can only link once every surface has a home.
-	for (const surface of surfaces) {
-		// `constructor` is also every object's inherited function: only an own key counts.
-		const ctor = Object.prototype.hasOwnProperty.call(surface, "constructor")
-			? surface.constructor
-			: undefined;
-		if (ctor) {
-			ctor.description = linkify(ctor.description, symbols);
-			ctor.summary = summarize(ctor.description);
-			for (const o of ctor.overloads) {
-				o.description = linkify(o.description, symbols);
-				for (const p of o.params) {
-					p.description = linkify(p.description, symbols);
-					for (const f of p.fields ?? []) {
-						f.description = linkify(f.description, symbols);
-					}
-				}
-			}
-		}
-		for (const m of surface.methods) {
-			m.description = linkify(m.description, symbols);
-			m.summary = summarize(m.description);
-			for (const o of m.overloads) {
-				o.description = linkify(o.description, symbols);
-				for (const p of o.params) {
-					p.description = linkify(p.description, symbols);
-				}
-				o.returns.description = linkify(o.returns.description, symbols);
-			}
-		}
-		for (const t of surface.types) {
-			t.summary = summarize(linkify(t.summary, symbols));
-			for (const f of t.fields ?? []) {
-				f.description = linkify(f.description, symbols);
-			}
-		}
-	}
+	linkSurfaces(surfaces, symbols);
 
 	const helperCtx: RenderContext = { known: builder.known };
 	const helpers = spec.exports
@@ -661,4 +755,196 @@ export function buildReference(
 	const files: BuildResult["files"] = { "manifest.json": index };
 	for (const s of surfaces) files[`${s.slug}.json`] = s;
 	return { files, unresolved: builder.walker.unresolved };
+}
+
+/** The first group that claims an export: by name, by `@group` tag, then by source file. */
+function groupOf(
+	entry: Entry,
+	groups: readonly GroupConfig[],
+): GroupConfig | undefined {
+	const file = entry.source?.file ?? "";
+	return groups.find(
+		(g) =>
+			g.names?.includes(entry.name) ||
+			(g.tag !== undefined &&
+				(entry.tags ?? []).some(
+					(t) => t.name === "group" && t.text?.trim() === g.tag,
+				)) ||
+			g.files?.test(file),
+	);
+}
+
+const CALLABLE_KINDS = new Set(["function", "class", "variable"]);
+
+/**
+ * A package of top-level functions, classes and constants. Each group is one
+ * section of one page, so anchors hang off `docsBase` itself. A function is a
+ * method; a class is its constructor plus its public members; a namespace
+ * object (`on`) is its callable members; a non-callable value is a constant.
+ */
+function buildFunctionReference(
+	spec: Spec,
+	config: FunctionReferenceConfig,
+	io: ReferenceIO,
+	generator: string,
+): BuildResult {
+	const builder = createBuilder(spec, config, io);
+	const { walker } = builder;
+	const symbols: Record<string, string> = {};
+	const surfaces: SurfaceFile[] = [];
+	const external = new Set<string>();
+
+	const owned = new Map<string, Entry[]>(
+		config.groups.map((g) => [g.slug, []]),
+	);
+	for (const entry of spec.exports) {
+		const group = groupOf(entry, config.groups);
+		if (group) owned.get(group.slug)?.push(entry);
+		else if (CALLABLE_KINDS.has(entry.kind)) {
+			walker.unresolved.push({
+				path: entry.name,
+				reason: "no group claims this export",
+			});
+		}
+	}
+
+	for (const group of config.groups) {
+		const refs = new Set<string>();
+		const ctx: RenderContext = { known: builder.known, refs, external };
+		const methods: Method[] = [];
+		const constants: Constant[] = [];
+		const seen = new Set<string>();
+		const add = (method: Method) => {
+			if (seen.has(method.id)) return;
+			seen.add(method.id);
+			methods.push(method);
+		};
+		const classHomes = new Set<string>();
+
+		if (group.members) {
+			const type = walker.entry(group.members.type);
+			if (!type) {
+				walker.unresolved.push({
+					path: group.members.type,
+					reason: `group "${group.slug}" documents a type that is not exported`,
+				});
+			} else {
+				for (const raw of walker.walkMembers(type, group.members.root)) {
+					add(builder.buildMethod(raw, "", ctx));
+				}
+			}
+		}
+
+		for (const entry of owned.get(group.slug) ?? []) {
+			if (entry.kind === "class") {
+				const text = entry.source
+					? io.readText(normalizeFile(entry.source.file, config.package))
+					: undefined;
+				const hidden =
+					text && entry.source
+						? hasHiddenConstructor(text, entry.source.line)
+						: false;
+				const ctor = hidden ? null : builder.buildConstructor(entry, ctx);
+				if (!ctor) {
+					// Built by a factory, or by nothing the reader calls (an error
+					// class): it is listed with the types, getters and all.
+					refs.add(entry.name);
+				} else {
+					add({
+						id: entry.name,
+						path: `new ${entry.name}`,
+						summary: "",
+						description: ctor.description,
+						source: ctor.source,
+						overloads: ctor.overloads,
+						examples: [],
+					});
+					classHomes.add(entry.name);
+				}
+			}
+			if (CALLABLE_KINDS.has(entry.kind)) {
+				const raws = walker.walkExport(entry);
+				for (const raw of raws) add(builder.buildMethod(raw, "", ctx));
+				if (entry.kind === "variable" && raws.length === 0) {
+					const file = entry.source?.file;
+					constants.push({
+						name: entry.name,
+						summary: entry.description ?? "",
+						type: truncate(renderType(entry.schema, ctx)),
+						source:
+							entry.source && file?.startsWith("src/")
+								? {
+										file: normalizeFile(file, config.package),
+										line: entry.source.line,
+									}
+								: null,
+					});
+				}
+			} else {
+				refs.add(entry.name);
+			}
+		}
+
+		attachExamples(group.slug, methods, io);
+		const types = builder.typesFor(refs, external);
+
+		const base = config.docsBase;
+		for (const m of methods) {
+			const href = `${base}#${methodAnchor(m.id)}`;
+			symbols[m.path] = href;
+			// `SecondlayerProofSource` in prose or code opens the constructor.
+			if (classHomes.has(m.id)) symbols[m.id] = href;
+		}
+		for (const c of constants) symbols[c.name] ??= `${base}#c-${c.name}`;
+		for (const t of types) symbols[t.name] ??= `${base}#t-${t.name}`;
+		// A group has no client constructor; `constructor` on the type is only Object's.
+		const file: Omit<SurfaceFile, "constructor"> = {
+			slug: group.slug,
+			root: "",
+			...(group.from ? { from: group.from } : {}),
+			methods,
+			...(constants.length ? { constants } : {}),
+			types,
+		};
+		surfaces.push(file as SurfaceFile);
+	}
+
+	linkSurfaces(surfaces, symbols);
+
+	const index: ReferenceIndex = {
+		package: spec.meta.name,
+		version: spec.meta.version,
+		generator,
+		surfaces: surfaces.map((s) => ({
+			slug: s.slug,
+			title: config.groups.find((g) => g.slug === s.slug)?.title ?? s.slug,
+			root: s.root,
+			methodCount: s.methods.length,
+		})),
+		helpers: [],
+		errors: [],
+		symbols: Object.fromEntries(
+			Object.entries(symbols).sort(([a], [b]) => a.localeCompare(b)),
+		),
+	};
+	const files: BuildResult["files"] = { "manifest.json": index };
+	for (const s of surfaces) files[`${s.slug}.json`] = s;
+	return { files, unresolved: walker.unresolved };
+}
+
+function truncate(text: string): string {
+	return text.length > DEFINITION_LIMIT
+		? `${text.slice(0, DEFINITION_LIMIT - 1)}…`
+		: text;
+}
+
+export function buildReference(
+	spec: Spec,
+	config: ReferenceConfig,
+	io: ReferenceIO,
+	generator: string,
+): BuildResult {
+	return "groups" in config
+		? buildFunctionReference(spec, config, io, generator)
+		: buildClientReference(spec, config, io, generator);
 }

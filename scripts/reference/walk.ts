@@ -119,11 +119,52 @@ export class Walker {
 		return out;
 	}
 
-	private fromEntry(entry: Entry): Container {
+	/**
+	 * What a top-level export documents: a function is one method, a class
+	 * lists its public members (statics included), and a namespace object
+	 * (`on.*`) its callable members. Anything else (a constant) has none.
+	 */
+	walkExport(entry: Entry): RawMethod[] {
+		const out: RawMethod[] = [];
+		if (entry.kind === "class") {
+			for (const slot of this.fromEntry(entry, true).slots) {
+				if (slot.call) continue;
+				this.visitSlot(slot, [entry.name], entry, [], out, 1, false);
+			}
+			return out;
+		}
+		const slot: Slot = {
+			name: entry.name,
+			call: false,
+			description: entry.description,
+			tags: entry.tags,
+			schema: entry.schema,
+			signatures: entry.signatures,
+			jsonPath: entry.name,
+		};
+		this.visitSlot(slot, [entry.name], entry, [], out, 0, true);
+		// Members of an unexported namespace type have no declaring export of
+		// their own; they were declared where this export is.
+		return out.map((m) =>
+			m.owner ? m : { ...m, owner: entry, ownerPath: m.segments.slice(1) },
+		);
+	}
+
+	/** The methods of an exported interface, rooted at `root` (`ctx.insert`). */
+	walkMembers(entry: Entry, root: string): RawMethod[] {
+		const out: RawMethod[] = [];
+		for (const slot of this.fromEntry(entry).slots) {
+			if (slot.call) continue;
+			this.visitSlot(slot, [root], entry, [], out, 0, false);
+		}
+		return out;
+	}
+
+	private fromEntry(entry: Entry, withStatic = false): Container {
 		const slots: Slot[] = [];
 		for (const m of entry.members ?? []) {
 			if (m.visibility && m.visibility !== "public") continue;
-			if (m.flags?.static) continue;
+			if (m.flags?.static && !withStatic) continue;
 			const call = m.kind === "call-signature";
 			if (!call && !isPublicName(m.name)) continue;
 			slots.push({
@@ -132,7 +173,8 @@ export class Walker {
 				description: m.description,
 				tags: m.tags,
 				schema: m.schema,
-				signatures: m.signatures,
+				// A property holding a function (`get: (id) => …`) keeps its signatures on the schema.
+				signatures: m.signatures ?? m.schema?.["x-ts-signatures"],
 				jsonPath: `${entry.name}.members.${m.name}`,
 			});
 		}

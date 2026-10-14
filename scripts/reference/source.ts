@@ -150,3 +150,20 @@ export function restFor(
 	const normalized = normalizePath(rawPath);
 	return normalized?.startsWith("/") ? `${verb} ${normalized}` : null;
 }
+
+/**
+ * True when the class declared at `startLine` has a private or protected
+ * constructor (a `static` factory is its way in). openpkg lists the
+ * constructor's signature either way.
+ */
+export function hasHiddenConstructor(text: string, startLine: number): boolean {
+	const from = offsetOfLine(text, startLine);
+	const open = text.indexOf("{", from);
+	if (open === -1) return false;
+	const end = balanced(text, open, "{", "}");
+	const body = text.slice(open, end ?? text.length);
+	const match = /^[ \t]*(?:(private|protected)\s+)?constructor\s*\(/m.exec(
+		body,
+	);
+	return match?.[1] !== undefined;
+}

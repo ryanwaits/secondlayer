@@ -13,6 +13,8 @@ export type Schema = {
 	enum?: unknown[];
 	const?: unknown;
 	items?: Schema;
+	/** A tuple's positional element types. */
+	prefixItems?: Schema[];
 	properties?: Record<string, Schema>;
 	additionalProperties?: Schema | boolean;
 	required?: string[];
@@ -251,6 +253,11 @@ function render(schema: Schema | undefined, ctx: RenderContext): Rendered {
 			: { text: arms.join(" | "), kind: "union" };
 	}
 	if (schema.const !== undefined) return atom(literal(schema.const));
+
+	if (schema.prefixItems?.length) {
+		const text = `[${schema.prefixItems.map((a) => render(a, ctx).text).join(", ")}]`;
+		return atom(schema["x-ts-readonly"] ? `readonly ${text}` : text);
+	}
 
 	if (schema.type === "array" || schema.items) {
 		const item = render(schema.items, ctx);
