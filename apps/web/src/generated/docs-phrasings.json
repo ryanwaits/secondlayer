@@ -1035,15 +1035,16 @@
     ]
   },
   "/docs/sdk-reference": {
-    "hash": "b86b635f4f4068ff",
+    "hash": "3caefd0b63638b2e",
     "phrasings": [
-      "sdk methods list stacks",
-      "all client methods api",
-      "stacks sdk function reference",
       "what methods does the client expose",
-      "sdk source method signatures",
-      "stacks api client methods overview",
-      "list of sdk calls"
+      "sdk client methods list",
+      "how to look up sdk function signatures",
+      "where is the sdk api documentation",
+      "client library methods reference lookup",
+      "which sdk method do i call for",
+      "sdk methods documented from source code",
+      "find available functions in client sdk"
     ]
   },
   "/docs/sdk-reference/archive": {
