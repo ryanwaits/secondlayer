@@ -2986,6 +2986,8 @@
 }
 .site.verify .sdk-code {
 	display: grid;
+	/* One shrinkable track: an auto track grows to the code's width on phones. */
+	grid-template-columns: minmax(0, 1fr);
 	gap: 10px;
 	min-width: 0;
 }
