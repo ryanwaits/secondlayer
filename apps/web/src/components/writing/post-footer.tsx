@@ -1,53 +1,60 @@
-import { getAdjacentPosts } from "@/lib/writing";
+import {
+	type WritingPost,
+	getAdjacentPosts,
+	getPost,
+	getVisiblePosts,
+	longDate,
+} from "@/lib/writing";
 import Link from "next/link";
 
+function Neighbor({ post, label }: { post: WritingPost; label: string }) {
+	return (
+		<Link href={`/writing/${post.slug}`}>
+			<span className="k">{label}</span>
+			<span className="t">{post.title}</span>
+			<span className="m">
+				{longDate(post.date)} · {post.readingTime}
+			</span>
+		</Link>
+	);
+}
+
 /**
- * Continuum footer: the post ends by handing you the next one. Prev/next
- * come free from the registry order. The feed still exists at /feed.xml and
- * is advertised via <link rel="alternate"> — it just isn't sold in the body.
+ * The end of a post: the previous and next posts, and where a neighbor is
+ * missing, the way back to every post, so the newest post still leads
+ * somewhere. Then the post's tags and the feed.
  */
 export function PostFooter({ slug }: { slug: string }) {
 	const { prev, next } = getAdjacentPosts(slug);
+	const post = getPost(slug);
+	const count = getVisiblePosts().length;
+	const all = (label: string) => (
+		<Link href="/writing" className="all">
+			<span className="k">{label}</span>
+			<span className="t">Back to the blog</span>
+			<span className="m">
+				{count} {count === 1 ? "post" : "posts"}
+			</span>
+		</Link>
+	);
 
 	return (
 		<footer className="writing-end">
-			<div className="writing-next">
-				<div className="writing-next-cell">
-					<span className="k">← Previous</span>
-					{prev ? (
-						<>
-							<Link href={`/writing/${prev.slug}`} className="t">
-								{prev.title}
-							</Link>
-							<span className="m">
-								{prev.date} · {prev.readingTime}
-							</span>
-						</>
-					) : (
-						<>
-							<span className="t none">—</span>
-							<span className="m">this is the first post</span>
-						</>
-					)}
-				</div>
-				<div className="writing-next-cell">
-					<span className="k">Next →</span>
-					{next ? (
-						<>
-							<Link href={`/writing/${next.slug}`} className="t">
-								{next.title}
-							</Link>
-							<span className="m">
-								{next.date} · {next.readingTime}
-							</span>
-						</>
-					) : (
-						<>
-							<span className="t none">—</span>
-							<span className="m">you&rsquo;re caught up</span>
-						</>
-					)}
-				</div>
+			<nav className="writing-next" aria-label="More posts">
+				{prev ? (
+					<Neighbor post={prev} label="← Previous" />
+				) : (
+					all("← All posts")
+				)}
+				{next ? (
+					<Neighbor post={next} label="Next →" />
+				) : prev ? (
+					all("All posts →")
+				) : null}
+			</nav>
+			<div className="writing-end-row">
+				{post ? <span>Filed under {post.tags.join(" · ")}</span> : <span />}
+				<a href="/feed.xml">RSS</a>
 			</div>
 		</footer>
 	);

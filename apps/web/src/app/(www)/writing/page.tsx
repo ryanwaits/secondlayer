@@ -1,14 +1,16 @@
-import { PostVignette, hasVignette } from "@/components/writing/vignettes";
+import { Eyebrow, Highlight } from "@/components/site";
 import { socialMeta } from "@/lib/og";
-import { type WritingPost, getVisiblePosts } from "@/lib/writing";
+import { getVisiblePosts, longDate } from "@/lib/writing";
 import type { Metadata } from "next";
 import Link from "next/link";
+
+const LEDE =
+	"Long-form, mechanism-first posts on indexers, consumers, and the systems underneath: how they work and what to expect from them.";
 
 export const metadata: Metadata = {
 	...socialMeta({
 		title: "Blog · secondlayer",
-		description:
-			"Long-form, mechanism-first posts on indexers, consumers, and the systems underneath: how they work and what to expect from them.",
+		description: LEDE,
 		image: "/og/writing.png",
 		path: "/writing",
 	}),
@@ -17,64 +19,26 @@ export const metadata: Metadata = {
 	},
 };
 
-function monthLabel(date: string): string {
-	return new Date(`${date}T00:00:00Z`)
-		.toLocaleDateString("en-US", {
-			month: "long",
-			year: "numeric",
-			timeZone: "UTC",
-		})
-		.toUpperCase();
-}
-
-function FeaturePost({ post }: { post: WritingPost }) {
-	const figured = hasVignette(post.slug);
-	return (
-		<Link
-			href={`/writing/${post.slug}`}
-			className={`writing-feature${figured ? "" : " no-fig"}`}
-		>
-			<span className="writing-feature-main">
-				<span className="writing-feature-no">
-					{String(post.number).padStart(2, "0")} · {monthLabel(post.date)}
-					{post.status === "draft" && (
-						<span className="writing-draft-chip">draft</span>
-					)}
-				</span>
-				<span className="writing-feature-t">{post.title}</span>
-				<span className="writing-feature-d">{post.dek}</span>
-				<span className="writing-feature-m">
-					{post.readingTime} · {post.tags.join(" · ")}
-				</span>
-			</span>
-			{figured && (
-				<span className="writing-feature-fig">
-					<PostVignette slug={post.slug} />
-				</span>
-			)}
-		</Link>
-	);
-}
-
-/** Front-page index: the newest post leads with its signature figure;
- *  everything older drops into a two-column ledger below the rule. */
+/** The blog index: one ruled row per post, newest first, on the site grid. */
 export default function WritingIndexPage() {
 	const posts = [...getVisiblePosts()].sort((a, b) => b.number - a.number);
-	const [feature, ...rest] = posts;
 
 	return (
-		<main className="writing-front">
-			{feature && <FeaturePost post={feature} />}
-			{rest.length > 0 && (
-				<div className="writing-rest">
-					{rest.map((post) => (
-						<Link
-							key={post.slug}
-							href={`/writing/${post.slug}`}
-							className="writing-rest-row"
-						>
-							<span className="writing-index-no">
-								{String(post.number).padStart(2, "0")}
+		<main className="site writing-index">
+			<div className="shell">
+				<div className="writing-index-head">
+					<Eyebrow noun="Blog" />
+					<h1>
+						How it works, <Highlight>in writing.</Highlight>
+					</h1>
+					<p className="lede">{LEDE}</p>
+				</div>
+				<div className="writing-ledger">
+					{posts.map((post) => (
+						<Link key={post.slug} href={`/writing/${post.slug}`}>
+							<span className="no">
+								<b>{String(post.number).padStart(2, "0")}</b>
+								{longDate(post.date)}
 							</span>
 							<span>
 								<span className="t">
@@ -84,14 +48,14 @@ export default function WritingIndexPage() {
 									)}
 								</span>
 								<span className="d">{post.dek}</span>
-								<span className="m">
-									{post.date} · {post.readingTime}
-								</span>
+							</span>
+							<span className="m">
+								{post.readingTime} <span className="ar">→</span>
 							</span>
 						</Link>
 					))}
 				</div>
-			)}
+			</div>
 		</main>
 	);
 }

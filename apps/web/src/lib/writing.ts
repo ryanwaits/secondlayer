@@ -82,6 +82,16 @@ export function getPost(slug: string): WritingPost | undefined {
 	return POSTS.find((p) => p.slug === slug);
 }
 
+/** "August 15, 2026": how the index, rail and footer print a post's date. */
+export function longDate(date: string): string {
+	return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+		timeZone: "UTC",
+	});
+}
+
 /** Previous/next among visible posts, by number (continuum footer). */
 export function getAdjacentPosts(slug: string): {
 	prev: WritingPost | undefined;

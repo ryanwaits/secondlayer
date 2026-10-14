@@ -1359,9 +1359,9 @@
 	letter-spacing: -0.05em;
 	line-height: 0.98;
 }
-/* A chain named in the hero's sub: its mark as a chip, then the name as an
-   underlined link, held together on one line. */
-.site .chain {
+/* A chain named in prose (the home hero, blog posts): its mark as a chip,
+   then the name as an underlined link, held together on one line. */
+:is(.site, .writing-article) .chain {
 	white-space: nowrap;
 	color: var(--ink);
 	text-decoration: underline;
@@ -1369,61 +1369,61 @@
 	text-decoration-thickness: 1.5px;
 	text-underline-offset: 0.22em;
 }
-.site .chain:hover {
+:is(.site, .writing-article) .chain:hover {
 	text-decoration-color: currentColor;
 }
-.site .chain-plain {
+:is(.site, .writing-article) .chain-plain {
 	text-decoration: none;
 }
-.site .chain-mark {
+:is(.site, .writing-article) .chain-mark {
 	display: inline-block;
 	width: 1.05em;
 	height: 1.05em;
 	margin: 0 0.28em 0 0.06em;
 	vertical-align: -0.2em;
 }
-.site .chain-mark svg {
+:is(.site, .writing-article) .chain-mark svg {
 	display: block;
 	width: 100%;
 	height: 100%;
 }
 /* Each chain's own brand colors, not ours. */
-.site .chain-stacks .chain-bg {
+:is(.site, .writing-article) .chain-stacks .chain-bg {
 	fill: #fc6432;
 }
-.site .chain-stacks .chain-fg {
+:is(.site, .writing-article) .chain-stacks .chain-fg {
 	fill: #ffffff;
 }
-.site .chain-bitcoin .chain-bg {
+:is(.site, .writing-article) .chain-bitcoin .chain-bg {
 	fill: #f7931a;
 }
-.site .chain-bitcoin .chain-fg {
+:is(.site, .writing-article) .chain-bitcoin .chain-fg {
 	fill: #ffffff;
 }
 /* Clarity's square is near-black: a hairline keeps its edge on a dark page. */
-.site .chain-clarity {
+:is(.site, .writing-article) .chain-clarity {
 	border-radius: 0.32em;
 	box-shadow: 0 0 0 1px var(--line);
 }
-.site .chain-clarity .chain-bg {
+:is(.site, .writing-article) .chain-clarity .chain-bg {
 	fill: #13171a;
 }
-.site .chain-clarity .chain-dim {
+:is(.site, .writing-article) .chain-clarity .chain-dim {
 	fill: #7e858b;
 }
-.site .chain-clarity .chain-fg {
+:is(.site, .writing-article) .chain-clarity .chain-fg {
 	fill: #f7f8f9;
 }
-.site .chain-sbtc .chain-bg {
+:is(.site, .writing-article) .chain-sbtc .chain-bg {
 	fill: #fc6432;
 }
-.site .chain-sbtc .chain-fg {
+:is(.site, .writing-article) .chain-sbtc .chain-fg {
 	fill: #ffffff;
 }
-.site .chain-runes .chain-bg {
+:is(.site, .writing-article) .chain-runes .chain-bg {
 	fill: var(--ink);
 }
-.site .chain-runes .chain-fg {
+:is(.site, .writing-article) .chain-runes .chain-fg {
 	stroke: var(--paper);
 }
 /* The hero breaks its own lines; its highlighted line hangs its padding
@@ -3326,5 +3326,98 @@
 @media (prefers-reduced-motion: reduce) {
 	.anchor-flash::after {
 		animation-timing-function: steps(1, end);
+	}
+}
+
+/* ── blog index: a home-scale heading, then one ruled row per post ── */
+.site.writing-index {
+	padding-block: 56px 80px;
+}
+.site .writing-index-head {
+	display: grid;
+	gap: 18px;
+	justify-items: start;
+	margin-bottom: 44px;
+}
+.site .writing-index-head h1 {
+	font-size: clamp(36px, 5vw, 60px);
+	line-height: 1;
+	letter-spacing: -0.045em;
+}
+.site .writing-index-head .lede {
+	max-width: 46ch;
+	font-size: 18px;
+	color: var(--sub);
+}
+.site .writing-ledger {
+	border-top: 1px solid var(--line);
+}
+.site .writing-ledger a {
+	display: grid;
+	grid-template-columns: 9rem minmax(0, 1fr) auto;
+	gap: 8px 32px;
+	padding: 26px 0;
+	border-bottom: 1px solid var(--line);
+}
+.site .writing-ledger .no {
+	font: 400 12.5px / 1.6 var(--font-mono-stack);
+	color: var(--sub);
+	font-variant-numeric: tabular-nums;
+}
+.site .writing-ledger .no b {
+	display: block;
+	font-weight: 400;
+	color: var(--ink);
+}
+.site .writing-ledger .t {
+	display: block;
+	font-size: 24px;
+	line-height: 1.2;
+	letter-spacing: -0.03em;
+	transition: color 140ms ease-out;
+}
+.site .writing-ledger a:hover .t {
+	color: var(--pri);
+}
+.site .writing-ledger .d {
+	display: block;
+	margin-top: 8px;
+	max-width: 62ch;
+	font-size: 15.5px;
+	color: var(--sub);
+}
+.site .writing-ledger .m {
+	font: 400 12.5px / 1.6 var(--font-mono-stack);
+	color: var(--sub);
+	text-align: right;
+	white-space: nowrap;
+}
+.site .writing-ledger .ar {
+	font-family: var(--font-mono-stack);
+	color: var(--faint);
+}
+@media (max-width: 640px) {
+	.site.writing-index {
+		padding-block: 36px 56px;
+	}
+	.site .writing-ledger a {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 6px;
+		padding: 20px 0;
+	}
+	.site .writing-ledger .no b {
+		display: inline;
+		margin-right: 8px;
+	}
+	.site .writing-ledger .m {
+		text-align: left;
+	}
+	.site .writing-ledger .t {
+		font-size: 20px;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.site .writing-ledger .t {
+		transition: none;
 	}
 }

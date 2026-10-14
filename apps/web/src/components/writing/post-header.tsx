@@ -1,15 +1,13 @@
-import { getPost } from "@/lib/writing";
+import { getPost, longDate } from "@/lib/writing";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PostRail } from "./post-rail";
 
 /**
- * Post masthead + the pinned meta rail. On viewports ≥1180px the number,
- * date, reading time, figure index (scrollspy), and tags live in a fixed
- * rail in the left page margin, and margin sidenotes float right; below
- * that the same facts render as the inline eyebrow + meta row and the
- * rail is hidden. Title lives ONLY here — post MDX bodies start at h2 so
- * the docs MdxH1 mapping is never hit.
+ * Post masthead: "Blog · 02", the title, the dek. The rail beside the column
+ * carries the date, length, sections and figures; below 760px the rail hides
+ * and the one-line meta under the title carries the way back and the date.
+ * Title lives ONLY here — post MDX bodies start at h2 so the docs MdxH1
+ * mapping is never hit.
  *
  * Also the draft gate: drafts 404 in production (and stay out of the
  * build output for static pages) while remaining reachable in dev.
@@ -21,43 +19,18 @@ export function PostHeader({ slug }: { slug: string }) {
 		notFound();
 	}
 
-	const number = String(post.number).padStart(2, "0");
-	const date = new Date(`${post.date}T00:00:00Z`).toLocaleDateString("en-US", {
-		year: "numeric",
-		month: "long",
-		day: "numeric",
-		timeZone: "UTC",
-	});
-
 	return (
 		<header className="writing-header">
-			<PostRail
-				number={number}
-				date={date}
-				readingTime={post.readingTime}
-				figures={post.figures}
-				tags={post.tags}
-			/>
-			{/* The rail hides the eyebrow at ≥1180px, which left a post with no way
-			    back to the index at exactly the width most people read it. This
-			    crumb stays at every width. */}
-			<nav className="writing-crumb" aria-label="Breadcrumb">
-				<Link href="/writing">Blog</Link>
-				<span className="sep">/</span>
-				{post.title}
-			</nav>
-			<div className="writing-eyebrow">
-				<span>Writings · {number}</span>
-				<span className="dim">{post.readingTime}</span>
-				<span className="dim">{post.tags.join(" · ")}</span>
-			</div>
+			<span className="writing-eyebrow">
+				Blog <span>· {String(post.number).padStart(2, "0")}</span>
+			</span>
 			<h1 className="writing-title">{post.title}</h1>
 			<p className="writing-dek">{post.dek}</p>
-			<div className="writing-meta">
-				<span>secondlayer</span>
-				<span>·</span>
-				<span>{date}</span>
-			</div>
+			<p className="writing-meta">
+				<Link href="/writing">← Blog</Link>
+				<span>{longDate(post.date)}</span>
+				<span>{post.readingTime}</span>
+			</p>
 		</header>
 	);
 }
