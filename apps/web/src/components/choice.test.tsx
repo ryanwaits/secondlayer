@@ -41,7 +41,7 @@ describe("Choice", () => {
 		const inputs = findElements(el, "input");
 		const checked = inputs.filter((i) => i.props.checked);
 		expect(checked.map((i) => i.props.value)).toEqual(["c"]);
-		inputs.find((i) => i.props.value === "a")?.props.onChange();
+		inputs.find((i) => i.props.value === "a")?.props.onChange?.();
 		expect(picked).toEqual(["a"]);
 	});
 
