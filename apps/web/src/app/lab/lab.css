@@ -165,3 +165,231 @@ body:has(.lab) .auth-bar {
 		width: 160px;
 	}
 }
+
+/* ── frames: one theme each, whatever the viewer's OS says ─────────────
+   The site only switches on prefers-color-scheme, so a light and a dark frame
+   side by side re-declare every token globals.css sets in :root (light) and in
+   its first dark block (dark, over the light values). lab-tokens.test.ts keeps
+   both copies equal to the source. */
+.lab-fr[data-mode="light"] {
+	--paper: #ffffff;
+	--ink: #111111;
+	--sub: #5e5e5e;
+	--faint: #9b9b96;
+	--line: #e5e5e2;
+	--soft: #f5f5f2;
+	--pri: #1f45e0;
+	--on-pri: #ffffff;
+	--hi: #ffcc00;
+	--on-hi: #111111;
+	--ok: #128a43;
+	--alarm: #e3301e;
+	--term: #121316;
+	--term-line: #24262b;
+	--term-mute: #8b9099;
+	--term-acc: #ffd21f;
+	--bg: #ffffff;
+	--text-main: #111111;
+	--text-prose: #111111;
+	--docs-prose: rgba(17, 17, 17, 0.74);
+	--text-muted: rgba(17, 17, 17, 0.56);
+	--text-dim: rgba(17, 17, 17, 0.28);
+	--border: #e5e5e2;
+	--border-hover: rgba(17, 17, 17, 0.2);
+	--bg-elevated: #ffffff;
+	--bg-chrome: #f5f5f2;
+	--bg-tab-active: #f5f5f2;
+	--accent-pink: #1f45e0;
+	--accent: #1f45e0;
+	--accent-hover: #1838c4;
+	--accent-contrast: #ffffff;
+	--accent-bg: rgba(31, 69, 224, 0.06);
+	--accent-border: rgba(31, 69, 224, 0.24);
+	--accent-glow: rgba(31, 69, 224, 0.06);
+	--ink-demoted: #7d8187;
+	--term-bg: var(--term);
+	--term-raise: #1a1b1f;
+	--term-border: var(--term-line);
+	--term-fg: #d9dbe0;
+	--term-muted: #8b9099;
+	--term-bright: #f5f5f2;
+	--term-teal: var(--term-acc);
+	--term-ok: #3ccb7f;
+	--dot-color: rgba(0, 0, 0, 0.1);
+	--code-bg: rgba(17, 17, 17, 0.05);
+	--code-block-bg: transparent;
+	--nudge-bg: rgba(0, 0, 0, 0.02);
+	--selection-bg: #ededed;
+	--selection-text: #111;
+	--link-underline: #d9d9d9;
+	--link-underline-hover: #666;
+	--copy-btn: rgba(0, 0, 0, 0.25);
+	--copy-btn-hover: rgba(0, 0, 0, 0.5);
+	--copy-btn-hover-bg: rgba(0, 0, 0, 0.04);
+	--focus-ring: rgba(0, 0, 0, 0.22);
+	--green: #128a43;
+	--green-bg: rgba(34, 197, 94, 0.08);
+	--yellow: #a37800;
+	--yellow-bg: rgba(234, 179, 8, 0.08);
+	--red: #e3301e;
+	--red-bg: rgba(227, 48, 30, 0.08);
+	--blue: #1f45e0;
+	--blue-bg: rgba(31, 69, 224, 0.06);
+	--accent-blue: #1f45e0;
+	--accent-blue-bg: rgba(31, 69, 224, 0.06);
+	--accent-blue-border: rgba(31, 69, 224, 0.24);
+	--teal: #1f45e0;
+	--teal-bg: rgba(31, 69, 224, 0.06);
+	--fig-role-a: var(--ink);
+	--fig-role-b: rgba(17, 17, 17, 0.42);
+	--fig-role-b-bg: rgba(17, 17, 17, 0.06);
+	--fig-alarm: #e3301e;
+	--fig-ok: #128a43;
+	--fig-bar: rgba(10, 10, 10, 0.16);
+	--fig-faint: rgba(0, 0, 0, 0.42);
+	--font-sans-stack: "Geist", ui-sans-serif, system-ui, sans-serif;
+	--font-heading-stack: "Geist", ui-sans-serif, system-ui, sans-serif;
+	--font-mono-stack: "Geist Mono", ui-monospace, SFMono-Regular, Menlo,
+		monospace;
+	--type-reading: 16px;
+	--lh-reading: 1.75;
+	--w-reading: 400;
+	--w-ui: 400;
+	--w-heading: 500;
+	--spacing-xxs: 0.5rem;
+	--spacing-xs: 1rem;
+	--spacing-sm: 1.5rem;
+	--spacing-md: 2rem;
+	--spacing-lg: 3rem;
+	--spacing-xl: 4rem;
+	--spacing-xxl: 3.5rem;
+	--duration-snappy: 150ms;
+	--ease-snappy: cubic-bezier(0.4, 0, 0.2, 1);
+	--duration-smooth: 500ms;
+	--ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+}
+.lab-fr[data-mode="dark"] {
+	--paper: #1c1b19;
+	--ink: #ece9e2;
+	--sub: #b0aca2;
+	--faint: #7c786f;
+	--line: #383631;
+	--soft: #252420;
+	--pri: #3a5bff;
+	--on-pri: #ffffff;
+	--hi: #efc54a;
+	--on-hi: #141414;
+	--ok: #5cc28f;
+	--alarm: #ff5a47;
+	--term: #252420;
+	--term-line: #383631;
+	--term-mute: #b0aca2;
+	--term-acc: #e6c15c;
+	--bg: #1c1b19;
+	--text-main: #ece9e2;
+	--text-prose: #ece9e2;
+	--docs-prose: rgba(236, 233, 226, 0.8);
+	--text-muted: rgba(236, 233, 226, 0.64);
+	--text-dim: rgba(236, 233, 226, 0.34);
+	--border: #383631;
+	--border-hover: rgba(236, 233, 226, 0.24);
+	--bg-elevated: #1c1b19;
+	--bg-chrome: #252420;
+	--bg-tab-active: #252420;
+	--accent-pink: #1f45e0;
+	--accent: #3a5bff;
+	--accent-hover: #5c77ff;
+	--accent-contrast: #ffffff;
+	--accent-bg: rgba(58, 91, 255, 0.12);
+	--accent-border: rgba(58, 91, 255, 0.36);
+	--accent-glow: rgba(58, 91, 255, 0.12);
+	--ink-demoted: #b5b0a6;
+	--term-bg: var(--term);
+	--term-raise: #2c2a26;
+	--term-border: var(--term-line);
+	--term-fg: #e3e0d9;
+	--term-muted: #b0aca2;
+	--term-bright: #f5f2ea;
+	--term-teal: var(--term-acc);
+	--term-ok: #5cc28f;
+	--dot-color: rgba(255, 255, 255, 0.07);
+	--code-bg: rgba(236, 233, 226, 0.08);
+	--code-block-bg: transparent;
+	--nudge-bg: rgba(255, 255, 255, 0.02);
+	--selection-bg: #3d3a34;
+	--selection-text: #ececec;
+	--link-underline: #4a4740;
+	--link-underline-hover: #999;
+	--copy-btn: rgba(255, 255, 255, 0.25);
+	--copy-btn-hover: rgba(255, 255, 255, 0.5);
+	--copy-btn-hover-bg: rgba(255, 255, 255, 0.06);
+	--focus-ring: rgba(255, 255, 255, 0.26);
+	--green: #5cc28f;
+	--green-bg: rgba(34, 197, 94, 0.08);
+	--yellow: #e6c15c;
+	--yellow-bg: rgba(234, 179, 8, 0.08);
+	--red: #ff5a47;
+	--red-bg: rgba(227, 48, 30, 0.08);
+	--blue: #3a5bff;
+	--blue-bg: rgba(58, 91, 255, 0.12);
+	--accent-blue: #3a5bff;
+	--accent-blue-bg: rgba(58, 91, 255, 0.12);
+	--accent-blue-border: rgba(58, 91, 255, 0.36);
+	--teal: #3a5bff;
+	--teal-bg: rgba(58, 91, 255, 0.12);
+	--fig-role-a: var(--ink);
+	--fig-role-b: rgba(236, 233, 226, 0.45);
+	--fig-role-b-bg: rgba(236, 233, 226, 0.1);
+	--fig-alarm: #ff5a47;
+	--fig-ok: #5cc28f;
+	--fig-bar: rgba(236, 236, 236, 0.2);
+	--fig-faint: rgba(255, 255, 255, 0.38);
+	--font-sans-stack: "Geist", ui-sans-serif, system-ui, sans-serif;
+	--font-heading-stack: "Geist", ui-sans-serif, system-ui, sans-serif;
+	--font-mono-stack: "Geist Mono", ui-monospace, SFMono-Regular, Menlo,
+		monospace;
+	--type-reading: 16px;
+	--lh-reading: 1.75;
+	--w-reading: 400;
+	--w-ui: 400;
+	--w-heading: 500;
+	--spacing-xxs: 0.5rem;
+	--spacing-xs: 1rem;
+	--spacing-sm: 1.5rem;
+	--spacing-md: 2rem;
+	--spacing-lg: 3rem;
+	--spacing-xl: 4rem;
+	--spacing-xxl: 3.5rem;
+	--duration-snappy: 150ms;
+	--ease-snappy: cubic-bezier(0.4, 0, 0.2, 1);
+	--duration-smooth: 500ms;
+	--ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+}
+.lab-fr {
+	min-width: 0;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--paper);
+	color: var(--ink);
+}
+.lab-fr-cap {
+	display: block;
+	padding: 8px 14px;
+	border-bottom: 1px solid var(--line);
+	color: var(--sub);
+	font: 400 11px / 1.5 var(--font-mono-stack);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+.lab-in {
+	padding: 24px 20px;
+}
+
+/* The code ladder picks its step with a media query too (code.css), so a frame
+   whose theme differs from the OS states its step outright. */
+.lab-fr[data-mode="light"] .cb :is(.t-ink, .t-sub, .t-faint, .t-x) {
+	color: var(--shiki-light);
+}
+.lab-fr[data-mode="dark"] .cb :is(.t-ink, .t-sub, .t-faint, .t-x) {
+	color: var(--shiki-dark);
+}
