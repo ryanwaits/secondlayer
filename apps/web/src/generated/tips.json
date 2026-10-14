@@ -1762,8 +1762,8 @@
 		},
 		"SecondLayerArchive.status": {
 			"kind": "method",
-			"summary": "Get the instance's public status report.",
-			"sig": "sl.instance.status(): Promise<PublicStatus>",
+			"summary": "Get the archive's current operational state.",
+			"sig": "sl.archive.status(): Promise<ArchiveStatus>",
 			"route": "/docs/sdk-reference/archive",
 			"anchor": "m-status"
 		},
@@ -1839,8 +1839,8 @@
 		},
 		"sl.archive.status": {
 			"kind": "method",
-			"summary": "Get the instance's public status report.",
-			"sig": "sl.instance.status(): Promise<PublicStatus>",
+			"summary": "Get the archive's current operational state.",
+			"sig": "sl.archive.status(): Promise<ArchiveStatus>",
 			"route": "/docs/sdk-reference/archive",
 			"anchor": "m-status"
 		},
@@ -2315,15 +2315,15 @@
 		},
 		"sl.streams.events.consume": {
 			"kind": "method",
-			"summary": "Run a checkpointed, reorg-aware indexer over decoded events.",
-			"sig": "sl.index.events.consume(params: …): …",
+			"summary": "Run a checkpointed indexer that rewinds on reorgs.",
+			"sig": "sl.streams.events.consume(params: …): Promise<StreamsEventsConsumeResult>",
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "m-events-consume"
 		},
 		"sl.streams.events.list": {
 			"kind": "method",
-			"summary": "Read one page of decoded events of one type.",
-			"sig": "sl.index.events.list(params: …): Promise<EventsEnvelope<T, IndexEventFields<T, F>>>",
+			"summary": "Read one page of chain events and the next cursor.",
+			"sig": "sl.streams.events.list(params: …): Promise<StreamsEventsEnvelope<VmStreamsEvent, StreamsTip>>",
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "m-events-list"
 		},
@@ -2392,8 +2392,8 @@
 		},
 		"sl.subgraphs.delete": {
 			"kind": "method",
-			"summary": "Delete a webhook.",
-			"sig": "sl.webhooks.delete(id: string): Promise<{ ok: true }>",
+			"summary": "Delete a subgraph and its tables.",
+			"sig": "sl.subgraphs.delete(name: string, options?: { force?: boolean }): Promise<{ message: string }>",
 			"route": "/docs/sdk-reference/subgraphs",
 			"anchor": "m-delete"
 		},
@@ -2427,8 +2427,8 @@
 		},
 		"sl.subgraphs.list": {
 			"kind": "method",
-			"summary": "Find contracts conforming to trait.",
-			"sig": "sl.contracts.list(params: ContractsListParams): Promise<ContractsEnvelope>",
+			"summary": "List the subgraphs deployed to this instance.",
+			"sig": "sl.subgraphs.list(): Promise<{ data: SubgraphSummary[] }>",
 			"route": "/docs/sdk-reference/subgraphs",
 			"anchor": "m-list"
 		},
@@ -2476,8 +2476,8 @@
 		},
 		"sl.subgraphs.status": {
 			"kind": "method",
-			"summary": "Get the instance's public status report.",
-			"sig": "sl.instance.status(): Promise<PublicStatus>",
+			"summary": "Get a subgraph's health, sync position, and tables.",
+			"sig": "sl.subgraphs.status(name: string): Promise<SubgraphDetail>",
 			"route": "/docs/sdk-reference/subgraphs",
 			"anchor": "m-status"
 		},
@@ -2539,15 +2539,15 @@
 		},
 		"sl.webhooks.get": {
 			"kind": "method",
-			"summary": "Get one contract from the registry by id, or null.",
-			"sig": "sl.contracts.get(contractId: string, opts?: { includeAbi?: boolean }): Promise<ContractSummary | null>",
+			"summary": "Get one webhook's full configuration.",
+			"sig": "sl.webhooks.get(id: string): Promise<WebhookDetail>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-get"
 		},
 		"sl.webhooks.list": {
 			"kind": "method",
-			"summary": "Find contracts conforming to trait.",
-			"sig": "sl.contracts.list(params: ContractsListParams): Promise<ContractsEnvelope>",
+			"summary": "List your webhooks.",
+			"sig": "sl.webhooks.list(): Promise<{ data: WebhookSummary[] }>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-list"
 		},
@@ -2698,15 +2698,15 @@
 		},
 		"StreamsClient.events.consume": {
 			"kind": "method",
-			"summary": "Run a checkpointed, reorg-aware indexer over decoded events.",
-			"sig": "sl.index.events.consume(params: …): …",
+			"summary": "Run a checkpointed indexer that rewinds on reorgs.",
+			"sig": "sl.streams.events.consume(params: …): Promise<StreamsEventsConsumeResult>",
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "m-events-consume"
 		},
 		"StreamsClient.events.list": {
 			"kind": "method",
-			"summary": "Read one page of decoded events of one type.",
-			"sig": "sl.index.events.list(params: …): Promise<EventsEnvelope<T, IndexEventFields<T, F>>>",
+			"summary": "Read one page of chain events and the next cursor.",
+			"sig": "sl.streams.events.list(params: …): Promise<StreamsEventsEnvelope<VmStreamsEvent, StreamsTip>>",
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "m-events-list"
 		},
@@ -3283,8 +3283,8 @@
 		},
 		"Subgraphs.delete": {
 			"kind": "method",
-			"summary": "Delete a webhook.",
-			"sig": "sl.webhooks.delete(id: string): Promise<{ ok: true }>",
+			"summary": "Delete a subgraph and its tables.",
+			"sig": "sl.subgraphs.delete(name: string, options?: { force?: boolean }): Promise<{ message: string }>",
 			"route": "/docs/sdk-reference/subgraphs",
 			"anchor": "m-delete"
 		},
@@ -3318,8 +3318,8 @@
 		},
 		"Subgraphs.list": {
 			"kind": "method",
-			"summary": "Find contracts conforming to trait.",
-			"sig": "sl.contracts.list(params: ContractsListParams): Promise<ContractsEnvelope>",
+			"summary": "List the subgraphs deployed to this instance.",
+			"sig": "sl.subgraphs.list(): Promise<{ data: SubgraphSummary[] }>",
 			"route": "/docs/sdk-reference/subgraphs",
 			"anchor": "m-list"
 		},
@@ -3367,8 +3367,8 @@
 		},
 		"Subgraphs.status": {
 			"kind": "method",
-			"summary": "Get the instance's public status report.",
-			"sig": "sl.instance.status(): Promise<PublicStatus>",
+			"summary": "Get a subgraph's health, sync position, and tables.",
+			"sig": "sl.subgraphs.status(name: string): Promise<SubgraphDetail>",
 			"route": "/docs/sdk-reference/subgraphs",
 			"anchor": "m-status"
 		},
@@ -3561,15 +3561,15 @@
 		},
 		"Webhooks.get": {
 			"kind": "method",
-			"summary": "Get one contract from the registry by id, or null.",
-			"sig": "sl.contracts.get(contractId: string, opts?: { includeAbi?: boolean }): Promise<ContractSummary | null>",
+			"summary": "Get one webhook's full configuration.",
+			"sig": "sl.webhooks.get(id: string): Promise<WebhookDetail>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-get"
 		},
 		"Webhooks.list": {
 			"kind": "method",
-			"summary": "Find contracts conforming to trait.",
-			"sig": "sl.contracts.list(params: ContractsListParams): Promise<ContractsEnvelope>",
+			"summary": "List your webhooks.",
+			"sig": "sl.webhooks.list(): Promise<{ data: WebhookSummary[] }>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-list"
 		},

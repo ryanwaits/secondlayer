@@ -16,7 +16,11 @@ import {
 	pageForTag,
 } from "../src/app/(www)/docs/api-reference/pages";
 import { allEndpoints } from "../src/app/(www)/docs/api-reference/spec";
-import { SDK_SURFACES } from "../src/app/(www)/docs/sdk-reference/pages";
+import {
+	SDK_BASE,
+	SDK_SURFACES,
+	findPackagePage,
+} from "../src/app/(www)/docs/sdk-reference/pages";
 import {
 	type Method,
 	type ReferencePackage,
@@ -113,12 +117,21 @@ function packages(): ReferencePackage[] {
 	return names as ReferencePackage[];
 }
 
-function surfacesOf(pkg: ReferencePackage): Surface[] {
+/** A package's surfaces with the page each renders on: one per SDK surface, one page for a function-first package. */
+function surfacesOf(
+	pkg: ReferencePackage,
+): { route: string; surface: Surface }[] {
 	const slugs = new Set(manifest(pkg).surfaces.map((s) => s.slug));
 	if (pkg === "sdk") for (const s of SDK_SURFACES) slugs.add(s.slug);
 	return [...slugs].flatMap((slug) => {
 		try {
-			return [surface(slug, pkg)];
+			return [
+				{
+					route:
+						pkg === "sdk" ? `${SDK_BASE}/${slug}` : findPackagePage(pkg).href,
+					surface: surface(slug, pkg),
+				},
+			];
 		} catch {
 			return [];
 		}
@@ -129,21 +142,26 @@ export function buildTips(): TipTable {
 	const routes = docsRoutes();
 	const symbols: Record<string, Tip> = {};
 	for (const pkg of packages()) {
-		const surfaces = surfacesOf(pkg);
+		// Anchors repeat across an SDK package's pages (`m-events-consume` is on
+		// Streams and on Index), so entries are found by page and anchor.
 		const methods = new Map<string, Method>();
 		const types = new Map<string, Surface["types"][number]>();
-		for (const s of surfaces) {
+		for (const { route, surface: s } of surfacesOf(pkg)) {
 			const ctor = constructorEntry(s);
-			if (ctor) methods.set(methodAnchor(ctor.id), ctor);
-			for (const m of s.methods) methods.set(methodAnchor(m.id), m);
-			for (const t of s.types) if (!types.has(t.name)) types.set(t.name, t);
+			if (ctor) methods.set(`${route}#${methodAnchor(ctor.id)}`, ctor);
+			for (const m of s.methods)
+				methods.set(`${route}#${methodAnchor(m.id)}`, m);
+			for (const t of s.types) {
+				const key = `${route}#t-${t.name}`;
+				if (!types.has(key)) types.set(key, t);
+			}
 		}
 		for (const [name, href] of Object.entries(manifest(pkg).symbols)) {
 			const route = pathOf(href);
 			const anchor = anchorOf(href);
 			if (symbols[name] || !routes.has(route)) continue;
 			if (anchor.startsWith("m-")) {
-				const method = methods.get(anchor);
+				const method = methods.get(href);
 				const summary = clip(plain(method?.summary ?? ""));
 				if (!method || !summary) continue;
 				symbols[name] = {
@@ -154,7 +172,7 @@ export function buildTips(): TipTable {
 					anchor,
 				};
 			} else if (anchor.startsWith("t-")) {
-				const type = types.get(anchor.slice(2));
+				const type = types.get(href);
 				const summary = clip(plain(type?.summary ?? ""));
 				if (!type || !summary) continue;
 				const fields = type.fields ?? [];

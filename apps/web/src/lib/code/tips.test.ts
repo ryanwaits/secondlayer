@@ -46,6 +46,18 @@ describe("tip table", () => {
 		expect(tip?.route).toBe("/docs/sdk-reference/streams");
 	});
 
+	test("a method's tip is its own entry, even when another page reuses its anchor", () => {
+		for (const [name, tip] of Object.entries(table.symbols))
+			if (tip.kind === "method" && name.startsWith("sl."))
+				expect(tip.sig?.startsWith(name), name).toBe(true);
+		expect(table.symbols["sl.streams.events.consume"]?.route).toBe(
+			"/docs/sdk-reference/streams",
+		);
+		expect(table.symbols["sl.index.events.consume"]?.route).toBe(
+			"/docs/sdk-reference/index",
+		);
+	});
+
 	test("a type with fields lists at most eight and counts the rest", () => {
 		for (const tip of everyTip) {
 			expect(tip.fields?.length ?? 0).toBeLessThanOrEqual(8);
