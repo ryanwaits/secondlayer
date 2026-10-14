@@ -7229,7 +7229,7 @@ a.acct-strip-link:hover .acct-strip-k {
 .choice-cell span {
 	display: block;
 	padding: 8px 14px;
-	font: 500 13.5px/1.25 var(--font-sans-stack);
+	font: 500 13.5px / 1.25 var(--font-sans-stack);
 	color: var(--sub);
 	white-space: nowrap;
 	transition: color var(--duration-snappy) var(--ease-snappy), background-color
@@ -7247,7 +7247,7 @@ a.acct-strip-link:hover .acct-strip-k {
 	outline-offset: -2px;
 }
 /* Past three options, or a narrow container: one joined column. */
-@container (max-width: 359px) {
+@container (max-width: 309px) {
 	.choice-row {
 		flex-direction: column;
 		width: 100%;
@@ -7320,7 +7320,7 @@ a.acct-strip-link:hover .acct-strip-k {
 	cursor: pointer;
 }
 .amount-main {
-	font: 500 20px/1 var(--font-sans-stack);
+	font: 500 20px / 1 var(--font-sans-stack);
 	letter-spacing: -0.02em;
 	font-variant-numeric: tabular-nums;
 	color: var(--ink);
@@ -7364,13 +7364,13 @@ a.acct-strip-link:hover .acct-strip-k {
 	border: 0;
 	background: none;
 	color: var(--sub);
-	font: 400 14px/1 var(--font-sans-stack);
+	font: 400 14px / 1 var(--font-sans-stack);
 	white-space: nowrap;
 	cursor: pointer;
 	transition: color var(--duration-snappy) var(--ease-snappy);
 }
 .tabbar.mono button {
-	font: 400 12px/1 var(--font-mono-stack);
+	font: 400 12px / 1 var(--font-mono-stack);
 }
 .tabbar button:hover,
 .tabbar button[aria-selected="true"] {
