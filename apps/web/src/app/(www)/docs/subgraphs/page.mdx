@@ -6,12 +6,14 @@ One TypeScript file, and you get a table plus a REST API over it. You don't pick
 
 One config file: named source filters, a table schema, and one handler per source, keyed by source name.
 
-```ts
+```ts subgraph.config.ts
 import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
   name: "sbtc-flows",
+  // !callout[/startBlock/] The first deploy backfills from here.
   startBlock: 8000000,
+  // !callout[/sources/] Named filters; each name keys a handler.
   sources: {
     transfers: {
       type: "ft_transfer",
@@ -29,6 +31,7 @@ export default defineSubgraph({
   },
   handlers: {
     transfers: (event, ctx) => {
+      // !callout[/insert/] One write per matched event.
       ctx.insert("transfers", {
         amount: event.amount,
         sender: event.sender,
@@ -272,8 +275,8 @@ A subgraph whose sources are all state writes (`var_set`, `map_set`, `map_delete
 | `events` | events, prints, contract calls, `map_insert`, or any `ctx.client` read | advice in `verification.reasons`; deploys as before |
 | `none` | `trait` scope, or `backfillMode: "concurrent"` | advice, as above |
 
-```text
-secondlayer subgraphs deploy subgraphs/pool-reserves.ts
+```text ~/pool-reserves
+$ secondlayer subgraphs deploy subgraphs/pool-reserves.ts
 ✓ Subgraph "pool-reserves" created → v1.0.0
   verification  state · pin 7f3c…a91e
   unproven      tx attribution of writes: event.tx, _tx_id (needs event proofs)
@@ -294,11 +297,8 @@ A `state` subgraph reads its writes from the node's `state_writes` once the inst
 
 Recompute a `state` subgraph on your machine and compare it with the rows the API serves:
 
-```bash
-secondlayer verify subgraph pool-reserves --replay --from 1230000 --to 1231000
-```
-
-```text
+```text ~/pool-reserves exit=0
+$ secondlayer verify subgraph pool-reserves --replay --from 1230000 --to 1231000
 ✓ pin       7f3c…a91e  handler, schema and startBlock match the deploy
 ✓ blocks    1,001 proven from the checkpoint (2 MARF proofs, then parent links)
 ✓ txs       4,812 transactions match their blocks' tx merkle roots
@@ -322,11 +322,8 @@ secondlayer verify subgraph pool-reserves --replay --from 1230000 --to 1231000
 
 Hosted is the default path: one private stack per account, no box to run. Create an `sk-sl_*` key at [`/account/keys`](/account/keys), set the two variables from the [Introduction](/docs#get-started), and deploy (CLI 19.1 or later). The first deploy backfills from `startBlock`; new blocks stream in after.
 
-```bash
-secondlayer subgraphs deploy ./subgraph.config.ts --start-block 8000000
-```
-
-```text
+```text ~/sbtc-flows
+$ secondlayer subgraphs deploy ./subgraph.config.ts --start-block 8000000
 ✓ Subgraph "sbtc-flows" created → v1.0.0
   verification  events · pin 7f3c…a91e · ft_transfer source "transfers" needs event proofs
   REST:      <SECONDLAYER_API_URL>/v1/subgraphs/sbtc-flows/transfers
@@ -343,7 +340,8 @@ Set a start block. Without one the subgraph reindexes from genesis, and every ma
 
 `secondlayer subgraphs status`, with backfill draining while the table already serves reads:
 
-```text
+```text ~/balances
+$ secondlayer subgraphs status balances
 Verification       events · ft_transfer source "balances" needs event proofs
 Status             reindexing
 Sync               reindexing — 14.2% (1174885 / 8263594 blocks, target #8263594)
@@ -382,13 +380,7 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/asset-holdings/holdings" \
 
 Typed from the SDK (`new SecondLayer()` reads `SECONDLAYER_API_URL` and `SECONDLAYER_API_KEY`), or REST at `/v1/subgraphs` with wildcard CORS.
 
-```ts
-const { rows, next_cursor, tip } = await sl.subgraphs.rows(
-  "sbtc-flows",
-  "transfers",
-  { limit: 10, order: "desc" },
-);
-```
+<CodeTabs sync="lang">
 
 ```bash
 curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers" \
@@ -396,7 +388,18 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers" \
   -G -d "_limit=10" -d "_order=desc"
 ```
 
-```json
+```ts
+// !ref[/next_cursor/] next
+const { rows, next_cursor, tip } = await sl.subgraphs.rows(
+  "sbtc-flows",
+  "transfers",
+  { limit: 10, order: "desc" },
+);
+```
+
+</CodeTabs>
+
+```json response.json status=200
 {
   "rows": [
     {
@@ -407,6 +410,7 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers" \
       "sender": "SP3PE7Q9...X44J"
     }
   ],
+  // !ref[/next_cursor/] next
   "next_cursor": "48137",
   "tip": { "block_height": 8054704, "subgraph_height": 8054704, "blocks_behind": 0 }
 }
@@ -492,13 +496,14 @@ let cursor = await loadCursor(); // last next_cursor saved, or undefined
 for (;;) {
   const res = await sl.subgraphs.rows("sbtc-flows", "transfers", { cursor, order: "asc", limit: 100 });
   for (const row of res.rows) await handle(row);
+  // !ref[/next_cursor/] next
   cursor = res.next_cursor ?? cursor;
   await saveCursor(cursor);
   if (res.rows.length < 100) await new Promise((r) => setTimeout(r, 5_000));
 }
 ```
 
-`next_cursor` comes back on every page that has rows, and is `null` only on an empty page, so `cursor = res.next_cursor ?? cursor` keeps your place while nothing new arrives. A paging loop that reads a whole table ends on an empty or short page. A reorg rewrites the affected rows under new `_id`s: polling sees the new rows, not the removed ones, so wait until a row is a few blocks behind `tip` before you move money on it.
+[`next_cursor`](hover:next) comes back on every page that has rows, and is `null` only on an empty page, so `cursor = res.next_cursor ?? cursor` keeps your place while nothing new arrives. A paging loop that reads a whole table ends on an empty or short page. A reorg rewrites the affected rows under new `_id`s: polling sees the new rows, not the removed ones, so wait until a row is a few blocks behind `tip` before you move money on it.
 
 #### Typed ORM schemas (codegen)
 
