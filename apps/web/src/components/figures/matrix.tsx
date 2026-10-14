@@ -8,13 +8,14 @@ export type MatrixCell = {
 	titleNote?: string;
 	role?: "a" | "b";
 	body: ReactNode;
-	cost?: { label: string; tone: "cheap" | "dear" };
+	/** The outcome line under the card; `href` makes it a link to that path. */
+	cost?: { label: string; tone: "cheap" | "dear"; href?: string };
 };
 
 /**
- * A3 Matrix — side-by-side tradeoff/asymmetry cards. Role is carried by a
- * dot marker before the term (never an accent stripe); costs are chips in
- * the ok/alarm semantic colors.
+ * A3 Matrix: side-by-side tradeoff cards in one bordered grid. Role is
+ * carried by a dot marker before the term (never an accent stripe); each
+ * card ends on its outcome line in the ok/alarm semantic colors.
  */
 export function Matrix({ cells }: { cells: MatrixCell[] }) {
 	return (
@@ -32,9 +33,18 @@ export function Matrix({ cells }: { cells: MatrixCell[] }) {
 					{cell.body}
 					{cell.cost && (
 						<p>
-							<span className={`fig-cost ${cell.cost.tone}`}>
-								{cell.cost.label}
-							</span>
+							{cell.cost.href ? (
+								<a
+									className={`fig-cost ${cell.cost.tone}`}
+									href={cell.cost.href}
+								>
+									{cell.cost.label}
+								</a>
+							) : (
+								<span className={`fig-cost ${cell.cost.tone}`}>
+									{cell.cost.label}
+								</span>
+							)}
 						</p>
 					)}
 				</div>

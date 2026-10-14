@@ -4699,6 +4699,14 @@ body:has(.marketing-nav) .auth-bar {
 	color: var(--ink);
 }
 
+/* A linked outcome keeps the figure's ink, not the post's blue links. */
+.writing-article p a.fig-cost {
+	color: var(--text-main);
+	text-decoration-color: var(--border);
+}
+.writing-article p a.fig-cost:hover {
+	text-decoration-color: currentColor;
+}
 .fig-cost::before {
 	content: "→ ";
 }
