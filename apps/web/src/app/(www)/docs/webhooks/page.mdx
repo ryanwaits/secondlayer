@@ -25,14 +25,16 @@ What arrives and how to trust it: [Receive and verify](#receive-and-verify). A w
 
 A webhook takes a `triggers` array (1–50). Use the `trigger.*` factories or the equivalent raw objects.
 
-```ts
+```ts create-webhook.ts
 import { trigger } from "@secondlayer/sdk";
 
 await sl.webhooks.create({
   name: "amm-swaps",
   url: "https://my-app.com/webhook",
   triggers: [
+    // !callout[/swap/] Wildcards are allowed.
     trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" }),
+    // !callout[/trait/] Scopes to a SIP trait.
     trigger.ftTransfer({ trait: "sip-010", minAmount: "1000000" }),
   ],
 });
@@ -89,11 +91,12 @@ Each trigger is validated before provisioning; the signing secret prints once.
 
 `secondlayer webhooks test <idOrName> --post` sends a logged test delivery:
 
-```json
+```json delivery.json
 {
   "type": "chain.test.apply",
   "timestamp": "2026-05-01T12:00:00.000Z",
   "data": {
+    // !mark[/true/]
     "test": true,
     "message": "Secondlayer test delivery",
     "webhook_id": "sub-…",
@@ -158,7 +161,7 @@ Fetch the public key once and cache it; rotate on the `keyid` header. Failed del
 
 A matched event delivers `chain.{trigger}.apply`. On `standard-webhooks` the body is `{ type, timestamp, data }`:
 
-```json
+```json delivery.json
 {
   "type": "chain.stx_transfer.apply",
   "timestamp": "2026-05-01T12:00:00.000Z",
@@ -168,8 +171,10 @@ A matched event delivers `chain.{trigger}.apply`. On `standard-webhooks` the bod
     "tx_id": "0x…",
     "block_hash": "0x…",
     "block_height": 8445086,
+    // !mark[/block_time/]
     "block_time": "2026-05-01T11:59:48.000Z",
     "canonical": true,
+    // !collapse(1:6)
     "event": {
       "type": "stx_transfer_event",
       "event_index": 2240,
@@ -202,18 +207,20 @@ A chain-webhook delivery and a [Streams](/docs/streams) event are structurally u
 
 After the signature verifies, decode:
 
-```ts
+```ts webhook-handler.ts
 import { decodeChainWebhook, decodeClarityValue } from "@secondlayer/sdk";
 
 const delivery = decodeChainWebhook(rawBody); // throws if the body isn't a chain.* delivery
 
 if ("trigger" in delivery.data) {
+  // !callout[/data\.trigger/] Switch on this, never event.type.
   switch (delivery.data.trigger) {
     case "stx_transfer":
       delivery.data.event.data.amount; // fully typed
       break;
     case "contract_call":
       // event is flat here (no nested `.data`); function_args are raw hex
+      // !callout[/decodeClarityValue/] Decode each raw argument yourself.
       delivery.data.event.function_args?.map(decodeClarityValue);
       break;
   }
