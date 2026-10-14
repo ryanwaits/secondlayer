@@ -126,9 +126,7 @@ function paint(root: ParentNode = document) {
 			if (frame) keyed.add(frame);
 		} else if (slot.hasAttribute("data-key")) restore(slot);
 	}
-	for (const frame of root.querySelectorAll<HTMLElement>(
-		".cb-tabs, .cb:not(.tabbed)",
-	))
+	for (const frame of root.querySelectorAll<HTMLElement>(".cb-tabs"))
 		if (frame.querySelector("[data-key-slot]")) note(frame, keyed.has(frame));
 	for (const link of root.querySelectorAll<HTMLElement>("[data-key-signin]"))
 		link.hidden = true;

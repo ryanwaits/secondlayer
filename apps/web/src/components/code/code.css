@@ -61,31 +61,20 @@
 .cb.bare .more {
 	padding-right: 64px;
 }
-.cb.bare > .copy,
-.cb.bare > .key-ctl {
+.cb.bare > .copy {
 	position: absolute;
 	top: 8px;
 	right: 8px;
 	background: var(--paper);
 	opacity: 0;
 }
-.cb.bare > .key-ctl {
-	right: 72px;
-}
-.cb.bare.key .row {
-	padding-right: 300px;
-}
 .cb.bare:hover > .copy,
-.cb.bare:hover > .key-ctl,
 .cb.bare > .copy:focus-visible,
-.cb.bare > .key-ctl:focus-within,
-.cb.bare > .key-ctl:has([data-key-chip]:not([hidden])),
 .cb.bare > .copy[data-done] {
 	opacity: 1;
 }
 @media (hover: none) {
-	.cb.bare > .copy,
-	.cb.bare > .key-ctl {
+	.cb.bare > .copy {
 		opacity: 1;
 	}
 }
@@ -720,6 +709,71 @@
 .docs-article .cb {
 	margin-top: 18px;
 }
+.docs-article .cf.key {
+	margin-top: 18px;
+}
+
+/* The docs key as a figure note. Under the block by default; in the margin only where docs have room. */
+.cf.key {
+	margin-right: 0;
+}
+.cf.key .cf-notes {
+	position: static;
+	display: block;
+	width: auto;
+	margin-top: 0;
+	padding-left: 0;
+}
+.cf.key .cf-note[data-key-note] {
+	position: static;
+	margin-top: 10px;
+	line-height: var(--lh);
+	white-space: normal;
+}
+.cf.key .cf-note[data-key-note]::before {
+	display: none;
+}
+.cf .cf-note[data-key-note] b {
+	color: var(--ink);
+}
+.cf-note[data-key-note]:not(:has(.key-ctl > :not([hidden]))) {
+	display: none;
+}
+@media (min-width: 1600px) {
+	.docs-article .cf.key:not(.under) .cf-notes {
+		position: absolute;
+		inset-block: 0;
+		left: 100%;
+		width: var(--notes);
+		padding-left: 36px;
+	}
+	.docs-article .cf.key:not(.under) .cf-note[data-key-note] {
+		position: absolute;
+		top: calc(var(--nt) + var(--i) * var(--lh));
+		left: 36px;
+		margin: 0;
+		white-space: nowrap;
+	}
+	.docs-article .cf.key:not(.under) .cf-note[data-key-note]::before {
+		display: block;
+	}
+}
+@media (min-width: 1600px) and (hover: hover) and (
+		prefers-reduced-motion: no-preference
+	) {
+	.docs-article .cf.key:not(.under) .cf-note[data-key-note] {
+		transition: opacity 160ms ease-out;
+	}
+}
+@media (min-width: 1600px) and (hover: hover) {
+	.docs-article .cf.key:not(.under) .cf-note[data-key-note] {
+		opacity: 0.55;
+	}
+	.docs-article .cf.key:not(.under):hover .cf-note[data-key-note],
+	.docs-article .cf.key:not(.under) .cf-note[data-key-note]:focus-within {
+		opacity: 1;
+	}
+}
 
 /* A docs key in a sample. The real key stays in the slot (so Copy reads it) and
    is shown only on Reveal; the mask is generated content, never text. */
@@ -756,15 +810,15 @@
 }
 
 /* Key controls are links, not buttons: grey to sign in, blue to act. */
-.cb .key-ctl {
+.key-ctl {
 	display: inline-flex;
 	align-items: center;
 	gap: 14px;
 }
-.cb .key-ctl > [hidden] {
+.key-ctl > [hidden] {
 	display: none;
 }
-.cb .key-link {
+.key-link {
 	padding: 6px 0;
 	border: 0;
 	background: none;
@@ -775,18 +829,18 @@
 	text-underline-offset: 3px;
 	cursor: pointer;
 }
-.cb .key-link:hover {
+.key-link:hover {
 	text-decoration-color: currentColor;
 }
-.cb .key-link:disabled {
+.key-link:disabled {
 	opacity: 0.6;
 	cursor: default;
 }
-.cb .key-signin {
+.key-signin {
 	color: var(--sub);
 	text-decoration-color: var(--line);
 }
-.cb .key-chip {
+.key-chip {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -797,17 +851,17 @@
 	font: 400 12px / 1 var(--font-mono-stack);
 	cursor: pointer;
 }
-.cb .key-chip::before {
+.key-chip::before {
 	content: "";
 	width: 6px;
 	height: 6px;
 	border-radius: 50%;
 	background: var(--ok);
 }
-.cb .key-chip[data-state="expired"] {
+.key-chip[data-state="expired"] {
 	color: var(--alarm);
 }
-.cb .key-chip[data-state="expired"]::before {
+.key-chip[data-state="expired"]::before {
 	background: var(--alarm);
 }
 .cb .key-note {

@@ -14,6 +14,7 @@ import {
 	esc,
 	escAttr,
 	figureNote,
+	marginNote,
 	planAnnotations,
 	renderTokens,
 } from "./handlers";
@@ -70,6 +71,10 @@ export type RenderedCode = {
 	notes: string;
 	/** Where the first row starts below the figure's top edge, for the notes to align to. */
 	noteTop: string;
+	/** Whether a bare block's docs key controls live in a margin note beside it instead of its frame. */
+	keyed: boolean;
+	/** Whether the key note may sit in the page margin: its row index lines up with its line. */
+	margin: boolean;
 };
 
 /**
@@ -225,11 +230,30 @@ export async function renderCode({
 			? '<button type="button" class="copy" data-copy-button>Copy</button>'
 			: "";
 	// Hidden until the page knows who is reading (never server-rendered visible).
-	const useKey = copyable && hasKey && !tabbed ? KEY_CONTROLS : "";
 	const barTitle = title ?? options.title;
 	const hasBar =
 		!tabbed &&
 		(Boolean(barTitle) || options.exit != null || options.status != null);
+	const useKey = copyable && hasKey && !tabbed && hasBar ? KEY_CONTROLS : "";
+	// A bare block's key controls leave the frame for a margin note on the key's own line.
+	const bareKey = copyable && hasKey && !tabbed && !hasBar;
+	const keyLine = plan.lines.findIndex((l) =>
+		l.ranges.some((r) => r.kind === "key"),
+	);
+	// Callout, error and fold rows have their own heights, so row-index alignment only holds before them.
+	const margin =
+		bareKey &&
+		keyLine >= 0 &&
+		!options.wrap &&
+		(clampAt === null || keyLine < clampAt) &&
+		!plan.collapses.some((c) => c.from <= keyLine) &&
+		!plan.lines
+			.slice(0, keyLine)
+			.some((l) => l.callouts.length || l.errors.length);
+	if (bareKey && keyLine >= 0)
+		notes.push(
+			marginNote(keyLine, keyLine + start, KEY_CONTROLS, " data-key-note"),
+		);
 	const body = `<div class="cb-body${options.wrap ? " soft-wrap" : ""}${hanging ? " hang" : ""}" style="--gut:calc(${gutter});--lnw:${lineNumberWidth}ch">${rows}</div>`;
 	const bar = hasBar
 		? `<div class="cb-bar">${
@@ -247,15 +271,13 @@ export async function renderCode({
 			}${useKey}${copy}</span></div>`
 		: "";
 	return {
-		className: tabbed
-			? "cb tabbed"
-			: hasBar
-				? "cb"
-				: `cb bare${useKey ? " key" : ""}`,
+		className: tabbed ? "cb tabbed" : hasBar ? "cb" : "cb bare",
 		copyable,
 		hasKey: copyable && hasKey,
-		html: `${bar}${body}${hasBar ? "" : `${useKey}${copy}`}`,
+		html: `${bar}${body}${hasBar ? "" : copy}`,
 		notes: notes.join(""),
+		keyed: bareKey && keyLine >= 0,
+		margin,
 		// The frame's border, the bar, then the body's padding; a tab group's bar sits outside the pane.
 		noteTop: tabbed ? "12px" : hasBar ? "calc(var(--bar) + 13px)" : "13px",
 	};
@@ -265,10 +287,14 @@ export async function renderCode({
 export const frameOf = (r: RenderedCode) =>
 	`<div class="${r.className}"${r.copyable ? " data-copyable" : ""}>${r.html}</div>`;
 
+/** A figure's wrapper class: a docs key note makes it `key`, and `under` when it cannot sit in the margin. */
+const figureClass = (r: RenderedCode) =>
+	`cf${r.keyed ? " key" : ""}${r.keyed && !r.margin ? " under" : ""}`;
+
 /** A figure: the frame beside its notes (`.cf`), or the bare frame when it has none. */
 export const figureOf = (r: RenderedCode) =>
 	r.notes
-		? `<div class="cf" style="--nt:${r.noteTop}">${frameOf(r)}<div class="cf-notes">${r.notes}</div></div>`
+		? `<div class="${figureClass(r)}" style="--nt:${r.noteTop}">${frameOf(r)}<div class="cf-notes">${r.notes}</div></div>`
 		: frameOf(r);
 
 /** `renderCode` as one element: the block's frame, its contents a single string. */
@@ -278,7 +304,7 @@ export async function Code(props: CodeProps) {
 	if (rendered.notes)
 		return (
 			<div
-				className="cf"
+				className={figureClass(rendered)}
 				style={{ "--nt": rendered.noteTop } as CSSProperties}
 				// biome-ignore lint/security/noDangerouslySetInnerHtml: built by `renderCode`, which escapes every dynamic value
 				dangerouslySetInnerHTML={{

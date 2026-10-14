@@ -315,6 +315,20 @@ describe("base url swap", () => {
 	});
 });
 
+describe("figure notes", () => {
+	test("a figure note keeps its exact markup", async () => {
+		const out = await html({
+			lang: "ts",
+			variant: "figure",
+			code: "// !callout[/a/] why\nconst a = 1;",
+		});
+		expect(out).toContain(
+			'<p class="cf-note" style="--i:0" data-note="0"><b>1</b><span>why</span></p>',
+		);
+		expect(out).toContain('<div class="cf" style=');
+	});
+});
+
 describe("figure variant", () => {
 	const source = [
 		"await sl.streams.consume({",
@@ -417,10 +431,33 @@ describe("docs key slots", () => {
 		expect(out).toContain("data-key-slot data-quote>");
 	});
 
-	test("a bare block floats the control beside Copy", async () => {
-		const out = await html({ lang: "sh", code: curl });
-		expect(out).toContain('class="cb bare key"');
-		expect(out).toContain("data-use-key hidden");
+	test("a bare block moves the key controls into a margin note on the key's line", async () => {
+		const out = await html({
+			lang: "sh",
+			code: `echo start\n${curl}`,
+		});
+		expect(out).toContain('class="cf key"');
+		expect(out).toContain(
+			`<p class="cf-note" style="--i:1" data-key-note><b>2</b>${KEY_CONTROLS}</p>`,
+		);
+		const frame = out.slice(0, out.indexOf('<div class="cf-notes">'));
+		expect(frame).toContain('class="cb bare"');
+		expect(frame).not.toContain("data-use-key");
+	});
+
+	test("a callout before the key line sends the note under the block", async () => {
+		const out = await html({
+			lang: "ts",
+			code: "// !callout[/fetch/] the call\nawait fetch(url);\nconst key = process.env.SECONDLAYER_API_KEY;",
+		});
+		expect(out).toContain('class="cf key under"');
+	});
+
+	test("a titled block keeps the key controls in its bar", async () => {
+		const out = await html({ lang: "sh", title: "tip", code: curl });
+		expect(out).toContain(`${KEY_CONTROLS}<button type="button" class="copy"`);
+		expect(out).not.toContain("data-key-note");
+		expect(out).not.toContain('class="cf');
 	});
 
 	test("a block without the variable has neither control nor slot", async () => {
