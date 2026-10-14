@@ -11,6 +11,8 @@ curl -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   "$SECONDLAYER_API_URL/v1/index/events?limit=5"
 ```
 
+Signed in, a sample's **Use my key** button fills `$SECONDLAYER_API_KEY` with a docs key. It reads Streams and Index only, expires after 24 hours, and shows on your account page, where you can revoke it. Copy gives the real key; the page shows only its last four characters.
+
 Your own box takes a different credential, the instance token: [Self-host](/docs/self-host#instance-token). Never put `sk-sl_*` in `INSTANCE_TOKEN`, or the hex token in `SECONDLAYER_API_KEY`.
 
 ### What it costs
