@@ -2879,6 +2879,17 @@
 	font: 500 26px / 1 var(--font-sans-stack);
 	letter-spacing: -0.03em;
 }
+.site.pricing .stmt-row .amt.muted {
+	color: var(--faint);
+}
+.site.pricing .stmt-foot {
+	padding: 0 18px 14px;
+	font-size: 12px;
+	color: var(--sub);
+}
+.site.pricing .stmt-foot a {
+	color: var(--pri);
+}
 
 .site.pricing .freegrid {
 	display: grid;

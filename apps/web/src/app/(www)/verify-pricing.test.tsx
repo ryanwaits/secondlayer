@@ -76,7 +76,8 @@ describe("/pricing", () => {
 		expect(pricing).toContain("$0.028 / GB-hour");
 		expect(pricing).toContain("$10 / 1M events");
 		expect(pricing).toContain("$0.05 blocks or transactions");
-		expect(pricing).toContain("$43.32");
+		expect(pricing).toContain("Statement · first month");
+		expect(pricing).toContain("$0.00");
 	});
 
 	test("the sample statement is labelled as an example", () => {

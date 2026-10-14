@@ -43,14 +43,13 @@ const MEMORY_USD_PER_GB_MONTH = Math.round(
 	MEMORY_USD_PER_GB_HOUR * HOURS_PER_MONTH,
 );
 
-/** The example statement in the hero: every figure comes from the estimator math. */
+/** The hero's example statement: a first month that stays inside every free
+ *  allowance, so the first price on the page is $0. Figures come from the
+ *  estimator math. */
 const EXAMPLE = {
-	rows: 6_000_000,
+	rows: 640_000,
 	headers: 43_800,
-	storageGb: 0.4,
-	webhookEvents: 800_000,
 	checks: 31,
-	retries: 3_214,
 } as const;
 
 const count = new Intl.NumberFormat("en-US");
@@ -119,10 +118,10 @@ const FREE_GRID: readonly {
 export default function PricingPage() {
 	const example = estimateMonth({
 		rows: EXAMPLE.rows,
-		running: true,
-		memoryGb: STACK_MEMORY_FLOOR_GB,
-		storageGb: EXAMPLE.storageGb,
-		webhookEvents: EXAMPLE.webhookEvents,
+		running: false,
+		memoryGb: 0,
+		storageGb: 0,
+		webhookEvents: 0,
 	});
 
 	return (
@@ -150,20 +149,22 @@ export default function PricingPage() {
 						<div
 							className="stmt"
 							role="img"
-							aria-label={`Example monthly statement totalling ${usdExact(example.totalUsd)}, with free lines for the first million rows, block headers, retries and verification`}
+							aria-label={`Example first-month statement totalling ${usdExact(example.totalUsd)}: rows under the free million, block headers and verification all free, no hosted stack`}
 						>
 							<div className="stmt-head">
-								<b>Statement · October</b>
+								<b>Statement · first month</b>
 								<span>example statement</span>
 							</div>
 							<div className="stmt-rows">
 								<div className="stmt-row">
 									<span>Rows delivered</span>
 									<span className="q">
-										{count.format(EXAMPLE.rows)} · first{" "}
+										{count.format(EXAMPLE.rows)} · under the{" "}
 										{count.format(FREE_ROWS_PER_MONTH)} free
 									</span>
-									<span className="amt">{usdExact(example.rowsUsd)}</span>
+									<span className="amt">
+										<span className="free">free</span>
+									</span>
 								</div>
 								<div className="stmt-row">
 									<span>Block headers</span>
@@ -175,36 +176,17 @@ export default function PricingPage() {
 									</span>
 								</div>
 								<div className="stmt-row">
-									<span>Hosted stack · memory</span>
-									<span className="q">
-										{STACK_MEMORY_FLOOR_GB} GB × {HOURS_PER_MONTH} h
-									</span>
-									<span className="amt">{usdExact(example.memoryUsd)}</span>
-								</div>
-								<div className="stmt-row">
-									<span>Hosted stack · storage</span>
-									<span className="q">{EXAMPLE.storageGb} GB-month</span>
-									<span className="amt">{usdExact(example.storageUsd)}</span>
-								</div>
-								<div className="stmt-row">
-									<span>Webhook events</span>
-									<span className="q">
-										{count.format(EXAMPLE.webhookEvents)} delivered
-									</span>
-									<span className="amt">{usdExact(example.webhooksUsd)}</span>
-								</div>
-								<div className="stmt-row">
-									<span>Webhook retries</span>
-									<span className="q">{count.format(EXAMPLE.retries)}</span>
-									<span className="amt">
-										<span className="free">free</span>
-									</span>
-								</div>
-								<div className="stmt-row">
 									<span>verify · proofs</span>
 									<span className="q">{EXAMPLE.checks} checks</span>
 									<span className="amt">
 										<span className="free">free</span>
+									</span>
+								</div>
+								<div className="stmt-row">
+									<span>Hosted stack</span>
+									<span className="q">not running</span>
+									<span className="amt muted">
+										{usdExact(example.memoryUsd)}
 									</span>
 								</div>
 							</div>
@@ -212,6 +194,10 @@ export default function PricingPage() {
 								<span>Total</span>
 								<b>{usdExact(example.totalUsd)}</b>
 							</div>
+							<p className="stmt-foot">
+								Past {FREE_ROWS_LABEL}: {usd(ROW_USD_PER_M)} per 1M.{" "}
+								<a href="#estimate">Estimate a bigger month →</a>
+							</p>
 						</div>
 					</div>
 				</div>
