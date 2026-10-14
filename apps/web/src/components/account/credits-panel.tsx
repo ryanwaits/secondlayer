@@ -1,5 +1,6 @@
 "use client";
 
+import { AmountPicker } from "@/components/amount-picker";
 import {
 	type BalanceAlerts,
 	type Billing,
@@ -100,7 +101,7 @@ type Checkout = ReturnType<typeof useCheckout>;
 /** The four amounts the API sells, as one radio group. `rateDayUsdMicros`
  *  and `stopped` drive each pack's "about N days at this rate" /
  *  "starts your service again" sub-label (Design step 8). */
-function AmountPicker({
+export function CreditAmounts({
 	co,
 	wide = false,
 	rateDayUsdMicros = 0,
@@ -114,30 +115,22 @@ function AmountPicker({
 	// Its own radio group: the page and the card can both be on screen.
 	const group = useId();
 	return (
-		<fieldset
-			id={wide ? "packs" : undefined}
-			className={wide ? "acct-packs wide" : "acct-packs"}
-		>
-			<legend>Amount</legend>
-			{PACKS_USD.map((usd) => (
-				<label key={usd} className="acct-pack">
-					<input
-						type="radio"
-						name={group}
-						value={usd}
-						checked={co.amount === usd}
-						onChange={() => co.setAmount(usd)}
-					/>
-					<span className="acct-pack-main">
-						<span className="acct-pack-amount">${usd}</span>
-						<span className="acct-pack-dot" aria-hidden="true" />
-					</span>
-					<span className="acct-pack-days">
-						{packDaysLabel(usd, rateDayUsdMicros, stopped)}
-					</span>
-				</label>
-			))}
-		</fieldset>
+		<div id={wide ? "packs" : undefined}>
+			<AmountPicker
+				name={group}
+				legend="Amount"
+				options={PACKS_USD.map((usd) => ({
+					value: String(usd),
+					label: `$${usd}`,
+					caption: packDaysLabel(usd, rateDayUsdMicros, stopped),
+				}))}
+				value={String(co.amount)}
+				onChange={(v) => {
+					const usd = PACKS_USD.find((p) => String(p) === v);
+					if (usd) co.setAmount(usd);
+				}}
+			/>
+		</div>
 	);
 }
 
@@ -190,7 +183,7 @@ export function CreditsCard({
 			footer={<CheckoutAction co={co} />}
 		>
 			<BalanceStats billing={billing} />
-			<AmountPicker
+			<CreditAmounts
 				co={co}
 				rateDayUsdMicros={burn ? Number(burn.rateDayUsdMicros) : 0}
 			/>
@@ -718,7 +711,7 @@ export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
 			<UsageSection monthState={monthState} service={service} />
 			<BalanceAlertsSection />
 			<h2 className="acct-h2">Add credits</h2>
-			<AmountPicker
+			<CreditAmounts
 				co={co}
 				wide
 				rateDayUsdMicros={rateDayUsdMicros}

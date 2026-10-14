@@ -2303,35 +2303,9 @@
 	display: block;
 	margin-bottom: 0;
 }
-.site .packs {
+.site .panel .pick {
 	display: grid;
-	grid-template-columns: repeat(4, 1fr);
-	gap: 8px;
-}
-.site .packs button {
-	height: 52px;
-	border: 1px solid var(--line);
-	border-radius: 4px;
-	background: none;
-	color: var(--ink);
-	font: inherit;
-	font-size: 20px;
-	font-weight: 500;
-	letter-spacing: -0.02em;
-	font-variant-numeric: tabular-nums;
-	cursor: pointer;
-}
-.site .packs button:hover {
-	border-color: var(--sub);
-}
-.site .packs button[aria-pressed="true"] {
-	border-color: var(--pri);
-	box-shadow: inset 0 0 0 1px var(--pri);
-}
-@media (max-width: 420px) {
-	.site .packs button {
-		font-size: 17px;
-	}
+	gap: 10px;
 }
 .site .panel .field {
 	display: grid;

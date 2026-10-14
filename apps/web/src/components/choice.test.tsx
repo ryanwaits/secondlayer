@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { findElements } from "../lib/test-render";
+import { checkedRadios, findElements } from "../lib/test-render";
 import { Choice } from "./choice";
 
 const OPTIONS = [
@@ -26,10 +26,7 @@ describe("Choice", () => {
 		const html = renderToStaticMarkup(
 			<Choice name="role" legend="I'm a" options={OPTIONS} defaultValue="b" />,
 		);
-		expect(html.match(/checked=""/g)).toHaveLength(1);
-		expect(html).toMatch(
-			/<input[^>]*value="b"[^>]*checked=""|checked=""[^>]*value="b"/,
-		);
+		expect(checkedRadios(html)).toEqual({ role: "b" });
 	});
 
 	test("a controlled value is the checked one, and picking another reports it", () => {

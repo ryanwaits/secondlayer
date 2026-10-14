@@ -1,9 +1,11 @@
 "use client";
 
+import { AmountPicker } from "@/components/amount-picker";
 import { PUBLIC_API_URL } from "@/lib/public-api";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 const PACKS = [10, 25, 50, 100] as const;
+const PACK_OPTIONS = PACKS.map((p) => ({ value: String(p), label: `$${p}` }));
 
 /**
  * Inline credits purchase: pack templates, amount and email, handed off to
@@ -16,7 +18,6 @@ export function ArchiveCredits() {
 	const [email, setEmail] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const amountRef = useRef<HTMLInputElement>(null);
 
 	const isPack = (PACKS as readonly number[]).includes(amount);
 	// Partition prices in cents: $0.05 block or transaction, $0.15 event.
@@ -55,31 +56,24 @@ export function ArchiveCredits() {
 						if (isPack) void checkout();
 					}}
 				>
-					<fieldset>
-						<legend>Pack</legend>
-						<div className="packs">
-							{PACKS.map((p) => (
-								<button
-									key={p}
-									type="button"
-									aria-pressed={amount === p}
-									onClick={() => {
-										setAmount(p);
-										amountRef.current?.focus();
-									}}
-								>
-									${p}
-								</button>
-							))}
-						</div>
-					</fieldset>
+					<div className="pick">
+						<span className="lab" id="archive-pack">
+							Pack
+						</span>
+						<AmountPicker
+							name="pack"
+							labelledBy="archive-pack"
+							options={PACK_OPTIONS}
+							value={String(amount)}
+							onChange={(v) => setAmount(Number(v))}
+						/>
+					</div>
 
 					<label className="field">
 						<span className="lab">Amount</span>
 						<span className="amount">
 							<span aria-hidden="true">$</span>
 							<input
-								ref={amountRef}
 								type="number"
 								inputMode="numeric"
 								min={1}

@@ -1454,74 +1454,6 @@ a mark {
 	outline: none;
 	border-color: var(--text-main);
 }
-.acct-packs {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 10px;
-	margin: 0;
-	padding: 0;
-	border: 0;
-}
-.acct-packs legend {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	overflow: hidden;
-	clip: rect(0 0 0 0);
-	white-space: nowrap;
-}
-.acct-packs.wide {
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.acct-pack {
-	position: relative;
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	padding: 16px;
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	cursor: pointer;
-}
-.acct-pack input {
-	position: absolute;
-	opacity: 0;
-	width: 1px;
-	height: 1px;
-}
-.acct-pack:has(input:checked) {
-	border-color: var(--pri);
-	box-shadow: inset 0 0 0 1px var(--pri);
-}
-.acct-pack:has(input:focus-visible) {
-	outline: 2px solid var(--accent);
-	outline-offset: 2px;
-}
-.acct-pack-main {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-}
-.acct-pack-amount {
-	font-family: var(--font-mono-stack);
-	font-size: 18px;
-	font-weight: 500;
-	color: var(--text-main);
-}
-.acct-pack-dot {
-	width: 16px;
-	height: 16px;
-	box-sizing: border-box;
-	border-radius: 999px;
-	border: 1.5px solid var(--border-hover);
-}
-.acct-pack-days {
-	font-size: 11.5px;
-	color: var(--text-muted);
-}
-.acct-pack:has(input:checked) .acct-pack-dot {
-	border: 5px solid var(--pri);
-}
 .acct-checkout {
 	display: flex;
 	flex-direction: column;
@@ -3406,9 +3338,6 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	.acct-side-head,
 	.acct-side-email {
 		display: none;
-	}
-	.acct-packs.wide {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 	.acct-checkout.wide {
 		flex-direction: column;
@@ -7287,7 +7216,8 @@ a.acct-strip-link:hover .acct-strip-k {
 /* ── Choice: pick one value (components/choice.tsx) ──
  * Joined cells, 4px corner. Selected = ink fill. The fieldset is the size
  * container, so narrow rules need no script. */
-.choice {
+.choice,
+.amount-picker {
 	margin: 0;
 	padding: 0;
 	border: 0;
@@ -7375,6 +7305,72 @@ a.acct-strip-link:hover .acct-strip-k {
 }
 @media (prefers-reduced-motion: reduce) {
 	.choice-cell span {
+		transition: none;
+	}
+}
+
+/* ── Amount picker: pick one amount (components/amount-picker.tsx) ──
+ * Boxes, 4px corner. Selected = ink border + soft fill, never blue: the
+ * action button under it owns blue. Two columns under 480px of width. */
+.amount-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 10px;
+}
+.amount-box {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 4px;
+	min-height: 52px;
+	padding: 8px 12px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	cursor: pointer;
+	transition: border-color var(--duration-snappy) var(--ease-snappy);
+}
+.amount-box:hover {
+	border-color: var(--sub);
+}
+.amount-box:has(input:checked) {
+	border-color: var(--ink);
+	background: var(--soft);
+}
+.amount-box:has(input:focus-visible) {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+.amount-box input {
+	position: absolute;
+	inset: 0;
+	margin: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+.amount-main {
+	font: 500 20px/1 var(--font-sans-stack);
+	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums;
+	color: var(--ink);
+}
+.amount-caption {
+	font-size: 12px;
+	line-height: 1.35;
+	color: var(--sub);
+}
+.amount-box:has(.amount-caption) {
+	align-items: flex-start;
+	padding: 12px 14px;
+}
+@container (max-width: 479px) {
+	.amount-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.amount-box {
 		transition: none;
 	}
 }

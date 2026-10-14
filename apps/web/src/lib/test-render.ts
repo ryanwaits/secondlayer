@@ -16,25 +16,40 @@ export async function renderAsync(node: ReactNode): Promise<string> {
 	return (await new Response(prelude).text()).replaceAll("<!-- -->", "");
 }
 
+/** What a browser would put in FormData for the radios in this markup:
+ *  field name -> the checked value. Static markup has no DOM to ask. */
+export function checkedRadios(html: string): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const tag of html.match(/<input[^>]*type="radio"[^>]*>/g) ?? []) {
+		const name = tag.match(/name="([^"]*)"/)?.[1];
+		const value = tag.match(/value="([^"]*)"/)?.[1];
+		if (name && value !== undefined && /\schecked=""/.test(tag)) {
+			out[name] = value;
+		}
+	}
+	return out;
+}
+
 /** The props a form control carries that tests read back. */
 export type ControlProps = {
 	children?: ReactNode;
 	value?: string;
 	checked?: boolean;
-	onChange?: () => void;
+	onChange?: (...args: string[]) => void;
 };
 
-/** Every element of a component's returned tree with the given tag. Walks
- *  elements only, so call function components directly to see inside them. */
+/** Every element of a component's returned tree with the given tag or
+ *  component. Walks elements only, so call function components directly to
+ *  see inside them. */
 export function findElements(
 	node: ReactNode,
-	tag: string,
+	type: ReactElement["type"],
 ): ReactElement<ControlProps>[] {
 	if (!isValidElement<ControlProps>(node)) return [];
 	return [
-		...(node.type === tag ? [node] : []),
+		...(node.type === type ? [node] : []),
 		...Children.toArray(node.props.children).flatMap((c) =>
-			findElements(c, tag),
+			findElements(c, type),
 		),
 	];
 }
