@@ -1054,8 +1054,8 @@ a mark {
 	justify-content: center;
 	flex: none;
 	border-radius: 2px;
-	background: var(--ink);
-	color: var(--paper);
+	background: var(--pri);
+	color: var(--on-pri);
 	font-family: var(--font-sans-stack);
 	font-weight: 500;
 }
