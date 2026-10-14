@@ -5817,7 +5817,7 @@ input[type="range"].fig-range {
 
 .fig-layer {
 	border: 1px solid var(--border);
-	border-radius: 6px;
+	border-radius: 4px;
 	padding: 11px 16px;
 	background: var(--bg-chrome);
 	font-family: var(--font-mono-stack);
@@ -5863,12 +5863,12 @@ input[type="range"].fig-range {
 
 .fig-layer.on {
 	transform: translateX(10px);
-	border-color: var(--accent-blue);
+	border-color: var(--ink);
 }
 
 .fig-layer:focus-visible {
-	outline: none;
-	border-color: var(--accent-blue);
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
 }
 
 .fig-stack-note {
@@ -6318,7 +6318,7 @@ input[type="range"].fig-range {
 	font-size: 12.5px;
 	padding: 10px 14px;
 	min-height: 44px;
-	border-radius: 6px;
+	border-radius: 4px;
 	border: 1px solid var(--border);
 	background: transparent;
 	color: var(--text-main);
@@ -6331,8 +6331,8 @@ input[type="range"].fig-range {
 }
 
 .fig-popt:focus-visible {
-	outline: none;
-	border-color: var(--accent-blue);
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
 }
 
 .fig-popt[data-state="right"] {
@@ -6396,7 +6396,7 @@ input[type="range"].fig-range {
 	text-align: left;
 	background: var(--bg-chrome);
 	border: 1px solid var(--border);
-	border-radius: 6px;
+	border-radius: 4px;
 	font-family: var(--font-mono-stack);
 	font-size: 12px;
 	padding: 8px 11px;
@@ -6416,13 +6416,13 @@ input[type="range"].fig-range {
 }
 
 .fig-xchip.hot {
-	border-color: var(--accent-blue);
-	color: var(--accent-blue);
+	border-color: var(--ink);
+	color: var(--ink);
 }
 
 .fig-xchip:focus-visible {
-	outline: none;
-	border-color: var(--accent-blue);
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
 }
 
 .fig-xval {
