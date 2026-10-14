@@ -32,7 +32,7 @@ The tell is when your "just fetch the transfers" helper crosses a few hundred li
 
 ## Option two: write one on purpose
 
-The honest version is a real project. You run a node, or pay someone for access to theirs. You take a firehose of events and turn it into rows. You decode Clarity values into things a database can hold. You backfill years of history before any of it is useful, and then you keep up with the tip forever.
+The honest version is a real project. You run a node, or pay someone for access to theirs. You take a firehose of events and turn it into rows. You decode <ChainLink chain="clarity">Clarity</ChainLink> values into things a database can hold. You backfill years of history before any of it is useful, and then you keep up with the tip forever.
 
 And then there's the part nobody warns you about, which is that the chain can change its mind. Blocks near the tip are provisional; the network occasionally decides the last few were a mistake and continues down a different branch. Your database now contains rows describing events that no longer happened, and undoing them correctly is harder than writing them was.
 
@@ -42,7 +42,7 @@ None of that is about your product. All of it is between you and the screen you 
 
 Secondlayer is that work, already done, running on your hardware.
 
-It sits next to a Stacks node and turns the chain into decoded rows in a database you operate. History comes from a signed archive, so you restore in hours instead of syncing for two weeks. Reorgs roll back cleanly because that's the whole job and we've been wrong about it enough times to get it right.
+It sits next to a Stacks node and turns the chain into decoded rows in a database you operate. History comes from a [signed archive](/p/archive), so you restore in hours instead of syncing for two weeks. Reorgs roll back cleanly because that's the whole job and we've been wrong about it enough times to get it right.
 
 What you write is the part that's actually yours. Say what table your app needs:
 
@@ -97,12 +97,16 @@ There's one fork, and you already know your answer to it.
 				role: "a",
 				body: (
 					<p>
-						Then you don't want ours. Write a consume loop and the rows land in
+						Then you don't want ours. Write a{" "}
+						<a href="/docs/index#list-walk-consume">
+							<code>consume</code>
+						</a>{" "}
+						loop and the rows land in
 						your schema: your tables, your URLs, your auth. Served the way you
 						already serve things.
 					</p>
 				),
-				cost: { label: "use Index", tone: "cheap" },
+				cost: { label: "use Index", tone: "cheap", href: "/p/index" },
 			},
 			{
 				kicker: "you'd rather have",
@@ -115,7 +119,7 @@ There's one fork, and you already know your answer to it.
 						are decisions we made and you're inheriting.
 					</p>
 				),
-				cost: { label: "use Subgraphs", tone: "cheap" },
+				cost: { label: "use Subgraphs", tone: "cheap", href: "/p/subgraphs" },
 			},
 		]}
 	/>
@@ -127,7 +131,7 @@ I'd rather put that trade in front of you than have you find it in week three. A
 
 The runtime is MIT. Running it, indexing forward from your own node, deploying tables, all of it free, and free in the boring sense where there's no tier above it.
 
-What costs money is history. We operate a signed archive of the whole chain, and pulling a large restore or a deep backfill out of it is the metered part. You can verify the archive for free, replay it for free, and check our work against it for free. You pay when you want us to hand you 243 million rows instead of you spending two weeks producing them yourself.
+What costs money is history. We operate a signed archive of the whole chain, and pulling a large restore or a deep backfill out of it is [the metered part](/pricing). You can [verify the archive](/verify) for free, replay it for free, and check our work against it for free. You pay when you want us to hand you 243 million rows instead of you spending two weeks producing them yourself.
 
 That's the split, and it's deliberate: you're never paying for queries against your own database, because that would be a strange thing to charge for.
 

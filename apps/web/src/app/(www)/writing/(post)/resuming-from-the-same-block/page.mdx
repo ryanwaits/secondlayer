@@ -29,7 +29,7 @@ The consumer is caught up. Those really are two different places, and expecting 
 
 ## What the health endpoint is telling you
 
-A consumer's health endpoint reports three different heights, and the whole story lives in the gaps between them:
+A consumer's [health endpoint](/docs/index#progress-and-health) reports three different heights, and the whole story lives in the gaps between them:
 
 <CodeSteps>
 <Step ref="tip" title="The chain tip">
@@ -111,7 +111,7 @@ GET /v1/index/contract-calls
 	/>
 </FigShell>
 
-When the answer is "no rows," the consumer has not skipped forty thousand blocks of work; there was no work sitting there to skip, just one question with a short answer. And because a seek costs the same at any cursor age<Sidenote n={1}>B-tree index on (filter, cursor); the seek is O(log n) over the *event* count, not the block count, so cursor age never enters the cost.</Sidenote>, restarting "from" 8,637,064 costs exactly what polling from the tip would cost:
+When the answer is "no rows," the consumer has not skipped forty thousand blocks of work; there was no work sitting there to skip, just one question with a short answer. And because a seek costs the same at any cursor age<Sidenote n={1}>B-tree index on `(filter, cursor)`; the seek is O(log n) over the *event* count, not the block count, so cursor age never enters the cost.</Sidenote>, restarting "from" 8,637,064 costs exactly what polling from the tip would cost:
 
 <FigShell
 	n={3}
@@ -202,7 +202,7 @@ So the two pointers are really one pointer whenever everything gets delivered. K
 
 ## Two definitions of "behind"
 
-The split also means there are two honest ways to measure distance from the tip, and they diverge exactly when the feed goes quiet. **Event age** (`tip − last_delivered_height`) is how old the newest matching event is: on our quiet marketplace it climbs all day <InlineSpark points={[0, 1, 2, 3, 4]} tone="b" title="Sparkline: event age climbing steadily near thirty-nine thousand" /> and that is a fact about the *contract*, not the consumer. **Backlog** (`tip − scanned_height`) is how much verified ground the consumer still has to cover: it falls through a backfill and holds at zero <InlineSpark points={[10, 6, 3, 1, 0.5, 0.5]} tone="a" title="Sparkline: backlog falling steeply then flat at zero" /> once caught up. This is what `blocks_behind` reports.
+The split also means there are two honest ways to measure distance from the tip, and they diverge exactly when the feed goes quiet. **Event age** (`tip_height − last_delivered_height`) is how old the newest matching event is: on our quiet marketplace it climbs all day <InlineSpark points={[0, 1, 2, 3, 4]} tone="b" title="Sparkline: event age climbing steadily near thirty-nine thousand" /> and that is a fact about the *contract*, not the consumer. **Backlog** (`tip_height − scanned_height`) is how much verified ground the consumer still has to cover: it falls through a backfill and holds at zero <InlineSpark points={[10, 6, 3, 1, 0.5, 0.5]} tone="a" title="Sparkline: backlog falling steeply then flat at zero" /> once caught up. This is what `blocks_behind` reports.
 
 The distinction matters most for monitoring. A dashboard that alerts on event age will page someone about a consumer doing exactly its job. Gate liveness on `ok` (page recency) and capacity on `blocks_behind` (backlog); read `last_delivered_height` as the age of your data, which the chain controls and your infrastructure doesn't.
 
@@ -215,13 +215,13 @@ The behaviors that follow from this design, so none of them read as failures:
 - **Restart prints the same cursor when the feed is quiet.** The checkpoint is the receipt for the last delivered row; it moves when delivery moves. Resuming re-verifies the empty range in one query.
 - **A caught-up tail is silent.** No matching events means no output and no checkpoint writes; `idle_s` and `ok` on the health endpoint are the proof of life, not the log.
 - **`blocks_behind` falls during a backfill and reads ~0 at the tail**, even while event age grows, because the two numbers measure different things.
-- **Checkpoint writes are transactional with your rows.** A crash mid-batch leaves neither rows nor cursor; the batch is simply re-read. That contract, and how to implement it for your own store, is the [sink interface](/docs/sinks).
+- **Checkpoint writes are transactional with your rows.** A crash mid-batch leaves neither rows nor cursor; the batch is simply re-read. That contract, and how to implement it for your own store, is the [sink interface](/docs/sinks#write-your-own-sink).
 
 ## Cheap facts and expensive facts
 
 Checkpoint design mostly comes down to one question: what can you afford to lose? Facts that are expensive to lose (delivered data) get durable, transactional storage. Facts that are free to re-derive (where the scan had gotten to) get recomputed and merely *reported*. When a surface like this is confusing, it is often two facts with different loss-costs sharing one name, and giving them separate names is most of the fix.
 
-There's plenty I've skipped: exactly-once delivery (a lie, but a useful one: cursors as idempotency keys get you the honest version), what reorg rollback actually deletes, and why the cursor commits in the same transaction as your rows rather than after them. Those live in the [sinks docs](/docs/sinks).
+There's plenty I've skipped: exactly-once delivery (a lie, but a useful one: cursors as idempotency keys get you the honest version), what reorg rollback actually deletes, and why the cursor commits in the same transaction as your rows rather than after them. Those live in the [sinks docs](/docs/sinks#rollback-is-height-stamped).
 
 Anyway: next time a dashboard number feels wrong, it's worth asking which fact it's actually measuring before assuming something broke.
 
