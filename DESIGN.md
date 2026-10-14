@@ -207,11 +207,10 @@ all of them. The comment token is `//` (ts, js, json), `#` (sh, toml, text), `--
 | Annotation | Renders | Limit per fence |
 |---|---|---|
 | `!mark` | Lines: soft row. Tokens: yellow fill. `red` for `text` output. | 2 |
-| `!callout[/re/] text` | A note under the line, caret at the token's column | 3 |
-| `!focus(1:4)` | Other lines fade; "Show all" in the bar restores them | 1 |
+| `!callout[/re/] text` | A note under the line: a faint `^` at the token's column and the words in `faint`, no box | 3 |
 | `!diff +` / `!diff -` | Gutter sign; removed lines faint and left out of Copy | none |
 | `!collapse(1:12)` | One summary row with the line count, opens on click | none |
-| `!link[/re/] href` | Dotted blue underline to `href`; first match only, internal paths navigate in place | none |
+| `!tip[/re/] text` | Dotted underline; the words in a tooltip on hover or focus. First match only, guides only, no link inside | 2 |
 | `!error[/re/] message` | Wavy red underline and the compiler's `✗ message` under the line; turns Copy off | none |
 | `!ref(1:3) name` / `!ref[/re/g] name` | Nothing until prose or a step reaches it; then `hi` on the tokens and `soft` on the rows | none |
 | `!pick[/re/] name: a \| b \| c` | The token is a `hi` value the `<Pick>` chips rewrite; Copy follows. Options are declared once, later fences repeat just `name` | 1 name per section |
@@ -224,11 +223,28 @@ also in web `bun test`): each is type-checked against the built packages, and a 
 `!error` must really fail to compile. Snippets that only lean on names the page never shows
 (`db`, `req`) or are a function body are skipped as fragments; the changelog is not checked.
 
-**Automatic reference links.** With no annotation, SDK method paths and exported types in
-`ts` blocks link to their reference entry, and endpoint paths in `sh` blocks link to the
-API page anchor: first occurrence of each name per block, never inside another range,
-never in `text` output, and only where the target page exists (`lib/code/link-table.ts`).
-A surface that is the reference itself passes `links={false}`.
+**Tips, not links.** A code block never links to the reference. A name the build knows
+(`generated/tips.json`, from the reference and the OpenAPI description) carries a dotted
+`faint` underline instead: hover or focus shows its one-sentence summary in a tooltip, and
+when there is more (a method's signature, a type's fields) the tooltip says "Click for
+details" and a click pins a popover. Esc, an outside click or another tip closes it; a tap
+opens the popover. A tip never contains a link and never navigates. On the reference page
+a tip belongs to, hovering it lights that entry's row. Prose gets the same
+tip with `[text](tip:/docs/page#section)`, which shows the first sentence under that
+heading and fails the build when the anchor is missing or the sentence runs past 120
+characters. A name without a summary has no tip.
+
+| Surface | Tips | Rule |
+|---|---|---|
+| Guides (`/docs/*` hand-written) | ~25 | Methods and endpoints, first mention on the page, at most 2 per `##` |
+| SDK and package reference | ~70 | Types in signatures that have a summary, first on the page, at most 2 per entry; examples, helpers and cURL none |
+| Product (`/p/*`, `/verify`) | 0 | None, test-enforced |
+| API pages, changelog, writing, `/docs` hub | 0 | None |
+
+One channel per token: `!error` > `!callout` > `!ref` > `!mark` > hand `!tip` > automatic
+tip. A name a `!callout` points at gets no automatic tip anywhere in its fence, and a line
+with a `!callout`, `!mark`, `!error`, `!pick`, `!diff` or `!tip`, or a trailing comment,
+gets none: the author already explained it. Output (`text`) is never tipped.
 
 **Output reads itself.** In `text` blocks a line takes its color from what it says:
 `⚠`, `✗` and `error` lines are `alarm`, `✓` lines `ok`, ALL-CAPS header rows `faint`, the
@@ -257,8 +273,10 @@ scope script (`scope-runtime.ts`) loads only on pages that render one of these.
 `lib/code/budget.test.ts` fails the build past those limits, on a `hover:`, `focus:`,
 `<Step ref>` or `<Pick>` name with no matching `!ref`/`!pick` in its scope, on a second
 `!pick` name in a scope, on `<CodeSteps>` outside `writing/`, on an unknown name, on `blue`
-outside figures and on `red` outside `text`. A callout counts toward its section's 120-word
-lead. Most blocks stay plain: annotate only when the paragraph points at a token or line.
+outside figures and on `red` outside `text`. It also fails on a `!tip` or `tip:` outside
+guides, more than two `tip:` links under one `##`, a `tip:` to the page it is on (use
+`hover:`), any tip under `/p/*` or `/verify`, and more than 30 automatic tips across the
+guides. A callout counts toward its section's 120-word lead. Most blocks stay plain: annotate only when the paragraph points at a token or line.
 
 **Which format when.**
 
