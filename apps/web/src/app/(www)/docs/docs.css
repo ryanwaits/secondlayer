@@ -2251,3 +2251,14 @@ html[data-acct-card] .docs-content {
 .sdkr-maprow {
 	grid-template-columns: minmax(0, 1fr);
 }
+
+/* The block checker in an article keeps its own small type, not the prose's. */
+.docs-article .block-checker p:not(.bc-verdict) {
+	margin: 0;
+	font-size: inherit;
+	line-height: 1.5;
+}
+/* Its table takes the docs table frame, so the rows' own top rule goes. */
+.docs-article .block-checker .rows {
+	border-top: 0;
+}

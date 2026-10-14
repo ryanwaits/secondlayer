@@ -5,6 +5,7 @@ import {
 	type FormEvent,
 	type ReactNode,
 	useEffect,
+	useId,
 	useRef,
 	useState,
 } from "react";
@@ -16,6 +17,13 @@ import {
 } from "./explorers";
 
 const DEFAULT_REF = "9137005";
+
+/** The verifier's short labels, spelled out for the page; the CLI keeps its own. */
+const LABEL: Record<string, string> = {
+	cycle: "signer set",
+	txs: "transactions",
+};
+const labelOf = (label: string) => LABEL[label] ?? label;
 
 type Link = { step: VerifyStep; label: string };
 
@@ -143,25 +151,23 @@ function Row({
 	detail?: ReactNode;
 }) {
 	return (
-		<div className="bc-line">
-			<Mark status={status} />
-			<span className={status === "pending" ? "bc-mute" : undefined}>
-				{label}
-			</span>
-			{detail ? (
-				<span
-					className={
-						status === "skipped"
-							? "bc-mute"
-							: status === "failed"
-								? "bc-fail"
-								: undefined
-					}
-				>
-					{detail}
-				</span>
-			) : null}
-		</div>
+		<tr className={status === "pending" ? "bc-pending" : undefined}>
+			<td>
+				<Mark status={status} />
+			</td>
+			<td>{labelOf(label)}</td>
+			<td
+				className={
+					status === "skipped"
+						? "bc-mute"
+						: status === "failed"
+							? "bc-fail"
+							: undefined
+				}
+			>
+				{detail}
+			</td>
+		</tr>
 	);
 }
 
@@ -256,99 +262,109 @@ export function BlockChecker({ source }: { source?: ProofSource }) {
 		}
 	}
 
+	const inputId = useId();
+	const rows =
+		view.kind === "running" ? (
+			<>
+				{view.order
+					.filter((l) => view.passed.includes(l.step))
+					.map((l) => (
+						<Row key={l.step} status="ok" label={l.label} />
+					))}
+				{next ? <Row status="pending" label={next.label} /> : null}
+			</>
+		) : view.kind === "done" ? (
+			view.lines.map((l) => (
+				<Row
+					key={l.step}
+					status={l.status}
+					label={l.label}
+					detail={
+						l.detail && l.status === "ok"
+							? linkify(l.detail, lineLinks(l.step, view))
+							: l.detail
+					}
+				/>
+			))
+		) : null;
+
 	return (
 		<div className="site block-checker">
-			<div className="cb">
-				<div className="cb-bar">
-					<span>your browser</span>
-				</div>
-				<form className="bc-body" onSubmit={check}>
-					<div className="bc-row">
-						<span className="bc-mute" aria-hidden="true">
-							{"$"}
-						</span>
-						<span className="bc-cmd">
-							<span className="bc-name">secondlayer verify</span> block
-						</span>
-						<input
-							className="bc-input"
-							value={input}
-							onChange={(e) => setInput(e.target.value)}
-							aria-label="Block height or index block hash"
-							spellCheck={false}
-							autoComplete="off"
-							autoCapitalize="off"
-							inputMode="text"
-							disabled={running}
-						/>
-						<button
-							type="submit"
-							className="btn btn-pri bc-go"
-							disabled={running}
-						>
-							Check
-						</button>
+			<form className="bc-form" onSubmit={check}>
+				<label htmlFor={inputId}>Block</label>
+				<input
+					id={inputId}
+					className="bc-input"
+					value={input}
+					onChange={(e) => setInput(e.target.value)}
+					aria-label="Block height or index block hash"
+					placeholder="height or 0x block hash"
+					spellCheck={false}
+					autoComplete="off"
+					autoCapitalize="off"
+					inputMode="text"
+					disabled={running}
+				/>
+				<button type="submit" className="btn btn-pri bc-go" disabled={running}>
+					{running ? "Checking…" : "Check"}
+				</button>
+			</form>
+			<div aria-live="polite">
+				{view.kind === "idle" ? (
+					<div className="bc-meta">
+						{view.hint ? <p className="bc-fail">{view.hint}</p> : null}
+						<p>
+							Runs on this page against the public proofs API.{" "}
+							<b>No key, no account.</b>
+						</p>
+						<p>
+							The same check as{" "}
+							<span className="bc-code">secondlayer verify block</span>.
+						</p>
 					</div>
-					<div className="bc-out" aria-live="polite">
-						{view.kind === "idle" ? (
-							<>
-								<p className="bc-mute">
-									Runs in your browser against the public proofs API. No key, no
-									account.
-								</p>
-								{view.hint ? <p className="bc-mute">{view.hint}</p> : null}
-							</>
-						) : null}
-						{view.kind === "running" ? (
-							<>
-								{view.order
-									.filter((l) => view.passed.includes(l.step))
-									.map((l) => (
-										<Row key={l.step} status="ok" label={l.label} />
-									))}
-								{next ? <Row status="pending" label={next.label} /> : null}
-							</>
-						) : null}
-						{view.kind === "done" ? (
-							<>
-								{view.lines.map((l) => (
-									<Row
-										key={l.step}
-										status={l.status}
-										label={l.label}
-										detail={
-											l.detail && l.status === "ok"
-												? linkify(l.detail, lineLinks(l.step, view))
-												: l.detail
-										}
-									/>
-								))}
-								<p className={view.verdict.ok ? "bc-ok" : "bc-fail"}>
-									{view.verdict.ok ? "✓ " : "✗ "}
-									{view.verdict.ok
-										? linkify(view.verdict.text, [
-												{
-													match: `Stacks ${view.checkpoint.stacksHeight}`,
-													href: stacksBlockUrl(view.checkpoint.stacksId),
-												},
-												{
-													match: `Bitcoin ${view.checkpoint.bitcoinHeight.toLocaleString("en-US")}`,
-													href: bitcoinHeightUrl(view.checkpoint.bitcoinHeight),
-												},
-											])
-										: view.verdict.text}
-								</p>
-								<RerunHint target={view.target} below={view.below} />
-							</>
-						) : null}
-						{view.kind === "error" ? (
-							<p className="bc-fail">
-								{"✗ Could not reach the proofs API: "}
-								{view.message}
-							</p>
-						) : null}
+				) : null}
+				{rows ? (
+					<div className="rows bc-rows">
+						<table>
+							<thead>
+								<tr>
+									<th aria-label="Result" />
+									<th>link</th>
+									<th>what it proved</th>
+								</tr>
+							</thead>
+							<tbody>{rows}</tbody>
+						</table>
 					</div>
-				</form>
+				) : null}
+				{view.kind === "done" ? (
+					<>
+						<p className="bc-verdict">
+							<span className={view.verdict.ok ? "bc-ok" : "bc-fail"}>
+								{view.verdict.ok ? "✓ " : "✗ "}
+							</span>
+							{view.verdict.ok
+								? linkify(view.verdict.text, [
+										{
+											match: `Stacks ${view.checkpoint.stacksHeight}`,
+											href: stacksBlockUrl(view.checkpoint.stacksId),
+										},
+										{
+											match: `Bitcoin ${view.checkpoint.bitcoinHeight.toLocaleString("en-US")}`,
+											href: bitcoinHeightUrl(view.checkpoint.bitcoinHeight),
+										},
+									])
+								: view.verdict.text}
+						</p>
+						<RerunHint target={view.target} below={view.below} />
+					</>
+				) : null}
+				{view.kind === "error" ? (
+					<p className="bc-verdict bc-fail">
+						{"✗ Could not reach the proofs API: "}
+						{view.message}
+					</p>
+				) : null}
 			</div>
 		</div>
 	);
