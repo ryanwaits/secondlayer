@@ -13,7 +13,7 @@ import {
 } from "@/app/(www)/docs/mcp/tools";
 import { docsNavPages } from "@/app/(www)/docs/nav";
 import { sdkPageMarkdown } from "@/app/(www)/docs/sdk-reference/markdown";
-import { SDK_BASE, sdkPages } from "@/app/(www)/docs/sdk-reference/pages";
+import { sdkPages } from "@/app/(www)/docs/sdk-reference/pages";
 import { methodNav } from "@/app/(www)/docs/sdk-reference/reference";
 import docsPhrasings from "@/generated/docs-phrasings.json";
 import apiNav from "@/generated/openapi-nav.json";
@@ -269,10 +269,7 @@ export async function docsSearchDocs(): Promise<DocsSearchDoc[]> {
 	const sdkNav = methodNav();
 	const summaries = new Map(
 		sdkNav.flatMap((s) =>
-			s.methods.map((m) => [
-				`docs:${SDK_BASE}/${s.slug}#${m.anchor}`,
-				m.summary,
-			]),
+			s.methods.map((m) => [`docs:${s.page}#${m.anchor}`, m.summary]),
 		),
 	);
 	const pool = docsSearchPool(

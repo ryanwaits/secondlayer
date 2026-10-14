@@ -1,3 +1,7 @@
+import filtersBuilders from "@/generated/reference/filters/builders.json";
+import filtersEventTypes from "@/generated/reference/filters/event-types.json";
+import filtersIdentifiers from "@/generated/reference/filters/identifiers.json";
+import filtersManifest from "@/generated/reference/filters/manifest.json";
 import archive from "@/generated/reference/sdk/archive.json";
 import client from "@/generated/reference/sdk/client.json";
 import contracts from "@/generated/reference/sdk/contracts.json";
@@ -7,14 +11,30 @@ import manifestJson from "@/generated/reference/sdk/manifest.json";
 import streams from "@/generated/reference/sdk/streams.json";
 import subgraphs from "@/generated/reference/sdk/subgraphs.json";
 import webhooks from "@/generated/reference/sdk/webhooks.json";
+import subgraphsBlockSources from "@/generated/reference/subgraphs/block-sources.json";
+import subgraphsChainRead from "@/generated/reference/subgraphs/chain-read.json";
+import subgraphsContext from "@/generated/reference/subgraphs/context.json";
+import subgraphsDefine from "@/generated/reference/subgraphs/define.json";
+import subgraphsManifest from "@/generated/reference/subgraphs/manifest.json";
+import subgraphsReplay from "@/generated/reference/subgraphs/replay.json";
+import subgraphsSchema from "@/generated/reference/subgraphs/schema.json";
+import subgraphsTesting from "@/generated/reference/subgraphs/testing.json";
+import subgraphsVerification from "@/generated/reference/subgraphs/verification.json";
+import verifyBitcoin from "@/generated/reference/verify/bitcoin.json";
+import verifyManifest from "@/generated/reference/verify/manifest.json";
+import verifyProofs from "@/generated/reference/verify/proofs.json";
+import verifySources from "@/generated/reference/verify/sources.json";
+import verifyBlock from "@/generated/reference/verify/verify-block.json";
 /**
- * The SDK reference's data: the files `bun run openpkg` writes under
- * `generated/reference/sdk`, plus the pure rules that turn them into what the
- * pages show (signatures, parameter rows, REST links). Nothing here renders;
- * `sdk-reference.tsx` and the markdown twin both read it, so the two cannot
- * disagree.
+ * The reference's data: the files `bun run openpkg` writes under
+ * `generated/reference/<package>`, plus the pure rules that turn them into what
+ * the pages show (signatures, parameter rows, REST links). Nothing here
+ * renders; `sdk-reference.tsx` and the markdown twin both read it, so the two
+ * cannot disagree. The SDK is the default package; the function-first ones
+ * (subgraphs, verify, filters) pass their key.
  */
 import { ANNOTATION_LIMITS, parseAnnotations } from "@/lib/code/annotations";
+import { PACKAGE_PAGES, type PackageKey, SDK_BASE } from "./pages";
 
 export type Field = {
 	name: string;
@@ -69,11 +89,22 @@ export type Constructor = {
 	overloads: Overload[];
 };
 
+/** An exported value that is not callable. */
+export type Constant = {
+	name: string;
+	summary: string;
+	type: string;
+	source: { file: string; line: number } | null;
+};
+
 export type Surface = {
 	slug: string;
 	root: string;
+	/** Function groups: where the names import from, when not the package itself. */
+	from?: string;
 	constructor?: Constructor;
 	methods: Method[];
+	constants?: Constant[];
 	types: TypeDoc[];
 };
 
@@ -97,24 +128,65 @@ export type Manifest = {
 	symbols: Record<string, string>;
 };
 
-const SURFACES = {
-	archive,
-	client,
-	contracts,
-	index,
-	instance,
-	streams,
-	subgraphs,
-	webhooks,
-} as unknown as Record<string, Surface>;
+/** `sdk`, or a function-first package (`PackageKey` in pages.ts). */
+export type ReferencePackage = "sdk" | PackageKey;
 
-export function manifest(): Manifest {
-	return manifestJson as unknown as Manifest;
+const DATA: Record<
+	ReferencePackage,
+	{ manifest: Manifest; surfaces: Record<string, Surface> }
+> = {
+	sdk: {
+		manifest: manifestJson as unknown as Manifest,
+		surfaces: {
+			archive,
+			client,
+			contracts,
+			index,
+			instance,
+			streams,
+			subgraphs,
+			webhooks,
+		} as unknown as Record<string, Surface>,
+	},
+	subgraphs: {
+		manifest: subgraphsManifest as unknown as Manifest,
+		surfaces: {
+			define: subgraphsDefine,
+			context: subgraphsContext,
+			"chain-read": subgraphsChainRead,
+			schema: subgraphsSchema,
+			"block-sources": subgraphsBlockSources,
+			verification: subgraphsVerification,
+			replay: subgraphsReplay,
+			testing: subgraphsTesting,
+		} as unknown as Record<string, Surface>,
+	},
+	verify: {
+		manifest: verifyManifest as unknown as Manifest,
+		surfaces: {
+			"verify-block": verifyBlock,
+			sources: verifySources,
+			proofs: verifyProofs,
+			bitcoin: verifyBitcoin,
+		} as unknown as Record<string, Surface>,
+	},
+	filters: {
+		manifest: filtersManifest as unknown as Manifest,
+		surfaces: {
+			builders: filtersBuilders,
+			identifiers: filtersIdentifiers,
+			"event-types": filtersEventTypes,
+		} as unknown as Record<string, Surface>,
+	},
+};
+
+export function manifest(pkg: ReferencePackage = "sdk"): Manifest {
+	return DATA[pkg].manifest;
 }
 
-export function surface(slug: string): Surface {
-	const found = SURFACES[slug];
-	if (!found) throw new Error(`No SDK reference surface "${slug}"`);
+export function surface(slug: string, pkg: ReferencePackage = "sdk"): Surface {
+	const found = DATA[pkg].surfaces[slug];
+	if (!found) throw new Error(`No ${pkg} reference surface "${slug}"`);
 	return found;
 }
 
@@ -124,6 +196,8 @@ export function methodAnchor(id: string): string {
 }
 
 export const typeAnchor = (name: string) => `t-${name}`;
+export const constantAnchor = (name: string) => `c-${name}`;
+export const groupAnchor = (slug: string) => `g-${slug}`;
 export const helperAnchor = (name: string) => `h-${name}`;
 export const errorAnchor = (name: string) => `e-${name}`;
 
@@ -518,6 +592,14 @@ export function typeMap(s: Surface): Map<string, TypeDoc> {
 	return new Map(s.types.map((t) => [t.name, t]));
 }
 
+/** Every group of a function-first package's types as one set, the first group's entry winning. */
+export function packageTypes(groups: readonly Surface[]): TypeDoc[] {
+	const all = new Map<string, TypeDoc>();
+	for (const g of groups)
+		for (const t of g.types) if (!all.has(t.name)) all.set(t.name, t);
+	return [...all.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /** `Promise<X>` read as `X` for a glance table; cut to fit. */
 export function glanceReturn(type: string, max = 36): string {
 	const inner = /^Promise<([\s\S]*)>$/.exec(type.trim())?.[1] ?? type;
@@ -599,19 +681,37 @@ export function shortHelpers(
 
 // ── what the nav and the overview need ────────────────────────────────
 
-/** Method paths and one-line summaries, for the docs search index. */
-export function methodNav(): {
-	slug: string;
+export type MethodNav = {
+	/** The page the methods are on; an anchor is appended to it. */
+	page: string;
+	/** Extra words a search for these methods may use. */
+	keywords: string[];
 	methods: { anchor: string; path: string; summary: string }[];
-}[] {
-	return manifest().surfaces.map((s) => ({
-		slug: s.slug,
-		methods: surface(s.slug).methods.map(({ id, path, summary }) => ({
-			anchor: methodAnchor(id),
-			path,
-			summary,
-		})),
+};
+
+const navMethods = (pkg: ReferencePackage, slug: string) =>
+	surface(slug, pkg).methods.map(({ id, path, summary }) => ({
+		anchor: methodAnchor(id),
+		path,
+		summary,
 	}));
+
+/** Method paths and one-line summaries, for the docs search index. */
+export function methodNav(): MethodNav[] {
+	return [
+		...manifest().surfaces.map((s) => ({
+			page: `${SDK_BASE}/${s.slug}`,
+			keywords: ["sdk", s.slug],
+			methods: navMethods("sdk", s.slug),
+		})),
+		...PACKAGE_PAGES.map((p) => ({
+			page: p.href,
+			keywords: [p.key],
+			methods: manifest(p.key).surfaces.flatMap((s) =>
+				navMethods(p.key, s.slug),
+			),
+		})),
+	];
 }
 
 const slugOf = (name: string) =>

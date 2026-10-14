@@ -1,11 +1,19 @@
 import { stripAnnotations } from "@/lib/code/annotations";
-import { SDK_BASE, SDK_SURFACES, findSurface } from "./pages";
+import {
+	PACKAGE_PAGES,
+	type PackageKey,
+	SDK_BASE,
+	SDK_SURFACES,
+	findPackagePage,
+	findSurface,
+} from "./pages";
 import {
 	type Field,
 	type Method,
 	type TypeDoc,
 	constructorEntry,
 	manifest,
+	packageTypes,
 	paramRows,
 	restTarget,
 	signatureOf,
@@ -141,8 +149,45 @@ function overviewMarkdown(): string {
 	].join("\n\n");
 }
 
-/** The generated body of an SDK reference page, or null when `href` is not one. */
+/** A function-first package: each group is a `##` section of entries, then one list of types. */
+function packageMarkdown(key: PackageKey): string {
+	const info = findPackagePage(key);
+	const groups = manifest(key).surfaces.map((s) => ({
+		title: s.title,
+		data: surface(s.slug, key),
+		slug: s.slug,
+	}));
+	const types = new Map(
+		packageTypes(groups.map((g) => g.data)).map((t) => [t.name, t]),
+	);
+	const out: string[] = [];
+	for (const g of groups) {
+		out.push(`## ${g.title}`);
+		const blurb = info.groups[g.slug];
+		if (blurb) out.push(blurb);
+		out.push(`Import from \`${g.data.from ?? info.specifier}\`.`);
+		for (const method of g.data.methods)
+			out.push(methodMarkdown(method, types));
+		if (g.data.constants?.length)
+			out.push(
+				"### Constants",
+				g.data.constants
+					.map(
+						(c) =>
+							`- \`${c.name}\`: \`${cell(c.type)}\`${c.summary ? `. ${cell(c.summary)}` : ""}`,
+					)
+					.join("\n"),
+			);
+	}
+	const all = [...types.values()];
+	if (all.length) out.push("## Types", all.map(typeMarkdown).join("\n"));
+	return out.join("\n\n");
+}
+
+/** The generated body of a reference page (the SDK's or a package's), or null when `href` is not one. */
 export function sdkPageMarkdown(href: string): string | null {
+	const pkg = PACKAGE_PAGES.find((p) => p.href === href);
+	if (pkg) return packageMarkdown(pkg.key);
 	if (href === SDK_BASE) return overviewMarkdown();
 	const slug = href.slice(`${SDK_BASE}/`.length);
 	if (!href.startsWith(`${SDK_BASE}/`)) return null;

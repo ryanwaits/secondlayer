@@ -2,12 +2,14 @@ import { esc, escAttr } from "@/components/code/handlers";
 import { type Piece, parseInline } from "./markdown-text";
 import {
 	type Callback,
+	type Constant,
 	type ErrorLine,
 	type Field,
 	type Method,
 	type ParamGroup,
 	type ParamRow,
 	type TypeDoc,
+	constantAnchor,
 	glanceReturn,
 	methodAnchor,
 	refKey,
@@ -133,16 +135,48 @@ export function disclosuresHtml(
 		: "";
 }
 
+function glanceRow(m: Method): string {
+	const first = m.overloads[0];
+	const args = (first?.params ?? []).map((p) => p.name).join(", ");
+	return `<tr data-q="${escAttr(`${m.path} ${m.summary}`.toLowerCase())}"><td class="mn"><a href="#${methodAnchor(m.id)}">${esc(m.path.startsWith("new ") ? m.path : m.id)}(${esc(args)})</a></td><td class="ret">${first ? esc(glanceReturn(first.returns.type)) : ""}</td><td class="use">${inlineHtml(m.summary)}</td></tr>`;
+}
+
 /** The at-a-glance table: method, what it returns, what it is for. */
 export function glanceHtml(methods: Method[]): string {
-	const rows = methods
-		.map((m) => {
-			const first = m.overloads[0];
-			const args = (first?.params ?? []).map((p) => p.name).join(", ");
-			return `<tr data-q="${escAttr(`${m.path} ${m.summary}`.toLowerCase())}"><td class="mn"><a href="#${methodAnchor(m.id)}">${esc(m.path.startsWith("new ") ? m.path : m.id)}(${esc(args)})</a></td><td class="ret">${first ? esc(glanceReturn(first.returns.type)) : ""}</td><td class="use">${inlineHtml(m.summary)}</td></tr>`;
+	return `<table class="sdkr-t sdkr-glance"><tbody>${methods.map(glanceRow).join("")}</tbody></table>`;
+}
+
+/**
+ * The at-a-glance table of a package page: one table, so its columns line up,
+ * with a label row where each group starts. A group with no function has no
+ * label; the filter hides a label whose rows it has all hidden.
+ */
+export function glanceGroupsHtml(
+	groups: { title: string; methods: Method[] }[],
+): string {
+	const rows = groups
+		.filter((g) => g.methods.length)
+		.map(
+			(g) =>
+				`<tr class="sdkr-grow" data-group><td colspan="3">${esc(g.title)}</td></tr>${g.methods.map(glanceRow).join("")}`,
+		)
+		.join("");
+	return `<table class="sdkr-t sdkr-glance sdkr-glance-pkg"><tbody>${rows}</tbody></table>`;
+}
+
+/** Exported values that are not callable: name, then what they are. */
+export function constantListHtml(constants: Constant[]): string {
+	return constants
+		.map((c) => {
+			const lead = c.summary
+				? inlineHtml(c.summary)
+				: `<span class="sdkr-faint">${esc(shortType(c.type, 80))}</span>`;
+			const value = c.summary
+				? ` <code class="sdkr-def">${esc(shortType(c.type, 80))}</code>`
+				: "";
+			return `<div id="${constantAnchor(c.name)}" class="sdkr-tr"><code>${esc(c.name)}</code><div>${lead}${value}</div></div>`;
 		})
 		.join("");
-	return `<table class="sdkr-t sdkr-glance"><tbody>${rows}</tbody></table>`;
 }
 
 /** A type with no summary shows the names of its first fields instead. */

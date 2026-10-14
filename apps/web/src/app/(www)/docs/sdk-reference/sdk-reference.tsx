@@ -7,15 +7,23 @@ import { apiPageHref, pageForTag } from "../api-reference/pages";
 import { allEndpoints, curlFor } from "../api-reference/spec";
 import { GlanceFilter, SdkHashRedirect } from "./client";
 import {
+	constantListHtml,
 	disclosuresHtml,
 	errorTreeHtml,
+	glanceGroupsHtml,
 	glanceHtml,
 	mapBoxHtml,
 	paramGroupsHtml,
 	typeListHtml,
 } from "./html";
 import { Paragraphs, Text } from "./markdown-text";
-import { SDK_BASE, SDK_SURFACES, findSurface } from "./pages";
+import {
+	type PackageKey,
+	SDK_BASE,
+	SDK_SURFACES,
+	findPackagePage,
+	findSurface,
+} from "./pages";
 import {
 	type Method,
 	type TypeDoc,
@@ -24,11 +32,13 @@ import {
 	errorAnchor,
 	errorTree,
 	exampleWithRefs,
+	groupAnchor,
 	groupParams,
 	helperAnchor,
 	legacyOwners,
 	manifest,
 	methodAnchor,
+	packageTypes,
 	paramRows,
 	refKey,
 	restTarget,
@@ -54,10 +64,13 @@ function Html({ html, className }: { html: string; className?: string }) {
 }
 
 /** "SDK reference · Streams", above the page title. */
-export function SdkEyebrow({ title }: { title: string }) {
+export function SdkEyebrow({
+	title,
+	lead = "SDK reference",
+}: { title: string; lead?: string }) {
 	return (
 		<p className="sdkr-eyebrow">
-			SDK reference <span>· {title}</span>
+			{lead} <span>· {title}</span>
 		</p>
 	);
 }
@@ -279,6 +292,93 @@ export async function SdkSurfacePage({ slug }: { slug: string }) {
 						</h2>
 					</div>
 					<Html className="sdkr-typelist" html={typeListHtml(data.types)} />
+				</section>
+			) : null}
+		</div>
+	);
+}
+
+/**
+ * A function-first package on one page: every function at a glance, then each
+ * group as a section of full entries, its constants, and the types they use.
+ */
+export async function PackageReferencePage({ pkg }: { pkg: PackageKey }) {
+	const info = findPackagePage(pkg);
+	const m = manifest(pkg);
+	const groups = m.surfaces.map((s) => ({
+		slug: s.slug,
+		title: s.title,
+		data: surface(s.slug, pkg),
+	}));
+	const allTypes = packageTypes(groups.map((g) => g.data));
+	const types = new Map(allTypes.map((t) => [t.name, t]));
+	const total = groups.reduce((n, g) => n + g.data.methods.length, 0);
+	return (
+		<div className="sdkr">
+			<CodeScope />
+			<div className="sdkr-meta">
+				<span className="v">
+					{m.package}@{m.version}
+				</span>
+				<span>{total} functions</span>
+				<span>from source with openpkg</span>
+				{info.guide ? (
+					<Link href={info.guide.href}>{info.guide.title}</Link>
+				) : null}
+			</div>
+
+			<GlanceFilter count={total} noun="functions">
+				<Html
+					html={glanceGroupsHtml(
+						groups.map((g) => ({ title: g.title, methods: g.data.methods })),
+					)}
+				/>
+			</GlanceFilter>
+
+			{groups.map((g) => (
+				<section key={g.slug} className="sdkr-g">
+					<h2
+						id={groupAnchor(g.slug)}
+						data-outline={g.title}
+						className="sdkr-gh"
+					>
+						<a href={`#${groupAnchor(g.slug)}`} className="heading-anchor">
+							{g.title}
+						</a>
+					</h2>
+					{info.groups[g.slug] ? (
+						<Paragraphs text={info.groups[g.slug] ?? ""} className="sdkr-sum" />
+					) : null}
+					<p className="sdkr-from">
+						import from <code>{g.data.from ?? info.specifier}</code>
+					</p>
+					{g.data.methods.map((method) => (
+						<MethodEntry key={method.id} method={method} types={types} />
+					))}
+					{g.data.constants?.length ? (
+						<section className="sdkr-m">
+							<div className="sdkr-mh">
+								<h3 id={`${g.slug}-constants`}>Constants</h3>
+							</div>
+							<Html
+								className="sdkr-typelist"
+								html={constantListHtml(g.data.constants)}
+							/>
+						</section>
+					) : null}
+				</section>
+			))}
+
+			{allTypes.length ? (
+				<section className="sdkr-m">
+					<div className="sdkr-mh">
+						<h2 id="types" data-outline="Types">
+							<a href="#types" className="heading-anchor">
+								Types on this page
+							</a>
+						</h2>
+					</div>
+					<Html className="sdkr-typelist" html={typeListHtml(allTypes)} />
 				</section>
 			) : null}
 		</div>

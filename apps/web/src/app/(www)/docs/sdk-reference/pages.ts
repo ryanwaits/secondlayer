@@ -77,9 +77,90 @@ export const SDK_SURFACES: SdkSurfacePageInfo[] = [
 
 export const SDK_BASE = "/docs/sdk-reference";
 
+/** Function-first packages: one page each, sectioned by group instead of one page per surface. */
+export type PackageKey = "subgraphs" | "verify" | "filters";
+
+export type PackagePageInfo = {
+	key: PackageKey;
+	/** Where the page lives. */
+	href: string;
+	/** Sidebar and pager title. */
+	title: string;
+	/** What the import line says. */
+	specifier: string;
+	/** One line under each group's title, by group slug. */
+	groups: Record<string, string>;
+	guide?: { title: string; href: string };
+};
+
+/** The function-first reference pages, in sidebar order. */
+export const PACKAGE_PAGES: PackagePageInfo[] = [
+	{
+		key: "subgraphs",
+		href: "/docs/subgraphs-reference",
+		title: "Subgraphs package",
+		specifier: "@secondlayer/subgraphs",
+		guide: { title: "Subgraphs guide", href: "/docs/subgraphs" },
+		groups: {
+			define:
+				"Declare sources, tables and handlers, and check them before a deploy.",
+			context:
+				"The `ctx` every handler receives: write rows, read them back, call contracts.",
+			"chain-read":
+				"Read contract state from a handler, pinned to the block being processed.",
+			schema:
+				"The SQL and typed clients a subgraph's tables turn into, and the diff a deploy runs.",
+			"block-sources": "Which block source a subgraph's filters allow.",
+			verification:
+				"The pin and the findings that say how far a subgraph's rows can be checked.",
+			replay:
+				"Re-run a subgraph from the archive and compare it with what is served.",
+			testing: "Run a handler against fixture events without deploying.",
+		},
+	},
+	{
+		key: "verify",
+		href: "/docs/verify-reference",
+		title: "Verify package",
+		specifier: "@secondlayer/verify",
+		guide: { title: "Verify", href: "/docs/verification" },
+		groups: {
+			"verify-block":
+				"Check one block against a checkpoint, with no trust in the node that served it.",
+			sources: "Where proofs come from: the Secondlayer API or a Stacks node.",
+			proofs: "The parsers and checks a block verification is built from.",
+			bitcoin:
+				"The Bitcoin header chain a Stacks block anchors to, and its checkpoint.",
+		},
+	},
+	{
+		key: "filters",
+		href: "/docs/filters-reference",
+		title: "Filters package",
+		specifier: "@secondlayer/stacks/filters",
+		guide: { title: "SDK guide", href: "/docs/sdk" },
+		groups: {
+			builders:
+				"`on.*` builds one filter that every surface can project to its own shape.",
+			identifiers:
+				"Validate and narrow principals, contract ids and asset identifiers.",
+			"event-types": "Every filter member and the spec each one takes.",
+		},
+	},
+];
+
+export function findPackagePage(key: PackageKey): PackagePageInfo {
+	const page = PACKAGE_PAGES.find((p) => p.key === key);
+	if (!page) throw new Error(`No reference package "${key}"`);
+	return page;
+}
+
 export type SdkPage = { href: string; title: string };
 
-/** Every page of the reference in sidebar order: the overview, surfaces, then helpers and errors. */
+/**
+ * Every page of the reference in sidebar order: the SDK's overview, surfaces,
+ * helpers and errors, then one page per function-first package.
+ */
 export function sdkPages(): SdkPage[] {
 	return [
 		{ href: SDK_BASE, title: "Overview" },
@@ -89,6 +170,7 @@ export function sdkPages(): SdkPage[] {
 		})),
 		{ href: `${SDK_BASE}/helpers`, title: "Helpers" },
 		{ href: `${SDK_BASE}/errors`, title: "Errors" },
+		...PACKAGE_PAGES.map(({ href, title }) => ({ href, title })),
 	];
 }
 

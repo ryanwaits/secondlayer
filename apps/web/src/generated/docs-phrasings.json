@@ -581,6 +581,19 @@
       "files required regardless of hosting platform"
     ]
   },
+  "/docs/filters-reference": {
+    "hash": "0f3b76dd23a5fd33",
+    "phrasings": [
+      "build chain event filter for ft transfers",
+      "convert event filter to streams params",
+      "reuse same filter for webhook trigger",
+      "ft transfer filter index params",
+      "filter stacks events for subgraph source",
+      "one filter definition for many event destinations",
+      "on ft transfer filter example",
+      "project event filter to streams config"
+    ]
+  },
   "/docs/index": {
     "hash": "bf89fe94d3d986ab",
     "phrasings": [
@@ -1683,6 +1696,19 @@
       "subgraph runtime infrastructure hosted"
     ]
   },
+  "/docs/subgraphs-reference": {
+    "hash": "05027b1028b7deb4",
+    "phrasings": [
+      "how do i define a subgraph handler",
+      "definesubgraph handler context fields",
+      "read contract state inside a subgraph",
+      "generate typescript types from subgraph schema",
+      "replay subgraph events from block height",
+      "test subgraph handlers locally",
+      "subgraph handler errors during replay",
+      "stacks contract read example in handler"
+    ]
+  },
   "/docs/verification": {
     "hash": "9018fad532050cee",
     "phrasings": [
@@ -1812,6 +1838,19 @@
       "verifiable chain data checks list",
       "can i check bitcoin headers myself",
       "what checks are possible on archive data"
+    ]
+  },
+  "/docs/verify-reference": {
+    "hash": "96b47aeda599eeb8",
+    "phrasings": [
+      "verify stacks block against bitcoin checkpoint",
+      "client side stacks block verification without trusting node",
+      "check stacks transaction inclusion proof",
+      "verify stacks state against anchored checkpoint",
+      "trustless stacks verification in browser",
+      "bitcoin anchored checkpoint verification failed",
+      "how to verify stacks state root",
+      "light client verify stacks transactions"
     ]
   },
   "/docs/webhooks": {

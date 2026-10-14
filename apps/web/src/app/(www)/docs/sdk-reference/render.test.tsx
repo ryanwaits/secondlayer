@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { Code } from "@/components/code/code";
 import type { ReactElement } from "react";
 import { renderToReadableStream } from "react-dom/server";
-import { SDK_BASE, SDK_SURFACES } from "./pages";
+import { PACKAGE_PAGES, SDK_BASE, SDK_SURFACES } from "./pages";
+import { manifest } from "./reference";
 import {
+	PackageReferencePage,
 	SdkErrorsPage,
 	SdkHelpersPage,
 	SdkOverview,
@@ -122,6 +124,83 @@ function renderBlock(element: ReactElement): string {
 	};
 	return `<div class="${props.className}">${props.dangerouslySetInnerHTML.__html}</div>`;
 }
+
+describe("a function-first package page", () => {
+	test("every package renders its groups, unique anchors and no leaked annotations", async () => {
+		for (const p of PACKAGE_PAGES) {
+			const html = await render(<PackageReferencePage pkg={p.key} />);
+			const all = ids(html);
+			const dupes = all.filter((id, i) => all.indexOf(id) !== i);
+			expect(dupes, `${p.key}: duplicate ids`).toEqual([]);
+			expect(html, p.key).not.toContain("!ref");
+			expect(html, p.key).not.toContain("!callout");
+			for (const g of manifest(p.key).surfaces)
+				expect(html, `${p.key}/${g.slug}`).toContain(`id="g-${g.slug}"`);
+		}
+	});
+
+	test("the glance filter counts functions and holds one table per group", async () => {
+		const html = await render(<PackageReferencePage pkg="subgraphs" />);
+		expect(html).toContain('placeholder="Filter 45 functions"');
+		expect(html).toContain('class="sdkr-grow" data-group');
+		expect(html).toContain('data-q="definesubgraph ');
+	});
+
+	test("a group names where its functions import from", async () => {
+		const html = await render(<PackageReferencePage pkg="subgraphs" />);
+		expect(html).toContain("@secondlayer/subgraphs/testing");
+		expect(html).toContain("@secondlayer/subgraphs");
+	});
+
+	test("a class lists its constructor first, then its constants and types", async () => {
+		const html = await render(<PackageReferencePage pkg="verify" />);
+		const ctor = html.indexOf('id="m-SecondlayerProofSource"');
+		expect(ctor).toBeGreaterThan(-1);
+		expect(ctor).toBeLessThan(
+			html.indexOf('id="m-SecondlayerProofSource-getBlock"'),
+		);
+		expect(html).toContain('id="c-DEFAULT_API_URL"');
+		expect(html).toContain('id="t-BlockVerification"');
+	});
+});
+
+describe("links across packages", () => {
+	test("a docs fence naming a subgraphs function links to its entry on the package page", async () => {
+		const html = renderBlock(
+			await Code({
+				lang: "ts",
+				code: "export default defineSubgraph({ name: 'x' });",
+			}),
+		);
+		expect(html).toContain('class="lk"');
+		expect(html).toContain('href="/docs/subgraphs-reference#m-defineSubgraph"');
+	});
+
+	test("a verify class and a filters builder link the same way", async () => {
+		const verify = renderBlock(
+			await Code({
+				lang: "ts",
+				code: "const s = new SecondlayerProofSource();",
+			}),
+		);
+		expect(verify).toContain(
+			'href="/docs/verify-reference#m-SecondlayerProofSource"',
+		);
+		const filters = renderBlock(
+			await Code({ lang: "ts", code: "const f = on.ftTransfer({});" }),
+		);
+		expect(filters).toContain('href="/docs/filters-reference#m-on-ftTransfer"');
+	});
+
+	test("the SDK keeps a name two packages both declare", async () => {
+		const html = renderBlock(
+			await Code({ lang: "ts", code: "let p: FtTransferPayload;" }),
+		);
+		expect(html).toContain(
+			'href="/docs/sdk-reference/streams#t-FtTransferPayload"',
+		);
+	});
+});
 
 describe("the other pages", () => {
 	test("overview lists every surface with its method count and the error tree", async () => {

@@ -1,0 +1,22 @@
+import { PackageReferencePage, SdkEyebrow } from "../sdk-reference/sdk-reference";
+
+<SdkEyebrow lead="Package reference" title="Subgraphs" />
+
+# `@secondlayer/subgraphs`
+
+Everything the subgraphs package exports: `defineSubgraph`, the handler `ctx`, contract reads, schema codegen, replay and the test harness. The [Subgraphs guide](/docs/subgraphs) shows how they fit together.
+
+<PackageReferencePage pkg="subgraphs" />
+
+export const agent = `
+- Import from '@secondlayer/subgraphs'; the test harness is '@secondlayer/subgraphs/testing' and replay is '@secondlayer/subgraphs/verify'.
+- A subgraph is 'defineSubgraph({ name, sources, schema, handlers })'; each handler gets '(event, ctx)' and writes rows through 'ctx.insert', 'ctx.upsert' and the other 'ctx.*' methods.
+- Every name on this page is a real export read from the package source, so a signature here is the one the installed version ships.
+- Run handlers locally with 'createTestContext' and 'buildEvent' before a deploy; they use the real context with an in-memory store.
+`;
+
+export const metadata = {
+	title: "Subgraphs package (reference) — Secondlayer Docs",
+	description:
+		"Every export of @secondlayer/subgraphs with its signature, parameters and types, read from the package's TypeScript source with openpkg so they can't drift from what ships.",
+};

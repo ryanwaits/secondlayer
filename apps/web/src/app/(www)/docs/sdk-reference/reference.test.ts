@@ -1,25 +1,29 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { stripAnnotations } from "@/lib/code/annotations";
 import { docsNavPages } from "../nav";
 import { errorTreeHtml, mapBoxHtml, paramGroupsHtml } from "./html";
 import { resolveLegacy } from "./legacy";
 import { sdkPageMarkdown } from "./markdown";
 import { paragraphs, parseInline } from "./markdown-text";
-import { SDK_BASE, SDK_SURFACES, sdkPages } from "./pages";
+import { PACKAGE_PAGES, SDK_BASE, SDK_SURFACES, sdkPages } from "./pages";
 import {
 	OPTIONS_SHOWN,
+	type ReferencePackage,
 	callbackArgs,
+	constantAnchor,
 	constructorEntry,
 	errorTree,
 	exampleWithRefs,
 	fieldsOfType,
 	formatType,
+	groupAnchor,
 	groupParams,
 	legacyOwners,
 	manifest,
 	methodAnchor,
+	packageTypes,
 	paramRows,
 	restTarget,
 	signatureOf,
@@ -91,6 +95,114 @@ describe("the page set", () => {
 		expect(m.symbols["sl.index.events.list"]).toBe(
 			"/docs/sdk-reference/index#m-events-list",
 		);
+	});
+});
+
+describe("function-first packages", () => {
+	test("every group has a blurb and every package has a page", () => {
+		for (const p of PACKAGE_PAGES) {
+			expect(
+				existsSync(join(import.meta.dir, "..", basename(p.href), "page.mdx")),
+				p.key,
+			).toBe(true);
+			for (const g of manifest(p.key).surfaces)
+				expect(p.groups[g.slug]?.length, `${p.key}/${g.slug}`).toBeGreaterThan(
+					0,
+				);
+		}
+	});
+
+	test("every method, constant and type anchor is the one its symbol links to, on the package page", () => {
+		for (const p of PACKAGE_PAGES) {
+			const pkg = manifest(p.key);
+			for (const g of pkg.surfaces) {
+				const data = surface(g.slug, p.key);
+				for (const method of data.methods)
+					expect(pkg.symbols[method.path], method.path).toBe(
+						`${p.href}#${methodAnchor(method.id)}`,
+					);
+				for (const c of data.constants ?? [])
+					expect(pkg.symbols[c.name], c.name).toBe(
+						`${p.href}#${constantAnchor(c.name)}`,
+					);
+				for (const t of data.types)
+					expect(
+						pkg.symbols[t.name]?.endsWith(`#${typeAnchor(t.name)}`),
+						t.name,
+					).toBe(true);
+			}
+		}
+	});
+
+	test("anchors are unique across a package page", () => {
+		for (const p of PACKAGE_PAGES) {
+			const groups = manifest(p.key).surfaces.map((g) =>
+				surface(g.slug, p.key),
+			);
+			const ids = [
+				...manifest(p.key).surfaces.map((g) => groupAnchor(g.slug)),
+				...groups.flatMap((g) => g.methods.map((m) => methodAnchor(m.id))),
+				...groups.flatMap((g) =>
+					(g.constants ?? []).map((c) => constantAnchor(c.name)),
+				),
+				...packageTypes(groups).map((t) => typeAnchor(t.name)),
+			];
+			expect(ids.length, p.key).toBe(new Set(ids).size);
+		}
+	});
+
+	test("a package documents only types its own source declares", () => {
+		const names = (key: ReferencePackage) =>
+			new Set(
+				manifest(key).surfaces.flatMap((g) =>
+					surface(g.slug, key).types.map((t) => t.name),
+				),
+			);
+		// `Bytes` is verify's own type and `AbiType` the stacks package's;
+		// subgraphs only mentions them in signatures.
+		expect(names("verify").has("Bytes")).toBe(true);
+		expect(names("subgraphs").has("Bytes")).toBe(false);
+		expect(names("subgraphs").has("AbiType")).toBe(false);
+	});
+
+	test("the markdown twin has a section per group with its entries and types", () => {
+		for (const p of PACKAGE_PAGES) {
+			const md = sdkPageMarkdown(p.href) as string;
+			for (const g of manifest(p.key).surfaces) {
+				expect(md, `${p.key}/${g.slug}`).toContain(`## ${g.title}`);
+				for (const method of surface(g.slug, p.key).methods)
+					expect(md, method.path).toContain(`### ${method.path}(`);
+			}
+			expect(md).toContain("## Types");
+		}
+	});
+
+	test("descriptions are inline markup only, like the SDK's", () => {
+		for (const p of PACKAGE_PAGES) {
+			const texts: string[] = [];
+			for (const g of manifest(p.key).surfaces) {
+				const data = surface(g.slug, p.key);
+				for (const method of data.methods) {
+					texts.push(method.description);
+					for (const o of method.overloads) {
+						texts.push(o.description, o.returns.description);
+						for (const param of o.params) texts.push(param.description);
+					}
+				}
+				for (const c of data.constants ?? []) texts.push(c.summary);
+				for (const t of data.types) {
+					texts.push(t.summary);
+					for (const f of t.fields ?? []) texts.push(f.description);
+				}
+			}
+			for (const text of texts) {
+				expect(text, p.key).not.toContain("```");
+				expect(text, p.key).not.toMatch(/^\s*[-*]\s/m);
+				expect(text.replace(/`[^`]*`/g, ""), p.key).not.toMatch(
+					/<\/?[a-z][^>]*>/,
+				);
+			}
+		}
 	});
 });
 

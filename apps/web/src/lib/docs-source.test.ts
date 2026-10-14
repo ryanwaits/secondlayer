@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	type ReferencePackage,
 	manifest,
 	methodNav,
 	surface,
@@ -161,9 +162,17 @@ describe("docsSearchDocs", () => {
 			new Set(["page", "section", "endpoint", "method"]),
 		);
 		const methods = docs.filter((d) => d.kind === "method");
+		const counted = (pkg: ReferencePackage) =>
+			manifest(pkg).surfaces.reduce((n, s) => n + s.methodCount, 0);
 		expect(methods.length).toBe(
-			manifest().surfaces.reduce((n, s) => n + s.methodCount, 0),
+			counted("sdk") +
+				counted("subgraphs") +
+				counted("verify") +
+				counted("filters"),
 		);
+		// A function of a package page is found by its name, on that page.
+		const define = methods.find((d) => d.label === "defineSubgraph");
+		expect(define?.href).toBe("/docs/subgraphs-reference#m-defineSubgraph");
 		// A method is found by its path and described by its summary.
 		const consume = methods.find(
 			(d) => d.label === "sl.streams.events.consume",

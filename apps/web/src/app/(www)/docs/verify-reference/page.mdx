@@ -1,0 +1,21 @@
+import { PackageReferencePage, SdkEyebrow } from "../sdk-reference/sdk-reference";
+
+<SdkEyebrow lead="Package reference" title="Verify" />
+
+# `@secondlayer/verify`
+
+The client-side verifier: check a Stacks block, its transactions and its state against a Bitcoin-anchored checkpoint, trusting no one. The [Verify page](/docs/verification) explains what each check proves.
+
+<PackageReferencePage pkg="verify" />
+
+export const agent = `
+- Import from '@secondlayer/verify'. 'verifyBlock(ref, { source })' is the one-shot check; 'new BlockVerifier({ source })' keeps a cache across many blocks.
+- A proof source supplies the bytes: 'new SecondlayerProofSource({ apiKey })' reads the Secondlayer API, 'new NodeRpcProofSource({ nodeUrl })' reads a Stacks node. Both can be spread into one source.
+- Every name on this page is a real export read from the package source, so a signature here is the one the installed version ships.
+`;
+
+export const metadata = {
+	title: "Verify package (reference) — Secondlayer Docs",
+	description:
+		"Every export of @secondlayer/verify with its signature, parameters and types, read from the package's TypeScript source with openpkg so they can't drift from what ships.",
+};

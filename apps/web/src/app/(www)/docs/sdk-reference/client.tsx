@@ -10,22 +10,37 @@ import { resolveLegacy } from "./legacy";
  */
 export function GlanceFilter({
 	count,
+	noun = "methods",
 	children,
-}: { count: number; children: ReactNode }) {
+}: { count: number; noun?: string; children: ReactNode }) {
 	const table = useRef<HTMLDivElement>(null);
 	const [none, setNone] = useState(false);
 
 	function apply(query: string) {
 		const words = query.toLowerCase().split(/\s+/).filter(Boolean);
 		let shown = 0;
+		// A package page marks where each group starts with a label row; a label
+		// whose rows are all hidden hides with them.
+		let label: HTMLElement | null = null;
+		let inGroup = false;
 		for (const row of table.current?.querySelectorAll<HTMLElement>(
-			"tr[data-q]",
+			"tr[data-q], tr[data-group]",
 		) ?? []) {
+			if (row.dataset.group !== undefined) {
+				if (label) label.hidden = !inGroup;
+				label = row;
+				inGroup = false;
+				continue;
+			}
 			const text = row.dataset.q ?? "";
 			const hit = words.every((w) => text.includes(w));
 			row.hidden = !hit;
-			if (hit) shown++;
+			if (hit) {
+				shown++;
+				inGroup = true;
+			}
 		}
+		if (label) label.hidden = !inGroup;
 		setNone(shown === 0);
 	}
 
@@ -35,9 +50,9 @@ export function GlanceFilter({
 				<span aria-hidden="true">⌕</span>
 				<input
 					type="search"
-					placeholder={`Filter ${count} methods`}
+					placeholder={`Filter ${count} ${noun}`}
 					autoComplete="off"
-					aria-label={`Filter ${count} methods`}
+					aria-label={`Filter ${count} ${noun}`}
 					onChange={(e) => apply(e.target.value)}
 				/>
 			</label>

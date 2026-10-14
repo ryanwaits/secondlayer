@@ -1553,6 +1553,8 @@ html[data-acct-card] .docs-content {
 	font: inherit;
 	font-family: var(--font-mono-stack);
 	letter-spacing: -0.03em;
+	/* a package specifier (`@secondlayer/stacks/filters`) is wider than a phone */
+	overflow-wrap: anywhere;
 }
 .docs-article .sdkr-eyebrow {
 	margin: 0;
@@ -1646,9 +1648,33 @@ html[data-acct-card] .docs-content {
 .docs-article .sdkr .sdkr-glance tr:first-child td {
 	border-top: 1px solid var(--line);
 }
+.docs-article .sdkr .sdkr-glance tr.sdkr-grow td {
+	padding: 26px 0 8px;
+	font: 400 11px / 1 var(--font-mono-stack);
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--faint);
+}
+.docs-article .sdkr .sdkr-glance tr.sdkr-grow:first-child td {
+	padding-top: 4px;
+	border-top: 0;
+}
 .docs-article .sdkr .sdkr-glance td.mn {
 	font: 13px / 1.5 var(--font-mono-stack);
 	white-space: nowrap;
+}
+/* a package's one table holds long call paths: fixed columns, names may wrap */
+.docs-article .sdkr .sdkr-glance-pkg {
+	table-layout: fixed;
+	width: 100%;
+}
+.docs-article .sdkr .sdkr-glance-pkg td.mn {
+	width: 46%;
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+.docs-article .sdkr .sdkr-glance-pkg td.ret {
+	width: 18%;
 }
 .docs-article .sdkr .sdkr-glance td.mn a {
 	color: var(--ink);
@@ -1898,6 +1924,33 @@ html[data-acct-card] .docs-content {
 	.docs-article .sdkr .sdkr-errors td.pd:not(:empty) {
 		margin-top: 4px;
 	}
+}
+
+/* a group of a function-first package */
+.sdkr-g {
+	display: grid;
+	min-width: 0;
+}
+.docs-article .sdkr-gh {
+	margin: 40px 0 0;
+	scroll-margin-top: 80px;
+}
+.docs-article .sdkr-gh a {
+	text-decoration: none;
+}
+.docs-article .sdkr-g > .sdkr-sum {
+	margin: 10px 0 0;
+}
+.docs-article .sdkr-from {
+	margin: 8px 0 0;
+	font-size: 13px;
+	color: var(--faint);
+}
+.docs-article .sdkr-from code {
+	padding: 0;
+	background: none;
+	font: 12.5px var(--font-mono-stack);
+	color: var(--sub);
 }
 
 /* types on this page */

@@ -1,0 +1,21 @@
+import { PackageReferencePage, SdkEyebrow } from "../sdk-reference/sdk-reference";
+
+<SdkEyebrow lead="Package reference" title="Filters" />
+
+# `@secondlayer/stacks/filters`
+
+One spelling for a chain event filter. `on.ftTransfer(...)` builds it once, then projects it to Index params, Streams params, a webhook trigger or a subgraph source. The [SDK guide](/docs/sdk) has the walkthrough.
+
+<PackageReferencePage pkg="filters" />
+
+export const agent = `
+- Import from '@secondlayer/stacks/filters'. 'on.<event>(fields)' returns a filter with 'toIndexParams', 'toStreamsParams', 'toChainTrigger' and 'toSubgraphSource'.
+- A field a surface cannot express throws at projection time; it never matches silently wider.
+- Every name on this page is a real export read from the package source, so a signature here is the one the installed version ships.
+`;
+
+export const metadata = {
+	title: "Filters package (reference) — Secondlayer Docs",
+	description:
+		"Every export of @secondlayer/stacks/filters with its signature, parameters and types, read from the package's TypeScript source with openpkg so they can't drift from what ships.",
+};

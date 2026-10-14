@@ -22,15 +22,25 @@ export function docsRoutes(dir = DOCS, prefix = "/docs"): Set<string> {
 	return routes;
 }
 
-/** Every `symbols` map under `generated/reference/*`, merged. */
-function referenceSymbols(): Record<string, string> {
+/**
+ * Every `symbols` map under `generated/reference/*`, merged. Two packages can
+ * each declare a type of the same name (`FtTransferPayload`); the SDK's page
+ * wins, then the rest in name order, so a name never changes home by accident.
+ */
+export function referenceSymbols(dir = REFERENCE): Record<string, string> {
+	const packages = readdirSync(dir, { withFileTypes: true })
+		.filter((e) => e.isDirectory())
+		.map((e) => e.name)
+		.sort(
+			(a, b) => Number(b === "sdk") - Number(a === "sdk") || (a < b ? -1 : 1),
+		);
 	const symbols: Record<string, string> = {};
-	for (const surface of readdirSync(REFERENCE, { withFileTypes: true })) {
-		if (!surface.isDirectory()) continue;
+	for (const name of packages) {
 		const index = JSON.parse(
-			readFileSync(join(REFERENCE, surface.name, "manifest.json"), "utf8"),
+			readFileSync(join(dir, name, "manifest.json"), "utf8"),
 		) as { symbols?: Record<string, string> };
-		Object.assign(symbols, index.symbols);
+		for (const [symbol, href] of Object.entries(index.symbols ?? {}))
+			symbols[symbol] ??= href;
 	}
 	return symbols;
 }

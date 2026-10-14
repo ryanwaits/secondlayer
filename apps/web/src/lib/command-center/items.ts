@@ -125,20 +125,24 @@ export function docsEndpointItems(
 	});
 }
 
-/** One row per SDK method, jumping to its entry on its surface's page. */
+/** One row per reference method or function, jumping to its entry on its page. */
 export function docsMethodItems(
-	nav: { slug: string; methods: { anchor: string; path: string }[] }[],
+	nav: {
+		page: string;
+		keywords?: string[];
+		methods: { anchor: string; path: string }[];
+	}[],
 ): CommandItem[] {
-	return nav.flatMap((surface) =>
-		surface.methods.map((m) => {
-			const href = `/docs/sdk-reference/${surface.slug}#${m.anchor}`;
+	return nav.flatMap((page) =>
+		page.methods.map((m) => {
+			const href = `${page.page}#${m.anchor}`;
 			return {
 				id: `docs:${href}`,
 				group: "docs" as const,
 				label: m.path,
 				sub: "method",
 				href,
-				keywords: ["sdk", surface.slug],
+				keywords: page.keywords ?? [],
 			};
 		}),
 	);
