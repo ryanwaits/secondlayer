@@ -1,6 +1,9 @@
 import { Code } from "@/components/code/code";
 import { CodeScope } from "@/components/code/code-scope";
 import { CodeTabs } from "@/components/code/code-tabs";
+import { parseAnnotations } from "@/lib/code/annotations";
+import { scanLine } from "@/lib/code/tip-scan.mjs";
+import { tipTable } from "@/lib/code/tip-table";
 import { GITHUB_URL } from "@/lib/site";
 import Link from "next/link";
 import { apiPageHref, pageForTag } from "../api-reference/pages";
@@ -103,10 +106,45 @@ function tabLabels(method: Method): string[] {
 	});
 }
 
+/** Most type tips one entry's signatures carry. */
+const TIPS_PER_ENTRY = 2;
+
+/**
+ * The type names an entry's signatures may tip: ones the tip table knows, first
+ * on the page, at most two. The page passes one ledger down the entries in the
+ * order they render, so a name is explained where it first appears.
+ */
+function entryTips(
+	method: Method,
+	types: ReadonlyMap<string, TypeDoc>,
+	seen: Set<string>,
+): string[] {
+	const names = new Set(paramRows(method, types).map((r) => refKey(r.name)));
+	const out: string[] = [];
+	for (const overload of method.overloads) {
+		const { lines } = parseAnnotations(
+			signatureOf(method, overload, names),
+			"typescript",
+		);
+		for (const line of lines)
+			for (const hit of scanLine(line, "typescript", tipTable))
+				if (hit.kind === "type" && !seen.has(hit.name)) {
+					seen.add(hit.name);
+					if (out.length < TIPS_PER_ENTRY) out.push(hit.name);
+				}
+	}
+	return out;
+}
+
 async function MethodEntry({
 	method,
 	types,
-}: { method: Method; types: ReadonlyMap<string, TypeDoc> }) {
+	tips,
+}: {
+	method: Method;
+	types: ReadonlyMap<string, TypeDoc>;
+	tips: readonly string[];
+}) {
 	const rows = paramRows(method, types);
 	const names = new Set(rows.map((r) => refKey(r.name)));
 	const labels = tabLabels(method);
@@ -127,6 +165,7 @@ async function MethodEntry({
 			lang="ts"
 			title={method.overloads.length > 1 ? labels[i] : undefined}
 			code={signatureOf(method, o, names)}
+			tips={tips}
 		/>
 	));
 	// A method with a REST twin pairs its example with the cURL call.
@@ -251,6 +290,8 @@ export async function SdkSurfacePage({ slug }: { slug: string }) {
 	const types = typeMap(data);
 	const ctor = constructorEntry(data);
 	const entries = ctor ? [ctor, ...data.methods] : data.methods;
+	const seen = new Set<string>();
+	const tips = new Map(entries.map((e) => [e.id, entryTips(e, types, seen)]));
 	return (
 		<div className="sdkr">
 			<CodeScope />
@@ -274,7 +315,12 @@ export async function SdkSurfacePage({ slug }: { slug: string }) {
 			</GlanceFilter>
 
 			{entries.map((method) => (
-				<MethodEntry key={method.id} method={method} types={types} />
+				<MethodEntry
+					key={method.id}
+					method={method}
+					types={types}
+					tips={tips.get(method.id) ?? []}
+				/>
 			))}
 
 			{data.types.length ? (
@@ -308,6 +354,14 @@ export async function PackageReferencePage({ pkg }: { pkg: PackageKey }) {
 	const allTypes = packageTypes(groups.map((g) => g.data));
 	const types = new Map(allTypes.map((t) => [t.name, t]));
 	const total = groups.reduce((n, g) => n + g.data.methods.length, 0);
+	const seen = new Set<string>();
+	const tips = new Map(
+		groups.flatMap((g) =>
+			g.data.methods.map(
+				(m) => [`${g.slug}/${m.id}`, entryTips(m, types, seen)] as const,
+			),
+		),
+	);
 	return (
 		<div className="sdkr">
 			<CodeScope />
@@ -348,7 +402,12 @@ export async function PackageReferencePage({ pkg }: { pkg: PackageKey }) {
 						import from <code>{g.data.from ?? info.specifier}</code>
 					</p>
 					{g.data.methods.map((method) => (
-						<MethodEntry key={method.id} method={method} types={types} />
+						<MethodEntry
+							key={method.id}
+							method={method}
+							types={types}
+							tips={tips.get(`${g.slug}/${method.id}`) ?? []}
+						/>
 					))}
 					{g.data.constants?.length ? (
 						<section className="sdkr-m">

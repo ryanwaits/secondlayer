@@ -44,12 +44,44 @@ describe("a surface page", () => {
 		expect(entry).toContain('<span class="ref" data-ref="onBatch">');
 		expect(entry).toContain('data-hover="sink"');
 		expect(entry).toContain('<span class="ref" data-ref="sink">');
-		// The method's own path in its signature is a ref, so it never links to itself.
+		// The method's own path in its signature is a ref, so it never tips itself.
 		expect(entry).toContain('<span class="ref" data-ref="method">');
 		const signatures = entry.slice(0, entry.indexOf("bun:sqlite"));
 		expect(signatures).not.toContain(
-			'class="lk" href="/docs/sdk-reference/streams#m-events-consume"',
+			"&quot;anchor&quot;:&quot;m-events-consume&quot;",
 		);
+	});
+
+	test("signatures tip types: two per entry at most, each name once per page, examples none", async () => {
+		const html = await render(<SdkSurfacePage slug="streams" />);
+		const entries = html.split('<section class="sdkr-m"').slice(1);
+		const owner = new Map<string, number>();
+		entries.forEach((entry, at) => {
+			const anchors = new Set(
+				[...entry.matchAll(/&quot;anchor&quot;:&quot;(t-[^&]+)&quot;/g)].map(
+					(m) => m[1] as string,
+				),
+			);
+			expect(anchors.size, `entry ${at}`).toBeLessThanOrEqual(2);
+			for (const anchor of anchors) {
+				expect(owner.has(anchor), `${anchor} tipped twice`).toBe(false);
+				owner.set(anchor, at);
+			}
+		});
+		expect(owner.size).toBeGreaterThan(0);
+		const consume = html.slice(
+			html.indexOf('id="m-events-consume"'),
+			html.indexOf('id="m-events-replay"'),
+		);
+		expect(consume.slice(consume.indexOf("bun:sqlite"))).not.toContain(
+			'class="tip"',
+		);
+	});
+
+	test("a signature's tip carries the type's summary and fields", async () => {
+		const html = await render(<SdkSurfacePage slug="streams" />);
+		expect(html).toContain("&quot;kind&quot;:&quot;type&quot;");
+		expect(html).not.toContain('<a class="lk"');
 	});
 
 	test("overloads are tabs with distinct labels", async () => {
