@@ -376,6 +376,7 @@ export const protocolsPaths = {
 		get: {
 			tags: ["index"],
 			summary: "PoX-4 stacking actions",
+			"x-nav-title": "PoX-4 stacking",
 			description:
 				"Decoded PoX-4 contract calls (`stack-stx`, `delegate-stx`, `stack-aggregation-commit-indexed`, …), one row per call, oldest first. Pages on `<block_height>:<tx_index>`. With no cursor or `from_height`, the read covers the last day. PoX-4 stopped at the epoch 4.0 fork, so read history with `from_height` and use `/v1/index/pox5/events` for what came after.",
 			security: READ_SECURITY,
@@ -414,6 +415,7 @@ export const protocolsPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Reward cycles of the current PoX (PoX-5)",
+			"x-nav-title": "Reward cycles",
 			description:
 				"One row per pox-5 reward cycle, descending, exact to the node: total stacked, reward-eligible STX, bond sats, sBTC custodied, rewards allocated/claimed, and cumulative rewards-per-token. Without a cursor, your list starts at the next reward cycle (the current one plus one) and goes back in time. Pass a higher `cursor` to reach cycles further in the future, which PoX-5 bonds can lock many cycles ahead. `pox_version` marks the era; at the next PoX fork this endpoint follows the chain and reports the new PoX instead. PoX-4 history is final and not served here; rebuild it from `/v1/index/stacking` on a self-hosted instance. Frozen cycles cache for an hour; the still-open current cycle caches briefly.",
 			security: READ_SECURITY,
@@ -479,6 +481,7 @@ export const protocolsPaths = {
 		get: {
 			tags: ["index"],
 			summary: "A PoX-5 reward cycle by cycle number",
+			"x-nav-title": "Reward cycle",
 			description:
 				"One pox-5 reward cycle, the same shape as a row of `/v1/index/pox/cycles` plus its per-signer breakdown. 404 when the cycle doesn't exist yet. A cycle number below 141 (pox-5's first) 404s with a note that PoX-4 cycles are final and not served here.",
 			security: READ_SECURITY,
@@ -549,7 +552,8 @@ export const protocolsPaths = {
 	"/v1/index/pox5/events": {
 		get: {
 			tags: ["index"],
-			summary: "PoX-5 boot-contract events (decoded)",
+			summary: "Decoded PoX-5 boot-contract events",
+			"x-nav-title": "PoX-5 events",
 			description:
 				"Decoded print log of the pox-5 boot contract (SIP-045 Bitcoin Staking) — all 19 topics (stake, stake-update, register-signer, unstake, claim-rewards, etc.), one row per print. Starts at the epoch 4.0 hard fork, where /v1/index/stacking's pox-4 feed ends.",
 			security: READ_SECURITY,
@@ -621,6 +625,7 @@ export const protocolsPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Rune catalog",
+			"x-nav-title": "Rune catalog",
 			description:
 				"Every etched rune, with the identity bundle (id, name, spaced_name, symbol, divisibility) every Runes response carries plus its computed supply, mint/burn counters and mint terms. `search` prefix-matches the name (spacers and case ignored); `sort` is etch order (`number`, default) or busiest-first (`mints`).",
 			security: READ_SECURITY,
@@ -670,6 +675,7 @@ export const protocolsPaths = {
 		get: {
 			tags: ["index"],
 			summary: "A single rune's entry",
+			"x-nav-title": "One rune",
 			description:
 				"One rune's full entry by id or name, with computed `supply` (`premine + mints × terms.amount`). 404 when no rune matches.",
 			security: READ_SECURITY,
@@ -712,7 +718,8 @@ export const protocolsPaths = {
 	"/v1/index/runes/activity": {
 		get: {
 			tags: ["index"],
-			summary: "Rune activity (etch/mint/transfer/burn events)",
+			summary: "Rune etches, mints, transfers and burns",
+			"x-nav-title": "Rune activity",
 			description:
 				"Every rune-moving event — etch, mint, transfer, burn — filterable by rune/address/kind/txid and cursor-paginated. Returns events[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>, same shape as every other decoded-event feed.",
 			security: READ_SECURITY,
@@ -758,6 +765,7 @@ export const protocolsPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Rune balances by address or outpoint",
+			"x-nav-title": "Rune balances",
 			description:
 				"Current per-outpoint rune balances. Exactly one of `address` or `outpoint` is required; `rune` narrows either to one rune. Returns balances[], next_cursor, tip.",
 			security: READ_SECURITY,
@@ -815,7 +823,8 @@ export const protocolsPaths = {
 	"/v1/index/sbtc/events": {
 		get: {
 			tags: ["index"],
-			summary: "sBTC peg events (decoded)",
+			summary: "Decoded sBTC peg events",
+			"x-nav-title": "Peg events",
 			description:
 				"Every decoded `sbtc-registry` print, all topics, one row per event, oldest first: deposits, withdrawal create/accept/reject, signer key rotations and protocol-contract updates. With no cursor or `from_height`, the read covers the last day.",
 			security: READ_SECURITY,
@@ -871,7 +880,8 @@ export const protocolsPaths = {
 	"/v1/index/sbtc/deposits": {
 		get: {
 			tags: ["index"],
-			summary: "sBTC peg-ins (completed deposits)",
+			summary: "Completed sBTC deposits",
+			"x-nav-title": "Deposits",
 			description:
 				"Completed deposits, one row per `completed-deposit` event, oldest first. The event fires once the signers have swept the BTC in, so every row is final on the peg side. With no cursor or `from_height`, the read covers the last day.",
 			security: READ_SECURITY,
@@ -916,6 +926,7 @@ export const protocolsPaths = {
 		get: {
 			tags: ["index"],
 			summary: "sBTC peg-in by Bitcoin txid",
+			"x-nav-title": "Deposit by Bitcoin txid",
 			description:
 				"One completed deposit, looked up by the Bitcoin txid of the deposit. Past finality it is cached for good and answers `If-None-Match` with 304.",
 			security: READ_SECURITY,
@@ -966,7 +977,8 @@ export const protocolsPaths = {
 	"/v1/index/sbtc/withdrawals": {
 		get: {
 			tags: ["index"],
-			summary: "sBTC peg-outs (lifecycle, one per request_id)",
+			summary: "sBTC withdrawals, one per request",
+			"x-nav-title": "Withdrawals",
 			description:
 				"Withdrawals, one row per `request_id`, ordered by when they were requested. Each row carries its current status from the latest accept or reject, the BTC sweep the signers committed to, and that sweep's Bitcoin settlement. The height window and cursor apply to the request event. Status can change after a row is final, so pages are never long-cached.",
 			security: READ_SECURITY,
@@ -1024,6 +1036,7 @@ export const protocolsPaths = {
 		get: {
 			tags: ["index"],
 			summary: "sBTC peg-out lifecycle by request_id",
+			"x-nav-title": "Withdrawal by request",
 			description:
 				"One withdrawal's full lifecycle: the request, the accept or reject, and the Bitcoin settlement of its sweep. Once it is accepted or rejected and past finality, it is cached for good and answers `If-None-Match` with 304.",
 			security: READ_SECURITY,
@@ -1070,6 +1083,7 @@ export const protocolsPaths = {
 		get: {
 			tags: ["index"],
 			summary: "sBTC peg summary scoreboard",
+			"x-nav-title": "Peg summary",
 			description:
 				"All-time totals for the whole bridge: deposit and withdrawal counts, net peg flow, and circulating sBTC supply read from `sbtc-token` on this instance's node. Takes no parameters.",
 			security: READ_SECURITY,

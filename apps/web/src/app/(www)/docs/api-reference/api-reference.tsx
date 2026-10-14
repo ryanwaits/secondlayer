@@ -207,7 +207,7 @@ function EndpointSection({
 						id={anchor}
 						className="apiref-ep-title"
 						data-outline-child={family}
-						data-outline={title}
+						data-outline={op["x-nav-title"] ?? title}
 						data-verb={endpoint.method.toLowerCase()}
 					>
 						<a href={`#${anchor}`} className="heading-anchor">
@@ -329,7 +329,7 @@ function ObjectSection({
 						id={anchor}
 						className="apiref-ep-title"
 						data-outline-child="objects"
-						data-outline={title}
+						data-outline={objectName(entry.name)}
 					>
 						<a href={`#${anchor}`} className="heading-anchor">
 							{title}

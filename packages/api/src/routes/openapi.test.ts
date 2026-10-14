@@ -21,6 +21,7 @@ type Operation = {
 	operationId?: string;
 	tags?: string[];
 	summary?: string;
+	"x-nav-title"?: string;
 	description?: string;
 	parameters?: Param[];
 	requestBody?: { content?: Record<string, Media> };
@@ -91,6 +92,11 @@ function envelopeItems(schema: Schema): Schema | undefined {
 function contractViolations(spec: Spec, op: Operation): string[] {
 	const out: string[] = [];
 	if (!op.summary) out.push("no summary");
+	// The docs sidebar lists each endpoint by this short name under its page
+	// and family, so it drops what those already say.
+	const nav = op["x-nav-title"];
+	if (!nav) out.push("no x-nav-title");
+	else if (nav.length > 24) out.push(`x-nav-title over 24 chars: ${nav}`);
 	if (!op.description) out.push("no description");
 	if (!op.tags?.length) out.push("no tag");
 

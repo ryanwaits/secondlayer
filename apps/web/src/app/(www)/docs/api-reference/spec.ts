@@ -38,6 +38,8 @@ export type Operation = {
 	operationId: string;
 	tags?: string[];
 	summary?: string;
+	/** The short name the docs sidebar lists the endpoint by. */
+	"x-nav-title"?: string;
 	description?: string;
 	security?: Array<Record<string, unknown>>;
 	parameters?: Param[];

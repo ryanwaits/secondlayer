@@ -690,6 +690,7 @@ function platformFeedbackPaths(): Record<string, unknown> {
 			post: {
 				tags: ["feedback"],
 				summary: "Report a problem",
+				"x-nav-title": "Report a problem",
 				description:
 					"File a problem report against a request that failed. Send the `request_id` from the error body and one line on what you were trying to do; the server attaches its own record of the failed call (kept 24 hours). Optional `Idempotency-Key` header: a repeat returns the first report's id with status `duplicate`.",
 				security: WRITE_SECURITY,
@@ -772,6 +773,7 @@ function platformMeterPaths(): Record<string, unknown> {
 			post: {
 				tags: ["archive"],
 				summary: "Quote a gated archive fetch",
+				"x-nav-title": "Quote a fetch",
 				description:
 					"Free, idempotent price preview. Never debits. Bearer is an account API key (`sk-sl_*`).",
 				security: WRITE_SECURITY,
@@ -800,6 +802,7 @@ function platformMeterPaths(): Record<string, unknown> {
 			post: {
 				tags: ["archive"],
 				summary: "Charge and presign archive partitions",
+				"x-nav-title": "Fetch partitions",
 				description:
 					"Charges prepaid credits and returns presigned GET URLs. Max 64 paths per call; the SDK pages internally.",
 				security: WRITE_SECURITY,
@@ -836,6 +839,7 @@ function platformMeterPaths(): Record<string, unknown> {
 			get: {
 				tags: ["credits"],
 				summary: "Prepaid credits balance and refill config",
+				"x-nav-title": "Credits balance",
 				security: WRITE_SECURITY,
 				responses: {
 					"200": json200({
@@ -864,6 +868,7 @@ function platformMeterPaths(): Record<string, unknown> {
 			post: {
 				tags: ["credits"],
 				summary: "Set auto-refill threshold",
+				"x-nav-title": "Auto-refill",
 				security: WRITE_SECURITY,
 				requestBody: jsonBody({
 					type: "object",
@@ -894,6 +899,7 @@ function platformMeterPaths(): Record<string, unknown> {
 			post: {
 				tags: ["credits"],
 				summary: "Guest credits checkout",
+				"x-nav-title": "Guest checkout",
 				description:
 					"No bearer. Email is the identity; returns a Stripe Checkout URL.",
 				security: [],
@@ -954,6 +960,7 @@ export function openapiSpec(
 		get: {
 			tags: ["instance"],
 			summary: "Local instance catalog",
+			"x-nav-title": "Catalog",
 			description:
 				"What this instance is and holds: its mode and network, the feature manifest, the history it claims, and the subgraphs and webhooks deployed on it. No signup or pricing, ever.",
 			security: READ_SECURITY,
@@ -969,6 +976,7 @@ export function openapiSpec(
 		get: {
 			tags: ["instance"],
 			summary: "Default feature manifest",
+			"x-nav-title": "Features",
 			description:
 				"Which modules this instance runs, including which protocol decoders are on.",
 			security: READ_SECURITY,
@@ -984,6 +992,7 @@ export function openapiSpec(
 		get: {
 			tags: ["instance"],
 			summary: "Operational vitals",
+			"x-nav-title": "Vitals",
 			description:
 				"Process uptime, database size, the last 24 hours of webhook delivery outcomes, and rows processed per hour. A value that can't be measured comes back `null` instead of failing the request.",
 			security: READ_SECURITY,

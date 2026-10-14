@@ -255,6 +255,7 @@ export const streamsPaths = {
 		get: {
 			tags: ["streams"],
 			summary: "Streams discovery",
+			"x-nav-title": "Discovery",
 			description:
 				"Lists the Streams routes, the event types and filters `/v1/streams/events` accepts, and the cursor format. Served ahead of Streams auth, so it never needs a credential.",
 			security: READ_SECURITY,
@@ -274,6 +275,7 @@ export const streamsPaths = {
 		get: {
 			tags: ["streams"],
 			summary: "Raw event firehose",
+			"x-nav-title": "Event firehose",
 			description: `Canonical chain events in chain order: block height, then transaction position, then event position. Pages are capped at the tip minus a ${STREAMS_TIP_REORG_MARGIN_BLOCKS}-block reorg margin. With no cursor or \`from_height\`, the read starts ${STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS} blocks behind the tip. An empty filtered page still returns a \`next_cursor\` past \`to_height\`, so a consumer never stalls. Pages at or below \`tip.finalized_height\` are immutable: they carry an \`ETag\` and answer \`If-None-Match\` with 304.`,
 			security: READ_SECURITY,
 			parameters: [
@@ -316,6 +318,7 @@ export const streamsPaths = {
 		get: {
 			tags: ["streams"],
 			summary: "Tail the event firehose over SSE",
+			"x-nav-title": "Tail over SSE",
 			description:
 				'Server-sent events over the same read as `/v1/streams/events`, with the same parameters. The server polls every 1.5 seconds by default (`STREAMS_SSE_POLL_MS`) and writes one frame per event: `id` is the event\'s cursor and `data` is `{ "event": <StreamsEvent> }`, or `{ "event", "sig", "key_id" }` with an ed25519 signature over the event\'s JSON when the instance has a signing key. After 20 seconds with no events it writes `event: ping` with empty data; ignore it. With no `cursor`, `from_cursor` or `from_height`, the tail starts at the current tip minus the reorg margin. `Last-Event-ID` is not read; to resume after a disconnect, reconnect with `from_cursor` set to the last `id` you processed.',
 			security: READ_SECURITY,
@@ -351,6 +354,7 @@ export const streamsPaths = {
 		get: {
 			tags: ["streams"],
 			summary: "Chain reorg history",
+			"x-nav-title": "Reorg history",
 			description:
 				"Reorgs the indexer recorded, oldest first. Page forward by passing `next_since` back as `since`.",
 			security: READ_SECURITY,
@@ -404,6 +408,7 @@ export const streamsPaths = {
 		get: {
 			tags: ["streams"],
 			summary: "Canonical block by height",
+			"x-nav-title": "Canonical block",
 			description:
 				"The canonical Stacks block at one height and the Bitcoin block it anchors to. Finalized heights are cached for good and answer `If-None-Match` with 304; the `ETag` is the block hash.",
 			security: READ_SECURITY,
@@ -444,6 +449,7 @@ export const streamsPaths = {
 		get: {
 			tags: ["streams"],
 			summary: "Current chain tip",
+			"x-nav-title": "Chain tip",
 			description:
 				"The newest canonical block this instance has indexed, the finality boundary, and how far back this caller can seek. Never cached.",
 			security: READ_SECURITY,

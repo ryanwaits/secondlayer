@@ -194,6 +194,7 @@ export const subgraphsPaths = {
 		get: {
 			tags: ["subgraphs"],
 			summary: "List the subgraphs this instance serves",
+			"x-nav-title": "List subgraphs",
 			description:
 				"Every subgraph deployed on this instance, with its tables, sync position, and approximate row count. Hosted: your account's subgraphs, then every public one. The anonymous list is cached for 30 seconds and carries an `ETag`; send `If-None-Match` for a 304.",
 			security: READ_SECURITY,
@@ -215,6 +216,7 @@ export const subgraphsPaths = {
 		get: {
 			tags: ["subgraphs"],
 			summary: "Get one subgraph's tables, columns, and sync tip",
+			"x-nav-title": "Subgraph schema",
 			description:
 				"Metadata for one subgraph: each table's read endpoint and declared columns, how far indexing has reached, and links to its generated docs. `columns` lists only the definition's columns; the system columns `_id`, `_block_height`, `_tx_id` and `_created_at` exist on every table too.",
 			security: READ_SECURITY,
@@ -231,6 +233,7 @@ export const subgraphsPaths = {
 		get: {
 			tags: ["subgraphs"],
 			summary: "Get a subgraph's OpenAPI document",
+			"x-nav-title": "OpenAPI document",
 			description:
 				"An OpenAPI 3.1 document generated from the subgraph's definition: one list path and one count path per table, a row schema per table, and the column filters each table accepts. Feed it to a client generator.",
 			security: READ_SECURITY,
@@ -247,6 +250,7 @@ export const subgraphsPaths = {
 		get: {
 			tags: ["subgraphs"],
 			summary: "Get a subgraph's agent schema",
+			"x-nav-title": "Agent schema",
 			description:
 				"A compact JSON description of the subgraph for agents and tools: per table, its endpoints, exact row count, columns, the query params and filters it accepts, and example requests.",
 			security: READ_SECURITY,
@@ -263,6 +267,7 @@ export const subgraphsPaths = {
 		get: {
 			tags: ["subgraphs"],
 			summary: "Get a subgraph's markdown docs",
+			"x-nav-title": "Markdown docs",
 			description:
 				"The agent schema rendered as markdown: a section per table with its endpoints, row count, column table, query params, filters, and a curl example. Served as `text/markdown`.",
 			security: READ_SECURITY,
@@ -290,6 +295,7 @@ export const subgraphsPaths = {
 		get: {
 			tags: ["subgraphs"],
 			summary: "List a table's rows",
+			"x-nav-title": "List rows",
 			description: `Rows from one subgraph table, keyset-paginated. By default pages walk \`_id\`; \`_sort\` walks one column instead, with \`_id\` as the tiebreaker. \`next_cursor\` is set on every page that returned rows and is \`null\` only on an empty page: pass it back as \`cursor\` to continue, or tail new rows with \`cursor = next_cursor ?? cursor\`. \`_offset\` is refused (400): deep OFFSET scans hurt on big tables. \`_limit\` defaults to ${DEFAULT_LIMIT}.`,
 			security: READ_SECURITY,
 			parameters: [
@@ -357,6 +363,7 @@ export const subgraphsPaths = {
 		get: {
 			tags: ["subgraphs"],
 			summary: "Count a table's rows",
+			"x-nav-title": "Count rows",
 			description:
 				"How many rows match the filters. Takes the same column filters and `_search` as the row list.",
 			security: READ_SECURITY,
@@ -394,6 +401,7 @@ export const subgraphsPaths = {
 		get: {
 			tags: ["subgraphs"],
 			summary: "Aggregate a table's rows",
+			"x-nav-title": "Aggregate rows",
 			description: `Scalar aggregates over the rows that match the filters: count, distinct counts, and sum, min and max of numeric columns. With no aggregate param it returns \`{ "count": n }\`. Up to ${MAX_AGGREGATE_COLUMNS} aggregate columns per request. Takes the same column filters and \`_search\` as the row list.`,
 			security: READ_SECURITY,
 			parameters: [
@@ -448,7 +456,8 @@ export const subgraphsPaths = {
 	"/v1/subgraphs/{name}/{table}/stream": {
 		get: {
 			tags: ["subgraphs"],
-			summary: "Stream a table's new rows (SSE)",
+			summary: "Stream a table's new rows over SSE",
+			"x-nav-title": "Stream rows",
 			description:
 				"Server-Sent Events of rows as they are indexed. Starts at the table's newest row and sends only rows after it; `since` replays from a block height first, then keeps tailing. The server polls every 1.5 seconds, sends each matching row in `_id` order, and sends a `ping` event after 20 idle seconds. Column filters and `_search` apply; `_limit`, `_sort`, `_order` and `_fields` are checked but have no effect, and rows always come back whole. Nothing is stored between connections, and `Last-Event-ID` is not read: to resume, reconnect with `since`.",
 			security: READ_SECURITY,
@@ -491,6 +500,7 @@ export const subgraphsPaths = {
 		get: {
 			tags: ["subgraphs"],
 			summary: "Get one row by id",
+			"x-nav-title": "Row by ID",
 			description:
 				"One row by its `_id`, wrapped as `{ data }`. An id that isn't an integer, or no row with it, is a 404.",
 			security: READ_SECURITY,

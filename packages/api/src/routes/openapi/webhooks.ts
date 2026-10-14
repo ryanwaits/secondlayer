@@ -356,6 +356,7 @@ export const webhooksPaths = {
 		get: {
 			tags: ["webhooks"],
 			summary: "List webhooks",
+			"x-nav-title": "List webhooks",
 			description:
 				"Every webhook on this instance, newest first, with status and last delivery times. Paged by offset.",
 			security: WRITE_SECURITY,
@@ -384,6 +385,7 @@ export const webhooksPaths = {
 		post: {
 			tags: ["webhooks"],
 			summary: "Create a webhook",
+			"x-nav-title": "Create",
 			description:
 				"Takes `triggers` and starts at the chain tip, with no backfill. The response carries the signing secret. This is the only time it is returned, so store it now; `rotate-secret` issues a new one.",
 			security: WRITE_SECURITY,
@@ -405,6 +407,7 @@ export const webhooksPaths = {
 		get: {
 			tags: ["webhooks"],
 			summary: "Get a webhook",
+			"x-nav-title": "Get",
 			description:
 				"Full config and delivery health for one webhook. Never includes the signing secret.",
 			security: WRITE_SECURITY,
@@ -417,6 +420,7 @@ export const webhooksPaths = {
 		patch: {
 			tags: ["webhooks"],
 			summary: "Update a webhook",
+			"x-nav-title": "Update",
 			description:
 				"Change any subset of fields; at least one is required. `triggers` are fixed at create: to change them, create a new webhook.",
 			security: WRITE_SECURITY,
@@ -436,6 +440,7 @@ export const webhooksPaths = {
 		delete: {
 			tags: ["webhooks"],
 			summary: "Delete a webhook",
+			"x-nav-title": "Delete",
 			description:
 				"Removes the webhook. Nothing more is delivered to its URL. Cannot be undone.",
 			security: WRITE_SECURITY,
@@ -450,6 +455,7 @@ export const webhooksPaths = {
 		post: {
 			tags: ["webhooks"],
 			summary: "Pause a webhook",
+			"x-nav-title": "Pause",
 			description:
 				"Sets `status` to `paused`. Matched events keep queueing and deliver on resume. Takes no body.",
 			security: WRITE_SECURITY,
@@ -467,6 +473,7 @@ export const webhooksPaths = {
 		post: {
 			tags: ["webhooks"],
 			summary: "Resume a webhook",
+			"x-nav-title": "Resume",
 			description:
 				"Sets `status` to `active` and resets the circuit breaker (`circuitFailures`, `circuitOpenedAt`). Queued events start delivering. Takes no body.",
 			security: WRITE_SECURITY,
@@ -484,6 +491,7 @@ export const webhooksPaths = {
 		post: {
 			tags: ["webhooks"],
 			summary: "Rotate the signing secret",
+			"x-nav-title": "Rotate secret",
 			description:
 				"Issues a new signing secret and returns it, once. Deliveries signed with the old secret stop verifying immediately, so update your receiver right away. Takes no body.",
 			security: WRITE_SECURITY,
@@ -501,6 +509,7 @@ export const webhooksPaths = {
 		post: {
 			tags: ["webhooks"],
 			summary: "Send a test delivery",
+			"x-nav-title": "Send a test",
 			description:
 				"Posts one sample event, built and signed in the webhook's format, to its URL through the SSRF guard, and logs it under deliveries. The body has `data.test: true`, so receivers can tell it from a live event. Works while paused. Takes no body.",
 			security: WRITE_SECURITY,
@@ -518,6 +527,7 @@ export const webhooksPaths = {
 		get: {
 			tags: ["webhooks"],
 			summary: "List delivery attempts",
+			"x-nav-title": "Delivery attempts",
 			description:
 				"The last 100 delivery attempts, newest first, including test deliveries. `total` counts every attempt ever logged for the webhook.",
 			security: WRITE_SECURITY,
@@ -566,6 +576,7 @@ export const webhooksPaths = {
 		get: {
 			tags: ["webhooks"],
 			summary: "List dead-lettered events",
+			"x-nav-title": "Dead events",
 			description:
 				"Events that used up `maxRetries` without a 2xx, newest failure first, up to 100. Requeue one to try it again.",
 			security: WRITE_SECURITY,
@@ -596,6 +607,7 @@ export const webhooksPaths = {
 		post: {
 			tags: ["webhooks"],
 			summary: "Requeue a dead event",
+			"x-nav-title": "Requeue",
 			description:
 				"Moves one dead event back to pending with its attempt count reset. It delivers at live priority, even if it came from a replay. Takes no body.",
 			security: WRITE_SECURITY,
@@ -618,6 +630,7 @@ export const webhooksPaths = {
 		post: {
 			tags: ["webhooks"],
 			summary: "Replay a block range",
+			"x-nav-title": "Replay",
 			description:
 				"Queues historical events in a block range for redelivery, capped at 100,000 blocks. Replays are idempotent: the same range yields the same `replayId` and delivers nothing twice unless `force` is set. They drain through a 10% share of the outbox so live traffic keeps priority, and never move the live cursor. Replays deliver the normal `chain.<type>.apply` envelope.",
 			security: WRITE_SECURITY,

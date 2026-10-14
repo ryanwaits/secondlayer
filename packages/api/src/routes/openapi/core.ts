@@ -23,6 +23,7 @@ export const corePaths = {
 		get: {
 			tags: ["general"],
 			summary: "Surface discovery",
+			"x-nav-title": "Surfaces",
 			description:
 				"Lists the public read surfaces on this instance, where this document lives, the list envelope shape, and the cursor format. A starting point for an agent that has only the base URL.",
 			security: READ_SECURITY,
@@ -39,6 +40,7 @@ export const corePaths = {
 		post: {
 			tags: ["general"],
 			summary: "Batch public reads",
+			"x-nav-title": "Batch reads",
 			description: `Up to ${BATCH_MAX_ITEMS} GET reads under \`/v1/index/\`, \`/v1/subgraphs\`, \`/v1/streams/\` and \`/v1/contracts\` in one round trip. Items run in parallel through the full app, so auth, rate limits and retention apply per item; the request's \`Authorization\` header is forwarded to every item. Results come back in request order, each with its own HTTP status and JSON body. A refused or failed item does not fail the batch.`,
 			security: READ_SECURITY,
 			requestBody: jsonBody({
@@ -89,6 +91,7 @@ export const corePaths = {
 		post: {
 			tags: ["archive"],
 			summary: "Verify this instance against a signed archive",
+			"x-nav-title": "Verify against archive",
 			description: `Compares identity digests of this instance's blocks, transactions and events against the range digests in a signed archive manifest. Read-only: the instance fetches the manifest, nothing is uploaded. Semantic replay (\`--deep\`) is CLI only. Without \`from_block\` or \`to_block\`, a manifest with more than ${MAX_RANGES_WITHOUT_WINDOW} matching ranges is refused with 400. A missing key, an unreachable manifest, a failed signature or no matching digests answer 200 \`unanchored\` with a \`reason\`, never \`clean\`.`,
 			security: READ_SECURITY,
 			requestBody: jsonBody({
@@ -152,6 +155,7 @@ export const corePaths = {
 		get: {
 			tags: ["general"],
 			summary: "This document",
+			"x-nav-title": "OpenAPI document",
 			description:
 				"The OpenAPI 3.1 description of this instance, as JSON. It describes the instance's own mode: a self-hosted instance includes the `/api` write plane, the hosted archive leaves it out.",
 			security: READ_SECURITY,

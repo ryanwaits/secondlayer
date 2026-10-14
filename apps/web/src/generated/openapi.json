@@ -8658,6 +8658,7 @@
 					"general"
 				],
 				"summary": "Surface discovery",
+				"x-nav-title": "Surfaces",
 				"description": "Lists the public read surfaces on this instance, where this document lives, the list envelope shape, and the cursor format. A starting point for an agent that has only the base URL.",
 				"security": [
 					{},
@@ -8696,6 +8697,7 @@
 					"general"
 				],
 				"summary": "Batch public reads",
+				"x-nav-title": "Batch reads",
 				"description": "Up to 10 GET reads under `/v1/index/`, `/v1/subgraphs`, `/v1/streams/` and `/v1/contracts` in one round trip. Items run in parallel through the full app, so auth, rate limits and retention apply per item; the request's `Authorization` header is forwarded to every item. Results come back in request order, each with its own HTTP status and JSON body. A refused or failed item does not fail the batch.",
 				"security": [
 					{},
@@ -8801,6 +8803,7 @@
 					"archive"
 				],
 				"summary": "Verify this instance against a signed archive",
+				"x-nav-title": "Verify against archive",
 				"description": "Compares identity digests of this instance's blocks, transactions and events against the range digests in a signed archive manifest. Read-only: the instance fetches the manifest, nothing is uploaded. Semantic replay (`--deep`) is CLI only. Without `from_block` or `to_block`, a manifest with more than 40 matching ranges is refused with 400. A missing key, an unreachable manifest, a failed signature or no matching digests answer 200 `unanchored` with a `reason`, never `clean`.",
 				"security": [
 					{},
@@ -8899,6 +8902,7 @@
 					"general"
 				],
 				"summary": "This document",
+				"x-nav-title": "OpenAPI document",
 				"description": "The OpenAPI 3.1 description of this instance, as JSON. It describes the instance's own mode: a self-hosted instance includes the `/api` write plane, the hosted archive leaves it out.",
 				"security": [
 					{},
@@ -8991,6 +8995,7 @@
 					"subgraphs"
 				],
 				"summary": "List the subgraphs this instance serves",
+				"x-nav-title": "List subgraphs",
 				"description": "Every subgraph deployed on this instance, with its tables, sync position, and approximate row count. Hosted: your account's subgraphs, then every public one. The anonymous list is cached for 30 seconds and carries an `ETag`; send `If-None-Match` for a 304.",
 				"security": [
 					{},
@@ -9042,6 +9047,7 @@
 					"subgraphs"
 				],
 				"summary": "Get one subgraph's tables, columns, and sync tip",
+				"x-nav-title": "Subgraph schema",
 				"description": "Metadata for one subgraph: each table's read endpoint and declared columns, how far indexing has reached, and links to its generated docs. `columns` lists only the definition's columns; the system columns `_id`, `_block_height`, `_tx_id` and `_created_at` exist on every table too.",
 				"security": [
 					{},
@@ -9111,6 +9117,7 @@
 					"subgraphs"
 				],
 				"summary": "Get a subgraph's OpenAPI document",
+				"x-nav-title": "OpenAPI document",
 				"description": "An OpenAPI 3.1 document generated from the subgraph's definition: one list path and one count path per table, a row schema per table, and the column filters each table accepts. Feed it to a client generator.",
 				"security": [
 					{},
@@ -9189,6 +9196,7 @@
 					"subgraphs"
 				],
 				"summary": "Get a subgraph's agent schema",
+				"x-nav-title": "Agent schema",
 				"description": "A compact JSON description of the subgraph for agents and tools: per table, its endpoints, exact row count, columns, the query params and filters it accepts, and example requests.",
 				"security": [
 					{},
@@ -9267,6 +9275,7 @@
 					"subgraphs"
 				],
 				"summary": "Get a subgraph's markdown docs",
+				"x-nav-title": "Markdown docs",
 				"description": "The agent schema rendered as markdown: a section per table with its endpoints, row count, column table, query params, filters, and a curl example. Served as `text/markdown`.",
 				"security": [
 					{},
@@ -9346,6 +9355,7 @@
 					"subgraphs"
 				],
 				"summary": "List a table's rows",
+				"x-nav-title": "List rows",
 				"description": "Rows from one subgraph table, keyset-paginated. By default pages walk `_id`; `_sort` walks one column instead, with `_id` as the tiebreaker. `next_cursor` is set on every page that returned rows and is `null` only on an empty page: pass it back as `cursor` to continue, or tail new rows with `cursor = next_cursor ?? cursor`. `_offset` is refused (400): deep OFFSET scans hurt on big tables. `_limit` defaults to 50.",
 				"security": [
 					{},
@@ -9515,6 +9525,7 @@
 					"subgraphs"
 				],
 				"summary": "Count a table's rows",
+				"x-nav-title": "Count rows",
 				"description": "How many rows match the filters. Takes the same column filters and `_search` as the row list.",
 				"security": [
 					{},
@@ -9644,6 +9655,7 @@
 					"subgraphs"
 				],
 				"summary": "Aggregate a table's rows",
+				"x-nav-title": "Aggregate rows",
 				"description": "Scalar aggregates over the rows that match the filters: count, distinct counts, and sum, min and max of numeric columns. With no aggregate param it returns `{ \"count\": n }`. Up to 32 aggregate columns per request. Takes the same column filters and `_search` as the row list.",
 				"security": [
 					{},
@@ -9803,7 +9815,8 @@
 				"tags": [
 					"subgraphs"
 				],
-				"summary": "Stream a table's new rows (SSE)",
+				"summary": "Stream a table's new rows over SSE",
+				"x-nav-title": "Stream rows",
 				"description": "Server-Sent Events of rows as they are indexed. Starts at the table's newest row and sends only rows after it; `since` replays from a block height first, then keeps tailing. The server polls every 1.5 seconds, sends each matching row in `_id` order, and sends a `ping` event after 20 idle seconds. Column filters and `_search` apply; `_limit`, `_sort`, `_order` and `_fields` are checked but have no effect, and rows always come back whole. Nothing is stored between connections, and `Last-Event-ID` is not read: to resume, reconnect with `since`.",
 				"security": [
 					{},
@@ -9930,6 +9943,7 @@
 					"subgraphs"
 				],
 				"summary": "Get one row by id",
+				"x-nav-title": "Row by ID",
 				"description": "One row by its `_id`, wrapped as `{ data }`. An id that isn't an integer, or no row with it, is a 404.",
 				"security": [
 					{},
@@ -10035,6 +10049,7 @@
 					"index"
 				],
 				"summary": "Index discovery",
+				"x-nav-title": "Discovery",
 				"description": "Lists every Index route with its accepted filters, plus the per-`event_type` column and filter vocabulary for `/v1/index/events`. Open: it runs before auth, so it never needs a token.",
 				"security": [
 					{},
@@ -10063,6 +10078,7 @@
 					"index"
 				],
 				"summary": "Decoded events by event_type",
+				"x-nav-title": "Events",
 				"description": "One `event_type` per request, oldest first. Which filters and `fields` apply depends on the type; anything a type does not accept is refused.",
 				"security": [
 					{},
@@ -10302,6 +10318,7 @@
 					"index"
 				],
 				"summary": "Fungible token transfers",
+				"x-nav-title": "FT transfers",
 				"description": "Same rows as `/v1/index/events?event_type=ft_transfer`, oldest first, with a typed row. Filters combine with AND.",
 				"security": [
 					{},
@@ -10478,6 +10495,7 @@
 					"index"
 				],
 				"summary": "NFT transfers",
+				"x-nav-title": "NFT transfers",
 				"description": "Same rows as `/v1/index/events?event_type=nft_transfer`, oldest first, with a typed row. Filters combine with AND.",
 				"security": [
 					{},
@@ -10654,6 +10672,7 @@
 					"index"
 				],
 				"summary": "Decoded contract-call transactions",
+				"x-nav-title": "Contract calls",
 				"description": "Top-level `contract_call` transactions in canonical blocks, oldest first, with arguments and result decoded. Failed calls are included; check `status`. The cursor is `<block_height>:<tx_index>`. `reorgs` covers every height on the page.",
 				"security": [
 					{},
@@ -10826,6 +10845,7 @@
 					"index"
 				],
 				"summary": "Canonical block-hash map",
+				"x-nav-title": "Canonical hashes",
 				"description": "One row per height on the canonical chain, oldest first. Orphaned blocks never appear, so you can check your own chain against it. Lean by design; `/v1/index/blocks` is the full block. Not metered.",
 				"security": [
 					{},
@@ -10950,6 +10970,7 @@
 					"index"
 				],
 				"summary": "State writes",
+				"x-nav-title": "State writes",
 				"description": "The exact MARF writes each canonical block committed, in the node's write order: every changed leaf of the block's state trie, named. Oldest first; the cursor is `<block_height>:<ordinal>`. `block_height` reads one block. Present only from the height this instance's node subscribed to the `state_writes` observer key, with no earlier history. The window follows the ingest tip. `reorgs` overlaps by height.",
 				"security": [
 					{},
@@ -11108,6 +11129,7 @@
 					"index"
 				],
 				"summary": "Canonical blocks",
+				"x-nav-title": "Blocks",
 				"description": "Canonical blocks, oldest first. The cursor is `<block_height>:0`. The window follows the ingest tip, so it can run ahead of the decoded `tip.block_height`.",
 				"security": [
 					{},
@@ -11241,6 +11263,7 @@
 					"index"
 				],
 				"summary": "Block by height or hash",
+				"x-nav-title": "Block by height or hash",
 				"description": "A height returns the canonical block there. A hash returns that block whether or not it is canonical, so check `canonical` to spot an orphan. Not metered.",
 				"security": [
 					{},
@@ -11342,6 +11365,7 @@
 					"index"
 				],
 				"summary": "Full transaction documents",
+				"x-nav-title": "Transactions",
 				"description": "Transactions in canonical blocks, oldest first, with fee, nonce, post-conditions and payload detail decoded from the raw bytes. Filters combine with AND. The cursor is `<block_height>:<tx_index>`. `reorgs` covers every height on the page.",
 				"security": [
 					{},
@@ -11509,6 +11533,7 @@
 					"index"
 				],
 				"summary": "Transaction by tx_id",
+				"x-nav-title": "Transaction by ID",
 				"description": "One transaction document, only if it sits in a canonical block. A transaction still pending is at `/v1/index/mempool/{tx_id}`. Not metered.",
 				"security": [
 					{},
@@ -11641,7 +11666,8 @@
 				"tags": [
 					"index"
 				],
-				"summary": "Trustless tx-inclusion proof (raw tx, Nakamoto header, merkle path)",
+				"summary": "Transaction inclusion proof",
+				"x-nav-title": "Inclusion proof",
 				"description": "What you need to check, without trusting this API, that a transaction is in a signed Nakamoto block: the raw tx, the raw block header, and the tx merkle path. `consensus` adds the cycle's signer set when the node can resolve it. The SDK's `verifyTransactionProof` runs every check. The instance must reach its Stacks node. Immutable once served.",
 				"security": [
 					{},
@@ -11720,7 +11746,8 @@
 				"tags": [
 					"index"
 				],
-				"summary": "Pending (unconfirmed) transactions",
+				"summary": "Pending transactions",
+				"x-nav-title": "Pending transactions",
 				"description": "Pending transactions this instance's node has seen since the observer connected, in arrival order. A single-node, go-forward view: the backlog from before the observer connected is never replayed. Confirmed transactions leave the list. No height window. Never cached.",
 				"security": [
 					{},
@@ -11863,6 +11890,7 @@
 					"index"
 				],
 				"summary": "Pending transaction by tx_id",
+				"x-nav-title": "Pending by ID",
 				"description": "One pending transaction. It 404s once the transaction confirms (read it from `/v1/index/transactions/{tx_id}`) or drops. Never cached.",
 				"security": [
 					{},
@@ -11969,7 +11997,8 @@
 				"tags": [
 					"index"
 				],
-				"summary": "Empirical per-topic print payload schemas for a contract",
+				"summary": "Print payload schemas for a contract",
+				"x-nav-title": "Print schemas",
 				"description": "Infers the shape of a contract's `print` payloads from its canonical print events, grouped by the tuple's `topic` field. Reads the newest 1500 and oldest 500 events, so fields the contract stopped emitting still show. Takes no query parameters. Held in memory for 5 minutes per contract. Not metered.",
 				"security": [
 					{},
@@ -12040,6 +12069,7 @@
 					"index"
 				],
 				"summary": "PoX-4 stacking actions",
+				"x-nav-title": "PoX-4 stacking",
 				"description": "Decoded PoX-4 contract calls (`stack-stx`, `delegate-stx`, `stack-aggregation-commit-indexed`, …), one row per call, oldest first. Pages on `<block_height>:<tx_index>`. With no cursor or `from_height`, the read covers the last day. PoX-4 stopped at the epoch 4.0 fork, so read history with `from_height` and use `/v1/index/pox5/events` for what came after.",
 				"security": [
 					{},
@@ -12212,6 +12242,7 @@
 					"index"
 				],
 				"summary": "Reward cycles of the current PoX (PoX-5)",
+				"x-nav-title": "Reward cycles",
 				"description": "One row per pox-5 reward cycle, descending, exact to the node: total stacked, reward-eligible STX, bond sats, sBTC custodied, rewards allocated/claimed, and cumulative rewards-per-token. Without a cursor, your list starts at the next reward cycle (the current one plus one) and goes back in time. Pass a higher `cursor` to reach cycles further in the future, which PoX-5 bonds can lock many cycles ahead. `pox_version` marks the era; at the next PoX fork this endpoint follows the chain and reports the new PoX instead. PoX-4 history is final and not served here; rebuild it from `/v1/index/stacking` on a self-hosted instance. Frozen cycles cache for an hour; the still-open current cycle caches briefly.",
 				"security": [
 					{},
@@ -12330,6 +12361,7 @@
 					"index"
 				],
 				"summary": "A PoX-5 reward cycle by cycle number",
+				"x-nav-title": "Reward cycle",
 				"description": "One pox-5 reward cycle, the same shape as a row of `/v1/index/pox/cycles` plus its per-signer breakdown. 404 when the cycle doesn't exist yet. A cycle number below 141 (pox-5's first) 404s with a note that PoX-4 cycles are final and not served here.",
 				"security": [
 					{},
@@ -12500,7 +12532,8 @@
 				"tags": [
 					"index"
 				],
-				"summary": "PoX-5 boot-contract events (decoded)",
+				"summary": "Decoded PoX-5 boot-contract events",
+				"x-nav-title": "PoX-5 events",
 				"description": "Decoded print log of the pox-5 boot contract (SIP-045 Bitcoin Staking) — all 19 topics (stake, stake-update, register-signer, unstake, claim-rewards, etc.), one row per print. Starts at the epoch 4.0 hard fork, where /v1/index/stacking's pox-4 feed ends.",
 				"security": [
 					{},
@@ -12734,6 +12767,7 @@
 					"index"
 				],
 				"summary": "Rune catalog",
+				"x-nav-title": "Rune catalog",
 				"description": "Every etched rune, with the identity bundle (id, name, spaced_name, symbol, divisibility) every Runes response carries plus its computed supply, mint/burn counters and mint terms. `search` prefix-matches the name (spacers and case ignored); `sort` is etch order (`number`, default) or busiest-first (`mints`).",
 				"security": [
 					{},
@@ -12871,6 +12905,7 @@
 					"index"
 				],
 				"summary": "A single rune's entry",
+				"x-nav-title": "One rune",
 				"description": "One rune's full entry by id or name, with computed `supply` (`premine + mints × terms.amount`). 404 when no rune matches.",
 				"security": [
 					{},
@@ -12993,7 +13028,8 @@
 				"tags": [
 					"index"
 				],
-				"summary": "Rune activity (etch/mint/transfer/burn events)",
+				"summary": "Rune etches, mints, transfers and burns",
+				"x-nav-title": "Rune activity",
 				"description": "Every rune-moving event — etch, mint, transfer, burn — filterable by rune/address/kind/txid and cursor-paginated. Returns events[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>, same shape as every other decoded-event feed.",
 				"security": [
 					{},
@@ -13174,6 +13210,7 @@
 					"index"
 				],
 				"summary": "Rune balances by address or outpoint",
+				"x-nav-title": "Rune balances",
 				"description": "Current per-outpoint rune balances. Exactly one of `address` or `outpoint` is required; `rune` narrows either to one rune. Returns balances[], next_cursor, tip.",
 				"security": [
 					{},
@@ -13316,7 +13353,8 @@
 				"tags": [
 					"index"
 				],
-				"summary": "sBTC peg events (decoded)",
+				"summary": "Decoded sBTC peg events",
+				"x-nav-title": "Peg events",
 				"description": "Every decoded `sbtc-registry` print, all topics, one row per event, oldest first: deposits, withdrawal create/accept/reject, signer key rotations and protocol-contract updates. With no cursor or `from_height`, the read covers the last day.",
 				"security": [
 					{},
@@ -13515,7 +13553,8 @@
 				"tags": [
 					"index"
 				],
-				"summary": "sBTC peg-ins (completed deposits)",
+				"summary": "Completed sBTC deposits",
+				"x-nav-title": "Deposits",
 				"description": "Completed deposits, one row per `completed-deposit` event, oldest first. The event fires once the signers have swept the BTC in, so every row is final on the peg side. With no cursor or `from_height`, the read covers the last day.",
 				"security": [
 					{},
@@ -13697,6 +13736,7 @@
 					"index"
 				],
 				"summary": "sBTC peg-in by Bitcoin txid",
+				"x-nav-title": "Deposit by Bitcoin txid",
 				"description": "One completed deposit, looked up by the Bitcoin txid of the deposit. Past finality it is cached for good and answers `If-None-Match` with 304.",
 				"security": [
 					{},
@@ -13811,7 +13851,8 @@
 				"tags": [
 					"index"
 				],
-				"summary": "sBTC peg-outs (lifecycle, one per request_id)",
+				"summary": "sBTC withdrawals, one per request",
+				"x-nav-title": "Withdrawals",
 				"description": "Withdrawals, one row per `request_id`, ordered by when they were requested. Each row carries its current status from the latest accept or reject, the BTC sweep the signers committed to, and that sweep's Bitcoin settlement. The height window and cursor apply to the request event. Status can change after a row is final, so pages are never long-cached.",
 				"security": [
 					{},
@@ -14014,6 +14055,7 @@
 					"index"
 				],
 				"summary": "sBTC peg-out lifecycle by request_id",
+				"x-nav-title": "Withdrawal by request",
 				"description": "One withdrawal's full lifecycle: the request, the accept or reject, and the Bitcoin settlement of its sweep. Once it is accepted or rejected and past finality, it is cached for good and answers `If-None-Match` with 304.",
 				"security": [
 					{},
@@ -14154,6 +14196,7 @@
 					"index"
 				],
 				"summary": "sBTC peg summary scoreboard",
+				"x-nav-title": "Peg summary",
 				"description": "All-time totals for the whole bridge: deposit and withdrawal counts, net peg flow, and circulating sBTC supply read from `sbtc-token` on this instance's node. Takes no parameters.",
 				"security": [
 					{},
@@ -14243,6 +14286,7 @@
 					"streams"
 				],
 				"summary": "Streams discovery",
+				"x-nav-title": "Discovery",
 				"description": "Lists the Streams routes, the event types and filters `/v1/streams/events` accepts, and the cursor format. Served ahead of Streams auth, so it never needs a credential.",
 				"security": [
 					{},
@@ -14271,6 +14315,7 @@
 					"streams"
 				],
 				"summary": "Raw event firehose",
+				"x-nav-title": "Event firehose",
 				"description": "Canonical chain events in chain order: block height, then transaction position, then event position. Pages are capped at the tip minus a 2-block reorg margin. With no cursor or `from_height`, the read starts 1000 blocks behind the tip. An empty filtered page still returns a `next_cursor` past `to_height`, so a consumer never stalls. Pages at or below `tip.finalized_height` are immutable: they carry an `ETag` and answer `If-None-Match` with 304.",
 				"security": [
 					{},
@@ -14601,6 +14646,7 @@
 					"streams"
 				],
 				"summary": "Tail the event firehose over SSE",
+				"x-nav-title": "Tail over SSE",
 				"description": "Server-sent events over the same read as `/v1/streams/events`, with the same parameters. The server polls every 1.5 seconds by default (`STREAMS_SSE_POLL_MS`) and writes one frame per event: `id` is the event's cursor and `data` is `{ \"event\": <StreamsEvent> }`, or `{ \"event\", \"sig\", \"key_id\" }` with an ed25519 signature over the event's JSON when the instance has a signing key. After 20 seconds with no events it writes `event: ping` with empty data; ignore it. With no `cursor`, `from_cursor` or `from_height`, the tail starts at the current tip minus the reorg margin. `Last-Event-ID` is not read; to resume after a disconnect, reconnect with `from_cursor` set to the last `id` you processed.",
 				"security": [
 					{},
@@ -14868,6 +14914,7 @@
 					"streams"
 				],
 				"summary": "Chain reorg history",
+				"x-nav-title": "Reorg history",
 				"description": "Reorgs the indexer recorded, oldest first. Page forward by passing `next_since` back as `since`.",
 				"security": [
 					{},
@@ -15027,6 +15074,7 @@
 					"streams"
 				],
 				"summary": "Canonical block by height",
+				"x-nav-title": "Canonical block",
 				"description": "The canonical Stacks block at one height and the Bitcoin block it anchors to. Finalized heights are cached for good and answer `If-None-Match` with 304; the `ETag` is the block hash.",
 				"security": [
 					{},
@@ -15145,6 +15193,7 @@
 					"streams"
 				],
 				"summary": "Current chain tip",
+				"x-nav-title": "Chain tip",
 				"description": "The newest canonical block this instance has indexed, the finality boundary, and how far back this caller can seek. Never cached.",
 				"security": [
 					{},
@@ -15233,6 +15282,7 @@
 					"proofs"
 				],
 				"summary": "State witness for a block",
+				"x-nav-title": "State witness",
 				"description": "The block's MARF state witness (wire v3) from the proof sidecar: the trie nodes the block wrote, ancestor roots, and the names of every write. Recompute the root and compare it with the header's `state_index_root`; every changed leaf is a named write, a carried value, or an internal key, so a hidden write fails. Extracted on demand, so it has its own lower rate limit. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
@@ -15349,6 +15399,7 @@
 					"proofs"
 				],
 				"summary": "Burn block behind a consensus hash",
+				"x-nav-title": "Burn block",
 				"description": "The sortition preimage that hashes to a block header's `consensus_hash` (RIPEMD160(SHA256(preimage))). Bytes 4..36 of the preimage are the Bitcoin block hash, which pins the header's burn height against Bitcoin proof of work. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
@@ -15450,6 +15501,7 @@
 					"proofs"
 				],
 				"summary": "Bitcoin block headers",
+				"x-nav-title": "Bitcoin headers",
 				"description": "Raw 80-byte Bitcoin headers from `from`, at most 2016 (one difficulty period) per call. Check proof of work and linkage yourself from a checkpoint you trust. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
@@ -15560,6 +15612,7 @@
 					"proofs"
 				],
 				"summary": "Signed block by id",
+				"x-nav-title": "Block by ID",
 				"description": "The consensus-serialized Nakamoto block from the Stacks node (`/v3/blocks/{id}`): header with signer signatures, then transactions. Recompute the block id from the header and check the signatures against the cycle's signer set. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
@@ -15652,6 +15705,7 @@
 					"proofs"
 				],
 				"summary": "Signed block by height",
+				"x-nav-title": "Block by height",
 				"description": "The node's block at a Stacks height (`/v3/blocks/height/{height}`), same bytes as the by-id route. Near the tip the block at a height can change, so this is short-cached; prefer the by-id route once you know the id. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
@@ -15744,6 +15798,7 @@
 					"proofs"
 				],
 				"summary": "Epoch 2.x block header by id",
+				"x-nav-title": "Epoch 2.x header",
 				"description": "A pre-Nakamoto block's header from the Stacks node (`/v2/headers/1?tip={id}`), as the node's one-element array: `header` (consensus-serialized StacksBlockHeader, hex), `consensus_hash` and `parent_block_id`. The id is sha512/256(sha512/256(header) || consensus_hash): recompute it, then check state against the header's `state_index_root`. Nakamoto blocks are a 404 here; use the block route. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
@@ -15845,6 +15900,7 @@
 					"proofs"
 				],
 				"summary": "State writes of a block",
+				"x-nav-title": "Block writes",
 				"description": "Every MARF write the canonical block at `height` committed, in the node's write order, from this instance's indexed `state_writes`: the names a verifier needs to label each written leaf of the block's witness. A write the witness does not hold, or a leaf no write names, fails that check, so the rows are checked, not trusted. 404 when the instance has no writes for the block (its node did not subscribe to `state_writes` at that height); verifiers then report the diff unnamed. Near the tip the block at a height can change, so this is short-cached. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
@@ -15936,6 +15992,7 @@
 					"proofs"
 				],
 				"summary": "MARF inclusion proof",
+				"x-nav-title": "MARF proof",
 				"description": "A value and its MARF inclusion proof as of block `tip`, from the node (`/v2/clarity/marf/{path}?proof=1`). Keys the node cannot serve because they hold no stored value string, such as the MARF's own `__MARF_BLOCK_HEIGHT_TO_HASH::<height>`, are proven by the proof sidecar from the MARF itself: same proof bytes, and `data` is the raw 40-byte leaf value. Fold the proof to a root and compare it with `tip`'s `state_index_root`. Inclusion only: a missing key is a 404, not a proof of absence. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
 				"security": [
 					{},
@@ -16038,6 +16095,7 @@
 					"deployments"
 				],
 				"summary": "List deployed subgraphs",
+				"x-nav-title": "List deployments",
 				"description": "Every subgraph on this instance with its status, sync progress, row count and open gap count. Row counts come from Postgres table statistics, so they are approximate; the detail read counts exactly.",
 				"security": [
 					{
@@ -16113,6 +16171,7 @@
 					"deployments"
 				],
 				"summary": "Deploy or redeploy a subgraph",
+				"x-nav-title": "Deploy",
 				"description": "Takes bundled handler code (see `/api/subgraphs/bundle`) plus the schema and sources extracted from it. The server reads the definition from the bundle without running it, validates it, lints print fields, then applies the schema. A new subgraph, or a breaking schema change, queues a reindex and returns its `operationId`. Redeploying the same name updates in place; `action` says what happened. With `dryRun` it returns the DDL plan and writes nothing.",
 				"security": [
 					{
@@ -16227,6 +16286,7 @@
 					"deployments"
 				],
 				"summary": "Bundle subgraph source into deployable handler code",
+				"x-nav-title": "Bundle source",
 				"description": "Compiles a TypeScript subgraph module on the server and returns the bundle plus the metadata read from it, ready to POST to `/api/subgraphs`. Deploys nothing. The CLI and MCP bundle locally; this is for callers that cannot run esbuild.",
 				"security": [
 					{
@@ -16316,6 +16376,7 @@
 					"deployments"
 				],
 				"summary": "Get a deployed subgraph",
+				"x-nav-title": "Get a deployment",
 				"description": "Definition, health, sync progress and per-table columns and exact row counts. While a reindex or backfill is active, `sync` carries its queue position, event progress and ETA.",
 				"security": [
 					{
@@ -16372,6 +16433,7 @@
 					"deployments"
 				],
 				"summary": "Delete a subgraph",
+				"x-nav-title": "Delete",
 				"description": "Requests cancellation of any queued or running operation, waits up to 30 seconds for the processor to release it, then drops the Postgres schema and the registry row. Irreversible.",
 				"security": [
 					{
@@ -16471,6 +16533,7 @@
 					"deployments"
 				],
 				"summary": "Queue a full reindex",
+				"x-nav-title": "Reindex",
 				"description": "Drops the subgraph's tables and rebuilds them from its start block to the chain tip. Takes no body. A `fromBlock`/`toBlock` is refused with 400 `REINDEX_RANGE_NOT_SUPPORTED` rather than ignored, since a ranged walk would destroy everything outside the range; use `backfill` for a range. Poll the returned `operationId`.",
 				"security": [
 					{
@@ -16566,6 +16629,7 @@
 					"deployments"
 				],
 				"summary": "Queue a backfill over a block range",
+				"x-nav-title": "Backfill",
 				"description": "Re-runs handlers over `fromBlock` to `toBlock`, inclusive, without dropping data. A backfill that overlaps an earlier failed or cancelled one resumes from its last committed block. Refused when the handlers apply deltas (`ctx.increment`, `ctx.update`) or read-modify-write rows (`ctx.findOne`, `ctx.findMany`), which would double-count blocks already processed; reindex those instead.",
 				"security": [
 					{
@@ -16701,6 +16765,7 @@
 					"deployments"
 				],
 				"summary": "Stop the active reindex or backfill",
+				"x-nav-title": "Stop",
 				"description": "Takes no body. Flags the queued or running operation for cancellation; the processor stops it at its next checkpoint and marks it `cancelled`. A stopped backfill resumes from its checkpoint when the same range is queued again.",
 				"security": [
 					{
@@ -16807,6 +16872,7 @@
 					"deployments"
 				],
 				"summary": "List a subgraph's operations",
+				"x-nav-title": "List operations",
 				"description": "The 20 most recent reindex and backfill operations, newest first, with progress. Queued ones carry an approximate `queuePosition`.",
 				"security": [
 					{
@@ -16877,6 +16943,7 @@
 					"deployments"
 				],
 				"summary": "Get an operation",
+				"x-nav-title": "Get an operation",
 				"description": "One reindex or backfill by id. Poll it after a deploy, reindex or backfill until `status` is `completed`, `failed` or `cancelled`.",
 				"security": [
 					{
@@ -16944,6 +17011,7 @@
 					"deployments"
 				],
 				"summary": "List a subgraph's gaps",
+				"x-nav-title": "Gaps",
 				"description": "Block ranges the subgraph failed to process, ordered by start height. Open gaps only by default.",
 				"security": [
 					{
@@ -17082,6 +17150,7 @@
 					"deployments"
 				],
 				"summary": "List a subgraph's print violations",
+				"x-nav-title": "Print violations",
 				"description": "Print events a handler skipped because the payload did not match the source's declared `prints` schema, newest first. The instance keeps the last 100 per subgraph.",
 				"security": [
 					{
@@ -17197,6 +17266,7 @@
 					"webhooks"
 				],
 				"summary": "List webhooks",
+				"x-nav-title": "List webhooks",
 				"description": "Every webhook on this instance, newest first, with status and last delivery times. Paged by offset.",
 				"security": [
 					{
@@ -17282,6 +17352,7 @@
 					"webhooks"
 				],
 				"summary": "Create a webhook",
+				"x-nav-title": "Create",
 				"description": "Takes `triggers` and starts at the chain tip, with no backfill. The response carries the signing secret. This is the only time it is returned, so store it now; `rotate-secret` issues a new one.",
 				"security": [
 					{
@@ -17369,6 +17440,7 @@
 					"webhooks"
 				],
 				"summary": "Get a webhook",
+				"x-nav-title": "Get",
 				"description": "Full config and delivery health for one webhook. Never includes the signing secret.",
 				"security": [
 					{
@@ -17425,6 +17497,7 @@
 					"webhooks"
 				],
 				"summary": "Update a webhook",
+				"x-nav-title": "Update",
 				"description": "Change any subset of fields; at least one is required. `triggers` are fixed at create: to change them, create a new webhook.",
 				"security": [
 					{
@@ -17511,6 +17584,7 @@
 					"webhooks"
 				],
 				"summary": "Delete a webhook",
+				"x-nav-title": "Delete",
 				"description": "Removes the webhook. Nothing more is delivered to its URL. Cannot be undone.",
 				"security": [
 					{
@@ -17601,6 +17675,7 @@
 					"webhooks"
 				],
 				"summary": "Pause a webhook",
+				"x-nav-title": "Pause",
 				"description": "Sets `status` to `paused`. Matched events keep queueing and deliver on resume. Takes no body.",
 				"security": [
 					{
@@ -17679,6 +17754,7 @@
 					"webhooks"
 				],
 				"summary": "Resume a webhook",
+				"x-nav-title": "Resume",
 				"description": "Sets `status` to `active` and resets the circuit breaker (`circuitFailures`, `circuitOpenedAt`). Queued events start delivering. Takes no body.",
 				"security": [
 					{
@@ -17757,6 +17833,7 @@
 					"webhooks"
 				],
 				"summary": "Rotate the signing secret",
+				"x-nav-title": "Rotate secret",
 				"description": "Issues a new signing secret and returns it, once. Deliveries signed with the old secret stop verifying immediately, so update your receiver right away. Takes no body.",
 				"security": [
 					{
@@ -17835,6 +17912,7 @@
 					"webhooks"
 				],
 				"summary": "Send a test delivery",
+				"x-nav-title": "Send a test",
 				"description": "Posts one sample event, built and signed in the webhook's format, to its URL through the SSRF guard, and logs it under deliveries. The body has `data.test: true`, so receivers can tell it from a live event. Works while paused. Takes no body.",
 				"security": [
 					{
@@ -17913,6 +17991,7 @@
 					"webhooks"
 				],
 				"summary": "List delivery attempts",
+				"x-nav-title": "Delivery attempts",
 				"description": "The last 100 delivery attempts, newest first, including test deliveries. `total` counts every attempt ever logged for the webhook.",
 				"security": [
 					{
@@ -18005,6 +18084,7 @@
 					"webhooks"
 				],
 				"summary": "List dead-lettered events",
+				"x-nav-title": "Dead events",
 				"description": "Events that used up `maxRetries` without a 2xx, newest failure first, up to 100. Requeue one to try it again.",
 				"security": [
 					{
@@ -18108,6 +18188,7 @@
 					"webhooks"
 				],
 				"summary": "Requeue a dead event",
+				"x-nav-title": "Requeue",
 				"description": "Moves one dead event back to pending with its attempt count reset. It delivers at live priority, even if it came from a replay. Takes no body.",
 				"security": [
 					{
@@ -18207,6 +18288,7 @@
 					"webhooks"
 				],
 				"summary": "Replay a block range",
+				"x-nav-title": "Replay",
 				"description": "Queues historical events in a block range for redelivery, capped at 100,000 blocks. Replays are idempotent: the same range yields the same `replayId` and delivers nothing twice unless `force` is set. They drain through a 10% share of the outbox so live traffic keeps priority, and never move the live cursor. Replays deliver the normal `chain.<type>.apply` envelope.",
 				"security": [
 					{
@@ -18304,7 +18386,8 @@
 				"tags": [
 					"node"
 				],
-				"summary": "Clarity contract ABI, proxied from the local Stacks node",
+				"summary": "Contract ABI from the local Stacks node",
+				"x-nav-title": "Contract ABI",
 				"description": "Fetches the contract's interface from the Stacks node this instance follows (`/v2/contracts/interface`) and returns it unchanged. Nothing is cached. Self-hosted only; needs the instance token whenever one is set.",
 				"security": [
 					{
@@ -18374,6 +18457,7 @@
 					"instance"
 				],
 				"summary": "Local instance catalog",
+				"x-nav-title": "Catalog",
 				"description": "What this instance is and holds: its mode and network, the feature manifest, the history it claims, and the subgraphs and webhooks deployed on it. No signup or pricing, ever.",
 				"security": [
 					{},
@@ -18422,6 +18506,7 @@
 					"instance"
 				],
 				"summary": "Default feature manifest",
+				"x-nav-title": "Features",
 				"description": "Which modules this instance runs, including which protocol decoders are on.",
 				"security": [
 					{},
@@ -18470,6 +18555,7 @@
 					"instance"
 				],
 				"summary": "Operational vitals",
+				"x-nav-title": "Vitals",
 				"description": "Process uptime, database size, the last 24 hours of webhook delivery outcomes, and rows processed per hour. A value that can't be measured comes back `null` instead of failing the request.",
 				"security": [
 					{},

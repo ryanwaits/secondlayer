@@ -78,6 +78,7 @@ export const proofsPaths = {
 		get: {
 			tags: ["proofs"],
 			summary: "State witness for a block",
+			"x-nav-title": "State witness",
 			description: `The block's MARF state witness (wire v3) from the proof sidecar: the trie nodes the block wrote, ancestor roots, and the names of every write. Recompute the root and compare it with the header's \`state_index_root\`; every changed leaf is a named write, a carried value, or an internal key, so a hidden write fails. Extracted on demand, so it has its own lower rate limit. ${FREE}`,
 			security: READ_SECURITY,
 			parameters: [INDEX_BLOCK_HASH_PARAM],
@@ -102,6 +103,7 @@ export const proofsPaths = {
 		get: {
 			tags: ["proofs"],
 			summary: "Burn block behind a consensus hash",
+			"x-nav-title": "Burn block",
 			description: `The sortition preimage that hashes to a block header's \`consensus_hash\` (RIPEMD160(SHA256(preimage))). Bytes 4..36 of the preimage are the Bitcoin block hash, which pins the header's burn height against Bitcoin proof of work. ${FREE}`,
 			security: READ_SECURITY,
 			parameters: [
@@ -131,6 +133,7 @@ export const proofsPaths = {
 		get: {
 			tags: ["proofs"],
 			summary: "Bitcoin block headers",
+			"x-nav-title": "Bitcoin headers",
 			description: `Raw 80-byte Bitcoin headers from \`from\`, at most ${MAX_BITCOIN_HEADERS} (one difficulty period) per call. Check proof of work and linkage yourself from a checkpoint you trust. ${FREE}`,
 			security: READ_SECURITY,
 			parameters: [
@@ -159,6 +162,7 @@ export const proofsPaths = {
 		get: {
 			tags: ["proofs"],
 			summary: "Signed block by id",
+			"x-nav-title": "Block by ID",
 			description: `The consensus-serialized Nakamoto block from the Stacks node (\`/v3/blocks/{id}\`): header with signer signatures, then transactions. Recompute the block id from the header and check the signatures against the cycle's signer set. ${FREE}`,
 			security: READ_SECURITY,
 			parameters: [INDEX_BLOCK_HASH_PARAM],
@@ -172,6 +176,7 @@ export const proofsPaths = {
 		get: {
 			tags: ["proofs"],
 			summary: "Signed block by height",
+			"x-nav-title": "Block by height",
 			description: `The node's block at a Stacks height (\`/v3/blocks/height/{height}\`), same bytes as the by-id route. Near the tip the block at a height can change, so this is short-cached; prefer the by-id route once you know the id. ${FREE}`,
 			security: READ_SECURITY,
 			parameters: [
@@ -190,6 +195,7 @@ export const proofsPaths = {
 		get: {
 			tags: ["proofs"],
 			summary: "Epoch 2.x block header by id",
+			"x-nav-title": "Epoch 2.x header",
 			description: `A pre-Nakamoto block's header from the Stacks node (\`/v2/headers/1?tip={id}\`), as the node's one-element array: \`header\` (consensus-serialized StacksBlockHeader, hex), \`consensus_hash\` and \`parent_block_id\`. The id is sha512/256(sha512/256(header) || consensus_hash): recompute it, then check state against the header's \`state_index_root\`. Nakamoto blocks are a 404 here; use the block route. ${FREE}`,
 			security: READ_SECURITY,
 			parameters: [INDEX_BLOCK_HASH_PARAM],
@@ -210,6 +216,7 @@ export const proofsPaths = {
 		get: {
 			tags: ["proofs"],
 			summary: "State writes of a block",
+			"x-nav-title": "Block writes",
 			description: `Every MARF write the canonical block at \`height\` committed, in the node's write order, from this instance's indexed \`state_writes\`: the names a verifier needs to label each written leaf of the block's witness. A write the witness does not hold, or a leaf no write names, fails that check, so the rows are checked, not trusted. 404 when the instance has no writes for the block (its node did not subscribe to \`state_writes\` at that height); verifiers then report the diff unnamed. Near the tip the block at a height can change, so this is short-cached. ${FREE}`,
 			security: READ_SECURITY,
 			parameters: [
@@ -228,6 +235,7 @@ export const proofsPaths = {
 		get: {
 			tags: ["proofs"],
 			summary: "MARF inclusion proof",
+			"x-nav-title": "MARF proof",
 			description: `A value and its MARF inclusion proof as of block \`tip\`, from the node (\`/v2/clarity/marf/{path}?proof=1\`). Keys the node cannot serve because they hold no stored value string, such as the MARF's own \`__MARF_BLOCK_HEIGHT_TO_HASH::<height>\`, are proven by the proof sidecar from the MARF itself: same proof bytes, and \`data\` is the raw 40-byte leaf value. Fold the proof to a root and compare it with \`tip\`'s \`state_index_root\`. Inclusion only: a missing key is a 404, not a proof of absence. ${FREE}`,
 			security: READ_SECURITY,
 			parameters: [

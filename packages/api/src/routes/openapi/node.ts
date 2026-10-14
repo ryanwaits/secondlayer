@@ -4,7 +4,8 @@ export const nodePaths = {
 	"/api/node/contracts/{contract_id}/abi": {
 		get: {
 			tags: ["node"],
-			summary: "Clarity contract ABI, proxied from the local Stacks node",
+			summary: "Contract ABI from the local Stacks node",
+			"x-nav-title": "Contract ABI",
 			description:
 				"Fetches the contract's interface from the Stacks node this instance follows (`/v2/contracts/interface`) and returns it unchanged. Nothing is cached. Self-hosted only; needs the instance token whenever one is set.",
 			security: WRITE_SECURITY,

@@ -187,6 +187,7 @@ export const indexPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Index discovery",
+			"x-nav-title": "Discovery",
 			description:
 				"Lists every Index route with its accepted filters, plus the per-`event_type` column and filter vocabulary for `/v1/index/events`. Open: it runs before auth, so it never needs a token.",
 			security: READ_SECURITY,
@@ -199,6 +200,7 @@ export const indexPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Decoded events by event_type",
+			"x-nav-title": "Events",
 			description:
 				"One `event_type` per request, oldest first. Which filters and `fields` apply depends on the type; anything a type does not accept is refused.",
 			security: READ_SECURITY,
@@ -261,6 +263,7 @@ export const indexPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Fungible token transfers",
+			"x-nav-title": "FT transfers",
 			description:
 				"Same rows as `/v1/index/events?event_type=ft_transfer`, oldest first, with a typed row. Filters combine with AND.",
 			security: READ_SECURITY,
@@ -295,6 +298,7 @@ export const indexPaths = {
 		get: {
 			tags: ["index"],
 			summary: "NFT transfers",
+			"x-nav-title": "NFT transfers",
 			description:
 				"Same rows as `/v1/index/events?event_type=nft_transfer`, oldest first, with a typed row. Filters combine with AND.",
 			security: READ_SECURITY,
@@ -329,6 +333,7 @@ export const indexPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Decoded contract-call transactions",
+			"x-nav-title": "Contract calls",
 			description:
 				"Top-level `contract_call` transactions in canonical blocks, oldest first, with arguments and result decoded. Failed calls are included; check `status`. The cursor is `<block_height>:<tx_index>`. `reorgs` covers every height on the page.",
 			security: READ_SECURITY,
@@ -352,6 +357,7 @@ export const indexPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Canonical block-hash map",
+			"x-nav-title": "Canonical hashes",
 			description:
 				"One row per height on the canonical chain, oldest first. Orphaned blocks never appear, so you can check your own chain against it. Lean by design; `/v1/index/blocks` is the full block. Not metered.",
 			security: READ_SECURITY,
@@ -363,6 +369,7 @@ export const indexPaths = {
 		get: {
 			tags: ["index"],
 			summary: "State writes",
+			"x-nav-title": "State writes",
 			description:
 				"The exact MARF writes each canonical block committed, in the node's write order: every changed leaf of the block's state trie, named. Oldest first; the cursor is `<block_height>:<ordinal>`. `block_height` reads one block. Present only from the height this instance's node subscribed to the `state_writes` observer key, with no earlier history. The window follows the ingest tip. `reorgs` overlaps by height.",
 			security: READ_SECURITY,
@@ -403,6 +410,7 @@ export const indexPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Canonical blocks",
+			"x-nav-title": "Blocks",
 			description:
 				"Canonical blocks, oldest first. The cursor is `<block_height>:0`. The window follows the ingest tip, so it can run ahead of the decoded `tip.block_height`.",
 			security: READ_SECURITY,
@@ -414,6 +422,7 @@ export const indexPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Block by height or hash",
+			"x-nav-title": "Block by height or hash",
 			description:
 				"A height returns the canonical block there. A hash returns that block whether or not it is canonical, so check `canonical` to spot an orphan. Not metered.",
 			security: READ_SECURITY,
@@ -450,6 +459,7 @@ export const indexPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Full transaction documents",
+			"x-nav-title": "Transactions",
 			description:
 				"Transactions in canonical blocks, oldest first, with fee, nonce, post-conditions and payload detail decoded from the raw bytes. Filters combine with AND. The cursor is `<block_height>:<tx_index>`. `reorgs` covers every height on the page.",
 			security: READ_SECURITY,
@@ -483,6 +493,7 @@ export const indexPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Transaction by tx_id",
+			"x-nav-title": "Transaction by ID",
 			description:
 				"One transaction document, only if it sits in a canonical block. A transaction still pending is at `/v1/index/mempool/{tx_id}`. Not metered.",
 			security: READ_SECURITY,
@@ -510,8 +521,8 @@ export const indexPaths = {
 	"/v1/index/transactions/{tx_id}/proof": {
 		get: {
 			tags: ["index"],
-			summary:
-				"Trustless tx-inclusion proof (raw tx, Nakamoto header, merkle path)",
+			summary: "Transaction inclusion proof",
+			"x-nav-title": "Inclusion proof",
 			description:
 				"What you need to check, without trusting this API, that a transaction is in a signed Nakamoto block: the raw tx, the raw block header, and the tx merkle path. `consensus` adds the cycle's signer set when the node can resolve it. The SDK's `verifyTransactionProof` runs every check. The instance must reach its Stacks node. Immutable once served.",
 			security: READ_SECURITY,
@@ -532,7 +543,8 @@ export const indexPaths = {
 	"/v1/index/mempool": {
 		get: {
 			tags: ["index"],
-			summary: "Pending (unconfirmed) transactions",
+			summary: "Pending transactions",
+			"x-nav-title": "Pending transactions",
 			description:
 				"Pending transactions this instance's node has seen since the observer connected, in arrival order. A single-node, go-forward view: the backlog from before the observer connected is never replayed. Confirmed transactions leave the list. No height window. Never cached.",
 			security: READ_SECURITY,
@@ -565,6 +577,7 @@ export const indexPaths = {
 		get: {
 			tags: ["index"],
 			summary: "Pending transaction by tx_id",
+			"x-nav-title": "Pending by ID",
 			description:
 				"One pending transaction. It 404s once the transaction confirms (read it from `/v1/index/transactions/{tx_id}`) or drops. Never cached.",
 			security: READ_SECURITY,
@@ -592,7 +605,8 @@ export const indexPaths = {
 	"/v1/index/contracts/{contract_id}/print-schema": {
 		get: {
 			tags: ["index"],
-			summary: "Empirical per-topic print payload schemas for a contract",
+			summary: "Print payload schemas for a contract",
+			"x-nav-title": "Print schemas",
 			description:
 				"Infers the shape of a contract's `print` payloads from its canonical print events, grouped by the tuple's `topic` field. Reads the newest 1500 and oldest 500 events, so fields the contract stopped emitting still show. Takes no query parameters. Held in memory for 5 minutes per contract. Not metered.",
 			security: READ_SECURITY,

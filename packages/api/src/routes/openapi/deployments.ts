@@ -186,6 +186,7 @@ export const deploymentsPaths = {
 		get: {
 			tags: ["deployments"],
 			summary: "List deployed subgraphs",
+			"x-nav-title": "List deployments",
 			description:
 				"Every subgraph on this instance with its status, sync progress, row count and open gap count. Row counts come from Postgres table statistics, so they are approximate; the detail read counts exactly.",
 			security: WRITE_SECURITY,
@@ -239,6 +240,7 @@ export const deploymentsPaths = {
 		post: {
 			tags: ["deployments"],
 			summary: "Deploy or redeploy a subgraph",
+			"x-nav-title": "Deploy",
 			description:
 				"Takes bundled handler code (see `/api/subgraphs/bundle`) plus the schema and sources extracted from it. The server reads the definition from the bundle without running it, validates it, lints print fields, then applies the schema. A new subgraph, or a breaking schema change, queues a reindex and returns its `operationId`. Redeploying the same name updates in place; `action` says what happened. With `dryRun` it returns the DDL plan and writes nothing.",
 			security: WRITE_SECURITY,
@@ -288,6 +290,7 @@ export const deploymentsPaths = {
 		post: {
 			tags: ["deployments"],
 			summary: "Bundle subgraph source into deployable handler code",
+			"x-nav-title": "Bundle source",
 			description:
 				"Compiles a TypeScript subgraph module on the server and returns the bundle plus the metadata read from it, ready to POST to `/api/subgraphs`. Deploys nothing. The CLI and MCP bundle locally; this is for callers that cannot run esbuild.",
 			security: WRITE_SECURITY,
@@ -318,6 +321,7 @@ export const deploymentsPaths = {
 		get: {
 			tags: ["deployments"],
 			summary: "Get a deployed subgraph",
+			"x-nav-title": "Get a deployment",
 			description:
 				"Definition, health, sync progress and per-table columns and exact row counts. While a reindex or backfill is active, `sync` carries its queue position, event progress and ETA.",
 			security: WRITE_SECURITY,
@@ -330,6 +334,7 @@ export const deploymentsPaths = {
 		delete: {
 			tags: ["deployments"],
 			summary: "Delete a subgraph",
+			"x-nav-title": "Delete",
 			description:
 				"Requests cancellation of any queued or running operation, waits up to 30 seconds for the processor to release it, then drops the Postgres schema and the registry row. Irreversible.",
 			security: WRITE_SECURITY,
@@ -369,6 +374,7 @@ export const deploymentsPaths = {
 		post: {
 			tags: ["deployments"],
 			summary: "Queue a full reindex",
+			"x-nav-title": "Reindex",
 			description:
 				"Drops the subgraph's tables and rebuilds them from its start block to the chain tip. Takes no body. A `fromBlock`/`toBlock` is refused with 400 `REINDEX_RANGE_NOT_SUPPORTED` rather than ignored, since a ranged walk would destroy everything outside the range; use `backfill` for a range. Poll the returned `operationId`.",
 			security: WRITE_SECURITY,
@@ -403,6 +409,7 @@ export const deploymentsPaths = {
 		post: {
 			tags: ["deployments"],
 			summary: "Queue a backfill over a block range",
+			"x-nav-title": "Backfill",
 			description:
 				"Re-runs handlers over `fromBlock` to `toBlock`, inclusive, without dropping data. A backfill that overlaps an earlier failed or cancelled one resumes from its last committed block. Refused when the handlers apply deltas (`ctx.increment`, `ctx.update`) or read-modify-write rows (`ctx.findOne`, `ctx.findMany`), which would double-count blocks already processed; reindex those instead.",
 			security: WRITE_SECURITY,
@@ -457,6 +464,7 @@ export const deploymentsPaths = {
 		post: {
 			tags: ["deployments"],
 			summary: "Stop the active reindex or backfill",
+			"x-nav-title": "Stop",
 			description:
 				"Takes no body. Flags the queued or running operation for cancellation; the processor stops it at its next checkpoint and marks it `cancelled`. A stopped backfill resumes from its checkpoint when the same range is queued again.",
 			security: WRITE_SECURITY,
@@ -505,6 +513,7 @@ export const deploymentsPaths = {
 		get: {
 			tags: ["deployments"],
 			summary: "List a subgraph's operations",
+			"x-nav-title": "List operations",
 			description:
 				"The 20 most recent reindex and backfill operations, newest first, with progress. Queued ones carry an approximate `queuePosition`.",
 			security: WRITE_SECURITY,
@@ -538,6 +547,7 @@ export const deploymentsPaths = {
 		get: {
 			tags: ["deployments"],
 			summary: "Get an operation",
+			"x-nav-title": "Get an operation",
 			description:
 				"One reindex or backfill by id. Poll it after a deploy, reindex or backfill until `status` is `completed`, `failed` or `cancelled`.",
 			security: WRITE_SECURITY,
@@ -554,6 +564,7 @@ export const deploymentsPaths = {
 		get: {
 			tags: ["deployments"],
 			summary: "List a subgraph's gaps",
+			"x-nav-title": "Gaps",
 			description:
 				"Block ranges the subgraph failed to process, ordered by start height. Open gaps only by default.",
 			security: WRITE_SECURITY,
@@ -632,6 +643,7 @@ export const deploymentsPaths = {
 		get: {
 			tags: ["deployments"],
 			summary: "List a subgraph's print violations",
+			"x-nav-title": "Print violations",
 			description:
 				"Print events a handler skipped because the payload did not match the source's declared `prints` schema, newest first. The instance keeps the last 100 per subgraph.",
 			security: WRITE_SECURITY,
