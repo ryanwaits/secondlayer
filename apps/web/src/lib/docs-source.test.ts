@@ -73,7 +73,7 @@ describe("mdxToMarkdown", () => {
 		expect(md).not.toContain("<summary");
 	});
 
-	test("annotation comments in fences never reach the markdown", () => {
+	test("annotation hints leave the markdown and callouts stay as comments", () => {
 		const md = mdxToMarkdown(
 			[
 				"```ts consumer.ts lines",
@@ -90,9 +90,26 @@ describe("mdxToMarkdown", () => {
 		);
 		expect(md).toContain("```ts consumer.ts lines");
 		expect(md).toContain("const a = 1;\nconst b = 2;");
-		expect(md).toContain("```sh\nbun add x\n```");
+		expect(md).toContain("```sh\n# note\nbun add x\n```");
 		expect(md).not.toContain("!mark");
 		expect(md).not.toContain("!callout");
+	});
+
+	test("a diff fence becomes a unified diff in the markdown twin", () => {
+		const md = mdxToMarkdown(
+			[
+				"```bash changes.sh",
+				"# !diff -",
+				"old --flag",
+				"# !diff +",
+				"new --flag",
+				"keep",
+				"```",
+			].join("\n"),
+		);
+		expect(md).toContain(
+			"```diff changes.sh\n- old --flag\n+ new --flag\n  keep\n```",
+		);
 	});
 });
 

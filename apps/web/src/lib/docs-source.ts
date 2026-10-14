@@ -18,7 +18,7 @@ import { methodNav } from "@/app/(www)/docs/sdk-reference/reference";
 import docsPhrasings from "@/generated/docs-phrasings.json";
 import apiNav from "@/generated/openapi-nav.json";
 import { AGENT_SETUP } from "@/lib/agent-prompts";
-import { stripAnnotations } from "@/lib/code/annotations";
+import { markdownFence } from "@/lib/code/annotations";
 import { docsSearchPool } from "@/lib/command-center/items";
 import type { DocsSearchDoc } from "@/lib/docs-bm25";
 import GithubSlugger from "github-slugger";
@@ -76,15 +76,14 @@ export function extractAgentNotes(source: string): {
 export function mdxToMarkdown(source: string): string {
 	return (
 		source
-			// Annotation comments (`// !mark`) are rendering hints; readers of the
-			// markdown and the search index get plain code. The info string stays.
+			// Callouts stay as comments, `!diff` lines become a unified diff, every
+			// other annotation is a rendering hint and goes.
 			.replace(
 				/^(`{3,}|~{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/gm,
-				(_m, fence: string, info: string, body: string) =>
-					`${fence}${info}\n${stripAnnotations(
-						body.replace(/\n$/, ""),
-						info.trim().split(/\s+/)[0] ?? "",
-					)}\n${fence}`,
+				(_m, fence: string, info: string, body: string) => {
+					const out = markdownFence(info, body.replace(/\n$/, ""));
+					return `${fence}${out.info}\n${out.body}\n${fence}`;
+				},
 			)
 			// Prose that points at code (`[text](hover:name)`) reads as its text.
 			.replace(/\[([^\]]*)\]\((?:hover|focus):[^)]*\)/g, "$1")

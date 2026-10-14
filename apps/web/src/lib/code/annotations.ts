@@ -142,3 +142,36 @@ export function parseAnnotations(source: string, lang: string): ParsedCode {
 export function stripAnnotations(source: string, lang: string): string {
 	return parseAnnotations(source, lang).lines.join("\n");
 }
+
+/**
+ * A fence as the `.md` twin and search text carry it. Callouts stay as plain
+ * comments directly above the line they target (a `text` fence is program
+ * output, so its callouts go); a fence with `!diff` lines becomes a unified
+ * `diff` fence. Every other annotation is a rendering hint and is dropped.
+ */
+export function markdownFence(
+	info: string,
+	body: string,
+): { info: string; body: string } {
+	const { lang, title } = parseFenceOptions(info);
+	const { lines, annotations } = parseAnnotations(body, lang);
+	const token = lang === "text" ? undefined : COMMENT_TOKEN[lang];
+	const signs = new Map<number, "+" | "-">();
+	for (const a of annotations) {
+		if (a.name !== "diff" || (a.value !== "+" && a.value !== "-")) continue;
+		for (let i = a.from; i <= a.to; i++) signs.set(i, a.value);
+	}
+	const isDiff = signs.size > 0;
+	const out: string[] = [];
+	lines.forEach((line, i) => {
+		if (token)
+			for (const a of annotations)
+				if (a.name === "callout" && a.from === i)
+					out.push(`${isDiff ? "  " : ""}${token} ${a.value}`);
+		out.push(isDiff ? `${signs.get(i) ?? " "} ${line}` : line);
+	});
+	return {
+		info: isDiff ? `diff${title ? ` ${title}` : ""}` : info,
+		body: out.join("\n"),
+	};
+}

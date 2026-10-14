@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	markdownFence,
 	parseAnnotations,
 	parseFenceOptions,
 	stripAnnotations,
@@ -143,5 +144,30 @@ describe("parseAnnotations", () => {
 		expect(
 			stripAnnotations("a\n// !callout[/b/] hi\nb\n// !mark\nc", "ts"),
 		).toBe("a\nb\nc");
+	});
+});
+
+describe("markdownFence", () => {
+	test("a callout becomes a comment in the markdown twin", () => {
+		expect(
+			markdownFence("ts", "a\n// !callout[/b/] hi\nb\n// !mark\nc").body,
+		).toBe("a\n// hi\nb\nc");
+		expect(markdownFence("sh", "# !callout note\nx").body).toBe("# note\nx");
+		expect(markdownFence("clarity", ";; !callout n\n(x)").body).toBe(
+			";; n\n(x)",
+		);
+	});
+
+	test("a callout in a text fence is dropped from the markdown twin", () => {
+		expect(markdownFence("text", "# !callout note\nok").body).toBe("ok");
+	});
+
+	test("a mark line never reaches the markdown twin", () => {
+		const out = markdownFence(
+			"ts",
+			"// !mark[/a/]\nconst a = 1;\n// !focus\nb",
+		);
+		expect(out.body).toBe("const a = 1;\nb");
+		expect(out.info).toBe("ts");
 	});
 });
