@@ -1,10 +1,483 @@
 {
 	"symbols": {
+		"ArchiveCreditsBalance": {
+			"kind": "type",
+			"summary": "Your archive credit balance and its refill settings.",
+			"fields": [
+				{
+					"name": "creditsUsdMicros",
+					"type": "string"
+				},
+				{
+					"name": "refill",
+					"type": "…"
+				}
+			],
+			"route": "/docs/sdk-reference/archive",
+			"anchor": "t-ArchiveCreditsBalance"
+		},
 		"ArchiveDataset": {
 			"kind": "type",
-			"summary": "The three canonical archive datasets (export-snapshot.ts's CanonicalDataset, duplicated as a literal union here rather than imported.",
+			"summary": "The three archive datasets: blocks, transactions, and events.",
 			"route": "/docs/sdk-reference/archive",
 			"anchor": "t-ArchiveDataset"
+		},
+		"ArchiveFetchResult": {
+			"kind": "type",
+			"summary": "Download links for archive partitions and what they cost.",
+			"fields": [
+				{
+					"name": "urls",
+					"type": "ArchiveFetchItem[]"
+				},
+				{
+					"name": "chargedTotalUsdMicros",
+					"type": "number"
+				},
+				{
+					"name": "balanceAfterUsdMicros",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/archive",
+			"anchor": "t-ArchiveFetchResult"
+		},
+		"ArchiveFlow": {
+			"kind": "type",
+			"summary": "Whether an archive purchase is a bootstrap or a repair.",
+			"route": "/docs/sdk-reference/archive",
+			"anchor": "t-ArchiveFlow"
+		},
+		"ArchiveLoadOptions": {
+			"kind": "type",
+			"summary": "Options for loading an archive manifest.",
+			"fields": [
+				{
+					"name": "insecure",
+					"type": "boolean"
+				}
+			],
+			"route": "/docs/sdk-reference/archive",
+			"anchor": "t-ArchiveLoadOptions"
+		},
+		"ArchivePartition": {
+			"kind": "type",
+			"summary": "One archive file: dataset, block range, path, rows, bytes.",
+			"fields": [
+				{
+					"name": "dataset",
+					"type": "string"
+				},
+				{
+					"name": "from_block",
+					"type": "number"
+				},
+				{
+					"name": "to_block",
+					"type": "number"
+				},
+				{
+					"name": "path",
+					"type": "string"
+				},
+				{
+					"name": "row_count",
+					"type": "number"
+				},
+				{
+					"name": "byte_size",
+					"type": "number"
+				},
+				{
+					"name": "sha256",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/archive",
+			"anchor": "t-ArchivePartition"
+		},
+		"ArchiveQuote": {
+			"kind": "type",
+			"summary": "The price of an archive request, after any free allowance.",
+			"fields": [
+				{
+					"name": "partitions",
+					"type": "number"
+				},
+				{
+					"name": "bundles",
+					"type": "number"
+				},
+				{
+					"name": "usdMicros",
+					"type": "number"
+				},
+				{
+					"name": "usd",
+					"type": "string"
+				},
+				{
+					"name": "freeAllowanceAppliedMicros",
+					"type": "number"
+				},
+				{
+					"name": "allowanceRemainingBundles",
+					"type": "number"
+				},
+				{
+					"name": "balanceUsdMicros",
+					"type": "number"
+				},
+				{
+					"name": "sufficient",
+					"type": "boolean"
+				}
+			],
+			"route": "/docs/sdk-reference/archive",
+			"anchor": "t-ArchiveQuote"
+		},
+		"ArchiveStatus": {
+			"kind": "type",
+			"summary": "The archive's state, coverage, and a plain-language reason.",
+			"fields": [
+				{
+					"name": "schema_version",
+					"type": "1"
+				},
+				{
+					"name": "network",
+					"type": "string"
+				},
+				{
+					"name": "state",
+					"type": "ArchiveState"
+				},
+				{
+					"name": "detail",
+					"type": "string"
+				},
+				{
+					"name": "generated_at",
+					"type": "string"
+				},
+				{
+					"name": "archive",
+					"type": "…"
+				},
+				{
+					"name": "source",
+					"type": "…"
+				},
+				{
+					"name": "lag",
+					"type": "…"
+				}
+			],
+			"more": 3,
+			"route": "/docs/sdk-reference/archive",
+			"anchor": "t-ArchiveStatus"
+		},
+		"ArchiveVerifyInput": {
+			"kind": "type",
+			"summary": "What to verify against, and the optional block range.",
+			"fields": [
+				{
+					"name": "against",
+					"type": "string"
+				},
+				{
+					"name": "target",
+					"type": "string"
+				},
+				{
+					"name": "fromBlock",
+					"type": "number"
+				},
+				{
+					"name": "toBlock",
+					"type": "number"
+				},
+				{
+					"name": "insecure",
+					"type": "boolean"
+				},
+				{
+					"name": "publicKeyPem",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/archive",
+			"anchor": "t-ArchiveVerifyInput"
+		},
+		"ArchiveVerifyResult": {
+			"kind": "type",
+			"summary": "Whether the archive is clean, diverged, or unanchored, by range.",
+			"fields": [
+				{
+					"name": "status",
+					"type": "\"clean\" | \"diverged\" | \"unanchored\""
+				},
+				{
+					"name": "target",
+					"type": "string"
+				},
+				{
+					"name": "against",
+					"type": "string"
+				},
+				{
+					"name": "signature",
+					"type": "{ verified: boolean; reason?: string }"
+				},
+				{
+					"name": "coverage",
+					"type": "{ from_block: number; to_block: number }"
+				},
+				{
+					"name": "ranges",
+					"type": "…"
+				},
+				{
+					"name": "reason",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/archive",
+			"anchor": "t-ArchiveVerifyResult"
+		},
+		"BlockEnvelope": {
+			"kind": "type",
+			"summary": "One block and the chain tip.",
+			"fields": [
+				{
+					"name": "block",
+					"type": "IndexBlock"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-BlockEnvelope"
+		},
+		"BlocksEnvelope": {
+			"kind": "type",
+			"summary": "One page of blocks, with the next cursor and chain tip.",
+			"fields": [
+				{
+					"name": "blocks",
+					"type": "IndexBlock[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-BlocksEnvelope"
+		},
+		"BlocksListParams": {
+			"kind": "type",
+			"summary": "Paging and height filters for listing blocks.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-BlocksListParams"
+		},
+		"BlocksWalkParams": {
+			"kind": "type",
+			"summary": "BlocksListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "retryCount",
+					"type": "number"
+				},
+				{
+					"name": "retryDelay",
+					"type": "number"
+				},
+				{
+					"name": "onError",
+					"type": "…"
+				},
+				{
+					"name": "batchSize",
+					"type": "number"
+				}
+			],
+			"more": 1,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-BlocksWalkParams"
+		},
+		"BundleSubgraphResponse": {
+			"kind": "type",
+			"summary": "A deployed subgraph's bundled sources, schema, and handler code.",
+			"fields": [
+				{
+					"name": "ok",
+					"type": "true"
+				},
+				{
+					"name": "name",
+					"type": "string"
+				},
+				{
+					"name": "description",
+					"type": "string | null"
+				},
+				{
+					"name": "sources",
+					"type": "Record<string, Record<string, unknown>>"
+				},
+				{
+					"name": "schema",
+					"type": "Record<string, unknown>"
+				},
+				{
+					"name": "handlerCode",
+					"type": "string"
+				},
+				{
+					"name": "sourceCode",
+					"type": "string"
+				},
+				{
+					"name": "bundleSize",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-BundleSubgraphResponse"
+		},
+		"CanonicalEnvelope": {
+			"kind": "type",
+			"summary": "One page of canonical blocks, with the next cursor and chain tip.",
+			"fields": [
+				{
+					"name": "canonical",
+					"type": "IndexCanonicalBlock[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-CanonicalEnvelope"
+		},
+		"CanonicalListParams": {
+			"kind": "type",
+			"summary": "Paging and height filters for listing canonical blocks.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-CanonicalListParams"
+		},
+		"CanonicalWalkParams": {
+			"kind": "type",
+			"summary": "CanonicalListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "retryCount",
+					"type": "number"
+				},
+				{
+					"name": "retryDelay",
+					"type": "number"
+				},
+				{
+					"name": "onError",
+					"type": "…"
+				},
+				{
+					"name": "batchSize",
+					"type": "number"
+				}
+			],
+			"more": 1,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-CanonicalWalkParams"
 		},
 		"ChainTrigger": {
 			"kind": "type",
@@ -130,7 +603,7 @@
 		},
 		"ContextSnapshot": {
 			"kind": "type",
-			"summary": "A point-in-time orientation snapshot for an agent: the live tips and what this instance holds.",
+			"summary": "A point-in-time orientation snapshot: live tips and what this instance holds.",
 			"fields": [
 				{
 					"name": "account",
@@ -164,6 +637,112 @@
 			"route": "/docs/sdk-reference/client",
 			"anchor": "t-ContextSnapshot"
 		},
+		"ContractCallsEnvelope": {
+			"kind": "type",
+			"summary": "One page of contract calls, with the cursor, tip, and reorgs.",
+			"fields": [
+				{
+					"name": "contract_calls",
+					"type": "IndexContractCall[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexReorg[]"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-ContractCallsEnvelope"
+		},
+		"ContractCallsListParams": {
+			"kind": "type",
+			"summary": "Paging and contract filters for listing contract calls.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]"
+				},
+				{
+					"name": "functionName",
+					"type": "string"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				}
+			],
+			"more": 1,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-ContractCallsListParams"
+		},
+		"ContractCallsWalkParams": {
+			"kind": "type",
+			"summary": "ContractCallsListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "functionName",
+					"type": "string"
+				},
+				{
+					"name": "trait",
+					"type": "string"
+				}
+			],
+			"more": 5,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-ContractCallsWalkParams"
+		},
 		"ContractConformance": {
 			"kind": "type",
 			"summary": "Whether a trait match must be declared in source, inferred from ABI, or either.",
@@ -183,6 +762,304 @@
 			"sig": "sl.contracts.list(params: ContractsListParams): Promise<ContractsEnvelope>",
 			"route": "/docs/sdk-reference/contracts",
 			"anchor": "m-list"
+		},
+		"ContractsEnvelope": {
+			"kind": "type",
+			"summary": "One page of contracts and the cursor for the next page.",
+			"fields": [
+				{
+					"name": "contracts",
+					"type": "ContractSummary[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				}
+			],
+			"route": "/docs/sdk-reference/contracts",
+			"anchor": "t-ContractsEnvelope"
+		},
+		"ContractsListParams": {
+			"kind": "type",
+			"summary": "Trait, conformance, and paging for listing contracts.",
+			"fields": [
+				{
+					"name": "trait",
+					"type": "string"
+				},
+				{
+					"name": "conformance",
+					"type": "ContractConformance"
+				},
+				{
+					"name": "include",
+					"type": "\"abi\""
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "cursor",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/contracts",
+			"anchor": "t-ContractsListParams"
+		},
+		"ContractSummary": {
+			"kind": "type",
+			"summary": "A deployed contract with its traits, standards, and ABI status.",
+			"fields": [
+				{
+					"name": "contract_id",
+					"type": "string"
+				},
+				{
+					"name": "deployer",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "declared_traits",
+					"type": "string[] | null"
+				},
+				{
+					"name": "inferred_standards",
+					"type": "string[] | null"
+				},
+				{
+					"name": "abi_status",
+					"type": "string"
+				},
+				{
+					"name": "abi",
+					"type": "unknown"
+				}
+			],
+			"route": "/docs/sdk-reference/contracts",
+			"anchor": "t-ContractSummary"
+		},
+		"CreateWebhookRequest": {
+			"kind": "type",
+			"summary": "The body for creating a webhook: name, triggers, URL, delivery options.",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string"
+				},
+				{
+					"name": "triggers",
+					"type": "ChainTrigger[]"
+				},
+				{
+					"name": "url",
+					"type": "string"
+				},
+				{
+					"name": "format",
+					"type": "WebhookFormat"
+				},
+				{
+					"name": "authConfig",
+					"type": "Record<string, unknown>"
+				},
+				{
+					"name": "maxRetries",
+					"type": "number"
+				},
+				{
+					"name": "timeoutMs",
+					"type": "number"
+				},
+				{
+					"name": "concurrency",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-CreateWebhookRequest"
+		},
+		"CreateWebhookResponse": {
+			"kind": "type",
+			"summary": "The new webhook and its signing secret, shown once.",
+			"fields": [
+				{
+					"name": "webhook",
+					"type": "WebhookDetail"
+				},
+				{
+					"name": "signingSecret",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-CreateWebhookResponse"
+		},
+		"DeadRow": {
+			"kind": "type",
+			"summary": "A delivery that ran out of retries.",
+			"fields": [
+				{
+					"name": "id",
+					"type": "string"
+				},
+				{
+					"name": "eventType",
+					"type": "string"
+				},
+				{
+					"name": "attempt",
+					"type": "number"
+				},
+				{
+					"name": "blockHeight",
+					"type": "number"
+				},
+				{
+					"name": "txId",
+					"type": "string | null"
+				},
+				{
+					"name": "payload",
+					"type": "Record<string, unknown>"
+				},
+				{
+					"name": "failedAt",
+					"type": "string | null"
+				},
+				{
+					"name": "createdAt",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-DeadRow"
+		},
+		"DeliveryRow": {
+			"kind": "type",
+			"summary": "One delivery attempt: status code, error, duration, and response.",
+			"fields": [
+				{
+					"name": "id",
+					"type": "string"
+				},
+				{
+					"name": "attempt",
+					"type": "number"
+				},
+				{
+					"name": "statusCode",
+					"type": "number | null"
+				},
+				{
+					"name": "errorMessage",
+					"type": "string | null"
+				},
+				{
+					"name": "durationMs",
+					"type": "number | null"
+				},
+				{
+					"name": "responseBody",
+					"type": "string | null"
+				},
+				{
+					"name": "dispatchedAt",
+					"type": "string"
+				},
+				{
+					"name": "blockHeight",
+					"type": "number | null"
+				}
+			],
+			"more": 3,
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-DeliveryRow"
+		},
+		"DeploySubgraphRequest": {
+			"kind": "type",
+			"summary": "The body for deploying a subgraph: sources, schema, and handler code.",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string"
+				},
+				{
+					"name": "description",
+					"type": "string"
+				},
+				{
+					"name": "sources",
+					"type": "Record<string, Record<string, unknown>>"
+				},
+				{
+					"name": "schema",
+					"type": "Record<string, unknown>"
+				},
+				{
+					"name": "handlerCode",
+					"type": "string"
+				},
+				{
+					"name": "startBlock",
+					"type": "number"
+				},
+				{
+					"name": "sourceCode",
+					"type": "string"
+				},
+				{
+					"name": "dryRun",
+					"type": "boolean"
+				}
+			],
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-DeploySubgraphRequest"
+		},
+		"DeploySubgraphResponse": {
+			"kind": "type",
+			"summary": "What a deploy did, the version, and where indexing starts.",
+			"fields": [
+				{
+					"name": "action",
+					"type": "…"
+				},
+				{
+					"name": "subgraphId",
+					"type": "string"
+				},
+				{
+					"name": "version",
+					"type": "string"
+				},
+				{
+					"name": "message",
+					"type": "string"
+				},
+				{
+					"name": "start_block",
+					"type": "number"
+				},
+				{
+					"name": "operationId",
+					"type": "string"
+				},
+				{
+					"name": "reindexStarted",
+					"type": "boolean"
+				},
+				{
+					"name": "estimatedEvents",
+					"type": "number"
+				}
+			],
+			"more": 4,
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-DeploySubgraphResponse"
 		},
 		"EtagCache": {
 			"kind": "type",
@@ -216,11 +1093,152 @@
 			"route": "/docs/sdk-reference/client",
 			"anchor": "t-EtagEntry"
 		},
-		"FetchLike": {
+		"EventsEnvelope": {
 			"kind": "type",
-			"summary": "A minimal fetch signature for dependency injection, matching @secondlayer/sdk's FetchLike (sdk/src/base.ts).",
-			"route": "/docs/sdk-reference/client",
-			"anchor": "t-FetchLike"
+			"summary": "One page of decoded events, with the cursor, tip, and reorgs.",
+			"fields": [
+				{
+					"name": "events",
+					"type": "TRow[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexReorg[]"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-EventsEnvelope"
+		},
+		"EventsListParams": {
+			"kind": "type",
+			"summary": "Event type, paging, and filters for listing decoded events.",
+			"fields": [
+				{
+					"name": "eventType",
+					"type": "T"
+				},
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]"
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "recipient",
+					"type": "string"
+				}
+			],
+			"more": 10,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-EventsListParams"
+		},
+		"EventsWalkParams": {
+			"kind": "type",
+			"summary": "EventsListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "recipient",
+					"type": "string"
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				}
+			],
+			"more": 14,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-EventsWalkParams"
+		},
+		"FtTransfer": {
+			"kind": "type",
+			"summary": "A decoded fungible-token transfer: sender, recipient, asset, amount.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "event_type",
+					"type": "\"ft_transfer\""
+				},
+				{
+					"name": "contract_id",
+					"type": "string"
+				}
+			],
+			"more": 4,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-FtTransfer"
 		},
 		"FtTransferFields": {
 			"kind": "type",
@@ -242,6 +1260,71 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-FtTransferFields"
 		},
+		"FtTransfersEnvelope": {
+			"kind": "type",
+			"summary": "One page of fungible-token transfers, with the cursor, tip, and reorgs.",
+			"fields": [
+				{
+					"name": "events",
+					"type": "TRow[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexReorg[]"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-FtTransfersEnvelope"
+		},
+		"FtTransfersListParams": {
+			"kind": "type",
+			"summary": "Column selection, paging, and filters for listing token transfers.",
+			"fields": [
+				{
+					"name": "fields",
+					"type": "…"
+				},
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "contractId",
+					"type": "string"
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "recipient",
+					"type": "string"
+				}
+			],
+			"more": 2,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-FtTransfersListParams"
+		},
 		"FtTransfersResource.list": {
 			"kind": "method",
 			"summary": "Read one page of fungible-token transfers, plus the cursor for the next.",
@@ -255,6 +1338,47 @@
 			"sig": "sl.index.ftTransfers.walk(params: …): AsyncIterable<FtTransferFields<F>, any, any>",
 			"route": "/docs/sdk-reference/index",
 			"anchor": "m-ftTransfers-walk"
+		},
+		"FtTransfersWalkParams": {
+			"kind": "type",
+			"summary": "FtTransfersListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "contractId",
+					"type": "string"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "recipient",
+					"type": "string"
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				}
+			],
+			"more": 6,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-FtTransfersWalkParams"
 		},
 		"Index.blocks.get": {
 			"kind": "method",
@@ -597,9 +1721,50 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexConsumeOptions"
 		},
+		"IndexContractCall": {
+			"kind": "type",
+			"summary": "A decoded contract call: contract, function, sender, arguments, result.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string"
+				},
+				{
+					"name": "function_name",
+					"type": "string"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				}
+			],
+			"more": 4,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexContractCall"
+		},
 		"IndexDiscovery": {
 			"kind": "type",
-			"summary": "The GET /v1/index discovery doc — live endpoint + filter vocabulary.",
+			"summary": "The GET /v1/index discovery doc: live endpoints and filter vocabulary.",
 			"fields": [
 				{
 					"name": "event_type_filters",
@@ -680,6 +1845,252 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexEventTypeFilters"
 		},
+		"IndexFtBurn": {
+			"kind": "type",
+			"summary": "A fungible-token burn event.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 8,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexFtBurn"
+		},
+		"IndexFtMint": {
+			"kind": "type",
+			"summary": "A fungible-token mint event.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 8,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexFtMint"
+		},
+		"IndexFtTransfer": {
+			"kind": "type",
+			"summary": "A fungible-token transfer event.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 9,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexFtTransfer"
+		},
+		"IndexMapDelete": {
+			"kind": "type",
+			"summary": "A contract map entry deletion.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 7,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexMapDelete"
+		},
+		"IndexMapInsert": {
+			"kind": "type",
+			"summary": "A new contract map entry.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 8,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexMapInsert"
+		},
+		"IndexMapSet": {
+			"kind": "type",
+			"summary": "A contract map entry overwrite.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 8,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexMapSet"
+		},
 		"IndexMempoolTransaction": {
 			"kind": "type",
 			"summary": "A pending (unconfirmed) transaction.",
@@ -720,6 +2131,170 @@
 			"more": 8,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexMempoolTransaction"
+		},
+		"IndexNestedContractCall": {
+			"kind": "type",
+			"summary": "A contract call made from inside another contract call.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 10,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexNestedContractCall"
+		},
+		"IndexNftBurn": {
+			"kind": "type",
+			"summary": "A non-fungible-token burn event.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 8,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexNftBurn"
+		},
+		"IndexNftMint": {
+			"kind": "type",
+			"summary": "A non-fungible-token mint event.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 8,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexNftMint"
+		},
+		"IndexNftTransfer": {
+			"kind": "type",
+			"summary": "A non-fungible-token transfer event.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 9,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexNftTransfer"
 		},
 		"IndexPox5Event": {
 			"kind": "type",
@@ -835,6 +2410,47 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexPoxCycleSigner"
 		},
+		"IndexPrint": {
+			"kind": "type",
+			"summary": "A contract print event with its topic and value.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 6,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexPrint"
+		},
 		"IndexReorg": {
 			"kind": "type",
 			"summary": "A chain reorg overlapping a returned page's height range.",
@@ -901,7 +2517,7 @@
 		},
 		"IndexRuneEntry": {
 			"kind": "type",
-			"summary": "One etched rune's full entry: identity, premine/mint/burn counters, computed supply, and mint terms.",
+			"summary": "One etched rune: identity, counters, supply, and mint terms.",
 			"fields": [
 				{
 					"name": "id",
@@ -942,7 +2558,7 @@
 		},
 		"IndexRuneEvent": {
 			"kind": "type",
-			"summary": "One etch/mint/transfer/burn event, with the rune's identity embedded so an activity feed never needs a second lookup to show a name.",
+			"summary": "One rune etch, mint, transfer, or burn, with the rune's identity.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -1125,7 +2741,7 @@
 		},
 		"IndexSbtcEvent": {
 			"kind": "type",
-			"summary": "A raw decoded sBTC protocol-state event — the full sbtc_events row, one per event across all topics.",
+			"summary": "A raw decoded sBTC protocol-state event, one per event.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -1202,7 +2818,7 @@
 		},
 		"IndexSbtcWithdrawal": {
 			"kind": "type",
-			"summary": "A peg-out collapsed to one row per request_id, with lifecycle status derived from the latest accept/reject.",
+			"summary": "A peg-out as one row per request, with its latest status.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -1384,6 +3000,170 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexStateWrite"
 		},
+		"IndexStxBurn": {
+			"kind": "type",
+			"summary": "An STX burn event.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 7,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexStxBurn"
+		},
+		"IndexStxLock": {
+			"kind": "type",
+			"summary": "An STX lock event with its unlock height.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 8,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexStxLock"
+		},
+		"IndexStxMint": {
+			"kind": "type",
+			"summary": "An STX mint event.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 7,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexStxMint"
+		},
+		"IndexStxTransfer": {
+			"kind": "type",
+			"summary": "An STX transfer event.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 9,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexStxTransfer"
+		},
 		"IndexTransaction": {
 			"kind": "type",
 			"summary": "Full transaction document: columnar fields plus raw_tx-decoded enrichment.",
@@ -1425,6 +3205,79 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexTransaction"
 		},
+		"IndexVarSet": {
+			"kind": "type",
+			"summary": "A contract data variable write.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_sender",
+					"type": "string | null"
+				}
+			],
+			"more": 7,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexVarSet"
+		},
+		"InferredTopicSchema": {
+			"kind": "type",
+			"summary": "The fields seen in one print topic, with counts and heights.",
+			"fields": [
+				{
+					"name": "topic",
+					"type": "string"
+				},
+				{
+					"name": "count",
+					"type": "number"
+				},
+				{
+					"name": "first_height",
+					"type": "number"
+				},
+				{
+					"name": "last_height",
+					"type": "number"
+				},
+				{
+					"name": "non_tuple",
+					"type": "boolean"
+				},
+				{
+					"name": "fields",
+					"type": "InferredPrintField[]"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-InferredTopicSchema"
+		},
 		"InstanceClient.diagnose": {
 			"kind": "method",
 			"summary": "Turn the status report into a verdict with next steps.",
@@ -1438,6 +3291,167 @@
 			"sig": "sl.instance.status(): Promise<PublicStatus>",
 			"route": "/docs/sdk-reference/instance",
 			"anchor": "m-status"
+		},
+		"InstanceDiagnosis": {
+			"kind": "type",
+			"summary": "An instance's state, the API verdict, and the issues found.",
+			"fields": [
+				{
+					"name": "state",
+					"type": "InstanceState"
+				},
+				{
+					"name": "overall",
+					"type": "string"
+				},
+				{
+					"name": "issues",
+					"type": "InstanceIssue[]"
+				}
+			],
+			"route": "/docs/sdk-reference/instance",
+			"anchor": "t-InstanceDiagnosis"
+		},
+		"LoadedArchive": {
+			"kind": "type",
+			"summary": "A loaded archive manifest with its origin and signature check.",
+			"fields": [
+				{
+					"name": "manifest",
+					"type": "ArchiveManifest"
+				},
+				{
+					"name": "origin",
+					"type": "string"
+				},
+				{
+					"name": "root",
+					"type": "string"
+				},
+				{
+					"name": "isRemote",
+					"type": "boolean"
+				},
+				{
+					"name": "signature",
+					"type": "{ verified: boolean; reason?: string }"
+				}
+			],
+			"route": "/docs/sdk-reference/archive",
+			"anchor": "t-LoadedArchive"
+		},
+		"MempoolEnvelope": {
+			"kind": "type",
+			"summary": "One page of pending transactions, with the next cursor and chain tip.",
+			"fields": [
+				{
+					"name": "mempool",
+					"type": "IndexMempoolTransaction[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-MempoolEnvelope"
+		},
+		"MempoolListParams": {
+			"kind": "type",
+			"summary": "Paging and sender filters for listing pending transactions.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "type",
+					"type": "string"
+				},
+				{
+					"name": "contractId",
+					"type": "string"
+				},
+				{
+					"name": "functionName",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-MempoolListParams"
+		},
+		"MempoolTransactionEnvelope": {
+			"kind": "type",
+			"summary": "One pending transaction and the chain tip.",
+			"fields": [
+				{
+					"name": "transaction",
+					"type": "IndexMempoolTransaction"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-MempoolTransactionEnvelope"
+		},
+		"MempoolWalkParams": {
+			"kind": "type",
+			"summary": "MempoolListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "contractId",
+					"type": "string"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "functionName",
+					"type": "string"
+				},
+				{
+					"name": "type",
+					"type": "string"
+				},
+				{
+					"name": "retryCount",
+					"type": "number"
+				},
+				{
+					"name": "retryDelay",
+					"type": "number"
+				}
+			],
+			"more": 3,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-MempoolWalkParams"
 		},
 		"MerkleProofStep": {
 			"kind": "type",
@@ -1454,6 +3468,47 @@
 			],
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-MerkleProofStep"
+		},
+		"NftTransfer": {
+			"kind": "type",
+			"summary": "A decoded non-fungible-token transfer: sender, recipient, asset, value.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_time",
+					"type": "string | null"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "event_type",
+					"type": "\"nft_transfer\""
+				},
+				{
+					"name": "contract_id",
+					"type": "string"
+				}
+			],
+			"more": 4,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-NftTransfer"
 		},
 		"NftTransferFields": {
 			"kind": "type",
@@ -1475,6 +3530,71 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-NftTransferFields"
 		},
+		"NftTransfersEnvelope": {
+			"kind": "type",
+			"summary": "One page of non-fungible-token transfers, with the cursor, tip, and reorgs.",
+			"fields": [
+				{
+					"name": "events",
+					"type": "TRow[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexReorg[]"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-NftTransfersEnvelope"
+		},
+		"NftTransfersListParams": {
+			"kind": "type",
+			"summary": "Column selection, paging, and filters for listing NFT transfers.",
+			"fields": [
+				{
+					"name": "fields",
+					"type": "…"
+				},
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "contractId",
+					"type": "string"
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "recipient",
+					"type": "string"
+				}
+			],
+			"more": 2,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-NftTransfersListParams"
+		},
 		"NftTransfersResource.list": {
 			"kind": "method",
 			"summary": "Read one page of NFT transfers, plus the cursor for the next.",
@@ -1488,6 +3608,47 @@
 			"sig": "sl.index.nftTransfers.walk(params: …): AsyncIterable<NftTransferFields<F>, any, any>",
 			"route": "/docs/sdk-reference/index",
 			"anchor": "m-nftTransfers-walk"
+		},
+		"NftTransfersWalkParams": {
+			"kind": "type",
+			"summary": "NftTransfersListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "contractId",
+					"type": "string"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "recipient",
+					"type": "string"
+				},
+				{
+					"name": "assetIdentifier",
+					"type": "string"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				}
+			],
+			"more": 6,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-NftTransfersWalkParams"
 		},
 		"PageRetryOptions": {
 			"kind": "type",
@@ -1529,6 +3690,116 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-Pox5EventFields"
 		},
+		"Pox5EventsEnvelope": {
+			"kind": "type",
+			"summary": "One page of PoX-5 events, with the cursor, tip, and reorgs.",
+			"fields": [
+				{
+					"name": "events",
+					"type": "TRow[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexReorg[]"
+				},
+				{
+					"name": "notes",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-Pox5EventsEnvelope"
+		},
+		"Pox5EventsListParams": {
+			"kind": "type",
+			"summary": "Column selection, paging, and filters for listing PoX-5 events.",
+			"fields": [
+				{
+					"name": "fields",
+					"type": "…"
+				},
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "confirmed",
+					"type": "boolean"
+				},
+				{
+					"name": "topic",
+					"type": "IndexPox5EventTopic"
+				},
+				{
+					"name": "staker",
+					"type": "string"
+				},
+				{
+					"name": "signer",
+					"type": "string"
+				}
+			],
+			"more": 5,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-Pox5EventsListParams"
+		},
+		"Pox5EventsWalkParams": {
+			"kind": "type",
+			"summary": "Pox5EventsListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fields",
+					"type": "…"
+				},
+				{
+					"name": "confirmed",
+					"type": "boolean"
+				},
+				{
+					"name": "topic",
+					"type": "IndexPox5EventTopic"
+				},
+				{
+					"name": "staker",
+					"type": "string"
+				}
+			],
+			"more": 9,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-Pox5EventsWalkParams"
+		},
 		"Pox5Resource.events.consume": {
 			"kind": "method",
 			"summary": "Run a checkpointed, reorg-aware indexer over PoX-5 events.",
@@ -1549,6 +3820,98 @@
 			"sig": "sl.index.pox5.events.walk(params?: Pox5EventsWalkParams): AsyncIterable<IndexPox5Event, any, any>",
 			"route": "/docs/sdk-reference/index",
 			"anchor": "m-pox5-events-walk"
+		},
+		"PoxCycleEnvelope": {
+			"kind": "type",
+			"summary": "One reward cycle with its signers and the chain tip.",
+			"fields": [
+				{
+					"name": "pox_version",
+					"type": "5"
+				},
+				{
+					"name": "cycle",
+					"type": "…"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-PoxCycleEnvelope"
+		},
+		"PoxCyclesEnvelope": {
+			"kind": "type",
+			"summary": "One page of reward cycles, newest first, with the next cursor.",
+			"fields": [
+				{
+					"name": "pox_version",
+					"type": "5"
+				},
+				{
+					"name": "cycles",
+					"type": "IndexPoxCycle[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "number | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-PoxCyclesEnvelope"
+		},
+		"PoxCyclesListParams": {
+			"kind": "type",
+			"summary": "Paging for listing reward cycles.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "number | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-PoxCyclesListParams"
+		},
+		"PoxCyclesWalkParams": {
+			"kind": "type",
+			"summary": "PoxCyclesListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "number | null"
+				},
+				{
+					"name": "retryCount",
+					"type": "number"
+				},
+				{
+					"name": "retryDelay",
+					"type": "number"
+				},
+				{
+					"name": "onError",
+					"type": "…"
+				},
+				{
+					"name": "batchSize",
+					"type": "number"
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-PoxCyclesWalkParams"
 		},
 		"PoxResource.cycles.get": {
 			"kind": "method",
@@ -1573,7 +3936,7 @@
 		},
 		"PrintSchemaResponse": {
 			"kind": "type",
-			"summary": "Empirical per-topic print payload schema for a contract, inferred from sampled on-chain events.",
+			"summary": "Per-topic print payload schema for a contract, inferred from sampled events.",
 			"fields": [
 				{
 					"name": "contract_id",
@@ -1643,11 +4006,229 @@
 			"route": "/docs/sdk-reference/instance",
 			"anchor": "t-PublicStatus"
 		},
+		"ReindexResponse": {
+			"kind": "type",
+			"summary": "A queued reindex and the block range it covers.",
+			"fields": [
+				{
+					"name": "message",
+					"type": "string"
+				},
+				{
+					"name": "fromBlock",
+					"type": "number"
+				},
+				{
+					"name": "toBlock",
+					"type": "string | number"
+				},
+				{
+					"name": "operationId",
+					"type": "string"
+				},
+				{
+					"name": "status",
+					"type": "…"
+				}
+			],
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-ReindexResponse"
+		},
+		"ReplayResult": {
+			"kind": "type",
+			"summary": "How many events a replay scanned and enqueued.",
+			"fields": [
+				{
+					"name": "replayId",
+					"type": "string"
+				},
+				{
+					"name": "enqueuedCount",
+					"type": "number"
+				},
+				{
+					"name": "scannedCount",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-ReplayResult"
+		},
+		"RotateSecretResponse": {
+			"kind": "type",
+			"summary": "The webhook and its new signing secret.",
+			"fields": [
+				{
+					"name": "webhook",
+					"type": "WebhookDetail"
+				},
+				{
+					"name": "signingSecret",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-RotateSecretResponse"
+		},
+		"RuneActivityEnvelope": {
+			"kind": "type",
+			"summary": "One page of rune events, with the cursor, Bitcoin tip, and reorgs.",
+			"fields": [
+				{
+					"name": "events",
+					"type": "TRow[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexBitcoinTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexBtcReorg[]"
+				},
+				{
+					"name": "notes",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-RuneActivityEnvelope"
+		},
+		"RuneActivityListParams": {
+			"kind": "type",
+			"summary": "Paging and height filters for listing rune events.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "rune",
+					"type": "RuneRef"
+				},
+				{
+					"name": "address",
+					"type": "string"
+				},
+				{
+					"name": "kind",
+					"type": "readonly IndexRuneEventKind[]"
+				}
+			],
+			"more": 1,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-RuneActivityListParams"
+		},
+		"RuneActivityWalkParams": {
+			"kind": "type",
+			"summary": "RuneActivityListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "rune",
+					"type": "RuneRef"
+				},
+				{
+					"name": "address",
+					"type": "string"
+				},
+				{
+					"name": "kind",
+					"type": "readonly IndexRuneEventKind[]"
+				},
+				{
+					"name": "txid",
+					"type": "string"
+				}
+			],
+			"more": 5,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-RuneActivityWalkParams"
+		},
+		"RuneBalancesEnvelope": {
+			"kind": "type",
+			"summary": "One page of rune balances, with the cursor and Bitcoin tip.",
+			"fields": [
+				{
+					"name": "balances",
+					"type": "TRow[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexBitcoinTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexBtcReorg[]"
+				},
+				{
+					"name": "notes",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-RuneBalancesEnvelope"
+		},
 		"RuneBalancesListParams": {
 			"kind": "type",
-			"summary": "Exactly one of address/outpoint is required — enforced at the type level, not just at runtime.",
+			"summary": "Rune balance filters; exactly one of address or outpoint.",
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-RuneBalancesListParams"
+		},
+		"RuneEnvelope": {
+			"kind": "type",
+			"summary": "One rune and the Bitcoin tip.",
+			"fields": [
+				{
+					"name": "rune",
+					"type": "IndexRuneEntry"
+				},
+				{
+					"name": "tip",
+					"type": "IndexBitcoinTip"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-RuneEnvelope"
 		},
 		"RuneEtchEntry": {
 			"kind": "type",
@@ -1687,9 +4268,61 @@
 		},
 		"RuneRef": {
 			"kind": "type",
-			"summary": "A rune reference accepted by every Runes call.",
+			"summary": "A rune id or name, in any case, with or without spacers.",
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-RuneRef"
+		},
+		"RunesEnvelope": {
+			"kind": "type",
+			"summary": "One page of runes, with the cursor and Bitcoin tip.",
+			"fields": [
+				{
+					"name": "runes",
+					"type": "TRow[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexBitcoinTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexBtcReorg[]"
+				},
+				{
+					"name": "notes",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-RunesEnvelope"
+		},
+		"RunesListParams": {
+			"kind": "type",
+			"summary": "Name search, sort order, and paging for listing runes.",
+			"fields": [
+				{
+					"name": "search",
+					"type": "string"
+				},
+				{
+					"name": "sort",
+					"type": "\"number\" | \"mints\""
+				},
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-RunesListParams"
 		},
 		"RunesResource.activity.list": {
 			"kind": "method",
@@ -1726,6 +4359,63 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "m-runes-list"
 		},
+		"RuneStreamsEvent": {
+			"kind": "type",
+			"summary": "A Bitcoin rune event as Streams serves it.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "chain",
+					"type": "\"bitcoin\""
+				},
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_hash",
+					"type": "string"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "event_type",
+					"type": "RuneEventType"
+				}
+			],
+			"more": 4,
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-RuneStreamsEvent"
+		},
+		"SbtcDepositEnvelope": {
+			"kind": "type",
+			"summary": "One sBTC deposit and the chain tip.",
+			"fields": [
+				{
+					"name": "deposit",
+					"type": "IndexSbtcDepositDetail"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcDepositEnvelope"
+		},
 		"SbtcDepositFields": {
 			"kind": "type",
 			"summary": "A deposit row narrowed to the requested columns plus the always-present ones.",
@@ -1741,6 +4431,226 @@
 			],
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-SbtcDepositFields"
+		},
+		"SbtcDepositsEnvelope": {
+			"kind": "type",
+			"summary": "One page of sBTC deposits, with the cursor, tip, and reorgs.",
+			"fields": [
+				{
+					"name": "deposits",
+					"type": "TRow[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexReorg[]"
+				},
+				{
+					"name": "notes",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcDepositsEnvelope"
+		},
+		"SbtcDepositsListParams": {
+			"kind": "type",
+			"summary": "Column selection, paging, and filters for listing sBTC deposits.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "confirmed",
+					"type": "boolean"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "bitcoinTxid",
+					"type": "string"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				}
+			],
+			"more": 1,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcDepositsListParams"
+		},
+		"SbtcDepositsWalkParams": {
+			"kind": "type",
+			"summary": "SbtcDepositsListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fields",
+					"type": "…"
+				},
+				{
+					"name": "confirmed",
+					"type": "boolean"
+				},
+				{
+					"name": "bitcoinTxid",
+					"type": "string"
+				}
+			],
+			"more": 5,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcDepositsWalkParams"
+		},
+		"SbtcEventsEnvelope": {
+			"kind": "type",
+			"summary": "One page of sBTC events, with the cursor, tip, and reorgs.",
+			"fields": [
+				{
+					"name": "events",
+					"type": "IndexSbtcEvent[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexReorg[]"
+				},
+				{
+					"name": "notes",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcEventsEnvelope"
+		},
+		"SbtcEventsListParams": {
+			"kind": "type",
+			"summary": "Paging and filters for listing sBTC events.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "confirmed",
+					"type": "boolean"
+				},
+				{
+					"name": "topic",
+					"type": "SbtcEventTopic"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "requestId",
+					"type": "number"
+				},
+				{
+					"name": "bitcoinTxid",
+					"type": "string"
+				}
+			],
+			"more": 2,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcEventsListParams"
+		},
+		"SbtcEventsWalkParams": {
+			"kind": "type",
+			"summary": "SbtcEventsListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "confirmed",
+					"type": "boolean"
+				},
+				{
+					"name": "bitcoinTxid",
+					"type": "string"
+				},
+				{
+					"name": "requestId",
+					"type": "number"
+				}
+			],
+			"more": 6,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcEventsWalkParams"
 		},
 		"SbtcResource.deposits.consume": {
 			"kind": "method",
@@ -1819,6 +4729,42 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "m-sbtc-withdrawals-walk"
 		},
+		"SbtcSummaryEnvelope": {
+			"kind": "type",
+			"summary": "The sBTC totals and the chain tip.",
+			"fields": [
+				{
+					"name": "summary",
+					"type": "IndexSbtcSummary"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				},
+				{
+					"name": "notes",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcSummaryEnvelope"
+		},
+		"SbtcWithdrawalEnvelope": {
+			"kind": "type",
+			"summary": "One sBTC withdrawal and the chain tip.",
+			"fields": [
+				{
+					"name": "withdrawal",
+					"type": "IndexSbtcWithdrawalDetail"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcWithdrawalEnvelope"
+		},
 		"SbtcWithdrawalFields": {
 			"kind": "type",
 			"summary": "A SbtcWithdrawal row narrowed to the requested columns plus the always-present ones.",
@@ -1834,6 +4780,116 @@
 			],
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-SbtcWithdrawalFields"
+		},
+		"SbtcWithdrawalsEnvelope": {
+			"kind": "type",
+			"summary": "One page of sBTC withdrawals, with the cursor, tip, and reorgs.",
+			"fields": [
+				{
+					"name": "withdrawals",
+					"type": "TRow[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexReorg[]"
+				},
+				{
+					"name": "notes",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcWithdrawalsEnvelope"
+		},
+		"SbtcWithdrawalsListParams": {
+			"kind": "type",
+			"summary": "Column selection, paging, and filters for listing sBTC withdrawals.",
+			"fields": [
+				{
+					"name": "fields",
+					"type": "…"
+				},
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "confirmed",
+					"type": "boolean"
+				},
+				{
+					"name": "status",
+					"type": "SbtcWithdrawalStatus"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "requestId",
+					"type": "number"
+				}
+			],
+			"more": 3,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcWithdrawalsListParams"
+		},
+		"SbtcWithdrawalsWalkParams": {
+			"kind": "type",
+			"summary": "SbtcWithdrawalsListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "status",
+					"type": "SbtcWithdrawalStatus"
+				},
+				{
+					"name": "fields",
+					"type": "…"
+				},
+				{
+					"name": "confirmed",
+					"type": "boolean"
+				}
+			],
+			"more": 7,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-SbtcWithdrawalsWalkParams"
 		},
 		"SecondLayer.batch": {
 			"kind": "method",
@@ -2752,9 +5808,223 @@
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-update"
 		},
+		"StackingEnvelope": {
+			"kind": "type",
+			"summary": "One page of stacking actions, with the cursor, tip, and reorgs.",
+			"fields": [
+				{
+					"name": "stacking",
+					"type": "IndexStackingAction[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexReorg[]"
+				},
+				{
+					"name": "notes",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-StackingEnvelope"
+		},
+		"StackingListParams": {
+			"kind": "type",
+			"summary": "Paging and filters for listing stacking actions.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "functionName",
+					"type": "string"
+				},
+				{
+					"name": "stacker",
+					"type": "string"
+				},
+				{
+					"name": "caller",
+					"type": "string"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-StackingListParams"
+		},
+		"StackingWalkParams": {
+			"kind": "type",
+			"summary": "StackingListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "functionName",
+					"type": "string"
+				},
+				{
+					"name": "stacker",
+					"type": "string"
+				},
+				{
+					"name": "caller",
+					"type": "string"
+				},
+				{
+					"name": "retryCount",
+					"type": "number"
+				}
+			],
+			"more": 4,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-StackingWalkParams"
+		},
+		"StateWritesEnvelope": {
+			"kind": "type",
+			"summary": "One page of contract state writes, with the cursor, tip, and reorgs.",
+			"fields": [
+				{
+					"name": "state_writes",
+					"type": "IndexStateWrite[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexReorg[]"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-StateWritesEnvelope"
+		},
+		"StateWritesListParams": {
+			"kind": "type",
+			"summary": "Paging and filters for listing contract state writes.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "blockHeight",
+					"type": "number"
+				},
+				{
+					"name": "contractId",
+					"type": "string"
+				},
+				{
+					"name": "txContext",
+					"type": "boolean"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-StateWritesListParams"
+		},
+		"StateWritesWalkParams": {
+			"kind": "type",
+			"summary": "StateWritesListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "contractId",
+					"type": "string"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "blockHeight",
+					"type": "number"
+				},
+				{
+					"name": "txContext",
+					"type": "boolean"
+				},
+				{
+					"name": "retryCount",
+					"type": "number"
+				}
+			],
+			"more": 4,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-StateWritesWalkParams"
+		},
 		"StreamsBatch": {
 			"kind": "type",
-			"summary": "One yielded page from StreamsClient.consume.",
+			"summary": "One page yielded by consume, with cursor to persist and resume.",
 			"fields": [
 				{
 					"name": "events",
@@ -2778,7 +6048,7 @@
 		},
 		"StreamsBitcoinCanonicalBlock": {
 			"kind": "type",
-			"summary": "chain=bitcoin canonical block — no burn-chain fields.",
+			"summary": "A Bitcoin canonical block, without burn-chain fields.",
 			"fields": [
 				{
 					"name": "block_height",
@@ -2798,7 +6068,7 @@
 		},
 		"StreamsBitcoinTip": {
 			"kind": "type",
-			"summary": "chain=bitcoin tip — no burn_block_height/retention fields, since Bitcoin has no burn chain of its own and Runes reads have no retention ladder.",
+			"summary": "The Bitcoin tip, without burn-chain or retention fields.",
 			"fields": [
 				{
 					"name": "block_height",
@@ -2819,6 +6089,34 @@
 			],
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsBitcoinTip"
+		},
+		"StreamsCanonicalBlock": {
+			"kind": "type",
+			"summary": "A canonical Stacks block with its Bitcoin anchor.",
+			"fields": [
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_hash",
+					"type": "string"
+				},
+				{
+					"name": "burn_block_height",
+					"type": "number"
+				},
+				{
+					"name": "burn_block_hash",
+					"type": "string | null"
+				},
+				{
+					"name": "is_canonical",
+					"type": "true"
+				}
+			],
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsCanonicalBlock"
 		},
 		"StreamsClarityValue": {
 			"kind": "type",
@@ -2905,7 +6203,7 @@
 		},
 		"StreamsConsumeBitcoinParams": {
 			"kind": "type",
-			"summary": "chain: \"bitcoin\" — Runes batches, own cursor space.",
+			"summary": "Consume options for Runes batches, with their own cursor space.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -2943,6 +6241,30 @@
 			"more": 1,
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsConsumeBitcoinParams"
+		},
+		"StreamsConsumeCommon": {
+			"kind": "type",
+			"summary": "Cursor, batch size, and polling options shared by every consume loop.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "batchSize",
+					"type": "number"
+				},
+				{
+					"name": "intervalMs",
+					"type": "number"
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal"
+				}
+			],
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsConsumeCommon"
 		},
 		"StreamsConsumeStacksParams": {
 			"kind": "type",
@@ -3047,6 +6369,47 @@
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "m-dumps-list"
 		},
+		"StreamsDumpsManifest": {
+			"kind": "type",
+			"summary": "The index of finalized Parquet dump files for one dataset.",
+			"fields": [
+				{
+					"name": "dataset",
+					"type": "string"
+				},
+				{
+					"name": "network",
+					"type": "string"
+				},
+				{
+					"name": "version",
+					"type": "string"
+				},
+				{
+					"name": "schema_version",
+					"type": "number"
+				},
+				{
+					"name": "generated_at",
+					"type": "string"
+				},
+				{
+					"name": "producer_version",
+					"type": "string"
+				},
+				{
+					"name": "finality_lag_blocks",
+					"type": "number"
+				},
+				{
+					"name": "latest_finalized_cursor",
+					"type": "string | null"
+				}
+			],
+			"more": 4,
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsDumpsManifest"
+		},
 		"StreamsEvent": {
 			"kind": "type",
 			"summary": "A raw Streams event.",
@@ -3055,13 +6418,13 @@
 		},
 		"StreamsEventOfTypes": {
 			"kind": "type",
-			"summary": "The StreamsEvent union narrowed to a types selection — what a const-generic types: [\"ft_transfer\"] buys at the type level.",
+			"summary": "The event union narrowed to a types selection.",
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsEventOfTypes"
 		},
 		"StreamsEventsBitcoinListParams": {
 			"kind": "type",
-			"summary": "chain: \"bitcoin\" — Runes events, own cursor space.",
+			"summary": "List options for Runes events, with their own cursor space.",
 			"fields": [
 				{
 					"name": "cursor",
@@ -3102,7 +6465,7 @@
 		},
 		"StreamsEventsConsumeBitcoinParams": {
 			"kind": "type",
-			"summary": "chain: \"bitcoin\" — the checkpointed sweep over Runes events.",
+			"summary": "Options for the checkpointed sweep over Runes events.",
 			"fields": [
 				{
 					"name": "chain",
@@ -3140,6 +6503,182 @@
 			"more": 14,
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsEventsConsumeBitcoinParams"
+		},
+		"StreamsEventsConsumeParams": {
+			"kind": "type",
+			"summary": "Options for consuming Streams events: cursor, batching, filters, handler.",
+			"fields": [
+				{
+					"name": "chain",
+					"type": "\"stacks\""
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "decoded",
+					"type": "D"
+				},
+				{
+					"name": "sink",
+					"type": "ConsumerSink<TTx>"
+				},
+				{
+					"name": "onProgress",
+					"type": "…"
+				},
+				{
+					"name": "mode",
+					"type": "\"tail\" | \"bounded\""
+				},
+				{
+					"name": "finalizedOnly",
+					"type": "boolean"
+				},
+				{
+					"name": "types",
+					"type": "…"
+				}
+			],
+			"more": 19,
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsEventsConsumeParams"
+		},
+		"StreamsEventsConsumeResult": {
+			"kind": "type",
+			"summary": "Where a consume loop stopped: cursor, pages read, empty polls.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "pages",
+					"type": "number"
+				},
+				{
+					"name": "emptyPolls",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsEventsConsumeResult"
+		},
+		"StreamsEventsEnvelope": {
+			"kind": "type",
+			"summary": "One page of events with the next cursor, tip, and reorgs.",
+			"fields": [
+				{
+					"name": "events",
+					"type": "TEvent[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "TTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "StreamsReorg[]"
+				}
+			],
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsEventsEnvelope"
+		},
+		"StreamsEventsListEnvelope": {
+			"kind": "type",
+			"summary": "One page of events with the tip and reorgs, no cursor.",
+			"fields": [
+				{
+					"name": "events",
+					"type": "TEvent[]"
+				},
+				{
+					"name": "tip",
+					"type": "TTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "StreamsReorg[]"
+				}
+			],
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsEventsListEnvelope"
+		},
+		"StreamsEventsListParams": {
+			"kind": "type",
+			"summary": "Chain, cursor, height range, and filters for listing Streams events.",
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsEventsListParams"
+		},
+		"StreamsEventsListParamsCommon": {
+			"kind": "type",
+			"summary": "Cursor, height range, and limit shared by every list call.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsEventsListParamsCommon"
+		},
+		"StreamsEventsReplayParams": {
+			"kind": "type",
+			"summary": "Options for replaying history from dump files, then tailing live.",
+			"fields": [
+				{
+					"name": "from",
+					"type": "string"
+				},
+				{
+					"name": "onDumpFile",
+					"type": "…"
+				},
+				{
+					"name": "onBatch",
+					"type": "…"
+				},
+				{
+					"name": "onReorg",
+					"type": "…"
+				},
+				{
+					"name": "mode",
+					"type": "\"tail\" | \"bounded\""
+				},
+				{
+					"name": "batchSize",
+					"type": "number"
+				},
+				{
+					"name": "emptyBackoffMs",
+					"type": "number"
+				},
+				{
+					"name": "maxPages",
+					"type": "number"
+				}
+			],
+			"more": 5,
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsEventsReplayParams"
 		},
 		"StreamsEventsStacksListParams": {
 			"kind": "type",
@@ -3184,7 +6723,7 @@
 		},
 		"StreamsEventsStreamBitcoinParams": {
 			"kind": "type",
-			"summary": "chain: \"bitcoin\" — Runes events, tailed the same way as the Stacks default.",
+			"summary": "Stream options for Runes events, tailed like the Stacks default.",
 			"fields": [
 				{
 					"name": "fromCursor",
@@ -3223,9 +6762,41 @@
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsEventsStreamBitcoinParams"
 		},
+		"StreamsEventsStreamCommon": {
+			"kind": "type",
+			"summary": "Cursor, batching, and stop options shared by every event stream.",
+			"fields": [
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "batchSize",
+					"type": "number"
+				},
+				{
+					"name": "emptyBackoffMs",
+					"type": "number"
+				},
+				{
+					"name": "maxPages",
+					"type": "number"
+				},
+				{
+					"name": "maxEmptyPolls",
+					"type": "number"
+				},
+				{
+					"name": "signal",
+					"type": "AbortSignal"
+				}
+			],
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsEventsStreamCommon"
+		},
 		"StreamsEventsStreamStacksParams": {
 			"kind": "type",
-			"summary": "chain: \"stacks\" (default, omit chain entirely) — matches StreamsEventsStacksListParams.",
+			"summary": "Stream options for Stacks events, the default chain.",
 			"fields": [
 				{
 					"name": "fromCursor",
@@ -3266,7 +6837,7 @@
 		},
 		"StreamsEventsSubscribeBitcoinParams": {
 			"kind": "type",
-			"summary": "chain: \"bitcoin\" — Runes events pushed live, on their own cursor space.",
+			"summary": "Options for pushing Runes events live, on their own cursor space.",
 			"fields": [
 				{
 					"name": "fromCursor",
@@ -3354,7 +6925,7 @@
 		},
 		"StreamsFilterValue": {
 			"kind": "type",
-			"summary": "A filter that matches a single value or any value in a list.",
+			"summary": "A single value or a list of values to match.",
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsFilterValue"
 		},
@@ -3398,6 +6969,38 @@
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsReorgContext"
 		},
+		"StreamsReorgsListEnvelope": {
+			"kind": "type",
+			"summary": "A list of reorgs and the cursor to resume from.",
+			"fields": [
+				{
+					"name": "reorgs",
+					"type": "StreamsReorg[]"
+				},
+				{
+					"name": "next_since",
+					"type": "string | null"
+				}
+			],
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsReorgsListEnvelope"
+		},
+		"StreamsReorgsListParams": {
+			"kind": "type",
+			"summary": "A starting point and limit for listing reorgs.",
+			"fields": [
+				{
+					"name": "since",
+					"type": "string"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsReorgsListParams"
+		},
 		"StreamsSubscription": {
 			"kind": "type",
 			"summary": "Handle for a live subscription: call it to unsubscribe.",
@@ -3410,11 +7013,88 @@
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsSubscription"
 		},
+		"StreamsTip": {
+			"kind": "type",
+			"summary": "The chain tip: latest block, Bitcoin anchor, and finality boundary.",
+			"fields": [
+				{
+					"name": "block_height",
+					"type": "number"
+				},
+				{
+					"name": "block_hash",
+					"type": "string"
+				},
+				{
+					"name": "burn_block_height",
+					"type": "number"
+				},
+				{
+					"name": "finalized_height",
+					"type": "number"
+				},
+				{
+					"name": "lag_seconds",
+					"type": "number"
+				},
+				{
+					"name": "oldest_seekable_height",
+					"type": "number | null"
+				},
+				{
+					"name": "oldest_cursor",
+					"type": "string | null"
+				}
+			],
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsTip"
+		},
 		"StreamsWireEvent": {
 			"kind": "type",
-			"summary": "Anything GET /v1/streams/events can return: Streams 1.0 rows on the classic clock, vm rows on clock=vm, or Runes rows on chain=bitcoin.",
+			"summary": "Any row GET /v1/streams/events can return.",
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsWireEvent"
+		},
+		"SubgraphAgentSchema": {
+			"kind": "type",
+			"summary": "A subgraph's tables and columns in a form agents can read.",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string"
+				},
+				{
+					"name": "version",
+					"type": "string"
+				},
+				{
+					"name": "description",
+					"type": "string"
+				},
+				{
+					"name": "schemaHash",
+					"type": "string"
+				},
+				{
+					"name": "pin",
+					"type": "string"
+				},
+				{
+					"name": "generatedAt",
+					"type": "string"
+				},
+				{
+					"name": "serverUrl",
+					"type": "string"
+				},
+				{
+					"name": "sources",
+					"type": "Record<string, unknown>"
+				}
+			],
+			"more": 1,
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-SubgraphAgentSchema"
 		},
 		"SubgraphAggregateParams": {
 			"kind": "type",
@@ -3475,6 +7155,63 @@
 			],
 			"route": "/docs/sdk-reference/subgraphs",
 			"anchor": "t-SubgraphAggregateResponse"
+		},
+		"SubgraphDetail": {
+			"kind": "type",
+			"summary": "A subgraph's version, pin, status, tables, and sources.",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string"
+				},
+				{
+					"name": "version",
+					"type": "string"
+				},
+				{
+					"name": "schemaHash",
+					"type": "string"
+				},
+				{
+					"name": "pin",
+					"type": "string | null"
+				},
+				{
+					"name": "verification",
+					"type": "SubgraphVerification | null"
+				},
+				{
+					"name": "status",
+					"type": "string"
+				},
+				{
+					"name": "lastProcessedBlock",
+					"type": "number"
+				},
+				{
+					"name": "description",
+					"type": "string"
+				}
+			],
+			"more": 7,
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-SubgraphDetail"
+		},
+		"SubgraphGapsResponse": {
+			"kind": "type",
+			"summary": "Missing block ranges in a subgraph, with totals.",
+			"fields": [
+				{
+					"name": "data",
+					"type": "SubgraphGapEntry[]"
+				},
+				{
+					"name": "meta",
+					"type": "…"
+				}
+			],
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-SubgraphGapsResponse"
 		},
 		"SubgraphOperationStatus": {
 			"kind": "type",
@@ -3670,6 +7407,104 @@
 			"route": "/docs/sdk-reference/subgraphs",
 			"anchor": "m-typed"
 		},
+		"SubgraphSource": {
+			"kind": "type",
+			"summary": "A deployed subgraph's source code, handler bundle, and pin.",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string"
+				},
+				{
+					"name": "version",
+					"type": "string"
+				},
+				{
+					"name": "sourceCode",
+					"type": "string | null"
+				},
+				{
+					"name": "handlerCode",
+					"type": "string | null"
+				},
+				{
+					"name": "pin",
+					"type": "string | null"
+				},
+				{
+					"name": "pinPreimage",
+					"type": "string | null"
+				},
+				{
+					"name": "readOnly",
+					"type": "boolean"
+				},
+				{
+					"name": "reason",
+					"type": "string"
+				}
+			],
+			"more": 1,
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-SubgraphSource"
+		},
+		"SubgraphSpecOptions": {
+			"kind": "type",
+			"summary": "Options for generating a subgraph's agent schema.",
+			"fields": [
+				{
+					"name": "serverUrl",
+					"type": "string"
+				},
+				{
+					"name": "generatedAt",
+					"type": "string"
+				}
+			],
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-SubgraphSpecOptions"
+		},
+		"SubgraphSummary": {
+			"kind": "type",
+			"summary": "A subgraph's name, status, and indexing progress.",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string"
+				},
+				{
+					"name": "version",
+					"type": "string"
+				},
+				{
+					"name": "status",
+					"type": "string"
+				},
+				{
+					"name": "lastProcessedBlock",
+					"type": "number"
+				},
+				{
+					"name": "totalProcessed",
+					"type": "number"
+				},
+				{
+					"name": "totalRows",
+					"type": "number"
+				},
+				{
+					"name": "totalErrors",
+					"type": "number"
+				},
+				{
+					"name": "tables",
+					"type": "string[]"
+				}
+			],
+			"more": 12,
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-SubgraphSummary"
+		},
 		"SubgraphVerification": {
 			"kind": "type",
 			"summary": "How far a subgraph's rows can be checked without trusting the server, derived from its sources and a scan of its handler.",
@@ -3689,6 +7524,22 @@
 			],
 			"route": "/docs/sdk-reference/subgraphs",
 			"anchor": "t-SubgraphVerification"
+		},
+		"TransactionEnvelope": {
+			"kind": "type",
+			"summary": "One transaction and the chain tip.",
+			"fields": [
+				{
+					"name": "transaction",
+					"type": "IndexTransaction"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-TransactionEnvelope"
 		},
 		"TransactionFields": {
 			"kind": "type",
@@ -3750,11 +7601,181 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-TransactionProof"
 		},
+		"TransactionsEnvelope": {
+			"kind": "type",
+			"summary": "One page of transactions, with the cursor, tip, and reorgs.",
+			"fields": [
+				{
+					"name": "transactions",
+					"type": "TRow[]"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "tip",
+					"type": "IndexTip"
+				},
+				{
+					"name": "reorgs",
+					"type": "IndexReorg[]"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-TransactionsEnvelope"
+		},
+		"TransactionsListParams": {
+			"kind": "type",
+			"summary": "Column selection, paging, and filters for listing transactions.",
+			"fields": [
+				{
+					"name": "fields",
+					"type": "…"
+				},
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				},
+				{
+					"name": "type",
+					"type": "string"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "contractId",
+					"type": "string"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				}
+			],
+			"more": 1,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-TransactionsListParams"
+		},
+		"TransactionsWalkParams": {
+			"kind": "type",
+			"summary": "TransactionsListParams without limit, plus walk options.",
+			"fields": [
+				{
+					"name": "cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "contractId",
+					"type": "string"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "fromCursor",
+					"type": "string | null"
+				},
+				{
+					"name": "fields",
+					"type": "…"
+				},
+				{
+					"name": "type",
+					"type": "string"
+				}
+			],
+			"more": 5,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-TransactionsWalkParams"
+		},
+		"UpdateWebhookRequest": {
+			"kind": "type",
+			"summary": "The fields of a webhook you can change.",
+			"fields": [
+				{
+					"name": "name",
+					"type": "string"
+				},
+				{
+					"name": "url",
+					"type": "string"
+				},
+				{
+					"name": "format",
+					"type": "WebhookFormat"
+				},
+				{
+					"name": "authConfig",
+					"type": "Record<string, unknown>"
+				},
+				{
+					"name": "maxRetries",
+					"type": "number"
+				},
+				{
+					"name": "timeoutMs",
+					"type": "number"
+				},
+				{
+					"name": "concurrency",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-UpdateWebhookRequest"
+		},
 		"VmStreamsEvent": {
 			"kind": "type",
 			"summary": "A Streams clock=vm row.",
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-VmStreamsEvent"
+		},
+		"WebhookActivity": {
+			"kind": "type",
+			"summary": "A week of hourly delivery counts and what is waiting now.",
+			"fields": [
+				{
+					"name": "hours",
+					"type": "WebhookActivityHour[]"
+				},
+				{
+					"name": "waiting",
+					"type": "number"
+				},
+				{
+					"name": "nextAttemptAt",
+					"type": "string | null"
+				},
+				{
+					"name": "lastSuccessAt",
+					"type": "string | null"
+				},
+				{
+					"name": "byEventType",
+					"type": "Record<string, number>"
+				}
+			],
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-WebhookActivity"
 		},
 		"WebhookActivityHour": {
 			"kind": "type",
@@ -3802,7 +7823,7 @@
 		},
 		"WebhookDeliveryDetail": {
 			"kind": "type",
-			"summary": "One delivery attempt with its outbox context, for the delivery card (GET /:id/deliveries/:deliveryId).",
+			"summary": "One delivery attempt with its outbox context.",
 			"fields": [
 				{
 					"name": "id",
@@ -3840,6 +7861,47 @@
 			"more": 8,
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "t-WebhookDeliveryDetail"
+		},
+		"WebhookDetail": {
+			"kind": "type",
+			"summary": "A webhook with its triggers, auth, retry, and timeout settings.",
+			"fields": [
+				{
+					"name": "triggers",
+					"type": "ChainTrigger[]"
+				},
+				{
+					"name": "auth",
+					"type": "WebhookAuth"
+				},
+				{
+					"name": "maxRetries",
+					"type": "number"
+				},
+				{
+					"name": "timeoutMs",
+					"type": "number"
+				},
+				{
+					"name": "concurrency",
+					"type": "number"
+				},
+				{
+					"name": "lastError",
+					"type": "string | null"
+				},
+				{
+					"name": "warning",
+					"type": "string | null"
+				},
+				{
+					"name": "id",
+					"type": "string"
+				}
+			],
+			"more": 11,
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-WebhookDetail"
 		},
 		"Webhooks.activity": {
 			"kind": "method",
@@ -3945,6 +8007,47 @@
 			"sig": "sl.webhooks.update(id: string, patch: UpdateWebhookRequest): Promise<WebhookDetail>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-update"
+		},
+		"WebhookSummary": {
+			"kind": "type",
+			"summary": "A webhook's name, status, format, and URL.",
+			"fields": [
+				{
+					"name": "id",
+					"type": "string"
+				},
+				{
+					"name": "name",
+					"type": "string"
+				},
+				{
+					"name": "status",
+					"type": "WebhookStatus"
+				},
+				{
+					"name": "kind",
+					"type": "WebhookKind"
+				},
+				{
+					"name": "format",
+					"type": "WebhookFormat"
+				},
+				{
+					"name": "url",
+					"type": "string"
+				},
+				{
+					"name": "lastDeliveryAt",
+					"type": "string | null"
+				},
+				{
+					"name": "lastSuccessAt",
+					"type": "string | null"
+				}
+			],
+			"more": 4,
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-WebhookSummary"
 		},
 		"WebhookTestResult": {
 			"kind": "type",
@@ -4070,13 +8173,13 @@
 		},
 		"AssetIdentifier": {
 			"kind": "type",
-			"summary": "<contract>::<asset-name> — the shape a fungible/non-fungible asset filter takes, expressed so the compiler can check it.",
+			"summary": "A fungible or non-fungible asset identifier: <contract>::<asset-name>.",
 			"route": "/docs/filters-reference",
 			"anchor": "t-AssetIdentifier"
 		},
 		"ChainEventFilter": {
 			"kind": "type",
-			"summary": "A canonical chain-event filter: the spec fields plus the projections its member supports.",
+			"summary": "A chain-event filter: the spec fields plus its member's projections.",
 			"fields": [
 				{
 					"name": "toChainTrigger",
@@ -4121,6 +8224,12 @@
 			],
 			"route": "/docs/filters-reference",
 			"anchor": "t-ContractCallsParamsShape"
+		},
+		"Fields": {
+			"kind": "type",
+			"summary": "The fields a filter factory takes for one event type, without type.",
+			"route": "/docs/filters-reference",
+			"anchor": "t-Fields"
 		},
 		"fromSubgraphSource": {
 			"kind": "method",
@@ -4405,6 +8514,12 @@
 			"route": "/docs/filters-reference",
 			"anchor": "t-PrintScalarType"
 		},
+		"SpecFor": {
+			"kind": "type",
+			"summary": "The filter spec for one chain event type.",
+			"route": "/docs/filters-reference",
+			"anchor": "t-SpecFor"
+		},
 		"StreamsParamsShape": {
 			"kind": "type",
 			"summary": "Params fragment for classic streams.events.* (Streams 1.0).",
@@ -4455,7 +8570,7 @@
 		},
 		"SubgraphMemberType": {
 			"kind": "type",
-			"summary": "The members expressible as subgraph sources (everything but the Webhooks-only sBTC lifecycle types).",
+			"summary": "The members you can use as subgraph sources.",
 			"route": "/docs/filters-reference",
 			"anchor": "t-SubgraphMemberType"
 		},
@@ -4516,6 +8631,18 @@
 			"summary": "The camelCased read methods of an ABI.",
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-ChainReadMethods"
+		},
+		"ChainReadOptions": {
+			"kind": "type",
+			"summary": "Options for a contract read, such as cache mode.",
+			"fields": [
+				{
+					"name": "cache",
+					"type": "ChainReadCacheMode"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-ChainReadOptions"
 		},
 		"checkPin": {
 			"kind": "method",
@@ -4744,6 +8871,58 @@
 			"route": "/docs/subgraphs-reference",
 			"anchor": "m-defineSubgraph"
 		},
+		"DeployDiff": {
+			"kind": "type",
+			"summary": "The tables and columns a deploy adds, removes, or breaks.",
+			"fields": [
+				{
+					"name": "addedTables",
+					"type": "string[]"
+				},
+				{
+					"name": "removedTables",
+					"type": "string[]"
+				},
+				{
+					"name": "addedColumns",
+					"type": "Record<string, string[]>"
+				},
+				{
+					"name": "breakingChanges",
+					"type": "string[]"
+				},
+				{
+					"name": "indexChanges",
+					"type": "Record<string, string[]>"
+				},
+				{
+					"name": "addedUniqueKeys",
+					"type": "Record<string, string[][]>"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-DeployDiff"
+		},
+		"DeployPlan": {
+			"kind": "type",
+			"summary": "The schema name and SQL a deploy will run.",
+			"fields": [
+				{
+					"name": "schemaName",
+					"type": "string"
+				},
+				{
+					"name": "dropStatement",
+					"type": "string"
+				},
+				{
+					"name": "statements",
+					"type": "string[]"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-DeployPlan"
+		},
 		"deploySchema": {
 			"kind": "method",
 			"summary": "Deploys a subgraph schema to the database.",
@@ -4765,6 +8944,18 @@
 			"route": "/docs/subgraphs-reference",
 			"anchor": "m-diffSchema"
 		},
+		"DrizzleGenOptions": {
+			"kind": "type",
+			"summary": "Options for generating Drizzle table definitions.",
+			"fields": [
+				{
+					"name": "schemaName",
+					"type": "string"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-DrizzleGenOptions"
+		},
 		"ErasedChainReadClient": {
 			"kind": "type",
 			"summary": "ChainReadClient with the ABI generic erased.",
@@ -4782,6 +8973,38 @@
 			"summary": "The event payload a handler receives for a given source filter.",
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-EventForFilter"
+		},
+		"EventRecord": {
+			"kind": "type",
+			"summary": "An event as a subgraph source matcher reads it.",
+			"fields": [
+				{
+					"name": "id",
+					"type": "string"
+				},
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "type",
+					"type": "string"
+				},
+				{
+					"name": "event_index",
+					"type": "number"
+				},
+				{
+					"name": "data",
+					"type": "unknown"
+				},
+				{
+					"name": "clock",
+					"type": "\"vm\""
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-EventRecord"
 		},
 		"EventTrace": {
 			"kind": "type",
@@ -4896,6 +9119,22 @@
 			"route": "/docs/subgraphs-reference",
 			"anchor": "m-generateDrizzleSchema"
 		},
+		"GeneratedSQL": {
+			"kind": "type",
+			"summary": "The SQL statements for a subgraph's tables and their hash.",
+			"fields": [
+				{
+					"name": "statements",
+					"type": "string[]"
+				},
+				{
+					"name": "hash",
+					"type": "string"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-GeneratedSQL"
+		},
 		"generateIndexSchema": {
 			"kind": "method",
 			"summary": "Generates a typed schema for Index tables.",
@@ -4971,7 +9210,7 @@
 		},
 		"IndexCodegenOptions": {
 			"kind": "type",
-			"summary": "Options for runIndexCodegen.",
+			"summary": "Options for generating the Index schema: tables, schema name.",
 			"fields": [
 				{
 					"name": "tables",
@@ -4988,6 +9227,12 @@
 			],
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-IndexCodegenOptions"
+		},
+		"IndexCodegenTarget": {
+			"kind": "type",
+			"summary": "A portable, typed schema target for the public Index read domain.",
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-IndexCodegenTarget"
 		},
 		"IndexContractCallRow": {
 			"kind": "type",
@@ -5116,6 +9361,18 @@
 			"route": "/docs/subgraphs-reference",
 			"anchor": "m-isStreamsIndexEligible"
 		},
+		"KyselyGenOptions": {
+			"kind": "type",
+			"summary": "Options for generating Kysely table interfaces.",
+			"fields": [
+				{
+					"name": "schemaName",
+					"type": "string"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-KyselyGenOptions"
+		},
 		"loadDeterministicDefinition": {
 			"kind": "method",
 			"summary": "Loads a bundled handler into a fresh deterministic realm.",
@@ -5163,6 +9420,40 @@
 			"sig": "pgSchemaName(subgraphName: string): string",
 			"route": "/docs/subgraphs-reference",
 			"anchor": "m-pgSchemaName"
+		},
+		"PinCheck": {
+			"kind": "type",
+			"summary": "Whether a served pin matches the served bundle.",
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-PinCheck"
+		},
+		"PinInput": {
+			"kind": "type",
+			"summary": "What a pin is computed from: schema hash, handler code, network.",
+			"fields": [
+				{
+					"name": "schemaHash",
+					"type": "string"
+				},
+				{
+					"name": "handlerCode",
+					"type": "string"
+				},
+				{
+					"name": "startBlock",
+					"type": "number | null"
+				},
+				{
+					"name": "network",
+					"type": "string"
+				},
+				{
+					"name": "runtime",
+					"type": "string"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-PinInput"
 		},
 		"PinnedPrintEventFilter": {
 			"kind": "type",
@@ -5252,12 +9543,76 @@
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-PrintSample"
 		},
+		"PrismaGenOptions": {
+			"kind": "type",
+			"summary": "Options for generating Prisma models.",
+			"fields": [
+				{
+					"name": "schemaName",
+					"type": "string"
+				},
+				{
+					"name": "datasourceEnv",
+					"type": "string"
+				},
+				{
+					"name": "modelsOnly",
+					"type": "boolean"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-PrismaGenOptions"
+		},
 		"probeHandlers": {
 			"kind": "method",
 			"summary": "Run handlers against pre-built sample payloads in memory (no Index, no Postgres).",
 			"sig": "probeHandlers(def: ProbeHandlersDef, samples: …): Promise<ProbeHandlersResult>",
 			"route": "/docs/subgraphs-reference",
 			"anchor": "m-probeHandlers"
+		},
+		"ProbeHandlersDef": {
+			"kind": "type",
+			"summary": "A subgraph's schema, sources, and handlers, for a probe run.",
+			"fields": [
+				{
+					"name": "schema",
+					"type": "SubgraphSchema"
+				},
+				{
+					"name": "sources",
+					"type": "…"
+				},
+				{
+					"name": "handlers",
+					"type": "Record<string, unknown>"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-ProbeHandlersDef"
+		},
+		"ProbeHandlersResult": {
+			"kind": "type",
+			"summary": "How many events matched and rows a probe wrote.",
+			"fields": [
+				{
+					"name": "matched",
+					"type": "number"
+				},
+				{
+					"name": "written",
+					"type": "number"
+				},
+				{
+					"name": "tables",
+					"type": "string[]"
+				},
+				{
+					"name": "firstEventKeys",
+					"type": "string[]"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-ProbeHandlersResult"
 		},
 		"readContractAt": {
 			"kind": "method",
@@ -5303,12 +9658,70 @@
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-ReplayDeps"
 		},
+		"ReplayOptions": {
+			"kind": "type",
+			"summary": "What to replay: proof source, handler bundle, and block range.",
+			"fields": [
+				{
+					"name": "source",
+					"type": "ProofSource"
+				},
+				{
+					"name": "handlerCode",
+					"type": "string"
+				},
+				{
+					"name": "from",
+					"type": "number"
+				},
+				{
+					"name": "to",
+					"type": "number"
+				},
+				{
+					"name": "checkpoint",
+					"type": "VerifyCheckpoint"
+				},
+				{
+					"name": "startBlock",
+					"type": "number"
+				},
+				{
+					"name": "onProgress",
+					"type": "(height: number) => void"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-ReplayOptions"
+		},
 		"replaySubgraph": {
 			"kind": "method",
 			"summary": "Verifies every block in a range and recomputes the subgraph's tables.",
 			"sig": "replaySubgraph(opts: ReplayOptions): Promise<ReplayResult>",
 			"route": "/docs/subgraphs-reference",
 			"anchor": "m-replaySubgraph"
+		},
+		"Row": {
+			"kind": "type",
+			"summary": "A table row as a plain column-to-value record.",
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-Row"
+		},
+		"RowComparison": {
+			"kind": "type",
+			"summary": "Replayed tables compared with served tables, and any mismatches.",
+			"fields": [
+				{
+					"name": "failures",
+					"type": "ReplayFailure[]"
+				},
+				{
+					"name": "tables",
+					"type": "TableComparison[]"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-RowComparison"
 		},
 		"RowValue": {
 			"kind": "type",
@@ -5322,6 +9735,34 @@
 			"sig": "runSubgraphTest(input: RunSubgraphTestInput): Promise<SubgraphTestResult>",
 			"route": "/docs/subgraphs-reference",
 			"anchor": "m-runSubgraphTest"
+		},
+		"RunSubgraphTestInput": {
+			"kind": "type",
+			"summary": "A subgraph's schema, handlers, sources, and the events to run.",
+			"fields": [
+				{
+					"name": "schema",
+					"type": "SubgraphSchema"
+				},
+				{
+					"name": "handlers",
+					"type": "Record<string, unknown>"
+				},
+				{
+					"name": "sources",
+					"type": "Record<string, SubgraphTestSource>"
+				},
+				{
+					"name": "events",
+					"type": "Record<string, IndexTestRow[]>"
+				},
+				{
+					"name": "trace",
+					"type": "boolean"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-RunSubgraphTestInput"
 		},
 		"SparseProbeTarget": {
 			"kind": "type",
@@ -5481,7 +9922,7 @@
 		},
 		"SubgraphFilter": {
 			"kind": "type",
-			"summary": "All subgraph filter types — discriminated on type",
+			"summary": "A subgraph filter, discriminated on type.",
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-SubgraphFilter"
 		},
@@ -5493,7 +9934,7 @@
 		},
 		"SubgraphSchema": {
 			"kind": "type",
-			"summary": "Subgraph schema — maps table names to table definitions",
+			"summary": "Maps table names to table definitions.",
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-SubgraphSchema"
 		},
@@ -5516,6 +9957,47 @@
 			],
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-SubgraphTable"
+		},
+		"SubgraphTestResult": {
+			"kind": "type",
+			"summary": "The outcome of a test run: matches, writes, and table rows.",
+			"fields": [
+				{
+					"name": "ok",
+					"type": "boolean"
+				},
+				{
+					"name": "code",
+					"type": "…"
+				},
+				{
+					"name": "matched",
+					"type": "number"
+				},
+				{
+					"name": "written",
+					"type": "number"
+				},
+				{
+					"name": "tables",
+					"type": "…"
+				},
+				{
+					"name": "firstEvent",
+					"type": "{ source: string; data?: unknown }"
+				},
+				{
+					"name": "hint",
+					"type": "string"
+				},
+				{
+					"name": "traces",
+					"type": "EventTrace[]"
+				}
+			],
+			"more": 1,
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-SubgraphTestResult"
 		},
 		"SubgraphTip": {
 			"kind": "type",
@@ -5604,6 +10086,30 @@
 			],
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-SystemWhereAliases"
+		},
+		"TableDiff": {
+			"kind": "type",
+			"summary": "Tables added, removed, or changed between two schemas.",
+			"fields": [
+				{
+					"name": "addedTables",
+					"type": "string[]"
+				},
+				{
+					"name": "removedTables",
+					"type": "string[]"
+				},
+				{
+					"name": "tables",
+					"type": "Record<string, ColumnDiff>"
+				},
+				{
+					"name": "constraints",
+					"type": "Record<string, ConstraintDiff>"
+				}
+			],
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-TableDiff"
 		},
 		"TestSubgraphContext": {
 			"kind": "type",
@@ -5724,6 +10230,47 @@
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-TxMeta"
 		},
+		"TxRecord": {
+			"kind": "type",
+			"summary": "A transaction as a subgraph source matcher reads it.",
+			"fields": [
+				{
+					"name": "tx_id",
+					"type": "string"
+				},
+				{
+					"name": "type",
+					"type": "string"
+				},
+				{
+					"name": "sender",
+					"type": "string"
+				},
+				{
+					"name": "status",
+					"type": "string"
+				},
+				{
+					"name": "tx_index",
+					"type": "number"
+				},
+				{
+					"name": "contract_id",
+					"type": "string | null"
+				},
+				{
+					"name": "function_name",
+					"type": "string | null"
+				},
+				{
+					"name": "function_args",
+					"type": "unknown"
+				}
+			],
+			"more": 1,
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-TxRecord"
+		},
 		"TypedHandlers": {
 			"kind": "type",
 			"summary": "Handlers keyed by source name, one per source.",
@@ -5773,7 +10320,7 @@
 		},
 		"TypedSubgraphDefinition": {
 			"kind": "type",
-			"summary": "Subgraph definition with sources/schema literals preserved for typed handlers and downstream query-client inference (getSubgraph).",
+			"summary": "A subgraph definition that keeps sources and schema literals typed.",
 			"fields": [
 				{
 					"name": "name",
@@ -5878,6 +10425,62 @@
 			"route": "/docs/verify-reference",
 			"anchor": "t-Ancestry"
 		},
+		"BlockDiff": {
+			"kind": "type",
+			"summary": "A block's witnessed leaves, split into writes, carried, and internal.",
+			"fields": [
+				{
+					"name": "writes",
+					"type": "ClassifiedLeaf[]"
+				},
+				{
+					"name": "carried",
+					"type": "WitnessLeaf[]"
+				},
+				{
+					"name": "internal",
+					"type": "ClassifiedLeaf[]"
+				},
+				{
+					"name": "hidden",
+					"type": "WitnessLeaf[]"
+				},
+				{
+					"name": "missing",
+					"type": "string[]"
+				},
+				{
+					"name": "complete",
+					"type": "boolean"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-BlockDiff"
+		},
+		"BlockDiffInput": {
+			"kind": "type",
+			"summary": "The witness leaves, claimed writes, and bookkeeping keys to classify.",
+			"fields": [
+				{
+					"name": "leaves",
+					"type": "WitnessLeaf[]"
+				},
+				{
+					"name": "writes",
+					"type": "[string, string][]"
+				},
+				{
+					"name": "internal",
+					"type": "[string, string][]"
+				},
+				{
+					"name": "parentValue",
+					"type": "(pathHex: string) => string | undefined"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-BlockDiffInput"
+		},
 		"blockId": {
 			"kind": "method",
 			"summary": "Computes a header's block id, also called the index block hash.",
@@ -5885,12 +10488,133 @@
 			"route": "/docs/verify-reference",
 			"anchor": "m-blockId"
 		},
+		"BlockStateInput": {
+			"kind": "type",
+			"summary": "A block's height, parent, and state root to check rows against.",
+			"fields": [
+				{
+					"name": "height",
+					"type": "number"
+				},
+				{
+					"name": "parentBlockId",
+					"type": "Bytes"
+				},
+				{
+					"name": "stateRoot",
+					"type": "Bytes"
+				},
+				{
+					"name": "witness",
+					"type": "Bytes"
+				},
+				{
+					"name": "writes",
+					"type": "StateWrite[] | null"
+				},
+				{
+					"name": "rows",
+					"type": "VmEventRow[]"
+				},
+				{
+					"name": "parentLeaves",
+					"type": "WitnessLeaf[]"
+				},
+				{
+					"name": "parentHolds",
+					"type": "(leaf: WitnessLeaf) => Promise<boolean>"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-BlockStateInput"
+		},
+		"BlockStateResult": {
+			"kind": "type",
+			"summary": "The proven diff, rows checked, notes, and failures.",
+			"fields": [
+				{
+					"name": "diff",
+					"type": "ProvenDiff"
+				},
+				{
+					"name": "rowsChecked",
+					"type": "number"
+				},
+				{
+					"name": "notes",
+					"type": "string[]"
+				},
+				{
+					"name": "failures",
+					"type": "StateFailure[]"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-BlockStateResult"
+		},
+		"BlockTransaction": {
+			"kind": "type",
+			"summary": "A transaction's id and its consensus-serialized bytes.",
+			"fields": [
+				{
+					"name": "txid",
+					"type": "string"
+				},
+				{
+					"name": "raw",
+					"type": "Bytes"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-BlockTransaction"
+		},
 		"blockTransactions": {
 			"kind": "method",
 			"summary": "Hashes a block's transactions and checks them against the header.",
 			"sig": "blockTransactions(raw: Bytes, header: NakamotoHeader): BlockTransaction[] | null",
 			"route": "/docs/verify-reference",
 			"anchor": "m-blockTransactions"
+		},
+		"BlockVerification": {
+			"kind": "type",
+			"summary": "The result of verifying a block, step by step.",
+			"fields": [
+				{
+					"name": "ok",
+					"type": "boolean"
+				},
+				{
+					"name": "height",
+					"type": "number"
+				},
+				{
+					"name": "blockId",
+					"type": "string"
+				},
+				{
+					"name": "blockHash",
+					"type": "string"
+				},
+				{
+					"name": "consensusHash",
+					"type": "string"
+				},
+				{
+					"name": "timestamp",
+					"type": "number"
+				},
+				{
+					"name": "stateRoot",
+					"type": "string"
+				},
+				{
+					"name": "ancestry",
+					"type": "Ancestry"
+				}
+			],
+			"more": 12,
+			"route": "/docs/verify-reference",
+			"anchor": "t-BlockVerification"
 		},
 		"BlockVerifier": {
 			"kind": "method",
@@ -5921,6 +10645,56 @@
 			],
 			"route": "/docs/verify-reference",
 			"anchor": "t-BurnPreimage"
+		},
+		"Bytes": {
+			"kind": "type",
+			"summary": "A byte string, held as a Uint8Array.",
+			"route": "/docs/verify-reference",
+			"anchor": "t-Bytes"
+		},
+		"ChainEntry": {
+			"kind": "type",
+			"summary": "A Bitcoin header with its height, hash, and raw bytes.",
+			"fields": [
+				{
+					"name": "height",
+					"type": "number"
+				},
+				{
+					"name": "hash",
+					"type": "string"
+				},
+				{
+					"name": "header",
+					"type": "BlockHeader"
+				},
+				{
+					"name": "raw",
+					"type": "Uint8Array"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-ChainEntry"
+		},
+		"Checkpoint": {
+			"kind": "type",
+			"summary": "A trusted Bitcoin header that anchors header validation.",
+			"fields": [
+				{
+					"name": "height",
+					"type": "number"
+				},
+				{
+					"name": "header",
+					"type": "string | Uint8Array<ArrayBufferLike>"
+				},
+				{
+					"name": "periodStartTime",
+					"type": "number"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-Checkpoint"
 		},
 		"classifyBlockDiff": {
 			"kind": "method",
@@ -6000,7 +10774,7 @@
 		},
 		"Epoch2HeaderResponse": {
 			"kind": "type",
-			"summary": "An epoch 2.x header and the consensus hash its index block hash commits to.",
+			"summary": "An epoch 2.x header and the consensus hash it commits to.",
 			"fields": [
 				{
 					"name": "header",
@@ -6069,6 +10843,12 @@
 			"route": "/docs/verify-reference",
 			"anchor": "m-HeaderChain-heightOf"
 		},
+		"HeaderRule": {
+			"kind": "type",
+			"summary": "A Bitcoin header rule a chain check can fail on.",
+			"route": "/docs/verify-reference",
+			"anchor": "t-HeaderRule"
+		},
 		"HeaderValidationError": {
 			"kind": "method",
 			"summary": "Thrown when a Bitcoin header fails a validation rule.",
@@ -6090,6 +10870,30 @@
 			"route": "/docs/verify-reference",
 			"anchor": "m-isEpoch2Header"
 		},
+		"LinkLine": {
+			"kind": "type",
+			"summary": "One verification step with its status and what it proved.",
+			"fields": [
+				{
+					"name": "step",
+					"type": "VerifyStep"
+				},
+				{
+					"name": "label",
+					"type": "string"
+				},
+				{
+					"name": "status",
+					"type": "LinkStatus"
+				},
+				{
+					"name": "detail",
+					"type": "string"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-LinkLine"
+		},
 		"mapEntryKey": {
 			"kind": "method",
 			"summary": "The MARF key of a map entry: vm::<contract>::0::<map>::<serialized key hex>.",
@@ -6110,6 +10914,34 @@
 			"sig": "marfProofAncestors(proof: Bytes): string[]",
 			"route": "/docs/verify-reference",
 			"anchor": "m-marfProofAncestors"
+		},
+		"MarfProofInput": {
+			"kind": "type",
+			"summary": "A MARF proof with the leaf path and value it covers.",
+			"fields": [
+				{
+					"name": "proof",
+					"type": "Bytes"
+				},
+				{
+					"name": "path",
+					"type": "Bytes"
+				},
+				{
+					"name": "value",
+					"type": "Bytes"
+				},
+				{
+					"name": "root",
+					"type": "Bytes"
+				},
+				{
+					"name": "headers",
+					"type": "StacksHeader[]"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-MarfProofInput"
 		},
 		"MarfProofResponse": {
 			"kind": "type",
@@ -6133,6 +10965,47 @@
 			"sig": "marfValue(value: string): Bytes",
 			"route": "/docs/verify-reference",
 			"anchor": "m-marfValue"
+		},
+		"NakamotoHeader": {
+			"kind": "type",
+			"summary": "A Nakamoto-era Stacks block header.",
+			"fields": [
+				{
+					"name": "version",
+					"type": "number"
+				},
+				{
+					"name": "chainLength",
+					"type": "bigint"
+				},
+				{
+					"name": "burnSpent",
+					"type": "bigint"
+				},
+				{
+					"name": "consensusHash",
+					"type": "Bytes"
+				},
+				{
+					"name": "parentBlockId",
+					"type": "Bytes"
+				},
+				{
+					"name": "txMerkleRoot",
+					"type": "Bytes"
+				},
+				{
+					"name": "stateIndexRoot",
+					"type": "Bytes"
+				},
+				{
+					"name": "timestamp",
+					"type": "bigint"
+				}
+			],
+			"more": 4,
+			"route": "/docs/verify-reference",
+			"anchor": "t-NakamotoHeader"
 		},
 		"new BlockVerifier": {
 			"kind": "method",
@@ -6204,6 +11077,22 @@
 			"route": "/docs/verify-reference",
 			"anchor": "m-NodeRpcProofSource-getMarfProof"
 		},
+		"NodeRpcSourceOptions": {
+			"kind": "type",
+			"summary": "Options for reading proofs from a Stacks node.",
+			"fields": [
+				{
+					"name": "nodeUrl",
+					"type": "string"
+				},
+				{
+					"name": "fetch",
+					"type": "Fetch"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-NodeRpcSourceOptions"
+		},
 		"parseEpoch2Header": {
 			"kind": "method",
 			"summary": "Parses the epoch 2.x block header at the start of raw.",
@@ -6224,46 +11113,6 @@
 			"sig": "parseWitness(bytes: Bytes): StateWitness",
 			"route": "/docs/verify-reference",
 			"anchor": "m-parseWitness"
-		},
-		"ProofSource": {
-			"kind": "type",
-			"summary": "Where proof inputs come from.",
-			"fields": [
-				{
-					"name": "getBlock",
-					"type": "(ref: string | number) => Promise<Bytes>"
-				},
-				{
-					"name": "getEpoch2Header",
-					"type": "…"
-				},
-				{
-					"name": "getMarfProof",
-					"type": "…"
-				},
-				{
-					"name": "getWitness",
-					"type": "(blockId: string) => Promise<Bytes>"
-				},
-				{
-					"name": "getBurnPreimage",
-					"type": "…"
-				},
-				{
-					"name": "getBitcoinHeaders",
-					"type": "…"
-				},
-				{
-					"name": "getStateWrites",
-					"type": "…"
-				},
-				{
-					"name": "getVmEvents",
-					"type": "…"
-				}
-			],
-			"route": "/docs/verify-reference",
-			"anchor": "t-ProofSource"
 		},
 		"rewardCycle": {
 			"kind": "method",
@@ -6335,6 +11184,66 @@
 			"route": "/docs/verify-reference",
 			"anchor": "m-SecondlayerProofSource-getWitness"
 		},
+		"SecondlayerSourceOptions": {
+			"kind": "type",
+			"summary": "Options for reading proofs from the Secondlayer API.",
+			"fields": [
+				{
+					"name": "baseUrl",
+					"type": "string"
+				},
+				{
+					"name": "apiKey",
+					"type": "string"
+				},
+				{
+					"name": "fetch",
+					"type": "Fetch"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-SecondlayerSourceOptions"
+		},
+		"SignerCheck": {
+			"kind": "type",
+			"summary": "Whether the signed weight meets the threshold with known signers.",
+			"fields": [
+				{
+					"name": "valid",
+					"type": "boolean"
+				},
+				{
+					"name": "signedWeight",
+					"type": "bigint"
+				},
+				{
+					"name": "totalWeight",
+					"type": "bigint"
+				},
+				{
+					"name": "threshold",
+					"type": "bigint"
+				},
+				{
+					"name": "signers",
+					"type": "string[]"
+				},
+				{
+					"name": "unknown",
+					"type": "string[]"
+				},
+				{
+					"name": "duplicates",
+					"type": "string[]"
+				},
+				{
+					"name": "invalid",
+					"type": "number"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-SignerCheck"
+		},
 		"SignerSet": {
 			"kind": "type",
 			"summary": "Signer principal -> weight.",
@@ -6389,6 +11298,36 @@
 			"sig": "new SourceError(url: string, status: number | null, detail: string)",
 			"route": "/docs/verify-reference",
 			"anchor": "m-SourceError"
+		},
+		"StacksHeader": {
+			"kind": "type",
+			"summary": "A Stacks block header from either era.",
+			"route": "/docs/verify-reference",
+			"anchor": "t-StacksHeader"
+		},
+		"StateWitness": {
+			"kind": "type",
+			"summary": "A recomputed trie root, its ancestor roots, and leaves.",
+			"fields": [
+				{
+					"name": "root",
+					"type": "Bytes"
+				},
+				{
+					"name": "ancestorRoots",
+					"type": "Bytes[]"
+				},
+				{
+					"name": "leaves",
+					"type": "WitnessLeaf[]"
+				},
+				{
+					"name": "nodes",
+					"type": "number"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-StateWitness"
 		},
 		"StateWrite": {
 			"kind": "type",
@@ -6449,6 +11388,22 @@
 			"route": "/docs/verify-reference",
 			"anchor": "m-verifyBlockState"
 		},
+		"VerifyCheckpoint": {
+			"kind": "type",
+			"summary": "A trusted Stacks header and signer set to start verification from.",
+			"fields": [
+				{
+					"name": "stacks",
+					"type": "…"
+				},
+				{
+					"name": "bitcoin",
+					"type": "Checkpoint"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-VerifyCheckpoint"
+		},
 		"verifyConsensusPreimage": {
 			"kind": "method",
 			"summary": "Check preimage against a 20-byte consensus hash.",
@@ -6462,6 +11417,30 @@
 			"sig": "verifyMarfProof(input: MarfProofInput): boolean",
 			"route": "/docs/verify-reference",
 			"anchor": "m-verifyMarfProof"
+		},
+		"VerifyOptions": {
+			"kind": "type",
+			"summary": "The proof source, checkpoint, and row checking for a block verify.",
+			"fields": [
+				{
+					"name": "source",
+					"type": "ProofSource"
+				},
+				{
+					"name": "checkpoint",
+					"type": "VerifyCheckpoint"
+				},
+				{
+					"name": "rows",
+					"type": "boolean"
+				},
+				{
+					"name": "onStep",
+					"type": "(step: VerifyStep) => void"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-VerifyOptions"
 		},
 		"verifySignerSignatures": {
 			"kind": "method",
