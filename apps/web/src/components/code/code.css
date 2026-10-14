@@ -408,9 +408,3 @@
 	border: 0;
 	border-radius: 0;
 }
-.site .term .cb .t-ink,
-.site .term .cb .t-sub,
-.site .term .cb .t-faint,
-.site .term .cb .t-x {
-	color: var(--shiki-dark);
-}
