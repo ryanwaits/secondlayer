@@ -261,7 +261,7 @@ secondlayer subgraphs create sbtc-registry \
   --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
 ```
 
-Scaffolds from the [print-schema endpoint](tip:/docs/index#print-schemas): one `print_event` source per topic with its `prints` map, plus one wide table (`--table-per-topic` splits it per topic). `secondlayer codegen prints <file>` emits a `.d.ts` of the payload types.
+Scaffolds from the [print-schema endpoint](/docs/index#print-schemas): one `print_event` source per topic with its `prints` map, plus one wide table (`--table-per-topic` splits it per topic). `secondlayer codegen prints <file>` emits a `.d.ts` of the payload types.
 
 Deploys return advisory `warnings` when a handler reads an `event.data` field never observed for its topic (pinned `contractId` sources only). If the source **declares** a `prints` map, the same finding is an error and the deploy is refused: you stated the shape, so a mismatch is a defect rather than a hint.
 
@@ -426,7 +426,7 @@ Mark a column `indexed: true` if you plan to sort on it. Sorted reads get a `(co
 
 #### Open reads
 
-Reads send `Authorization: Bearer $SECONDLAYER_API_KEY`, with wildcard CORS, the same as `/v1/index` and `/v1/streams`. There is no per-subgraph visibility flag: hosted subgraphs are private to your account, and on your own box who can reach the instance is what your publish spec and reverse proxy decide ([Instance token](tip:/docs/self-host#instance-token)). Every route and parameter (rows, `/count`, `/aggregate`, `/:id`, `/stream`): [API reference](/docs/api/subgraphs#list-subgraph-rows). Aggregate grammar: [aggregates](/docs/rest-api#aggregates).
+Reads send `Authorization: Bearer $SECONDLAYER_API_KEY`, with wildcard CORS, the same as `/v1/index` and `/v1/streams`. There is no per-subgraph visibility flag: hosted subgraphs are private to your account, and on your own box who can reach the instance is what your publish spec and reverse proxy decide ([Instance token](/docs/self-host#instance-token)). Every route and parameter (rows, `/count`, `/aggregate`, `/:id`, `/stream`): [API reference](/docs/api/subgraphs#list-subgraph-rows). Aggregate grammar: [aggregates](/docs/rest-api#aggregates).
 
 #### Stream rows in real time
 
