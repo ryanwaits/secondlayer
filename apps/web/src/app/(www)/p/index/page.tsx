@@ -1,4 +1,5 @@
 import { Code } from "@/components/code/code";
+import { CodeTabs } from "@/components/code/code-tabs";
 import {
 	ButtonLink,
 	CloseBand,
@@ -8,6 +9,7 @@ import {
 	LiveEventsOdometer,
 	Manifest,
 	Meters,
+	Ownership,
 	Props,
 	RestOfPlatform,
 	SelfHostSlot,
@@ -40,14 +42,97 @@ export const metadata: Metadata = socialMeta({
 
 const [, , index] = PRODUCTS;
 
-const EVENTS = `$ curl "$SL/v1/index/events?event_type=ft_transfer&limit=20" \\
-    -H "authorization: Bearer sk-sl_…"
+const INDEXER = `import { SecondLayer } from "@secondlayer/sdk";
+import { kyselySink } from "@secondlayer/sdk/sinks/kysely";
+import { database } from "./database";
 
+const secondlayer = new SecondLayer();
+
+// !callout[/consume/] genesis first, then the tip
+await secondlayer.index.events.consume({
+  eventType: "ft_transfer",
+  contractId: "SM3V…sbtc-token",
+  fromHeight: 0,
+  sink: kyselySink(database, {
+    id: "sbtc-transfers",
+    // !callout[/"transfers"/] rolled back on a reorg
+    tables: ["transfers"],
+    height: "height",
+  }),
+  onBatch: async (transfers, _envelope, ctx) => {
+    // !callout[/ctx\\.tx/] rows + checkpoint, one commit
+    await ctx.tx.insertInto("transfers")
+      .values(transfers.map(toRow)).execute();
+  },
+});`;
+
+const SCHEMA = `$ secondlayer codegen index --target kysely \\
+    --tables decoded_events -o schema.ts
+✓ Wrote kysely Index schema to schema.ts
+
+$ secondlayer codegen index --target drizzle -o schema.ts
+$ secondlayer codegen index --target prisma -o schema.prisma`;
+
+const DEPLOY = `import { consumerHealth } from "@secondlayer/sdk";
+
+const health = consumerHealth();
+const shutdown = new AbortController();
+
+Bun.serve({ port: Number(process.env.PORT), fetch: health.handler });
+process.on("SIGTERM", () => shutdown.abort());
+
+await secondlayer.index.events.consume({
+  // eventType, sink and onBatch as above
+  onProgress: health.record,
+  signal: shutdown.signal,
+});`;
+
+const HOSTS = [
+	{
+		title: "railway.json",
+		lang: "json",
+		code: `{
+  "deploy": { "healthcheckPath": "/health" }
+}`,
+	},
+	{
+		title: "render.yaml",
+		lang: "yaml",
+		code: `# a web service: background workers get no health check and no PORT
+services:
+  - type: web
+    name: sbtc-transfers
+    healthCheckPath: /health`,
+	},
+	{
+		title: "fly.toml",
+		lang: "toml",
+		code: `# scale-to-zero would suspend an outbound-only loop
+[http_service]
+  auto_stop_machines = false
+  min_machines_running = 1`,
+	},
+	{
+		title: "docker-compose.yml",
+		lang: "yaml",
+		code: `services:
+  indexer:
+    build: .
+    restart: unless-stopped
+    stop_grace_period: 60s # the last batch commits`,
+	},
+] as const;
+
+const EXPLORE = `$ secondlayer index ft-transfers \\
+    --contract-id SM3V…sbtc-token --limit 1
 {
-  "events": [{ "block_height": 8948506, "event_index": 12,
-               "type": "ft_transfer", … }],
+  "events": [{
+    "block_height": 8948506,
+    "sender": "SP2J…R4K",
+    "recipient": "SP3F…Q9A",
+    "amount": "25000000", …
+  }],
   "next_cursor": "8948506:12",
-  "tip": { "block_height": 8948506, "finalized_height": 8948262 },
   "reorgs": []
 }`;
 
@@ -98,7 +183,7 @@ const DATASETS: readonly {
 		status: "live",
 		name: "sBTC",
 		body: "Deposits in and withdrawals out, each tied to its Bitcoin transaction.",
-		example: ["deposit · 0.25 BTC", "btc tx 7c1e…a0 · confirmed"],
+		example: ["deposit · 0.25 BTC", "Bitcoin transaction 7c1e…a0 · confirmed"],
 	},
 	{
 		status: "soon",
@@ -168,21 +253,23 @@ export default async function IndexPage() {
 					<Split
 						copy={
 							<>
-								<Eyebrow noun="The read" />
-								<h2>One envelope, everywhere</h2>
+								<Eyebrow noun="The indexer" />
+								<h2>Your indexer is one file</h2>
 								<p className="lede">
-									Cursor, tip and reorgs come back on every list, in the same
-									shape a subgraph read returns. One reader covers both.
+									<span className="mono">consume</span> walks every sBTC
+									transfer since genesis, then keeps following the tip. Kill it
+									mid-backfill and it resumes from the last committed row. No
+									queue, no cron, no cursor table to design.
 								</p>
 							</>
 						}
 						art={
 							<div className="art">
 								<Code
-									lang="text"
+									lang="ts"
 									variant="figure"
-									title="GET /v1/index/events"
-									code={EVENTS}
+									title="indexer.ts"
+									code={INDEXER}
 								/>
 							</div>
 						}
@@ -190,6 +277,138 @@ export default async function IndexPage() {
 
 					<Split
 						flip
+						copy={
+							<>
+								<Eyebrow noun="The schema" />
+								<h2>Tables that can't drift</h2>
+								<p className="lede">
+									The CLI writes typed tables from the same read contract the
+									API serves. Change the event type and the compiler tells you
+									which column broke.
+								</p>
+							</>
+						}
+						art={
+							<div className="art">
+								<Code lang="text" title="~/sbtc-transfers" code={SCHEMA} />
+							</div>
+						}
+					/>
+
+					<Split
+						copy={
+							<>
+								<Eyebrow noun="Deploy" />
+								<h2>Ship it where you ship everything else</h2>
+								<p className="lede">
+									One Dockerfile, any host that keeps a process running. A
+									health route that tells a long backfill from a stuck loop, and
+									a shutdown that always finishes the batch in flight.
+								</p>
+								<div className="chips">
+									{["indexer.ts", "schema.ts", "database.ts", "Dockerfile"].map(
+										(file) => (
+											<span className="chip mono" key={file}>
+												{file}
+											</span>
+										),
+									)}
+								</div>
+								<Link href="/docs/deploy">docs/deploy</Link>
+							</>
+						}
+						art={
+							<div className="art stack">
+								<Code
+									lang="ts"
+									variant="figure"
+									title="indexer.ts"
+									code={DEPLOY}
+								/>
+								<CodeTabs variant="figure">
+									{HOSTS.map((host) => (
+										<Code key={host.title} {...host} />
+									))}
+								</CodeTabs>
+							</div>
+						}
+					/>
+				</div>
+			</div>
+
+			<div className="band">
+				<div className="shell">
+					<div className="sec-head">
+						<Eyebrow noun="Who runs what" />
+						<h2>We meter the rows. You own the rest.</h2>
+					</div>
+					<Ownership
+						nodes={[
+							{
+								who: "secondlayer",
+								name: "Index",
+								body: "Every event since genesis, decoded and signed",
+							},
+							{
+								who: "you · Render",
+								name: "indexer.ts",
+								body: "Your filters, your logic, your deploy",
+								yours: true,
+							},
+							{
+								who: "you · any Postgres",
+								name: "your tables",
+								body: "Read them as often as you want, free",
+								yours: true,
+							},
+						]}
+						links={[
+							{ label: "rows delivered", meter: "metered" },
+							{ label: "rows + checkpoint" },
+						]}
+						ours="We run the decoded index, finality and the signed manifest."
+						yours="You run the code, the host, the database and the uptime. Filter tighter and the bill drops with the output."
+					/>
+					<Meters
+						items={[
+							{
+								label: "Volume meter",
+								value: "$5 / 1M rows",
+								body: "Rows delivered, dropping to $2 per 1M past $50 of monthly spend. Filters cut the bill along with the output.",
+							},
+							{
+								label: "Free every month",
+								value: "1M rows",
+								body: "Plus block headers and every verify, on any account. Reading the index stores nothing, so there is no capacity charge.",
+							},
+						]}
+					/>
+				</div>
+			</div>
+
+			<div className="band band-soft">
+				<div className="shell">
+					<Split
+						flip
+						copy={
+							<>
+								<Eyebrow noun="Explore" />
+								<h2>Look before you write the loop</h2>
+								<p className="lede">
+									The CLI reads the same index with the same filters. Find the
+									shape you want, then move those flags into{" "}
+									<span className="mono">consume</span> unchanged.
+								</p>
+							</>
+						}
+						art={
+							<div className="art">
+								<Code lang="text" title="~/sbtc-transfers" code={EXPLORE} />
+							</div>
+						}
+					/>
+
+					<Split
 						copy={
 							<>
 								<Eyebrow noun="The signed set" />
@@ -216,21 +435,6 @@ export default async function IndexPage() {
 					<Manifest
 						title="secondlayer-canonical · v1 · mainnet"
 						rows={manifestRows(signed)}
-					/>
-
-					<Meters
-						items={[
-							{
-								label: "Volume meter",
-								value: "$5 / 1M rows",
-								body: "Rows delivered, dropping to $2 per 1M past $50 of monthly spend. Filters cut the bill along with the output.",
-							},
-							{
-								label: "Free every month",
-								value: "1M rows",
-								body: "Plus block headers and every verify, on any account. Reading the index stores nothing, so there is no capacity charge.",
-							},
-						]}
 					/>
 				</div>
 			</div>

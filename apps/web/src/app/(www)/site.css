@@ -353,6 +353,14 @@
 .site .split.flip > .art {
 	order: -1;
 }
+/* Tabbed art changes height per tab; centering would move the copy beside it. */
+.site .split:has(.cb-tabs) {
+	align-items: start;
+}
+.site .art.stack {
+	display: grid;
+	gap: 16px;
+}
 /* A code figure's notes hang off its outer edge (code.css); art first puts them
    on the left, reading toward the frame. */
 @media (min-width: 1101px) {
@@ -539,6 +547,112 @@
 @media (max-width: 720px) {
 	.site .meters {
 		grid-template-columns: 1fr;
+	}
+}
+
+/* ── ownership: who runs each step, billing on the link ── */
+.site .ownership {
+	display: grid;
+	gap: 16px;
+}
+.site .ownership-flow {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+}
+.site .ownership-step {
+	display: contents;
+}
+.site .ownership-node {
+	display: grid;
+	gap: 4px;
+	align-content: start;
+	background: var(--paper);
+	border: 1px solid var(--ink);
+	border-radius: 8px;
+	padding: 18px;
+}
+.site .ownership-node.yours {
+	border-style: dashed;
+}
+.site .ownership-node .who {
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--sub);
+}
+.site .ownership-node b {
+	font-weight: 500;
+}
+.site .ownership-node span:last-child {
+	font-size: 14.5px;
+	color: var(--sub);
+}
+.site .ownership-link {
+	display: grid;
+	justify-items: center;
+	align-content: center;
+	gap: 6px;
+	min-width: 112px;
+	padding-inline: 12px;
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	color: var(--sub);
+	white-space: nowrap;
+}
+.site .ownership-link .wire {
+	position: relative;
+	width: 100%;
+	height: 1px;
+	background: var(--ink);
+}
+.site .ownership-link .wire::after {
+	content: "";
+	position: absolute;
+	right: -1px;
+	top: -4px;
+	border-left: 7px solid var(--ink);
+	border-block: 4.5px solid transparent;
+}
+.site .ownership-link .meter-tag {
+	background: var(--hi);
+	color: var(--on-hi);
+	padding: 2px 8px;
+	border-radius: 4px;
+}
+.site .ownership-sides {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+	gap: 16px;
+	font-size: 14.5px;
+	color: var(--sub);
+}
+.site .ownership-sides p {
+	border-top: 2px solid var(--pri);
+	padding-top: 10px;
+}
+.site .ownership-sides p.yours {
+	border-top: 2px dashed var(--ink);
+}
+@media (max-width: 860px) {
+	.site .ownership-flow,
+	.site .ownership-sides {
+		grid-template-columns: 1fr;
+	}
+	.site .ownership-link {
+		padding-block: 10px;
+	}
+	.site .ownership-link .wire {
+		width: 1px;
+		height: 28px;
+	}
+	.site .ownership-link .wire::after {
+		right: -4px;
+		top: auto;
+		bottom: -1px;
+		border-block: 0;
+		border-top: 7px solid var(--ink);
+		border-inline: 4.5px solid transparent;
 	}
 }
 

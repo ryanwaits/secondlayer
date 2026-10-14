@@ -12,3 +12,4 @@ export { RestOfPlatform } from "./rest-of-platform";
 export { SelfHostSlot } from "./self-host-slot";
 export { Split } from "./split";
 export { StatusDot } from "./status-dot";
+export { Ownership } from "./ownership";

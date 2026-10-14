@@ -86,7 +86,7 @@ describe("product pages", () => {
 
 	test("source files are figures with margin notes, shell transcripts are plain blocks", () => {
 		const figures = (html: string) => html.match(/class="cf"/g)?.length ?? 0;
-		expect(figures(render("index"))).toBe(0);
+		expect(figures(render("index"))).toBeGreaterThanOrEqual(1);
 		expect(figures(render("archive"))).toBe(0);
 		expect(figures(render("streams"))).toBeGreaterThanOrEqual(1);
 		expect(figures(render("subgraphs"))).toBeGreaterThanOrEqual(2);
