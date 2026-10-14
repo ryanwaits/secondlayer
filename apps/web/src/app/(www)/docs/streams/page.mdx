@@ -8,21 +8,24 @@ Hosted reads are keyed ([Keys and billing](/docs/authentication)); on your own b
 
 `events.consume` is the checkpointed consumer with automatic reorg rewind; the loop is the one on [Index](/docs/index#build-your-index-on-it).
 
-```ts
+```ts indexer.ts
 await sl.streams.events.consume({
   types: ["ft_transfer"],
   // !ref[/fromCursor/] next
   // !ref open
-  fromCursor: await db.loadCheckpoint(), // null on first run
+  // !callout[/fromCursor/] Null on first run.
+  fromCursor: await db.loadCheckpoint(),
   onBatch: async (events, envelope, ctx) => {
     // !ref(1:4) save
     await db.transaction(async (tx) => {
       await tx.insertEvents(events);
-      await tx.saveCheckpoint(ctx.cursor); // commits with the rows
+      // !callout[/saveCheckpoint/] Commits with the rows.
+      await tx.saveCheckpoint(ctx.cursor);
     });
     return ctx.cursor;
   },
   // !ref reorg
+  // !callout[/onReorg/] Delete from the fork height, inclusive.
   onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
 });
 ```
@@ -39,11 +42,13 @@ Reorgs rewind to the fork point and re-deliver, inclusive of the fork block; del
 
 `events.replay` backfills from the signed bulk dumps, then tails live from the manifest's `latest_finalized_cursor`, no gap or dupe at the seam:
 
-```ts
+```ts backfill.ts
 await streams.events.replay({
+  // !callout[/genesis/] Covers every window the dumps hold.
   from: "genesis",
   async onDumpFile(file, { from }) {
-    const bytes = await streams.dumps.download(file); // sha256-verified
+    // !callout[/download/] sha256-verified.
+    const bytes = await streams.dumps.download(file);
     await ingestParquet(bytes, { after: from }); // file-granular, at-least-once: skip rows at or below `from`
   },
   async onBatch(events, envelope) {
@@ -60,15 +65,11 @@ await streams.events.replay({
 
 Plain parquet. Pull a verified range and query it locally:
 
-```bash
-secondlayer streams dumps --to ./dump   # sha256-verified against the signed manifest
-
-duckdb -c "SELECT event_type, count(*) AS events
-           FROM read_parquet('./dump/**/*.parquet')
-           GROUP BY 1 ORDER BY 2 DESC;"
-```
-
-```text
+```text ~/indexer
+$ secondlayer streams dumps --to ./dump   # sha256-verified against the signed manifest
+$ duckdb -c "SELECT event_type, count(*) AS events
+             FROM read_parquet('./dump/**/*.parquet')
+             GROUP BY 1 ORDER BY 2 DESC;"
 ┌──────────────┬────────┐
 │  event_type  │ events │
 ├──────────────┼────────┤
@@ -103,7 +104,10 @@ Every read has a `secondlayer streams` subcommand that prints JSON.
 
 ### Read it directly
 
+<Pick name="event" default="ft_transfer" />
+
 ```bash
+# !pick[/ft_transfer/] event: ft_transfer | nft_mint | stx_transfer | print
 curl "$SECONDLAYER_API_URL/v1/streams/events?types=ft_transfer&limit=100" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
@@ -159,7 +163,7 @@ curl -G --data-urlencode 'filters={"peg":{"types":["ft_transfer"]}}' \
   "$SECONDLAYER_API_URL/v1/streams/events"
 ```
 
-```json
+```json response.json status=200
 { "cursor": "8054704:12", "event_type": "ft_transfer", "matched": ["peg"] }
 ```
 
