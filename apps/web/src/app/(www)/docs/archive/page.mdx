@@ -48,11 +48,13 @@ No matching dataset in the manifest is exit `2`.
 
 Clean output exits `0`. Divergence names the ranges:
 
-```
+```text ~/secondlayer exit=1
+$ secondlayer verify raw --against https://archive.secondlayer.tools/latest.json
 ⚠ 1 of 175 ranges diverge from the archive.
 
 RANGE              DATASET  STATUS        EXPECTED  LOCAL
 -----------------  -------  ------------  --------  -----
+# !mark[/data differs/] red
 8500000-8549999    blocks   data differs  50000     50000
 
 These ranges hold different data than the signed archive.
@@ -108,7 +110,8 @@ secondlayer repair --against <archive> --apply    # write it
 
 Dry-run by default. The plan names exact heights, not ranges:
 
-```
+```text ~/secondlayer
+$ secondlayer repair --against <archive>
 HEIGHT   ACTION   LOCAL         ARCHIVE
 -------  -------  ------------  -------
 8501111  replace  0xd4deb46c6d  0xedb6ba8322
@@ -126,13 +129,10 @@ Decoded rows are not rebuilt. Re-run your decoders for repaired ranges.
 
 ### Restore a fresh instance
 
-```bash
-secondlayer bootstrap --against <archive>
-```
-
 Shows both timings before it starts, then restores and verifies itself:
 
-```
+```text ~/secondlayer
+$ secondlayer bootstrap --against <archive>
 coverage   genesis → 8,745,422
 signature  verified
 
