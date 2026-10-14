@@ -1,13 +1,25 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+
+/** Show one pane of a tab group; a group without that tab stays as it is. */
+function selectTab(group: HTMLElement, key: string) {
+	const tabs = group.querySelectorAll<HTMLElement>("button[data-tab]");
+	if (![...tabs].some((t) => t.dataset.tab === key)) return;
+	for (const t of tabs)
+		t.setAttribute("aria-selected", String(t.dataset.tab === key));
+	for (const pane of group.querySelectorAll<HTMLElement>('[role="tabpanel"]'))
+		pane.hidden = pane.dataset.tab !== key;
+}
 
 /**
  * The only JavaScript code blocks need: one delegated click listener for the
  * whole page, mounted once in the layout. Blocks are server-rendered markup
- * with `data-*` hooks; the Copy text sits in the block's `data-copy`.
+ * with `data-*` hooks; Copy reads the block's own rows.
  */
 export function CodeClient() {
+	const router = useRouter();
 	useEffect(() => {
 		const onClick = (event: MouseEvent) => {
 			const target = event.target;
@@ -15,8 +27,26 @@ export function CodeClient() {
 
 			const copy = target.closest<HTMLElement>("[data-copy-button]");
 			if (copy) {
-				const block = copy.closest<HTMLElement>("[data-copy]");
-				const text = block?.dataset.copy ?? "";
+				// A tab group's Copy takes the visible pane; a block's own Copy its block.
+				const tabs = copy.closest(".cb-tabs");
+				const block = tabs
+					? tabs.querySelector<HTMLElement>(
+							'[role="tabpanel"]:not([hidden]) [data-copyable]',
+						)
+					: copy.closest<HTMLElement>("[data-copyable]");
+				// Copy is what the rows say, so the Base URL switch's current value
+				// comes along and removed diff lines do not.
+				const text = [
+					...(block?.querySelectorAll(".cb-body .row:not(.del)") ?? []),
+				]
+					.map((row) => {
+						const tx = row.querySelector(":scope > .tx");
+						const prompt = row.querySelector(":scope > .prompt");
+						return tx
+							? tx.textContent
+							: (row.textContent ?? "").slice(prompt?.textContent?.length ?? 0);
+					})
+					.join("\n");
 				const done = () => {
 					copy.textContent = "Copied";
 					copy.dataset.done = "";
@@ -32,6 +62,34 @@ export function CodeClient() {
 				if (navigator.clipboard)
 					navigator.clipboard.writeText(text).then(done, selectAll);
 				else selectAll();
+				return;
+			}
+
+			// An internal link in a block is plain markup; the router makes it a soft navigation.
+			const link = target.closest<HTMLAnchorElement>("a.lk");
+			const to = link?.getAttribute("href");
+			if (
+				to?.startsWith("/") &&
+				!event.defaultPrevented &&
+				event.button === 0 &&
+				!(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+			) {
+				event.preventDefault();
+				router.push(to);
+				return;
+			}
+
+			const tab = target.closest<HTMLElement>("button[data-tab]");
+			const group = tab?.closest<HTMLElement>(".cb-tabs");
+			if (tab && group) {
+				// Every group on the page with this sync key follows, where it has the tab.
+				const sync = group.dataset.sync;
+				const groups = sync
+					? document.querySelectorAll<HTMLElement>(
+							`.cb-tabs[data-sync="${CSS.escape(sync)}"]`,
+						)
+					: [group];
+				for (const g of groups) selectTab(g, tab.dataset.tab ?? "");
 				return;
 			}
 
@@ -60,6 +118,6 @@ export function CodeClient() {
 		};
 		document.addEventListener("click", onClick);
 		return () => document.removeEventListener("click", onClick);
-	}, []);
+	}, [router]);
 	return null;
 }

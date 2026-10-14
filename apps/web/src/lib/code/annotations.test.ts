@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-	copyText,
 	parseAnnotations,
 	parseFenceOptions,
 	stripAnnotations,
@@ -33,6 +32,14 @@ describe("parseFenceOptions", () => {
 			max: 8,
 			exit: 1,
 		});
+	});
+
+	test("status sets the bar's chip and base opts into the Base URL switch", () => {
+		expect(parseFenceOptions("json status=404")).toEqual({
+			lang: "json",
+			status: 404,
+		});
+		expect(parseFenceOptions("sh base").base).toBe(true);
 	});
 
 	test("a key=value token is never mistaken for the title", () => {
@@ -122,23 +129,10 @@ describe("parseAnnotations", () => {
 			"wobble",
 		);
 	});
-});
 
-describe("copy text", () => {
-	test("annotation lines never reach copy text", () => {
-		const parsed = parseAnnotations(
-			"a\n// !callout[/b/] hi\nb\n// !mark\nc",
-			"ts",
-		);
-		expect(copyText(parsed)).toBe("a\nb\nc");
-		expect(stripAnnotations("a\n// !mark\nb", "ts")).toBe("a\nb");
-	});
-
-	test("removed diff lines are left out of copy text", () => {
-		const parsed = parseAnnotations(
-			"a\n// !diff -\nold\n// !diff +\nnew\nz",
-			"ts",
-		);
-		expect(copyText(parsed)).toBe("a\nnew\nz");
+	test("stripAnnotations leaves the source text for anywhere text leaves the page", () => {
+		expect(
+			stripAnnotations("a\n// !callout[/b/] hi\nb\n// !mark\nc", "ts"),
+		).toBe("a\nb\nc");
 	});
 });

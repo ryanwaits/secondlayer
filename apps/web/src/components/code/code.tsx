@@ -1,15 +1,14 @@
-import {
-	copyText,
-	parseAnnotations,
-	parseFenceOptions,
-} from "@/lib/code/annotations";
+import { parseAnnotations, parseFenceOptions } from "@/lib/code/annotations";
+import { linkTable } from "@/lib/code/link-table";
+import { outputTone } from "@/lib/code/output";
 import { type ThemedToken, tokenize } from "@/lib/highlight";
-import { type CSSProperties, Fragment, type ReactNode } from "react";
 import "./code.css";
 import {
-	CalloutRow,
 	type Plan,
 	type Variant,
+	calloutRow,
+	errorRow,
+	esc,
 	planAnnotations,
 	renderTokens,
 } from "./handlers";
@@ -30,8 +29,18 @@ export type CodeProps = {
 	lang?: string;
 	/** The rest of the fence info string: title and options. */
 	meta?: string;
+	/** A bar title the fence info string cannot spell (words, not a path). */
+	title?: string;
 	variant?: Variant;
+	/** Link SDK symbols and endpoint paths to the reference. On unless the surface is the reference. */
+	links?: boolean;
+	/** Inside `<CodeTabs>`: the tab group draws the frame, the bar and Copy. */
+	tabbed?: boolean;
 };
+
+/** 2xx is ok, 4xx and 5xx alarm, anything between stays quiet. */
+const statusTone = (status: number) =>
+	status < 300 ? "ok" : status >= 400 ? "bad" : "";
 
 const isShellCommand = (line: string, previous: string | undefined) =>
 	line !== "" &&
@@ -39,18 +48,31 @@ const isShellCommand = (line: string, previous: string | undefined) =>
 	!line.startsWith("#") &&
 	!(previous !== undefined && /\\$/.test(previous));
 
+/** A block as markup: its frame's classes and everything inside it as one string. */
+export type RenderedCode = {
+	className: string;
+	/** Whether Copy has anything to give. */
+	copyable: boolean;
+	html: string;
+};
+
 /**
  * The one code renderer: fence options and annotation comments in, markup out.
- * Tokens come from Shiki as CSS variables, so React owns the rows and the
- * handlers can wrap lines and tokens. All interactivity is the page's single
- * `CodeClient` listener; nothing here ships JavaScript.
+ * A block is one HTML string the handlers build, so it costs the page one
+ * element and one span per token (a React element per token is about four times
+ * the bytes, and a block travels in the page twice, as markup and as RSC
+ * payload). Tokens carry their color as a ladder class. All interactivity is the
+ * page's single `CodeClient` listener; nothing here ships JavaScript.
  */
-export async function Code({
+export async function renderCode({
 	code,
 	lang = "text",
 	meta,
+	title,
 	variant = "docs",
-}: CodeProps) {
+	links = true,
+	tabbed = false,
+}: CodeProps): Promise<RenderedCode> {
 	const options = parseFenceOptions(`${lang} ${meta ?? ""}`);
 	const source = code.replace(/^\n+/, "").trimEnd();
 	const parsed = parseAnnotations(source, options.lang);
@@ -71,6 +93,9 @@ export async function Code({
 		display,
 		lang: options.lang,
 		variant,
+		// Output is never linked: it is what a command printed, not what to write.
+		links: links && !isText ? linkTable() : null,
+		base: options.base,
 	});
 	const tokens: ThemedToken[][] = isText
 		? await Promise.all(
@@ -91,11 +116,24 @@ export async function Code({
 		hasPrompt ? "2ch" : "0px",
 	].join(" + ");
 
-	const row = (i: number) => {
+	// A shell block whose only gutter is the prompt hangs it in the row's padding.
+	const hanging =
+		isShell && hasPrompt && !options.lines && !plan.hasDiff && !options.wrap;
+	// Plain rows are just their tokens; a gutter or soft wrap needs the `.tx` column beside it.
+	const gutterRows =
+		Boolean(options.lines) ||
+		plan.hasDiff ||
+		Boolean(options.wrap) ||
+		(hasPrompt && !hanging);
+	const row = (i: number): string => {
 		const line = plan.lines[i];
-		if (!line) return null;
+		if (!line) return "";
+		const tone =
+			isText && prompts[i] == null ? outputTone(display[i] ?? "") : null;
 		const classes = [
 			"row",
+			gutterRows && "g",
+			tone && `o-${tone}`,
 			line.mline && "mline",
 			line.diff === "+" && "add",
 			line.diff === "-" && "del",
@@ -103,84 +141,76 @@ export async function Code({
 		]
 			.filter(Boolean)
 			.join(" ");
-		return (
-			<Fragment key={i}>
-				<div className={classes}>
-					{options.lines ? <span className="ln">{i + start}</span> : null}
-					{plan.hasDiff ? (
-						<span className="sign">
-							{line.diff === "+" ? "+" : line.diff === "-" ? "−" : " "}
-						</span>
-					) : null}
-					{prompts[i] != null ? (
-						<span className="prompt">{prompts[i]}</span>
-					) : null}
-					<span className="tx">
-						{renderTokens(tokens[i] ?? [], line.ranges)}
-					</span>
-				</div>
-				{line.callouts.map((c) => (
-					<CalloutRow key={`${c.col}${c.text}`} col={c.col} text={c.text} />
-				))}
-			</Fragment>
-		);
+		return [
+			`<div class="${classes}">`,
+			options.lines ? `<span class="ln">${i + start}</span>` : "",
+			plan.hasDiff
+				? `<span class="sign">${line.diff === "+" ? "+" : line.diff === "-" ? "−" : " "}</span>`
+				: "",
+			prompts[i] != null && !(hanging && !prompts[i])
+				? `<span class="prompt">${prompts[i]}</span>`
+				: "",
+			gutterRows
+				? `<span class="tx">${renderTokens(tokens[i] ?? [], line.ranges)}</span></div>`
+				: `${renderTokens(tokens[i] ?? [], line.ranges)}</div>`,
+			...line.callouts.map((c) => calloutRow(c.col, c.text)),
+			...line.errors.map(errorRow),
+		].join("");
 	};
 
 	const max = options.max ?? DEFAULT_MAX;
 	const clampAt = parsed.lines.length - max >= MIN_HIDDEN ? max : null;
 	const rows = bodyRows(plan, parsed.lines, row, clampAt);
 
-	const copyable = !options.nocopy && !isText;
-	const copy = copyable ? (
-		<button type="button" className="copy" data-copy-button>
-			Copy
-		</button>
-	) : null;
-	const hasBar = Boolean(options.title) || options.exit != null || plan.focus;
-	const bodyStyle = {
-		"--gut": `calc(${gutter})`,
-		"--lnw": `${lineNumberWidth}ch`,
-	} as CSSProperties;
-	const body = (
-		<div
-			className={`cb-body${options.wrap ? " soft-wrap" : ""}`}
-			style={bodyStyle}
-		>
-			{rows}
-		</div>
-	);
+	const copyable = !options.nocopy && !isText && !plan.hasError;
+	const copy =
+		copyable && !tabbed
+			? '<button type="button" class="copy" data-copy-button>Copy</button>'
+			: "";
+	const barTitle = title ?? options.title;
+	const hasBar =
+		!tabbed &&
+		(Boolean(barTitle) ||
+			options.exit != null ||
+			options.status != null ||
+			plan.focus);
+	const body = `<div class="cb-body${options.wrap ? " soft-wrap" : ""}${hanging ? " hang" : ""}" style="--gut:calc(${gutter});--lnw:${lineNumberWidth}ch">${rows}</div>`;
+	const bar = hasBar
+		? `<div class="cb-bar">${
+				options.status != null
+					? `<span class="status ${statusTone(options.status)}">${options.status}</span>`
+					: ""
+			}<span>${esc(barTitle ?? "")}</span><span class="r">${
+				options.exit != null
+					? `<span class="${options.exit ? "exit" : "exit zero"}">exit ${options.exit}</span>`
+					: ""
+			}${
+				isText
+					? ""
+					: `<span class="lang">${esc(LANG_LABEL[options.lang] ?? options.lang)}</span>`
+			}${
+				plan.focus
+					? '<button type="button" class="ghost" data-unfocus>Show all</button>'
+					: ""
+			}${copy}</span></div>`
+		: "";
+	return {
+		className: tabbed ? "cb tabbed" : hasBar ? "cb" : "cb bare",
+		copyable,
+		html: `${bar}${body}${hasBar ? "" : copy}`,
+	};
+}
 
+/** `renderCode` as one element: the block's frame, its contents a single string. */
+export async function Code(props: CodeProps) {
+	const { className, copyable, html } = await renderCode(props);
 	return (
 		<div
-			className={hasBar ? "cb" : "cb bare"}
-			data-copy={copyable ? copyText(parsed) : undefined}
-		>
-			{hasBar ? (
-				<div className="cb-bar">
-					<span>{options.title}</span>
-					<span className="r">
-						{options.exit != null ? (
-							<span className={options.exit ? "exit" : "exit zero"}>
-								exit {options.exit}
-							</span>
-						) : null}
-						{isText ? null : (
-							<span className="lang">
-								{LANG_LABEL[options.lang] ?? options.lang}
-							</span>
-						)}
-						{plan.focus ? (
-							<button type="button" className="ghost" data-unfocus>
-								Show all
-							</button>
-						) : null}
-						{copy}
-					</span>
-				</div>
-			) : null}
-			{body}
-			{hasBar ? null : copy}
-		</div>
+			className={className}
+			data-copyable={copyable ? "" : undefined}
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: built by `renderCode`, which escapes every dynamic value
+			dangerouslySetInnerHTML={{ __html: html }}
+		/>
 	);
 }
 
@@ -188,13 +218,15 @@ export async function Code({
 function bodyRows(
 	plan: Plan,
 	lines: string[],
-	row: (i: number) => ReactNode,
+	row: (i: number) => string,
 	clampAt: number | null,
-): ReactNode[] {
-	const out: ReactNode[] = [];
-	const hidden: ReactNode[] = [];
-	const push = (node: ReactNode, i: number) =>
-		(clampAt !== null && i >= clampAt ? hidden : out).push(node);
+): string {
+	let out = "";
+	let hidden = "";
+	const push = (html: string, i: number) => {
+		if (clampAt !== null && i >= clampAt) hidden += html;
+		else out += html;
+	};
 	for (let i = 0; i < lines.length; i++) {
 		const fold = plan.collapses.find((c) => c.from === i);
 		if (!fold) {
@@ -203,31 +235,15 @@ function bodyRows(
 		}
 		const first = lines[fold.from] ?? "";
 		const last = lines[fold.to] ?? "";
-		const inner: ReactNode[] = [];
-		for (let j = fold.from; j <= fold.to; j++) inner.push(row(j));
+		let inner = "";
+		for (let j = fold.from; j <= fold.to; j++) inner += row(j);
 		push(
-			<Fragment key={`fold-${i}`}>
-				<button type="button" className="fold" aria-expanded="false" data-fold>
-					<span>{first.match(/^\s*/)?.[0]}</span>
-					<span>
-						▸ {first.trim()} … {last.trim()}
-					</span>
-					<span className="cnt">{fold.to - fold.from + 1} lines</span>
-				</button>
-				<div hidden>{inner}</div>
-			</Fragment>,
+			`<button type="button" class="fold" aria-expanded="false" data-fold><span>${esc(first.match(/^\s*/)?.[0] ?? "")}</span><span>▸ ${esc(first.trim())} … ${esc(last.trim())}</span><span class="cnt">${fold.to - fold.from + 1} lines</span></button><div hidden>${inner}</div>`,
 			i,
 		);
 		i = fold.to;
 	}
 	if (clampAt !== null)
-		out.push(
-			<Fragment key="more">
-				<div hidden>{hidden}</div>
-				<button type="button" className="more" data-more>
-					Show {lines.length - clampAt} more lines
-				</button>
-			</Fragment>,
-		);
+		out += `<div hidden>${hidden}</div><button type="button" class="more" data-more>Show ${lines.length - clampAt} more lines</button>`;
 	return out;
 }

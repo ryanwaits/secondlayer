@@ -141,3 +141,24 @@ function theme(
 
 export const secondlayer = theme("secondlayer", "light", LIGHT);
 export const secondlayerDark = theme("secondlayer-dark", "dark", DARK);
+
+export const LADDER_STEPS = ["ink", "sub", "faint"] as const;
+export type LadderStep = (typeof LADDER_STEPS)[number];
+
+/** The ladder step a token's light and dark colors spell, or null for a color off the ladder. */
+export function ladderStep(
+	light: string | undefined,
+	dark: string | undefined,
+): LadderStep | null {
+	const same = (a: string | undefined, b: string) =>
+		a?.toLowerCase() === b.toLowerCase();
+	return (
+		LADDER_STEPS.find((s) => same(light, LIGHT[s]) && same(dark, DARK[s])) ??
+		null
+	);
+}
+
+/** Each step's two hexes, for the stylesheet that mirrors them. */
+export const LADDER_HEXES = Object.fromEntries(
+	LADDER_STEPS.map((s) => [s, { light: LIGHT[s], dark: DARK[s] }]),
+) as Record<LadderStep, { light: string; dark: string }>;

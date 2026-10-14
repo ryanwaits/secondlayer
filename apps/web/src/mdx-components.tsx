@@ -1,4 +1,6 @@
 import { Code } from "@/components/code/code";
+import { CodeTabs } from "@/components/code/code-tabs";
+import { fenceFromCode } from "@/components/code/fence";
 import { Banner, Callout } from "@/components/docs/callout";
 import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
@@ -8,19 +10,8 @@ import type { ReactNode } from "react";
  *  Pull the language, the fence options (remark-code-meta) and the source off
  *  the inner <code> and hand them to the one `<Code>` renderer. */
 function MdxPre({ children }: { children?: ReactNode }) {
-	const codeEl = children as
-		| {
-				props?: {
-					className?: string;
-					children?: ReactNode;
-					"data-meta"?: string;
-				};
-		  }
-		| undefined;
-	const className = codeEl?.props?.className ?? "";
-	const lang = /language-(\w[\w.-]*)/.exec(className)?.[1] ?? "text";
-	const code = String(codeEl?.props?.children ?? "");
-	return <Code code={code} lang={lang} meta={codeEl?.props?.["data-meta"]} />;
+	const fence = fenceFromCode(children as Parameters<typeof fenceFromCode>[0]);
+	return fence ? <Code {...fence} /> : null;
 }
 
 /** Inline `code` styling rule: API endpoints/routes get the branded blue
@@ -117,6 +108,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 		h4: MdxH4,
 		Callout,
 		Banner,
+		CodeTabs,
 		...components,
 	};
 }

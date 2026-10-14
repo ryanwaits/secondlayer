@@ -192,10 +192,12 @@ color stays free to mean something.
 |---|---|
 | `consumer.ts` (a bare word with `.`, `/` or `~`) | Title bar with language and Copy. No title: no bar, Copy floats in on hover. |
 | `lines` / `lines=31` | Line numbers, starting at 1 or at N. |
-| `nocopy` | No Copy button. `text` blocks never have one. |
+| `nocopy` | No Copy button. `text` blocks and any block with `!error` never have one. |
 | `wrap` | Soft-wrap with the prompt as its own column. |
 | `max=N` | Clamp to N lines (default 30) with "Show more", only when 4 or more lines would hide. |
 | `exit=N` | Exit chip in the bar: green for 0, red otherwise. |
+| `status=N` | HTTP status chip in the bar: green below 300, red from 400. |
+| `base` | The hosted origin and credential in the source follow the API reference's Base URL switch. |
 
 An annotation is a whole comment line, `<comment> !name(range)[/regex/flags] value`, that
 targets the next line and then leaves the output, the `.md` twin and the Copy text.
@@ -210,6 +212,26 @@ all of them. The comment token is `//` (ts, js, json), `#` (sh, toml, text), `--
 | `!focus(1:4)` | Other lines fade; "Show all" in the bar restores them | 1 |
 | `!diff +` / `!diff -` | Gutter sign; removed lines faint and left out of Copy | none |
 | `!collapse(1:12)` | One summary row with the line count, opens on click | none |
+| `!link[/re/] href` | Dotted blue underline to `href`; first match only, internal paths navigate in place | none |
+| `!error[/re/] message` | Wavy red underline and the compiler's `✗ message` under the line; turns Copy off | none |
+
+`!error` is for compile-time errors only: a mistake the compiler really reports, with its
+words. A runtime failure is a `text` transcript, which colors itself (below).
+
+**Automatic reference links.** With no annotation, SDK method paths and exported types in
+`ts` blocks link to their reference entry, and endpoint paths in `sh` blocks link to the
+API page anchor: first occurrence of each name per block, never inside another range,
+never in `text` output, and only where the target page exists (`lib/code/link-table.ts`).
+A surface that is the reference itself passes `links={false}`.
+
+**Output reads itself.** In `text` blocks a line takes its color from what it says:
+`⚠`, `✗` and `error` lines are `alarm`, `✓` lines `ok`, ALL-CAPS header rows `faint`, the
+rest `sub`; a `$ ` line is a prompt and shell tokens (`lib/code/output.ts`).
+
+**Tabs.** `<CodeTabs sync="lang">` turns consecutive fences into tabs labeled from the
+language (`sh` is cURL) or the fence's title, with one Copy for the visible pane. A choice
+switches every group with the same `sync` key on that page; nothing is stored. The API
+reference's request and the intro quickstart are `<CodeTabs>`.
 
 `lib/code/budget.test.ts` fails the build past those limits, on an unknown name, on `blue`
 outside figures and on `red` outside `text`. A callout counts toward its section's 120-word
@@ -222,7 +244,7 @@ lead. Most blocks stay plain: annotate only when the paragraph points at a token
 | Hero | The section's one working example | Title = file, up to 3 callouts |
 | Setup | Install, export, 1-3 line commands | `sh`, no title |
 | Command, output | A command and what it prints | One `text` transcript (`$` line, then output), titled with the cwd |
-| Request, response | curl and SDK for the same call, then JSON | Tabs plus a `response.json` block |
+| Request, response | curl and SDK for the same call, then JSON | `<CodeTabs>` plus a `json status=200` block |
 | Payload | JSON over 12 lines | `!collapse` the parts the section skips, `!mark` the one it discusses |
 | Variants | Same shape per event type or option | One block each, or tabs |
 | Before, after | Migration or breaking change | One block with `!diff` |

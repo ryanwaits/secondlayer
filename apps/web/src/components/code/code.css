@@ -80,11 +80,15 @@
 }
 
 .cb .row {
-	display: flex;
 	min-width: max-content;
 	min-height: var(--lh);
 	padding-inline: 14px;
 	white-space: pre;
+}
+/* A row with a gutter (line numbers, diff signs, a prompt) or soft wrap is a
+   flex row around a `.tx`; a plain row is its tokens, one span each. */
+.cb .row.g {
+	display: flex;
 }
 .cb .row .ln {
 	flex: none;
@@ -106,6 +110,15 @@
 	color: var(--faint);
 	user-select: none;
 }
+/* The prompt hangs in the padding, so a shell row is its tokens: no column, no
+   empty prompt on continuation lines. */
+.cb-body.hang .row {
+	padding-left: calc(14px + 2ch);
+}
+.cb-body.hang .row .prompt {
+	display: inline-block;
+	margin-left: -2ch;
+}
 .cb-body.soft-wrap {
 	grid-template-columns: minmax(0, 1fr);
 }
@@ -119,16 +132,35 @@
 	overflow-wrap: anywhere;
 }
 
-/* Syntax ladder: tokens carry --shiki-light / --shiki-dark from the theme. */
-.cb .tx span {
-	color: var(--shiki-light, inherit);
+/* Syntax ladder: a token's class sets --shiki-light / --shiki-dark to one step
+   of the theme (lib/syntax-theme.ts; a test keeps these hexes in step). */
+.cb .t-ink {
+	--shiki-light: #111111;
+	--shiki-dark: #ece9e2;
+}
+.cb .t-sub {
+	--shiki-light: #5e5e5e;
+	--shiki-dark: #b0aca2;
+}
+.cb .t-faint {
+	--shiki-light: #9b9b96;
+	--shiki-dark: #7c786f;
+}
+.cb .t-ink,
+.cb .t-sub,
+.cb .t-faint,
+.cb .t-x {
+	color: var(--shiki-light);
 }
 @media (prefers-color-scheme: dark) {
-	.cb .tx span {
-		color: var(--shiki-dark, inherit);
+	.cb .t-ink,
+	.cb .t-sub,
+	.cb .t-faint,
+	.cb .t-x {
+		color: var(--shiki-dark);
 	}
 }
-.cb .tx .b {
+.cb .b {
 	font-weight: 500;
 }
 
@@ -166,8 +198,8 @@
 .cb .row.add .sign {
 	color: var(--ok);
 }
-.cb .row.del .tx,
-.cb .row.del .tx * {
+.cb .row.del,
+.cb .row.del * {
 	color: var(--faint) !important;
 	font-weight: 400 !important;
 }
@@ -267,6 +299,99 @@
 	}
 }
 
+/* Output reads its meaning from what a line says, never from token type. */
+.cb .row.o-out {
+	color: var(--sub);
+}
+.cb .row.o-err {
+	color: var(--alarm);
+}
+.cb .row.o-ok {
+	color: var(--ok);
+}
+.cb .row.o-head {
+	color: var(--faint);
+}
+
+/* link: what you can act on. Anchors in docs reset to the code's own color. */
+.cb a.lk {
+	color: inherit;
+	text-decoration: underline dotted var(--pri);
+	text-decoration-thickness: 1.5px;
+	text-underline-offset: 4px;
+}
+.cb a.lk:hover,
+.cb a.lk:hover * {
+	color: var(--pri) !important;
+}
+
+/* error: the mistake, then the compiler's words. */
+.cb .squig {
+	text-decoration: underline wavy var(--alarm);
+	text-decoration-skip-ink: none;
+	text-underline-offset: 4px;
+}
+.cb .emsg {
+	max-width: 80ch;
+	padding-inline: calc(14px + var(--gut)) 14px;
+	color: var(--alarm);
+	font-size: 12px;
+	white-space: pre-wrap;
+}
+
+/* Status chip in the bar: ok below 300, alarm from 400. */
+.cb-bar .status {
+	font-weight: 500;
+}
+.cb-bar .status.ok {
+	color: var(--ok);
+}
+.cb-bar .status.bad {
+	color: var(--alarm);
+}
+
+/* Tabs: one bar, one Copy, panes are fences. The selected tab underlines in pri. */
+.cb .tabs {
+	display: flex;
+	gap: 18px;
+	height: 100%;
+}
+.cb .tabs button {
+	height: 100%;
+	padding: 0;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	background: none;
+	color: var(--faint);
+	font: 400 12px / 1 var(--font-mono-stack);
+	cursor: pointer;
+}
+.cb .tabs button[aria-selected="true"] {
+	border-bottom-color: var(--pri);
+	color: var(--ink);
+}
+.cb .tabs button:not([aria-selected="true"]):hover {
+	color: var(--ink);
+}
+.cb-tabs > .cb-bar {
+	padding-left: 14px;
+}
+.cb-tabs > .cb-bar .copy {
+	margin-left: auto;
+}
+.cb.tabbed {
+	margin: 0;
+	border: 0;
+	border-radius: 0;
+}
+.cb-tabs [role="tabpanel"][hidden] {
+	display: none;
+}
+/* A pane with nothing to copy (output, an !error) takes Copy out of the bar. */
+.cb-tabs:has([role="tabpanel"]:not([hidden]) .cb:not([data-copyable])) .copy {
+	display: none;
+}
+
 /* Docs: the article sets the rhythm. */
 .docs-article .cb {
 	margin-top: 18px;
@@ -283,6 +408,9 @@
 	border: 0;
 	border-radius: 0;
 }
-.site .term .cb .tx span {
-	color: var(--shiki-dark, inherit);
+.site .term .cb .t-ink,
+.site .term .cb .t-sub,
+.site .term .cb .t-faint,
+.site .term .cb .t-x {
+	color: var(--shiki-dark);
 }

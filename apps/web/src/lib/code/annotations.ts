@@ -7,6 +7,8 @@ export const ANNOTATION_NAMES = [
 	"focus",
 	"diff",
 	"collapse",
+	"link",
+	"error",
 ] as const;
 
 export type FenceOptions = {
@@ -19,6 +21,10 @@ export type FenceOptions = {
 	/** Clamp height in lines. The renderer applies its own default when absent. */
 	max?: number;
 	exit?: number;
+	/** HTTP status chip in the bar: green below 300, red from 400. */
+	status?: number;
+	/** Hosted base URLs in the source follow the page's Base URL switch. */
+	base?: boolean;
 };
 
 /**
@@ -35,6 +41,8 @@ export function parseFenceOptions(info: string): FenceOptions {
 		else if (key === "wrap") options.wrap = true;
 		else if (key === "max") options.max = Number(value);
 		else if (key === "exit") options.exit = Number(value);
+		else if (key === "status") options.status = Number(value);
+		else if (key === "base") options.base = true;
 		else if (!options.title && !value && /[./~]/.test(token))
 			options.title = token;
 	}
@@ -127,20 +135,4 @@ export function parseAnnotations(source: string, lang: string): ParsedCode {
 /** Source with annotation lines removed: `.md` twins, search text, anywhere text leaves the page. */
 export function stripAnnotations(source: string, lang: string): string {
 	return parseAnnotations(source, lang).lines.join("\n");
-}
-
-/** Indexes of lines a `!diff -` annotation removes. */
-export function removedLines(parsed: ParsedCode): Set<number> {
-	const removed = new Set<number>();
-	for (const a of parsed.annotations) {
-		if (a.name !== "diff" || a.value !== "-") continue;
-		for (let i = a.from; i <= a.to; i++) removed.add(i);
-	}
-	return removed;
-}
-
-/** What Copy gives the reader: no annotations, no removed diff lines. Prompts never live in the source. */
-export function copyText(parsed: ParsedCode): string {
-	const removed = removedLines(parsed);
-	return parsed.lines.filter((_, i) => !removed.has(i)).join("\n");
 }
