@@ -353,13 +353,23 @@
 .site .split.flip > .art {
 	order: -1;
 }
+/* A code figure and its margin notes need the room: copy beside a wide figure. */
+.site .split.wide {
+	grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.8fr);
+	gap: 40px;
+}
+.site .split.wide.flip {
+	grid-template-columns: minmax(0, 1.8fr) minmax(0, 0.7fr);
+}
 .site .split .copy {
 	display: grid;
 	gap: 16px;
 	justify-items: start;
 }
 @media (max-width: 920px) {
-	.site .split {
+	.site .split,
+	.site .split.wide,
+	.site .split.wide.flip {
 		grid-template-columns: 1fr;
 		gap: 28px;
 	}
@@ -384,74 +394,6 @@
 	font-family: var(--font-mono-stack);
 	font-size: 12px;
 	color: var(--sub);
-}
-
-/* ── terminal (follows the theme) ─────────────────────────────────── */
-.site .term {
-	background: var(--term);
-	border: 1px solid var(--term-line);
-	border-radius: 8px;
-	overflow: hidden;
-	color: var(--term-fg);
-}
-.site .term-bar {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	padding: 10px 14px;
-	border-bottom: 1px solid var(--term-line);
-	font-family: var(--font-mono-stack);
-	font-size: 12px;
-	color: var(--term-mute);
-}
-.site .term-bar .sp {
-	margin-left: auto;
-}
-.site .term-bar i {
-	display: block;
-	width: 8px;
-	height: 8px;
-	border-radius: 999px;
-	background: var(--term-line);
-}
-.site .term pre {
-	margin: 0;
-	padding: 16px;
-	font: 12.5px / 1.75 var(--font-mono-stack);
-	overflow-x: auto;
-}
-.site .t-m {
-	color: var(--term-mute);
-}
-.site .t-a {
-	color: var(--term-acc);
-}
-.site .t-ok {
-	color: var(--term-ok);
-}
-.site .t-hit {
-	display: block;
-	color: var(--term-ok);
-	font-weight: 500;
-}
-/* Shiki HTML inside a terminal: the terminal's own ground, no docs margins
-   or radius. (`<Code>` inside a terminal is themed in code.css.) */
-.site .term .shiki {
-	background: transparent !important;
-	background-color: transparent !important;
-	border: 0 !important;
-	border-radius: 0;
-	padding: 16px;
-	font-size: 12.5px;
-	line-height: 1.75;
-}
-.site .term .copy-button {
-	background: var(--term-line);
-	color: var(--term-mute);
-}
-.site .term .copy-button:hover {
-	background: var(--term-line);
-	color: var(--term-fg);
 }
 
 /* ── manifest table ────────────────────────────────────────────────── */
@@ -1233,7 +1175,7 @@
 	gap: 20px;
 	margin-top: 20px;
 }
-.site .verify-grid .term {
+.site .verify-grid > * {
 	min-width: 0;
 }
 @media (max-width: 860px) {
@@ -1656,6 +1598,9 @@
 	padding: 14px 16px;
 	font: 12px / 1.85 var(--font-mono-stack);
 	overflow-x: auto;
+}
+.site .tail-at {
+	color: var(--term-acc);
 }
 .site .cursor-row {
 	list-style: none;
@@ -2462,11 +2407,6 @@
 		grid-template-columns: minmax(0, 1fr);
 	}
 }
-.site.verify .fin {
-	display: block;
-	margin-top: 4px;
-	color: var(--term-fg);
-}
 .site .band-ruled {
 	border-top: 1px solid var(--line);
 	padding-block: clamp(56px, 8vw, 104px);
@@ -2692,8 +2632,9 @@
 }
 .site.verify .sdk {
 	display: grid;
-	grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-	gap: clamp(28px, 5vw, 64px);
+	/* The code figure carries margin notes, so it takes the wide column. */
+	grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.75fr);
+	gap: clamp(28px, 4vw, 48px);
 	align-items: start;
 }
 .site.verify .sdk ul {
@@ -3299,8 +3240,18 @@
 	background: transparent;
 	margin-block: 24px;
 }
-.site.block-checker .art {
+.site.block-checker .cb {
 	margin: 0;
+}
+.site .bc-mute {
+	color: var(--sub);
+}
+.site .bc-ok {
+	color: var(--ok);
+}
+.site .bc-name {
+	color: var(--ink);
+	font-weight: 500;
 }
 .site .bc-body {
 	padding: 14px;
@@ -3313,23 +3264,23 @@
 	align-items: center;
 	gap: 8px 10px;
 	padding: 8px 16px;
-	background: var(--term-raise);
-	border: 1px solid var(--term-line);
+	background: var(--soft);
+	border: 1px solid var(--line);
 	border-radius: 4px;
 	font-size: 11px;
 }
 .site .bc-cmd {
-	color: var(--term-fg);
+	color: var(--ink);
 }
 .site .bc-input {
 	flex: 1 1 14ch;
 	min-width: 0;
 	height: 28px;
 	padding: 0 8px;
-	border: 1px solid var(--term-line);
+	border: 1px solid var(--line);
 	border-radius: 4px;
-	background: var(--term);
-	color: var(--term-fg);
+	background: var(--paper);
+	color: var(--ink);
 	font: inherit;
 	font-size: 12px;
 }
@@ -3347,7 +3298,7 @@
 }
 .site .bc-out {
 	margin-top: 14px;
-	color: var(--term-fg);
+	color: var(--ink);
 }
 .site .bc-out p {
 	margin: 0;
@@ -3371,7 +3322,7 @@
 .site .bc-out a {
 	color: inherit;
 	text-decoration: underline;
-	text-decoration-color: var(--term-line);
+	text-decoration-color: var(--line);
 	text-underline-offset: 3px;
 }
 .site .bc-out a:hover {
@@ -3380,7 +3331,7 @@
 .site .bc-rerun {
 	margin-top: 14px;
 	padding-top: 14px;
-	border-top: 1px solid var(--term-line);
+	border-top: 1px solid var(--line);
 }
 .site .bc-word {
 	white-space: nowrap;

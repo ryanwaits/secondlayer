@@ -12,11 +12,6 @@ mock.module("next/navigation", () => ({
 	permanentRedirect: () => {},
 }));
 
-// CodeBlock is an async server component; renderToStaticMarkup needs a sync stub.
-mock.module("@/components/code-block", () => ({
-	CodeBlock: ({ code }: { code: string }) => <pre data-codeblock>{code}</pre>,
-}));
-
 const ContactPage = (await import("./page")).default;
 const PricingPage = (await import("../pricing/page")).default;
 

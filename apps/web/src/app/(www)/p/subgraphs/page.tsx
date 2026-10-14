@@ -1,4 +1,4 @@
-import { CodeBlock } from "@/components/code-block";
+import { Code } from "@/components/code/code";
 import {
 	ButtonLink,
 	CloseBand,
@@ -10,7 +10,6 @@ import {
 	SelfHostSlot,
 	Split,
 	StatusDot,
-	Terminal,
 } from "@/components/site";
 import { SubgraphsHero } from "@/components/site/assets";
 import { BoxIcon, FileXIcon, UndoIcon } from "@/components/site/icons";
@@ -36,7 +35,9 @@ const SUBGRAPH_FILE = `import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
   name: "sbtc-flows",
+  // !callout[/startBlock/] backfill starts here
   startBlock: 8000000,
+  // !callout[/sources/] these events, nothing else
   sources: {
     transfers: { type: "ft_transfer", assetIdentifier: SBTC },
   },
@@ -48,20 +49,44 @@ export default defineSubgraph({
     } },
   },
   handlers: {
-    transfers: (event, ctx) => ctx.insert("transfers", event),
+    transfers: (event, ctx) =>
+      // !callout[/ctx.insert/] the write: one row per event
+      ctx.insert("transfers", event),
   },
 });`;
 
-const READ_EXAMPLE = `const { rows, next_cursor, tip } = await sl.subgraphs.rows(
-  "sbtc-flows", "transfers", { limit: 10, order: "desc" },
-);
+const READ_EXAMPLE = `const { rows, next_cursor, tip } =
+  await sl.subgraphs.rows("sbtc-flows", "transfers",
+    { limit: 10, order: "desc" });
 
 {
   "rows": [{ "_id": 48138, "block_height": 8054704,
              "amount": 697078828, "sender": "SP3PE…X44J" }],
+  // !callout[/"next_cursor"/] pass back as ?cursor
   "next_cursor": "48137",
+  // !callout[/"tip"/] how far behind the table is
   "tip": { "block_height": 8054704, "blocks_behind": 0 }
 }`;
+
+const DEPLOY = `$ secondlayer subgraphs deploy subgraphs/sbtc-flows.ts \\
+    --start-block 8000000
+  ✓ Subgraph "sbtc-flows" created → v1.0.0
+  REST     $SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers
+
+$ secondlayer subgraphs status sbtc-flows
+  Status       reindexing
+  Sync         14.2%  (1,174,885 / 8,263,594 blocks)
+  Gaps         none
+  Table Rows   transfers: 4,874`;
+
+const VERIFY = `$ secondlayer verify subgraph pool-reserves \\
+    --replay --from 1230000 --to 1231000
+  ✓ pin       7f3c…a91e  bundle, schema, startBlock
+  ✓ blocks    1,001 proven from the checkpoint
+  ✓ txs       4,812 match their tx merkle roots
+  ✓ inputs    1,001 diffs fully named
+  ✓ handlers  37 events, deterministic realm
+  ✓ rows      reserves: 14 equal  digest 9a1f…03be`;
 
 const TRIGGER_SQL = `create function notify_transfer()
 returns trigger as $$ begin
@@ -146,6 +171,7 @@ export default function SubgraphsPage() {
 			<div className="band band-soft">
 				<div className="shell">
 					<Split
+						wide
 						copy={
 							<>
 								<Eyebrow noun="The file" />
@@ -159,9 +185,14 @@ export default function SubgraphsPage() {
 							</>
 						}
 						art={
-							<Terminal title="subgraphs/sbtc-flows.ts" meta="typescript">
-								<CodeBlock code={SUBGRAPH_FILE} lang="typescript" />
-							</Terminal>
+							<div className="art">
+								<Code
+									lang="ts"
+									variant="figure"
+									title="subgraphs/sbtc-flows.ts"
+									code={SUBGRAPH_FILE}
+								/>
+							</div>
 						}
 					/>
 
@@ -179,42 +210,14 @@ export default function SubgraphsPage() {
 							</>
 						}
 						art={
-							<Terminal title="~/app">
-								<pre>
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer subgraphs deploy</span>
-									{" subgraphs/sbtc-flows.ts \\\n    --start-block 8000000\n"}
-									<span className="t-hit">
-										{'  ✓ Subgraph "sbtc-flows" created → v1.0.0'}
-									</span>
-									{"\n"}
-									<span className="t-m">
-										{
-											"  REST     $SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers"
-										}
-									</span>
-									{"\n\n"}
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer subgraphs status</span>
-									{" sbtc-flows\n"}
-									<span className="t-m">{"  Status       reindexing"}</span>
-									{"\n"}
-									<span className="t-m">
-										{"  Sync         14.2%  (1,174,885 / 8,263,594 blocks)"}
-									</span>
-									{"\n"}
-									<span className="t-m">{"  Gaps         "}</span>
-									<span className="t-ok">{"none"}</span>
-									{"\n"}
-									<span className="t-m">
-										{"  Table Rows   transfers: 4,874"}
-									</span>
-								</pre>
-							</Terminal>
+							<div className="art">
+								<Code lang="text" title="~/app" code={DEPLOY} />
+							</div>
 						}
 					/>
 
 					<Split
+						wide
 						copy={
 							<>
 								<Eyebrow noun="The read" />
@@ -227,9 +230,14 @@ export default function SubgraphsPage() {
 							</>
 						}
 						art={
-							<Terminal title="GET /v1/subgraphs/sbtc-flows/transfers">
-								<CodeBlock code={READ_EXAMPLE} lang="typescript" />
-							</Terminal>
+							<div className="art">
+								<Code
+									lang="ts"
+									variant="figure"
+									title="GET /v1/subgraphs/sbtc-flows/transfers"
+									code={READ_EXAMPLE}
+								/>
+							</div>
 						}
 					/>
 
@@ -365,28 +373,9 @@ export default function SubgraphsPage() {
 							</>
 						}
 						art={
-							<Terminal title="~/app">
-								<pre>
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer verify</span>
-									{
-										" subgraph pool-reserves \\\n    --replay --from 1230000 --to 1231000\n"
-									}
-									<span className="t-ok">{"  ✓"}</span>
-									{" pin       7f3c…a91e  bundle, schema, startBlock\n"}
-									<span className="t-ok">{"  ✓"}</span>
-									{" blocks    1,001 proven from the checkpoint\n"}
-									<span className="t-ok">{"  ✓"}</span>
-									{" txs       4,812 match their tx merkle roots\n"}
-									<span className="t-ok">{"  ✓"}</span>
-									{" inputs    1,001 diffs fully named\n"}
-									<span className="t-ok">{"  ✓"}</span>
-									{" handlers  37 events, deterministic realm\n"}
-									<span className="t-hit">
-										{"  ✓ rows      reserves: 14 equal  digest 9a1f…03be"}
-									</span>
-								</pre>
-							</Terminal>
+							<div className="art">
+								<Code lang="text" title="~/app" code={VERIFY} />
+							</div>
 						}
 					/>
 				</div>

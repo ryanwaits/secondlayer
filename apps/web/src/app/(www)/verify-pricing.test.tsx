@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { highlight } from "@/lib/highlight";
+import { renderAsync } from "@/lib/test-render";
 import { renderToStaticMarkup } from "react-dom/server";
 
 // bun's mock.module is process-wide, so stub every export the app imports.
@@ -13,15 +13,10 @@ mock.module("next/navigation", () => ({
 	permanentRedirect: () => {},
 }));
 
-// CodeBlock is an async server component; renderToStaticMarkup needs a sync stub.
-mock.module("@/components/code-block", () => ({
-	CodeBlock: ({ code }: { code: string }) => <pre data-codeblock>{code}</pre>,
-}));
-
 const VerifyPage = (await import("./verify/page")).default;
 const PricingPage = (await import("./pricing/page")).default;
 
-const verify = renderToStaticMarkup(<VerifyPage />);
+const verify = await renderAsync(<VerifyPage />);
 const pricing = renderToStaticMarkup(<PricingPage />);
 
 describe("/verify", () => {
@@ -41,12 +36,12 @@ describe("/verify", () => {
 		expect(verify).not.toContain("trustless");
 	});
 
-	test("the SDK snippet renders through CodeBlock without an apiKey", () => {
-		expect(verify).toContain("data-codeblock");
-		expect(verify).toContain(
-			"No key needed; add apiKey for higher rate limits.",
-		);
-		expect(verify).not.toContain("apiKey:");
+	test("the SDK snippet renders as a figure without an apiKey", () => {
+		expect(verify).toContain('class="cf"');
+		expect(verify).toContain("verifyBlock");
+		const text = verify.replace(/<[^>]+>/g, "");
+		expect(text).toContain("No key needed; add apiKey for higher rate limits.");
+		expect(text).not.toContain("apiKey:");
 	});
 
 	test("the checkpoint is the first, dashed box of the chain", () => {
@@ -57,11 +52,6 @@ describe("/verify", () => {
 	test("illustrative values are labelled as examples", () => {
 		expect(verify).toContain("example output");
 		expect(verify).toContain("example checkpoint");
-	});
-
-	test("the shared highlighter emits dual-theme shiki markup", async () => {
-		const html = await highlight("const a = 1;", "typescript");
-		expect(html).toContain('class="shiki');
 	});
 });
 

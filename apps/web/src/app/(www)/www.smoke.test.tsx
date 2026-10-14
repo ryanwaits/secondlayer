@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DOCS_STRIP } from "@/lib/nav";
 import { PRODUCTS } from "@/lib/site";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderAsync } from "@/lib/test-render";
 import { DOCS_NAV, docsNavPages } from "./docs/nav";
 
 // bun's mock.module is process-wide, so stub every export the app imports.
@@ -26,8 +26,8 @@ describe("www marketing routes", () => {
 	 * can be rewritten freely as long as it still renders and still makes the
 	 * self-host claim.
 	 */
-	test("/ renders the landing page", () => {
-		const html = renderToStaticMarkup(<HomeView />);
+	test("/ renders the landing page", async () => {
+		const html = await renderAsync(<HomeView />);
 		expect(html).toContain('class="site home"');
 		expect(html.match(/<h1>/g)).toHaveLength(1);
 		for (const p of PRODUCTS) expect(html).toContain(`href="${p.href}"`);
@@ -44,8 +44,8 @@ describe("www marketing routes", () => {
 		expect(html).not.toContain('href="#');
 	});
 
-	test("/ states the hosted and self-host paths and no withdrawn products", () => {
-		const html = renderToStaticMarkup(<HomeView />);
+	test("/ states the hosted and self-host paths and no withdrawn products", async () => {
+		const html = await renderAsync(<HomeView />);
 		expect(html).toContain("for apps on Bitcoin.");
 		expect(html).toContain("Your box or ours.");
 		expect(html).toContain("beside your node");

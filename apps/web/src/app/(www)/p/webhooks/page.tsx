@@ -1,4 +1,4 @@
-import { CodeBlock } from "@/components/code-block";
+import { Code } from "@/components/code/code";
 import {
 	ButtonLink,
 	CloseBand,
@@ -11,7 +11,6 @@ import {
 	SelfHostSlot,
 	Split,
 	StatusDot,
-	Terminal,
 } from "@/components/site";
 import { WebhooksHero } from "@/components/site/assets";
 import { HistoryIcon, KeyIcon, ListXIcon } from "@/components/site/icons";
@@ -37,19 +36,24 @@ const [, , , , webhooks] = PRODUCTS;
 const RECEIVER = `import { verifyWebhookSignature, decodeChainWebhook }
   from "@secondlayer/sdk";
 
+// !callout[/raw body first/] bytes as received
 // raw body first, before any JSON parsing
+// !callout[/verifyWebhookSignature/] ours, or it is a 401
 if (!verifyWebhookSignature(rawBody, req.headers, secret))
   return new Response("bad signature", { status: 401 });
 
+// !callout[/decodeChainWebhook/] typed from here
 const delivery = decodeChainWebhook(rawBody);
 switch (delivery.data.trigger) {
   case "contract_call": // fully typed
 }`;
 
 const ROLLBACK = `{
+  // !mark[/"chain.reorg.rollback"/]
   "type": "chain.reorg.rollback",
   "data": {
     "action": "rollback",
+    // !callout[/fork_point_height/] undo everything after this
     "fork_point_height": 9137006,
     "orphaned": [
       { "tx_id": "0x9f2c…", "event": { "event_index": 3, … } }
@@ -57,6 +61,19 @@ const ROLLBACK = `{
     "truncated": false
   }
 }`;
+
+const CREATE = `$ secondlayer webhooks create amm-swaps \\
+    --url https://my-app.com/webhook \\
+    --trigger '{"type":"contract_call",
+               "contractId":"SP….amm","functionName":"swap-*"}' \\
+    --trigger '{"type":"sbtc_deposit"}'
+  triggers   2 validated
+  starts at  chain tip
+  secret     whsec_…  (shown once, store it now)
+  ✓ amm-swaps live
+
+$ secondlayer webhooks test amm-swaps --post
+  ✓ 200 · chain.test.apply · 63 ms`;
 
 const TRIGGERS: readonly {
 	name: string;
@@ -216,37 +233,15 @@ export default function WebhooksPage() {
 							</>
 						}
 						art={
-							<Terminal title="~/my-app">
-								<pre>
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer webhooks create</span>
-									{
-										' amm-swaps \\\n    --url https://my-app.com/webhook \\\n    --trigger \'{"type":"contract_call",\n               "contractId":"SP….amm","functionName":"swap-*"}\' \\\n    --trigger \'{"type":"sbtc_deposit"}\'\n'
-									}
-									<span className="t-m">{"  triggers   2 validated"}</span>
-									{"\n"}
-									<span className="t-m">{"  starts at  chain tip"}</span>
-									{"\n"}
-									<span className="t-m">{"  secret     "}</span>
-									<span className="t-a">
-										{"whsec_…  (shown once, store it now)"}
-									</span>
-									{"\n"}
-									<span className="t-hit">{"  ✓ amm-swaps live"}</span>
-									{"\n"}
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer webhooks test</span>
-									{" amm-swaps --post\n"}
-									<span className="t-hit">
-										{"  ✓ 200 · chain.test.apply · 63 ms"}
-									</span>
-								</pre>
-							</Terminal>
+							<div className="art">
+								<Code lang="text" title="~/my-app" code={CREATE} />
+							</div>
 						}
 					/>
 
 					<Split
 						flip
+						wide
 						copy={
 							<>
 								<Eyebrow noun="Check it's us" />
@@ -259,13 +254,19 @@ export default function WebhooksPage() {
 							</>
 						}
 						art={
-							<Terminal title="receiver.ts" meta="typescript">
-								<CodeBlock code={RECEIVER} lang="typescript" />
-							</Terminal>
+							<div className="art">
+								<Code
+									lang="ts"
+									variant="figure"
+									title="receiver.ts"
+									code={RECEIVER}
+								/>
+							</div>
 						}
 					/>
 
 					<Split
+						wide
 						copy={
 							<>
 								<Eyebrow noun="Reorgs" />
@@ -278,9 +279,14 @@ export default function WebhooksPage() {
 							</>
 						}
 						art={
-							<Terminal title="POST /webhook" meta="example delivery">
-								<CodeBlock code={ROLLBACK} lang="json" />
-							</Terminal>
+							<div className="art">
+								<Code
+									lang="json"
+									variant="figure"
+									title="POST /webhook"
+									code={ROLLBACK}
+								/>
+							</div>
 						}
 					/>
 

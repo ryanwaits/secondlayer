@@ -7,6 +7,7 @@ import { CodeTabs } from "./code-tabs";
 /** CodeTabs is an async server component: resolve it, then render the element it returns. */
 async function tabs(props: {
 	sync?: string;
+	variant?: "docs" | "figure";
 	children?: ReactNode;
 }): Promise<string> {
 	return renderToStaticMarkup((await CodeTabs(props)) as ReactNode);
@@ -118,7 +119,7 @@ describe("CodeTabs", () => {
 		// The hidden pane carries the other note, hidden with it.
 		expect(panels[1]).toMatch(/^ data-tab="b.sol" hidden>/);
 		expect(panels[1]).toContain("second note");
-		expect(html.match(/class="notes"/g)).toHaveLength(2);
+		expect(html.match(/class="cf-notes"/g)).toHaveLength(2);
 		// The tab bar stays above both, outside any pane.
 		expect(html.indexOf('role="tablist"')).toBeLessThan(
 			html.indexOf('role="tabpanel"'),

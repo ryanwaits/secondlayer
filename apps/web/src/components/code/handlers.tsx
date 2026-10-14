@@ -439,7 +439,7 @@ export function calloutRow(col: number, text: string): string {
 
 /** A figure's margin note: pinned to its row by index, the line number saying which one. */
 export function figureNote(row: number, line: number, text: string): string {
-	return `<p class="fnote" style="--i:${row}"><b>${line}</b><span>${esc(text)}</span></p>`;
+	return `<p class="cf-note" style="--i:${row}"><b>${line}</b><span>${esc(text)}</span></p>`;
 }
 
 /** The compiler's words under the line it rejects. */

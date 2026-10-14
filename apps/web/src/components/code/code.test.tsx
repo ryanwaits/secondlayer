@@ -228,9 +228,9 @@ describe("figure variant", () => {
 		const out = await html({ lang: "ts", variant: "figure", code: source });
 		expect(out).not.toContain('class="co"');
 		expect(out).toContain(
-			'<p class="fnote" style="--i:1"><b>2</b><span>null on the first run</span></p>',
+			'<p class="cf-note" style="--i:1"><b>2</b><span>null on the first run</span></p>',
 		);
-		expect(out).toContain('<p class="fnote" style="--i:2"><b>3</b>');
+		expect(out).toContain('<p class="cf-note" style="--i:2"><b>3</b>');
 		// Lines are numbered, and a noted row's number takes ink.
 		expect(out).toContain('<span class="ln">1</span>');
 		expect(out).toContain('class="row g noted"');
@@ -251,13 +251,13 @@ describe("figure variant", () => {
 			variant: "figure",
 			code: "const a = 1;",
 		});
-		expect(bare).not.toContain('class="notes"');
+		expect(bare).not.toContain('class="cf-notes"');
 		const docs = await html({
 			lang: "ts",
 			code: "// !callout[/send/] note\nsend();",
 		});
 		expect(docs).toContain('class="co"');
-		expect(docs).not.toContain("fnote");
+		expect(docs).not.toContain("cf-note");
 	});
 
 	test("a figure does not clamp long source behind Show more", async () => {

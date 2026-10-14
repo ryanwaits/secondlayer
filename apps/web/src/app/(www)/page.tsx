@@ -1,3 +1,4 @@
+import { Code } from "@/components/code/code";
 import {
 	ButtonLink,
 	CloseBand,
@@ -5,7 +6,6 @@ import {
 	Highlight,
 	Split,
 	StatusDot,
-	Terminal,
 } from "@/components/site";
 import {
 	DeliveryLogArt,
@@ -150,6 +150,17 @@ const COVERS: readonly {
 	},
 ];
 
+const VERIFY = `$ secondlayer verify block 9137005
+  checkpoint         9,000,000 (shipped)
+  ✓ bitcoin headers
+  ✓ signer set
+  ✓ tx merkle root
+  ✓ state writes     every map, var and balance
+  ✓ block 9,137,005 verified
+
+$ secondlayer verify subgraph sbtc-flows --replay
+  ✓ rows recomputed · match`;
+
 export default function Home() {
 	return <HomeView />;
 }
@@ -253,30 +264,9 @@ export function HomeView() {
 						<TrustChainArt />
 					</div>
 					<div className="verify-grid">
-						<Terminal title="~/app">
-							<pre>
-								<span className="t-m">{"❯ "}</span>
-								<span className="t-a">secondlayer verify</span>
-								{" block 9137005\n"}
-								<span className="t-m">
-									{"  checkpoint         9,000,000 (shipped)\n"}
-									{"  bitcoin headers    "}
-									<span className="t-ok">✓</span>
-									{"\n  signer set         "}
-									<span className="t-ok">✓</span>
-									{"\n  tx merkle root     "}
-									<span className="t-ok">✓</span>
-									{"\n  state writes       "}
-									<span className="t-ok">✓</span>
-									{" every map, var and balance\n"}
-								</span>
-								<span className="t-hit">{"  ✓ block 9,137,005 verified"}</span>
-								<span className="t-m">{"❯ "}</span>
-								<span className="t-a">secondlayer verify</span>
-								{" subgraph sbtc-flows --replay\n"}
-								<span className="t-hit">{"  ✓ rows recomputed · match"}</span>
-							</pre>
-						</Terminal>
+						<div className="art">
+							<Code lang="text" title="~/app" code={VERIFY} />
+						</div>
 						<ul className="covers" aria-label="What a check covers">
 							{COVERS.map((c) => (
 								<li key={c.title}>

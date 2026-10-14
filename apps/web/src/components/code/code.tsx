@@ -83,16 +83,26 @@ export async function renderCode({
 }: CodeProps): Promise<RenderedCode> {
 	const options = parseFenceOptions(`${lang} ${meta ?? ""}`);
 	const figure = variant === "figure";
-	// Figures number their lines.
-	if (figure && !options.lines) options.lines = 1;
+	// Figures number their source; a transcript is not source.
+	if (figure && options.lang !== "text" && !options.lines) options.lines = 1;
 	const source = code.replace(/^\n+/, "").trimEnd();
 	const parsed = parseAnnotations(source, options.lang);
 	const isText = options.lang === "text";
 	const isShell = options.lang === "bash";
 
 	// In `text` blocks a leading "$ " is a prompt column, and the rest is shell.
+	// A `text` command carries on while a line ends in a backslash or a single quote is open.
+	let carrying = false;
+	let quoted = false;
 	const prompts = parsed.lines.map((line, i) => {
-		if (isText) return line.startsWith("$ ") ? "$" : null;
+		if (isText) {
+			const command = line.startsWith("$ ");
+			if (!command && !carrying) return null;
+			if (command) quoted = false;
+			quoted = (line.split("'").length - 1) % 2 === 1 ? !quoted : quoted;
+			carrying = quoted || /\\$/.test(line);
+			return command ? "$" : "";
+		}
 		if (isShell) return isShellCommand(line, parsed.lines[i - 1]) ? "$" : "";
 		return null;
 	});
@@ -116,7 +126,7 @@ export async function renderCode({
 		? await Promise.all(
 				display.map(
 					async (text, i) =>
-						(await tokenize(text, prompts[i] === "$" ? "bash" : "text"))[0] ??
+						(await tokenize(text, prompts[i] != null ? "bash" : "text"))[0] ??
 						[],
 				),
 			)
@@ -228,10 +238,10 @@ export async function renderCode({
 export const frameOf = (r: RenderedCode) =>
 	`<div class="${r.className}"${r.copyable ? " data-copyable" : ""}>${r.html}</div>`;
 
-/** A figure: the frame beside its notes (`.fig`), or the bare frame when it has none. */
+/** A figure: the frame beside its notes (`.cf`), or the bare frame when it has none. */
 export const figureOf = (r: RenderedCode) =>
 	r.notes
-		? `<div class="fig" style="--nt:${r.noteTop}">${frameOf(r)}<div class="notes">${r.notes}</div></div>`
+		? `<div class="cf" style="--nt:${r.noteTop}">${frameOf(r)}<div class="cf-notes">${r.notes}</div></div>`
 		: frameOf(r);
 
 /** `renderCode` as one element: the block's frame, its contents a single string. */
@@ -241,11 +251,11 @@ export async function Code(props: CodeProps) {
 	if (rendered.notes)
 		return (
 			<div
-				className="fig"
+				className="cf"
 				style={{ "--nt": rendered.noteTop } as CSSProperties}
 				// biome-ignore lint/security/noDangerouslySetInnerHtml: built by `renderCode`, which escapes every dynamic value
 				dangerouslySetInnerHTML={{
-					__html: `${frameOf(rendered)}<div class="notes">${rendered.notes}</div>`,
+					__html: `${frameOf(rendered)}<div class="cf-notes">${rendered.notes}</div>`,
 				}}
 			/>
 		);

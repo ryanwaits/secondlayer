@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { PRODUCTS } from "@/lib/site";
+import { renderAsync } from "@/lib/test-render";
 import type { ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { CHAIN_TRIGGER_TYPES } from "../../../../../packages/shared/src/schemas/webhooks";
 
 // bun's mock.module is process-wide, so stub every export the app imports.
@@ -13,11 +13,6 @@ mock.module("next/navigation", () => ({
 	notFound: () => {},
 	redirect: () => {},
 	permanentRedirect: () => {},
-}));
-
-// CodeBlock is an async server component; renderToStaticMarkup needs a sync stub.
-mock.module("@/components/code-block", () => ({
-	CodeBlock: ({ code }: { code: string }) => <pre data-codeblock>{code}</pre>,
 }));
 
 const pages = {
@@ -40,7 +35,7 @@ const HTML = Object.fromEntries(
 	await Promise.all(
 		SLUGS.map(async (slug) => {
 			const Page = pages[slug] as () => ReactNode | Promise<ReactNode>;
-			return [slug, renderToStaticMarkup(await Page())] as const;
+			return [slug, await renderAsync(await Page())] as const;
 		}),
 	),
 ) as Record<keyof typeof pages, string>;
@@ -89,13 +84,20 @@ describe("product pages", () => {
 		expect(render("webhooks")).toContain("signed");
 	});
 
-	test("code snippets render through CodeBlock, shell transcripts do not", () => {
-		const count = (html: string) => html.match(/data-codeblock/g)?.length ?? 0;
-		expect(count(render("index"))).toBe(0);
-		expect(count(render("archive"))).toBe(0);
-		expect(count(render("streams"))).toBeGreaterThanOrEqual(1);
-		expect(count(render("subgraphs"))).toBeGreaterThanOrEqual(2);
-		expect(count(render("webhooks"))).toBeGreaterThanOrEqual(2);
+	test("source files are figures with margin notes, shell transcripts are plain blocks", () => {
+		const figures = (html: string) => html.match(/class="cf"/g)?.length ?? 0;
+		expect(figures(render("index"))).toBe(0);
+		expect(figures(render("archive"))).toBe(0);
+		expect(figures(render("streams"))).toBeGreaterThanOrEqual(1);
+		expect(figures(render("subgraphs"))).toBeGreaterThanOrEqual(2);
+		expect(figures(render("webhooks"))).toBeGreaterThanOrEqual(2);
+	});
+
+	test("product pages ship no terminal window chrome", () => {
+		for (const slug of SLUGS) {
+			expect(render(slug)).not.toContain("term-bar");
+			expect(render(slug)).not.toContain("t-hit");
+		}
 	});
 
 	test("webhooks page trigger count matches the chain trigger schema", () => {

@@ -1,4 +1,4 @@
-import { CodeBlock } from "@/components/code-block";
+import { Code } from "@/components/code/code";
 import {
 	ButtonLink,
 	CloseBand,
@@ -11,7 +11,6 @@ import {
 	SelfHostSlot,
 	Split,
 	StatusDot,
-	Terminal,
 } from "@/components/site";
 import { StreamsHero } from "@/components/site/assets";
 import { BranchIcon, PlayIcon, TerminalIcon } from "@/components/site/icons";
@@ -36,16 +35,53 @@ const [archive, streams, index, subgraphs, webhooks] = PRODUCTS;
 
 const BACKFILL = `// signed dumps first, then live from the seam
 await streams.events.replay({
+  // !callout[/"genesis"/] from the first block
   from: "genesis",
+  // !callout[/onDumpFile/] every dump is sha256-verified
   async onDumpFile(file, { from }) {
-    const bytes = await streams.dumps.download(file); // sha256-verified
+    const bytes = await streams.dumps.download(file);
     await ingestParquet(bytes, { after: from });
   },
+  // !callout[/onBatch/] the seam: live from here
   async onBatch(events, envelope) {
     await db.insertEvents(events);
     return envelope.next_cursor;
   },
 });`;
+
+const CONSUMER = `$ secondlayer streams tip
+  block_height      8,948,506
+  finalized_height  8,948,262
+
+$ secondlayer streams consume \\
+    --types ft_transfer,nft_transfer \\
+    # !mark[/8948507:03/]
+    --cursor 8948507:03 --batch-size 500 \\
+    | jq -c '.type'
+
+$ secondlayer streams reorgs
+✓ none in the last 1,000 blocks
+
+$ secondlayer streams by-tx 0x9f2c…`;
+
+const SSE = `$ curl -N "$SL/v1/streams/events/stream?types=ft_transfer" \\
+    -H "authorization: Bearer sk-sl_…"
+
+data: {
+  "event":  { "cursor": "8948507:03", "type": "ft_transfer", … },
+  "sig":    "3f9a…c41e",
+  "key_id": "streams-2026"
+}
+✓ signature verified`;
+
+const RUNES = `$ curl "$SL/v1/streams/events?chain=bitcoin&rune=840000:3"
+
+{
+  "events": [{ "type": "rune_transfer", "block_height": 968557,
+               "rune": "840000:3", "ts": … }],
+  # !mark[/"968557:41"/] blue
+  "next_cursor": "968557:41"
+}`;
 
 const CURSORS: readonly { at: string; label: string }[] = [
 	{ at: "506:19", label: "read" },
@@ -147,15 +183,15 @@ export default async function StreamsPage() {
 								</div>
 								<pre>
 									{'{"block_height":'}
-									<span className="t-a">{"8948506"}</span>
+									<span className="tail-at">{"8948506"}</span>
 									{',"event_index":12,"type":"ft_transfer"}\n{"block_height":'}
-									<span className="t-a">{"8948506"}</span>
+									<span className="tail-at">{"8948506"}</span>
 									{',"event_index":19,"type":"ft_transfer"}\n{"block_height":'}
-									<span className="t-a">{"8948506"}</span>
+									<span className="tail-at">{"8948506"}</span>
 									{',"event_index":24,"type":"ft_transfer"}\n{"block_height":'}
-									<span className="t-a">{"8948507"}</span>
+									<span className="tail-at">{"8948507"}</span>
 									{',"event_index":3,"type":"ft_transfer"}\n{"block_height":'}
-									<span className="t-a">{"8948507"}</span>
+									<span className="tail-at">{"8948507"}</span>
 									{',"event_index":8,"type":"ft_transfer"}'}
 								</pre>
 							</div>
@@ -187,32 +223,9 @@ export default async function StreamsPage() {
 							</>
 						}
 						art={
-							<Terminal title="~/consumer">
-								<pre>
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer streams tip</span>
-									{"\n"}
-									<span className="t-m">{"  block_height      8,948,506"}</span>
-									{"\n"}
-									<span className="t-m">{"  finalized_height  8,948,262"}</span>
-									{"\n\n"}
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer streams consume</span>
-									{
-										" \\\n    --types ft_transfer,nft_transfer \\\n    --cursor 8948507:03 --batch-size 500 | jq -c '.type'\n\n"
-									}
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer streams reorgs</span>
-									{"\n"}
-									<span className="t-hit">
-										{"  ✓ none in the last 1,000 blocks"}
-									</span>
-									{"\n\n"}
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer streams by-tx</span>
-									{" 0x9f2c…"}
-								</pre>
-							</Terminal>
+							<div className="art">
+								<Code lang="text" title="~/consumer" code={CONSUMER} />
+							</div>
 						}
 					/>
 
@@ -229,27 +242,19 @@ export default async function StreamsPage() {
 							</>
 						}
 						art={
-							<Terminal title="GET /v1/streams/events/stream">
-								<pre>
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">curl</span>
-									{
-										' -N "$SL/v1/streams/events/stream?types=ft_transfer" \\\n    -H "authorization: Bearer sk-sl_…"\n\n'
-									}
-									<span className="t-m">{"data:"}</span>
-									{
-										' {\n  "event":  { "cursor": "8948507:03", "type": "ft_transfer", … },\n  "sig":    '
-									}
-									<span className="t-a">{'"3f9a…c41e"'}</span>
-									{',\n  "key_id": "streams-2026"\n}\n'}
-									<span className="t-hit">{"  ✓ signature verified"}</span>
-								</pre>
-							</Terminal>
+							<div className="art">
+								<Code
+									lang="text"
+									title="GET /v1/streams/events/stream"
+									code={SSE}
+								/>
+							</div>
 						}
 					/>
 
 					<Split
 						flip
+						wide
 						copy={
 							<>
 								<Eyebrow noun="History" />
@@ -263,9 +268,14 @@ export default async function StreamsPage() {
 							</>
 						}
 						art={
-							<Terminal title="backfill.ts" meta="typescript">
-								<CodeBlock code={BACKFILL} lang="typescript" />
-							</Terminal>
+							<div className="art">
+								<Code
+									lang="ts"
+									variant="figure"
+									title="backfill.ts"
+									code={BACKFILL}
+								/>
+							</div>
 						}
 					/>
 
@@ -305,20 +315,12 @@ export default async function StreamsPage() {
 							)}
 						</div>
 					</div>
-					<Terminal title="GET /v1/streams/events">
-						<pre>
-							<span className="t-m">{"❯ "}</span>
-							<span className="t-a">curl</span>
-							{' "$SL/v1/streams/events?chain=bitcoin&rune=840000:3"\n\n'}
-							<span className="t-m">{"{"}</span>
-							{
-								'\n  "events": [{ "type": "rune_transfer", "block_height": 968557,\n               "rune": "840000:3", "ts": … }],\n  "next_cursor": '
-							}
-							<span className="t-a">{'"968557:41"'}</span>
-							{"\n"}
-							<span className="t-m">{"}"}</span>
-						</pre>
-					</Terminal>
+					<Code
+						lang="text"
+						variant="figure"
+						title="GET /v1/streams/events"
+						code={RUNES}
+					/>
 				</div>
 			</div>
 

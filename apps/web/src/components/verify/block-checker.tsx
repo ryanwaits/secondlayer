@@ -1,6 +1,5 @@
 "use client";
 
-import { Terminal } from "@/components/site/terminal";
 import type { LinkLine, ProofSource, VerifyStep } from "@secondlayer/verify";
 import {
 	type FormEvent,
@@ -50,9 +49,9 @@ function parseRef(raw: string): number | string | null {
 }
 
 function Mark({ status }: { status: LinkLine["status"] | "pending" }) {
-	if (status === "ok") return <span className="t-ok">{"✓"}</span>;
+	if (status === "ok") return <span className="bc-ok">{"✓"}</span>;
 	if (status === "failed") return <span className="bc-fail">{"✗"}</span>;
-	return <span className="t-m">{status === "pending" ? "…" : "·"}</span>;
+	return <span className="bc-mute">{status === "pending" ? "…" : "·"}</span>;
 }
 
 /**
@@ -93,9 +92,9 @@ export function RerunHint({
 }) {
 	return (
 		<div className="bc-rerun">
-			<p className="t-m">Run it on your machine, against your own node:</p>
+			<p className="bc-mute">Run it on your machine, against your own node:</p>
 			<p className="bc-code">
-				<span className="t-a" aria-hidden="true">
+				<span className="bc-name" aria-hidden="true">
 					{"❯ "}
 				</span>
 				{rerunCommand(target, below)
@@ -108,7 +107,7 @@ export function RerunHint({
 					))}
 			</p>
 			{below ? (
-				<p className="t-m">
+				<p className="bc-mute">
 					A node alone can't serve proofs more than 16 blocks back; this reads
 					them from the public proofs API.
 				</p>
@@ -146,12 +145,14 @@ function Row({
 	return (
 		<div className="bc-line">
 			<Mark status={status} />
-			<span className={status === "pending" ? "t-m" : undefined}>{label}</span>
+			<span className={status === "pending" ? "bc-mute" : undefined}>
+				{label}
+			</span>
 			{detail ? (
 				<span
 					className={
 						status === "skipped"
-							? "t-m"
+							? "bc-mute"
 							: status === "failed"
 								? "bc-fail"
 								: undefined
@@ -257,14 +258,17 @@ export function BlockChecker({ source }: { source?: ProofSource }) {
 
 	return (
 		<div className="site block-checker">
-			<Terminal title="your browser">
+			<div className="cb">
+				<div className="cb-bar">
+					<span>your browser</span>
+				</div>
 				<form className="bc-body" onSubmit={check}>
 					<div className="bc-row">
-						<span className="t-m" aria-hidden="true">
-							{"❯"}
+						<span className="bc-mute" aria-hidden="true">
+							{"$"}
 						</span>
 						<span className="bc-cmd">
-							<span className="t-a">secondlayer verify</span> block
+							<span className="bc-name">secondlayer verify</span> block
 						</span>
 						<input
 							className="bc-input"
@@ -288,11 +292,11 @@ export function BlockChecker({ source }: { source?: ProofSource }) {
 					<div className="bc-out" aria-live="polite">
 						{view.kind === "idle" ? (
 							<>
-								<p className="t-m">
+								<p className="bc-mute">
 									Runs in your browser against the public proofs API. No key, no
 									account.
 								</p>
-								{view.hint ? <p className="t-m">{view.hint}</p> : null}
+								{view.hint ? <p className="bc-mute">{view.hint}</p> : null}
 							</>
 						) : null}
 						{view.kind === "running" ? (
@@ -319,7 +323,7 @@ export function BlockChecker({ source }: { source?: ProofSource }) {
 										}
 									/>
 								))}
-								<p className={view.verdict.ok ? "t-ok" : "bc-fail"}>
+								<p className={view.verdict.ok ? "bc-ok" : "bc-fail"}>
 									{view.verdict.ok ? "✓ " : "✗ "}
 									{view.verdict.ok
 										? linkify(view.verdict.text, [
@@ -345,7 +349,7 @@ export function BlockChecker({ source }: { source?: ProofSource }) {
 						) : null}
 					</div>
 				</form>
-			</Terminal>
+			</div>
 		</div>
 	);
 }

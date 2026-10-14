@@ -1,3 +1,4 @@
+import { Code } from "@/components/code/code";
 import {
 	ButtonLink,
 	CloseBand,
@@ -12,7 +13,6 @@ import {
 	SelfHostSlot,
 	Split,
 	StatusDot,
-	Terminal,
 } from "@/components/site";
 import { IndexHero } from "@/components/site/assets";
 import { FilterIcon, MailIcon, ShieldCheckIcon } from "@/components/site/icons";
@@ -39,6 +39,32 @@ export const metadata: Metadata = socialMeta({
 });
 
 const [, , index] = PRODUCTS;
+
+const EVENTS = `$ curl "$SL/v1/index/events?event_type=ft_transfer&limit=20" \\
+    -H "authorization: Bearer sk-sl_…"
+
+{
+  "events": [{ "block_height": 8948506, "event_index": 12,
+               "type": "ft_transfer", … }],
+  "next_cursor": "8948506:12",
+  "tip": { "block_height": 8948506, "finalized_height": 8948262 },
+  "reorgs": []
+}`;
+
+const verifyAll = (
+	toBlock: string,
+	blocks: string,
+) => `$ secondlayer verify all \\
+    --against https://archive.secondlayer.tools/latest.json
+  manifest    secondlayer-canonical v1 · mainnet
+  coverage    0 → ${toBlock}   (${blocks} blocks)
+  ✓ 0 broken ranges · 0 gaps · nothing uploaded
+
+$ secondlayer repair --apply \\
+    --against https://archive.secondlayer.tools/latest.json
+  planned     3 partitions · events
+  allowance   15 of 18 free partitions left this month
+  ✓ charged $0.00`;
 
 const EVENT_TYPES = [
 	"stx_transfer",
@@ -151,24 +177,14 @@ export default async function IndexPage() {
 							</>
 						}
 						art={
-							<Terminal title="GET /v1/index/events">
-								<pre>
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">curl</span>
-									{
-										' "$SL/v1/index/events?event_type=ft_transfer&limit=20" \\\n    -H "authorization: Bearer sk-sl_…"\n\n'
-									}
-									<span className="t-m">{"{"}</span>
-									{
-										'\n  "events": [{ "block_height": 8948506, "event_index": 12,\n               "type": "ft_transfer", … }],\n  "next_cursor": '
-									}
-									<span className="t-a">{'"8948506:12"'}</span>
-									{
-										',\n  "tip": { "block_height": 8948506, "finalized_height": 8948262 },\n  "reorgs": []\n'
-									}
-									<span className="t-m">{"}"}</span>
-								</pre>
-							</Terminal>
+							<div className="art">
+								<Code
+									lang="text"
+									variant="figure"
+									title="GET /v1/index/events"
+									code={EVENTS}
+								/>
+							</div>
 						}
 					/>
 
@@ -187,42 +203,13 @@ export default async function IndexPage() {
 							</>
 						}
 						art={
-							<Terminal title="~/instance">
-								<pre>
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer verify</span>
-									{
-										" all \\\n    --against https://archive.secondlayer.tools/latest.json\n"
-									}
-									<span className="t-m">
-										{"  manifest    secondlayer-canonical v1 · mainnet"}
-									</span>
-									{"\n"}
-									<span className="t-m">
-										{`  coverage    0 → ${toBlock}   (${blocks} blocks)`}
-									</span>
-									{"\n"}
-									<span className="t-hit">
-										{"  ✓ 0 broken ranges · 0 gaps · nothing uploaded"}
-									</span>
-									{"\n"}
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer repair</span>
-									{
-										" --apply \\\n    --against https://archive.secondlayer.tools/latest.json\n"
-									}
-									<span className="t-m">
-										{"  planned     3 partitions · events"}
-									</span>
-									{"\n"}
-									<span className="t-m">{"  allowance   "}</span>
-									<span className="t-a">
-										{"15 of 18 free partitions left this month"}
-									</span>
-									{"\n"}
-									<span className="t-hit">{"  ✓ charged $0.00"}</span>
-								</pre>
-							</Terminal>
+							<div className="art">
+								<Code
+									lang="text"
+									title="~/instance"
+									code={verifyAll(toBlock, blocks)}
+								/>
+							</div>
 						}
 					/>
 

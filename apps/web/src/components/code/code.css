@@ -555,7 +555,7 @@
 
 /* Figure: product pages. Callouts leave the block and sit in the margin on a
    hairline leader at their row; the line number says which line a note is for. */
-.fig {
+.cf {
 	--lh: 22px;
 	--bar: 40px;
 	display: grid;
@@ -563,14 +563,14 @@
 	margin-top: var(--spacing-sm);
 	margin-bottom: var(--spacing-sm);
 }
-.fig > .cb {
+.cf > .cb {
 	margin: 0;
 }
-.fig .notes {
+.cf .cf-notes {
 	position: relative;
 	padding-left: 36px;
 }
-.fig .fnote {
+.cf .cf-note {
 	position: absolute;
 	top: calc(var(--nt) + var(--i) * var(--lh));
 	right: 0;
@@ -581,7 +581,7 @@
 	color: var(--sub);
 	font: 400 13px / var(--lh) var(--font-sans-stack);
 }
-.fig .fnote::before {
+.cf .cf-note::before {
 	content: "";
 	position: absolute;
 	top: calc(var(--lh) / 2);
@@ -589,7 +589,7 @@
 	width: 28px;
 	border-top: 1px solid var(--faint);
 }
-.fig .fnote b {
+.cf .cf-note b {
 	flex: none;
 	color: var(--ink);
 	font: 500 12px / var(--lh) var(--font-mono-stack);
@@ -598,35 +598,35 @@
 	color: var(--ink);
 }
 /* A tab group's figure keeps its notes inside the frame, under the tab bar. */
-.cb-tabs.figure .fig {
+.cb-tabs.figure .cf {
 	margin: 0;
 }
-.cb-tabs.figure .fig .notes {
+.cb-tabs.figure .cf .cf-notes {
 	padding-right: 14px;
 }
 @media (max-width: 960px) {
-	.fig,
-	.cb-tabs.figure .fig {
+	.cf,
+	.cb-tabs.figure .cf {
 		grid-template-columns: minmax(0, 1fr);
 		gap: 14px;
 	}
-	.cb-tabs.figure .fig {
+	.cb-tabs.figure .cf {
 		gap: 0;
 	}
-	.fig .notes {
+	.cf .cf-notes {
 		display: grid;
 		gap: 6px;
 		padding-left: 0;
 	}
-	.cb-tabs.figure .fig .notes {
+	.cb-tabs.figure .cf .cf-notes {
 		padding: 12px 14px;
 		border-top: 1px solid var(--line);
 	}
-	.fig .fnote {
+	.cf .cf-note {
 		position: static;
 		line-height: 1.5;
 	}
-	.fig .fnote::before {
+	.cf .cf-note::before {
 		display: none;
 	}
 }
@@ -634,16 +634,4 @@
 /* Docs: the article sets the rhythm. */
 .docs-article .cb {
 	margin-top: 18px;
-}
-
-/* Inside a product terminal: the terminal's own ground, no card. */
-.site .term .cb {
-	--paper: transparent;
-	--ink: var(--term-fg);
-	--sub: var(--term-mute);
-	--faint: var(--term-mute);
-	--line: var(--term-line);
-	margin: 0;
-	border: 0;
-	border-radius: 0;
 }

@@ -1,3 +1,4 @@
+import { Code } from "@/components/code/code";
 import {
 	ButtonLink,
 	CloseBand,
@@ -10,7 +11,6 @@ import {
 	RestOfPlatform,
 	SelfHostSlot,
 	Split,
-	Terminal,
 } from "@/components/site";
 import { ArchiveHero } from "@/components/site/assets";
 import { DownloadIcon, LayersIcon, LockIcon } from "@/components/site/icons";
@@ -34,6 +34,21 @@ export const metadata: Metadata = socialMeta({
 });
 
 const [archive] = PRODUCTS;
+
+const verifyAndRepair = (
+	toBlock: string,
+	blocks: string,
+) => `$ secondlayer verify all \\
+    --against https://archive.secondlayer.tools/latest.json
+  manifest    secondlayer-canonical v1 · mainnet
+  coverage    0 → ${toBlock}   (${blocks} blocks)
+  ⚠ 1 broken range · events 8,930,000 → 8,939,999
+
+$ secondlayer repair --apply \\
+    --against https://archive.secondlayer.tools/latest.json
+  planned     1 partition · events
+  allowance   17 of 18 free partitions left this month
+  ✓ repaired · re-verified · charged $0.00`;
 
 const JOBS: readonly {
 	id?: string;
@@ -216,44 +231,14 @@ export default async function ArchivePage() {
 							</>
 						}
 						art={
-							<Terminal title="~/instance">
-								<pre>
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer verify</span>
-									{
-										" all \\\n    --against https://archive.secondlayer.tools/latest.json\n"
-									}
-									<span className="t-m">
-										{"  manifest    secondlayer-canonical v1 · mainnet"}
-									</span>
-									{"\n"}
-									<span className="t-m">
-										{`  coverage    0 → ${toBlock}   (${blocks} blocks)`}
-									</span>
-									{"\n"}
-									<span className="t-m">
-										{"  broken      events 8,930,000 → 8,939,999"}
-									</span>
-									{"\n\n"}
-									<span className="t-m">{"❯ "}</span>
-									<span className="t-a">secondlayer repair</span>
-									{
-										" --apply \\\n    --against https://archive.secondlayer.tools/latest.json\n"
-									}
-									<span className="t-m">
-										{"  planned     1 partition · events"}
-									</span>
-									{"\n"}
-									<span className="t-m">{"  allowance   "}</span>
-									<span className="t-a">
-										{"17 of 18 free partitions left this month"}
-									</span>
-									{"\n"}
-									<span className="t-hit">
-										{"  ✓ repaired · re-verified · charged $0.00"}
-									</span>
-								</pre>
-							</Terminal>
+							<div className="art">
+								<Code
+									lang="text"
+									title="~/instance"
+									meta="exit=0"
+									code={verifyAndRepair(toBlock, blocks)}
+								/>
+							</div>
 						}
 					/>
 

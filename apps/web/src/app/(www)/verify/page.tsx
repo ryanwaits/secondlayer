@@ -1,11 +1,5 @@
-import { CodeBlock } from "@/components/code-block";
-import {
-	ButtonLink,
-	CloseBand,
-	Eyebrow,
-	Highlight,
-	Terminal,
-} from "@/components/site";
+import { Code } from "@/components/code/code";
+import { ButtonLink, CloseBand, Eyebrow, Highlight } from "@/components/site";
 import { VerifyChainArt } from "@/components/site/assets";
 import { BlockChecker } from "@/components/verify/block-checker";
 import { socialMeta } from "@/lib/og";
@@ -26,17 +20,32 @@ const SDK_SNIPPET = `import {
   verifyBlock,
 } from "@secondlayer/verify";
 
+// !callout[/No key needed/] proofs are never billed
 // No key needed; add apiKey for higher rate limits.
 const source = new SecondlayerProofSource({
   baseUrl: "https://api.secondlayer.tools",
 });
 
+// !callout[/verifyBlock/] proven on your machine
 const result = await verifyBlock(9_137_005, { source });
 
+// !callout[/result.ok/] fails with the first broken link
 if (!result.ok) {
   throw new Error(result.failures[0]?.message); // first broken link
 }
 console.log(result.stateRoot, result.diff?.writes.length);`;
+
+const EXAMPLE = `$ secondlayer verify block 9137005
+✓ block       9,137,005  2e5962b0…92f57ff
+✓ bitcoin     headers 967,680..970,269, proof of work checked
+✓ burn        height 970,269
+✓ cycle       144, signer set proven from cycle 143
+✓ signatures  2,866 / 4,000 weight, threshold 2,800
+✓ txs         2 transactions match the tx merkle root
+✓ state root  8103be4b…191f0cd5 matches the witness
+✓ diff        18 written, 1 carried, 5 internal
+· rows        not checked (pass --rows)
+✓ Block 9,137,005 is proven. Trusted: only the checkpoint.`;
 
 const CHECKS: readonly {
 	kind: string;
@@ -180,40 +189,7 @@ export default function VerifyPage() {
 							</ButtonLink>
 						</div>
 					</div>
-					<Terminal title="~/app" meta="example output">
-						<pre>
-							<span className="t-m">{"❯ "}</span>
-							<span className="t-a">secondlayer verify</span>
-							{" block 9137005\n"}
-							<span className="t-ok">{"✓"}</span>
-							{" block       9,137,005  "}
-							<span className="t-m">{"2e5962b0…92f57ff"}</span>
-							{"\n"}
-							<span className="t-ok">{"✓"}</span>
-							{" bitcoin     headers 967,680..970,269, proof of work checked\n"}
-							<span className="t-ok">{"✓"}</span>
-							{" burn        height 970,269\n"}
-							<span className="t-ok">{"✓"}</span>
-							{" cycle       144, signer set proven from cycle 143\n"}
-							<span className="t-ok">{"✓"}</span>
-							{" signatures  2,866 / 4,000 weight, threshold 2,800\n"}
-							<span className="t-ok">{"✓"}</span>
-							{" txs         2 transactions match the tx merkle root\n"}
-							<span className="t-ok">{"✓"}</span>
-							{" state root  8103be4b…191f0cd5 matches the witness\n"}
-							<span className="t-ok">{"✓"}</span>
-							{" diff        18 written, 1 carried, 5 internal\n"}
-							<span className="t-m">{"·"}</span>
-							<span className="t-m">
-								{" rows        not checked (pass --rows)"}
-							</span>
-							{"\n"}
-							<span className="fin">
-								<span className="t-ok">{"✓"}</span>
-								{" Block 9,137,005 is proven. Trusted: only the checkpoint."}
-							</span>
-						</pre>
-					</Terminal>
+					<Code lang="text" title="~/app · example output" code={EXAMPLE} />
 				</div>
 			</div>
 
@@ -372,9 +348,12 @@ export default function VerifyPage() {
 						</ul>
 					</div>
 					<div className="sdk-code">
-						<Terminal title="verify.ts" meta="bun add @secondlayer/verify">
-							<CodeBlock code={SDK_SNIPPET} lang="typescript" />
-						</Terminal>
+						<Code
+							lang="ts"
+							variant="figure"
+							title="verify.ts"
+							code={SDK_SNIPPET}
+						/>
 					</div>
 				</div>
 			</div>
