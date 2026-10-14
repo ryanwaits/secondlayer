@@ -193,7 +193,7 @@ export function HomeView() {
 								<ChainLink chain="runes" href="#runes-data">
 									Runes
 								</ChainLink>{" "}
-								on hosted, and{" "}
+								and{" "}
 								<ChainLink chain="clarity" href="#clarity-state-writes">
 									Clarity
 								</ChainLink>{" "}
