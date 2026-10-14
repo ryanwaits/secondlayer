@@ -1123,28 +1123,11 @@
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) auto;
 	align-items: end;
-	gap: 12px 48px;
-}
-/* The actions sit level with the sub; the note hangs under the sub alone. */
-.site.home .hero .sub {
-	grid-row: 1;
-}
-.site.home .hero-note {
-	grid-row: 2;
-	grid-column: 1;
-}
-.site.home .hero-cta {
-	grid-row: 1;
-	grid-column: 2;
+	gap: 24px 48px;
 }
 @media (max-width: 1080px) {
 	.site.home .hero-row {
 		grid-template-columns: minmax(0, 1fr);
-	}
-	.site.home .hero-cta {
-		grid-row: 3;
-		grid-column: 1;
-		margin-top: 12px;
 	}
 }
 .site.home .hero .sub {
@@ -1567,11 +1550,33 @@
 	letter-spacing: -0.05em;
 	line-height: 0.98;
 }
-/* Under the hero's sub, a smaller note on what lands next. */
-.site.home .hero-note {
-	font-size: 14.5px;
+/* Above the headline, a badge for what lands next. */
+.site.home .hero-badge {
+	justify-self: start;
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 10px;
+	padding: 5px 14px 5px 5px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	font-size: 14px;
 	line-height: 1.5;
-	color: var(--faint);
+	color: var(--sub);
+}
+.site.home .hero-badge-label {
+	padding: 2px 9px;
+	border-radius: 999px;
+	background: var(--soft);
+	font: 500 11px / 16px var(--font-mono-stack);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--ink);
+}
+@media (max-width: 640px) {
+	.site.home .hero-badge {
+		border-radius: 12px;
+	}
 }
 /* A chain named in the hero's sub: its mark as a chip, then the name as an
    underlined link, held together on one line. */
