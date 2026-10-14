@@ -13,8 +13,8 @@ import {
 	docsSearchDocs,
 	extractAgentNotes,
 	headingsFromMdx,
-	leadUnder,
 	mdxToMarkdown,
+	proseOf,
 	readAllDocsMarkdown,
 	readDocsMarkdown,
 } from "./docs-source";
@@ -223,12 +223,19 @@ describe("docsHeadingIndex", () => {
 	});
 });
 
-describe("leadUnder", () => {
+describe("proseOf", () => {
 	test("keeps underscores inside inline code and strips emphasis in prose", () => {
-		const source =
-			"## Token\n\nRun `INSTANCE_TOKEN` and _word_ with `request_id`.\n";
-		expect(leadUnder(source, "token", "test")).toBe(
+		const source = "Run `INSTANCE_TOKEN` and _word_ with `request_id`.";
+		expect(proseOf(source)).toBe(
 			"Run INSTANCE_TOKEN and word with request_id.",
+		);
+	});
+});
+
+describe("mdxToMarkdown tips", () => {
+	test("a prose tip reads as its text", () => {
+		expect(mdxToMarkdown('A [word](tip "Says what.") here.')).toBe(
+			"A word here.",
 		);
 	});
 });

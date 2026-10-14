@@ -32,17 +32,19 @@ function MdxCode({ children }: { children?: ReactNode }) {
 /** Internal links use next/link; external open in a new tab. Styling comes
  *  from `.docs-article a` (mirrors marketing `.prose a`). `hover:name` and
  *  `focus:name` are not links: they point at a `!ref` in the same section.
- *  `tip:/docs/page#section` is not a link either: it explains a word in place. */
+ *  `[text](tip "words")` is not a link either: it explains a word in place. */
 function MdxLink({
 	href = "",
+	title,
 	children,
-}: { href?: string; children?: ReactNode }) {
+}: { href?: string; title?: string; children?: ReactNode }) {
 	if (href.startsWith("hover:"))
 		return <Mention name={href.slice("hover:".length)}>{children}</Mention>;
 	if (href.startsWith("focus:"))
 		return <FocusLink name={href.slice("focus:".length)}>{children}</FocusLink>;
+	if (href === "tip") return <Tip text={title}>{children}</Tip>;
 	if (href.startsWith("tip:"))
-		return <Tip href={href.slice("tip:".length)}>{children}</Tip>;
+		throw new Error(`tip: links were replaced by [text](tip "words"): ${href}`);
 	if (href.startsWith("/") || href.startsWith("#")) {
 		return <Link href={href}>{children}</Link>;
 	}

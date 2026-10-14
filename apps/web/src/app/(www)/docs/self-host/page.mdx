@@ -289,7 +289,7 @@ The index can be rebuilt from the [archive](/docs/archive). The keys cannot.
 | `STREAMS_SIGNING_PRIVATE_KEY`, `SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY` | platform signature on deliveries |
 | `POSTGRES_PASSWORD` | the volume already uses it |
 
-Losing `SECONDLAYER_SECRETS_KEY` makes every existing `whsec_` unreadable; rotate each webhook rather than minting a new master key ([signing secrets](/docs/authentication#webhook-signing-secrets)). A full dump of a mainnet index takes hours, so a filesystem snapshot of the volume is the faster [backup](#backup) if the host can take one.
+Losing `SECONDLAYER_SECRETS_KEY` makes every existing `whsec_` unreadable; rotate each webhook rather than minting a new master key ([signing secrets](tip "A per-webhook secret (whsec_…) that proves a delivery came from your instance.")). A full dump of a mainnet index takes hours, so a filesystem snapshot of the volume is the faster [backup](#backup) if the host can take one.
 
 <Callout type="danger" title="Do not wipe the volume">
 

@@ -230,9 +230,9 @@ when there is more (a method's signature, a type's fields) the tooltip says "Cli
 details" and a click pins a popover. Esc, an outside click or another tip closes it; a tap
 opens the popover. A tip never contains a link and never navigates. On the reference page
 a tip belongs to, hovering it lights that entry's row. Prose gets the same
-tip with `[text](tip:/docs/page#section)`, which shows the first sentence under that
-heading and fails the build when the anchor is missing or the sentence runs past 120
-characters. A name without a summary has no tip.
+tip with `[text](tip "words")`: the author writes the line. The words are required,
+plain text (no backticks), 120 characters at most, two short sentences at most, with no
+em dash, URL or `/docs` path; the build fails otherwise. A name without a summary has no tip.
 
 | Surface | Tips | Rule |
 |---|---|---|
@@ -273,9 +273,9 @@ scope script (`scope-runtime.ts`) loads only on pages that render one of these.
 `lib/code/budget.test.ts` fails the build past those limits, on a `hover:`, `focus:`,
 `<Step ref>` or `<Pick>` name with no matching `!ref`/`!pick` in its scope, on a second
 `!pick` name in a scope, on `<CodeSteps>` outside `writing/`, on an unknown name, on `blue`
-outside figures and on `red` outside `text`. It also fails on a `!tip` or `tip:` outside
-guides, more than two `tip:` links under one `##`, a `tip:` to the page it is on (use
-`hover:`), any tip under `/p/*` or `/verify`, and more than 30 automatic tips across the
+outside figures and on `red` outside `text`. It also fails on a `!tip` or `[text](tip "…")`
+outside guides, more than two prose tips under one `##`, prose tip words that break the
+rules above, any tip under `/p/*` or `/verify`, and more than 30 automatic tips across the
 guides. A callout counts toward its section's 120-word lead. Most blocks stay plain: annotate only when the paragraph points at a token or line.
 
 **Which format when.**

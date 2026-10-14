@@ -1,4 +1,3 @@
-import { sectionLead } from "@/lib/docs-source";
 import type { ReactNode } from "react";
 import { CodeScope } from "./code-scope";
 
@@ -45,23 +44,48 @@ export function Pick({
 	);
 }
 
+/** A prose tip is read in a glance: this many characters at most. */
+export const MAX_TIP_TEXT = 120;
+
 /**
- * `[text](tip:/docs/page#section)`: a word the reader may ask about. Hover or
- * focus shows the first sentence under that heading, read from the page's own
- * MDX at build time, so the tip cannot drift from the section it summarizes.
- * It never links: the words are all it has. The page's `CodeClient` wakes it.
+ * Why a prose tip's words are not acceptable, or null when they are: required,
+ * plain text (a backtick would show), at most two short sentences, no em dash,
+ * no URL, no `/docs` path. The budget test reuses this so both fail alike.
  */
-export async function Tip({
-	href,
+export function tipTextProblem(text: string | undefined): string | null {
+	const t = text?.trim();
+	if (!t) return "has no words";
+	if (t.length > MAX_TIP_TEXT)
+		return `is ${t.length} characters, max ${MAX_TIP_TEXT}`;
+	if (t.includes("\u2014")) return "has an em dash";
+	if (t.includes("`")) return "has a backtick, tips are plain text";
+	if (/https?:\/\/|www\./.test(t)) return "has a URL";
+	if (t.includes("/docs")) return "has a /docs path";
+	if ((t.match(/[.!?](?=\s|$)/g) ?? []).length > 2)
+		return "has more than two sentences";
+	return null;
+}
+
+/**
+ * `[text](tip "words")`: a word the reader may ask about. Hover or focus shows
+ * the author's one line. It never links: the words are all it has. The page's
+ * `CodeClient` wakes it.
+ */
+export function Tip({
+	text,
 	children,
-}: { href: string; children?: ReactNode }) {
-	const summary = await sectionLead(href);
+}: { text?: string; children?: ReactNode }) {
+	const problem = tipTextProblem(text);
+	if (problem)
+		throw new Error(
+			`tip "${String(text)}" ${problem} (on "${String(children)}")`,
+		);
 	return (
 		<span
 			className="tip"
 			// biome-ignore lint/a11y/noNoninteractiveTabindex: a tip is read on focus, like a code token's
 			tabIndex={0}
-			data-tip={JSON.stringify({ summary })}
+			data-tip={JSON.stringify({ summary: text?.trim() })}
 		>
 			{children}
 		</span>

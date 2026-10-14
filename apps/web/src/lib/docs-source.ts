@@ -86,8 +86,9 @@ export function mdxToMarkdown(source: string): string {
 				},
 			)
 			// Prose that points at code (`[text](hover:name)`) or carries a tip
-			// (`[text](tip:/docs/page#section)`) reads as its text.
-			.replace(/\[([^\]]*)\]\((?:hover|focus|tip):[^)]*\)/g, "$1")
+			// (`[text](tip "words")`) reads as its text.
+			.replace(/\[([^\]]*)\]\((?:hover|focus):[^)]*\)/g, "$1")
+			.replace(/\[([^\]]*)\]\(tip\s+"[^"]*"\)/g, "$1")
 			// `export const metadata = {...}` — build-time only, never content.
 			.replace(/export const metadata\s*=\s*\{[\s\S]*?\n\};?\n?/g, "")
 			.replace(/^export .*$/gm, "")
@@ -224,77 +225,6 @@ export function headingsFromMdx(href: string, source: string): DocsHeading[] {
 	return out;
 }
 
-/** A prose tip's words: one sentence, so it reads in a glance. */
-export const MAX_TIP_LEAD = 120;
-
-/** Blocks that are not prose: fences, tables, lists, quotes, headings, tags, module lines. */
-const NOT_PROSE = /^(```|~~~|\||[-*+]\s|\d+\.\s|>|#|<|import\s|export\s)/;
-
-/**
- * The first sentence of the first paragraph under `anchor` in one page's MDX:
- * what a prose `tip:` shows. Throws, so the build fails, when the section is
- * missing, has no prose, or its first sentence is too long to read in a glance.
- */
-export function leadUnder(
-	source: string,
-	anchor: string,
-	where: string,
-): string {
-	const slugger = new GithubSlugger();
-	let fence: string | null = null;
-	let found = false;
-	let block: string[] = [];
-	const blocks: string[] = [];
-	const flush = () => {
-		if (block.length) blocks.push(block.join("\n"));
-		block = [];
-	};
-	for (const line of source.split("\n")) {
-		const mark = /^\s*(`{3,}|~{3,})/.exec(line)?.[1];
-		if (mark) {
-			if (!fence) fence = mark[0] ?? null;
-			else if (mark[0] === fence) fence = null;
-			if (found) flush();
-			continue;
-		}
-		if (fence) continue;
-		const heading = /^(#{2,4})\s+(.+?)\s*#*\s*$/.exec(line);
-		if (heading) {
-			// Every heading is slugged so duplicate suffixes line up with the page.
-			const same = slugger.slug(plainHeading(heading[2] ?? "")) === anchor;
-			if (found) break;
-			found = same;
-			continue;
-		}
-		if (!found) continue;
-		if (line.trim()) block.push(line.trim());
-		else flush();
-	}
-	flush();
-	if (!found)
-		throw new Error(`${where}: no section with the anchor #${anchor}`);
-	const paragraph = blocks.find((b) => !NOT_PROSE.test(b));
-	const prose = paragraph ? proseOf(paragraph) : "";
-	const sentence = /^.*?[.!?](?=\s|$)/.exec(prose)?.[0] ?? prose;
-	if (!sentence) throw new Error(`${where}: #${anchor} has no prose to tip`);
-	if (sentence.length > MAX_TIP_LEAD)
-		throw new Error(
-			`${where}: the first sentence under #${anchor} is ${sentence.length} characters, max ${MAX_TIP_LEAD}`,
-		);
-	return sentence;
-}
-
-/** `/docs/authentication#keys` → the words a `tip:` link to that section shows. */
-export async function sectionLead(href: string): Promise<string> {
-	const [path = "", anchor = ""] = href.split("#");
-	if (!path.startsWith("/docs") || !anchor)
-		throw new Error(`tip:${href} needs a docs page and an anchor`);
-	const source = extractAgentNotes(
-		await readFile(sourcePath(path), "utf8"),
-	).rest;
-	return leadUnder(source, anchor, `tip:${href}`);
-}
-
 /** Every searchable section of every hand-written docs page, sidebar-ordered. */
 export async function docsHeadingIndex(): Promise<DocsHeading[]> {
 	const pages = docsPages().filter((p) => !GENERATED_PAGES.has(p.href));
@@ -312,7 +242,7 @@ export async function docsHeadingIndex(): Promise<DocsHeading[]> {
 }
 
 /** Markdown reduced to prose: no fences, links, markup, or tags. */
-function proseOf(markdown: string): string {
+export function proseOf(markdown: string): string {
 	return markdown
 		.replace(/```[\s\S]*?```/g, "")
 		.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")

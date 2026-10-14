@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { tipTextProblem } from "@/components/code/prose";
 import { Glob } from "bun";
 import remarkCodeTips, { isGuide, routeOf } from "../remark-code-tips.mjs";
 import {
@@ -18,7 +19,7 @@ const FENCE = /^(`{3,}|~{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/gm;
 
 /** Automatic tips across every guide: past this, a page is tipping what it should be teaching. */
 const GUIDE_TIP_CEILING = 30;
-/** Most prose `tip:` links under one `##`. */
+/** Most prose tips under one `##`. */
 const PROSE_TIPS_PER_SECTION = 2;
 
 type Fence = {
@@ -81,34 +82,34 @@ function problems(): string[] {
 	return found;
 }
 
-/** Prose `tip:` links: only in guides, two per `##`, and never to the page they are on. */
+/** Prose `[text](tip "words")` tips: only in guides, two per `##`, each with words that pass `tipTextProblem`. */
 function proseTipProblems(): string[] {
 	const found: string[] = [];
 	for (const file of mdxFiles) {
-		const route = routeOfFile(file);
 		for (const scope of scopesOf(source(file), false)) {
-			const targets = [...scope.prose.matchAll(/\]\(tip:([^)]*)\)/g)].map(
+			const tips = [...scope.prose.matchAll(/\]\(tip\s+"([^"]*)"\)/g)].map(
 				(m) => m[1] ?? "",
 			);
 			const where = `${file} "${scope.where}"`;
-			if (targets.length && !isGuideFile(file))
-				found.push(`${where}: tip: is for guides only`);
-			if (targets.length > PROSE_TIPS_PER_SECTION)
+			if (tips.length && !isGuideFile(file))
+				found.push(`${where}: prose tips are for guides only`);
+			if (tips.length > PROSE_TIPS_PER_SECTION)
 				found.push(
-					`${where}: ${targets.length} tip: links (max ${PROSE_TIPS_PER_SECTION})`,
+					`${where}: ${tips.length} prose tips (max ${PROSE_TIPS_PER_SECTION})`,
 				);
-			for (const target of targets)
-				if (target.split("#")[0] === route)
-					found.push(`${where}: tip:${target} is this page, use hover:`);
+			for (const text of tips) {
+				const problem = tipTextProblem(text);
+				if (problem) found.push(`${where}: tip "${text}" ${problem}`);
+			}
 		}
 	}
 	return found;
 }
 
-/** Product pages carry no tips: no `tips=`, no `!tip`, no `tip:`. A product page shows what it sells, it does not explain it. */
+/** Product pages carry no tips: no `tips=`, no `!tip`, no prose tip. A product page shows what it sells, it does not explain it. */
 function productTipProblems(): string[] {
 	const found: string[] = [];
-	const pattern = /\btips=|(?:\/\/|#)\s*!tip\b|\]\(tip:/;
+	const pattern = /\btips=|(?:\/\/|#)\s*!tip\b|\]\(tip[\s"]/;
 	for (const dir of ["p", "verify"])
 		for (const file of new Glob(`${dir}/**/*.{ts,tsx,mdx}`).scanSync(ROOT)) {
 			if (/\.test\.tsx?$/.test(file)) continue;
@@ -193,7 +194,7 @@ describe("code annotation budgets", () => {
 });
 
 describe("tip rules", () => {
-	test("prose tips stay in guides, two per section, never to their own page", () => {
+	test("prose tips stay in guides, two per section, with words that read in a glance", () => {
 		expect(proseTipProblems()).toEqual([]);
 	});
 

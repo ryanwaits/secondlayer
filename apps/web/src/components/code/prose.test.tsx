@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { leadUnder, mdxToMarkdown, sectionLead } from "@/lib/docs-source";
+import { mdxToMarkdown } from "@/lib/docs-source";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Pick, Tip } from "./prose";
+import { Pick, Tip, tipTextProblem } from "./prose";
 
 describe("Pick", () => {
 	test("renders the default option as text before any script runs", () => {
@@ -15,65 +15,47 @@ describe("Pick", () => {
 });
 
 describe("Tip", () => {
-	test("renders its words with the section's first sentence in an attribute, and never links", async () => {
-		const href = "/docs/authentication#your-key";
-		const out = renderToStaticMarkup(await Tip({ href, children: "your key" }));
-		const summary = await sectionLead(href);
+	test("renders its words in an attribute, and never links", () => {
+		const out = renderToStaticMarkup(
+			<Tip text="Says what it is.">your key</Tip>,
+		);
 		expect(out).toContain('class="tip"');
 		expect(out).toContain('tabindex="0"');
-		expect(out).toContain(`&quot;summary&quot;:&quot;${summary}&quot;`);
+		expect(out).toContain("&quot;summary&quot;:&quot;Says what it is.&quot;");
 		expect(out).toContain(">your key</span>");
 		expect(out).not.toContain("<a ");
 		expect(out).not.toContain("href=");
 	});
 
-	test("a section that is not there fails the build", async () => {
-		await expect(
-			Tip({ href: "/docs/authentication#no-such-section" }),
-		).rejects.toThrow("no section with the anchor");
+	test("words that break a rule fail the build with the offending text", () => {
+		expect(() => renderToStaticMarkup(<Tip>word</Tip>)).toThrow("no words");
+		expect(() =>
+			renderToStaticMarkup(<Tip text="Has a `tick`.">word</Tip>),
+		).toThrow("Has a `tick`.");
 	});
 });
 
-describe("leadUnder", () => {
-	const page = [
-		"# Title",
-		"",
-		"Intro words.",
-		"",
-		"## Keys",
-		"",
-		"```bash",
-		"curl $URL",
-		"```",
-		"",
-		"[Sign in](https://x.dev) with `email`. Then more words here.",
-		"",
-		"## Long",
-		"",
-		`${"word ".repeat(30)}end.`,
-		"",
-		"## Empty",
-		"",
-		"| a | b |",
-		"| - | - |",
-		"",
-		"## Keys",
-		"",
-		"Second keys section.",
-	].join("\n");
-
-	test("is the first sentence of the first prose paragraph, as plain text", () => {
-		expect(leadUnder(page, "keys", "t")).toBe("Sign in with email.");
-		expect(leadUnder(page, "keys-1", "t")).toBe("Second keys section.");
+describe("tipTextProblem", () => {
+	test("accepts one or two short plain sentences", () => {
+		expect(tipTextProblem("One thing. Another thing.")).toBeNull();
 	});
 
-	test("throws for a missing anchor, a section with no prose, or a long sentence", () => {
-		expect(() => leadUnder(page, "nope", "t")).toThrow("no section");
-		expect(() => leadUnder(page, "empty", "t")).toThrow("no prose");
-		expect(() => leadUnder(page, "long", "t")).toThrow("max 120");
+	test("rejects each broken rule", () => {
+		expect(tipTextProblem(undefined)).toContain("no words");
+		expect(tipTextProblem("  ")).toContain("no words");
+		expect(tipTextProblem("w ".repeat(70))).toContain("max 120");
+		expect(tipTextProblem("A \u2014 B.")).toContain("em dash");
+		expect(tipTextProblem("Run `sl up`.")).toContain("backtick");
+		expect(tipTextProblem("See https://x.dev now.")).toContain("URL");
+		expect(tipTextProblem("See /docs/self-host.")).toContain("/docs");
+		expect(tipTextProblem("One. Two. Three.")).toContain("two sentences");
 	});
+});
 
+describe("mdxToMarkdown", () => {
 	test("the markdown twin reads a tip as its text", () => {
-		expect(mdxToMarkdown("A [word](tip:/docs/x#y) here.")).toBe("A word here.");
+		expect(mdxToMarkdown('A [word](tip "Says what.") here.')).toBe(
+			"A word here.",
+		);
 	});
 });
