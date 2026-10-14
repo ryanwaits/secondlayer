@@ -86,7 +86,7 @@ No platform, no config schema: a container and something that restarts it.
 
 #### Compose
 
-```yaml
+```yaml docker-compose.yml
 services:
   indexer:
     build: .
@@ -126,7 +126,7 @@ docker compose logs -f indexer
 
 Skipping containers:
 
-```ini
+```ini sales-index.service
 [Unit]
 After=network-online.target
 
