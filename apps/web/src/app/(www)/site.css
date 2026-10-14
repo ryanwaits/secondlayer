@@ -1242,88 +1242,6 @@
 	color: var(--pri);
 }
 
-/* verify. One chain graphic per width; the selectors carry `svg.asset` so
-   they beat `.site svg.asset { display: block }`. */
-.site .verify-trust {
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	padding: clamp(16px, 2.4vw, 24px);
-}
-.site svg.asset.trust-wide {
-	display: block;
-	max-width: 820px;
-}
-.site svg.asset.trust-tall {
-	display: none;
-}
-@media (max-width: 700px) {
-	.site svg.asset.trust-wide {
-		display: none;
-	}
-	.site svg.asset.trust-tall {
-		display: block;
-		max-width: 300px;
-	}
-}
-.site .verify-covers {
-	margin-top: 28px;
-}
-.site .covers-title {
-	margin-bottom: 10px;
-	font-family: var(--font-mono-stack);
-	font-size: 11.5px;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-	color: var(--sub);
-}
-.site .covers {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	column-gap: 40px;
-	border-top: 1px solid var(--line);
-}
-.site .covers > li {
-	display: grid;
-	grid-template-columns: 22px 1fr;
-	gap: 10px;
-	padding: 12px 0;
-	border-bottom: 1px solid var(--line);
-	font-size: 15px;
-}
-@media (max-width: 760px) {
-	.site .covers {
-		grid-template-columns: 1fr;
-	}
-}
-.site .covers .k {
-	font-family: var(--font-mono-stack);
-	font-size: 13px;
-	padding-top: 1px;
-}
-.site .covers .y {
-	color: var(--ok);
-}
-.site .covers .n {
-	color: var(--sub);
-}
-.site .covers .s {
-	color: var(--sub);
-	display: block;
-	font-size: 13.5px;
-	margin-top: 2px;
-}
-.site .verify-foot {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: flex-start;
-	gap: 12px 24px;
-	margin-top: 20px;
-	align-items: center;
-}
-
 /* reliability tiles */
 .site .tiles {
 	display: grid;
@@ -1364,35 +1282,27 @@
 	}
 }
 
-/* datasets */
-.site .data {
+/* datasets: what's live and what's next, in prose with chain chips, then one example */
+.site .next-cols {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: 16px;
+	gap: 24px 56px;
 }
-.site .data-note {
-	display: block;
-	margin-top: 14px;
-}
-.site .well {
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	padding: 24px;
+.site .next-col {
 	display: grid;
-	gap: 14px;
+	gap: 12px;
 	align-content: start;
 	min-width: 0;
 }
-.site .well-top {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: 12px;
-	flex-wrap: wrap;
-}
-.site .well p {
+.site .next-col p {
+	font-size: 17px;
+	line-height: 1.55;
 	color: var(--sub);
-	font-size: 15px;
+}
+.site .next-example {
+	display: grid;
+	gap: 10px;
+	margin-top: 36px;
 }
 .site .rows {
 	overflow-x: auto;
@@ -1432,108 +1342,8 @@
 .site .rows .tag-out {
 	color: var(--sub);
 }
-.site .stats {
-	display: grid;
-	grid-template-columns: repeat(3, 1fr);
-	border-top: 1px solid var(--line);
-}
-.site .stats > div {
-	padding: 14px 12px 4px 0;
-	display: grid;
-	gap: 4px;
-	min-width: 0;
-}
-.site .stats b {
-	font-weight: 500;
-	font-size: clamp(22px, 2.6vw, 30px);
-	letter-spacing: -0.03em;
-	font-variant-numeric: tabular-nums;
-}
-.site .stats span {
-	font-family: var(--font-mono-stack);
-	font-size: 11.5px;
-	color: var(--sub);
-}
 @media (max-width: 860px) {
-	.site .data {
-		grid-template-columns: 1fr;
-	}
-}
-@media (max-width: 420px) {
-	.site .stats {
-		grid-template-columns: 1fr 1fr;
-	}
-}
-
-/* your box or ours */
-.site .fork {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 16px;
-}
-.site .side {
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	padding: clamp(24px, 3.4vw, 36px);
-	display: grid;
-	gap: 16px;
-	align-content: start;
-	min-width: 0;
-}
-.site .side.ours {
-	background: var(--soft);
-}
-.site .side h3 {
-	font-size: clamp(24px, 2.6vw, 32px);
-	letter-spacing: -0.035em;
-}
-.site .side p {
-	color: var(--sub);
-}
-.site .side ul {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-	display: grid;
-	gap: 8px;
-	font-size: 15px;
-}
-.site .side li {
-	position: relative;
-	padding-left: 26px;
-}
-.site .side li::before {
-	content: "+";
-	position: absolute;
-	left: 0;
-	top: 0;
-	font-family: var(--font-mono-stack);
-	color: var(--sub);
-}
-.site .side .price {
-	border-top: 1px solid var(--line);
-	padding-top: 14px;
-	display: grid;
-	gap: 4px;
-}
-.site .fork-line {
-	margin-top: 20px;
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px 16px;
-	align-items: baseline;
-	color: var(--sub);
-}
-.site .fork-line a {
-	color: var(--ink);
-	font-weight: 500;
-	border-bottom: 1px solid var(--line);
-}
-.site .fork-line a:hover {
-	border-color: var(--pri);
-}
-@media (max-width: 860px) {
-	.site .fork {
+	.site .next-cols {
 		grid-template-columns: 1fr;
 	}
 }
@@ -1561,6 +1371,9 @@
 }
 .site .chain:hover {
 	text-decoration-color: currentColor;
+}
+.site .chain-plain {
+	text-decoration: none;
 }
 .site .chain-mark {
 	display: inline-block;

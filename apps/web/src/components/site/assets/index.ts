@@ -1,5 +1,4 @@
 export { RowsTable } from "./rows-table";
-export { TrustChainArt } from "./trust-chain";
 export { IndexHero } from "./index-hero";
 export { StreamsHero } from "./streams-hero";
 export { SubgraphsHero } from "./subgraphs-hero";

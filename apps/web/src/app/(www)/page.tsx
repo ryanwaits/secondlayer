@@ -1,13 +1,11 @@
-import { Code } from "@/components/code/code";
 import {
 	ButtonLink,
 	CloseBand,
 	Eyebrow,
 	Highlight,
-	Split,
 	StatusDot,
 } from "@/components/site";
-import { RowsTable, TrustChainArt } from "@/components/site/assets";
+import { RowsTable } from "@/components/site/assets";
 import { ChainLink } from "@/components/site/chain-link";
 import { socialMeta } from "@/lib/og";
 import { PRODUCTS } from "@/lib/site";
@@ -118,34 +116,6 @@ const TILES: readonly { icon: ReactNode; title: string; body: ReactNode }[] = [
 	},
 ];
 
-const COVERS: readonly {
-	covered: boolean;
-	title: string;
-	detail?: string;
-}[] = [
-	{
-		covered: true,
-		title: "Block headers and signatures",
-	},
-	{
-		covered: true,
-		title: "Which transactions a block holds",
-	},
-	{
-		covered: true,
-		title: "State changes",
-	},
-	{
-		covered: true,
-		title: "State subgraph rows",
-	},
-	{
-		covered: false,
-		title: "Print events and transaction results",
-		detail: "Not covered yet. Stacks headers don't commit to them.",
-	},
-];
-
 export default function Home() {
 	return <HomeView />;
 }
@@ -208,47 +178,6 @@ export function HomeView() {
 				</div>
 			</section>
 
-			<section className="band" id="verify">
-				<div className="shell">
-					<div className="sec-head">
-						<Eyebrow noun="Verify" />
-						<h2>Trust, and verify.</h2>
-						<p className="lede">
-							Each block's state proves back through the signer set to a Bitcoin
-							header. You run the check on your machine, and it never asks us
-							anything.
-						</p>
-					</div>
-					<div className="verify-trust">
-						<TrustChainArt />
-					</div>
-					<div className="verify-covers">
-						<p className="covers-title">What a check covers</p>
-						<ul className="covers">
-							{COVERS.map((c) => (
-								<li key={c.title}>
-									<span
-										className={c.covered ? "k y" : "k n"}
-										aria-hidden="true"
-									>
-										{c.covered ? "✓" : "–"}
-									</span>
-									<span>
-										{c.title}
-										{c.detail ? <span className="s">{c.detail}</span> : null}
-									</span>
-								</li>
-							))}
-						</ul>
-					</div>
-					<div className="verify-foot">
-						<ButtonLink href="/verify" variant="secondary">
-							How verification works
-						</ButtonLink>
-					</div>
-				</div>
-			</section>
-
 			<section className="band" id="reliability">
 				<div className="shell">
 					<div className="sec-head">
@@ -277,146 +206,52 @@ export function HomeView() {
 							ones.
 						</p>
 					</div>
-					<div className="data">
-						<div className="well">
-							<div className="well-top">
-								<h3>PoX-5 by signer</h3>
-								<StatusDot state="live" />
-							</div>
+					<div className="next-cols">
+						<div className="next-col">
+							<StatusDot state="live" />
 							<p>
-								The pox-5 print log, decoded per signer and cycle since
-								activation at Bitcoin block 960,230.
+								PoX-5 stacking on{" "}
+								<ChainLink chain="stacks" href="/docs/index#pox-5">
+									Stacks
+								</ChainLink>
+								, decoded per signer and cycle since activation at Bitcoin block
+								960,230. And every sBTC deposit and withdrawal as one row, with
+								its{" "}
+								<ChainLink chain="bitcoin" href="/docs/index#sbtc">
+									Bitcoin
+								</ChainLink>{" "}
+								side attached.
 							</p>
-							<RowsTable
-								columns={["signer", "cycle", "stx locked"]}
-								rows={[
-									["03a1…9f2c", "n", "41,250,000"],
-									["02c7…41b0", "n", "38,900,000"],
-									["03f0…be17", "n", "22,410,000"],
-								]}
-							/>
 						</div>
-						<div className="well">
-							<div className="well-top">
-								<h3>sBTC in and out</h3>
-								<StatusDot state="live" />
-							</div>
+						<div className="next-col">
+							<StatusDot state="soon" />
 							<p>
-								Every deposit and withdrawal as one row, with the Bitcoin side
-								attached.
-							</p>
-							<RowsTable
-								columns={["direction", "height", "sbtc"]}
-								rows={[
-									["in", "9,137,002", "0.5000"],
-									["out", "9,137,004", "0.1200"],
-									["in", "9,137,006", "2.0000"],
-								]}
-								firstClass={(row) => (row[0] === "in" ? "tag-in" : "tag-out")}
-							/>
-						</div>
-						<div className="well" id="runes-data">
-							<div className="well-top">
-								<h3>Runes</h3>
-								<StatusDot state="rolling" />
-							</div>
-							<p>
-								Catalog, balances and activity from block 840,000, checked
-								against ord with the record published.
-							</p>
-							<div className="stats">
-								<div>
-									<b>441M</b>
-									<span>rune events</span>
-								</div>
-								<div>
-									<b>6.94M</b>
-									<span>outpoints</span>
-								</div>
-								<div>
-									<b>0</b>
-									<span>mismatches vs ord</span>
-								</div>
-							</div>
-						</div>
-						<div className="well" id="clarity-state-writes">
-							<div className="well-top">
-								<h3>Clarity state writes</h3>
-								<StatusDot state="soon" />
-							</div>
-							<p>
-								What a transaction changed inside a contract, including
-								contracts that never print.
-							</p>
-							<RowsTable
-								columns={["op", "key", "value"]}
-								rows={[
-									["map_set", "balances[SP2J…4K]", "u1200"],
-									["var_set", "total-supply", "u98400"],
-									["map_delete", "pending[u42]", "none"],
-								]}
-							/>
-						</div>
-					</div>
-					<span className="cap data-note">example rows</span>
-				</div>
-			</section>
-
-			<section className="band" id="box">
-				<div className="shell">
-					<div className="sec-head">
-						<Eyebrow noun="Hosting" />
-						<h2>Your box or ours.</h2>
-						<p className="lede">
-							Same rows, same API, same proofs. You pay for what we run for you,
-							and checking our work stays free either way.
-						</p>
-					</div>
-					<div className="fork">
-						<div className="side ours">
-							<span className="eyebrow">Ours</span>
-							<h3>We run it.</h3>
-							<p>
-								A private stack per account, held at tip. Your subgraphs and
-								webhooks run on it, sandboxed from everyone else's.
-							</p>
-							<ul>
-								<li>Index and Streams reads with one key</li>
-								<li>Hosted subgraphs, isolated per account</li>
-								<li>Signed webhooks with free retries</li>
-							</ul>
-							<div className="price">
-								<span className="cap">
-									1M rows free every month · then $5 per 1M
+								<span id="runes-data">
+									<ChainLink chain="runes" href="/docs/index#runes">
+										Runes
+									</ChainLink>{" "}
+									on hosted, from block 840,000, checked against ord with 0
+									mismatches; self-host has it today.
+								</span>{" "}
+								<span id="clarity-state-writes">
+									And <ChainLink chain="clarity">Clarity</ChainLink> contract
+									state: every map and variable write, including inner contract
+									calls.
 								</span>
-							</div>
-						</div>
-						<div className="side yours">
-							<span className="eyebrow">Yours</span>
-							<h3>You run it.</h3>
-							<p>
-								One container beside your node and Postgres. Bootstrap from the
-								signed archive in hours instead of replaying the chain.
 							</p>
-							<ul>
-								<li>Same CLI, SDK and routes</li>
-								<li>Reads over loopback need no key</li>
-								<li>Verify and repair against the public manifests</li>
-							</ul>
-							<div className="price">
-								<span className="cap">MIT · free forever</span>
-							</div>
-							<Link className="more" href="/docs/self-host">
-								Self-host guide →
-							</Link>
 						</div>
 					</div>
-					<p className="fork-line">
-						Already run a Stacks node?{" "}
-						<Link href="/docs/self-host#connect-your-node">
-							Point its event observer at secondlayer
-						</Link>
-					</p>
+					<div className="next-example">
+						<RowsTable
+							columns={["op", "key", "value"]}
+							rows={[
+								["map_set", "balances[SP2J…4K]", "u1200"],
+								["var_set", "total-supply", "u98400"],
+								["map_delete", "pending[u42]", "none"],
+							]}
+						/>
+						<span className="cap">example rows · Clarity contract state</span>
+					</div>
 				</div>
 			</section>
 

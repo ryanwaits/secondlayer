@@ -32,11 +32,7 @@ describe("www marketing routes", () => {
 		expect(html.match(/<h1>/g)).toHaveLength(1);
 		for (const p of PRODUCTS) expect(html).toContain(`href="${p.href}"`);
 		expect(html).toContain('href="/verify"');
-		expect(html).toContain('href="/docs/self-host"');
-		expect(html).toContain('href="/docs/self-host#connect-your-node"');
 		expect(html).toContain("Proof included.");
-		expect(html).toContain("Your box or ours.");
-		expect(html).toContain("beside your node");
 		expect(html).toContain("example rows");
 		expect(html).toContain("Coming soon");
 		expect(html).not.toContain("—");
@@ -48,12 +44,11 @@ describe("www marketing routes", () => {
 		}
 	});
 
-	test("/ states the hosted and self-host paths and no withdrawn products", async () => {
+	test("/ says what is live and what is coming, and no withdrawn products", async () => {
 		const html = await renderAsync(<HomeView />);
-		// Runes is self-host only until hosted lands; its card says so.
-		expect(html).toMatch(/id="runes-data".*rolling out/);
-		expect(html).toContain("Your box or ours.");
-		expect(html).toContain("beside your node");
+		// Runes is self-host only until hosted lands; its line says so.
+		expect(html).toMatch(/id="runes-data".*self-host has it today/);
+		expect(html).toContain('id="clarity-state-writes"');
 		expect(html).toContain('href="/p/subgraphs"');
 		expect(html).toContain('href="/p/webhooks"');
 		// No stats strip, and nothing withdrawn.

@@ -73,14 +73,22 @@ export function ChainLink({
 	children,
 }: {
 	chain: Chain;
-	href: string;
+	/** Where the name leads. Without one, the chip and name read as plain text. */
+	href?: string;
 	children: ReactNode;
 }) {
-	return (
-		<a href={href} className="chain">
+	const inner = (
+		<>
 			<ChainMark chain={chain} />
 			<span className="chain-name">{children}</span>
+		</>
+	);
+	return href ? (
+		<a href={href} className="chain">
+			{inner}
 		</a>
+	) : (
+		<span className="chain chain-plain">{inner}</span>
 	);
 }
 
