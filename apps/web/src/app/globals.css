@@ -14,6 +14,14 @@
 	--on-hi: #111111;
 	--ok: #128a43;
 	--alarm: #e3301e;
+	/* HTTP verb palette: method pills only (DESIGN.md, Method pills) */
+	--verb-get: #128a43;
+	--verb-post: #f2a516;
+	--verb-put: #1f6feb;
+	--verb-patch: #6f42c1;
+	--verb-delete: #e3301e;
+	--on-verb: #ffffff;
+	--on-verb-post: #111111;
 	--term: #121316;
 	--term-line: #24262b;
 	--term-mute: #8b9099;
@@ -125,6 +133,13 @@
 		--on-hi: #141414;
 		--ok: #5cc28f;
 		--alarm: #ff5a47;
+		--verb-get: #23864f;
+		--verb-post: #efb02e;
+		--verb-put: #3a6ff0;
+		--verb-patch: #7d55e0;
+		--verb-delete: #d93a2b;
+		--on-verb: #ffffff;
+		--on-verb-post: #141414;
 		--term: #252420;
 		--term-line: #383631;
 		--term-mute: #b0aca2;

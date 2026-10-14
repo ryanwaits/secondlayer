@@ -1402,6 +1402,27 @@ html[data-acct-card] .docs-content {
 	background: var(--ink);
 	color: var(--paper);
 }
+/* Method pills: the HTTP verb palette, the convention API tools share */
+.apiref-verb-get {
+	background: var(--verb-get);
+	color: var(--on-verb);
+}
+.apiref-verb-post {
+	background: var(--verb-post);
+	color: var(--on-verb-post);
+}
+.apiref-verb-put {
+	background: var(--verb-put);
+	color: var(--on-verb);
+}
+.apiref-verb-patch {
+	background: var(--verb-patch);
+	color: var(--on-verb);
+}
+.apiref-verb-delete {
+	background: var(--verb-delete);
+	color: var(--on-verb);
+}
 .apiref-path {
 	font: 13.5px var(--font-mono-stack);
 	padding: 2px 8px;

@@ -128,6 +128,7 @@ name before writing CSS; an unknown `var(--x)` silently voids the whole declarat
 | `pri` / `on-pri` | `--pri` / `--on-pri` | `--accent`, `--accent-contrast`, `--blue`, `--teal` |
 | `hi` / `on-hi` | `--hi` / `--on-hi` | none; yellow fills only |
 | `ok` / `alarm` | `--ok` / `--alarm` | `--green` / `--red` |
+| `verb-*` / `on-verb` | `--verb-get` … `--verb-delete`, `--on-verb`, `--on-verb-post` | none; method pills only |
 | `terminal.*` | `--term`, `--term-line`, `--term-fg`, `--term-mute`, `--term-ok`, `--term-acc` | `--term-bg`, `--term-border`, `--term-muted` |
 
 `--yellow` is a readable status TEXT color (`#a37800` light, `#ffd21f` dark). Yellow
@@ -302,6 +303,7 @@ part its claim is about, the way the logo's top layer is blue (see Product glyph
 **Red fails.** Red appears only for failures and reorgs.
 **Neutrals carry the rest.** If it is not an action, a mark, or a failure, it is ink, sub,
 line, or soft. Muted text uses the `sub` role or the ink alpha ramp, never an invented gray.
+**Verbs are not roles.** API method pills use the HTTP verb palette (`--verb-*`): GET green, POST amber, PUT blue, PATCH violet, DELETE red, the convention API tools share. It appears on method pills only and never stands in for pri, hi, ok or alarm.
 
 ## 3. Typography
 
@@ -456,6 +458,10 @@ a check for 1.2s, no toast.
 No bullets, no rules: 14px check glyph `#999` + 14px/1.625 text at `ink/45`, `gap 10px`,
 rows `space-y-2`. Items state facts, never invented metrics.
 
+### Method pills
+Geist Mono 11.5px/500, 4px radius, `--verb-*` fill (GET green, POST amber, PUT blue, PATCH
+violet, DELETE red), white text except POST (ink). Objects keep the neutral outline pill.
+
 ### Code figure (the product stage)
 Product pages show the product as `<Code variant="figure">` on paper with the `line`
 hairline, the same renderer as docs. Rules:
@@ -516,7 +522,7 @@ Heading 16px ink 400 (not bold — column position does the work), links 16px `f
 
 ### Don't
 - **No new families.** Geist + Geist Mono, full stop. Caveat only for opt-in notation.
-- **Blue never decorates data. Yellow never signals status. Red only for failures and reorgs.**
+- **Blue never decorates data. Yellow never signals status. Red only for failures and reorgs.** Method pills are the one exception (see Verbs are not roles).
 - **No gradients, bevels, glows, dot-grids**, no gradient text, no glassmorphism (the 12px
   header blur is the one sanctioned blur), no card grids of identical feature tiles, no
   hero-metric blocks.
