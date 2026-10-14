@@ -999,14 +999,16 @@ a mark {
 	position: relative;
 	margin-left: 6px;
 }
+/* The trigger: initial tile, mono balance, chevron. Open is ink, never blue:
+   in the nav, blue marks the page you are on. */
 .acct-chip {
 	display: inline-flex;
 	align-items: center;
-	gap: 8px;
-	height: 38px;
-	padding: 0 12px 0 5px;
+	gap: 9px;
+	height: 34px;
+	padding: 0 10px 0 4px;
 	border: 1px solid var(--line);
-	border-radius: 999px;
+	border-radius: 4px;
 	background: var(--paper);
 	color: var(--ink);
 	cursor: pointer;
@@ -1016,57 +1018,34 @@ a mark {
 .acct-chip:hover {
 	border-color: var(--ink);
 }
-/* The one allowed tint: a state on a control, not an alert box. */
-.acct-chip.alert {
-	border-color: color-mix(in srgb, var(--alarm) 45%, var(--line));
-}
-.acct-chip.alert:hover,
-.acct-chip.alert[aria-expanded="true"] {
-	border-color: var(--alarm);
-}
 .acct-chip-balance {
 	font-family: var(--font-mono-stack);
-	font-size: 13.5px;
+	font-size: 13px;
 	font-weight: 500;
 	font-variant-numeric: tabular-nums;
+}
+.acct-chip-chev {
+	flex: none;
+	color: var(--sub);
+	transition: transform 150ms ease-out;
+}
+.acct-chip[aria-expanded="true"] .acct-chip-chev {
+	transform: rotate(180deg);
+}
+/* Low balance: the tile and the amount go red; nothing else changes. */
+.acct-chip.alert .acct-avatar {
+	background: var(--alarm);
+	color: var(--on-pri);
 }
 .acct-chip.alert .acct-chip-balance {
 	color: var(--alarm);
 }
-.acct-chip-sep {
-	width: 1px;
-	height: 16px;
-	background: var(--line);
-}
-.acct-chip-label {
-	font-size: 13.5px;
-	font-weight: 500;
-}
-.acct-avatar-wrap {
-	position: relative;
-	display: inline-flex;
-	flex: none;
-}
-.acct-avatar-dot {
-	position: absolute;
-	right: -1px;
-	bottom: -1px;
-	width: 9px;
-	height: 9px;
-	border-radius: 999px;
-	background: var(--ok);
-	border: 2px solid var(--paper);
-	box-sizing: border-box;
-}
-.acct-chip.alert .acct-avatar-dot {
-	background: var(--alarm);
-}
 .acct-chip-skeleton {
 	display: inline-block;
 	width: 112px;
-	height: 38px;
+	height: 34px;
 	margin-left: 6px;
-	border-radius: 999px;
+	border-radius: 4px;
 	background: color-mix(in srgb, var(--text-main) 6%, transparent);
 }
 .acct-avatar {
@@ -1074,27 +1053,29 @@ a mark {
 	align-items: center;
 	justify-content: center;
 	flex: none;
-	border-radius: 999px;
-	background: var(--text-main);
-	color: var(--bg);
-	font-family: var(--font-heading-stack);
+	border-radius: 2px;
+	background: var(--ink);
+	color: var(--paper);
+	font-family: var(--font-sans-stack);
 	font-weight: 500;
 }
 .acct-mobile-avatar {
 	display: none;
 }
+/* The menu hangs off the bar: its top edge is the bar's own hairline.
+   `--acct-drop` is the gap from the trigger to just under that hairline
+   (64px marketing bar, 34px trigger). */
 .acct-panel {
 	position: absolute;
-	top: calc(100% + 10px);
+	top: calc(100% + var(--acct-drop, 15.5px));
 	right: 0;
-	width: 320px;
+	width: 300px;
 	max-width: calc(100vw - 2rem);
-	padding: 0 0 4px;
 	overflow: hidden;
 	background: var(--paper);
 	border: 1px solid var(--line);
-	border-radius: 8px;
-	box-shadow: none;
+	border-top: 0;
+	border-radius: 0 0 4px 4px;
 	z-index: 80;
 }
 .acct-panel-head {
@@ -1118,9 +1099,8 @@ a mark {
 }
 .acct-menu-top {
 	display: grid;
-	gap: 2px;
-	padding: 12px 14px;
-	border-bottom: 1px solid var(--line);
+	gap: 3px;
+	padding: 14px 16px 12px;
 }
 .acct-menu-top b {
 	font-size: 14px;
@@ -1132,14 +1112,19 @@ a mark {
 	font-size: 12px;
 	color: var(--sub);
 }
-.acct-menu-open,
+.acct-menu-rows {
+	display: grid;
+	padding: 4px 0;
+	border-top: 1px solid var(--line);
+}
 .acct-menu-row {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
 	width: 100%;
-	padding: 8px 14px;
+	height: 36px;
+	padding: 0 16px;
 	border: 0;
 	background: transparent;
 	color: var(--ink);
@@ -1149,29 +1134,44 @@ a mark {
 	text-decoration: none;
 	cursor: pointer;
 }
-.acct-menu-open {
-	padding: 10px 14px;
-	border-bottom: 1px solid var(--line);
-	font-weight: 500;
-}
-.acct-menu-open span:last-child {
-	color: var(--pri);
-}
 .acct-menu-row small {
 	font-family: var(--font-mono-stack);
-	font-size: 12px;
+	font-size: 12.5px;
+	font-variant-numeric: tabular-nums;
 	color: var(--sub);
 }
-.acct-menu-open:hover,
+.acct-menu-go {
+	color: var(--sub);
+}
 .acct-menu-row:hover {
 	background: var(--soft);
 }
-.acct-menu-row.muted span {
+.acct-menu-foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	height: 42px;
+	padding: 0 16px;
+	border-top: 1px solid var(--line);
+}
+.acct-menu-foot button {
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	font-size: 14px;
+	cursor: pointer;
+}
+.acct-menu-credits {
+	color: var(--pri);
+}
+.acct-menu-signout {
 	color: var(--sub);
 }
-.acct-menu-rule {
-	border-top: 1px solid var(--line);
-	margin: 4px 0;
+.acct-menu-credits:hover,
+.acct-menu-signout:hover {
+	text-decoration: underline;
+	text-underline-offset: 3px;
 }
 .acct-result {
 	display: flex;

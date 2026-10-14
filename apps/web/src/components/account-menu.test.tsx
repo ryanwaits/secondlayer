@@ -12,7 +12,7 @@ const account = {
 };
 
 describe("AccountChip", () => {
-	test("a healthy account shows the balance, a status dot and the word Account", () => {
+	test("a healthy account shows its initial and balance, nothing alarming", () => {
 		const html = renderToStaticMarkup(
 			<AccountChip
 				account={account}
@@ -22,8 +22,8 @@ describe("AccountChip", () => {
 			/>,
 		);
 		expect(html).toContain("$29.62");
-		expect(html).toContain("acct-avatar-dot");
-		expect(html).toContain(">Account<");
+		expect(html).toContain('class="acct-avatar"');
+		expect(html).toContain(">Y<");
 		expect(html).not.toContain("alert");
 		expect(html).not.toContain("needs attention");
 	});
@@ -74,6 +74,11 @@ describe("AccountMenuPanel", () => {
 		expect(panel).toContain('href="/account/webhooks"');
 		expect(panel).toContain("7 of 7");
 		expect(panel).toContain("$30.32");
+	});
+
+	test("ends on Add credits and Sign out, side by side", () => {
+		const foot = panel.slice(panel.indexOf("acct-menu-foot"));
+		expect(foot.indexOf("Add credits")).toBeLessThan(foot.indexOf("Sign out"));
 	});
 
 	test("data that has not loaded shows a dash, never an invented number", () => {

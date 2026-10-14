@@ -21,9 +21,10 @@ import { refreshList, useWebhooksCache } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
+/** The account's initial on a small ink square. */
 export function AccountAvatar({
 	account,
-	size = 26,
+	size = 24,
 }: {
 	account: Account;
 	size?: number;
@@ -32,7 +33,7 @@ export function AccountAvatar({
 	return (
 		<span
 			className="acct-avatar"
-			style={{ width: size, height: size, fontSize: Math.round(size * 0.46) }}
+			style={{ width: size, height: size, fontSize: Math.round(size * 0.5) }}
 			aria-hidden="true"
 		>
 			{initial.toUpperCase()}
@@ -41,8 +42,8 @@ export function AccountAvatar({
 }
 
 /**
- * The nav chip: avatar with a status dot, mono balance, the word "Account".
- * Pure, so the healthy and alert looks render the same everywhere.
+ * The nav trigger: initial tile, mono balance, a chevron. Pure, so the
+ * healthy and alert looks render the same everywhere.
  */
 export function AccountChip({
 	account,
@@ -68,13 +69,21 @@ export function AccountChip({
 			aria-label={`Account menu, ${account.email}${balance ? `, balance ${balance}` : ""}${alert ? ", needs attention" : ""}`}
 			onClick={onClick}
 		>
-			<span className="acct-avatar-wrap">
-				<AccountAvatar account={account} />
-				<span className="acct-avatar-dot" aria-hidden="true" />
-			</span>
+			<AccountAvatar account={account} />
 			<span className="acct-chip-balance">{balance ?? "···"}</span>
-			<span className="acct-chip-sep" aria-hidden="true" />
-			<span className="acct-chip-label">Account</span>
+			<svg
+				className="acct-chip-chev"
+				width="12"
+				height="12"
+				viewBox="0 0 12 12"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="1.2"
+				strokeLinecap="round"
+				aria-hidden="true"
+			>
+				<path d="M3 4.5l3 3 3-3" />
+			</svg>
 		</button>
 	);
 }
@@ -110,44 +119,48 @@ export function AccountMenuPanel({
 				<b>{email}</b>
 				<span>{caption}</span>
 			</div>
-			<Link href="/account" className="acct-menu-open" onClick={onNavigate}>
-				<span>Open account</span>
-				<span aria-hidden="true">→</span>
-			</Link>
-			<button type="button" className="acct-menu-row" onClick={onKeys}>
-				<span>API keys</span>
-				<small>{keyCount ?? "—"}</small>
-			</button>
-			<Link
-				href="/account/credits"
-				className="acct-menu-row"
-				onClick={onNavigate}
-			>
-				<span>Usage and billing</span>
-				<small>{spent ?? "—"}</small>
-			</Link>
-			<Link
-				href="/account/webhooks"
-				className="acct-menu-row"
-				onClick={onNavigate}
-			>
-				<span>Webhooks</span>
-				<small>{webhooks ?? "—"}</small>
-			</Link>
-			<div className="acct-menu-rule" />
-			<button type="button" className="acct-menu-row" onClick={onCredits}>
-				<span>Add credits</span>
-				<small>Stripe</small>
-			</button>
-			<button type="button" className="acct-menu-row muted" onClick={onSignOut}>
-				<span>Sign out</span>
-			</button>
+			<div className="acct-menu-rows">
+				<Link href="/account" className="acct-menu-row" onClick={onNavigate}>
+					<span>Open account</span>
+					<span className="acct-menu-go" aria-hidden="true">
+						→
+					</span>
+				</Link>
+				<button type="button" className="acct-menu-row" onClick={onKeys}>
+					<span>API keys</span>
+					<small>{keyCount ?? "—"}</small>
+				</button>
+				<Link
+					href="/account/credits"
+					className="acct-menu-row"
+					onClick={onNavigate}
+				>
+					<span>Usage and billing</span>
+					<small>{spent ?? "—"}</small>
+				</Link>
+				<Link
+					href="/account/webhooks"
+					className="acct-menu-row"
+					onClick={onNavigate}
+				>
+					<span>Webhooks</span>
+					<small>{webhooks ?? "—"}</small>
+				</Link>
+			</div>
+			<div className="acct-menu-foot">
+				<button type="button" className="acct-menu-credits" onClick={onCredits}>
+					Add credits
+				</button>
+				<button type="button" className="acct-menu-signout" onClick={onSignOut}>
+					Sign out
+				</button>
+			</div>
 		</div>
 	);
 }
 
 /**
- * Signed-in nav: a status chip whose menu leads to the account Overview and
+ * Signed-in nav: a balance trigger whose menu leads to the account Overview and
  * opens the keys and credits cards in place.
  */
 export function AccountMenu({
@@ -221,7 +234,9 @@ export function AccountMenu({
 				<AccountMenuPanel
 					id={menuId}
 					email={account.email}
-					caption={["hosted", balance, days].filter(Boolean).join(" · ")}
+					caption={["hosted", days && `${days} left`]
+						.filter(Boolean)
+						.join(" · ")}
 					keyCount={keys === null ? null : activeKeys(keys).length}
 					spent={billing ? formatUsd(billing.spentThisMonthUsdMicros) : null}
 					webhooks={rows ? `${delivering} of ${rows.length}` : null}

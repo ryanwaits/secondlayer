@@ -257,6 +257,10 @@ html:has(.docs-search input:focus) {
 .docs-top-links a:hover {
 	color: var(--ink);
 }
+/* The account menu hangs off this bar's hairline (56px bar, 34px trigger). */
+.docs-top .acct-menu {
+	--acct-drop: 12px;
+}
 /* Products hover menu: right-aligned under the bar; ::before bridges the
    gap so the pointer can travel from the button to the panel. */
 .docs-products .products-menu-panel {
