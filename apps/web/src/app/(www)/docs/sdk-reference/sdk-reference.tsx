@@ -66,18 +66,6 @@ function Html({ html, className }: { html: string; className?: string }) {
 	);
 }
 
-/** "SDK reference · Streams", above the page title. */
-export function SdkEyebrow({
-	title,
-	lead = "SDK reference",
-}: { title: string; lead?: string }) {
-	return (
-		<p className="sdkr-eyebrow">
-			{lead} <span>· {title}</span>
-		</p>
-	);
-}
-
 let endpointIndex: Map<string, string> | undefined;
 
 /** `GET /v1/streams/events` → the API page anchor that documents it. */

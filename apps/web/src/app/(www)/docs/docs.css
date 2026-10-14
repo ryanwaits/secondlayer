@@ -1576,16 +1576,6 @@ html[data-acct-card] .docs-content {
 	/* a package specifier (`@secondlayer/stacks/filters`) is wider than a phone */
 	overflow-wrap: anywhere;
 }
-.docs-article .sdkr-eyebrow {
-	margin: 0;
-	font: 500 12px / 1 var(--font-mono-stack);
-	letter-spacing: 0.12em;
-	text-transform: uppercase;
-	color: var(--ink);
-}
-.sdkr-eyebrow span {
-	color: var(--sub);
-}
 .sdkr {
 	display: grid;
 	gap: 24px;
@@ -2023,9 +2013,6 @@ html[data-acct-card] .docs-content {
 }
 .sdkr-root {
 	justify-self: start;
-	padding: 10px 14px;
-	border: 1.5px solid var(--ink);
-	border-radius: 8px;
 	font: 500 14px var(--font-mono-stack);
 }
 .sdkr-root span {
