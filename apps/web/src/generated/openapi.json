@@ -14323,7 +14323,7 @@
 							"type": "string",
 							"example": "0:0"
 						},
-						"description": "Same as `cursor`. `0:0` starts at genesis, subject to the key's retention window."
+						"description": "Same as `cursor`. `0:0` starts at genesis."
 					},
 					{
 						"name": "from_height",
@@ -14653,7 +14653,7 @@
 							"type": "string",
 							"example": "0:0"
 						},
-						"description": "Same as `cursor`. `0:0` starts at genesis, subject to the key's retention window."
+						"description": "Same as `cursor`. `0:0` starts at genesis."
 					},
 					{
 						"name": "from_height",

@@ -35,7 +35,7 @@ const [archive, streams, index, subgraphs, webhooks] = PRODUCTS;
 
 const BACKFILL = `// signed dumps first, then live from the seam
 await streams.events.replay({
-  // !callout[/"genesis"/] from the first block
+  // !callout[/"genesis"/] every window the dumps hold
   from: "genesis",
   // !callout[/onDumpFile/] every dump is sha256-verified
   async onDumpFile(file, { from }) {

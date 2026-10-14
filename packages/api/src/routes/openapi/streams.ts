@@ -116,7 +116,7 @@ const START_PARAMS = [
 			"from_cursor",
 			"string",
 			false,
-			"Same as `cursor`. `0:0` starts at genesis, subject to the key's retention window.",
+			"Same as `cursor`. `0:0` starts at genesis.",
 		),
 		schema: { type: "string", example: "0:0" },
 	},
