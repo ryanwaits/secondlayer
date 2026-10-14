@@ -200,7 +200,7 @@ describe("base url swap", () => {
 			/<span data-swap="0"><span[^>]*>https:\/\/api.secondlayer.tools<\/span><\/span>/,
 		);
 		expect(out).toMatch(
-			/<span data-swap="1"><span[^>]*>\$SECONDLAYER_API_KEY<\/span><\/span>/,
+			/<span class="ph-no-capture" data-key-slot data-swap="1"><span[^>]*>\$SECONDLAYER_API_KEY<\/span><\/span>/,
 		);
 	});
 
@@ -279,5 +279,50 @@ describe("figure variant", () => {
 				code: "const a = 1;",
 			}),
 		).rejects.toThrow("figures take no");
+	});
+});
+
+describe("docs key slots", () => {
+	const curl =
+		'curl https://api.secondlayer.tools/v1/streams/tip -H "Authorization: Bearer $SECONDLAYER_API_KEY"';
+
+	test("a copyable block naming the key variable gets a hidden control and a blocked slot", async () => {
+		const out = await html({ lang: "sh", title: "tip", code: curl });
+		expect(out).toContain(
+			'<button type="button" class="ghost use-key" data-use-key hidden>Use my key</button>',
+		);
+		expect(out).toMatch(
+			/<span class="ph-no-capture" data-key-slot><span[^>]*>\$SECONDLAYER_API_KEY<\/span><\/span>/,
+		);
+	});
+
+	test("a bare block floats the control beside Copy", async () => {
+		const out = await html({ lang: "sh", code: curl });
+		expect(out).toContain('class="cb bare key"');
+		expect(out).toContain("data-use-key hidden");
+	});
+
+	test("a block without the variable has neither control nor slot", async () => {
+		const out = await html({
+			lang: "sh",
+			title: "tip",
+			code: "curl https://api.secondlayer.tools/v1/streams/tip",
+		});
+		expect(out).not.toContain("data-use-key");
+		expect(out).not.toContain("data-key-slot");
+	});
+
+	test("output and nocopy blocks never offer a key", async () => {
+		expect(
+			await html({ lang: "text", code: "$ echo $SECONDLAYER_API_KEY\nok" }),
+		).not.toContain("data-use-key");
+		expect(
+			await html({ lang: "sh", meta: "nocopy", code: curl }),
+		).not.toContain("data-use-key");
+	});
+
+	test("the server never renders a key value", async () => {
+		const out = await html({ lang: "sh", title: "tip", code: curl });
+		expect(out).not.toMatch(/sk-sl_/);
 	});
 });

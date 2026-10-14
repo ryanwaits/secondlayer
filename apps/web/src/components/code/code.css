@@ -61,20 +61,30 @@
 .cb.bare .more {
 	padding-right: 64px;
 }
-.cb.bare > .copy {
+.cb.bare > .copy,
+.cb.bare > .use-key {
 	position: absolute;
 	top: 8px;
 	right: 8px;
 	background: var(--paper);
 	opacity: 0;
 }
+.cb.bare > .use-key {
+	right: 72px;
+}
+.cb.bare.key .row {
+	padding-right: 176px;
+}
 .cb.bare:hover > .copy,
+.cb.bare:hover > .use-key,
 .cb.bare > .copy:focus-visible,
+.cb.bare > .use-key:focus-visible,
 .cb.bare > .copy[data-done] {
 	opacity: 1;
 }
 @media (hover: none) {
-	.cb.bare > .copy {
+	.cb.bare > .copy,
+	.cb.bare > .use-key {
 		opacity: 1;
 	}
 }
@@ -620,4 +630,35 @@
 /* Docs: the article sets the rhythm. */
 .docs-article .cb {
 	margin-top: 18px;
+}
+
+/* A docs key in a sample. The real key stays in the slot (so Copy reads it) and
+   is shown only on Reveal; the mask is generated content, never text. */
+.cb [data-key-slot][data-key] {
+	position: relative;
+}
+.cb [data-key-slot][data-key]:not([data-reveal]) .ks-real {
+	display: inline-block;
+	width: 0;
+	overflow: hidden;
+	vertical-align: bottom;
+	white-space: nowrap;
+}
+.cb [data-key-slot][data-key]:not([data-reveal])::after {
+	content: attr(data-mask);
+	color: var(--pri);
+}
+/* The Base URL switch's self-hosted value wins over a hosted key. */
+:root[data-base="local"]
+	.cb
+	[data-key-slot][data-key]:not([data-reveal])::after {
+	content: none;
+}
+:root[data-base="local"] .cb [data-key-slot][data-key] .ks-real {
+	display: inline;
+	width: auto;
+}
+.cb .use-key[data-state="on"] {
+	border-color: var(--pri);
+	color: var(--pri);
 }

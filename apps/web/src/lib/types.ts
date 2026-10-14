@@ -7,7 +7,7 @@ export interface Account {
 	createdAt: string;
 }
 
-export type ApiKeyProduct = "account" | "streams" | "index";
+export type ApiKeyProduct = "account" | "streams" | "index" | "docs";
 export type ApiKeyTier = "free";
 
 export interface ApiKey {
@@ -19,4 +19,6 @@ export interface ApiKey {
 	tier: ApiKeyTier | null;
 	createdAt: string;
 	lastUsedAt: string | null;
+	/** Set on a docs key: when it stops working. */
+	expiresAt?: string | null;
 }

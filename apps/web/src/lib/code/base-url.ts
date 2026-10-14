@@ -4,6 +4,9 @@ export const LOCAL_BASE = "http://127.0.0.1:3800";
 
 export type Base = "hosted" | "local";
 
+/** The credential placeholder samples carry; a signed-in reader's docs key replaces it. */
+export const KEY_VAR = "$SECONDLAYER_API_KEY";
+
 /**
  * What changes between the bases: the origin and the credential an example
  * names. Hosted first, self-hosted second; a fence with the `base` option
@@ -11,5 +14,8 @@ export type Base = "hosted" | "local";
  */
 export const BASE_SWAPS = [
 	[HOSTED_BASE, LOCAL_BASE],
-	["$SECONDLAYER_API_KEY", "$INSTANCE_TOKEN"],
+	[KEY_VAR, "$INSTANCE_TOKEN"],
 ] as const;
+
+/** The `BASE_SWAPS` entry that holds the credential. */
+export const KEY_SWAP = 1;

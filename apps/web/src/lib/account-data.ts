@@ -199,8 +199,33 @@ export function clearAccountData(): void {
 	clearWebhooksData();
 }
 
+/** The keys an account owns and manages. The short-lived docs key is not one of them. */
 export function activeKeys(keys: ApiKey[] | null): ApiKey[] {
-	return (keys ?? []).filter((k) => k.status === "active");
+	return (keys ?? []).filter(
+		(k) => k.status === "active" && k.product !== "docs",
+	);
+}
+
+/** The reader's live docs key, if one is minted and not yet expired. */
+export function docsKey(
+	keys: ApiKey[] | null,
+	now = Date.now(),
+): ApiKey | null {
+	return (
+		(keys ?? []).find(
+			(k) =>
+				k.product === "docs" &&
+				k.status === "active" &&
+				k.expiresAt != null &&
+				Date.parse(k.expiresAt) > now,
+		) ?? null
+	);
+}
+
+/** "5h" or "40m": how long until a docs key stops working. */
+export function expiresIn(iso: string, now = Date.now()): string {
+	const minutes = Math.max(1, Math.ceil((Date.parse(iso) - now) / 60_000));
+	return minutes >= 60 ? `${Math.floor(minutes / 60)}h` : `${minutes}m`;
 }
 
 /** Mint a key. Returns its full value, which is never retrievable again. */

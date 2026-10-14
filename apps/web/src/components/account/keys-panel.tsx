@@ -3,6 +3,8 @@
 import {
 	activeKeys,
 	createKey,
+	docsKey,
+	expiresIn,
 	formatDate,
 	refreshKeys,
 	revokeKey,
@@ -47,7 +49,8 @@ export function KeyList({ keys }: { keys: ApiKey[] | null }) {
 	const [confirming, setConfirming] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const list = activeKeys(keys);
+	const docs = docsKey(keys);
+	const list = docs ? [...activeKeys(keys), docs] : activeKeys(keys);
 
 	if (keys === null) return <p className="acct-muted">Loading keys...</p>;
 	if (list.length === 0) return <p className="acct-muted">No keys yet.</p>;
@@ -100,8 +103,9 @@ export function KeyList({ keys }: { keys: ApiKey[] | null }) {
 							<span className="acct-key-name">{k.name}</span>
 							<code className="acct-key-prefix">{k.prefix}…</code>
 							<span className="acct-key-meta">
-								created {formatDate(k.createdAt)} · last used{" "}
-								{formatDate(k.lastUsedAt)}
+								{k.product === "docs" && k.expiresAt
+									? `reads Streams and Index · expires in ${expiresIn(k.expiresAt)}`
+									: `created ${formatDate(k.createdAt)} · last used ${formatDate(k.lastUsedAt)}`}
 							</span>
 						</div>
 						<button

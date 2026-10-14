@@ -1,6 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import { DOCS_KEY_FORGET, DOCS_KEY_STORE } from "@/lib/code/docs-key-store";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 /** Show one pane of a tab group; a group without that tab stays as it is. */
@@ -20,6 +22,46 @@ function selectTab(group: HTMLElement, key: string) {
  */
 export function CodeClient() {
 	const router = useRouter();
+	const pathname = usePathname();
+	const { account, loading } = useAuth();
+
+	// "Use my key": the key module loads only for a signed-in reader on a page
+	// that has a sample to fill. Signed out, any key this tab held is dropped.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: `pathname` re-runs the scan for the samples a soft navigation brings in
+	useEffect(() => {
+		if (loading) return;
+		if (!account) {
+			try {
+				sessionStorage.removeItem(DOCS_KEY_STORE);
+			} catch {
+				// Storage is optional.
+			}
+			window.dispatchEvent(new Event(DOCS_KEY_FORGET));
+			return;
+		}
+		const load = () => import("./use-key").then((m) => m.activate(account.id));
+		if (document.querySelector("[data-use-key]")) {
+			load();
+			return;
+		}
+		// A sample that mounts later (the API drawer) loads it when it arrives.
+		const arrivals = new MutationObserver((records) => {
+			for (const record of records)
+				for (const node of record.addedNodes)
+					if (
+						node instanceof Element &&
+						(node.matches("[data-use-key]") ||
+							node.querySelector("[data-use-key]"))
+					) {
+						arrivals.disconnect();
+						load();
+						return;
+					}
+		});
+		arrivals.observe(document.body, { childList: true, subtree: true });
+		return () => arrivals.disconnect();
+	}, [account, loading, pathname]);
+
 	useEffect(() => {
 		const onClick = (event: MouseEvent) => {
 			const target = event.target;
@@ -62,6 +104,11 @@ export function CodeClient() {
 				if (navigator.clipboard)
 					navigator.clipboard.writeText(text).then(done, selectAll);
 				else selectAll();
+				return;
+			}
+
+			if (target.closest("[data-use-key]")) {
+				import("./use-key").then((m) => m.useKey());
 				return;
 			}
 

@@ -1,6 +1,6 @@
 import type { Annotation, ParsedCode } from "@/lib/code/annotations";
 import { type LinkTable, autoLinks } from "@/lib/code/auto-links";
-import { BASE_SWAPS } from "@/lib/code/base-url";
+import { BASE_SWAPS, KEY_SWAP, KEY_VAR } from "@/lib/code/base-url";
 import type { ThemedToken } from "@/lib/highlight";
 import { ladderStep } from "@/lib/syntax-theme";
 
@@ -10,7 +10,7 @@ export type Variant = "docs" | "figure";
 export type MarkRange = {
 	start: number;
 	end: number;
-	kind: "hi" | "act" | "bad" | "link" | "err" | "swap" | "ref" | "pick";
+	kind: "hi" | "act" | "bad" | "link" | "err" | "swap" | "ref" | "pick" | "key";
 	/** `link`: where it goes. */
 	href?: string;
 	/** `ref` and `pick`: the name prose reaches it by. */
@@ -52,6 +52,8 @@ type Context = {
 	links?: LinkTable | null;
 	/** Wrap the hosted base URL and credential for the Base URL switch. */
 	base?: boolean;
+	/** Wrap each credential placeholder so a signed-in reader's docs key can fill it. */
+	key?: boolean;
 };
 
 function matchesOf(a: Annotation, text: string): RegExpExecArray[] {
@@ -230,6 +232,7 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 			line.dim = !focus.has(i);
 		});
 	if (ctx.base) addBaseSwaps(lines, ctx.display);
+	if (ctx.key) addKeySlots(lines, ctx.display);
 	if (ctx.links) addAutoLinks(lines, ctx, ctx.links, pointed);
 	return {
 		lines,
@@ -260,6 +263,20 @@ function addBaseSwaps(lines: LinePlan[], display: string[]) {
 						swap,
 					});
 		});
+	});
+}
+
+/** Each credential placeholder, wrapped so the docs key can take its place. A Base URL swap already holds its own. */
+function addKeySlots(lines: LinePlan[], display: string[]) {
+	lines.forEach((line, i) => {
+		const text = display[i] ?? "";
+		for (
+			let at = text.indexOf(KEY_VAR);
+			at >= 0;
+			at = text.indexOf(KEY_VAR, at + 1)
+		)
+			if (!overlaps(line.ranges, at, at + KEY_VAR.length))
+				line.ranges.push({ start: at, end: at + KEY_VAR.length, kind: "key" });
 	});
 }
 
@@ -313,8 +330,13 @@ function wrap(range: MarkRange, inner: string): string {
 			return `<span class="bad">${inner}</span>`;
 		case "err":
 			return `<span class="squig">${inner}</span>`;
+		// The credential slot is blocked from PostHog autocapture and replay (`ph-no-capture`).
 		case "swap":
-			return `<span data-swap="${range.swap}">${inner}</span>`;
+			return range.swap === KEY_SWAP
+				? `<span class="ph-no-capture" data-key-slot data-swap="${range.swap}">${inner}</span>`
+				: `<span data-swap="${range.swap}">${inner}</span>`;
+		case "key":
+			return `<span class="ph-no-capture" data-key-slot>${inner}</span>`;
 		// Invisible until the scope script lights it.
 		case "ref":
 			return `<span class="ref" data-ref="${escAttr(range.name ?? "")}">${inner}</span>`;

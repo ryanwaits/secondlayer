@@ -134,3 +134,28 @@ describe("CodeTabs", () => {
 		expect(html).toContain("cb cb-tabs figure");
 	});
 });
+
+describe("CodeTabs docs key", () => {
+	test("one control in the group bar when any pane names the key variable", async () => {
+		const html = await tabs({
+			children: [
+				fence(
+					"sh",
+					'curl -H "Authorization: Bearer $SECONDLAYER_API_KEY" "$URL"',
+				),
+				fence("ts", "await sl.streams.tip();"),
+			],
+		});
+		expect(html.match(/data-use-key/g)?.length).toBe(1);
+		expect(html).toContain(
+			'<span class="r"><button type="button" class="ghost use-key"',
+		);
+	});
+
+	test("no control when no pane names it", async () => {
+		const html = await tabs({
+			children: [fence("sh", 'curl "$URL"'), fence("ts", "sl.tip();")],
+		});
+		expect(html).not.toContain("data-use-key");
+	});
+});

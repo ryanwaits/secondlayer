@@ -1,4 +1,5 @@
 import posthog from "posthog-js";
+import { redactKeys } from "./src/lib/posthog-redact";
 
 const projectToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
@@ -24,6 +25,14 @@ if (!projectToken || !host) {
 		ui_host: "https://us.posthog.com",
 		defaults: "2026-01-30",
 		capture_exceptions: true,
+		// A docs key is a credential: scrub any event that still carries one, and
+		// never record the mint response in a replay's network log. (The key's
+		// slots are also `ph-no-capture`: out of autocapture and replay.)
+		before_send: (event) => (event ? redactKeys(event) : event),
+		session_recording: {
+			maskCapturedNetworkRequestFn: (request) =>
+				request.name?.includes("/api/keys/docs") ? null : request,
+		},
 		debug: process.env.NODE_ENV === "development",
 	});
 }

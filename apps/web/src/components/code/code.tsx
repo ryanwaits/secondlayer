@@ -1,4 +1,5 @@
 import { parseAnnotations, parseFenceOptions } from "@/lib/code/annotations";
+import { KEY_VAR } from "@/lib/code/base-url";
 import { linkTable } from "@/lib/code/link-table";
 import { outputTone } from "@/lib/code/output";
 import { type ThemedToken, tokenize } from "@/lib/highlight";
@@ -57,6 +58,8 @@ export type RenderedCode = {
 	className: string;
 	/** Whether Copy has anything to give. */
 	copyable: boolean;
+	/** Whether the block names `$SECONDLAYER_API_KEY`, so a signed-in reader can fill it. */
+	hasKey: boolean;
 	html: string;
 	/** A figure's margin notes as markup, or "" when it has none. */
 	notes: string;
@@ -110,7 +113,11 @@ export async function renderCode({
 		isText && prompts[i] === "$" ? line.slice(2) : line,
 	);
 
+	// Only a block Copy can take from carries a key slot; output never does.
+	const hasKey =
+		!options.nocopy && !isText && display.some((l) => l.includes(KEY_VAR));
 	const plan = planAnnotations(parsed, {
+		key: hasKey,
 		display,
 		lang: options.lang,
 		variant,
@@ -197,6 +204,11 @@ export async function renderCode({
 		copyable && !tabbed
 			? '<button type="button" class="copy" data-copy-button>Copy</button>'
 			: "";
+	// Hidden until the page's key module finds a signed-in reader (never server-rendered visible).
+	const useKey =
+		copyable && hasKey && !tabbed
+			? '<button type="button" class="ghost use-key" data-use-key hidden>Use my key</button>'
+			: "";
 	const barTitle = title ?? options.title;
 	const hasBar =
 		!tabbed &&
@@ -222,12 +234,17 @@ export async function renderCode({
 				plan.focus
 					? '<button type="button" class="ghost" data-unfocus>Show all</button>'
 					: ""
-			}${copy}</span></div>`
+			}${useKey}${copy}</span></div>`
 		: "";
 	return {
-		className: tabbed ? "cb tabbed" : hasBar ? "cb" : "cb bare",
+		className: tabbed
+			? "cb tabbed"
+			: hasBar
+				? "cb"
+				: `cb bare${useKey ? " key" : ""}`,
 		copyable,
-		html: `${bar}${body}${hasBar ? "" : copy}`,
+		hasKey: copyable && hasKey,
+		html: `${bar}${body}${hasBar ? "" : `${useKey}${copy}`}`,
 		notes: notes.join(""),
 		// The frame's border, the bar, then the body's padding; a tab group's bar sits outside the pane.
 		noteTop: tabbed ? "12px" : hasBar ? "calc(var(--bar) + 13px)" : "13px",
