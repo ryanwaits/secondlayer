@@ -10,7 +10,8 @@
 		"typecheck": "tsc --noEmit",
 		"og": "bun scripts/generate-og.tsx",
 		"docs:phrasings": "bun scripts/docs-phrasings.ts",
-		"docs:vectors": "bun scripts/docs-vectors.ts"
+		"docs:vectors": "bun scripts/docs-vectors.ts",
+		"docs:check-examples": "bun scripts/check-doc-examples.ts"
 	},
 	"dependencies": {
 		"@mdx-js/loader": "^3.1.1",

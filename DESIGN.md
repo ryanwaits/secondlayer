@@ -218,6 +218,11 @@ all of them. The comment token is `//` (ts, js, json), `#` (sh, toml, text), `--
 `!error` is for compile-time errors only: a mistake the compiler really reports, with its
 words. A runtime failure is a `text` transcript, which colors itself (below).
 
+`ts` fences that import `@secondlayer/*` are CI-checked (`bun run docs:check-examples`,
+also in web `bun test`): each is type-checked against the built packages, and a line marked
+`!error` must really fail to compile. Snippets that only lean on names the page never shows
+(`db`, `req`) or are a function body are skipped as fragments; the changelog is not checked.
+
 **Automatic reference links.** With no annotation, SDK method paths and exported types in
 `ts` blocks link to their reference entry, and endpoint paths in `sh` blocks link to the
 API page anchor: first occurrence of each name per block, never inside another range,
