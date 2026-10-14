@@ -463,28 +463,30 @@ button.docs-nav-item {
 }
 
 /* ── article ── */
+/* Every page sits in one 1112px frame, centred in the space beside the
+   sidebar: a guide's 720px column hugs the frame's left edge, so its title
+   lines up with an API page's instead of drifting to the middle. */
 .docs-content {
 	min-width: 0;
 	grid-column: 2;
 	grid-row: 1;
-	padding: 36px 48px 56px;
+	padding: 40px 40px 56px;
 }
-.docs-article {
+.docs-article,
+.docs-topline {
 	max-width: 720px;
-	margin-inline: auto;
+	margin-left: max(0px, calc((100% - 1112px) / 2));
+	margin-right: auto;
 }
 .docs-topline {
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
 	gap: 16px;
-	max-width: 720px;
-	margin-inline: auto;
 }
-/* An API page runs wide for its two columns; its own prose stays readable. */
-/* An API page runs wide for its two columns: 40px gutters, 1112px at most. */
+/* An API page runs the frame's full width for its two columns. */
 .docs-content:has(.apiref-ep) {
-	padding: 40px 40px 140px;
+	padding-bottom: 140px;
 }
 .docs-article:has(.apiref-ep),
 .docs-topline:has(+ .docs-article .apiref-ep) {
@@ -959,12 +961,13 @@ button.docs-nav-item {
 .docs-foot {
 	grid-column: 2;
 	grid-row: 2;
-	padding-inline: 48px;
+	padding-inline: 40px;
 	border-top: 1px solid var(--line);
 }
 .docs-foot-in {
 	max-width: 720px;
-	margin-inline: auto;
+	margin-left: max(0px, calc((100% - 1112px) / 2));
+	margin-right: auto;
 	padding: 18px 0;
 	display: flex;
 	flex-wrap: wrap;
@@ -1314,8 +1317,8 @@ button.docs-nav-item {
 /* On docs pages the card's page nudge moves only the content column: the top
    bar and sidebar stay put. Same distance and easing as the account nudge
    (a quarter of the card plus its inset), capped so the article stops short of
-   the sidebar: the slack is the content padding plus the article's centering
-   margin (shell width less sidebar, padding and the 720px article, halved),
+   the sidebar: the slack is the content padding plus the frame's centering
+   margin (viewport less sidebar, padding and the 1112px frame, halved),
    less a 16px gap. Nothing moves on a narrow screen. */
 html[data-acct-card]:has(.docs-shell) .www > :not(.marketing-nav) {
 	transform: none;
@@ -1330,8 +1333,8 @@ html[data-acct-card] .docs-content {
 			min(
 				(var(--acct-card-w) + var(--acct-card-inset)) /
 				4,
-				32px +
-				max(0px, (100vw - 1080px) / 2)
+				24px +
+				max(0px, (100vw - 1456px) / 2)
 			)
 		)
 	);
