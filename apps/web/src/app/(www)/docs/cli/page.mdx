@@ -120,8 +120,7 @@ secondlayer codegen contracts --watch    # regenerate on .clar / config / Clarin
 
 Deployed contract ids fetch the ABI (address prefix picks the network). Config-driven projects regenerate with `secondlayer codegen contracts`:
 
-```ts
-// secondlayer.config.ts
+```ts secondlayer.config.ts
 import { defineConfig } from "@secondlayer/cli";
 
 export default defineConfig({
@@ -148,11 +147,8 @@ This is the local path; map your predicates over with [the Chainhook migration p
 
 From inside your Clarinet project:
 
-```bash
-secondlayer devnet connect
-```
-
-```text
+```text ~/clarinet-project
+$ secondlayer devnet connect
 Secondlayer stack up
   api      → http://localhost:3800
   indexer  → http://localhost:3700
@@ -213,11 +209,8 @@ See [Instance token](/docs/self-host#instance-token).
 
 #### Watch it work
 
-```bash
-secondlayer devnet status
-```
-
-```text
+```text ~/clarinet-project
+$ secondlayer devnet status
 STACK
   ● indexer   healthy   :3700
   ● api       healthy   :3800
