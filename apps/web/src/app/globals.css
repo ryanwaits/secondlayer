@@ -7291,3 +7291,98 @@ a.acct-strip-link:hover .acct-strip-k {
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
 }
+
+/* ── Choice: pick one value (components/choice.tsx) ──
+ * Joined cells, 4px corner. Selected = ink fill. The fieldset is the size
+ * container, so narrow rules need no script. */
+.choice {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	min-width: 0;
+	width: 100%;
+	container-type: inline-size;
+}
+.choice-legend {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+.choice-row {
+	display: flex;
+	width: max-content;
+	max-width: 100%;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	overflow: hidden;
+}
+.choice-cell {
+	position: relative;
+	display: block;
+	cursor: pointer;
+}
+.choice-cell + .choice-cell {
+	border-left: 1px solid var(--line);
+}
+.choice-cell input {
+	position: absolute;
+	inset: 0;
+	margin: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+.choice-cell span {
+	display: block;
+	padding: 8px 14px;
+	font: 500 13.5px/1.25 var(--font-sans-stack);
+	color: var(--sub);
+	white-space: nowrap;
+	transition: color var(--duration-snappy) var(--ease-snappy), background-color
+		var(--duration-snappy) var(--ease-snappy);
+}
+.choice-cell:hover span {
+	color: var(--ink);
+}
+.choice-cell input:checked + span {
+	background: var(--ink);
+	color: var(--paper);
+}
+.choice-cell input:focus-visible + span {
+	outline: 2px solid var(--pri);
+	outline-offset: -2px;
+}
+/* Past three options, or a narrow container: one joined column. */
+@container (max-width: 359px) {
+	.choice-row {
+		flex-direction: column;
+		width: 100%;
+	}
+	.choice-cell + .choice-cell {
+		border-left: 0;
+		border-top: 1px solid var(--line);
+	}
+	.choice-cell span {
+		white-space: normal;
+	}
+}
+@container (max-width: 479px) {
+	.choice-row[data-many] {
+		flex-direction: column;
+		width: 100%;
+	}
+	.choice-row[data-many] .choice-cell + .choice-cell {
+		border-left: 0;
+		border-top: 1px solid var(--line);
+	}
+	.choice-row[data-many] .choice-cell span {
+		white-space: normal;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.choice-cell span {
+		transition: none;
+	}
+}
