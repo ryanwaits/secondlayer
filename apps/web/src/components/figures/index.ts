@@ -1,6 +1,6 @@
 /**
  * Writings figure library — see FIGURES.md for the tier taxonomy and
- * when-to-use lines, and /writing/figures for the live catalog. Posts
+ * when-to-use lines, and /lab/figures for the live catalog. Posts
  * import figures explicitly (never via the global MDX map, which would
  * put client figures on every docs bundle).
  */

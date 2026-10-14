@@ -101,7 +101,7 @@ adopting the production agent-prompt block. D6 MiniSandbox stays a
 reserved slot: the dataset sandbox it adopted left production, so it
 returns when a post needs a live request cell.
 
-Live catalog: `/writing/figures` (public, noindex) — the acceptance page,
+Live catalog: `/lab/figures` (internal, 404 in production) — the acceptance page,
 rendered from these components with specimen data. Posts import figures
 explicitly from `@/components/figures` (never via the global MDX map,
 which would put client figures on every docs bundle). Explorer
@@ -124,6 +124,6 @@ the post's `page.mdx` — see the checkpoint post's `selectivity-explorer.tsx`.
 
 1. Pick the form via dataviz `choosing-a-form` (is it even a chart?)
 2. Colors by role from the approved pairs (`--fig-role-a/b` in globals.css, all four theme blocks); new pairs must pass the validator in BOTH themes
-3. Build against `/writing/figures`; check label collision at extreme states
+3. Build against `/lab/figures`; check label collision at extreme states
 4. Reduced-motion + keyboard + touch pass (emil checklist)
 5. Add to the catalog page with a when-to-use line

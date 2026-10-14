@@ -6438,7 +6438,7 @@ input[type="range"].fig-range {
 	color: var(--accent-blue);
 }
 
-/* ── Figure catalog (/writing/figures) ───────────────────────────── */
+/* ── Figure catalog (/lab/figures) ───────────────────────────── */
 .figcat-wrap {
 	max-width: 860px;
 	margin: 0 auto;

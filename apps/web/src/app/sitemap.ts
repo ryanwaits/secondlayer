@@ -28,7 +28,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		changeFrequency: path === "/" ? "weekly" : "monthly",
 		priority: path === "/" ? 1 : 0.6,
 	}));
-	// Published posts only — drafts and the /writing/figures catalog stay out.
+	// Published posts only — drafts and the internal /lab routes stay out.
 	const posts: MetadataRoute.Sitemap = getPublishedPosts().map((post) => ({
 		url: `${BASE}/writing/${post.slug}`,
 		lastModified: new Date(`${post.date}T00:00:00Z`),
