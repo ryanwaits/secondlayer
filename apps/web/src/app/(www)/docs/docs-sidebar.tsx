@@ -1,7 +1,9 @@
 "use client";
 
+import docsNewPages from "@/generated/docs-new.json";
 import { clearAccountData } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
+import { isFresh } from "@/lib/docs-new.mjs";
 import { DOCS_STRIP } from "@/lib/nav";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -34,8 +36,8 @@ interface Head {
 	family?: boolean;
 	/** An endpoint or object section: the id of the family it nests under. */
 	child?: string;
-	/** The endpoint's HTTP method, lowercase, for its pill. */
-	verb?: string;
+	/** Carries a fresh "new" mark (src/lib/docs-new.mjs). */
+	isNew?: boolean;
 	/** Label shown over this row: the first section after the page's seam. */
 	group?: string;
 }
@@ -45,8 +47,8 @@ interface Head {
  *  collapsed `<details>`, and marks the last one whose top has reached the
  *  spy line as the place being read. Headings after a `data-outline-reference`
  *  marker (the page's seam) start a Reference group. An h3 marked `data-outline-child` (an API endpoint or object) is
- *  listed too, under the family whose id the attribute carries, with its
- *  method pill when it has one.
+ *  listed too, under the family whose id the attribute carries. A heading
+ *  with a fresh `data-new` mark gets a "New" chip.
  *  Other docs pages have no such h3s, so their outline is unchanged. */
 function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	const pathname = usePathname();
@@ -69,7 +71,7 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 				text: h.dataset.outline ?? h.textContent ?? "",
 				family: h.hasAttribute("data-outline-family"),
 				child: h.dataset.outlineChild,
-				verb: h.dataset.verb,
+				isNew: isFresh(h.dataset.new, Date.now()),
 			}));
 		// The family headings sit together in the page's index, ahead of the
 		// sections, so each family's sections are pulled up under it.
@@ -218,6 +220,7 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 				h.family ? (
 					<div key={h.id} className="docs-nav-fam">
 						{h.text}
+						{h.isNew ? <NewChip /> : null}
 					</div>
 				) : (
 					<Fragment key={h.id}>
@@ -241,18 +244,12 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 								onNavigate();
 							}}
 						>
-							{h.verb ? (
-								<span
-									className={`apiref-verb apiref-verb-${h.verb} docs-nav-verb`}
-								>
-									{h.verb === "delete" ? "DEL" : h.verb.toUpperCase()}
-								</span>
-							) : null}
 							{h.child ? (
 								<span className="docs-nav-ep-name">{h.text}</span>
 							) : (
 								h.text
 							)}
+							{h.isNew ? <NewChip /> : null}
 						</a>
 					</Fragment>
 				),
@@ -260,6 +257,14 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 		</div>
 	);
 }
+
+/** Marks a page or section added in the last NEW_DAYS. */
+function NewChip() {
+	return <span className="docs-nav-new">New</span>;
+}
+
+/** Page rows whose title carries a "new" mark, by route. */
+const NEW_PAGES: Record<string, string> = docsNewPages;
 
 function Chevron() {
 	return (
@@ -282,6 +287,10 @@ export function DocsSidebar() {
 	const pathname = usePathname();
 	const { account, loading, logout } = useAuth();
 	const { open, setOpen } = useDocsDrawer();
+	// Read after mount: the server's clock must not decide a chip the client
+	// then disagrees with.
+	const [now, setNow] = useState(0);
+	useEffect(() => setNow(Date.now()), []);
 	// A hash click doesn't change the route, so the phone drawer closes here.
 	const outline = <PageOutline onNavigate={() => setOpen(false)} />;
 	// The open API page's endpoint tree folds under its row.
@@ -388,6 +397,7 @@ export function DocsSidebar() {
 										}
 									>
 										{item.title}
+										{isFresh(NEW_PAGES[item.href], now) ? <NewChip /> : null}
 										{tree ? <Chevron /> : null}
 									</Link>
 									{current && !(tree && folded) ? outline : null}

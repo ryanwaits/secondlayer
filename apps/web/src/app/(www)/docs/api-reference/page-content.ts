@@ -1,5 +1,10 @@
 import GithubSlugger from "github-slugger";
-import { type ApiPage, familiesClaiming, pageForTag } from "./pages";
+import {
+	type ApiFamily,
+	type ApiPage,
+	familiesClaiming,
+	pageForTag,
+} from "./pages";
 import {
 	type Endpoint,
 	type ObjectEntry,
@@ -21,6 +26,7 @@ export type PageFamily = {
 	title: string;
 	id: string;
 	summary: string;
+	since?: string;
 	endpoints: Endpoint[];
 };
 
@@ -47,10 +53,11 @@ export function pageContent(page: ApiPage): PageContent {
 		...page.families,
 		{ title: OTHER, summary: "Endpoints no family claims yet.", paths: [] },
 	]
-		.map((family) => ({
+		.map((family: ApiFamily) => ({
 			title: family.title,
 			id: familyId(family.title),
 			summary: family.summary,
+			since: family.since,
 			endpoints: byFamily.get(family.title) ?? [],
 		}))
 		.filter((f) => f.endpoints.length > 0);

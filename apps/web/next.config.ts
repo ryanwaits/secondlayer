@@ -425,7 +425,7 @@ const nextConfig: NextConfig = {
 // Turbopack requires string-form remark/rehype plugins (functions can't be
 // serialized into its pipeline). Code highlighting is handled per-block by a
 // custom `pre` component (mdx-components.tsx), which renders `<Code>`.
-// remark-code-meta and remark-code-tips are registered by absolute path: the
+// The local remark plugins are registered by absolute path: the
 // loader resolves string plugins from node_modules, so a relative "./src/…"
 // path is not found in dev. Tips run after meta, so a fence has its info string first.
 const withMDX = createMDX({
@@ -434,6 +434,7 @@ const withMDX = createMDX({
 			["remark-gfm"],
 			[resolve(process.cwd(), "src/lib/remark-code-meta.mjs")],
 			[resolve(process.cwd(), "src/lib/remark-code-tips.mjs")],
+			[resolve(process.cwd(), "src/lib/remark-new-marks.mjs")],
 		],
 		rehypePlugins: [["rehype-slug"]],
 	},

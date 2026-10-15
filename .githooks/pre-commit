@@ -1,6 +1,25 @@
 #!/bin/sh
-# Run Biome on staged files before commit. Fast, deterministic, no DB.
-# Bypass a one-off with: git commit --no-verify
+# Stamp "new" marks on staged docs pages, then run Biome on staged files.
+# Fast, deterministic, no DB. Bypass a one-off with: git commit --no-verify
+
+# Docs pages: mark added sections and new pages, drop expired marks
+# (apps/web/scripts/docs-new.ts). A page with unstaged edits is skipped, since
+# re-staging it would commit them too.
+docs=$(git diff --cached --name-only --diff-filter=AM \
+  | grep -E '^apps/web/src/app/\(www\)/docs/.*page\.mdx$' || true)
+if [ -n "$docs" ]; then
+  clean=""
+  for f in $docs; do
+    if git diff --quiet -- "$f"; then clean="$clean $f"
+    else echo "docs-new: $f has unstaged edits, not stamped" >&2; fi
+  done
+  # shellcheck disable=SC2086
+  if [ -n "$clean" ]; then
+    (cd apps/web && bun scripts/docs-new.ts stamp $(echo $clean | sed 's#apps/web/##g')) || exit 1
+    git add $clean apps/web/src/generated/docs-new.json
+  fi
+fi
+
 staged=$(git diff --cached --name-only --diff-filter=ACMR \
   | grep -E '\.(ts|tsx|js|jsx|json|jsonc)$' || true)
 [ -z "$staged" ] && exit 0

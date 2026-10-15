@@ -10,6 +10,9 @@ export type ApiFamily = {
 	title: string;
 	summary: string;
 	paths: string[];
+	/** Date the family shipped (YYYY-MM-DD): the sidebar shows "New" for
+	 *  NEW_DAYS after it (src/lib/docs-new.mjs). */
+	since?: string;
 };
 
 export type ApiPage = {
@@ -69,6 +72,7 @@ export const API_PAGES: ApiPage[] = [
 			{
 				title: "Runes",
 				summary: "The rune catalog, activity and balances.",
+				since: "2026-10-15",
 				paths: ["/v1/index/runes", "/v1/index/runes/*"],
 			},
 			{

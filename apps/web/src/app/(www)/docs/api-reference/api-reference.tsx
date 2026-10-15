@@ -208,7 +208,6 @@ function EndpointSection({
 						className="apiref-ep-title"
 						data-outline-child={family}
 						data-outline={op["x-nav-title"] ?? title}
-						data-verb={endpoint.method.toLowerCase()}
 					>
 						<a href={`#${anchor}`} className="heading-anchor">
 							{title}
@@ -420,16 +419,23 @@ function FamilyIndex({
 	id,
 	title,
 	summary,
+	since,
 	children,
 }: {
 	id: string;
 	title: string;
 	summary: string;
+	since?: string;
 	children: ReactNode;
 }) {
 	return (
 		<div className="apiref-family">
-			<h2 id={id} className="apiref-family-title" data-outline-family="">
+			<h2
+				id={id}
+				className="apiref-family-title"
+				data-outline-family=""
+				data-new={since}
+			>
 				<a href={`#${id}`} className="heading-anchor">
 					{title}
 				</a>
@@ -465,6 +471,7 @@ export function ApiPage({ slug }: { slug: string }) {
 						id={family.id}
 						title={family.title}
 						summary={family.summary}
+						since={family.since}
 					>
 						{family.endpoints.map((endpoint) => (
 							<EndpointRow key={endpoint.anchor} endpoint={endpoint} />
