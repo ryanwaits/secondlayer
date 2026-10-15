@@ -96,6 +96,9 @@ services:
       BNS_DECODER_ENABLED: ${BNS_DECODER_ENABLED:-false}
       SUBGRAPH_SOURCE: ${SUBGRAPH_SOURCE:-streams-index}
       SUBGRAPH_INDEX_API_URL: http://127.0.0.1:3800
+      # Bitcoin tx proofs (/v1/proofs/bitcoin-tx); bitcoind needs txindex=1.
+      BITCOIN_RPC_URL: ${BITCOIN_RPC_URL:-http://bitcoind:8332}
+      BITCOIN_RPC_USERNAME: ${BITCOIN_RPC_USER:-stacks}
       BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD:-}
       # Always set, independent of the `bitcoin` profile below: the `bitcoin`
       # database is provisioned by postgres's init script unconditionally, so

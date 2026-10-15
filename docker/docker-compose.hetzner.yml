@@ -88,6 +88,10 @@ services:
       # without a .env entry.
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://37.27.171.220:20443}
       PROOF_SIDECAR_URL: ${PROOF_SIDECAR_URL:-http://37.27.171.220:20450}
+      # Bitcoin tx proofs (/v1/proofs/bitcoin-tx): same read-only bitcoind the decoder uses.
+      BITCOIN_RPC_URL: ${BITCOIN_RPC_URL:-}
+      BITCOIN_RPC_USERNAME: ${BITCOIN_RPC_USERNAME:-}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD:-}
       # Reorg-safety margin (blocks) the public Streams tip is held back from the
       # raw tip. Matches the code default; pinned here so it's tunable without a
       # redeploy (deploys git reset --hard, so prod stays in sync). Raising it
