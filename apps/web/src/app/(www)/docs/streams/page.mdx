@@ -48,7 +48,18 @@ curl "$SECONDLAYER_API_URL/v1/streams/events?types=ft_transfer&limit=100" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
-Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, and `from_height`/`to_height`: exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api/streams#list-stream-events).
+Pass the response's `next_cursor` back as `cursor`. Filters are exact-match, and event types without a given field don't match.
+
+| Filter | Narrows to |
+| --- | --- |
+| `types`, `not_types` | Event types, included or excluded |
+| `contract_id` | One contract |
+| `sender`, `recipient` | The two sides of a transfer |
+| `asset_identifier` | One asset |
+| `filters` | Several named concerns on one cursor ([Filters](#filters)) |
+| `from_height`, `to_height` | A block-height range |
+
+Full grammar: [API reference](/docs/api/streams#list-stream-events).
 
 ```json response.json status=200
 {
@@ -89,7 +100,12 @@ $ secondlayer verify raw --against https://archive.secondlayer.tools/latest.json
 
 ## Reorg behavior
 
-Reorgs rewind to the fork point and re-deliver, inclusive of the fork block; delivery is at-least-once, so keep writes idempotent. Only forks at or below your checkpoint roll back (a fork above it has nothing to undo), a rewind deeper than `maxRollbackDepth` (default 1000 blocks) is refused before anything is deleted, and on empty pages the loop polls `reorgs.list` so a fork that lands while idle at the tip is caught too, at the cost of one extra request per idle poll. A fork at genesis hands `onReorg` a `null` cursor.
+Reorgs rewind to the fork point and re-deliver, inclusive of the fork block. Delivery is at-least-once, so keep writes idempotent.
+
+- Only forks at or below your checkpoint roll back; a fork above it has nothing to undo.
+- A rewind deeper than `maxRollbackDepth` (default 1000 blocks) is refused before anything is deleted.
+- On empty pages the loop polls `reorgs.list`, so a fork that lands while idle at the tip is caught too. The cost is one extra request per idle poll.
+- A fork at genesis hands `onReorg` a `null` cursor.
 
 ## Cold history
 
@@ -136,7 +152,7 @@ $ duckdb -c "SELECT event_type, count(*) AS events
 
 <Callout type="note" title="Manifest signature is the root of trust">
 
-The bulk manifest is itself ed25519-signed and verified before any per-file `sha256` is trusted. `verifyDumpsManifest` defaults to `true` (`dumps.list()` and `events.replay()` both enforce it); opt out with `verifyDumpsManifest: false`.
+The bulk manifest is itself ed25519-signed and verified before any per-file hash is trusted. Listing dumps and `events.replay()` both enforce it; opt out with `verifyDumpsManifest: false`.
 
 </Callout>
 
@@ -157,14 +173,27 @@ Every read has a `secondlayer streams` subcommand that prints JSON.
 
 ## Bitcoin events (Runes)
 
-`chain=bitcoin` serves Runes events (`rune_etch`, `rune_mint`, `rune_transfer`, `rune_burn`) on their own cursor space; a bitcoin cursor only resumes with `chain=bitcoin` set again. Stacks-only filters (`contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, `clock`) 400 here; `rune` and `address` are bitcoin-only.
+`chain=bitcoin` serves Runes events on their own cursor space.
+
+| Event types |
+| --- |
+| `rune_etch` |
+| `rune_mint` |
+| `rune_transfer` |
+| `rune_burn` |
 
 ```bash
 curl "$SECONDLAYER_API_URL/v1/streams/events?chain=bitcoin&rune=840000:3" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
-The tip and canonical block drop the burn-chain fields Stacks carries, since Bitcoin has no burn chain of its own. Events carry `ts`, the block's time. The rune catalog, per-rune activity feed, and balances live on [Index](/docs/index#runes); this is the raw event log underneath them.
+- A bitcoin cursor only resumes with `chain=bitcoin` set again.
+- Stacks-only filters (`contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, `clock`) answer 400 here.
+- `rune` and `address` are bitcoin-only.
+- The tip and canonical block drop the burn-chain fields Stacks carries, since Bitcoin has no burn chain of its own.
+- Events carry `ts`, the block's time.
+
+The rune catalog, per-rune activity feed, and balances live on [Index](/docs/index#runes); this is the raw event log underneath them.
 
 ## Filters
 
@@ -190,11 +219,14 @@ await sl.streams.events.consume({
 });
 ```
 
-Each label's declared `types` narrows its handler, so `event.payload` is typed
-without an `event_type` guard, and a label added to `filters` is a compile error
-until `on` handles it. A label's own events arrive in cursor order; events of
-different labels don't interleave within a page. Add `onBatch` for the whole
-page when you need strict global order.
+Each label's declared types narrow its handler, so `event.payload` is typed
+without an `event_type` guard.
+
+A label added to `filters` is a compile error until `on` handles it.
+
+- A label's own events arrive in cursor order.
+- Events of different labels don't interleave within a page.
+- Add `onBatch` for the whole page when you need strict global order.
 
 One cursor covers all of it. The position is computed over the block's full
 event set, not the filtered one, so you can add or drop labels between restarts
@@ -214,7 +246,10 @@ curl -G --data-urlencode 'filters={"peg":{"types":["ft_transfer"]}}' \
 
 SSE takes the same param, so `subscribe` narrows the same way.
 
-Deliveries are idempotent, so retries never double-count. Fully-finalized pages are served `Cache-Control: public, immutable` with an `ETag` (`304` on `If-None-Match`); the moving tip stays short-lived.
+Deliveries are idempotent, so retries never double-count.
+
+- Fully-finalized pages are served `Cache-Control: public, immutable` with an `ETag` (`304` on `If-None-Match`).
+- The moving tip stays short-lived.
 
 ## Real-time firehose (SSE)
 
@@ -223,7 +258,14 @@ curl -N "$SECONDLAYER_API_URL/v1/streams/events/stream?types=ft_transfer" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
-`GET /v1/streams/events/stream` takes the same filters as `/events`, a start position via `cursor` (or `from_cursor`) or `from_height`, and a `ping` keepalive every 20s. With none it live-tails from the reorg-clamped tip. Wire contract: [REST API](/docs/rest-api#streaming-sse).
+`GET /v1/streams/events/stream` takes the same filters as `/events`.
+
+| Param | Does |
+| --- | --- |
+| `cursor` (or `from_cursor`), `from_height` | Start position. With none it live-tails from the reorg-clamped tip |
+| `ping` | Keepalive, every 20s |
+
+Wire contract: [REST API](/docs/rest-api#streaming-sse).
 
 <Callout type="warning" title="Near-real-time, not instant">
 
@@ -235,7 +277,9 @@ The server polls roughly every 1.5s from a tip held a couple of blocks back for 
 
 ## Per-frame signatures
 
-Each frame body is `{ event, sig, key_id }`; `sig` is an ed25519 signature over `JSON.stringify(event)`. The SDK verifies every frame by default against the key at `/public/streams/signing-key`. Lenient, strict, skip, and pinned-key modes: [SDK](/docs/sdk#verifying-responses).
+Each frame body is `{ event, sig, key_id }`. The signature is ed25519 over `JSON.stringify(event)`.
+
+The SDK verifies every frame by default, against the key at `/public/streams/signing-key`. Lenient, strict, skip, and pinned-key modes: [SDK](/docs/sdk#verifying-responses).
 
 export const agent = `
 - Firehose: 'GET $SECONDLAYER_API_URL/v1/streams/events' with 'Authorization: Bearer $SECONDLAYER_API_KEY'. Filter by types, contract_id, sender; page forward with next_cursor; deliveries are idempotent, so loop to stay live.
