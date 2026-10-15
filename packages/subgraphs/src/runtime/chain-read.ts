@@ -1,10 +1,12 @@
 import { getErrorMessage } from "@secondlayer/shared";
+import { chainReadArgsHash } from "@secondlayer/shared/chain-read";
 import { getSourceDb } from "@secondlayer/shared/db";
 import { hasNoLocalChain } from "@secondlayer/shared/db/queries/instance";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import {
 	http,
+	HttpRequestError,
 	ReadContractError,
 	createPublicClient,
 } from "@secondlayer/stacks";
@@ -179,20 +181,61 @@ export class ChainReadError extends Error {
 	override name = "ChainReadError";
 }
 
+const NO_NODE_MESSAGE =
+	"ctx.client needs a Stacks node: set STACKS_NODE_RPC_URL on the subgraph processor.";
+
 /**
- * The error for a processor with no node to read from. A hosted tenant has no
- * node of its own and can't set one, so it gets the real limit rather than an
- * env var to set.
+ * Where a cache miss is read from.
+ *
+ * - `node`: the processor's own node (`ctx.rpcUrl` / `STACKS_NODE_RPC_URL`).
+ *   An explicit node always wins.
+ * - `hosted`: a hosted tenant has no node, so it reads through the hosted
+ *   api's `/v1/chain-read` route with its tenant key. Same `call-read` path
+ *   and body as a node, so `readContract` runs unchanged.
  */
-async function noNodeError(db: Kysely<Database>): Promise<HandlerReadError> {
-	if (await hasNoLocalChain(db)) {
-		return new HandlerReadError(
-			"Contract reads (ctx.client) aren't available on hosted subgraphs yet; they arrive with the next release. The subgraph resumes from this block after it.",
+type ReadTarget =
+	| { kind: "node"; rpcUrl: string }
+	| { kind: "hosted"; apiUrl: string; apiKey: string };
+
+async function resolveReadTarget(
+	rpcUrl: string | undefined,
+	db: Kysely<Database>,
+): Promise<ReadTarget> {
+	if (rpcUrl) return { kind: "node", rpcUrl };
+	const apiUrl = process.env.SUBGRAPH_INDEX_API_URL;
+	if (!apiUrl || !(await hasNoLocalChain(db))) {
+		throw new HandlerReadError(NO_NODE_MESSAGE);
+	}
+	const apiKey = process.env.INDEX_INTERNAL_API_KEY?.trim();
+	if (!apiKey) {
+		throw new HandlerReadError(
+			"Hosted contract reads need the processor's key (INDEX_INTERNAL_API_KEY), and none is set. Set STACKS_NODE_RPC_URL to read a node directly instead.",
 		);
 	}
-	return new HandlerReadError(
-		"ctx.client needs a Stacks node: set STACKS_NODE_RPC_URL on the subgraph processor.",
-	);
+	return { kind: "hosted", apiUrl, apiKey };
+}
+
+/**
+ * Turn a hosted route refusal into the right failure. A `400` is the
+ * handler's own request (too many args, a bad name): deterministic, so it
+ * fails only the event. A `403` means the key isn't a hosted tenant's: a
+ * self-hosted processor pointed at the hosted api with its own key, which
+ * must read its own node. Anything else aborts the block like a node outage.
+ */
+function hostedReadError(err: unknown, label: string): Error | undefined {
+	if (!(err instanceof HttpRequestError)) return undefined;
+	if (err.status === 400) {
+		return new ChainReadError(
+			`${label} was refused as invalid: ${err.details ?? err.message}`,
+		);
+	}
+	if (err.status === 403) {
+		return new HandlerReadError(
+			`${label}: hosted contract reads serve hosted subgraphs only. ${NO_NODE_MESSAGE}`,
+			{ cause: err },
+		);
+	}
+	return undefined;
 }
 
 /**
@@ -207,14 +250,30 @@ function isChainAnswer(err: unknown): boolean {
 }
 
 /**
- * Node transport for handler reads. Deliberately its own client rather than a
- * shared singleton: `retryCount: 0` keeps a slow node from multiplying into the
- * block's retry budget (`processBlockWithRetry` already owns retries), and the
- * concurrency gate below bounds how much of a backfill can hit the node at once.
+ * Transport for handler reads. Deliberately its own client rather than a
+ * shared singleton: against a node, `retryCount: 0` keeps a slow node from
+ * multiplying into the block's retry budget (`processBlockWithRetry` already
+ * owns retries), and the concurrency gate below bounds how much of a backfill
+ * can hit the node at once. Against the hosted route, the transport retries a
+ * `429` (honoring `Retry-After`) and `5xx` a few times first: the route's rate
+ * limit is a normal part of a backfill, not an outage.
  */
-function nodeClient(rpcUrl: string) {
+function readClient(target: ReadTarget) {
+	if (target.kind === "node") {
+		return createPublicClient({
+			transport: http(target.rpcUrl, { retryCount: 0, timeout: 10_000 }),
+		});
+	}
 	return createPublicClient({
-		transport: http(rpcUrl, { retryCount: 0, timeout: 10_000 }),
+		transport: http(`${target.apiUrl.replace(/\/+$/, "")}/v1/chain-read`, {
+			retryCount: 3,
+			timeout: 10_000,
+			// Bearer, like every hosted read plane; the transport's `apiKey`
+			// option sends `x-api-key`, which hosted planes refuse.
+			fetchOptions: {
+				headers: { authorization: `Bearer ${target.apiKey}` },
+			},
+		}),
 	});
 }
 
@@ -255,10 +314,10 @@ function maxConcurrentReads(): number {
 
 const gate = new ConcurrencyGate(maxConcurrentReads());
 
-/** Stable key for an arg set — property order must not fork a cache entry. */
+/** Stable key for an arg set — property order must not fork a cache entry.
+ *  The same hash the hosted chain-read route keys its cache with. */
 function hashArgs(args: readonly ClarityValue[]): string {
-	const serialized = args.map((arg) => serializeCV(arg)).join(",");
-	return Bun.hash(serialized).toString(16);
+	return chainReadArgsHash(args.map((arg) => serializeCV(arg)));
 }
 
 function findFunction(abi: AbiContract, name: string): AbiFunction {
@@ -305,8 +364,11 @@ export function createChainReadClient(ctx: ChainReadContext): ChainReadClient {
 		options: ChainReadOptions,
 	): Promise<unknown> => {
 		const db = ctx.db ?? getSourceDb();
-		const rpcUrl = ctx.rpcUrl ?? process.env.STACKS_NODE_RPC_URL;
-		if (!rpcUrl) throw await noNodeError(db);
+		const rpcUrl = ctx.rpcUrl || process.env.STACKS_NODE_RPC_URL || undefined;
+		// No node and no hosted api to fall back to: say so before any I/O.
+		if (!rpcUrl && !process.env.SUBGRAPH_INDEX_API_URL) {
+			throw new HandlerReadError(NO_NODE_MESSAGE);
+		}
 
 		const constant = options.cache === "contract-constant";
 		if (!constant && !ctx.indexBlockHash) {
@@ -341,9 +403,16 @@ export function createChainReadClient(ctx: ChainReadContext): ChainReadClient {
 			resultHex =
 				cached?.result_hex ??
 				(await gate.run(async () => {
+					const target = await resolveReadTarget(rpcUrl, db);
 					// A constant read still pins to this block where it can: "cannot
 					// change" is a claim about future blocks, not a license to read
 					// a tip that may be ahead of the one being processed.
+					if (!ctx.indexBlockHash && target.kind === "hosted") {
+						// The hosted route only ever answers pinned reads.
+						throw new HandlerReadError(
+							`Block ${ctx.blockHeight} has no index_block_hash, so a hosted contract read cannot be pinned to it. Reindex the subgraph from this block once the block is re-ingested.`,
+						);
+					}
 					if (!ctx.indexBlockHash) {
 						// The one path where an UNPINNED read happens. Reachable only
 						// in constant mode on a block with no persisted id — which is
@@ -359,13 +428,21 @@ export function createChainReadClient(ctx: ChainReadContext): ChainReadClient {
 							},
 						);
 					}
-					const value = await readContract(nodeClient(rpcUrl), {
-						contract: contractId,
-						functionName: fn.name,
-						args: clarityArgs,
-						tip: ctx.indexBlockHash ?? undefined,
-					});
-					return serializeCV(value);
+					try {
+						const value = await readContract(readClient(target), {
+							contract: contractId,
+							functionName: fn.name,
+							args: clarityArgs,
+							tip: ctx.indexBlockHash ?? undefined,
+						});
+						return serializeCV(value);
+					} catch (err) {
+						throw (
+							(target.kind === "hosted" &&
+								hostedReadError(err, `Chain read ${contractId}::${fn.name}`)) ||
+							err
+						);
+					}
 				}));
 
 			if (!cached) {
@@ -385,7 +462,13 @@ export function createChainReadClient(ctx: ChainReadContext): ChainReadClient {
 					.execute();
 			}
 		} catch (err) {
-			if (isChainAnswer(err)) throw err;
+			if (
+				isChainAnswer(err) ||
+				err instanceof ChainReadError ||
+				err instanceof HandlerReadError
+			) {
+				throw err;
+			}
 			throw new HandlerReadError(
 				`Chain read ${contractId}::${fn.name} at block ${ctx.blockHeight} failed: ${getErrorMessage(err)}`,
 				{ cause: err },

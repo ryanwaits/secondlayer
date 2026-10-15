@@ -80,7 +80,10 @@ function makeDef(name: string): SubgraphDefinition {
 	};
 }
 
-function makeBlock(height: number): PreloadedBlockData {
+function makeBlock(
+	height: number,
+	opts: { recipient?: string; indexBlockHash?: string } = {},
+): PreloadedBlockData {
 	const tx = {
 		tx_id: `0xtx${height}_${randomUUID().slice(0, 8)}`,
 		block_height: height,
@@ -101,7 +104,11 @@ function makeBlock(height: number): PreloadedBlockData {
 		block_height: height,
 		event_index: 0,
 		type: "ft_mint_event",
-		data: { asset_identifier: ASSET, amount: "1", recipient: HOLDER },
+		data: {
+			asset_identifier: ASSET,
+			amount: "1",
+			recipient: opts.recipient ?? HOLDER,
+		},
 		created_at: new Date(0),
 	} as Event;
 	return {
@@ -112,7 +119,8 @@ function makeBlock(height: number): PreloadedBlockData {
 			burn_block_height: height,
 			burn_block_hash: null,
 			// Unique per run so the read cache never answers for the node.
-			index_block_hash: `0x${randomUUID().replace(/-/g, "")}`,
+			index_block_hash:
+				opts.indexBlockHash ?? `0x${randomUUID().replace(/-/g, "")}`,
 			tx_count: null,
 			timestamp: 1700000000 + height,
 			canonical: true,
@@ -261,5 +269,100 @@ describe.skipIf(!HAS_DB)("chain reads inside a block", () => {
 		}
 		expect(await rowCount(pgSchema)).toBe(0);
 		expect(await cursor(def.name)).toBe(1);
+	});
+
+	it("reindexing a range with hosted chain reads produces identical rows", async () => {
+		const { def, pgSchema } = await setUp();
+		const recipients = [
+			"SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE",
+			"SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+			HOLDER,
+		];
+		const blocks = recipients.map((recipient, i) =>
+			makeBlock(i + 1, {
+				recipient,
+				indexBlockHash: `0x${randomUUID().replace(/-/g, "")}`,
+			}),
+		);
+		// The hosted proxy answers a different value per pinned block, so a
+		// reindex that read anything but the pinned block would differ.
+		const valueFor = new Map(
+			blocks.map((b, i) => [b.block.index_block_hash as string, 6 + i]),
+		);
+		let calls = 0;
+		const api = Bun.serve({
+			port: 0,
+			fetch(req) {
+				calls++;
+				const tip = new URL(req.url).searchParams.get("tip") ?? "";
+				const value = valueFor.get(tip);
+				if (value === undefined) {
+					return Response.json({ error: "unknown tip" }, { status: 404 });
+				}
+				return Response.json({
+					okay: true,
+					result: `0x0701${value.toString(16).padStart(32, "0")}`,
+				});
+			},
+		});
+
+		const saved = {
+			api: process.env.SUBGRAPH_INDEX_API_URL,
+			network: process.env.NETWORK,
+			key: process.env.INDEX_INTERNAL_API_KEY,
+		};
+		process.env.SUBGRAPH_INDEX_API_URL = `http://localhost:${api.port}`;
+		process.env.NETWORK = "hosted-tenant-test";
+		process.env.INDEX_INTERNAL_API_KEY = "sk-sl_hosted_reindex_test";
+
+		const runRange = async () => {
+			for (const block of blocks) {
+				await processBlock(def, def.name, block.block.height, {
+					preloaded: block,
+				});
+			}
+			const { rows } = await sql
+				.raw(
+					`SELECT address, decimals::text AS decimals, _block_height::int AS h
+					 FROM "${pgSchema}"."mints" ORDER BY address`,
+				)
+				.execute(db);
+			return rows;
+		};
+
+		try {
+			const first = await runRange();
+			expect(first).toHaveLength(3);
+
+			// Reindex from scratch: rows, cursor and the local read cache all go.
+			await sql.raw(`DELETE FROM "${pgSchema}"."mints"`).execute(db);
+			await db
+				.updateTable("subgraphs")
+				.set({ last_processed_block: 0 })
+				.where("name", "=", def.name)
+				.execute();
+			await db
+				.deleteFrom("chain_read_cache")
+				.where("index_block_hash", "in", [...valueFor.keys()])
+				.execute();
+
+			const second = await runRange();
+			expect(second).toEqual(first);
+			expect(calls).toBe(6);
+		} finally {
+			api.stop(true);
+			await db
+				.deleteFrom("chain_read_cache")
+				.where("index_block_hash", "in", [...valueFor.keys()])
+				.execute();
+			for (const [key, value] of [
+				["SUBGRAPH_INDEX_API_URL", saved.api],
+				["NETWORK", saved.network],
+				["INDEX_INTERNAL_API_KEY", saved.key],
+			] as const) {
+				if (value === undefined) delete process.env[key];
+				else process.env[key] = value;
+			}
+		}
 	});
 });

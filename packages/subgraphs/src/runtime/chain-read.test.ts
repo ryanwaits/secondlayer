@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { chainReadArgsHash } from "@secondlayer/shared/chain-read";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import { ChainReadError, createChainReadClient } from "./chain-read.ts";
 import { HandlerReadError } from "./realm.ts";
@@ -125,38 +126,194 @@ describe("createChainReadClient — pinning", () => {
 	});
 });
 
+/**
+ * A hosted proxy stub: records each call and answers with `answer(tip)`.
+ * Stands in for app-server's `/v1/chain-read` route.
+ */
+function fakeHostedApi(
+	answer: (tip: string | null) => { status: number; body: unknown },
+) {
+	const calls: Array<{
+		path: string;
+		tip: string | null;
+		authorization: string | null;
+		args: string[];
+	}> = [];
+	const server = Bun.serve({
+		port: 0,
+		async fetch(req) {
+			const url = new URL(req.url);
+			const tip = url.searchParams.get("tip");
+			const body = (await req.json()) as { arguments: string[] };
+			calls.push({
+				path: url.pathname,
+				tip,
+				authorization: req.headers.get("authorization"),
+				args: body.arguments,
+			});
+			const { status, body: out } = answer(tip);
+			return Response.json(out, { status });
+		},
+	});
+	return {
+		url: `http://localhost:${server.port}`,
+		calls,
+		stop: () => server.stop(true),
+	};
+}
+
+const TENANT_KEY = "sk-sl_hosted_tenant_read_test";
+
+/** Run `fn` as a hosted tenant: no node, chain data from `apiUrl`, and an
+ *  `index_progress` with no row for the network (one no test ever writes). */
+async function asHostedTenant<T>(
+	apiUrl: string,
+	fn: () => Promise<T>,
+): Promise<T> {
+	const keys = [
+		"STACKS_NODE_RPC_URL",
+		"SUBGRAPH_INDEX_API_URL",
+		"NETWORK",
+		"INDEX_INTERNAL_API_KEY",
+	] as const;
+	const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+	process.env.STACKS_NODE_RPC_URL = "";
+	process.env.SUBGRAPH_INDEX_API_URL = apiUrl;
+	process.env.NETWORK = "hosted-tenant-test";
+	process.env.INDEX_INTERNAL_API_KEY = TENANT_KEY;
+	try {
+		return await fn();
+	} finally {
+		for (const k of keys) {
+			const value = saved[k];
+			if (value === undefined) delete process.env[k];
+			else process.env[k] = value;
+		}
+	}
+}
+
 describe.skipIf(!HAS_DB)("createChainReadClient — hosted tenant", () => {
-	test("a hosted tenant read without a node fails the block with the hosted message", async () => {
-		const saved = {
-			rpc: process.env.STACKS_NODE_RPC_URL,
-			indexApi: process.env.SUBGRAPH_INDEX_API_URL,
-			network: process.env.NETWORK,
-		};
-		// A tenant: chain data comes from the hosted Index API and its own
-		// index_progress has no row for the network (one no test ever writes).
-		process.env.STACKS_NODE_RPC_URL = "";
-		process.env.SUBGRAPH_INDEX_API_URL = "http://index.invalid";
-		process.env.NETWORK = "hosted-tenant-test";
+	const db = HAS_DB ? getSourceDb() : (null as never);
+
+	beforeEach(async () => {
+		await sql`DELETE FROM chain_read_cache`.execute(db);
+	});
+
+	const ok = () => ({ status: 200, body: { okay: true, result: OK_SIX } });
+
+	test("a hosted tenant read goes through the hosted chain-read path with the tenant key", async () => {
+		const api = fakeHostedApi(ok);
 		try {
-			const read = createChainReadClient({
-				blockHeight: 42,
-				indexBlockHash: IBH,
-				db: getSourceDb(),
-			})
-				.contract(CONTRACT, TOKEN_ABI)
-				.read.getDecimals();
-			await expect(read).rejects.toBeInstanceOf(HandlerReadError);
-			await expect(read).rejects.toThrow(/hosted subgraphs/);
-			await expect(read).rejects.not.toThrow(/STACKS_NODE_RPC_URL/);
+			const value = await asHostedTenant(api.url, () =>
+				createChainReadClient({ blockHeight: 42, indexBlockHash: IBH, db })
+					.contract(CONTRACT, TOKEN_ABI)
+					.read.getDecimals(),
+			);
+			expect(value).toBe(6n);
+			expect(api.calls).toHaveLength(1);
+			expect(api.calls[0]?.path).toBe(
+				"/v1/chain-read/v2/contracts/call-read/SP000000000000000000002Q6VF78/token/get-decimals",
+			);
+			expect(api.calls[0]?.tip).toBe(IBH);
+			expect(api.calls[0]?.authorization).toBe(`Bearer ${TENANT_KEY}`);
 		} finally {
-			for (const [key, value] of [
-				["STACKS_NODE_RPC_URL", saved.rpc],
-				["SUBGRAPH_INDEX_API_URL", saved.indexApi],
-				["NETWORK", saved.network],
-			] as const) {
-				if (value === undefined) delete process.env[key];
-				else process.env[key] = value;
-			}
+			api.stop();
+		}
+	});
+
+	test("an explicit node URL wins over the hosted path", async () => {
+		const api = fakeHostedApi(ok);
+		const node = fakeNode(OK_SIX);
+		try {
+			await asHostedTenant(api.url, () =>
+				createChainReadClient({
+					blockHeight: 42,
+					indexBlockHash: IBH,
+					rpcUrl: node.url,
+					db,
+				})
+					.contract(CONTRACT, TOKEN_ABI)
+					.read.getDecimals(),
+			);
+			expect(node.calls).toBe(1);
+			expect(api.calls).toHaveLength(0);
+		} finally {
+			api.stop();
+			node.stop();
+		}
+	});
+
+	test("a contract-constant read on an unpinned block fails the block on a hosted tenant", async () => {
+		const api = fakeHostedApi(ok);
+		try {
+			const read = asHostedTenant(api.url, () =>
+				createChainReadClient({ blockHeight: 42, indexBlockHash: null, db })
+					.contract(CONTRACT, TOKEN_ABI, { cache: "contract-constant" })
+					.read.getDecimals(),
+			);
+			await expect(read).rejects.toBeInstanceOf(HandlerReadError);
+			expect(api.calls).toHaveLength(0);
+		} finally {
+			api.stop();
+		}
+	});
+
+	test("server and client compute the same args hash", async () => {
+		const api = fakeHostedApi(ok);
+		try {
+			await asHostedTenant(api.url, () =>
+				createChainReadClient({ blockHeight: 42, indexBlockHash: IBH, db })
+					.contract(CONTRACT, TOKEN_ABI)
+					.read.getBalance({
+						who: "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE",
+					}),
+			);
+			const row = await db
+				.selectFrom("chain_read_cache")
+				.select("args_hash")
+				.where("index_block_hash", "=", IBH)
+				.executeTakeFirstOrThrow();
+			// The server hashes the hex it receives on the wire; the client
+			// hashes the Clarity values it serialized. Same key either way.
+			expect(row.args_hash).toBe(chainReadArgsHash(api.calls[0]?.args ?? []));
+		} finally {
+			api.stop();
+		}
+	});
+
+	test("a proxy refusal of a customer key says to set STACKS_NODE_RPC_URL", async () => {
+		const api = fakeHostedApi(() => ({
+			status: 403,
+			body: { error: "tenant only", code: "CHAIN_READ_TENANT_ONLY" },
+		}));
+		try {
+			const read = asHostedTenant(api.url, () =>
+				createChainReadClient({ blockHeight: 42, indexBlockHash: IBH, db })
+					.contract(CONTRACT, TOKEN_ABI)
+					.read.getDecimals(),
+			);
+			await expect(read).rejects.toBeInstanceOf(HandlerReadError);
+			await expect(read).rejects.toThrow(/STACKS_NODE_RPC_URL/);
+		} finally {
+			api.stop();
+		}
+	});
+
+	test("a proxy 400 is the handler's mistake and fails only the event", async () => {
+		const api = fakeHostedApi(() => ({
+			status: 400,
+			body: { error: "too many args", code: "CHAIN_READ_INVALID" },
+		}));
+		try {
+			const read = asHostedTenant(api.url, () =>
+				createChainReadClient({ blockHeight: 42, indexBlockHash: IBH, db })
+					.contract(CONTRACT, TOKEN_ABI)
+					.read.getDecimals(),
+			);
+			await expect(read).rejects.toBeInstanceOf(ChainReadError);
+			expect(api.calls).toHaveLength(1);
+		} finally {
+			api.stop();
 		}
 	});
 });
