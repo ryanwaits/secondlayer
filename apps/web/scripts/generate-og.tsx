@@ -8,8 +8,8 @@
  * product art on the right, and a footer strip with the logo and the page
  * path. Data-driven, so a copy change is one CARDS edit + a re-run.
  */
-import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { readFile, readdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { ImageResponse } from "next/og";
 import { STACKS_SYMBOL_PATH } from "../src/app/robinhood/stacks-symbol";
 import { type Chain, MARKS } from "../src/components/site/chain-marks";
@@ -1386,10 +1386,10 @@ const fonts = [
 	},
 ];
 
-// ── blog cards ───────────────────────────────────────────────────────────────
-// A post card is the post's title on the left and its own code on the right:
-// up to seven lines of the post's first real code block, in the site's syntax
-// ladder, with the token the post marks on yellow. Nothing to set per post.
+// ── blog and docs cards ──────────────────────────────────────────────────────
+// A post or docs page card is its title on the left and its own code on the
+// right: up to seven lines of the page's first real code block, in the site's
+// syntax ladder, with the token the page marks on yellow. Nothing to set per page.
 
 const FAINT = "#9b9b96";
 const POSTS_DIR = join(process.cwd(), "src/app/(www)/blog/(post)");
@@ -1403,8 +1403,8 @@ type Excerpt = { lines: string[]; mark: { line: number; re: RegExp } | null };
  * and its last lines (the result); code keeps a window around its first
  * `!mark` or `!callout`, whose token is the one marked.
  */
-async function heroExcerpt(slug: string): Promise<Excerpt | null> {
-	const mdx = await readFile(join(POSTS_DIR, slug, "page.mdx"), "utf8");
+async function heroExcerpt(file: string): Promise<Excerpt | null> {
+	const mdx = await readFile(file, "utf8");
 	for (const [, lang = "", body = ""] of mdx.matchAll(
 		/```(\w*)[^\n]*\n([\s\S]*?)```/g,
 	)) {
@@ -1538,12 +1538,18 @@ function PostFrame({
 	eyebrow,
 	title,
 	meta,
+	lede,
 	excerpt,
+	path,
 }: {
 	eyebrow: string;
 	title: string;
-	meta: string;
+	/** One mono line under the title (a post's date and reading time). */
+	meta?: string;
+	/** A sentence that wraps under the title (a docs page's lede). */
+	lede?: string;
 	excerpt: Excerpt | null;
+	path: string;
 }) {
 	const size = title.length > 40 ? 52 : 60;
 	return (
@@ -1582,9 +1588,23 @@ function PostFrame({
 				>
 					{title}
 				</span>
-				<T size={20} color={SUB}>
-					{meta}
-				</T>
+				{meta ? (
+					<T size={20} color={SUB}>
+						{meta}
+					</T>
+				) : null}
+				{lede ? (
+					<span
+						style={{
+							fontSize: 26,
+							color: SUB,
+							lineHeight: 1.35,
+							letterSpacing: -0.3,
+						}}
+					>
+						{lede}
+					</span>
+				) : null}
 			</div>
 			{excerpt ? (
 				<div
@@ -1600,7 +1620,7 @@ function PostFrame({
 					<CodeExcerpt excerpt={excerpt} />
 				</div>
 			) : null}
-			<Footer path={`${SITE}/blog`} />
+			<Footer path={path} />
 		</div>
 	);
 }
@@ -1667,12 +1687,65 @@ const WRITING_CARDS: { file: string; frame: React.ReactElement }[] = [
 					eyebrow={`BLOG · ${String(post.number).padStart(2, "0")}`}
 					title={post.title}
 					meta={`${longDate(post.date)} · ${post.readingTime}`}
-					excerpt={await heroExcerpt(post.slug)}
+					excerpt={await heroExcerpt(join(POSTS_DIR, post.slug, "page.mdx"))}
+					path={`${SITE}/blog`}
 				/>
 			),
 		})),
 	)),
 ];
+
+// Each docs page gets its own card, written next to the page as
+// opengraph-image.png so Next serves it for that route (and X falls back to
+// it). The docs index keeps the docs.png card from the docs layout.
+const DOCS_DIR = join(process.cwd(), "src/app/(www)/docs");
+const LEDE_CHARS = 120;
+
+/** The page's first sentence under its H1, as plain text. */
+function docsLede(mdx: string): string {
+	const body = mdx
+		.slice(mdx.search(/^# .+$/m))
+		.split("\n")
+		.slice(1);
+	const para =
+		body.find(
+			(l) => l.trim() && !/^[<#`|>-]|^(import|export) /.test(l.trim()),
+		) ?? "";
+	const text = para
+		.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+		.replace(/[`*_]/g, "")
+		.trim();
+	const first = /^.+?[.!?](?=\s|$)/.exec(text)?.[0] ?? text;
+	if (first.length <= LEDE_CHARS) return first;
+	const cut = first.lastIndexOf(" ", LEDE_CHARS - 1);
+	return `${first.slice(0, cut)}…`;
+}
+
+const DOCS_CARDS: { file: string; title: string; frame: React.ReactElement }[] =
+	await Promise.all(
+		(await readdir(DOCS_DIR, { recursive: true }))
+			.filter((f) => f.endsWith("page.mdx") && f !== "page.mdx")
+			.sort()
+			.map(async (f) => {
+				const slug = dirname(f);
+				const page = join(DOCS_DIR, f);
+				const mdx = await readFile(page, "utf8");
+				const title = /^# (.+)$/m.exec(mdx)?.[1]?.trim() ?? slug;
+				return {
+					file: join(DOCS_DIR, slug, "opengraph-image.png"),
+					title,
+					frame: (
+						<PostFrame
+							eyebrow="DOCS"
+							title={title}
+							lede={docsLede(mdx)}
+							excerpt={await heroExcerpt(page)}
+							path={`${SITE}/docs/${slug}`}
+						/>
+					),
+				};
+			}),
+	);
 
 for (const spec of CARDS) {
 	const res = new ImageResponse(<Frame {...spec} />, { ...SIZE, fonts });
@@ -1688,8 +1761,23 @@ for (const spec of WRITING_CARDS) {
 	console.log(`✓ ${spec.file}  (${buf.length.toLocaleString()} bytes)`);
 }
 
+for (const spec of DOCS_CARDS) {
+	const res = new ImageResponse(spec.frame, { ...SIZE, fonts });
+	const buf = Buffer.from(await res.arrayBuffer());
+	await writeFile(spec.file, buf);
+	await writeFile(
+		spec.file.replace(/\.png$/, ".alt.txt"),
+		`${spec.title} — secondlayer docs`,
+	);
+	console.log(
+		`✓ docs/${spec.file.slice(DOCS_DIR.length + 1)}  (${buf.length.toLocaleString()} bytes)`,
+	);
+}
+
 console.log(
 	"\nDone — wrote",
 	CARDS.length + WRITING_CARDS.length,
-	"cards to public/og/",
+	"cards to public/og/ and",
+	DOCS_CARDS.length,
+	"docs cards next to their pages",
 );

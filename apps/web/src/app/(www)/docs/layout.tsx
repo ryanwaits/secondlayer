@@ -10,7 +10,9 @@ import { DocsView } from "./docs-view";
 import "./docs.css";
 import { DocsScrollTop } from "./scroll-top";
 
-// Every docs page shares the docs share card; og/twitter title and
+// The docs index's share card. Every other docs page has its own
+// opengraph-image.png beside it (bun run og), which overrides this; no
+// twitter image here, so X falls back to that per-page og:image. Title and
 // description fall through to each page's own metadata export.
 export const metadata: Metadata = {
 	openGraph: {
@@ -27,7 +29,6 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		images: ["/og/docs.png"],
 	},
 };
 

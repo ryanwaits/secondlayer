@@ -532,6 +532,9 @@ Heading 16px ink 400 (not bold — column position does the work), links 16px `f
 ### OG share cards
 1200×630, Geist, Primaries, per-page cards from `apps/web/scripts/generate-og.tsx`
 (`bun run og`). Same tokens as the site; an OG card is a page in miniature.
+Blog posts and docs pages share one frame: title and lede left, the page's first
+code block right. Docs cards land beside each page as `opengraph-image.png`; re-run
+`bun run og` after adding a docs page or changing its H1, lede or first code block.
 
 ## 7. Registers
 
