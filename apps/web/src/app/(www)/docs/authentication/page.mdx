@@ -1,3 +1,4 @@
+{/* new: 2026-10-15 */}
 # Keys and billing
 
 One account key opens everything hosted: Index, Streams, your subgraphs and webhooks, and the archive. Prepaid credits pay for it.
@@ -81,7 +82,11 @@ The SDK sends `If-None-Match` for you. Its cache holds the last 64 pages in memo
 
 Past the free monthly allowance, a key with no balance gets a `402` (`insufficient_credits`) with a top-up link, before anything is served. A key still under the allowance, or with a balance, reads normally and is billed per row after the response.
 
-Your hosted stack (it runs your webhooks and subgraphs) bills memory at a minimum of 0.5 GB, about $10/mo while it runs, plus storage. A stopped stack bills no memory.
+Your hosted stack runs your webhooks and subgraphs, so a webhook-only account has one too. It bills memory at a minimum of 0.5 GB, about $10/mo while it runs, plus storage; a stopped stack bills nothing.
+
+- With no active webhooks and no subgraphs, the stack stops on its own within minutes.
+- It never stops in its first 15 minutes, so you have time to create your first webhook.
+- Your next request through the API starts it again, and your tables are kept.
 
 <Seam page="keys" />
 
@@ -92,9 +97,9 @@ Set a monthly cap on [your credits page](https://www.secondlayer.tools/account/c
 | At | What happens |
 | --- | --- |
 | 80% of the cap | an email, once a month |
-| the cap | reads past your free 1M rows answer `402 spend_cap_reached` until the next month; webhooks keep running |
+| the cap | reads past your free 1M rows answer `402 spend_cap_reached`, archive fetches stop, and your hosted stack stops within minutes, so webhooks stop delivering and subgraphs stop indexing, until the next month |
 
-Raise the cap on the same page and reads resume. Remove it and there is no cap; the prepaid balance is the only limit.
+Raise the cap on the same page and reads resume; the stack starts again within 5 minutes. Remove it and there is no cap; the prepaid balance is the only limit. A hard cap is the tradeoff: past it, your server stops hearing about the chain.
 
 ## Balance alerts
 
@@ -140,6 +145,8 @@ export const agent = `
 - Never put the account key in INSTANCE_TOKEN.
 - 1M rows a month are free; set a monthly spend cap and both balance alerts at /account/credits.
 - '402 spend_cap_reached' means the monthly cap is hit; '402 insufficient_credits' means the balance is empty. Raise the cap or buy credits to clear each.
+- The cap covers every charge: at the cap (and at a zero balance) the hosted stack stops, so webhooks stop delivering and subgraphs stop indexing until it is cleared.
+- A hosted stack with no active webhooks and no subgraphs stops itself (never in its first 15 minutes) and restarts on the next request. Pausing every webhook stops its billing.
 - Rotate a webhook signing secret with 'secondlayer webhooks rotate-secret', update the receiver that calls verifyWebhookSignature, then confirm nothing still references the old value.
 - Read sample: 'GET /v1/index/events?event_type=ft_transfer&limit=1'; event_type is required on /v1/index/events.
 `;

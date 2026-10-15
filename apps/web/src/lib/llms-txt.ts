@@ -37,8 +37,15 @@ const INTRO = `# Secondlayer: instant data for apps on Bitcoin
 ## Billing (hosted)
 - 1M rows free per month, then $5 per 1M ($2 per 1M past $50). Block headers
   are free.
-- A hosted stack (runs your subgraphs and webhooks) has a 0.5 GB memory minimum
-  (about $10/mo while running) plus storage. Webhook events are $10 per 1M.
+- A hosted stack (runs your subgraphs and webhooks, so webhook-only accounts
+  have one too) has a 0.5 GB memory minimum (about $10/mo while running) plus
+  storage. Webhook events are $10 per 1M.
+- With no active webhooks and no subgraphs the stack stops itself within
+  minutes (never in its first 15 minutes) and bills nothing; the next request
+  starts it again.
+- The monthly spend cap covers every charge. At the cap, reads past the free
+  rows answer 402 spend_cap_reached and the stack stops, so webhooks stop
+  delivering until the next month or a raised cap.
 - Reads of your own subgraph tables are free.
 - Self-host is unmetered. Only archive restore and backfill off our R2 is metered.
 

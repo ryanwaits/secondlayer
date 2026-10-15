@@ -73,8 +73,10 @@ function PricingNote() {
 			past $50 in a month. Block headers are free, and so are reads of your own
 			subgraph tables. Your hosted stack runs webhooks and subgraphs: memory at
 			$0.028 per GB-hour, <strong>0.5 GB minimum</strong> (about $10/mo while it
-			runs), plus storage. Webhook events are <strong>$10 per 1M</strong>{" "}
-			(retries free). Self-hosted instances are never metered.
+			runs), plus storage, for webhook-only accounts too. Pause or delete every
+			webhook and subgraph and it stops within minutes. Webhook events are{" "}
+			<strong>$10 per 1M</strong> (retries free). Self-hosted instances are
+			never metered.
 		</p>
 	);
 }
@@ -354,8 +356,9 @@ const USD_MICROS_PER_CENT = 10_000;
  *  Index/Streams reads — every unit `meter()` debits) reaches the account's
  *  monthly spend cap — the same condition `checkRowsAllowance`
  *  (`packages/api/src/lib/read-credits.ts`) refuses a read on with 402
- *  `spend_cap_reached`. Only reads past the free 1M rows pause; webhooks and
- *  the hosted stack keep running. Same banner style as `LevelBanner`. */
+ *  `spend_cap_reached`. Reads past the free 1M rows pause and the
+ *  workload host's poll stops the hosted stack. Same banner style as
+ *  `LevelBanner`. */
 function CapBanner({
 	now,
 	monthlyCapCents,
@@ -369,12 +372,13 @@ function CapBanner({
 		<output className="use-banner capped">
 			<div>
 				<p className="use-banner-t">
-					Reads paused: you reached your monthly spend cap
+					Paused: you reached your monthly spend cap
 				</p>
 				<p className="use-banner-l">
 					You've spent your {cap$} monthly cap. Hosted Index and Streams reads
-					past your free 1M rows are paused until {resets}. Raise your cap to
-					keep reading this month.
+					past your free 1M rows are paused, and your hosted stack stops within
+					minutes: webhooks stop delivering and subgraphs stop indexing until{" "}
+					{resets}. Raise your cap to start them again this month.
 				</p>
 			</div>
 			<button
@@ -515,10 +519,10 @@ const DEFAULT_ALERTS: BalanceAlerts = { notify7d: true, notify2d: true };
 
 /** Whole-dollar `$` input + Save, bound to `GET/PATCH /api/billing/caps`.
  *  Empty input = no cap. The cap counts total monthly spend (memory,
- *  storage, webhooks, and reads — every unit `meter()` debits); only a read
- *  past the free 1M rows once the cap is reached is refused with 402
- *  `spend_cap_reached` before it starts (`checkRowsAllowance`,
- *  `packages/api/src/lib/read-credits.ts`) — webhooks keep running. */
+ *  storage, webhooks, and reads — every unit `meter()` debits). Once it is
+ *  reached, reads past the free 1M rows answer 402 `spend_cap_reached`
+ *  (`checkRowsAllowance`, `packages/api/src/lib/read-credits.ts`) and the
+ *  hosted stack stops. */
 function SpendCapRow() {
 	const { caps } = useAccountData();
 	useEffect(() => {
@@ -558,7 +562,8 @@ function SpendCapRow() {
 				<span className="t">Monthly spend cap</span>
 				<span className="s">
 					Counts everything you spend this month. Once you reach it, hosted
-					reads past your free 1M rows pause. Webhooks keep running.
+					reads past your free 1M rows pause and your hosted stack stops, so
+					webhooks stop delivering.
 				</span>
 			</label>
 			<div className="use-cap-fields">

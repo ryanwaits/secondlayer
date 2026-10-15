@@ -187,7 +187,7 @@ export default function WebhooksPage() {
 							</ButtonLink>
 						</div>
 						<p className="cap">
-							$10 per 1M delivered events · retries never billed
+							$10 per 1M events · plus your stack, ~$10 / month
 						</p>
 						<div className="odo">
 							<span className="odo-n">27 triggers</span>
@@ -293,7 +293,7 @@ export default function WebhooksPage() {
 							{
 								label: "Volume meter",
 								value: "$10 / 1M events",
-								body: "Counted when an event is delivered. A webhook that never fires costs nothing.",
+								body: "Counted when an event is delivered. Your webhooks run on your hosted stack: memory from a 0.5 GB floor, about $10 a month while it runs, plus storage. Pause or delete every webhook and it stops within minutes.",
 							},
 							{
 								label: "Never billed",
@@ -448,7 +448,7 @@ export default function WebhooksPage() {
 							},
 							{
 								q: "Do I pay for retries?",
-								a: "No. You pay $10 per 1M events delivered. Retries, and the rows we read to match your triggers, are never billed.",
+								a: "No. You pay $10 per 1M events delivered, plus your hosted stack while it runs. Retries, and the rows we read to match your triggers, are never billed.",
 							},
 							{
 								q: "How do I know a delivery came from you?",

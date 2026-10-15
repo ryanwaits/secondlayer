@@ -367,13 +367,16 @@
     ]
   },
   "/docs/authentication#spend-cap": {
-    "hash": "901fb80d5467e0d7",
+    "hash": "1ee6637e21bbe92d",
     "phrasings": [
-      "set monthly spending limit stacks",
-      "stop stacks charges over budget",
-      "stacks credits monthly cap",
-      "limit api spend per month",
-      "how to cap stacks usage costs"
+      "how to set monthly spending limit",
+      "api key stopped working after credits used",
+      "stop charges above monthly budget",
+      "where to cap credit spending",
+      "how much did i spend this month",
+      "prevent unexpected billing overages on api",
+      "limit monthly credit usage per account",
+      "why was my api access blocked"
     ]
   },
   "/docs/authentication#webhook-signing-secrets": {

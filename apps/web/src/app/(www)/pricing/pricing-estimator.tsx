@@ -129,7 +129,7 @@ export function PricingEstimator() {
 				/>
 				<Slider
 					id="est-storage"
-					label="Subgraph storage"
+					label="Stack storage"
 					value={storage}
 					max={STORAGE_GB.length - 1}
 					display={`${storageGb} GB`}

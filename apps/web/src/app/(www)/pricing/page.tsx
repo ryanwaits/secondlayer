@@ -96,7 +96,7 @@ const FREE_GRID: readonly {
 	{
 		key: "stopped",
 		title: "A stopped stack",
-		body: "Stop it and memory billing stops with it.",
+		body: "Pause or delete every webhook and subgraph and the stack stops within minutes, and so does the memory charge.",
 	},
 	{
 		key: "etag",
@@ -292,10 +292,12 @@ export default function PricingPage() {
 								</tr>
 								<tr>
 									<td>
-										Stack storage<span className="tag">Subgraphs</span>
+										Stack storage
+										<span className="tag">Subgraphs · Webhooks</span>
 									</td>
 									<td className="what">
-										The tables your subgraphs keep on your stack.
+										The tables your stack keeps: webhooks, their delivery log,
+										and subgraph rows.
 									</td>
 									<td className="price">
 										~{usd(STORAGE_USD_PER_GB_MONTH)} / GB-month
@@ -402,16 +404,17 @@ export default function PricingPage() {
 								q: "What happens when I hit my cap?",
 								a: (
 									<>
-										Reads past your free {FREE_ROWS_LABEL} stop with{" "}
-										<code>402 spend_cap_reached</code> until the next month.
-										Webhooks keep running, so your server still hears about the
-										chain.
+										Every charge stops. Reads past your free {FREE_ROWS_LABEL}{" "}
+										answer <code>402 spend_cap_reached</code>, and your stack
+										stops within minutes, so webhooks pause and subgraphs stop
+										indexing until the next month or until you raise the cap.
+										That&apos;s the tradeoff of a hard cap.
 									</>
 								),
 							},
 							{
 								q: "Why does the stack have a minimum?",
-								a: `A running stack holds memory whether it's busy or not, so it bills at least ${STACK_MEMORY_FLOOR_GB} GB, about ${usd(Math.round(STACK_MEMORY_FLOOR_GB * HOURS_PER_MONTH * MEMORY_USD_PER_GB_HOUR))} a month. Stop it and the memory charge stops. Your webhooks and subgraphs share the one stack, so there's no charge per webhook.`,
+								a: `A running stack holds memory whether it's busy or not, so it bills at least ${STACK_MEMORY_FLOOR_GB} GB, about ${usd(Math.round(STACK_MEMORY_FLOOR_GB * HOURS_PER_MONTH * MEMORY_USD_PER_GB_HOUR))} a month. Pause or delete every webhook and subgraph and the stack stops within minutes, and so does the memory charge. Hitting your spend cap stops it too. A webhook-only account runs the same stack, with the same minimum, and there's no charge per webhook.`,
 							},
 							{
 								q: "Is checking really free?",

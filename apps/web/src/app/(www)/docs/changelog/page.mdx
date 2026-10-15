@@ -1,6 +1,17 @@
+{/* new: 2026-10-15 */}
 # Changelog
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-credits).
+
+## Accounts — October 2026
+
+### Your hosted stack stops when it has nothing to run
+
+Pause or delete every webhook and subgraph and your hosted stack stops within minutes, and its memory and storage charges stop with it. It never stops in its first 15 minutes, and your next request starts it again with your tables intact. Webhook-only accounts run the same stack, with the same 0.5 GB minimum while it runs. See [Keys and billing](/docs/authentication#what-it-costs).
+
+### The spend cap covers every charge
+
+Your monthly spend cap now stops your hosted stack too, not only reads past the free 1M rows. At the cap, webhooks stop delivering, subgraphs stop indexing and archive fetches answer `402 spend_cap_reached` until the next month or until you raise the cap. See [Spend cap](/docs/authentication#spend-cap).
 
 ## SDK — October 2026
 
