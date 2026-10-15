@@ -452,6 +452,8 @@ for await (const activity of sl.index.runes.activity.walk({ rune: "840000:3" }))
 
 A Bitcoin block needs 6 confirmations to count as final: `tip.finalized_height` is `tip.block_height - 6`.
 
+`tip.lag_seconds` is the age of the newest indexed block, so it climbs between Bitcoin blocks and 600 seconds or more is normal. To check freshness, compare `tip.block_height` with your Bitcoin node.
+
 - The catalog and balances read reorg-corrected snapshots, so their `reorgs` is always empty.
 - Only `activity` is an append-only log, so only its `reorgs` can name replaced heights, at block level.
 
