@@ -3,7 +3,7 @@ import { socialMeta } from "./og";
 
 /**
  * Writings registry — the single source of post metadata. Posts are
- * per-directory page.mdx files under src/app/(www)/writing/(post)/<slug>/;
+ * per-directory page.mdx files under src/app/(www)/blog/(post)/<slug>/;
  * this file feeds the index page, sitemap, RSS feed, and OG cards, so it
  * stays dependency-free of app code beyond og.ts (scripts/generate-og.tsx
  * imports it with a relative path).
@@ -58,13 +58,13 @@ export const POSTS: WritingPost[] = [
 		date: "2026-10-14",
 		readingTime: "5 min",
 		notes: "popover",
-		status: "draft",
+		status: "published",
 	},
 ];
 
 const SHOW_DRAFTS = process.env.NODE_ENV !== "production";
 
-/** Posts for the /writing index — drafts included in dev only. */
+/** Posts for the /blog index — drafts included in dev only. */
 export function getVisiblePosts(): WritingPost[] {
 	return POSTS.filter((p) => p.status === "published" || SHOW_DRAFTS);
 }
@@ -72,6 +72,15 @@ export function getVisiblePosts(): WritingPost[] {
 /** Posts for sitemap/RSS/OG — never drafts, regardless of environment. */
 export function getPublishedPosts(): WritingPost[] {
 	return POSTS.filter((p) => p.status === "published");
+}
+
+/** How long a published post wears the "new" chip, counted from its date. */
+const NEW_FOR_MS = 14 * 24 * 60 * 60 * 1000;
+
+/** A published post dated within the last two weeks. */
+export function isNew(post: WritingPost, now = Date.now()): boolean {
+	const age = now - Date.parse(`${post.date}T00:00:00Z`);
+	return post.status === "published" && age >= 0 && age < NEW_FOR_MS;
 }
 
 export function getPost(slug: string): WritingPost | undefined {
@@ -109,6 +118,6 @@ export function postMeta(slug: string): Metadata {
 		title: `${post.title} — secondlayer`,
 		description: post.dek,
 		image: `/og/writing-${post.slug}.png`,
-		path: `/writing/${post.slug}`,
+		path: `/blog/${post.slug}`,
 	});
 }

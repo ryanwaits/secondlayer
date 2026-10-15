@@ -1,18 +1,22 @@
 import { Eyebrow, Highlight } from "@/components/site";
 import { socialMeta } from "@/lib/og";
-import { getVisiblePosts, longDate } from "@/lib/writing";
+import { getVisiblePosts, isNew, longDate } from "@/lib/writing";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 const LEDE =
 	"Short posts on how we index Stacks and Bitcoin, and how to check our work.";
 
+// Rebuilt daily so the "new" chip drops off two weeks after a post's date
+// without a deploy.
+export const revalidate = 86400;
+
 export const metadata: Metadata = {
 	...socialMeta({
 		title: "Blog · secondlayer",
 		description: LEDE,
 		image: "/og/writing.png",
-		path: "/writing",
+		path: "/blog",
 	}),
 	alternates: {
 		types: { "application/rss+xml": "/feed.xml" },
@@ -35,7 +39,7 @@ export default function WritingIndexPage() {
 				</div>
 				<div className="writing-ledger">
 					{posts.map((post) => (
-						<Link key={post.slug} href={`/writing/${post.slug}`}>
+						<Link key={post.slug} href={`/blog/${post.slug}`}>
 							<span className="no">
 								<b>{String(post.number).padStart(2, "0")}</b>
 								{longDate(post.date)}
@@ -43,9 +47,11 @@ export default function WritingIndexPage() {
 							<span>
 								<span className="t">
 									{post.title}
-									{post.status === "draft" && (
-										<span className="writing-draft-chip">draft</span>
-									)}
+									{post.status === "draft" ? (
+										<span className="writing-chip">draft</span>
+									) : isNew(post) ? (
+										<span className="writing-chip is-new">new</span>
+									) : null}
 								</span>
 								<span className="d">{post.dek}</span>
 							</span>

@@ -4007,7 +4007,7 @@ body:has(.marketing-nav) .auth-bar {
 /* quiet payoff — a text link that reveals the inline keygen */
 
 /* ══════════════════════════════════════════════════════════════════
-   Writing — /writing long-form posts (reading register)
+   Blog — /blog posts (reading register)
    Wider type than docs on purpose: a bare 680px column, 17px body,
    figures full-bleed past the prose edge. Ported from the approved
    writings mock; all colors via house tokens.
@@ -4219,18 +4219,23 @@ body:has(.marketing-nav) .auth-bar {
 	margin: var(--spacing-lg) 0 14px;
 }
 
-.writing-draft-chip {
+/* Ledger chips: draft is neutral; new takes the yellow mark (yellow = new). */
+.writing-chip {
 	font-family: var(--font-mono-stack);
 	font-size: 10.5px;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	font-weight: 600;
-	color: var(--yellow);
-	background: var(--yellow-bg);
+	font-weight: 500;
+	color: var(--sub);
+	background: var(--soft);
 	border-radius: 3px;
 	padding: 2px 7px;
 	margin-left: 10px;
 	vertical-align: 2px;
+}
+.writing-chip.is-new {
+	color: var(--on-hi);
+	background: var(--hi);
 }
 
 /* ── Post rail: sticky right of the column; hidden below 760px. Set like
