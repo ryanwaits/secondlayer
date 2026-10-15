@@ -52,9 +52,9 @@ export function SiteFooter() {
 							<Logo size={22} />
 							<span>secondlayer</span>
 						</Link>
-						<p className="site-footer-tag">Instant data for apps on Bitcoin.</p>
-						<p className="site-footer-credit">
-							Inspired by the ideas behind{" "}
+						<p className="site-footer-tag">
+							Instant data for apps on Bitcoin. Proof included. Inspired by the
+							ideas behind{" "}
 							<a
 								href="https://paragraph.com/@aulneau/project-kourier"
 								target="_blank"
