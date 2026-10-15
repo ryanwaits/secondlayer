@@ -402,7 +402,14 @@
    .tabbar; inside the bar the bar's own border is the baseline. */
 .cb-bar .tabbar {
 	height: 100%;
+	min-width: 0;
+	gap: 14px;
 	box-shadow: none;
+}
+/* The key chip and Copy hold their line; the tab strip scrolls sideways instead. */
+.cb-tabs > .cb-bar .r {
+	flex: none;
+	white-space: nowrap;
 }
 .cb-bar .tabbar button {
 	height: 100%;
