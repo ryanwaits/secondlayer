@@ -10,17 +10,17 @@ Pages live under `docs/pages/**/*.mdx`. Config: `vocs.config.tsx`. Footer: `docs
 
 ## Shell
 
-viem.sh's docs shell reproduced on Vocs 1.4.1: sidebar on the page ground, content + outline in a raised panel (hairline left/top, 16px top-left radius, fixed under the top nav), gold 2px underline on the active top-nav tab, gold-on-wash active sidebar item, mono labels for `/reference/*` sidebar entries, gold `§n` counters on docs H2s. No theme toggle; the site follows the OS. Colors live in `vocs.config.tsx` (`theme.variables.color`): egg-white light (`#f0ebdd` ground / `#f9f6ee` panel), warm-dark dark (`#111010` / `#171513`), gold accent (`#b8890a` light text, `#e3b117` fill; `#f0c430` dark). Structure only in `docs/styles.css`.
+viem.sh's docs shell reproduced on Vocs 1.4.1: sidebar on the page ground, content + outline in a raised panel (hairline left/top, 8px top-left radius, fixed under the top nav), blue 2px underline on the active top-nav tab, active sidebar row in ink 500 on the panel surface, faint `§n` counters on docs H2s, and the two-layer mark (blue top layer) beside the `stacks` wordmark via `.vocs_NavLogo_title::before` using the favicon files. Type is Geist / Geist Mono. No theme toggle; the site follows the OS on first visit, then Vocs remembers the choice in localStorage `vocs.theme`. `vocs.config.tsx` maps Vocs color slots to brand roles from `docs/brand.ts` (mirrors the DESIGN.md frontmatter; `test/brand.test.ts` fails on drift): light = `soft` ground / `paper` panel, dark = `paper` ground / `soft` panel. Structure only in `docs/styles.css`.
 
 `vite.define` in the config shims `process.platform` / `process.env`: Vocs 1.4.1 bundles picomatch into the client and it reads `process` at module init, which otherwise throws in the browser and aborts hydration (no outline, search, tabs, copy buttons).
 
 ## Icons + OG
 
-Favicon: `docs/public/icon-{light,dark}.svg` (secondlayer mark in ink). OG card: `docs/public/og.png`, a 1200×630 capture of `docs/og-card.html` (`agent-browser open file://…/og-card.html`, viewport 1200×630, screenshot). Re-render when the tagline changes.
+Favicon: `docs/public/icon-{light,dark}.svg` (secondlayer mark, top layer `pri` blue, back layer 24% ink). OG card: `docs/public/og.png`, a 1200×630 capture of `docs/og-card.html` (`agent-browser open file://…/og-card.html`, viewport 1200×630, screenshot). Re-render when the tagline changes.
 
 ## Code blocks
 
-Code blocks reuse the platform docs CodeBlock rules (elevated surface, hairline border, 12px radius, Fira Code 14/1.7, hover copy button) via `docs/styles.css`, and a library-specific shiki theme in `docs/syntax-theme.ts`: the platform's monotone ink ramp, warm-tinted for the egg-white / warm-dark grounds, with gold on literals only (strings, numbers, JSON values). Keywords are ink at weight 500; nothing is bold.
+Code blocks: elevated surface, one hairline border, 8px radius, Geist Mono 14/1.7, hover copy button (blue on hover), via `docs/styles.css`. Colors come from the brand code theme `apps/web/src/lib/syntax-theme.ts`, imported in `vocs.config.tsx`: a four-step ink ladder, no hue. Calls are bold-marked in the theme and rendered at weight 500 by `docs/styles.css`.
 
 ## Local
 
