@@ -17,6 +17,7 @@ import {
 	StatusDot,
 } from "@/components/site";
 import { IndexHero } from "@/components/site/assets";
+import { ChainLink } from "@/components/site/chain-link";
 import { FilterIcon, MailIcon, ShieldCheckIcon } from "@/components/site/icons";
 import {
 	formatCount,
@@ -48,11 +49,12 @@ import { database } from "./database";
 
 const secondlayer = new SecondLayer();
 
-// !callout[/consume/] genesis first, then the tip
+// !callout[/consume/] backfill first, then the tip
 await secondlayer.index.events.consume({
   eventType: "ft_transfer",
   contractId: "SM3V…sbtc-token",
-  fromHeight: 0,
+  // !callout[/328_228/] block sBTC was deployed
+  fromHeight: 328_228,
   sink: kyselySink(database, {
     id: "sbtc-transfers",
     // !callout[/"transfers"/] rolled back on a reorg
@@ -259,10 +261,11 @@ export default async function IndexPage() {
 								<Eyebrow noun="The indexer" />
 								<h2>Your indexer is one file</h2>
 								<p className="lede">
-									<span className="mono">consume</span> walks every sBTC
-									transfer since genesis, then keeps following the tip. Kill it
-									mid-backfill and it resumes from the last committed row. No
-									queue, no cron, no cursor table to design.
+									<code>consume</code> walks every transfer since{" "}
+									<ChainLink chain="sbtc">sBTC</ChainLink> deployed at block
+									328,228, then keeps following the tip. Kill it mid-backfill
+									and it resumes from the last committed row. No queue, no cron,
+									no cursor table to design.
 								</p>
 							</>
 						}
