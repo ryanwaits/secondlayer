@@ -12,16 +12,72 @@
       "stacks api for smart contract events"
     ]
   },
-  "/docs#get-started": {
-    "hash": "2b0eb003d3852c9d",
+  "/docs#create-a-subgraph": {
+    "hash": "7c50ff026ccdbb09",
     "phrasings": [
-      "how to install secondlayer cli",
-      "set api key before creating subgraph",
-      "create subgraph from smart contract",
-      "deploy subgraph and query rows",
-      "check which block rows came from",
-      "secondlayer quickstart first subgraph",
-      "getting started with contract subgraphs"
+      "generate typed subgraph from contract events",
+      "scaffold subgraph from contract abi",
+      "how to make subgraph from events",
+      "subgraph codegen typescript from contract",
+      "new subgraph project from smart contract",
+      "create typed mappings for contract events"
+    ]
+  },
+  "/docs#deploy": {
+    "hash": "f507606d6bf27c93",
+    "phrasings": [
+      "set startblock before deploying subgraph",
+      "why are my event rows empty after deploy",
+      "startblock setting for indexing transactions",
+      "how to deploy subgraph to hosted service",
+      "deploy fails startblock too early",
+      "billing for events and transactions during indexing"
+    ]
+  },
+  "/docs#get-started": {
+    "hash": "f2c8fd86039a289e",
+    "phrasings": [
+      "first steps to index bitcoin data",
+      "five commands to get first row",
+      "quick start bitcoin indexing tutorial",
+      "how to check rows against bitcoin",
+      "minimal setup to run first query",
+      "fastest way to try subgraph locally",
+      "why is my first row missing"
+    ]
+  },
+  "/docs#install-and-set-your-key": {
+    "hash": "d6de9641558fb907",
+    "phrasings": [
+      "where to put api key environment variable",
+      "how to configure api key for cli",
+      "which environment variables do i need to set",
+      "set key before running any command",
+      "auth token not found error on startup",
+      "missing key error when running commands",
+      "env variables used in example commands"
+    ]
+  },
+  "/docs#query": {
+    "hash": "005d4e6286e8d74a",
+    "phrasings": [
+      "how to query subgraph data graphql",
+      "example graphql query for transactions",
+      "fetch rows from deployed subgraph endpoint",
+      "query endpoint returns no results",
+      "graphql filter syntax for event entities",
+      "pagination in subgraph query results"
+    ]
+  },
+  "/docs#verify": {
+    "hash": "4e996ad881719b65",
+    "phrasings": [
+      "verify indexed block against bitcoin node",
+      "how to prove block hash matches bitcoin",
+      "check my rows come from valid block",
+      "confirm subgraph data matches chain",
+      "block proof verification for bitcoin rows",
+      "is indexed data trustworthy against bitcoin"
     ]
   },
   "/docs#where-do-you-start": {

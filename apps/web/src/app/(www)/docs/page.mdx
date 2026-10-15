@@ -1,5 +1,3 @@
-import { QuickstartPanel } from "./quickstart-panel";
-
 # Introduction
 
 Decoded Stacks chain data, backfilled from genesis, reorg-safe and kept current. Trust, and [verify it yourself](/docs/verification).
@@ -74,13 +72,54 @@ You get [raw, signed frames to decode](focus:fork-st-batch), and a [reorg rewind
 
 ## Get started
 
-Install the CLI, set your key, create a subgraph from a contract, deploy it, read its rows, then check the block they came from. Keys come from [/account/keys](/account/keys).
+Five commands from key to a row you can check against Bitcoin. Keys come from [/account/keys](/account/keys).
 
 Using an agent? `bunx skills add ryanwaits/secondlayer --skill secondlayer -y`
 
-<QuickstartPanel />
+<Steps>
 
-Set a `startBlock` before you deploy: the event and transaction rows it reads bill. Reads of your own tables are free.
+### Install and set your key
+
+Every command and example reads these two variables.
+
+```bash
+bun add -g @secondlayer/cli
+export SECONDLAYER_API_URL=https://api.secondlayer.tools
+export SECONDLAYER_API_KEY=sk-sl_...
+```
+
+### Create a subgraph
+
+Scaffolds a typed subgraph from a contract's events.
+
+```bash
+secondlayer subgraphs create my-balances --from-contract SP....my-contract
+```
+
+### Deploy
+
+Set a `startBlock` first: the event and transaction rows it reads bill. Reads of your own tables are free.
+
+```bash
+secondlayer subgraphs deploy subgraphs/my-balances.ts
+```
+
+### Query
+
+```bash
+curl -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  "$SECONDLAYER_API_URL/v1/subgraphs/my-balances/balances"
+```
+
+### Verify
+
+Proves the block your rows came from against Bitcoin. [Verification →](/docs/verification)
+
+```bash
+secondlayer verify block 9137005
+```
+
+</Steps>
 
 Prefer your own box? [Self-host](/docs/self-host) is the same product on your Postgres.
 

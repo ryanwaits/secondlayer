@@ -42,7 +42,6 @@ describe("docs products", () => {
 	test("every start page's next links tease code that appears in the docs", () => {
 		const docs = join(import.meta.dir);
 		const sources = [
-			readFileSync(join(docs, "quickstart-data.ts"), "utf8"),
 			...readdirSync(docs, { withFileTypes: true })
 				.filter((d) => d.isDirectory())
 				.map((d) => join(docs, d.name, "page.mdx"))
