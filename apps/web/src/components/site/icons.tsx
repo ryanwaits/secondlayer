@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 /**
  * Product-page glyphs: common shapes in the house hand. 20-unit grid with 2 of
  * padding, 1.2 stroke, round ends, currentColor. Each shape is used once across
- * the /p pages. At most one accent part per glyph (DESIGN.md, Product glyphs):
+ * the /p pages; the docs product stack reuses one per product. At most one accent part per glyph (DESIGN.md, Product glyphs):
  * `glyph-pri` for what the claim is about, `glyph-alarm` for a failure.
  */
 function Glyph({ children }: { children: ReactNode }) {
@@ -106,6 +106,46 @@ export function ShieldCheckIcon() {
 		<Glyph>
 			<path d="M10 2.5 16 5v5c0 3.6-2.6 6.2-6 7.5-3.4-1.3-6-3.9-6-7.5V5Z" />
 			<path className="glyph-pri" d="m7.25 10 2 2 3.5-3.75" />
+		</Glyph>
+	);
+}
+
+/** Webhooks: a signal arriving. */
+export function PulseIcon() {
+	return (
+		<Glyph>
+			<path d="M4 11h4l2-5 3 9 2-4h1" />
+			<circle className="glyph-pri" cx="16.5" cy="11" r="1.2" />
+		</Glyph>
+	);
+}
+
+/** Subgraphs: a table you define. */
+export function TableIcon() {
+	return (
+		<Glyph>
+			<rect x="3" y="4" width="14" height="12" rx="2" />
+			<path className="glyph-pri" d="M3 8h14M8 8v8" />
+		</Glyph>
+	);
+}
+
+/** Index: decoded rows. */
+export function RowsIcon() {
+	return (
+		<Glyph>
+			<path d="M4 6h12M4 10h12M4 14h8" />
+			<path className="glyph-pri" d="M14 14h2" />
+		</Glyph>
+	);
+}
+
+/** Streams: events flowing. */
+export function WavesIcon() {
+	return (
+		<Glyph>
+			<path d="M3 7c2.5-2 4.5 2 7 0s4.5-2 7 0M3 13c2.5-2 4.5 2 7 0s4.5-2 7 0" />
+			<path className="glyph-pri" d="M3 10c2.5-2 4.5 2 7 0s4.5-2 7 0" />
 		</Glyph>
 	);
 }

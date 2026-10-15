@@ -508,6 +508,22 @@ button.docs-nav-item {
 .docs-article:has(.apiref-ep) > :not(.apiref) {
 	max-width: 720px;
 }
+/* A product page's figure takes the frame's width for its notes column;
+   prose and every other block stay at the reading measure. */
+.docs-article:has(> .cf),
+.docs-topline:has(+ .docs-article > .cf) {
+	max-width: 1112px;
+}
+.docs-article:has(> .cf) > :not(.cf) {
+	max-width: 720px;
+}
+/* The notes hang inside the article, not in a page margin: the frame gives up
+   the whole notes column. Below 1100px the figure stacks its notes itself. */
+@media (min-width: 1101px) {
+	.docs-article > .cf {
+		margin-right: calc(var(--notes) + 16px);
+	}
+}
 /* Wide screens: the pills ride the title's first line, so the title starts
    level with the sidebar's first label. Narrow screens keep them on a row above. */
 @media (min-width: 861px) {
@@ -2243,4 +2259,194 @@ html[data-acct-card] .docs-content {
 /* Its table takes the docs table frame, so the rows' own top rule goes. */
 .docs-article .block-checker .rows {
 	border-top: 0;
+}
+
+/* ── product page blocks: stack, yields, seam, fork ──
+   The map at the hub, the file on the product, the fork at the seam. */
+.docs-eyebrow {
+	font: 500 11px / 1.4 var(--font-mono-stack);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--faint);
+}
+.docs-article .docs-stack,
+.docs-article .docs-yields,
+.docs-article .docs-seam {
+	margin-top: 20px;
+}
+.docs-stack-head,
+.docs-stack-row {
+	display: grid;
+	grid-template-columns: 22px 108px minmax(0, 1fr) minmax(0, 1fr);
+	gap: 14px;
+	align-items: center;
+}
+.docs-stack-head {
+	padding: 0 16px 8px;
+}
+.docs-stack-head span {
+	font: 500 11px / 1.4 var(--font-mono-stack);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--faint);
+}
+.docs-stack-rows {
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	overflow: hidden;
+}
+.docs-article a.docs-stack-row {
+	padding: 12px 16px;
+	font-size: 14px;
+	color: var(--ink);
+	text-decoration: none;
+	transition: background-color 0.15s ease-out;
+}
+.docs-stack-row + .docs-stack-row {
+	border-top: 1px solid var(--line);
+}
+.docs-article a.docs-stack-row:hover {
+	background: var(--soft);
+}
+.docs-article a.docs-stack-row:focus-visible {
+	outline-offset: -2px;
+}
+.docs-stack-row svg {
+	display: block;
+	width: 20px;
+	height: 20px;
+	color: var(--sub);
+}
+.docs-stack .glyph-pri,
+.docs-stack-row .glyph-pri {
+	color: var(--pri);
+}
+.docs-stack-name {
+	font-weight: 500;
+	color: var(--pri);
+}
+.docs-stack-write {
+	font: 400 12.5px / 1.4 var(--font-mono-stack);
+	color: var(--sub);
+}
+.docs-stack-base {
+	grid-template-columns: 22px minmax(0, 1fr);
+	padding: 12px 16px;
+	font-size: 14px;
+	background: var(--soft);
+	color: var(--sub);
+}
+@media (max-width: 700px) {
+	.docs-stack-head,
+	.docs-stack-row {
+		grid-template-columns: 22px minmax(0, 1fr);
+	}
+	.docs-stack-row > :nth-child(n + 3) {
+		grid-column: 2;
+	}
+	.docs-stack-head span:nth-child(n + 3) {
+		display: none;
+	}
+}
+
+.docs-yields {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	font-size: 14px;
+}
+.docs-yields > div {
+	display: grid;
+	gap: 4px;
+	align-content: start;
+	padding: 14px 16px;
+}
+.docs-yields > div + div {
+	border-left: 1px solid var(--line);
+}
+
+.docs-seam {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	overflow: hidden;
+}
+.docs-seam-cell {
+	display: grid;
+	gap: 6px;
+	align-content: start;
+	min-width: 0;
+	padding: 16px;
+}
+.docs-seam-cell + .docs-seam-cell {
+	border-left: 1px solid var(--line);
+}
+.docs-article a.docs-seam-cell {
+	text-decoration: none;
+	color: var(--ink);
+	transition: background-color 0.15s ease-out;
+}
+.docs-article a.docs-seam-cell:hover {
+	background: var(--soft);
+}
+.docs-article a.docs-seam-cell:focus-visible {
+	outline-offset: -2px;
+}
+.docs-seam-to {
+	font-weight: 500;
+	color: var(--pri);
+}
+.docs-seam-why {
+	font-size: 14px;
+	color: var(--sub);
+}
+.docs-seam-tease {
+	overflow: hidden;
+	font: 400 12px / 1.4 var(--font-mono-stack);
+	color: var(--faint);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+@media (max-width: 560px) {
+	.docs-yields,
+	.docs-seam {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.docs-yields > div + div,
+	.docs-seam-cell + .docs-seam-cell {
+		border-left: 0;
+		border-top: 1px solid var(--line);
+	}
+}
+
+.docs-fork {
+	margin-top: 20px;
+	display: grid;
+	gap: 12px;
+	justify-items: start;
+}
+.docs-article .docs-fork-ask {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 500;
+	line-height: 1.4;
+	letter-spacing: -0.01em;
+	color: var(--ink);
+}
+.docs-fork-path {
+	display: none;
+	width: 100%;
+	min-width: 0;
+}
+.docs-fork:has(.choice-cell:nth-child(1) input:checked)
+	.docs-fork-path:nth-of-type(1),
+.docs-fork:has(.choice-cell:nth-child(2) input:checked)
+	.docs-fork-path:nth-of-type(2),
+.docs-fork:has(.choice-cell:nth-child(3) input:checked)
+	.docs-fork-path:nth-of-type(3),
+.docs-fork:has(.choice-cell:nth-child(4) input:checked)
+	.docs-fork-path:nth-of-type(4) {
+	display: block;
 }

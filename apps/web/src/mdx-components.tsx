@@ -4,6 +4,11 @@ import { CodeTabs } from "@/components/code/code-tabs";
 import { fenceFromCode } from "@/components/code/fence";
 import { FocusLink, Mention, Pick, Tip } from "@/components/code/prose";
 import { Banner, Callout } from "@/components/docs/callout";
+import { Fork, ForkPath } from "@/components/docs/fork";
+import { Seam } from "@/components/docs/seam";
+import { Stack } from "@/components/docs/stack";
+import { Yields } from "@/components/docs/yields";
+import { parseFenceOptions } from "@/lib/code/annotations";
 import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -13,7 +18,9 @@ import type { ReactNode } from "react";
  *  the inner <code> and hand them to the one `<Code>` renderer. */
 function MdxPre({ children }: { children?: ReactNode }) {
 	const fence = fenceFromCode(children as Parameters<typeof fenceFromCode>[0]);
-	return fence ? <Code {...fence} /> : null;
+	if (!fence) return null;
+	const { figure } = parseFenceOptions(`${fence.lang} ${fence.meta ?? ""}`);
+	return <Code {...fence} variant={figure ? "figure" : undefined} />;
 }
 
 /** Inline `code` styling rule: API endpoints/routes get the branded blue
@@ -124,6 +131,11 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 		Pick,
 		CodeSteps,
 		Step,
+		Stack,
+		Yields,
+		Seam,
+		Fork,
+		ForkPath,
 		...components,
 	};
 }
