@@ -198,6 +198,7 @@ color stays free to mean something.
 | `exit=N` | Exit chip in the bar: green for 0, red otherwise. |
 | `status=N` | HTTP status chip in the bar: green below 300, red from 400. |
 | `base` | The hosted origin and credential in the source follow the API reference's Base URL switch. |
+| `figure` | A figure: numbered source, callouts as margin notes, no wrap/collapse/error. Docs product pages' hero fence only. |
 
 An annotation is a whole comment line, `<comment> !name(range)[/regex/flags] value`, that
 targets the next line and then leaves the output, the `.md` twin and the Copy text.
@@ -466,9 +467,9 @@ violet, DELETE red), white text except POST (ink). Objects keep the neutral outl
 Product pages show the product as `<Code variant="figure">` on paper with the `line`
 hairline, the same renderer as docs. Rules:
 - Source files are figures: numbered lines, at most three margin callouts, each callout's
-  token marked yellow. Callouts leave the block and sit in a 17rem margin column on a 28px
+  token marked yellow. Callouts leave the block and sit in a 16rem margin column on a 28px
   `faint` hairline leader at their row, in Geist 13px with the line number in mono ink. At
-  960px and below the notes stack under the block and leaders drop. A figure takes no
+  1100px and below the notes stack under the block and leaders drop. A figure takes no
   `wrap`, `!collapse` or `!error` (notes align to rows by index) and never clamps.
 - `!mark … blue` only where the page's own diagram already draws the cursor in blue (Streams).
 - Transcripts are `text` fences, not figures: no line numbers, `$` prompt column, output
@@ -481,12 +482,32 @@ hairline, the same renderer as docs. Rules:
   script never loads. Copy and tabs are the page's single delegated listener.
 - `<CodeTabs variant="figure">`: each tab pane is its own figure. The tab bar sits above
   the pane's code and notes inside one frame, and the notes live in the pane, so they swap
-  with the tab. Same 960px stacking, with the notes under the code and a hairline above them.
+  with the tab. Same 1100px stacking, with the notes under the code and a hairline above them.
 - Languages: ts, tsx, js, bash, json, sql, toml, markdown, clarity and solidity (`sol`).
+- Docs product pages also open with a figure as their hero (`figure` in the fence). There the
+  focus and hover links are allowed (docs, not marketing), and the article widens to the
+  frame for the notes column while its prose stays at the reading measure.
 - The live block checker on `/verify` is the one interactive transcript: the same frame
   and tokens (`.cb`, `.cb-bar`, `ink`/`sub`/`ok`), no dots.
 This is a **product depiction**, not decorative chrome: it must always show plausible real
 output (real heights, real commands). Never wrap it in a fake browser frame.
+
+### Docs page anatomy
+The rule: **map at the hub, file on the product, fork at the seam.** Mock:
+https://claude.ai/artifact/CbWRAKbBjUox3fqZGufXvP.
+- `/docs` shows the five products as one stack, then a fork whose answer swaps the code.
+- A product page runs: Yields, hero `##` with the figure, Run it, Check it, Seam, then the
+  reference `##`s.
+- `<Stack />`: the five products as rows, Webhooks on top to Archive at the bottom, Verify
+  under all. Each row is a link: glyph, name, what you get, what you write.
+- `<Yields page>`: a hairline pair, "You get" and "You write". Opens every product page.
+- `<Seam page>`: two cells linking one layer toward the chain and one toward your app, each
+  with a line of that layer's code. The stack's ends say where it stops. Marks where
+  reference sections start.
+- `<Fork question name>` with `<ForkPath value label>`: a Choice whose answer shows one of up
+  to four paths. No script.
+All four read `docs/products.ts`; blocks sit as direct children of the article so the scope
+runtime still finds each `##` section.
 
 ### Nav
 Wordmark + dropdown labels (16px/400, chevron 12px) + text links + button pair. Dropdowns open
