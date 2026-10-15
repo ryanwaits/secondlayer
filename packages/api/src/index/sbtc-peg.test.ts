@@ -111,6 +111,31 @@ describe("sBTC peg helpers", () => {
 		).rejects.toThrow(/status must be one of/);
 	});
 
+	test("forwards confirmed_after to the withdrawals reader as a Date", async () => {
+		let seen: Date | undefined;
+		await getSbtcWithdrawalsResponse({
+			query: eventsParams(
+				"?from_height=0&settlement_confirmed=true&confirmed_after=2026-06-29T00:00:00.000Z",
+			),
+			tip: TIP,
+			readSbtcWithdrawals: async (params) => {
+				seen = params.confirmedAfter;
+				return { withdrawals: [], next_cursor: null };
+			},
+		});
+		expect(seen?.toISOString()).toBe("2026-06-29T00:00:00.000Z");
+	});
+
+	test("rejects a confirmed_after that is not a timestamp", async () => {
+		await expect(
+			getSbtcWithdrawalsResponse({
+				query: eventsParams("?from_height=0&confirmed_after=yesterday"),
+				tip: TIP,
+				readSbtcWithdrawals: EMPTY_WITHDRAWALS,
+			}),
+		).rejects.toThrow(/confirmed_after must be/);
+	});
+
 	test("rejects a malformed confirmed value", async () => {
 		await expect(
 			getSbtcDepositsResponse({
@@ -683,6 +708,24 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 			settlementConfirmed: false,
 		});
 		expect(unconfirmed.withdrawals.map((w) => w.request_id)).toEqual([2, 3]);
+
+		// confirmed_after excludes sweeps confirmed at or before it.
+		const after = (iso: string) =>
+			readSbtcWithdrawals({
+				...base,
+				settlementConfirmed: true,
+				confirmedAfter: new Date(iso),
+			});
+		expect(
+			(await after("2026-06-28T23:59:59.999Z")).withdrawals.map(
+				(w) => w.request_id,
+			),
+		).toEqual([1]);
+		expect(
+			(await after("2026-06-29T00:00:00.000Z")).withdrawals.map(
+				(w) => w.request_id,
+			),
+		).toEqual([]);
 	});
 
 	test("withdrawal by id assembles the full lifecycle; null when absent", async () => {

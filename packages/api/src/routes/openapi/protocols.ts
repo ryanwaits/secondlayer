@@ -1011,6 +1011,15 @@ export const protocolsPaths = {
 					false,
 					"`true` returns withdrawals whose sweep has confirmed on Bitcoin. `false` returns the rest, including ones with no sweep yet.",
 				),
+				{
+					...qp(
+						"confirmed_after",
+						"string",
+						false,
+						"ISO 8601 timestamp. Returns only withdrawals whose sweep confirmed on Bitcoin strictly after it. Combine with `from_height=0` to scan all history.",
+					),
+					schema: { type: "string", format: "date-time" },
+				},
 				qp(
 					"fields",
 					"string",

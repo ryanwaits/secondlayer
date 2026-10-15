@@ -14017,6 +14017,16 @@
 						"description": "`true` returns withdrawals whose sweep has confirmed on Bitcoin. `false` returns the rest, including ones with no sweep yet."
 					},
 					{
+						"name": "confirmed_after",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"format": "date-time"
+						},
+						"description": "ISO 8601 timestamp. Returns only withdrawals whose sweep confirmed on Bitcoin strictly after it. Combine with `from_height=0` to scan all history."
+					},
+					{
 						"name": "fields",
 						"in": "query",
 						"required": false,

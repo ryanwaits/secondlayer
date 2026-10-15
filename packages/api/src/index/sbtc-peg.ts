@@ -107,6 +107,7 @@ export const SBTC_WITHDRAWAL_FILTERS = [
 	// Parsed by parseSettlementConfirmedFilter and pushed into the SQL
 	// predicate below; without it here the gate 400s before the parser runs.
 	"settlement_confirmed",
+	"confirmed_after",
 	"fields",
 ] as const;
 
@@ -687,6 +688,8 @@ export type ReadSbtcWithdrawalsParams = {
 	sender?: string;
 	requestId?: number;
 	settlementConfirmed?: boolean;
+	/** Only sweeps confirmed on Bitcoin strictly after this instant. */
+	confirmedAfter?: Date;
 	db?: Kysely<Database>;
 };
 
@@ -745,6 +748,11 @@ export async function readSbtcWithdrawals(
 				? sql`st.settlement_confirmed IS DISTINCT FROM true`
 				: sql`true`;
 
+	// Rides the sweep_txid PK join above, so no index on confirmed_at is needed.
+	const confirmedAfterPredicate = params.confirmedAfter
+		? sql`st.confirmed_at > ${params.confirmedAfter}`
+		: sql`true`;
+
 	const { rows } = await sql<SbtcWithdrawalSummaryDbRow>`
 		SELECT
 			c.cursor,
@@ -785,7 +793,7 @@ export async function readSbtcWithdrawals(
 			LIMIT 1
 		) res ON true
 		LEFT JOIN sbtc_settlements st ON st.sweep_txid = res.sweep_txid
-		WHERE ${statusPredicate} AND ${settlementPredicate}
+		WHERE ${statusPredicate} AND ${settlementPredicate} AND ${confirmedAfterPredicate}
 		ORDER BY c.block_height ASC, c.event_index ASC
 		LIMIT ${params.limit + 1}
 	`.execute(db);
@@ -836,6 +844,17 @@ function parseSettlementConfirmedFilter(
 	return value === "true";
 }
 
+function parseConfirmedAfterFilter(
+	value: string | undefined,
+): Date | undefined {
+	if (value === undefined) return undefined;
+	const at = new Date(value);
+	if (Number.isNaN(at.getTime())) {
+		throw new ValidationError("confirmed_after must be an ISO 8601 timestamp");
+	}
+	return at;
+}
+
 export async function getSbtcWithdrawalsResponse(opts: {
 	query: URLSearchParams;
 	tip: IndexTip;
@@ -875,6 +894,9 @@ export async function getSbtcWithdrawalsResponse(opts: {
 		requestId: parseRequestIdFilter(opts.query.get("request_id") ?? undefined),
 		settlementConfirmed: parseSettlementConfirmedFilter(
 			opts.query.get("settlement_confirmed") ?? undefined,
+		),
+		confirmedAfter: parseConfirmedAfterFilter(
+			opts.query.get("confirmed_after") ?? undefined,
 		),
 	});
 
