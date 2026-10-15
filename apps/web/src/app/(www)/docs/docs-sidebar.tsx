@@ -100,14 +100,24 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	}, [pathname]);
 
 	// Scrollspy: the active heading is the last one whose top has reached the
-	// spy line, or the last heading at the scroll end. A clicked row stays
+	// spy line, or the last heading at the scroll end. The line sits where an
+	// anchor jump lands a heading (scroll padding plus the heading's own scroll
+	// margin), so a jumped-to section is active on arrival. A clicked row stays
 	// active (held) until the reader scrolls by hand.
 	useEffect(() => {
 		if (heads.length === 0) return;
-		const spyLine = () =>
-			Number.parseFloat(
-				getComputedStyle(document.documentElement).scrollPaddingTop,
-			) + 8;
+		const spyLine = () => {
+			const first = document.getElementById(heads[0].id);
+			return (
+				Number.parseFloat(
+					getComputedStyle(document.documentElement).scrollPaddingTop,
+				) +
+				(first
+					? Number.parseFloat(getComputedStyle(first).scrollMarginTop)
+					: 0) +
+				8
+			);
+		};
 		let line = spyLine();
 		let frame = 0;
 		const read = () => {
