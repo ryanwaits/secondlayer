@@ -277,7 +277,7 @@ scope script (`scope-runtime.ts`) loads only on pages that render one of these.
 `!pick` name in a scope, on `<CodeSteps>` outside `writing/`, on an unknown name, on `blue`
 outside figures and on `red` outside `text`. It also fails on a `!tip` or `[text](tip "…")`
 outside guides, more than two prose tips under one `##`, prose tip words that break the
-rules above, any tip under `/p/*` or `/verify`, and more than 32 automatic tips across the
+rules above, any tip under `/p/*` or `/verify`, and more than 33 automatic tips across the
 guides. A callout counts toward its section's 120-word lead. Most blocks stay plain: annotate only when the paragraph points at a token or line.
 
 **Which format when.**
