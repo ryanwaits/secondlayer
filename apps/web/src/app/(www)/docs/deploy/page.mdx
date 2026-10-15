@@ -62,7 +62,9 @@ Feed `health.record` from `onProgress`; wiring in [Sinks](/docs/sinks#health-and
 
 ### Handle SIGTERM
 
-Every redeploy arrives as `SIGTERM`. Pass an `AbortSignal` and `consume()` checks it at the top of the loop, never mid-batch, so the in-flight transaction always commits.
+Every redeploy arrives as `SIGTERM`; pass an `AbortSignal` so it stops cleanly.
+
+`consume()` checks the signal at the top of the loop, never mid-batch, so the in-flight transaction always commits.
 
 ```ts
 const shutdown = new AbortController();
@@ -76,7 +78,9 @@ await index.contractCalls.consume({
 
 <Callout type="warning" title="PID 1 has to be your process">
 
-A shell-form `CMD` makes `/bin/sh` PID 1, which swallows `SIGTERM`, so the loop never hears it and the platform hard-kills after its grace period. Use exec form: `CMD ["bun", "run", "indexer.ts"]`.
+A shell-form `CMD` makes `/bin/sh` PID 1. It swallows the signal: the loop never hears it, and the platform hard-kills after its grace period.
+
+Use exec form: `CMD ["bun", "run", "indexer.ts"]`.
 
 </Callout>
 
@@ -118,7 +122,9 @@ docker compose logs -f indexer
 
 <Callout type="tip" title="Stop grace period">
 
-`docker compose stop` sends `SIGTERM` and kills after 10s by default. A batch mid-commit against a slow database can exceed that, so raise it with `stop_grace_period: 60s` on the service.
+`docker compose stop` sends `SIGTERM` and kills after 10s by default.
+
+A batch mid-commit against a slow database can exceed that, so raise it with `stop_grace_period: 60s` on the service.
 
 </Callout>
 
@@ -142,7 +148,10 @@ TimeoutStopSec=60
 WantedBy=multi-user.target
 ```
 
-`KillSignal=SIGTERM` and a generous `TimeoutStopSec` are what let the [shutdown handler](#handle-sigterm) finish its transaction before systemd escalates to `SIGKILL`.
+Two settings let the [shutdown handler](#handle-sigterm) finish its transaction before systemd escalates to `SIGKILL`:
+
+- `KillSignal=SIGTERM`
+- A generous `TimeoutStopSec`
 
 ### Bring your database
 
