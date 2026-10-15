@@ -30,7 +30,9 @@ docker compose up -d
 curl http://127.0.0.1:3800/health
 ```
 
-`init` generates the instance token and signing keys; appending them puts everything compose reads in one `.env`. `pull` fetches the published images; without it, compose reuses any older copy already on the box. If `/health` never answers, `docker compose logs secondlayer` says why, most often a [floor](#floors-enforced-at-start).
+- `init` generates the instance token and signing keys. Appending them puts everything compose reads in one `.env`.
+- `pull` fetches the published images. Without it, compose reuses any older copy already on the box.
+- If `/health` never answers, `docker compose logs secondlayer` says why, most often a [floor](#floors-enforced-at-start).
 
 ### Use these docs on your box
 
@@ -40,14 +42,21 @@ Every example in these docs reads `SECONDLAYER_API_URL` (and `SECONDLAYER_API_KE
 export SECONDLAYER_API_URL=http://127.0.0.1:3800
 ```
 
-Reads on a loopback bind need no key, and a header carrying an unknown or empty key is ignored there, so the same curl lines work unchanged. Writes over curl, and any read past loopback, send `Authorization: Bearer $INSTANCE_TOKEN`. The CLI, SDK and MCP send `INSTANCE_TOKEN` for you on any URL that is not the hosted API, so `secondlayer subgraphs deploy` needs only the token in your env (MCP needs it in the client config's `env`, not just your shell):
+- Reads on a loopback bind need no key. A header carrying an unknown or empty key is ignored there, so the same curl lines work unchanged.
+- Writes over curl, and any read past loopback, send `Authorization: Bearer $INSTANCE_TOKEN`.
+- The CLI, SDK and MCP send `INSTANCE_TOKEN` for you on any URL that is not the hosted API.
+- MCP needs the token in the client config's `env`, not just your shell.
+
+So `secondlayer subgraphs deploy` needs only the token in your env:
 
 ```bash
 export INSTANCE_TOKEN=…            # from .env.local
 secondlayer subgraphs deploy ./my-subgraph.ts
 ```
 
-Leave `SECONDLAYER_API_KEY` for the hosted account: archive quote, fetch and credits read it as the account key, so setting it to the instance token breaks them. Keep `POSTGRES_PORT` and `INDEXER_PORT` on loopback.
+Leave `SECONDLAYER_API_KEY` for the hosted account: archive quote, fetch and credits read it as the account key, so setting it to the instance token breaks them.
+
+Keep `POSTGRES_PORT` and `INDEXER_PORT` on loopback.
 
 ### Fill it with history
 
@@ -110,7 +119,13 @@ Set them in `.env` so every `docker compose` command picks them up:
 COMPOSE_PROFILES=full-node
 ```
 
-`NODE_MODE` is `external` | `stacks` | `full`. `full` needs `BITCOIN_RPC_PASSWORD` and the `full-node` profile. `stacks` behaves like `external`: bring your own Stacks node. There is no bundled-stacks-only profile, since a bundled node needs Bitcoin data from somewhere and we don't wire a public RPC default for it. Sizing for each: [Hardware](#hardware).
+| `NODE_MODE` | You bring | Also set |
+| --- | --- | --- |
+| `external` (default) | Your Stacks node | |
+| `stacks` | Your Stacks node, same as `external` | |
+| `full` | Nothing: both nodes run in the box | `BITCOIN_RPC_PASSWORD`, the `full-node` profile |
+
+There is no bundled Stacks-only mode: a bundled node needs Bitcoin data, and there is no public RPC default for it. Sizing for each: [Hardware](#hardware).
 
 ### Pin a version
 
@@ -120,7 +135,8 @@ COMPOSE_PROFILES=full-node
 SECONDLAYER_VERSION=975e0b9
 ```
 
-Images are `ghcr.io/ryanwaits/secondlayer-runtime` and `secondlayer-bitcoin`, tagged by short commit. `docker compose up -d --build` builds your checkout instead.
+- Images are `ghcr.io/ryanwaits/secondlayer-runtime` and `secondlayer-bitcoin`, tagged by short commit.
+- `docker compose up -d --build` builds your checkout instead.
 
 ### Connect your node
 
@@ -175,7 +191,10 @@ Unknown keys and contradictions fail before ingest.
 
 ### Instance token
 
-`secondlayer init` writes `INSTANCE_TOKEN` to `.env.local`. It opens your box. It is not the account key from [Keys and billing](/docs/authentication): never put `sk-sl_*` in `INSTANCE_TOKEN`, or the hex token in `SECONDLAYER_API_KEY`.
+The instance token opens your box. `init` writes it to `.env.local`.
+
+- The variable is `INSTANCE_TOKEN`. It is not the account key from [Keys and billing](/docs/authentication).
+- Never put `sk-sl_*` in `INSTANCE_TOKEN`, or the hex token in `SECONDLAYER_API_KEY`.
 
 | Surface | Credential | Behavior |
 | --- | --- | --- |
@@ -194,7 +213,16 @@ curl -X POST http://127.0.0.1:3800/api/subgraphs/my-balances/reindex \
 
 Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On a keyless read, a wrong key is ignored; a matching token is used.
 
-`INSTANCE_TOKEN` is required in compose: the container process has to bind `0.0.0.0` or the published port never reaches it, and an instance that binds past loopback with no token refuses to start. `API_PUBLISH_ADDR` is how the API learns which of those two facts to serve on: it carries the publish spec, so with the default `127.0.0.1:3800` the `/v1` reads stay keyless, and changing `API_PORT` to `0.0.0.0:3800` makes every `/v1` request carry the token. Writes take the token either way.
+Compose requires the token, for two reasons:
+
+- The container process has to bind `0.0.0.0` or the published port never reaches it.
+- An instance that binds past loopback with no token refuses to start.
+
+`API_PUBLISH_ADDR` is how the API learns which of those two facts to serve on. It carries the publish spec:
+
+- With the default `API_PORT` of `127.0.0.1:3800`, the `/v1` reads stay keyless.
+- Changing `API_PORT` to `0.0.0.0:3800` makes every `/v1` request carry the token.
+- Writes take the token either way.
 
 ### What differs on your box
 
@@ -223,13 +251,33 @@ secondlayer repair --against <manifest> --apply
 
 ### Archive trust root
 
-Every archive manifest is checked against one key before `bootstrap`, `verify`, or `repair` act on it. The key comes from, in order: `--public-key`, `ARCHIVE_SIGNING_PUBLIC_KEY` in your env, and the key compiled into the CLI release. `init` writes that resolved key into `.env.local` so the instance verifies with no path to any Secondlayer host. Plaintext `http://` key sources are never consulted, and a signed `latest.json` pointer has to verify against the same key before its snapshot is followed.
+Every archive manifest is checked against one key before the CLI acts on it. The key comes from, in order:
 
-The tradeoff: rotating the archive key means a CLI release until a key ceremony lands. To pin a different archive, replace `ARCHIVE_SIGNING_PUBLIC_KEY` in `.env`; a value you set there survives `init` re-runs.
+1. `--public-key`
+2. `ARCHIVE_SIGNING_PUBLIC_KEY` in your env
+3. The key compiled into the CLI release
+
+- It applies to `bootstrap`, `verify` and `repair`.
+- `init` writes the resolved key into `.env.local`, so the instance verifies with no path to any Secondlayer host.
+- Plaintext `http://` key sources are never consulted.
+- A signed `latest.json` pointer has to verify against the same key before its snapshot is followed.
+
+The tradeoff: rotating the archive key means a CLI release until a key ceremony lands. To pin a different archive:
+
+- Replace `ARCHIVE_SIGNING_PUBLIC_KEY` in `.env`.
+- A value you set there survives `init` re-runs.
 
 ### Running other teams' subgraphs
 
-A subgraph handler is code you deploy into the instance, so it runs with the instance's trust. That is fine for your own subgraphs. To run another team's on one box, give each team its own stack instead of sharing one: its own Postgres, its own network, and its `api` and `subgraph-processor` containers under gVisor (`runtime: runsc`) as a non-root user, with a read-only root filesystem and bounded memory, CPU and process count. [`docker/workload/tenant.compose.yml`](https://github.com/ryanwaits/secondlayer/blob/main/docker/workload/tenant.compose.yml) is the working shape. gVisor can't reach Docker's embedded DNS, so give each stack a static address for Postgres and a plain `resolv.conf`; the file explains both.
+A subgraph handler is code you deploy into the instance, so it runs with the instance's trust. That is fine for your own subgraphs.
+
+To run another team's on one box, give each team its own stack instead of sharing one:
+
+- Its own Postgres and its own network.
+- Its `api` and `subgraph-processor` containers under gVisor (`runtime: runsc`), as a non-root user.
+- A read-only root filesystem, with bounded memory, CPU and process count.
+
+[`docker/workload/tenant.compose.yml`](https://github.com/ryanwaits/secondlayer/blob/main/docker/workload/tenant.compose.yml) is the working shape. gVisor can't reach Docker's embedded DNS, so give each stack a static address for Postgres and a plain `resolv.conf`. The file explains both.
 
 ### Not in the box
 
@@ -278,7 +326,11 @@ A schema migration on a full Runes database can run for hours on upgrade. The Ru
 
 What a self-hosted box needs, so you size it before the sync starts rather than after.
 
-Mainnet full history is large: the reference index measures ~500 GB, of which ~250 GB is `blocks`, `transactions`, and `events` and the rest is the decoded plane. Budget roughly 3 GB per 100k blocks for core datasets, or 6 GB with a broad decoder set, and remember those are averages over history that is much denser at the tip.
+Mainnet full history is large: the reference index measures ~500 GB.
+
+- About 250 GB is `blocks`, `transactions`, and `events`. The rest is the decoded plane.
+- Budget roughly 3 GB per 100k blocks for core datasets, or 6 GB with a broad decoder set.
+- Those are averages over history that is much denser at the tip.
 
 | Setup | RAM | Disk |
 | --- | --- | --- |
@@ -289,7 +341,11 @@ Mainnet full history is large: the reference index measures ~500 GB, of which ~2
 
 ### Postgres
 
-Postgres `max_connections` ≥ 50. Compose sets the Postgres cache to 1 GB (`POSTGRES_SHARED_BUFFERS`). For a full-chain sync, give it about 25% of RAM: at the stock 128 MB, inserts wait on index reads from disk and the sync runs slower. The bundled-node figure is dominated by the chain itself: Stacks chainstate alone measures 1.3 TB, and bitcoind is additional.
+Postgres `max_connections` ≥ 50.
+
+- Compose sets the Postgres cache to 1 GB (`POSTGRES_SHARED_BUFFERS`).
+- For a full-chain sync, give it about 25% of RAM. At the stock 128 MB, inserts wait on index reads from disk and the sync runs slower.
+- The bundled-node figure is dominated by the chain itself: Stacks chainstate alone measures 1.3 TB, and bitcoind is additional.
 
 ### With Runes
 
@@ -328,11 +384,28 @@ secondlayer restore --from ./backups/2026-08-16            # dry run
 secondlayer restore --from ./backups/2026-08-16 --apply
 ```
 
-Pass `--passphrase`, or set `SECONDLAYER_BACKUP_PASSPHRASE`. `--no-secrets` writes a data-only bundle. A restore refuses before writing anything if the secrets key the instance will use is not the key the data was encrypted with, and `--force` is what lets it write over a database that already holds chain data.
+| Flag or env | Effect |
+| --- | --- |
+| `--passphrase` or `SECONDLAYER_BACKUP_PASSPHRASE` | The passphrase the keys are encrypted under |
+| `--no-secrets` | Writes a data-only bundle |
+| `--force` (restore) | Lets a restore write over a database that already holds chain data |
 
-A restore is all or nothing: `pg_restore` runs in one transaction and stops on the first error, so a disk that fills mid-load leaves the target as it was rather than half replaced. The tradeoff is no parallel restore. After the load the canonical block range is compared with the manifest's scope; a dump that stops short of what it promised exits 1 instead of reporting success. The dump digest is streamed, so a multi-gigabyte bundle hashes without being read into memory.
+A restore refuses before writing anything if the secrets key the instance will use is not the key the data was encrypted with.
 
-The bundle carries `INSTANCE_TOKEN`, `SECONDLAYER_SECRETS_KEY`, and `STREAMS_SIGNING_PRIVATE_KEY`. Losing those costs you more than losing the index, because the index can be rebuilt from the [archive](/docs/archive), the keys cannot. Store the bundle somewhere your Postgres backups are not.
+A restore is all or nothing:
+
+- `pg_restore` runs in one transaction and stops on the first error, so a disk that fills mid-load leaves the target as it was rather than half replaced.
+- The tradeoff is no parallel restore.
+- After the load the canonical block range is compared with the manifest's scope. A dump that stops short of what it promised exits 1 instead of reporting success.
+- The dump digest is streamed, so a multi-gigabyte bundle hashes without being read into memory.
+
+The bundle carries three keys:
+
+- `INSTANCE_TOKEN`
+- `SECONDLAYER_SECRETS_KEY`
+- `STREAMS_SIGNING_PRIVATE_KEY`
+
+Losing those costs you more than losing the index. The index can be rebuilt from the [archive](/docs/archive); the keys cannot. Store the bundle somewhere your Postgres backups are not.
 
 Confirm any restore with `secondlayer verify all --against <manifest>` before trusting the result. Take a backup before you [upgrade](#upgrade).
 
@@ -363,7 +436,10 @@ Losing `SECONDLAYER_SECRETS_KEY` makes every existing `whsec_` unreadable; rotat
 
 <Callout type="danger" title="Do not wipe the volume">
 
-`docker compose down -v` deletes `postgres_data`, and `secondlayer init --force` mints a new secrets key that leaves existing webhook secrets unreadable. Stop with `docker compose down` (no `-v`). Bootstrap is not an upgrade: it refuses a database that already has blocks.
+- `docker compose down -v` deletes `postgres_data`.
+- `secondlayer init --force` mints a new secrets key that leaves existing webhook secrets unreadable.
+- Stop with `docker compose down` (no `-v`).
+- Bootstrap is not an upgrade: it refuses a database that already has blocks.
 
 </Callout>
 
