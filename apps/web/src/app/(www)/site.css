@@ -363,16 +363,9 @@
 .site .split.flip > .art {
 	order: -1;
 }
-/* Tabbed art changes height per tab; centering would move the copy beside it. */
+/* A tabbed figure changes height per tab; centering would move the column beside it. */
 .site .split:has(.cb-tabs) {
 	align-items: start;
-}
-.site .art.stack {
-	display: grid;
-	gap: 16px;
-}
-.site .art.stack > * {
-	margin-block: 0;
 }
 /* A code figure's notes hang off its outer edge (code.css); art first puts them
    on the left, reading toward the frame. */
@@ -400,6 +393,11 @@
 	display: grid;
 	gap: 16px;
 	justify-items: start;
+}
+/* A code figure in the copy column spans it, like the art beside it. */
+.site .split .copy > .cb {
+	justify-self: stretch;
+	margin-block: 0;
 }
 @media (max-width: 920px) {
 	.site .split {

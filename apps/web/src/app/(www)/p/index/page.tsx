@@ -320,24 +320,24 @@ export default async function IndexPage() {
 										),
 									)}
 								</div>
+								<CodeTabs variant="figure">
+									{HOSTS.map((host) => (
+										<Code key={host.title} {...host} />
+									))}
+								</CodeTabs>
 								<Link className="more" href="/docs/deploy">
 									Deploy guide →
 								</Link>
 							</>
 						}
 						art={
-							<div className="art stack">
+							<div className="art">
 								<Code
 									lang="ts"
 									variant="figure"
 									title="indexer.ts"
 									code={DEPLOY}
 								/>
-								<CodeTabs variant="figure">
-									{HOSTS.map((host) => (
-										<Code key={host.title} {...host} />
-									))}
-								</CodeTabs>
 							</div>
 						}
 					/>
