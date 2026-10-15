@@ -84,7 +84,7 @@ type TransactionProofVerifyResult = {
 };
 ```
 
-With no reward set, consensus uses the one embedded in the proof (`rewardSetSource: "embedded"`), which trusts Secondlayer for the signer set alone. `fetchRewardSet` resolves it from your own stacks-node (`/v3/stacker_set/{cycle}`) instead:
+With no reward set, consensus uses the one embedded in the proof, which trusts Secondlayer for the signer set alone. `fetchRewardSet` resolves it from your own stacks-node (`/v3/stacker_set/{cycle}`) instead:
 
 ```ts
 import { verifyTransactionProof, fetchRewardSet } from "@secondlayer/sdk";
@@ -111,11 +111,20 @@ The transaction verifier uses Node's crypto (via `@secondlayer/shared`), so it i
 
 ## Blocks below the checkpoint
 
-A block below the checkpoint skips the Bitcoin and signer links. The checkpoint's header commits to every ancestor by hash, so an `ancestry` link ties the block to it, by parent links or one MARF proof. The skipped links read `not needed: the block is hash-chained to the checkpoint`, and `txs` reads `not checked: no transaction bytes` for an epoch 2.x block or when the source served the header only.
+A block below the checkpoint skips the Bitcoin and signer links. The checkpoint's header commits to every ancestor by hash, so an `ancestry` link ties the block to it, by parent links or one MARF proof.
+
+- The skipped links read `not needed: the block is hash-chained to the checkpoint`.
+- `txs` reads `not checked: no transaction bytes` for an epoch 2.x block or when the source served the header only.
 
 ## Exit codes and cost
 
-Exit `0` every link holds, `1` a link is broken (the first is named), `2` could not check. The tradeoff: a lying source can fail a link but never pass one, and the price is work. The first check syncs Bitcoin headers from the checkpoint, and each block fetches a state witness.
+| Exit | Meaning |
+| --- | --- |
+| `0` | Every link holds |
+| `1` | A link is broken; the first is named |
+| `2` | Could not check |
+
+The tradeoff: a lying source can fail a link but never pass one, and the price is work. The first check syncs Bitcoin headers from the checkpoint, and each block fetches a state witness.
 
 ## Flags
 
@@ -128,11 +137,13 @@ Exit `0` every link holds, `1` a link is broken (the first is named), `2` could 
 
 ## In your code
 
-`@secondlayer/verify` is the same check as a library. `verifyBlock` never throws for bad source data; it returns `ok: false` and the first broken link.
+`@secondlayer/verify` is the same check as a library.
 
 ```bash
 bun add @secondlayer/verify
 ```
+
+`verifyBlock` never throws for bad source data: it returns `ok: false` and the first broken link.
 
 ```ts verify-block.ts
 import { SecondlayerProofSource, verifyBlock } from "@secondlayer/verify";
@@ -165,11 +176,16 @@ const verifier = new BlockVerifier({ source });
 const result = await verifier.verify(9_137_005);
 ```
 
-Pass `rows: true` to also check the indexed `vm_events` rows (billed as Index rows). `result.transactions` holds the block's checked transactions and `result.writes` its named writes. Its own code uses `fetch` and pure-JS crypto (`@noble`), with no Node built-ins.
+Pass `rows: true` to also check the indexed `vm_events` rows (billed as Index rows).
+
+- `result.transactions` holds the block's checked transactions; `result.writes` its named writes.
+- The library uses `fetch` and pure-JS crypto (`@noble`), with no Node built-ins.
 
 ## Archive assurance levels
 
-The manifest states a level per range. Most of the chain is `db-reconstructive`; a published `node.json` upgrades only its `coverage` window.
+The manifest states a level per range. Most of the chain is `db-reconstructive`.
+
+A published `node.json` upgrades only its `coverage` window.
 
 | Level | Means |
 | --- | --- |
@@ -183,7 +199,18 @@ The HTTP proofs behind every check, and what can't be proven yet.
 
 ### Proofs API
 
-The raw material `verify block` reads. Free, never metered, no key needed. On the hosted API each IP gets 10 requests per second, and 1 per second for witnesses; send an account key for 20 and 2. Answers addressed by a hash never change: they carry an ETag and `Cache-Control: immutable`. On your own box the witness, burn and Bitcoin-header routes need a proof sidecar: [Self-host](/docs/self-host#what-differs-on-your-box).
+The raw material `verify block` reads. Free, never metered, no key needed.
+
+On the hosted API the limits are per IP, and an account key doubles them:
+
+| Route | Per IP | With an account key |
+| --- | --- | --- |
+| Any proofs route | 10/s | 20/s |
+| Witnesses | 1/s | 2/s |
+
+Answers addressed by a hash never change: they carry an ETag and `Cache-Control: immutable`.
+
+On your own box the witness, burn and Bitcoin-header routes need a proof sidecar: [Self-host](/docs/self-host#what-differs-on-your-box).
 
 | Route | Returns |
 | --- | --- |
