@@ -13,25 +13,29 @@
     ]
   },
   "/docs#get-started": {
-    "hash": "6a6443c05e7c4e02",
+    "hash": "60eb21ab41107ed1",
     "phrasings": [
-      "get started with stacks data agent",
-      "using an ai agent with stacks docs",
-      "stacks agent setup quickstart",
-      "how to start stacks indexing",
-      "stacks data quickstart guide"
+      "install cli and set api key",
+      "create subgraph from contract address",
+      "deploy subgraph and query rows",
+      "how to get started with indexer",
+      "check block number of indexed rows",
+      "quick setup steps for subgraph",
+      "read rows from deployed subgraph",
+      "first steps create and deploy subgraph"
     ]
   },
   "/docs#where-do-you-start": {
-    "hash": "8aa850304c562845",
+    "hash": "d74854d996aa6b9f",
     "phrasings": [
-      "where do i start with the schema",
-      "serve schema with existing api stack",
-      "how to keep my own database schema",
-      "use my own schema for stacks data",
-      "getting started choosing how to serve data",
-      "stacks data serving options existing infrastructure",
-      "where to begin integrating stacks indexer"
+      "how to write rows and cursor in one transaction",
+      "rollback to last good block after reorg",
+      "handle chain reorg without losing data",
+      "atomic commit of rows and cursor position",
+      "what to do when reorg happens during indexing",
+      "transaction across database writes and block cursor",
+      "how do i start indexing blocks safely",
+      "reorg causes duplicate rows in database"
     ]
   },
   "/docs/api-reference": {
