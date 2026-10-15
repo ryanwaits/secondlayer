@@ -48,7 +48,8 @@
 	text-wrap: balance;
 	color: var(--ink);
 }
-.site h1 {
+.site h1,
+.site .close h2 {
 	font-size: clamp(40px, 5.6vw, 66px);
 	line-height: 1.08;
 	letter-spacing: -0.045em;
@@ -837,8 +838,8 @@
 	justify-content: space-between;
 	gap: 28px;
 }
+/* The close sets its line at the hero's size (shared with h1 above). */
 .site .close h2 {
-	font-size: clamp(32px, 4.4vw, 52px);
 	max-width: 16ch;
 }
 .site .close .btns {
