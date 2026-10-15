@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 13.2.0
+
+### Minor Changes
+
+- b2e391f: New `@secondlayer/shared/chain-read` export: `chainReadArgsHash(hexArgs)`, the contract-read cache key shared by the subgraph runtime and the hosted chain-read route. Migration `0165` adds the `tenant` api key product; `api_keys.product` typing includes it.
+- e33e2a3: Contract discovery takes `classified_after` and returns each contract's `classified_at`. Hosted trait-scoped webhooks and subgraph sources download a trait's contract list once and then fetch only newly classified contracts, instead of the whole list every block.
+
 ## 13.1.0
 
 ### Minor Changes

@@ -1,5 +1,19 @@
 # @secondlayer/subgraphs
 
+## 7.3.0
+
+### Minor Changes
+
+- 45df730: **Behavior change:** a `ctx.client` chain read that can't complete now aborts the block instead of skipping the event. Before, a missing `STACKS_NODE_RPC_URL`, a node timeout or outage, a block with no `index_block_hash`, or a read-cache error failed only that event and the block committed without its rows. Now these throw `HandlerReadError`: the block retries, then the subgraph halts at it with status `error`, and resumes from that block once reads succeed. A contract `err` response or contract runtime error (`ContractResponseError`, `ReadContractError`) and ABI misuse (`ChainReadError`) still fail only that event.
+- b2e391f: Contract reads (`readContractAt`, `ctx.client`) now work in hosted subgraphs. A processor with no `STACKS_NODE_RPC_URL` that reads chain data from the hosted api reads contracts through the hosted chain-read route with its tenant key, pinned to the block like a node read. An explicit `STACKS_NODE_RPC_URL` always wins. The route's rate limit is retried by the transport (honoring `Retry-After`); a read that still can't complete aborts the block (`HandlerReadError`), and a request the route rejects as invalid (`400`) fails only the event (`ChainReadError`). A `contract-constant` read on a block with no `index_block_hash` aborts the block on hosted instead of reading the tip. A self-hosted processor pointed at the hosted api with its own key gets a `HandlerReadError` telling it to set `STACKS_NODE_RPC_URL`. The read-cache key is now a SHA-256 of the serialized args, so existing cache entries are re-read once.
+
+### Patch Changes
+
+- e33e2a3: Contract discovery takes `classified_after` and returns each contract's `classified_at`. Hosted trait-scoped webhooks and subgraph sources download a trait's contract list once and then fetch only newly classified contracts, instead of the whole list every block.
+- Updated dependencies [b2e391f]
+- Updated dependencies [e33e2a3]
+  - @secondlayer/shared@13.2.0
+
 ## 7.2.0
 
 ### Minor Changes

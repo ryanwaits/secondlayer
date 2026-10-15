@@ -1,5 +1,24 @@
 # @secondlayer/api
 
+## 1.56.0
+
+### Minor Changes
+
+- b2e391f: Platform only: `POST /v1/chain-read/v2/contracts/call-read/:address/:name/:fn?tip=<index_block_hash>` serves contract reads to hosted subgraph processors. Node-compatible path and body, always pinned (`400 CHAIN_READ_UNPINNED` without a 64-hex tip), sender forced to the contract, body capped at 16 KB and 32 hex args, 3,000 reads a minute and 4 in flight per account, 16 in flight per process, 5 s node timeout (`504 CHAIN_READ_TIMEOUT`), and a shared cache of `okay: true` answers keyed by the pinned block (pruned after 30 days). Tenant keys only: a customer key gets `403 CHAIN_READ_TENANT_ONLY`. Workload-host tenant keys are now `api_keys.product = 'tenant'` (migration marks existing ones by `ip_address = 'workload-host'`); they read Streams and Index as before and no longer open account routes. Not in the OpenAPI document.
+
+### Patch Changes
+
+- Updated dependencies [8dedb3c]
+- Updated dependencies [45df730]
+- Updated dependencies [b2e391f]
+- Updated dependencies [b2e391f]
+- Updated dependencies [e33e2a3]
+- Updated dependencies [e48692c]
+  - @secondlayer/bundler@0.7.2
+  - @secondlayer/subgraphs@7.3.0
+  - @secondlayer/shared@13.2.0
+  - @secondlayer/platform@0.8.0
+
 ## 1.55.0
 
 ### Minor Changes

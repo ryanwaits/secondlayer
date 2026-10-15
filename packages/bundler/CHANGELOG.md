@@ -1,5 +1,15 @@
 # @secondlayer/bundler
 
+## 0.7.2
+
+### Patch Changes
+
+- 8dedb3c: A subgraph that imports `readContractAt` from `@secondlayer/subgraphs` now bundles. The bundler's stub exported only `defineSubgraph`, so every deploy of a handler using `readContractAt` failed with `No matching export`.
+- Updated dependencies [45df730]
+- Updated dependencies [b2e391f]
+- Updated dependencies [e33e2a3]
+  - @secondlayer/subgraphs@7.3.0
+
 ## 0.7.1
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @secondlayer/web
 
+## 0.13.13
+
+### Patch Changes
+
+- 40c589a: Pricing, the estimator, product pages, credits and docs state the stack minimum in dollars: webhooks only $5/mo while the stack runs, with subgraphs $10/mo. The credits chart reads which minimum applies from the stack's own billed memory.
+- 63ecbe8: The account webhooks page describes a print trigger's `where` filter in its sentence and field table ("where signer is SP21…EFFP or SPMP…1TZF").
+
 ## 0.13.12
 
 ### Patch Changes
