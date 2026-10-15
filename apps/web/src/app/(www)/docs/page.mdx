@@ -18,7 +18,10 @@ await new Index().events.consume({
   eventType: "ft_transfer",
   fromCursor: await db.loadCheckpoint(),
   // !callout[/onBatch/] Write rows and the cursor in one transaction.
-  onBatch: async (events, envelope, ctx) => { await db.commit(events, ctx.cursor); return ctx.cursor; },
+  onBatch: async (events, envelope, ctx) => {
+    await db.commit(events, ctx.cursor);
+    return ctx.cursor;
+  },
   // !callout[/onReorg/] Delete from the fork height, inclusive.
   onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
 });
@@ -54,8 +57,11 @@ You get a REST API you didn't write. That's the point, and the tradeoff. [Subgra
 await sl.streams.events.consume({
   types: ["ft_transfer"],
   fromCursor: await db.loadCheckpoint(),
-  // !callout[/insertEvents/] Raw, signed frames; you decode.
-  onBatch: async (events, envelope, ctx) => { await db.insertEvents(events, ctx.cursor); return ctx.cursor; },
+  onBatch: async (events, envelope, ctx) => {
+    // !callout[/insertEvents/] Raw, signed frames; you decode.
+    await db.insertEvents(events, ctx.cursor);
+    return ctx.cursor;
+  },
   // !callout[/onReorg/] Rewinds to the fork point and re-delivers.
   onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
 });
