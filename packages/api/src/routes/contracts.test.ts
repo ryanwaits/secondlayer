@@ -76,3 +76,66 @@ describe("GET /v1/contracts/:contractId", () => {
 		expect(res.status).toBe(404);
 	});
 });
+
+describe("GET /v1/contracts classified_after", () => {
+	function appCapturing(
+		onList: (opts: { classifiedAfter?: Date }) => void,
+		rows: unknown[] = [],
+	) {
+		const router = createContractsRouter({
+			getSourceDb: () => SOURCE_DB,
+			listContractsByTrait: async (_db, _trait, opts) => {
+				onList(opts ?? {});
+				// biome-ignore lint/suspicious/noExplicitAny: test fixture rows
+				return rows as any;
+			},
+		});
+		const a = new Hono();
+		a.onError(errorHandler);
+		a.route("/v1/contracts", router);
+		return a;
+	}
+
+	test("forwards classified_after to the registry query", async () => {
+		let seen: Date | undefined;
+		const res = await appCapturing((o) => {
+			seen = o.classifiedAfter;
+		}).request(
+			"/v1/contracts?trait=sip-010&classified_after=2026-10-15T17:00:00.000Z",
+		);
+		expect(res.status).toBe(200);
+		expect(seen?.toISOString()).toBe("2026-10-15T17:00:00.000Z");
+	});
+
+	test("rejects a classified_after that is not a timestamp", async () => {
+		const res = await appCapturing(() => {}).request(
+			"/v1/contracts?trait=sip-010&classified_after=yesterday",
+		);
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { code: string };
+		expect(body.code).toBe("INVALID_CLASSIFIED_AFTER");
+	});
+
+	test("summaries carry classified_at", async () => {
+		const row = {
+			contract_id: "SP1.known",
+			deployer: "SP1",
+			block_height: 100,
+			declared_traits: ["sip-010"],
+			inferred_standards: [],
+			abi_status: "fetched",
+			abi_fetched_at: new Date("2026-10-15T17:15:45.764Z"),
+		};
+		const res = await appCapturing(() => {}, [
+			row,
+			{ ...row, contract_id: "SP1.pending", abi_fetched_at: null },
+		]).request("/v1/contracts?trait=sip-010");
+		const body = (await res.json()) as {
+			contracts: { classified_at: string | null }[];
+		};
+		expect(body.contracts.map((c) => c.classified_at)).toEqual([
+			"2026-10-15T17:15:45.764Z",
+			null,
+		]);
+	});
+});

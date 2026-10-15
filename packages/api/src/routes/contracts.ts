@@ -27,6 +27,9 @@ function toSummary(c: Contract, includeAbi: boolean) {
 		declared_traits: c.declared_traits,
 		inferred_standards: c.inferred_standards,
 		abi_status: c.abi_status,
+		classified_at: c.abi_fetched_at
+			? new Date(c.abi_fetched_at).toISOString()
+			: null,
 		...(includeAbi ? { abi: c.abi } : {}),
 	};
 }
@@ -65,6 +68,19 @@ export function createContractsRouter(opts: ContractsRouterOptions = {}) {
 				400,
 			);
 		}
+		const rawClassifiedAfter = c.req.query("classified_after");
+		const classifiedAfter = rawClassifiedAfter
+			? new Date(rawClassifiedAfter)
+			: undefined;
+		if (classifiedAfter && Number.isNaN(classifiedAfter.getTime())) {
+			return c.json(
+				{
+					error: "classified_after must be an ISO 8601 timestamp",
+					code: "INVALID_CLASSIFIED_AFTER",
+				},
+				400,
+			);
+		}
 		const rawLimit = Number.parseInt(c.req.query("limit") ?? "100", 10);
 		const limit = Math.min(
 			Math.max(Number.isNaN(rawLimit) ? 100 : rawLimit, 1),
@@ -82,6 +98,7 @@ export function createContractsRouter(opts: ContractsRouterOptions = {}) {
 			conformance,
 			limit: limit + 1,
 			afterId: cursor,
+			classifiedAfter,
 		});
 		const hasMore = rows.length > limit;
 		const page = hasMore ? rows.slice(0, limit) : rows;

@@ -104,7 +104,13 @@ export type Conformance = "declared" | "inferred" | "any";
 export async function listContractsByTrait(
 	db: Kysely<Database>,
 	trait: string,
-	opts: { conformance?: Conformance; limit?: number; afterId?: string } = {},
+	opts: {
+		conformance?: Conformance;
+		limit?: number;
+		afterId?: string;
+		/** Only contracts classified (ABI stored) at or after this time. */
+		classifiedAfter?: Date;
+	} = {},
 ): Promise<Contract[]> {
 	const conformance = opts.conformance ?? "any";
 	let q = db.selectFrom("contracts").selectAll().where("canonical", "=", true);
@@ -122,6 +128,9 @@ export async function listContractsByTrait(
 	}
 
 	if (opts.afterId) q = q.where("contract_id", ">", opts.afterId);
+	if (opts.classifiedAfter) {
+		q = q.where("abi_fetched_at", ">=", opts.classifiedAfter);
+	}
 	return q
 		.orderBy("contract_id", "asc")
 		.limit(opts.limit ?? 100)
