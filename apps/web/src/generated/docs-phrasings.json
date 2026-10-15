@@ -1,25 +1,15 @@
 {
   "/docs": {
-    "hash": "29c0fcff63e57028",
+    "hash": "58978e65b60f2015",
     "phrasings": [
-      "decoded stacks chain data api",
-      "stacks blockchain data backfill from genesis",
+      "what is decoded stacks chain data",
+      "stacks blockchain data api backfilled from genesis",
       "reorg safe stacks indexer",
-      "stacks chain data kept current",
-      "hosted stacks data service",
-      "stacks contract data without running node"
-    ]
-  },
-  "/docs#do-you-already-have-an-api-layer": {
-    "hash": "3bff81f895d1b27d",
-    "phrasings": [
-      "do i need my own api layer",
-      "existing backend api or hosted secondlayer",
-      "choosing between custom api and secondlayer",
-      "already have an api what should i pick",
-      "which integration path fits my existing app",
-      "should i build my own read api",
-      "secondlayer api layer decision"
+      "stacks chain data without running a node",
+      "how to query decoded stacks events",
+      "stacks historical data from genesis block",
+      "keep stacks data current after reorgs",
+      "stacks api for smart contract events"
     ]
   },
   "/docs#get-started": {
@@ -32,27 +22,16 @@
       "stacks data quickstart guide"
     ]
   },
-  "/docs#more-on-each-path": {
-    "hash": "c27bbd1f0c59c11d",
+  "/docs#where-do-you-start": {
+    "hash": "8aa850304c562845",
     "phrasings": [
-      "difference between the three integration paths",
-      "what each path handles for me",
-      "who shapes the read api options",
-      "reorg handling and history with secondlayer",
-      "decoding blocks without writing my own api",
-      "compare secondlayer paths decoding reorgs history",
-      "which path leaves me in control of read api"
-    ]
-  },
-  "/docs#why-this-exists": {
-    "hash": "8d1ad10a6668982c",
-    "phrasings": [
-      "why build custom stacks data layer",
-      "public stacks api missing contract data",
-      "stacks app needs contract specific data",
-      "when do stacks apps need custom indexing",
-      "why not use public stacks api",
-      "contract specific data stacks explained"
+      "where do i start with the schema",
+      "serve schema with existing api stack",
+      "how to keep my own database schema",
+      "use my own schema for stacks data",
+      "getting started choosing how to serve data",
+      "stacks data serving options existing infrastructure",
+      "where to begin integrating stacks indexer"
     ]
   },
   "/docs/api-reference": {
@@ -147,14 +126,27 @@
     ]
   },
   "/docs/archive": {
-    "hash": "b9ef52ae47dc088d",
+    "hash": "9c220c1353373bd6",
     "phrasings": [
-      "check chain history against signed archive",
-      "repair diverging chain data",
-      "restore fresh instance from archive",
-      "verify chain history integrity tool",
-      "archive restore new instance steps",
-      "signed canonical archive verify command"
+      "signed chain history archive download",
+      "repair diverging chain data from archive",
+      "boot fresh instance from archive file",
+      "check my node against signed archive",
+      "what is the chain archive product",
+      "archive mismatch fix diverged state",
+      "use archive to bootstrap new node",
+      "signed archive digest verification"
+    ]
+  },
+  "/docs/archive#about-the-archive": {
+    "hash": "c8f45c7ea0fca4dc",
+    "phrasings": [
+      "how much does archive cost",
+      "archive pricing per block range",
+      "how much is each archive range worth",
+      "what kind of data is the archive",
+      "archive overview and cost",
+      "what is the archive used for"
     ]
   },
   "/docs/archive#assurance-levels": {
@@ -169,14 +161,16 @@
       "difference between archive attestation types"
     ]
   },
-  "/docs/archive#check-your-data": {
-    "hash": "eeae5a51e87b3bb0",
+  "/docs/archive#check-it": {
+    "hash": "7cac42d974d496a3",
     "phrasings": [
-      "read only data check no uploads",
-      "does checking data send digests externally",
-      "verify local chain data without writing",
-      "is data check safe to run",
-      "privacy of digest comparison tool"
+      "how to verify archive digests locally",
+      "archive check read only no writes",
+      "do archive digests leave my machine",
+      "verify archive data without uploading anything",
+      "is archive checking safe to run",
+      "archive digest verification privacy",
+      "check archive integrity on local machine"
     ]
   },
   "/docs/archive#credits": {
@@ -225,13 +219,14 @@
     ]
   },
   "/docs/archive#reading-the-output": {
-    "hash": "70b3b155a1a7a6cb",
+    "hash": "932923336829b848",
     "phrasings": [
-      "archive check output meaning",
-      "what does clean archive output look like",
-      "interpret chain diff report output",
-      "archive check passed how to read",
-      "understanding archive verification results"
+      "archive output exit code meaning",
+      "archive divergence output explained",
+      "what does non zero exit mean archive",
+      "archive check diff ranges not matching",
+      "how to read archive mismatch report",
+      "clean archive run exit 0"
     ]
   },
   "/docs/archive#repair-what-diverges": {
@@ -248,25 +243,27 @@
     ]
   },
   "/docs/archive#restore-a-fresh-instance": {
-    "hash": "7faf27d283509857",
+    "hash": "d3f45b7c8d5e6160",
     "phrasings": [
-      "restore stacks index from archive fresh instance",
+      "how to restore fresh instance from archive",
+      "bootstrap node faster using archive",
+      "restore genesis to archive tip",
       "how long does archive restore take",
-      "new instance bootstrap from archive timing",
-      "restore and verify index from archive",
-      "set up new node using archive snapshot",
-      "archive restore estimated duration before start",
-      "self verifying restore from archive"
+      "signed digest checked before restore",
+      "archive bootstrap takes hours not weeks",
+      "fresh node sync slow alternative",
+      "restore chain from signed snapshot quickly"
     ]
   },
   "/docs/archive#targets": {
-    "hash": "9eeb34f142060897",
+    "hash": "31f210ce854b29fb",
     "phrasings": [
-      "archive exit 2 no matching dataset",
-      "manifest dataset not found archive",
-      "select dataset target in manifest",
-      "archive target name not in manifest",
-      "how to specify dataset to check"
+      "what does the archive publish digests for",
+      "archive digests for blocks and transactions",
+      "which data does archive provide hashes for",
+      "archive event digests supported",
+      "can i get digests for transactions",
+      "archive publishes block transaction event digests"
     ]
   },
   "/docs/archive#what-the-archive-is": {
@@ -321,6 +318,50 @@
       "why did my stacks stack stop"
     ]
   },
+  "/docs/authentication#create-it": {
+    "hash": "4fd40e57c792f55b",
+    "phrasings": [
+      "how to create api key",
+      "sign up for stacks api account",
+      "first api key shown once",
+      "lost my api key create new",
+      "generate additional api keys account page",
+      "sign in with email to get key"
+    ]
+  },
+  "/docs/authentication#how-rows-are-counted": {
+    "hash": "76e13e3fa94a268e",
+    "phrasings": [
+      "are block headers billed",
+      "api row counting for billing",
+      "why did i get 402 response",
+      "free block header endpoint",
+      "how events and transactions are counted",
+      "index blocks endpoint cost",
+      "which rows count toward usage"
+    ]
+  },
+  "/docs/authentication#read-with-it": {
+    "hash": "2920f0c251ff7286",
+    "phrasings": [
+      "example request with api key",
+      "curl mainnet live page",
+      "test api key with mainnet request",
+      "sample live data request stacks",
+      "first api call mainnet example"
+    ]
+  },
+  "/docs/authentication#set-it": {
+    "hash": "3d0986791fb71a66",
+    "phrasings": [
+      "set api key environment variable",
+      "sdk cli mcp read env variables",
+      "configure api key for cli",
+      "hosted url environment variables setup",
+      "why sdk ignores my api key",
+      "export key for mcp server"
+    ]
+  },
   "/docs/authentication#spend-cap": {
     "hash": "901fb80d5467e0d7",
     "phrasings": [
@@ -344,26 +385,24 @@
     ]
   },
   "/docs/authentication#what-it-costs": {
-    "hash": "0cddbb7492122a02",
+    "hash": "cc8275582233619b",
     "phrasings": [
-      "stacks api read pricing",
-      "how much do stacks reads cost",
-      "live versus historical data price",
-      "stacks indexer credit pricing per read",
-      "is historical stacks data billed differently"
+      "stacks api pricing per read",
+      "how much do api reads cost",
+      "live vs history read pricing",
+      "is historical data more expensive",
+      "api billing per request cost"
     ]
   },
   "/docs/authentication#your-key": {
-    "hash": "c01b74b2a4f53225",
+    "hash": "0d126ce6c5b5ff04",
     "phrasings": [
-      "where do i find my api key",
-      "lost my api key how to get another",
-      "how to create a new api key",
-      "first api key shown only once",
-      "sign in with email to get key",
-      "where to see api key on account page",
-      "api key not showing after signup",
-      "how many api keys can i create"
+      "where to find my api key",
+      "stacks api key location",
+      "how to get api key for requests",
+      "api key not showing up",
+      "authenticate requests with bearer token",
+      "where is my key stored"
     ]
   },
   "/docs/changelog": {
@@ -457,13 +496,16 @@
     ]
   },
   "/docs/cli#local-runtime": {
-    "hash": "010d43cafb1a9d46",
+    "hash": "1fbdd1b7bffc6616",
     "phrasings": [
-      "generate write keys for local runtime",
-      "restore chain history locally secondlayer",
+      "cli local runtime setup",
+      "generate and write keys locally with cli",
+      "restore history in local runtime",
       "print observer config stanza",
-      "run secondlayer locally with observer",
-      "local runtime setup for secondlayer"
+      "local node observer configuration cli",
+      "cli command to write keys to disk",
+      "how to start local runtime from cli",
+      "observer stanza yaml example"
     ]
   },
   "/docs/cli#scaffold-from-a-contract": {
@@ -609,14 +651,25 @@
     ]
   },
   "/docs/index#build-your-index-on-it": {
-    "hash": "9caea417b9129bc1",
+    "hash": "fa625f93930e5063",
     "phrasings": [
-      "consume checkpointed consumer reorg rewind",
-      "resume indexer after crash from checkpoint",
-      "onbatch write rows return cursor",
-      "handle chain reorgs in indexer",
-      "consume automatic rewind on reorg",
-      "crash recovery for blockchain indexer"
+      "delete rows after blockchain reorg",
+      "index fork height rollback rows",
+      "handle reorg in index checkpoint",
+      "name event commit rows checkpoint together",
+      "indexer reorg delete from fork height",
+      "how to build index with reorg safety"
+    ]
+  },
+  "/docs/index#check-it": {
+    "hash": "9c49af64031654ae",
+    "phrasings": [
+      "verify indexed row blockheight",
+      "prove block transactions bitcoin anchor locally",
+      "check bitcoin anchor for indexed data",
+      "validate index rows against block",
+      "how to verify row blockheight",
+      "index data proof against bitcoin anchor"
     ]
   },
   "/docs/index#cost-and-history": {
@@ -1037,17 +1090,16 @@
     ]
   },
   "/docs/sdk-reference": {
-    "hash": "5bd43750fef84d5f",
+    "hash": "e230c4d3963e2948",
     "phrasings": [
+      "list of all sdk client methods",
+      "sdk api methods reference",
       "what methods does the client expose",
-      "list of all client sdk methods",
-      "where to find sdk method documentation",
-      "how do i look up a client method",
-      "sdk methods generated from source code",
-      "client api methods full list",
-      "which sdk function does this",
-      "browse every method available in sdk",
-      "sdk reference documentation for client"
+      "sdk function signatures and parameters",
+      "how to call client methods in sdk",
+      "sdk reference generated from source",
+      "available client functions documentation",
+      "find sdk method for querying data"
     ]
   },
   "/docs/sdk-reference/archive": {
@@ -1173,14 +1225,14 @@
     ]
   },
   "/docs/self-host": {
-    "hash": "dbeb171bb7a719c0",
+    "hash": "beff9e48ce825a26",
     "phrasings": [
-      "self host secondlayer on my postgres",
-      "run secondlayer without cluster or queue",
-      "single container self hosted setup",
-      "self hosting overview postgres container",
-      "is self hosting same product as cloud",
-      "secondlayer on own postgres database"
+      "run stacks indexer on my postgres",
+      "self host stacks data docker container",
+      "single container postgres indexer setup",
+      "self hosted api without kubernetes cluster",
+      "stacks indexer without message queue",
+      "deploy stacks data on own database"
     ]
   },
   "/docs/self-host#archive-trust-root": {
@@ -1216,6 +1268,19 @@
       "bitcoin node txindex requirement for indexing"
     ]
   },
+  "/docs/self-host#check-it": {
+    "hash": "1aee73d19ac177eb",
+    "phrasings": [
+      "verify restored data matches archive",
+      "compare restored node with signed archive",
+      "how to check self host restore worked",
+      "restored database mismatch with archive",
+      "validate self host data integrity",
+      "checksum restored chain against archive",
+      "confirm backup matches signed snapshot",
+      "self host restore verification steps"
+    ]
+  },
   "/docs/self-host#config": {
     "hash": "ea60a74b70d1a76c",
     "phrasings": [
@@ -1224,6 +1289,19 @@
       "secondlayer config non secret settings",
       "compose derived variable secondlayer config",
       "six required config values self host"
+    ]
+  },
+  "/docs/self-host#configure": {
+    "hash": "0e876867fbd48119",
+    "phrasings": [
+      "how to configure self host instance",
+      "self host config options list",
+      "where to set env variables self host",
+      "self host settings before first run",
+      "what config values does self host need",
+      "self host configuration missing variable error",
+      "customize self host setup options",
+      "which settings to change for self host"
     ]
   },
   "/docs/self-host#connect-your-node": {
@@ -1237,14 +1315,16 @@
     ]
   },
   "/docs/self-host#fill-it-with-history": {
-    "hash": "05acccb8ef40c472",
+    "hash": "22c44f9025fa5251",
     "phrasings": [
-      "backfill historical blocks new secondlayer instance",
-      "new box only has new blocks why",
-      "how to sync past stacks blocks into secondlayer",
-      "secondlayer index missing old data",
-      "import historical chain data self hosted",
-      "why is my secondlayer missing old transactions"
+      "new node only has recent blocks",
+      "how to backfill chain history self host",
+      "self host missing old transactions",
+      "sync historical data to new instance",
+      "why does new instance show no history",
+      "import past blocks into fresh node",
+      "self host history not syncing from genesis",
+      "populate empty database with past data"
     ]
   },
   "/docs/self-host#floors-enforced-at-start": {
@@ -1363,17 +1443,27 @@
       "subgraph code permissions on self hosted instance"
     ]
   },
-  "/docs/self-host#start-it": {
-    "hash": "d7dc39690ec26865",
+  "/docs/self-host#start": {
+    "hash": "4b73bed5d66e17ba",
     "phrasings": [
-      "generate instance token and signing keys",
-      "where does the .env file come from",
-      "secondlayer init command not working",
-      "docker compose env variables setup",
-      "how to start self hosted instance",
-      "create signing keys for self host",
+      "how to start self host with compose",
+      "init generates instance token and signing keys",
+      "where do signing keys come from self host",
       "append keys to env file compose",
-      "first run self hosted secondlayer steps"
+      "self host first boot steps",
+      "compose reads env file which values",
+      "self host init command output",
+      "start self host instance from scratch"
+    ]
+  },
+  "/docs/self-host#start-it": {
+    "hash": "50afd1e6e3ad2176",
+    "phrasings": [
+      "how to start self hosted container",
+      "docker run command for stacks indexer",
+      "first steps self hosting stacks data",
+      "start self hosted instance locally",
+      "launch indexer postgres connection string"
     ]
   },
   "/docs/self-host#stop-it": {
@@ -1453,18 +1543,6 @@
       "consumer app deployment on self hosted instance",
       "self hosted vs managed setup differences",
       "running secondlayer on a different box"
-    ]
-  },
-  "/docs/self-host#what-you-need": {
-    "hash": "5f4963439397d80a",
-    "phrasings": [
-      "what hardware do i need to self host secondlayer",
-      "docker and 4gb ram requirements for self hosting",
-      "minimum server specs for running secondlayer locally",
-      "install secondlayer cli globally with bun",
-      "can i self host on a small vps",
-      "how much ram for secondlayer docker setup",
-      "secondlayer prerequisites before installing"
     ]
   },
   "/docs/self-host#with-runes": {
@@ -1614,6 +1692,17 @@
       "process stacks events reliably"
     ]
   },
+  "/docs/streams#check-it": {
+    "hash": "9b7e6664f79fc073",
+    "phrasings": [
+      "verify ed25519 signature stream frames",
+      "sdk checks frame signatures before onbatch",
+      "pin stream signing key trust",
+      "stream frame signature verification failing",
+      "how to pin ed25519 public key streams",
+      "are stream frames signed"
+    ]
+  },
   "/docs/streams#cold-history": {
     "hash": "ca2145c5ac347834",
     "phrasings": [
@@ -1636,6 +1725,17 @@
       "read parquet dumps locally",
       "stream export without database",
       "duckdb query parquet export"
+    ]
+  },
+  "/docs/streams#filters": {
+    "hash": "3796b31c0fef5a9f",
+    "phrasings": [
+      "one filters object multiple concerns cursor",
+      "follow several streams with one filter",
+      "combine filters on single cursor",
+      "stream filters object example",
+      "filter multiple events one cursor",
+      "stream filter options for several topics"
     ]
   },
   "/docs/streams#from-the-cli": {
@@ -1661,14 +1761,14 @@
     ]
   },
   "/docs/streams#read-it-directly": {
-    "hash": "5f53c052baf0f249",
+    "hash": "de8ca3b8ada9603a",
     "phrasings": [
-      "paginate stream api with nextcursor",
-      "nextcursor not passed back as cursor",
-      "how to page through events api",
-      "fetch next page of stream events",
-      "resume reading events from last cursor",
-      "streams api cursor pagination example"
+      "call stream directly without sdk loop",
+      "streams direct read repeated call",
+      "how to poll stream in a loop",
+      "read stream frames manually",
+      "stream direct call example",
+      "fetch stream batches without sdk"
     ]
   },
   "/docs/streams#real-time-firehose-sse": {
@@ -1715,6 +1815,19 @@
       "turn blockchain events into rest endpoint"
     ]
   },
+  "/docs/subgraphs#check-it": {
+    "hash": "95e00e4b5cad11e2",
+    "phrasings": [
+      "how to verify subgraph data against the api",
+      "recompute subgraph rows locally and compare",
+      "subgraph api returns different data than my local calculation",
+      "validate indexed rows from proven blocks",
+      "compare subgraph output with recomputed values",
+      "how do i confirm subgraph results are correct",
+      "mismatch between subgraph query results and expected rows",
+      "local verification of subgraph indexing output"
+    ]
+  },
   "/docs/subgraphs#check-status": {
     "hash": "ecb2513dd363d21e",
     "phrasings": [
@@ -1739,15 +1852,14 @@
     ]
   },
   "/docs/subgraphs#define-a-subgraph": {
-    "hash": "0f9e868ee1b5a637",
+    "hash": "059f9b6629a3dcec",
     "phrasings": [
-      "where to put subgraph config file",
-      "configure source filters and table schema",
-      "map handler to event source name",
-      "subgraph config example yaml",
-      "how to declare a subgraph",
-      "table schema for indexed events",
-      "one handler per source config"
+      "how to write a subgraph handler",
+      "subgraph declare table and sources",
+      "subgraph sources and handlers setup",
+      "one handler per source subgraph",
+      "subgraph manifest sources example",
+      "subgraph table declaration steps"
     ]
   },
   "/docs/subgraphs#deploy": {
@@ -1909,18 +2021,6 @@
       "manifest assurance level for block range"
     ]
   },
-  "/docs/verification#archives-rows-deliveries-and-frames": {
-    "hash": "f5a95e9417ed253f",
-    "phrasings": [
-      "verify archive rows and deliveries",
-      "check frames integrity indexer data",
-      "compare archive output against rows",
-      "confirm webhook deliveries were received",
-      "validate frames match stored rows",
-      "data verification archives deliveries",
-      "audit delivered frames for missing rows"
-    ]
-  },
   "/docs/verification#blocks-below-the-checkpoint": {
     "hash": "0101548de4626022",
     "phrasings": [
@@ -1975,6 +2075,19 @@
       "run verification check inside a script"
     ]
   },
+  "/docs/verification#proof-levels": {
+    "hash": "25d0524416a31026",
+    "phrasings": [
+      "what does a 200 proof response contain",
+      "raw transaction and raw header proof",
+      "proof level meanings consensus field missing",
+      "when is consensus included in proof",
+      "reward set not resolved proof response",
+      "difference between proof levels",
+      "merkle path in proof response fields",
+      "proof response fields explained"
+    ]
+  },
   "/docs/verification#proofs-api": {
     "hash": "ebd3f2ea87be1352",
     "phrasings": [
@@ -1986,17 +2099,30 @@
       "do proofs count against my quota"
     ]
   },
-  "/docs/verification#prove-a-transaction": {
-    "hash": "edc9f5d6ee1ad057",
+  "/docs/verification#proofs-api-and-limits": {
+    "hash": "72c9b64ad0d4996f",
     "phrasings": [
-      "verify transaction proof in one call",
-      "check txid and merkle root from proof",
+      "http proofs api endpoints for verification",
+      "what cannot be proven yet on chain",
+      "limitations of proof api",
+      "which checks lack proofs currently",
+      "proofs endpoint rate limits and restrictions",
+      "known gaps in transaction proofs",
+      "api for merkle proofs over http",
+      "unsupported proofs in verification api"
+    ]
+  },
+  "/docs/verification#prove-a-transaction": {
+    "hash": "6b01766034414101",
+    "phrasings": [
       "verifytransactionproof example",
-      "validate block hash and signer weight",
-      "how to prove a transaction was included",
-      "merkle proof transaction verification steps",
-      "confirm transaction inclusion without full node",
-      "verify signer weight in proof"
+      "how to prove a transaction is included",
+      "recompute txid and merkle root",
+      "verify transaction inclusion in block",
+      "check signer weight from proof",
+      "transaction proof verification code",
+      "confirm tx in block hash",
+      "validate tx proof with merkle path"
     ]
   },
   "/docs/verification#what-it-does-not-cover-yet": {
@@ -2011,13 +2137,16 @@
     ]
   },
   "/docs/verification#what-you-can-check": {
-    "hash": "71382950390c2f92",
+    "hash": "205b2b9ecedd0745",
     "phrasings": [
-      "what can i verify in the archive",
-      "which parts of chain can be checked",
-      "verifiable chain data checks list",
-      "can i check bitcoin headers myself",
-      "what checks are possible on archive data"
+      "what can i verify on the chain",
+      "which layers have verification checks",
+      "how much do i need to trust",
+      "verify chain data trust assumptions",
+      "what each verification step proves",
+      "list of things to check when verifying",
+      "how far does verification go",
+      "chain verification checks overview"
     ]
   },
   "/docs/verify-reference": {
@@ -2057,6 +2186,19 @@
       "manage webhooks from account page"
     ]
   },
+  "/docs/webhooks#check-it": {
+    "hash": "9a898831914ca2e1",
+    "phrasings": [
+      "verify webhook ed25519 signature",
+      "how to validate webhook delivery authenticity",
+      "webhook signature verification example",
+      "check webhook payload came from provider",
+      "ed25519 public key webhook signature check",
+      "webhook delivery signature not matching",
+      "test webhook signature in each format",
+      "authenticate incoming webhook requests"
+    ]
+  },
   "/docs/webhooks#coming-from-chainhook": {
     "hash": "6a27841240f1dede",
     "phrasings": [
@@ -2069,14 +2211,16 @@
     ]
   },
   "/docs/webhooks#create-a-webhook": {
-    "hash": "a56d6179fc6f84e6",
+    "hash": "91b4263b86562e61",
     "phrasings": [
-      "how to create a webhook endpoint",
-      "set up new webhook subscription",
-      "what does webhook payload contain",
-      "webhook create command example",
-      "register webhook for chain trigger",
-      "how to add webhook url"
+      "how to set up a webhook for contract calls",
+      "webhook fire on token transfers to my url",
+      "register webhook endpoint for transfer events",
+      "configure webhook triggers for specific addresses",
+      "webhook not posting to my url",
+      "how to subscribe to on chain transfers via webhook",
+      "create webhook filter for function calls",
+      "webhook setup steps for blockchain events"
     ]
   },
   "/docs/webhooks#delivery-lag": {
@@ -2088,6 +2232,19 @@
       "why are webhooks delayed after block",
       "events dispatched minutes after block time",
       "webhook lag over 60 seconds"
+    ]
+  },
+  "/docs/webhooks#from-the-cli": {
+    "hash": "1d1fdf30bca64eae",
+    "phrasings": [
+      "create webhook using command line",
+      "cli webhook trigger json config",
+      "define webhook triggers in json file",
+      "webhook cli json format example",
+      "set up webhook with cli instead of dashboard",
+      "cli command to register webhook triggers",
+      "json payload for webhook triggers from terminal",
+      "automate webhook creation with cli"
     ]
   },
   "/docs/webhooks#hosted-limits": {
@@ -2211,16 +2368,29 @@
     ]
   },
   "/docs/webhooks#triggers": {
-    "hash": "ff4c0d9af1752dc8",
+    "hash": "d8842bdb01f71ed5",
     "phrasings": [
-      "webhook triggers array limit",
-      "how many triggers per webhook",
-      "configure which events fire webhook",
-      "webhook trigger types list",
-      "multiple event filters in one webhook",
-      "set triggers on webhook config",
-      "webhook triggers maximum fifty",
-      "add trigger to existing webhook"
+      "trigger factory vs raw objects webhook",
+      "how to write webhook trigger objects",
+      "webhook trigger syntax examples",
+      "raw trigger object format for webhooks",
+      "difference between trigger factories and raw triggers",
+      "webhook trigger configuration reference",
+      "build webhook triggers programmatically",
+      "equivalent raw object for trigger helper"
+    ]
+  },
+  "/docs/webhooks#triggers-and-limits": {
+    "hash": "5bed2fa3282d6723",
+    "phrasings": [
+      "webhook rate limits and quotas",
+      "what triggers are available for webhooks",
+      "webhook protocol triggers list",
+      "test delivery webhook limits hosted plan",
+      "maximum webhook triggers allowed",
+      "hosted webhook restrictions and caps",
+      "list of supported webhook event types",
+      "webhook test ping delivery behavior"
     ]
   },
   "/docs/webhooks#troubleshooting": {
