@@ -223,6 +223,71 @@ export type IndexStateWriteRow = {
 	tx_function_name?: string | null;
 };
 
+/** A `/v1/index/sbtc/events` row: one decoded sBTC protocol event. Numeric
+ *  columns are JSON numbers here (the API normalizes them). */
+export type IndexSbtcEventRow = {
+	cursor: string;
+	block_height: number;
+	block_time?: string | null;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	topic: string;
+	request_id: number | null;
+	amount: string | null;
+	sender: string | null;
+	recipient_btc_version: number | null;
+	recipient_btc_hashbytes: string | null;
+	bitcoin_txid: string | null;
+	output_index: number | null;
+	sweep_txid: string | null;
+	burn_hash: string | null;
+	burn_height: number | null;
+	signer_bitmap: string | null;
+	max_fee: string | null;
+	fee: string | null;
+	governance_contract_type: number | null;
+	governance_new_contract: string | null;
+	signer_aggregate_pubkey: string | null;
+	signer_threshold: number | null;
+	signer_address: string | null;
+	signer_keys_count: number | null;
+};
+
+/** A `/v1/contracts?trait=` row (ABI omitted). */
+export type IndexContractRow = {
+	contract_id: string;
+	deployer: string;
+	block_height: number;
+	declared_traits: string[] | null;
+	inferred_standards: string[] | null;
+	abi_status: string;
+};
+
+/** A `/v1/index/sbtc/withdrawals` row: one peg-out rolled up per request. */
+export type IndexSbtcWithdrawalRow = {
+	cursor: string;
+	request_id: number;
+	status: "REQUESTED" | "ACCEPTED" | "REJECTED";
+	amount: string | null;
+	sender: string | null;
+	recipient_btc_version: number | null;
+	recipient_btc_hashbytes: string | null;
+	sweep_txid: string | null;
+	settlement_confirmed: boolean | null;
+	btc_confirmations: number | null;
+	btc_block_height: number | null;
+	confirmed_at: string | null;
+	requested_at?: string | null;
+	resolved_at?: string | null;
+};
+
+/** Page size for `/v1/contracts`, its server-side maximum. */
+const CONTRACTS_PAGE_LIMIT = 500;
+
+/** `to_height` meaning "through the tip": the server clamps it to its tip. */
+const THROUGH_TIP = Number.MAX_SAFE_INTEGER;
+
 export type StreamsReorgRow = {
 	id: string;
 	detected_at: string;
@@ -486,6 +551,78 @@ export class IndexHttpClient {
 			new URLSearchParams({ from_height: "0", limit: "1" }),
 		);
 		return items[0]?.block_height ?? null;
+	}
+
+	/**
+	 * Canonical sBTC protocol events over [fromHeight, toHeight] for `topics`,
+	 * ordered by (block_height, event_index). One drained walk per topic (the
+	 * endpoint filters on a single topic); `requestId` narrows each walk.
+	 */
+	async fetchSbtcEvents(
+		fromHeight: number,
+		toHeight: number,
+		topics: readonly string[],
+		opts?: { requestId?: number },
+	): Promise<IndexSbtcEventRow[]> {
+		const out: IndexSbtcEventRow[] = [];
+		for (const topic of topics) {
+			out.push(
+				...(await this.walk<"events", IndexSbtcEventRow>(
+					"/v1/index/sbtc/events",
+					"events",
+					fromHeight,
+					toHeight,
+					{
+						topic,
+						...(opts?.requestId !== undefined
+							? { request_id: String(opts.requestId) }
+							: {}),
+					},
+				)),
+			);
+		}
+		return out.sort(
+			(a, b) =>
+				a.block_height - b.block_height || a.event_index - b.event_index,
+		);
+	}
+
+	/** Every canonical contract conforming to `trait` (declared or inferred),
+	 *  draining `/v1/contracts`'s `next_cursor`. */
+	async listContractsByTrait(trait: string): Promise<IndexContractRow[]> {
+		const out: IndexContractRow[] = [];
+		let cursor: string | null = null;
+		do {
+			const params = new URLSearchParams({
+				trait,
+				limit: String(CONTRACTS_PAGE_LIMIT),
+			});
+			if (cursor) params.set("cursor", cursor);
+			const { items, next_cursor } = await this.getPage<
+				"contracts",
+				IndexContractRow
+			>("/v1/contracts", "contracts", params);
+			out.push(...items);
+			cursor = next_cursor;
+		} while (cursor);
+		return out;
+	}
+
+	/** Withdrawals whose BTC sweep crossed the confirmation threshold strictly
+	 *  after `confirmedAfter`, across all history. */
+	fetchSettledWithdrawals(
+		confirmedAfter: Date,
+	): Promise<IndexSbtcWithdrawalRow[]> {
+		return this.walk<"withdrawals", IndexSbtcWithdrawalRow>(
+			"/v1/index/sbtc/withdrawals",
+			"withdrawals",
+			0,
+			THROUGH_TIP,
+			{
+				settlement_confirmed: "true",
+				confirmed_after: confirmedAfter.toISOString(),
+			},
+		);
 	}
 
 	walkTransactions(

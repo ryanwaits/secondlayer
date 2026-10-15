@@ -387,3 +387,84 @@ describe("IndexHttpClient billing refusals", () => {
 		expect((err as IndexHttpStatusError).status).toBe(402);
 	});
 });
+
+describe("IndexHttpClient hosted sBTC + trait reads", () => {
+	/** Serves `pages` in order, recording each request URL. */
+	function stubPages(pages: unknown[]): URL[] {
+		const urls: URL[] = [];
+		globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+			urls.push(new URL(String(input)));
+			const body = pages[urls.length - 1] ?? pages.at(-1);
+			return new Response(JSON.stringify(body), { status: 200 });
+		}) as unknown as typeof fetch;
+		return urls;
+	}
+
+	const contract = (id: string) => ({
+		contract_id: id,
+		deployer: "SP1",
+		block_height: 10,
+		declared_traits: ["sip-010"],
+		inferred_standards: [],
+		abi_status: "fetched",
+	});
+
+	test("listContractsByTrait drains next_cursor across pages", async () => {
+		const urls = stubPages([
+			{ contracts: [contract("SP1.a")], next_cursor: "SP1.a" },
+			{ contracts: [contract("SP1.b")], next_cursor: null },
+		]);
+		const rows = await client().listContractsByTrait("sip-010");
+		expect(rows.map((r) => r.contract_id)).toEqual(["SP1.a", "SP1.b"]);
+		expect(urls.map((u) => u.pathname)).toEqual([
+			"/v1/contracts",
+			"/v1/contracts",
+		]);
+		expect(urls[0]?.searchParams.get("trait")).toBe("sip-010");
+		expect(urls[0]?.searchParams.has("cursor")).toBe(false);
+		expect(urls[1]?.searchParams.get("cursor")).toBe("SP1.a");
+	});
+
+	test("fetchSbtcEvents forwards each topic and the request id", async () => {
+		const urls = stubPages([{ events: [], next_cursor: null }]);
+		await client().fetchSbtcEvents(
+			5,
+			9,
+			["completed-deposit", "withdrawal-accept"],
+			{ requestId: 42 },
+		);
+		expect(urls.map((u) => u.searchParams.get("topic"))).toEqual([
+			"completed-deposit",
+			"withdrawal-accept",
+		]);
+		for (const u of urls) {
+			expect(u.pathname).toBe("/v1/index/sbtc/events");
+			expect(u.searchParams.get("from_height")).toBe("5");
+			expect(u.searchParams.get("to_height")).toBe("9");
+			expect(u.searchParams.get("request_id")).toBe("42");
+		}
+	});
+
+	test("fetchSettledWithdrawals scans all history after the timestamp", async () => {
+		const urls = stubPages([{ withdrawals: [], next_cursor: null }]);
+		await client().fetchSettledWithdrawals(
+			new Date("2026-10-15T00:00:00.000Z"),
+		);
+		const params = urls[0]?.searchParams;
+		expect(urls[0]?.pathname).toBe("/v1/index/sbtc/withdrawals");
+		expect(params?.get("settlement_confirmed")).toBe("true");
+		expect(params?.get("confirmed_after")).toBe("2026-10-15T00:00:00.000Z");
+		expect(params?.get("from_height")).toBe("0");
+	});
+
+	test("a non-2xx answer throws instead of reading as no rows", async () => {
+		globalThis.fetch = (async () =>
+			new Response("nope", { status: 500 })) as unknown as typeof fetch;
+		await expect(
+			client().fetchSbtcEvents(1, 2, ["completed-deposit"]),
+		).rejects.toBeInstanceOf(IndexHttpStatusError);
+		await expect(
+			client().listContractsByTrait("sip-010"),
+		).rejects.toBeInstanceOf(IndexHttpStatusError);
+	});
+});

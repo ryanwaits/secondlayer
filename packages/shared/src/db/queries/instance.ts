@@ -99,3 +99,38 @@ function toInstance(row: {
 		created_at: row.created_at,
 	};
 }
+
+/**
+ * A stack with no local chain: it reads chain data from a hosted Index/Streams
+ * API (`SUBGRAPH_INDEX_API_URL` set) and its own `index_progress` has no row
+ * for this network (a hosted tenant). Derived, not configured: a self-hoster
+ * running a local indexer has the row and keeps reading its own tables, even
+ * with its processors pointed at its own api over HTTP.
+ */
+export async function hasNoLocalChain(
+	db: Kysely<Database>,
+	opts: {
+		env?: NodeJS.ProcessEnv;
+		hasProgressRow?: (network: string) => Promise<boolean>;
+	} = {},
+): Promise<boolean> {
+	const env = opts.env ?? process.env;
+	if (!env.SUBGRAPH_INDEX_API_URL) return false;
+	const network = env.NETWORK ?? "mainnet";
+	const hasRow =
+		opts.hasProgressRow ?? ((n: string) => hasLocalProgressRow(db, n));
+	return !(await hasRow(network));
+}
+
+async function hasLocalProgressRow(
+	db: Kysely<Database>,
+	network: string,
+): Promise<boolean> {
+	const row = await db
+		.selectFrom("index_progress")
+		.select("network")
+		.where("network", "=", network)
+		.executeTakeFirst()
+		.catch(() => undefined);
+	return row !== undefined;
+}

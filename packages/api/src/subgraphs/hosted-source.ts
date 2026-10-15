@@ -1,37 +1,16 @@
 import { getSourceDb } from "@secondlayer/shared/db";
+import { hasNoLocalChain as stackHasNoLocalChain } from "@secondlayer/shared/db/queries/instance";
 import {
 	type SubgraphDefinition,
 	isStreamsIndexEligible,
 } from "@secondlayer/subgraphs";
 
-/**
- * A stack with no local chain: it reads chain data from a hosted Index/Streams
- * API (`SUBGRAPH_INDEX_API_URL` set) and its own `index_progress` has no row
- * for this network. Derived, not configured: a self-hoster running a local
- * indexer has the row and keeps the Postgres tap.
- */
-export async function hasNoLocalChain(
-	opts: {
-		env?: NodeJS.ProcessEnv;
-		hasProgressRow?: (network: string) => Promise<boolean>;
-	} = {},
+/** A hosted tenant stack: no local chain, reads the hosted Index/Streams API.
+ *  The rule lives in shared so the webhook evaluator applies the same one. */
+export function hasNoLocalChain(
+	opts: Parameters<typeof stackHasNoLocalChain>[1] = {},
 ): Promise<boolean> {
-	const env = opts.env ?? process.env;
-	if (!env.SUBGRAPH_INDEX_API_URL) return false;
-	const network = env.NETWORK ?? "mainnet";
-	const hasRow = opts.hasProgressRow ?? hasLocalProgressRow;
-	return !(await hasRow(network));
-}
-
-async function hasLocalProgressRow(network: string): Promise<boolean> {
-	const select = (db: ReturnType<typeof getSourceDb>) =>
-		db
-			.selectFrom("index_progress")
-			.select("network")
-			.where("network", "=", network)
-			.executeTakeFirst();
-	const row = await select(getSourceDb()).catch(() => undefined);
-	return row !== undefined;
+	return stackHasNoLocalChain(getSourceDb(), opts);
 }
 
 /**
