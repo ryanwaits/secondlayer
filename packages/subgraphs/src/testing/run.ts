@@ -1,4 +1,5 @@
 import { camelizeKeys } from "../print-schema.ts";
+import { printFieldEquals } from "../runtime/source-matcher.ts";
 import type { SubgraphSchema } from "../types.ts";
 import {
 	type TxMeta,
@@ -48,6 +49,7 @@ export interface SubgraphTestSource {
 	type: string;
 	contractId?: string | string[];
 	topic?: string;
+	where?: Record<string, string | readonly string[]>;
 	functionName?: string;
 }
 
@@ -103,6 +105,20 @@ function txFromRow(row: IndexTestRow): Partial<TxMeta> {
 			? { functionName: r.function_name }
 			: {}),
 	};
+}
+
+/** A print source's `where` against an Index print row's decoded tuple —
+ *  the same equality the live matcher applies. */
+function indexPrintWhereAllows(
+	where: Record<string, string | readonly string[]> | undefined,
+	row: IndexEventRow,
+): boolean {
+	if (!where) return true;
+	const value = (row.payload as { value?: unknown } | null)?.value;
+	if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+	return Object.entries(where).every(([key, expected]) =>
+		printFieldEquals(value as Record<string, unknown>, key, expected),
+	);
 }
 
 /** Map an Index event row onto the payload shape a handler expects. */
@@ -308,8 +324,9 @@ export async function runSubgraphTest(
 					: toHandlerPayload(filter, row as IndexEventRow);
 			if (
 				filter?.type === "print_event" &&
-				filter.topic &&
-				(payload as { topic?: string }).topic !== filter.topic
+				((filter.topic &&
+					(payload as { topic?: string }).topic !== filter.topic) ||
+					!indexPrintWhereAllows(filter.where, row as IndexEventRow))
 			) {
 				continue;
 			}

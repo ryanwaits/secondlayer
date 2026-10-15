@@ -148,6 +148,22 @@ const triggerAmount = z.union([
 const triggerPattern = z.string().trim().min(1);
 const trait = z.string().trim().min(1);
 
+/**
+ * `print_event` `where`: equality on top-level keys of the decoded print
+ * tuple, spelled as the contract prints them. An array is any-of; multiple
+ * keys AND. Values compare against the field's JSON-normalized form.
+ */
+const printWhereValue = z.string().min(1).max(256);
+export const PrintWhereSchema: z.ZodType<Record<string, string | string[]>> = z
+	.record(
+		z.string().trim().min(1).max(64),
+		z.union([printWhereValue, z.array(printWhereValue).min(1).max(20)]),
+	)
+	.refine((o) => {
+		const n = Object.keys(o).length;
+		return n >= 1 && n <= 10;
+	}, "where takes 1 to 10 keys");
+
 export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 	"type",
 	[
@@ -256,6 +272,7 @@ export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 				contractId: triggerPattern.optional(),
 				topic: triggerPattern.optional(),
 				trait: trait.optional(),
+				where: PrintWhereSchema.optional(),
 			})
 			.strict(),
 		z
@@ -501,6 +518,8 @@ export type ChainTrigger =
 			type: "print_event";
 			contractId?: string;
 			topic?: string;
+			/** Equality on top-level keys of the decoded print tuple; array = any-of, keys AND. */
+			where?: Record<string, string | readonly string[]>;
 	  } & TraitScoped)
 	| ({
 			type: "nested_contract_call";

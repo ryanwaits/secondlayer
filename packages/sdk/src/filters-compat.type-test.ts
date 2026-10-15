@@ -69,6 +69,9 @@ export function _filterCompatChecks(): void {
 		on.print({ topic: "transfer" }).toChainTrigger(),
 	).toMatchTypeOf<ChainTrigger>();
 	expectTypeOf(
+		on.print({ where: { signer: ["SP1.a", "SP2.b"] } }).toChainTrigger(),
+	).toMatchTypeOf<ChainTrigger>();
+	expectTypeOf(
 		on.contractDeploy({ contractName: "x" }).toChainTrigger(),
 	).toMatchTypeOf<ChainTrigger>();
 }

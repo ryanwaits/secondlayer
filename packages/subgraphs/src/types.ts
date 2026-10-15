@@ -298,6 +298,12 @@ export type PrintEventPrints = Record<string, Record<string, PrintField>>;
 type PrintEventFields = FactoryScope & {
 	type: "print_event";
 	topic?: string;
+	/** Equality on top-level keys of the decoded print tuple, spelled as the
+	 *  contract prints them (`signer-manager`). A value matches the field's
+	 *  JSON form: principals `SP…`, uints as decimal strings, bools
+	 *  `"true"`/`"false"`, buffers `0x…`. An array is any-of; keys AND.
+	 *  Nested tuples and lists never match. */
+	where?: Record<string, string | readonly string[]>;
 };
 
 /**

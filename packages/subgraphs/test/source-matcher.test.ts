@@ -1,4 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import {
+	Cl,
+	type ClarityValue,
+	serializeCV,
+} from "@secondlayer/stacks/clarity";
 import { matchSources } from "../src/runtime/source-matcher.ts";
 import type { SubgraphFilter } from "../src/types.ts";
 
@@ -459,5 +464,145 @@ describe("matchSources", () => {
 		};
 		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(0);
+	});
+});
+
+// ── print_event topic + where (decoded raw_value) ──
+
+describe("print_event where", () => {
+	const POX5 = "SP000000000000000000002Q6VF78.pox-5";
+	const MINE =
+		"SPMPMA1V6P430M8C91QS1G9XJ95S59JS1TZFZ4Q4.fastpool-max500-signer-manager";
+	const ALSO_MINE =
+		"SP21YTSM60CAY6D011EZVEVNKXVW8FVZE198XEFFP.fastpool-1-signer-manager";
+	const OTHER = "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.other-signer";
+	const tx = {
+		tx_id: "0xw",
+		type: "contract_call",
+		sender: "SP1",
+		status: "success",
+	};
+	const print = (i: number, fields: Record<string, ClarityValue>) => ({
+		id: `0xw#${i}`,
+		tx_id: "0xw",
+		type: "contract_event",
+		event_index: i,
+		data: {
+			contract_identifier: POX5,
+			topic: "print",
+			raw_value: `0x${serializeCV(Cl.tuple(fields))}`,
+		} as Record<string, unknown>,
+	});
+	const matchedIndexes = (
+		filter: SubgraphFilter,
+		events: ReturnType<typeof print>[],
+	) =>
+		matchSources({ s: filter }, [tx], events).flatMap((m) =>
+			m.events.map((e) => e.event_index),
+		);
+	const source = (
+		where: Record<string, string | readonly string[]>,
+	): SubgraphFilter =>
+		({ type: "print_event", contractId: POX5, where }) as SubgraphFilter;
+
+	test("print_event where matches a principal field and drops other signers", () => {
+		const events = [
+			print(0, { signer: Cl.principal(MINE) }),
+			print(1, { signer: Cl.principal(OTHER) }),
+		];
+		expect(matchedIndexes(source({ signer: MINE }), events)).toEqual([0]);
+	});
+
+	test("print_event where array matches any listed value", () => {
+		const events = [
+			print(0, { signer: Cl.principal(MINE) }),
+			print(1, { signer: Cl.principal(ALSO_MINE) }),
+			print(2, { signer: Cl.principal(OTHER) }),
+		];
+		expect(
+			matchedIndexes(source({ signer: [MINE, ALSO_MINE] }), events),
+		).toEqual([0, 1]);
+	});
+
+	test("print_event where with two keys requires both", () => {
+		const events = [
+			print(0, { topic: Cl.stringAscii("bond"), signer: Cl.principal(MINE) }),
+			print(1, {
+				topic: Cl.stringAscii("unbond"),
+				signer: Cl.principal(MINE),
+			}),
+			print(2, {
+				topic: Cl.stringAscii("bond"),
+				signer: Cl.principal(OTHER),
+			}),
+		];
+		expect(
+			matchedIndexes(source({ topic: "bond", signer: MINE }), events),
+		).toEqual([0]);
+	});
+
+	test("print_event where on a uint field matches its decimal string", () => {
+		const events = [
+			print(0, { cycle: Cl.uint(112n) }),
+			print(1, { cycle: Cl.uint(113n) }),
+		];
+		expect(matchedIndexes(source({ cycle: "112" }), events)).toEqual([0]);
+	});
+
+	test("print_event where on bool, buffer and some values matches their JSON form", () => {
+		const events = [
+			print(0, {
+				ok: Cl.bool(true),
+				hash: Cl.bufferFromHex("abcd"),
+				owner: Cl.some(Cl.principal(MINE)),
+			}),
+		];
+		expect(
+			matchedIndexes(
+				source({ ok: "true", hash: "0xabcd", owner: MINE }),
+				events,
+			),
+		).toEqual([0]);
+	});
+
+	test("print_event where on a nested tuple or list never matches", () => {
+		const events = [
+			print(0, {
+				nested: Cl.tuple({ a: Cl.uint(1n) }),
+				items: Cl.list([Cl.uint(1n)]),
+			}),
+		];
+		expect(matchedIndexes(source({ nested: "1" }), events)).toEqual([]);
+		expect(matchedIndexes(source({ items: "1" }), events)).toEqual([]);
+	});
+
+	test("print_event where on a missing key never matches", () => {
+		const events = [print(0, { signer: Cl.principal(MINE) })];
+		expect(matchedIndexes(source({ "signer-manager": MINE }), events)).toEqual(
+			[],
+		);
+	});
+
+	test("print_event where on an undecodable raw_value never matches", () => {
+		const garbled = print(0, {});
+		garbled.data.raw_value = "0xzz";
+		const missing = print(1, {});
+		delete missing.data.raw_value;
+		expect(
+			matchedIndexes(source({ signer: MINE }), [garbled, missing]),
+		).toEqual([]);
+	});
+
+	test("print_event topic matches the tuple topic at match time", () => {
+		const events = [
+			print(0, { topic: Cl.stringAscii("a") }),
+			print(1, { topic: Cl.stringAscii("b") }),
+		];
+		const filter = {
+			type: "print_event",
+			contractId: POX5,
+			topic: "a",
+		} as SubgraphFilter;
+		expect(matchedIndexes(filter, events)).toEqual([0]);
 	});
 });

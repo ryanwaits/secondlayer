@@ -9,6 +9,11 @@ import type {
 } from "@secondlayer/shared/db";
 import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import type { ChainTrigger } from "@secondlayer/shared/schemas/webhooks";
+import {
+	Cl,
+	type ClarityValue,
+	serializeCV,
+} from "@secondlayer/stacks/clarity";
 import type { BlockData } from "./batch-loader.ts";
 import type { TraitContracts } from "./source-matcher.ts";
 import {
@@ -67,6 +72,35 @@ function ev(o: Partial<Event>): Event {
 		created_at: new Date(0),
 		...o,
 	} as Event;
+}
+
+const hex = (cv: ClarityValue) => `0x${serializeCV(cv)}`;
+
+const POX5 = "SP000000000000000000002Q6VF78.pox-5";
+const FASTPOOL_A =
+	"SPMPMA1V6P430M8C91QS1G9XJ95S59JS1TZFZ4Q4.fastpool-max500-signer-manager";
+const FASTPOOL_B =
+	"SP21YTSM60CAY6D011EZVEVNKXVW8FVZE198XEFFP.fastpool-1-signer-manager";
+const OTHER_SIGNER = "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.other-signer";
+
+/** A print event from `contract` whose `raw_value` is `value`'s hex. */
+function printEv(
+	txId: string,
+	eventIndex: number,
+	contract: string,
+	value: ClarityValue | string,
+): Event {
+	return ev({
+		id: `${txId}#${eventIndex}`,
+		tx_id: txId,
+		event_index: eventIndex,
+		type: "smart_contract_event",
+		data: {
+			contract_identifier: contract,
+			topic: "print",
+			raw_value: typeof value === "string" ? value : hex(value),
+		},
+	});
 }
 
 function block(
@@ -210,6 +244,54 @@ describe("evaluateBlock", () => {
 		// Empty trait map → contract doesn't conform → no match.
 		expect(evaluateBlock(b, sources, new Map())).toHaveLength(0);
 	});
+
+	it("print_event where adds under 20 ms to a 1k-print block with 50 triggers", () => {
+		const events = Array.from({ length: 1000 }, (_, i) =>
+			printEv(
+				`0xt${i % 50}`,
+				i,
+				POX5,
+				Cl.tuple({
+					topic: Cl.stringAscii("register-for-bond"),
+					signer: Cl.principal(i % 7 === 0 ? FASTPOOL_A : OTHER_SIGNER),
+					cycle: Cl.uint(BigInt(i)),
+				}),
+			),
+		);
+		const txs = Array.from({ length: 50 }, (_, i) =>
+			tx({ tx_id: `0xt${i}`, tx_index: i }),
+		);
+		const plain = chainSub(
+			Array.from({ length: 50 }, () => ({
+				type: "print_event" as const,
+				contractId: POX5,
+			})),
+		);
+		const scoped = chainSub(
+			Array.from({ length: 50 }, (_, i) => ({
+				type: "print_event" as const,
+				contractId: POX5,
+				where: { signer: [FASTPOOL_A, `${FASTPOOL_B}${i}`] },
+			})),
+		);
+		// Fresh event objects per run, so each run pays the decode once.
+		const fastest = (sub: Webhook) => {
+			const { sources } = buildSourcesMap([sub]);
+			let best = Number.POSITIVE_INFINITY;
+			for (let run = 0; run < 5; run++) {
+				const b = block(
+					txs,
+					events.map((e) => ({ ...e })),
+				);
+				const start = performance.now();
+				evaluateBlock(b, sources, new Map());
+				best = Math.min(best, performance.now() - start);
+			}
+			return best;
+		};
+		const added = fastest(scoped) - fastest(plain);
+		expect(added).toBeLessThan(20);
+	});
 });
 
 describe("emitChainOutbox (DB)", () => {
@@ -251,6 +333,87 @@ describe("emitChainOutbox (DB)", () => {
 			.where("webhook_id", "=", webhookId)
 			.execute();
 	}
+
+	it("print_event topic delivers only prints whose tuple topic matches", async () => {
+		const sub = await makeChainSub([
+			{ type: "print_event", contractId: "SP1.store", topic: "a" },
+		]);
+		const { sources, keyMeta } = buildSourcesMap([sub]);
+		const b = block(
+			[tx({ tx_id: "0xp", type: "contract_call" })],
+			[
+				printEv(
+					"0xp",
+					0,
+					"SP1.store",
+					Cl.tuple({ topic: Cl.stringAscii("a") }),
+				),
+				printEv(
+					"0xp",
+					1,
+					"SP1.store",
+					Cl.tuple({ topic: Cl.stringAscii("b") }),
+				),
+			],
+		);
+		const matches = evaluateBlock(b, sources, new Map());
+		await emitChainOutbox(db, matches, keyMeta, 100, "0xblock");
+		const rows = await outboxRows(sub.id);
+		expect(rows).toHaveLength(1);
+		expect(rows[0].row_pk).toEqual({ tx_id: "0xp", event_index: 0 });
+	});
+
+	it("two print_event triggers on one webhook deliver signer and signer-manager prints once each", async () => {
+		const managers = [FASTPOOL_A, FASTPOOL_B];
+		const sub = await makeChainSub([
+			{ type: "print_event", contractId: POX5, where: { signer: managers } },
+			{
+				type: "print_event",
+				contractId: POX5,
+				where: { "signer-manager": managers },
+			},
+		]);
+		const { sources, keyMeta } = buildSourcesMap([sub]);
+		const b = block(
+			[tx({ tx_id: "0xf", type: "contract_call" })],
+			[
+				printEv(
+					"0xf",
+					0,
+					POX5,
+					Cl.tuple({
+						topic: Cl.stringAscii("register-for-bond"),
+						signer: Cl.principal(FASTPOOL_A),
+					}),
+				),
+				printEv(
+					"0xf",
+					1,
+					POX5,
+					Cl.tuple({
+						topic: Cl.stringAscii("set-signer-key"),
+						"signer-manager": Cl.principal(FASTPOOL_B),
+					}),
+				),
+				printEv(
+					"0xf",
+					2,
+					POX5,
+					Cl.tuple({
+						topic: Cl.stringAscii("register-for-bond"),
+						signer: Cl.principal(OTHER_SIGNER),
+					}),
+				),
+			],
+		);
+		const matches = evaluateBlock(b, sources, new Map());
+		const n = await emitChainOutbox(db, matches, keyMeta, 100, "0xblock");
+		expect(n).toBe(2);
+		const rows = await outboxRows(sub.id);
+		expect(
+			rows.map((r) => (r.row_pk as { event_index: number }).event_index).sort(),
+		).toEqual([0, 1]);
+	});
 
 	it("emits one apply row per matched contract_call tx (event_index -1) and is idempotent", async () => {
 		const sub = await makeChainSub([

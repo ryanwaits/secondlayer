@@ -6,6 +6,7 @@ import {
 	CreateWebhookRequestSchema,
 	ReplayWebhookRequestSchema,
 	UpdateWebhookRequestSchema,
+	trigger,
 	webhookMaxRetriesCeiling,
 	webhookTimeoutMsCeiling,
 } from "./webhooks.ts";
@@ -87,6 +88,77 @@ describe("webhook schemas", () => {
 				toBlock: 10,
 			}),
 		).toThrow();
+	});
+});
+
+describe("print_event where", () => {
+	const POX5 = "SP000000000000000000002Q6VF78.pox-5";
+	const managers = [
+		"SPMPMA1V6P430M8C91QS1G9XJ95S59JS1TZFZ4Q4.fastpool-max500-signer-manager",
+		"SP21YTSM60CAY6D011EZVEVNKXVW8FVZE198XEFFP.fastpool-1-signer-manager",
+	];
+	const print = (where: unknown) =>
+		ChainTriggerSchema.safeParse({
+			type: "print_event",
+			contractId: POX5,
+			where,
+		});
+
+	it("accepts the signer + signer-manager trigger pair", () => {
+		const r = CreateWebhookRequestSchema.safeParse({
+			name: "fastpool",
+			url: "https://example.com/h",
+			triggers: [
+				{ type: "print_event", contractId: POX5, where: { signer: managers } },
+				{
+					type: "print_event",
+					contractId: POX5,
+					where: { "signer-manager": managers },
+				},
+			],
+		});
+		expect(r.success).toBe(true);
+	});
+
+	it("trigger.printEvent carries where onto the wire trigger", () => {
+		expect(
+			trigger.printEvent({ contractId: POX5, where: { cycle: "112" } }),
+		).toEqual({
+			type: "print_event",
+			contractId: POX5,
+			where: { cycle: "112" },
+		});
+	});
+
+	it("rejects more than 20 values for one key", () => {
+		const values = Array.from({ length: 21 }, (_, i) => `SP${i}`);
+		expect(print({ signer: values }).success).toBe(false);
+		expect(print({ signer: values.slice(0, 20) }).success).toBe(true);
+	});
+
+	it("rejects more than 10 keys", () => {
+		const where = Object.fromEntries(
+			Array.from({ length: 11 }, (_, i) => [`k${i}`, "v"]),
+		);
+		expect(print(where).success).toBe(false);
+	});
+
+	it("rejects an empty where object", () => {
+		expect(print({}).success).toBe(false);
+	});
+
+	it("rejects non-string values", () => {
+		expect(print({ cycle: 112 }).success).toBe(false);
+		expect(print({ ok: true }).success).toBe(false);
+		expect(print({ signer: [] }).success).toBe(false);
+	});
+
+	it("is not accepted on other trigger types", () => {
+		const r = ChainTriggerSchema.safeParse({
+			type: "contract_call",
+			where: { signer: "SP1" },
+		});
+		expect(r.success).toBe(false);
 	});
 });
 

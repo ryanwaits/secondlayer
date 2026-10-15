@@ -81,6 +81,24 @@ describe("runSubgraphTest", () => {
 		expect(result.firstEvent?.data).toEqual({ tokenX: "SP.token" });
 	});
 
+	test("a print source's where skips Index rows the live matcher would drop", async () => {
+		const result = await runSubgraphTest({
+			schema: swaps.schema,
+			handlers: swaps.handlers as Record<string, unknown>,
+			sources: {
+				prints: { ...printSource, where: { "token-x": "SP.token" } },
+			} as Record<string, { type: string }>,
+			events: {
+				prints: [
+					printRow({ "token-x": "SP.token" }),
+					printRow({ "token-x": "SP.other" }),
+				],
+			},
+		});
+		expect(result.matched).toBe(1);
+		expect(result.tables[0]?.sampleRow?.token_x).toBe("SP.token");
+	});
+
 	test("zero fetched events are NO_EVENTS", async () => {
 		const result = await runSubgraphTest({
 			schema: swaps.schema,

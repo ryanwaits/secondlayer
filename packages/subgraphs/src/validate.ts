@@ -1,3 +1,4 @@
+import { PrintWhereSchema } from "@secondlayer/shared/schemas/webhooks";
 import { z } from "zod";
 import type {
 	ColumnType,
@@ -293,6 +294,7 @@ const SubgraphFilterUnion = z.discriminatedUnion("type", [
 			type: z.literal("print_event"),
 			contractId: contractIdField.optional(),
 			topic: z.string().optional(),
+			where: PrintWhereSchema.optional(),
 			prints: z
 				.record(z.string(), z.record(z.string(), PrintFieldSchema))
 				.optional(),

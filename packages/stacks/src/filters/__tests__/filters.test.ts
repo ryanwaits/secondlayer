@@ -88,6 +88,19 @@ describe("on.* factories", () => {
 		});
 	});
 
+	test("print where round-trips to the chain trigger and is refused on Index/Streams", () => {
+		const where = { signer: ["SP1.a", "SP2.b"], cycle: "112" };
+		const scoped = on.print({ contractId: TOKEN_CONTRACT, where });
+		expect(scoped.toChainTrigger()).toEqual({
+			type: "print_event",
+			contractId: TOKEN_CONTRACT,
+			where,
+		});
+		expect(scoped.toSubgraphSource()).toMatchObject({ where });
+		expect(() => scoped.toIndexParams()).toThrow(/where/);
+		expect(() => scoped.toStreamsParams()).toThrow(/where/);
+	});
+
 	test("member gating: surfaces a member can't reach are missing methods", () => {
 		const sbtc = on.sbtcDeposit({ minAmount: 100_000n });
 		expect(sbtc.toChainTrigger()).toEqual({

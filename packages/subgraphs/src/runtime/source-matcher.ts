@@ -1,4 +1,5 @@
 import type { SubgraphFilter } from "../types.ts";
+import { decodeClarityValue } from "./clarity.ts";
 
 export interface MatchedTx {
 	tx: TxRecord;
@@ -130,6 +131,78 @@ export function printContractId(
 			: undefined) ??
 		(typeof data.contract_id === "string" ? data.contract_id : undefined);
 	return id || undefined;
+}
+
+// Decoded print tuple per event row. Every source and trigger in a block
+// reads the same row objects, so a print decodes at most once per block.
+const decodedPrints = new WeakMap<
+	EventRecord,
+	Record<string, unknown> | null
+>();
+
+/**
+ * The print's decoded top-level tuple, from the canonical `raw_value` hex
+ * (source-independent: the node and Index reconstruct both carry it). `null`
+ * when the hex is missing, undecodable, or not a tuple.
+ */
+function decodedPrintTuple(
+	event: EventRecord,
+	data: Record<string, unknown>,
+): Record<string, unknown> | null {
+	if (decodedPrints.has(event)) return decodedPrints.get(event) ?? null;
+	const raw = data.raw_value;
+	const value =
+		typeof raw === "string" && raw.startsWith("0x")
+			? decodeClarityValue(raw)
+			: null;
+	const tuple =
+		value && typeof value === "object" && !Array.isArray(value)
+			? (value as Record<string, unknown>)
+			: null;
+	decodedPrints.set(event, tuple);
+	return tuple;
+}
+
+/**
+ * Whether a decoded print field equals `expected` (or any of a set). The field
+ * compares in its delivered JSON form: principals as `SP…`, (u)ints as decimal
+ * strings, bools as `"true"`/`"false"`, buffers as `0x…`, `(some x)` as `x`.
+ * Nested tuples, lists and `none` never match.
+ */
+export function printFieldEquals(
+	decoded: Record<string, unknown>,
+	key: string,
+	expected: string | readonly string[],
+): boolean {
+	const value = decoded[key];
+	let actual: string;
+	if (typeof value === "string") actual = value;
+	else if (typeof value === "bigint" || typeof value === "boolean")
+		actual = String(value);
+	else return false;
+	return typeof expected === "string"
+		? actual === expected
+		: expected.includes(actual);
+}
+
+/** `topic` and `where` on a print source, matched against the decoded tuple. */
+function printFieldsAllow(
+	filter: {
+		topic?: string;
+		where?: Record<string, string | readonly string[]>;
+	},
+	event: EventRecord,
+	data: Record<string, unknown>,
+): boolean {
+	if (!filter.topic && !filter.where) return true;
+	const decoded = decodedPrintTuple(event, data);
+	if (!decoded) return false;
+	if (filter.topic && !printFieldEquals(decoded, "topic", filter.topic))
+		return false;
+	for (const [key, expected] of Object.entries(filter.where ?? {})) {
+		if (!printFieldEquals(decoded, key, expected)) return false;
+	}
+	return true;
 }
 
 // ── Per-filter-type matchers ────────────────────────────────────────
@@ -434,11 +507,7 @@ function matchFilter(
 					if (!traitAllows(filter, contractId, traitContracts)) return false;
 					if (!factoryAllows(filter, contractId, factoryContracts))
 						return false;
-					// Topic filter — check the decoded Clarity value's topic field
-					// At this stage data.value is still raw hex; topic filtering happens
-					// after decode in the runner. For now, skip topic filtering here.
-					// The runner will filter by topic after decoding.
-					return true;
+					return printFieldsAllow(filter, e, data);
 				});
 
 				if (matched.length > 0) {

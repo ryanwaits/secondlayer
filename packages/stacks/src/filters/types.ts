@@ -167,6 +167,12 @@ export interface PrintEventSpec extends TraitScope, FactoryScope {
 	/** One contract id, or a set of them (max 20). */
 	contractId?: string | readonly string[];
 	topic?: string;
+	/** Equality on top-level keys of the decoded print tuple, spelled as the
+	 *  contract prints them (`signer-manager`). A value matches the field's
+	 *  JSON form: principals `SP…`, uints as decimal strings, bools
+	 *  `"true"`/`"false"`, buffers `0x…`. An array is any-of (max 20); keys
+	 *  AND (max 10). Nested tuples and lists never match. */
+	where?: Record<string, string | readonly string[]>;
 	/** Per-topic field schema — preserved literally so `toSubgraphSource()`
 	 *  keeps the discriminated-union narrowing of `event.data`. */
 	prints?: Record<string, Record<string, PrintFieldType>>;

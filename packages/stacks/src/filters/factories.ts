@@ -155,11 +155,11 @@ function toIndexParams(
 				"amount predicates are Webhooks/Subgraphs-only; filter client-side on the decoded rows",
 			);
 		}
-		if (key === "topic") {
+		if (key === "topic" || key === "where") {
 			unsupported(
 				"Index events",
-				"topic",
-				"per-topic reads are Subgraphs/Webhooks-only (or read the contract's print feed and switch on topic)",
+				key,
+				"print field matching is Subgraphs/Webhooks-only (or read the contract's print feed and filter the decoded rows)",
 			);
 		}
 		if (key === "lockedAddress") {
@@ -238,11 +238,11 @@ function toStreamsParams(
 				"Streams has no trait resolution — Index and Subgraphs do",
 			);
 		}
-		if (key === "topic") {
+		if (key === "topic" || key === "where") {
 			unsupported(
 				"Streams",
-				"topic",
-				"per-topic filtering is Subgraphs/Webhooks-only",
+				key,
+				"print field matching is Subgraphs/Webhooks-only",
 			);
 		}
 		if (key === "lockedAddress") {

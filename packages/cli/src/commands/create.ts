@@ -161,6 +161,7 @@ export function addWebhooksCreateCommand(parent: Command): void {
 			`
 Examples:
   $ secondlayer webhooks create my-hook -u https://example.com/webhook --trigger '{"type":"sbtc_deposit"}'
+  $ secondlayer webhooks create my-hook -u https://example.com/webhook --trigger '{"type":"print_event","contractId":"SP000000000000000000002Q6VF78.pox-5","where":{"signer":"SP21YTSM60CAY6D011EZVEVNKXVW8FVZE198XEFFP.fastpool-1-signer-manager"}}'
   $ secondlayer webhooks create my-hook -u https://example.com/webhook --triggers-file triggers.json`,
 		)
 		.action(createChainWebhook);

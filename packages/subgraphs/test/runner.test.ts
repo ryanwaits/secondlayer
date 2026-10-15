@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Cl, serializeCV } from "@secondlayer/stacks/clarity";
 import { runHandlers } from "../src/runtime/runner.ts";
-import type { MatchedTx } from "../src/runtime/source-matcher.ts";
+import { type MatchedTx, matchSources } from "../src/runtime/source-matcher.ts";
 import type { SubgraphDefinition, SubgraphFilter } from "../src/types.ts";
 
 // Minimal mock context that tracks calls
@@ -450,5 +450,55 @@ describe("runHandlers delivered count", () => {
 		// biome-ignore lint/suspicious/noExplicitAny: test mock typing
 		const r = await runHandlers(sg, [printMatch("wanted")], mockCtx() as any);
 		expect(r).toMatchObject({ delivered: 1, processed: 1 });
+	});
+});
+
+describe("print source where", () => {
+	test("subgraph print source with where only hands matching prints to the handler", async () => {
+		const MINE = "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7";
+		const OTHER = "SP000000000000000000002Q6VF78";
+		const srcs: Record<string, SubgraphFilter> = {
+			bonds: {
+				type: "print_event",
+				contractId: "SP.c",
+				where: { signer: MINE },
+				prints: { bond: { signer: "principal" } },
+			},
+		};
+		const print = (i: number, signer: string) => ({
+			id: `e${i}`,
+			tx_id: "0xtx",
+			type: "contract_event",
+			event_index: i,
+			data: {
+				topic: "print",
+				contract_identifier: "SP.c",
+				raw_value: `0x${serializeCV(
+					Cl.tuple({
+						topic: Cl.stringAscii("bond"),
+						signer: Cl.principal(signer),
+					}),
+				)}`,
+			},
+		});
+		const tx = {
+			tx_id: "0xtx",
+			type: "contract_call",
+			sender: "SP1",
+			status: "success",
+		};
+		const seen: string[] = [];
+		const sg = makeSg(
+			{
+				bonds: (event: { data: { signer: string } }) => {
+					seen.push(event.data.signer);
+				},
+			},
+			srcs,
+		);
+		const matches = matchSources(srcs, [tx], [print(0, MINE), print(1, OTHER)]);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing
+		await runHandlers(sg, matches, mockCtx() as any);
+		expect(seen).toEqual([MINE]);
 	});
 });
