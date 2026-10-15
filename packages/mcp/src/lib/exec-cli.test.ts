@@ -49,7 +49,7 @@ describe("exec-cli argv safety", () => {
 	});
 
 	it("rejects flags outside the subcommand allowlist", () => {
-		expect(() => assertSafeArgs("setup", ["--json"])).toThrow(
+		expect(() => assertSafeArgs("verify", ["--apply"])).toThrow(
 			/flag not allowed/,
 		);
 		expect(() => assertSafeArgs("bootstrap", ["--apply"])).toThrow(

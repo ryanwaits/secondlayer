@@ -12,7 +12,7 @@ export function registerInstanceTools(
 	defineTool<Record<string, never>>(
 		server,
 		"instance_status",
-		"Decoder health and empty-index diagnosis from GET /public/status. If state is empty-index, next tool is archive_bootstrap or setup. Poll until index.decoders are ok before treating Index as ready — do not start decoders. Then archive_verify, then codegen_index_schema. Do not download parquet.",
+		"Decoder health and empty-index diagnosis from GET /public/status. If state is empty-index, next tool is archive_bootstrap. Poll until index.decoders are ok before treating Index as ready — do not start decoders. Then archive_verify, then codegen_index_schema. Do not download parquet.",
 		{},
 		async () => {
 			const client = clientProvider();

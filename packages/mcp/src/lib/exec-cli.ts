@@ -4,36 +4,20 @@ import {
 	spawn,
 } from "node:child_process";
 
-export const ALLOWED = ["setup", "bootstrap", "repair", "verify"] as const;
+export const ALLOWED = ["bootstrap", "repair", "verify"] as const;
 export type Subcommand = (typeof ALLOWED)[number];
 
 const TIMEOUT_MS: Record<Subcommand, number> = {
-	setup: 15 * 60 * 1000,
 	bootstrap: 10 * 60 * 1000,
 	repair: 10 * 60 * 1000,
 	verify: 2 * 60 * 1000,
 };
 
-const VALUE_FLAGS = new Set([
-	"--against",
-	"--from-block",
-	"--to-block",
-	"--network",
-	"--node-mode",
-	"--dir",
-]);
+const VALUE_FLAGS = new Set(["--against", "--from-block", "--to-block"]);
 
-const BOOL_FLAGS = new Set(["--yes", "--json", "--apply", "--skip-bootstrap"]);
+const BOOL_FLAGS = new Set(["--yes", "--json", "--apply"]);
 
 export const FLAGS_BY_CMD: Record<Subcommand, ReadonlySet<string>> = {
-	setup: new Set([
-		"--yes",
-		"--network",
-		"--node-mode",
-		"--against",
-		"--dir",
-		"--skip-bootstrap",
-	]),
 	bootstrap: new Set([
 		"--against",
 		"--yes",
@@ -141,11 +125,7 @@ export async function execSecondlayer(
 	assertSafeArgs(subcommand, args);
 
 	const argv = [subcommand, ...args];
-	if (subcommand === "setup") {
-		if (!argv.includes("--yes")) argv.push("--yes");
-	} else if (!argv.includes("--json")) {
-		argv.push("--json");
-	}
+	if (!argv.includes("--json")) argv.push("--json");
 
 	const env = deps.env ?? process.env;
 	const bin = env.SECONDLAYER_BIN || "secondlayer";

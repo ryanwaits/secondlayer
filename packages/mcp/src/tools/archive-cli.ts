@@ -14,43 +14,12 @@ function cliResponse(result: {
 	return jsonResponse(result, result.code !== 0);
 }
 
-export function registerSetupTools(
+/** `archive_bootstrap` and `archive_repair`: the archive verbs that run
+ *  through the local CLI (`secondlayer bootstrap` / `repair`). */
+export function registerArchiveCliTools(
 	server: McpServer,
 	exec: ExecFn = execSecondlayer,
 ) {
-	defineTool<{
-		network: "mainnet" | "testnet" | "devnet";
-		nodeMode: "external" | "stacks" | "full";
-		against?: string;
-		dir?: string;
-		skipBootstrap?: boolean;
-	}>(
-		server,
-		"setup",
-		"Non-interactive self-host onboarding (secondlayer setup --yes). If the index is empty, this or archive_bootstrap fills it. Bootstrap is metered against the official archive. After it returns, poll instance_status until index.decoders are ok, then archive_verify, then codegen_index_schema. Do not download parquet.",
-		{
-			network: z
-				.enum(["mainnet", "testnet", "devnet"])
-				.describe("Stacks network"),
-			nodeMode: z
-				.enum(["external", "stacks", "full"])
-				.describe("Node mode: external, stacks, or full"),
-			against: z.string().optional().describe("Archive manifest URL"),
-			dir: z.string().optional().describe("Compose project directory"),
-			skipBootstrap: z
-				.boolean()
-				.optional()
-				.describe("Sync from genesis instead of restoring an archive"),
-		},
-		async ({ network, nodeMode, against, dir, skipBootstrap }) => {
-			const args = ["--yes", "--network", network, "--node-mode", nodeMode];
-			if (against !== undefined) args.push("--against", against);
-			if (dir !== undefined) args.push("--dir", dir);
-			if (skipBootstrap) args.push("--skip-bootstrap");
-			return cliResponse(await exec("setup", args));
-		},
-	);
-
 	defineTool<{
 		against: string;
 		fromBlock?: number;

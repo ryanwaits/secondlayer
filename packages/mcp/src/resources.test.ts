@@ -351,7 +351,6 @@ const GOLDEN_PATH_TOOLS = [
 	"archive_verify",
 	"credits_balance",
 	"instance_status",
-	"setup",
 ];
 
 describe("capabilities ↔ tool registry", () => {

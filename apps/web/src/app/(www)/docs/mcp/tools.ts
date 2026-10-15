@@ -26,7 +26,6 @@ const GROUP_TITLES: Record<string, string> = {
 	codegen: "Codegen",
 	instance: "Instance",
 	archive: "Archive",
-	setup: "Setup",
 	account: "Account",
 };
 

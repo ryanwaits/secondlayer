@@ -1,12 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAccountTools } from "./tools/account.ts";
+import { registerArchiveCliTools } from "./tools/archive-cli.ts";
 import { registerArchiveTools } from "./tools/archive.ts";
 import { registerCodegenTools } from "./tools/codegen.ts";
 import { registerContractTools } from "./tools/contracts.ts";
 import { registerIndexTools } from "./tools/index.ts";
 import { registerInstanceTools } from "./tools/instance.ts";
 import { registerScaffoldTools } from "./tools/scaffold.ts";
-import { registerSetupTools } from "./tools/setup.ts";
 import { registerStreamsTools } from "./tools/streams.ts";
 import { registerSubgraphTools } from "./tools/subgraphs.ts";
 import { registerWebhookTools } from "./tools/webhooks.ts";
@@ -33,6 +33,6 @@ export const TOOL_GROUPS: readonly ToolGroup[] = [
 	{ group: "codegen", register: registerCodegenTools },
 	{ group: "instance", register: registerInstanceTools },
 	{ group: "archive", register: registerArchiveTools },
-	{ group: "setup", register: registerSetupTools },
+	{ group: "archive", register: registerArchiveCliTools },
 	{ group: "account", register: registerAccountTools, hostedOnly: true },
 ];

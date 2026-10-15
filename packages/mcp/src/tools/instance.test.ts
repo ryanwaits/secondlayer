@@ -53,7 +53,6 @@ describe("instance MCP tools", () => {
 		if (!tool) throw new Error("instance_status not registered");
 		expect(tool.description).toContain("empty-index");
 		expect(tool.description).toContain("archive_bootstrap");
-		expect(tool.description).toContain("setup");
 		expect(tool.description).toMatch(/poll/i);
 		expect(tool.description).toContain("decoders");
 		expect(tool.description).not.toMatch(/\bconsume\b/);

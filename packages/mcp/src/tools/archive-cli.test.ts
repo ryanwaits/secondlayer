@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Subcommand } from "../lib/exec-cli.ts";
-import { registerSetupTools } from "./setup.ts";
+import { registerArchiveCliTools } from "./archive-cli.ts";
 
 interface RegisteredTool {
 	name: string;
@@ -26,52 +26,11 @@ function fakeServer(tools: RegisteredTool[]): McpServer {
 	} as unknown as McpServer;
 }
 
-describe("setup / bootstrap / repair MCP tools", () => {
-	it("setup argv is an array, not a concatenated shell string", async () => {
-		const tools: RegisteredTool[] = [];
-		const calls: Array<{ sub: Subcommand; args: string[] }> = [];
-		registerSetupTools(fakeServer(tools), async (sub, args) => {
-			calls.push({ sub, args });
-			return { code: 0, stdout: '{"ok":true}', stderr: "" };
-		});
-
-		const tool = tools.find((t) => t.name === "setup");
-		expect(tool).toBeDefined();
-		if (!tool) throw new Error("setup not registered");
-		expect(tool.description).toContain("empty");
-		expect(tool.description).toMatch(/metered/i);
-		expect(tool.description).toContain("instance_status");
-		expect(tool.description).toContain("archive_verify");
-		expect(tool.description).not.toMatch(/\bconsume\b/);
-
-		const result = await tool.handler({
-			network: "mainnet",
-			nodeMode: "external",
-			against: "https://archive.secondlayer.tools/latest.json",
-			dir: ".",
-		});
-		expect(result.isError).toBeUndefined();
-		expect(calls).toHaveLength(1);
-		expect(calls[0]?.sub).toBe("setup");
-		expect(Array.isArray(calls[0]?.args)).toBe(true);
-		expect(calls[0]?.args).toEqual([
-			"--yes",
-			"--network",
-			"mainnet",
-			"--node-mode",
-			"external",
-			"--against",
-			"https://archive.secondlayer.tools/latest.json",
-			"--dir",
-			".",
-		]);
-		expect(calls[0]?.args.join(" ")).not.toContain(";");
-	});
-
+describe("archive bootstrap / repair MCP tools", () => {
 	it("archive_bootstrap argv includes --against --yes --json", async () => {
 		const tools: RegisteredTool[] = [];
 		const calls: Array<{ sub: Subcommand; args: string[] }> = [];
-		registerSetupTools(fakeServer(tools), async (sub, args) => {
+		registerArchiveCliTools(fakeServer(tools), async (sub, args) => {
 			calls.push({ sub, args });
 			return { code: 0, stdout: "{}", stderr: "" };
 		});
@@ -103,7 +62,7 @@ describe("setup / bootstrap / repair MCP tools", () => {
 	it("archive_repair is plan-only unless apply, then adds --apply --yes", async () => {
 		const tools: RegisteredTool[] = [];
 		const calls: Array<{ sub: Subcommand; args: string[] }> = [];
-		registerSetupTools(fakeServer(tools), async (sub, args) => {
+		registerArchiveCliTools(fakeServer(tools), async (sub, args) => {
 			calls.push({ sub, args });
 			return { code: 0, stdout: "{}", stderr: "" };
 		});

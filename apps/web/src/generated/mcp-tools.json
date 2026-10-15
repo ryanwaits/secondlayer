@@ -203,7 +203,7 @@
 		{
 			"name": "instance_status",
 			"group": "instance",
-			"description": "Decoder health and empty-index diagnosis from GET /public/status. If state is empty-index, next tool is archive_bootstrap or setup. Poll until index.decoders are ok before treating Index as ready — do not start decoders. Then archive_verify, then codegen_index_schema. Do not download parquet."
+			"description": "Decoder health and empty-index diagnosis from GET /public/status. If state is empty-index, next tool is archive_bootstrap. Poll until index.decoders are ok before treating Index as ready — do not start decoders. Then archive_verify, then codegen_index_schema. Do not download parquet."
 		},
 		{
 			"name": "archive_latest",
@@ -227,18 +227,13 @@
 		},
 		{
 			"name": "archive_bootstrap",
-			"group": "setup",
+			"group": "archive",
 			"description": "Restore verified history into this instance (secondlayer bootstrap --against … --yes --json). Metered against the official archive; quote happens inside the CLI. After bootstrap, poll instance_status until decoders ok, then archive_verify, then codegen_index_schema. Do not download parquet."
 		},
 		{
 			"name": "archive_repair",
-			"group": "setup",
+			"group": "archive",
 			"description": "Plan (default) or apply a repair of local chain data against a signed archive. Metered when apply fetches from the official archive. After apply, poll instance_status until decoders ok, then archive_verify. Do not download parquet."
-		},
-		{
-			"name": "setup",
-			"group": "setup",
-			"description": "Non-interactive self-host onboarding (secondlayer setup --yes). If the index is empty, this or archive_bootstrap fills it. Bootstrap is metered against the official archive. After it returns, poll instance_status until index.decoders are ok, then archive_verify, then codegen_index_schema. Do not download parquet."
 		},
 		{
 			"name": "account_create_key",

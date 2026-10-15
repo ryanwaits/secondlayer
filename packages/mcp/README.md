@@ -55,7 +55,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | `INSTANCE_TOKEN` | Writes on your instance | — | From `secondlayer init`. Required for write tools elsewhere than `api.secondlayer.tools`; reads are public. Not sent to the hosted API. |
 | `SECONDLAYER_API_KEY` | Hosted API, credits/quote/latest | — | `sk-sl_*`, used automatically when `SECONDLAYER_API_URL` is `https://api.secondlayer.tools`. |
 | `SECONDLAYER_API_URL` | No | `http://127.0.0.1:3800` | Instance API, or `https://api.secondlayer.tools` for hosted. |
-| `SECONDLAYER_BIN` | CLI tools | `secondlayer` on PATH | Path to the CLI binary (`setup`, `bootstrap`, `repair`). |
+| `SECONDLAYER_BIN` | CLI tools | `secondlayer` on PATH | Path to the CLI binary (`bootstrap`, `repair`). |
 | `SECONDLAYER_CWD` | CLI tools | process cwd | Compose project directory. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port. |
 | `SECONDLAYER_MCP_SECRET` | No | — | Bearer token for HTTP auth. Disabled if unset. |
@@ -71,12 +71,11 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | **Contracts** (2) | `contracts_find`, `contracts_get_abi` |
 | **Instance** (1) | `instance_status` |
 | **Archive** (5) | `archive_verify`, `archive_bootstrap`, `archive_repair`, `archive_latest`, `archive_quote` |
-| **Setup** (1) | `setup` |
 | **Credits** (1) | `credits_balance` (needs `SECONDLAYER_API_KEY`) |
 | **Account** (2) | `account_whoami`, `account_create_key` (only when pointed at `https://api.secondlayer.tools`) |
 
 Verify after mutating: `subgraphs_operations` for deploy/reindex/backfill/stop,
-`webhooks_deliveries` for create/test/replay. Empty index: `setup` or
+`webhooks_deliveries` for create/test/replay. Empty index:
 `archive_bootstrap`, poll `instance_status` until decoders are ok, then
 `archive_verify`, then `codegen_index_schema`.
 

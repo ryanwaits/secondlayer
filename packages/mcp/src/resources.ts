@@ -83,7 +83,6 @@ const PRODUCT_BLURBS: Record<string, string> = {
 	codegen: "ORM schemas for the tables you read",
 	instance: "decoder health and empty-index diagnosis",
 	archive: "signed archive verify, bootstrap/repair, quote, latest pointer",
-	setup: "one-command self-host onboarding",
 	credits: "archive credits balance at api.secondlayer.tools",
 };
 
@@ -97,7 +96,6 @@ const PRODUCT_ORDER = [
 	"codegen",
 	"instance",
 	"archive",
-	"setup",
 	"credits",
 ];
 
