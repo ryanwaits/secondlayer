@@ -38,4 +38,10 @@ export const QUICKSTART_STEPS: QuickstartStep[] = [
 		desc: 'Rows serve the moment the first block lands; reads of your own tables are free. Same read from the SDK: sl.subgraphs.rows("my-balances", "balances").',
 		cmd: 'curl -H "Authorization: Bearer $SECONDLAYER_API_KEY" "$SECONDLAYER_API_URL/v1/subgraphs/my-balances/balances"',
 	},
+	{
+		n: "06",
+		tab: "Verify",
+		desc: "Proves a block, its transactions and its Bitcoin anchor on your machine, trusting only the checkpoint shipped in the CLI.",
+		cmd: "secondlayer verify block 9137005",
+	},
 ];
