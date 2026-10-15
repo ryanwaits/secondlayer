@@ -111,4 +111,44 @@ describe("bundleSubgraphCode", () => {
 			(globalThis as Record<string, unknown>).__f059_bundle_pwned,
 		).toBeUndefined();
 	});
+	test("bundles a handler that imports readContractAt and reports a ctx.client finding", async () => {
+		const result = await bundleSubgraphCode(`
+				import { defineSubgraph, readContractAt } from "@secondlayer/subgraphs";
+
+				const SIP010 = {
+					functions: [{
+						name: "get-decimals",
+						access: "read-only",
+						args: [],
+						outputs: { response: { ok: "uint128", error: "uint128" } },
+					}],
+				} as const;
+
+				export default defineSubgraph({
+					name: "bundle-chain-read",
+					sources: {
+						transfer: { type: "ft_transfer", assetIdentifier: "SP123.token::token" },
+					},
+					schema: {
+						transfers: {
+							columns: { decimals: { type: "uint" } },
+						},
+					},
+					handlers: {
+						transfer: async (event, ctx) => {
+							const token = readContractAt(ctx, "SP123.token", SIP010, {
+								cache: "contract-constant",
+							});
+							const decimals = await token.read.getDecimals({});
+							ctx.insert("transfers", { decimals });
+						},
+					},
+				});
+			`);
+
+		expect(result.name).toBe("bundle-chain-read");
+		expect(result.findings.map((f) => `${f.kind}:${f.name}`)).toContain(
+			"needs-events:ctx.client",
+		);
+	});
 });
