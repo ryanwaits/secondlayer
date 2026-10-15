@@ -5,7 +5,7 @@ import {
 } from "@secondlayer/shared/errors";
 import { SENTINEL_KEY_PREFIX, generateApiKey } from "./keys.ts";
 
-export type MintProduct = "account" | "sentinel" | "docs";
+export type MintProduct = "account" | "sentinel" | "docs" | "tenant";
 
 /**
  * The single tier every minted key gets. Plan/tier selection is retired —

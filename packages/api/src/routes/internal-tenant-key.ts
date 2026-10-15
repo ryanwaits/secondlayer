@@ -5,10 +5,14 @@
  * this route itself, during `up()`, instead of forwarding whatever key the
  * customer happened to present on the request that triggered provisioning.
  *
+ * Both are `product = 'tenant'` keys: they read Streams and Index like an
+ * account key, are the only keys `/v1/chain-read` accepts, and never open an
+ * account route (keys, billing, archive fetch).
+ *
  * Two fixed names, two trust levels:
  * - `hosted-stack` (default): INTERNAL, unmetered. Only `webhook-service`
  *   gets it: it imports no customer code and its reads are ours.
- * - `hosted-subgraphs`: a normal METERED account key. Anything that runs
+ * - `hosted-subgraphs`: METERED like an account key. Anything that runs
  *   customer code (`api`, `subgraph-processor`) gets this one, so indexing
  *   reads bill `rows.delivered` against the account's allowance and spend cap.
  *
@@ -71,7 +75,7 @@ app.post("/", async (c) => {
 	const minted = await mintApiKey(db, {
 		accountId,
 		name,
-		product: "account",
+		product: "tenant",
 		ip: "workload-host",
 		// The evaluator's reads are ours, not the customer's rows; customer
 		// code's reads are the customer's, so that key is metered.

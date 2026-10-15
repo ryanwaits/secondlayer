@@ -20,7 +20,7 @@ export type ProductTokenStore<TTenant> = {
 	get(rawToken: string): TTenant | undefined | Promise<TTenant | undefined>;
 };
 
-export type ProductScope = "streams" | "index" | "sentinel";
+export type ProductScope = "streams" | "index" | "sentinel" | "chain-read";
 
 type ApiKeyRecord = {
 	account_id: string;
@@ -40,26 +40,41 @@ type ApiKeyTokenStoreOptions<TTenant extends ProductTenant> = {
 	) => Promise<ApiKeyRecord | null>;
 };
 
+/**
+ * Which `api_keys.product` values authenticate a product scope. Short-lived
+ * `docs` keys and the workload host's `tenant` keys read Streams and Index
+ * only, never a plane that could do more than read. The hosted chain-read
+ * route takes tenant keys only: a customer key there would be a free node
+ * query service.
+ */
+function acceptedKeyProducts(
+	product: ProductScope,
+): Array<"account" | "docs" | "tenant"> {
+	switch (product) {
+		case "streams":
+		case "index":
+			return ["account", "docs", "tenant"];
+		case "chain-read":
+			return ["tenant"];
+		default:
+			return ["account"];
+	}
+}
+
 async function lookupAccountApiKey(
 	tokenHash: string,
 	product: ProductScope,
 	getDb: typeof defaultGetDb,
 ): Promise<ApiKeyRecord | null> {
 	const db = getDb();
-	// Account keys, plus short-lived `docs` keys on the Streams and Index read
-	// planes only (never a plane that could do more than read). Scoped
-	// streams/index rows are retired (auth-007). Expiry is enforced here, on
-	// every lookup, in SQL: a key past `expires_at` is simply not found.
+	// Scoped streams/index rows are retired (auth-007). Expiry is enforced
+	// here, on every lookup, in SQL: a key past `expires_at` is simply not
+	// found.
 	const row = await db
 		.selectFrom("api_keys")
 		.select(["account_id", "status", "tier"])
 		.where("key_hash", "=", tokenHash)
-		.where((eb) => {
-			const account = eb("product", "=", "account");
-			return product === "streams" || product === "index"
-				? eb.or([account, eb("product", "=", "docs")])
-				: account;
-		})
+		.where("product", "in", acceptedKeyProducts(product))
 		.where((eb) =>
 			eb.or([
 				eb("expires_at", "is", null),

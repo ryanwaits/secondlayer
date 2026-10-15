@@ -200,6 +200,48 @@ describe("createApiKeyTokenStore", () => {
 					expect(await store.get(raw)).toBeUndefined();
 				}
 			});
+
+			test("a tenant-product key reads the index plane and the chain-read scope; an account key reads only the index plane", async () => {
+				const tenantRaw = `sk-sl_tenant_product_test_${crypto.randomUUID()}`;
+				const accountRaw = `sk-sl_account_product_test_${crypto.randomUUID()}`;
+				for (const [raw, product] of [
+					[tenantRaw, "tenant"],
+					[accountRaw, "account"],
+				] as const) {
+					await db
+						.insertInto("api_keys")
+						.values({
+							key_hash: hashToken(raw),
+							key_prefix: raw.slice(0, 14),
+							account_id: accountId,
+							ip_address: "workload-host",
+							product,
+							tier: "free",
+							status: "active",
+						})
+						.execute();
+				}
+
+				const storeFor = (product: "index" | "streams" | "chain-read") =>
+					createApiKeyTokenStore({
+						staticTokens: new Map(),
+						requiredScope: `${product}:read`,
+						product,
+					});
+
+				for (const product of ["index", "streams"] as const) {
+					expect((await storeFor(product).get(tenantRaw))?.account_id).toBe(
+						accountId,
+					);
+					expect((await storeFor(product).get(accountRaw))?.account_id).toBe(
+						accountId,
+					);
+				}
+				expect((await storeFor("chain-read").get(tenantRaw))?.account_id).toBe(
+					accountId,
+				);
+				expect(await storeFor("chain-read").get(accountRaw)).toBeUndefined();
+			});
 		},
 	);
 
