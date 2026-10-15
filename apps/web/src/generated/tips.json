@@ -8626,6 +8626,12 @@
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-ChainReadCacheMode"
 		},
+		"ChainReadError": {
+			"kind": "type",
+			"summary": "A handler asked for something no node can answer: a function missing from the ABI, or one that isn't read-only.",
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-ChainReadError"
+		},
 		"ChainReadMethods": {
 			"kind": "type",
 			"summary": "The camelCased read methods of an ABI.",
@@ -9197,7 +9203,7 @@
 		},
 		"HandlerReadError": {
 			"kind": "type",
-			"summary": "A ctx read (DB, chain) failed under a verifiable subgraph.",
+			"summary": "A ctx read failed for a reason outside the handler.",
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-HandlerReadError"
 		},

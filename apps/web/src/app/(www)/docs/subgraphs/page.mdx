@@ -236,7 +236,11 @@ handlers: {
 - Every read is pinned to the block being processed, so a reindex gives byte-identical rows.
 - A block whose id was never stored throws instead of reading the node's tip.
 - A read that can't complete (no node, node down) halts the subgraph at that block with status `error`, instead of skipping the event. A contract `err` answer fails only that event.
-- Self-hosting: point `STACKS_NODE_RPC_URL` on the processor at [your node](/docs/self-host#config).
+
+| Where it runs | Reads come from | Limits |
+| --- | --- | --- |
+| Hosted | Secondlayer's node, pinned to the block, no setup | About 3,000 reads a minute per account, 5 s per read. Over the limit, reads wait and retry |
+| Your own box | [Your node](/docs/self-host#config): set `STACKS_NODE_RPC_URL` on the processor | Your node's |
 
 <Callout type="tip" title="Declare what can't change">
 
@@ -352,6 +356,7 @@ Table Rows         balances: 4874
 | --- | --- |
 | Sources | Event filters, `contract_call`, `contract_deploy`. Anything else is `422 SOURCE_NOT_HOSTABLE`, naming the source |
 | Isolation | A gVisor sandbox with 512 MB, reaching only Secondlayer's API and the public internet |
+| Contract reads (`ctx.client`) | Yes, pinned to the block, rate limited per account ([details](#reading-the-chain-from-a-handler)) |
 | Visibility | Private. No public catalog, fork or marketplace |
 
 A processor that stalls or runs out of memory restarts. After 3 deaths at one height the subgraph is marked `error`: fix the handler and redeploy. [Your own box](/docs/self-host#what-differs-on-your-box) runs any source.
@@ -526,6 +531,7 @@ export const agent = `
 - Hosted sources must be hostable (event filters, contract_call, contract_deploy); anything else fails with SOURCE_NOT_HOSTABLE.
 - A hosted processor that stalls or exceeds 512 MB is restarted, and marked 'error' after 3 deaths at the same height. Find the handler at that block, fix it, redeploy. Check with 'secondlayer subgraphs status <name>'.
 - Reads serve while the genesis backfill drains; watch it with 'secondlayer subgraphs status <name>'.
+- Hosted handlers can call readContractAt with no node setup. Use cache: "contract-constant" for values that never change (decimals, symbol) so a backfill reads them once instead of once per block.
 `;
 
 export const metadata = {

@@ -39,6 +39,14 @@ Before, `topic` was ignored on webhooks and you received every print from the co
 
 ## Subgraphs — October 2026
 
+### Contract reads now work in hosted subgraphs
+
+`readContractAt` and `ctx.client` work in hosted handlers with no setup, pinned to the block being processed like on your own box.
+
+- About 3,000 reads a minute per account and 5 s per read. Over the limit, reads wait and retry.
+- Self-hosted processors re-read each cached value once after upgrading: the read cache key changed.
+- See [Reading the chain from a handler](/docs/subgraphs#reading-the-chain-from-a-handler).
+
 ### Chain reads halt the block instead of dropping rows
 
 Breaking for self-host. Before, a `ctx.client` read that couldn't complete (a missing node URL, a node timeout or outage) failed only that event, and the block committed without its rows. Now the block retries, then the subgraph halts there with status `error` and resumes from that block once the node answers.
