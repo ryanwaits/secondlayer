@@ -831,6 +831,15 @@ button.docs-nav-item {
 	background: var(--code-bg);
 	color: var(--ink);
 }
+/* A lit mention or pressed focus link paints its own fill; code inside takes its text color. */
+.docs-article .mention.lit code {
+	background: transparent;
+	color: var(--on-hi);
+}
+.docs-article .flink[aria-pressed="true"] code {
+	background: transparent;
+	color: var(--on-pri);
+}
 .docs-article strong {
 	font-weight: 500;
 	color: var(--ink);
