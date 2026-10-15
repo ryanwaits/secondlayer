@@ -13,16 +13,15 @@
     ]
   },
   "/docs#get-started": {
-    "hash": "60eb21ab41107ed1",
+    "hash": "2b0eb003d3852c9d",
     "phrasings": [
-      "install cli and set api key",
-      "create subgraph from contract address",
+      "how to install secondlayer cli",
+      "set api key before creating subgraph",
+      "create subgraph from smart contract",
       "deploy subgraph and query rows",
-      "how to get started with indexer",
-      "check block number of indexed rows",
-      "quick setup steps for subgraph",
-      "read rows from deployed subgraph",
-      "first steps create and deploy subgraph"
+      "check which block rows came from",
+      "secondlayer quickstart first subgraph",
+      "getting started with contract subgraphs"
     ]
   },
   "/docs#where-do-you-start": {
@@ -154,15 +153,15 @@
     ]
   },
   "/docs/archive#assurance-levels": {
-    "hash": "f4abc00141a86736",
+    "hash": "86503156ca369cb2",
     "phrasings": [
       "archive manifest assurance level meaning",
-      "db-reconstructive vs node-attested archive",
-      "observer-attested archive range trust",
-      "what does assurance level mean in manifest",
-      "how much to trust archive data ranges",
-      "per range assurance level manifest field",
-      "difference between archive attestation types"
+      "what does assurance level mean per range",
+      "manifest assurance levels for block ranges",
+      "how to read archive manifest levels",
+      "archive range trust level explained",
+      "which assurance level does my range have",
+      "manifest range assurance values list"
     ]
   },
   "/docs/archive#check-it": {
@@ -178,15 +177,16 @@
     ]
   },
   "/docs/archive#credits": {
-    "hash": "8e510b0a06bfaacf",
+    "hash": "abdca5e43c8b2a8a",
     "phrasings": [
-      "archive bootstrap cost per partition bundle",
-      "how much does archive backfill charge",
-      "archive fetch billing and balance quote",
-      "is archive verification free of charge",
-      "reindex from archive credit usage",
-      "metered archive download pricing",
-      "why was my balance charged for archive"
+      "how much does archive backfill cost",
+      "archive bootstrap billing per partition bundle",
+      "why was my balance charged for reindex",
+      "archive fetch metered pricing",
+      "is archive verification free",
+      "quote archive cost before charge",
+      "reindex credits deducted from balance",
+      "archive partition bundle pricing explained"
     ]
   },
   "/docs/archive#exit-codes": {
@@ -210,16 +210,16 @@
     ]
   },
   "/docs/archive#from-your-instances-api": {
-    "hash": "ff87d02dddb271be",
+    "hash": "22010b1231010687",
     "phrasings": [
-      "verify archive from my instance api",
-      "post v1 archive verify endpoint",
-      "read only archive check on instance",
-      "how to verify archive url via api",
-      "raw identity check instance endpoint",
-      "archive verify endpoint body url",
-      "run archive verification without writing",
-      "instance api archive validation request"
+      "verify archive via instance api",
+      "archive verify endpoint raw identity check",
+      "how to call archive verify on my instance",
+      "read-only archive verification api request body",
+      "instance api verify archive url",
+      "check archive identity from running instance",
+      "post v1 archive verify example",
+      "does archive verify modify anything"
     ]
   },
   "/docs/archive#reading-the-output": {
@@ -247,27 +247,24 @@
     ]
   },
   "/docs/archive#restore-a-fresh-instance": {
-    "hash": "d3f45b7c8d5e6160",
+    "hash": "c51468db307549e6",
     "phrasings": [
-      "how to restore fresh instance from archive",
-      "bootstrap node faster using archive",
+      "restore fresh archive instance from digest",
+      "bootstrap archive faster than weeks",
+      "how to bootstrap new node from signed digest",
       "restore genesis to archive tip",
-      "how long does archive restore take",
-      "signed digest checked before restore",
-      "archive bootstrap takes hours not weeks",
-      "fresh node sync slow alternative",
-      "restore chain from signed snapshot quickly"
+      "fresh instance setup takes hours",
+      "verify signed digest before restoring rows"
     ]
   },
   "/docs/archive#targets": {
-    "hash": "31f210ce854b29fb",
+    "hash": "d1575164907ed2b0",
     "phrasings": [
-      "what does the archive publish digests for",
-      "archive digests for blocks and transactions",
-      "which data does archive provide hashes for",
-      "archive event digests supported",
-      "can i get digests for transactions",
-      "archive publishes block transaction event digests"
+      "which datasets does archive publish digests for",
+      "archive digests raw datasets only",
+      "archive targets list of datasets",
+      "does archive publish digests for all tables",
+      "three raw datasets archive digest"
     ]
   },
   "/docs/archive#what-the-archive-is": {
@@ -283,13 +280,12 @@
     ]
   },
   "/docs/archive#which-command": {
-    "hash": "acc5902443becb34",
+    "hash": "dcfc34252bbcd137",
     "phrasings": [
       "which archive command to run first",
-      "signed pointer archive where to start",
-      "archive command for checking chain",
-      "first command to run archive verification",
-      "how to pick archive subcommand"
+      "archive signed pointer start here",
+      "what command gets latest signed archive pointer",
+      "archive command for signed pointer"
     ]
   },
   "/docs/authentication": {
@@ -576,25 +572,29 @@
     ]
   },
   "/docs/deploy#docker-and-ec2": {
-    "hash": "ab446481aa626540",
+    "hash": "e33d8445c247da9d",
     "phrasings": [
       "deploy app to ec2 with docker",
       "run container on ec2 restart policy",
-      "docker deployment without platform",
-      "simple self hosted docker deploy",
-      "ec2 docker container auto restart",
-      "deploy app no config schema",
-      "host app on bare ec2 instance"
+      "docker restart policy for worker",
+      "no platform deploy docker vm",
+      "self hosted deployment ec2 container",
+      "keep container running after crash",
+      "deploy secondlayer without platform config",
+      "ec2 docker compose restart always"
     ]
   },
   "/docs/deploy#handle-sigterm": {
-    "hash": "1d905c68ee048bce",
+    "hash": "167220316d46c2fd",
     "phrasings": [
-      "consumer shutdown on redeploy sigterm",
-      "abortsignal stop consume loop gracefully",
-      "graceful shutdown in flight transaction",
-      "stop consumer without losing batch",
-      "handle container stop signal node"
+      "handle sigterm in node app",
+      "abortsignal shutdown on redeploy",
+      "graceful stop on container redeploy",
+      "node process exits on sigterm",
+      "stop worker cleanly before redeploy",
+      "abortcontroller sigterm handler example",
+      "redeploy kills process mid job",
+      "catch sigterm for clean shutdown"
     ]
   },
   "/docs/deploy#make-writes-idempotent": {
@@ -874,14 +874,16 @@
     ]
   },
   "/docs/mcp#agent-skill": {
-    "hash": "6e54687af75abb57",
+    "hash": "a3a1afa279bc1d2a",
     "phrasings": [
-      "secondlayer agent skill install claude code",
-      "print schema before writing handler secondlayer",
-      "verify mapping writes rows secondlayer",
-      "teach agent secondlayer rules skill file",
-      "secondlayer skill for cursor agent",
-      "how to test subgraph mapping writes rows"
+      "secondlayer agent skill setup",
+      "teach ai agent to build handlers",
+      "agent reads print schema before handler",
+      "ai coding agent secondlayer rules",
+      "verify mapping writes rows agent",
+      "install secondlayer skill for claude",
+      "agent building on secondlayer best practices",
+      "cursor rules for secondlayer handlers"
     ]
   },
   "/docs/mcp#authentication": {
@@ -896,14 +898,16 @@
     ]
   },
   "/docs/mcp#connect": {
-    "hash": "22450fd198b4afd7",
+    "hash": "ec00f699af3ee252",
     "phrasings": [
-      "install secondlayer mcp server package",
-      "mcp server stdio transport configuration",
-      "npx secondlayer mcp command",
-      "run mcp server over stdio",
-      "secondlayer mcp client config json",
-      "how to add secondlayer to claude desktop"
+      "install secondlayer mcp server",
+      "connect mcp client stdio",
+      "secondlayer mcp npm package",
+      "configure mcp server in claude desktop",
+      "mcp server stdio transport setup",
+      "run secondlayer mcp command",
+      "add secondlayer to mcp config",
+      "mcp server not connecting"
     ]
   },
   "/docs/mcp#notes": {
@@ -1605,25 +1609,27 @@
     ]
   },
   "/docs/sinks#health-and-shutdown": {
-    "hash": "785eedc557fa3ea9",
+    "hash": "6c919063a1d9181f",
     "phrasings": [
-      "consumerhealth endpoint setup",
-      "sink health check handler mount",
-      "graceful shutdown sink consumer",
-      "onprogress callback for sink health",
-      "does sdk start an http server",
-      "expose sink health route in express"
+      "sink health check endpoint",
+      "consumerhealth returns what fields",
+      "does sdk start http server for health",
+      "graceful shutdown of sink consumer",
+      "how to expose sink health status",
+      "sink consumer health monitoring",
+      "stop sink consumer cleanly",
+      "sdk does not start server automatically"
     ]
   },
   "/docs/sinks#keyed-on-the-query-builder-not-the-driver": {
-    "hash": "883aefb77f44f28e",
+    "hash": "0050801d8ed29885",
     "phrasings": [
-      "why kyselysink takes kysely instance",
-      "kysely vs pg pool for sink",
-      "typed ctx.tx in sink handler",
-      "sink schema types unchecked with pg pool",
-      "kyselysink constructor argument",
-      "how to pass database to sink"
+      "kysely sink setup with database instance",
+      "kyselysink takes kysely not driver",
+      "how to pass kysely instance to sink",
+      "kysely sink constructor arguments",
+      "sink using query builder vs raw driver",
+      "kysely indexer sink configuration example"
     ]
   },
   "/docs/sinks#resuming": {
@@ -1638,25 +1644,27 @@
     ]
   },
   "/docs/sinks#rollback-is-height-stamped": {
-    "hash": "f00e600fc228292b",
+    "hash": "1bcfe9dc9de768b3",
     "phrasings": [
-      "sink rollback deletes rows by height",
-      "forkpointheight rollback behavior",
-      "reorg handling in sink tables",
-      "which rows get deleted on fork rollback",
-      "rollback declared tables height cutoff",
-      "chain reorg rollback sink delete"
+      "sink rollback deletes rows above fork height",
+      "how does sink rollback work with height",
+      "v1 rollback delete rows forkpointheight",
+      "sinks rollback removes data after reorg",
+      "why are rows deleted on sink rollback",
+      "sink reorg rollback deleting too many rows",
+      "rollback height stamp sink tables",
+      "which tables does sink rollback delete from"
     ]
   },
   "/docs/sinks#the-problem-it-removes": {
-    "hash": "055d6cbe00580309",
+    "hash": "5d659fc40a07d0fe",
     "phrasings": [
-      "why use a sink instead of hand-rolled consumer",
-      "how much code for a blockchain event consumer",
-      "common pitfalls writing chain event consumer",
-      "correct consumer boilerplate not about my data",
-      "reduce boilerplate for indexing chain data",
-      "what does a sink handle for me"
+      "why use a sink instead of consumer",
+      "hand rolled indexer consumer boilerplate",
+      "what problem do sinks solve",
+      "checkpoint and rollback handling without sink",
+      "writing a correct blockchain consumer from scratch",
+      "sink benefits over manual indexing code"
     ]
   },
   "/docs/sinks#three-sinks-ship": {
@@ -1672,26 +1680,27 @@
     ]
   },
   "/docs/sinks#with-a-sink": {
-    "hash": "90eb4a685c8060e9",
+    "hash": "8549b7037ff340a2",
     "phrasings": [
+      "indexer sink transaction ctx.tx usage",
       "write rows and checkpoint atomically",
-      "use ctx.tx in indexer handler",
-      "transaction commit with cursor checkpoint",
-      "minimal indexer example with sink",
-      "rows not saved when handler fails",
-      "how to write data through sink transaction"
+      "sink transaction commit rows checkpoint",
+      "minimal indexer with a sink example",
+      "how to write data in sink handler",
+      "ctx.tx database writes in indexer"
     ]
   },
   "/docs/sinks#write-your-own-sink": {
-    "hash": "bc7a70f82a186391",
+    "hash": "478f9db538182e0c",
     "phrasings": [
-      "custom database sink driver",
-      "implement createsink driver interface",
-      "write custom sink for indexer data",
-      "sinks core transaction guards",
-      "own database dialect sink adapter",
-      "createsink options example",
-      "build postgres sink from scratch"
+      "how to write custom sink driver",
+      "createsink driver options example",
+      "build own database sink secondlayer",
+      "sink driver dialect implementation",
+      "custom sink transaction handling",
+      "createsink from sdk sinks core",
+      "implement sink for my database",
+      "sink guards and transaction sequences"
     ]
   },
   "/docs/streams": {
@@ -2058,24 +2067,24 @@
     ]
   },
   "/docs/verification#archive-assurance-levels": {
-    "hash": "df915195416dc33e",
+    "hash": "c64ba4d1ee6adf1e",
     "phrasings": [
-      "what does db reconstructive archive level mean",
-      "archive manifest level per block range",
-      "node.json coverage window archive",
-      "archive assurance level explained",
-      "which archive ranges are verified by node.json",
-      "manifest assurance level for block range"
+      "archive manifest assurance level per range",
+      "what does db reconstructive mean",
+      "which archive ranges are fully verified",
+      "archive manifest levels explained",
+      "how much of chain is reconstructive"
     ]
   },
   "/docs/verification#blocks-below-the-checkpoint": {
-    "hash": "0101548de4626022",
+    "hash": "1f05339f4ec6ab6e",
     "phrasings": [
-      "verify block older than checkpoint",
-      "verify historical block skipping bitcoin links",
-      "why signer links skipped for old block",
-      "block below checkpoint verification fails",
-      "check early blocks before checkpoint"
+      "verify block below checkpoint skips bitcoin",
+      "why signer links missing for old blocks",
+      "verification of blocks before checkpoint",
+      "checkpoint skipped bitcoin link verify",
+      "old block verify fails bitcoin check",
+      "what happens to blocks under checkpoint"
     ]
   },
   "/docs/verification#check-a-block": {
@@ -2089,14 +2098,14 @@
     ]
   },
   "/docs/verification#exit-codes-and-cost": {
-    "hash": "1592006f20384b83",
+    "hash": "4f935d2965a60cc1",
     "phrasings": [
-      "verify command exit code meanings",
-      "what does exit code 2 mean",
-      "verification exit status 1 broken link",
+      "verify exit codes meaning",
+      "can lying source pass verification",
+      "cost of running verify checks",
+      "verify failed link what to do",
       "how expensive is block verification",
-      "verify command cost and runtime",
-      "exit code 0 verify success"
+      "does verify trust the data source"
     ]
   },
   "/docs/verification#flags": {
@@ -2110,40 +2119,35 @@
     ]
   },
   "/docs/verification#in-your-code": {
-    "hash": "4a259575b945a544",
+    "hash": "b1ddb65ad3131c95",
     "phrasings": [
-      "how to verify stacks data in code",
-      "secondlayer verify library usage example",
-      "call verification check from typescript",
-      "use verify as a node library",
-      "import verify package into my app",
-      "programmatic verification of blockchain data",
-      "verify library instead of cli",
-      "run verification check inside a script"
+      "verify library api in typescript",
+      "use verification check programmatically in node",
+      "import secondlayer verify package",
+      "call block verification from my code",
+      "verify library example usage",
+      "secondlayer verify npm package code"
     ]
   },
   "/docs/verification#proof-levels": {
-    "hash": "25d0524416a31026",
+    "hash": "086a8970aeecf612",
     "phrasings": [
-      "what does a 200 proof response contain",
-      "raw transaction and raw header proof",
-      "proof level meanings consensus field missing",
-      "when is consensus included in proof",
-      "reward set not resolved proof response",
-      "difference between proof levels",
-      "merkle path in proof response fields",
-      "proof response fields explained"
+      "what does a 200 verify response contain",
+      "verify response missing consensus field",
+      "raw transaction and merkle path in verify",
+      "when is consensus returned in proof",
+      "proof levels meaning for verification",
+      "verify output raw header merkle path"
     ]
   },
   "/docs/verification#proofs-api": {
-    "hash": "ebd3f2ea87be1352",
+    "hash": "9b5e7452d04d4d2e",
     "phrasings": [
-      "free proofs api endpoint for block data",
-      "get merkle proof without api key",
-      "raw proof data for verifying blocks",
-      "unmetered api for block proofs",
-      "fetch proof material for block verification",
-      "do proofs count against my quota"
+      "free proofs api no api key",
+      "raw proof data endpoint for verify",
+      "is proofs endpoint metered or rate limited",
+      "proofs api endpoint for merkle paths",
+      "fetch raw material for block verification"
     ]
   },
   "/docs/verification#proofs-api-and-limits": {
@@ -2221,16 +2225,14 @@
     ]
   },
   "/docs/webhooks#account-webhooks": {
-    "hash": "7a18a1585a7c765e",
+    "hash": "31fb68b02f425675",
     "phrasings": [
-      "list webhooks for hosted account",
-      "view my account webhooks page",
-      "see all webhooks in dashboard",
-      "account webhooks endpoint api",
-      "hosted account webhook management",
-      "where are my webhooks listed",
-      "get webhooks for account api route",
-      "manage webhooks from account page"
+      "list my hosted account webhooks",
+      "account webhooks endpoint path",
+      "where do i see my webhooks",
+      "hosted account webhook listing api",
+      "get all webhooks for my account",
+      "account webhooks page location"
     ]
   },
   "/docs/webhooks#check-it": {
@@ -2306,16 +2308,16 @@
     ]
   },
   "/docs/webhooks#protocol-triggers": {
-    "hash": "31a7e5d881dbd876",
+    "hash": "9f38b09d92bdf2a2",
     "phrasings": [
-      "sbtc webhook trigger setup",
-      "runes events webhook notifications",
-      "webhook for sbtc deposits and withdrawals",
-      "runes transfer trigger webhook",
-      "decoded protocol events webhook",
-      "webhook trigger for bitcoin protocol activity",
-      "sbtc runes index protocol triggers",
-      "why webhook not firing for runes"
+      "how do sbtc triggers work in webhooks",
+      "webhook trigger for runes protocol events",
+      "sbtc webhook not firing on deposits",
+      "do runes webhooks use same data as index",
+      "set up runes trigger for webhook",
+      "sbtc and runes decoded protocol webhook events",
+      "why are runes webhooks missing transactions",
+      "index protocol data source for webhook triggers"
     ]
   },
   "/docs/webhooks#receive-and-verify": {
@@ -2415,16 +2417,14 @@
     ]
   },
   "/docs/webhooks#triggers": {
-    "hash": "d8842bdb01f71ed5",
+    "hash": "333d33c2c12eccdc",
     "phrasings": [
-      "trigger factory vs raw objects webhook",
-      "how to write webhook trigger objects",
-      "webhook trigger syntax examples",
-      "raw trigger object format for webhooks",
-      "difference between trigger factories and raw triggers",
-      "webhook trigger configuration reference",
-      "build webhook triggers programmatically",
-      "equivalent raw object for trigger helper"
+      "webhook trigger factory example",
+      "create webhook with trigger object",
+      "raw trigger objects for webhooks",
+      "how to define webhook triggers",
+      "webhook trigger configuration syntax",
+      "trigger factories vs raw objects webhook"
     ]
   },
   "/docs/webhooks#triggers-and-limits": {
@@ -2454,15 +2454,15 @@
     ]
   },
   "/docs/webhooks#verify-the-signature": {
-    "hash": "9251052904da9027",
+    "hash": "1643f382cbdadc60",
     "phrasings": [
-      "validate webhook hmac signature",
-      "standard webhooks signature check",
-      "verify webhook delivery is authentic",
-      "webhook signature header verification code",
-      "reject forged webhook requests",
-      "per webhook secret hmac sha256",
-      "webhook signature mismatch debugging"
+      "verify webhook hmac signature",
+      "standard webhooks signature validation",
+      "webhook signature mismatch error",
+      "how to check webhook delivery authenticity",
+      "per webhook hmac secret verification",
+      "validate standard-webhooks headers node",
+      "webhook signature verification code example"
     ]
   }
 }
