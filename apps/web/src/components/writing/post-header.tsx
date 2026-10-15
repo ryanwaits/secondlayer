@@ -3,9 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 /**
- * Post masthead: "Blog · 02", the title, the dek. The rail beside the column
+ * Post masthead: a "Blog / 02" breadcrumb, the title, the dek. The rail beside the column
  * carries the date, length, sections and figures; below 760px the rail hides
- * and the one-line meta under the title carries the way back and the date.
+ * and the one-line meta under the title carries the date and length.
  * Title lives ONLY here — post MDX bodies start at h2 so the docs MdxH1
  * mapping is never hit.
  *
@@ -21,13 +21,14 @@ export function PostHeader({ slug }: { slug: string }) {
 
 	return (
 		<header className="writing-header">
-			<span className="writing-eyebrow">
-				Blog <span>· {String(post.number).padStart(2, "0")}</span>
-			</span>
+			<nav className="writing-eyebrow" aria-label="Breadcrumb">
+				<Link href="/writing">Blog</Link>
+				<span aria-hidden="true">/</span>
+				<span aria-current="page">{String(post.number).padStart(2, "0")}</span>
+			</nav>
 			<h1 className="writing-title">{post.title}</h1>
 			<p className="writing-dek">{post.dek}</p>
 			<p className="writing-meta">
-				<Link href="/writing">← Blog</Link>
 				<span>{longDate(post.date)}</span>
 				<span>{post.readingTime}</span>
 			</p>

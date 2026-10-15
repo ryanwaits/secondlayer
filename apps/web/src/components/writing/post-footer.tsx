@@ -1,7 +1,6 @@
 import {
 	type WritingPost,
 	getAdjacentPosts,
-	getPost,
 	getVisiblePosts,
 	longDate,
 } from "@/lib/writing";
@@ -22,11 +21,10 @@ function Neighbor({ post, label }: { post: WritingPost; label: string }) {
 /**
  * The end of a post: the previous and next posts, and where a neighbor is
  * missing, the way back to every post, so the newest post still leads
- * somewhere. Then the post's tags and the feed.
+ * somewhere. Then the feed.
  */
 export function PostFooter({ slug }: { slug: string }) {
 	const { prev, next } = getAdjacentPosts(slug);
-	const post = getPost(slug);
 	const count = getVisiblePosts().length;
 	const all = (label: string) => (
 		<Link href="/writing" className="all">
@@ -53,7 +51,6 @@ export function PostFooter({ slug }: { slug: string }) {
 				) : null}
 			</nav>
 			<div className="writing-end-row">
-				{post ? <span>Filed under {post.tags.join(" · ")}</span> : <span />}
 				<a href="/feed.xml">RSS</a>
 			</div>
 		</footer>

@@ -1,24 +1,24 @@
 "use client";
 
 import { getPost, longDate } from "@/lib/writing";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type Section = { id: string; title: string };
+type Entry = { id: string; title: string };
 
 /**
- * The post rail, sticky on the site's left edge: the way back, the post's
- * number, date and length, its sections and figures, and its tags. Scroll
+ * The post rail, sticky right of the column: the post's number, date and
+ * length, and its sections and figures. Scroll
  * position lights the current section and the current figure, each in its
- * own list. Sections come from the article's h2 ids; figures from the
- * registry's short titles. Below 760px the rail hides and PostHeader's
- * inline line carries the date and the way back.
+ * own list. Sections come from the article's h2 ids, figures from its
+ * FigShell titles, so the rail always matches the page. Below 760px the rail hides and PostHeader's
+ * inline line carries the date and length.
  */
 export function PostRail() {
 	const pathname = usePathname();
 	const post = getPost(pathname.split("/").filter(Boolean)[1] ?? "");
-	const [sections, setSections] = useState<Section[]>([]);
+	const [sections, setSections] = useState<Entry[]>([]);
+	const [figureList, setFigureList] = useState<Entry[]>([]);
 	const [section, setSection] = useState<string | null>(null);
 	const [figure, setFigure] = useState<string | null>(null);
 
@@ -33,6 +33,12 @@ export function PostRail() {
 		);
 		const figures = Array.from(
 			article?.querySelectorAll<HTMLElement>("figure.fig[id]") ?? [],
+		);
+		setFigureList(
+			figures.map((f) => ({
+				id: f.id,
+				title: f.querySelector(".fig-title")?.textContent?.trim() ?? "",
+			})),
 		);
 		// Each list lights on its own: the section is the last heading above the
 		// reading line (the first one until then); the figure, the last one
@@ -67,9 +73,6 @@ export function PostRail() {
 
 	return (
 		<aside className="writing-rail" aria-label="Post details">
-			<Link className="back" href="/writing">
-				← Blog
-			</Link>
 			<div>
 				<span className="k">No. {String(post.number).padStart(2, "0")}</span>
 				{longDate(post.date)}
@@ -90,24 +93,20 @@ export function PostRail() {
 					))}
 				</nav>
 			)}
-			{post.figures && post.figures.length > 0 && (
+			{figureList.length > 0 && (
 				<nav aria-label="Figures">
 					<span className="k">Figures</span>
-					{post.figures.map((title, i) => (
+					{figureList.map((f, i) => (
 						<a
-							key={title}
-							href={`#fig-${i + 1}`}
-							className={figure === `fig-${i + 1}` ? "on" : undefined}
+							key={f.id}
+							href={`#${f.id}`}
+							className={figure === f.id ? "on" : undefined}
 						>
-							{i + 1} · {title}
+							{i + 1} · {f.title}
 						</a>
 					))}
 				</nav>
 			)}
-			<div>
-				<span className="k">Tags</span>
-				{post.tags.join(" · ")}
-			</div>
 		</aside>
 	);
 }

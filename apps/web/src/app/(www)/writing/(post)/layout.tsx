@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 /**
- * Post shell: a sticky rail on the site's left edge and one reading column,
+ * Post shell: one reading column and a sticky rail on its right,
  * on the same 1072px grid as every other page. Every page.mdx under (post)/
  * renders in the column. Per-post metadata comes from postMeta(); this
  * fallback only covers a post that forgets to export it.
@@ -21,10 +21,10 @@ export default function WritingPostLayout({
 	return (
 		<main className="writing-shell">
 			<div className="writing-grid">
-				<PostRail />
 				<article className="writing-article" id="writing-article">
 					{children}
 				</article>
+				<PostRail />
 			</div>
 		</main>
 	);

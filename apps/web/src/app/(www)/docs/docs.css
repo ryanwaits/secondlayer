@@ -453,7 +453,6 @@ button.docs-nav-item {
 }
 .docs-nav-item.docs-nav-child {
 	padding-left: 20px;
-	font-size: 13.5px;
 }
 /* The current page's h2s, nested under its row */
 .docs-nav-outline {
@@ -466,7 +465,6 @@ button.docs-nav-item {
 	margin-left: -1px;
 	padding: 3px 10px;
 	border-left: 1px solid transparent;
-	font-size: 13px;
 	color: var(--sub);
 }
 .docs-nav-outline a:hover {
@@ -1293,7 +1291,6 @@ button.docs-nav-item {
 	gap: 8px;
 	padding: 5px 8px;
 	border-radius: 4px;
-	font-size: 13.5px;
 	line-height: 20px;
 }
 .docs-nav-outline .docs-nav-ep:hover {

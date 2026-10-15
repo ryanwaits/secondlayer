@@ -4013,9 +4013,10 @@ body:has(.marketing-nav) .auth-bar {
    writings mock; all colors via house tokens.
    ══════════════════════════════════════════════════════════════════ */
 
-/* Post shell: the site's 1072px grid (1120 less the 24px gutters), a sticky
-   rail on the logo's edge and one 680px reading column. Going from the index
-   to a post keeps the left edge where it was. */
+/* Post shell: the site's 1072px grid (1120 less the 24px gutters), one 720px
+   reading column (the docs guide width) on the logo's edge and a sticky rail on the bar's right
+   edge. Both edges match the index (.site .shell), so going from the index
+   to a post moves neither. */
 .writing-shell {
 	max-width: 1120px;
 	margin: 0 auto;
@@ -4026,9 +4027,9 @@ body:has(.marketing-nav) .auth-bar {
 }
 .writing-grid {
 	display: grid;
-	grid-template-columns: 11rem minmax(0, 680px);
+	grid-template-columns: minmax(0, 720px) 13rem;
 	gap: 64px;
-	justify-content: start;
+	justify-content: space-between;
 }
 @media (max-width: 760px) {
 	.writing-shell {
@@ -4114,7 +4115,7 @@ body:has(.marketing-nav) .auth-bar {
 	color: var(--text-muted);
 }
 
-/* Post header (PostHeader): "Blog · 02", the title, the dek. */
+/* Post header (PostHeader): the "Blog / 02" breadcrumb, the title, the dek. */
 .writing-eyebrow {
 	display: inline-flex;
 	gap: 8px;
@@ -4125,8 +4126,19 @@ body:has(.marketing-nav) .auth-bar {
 	text-transform: uppercase;
 	color: var(--ink);
 }
+.writing-eyebrow a {
+	color: var(--ink);
+	text-decoration: none;
+}
+.writing-eyebrow a:hover {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
 .writing-eyebrow span {
 	color: var(--sub);
+}
+.writing-eyebrow span[aria-hidden] {
+	color: var(--faint);
 }
 .writing-title {
 	margin: 18px 0 0;
@@ -4159,10 +4171,6 @@ body:has(.marketing-nav) .auth-bar {
 	font-size: 12px;
 	line-height: 1;
 	color: var(--sub);
-}
-.writing-article p.writing-meta a {
-	color: var(--ink);
-	text-decoration: none;
 }
 @media (max-width: 760px) {
 	.writing-article p.writing-dek {
@@ -4225,43 +4233,50 @@ body:has(.marketing-nav) .auth-bar {
 	vertical-align: 2px;
 }
 
-/* ── Post rail: sticky on the left edge; hidden below 760px ────────── */
+/* ── Post rail: sticky right of the column; hidden below 760px. Set like
+   the docs sidebar (docs.css .docs-nav): Geist 14px at every level, uppercase
+   group labels, and the sections as an outline on a hairline track. ─────────────── */
 .writing-rail {
 	position: sticky;
-	top: 96px;
+	/* Where it already sits (64px bar + the shell's 56px top padding), so it
+	   pins without sliding. */
+	top: 120px;
 	align-self: start;
 	display: grid;
-	gap: 22px;
+	gap: 18px;
 	align-content: start;
-	font-family: var(--font-mono-stack);
-	font-size: 12.5px;
-	line-height: 1.7;
+	font-family: var(--font-sans-stack);
+	font-size: 14px;
+	line-height: 20px;
 	color: var(--sub);
 }
 .writing-rail .k {
 	display: block;
-	margin-bottom: 4px;
-	font-size: 11px;
-	letter-spacing: 0.08em;
+	margin-bottom: 6px;
+	font: 500 11px / 16px var(--font-sans-stack);
+	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var(--faint);
 }
-.writing-rail a {
-	display: block;
+.writing-rail nav {
+	display: grid;
+}
+.writing-rail nav a {
+	padding: 3px 10px;
+	border-left: 1px solid var(--line);
 	color: var(--sub);
 	text-decoration: none;
 }
-.writing-rail a:hover {
+.writing-rail nav a:hover {
 	color: var(--ink);
 }
-.writing-rail a.on {
-	margin-left: -12px;
-	padding-left: 10px;
-	box-shadow: inset 2px 0 0 var(--ink);
+.writing-rail nav a.on {
 	color: var(--ink);
+	border-left-color: var(--ink);
 }
-.writing-rail .back {
-	color: var(--ink);
+.writing-rail :focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
 }
 @media (max-width: 760px) {
 	.writing-rail {
@@ -4329,7 +4344,7 @@ body:has(.marketing-nav) .auth-bar {
 .writing-end-row {
 	display: flex;
 	flex-wrap: wrap;
-	justify-content: space-between;
+	justify-content: flex-end;
 	gap: 10px 24px;
 	margin-top: 18px;
 	font-family: var(--font-mono-stack);
@@ -5787,6 +5802,95 @@ input[type="range"].fig-range {
 .fig-st-arrow {
 	color: var(--fig-faint);
 	font-family: var(--font-mono-stack);
+}
+
+/* B11 Roadmap: stops on one hairline track; stacks to a vertical track on a phone. */
+.fig-road {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+	grid-auto-flow: column;
+	gap: 0 20px;
+	position: relative;
+}
+.fig-road::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 6px;
+	height: 1px;
+	background: var(--line);
+}
+.fig-road-stop {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+	padding-top: 26px;
+	font-size: 14px;
+}
+.fig-road-pin {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 13px;
+	height: 13px;
+	border-radius: 999px;
+	border: 1px solid var(--faint);
+	background: var(--paper);
+}
+.fig-road-stop.is-shipped .fig-road-pin {
+	background: var(--ink);
+	border-color: var(--ink);
+}
+.fig-road-stop.is-next .fig-road-pin {
+	background: var(--hi);
+	border-color: var(--hi);
+}
+.fig-road-when {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--faint);
+}
+.fig-road-title {
+	font-weight: 500;
+	color: var(--ink);
+	line-height: 1.3;
+}
+.fig-road-body {
+	color: var(--sub);
+	line-height: 1.5;
+}
+.fig-road-note {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--sub);
+	margin-top: 4px;
+}
+@media (max-width: 640px) {
+	.fig-road {
+		grid-auto-flow: row;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 18px;
+	}
+	.fig-road::before {
+		left: 6px;
+		right: auto;
+		top: 0;
+		bottom: 0;
+		width: 1px;
+		height: auto;
+	}
+	.fig-road-stop {
+		padding-top: 0;
+		padding-left: 28px;
+	}
 }
 
 /* ── Figure library: tier C shared + additions ───────────────────── */
