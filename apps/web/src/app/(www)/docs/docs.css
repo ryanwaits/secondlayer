@@ -2317,6 +2317,30 @@ html[data-acct-card] .docs-content {
 	height: 20px;
 	color: var(--sub);
 }
+/* Pointing at a layer on the intro stack lights its row in the sidebar. */
+.docs-shell:has(
+		.docs-stack-row[data-href="/docs/archive"]:is(:hover, :focus-visible)
+	)
+	.docs-nav-item[href="/docs/archive"],
+.docs-shell:has(
+		.docs-stack-row[data-href="/docs/streams"]:is(:hover, :focus-visible)
+	)
+	.docs-nav-item[href="/docs/streams"],
+.docs-shell:has(
+		.docs-stack-row[data-href="/docs/index"]:is(:hover, :focus-visible)
+	)
+	.docs-nav-item[href="/docs/index"],
+.docs-shell:has(
+		.docs-stack-row[data-href="/docs/subgraphs"]:is(:hover, :focus-visible)
+	)
+	.docs-nav-item[href="/docs/subgraphs"],
+.docs-shell:has(
+		.docs-stack-row[data-href="/docs/webhooks"]:is(:hover, :focus-visible)
+	)
+	.docs-nav-item[href="/docs/webhooks"] {
+	background: var(--hi);
+	color: var(--on-hi);
+}
 .docs-stack .glyph-pri,
 .docs-stack-row .glyph-pri {
 	color: var(--pri);

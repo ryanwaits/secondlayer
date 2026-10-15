@@ -1,40 +1,70 @@
 import { QuickstartPanel } from "./quickstart-panel";
 
-# Instant data for apps on Bitcoin
+# Introduction
 
 Decoded Stacks chain data, backfilled from genesis, reorg-safe and kept current. Trust, and [verify it yourself](/docs/verification).
 
-[Archive](/docs/archive) is the signed history an instance bootstraps from.
-[Streams](/docs/streams) hands you raw signed events.
-[Index](/docs/index) decodes them into rows you query.
-[Subgraphs](/docs/subgraphs) fills a table you define.
-[Webhooks](/docs/webhooks) posts to a URL you run.
+<Stack />
 
-## Why this exists
+## Where do you start?
 
-Every serious Stacks app eventually needs data that no public API will ever build for it, because the data is specific to your contract. Positions per user. Volume per pool. Whatever your product is actually about.
+<Fork question="Do you already have an API layer?" name="api-layer">
+<ForkPath value="index" label="Yes, I run one">
 
-Today that means writing an indexer. Not the fun part of it either — event ingestion, Clarity decoding, reorg rollback, backfilling years of history, and then operating the thing forever. It's a few weeks to get right and it never stops being yours.
+```ts index.ts
+import { Index } from "@secondlayer/sdk";
 
-That work is what Secondlayer is. The chain data arrives decoded, backfilled, and reorg-safe. What you write is the part that's actually about your app.
+await new Index().events.consume({
+  eventType: "ft_transfer",
+  fromCursor: await db.loadCheckpoint(),
+  // !callout[/onBatch/] Write rows and the cursor in one transaction.
+  onBatch: async (events, envelope, ctx) => { await db.commit(events, ctx.cursor); return ctx.cursor; },
+  // !callout[/onReorg/] Delete from the fork height, inclusive.
+  onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
+});
+```
 
-## Do you already have an API layer?
+You keep your schema and serve it however you already do. [Index →](/docs/index)
 
-That's the only choice you have to make.
+</ForkPath>
+<ForkPath value="subgraphs" label="No">
 
-| Your situation | What you write | Called |
-| --- | --- | --- |
-| **Yes** — you run tRPC, GraphQL, Rails, something | A `consume()` loop: `onBatch` writes rows into your schema, `onReorg` rolls them back. | **[Index](/docs/index)** |
-| **No** — and you'd rather not build one | One TypeScript file: sources, schema, handlers. You get the table *and* a REST API over it. | **[Subgraphs](/docs/subgraphs)** |
-| **I want to decode it myself** | A consumer over the signed raw firehose: bulk dumps, replay, automatic reorg rewind. | **[Streams](/docs/streams)** |
+```ts subgraph.config.ts
+import { defineSubgraph } from "@secondlayer/subgraphs";
 
-Subgraphs gives you a REST API you didn't write. That's the point, and the tradeoff. If you need your own API shape, use Index and keep your schema.
+export default defineSubgraph({
+  name: "sbtc-flows",
+  // !callout[/startBlock/] The first deploy backfills from here.
+  startBlock: 8000000,
+  sources: { transfers: { type: "ft_transfer", assetIdentifier: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token" } },
+  schema: { transfers: { columns: { amount: { type: "uint" }, sender: { type: "principal" } } } },
+  handlers: {
+    // !callout[/insert/] One write per event; REST serves the table.
+    transfers: (event, ctx) => ctx.insert("transfers", { amount: event.amount, sender: event.sender }),
+  },
+});
+```
 
-### More on each path
+You get a REST API you didn't write. That's the point, and the tradeoff. [Subgraphs →](/docs/subgraphs)
 
-- All three: The decoding, the reorg handling, and the history are done either way — all that's left is who shapes the read API.
-- Index: `secondlayer codegen index` emits the mirror schema so your tables can't drift. Serve them however you already serve things.
-- Streams: This is what Index itself is built on.
+</ForkPath>
+<ForkPath value="streams" label="I decode it myself">
+
+```ts indexer.ts
+await sl.streams.events.consume({
+  types: ["ft_transfer"],
+  fromCursor: await db.loadCheckpoint(),
+  // !callout[/insertEvents/] Raw, signed frames; you decode.
+  onBatch: async (events, envelope, ctx) => { await db.insertEvents(events, ctx.cursor); return ctx.cursor; },
+  // !callout[/onReorg/] Rewinds to the fork point and re-delivers.
+  onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
+});
+```
+
+You decode it. This is what Index is built on. [Streams →](/docs/streams)
+
+</ForkPath>
+</Fork>
 
 ## Get started
 
@@ -49,11 +79,12 @@ export const agent = `
 - Hosted: export SECONDLAYER_API_URL=https://api.secondlayer.tools and SECONDLAYER_API_KEY ('sk-sl_*', from /account/keys); read with 'Authorization: Bearer $SECONDLAYER_API_KEY'. Self-hosting: see /docs/self-host.
 - Own index: 'secondlayer codegen index --target kysely' for the mirror schema; write a consume() loop that commits rows and the checkpoint in one transaction; handle onReorg by deleting from fork_point_height up.
 - Before deploying, 'secondlayer status' confirms the instance is up and ingesting; 'secondlayer verify all' checks data against the signed archive.
+- After deploying, 'secondlayer verify block <height>' proves a block against Bitcoin from the checkpoint in the CLI.
 - Scaffold subgraphs with 'secondlayer subgraphs scaffold' so the module package and dependencies are prepared.
 `;
 
 export const metadata = {
-	title: "Docs — Secondlayer",
+	title: "Introduction — Secondlayer Docs",
 	description:
-		"Instant data for apps on Bitcoin: decoded Stacks rows and TypeScript subgraphs, from a key to a live table in five commands.",
+		"Decoded Stacks chain data, backfilled and reorg-safe: the five products as one stack, which one to start with, and a key-to-checked-row quickstart.",
 };
