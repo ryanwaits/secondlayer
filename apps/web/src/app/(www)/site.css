@@ -77,6 +77,15 @@
 .site code {
 	font-size: 0.88em;
 }
+/* Code named in running copy: the docs' inline chip, so `consume` reads as
+   an identifier, not a font change. Figures, tables and cards style their own. */
+.site :where(p, li, dd) > code {
+	font-size: 0.86em;
+	background: var(--code-bg);
+	padding: 0.1em 0.35em;
+	border-radius: 4px;
+	color: var(--ink);
+}
 .site .shell {
 	max-width: 1120px;
 	margin-inline: auto;
@@ -1357,6 +1366,10 @@
 	letter-spacing: -0.05em;
 	line-height: 0.98;
 }
+/* The close breaks its own lines: brand on the first, highlight below. */
+.site.home .close h2 {
+	max-width: none;
+}
 /* A chain named in prose (the home hero, blog posts): its mark as a chip,
    then the name as an underlined link, held together on one line. */
 :is(.site, .writing-article) .chain {
@@ -1429,6 +1442,17 @@
 }
 :is(.site, .writing-article) .chain-runes .chain-fg {
 	stroke: var(--paper);
+}
+/* "secondlayer" named inline: the logo sized to the text, top layer blue. */
+.site .brand-name {
+	white-space: nowrap;
+}
+.site .brand-mark {
+	display: inline-block;
+	width: 0.78em;
+	height: 0.52em;
+	margin-right: 0.16em;
+	vertical-align: 0.04em;
 }
 /* The hero breaks its own lines; its highlighted line hangs its padding
    into the margin so both lines start on one edge. */

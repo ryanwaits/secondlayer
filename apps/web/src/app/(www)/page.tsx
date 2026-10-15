@@ -6,6 +6,7 @@ import {
 	StatusDot,
 } from "@/components/site";
 import { RowsTable } from "@/components/site/assets";
+import { BrandName } from "@/components/site/brand-name";
 import { ChainLink } from "@/components/site/chain-link";
 import { socialMeta } from "@/lib/og";
 import { PRODUCTS } from "@/lib/site";
@@ -266,7 +267,8 @@ export function HomeView() {
 			<CloseBand
 				title={
 					<>
-						Ship with secondlayer <Highlight>today.</Highlight>
+						Ship with <BrandName />
+						<br /> <Highlight>today.</Highlight>
 					</>
 				}
 				cta={
