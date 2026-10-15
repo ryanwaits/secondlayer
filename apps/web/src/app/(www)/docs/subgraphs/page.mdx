@@ -88,6 +88,8 @@ Each handler gets the matched event and a context:
 
 A `contract_call` source with a function name gets `event.input` typed from the contract's ABI, and deploy fetches the ABI for you. Pass the ABI yourself for wildcard, multi-contract or trait sources, and for local deploys.
 
+Map and variable write sources get typed, decoded keys and values when you pass an `abi` and name the map or variable. Without one they stay unknown.
+
 ## Hoisting the schema
 
 Pull the schema out with `defineSchema()` and your helpers stay fully typed:

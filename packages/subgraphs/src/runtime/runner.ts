@@ -78,6 +78,36 @@ function decodeRawHex(hex: string): unknown {
 	return hex;
 }
 
+/**
+ * Decode a state-write hex value against the type the source `abi` declares
+ * for that map key/value or data-var, so runtime values equal the types
+ * `MapWritePayload` / `VarSetPayload` promise (camelCase tuple keys, wrapped
+ * optionals and responses). Falls back to the untyped {@link decodeRawHex}
+ * when there is no declared type or the hex does not decode.
+ */
+function decodeStateHex(hex: string, abiType: unknown): unknown {
+	if (abiType === undefined || !hex.startsWith("0x") || hex.length <= 2) {
+		return decodeRawHex(hex);
+	}
+	try {
+		// Non-generic cast: see buildContractCallInput.
+		const decode = clarityValueToJS as unknown as (
+			type: unknown,
+			cv: unknown,
+		) => unknown;
+		return decode(abiType, deserializeCV(hex.slice(2)));
+	} catch {
+		return decodeRawHex(hex);
+	}
+}
+
+/** Declared ABI types for a map: `[key, value]`, undefined when the abi lacks it. */
+function mapAbiTypes(filter: SubgraphFilter, name: string): unknown[] {
+	const abi = "abi" in filter ? filter.abi : undefined;
+	const def = abi?.maps?.find((m) => m.name === name);
+	return def ? [def.key, def.value] : [];
+}
+
 /** Safely convert a value to BigInt. Handles string, number, bigint. Returns 0n on failure. */
 function safeBigInt(val: unknown): bigint {
 	if (typeof val === "bigint") return val;
@@ -370,11 +400,14 @@ export function buildEventPayload(
 		case "var_set": {
 			const data = (event.data ?? {}) as Record<string, unknown>;
 			const rawValue = typeof data.raw_value === "string" ? data.raw_value : "";
+			const varName = typeof data.var_name === "string" ? data.var_name : "";
+			const abi = "abi" in filter ? filter.abi : undefined;
+			const varType = abi?.variables?.find((v) => v.name === varName)?.type;
 			return {
 				contractId: printContractId(data) ?? "",
-				varName: typeof data.var_name === "string" ? data.var_name : "",
+				varName,
 				rawValue,
-				value: decodeRawHex(rawValue),
+				value: decodeStateHex(rawValue, varType),
 				tx: txMeta,
 			};
 		}
@@ -383,24 +416,27 @@ export function buildEventPayload(
 			const data = (event.data ?? {}) as Record<string, unknown>;
 			const rawKey = typeof data.raw_key === "string" ? data.raw_key : "";
 			const rawValue = typeof data.raw_value === "string" ? data.raw_value : "";
+			const map = typeof data.map_name === "string" ? data.map_name : "";
+			const [keyType, valueType] = mapAbiTypes(filter, map);
 			return {
 				contractId: printContractId(data) ?? "",
-				map: typeof data.map_name === "string" ? data.map_name : "",
+				map,
 				rawKey,
-				key: decodeRawHex(rawKey),
+				key: decodeStateHex(rawKey, keyType),
 				rawValue,
-				value: decodeRawHex(rawValue),
+				value: decodeStateHex(rawValue, valueType),
 				tx: txMeta,
 			};
 		}
 		case "map_delete": {
 			const data = (event.data ?? {}) as Record<string, unknown>;
 			const rawKey = typeof data.raw_key === "string" ? data.raw_key : "";
+			const map = typeof data.map_name === "string" ? data.map_name : "";
 			return {
 				contractId: printContractId(data) ?? "",
-				map: typeof data.map_name === "string" ? data.map_name : "",
+				map,
 				rawKey,
-				key: decodeRawHex(rawKey),
+				key: decodeStateHex(rawKey, mapAbiTypes(filter, map)[0]),
 				tx: txMeta,
 			};
 		}

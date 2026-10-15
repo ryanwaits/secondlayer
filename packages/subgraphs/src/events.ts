@@ -10,6 +10,11 @@ import type {
 	AbiContract,
 	ExtractFunctionArgs,
 	ExtractFunctionNames,
+	ExtractMapKey,
+	ExtractMapNames,
+	ExtractMapValue,
+	ExtractVariableNames,
+	ExtractVariableType,
 } from "@secondlayer/stacks/clarity";
 import type { ColumnToTS } from "./infer.ts";
 import type {
@@ -151,7 +156,7 @@ export interface NestedContractCallPayload {
 	tx: TxMeta;
 }
 
-export interface VarSetPayload {
+export interface VarSetEvent {
 	contractId: string;
 	varName: string;
 	rawValue: string;
@@ -159,7 +164,7 @@ export interface VarSetPayload {
 	tx: TxMeta;
 }
 
-export interface MapWritePayload {
+export interface MapWriteEvent {
 	contractId: string;
 	map: string;
 	rawKey: string;
@@ -169,13 +174,49 @@ export interface MapWritePayload {
 	tx: TxMeta;
 }
 
-export interface MapDeletePayload {
+export interface MapDeleteEvent {
 	contractId: string;
 	map: string;
 	rawKey: string;
 	key: unknown;
 	tx: TxMeta;
 }
+
+/**
+ * State-write payloads. When the source carries a `const` `abi` and a known
+ * `varName` / `map`, `value` (and `key`) are typed from the contract's
+ * definition and decoded with it (camelCased tuple keys, `AbiToTS` shapes).
+ * Without an `abi`, or with a name the abi lacks, they stay `unknown`.
+ */
+export type VarSetPayload<F = unknown> = F extends {
+	abi: infer A extends AbiContract;
+	varName: infer N extends string;
+}
+	? N extends ExtractVariableNames<A>
+		? Omit<VarSetEvent, "value"> & { value: ExtractVariableType<A, N> }
+		: VarSetEvent
+	: VarSetEvent;
+
+export type MapWritePayload<F = unknown> = F extends {
+	abi: infer A extends AbiContract;
+	map: infer N extends string;
+}
+	? N extends ExtractMapNames<A>
+		? Omit<MapWriteEvent, "key" | "value"> & {
+				key: ExtractMapKey<A, N>;
+				value: ExtractMapValue<A, N>;
+			}
+		: MapWriteEvent
+	: MapWriteEvent;
+
+export type MapDeletePayload<F = unknown> = F extends {
+	abi: infer A extends AbiContract;
+	map: infer N extends string;
+}
+	? N extends ExtractMapNames<A>
+		? Omit<MapDeleteEvent, "key"> & { key: ExtractMapKey<A, N> }
+		: MapDeleteEvent
+	: MapDeleteEvent;
 
 // ── Filter → payload mapping ─────────────────────────────────────────────
 
@@ -261,7 +302,7 @@ export type EventForFilter<F extends SubgraphFilter> = F extends {
 													: F extends { type: "nested_contract_call" }
 														? NestedContractCallPayload
 														: F extends { type: "var_set" }
-															? VarSetPayload
+															? VarSetPayload<F>
 															: F extends {
 																		type: infer T extends
 																			| "map_set"
@@ -269,8 +310,8 @@ export type EventForFilter<F extends SubgraphFilter> = F extends {
 																			| "map_delete";
 																	}
 																? T extends "map_delete"
-																	? MapDeletePayload
-																	: MapWritePayload
+																	? MapDeletePayload<F>
+																	: MapWritePayload<F>
 																: never;
 
 /** Union of every event payload. */
@@ -289,6 +330,6 @@ export type AnyEvent =
 	| ContractCallEvent
 	| ContractDeployPayload
 	| NestedContractCallPayload
-	| VarSetPayload
-	| MapWritePayload
-	| MapDeletePayload;
+	| VarSetEvent
+	| MapWriteEvent
+	| MapDeleteEvent;

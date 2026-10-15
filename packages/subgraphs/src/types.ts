@@ -247,11 +247,23 @@ export interface VarSetFilter extends TraitScope, FactoryScope {
 	type: "var_set";
 	contractId?: string | readonly string[];
 	varName?: string;
+	/**
+	 * Contract ABI. With a `varName` the abi defines, `event.value` is typed
+	 * and decoded from the variable's type. Pass it yourself
+	 * (`normalizeAbi()` from `@secondlayer/stacks/clarity`).
+	 */
+	abi?: AbiContract;
 }
 export interface MapWriteFilter extends TraitScope, FactoryScope {
 	type: "map_set" | "map_insert" | "map_delete";
 	contractId?: string | readonly string[];
 	map?: string;
+	/**
+	 * Contract ABI. With a `map` the abi defines, `event.key` and
+	 * `event.value` are typed and decoded from the map's types. Pass it
+	 * yourself (`normalizeAbi()` from `@secondlayer/stacks/clarity`).
+	 */
+	abi?: AbiContract;
 }
 /**
  * One declared field of a print payload.

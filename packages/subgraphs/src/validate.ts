@@ -316,6 +316,7 @@ const SubgraphFilterUnion = z.discriminatedUnion("type", [
 			type: z.literal("var_set"),
 			contractId: contractIdField.optional(),
 			varName: z.string().optional(),
+			abi: AbiContractSchema.optional(),
 			...traitScope,
 			...factoryScope,
 		})
@@ -325,6 +326,7 @@ const SubgraphFilterUnion = z.discriminatedUnion("type", [
 			type: z.literal("map_set"),
 			contractId: contractIdField.optional(),
 			map: z.string().optional(),
+			abi: AbiContractSchema.optional(),
 			...traitScope,
 			...factoryScope,
 		})
@@ -334,6 +336,7 @@ const SubgraphFilterUnion = z.discriminatedUnion("type", [
 			type: z.literal("map_insert"),
 			contractId: contractIdField.optional(),
 			map: z.string().optional(),
+			abi: AbiContractSchema.optional(),
 			...traitScope,
 			...factoryScope,
 		})
@@ -343,6 +346,7 @@ const SubgraphFilterUnion = z.discriminatedUnion("type", [
 			type: z.literal("map_delete"),
 			contractId: contractIdField.optional(),
 			map: z.string().optional(),
+			abi: AbiContractSchema.optional(),
 			...traitScope,
 			...factoryScope,
 		})

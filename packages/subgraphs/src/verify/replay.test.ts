@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { Cl, serializeCV } from "@secondlayer/stacks/clarity";
 import { splitTransactions } from "@secondlayer/stacks/transactions";
 import { txidFromBytes } from "@secondlayer/stacks/utils";
 import {
@@ -10,7 +11,10 @@ import {
 	parseNakamotoHeader,
 	unhex,
 } from "@secondlayer/verify";
+import { buildEventPayload } from "../runtime/runner.ts";
+import type { MatchedTx } from "../runtime/source-matcher.ts";
 import { generateSubgraphSQL } from "../schema/generator.ts";
+import type { SubgraphFilter } from "../types.ts";
 import { pinPreimage } from "../verification.ts";
 import { compareRows } from "./compare.ts";
 import { type ReplayDeps, checkPin, replayBlocks } from "./replay.ts";
@@ -156,6 +160,101 @@ const SCHEMA = {
 	},
 	log: { columns: { amount: { type: "uint" as const } } },
 };
+
+describe("replay decodes state writes with the source abi, as the runner does", () => {
+	const keyHex = serializeCV(Cl.tuple({ "pool-id": Cl.uint(7) }));
+	const valueHex = serializeCV(
+		Cl.tuple({ "last-updated": Cl.uint(9), owner: Cl.none() }),
+	);
+	const abi = {
+		functions: [],
+		maps: [
+			{
+				name: "reserve",
+				key: { tuple: [{ name: "pool-id", type: "uint128" }] },
+				value: {
+					tuple: [
+						{ name: "last-updated", type: "uint128" },
+						{ name: "owner", type: { optional: "principal" } },
+					],
+				},
+			},
+		],
+	};
+	const write: StateWrite = {
+		ordinal: 0,
+		tx_index: 0,
+		key: `vm::${POOL}::0::reserve::${keyHex}`,
+		value_hex: stored(`0a${valueHex}`),
+	};
+
+	function tupleBundle(withAbi: boolean, handlerBody: string) {
+		return `
+var subgraph_default = {
+	name: "pool-reserves",
+	startBlock: 100,
+	sources: { reserve: { type: "map_set", contractId: "${POOL}", map: "reserve"${withAbi ? `, abi: ${JSON.stringify(abi)}` : ""} } },
+	schema: { log: { columns: { pool: { type: "uint" }, updated: { type: "uint" } } } },
+	handlers: { reserve: (event, ctx) => { ${handlerBody} } },
+};
+export { subgraph_default as default };
+`;
+	}
+
+	const run = (code: string) =>
+		replayBlocks(
+			{
+				verify: async (h) => verified(h, [write]),
+				burnHeightHint: async () => 899_000,
+			},
+			{ handlerCode: code, from: 100, to: 100 },
+		);
+
+	test("an abi source replays the same typed key and value the runner builds", async () => {
+		const r = await run(
+			tupleBundle(
+				true,
+				'ctx.insert("log", { pool: event.key.poolId, updated: event.value.lastUpdated });',
+			),
+		);
+		expect(r.failures).toEqual([]);
+		expect(r.handlerErrors).toBe(0);
+		expect(r.tables.get("log")).toEqual([
+			{
+				pool: 7n,
+				updated: 9n,
+				_block_height: 100,
+				_tx_id: `0x${MAINNET_TXS[0]?.txid}`,
+			},
+		]);
+		const payload = buildEventPayload(
+			{ type: "map_set", map: "reserve", abi } as SubgraphFilter,
+			{ tx_id: "0x", sender: "", type: "contract_call" } as MatchedTx["tx"],
+			{
+				type: "map_set",
+				data: {
+					contract_identifier: POOL,
+					map_name: "reserve",
+					raw_key: `0x${keyHex}`,
+					raw_value: `0x${valueHex}`,
+				},
+			} as unknown as MatchedTx["events"][0],
+		);
+		expect(payload.key).toEqual({ poolId: 7n });
+		expect(payload.value).toEqual({ lastUpdated: 9n, owner: null });
+	});
+
+	test("a source without an abi replays the untyped shape", async () => {
+		const r = await run(
+			tupleBundle(
+				false,
+				'ctx.insert("log", { pool: event.key["pool-id"], updated: event.value["last-updated"] });',
+			),
+		);
+		expect(r.failures).toEqual([]);
+		expect(r.tables.get("log")?.[0]).toMatchObject({ pool: 7n, updated: 9n });
+	});
+});
 
 describe("replay over proven blocks", () => {
 	test("a clean range replays and every served row compares equal", async () => {

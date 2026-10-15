@@ -1926,15 +1926,16 @@
     ]
   },
   "/docs/subgraphs#handler-context": {
-    "hash": "2d59b02e24c0137d",
+    "hash": "994a4fae7b0bb9d2",
     "phrasings": [
-      "what is ctx in subgraph handler",
-      "subgraph handler event and context fields",
-      "access matched event inside handler function",
-      "how do i read context in handler",
-      "handler function arguments subgraph",
-      "subgraph context object properties",
-      "get block info inside event handler"
+      "what is context object in subgraph handler",
+      "how to access event data in handler",
+      "subgraph handler not receiving event parameters",
+      "how to get context inside event handler",
+      "where does handler context come from",
+      "subgraph handler arguments explained",
+      "how do i read matched event in subgraph",
+      "accessing context in subgraph mapping function"
     ]
   },
   "/docs/subgraphs#handlers": {
