@@ -12,7 +12,6 @@ import {
 import { type ClarityValue, clarityTypeFromByte } from "./types.ts";
 import {
 	bufferCV,
-	contractPrincipalCV,
 	falseCV,
 	intCV,
 	listCV,
@@ -20,7 +19,6 @@ import {
 	responseErrorCV,
 	responseOkCV,
 	someCV,
-	standardPrincipalCV,
 	stringAsciiCV,
 	stringUtf8CV,
 	trueCV,
@@ -100,13 +98,20 @@ export function readCV(reader: BytesReader, depth = 0): ClarityValue {
 		case "err":
 			return responseErrorCV(readCV(reader, depth + 1));
 
+		// readAddress c32-encodes canonical bytes, so the address is already
+		// normalized. Building the CV directly skips the constructors'
+		// decode→re-encode round trip (two more double-sha256 checksums per
+		// principal), which dominated print decoding.
 		case "address":
-			return standardPrincipalCV(readAddress(reader));
+			return { type: "address", value: readAddress(reader) };
 
 		case "contract": {
 			const addr = readAddress(reader);
 			const name = readLPString(reader);
-			return contractPrincipalCV(addr, name);
+			if (new TextEncoder().encode(name).byteLength >= 128) {
+				throw new Error("Contract name must be less than 128 bytes");
+			}
+			return { type: "contract", value: `${addr}.${name}` };
 		}
 
 		case "list": {
