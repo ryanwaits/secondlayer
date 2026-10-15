@@ -8,32 +8,9 @@ Where Secondlayer can prove an answer, it serves the proof: a hash, a merkle pat
 
 ## What you can check
 
-| Check | How | What you still trust |
-| --- | --- | --- |
-| A transaction is in a block | `GET /v1/index/transactions/:tx_id/proof`, `verifyTransactionProof`. [Details](#prove-a-transaction) | The signer set in the proof, unless you pass one from your own node |
-| A block, any height, with its transactions | `secondlayer verify block <height>`, `verifyBlock`. [Details](#check-a-block) | The checkpoint shipped in the release |
-| A block's Bitcoin anchor | Same check: Bitcoin headers from the checkpoint (proof of work, retargets), then the block's burn block | The checkpoint; headers are not compared against a competing chain |
-| A block's state writes | `/v1/proofs/writes/:height`, checked by `verify block` against the state root | The checkpoint; a block with no named writes is proven but unnamed |
+Every layer has a check. Each one leaves you trusting a smaller, named thing.
 
-### Archives, rows, deliveries and frames
-
-| Check | How | What you still trust |
-| --- | --- | --- |
-| An archive bundle | `secondlayer bootstrap` and `repair` hash each partition against the signed digest before reading it. [Archive](/docs/archive#repair-what-diverges) | The archive signing key |
-| Your instance's history | `secondlayer verify raw --against <latest.json>`. [Archive](/docs/archive#check-it) | The archive signing key, and the range's [assurance level](#archive-assurance-levels) |
-| Subgraph rows | `secondlayer verify subgraph <name> --replay`. [Check rows](/docs/subgraphs#check-rows) | The checkpoint; only `state` subgraphs can be replayed |
-| A webhook delivery | `verifyWebhookSignature` and the ed25519 signature. [Receive and verify](/docs/webhooks#verify-the-signature) | The signing secret or key: proves who sent it, not that the chain agrees |
-| A Streams frame | The SDK checks every frame's ed25519 signature. [SDK](/docs/sdk#verifying-responses) | The signing key, unless you pin it |
-
-### Archive assurance levels
-
-The manifest states a level per range. Most of the chain is `db-reconstructive`; a published `node.json` upgrades only its `coverage` window.
-
-| Level | Means |
-| --- | --- |
-| `db-reconstructive` | Exports from one repeatable-read snapshot restore deterministically. Does not prove no historical callback was omitted. |
-| `node-attested` | Block identities also match an independently synced stacks-node. Transactions and events stay `db-reconstructive`. |
-| `observer-attested` | Digests match independently retained raw observer history. |
+<Checks />
 
 ## Check a block
 
@@ -57,65 +34,7 @@ $ secondlayer verify block 9137005
 ✓ Block 9,137,005 is proven. Trusted: only the checkpoint (Stacks 8,956,304, Bitcoin 967,680).
 ```
 
-### Blocks below the checkpoint
-
-A block below the checkpoint skips the Bitcoin and signer links. The checkpoint's header commits to every ancestor by hash, so an `ancestry` link ties the block to it, by parent links or one MARF proof. The skipped links read `not needed: the block is hash-chained to the checkpoint`, and `txs` reads `not checked: no transaction bytes` for an epoch 2.x block or when the source served the header only.
-
-### Exit codes and cost
-
-Exit `0` every link holds, `1` a link is broken (the first is named), `2` could not check. The tradeoff: a lying source can fail a link but never pass one, and the price is work. The first check syncs Bitcoin headers from the checkpoint, and each block fetches a state witness.
-
-### Flags
-
-| Flag | Effect |
-| --- | --- |
-| `--node <url>` | Read blocks and MARF proofs from your Stacks node instead of the API |
-| `--checkpoint <file>` | Trust your own checkpoint JSON instead of the one built into the release |
-| `--rows` | Also check the indexed `vm_events` rows against the diff. Billed as Index rows; everything else is free |
-| `--json` | Full result on stdout |
-
-### In your code
-
-`@secondlayer/verify` is the same check as a library. `verifyBlock` never throws for bad source data; it returns `ok: false` and the first broken link.
-
-```bash
-bun add @secondlayer/verify
-```
-
-```ts verify-block.ts
-import { SecondlayerProofSource, verifyBlock } from "@secondlayer/verify";
-
-// No key needed; add apiKey for higher rate limits.
-const source = new SecondlayerProofSource({
-  baseUrl: process.env.SECONDLAYER_API_URL!,
-});
-
-// !callout[/verifyBlock/] Never throws on bad source data.
-const result = await verifyBlock(9_137_005, { source });
-// !callout[/failures/] The first broken link.
-if (!result.ok) throw new Error(result.failures[0]?.message);
-console.log(result.blockId, result.stateRoot, result.diff?.writes.length);
-```
-
-With your own node, blocks and MARF proofs come from its RPC. Witnesses, burn preimages and Bitcoin headers still come from the API, checked the same way. Use `BlockVerifier` to verify many blocks from one checkpoint and reuse the synced headers and signer sets.
-
-```ts
-import {
-  BlockVerifier,
-  NodeRpcProofSource,
-  SecondlayerProofSource,
-} from "@secondlayer/verify";
-
-const api = new SecondlayerProofSource({ baseUrl, apiKey });
-const source = { ...api, ...new NodeRpcProofSource({ nodeUrl: "http://localhost:20443" }) };
-
-const verifier = new BlockVerifier({ source });
-const result = await verifier.verify(9_137_005);
-```
-
-Pass `rows: true` to also check the indexed `vm_events` rows (billed as Index rows). `result.transactions` holds the block's checked transactions and `result.writes` its named writes. Its own code uses `fetch` and pure-JS crypto (`@noble`), with no Node built-ins.
-
-### Prove a transaction
+## Prove a transaction
 
 `verifyTransactionProof` recomputes the txid, merkle root, block hash, and signer weight from one proof.
 
@@ -140,6 +59,8 @@ const result = verifyTransactionProof(proof);
 ```
 
 </CodeTabs>
+
+### Proof levels
 
 A `200` returns the raw transaction, raw header, merkle path, and (only when the reward set could be resolved) `consensus`.
 
@@ -186,6 +107,80 @@ const trustless = verifyTransactionProof(proof, { rewardSet });
 
 The transaction verifier uses Node's crypto (via `@secondlayer/shared`), so it is server-side only.
 
+<Seam page="verify" />
+
+## Blocks below the checkpoint
+
+A block below the checkpoint skips the Bitcoin and signer links. The checkpoint's header commits to every ancestor by hash, so an `ancestry` link ties the block to it, by parent links or one MARF proof. The skipped links read `not needed: the block is hash-chained to the checkpoint`, and `txs` reads `not checked: no transaction bytes` for an epoch 2.x block or when the source served the header only.
+
+## Exit codes and cost
+
+Exit `0` every link holds, `1` a link is broken (the first is named), `2` could not check. The tradeoff: a lying source can fail a link but never pass one, and the price is work. The first check syncs Bitcoin headers from the checkpoint, and each block fetches a state witness.
+
+## Flags
+
+| Flag | Effect |
+| --- | --- |
+| `--node <url>` | Read blocks and MARF proofs from your Stacks node instead of the API |
+| `--checkpoint <file>` | Trust your own checkpoint JSON instead of the one built into the release |
+| `--rows` | Also check the indexed `vm_events` rows against the diff. Billed as Index rows; everything else is free |
+| `--json` | Full result on stdout |
+
+## In your code
+
+`@secondlayer/verify` is the same check as a library. `verifyBlock` never throws for bad source data; it returns `ok: false` and the first broken link.
+
+```bash
+bun add @secondlayer/verify
+```
+
+```ts verify-block.ts
+import { SecondlayerProofSource, verifyBlock } from "@secondlayer/verify";
+
+// No key needed; add apiKey for higher rate limits.
+const source = new SecondlayerProofSource({
+  baseUrl: process.env.SECONDLAYER_API_URL!,
+});
+
+// !callout[/verifyBlock/] Never throws on bad source data.
+const result = await verifyBlock(9_137_005, { source });
+// !callout[/failures/] The first broken link.
+if (!result.ok) throw new Error(result.failures[0]?.message);
+console.log(result.blockId, result.stateRoot, result.diff?.writes.length);
+```
+
+With your own node, blocks and MARF proofs come from its RPC. Witnesses, burn preimages and Bitcoin headers still come from the API, checked the same way. Use `BlockVerifier` to verify many blocks from one checkpoint and reuse the synced headers and signer sets.
+
+```ts
+import {
+  BlockVerifier,
+  NodeRpcProofSource,
+  SecondlayerProofSource,
+} from "@secondlayer/verify";
+
+const api = new SecondlayerProofSource({ baseUrl, apiKey });
+const source = { ...api, ...new NodeRpcProofSource({ nodeUrl: "http://localhost:20443" }) };
+
+const verifier = new BlockVerifier({ source });
+const result = await verifier.verify(9_137_005);
+```
+
+Pass `rows: true` to also check the indexed `vm_events` rows (billed as Index rows). `result.transactions` holds the block's checked transactions and `result.writes` its named writes. Its own code uses `fetch` and pure-JS crypto (`@noble`), with no Node built-ins.
+
+## Archive assurance levels
+
+The manifest states a level per range. Most of the chain is `db-reconstructive`; a published `node.json` upgrades only its `coverage` window.
+
+| Level | Means |
+| --- | --- |
+| `db-reconstructive` | Exports from one repeatable-read snapshot restore deterministically. Does not prove no historical callback was omitted. |
+| `node-attested` | Block identities also match an independently synced stacks-node. Transactions and events stay `db-reconstructive`. |
+| `observer-attested` | Digests match independently retained raw observer history. |
+
+## Proofs API and limits
+
+The HTTP proofs behind every check, and what can't be proven yet.
+
 ### Proofs API
 
 The raw material `verify block` reads. Free, never metered, no key needed. On the hosted API each IP gets 10 requests per second, and 1 per second for witnesses; send an account key for 20 and 2. Answers addressed by a hash never change: they carry an ETag and `Cache-Control: immutable`. On your own box the witness, burn and Bitcoin-header routes need a proof sidecar: [Self-host](/docs/self-host#what-differs-on-your-box).
@@ -219,6 +214,7 @@ The transaction proof above is [`/v1/index/transactions/{tx_id}/proof`](/docs/ap
 export const agent = `
 - 'secondlayer verify block <height>' prints each link (bitcoin, burn, cycle, signatures, txs, state root, diff). Exit 0, 1, 2 as documented. Only the checkpoint stays trusted.
 - In code: @secondlayer/verify, verifyBlock(height, { source }) with a SecondlayerProofSource. For own-node proofs use a BlockVerifier with NodeRpcProofSource spread over it. When ok is false, throw result.failures[0].message.
+- Checks: webhook delivery (verifySecondlayerSignature, trusts the key); subgraph rows (verify subgraph <name> --replay, state only); transaction in block (/v1/index/transactions/:tx_id/proof, trusts the signer set); Streams frames (SDK, trusts the key); history vs archive (verify raw, trusts the archive key + assurance level); any block (verify block <height>, trusts the release checkpoint).
 - Transaction proof: '/v1/index/transactions/<tx_id>/proof' then verifyTransactionProof(proof) from @secondlayer/sdk server-side. For full trustlessness pass fetchRewardSet({ nodeUrl, cycle }) from the user's own node as { rewardSet } until rewardSetSource is 'provided'.
 - Handle '404 PROOF_UNAVAILABLE'; retry '503 PROOF_NODE_UNAVAILABLE'.
 `;
