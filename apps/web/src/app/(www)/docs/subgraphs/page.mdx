@@ -45,7 +45,7 @@ Accumulating a value, reading contract state, and typing a `print` payload each 
 
 ## Deploy
 
-Hosted is the default path: one private stack per account, no box to run. Create an `sk-sl_*` key at [`/account/keys`](/account/keys), set the two variables from the [Introduction](/docs#get-started), and deploy (CLI 19.1 or later). The first deploy backfills from `startBlock`; new blocks stream in after.
+Hosted is the default: one private stack per account, nothing to operate. Create a key at [/account/keys](/account/keys), set the two variables from the [Introduction](/docs#get-started), and deploy with CLI 19.1 or later.
 
 ```text ~/pool-reserves
 $ secondlayer subgraphs deploy subgraphs/pool-reserves.ts
@@ -55,7 +55,8 @@ $ secondlayer subgraphs deploy subgraphs/pool-reserves.ts
   unproven      tx attribution of writes: event.tx, _tx_id (needs event proofs)
 ```
 
-Set a start block. Without one the subgraph reindexes from genesis, and every matching event and transaction row it reads bills ([what it costs](tip "The first 1M rows a month are free, then $5 per 1M rows. Block headers are always free.")). The `verification` line is the level your sources earn and `pin` hashes what you deployed: [Rows anyone can recompute](#rows-anyone-can-recompute).
+- Set a start block. Without one it reindexes from genesis, and every matching event and transaction row it reads bills ([what it costs](tip "The first 1M rows a month are free, then $5 per 1M rows. Block headers are always free.")).
+- The `verification` line is the level your sources earn; `pin` hashes what you deployed. See [Rows anyone can recompute](#rows-anyone-can-recompute).
 
 ## Check it
 
@@ -76,14 +77,20 @@ $ secondlayer verify subgraph pool-reserves --replay --from 1230000 --to 1231000
 
 ## Handler context
 
-Each handler gets `(event, ctx)`: `ctx.tx` / `ctx.block` for metadata, `ctx.insert` / `update` / `upsert` / `delete` / `increment` for writes, `ctx.findOne` / `findMany` to read rows back.
+Each handler gets the matched event and a context:
 
-A `contract_call` source with a `functionName` types `event.input` from the contract's ABI. `secondlayer subgraphs deploy` fetches it from the deployed contract, so you don't paste it. Pass `abi` yourself for wildcard, multi-contract or trait sources, or a local deploy.
+| On `ctx` | For |
+| --- | --- |
+| `tx`, `block` | The event's transaction and block |
+| `insert`, `update`, `upsert`, `delete`, `increment` | Writes |
+| `findOne`, `findMany` | Reading rows back |
+| `client` | Read-only contract calls ([Reading the chain](#reading-the-chain-from-a-handler)) |
+
+A `contract_call` source with a function name gets `event.input` typed from the contract's ABI, and deploy fetches the ABI for you. Pass the ABI yourself for wildcard, multi-contract or trait sources, and for local deploys.
 
 ## Hoisting the schema
 
-Pull `schema` out of the call with `defineSchema()` when a handler grows
-enough to factor a helper, and the helper stays fully typed:
+Pull the schema out with `defineSchema()` and your helpers stay fully typed:
 
 ```ts
 import { defineSchema, defineSubgraph, type TypedSubgraphContext } from "@secondlayer/subgraphs";
@@ -102,12 +109,11 @@ function credit(ctx: TypedSubgraphContext<typeof schema>, holder: string) {
 export default defineSubgraph({ name: "balances", schema, sources, handlers });
 ```
 
-With only the definition in scope, `InferContext<typeof def>` gives the same typed `ctx`.
+With only the definition in scope, `InferContext<typeof def>` gives the same `ctx`.
 
 ## Indexing a contract set
 
-`contractId` takes an array, so a router plus its pools is one source and one
-handler instead of twelve of each:
+A fixed set is one source: `contractId` takes an array, so a router and its pools share one handler.
 
 ```ts
 sources: {
@@ -115,9 +121,7 @@ sources: {
 }
 ```
 
-For a set that **grows** (pools created after you deploy, launchpad-minted
-tokens, registry entries), use a `factory`. It extracts addresses from
-another source's events:
+A set that grows (new pools, launchpad tokens, registry entries) uses a `factory`, which reads addresses from another source's events:
 
 ```ts
 sources: {
@@ -130,14 +134,12 @@ sources: {
 }
 ```
 
-Two guarantees: a pool discovered in block N receives its **own** block-N
-events (discovery runs before matching), and the discovered set is rolled
-back on a reorg like any other chain-derived state, so an address announced on
-an orphaned fork stops matching.
+- A contract discovered in block N gets its own block-N events.
+- A reorg rolls the discovered set back, so an address from an orphaned fork stops matching.
 
 ## Index by standard, not by address
 
-`trait` resolves to **every contract Secondlayer classifies as that standard**, including ones deployed after you ship:
+`trait` matches every contract Secondlayer classifies as that standard, including ones deployed after you ship.
 
 ```ts
 sources: {
@@ -146,24 +148,28 @@ sources: {
 },
 ```
 
-Traits: `sip-009`, `sip-010`, `sip-013`. A reindex backfills each contract from its deploy block and bills the rows it reads. [Find contracts by standard](/docs/index#find-contracts-by-standard) queries the set directly.
+| `trait` | Standard |
+| --- | --- |
+| `sip-009` | NFT |
+| `sip-010` | Fungible token |
+| `sip-013` | Semi-fungible token |
+
+A reindex backfills each contract from its deploy block and bills the rows it reads. To list the set, see [Find contracts by standard](/docs/index#find-contracts-by-standard).
 
 ## Test before you deploy
+
+Real chain events, your local handler code, no deploy:
 
 ```bash
 secondlayer subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
 secondlayer subgraphs test subgraphs/bns-names.ts --offline   # replay the cassette
 ```
 
-Real chain events, your local handler code, no deploy. The first run records
-a cassette so later runs are free and offline; changing a source filter
-discards it rather than passing against data the subgraph would no longer
-request. If events arrive and your handlers write nothing, the command fails,
-which is the shape of a field-mapping bug that would otherwise ship a
-0-row subgraph.
+- The first run records a cassette, so later runs are free and offline.
+- Changing a source filter discards the cassette instead of passing on stale data.
+- If events arrive and no rows are written, the test fails. That's the mapping bug that ships an empty subgraph.
 
-For unit tests, `@secondlayer/subgraphs/testing` gives you the same context
-the runtime uses, backed by memory:
+For unit tests, `@secondlayer/subgraphs/testing` gives you the runtime's context, backed by memory:
 
 ```ts
 import { buildEvent, createTestContext } from "@secondlayer/subgraphs/testing";
@@ -173,51 +179,39 @@ await bns.handlers.bns!(buildEvent(bns.sources.bns, { topic: "name-register", da
 expect(await ctx.rows("names")).toMatchInlineSnapshot();
 ```
 
-Handlers that read the chain get stubbed reads instead of a node, so pass
-`reads: { "<contract>.<function-name>": value }` to `createTestContext`. An
-unstubbed read throws naming the key it wanted.
+Chain reads are stubbed: pass `reads: { "<contract>.<function-name>": value }` to `createTestContext`. An unstubbed read throws and names the key it wanted.
 
 ## Handlers
 
-A handler turns one matched event into rows. Accumulating a value, reading contract state, and typing a `print` payload each behave differently than they look.
+A handler turns one matched event into rows. Three things behave differently than they look.
 
 ### Counters and balances: use `increment`
 
-`ctx.increment(table, key, deltas)` applies a **delta** in one atomic
-statement (upserting the row on the table's `uniqueKeys`). Reach for it
-whenever a value accumulates:
+`ctx.increment` applies a delta in one atomic statement, upserting on the table's unique keys.
 
 ```ts
 ctx.increment("balances", { holder }, { amount: -amount });
 ```
 
-The tradeoff: a delta is applied once per pass over a block. Tip-first deploys
-(`backfillMode: "concurrent"`) and `backfill` revisit blocks the live walk
-already processed, so they refuse handlers that call `increment`, `update`,
-`findOne` or `findMany`. Those subgraphs deploy with the default blocking
-backfill and rebuild with `reindex`.
+- Tip-first deploys and `backfill` revisit blocks, so they refuse handlers that call `increment`, `update`, `findOne` or `findMany`.
+- Those handlers deploy with the default blocking backfill and rebuild with `reindex`.
 
 #### Why not read, compute, upsert
 
-The read-modify-write it replaces (`findOne` → compute → `upsert`) looks
-equivalent and isn't. Two events touching the same row in one block both read
-the stale value and the second write wins, so updates are silently lost. Deltas
-commute within a block, and a reorg rewind reverses them cleanly.
+It looks equivalent and isn't. Two events on the same row in one block both read the stale value, and the second write wins. Deltas commute within a block, and a reorg reverses them cleanly.
 
 #### System columns
 
-Every row carries `_block_height` and `_tx_id`: the block and transaction
-that created it. An `upsert` or `increment` on an existing key changes your
-columns (last write wins) and leaves these alone, whether the first write was
-in an earlier block or earlier in the same one. A key deleted and written
-again is a new row, so the new writer's block and transaction are stored.
+Every row carries `_block_height` and `_tx_id`: the block and transaction that created it.
+
+| Write | System columns |
+| --- | --- |
+| Upsert or increment an existing key | Unchanged; your columns take the last write |
+| Delete a key, then write it again | A new row, with the new writer's block and transaction |
 
 #### Reading the chain from a handler
 
-Some facts aren't in any event. A token's `decimals`, a pool's reserves, an
-NFT's metadata URI: those live in contract state, and without them `amount` is
-a bare integer nobody can render. `ctx.client` calls read-only functions for
-you:
+Some facts live in contract state, not events: a token's decimals, a pool's reserves, an NFT's metadata URI. `ctx.client` reads them with read-only calls.
 
 ```ts
 import { readContractAt } from "@secondlayer/subgraphs";
@@ -234,32 +228,19 @@ handlers: {
 },
 ```
 
-Same shape as [`getContract`](https://stacks.secondlayer.tools/guide/transactions), minus `call`: a handler indexes the
-chain, it never writes to it.
-
-**Every read is pinned to the block being processed.** The call carries that
-block's `index_block_hash`, so reprocessing the same blocks produces
-byte-identical rows. A block whose id was never persisted **throws** rather
-than falling back to the node's tip, which would make the same reindex return
-different values.
+- Every read is pinned to the block being processed, so a reindex gives byte-identical rows.
+- A block whose id was never stored throws instead of reading the node's tip.
+- Self-hosting: point `STACKS_NODE_RPC_URL` on the processor at [your node](/docs/self-host#config).
 
 <Callout type="tip" title="Declare what can't change">
 
-Results are cached in Postgres, keyed by block, which dedupes reads across
-events but still costs one call per block. For values that genuinely cannot
-change, pass `cache: "contract-constant"` and it is fetched **once**, ever.
-That is what makes a full backfill affordable. Declaring it on a value that
-does change pins the first answer forever, so it is opt-in and never inferred.
+Reads cache per block. For values that never change, `cache: "contract-constant"` fetches once, ever, which makes a full backfill affordable. It's opt-in: on a value that does change, it pins the first answer forever.
 
 </Callout>
 
-Self-hosting: set `STACKS_NODE_RPC_URL` on the subgraph processor, pointing at
-the node you already run rather than a new service. See
-[self-host](/docs/self-host#config).
-
 #### Typed print payloads
 
-Clarity ABIs don't describe `print` payloads, so `event.data` is untyped. A `prints` map types it, discriminated on `event.topic`:
+Clarity ABIs don't describe print payloads, so a `prints` map types `event.data` per topic:
 
 ```ts
 sources: {
@@ -280,64 +261,73 @@ handlers: {
 },
 ```
 
-<Callout type="warning" title="Don't guess print fields">
-
-Payload shape varies per topic, and a guessed field silently nulls forever. Scaffold from the contract's **observed** history instead.
-
-</Callout>
+Don't guess fields: a wrong one is silently null forever. Scaffold from the contract's observed history:
 
 ```bash
 secondlayer subgraphs create sbtc-registry \
   --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
 ```
 
-Scaffolds from the [print-schema endpoint](tip "Returns each print topic's payload shape for one contract, sampled from indexed prints."): one `print_event` source per topic with its `prints` map, plus one wide table (`--table-per-topic` splits it per topic). `secondlayer codegen prints <file>` emits a `.d.ts` of the payload types.
+- One source per topic with its `prints` map, plus one wide table. `--table-per-topic` splits it.
+- `secondlayer codegen prints <file>` writes a `.d.ts` of the payload types.
+- Deploy warns when a handler reads a field never seen for its topic (sources pinned to one contract). With a declared `prints` map, that's an error and the deploy is refused.
 
-Deploys return advisory `warnings` when a handler reads an `event.data` field never observed for its topic (pinned `contractId` sources only). If the source **declares** a `prints` map, the same finding is an error and the deploy is refused: you stated the shape, so a mismatch is a defect rather than a hint.
+The scaffold reads the [print-schema endpoint](tip "Returns each print topic's payload shape for one contract, sampled from indexed prints.").
 
 #### Rows anyone can recompute
 
-A subgraph whose sources are all state writes (`var_set`, `map_set`, `map_delete`) can be rebuilt from block headers alone, so its handlers must give the same rows on every run. The level is derived from your sources and a scan of the bundle, never configured:
+A subgraph whose sources are all state writes can be rebuilt from block headers alone, so its handlers must give the same rows every run. The level comes from your sources and a scan of the bundle; you don't set it.
 
 | `verification.level` | Sources | Handler findings |
 | --- | --- | --- |
-| `state` | state writes only | refuse the deploy: `422 NONDETERMINISTIC_HANDLER`, each as `file:line:column` |
-| `events` | events, prints, contract calls, `map_insert`, or any `ctx.client` read | advice in `verification.reasons`; deploys as before |
-| `none` | `trait` scope, or `backfillMode: "concurrent"` | advice, as above |
+| `state` | State writes only | Deploy refused: `422 NONDETERMINISTIC_HANDLER`, each as `file:line:column` |
+| `events` | Events, prints, contract calls, `map_insert`, or any chain read | Advice in `verification.reasons`; deploys as before |
+| `none` | Trait scope, or tip-first | Advice |
 
 | Refused at `state` | Use instead |
 | --- | --- |
-| `Date`, `performance`, timers, `fetch`, `process`, `crypto`, `Intl`, `toLocaleString` | values from `event`, `ctx.block`, `ctx.tx` |
+| `Date`, `performance`, timers, `fetch`, `process`, `crypto`, `Intl`, `toLocaleString` | Values from `event`, `ctx.block`, `ctx.tx` |
 | `Math.random`, `Math.sin` and other approximated `Math` | `bigint` math; `Math.abs/min/max/floor/ceil/trunc/sign/round` |
-| non-integer or unsafe `number` in a row | `bigint` |
-| `findOne` calls in parallel (`Promise.all`) | `await` each read in turn |
+| Non-integer or unsafe numbers in a row | `bigint` |
+| `findOne` calls in parallel (`Promise.all`) | Await each read in turn |
 
-Verifiable handlers run in a locked-down realm that throws on the same list at runtime and retries the block rather than skip the event. The tradeoff: most event subgraphs stay advisory until event proofs ship. `pin` hashes the schema, bundle, `startBlock`, network and runtime version, so a handler-only redeploy changes it even when `schemaHash` does not.
-
-A `state` subgraph reads its writes from the node's `state_writes` once the instance holds them from its `startBlock` on, and from `vm_events` until then. Nothing to configure.
+- The same list throws at runtime, and the block retries instead of skipping the event.
+- Most event subgraphs stay advisory until event proofs ship.
+- `pin` hashes schema, bundle, start block, network and runtime version, so a handler-only redeploy changes it even when `schemaHash` does not.
+- State writes come from the node's `state_writes` once the instance holds them from the start block, and from `vm_events` until then. Nothing to configure.
 
 #### Check rows
 
-Recompute a `state` subgraph and compare it with the served rows, as in [Check it](#check-it). Each link proves:
+Recompute a state subgraph and compare it with the served rows, as in [Check it](#check-it). Each line proves one link:
 
-| Link | Proves |
+| Line | Proves |
 | --- | --- |
-| `pin` | the served bundle, schema and `startBlock` are the ones the pin hashes |
-| `blocks` | every block in the range, from the checkpoint |
-| `txs` | each block's transactions hash to its header's tx merkle root |
-| `inputs` | each block's writes are named in full, nothing hidden |
-| `handlers` | the bundle runs in the deterministic realm over those writes |
-| `rows` | served rows equal the recomputed ones on declared columns and `_block_height` |
+| `pin` | The served bundle, schema and start block are the ones the pin hashes |
+| `blocks` | Every block in the range, from the checkpoint |
+| `txs` | Each block's transactions hash to its header's tx merkle root |
+| `inputs` | Each block's writes are named in full, nothing hidden |
+| `handlers` | The bundle runs in the deterministic realm over those writes |
+| `rows` | Served rows equal the recomputed ones on declared columns and `_block_height` |
 
-`_tx_id` is not compared: which transaction made a write is unproven, as are writes overwritten within one block. A `--from` after `startBlock` is inconclusive (exit `2`) once a handler reads or merges earlier rows (`findOne`, `increment`, a partial upsert). Every read is free: proofs and state writes from `/v1/proofs/writes`, rows from `/v1/subgraphs`. Witnesses are limited to 2 per second, so 1,000 blocks take 8 minutes or more. An instance whose node does not deliver `state_writes` cannot be checked: exit `2`.
+- `_tx_id` isn't compared: which transaction made a write is unproven, as are writes overwritten within one block.
+- Starting after the start block is inconclusive (exit `2`) once a handler reads or merges earlier rows.
+- Reads are free. Witnesses run at 2 per second, so 1,000 blocks take 8 minutes or more.
+- A node that doesn't deliver `state_writes` can't be checked: exit `2`.
 
 ## Tip-first deploys
 
-`--tip-first` (or `backfillMode: "concurrent"`) goes live at the tip, so rows are queryable in seconds while history backfills. The history fill revisits blocks, so it only takes handlers that write with `insert` or a full-row `upsert`. A handler that calls `update`, `increment`, `findOne` or `findMany` is refused with `TIP_FIRST_NON_REPLAYABLE_HANDLER`; deploy it with the default blocking backfill. The same rule applies to `secondlayer subgraphs backfill`: use `reindex` for a clean rebuild instead.
+`--tip-first` (or `backfillMode: "concurrent"`) goes live at the tip, so rows serve in seconds while history backfills.
+
+| Handler writes with | Tip-first |
+| --- | --- |
+| `insert`, full-row `upsert` | Allowed |
+| `update`, `increment`, `findOne`, `findMany` | Refused: `TIP_FIRST_NON_REPLAYABLE_HANDLER` |
+
+Refused handlers deploy with the default blocking backfill. The same rule applies to `secondlayer subgraphs backfill`; rebuild with `reindex`.
 
 ## Check status
 
-`secondlayer subgraphs status`, with backfill draining while the table already serves reads:
+The table serves reads while the backfill drains:
 
 ```text ~/balances
 $ secondlayer subgraphs status balances
@@ -354,19 +344,27 @@ Table Rows         balances: 4874
 
 | | Hosted |
 | --- | --- |
-| Sources | Event filters (`stx_*`, `ft_*`, `nft_*`, `print_event`, `nested_contract_call`, `var_set`, `map_*`), `contract_call`, `contract_deploy`. Anything else: `422 SOURCE_NOT_HOSTABLE`, naming the source |
-| Isolation | Handlers run in a gVisor sandbox with 512 MB, reaching only Secondlayer's API and the public internet |
+| Sources | Event filters, `contract_call`, `contract_deploy`. Anything else is `422 SOURCE_NOT_HOSTABLE`, naming the source |
+| Isolation | A gVisor sandbox with 512 MB, reaching only Secondlayer's API and the public internet |
 | Visibility | Private. No public catalog, fork or marketplace |
 
-A processor that stalls or runs out of memory is restarted. After 3 deaths at the same height the subgraph is marked `error`: fix the handler and redeploy. On your own box any source runs: [Self-host](/docs/self-host#what-differs-on-your-box).
+A processor that stalls or runs out of memory restarts. After 3 deaths at one height the subgraph is marked `error`: fix the handler and redeploy. [Your own box](/docs/self-host#what-differs-on-your-box) runs any source.
 
 ## Read rows
 
-A deployed subgraph serves its tables three ways: paged REST, a live stream, and a typed ORM schema over the same Postgres (the last is self-host only).
+| Read | Where |
+| --- | --- |
+| Pages over REST | `/v1/subgraphs/<name>/<table>` |
+| A live stream | `…/stream`, Server-Sent Events |
+| A typed ORM schema | Your instance's Postgres, self-host only |
 
 ### Pages, cursors, and sorting
 
-Pages are `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. Sort by one column instead with `?_sort=<column>&_order=asc|desc`, and the cursor pairs that column with `_id` as a tiebreaker, so pages stay stable even when values tie.
+| Param | Does |
+| --- | --- |
+| `cursor` | Resumes from the last `next_cursor` |
+| `_order` | `asc` or `desc` |
+| `_sort` | Sorts by one column; the cursor adds `_id` as a tiebreaker |
 
 ```bash
 # top holders by amount, paginated
@@ -377,7 +375,7 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/asset-holdings/holdings" \
 
 #### Read your table
 
-Typed from the SDK (`new SecondLayer()` reads `SECONDLAYER_API_URL` and `SECONDLAYER_API_KEY`), or REST at `/v1/subgraphs` with wildcard CORS.
+From the SDK (it reads the two variables itself) or over REST, with wildcard CORS.
 
 <CodeTabs sync="lang">
 
@@ -417,19 +415,24 @@ const { rows, next_cursor, tip } = await sl.subgraphs.rows(
 
 #### Cursor and sort rules
 
-The cursor's shape follows the sort: don't hand-construct a sorted cursor, and replaying it under a different `_sort`/`_order` is a `400`. Multi-column `_sort=a,b`, `jsonb` columns and `_offset` are also `400`, since deep `OFFSET` scans hurt on big tables. `_limit`, `_fields`, `_search` and column filters work as everywhere else: [REST API](/docs/rest-api).
+- Don't hand-build a sorted cursor. Replaying it under another sort or order is a `400`.
+- Also `400`: sorting by several columns, `jsonb` columns, `_offset`.
+- Limits, fields, search and filters work as on every read: [REST API](/docs/rest-api).
 
 #### Indexed and searchable columns
 
-Mark a column `indexed: true` if you plan to sort on it. Sorted reads get a `(column, _id)` index that matches the page order, so deep pages stay flat. Existing tables pick it up on their next reindex or schema change. `_search` needs at least one column marked `search: true`; on a table with none it is a `400` rather than matching everything.
+| Column flag | Gives |
+| --- | --- |
+| `indexed: true` | An index in page order, so deep sorted pages stay fast. Existing tables pick it up on reindex. |
+| `search: true` | `_search` on that column. With none marked, `_search` is a `400`. |
 
 #### Open reads
 
-Reads send `Authorization: Bearer $SECONDLAYER_API_KEY`, with wildcard CORS, the same as `/v1/index` and `/v1/streams`. There is no per-subgraph visibility flag: hosted subgraphs are private to your account, and on your own box who can reach the instance is what your publish spec and reverse proxy decide ([Instance token](tip "The hex token your own box requires for reads past loopback and for every write.")). Every route and parameter (rows, `/count`, `/aggregate`, `/:id`, `/stream`): [API reference](/docs/api/subgraphs#list-subgraph-rows). Aggregate grammar: [aggregates](/docs/rest-api#aggregates).
+Reads send your key as a bearer token, like Index and Streams. There's no per-subgraph visibility flag: hosted subgraphs are private to your account, and on your own box your proxy decides who can reach it ([instance token](tip "The hex token your own box requires for reads past loopback and for every write.")). Every route: [API reference](/docs/api/subgraphs#list-subgraph-rows).
 
 #### Stream rows in real time
 
-Tail a table over Server-Sent Events from the tip, or `?since=<block_height>` to replay a height then tail live. Column filters work as query params.
+Tail a table from the tip, or from `since` to replay a height first.
 
 ```bash
 curl -N "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers/stream" \
@@ -437,7 +440,7 @@ curl -N "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers/stream" \
   -G -d "since=8050000"
 ```
 
-`subscribe` wraps it with the same `where` filters as `findMany` and returns an unsubscribe:
+`subscribe` wraps it with the same filters and returns an unsubscribe. It needs a global EventSource: browsers, or Node 22 and up. Wire contract: [Streaming (SSE)](/docs/rest-api#streaming-sse).
 
 ```ts
 const unsubscribe = subgraph.transfers.subscribe(
@@ -446,15 +449,11 @@ const unsubscribe = subgraph.transfers.subscribe(
 );
 ```
 
-It uses the global `EventSource`, so browser or **Node ≥ 22** only. Wire contract: [Streaming (SSE)](/docs/rest-api#streaming-sse).
-
 #### React to your rows
 
-Webhooks fire on chain events. To act when your subgraph writes a row, watch the table: it is your data.
+Webhooks fire on chain events. To act on your own rows, watch the table.
 
-**On your own box**
-
-Your tables live in your instance's Postgres, in schema `subgraph_<name>` (dashes become underscores). A trigger tells your app the moment a block's rows commit:
+**On your own box.** Tables live in schema `subgraph_<name>`, dashes as underscores. A trigger tells your app when a block's rows commit:
 
 ```sql
 CREATE OR REPLACE FUNCTION notify_sbtc_transfers() RETURNS trigger AS $$
@@ -480,14 +479,12 @@ await sql.listen("sbtc_transfers", async (id) => {
 });
 ```
 
-- A notification goes out when the block commits, so you never act on a row that rolled back.
-- Send `_id`, not the row: a payload is capped at 8,000 bytes.
-- A notification sent while nothing listens is gone. On start, read rows past the last `_id` you handled, then listen.
-- A reindex or a destructive redeploy rebuilds the schema and drops your trigger. Create it from the script that deploys.
+- You never act on a row that rolled back: the notification goes out on commit.
+- Send the id, not the row; a payload is capped at 8,000 bytes.
+- Nothing listening means the notification is gone. On start, read past the last id you handled, then listen.
+- A reindex or destructive redeploy drops your trigger. Create it from the script that deploys.
 
-**Hosted**
-
-Hosted tables live in your account's private stack, so read them over the API. Poll and keep the last `next_cursor`:
+**Hosted.** Read over the API: poll, and keep the last `next_cursor`.
 
 ```ts
 let cursor = await loadCursor(); // last next_cursor saved, or undefined
@@ -502,18 +499,19 @@ for (;;) {
 }
 ```
 
-[`next_cursor`](hover:next) comes back on every page that has rows, and is `null` only on an empty page, so `cursor = page.next_cursor ?? cursor` keeps your place while nothing new arrives. A paging loop that reads a whole table ends on an empty or short page. A reorg rewrites the affected rows under new `_id`s: polling sees the new rows, not the removed ones, so wait until a row is a few blocks behind `tip` before you move money on it.
+- [`next_cursor`](hover:next) is null only on an empty page, so falling back to the old cursor keeps your place.
+- A reorg rewrites rows under new ids. Wait until a row is a few blocks behind `tip` before you move money on it.
 
 #### Typed ORM schemas (codegen)
 
-Subgraph rows live in your instance's Postgres, so codegen needs direct database access and is self-host only. `codegen` emits a typed ORM schema for a subgraph's tables so your app reads them with Prisma, Drizzle, or Kysely:
+Codegen needs direct database access, so it's self-host only.
 
 ```bash
 secondlayer codegen subgraph ./subgraph.config.ts --target prisma -o prisma/schema.prisma
 npx prisma generate
 ```
 
-Generators: `--target prisma|drizzle|kysely`. Secondlayer owns the DDL, so treat the tables as read-only: verify with `prisma db pull`, never `migrate`.
+`--target` takes prisma, drizzle or kysely. Secondlayer owns the DDL, so treat the tables as read-only: check with `prisma db pull`, never migrate.
 
 export const agent = `
 - Scaffold with 'secondlayer subgraphs scaffold'; use named object sources and event.data fields; then 'secondlayer subgraphs deploy' and query recent rows.
