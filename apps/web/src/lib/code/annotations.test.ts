@@ -43,6 +43,18 @@ describe("parseFenceOptions", () => {
 		expect(parseFenceOptions("sh base").base).toBe(true);
 	});
 
+	test("a figure token turns the fence into a figure", () => {
+		expect(parseFenceOptions("ts index.ts figure")).toEqual({
+			lang: "typescript",
+			title: "index.ts",
+			figure: true,
+		});
+	});
+
+	test("figure is not mistaken for a title", () => {
+		expect(parseFenceOptions("ts figure").title).toBeUndefined();
+	});
+
 	test("a key=value token is never mistaken for the title", () => {
 		expect(parseFenceOptions("ts max=3.5").title).toBeUndefined();
 	});

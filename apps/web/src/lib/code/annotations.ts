@@ -29,6 +29,8 @@ export type FenceOptions = {
 	status?: number;
 	/** Hosted base URLs in the source follow the page's Base URL switch. */
 	base?: boolean;
+	/** Render as a figure: numbered source, margin notes. */
+	figure?: boolean;
 };
 
 /**
@@ -47,6 +49,7 @@ export function parseFenceOptions(info: string): FenceOptions {
 		else if (key === "exit") options.exit = Number(value);
 		else if (key === "status") options.status = Number(value);
 		else if (key === "base") options.base = true;
+		else if (key === "figure") options.figure = true;
 		else if (!options.title && !value && /[./~]/.test(token))
 			options.title = token;
 	}
