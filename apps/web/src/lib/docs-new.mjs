@@ -58,31 +58,39 @@ function headings(source) {
 	return out;
 }
 
+/** @param {string} source the `##` texts, in order */
+const sections = (source) =>
+	headings(source)
+		.filter((h) => h.level === 2)
+		.map((h) => h.text);
+
 /**
  * Stamps a page as a commit leaves it. `before` is the committed source (null
  * for a page this commit creates). A new page gets one mark on its title, not
  * one per section; on an existing page each `##` whose text `before` lacks
- * gets one. Expired marks go. Returns the source unchanged when nothing
- * applies, so running it twice is a no-op.
+ * gets one, unless it stands where a `##` that is now gone used to (a rename,
+ * which is not new). Expired marks go. Returns the source unchanged when
+ * nothing applies, so running it twice is a no-op.
  * @param {string | null} before
  * @param {string} after
  * @param {string} today YYYY-MM-DD
  */
 export function stampNewMarks(before, after, today) {
 	const now = Date.parse(today);
-	const known = new Set(
-		before === null
-			? []
-			: headings(before)
-					.filter((h) => h.level === 2)
-					.map((h) => h.text),
-	);
+	const old = before === null ? [] : sections(before);
+	const known = new Set(old);
+	const current = sections(after);
+	const kept = new Set(current);
 	const lines = after.split("\n");
 	const stampAt = new Set(
 		headings(after)
-			.filter((h) =>
-				before === null ? h.level === 1 : h.level === 2 && !known.has(h.text),
-			)
+			.filter((h) => {
+				if (before === null) return h.level === 1;
+				if (h.level !== 2 || known.has(h.text)) return false;
+				// Same slot as a section that is gone: renamed, not added.
+				const was = old[current.indexOf(h.text)];
+				return was === undefined || kept.has(was);
+			})
 			.map((h) => h.index),
 	);
 	/** @type {string[]} */

@@ -4,10 +4,10 @@
 
 # Docs pages: mark added sections and new pages, drop expired marks
 # (apps/web/scripts/docs-new.ts). A page with unstaged edits is skipped, since
-# re-staging it would commit them too.
+# re-staging it would commit them too. DOCS_NEW=off skips it for one commit.
 docs=$(git diff --cached --name-only --diff-filter=AM \
   | grep -E '^apps/web/src/app/\(www\)/docs/.*page\.mdx$' || true)
-if [ -n "$docs" ]; then
+if [ -n "$docs" ] && [ "$DOCS_NEW" != "off" ]; then
   clean=""
   for f in $docs; do
     if git diff --quiet -- "$f"; then clean="$clean $f"

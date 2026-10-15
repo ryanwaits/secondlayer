@@ -36,6 +36,18 @@ describe("stampNewMarks", () => {
 		expect(stampNewMarks(before, after, TODAY)).toBe(after);
 	});
 
+	test("a renamed section is not new", () => {
+		const after = before.replace("## Cursors", "## Cursors and reorgs");
+		expect(stampNewMarks(before, after, TODAY)).toBe(after);
+	});
+
+	test("a section added after a rename is still new", () => {
+		const after = `${before.replace("## Cursors", "## Paging")}\n## Runes\n`;
+		expect(stampNewMarks(before, after, TODAY)).toBe(
+			`${before.replace("## Cursors", "## Paging")}\n{/* new: 2026-10-15 */}\n## Runes\n`,
+		);
+	});
+
 	test("a new page gets one mark on its title, not one per section", () => {
 		expect(stampNewMarks(null, before, TODAY)).toBe(
 			`{/* new: 2026-10-15 */}\n${before}`,
