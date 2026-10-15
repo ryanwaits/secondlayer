@@ -11,7 +11,7 @@ export function QuickstartPanel() {
 					key={step.n}
 					lang="bash"
 					title={`${step.n} ${step.tab}`}
-					code={`# !callout[/^\\S+/] ${step.desc}\n${step.cmd}`}
+					code={step.cmd}
 				/>
 			))}
 		</CodeTabs>

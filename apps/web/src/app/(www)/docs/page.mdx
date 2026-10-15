@@ -74,9 +74,11 @@ You decode it. This is what Index is built on. [Streams →](/docs/streams)
 
 ## Get started
 
-Using an agent? `bunx skills add ryanwaits/secondlayer --skill secondlayer -y`
+Install the CLI, set your key, create a subgraph from a contract, deploy it, read its rows, then check the block they came from. Keys come from [/account/keys](/account/keys). Using an agent? `bunx skills add ryanwaits/secondlayer --skill secondlayer -y`
 
 <QuickstartPanel />
+
+Set a `startBlock` before you deploy: the event and transaction rows it reads bill. Reads of your own tables are free.
 
 Prefer your own box? [Self-host](/docs/self-host) is the same product on your Postgres.
 
