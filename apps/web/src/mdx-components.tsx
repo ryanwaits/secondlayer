@@ -7,6 +7,7 @@ import { Banner, Callout } from "@/components/docs/callout";
 import { Fork, ForkPath } from "@/components/docs/fork";
 import { Seam } from "@/components/docs/seam";
 import { Stack } from "@/components/docs/stack";
+import { Steps } from "@/components/docs/steps";
 import { Yields } from "@/components/docs/yields";
 import { parseFenceOptions } from "@/lib/code/annotations";
 import type { MDXComponents } from "mdx/types";
@@ -134,6 +135,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 		Stack,
 		Yields,
 		Seam,
+		Steps,
 		Fork,
 		ForkPath,
 		...components,

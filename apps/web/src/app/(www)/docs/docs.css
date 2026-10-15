@@ -2421,6 +2421,37 @@ html[data-acct-card] .docs-content {
 	}
 }
 
+/* A numbered sequence: each h3 is a step; the number sits in a 36px gutter. */
+.docs-steps {
+	counter-reset: docs-step;
+	padding-left: 50px;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 0;
+}
+.docs-steps h3 {
+	position: relative;
+	counter-increment: docs-step;
+}
+.docs-steps h3::before {
+	content: counter(docs-step, decimal-leading-zero);
+	position: absolute;
+	left: -50px;
+	top: 0;
+	font: 500 13px / inherit var(--font-mono-stack);
+	color: var(--faint);
+	font-variant-numeric: tabular-nums;
+}
+@media (max-width: 560px) {
+	.docs-steps {
+		padding-left: 0;
+	}
+	.docs-steps h3::before {
+		position: static;
+		margin-right: 10px;
+	}
+}
+
 .docs-fork {
 	margin-top: 20px;
 	display: grid;

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Fork, ForkPath } from "@/components/docs/fork";
 import { Seam } from "@/components/docs/seam";
 import { Stack } from "@/components/docs/stack";
+import { Yields } from "@/components/docs/yields";
 import type { ReactElement } from "react";
 import { renderToReadableStream } from "react-dom/server";
 
@@ -48,6 +49,22 @@ describe("the seam", () => {
 
 	test("the seam marks where reference sections start", async () => {
 		const html = await render(<Seam page="streams" />);
+		expect(html).toContain("data-outline-reference");
+	});
+});
+
+describe("start pages", () => {
+	test("start pages show their own get/write labels", async () => {
+		const html = await render(<Yields page="keys" />);
+		expect(html).toContain("You get");
+		expect(html).toContain("You set");
+		expect(html).not.toContain("You write");
+	});
+
+	test("a start page's seam links its two next pages", async () => {
+		const html = await render(<Seam page="selfhost" />);
+		expect(html).toContain('href="/docs/verification"');
+		expect(html).toContain('href="/docs/authentication"');
 		expect(html).toContain("data-outline-reference");
 	});
 });

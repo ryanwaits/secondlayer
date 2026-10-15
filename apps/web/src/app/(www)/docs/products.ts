@@ -120,3 +120,91 @@ export function neighbours(key: ProductKey): {
 	const i = DOCS_PRODUCTS.findIndex((p) => p.key === key);
 	return { down: DOCS_PRODUCTS[i - 1], up: DOCS_PRODUCTS[i + 1] };
 }
+
+export type StartKey = "keys" | "selfhost" | "verify";
+
+export interface StartCell {
+	label: string;
+	title: string;
+	href: string;
+	why: string;
+	tease: string;
+}
+
+export interface StartPage {
+	key: StartKey;
+	/** Absent when the page opens without a get/write pair (Verify). */
+	yields?: { get: string; writeLabel: string; write: string };
+	seam: [StartCell, StartCell];
+}
+
+/** The three Start pages: their opening pair and the two pages they hand off to. */
+export const START_PAGES: StartPage[] = [
+	{
+		key: "keys",
+		yields: {
+			get: "1M rows free a month, then $5 per 1M",
+			writeLabel: "You set",
+			write: "A key, and a spend cap if you want one",
+		},
+		seam: [
+			{
+				label: "Next",
+				title: "Self-host",
+				href: "/docs/self-host",
+				why: "The same product on your Postgres, with no meter.",
+				tease: "secondlayer init --network mainnet",
+			},
+			{
+				label: "Or",
+				title: "Introduction",
+				href: "/docs#get-started",
+				why: "Get a table live in six commands.",
+				tease: "secondlayer subgraphs create my-balances --from-contract …",
+			},
+		],
+	},
+	{
+		key: "selfhost",
+		yields: {
+			get: "Every product on your box, no meter",
+			writeLabel: "You bring",
+			write: "Docker, 4 GB RAM, the CLI; a 600 GB SSD for mainnet history",
+		},
+		seam: [
+			{
+				label: "Next",
+				title: "Verify",
+				href: "/docs/verification",
+				why: "Check a block, a transaction or your rows against Bitcoin.",
+				tease: "secondlayer verify block 9137005",
+			},
+			{
+				label: "Or",
+				title: "Keys and billing",
+				href: "/docs/authentication",
+				why: "Rather not run a box? Hosted is one key.",
+				tease: "export SECONDLAYER_API_KEY=sk-sl_...",
+			},
+		],
+	},
+	{
+		key: "verify",
+		seam: [
+			{
+				label: "Next",
+				title: "Archive",
+				href: "/docs/archive",
+				why: "Check your whole history against the signed archive.",
+				tease: "secondlayer verify raw --against <latest.json>",
+			},
+			{
+				label: "Or",
+				title: "Subgraphs",
+				href: "/docs/subgraphs",
+				why: "Recompute a state subgraph's rows on your machine.",
+				tease: "secondlayer verify subgraph pool-reserves --replay",
+			},
+		],
+	},
+];

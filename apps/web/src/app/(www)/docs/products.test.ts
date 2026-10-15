@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { DOCS_NAV } from "./nav";
-import { DOCS_PRODUCTS, SEAM_CELLS } from "./products";
+import { DOCS_PRODUCTS, SEAM_CELLS, START_PAGES } from "./products";
 
 describe("docs products", () => {
 	test("products are in the sidebar's chain-to-app order", () => {
@@ -28,6 +28,28 @@ describe("docs products", () => {
 			const lead = cell.tease.split(/\(| --/)[0] as string;
 			const mdx = readFileSync(join(import.meta.dir, to, "page.mdx"), "utf8");
 			expect(mdx, `${pair}: ${lead}`).toContain(lead);
+		}
+	});
+
+	test("every start page's next links tease code that appears in the docs", () => {
+		const docs = join(import.meta.dir);
+		const sources = [
+			readFileSync(join(docs, "quickstart-data.ts"), "utf8"),
+			...readdirSync(docs, { withFileTypes: true })
+				.filter((d) => d.isDirectory())
+				.map((d) => join(docs, d.name, "page.mdx"))
+				.filter((f) => existsSync(f))
+				.map((f) => readFileSync(f, "utf8")),
+			readFileSync(join(docs, "page.mdx"), "utf8"),
+		];
+		for (const page of START_PAGES) {
+			for (const cell of page.seam) {
+				const lead = cell.tease.split(/ --|=|…/)[0]?.trim() as string;
+				expect(
+					sources.some((s) => s.includes(lead)),
+					`${page.key}: ${lead}`,
+				).toBe(true);
+			}
 		}
 	});
 });
