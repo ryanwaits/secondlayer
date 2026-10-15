@@ -530,6 +530,39 @@ button.docs-nav-item {
 		white-space: normal;
 	}
 }
+/* The sidebar and padding take their share of the viewport, so the viewport
+   says little about the room a figure has. The article's own width decides:
+   under 912px (640px of code + the notes column + its gap) the notes stack
+   under the code, whatever the screen. */
+.docs-article {
+	container: docs-article / inline-size;
+}
+@container docs-article (max-width: 911px) {
+	.docs-article > .cf:not(.key) {
+		margin-right: 0;
+	}
+	.docs-article .cf:not(.key) .cf-notes {
+		position: static;
+		display: grid;
+		gap: 6px;
+		width: auto;
+		margin-top: 14px;
+		padding-left: 0;
+	}
+	.docs-article .cf:not(.key) .cf-note {
+		position: static;
+		width: auto;
+		color: var(--sub);
+		line-height: 1.5;
+		white-space: normal;
+	}
+	.docs-article .cf:not(.key) .cf-note b {
+		color: var(--ink);
+	}
+	.docs-article .cf:not(.key) .cf-note::before {
+		display: none;
+	}
+}
 /* Wide screens: the pills ride the title's first line, so the title starts
    level with the sidebar's first label. Narrow screens keep them on a row above. */
 @media (min-width: 861px) {

@@ -14,4 +14,13 @@ describe("docs article width rules", () => {
 	test("prose tables scroll inside a wrapper instead of widening the page", () => {
 		expect(docsCss).toMatch(/\.docs-table \{[^}]*overflow-x: auto;/);
 	});
+
+	test("a docs figure stacks its notes by the article's width, not the viewport's", () => {
+		expect(docsCss).toMatch(
+			/\.docs-article \{\s*container: docs-article \/ inline-size;/,
+		);
+		expect(docsCss).toMatch(
+			/@container docs-article \(max-width: 911px\) \{\s*\.docs-article > \.cf:not\(\.key\) \{\s*margin-right: 0;/,
+		);
+	});
 });
