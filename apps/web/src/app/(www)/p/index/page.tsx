@@ -302,7 +302,6 @@ export default async function IndexPage() {
 					/>
 
 					<Split
-						flip
 						copy={
 							<>
 								<Eyebrow noun="Deploy" />
@@ -321,9 +320,6 @@ export default async function IndexPage() {
 										),
 									)}
 								</div>
-								<Link className="more" href="/docs/deploy">
-									Deploy guide →
-								</Link>
 							</>
 						}
 						art={
@@ -339,6 +335,9 @@ export default async function IndexPage() {
 										<Code key={host.title} {...host} />
 									))}
 								</CodeTabs>
+								<Link className="more" href="/docs/deploy">
+									Deploy guide →
+								</Link>
 							</div>
 						}
 					/>
