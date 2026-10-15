@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 6.4.1
+
+### Patch Changes
+
+- af310c0: `classifyContract` now recognizes ABIs straight from a Stacks node, which spell read-only access `read_only`. Before, no node ABI matched any SIP standard by shape.
+
 ## 6.4.0
 
 ### Minor Changes

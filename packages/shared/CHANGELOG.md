@@ -1,5 +1,13 @@
 # @secondlayer/shared
 
+## 13.2.1
+
+### Patch Changes
+
+- `setInferredStandards` rewrites a contract's inferred standards and bumps its `classified_at`, for re-classifying stored ABIs after a classifier change.
+- Updated dependencies [af310c0]
+  - @secondlayer/stacks@6.4.1
+
 ## 13.2.0
 
 ### Minor Changes
