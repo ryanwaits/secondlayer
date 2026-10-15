@@ -1833,26 +1833,25 @@
     ]
   },
   "/docs/subgraphs#check-status": {
-    "hash": "ecb2513dd363d21e",
+    "hash": "29c53c4d898b0dd9",
     "phrasings": [
-      "check subgraph backfill progress",
-      "secondlayer subgraphs status command",
-      "subgraph sync status not updating",
-      "is my subgraph still backfilling",
-      "view subgraph indexing state",
-      "subgraph status command line"
+      "subgraph backfill progress check",
+      "is my subgraph still syncing",
+      "table reads during backfill",
+      "how far has indexing reached",
+      "subgraph sync status command",
+      "check whether backfill finished"
     ]
   },
   "/docs/subgraphs#counters-and-balances-use-increment": {
-    "hash": "40080f8f67b701b2",
+    "hash": "15d50932283f4727",
     "phrasings": [
-      "subgraph counter atomic update",
-      "ctx.increment delta example",
-      "how to update balance in subgraph",
-      "upsert row with delta atomically",
-      "subgraph race condition counter",
-      "increment column uniquekeys upsert",
-      "atomic add to running total indexer"
+      "atomic counter update subgraph ctx",
+      "increment balance without race condition",
+      "upsert delta on unique key",
+      "subgraph running totals in one statement",
+      "ctx increment unique keys upsert",
+      "avoid lost updates counting in subgraph"
     ]
   },
   "/docs/subgraphs#define-a-subgraph": {
@@ -1867,128 +1866,134 @@
     ]
   },
   "/docs/subgraphs#deploy": {
-    "hash": "6725d6c3b9280c72",
+    "hash": "cc7b2bfb7d6722a0",
     "phrasings": [
-      "hosted subgraph deployment default",
-      "do i need to run my own node for subgraph",
-      "deploy subgraph without hosting server",
-      "private stack per account subgraph",
-      "how to publish subgraph to hosted service",
-      "subgraph deploy no infrastructure needed",
-      "hosted vs self hosted subgraph deploy",
-      "where to deploy subgraph hosted option"
+      "how do i deploy a subgraph",
+      "where to host my subgraph for free",
+      "is hosted subgraph service the default",
+      "subgraph deployment with no infrastructure to run",
+      "how many private subgraphs per account",
+      "deploy subgraph without operating my own node",
+      "what does hosted subgraph deployment include",
+      "hosted vs self hosted subgraph deploy"
     ]
   },
   "/docs/subgraphs#handler-context": {
-    "hash": "c6fc167e60a643cc",
+    "hash": "2d59b02e24c0137d",
     "phrasings": [
-      "subgraph handler ctx.insert usage",
-      "ctx.findone ctx.findmany read rows",
-      "how to access tx and block in handler",
-      "ctx.increment upsert delete subgraph writes",
-      "handler event ctx arguments explained",
-      "reading existing rows inside subgraph handler"
+      "what is ctx in subgraph handler",
+      "subgraph handler event and context fields",
+      "access matched event inside handler function",
+      "how do i read context in handler",
+      "handler function arguments subgraph",
+      "subgraph context object properties",
+      "get block info inside event handler"
     ]
   },
   "/docs/subgraphs#handlers": {
-    "hash": "ed1575586459ab1e",
+    "hash": "107b6ef25184c985",
     "phrasings": [
       "what does a subgraph handler return",
-      "convert matched event into database rows",
-      "handler function turns event into rows",
-      "subgraph handler example code",
-      "how do handlers process events",
-      "write handler for contract event"
+      "turn chain event into database rows",
+      "subgraph handler function basics",
+      "how to write event handler subgraph",
+      "handler outputs rows per matched event",
+      "subgraph handler examples"
     ]
   },
   "/docs/subgraphs#hoisting-the-schema": {
-    "hash": "020e07aa7faba05d",
+    "hash": "c66ad10bc630ca05",
     "phrasings": [
       "defineschema helper typed subgraph",
-      "move schema out of handler function",
-      "factor helper function subgraph schema types",
-      "typed schema helper for subgraph handlers",
-      "how to split large subgraph handler code",
-      "reuse schema across subgraph helpers"
+      "typed helpers outside handler subgraph",
+      "how to share schema across helper functions",
+      "subgraph schema types not inferred in helpers",
+      "extract table schema into separate file",
+      "typescript types for helper functions subgraph",
+      "defineschema keeps helpers typed"
     ]
   },
   "/docs/subgraphs#index-by-standard-not-by-address": {
-    "hash": "dee51ac272613336",
+    "hash": "2ad2cdcb8197af07",
     "phrasings": [
-      "index contracts by trait instead of address",
-      "subgraph follow sip standard for new contracts",
-      "auto include contracts deployed after shipping",
-      "trait filter catches future contracts",
-      "how to match contracts by implemented trait",
-      "index all contracts implementing a standard"
+      "index all sip010 tokens without addresses",
+      "trait filter matches contracts by standard",
+      "subgraph match contracts by trait not address",
+      "catch contracts deployed after subgraph ships",
+      "subgraph index every nft contract",
+      "filter contracts by standard classification"
     ]
   },
   "/docs/subgraphs#indexing-a-contract-set": {
-    "hash": "84fdb96b9393bdee",
+    "hash": "0ff4508027603ead",
     "phrasings": [
-      "index router and pools with one source",
-      "contractid array multiple contracts subgraph",
-      "avoid duplicate handlers for many contracts",
-      "subgraph watch several contracts at once",
-      "single handler for pool contracts",
-      "how to index multiple contract ids"
+      "index multiple contracts with one handler",
+      "contractid array subgraph source",
+      "router and pools same handler subgraph",
+      "subgraph source multiple contract addresses",
+      "share handler across several contracts",
+      "how to watch a fixed list of contracts"
     ]
   },
   "/docs/subgraphs#pages-cursors-and-sorting": {
-    "hash": "093242a5014a5abb",
+    "hash": "11fbe472a3cf94ca",
     "phrasings": [
-      "paginate subgraph results with cursor",
-      "resume paging subgraph rows next page",
-      "sort subgraph rows ascending or descending",
-      "keyset pagination by id subgraph api",
-      "order asc desc parameter subgraph endpoint",
-      "how to page through subgraph table",
-      "cursor param to continue subgraph listing"
+      "paginate subgraph query results",
+      "cursor based pagination subgraph example",
+      "sort subgraph entities by field descending",
+      "subgraph query only returns first 100 results",
+      "how to get next page of subgraph results",
+      "order by and skip in subgraph query",
+      "page through all entities with cursor",
+      "subgraph orderby orderdirection example"
     ]
   },
   "/docs/subgraphs#read-rows": {
-    "hash": "e53c516c0ac9ae64",
+    "hash": "c248ae05a8e377ca",
     "phrasings": [
-      "how to read subgraph table rows",
-      "fetch subgraph rows over rest api",
-      "ways to query subgraph table data",
-      "stream subgraph rows live",
-      "typed orm access to subgraph postgres tables",
-      "read subgraph data directly from postgres",
-      "paged rest endpoint for subgraph tables"
+      "how to query rows from a subgraph table",
+      "fetch a single entity by id in subgraph",
+      "subgraph query returns empty list of entities",
+      "get all records from subgraph entity",
+      "subgraph api example query for table data",
+      "why is my subgraph query returning no data",
+      "retrieve entities from subgraph with filters",
+      "subgraph graphql query to list stored items"
     ]
   },
   "/docs/subgraphs#test-before-you-deploy": {
-    "hash": "9d4f5948a5dad2cc",
+    "hash": "35c90ddd63fa5e08",
     "phrasings": [
-      "test subgraph locally before deploying",
-      "run subgraph against real chain events",
-      "subgraph handler local testing without deploy",
-      "dry run indexer code before publishing",
-      "how to preview subgraph output locally",
-      "debug subgraph handler without deploying"
+      "test subgraph handler against real chain events",
+      "run subgraph locally without deploying",
+      "dry run subgraph handler code",
+      "subgraph testing before deploy",
+      "preview indexed rows before deploying",
+      "local test harness for subgraph handlers"
     ]
   },
   "/docs/subgraphs#tip-first-deploys": {
-    "hash": "693acfc66b5c00f6",
+    "hash": "0ad7a905ad9419cd",
     "phrasings": [
-      "subgraph queryable before backfill finishes",
-      "tip-first deploy flag",
-      "backfillmode concurrent subgraph",
-      "go live at chain tip immediately",
+      "serve data while backfill runs",
+      "deploy subgraph live at chain tip",
+      "backfill mode concurrent subgraph",
       "rows available in seconds during backfill",
-      "speed up subgraph initial sync"
+      "skip waiting for history sync",
+      "fast initial deploy subgraph backfill"
     ]
   },
   "/docs/subgraphs#what-runs-hosted": {
-    "hash": "326230100c3915b6",
+    "hash": "6fa32d1a37b1bdfc",
     "phrasings": [
-      "subgraph processor crashed out of memory",
-      "hosted subgraph processor restarted automatically",
-      "subgraph processor stalled what happens",
-      "does hosted subgraph auto recover",
-      "who restarts stalled subgraph processes",
-      "subgraph runtime infrastructure hosted"
+      "why does my processor keep restarting",
+      "subgraph processor restarts out of memory",
+      "where do hosted subgraphs actually run",
+      "processor stalls then restarts what happens",
+      "hosted subgraph memory limit restart loop",
+      "what process runs my subgraph on the host",
+      "subgraph keeps restarting when it runs out of memory",
+      "does hosted processor restart if it stalls"
     ]
   },
   "/docs/subgraphs-reference": {
