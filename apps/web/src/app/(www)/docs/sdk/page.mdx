@@ -16,7 +16,14 @@ import { SecondLayer } from "@secondlayer/sdk";
 const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY });
 ```
 
-The client reads `SECONDLAYER_API_URL` for the host. Leave `apiKey` out and the key follows the host: on `api.secondlayer.tools` the client reads `SECONDLAYER_API_KEY`; anywhere else, `INSTANCE_TOKEN` ([Self-host](/docs/self-host#use-these-docs-on-your-box)). `accountKey` is for archive operations only. See [Keys and billing](/docs/authentication).
+The client reads `SECONDLAYER_API_URL` for the host. Leave `apiKey` out and the key follows the host:
+
+| Host | Key read |
+| --- | --- |
+| `api.secondlayer.tools` | `SECONDLAYER_API_KEY` |
+| anywhere else | `INSTANCE_TOKEN` ([Self-host](/docs/self-host#use-these-docs-on-your-box)) |
+
+`accountKey` is for archive operations only. See [Keys and billing](/docs/authentication).
 
 ### One client, every surface
 
@@ -49,17 +56,26 @@ Each surface documents its own calls:
 | Let a sink own the transaction | `kyselySink`, `drizzleSink`, `bunSqliteSink` | [Sinks](/docs/sinks) |
 | Describe one event for every surface | `on.ftMint(...)`, `.toIndexParams()` | [Filters](#filters) |
 
-A failed call throws `ApiError`. `ApiError.requestId` is the `request_id` to quote when you [report a problem](tip "POST the request_id to /v1/feedback with one line on what you were trying to do.").
+- A failed call throws `ApiError`.
+- `ApiError.requestId` is the `request_id` to quote when you [report a problem](tip "POST the request_id to /v1/feedback with one line on what you were trying to do.").
 
 <Callout type="warning" title="trigger.* is not on.*">
 
-`trigger.*` (from `@secondlayer/sdk`) configures chain webhooks. `on.*` (from `@secondlayer/stacks`) configures subgraph sources in a handler config. They configure different things. `@secondlayer/stacks` is the typed chain client, documented at [stacks.secondlayer.tools](https://stacks.secondlayer.tools).
+- `trigger.*` (from `@secondlayer/sdk`) configures chain webhooks.
+- `on.*` (from `@secondlayer/stacks`) configures subgraph sources in a handler config.
+- `@secondlayer/stacks` is the typed chain client, documented at [stacks.secondlayer.tools](https://stacks.secondlayer.tools).
 
 </Callout>
 
 ### Checkpointed consumer
 
-`consume` polls and commits a cursor so you never miss or double-process. Return the committed cursor from `onBatch`. Available on `sl.streams.events`, `sl.index.events` (takes `eventType`), and `sl.index.contractCalls`.
+`consume` polls and commits a cursor so you never miss or double-process. Return the committed cursor from `onBatch`.
+
+Available on:
+
+- `sl.streams.events`
+- `sl.index.events` (takes `eventType`)
+- `sl.index.contractCalls`
 
 ```ts consumer.ts
 await sl.index.contractCalls.consume({
@@ -80,11 +96,17 @@ await sl.index.contractCalls.consume({
 });
 ```
 
-Reorgs rewind the cursor to the fork point and fire `onReorg`. Fold running balances in a sink's `onRollback`, not there: [Sinks](/docs/sinks#rollback-is-height-stamped). `finalizedOnly` holds delivery to rows at or below `tip.finalized_height`, and `fromHeight: 0` backfills as far as your instance holds ([archive restore](tip "History older than your instance holds, fetched from the signed archive with prepaid credits.") is metered past that). Full options and the batch envelope: [Index](/docs/index#build-your-index-on-it).
+- Reorgs rewind the cursor to the fork point and fire `onReorg`.
+- Fold running balances in a sink's `onRollback`, not there: [Sinks](/docs/sinks#rollback-is-height-stamped).
+- `finalizedOnly` holds delivery to rows at or below `tip.finalized_height`.
+- `fromHeight: 0` backfills as far as your instance holds ([archive restore](tip "History older than your instance holds, fetched from the signed archive with prepaid credits.") is metered past that).
+- Full options and the batch envelope: [Index](/docs/index#build-your-index-on-it).
 
 ### Verifying responses
 
-`createStreamsClient({ apiKey })` verifies both REST reads (`X-Signature`) and SSE frames. The key is fetched once from `/public/streams/signing-key`; a rotated `X-Signature-KeyId` triggers a single refresh. Blocks, transactions, and subgraph rows: [Verify](/docs/verification).
+- `createStreamsClient({ apiKey })` verifies both REST reads (`X-Signature`) and SSE frames.
+- The key is fetched once from `/public/streams/signing-key`; a rotated `X-Signature-KeyId` triggers a single refresh.
+- Blocks, transactions, and subgraph rows: [Verify](/docs/verification).
 
 | `verify` | Behavior |
 | --- | --- |
@@ -95,7 +117,9 @@ Reorgs rewind the cursor to the fork point and fire `onReorg`. Fold running bala
 
 <Callout type="note" title="verify lives on createStreamsClient">
 
-`new SecondLayer()` does not accept `verify`; use `createStreamsClient` when you need it.
+`new SecondLayer()` does not accept `verify`.
+
+Use `createStreamsClient` when you need it.
 
 </Callout>
 
@@ -147,7 +171,9 @@ on.ftTransfer({ assetIdentifier: "SP…token::token" }); // ok
 
 #### Subgraph sources
 
-`toSubgraphSource()` and `fromSubgraphSource()` round-trip without losing the `abi` literal that keeps `event.input` typed in a handler.
+`toSubgraphSource()` and `fromSubgraphSource()` round-trip a source.
+
+The `abi` literal survives, so `event.input` stays typed in a handler.
 
 ```ts
 import { fromSubgraphSource } from "@secondlayer/stacks/filters";
