@@ -281,6 +281,18 @@ outside guides, more than two prose tips under one `##`, prose tip words that br
 rules above, any tip under `/p/*` or `/verify`, and more than 33 automatic tips across the
 guides. A callout counts toward its section's 120-word lead. Most blocks stay plain: annotate only when the paragraph points at a token or line.
 
+**Prose rule (scan, don't read).** Model page: `/docs/subgraphs`.
+
+| Rule | Limit |
+|---|---|
+| Sentences per paragraph | 3 |
+| Inline code spans per paragraph | 2 |
+| Parallel values | a table |
+| Caveats | a list |
+| Reference detail | linked, not narrated |
+
+`!callout` only on a product page's hero figure; install and CLI commands are bare blocks; elsewhere prose with focus/hover links. `docs/prose-budget.test.ts` fails on any new paragraph past the limits and on any allowlisted paragraph that no longer breaks them: the allowlist only shrinks (`PROSE_BUDGET_WRITE=1` regenerates it after a rewrite).
+
 **Which format when.**
 
 | Pattern | When | Treatment |
