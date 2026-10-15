@@ -4,7 +4,7 @@ The same product on your Postgres: one container, no cluster, no queue. Bring yo
 
 ## What you need
 
-A box with Docker, 4 GB RAM, and the CLI (`bun add -g @secondlayer/cli`). Mainnet full history needs a 600 GB SSD; see [Hardware](#hardware).
+A box with Docker, 4 GB RAM, and the CLI (`bun add -g @secondlayer/cli`). Mainnet full history needs a 600 GB SSD; see [Hardware](#hardware). [Runes](#runes) adds a Bitcoin node.
 
 ## Start it
 
@@ -68,6 +68,7 @@ Ready for real traffic: your node, a pinned version, backups, upgrades. Starting
 | --- | --- |
 | default | `postgres` + `secondlayer` (API, ingest, decoder, subgraph, webhooks) |
 | `full-node` | + bundled Stacks node and bitcoind |
+| `bitcoin` | + `runes`, the [Runes](#runes) indexer |
 
 Set them in `.env` so every `docker compose` command picks them up:
 
@@ -205,6 +206,40 @@ A subgraph handler is code you deploy into the instance, so it runs with the ins
 
 Support is community: [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer).
 
+## Runes
+
+Index every rune etch, mint, transfer and burn since block 840,000 on your own box, read through the same [Runes](/docs/index#runes) routes as hosted. Add these lines to `.env`, pointing at a Bitcoin node with `txindex=1`:
+
+```bash .env
+COMPOSE_PROFILES=bitcoin
+BITCOIN_RPC_URL=http://10.0.0.6:8332
+BITCOIN_RPC_USER=bitcoin
+BITCOIN_RPC_PASSWORD=…
+```
+
+```bash
+docker compose pull
+docker compose up -d
+curl "http://127.0.0.1:3800/v1/index/runes/doggotothemoon"
+```
+
+The first sync reads every block from 840,000 and takes about half a day. `tip.block_height` in each response shows how far it has read. The tradeoff: Runes has no archive yet, so a new box rebuilds from your node instead of downloading, and `secondlayer verify` covers Stacks only.
+
+### Bitcoin node
+
+| Node | `.env` | Notes |
+| --- | --- | --- |
+| Yours | `BITCOIN_RPC_URL`, `BITCOIN_RPC_USER`, `BITCOIN_RPC_PASSWORD` | Needs `txindex=1`, so not pruned |
+| Bundled | `COMPOSE_PROFILES=full-node,bitcoin`, no `BITCOIN_RPC_URL` | Also runs the Stacks node; bitcoind syncs first, which takes days |
+
+### Runes only
+
+No Stacks node? Skip [Fill it with history](#fill-it-with-history) and connect nothing. The Stacks side still runs and stays empty; only `runes` reads a chain.
+
+### Upgrades with Runes
+
+A schema migration on a full Runes database can run for hours on upgrade. The Runes tip holds still until it finishes; that is expected, not a hang.
+
 ## Hardware
 
 What a self-hosted box needs, so you size it before the sync starts rather than after.
@@ -221,6 +256,17 @@ Mainnet full history is large: the reference index measures ~500 GB, of which ~2
 ### Postgres
 
 Postgres `max_connections` ≥ 50. Compose sets the Postgres cache to 1 GB (`POSTGRES_SHARED_BUFFERS`). For a full-chain sync, give it about 25% of RAM: at the stock 128 MB, inserts wait on index reads from disk and the sync runs slower. The bundled-node figure is dominated by the chain itself: Stacks chainstate alone measures 1.3 TB, and bitcoind is additional.
+
+### With Runes
+
+[Runes](#runes) adds to the rows above:
+
+| Bitcoin node | RAM | Disk |
+| --- | --- | --- |
+| Yours, elsewhere | +22 GB | +100 GB |
+| bitcoind on the same box | +22 GB | +1.1 TB |
+
+`runes` keeps Runes state in memory: 7 to 12 GB while following the tip, up to 17 GB during the first sync, capped at 22 GB.
 
 ### Floors enforced at start
 
@@ -315,6 +361,7 @@ export const agent = `
 - Genesis sync needs a Stacks node that is itself syncing from genesis (an already-synced node only sends new blocks). Start with TIP_FOLLOWER_ENABLED=false, track 'curl http://localhost:3700/health | jq .block_height' against the chain tip, re-enable the tip follower, run 'secondlayer verify all --against <manifest>', then deploy with SECONDLAYER_API_URL=http://127.0.0.1:3800.
 - Backup: 'secondlayer backup --out ./backups/$(date +%F)' with --passphrase or SECONDLAYER_BACKUP_PASSPHRASE. The bundle carries INSTANCE_TOKEN, SECONDLAYER_SECRETS_KEY and STREAMS_SIGNING_PRIVATE_KEY, so store it apart from Postgres backups. Restore: 'secondlayer restore --from <dir>' is a dry run; --apply writes; confirm with 'secondlayer verify all --against <manifest>'.
 - Upgrade X to Y: identify X with 'curl -s $SECONDLAYER_API_URL/health', 'docker compose images', 'secondlayer --version'. Ask for Y (a git commit). Read changelog entries dated after X. Keep postgres_data, subgraphs_data and .env (a new SECONDLAYER_SECRETS_KEY makes existing whsec_ secrets unreadable). 'git checkout <Y>', set SECONDLAYER_VERSION=<Y> in .env, 'docker compose pull', 'docker compose up -d --remove-orphans'. Confirm /health and verify all. Rollback pins X; the schema stays migrated, so only the image rolls back.
+- Runes: add COMPOSE_PROFILES=bitcoin and BITCOIN_RPC_URL/USER/PASSWORD (node with txindex=1) to .env, then 'docker compose up -d'. Bundled bitcoind: COMPOSE_PROFILES=full-node,bitcoin with BITCOIN_RPC_URL unset. First sync starts at block 840,000 and takes about half a day; tip.block_height on any /v1/index/runes response is the indexed height (0 = not started). Runes has no archive: 'secondlayer verify' and 'repair' do not cover it. Size: +22 GB RAM, +100 GB disk, plus about 1 TB if bitcoind runs on the same box.
 - Never 'docker compose down -v'. Never 'secondlayer init --force' on a running instance (new secrets key).
 - Floors: app services with an external node need 4 GB RAM and a 600 GB SSD on mainnet (80 GB on testnet and devnet). A bundled node needs 96 GB RAM and 2.5 TB; 128 GB and 3 TB NVMe recommended.
 - Postgres max_connections must be at least 50. Set POSTGRES_SHARED_BUFFERS to about 25% of RAM for a full-chain sync.
@@ -324,5 +371,5 @@ export const agent = `
 export const metadata = {
 	title: "Self-host — Secondlayer Docs",
 	description:
-		"Run Secondlayer on your own box with Docker Compose: start it, fill it with history, connect your node, size the hardware, upgrade.",
+		"Run Secondlayer on your own box with Docker Compose: start it, fill it with history, connect your node, index Runes, size the hardware, upgrade.",
 };

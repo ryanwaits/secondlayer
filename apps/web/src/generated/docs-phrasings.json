@@ -1205,6 +1205,17 @@
       "how to export keys securely"
     ]
   },
+  "/docs/self-host#bitcoin-node": {
+    "hash": "dc47ac0b5105eda9",
+    "phrasings": [
+      "connect secondlayer to my bitcoin core node",
+      "bitcoind rpc setup for self hosted indexer",
+      "do i need a full bitcoin node to self host",
+      "bitcoin node configuration for secondlayer",
+      "run own bitcoin core alongside indexer",
+      "bitcoin node txindex requirement for indexing"
+    ]
+  },
   "/docs/self-host#config": {
     "hash": "ea60a74b70d1a76c",
     "phrasings": [
@@ -1318,6 +1329,28 @@
       "enable optional services docker compose profile"
     ]
   },
+  "/docs/self-host#runes": {
+    "hash": "15b3641e8c977836",
+    "phrasings": [
+      "index rune etch mint transfer burn events yourself",
+      "self host rune indexer from block 840000",
+      "run runes api locally same routes as hosted",
+      "runes history since block 840000 self hosted",
+      "how to track rune mints and burns on own server",
+      "local runes indexer same endpoints as cloud"
+    ]
+  },
+  "/docs/self-host#runes-only": {
+    "hash": "752f0804fde23851",
+    "phrasings": [
+      "self host runes without stacks node",
+      "skip stacks node runes indexing only",
+      "run secondlayer without connecting any chain node",
+      "runes only mode no stacks history",
+      "how to fill runes history without connecting nodes",
+      "minimal self host setup runes only"
+    ]
+  },
   "/docs/self-host#running-other-teams-subgraphs": {
     "hash": "f0163a5e03cf0dd7",
     "phrasings": [
@@ -1377,6 +1410,17 @@
       "update secondlayer docker image"
     ]
   },
+  "/docs/self-host#upgrades-with-runes": {
+    "hash": "5f21834af326eb66",
+    "phrasings": [
+      "upgrade secondlayer runes database migration takes hours",
+      "schema migration slow on full runes database",
+      "how long does runes database upgrade take",
+      "secondlayer upgrade stuck on migration",
+      "safe upgrade process for runes self host",
+      "runes migration downtime during upgrade"
+    ]
+  },
   "/docs/self-host#use-these-docs-on-your-box": {
     "hash": "e5f49bc8755d60d6",
     "phrasings": [
@@ -1412,16 +1456,26 @@
     ]
   },
   "/docs/self-host#what-you-need": {
-    "hash": "14baca71a6ff8376",
+    "hash": "5f4963439397d80a",
     "phrasings": [
-      "minimum ram for self hosting",
-      "does self host need docker installed",
-      "how much memory to run secondlayer",
-      "what hardware do i need to self host",
-      "install secondlayer cli with bun",
-      "self host requirements 4gb server",
-      "can i run it on a small vps",
-      "bun add global cli install error"
+      "what hardware do i need to self host secondlayer",
+      "docker and 4gb ram requirements for self hosting",
+      "minimum server specs for running secondlayer locally",
+      "install secondlayer cli globally with bun",
+      "can i self host on a small vps",
+      "how much ram for secondlayer docker setup",
+      "secondlayer prerequisites before installing"
+    ]
+  },
+  "/docs/self-host#with-runes": {
+    "hash": "c4de7eb6314a72a1",
+    "phrasings": [
+      "add runes tables alongside existing self host data",
+      "enable runes on existing secondlayer self host",
+      "what changes when runes is enabled self hosted",
+      "runes rows added to standard self host schema",
+      "secondlayer runes extension additional tables",
+      "turn on runes indexing in existing install"
     ]
   },
   "/docs/sinks": {

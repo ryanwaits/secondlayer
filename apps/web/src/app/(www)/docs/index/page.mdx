@@ -314,11 +314,7 @@ Settlement is verified against your instance's bitcoind, not a custody guarantee
 
 A catalog of etched runes, a per-rune activity log, and balances, on a Bitcoin tip instead of a Stacks one. A rune's id is `<block>:<transaction index>` of its etch (`840000:3`). Its name is a unique A-Z string; spacers (`•`) are display only, so `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` are one rune. Every `rune` field takes a `RuneRef`: an id or a name in any of those forms.
 
-<Callout type="note" title="Self-host today, hosted follows">
-
-Self-host with the `bitcoin` compose profile has Runes data now. Hosted answers `notes: "Runes data is not configured on this instance"` until it lands there.
-
-</Callout>
+Hosted serves it now. To index Runes on your own box, see [Self-host](/docs/self-host#runes).
 
 | Read | Route | SDK |
 | --- | --- | --- |
