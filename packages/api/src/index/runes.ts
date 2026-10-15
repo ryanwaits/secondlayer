@@ -55,6 +55,15 @@ import {
 const RUNES_NOT_CONFIGURED_NOTE =
 	"Runes data is not configured on this instance (BITCOIN_DATABASE_URL).";
 
+/** Runes has data to serve: the env var is set and the follower has
+ *  checkpointed. A zero tip also covers a `bitcoin` database that exists but
+ *  was never migrated (the oss compose always sets `BITCOIN_DATABASE_URL`,
+ *  with or without the `bitcoin` profile): `getBitcoinTip` reads that as
+ *  empty, so the readers below never query a missing table. */
+function hasRunesData(tip: BitcoinIndexTip): boolean {
+	return isBitcoinConfigured() && tip.block_height > 0;
+}
+
 /** Bitcoin blocks per day at the ~10 minute target cadence. Deliberately its
  *  own constant, not `../streams/tiers.ts`'s `STREAMS_BLOCKS_PER_DAY`
  *  (17,280) — that one is tuned to Stacks' ~5s post-Nakamoto block time, and
@@ -421,7 +430,7 @@ export async function getRunesResponse(opts: {
 		cursorRaw !== undefined ? parseRunesListCursor(cursorRaw, sort) : undefined;
 	const limit = parseLimit(opts.query.get("limit") ?? undefined);
 
-	const configured = opts.configured ?? isBitcoinConfigured();
+	const configured = opts.configured ?? hasRunesData(opts.tip);
 	if (!configured) {
 		return {
 			runes: [],
@@ -456,7 +465,7 @@ export async function getRuneResponse(opts: {
 	readRune?: RuneReader;
 	configured?: boolean;
 }): Promise<GetRuneResult> {
-	const configured = opts.configured ?? isBitcoinConfigured();
+	const configured = opts.configured ?? hasRunesData(opts.tip);
 	if (!configured) {
 		return { found: false, notes: RUNES_NOT_CONFIGURED_NOTE };
 	}
@@ -754,7 +763,7 @@ export async function getRuneActivityResponse(opts: {
 	);
 	const txid = parseFilter(opts.query.get("txid") ?? undefined, "txid");
 
-	const configured = opts.configured ?? isBitcoinConfigured();
+	const configured = opts.configured ?? hasRunesData(opts.tip);
 	if (!configured) {
 		return {
 			events: [],
@@ -989,7 +998,7 @@ export async function getRuneBalancesResponse(opts: {
 		cursorRaw !== undefined ? parseRuneBalanceCursor(cursorRaw) : undefined;
 	const limit = parseLimit(opts.query.get("limit") ?? undefined);
 
-	const configured = opts.configured ?? isBitcoinConfigured();
+	const configured = opts.configured ?? hasRunesData(opts.tip);
 	if (!configured) {
 		return {
 			balances: [],

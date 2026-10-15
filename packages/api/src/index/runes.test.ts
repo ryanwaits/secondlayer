@@ -101,6 +101,26 @@ describe("getRunesResponse (stubbed reader)", () => {
 			getRunesResponse({ query: query({ sort: "bogus" }), tip: TIP }),
 		).rejects.toThrow(ValidationError);
 	});
+	test("a set BITCOIN_DATABASE_URL with no checkpoint yet answers the note without reading", async () => {
+		// The oss compose sets BITCOIN_DATABASE_URL even without the `bitcoin`
+		// profile, so the database can exist with no Runes tables in it.
+		const previous = process.env.BITCOIN_DATABASE_URL;
+		process.env.BITCOIN_DATABASE_URL = "postgres://unused/bitcoin";
+		try {
+			const res = await getRunesResponse({
+				query: query(),
+				tip: { block_height: 0, finalized_height: 0, lag_seconds: 0 },
+				readRunes: async () => {
+					throw new Error('relation "rune_entries" does not exist');
+				},
+			});
+			expect(res.runes).toEqual([]);
+			expect(res.notes).toMatch(/not configured/);
+		} finally {
+			if (previous === undefined) delete process.env.BITCOIN_DATABASE_URL;
+			else process.env.BITCOIN_DATABASE_URL = previous;
+		}
+	});
 });
 
 describe("getRuneResponse (stubbed reader)", () => {
