@@ -37,6 +37,7 @@ export { LayerStack, type Layer } from "./layer-stack";
 export { TreeWalk, type TreeEdge, type TreeNode } from "./tree-walk";
 export { BeforeAfter, type BaMarker, type BaState } from "./before-after";
 export { StateRow, type RowState } from "./state-row";
+export { Roadmap, type RoadmapStop } from "./roadmap";
 
 // C — charts
 export { LineChart, type LineSeries } from "./line-chart";

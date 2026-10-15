@@ -49,6 +49,10 @@ Code, payloads and diffs are not figures: write them as `<Code>` blocks with ann
 | D2 | `<ScenarioToggle>` | two named worlds to compare | segmented buttons drive any child figure's state |
 | D3 | `<StepThrough>` | an algorithm's phases | prev/next steps a diagram; step captions; keyboard arrows |
 
+**Budget per post** (rules in `app/(www)/writing/AGENTS.md`): at most 3
+figures, one per `##`, one explorer. A figure never repeats what the text or
+code says: facts about code go on the code as `!callout`s.
+
 ## Expansion scope (round 2)
 
 ### A — text-first additions
@@ -69,6 +73,7 @@ Code, payloads and diffs are not figures: write them as `<Code>` blocks with ann
 | B8 | `<TreeWalk>` | index/B-tree lookups, ancestry | click a key → path to it highlights (the "log-time seek" figure) |
 | B9 | `<BeforeAfter>` | two states of the same diagram | segmented toggle or drag divider; shared geometry, only deltas move |
 | B10 | `<StateRow>` | linear status progressions (pending → confirmed → finalized) | click advances; house badge colors; keyboard arrows |
+| B11 | `<Roadmap>` | phases toward a goal (direction, not dates) | static; ink = shipped, yellow = next, outline = later; vertical under 640px |
 
 ### C — chart additions
 
