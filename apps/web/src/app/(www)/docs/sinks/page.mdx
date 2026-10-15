@@ -43,8 +43,9 @@ the sink owns the cursor.
 <Callout type="warning" title="A sink without reorg handling would be a no-op">
 
 A sink makes rollback unconditional: omitting `onReorg` no longer skips reorgs.
-`onReorg` still runs after the sink transaction commits. Fold current-state
-(balances) in the sink's `onRollback`, not there.
+
+- `onReorg` still runs after the sink transaction commits.
+- Fold current-state (balances) in the sink's `onRollback`, not there.
 
 </Callout>
 
@@ -77,15 +78,19 @@ your data:
 ```
 
 [Miss the shared transaction](focus:txn) and you double-count on restart. [Use `>` instead of
-`>=`](focus:fork) and one block of orphaned rows survives the fork. Skip `onReorg` and
-nothing errors; you keep rows from a chain that no longer exists.
+`>=`](focus:fork) and one block of orphaned rows survives the fork.
+
+Skip `onReorg` and nothing errors; you keep rows from a chain that no longer exists.
 
 ### Keyed on the query builder, not the driver
 
-`kyselySink(db, …)` takes a [Kysely](https://kysely.dev) instance because a bare
-`pg.Pool` carries no schema type: `tables` would go unchecked and `ctx.tx`
-would be `any` exactly where correctness matters. `drizzleSink` does the same
-with your schema objects.
+`kyselySink(db, …)` takes a [Kysely](https://kysely.dev) instance, not a driver.
+`drizzleSink` does the same with your schema objects.
+
+A bare `pg.Pool` carries no schema type, which would mean:
+
+- `tables` goes unchecked.
+- `ctx.tx` is `any`, exactly where correctness matters.
 
 kysely and drizzle-orm are optional peer dependencies; the root entry stays
 dependency-free.
@@ -96,10 +101,13 @@ v1 deletes `height >= fork_point_height` from every declared table. That is
 correct for one-row-per-event tables, which is why `height` is required.
 
 A running balance is a fold of those rows, not a row to delete. Keep it off
-`tables` and invert (or recompute) in `onRollback`, same transaction, while
-the doomed facts are still visible. Remaining facts are `height < fork`.
-Throwing aborts the rewind. A [subgraph](/docs/subgraphs) still owns this
-if you do not want to keep the events.
+`tables` and invert (or recompute) it in `onRollback`.
+
+- It runs in the same transaction, while the doomed facts are still visible.
+- Remaining facts are `height < fork`.
+- Throwing aborts the rewind.
+
+A [subgraph](/docs/subgraphs) still owns this if you do not want to keep the events.
 
 ```ts sink.ts
 import { sql } from "kysely";
@@ -155,8 +163,12 @@ await sl.streams.events.consume({
 });
 ```
 
-`consumerHealth` returns a `record` to feed from `onProgress` and a `handler`
-you mount yourself; the SDK never starts a server for you.
+`consumerHealth` returns two members; the SDK never starts a server for you.
+
+| Member | Use |
+| --- | --- |
+| `record` | Feed it from `onProgress` |
+| `handler` | Mount it yourself |
 
 ### Write your own sink
 
@@ -238,7 +250,9 @@ export function postgresJsSink(
 
 `createSink` also takes `onRollback`: same transaction, before the delete. Fold pattern: [Rollback is height-stamped](#rollback-is-height-stamped).
 
-Identifiers arrive pre-validated (`[A-Za-z_][A-Za-z0-9_]*`), safe to interpolate after `quoteIdent`. Values stay bound parameters. `acquireLock` is the optional seventh method: throw when another writer holds your id.
+- Identifiers arrive pre-validated (`[A-Za-z_][A-Za-z0-9_]*`), safe to interpolate after `quoteIdent`.
+- Values stay bound parameters.
+- `acquireLock` is the optional seventh method: throw when another writer holds your id.
 
 #### Prove it
 
@@ -268,7 +282,9 @@ attachSinkConformance(test, {
 });
 ```
 
-One probe per test; the `test` argument accepts bun:test, vitest, or jest. Every shipped sink passes this exact kit in CI. `insertRow` must be replay-safe, so upsert keyed on `key`.
+- One probe per test; the `test` argument accepts bun:test, vitest, or jest.
+- Every shipped sink passes this exact kit in CI.
+- `insertRow` must be replay-safe, so upsert keyed on `key`.
 
 #### Append-only stores
 
