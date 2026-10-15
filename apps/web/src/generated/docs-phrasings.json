@@ -303,13 +303,15 @@
     ]
   },
   "/docs/authentication#archive-credits": {
-    "hash": "6bf2dda13f85e79d",
+    "hash": "ac4874c98b7bc2b9",
     "phrasings": [
-      "stacks archive backfill credit cost",
-      "reindex cost signed public archive",
-      "how many credits bootstrap stacks data",
-      "is stacks archive verification free",
-      "partition bundle fetch credits charge"
+      "how many credits does archive backfill use",
+      "archive bootstrap credit cost",
+      "reindex consumes credits per bundle",
+      "why did my credits drop during backfill",
+      "credits charged for archive bundles",
+      "signed archive draw credits per partition",
+      "bootstrap backfill reindex billing"
     ]
   },
   "/docs/authentication#balance-alerts": {
@@ -346,13 +348,15 @@
     ]
   },
   "/docs/authentication#read-with-it": {
-    "hash": "2920f0c251ff7286",
+    "hash": "8b5cc919e7990a68",
     "phrasings": [
-      "example request with api key",
-      "curl mainnet live page",
-      "test api key with mainnet request",
-      "sample live data request stacks",
-      "first api call mainnet example"
+      "api key mainnet example request",
+      "how to call mainnet with api key",
+      "live mainnet page example",
+      "where to find live mainnet data",
+      "example request against mainnet endpoint",
+      "how do i query mainnet with key",
+      "api key usage on live network"
     ]
   },
   "/docs/authentication#set-it": {
@@ -377,15 +381,15 @@
     ]
   },
   "/docs/authentication#webhook-signing-secrets": {
-    "hash": "47efd0b17ab0c56b",
+    "hash": "adfa2750c640a544",
     "phrasings": [
-      "what is a webhook signing secret",
-      "whsec secret verify webhook came from my instance",
-      "verifywebhooksignature not working",
-      "how to verify webhook signature",
-      "webhook signature verification failing",
-      "where to find webhook secret key",
-      "per webhook signing secret explained"
+      "whsec signing secret per webhook",
+      "where to find webhook secret",
+      "verify webhook signature with whsec",
+      "webhook secret rotation per endpoint",
+      "invalid webhook signature whsec error",
+      "is webhook signing secret shared",
+      "rotate webhook signing secret"
     ]
   },
   "/docs/authentication#what-it-costs": {
@@ -435,13 +439,15 @@
     ]
   },
   "/docs/cli#command-map": {
-    "hash": "1d6f2a4abbdbd2fa",
+    "hash": "23d44a27f28753da",
     "phrasings": [
-      "list of secondlayer commands",
-      "which secondlayer command manages subgraphs",
-      "secondlayer commands and their docs pages",
-      "find the right command for a task",
-      "secondlayer cli help all subcommands"
+      "list all secondlayer cli commands",
+      "secondlayer cli commands reference",
+      "which secondlayer command does what",
+      "secondlayer command not found",
+      "secondlayer cli help top level commands",
+      "where are docs for each cli command",
+      "secondlayer cli overview of subcommands"
     ]
   },
   "/docs/cli#connect": {
@@ -467,14 +473,15 @@
     ]
   },
   "/docs/cli#generate-typed-contract-clients": {
-    "hash": "923c07765032ea7d",
+    "hash": "53ff4f18be655cba",
     "phrasings": [
-      "generate typescript types from clarity contract",
-      "typed client from clarinet project",
+      "clarity to typescript types generator",
+      "generate typescript client from clarity contract",
+      "typed contract client from clarinet project",
       "convert clar files to typescript",
-      "generate contract client from deployed contract",
-      "clarity to typescript codegen",
-      "typed bindings for stacks contracts"
+      "generate typed client for deployed contract",
+      "clarinet project typescript bindings",
+      "secondlayer codegen for clarity contracts"
     ]
   },
   "/docs/cli#install": {
@@ -500,26 +507,27 @@
     ]
   },
   "/docs/cli#local-runtime": {
-    "hash": "1fbdd1b7bffc6616",
+    "hash": "5be61fe0d1647047",
     "phrasings": [
-      "cli local runtime setup",
-      "generate and write keys locally with cli",
-      "restore history in local runtime",
-      "print observer config stanza",
-      "local node observer configuration cli",
-      "cli command to write keys to disk",
-      "how to start local runtime from cli",
-      "observer stanza yaml example"
+      "write secondlayer keys locally",
+      "restore chain history for local dev",
+      "print observer stanza secondlayer",
+      "secondlayer local dev setup keys",
+      "stacks observer config snippet",
+      "secondlayer local runtime restore history",
+      "generate observer config for local node"
     ]
   },
   "/docs/cli#scaffold-from-a-contract": {
-    "hash": "2c938babfd122530",
+    "hash": "7146596da57a8631",
     "phrasings": [
-      "scaffold subgraph from clarity contract",
-      "infer print event payload types from history",
-      "generate starter project from a contract",
-      "print topic payload schema inference",
-      "bootstrap subgraph from smart contract"
+      "generate types from print events secondlayer",
+      "infer print payload schema from history",
+      "secondlayer scaffold contract print topics",
+      "create starter project from clarity contract",
+      "print event payload shape from indexed data",
+      "secondlayer scaffold from deployed contract",
+      "clarity print topic payload types"
     ]
   },
   "/docs/cli#start-the-devnet": {
@@ -1050,14 +1058,15 @@
     ]
   },
   "/docs/sdk#checkpointed-consumer": {
-    "hash": "d3796c06be4f370a",
+    "hash": "c62a7d1746a7bfbf",
     "phrasings": [
-      "consume loop missing events fix",
-      "avoid double processing chain events",
-      "commit cursor after polling events",
-      "how to checkpoint event consumer",
-      "exactly once event processing cursor",
-      "sdk consume polls and saves position"
+      "consume events without missing or duplicating",
+      "commit cursor for event consumer",
+      "exactly once event processing with cursor",
+      "secondlayer consume poll cursor checkpoint",
+      "resume consumer after crash without reprocessing",
+      "avoid double processing blockchain events",
+      "save consumer position between restarts"
     ]
   },
   "/docs/sdk#filters": {
@@ -1073,38 +1082,40 @@
     ]
   },
   "/docs/sdk#install": {
-    "hash": "e0e4d3d837186597",
+    "hash": "b5c2ba534b219e15",
     "phrasings": [
-      "how to install the sdk",
-      "set secondlayer api url environment variable",
-      "sdk client wrong host endpoint",
-      "configure sdk base url",
-      "sdk cannot connect to api host",
-      "install sdk package setup steps",
-      "change api host for client",
-      "secondlayer api url env var"
+      "secondlayer api url environment variable",
+      "sdk default host configuration",
+      "point client at custom api host",
+      "secondlayer sdk base url env",
+      "secondlayer client wrong host connection error",
+      "install secondlayer sdk and set endpoint",
+      "configure sdk api endpoint for self host"
     ]
   },
   "/docs/sdk#one-client-every-surface": {
-    "hash": "ad9627e96e45797d",
+    "hash": "aa7a274ba46ea3cb",
     "phrasings": [
-      "what does sl streams return",
-      "raw ordered chain events sdk",
-      "cursor paginated replayable chain events",
-      "sdk client streams endpoint overview",
-      "how to access all surfaces with one client",
-      "sl streams vs sl index difference"
+      "secondlayer sdk streams raw chain events",
+      "cursor paginated chain events typescript",
+      "replay stacks chain events in order",
+      "sl streams api example",
+      "secondlayer client surfaces overview",
+      "how to fetch ordered chain events",
+      "sdk access to chain event streams"
     ]
   },
   "/docs/sdk#verifying-responses": {
-    "hash": "3d0fb5ef8796ae1c",
+    "hash": "5860fbcd47c8fb1b",
     "phrasings": [
-      "verify x-signature on rest responses",
-      "createstreamsclient apikey verify signature",
-      "validate sse frames signature sdk",
-      "check webhook signature streams api",
-      "how to verify streams response authenticity",
-      "x-signature header verification example"
+      "how to verify x-signature header sdk",
+      "sdk signature verification fails on sse frames",
+      "validate rest responses createstreamsclient",
+      "check webhook signature in streams sdk",
+      "why are my sse events failing verification",
+      "enable response signature checks apikey client",
+      "x-signature mismatch when reading streams",
+      "verify server responses with api key"
     ]
   },
   "/docs/sdk-reference": {
@@ -1254,25 +1265,26 @@
     ]
   },
   "/docs/self-host#archive-trust-root": {
-    "hash": "4aeab8213aab1e67",
+    "hash": "9a1520b8b733d798",
     "phrasings": [
-      "how archive manifest signature verification works",
-      "where is the archive public key stored",
-      "manifest rejected before bootstrap error",
-      "archive manifest signature mismatch error",
-      "set trusted key for archive manifests",
-      "bootstrap refuses archive manifest what to do",
-      "rotate archive signing key trust"
+      "archive manifest signature verification key",
+      "cli rejects archive manifest",
+      "trust root public key secondlayer",
+      "change archive trust key",
+      "manifest signature check failed cli",
+      "how archive manifests get verified"
     ]
   },
   "/docs/self-host#backup": {
-    "hash": "0cdb2c470bf5f485",
+    "hash": "549d7f08d60e270b",
     "phrasings": [
-      "secondlayer backup command bundle",
-      "encrypt backup with passphrase",
-      "back up index and keys",
-      "backup restore passphrase keys",
-      "how to export keys securely"
+      "how to back up secondlayer index",
+      "secondlayer backup encrypted passphrase",
+      "export keys and index from secondlayer",
+      "restore secondlayer from backup file",
+      "secondlayer backup command creates bundle",
+      "encrypt secondlayer keys for backup",
+      "secondlayer backup and restore steps"
     ]
   },
   "/docs/self-host#bitcoin-node": {
@@ -1356,23 +1368,26 @@
     ]
   },
   "/docs/self-host#hardware": {
-    "hash": "710411710fd6eb66",
+    "hash": "3cbc0d03799323b5",
     "phrasings": [
-      "minimum ram disk for self hosting",
-      "how much memory does secondlayer need",
-      "server sizing before initial sync",
-      "disk space requirements for index",
-      "recommended specs self host box"
+      "how much ram does secondlayer need",
+      "secondlayer self host system requirements",
+      "size server before syncing secondlayer",
+      "minimum disk space for self hosted indexer",
+      "secondlayer sync slow out of memory",
+      "cpu and storage needed to self host",
+      "what machine specs for running secondlayer"
     ]
   },
   "/docs/self-host#instance-token": {
-    "hash": "08ded613d1df057c",
+    "hash": "fb06dfd331207caa",
     "phrasings": [
-      "where is secondlayer instance token stored",
-      "secondlayer instance token env local",
-      "instance token missing error secondlayer",
-      "generate secondlayer api token with init",
-      "what is the secondlayer instance token for"
+      "lost instance token self host",
+      "where is instance token stored",
+      "instance token in env local file",
+      "unauthorized error self hosted instance",
+      "reset instance token secondlayer",
+      "what does instance token protect"
     ]
   },
   "/docs/self-host#not-in-the-box": {
@@ -1388,23 +1403,26 @@
     ]
   },
   "/docs/self-host#pin-a-version": {
-    "hash": "a6a7e8172e3eae25",
+    "hash": "a78cac8b624917cf",
     "phrasings": [
-      "docker compose up latest tag pin version",
-      "pin secondlayer image version docker",
-      "why does docker compose pull new version",
-      "lock secondlayer docker image tag",
-      "stop auto upgrading docker compose latest"
+      "pin secondlayer docker image version",
+      "docker compose latest tag avoid",
+      "lock self host version tag",
+      "upgrade docker compose to specific version",
+      "docker compose up pulls latest image",
+      "stop auto updating self host image"
     ]
   },
   "/docs/self-host#postgres": {
-    "hash": "33c61aa2d92d3893",
+    "hash": "7b1a77d393bce4aa",
     "phrasings": [
-      "postgres max connections setting",
-      "postgres shared buffers compose config",
-      "postgres connection limit too low error",
-      "compose postgres cache size 1gb",
-      "configure postgres for secondlayer"
+      "postgres max connections setting for secondlayer",
+      "secondlayer too many connections error",
+      "postgresql connection pool size self host",
+      "fatal sorry too many clients already postgres",
+      "secondlayer database connection limit",
+      "max connections postgres minimum value",
+      "postgres config for secondlayer indexer"
     ]
   },
   "/docs/self-host#production": {
@@ -1418,13 +1436,14 @@
     ]
   },
   "/docs/self-host#profiles": {
-    "hash": "8b5eb61bb0e84104",
+    "hash": "2ff7c782ea89540b",
     "phrasings": [
       "docker compose profiles env setting",
       "set compose profile in env file",
-      "which secondlayer compose profiles to enable",
-      "docker compose ignoring my profile",
-      "enable optional services docker compose profile"
+      "docker compose ignores my env settings",
+      "env file for docker compose profiles",
+      "enable profile with docker compose self host",
+      "compose command not picking up env"
     ]
   },
   "/docs/self-host#runes": {
@@ -1450,28 +1469,26 @@
     ]
   },
   "/docs/self-host#running-other-teams-subgraphs": {
-    "hash": "f0163a5e03cf0dd7",
+    "hash": "5e72824275642c63",
     "phrasings": [
-      "is it safe to run other subgraph code",
-      "subgraph handler runs with instance privileges",
-      "deploy third party subgraph into my instance",
-      "sandbox untrusted subgraph handlers self host",
-      "security risk of external subgraph code",
-      "review subgraph code before deploying",
-      "subgraph code permissions on self hosted instance"
+      "deploy third party subgraph security risk",
+      "run subgraph handler from another team",
+      "subgraph code trust instance permissions",
+      "is untrusted subgraph code safe",
+      "sandbox third party subgraph handlers",
+      "deploy external subgraph into my instance"
     ]
   },
   "/docs/self-host#start": {
-    "hash": "4b73bed5d66e17ba",
+    "hash": "6e22f5dfb97f1823",
     "phrasings": [
-      "how to start self host with compose",
-      "init generates instance token and signing keys",
-      "where do signing keys come from self host",
-      "append keys to env file compose",
-      "self host first boot steps",
-      "compose reads env file which values",
-      "self host init command output",
-      "start self host instance from scratch"
+      "how to start self hosting",
+      "self host init command",
+      "generate instance token and signing keys",
+      "init creates signing keys self host",
+      "first steps running secondlayer locally",
+      "self host setup init step",
+      "what does init do first"
     ]
   },
   "/docs/self-host#start-it": {
@@ -1530,13 +1547,15 @@
     ]
   },
   "/docs/self-host#use-these-docs-on-your-box": {
-    "hash": "e5f49bc8755d60d6",
+    "hash": "d15454851dcf6859",
     "phrasings": [
-      "set secondlayer api url environment variable",
+      "set secondlayer api url for examples",
+      "doc examples pointing at localhost",
       "secondlayer api key header example",
-      "examples reading secondlayer api url env",
-      "point doc examples at local instance",
-      "secondlayer api url not set error"
+      "env var for api url self host",
+      "run docs examples against my instance",
+      "why do doc examples fail on my server",
+      "api url variable for self hosted examples"
     ]
   },
   "/docs/self-host#verify-and-repair": {
