@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 const LEDE =
-	"Long-form, mechanism-first posts on indexers, consumers, and the systems underneath: how they work and what to expect from them.";
+	"Short posts on how we index Stacks and Bitcoin, and how to check our work.";
 
 export const metadata: Metadata = {
 	...socialMeta({
@@ -29,7 +29,7 @@ export default function WritingIndexPage() {
 				<div className="writing-index-head">
 					<Eyebrow noun="Blog" />
 					<h1>
-						How it works, <Highlight>in writing.</Highlight>
+						Notes from <Highlight>the index.</Highlight>
 					</h1>
 					<p className="lede">{LEDE}</p>
 				</div>

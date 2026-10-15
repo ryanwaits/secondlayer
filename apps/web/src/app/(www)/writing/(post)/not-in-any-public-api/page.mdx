@@ -1,0 +1,131 @@
+import { PostHeader } from "@/components/writing/post-header";
+import { PostFooter } from "@/components/writing/post-footer";
+import { FigShell, Matrix, Sidenote } from "@/components/figures";
+import { ChainLink } from "@/components/site/chain-link";
+import { postMeta } from "@/lib/writing";
+
+export const metadata = postMeta("not-in-any-public-api");
+
+<PostHeader slug="not-in-any-public-api" />
+
+A few weeks into a <ChainLink chain="stacks" href="/p/index">Stacks</ChainLink> app, you need the screen that shows users their own history: deposits, position over time, share of the pool.
+
+The public API has transfers, blocks and balances. It doesn't have your pool's positions, because nobody else knows your contract exists.
+
+## Public APIs index what's general
+
+A public API serves what every app on the chain has in common, and that's genuinely useful until your question gets specific. Nobody will build a `positions` table for a contract only you deployed, and you wouldn't want the one they'd design<Sidenote n={1}>It's the same reason your app has its own database instead of sharing one with every other app: a schema built for everybody fits nobody in particular.</Sidenote>.
+
+That leaves two options, and both cost more than they first appear to.
+
+## Option one: bend someone else's schema
+
+You can usually get close. Pull the raw transfer list, filter it to your contract, rebuild the shape you wanted in application code, and cache it so the page loads in under four seconds.
+
+Then every new screen needs a slightly different slice, so the rebuilding logic grows. A rate limit shows up in production, and you learn how much of your uptime was someone else's. Once that helper passes a few hundred lines, you've written an indexer on the request path without meaning to.
+
+## Option two: write an indexer on purpose
+
+That's a real project. You run a node or pay for access to one, turn its event firehose into rows, and decode <ChainLink chain="clarity">Clarity</ChainLink> values into types a database can hold. You backfill years of history before any of it is useful, then keep up with the tip.
+
+You also have to handle reorgs. Blocks near the tip are provisional, and when the network switches branches, your database holds rows for events that no longer happened. Undoing them correctly is harder than writing them was.
+
+## What we built instead
+
+Secondlayer does that work, hosted or on your own hardware. It sits next to a Stacks node and turns the chain into decoded rows in a database you operate. History restores from a [signed archive](/p/archive) in hours instead of a two-week sync, and reorgs roll back cleanly.
+
+You describe the table your app needs:
+
+```ts subgraphs/pool-positions.ts
+export default defineSubgraph({
+  name: "pool-positions",
+  sources: {
+    deposits: {
+      type: "print_event",
+      contractId: "SP2....pool",
+      // !callout[/"deposit"/] the print your contract already emits
+      topic: "deposit",
+    },
+  },
+  schema: {
+    positions: {
+      columns: {
+        holder: { type: "principal", indexed: true },
+        amount: { type: "uint" },
+      },
+      // !callout[/uniqueKeys/] one row per holder; each deposit adds to it
+      uniqueKeys: [["holder"]],
+    },
+  },
+  handlers: {
+    deposits: (event, ctx) => {
+      // !callout[/increment/] reverted for you if a reorg drops the block
+      ctx.increment(
+        "positions",
+        { holder: event.data.who },
+        { amount: event.data.amount },
+      );
+    },
+  },
+});
+```
+
+Deploy it and the table fills itself: backfilled from history, current with the tip, correct across reorgs. Then you query it like any other Postgres table.
+
+## Keep your API layer, or use ours
+
+The decoding, history and reorg handling are the same either way. The choice is whether you already serve data your own way.
+
+<FigShell
+	n={1}
+	title="Keep your API layer, or use ours"
+	caption="The decoding, the history, and the reorg handling are identical either way. The only question is whether you want a read API handed to you or you'd rather keep your own."
+>
+	<Matrix
+		cells={[
+			{
+				kicker: "you already run",
+				title: "an API layer",
+				titleNote: "(tRPC, GraphQL, Rails, something)",
+				role: "a",
+				body: (
+					<p>
+						Then you don't want ours. Write a{" "}
+						<a href="/docs/index#list-walk-consume">
+							<code>consume</code>
+						</a>{" "}
+						loop and the rows land in
+						your schema: your tables, your URLs, your auth. Served the way you
+						already serve things.
+					</p>
+				),
+				cost: { label: "use Index", tone: "cheap", href: "/p/index" },
+			},
+			{
+				kicker: "you'd rather have",
+				title: "no API layer",
+				role: "b",
+				body: (
+					<p>
+						Then describe the table in one file and we'll hand you a REST API
+						over it, running on your instance. The URLs and the filter grammar
+						are decisions we made and you're inheriting.
+					</p>
+				),
+				cost: { label: "use Subgraphs", tone: "cheap", href: "/p/subgraphs" },
+			},
+		]}
+	/>
+</FigShell>
+
+If you have opinions about your URLs, the first path exists so you can keep them. A generated API is convenient, and it comes with our choices.
+
+## What it costs
+
+You pay for rows delivered: 1M free every month, then [$5 per million](/pricing), live or from history. Checking our work is free: [verify the archive](/verify), replay it and compare your rows against it at no charge.
+
+Self-host is MIT, with no paid tier above it. Next to your own node, the only thing you'd pay us for is a large restore from the signed archive. Queries against your own database are never billed.
+
+[Self-host it](/docs/self-host) beside a node, or [start hosted](/pricing), and point it at your contract.
+
+<PostFooter slug="not-in-any-public-api" />

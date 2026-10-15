@@ -1,0 +1,134 @@
+import { PostHeader } from "@/components/writing/post-header";
+import { PostFooter } from "@/components/writing/post-footer";
+import { FigShell, Roadmap, Sidenote } from "@/components/figures";
+import { ChainLink } from "@/components/site/chain-link";
+import { postMeta } from "@/lib/writing";
+
+export const metadata = postMeta("an-index-you-can-check");
+
+<PostHeader slug="an-index-you-can-check" />
+
+Every indexer asks you to trust its answers, ours included. A public API hands back rows and you take its word. A node you run can prove one value at a time, but not what it left out.
+
+We're building an index you can check instead. The first place it has to hold up is a bridge from <ChainLink chain="stacks" href="/p/index">Stacks</ChainLink> to <ChainLink chain="robinhood" href="/robinhood">Robinhood Chain</ChainLink>.
+
+## Any block can be checked today
+
+`sl verify block` checks a Stacks block on your machine, from <ChainLink chain="bitcoin">Bitcoin</ChainLink> proof of work down to every value the block wrote. It needs no account and no key, and trusts only one checkpoint that ships with the release:
+
+```text
+$ sl verify block 9201534
+Verifying block 9,201,534
+  syncing Bitcoin headers 967,681..971,325
+  fetching state witness ec363ec2…49c8eb33
+✓ block       9,201,534  ec363ec2…49c8eb33
+✓ bitcoin     headers 967,680..971,325, proof-of-work and retargets checked
+✓ burn        height 971,325  0000…deab2953
+✓ cycle       145, signer set proven forward from checkpoint cycle 143
+✓ signatures  3,098 / 4,000 weight signed, threshold 2,800
+✓ txs         2 transactions match the tx merkle root
+✓ state root  ba8a3eee…92c1aba8 matches the witness
+✓ diff        11 written (unnamed), 1 carried, 5 internal
+✓ Block 9,201,534 is proven. Trusted: only the checkpoint (Stacks 8,956,304, Bitcoin 967,680).
+```
+
+Each line uses only what the line above it proved. The Bitcoin headers fix the burn height, the burn height fixes which signers were in charge, their signatures make the header real, and the header commits to a root that every write in the block has to rebuild. A write we left out or made up breaks the root<Sidenote n={1}>Completeness is the part most proofs skip. A node will prove a value exists, not that it's every value the block changed. The witness has to account for every leaf: written, carried over unchanged, or bookkeeping.</Sidenote>.
+
+That covers contract state. Prints and inner calls aren't committed in the block, so proving them means running the block again from a proven start. In a spike on mainnet blocks every event matched, but it isn't built for production yet.
+
+## A bridge needs the proof most
+
+A proof matters when someone has to act on it. A bridge does: before it mints on one chain, it has to decide whether a lock really happened on the other.
+
+Lock a SIP-010 token on Stacks and an ERC-20 twin mints on chain 4663 after six Bitcoin confirmations. Burn the twin and the original is released on Stacks to the address you name. The relayer that watches for locks is a Secondlayer Streams consumer:
+
+```ts relayer/src/sources.ts
+const client = createStreamsClient({
+  baseUrl: config.apiUrl,
+  apiKey: config.apiKey,
+});
+await client.events.consume({
+  types: ["print"],
+  // !callout[/locker/] only the locker's prints
+  contractId: locker,
+  // !callout[/true/] only Bitcoin-final locks count
+  finalizedOnly: true,
+  // !callout[/config\.fromCursor/] every start rescans from deploy
+  fromCursor: config.fromCursor,
+  mode: once ? "bounded" : "tail",
+  signal,
+  onBatch: (events) => onLocks(events.flatMap(decodeLock)),
+});
+```
+
+## Phase 0 is custodial
+
+Two keys sign every mint and release, and we hold both. Phase 0 is built and tested (31 Clarity and 17 Foundry tests) and meant for a demo token only, so don't bridge anything of value on it.
+
+We call a phase trustless only when it has no keys; a federation is still a federation. Every key we add ships with a written plan for removing it.
+
+<FigShell
+	n={1}
+	title="Where the trust goes"
+	caption="Each phase removes something you'd otherwise have to trust. The last two replace signers with checks a contract runs itself."
+>
+	<Roadmap
+		ariaLabel="Bridge phases from custodial to trustless. Phase 0, a 2-of-2 custodian, is built. Phase 1, a 2-of-3 federation, is next. Then a bond and challenge, then trustless release, then trustless mint."
+		stops={[
+			{
+				when: "Phase 0",
+				title: "2-of-2 custodian",
+				body: "Proves the asset moves end to end.",
+				state: "shipped",
+				note: "built · demo token",
+			},
+			{
+				when: "Phase 1",
+				title: "2-of-3 federation",
+				body: "A signer who isn't us, and a timeout so a lost key can't freeze the locker.",
+				state: "next",
+			},
+			{
+				when: "Phase 2",
+				title: "Bond and challenge",
+				body: "A watcher can stop a bad release. Still keyed.",
+				state: "later",
+			},
+			{
+				when: "Phase 3",
+				title: "Trustless release",
+				body: "An Ethereum light client in Clarity checks the burn.",
+				state: "later",
+			},
+			{
+				when: "Phase 4",
+				title: "Trustless mint",
+				body: "A check on the EVM side proves the Stacks lock.",
+				state: "later",
+			},
+		]}
+	/>
+</FigShell>
+
+## Minting is buildable, releasing needs a SIP
+
+Robinhood Chain settles to Ethereum, so a bridge without signers needs a separate check in each direction.
+
+**Stacks to Robinhood Chain.** The twin has to confirm the Stacks header is real and the lock is in its state. Checking signer signatures is native on an EVM chain, and the state proof is the one `sl verify` already checks. In a spike, one fits in a single transaction there.
+
+**Robinhood Chain to Stacks.** A <ChainLink chain="clarity">Clarity</ChainLink> contract has to check Ethereum's finality before it believes a burn, which takes a pairing check that Clarity doesn't have. Verifying a zero-knowledge proof needs the same check, so that route is blocked too. Adding it takes a SIP and a hard fork, the way Bitcoin checks were added to Clarity, and it would let any Stacks contract read Ethereum and its rollups.
+
+## Who else uses the same proofs
+
+- **Wallets** that show a balance with its proof, instead of one an API reported.
+- **Stakers** proving a PoX-5 position and its sBTC rewards to an auditor.
+- **Apps on subgraphs** whose tables a user can rebuild and compare. The first replay check is live.
+- **Other EVM chains**, since nothing in the mint-side check is specific to Robinhood Chain.
+
+Checking stays free. We charge for rows delivered and for history repair, never for verifying our work.
+
+## Try it
+
+Run `sl verify block` on any height, or use the [verify page](/verify) in a browser. To get a SIP-010 token onto Robinhood Chain, join [the waitlist](/robinhood) for Phase 1. A Stacks Endowment grant for the bridge is under review, and we're not affiliated with Robinhood.
+
+<PostFooter slug="an-index-you-can-check" />

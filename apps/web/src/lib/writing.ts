@@ -17,11 +17,7 @@ export type WritingPost = {
 	dek: string;
 	/** ISO date (YYYY-MM-DD) of publication. */
 	date: string;
-	tags: string[];
 	readingTime: string;
-	/** Figure titles in order — feeds the post's meta-rail figure index
-	 *  (jump links to #fig-N anchors). Omit to hide the index. */
-	figures?: string[];
 	/**
 	 * How this post surfaces its Sidenotes. "inline" drops a ruled aside into
 	 * the column; "popover" keeps the column unbroken and opens the note from
@@ -38,31 +34,31 @@ export const POSTS: WritingPost[] = [
 		slug: "resuming-from-the-same-block",
 		number: 1,
 		title: "Why your indexer resumes from the same block",
-		dek: "Restart a consumer and it logs the same cursor it logged an hour ago, forty thousand blocks behind the tip. It's caught up: the checkpoint marks the last row it kept, and the other numbers on the health endpoint measure something else.",
+		dek: "Restart a consumer on a quiet feed and it logs yesterday's cursor, far behind the tip. Why it's caught up anyway, and which height to alert on.",
 		date: "2026-08-01",
-		tags: ["indexers", "checkpoints"],
-		readingTime: "8 min",
+		readingTime: "5 min",
 		notes: "popover",
-		figures: [
-			"timeline of heights",
-			"the poll, as a spec",
-			"seeks per restart",
-			"crash asymmetry",
-			"selectivity explorer",
-		],
 		status: "published",
 	},
 	{
-		slug: "not-in-anyones-api",
+		slug: "not-in-any-public-api",
 		number: 2,
-		title: "The data your app needs isn't in anyone's API",
-		dek: "Public APIs index what's general, and your contract is specific by definition. Here's why that gap never closes on its own, what it leaves you with, and what we built instead.",
+		title: "Your contract's data isn't in any public API",
+		dek: "Public APIs index what every app shares, so your contract's data isn't there. What that leaves you with, and the indexer we built instead.",
 		date: "2026-08-15",
-		tags: ["indexers", "stacks"],
-		readingTime: "6 min",
+		readingTime: "4 min",
 		notes: "popover",
-		figures: ["the one choice"],
 		status: "published",
+	},
+	{
+		slug: "an-index-you-can-check",
+		number: 3,
+		title: "An index you can check, starting with a bridge",
+		dek: "Every indexer asks you to trust its answers. We're building one you can check, and the first test is a bridge from Stacks to Robinhood Chain.",
+		date: "2026-10-14",
+		readingTime: "5 min",
+		notes: "popover",
+		status: "draft",
 	},
 ];
 
