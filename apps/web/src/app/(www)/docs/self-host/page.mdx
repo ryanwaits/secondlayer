@@ -2,18 +2,29 @@
 
 The same product on your Postgres: one container, no cluster, no queue. Bring your own node, or bundle one.
 
-## What you need
+<Yields page="selfhost" />
 
-A box with Docker, 4 GB RAM, and the CLI (`bun add -g @secondlayer/cli`). Mainnet full history needs a 600 GB SSD; see [Hardware](#hardware). [Runes](#runes) adds a Bitcoin node.
+Install the CLI with `bun add -g @secondlayer/cli`. Sizing: [Hardware](#hardware); [Runes](#runes) adds a Bitcoin node.
 
 ## Start it
+
+<Steps>
+
+### Configure
 
 ```bash
 git clone https://github.com/ryanwaits/secondlayer
 cd secondlayer/docker/oss
-cp .env.example .env                  # set POSTGRES_PASSWORD
-secondlayer init --network mainnet    # writes .env.local
+# !callout[/\.env\.example/] Set POSTGRES_PASSWORD in .env.
+cp .env.example .env
+# !callout[/init/] Writes the instance token and signing keys.
+secondlayer init --network mainnet
 cat .env.local >> .env
+```
+
+### Start
+
+```bash
 docker compose pull
 docker compose up -d
 curl http://127.0.0.1:3800/health
@@ -40,15 +51,34 @@ Leave `SECONDLAYER_API_KEY` for the hosted account: archive quote, fetch and cre
 
 ### Fill it with history
 
-A new box holds only what your node sends from now on. Restore verified history from the [archive](/docs/archive), then check it:
+A new box holds only what your node sends from now on. Restore verified history from the [archive](/docs/archive):
 
 ```bash
 export DATABASE_URL=postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer
 secondlayer bootstrap --against https://archive.secondlayer.tools/latest.json
-secondlayer verify all --against https://archive.secondlayer.tools/latest.json
+```
+
+```text ~/secondlayer
+$ secondlayer bootstrap --against <archive>
+coverage   genesis → 8,745,422
+# !mark
+signature  verified
+
+  sync from genesis    ~19.4 days (estimate)
+  restore from archive ~2.3 hours
 ```
 
 The official archive quotes a price in [archive credits](/docs/authentication#archive-credits) before it fetches. Verify is free.
+
+### Check it
+
+Compare what you restored with the signed archive. Free, and read-only.
+
+```text ~/secondlayer exit=0
+$ secondlayer verify raw --against https://archive.secondlayer.tools/latest.json
+✓ Local data matches the archive across 183 ranges.
+  reference signature verified
+```
 
 ### Stop it
 
@@ -57,6 +87,10 @@ docker compose down
 ```
 
 The index, chainstate and keys survive. Never add `-v`: it deletes the index volume.
+
+</Steps>
+
+<Seam page="selfhost" />
 
 ## Production
 
