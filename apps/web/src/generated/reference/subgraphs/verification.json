@@ -131,7 +131,7 @@
 			"description": "Loads a bundled handler into a fresh deterministic realm.\n\nThe bundle is ESM, as stored in `handler_code`. The returned definition has\nevery handler wrapped to receive the `deterministicContext` facade.",
 			"source": {
 				"file": "packages/subgraphs/src/runtime/realm.ts",
-				"line": 283
+				"line": 285
 			},
 			"overloads": [
 				{
@@ -430,7 +430,7 @@
 		},
 		{
 			"name": "HandlerReadError",
-			"summary": "A ctx read (DB, chain) failed under a verifiable subgraph."
+			"summary": "A ctx read failed for a reason outside the handler: the database under a verifiable subgraph, or a chain read (`ctx.client`) on any subgraph that had no node, a node that didn't answer, or a cache error."
 		},
 		{
 			"name": "MapWriteFilter",

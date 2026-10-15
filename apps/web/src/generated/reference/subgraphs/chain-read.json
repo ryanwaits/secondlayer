@@ -9,7 +9,7 @@
 			"description": "Reads a contract's read-only functions from a handler, with typed results.\n\nPass `ctx`, the contract id and its ABI. Every call is pinned to the block\nbeing processed. Set `options.cache` to `\"contract-constant\"` to fetch a\nvalue once per contract instead of once per block.",
 			"source": {
 				"file": "packages/subgraphs/src/runtime/chain-read.ts",
-				"line": 154
+				"line": 163
 			},
 			"overloads": [
 				{
@@ -65,7 +65,7 @@
 		},
 		{
 			"name": "ChainReadError",
-			"summary": ""
+			"summary": "A handler asked for something no node can answer: a function missing from the ABI, or one that isn't read-only."
 		},
 		{
 			"name": "ChainReadMethods",

@@ -9,7 +9,7 @@
 			"description": "Reads a contract's read-only functions at the block being processed.\n\nResults are untyped here. Call it through `readContractAt` to get typed\nresults from the contract's ABI.",
 			"source": {
 				"file": "packages/subgraphs/src/runtime/chain-read.ts",
-				"line": 130
+				"line": 139
 			},
 			"overloads": [
 				{
