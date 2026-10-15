@@ -22,7 +22,7 @@ export type DocsSearchDoc = {
 
 /** Generic English function words only; nothing domain-specific. */
 const STOPWORDS = new Set(
-	"a an the of to in on for and or is are was be my me i it its do does how what why when where which who with without from at by as this that these those can we you your our get got up out about into over after before than then so if not no".split(
+	"a an the of to in on for and or is are was be my me i it its do does how what why when where which who with without from at by as this that these those can we you your our get got up out want about into over after before than then so if not no".split(
 		" ",
 	),
 );
