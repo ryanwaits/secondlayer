@@ -25,6 +25,7 @@ export const OPTIONAL_KEYS = [
 	"LISTEN_HOST",
 	"LOG_LEVEL",
 	"INSTANCE_MODE",
+	"BITCOIN_DATABASE_URL",
 ] as const;
 
 export const SECRET_KEYS = [
@@ -140,16 +141,10 @@ export function parseRuntimeConfig(
 		errors,
 	);
 
-	if (mode === "external" && env.BITCOIN_RPC_PASSWORD) {
-		errors.push("NODE_MODE=external contradicts BITCOIN_RPC_PASSWORD");
-	}
+	// The bitcoind password is required with the bundled node, and allowed in
+	// every mode: the Runes follower reads any Bitcoin node with it.
 	if (mode === "full" && !env.BITCOIN_RPC_PASSWORD) {
 		errors.push("NODE_MODE=full requires BITCOIN_RPC_PASSWORD");
-	}
-	if (mode === "stacks" && env.BITCOIN_RPC_PASSWORD) {
-		errors.push(
-			"NODE_MODE=stacks runs no bundled bitcoind; drop BITCOIN_RPC_PASSWORD",
-		);
 	}
 
 	if (errors.length > 0) return { ok: false, errors };

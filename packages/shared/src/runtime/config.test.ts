@@ -79,11 +79,17 @@ describe("minimal config", () => {
 		expect(result.ok).toBe(false);
 	});
 
-	test("external mode rejects a bitcoin password", () => {
-		const result = parseRuntimeConfig({
-			...good,
-			BITCOIN_RPC_PASSWORD: "x",
-		});
-		expect(result.ok).toBe(false);
+	test("a bitcoin password and the Runes database are valid with your own Stacks node", () => {
+		// The compose file passes both to the API container; the Runes
+		// follower uses the password against whichever Bitcoin node it reads.
+		for (const mode of ["external", "stacks"]) {
+			const result = parseRuntimeConfig({
+				...good,
+				NODE_MODE: mode,
+				BITCOIN_RPC_PASSWORD: "x",
+				BITCOIN_DATABASE_URL: "postgres://secondlayer@postgres/bitcoin",
+			});
+			expect(result.ok).toBe(true);
+		}
 	});
 });
