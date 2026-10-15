@@ -16,7 +16,7 @@ import {
 	MEMORY_USD_PER_GB_HOUR,
 	ROW_USD_PER_M,
 	ROW_USD_PER_M_VOLUME,
-	STACK_MEMORY_FLOOR_GB,
+	STACK_FLOOR_USD_PER_MONTH,
 	STORAGE_USD_PER_GB_MONTH,
 	VOLUME_TIER_MONTHLY_USD,
 	WEBHOOK_USD_PER_M,
@@ -42,6 +42,8 @@ const FREE_ROWS_LABEL = `${FREE_ROWS_PER_MONTH / 1_000_000}M rows`;
 const MEMORY_USD_PER_GB_MONTH = Math.round(
 	MEMORY_USD_PER_GB_HOUR * HOURS_PER_MONTH,
 );
+const FLOOR_WEBHOOKS = usd(STACK_FLOOR_USD_PER_MONTH.webhooks);
+const FLOOR_SUBGRAPHS = usd(STACK_FLOOR_USD_PER_MONTH.subgraphs);
 
 /** The hero's example statement: a first month that stays inside every free
  *  allowance, so the first price on the page is $0. Figures come from the
@@ -119,6 +121,7 @@ export default function PricingPage() {
 	const example = estimateMonth({
 		rows: EXAMPLE.rows,
 		running: false,
+		hasSubgraphs: false,
 		memoryGb: 0,
 		storageGb: 0,
 		webhookEvents: 0,
@@ -279,15 +282,9 @@ export default function PricingPage() {
 										<small>{usd(MEMORY_USD_PER_GB_HOUR)} / GB-hour</small>
 									</td>
 									<td className="note">
-										{STACK_MEMORY_FLOOR_GB} GB minimum while it runs, about{" "}
-										{usd(
-											Math.round(
-												STACK_MEMORY_FLOOR_GB *
-													HOURS_PER_MONTH *
-													MEMORY_USD_PER_GB_HOUR,
-											),
-										)}{" "}
-										a month. A stopped stack bills nothing.
+										Webhooks only: {FLOOR_WEBHOOKS}/mo minimum while your stack
+										runs. With subgraphs: {FLOOR_SUBGRAPHS}/mo minimum. A
+										stopped stack bills nothing.
 									</td>
 								</tr>
 								<tr>
@@ -414,7 +411,7 @@ export default function PricingPage() {
 							},
 							{
 								q: "Why does the stack have a minimum?",
-								a: `A running stack holds memory whether it's busy or not, so it bills at least ${STACK_MEMORY_FLOOR_GB} GB, about ${usd(Math.round(STACK_MEMORY_FLOOR_GB * HOURS_PER_MONTH * MEMORY_USD_PER_GB_HOUR))} a month. Pause or delete every webhook and subgraph and the stack stops within minutes, and so does the memory charge. Hitting your spend cap stops it too. A webhook-only account runs the same stack, with the same minimum, and there's no charge per webhook.`,
+								a: `A running stack holds memory whether it's busy or not. Webhooks only: ${FLOOR_WEBHOOKS}/mo minimum while your stack runs. With subgraphs: ${FLOOR_SUBGRAPHS}/mo minimum, since subgraphs add a process that runs your handlers. Pause or delete every webhook and subgraph and the stack stops within minutes, and so does the memory charge. Hitting your spend cap stops it too. There's no charge per webhook.`,
 							},
 							{
 								q: "Is checking really free?",

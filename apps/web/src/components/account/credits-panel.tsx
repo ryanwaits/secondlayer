@@ -18,6 +18,7 @@ import {
 	updateCap,
 	useAccountData,
 } from "@/lib/account-data";
+import { STACK_FLOOR_USD_PER_MONTH } from "@/lib/prices";
 import { scrollToElement } from "@/lib/scroll";
 import {
 	type BalanceLevel,
@@ -72,11 +73,13 @@ function PricingNote() {
 			or history. After that, <strong>$5 per 1M rows</strong>, then $2 per 1M
 			past $50 in a month. Block headers are free, and so are reads of your own
 			subgraph tables. Your hosted stack runs webhooks and subgraphs: memory at
-			$0.028 per GB-hour, <strong>0.5 GB minimum</strong> (about $10/mo while it
-			runs), plus storage, for webhook-only accounts too. Pause or delete every
-			webhook and subgraph and it stops within minutes. Webhook events are{" "}
-			<strong>$10 per 1M</strong> (retries free). Self-hosted instances are
-			never metered.
+			$0.028 per GB-hour, plus storage. Webhooks only:{" "}
+			<strong>${STACK_FLOOR_USD_PER_MONTH.webhooks}/mo minimum</strong> while
+			your stack runs. With subgraphs:{" "}
+			<strong>${STACK_FLOOR_USD_PER_MONTH.subgraphs}/mo minimum</strong>. Pause
+			or delete every webhook and subgraph and it stops within minutes. Webhook
+			events are <strong>$10 per 1M</strong> (retries free). Self-hosted
+			instances are never metered.
 		</p>
 	);
 }

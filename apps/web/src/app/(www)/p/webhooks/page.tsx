@@ -187,7 +187,7 @@ export default function WebhooksPage() {
 							</ButtonLink>
 						</div>
 						<p className="cap">
-							$10 per 1M events · plus your stack, ~$10 / month
+							$10 per 1M events · plus your stack, $5/mo minimum
 						</p>
 						<div className="odo">
 							<span className="odo-n">27 triggers</span>
@@ -293,7 +293,7 @@ export default function WebhooksPage() {
 							{
 								label: "Volume meter",
 								value: "$10 / 1M events",
-								body: "Counted when an event is delivered. Your webhooks run on your hosted stack: memory from a 0.5 GB floor, about $10 a month while it runs, plus storage. Pause or delete every webhook and it stops within minutes.",
+								body: "Counted when an event is delivered. Your webhooks run on your hosted stack, which bills memory plus storage. Webhooks only: $5/mo minimum while your stack runs. Pause or delete every webhook and it stops within minutes.",
 							},
 							{
 								label: "Never billed",

@@ -2,7 +2,10 @@
 
 import { Choice } from "@/components/choice";
 import {
+	HOURS_PER_MONTH,
+	MEMORY_USD_PER_GB_HOUR,
 	ROW_USD_PER_M_VOLUME,
+	STACK_FLOOR_USD_PER_MONTH,
 	VOLUME_TIER_MONTHLY_USD,
 	estimateMonth,
 	usd,
@@ -11,14 +14,16 @@ import {
 import { useState } from "react";
 
 const STACK_OPTIONS = [
-	{ value: "running", label: "Running" },
+	{ value: "webhooks", label: "Webhooks only" },
+	{ value: "subgraphs", label: "With subgraphs" },
 	{ value: "stopped", label: "None or stopped" },
 ] as const;
+type StackChoice = (typeof STACK_OPTIONS)[number]["value"];
 const ROWS = [
 	0, 100e3, 250e3, 500e3, 1e6, 2e6, 5e6, 10e6, 20e6, 50e6, 100e6, 250e6, 500e6,
 	1e9,
 ] as const;
-const MEMORY_GB = [0.5, 1, 1.5, 2, 3, 4] as const;
+const MEMORY_GB = [0.2, 0.5, 1, 1.5, 2, 3, 4] as const;
 const STORAGE_GB = [0, 0.1, 0.25, 0.5, 1] as const;
 const WEBHOOK_EVENTS = [
 	0, 10e3, 100e3, 250e3, 500e3, 1e6, 2e6, 5e6, 10e6, 20e6,
@@ -72,7 +77,7 @@ function Slider({
  */
 export function PricingEstimator() {
 	const [rows, setRows] = useState(6);
-	const [running, setRunning] = useState(true);
+	const [stack, setStack] = useState<StackChoice>("webhooks");
 	const [memory, setMemory] = useState(0);
 	const [storage, setStorage] = useState(2);
 	const [hooks, setHooks] = useState(3);
@@ -81,10 +86,17 @@ export function PricingEstimator() {
 	const memoryGb = MEMORY_GB[memory];
 	const storageGb = STORAGE_GB[storage];
 	const webhookEvents = WEBHOOK_EVENTS[hooks];
+	const running = stack !== "stopped";
+	const hasSubgraphs = stack === "subgraphs";
+	const floorUsd =
+		STACK_FLOOR_USD_PER_MONTH[hasSubgraphs ? "subgraphs" : "webhooks"];
+	const atFloor =
+		memoryGb * HOURS_PER_MONTH * MEMORY_USD_PER_GB_HOUR < floorUsd;
 
 	const e = estimateMonth({
 		rows: rowCount,
 		running,
+		hasSubgraphs,
 		memoryGb,
 		storageGb,
 		webhookEvents,
@@ -111,8 +123,8 @@ export function PricingEstimator() {
 						name="est-stack"
 						labelledBy="est-stack"
 						options={STACK_OPTIONS}
-						value={running ? "running" : "stopped"}
-						onChange={(v) => setRunning(v === "running")}
+						value={stack}
+						onChange={(v) => setStack(v as StackChoice)}
 					/>
 					<span className="hint">
 						Needed for hosted webhooks and subgraphs.
@@ -171,9 +183,11 @@ export function PricingEstimator() {
 					</div>
 					<div className="line">
 						<span>
-							{running
-								? `Stack memory · ${Math.max(memoryGb, 0.5)} GB`
-								: "Stack memory · stopped"}
+							{!running
+								? "Stack memory · stopped"
+								: atFloor
+									? `Stack memory · ${usd(floorUsd)}/mo minimum`
+									: `Stack memory · ${memoryGb} GB`}
 						</span>
 						<span>{usdExact(e.memoryUsd)}</span>
 					</div>

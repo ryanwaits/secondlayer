@@ -22,8 +22,8 @@ import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import { useAuth } from "@/lib/auth";
 import type { ApiKey } from "@/lib/types";
 import {
-	MEMORY_FLOOR_GB,
 	ROWS_ALLOWANCE,
+	billedAtFloorNote,
 	currentUtcMonth,
 	deliveredRowsIn,
 	formatRows,
@@ -161,9 +161,7 @@ function Strip() {
 							{service.state === "running" && latest ? (
 								<span className="acct-note">
 									{(latest.observedGb ?? latest.billedGb).toFixed(2)} GB
-									{(latest.observedGb ?? latest.billedGb) < MEMORY_FLOOR_GB
-										? `, billed at ${MEMORY_FLOOR_GB} GB min`
-										: ""}
+									{billedAtFloorNote(service.memory24h)}
 								</span>
 							) : null}
 						</>

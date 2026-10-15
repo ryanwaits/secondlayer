@@ -38,8 +38,9 @@ const INTRO = `# Secondlayer: instant data for apps on Bitcoin
 - 1M rows free per month, then $5 per 1M ($2 per 1M past $50). Block headers
   are free.
 - A hosted stack (runs your subgraphs and webhooks, so webhook-only accounts
-  have one too) has a 0.5 GB memory minimum (about $10/mo while running) plus
-  storage. Webhook events are $10 per 1M.
+  have one too) bills memory plus storage. Webhooks only: $5/mo minimum while
+  your stack runs. With subgraphs: $10/mo minimum. Webhook events are $10 per
+  1M.
 - With no active webhooks and no subgraphs the stack stops itself within
   minutes (never in its first 15 minutes) and bills nothing; the next request
   starts it again.

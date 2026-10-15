@@ -4,6 +4,8 @@
  * fetch, so `bun test` covers it without a DOM or a store.
  */
 
+import { STACK_FLOOR_USD_PER_MONTH, stackMemoryFloorGb } from "./prices";
+
 /** One row of `GET /api/billing/usage`'s `usage` array. Quantities and
  *  costs are strings (bigint sums) — see `packages/api/src/routes/billing.ts`. */
 export type UsageRow = {
@@ -22,14 +24,6 @@ export type UsageRow = {
  *  `packages/platform/src/billing/prices.ts` — the one place this number is
  *  read from in the web app. */
 export const ROWS_ALLOWANCE = 1_000_000;
-
-/** Mirrors `PRICES["memory.gb_hour"]` in
- *  `packages/platform/src/billing/prices.ts` (28,000µ$ = $0.028/GB-hour) —
- *  the hosted stack card's cost-per-hour stat tile. */
-export const MEMORY_RATE_USD_PER_GB_HOUR = 0.028;
-
-/** Mirrors `MEMORY_FLOOR_GB` in `packages/workload/src/meters.ts`. */
-export const MEMORY_FLOOR_GB = 0.5;
 
 /** Label + sub-line for a usage-table row, by unit. Units missing here (a
  *  future meter, or `topup` which has its own row shape) fall back to their
@@ -489,7 +483,7 @@ export function toMemoryChartPoints(
 	if (memory24h.length === 0) {
 		// recharts renders no axes/grid at all for a genuinely empty `data`
 		// array — two zero-value boundary points (nothing sampled, so
-		// nothing billed) keep the frame (axis, grid, the 0.5 GB reference
+		// nothing billed) keep the frame (axis, grid, the minimum reference
 		// line) visible for a service with no memory history in the window,
 		// matching the locked mock's own "stopped" state (a flat line at 0).
 		return [
@@ -509,15 +503,58 @@ export function toMemoryChartPoints(
 	});
 }
 
+/** The monthly minimum a running stack bills at, read off its own memory
+ *  hours: the workload host floors billed GB at `stackMemoryFloorGb`, $5/mo
+ *  webhook-only or $10/mo with subgraphs. The latest hour billed above its
+ *  sample names the floor. With none, a stack that ran under the $10 floor
+ *  without being raised to it is webhook-only. `null` when the hours can't
+ *  tell (no samples, or always above both floors). */
+export function stackFloor(
+	memory24h: MemoryHourRow[],
+): { usd: number; gb: number } | null {
+	const floor = (hasSubgraphs: boolean) => ({
+		usd: STACK_FLOOR_USD_PER_MONTH[hasSubgraphs ? "subgraphs" : "webhooks"],
+		gb: stackMemoryFloorGb(hasSubgraphs),
+	});
+	const floored = memory24h.filter(
+		(r) => r.observedGb != null && r.billedGb > r.observedGb + 1e-6,
+	);
+	const last = floored[floored.length - 1];
+	if (last) {
+		const midpoint = (stackMemoryFloorGb(false) + stackMemoryFloorGb(true)) / 2;
+		return floor(last.billedGb >= midpoint);
+	}
+	const observed = memory24h.flatMap((r) =>
+		r.observedGb == null ? [] : [r.observedGb],
+	);
+	if (observed.length > 0 && Math.min(...observed) < stackMemoryFloorGb(true)) {
+		return floor(false);
+	}
+	return null;
+}
+
+/** "$5/mo minimum" for a floor in dollars. */
+export function stackFloorLabel(floorUsd: number): string {
+	return `$${floorUsd}/mo minimum`;
+}
+
+/** ", billed at the $5/mo minimum" while the latest hour billed above its
+ *  real sample, else "". */
+export function billedAtFloorNote(memory24h: MemoryHourRow[]): string {
+	const latest = memory24h[memory24h.length - 1];
+	const floor = stackFloor(memory24h);
+	if (!latest || !floor || latest.observedGb == null) return "";
+	if (latest.billedGb <= latest.observedGb + 1e-6) return "";
+	return `, billed at the ${stackFloorLabel(floor.usd)}`;
+}
+
 export function memoryChartYTicks(memory24h: MemoryHourRow[]): number[] {
+	const floorGb = stackFloor(memory24h)?.gb ?? 0;
 	const maxGb = Math.max(
-		MEMORY_FLOOR_GB,
+		floorGb,
 		...memory24h.map((r) => r.observedGb ?? r.billedGb),
 	);
-	const top = Math.max(
-		1,
-		Math.ceil(Math.max(maxGb * 1.3, MEMORY_FLOOR_GB * 1.3) * 4) / 4,
-	);
+	const top = Math.max(1, Math.ceil(maxGb * 1.3 * 4) / 4);
 	return [0, top / 2, top];
 }
 
@@ -531,22 +568,20 @@ export function memoryChartXTickFormatter(hoursFrom24hAgo: number): string {
 	return "12h";
 }
 
-/** "0.5 GB minimum (billed)" only while the service is running and the
+/** "$5/mo minimum (billed)" only while the service is running and the
  *  latest real sample is under the floor — a stopped service (or one above
  *  the floor) never actually bills at the minimum, so the label must not
  *  claim it does. */
 export function memoryMinimumLabel(
 	running: boolean,
 	latestObservedGb: number | null,
+	floor: { usd: number; gb: number },
 ): string {
-	if (
-		running &&
-		latestObservedGb != null &&
-		latestObservedGb < MEMORY_FLOOR_GB
-	) {
-		return "0.5 GB minimum (billed)";
+	const label = stackFloorLabel(floor.usd);
+	if (running && latestObservedGb != null && latestObservedGb < floor.gb) {
+		return `${label} (billed)`;
 	}
-	return "0.5 GB minimum";
+	return label;
 }
 
 /** The free-rows meter's foot line: under / exactly-at / over the monthly

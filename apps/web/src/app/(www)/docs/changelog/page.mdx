@@ -5,9 +5,13 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 
 ## Accounts — October 2026
 
+### Webhook-only stacks cost $5 a month
+
+A hosted stack with no subgraphs no longer runs the process that executes subgraph handlers, so it uses less memory and bills less. Webhooks only: $5/mo minimum while your stack runs. With subgraphs: $10/mo minimum. Your first subgraph deploy moves the stack to the $10 minimum, and deleting your last one moves it back. See [What it costs](/docs/authentication#what-it-costs).
+
 ### Your hosted stack stops when it has nothing to run
 
-Pause or delete every webhook and subgraph and your hosted stack stops within minutes, and its memory and storage charges stop with it. It never stops in its first 15 minutes, and your next request starts it again with your tables intact. Webhook-only accounts run the same stack, with the same 0.5 GB minimum while it runs. See [Keys and billing](/docs/authentication#what-it-costs).
+Pause or delete every webhook and subgraph and your hosted stack stops within minutes, and its memory and storage charges stop with it. It never stops in its first 15 minutes, and your next request starts it again with your tables intact. Webhook-only accounts run the same stack. See [Keys and billing](/docs/authentication#what-it-costs).
 
 ### The spend cap covers every charge
 

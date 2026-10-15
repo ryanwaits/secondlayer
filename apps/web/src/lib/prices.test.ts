@@ -2,8 +2,11 @@ import { describe, expect, test } from "bun:test";
 import {
 	COMMIT_TIER_MONTHLY_USD_MICROS,
 	CREDIT_USD_MICROS_PER_ROW_VOLUME,
+	HOURS_PER_MONTH,
 	PRICES,
 	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
+	STACK_FLOOR_USD_MICROS_PER_MONTH,
+	stackMemoryFloorGb,
 } from "../../../../packages/platform/src/billing/prices";
 import * as web from "./prices";
 
@@ -40,17 +43,28 @@ describe("web price mirror matches the platform table", () => {
 		expect(ROWS_DELIVERED_MONTHLY_ALLOWANCE).toBe(web.FREE_ROWS_PER_MONTH);
 	});
 
+	test("stack floors match in dollars, and so does the GB they bill as", () => {
+		expect(usd(STACK_FLOOR_USD_MICROS_PER_MONTH.webhooks)).toBe(
+			web.STACK_FLOOR_USD_PER_MONTH.webhooks,
+		);
+		expect(usd(STACK_FLOOR_USD_MICROS_PER_MONTH.subgraphs)).toBe(
+			web.STACK_FLOOR_USD_PER_MONTH.subgraphs,
+		);
+		expect(HOURS_PER_MONTH).toBe(web.HOURS_PER_MONTH);
+		for (const hasSubgraphs of [false, true]) {
+			expect(web.stackMemoryFloorGb(hasSubgraphs)).toBeCloseTo(
+				stackMemoryFloorGb(hasSubgraphs),
+				9,
+			);
+		}
+	});
+
 	test("constants in files web cannot import still hold their value", async () => {
 		const api = await Bun.file(
 			`${import.meta.dir}/../../../../packages/api/src/routes/archive.ts`,
 		).text();
 		expect(api).toMatch(/ALLOWANCE_MONTHLY_PARTITIONS = 18;/);
 		expect(web.FREE_REPAIR_PARTITIONS_PER_MONTH).toBe(18);
-		const workload = await Bun.file(
-			`${import.meta.dir}/../../../../packages/workload/src/meters.ts`,
-		).text();
-		expect(workload).toMatch(/MEMORY_FLOOR_GB = 0\.5;/);
-		expect(web.STACK_MEMORY_FLOOR_GB).toBe(0.5);
 		const billing = await Bun.file(
 			`${import.meta.dir}/../../../../packages/api/src/routes/billing.ts`,
 		).text();
@@ -62,7 +76,8 @@ describe("web price mirror matches the platform table", () => {
 const idle = {
 	rows: 0,
 	running: false,
-	memoryGb: 0.5,
+	hasSubgraphs: false,
+	memoryGb: 0.2,
 	storageGb: 0,
 	webhookEvents: 0,
 };
@@ -103,21 +118,37 @@ describe("estimateMonth", () => {
 		expect(e.webhooksUsd).toBeCloseTo(10, 6);
 	});
 
-	test("a running stack under the floor bills 0.5 GB", () => {
-		const e = web.estimateMonth({ ...idle, running: true, memoryGb: 0.25 });
-		expect(e.memoryUsd).toBeCloseTo(10.22, 2);
+	test("a running webhook-only stack under the floor estimates $5.00/mo", () => {
+		const e = web.estimateMonth({ ...idle, running: true, memoryGb: 0.2 });
+		expect(e.memoryUsd).toBe(5);
+	});
+
+	test("a running stack with subgraphs under the floor estimates $10.00/mo", () => {
+		const e = web.estimateMonth({
+			...idle,
+			running: true,
+			hasSubgraphs: true,
+			memoryGb: 0.2,
+		});
+		expect(e.memoryUsd).toBe(10);
+	});
+
+	test("a stack above its floor estimates the memory it uses", () => {
+		const e = web.estimateMonth({ ...idle, running: true, memoryGb: 1 });
+		expect(e.memoryUsd).toBeCloseTo(20.44, 2);
 	});
 
 	test("rows switch to the volume rate once total spend reaches $50", () => {
 		const e = web.estimateMonth({
 			...idle,
 			running: true,
+			hasSubgraphs: true,
 			rows: 11_000_000,
 		});
-		// $10.22 memory leaves $39.78 of room: 7.956M rows at $5, the rest at $2.
-		expect(e.volumeRows).toBeCloseTo(2_044_000, -2);
-		expect(e.volumeUsd).toBeCloseTo(4.088, 2);
-		expect(e.totalUsd).toBeCloseTo(10.22 + 39.78 + 4.088, 2);
+		// $10 memory leaves $40 of room: 8M rows at $5, the rest at $2.
+		expect(e.volumeRows).toBeCloseTo(2_000_000, -2);
+		expect(e.volumeUsd).toBeCloseTo(4, 2);
+		expect(e.totalUsd).toBeCloseTo(10 + 40 + 4, 2);
 	});
 
 	test("a stack already past $50 bills every billable row at the volume rate", () => {

@@ -192,7 +192,7 @@ Webhooks run on `api.secondlayer.tools` with an account key and prepaid credits,
 | `timeout_ms` | Capped at 30000 |
 | Rate limits | Per account: create/update/delete 30/min, `test` 10/min, `replay` 5/hour, reads 600/min |
 | Egress | Your webhook receiver and Secondlayer's read APIs only. A tenant's compose network can't reach another tenant or internal services |
-| Pricing | $10 per 1M delivered events (`webhook.event`), plus your hosted stack: at least 0.5 GB of memory while it runs (about $10 a month) and its storage. Pause or delete every webhook and it stops within minutes. Retries are never billed, and the rows read to match your triggers don't bill as `rows.delivered` |
+| Pricing | $10 per 1M delivered events (`webhook.event`), plus your hosted stack's memory and storage. Webhooks only: $5/mo minimum while your stack runs. With subgraphs: $10/mo minimum. Pause or delete every webhook and it stops within minutes. Retries are never billed, and the rows read to match your triggers don't bill as `rows.delivered` |
 | Isolation | One full stack per account, never a shared runtime. Your data never shares a database or process with anyone else's. The same stack runs your hosted subgraphs, with handlers in a gVisor sandbox |
 
 ## Receive and verify
@@ -540,7 +540,7 @@ export const agent = `
 - The signing secret is shown once; capture it. Generate a signed test fixture only from a secret the user provides; never request or recover the stored one.
 - Deliveries: 'chain.{type}.apply' per matched event, 'chain.reorg.rollback' when a block is orphaned.
 - A webhook starts at the chain tip and never backfills; use replay over an existing webhook for history.
-- Hosted billing: $10 per 1M delivered events plus the account's hosted stack (0.5 GB memory minimum while it runs, plus storage). Pausing or deleting every webhook (with no subgraphs) stops the stack within minutes; the spend cap stops it too.
+- Hosted billing: $10 per 1M delivered events plus the account's hosted stack (memory plus storage; $5/mo minimum while it runs for webhooks only, $10/mo with subgraphs). Pausing or deleting every webhook (with no subgraphs) stops the stack within minutes; the spend cap stops it too.
 - PoX-5 has no trigger of its own: use two print_event triggers on SP000000000000000000002Q6VF78.pox-5, one with where: { signer: [...] } and one with where: { 'signer-manager': [...] }, because some topics print only signer-manager.
 - print_event where: equality on top-level print tuple keys in the contract's own spelling (kebab-case, no camelCase alias). Values are strings: principals SP..., uints as decimal strings, bools 'true'/'false', buffers 0x.... Array = any-of (max 20), keys AND (max 10). Nested tuples and lists never match. topic filters the same way.
 - sBTC: trigger.sbtcWithdrawalSweptConfirmed() fires once per sweep when btc_confirmations crosses the threshold (default 6). It is forward-only and never re-fires on a reorg.

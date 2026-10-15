@@ -2,10 +2,9 @@
 
 import { LazyMonoAreaLineChart } from "@/components/charts/lazy";
 import { formatUsd, useAccountData } from "@/lib/account-data";
+import { MEMORY_USD_PER_GB_HOUR } from "@/lib/prices";
 import {
 	type HostedStack,
-	MEMORY_FLOOR_GB,
-	MEMORY_RATE_USD_PER_GB_HOUR,
 	currentUtcMonth,
 	formatMemoryChartYTick,
 	latestMemoryHour,
@@ -14,6 +13,8 @@ import {
 	memoryMinimumLabel,
 	monthParam,
 	runsOutDate,
+	stackFloor,
+	stackFloorLabel,
 	toMemoryChartPoints,
 } from "@/lib/usage";
 import { AcctCard } from "../parts";
@@ -35,6 +36,7 @@ export function HostedStackCard({ service }: { service: HostedStack }) {
 	const latest = latestMemoryHour(service.memory24h);
 	const currentGb = latest ? (latest.observedGb ?? latest.billedGb) : 0;
 	const billedGb = latest ? latest.billedGb : 0;
+	const floor = stackFloor(service.memory24h);
 
 	let sub: string;
 	if (!running) {
@@ -44,10 +46,10 @@ export function HostedStackCard({ service }: { service: HostedStack }) {
 		sub = stoppedDate
 			? `Stopped ${stoppedDate} at $0 balance. Costs nothing while stopped.`
 			: "Costs nothing while stopped.";
-	} else if (currentGb < MEMORY_FLOOR_GB) {
-		sub = `Using ${currentGb.toFixed(2)} GB. Billed at the ${MEMORY_FLOOR_GB} GB minimum while it runs.`;
+	} else if (floor && currentGb < floor.gb) {
+		sub = `Using ${currentGb.toFixed(2)} GB. Billed at the ${stackFloorLabel(floor.usd)} while it runs.`;
 	} else {
-		sub = `Using ${currentGb.toFixed(2)} GB, above the ${MEMORY_FLOOR_GB} GB minimum, so you're billed for what it uses.`;
+		sub = `Using ${currentGb.toFixed(2)} GB, above the ${floor ? stackFloorLabel(floor.usd) : "minimum"}, so you're billed for what it uses.`;
 	}
 
 	const currentMonthRows = usage[monthParam(currentUtcMonth(now))];
@@ -76,10 +78,18 @@ export function HostedStackCard({ service }: { service: HostedStack }) {
 				xTickFormatter={memoryChartXTickFormatter}
 				yTicks={yTicks}
 				yTickFormatter={formatMemoryChartYTick}
-				referenceLineY={{
-					value: MEMORY_FLOOR_GB,
-					label: memoryMinimumLabel(running, latest?.observedGb ?? null),
-				}}
+				referenceLineY={
+					floor
+						? {
+								value: floor.gb,
+								label: memoryMinimumLabel(
+									running,
+									latest?.observedGb ?? null,
+									floor,
+								),
+							}
+						: undefined
+				}
 				showEndpointDot={service.memory24h.length > 0}
 				valueName="Actual"
 				extraSeries={[{ dataKey: "billedGb", name: "Billed" }]}
@@ -96,7 +106,7 @@ export function HostedStackCard({ service }: { service: HostedStack }) {
 					<span className="k">Cost per hour</span>
 					<span className="v">
 						{running
-							? `$${(billedGb * MEMORY_RATE_USD_PER_GB_HOUR).toFixed(4)}`
+							? `$${(billedGb * MEMORY_USD_PER_GB_HOUR).toFixed(4)}`
 							: "$0.0000"}
 					</span>
 				</div>
@@ -107,8 +117,7 @@ export function HostedStackCard({ service }: { service: HostedStack }) {
 			</div>
 			<p className="use-svc-note">
 				Memory is sampled every minute and charged hourly at $
-				{MEMORY_RATE_USD_PER_GB_HOUR} per GB-hour. A stopped service costs
-				nothing.
+				{MEMORY_USD_PER_GB_HOUR} per GB-hour. A stopped service costs nothing.
 			</p>
 		</AcctCard>
 	);

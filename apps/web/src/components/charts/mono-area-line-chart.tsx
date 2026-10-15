@@ -56,7 +56,7 @@ export function MonoAreaLineChart({
 	xTickFormatter: (value: number) => string;
 	yTicks: number[];
 	yTickFormatter: (value: number) => string;
-	/** A dashed horizontal marker (the credits chart's 0.5 GB minimum). */
+	/** A dashed horizontal marker (the credits chart's stack minimum). */
 	referenceLineY?: { value: number; label: string };
 	showEndpointDot?: boolean;
 	valueName: string;

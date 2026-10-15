@@ -253,8 +253,8 @@ export default function SubgraphsPage() {
 							},
 							{
 								k: "Hosted stack",
-								v: "~$10 / month",
-								p: "Memory from a 0.5 GB floor while it runs, plus storage. Delete every subgraph and pause every webhook, and it stops within minutes.",
+								v: "$10/mo minimum",
+								p: "Memory plus storage, $10/mo minimum while it runs. Delete every subgraph and pause every webhook, and it stops within minutes.",
 							},
 						].map((m) => (
 							<div className="meter" key={m.k}>
@@ -497,7 +497,7 @@ export default function SubgraphsPage() {
 							},
 							{
 								q: "How is a hosted subgraph billed?",
-								a: "Indexing bills the event and transaction rows it reads, at $5 per 1M past the free 1M each month. The stack bills memory from a 0.5 GB floor, about $10 a month while it runs, plus storage, and stops on its own once you have no subgraphs or active webhooks. Reading your own tables is free.",
+								a: "Indexing bills the event and transaction rows it reads, at $5 per 1M past the free 1M each month. The stack bills memory plus storage, $10/mo minimum while it runs (webhooks only: $5/mo), and stops on its own once you have no subgraphs or active webhooks. Reading your own tables is free.",
 							},
 							{
 								q: "Can I get a webhook when a row changes?",

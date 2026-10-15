@@ -71,8 +71,8 @@ Reads, live or history, priced the same. Block headers and reads of your own sub
 | Example month | |
 | --- | --- |
 | 3.2M rows read | 1M free + 2.2M × $5/M = $11.00 |
-| Hosted stack running, 0.5 GB minimum | about $10.00 |
-| **Total** | **about $21.00** |
+| Hosted stack running webhooks only, at its minimum | $5.00 |
+| **Total** | **$16.00** |
 
 ### How rows are counted
 
@@ -82,7 +82,12 @@ The SDK sends `If-None-Match` for you. Its cache holds the last 64 pages in memo
 
 Past the free monthly allowance, a key with no balance gets a `402` (`insufficient_credits`) with a top-up link, before anything is served. A key still under the allowance, or with a balance, reads normally and is billed per row after the response.
 
-Your hosted stack runs your webhooks and subgraphs, so a webhook-only account has one too. It bills memory at a minimum of 0.5 GB, about $10/mo while it runs, plus storage; a stopped stack bills nothing.
+Your hosted stack runs your webhooks and subgraphs, so a webhook-only account has one too. It bills memory plus storage while it runs, and a stopped stack bills nothing.
+
+| Hosted stack | Minimum while it runs |
+| --- | --- |
+| Webhooks only | $5/mo |
+| With subgraphs | $10/mo |
 
 - With no active webhooks and no subgraphs, the stack stops on its own within minutes.
 - It never stops in its first 15 minutes, so you have time to create your first webhook.

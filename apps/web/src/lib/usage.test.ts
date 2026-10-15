@@ -5,6 +5,7 @@ import {
 	addMonths,
 	allowanceFootLine,
 	balanceLevel,
+	billedAtFloorNote,
 	buildDailyChart,
 	burnCompositionLabel,
 	compareMonths,
@@ -35,6 +36,7 @@ import {
 	runsOutDate,
 	runwayDays,
 	spentUsdMicros,
+	stackFloor,
 	toDailyChartRows,
 	toMemoryChartPoints,
 	unitLabel,
@@ -719,20 +721,64 @@ describe("memoryChartXTickFormatter", () => {
 	});
 });
 
+const WEBHOOK_FLOOR = { usd: 5, gb: 5 / (730 * 0.028) };
+const hour = (billedGb: number, observedGb: number | null) => ({
+	hour: "2026-10-15T12:00:00.000Z",
+	billedGb,
+	observedGb,
+});
+
 describe("memoryMinimumLabel", () => {
 	test("running and under the floor: labeled billed", () => {
-		expect(memoryMinimumLabel(true, 0.3)).toBe("0.5 GB minimum (billed)");
+		expect(memoryMinimumLabel(true, 0.2, WEBHOOK_FLOOR)).toBe(
+			"$5/mo minimum (billed)",
+		);
 	});
 
 	test("running and at/above the floor: no billed suffix", () => {
-		expect(memoryMinimumLabel(true, 0.8)).toBe("0.5 GB minimum");
+		expect(memoryMinimumLabel(true, 0.8, WEBHOOK_FLOOR)).toBe("$5/mo minimum");
 	});
 
 	test("stopped never claims billed, even if the last sample was under the floor", () => {
-		expect(memoryMinimumLabel(false, 0.3)).toBe("0.5 GB minimum");
+		expect(memoryMinimumLabel(false, 0.2, WEBHOOK_FLOOR)).toBe("$5/mo minimum");
 	});
 
 	test("no observed sample at all: no billed suffix", () => {
-		expect(memoryMinimumLabel(true, null)).toBe("0.5 GB minimum");
+		expect(memoryMinimumLabel(true, null, WEBHOOK_FLOOR)).toBe("$5/mo minimum");
+	});
+});
+
+describe("stackFloor", () => {
+	test("an hour billed at the webhook-only floor reads as the $5 minimum", () => {
+		expect(stackFloor([hour(0.2446, 0.2)])?.usd).toBe(5);
+	});
+
+	test("an hour billed at the subgraph floor reads as the $10 minimum", () => {
+		expect(stackFloor([hour(0.4892, 0.3)])?.usd).toBe(10);
+	});
+
+	test("a stack running under the $10 floor without being raised to it is webhook-only", () => {
+		expect(stackFloor([hour(0.3, 0.3)])?.usd).toBe(5);
+	});
+
+	test("a stack always above both floors can't tell which applies", () => {
+		expect(stackFloor([hour(0.8, 0.8)])).toBeNull();
+		expect(stackFloor([])).toBeNull();
+	});
+
+	test("the latest floored hour wins after the last subgraph is deleted", () => {
+		expect(stackFloor([hour(0.4892, 0.3), hour(0.2446, 0.2)])?.usd).toBe(5);
+	});
+});
+
+describe("billedAtFloorNote", () => {
+	test("names the dollar minimum while the latest hour bills above its sample", () => {
+		expect(billedAtFloorNote([hour(0.2446, 0.2)])).toBe(
+			", billed at the $5/mo minimum",
+		);
+	});
+
+	test("says nothing when the stack bills what it uses", () => {
+		expect(billedAtFloorNote([hour(0.3, 0.3)])).toBe("");
 	});
 });

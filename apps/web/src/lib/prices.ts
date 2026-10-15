@@ -27,16 +27,32 @@ export const FREE_REPAIR_PARTITIONS_PER_MONTH = 18;
 /** Prepaid credit packs, in dollars (`CREDIT_PACKS_USD` in the API). */
 export const CREDIT_PACKS_USD = [10, 25, 50, 100] as const;
 
-/** A running stack bills at least this much memory. */
-export const STACK_MEMORY_FLOOR_GB = 0.5;
-/** Pricing page months are 730 hours. */
+/** Months are 730 hours (`HOURS_PER_MONTH` in the platform table). */
 export const HOURS_PER_MONTH = 730;
+
+/** A running stack bills at least this much a month, set in dollars
+ *  (`STACK_FLOOR_USD_MICROS_PER_MONTH`). Webhook-only stacks run no
+ *  subgraph processor, so they cost half. */
+export const STACK_FLOOR_USD_PER_MONTH = {
+	webhooks: 5,
+	subgraphs: 10,
+} as const;
+
+/** The dollar floor as the memory the workload host bills at minimum, in GB
+ *  (`stackMemoryFloorGb` in the platform table): ≈0.245 / ≈0.489 GB. */
+export function stackMemoryFloorGb(hasSubgraphs: boolean): number {
+	const floor =
+		STACK_FLOOR_USD_PER_MONTH[hasSubgraphs ? "subgraphs" : "webhooks"];
+	return floor / (HOURS_PER_MONTH * MEMORY_USD_PER_GB_HOUR);
+}
 
 export interface MonthInput {
 	/** Rows delivered in the month (free allowance included). */
 	rows: number;
 	/** Hosted stack running. A stopped or absent stack bills nothing. */
 	running: boolean;
+	/** The stack runs subgraphs (the higher monthly minimum). */
+	hasSubgraphs: boolean;
 	memoryGb: number;
 	storageGb: number;
 	webhookEvents: number;
@@ -61,12 +77,14 @@ export interface MonthEstimate {
  * rate beyond the point it reaches the tier.
  */
 export function estimateMonth(input: MonthInput): MonthEstimate {
-	const { rows, running, memoryGb, storageGb, webhookEvents } = input;
+	const { rows, running, hasSubgraphs, memoryGb, storageGb, webhookEvents } =
+		input;
 
 	const memoryUsd = running
-		? Math.max(memoryGb, STACK_MEMORY_FLOOR_GB) *
-			HOURS_PER_MONTH *
-			MEMORY_USD_PER_GB_HOUR
+		? Math.max(
+				memoryGb * HOURS_PER_MONTH * MEMORY_USD_PER_GB_HOUR,
+				STACK_FLOOR_USD_PER_MONTH[hasSubgraphs ? "subgraphs" : "webhooks"],
+			)
 		: 0;
 	const storageUsd = running ? storageGb * STORAGE_USD_PER_GB_MONTH : 0;
 	const webhooksUsd = running ? (webhookEvents / 1e6) * WEBHOOK_USD_PER_M : 0;
