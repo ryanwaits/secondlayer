@@ -3,6 +3,17 @@ import { AccountChip, AccountMenuPanel } from "@/components/account-menu";
 import { Choice } from "@/components/choice";
 import { Code } from "@/components/code/code";
 import { CodeTabs } from "@/components/code/code-tabs";
+import { BandBarChart } from "@/components/dashboard/charts/band-bar-chart";
+import { Cadence } from "@/components/dashboard/charts/cadence";
+import { ContextLineChart } from "@/components/dashboard/charts/context-line-chart";
+import { HeatStrip } from "@/components/dashboard/charts/heat-strip";
+import { Legend } from "@/components/dashboard/charts/legend";
+import { Meter } from "@/components/dashboard/charts/meter";
+import { Sparkline } from "@/components/dashboard/charts/sparkline";
+import { SpendChart } from "@/components/dashboard/charts/spend-chart";
+import { HandoffBlock } from "@/components/dashboard/insight/handoff-block";
+import { InsightCard } from "@/components/dashboard/insight/insight-card";
+import { InsightStack } from "@/components/dashboard/insight/insight-stack";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { HeartbeatView } from "@/components/dashboard/shell/chain-heartbeat";
 import { DashboardTabs } from "@/components/dashboard/shell/dashboard-tabs";
@@ -17,8 +28,10 @@ import {
 import { TerminalFooter } from "@/components/dashboard/shell/terminal-footer";
 import { Callout } from "@/components/docs/callout";
 import { ButtonLink, Eyebrow, StatusDot } from "@/components/site";
+import { barsRows } from "@/lib/dashboard-charts";
+import { FIXTURE_INSIGHTS, FIXTURE_STACK } from "@/lib/insights.fixtures";
 import type { CSSProperties, ReactNode } from "react";
-import { AmountDemo } from "./story-controls";
+import { AmountDemo, HeatStripDemo, StackedCostDemo } from "./story-controls";
 import { STORY_INDEX, type StoryId } from "./tree";
 
 export type StoryVariant = {
@@ -264,6 +277,53 @@ const SHELL_ROWS: { name: string; tone: Tone; state: string; count: string }[] =
 
 const LONG_COMMAND =
 	"sl webhooks doctor sentinel:SP000000000000000000002Q6VF78.vault:~0123456789abcdef";
+
+/** Deterministic daily rhythm for the chart stories: no randomness, no real data. */
+const wave = (i: number, base: number, swing: number) =>
+	Math.round(base + swing * Math.sin((((i % 24) - 15) / 24) * 2 * Math.PI));
+
+const STORY_HOURLY = Array.from({ length: 48 }, (_, i) => ({
+	n: wave(i, 46, 16),
+}));
+const STORY_BAND = STORY_HOURLY.map(
+	({ n }) => [Math.max(0, n - 12), n + 12] as const,
+);
+const STORY_BAND_LABELS: [number, string][] = [
+	[0, "-48h"],
+	[24, "-24h"],
+	[47, "now"],
+];
+
+const STORY_HEAT = Array.from({ length: 168 }, (_, i) => ({
+	n: i % 31 === 0 ? 0 : wave(i, 40, 18),
+	f: i >= 150 && i < 153 ? 4 : 0,
+}));
+
+const STORY_MATCHED = Array.from({ length: 36 }, (_, i) => 6 + ((i * 5) % 4));
+const STORY_DELIVERED = STORY_MATCHED.map((v, i) => (i >= 18 ? 0 : v));
+const STORY_LINE_LABELS: [number, string][] = [
+	[0, "-6h"],
+	[18, "-3h"],
+	[35, "now"],
+];
+
+const STORY_SPEND_DAILY = [
+	0.8, 1.1, 0.9, 1.4, 1.2, 1.0, 1.3, 1.6, 1.2, 1.5, 1.4,
+];
+const STORY_COST_DAYS = Array.from({ length: 14 }, (_, i) => ({
+	day: `Oct ${i + 1}`,
+	rows: 0.4 + (i % 4) * 0.1,
+	events: 0.2 + (i % 3) * 0.05,
+	storage: 0.1,
+}));
+
+const insightFor = (rule: string) => {
+	const found = FIXTURE_INSIGHTS.find((i) => i.rule === rule);
+	if (!found) throw new Error(`missing insight fixture ${rule}`);
+	return found;
+};
+
+const STORY_BLOCK_GAPS = [8, 11, 7, 9, 14, 8, 6, 9, 10, 8, 7, 12, 9, 8, 9, 10];
 
 const META: Record<StoryId, Meta> = {
 	color: {
@@ -1120,6 +1180,340 @@ const META: Record<StoryId, Meta> = {
 			},
 		],
 		usage: `<ResourceRow href={href} name={name} tone="ok" state="Delivering" count="1,204" age="4m" />`,
+	},
+	"charts-bars": {
+		src: [
+			"apps/web/src/components/dashboard/charts/band-bar-chart.tsx",
+			"apps/web/src/lib/dashboard-charts.ts",
+		],
+		rule: "Blue is the measurement, yellow marks what an insight points at, red is failure only. The soft band is the usual range.",
+		stack: true,
+		variants: [
+			{
+				id: "plain",
+				label: "Plain",
+				render: () => (
+					<BandBarChart
+						rows={barsRows(STORY_HOURLY)}
+						xLabels={STORY_BAND_LABELS}
+					/>
+				),
+			},
+			{
+				id: "band",
+				label: "Usual range band",
+				render: () => (
+					<BandBarChart
+						rows={barsRows(STORY_HOURLY, { band: STORY_BAND })}
+						xLabels={STORY_BAND_LABELS}
+					/>
+				),
+			},
+			{
+				id: "mark",
+				label: "Mark and highlight",
+				render: () => (
+					<BandBarChart
+						rows={barsRows(STORY_HOURLY, {
+							band: STORY_BAND,
+							highlight: [30, 31, 32],
+						})}
+						xLabels={STORY_BAND_LABELS}
+						mark={{ index: 30, label: "Receiver down" }}
+					/>
+				),
+			},
+			{
+				id: "failed",
+				label: "With failures",
+				render: () => (
+					<BandBarChart
+						rows={barsRows(
+							STORY_HOURLY.map((h, i) => ({
+								n: h.n,
+								f: i > 40 ? 12 : 0,
+							})),
+						)}
+						xLabels={STORY_BAND_LABELS}
+					/>
+				),
+			},
+		],
+		props: [
+			{
+				name: "rows",
+				type: "BarsRow[]",
+				note: "From barsRows(series, { band, highlight }).",
+			},
+			{
+				name: "mark",
+				type: "{ index: number; label: string }",
+				note: "Dashed line with a yellow pill above the plot.",
+			},
+		],
+		usage: `<LazyBandBarChart
+  rows={barsRows(series, { band, highlight: [30] })}
+  xLabels={[[0, "-48h"], [47, "now"]]}
+/>`,
+		donts: ["No yellow for status: it only fills what an insight points at."],
+	},
+	"charts-heat": {
+		src: ["apps/web/src/components/dashboard/charts/heat-strip.tsx"],
+		rule: "One row per UTC day, one cell per hour. Opacity is volume, red is an hour with failures.",
+		variants: [
+			{
+				id: "week",
+				label: "Hover or focus a cell",
+				render: () => <HeatStripDemo hours={STORY_HEAT} now={NOW} />,
+			},
+			{
+				id: "quiet",
+				label: "No clicks",
+				render: () => (
+					<HeatStrip
+						hours={STORY_HEAT.map((c) => ({ n: c.n, f: 0 }))}
+						now={NOW}
+						label="Deliveries by hour, last 7 days"
+					/>
+				),
+			},
+		],
+		props: [
+			{
+				name: "hours",
+				type: "{ n: number; f: number }[168]",
+				note: "Rolling window, index 0 is 167 hours before now.",
+			},
+			{
+				name: "onCellClick",
+				type: "(hourIndex: number) => void",
+				note: "Omit and the click hint stays off.",
+			},
+		],
+		usage: `<HeatStrip hours={hourly168} now={Date.now()} onCellClick={openHour} label="Deliveries by hour" />`,
+	},
+	"charts-lines": {
+		src: ["apps/web/src/components/dashboard/charts/context-line-chart.tsx"],
+		rule: "A dashed context line shows what was expected. The blue line is what arrived.",
+		stack: true,
+		variants: [
+			{
+				id: "matched",
+				label: "Matched vs delivered",
+				render: () => (
+					<div style={{ display: "grid", gap: 10 }}>
+						<Legend
+							items={[
+								{ swatch: "dashed", label: "Matched on chain" },
+								{ swatch: "line", label: "Delivered to you" },
+							]}
+						/>
+						<ContextLineChart
+							context={STORY_MATCHED}
+							values={STORY_DELIVERED}
+							contextName="Matched on chain"
+							valueName="Delivered to you"
+							xLabels={STORY_LINE_LABELS}
+						/>
+					</div>
+				),
+			},
+			{
+				id: "timeout",
+				label: "Against a timeout",
+				render: () => (
+					<ContextLineChart
+						context={Array.from({ length: 14 }, () => 10)}
+						values={[
+							1.2, 1.3, 1.5, 1.6, 1.9, 2.1, 2.4, 2.8, 3.1, 3.6, 4, 4.6, 5.2,
+							5.9,
+						]}
+						contextName="Our timeout"
+						valueName="Your p95"
+						xLabels={[
+							[0, "-14d"],
+							[7, "-7d"],
+							[13, "today"],
+						]}
+						yUnit="s"
+					/>
+				),
+			},
+		],
+		usage: `<LazyContextLineChart context={timeout} values={p95} contextName="Our timeout" valueName="Your p95" xLabels={labels} />`,
+	},
+	"charts-spend": {
+		src: [
+			"apps/web/src/components/dashboard/charts/spend-chart.tsx",
+			"apps/web/src/components/charts/mono-stacked-bar-chart.tsx",
+		],
+		rule: "Cumulative spend in blue, a dashed projection at the last week's pace. Cost by unit reuses the stacked bar with the three blue steps.",
+		stack: true,
+		variants: [
+			{
+				id: "cumulative",
+				label: "Cumulative with projection",
+				render: () => (
+					<SpendChart
+						daily={STORY_SPEND_DAILY}
+						daysInMonth={31}
+						monthLabel="Oct"
+					/>
+				),
+			},
+			{
+				id: "stacked",
+				label: "Daily cost by unit",
+				render: () => <StackedCostDemo data={STORY_COST_DAYS} />,
+			},
+		],
+		usage: `<LazySpendChart daily={dailyCosts} daysInMonth={31} monthLabel="Oct" />`,
+	},
+	"charts-small": {
+		src: [
+			"apps/web/src/components/dashboard/charts/sparkline.tsx",
+			"apps/web/src/components/dashboard/charts/cadence.tsx",
+			"apps/web/src/components/dashboard/charts/meter.tsx",
+			"apps/web/src/components/dashboard/charts/legend.tsx",
+		],
+		rule: "Word-scale figures: a trend, block cadence, a quota meter and the legend swatches.",
+		variants: [
+			{
+				id: "spark",
+				label: "Sparkline, failures ticked",
+				render: () => (
+					<Sparkline
+						points={STORY_BAND.map(([, high]) => high)}
+						fails={STORY_BAND.map((_, i) => (i === 30 || i === 31 ? 3 : 0))}
+						title="Deliveries, last 48 hours"
+					/>
+				),
+			},
+			{
+				id: "cadence",
+				label: "Block cadence",
+				render: () => <Cadence intervals={STORY_BLOCK_GAPS} />,
+			},
+			{
+				id: "meter",
+				label: "Meter",
+				render: () => (
+					<Meter
+						used={640_000}
+						total={1_000_000}
+						label="Free rows used"
+						left="640k used"
+						right="1M free"
+					/>
+				),
+			},
+			{
+				id: "legend",
+				label: "Legend",
+				render: () => (
+					<Legend
+						items={[
+							{ swatch: "line", label: "Delivered" },
+							{ swatch: "square", label: "Failed" },
+							{ swatch: "band", label: "Usual range" },
+							{ swatch: "dashed", label: "Matched on chain" },
+						]}
+					/>
+				),
+			},
+		],
+		usage: `<Sparkline points={points} fails={fails} title="Deliveries, last 48 hours" />
+<Meter used={used} total={total} label="Free rows used" left="640k used" right="1M free" />`,
+	},
+	"insight-card": {
+		src: [
+			"apps/web/src/components/dashboard/insight/insight-card.tsx",
+			"apps/web/src/components/dashboard/insight/evidence.tsx",
+			"apps/web/src/lib/insights.ts",
+		],
+		rule: "We describe what we saw and hand it to the user's agent. No code fixes, and no cause below 0.85 confidence.",
+		stack: true,
+		variants: [
+			{
+				id: "down",
+				label: "Receiver down",
+				render: () => <InsightCard insight={insightFor("receiver_down")} />,
+			},
+			{
+				id: "oct8",
+				label: "Cause unknown",
+				render: () => (
+					<InsightCard insight={insightFor("dns_retries_recovered")} />
+				),
+			},
+			{
+				id: "filter",
+				label: "Filter can't match",
+				render: () => (
+					<InsightCard insight={insightFor("filter_cannot_match")} />
+				),
+			},
+		],
+		usage: `<InsightCard insight={insight} footer="Clears itself after 30 minutes." />`,
+		donts: [
+			"No code-fix snippets in a card.",
+			"No bare numbers from the model.",
+		],
+	},
+	"insight-stack": {
+		src: [
+			"apps/web/src/components/dashboard/insight/insight-stack.tsx",
+			"apps/web/src/components/dashboard/insight/insight-note.tsx",
+		],
+		rule: "Worst first. Only the top item opens on its own, and only when it is losing events or about to fail.",
+		stack: true,
+		variants: [
+			{
+				id: "stack",
+				label: "Four insights",
+				render: () => <InsightStack insights={FIXTURE_STACK} />,
+			},
+			{
+				id: "quiet",
+				label: "Nothing opens",
+				render: () => (
+					<InsightStack
+						insights={FIXTURE_STACK.filter(
+							(i) => i.severity === "costs" || i.severity === "recovered",
+						)}
+					/>
+				),
+			},
+		],
+		usage: "<InsightStack insights={insights} />",
+	},
+	handoff: {
+		src: ["apps/web/src/components/dashboard/insight/handoff-block.tsx"],
+		rule: "Plain-English prompt, our own CLI commands, one Copy for agent button.",
+		variants: [
+			{
+				id: "handoff",
+				label: "With commands",
+				render: () => (
+					<HandoffBlock
+						prompt={insightFor("receiver_down").handoff.prompt}
+						commands={insightFor("receiver_down").handoff.commands}
+					/>
+				),
+			},
+			{
+				id: "prompt-only",
+				label: "Prompt only",
+				render: () => (
+					<HandoffBlock
+						prompt={insightFor("polling_loop").handoff.prompt}
+						commands={[]}
+					/>
+				),
+			},
+		],
+		usage:
+			"<HandoffBlock prompt={insight.handoff.prompt} commands={insight.handoff.commands} />",
 	},
 	callout: {
 		src: ["apps/web/src/components/docs/callout.tsx"],

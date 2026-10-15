@@ -53,3 +53,22 @@ export const LazyMonoLagLineChart = dynamic(
 		),
 	{ ssr: false, loading: () => <ChartSkeleton height={80} /> },
 );
+
+export const LazyBandBarChart = dynamic(
+	() =>
+		import("../dashboard/charts/band-bar-chart").then((m) => m.BandBarChart),
+	{ ssr: false, loading: () => <ChartSkeleton height={180} /> },
+);
+
+export const LazyContextLineChart = dynamic(
+	() =>
+		import("../dashboard/charts/context-line-chart").then(
+			(m) => m.ContextLineChart,
+		),
+	{ ssr: false, loading: () => <ChartSkeleton height={130} /> },
+);
+
+export const LazySpendChart = dynamic(
+	() => import("../dashboard/charts/spend-chart").then((m) => m.SpendChart),
+	{ ssr: false, loading: () => <ChartSkeleton height={150} /> },
+);
