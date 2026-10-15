@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /** Product pages that follow the docs page anatomy (plans add pages here). */
-const ANATOMY_PAGES: string[] = ["index"];
+const ANATOMY_PAGES: string[] = ["index", "streams"];
 
 /** Position of the first match at or after `from`, or -1. */
 const at = (source: string, pattern: RegExp, from = 0) => {
