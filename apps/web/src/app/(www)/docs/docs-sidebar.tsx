@@ -5,9 +5,10 @@ import { useAuth } from "@/lib/auth";
 import { DOCS_STRIP } from "@/lib/nav";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useDocsDrawer } from "./docs-drawer";
 import { DOCS_NAV } from "./nav";
+import { activeHeading, isAtScrollEnd } from "./outline-spy";
 
 /** Gap kept between a revealed row and the sidebar's edge. */
 const REVEAL_MARGIN = 8;
@@ -35,12 +36,15 @@ interface Head {
 	child?: string;
 	/** The endpoint's HTTP method, lowercase, for its pill. */
 	verb?: string;
+	/** Label shown over this row: the first section after the page's seam. */
+	group?: string;
 }
 
 /** The open page's visible h2s, listed under its row. Reads them from the
  *  rendered article (rehype-slug gives stable ids), skips any inside a
- *  collapsed `<details>`, and marks the topmost one in view as the place being
- *  read. An h3 marked `data-outline-child` (an API endpoint or object) is
+ *  collapsed `<details>`, and marks the last one whose top has reached the
+ *  spy line as the place being read. Headings after a `data-outline-reference`
+ *  marker (the page's seam) start a Reference group. An h3 marked `data-outline-child` (an API endpoint or object) is
  *  listed too, under the family whose id the attribute carries, with its
  *  method pill when it has one.
  *  Other docs pages have no such h3s, so their outline is unchanged. */
@@ -48,6 +52,8 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	const pathname = usePathname();
 	const [heads, setHeads] = useState<Head[]>([]);
 	const [activeId, setActiveId] = useState("");
+	// The id of a clicked row, which stays active until the reader scrolls.
+	const held = useRef("");
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — re-read headings on route change
 	useEffect(() => {
@@ -74,30 +80,106 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 					? []
 					: [h],
 		);
-		setHeads(found);
+		// Sections after the page's seam marker are listed under a Reference
+		// label; API pages (trees) have no seam.
+		const seam = article?.querySelector("[data-outline-reference]");
+		const first = seam
+			? found.find((h) => {
+					const el = h.family || h.child ? null : document.getElementById(h.id);
+					return (
+						el &&
+						seam.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING
+					);
+				})
+			: undefined;
+		setHeads(
+			found.map((h) => (h === first ? { ...h, group: "Reference" } : h)),
+		);
+		held.current = "";
 		setActiveId(found[0]?.id ?? "");
 	}, [pathname]);
 
-	// Scrollspy: the topmost heading in view is the active one.
+	// Scrollspy: the active heading is the last one whose top has reached the
+	// spy line, or the last heading at the scroll end. A clicked row stays
+	// active (held) until the reader scrolls by hand.
 	useEffect(() => {
 		if (heads.length === 0) return;
-		const observer = new IntersectionObserver(
-			(entries) => {
-				const visible = entries.filter((e) => e.isIntersecting);
-				if (visible.length === 0) return;
-				const top = visible.reduce((a, b) =>
-					a.boundingClientRect.top < b.boundingClientRect.top ? a : b,
-				);
-				setActiveId(top.target.id);
-			},
-			{ rootMargin: "-80px 0px -65% 0px", threshold: 0 },
-		);
-		for (const h of heads) {
-			const el = document.getElementById(h.id);
-			if (el) observer.observe(el);
-		}
-		return () => observer.disconnect();
+		const spyLine = () =>
+			Number.parseFloat(
+				getComputedStyle(document.documentElement).scrollPaddingTop,
+			) + 8;
+		let line = spyLine();
+		let frame = 0;
+		const read = () => {
+			frame = 0;
+			if (held.current) return;
+			const tops = heads.map(
+				(h) => document.getElementById(h.id)?.getBoundingClientRect().top ?? 0,
+			);
+			const at = activeHeading(
+				tops,
+				line,
+				isAtScrollEnd(
+					window.scrollY,
+					window.innerHeight,
+					document.documentElement.scrollHeight,
+				),
+			);
+			if (at >= 0) setActiveId(heads[at].id);
+		};
+		const onScroll = () => {
+			if (!frame) frame = requestAnimationFrame(read);
+		};
+		const onResize = () => {
+			line = spyLine();
+			onScroll();
+		};
+		const release = () => {
+			held.current = "";
+		};
+		const onKey = (e: KeyboardEvent) => {
+			if (
+				[
+					"ArrowDown",
+					"ArrowUp",
+					"PageDown",
+					"PageUp",
+					"Home",
+					"End",
+					" ",
+				].includes(e.key)
+			)
+				release();
+		};
+		const onPointer = (e: PointerEvent) => {
+			if (!(e.target as Element | null)?.closest(".docs-nav")) release();
+		};
+		read();
+		window.addEventListener("scroll", onScroll, { passive: true });
+		window.addEventListener("resize", onResize);
+		window.addEventListener("wheel", release, { passive: true });
+		window.addEventListener("touchstart", release, { passive: true });
+		window.addEventListener("keydown", onKey);
+		window.addEventListener("pointerdown", onPointer, { passive: true });
+		return () => {
+			if (frame) cancelAnimationFrame(frame);
+			window.removeEventListener("scroll", onScroll);
+			window.removeEventListener("resize", onResize);
+			window.removeEventListener("wheel", release);
+			window.removeEventListener("touchstart", release);
+			window.removeEventListener("keydown", onKey);
+			window.removeEventListener("pointerdown", onPointer);
+		};
 	}, [heads]);
+
+	// Keep the active outline row inside the sidebar, moving it by the least
+	// distance.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: activeId is the trigger — the active link is read from the DOM
+	useEffect(() => {
+		const nav = document.querySelector<HTMLElement>(".docs-nav");
+		const link = nav?.querySelector<HTMLElement>(".docs-nav-outline a.active");
+		if (nav && link) revealNearest(nav, link);
+	}, [activeId]);
 
 	if (heads.length === 0) return null;
 	// An API page lists its endpoints as a tree: an Overview row for the
@@ -128,30 +210,41 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 						{h.text}
 					</div>
 				) : (
-					<a
-						key={h.id}
-						href={`#${h.id}`}
-						aria-current={h.id === activeId ? "location" : undefined}
-						className={
-							[h.child ? "docs-nav-ep" : "", h.id === activeId ? "active" : ""]
-								.filter(Boolean)
-								.join(" ") || undefined
-						}
-						onClick={onNavigate}
-					>
-						{h.verb ? (
-							<span
-								className={`apiref-verb apiref-verb-${h.verb} docs-nav-verb`}
-							>
-								{h.verb === "delete" ? "DEL" : h.verb.toUpperCase()}
-							</span>
+					<Fragment key={h.id}>
+						{h.group ? (
+							<div className="docs-nav-outline-label">{h.group}</div>
 						) : null}
-						{h.child ? (
-							<span className="docs-nav-ep-name">{h.text}</span>
-						) : (
-							h.text
-						)}
-					</a>
+						<a
+							href={`#${h.id}`}
+							aria-current={h.id === activeId ? "location" : undefined}
+							className={
+								[
+									h.child ? "docs-nav-ep" : "",
+									h.id === activeId ? "active" : "",
+								]
+									.filter(Boolean)
+									.join(" ") || undefined
+							}
+							onClick={() => {
+								held.current = h.id;
+								setActiveId(h.id);
+								onNavigate();
+							}}
+						>
+							{h.verb ? (
+								<span
+									className={`apiref-verb apiref-verb-${h.verb} docs-nav-verb`}
+								>
+									{h.verb === "delete" ? "DEL" : h.verb.toUpperCase()}
+								</span>
+							) : null}
+							{h.child ? (
+								<span className="docs-nav-ep-name">{h.text}</span>
+							) : (
+								h.text
+							)}
+						</a>
+					</Fragment>
 				),
 			)}
 		</div>
