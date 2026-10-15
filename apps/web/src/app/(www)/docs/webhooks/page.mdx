@@ -99,16 +99,28 @@ Use the `trigger.*` factories (as in [Create a webhook](#create-a-webhook)) or t
 | `trigger.runeTransfer` | `rune_transfer` | `rune`, `address`, `minAmount` |
 | `trigger.runeBurn` | `rune_burn` | `rune` |
 
-Validation is strict per type: mints take `recipient` (no `sender`), burns take `sender` (no `recipient`); any field outside a type's set is rejected with a 400.
+Validation is strict per type:
+
+- Mints take `recipient`, never `sender`; burns take `sender`, never `recipient`.
+- Any field outside a type's set is rejected with a 400.
 
 ### Protocol triggers
 
-The sBTC and Runes triggers read the same decoded protocols as [Index](/docs/index#decoded-protocols). PoX-5 has no trigger of its own: it is a `print_event` on the `pox-5` contract, e.g. `trigger.printEvent({ contractId: "SP000000000000000000002Q6VF78.pox-5", topic: "register-for-bond" })`.
+The sBTC and Runes triggers read the same decoded protocols as [Index](/docs/index#decoded-protocols). PoX-5 has no trigger of its own: it is a `print_event` on the `pox-5` contract.
+
+```ts
+trigger.printEvent({ contractId: "SP000000000000000000002Q6VF78.pox-5", topic: "register-for-bond" });
+```
 
 - `sbtc_withdrawal_swept_confirmed` fires **once** per sweep, when `btc_confirmations` first crosses the threshold (default 6). It is forward-only: settlements confirmed after you subscribe, never a backfill. A Bitcoin reorg that un-confirms a sweep never re-fires it.
 - The `rune_*` triggers match `chain=bitcoin` Streams events, not a Stacks block. `rune` takes an id or a name; a name is resolved to its id at create time, and an instance with no Runes data rejects a name with a hint to use the id.
 
-`POST /api/webhooks` accepts the same array. From the CLI, pass `--trigger` (repeatable, one JSON object each) or `--triggers-file` (a JSON array):
+`POST /api/webhooks` accepts the same array. The CLI takes triggers two ways:
+
+| Flag | Takes |
+| --- | --- |
+| `--trigger` | One JSON object; repeat the flag for more |
+| `--triggers-file` | A JSON array |
 
 ```bash
 secondlayer webhooks create amm-swaps \
@@ -171,7 +183,9 @@ if (!valid) return new Response("bad signature", { status: 401 });
 
 #### ed25519 signature
 
-**Every** delivery, in every format, also carries an ed25519 signature over `` `${webhook-id}.${rawBody}` ``. For `raw`, `cloudevents`, `trigger`, `cloudflare`, and `inngest`, which have no HMAC, it is the only auth.
+**Every** delivery, in every format, also carries an ed25519 signature over `` `${webhook-id}.${rawBody}` ``.
+
+The other formats ([listed below](#delivery-envelope)) have no HMAC, so this signature is their only auth.
 
 | Header | Purpose |
 | --- | --- |
@@ -191,7 +205,7 @@ Fetch the public key once and cache it; rotate on the `keyid` header. Failed del
 
 #### Delivery envelope
 
-A matched event delivers `chain.{trigger}.apply`. On `standard-webhooks` the body is `{ type, timestamp, data }`:
+A matched event delivers `chain.{trigger}.apply`. On the default format the body is `{ type, timestamp, data }`:
 
 ```json delivery.json
 {
@@ -259,15 +273,27 @@ if ("trigger" in delivery.data) {
 }
 ```
 
-`decodeChainWebhook` narrows to `ChainWebhookDelivery`, a discriminated union keyed on `data.trigger` (both exported from `@secondlayer/sdk`). It understands only the `standard-webhooks` envelope, so unwrap other formats first.
+`decodeChainWebhook` returns a discriminated union keyed on `data.trigger`.
+
+- The type is `ChainWebhookDelivery`; both are exported from `@secondlayer/sdk`.
+- It reads only the `standard-webhooks` envelope; unwrap other formats first.
 
 <Callout type="tip" title="Discriminate on data.trigger, never event.type">
 
-`event.type` is NOT a consistent trigger name: it's `stx_transfer_event` for `stx_transfer`, the bare Stacks transaction type (`contract_call`) for `contract_call`, and the node's raw event name (`contract_event`) for `print_event`. `data.trigger` is the one field that's always the trigger you subscribed with; switch on it, not `event.type`.
+`data.trigger` is always the trigger you subscribed with; switch on it. `event.type` is not a consistent trigger name:
+
+| Trigger | `event.type` |
+| --- | --- |
+| `stx_transfer` | `stx_transfer_event` |
+| `contract_call` | `contract_call`, the bare Stacks transaction type |
+| `print_event` | `contract_event`, the node's raw event name |
 
 </Callout>
 
-Delivery is at-least-once. Key your state on `(tx_id, event_index, block_hash)`: one transaction can fire multiple event-level deliveries sharing a `tx_id`, so `event_index` (`-1` for transaction-level triggers) keeps them distinct.
+Delivery is at-least-once, so key your state on `(tx_id, event_index, block_hash)`.
+
+- One transaction can fire several event-level deliveries that share a `tx_id`.
+- `event_index` keeps them distinct; it is `-1` for transaction-level triggers.
 
 Per-trigger shapes for `data.event`: [Event shapes](#event-shapes).
 
@@ -277,7 +303,7 @@ What `data.event` holds, per trigger: event-level, tx-level, and sBTC.
 
 **Event-level triggers**
 
-For `stx_*`, `ft_*`, `nft_*`, and `print_event`, `data.event` is `{ tx_id, type, event_index, data }`:
+Event-level triggers deliver `data.event` as `{ tx_id, type, event_index, data }`:
 
 | Trigger | `event.type` | `event.data` fields |
 | --- | --- | --- |
@@ -332,11 +358,10 @@ For `stx_*`, `ft_*`, `nft_*`, and `print_event`, `data.event` is `{ tx_id, type,
 }
 ```
 
-<Callout type="warning" title="function_args are raw hex">
+Call arguments arrive as raw Clarity hex, in call order. Decode each with `decodeClarityValue` from `@secondlayer/sdk`, as in [Decode the delivery](#decode-the-delivery).
 
-`function_args` are RAW, undecoded Clarity-value hex strings in call order, so decode them yourself with `decodeClarityValue` from `@secondlayer/sdk`. For a `contract_deploy` trigger, `event.type` is `smart_contract` (the underlying Stacks tx type) rather than `contract_deploy`, and `function_name`/`function_args`/`result_hex` are all `null` (no function call to report).
-
-</Callout>
+- A `contract_deploy` trigger reports `event.type` as `smart_contract`, the underlying Stacks transaction type.
+- For a deploy, `function_name`, `function_args` and `result_hex` are all `null`: there is no function call to report.
 
 **sBTC triggers**
 
@@ -354,7 +379,18 @@ The five sBTC triggers deliver a flat, already-typed `event` keyed by `topic`:
 }
 ```
 
-`topic` is `completed-deposit`, `withdrawal-create`, `withdrawal-accept`, `withdrawal-reject`, or `withdrawal-swept-confirmed`. The settlement event instead carries `sweep_txid, btc_confirmations, btc_block_height, confirmed_at, amount, sender`, with no `bitcoin_txid`/`block_height`/`tx_id`.
+`topic` is one of:
+
+- `completed-deposit`
+- `withdrawal-create`
+- `withdrawal-accept`
+- `withdrawal-reject`
+- `withdrawal-swept-confirmed`
+
+The settlement event is shaped differently:
+
+- It carries `sweep_txid, btc_confirmations, btc_block_height, confirmed_at, amount, sender`.
+- It has no `bitcoin_txid`, `block_height` or `tx_id`.
 
 #### Reorg rollback
 
@@ -379,7 +415,10 @@ A reorg delivers `chain.reorg.rollback` so you can undo anything committed off a
 
 <Callout type="warning" title="orphaned is capped at 500">
 
-`orphaned` is capped at 500 entries per webhook. If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list. Entries carry no `trigger` tag, because a rollback lists every previously-delivered apply regardless of which trigger matched, so you must know what you configured in order to read an entry's shape.
+`orphaned` is capped at 500 entries per webhook.
+
+- If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list.
+- Entries carry no `trigger` tag, because a rollback lists every earlier apply whatever trigger matched. You must know what you configured to read an entry's shape.
 
 </Callout>
 
@@ -402,7 +441,14 @@ Replays are **idempotent**, **historical only**, and **never move the live curso
 
 ### Account webhooks
 
-[`/account/webhooks`](/account/webhooks) lists a hosted account's webhooks. Each detail page charts 7 days of delivered, waiting and gave-up events by the hour, lists the last 100 delivery attempts with a diagnosis, and holds failed events for resend. Open one delivery for its payload, response status and headers, and error. You can send a test event, pause or resume, rotate the signing secret, resend failed events, and delete. Create and edit stay on the CLI and SDK: the dashboard watches and fixes a webhook, it never writes a definition.
+[`/account/webhooks`](/account/webhooks) lists a hosted account's webhooks. Each detail page shows:
+
+- 7 days of delivered, waiting and gave-up events, by the hour
+- The last 100 delivery attempts, each with a diagnosis
+- Failed events, held for resend
+- Per delivery: payload, response status and headers, and error
+
+You can send a test event, pause or resume, rotate the signing secret, resend failed events, and delete. Create and edit stay on the CLI and SDK: the dashboard watches and fixes a webhook, it never writes a definition.
 
 The SDK reads the same views:
 
