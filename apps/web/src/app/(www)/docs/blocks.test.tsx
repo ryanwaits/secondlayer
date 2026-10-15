@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { Checks } from "@/components/docs/checks";
 import { Fork, ForkPath } from "@/components/docs/fork";
 import { Seam } from "@/components/docs/seam";
 import { Stack } from "@/components/docs/stack";
@@ -26,6 +27,23 @@ describe("the stack", () => {
 		]);
 		expect(html.indexOf("/docs/archive")).toBeLessThan(
 			html.indexOf("/docs/verification"),
+		);
+	});
+});
+
+describe("the check map", () => {
+	test("the check map lists every layer from webhooks down to archive, then any block", async () => {
+		const html = await render(<Checks />);
+		const hrefs = [...html.matchAll(/data-href="([^"]+)"/g)].map((m) => m[1]);
+		expect(hrefs).toEqual([
+			"/docs/webhooks",
+			"/docs/subgraphs",
+			"/docs/index",
+			"/docs/streams",
+			"/docs/archive",
+		]);
+		expect(html.indexOf("/docs/archive")).toBeLessThan(
+			html.indexOf("Any block"),
 		);
 	});
 });

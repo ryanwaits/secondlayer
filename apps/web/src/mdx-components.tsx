@@ -4,6 +4,7 @@ import { CodeTabs } from "@/components/code/code-tabs";
 import { fenceFromCode } from "@/components/code/fence";
 import { FocusLink, Mention, Pick, Tip } from "@/components/code/prose";
 import { Banner, Callout } from "@/components/docs/callout";
+import { Checks } from "@/components/docs/checks";
 import { Fork, ForkPath } from "@/components/docs/fork";
 import { Seam } from "@/components/docs/seam";
 import { Stack } from "@/components/docs/stack";
@@ -133,6 +134,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 		CodeSteps,
 		Step,
 		Stack,
+		Checks,
 		Yields,
 		Seam,
 		Steps,

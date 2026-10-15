@@ -19,6 +19,8 @@ export interface DocsProduct {
 	/** Product page "You get / You write" pair. */
 	get: string;
 	write: string;
+	/** Verify's check map: what you can prove, the command, what you still trust. */
+	check: { prove: string; run: string; trust: string };
 }
 
 export const DOCS_PRODUCTS: DocsProduct[] = [
@@ -32,6 +34,12 @@ export const DOCS_PRODUCTS: DocsProduct[] = [
 		},
 		get: "Signed history from genesis, hashed per partition",
 		write: "Nothing. You run commands.",
+		check: {
+			prove:
+				"Your history matches the archive; bootstrap and repair hash every partition first",
+			run: "secondlayer verify raw --against <latest.json>",
+			trust: "The archive key, and the range's assurance level",
+		},
 	},
 	{
 		key: "streams",
@@ -40,6 +48,11 @@ export const DOCS_PRODUCTS: DocsProduct[] = [
 		stack: { get: "Raw signed events, replayable", write: "your own decoder" },
 		get: "Raw signed events, replayable, reorgs rewound for you",
 		write: "A consume() loop and your own decoder",
+		check: {
+			prove: "Each frame is signed",
+			run: "the SDK, on every frame",
+			trust: "The signing key, unless you pin it",
+		},
 	},
 	{
 		key: "index",
@@ -51,6 +64,11 @@ export const DOCS_PRODUCTS: DocsProduct[] = [
 		},
 		get: "Decoded rows from genesis, typed per event",
 		write: "A consume() loop into your schema",
+		check: {
+			prove: "A transaction is in its block",
+			run: "GET /v1/index/transactions/:tx_id/proof",
+			trust: "The signer set in the proof, unless you pass your own",
+		},
 	},
 	{
 		key: "subgraphs",
@@ -62,6 +80,11 @@ export const DOCS_PRODUCTS: DocsProduct[] = [
 		},
 		get: "A table you define, plus a REST API over it",
 		write: "One file: sources, schema, handlers",
+		check: {
+			prove: "Served rows equal a replay",
+			run: "secondlayer verify subgraph <name> --replay",
+			trust: "The checkpoint; state subgraphs only",
+		},
 	},
 	{
 		key: "webhooks",
@@ -73,8 +96,21 @@ export const DOCS_PRODUCTS: DocsProduct[] = [
 		},
 		get: "A signed POST per matched chain event",
 		write: "An endpoint that checks the signature",
+		check: {
+			prove: "A delivery came from us",
+			run: "verifySecondlayerSignature(rawBody, headers, key)",
+			trust: "The signing key: proves who sent it, not that the chain agrees",
+		},
 	},
 ];
+
+/** The base row of the check map: the check that sits under every layer. */
+export const BLOCK_CHECK = {
+	title: "Any block",
+	prove: "A block, its transactions, its state writes and its Bitcoin anchor",
+	run: "secondlayer verify block <height>",
+	trust: "The checkpoint shipped in the release",
+};
 
 /** What the neighbour one layer away offers you, keyed `${from}>${to}`. */
 export const SEAM_CELLS: Record<string, { why: string; tease: string }> = {

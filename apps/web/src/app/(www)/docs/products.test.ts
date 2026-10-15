@@ -12,6 +12,14 @@ describe("docs products", () => {
 		);
 	});
 
+	test("every product has a check", () => {
+		for (const p of DOCS_PRODUCTS) {
+			expect(p.check.prove, p.key).not.toBe("");
+			expect(p.check.run, p.key).not.toBe("");
+			expect(p.check.trust, p.key).not.toBe("");
+		}
+	});
+
 	test("every neighbour pair has seam text", () => {
 		const expected: string[] = [];
 		for (let i = 0; i < DOCS_PRODUCTS.length - 1; i++) {
