@@ -10393,6 +10393,12 @@
 			"route": "/docs/subgraphs-reference",
 			"anchor": "m-validateSubgraphDefinition"
 		},
+		"VarSetPayload": {
+			"kind": "type",
+			"summary": "State-write payloads.",
+			"route": "/docs/subgraphs-reference",
+			"anchor": "t-VarSetPayload"
+		},
 		"WhereInput": {
 			"kind": "type",
 			"summary": "Where clause — each column accepts a scalar (eq) or comparison object",

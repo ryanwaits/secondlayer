@@ -86,7 +86,7 @@
 			"description": "Lists the fields each source filter type accepts.\n\nThe list is derived from `SubgraphFilterSchema`. Agent-facing surfaces\nsuch as the MCP filters reference used to keep a parallel copy by hand;\nderiving it means adding a field to a filter can never leave the\ndocumentation behind.",
 			"source": {
 				"file": "packages/subgraphs/src/validate.ts",
-				"line": 471
+				"line": 475
 			},
 			"overloads": [
 				{
@@ -108,7 +108,7 @@
 			"description": "Validates a subgraph definition and returns the parsed result.\n\nIt throws when the definition is invalid.",
 			"source": {
 				"file": "packages/subgraphs/src/validate.ts",
-				"line": 459
+				"line": 463
 			},
 			"overloads": [
 				{
@@ -193,7 +193,7 @@
 		{
 			"name": "AnyEvent",
 			"summary": "Union of every event payload.",
-			"definition": "StxTransferPayload | StxMintPayload | StxBurnPayload | StxLockPayload | FtTransferPayload | FtMintPayload | FtBurnPayload | NftTransferPayload | NftMintPayload | NftBurnPayload | ContractCallEvent | ContractDeployPayload | PrintEventPayload | NestedContractCallPayload | VarSetPayload | MapDeletePayload | MapWritePayload"
+			"definition": "StxTransferPayload | StxMintPayload | StxBurnPayload | StxLockPayload | FtTransferPayload | FtMintPayload | FtBurnPayload | NftTransferPayload | NftMintPayload | NftBurnPayload | ContractCallEvent | ContractDeployPayload | PrintEventPayload | NestedContractCallPayload | VarSetEvent | MapWriteEvent | MapDeleteEvent"
 		},
 		{
 			"name": "ChainReadCacheMode",
@@ -707,7 +707,7 @@
 			]
 		},
 		{
-			"name": "MapDeletePayload",
+			"name": "MapDeleteEvent",
 			"summary": "",
 			"fields": [
 				{
@@ -743,43 +743,12 @@
 			]
 		},
 		{
-			"name": "MapWriteFilter",
+			"name": "MapDeletePayload",
 			"summary": "",
-			"fields": [
-				{
-					"name": "type",
-					"type": "\"map_set\" | \"map_insert\" | \"map_delete\"",
-					"required": true,
-					"description": ""
-				},
-				{
-					"name": "contractId",
-					"type": "string | readonly string[]",
-					"required": false,
-					"description": ""
-				},
-				{
-					"name": "map",
-					"type": "string",
-					"required": false,
-					"description": ""
-				},
-				{
-					"name": "trait",
-					"type": "string",
-					"required": false,
-					"description": ""
-				},
-				{
-					"name": "factory",
-					"type": "{ from: string; field: string }",
-					"required": false,
-					"description": ""
-				}
-			]
+			"definition": "F extends { abi: infer A extends AbiContract; map: infer N extends string; } ? N extends ExtractMapNames<A> ? Omit<MapDeleteEvent, \"key\"> & { key: ExtractMapKey<A, N> } : MapDeleteEvent : MapDeleteEvent"
 		},
 		{
-			"name": "MapWritePayload",
+			"name": "MapWriteEvent",
 			"summary": "",
 			"fields": [
 				{
@@ -825,6 +794,53 @@
 					"description": ""
 				}
 			]
+		},
+		{
+			"name": "MapWriteFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"map_set\" | \"map_insert\" | \"map_delete\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "map",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "abi",
+					"type": "AbiContract",
+					"required": false,
+					"description": "Contract ABI. With a `map` the abi defines, `event.key` and\n`event.value` are typed and decoded from the map's types. Pass it\nyourself (`normalizeAbi()` from `@secondlayer/stacks/clarity`)."
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "MapWritePayload",
+			"summary": "",
+			"definition": "F extends { abi: infer A extends AbiContract; map: infer N extends string; } ? N extends ExtractMapNames<A> ? Omit<MapWriteEvent, \"key\" | \"value\"> & { key: ExtractMapKey<A, N>; value: ExtractMapValue<A, N>; } : MapWriteEvent : MapWriteEvent"
 		},
 		{
 			"name": "NestedContractCallFilter",
@@ -1848,43 +1864,7 @@
 			]
 		},
 		{
-			"name": "VarSetFilter",
-			"summary": "",
-			"fields": [
-				{
-					"name": "type",
-					"type": "\"var_set\"",
-					"required": true,
-					"description": ""
-				},
-				{
-					"name": "contractId",
-					"type": "string | readonly string[]",
-					"required": false,
-					"description": ""
-				},
-				{
-					"name": "varName",
-					"type": "string",
-					"required": false,
-					"description": ""
-				},
-				{
-					"name": "trait",
-					"type": "string",
-					"required": false,
-					"description": ""
-				},
-				{
-					"name": "factory",
-					"type": "{ from: string; field: string }",
-					"required": false,
-					"description": ""
-				}
-			]
-		},
-		{
-			"name": "VarSetPayload",
+			"name": "VarSetEvent",
 			"summary": "",
 			"fields": [
 				{
@@ -1918,6 +1898,53 @@
 					"description": ""
 				}
 			]
+		},
+		{
+			"name": "VarSetFilter",
+			"summary": "",
+			"fields": [
+				{
+					"name": "type",
+					"type": "\"var_set\"",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "contractId",
+					"type": "string | readonly string[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "varName",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "abi",
+					"type": "AbiContract",
+					"required": false,
+					"description": "Contract ABI. With a `varName` the abi defines, `event.value` is typed\nand decoded from the variable's type. Pass it yourself\n(`normalizeAbi()` from `@secondlayer/stacks/clarity`)."
+				},
+				{
+					"name": "trait",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "factory",
+					"type": "{ from: string; field: string }",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "VarSetPayload",
+			"summary": "State-write payloads.",
+			"definition": "F extends { abi: infer A extends AbiContract; varName: infer N extends string; } ? N extends ExtractVariableNames<A> ? Omit<VarSetEvent, \"value\"> & { value: ExtractVariableType<A, N> } : VarSetEvent : VarSetEvent"
 		}
 	]
 }

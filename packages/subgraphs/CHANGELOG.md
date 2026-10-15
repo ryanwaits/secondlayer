@@ -1,5 +1,18 @@
 # @secondlayer/subgraphs
 
+## 7.1.0
+
+### Minor Changes
+
+- Map and variable write sources take an `abi`: with a named map or variable, `event.key` and `event.value` are typed and decoded from the contract's types
+
+### Patch Changes
+
+- Updated dependencies [7b30d57]
+- Updated dependencies [318bffb]
+  - @secondlayer/stacks@6.3.0
+  - @secondlayer/verify@0.6.0
+
 ## 7.0.4
 
 ### Patch Changes

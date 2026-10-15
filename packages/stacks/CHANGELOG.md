@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 6.3.0
+
+### Minor Changes
+
+- 7b30d57: bitcoinRpcSource reads Bitcoin Core's error body; sources throw BitcoinSourceError with a code
+
 ## 6.2.2
 
 ### Patch Changes

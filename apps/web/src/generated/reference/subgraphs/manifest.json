@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/subgraphs",
-	"version": "7.0.4",
+	"version": "7.1.0",
 	"generator": "openpkg 0.13.2",
 	"surfaces": [
 		{
@@ -135,7 +135,9 @@
 		"isStreamsIndexEligible": "/docs/subgraphs-reference#m-isStreamsIndexEligible",
 		"KyselyGenOptions": "/docs/subgraphs-reference#t-KyselyGenOptions",
 		"loadDeterministicDefinition": "/docs/subgraphs-reference#m-loadDeterministicDefinition",
+		"MapDeleteEvent": "/docs/subgraphs-reference#t-MapDeleteEvent",
 		"MapDeletePayload": "/docs/subgraphs-reference#t-MapDeletePayload",
+		"MapWriteEvent": "/docs/subgraphs-reference#t-MapWriteEvent",
 		"MapWriteFilter": "/docs/subgraphs-reference#t-MapWriteFilter",
 		"MapWritePayload": "/docs/subgraphs-reference#t-MapWritePayload",
 		"NestedContractCallFilter": "/docs/subgraphs-reference#t-NestedContractCallFilter",
@@ -218,6 +220,7 @@
 		"TypedSubgraphDefinition": "/docs/subgraphs-reference#t-TypedSubgraphDefinition",
 		"UnpinnedPrintEventFilter": "/docs/subgraphs-reference#t-UnpinnedPrintEventFilter",
 		"validateSubgraphDefinition": "/docs/subgraphs-reference#m-validateSubgraphDefinition",
+		"VarSetEvent": "/docs/subgraphs-reference#t-VarSetEvent",
 		"VarSetFilter": "/docs/subgraphs-reference#t-VarSetFilter",
 		"VarSetPayload": "/docs/subgraphs-reference#t-VarSetPayload",
 		"WhereInput": "/docs/subgraphs-reference#t-WhereInput",

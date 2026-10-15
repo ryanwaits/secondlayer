@@ -1,5 +1,20 @@
 # @secondlayer/cli
 
+## 21.1.0
+
+### Minor Changes
+
+- Deploy fails when a map or variable write source names a map or variable its contract does not define; `verify` names the target the archive has no digests for
+
+### Patch Changes
+
+- Updated dependencies [7b30d57]
+- Updated dependencies
+- Updated dependencies [318bffb]
+  - @secondlayer/stacks@6.3.0
+  - @secondlayer/subgraphs@7.1.0
+  - @secondlayer/verify@0.6.0
+
 ## 21.0.0
 
 ### Major Changes

@@ -1,5 +1,16 @@
 # @secondlayer/verify
 
+## 0.6.0
+
+### Minor Changes
+
+- 318bffb: verifyBitcoinTx: prove a Bitcoin transaction and its output against the checkpoint chain, offline
+
+### Patch Changes
+
+- Updated dependencies [7b30d57]
+  - @secondlayer/stacks@6.3.0
+
 ## 0.5.4
 
 ### Patch Changes

@@ -58,7 +58,7 @@
 			"description": "Build a typed event payload based on the source filter type.\nReturns the payload the handler will receive.",
 			"source": {
 				"file": "packages/subgraphs/src/runtime/runner.ts",
-				"line": 147
+				"line": 177
 			},
 			"overloads": [
 				{
@@ -713,6 +713,12 @@
 					"type": "string",
 					"required": false,
 					"description": ""
+				},
+				{
+					"name": "abi",
+					"type": "AbiContract",
+					"required": false,
+					"description": "Contract ABI. With a `map` the abi defines, `event.key` and\n`event.value` are typed and decoded from the map's types. Pass it\nyourself (`normalizeAbi()` from `@secondlayer/stacks/clarity`)."
 				},
 				{
 					"name": "trait",
@@ -1585,6 +1591,12 @@
 					"type": "string",
 					"required": false,
 					"description": ""
+				},
+				{
+					"name": "abi",
+					"type": "AbiContract",
+					"required": false,
+					"description": "Contract ABI. With a `varName` the abi defines, `event.value` is typed\nand decoded from the variable's type. Pass it yourself\n(`normalizeAbi()` from `@secondlayer/stacks/clarity`)."
 				},
 				{
 					"name": "trait",

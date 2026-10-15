@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/stacks",
-	"version": "6.2.2",
+	"version": "6.3.0",
 	"generator": "openpkg 0.13.2",
 	"surfaces": [
 		{
