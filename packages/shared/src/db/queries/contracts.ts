@@ -65,6 +65,23 @@ export async function setContractAbi(
 }
 
 /**
+ * Re-classification: replace a contract's inferred standards. Bumps
+ * `abi_fetched_at`, which /v1/contracts serves as `classified_at` (hosted
+ * tenants poll `classified_after`), so changed rows reach them.
+ */
+export async function setInferredStandards(
+	db: Kysely<Database>,
+	contractId: string,
+	inferred: string[],
+): Promise<void> {
+	await db
+		.updateTable("contracts")
+		.set({ inferred_standards: inferred, abi_fetched_at: new Date() })
+		.where("contract_id", "=", contractId)
+		.execute();
+}
+
+/**
  * A contract reorged out and not (yet) redeployed on the new fork is not on
  * the canonical chain — serve 404, not its stale row/ABI. Matches every other
  * contracts read (list, trait scope, pending-ABI), which already filter.

@@ -1,4 +1,5 @@
 import type { AbiContract, AbiFunction } from "./contract.ts";
+import { normalizeAccess } from "./normalize.ts";
 import { SIP009_ABI, SIP010_ABI, SIP013_ABI } from "./standards.ts";
 
 /**
@@ -6,8 +7,8 @@ import { SIP009_ABI, SIP010_ABI, SIP013_ABI } from "./standards.ts";
  * SIP-009/010/013 token?". Powers trait-based discovery for the (many) contracts
  * that conform to a standard without declaring its trait. Lean match: every
  * REQUIRED standard function must be present with the same access + arg arity
- * (optional functions like get-token-uri are ignored). Loose on exact arg/return
- * types to catch real-world variants; consumers wanting certainty use the
+ * (a node ABI's `read_only` is normalized to `read-only`; optional functions
+ * like get-token-uri are ignored). Loose on exact arg/return types to catch real-world variants; consumers wanting certainty use the
  * `declared` traits parsed from source instead.
  */
 
@@ -54,7 +55,7 @@ function conformsTo(candidate: AbiContract, spec: StandardSpec): boolean {
 		if (spec.optional.has(required.name)) continue;
 		const got = fns.get(required.name);
 		if (!got) return false;
-		if (got.access !== required.access) return false;
+		if (normalizeAccess(got.access) !== required.access) return false;
 		if (got.args.length !== required.args.length) return false;
 	}
 	return true;

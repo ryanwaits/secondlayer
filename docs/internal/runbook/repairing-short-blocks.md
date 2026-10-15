@@ -91,6 +91,7 @@ one it prints, or use this table as reference:
 | PoX-5 staking events | `pox5_events` | `bun run packages/indexer/src/decode/rederive-pox5-events.ts --from-height <from> --to-height <to> --apply` |
 | BNS event logs | `bns_name_events`, `bns_namespace_events`, `bns_marketplace_events` | `bun run packages/indexer/src/decode/rederive-bns-events.ts --from-height <from> --to-height <to> --apply` |
 | Contracts registry | `contracts` | `bun run packages/indexer/src/contracts/rederive-registry.ts --limit 2000` (no window — anti-joins `transactions` against `contracts` and registers whatever isn't there yet; run it more than once, or raise `--limit`, if a window has more than the default) |
+| Contracts registry (inferred standards) | `contracts` | `bun run packages/indexer/src/contracts/reclassify-registry.ts --dry-run`, then without `--dry-run`. Re-runs the shape classifier over stored ABIs; changed rows get a new `abi_fetched_at` (served as `classified_at`) |
 
 Notes:
 

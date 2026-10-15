@@ -42,6 +42,34 @@ describe("classifyContract (shape inference)", () => {
 	});
 });
 
+describe("classifyContract (ABI straight from a Stacks node)", () => {
+	// Node contract-interface spells read-only access `read_only`.
+	const toNode = (abi: AbiContract) =>
+		({
+			...abi,
+			functions: abi.functions.map((f) => ({
+				...f,
+				access: f.access === "read-only" ? "read_only" : f.access,
+			})),
+		}) as unknown as AbiContract;
+
+	test("a node ABI (access read_only) classifies as sip-010", () => {
+		const abi = {
+			...toNode(SIP010_ABI),
+			fungible_tokens: [{ name: "token" }],
+		} as AbiContract;
+		expect(classifyContract(abi)).toContain("sip-010");
+	});
+
+	test("a node ABI (access read_only) classifies as sip-009", () => {
+		const abi = {
+			...toNode(SIP009_ABI),
+			non_fungible_tokens: [{ name: "nft", type: "uint128" }],
+		} as AbiContract;
+		expect(classifyContract(abi)).toContain("sip-009");
+	});
+});
+
 describe("parseDeclaredStandards (Clarity source)", () => {
 	test("extracts impl-trait declarations by trait name", () => {
 		const src = `
