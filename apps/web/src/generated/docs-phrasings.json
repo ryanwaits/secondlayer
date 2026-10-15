@@ -677,14 +677,16 @@
     ]
   },
   "/docs/index#cost-and-history": {
-    "hash": "2c6f45c0bc102d72",
+    "hash": "5d556b2b1a1a2799",
     "phrasings": [
-      "does self hosted index have rate limits",
-      "is there a meter on self hosted reads",
-      "cost of querying index on my own postgres",
-      "no rate limit own postgres reads",
-      "how much do index reads cost",
-      "self hosted vs hosted pricing for reads"
+      "is self hosted postgres really free to run",
+      "no rate limit on database reads",
+      "how much does it cost to self host",
+      "why are my postgres reads not metered",
+      "does self hosting remove usage limits",
+      "postgres reads without per request billing",
+      "self hosted vs hosted cost comparison",
+      "where do reads go when self hosting"
     ]
   },
   "/docs/index#decoded-protocols": {
@@ -711,14 +713,15 @@
     ]
   },
   "/docs/index#list-walk-consume": {
-    "hash": "8627a65ff1e2e3ff",
+    "hash": "0d99047719263c39",
     "phrasings": [
       "difference between list walk and consume",
-      "which index read method should i use",
-      "when to use consume vs walk on feed",
-      "are list walk consume interchangeable",
-      "feed verbs explained for indexed data",
-      "choose between list walk and consume"
+      "paginate through index feed",
+      "consume feed without missing records",
+      "which verb to use for feeds",
+      "list vs walk api endpoints",
+      "iterate over all index records",
+      "feed endpoints list walk consume usage"
     ]
   },
   "/docs/index#mirror-schema": {
@@ -756,26 +759,30 @@
     ]
   },
   "/docs/index#plain-http": {
-    "hash": "1ed4a713bf3e7c30",
+    "hash": "75210e4e54a1c6a6",
     "phrasings": [
-      "index rest api endpoints reference",
-      "query index data with curl",
-      "http filters for index endpoints",
-      "response shape for index http api",
-      "call index without sdk using http",
-      "list of available index http routes"
+      "query database over http without sdk",
+      "call database rest api with curl",
+      "how to run sql queries via http request",
+      "access database from client without driver",
+      "http api to fetch rows from database",
+      "no sdk needed to query data over http",
+      "send sql query using http post",
+      "connect to database from javascript fetch",
+      "querying rows with plain http requests",
+      "use database from any language via http"
     ]
   },
   "/docs/index#pox-5": {
-    "hash": "39256042e70fa49b",
+    "hash": "7bd279be083732ad",
     "phrasings": [
-      "pox-5 decoded prints api",
-      "pox-5 boot contract events",
-      "sip-045 pox-5 contract data",
-      "pox-5 per cycle totals",
-      "stacks pox-5 live since block 960230",
-      "how to get pox-5 cycle stats",
-      "decoded pox-5 prints query"
+      "pox 5 boot contract decoded prints",
+      "sip 045 pox 5 events",
+      "pox 5 per cycle totals",
+      "stacks pox 5 live bitcoin block 960230",
+      "decode pox 5 print events",
+      "pox cycle totals stacking api",
+      "pox 5 boot contract events history"
     ]
   },
   "/docs/index#print-schemas": {
@@ -802,51 +809,49 @@
     ]
   },
   "/docs/index#reorgs": {
-    "hash": "6019785824cb636d",
+    "hash": "132a95e844b84d6f",
     "phrasings": [
-      "how to detect chain reorgs in read responses",
-      "what is the reorgs array in envelope",
-      "handle reorganization overlapping block range",
-      "reorgs field empty in api response",
-      "check if blocks were reorged in my query",
-      "why does read response include reorgs",
-      "detect reorganized blocks in page results"
+      "reorgs array in api response",
+      "detect reorg in read envelope",
+      "meaning of reorg field in response",
+      "check if page overlaps reorganization",
+      "empty reorgs array meaning",
+      "block height range reorg detection api",
+      "how to tell data was reorganized"
     ]
   },
   "/docs/index#runes": {
-    "hash": "ea7b819ccec56f9d",
+    "hash": "76ac94afb2864b22",
     "phrasings": [
-      "how to query etched runes catalog",
-      "rune activity log api",
-      "get rune balances bitcoin",
-      "runes on bitcoin instead of stacks",
-      "list all etched runes",
-      "track rune activity per rune",
-      "bitcoin tip rune indexing",
-      "where to find rune balances"
+      "list of etched runes catalog",
+      "rune activity log per rune",
+      "runes balances on bitcoin tip",
+      "query bitcoin runes etchings api",
+      "rune balance lookup by address",
+      "runes data using bitcoin tip not stacks"
     ]
   },
   "/docs/index#sbtc": {
-    "hash": "fcf585491ad669d9",
+    "hash": "27dbec2fe44a137c",
     "phrasings": [
-      "sbtc peg lifecycle events decoded",
-      "track sbtc peg in and peg out",
-      "sbtc sweep bitcoin confirmation",
-      "how to verify sbtc sweep on bitcoin",
-      "sbtc deposit withdrawal event feed",
-      "decoded sbtc contract activity",
-      "sbtc sweep transaction confirmed status"
+      "sbtc peg in and peg out lifecycle",
+      "sbtc sweep bitcoin confirmation status",
+      "track sbtc deposit to bitcoin confirmation",
+      "decode sbtc peg events",
+      "is sbtc sweep confirmed on bitcoin",
+      "sbtc withdrawal lifecycle states explained"
     ]
   },
   "/docs/index#state-writes": {
-    "hash": "c237c5f51b309efd",
+    "hash": "022e59610c54868d",
     "phrasings": [
-      "contract state changes per block",
-      "get map and data-var writes for a block",
-      "track contract storage updates in order",
-      "which state did each block commit",
-      "replay contract state writes from node",
-      "order of state changes within canonical block"
+      "contract state changes per block stacks",
+      "which contract writes happened in a block",
+      "list of state writes committed by block",
+      "stacks canonical block state diff order",
+      "how to get contract storage changes per block",
+      "node order contract state writes query",
+      "missing contract state updates for a block"
     ]
   },
   "/docs/mcp": {
@@ -927,88 +932,97 @@
     ]
   },
   "/docs/rest-api": {
-    "hash": "29922af7cfd375f0",
+    "hash": "ffaa5584c972e3ad",
     "phrasings": [
-      "rest api response envelope format",
-      "consistent filter syntax across endpoints",
-      "one client for index streams subgraphs",
-      "v1 api response shape",
-      "cursor based pagination api v1",
-      "how to filter rest api results",
-      "api list endpoints common query grammar"
+      "rest api response envelope shape v1",
+      "same client for index streams subgraphs",
+      "v1 api filter grammar cursor",
+      "one client for all v1 endpoints",
+      "consistent json envelope across endpoints",
+      "v1 rest api conventions overview"
     ]
   },
   "/docs/rest-api#aggregates": {
-    "hash": "de419fa59e9109de",
+    "hash": "2ad8e7de8aa95543",
     "phrasings": [
-      "count sum over filtered subgraph rows",
-      "scalar aggregate endpoint v1 subgraphs",
-      "aggregate query same filters as list",
-      "how to compute totals via api",
-      "subgraph table aggregate endpoint example"
+      "how to sum values in subgraph table",
+      "rest endpoint for count and average",
+      "aggregate query over filtered subgraph data",
+      "get min max of a column via api",
+      "does count respect the same filters as list",
+      "scalar aggregate endpoint subgraph rest",
+      "compute totals from subgraph without fetching rows",
+      "aggregate endpoint returns wrong number"
     ]
   },
   "/docs/rest-api#batch-reads": {
-    "hash": "766c86adaa548834",
+    "hash": "2985a131700df2e6",
     "phrasings": [
-      "send multiple api requests in one call",
-      "batch api reads limit per request",
-      "reduce latency for many api calls",
-      "post v1 batch endpoint example",
-      "combine up to ten reads in one request"
+      "how to send multiple api requests in one call",
+      "batch several reads into single http request",
+      "reduce latency of many rest calls",
+      "post batch endpoint limit of requests",
+      "combine multiple v1 queries in one round trip",
+      "bulk read api requests dashboard latency",
+      "max requests per batch call subgraph api",
+      "run ten queries at once rest"
     ]
   },
   "/docs/rest-api#errors": {
-    "hash": "84e9f7c56cf96bc5",
+    "hash": "365b1812c45d783f",
     "phrasings": [
-      "how to handle api error codes",
-      "error response code vs message",
-      "where is request id in error",
-      "x-request-id header missing from response",
-      "what to include when reporting api error",
-      "branch on error code not message"
+      "api error code handling best practice",
+      "why not parse error message text",
+      "branch on error code instead of message",
+      "error codes list rest api",
+      "handle api errors programmatically",
+      "api error response code field"
     ]
   },
   "/docs/rest-api#filtering": {
-    "hash": "ebc61b3cafc74e94",
+    "hash": "301a9e18cb192f6f",
     "phrasings": [
-      "filter subgraph table by column",
-      "query subgraph rows with where clause",
-      "validate filter fields against schema",
-      "filter api results by any column",
-      "subgraph table query filter syntax"
+      "how to filter subgraph table rows by column",
+      "rest api query filter by field value",
+      "filter results on any column subgraph",
+      "why does my filter return validation error",
+      "subgraph rest filter operators examples",
+      "filter table by multiple columns rest",
+      "column not allowed in filter schema error",
+      "how to query rows matching a condition"
     ]
   },
   "/docs/rest-api#pagination": {
-    "hash": "dd94322d1155312a",
+    "hash": "0a802ab9ea6c04d4",
     "phrasings": [
-      "next cursor api pagination",
+      "use nextcursor for next page",
+      "paginate index and subgraph results",
+      "cursor pagination previous response nextcursor",
       "how to get next page of results",
-      "pass cursor to subgraphs endpoint",
-      "nextcursor missing from response",
-      "paginate index results api",
-      "fetch all pages from v1 api"
+      "api pagination cursor parameter example",
+      "fetch all pages with cursor stacks"
     ]
   },
   "/docs/rest-api#report-a-problem-hosted": {
-    "hash": "e0ae7e4c004cc048",
+    "hash": "fab6a0424bb0c13c",
     "phrasings": [
-      "api.secondlayer.tools error body fields",
-      "hosted api bug report request id",
-      "which id to send support for errors",
-      "do hosted error responses include request id",
-      "how to file hosted api issue"
+      "secondlayer tools error requestid",
+      "what is requestid in error body",
+      "how to report api problem to support",
+      "hosted api error request id",
+      "include request id in bug report",
+      "secondlayer tools error body missing requestid"
     ]
   },
   "/docs/rest-api#response-envelope": {
-    "hash": "38d7e655b0e6dd1d",
+    "hash": "fa0e1b6c7e525199",
     "phrasings": [
-      "what fields are in api response body",
-      "how to read tip finalizedheight",
-      "cursor format explained api",
-      "how to know if rows can reorg",
-      "finalizedonly consumer gate meaning",
-      "api response wrapper structure"
+      "tip finalizedheight meaning burn confirmation",
+      "height index cursor format explained",
+      "finalized height burn confirmation boundary",
+      "api response tip object fields",
+      "cursor string format explained",
+      "stacks api tip finalized height explained"
     ]
   },
   "/docs/rest-api#streaming-sse": {
@@ -1673,14 +1687,15 @@
     ]
   },
   "/docs/streams#bitcoin-events-runes": {
-    "hash": "e5dbc98e6c43f67a",
+    "hash": "b8ce69a4346791b2",
     "phrasings": [
-      "runes events missing from stream api",
-      "chain bitcoin rune etch mint transfer burn",
-      "bitcoin cursor rejected by events endpoint",
-      "runemint runetransfer events query",
-      "bitcoin cursor resume error chain parameter",
-      "separate cursor space for bitcoin events"
+      "runes events cursor on bitcoin chain",
+      "separate cursor for runes events",
+      "how to fetch rune transfers on bitcoin",
+      "bitcoin runes stream returns no events",
+      "chain bitcoin runes event feed",
+      "runes events missing from stream query",
+      "where to get runes activity data"
     ]
   },
   "/docs/streams#build-an-indexer-on-it": {
@@ -1719,16 +1734,15 @@
     ]
   },
   "/docs/streams#dumps-and-duckdb": {
-    "hash": "f1201f23ac38bcfe",
+    "hash": "3a05b2d60ca0d62c",
     "phrasings": [
-      "export stream data to parquet",
-      "query stream dumps with duckdb",
-      "parquet files from streams",
-      "how to load stream data into duckdb",
-      "stream dump format for analytics",
-      "read parquet dumps locally",
-      "stream export without database",
-      "duckdb query parquet export"
+      "query parquet dumps with duckdb",
+      "bulk export blockchain events as parquet",
+      "load stream data into duckdb",
+      "duckdb read parquet from dump files",
+      "download historical events as parquet",
+      "parquet format for analytics queries",
+      "export events to parquet for sql"
     ]
   },
   "/docs/streams#filters": {
@@ -1754,58 +1768,63 @@
     ]
   },
   "/docs/streams#per-frame-signatures": {
-    "hash": "19a9463fe51affff",
+    "hash": "0b2a9201d69ce00a",
     "phrasings": [
-      "verify ed25519 signature on stream frame",
-      "validate sse frame sig and keyid",
-      "json stringify event signature verification",
-      "check authenticity of stream events",
-      "keyid signing key for event frames",
-      "how to verify secondlayer event signature"
+      "verify sse frame signature",
+      "keyid field in event stream frame",
+      "validate signed event payload",
+      "what is sig field in event",
+      "check event signature with keyid",
+      "event frame signature verification example",
+      "authenticate streamed event frames"
     ]
   },
   "/docs/streams#read-it-directly": {
-    "hash": "de8ca3b8ada9603a",
+    "hash": "3787084af705ad31",
     "phrasings": [
-      "call stream directly without sdk loop",
-      "streams direct read repeated call",
-      "how to poll stream in a loop",
-      "read stream frames manually",
-      "stream direct call example",
-      "fetch stream batches without sdk"
+      "how to poll stream events in a loop",
+      "simple loop to fetch stream events",
+      "stream api call repeatedly example",
+      "read events without a consumer library",
+      "why does my stream loop keep polling",
+      "fetch blockchain events with plain http",
+      "minimal code to pull stream data"
     ]
   },
   "/docs/streams#real-time-firehose-sse": {
-    "hash": "4666e48eb450a489",
+    "hash": "e9358bf3ea2b7148",
     "phrasings": [
       "server sent events stream endpoint",
-      "realtime blockchain event stream http",
-      "sse keepalive ping every 20 seconds",
-      "start sse stream from cursor or height",
-      "fromheight stream events realtime example",
-      "live firehose of chain events api"
+      "sse endpoint for blockchain events",
+      "stream events over server sent events",
+      "filter params for sse event stream",
+      "realtime events alternative to websocket",
+      "curl sse blockchain events stream",
+      "subscribe to live events via sse"
     ]
   },
   "/docs/streams#reorg-behavior": {
-    "hash": "d377c3b8ebde97c6",
+    "hash": "9e55d15ef2cdfb4a",
     "phrasings": [
-      "stream reorg handling at-least-once delivery",
-      "duplicate events after chain reorg",
-      "make stream writes idempotent after fork",
-      "reorg rewind to fork point redelivery",
-      "do reorged blocks get redelivered",
-      "why am i getting duplicate stream events"
+      "what happens to stream on chain reorg",
+      "stream sends duplicate events after reorg",
+      "reorg redelivers fork block events",
+      "how to handle reorgs in event stream",
+      "events replayed after fork detected",
+      "rewind cursor on blockchain reorganization",
+      "does stream resend block after reorg"
     ]
   },
   "/docs/streams#two-concerns-one-loop": {
-    "hash": "4b0e5db423f7d111",
+    "hash": "3e736c179a58234a",
     "phrasings": [
-      "track sbtc mints and treasury spends together",
-      "combine two filters in one stream consumer",
-      "or filter multiple event types single cursor",
-      "one consume loop for multiple event types",
-      "stream filters are anded how to or",
-      "single checkpoint for two event streams"
+      "track two event types with one cursor",
+      "filter union of event types in stream",
+      "separate consumers for multiple event types",
+      "one checkpoint for multiple filters",
+      "why stream filters are and-ed together",
+      "sbtc mints and treasury spends together",
+      "multiple filters per consume loop"
     ]
   },
   "/docs/subgraphs": {
