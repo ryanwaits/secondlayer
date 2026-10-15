@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	barsRows,
 	formatAxis,
+	formatUsdTick,
 	heatGrid,
 	hourWindowLabel,
 	niceMax,
@@ -32,6 +33,18 @@ describe("formatAxis", () => {
 		expect(formatAxis(950)).toBe("950");
 		expect(formatAxis(1500)).toBe("1.5k");
 		expect(formatAxis(2_000_000)).toBe("2M");
+	});
+});
+
+describe("formatUsdTick", () => {
+	test("prints the origin as $0", () => {
+		expect(formatUsdTick(0)).toBe("$0");
+	});
+	test("keeps one decimal under $10", () => {
+		expect(formatUsdTick(2.5)).toBe("$2.5");
+	});
+	test("rounds to whole dollars from $10", () => {
+		expect(formatUsdTick(25)).toBe("$25");
 	});
 });
 

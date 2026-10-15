@@ -20,6 +20,12 @@ export function formatAxis(value: number, unit?: string): string {
 	return String(Math.round(value));
 }
 
+/** Dollar axis tick: 0 is "$0", under 10 keeps one decimal ("$2.5"), else whole dollars. */
+export function formatUsdTick(value: number): string {
+	if (value === 0) return "$0";
+	return `$${value.toFixed(value < 10 ? 1 : 0)}`;
+}
+
 export interface HeatCell {
 	index: number;
 	n: number;

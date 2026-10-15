@@ -1,7 +1,11 @@
 "use client";
 
 import { ChartTooltip } from "@/components/charts/recharts-tooltip";
-import { niceMax, spendProjection } from "@/lib/dashboard-charts";
+import {
+	formatUsdTick,
+	niceMax,
+	spendProjection,
+} from "@/lib/dashboard-charts";
 import {
 	Area,
 	CartesianGrid,
@@ -81,7 +85,7 @@ export function SpendChart({
 					ticks={[0, top / 2, top]}
 					interval={0}
 					domain={[0, top]}
-					tickFormatter={(v: number) => `$${v.toFixed(v < 10 ? 1 : 0)}`}
+					tickFormatter={(v: number) => formatUsdTick(v)}
 					tick={{ fontSize: 10.5, fill: "var(--faint)" }}
 					axisLine={false}
 					tickLine={false}
