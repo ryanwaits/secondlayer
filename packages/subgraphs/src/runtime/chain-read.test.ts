@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import { ChainReadError, createChainReadClient } from "./chain-read.ts";
+import { HandlerReadError } from "./realm.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
@@ -120,6 +121,42 @@ describe("createChainReadClient — pinning", () => {
 			).rejects.toThrow(/STACKS_NODE_RPC_URL/);
 		} finally {
 			process.env.STACKS_NODE_RPC_URL = saved ?? "";
+		}
+	});
+});
+
+describe.skipIf(!HAS_DB)("createChainReadClient — hosted tenant", () => {
+	test("a hosted tenant read without a node fails the block with the hosted message", async () => {
+		const saved = {
+			rpc: process.env.STACKS_NODE_RPC_URL,
+			indexApi: process.env.SUBGRAPH_INDEX_API_URL,
+			network: process.env.NETWORK,
+		};
+		// A tenant: chain data comes from the hosted Index API and its own
+		// index_progress has no row for the network (one no test ever writes).
+		process.env.STACKS_NODE_RPC_URL = "";
+		process.env.SUBGRAPH_INDEX_API_URL = "http://index.invalid";
+		process.env.NETWORK = "hosted-tenant-test";
+		try {
+			const read = createChainReadClient({
+				blockHeight: 42,
+				indexBlockHash: IBH,
+				db: getSourceDb(),
+			})
+				.contract(CONTRACT, TOKEN_ABI)
+				.read.getDecimals();
+			await expect(read).rejects.toBeInstanceOf(HandlerReadError);
+			await expect(read).rejects.toThrow(/hosted subgraphs/);
+			await expect(read).rejects.not.toThrow(/STACKS_NODE_RPC_URL/);
+		} finally {
+			for (const [key, value] of [
+				["STACKS_NODE_RPC_URL", saved.rpc],
+				["SUBGRAPH_INDEX_API_URL", saved.indexApi],
+				["NETWORK", saved.network],
+			] as const) {
+				if (value === undefined) delete process.env[key];
+				else process.env[key] = value;
+			}
 		}
 	});
 });

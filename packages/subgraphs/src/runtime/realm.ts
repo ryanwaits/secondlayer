@@ -39,9 +39,11 @@ export class NondeterminismError extends Error {
 }
 
 /**
- * A ctx read (DB, chain) failed under a verifiable subgraph. Infra-class like
+ * A ctx read failed for a reason outside the handler: the database under a
+ * verifiable subgraph, or a chain read (`ctx.client`) on any subgraph that
+ * had no node, a node that didn't answer, or a cache error. Infra-class like
  * {@link NondeterminismError}: skipping the event would make its rows depend
- * on whether the database was reachable.
+ * on whether the database or node was reachable.
  */
 export class HandlerReadError extends Error {
 	override name = "HandlerReadError";

@@ -1,7 +1,13 @@
+import { getErrorMessage } from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
+import { hasNoLocalChain } from "@secondlayer/shared/db/queries/instance";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
-import { http, createPublicClient } from "@secondlayer/stacks";
+import {
+	http,
+	ReadContractError,
+	createPublicClient,
+} from "@secondlayer/stacks";
 import {
 	ContractResponseError,
 	type UnwrapResponse,
@@ -27,6 +33,7 @@ import {
 	toCamelCase,
 } from "@secondlayer/stacks/clarity";
 import type { Kysely } from "kysely";
+import { HandlerReadError } from "./realm.ts";
 
 /**
  * How long a read stays valid.
@@ -162,8 +169,41 @@ export function readContractAt<const C extends AbiContract>(
 	};
 }
 
+/**
+ * A handler asked for something no node can answer: a function missing from
+ * the ABI, or one that isn't read-only. Deterministic, so it fails only the
+ * event. A read the processor couldn't complete (no node, node down, cache
+ * error) throws {@link HandlerReadError} instead and aborts the block.
+ */
 export class ChainReadError extends Error {
 	override name = "ChainReadError";
+}
+
+/**
+ * The error for a processor with no node to read from. A hosted tenant has no
+ * node of its own and can't set one, so it gets the real limit rather than an
+ * env var to set.
+ */
+async function noNodeError(db: Kysely<Database>): Promise<HandlerReadError> {
+	if (await hasNoLocalChain(db)) {
+		return new HandlerReadError(
+			"Contract reads (ctx.client) aren't available on hosted subgraphs yet; they arrive with the next release. The subgraph resumes from this block after it.",
+		);
+	}
+	return new HandlerReadError(
+		"ctx.client needs a Stacks node: set STACKS_NODE_RPC_URL on the subgraph processor.",
+	);
+}
+
+/**
+ * True when the node answered for the pinned block. The answer is a fact of
+ * the chain, so the handler owns it: `err` responses and contract runtime
+ * errors fail only the event, like any other handler error.
+ */
+function isChainAnswer(err: unknown): boolean {
+	return (
+		err instanceof ContractResponseError || err instanceof ReadContractError
+	);
 }
 
 /**
@@ -264,84 +304,92 @@ export function createChainReadClient(ctx: ChainReadContext): ChainReadClient {
 		args: Record<string, unknown>,
 		options: ChainReadOptions,
 	): Promise<unknown> => {
+		const db = ctx.db ?? getSourceDb();
 		const rpcUrl = ctx.rpcUrl ?? process.env.STACKS_NODE_RPC_URL;
-		if (!rpcUrl) {
-			throw new ChainReadError(
-				"ctx.client needs a Stacks node: set STACKS_NODE_RPC_URL on the subgraph processor.",
-			);
-		}
+		if (!rpcUrl) throw await noNodeError(db);
 
 		const constant = options.cache === "contract-constant";
 		if (!constant && !ctx.indexBlockHash) {
-			throw new ChainReadError(
+			throw new HandlerReadError(
 				`Block ${ctx.blockHeight} has no index_block_hash, so a read cannot be pinned to it. Reading at the node's tip would make this handler non-deterministic (the same reindex would produce different rows). Re-ingest the block, or pass cache: "contract-constant" if the value genuinely cannot change.`,
 			);
 		}
 
 		const fn = findFunction(abi, functionName);
 		const clarityArgs = buildFunctionArgs(fn, args);
-		const db = ctx.db ?? getSourceDb();
 		const argsHash = hashArgs(clarityArgs);
 		const pinnedTo = constant ? null : (ctx.indexBlockHash as string);
 
-		const cached = await db
-			.selectFrom("chain_read_cache")
-			.select("result_hex")
-			.where("contract_id", "=", contractId)
-			.where("function_name", "=", fn.name)
-			.where("args_hash", "=", argsHash)
-			.where((eb) =>
-				pinnedTo === null
-					? eb("index_block_hash", "is", null)
-					: eb("index_block_hash", "=", pinnedTo),
-			)
-			.executeTakeFirst();
+		// Everything from here to the cache write is the processor's I/O, not
+		// the handler's logic: a failure aborts the block so it retries, rather
+		// than committing the block without this event's rows.
+		let resultHex: string;
+		try {
+			const cached = await db
+				.selectFrom("chain_read_cache")
+				.select("result_hex")
+				.where("contract_id", "=", contractId)
+				.where("function_name", "=", fn.name)
+				.where("args_hash", "=", argsHash)
+				.where((eb) =>
+					pinnedTo === null
+						? eb("index_block_hash", "is", null)
+						: eb("index_block_hash", "=", pinnedTo),
+				)
+				.executeTakeFirst();
 
-		const resultHex =
-			cached?.result_hex ??
-			(await gate.run(async () => {
-				// A constant read still pins to this block where it can: "cannot
-				// change" is a claim about future blocks, not a license to read
-				// a tip that may be ahead of the one being processed.
-				if (!ctx.indexBlockHash) {
-					// The one path where an UNPINNED read happens. Reachable only
-					// in constant mode on a block with no persisted id — which is
-					// exactly what the pinning error tells you to do — so it is
-					// allowed, but never silently.
-					logger.warn(
-						"Chain read is not pinned to a block (no index_block_hash)",
-						{
-							contractId,
-							functionName: fn.name,
-							blockHeight: ctx.blockHeight,
-							note: 'cache: "contract-constant" asserts this value cannot change; the node answered at its own tip',
-						},
-					);
-				}
-				const value = await readContract(nodeClient(rpcUrl), {
-					contract: contractId,
-					functionName: fn.name,
-					args: clarityArgs,
-					tip: ctx.indexBlockHash ?? undefined,
-				});
-				return serializeCV(value);
-			}));
+			resultHex =
+				cached?.result_hex ??
+				(await gate.run(async () => {
+					// A constant read still pins to this block where it can: "cannot
+					// change" is a claim about future blocks, not a license to read
+					// a tip that may be ahead of the one being processed.
+					if (!ctx.indexBlockHash) {
+						// The one path where an UNPINNED read happens. Reachable only
+						// in constant mode on a block with no persisted id — which is
+						// exactly what the pinning error tells you to do — so it is
+						// allowed, but never silently.
+						logger.warn(
+							"Chain read is not pinned to a block (no index_block_hash)",
+							{
+								contractId,
+								functionName: fn.name,
+								blockHeight: ctx.blockHeight,
+								note: 'cache: "contract-constant" asserts this value cannot change; the node answered at its own tip',
+							},
+						);
+					}
+					const value = await readContract(nodeClient(rpcUrl), {
+						contract: contractId,
+						functionName: fn.name,
+						args: clarityArgs,
+						tip: ctx.indexBlockHash ?? undefined,
+					});
+					return serializeCV(value);
+				}));
 
-		if (!cached) {
-			await db
-				.insertInto("chain_read_cache")
-				.values({
-					contract_id: contractId,
-					function_name: fn.name,
-					args_hash: argsHash,
-					index_block_hash: pinnedTo,
-					block_height: constant ? null : ctx.blockHeight,
-					result_hex: resultHex,
-				})
-				// Two handlers in the same batch can race to the same key; the
-				// value is identical either way, so the loser keeps its own.
-				.onConflict((oc) => oc.doNothing())
-				.execute();
+			if (!cached) {
+				await db
+					.insertInto("chain_read_cache")
+					.values({
+						contract_id: contractId,
+						function_name: fn.name,
+						args_hash: argsHash,
+						index_block_hash: pinnedTo,
+						block_height: constant ? null : ctx.blockHeight,
+						result_hex: resultHex,
+					})
+					// Two handlers in the same batch can race to the same key; the
+					// value is identical either way, so the loser keeps its own.
+					.onConflict((oc) => oc.doNothing())
+					.execute();
+			}
+		} catch (err) {
+			if (isChainAnswer(err)) throw err;
+			throw new HandlerReadError(
+				`Chain read ${contractId}::${fn.name} at block ${ctx.blockHeight} failed: ${getErrorMessage(err)}`,
+				{ cause: err },
+			);
 		}
 
 		const value = deserializeCV(resultHex);

@@ -643,9 +643,10 @@ export async function runHandlers(
 			await handler(payload, ctx);
 			processed++;
 		} catch (err) {
-			// Verifiable subgraphs only (the realm is the sole thrower): the
-			// output would depend on the run, so abort the block and retry
-			// rather than commit it without this event.
+			// Determinism breaks (verifiable subgraphs) and reads the
+			// processor couldn't complete (DB, node): the output would depend
+			// on the run, so abort the block and retry rather than commit it
+			// without this event.
 			if (abortsBlock(err)) throw err;
 			ctx.rollbackTo(checkpoint);
 			errors++;
