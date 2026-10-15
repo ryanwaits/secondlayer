@@ -71,6 +71,11 @@ services:
       POSTGRES_USER: secondlayer
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?tenant secret required}
       POSTGRES_DB: secondlayer
+    # Sized for one account's webhooks + subgraph tables (idle RSS ~60 MiB).
+    # 30 connections covers api + webhook-service + subgraph-processor at
+    # DATABASE_POOL_MAX=5 each, their LISTEN connections, and migrate.
+    command: ["postgres", "-c", "shared_buffers=32MB", "-c", "max_connections=30"]
+    mem_limit: 192m
     volumes:
       - postgres_data:/var/lib/postgresql/data
     # No host port publish: only sibling containers on this tenant's own
@@ -121,6 +126,7 @@ services:
     environment:
       INSTANCE_MODE: oss
       DATABASE_URL: postgres://secondlayer:${POSTGRES_PASSWORD:?tenant secret required}@postgres:5432/secondlayer
+      DATABASE_POOL_MAX: "5"
       PORT: 3800
       LISTEN_HOST: "0.0.0.0"
       # Review fix 1: the gateway is a HOST process, not a container on this
@@ -198,9 +204,12 @@ services:
     image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:?set WORKLOAD_IMAGE_TAG to a deployed main sha}
     command: ["bun", "run", "packages/subgraphs/src/webhook-service.ts"]
     platform: linux/amd64
+    # Idle RSS ~40 MiB; the cap keeps a delivery backlog from taking the host.
+    mem_limit: 256m
     environment:
       INSTANCE_MODE: oss
       DATABASE_URL: postgres://secondlayer:${POSTGRES_PASSWORD:?tenant secret required}@postgres:5432/secondlayer
+      DATABASE_POOL_MAX: "5"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       DATA_DIR: /data
@@ -254,6 +263,7 @@ services:
     environment:
       INSTANCE_MODE: oss
       DATABASE_URL: postgres://secondlayer:${POSTGRES_PASSWORD:?tenant secret required}@postgres:5432/secondlayer
+      DATABASE_POOL_MAX: "5"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       DATA_DIR: /data
