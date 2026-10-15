@@ -6,6 +6,7 @@ import {
 	EventCounter,
 	MEMORY_FLOOR_GB,
 	collectShutdownFlushItems,
+	countTenantWorkloads,
 	eventsIdempotencyKey,
 	eventsMeterItem,
 	flushAll,
@@ -790,5 +791,29 @@ describe("sampleTenantDatabaseBytes (review fix 4)", () => {
 			stderr: "no such container",
 		});
 		expect(await sampleTenantDatabaseBytes("acct1234", runDocker)).toBe(0);
+	});
+});
+
+describe("countTenantWorkloads", () => {
+	test("counts active webhooks plus subgraphs in the tenant's own postgres", async () => {
+		let seenArgs: string[] = [];
+		const runDocker = async (args: string[]) => {
+			seenArgs = args;
+			return { code: 0, stdout: "3\n", stderr: "" };
+		};
+		expect(await countTenantWorkloads("acct1234", runDocker)).toBe(3);
+		expect(seenArgs[1]).toBe("tenant-acct1234-postgres-1");
+		expect(seenArgs.at(-1)).toContain("status = 'active'");
+	});
+
+	test("a failed exec or garbled output is unreadable, never zero", async () => {
+		const failed = async () => ({ code: 1, stdout: "", stderr: "down" });
+		const garbled = async () => ({ code: 0, stdout: "ERROR", stderr: "" });
+		const thrown = async (): Promise<never> => {
+			throw new Error("docker missing");
+		};
+		expect(await countTenantWorkloads("acct1234", failed)).toBeNull();
+		expect(await countTenantWorkloads("acct1234", garbled)).toBeNull();
+		expect(await countTenantWorkloads("acct1234", thrown)).toBeNull();
 	});
 });

@@ -26,6 +26,7 @@ import { logger } from "@secondlayer/shared";
 import { generateEd25519KeyPair } from "@secondlayer/shared/crypto/ed25519";
 import type postgres from "postgres";
 import {
+	type StopReason,
 	type TenantRow,
 	acct8For,
 	deleteTenant,
@@ -38,6 +39,7 @@ import {
 	setTenantTemplateSha,
 } from "./control-db.ts";
 import type { FetchLike } from "./fetch-like.ts";
+import { countTenantWorkloads } from "./meters.ts";
 
 export interface TenantSecrets {
 	instanceToken: string;
@@ -180,9 +182,29 @@ export const spawnCompose: RunCompose = async (args, env) => {
 	return { code: exitCode, stdout, stderr };
 };
 
+/** One account's answer from `/internal/accounts/credits`: may its stack run,
+ *  and if not, why. */
+export interface CreditsStatus {
+	ok: boolean;
+	reason: Exclude<StopReason, "idle"> | null;
+}
+
 export type CheckCreditsOk = (
 	accountIds: string[],
-) => Promise<Record<string, boolean>>;
+) => Promise<Record<string, CreditsStatus>>;
+
+/** Reads one entry of the route's response. A bare boolean is the shape an
+ *  app-server from before stop reasons answers with: `false` was always a
+ *  zero balance. */
+function parseCreditsStatus(value: unknown): CreditsStatus {
+	if (typeof value === "boolean") {
+		return { ok: value, reason: value ? null : "credits" };
+	}
+	const entry = value as { ok?: unknown; reason?: unknown } | null;
+	const ok = entry?.ok === true;
+	if (ok) return { ok, reason: null };
+	return { ok, reason: entry?.reason === "cap" ? "cap" : "credits" };
+}
 
 /** Real implementation: `POST /internal/accounts/credits`. Chunks at
  *  `batchSize` (matches the route's own cap) so a large tenant count never
@@ -193,8 +215,10 @@ export function makeCheckCreditsOk(
 	fetchImpl: FetchLike = fetch,
 	batchSize = 500,
 ): CheckCreditsOk {
-	return async (accountIds: string[]): Promise<Record<string, boolean>> => {
-		const out: Record<string, boolean> = {};
+	return async (
+		accountIds: string[],
+	): Promise<Record<string, CreditsStatus>> => {
+		const out: Record<string, CreditsStatus> = {};
 		for (let i = 0; i < accountIds.length; i += batchSize) {
 			const chunk = accountIds.slice(i, i + batchSize);
 			const res = await fetchImpl(
@@ -211,7 +235,10 @@ export function makeCheckCreditsOk(
 			if (!res.ok) {
 				throw new Error(`check credits failed: ${res.status}`);
 			}
-			Object.assign(out, (await res.json()) as Record<string, boolean>);
+			const body = (await res.json()) as Record<string, unknown>;
+			for (const [id, value] of Object.entries(body)) {
+				out[id] = parseCreditsStatus(value);
+			}
 		}
 		return out;
 	};
@@ -266,6 +293,9 @@ export interface ProvisionerConfig {
 	runCompose?: RunCompose;
 	mintTenantKey?: MintTenantKey;
 	checkCreditsOk?: CheckCreditsOk;
+	/** Active webhooks + subgraphs in one tenant (`meters.ts`'s
+	 *  `countTenantWorkloads`), injectable for tests. `null` = unreadable. */
+	countWorkloads?: (acct8: string) => Promise<number | null>;
 	fetchImpl?: FetchLike;
 	/** The current deployed-image target (`upgrade.ts`'s `resolveTargetSha`,
 	 *  cached in memory by the caller) — a function, not a fixed value, so
@@ -676,10 +706,13 @@ export async function recoverInterruptedProvisions(
 
 /** `running → stopped`: stop every service except `postgres` (Design) so
  *  webhook delivery pauses and the memory meter stops, but tenant data is
- *  kept — a top-up just starts everything back up. */
+ *  kept. `reason` decides what brings it back: the poll restarts a
+ *  `credits`/`cap` stop once the account is ok; an `idle` stop waits for the
+ *  next request through the gateway. */
 export async function stop(
 	cfg: ProvisionerConfig,
 	accountId: string,
+	reason: StopReason,
 ): Promise<void> {
 	const runCompose = cfg.runCompose ?? spawnCompose;
 	const acct8 = acct8For(accountId);
@@ -708,8 +741,8 @@ export async function stop(
 			`docker compose stop failed for tenant-${acct8} (exit ${result.code})`,
 		);
 	}
-	await setTenantState(cfg.db, accountId, "stopped");
-	logger.info("workload.provisioner.stop", { accountId, acct8 });
+	await setTenantState(cfg.db, accountId, "stopped", reason);
+	logger.info("workload.provisioner.stop", { accountId, acct8, reason });
 }
 
 /** `stopped → running`: undoes `stop()`. Also used by `up()` for a returning
@@ -787,14 +820,21 @@ export async function destroy(
 	logger.info("workload.provisioner.destroy", { accountId, acct8 });
 }
 
+/** A tenant that came up less than this long ago is never idle-stopped:
+ *  room to create the first webhook or deploy the first subgraph. */
+export const IDLE_GRACE_MS = 15 * 60 * 1000;
+
 /**
- * The 5-minute zero-balance poll (Design: "balance check (every 5 min via
- * introspect `credits_ok=false`)"). `running & !ok → stop()`,
- * `stopped & ok → start()` (review fix 3a — this is what actually resumes a
- * topped-up account in the background; the gateway's own topped-up-while-
- * stopped path (review fix 3b) is the other half, for a caller who doesn't
- * want to wait for the next poll tick).
+ * The 5-minute poll. Per tenant:
  *
+ * | state   | account                | action            |
+ * |---------|------------------------|-------------------|
+ * | running | not ok (credits / cap) | `stop(reason)`    |
+ * | running | ok, 0 active webhooks and 0 subgraphs, up ≥ `IDLE_GRACE_MS` | `stop("idle")` |
+ * | stopped | ok, reason not `idle`  | `start()`         |
+ *
+ * An idle-stopped tenant restarts on its next request through the gateway,
+ * never from here. A workload count that can't be read never stops a tenant.
  * One tenant's stop/start failure is logged and does not stop the poll from
  * processing every other tenant in the batch.
  */
@@ -803,14 +843,24 @@ export async function pollCredits(cfg: ProvisionerConfig): Promise<void> {
 	if (tenants.length === 0) return;
 
 	const checkCreditsOk = resolveCheckCreditsOk(cfg);
-	const creditsOk = await checkCreditsOk(tenants.map((t) => t.account_id));
+	const statuses = await checkCreditsOk(tenants.map((t) => t.account_id));
+	const countWorkloads =
+		cfg.countWorkloads ?? ((acct8: string) => countTenantWorkloads(acct8));
 
 	for (const tenant of tenants) {
-		const ok = creditsOk[tenant.account_id] ?? false;
+		const status = statuses[tenant.account_id] ?? {
+			ok: false,
+			reason: "credits",
+		};
 		try {
-			if (tenant.state === "running" && !ok) {
-				await stop(cfg, tenant.account_id);
-			} else if (tenant.state === "stopped" && ok) {
+			if (tenant.state === "running" && !status.ok) {
+				await stop(cfg, tenant.account_id, status.reason ?? "credits");
+			} else if (tenant.state === "running") {
+				const startedAt = tenant.started_at?.getTime() ?? 0;
+				if (Date.now() - startedAt < IDLE_GRACE_MS) continue;
+				const count = await countWorkloads(acct8For(tenant.account_id));
+				if (count === 0) await stop(cfg, tenant.account_id, "idle");
+			} else if (status.ok && tenant.stop_reason !== "idle") {
 				await start(cfg, tenant.account_id);
 			}
 		} catch (err) {

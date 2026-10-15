@@ -345,6 +345,37 @@ export async function sampleTenantDatabaseBytes(
 	return parsePgDatabaseSizeOutput(result.stdout);
 }
 
+/** What keeps a stack worth running: active webhooks plus subgraphs (any
+ *  status, since a halted subgraph's data is still served). Read via
+ *  `docker exec` into the tenant's own postgres, same as the storage sample.
+ *  `null` when the count can't be read: callers must never stop a tenant on
+ *  an unreadable count. */
+export async function countTenantWorkloads(
+	acct8: string,
+	runDocker: RunDocker = spawnDocker,
+): Promise<number | null> {
+	let result: DockerResult;
+	try {
+		result = await runDocker([
+			"exec",
+			`tenant-${acct8}-postgres-1`,
+			"psql",
+			"-U",
+			"secondlayer",
+			"-d",
+			"secondlayer",
+			"-tAc",
+			"SELECT (SELECT count(*) FROM webhooks WHERE status = 'active') + (SELECT count(*) FROM subgraphs)",
+		]);
+	} catch {
+		return null;
+	}
+	if (result.code !== 0) return null;
+	const text = result.stdout.trim();
+	if (!/^\d+$/.test(text)) return null;
+	return Number(text);
+}
+
 /** Batches `items` at `MAX_METER_BATCH` (`/internal/meters`'s own cap) and
  *  flushes each page; a failed page is logged and its items are returned so
  *  the caller can resend them (unchanged — same idempotency keys) on a later

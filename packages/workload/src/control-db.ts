@@ -45,7 +45,20 @@ export interface TenantRow {
 	 *  last came up on (`provisioner.ts`'s `templateSha`). A tenant whose value
 	 *  differs from the current template is rolled even on a current image. */
 	template_sha: string | null;
+	/** Why a `stopped` tenant stopped: `credits` (balance hit 0), `cap`
+	 *  (monthly spend cap reached), or `idle` (no active webhooks and no
+	 *  subgraphs). The poll restarts `credits`/`cap` once the account is ok
+	 *  again; `idle` waits for the next request through the gateway. `null`
+	 *  while running, and on rows stopped before this column existed (those
+	 *  were all credit stops). */
+	stop_reason: StopReason | null;
+	/** When the tenant last came up (`up()`/`start()`). The idle stop never
+	 *  fires within `IDLE_GRACE_MS` of it. `null` on rows from before this
+	 *  column existed. */
+	started_at: Date | null;
 }
+
+export type StopReason = "credits" | "cap" | "idle";
 
 /** First 8 hex chars of the account id with non-hex characters stripped —
  *  short, stable, and safe in a compose project name / socket path
@@ -129,6 +142,8 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 	// `api_port` above.
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS image_sha TEXT`;
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS template_sha TEXT`;
+	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS stop_reason TEXT`;
+	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ`;
 	// Tenants created before subgraph hosting have no network index: adding the
 	// column with a sequence default gives every existing row its own.
 	await db`
@@ -195,16 +210,23 @@ export async function insertProvisioningTenant(
 	};
 }
 
+/** `stopped` stamps `stopped_at` and records why (`stopReason`); `running`
+ *  stamps `started_at` and clears both. */
 export async function setTenantState(
 	db: postgres.Sql,
 	accountId: string,
 	state: TenantState,
+	stopReason: StopReason | null = null,
 ): Promise<void> {
 	if (state === "stopped") {
-		await db`UPDATE tenants SET state = ${state}, stopped_at = now() WHERE account_id = ${accountId}`;
+		await db`UPDATE tenants SET state = ${state}, stopped_at = now(), stop_reason = ${stopReason} WHERE account_id = ${accountId}`;
 		return;
 	}
-	await db`UPDATE tenants SET state = ${state}, stopped_at = NULL WHERE account_id = ${accountId}`;
+	if (state === "running") {
+		await db`UPDATE tenants SET state = ${state}, stopped_at = NULL, stop_reason = NULL, started_at = now() WHERE account_id = ${accountId}`;
+		return;
+	}
+	await db`UPDATE tenants SET state = ${state}, stopped_at = NULL, stop_reason = NULL WHERE account_id = ${accountId}`;
 }
 
 /** Records the sha of the image a tenant's `api`/`webhook-service` just came

@@ -35,6 +35,7 @@ import {
 	destroy,
 	ensureTenantEnv,
 	generateTenantSecrets,
+	makeCheckCreditsOk,
 	makeMintTenantKey,
 	parseEnvFile,
 	pollCredits,
@@ -412,7 +413,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await up(cfg(), accountId);
 		composeCalls.length = 0;
 
-		await stop(cfg(), accountId);
+		await stop(cfg(), accountId, "credits");
 		expect(composeCalls).toHaveLength(1);
 		expect(composeCalls[0]?.args).toContain("stop");
 		expect(composeCalls[0]?.args).not.toContain("postgres");
@@ -440,7 +441,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();
 		await up(cfg(), accountId);
-		await stop(cfg(), accountId);
+		await stop(cfg(), accountId, "credits");
 		composeCalls.length = 0;
 		mintCalls = [];
 
@@ -585,7 +586,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();
 		await up(cfg(), accountId);
-		await stop(cfg(), accountId);
+		await stop(cfg(), accountId, "credits");
 
 		await start(cfg(), accountId);
 		const row = await getTenant(db, accountId);
@@ -598,7 +599,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();
 		await up(cfg(), accountId); // provisions on TARGET_SHA
-		await stop(cfg(), accountId);
+		await stop(cfg(), accountId, "credits");
 		targetSha = OTHER_SHA; // a deploy landed while it was stopped
 		composeCalls.length = 0;
 
@@ -615,7 +616,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();
 		await up(cfg(), accountId);
-		await stop(cfg(), accountId);
+		await stop(cfg(), accountId, "credits");
 		composeCalls.length = 0;
 		targetSha = null;
 
@@ -649,7 +650,10 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 	const composeCalls: Array<{ args: string[]; env: Record<string, string> }> =
 		[];
 
-	function cfg(creditsOk: Record<string, boolean>): ProvisionerConfig {
+	function cfg(
+		creditsOk: Record<string, boolean | "cap">,
+		workloads: number | null = 1,
+	): ProvisionerConfig {
 		return {
 			db,
 			secretsRoot,
@@ -661,9 +665,24 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 			},
 			mintTenantKey: async () => "sk-sl_minted",
 			checkCreditsOk: async (ids) =>
-				Object.fromEntries(ids.map((id) => [id, creditsOk[id] ?? false])),
+				Object.fromEntries(
+					ids.map((id) => {
+						const value = creditsOk[id] ?? false;
+						if (value === true) return [id, { ok: true, reason: null }];
+						return [
+							id,
+							{ ok: false, reason: value === "cap" ? "cap" : "credits" },
+						];
+					}),
+				),
+			countWorkloads: async () => workloads,
 			getTargetSha: () => TARGET_SHA,
 		};
+	}
+
+	/** Backdate a tenant's start past the idle grace period. */
+	async function startedLongAgo(accountId: string): Promise<void> {
+		await db`UPDATE tenants SET started_at = now() - interval '1 hour' WHERE account_id = ${accountId}`;
 	}
 
 	beforeAll(async () => {
@@ -697,7 +716,7 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 	test("stopped & topped up → running", async () => {
 		const accountId = crypto.randomUUID();
 		await up(cfg({}), accountId);
-		await stop(cfg({}), accountId);
+		await stop(cfg({}), accountId, "credits");
 		composeCalls.length = 0;
 
 		await pollCredits(cfg({ [accountId]: true }));
@@ -719,6 +738,109 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 		expect(composeCalls).toHaveLength(0);
 		const row = await getTenant(db, accountId);
 		expect(row?.state).toBe("running");
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("running & over the spend cap → stopped with reason cap", async () => {
+		const accountId = crypto.randomUUID();
+		await up(cfg({}), accountId);
+
+		await pollCredits(cfg({ [accountId]: "cap" }));
+
+		const row = await getTenant(db, accountId);
+		expect(row?.state).toBe("stopped");
+		expect(row?.stop_reason).toBe("cap");
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("a running tenant with no active webhooks or subgraphs stops as idle", async () => {
+		const accountId = crypto.randomUUID();
+		await up(cfg({}), accountId);
+		await startedLongAgo(accountId);
+		composeCalls.length = 0;
+
+		await pollCredits(cfg({ [accountId]: true }, 0));
+
+		const row = await getTenant(db, accountId);
+		expect(row?.state).toBe("stopped");
+		expect(row?.stop_reason).toBe("idle");
+		expect(composeCalls.some((c) => c.args.includes("stop"))).toBe(true);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("an idle-stopped tenant is not restarted by the poll", async () => {
+		const accountId = crypto.randomUUID();
+		await up(cfg({}), accountId);
+		await stop(cfg({}), accountId, "idle");
+		composeCalls.length = 0;
+
+		await pollCredits(cfg({ [accountId]: true }, 0));
+
+		expect(composeCalls).toHaveLength(0);
+		const row = await getTenant(db, accountId);
+		expect(row?.state).toBe("stopped");
+		expect(row?.stop_reason).toBe("idle");
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("starting a tenant clears its stop reason and stamps started_at", async () => {
+		const accountId = crypto.randomUUID();
+		await up(cfg({}), accountId);
+		await stop(cfg({}), accountId, "idle");
+
+		await start(cfg({}), accountId);
+
+		const row = await getTenant(db, accountId);
+		expect(row?.state).toBe("running");
+		expect(row?.stop_reason).toBeNull();
+		expect(row?.started_at).toBeInstanceOf(Date);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("a tenant started under 15 minutes ago is never idle-stopped", async () => {
+		const accountId = crypto.randomUUID();
+		await up(cfg({}), accountId);
+		composeCalls.length = 0;
+
+		await pollCredits(cfg({ [accountId]: true }, 0));
+
+		expect(composeCalls).toHaveLength(0);
+		const row = await getTenant(db, accountId);
+		expect(row?.state).toBe("running");
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("an unreadable count never stops a tenant", async () => {
+		const accountId = crypto.randomUUID();
+		await up(cfg({}), accountId);
+		await startedLongAgo(accountId);
+		composeCalls.length = 0;
+
+		await pollCredits(cfg({ [accountId]: true }, null));
+
+		expect(composeCalls).toHaveLength(0);
+		const row = await getTenant(db, accountId);
+		expect(row?.state).toBe("running");
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("a tenant with an active webhook or subgraph keeps running", async () => {
+		const accountId = crypto.randomUUID();
+		await up(cfg({}), accountId);
+		await startedLongAgo(accountId);
+		composeCalls.length = 0;
+
+		await pollCredits(cfg({ [accountId]: true }, 2));
+
+		expect(composeCalls).toHaveLength(0);
+		expect((await getTenant(db, accountId))?.state).toBe("running");
 
 		await deleteTenant(db, accountId);
 	});
@@ -765,5 +887,29 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 		await deleteTenant(db, good);
 		await deleteTenant(db, bad);
 		void call;
+	});
+});
+
+describe("makeCheckCreditsOk", () => {
+	test("reads the stop reason, and a bare boolean from an older app-server as a credit stop", async () => {
+		const check = makeCheckCreditsOk(
+			"https://api.example",
+			"host-key",
+			async () =>
+				Response.json({
+					a: { ok: true, reason: null },
+					b: { ok: false, reason: "cap" },
+					c: { ok: false, reason: "credits" },
+					d: false,
+					e: true,
+				}),
+		);
+		expect(await check(["a", "b", "c", "d", "e"])).toEqual({
+			a: { ok: true, reason: null },
+			b: { ok: false, reason: "cap" },
+			c: { ok: false, reason: "credits" },
+			d: { ok: false, reason: "credits" },
+			e: { ok: true, reason: null },
+		});
 	});
 });
