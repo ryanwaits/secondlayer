@@ -133,7 +133,7 @@ const LADDER: readonly {
 	{
 		n: "03",
 		name: "Checkable",
-		body: "Blocks, state writes and state-subgraph rows prove against the chain.",
+		body: "Blocks, state writes, state-subgraph rows and Bitcoin transactions prove against the chain.",
 		state: "here",
 	},
 	{
@@ -168,6 +168,10 @@ const ROUTES: readonly { route: string; returns: string }[] = [
 	{
 		route: "/v1/proofs/bitcoin-headers",
 		returns: "Raw Bitcoin headers from a height",
+	},
+	{
+		route: "/v1/proofs/bitcoin-tx/:txid",
+		returns: "Bitcoin transaction, merkle branch and header",
 	},
 ];
 
