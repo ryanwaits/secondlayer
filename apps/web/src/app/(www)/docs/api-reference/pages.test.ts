@@ -51,7 +51,7 @@ describe("api reference pages", () => {
 		expect(counts).toEqual({
 			index: 29,
 			streams: 6,
-			proofs: 8,
+			proofs: 9,
 			subgraphs: 22,
 			webhooks: 13,
 			instance: 8,

@@ -137,7 +137,7 @@
 			"description": "Describes a verification as one line per link and a verdict.\n\nIt is the human view, shared by the CLI and the browser checker. Ancestry\nappears only below the checkpoint. `rows` says whether the caller asked for\nthe rows link.",
 			"source": {
 				"file": "packages/verify/src/links.ts",
-				"line": 100
+				"line": 103
 			},
 			"overloads": [
 				{
@@ -178,7 +178,7 @@
 			"description": "Verifies blocks from one checkpoint against one source.\n\nIt caches the Bitcoin header chain, proven signer sets and fetched headers\nacross calls.",
 			"source": {
 				"file": "packages/verify/src/verify-block.ts",
-				"line": 282
+				"line": 322
 			},
 			"overloads": [
 				{
@@ -233,7 +233,7 @@
 			"description": "Verify one block by id (hex) or height. Never throws for bad source data.",
 			"source": {
 				"file": "packages/verify/src/verify-block.ts",
-				"line": 324
+				"line": 366
 			},
 			"overloads": [
 				{
@@ -256,13 +256,48 @@
 			"examples": []
 		},
 		{
+			"id": "BlockVerifier.verifyBitcoinTx",
+			"path": "BlockVerifier.verifyBitcoinTx",
+			"summary": "Proves a Bitcoin tx is in the checkpoint's Bitcoin chain.",
+			"description": "Proves a Bitcoin tx is in the checkpoint's Bitcoin chain.\n\nIt can also prove that one output pays `expect`. Pass an `SpvProof`, or a\ntxid for the source's `getBitcoinTxProof` to fetch. It never throws for bad\nsource data.",
+			"source": {
+				"file": "packages/verify/src/verify-block.ts",
+				"line": 385
+			},
+			"overloads": [
+				{
+					"label": "",
+					"description": "",
+					"params": [
+						{
+							"name": "proof",
+							"type": "string | SpvProof",
+							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "{ expect?: BitcoinTxExpect }",
+							"required": false,
+							"description": ""
+						}
+					],
+					"returns": {
+						"type": "Promise<BitcoinTxVerification>",
+						"description": ""
+					}
+				}
+			],
+			"examples": []
+		},
+		{
 			"id": "verifyBlock",
 			"path": "verifyBlock",
 			"summary": "One-shot: verify a block from a checkpoint (MAINNET_CHECKPOINT by default).",
 			"description": "One-shot: verify a block from a checkpoint (MAINNET_CHECKPOINT by default).",
 			"source": {
 				"file": "packages/verify/src/verify-block.ts",
-				"line": 1142
+				"line": 1336
 			},
 			"overloads": [
 				{
@@ -324,6 +359,114 @@
 					"type": "\"parents\" | \"marf\"",
 					"required": true,
 					"description": "`parents`: each header hashes to the parent id its child commits to.\n`marf`: one MARF proof of `__MARF_BLOCK_HEIGHT_TO_HASH::<height>` against\nthe descendant's state root."
+				}
+			]
+		},
+		{
+			"name": "BitcoinTxExpect",
+			"summary": "The output fields a proven transaction must match.",
+			"fields": [
+				{
+					"name": "address",
+					"type": "string",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "script",
+					"type": "Bytes",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "bigint",
+					"required": false,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "BitcoinTxOutputView",
+			"summary": "One output of a proven Bitcoin transaction.",
+			"fields": [
+				{
+					"name": "vout",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "amount",
+					"type": "bigint",
+					"required": true,
+					"description": "Satoshis."
+				},
+				{
+					"name": "script",
+					"type": "Bytes",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "type",
+					"type": "OutputScriptType",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "address",
+					"type": "string",
+					"required": false,
+					"description": "Mainnet address, when the script has one."
+				}
+			]
+		},
+		{
+			"name": "BitcoinTxVerification",
+			"summary": "The result of proving a Bitcoin transaction against the checkpoint's chain.",
+			"fields": [
+				{
+					"name": "ok",
+					"type": "boolean",
+					"required": true,
+					"description": "The tx is in a block of the checkpoint's Bitcoin chain, and any `expect` matched."
+				},
+				{
+					"name": "txid",
+					"type": "string",
+					"required": false,
+					"description": "Display-order hex."
+				},
+				{
+					"name": "height",
+					"type": "number",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "blockHash",
+					"type": "string",
+					"required": false,
+					"description": "Display-order hex."
+				},
+				{
+					"name": "outputs",
+					"type": "BitcoinTxOutputView[]",
+					"required": false,
+					"description": ""
+				},
+				{
+					"name": "matched",
+					"type": "number",
+					"required": false,
+					"description": "Index of the first output matching `expect`, when given."
+				},
+				{
+					"name": "failures",
+					"type": "VerifyFailure[]",
+					"required": true,
+					"description": "Empty when ok."
 				}
 			]
 		},
@@ -868,6 +1011,12 @@
 					"type": "(height: number) => Promise<VmEventRow[]>",
 					"required": false,
 					"description": "Indexed vm_events write rows of the block, checked against its proven diff."
+				},
+				{
+					"name": "getBitcoinTxProof",
+					"type": "(txid: string) => Promise<SpvProof>",
+					"required": false,
+					"description": "A Bitcoin tx, its merkle branch and block header, by display-order txid.\nUntrusted: `verifyBitcoinTx` re-checks every byte."
 				}
 			]
 		},
@@ -1053,7 +1202,7 @@
 		{
 			"name": "VerifyFailureCode",
 			"summary": "",
-			"definition": "\"malformed\" | \"root-mismatch\" | \"bad-write\" | \"hidden-write\" | \"missing-write\" | \"key-not-written\" | \"value-mismatch\" | \"bad-row\" | \"tx-root-mismatch\" | \"unavailable\" | \"id-mismatch\" | \"height-mismatch\" | \"invalid-header\" | \"preimage-mismatch\" | \"burn-not-in-chain\" | \"before-checkpoint\" | \"not-ancestor\" | \"ancestry-proof-invalid\" | \"anchor-not-found\" | \"anchor-outside-window\" | \"anchor-unsigned\" | \"set-proof-invalid\" | \"below-threshold\" | \"unknown-signer\" | \"duplicate-signer\" | \"bad-signature\""
+			"definition": "\"malformed\" | \"root-mismatch\" | \"bad-write\" | \"hidden-write\" | \"missing-write\" | \"key-not-written\" | \"value-mismatch\" | \"bad-row\" | \"tx-root-mismatch\" | \"unavailable\" | \"id-mismatch\" | \"height-mismatch\" | \"invalid-header\" | \"preimage-mismatch\" | \"burn-not-in-chain\" | \"before-checkpoint\" | \"not-ancestor\" | \"ancestry-proof-invalid\" | \"anchor-not-found\" | \"anchor-outside-window\" | \"anchor-unsigned\" | \"set-proof-invalid\" | \"below-threshold\" | \"unknown-signer\" | \"duplicate-signer\" | \"bad-signature\" | \"tx-parse\" | \"txid-mismatch\" | \"merkle-mismatch\" | \"bitcoin-header-not-in-chain\" | \"output-not-fou…"
 		},
 		{
 			"name": "VerifyOptions",
@@ -1088,7 +1237,7 @@
 		{
 			"name": "VerifyStep",
 			"summary": "",
-			"definition": "\"witness\" | \"names\" | \"rows\" | \"ancestry\" | \"block\" | \"bitcoin\" | \"burn\" | \"signer-set\" | \"signatures\" | \"txs\""
+			"definition": "\"witness\" | \"names\" | \"rows\" | \"ancestry\" | \"block\" | \"bitcoin\" | \"bitcoin-tx\" | \"burn\" | \"signer-set\" | \"signatures\" | \"txs\""
 		},
 		{
 			"name": "VmEventRow",

@@ -234,7 +234,7 @@ Compose requires the token, for two reasons:
 | Handler RPC calls | Set `STACKS_NODE_RPC_URL` on the subgraph processor, pointing at the node you already run |
 | History below your bootstrap floor | A metered [archive backfill](/docs/authentication#archive-credits) |
 | Webhook limits | Any `max_retries` and `timeout_ms`, no rate limits, egress as your network allows |
-| Proof routes | Witness, burn and Bitcoin-header routes answer `503 PROOFS_UNAVAILABLE` until `PROOF_SIDECAR_URL` points at a proof sidecar |
+| Proof routes | Witness, burn and Bitcoin-header routes answer `503 PROOFS_UNAVAILABLE` until `PROOF_SIDECAR_URL` points at a proof sidecar. The Bitcoin transaction route answers it until `BITCOIN_RPC_URL` is set (the full-node profile sets it; bitcoind needs `txindex=1`) |
 | Error reports | No `/v1/feedback`. Error bodies link to a GitHub issue instead |
 
 Consumers running on another box: [Deploy your app](/docs/deploy).

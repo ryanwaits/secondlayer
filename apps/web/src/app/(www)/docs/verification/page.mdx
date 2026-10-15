@@ -107,6 +107,39 @@ const trustless = verifyTransactionProof(proof, { rewardSet });
 
 The transaction verifier uses Node's crypto (via `@secondlayer/shared`), so it is server-side only.
 
+### Bitcoin transactions
+
+`verifyBitcoinTx` follows a transaction from its bytes to its txid, merkle root and block header, then checks that header against the checkpoint's Bitcoin chain, with no contract call.
+
+```ts
+import { BlockVerifier, SecondlayerProofSource } from "@secondlayer/verify";
+
+const sweepTxid = "f80a188d012dbb733748db003b987cc98fc4a636cbd071734decb298c1bad80b";
+const verifier = new BlockVerifier({ source: new SecondlayerProofSource() });
+const result = await verifier.verifyBitcoinTx(sweepTxid, {
+  expect: { address: "bc1q9fkjx3s9ufz90k4jzgmdkzlyt22h0tp3x92ua9", amount: 398_000n },
+});
+// result.ok, result.height, result.matched (the output index)
+```
+
+To read the proof from your own Bitcoin node, spread a source over it. The node needs `txindex=1`, and the verifier re-checks every byte, so an Esplora endpoint works the same way.
+
+```ts
+import { SecondlayerProofSource } from "@secondlayer/verify";
+import { bitcoinRpcSource, buildTxProof } from "@secondlayer/stacks/bitcoin";
+
+const bitcoin = bitcoinRpcSource({
+  url: "http://localhost:8332",
+  auth: { username: "stacks", password: process.env.BITCOIN_RPC_PASSWORD ?? "" },
+});
+const source = {
+  ...new SecondlayerProofSource(),
+  getBitcoinTxProof: (txid: string) => buildTxProof(bitcoin, { txid }),
+};
+```
+
+Pair it with a state proof of sBTC `completed-withdrawal-sweep` to follow a withdrawal from Stacks state to its Bitcoin output.
+
 <Seam page="verify" />
 
 ## Blocks below the checkpoint
@@ -221,6 +254,7 @@ On your own box the witness, burn and Bitcoin-header routes need a proof sidecar
 | [`/v1/proofs/marf/{path}`](/docs/api/proofs#get-marf-proof) | MARF inclusion proof for a key at a block |
 | [`/v1/proofs/burn/{consensus_hash}`](/docs/api/proofs#get-burn-block-proof) | Burn block a consensus hash commits to |
 | [`/v1/proofs/bitcoin-headers`](/docs/api/proofs#list-bitcoin-headers) | Raw Bitcoin headers from a height |
+| [`/v1/proofs/bitcoin-tx/{txid}`](/docs/api/proofs#get-bitcoin-tx-proof) | Bitcoin transaction, merkle branch and header |
 | [`/v1/proofs/epoch2-header/{index_block_hash}`](/docs/api/proofs#get-epoch2-header) | Epoch 2.x header by id |
 
 The transaction proof above is [`/v1/index/transactions/{tx_id}/proof`](/docs/api/index#get-transaction-proof).

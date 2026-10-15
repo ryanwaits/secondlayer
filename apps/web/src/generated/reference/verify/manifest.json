@@ -7,13 +7,13 @@
 			"slug": "verify-block",
 			"title": "Verify a block",
 			"root": "",
-			"methodCount": 8
+			"methodCount": 9
 		},
 		{
 			"slug": "sources",
 			"title": "Proof sources",
 			"root": "",
-			"methodCount": 14
+			"methodCount": 15
 		},
 		{
 			"slug": "proofs",
@@ -32,6 +32,9 @@
 	"errors": [],
 	"symbols": {
 		"Ancestry": "/docs/verify-reference#t-Ancestry",
+		"BitcoinTxExpect": "/docs/verify-reference#t-BitcoinTxExpect",
+		"BitcoinTxOutputView": "/docs/verify-reference#t-BitcoinTxOutputView",
+		"BitcoinTxVerification": "/docs/verify-reference#t-BitcoinTxVerification",
 		"BlockDiff": "/docs/verify-reference#t-BlockDiff",
 		"BlockDiffInput": "/docs/verify-reference#t-BlockDiffInput",
 		"BlockHeader": "/docs/verify-reference#t-BlockHeader",
@@ -43,6 +46,7 @@
 		"BlockVerification": "/docs/verify-reference#t-BlockVerification",
 		"BlockVerifier": "/docs/verify-reference#m-BlockVerifier",
 		"BlockVerifier.verify": "/docs/verify-reference#m-BlockVerifier-verify",
+		"BlockVerifier.verifyBitcoinTx": "/docs/verify-reference#m-BlockVerifier-verifyBitcoinTx",
 		"BurnPreimage": "/docs/verify-reference#t-BurnPreimage",
 		"Bytes": "/docs/verify-reference#t-Bytes",
 		"ChainEntry": "/docs/verify-reference#t-ChainEntry",
@@ -102,6 +106,7 @@
 		"rewardCycle": "/docs/verify-reference#m-rewardCycle",
 		"SecondlayerProofSource": "/docs/verify-reference#m-SecondlayerProofSource",
 		"SecondlayerProofSource.getBitcoinHeaders": "/docs/verify-reference#m-SecondlayerProofSource-getBitcoinHeaders",
+		"SecondlayerProofSource.getBitcoinTxProof": "/docs/verify-reference#m-SecondlayerProofSource-getBitcoinTxProof",
 		"SecondlayerProofSource.getBlock": "/docs/verify-reference#m-SecondlayerProofSource-getBlock",
 		"SecondlayerProofSource.getBurnPreimage": "/docs/verify-reference#m-SecondlayerProofSource-getBurnPreimage",
 		"SecondlayerProofSource.getEpoch2Header": "/docs/verify-reference#m-SecondlayerProofSource-getEpoch2Header",

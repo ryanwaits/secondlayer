@@ -121,8 +121,13 @@ export const API_PAGES: ApiPage[] = [
 			},
 			{
 				title: "Bitcoin anchoring",
-				summary: "The Bitcoin blocks Stacks blocks are anchored to.",
-				paths: ["/v1/proofs/burn/*", "/v1/proofs/bitcoin-headers"],
+				summary:
+					"The Bitcoin blocks Stacks blocks are anchored to, and transactions in them.",
+				paths: [
+					"/v1/proofs/burn/*",
+					"/v1/proofs/bitcoin-headers",
+					"/v1/proofs/bitcoin-tx/*",
+				],
 			},
 			{
 				title: "State proofs",

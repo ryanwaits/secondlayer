@@ -2077,6 +2077,19 @@
       "how much of chain is reconstructive"
     ]
   },
+  "/docs/verification#bitcoin-transactions": {
+    "hash": "acd746842cdb6365",
+    "phrasings": [
+      "how to verify a bitcoin transaction",
+      "verifybitcointx txid merkle root check",
+      "confirm bitcoin tx included in block header",
+      "check merkle proof for bitcoin transaction",
+      "verify bitcoin tx against checkpoint chain",
+      "txid mismatch from raw transaction bytes",
+      "bitcoin spv proof header validation steps",
+      "validate block header against checkpoint chain"
+    ]
+  },
   "/docs/verification#blocks-below-the-checkpoint": {
     "hash": "1f05339f4ec6ab6e",
     "phrasings": [

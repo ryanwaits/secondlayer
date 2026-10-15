@@ -10425,6 +10425,90 @@
 			"route": "/docs/verify-reference",
 			"anchor": "t-Ancestry"
 		},
+		"BitcoinTxExpect": {
+			"kind": "type",
+			"summary": "The output fields a proven transaction must match.",
+			"fields": [
+				{
+					"name": "address",
+					"type": "string"
+				},
+				{
+					"name": "script",
+					"type": "Bytes"
+				},
+				{
+					"name": "amount",
+					"type": "bigint"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-BitcoinTxExpect"
+		},
+		"BitcoinTxOutputView": {
+			"kind": "type",
+			"summary": "One output of a proven Bitcoin transaction.",
+			"fields": [
+				{
+					"name": "vout",
+					"type": "number"
+				},
+				{
+					"name": "amount",
+					"type": "bigint"
+				},
+				{
+					"name": "script",
+					"type": "Bytes"
+				},
+				{
+					"name": "type",
+					"type": "OutputScriptType"
+				},
+				{
+					"name": "address",
+					"type": "string"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-BitcoinTxOutputView"
+		},
+		"BitcoinTxVerification": {
+			"kind": "type",
+			"summary": "The result of proving a Bitcoin transaction against the checkpoint's chain.",
+			"fields": [
+				{
+					"name": "ok",
+					"type": "boolean"
+				},
+				{
+					"name": "txid",
+					"type": "string"
+				},
+				{
+					"name": "height",
+					"type": "number"
+				},
+				{
+					"name": "blockHash",
+					"type": "string"
+				},
+				{
+					"name": "outputs",
+					"type": "BitcoinTxOutputView[]"
+				},
+				{
+					"name": "matched",
+					"type": "number"
+				},
+				{
+					"name": "failures",
+					"type": "VerifyFailure[]"
+				}
+			],
+			"route": "/docs/verify-reference",
+			"anchor": "t-BitcoinTxVerification"
+		},
 		"BlockDiff": {
 			"kind": "type",
 			"summary": "A block's witnessed leaves, split into writes, carried, and internal.",
@@ -10629,6 +10713,13 @@
 			"sig": "BlockVerifier.verify(ref: string | number): Promise<BlockVerification>",
 			"route": "/docs/verify-reference",
 			"anchor": "m-BlockVerifier-verify"
+		},
+		"BlockVerifier.verifyBitcoinTx": {
+			"kind": "method",
+			"summary": "Proves a Bitcoin tx is in the checkpoint's Bitcoin chain.",
+			"sig": "BlockVerifier.verifyBitcoinTx(proof: string | SpvProof, opts?: { expect?: BitcoinTxExpect }): Promise<BitcoinTxVerification>",
+			"route": "/docs/verify-reference",
+			"anchor": "m-BlockVerifier-verifyBitcoinTx"
 		},
 		"BurnPreimage": {
 			"kind": "type",
@@ -11134,6 +11225,13 @@
 			"sig": "SecondlayerProofSource.getBitcoinHeaders(from: number, count: number): Promise<string[]>",
 			"route": "/docs/verify-reference",
 			"anchor": "m-SecondlayerProofSource-getBitcoinHeaders"
+		},
+		"SecondlayerProofSource.getBitcoinTxProof": {
+			"kind": "method",
+			"summary": "A Bitcoin tx, its merkle branch and header, by txid.",
+			"sig": "SecondlayerProofSource.getBitcoinTxProof(txid: string): Promise<SpvProof>",
+			"route": "/docs/verify-reference",
+			"anchor": "m-SecondlayerProofSource-getBitcoinTxProof"
 		},
 		"SecondlayerProofSource.getBlock": {
 			"kind": "method",
@@ -11890,6 +11988,16 @@
 				"summary": "Raw 80-byte Bitcoin headers from from, at most 2016 (one difficulty period) per call.",
 				"route": "/docs/api/proofs",
 				"anchor": "list-bitcoin-headers"
+			}
+		},
+		{
+			"path": "/v1/proofs/bitcoin-tx/{txid}",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "A confirmed Bitcoin transaction with its merkle branch (internal byte order) and block header, from the instance's own Bitcoin node.",
+				"route": "/docs/api/proofs",
+				"anchor": "get-bitcoin-tx-proof"
 			}
 		},
 		{
