@@ -3,6 +3,7 @@ import { type Kysely, sql } from "kysely";
 import {
 	creditCredits,
 	debitCredits,
+	debitCreditsUpTo,
 	getCredits,
 	getMonthlyCreditsSpend,
 	recordCreditsSpend,
@@ -29,8 +30,10 @@ import {
  * idempotency key, price the unit (allowance + volume tier for
  * `rows.delivered`; a flat `PRICES[unit] * quantity` for everything else),
  * debit `account_credits`, and write the ledger row. A short balance (or a
- * tripped spend cap) does not throw — the row is written with
- * `debited: false` so the gap is visible, never silently served free.
+ * tripped spend cap, which applies to every unit) does not throw — the row is
+ * written with `debited: false` so the gap is visible, never silently served
+ * free. Hosted-stack units (`CLAMPED_UNITS`) take what the balance has left
+ * on a short charge, so the balance reaches 0 and the stack stops.
  *
  * `db` may be a plain `Kysely<Database>` or an existing `Transaction<Database>`
  * (Postgres SAVEPOINT) — the archive fetch gate calls `meter()` once per
@@ -110,6 +113,14 @@ async function priceUnit(
 	return { usdMicros: BigInt(billableQty) * rate, viaAllowance: false };
 }
 
+/** Hosted-stack units: a short balance is drained to 0 rather than refused
+ *  (`debitCreditsUpTo`). Everything else is all-or-nothing. */
+const CLAMPED_UNITS: ReadonlySet<MeterUnit> = new Set<MeterUnit>([
+	"memory.gb_hour",
+	"storage.gb_day",
+	"webhook.event",
+]);
+
 /**
  * Run `fn` inside a transaction, unless `db` already IS one — Kysely's
  * `Transaction` has no `.transaction()` of its own (no nested transactions /
@@ -160,35 +171,44 @@ export async function meter(
 
 		let debited = true;
 		if (priced.usdMicros > 0n) {
-			if (input.unit === "rows.delivered") {
-				const caps = await getCaps(trx, input.accountId);
-				const spent = await getMonthlyCreditsSpend(
-					trx,
-					input.accountId,
-					occurredAt,
-				);
-				if (
-					caps?.monthly_cap_cents != null &&
-					isOverMonthlyCreditCap(spent, caps.monthly_cap_cents)
-				) {
-					debited = false;
-				}
+			// The cap caps every unit: a charge past it is recorded, never taken.
+			const caps = await getCaps(trx, input.accountId);
+			const spent = await getMonthlyCreditsSpend(
+				trx,
+				input.accountId,
+				occurredAt,
+			);
+			if (
+				caps?.monthly_cap_cents != null &&
+				isOverMonthlyCreditCap(spent, caps.monthly_cap_cents)
+			) {
+				debited = false;
 			}
 			if (debited) {
-				const result = await debitCredits(
-					trx,
-					input.accountId,
-					priced.usdMicros,
-				);
-				if (!result.ok) {
-					debited = false;
-				} else {
-					await recordCreditsSpend(
+				let taken = 0n;
+				if (CLAMPED_UNITS.has(input.unit)) {
+					// Stack units drain a short balance to 0 (so the poll stops the
+					// stack) and record the row as owed; the shortfall is written off.
+					const result = await debitCreditsUpTo(
 						trx,
 						input.accountId,
 						priced.usdMicros,
-						occurredAt,
 					);
+					taken = result.debited;
+					debited = taken === priced.usdMicros;
+				} else {
+					// Reads and archive stay all-or-nothing: the 402 path relies on
+					// a refused debit leaving the balance untouched.
+					const result = await debitCredits(
+						trx,
+						input.accountId,
+						priced.usdMicros,
+					);
+					debited = result.ok;
+					if (result.ok) taken = priced.usdMicros;
+				}
+				if (taken > 0n) {
+					await recordCreditsSpend(trx, input.accountId, taken, occurredAt);
 				}
 			}
 			if (!debited) await markLedgerEntryDebited(trx, row.id, false);

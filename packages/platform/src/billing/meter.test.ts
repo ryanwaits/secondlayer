@@ -189,7 +189,7 @@ describe.skipIf(!HAS_DB)("meter — rows.delivered characterization", () => {
 		expect(result.usdMicros).toBe(15n * CREDIT_USD_MICROS_PER_ROW);
 	});
 
-	test("short balance: ledger row written with debited=false, balance unchanged", async () => {
+	test("rows.delivered still refuses a charge the balance can't cover", async () => {
 		// No credits — balance is 0, and the allowance is already exhausted.
 		const now = new Date();
 		await meter(db, {
@@ -330,6 +330,55 @@ describe.skipIf(!HAS_DB)("meter — fractional hosted-stack units", () => {
 			idempotencyKey: randomUUID(),
 		});
 		expect(result.usdMicros).toBe(1n);
+	});
+
+	test("a stack charge larger than the balance drains it to zero and records the row as owed", async () => {
+		await creditCredits(db, accountId, 5_000n);
+		const result = await meter(db, {
+			accountId,
+			unit: "memory.gb_hour",
+			quantity: 0.5,
+			source: "internal:provisioner",
+			idempotencyKey: randomUUID(),
+		});
+		expect(result.usdMicros).toBe(14_000n);
+		expect(result.debited).toBe(false);
+		expect(result.balanceAfter).toBe(0n);
+		expect(await getMonthlyCreditsSpend(db, accountId)).toBe(5_000n);
+		const row = await db
+			.selectFrom("usage_ledger")
+			.select(["debited", "usd_micros"])
+			.where("id", "=", result.ledgerId)
+			.executeTakeFirstOrThrow();
+		expect(row.debited).toBe(false);
+		expect(BigInt(row.usd_micros)).toBe(14_000n);
+	});
+
+	test("a stack charge on an empty balance stays at zero", async () => {
+		const result = await meter(db, {
+			accountId,
+			unit: "webhook.event",
+			quantity: 100,
+			source: "internal:provisioner",
+			idempotencyKey: randomUUID(),
+		});
+		expect(result.debited).toBe(false);
+		expect(await getCredits(db, accountId)).toBe(0n);
+	});
+
+	test("a stack charge past the cap is recorded but not debited", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		await upsertCaps(db, accountId, { monthly_cap_cents: 0 });
+		const result = await meter(db, {
+			accountId,
+			unit: "memory.gb_hour",
+			quantity: 0.5,
+			source: "internal:provisioner",
+			idempotencyKey: randomUUID(),
+		});
+		expect(result.usdMicros).toBe(14_000n);
+		expect(result.debited).toBe(false);
+		expect(await getCredits(db, accountId)).toBe(1_000_000n);
 	});
 
 	test("memory.gb_hour stores observedQuantity alongside the floored quantity, priced off quantity only", async () => {

@@ -6,7 +6,11 @@ import {
 	expect,
 	test,
 } from "bun:test";
-import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
+import {
+	creditCredits,
+	recordCreditsSpend,
+} from "@secondlayer/platform/db/queries/account-credits";
+import { upsertCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { createApiApp } from "../create-app.ts";
@@ -47,6 +51,10 @@ afterAll(async () => {
 	if (accountIds.length > 0) {
 		await db
 			.deleteFrom("account_credits")
+			.where("account_id", "in", accountIds)
+			.execute();
+		await db
+			.deleteFrom("account_spend_caps")
 			.where("account_id", "in", accountIds)
 			.execute();
 		await db.deleteFrom("accounts").where("id", "in", accountIds).execute();
@@ -125,7 +133,29 @@ describe.skipIf(!HAS_DB)("POST /internal/accounts/credits", () => {
 			body: JSON.stringify({ account_ids: [funded, unfunded] }),
 		});
 		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ [funded]: true, [unfunded]: false });
+		expect(await res.json()).toEqual({
+			[funded]: { ok: true, reason: null },
+			[unfunded]: { ok: false, reason: "credits" },
+		});
+	});
+
+	test("an account over its monthly cap is not credits_ok", async () => {
+		const capped = await makeAccount();
+		await creditCredits(db, capped, 1_000_000n);
+		await upsertCaps(db, capped, { monthly_cap_cents: 100 });
+		await recordCreditsSpend(db, capped, 1_000_000n);
+
+		const res = await app().request("/internal/accounts/credits", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({ account_ids: [capped] }),
+		});
+		expect(await res.json()).toEqual({
+			[capped]: { ok: false, reason: "cap" },
+		});
 	});
 });
 

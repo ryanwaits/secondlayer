@@ -6,7 +6,11 @@ import {
 	expect,
 	test,
 } from "bun:test";
-import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
+import {
+	creditCredits,
+	recordCreditsSpend,
+} from "@secondlayer/platform/db/queries/account-credits";
+import { upsertCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { generateSessionToken, hashToken } from "../auth/keys.ts";
@@ -90,6 +94,10 @@ afterAll(async () => {
 			.execute();
 		await db
 			.deleteFrom("api_keys")
+			.where("account_id", "in", accountIds)
+			.execute();
+		await db
+			.deleteFrom("account_spend_caps")
 			.where("account_id", "in", accountIds)
 			.execute();
 		await db
@@ -229,6 +237,26 @@ describe.skipIf(!HAS_DB)("POST /internal/keys/introspect", () => {
 		expect(await res.json()).toEqual({
 			account_id: accountId,
 			credits_ok: true,
+		});
+	});
+
+	test("an account over its monthly cap is not credits_ok", async () => {
+		const accountId = await makeAccount();
+		const raw = await makeApiKey(accountId);
+		await creditCredits(db, accountId, 1_000_000n);
+		await upsertCaps(db, accountId, { monthly_cap_cents: 100 });
+		await recordCreditsSpend(db, accountId, 1_000_000n);
+		const res = await app().request("/internal/keys/introspect", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({ key: raw }),
+		});
+		expect(await res.json()).toEqual({
+			account_id: accountId,
+			credits_ok: false,
 		});
 	});
 

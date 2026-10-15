@@ -3,19 +3,21 @@
  *
  * The cap governs a free-tier account's total prepaid `account_credits`
  * spend this calendar month — every unit `meter()` debits (hosted reads,
- * the hosted stack's memory/storage, webhook events), not just reads.
- * Only reads past the free 1M rows actually pause once it's reached; webhooks
- * and the hosted stack keep running. (The earlier version projected the
+ * the hosted stack's memory/storage, webhook events, archive), not just
+ * reads. Once it's reached, every charge stops: reads past the free 1M rows
+ * answer 402, and the workload host's 5-minute poll stops the hosted stack
+ * (`credits_ok` is false over the cap), so webhooks stop delivering and
+ * subgraphs stop indexing until the month rolls over or the cap is raised.
+ * (The earlier version projected the
  * Stripe invoice — flat base price, since no metered overage is emitted —
  * so it could never trip; see the 2026-06-18 billing audit.) For each
  * account with a `monthly_cap_cents` set:
  *   - Month's credit spend >= threshold_pct (default 80%) → send email + bump
  *     `alert_sent_at` (debounced once per calendar month)
  *   - Month's credit spend >= monthly_cap_cents → set `frozen_at` (display +
- *     email). The hard stop is enforced in real time on the read path —
- *     `checkRowsAllowance` (`packages/api/src/lib/read-credits.ts`) refuses a
- *     keyed read past the free rows with 402 `spend_cap_reached` once the cap
- *     is reached; this flag mirrors that for the dashboard/email.
+ *     email). The hard stop is enforced in real time by `meter()` and
+ *     `checkRowsAllowance` (`packages/api/src/lib/read-credits.ts`); this
+ *     flag mirrors it for the dashboard/email.
  *   - Back under cap with a stale freeze (month rolled over) → clear it.
  *
  * Also cleared on `invoice.paid` webhook or when the user raises their cap.
@@ -187,9 +189,8 @@ async function sendCapAlert(
 
 	// The cap counts total monthly spend (memory, storage, webhooks, rows —
 	// every unit `meter()` debits, @secondlayer/platform/billing/meter.ts),
-	// not just Index/Streams reads; only reads past the free 1M rows pause
-	// once it's reached (`checkRowsAllowance`,
-	// packages/api/src/lib/read-credits.ts) — the copy must say both.
+	// and reaching it pauses both paid reads and the hosted stack — the copy
+	// must say both.
 	const subject =
 		kind === "frozen"
 			? "You reached your monthly spend cap"
@@ -197,10 +198,10 @@ async function sendCapAlert(
 	const paragraphs =
 		kind === "frozen"
 			? [
-					`You've spent ${cap$} this month and reached your monthly cap. Hosted Index and Streams reads past your free 1M rows are paused until ${resets} or until you raise the cap. Your balance is untouched, and webhooks and your hosted stack keep running.`,
+					`You've spent ${cap$} this month and reached your monthly cap. Hosted Index and Streams reads past your free 1M rows are paused, and your hosted stack stops within minutes: webhooks stop delivering and subgraphs stop indexing. Both resume on ${resets} or when you raise the cap. Your balance is untouched.`,
 				]
 			: [
-					`You've spent ${spent$} this month, ${pct}% of your ${cap$} monthly cap. When you reach the cap, hosted Index and Streams reads past your free 1M rows pause until ${resets} or until you raise the cap. Webhooks and your hosted stack keep running.`,
+					`You've spent ${spent$} this month, ${pct}% of your ${cap$} monthly cap. When you reach the cap, hosted Index and Streams reads past your free 1M rows pause and your hosted stack stops, so webhooks stop delivering, until ${resets} or until you raise the cap.`,
 				];
 
 	const { html, text } = renderEmail({

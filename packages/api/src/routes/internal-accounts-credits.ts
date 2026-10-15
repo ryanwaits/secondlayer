@@ -1,14 +1,16 @@
 /**
  * `POST /internal/accounts/credits` — bulk balance check for the
  * provisioner's 5-minute zero-balance poll (Design's `running → stopped` /
- * `stopped → running` transitions, plan 044). Body `{account_ids: [...]}`
- * (cap `MAX_ACCOUNTS_CREDITS_BATCH`) → `{[accountId]: creditsOk}`.
+ * `stopped → running` transitions). Body `{account_ids: [...]}`
+ * (cap `MAX_ACCOUNTS_CREDITS_BATCH`) → `{[accountId]: {ok, reason}}`, where
+ * `reason` is `"credits"` (no balance), `"cap"` (monthly spend cap reached),
+ * or `null` when ok. The provisioner stores the reason on the stopped tenant.
  *
  * Guard is the same `workloadHostKeyMatches()` + `bearerToken()` pair every
  * other first-party workload-host route uses.
  */
 
-import { getCredits } from "@secondlayer/platform/db/queries/account-credits";
+import { getCreditsStatus } from "@secondlayer/platform/db/queries/account-credits";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	AuthenticationError,
@@ -65,7 +67,7 @@ app.post("/", async (c) => {
 	const db = getDb();
 	const ids = accountIds as string[];
 	const results = await Promise.all(
-		ids.map(async (id) => [id, (await getCredits(db, id)) > 0n] as const),
+		ids.map(async (id) => [id, await getCreditsStatus(db, id)] as const),
 	);
 
 	return c.json(Object.fromEntries(results));

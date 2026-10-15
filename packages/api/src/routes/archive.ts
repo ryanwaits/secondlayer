@@ -20,7 +20,10 @@
  */
 
 import { meter } from "@secondlayer/platform/billing/meter";
-import { PRICES } from "@secondlayer/platform/billing/prices";
+import {
+	PRICES,
+	nextMonthResetLabel,
+} from "@secondlayer/platform/billing/prices";
 import { getCredits } from "@secondlayer/platform/db/queries/account-credits";
 import {
 	allowancePartitionsUsedThisMonth,
@@ -164,6 +167,14 @@ class InsufficientArchiveCreditsError extends Error {
 	constructor(shortfallUsdMicros: bigint) {
 		super("insufficient credits for archive fetch batch");
 		this.shortfallUsdMicros = shortfallUsdMicros;
+	}
+}
+
+/** Thrown inside the charge transaction when the monthly spend cap refused
+ *  a debit the balance could cover. Same rollback as the error above. */
+class ArchiveSpendCapError extends Error {
+	constructor() {
+		super("spend cap reached for archive fetch batch");
 	}
 }
 
@@ -390,9 +401,10 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 							occurredAt: nowTs,
 						});
 						if (!result.debited) {
-							throw new InsufficientArchiveCreditsError(
-								total - startingBalance,
-							);
+							// A balance that covers the batch means the spend cap refused it.
+							throw total > startingBalance
+								? new InsufficientArchiveCreditsError(total - startingBalance)
+								: new ArchiveSpendCapError();
 						}
 					}
 				}
@@ -416,6 +428,15 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 				return priced;
 			});
 		} catch (err) {
+			if (err instanceof ArchiveSpendCapError) {
+				return c.json(
+					{
+						error: "spend_cap_reached",
+						message: `You reached your monthly spend cap. Archive fetches are paused until ${nextMonthResetLabel(nowTs)} or until you raise the cap at https://secondlayer.tools/account/credits#cap.`,
+					},
+					402,
+				);
+			}
 			if (err instanceof InsufficientArchiveCreditsError) {
 				return c.json(
 					{

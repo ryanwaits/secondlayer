@@ -81,9 +81,9 @@ export const MAX_METER_BATCH = 500;
 export const USD_MICROS_PER_CENT = 10_000n;
 
 /**
- * Has this month's `rows.delivered` spend reached the account's configured
+ * Has this month's credit spend reached the account's configured
  * monthly cap? `null` cap = no cap = never over. `meter()` calls this before
- * debiting a `rows.delivered` charge — the real-time gate that makes
+ * debiting any charge — the real-time gate that makes
  * `account_spend_caps.monthly_cap_cents` actually bite; the daily cron
  * (`spend-cap-alert.ts`) only mirrors the same comparison into `frozen_at` +
  * an email.

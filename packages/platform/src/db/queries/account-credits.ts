@@ -1,6 +1,8 @@
 import type { Database } from "@secondlayer/shared/db";
 import { sql } from "kysely";
 import type { Kysely } from "kysely";
+import { isOverMonthlyCreditCap } from "../../billing/prices.ts";
+import { getCaps } from "./account-spend-caps.ts";
 
 /**
  * Prepaid credits — the balance `meter()` (`../billing/meter.ts`) debits for
@@ -58,6 +60,39 @@ export async function debitCredits(
 		.executeTakeFirst();
 	if (!row) return { ok: false, remaining: null };
 	return { ok: true, remaining: BigInt(row.balance_usd_micros) };
+}
+
+/**
+ * Clamped debit for hosted-stack units: takes `LEAST(balance, price)`, so a
+ * balance smaller than one charge drains to exactly 0 instead of refusing
+ * and leaving a positive balance that keeps the stack running unbilled
+ * (the 5-minute poll stops a stack at 0). Returns what was actually taken;
+ * an account with no credits row debits 0.
+ */
+export async function debitCreditsUpTo(
+	db: Kysely<Database>,
+	accountId: string,
+	usdMicros: bigint,
+): Promise<{ debited: bigint; remaining: bigint }> {
+	const { rows } = await sql<{ before: string; after: string }>`
+		WITH prev AS (
+			SELECT account_id, balance_usd_micros AS before
+			FROM account_credits
+			WHERE account_id = ${accountId}
+			FOR UPDATE
+		)
+		UPDATE account_credits AS c
+		SET balance_usd_micros = c.balance_usd_micros
+				- LEAST(GREATEST(c.balance_usd_micros, 0), ${usdMicros.toString()}),
+			updated_at = now()
+		FROM prev
+		WHERE c.account_id = prev.account_id
+		RETURNING prev.before, c.balance_usd_micros AS after
+	`.execute(db);
+	const row = rows[0];
+	if (!row) return { debited: 0n, remaining: 0n };
+	const after = BigInt(row.after);
+	return { debited: BigInt(row.before) - after, remaining: after };
 }
 
 export async function getCredits(
@@ -121,6 +156,38 @@ export async function getMonthlyCreditsSpend(
 		.executeTakeFirst();
 	if (!row || row.spent_month !== monthKey(now)) return 0n;
 	return BigInt(row.spent_month_usd_micros);
+}
+
+/** Why an account's hosted stack may not run: no balance left, or this
+ *  month's spend reached its cap. */
+export type CreditsStopReason = "credits" | "cap";
+
+/**
+ * Whether an account's hosted stack may run, and if not, why. The one rule
+ * both `/internal/keys/introspect` (gateway) and `/internal/accounts/credits`
+ * (the provisioner's 5-minute poll) answer with: a positive balance AND not
+ * over the monthly spend cap. A cap that let the stack keep billing would
+ * not be a cap.
+ */
+export async function getCreditsStatus(
+	db: Kysely<Database>,
+	accountId: string,
+	now: Date = new Date(),
+): Promise<{ ok: boolean; reason: CreditsStopReason | null }> {
+	if ((await getCredits(db, accountId)) <= 0n) {
+		return { ok: false, reason: "credits" };
+	}
+	const caps = await getCaps(db, accountId);
+	if (
+		caps?.monthly_cap_cents != null &&
+		isOverMonthlyCreditCap(
+			await getMonthlyCreditsSpend(db, accountId, now),
+			caps.monthly_cap_cents,
+		)
+	) {
+		return { ok: false, reason: "cap" };
+	}
+	return { ok: true, reason: null };
 }
 
 export type CreditRefill = {

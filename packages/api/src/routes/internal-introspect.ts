@@ -25,7 +25,7 @@
  * never say a credential is good when `/api/*` would refuse it.
  */
 
-import { getCredits } from "@secondlayer/platform/db/queries/account-credits";
+import { getCreditsStatus } from "@secondlayer/platform/db/queries/account-credits";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	AuthenticationError,
@@ -98,10 +98,11 @@ app.post("/", async (c) => {
 		return c.json({ error: "invalid_key" }, 401);
 	}
 
-	const balance = await getCredits(db, accountId);
+	// Same rule as the provisioner's poll: positive balance and under the cap.
+	const status = await getCreditsStatus(db, accountId);
 	return c.json({
 		account_id: accountId,
-		credits_ok: balance > 0n,
+		credits_ok: status.ok,
 	});
 });
 

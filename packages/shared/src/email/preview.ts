@@ -84,7 +84,7 @@ const examples: Record<string, ReturnType<typeof renderEmail>> = {
 	"spend-cap-threshold": renderEmail({
 		heading: "You've used 80% of your monthly spend cap",
 		paragraphs: [
-			"You've spent $8.00 this month, 80% of your $10.00 monthly cap. When you reach the cap, hosted Index and Streams reads past your free 1M rows pause until Oct 1 or until you raise the cap. Webhooks and your hosted stack keep running.",
+			"You've spent $8.00 this month, 80% of your $10.00 monthly cap. When you reach the cap, hosted Index and Streams reads past your free 1M rows pause and your hosted stack stops, so webhooks stop delivering, until Oct 1 or until you raise the cap.",
 		],
 		facts: [
 			{ label: "Spent this month", value: "$8.00" },
@@ -100,7 +100,7 @@ const examples: Record<string, ReturnType<typeof renderEmail>> = {
 	"spend-cap-frozen": renderEmail({
 		heading: "You reached your monthly spend cap",
 		paragraphs: [
-			"You've spent $10.00 this month and reached your monthly cap. Hosted Index and Streams reads past your free 1M rows are paused until Oct 1 or until you raise the cap. Your balance is untouched, and webhooks and your hosted stack keep running.",
+			"You've spent $10.00 this month and reached your monthly cap. Hosted Index and Streams reads past your free 1M rows are paused, and your hosted stack stops within minutes: webhooks stop delivering and subgraphs stop indexing. Both resume on Oct 1 or when you raise the cap. Your balance is untouched.",
 		],
 		facts: [
 			{ label: "Spent this month", value: "$10.00" },
