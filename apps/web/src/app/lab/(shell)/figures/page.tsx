@@ -1,4 +1,4 @@
-import { SelectivityExplorer } from "@/app/(www)/writing/(post)/resuming-from-the-same-block/selectivity-explorer";
+import { SelectivityExplorer } from "@/app/(www)/blog/(post)/resuming-from-the-same-block/selectivity-explorer";
 import { Code } from "@/components/code/code";
 import {
 	BarChart,

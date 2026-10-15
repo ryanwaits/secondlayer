@@ -20,7 +20,7 @@ const SEEDS = [
 	"/verify",
 	"/pricing",
 	"/docs",
-	"/writing",
+	"/blog",
 	"/login",
 	"/auth/verify",
 	"/robinhood",

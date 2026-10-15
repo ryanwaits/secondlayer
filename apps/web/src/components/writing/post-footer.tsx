@@ -8,7 +8,7 @@ import Link from "next/link";
 
 function Neighbor({ post, label }: { post: WritingPost; label: string }) {
 	return (
-		<Link href={`/writing/${post.slug}`}>
+		<Link href={`/blog/${post.slug}`}>
 			<span className="k">{label}</span>
 			<span className="t">{post.title}</span>
 			<span className="m">
@@ -27,7 +27,7 @@ export function PostFooter({ slug }: { slug: string }) {
 	const { prev, next } = getAdjacentPosts(slug);
 	const count = getVisiblePosts().length;
 	const all = (label: string) => (
-		<Link href="/writing" className="all">
+		<Link href="/blog" className="all">
 			<span className="k">{label}</span>
 			<span className="t">Back to the blog</span>
 			<span className="m">

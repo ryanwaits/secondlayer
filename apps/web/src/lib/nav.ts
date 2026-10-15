@@ -19,5 +19,5 @@ export const DOCS_STRIP: NavLink[] = [
 	{ label: "Archive", href: "/p/archive" },
 	{ label: "Pricing", href: "/pricing" },
 	{ label: "Docs", href: "/docs" },
-	{ label: "Blog", href: "/writing" },
+	{ label: "Blog", href: "/blog" },
 ];

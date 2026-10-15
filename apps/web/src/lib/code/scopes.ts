@@ -76,7 +76,7 @@ function firstOptions(scope: Scope): Map<string, string> {
 /** Problems with one MDX file's prose-to-code wiring, as lines for a test to print. */
 export function proseProblems(file: string, source: string): string[] {
 	const found: string[] = [];
-	const whole = file.startsWith("writing/");
+	const whole = file.startsWith("blog/");
 	for (const scope of scopesOf(source, whole)) {
 		const where = `${file} "${scope.where}"`;
 		const refs = declared(scope, "ref");

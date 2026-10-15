@@ -38,7 +38,7 @@ describe("mention and focus links", () => {
 
 	test("in a post a ref anywhere satisfies a mention anywhere", () => {
 		const source = `[a](hover:next)\n## One\n${block}`;
-		expect(proseProblems("writing/(post)/p/page.mdx", source)).toEqual([]);
+		expect(proseProblems("blog/(post)/p/page.mdx", source)).toEqual([]);
 	});
 });
 
@@ -52,10 +52,10 @@ describe("steps", () => {
 	});
 
 	test("steps in a post pass when every step has its ref", () => {
-		expect(proseProblems("writing/(post)/p/page.mdx", steps)).toEqual([]);
+		expect(proseProblems("blog/(post)/p/page.mdx", steps)).toEqual([]);
 		const missing = steps.replace("!ref(1) open", "!ref(1) other");
-		expect(proseProblems("writing/(post)/p/page.mdx", missing)).toEqual([
-			'writing/(post)/p/page.mdx "intro": <Step ref="open"> has no !ref open',
+		expect(proseProblems("blog/(post)/p/page.mdx", missing)).toEqual([
+			'blog/(post)/p/page.mdx "intro": <Step ref="open"> has no !ref open',
 		]);
 	});
 });
@@ -103,7 +103,7 @@ describe("pick budget", () => {
 	});
 
 	test("in a post the whole file is the section", () => {
-		expect(proseProblems("writing/(post)/p/page.mdx", two)[0]).toContain(
+		expect(proseProblems("blog/(post)/p/page.mdx", two)[0]).toContain(
 			"2 pick names",
 		);
 	});

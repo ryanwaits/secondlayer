@@ -22,7 +22,7 @@ export function PostHeader({ slug }: { slug: string }) {
 	return (
 		<header className="writing-header">
 			<nav className="writing-eyebrow" aria-label="Breadcrumb">
-				<Link href="/writing">Blog</Link>
+				<Link href="/blog">Blog</Link>
 				<span aria-hidden="true">/</span>
 				<span aria-current="page">{String(post.number).padStart(2, "0")}</span>
 			</nav>

@@ -16,7 +16,7 @@ const ROUTES = [
 	"/verify",
 	"/pricing",
 	"/contact",
-	"/writing",
+	"/blog",
 	"/robinhood",
 ] as const;
 
@@ -30,7 +30,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 	}));
 	// Published posts only — drafts and the internal /lab routes stay out.
 	const posts: MetadataRoute.Sitemap = getPublishedPosts().map((post) => ({
-		url: `${BASE}/writing/${post.slug}`,
+		url: `${BASE}/blog/${post.slug}`,
 		lastModified: new Date(`${post.date}T00:00:00Z`),
 		changeFrequency: "yearly",
 		priority: 0.5,

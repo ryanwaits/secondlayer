@@ -1392,7 +1392,7 @@ const fonts = [
 // ladder, with the token the post marks on yellow. Nothing to set per post.
 
 const FAINT = "#9b9b96";
-const POSTS_DIR = join(process.cwd(), "src/app/(www)/writing/(post)");
+const POSTS_DIR = join(process.cwd(), "src/app/(www)/blog/(post)");
 const EXCERPT_LINES = 7;
 const EXCERPT_CHARS = 38;
 
@@ -1600,7 +1600,7 @@ function PostFrame({
 					<CodeExcerpt excerpt={excerpt} />
 				</div>
 			) : null}
-			<Footer path={`${SITE}/writing`} />
+			<Footer path={`${SITE}/blog`} />
 		</div>
 	);
 }
@@ -1653,7 +1653,7 @@ const WRITING_CARDS: { file: string; frame: React.ReactElement }[] = [
 				line1="Notes from"
 				line2="the index."
 				size={76}
-				path={`${SITE}/writing`}
+				path={`${SITE}/blog`}
 				artifact={<ArtBlog />}
 			/>
 		),

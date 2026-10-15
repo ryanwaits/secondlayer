@@ -52,7 +52,7 @@ export const SITE_LINKS = [
 	{ label: "Verify", href: "/verify" },
 	{ label: "Pricing", href: "/pricing" },
 	{ label: "Docs", href: "/docs" },
-	{ label: "Blog", href: "/writing" },
+	{ label: "Blog", href: "/blog" },
 ] as const;
 
 /** True when `pathname` is `href` or beneath it. */

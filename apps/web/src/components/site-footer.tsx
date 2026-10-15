@@ -31,7 +31,7 @@ const COLS: { title: string; links: readonly FooterLink[] }[] = [
 		links: [
 			{ label: "Pricing", href: "/pricing" },
 			{ label: "Self-host", href: "/docs/self-host" },
-			{ label: "Blog", href: "/writing" },
+			{ label: "Blog", href: "/blog" },
 			{ label: "Changelog", href: "/docs/changelog" },
 			{ label: "GitHub", href: GITHUB_URL, external: true },
 		],

@@ -103,6 +103,17 @@ const nextConfig: NextConfig = {
 				destination: "/account/credits",
 				permanent: false,
 			},
+			// The blog moved from /writing; shared links and feed readers follow.
+			{
+				source: "/writing",
+				destination: "/blog",
+				permanent: true,
+			},
+			{
+				source: "/writing/:slug",
+				destination: "/blog/:slug",
+				permanent: true,
+			},
 			{
 				source: "/docs/migrate-chainhook",
 				destination: "/docs/webhooks#coming-from-chainhook",
