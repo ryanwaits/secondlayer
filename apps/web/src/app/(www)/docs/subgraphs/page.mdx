@@ -15,10 +15,14 @@ export default defineSubgraph({
   name: "pool-reserves",
   // !ref[/startBlock/] start
   startBlock: 1230000,
-  // !ref(1:3) sources
+  // !ref(1:7) sources
   // !callout[/map_set/] State writes only, so the rows can be recomputed.
   sources: {
-    reserves: { type: "map_set", contractId: "SP....amm-vault-v2-01", map: "reserves" },
+    reserves: {
+      type: "map_set",
+      contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-vault-v2-01",
+      map: "reserve",
+    },
   },
   // !ref(1:6) schema
   schema: {
@@ -31,7 +35,7 @@ export default defineSubgraph({
   handlers: {
     reserves: (event, ctx) => {
       // !callout[/upsert/] Same input, same row, on every run.
-      ctx.upsert("reserves", { token: String(event.key) }, { balance: BigInt(String(event.value)) });
+      ctx.upsert("reserves", { token: event.key as string }, { balance: event.value as bigint });
     },
   },
 });
