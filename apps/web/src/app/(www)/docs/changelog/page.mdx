@@ -13,6 +13,16 @@ Pause or delete every webhook and subgraph and your hosted stack stops within mi
 
 Your monthly spend cap now stops your hosted stack too, not only reads past the free 1M rows. At the cap, webhooks stop delivering, subgraphs stop indexing and archive fetches answer `402 spend_cap_reached` until the next month or until you raise the cap. See [Spend cap](/docs/authentication#spend-cap).
 
+## Webhooks — October 2026
+
+### Match print fields with where
+
+A `print_event` trigger or subgraph source takes `where`, so you get only the prints that carry your values: your signer on PoX-5, your pool on a DEX. See [Print fields](/docs/webhooks#print-fields).
+
+### print_event topic now filters
+
+Before, `topic` was ignored on webhooks and you received every print from the contract. It now delivers only prints whose tuple `topic` matches.
+
 ## SDK — October 2026
 
 ### Prove a Bitcoin transaction offline

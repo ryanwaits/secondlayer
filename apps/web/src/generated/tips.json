@@ -9472,6 +9472,10 @@
 					"type": "string"
 				},
 				{
+					"name": "where",
+					"type": "…"
+				},
+				{
 					"name": "contractId",
 					"type": "string | readonly string[]"
 				},
@@ -10183,6 +10187,10 @@
 					"type": "string"
 				},
 				{
+					"name": "where",
+					"type": "…"
+				},
+				{
 					"name": "contractId",
 					"type": "string | readonly string[]"
 				},
@@ -10369,6 +10377,10 @@
 				{
 					"name": "topic",
 					"type": "string"
+				},
+				{
+					"name": "where",
+					"type": "…"
 				},
 				{
 					"name": "contractId",

@@ -89,7 +89,7 @@ Use the `trigger.*` factories (as in [Create a webhook](#create-a-webhook)) or t
 | `trigger.stxMint` | `stx_mint` | `recipient`, `minAmount` |
 | `trigger.stxBurn` | `stx_burn` | `sender`, `minAmount` |
 | `trigger.stxLock` | `stx_lock` | `lockedAddress`, `minAmount` |
-| `trigger.printEvent` | `print_event` | `contractId`, `topic`, `trait` |
+| `trigger.printEvent` | `print_event` | `contractId`, `topic`, `where`, `trait` |
 | `trigger.sbtcDeposit` | `sbtc_deposit` | `sender`, `minAmount`, `maxAmount`, `bitcoinTxid`, `requestId` |
 | `trigger.sbtcWithdrawalCreate` | `sbtc_withdrawal_create` | `sender`, `minAmount`, `maxAmount`, `requestId` |
 | `trigger.sbtcWithdrawalAccept` | `sbtc_withdrawal_accept` | `requestId`, `sweepTxid` |
@@ -107,14 +107,44 @@ Validation is strict per type:
 
 ### Protocol triggers
 
-The sBTC and Runes triggers read the same decoded protocols as [Index](/docs/index#decoded-protocols). PoX-5 has no trigger of its own: it is a `print_event` on the `pox-5` contract.
-
-```ts
-trigger.printEvent({ contractId: "SP000000000000000000002Q6VF78.pox-5", topic: "register-for-bond" });
-```
+The sBTC and Runes triggers read the same decoded protocols as [Index](/docs/index#decoded-protocols). PoX-5 has no trigger of its own: it is a `print_event` on the `pox-5` contract, scoped to your signers with [print fields](#print-fields).
 
 - `sbtc_withdrawal_swept_confirmed` fires **once** per sweep, when `btc_confirmations` first crosses the threshold (default 6). It is forward-only: settlements confirmed after you subscribe, never a backfill. A Bitcoin reorg that un-confirms a sweep never re-fires it.
 - The `rune_*` triggers match `chain=bitcoin` Streams events, not a Stacks block. `rune` takes an id or a name; a name is resolved to its id at create time, and an instance with no Runes data rejects a name with a hint to use the id.
+
+### Print fields
+
+`where` delivers only the prints that carry your values, so a busy contract sends you your rows, not everyone's. This webhook gets PoX-5 events for two signers and nothing else:
+
+```ts
+const managers = [
+  "SPMPMA1V6P430M8C91QS1G9XJ95S59JS1TZFZ4Q4.fastpool-max500-signer-manager",
+  "SP21YTSM60CAY6D011EZVEVNKXVW8FVZE198XEFFP.fastpool-1-signer-manager",
+];
+const pox5 = "SP000000000000000000002Q6VF78.pox-5";
+
+const triggers = [
+  trigger.printEvent({ contractId: pox5, where: { signer: managers } }),
+  trigger.printEvent({ contractId: pox5, where: { "signer-manager": managers } }),
+];
+```
+
+Two triggers, because some PoX-5 topics print only `signer-manager`. Triggers OR, and each print is delivered once per matching trigger.
+
+Keys are the print tuple's own top-level keys, spelled as the contract prints them. A value matches the field in its delivered JSON form:
+
+| Clarity type | Match with |
+| --- | --- |
+| principal | `SP…` or `SP….contract-name` |
+| `uint`, `int` | Decimal string, `"112"` |
+| `bool` | `"true"` or `"false"` |
+| buffer | `0x…` hex |
+| `(some x)` | The value of `x` |
+
+- Equality only: no wildcards, ranges or nested paths.
+- An array is any-of (up to 20 values); several keys must all match (up to 10).
+- Nested tuples, lists and `none` never match.
+- `topic` is shorthand for `where: { topic }`.
 
 `POST /api/webhooks` accepts the same array. The CLI takes triggers two ways:
 
@@ -511,7 +541,8 @@ export const agent = `
 - Deliveries: 'chain.{type}.apply' per matched event, 'chain.reorg.rollback' when a block is orphaned.
 - A webhook starts at the chain tip and never backfills; use replay over an existing webhook for history.
 - Hosted billing: $10 per 1M delivered events plus the account's hosted stack (0.5 GB memory minimum while it runs, plus storage). Pausing or deleting every webhook (with no subgraphs) stops the stack within minutes; the spend cap stops it too.
-- PoX-5 has no trigger of its own: trigger.printEvent({ contractId: 'SP000000000000000000002Q6VF78.pox-5', topic: 'register-for-bond' }).
+- PoX-5 has no trigger of its own: use two print_event triggers on SP000000000000000000002Q6VF78.pox-5, one with where: { signer: [...] } and one with where: { 'signer-manager': [...] }, because some topics print only signer-manager.
+- print_event where: equality on top-level print tuple keys in the contract's own spelling (kebab-case, no camelCase alias). Values are strings: principals SP..., uints as decimal strings, bools 'true'/'false', buffers 0x.... Array = any-of (max 20), keys AND (max 10). Nested tuples and lists never match. topic filters the same way.
 - sBTC: trigger.sbtcWithdrawalSweptConfirmed() fires once per sweep when btc_confirmations crosses the threshold (default 6). It is forward-only and never re-fires on a reorg.
 - Runes: trigger.runeTransfer({ rune: '840000:3', minAmount: '1000000' }), with runeEtch, runeMint and runeBurn alongside. A rune name resolves to its id at create time.
 - Diagnose a failing webhook: inspect detail, recent deliveries and dead-letter rows, highest-priority findings first. Inspect dead rows before requeueing selected ones. Never replay a block range until the user confirms exact from/to blocks.

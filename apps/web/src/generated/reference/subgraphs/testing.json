@@ -141,7 +141,7 @@
 			"description": "Run handlers against pre-built sample payloads in memory (no Index, no\nPostgres). Deploy uses this with print-schema dummy events to refuse\nEMPTY_MAPPING before DDL apply.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 465
+				"line": 482
 			},
 			"overloads": [
 				{
@@ -176,7 +176,7 @@
 			"description": "Apply local handlers to Index rows in memory. Fail-closed: matched events\nwith zero written rows is EMPTY_MAPPING (the bns-names field-mapping shape).",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 278
+				"line": 294
 			},
 			"overloads": [
 				{
@@ -205,7 +205,7 @@
 			"description": "Map an Index contract-call row onto the ContractCallEvent handler shape.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 181
+				"line": 197
 			},
 			"overloads": [
 				{
@@ -234,7 +234,7 @@
 			"description": "Map an Index event row onto the payload shape a handler expects.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 109
+				"line": 125
 			},
 			"overloads": [
 				{
@@ -901,6 +901,12 @@
 					"description": ""
 				},
 				{
+					"name": "where",
+					"type": "Record<string, string | readonly string[]>",
+					"required": false,
+					"description": "Equality on top-level keys of the decoded print tuple, spelled as the\ncontract prints them (`signer-manager`). A value matches the field's\nJSON form: principals `SP…`, uints as decimal strings, bools\n`\"true\"`/`\"false\"`, buffers `0x…`. An array is any-of; keys AND.\nNested tuples and lists never match."
+				},
+				{
 					"name": "contractId",
 					"type": "string | readonly string[]",
 					"required": true,
@@ -1281,6 +1287,12 @@
 					"description": ""
 				},
 				{
+					"name": "where",
+					"type": "Record<string, string | readonly string[]>",
+					"required": false,
+					"description": ""
+				},
+				{
 					"name": "functionName",
 					"type": "string",
 					"required": false,
@@ -1405,6 +1417,12 @@
 					"type": "string",
 					"required": false,
 					"description": ""
+				},
+				{
+					"name": "where",
+					"type": "Record<string, string | readonly string[]>",
+					"required": false,
+					"description": "Equality on top-level keys of the decoded print tuple, spelled as the\ncontract prints them (`signer-manager`). A value matches the field's\nJSON form: principals `SP…`, uints as decimal strings, bools\n`\"true\"`/`\"false\"`, buffers `0x…`. An array is any-of; keys AND.\nNested tuples and lists never match."
 				},
 				{
 					"name": "contractId",
@@ -1549,6 +1567,12 @@
 					"type": "string",
 					"required": false,
 					"description": ""
+				},
+				{
+					"name": "where",
+					"type": "Record<string, string | readonly string[]>",
+					"required": false,
+					"description": "Equality on top-level keys of the decoded print tuple, spelled as the\ncontract prints them (`signer-manager`). A value matches the field's\nJSON form: principals `SP…`, uints as decimal strings, bools\n`\"true\"`/`\"false\"`, buffers `0x…`. An array is any-of; keys AND.\nNested tuples and lists never match."
 				},
 				{
 					"name": "contractId",

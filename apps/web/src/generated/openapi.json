@@ -7677,6 +7677,10 @@
 						"type": "string",
 						"description": "Print topic. `*` wildcards allowed. Accepted on `print_event`."
 					},
+					"where": {
+						"type": "string",
+						"description": "where Accepted on `print_event`."
+					},
 					"bitcoinTxid": {
 						"type": "string",
 						"description": "Bitcoin txid of the deposit. Accepted on `sbtc_deposit`."

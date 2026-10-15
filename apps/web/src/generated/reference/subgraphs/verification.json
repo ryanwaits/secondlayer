@@ -681,6 +681,12 @@
 					"description": ""
 				},
 				{
+					"name": "where",
+					"type": "Record<string, string | readonly string[]>",
+					"required": false,
+					"description": "Equality on top-level keys of the decoded print tuple, spelled as the\ncontract prints them (`signer-manager`). A value matches the field's\nJSON form: principals `SP…`, uints as decimal strings, bools\n`\"true\"`/`\"false\"`, buffers `0x…`. An array is any-of; keys AND.\nNested tuples and lists never match."
+				},
+				{
 					"name": "contractId",
 					"type": "string | readonly string[]",
 					"required": true,
@@ -1035,6 +1041,12 @@
 					"description": ""
 				},
 				{
+					"name": "where",
+					"type": "Record<string, string | readonly string[]>",
+					"required": false,
+					"description": "Equality on top-level keys of the decoded print tuple, spelled as the\ncontract prints them (`signer-manager`). A value matches the field's\nJSON form: principals `SP…`, uints as decimal strings, bools\n`\"true\"`/`\"false\"`, buffers `0x…`. An array is any-of; keys AND.\nNested tuples and lists never match."
+				},
+				{
 					"name": "contractId",
 					"type": "string | readonly string[]",
 					"required": false,
@@ -1117,6 +1129,12 @@
 					"type": "string",
 					"required": false,
 					"description": ""
+				},
+				{
+					"name": "where",
+					"type": "Record<string, string | readonly string[]>",
+					"required": false,
+					"description": "Equality on top-level keys of the decoded print tuple, spelled as the\ncontract prints them (`signer-manager`). A value matches the field's\nJSON form: principals `SP…`, uints as decimal strings, bools\n`\"true\"`/`\"false\"`, buffers `0x…`. An array is any-of; keys AND.\nNested tuples and lists never match."
 				},
 				{
 					"name": "contractId",

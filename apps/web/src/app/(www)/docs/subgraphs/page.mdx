@@ -1,3 +1,4 @@
+{/* new: 2026-10-15 */}
 # Subgraphs
 
 One TypeScript file, and you get a table plus a REST API over it. You don't pick the API shape; if you need your own, use [Index](/docs/index).
@@ -122,6 +123,8 @@ sources: {
   swaps: { type: "print_event", contractId: [ROUTER, POOL_A, POOL_B], topic: "swap" },
 }
 ```
+
+A print source also takes [`where`](/docs/webhooks#print-fields), so the handler only runs for prints that carry your values.
 
 A set that grows (new pools, launchpad tokens, registry entries) uses a `factory`, which reads addresses from another source's events:
 

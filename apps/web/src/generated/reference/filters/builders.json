@@ -442,13 +442,13 @@
 					"params": [
 						{
 							"name": "fields",
-							"type": "{ factory?: { from: string; field: string }; trait?: string; contractId?: string | readonly string[]; topic?: string } & { prints?: P }",
+							"type": "{ factory?: { from: string; field: string }; trait?: string; contractId?: string | readonly string[]; topic?: string; where?: Record<string, string | unknown[]> } & { prints?: P }",
 							"required": false,
 							"description": ""
 						}
 					],
 					"returns": {
-						"type": "ChainEventFilter<\"print_event\", { type: \"print_event\" } & { factory?: { from: string; field: string }; trait?: string; contractId?: string | readonly string[]; topic?: string } & { prints?: P }>",
+						"type": "ChainEventFilter<\"print_event\", { type: \"print_event\" } & { factory?: { from: string; field: string }; trait?: string; contractId?: string | readonly string[]; topic?: string; where?: Record<string, string | unknown[]> } & { prints?: P }>",
 						"description": ""
 					}
 				}
@@ -1544,6 +1544,12 @@
 					"type": "string",
 					"required": false,
 					"description": ""
+				},
+				{
+					"name": "where",
+					"type": "Record<string, string | readonly string[]>",
+					"required": false,
+					"description": "Equality on top-level keys of the decoded print tuple, spelled as the\ncontract prints them (`signer-manager`). A value matches the field's\nJSON form: principals `SP…`, uints as decimal strings, bools\n`\"true\"`/`\"false\"`, buffers `0x…`. An array is any-of (max 20); keys\nAND (max 10). Nested tuples and lists never match."
 				},
 				{
 					"name": "prints",

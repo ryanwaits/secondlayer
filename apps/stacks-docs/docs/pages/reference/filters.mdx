@@ -76,6 +76,7 @@ usdc.toIndexParams();
 | --- | --- | --- | --- | --- |
 | `minAmount` / `maxAmount` | throws | throws | ok | ok |
 | `topic` (print) | throws | throws | ok | ok |
+| `where` (print) | throws | throws | ok | ok |
 | wildcard `*` in a principal or asset | throws | throws | ok | ok |
 | `trait` | ok, not with `contractId` | throws | ok | ok, ANDed with `contractId` |
 | `contractId` as a set | ok | ok | throws | ok |
@@ -103,7 +104,7 @@ import { CHAIN_EVENT_FILTER_TYPES, DECODED_EVENT_TYPES } from "@secondlayer/stac
 | `on.nftTransfer` / `on.nftMint` / `on.nftBurn` | `assetIdentifier`, `sender`, `recipient`, `trait` |
 | `on.contractCall` | `contractId` (one or up to 20), `functionName`, `caller`, `abi`, `trait`, `factory` |
 | `on.contractDeploy` | `deployer`, `contractName` |
-| `on.print` | `contractId` (one or up to 20), `topic`, `prints`, `trait`, `factory` |
+| `on.print` | `contractId` (one or up to 20), `topic`, `where`, `prints`, `trait`, `factory` |
 | `on.sbtcDeposit` | `sender`, `minAmount`, `maxAmount`, `bitcoinTxid`, `requestId` |
 | `on.sbtcWithdrawalCreate` | `sender`, `minAmount`, `maxAmount`, `requestId` |
 | `on.sbtcWithdrawalAccept` / `SweptConfirmed` | `requestId`, `sweepTxid` |

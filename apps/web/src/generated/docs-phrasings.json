@@ -1989,14 +1989,16 @@
     ]
   },
   "/docs/subgraphs#indexing-a-contract-set": {
-    "hash": "0ff4508027603ead",
+    "hash": "84cb239f74acf564",
     "phrasings": [
       "index multiple contracts with one handler",
-      "contractid array subgraph source",
-      "router and pools same handler subgraph",
-      "subgraph source multiple contract addresses",
-      "share handler across several contracts",
-      "how to watch a fixed list of contracts"
+      "subgraph source contractid array",
+      "share one handler across several contracts",
+      "how to index router and pool contracts together",
+      "subgraph multiple contract addresses same handler",
+      "index a fixed list of contracts",
+      "contractid accepts array of addresses",
+      "one data source for many contracts subgraph"
     ]
   },
   "/docs/subgraphs#pages-cursors-and-sorting": {
@@ -2337,17 +2339,30 @@
       "how many webhook deliveries included"
     ]
   },
-  "/docs/webhooks#protocol-triggers": {
-    "hash": "9f38b09d92bdf2a2",
+  "/docs/webhooks#print-fields": {
+    "hash": "00338fb18e3acc85",
     "phrasings": [
-      "how do sbtc triggers work in webhooks",
-      "webhook trigger for runes protocol events",
-      "sbtc webhook not firing on deposits",
-      "do runes webhooks use same data as index",
-      "set up runes trigger for webhook",
-      "sbtc and runes decoded protocol webhook events",
-      "why are runes webhooks missing transactions",
-      "index protocol data source for webhook triggers"
+      "webhook filter print events by field",
+      "only receive prints matching my values",
+      "busy contract webhook too many events",
+      "filter print events where field equals",
+      "webhook delivers only my rows",
+      "reduce webhook noise from contract prints",
+      "where clause for print event payloads",
+      "get print events for specific user only"
+    ]
+  },
+  "/docs/webhooks#protocol-triggers": {
+    "hash": "10a7620f3509edba",
+    "phrasings": [
+      "sbtc trigger webhook setup",
+      "runes webhook trigger decoded data",
+      "webhook for sbtc events",
+      "how to trigger on runes transactions",
+      "decoded protocol events for webhooks",
+      "index protocols webhook sbtc runes",
+      "webhook not firing for runes activity",
+      "sbtc deposit webhook trigger"
     ]
   },
   "/docs/webhooks#receive-and-verify": {

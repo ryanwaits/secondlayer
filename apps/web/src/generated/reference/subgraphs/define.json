@@ -86,7 +86,7 @@
 			"description": "Lists the fields each source filter type accepts.\n\nThe list is derived from `SubgraphFilterSchema`. Agent-facing surfaces\nsuch as the MCP filters reference used to keep a parallel copy by hand;\nderiving it means adding a field to a filter can never leave the\ndocumentation behind.",
 			"source": {
 				"file": "packages/subgraphs/src/validate.ts",
-				"line": 475
+				"line": 477
 			},
 			"overloads": [
 				{
@@ -108,7 +108,7 @@
 			"description": "Validates a subgraph definition and returns the parsed result.\n\nIt throws when the definition is invalid.",
 			"source": {
 				"file": "packages/subgraphs/src/validate.ts",
-				"line": 463
+				"line": 465
 			},
 			"overloads": [
 				{
@@ -1165,6 +1165,12 @@
 					"description": ""
 				},
 				{
+					"name": "where",
+					"type": "Record<string, string | readonly string[]>",
+					"required": false,
+					"description": "Equality on top-level keys of the decoded print tuple, spelled as the\ncontract prints them (`signer-manager`). A value matches the field's\nJSON form: principals `SP…`, uints as decimal strings, bools\n`\"true\"`/`\"false\"`, buffers `0x…`. An array is any-of; keys AND.\nNested tuples and lists never match."
+				},
+				{
 					"name": "contractId",
 					"type": "string | readonly string[]",
 					"required": true,
@@ -1707,6 +1713,12 @@
 					"description": ""
 				},
 				{
+					"name": "where",
+					"type": "Record<string, string | readonly string[]>",
+					"required": false,
+					"description": "Equality on top-level keys of the decoded print tuple, spelled as the\ncontract prints them (`signer-manager`). A value matches the field's\nJSON form: principals `SP…`, uints as decimal strings, bools\n`\"true\"`/`\"false\"`, buffers `0x…`. An array is any-of; keys AND.\nNested tuples and lists never match."
+				},
+				{
 					"name": "contractId",
 					"type": "string | readonly string[]",
 					"required": false,
@@ -1842,6 +1854,12 @@
 					"type": "string",
 					"required": false,
 					"description": ""
+				},
+				{
+					"name": "where",
+					"type": "Record<string, string | readonly string[]>",
+					"required": false,
+					"description": "Equality on top-level keys of the decoded print tuple, spelled as the\ncontract prints them (`signer-manager`). A value matches the field's\nJSON form: principals `SP…`, uints as decimal strings, bools\n`\"true\"`/`\"false\"`, buffers `0x…`. An array is any-of; keys AND.\nNested tuples and lists never match."
 				},
 				{
 					"name": "contractId",
