@@ -86,8 +86,14 @@ export {
 	type LinkStatus,
 	describeLinks,
 } from "./links.ts";
+export type { SpvProof } from "@secondlayer/stacks/bitcoin";
+export type {
+	BitcoinTxExpect,
+	BitcoinTxOutputView,
+} from "./bitcoin-tx.ts";
 export {
 	type Ancestry,
+	type BitcoinTxVerification,
 	type BlockVerification,
 	BlockVerifier,
 	type VerifyFailure,

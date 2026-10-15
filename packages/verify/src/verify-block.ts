@@ -11,8 +11,19 @@
 //              ─▶ header N (hashes to id N) ─▶ txs N ─▶ witness N (root) ─▶ named diff ─▶ indexed rows
 //
 // Every input comes from an untrusted ProofSource; only the checkpoint is trusted.
+import type { SpvProof } from "@secondlayer/stacks/bitcoin";
 import { uintCV } from "@secondlayer/stacks/clarity";
+import {
+	type BitcoinTxExpect,
+	type BitcoinTxOutputView,
+	checkTxInclusion,
+	outputMatches,
+} from "./bitcoin-tx.ts";
 import { HeaderChain, HeaderValidationError } from "./bitcoin/chain.ts";
+import {
+	headerHashHex,
+	parseHeader as parseBitcoinHeader,
+} from "./bitcoin/header.ts";
 import {
 	MAINNET_PREPARE_LENGTH,
 	cycleStart,
@@ -64,6 +75,7 @@ export type VerifyStep =
 	| "ancestry"
 	| "block"
 	| "bitcoin"
+	| "bitcoin-tx"
 	| "burn"
 	| "signer-set"
 	| "signatures"
@@ -94,7 +106,17 @@ export type VerifyFailureCode =
 	| "below-threshold"
 	| "unknown-signer"
 	| "duplicate-signer"
-	| "bad-signature";
+	| "bad-signature"
+	/** A Bitcoin tx's raw bytes do not parse, or are a 64-byte merkle-node lookalike. */
+	| "tx-parse"
+	/** The raw tx does not hash to the proof's txid. */
+	| "txid-mismatch"
+	/** The merkle branch is malformed or does not fold to the header's root. */
+	| "merkle-mismatch"
+	/** The proof's Bitcoin header is not in the checkpoint's Bitcoin chain. */
+	| "bitcoin-header-not-in-chain"
+	/** No output of the transaction matches what was expected. */
+	| "output-not-found";
 
 export interface VerifyFailure {
 	step: VerifyStep;
@@ -183,6 +205,22 @@ export interface VerifyOptions {
 	onStep?: (step: VerifyStep) => void;
 }
 
+/** The result of proving a Bitcoin transaction against the checkpoint's chain. */
+export interface BitcoinTxVerification {
+	/** The tx is in a block of the checkpoint's Bitcoin chain, and any `expect` matched. */
+	ok: boolean;
+	/** Display-order hex. */
+	txid?: string;
+	height?: number;
+	/** Display-order hex. */
+	blockHash?: string;
+	outputs?: BitcoinTxOutputView[];
+	/** Index of the first output matching `expect`, when given. */
+	matched?: number;
+	/** Empty when ok. */
+	failures: VerifyFailure[];
+}
+
 class Broken extends Error {
 	constructor(readonly failure: VerifyFailure) {
 		super(failure.message);
@@ -214,6 +252,8 @@ async function fetchFor<T>(
 }
 
 const BITCOIN_BATCH = 2016;
+/** Farthest below the checkpoint (about a year of blocks) a Bitcoin tx is walked back to. */
+const MAX_BITCOIN_WALK = 52_560;
 /**
  * Below the checkpoint, ancestors this close to a trusted block are reached by
  * parent links (one block fetch each); farther ones by one MARF proof, which
@@ -296,6 +336,8 @@ export class BlockVerifier {
 		number,
 		{ id: string; ancestry: Ancestry }
 	>();
+	/** Bitcoin block hashes proven below the checkpoint by prev-hash links, by height. */
+	private readonly bitcoinBelow = new Map<number, string>();
 	private readonly burns = new Map<
 		string,
 		{ burnHeight: number; hash: string }
@@ -331,6 +373,158 @@ export class BlockVerifier {
 		}
 		out.ok = out.failures.length === 0;
 		return out;
+	}
+
+	/**
+	 * Proves a Bitcoin tx is in the checkpoint's Bitcoin chain.
+	 *
+	 * It can also prove that one output pays `expect`. Pass an `SpvProof`, or a
+	 * txid for the source's `getBitcoinTxProof` to fetch. It never throws for bad
+	 * source data.
+	 */
+	async verifyBitcoinTx(
+		proof: SpvProof | string,
+		opts: { expect?: BitcoinTxExpect } = {},
+	): Promise<BitcoinTxVerification> {
+		const out: BitcoinTxVerification = { ok: false, failures: [] };
+		try {
+			await this.runBitcoinTx(proof, opts.expect, out);
+		} catch (err) {
+			if (!(err instanceof Broken)) throw err;
+			out.failures.unshift(err.failure);
+		}
+		out.ok = out.failures.length === 0;
+		return out;
+	}
+
+	private async runBitcoinTx(
+		input: SpvProof | string,
+		expect: BitcoinTxExpect | undefined,
+		out: BitcoinTxVerification,
+	): Promise<void> {
+		let proof: SpvProof;
+		if (typeof input === "string") {
+			const fetchProof = this.source.getBitcoinTxProof;
+			if (!fetchProof)
+				return fail({
+					step: "bitcoin-tx",
+					code: "unavailable",
+					message: "source has no getBitcoinTxProof; pass an SpvProof",
+				});
+			proof = await fetchFor("bitcoin-tx", `bitcoin tx ${input}`, () =>
+				fetchProof.call(this.source, input),
+			);
+		} else proof = input;
+
+		const included = checkTxInclusion(proof);
+		if ("code" in included) return fail({ step: "bitcoin-tx", ...included });
+		out.txid = included.txid;
+		out.height = proof.height;
+		out.blockHash = included.blockHash;
+		out.outputs = included.outputs;
+
+		await this.bitcoinHeaderInChain(proof.height, included.blockHash);
+
+		if (expect) {
+			const candidates =
+				proof.vout === undefined
+					? included.outputs
+					: included.outputs.filter((o) => o.vout === proof.vout);
+			const hit = candidates.find((o) => outputMatches(o, expect));
+			if (!hit)
+				return fail({
+					step: "bitcoin-tx",
+					code: "output-not-found",
+					message:
+						proof.vout === undefined
+							? "no output of the transaction matches what was expected"
+							: `output ${proof.vout} does not match what was expected`,
+				});
+			out.matched = hit.vout;
+		}
+		this.passed("bitcoin-tx");
+	}
+
+	/**
+	 * Fail unless the Bitcoin block `hash` is the checkpoint chain's block at
+	 * `height`. At or above the checkpoint that is the PoW-validated chain; below
+	 * it, prev-hash links back from the checkpoint header, which commits to every
+	 * ancestor.
+	 */
+	private async bitcoinHeaderInChain(
+		height: number,
+		hash: string,
+	): Promise<void> {
+		const notInChain = (message: string) =>
+			fail({
+				step: "bitcoin-tx",
+				code: "bitcoin-header-not-in-chain",
+				message,
+			});
+		const base = this.chain.checkpointHeight;
+		if (!Number.isSafeInteger(height) || height < 0)
+			return notInChain(`block height ${height} is not valid`);
+		if (height >= base) {
+			await this.syncBitcoin(height);
+			if (this.chain.headerAt(height)?.hash !== hash)
+				notInChain(
+					`block ${hash} is not the verified Bitcoin chain's block at ${height}`,
+				);
+			return;
+		}
+		if (this.bitcoinBelow.get(height) === hash) return;
+		if (base - height > MAX_BITCOIN_WALK)
+			return fail({
+				step: "bitcoin-tx",
+				code: "before-checkpoint",
+				message: `block ${height} is more than ${MAX_BITCOIN_WALK} blocks below the Bitcoin checkpoint ${base}`,
+			});
+
+		const proven = new Map<number, string>();
+		let prev: string | undefined;
+		for (let from = height; from < base; ) {
+			const count = Math.min(BITCOIN_BATCH, base - from);
+			const batch = await fetchFor(
+				"bitcoin-tx",
+				`bitcoin headers ${from}`,
+				() => this.source.getBitcoinHeaders(from, count),
+			);
+			if (batch.length !== count)
+				fail({
+					step: "bitcoin-tx",
+					code: "unavailable",
+					message: `source returned ${batch.length} Bitcoin headers from ${from}, wanted ${count}`,
+				});
+			for (const [i, raw] of batch.entries()) {
+				let parsed: ReturnType<typeof parseBitcoinHeader>;
+				try {
+					parsed = parseBitcoinHeader(raw);
+				} catch (err) {
+					return fail({
+						step: "bitcoin-tx",
+						code: "invalid-header",
+						message: `Bitcoin header ${from + i}: ${(err as Error).message}`,
+					});
+				}
+				const own = headerHashHex(raw);
+				if (prev === undefined) {
+					if (own !== hash)
+						notInChain(`header at ${height} is not block ${hash}`);
+				} else if (parsed.prevHash !== prev)
+					notInChain(
+						`header at ${from + i} does not link to the header before it`,
+					);
+				prev = own;
+				proven.set(from + i, own);
+			}
+			from += count;
+		}
+		const anchor = this.chain.headerAt(base)?.header.prevHash;
+		if (prev === undefined || anchor !== prev)
+			notInChain(
+				`block ${hash} does not link to the Bitcoin checkpoint at ${base}`,
+			);
+		for (const [h, v] of proven) this.bitcoinBelow.set(h, v);
 	}
 
 	/** Report a passed link. A throwing callback must not break verification. */

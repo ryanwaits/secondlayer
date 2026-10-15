@@ -53,6 +53,9 @@ function linkDetail(
 			return `${n(r.height ?? 0)}  ${r.blockId}`;
 		case "bitcoin":
 			return `headers ${n(cp.bitcoin.height)}..${n(r.burnHeight ?? 0)}, proof-of-work and retargets checked`;
+		case "bitcoin-tx":
+			// Not a block link: verifyBitcoinTx reports its own result.
+			return "";
 		case "burn":
 			return `height ${n(r.burnHeight ?? 0)}  ${r.bitcoinBlockHash}`;
 		case "signer-set":

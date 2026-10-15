@@ -1,6 +1,7 @@
 // Proof data sources. Everything a source returns is untrusted: verifyBlock
 // checks every byte against the checkpoint, so a lying source can make a
 // check fail but never pass.
+import type { SpvProof } from "@secondlayer/stacks/bitcoin";
 import { type Bytes, unhex } from "./bytes.ts";
 
 /** Sortition preimage behind a consensus hash. */
@@ -80,6 +81,11 @@ export interface ProofSource {
 	getStateWrites?(height: number): Promise<StateWrite[] | null>;
 	/** Indexed vm_events write rows of the block, checked against its proven diff. */
 	getVmEvents?(height: number): Promise<VmEventRow[]>;
+	/**
+	 * A Bitcoin tx, its merkle branch and block header, by display-order txid.
+	 * Untrusted: `verifyBitcoinTx` re-checks every byte.
+	 */
+	getBitcoinTxProof?(txid: string): Promise<SpvProof>;
 }
 
 /**
@@ -176,6 +182,43 @@ const toMarf = (url: string, j: MarfJson | null): MarfProofResponse | null => {
 	return { data: j.data, proof: unhex(proof) };
 };
 
+const isHex = (v: unknown): v is string =>
+	typeof v === "string" && /^(0x)?([0-9a-f]{2})+$/i.test(v);
+const isCount = (v: unknown): v is number =>
+	typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
+
+/** Decode `/v1/proofs/bitcoin-tx/{txid}` into an `SpvProof`. */
+const toBitcoinTxProof = (url: string, j: unknown): SpvProof => {
+	const w = j as Record<string, unknown> | null;
+	if (
+		!w ||
+		!isHex(w.txid) ||
+		!isHex(w.raw_tx) ||
+		!isHex(w.header) ||
+		!isCount(w.block_height) ||
+		!isCount(w.tx_index) ||
+		!isCount(w.tx_count) ||
+		!Array.isArray(w.siblings) ||
+		!w.siblings.every(isHex)
+	)
+		throw new SourceError(
+			url,
+			200,
+			"bitcoin tx proof needs txid, raw_tx, header, block_height, tx_index, tx_count and siblings",
+		);
+	return {
+		rawTx: unhex(w.raw_tx),
+		txidInternal: unhex(w.txid).reverse(),
+		header: unhex(w.header),
+		height: w.block_height,
+		merkle: {
+			siblings: (w.siblings as string[]).map(unhex),
+			txIndex: w.tx_index,
+			txCount: w.tx_count,
+		},
+	};
+};
+
 /** The hosted API. */
 export const DEFAULT_API_URL = "https://api.secondlayer.tools";
 
@@ -265,6 +308,12 @@ export class SecondlayerProofSource implements ProofSource {
 	getStateWrites: (height: number) => Promise<StateWrite[] | null>;
 	/** The indexed `vm_events` write rows of a block, from the Index API. */
 	getVmEvents: (height: number) => Promise<VmEventRow[]>;
+	/**
+	 * A Bitcoin tx, its merkle branch and header, by txid.
+	 *
+	 * The txid is display-order hex.
+	 */
+	getBitcoinTxProof: (txid: string) => Promise<SpvProof>;
 
 	constructor(opts: SecondlayerSourceOptions = {}) {
 		const base = trimSlash(opts.baseUrl ?? DEFAULT_API_URL);
@@ -314,6 +363,14 @@ export class SecondlayerProofSource implements ProofSource {
 			if (j.from !== from)
 				throw new SourceError(url, 200, `headers start at ${j.from}`);
 			return j.headers;
+		};
+
+		this.getBitcoinTxProof = async (txid) => {
+			const url = `${base}/v1/proofs/bitcoin-tx/${txid}`;
+			return toBitcoinTxProof(
+				url,
+				required(url, await getJson<unknown>(url, http)),
+			);
 		};
 
 		this.getStateWrites = async (height) => {

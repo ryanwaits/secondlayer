@@ -224,6 +224,60 @@ describe("SecondlayerProofSource", () => {
 			`${BASE}/v1/index/events?event_type=var_set&from_height=12&to_height=12&limit=1000`,
 		);
 	});
+
+	describe("getBitcoinTxProof", () => {
+		const TXID = `${"01".repeat(31)}02`;
+		const wire = {
+			txid: TXID,
+			block_hash: "00".repeat(32),
+			block_height: 968461,
+			header: "ab".repeat(80),
+			raw_tx: "0102",
+			tx_index: 5,
+			tx_count: 9,
+			siblings: ["11".repeat(32), "22".repeat(32)],
+		};
+
+		test("the wire answer decodes into byte fields with an internal-order txid", async () => {
+			const m = mockFetch(() => json(wire));
+			const s = new SecondlayerProofSource({ baseUrl: BASE, fetch: m.fetch });
+			const proof = await s.getBitcoinTxProof(TXID);
+			expect(m.calls.map((c) => c.url)).toEqual([
+				`${BASE}/v1/proofs/bitcoin-tx/${TXID}`,
+			]);
+			expect(proof.rawTx).toEqual(Uint8Array.of(1, 2));
+			expect(proof.header).toEqual(new Uint8Array(80).fill(0xab));
+			expect(proof.height).toBe(968461);
+			expect(hex(proof.txidInternal)).toBe(`02${"01".repeat(31)}`);
+			expect(proof.merkle.txIndex).toBe(5);
+			expect(proof.merkle.txCount).toBe(9);
+			expect(proof.merkle.siblings.map(hex)).toEqual([
+				"11".repeat(32),
+				"22".repeat(32),
+			]);
+		});
+
+		test("an unknown txid is a SourceError with status 404", async () => {
+			const s = new SecondlayerProofSource({
+				baseUrl: BASE,
+				fetch: mockFetch(() => json({ error: "nf" }, 404)).fetch,
+			});
+			const err = await s.getBitcoinTxProof(TXID).catch((e) => e);
+			expect(err).toBeInstanceOf(SourceError);
+			expect(err.status).toBe(404);
+		});
+
+		test("an answer missing fields is refused", async () => {
+			const { siblings: _siblings, ...partial } = wire;
+			const s = new SecondlayerProofSource({
+				baseUrl: BASE,
+				fetch: mockFetch(() => json(partial)).fetch,
+			});
+			await expect(s.getBitcoinTxProof(TXID)).rejects.toBeInstanceOf(
+				SourceError,
+			);
+		});
+	});
 });
 
 describe("NodeRpcProofSource", () => {

@@ -61,6 +61,22 @@ const keyed = new SecondlayerProofSource({ apiKey: process.env.SECONDLAYER_API_K
 await verifyBlock(9_137_005, { source: keyed, rows: true });
 ```
 
+## Bitcoin transactions
+
+`verifyBitcoinTx` proves a Bitcoin transaction is in the checkpoint's Bitcoin chain, and optionally that one output pays an address and amount. No contract call.
+
+```ts
+import { BlockVerifier, SecondlayerProofSource } from "@secondlayer/verify";
+
+const verifier = new BlockVerifier({ source: new SecondlayerProofSource() });
+const result = await verifier.verifyBitcoinTx(txid, {
+  expect: { address: "bc1q9fkjx3s9ufz90k4jzgmdkzlyt22h0tp3x92ua9", amount: 398_000n },
+});
+// result.ok, result.height, result.matched (the output index)
+```
+
+To read from your own Bitcoin node (`txindex=1`), spread `getBitcoinTxProof: (txid) => buildTxProof(bitcoinRpcSource({ url, auth }), { txid })` over the source, with both imported from `@secondlayer/stacks/bitcoin`. Any Esplora endpoint works too: the verifier re-checks every byte.
+
 ## What it proves
 
 | Proven | How |
