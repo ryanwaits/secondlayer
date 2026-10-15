@@ -262,7 +262,7 @@ Carry over names with \`*\` wildcards. Behavior to keep in mind: apply and rollb
 		tags: ["cli", "subgraphs", "webhooks"],
 		build: () =>
 			withSetup(
-				"/secondlayer Operate this project through the `secondlayer` CLI. For a local instance start with `secondlayer init`, `secondlayer bootstrap`, and `secondlayer observer`. After restore, `secondlayer verify all --against <manifest>` (or `raw` / `decode:<name>` / `subgraph:<name>`) compares local data to the signed archive — `--deep` for semantic digests. Inspect subgraphs and webhooks with JSON output first. Then help me run the exact `secondlayer` commands for the task, including human confirmation before delete, reindex, rotate-secret, replay, or requeue.",
+				"/secondlayer Operate this project through the `secondlayer` CLI. For a local instance start with `secondlayer init`, `secondlayer bootstrap`, and `secondlayer observer`. After restore, `secondlayer verify all --against <manifest>` (or `raw`) compares local data to the signed archive — `--deep` for semantic digests. Inspect subgraphs and webhooks with JSON output first. Then help me run the exact `secondlayer` commands for the task, including human confirmation before delete, reindex, rotate-secret, replay, or requeue.",
 			),
 	},
 	{

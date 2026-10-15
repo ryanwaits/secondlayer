@@ -18,7 +18,6 @@ The archive is a best-effort public utility, not a hosted service. Verification 
 | --- | --- |
 | Check raw identity columns | `secondlayer verify raw --against <latest.json>` |
 | Check every published dataset | `secondlayer verify all --against <latest.json>` |
-| Check one decoder | `secondlayer verify decode:ft_transfer --against <latest.json>` |
 | Also check payload columns | `secondlayer verify --against <latest.json> --deep` |
 | Plan a repair | `secondlayer repair --against <archive>` |
 | Write the repair | `secondlayer repair --against <archive> --apply` |
@@ -39,10 +38,7 @@ The archive is a best-effort public utility, not a hosted service. Verification 
 | --- | --- |
 | `raw` | `blocks`, `transactions`, `events` |
 | `all` | Every dataset the manifest publishes |
-| `decode:<name>` | That decoder's datasets |
-| `subgraph:<name>` | That subgraph's datasets |
-
-No matching dataset in the manifest is exit `2`.
+The archive publishes digests for `blocks`, `transactions` and `events`. `decode:<name>` and `subgraph:<name>` parse, but have nothing to compare against yet: exit `2`. To check subgraph rows, run [`secondlayer verify subgraph <name> --replay`](/docs/subgraphs#check-rows).
 
 ### Reading the output
 
@@ -171,7 +167,7 @@ The manifest states an assurance level per range: `db-reconstructive`, `node-att
 [CLI](/docs/cli) for the full command set; [Verify](/docs/verification) for everything else you can check, from a transaction to a block.
 
 export const agent = `
-- Verify local data: 'secondlayer verify raw --against <latest.json>' (blocks, transactions, events), 'secondlayer verify decode:ft_transfer --against <latest.json> --deep' for one decoder, or 'secondlayer verify all'. Exit 0, 1, 2 as documented; --quick, --deep and --anchor change depth.
+- Verify local data: 'secondlayer verify raw --against <latest.json>' (blocks, transactions, events), or 'secondlayer verify all'. Exit 0, 1, 2 as documented; --quick, --deep and --anchor change depth.
 - Repair: 'secondlayer repair --against <archive>' is a dry run; add --apply to write. It names exact heights, refuses unsigned objects, and never deletes local heights the archive lacks.
 - Bootstrap an empty instance: 'secondlayer bootstrap --against <manifest>'. A non-empty database is refused (use 'secondlayer repair'). Flags: --to-block, -y.
 `;

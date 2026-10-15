@@ -114,7 +114,7 @@ Compare local chain data against a signed archive. Read-only. Nothing is uploade
 
 Usage: `secondlayer verify [target] --against <manifest> [--quick] [--deep] [--anchor] [--from-block <n>] [--to-block <n>] [--counts] [--semantic] [--public-key <pem>] [--insecure] [--json]`
 
-`target` is `all`, `raw` (default), `decode:<name>`, or `subgraph:<name>`.
+`target` is `all` or `raw` (default). `decode:<name>` and `subgraph:<name>` parse but the archive publishes no digests for them, so they exit `2`.
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -131,7 +131,7 @@ Usage: `secondlayer verify [target] --against <manifest> [--quick] [--deep] [--a
 
 Exit codes: `0` clean, `1` diverged, `2` unanchored (reference unreachable, signature failed, or no matching dataset).
 
-Example: `secondlayer verify decode:ft_transfer --against ./snapshot.json --deep`
+Example: `secondlayer verify raw --against ./snapshot.json --deep`
 
 ### secondlayer verify block
 

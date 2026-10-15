@@ -76,7 +76,7 @@ secondlayer observer --mode indexer
 
 `secondlayer bootstrap` refuses a non-empty database. Fix an existing instance with [`secondlayer repair`](/docs/archive). Exit `0` restored, `1` diverged, `2` refused.
 
-`secondlayer verify [target]` compares local data to a signed archive. Target is `all`, `raw` (default), `decode:<name>`, or `subgraph:<name>`. `--quick` is identity; `--deep` is semantic; `--anchor` requires a verified signature. Flags live on [Verified archive](/docs/archive#flags).
+`secondlayer verify [target]` compares local data to a signed archive. Target is `all` or `raw` (default); the archive has no digests for `decode:<name>` or `subgraph:<name>` yet. `--quick` is identity; `--deep` is semantic; `--anchor` requires a verified signature. Flags live on [Verified archive](/docs/archive#flags).
 
 `secondlayer verify block <height|index_block_hash>` proves one Stacks block from the checkpoint built into the CLI, trusting nothing else. Flags `--node`, `--checkpoint`, `--rows`, `--json`; exit `0` proven, `1` a link is broken, `2` could not check. Links and output: [Verify](/docs/verification#check-a-block).
 
@@ -245,7 +245,7 @@ These work but get no further investment.
 export const agent = `
 - Operate through the 'secondlayer' CLI. Inspect subgraphs and webhooks with JSON output first. Get human confirmation before delete, reindex, rotate-secret, replay or requeue.
 - With SECONDLAYER_API_URL and SECONDLAYER_API_KEY set to the hosted values, 'secondlayer subgraphs' and 'webhooks' run hosted.
-- Local runtime (from docker/oss in a checkout, see /docs/self-host): 'secondlayer init --network mainnet' writes .env.local; 'secondlayer bootstrap --against <manifest>' restores into an empty database; 'secondlayer observer --mode indexer' prints the [[events_observer]] stanza; 'secondlayer verify all --against <manifest>' checks the restore (raw, decode:<name>, subgraph:<name>, --deep for semantic digests). Use --mode signer-shared where documented.
+- Local runtime (from docker/oss in a checkout, see /docs/self-host): 'secondlayer init --network mainnet' writes .env.local; 'secondlayer bootstrap --against <manifest>' restores into an empty database; 'secondlayer observer --mode indexer' prints the [[events_observer]] stanza; 'secondlayer verify all --against <manifest>' checks the restore (raw or all, --deep for semantic digests). Use --mode signer-shared where documented.
 - 'secondlayer subgraphs create <name> --from-contract <contract id>' infers typed print payloads from indexed history.
 - From inside a Clarinet project: 'secondlayer devnet connect' patches settings/Devnet.toml to forward events to the local indexer on :3700, writes .secondlayer/docker-compose.yml, and brings the stack up. Then 'clarinet devnet start'; confirm 'curl http://localhost:3800/health'.
 - Deploy: export SECONDLAYER_API_URL=http://localhost:3800 and INSTANCE_TOKEN=dev-instance-token (the generated stack ships that fixed local token; deploys are writes, so they carry it), then 'secondlayer subgraphs deploy ./subgraph.ts'. Reads on loopback need no token: 'curl $SECONDLAYER_API_URL/v1/subgraphs/<name>/<table>'.
