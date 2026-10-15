@@ -7,8 +7,6 @@ export interface DocsNavItem {
 export interface DocsNavGroup {
 	label: string;
 	items: DocsNavItem[];
-	/** Folds behind its label until the open page is one of its rows. */
-	collapsible?: boolean;
 }
 
 /**
@@ -22,8 +20,7 @@ export interface DocsNavGroup {
  * - **Products** is Archive (signed history) → Streams (raw) → Index
  *   (decoded) → Subgraphs (your schema) → Webhooks (push). Order is
  *   load-bearing; keep it. Protocols (PoX-5, sBTC, Runes) and contract
- *   discovery are sections of Index, not pages or products. Folds, like
- *   Tools, so the API reference sits near the top.
+ *   discovery are sections of Index, not pages or products.
  * - **Tools** is how you drive it: CLI (with its local devnet), SDK (Filters
  *   is a section), Sinks, Deploy your app, and MCP and skills (the generated
  *   tool table plus the agent skill).
@@ -54,7 +51,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 	},
 	{
 		label: "Products",
-		collapsible: true,
 		items: [
 			{ title: "Archive", href: "/docs/archive" },
 			{ title: "Streams", href: "/docs/streams" },
@@ -65,7 +61,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 	},
 	{
 		label: "Tools",
-		collapsible: true,
 		items: [
 			{ title: "CLI", href: "/docs/cli" },
 			{ title: "SDK", href: "/docs/sdk" },

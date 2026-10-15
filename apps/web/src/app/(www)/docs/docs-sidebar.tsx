@@ -187,14 +187,6 @@ export function DocsSidebar() {
 	useEffect(() => {
 		setFolded(false);
 	}, [pathname]);
-	// A collapsible group opens while the open page is one of its rows; a
-	// click on its label overrides that until the page changes.
-	const [groupToggles, setGroupToggles] = useState<Record<string, boolean>>({});
-	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — each page resets the groups
-	useEffect(() => {
-		setGroupToggles({});
-	}, [pathname]);
-
 	// Bring the current page's row into view on arrival. A row already on
 	// screen stays put; one off screen moves in by the least distance.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — reveal the active row per page
@@ -271,61 +263,36 @@ export function DocsSidebar() {
 						) : null}
 					</div>
 				</div>
-				{DOCS_NAV.map((group) => {
-					const groupOpen =
-						!group.collapsible ||
-						(groupToggles[group.label] ??
-							group.items.some((item) => item.href === pathname));
-					return (
-						<div className="docs-nav-group" key={group.label}>
-							{group.collapsible ? (
-								<button
-									type="button"
-									className="docs-nav-grouplabel"
-									aria-expanded={groupOpen}
-									onClick={() =>
-										setGroupToggles({
-											...groupToggles,
-											[group.label]: !groupOpen,
-										})
-									}
-								>
-									{group.label}
-									<Chevron />
-								</button>
-							) : (
-								<div className="docs-nav-grouplabel">{group.label}</div>
-							)}
-							{groupOpen
-								? group.items.map((item) => {
-										const current = pathname === item.href;
-										const tree = item.href.startsWith("/docs/api/");
-										return (
-											<div key={item.href} className="docs-nav-branch">
-												<Link
-													href={item.href}
-													className={`docs-nav-item${current ? " active" : ""}`}
-													aria-expanded={tree ? current && !folded : undefined}
-													onClick={
-														current && tree
-															? (e) => {
-																	e.preventDefault();
-																	setFolded(!folded);
-																}
-															: undefined
+				{DOCS_NAV.map((group) => (
+					<div className="docs-nav-group" key={group.label}>
+						<div className="docs-nav-grouplabel">{group.label}</div>
+						{group.items.map((item) => {
+							const current = pathname === item.href;
+							const tree = item.href.startsWith("/docs/api/");
+							return (
+								<div key={item.href} className="docs-nav-branch">
+									<Link
+										href={item.href}
+										className={`docs-nav-item${current ? " active" : ""}`}
+										aria-expanded={tree ? current && !folded : undefined}
+										onClick={
+											current && tree
+												? (e) => {
+														e.preventDefault();
+														setFolded(!folded);
 													}
-												>
-													{item.title}
-													{tree ? <Chevron /> : null}
-												</Link>
-												{current && !(tree && folded) ? outline : null}
-											</div>
-										);
-									})
-								: null}
-						</div>
-					);
-				})}
+												: undefined
+										}
+									>
+										{item.title}
+										{tree ? <Chevron /> : null}
+									</Link>
+									{current && !(tree && folded) ? outline : null}
+								</div>
+							);
+						})}
+					</div>
+				))}
 			</aside>
 		</>
 	);
