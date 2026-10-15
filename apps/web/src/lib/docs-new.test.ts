@@ -102,5 +102,7 @@ test("the markdown twin leaves new marks out", () => {
 });
 
 test("docs-new.json matches the page marks (run bun run docs:new)", () => {
-	expect(docsNewPages).toEqual(pageMarks());
+	// Widened: the JSON's inferred literal keys would reject any other map.
+	const pages: Record<string, string> = docsNewPages;
+	expect(pages).toEqual(pageMarks());
 });
