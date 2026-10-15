@@ -25,6 +25,7 @@ import { dirname, join } from "node:path";
 import { logger } from "@secondlayer/shared";
 import { generateEd25519KeyPair } from "@secondlayer/shared/crypto/ed25519";
 import type postgres from "postgres";
+import { type BackupConfig, finalBackupTenant } from "./backups.ts";
 import {
 	type StopReason,
 	type TenantRow,
@@ -296,6 +297,8 @@ export interface ProvisionerConfig {
 	/** Active webhooks + subgraphs in one tenant (`meters.ts`'s
 	 *  `countTenantWorkloads`), injectable for tests. `null` = unreadable. */
 	countWorkloads?: (acct8: string) => Promise<number | null>;
+	/** Tenant backup bucket (`backups.ts`). `destroy()` refuses without it. */
+	backups?: BackupConfig | null;
 	fetchImpl?: FetchLike;
 	/** The current deployed-image target (`upgrade.ts`'s `resolveTargetSha`,
 	 *  cached in memory by the caller) — a function, not a fixed value, so
@@ -786,10 +789,12 @@ export async function start(
 	});
 }
 
-/** `any → destroyed`: final `pg_dump` to R2 (Open, decided 2026-09-24), then
- *  `compose down -v` and the secrets directory is removed. Idempotent — a
- *  second call on an already-destroyed (or never-provisioned) account is a
- *  no-op `compose down` plus a control-DB delete that matches zero rows. */
+/** `any → destroyed`: final `pg_dump` to the backup bucket (`backups.ts`,
+ *  kept 30 days), then `compose down -v`. Refuses to run without a backup
+ *  store, and aborts before touching the stack when the dump fails: a
+ *  destroy never deletes data it couldn't save. Idempotent once past the
+ *  dump — a second call on an already-destroyed account is a no-op `compose
+ *  down` plus a control-DB delete that matches zero rows. */
 export async function destroy(
 	cfg: ProvisionerConfig,
 	accountId: string,
@@ -798,6 +803,15 @@ export async function destroy(
 	const acct8 = acct8For(accountId);
 	const dir = tenantDir(cfg, acct8);
 	const workloadImageTag = requireTargetSha(cfg, accountId, "destroy");
+	if (!cfg.backups) {
+		throw new Error(
+			`refusing to destroy tenant-${acct8}: no backup store configured (TENANT_BACKUP_*)`,
+		);
+	}
+	// No row = already destroyed: nothing left to dump.
+	if (await getTenant(cfg.db, accountId)) {
+		await finalBackupTenant(cfg.backups, acct8);
+	}
 	const result = await runCompose(
 		[
 			"-p",

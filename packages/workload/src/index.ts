@@ -12,6 +12,12 @@
  *   TENANT_COMPOSE_FILE    docker/workload/tenant.compose.yml
  *   GATEWAY_PORT           default 8080
  *
+ * Backups (optional; without them the nightly dump is skipped and tenant
+ * destroy refuses to run, see `backups.ts`):
+ *   TENANT_BACKUP_BUCKET, TENANT_BACKUP_ENDPOINT,
+ *   TENANT_BACKUP_ACCESS_KEY_ID, TENANT_BACKUP_SECRET_ACCESS_KEY,
+ *   TENANT_BACKUP_PREFIX   default tenant-backups
+ *
  * There is no `WORKLOAD_IMAGE_TAG` env anymore (plan 064): the deployed sha
  * `tenant.compose.yml` pins `secondlayer-api` to is DERIVED, not configured
  * — this process polls app-server `/health`'s `image_sha` every 5 minutes
@@ -30,11 +36,17 @@ import { join } from "node:path";
 import { MAX_METER_BATCH } from "@secondlayer/platform/billing/prices";
 import { logger } from "@secondlayer/shared";
 import {
+	backupConfigFromEnv,
+	backupTenant,
+	pruneFinalBackups,
+} from "./backups.ts";
+import {
 	type TenantRow,
 	acct8For,
 	ensureControlSchema,
 	getControlDb,
 	getTenant,
+	listPollableTenants,
 	listRunningTenants,
 } from "./control-db.ts";
 import { createFailedRequestRecorder } from "./failed-requests.ts";
@@ -75,6 +87,7 @@ const MEMORY_SAMPLE_INTERVAL_MS = 60_000;
 const MEMORY_FLUSH_INTERVAL_MS = 60 * 60_000; // hourly (Design)
 const STORAGE_SAMPLE_INTERVAL_MS = 24 * 60 * 60_000; // daily (Design)
 const CREDITS_POLL_INTERVAL_MS = 5 * 60_000; // Design: "every 5 min"
+const BACKUP_INTERVAL_MS = 24 * 60 * 60_000; // nightly pg_dump per tenant
 const SHUTDOWN_FLUSH_TIMEOUT_MS = 5_000;
 /** Longest shutdown waits for an in-flight tenant upgrade round: one
  *  `docker compose up -d --wait` plus a rollback up. Must stay below the
@@ -152,12 +165,20 @@ async function main(): Promise<void> {
 		});
 	}
 
+	const backups = backupConfigFromEnv();
+	if (!backups) {
+		logger.warn("workload.backup.disabled", {
+			hint: "set TENANT_BACKUP_BUCKET, TENANT_BACKUP_ENDPOINT, TENANT_BACKUP_ACCESS_KEY_ID, TENANT_BACKUP_SECRET_ACCESS_KEY",
+		});
+	}
+
 	const provisionerCfg: ProvisionerConfig = {
 		db,
 		secretsRoot,
 		composeFile,
 		hostedApiUrl: appServerUrl,
 		workloadHostKey,
+		backups,
 		getTargetSha: () => targetShaCache.lastGood,
 	};
 	const upgradeRunner = createUpgradeRunner(provisionerCfg);
@@ -438,6 +459,35 @@ async function main(): Promise<void> {
 		);
 	}, STORAGE_SAMPLE_INTERVAL_MS);
 
+	// Nightly tenant backups: every running or stopped tenant (a stopped
+	// stack keeps its postgres up), then the 30-day sweep of destroy-time
+	// dumps. One tenant's failure never skips the rest.
+	const backupLoop = setInterval(async () => {
+		if (!backups) return;
+		let tenants: TenantRow[];
+		try {
+			tenants = await listPollableTenants(db);
+		} catch (err) {
+			logger.error("workload.backup.list_failed", {
+				error: err instanceof Error ? err.message : String(err),
+			});
+			return;
+		}
+		for (const tenant of tenants) {
+			await backupTenant(backups, acct8For(tenant.account_id)).catch((err) => {
+				logger.error("workload.backup.failed", {
+					accountId: tenant.account_id,
+					error: err instanceof Error ? err.message : String(err),
+				});
+			});
+		}
+		await pruneFinalBackups(backups).catch((err) => {
+			logger.error("workload.backup.prune_final_failed", {
+				error: err instanceof Error ? err.message : String(err),
+			});
+		});
+	}, BACKUP_INTERVAL_MS);
+
 	// Zero-balance / top-up poll (review fix 3a): running→stopped,
 	// stopped→running, every 5 minutes (Design). Piggybacks the target-sha
 	// resolution + rolling upgrade (plan 064) on the same interval — simpler
@@ -477,6 +527,7 @@ async function main(): Promise<void> {
 		clearInterval(memorySampleLoop);
 		clearInterval(memoryFlushLoop);
 		clearInterval(storageLoop);
+		clearInterval(backupLoop);
 		clearInterval(creditsPollLoop);
 		await stopFailedRequests();
 		// Before anything else stops: a tenant upgrade round is a child

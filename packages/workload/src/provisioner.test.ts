@@ -18,6 +18,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import postgres from "postgres";
+import type { BackupConfig } from "./backups.ts";
 import {
 	acct8For,
 	deleteTenant,
@@ -165,6 +166,37 @@ describe("makeMintTenantKey", () => {
 
 const TARGET_SHA = "a".repeat(40);
 const OTHER_SHA = "b".repeat(40);
+
+/** In-memory backup bucket + a dump that exits with `exitCode`. */
+function fakeBackups(exitCode: number): {
+	cfg: BackupConfig;
+	objects: Map<string, Uint8Array>;
+} {
+	const objects = new Map<string, Uint8Array>();
+	return {
+		objects,
+		cfg: {
+			prefix: "tenant-backups",
+			store: {
+				upload: async (key, body) => {
+					objects.set(
+						key,
+						new Uint8Array(await new Response(body).arrayBuffer()),
+					);
+				},
+				list: async (prefix) =>
+					[...objects.keys()].filter((k) => k.startsWith(prefix)),
+				delete: async (key) => {
+					objects.delete(key);
+				},
+			},
+			spawnDump: () => ({
+				stdout: new Response("PGDMP").body as ReadableStream<Uint8Array>,
+				exited: Promise.resolve(exitCode),
+			}),
+		},
+	};
+}
 
 describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 	let secretsRoot: string;
@@ -631,17 +663,54 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await deleteTenant(db, accountId);
 	});
 
-	test("destroy() removes the control-db row after a successful compose down -v", async () => {
+	test("destroy() takes a final dump, then removes the control-db row after compose down -v", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();
 		await up(cfg(), accountId);
+		const backups = fakeBackups(0);
 
-		await destroy(cfg(), accountId);
+		await destroy({ ...cfg(), backups: backups.cfg }, accountId);
 		expect(await getTenant(db, accountId)).toBeUndefined();
+		expect([...backups.objects.keys()]).toEqual([
+			expect.stringMatching(
+				new RegExp(`^tenant-backups/final/${acct8For(accountId)}/`),
+			),
+		]);
 
 		const lastCall = composeCalls.at(-1);
 		expect(lastCall?.args).toContain("down");
 		expect(lastCall?.args).toContain("-v");
+	});
+
+	test("destroy refuses to tear down a tenant whose final dump failed", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		await up(cfg(), accountId);
+		composeCalls.length = 0;
+		const backups = fakeBackups(1);
+
+		await expect(
+			destroy({ ...cfg(), backups: backups.cfg }, accountId),
+		).rejects.toThrow("pg_dump failed");
+		expect(composeCalls).toHaveLength(0);
+		expect((await getTenant(db, accountId))?.state).toBe("running");
+		expect(backups.objects.size).toBe(0);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("destroy refuses to run without a backup store", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		await up(cfg(), accountId);
+		composeCalls.length = 0;
+
+		await expect(destroy(cfg(), accountId)).rejects.toThrow(
+			"no backup store configured",
+		);
+		expect(composeCalls).toHaveLength(0);
+
+		await deleteTenant(db, accountId);
 	});
 });
 

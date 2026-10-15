@@ -147,7 +147,14 @@ not the only line.
    it on BOTH sides), `TENANT_SECRETS_ROOT`
    (`/opt/secondlayer-workload/tenants`), `TENANT_COMPOSE_FILE`
    (`/opt/secondlayer-workload/src/docker/workload/tenant.compose.yml`),
-   `GATEWAY_PORT` (`8080`). No `WORKLOAD_IMAGE_TAG` here (plan 064) — the
+   `GATEWAY_PORT` (`8080`), and the tenant backup bucket:
+   `TENANT_BACKUP_BUCKET`, `TENANT_BACKUP_ENDPOINT`,
+   `TENANT_BACKUP_ACCESS_KEY_ID`, `TENANT_BACKUP_SECRET_ACCESS_KEY`
+   (R2 keys scoped to that bucket; optional `TENANT_BACKUP_PREFIX`, default
+   `tenant-backups`). Without them the nightly `pg_dump` is skipped and
+   tenant destroy refuses to run. Restore check:
+   `pg_restore -d <scratch db> <file>.dump`, then count `webhooks`.
+   No `WORKLOAD_IMAGE_TAG` here (plan 064) — the
    deployed sha is derived from app-server `/health`, not configured; see
    Auto-upgrade below.
 
