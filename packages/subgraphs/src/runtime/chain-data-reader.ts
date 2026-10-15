@@ -129,15 +129,25 @@ export function databaseChainDataReader(db: Kysely<Database>): ChainDataReader {
 /** `to_height` meaning "through the tip"; the server clamps it. */
 const THROUGH_TIP = Number.MAX_SAFE_INTEGER;
 
+/** Re-read the changes at most this often; a Stacks block is a few seconds. */
+const TRAIT_REFRESH_MS = 5_000;
+/** Classification writes can commit out of order; re-read this far back and
+ *  dedupe so a late commit with an earlier timestamp is not skipped. */
+const TRAIT_OVERLAP_MS = 5 * 60_000;
+
 type TraitMembers = {
-	members: { contractId: string; blockHeight: number }[];
-	/** Highest `asOfBlock` this fetch answers for: the asOf it was fetched at,
-	 *  or the newest member's deploy height when that is later. */
-	coveredThrough: number;
+	/** contract_id → deploy height. */
+	members: Map<string, number>;
+	/** Newest `classified_at` seen (server clock), or null if none yet. */
+	classifiedThrough: number | null;
+	/** Highest `asOfBlock` answered since the last fetch. */
+	checkedThrough: number;
+	fetchedAt: number;
 };
 
 /** Trait membership per client, for the process lifetime. Membership only
- *  grows; a read past `coveredThrough` refetches. */
+ *  grows: one full download, then at most every `TRAIT_REFRESH_MS` a read of
+ *  only the contracts classified since (with an overlap), merged by id. */
 const traitCaches = new WeakMap<IndexHttpClient, Map<string, TraitMembers>>();
 
 function traitCacheFor(client: IndexHttpClient): Map<string, TraitMembers> {
@@ -183,7 +193,9 @@ function oneWithdrawalPerSweep(
 
 export function hostedChainDataReader(
 	client: IndexHttpClient,
+	opts: { now?: () => number } = {},
 ): ChainDataReader {
+	const now = opts.now ?? Date.now;
 	return {
 		async sbtcEvents(fromHeight, toHeight, topics) {
 			if (topics.length === 0) return [];
@@ -193,24 +205,44 @@ export function hostedChainDataReader(
 		async traitContractIds(trait, asOfBlock) {
 			const cache = traitCacheFor(client);
 			let entry = cache.get(trait);
-			if (!entry || asOfBlock > entry.coveredThrough) {
-				const rows = await client.listContractsByTrait(trait);
-				const members = rows.map((r) => ({
-					contractId: r.contract_id,
-					blockHeight: Number(r.block_height),
-				}));
+			const due =
+				!entry ||
+				(asOfBlock > entry.checkedThrough &&
+					now() - entry.fetchedAt >= TRAIT_REFRESH_MS);
+			if (due) {
+				const since =
+					entry?.classifiedThrough == null
+						? undefined
+						: new Date(entry.classifiedThrough - TRAIT_OVERLAP_MS);
+				const rows = await client.listContractsByTrait(
+					trait,
+					since ? { classifiedAfter: since } : undefined,
+				);
+				const members = entry?.members ?? new Map<string, number>();
+				let classifiedThrough = entry?.classifiedThrough ?? null;
+				for (const r of rows) {
+					members.set(r.contract_id, Number(r.block_height));
+					if (r.classified_at) {
+						classifiedThrough = Math.max(
+							classifiedThrough ?? 0,
+							new Date(r.classified_at).getTime(),
+						);
+					}
+				}
 				entry = {
 					members,
-					coveredThrough: Math.max(
-						asOfBlock,
-						...members.map((m) => m.blockHeight),
-					),
+					classifiedThrough,
+					checkedThrough: asOfBlock,
+					fetchedAt: now(),
 				};
 				cache.set(trait, entry);
 			}
-			return entry.members
-				.filter((m) => m.blockHeight <= asOfBlock)
-				.map((m) => m.contractId);
+			if (!entry) return [];
+			const ids: string[] = [];
+			for (const [contractId, height] of entry.members) {
+				if (height <= asOfBlock) ids.push(contractId);
+			}
+			return ids;
 		},
 		async settlementsConfirmedAfter(after) {
 			const withdrawals = oneWithdrawalPerSweep(

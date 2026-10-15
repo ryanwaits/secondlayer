@@ -262,6 +262,8 @@ export type IndexContractRow = {
 	declared_traits: string[] | null;
 	inferred_standards: string[] | null;
 	abi_status: string;
+	/** When the contract's traits were last set (server clock). */
+	classified_at: string | null;
 };
 
 /** A `/v1/index/sbtc/withdrawals` row: one peg-out rolled up per request. */
@@ -588,8 +590,12 @@ export class IndexHttpClient {
 	}
 
 	/** Every canonical contract conforming to `trait` (declared or inferred),
-	 *  draining `/v1/contracts`'s `next_cursor`. */
-	async listContractsByTrait(trait: string): Promise<IndexContractRow[]> {
+	 *  draining `/v1/contracts`'s `next_cursor`. `classifiedAfter` limits it to
+	 *  contracts classified at or after that time. */
+	async listContractsByTrait(
+		trait: string,
+		opts: { classifiedAfter?: Date } = {},
+	): Promise<IndexContractRow[]> {
 		const out: IndexContractRow[] = [];
 		let cursor: string | null = null;
 		do {
@@ -597,6 +603,9 @@ export class IndexHttpClient {
 				trait,
 				limit: String(CONTRACTS_PAGE_LIMIT),
 			});
+			if (opts.classifiedAfter) {
+				params.set("classified_after", opts.classifiedAfter.toISOString());
+			}
 			if (cursor) params.set("cursor", cursor);
 			const { items, next_cursor } = await this.getPage<
 				"contracts",

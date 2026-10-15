@@ -407,6 +407,7 @@ describe("IndexHttpClient hosted sBTC + trait reads", () => {
 		declared_traits: ["sip-010"],
 		inferred_standards: [],
 		abi_status: "fetched",
+		classified_at: "2026-10-15T17:15:45.764Z",
 	});
 
 	test("listContractsByTrait drains next_cursor across pages", async () => {
@@ -423,6 +424,20 @@ describe("IndexHttpClient hosted sBTC + trait reads", () => {
 		expect(urls[0]?.searchParams.get("trait")).toBe("sip-010");
 		expect(urls[0]?.searchParams.has("cursor")).toBe(false);
 		expect(urls[1]?.searchParams.get("cursor")).toBe("SP1.a");
+	});
+
+	test("listContractsByTrait sends classified_after on every page", async () => {
+		const urls = stubPages([
+			{ contracts: [contract("SP1.a")], next_cursor: "SP1.a" },
+			{ contracts: [contract("SP1.b")], next_cursor: null },
+		]);
+		await client().listContractsByTrait("sip-010", {
+			classifiedAfter: new Date("2026-10-15T17:00:00.000Z"),
+		});
+		expect(urls.map((u) => u.searchParams.get("classified_after"))).toEqual([
+			"2026-10-15T17:00:00.000Z",
+			"2026-10-15T17:00:00.000Z",
+		]);
 	});
 
 	test("fetchSbtcEvents forwards each topic and the request id", async () => {
