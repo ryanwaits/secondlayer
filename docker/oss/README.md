@@ -53,9 +53,11 @@ Runes activity. It needs a Bitcoin node with `txindex=1` — either the bundled
 ## Quick start
 
 ```bash
+cp .env.example .env                 # set POSTGRES_PASSWORD
 secondlayer init --network mainnet
-# Copy INSTANCE_TOKEN, SECONDLAYER_SECRETS_KEY, STREAMS_SIGNING_PRIVATE_KEY into .env
+cat .env.local >> .env
 
+docker compose pull                  # ghcr images; `up --build` builds this checkout instead
 docker compose up -d
 secondlayer observer --mode indexer --endpoint secondlayer:3700
 secondlayer bootstrap --against <manifest>
@@ -64,12 +66,12 @@ secondlayer verify all --against <manifest>
 
 API: `http://127.0.0.1:3800`. Observer: `127.0.0.1:3700`.
 
-| Profile | Command |
+| Setup | `COMPOSE_PROFILES` in `.env` |
 | --- | --- |
-| External Stacks node | `docker compose up -d` |
-| Bundled Stacks + bitcoind | `docker compose --profile full-node up -d` |
-| Bitcoin/Runes follower (external bitcoind) | `docker compose --profile bitcoin up -d` |
-| Bitcoin/Runes follower + bundled bitcoind | `docker compose --profile full-node --profile bitcoin up -d` |
+| External Stacks node | unset |
+| Bundled Stacks + bitcoind | `full-node` |
+| Bitcoin/Runes follower (external bitcoind) | `bitcoin` |
+| Bitcoin/Runes follower + bundled bitcoind | `full-node,bitcoin` |
 
 Required non-secrets: `NETWORK`, `DATABASE_URL` (compose sets it), `NODE_MODE`, `DATA_DIR`, `API_PORT`, `INDEXER_PORT`. Secrets come from `secondlayer init`.
 

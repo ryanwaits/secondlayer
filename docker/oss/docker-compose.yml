@@ -48,6 +48,9 @@ services:
     restart: unless-stopped
 
   secondlayer:
+    # `up` pulls the published image; `up --build` builds this checkout
+    # instead. SECONDLAYER_VERSION pins a commit (short sha tag).
+    image: ghcr.io/ryanwaits/secondlayer-runtime:${SECONDLAYER_VERSION:-latest}
     build:
       context: ../..
       dockerfile: docker/Dockerfile
@@ -87,7 +90,9 @@ services:
       # Archive-only. Leave empty on OSS; the decoder sends INSTANCE_TOKEN.
       STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
       SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
-      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-true}
+      # PoX-4 is a closed era (PoX-5 is live), off like the hosted stack.
+      # `true` once backfills its decoded history from what you've indexed.
+      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
       BNS_DECODER_ENABLED: ${BNS_DECODER_ENABLED:-false}
       SUBGRAPH_SOURCE: ${SUBGRAPH_SOURCE:-streams-index}
       SUBGRAPH_INDEX_API_URL: http://127.0.0.1:3800
@@ -130,6 +135,7 @@ services:
   # (`--profile full-node --profile bitcoin`) or an external one — only the
   # BITCOIN_RPC_* envs change either way.
   runes:
+    image: ghcr.io/ryanwaits/secondlayer-bitcoin:${SECONDLAYER_VERSION:-latest}
     build:
       context: ../..
       dockerfile: docker/Dockerfile
