@@ -18,6 +18,7 @@ import authRouter from "./routes/auth.ts";
 import { createBatchRouter } from "./routes/batch.ts";
 import webhooksStripeRouter from "./routes/billing-stripe.ts";
 import billingRouter from "./routes/billing.ts";
+import chainReadRouter from "./routes/chain-read.ts";
 import contractsRouter from "./routes/contracts.ts";
 import feedbackRouter from "./routes/feedback.ts";
 import indexRouter from "./routes/index.ts";
@@ -187,6 +188,9 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.use("/v1/feedback", requireJsonWrites());
 		app.use("/v1/feedback", resourceAuth);
 		app.route("/v1/feedback", feedbackRouter);
+		// Contract reads for hosted subgraph processors, which have no node of
+		// their own. Tenant keys only; self-host processors read their node.
+		app.route("/v1/chain-read", chainReadRouter);
 		// Own bearer guard (WORKLOAD_HOST_KEY), not the session/instance-token
 		// `resourceAuth` the ACCOUNT_PATHS above use — this is a first-party
 		// workload host, not an account.

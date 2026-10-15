@@ -26,6 +26,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/mode.ts",
 		"src/error-envelope.ts",
 		"src/index-internal-auth.ts",
+		"src/chain-read.ts",
 		"src/index-http.ts",
 		"src/logger.ts",
 		"src/leader.ts",

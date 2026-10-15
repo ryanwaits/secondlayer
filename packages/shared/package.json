@@ -101,6 +101,10 @@
 			"types": "./dist/src/error-envelope.d.ts",
 			"import": "./dist/src/error-envelope.js"
 		},
+		"./chain-read": {
+			"types": "./dist/src/chain-read.d.ts",
+			"import": "./dist/src/chain-read.js"
+		},
 		"./index-internal-auth": {
 			"types": "./dist/src/index-internal-auth.d.ts",
 			"import": "./dist/src/index-internal-auth.js"
