@@ -962,8 +962,11 @@ export async function readRuneBalances(
 		LIMIT ${params.limit + 1}
 	`.execute(db);
 
+	// A "has more" cursor, unlike the catalog and activity resume tokens: new
+	// outpoints land anywhere in (rune_id, txid, vout) order, so a cursor past
+	// the last row resumes nothing.
 	const page = rows.slice(0, params.limit);
-	const last = page.at(-1);
+	const last = rows.length > params.limit ? page.at(-1) : undefined;
 	const balances = page.map(normalizeRuneBalance);
 	const next_cursor = last
 		? encodeRuneBalanceCursor({

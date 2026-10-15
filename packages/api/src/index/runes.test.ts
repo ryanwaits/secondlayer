@@ -713,6 +713,33 @@ describe.skipIf(!testUrl)("Runes readers (DB-backed)", () => {
 			});
 			expect(balances.map((b) => b.rune.id)).toEqual(["840010:7"]);
 		});
+
+		test("next_cursor is null on the last page and continues a full one", async () => {
+			const all = await readRuneBalances({
+				address: "bc1qholder1",
+				limit: 10,
+				db,
+			});
+			expect(all.next_cursor).toBeNull();
+
+			const page1 = await readRuneBalances({
+				address: "bc1qholder1",
+				limit: 1,
+				db,
+			});
+			expect(page1.balances.map((b) => b.rune.id)).toEqual(["840000:3"]);
+			expect(page1.next_cursor).not.toBeNull();
+
+			const page2 = await readRuneBalances({
+				address: "bc1qholder1",
+				limit: 1,
+				// biome-ignore lint/style/noNonNullAssertion: asserted not-null above
+				after: decodeRuneBalanceCursor(page1.next_cursor!),
+				db,
+			});
+			expect(page2.balances.map((b) => b.rune.id)).toEqual(["840010:7"]);
+			expect(page2.next_cursor).toBeNull();
+		});
 	});
 });
 
@@ -720,4 +747,18 @@ function decodeNumberCursor(raw: string): { sort: "number"; number: bigint } {
 	const decoded = Buffer.from(raw, "base64url").toString("utf8");
 	const [, n] = decoded.split(":");
 	return { sort: "number", number: BigInt(n as string) };
+}
+
+function decodeRuneBalanceCursor(raw: string): {
+	rune_id: string;
+	txid: string;
+	vout: number;
+} {
+	const decoded = Buffer.from(raw, "base64url").toString("utf8");
+	const [rune_id, txid, vout] = decoded.split("|");
+	return {
+		rune_id: rune_id as string,
+		txid: txid as string,
+		vout: Number(vout),
+	};
 }
