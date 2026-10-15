@@ -9,6 +9,7 @@ import {
 	PublicApiBlockSource,
 	buildHttpClient,
 } from "./block-source.ts";
+import { chainDataReader } from "./chain-data-reader.ts";
 import {
 	blockTimeOf,
 	buildSourcesMap,
@@ -16,6 +17,7 @@ import {
 	emitChainOutbox,
 	emitSbtcOutbox,
 	evaluateBlock,
+	loadSbtcEventsForRange,
 	referencedEventTypes,
 } from "./trigger-evaluator.ts";
 
@@ -169,6 +171,8 @@ export async function replayChainWebhook(
 	const source =
 		opts?.source ??
 		new PublicApiBlockSource(buildHttpClient(), referencedEventTypes([sub]));
+	// sBTC + trait reads: this stack's tables, or hosted Index on a tenant.
+	const reader = chainDataReader();
 
 	let scanned = 0;
 	let enqueued = 0;
@@ -180,7 +184,10 @@ export async function replayChainWebhook(
 		const to = Math.min(from + CHAIN_REPLAY_BATCH - 1, input.toBlock);
 		const blocks = await source.loadBlockRange(from, to);
 		// Trait membership only grows; resolve once per batch as of its top height.
-		const traitContracts = await buildTraitContracts([sub], to);
+		const traitContracts = await buildTraitContracts([sub], to, { reader });
+		const sbtcByHeight = await loadSbtcEventsForRange([sub], from, to, {
+			reader,
+		});
 		for (let h = from; h <= to; h++) {
 			const bd = blocks.get(h);
 			if (!bd) continue;
@@ -207,6 +214,7 @@ export async function replayChainWebhook(
 			// emits nothing here — documented forward-only.)
 			enqueued += await emitSbtcOutbox(db, [sub], h, bd.block.hash, blockTime, {
 				replayId,
+				rows: sbtcByHeight.get(h) ?? [],
 			});
 		}
 	}

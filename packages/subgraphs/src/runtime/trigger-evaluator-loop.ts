@@ -6,6 +6,7 @@ import type { IndexHttpClient } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
 import { buildChainBlockSource, buildHttpClient } from "./block-source.ts";
+import { chainDataReader } from "./chain-data-reader.ts";
 import { boundSourceTip } from "./decoder-bound.ts";
 import {
 	blockTimeOf,
@@ -16,6 +17,7 @@ import {
 	emitSbtcOutbox,
 	emitSbtcSettlementOutbox,
 	evaluateBlock,
+	loadSbtcEventsForRange,
 	referencedDecoderNames,
 	referencedEventTypes,
 } from "./trigger-evaluator.ts";
@@ -182,17 +184,20 @@ export async function runEvaluatorOnce(
 			chainSubsNeedTransactions(chainSubs),
 			opts?.httpClient,
 		);
+		// sBTC, trait and settlement reads: this stack's own tables, or the
+		// hosted Index API on a tenant (whose tables are empty).
+		const reader = chainDataReader({ httpClient: opts?.httpClient });
 		// sBTC settlement webhooks fire on Bitcoin confirmations, async to Stacks
 		// blocks — scan every tick on their own cursor, independent of (and before)
-		// the block-cursor early returns below. It touches only local DB state, so
-		// it's independent of the tip's HTTP round trip — run them concurrently
-		// instead of stacking the DB scan in front of the network hop.
+		// the block-cursor early returns below. It doesn't depend on the tip's
+		// round trip — run them concurrently instead of stacking the scan in
+		// front of the network hop.
 		// `getTip` timed on its own (not the whole Promise.all) so `waitMs` is
 		// the wait round trip itself, not inflated or hidden by the concurrent
 		// settlement scan racing alongside it.
 		const getTipStart = Date.now();
 		const [settlementEmitted, tip0] = await Promise.all([
-			emitSbtcSettlementOutbox(db, chainSubs),
+			emitSbtcSettlementOutbox(db, chainSubs, { reader }),
 			source
 				.getTip({ wait: opts?.waitSeconds, knownHeight: opts?.knownTip })
 				.finally(() => {
@@ -257,7 +262,15 @@ export async function runEvaluatorOnce(
 			const to = Math.min(from + BATCH - 1, target);
 			const blocks = await source.loadBlockRange(from, to);
 			// Trait membership only grows; resolve once per batch as of its top height.
-			const traitContracts = await buildTraitContracts(chainSubs, to);
+			const traitContracts = await buildTraitContracts(chainSubs, to, {
+				reader,
+			});
+			// One sBTC read per batch. A failed read throws out of the tick
+			// before anything in this batch is emitted, so the cursor stays
+			// before it — never "no rows".
+			const sbtcByHeight = await loadSbtcEventsForRange(chainSubs, from, to, {
+				reader,
+			});
 			// Last height this batch fully evaluated + emitted; the cursor never
 			// moves past it.
 			let lastDone = to;
@@ -304,6 +317,7 @@ export async function runEvaluatorOnce(
 					h,
 					bd.block.hash,
 					blockTime,
+					{ rows: sbtcByHeight.get(h) ?? [] },
 				);
 			}
 			if (lastDone >= from) {

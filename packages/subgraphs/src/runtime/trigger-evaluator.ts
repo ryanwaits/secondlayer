@@ -8,16 +8,20 @@ import type {
 	Database,
 	InsertWebhookOutbox,
 	SbtcEventTopic,
-	SbtcEventsTable,
 	Webhook,
 } from "@secondlayer/shared/db";
-import { getSourceDb } from "@secondlayer/shared/db";
-import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import type { ChainTrigger } from "@secondlayer/shared/schemas/webhooks";
-import type { Kysely, Selectable } from "kysely";
+import type { Kysely } from "kysely";
 import type { SubgraphFilter } from "../types.ts";
 import type { BlockData } from "./batch-loader.ts";
 import { indexEventTypesForFilterTypes } from "./block-source.ts";
+import {
+	type ChainDataReader,
+	type SbtcEventRow,
+	type SettlementScanRow,
+	chainDataReader,
+	databaseChainDataReader,
+} from "./chain-data-reader.ts";
 import { decoderNamesForIndexEventTypes } from "./decoder-bound.ts";
 import {
 	type MatchedTx,
@@ -199,25 +203,40 @@ export function referencedTraits(chainSubs: Webhook[]): string[] {
 }
 
 /**
+ * `opts.reader` wins; an explicit `opts.sourceDb` (test seam) reads those
+ * tables; otherwise the stack's own reader (`chainDataReader`): the source
+ * plane, or the hosted Index API on a tenant with no local chain.
+ */
+function readerFor(opts?: {
+	sourceDb?: Kysely<Database>;
+	reader?: ChainDataReader;
+}): ChainDataReader {
+	if (opts?.reader) return opts.reader;
+	if (opts?.sourceDb) return databaseChainDataReader(opts.sourceDb);
+	return chainDataReader();
+}
+
+/**
  * Resolve each referenced trait to its conforming contract-id set as of
  * `asOfBlock`, from the contract registry (`CONTRACT_REGISTRY_ENABLED` populates
- * it). Empty map when no trigger is trait-scoped → no DB work. Membership only
+ * it). Empty map when no trigger is trait-scoped → no reads. Membership only
  * grows, so the evaluator resolves this once per batch, not per block.
+ *
+ * `contracts` is a SOURCE-plane table; the evaluator/replay run on the TARGET
+ * handle (an empty same-named copy exists there post-split), so this never
+ * reads `db` — see `ChainDataReader`.
  */
 export async function buildTraitContracts(
 	chainSubs: Webhook[],
 	asOfBlock: number,
-	opts?: { sourceDb?: Kysely<Database> },
+	opts?: { sourceDb?: Kysely<Database>; reader?: ChainDataReader },
 ): Promise<TraitContracts> {
-	// `contracts` is a SOURCE-plane table; the evaluator/replay run on the TARGET
-	// handle (an empty same-named copy exists there post-split). Read the registry
-	// from the source plane — reading off the target silently resolved zero trait
-	// members, so trait-scoped webhooks never matched. Same class of bug as
-	// the old emitSbtcOutbox sbtc_events read.
-	const sourceDb = opts?.sourceDb ?? getSourceDb();
+	const traits = referencedTraits(chainSubs);
+	if (traits.length === 0) return new Map();
+	const reader = readerFor(opts);
 	const resolved: TraitContracts = new Map();
-	for (const trait of referencedTraits(chainSubs)) {
-		const ids = await resolveTraitContractIds(sourceDb, trait, asOfBlock);
+	for (const trait of traits) {
+		const ids = await reader.traitContractIds(trait, asOfBlock);
 		resolved.set(trait, new Set(ids));
 	}
 	return resolved;
@@ -413,28 +432,53 @@ export async function emitChainOutbox(
 
 // ── sBTC event matching ──────────────────────────────────────────────────────
 
-type SbtcRow = Selectable<SbtcEventsTable>;
+function sbtcSubsOf(chainSubs: Webhook[]): Webhook[] {
+	return chainSubs.filter((sub) =>
+		triggersOf(sub).some((t) => isSbtcTriggerType(t.type)),
+	);
+}
 
-async function loadSbtcEventsForBlock(
-	db: Kysely<Database>,
-	blockHeight: number,
-	topics: SbtcEventTopic[],
-): Promise<SbtcRow[]> {
-	if (topics.length === 0) return [];
-	return db
-		.selectFrom("sbtc_events")
-		.selectAll()
-		.where("block_height", "=", blockHeight)
-		.where("canonical", "=", true)
-		.where("topic", "in", topics)
-		.execute();
+function sbtcTopicsOf(sbtcSubs: Webhook[]): SbtcEventTopic[] {
+	const topics = new Set<SbtcEventTopic>();
+	for (const sub of sbtcSubs) {
+		for (const trigger of triggersOf(sub)) {
+			const topic = SBTC_TRIGGER_TO_TOPIC[trigger.type];
+			if (topic) topics.add(topic);
+		}
+	}
+	return [...topics];
+}
+
+/**
+ * The sBTC rows every active sBTC trigger could match over [from, to], grouped
+ * by height: one read per batch, not per block. Empty (no read) when no
+ * webhook has an sBTC block trigger. Throws on a read failure so the caller
+ * stops with its cursor before the batch instead of skipping deliveries.
+ */
+export async function loadSbtcEventsForRange(
+	chainSubs: Webhook[],
+	fromHeight: number,
+	toHeight: number,
+	opts?: { sourceDb?: Kysely<Database>; reader?: ChainDataReader },
+): Promise<Map<number, SbtcEventRow[]>> {
+	const byHeight = new Map<number, SbtcEventRow[]>();
+	const topics = sbtcTopicsOf(sbtcSubsOf(chainSubs));
+	if (topics.length === 0) return byHeight;
+	const rows = await readerFor(opts).sbtcEvents(fromHeight, toHeight, topics);
+	for (const row of rows) {
+		const height = Number(row.block_height);
+		const list = byHeight.get(height);
+		if (list) list.push(row);
+		else byHeight.set(height, [row]);
+	}
+	return byHeight;
 }
 
 function toAmountBigInt(v: string | number | undefined): bigint | undefined {
 	return v === undefined ? undefined : BigInt(v);
 }
 
-function matchSbtcTrigger(trigger: ChainTrigger, row: SbtcRow): boolean {
+function matchSbtcTrigger(trigger: ChainTrigger, row: SbtcEventRow): boolean {
 	const expectedTopic = SBTC_TRIGGER_TO_TOPIC[trigger.type];
 	if (!expectedTopic || row.topic !== expectedTopic) return false;
 
@@ -488,7 +532,7 @@ function matchSbtcTrigger(trigger: ChainTrigger, row: SbtcRow): boolean {
 
 function buildSbtcEventPayload(
 	triggerType: ChainTrigger["type"],
-	row: SbtcRow,
+	row: SbtcEventRow,
 ): SbtcDepositEvent | SbtcWithdrawalEvent {
 	if (triggerType === "sbtc_deposit") {
 		return {
@@ -521,6 +565,11 @@ function buildSbtcEventPayload(
  * and write apply-envelope rows to `webhook_outbox`. Runs alongside
  * `emitChainOutbox` (which handles decoded_events). Same dedup-key scheme —
  * re-processing the same block is idempotent.
+ *
+ * `opts.rows` is this block's slice of `loadSbtcEventsForRange` (the batched
+ * read); without it the block is read on its own. `sbtc_events` is a
+ * SOURCE-plane table and `db` is the TARGET handle (an empty same-named table
+ * exists there post-split), so rows never come from `db`.
  */
 export async function emitSbtcOutbox(
 	db: Kysely<Database>,
@@ -528,30 +577,22 @@ export async function emitSbtcOutbox(
 	blockHeight: number,
 	blockHash: string,
 	blockTime?: Date,
-	opts?: { replayId?: string; sourceDb?: Kysely<Database> },
+	opts?: {
+		replayId?: string;
+		sourceDb?: Kysely<Database>;
+		reader?: ChainDataReader;
+		rows?: SbtcEventRow[];
+	},
 ): Promise<number> {
-	const sbtcSubs = chainSubs.filter((sub) =>
-		triggersOf(sub).some((t) => isSbtcTriggerType(t.type)),
-	);
+	const sbtcSubs = sbtcSubsOf(chainSubs);
 	if (sbtcSubs.length === 0) return 0;
 
-	const neededTopics = new Set<SbtcEventTopic>();
-	for (const sub of sbtcSubs) {
-		for (const trigger of triggersOf(sub)) {
-			const topic = SBTC_TRIGGER_TO_TOPIC[trigger.type];
-			if (topic) neededTopics.add(topic);
-		}
-	}
-
-	// `sbtc_events` is a SOURCE-plane table; the evaluator runs on the TARGET
-	// handle (where an empty same-named table exists post-split). Read the decoded
-	// rows from the source plane explicitly — reading off `db` here silently
-	// matched zero rows under the live split, so sBTC webhooks never fired.
-	const sbtcRows = await loadSbtcEventsForBlock(
-		opts?.sourceDb ?? getSourceDb(),
-		blockHeight,
-		[...neededTopics],
-	);
+	const sbtcRows =
+		opts?.rows ??
+		(
+			await loadSbtcEventsForRange(sbtcSubs, blockHeight, blockHeight, opts)
+		).get(blockHeight) ??
+		[];
 	if (sbtcRows.length === 0) return 0;
 
 	const replayId = opts?.replayId;
@@ -611,7 +652,11 @@ export async function emitSbtcOutbox(
 export async function emitSbtcSettlementOutbox(
 	db: Kysely<Database>,
 	chainSubs: Webhook[],
-	opts?: { sourceDb?: Kysely<Database>; now?: Date },
+	opts?: {
+		sourceDb?: Kysely<Database>;
+		reader?: ChainDataReader;
+		now?: Date;
+	},
 ): Promise<number> {
 	const settlementSubs = chainSubs.filter((sub) =>
 		triggersOf(sub).some((t) => t.type === SETTLEMENT_TRIGGER_TYPE),
@@ -636,37 +681,7 @@ export async function emitSbtcSettlementOutbox(
 		return 0;
 	}
 
-	const sourceDb = opts?.sourceDb ?? getSourceDb();
-	const rows = await sourceDb
-		.selectFrom("sbtc_settlements as s")
-		.innerJoin("sbtc_events as e", (join) =>
-			join
-				.onRef("e.sweep_txid", "=", "s.sweep_txid")
-				.on("e.topic", "=", "withdrawal-accept")
-				.on("e.canonical", "=", true),
-		)
-		.innerJoin("blocks as b", (join) =>
-			join
-				.onRef("b.height", "=", "e.block_height")
-				.on("b.canonical", "=", true),
-		)
-		.where("s.settlement_confirmed", "=", true)
-		.where("s.confirmed_at", ">", cursor)
-		.select([
-			"s.sweep_txid",
-			"s.request_id",
-			"s.btc_confirmations",
-			"s.block_height as btc_block_height",
-			"s.confirmed_at",
-			"e.tx_id",
-			"e.block_height as stacks_block_height",
-			"e.amount",
-			"e.sender",
-			"b.hash as block_hash",
-			"b.timestamp as block_timestamp",
-		])
-		.execute();
-
+	const rows = await readerFor(opts).settlementsConfirmedAfter(cursor);
 	if (rows.length === 0) return 0;
 
 	const outboxRows: InsertWebhookOutbox[] = [];
@@ -717,20 +732,6 @@ export async function emitSbtcSettlementOutbox(
 
 	return outboxRows.length;
 }
-
-type SettlementScanRow = {
-	sweep_txid: string;
-	request_id: number;
-	btc_confirmations: number;
-	btc_block_height: number | null;
-	confirmed_at: Date | null;
-	tx_id: string;
-	stacks_block_height: number;
-	amount: string | null;
-	sender: string | null;
-	block_hash: string;
-	block_timestamp: number;
-};
 
 function settlementApplyRow(
 	webhookId: string,

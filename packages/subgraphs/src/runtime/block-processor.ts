@@ -1,5 +1,4 @@
 import { type Database, getTargetDb } from "@secondlayer/shared/db";
-import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import { recordGapBatch } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import { advanceOperationCursor } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
@@ -15,6 +14,7 @@ import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition } from "../types.ts";
 import { discoverFactoryAddresses, matchBlock } from "./apply-block.ts";
 import { resolveBlockSource } from "./block-source.ts";
+import { chainDataReader } from "./chain-data-reader.ts";
 import {
 	type BlockMeta,
 	JOURNAL_RETENTION_BLOCKS,
@@ -160,8 +160,12 @@ async function resolveTraitContracts(
 		if (trait) traits.add(trait);
 	}
 	const resolved = new Map<string, ReadonlySet<string>>();
+	if (traits.size === 0) return resolved;
+	// `db` on a stack with a local chain; the hosted Index API on a tenant,
+	// whose `contracts` table is empty.
+	const reader = chainDataReader({ localDb: db });
 	for (const trait of traits) {
-		const ids = await resolveTraitContractIds(db, trait, blockHeight);
+		const ids = await reader.traitContractIds(trait, blockHeight);
 		resolved.set(trait, new Set(ids));
 	}
 	return resolved;

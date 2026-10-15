@@ -30,7 +30,7 @@ export type {
  */
 
 /** ISO `block_time` (or null) → unix-seconds integer the runtime expects. */
-function isoToUnixSeconds(iso: string | null): number {
+export function isoToUnixSeconds(iso: string | null): number {
 	if (!iso) return 0;
 	return Math.floor(new Date(iso).getTime() / 1000);
 }
