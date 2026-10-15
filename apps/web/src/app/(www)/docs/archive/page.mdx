@@ -20,9 +20,14 @@ signature  verified
   restore from archive ~2.3 hours
 ```
 
-Refuses a database that already holds blocks; use `secondlayer repair` for an existing instance. `--to-block <n>` stops early; `-y` skips the prompt.
+Bootstrap refuses a database that already holds blocks; use `secondlayer repair` for an existing instance.
 
-`--from-block <n>` restores forward-only: whole partitions starting at or after `n`, with everything below declared out of scope rather than missing, so `verify` doesn't read it as divergence. The tradeoff: the disk floor at boot is still the full-history one.
+| Flag | Effect |
+| --- | --- |
+| `--to-block <n>` | Stop early |
+| `-y` | Skip the prompt |
+
+`--from-block <n>` restores forward-only: whole partitions at or after that block. Everything below is declared out of scope rather than missing, so `verify` doesn't read it as divergence. The tradeoff: the disk floor at boot is still the full-history one.
 
 ## Repair what diverges
 
@@ -86,7 +91,13 @@ These ranges hold different data than the signed archive.
 
 `<latest.json>` is the signed pointer. Start there.
 
-`secondlayer verify`, `repair` and `bootstrap` are the same commands as `secondlayer archive verify`, `archive repair` and `archive bootstrap`. Pick either form; the examples here use the short one.
+Each command also lives under `archive`. Pick either form; the examples here use the short one.
+
+| Short | Same as |
+| --- | --- |
+| `secondlayer verify` | `secondlayer archive verify` |
+| `secondlayer repair` | `secondlayer archive repair` |
+| `secondlayer bootstrap` | `secondlayer archive bootstrap` |
 
 ## Targets
 
@@ -95,7 +106,10 @@ These ranges hold different data than the signed archive.
 | `raw` | `blocks`, `transactions`, `events` |
 | `all` | Every dataset the manifest publishes |
 
-The archive publishes digests for `blocks`, `transactions` and `events`. `decode:<name>` and `subgraph:<name>` parse, but have nothing to compare against yet: exit `2`. To check subgraph rows, run [`secondlayer verify subgraph <name> --replay`](/docs/subgraphs#check-rows).
+The archive publishes digests for the three `raw` datasets only.
+
+- `decode:<name>` and `subgraph:<name>` parse, but have nothing to compare against yet: exit `2`.
+- To check subgraph rows, run [`secondlayer verify subgraph <name> --replay`](/docs/subgraphs#check-rows).
 
 ## Reading the output
 
@@ -130,7 +144,15 @@ Equal row counts with differing data means the same heights hold different block
 
 ## From your instance's API
 
-`POST /v1/archive/verify` runs the same raw-identity check on the instance itself, read-only, with the archive URL in the body. It answers `clean`, `diverged` or `unanchored`, and a failed signature is a `200 unanchored`, never `clean`. Body fields and responses: [API reference](/docs/api/instance#verify-archive).
+`POST /v1/archive/verify` runs the same raw-identity check on the instance itself, read-only, with the archive URL in the body. Body fields and responses: [API reference](/docs/api/instance#verify-archive).
+
+| Answer | Means |
+| --- | --- |
+| `clean` | Local data matches the archive |
+| `diverged` | Divergence found |
+| `unanchored` | The archive was unreachable or its signature failed |
+
+A failed signature is a `200 unanchored`, never `clean`.
 
 ```ts
 const result = await sl.archive.verify({
@@ -148,7 +170,16 @@ What the archive costs, what it is, and how much each range is worth.
 
 ### Credits
 
-Bootstrap, backfill, and reindex fetch from the archive metered per partition bundle, quoted against your balance before anything is charged; verification is free. `secondlayer archive quote --against <archive>` prices a fetch without charging; `--from-block`/`--to-block` narrow it, `--flow repair` prices a repair, and it exits `2` when your balance falls short. Buy with `secondlayer credits buy`; packs, balance, and how the quote/confirm flow works: [archive credits](/docs/authentication#archive-credits).
+Bootstrap, backfill, and reindex fetch from the archive metered per partition bundle, quoted against your balance before anything is charged; verification is free.
+
+`secondlayer archive quote --against <archive>` prices a fetch without charging. It exits `2` when your balance falls short.
+
+| Flag | Effect |
+| --- | --- |
+| `--from-block` / `--to-block` | Narrow the fetch |
+| `--flow repair` | Price a repair |
+
+Buy with `secondlayer credits buy`. Packs, balance, and how the quote/confirm flow works: [archive credits](/docs/authentication#archive-credits).
 
 ### What the archive is
 
@@ -168,7 +199,13 @@ Publishing is append-only. Each partition carries a SHA-256 over its bytes and a
 
 ### Assurance levels
 
-The manifest states an assurance level per range: `db-reconstructive`, `node-attested`, or `observer-attested`. What each means: [Verify](/docs/verification#archive-assurance-levels).
+The manifest states one assurance level per range:
+
+- `db-reconstructive`
+- `node-attested`
+- `observer-attested`
+
+What each means: [Verify](/docs/verification#archive-assurance-levels).
 
 [CLI](/docs/cli) for the full command set; [Verify](/docs/verification) for everything else you can check, from a transaction to a block.
 
