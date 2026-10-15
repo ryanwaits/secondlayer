@@ -32,7 +32,6 @@ import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 import { resolveSyncScope } from "../../packages/shared/src/db/queries/sync-scope.ts";
 import type { Database } from "../../packages/shared/src/db/types.ts";
-import { planUninstall } from "../../packages/shared/src/runtime/uninstall.ts";
 import { signStreamsBulkManifest } from "../../packages/shared/src/streams-bulk-manifest.ts";
 
 const ADMIN_URL =
@@ -406,33 +405,6 @@ async function legUpgrade(): Promise<void> {
 	}
 }
 
-// ── uninstall ──────────────────────────────────────────────────────────────
-function legUninstall(): void {
-	const preserving = planUninstall({
-		purge: false,
-		confirmed: false,
-		keysBackedUp: false,
-		secretsPresent: true,
-		dataDir: "/data",
-	});
-	const unbackedPurge = planUninstall({
-		purge: true,
-		confirmed: true,
-		keysBackedUp: false,
-		secretsPresent: true,
-		dataDir: "/data",
-	});
-	const ok =
-		preserving.ok && preserving.plan.destroys.length === 0 && !unbackedPurge.ok;
-	record(
-		"uninstall",
-		ok ? "pass" : "fail",
-		ok
-			? "default preserves all data; purge refused without a keys backup"
-			: "teardown did not preserve data or did not gate the purge",
-	);
-}
-
 // ── legs that need a live stack ────────────────────────────────────────────
 function legDeploy(): void {
 	if (!API_URL) {
@@ -494,7 +466,6 @@ async function main(): Promise<void> {
 	legRepair();
 	await legBackupRestore();
 	await legUpgrade();
-	legUninstall();
 
 	const failed = legs.filter((l) => l.status === "fail");
 	const skipped = legs.filter((l) => l.status === "skip");

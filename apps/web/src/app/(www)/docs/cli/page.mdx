@@ -16,7 +16,6 @@ Every top-level `secondlayer` command, with the page that owns it.
 
 | Command | What it does | Docs |
 | --- | --- | --- |
-| `setup` | Guided self-host onboarding: secrets, compose, bootstrap, verify | [Self-host](/docs/self-host) |
 | `init` | Write the instance token and keys to `.env.local` | [Local runtime](#local-runtime) |
 | `bootstrap` | Restore chain history from a verified archive | [Local runtime](#local-runtime) |
 | `observer` | Print the node's `events_observer` stanza | [Self-host](/docs/self-host#connect-your-node) |
@@ -246,7 +245,7 @@ These work but get no further investment.
 export const agent = `
 - Operate through the 'secondlayer' CLI. Inspect subgraphs and webhooks with JSON output first. Get human confirmation before delete, reindex, rotate-secret, replay or requeue.
 - With SECONDLAYER_API_URL and SECONDLAYER_API_KEY set to the hosted values, 'secondlayer subgraphs' and 'webhooks' run hosted.
-- Local runtime: 'secondlayer setup' walks through network and node mode, writes secrets, docker-compose and .env, brings the stack up, restores verified history, and verifies. Step by step: 'secondlayer init --network mainnet' writes .env.local; 'secondlayer bootstrap --against <manifest>' restores into an empty database; 'secondlayer observer --mode indexer' prints the [[events_observer]] stanza; 'secondlayer verify all --against <manifest>' checks the restore (raw, decode:<name>, subgraph:<name>, --deep for semantic digests). Use --mode signer-shared where documented.
+- Local runtime (from docker/oss in a checkout, see /docs/self-host): 'secondlayer init --network mainnet' writes .env.local; 'secondlayer bootstrap --against <manifest>' restores into an empty database; 'secondlayer observer --mode indexer' prints the [[events_observer]] stanza; 'secondlayer verify all --against <manifest>' checks the restore (raw, decode:<name>, subgraph:<name>, --deep for semantic digests). Use --mode signer-shared where documented.
 - 'secondlayer subgraphs create <name> --from-contract <contract id>' infers typed print payloads from indexed history.
 - From inside a Clarinet project: 'secondlayer devnet connect' patches settings/Devnet.toml to forward events to the local indexer on :3700, writes .secondlayer/docker-compose.yml, and brings the stack up. Then 'clarinet devnet start'; confirm 'curl http://localhost:3800/health'.
 - Deploy: export SECONDLAYER_API_URL=http://localhost:3800 and INSTANCE_TOKEN=dev-instance-token (the generated stack ships that fixed local token; deploys are writes, so they carry it), then 'secondlayer subgraphs deploy ./subgraph.ts'. Reads on loopback need no token: 'curl $SECONDLAYER_API_URL/v1/subgraphs/<name>/<table>'.

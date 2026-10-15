@@ -44,7 +44,7 @@ The claim a neighbor cannot copy: the out-of-the-box products and the primitives
 
 ## Operating Context
 
-- OSS self-host path: `secondlayer setup` beside a node, archive bootstrap, subgraph deploy, subscription against their instance.
+- OSS self-host path: `docker/oss` compose beside a node, archive bootstrap, subgraph deploy, subscription against their instance.
 - Hosted path: archive plus keyed Index/Streams reads. Hosted subgraphs (a private stack per account) and webhooks (chain events, signed, retried) run on an account key; accountless play and the old hosted meters were removed 2026-09-23.
 - Meter: archive bootstrap/backfill today; usage of Index/Streams primitives is the intended charge. SKUs are the meters in `docs/internal/economics-metered-model.md` (founder-resolved 2026-09-11).
 - Golden path for an app team: scaffold their contract → table they query → optional webhook to a URL they own.

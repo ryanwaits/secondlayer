@@ -14,8 +14,8 @@ export class DockerNotAvailableError extends Error {
 // child_process (not `Bun.$`) so this works under both node and bun — the
 // published CLI runs under node via its shebang, where `Bun.$` doesn't exist
 // and every call below silently reported Docker as unreachable regardless of
-// its actual state. Same fix `devnet.ts`'s `ensureDocker` and
-// `setup-wizard.ts`'s `checkDocker` already apply, for the same reason.
+// its actual state. Same fix `devnet.ts`'s `ensureDocker` already applies,
+// for the same reason.
 function run(command: string, args: string[]): { ok: boolean; stdout: string } {
 	const result = spawnSync(command, args, { encoding: "utf8" });
 	return {

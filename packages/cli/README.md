@@ -43,7 +43,6 @@ the merchant host if this machine ran `secondlayer login` at some point — that
 
 ```bash
 bun add -g @secondlayer/cli
-secondlayer setup
 
 secondlayer subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
 git add subgraphs/my-contract.ts   # deploy refuses an unstaged file; or pass --allow-uncommitted
@@ -51,23 +50,9 @@ secondlayer subgraphs deploy subgraphs/my-contract.ts --start-block <recent-bloc
 secondlayer subgraphs query my-contract <table> --sort _block_height --order desc
 ```
 
-`secondlayer setup` is a guided command: it picks network + node mode (with the
-RAM/disk floor shown live), generates secrets, writes `docker-compose.yml` and
-`.env` (including the `DATABASE_URL` every later `bootstrap`/`verify`/`repair`
-in that directory connects with) into a target directory, brings the stack up,
-prints the observer stanza for an external node, and restores + verifies
-history from the archive: the one-command replacement for `init` → hand-copy
-secrets → `docker compose up` → `observer` → `bootstrap` → `verify`. `setup`
-is also the only way to bring the stack up: the old `secondlayer start`, which
-printed a compose line for a monorepo checkout, is gone. Without a TTY (or
-with `--yes`), it skips the interactive prompts and runs from flags instead;
-`--network` and `--node-mode` are then required. `--against` defaults to the
-official archive, so it's needed only to point at a different one:
-
-```bash
-secondlayer setup --yes \
-  --network mainnet --node-mode external
-```
+To run your own instance, follow [Self-host](https://secondlayer.tools/docs/self-host):
+`docker compose` from `docker/oss`, with `init`, `observer`, `bootstrap` and
+`verify` below for the steps around it.
 
 `secondlayer subgraphs scaffold` writes the definition file, creates/updates
 `package.json`, and runs `bun install` (pass `--no-install` to skip).
@@ -94,7 +79,6 @@ No account. Writes `.env.local`, restores history, prints the Stacks observer st
 
 | Command | What it does |
 |---|---|
-| `secondlayer setup [--network …] [--node-mode external\|stacks\|full] [--api-port <spec>] [--dir <path>] [--against <manifest>] [--skip-bootstrap] [--skip-verify] [--yes] [--force]` | Guided self-host onboarding — secrets, compose + `.env`, docker up, observer stanza, bootstrap, verify. Prompts when interactive; flags-only (no prompts) with `--yes` or no TTY |
 | `secondlayer init [--network mainnet\|testnet\|devnet] [--api-url <url>] [--force]` | Write `.env.local` (token, secrets key, webhook signing key). `--network` and `--api-url` are the global flags. Idempotent |
 | `secondlayer bootstrap --against <manifest> [--from-block <n>] [--to-block <n>] [--verify all\|blocks] [--public-key <pem>] [-y] [--json]` | Restore chain history from a verified archive into an empty database. A run that died mid-way resumes per dataset on re-run. After the load, digests for blocks, transactions, and events are checked over the restored range (`--verify blocks` skips the child datasets and the minutes they cost). Partition fetches retry three times with backoff on resets, timeouts, 429 (honoring `Retry-After`) and 5xx; a link that stays down exits `1` with a re-run hint, and the re-run resumes. Exit `0` restored, `1` diverged or interrupted, `2` refused |
 | `secondlayer observer [--mode indexer\|signer-shared] [--endpoint host:port] [--network …]` | Print the `[[events_observer]]` stanza. Signer-shared skips retries; a missed block stays a gap until `repair` |
@@ -210,7 +194,7 @@ or poll the subgraph API: see
 | `SECONDLAYER_API_URL` | Instance API. Default `http://127.0.0.1:3800` |
 | `SL_PLATFORM_API_URL` | Alias of `SECONDLAYER_API_URL` |
 | `STACKS_NETWORK` | Default network (also via `--network <mainnet\|testnet\|devnet>`) |
-| `DATABASE_URL` | Postgres that `bootstrap`, `verify`, `repair`, and `backup` connect to. `secondlayer setup` writes it into `.env` pointing at the compose Postgres; unset, the shared dev URL `postgres://postgres:postgres@localhost:5432/secondlayer_dev` is used |
+| `DATABASE_URL` | Postgres that `bootstrap`, `verify`, `repair`, and `backup` connect to. Point it at the compose Postgres (`postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer`); unset, the shared dev URL `postgres://postgres:postgres@localhost:5432/secondlayer_dev` is used |
 | `HIRO_API_KEY` | Used by `secondlayer codegen contracts` for remote contract fetches |
 
 ## Code generation (`secondlayer codegen contracts`)
@@ -276,7 +260,7 @@ const supply = await token.vars.totalSupply.get()
 
 ## Local development
 
-`secondlayer setup` brings up a self-hosted stack. For Clarinet, use
+A self-hosted stack runs from `docker/oss` ([Self-host](https://secondlayer.tools/docs/self-host)). For Clarinet, use
 `secondlayer devnet connect` / `status` / `logs` / `down` (and `devnet faucet`).
 
 ## Docs

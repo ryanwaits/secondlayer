@@ -26,7 +26,7 @@ export function registerInitCommand(program: Command): void {
 		// every time (that happened here, first for --network, then again for
 		// --api-url). The global `preAction` hook writes the parsed values to
 		// STACKS_NETWORK / SECONDLAYER_API_URL before this action runs; read them from
-		// there. Same fix `commands/setup.ts` uses.
+		// there.
 		.option("--force", "Overwrite generated values even if .env.local exists")
 		.addHelpText(
 			"after",

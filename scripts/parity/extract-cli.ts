@@ -30,11 +30,9 @@ import {
 	registerObserverCommand,
 	registerRepairCommand,
 	registerRestoreCommand,
-	registerSetupCommand,
 	registerStatusCommand,
 	registerStreamsCommand,
 	registerSubgraphsCommand,
-	registerUninstallCommand,
 	registerVerifyCommand,
 	registerWebhooksCommand,
 	registerWhoamiCommand,
@@ -59,7 +57,6 @@ interface ParitySurface {
  * invisible to the audit.
  */
 const REGISTRARS: Record<string, (program: Command) => void> = {
-	registerSetupCommand,
 	registerInitCommand,
 	registerBootstrapCommand,
 	registerObserverCommand,
@@ -80,7 +77,6 @@ const REGISTRARS: Record<string, (program: Command) => void> = {
 	registerRepairCommand,
 	registerBackupCommand,
 	registerRestoreCommand,
-	registerUninstallCommand,
 	registerCreditsCommand,
 	registerArchiveCommand,
 };

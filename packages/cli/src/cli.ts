@@ -18,11 +18,9 @@ import {
 	registerObserverCommand,
 	registerRepairCommand,
 	registerRestoreCommand,
-	registerSetupCommand,
 	registerStatusCommand,
 	registerStreamsCommand,
 	registerSubgraphsCommand,
-	registerUninstallCommand,
 	registerVerifyCommand,
 	registerWebhooksCommand,
 	registerWhoamiCommand,
@@ -61,20 +59,19 @@ program.addHelpText(
 	"after",
 	`
 Quickstart:
-  $ secondlayer setup
   $ secondlayer subgraphs create my-watcher --from-contract SP....my-contract
   $ git add subgraphs/my-watcher.ts
   $ secondlayer subgraphs deploy subgraphs/my-watcher.ts   # or --allow-uncommitted
 
-Manual / scripted setup, one step at a time:
+Self-host, from docker/oss in a checkout:
   $ secondlayer init --network mainnet
+  $ docker compose up -d
   $ secondlayer bootstrap --against <manifest>
 `,
 );
 
 // Getting started
 program.commandsGroup("Getting started:");
-registerSetupCommand(program);
 registerInitCommand(program);
 registerBootstrapCommand(program);
 registerObserverCommand(program);
@@ -108,7 +105,6 @@ registerVerifyCommand(program);
 registerRepairCommand(program);
 registerBackupCommand(program);
 registerRestoreCommand(program);
-registerUninstallCommand(program);
 
 // Archive — the history plane. Credits pay for pulling it.
 program.commandsGroup("Archive:");

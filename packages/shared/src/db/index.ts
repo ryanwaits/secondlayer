@@ -26,7 +26,7 @@ interface PoolEntry {
  * this is the single-DB backward-compat contract: when only `DATABASE_URL`
  * is set, `getSourceDb() === getTargetDb()` (zero regression vs. pre-dual-DB).
  *
- * Extra pools (e.g. setup-wizard via getRawClientFor) are bounded
+ * Extra pools are bounded
  * (`DATABASE_MAX_POOLS`, default 25) with LRU eviction — the hot source/target
  * pools are never evicted.
  */
@@ -342,16 +342,6 @@ export function getRawClient(
 	role: "source" | "target" = "target",
 ): ReturnType<typeof postgres> {
 	const url = role === "source" ? resolveSourceUrl() : resolveTargetUrl();
-	return getOrCreatePool(url).rawClient;
-}
-
-/**
- * Raw postgres.js client for an arbitrary connection string (cached by URL).
- * Used by the CLI setup-wizard and similar one-off tooling. Distinct from
- * {@link getRawClient}, which only knows the source/target roles resolved
- * from env.
- */
-export function getRawClientFor(url: string): ReturnType<typeof postgres> {
 	return getOrCreatePool(url).rawClient;
 }
 

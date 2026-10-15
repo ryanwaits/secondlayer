@@ -25,7 +25,7 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | `SIGNING_SECRET` | webhooks test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
 | `SL_STREAMS_DUMPS_URL` | streams dumps | Public bulk-dump bucket base URL (dumps are public — no API key). Alternative to `--dumps-url`. |
-| `DATABASE_URL` | bootstrap, verify, repair, backup | Postgres URL. `secondlayer setup` writes it into `.env` pointing at the compose Postgres and passes it to the bootstrap/verify it runs; unset, it defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
+| `DATABASE_URL` | bootstrap, verify, repair, backup | Postgres URL. Point it at the compose Postgres (`postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer`); unset, it defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
 | `INDEXER_URL` | doctor, status | Local indexer URL; defaults to `http://localhost:3700`. |
 | `DEBUG` | codegen contracts | When set, prints stack traces on failure. |
 
@@ -33,7 +33,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 ## Table of contents
 
-- [Local runtime](#local-runtime): `setup`, `init`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
+- [Local runtime](#local-runtime): `init`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`
 - [Archive](#archive) — `archive latest|quote|bootstrap|verify|repair` (top-level bootstrap/verify/repair are the same commands)
 - [Credits](#credits) — `credits buy|balance|refill`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `gaps`, `query`, `delete`, `scaffold`
@@ -51,28 +51,6 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 ## Local runtime
 
 Accountless. These are the top-level verbs for a machine you operate. There is no login, no project, and no `secondlayer instance`.
-
-### secondlayer setup
-
-Guided self-host onboarding — one command in place of `init` → hand-copy 3 secrets into `docker/oss/.env` → `docker compose up -d` → `observer` → hand-paste into the node's `Config.toml` → `bootstrap` → `verify`. Generates secrets via the same functions `init` uses (idempotent, same re-run behavior), writes `docker-compose.yml` and the resolved `.env` into a target directory (no manual copy-paste), brings the stack up, prints the observer stanza (marked ACTION REQUIRED for `--node-mode external`, since the wizard cannot edit a node it doesn't control), and restores + verifies history from the archive.
-
-Usage: `secondlayer setup [--network mainnet|testnet|devnet] [--node-mode external|stacks|full] [--api-port <spec>] [--dir <path>] [--against <manifest>] [--skip-bootstrap] [--skip-verify] [--yes] [--force]`
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--network <network>` | none — required | `mainnet`, `testnet`, or `devnet`. No safe default: different disk floors, irreversible-ish choice. |
-| `--node-mode <mode>` | none — required | `external` (you run the Stacks node) or `stacks` (same — no bundled bitcoind, no bundled-stacks-only compose profile), or `full` (bundled Stacks node + bitcoind). |
-| `--api-port <spec>` | `127.0.0.1:3800` | API publish spec, matching `docker/oss/docker-compose.yml`'s default. |
-| `--dir <path>` | cwd | Target directory for `docker-compose.yml` and `.env`. |
-| `--against <manifest>` | `https://archive.secondlayer.tools/latest.json` | Archive manifest to bootstrap from. |
-| `--skip-bootstrap` | off | Skip the archive restore. The index holds only what your node sends from now on (full history only if the node itself syncs from genesis). |
-| `--skip-verify` | off | Skip the post-bootstrap verify pass. |
-| `--yes` | off | Skip the interactive prompts; run from flags only, never ask. Also implied by a non-TTY stdout (piped, CI, an agent). |
-| `--force` | off | Regenerate secrets even if a `.env` already exists in `--dir`. |
-
-With a TTY and no `--yes`, this asks with plain `@inquirer/prompts` questions: network → node mode (RAM/disk floor shown live per highlighted option) → bootstrap source → a confirm screen, filling in only whatever flags didn't already answer. Without a TTY, or with `--yes`, every decision with no safe default must come from a flag or the command fails fast naming exactly which one is missing — this is what lets an agent drive it exactly as well as a human at a terminal.
-
-Example: `secondlayer setup --yes --network mainnet --node-mode external`
 
 ### secondlayer init
 
@@ -240,14 +218,6 @@ Usage: `secondlayer backup --out <dir> [--passphrase <p>] [--no-secrets] [--json
 Usage: `secondlayer restore --from <dir> [--passphrase <p>] [--apply] [--force] [--json]`
 
 `restore` is a dry run until `--apply`, and refuses a database that already holds chain data unless `--force`. `SECONDLAYER_BACKUP_PASSPHRASE` substitutes for `--passphrase`, and is the form to prefer since a flag lands in shell history and `ps`. The database password rides in `PGPASSWORD`, never in the `pg_dump`/`pg_restore` argv.
-
-### secondlayer uninstall
-
-Stop the stack and leave the data. Containers, networks, and the handler cache come down; the index, chainstate, secrets, and backups stay.
-
-Usage: `secondlayer uninstall [--apply] [--compose <file>] [--purge --backup <dir>] [--yes] [--json]`
-
-Dry run by default: prints the plan and changes nothing until `--apply`. Run it from the directory `secondlayer setup` wrote: `--compose` defaults to `./docker-compose.yml` with `--env-file ./.env`, falling back to the repo's `docker/oss/docker-compose.yml` for a hand-run checkout. The dry run names the compose file, env file, and the file the keys were found in (`.env` or `.env.local`). `--purge` also destroys the volumes and refuses to run unless `--backup <dir>` points at a bundle proving your keys exist elsewhere.
 
 ---
 
@@ -832,7 +802,7 @@ Example: `secondlayer streams dumps --to ./dumps --dumps-url https://dumps.secon
 
 ## Devnet
 
-Run Secondlayer services against a local [Clarinet](https://docs.hiro.so/stacks/clarinet) devnet. `secondlayer devnet connect` pulls the published OSS Docker images, so it works for any developer with a clarinet project — no repo checkout required. Requires Docker (Docker Desktop or OrbStack) and `clarinet` installed. For self-host without Clarinet, use `secondlayer setup`.
+Run Secondlayer services against a local [Clarinet](https://docs.hiro.so/stacks/clarinet) devnet. `secondlayer devnet connect` pulls the published OSS Docker images, so it works for any developer with a clarinet project — no repo checkout required. Requires Docker (Docker Desktop or OrbStack) and `clarinet` installed. For self-host without Clarinet, run `docker/oss` (https://secondlayer.tools/docs/self-host).
 
 ### secondlayer devnet connect
 
@@ -998,7 +968,7 @@ Usage: `secondlayer status`
 | --- | --- |
 | `--json` | Output as JSON. |
 
-GETs `/public/status` on this instance. Prints liveness and tip. On failure: check `docker compose ps` in the `secondlayer setup` directory and that the container is up.
+GETs `/public/status` on this instance. Prints liveness and tip. On failure: check `docker compose ps` in `docker/oss` and that the container is up.
 
 ---
 

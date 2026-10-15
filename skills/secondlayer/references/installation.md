@@ -33,30 +33,20 @@ export PATH="$HOME/.bun/bin:$PATH"
 
 ## Start a local instance
 
-```bash
-secondlayer setup
-```
-
-One guided command replaces the manual sequence: it picks network + node mode,
-generates secrets, writes `docker-compose.yml` and `.env` into a target
-directory, brings the stack up, prints the observer stanza (for an external
-node), and restores + verifies history from the archive. Without a TTY, or
-with `--yes`, it skips the prompts and requires `--network` and `--node-mode`
-(plus `--against`, unless `--skip-bootstrap`) as flags instead — the path an
-agent should drive:
+From a checkout. Compose pulls the published images:
 
 ```bash
-secondlayer setup --yes \
-  --network mainnet --node-mode external \
-  --against https://archive.secondlayer.tools/latest.json
+git clone https://github.com/ryanwaits/secondlayer
+cd secondlayer/docker/oss
+cp .env.example .env                  # set POSTGRES_PASSWORD
+secondlayer init --network mainnet    # writes .env.local
+cat .env.local >> .env
+docker compose pull
+docker compose up -d
+curl http://127.0.0.1:3800/health
 ```
 
-For manual, one-step-at-a-time control instead (from a repo checkout):
-
-```bash
-secondlayer init --network mainnet
-docker compose -f docker/oss/docker-compose.yml --env-file .env.local up -d
-```
+History, an external node, and Runes: https://secondlayer.tools/docs/self-host.
 
 `secondlayer init` writes `.env.local` (`INSTANCE_TOKEN`, secrets key, webhook signing key). Loopback reads need no token. For writes, and for any instance that has the token configured:
 

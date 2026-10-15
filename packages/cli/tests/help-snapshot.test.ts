@@ -8,7 +8,6 @@ import { registerIndexCommand } from "../src/commands/index-api.ts";
 import { registerInitCommand } from "../src/commands/init.ts";
 import { registerLoginCommand } from "../src/commands/login.ts";
 import { registerObserverCommand } from "../src/commands/observer.ts";
-import { registerSetupCommand } from "../src/commands/setup.ts";
 import { registerStreamsCommand } from "../src/commands/streams.ts";
 import { registerSubgraphsCommand } from "../src/commands/subgraphs.ts";
 
@@ -49,29 +48,12 @@ describe("CLI help snapshot", () => {
 		expect(help).not.toMatch(/^\s+projects\b/m);
 	});
 
-	test("the removed start verb is not registered; setup owns bringing the stack up", () => {
-		const program = new Command().name("sl");
-		registerSetupCommand(program);
-		registerInitCommand(program);
-		expect(program.commands.map((c) => c.name())).not.toContain("start");
-		expect(program.commands.map((c) => c.name())).toContain("setup");
-	});
-
 	test("local is not registered; devnet is the supported Clarinet loop", () => {
 		const program = new Command().name("sl");
 		registerDevnetCommand(program);
-		registerSetupCommand(program);
 		const names = program.commands.map((c) => c.name());
 		expect(names).not.toContain("local");
 		expect(names).toContain("devnet");
-	});
-
-	test("setup --dir advertises '.' rather than the absolute cwd the help was rendered from", () => {
-		const program = new Command().name("sl");
-		registerSetupCommand(program);
-		const setup = program.commands.find((c) => c.name() === "setup");
-		const dir = setup?.options.find((o) => o.long === "--dir");
-		expect(dir?.defaultValue).toBe(".");
 	});
 
 	test("flags that the global options already own are not redeclared on subcommands", () => {

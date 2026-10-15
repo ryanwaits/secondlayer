@@ -444,9 +444,9 @@ export default async function ArchivePage() {
 				}
 			>
 				The archive is how a self-hosted instance skips weeks of replay.{" "}
-				<span className="mono">secondlayer setup</span> offers a bootstrap on
-				first boot; after that your node feeds the instance and verify keeps
-				checking it against each new signed publish.
+				<span className="mono">secondlayer bootstrap</span> fills an empty
+				instance; after that your node feeds it and verify keeps checking it
+				against each new signed publish.
 			</SelfHostSlot>
 
 			<div className="band">

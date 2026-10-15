@@ -129,7 +129,7 @@ The Streams errors do **not** extend `ApiError` — check them separately when w
 
 | Error | Hint |
 |---|---|
-| Can't reach `/public/status` | `docker compose ps` in the `secondlayer setup` directory; bring the container up |
+| Can't reach `/public/status` | `docker compose ps` in `docker/oss`; `docker compose logs secondlayer` names a refused start (e.g. a disk floor) |
 | `401` on instance call | Export `INSTANCE_TOKEN` from `.env.local`, or pass `--api-key` with the hex token. Writes always need it, loopback included; reads need it once the API is published past loopback |
 | `401` on hosted / archive / credits | Export `SECONDLAYER_API_KEY` (`sk-sl_*`), or run `secondlayer login --credits`. On `api.secondlayer.tools` it is sent automatically; `INSTANCE_TOKEN` is not used there |
 | Empty history | `secondlayer bootstrap --against <manifest>`. Against the official archive this quotes a price in credits and waits for confirmation; your own mirror is free |
