@@ -5,13 +5,35 @@ import { getAgentPrompt } from "@/lib/agent-prompts";
 
 A signed POST to a URL you run, whenever a chain event you named happens. To act on your own subgraph rows, read them: [React to your rows](/docs/subgraphs#react-to-your-rows).
 
-## Coming from Chainhook
-
-Hand your predicates to your agent; it maps each one to a trigger and writes the create commands.
-
-<AgentPromptBlock code={getAgentPrompt("migrate-from-chainhook")} />
+<Yields page="webhooks" />
 
 ## Create a webhook
+
+[Name the calls](focus:call) and [the transfers](focus:ft) you care about; each match posts to [your URL](hover:url). A webhook starts at the chain tip and never backfills.
+
+```ts create-webhook.ts figure
+import { trigger } from "@secondlayer/sdk";
+
+await sl.webhooks.create({
+  name: "amm-swaps",
+  // !ref url
+  url: "https://my-app.com/webhook",
+  triggers: [
+    // !ref call
+    // !callout[/swap/] Wildcards are allowed.
+    trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" }),
+    // !ref ft
+    // !callout[/trait/] Scopes to a SIP trait.
+    trigger.ftTransfer({ trait: "sip-010", minAmount: "1000000" }),
+  ],
+});
+```
+
+What arrives and how to trust it: [Receive and verify](#receive-and-verify).
+
+## From the CLI
+
+The CLI takes the same triggers as JSON.
 
 ```bash
 secondlayer webhooks create sbtc-deposits \
@@ -19,26 +41,36 @@ secondlayer webhooks create sbtc-deposits \
   --trigger '{"type":"sbtc_deposit"}'
 ```
 
-What arrives and how to trust it: [Receive and verify](#receive-and-verify). A webhook starts at the chain tip and never backfills.
+## Check it
+
+Every delivery, in every format, carries an ed25519 signature. Fetch the public key once and cache it. A failed check is a 401, never a silent drop.
+
+```ts handler.ts
+import { verifySecondlayerSignature } from "@secondlayer/sdk";
+
+// Public key (ed25519, SPKI PEM) from GET /public/streams/signing-key
+// !callout[/verifySecondlayerSignature/] Every delivery, every format, carries this.
+const valid = verifySecondlayerSignature(rawBody, req.headers, publicKeyPem);
+if (!valid) return new Response("bad signature", { status: 401 });
+```
+
+Headers, HMAC and key rotation: [Verify the signature](#verify-the-signature).
+
+<Seam page="webhooks" />
+
+## Coming from Chainhook
+
+Hand your predicates to your agent; it maps each one to a trigger and writes the create commands.
+
+<AgentPromptBlock code={getAgentPrompt("migrate-from-chainhook")} />
+
+## Triggers and limits
+
+Every trigger, the protocol triggers, test deliveries and hosted limits.
 
 ### Triggers
 
-A webhook takes a `triggers` array (1–50). Use the `trigger.*` factories or the equivalent raw objects.
-
-```ts create-webhook.ts
-import { trigger } from "@secondlayer/sdk";
-
-await sl.webhooks.create({
-  name: "amm-swaps",
-  url: "https://my-app.com/webhook",
-  triggers: [
-    // !callout[/swap/] Wildcards are allowed.
-    trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" }),
-    // !callout[/trait/] Scopes to a SIP trait.
-    trigger.ftTransfer({ trait: "sip-010", minAmount: "1000000" }),
-  ],
-});
-```
+Use the `trigger.*` factories (as in [Create a webhook](#create-a-webhook)) or the equivalent raw objects.
 
 `*` wildcards are allowed; `trait` scopes to a SIP/trait.
 
