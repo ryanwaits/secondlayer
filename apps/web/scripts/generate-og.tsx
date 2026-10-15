@@ -13,7 +13,8 @@ import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { STACKS_SYMBOL_PATH } from "../src/app/robinhood/stacks-symbol";
 import { type Chain, MARKS } from "../src/components/site/chain-marks";
-import { POSTS } from "../src/lib/writing";
+import { parseAnnotations } from "../src/lib/code/annotations";
+import { POSTS, getPublishedPosts, longDate } from "../src/lib/writing";
 
 const FONT_DIR = join(process.cwd(), "src/assets/og-fonts");
 const OUT_DIR = join(process.cwd(), "public/og");
@@ -1385,19 +1386,166 @@ const fonts = [
 	},
 ];
 
-// ── writings cards ───────────────────────────────────────────────────────────
-// Same footer strip, but the headline is a full post title (satori wraps it),
-// with a mono meta line underneath instead of a product artifact.
+// ── blog cards ───────────────────────────────────────────────────────────────
+// A post card is the post's title on the left and its own code on the right:
+// up to seven lines of the post's first real code block, in the site's syntax
+// ladder, with the token the post marks on yellow. Nothing to set per post.
 
-function WritingFrame({
+const FAINT = "#9b9b96";
+const POSTS_DIR = join(process.cwd(), "src/app/(www)/writing/(post)");
+const EXCERPT_LINES = 7;
+const EXCERPT_CHARS = 38;
+
+type Excerpt = { lines: string[]; mark: { line: number; re: RegExp } | null };
+
+/**
+ * The card's art: the first fence of 4+ lines. A transcript keeps its command
+ * and its last lines (the result); code keeps a window around its first
+ * `!mark` or `!callout`, whose token is the one marked.
+ */
+async function heroExcerpt(slug: string): Promise<Excerpt | null> {
+	const mdx = await readFile(join(POSTS_DIR, slug, "page.mdx"), "utf8");
+	for (const [, lang = "", body = ""] of mdx.matchAll(
+		/```(\w*)[^\n]*\n([\s\S]*?)```/g,
+	)) {
+		const { lines, annotations } = parseAnnotations(body.trimEnd(), lang);
+		if (lines.length < 4) continue;
+		let picked: string[];
+		let mark: Excerpt["mark"] = null;
+		if (lang === "text") {
+			picked = [lines[0] ?? "", ...lines.slice(1 - EXCERPT_LINES)];
+			mark = { line: picked.length - 1, re: /(?<=✓ ).*?\./ };
+		} else {
+			const note = annotations.find(
+				(a) => (a.name === "mark" || a.name === "callout") && a.regex,
+			);
+			const at = note?.from ?? 0;
+			const start = Math.max(0, Math.min(at - 3, lines.length - EXCERPT_LINES));
+			picked = lines.slice(start, start + EXCERPT_LINES);
+			if (note?.regex) mark = { line: at - start, re: note.regex };
+		}
+		const indent = Math.min(
+			...picked
+				.filter((l) => l.trim())
+				.map((l) => /^ */.exec(l)?.[0].length ?? 0),
+		);
+		return {
+			lines: picked.map((l) => {
+				// Transcripts pad columns with runs of spaces; two keep the shape.
+				const line = l.slice(indent).replace(/(\S) {3,}/g, "$1  ");
+				if (line.length <= EXCERPT_CHARS) return line;
+				const cut = line.lastIndexOf(" ", EXCERPT_CHARS - 1);
+				return `${line.slice(0, cut > EXCERPT_CHARS / 2 ? cut : EXCERPT_CHARS - 1)}…`;
+			}),
+			mark,
+		};
+	}
+	return null;
+}
+
+/** ✓ as a drawn check: Geist Mono has no glyph for it, and satori would
+    fetch a fallback font over the network. One character wide. */
+function Check() {
+	return (
+		<svg
+			width={10.2}
+			height={28}
+			viewBox="0 0 10.2 28"
+			role="img"
+			aria-label="passed"
+		>
+			<path
+				d="M1 15.5 L4 18.5 L9.2 11"
+				fill="none"
+				stroke={OK}
+				strokeWidth={1.6}
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
+	);
+}
+
+/** One line in the syntax ladder: keys sub, punctuation faint, ✓ green. */
+function CodeTokens({ text }: { text: string }) {
+	const parts = text.match(
+		/("(?:[^"\\]|\\.)*"(?=\s*:)|[A-Za-z_$][\w$]*(?=\s*:)|"(?:[^"\\]|\\.)*"|[{}[\](),:;=]|✓|^\$|\s+|[^\s{}[\](),:;="✓]+)/g,
+	);
+	return (
+		<>
+			{(parts ?? []).map((t, i) => {
+				const key =
+					/^"?[\w$]+"?$/.test(t) &&
+					text
+						.slice(text.indexOf(t) + t.length)
+						.trimStart()
+						.startsWith(":");
+				// biome-ignore lint/suspicious/noArrayIndexKey: tokens of one fixed line
+				if (t === "✓") return <Check key={i} />;
+				const color =
+					/^[{}[\](),:;=]$/.test(t) || t === "$" ? FAINT : key ? SUB : INK;
+				return (
+					// biome-ignore lint/suspicious/noArrayIndexKey: tokens of one fixed line
+					<span key={i} style={{ color }}>
+						{nb(t)}
+					</span>
+				);
+			})}
+		</>
+	);
+}
+
+function CodeExcerpt({ excerpt }: { excerpt: Excerpt }) {
+	return (
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "column",
+				width: 440,
+				border: `1px solid ${LINE}`,
+				borderRadius: 8,
+				padding: "20px 22px",
+				fontFamily: "Geist Mono",
+				fontSize: 17,
+				lineHeight: "28px",
+			}}
+		>
+			{excerpt.lines.map((line, i) => {
+				const hit =
+					excerpt.mark?.line === i ? excerpt.mark.re.exec(line) : null;
+				return (
+					// biome-ignore lint/suspicious/noArrayIndexKey: lines of one fixed excerpt
+					<div key={i} style={{ display: "flex", minHeight: 28 }}>
+						{hit ? (
+							<>
+								<CodeTokens text={line.slice(0, hit.index)} />
+								<span style={{ background: YELLOW, color: INK }}>
+									{nb(hit[0])}
+								</span>
+								<CodeTokens text={line.slice(hit.index + hit[0].length)} />
+							</>
+						) : (
+							<CodeTokens text={line} />
+						)}
+					</div>
+				);
+			})}
+		</div>
+	);
+}
+
+function PostFrame({
 	eyebrow,
 	title,
 	meta,
+	excerpt,
 }: {
 	eyebrow: string;
 	title: string;
 	meta: string;
+	excerpt: Excerpt | null;
 }) {
+	const size = title.length > 40 ? 52 : 60;
 	return (
 		<div
 			style={{
@@ -1405,7 +1553,6 @@ function WritingFrame({
 				width: "100%",
 				height: "100%",
 				display: "flex",
-				flexDirection: "column",
 				background: PAPER,
 				padding: "0 80px",
 				fontFamily: "Geist",
@@ -1413,11 +1560,12 @@ function WritingFrame({
 		>
 			<div
 				style={{
+					width: excerpt ? 540 : 1000,
 					height: 540,
 					display: "flex",
 					flexDirection: "column",
 					justifyContent: "center",
-					gap: 30,
+					gap: 26,
 				}}
 			>
 				<T size={20} color={SUB} style={{ letterSpacing: 2 }}>
@@ -1425,22 +1573,72 @@ function WritingFrame({
 				</T>
 				<span
 					style={{
-						fontFamily: "Geist",
 						fontWeight: 500,
-						fontSize: title.length > 44 ? 66 : 80,
+						fontSize: size,
 						color: INK,
 						lineHeight: 1.08,
-						letterSpacing: -2.8,
-						maxWidth: 1000,
+						letterSpacing: -size * 0.035,
 					}}
 				>
 					{title}
 				</span>
-				<T size={22} color={SUB}>
+				<T size={20} color={SUB}>
 					{meta}
 				</T>
 			</div>
+			{excerpt ? (
+				<div
+					style={{
+						position: "absolute",
+						top: 0,
+						right: 80,
+						height: 540,
+						display: "flex",
+						alignItems: "center",
+					}}
+				>
+					<CodeExcerpt excerpt={excerpt} />
+				</div>
+			) : null}
 			<Footer path={`${SITE}/writing`} />
+		</div>
+	);
+}
+
+/** The index card's art: the latest published posts, as the index lists them. */
+function ArtBlog() {
+	const latest = getPublishedPosts()
+		.sort((a, b) => b.number - a.number)
+		.slice(0, 3);
+	return (
+		<div style={{ display: "flex", flexDirection: "column", width: 440 }}>
+			{latest.map((post) => (
+				<div
+					key={post.slug}
+					style={{
+						display: "flex",
+						gap: 18,
+						padding: "18px 0",
+						borderTop: `1px solid ${LINE}`,
+					}}
+				>
+					<T size={16} color={SUB}>
+						{String(post.number).padStart(2, "0")}
+					</T>
+					<span
+						style={{
+							fontFamily: "Geist",
+							fontWeight: 500,
+							fontSize: 24,
+							lineHeight: 1.2,
+							letterSpacing: -0.6,
+							color: INK,
+						}}
+					>
+						{post.title}
+					</span>
+				</div>
+			))}
 		</div>
 	);
 }
@@ -1449,24 +1647,31 @@ const WRITING_CARDS: { file: string; frame: React.ReactElement }[] = [
 	{
 		file: "writing.png",
 		frame: (
-			<WritingFrame
-				eyebrow="WRITINGS"
-				title="Mechanism, explained."
-				meta="long-form technical guides · secondlayer.tools/writing"
+			<Frame
+				file="writing.png"
+				eyebrow="BLOG"
+				line1="Notes from"
+				line2="the index."
+				size={76}
+				path={`${SITE}/writing`}
+				artifact={<ArtBlog />}
 			/>
 		),
 	},
 	// All posts, drafts included — flipping a draft live shouldn't need a re-run.
-	...POSTS.map((post) => ({
-		file: `writing-${post.slug}.png`,
-		frame: (
-			<WritingFrame
-				eyebrow={`WRITINGS · ${String(post.number).padStart(2, "0")}`}
-				title={post.title}
-				meta={`${post.date} · ${post.readingTime} · ${post.tags.join(" · ")}`}
-			/>
-		),
-	})),
+	...(await Promise.all(
+		POSTS.map(async (post) => ({
+			file: `writing-${post.slug}.png`,
+			frame: (
+				<PostFrame
+					eyebrow={`BLOG · ${String(post.number).padStart(2, "0")}`}
+					title={post.title}
+					meta={`${longDate(post.date)} · ${post.readingTime}`}
+					excerpt={await heroExcerpt(post.slug)}
+				/>
+			),
+		})),
+	)),
 ];
 
 for (const spec of CARDS) {
