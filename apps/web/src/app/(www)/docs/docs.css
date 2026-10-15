@@ -374,10 +374,10 @@ html:has(.docs-search input:focus) {
 	overflow-y: auto;
 	border-right: 1px solid var(--line);
 	padding: 28px 16px 96px max(16px, env(safe-area-inset-left, 0px));
-	font-size: 14px;
+	font-size: 13.5px;
 }
 .docs-nav-group + .docs-nav-group {
-	margin-top: 18px;
+	margin-top: 22px;
 }
 /* The phone-only Site group is hidden here; the first group starts flush. */
 .docs-nav-products + .docs-nav-group {
@@ -386,7 +386,7 @@ html:has(.docs-search input:focus) {
 .docs-nav-grouplabel {
 	margin: 0 0 6px;
 	padding: 0 8px;
-	font: 500 11px / 16px var(--font-sans-stack);
+	font: 500 11px / 16px var(--font-mono-stack);
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var(--faint);
@@ -396,7 +396,7 @@ html:has(.docs-search input:focus) {
 	align-items: center;
 	gap: 8px;
 	position: relative;
-	padding: 5px 8px;
+	padding: 4px 8px;
 	border-radius: 4px;
 	line-height: 20px;
 	color: var(--sub);
@@ -422,10 +422,11 @@ button.docs-nav-item {
 [aria-expanded="true"] > .docs-nav-caret {
 	transform: rotate(90deg);
 }
-/* The open page is marked by weight alone; its outline sits under it. */
+/* The open page is marked by a fill, never by weight; its outline sits under it. */
 .docs-nav-item.active {
 	color: var(--ink);
-	font-weight: 500;
+	background: var(--soft);
+	font-weight: 400;
 }
 .docs-nav-item.docs-nav-child {
 	padding-left: 20px;
@@ -440,8 +441,18 @@ button.docs-nav-item {
 .docs-nav-outline a {
 	margin-left: -1px;
 	padding: 3px 10px;
+	font-size: 13px;
+	line-height: 20px;
 	border-left: 1px solid transparent;
 	color: var(--sub);
+}
+/* Over the sections that follow a page's seam. */
+.docs-nav-outline-label {
+	padding: 10px 10px 2px;
+	font: 500 10.5px / 16px var(--font-mono-stack);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--faint);
 }
 .docs-nav-outline a:hover {
 	color: var(--ink);
