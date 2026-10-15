@@ -20,7 +20,7 @@ Where Secondlayer can prove an answer, it serves the proof: a hash, a merkle pat
 | Check | How | What you still trust |
 | --- | --- | --- |
 | An archive bundle | `secondlayer bootstrap` and `repair` hash each partition against the signed digest before reading it. [Archive](/docs/archive#repair-what-diverges) | The archive signing key |
-| Your instance's history | `secondlayer verify raw --against <latest.json>`. [Archive](/docs/archive#check-your-data) | The archive signing key, and the range's [assurance level](#archive-assurance-levels) |
+| Your instance's history | `secondlayer verify raw --against <latest.json>`. [Archive](/docs/archive#check-it) | The archive signing key, and the range's [assurance level](#archive-assurance-levels) |
 | Subgraph rows | `secondlayer verify subgraph <name> --replay`. [Check rows](/docs/subgraphs#check-rows) | The checkpoint; only `state` subgraphs can be replayed |
 | A webhook delivery | `verifyWebhookSignature` and the ed25519 signature. [Receive and verify](/docs/webhooks#verify-the-signature) | The signing secret or key: proves who sent it, not that the chain agrees |
 | A Streams frame | The SDK checks every frame's ed25519 signature. [SDK](/docs/sdk#verifying-responses) | The signing key, unless you pin it |

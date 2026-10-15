@@ -1,103 +1,30 @@
-# Verified archive
+# Archive
 
-Check your chain history against a signed canonical archive, repair what diverges, or restore a fresh instance from it.
+Signed chain history. Check yours against it, repair what diverges, or boot a fresh instance from it.
 
-## Check your data
+<Yields page="archive" />
 
-```bash
-secondlayer verify raw --against https://archive.secondlayer.tools/latest.json
+## Restore a fresh instance
+
+Bootstrap reads the [signed digest](hover:sig) before a single row, restores [genesis to the archive tip](hover:cov), and does it in [hours instead of weeks](hover:est).
+
+```text ~/secondlayer
+$ secondlayer bootstrap --against <archive>
+# !ref cov
+coverage   genesis → 8,745,422
+# !ref sig
+signature  verified
+
+# !ref(1:2) est
+  sync from genesis    ~19.4 days (estimate)
+  restore from archive ~2.3 hours
 ```
 
-Read-only. Digests stay on your machine. Default target is `raw`.
+Refuses a database that already holds blocks; use `secondlayer repair` for an existing instance. `--to-block <n>` stops early; `-y` skips the prompt.
 
-The archive is a best-effort public utility, not a hosted service. Verification is free and always will be.
+`--from-block <n>` restores forward-only: whole partitions starting at or after `n`, with everything below declared out of scope rather than missing, so `verify` doesn't read it as divergence. The tradeoff: the disk floor at boot is still the full-history one.
 
-### Which command
-
-| Job | Command |
-| --- | --- |
-| Check raw identity columns | `secondlayer verify raw --against <latest.json>` |
-| Check every published dataset | `secondlayer verify all --against <latest.json>` |
-| Also check payload columns | `secondlayer verify --against <latest.json> --deep` |
-| Plan a repair | `secondlayer repair --against <archive>` |
-| Write the repair | `secondlayer repair --against <archive> --apply` |
-| Restore a fresh instance | `secondlayer bootstrap --against <archive>` |
-| Price a hosted fetch | `secondlayer archive quote --against <archive>` |
-| Check from your instance's API | `POST /v1/archive/verify` |
-| Read the archive tip | `secondlayer archive latest` |
-| Read the node attestation | `GET attestations/<digest>/node.json` |
-| Read operational status | `GET status.json` |
-
-`<latest.json>` is the signed pointer. Start there.
-
-`secondlayer verify`, `repair` and `bootstrap` are the same commands as `secondlayer archive verify`, `archive repair` and `archive bootstrap`. Pick either form; the examples here use the short one.
-
-### Targets
-
-| Target | Checks |
-| --- | --- |
-| `raw` | `blocks`, `transactions`, `events` |
-| `all` | Every dataset the manifest publishes |
-The archive publishes digests for `blocks`, `transactions` and `events`. `decode:<name>` and `subgraph:<name>` parse, but have nothing to compare against yet: exit `2`. To check subgraph rows, run [`secondlayer verify subgraph <name> --replay`](/docs/subgraphs#check-rows).
-
-### Reading the output
-
-Clean output exits `0`. Divergence names the ranges:
-
-```text ~/secondlayer exit=1
-$ secondlayer verify raw --against https://archive.secondlayer.tools/latest.json
-⚠ 1 of 175 ranges diverge from the archive.
-
-RANGE              DATASET  STATUS        EXPECTED  LOCAL
------------------  -------  ------------  --------  -----
-# !mark[/data differs/] red
-8500000-8549999    blocks   data differs  50000     50000
-
-These ranges hold different data than the signed archive.
-```
-
-Equal row counts with differing data means the same heights hold different blocks: a fork point left on the losing branch.
-
-### Exit codes
-
-| Code | Meaning |
-| --- | --- |
-| `0` | Local data matches the archive. |
-| `1` | Divergence found; every divergent range is listed. |
-| `2` | Unanchored: the archive was unreachable or its signature failed. |
-
-`2` is never success. Not being able to check differs from being fine.
-
-### Flags
-
-| Flag | Effect |
-| --- | --- |
-| `--against <manifest>` | Archive `latest.json`, a snapshot manifest URL, or a local path. Required. |
-| `--quick` | Identity columns only. Default. |
-| `--deep` | Also recompute semantic digests (`raw_tx`, event `data`, `function_args`). |
-| `--anchor` | Require a verified archive signature. |
-| `--from-block <n>` / `--to-block <n>` | Limit the checked range. |
-| `--counts` | Also compare transaction and event row counts. Slower. |
-| `--semantic` | Alias of `--deep`. |
-| `--public-key <pem>` | Pin a signing key. Default is the archive key built into the CLI release, or `ARCHIVE_SIGNING_PUBLIC_KEY` when set. |
-| `--insecure` | Compare without verifying the signature. Result is unverified. |
-| `--json` | Machine-readable report on stdout. |
-
-### From your instance's API
-
-`POST /v1/archive/verify` runs the same raw-identity check on the instance itself, read-only, with the archive URL in the body. It answers `clean`, `diverged` or `unanchored`, and a failed signature is a `200 unanchored`, never `clean`. Body fields and responses: [API reference](/docs/api/instance#verify-archive).
-
-```ts
-const result = await sl.archive.verify({
-  against: "https://archive.secondlayer.tools/latest.json",
-  fromBlock: 0,
-  toBlock: 99999,
-});
-```
-
-The tradeoff against the CLI: identity digests only. `--deep` is CLI-only.
-
-### Repair what diverges
+## Repair what diverges
 
 ```bash
 secondlayer repair --against <archive>            # plan
@@ -123,22 +50,101 @@ Local heights absent from the archive are reported, never deleted, because trans
 
 Decoded rows are not rebuilt. Re-run your decoders for repaired ranges.
 
-### Restore a fresh instance
+## Check it
 
-Shows both timings before it starts, then restores and verifies itself:
+Read-only; digests stay on your machine. The archive is a best-effort public utility, not a hosted service. Verification is free and always will be. A range that diverges looks like this:
 
-```text ~/secondlayer
-$ secondlayer bootstrap --against <archive>
-coverage   genesis → 8,745,422
-signature  verified
+```text ~/secondlayer exit=1
+$ secondlayer verify raw --against https://archive.secondlayer.tools/latest.json
+⚠ 1 of 175 ranges diverge from the archive.
 
-  sync from genesis    ~19.4 days (estimate)
-  restore from archive ~2.3 hours
+RANGE              DATASET  STATUS        EXPECTED  LOCAL
+-----------------  -------  ------------  --------  -----
+# !mark[/data differs/] red
+8500000-8549999    blocks   data differs  50000     50000
+
+These ranges hold different data than the signed archive.
 ```
 
-Refuses a database that already holds blocks; use `secondlayer repair` for an existing instance. `--to-block <n>` stops early; `-y` skips the prompt.
+<Seam page="archive" />
 
-`--from-block <n>` restores forward-only: whole partitions starting at or after `n`, with everything below declared out of scope rather than missing, so `verify` doesn't read it as divergence. The tradeoff: the disk floor at boot is still the full-history one.
+## Which command
+
+| Job | Command |
+| --- | --- |
+| Check raw identity columns | `secondlayer verify raw --against <latest.json>` |
+| Check every published dataset | `secondlayer verify all --against <latest.json>` |
+| Also check payload columns | `secondlayer verify --against <latest.json> --deep` |
+| Plan a repair | `secondlayer repair --against <archive>` |
+| Write the repair | `secondlayer repair --against <archive> --apply` |
+| Restore a fresh instance | `secondlayer bootstrap --against <archive>` |
+| Price a hosted fetch | `secondlayer archive quote --against <archive>` |
+| Check from your instance's API | `POST /v1/archive/verify` |
+| Read the archive tip | `secondlayer archive latest` |
+| Read the node attestation | `GET attestations/<digest>/node.json` |
+| Read operational status | `GET status.json` |
+
+`<latest.json>` is the signed pointer. Start there.
+
+`secondlayer verify`, `repair` and `bootstrap` are the same commands as `secondlayer archive verify`, `archive repair` and `archive bootstrap`. Pick either form; the examples here use the short one.
+
+## Targets
+
+| Target | Checks |
+| --- | --- |
+| `raw` | `blocks`, `transactions`, `events` |
+| `all` | Every dataset the manifest publishes |
+
+The archive publishes digests for `blocks`, `transactions` and `events`. `decode:<name>` and `subgraph:<name>` parse, but have nothing to compare against yet: exit `2`. To check subgraph rows, run [`secondlayer verify subgraph <name> --replay`](/docs/subgraphs#check-rows).
+
+## Reading the output
+
+Clean output exits `0`. Divergence names the ranges, as in [Check it](#check-it).
+
+Equal row counts with differing data means the same heights hold different blocks: a fork point left on the losing branch.
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Local data matches the archive. |
+| `1` | Divergence found; every divergent range is listed. |
+| `2` | Unanchored: the archive was unreachable or its signature failed. |
+
+`2` is never success. Not being able to check differs from being fine.
+
+## Flags
+
+| Flag | Effect |
+| --- | --- |
+| `--against <manifest>` | Archive `latest.json`, a snapshot manifest URL, or a local path. Required. |
+| `--quick` | Identity columns only. Default. |
+| `--deep` | Also recompute semantic digests (`raw_tx`, event `data`, `function_args`). |
+| `--anchor` | Require a verified archive signature. |
+| `--from-block <n>` / `--to-block <n>` | Limit the checked range. |
+| `--counts` | Also compare transaction and event row counts. Slower. |
+| `--semantic` | Alias of `--deep`. |
+| `--public-key <pem>` | Pin a signing key. Default is the archive key built into the CLI release, or `ARCHIVE_SIGNING_PUBLIC_KEY` when set. |
+| `--insecure` | Compare without verifying the signature. Result is unverified. |
+| `--json` | Machine-readable report on stdout. |
+
+## From your instance's API
+
+`POST /v1/archive/verify` runs the same raw-identity check on the instance itself, read-only, with the archive URL in the body. It answers `clean`, `diverged` or `unanchored`, and a failed signature is a `200 unanchored`, never `clean`. Body fields and responses: [API reference](/docs/api/instance#verify-archive).
+
+```ts
+const result = await sl.archive.verify({
+  against: "https://archive.secondlayer.tools/latest.json",
+  fromBlock: 0,
+  toBlock: 99999,
+});
+```
+
+The tradeoff against the CLI: identity digests only. `--deep` is CLI-only.
+
+## About the archive
+
+What the archive costs, what it is, and how much each range is worth.
 
 ### Credits
 
@@ -173,7 +179,7 @@ export const agent = `
 `;
 
 export const metadata = {
-	title: "Verified archive — Secondlayer Docs",
+	title: "Archive — Secondlayer Docs",
 	description:
 		"Check chain history against a signed canonical archive, repair divergent ranges, or bootstrap a fresh instance without syncing from genesis.",
 };
