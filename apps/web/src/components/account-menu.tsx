@@ -1,23 +1,18 @@
 "use client";
 
 import { CreditsCard } from "@/components/account/credits-panel";
-import { KeysCard } from "@/components/account/keys-panel";
-import { countByDisplayStatus } from "@/components/account/webhooks/shared";
 import {
-	activeKeys,
 	clearAccountData,
 	formatUsd,
 	refreshBilling,
 	refreshCaps,
-	refreshKeys,
 	refreshUsage,
 	useAccountData,
 } from "@/lib/account-data";
-import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import type { Account } from "@/lib/types";
-import { currentUtcMonth, monthParam } from "@/lib/usage";
+import { currentUtcMonth, monthName, monthParam } from "@/lib/usage";
 import { useAccountProblems } from "@/lib/use-account-problems";
-import { refreshList, useWebhooksCache } from "@/lib/webhooks-store";
+import { refreshList } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -88,63 +83,50 @@ export function AccountChip({
 	);
 }
 
-/** The menu mirrors the side nav, so the two never disagree. */
+/** Balance and this month's spend, then Keys and Billing, then the money and exit actions. */
 export function AccountMenuPanel({
 	id,
-	email,
-	caption,
-	keyCount,
+	balance,
+	monthLabel,
 	spent,
-	webhooks,
 	onNavigate,
-	onKeys,
 	onCredits,
 	onSignOut,
 }: {
 	id?: string;
-	email: string;
-	caption: string;
-	keyCount: number | null;
+	balance: string | null;
+	/** The current month's name, e.g. "October". */
+	monthLabel: string;
 	spent: string | null;
-	/** "7 of 7", or null when the webhooks list hasn't loaded. */
-	webhooks: string | null;
 	onNavigate?: () => void;
-	onKeys?: () => void;
 	onCredits?: () => void;
 	onSignOut?: () => void;
 }) {
 	return (
 		<div className="acct-panel" id={id}>
-			<div className="acct-menu-top">
-				<b>{email}</b>
-				<span>{caption}</span>
-			</div>
 			<div className="acct-menu-rows">
-				<Link href="/account" className="acct-menu-row" onClick={onNavigate}>
-					<span>Open account</span>
-					<span className="acct-menu-go" aria-hidden="true">
-						→
-					</span>
+				<div className="acct-menu-row muted">
+					<span>Balance</span>
+					<small>{balance ?? "—"}</small>
+				</div>
+				<div className="acct-menu-row muted">
+					<span>{monthLabel}</span>
+					<small>{spent ?? "—"}</small>
+				</div>
+				<div className="acct-menu-sep" />
+				<Link
+					href="/account/keys"
+					className="acct-menu-row"
+					onClick={onNavigate}
+				>
+					Keys
 				</Link>
-				<button type="button" className="acct-menu-row" onClick={onKeys}>
-					<span>API keys</span>
-					<small>{keyCount ?? "—"}</small>
-				</button>
 				<Link
 					href="/account/credits"
 					className="acct-menu-row"
 					onClick={onNavigate}
 				>
-					<span>Usage and billing</span>
-					<small>{spent ?? "—"}</small>
-				</Link>
-				<Link
-					href="/account/webhooks"
-					className="acct-menu-row"
-					onClick={onNavigate}
-				>
-					<span>Webhooks</span>
-					<small>{webhooks ?? "—"}</small>
+					Billing
 				</Link>
 			</div>
 			<div className="acct-menu-foot">
@@ -160,8 +142,8 @@ export function AccountMenuPanel({
 }
 
 /**
- * Signed-in nav: a balance trigger whose menu leads to the account Overview and
- * opens the keys and credits cards in place.
+ * Signed-in nav: a balance trigger whose menu shows balance and month spend,
+ * links Keys and Billing, and opens the credits card in place.
  */
 export function AccountMenu({
 	account,
@@ -170,11 +152,10 @@ export function AccountMenu({
 	account: Account;
 	onSignOut: () => void;
 }) {
-	const { billing, keys, burn, service } = useAccountData();
-	const { list } = useWebhooksCache();
+	const { billing, service } = useAccountData();
 	const problems = useAccountProblems();
 	const [open, setOpen] = useState(false);
-	const [card, setCard] = useState<"keys" | "credits" | null>(null);
+	const [card, setCard] = useState<"credits" | null>(null);
 	const rootRef = useRef<HTMLDivElement>(null);
 	const menuId = useId();
 
@@ -185,7 +166,6 @@ export function AccountMenu({
 	const serviceExists = service !== null && service.state !== "none";
 	useEffect(() => {
 		if (!open) return;
-		refreshKeys();
 		refreshUsage(monthParam(currentUtcMonth()));
 		refreshCaps();
 		const onKey = (e: KeyboardEvent) => {
@@ -209,15 +189,10 @@ export function AccountMenu({
 	}, [open, serviceExists]);
 
 	const balance = billing ? formatUsd(billing.creditsUsdMicros) : null;
-	const days = daysLeftLabel(daysLeft(billing, burn));
-	const rows = list?.data ?? null;
-	const delivering = rows
-		? rows.length - countByDisplayStatus(rows, "error")
-		: 0;
 
-	function openCard(which: "keys" | "credits") {
+	function openCredits() {
 		setOpen(false);
-		setCard(which);
+		setCard("credits");
 	}
 
 	return (
@@ -233,16 +208,11 @@ export function AccountMenu({
 			{open ? (
 				<AccountMenuPanel
 					id={menuId}
-					email={account.email}
-					caption={["hosted", days && `${days} left`]
-						.filter(Boolean)
-						.join(" · ")}
-					keyCount={keys === null ? null : activeKeys(keys).length}
+					balance={balance}
+					monthLabel={monthName(currentUtcMonth())}
 					spent={billing ? formatUsd(billing.spentThisMonthUsdMicros) : null}
-					webhooks={rows ? `${delivering} of ${rows.length}` : null}
 					onNavigate={() => setOpen(false)}
-					onKeys={() => openCard("keys")}
-					onCredits={() => openCard("credits")}
+					onCredits={openCredits}
 					onSignOut={() => {
 						setOpen(false);
 						clearAccountData();
@@ -250,7 +220,6 @@ export function AccountMenu({
 					}}
 				/>
 			) : null}
-			<KeysCard open={card === "keys"} onClose={() => setCard(null)} />
 			<CreditsCard
 				open={card === "credits"}
 				onClose={() => setCard(null)}

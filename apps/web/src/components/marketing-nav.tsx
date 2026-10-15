@@ -1,6 +1,12 @@
 "use client";
 
 import { AccountAvatar, AccountMenu } from "@/components/account-menu";
+import { countByDisplayStatus } from "@/components/account/webhooks/shared";
+import { ChainHeartbeat } from "@/components/dashboard/shell/chain-heartbeat";
+import {
+	DASHBOARD_TABS,
+	DashboardTabs,
+} from "@/components/dashboard/shell/dashboard-tabs";
 import { Logo } from "@/components/logo";
 import { ProductsMenu } from "@/components/products-menu";
 import {
@@ -10,6 +16,7 @@ import {
 } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import { PRODUCTS, SITE_LINKS, isActive } from "@/lib/site";
+import { useWebhooksCache } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -24,11 +31,15 @@ import { useEffect, useState } from "react";
  * Start free menu (hosted key or self-host install); signed in gets the
  * account chip; while the session check is in flight a blank chip holds the
  * space, so "Sign in" never flashes at someone who is already signed in.
+ *
+ * On /account the center links give way to the dashboard tabs, and the chain
+ * heartbeat and a ⌘K hint lead the right edge.
  */
 export function MarketingNav() {
 	const pathname = usePathname();
 	const { account, loading, logout } = useAuth();
 	const { billing } = useAccountData();
+	const { list } = useWebhooksCache();
 	const [open, setOpen] = useState(false);
 
 	// Close the sheet on navigation; Escape closes it and scroll locks while
@@ -53,27 +64,50 @@ export function MarketingNav() {
 
 	if (pathname.startsWith("/docs")) return null;
 
+	// Hold the dashboard bar through the session check so the marketing links
+	// never flash on /account.
+	const onAccount = pathname === "/account" || pathname.startsWith("/account/");
+	const dash = onAccount && (loading || account !== null);
+	const failingWebhooks = list
+		? countByDisplayStatus(list.data, "error")
+		: undefined;
+
 	return (
-		<nav className="marketing-nav" aria-label="Main">
+		<nav
+			className={dash ? "marketing-nav is-dash" : "marketing-nav"}
+			aria-label="Main"
+		>
 			<Link href="/" className="marketing-nav-brand">
 				<Logo size={22} />
 				<span>secondlayer</span>
 			</Link>
-			<div className="mnav-links">
-				<ProductsMenu className="mnav-products" />
-				{SITE_LINKS.map((l) => (
-					<Link
-						key={l.href}
-						href={l.href}
-						className="mnav-plain"
-						aria-current={isActive(pathname, l.href) ? "page" : undefined}
-					>
-						{l.label}
-					</Link>
-				))}
-			</div>
-			<span className="marketing-nav-spacer" />
+			{dash ? (
+				<DashboardTabs pathname={pathname} failingWebhooks={failingWebhooks} />
+			) : (
+				<>
+					<div className="mnav-links">
+						<ProductsMenu className="mnav-products" />
+						{SITE_LINKS.map((l) => (
+							<Link
+								key={l.href}
+								href={l.href}
+								className="mnav-plain"
+								aria-current={isActive(pathname, l.href) ? "page" : undefined}
+							>
+								{l.label}
+							</Link>
+						))}
+					</div>
+					<span className="marketing-nav-spacer" />
+				</>
+			)}
 			<div className="mnav-right">
+				{dash ? (
+					<>
+						<ChainHeartbeat />
+						<kbd className="dash-kbd">⌘K</kbd>
+					</>
+				) : null}
 				{!loading && !account ? (
 					<Link
 						href="/signin"
@@ -148,9 +182,24 @@ export function MarketingNav() {
 									</span>
 								</div>
 							</div>
-							<Link href="/account" className="acct-btn solid full">
-								Open account
-							</Link>
+							{dash ? (
+								[
+									...DASHBOARD_TABS.filter((t) => t.ready),
+									{ href: "/account/keys", label: "Keys" },
+								].map((t) => (
+									<Link
+										key={t.href}
+										href={t.href}
+										onClick={() => setOpen(false)}
+									>
+										{t.label}
+									</Link>
+								))
+							) : (
+								<Link href="/account" className="acct-btn solid full">
+									Open account
+								</Link>
+							)}
 							<Link href="/account/credits" className="acct-btn line full">
 								Add credits
 							</Link>

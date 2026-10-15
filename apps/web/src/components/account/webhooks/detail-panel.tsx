@@ -1,6 +1,7 @@
 "use client";
 
 import { LazyMonoStackedBarChart } from "@/components/charts/lazy";
+import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import {
 	activityHeaderSummary,
 	catchUpCopy,
@@ -339,10 +340,10 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			<>
 				{listSummary ? (
 					<>
-						<p className="wh-crumb">
-							<Link href="/account/webhooks">Webhooks</Link>{" "}
-							<span className="wh-mono">/ {id}</span>
-						</p>
+						<Breadcrumb
+							parent={{ href: "/account/webhooks", label: "Webhooks" }}
+							current={listSummary.name}
+						/>
 						<div className="wh-h1-row">
 							<h1 className="acct-h1">{listSummary.name}</h1>
 							<StatusPill status={displayStatus(listSummary)} />
@@ -360,10 +361,10 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	if (!report) {
 		return (
 			<>
-				<p className="wh-crumb">
-					<Link href="/account/webhooks">Webhooks</Link>{" "}
-					<span className="wh-mono">/ {webhook.id}</span>
-				</p>
+				<Breadcrumb
+					parent={{ href: "/account/webhooks", label: "Webhooks" }}
+					current={webhook.name}
+				/>
 				<div className="wh-h1-row">
 					<h1 className="acct-h1">{webhook.name}</h1>
 					<StatusPill status={displayStatus(webhook)} />
@@ -509,10 +510,10 @@ export function WebhookDetailSection({ id }: { id: string }) {
 
 	return (
 		<>
-			<p className="wh-crumb">
-				<Link href="/account/webhooks">Webhooks</Link>{" "}
-				<span className="wh-mono">/ {webhook.id}</span>
-			</p>
+			<Breadcrumb
+				parent={{ href: "/account/webhooks", label: "Webhooks" }}
+				current={webhook.name}
+			/>
 			<div className="wh-head-row">
 				<div className="wh-h1-row">
 					<h1 className="acct-h1">{webhook.name}</h1>

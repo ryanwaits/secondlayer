@@ -11,6 +11,11 @@ export const STORY_INDEX = [
 	{ id: "tabs", group: "Controls", title: "Tabs" },
 	{ id: "buttons", group: "Controls", title: "Buttons" },
 	{ id: "account-menu", group: "Controls", title: "Account menu" },
+	{ id: "dashboard-shell", group: "Dashboard", title: "Dashboard shell" },
+	{ id: "heartbeat", group: "Dashboard", title: "Chain heartbeat" },
+	{ id: "terminal-footer", group: "Dashboard", title: "Terminal footer" },
+	{ id: "breadcrumb", group: "Dashboard", title: "Breadcrumb" },
+	{ id: "resource-row", group: "Dashboard", title: "Resource row" },
 	{ id: "callout", group: "Content", title: "Callout" },
 	{ id: "eyebrow-facts", group: "Content", title: "Eyebrow, facts, status" },
 ] as const;

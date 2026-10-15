@@ -1,59 +1,25 @@
 "use client";
 
-import {
-	activeKeys,
-	clearAccountData,
-	refreshKeys,
-	useAccountData,
-} from "@/lib/account-data";
+import { TerminalFooter } from "@/components/dashboard/shell/terminal-footer";
 import { useAuth } from "@/lib/auth";
-import { useWebhooksCache } from "@/lib/webhooks-store";
-import Link from "next/link";
+import { commandForPath } from "@/lib/terminal-command";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
-
-type Tab = { href: string; label: string; count?: "keys" | "webhooks" };
-
-const TABS: Tab[] = [
-	{ href: "/account", label: "Overview" },
-	{ href: "/account/keys", label: "API keys", count: "keys" },
-	{ href: "/account/credits", label: "Usage and billing" },
-	{ href: "/account/webhooks", label: "Webhooks", count: "webhooks" },
-];
-
-/** Overview is `/account` itself, so it only matches exactly. */
-function isCurrent(pathname: string | null, href: string): boolean {
-	if (!pathname) return false;
-	if (href === "/account") return pathname === href;
-	return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 /**
- * The account pages under one side nav: Overview is home, then keys, usage
- * and billing, and webhooks. The keys and credits flows also open as sheets
- * from the nav's account menu; these pages are the home for them, and where
- * Stripe returns a top-up.
+ * The account pages frame. The tabs and the chain heartbeat live in the top
+ * bar (MarketingNav renders them on /account), Keys lives in the account
+ * menu, and a sticky footer names the CLI command for the current view. The
+ * keys and credits flows also open as sheets from that menu; these pages are
+ * the home for them, and where Stripe returns a top-up.
  */
 export default function AccountLayout({
 	children,
 }: {
 	children: React.ReactNode;
 }) {
-	const { account, loading, logout } = useAuth();
+	const { account, loading } = useAuth();
 	const pathname = usePathname();
-	const { keys } = useAccountData();
-	const { list } = useWebhooksCache();
-	const signedIn = account !== null;
-
-	// The side nav shows how many keys there are on every account page.
-	useEffect(() => {
-		if (signedIn) refreshKeys();
-	}, [signedIn]);
-
-	const counts = {
-		keys: keys === null ? null : activeKeys(keys).length,
-		webhooks: list ? list.data.length : null,
-	};
+	const command = commandForPath(pathname);
 
 	// Signed out is the one case that still blocks: nothing account-specific
 	// ever mounts for a visitor who isn't authenticated. While `loading` is
@@ -80,44 +46,8 @@ export default function AccountLayout({
 
 	return (
 		<div className="acct-page">
-			<nav className="acct-side" aria-label="Account">
-				<p className="acct-side-head">Account</p>
-				{TABS.map((t) => (
-					<Link
-						key={t.href}
-						href={t.href}
-						className="acct-side-link"
-						aria-current={isCurrent(pathname, t.href) ? "page" : undefined}
-					>
-						{t.label}
-						{t.count && counts[t.count] !== null ? (
-							<small>{counts[t.count]}</small>
-						) : null}
-					</Link>
-				))}
-				{account ? (
-					<p className="acct-side-email">{account.email}</p>
-				) : (
-					<p className="acct-side-email">
-						<span
-							className="wh-skel"
-							aria-hidden="true"
-							style={{ display: "inline-block", width: 130, height: 13 }}
-						/>
-					</p>
-				)}
-				<button
-					type="button"
-					className="acct-side-link quiet"
-					onClick={() => {
-						clearAccountData();
-						logout();
-					}}
-				>
-					Sign out
-				</button>
-			</nav>
 			<main className="acct-main">{children}</main>
+			{command ? <TerminalFooter command={command} /> : null}
 		</div>
 	);
 }

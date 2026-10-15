@@ -3,6 +3,18 @@ import { AccountChip, AccountMenuPanel } from "@/components/account-menu";
 import { Choice } from "@/components/choice";
 import { Code } from "@/components/code/code";
 import { CodeTabs } from "@/components/code/code-tabs";
+import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
+import { HeartbeatView } from "@/components/dashboard/shell/chain-heartbeat";
+import { DashboardTabs } from "@/components/dashboard/shell/dashboard-tabs";
+import {
+	ResourceRow,
+	ResourceRowHead,
+} from "@/components/dashboard/shell/resource-row";
+import {
+	StatusSentence,
+	type Tone,
+} from "@/components/dashboard/shell/status-sentence";
+import { TerminalFooter } from "@/components/dashboard/shell/terminal-footer";
 import { Callout } from "@/components/docs/callout";
 import { ButtonLink, Eyebrow, StatusDot } from "@/components/site";
 import type { CSSProperties, ReactNode } from "react";
@@ -233,6 +245,25 @@ const FACTS = [
 ];
 
 type Meta = Omit<Story, keyof (typeof STORY_INDEX)[number]>;
+
+/** A fixed clock so the heartbeat renders the same on server and client. */
+const NOW = 1_800_000_000_000;
+
+const SHELL_ROWS: { name: string; tone: Tone; state: string; count: string }[] =
+	Array.from({ length: 40 }, (_, i) => ({
+		name: i % 7 === 0 ? `vault-events-${i}` : `sbtc-deposits-${i}`,
+		tone: i === 2 ? "alarm" : i % 11 === 5 ? "hi" : i % 9 === 4 ? "idle" : "ok",
+		state:
+			i === 2
+				? "Failing since 09:14"
+				: i % 9 === 4
+					? "Paused"
+					: "Delivering, last event 4m ago",
+		count: `${(i + 1) * 137}`,
+	}));
+
+const LONG_COMMAND =
+	"sl webhooks doctor sentinel:SP000000000000000000002Q6VF78.vault:~0123456789abcdef";
 
 const META: Record<StoryId, Meta> = {
 	color: {
@@ -860,6 +891,236 @@ const META: Record<StoryId, Meta> = {
 			"No transition on focus, no glow, no transition: all.",
 		],
 	},
+	"dashboard-shell": {
+		src: [
+			"apps/web/src/components/dashboard/shell/dashboard-tabs.tsx",
+			"apps/web/src/components/dashboard/shell/terminal-footer.tsx",
+			"apps/web/src/components/marketing-nav.tsx",
+		],
+		rule: "Tabs and the chain heartbeat in the bar, one sentence of status, rows that never grow a background, and the CLI command in a sticky footer.",
+		stack: true,
+		variants: [
+			{
+				id: "shell",
+				label: "Webhooks",
+				render: () => (
+					<div
+						style={{
+							height: 640,
+							overflowY: "auto",
+							background: "var(--paper)",
+							color: "var(--ink)",
+							border: "1px solid var(--line)",
+							borderRadius: 8,
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								gap: 28,
+								height: 56,
+								padding: "0 20px",
+								borderBottom: "1px solid var(--line)",
+							}}
+						>
+							<b style={{ fontWeight: 500 }}>secondlayer</b>
+							<DashboardTabs pathname="/account/webhooks" failingWebhooks={1} />
+							<HeartbeatView
+								height={9_219_695}
+								seenAt={NOW - 5_000}
+								avgBlockSec={9}
+								beat={3}
+								now={NOW}
+							/>
+							<kbd className="dash-kbd">⌘K</kbd>
+							<AccountChip
+								account={LAB_ACCOUNT}
+								balance="$29.02"
+								alert={false}
+								open={false}
+							/>
+						</div>
+						<div
+							style={{
+								display: "grid",
+								gap: 28,
+								padding: "32px 20px 64px",
+							}}
+						>
+							<Breadcrumb
+								parent={{ href: "/account/webhooks", label: "Webhooks" }}
+								current="sbtc-deposits-2"
+							/>
+							<StatusSentence tone="alarm" sub="1 of 40 webhooks needs you">
+								One webhook is failing
+							</StatusSentence>
+							<div>
+								<ResourceRowHead
+									labels={["Name", "State", "", "Events", "Last"]}
+								/>
+								{SHELL_ROWS.map((r) => (
+									<ResourceRow
+										key={r.name}
+										href="#"
+										name={r.name}
+										tone={r.tone}
+										kind="webhook"
+										state={r.state}
+										count={r.count}
+										age="4m"
+									/>
+								))}
+							</div>
+						</div>
+						<TerminalFooter command={LONG_COMMAND} />
+					</div>
+				),
+			},
+		],
+		usage: `<DashboardTabs pathname={pathname} failingWebhooks={1} />
+<TerminalFooter command={commandForPath(pathname)} />`,
+		donts: ["Rows change text color on hover, never background."],
+	},
+	heartbeat: {
+		src: ["apps/web/src/components/dashboard/shell/chain-heartbeat.tsx"],
+		rule: "The dot pulses once per new block. Age prints only when the chain looks stale.",
+		variants: [
+			{
+				id: "fresh",
+				label: "Fresh",
+				render: () =>
+					row(
+						<HeartbeatView
+							height={9_219_695}
+							seenAt={NOW - 5_000}
+							avgBlockSec={9}
+							beat={3}
+							now={NOW}
+						/>,
+					),
+			},
+			{
+				id: "stale",
+				label: "Stale, 90 s",
+				render: () =>
+					row(
+						<HeartbeatView
+							height={9_219_695}
+							seenAt={NOW - 90_000}
+							avgBlockSec={9}
+							beat={3}
+							now={NOW}
+						/>,
+					),
+			},
+			{
+				id: "down",
+				label: "Down, 15 min",
+				render: () =>
+					row(
+						<HeartbeatView
+							height={9_219_695}
+							seenAt={NOW - 15 * 60_000}
+							avgBlockSec={null}
+							beat={3}
+							now={NOW}
+						/>,
+					),
+			},
+		],
+		usage: "<ChainHeartbeat />",
+	},
+	"terminal-footer": {
+		src: ["apps/web/src/components/dashboard/shell/terminal-footer.tsx"],
+		rule: "Names the CLI command for this view. Long commands truncate in the middle; Copy takes the whole thing.",
+		variants: [
+			{
+				id: "short",
+				label: "Short",
+				render: () => <TerminalFooter command="sl webhooks list" />,
+			},
+			{
+				id: "long",
+				label: "Long",
+				render: () => <TerminalFooter command={LONG_COMMAND} />,
+			},
+		],
+		usage: '<TerminalFooter command="sl webhooks list" />',
+	},
+	breadcrumb: {
+		src: ["apps/web/src/components/dashboard/shell/breadcrumb.tsx"],
+		rule: "Detail pages put the parent first; the current name is mono ink.",
+		variants: [
+			{
+				id: "detail",
+				label: "Detail",
+				render: () => (
+					<Breadcrumb
+						parent={{ href: "/account/webhooks", label: "Webhooks" }}
+						current="sbtc-deposits"
+					/>
+				),
+			},
+		],
+		usage: `<Breadcrumb
+  parent={{ href: "/account/webhooks", label: "Webhooks" }}
+  current={webhook.name}
+/>`,
+	},
+	"resource-row": {
+		src: ["apps/web/src/components/dashboard/shell/resource-row.tsx"],
+		rule: "Hover turns the name blue and the state to ink. Never a background.",
+		stack: true,
+		variants: [
+			{
+				id: "tones",
+				label: "Tones",
+				render: () => (
+					<div>
+						<ResourceRowHead labels={["Name", "State", "", "Events", "Last"]} />
+						<ResourceRow
+							href="#"
+							name="sbtc-deposits"
+							tone="ok"
+							kind="webhook"
+							state="Delivering, last event 4m ago"
+							count="1,204"
+							age="4m"
+						/>
+						<ResourceRow
+							href="#"
+							name="vault-events"
+							tone="alarm"
+							kind="webhook"
+							state="Failing since 09:14"
+							count="87"
+							age="3h"
+						/>
+						<ResourceRow
+							href="#"
+							name="pool-payouts"
+							tone="hi"
+							kind="subgraph"
+							state="Catching up, 2,140 blocks behind"
+							count="9,310"
+							age="1m"
+						/>
+						<ResourceRow
+							href="#"
+							name="old-listener"
+							tone="idle"
+							kind="webhook"
+							state="Paused"
+							count="0"
+							age="12d"
+						/>
+					</div>
+				),
+			},
+		],
+		usage: `<ResourceRow href={href} name={name} tone="ok" state="Delivering" count="1,204" age="4m" />`,
+	},
 	callout: {
 		src: ["apps/web/src/components/docs/callout.tsx"],
 		rule: "A plain surface, line border and paper fill; state is a leading dot plus the words.",
@@ -894,7 +1155,7 @@ const META: Record<StoryId, Meta> = {
 	},
 	"account-menu": {
 		src: ["apps/web/src/components/account-menu.tsx"],
-		rule: "Open is ink, never blue: in the nav, blue marks the page you are on.",
+		rule: "Rows are ink; hover turns the text blue, never a background.",
 		stack: true,
 		variants: [
 			{
@@ -910,11 +1171,9 @@ const META: Record<StoryId, Meta> = {
 								open
 							/>
 							<AccountMenuPanel
-								email="you@example.com"
-								caption="hosted · about 88 days left"
-								keyCount={5}
+								balance="$29.02"
+								monthLabel="October"
 								spent="$30.92"
-								webhooks="7 of 7"
 							/>
 						</>,
 					),

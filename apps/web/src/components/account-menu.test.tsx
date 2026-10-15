@@ -52,28 +52,24 @@ describe("AccountChip", () => {
 
 describe("AccountMenuPanel", () => {
 	const panel = renderToStaticMarkup(
-		<AccountMenuPanel
-			email="you@example.com"
-			caption="hosted · $29.62 · about 86 days"
-			keyCount={5}
-			spent="$30.32"
-			webhooks="7 of 7"
-		/>,
+		<AccountMenuPanel balance="$29.62" monthLabel="October" spent="$6.21" />,
 	);
 
-	test("the first row opens the account Overview", () => {
-		const firstLink = panel.match(/<a [^>]*href="([^"]+)"/);
-		expect(firstLink?.[1]).toBe("/account");
-		expect(panel.indexOf("Open account")).toBeLessThan(
-			panel.indexOf("API keys"),
+	test("rows read Balance, the month, Keys, Billing in order", () => {
+		const order = ["Balance", "October", "Keys", "Billing"].map((w) =>
+			panel.indexOf(w),
 		);
+		expect(order.every((i) => i >= 0)).toBe(true);
+		expect([...order].sort((x, y) => x - y)).toEqual(order);
+		expect(panel).toContain("$29.62");
+		expect(panel).toContain("$6.21");
 	});
 
-	test("mirrors the side nav with counts, and links usage and webhooks", () => {
+	test("links Keys and Billing, with no Open account or Webhooks row", () => {
+		expect(panel).toContain('href="/account/keys"');
 		expect(panel).toContain('href="/account/credits"');
-		expect(panel).toContain('href="/account/webhooks"');
-		expect(panel).toContain("7 of 7");
-		expect(panel).toContain("$30.32");
+		expect(panel).not.toContain('href="/account/webhooks"');
+		expect(panel).not.toContain("Open account");
 	});
 
 	test("ends on Add credits and Sign out, side by side", () => {
@@ -83,14 +79,8 @@ describe("AccountMenuPanel", () => {
 
 	test("data that has not loaded shows a dash, never an invented number", () => {
 		const empty = renderToStaticMarkup(
-			<AccountMenuPanel
-				email="you@example.com"
-				caption="hosted"
-				keyCount={null}
-				spent={null}
-				webhooks={null}
-			/>,
+			<AccountMenuPanel balance={null} monthLabel="October" spent={null} />,
 		);
-		expect(empty.match(/<small>—<\/small>/g)).toHaveLength(3);
+		expect(empty.match(/<small>—<\/small>/g)).toHaveLength(2);
 	});
 });

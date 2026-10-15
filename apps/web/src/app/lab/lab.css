@@ -172,6 +172,12 @@ body:has(.lab) .auth-bar {
    its first dark block (dark, over the light values). lab-tokens.test.ts keeps
    both copies equal to the source. */
 .lab-fr[data-mode="light"] {
+	/* Chart roles: a = the measured series, b/c = lighter steps, mark = what an insight points at (fill only), alarm = failure. Dashboard only. */
+	--ch-a: var(--pri);
+	--ch-b: color-mix(in srgb, var(--pri) 42%, var(--paper));
+	--ch-c: color-mix(in srgb, var(--pri) 24%, var(--paper));
+	--ch-mark: var(--hi);
+	--on-mark: var(--on-hi);
 	--paper: #ffffff;
 	--ink: #111111;
 	--sub: #5e5e5e;
@@ -276,6 +282,12 @@ body:has(.lab) .auth-bar {
 	--ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 }
 .lab-fr[data-mode="dark"] {
+	/* Chart roles: a = the measured series, b/c = lighter steps, mark = what an insight points at (fill only), alarm = failure. Dashboard only. */
+	--ch-a: var(--pri);
+	--ch-b: color-mix(in srgb, var(--pri) 42%, var(--paper));
+	--ch-c: color-mix(in srgb, var(--pri) 24%, var(--paper));
+	--ch-mark: var(--hi);
+	--on-mark: var(--on-hi);
 	--paper: #1c1b19;
 	--ink: #ece9e2;
 	--sub: #b0aca2;

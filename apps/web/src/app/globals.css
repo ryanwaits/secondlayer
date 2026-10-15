@@ -14,6 +14,12 @@
 	--on-hi: #111111;
 	--ok: #128a43;
 	--alarm: #e3301e;
+	/* Chart roles: a = the measured series, b/c = lighter steps, mark = what an insight points at (fill only), alarm = failure. Dashboard only. */
+	--ch-a: var(--pri);
+	--ch-b: color-mix(in srgb, var(--pri) 42%, var(--paper));
+	--ch-c: color-mix(in srgb, var(--pri) 24%, var(--paper));
+	--ch-mark: var(--hi);
+	--on-mark: var(--on-hi);
 	/* HTTP verb palette: method pills only (DESIGN.md, Method pills) */
 	--verb-get: #128a43;
 	--verb-post: #f2a516;
@@ -1112,34 +1118,17 @@ a mark {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.acct-menu-top {
-	display: grid;
-	gap: 3px;
-	padding: 14px 16px 12px;
-}
-.acct-menu-top b {
-	font-size: 14px;
-	font-weight: 500;
-	overflow-wrap: anywhere;
-}
-.acct-menu-top span {
-	font-family: var(--font-mono-stack);
-	font-size: 12px;
-	color: var(--sub);
-}
 .acct-menu-rows {
 	display: grid;
-	padding: 4px 0;
-	border-top: 1px solid var(--line);
+	padding: 6px 0;
 }
 .acct-menu-row {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 12px;
+	gap: 16px;
 	width: 100%;
-	height: 36px;
-	padding: 0 16px;
+	padding: 8px 14px;
 	border: 0;
 	background: transparent;
 	color: var(--ink);
@@ -1147,26 +1136,31 @@ a mark {
 	font-size: 14px;
 	text-align: left;
 	text-decoration: none;
+}
+a.acct-menu-row {
 	cursor: pointer;
+}
+a.acct-menu-row:hover {
+	color: var(--pri);
+}
+.acct-menu-row.muted > span {
+	color: var(--sub);
 }
 .acct-menu-row small {
 	font-family: var(--font-mono-stack);
 	font-size: 12.5px;
 	font-variant-numeric: tabular-nums;
-	color: var(--sub);
+	color: var(--ink);
 }
-.acct-menu-go {
-	color: var(--sub);
-}
-.acct-menu-row:hover {
-	background: var(--soft);
+.acct-menu-sep {
+	margin: 6px 0;
+	border-top: 1px solid var(--line);
 }
 .acct-menu-foot {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	height: 42px;
-	padding: 0 16px;
+	padding: 12px 14px;
 	border-top: 1px solid var(--line);
 }
 .acct-menu-foot button {
@@ -1670,81 +1664,18 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 }
 
 /* /account/keys and /account/credits */
-/* Same horizontal edges as .marketing-nav, so the side nav lines up under
-   the logo and the page ends under the account chip. */
+/* One centered column; the tabs and the terminal footer live outside it. */
 .acct-page {
-	display: flex;
-	gap: 56px;
-	padding: 48px max(1.5rem, calc((100vw - 1200px) / 2 + 1.5rem)) 96px;
-}
-.acct-side {
-	flex: none;
-	width: 200px;
-	/* Link text, not its hover pill, starts at the logo's edge. */
-	margin-left: -12px;
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-}
-.acct-side-head {
-	margin: 0;
-	padding: 0 12px 10px;
-	font-family: var(--font-mono-stack);
-	font-size: 11px;
-	letter-spacing: 0.05em;
-	text-transform: uppercase;
-	color: var(--text-muted);
-}
-.acct-side-link {
-	display: block;
-	padding: 8px 12px;
-	border: 0;
-	border-radius: 4px;
-	background: transparent;
-	font-size: 14px;
-	text-align: left;
-	text-decoration: none;
-	color: var(--text-muted);
-	cursor: pointer;
-}
-.acct-side-link {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-}
-.acct-side-link small {
-	font-family: var(--font-mono-stack);
-	font-size: 11.5px;
-	color: var(--sub);
-}
-.acct-side-link[aria-current="page"] {
-	background: var(--soft);
-	border: 0;
-	box-shadow: none;
-	color: var(--ink);
-	font-weight: 500;
-}
-.acct-side-link:focus:not(:focus-visible) {
-	outline: none;
-}
-.acct-side-link.quiet {
-	font-size: 13px;
-}
-.acct-side-email {
-	margin: 12px 12px 0;
-	padding-top: 12px;
-	border-top: 1px solid var(--border);
-	font-size: 12.5px;
-	color: var(--text-muted);
-	overflow: hidden;
-	text-overflow: ellipsis;
+	max-width: 1040px;
+	margin: 0 auto;
+	padding: 48px 1.5rem 0;
 }
 .acct-main {
-	flex: 1;
 	min-width: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
+	padding-bottom: 64px;
 }
 .acct-h1 {
 	margin: 0;
@@ -2583,19 +2514,6 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	white-space: nowrap;
 }
 
-.wh-crumb {
-	margin: 0 0 -8px;
-	font-size: 13px;
-	color: var(--text-muted);
-}
-.wh-crumb a {
-	color: inherit;
-	text-decoration: none;
-	cursor: pointer;
-}
-.wh-crumb a:hover {
-	color: var(--text-main);
-}
 .wh-head-row {
 	display: flex;
 	align-items: flex-start;
@@ -3309,21 +3227,6 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	padding: 0;
 }
 @media (max-width: 760px) {
-	.acct-page {
-		flex-direction: column;
-		gap: 24px;
-		padding-top: 24px;
-	}
-	.acct-side {
-		width: auto;
-		flex-direction: row;
-		flex-wrap: wrap;
-		align-items: center;
-	}
-	.acct-side-head,
-	.acct-side-email {
-		display: none;
-	}
 	.acct-checkout.wide {
 		flex-direction: column;
 		align-items: stretch;
@@ -7140,6 +7043,299 @@ a.acct-strip-link:hover .acct-strip-k {
 }
 @media (prefers-reduced-motion: reduce) {
 	.tabbar button {
+		transition: none;
+	}
+}
+
+/* Dashboard shell (account pages) */
+.dash-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--ok);
+	flex: none;
+	display: inline-block;
+}
+.dash-dot.alarm {
+	background: var(--alarm);
+}
+.dash-dot.hi {
+	background: var(--hi);
+}
+.dash-dot.idle {
+	background: transparent;
+	box-shadow: inset 0 0 0 1.5px var(--faint);
+}
+
+/* Top bar: tabs take the free width, then heartbeat, kbd and the account chip. */
+.dash-tabs {
+	display: flex;
+	flex: 1;
+	gap: 22px;
+	align-self: stretch;
+	min-width: 0;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+.dash-tabs::-webkit-scrollbar {
+	display: none;
+}
+.dash-tabs a {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 14px;
+	color: var(--sub);
+	text-decoration: none;
+	white-space: nowrap;
+}
+.dash-tabs a:hover,
+.dash-tabs a[aria-current="page"] {
+	color: var(--ink);
+}
+.dash-tabs a[aria-current="page"]::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -1px;
+	height: 2px;
+	background: var(--pri);
+}
+.dash-tab-n {
+	font: 500 11px / 16px var(--font-mono-stack);
+	min-width: 16px;
+	height: 16px;
+	padding: 0 4px;
+	border-radius: 999px;
+	background: var(--alarm);
+	color: #fff;
+	text-align: center;
+}
+.dash-beat {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	font: 400 12px / 1 var(--font-mono-stack);
+	color: var(--sub);
+	white-space: nowrap;
+}
+.dash-beat b {
+	font-weight: 500;
+	color: var(--ink);
+}
+.dash-dot.pulse {
+	animation: dash-beat 0.9s ease-out;
+}
+@keyframes dash-beat {
+	0% {
+		box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent);
+	}
+	100% {
+		box-shadow: 0 0 0 7px transparent;
+	}
+}
+.dash-kbd {
+	font: 500 11px / 1 var(--font-mono-stack);
+	color: var(--faint);
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	padding: 4px 6px;
+}
+.marketing-nav.is-dash .mnav-right {
+	gap: 14px;
+	margin-left: 14px;
+}
+
+/* Sticky terminal footer */
+.dash-foot {
+	position: sticky;
+	bottom: 0;
+	z-index: 4;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px 20px;
+	border-top: 1px solid var(--line);
+	background: var(--paper);
+	font: 400 12px / 1.4 var(--font-mono-stack);
+	color: var(--faint);
+}
+.dash-foot > span {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.dash-foot code {
+	color: var(--sub);
+}
+.dash-foot-copy {
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	color: var(--faint);
+	cursor: pointer;
+}
+.dash-foot-copy:hover {
+	color: var(--pri);
+}
+
+/* Breadcrumb */
+.dash-crumb {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	justify-self: start;
+	min-width: 0;
+	font-size: 13px;
+	color: var(--sub);
+}
+.dash-crumb a {
+	color: var(--sub);
+	text-decoration: none;
+	transition: color 0.12s;
+}
+.dash-crumb a:hover {
+	color: var(--pri);
+}
+.dash-crumb-sep {
+	font-style: normal;
+	color: var(--faint);
+}
+.dash-crumb [aria-current] {
+	font-family: var(--font-mono-stack);
+	color: var(--ink);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Status sentence */
+.dash-status-wrap > .dash-status {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	margin: 0;
+	font: 500 30px / 1.15 var(--font-sans-stack);
+	letter-spacing: -0.025em;
+	text-wrap: balance;
+}
+.dash-status-wrap > .dash-status .dash-dot {
+	width: 10px;
+	height: 10px;
+}
+.dash-status-sub {
+	margin: 10px 0 0 24px;
+	font-size: 15px;
+	color: var(--sub);
+}
+
+/* Resource rows */
+.dash-row-head,
+.dash-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1.5fr) minmax(0, 2.1fr) 132px 92px 64px;
+	align-items: center;
+	gap: 20px;
+}
+.dash-row-head {
+	padding: 0 0 10px;
+	border-bottom: 1px solid var(--line);
+	font: 500 10.5px / 1 var(--font-mono-stack);
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--faint);
+}
+.dash-row-head > :nth-child(n + 4) {
+	text-align: right;
+}
+.dash-row {
+	padding: 16px 0;
+	border-bottom: 1px solid var(--line);
+	color: inherit;
+	text-decoration: none;
+}
+.dash-row-name {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+}
+.dash-row-name > span:not(.dash-dot) {
+	font: 500 14px / 1.3 var(--font-mono-stack);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	transition: color 0.12s;
+}
+.dash-row-name em {
+	font: 400 12px / 1 var(--font-sans-stack);
+	font-style: normal;
+	color: var(--faint);
+}
+.dash-row-state {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 14px;
+	color: var(--sub);
+	transition: color 0.12s;
+}
+.dash-row-v {
+	text-align: right;
+	font: 400 13px / 1 var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+}
+.dash-row-t {
+	text-align: right;
+	font: 400 12px / 1 var(--font-mono-stack);
+	color: var(--faint);
+}
+.dash-row:hover .dash-row-name > span:not(.dash-dot) {
+	color: var(--pri);
+}
+.dash-row:hover .dash-row-state {
+	color: var(--ink);
+}
+
+@media (max-width: 900px) {
+	.dash-beat-lbl,
+	.dash-kbd {
+		display: none;
+	}
+	.dash-row-head,
+	.dash-row {
+		grid-template-columns: minmax(0, 1fr) 110px 70px;
+	}
+	.dash-row-head > :nth-child(2),
+	.dash-row-head > :nth-child(5),
+	.dash-row-state,
+	.dash-row-t {
+		display: none;
+	}
+}
+@media (max-width: 560px) {
+	.dash-beat,
+	.marketing-nav.is-dash .marketing-nav-brand span {
+		display: none;
+	}
+	.dash-status-sub {
+		margin-left: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.dash-dot.pulse {
+		animation: none;
+	}
+	.dash-row-name > span:not(.dash-dot),
+	.dash-row-state,
+	.dash-crumb a {
 		transition: none;
 	}
 }
