@@ -24,6 +24,15 @@ describe("redactKeys", () => {
 		expect(out).not.toContain("0f0f");
 	});
 
+	test("an event's Date timestamp survives intact", () => {
+		const timestamp = new Date("2026-10-15T01:00:00Z");
+		const out = redactKeys({ event: "$pageview", timestamp, properties: {} });
+		expect(out.timestamp).toBe(timestamp);
+		expect(JSON.parse(JSON.stringify(out)).timestamp).toBe(
+			"2026-10-15T01:00:00.000Z",
+		);
+	});
+
 	test("text that only looks similar is left alone", () => {
 		const event = { t: "sk-sl_…ab12 and $SECONDLAYER_API_KEY", n: 3, b: null };
 		expect(redactKeys(event)).toEqual(event);

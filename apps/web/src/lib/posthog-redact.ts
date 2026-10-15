@@ -13,6 +13,11 @@ function scrub(value: unknown, depth: number): unknown {
 	if (depth > MAX_DEPTH || value === null || typeof value !== "object")
 		return value;
 	if (Array.isArray(value)) return value.map((v) => scrub(v, depth + 1));
+	// Only plain objects are rebuilt. A Date (the event's `timestamp`) or any
+	// other instance passes through as is: rebuilding one leaves `{}`, and
+	// PostHog rejects the whole batch for it.
+	const proto = Object.getPrototypeOf(value);
+	if (proto !== Object.prototype && proto !== null) return value;
 	const out: Record<string, unknown> = {};
 	for (const [k, v] of Object.entries(value)) out[k] = scrub(v, depth + 1);
 	return out;
