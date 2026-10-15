@@ -510,8 +510,7 @@ button.docs-nav-item {
 }
 /* A product page's figure takes the frame's width for its notes column;
    prose and every other block stay at the reading measure. */
-.docs-article:has(> .cf),
-.docs-topline:has(+ .docs-article > .cf) {
+.docs-article:has(> .cf) {
 	max-width: 1112px;
 }
 .docs-article:has(> .cf) > :not(.cf) {
@@ -522,6 +521,12 @@ button.docs-nav-item {
 @media (min-width: 1101px) {
 	.docs-article > .cf {
 		margin-right: calc(var(--notes) + 16px);
+	}
+	/* A note longer than its column wraps inside it instead of running past
+	   the viewport edge. */
+	.docs-article .cf .cf-note {
+		width: calc(var(--notes) - 36px);
+		white-space: normal;
 	}
 }
 /* Wide screens: the pills ride the title's first line, so the title starts
