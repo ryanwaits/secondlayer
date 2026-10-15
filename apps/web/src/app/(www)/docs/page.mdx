@@ -17,17 +17,17 @@ import { Index } from "@secondlayer/sdk";
 await new Index().events.consume({
   eventType: "ft_transfer",
   fromCursor: await db.loadCheckpoint(),
-  // !callout[/onBatch/] Write rows and the cursor in one transaction.
+  // !ref(1:4) fork-index-batch
   onBatch: async (events, envelope, ctx) => {
     await db.commit(events, ctx.cursor);
     return ctx.cursor;
   },
-  // !callout[/onReorg/] Delete from the fork height, inclusive.
+  // !ref fork-index-reorg
   onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
 });
 ```
 
-You keep your schema and serve it however you already do. [Index →](/docs/index)
+[Write rows and the cursor in one transaction](focus:fork-index-batch), and [roll back to the last good block](focus:fork-index-reorg) when a reorg lands. You keep your schema and serve it however you already do. [Index →](/docs/index)
 
 </ForkPath>
 <ForkPath value="subgraphs" label="No">
@@ -37,18 +37,18 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
   name: "sbtc-flows",
-  // !callout[/startBlock/] The first deploy backfills from here.
+  // !ref fork-sg-start
   startBlock: 8000000,
   sources: { transfers: { type: "ft_transfer", assetIdentifier: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token" } },
   schema: { transfers: { columns: { amount: { type: "uint" }, sender: { type: "principal" } } } },
   handlers: {
-    // !callout[/insert/] One write per event; REST serves the table.
+    // !ref fork-sg-handler
     transfers: (event, ctx) => ctx.insert("transfers", { amount: event.amount, sender: event.sender }),
   },
 });
 ```
 
-You get a REST API you didn't write. That's the point, and the tradeoff. [Subgraphs →](/docs/subgraphs)
+The [first deploy backfills from your start block](focus:fork-sg-start), and [one write per event](focus:fork-sg-handler) fills a table that REST serves. You get an API you didn't write. That's the point, and the tradeoff. [Subgraphs →](/docs/subgraphs)
 
 </ForkPath>
 <ForkPath value="streams" label="I decode it myself">
@@ -58,16 +58,16 @@ await sl.streams.events.consume({
   types: ["ft_transfer"],
   fromCursor: await db.loadCheckpoint(),
   onBatch: async (events, envelope, ctx) => {
-    // !callout[/insertEvents/] Raw, signed frames; you decode.
+    // !ref fork-st-batch
     await db.insertEvents(events, ctx.cursor);
     return ctx.cursor;
   },
-  // !callout[/onReorg/] Rewinds to the fork point and re-delivers.
+  // !ref fork-st-reorg
   onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
 });
 ```
 
-You decode it. This is what Index is built on. [Streams →](/docs/streams)
+You get [raw, signed frames to decode](focus:fork-st-batch), and a [reorg rewinds to the fork point and re-delivers](focus:fork-st-reorg). This is what Index is built on. [Streams →](/docs/streams)
 
 </ForkPath>
 </Fork>
