@@ -1795,6 +1795,19 @@
       "terminal command to tail stream data"
     ]
   },
+  "/docs/streams#index-runes-into-your-own-database": {
+    "hash": "096120a92ca9a81f",
+    "phrasings": [
+      "how to store runes data in my own database",
+      "sync rune events into postgres",
+      "events.consume bitcoin example",
+      "checkpointed indexer for runes bitcoin",
+      "index runes activity into custom db",
+      "consume bitcoin chain events loop",
+      "rune indexer not resuming after restart",
+      "persist stream events to my database"
+    ]
+  },
   "/docs/streams#per-frame-signatures": {
     "hash": "0b2a9201d69ce00a",
     "phrasings": [

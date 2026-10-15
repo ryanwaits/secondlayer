@@ -196,6 +196,29 @@ curl "$SECONDLAYER_API_URL/v1/streams/events?chain=bitcoin&rune=840000:3" \
 
 The rune catalog, per-rune activity feed, and balances live on [Index](/docs/index#runes); this is the raw event log underneath them.
 
+### Index Runes into your own database
+
+`events.consume` takes `chain: "bitcoin"` and runs the same checkpointed loop as [Build an indexer on it](#build-an-indexer-on-it). Rows and cursor commit together, and a Bitcoin reorg deletes from the fork height.
+
+```ts runes-indexer.ts
+await sl.streams.events.consume({
+  chain: "bitcoin",
+  types: ["rune_etch", "rune_mint", "rune_transfer", "rune_burn"],
+  fromCursor: await db.loadCheckpoint(),
+  onBatch: async (events, envelope, ctx) => {
+    await db.transaction(async (tx) => {
+      await tx.insertRuneEvents(events);
+      await tx.saveCheckpoint(ctx.cursor);
+    });
+    return ctx.cursor;
+  },
+  onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
+});
+```
+
+- `rune` (an id or name) or `address` narrows the feed.
+- `finalizedOnly: true` waits out the 6 confirmations instead of handling reorgs.
+
 ## Filters
 
 One `filters` object can follow several concerns on one cursor.

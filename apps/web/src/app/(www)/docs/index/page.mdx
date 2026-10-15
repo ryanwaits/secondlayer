@@ -457,7 +457,7 @@ A Bitcoin block needs 6 confirmations to count as final: `tip.finalized_height` 
 - The catalog and balances read reorg-corrected snapshots, so their `reorgs` is always empty.
 - Only `activity` is an append-only log, so only its `reorgs` can name replaced heights, at block level.
 
-The raw per-transaction events are on [Streams](/docs/streams#bitcoin-events-runes) with `chain=bitcoin`.
+The raw per-transaction events are on [Streams](/docs/streams#bitcoin-events-runes) with `chain=bitcoin`. To keep your own copy, see [Index Runes into your own database](/docs/streams#index-runes-into-your-own-database).
 
 export const agent = `
 - Events: 'GET /v1/index/events' (event_type such as ft_transfer, stx_transfer, print) and 'GET /v1/index/contract-calls'; filter by contract, principal or block range; cursor-paginate.
