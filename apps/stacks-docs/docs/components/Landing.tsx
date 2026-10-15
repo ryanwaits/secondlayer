@@ -29,7 +29,10 @@ function Install() {
 				))}
 			</div>
 			<pre className="sl-install-command">
-				<code>{current.command}</code>
+				<code>
+					<span className="sl-install-prompt">$ </span>
+					{current.command}
+				</code>
 			</pre>
 		</div>
 	);
@@ -39,16 +42,14 @@ export function Hero() {
 	return (
 		<section className="sl-hero">
 			<div className="sl-hero-copy">
-				<h1 className="sl-hero-name">
-					stacks<span>.</span>
-				</h1>
+				<h1 className="sl-hero-name">stacks.</h1>
 				<p className="sl-hero-tagline">
 					Build reliable apps &amp; libraries with <b>lightweight</b>,{" "}
 					<b>composable</b>, and <b>type-safe</b> modules that interface with
 					Stacks and Bitcoin
 				</p>
 				<div className="sl-hero-ctas">
-					<a className="sl-btn sl-btn-gold" href="/getting-started">
+					<a className="sl-btn sl-btn-pri" href="/getting-started">
 						Get started
 					</a>
 					<a

@@ -1,26 +1,19 @@
 import { defineConfig } from "vocs";
 import pkg from "../../packages/stacks/package.json";
+import { secondlayer, secondlayerDark } from "../web/src/lib/syntax-theme";
+import { alpha, brand } from "./docs/brand";
 import { getStars } from "./docs/stats";
-import { stacksGold, stacksGoldDark } from "./docs/syntax-theme";
 
 const stars = await getStars();
 
-/* Grounds + ink. Light = egg white, dark = warm near-black; one gold
-   accent in both. Vocs maps `background` to the content panel and
-   `backgroundDark` to the sidebar gutter, so ground = backgroundDark and
-   the raised content panel = background (viem.sh shell). */
-const light = {
-	ground: "#f0ebdd",
-	panel: "#f9f6ee",
-	raise: "#fffdf8",
-	ink: "#1c1a16",
-};
-const dark = {
-	ground: "#111010",
-	panel: "#171513",
-	raise: "#1f1c19",
-	ink: "#f2ede5",
-};
+/* Brand roles (docs/brand.ts, mirrored from DESIGN.md). Vocs maps
+   `background` to the content panel and `backgroundDark` to the page ground
+   and sidebar. Ground = soft in light, paper in dark; panel = paper in
+   light, soft in dark, so the panel is always the brighter neutral
+   (founder decision 2026-10-14, no new hex). */
+const L = brand.light;
+const D = brand.dark;
+const hover = (r: typeof L) => `color-mix(in srgb, ${r.pri} 86%, ${r.paper})`;
 
 export default defineConfig({
 	title: "stacks",
@@ -49,15 +42,9 @@ export default defineConfig({
 		},
 	},
 	font: {
-		default: { google: "Public Sans" },
-		mono: { google: "Fira Code" },
+		default: { google: "Geist" },
+		mono: { google: "Geist Mono" },
 	},
-	head: (
-		<link
-			href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500&display=swap"
-			rel="stylesheet"
-		/>
-	),
 	socials: [
 		{
 			icon: "github",
@@ -67,51 +54,39 @@ export default defineConfig({
 	theme: {
 		variables: {
 			color: {
-				background: { light: light.panel, dark: dark.panel },
-				background2: { light: light.raise, dark: dark.raise },
-				background3: { light: light.raise, dark: dark.raise },
-				background4: { light: "#ece6d6", dark: "#262320" },
-				background5: { light: "#e4ddcb", dark: "#2e2a26" },
-				backgroundDark: { light: light.ground, dark: dark.ground },
-				backgroundDarkTint: { light: "#e8e2d2", dark: "#1c1a17" },
-				backgroundAccent: { light: "#e3b117", dark: "#f0c430" },
-				backgroundAccentHover: { light: "#d4a412", dark: "#f6d15a" },
-				backgroundAccentText: { light: light.ink, dark: light.ink },
-				border: {
-					light: "rgba(28, 26, 22, 0.12)",
-					dark: "rgba(242, 237, 229, 0.12)",
-				},
-				border2: {
-					light: "rgba(28, 26, 22, 0.22)",
-					dark: "rgba(242, 237, 229, 0.22)",
-				},
-				borderAccent: { light: "#e3b117", dark: "#f0c430" },
-				heading: { light: light.ink, dark: dark.ink },
-				title: { light: light.ink, dark: dark.ink },
-				text: {
-					light: "rgba(28, 26, 22, 0.82)",
-					dark: "rgba(242, 237, 229, 0.82)",
-				},
-				text2: {
-					light: "rgba(28, 26, 22, 0.6)",
-					dark: "rgba(242, 237, 229, 0.6)",
-				},
-				text3: {
-					light: "rgba(28, 26, 22, 0.45)",
-					dark: "rgba(242, 237, 229, 0.45)",
-				},
-				text4: {
-					light: "rgba(28, 26, 22, 0.3)",
-					dark: "rgba(242, 237, 229, 0.3)",
-				},
-				textHover: { light: light.ink, dark: dark.ink },
-				textAccent: { light: "#b8890a", dark: "#f0c430" },
-				textAccentHover: { light: "#9a7208", dark: "#f6d15a" },
-				shadow: { light: "rgba(28, 26, 22, 0.06)", dark: "rgba(0, 0, 0, 0.4)" },
-				shadow2: {
-					light: "rgba(28, 26, 22, 0.04)",
-					dark: "rgba(0, 0, 0, 0.3)",
-				},
+				background: { light: L.paper, dark: D.soft },
+				background2: { light: L.paper, dark: D.soft },
+				background3: { light: L.paper, dark: D.soft },
+				background4: { light: L.soft, dark: D.paper },
+				background5: { light: L.line, dark: D.line },
+				backgroundDark: { light: L.soft, dark: D.paper },
+				backgroundDarkTint: { light: L.line, dark: D.soft },
+				backgroundAccent: { light: L.pri, dark: D.pri },
+				backgroundAccentHover: { light: hover(L), dark: hover(D) },
+				backgroundAccentText: { light: L["on-pri"], dark: D["on-pri"] },
+				border: { light: L.line, dark: D.line },
+				border2: { light: alpha(L.ink, 0.2), dark: alpha(D.ink, 0.24) },
+				borderAccent: { light: L.pri, dark: D.pri },
+				heading: { light: L.ink, dark: D.ink },
+				title: { light: L.ink, dark: D.ink },
+				text: { light: alpha(L.ink, 0.74), dark: alpha(D.ink, 0.8) },
+				text2: { light: L.sub, dark: D.sub },
+				text3: { light: L.faint, dark: D.faint },
+				text4: { light: alpha(L.ink, 0.28), dark: alpha(D.ink, 0.34) },
+				textHover: { light: L.ink, dark: D.ink },
+				textAccent: { light: L.pri, dark: D.pri },
+				textAccentHover: { light: hover(L), dark: hover(D) },
+				link: { light: L.pri, dark: D.pri },
+				linkHover: { light: hover(L), dark: hover(D) },
+				hr: { light: L.line, dark: D.line },
+				tableBorder: { light: L.line, dark: D.line },
+				codeBlockBackground: { light: L.paper, dark: D.soft },
+				codeInlineBackground: { light: L.soft, dark: D.paper },
+				codeInlineBorder: { light: L.line, dark: D.line },
+				codeInlineText: { light: L.ink, dark: D.ink },
+				lineNumber: { light: L.faint, dark: D.faint },
+				shadow: { light: alpha(L.ink, 0.06), dark: "rgba(0, 0, 0, 0.4)" },
+				shadow2: { light: alpha(L.ink, 0.04), dark: "rgba(0, 0, 0, 0.3)" },
 			},
 			fontWeight: { regular: "400", medium: "500", semibold: "500" },
 			sidebar: { width: "280px" },
@@ -119,7 +94,8 @@ export default defineConfig({
 	},
 	markdown: {
 		code: {
-			themes: { light: stacksGold, dark: stacksGoldDark },
+			/* The brand's own code theme, imported so the two never drift. */
+			themes: { light: secondlayer, dark: secondlayerDark },
 		},
 	},
 	sidebar: [
