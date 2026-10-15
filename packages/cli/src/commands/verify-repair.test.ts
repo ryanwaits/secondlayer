@@ -399,6 +399,77 @@ describe("archive reference trust boundary", () => {
 		expect(printed).not.toMatch(/Set DATABASE_URL/);
 	});
 
+	async function runVerify(...args: string[]) {
+		const digest = await writeSnapshot(dir);
+		const proc = Bun.spawn(
+			[
+				process.execPath,
+				"run",
+				join(import.meta.dir, "../cli.ts"),
+				"verify",
+				...args,
+				"--against",
+				join(dir, "snapshots", `${digest}.json`),
+				"--insecure",
+			],
+			{
+				env: {
+					...process.env,
+					SECONDLAYER_API_URL: "http://127.0.0.1:1",
+					DATABASE_URL: "",
+				},
+				stdout: "pipe",
+				stderr: "pipe",
+			},
+		);
+		const [stdout, stderr, exitCode] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+			proc.exited,
+		]);
+		return { stdout, printed: stdout + stderr, exitCode };
+	}
+
+	test("verify decode:<name> names the missing dataset instead of blaming the range", async () => {
+		const { printed, exitCode } = await runVerify("decode:ft_transfer");
+		expect(exitCode).toBe(2);
+		expect(printed).toMatch(/publishes no digests for decode:ft_transfer/);
+		expect(printed).toMatch(/It has: blocks/);
+		expect(printed).toMatch(/verify raw/);
+		expect(printed).not.toMatch(/Check --from-block/);
+		expect(printed).not.toMatch(/Set DATABASE_URL/);
+	});
+
+	test("verify subgraph:<name> points at the replay subcommand", async () => {
+		const { printed, exitCode } = await runVerify("subgraph:sbtc");
+		expect(exitCode).toBe(2);
+		expect(printed).toMatch(/publishes no digests for subgraph:sbtc/);
+		expect(printed).toMatch(/verify subgraph <name> --replay/);
+	});
+
+	test("verify --json reports unanchored when the archive has no digests for the target", async () => {
+		const { stdout, exitCode } = await runVerify(
+			"decode:ft_transfer",
+			"--json",
+		);
+		expect(exitCode).toBe(2);
+		const report = JSON.parse(stdout);
+		expect(report.status).toBe("unanchored");
+		expect(report.reason).toBe("no digests");
+	});
+
+	test("verify raw outside the manifest's coverage keeps the range hint", async () => {
+		const { printed, exitCode } = await runVerify(
+			"raw",
+			"--from-block",
+			"100",
+			"--to-block",
+			"200",
+		);
+		expect(exitCode).toBe(2);
+		expect(printed).toMatch(/Check --from-block/);
+	});
+
 	test("a remote reference strips the snapshots path segment", async () => {
 		// No network: exercise the URL derivation the same way loadReference does.
 		const url = new URL(

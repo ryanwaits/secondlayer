@@ -87,7 +87,7 @@ export function attachVerifyCommand(cmd: Command): Command {
 		cmd
 			.argument(
 				"[target]",
-				"all | raw | decode:<name> | subgraph:<name>",
+				"all | raw (decode:<name> and subgraph:<name> have no archive digests yet)",
 				"raw",
 			)
 			.option("--quick", "coverage/identity only (default)")
@@ -122,8 +122,7 @@ Examples:
   $ secondlayer verify --against https://archive.secondlayer.tools/.../snapshots/<digest>.json
   $ secondlayer verify raw --against ./snapshot.json --from-block 8000000 --to-block 8499999
   $ secondlayer verify all --against ./snapshot.json --json
-  $ secondlayer verify decode:ft_transfer --against ./snapshot.json --quick
-  $ secondlayer verify subgraph:sbtc --against ./snapshot.json --deep
+  $ secondlayer verify subgraph <name> --replay
 
 Exit codes:
   0  local data matches the archive
@@ -195,8 +194,47 @@ Exit codes:
 						process.exit(VERIFY_EXIT.UNANCHORED);
 					}
 
-					const reference = (manifest.range_digests ?? []).filter((d) => {
-						if (!datasetMatchesTarget(d.dataset, target)) return false;
+					const unanchoredJson = (detail: string) =>
+						output({
+							json: opts.json,
+							data: {
+								...reportVerify({ target, mode, anchored: false, detail }),
+								status: "unanchored",
+								reference: origin,
+								reason: detail,
+							},
+							human: () => {},
+						});
+
+					// Tell "the archive has no such dataset" apart from "range not covered".
+					const published = (manifest.range_digests ?? []).filter((d) =>
+						datasetMatchesTarget(d.dataset, target),
+					);
+					if (published.length === 0) {
+						const label =
+							target.kind === "decode"
+								? `decode:${target.name}`
+								: target.kind === "subgraph"
+									? `subgraph:${target.name}`
+									: target.kind;
+						const datasets = [
+							...new Set((manifest.range_digests ?? []).map((d) => d.dataset)),
+						].sort();
+						const hint =
+							target.kind === "decode"
+								? "Check the events decoders read from with: secondlayer verify raw --against <manifest>"
+								: target.kind === "subgraph"
+									? "Recompute a state subgraph's rows with: secondlayer verify subgraph <name> --replay"
+									: "Check the manifest you passed to --against.";
+						printError(
+							`This archive publishes no digests for ${label}. It has: ${datasets.join(", ") || "none"}.`,
+							{ hint },
+						);
+						unanchoredJson("no digests");
+						process.exit(VERIFY_EXIT.UNANCHORED);
+					}
+
+					const reference = published.filter((d) => {
 						if (fromBlock !== undefined && d.to_block < fromBlock) return false;
 						if (toBlock !== undefined && d.from_block > toBlock) return false;
 						return true;
@@ -205,6 +243,7 @@ Exit codes:
 						printError("The reference publishes no digests for that range.", {
 							hint: "Check --from-block/--to-block against the manifest's coverage.",
 						});
+						unanchoredJson("no digests for that range");
 						process.exit(VERIFY_EXIT.UNANCHORED);
 					}
 
