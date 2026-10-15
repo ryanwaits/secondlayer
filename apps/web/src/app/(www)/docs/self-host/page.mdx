@@ -9,16 +9,17 @@ A box with Docker, 4 GB RAM, and the CLI (`bun add -g @secondlayer/cli`). Mainne
 ## Start it
 
 ```bash
-secondlayer setup
-```
-
-One guided command: generates secrets, writes `docker-compose.yml` and `.env` into the current directory, brings the stack up, restores verified history from the archive, and verifies the result. With an external node, it prints the stanza to paste into your node's `Config.toml` ([details](#connect-your-node)).
-
-The API listens on `http://127.0.0.1:3800`. Check it is up:
-
-```bash
+git clone https://github.com/ryanwaits/secondlayer
+cd secondlayer/docker/oss
+cp .env.example .env                  # set POSTGRES_PASSWORD
+secondlayer init --network mainnet    # writes .env.local
+cat .env.local >> .env
+docker compose pull
+docker compose up -d
 curl http://127.0.0.1:3800/health
 ```
+
+`init` generates the instance token and signing keys; appending them puts everything compose reads in one `.env`. `pull` fetches the published images; without it, compose reuses any older copy already on the box. If `/health` never answers, `docker compose logs secondlayer` says why, most often a [floor](#floors-enforced-at-start).
 
 ### Use these docs on your box
 
@@ -37,67 +38,56 @@ secondlayer subgraphs deploy ./my-subgraph.ts
 
 Leave `SECONDLAYER_API_KEY` for the hosted account: archive quote, fetch and credits read it as the account key, so setting it to the instance token breaks them. Keep `POSTGRES_PORT` and `INDEXER_PORT` on loopback.
 
-### Stop it
+### Fill it with history
 
-From the directory `setup` wrote. The index, chainstate, and keys survive.
+A new box holds only what your node sends from now on. Restore verified history from the [archive](/docs/archive), then check it:
 
 ```bash
-secondlayer uninstall            # dry run
-secondlayer uninstall --apply
+export DATABASE_URL=postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer
+secondlayer bootstrap --against https://archive.secondlayer.tools/latest.json
+secondlayer verify all --against https://archive.secondlayer.tools/latest.json
 ```
+
+The official archive quotes a price in [archive credits](/docs/authentication#archive-credits) before it fetches. Verify is free.
+
+### Stop it
+
+```bash
+docker compose down
+```
+
+The index, chainstate and keys survive. Never add `-v`: it deletes the index volume.
 
 ## Production
 
-Ready for real traffic: scripted setup, your node, backups, upgrades. Starting out? Run it locally first with [Start it](#start-it).
+Ready for real traffic: your node, a pinned version, backups, upgrades. Starting out? Run it locally first with [Start it](#start-it).
 
-### Non-interactive setup
-
-Without a TTY (or with `--yes`), `secondlayer setup` skips the prompts and runs from flags:
-
-```bash
-secondlayer setup --yes \
-  --network mainnet --node-mode external
-```
-
-<Callout type="warning" title="No light mode">
-
-No Hiro-REST backfill. Run a node, bundle one, or restore from the [archive](/docs/archive).
-
-</Callout>
-
-#### Setup flags
-
-`--network` and `--node-mode` are always required in non-interactive mode, since there is no safe default for either. `--against` defaults to the official archive (`https://archive.secondlayer.tools/latest.json`); pass `--skip-bootstrap` to skip it instead. The index then holds only what your node sends from now on, full history only if the node itself syncs from genesis. `--skip-verify` skips the post-bootstrap check. `--dir` sets where `docker-compose.yml` and `.env` are written (default cwd).
-
-#### Advanced / manual setup
-
-The same five steps `setup` runs, one at a time, useful for scripting a custom flow or debugging a step in isolation:
-
-```bash
-secondlayer init --network mainnet
-# Copy .env.local secrets into docker/oss/.env
-
-cd docker/oss
-docker compose up -d
-secondlayer observer --mode indexer --endpoint secondlayer:3700
-secondlayer bootstrap --against <manifest>
-secondlayer verify all --against <manifest>
-```
-
-#### Profiles
+### Profiles
 
 | Profile | What runs |
 | --- | --- |
 | default | `postgres` + `secondlayer` (API, ingest, decoder, subgraph, webhooks) |
 | `full-node` | + bundled Stacks node and bitcoind |
 
-```bash
-docker compose --profile full-node up -d
+Set them in `.env` so every `docker compose` command picks them up:
+
+```bash .env
+COMPOSE_PROFILES=full-node
 ```
 
-`NODE_MODE` is `external` | `stacks` | `full`. `full` needs `BITCOIN_RPC_PASSWORD` and runs the `full-node` profile above. `stacks` behaves like `external`: bring your own Stacks node. There is no bundled-stacks-only profile, since a bundled node needs Bitcoin data from somewhere and we don't wire a public RPC default for it. Sizing for each: [Hardware](#hardware).
+`NODE_MODE` is `external` | `stacks` | `full`. `full` needs `BITCOIN_RPC_PASSWORD` and the `full-node` profile. `stacks` behaves like `external`: bring your own Stacks node. There is no bundled-stacks-only profile, since a bundled node needs Bitcoin data from somewhere and we don't wire a public RPC default for it. Sizing for each: [Hardware](#hardware).
 
-#### Connect your node
+### Pin a version
+
+`docker compose up` runs `latest`. Pin a commit so a restart never changes what you run:
+
+```bash .env
+SECONDLAYER_VERSION=975e0b9
+```
+
+Images are `ghcr.io/ryanwaits/secondlayer-runtime` and `secondlayer-bitcoin`, tagged by short commit. `docker compose up -d --build` builds your checkout instead.
+
+### Connect your node
 
 With `NODE_MODE=external`, this entry in your node's `Config.toml` sends Secondlayer every block.
 
@@ -132,7 +122,7 @@ Use `signer-shared`, so a stalled Secondlayer can't hold up the signer. Tradeoff
 
 </Callout>
 
-#### Config
+### Config
 
 Six required non-secrets, plus one compose derives for you. Secrets come from `secondlayer init`.
 
@@ -146,9 +136,9 @@ Six required non-secrets, plus one compose derives for you. Secrets come from `s
 | `INDEXER_PORT` | `127.0.0.1:3700` | Publish spec for the observer port |
 | `API_PUBLISH_ADDR` | compose | Injected from the same `API_PORT` value the port is published with |
 
-Unknown keys and contradictions fail before ingest. From a checkout, `docker compose -f docker/oss/docker-compose.yml --env-file .env.local up -d` brings the stack up; `secondlayer setup` writes its own compose file and `.env` and runs the same command for you.
+Unknown keys and contradictions fail before ingest.
 
-#### Instance token
+### Instance token
 
 `secondlayer init` writes `INSTANCE_TOKEN` to `.env.local`. It opens your box. It is not the account key from [Keys and billing](/docs/authentication): never put `sk-sl_*` in `INSTANCE_TOKEN`, or the hex token in `SECONDLAYER_API_KEY`.
 
@@ -171,7 +161,7 @@ Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On 
 
 `INSTANCE_TOKEN` is required in compose: the container process has to bind `0.0.0.0` or the published port never reaches it, and an instance that binds past loopback with no token refuses to start. `API_PUBLISH_ADDR` is how the API learns which of those two facts to serve on: it carries the publish spec, so with the default `127.0.0.1:3800` the `/v1` reads stay keyless, and changing `API_PORT` to `0.0.0.0:3800` makes every `/v1` request carry the token. Writes take the token either way.
 
-#### What differs on your box
+### What differs on your box
 
 | Area | On your box |
 | --- | --- |
@@ -186,7 +176,7 @@ Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On 
 
 Consumers running on another box: [Deploy your app](/docs/deploy).
 
-#### Verify and repair
+### Verify and repair
 
 ```bash
 secondlayer verify all --against <manifest>
@@ -196,17 +186,17 @@ secondlayer repair --against <manifest> --apply
 
 [Verified archive](/docs/archive#flags) owns flags and exit codes.
 
-#### Archive trust root
+### Archive trust root
 
-Every archive manifest is checked against one key before `bootstrap`, `verify`, or `repair` act on it. The key comes from, in order: `--public-key`, `ARCHIVE_SIGNING_PUBLIC_KEY` in your env, and the key compiled into the CLI release. `setup` and `init` write that resolved key into `.env` so the instance verifies with no path to any Secondlayer host. Plaintext `http://` key sources are never consulted, and a signed `latest.json` pointer has to verify against the same key before its snapshot is followed.
+Every archive manifest is checked against one key before `bootstrap`, `verify`, or `repair` act on it. The key comes from, in order: `--public-key`, `ARCHIVE_SIGNING_PUBLIC_KEY` in your env, and the key compiled into the CLI release. `init` writes that resolved key into `.env.local` so the instance verifies with no path to any Secondlayer host. Plaintext `http://` key sources are never consulted, and a signed `latest.json` pointer has to verify against the same key before its snapshot is followed.
 
-The tradeoff: rotating the archive key means a CLI release until a key ceremony lands. To pin a different archive, replace `ARCHIVE_SIGNING_PUBLIC_KEY` in `.env`; a value you set there survives `setup` re-runs.
+The tradeoff: rotating the archive key means a CLI release until a key ceremony lands. To pin a different archive, replace `ARCHIVE_SIGNING_PUBLIC_KEY` in `.env`; a value you set there survives `init` re-runs.
 
-#### Running other teams' subgraphs
+### Running other teams' subgraphs
 
 A subgraph handler is code you deploy into the instance, so it runs with the instance's trust. That is fine for your own subgraphs. To run another team's on one box, give each team its own stack instead of sharing one: its own Postgres, its own network, and its `api` and `subgraph-processor` containers under gVisor (`runtime: runsc`) as a non-root user, with a read-only root filesystem and bounded memory, CPU and process count. [`docker/workload/tenant.compose.yml`](https://github.com/ryanwaits/secondlayer/blob/main/docker/workload/tenant.compose.yml) is the working shape. gVisor can't reach Docker's embedded DNS, so give each stack a static address for Postgres and a plain `resolv.conf`; the file explains both.
 
-#### Not in the box
+### Not in the box
 
 - Multi-tenant catalog
 - A managed stack: [hosted subgraphs](/docs/subgraphs#deploy) and [webhooks](/docs/webhooks) run on `api.secondlayer.tools` with an account key
@@ -268,7 +258,7 @@ Confirm any restore with `secondlayer verify all --against <manifest>` before tr
 
 ### Upgrade
 
-Move from the image you run (X) to a later `v*` tag, or a git commit if you build from source (Y), keeping the database and the keys.
+Move from the commit you run (X) to a later one (Y), keeping the database and the keys.
 
 ```bash
 curl -s "$SECONDLAYER_API_URL/health"
@@ -276,7 +266,7 @@ docker compose images
 secondlayer --version
 ```
 
-Published images are `ghcr.io/ryanwaits/secondlayer-runtime:<tag>` ([releases](https://github.com/ryanwaits/secondlayer/releases)); `latest` moves, so pin a `v*` tag. One jump to Y; read every [changelog](/docs/changelog) entry dated after X first, since that page owns what broke. The CLI is a separate npm version: bump it to match the instance you land on.
+One jump to Y; read every [changelog](/docs/changelog) entry dated after X first, since that page owns what broke. The CLI is a separate npm version: bump it to match the instance you land on.
 
 The index can be rebuilt from the [archive](/docs/archive). The keys cannot.
 
@@ -293,23 +283,17 @@ Losing `SECONDLAYER_SECRETS_KEY` makes every existing `whsec_` unreadable; rotat
 
 <Callout type="danger" title="Do not wipe the volume">
 
-`docker compose down -v` deletes `postgres_data`, and `secondlayer setup --force` mints a new secrets key that leaves existing webhook secrets unreadable. Stop with `docker compose down` (no `-v`). `setup` is not an upgrade: bootstrap refuses a database that already has blocks.
+`docker compose down -v` deletes `postgres_data`, and `secondlayer init --force` mints a new secrets key that leaves existing webhook secrets unreadable. Stop with `docker compose down` (no `-v`). Bootstrap is not an upgrade: it refuses a database that already has blocks.
 
 </Callout>
 
-Pin Y, then restart. `pull` when compose already lists a `secondlayer` image; `git checkout` and `--build` when this directory is a checkout.
+Check out Y for its compose file, pin the same commit, then restart:
 
 ```bash
-# published image: set image to .../secondlayer-runtime:<Y>
+git fetch && git checkout <Y>
+# .env: SECONDLAYER_VERSION=<Y>
 docker compose pull
 docker compose up -d --remove-orphans
-```
-
-```bash
-git fetch
-git checkout <Y>
-docker compose down --remove-orphans
-docker compose up -d --build --remove-orphans
 ```
 
 `--remove-orphans` stops services Y's compose file no longer lists. Migrations run at boot under an advisory lock, forward-only. Then confirm `/health` is ok and verify against the archive:
@@ -322,14 +306,16 @@ secondlayer verify all --against <manifest>
 To roll back, pin X again. A migrated schema stays migrated, so roll back the image, not the database.
 
 export const agent = `
-- 'bun add -g @secondlayer/cli' then 'secondlayer setup': writes secrets, docker-compose.yml and .env into a target directory, brings up postgres and the secondlayer container, and checks 'curl http://127.0.0.1:3800/health'. For an external node it prints the observer stanza for Config.toml (endpoint = 'secondlayer:3700'); for a bundled node (--node-mode stacks|full) that step does not apply.
+- Start: 'git clone https://github.com/ryanwaits/secondlayer', 'cd secondlayer/docker/oss', 'cp .env.example .env' (set POSTGRES_PASSWORD), 'secondlayer init --network mainnet' (writes .env.local), 'cat .env.local >> .env', 'docker compose pull', 'docker compose up -d', then 'curl http://127.0.0.1:3800/health'. If health never answers, 'docker compose logs secondlayer' names the refusal (usually a disk or RAM floor; SECONDLAYER_ALLOW_UNDERSIZED=true in .env overrides). There is no 'secondlayer setup' or 'secondlayer uninstall'.
+- History: export DATABASE_URL=postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer, then 'secondlayer bootstrap --against https://archive.secondlayer.tools/latest.json' (quotes archive credits first) and 'secondlayer verify all --against <same>'. For an external node, 'secondlayer observer --mode indexer' prints the Config.toml stanza.
+- Profiles and version live in .env: COMPOSE_PROFILES=full-node|bitcoin (comma-separated), SECONDLAYER_VERSION=<short commit> (default latest).
 - Point the docs examples at the box: export SECONDLAYER_API_URL=http://127.0.0.1:3800. Loopback reads need no key; writes and any read past loopback send 'Authorization: Bearer $INSTANCE_TOKEN' (the CLI and SDK send it).
 - Leave SECONDLAYER_API_KEY alone: it is the hosted account key that archive credits read.
-- Published images: 'ghcr.io/ryanwaits/secondlayer-*'. Pin a release tag and swap the compose build: blocks for image:.
+- Published images: 'ghcr.io/ryanwaits/secondlayer-runtime' and 'secondlayer-bitcoin', tagged by short commit; compose pulls them. 'docker compose up -d --build' builds the checkout instead.
 - Genesis sync needs a Stacks node that is itself syncing from genesis (an already-synced node only sends new blocks). Start with TIP_FOLLOWER_ENABLED=false, track 'curl http://localhost:3700/health | jq .block_height' against the chain tip, re-enable the tip follower, run 'secondlayer verify all --against <manifest>', then deploy with SECONDLAYER_API_URL=http://127.0.0.1:3800.
 - Backup: 'secondlayer backup --out ./backups/$(date +%F)' with --passphrase or SECONDLAYER_BACKUP_PASSPHRASE. The bundle carries INSTANCE_TOKEN, SECONDLAYER_SECRETS_KEY and STREAMS_SIGNING_PRIVATE_KEY, so store it apart from Postgres backups. Restore: 'secondlayer restore --from <dir>' is a dry run; --apply writes; confirm with 'secondlayer verify all --against <manifest>'.
-- Upgrade X to Y: identify X with 'curl -s $SECONDLAYER_API_URL/health', 'docker compose images', 'secondlayer --version'. Ask for Y (a v* tag from GitHub releases, or a git commit). Read changelog entries dated after X. Keep postgres_data, subgraphs_data and .env (a new SECONDLAYER_SECRETS_KEY makes existing whsec_ secrets unreadable). Published image: 'docker compose pull && docker compose up -d --remove-orphans'. Git checkout: 'git checkout <Y>', 'docker compose down --remove-orphans', 'up -d --build --remove-orphans'. Confirm /health and verify all. Rollback pins X; the schema stays migrated, so only the image rolls back.
-- Never 'docker compose down -v'. Never 'secondlayer setup --force'.
+- Upgrade X to Y: identify X with 'curl -s $SECONDLAYER_API_URL/health', 'docker compose images', 'secondlayer --version'. Ask for Y (a git commit). Read changelog entries dated after X. Keep postgres_data, subgraphs_data and .env (a new SECONDLAYER_SECRETS_KEY makes existing whsec_ secrets unreadable). 'git checkout <Y>', set SECONDLAYER_VERSION=<Y> in .env, 'docker compose pull', 'docker compose up -d --remove-orphans'. Confirm /health and verify all. Rollback pins X; the schema stays migrated, so only the image rolls back.
+- Never 'docker compose down -v'. Never 'secondlayer init --force' on a running instance (new secrets key).
 - Floors: app services with an external node need 4 GB RAM and a 600 GB SSD on mainnet (80 GB on testnet and devnet). A bundled node needs 96 GB RAM and 2.5 TB; 128 GB and 3 TB NVMe recommended.
 - Postgres max_connections must be at least 50. Set POSTGRES_SHARED_BUFFERS to about 25% of RAM for a full-chain sync.
 - The runtime refuses to boot below the floors unless SECONDLAYER_ALLOW_UNDERSIZED=true.
@@ -338,5 +324,5 @@ export const agent = `
 export const metadata = {
 	title: "Self-host — Secondlayer Docs",
 	description:
-		"Run Secondlayer on your own box: start it, run it in production (setup, node, token, backup, upgrade), size the hardware.",
+		"Run Secondlayer on your own box with Docker Compose: start it, fill it with history, connect your node, size the hardware, upgrade.",
 };

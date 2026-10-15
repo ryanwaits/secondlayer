@@ -757,15 +757,16 @@
     ]
   },
   "/docs/index#runes": {
-    "hash": "1e963b5dc8134965",
+    "hash": "ea7b819ccec56f9d",
     "phrasings": [
-      "how to index runes on bitcoin",
-      "bitcoin rune balances lookup",
-      "etched runes activity log query",
-      "runes catalog on bitcoin tip",
-      "track rune transfers per address",
-      "do runes work on stacks indexer",
-      "list all etched runes"
+      "how to query etched runes catalog",
+      "rune activity log api",
+      "get rune balances bitcoin",
+      "runes on bitcoin instead of stacks",
+      "list all etched runes",
+      "track rune activity per rune",
+      "bitcoin tip rune indexing",
+      "where to find rune balances"
     ]
   },
   "/docs/index#sbtc": {
@@ -1182,6 +1183,18 @@
       "secondlayer on own postgres database"
     ]
   },
+  "/docs/self-host#archive-trust-root": {
+    "hash": "4aeab8213aab1e67",
+    "phrasings": [
+      "how archive manifest signature verification works",
+      "where is the archive public key stored",
+      "manifest rejected before bootstrap error",
+      "archive manifest signature mismatch error",
+      "set trusted key for archive manifests",
+      "bootstrap refuses archive manifest what to do",
+      "rotate archive signing key trust"
+    ]
+  },
   "/docs/self-host#backup": {
     "hash": "0cdb2c470bf5f485",
     "phrasings": [
@@ -1190,6 +1203,37 @@
       "back up index and keys",
       "backup restore passphrase keys",
       "how to export keys securely"
+    ]
+  },
+  "/docs/self-host#config": {
+    "hash": "ea60a74b70d1a76c",
+    "phrasings": [
+      "secondlayer required environment variables list",
+      "which env vars are required secondlayer",
+      "secondlayer config non secret settings",
+      "compose derived variable secondlayer config",
+      "six required config values self host"
+    ]
+  },
+  "/docs/self-host#connect-your-node": {
+    "hash": "c158fc54b9483383",
+    "phrasings": [
+      "connect stacks node to secondlayer config toml",
+      "nodemode external setting secondlayer",
+      "send blocks from my node to secondlayer",
+      "stacks node config toml secondlayer entry",
+      "secondlayer not receiving blocks from node"
+    ]
+  },
+  "/docs/self-host#fill-it-with-history": {
+    "hash": "05acccb8ef40c472",
+    "phrasings": [
+      "backfill historical blocks new secondlayer instance",
+      "new box only has new blocks why",
+      "how to sync past stacks blocks into secondlayer",
+      "secondlayer index missing old data",
+      "import historical chain data self hosted",
+      "why is my secondlayer missing old transactions"
     ]
   },
   "/docs/self-host#floors-enforced-at-start": {
@@ -1212,16 +1256,36 @@
       "recommended specs self host box"
     ]
   },
-  "/docs/self-host#non-interactive-setup": {
-    "hash": "9e2628347d621d5f",
+  "/docs/self-host#instance-token": {
+    "hash": "08ded613d1df057c",
     "phrasings": [
-      "run secondlayer setup without prompts",
-      "secondlayer setup skip tty prompts",
-      "secondlayer setup yes flag ci",
-      "headless install secondlayer flags only",
-      "secondlayer setup no tty error",
-      "automate secondlayer setup in script",
-      "secondlayer setup from command line flags"
+      "where is secondlayer instance token stored",
+      "secondlayer instance token env local",
+      "instance token missing error secondlayer",
+      "generate secondlayer api token with init",
+      "what is the secondlayer instance token for"
+    ]
+  },
+  "/docs/self-host#not-in-the-box": {
+    "hash": "ca6773133ea9498d",
+    "phrasings": [
+      "does self host include multi tenant catalog",
+      "is archive publisher part of the image",
+      "hosted webhooks with account key alternative",
+      "what features are missing from self hosted",
+      "run webhooks without api secondlayer tools",
+      "where to get archive publisher image",
+      "managed subgraphs not available self hosted"
+    ]
+  },
+  "/docs/self-host#pin-a-version": {
+    "hash": "a6a7e8172e3eae25",
+    "phrasings": [
+      "docker compose up latest tag pin version",
+      "pin secondlayer image version docker",
+      "why does docker compose pull new version",
+      "lock secondlayer docker image tag",
+      "stop auto upgrading docker compose latest"
     ]
   },
   "/docs/self-host#postgres": {
@@ -1235,47 +1299,72 @@
     ]
   },
   "/docs/self-host#production": {
-    "hash": "f2ec7f4a1cbbd45a",
+    "hash": "3e5978e69c36a077",
     "phrasings": [
-      "production checklist for self hosted secondlayer",
-      "running secondlayer under real traffic",
-      "secondlayer backups and upgrades in production",
-      "scripted production setup for secondlayer",
-      "how to deploy secondlayer to production",
-      "self hosted secondlayer production readiness"
+      "secondlayer production deployment checklist",
+      "running secondlayer for real traffic setup",
+      "backups and upgrades for secondlayer server",
+      "pin version for production secondlayer docker",
+      "going live with secondlayer and own node"
+    ]
+  },
+  "/docs/self-host#profiles": {
+    "hash": "8b5eb61bb0e84104",
+    "phrasings": [
+      "docker compose profiles env setting",
+      "set compose profile in env file",
+      "which secondlayer compose profiles to enable",
+      "docker compose ignoring my profile",
+      "enable optional services docker compose profile"
+    ]
+  },
+  "/docs/self-host#running-other-teams-subgraphs": {
+    "hash": "f0163a5e03cf0dd7",
+    "phrasings": [
+      "is it safe to run other subgraph code",
+      "subgraph handler runs with instance privileges",
+      "deploy third party subgraph into my instance",
+      "sandbox untrusted subgraph handlers self host",
+      "security risk of external subgraph code",
+      "review subgraph code before deploying",
+      "subgraph code permissions on self hosted instance"
     ]
   },
   "/docs/self-host#start-it": {
-    "hash": "6a36a6588eca536f",
+    "hash": "d7dc39690ec26865",
     "phrasings": [
-      "one command setup secondlayer generate secrets",
-      "secondlayer setup docker compose up",
-      "restore verified history from archive on startup",
-      "generate env file for self hosted stack",
-      "bring up secondlayer stack with docker",
-      "guided setup command not starting"
+      "generate instance token and signing keys",
+      "where does the .env file come from",
+      "secondlayer init command not working",
+      "docker compose env variables setup",
+      "how to start self hosted instance",
+      "create signing keys for self host",
+      "append keys to env file compose",
+      "first run self hosted secondlayer steps"
     ]
   },
   "/docs/self-host#stop-it": {
-    "hash": "bc461c0d1ef697d7",
+    "hash": "2d551da360e9514b",
     "phrasings": [
-      "how to stop secondlayer self hosted stack",
-      "stop docker compose secondlayer directory",
-      "will stopping secondlayer lose index data",
-      "restart secondlayer keeps chainstate and keys",
-      "shut down self hosted secondlayer safely"
+      "how to stop secondlayer without losing data",
+      "docker compose down deletes volumes",
+      "stop containers and keep index and keys",
+      "docker compose down v deletes index volume",
+      "safe shutdown secondlayer docker volumes",
+      "does stopping secondlayer wipe the index"
     ]
   },
   "/docs/self-host#upgrade": {
-    "hash": "385995864fdbf5ed",
+    "hash": "890827ac60bd8f9f",
     "phrasings": [
-      "how do i upgrade to a newer version",
-      "move to a later docker tag",
-      "upgrade image without losing database",
-      "switch from built image to new release",
-      "build from source update to new commit",
-      "keep keys when updating container",
-      "new version release tag update steps"
+      "how to update self hosted version",
+      "upgrade to newer commit keep database",
+      "self host upgrade without losing data",
+      "update server to latest commit",
+      "keep existing keys when upgrading",
+      "migrate self hosted instance to new version",
+      "what happens to database on upgrade",
+      "upgrade steps for self hosted deployment"
     ]
   },
   "/docs/self-host#upgrades": {
@@ -1298,15 +1387,41 @@
       "secondlayer api url not set error"
     ]
   },
+  "/docs/self-host#verify-and-repair": {
+    "hash": "ed8334ea06a5058e",
+    "phrasings": [
+      "what do verify command exit codes mean",
+      "archive verify flags explained",
+      "repair archive database corrupted data",
+      "how to check archive integrity",
+      "verify returns nonzero exit code",
+      "fix broken archive after verify fails",
+      "repair command flags for archive"
+    ]
+  },
+  "/docs/self-host#what-differs-on-your-box": {
+    "hash": "ab9a726a1bd4744f",
+    "phrasings": [
+      "how is self hosting different from hosted",
+      "what changes running on my own server",
+      "deploy my app to another machine",
+      "self host config differs from cloud",
+      "consumer app deployment on self hosted instance",
+      "self hosted vs managed setup differences",
+      "running secondlayer on a different box"
+    ]
+  },
   "/docs/self-host#what-you-need": {
     "hash": "14baca71a6ff8376",
     "phrasings": [
-      "requirements to self host secondlayer",
-      "docker ram needed for self hosting",
-      "minimum server specs for self host",
-      "install secondlayer cli bun global",
-      "do i need 4gb ram to run",
-      "prerequisites for running secondlayer locally"
+      "minimum ram for self hosting",
+      "does self host need docker installed",
+      "how much memory to run secondlayer",
+      "what hardware do i need to self host",
+      "install secondlayer cli with bun",
+      "self host requirements 4gb server",
+      "can i run it on a small vps",
+      "bun add global cli install error"
     ]
   },
   "/docs/sinks": {
