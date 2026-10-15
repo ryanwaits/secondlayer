@@ -513,13 +513,14 @@ button.docs-nav-item {
 .docs-article:has(> .cf) {
 	max-width: 1112px;
 }
-.docs-article:has(> .cf) > :not(.cf) {
+.docs-article:has(> .cf) > :not(.cf),
+.docs-article:has(> .cf) > .cf.key {
 	max-width: 720px;
 }
 /* The notes hang inside the article, not in a page margin: the frame gives up
    the whole notes column. Below 1100px the figure stacks its notes itself. */
 @media (min-width: 1101px) {
-	.docs-article > .cf {
+	.docs-article > .cf:not(.key) {
 		margin-right: calc(var(--notes) + 16px);
 	}
 	/* A note longer than its column wraps inside it instead of running past
@@ -873,11 +874,14 @@ button.docs-nav-item {
 	font-size: 12.5px;
 	white-space: nowrap;
 }
-@media (max-width: 640px) {
-	.docs-article table {
-		display: block;
-		overflow-x: auto;
-	}
+/* A prose table scrolls inside its wrapper instead of widening the page. */
+.docs-table {
+	max-width: 100%;
+	margin-top: 18px;
+	overflow-x: auto;
+}
+.docs-table > table {
+	margin-top: 0;
 }
 
 /* callouts: plain surface (line border, paper fill); state is a leading 8px
@@ -1912,6 +1916,7 @@ html[data-acct-card] .docs-content {
 	flex-wrap: wrap;
 	gap: 8px;
 	margin-left: auto;
+	max-width: 100%;
 	font-size: 12.5px;
 }
 .docs-article .sdkr-chip {
@@ -1920,7 +1925,8 @@ html[data-acct-card] .docs-content {
 	border-radius: 999px;
 	color: var(--sub);
 	text-decoration: none;
-	white-space: nowrap;
+	max-width: 100%;
+	overflow-wrap: anywhere;
 }
 .docs-article a.sdkr-chip:hover {
 	border-color: var(--pri);
@@ -2037,6 +2043,7 @@ html[data-acct-card] .docs-content {
 .docs-article .sdkr details summary b {
 	font: 500 13px var(--font-mono-stack);
 	color: var(--ink);
+	overflow-wrap: anywhere;
 }
 .sdkr-kv {
 	display: grid;
@@ -2157,6 +2164,9 @@ html[data-acct-card] .docs-content {
 	background: none;
 	font: 12.5px var(--font-mono-stack);
 	color: var(--faint);
+	overflow-wrap: anywhere;
+}
+.docs-article .sdkr-tr code {
 	overflow-wrap: anywhere;
 }
 .sdkr-tr:target {

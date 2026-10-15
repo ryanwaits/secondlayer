@@ -118,9 +118,19 @@ function MdxH4({ id, children }: { id?: string; children?: ReactNode }) {
 	);
 }
 
+/** A markdown table, scrolling inside its own box when it is wider than the column. */
+function MdxTable({ children }: { children?: ReactNode }) {
+	return (
+		<div className="docs-table">
+			<table>{children}</table>
+		</div>
+	);
+}
+
 export function useMDXComponents(components: MDXComponents): MDXComponents {
 	return {
 		pre: MdxPre,
+		table: MdxTable,
 		code: MdxCode,
 		a: MdxLink,
 		h1: MdxH1,
