@@ -1,8 +1,15 @@
 # REST API
 
-Every `/v1` surface answers with the same envelope, cursor, and filter grammar, so one client shape reads Index, Streams, and subgraphs. Served at `SECONDLAYER_API_URL`, with your `SECONDLAYER_API_KEY` as a bearer token ([Keys and billing](/docs/authentication)). On your own box: [Self-host](/docs/self-host#use-these-docs-on-your-box).
+Every `/v1` surface answers with the same envelope, cursor, and filter grammar, so one client shape reads Index, Streams, and subgraphs.
 
-Per-endpoint parameters and response codes: [API reference](/docs/api-reference). Print-event schemas: [`get-print-schema`](/docs/api/index#get-print-schema). Proof routes (`/v1/proofs/*`, `/v1/index/transactions/:tx_id/proof`): [Verify](/docs/verification#proofs-api).
+- Served at `SECONDLAYER_API_URL`, with your `SECONDLAYER_API_KEY` as a bearer token ([Keys and billing](/docs/authentication)).
+- On your own box: [Self-host](/docs/self-host#use-these-docs-on-your-box).
+
+Where the detail lives:
+
+- Per-endpoint parameters and response codes: [API reference](/docs/api-reference).
+- Print-event schemas: [`get-print-schema`](/docs/api/index#get-print-schema).
+- Proof routes (`/v1/proofs/*`, `/v1/index/transactions/:tx_id/proof`): [Verify](/docs/verification#proofs-api).
 
 ## Response envelope
 
@@ -23,7 +30,8 @@ Per-endpoint parameters and response codes: [API reference](/docs/api-reference)
 }
 ```
 
-Cursor format is `<block_height>:<event_index>`. `tip.finalized_height` is the burn-confirmation finality boundary; rows at or below it never reorg, which is what a `finalizedOnly` consumer gates on.
+- The cursor is `<block_height>:<event_index>`.
+- `tip.finalized_height` is the burn-confirmation finality boundary. Rows at or below it never reorg, which is what a `finalizedOnly` consumer gates on.
 
 ## Errors
 
@@ -37,7 +45,12 @@ Cursor format is `<block_height>:<event_index>`. `tip.finalized_height` is the b
 }
 ```
 
-Branch on `code`, not on the message. `request_id` matches the `X-Request-Id` response header (sent on every response); quote it in any report. `feedback.url` is where to report a gap.
+Branch on `code`, not on the message.
+
+| Field | Is |
+| --- | --- |
+| `request_id` | Matches the `X-Request-Id` response header (sent on every response); quote it in any report |
+| `feedback.url` | Where to report a gap |
 
 ### Report a problem (hosted)
 
@@ -50,17 +63,36 @@ curl -X POST "$SECONDLAYER_API_URL/v1/feedback" \
   -d '{"request_id":"req_3f9a1c0b7d2e4a6f8b1c2d3e","intent":"list aeUSDC swaps for one sender since block 165000"}'
 ```
 
-The server attaches its own record of the failed call (method, path, status, code; kept 24 hours), so you don't resend it. Optional fields: `kind_hint` (`missing_capability`, `bug`, `schema_gap`, `docs_mismatch`, `perf`), `expected` (what you wanted back), and `evidence` (`tx_id`, `block_height`, `contract_id`, `event_type`, `subgraph`, `table`). An `Idempotency-Key` header makes retries safe.
+The server attaches its own record of the failed call (method, path, status, code; kept 24 hours), so you don't resend it. Optional fields:
+
+| Field | Holds |
+| --- | --- |
+| `kind_hint` | `missing_capability`, `bug`, `schema_gap`, `docs_mismatch`, or `perf` |
+| `expected` | What you wanted back |
+| `evidence` | `tx_id`, `block_height`, `contract_id`, `event_type`, `subgraph`, `table` |
+
+An `Idempotency-Key` header makes retries safe.
 
 ## Pagination
 
 | Surface | Page size | Ordering |
 | --- | --- | --- |
-| Subgraph tables | `_limit` (default 50, max 1000; on `/v1` a non-integer, `0`, negative, or over-1000 value is rejected with `400` rather than clamped) | `_id` by default, or `_sort=<column>&_order=asc\|desc` for one column (`/v1`); `_order` on its own is `asc`/`desc` only; any other value (a column name, `desc,asc`, …) returns `400`; bare `limit`, `order`, or `sort` returns `400` |
+| Subgraph tables | `_limit` (default 50, max 1000) | `_id` by default, or `_sort=<column>&_order=asc\|desc` for one column |
 | Index | `limit` (default 200, max 1000) | Fixed by the keyset cursor, no order param |
 | Streams | `limit` (default 100, max 1000) | Fixed by the keyset cursor, no order param |
 
-Pass the previous response's `next_cursor` back as `cursor` (index and `/v1/subgraphs`). Subgraph routes, sorting and `_search`: [Read rows](/docs/subgraphs#read-rows). Index also accepts `from_cursor` (exclusive-start alias, mutually exclusive with `cursor`) and `from_height`/`to_height`.
+Pass the previous response's `next_cursor` back as `cursor`, on Index and subgraph routes. Subgraph routes, sorting and search: [Read rows](/docs/subgraphs#read-rows).
+
+On `/v1` subgraph tables these return `400`, not a clamp:
+
+- A `_limit` that is a non-integer, `0`, negative, or over 1000.
+- An `_order` other than `asc` or `desc`.
+- A bare `limit`, `order`, or `sort`.
+
+Index also takes:
+
+- `from_cursor`: exclusive start, not with `cursor`.
+- `from_height`, `to_height`.
 
 ## Filtering
 
@@ -72,7 +104,7 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers" \
   -d "_order=desc"
 ```
 
-Subgraph tables filter on any column, validated against the table's schema. Index and streams take a fixed set per endpoint (`types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier` on `/v1/streams/events`).
+Subgraph tables filter on any column, validated against the table's schema. Index and streams take a fixed set per endpoint; the [Streams filter table](/docs/streams#read-it-directly) lists the ones on `/v1/streams/events`.
 
 <Callout type="warning" title="Unknown params are rejected">
 
@@ -124,7 +156,12 @@ curl "$SECONDLAYER_API_URL/v1/subgraphs/sbtc-flows/transfers/aggregate" \
 | `_countDistinct=col1,col2` | Distinct count per column |
 | `_sum=col`, `_min=col`, `_max=col` | Comma-separated; **numeric columns only** (`uint`/`int`, plus the system `_block_height`) |
 
-`count` and `countDistinct.col` are JSON numbers; `sum`/`min`/`max` are **lossless strings**. Over an empty set `sum` is `"0"`, `min`/`max` are `null`. No aggregate param → `{ "count": <n> }`.
+Result types:
+
+- `count` and `countDistinct.col` are JSON numbers.
+- `sum`, `min` and `max` are **lossless strings**.
+- Over an empty set `sum` is `"0"`, and `min` and `max` are `null`.
+- No aggregate param → `{ "count": <n> }`.
 
 | Status / code | Cause |
 | --- | --- |
@@ -149,7 +186,10 @@ curl -X POST "$SECONDLAYER_API_URL/v1/batch" \
 }'
 ```
 
-Results come back in order as `{ "results": [{ "path", "status", "body" }] }`. Each item runs through the same auth and limits as a direct call, with your `Authorization` header forwarded. Only paths under `/v1/index/`, `/v1/subgraphs`, `/v1/streams/` and `/v1/contracts` are allowed; anything else is a per-item `400`.
+Results come back in order as `{ "results": [{ "path", "status", "body" }] }`.
+
+- Each item runs through the same auth and limits as a direct call, with your `Authorization` header forwarded.
+- Only paths under `/v1/index/`, `/v1/subgraphs`, `/v1/streams/` and `/v1/contracts` are allowed. Anything else is a per-item `400`.
 
 export const agent = `
 - Envelope: rows under a named key (events, calls, rows) plus top-level next_cursor, tip and reorgs.
