@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.13.10
+
+### Patch Changes
+
+- @secondlayer/sdk@15.0.3
+
 ## 0.13.9
 
 ### Patch Changes

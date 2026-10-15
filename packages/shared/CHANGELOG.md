@@ -1,5 +1,15 @@
 # @secondlayer/shared
 
+## 13.0.0
+
+### Major Changes
+
+- 535cfbd: Remove the helpers only `secondlayer setup` and `uninstall` used: `getRawClientFor`, `planUninstall`, `uninstallCommand`, `PRESERVED`, `REMOVABLE` and their types.
+
+### Patch Changes
+
+- ee66b19: The runtime config accepts `BITCOIN_DATABASE_URL`, and allows `BITCOIN_RPC_PASSWORD` in every node mode so the Runes follower can read any Bitcoin node. The repo's compose file no longer crash-loops the runtime at boot.
+
 ## 12.1.2
 
 ### Patch Changes

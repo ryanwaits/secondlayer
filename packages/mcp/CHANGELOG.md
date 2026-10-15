@@ -1,5 +1,19 @@
 # @secondlayer/mcp
 
+## 11.0.0
+
+### Major Changes
+
+- 44dbcb8: Remove the `setup` tool, which ran the removed `secondlayer setup`. `archive_bootstrap` and `archive_repair` are unchanged and now list under Archive.
+
+### Patch Changes
+
+- Updated dependencies [535cfbd]
+- Updated dependencies [ee66b19]
+  - @secondlayer/shared@13.0.0
+  - @secondlayer/sdk@15.0.3
+  - @secondlayer/subgraphs@7.0.4
+
 ## 10.0.1
 
 ### Patch Changes

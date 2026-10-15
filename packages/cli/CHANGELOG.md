@@ -1,5 +1,19 @@
 # @secondlayer/cli
 
+## 21.0.0
+
+### Major Changes
+
+- 535cfbd: Remove `secondlayer setup` and `secondlayer uninstall`. Self-host runs from `docker/oss` with `docker compose`; `init`, `observer`, `bootstrap` and `verify` cover the steps around it. Stop the stack with `docker compose down`.
+
+### Patch Changes
+
+- Updated dependencies [535cfbd]
+- Updated dependencies [ee66b19]
+  - @secondlayer/shared@13.0.0
+  - @secondlayer/sdk@15.0.3
+  - @secondlayer/subgraphs@7.0.4
+
 ## 20.1.2
 
 ### Patch Changes

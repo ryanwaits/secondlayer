@@ -4,6 +4,10 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 
 ## CLI — October 2026
 
+### Self-host with docker compose
+
+`secondlayer setup` and `secondlayer uninstall` are gone, along with the MCP `setup` tool. You run your own instance from `docker/oss`: `secondlayer init` writes the keys, `docker compose pull` and `up -d` start it, and `bootstrap` and `verify` fill and check it. Stop it with `docker compose down`. The compose file now pulls the published images, pinned with `SECONDLAYER_VERSION`. See [Self-host](/docs/self-host).
+
 ### Runes from the CLI
 
 `secondlayer index runes` lists etched runes, and its `get`, `balances` and `activity` subcommands read one rune, a holder's balances and the etch, mint, transfer and burn log. `secondlayer streams events --chain bitcoin` (also `by-tx`, `consume` and `reorgs`) reads the raw Runes events. Self-hosted instances with the `bitcoin` profile have data now; hosted answers a "not configured" note until Runes data arrives with the hosted rollout. See [Runes](/docs/index#runes).
