@@ -58,7 +58,7 @@ function VerifyContent() {
 				<p style={{ color: "var(--alarm)" }}>{error || LINK_FAILED}</p>
 				<p style={{ marginTop: 20 }}>
 					<Link
-						href="/login"
+						href="/signin"
 						className="acct-btn solid"
 						style={{ display: "inline-flex" }}
 					>

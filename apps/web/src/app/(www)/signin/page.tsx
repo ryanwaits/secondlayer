@@ -5,7 +5,7 @@ import { handOverNewKey } from "@/lib/new-key";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-export default function LoginPage() {
+export default function SignInPage() {
 	const { login, verify, account } = useAuth();
 	const router = useRouter();
 	const [email, setEmail] = useState("");
@@ -89,7 +89,7 @@ export default function LoginPage() {
 					<div className="login-sent">
 						<p className="login-sent-title">Check your email</p>
 						<p className="login-sent-desc">
-							We sent a login code to <strong>{email}</strong>
+							We sent a sign-in code to <strong>{email}</strong>
 						</p>
 						<form onSubmit={handleVerifyCode}>
 							<input

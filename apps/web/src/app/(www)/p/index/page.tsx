@@ -220,7 +220,7 @@ export default async function IndexPage() {
 						</h1>
 						<p className="lede">{LEDE}</p>
 						<div className="btns">
-							<ButtonLink href="/login">Build an indexer</ButtonLink>
+							<ButtonLink href="/signin">Build an indexer</ButtonLink>
 							<ButtonLink href="/docs/index" variant="secondary">
 								Read the docs
 							</ButtonLink>
@@ -582,7 +582,7 @@ export default async function IndexPage() {
 				}
 				cta={
 					<>
-						<ButtonLink href="/login">Start free</ButtonLink>
+						<ButtonLink href="/signin">Start free</ButtonLink>
 						<ButtonLink href="/docs/index" variant="secondary">
 							Read the docs
 						</ButtonLink>

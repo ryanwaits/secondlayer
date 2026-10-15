@@ -103,6 +103,12 @@ const nextConfig: NextConfig = {
 				destination: "/account/credits",
 				permanent: false,
 			},
+			// Sign-in moved from /login to match its label; shipped links follow.
+			{
+				source: "/login",
+				destination: "/signin",
+				permanent: true,
+			},
 			// The blog moved from /writing; shared links and feed readers follow.
 			{
 				source: "/writing",

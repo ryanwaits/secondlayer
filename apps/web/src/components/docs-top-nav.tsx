@@ -54,8 +54,8 @@ export function DocsTopNav() {
 						</>
 					) : (
 						<>
-							<Link href="/login">Sign in</Link>
-							<Link href="/login" className="start-free">
+							<Link href="/signin">Sign in</Link>
+							<Link href="/signin" className="start-free">
 								Start free
 							</Link>
 						</>

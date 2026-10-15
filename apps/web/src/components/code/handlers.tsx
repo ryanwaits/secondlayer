@@ -374,7 +374,7 @@ export const escAttr = (text: string) => esc(text).replace(/"/g, "&quot;");
  */
 export const KEY_CONTROLS =
 	'<span class="key-ctl">' +
-	'<a class="key-link key-signin" href="/login" data-key-signin hidden>Sign in to fill in a docs key</a>' +
+	'<a class="key-link key-signin" href="/signin" data-key-signin hidden>Sign in to fill in a docs key</a>' +
 	'<button type="button" class="key-chip mono" data-key-chip aria-haspopup="dialog" aria-expanded="false" hidden></button>' +
 	'<button type="button" class="key-link use-key" data-use-key hidden>Fill in a docs key</button>' +
 	"</span>";

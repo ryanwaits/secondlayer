@@ -406,7 +406,7 @@ export default function VerifyPage() {
 				title="Check a block before you trust it."
 				cta={
 					<>
-						<ButtonLink href="/login">Start free</ButtonLink>
+						<ButtonLink href="/signin">Start free</ButtonLink>
 						<ButtonLink href="/docs/verification" variant="secondary">
 							Read the Verify docs
 						</ButtonLink>

@@ -352,7 +352,7 @@ export function DocsSidebar() {
 							</Link>
 						))}
 						{!loading && !account ? (
-							<Link href="/login" className="docs-nav-item">
+							<Link href="/signin" className="docs-nav-item">
 								Sign in
 							</Link>
 						) : null}

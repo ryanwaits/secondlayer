@@ -181,7 +181,7 @@ export default function WebhooksPage() {
 						</h1>
 						<p className="lede">{LEDE}</p>
 						<div className="btns">
-							<ButtonLink href="/login">Create a webhook</ButtonLink>
+							<ButtonLink href="/signin">Create a webhook</ButtonLink>
 							<ButtonLink href="/docs/webhooks" variant="secondary">
 								Read the docs
 							</ButtonLink>
@@ -474,7 +474,7 @@ export default function WebhooksPage() {
 				}
 				cta={
 					<>
-						<ButtonLink href="/login">Start free</ButtonLink>
+						<ButtonLink href="/signin">Start free</ButtonLink>
 						<ButtonLink href="/docs/webhooks" variant="secondary">
 							Read the docs
 						</ButtonLink>

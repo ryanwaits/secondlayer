@@ -150,7 +150,7 @@ export function HomeView() {
 							</p>
 							<div className="hero-cta">
 								<div className="btns">
-									<ButtonLink href="/login">Start free</ButtonLink>
+									<ButtonLink href="/signin">Start free</ButtonLink>
 									<ButtonLink href="/docs" variant="secondary">
 										Read the docs
 									</ButtonLink>
@@ -273,7 +273,7 @@ export function HomeView() {
 				}
 				cta={
 					<>
-						<ButtonLink href="/login">Start free</ButtonLink>
+						<ButtonLink href="/signin">Start free</ButtonLink>
 						<ButtonLink href="/verify" variant="secondary">
 							Verify a block
 						</ButtonLink>

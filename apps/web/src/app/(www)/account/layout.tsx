@@ -70,7 +70,7 @@ export default function AccountLayout({
 					<p className="login-disclaimer">
 						Your API key reads the hosted API at api.secondlayer.tools.
 					</p>
-					<a href="/login" className="login-submit account-link-button">
+					<a href="/signin" className="login-submit account-link-button">
 						Sign in
 					</a>
 				</div>

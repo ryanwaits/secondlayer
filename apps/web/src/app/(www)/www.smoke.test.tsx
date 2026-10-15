@@ -65,7 +65,7 @@ describe("docs site strip", () => {
 			"Docs",
 			"Blog",
 		]);
-		expect(DOCS_STRIP.map((l) => l.href)).not.toContain("/login");
+		expect(DOCS_STRIP.map((l) => l.href)).not.toContain("/signin");
 	});
 });
 

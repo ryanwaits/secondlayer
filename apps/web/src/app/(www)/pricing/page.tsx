@@ -138,7 +138,7 @@ export default function PricingPage() {
 						</h1>
 						<p className="lede">{LEDE}</p>
 						<div className="btns">
-							<ButtonLink href="/login">Start free</ButtonLink>
+							<ButtonLink href="/signin">Start free</ButtonLink>
 							<ButtonLink href="#estimate" variant="secondary">
 								Estimate your month
 							</ButtonLink>
@@ -449,7 +449,7 @@ export default function PricingPage() {
 				}
 				cta={
 					<>
-						<ButtonLink href="/login">Start free</ButtonLink>
+						<ButtonLink href="/signin">Start free</ButtonLink>
 						<ButtonLink href="#estimate" variant="secondary">
 							Estimate your month
 						</ButtonLink>

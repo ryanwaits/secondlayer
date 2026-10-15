@@ -76,9 +76,9 @@ export function MarketingNav() {
 			<div className="mnav-right">
 				{!loading && !account ? (
 					<Link
-						href="/login"
+						href="/signin"
 						className="mnav-plain"
-						aria-current={pathname === "/login" ? "page" : undefined}
+						aria-current={pathname === "/signin" ? "page" : undefined}
 					>
 						Sign in
 					</Link>
@@ -93,7 +93,7 @@ export function MarketingNav() {
 						</span>
 					</>
 				) : (
-					<Link href="/login" className="start-free">
+					<Link href="/signin" className="start-free">
 						Start free
 					</Link>
 				)}
@@ -167,13 +167,13 @@ export function MarketingNav() {
 						</div>
 					) : loading ? null : (
 						<div className="mnav-sheet-actions">
-							<Link href="/login" className="acct-btn solid full">
+							<Link href="/signin" className="acct-btn solid full">
 								Get an API key
 							</Link>
 							<Link href="/docs/cli" className="acct-btn line full">
 								Install the CLI
 							</Link>
-							<Link href="/login" className="mnav-sheet-quiet">
+							<Link href="/signin" className="mnav-sheet-quiet">
 								Already have an account? Sign in
 							</Link>
 						</div>

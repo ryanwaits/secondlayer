@@ -104,7 +104,7 @@ export default async function StreamsPage() {
 						</h1>
 						<p className="lede">{LEDE}</p>
 						<div className="btns">
-							<ButtonLink href="/login">Start a consumer</ButtonLink>
+							<ButtonLink href="/signin">Start a consumer</ButtonLink>
 							<ButtonLink href="/docs/streams" variant="secondary">
 								Read the docs
 							</ButtonLink>
@@ -462,7 +462,7 @@ export default async function StreamsPage() {
 				}
 				cta={
 					<>
-						<ButtonLink href="/login">Start free</ButtonLink>
+						<ButtonLink href="/signin">Start free</ButtonLink>
 						<ButtonLink href="/docs/streams" variant="secondary">
 							Read the docs
 						</ButtonLink>

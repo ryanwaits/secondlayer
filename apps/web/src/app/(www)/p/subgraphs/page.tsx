@@ -125,7 +125,7 @@ export default function SubgraphsPage() {
 						</h1>
 						<p className="lede">{LEDE}</p>
 						<div className="btns">
-							<ButtonLink href="/login">Deploy a subgraph</ButtonLink>
+							<ButtonLink href="/signin">Deploy a subgraph</ButtonLink>
 							<ButtonLink href="/docs/subgraphs" variant="secondary">
 								Read the docs
 							</ButtonLink>
@@ -526,7 +526,7 @@ export default function SubgraphsPage() {
 				}
 				cta={
 					<>
-						<ButtonLink href="/login">Start free</ButtonLink>
+						<ButtonLink href="/signin">Start free</ButtonLink>
 						<ButtonLink href="/docs/subgraphs" variant="secondary">
 							Read the docs
 						</ButtonLink>
