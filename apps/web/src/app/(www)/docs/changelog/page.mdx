@@ -39,6 +39,17 @@ Before, `topic` was ignored on webhooks and you received every print from the co
 
 ## Subgraphs — October 2026
 
+### Chain reads halt the block instead of dropping rows
+
+Breaking for self-host. Before, a `ctx.client` read that couldn't complete (a missing node URL, a node timeout or outage) failed only that event, and the block committed without its rows. Now the block retries, then the subgraph halts there with status `error` and resumes from that block once the node answers.
+
+- A contract that answers `err` still fails only that event.
+- See [Reading the chain from a handler](/docs/subgraphs#reading-the-chain-from-a-handler).
+
+### readContractAt deploys
+
+A subgraph that imports `readContractAt` now deploys. It failed to bundle before with `No matching export`.
+
 ### Typed map and variable writes
 
 Pass an `abi` on a map or variable write source and name the map or variable, and your handler gets `event.key` and `event.value` typed and decoded from the contract's types. Without one they stay unknown.

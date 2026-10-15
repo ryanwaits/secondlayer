@@ -235,6 +235,7 @@ handlers: {
 
 - Every read is pinned to the block being processed, so a reindex gives byte-identical rows.
 - A block whose id was never stored throws instead of reading the node's tip.
+- A read that can't complete (no node, node down) halts the subgraph at that block with status `error`, instead of skipping the event. A contract `err` answer fails only that event.
 - Self-hosting: point `STACKS_NODE_RPC_URL` on the processor at [your node](/docs/self-host#config).
 
 <Callout type="tip" title="Declare what can't change">
