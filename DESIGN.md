@@ -277,7 +277,7 @@ scope script (`scope-runtime.ts`) loads only on pages that render one of these.
 `!pick` name in a scope, on `<CodeSteps>` outside `writing/`, on an unknown name, on `blue`
 outside figures and on `red` outside `text`. It also fails on a `!tip` or `[text](tip "…")`
 outside guides, more than two prose tips under one `##`, prose tip words that break the
-rules above, any tip under `/p/*` or `/verify`, and more than 30 automatic tips across the
+rules above, any tip under `/p/*` or `/verify`, and more than 32 automatic tips across the
 guides. A callout counts toward its section's 120-word lead. Most blocks stay plain: annotate only when the paragraph points at a token or line.
 
 **Which format when.**
@@ -439,7 +439,7 @@ sits under the amount in 12px `sub`. Selected is a 1px ink border on a `soft` fi
 inset ring, no radio dot, no `pri`, because the blue Buy button sits right under it.
 
 ### Tabs
-`.tabbar`: `gap 20px` over a 1px `line` baseline. A tab has no radius, `sub` at rest, ink on
+`.tabbar`: `gap 20px` over a 1px `line` baseline. Inside a code block's bar the gap is 14px, so six tabs and the key chip fit at 1440px; the strip scrolls sideways when it still overflows. A tab has no radius, `sub` at rest, ink on
 hover; the selected tab is ink with a 2px `pri` underline on the baseline. Label font follows
 the content: `.tabbar.mono` (Geist Mono 12px) for code bars, Geist 14px for panels; a `.n`
 count badge is supported. The strip scrolls sideways when it overflows. Markup stays the
