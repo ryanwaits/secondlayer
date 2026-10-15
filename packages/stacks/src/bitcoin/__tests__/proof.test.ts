@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { bytesToHex, hexToBytes } from "../../utils/encoding.ts";
 import {
+	BitcoinSourceError,
 	type ProofSource,
+	bitcoinRpcSource,
 	buildTxProof,
 	esploraSource,
 	fallbackProofSource,
@@ -116,6 +118,78 @@ describe("buildTxProof", () => {
 		await expect(
 			buildTxProof(wrong, { txid: BLOCK_170.coinbaseTxid }),
 		).rejects.toThrow(/merkle root/);
+	});
+});
+
+describe("bitcoinRpcSource errors", () => {
+	const TXID = "aa".repeat(32);
+	function source(respond: () => Response) {
+		return bitcoinRpcSource({
+			url: "http://bitcoind.test",
+			fetch: (async () => respond()) as unknown as typeof fetch,
+		});
+	}
+	async function codeOf(promise: Promise<unknown>) {
+		try {
+			await promise;
+		} catch (error) {
+			expect(error).toBeInstanceOf(BitcoinSourceError);
+			return (error as BitcoinSourceError).code;
+		}
+		throw new Error("expected rejection");
+	}
+
+	test("an unknown txid reported as HTTP 500 with a -5 body is not-found", async () => {
+		const btc = source(
+			() =>
+				new Response(
+					JSON.stringify({
+						result: null,
+						error: {
+							code: -5,
+							message: "No such mempool or blockchain transaction",
+						},
+					}),
+					{ status: 500 },
+				),
+		);
+		expect(await codeOf(btc.getRawTx(TXID))).toBe("not-found");
+	});
+
+	test("a tx without a blockhash is unconfirmed", async () => {
+		const btc = source(() =>
+			Response.json({ result: { txid: TXID }, error: null }),
+		);
+		expect(await codeOf(btc.getBlockForTx(TXID))).toBe("unconfirmed");
+	});
+
+	test("an HTTP 503 with a non-JSON body is unavailable", async () => {
+		const btc = source(() => new Response("upstream down", { status: 503 }));
+		expect(await codeOf(btc.getRawTx(TXID))).toBe("unavailable");
+	});
+
+	test("a rejected fetch is unavailable", async () => {
+		const btc = bitcoinRpcSource({
+			url: "http://bitcoind.test",
+			fetch: (async () => {
+				throw new Error("ECONNREFUSED");
+			}) as unknown as typeof fetch,
+		});
+		expect(await codeOf(btc.getRawTx(TXID))).toBe("unavailable");
+	});
+
+	test("a non -5 RPC error is unavailable", async () => {
+		const btc = source(
+			() =>
+				new Response(
+					JSON.stringify({
+						result: null,
+						error: { code: -28, message: "Loading block index" },
+					}),
+					{ status: 500 },
+				),
+		);
+		expect(await codeOf(btc.getRawTx(TXID))).toBe("unavailable");
 	});
 });
 

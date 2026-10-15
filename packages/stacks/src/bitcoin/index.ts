@@ -15,6 +15,8 @@ export {
 
 export {
 	type BitcoinRpcConfig,
+	BitcoinSourceError,
+	type BitcoinSourceErrorCode,
 	type BlockForTx,
 	bitcoinRpcSource,
 	buildTxProof,

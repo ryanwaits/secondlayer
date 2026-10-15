@@ -45,6 +45,27 @@ export interface ProofSource {
 	getBlockForTx(txid: string): Promise<BlockForTx>;
 }
 
+/** Why a source could not produce a proof input. */
+export type BitcoinSourceErrorCode =
+	| "not-found"
+	| "unconfirmed"
+	| "unavailable";
+
+/**
+ * Thrown by `bitcoinRpcSource` / `esploraSource` when the source itself cannot
+ * answer: the tx is unknown, not yet in a block, or the source is unreachable.
+ * Inconsistent data from a source is a plain `Error` (the source lied).
+ */
+export class BitcoinSourceError extends Error {
+	override readonly name = "BitcoinSourceError";
+	constructor(
+		readonly code: BitcoinSourceErrorCode,
+		message: string,
+	) {
+		super(message);
+	}
+}
+
 function normalizeTxid(txid: string): string {
 	return without0x(txid).toLowerCase();
 }
@@ -186,25 +207,45 @@ export function bitcoinRpcSource(config: BitcoinRpcConfig): ProofSource {
 					: btoa(`${config.auth.username}:${config.auth.password}`);
 			headers.authorization = `Basic ${basic}`;
 		}
-		const res = await doFetch(config.url, {
-			method: "POST",
-			headers,
-			body: JSON.stringify({
-				jsonrpc: "1.0",
-				id: "secondlayer",
-				method,
-				params: rpcParams,
-			}),
-		});
-		if (!res.ok) {
-			throw new Error(`bitcoin rpc ${method} failed: HTTP ${res.status}`);
+		let res: Response;
+		try {
+			res = await doFetch(config.url, {
+				method: "POST",
+				headers,
+				body: JSON.stringify({
+					jsonrpc: "1.0",
+					id: "secondlayer",
+					method,
+					params: rpcParams,
+				}),
+			});
+		} catch (error) {
+			throw new BitcoinSourceError(
+				"unavailable",
+				`bitcoin rpc ${method} failed: ${error instanceof Error ? error.message : "network error"}`,
+			);
 		}
-		const json = (await res.json()) as {
-			result: T;
-			error: { message: string } | null;
-		};
+		// Core answers RPC errors with HTTP 500 and the error in the JSON body.
+		let json: { result: T; error: { code?: number; message: string } | null };
+		try {
+			json = (await res.json()) as typeof json;
+		} catch {
+			throw new BitcoinSourceError(
+				"unavailable",
+				`bitcoin rpc ${method} failed: HTTP ${res.status}`,
+			);
+		}
 		if (json.error) {
-			throw new Error(`bitcoin rpc ${method} error: ${json.error.message}`);
+			throw new BitcoinSourceError(
+				json.error.code === -5 ? "not-found" : "unavailable",
+				`bitcoin rpc ${method} error: ${json.error.message}`,
+			);
+		}
+		if (!res.ok) {
+			throw new BitcoinSourceError(
+				"unavailable",
+				`bitcoin rpc ${method} failed: HTTP ${res.status}`,
+			);
 		}
 		return json.result;
 	}
@@ -219,7 +260,8 @@ export function bitcoinRpcSource(config: BitcoinRpcConfig): ProofSource {
 				true,
 			]);
 			if (!tx.blockhash) {
-				throw new Error(
+				throw new BitcoinSourceError(
+					"unconfirmed",
 					`tx ${txid} is not in a block (node needs -txindex, or the tx is unconfirmed)`,
 				);
 			}
@@ -256,9 +298,20 @@ export function esploraSource(config: EsploraConfig): ProofSource {
 	const base = config.url.replace(/\/+$/, "");
 
 	async function get(path: string): Promise<Response> {
-		const res = await doFetch(`${base}${path}`);
+		let res: Response;
+		try {
+			res = await doFetch(`${base}${path}`);
+		} catch (error) {
+			throw new BitcoinSourceError(
+				"unavailable",
+				`esplora GET ${path} failed: ${error instanceof Error ? error.message : "network error"}`,
+			);
+		}
 		if (!res.ok) {
-			throw new Error(`esplora GET ${path} failed: HTTP ${res.status}`);
+			throw new BitcoinSourceError(
+				res.status === 404 ? "not-found" : "unavailable",
+				`esplora GET ${path} failed: HTTP ${res.status}`,
+			);
 		}
 		return res;
 	}
@@ -276,7 +329,10 @@ export function esploraSource(config: EsploraConfig): ProofSource {
 				};
 			};
 			if (!status.status.confirmed) {
-				throw new Error(`tx ${txid} is unconfirmed`);
+				throw new BitcoinSourceError(
+					"unconfirmed",
+					`tx ${txid} is unconfirmed`,
+				);
 			}
 			const blockHashHex = status.status.block_hash;
 			const header = (
