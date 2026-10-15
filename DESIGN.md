@@ -29,6 +29,7 @@ colors:
     on-hi: "#141414"
     ok: "#5cc28f"
     alarm: "#ff5a47"
+  terminal:
     fg: "#d9dbe0"
     muted: "#8b9099"
     ok: "#3ccb7f"
