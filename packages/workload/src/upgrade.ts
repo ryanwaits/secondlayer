@@ -20,13 +20,14 @@ import type { FetchLike } from "./fetch-like.ts";
 import {
 	type ProvisionerConfig,
 	type RunCompose,
-	TENANT_SERVICES,
+	composeEnv,
 	ensureTenantEnv,
 	projectName,
 	recordTenantRelease,
 	spawnCompose,
 	templateSha,
 	tenantDir,
+	tenantServices,
 } from "./provisioner.ts";
 
 const IMAGE_SHA_PATTERN = /^[0-9a-f]{40}$/;
@@ -138,8 +139,11 @@ export async function upgradeTenants(
 		await ensureTenantEnv(cfg, tenant.account_id);
 
 		const pullResult = await runCompose(
-			composeArgs(cfg, acct8, ["pull", ...TENANT_SERVICES]),
-			{ WORKLOAD_IMAGE_TAG: targetSha },
+			composeArgs(cfg, acct8, [
+				"pull",
+				...tenantServices(tenant.has_subgraphs),
+			]),
+			composeEnv(targetSha, tenant.has_subgraphs),
 		);
 		if (pullResult.code !== 0) {
 			logger.error("workload.upgrade.pull_failed", {
@@ -152,7 +156,7 @@ export async function upgradeTenants(
 
 		const upResult = await runCompose(
 			composeArgs(cfg, acct8, ["up", "-d", "--wait"]),
-			{ WORKLOAD_IMAGE_TAG: targetSha },
+			composeEnv(targetSha, tenant.has_subgraphs),
 		);
 		if (upResult.code !== 0) {
 			logger.error("workload.upgrade.up_failed", {
@@ -162,9 +166,10 @@ export async function upgradeTenants(
 			});
 			const previousSha = tenant.image_sha;
 			if (previousSha) {
-				await runCompose(composeArgs(cfg, acct8, ["up", "-d", "--wait"]), {
-					WORKLOAD_IMAGE_TAG: previousSha,
-				});
+				await runCompose(
+					composeArgs(cfg, acct8, ["up", "-d", "--wait"]),
+					composeEnv(previousSha, tenant.has_subgraphs),
+				);
 			} else {
 				// No prior sha recorded for this tenant (its first upgrade round
 				// since `image_sha` started being tracked) — nothing to roll back

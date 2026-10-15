@@ -330,6 +330,33 @@ describe("handleGatewayRequest", () => {
 		expect(provisionCalls).toBe(1);
 	});
 
+	test("a successful subgraph deploy reconciles the processor right away; a failed one or a read doesn't", async () => {
+		const deployed: string[] = [];
+		let status = 201;
+		const deps = baseDeps({
+			fetchImpl: async () => new Response("{}", { status }),
+			onSubgraphDeployed: (accountId) => deployed.push(accountId),
+		});
+		const call = (method: string, path: string) =>
+			handleGatewayRequest(
+				deps,
+				new Request(`https://gateway.internal${path}`, {
+					method,
+					headers: { authorization: "Bearer sk-sl_good" },
+					body: method === "POST" ? "{}" : undefined,
+				}),
+			);
+
+		await call("POST", "/api/subgraphs");
+		expect(deployed).toEqual(["acct_1"]);
+
+		await call("GET", "/api/subgraphs");
+		await call("POST", "/api/subgraphs/bundle");
+		status = 400;
+		await call("POST", "/api/subgraphs");
+		expect(deployed).toEqual(["acct_1"]);
+	});
+
 	test("running tenant: a subgraph read is forwarded with the path and query intact", async () => {
 		let forwarded: { url: string; auth: string | null } | undefined;
 		const deps = baseDeps({

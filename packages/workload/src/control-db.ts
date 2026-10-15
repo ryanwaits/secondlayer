@@ -56,6 +56,11 @@ export interface TenantRow {
 	 *  fires within `IDLE_GRACE_MS` of it. `null` on rows from before this
 	 *  column existed. */
 	started_at: Date | null;
+	/** Does this tenant run subgraphs. Derived, never set by a user: only the
+	 *  reconcile in `processor-watch.ts` writes it, from the tenant's own
+	 *  subgraph count. Picks the compose profile (`subgraph-processor` runs
+	 *  only when true) and the memory floor (`stackMemoryFloorGb`). */
+	has_subgraphs: boolean;
 }
 
 export type StopReason = "credits" | "cap" | "idle";
@@ -144,6 +149,12 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS template_sha TEXT`;
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS stop_reason TEXT`;
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ`;
+	// Rows from before this column all run a processor, so they start `true`
+	// (the $10 floor) and the reconcile removes the processor before flipping
+	// them: a stack never bills the $5 floor while a processor runs. New rows
+	// start `false`.
+	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS has_subgraphs BOOLEAN NOT NULL DEFAULT true`;
+	await db`ALTER TABLE tenants ALTER COLUMN has_subgraphs SET DEFAULT false`;
 	// Tenants created before subgraph hosting have no network index: adding the
 	// column with a sequence default gives every existing row its own.
 	await db`
@@ -248,6 +259,15 @@ export async function setTenantTemplateSha(
 	templateSha: string,
 ): Promise<void> {
 	await db`UPDATE tenants SET template_sha = ${templateSha} WHERE account_id = ${accountId}`;
+}
+
+/** Written only by the subgraph-processor reconcile (`processor-watch.ts`). */
+export async function setTenantHasSubgraphs(
+	db: postgres.Sql,
+	accountId: string,
+	hasSubgraphs: boolean,
+): Promise<void> {
+	await db`UPDATE tenants SET has_subgraphs = ${hasSubgraphs} WHERE account_id = ${accountId}`;
 }
 
 export async function deleteTenant(

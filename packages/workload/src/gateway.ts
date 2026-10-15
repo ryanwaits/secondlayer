@@ -52,6 +52,10 @@ export interface GatewayDeps {
 	tenantUpstream: (
 		accountId: string,
 	) => Promise<{ baseUrl: string; instanceToken: string }>;
+	/** Fire-and-forget after a successful subgraph deploy: starts the tenant's
+	 *  processor now instead of on the next watch tick (`processor-watch.ts`).
+	 *  The deploy itself never needs it. */
+	onSubgraphDeployed?: (accountId: string) => void;
 	fetchImpl?: FetchLike;
 	rateLimit?: RateLimiter;
 	/** Git sha this process started from, served at `/healthz` so the
@@ -307,6 +311,13 @@ async function route(
 				req.method === "GET" || req.method === "HEAD" ? undefined : req.body,
 			duplex: req.body ? "half" : undefined,
 		});
+		if (
+			upstreamRes.ok &&
+			req.method === "POST" &&
+			url.pathname.replace(/\/+$/, "") === "/api/subgraphs"
+		) {
+			deps.onSubgraphDeployed?.(introspected.accountId);
+		}
 		return new Response(upstreamRes.body, {
 			status: upstreamRes.status,
 			headers: upstreamRes.headers,

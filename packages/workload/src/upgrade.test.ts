@@ -22,6 +22,7 @@ import {
 	ensureControlSchema,
 	getTenant,
 	insertProvisioningTenant,
+	setTenantHasSubgraphs,
 	setTenantImageSha,
 	setTenantState,
 	setTenantTemplateSha,
@@ -225,6 +226,9 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 		}
 		for (const call of composeCalls) {
 			expect(call.env.WORKLOAD_IMAGE_TAG).toBe(GOOD_SHA);
+			// Both are webhook-only: the processor is never pulled or started.
+			expect(call.args).not.toContain("subgraph-processor");
+			expect(call.env.COMPOSE_PROFILES).toBeUndefined();
 		}
 
 		expect((await getTenant(db, a))?.image_sha).toBe(GOOD_SHA);
@@ -245,8 +249,9 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 		return path;
 	}
 
-	test("an upgrade pulls every service including subgraph-processor, after backfilling the tenant's env", async () => {
+	test("an upgrade of a tenant with subgraphs pulls every service including subgraph-processor, after backfilling the tenant's env", async () => {
 		const a = await seedRunningTenant(OTHER_SHA);
+		await setTenantHasSubgraphs(db, a, true);
 		const envPath = seedOldEnv(a);
 		let envAtFirstCompose: Record<string, string> | undefined;
 
@@ -273,6 +278,9 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 			"subgraph-processor",
 		]) {
 			expect(pull?.args).toContain(service);
+		}
+		for (const call of mine) {
+			expect(call.env.COMPOSE_PROFILES).toBe("subgraphs");
 		}
 		expect(envAtFirstCompose?.TENANT_SUBGRAPH_READ_KEY).toBe(
 			"sk-sl_hosted-subgraphs",

@@ -49,6 +49,27 @@ export const PRICES: Record<MeterUnit, bigint> = {
 	"sentinel.monitored_event": 15n, // $15/1M chain events on watched contracts
 };
 
+/** Hours in a billing month for "$/mo" math (365 × 24 / 12). */
+export const HOURS_PER_MONTH = 730;
+
+/** Monthly minimum for a running hosted stack, in USD-micros (founder
+ *  2026-10-15). Set in dollars: a webhook-only stack runs no
+ *  `subgraph-processor`, so it costs half. The workload host bills it as a
+ *  memory floor (`stackMemoryFloorGb`), so a rate change moves the GB floor,
+ *  never the dollar floor. */
+export const STACK_FLOOR_USD_MICROS_PER_MONTH = {
+	webhooks: 5_000_000n,
+	subgraphs: 10_000_000n,
+} as const;
+
+/** The memory a running stack bills at minimum, in GB, derived from its
+ *  dollar floor: ≈0.2446 GB webhook-only, ≈0.4892 GB with subgraphs. */
+export function stackMemoryFloorGb(hasSubgraphs: boolean): number {
+	const floor =
+		STACK_FLOOR_USD_MICROS_PER_MONTH[hasSubgraphs ? "subgraphs" : "webhooks"];
+	return Number(floor) / (HOURS_PER_MONTH * Number(PRICES["memory.gb_hour"]));
+}
+
 /** $5 per 1M rows read = 5 USD-micros per row. Same value as `PRICES["rows.delivered"]`,
  *  exported under its historical name for existing callers. */
 export const CREDIT_USD_MICROS_PER_ROW: bigint = PRICES["rows.delivered"];

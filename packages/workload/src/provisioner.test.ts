@@ -25,6 +25,7 @@ import {
 	ensureControlSchema,
 	getTenant,
 	insertProvisioningTenant,
+	setTenantHasSubgraphs,
 	setTenantState,
 } from "./control-db.ts";
 import {
@@ -450,12 +451,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		expect(composeCalls[0]?.args).toContain("stop");
 		expect(composeCalls[0]?.args).not.toContain("postgres");
 		// A stopped (out-of-credits) tenant must not keep indexing or metering.
-		for (const service of [
-			"api",
-			"webhook-service",
-			"migrate",
-			"subgraph-processor",
-		]) {
+		for (const service of ["api", "webhook-service", "migrate"]) {
 			expect(composeCalls[0]?.args).toContain(service);
 		}
 		// `stop` still needs SOME WORKLOAD_IMAGE_TAG for compose to parse the
@@ -467,6 +463,44 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		expect(row?.stopped_at).not.toBeNull();
 
 		await deleteTenant(db, accountId);
+	});
+
+	test("a webhook-only tenant's compose calls omit COMPOSE_PROFILES and the processor", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		await up(cfg(), accountId);
+		expect((await getTenant(db, accountId))?.has_subgraphs).toBe(false);
+		await stop(cfg(), accountId, "credits");
+		await start(cfg(), accountId);
+		await destroy({ ...cfg(), backups: fakeBackups(0).cfg }, accountId);
+
+		expect(composeCalls.length).toBeGreaterThanOrEqual(4);
+		for (const call of composeCalls) {
+			expect(call.env.COMPOSE_PROFILES).toBeUndefined();
+			expect(call.args).not.toContain("subgraph-processor");
+		}
+	});
+
+	test("a tenant with subgraphs passes COMPOSE_PROFILES=subgraphs on start, stop and down", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		await up(cfg(), accountId);
+		await setTenantHasSubgraphs(db, accountId, true);
+		composeCalls.length = 0;
+
+		await stop(cfg(), accountId, "credits");
+		await start(cfg(), accountId);
+		await destroy({ ...cfg(), backups: fakeBackups(0).cfg }, accountId);
+
+		expect(
+			composeCalls.map((c) =>
+				c.args.find((a) => ["stop", "up", "down"].includes(a)),
+			),
+		).toEqual(["stop", "up", "down"]);
+		for (const call of composeCalls) {
+			expect(call.env.COMPOSE_PROFILES).toBe("subgraphs");
+		}
+		expect(composeCalls[0]?.args).toContain("subgraph-processor");
 	});
 
 	test("up() on a stopped tenant restarts it instead of re-provisioning (no second mint)", async () => {

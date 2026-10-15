@@ -23,18 +23,27 @@
  *
  * State lives in memory. A host restart loses it, which only delays the next
  * decision by one stall window.
+ *
+ * The same tick also reconciles whether the processor runs at all
+ * (`createProcessorReconciler`): a tenant with no subgraphs runs without one
+ * and bills the lower stack floor.
  */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@secondlayer/shared";
 import { billingPausedCode } from "@secondlayer/shared/schemas";
-import { listRunningTenants } from "./control-db.ts";
+import {
+	getTenant,
+	listRunningTenants,
+	setTenantHasSubgraphs,
+} from "./control-db.ts";
 import type { TenantRow } from "./control-db.ts";
 import { type RunDocker, spawnDocker } from "./meters.ts";
 import {
 	type ProvisionerConfig,
 	type RunCompose,
+	composeEnv,
 	parseEnvFile,
 	projectName,
 	spawnCompose,
@@ -88,6 +97,10 @@ export interface ProcessorWatchDeps {
 	/** Hosted chain tip; `null` when unknown (stall detection then waits). */
 	hostedTip: () => Promise<number | null>;
 	restartProcessor: (tenant: TenantRow) => Promise<boolean>;
+	/** Creates and starts the processor for a tenant that just got subgraphs. */
+	startProcessor: (tenant: TenantRow) => Promise<boolean>;
+	/** Stops and removes the processor for a tenant with no subgraphs left. */
+	removeProcessor: (tenant: TenantRow) => Promise<boolean>;
 	now: () => number;
 }
 
@@ -149,6 +162,29 @@ export function realProcessorWatchDeps(
 	const authed = (t: TenantEndpoint) => ({
 		authorization: `Bearer ${t.instanceToken}`,
 	});
+	/** One compose call on the processor. Compose interpolates the whole file,
+	 *  so it needs SOME image tag; the one this tenant already runs keeps a
+	 *  started processor on the same image as the rest of its stack. */
+	async function processorCompose(
+		tenant: TenantRow,
+		args: string[],
+	): Promise<boolean> {
+		const tag = tenant.image_sha ?? cfg.getTargetSha();
+		if (!tag) return false;
+		const res = await runCompose(
+			[
+				"-p",
+				projectName(tenant.acct8),
+				"-f",
+				cfg.composeFile,
+				"--env-file",
+				join(tenantDir(cfg, tenant.acct8), ".env"),
+				...args,
+			],
+			composeEnv(tag, true),
+		);
+		return res.code === 0;
+	}
 
 	return {
 		inspectProcessor: async (acct8) => {
@@ -214,28 +250,107 @@ export function realProcessorWatchDeps(
 				return null;
 			}
 		},
-		restartProcessor: async (tenant) => {
-			// Compose interpolates the whole file, so it needs SOME image tag; the
-			// one this tenant already runs changes nothing (`restart` never
-			// recreates a container).
-			const tag = tenant.image_sha ?? cfg.getTargetSha();
-			if (!tag) return false;
-			const res = await runCompose(
-				[
-					"-p",
-					projectName(tenant.acct8),
-					"-f",
-					cfg.composeFile,
-					"--env-file",
-					join(tenantDir(cfg, tenant.acct8), ".env"),
-					"restart",
-					"subgraph-processor",
-				],
-				{ WORKLOAD_IMAGE_TAG: tag },
-			);
-			return res.code === 0;
-		},
+		restartProcessor: async (tenant) =>
+			processorCompose(tenant, ["restart", "subgraph-processor"]),
+		startProcessor: async (tenant) =>
+			processorCompose(tenant, [
+				"up",
+				"-d",
+				"--wait",
+				"--no-deps",
+				"subgraph-processor",
+			]),
+		removeProcessor: async (tenant) =>
+			(await processorCompose(tenant, ["stop", "subgraph-processor"])) &&
+			(await processorCompose(tenant, ["rm", "-f", "subgraph-processor"])),
 		now: () => Date.now(),
+	};
+}
+
+export interface ProcessorReconciler {
+	/** Makes the processor match the subgraph count: runs it when `count > 0`,
+	 *  removes it at 0, and keeps `has_subgraphs` (the floor) in step.
+	 *  Returns whether a processor exists afterwards. */
+	reconcile: (
+		tenant: TenantRow,
+		subgraphCount: number,
+		processorExists: boolean,
+	) => Promise<boolean>;
+	/** Same for one account, reading its subgraphs and processor itself: the
+	 *  gateway calls this after a deploy so the first one doesn't wait a tick. */
+	reconcileAccount: (accountId: string) => Promise<void>;
+}
+
+/**
+ * Raises `has_subgraphs` before starting a processor and lowers it only
+ * after the processor is gone, so the $5 webhook-only floor never applies
+ * while a processor runs. A failed stop keeps the flag (and the $10 floor)
+ * until a later tick succeeds. One reconcile per account at a time.
+ */
+export function createProcessorReconciler(
+	cfg: ProvisionerConfig,
+	deps: ProcessorWatchDeps,
+): ProcessorReconciler {
+	const inFlight = new Set<string>();
+
+	async function reconcile(
+		tenant: TenantRow,
+		subgraphCount: number,
+		processorExists: boolean,
+	): Promise<boolean> {
+		if (inFlight.has(tenant.account_id)) return processorExists;
+		inFlight.add(tenant.account_id);
+		try {
+			if (subgraphCount > 0) {
+				if (!tenant.has_subgraphs) {
+					await setTenantHasSubgraphs(cfg.db, tenant.account_id, true);
+				}
+				if (processorExists) return true;
+				const ok = await deps.startProcessor({
+					...tenant,
+					has_subgraphs: true,
+				});
+				logger.info("workload.processor.started", {
+					accountId: tenant.account_id,
+					acct8: tenant.acct8,
+					ok,
+				});
+				return ok;
+			}
+			if (processorExists) {
+				const ok = await deps.removeProcessor(tenant);
+				if (!ok) {
+					logger.warn("workload.processor.remove_failed", {
+						accountId: tenant.account_id,
+						acct8: tenant.acct8,
+					});
+					return true;
+				}
+				logger.info("workload.processor.removed", {
+					accountId: tenant.account_id,
+					acct8: tenant.acct8,
+				});
+			}
+			if (tenant.has_subgraphs) {
+				await setTenantHasSubgraphs(cfg.db, tenant.account_id, false);
+			}
+			return false;
+		} finally {
+			inFlight.delete(tenant.account_id);
+		}
+	}
+
+	return {
+		reconcile,
+		reconcileAccount: async (accountId) => {
+			const tenant = await getTenant(cfg.db, accountId);
+			if (tenant?.state !== "running") return;
+			const endpoint = tenantEndpoint(cfg, tenant);
+			if (!endpoint) return;
+			const subgraphs = await deps.listSubgraphs(endpoint);
+			const container = await deps.inspectProcessor(tenant.acct8);
+			await reconcile(tenant, subgraphs.length, container !== null);
+		},
 	};
 }
 
@@ -247,6 +362,7 @@ export function realProcessorWatchDeps(
 export function createProcessorWatch(
 	cfg: ProvisionerConfig,
 	deps: ProcessorWatchDeps = realProcessorWatchDeps(cfg),
+	reconciler: ProcessorReconciler = createProcessorReconciler(cfg, deps),
 ): () => Promise<void> {
 	const trackers = new Map<string, Tracker>();
 	/** `FinishedAt` of the last OOM kill already counted, per account, so a
@@ -263,7 +379,17 @@ export function createProcessorWatch(
 		if (!endpoint) return;
 		const now = deps.now();
 
-		const subgraphs = (await deps.listSubgraphs(endpoint)).filter(
+		const listed = await deps.listSubgraphs(endpoint);
+		let container = await deps.inspectProcessor(tenant.acct8);
+		const processorExists = await reconciler.reconcile(
+			tenant,
+			listed.length,
+			container !== null,
+		);
+		// Just removed: nothing left to watch. Just started: a fresh container.
+		if (!processorExists) container = null;
+
+		const subgraphs = listed.filter(
 			(s) => s.status === "active" || (s.status === "reindexing" && !s.queued),
 		);
 		const seen = new Set<string>();
@@ -305,7 +431,6 @@ export function createProcessorWatch(
 			}
 		}
 
-		const container = await deps.inspectProcessor(tenant.acct8);
 		let deaths = 0;
 		let oom = false;
 		if (container) {

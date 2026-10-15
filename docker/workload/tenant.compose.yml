@@ -41,6 +41,14 @@
 # compose` call — `up`, `start`, `stop`, `destroy`, and the 5-minute rolling
 # upgrade all pass it fresh, so a tenant follows the deployed sha
 # automatically instead of drifting until an operator bumps this by hand.
+#
+# `subgraph-processor` is in the `subgraphs` profile: a webhook-only tenant
+# never runs it (≈50 MiB less, and a $5/mo floor instead of $10). The
+# provisioner passes `COMPOSE_PROFILES=subgraphs` on every compose call for a
+# tenant whose control-db row says `has_subgraphs` (written only by the
+# reconcile in `packages/workload/src/processor-watch.ts`, from the tenant's
+# own subgraph count), and leaves it unset otherwise. Nothing depends on the
+# processor, so a stack without it starts and serves deploys normally.
 
 x-hardening: &hardening
   runtime: runsc
@@ -71,10 +79,11 @@ services:
       POSTGRES_USER: secondlayer
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?tenant secret required}
       POSTGRES_DB: secondlayer
-    # Sized for one account's webhooks + subgraph tables (idle RSS ~60 MiB).
+    # Sized for one account's webhooks + subgraph tables; shared_buffers kept
+    # small so a webhook-only stack idles inside its $5/mo memory floor.
     # 30 connections covers api + webhook-service + subgraph-processor at
     # DATABASE_POOL_MAX=5 each, their LISTEN connections, and migrate.
-    command: ["postgres", "-c", "shared_buffers=32MB", "-c", "max_connections=30"]
+    command: ["postgres", "-c", "shared_buffers=16MB", "-c", "max_connections=30"]
     mem_limit: 192m
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -257,6 +266,8 @@ services:
   # missing key fails only this service, never compose's parse of the project.
   subgraph-processor:
     <<: *hardening
+    # Only for tenants with subgraphs (header comment).
+    profiles: ["subgraphs"]
     image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:?set WORKLOAD_IMAGE_TAG to a deployed main sha}
     platform: linux/amd64
     command: ["bun", "--smol", "run", "packages/subgraphs/src/service.ts"]

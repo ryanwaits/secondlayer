@@ -350,13 +350,30 @@ export function projectName(acct8: string): string {
 }
 
 /** Services every lifecycle operation addresses by name. `volume-init` is a
- *  one-shot that has already exited, so it is never stopped or pulled. */
-export const TENANT_SERVICES = [
-	"migrate",
-	"api",
-	"webhook-service",
-	"subgraph-processor",
-] as const;
+ *  one-shot that has already exited, so it is never stopped or pulled.
+ *  `subgraph-processor` only for a tenant with subgraphs: naming a profiled
+ *  service on the CLI activates it, so listing it for a webhook-only tenant
+ *  would pull or start a processor it doesn't run. */
+export function tenantServices(hasSubgraphs: boolean): string[] {
+	const services = ["migrate", "api", "webhook-service"];
+	return hasSubgraphs ? [...services, "subgraph-processor"] : services;
+}
+
+/** Env for every compose call on a tenant: the image tag compose needs to
+ *  parse the file (`requireTargetSha`), plus `COMPOSE_PROFILES=subgraphs`
+ *  when the tenant runs subgraphs, so `subgraph-processor` (profile
+ *  `subgraphs` in `tenant.compose.yml`) is part of the project. */
+export function composeEnv(
+	imageTag: string,
+	hasSubgraphs: boolean,
+	base: Record<string, string> = {},
+): Record<string, string> {
+	return {
+		...base,
+		WORKLOAD_IMAGE_TAG: imageTag,
+		...(hasSubgraphs ? { COMPOSE_PROFILES: "subgraphs" } : {}),
+	};
+}
 
 function writeSecretsToDisk(
 	dir: string,
@@ -579,7 +596,9 @@ export async function up(
 				"-d",
 				"--wait",
 			],
-			{ ...env, WORKLOAD_IMAGE_TAG: targetSha },
+			// A new tenant has no subgraphs yet: no processor until the first
+			// deploy (`processor-watch.ts` reconcile).
+			composeEnv(targetSha, false, env),
 		);
 		if (result.code !== 0) {
 			logger.error("workload.provisioner.up_failed", {
@@ -726,6 +745,8 @@ export async function stop(
 	// supplied fails parsing even for a subcommand that never touches the
 	// image (plan 064). Any resolvable value works here.
 	const workloadImageTag = requireTargetSha(cfg, accountId, "stop");
+	const hasSubgraphs =
+		(await getTenant(cfg.db, accountId))?.has_subgraphs ?? false;
 	const result = await runCompose(
 		[
 			"-p",
@@ -735,9 +756,9 @@ export async function stop(
 			"--env-file",
 			join(dir, ".env"),
 			"stop",
-			...TENANT_SERVICES,
+			...tenantServices(hasSubgraphs),
 		],
-		{ WORKLOAD_IMAGE_TAG: workloadImageTag },
+		composeEnv(workloadImageTag, hasSubgraphs),
 	);
 	if (result.code !== 0) {
 		throw new Error(
@@ -761,6 +782,8 @@ export async function start(
 	// whatever's currently deployed, not whatever this tenant last ran.
 	const targetSha = requireTargetSha(cfg, accountId, "start");
 	await ensureTenantEnv(cfg, accountId);
+	const hasSubgraphs =
+		(await getTenant(cfg.db, accountId))?.has_subgraphs ?? false;
 	const result = await runCompose(
 		[
 			"-p",
@@ -773,7 +796,7 @@ export async function start(
 			"-d",
 			"--wait",
 		],
-		{ WORKLOAD_IMAGE_TAG: targetSha },
+		composeEnv(targetSha, hasSubgraphs),
 	);
 	if (result.code !== 0) {
 		throw new Error(
@@ -809,7 +832,8 @@ export async function destroy(
 		);
 	}
 	// No row = already destroyed: nothing left to dump.
-	if (await getTenant(cfg.db, accountId)) {
+	const row = await getTenant(cfg.db, accountId);
+	if (row) {
 		await finalBackupTenant(cfg.backups, acct8);
 	}
 	const result = await runCompose(
@@ -823,7 +847,8 @@ export async function destroy(
 			"down",
 			"-v",
 		],
-		{ WORKLOAD_IMAGE_TAG: workloadImageTag },
+		// The profile too, so `down` removes the processor container.
+		composeEnv(workloadImageTag, row?.has_subgraphs ?? false),
 	);
 	if (result.code !== 0) {
 		throw new Error(

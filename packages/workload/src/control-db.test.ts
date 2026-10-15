@@ -201,6 +201,22 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 		expect(cols).toHaveLength(1);
 	});
 
+	test("tenants from before has_subgraphs existed keep the subgraph floor; new tenants start webhook-only", async () => {
+		const before = crypto.randomUUID();
+		await db`ALTER TABLE tenants DROP COLUMN IF EXISTS has_subgraphs`;
+		await insertProvisioningTenant(db, before, acct8For(before));
+		await ensureControlSchema(db);
+		const after = crypto.randomUUID();
+		await insertProvisioningTenant(db, after, acct8For(after));
+
+		// They all run a processor today: true until the reconcile removes it.
+		expect((await getTenant(db, before))?.has_subgraphs).toBe(true);
+		expect((await getTenant(db, after))?.has_subgraphs).toBe(false);
+
+		await deleteTenant(db, before);
+		await deleteTenant(db, after);
+	});
+
 	test("a freshly inserted row has a null image_sha until setTenantImageSha records one", async () => {
 		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));

@@ -22,6 +22,14 @@ free). `memory.gb_hour` now bills `max(sampled RAM, 0.5 GB)` per running
 tenant, so any running hosted stack floors at ~$10/mo; a stopped tenant
 is never sampled, so it bills nothing.
 
+**Updated 2026-10-15 (floor set in dollars):** the floor is $5.00/mo for a
+webhook-only stack (no `subgraph-processor`, ≈0.245 GB) and $10.00/mo with
+subgraphs (≈0.489 GB). `STACK_FLOOR_USD_MICROS_PER_MONTH` in
+`packages/platform/src/billing/prices.ts` is the source; the GB floor is
+derived from it at the memory rate (`stackMemoryFloorGb`). The workload
+control DB's `tenants.has_subgraphs`, reconciled from each tenant's subgraph
+count, picks which.
+
 ## Constraint
 
 No monthly SKUs. One prepaid balance, dollars, across archive bootstrap
@@ -67,7 +75,7 @@ every charge. Prices live in one table, `packages/platform/src/billing/prices.ts
 | `archive.partition` | $0.05 | live |
 | `archive.partition.events` | $0.15 | live |
 | `rows.delivered` | $5/1M; $2/1M once monthly spend ≥ $50; first 1M rows/mo free | live |
-| `memory.gb_hour` | ~$0.028/GB-hour, floored at 0.5 GB per running tenant | live, called by the workload host's memory sampler |
+| `memory.gb_hour` | ~$0.028/GB-hour, floored at $5/mo webhook-only or $10/mo with subgraphs per running tenant | live, called by the workload host's memory sampler |
 | `storage.gb_day` | ~$0.25/GB-month billed daily | priced, no caller yet (046) |
 | `webhook.event` | $10/1M, retries free | priced, no caller yet (044) |
 
@@ -80,9 +88,9 @@ every charge. Prices live in one table, `packages/platform/src/billing/prices.ts
   with 402 `insufficient_credits` + a top-up link — the pre-check that
   keeps an out-of-credits key from becoming an unmetered feed of all
   history (`index/credits-gate.ts`, `streams/credits-gate.ts`).
-- `memory.gb_hour` bills `max(sampled RAM, 0.5 GB)` per running tenant
+- `memory.gb_hour` bills `max(sampled RAM, stackMemoryFloorGb(has_subgraphs))` per running tenant
   (`packages/workload/src/meters.ts`), so any running hosted stack floors
-  at ~$10/mo even idling near 0. Sampling only ever runs against
+  at $5/mo (webhook-only) or $10/mo (with subgraphs) even idling near 0. Sampling only ever runs against
   `state = 'running'` tenants (`listRunningTenants`); a stopped tenant is
   never sampled, so it bills nothing.
 - Hosted `/v1` Index/Streams reads require an `sk-sl_*` key (401 without

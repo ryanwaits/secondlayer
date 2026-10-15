@@ -39,7 +39,7 @@ bridge gateway and public IP) all blocked; own tenant, public internet and
 | Cloud firewall | `workload-host`: TCP 22 from operator `136.62.99.163/32` (same IP `stacks-feeder`'s firewall already allowlists); TCP 443 from app-server `65.21.135.94/32` only. Nothing else inbound. |
 | Runtime | `packages/workload` (`@secondlayer/workload`) — one Bun process, gateway + provisioner + meters, bound `127.0.0.1:8080` only. Not yet deployed to this host. |
 | TLS | `docker/workload-host/Caddyfile` (its own `docker-compose.yml`, `network_mode: host`) terminates :443 with `tls internal`, addressed by `{$WORKLOAD_HOST_NAME:workload-host.secondlayer.tools}` (a real hostname, not a bare `:443` — the cert's name has to match the SNI app-server dials), and reverse-proxies to the gateway's `127.0.0.1:8080`. app-server pins that CA (`tls_trust_pool file`, `WORKLOAD_HOST_CA_FILE`) — see Bring-up steps 5–7. |
-| Tenant template | `docker/workload/tenant.compose.yml` — `postgres`, `migrate`, `api`, `webhook-service`. Images `image:`-pulled from GHCR (`ghcr.io/ryanwaits/secondlayer-{api,webhook-processor}`), never built on this host. |
+| Tenant template | `docker/workload/tenant.compose.yml` — `postgres`, `migrate`, `api`, `webhook-service`, plus `subgraph-processor` (compose profile `subgraphs`) only while the tenant has subgraphs: `tenants.has_subgraphs` in the control DB, reconciled each 5-minute tick (and right after a deploy) from the tenant's own subgraph count. Images `image:`-pulled from GHCR (`ghcr.io/ryanwaits/secondlayer-{api,webhook-processor}`), never built on this host. |
 
 ## Egress model (Design)
 

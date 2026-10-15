@@ -45,7 +45,7 @@ export type MeterInput = {
 	/** Count of units consumed (rows, partitions, GB-hours, events). */
 	quantity: number;
 	/** Raw sampled quantity before any floor (`memory.gb_hour`'s actual RAM,
-	 *  before the 0.5 GB minimum). Every other unit omits this — pricing
+	 *  before the stack's minimum). Every other unit omits this — pricing
 	 *  always uses `quantity`, never this. */
 	observedQuantity?: number;
 	/** Free-text origin for the usage view / audit trail, e.g. "index",

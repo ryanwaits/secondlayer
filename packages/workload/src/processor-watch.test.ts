@@ -14,7 +14,9 @@ import {
 	acct8For,
 	deleteTenant,
 	ensureControlSchema,
+	getTenant,
 	insertProvisioningTenant,
+	setTenantHasSubgraphs,
 	setTenantState,
 } from "./control-db.ts";
 import {
@@ -23,6 +25,7 @@ import {
 	type ProcessorWatchDeps,
 	STALL_MS,
 	type SubgraphCursor,
+	createProcessorReconciler,
 	createProcessorWatch,
 	realProcessorWatchDeps,
 } from "./processor-watch.ts";
@@ -42,6 +45,9 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 	let container: ProcessorState | null;
 	let subgraphs: Record<string, SubgraphCursor[]>;
 	let restarts: string[];
+	let started: string[];
+	let removed: string[];
+	let removeOk: boolean;
 	let halts: { account: string; name: string; reason: string }[];
 	const accounts: string[] = [];
 
@@ -69,6 +75,22 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 			hostedTip: async () => tip,
 			restartProcessor: async (tenant) => {
 				restarts.push(tenant.account_id);
+				return true;
+			},
+			startProcessor: async (tenant) => {
+				started.push(tenant.account_id);
+				container = {
+					restartCount: 0,
+					oomKilled: false,
+					exitCode: 0,
+					finishedAt: "0001-01-01T00:00:00Z",
+				};
+				return true;
+			},
+			removeProcessor: async (tenant) => {
+				if (!removeOk) return false;
+				removed.push(tenant.account_id);
+				container = null;
 				return true;
 			},
 			now: () => now,
@@ -137,6 +159,9 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		};
 		subgraphs = {};
 		restarts = [];
+		started = [];
+		removed = [];
+		removeOk = true;
 		halts = [];
 	}
 
@@ -522,6 +547,81 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		now += STALL_MS + MINUTE;
 		await tick();
 		expect(restarts).toEqual([healthy]);
+	});
+
+	const hasSubgraphs = async (id: string) =>
+		(await getTenant(db, id))?.has_subgraphs;
+
+	test("the first subgraph deploy starts the processor and raises the floor", async () => {
+		reset();
+		const id = await seedTenant();
+		container = null;
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick();
+		expect(started).toEqual([]);
+		expect(await hasSubgraphs(id)).toBe(false);
+
+		subgraphs[id] = [sub("s", 10)];
+		await tick();
+		expect(started).toEqual([id]);
+		expect(await hasSubgraphs(id)).toBe(true);
+
+		await tick();
+		expect(started).toEqual([id]); // already running: never started twice
+	});
+
+	test("the gateway's reconcile after a deploy starts the processor without waiting for a tick", async () => {
+		reset();
+		const id = await seedTenant();
+		container = null;
+		subgraphs[id] = [sub("s", 10)];
+
+		await createProcessorReconciler(cfg(), deps()).reconcileAccount(id);
+		expect(started).toEqual([id]);
+		expect(await hasSubgraphs(id)).toBe(true);
+	});
+
+	test("deleting the last subgraph removes the processor and lowers the floor", async () => {
+		reset();
+		const id = await seedTenant();
+		await setTenantHasSubgraphs(db, id, true);
+		subgraphs[id] = [];
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick();
+		expect(removed).toEqual([id]);
+		expect(container).toBeNull();
+		expect(await hasSubgraphs(id)).toBe(false);
+	});
+
+	test("a webhook-only tenant never starts a processor", async () => {
+		reset();
+		const id = await seedTenant();
+		container = null;
+		const tick = createProcessorWatch(cfg(), deps());
+
+		for (let i = 0; i < 3; i++) await tick();
+		expect(started).toEqual([]);
+		expect(removed).toEqual([]);
+		expect(await hasSubgraphs(id)).toBe(false);
+	});
+
+	test("a reconcile that fails to stop the processor keeps has_subgraphs true", async () => {
+		reset();
+		const id = await seedTenant();
+		await setTenantHasSubgraphs(db, id, true);
+		removeOk = false;
+		const tick = createProcessorWatch(cfg(), deps());
+
+		await tick();
+		expect(container).not.toBeNull();
+		expect(await hasSubgraphs(id)).toBe(true);
+
+		removeOk = true;
+		await tick();
+		expect(removed).toEqual([id]);
+		expect(await hasSubgraphs(id)).toBe(false);
 	});
 });
 

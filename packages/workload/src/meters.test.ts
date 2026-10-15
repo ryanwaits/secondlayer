@@ -3,8 +3,11 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+	PRICES,
+	stackMemoryFloorGb,
+} from "@secondlayer/platform/billing/prices";
+import {
 	EventCounter,
-	MEMORY_FLOOR_GB,
 	collectShutdownFlushItems,
 	countTenantWorkloads,
 	eventsIdempotencyKey,
@@ -113,6 +116,7 @@ describe("sampleMemoryGbHour / sampleStorageGbDay", () => {
 			"acct_1",
 			async () => 2 * 1024 ** 3,
 			60,
+			false,
 		);
 		expect(item.unit).toBe("memory.gb_hour");
 		expect(item.quantity).toBeCloseTo(2 / 60, 6);
@@ -124,16 +128,43 @@ describe("sampleMemoryGbHour / sampleStorageGbDay", () => {
 		expect(item.quantity).toBeCloseTo(5, 6);
 	});
 
-	test("memory: a 100 MB sample bills the 0.5 GB floor, not the raw sample", async () => {
+	test("a webhook-only stack idling at 100 MB bills the $5/mo floor", async () => {
 		const item = await sampleMemoryGbHour(
 			"acct_1",
 			async () => 100 * 1024 ** 2,
 			3600,
+			false,
 		);
 		expect(item.unit).toBe("memory.gb_hour");
-		expect(item.quantity).toBeCloseTo(MEMORY_FLOOR_GB, 6);
+		expect(item.quantity).toBeCloseTo(stackMemoryFloorGb(false), 6);
+		// One hour at the floor: 6,849 µ$, which is $5.00 over 730 hours.
+		expect(Math.round(Number(PRICES["memory.gb_hour"]) * item.quantity)).toBe(
+			6_849,
+		);
 		// observedQuantity carries the raw, unfloored sample (~0.098 GB-h).
 		expect(item.observedQuantity).toBeCloseTo(0.09765625, 6);
+	});
+
+	test("a stack with subgraphs idling at 100 MB bills the $10/mo floor", async () => {
+		const item = await sampleMemoryGbHour(
+			"acct_1",
+			async () => 100 * 1024 ** 2,
+			3600,
+			true,
+		);
+		expect(item.quantity).toBeCloseTo(stackMemoryFloorGb(true), 6);
+		expect(item.observedQuantity).toBeCloseTo(0.09765625, 6);
+	});
+
+	test("a webhook-only stack at 0.4 GB bills its real 0.4 GB", async () => {
+		const item = await sampleMemoryGbHour(
+			"acct_1",
+			async () => 0.4 * 1024 ** 3,
+			3600,
+			false,
+		);
+		expect(item.quantity).toBeCloseTo(0.4, 6);
+		expect(item.observedQuantity).toBeCloseTo(0.4, 6);
 	});
 
 	test("memory: a 2 GB sample bills the raw sample, above the floor", async () => {
@@ -141,6 +172,7 @@ describe("sampleMemoryGbHour / sampleStorageGbDay", () => {
 			"acct_1",
 			async () => 2 * 1024 ** 3,
 			3600,
+			false,
 		);
 		expect(item.unit).toBe("memory.gb_hour");
 		expect(item.quantity).toBeCloseTo(2, 6);
@@ -154,6 +186,7 @@ describe("sampleMemoryGbHour / sampleStorageGbDay", () => {
 			"acct_1",
 			async () => 2 * 1024 ** 3,
 			60,
+			false,
 		);
 		const after = Date.now();
 		expect(item.occurredAt).toBeDefined();

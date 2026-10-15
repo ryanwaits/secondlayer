@@ -67,7 +67,11 @@ import {
 	sampleTenantMemoryBytes,
 	startMeterSocketServer,
 } from "./meters.ts";
-import { createProcessorWatch } from "./processor-watch.ts";
+import {
+	createProcessorReconciler,
+	createProcessorWatch,
+	realProcessorWatchDeps,
+} from "./processor-watch.ts";
 import {
 	type ProvisionerConfig,
 	pollCredits,
@@ -182,7 +186,16 @@ async function main(): Promise<void> {
 		getTargetSha: () => targetShaCache.lastGood,
 	};
 	const upgradeRunner = createUpgradeRunner(provisionerCfg);
-	const checkProcessors = createProcessorWatch(provisionerCfg);
+	const processorDeps = realProcessorWatchDeps(provisionerCfg);
+	const processorReconciler = createProcessorReconciler(
+		provisionerCfg,
+		processorDeps,
+	);
+	const checkProcessors = createProcessorWatch(
+		provisionerCfg,
+		processorDeps,
+		processorReconciler,
+	);
 
 	// Before the gateway accepts requests: a restart mid-provision leaves
 	// `provisioning` rows nothing will ever finish. Failure here must not
@@ -287,6 +300,14 @@ async function main(): Promise<void> {
 						});
 					},
 					tenantUpstream,
+					onSubgraphDeployed: (accountId) => {
+						processorReconciler.reconcileAccount(accountId).catch((err) => {
+							logger.error("workload.processor.reconcile_failed", {
+								accountId,
+								error: err instanceof Error ? err.message : String(err),
+							});
+						});
+					},
 					rateLimit,
 					sha: workloadSha,
 					isBusy: upgradeRunner.isBusy,
@@ -356,6 +377,7 @@ async function main(): Promise<void> {
 					tenant.account_id,
 					(accountId) => sampleTenantMemoryBytes(acct8For(accountId)),
 					MEMORY_SAMPLE_INTERVAL_MS / 1000,
+					tenant.has_subgraphs,
 				);
 				memoryAccumulatorGbHours.set(
 					tenant.account_id,

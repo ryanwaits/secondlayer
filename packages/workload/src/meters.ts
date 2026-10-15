@@ -17,7 +17,10 @@
  * flush retried) never double-charges.
  */
 
-import type { MeterUnit } from "@secondlayer/platform/billing/prices";
+import {
+	type MeterUnit,
+	stackMemoryFloorGb,
+} from "@secondlayer/platform/billing/prices";
 import { logger } from "@secondlayer/shared";
 import type { FetchLike } from "./fetch-like.ts";
 
@@ -138,28 +141,25 @@ export function startMeterSocketServer(
 	return { stop: () => server.stop(true) };
 }
 
-/** Minimum billed memory per running tenant, in GB (founder 2026-09-27) —
- *  any running hosted stack bills at least this much, ~$10/mo at
- *  `PRICES["memory.gb_hour"]`. Only applies while a tenant is running
- *  (`listRunningTenants` in `index.ts` only samples `state = 'running'`
- *  tenants); a stopped tenant is never sampled, so it's never floored. */
-export const MEMORY_FLOOR_GB = 0.5;
-
 /** One tenant's memory sample: RSS summed across its containers, in GiB.
  *  `sampleCgroupBytes` is injected so tests never shell out to `docker
  *  stats`; the real implementation lives in `index.ts` (needs the compose
- *  project name → container list mapping). `quantity` is floored at
- *  `MEMORY_FLOOR_GB` — a running stack always bills at least the floor,
- *  even idling near 0 — while `observedQuantity` carries the raw,
- *  unfloored sample for the credits page's memory chart. */
+ *  project name → container list mapping). `quantity` is floored at the
+ *  stack's dollar minimum expressed in GB (`stackMemoryFloorGb`, founder
+ *  2026-10-15: $5/mo webhook-only, $10/mo with subgraphs), so a running
+ *  stack always bills at least that, even idling near 0. Only running
+ *  tenants are sampled (`listRunningTenants`), so a stopped stack is never
+ *  floored. `observedQuantity` carries the raw, unfloored sample for the
+ *  credits page's memory chart. */
 export async function sampleMemoryGbHour(
 	accountId: string,
 	sampleCgroupBytes: (accountId: string) => Promise<number>,
 	intervalSeconds: number,
+	hasSubgraphs: boolean,
 ): Promise<MeterBatchItem> {
 	const bytes = await sampleCgroupBytes(accountId);
 	const rawGb = bytes / 1024 ** 3;
-	const gb = Math.max(rawGb, MEMORY_FLOOR_GB);
+	const gb = Math.max(rawGb, stackMemoryFloorGb(hasSubgraphs));
 	const gbHours = gb * (intervalSeconds / 3600);
 	const observedGbHours = rawGb * (intervalSeconds / 3600);
 	// The idempotency key AND `occurredAt` are pinned to this one sample
