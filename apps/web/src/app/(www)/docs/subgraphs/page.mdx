@@ -16,9 +16,9 @@ export default defineSubgraph({
   // !ref[/startBlock/] start
   startBlock: 1230000,
   // !ref(1:7) sources
-  // !callout[/map_set/] State writes only, so the rows can be recomputed.
   sources: {
     reserves: {
+      // !callout[/map_set/] State writes only, so the rows can be recomputed.
       type: "map_set",
       contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-vault-v2-01",
       map: "reserve",
