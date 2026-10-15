@@ -1,5 +1,20 @@
 # @secondlayer/workload
 
+## 0.1.0
+
+### Minor Changes
+
+- b81888c: A hosted stack with no active webhooks and no subgraphs stops on its own (5-minute poll, never within 15 minutes of starting, never on an unreadable count) and starts again on its next request. Stopped tenants record why (`credits`, `cap` or `idle`); the poll restarts only credit and cap stops once the account is ok.
+- c97cbe8: Nightly `pg_dump -Fc` of every running or stopped tenant to an S3-compatible bucket (`TENANT_BACKUP_*` env, Bun's `S3Client`), last 7 kept. Tenant destroy takes a final dump first (kept 30 days) and refuses to run without a bucket or when the dump fails. Tenant postgres is capped at 192 MB (`shared_buffers=32MB`, `max_connections=30`), webhook-service at 256 MB, and every tenant process uses a pool of 5 connections.
+
+### Patch Changes
+
+- Updated dependencies [1b8999a]
+- Updated dependencies [80595ce]
+- Updated dependencies [6df9804]
+  - @secondlayer/shared@13.1.0
+  - @secondlayer/platform@0.7.0
+
 ## 0.0.46
 
 ### Patch Changes

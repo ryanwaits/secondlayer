@@ -1,5 +1,23 @@
 # @secondlayer/shared
 
+## 13.1.0
+
+### Minor Changes
+
+- 1b8999a: `print_event` triggers and subgraph print sources take `where`: equality on top-level keys of the decoded print tuple, spelled as the contract prints them (`where: { signer: [...] }`). An array is any-of (max 20), keys AND (max 10). Values match the field's JSON form: principals `SP…`, uints as decimal strings, bools `"true"`/`"false"`, buffers `0x…`.
+
+  print_event `topic` now filters; before, it was ignored on webhooks and you received every print from the contract. (Production check at release prep: 0 active webhooks set `topic` on a `print_event` trigger.)
+
+  `deserializeCV` builds principals straight from their bytes instead of re-validating the address it just encoded, roughly halving decode time for principal-heavy values.
+
+- 80595ce: `IndexHttpClient` reads sBTC events (`fetchSbtcEvents`), trait members (`listContractsByTrait`) and settled withdrawals (`fetchSettledWithdrawals`). `hasNoLocalChain` moves to `db/queries/instance` so the api and the webhook evaluator share one rule for a hosted stack.
+
+### Patch Changes
+
+- 6df9804: Hosted stack billing: a memory, storage or webhook charge larger than the balance now drains it to zero (the shortfall is written off) instead of being refused, so a stack can't keep running unbilled on a balance smaller than one charge. The monthly spend cap now covers every unit, not only rows delivered: past it, charges are recorded but not taken, `credits_ok` is false (stopping the hosted stack), and archive fetches answer `402 spend_cap_reached`. `/internal/accounts/credits` answers `{ ok, reason }` per account. Spend-cap emails say the stack stops at the cap.
+- Updated dependencies [1b8999a]
+  - @secondlayer/stacks@6.4.0
+
 ## 13.0.0
 
 ### Major Changes

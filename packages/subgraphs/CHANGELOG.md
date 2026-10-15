@@ -1,5 +1,24 @@
 # @secondlayer/subgraphs
 
+## 7.2.0
+
+### Minor Changes
+
+- 1b8999a: `print_event` triggers and subgraph print sources take `where`: equality on top-level keys of the decoded print tuple, spelled as the contract prints them (`where: { signer: [...] }`). An array is any-of (max 20), keys AND (max 10). Values match the field's JSON form: principals `SP…`, uints as decimal strings, bools `"true"`/`"false"`, buffers `0x…`.
+
+  print_event `topic` now filters; before, it was ignored on webhooks and you received every print from the contract. (Production check at release prep: 0 active webhooks set `topic` on a `print_event` trigger.)
+
+  `deserializeCV` builds principals straight from their bytes instead of re-validating the address it just encoded, roughly halving decode time for principal-heavy values.
+
+### Patch Changes
+
+- dc1ad0c: Hosted sBTC and trait-scoped webhooks now deliver. They matched nothing on hosted stacks before; self-host was unaffected. A hosted stack (no local chain) reads sBTC events, trait members and sweep settlements from the hosted Index API instead of its own empty tables; hosted subgraph `trait` sources resolve the same way.
+- Updated dependencies [1b8999a]
+- Updated dependencies [80595ce]
+- Updated dependencies [6df9804]
+  - @secondlayer/shared@13.1.0
+  - @secondlayer/stacks@6.4.0
+
 ## 7.1.0
 
 ### Minor Changes
