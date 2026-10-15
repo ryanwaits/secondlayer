@@ -61,11 +61,16 @@ Read envelopes carry a `reorgs` array: the reorganizations overlapping the page'
 }
 ```
 
-Roll back rows whose cursor falls inside `orphaned_range`, then re-fetch from `new_canonical_tip`. `consume()` does both for you.
+To recover from one by hand:
+
+- Roll back rows whose cursor falls inside `orphaned_range`.
+- Re-fetch from `new_canonical_tip`.
+- `consume()` does both for you.
 
 In `onReorg`, the fork block and everything above it is no longer canonical, so delete rows at `fork_point_height` and above (inclusive); the consumer then rewinds the cursor and re-reads the canonical run for you.
 
-Both bounds are `<block_height>:<event_index>` cursors tracking decoded-event positions. On transaction-keyed feeds (`/transactions`, `/contract-calls`), compare by the block-height component.
+- Both bounds are `<block_height>:<event_index>` cursors tracking decoded-event positions.
+- On transaction-keyed feeds (`/transactions`, `/contract-calls`), compare by the block-height component.
 
 Running balances: invert them in a sink's `onRollback` ([Sinks](/docs/sinks#rollback-is-height-stamped)).
 
@@ -135,7 +140,9 @@ To prove a block or transaction rather than compare hashes: [Verify](/docs/verif
 
 ## Cost and history
 
-Reads on your own box hit your own Postgres: no meter, no rate limit. Hosted `api.secondlayer.tools` bills `rows.delivered` (1M free per account per month; rates and free block headers in [Keys and billing](/docs/authentication)). `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)). Hosted is keyed; on your own box see [Self-host](/docs/self-host#instance-token).
+- Self-hosted: reads hit your Postgres, with no meter and no rate limit. Auth is in [Self-host](/docs/self-host#instance-token).
+- Hosted `api.secondlayer.tools`: keyed, and bills `rows.delivered`. 1M free per account per month; rates and free block headers in [Keys and billing](/docs/authentication).
+- History: `from_height=0` reaches whatever your instance holds. Restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)).
 
 ## Other ways to read
 
@@ -158,9 +165,17 @@ await sl.index.events.consume({ eventType: "ft_transfer", onBatch }); // forever
 | `walk()` | An async iterable of rows | Yes, automatically | No | Ignored | On catching the tip |
 | `consume()` | A loop calling your `onBatch` | Yes, automatically | Yes; you commit the cursor | Rewinds and fires `onReorg` | Never; tails until aborted |
 
-`walk()` into a database is a trap. It works, and it's right for a one-shot export or an analysis script. As a live index it fails three ways: no checkpoint, so a crash restarts from zero; reorgs are ignored, so a fork leaves orphaned rows behind forever; and it returns at the tip instead of following the chain. Writing rows you intend to keep is `consume()`.
+`walk()` into a database is a trap. It's right for a one-shot export or an analysis script, and wrong as a live index:
+
+- No checkpoint, so a crash restarts from zero.
+- Reorgs are ignored, so a fork leaves orphaned rows behind forever.
+- It returns at the tip instead of following the chain.
+
+Writing rows you intend to keep is `consume()`.
 
 ### Plain HTTP
+
+Query rows over HTTP from any client, no SDK needed.
 
 ```bash
 curl "$SECONDLAYER_API_URL/v1/index/events?event_type=stx_transfer&limit=20" \
@@ -169,21 +184,30 @@ curl "$SECONDLAYER_API_URL/v1/index/events?event_type=stx_transfer&limit=20" \
 
 Every endpoint, filter and response shape is in the [API reference](/docs/api/index#list-events). `GET /v1/index` describes itself at runtime, so an agent can learn each `event_type` without docs.
 
-On the events and contract-call feeds, `contract_id` takes a comma-separated set (max 20): one cursor over a protocol's contracts. `tx_context=true` puts `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id` and `tx_function_name` on every event in one pass. For `print` events it is the only place the sender lives.
+Two params on the events and contract-call feeds:
 
-Every list response carries the collection, an opaque [`next_cursor`](hover:next), the chain `tip`, and `reorgs`.
+| Param | Does |
+| --- | --- |
+| `contract_id` | Takes a comma-separated set (max 20): one cursor over a protocol's contracts |
+| `tx_context=true` | Puts `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id` and `tx_function_name` on every event in one pass. For `print` events it is the only place the sender lives |
 
-`tip.block_height` is the height committed for the event type you just read, not a global number. Each decoded type runs its own decoder, so two reads can report different tips at once. `/v1/index/blocks` and `/v1/index/transactions` stay on the ingest tip (`source_block_height`). Re-read the tip per response.
+Every list response carries the collection, an opaque [`next_cursor`](hover:next), the chain tip, and a `reorgs` array.
+
+`tip.block_height` is the height committed for the event type you just read, not a global number. Each decoded type runs its own decoder, so two reads can report different tips at once.
+
+- `/v1/index/blocks` and `/v1/index/transactions` stay on the ingest tip (`source_block_height`).
+- Re-read the tip per response.
 
 Built on [Streams](/docs/streams): the decoder on your instance reads the same raw firehose you can.
 
-Long-poll instead of tight-loop polling: `/v1/index/events` and `/v1/index/blocks` take `wait` (seconds, max 25). An empty page holds the connection open until new data commits or `wait` elapses; a page with rows answers at once.
+Long-poll instead of tight-loop polling. An empty page holds the connection open until new data commits or `wait` elapses; a page with rows answers at once.
 
 ```
 GET /v1/index/events?event_type=ft_transfer&cursor=<last>&wait=25
 ```
 
-An instance from before `wait` shipped answers `400`; fall back to a plain poll loop.
+- `/v1/index/events` and `/v1/index/blocks` take `wait` in seconds, max 25.
+- An instance from before `wait` shipped answers `400`; fall back to a plain poll loop.
 
 From the CLI:
 
@@ -273,9 +297,21 @@ for await (const write of sl.index.stateWrites.walk({ fromHeight: 8_000_000 })) 
 
 </CodeTabs>
 
-A row is `{ cursor, block_height, ordinal, tx_index, key, value_hex }`: `key` is the chain's storage key, `value_hex` the new value, and `tx_index` is `null` for block-level writes. The cursor is `<block_height>:<ordinal>`. `block_height` reads one block and excludes `from_height`/`to_height`.
+Each row is one write to contract storage.
 
-Rows exist only from the height your node first sent the `state_writes` observer key. There is no earlier history. On your own box the key needs a node build that emits state writes, not yet the stock node. Rows bill like event rows.
+| Field | Means |
+| --- | --- |
+| `cursor` | `<block_height>:<ordinal>` |
+| `block_height`, `ordinal` | The block, and the write's position in node order |
+| `tx_index` | `null` for block-level writes |
+| `key` | The chain's storage key |
+| `value_hex` | The new value |
+
+History starts at the block where your node first sent the `state_writes` observer key. There is no earlier history.
+
+- `block_height` reads one block; it excludes `from_height` and `to_height`.
+- On your own box this needs a node build that emits state writes. The stock node doesn't yet.
+- Rows bill like event rows.
 
 ## Decoded protocols
 
@@ -302,13 +338,34 @@ const { events } = await sl.index.pox5.events.list({
 });
 ```
 
-Event filters: `topic`, `staker`, `signer`, `signerManager`, `bondIndex`, `rewardCycle`, `fromHeight`, `toHeight`, `confirmed`. `signer` alone returns a pool's full activity, claims and key grants included. `register-for-bond` rows carry `bond_index`, `amount_sats`, `is_l1_lock` and `data.btc-lockup`. `confirmed=true` holds a read to rows past the reorg margin.
+Event filters:
+
+| Filter | Narrows to |
+| --- | --- |
+| `topic` | One print topic |
+| `staker` | One staker |
+| `signer` | One signer; alone it returns a pool's full activity, claims and key grants included |
+| `signerManager` | One signer manager |
+| `bondIndex` | One bond |
+| `rewardCycle` | One reward cycle |
+| `fromHeight`, `toHeight` | A block-height range |
+| `confirmed` | `true` holds a read to rows past the reorg margin |
+
+`register-for-bond` rows add four fields:
+
+- `bond_index`
+- `amount_sats`
+- `is_l1_lock`
+- `data.btc-lockup`
 
 `pox5.events.consume()` is the checkpointed sweep, with the same options as [Build your index on it](#build-your-index-on-it). Cycles are exact to the node and follow the chain again at the next PoX fork. PoX-4 cycle history is final and not served; rebuild it from `/v1/index/stacking` on a self-hosted instance.
 
 ### sBTC
 
-The peg lifecycle, decoded, plus Bitcoin confirmation of sweeps. A `withdrawal-accept` only means the signers committed to a sweep, so your instance checks `sweep_txid` against bitcoind (the bundled full-node profile or an external `BITCOIN_RPC`). Deposits need no check: `completed-deposit` fires after the signers see the confirmations.
+The peg lifecycle, decoded, plus Bitcoin confirmation of sweeps.
+
+- Withdrawals: a `withdrawal-accept` only means the signers committed to a sweep. Your instance checks `sweep_txid` against bitcoind (the bundled full-node profile or an external `BITCOIN_RPC`).
+- Deposits need no check: `completed-deposit` fires after the signers see the confirmations.
 
 | Read | Route | SDK |
 | --- | --- | --- |
@@ -327,11 +384,22 @@ A withdrawal carries a `settlement` object:
 }
 ```
 
-`settlement_confirmed` is `true` past the confirmation threshold, `false` while shallow, `null` when no sweep is observed yet (not a denial). The list takes it as a filter: `?settlement_confirmed=true` is confirmed peg-outs, `false` is the whole not-done bucket.
+`settlement_confirmed` has three values:
+
+| Value | Means |
+| --- | --- |
+| `true` | Past the confirmation threshold |
+| `false` | Shallow |
+| `null` | No sweep observed yet (not a denial) |
+
+The list takes it as a filter:
+
+- `?settlement_confirmed=true` is confirmed peg-outs.
+- `?settlement_confirmed=false` is the whole not-done bucket.
 
 <Callout type="note" title="Withdrawals have no consume">
 
-A withdrawal row mutates as it moves REQUESTED, ACCEPTED, settled, and a checkpoint only moves forward. Mirror the append-only `events` and derive status from the `withdrawal-*` topics; read `withdrawals.get(id)` for the assembled lifecycle.
+A withdrawal row mutates as it moves REQUESTED, ACCEPTED, settled, and a checkpoint only moves forward. Mirror the append-only events and derive status from the `withdrawal-*` topics; read `withdrawals.get(id)` for the assembled lifecycle.
 
 </Callout>
 
@@ -339,7 +407,11 @@ Settlement is verified against your instance's bitcoind, not a custody guarantee
 
 ### Runes
 
-A catalog of etched runes, a per-rune activity log, and balances, on a Bitcoin tip instead of a Stacks one. A rune's id is `<block>:<transaction index>` of its etch (`840000:3`). Its name is a unique A-Z string; spacers (`•`) are display only, so `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` are one rune. Every `rune` field takes a `RuneRef`: an id or a name in any of those forms.
+A catalog of etched runes, a per-rune activity log, and balances, on a Bitcoin tip instead of a Stacks one.
+
+- A rune's id is `<block>:<transaction index>` of its etch (`840000:3`).
+- Its name is a unique A-Z string. Spacers (`•`) are display only, so `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` are one rune.
+- Every `rune` field takes a `RuneRef`: an id or a name in any of those forms.
 
 Hosted serves it now. To index Runes on your own box, see [Self-host](/docs/self-host#runes).
 
@@ -350,7 +422,14 @@ Hosted serves it now. To index Runes on your own box, see [Self-host](/docs/self
 | Current per-outpoint balances | `/v1/index/runes/balances` | `runes.balances({ address })` |
 | Etch, mint, transfer, burn log | `/v1/index/runes/activity` | `runes.activity.list` / `walk` |
 
-From the terminal: `secondlayer index runes [--search <prefix>] [--sort number|mints]`, `runes get <rune>`, `runes balances --address <address>` (or `--outpoint <txid:vout>`), and `runes activity [--rune] [--address] [--kind etch,mint,transfer,burn] [--txid]`.
+From the terminal:
+
+```bash
+secondlayer index runes [--search <prefix>] [--sort number|mints]
+secondlayer index runes get <rune>
+secondlayer index runes balances --address <address>   # or --outpoint <txid:vout>
+secondlayer index runes activity [--rune] [--address] [--kind etch,mint,transfer,burn] [--txid]
+```
 
 ```ts
 await sl.index.runes.list({ search: "dog", sort: "mints" });
@@ -361,9 +440,22 @@ for await (const activity of sl.index.runes.activity.walk({ rune: "840000:3" }))
 }
 ```
 
-`search` prefix-matches the name and `sort` is etch order or busiest-first (`mints`). `balances` needs exactly one of `address` or `outpoint`, enforced by the types; `rune` narrows either. Activity filters: `rune`, `address`, `kind`, `txid`; its cursor is `<block_height>:<event_index>`. Amounts (`premine`, `supply`, `burned`, `mints`) are u128 decimal strings, never `Number()` them. `supply` is `premine + mints × terms.amount`. Txids come back without `0x`.
+| Read | Filters |
+| --- | --- |
+| `runes.list` | `search` (name prefix), `sort` (etch order, or `mints` for busiest) |
+| `runes.balances` | `address` or `outpoint` (exactly one, enforced by the types), plus `rune` |
+| `runes.activity` | `rune`, `address`, `kind`, `txid`; pages by `<block_height>:<event_index>` |
 
-A Bitcoin block needs 6 confirmations to count as final: `tip.finalized_height` is `tip.block_height - 6`. The catalog and balances read reorg-corrected snapshots, so their `reorgs` is always empty. Only `activity` is an append-only log, so only its `reorgs` can name replaced heights, at block level. The raw per-transaction events are on [Streams](/docs/streams#bitcoin-events-runes) with `chain=bitcoin`.
+- Amounts (`premine`, `supply`, `burned`, `mints`) are u128 decimal strings. Keep them as `bigint`, never `Number()`.
+- `supply` is `premine + mints × terms.amount`.
+- Txids come back without `0x`.
+
+A Bitcoin block needs 6 confirmations to count as final: `tip.finalized_height` is `tip.block_height - 6`.
+
+- The catalog and balances read reorg-corrected snapshots, so their `reorgs` is always empty.
+- Only `activity` is an append-only log, so only its `reorgs` can name replaced heights, at block level.
+
+The raw per-transaction events are on [Streams](/docs/streams#bitcoin-events-runes) with `chain=bitcoin`.
 
 export const agent = `
 - Events: 'GET /v1/index/events' (event_type such as ft_transfer, stx_transfer, print) and 'GET /v1/index/contract-calls'; filter by contract, principal or block range; cursor-paginate.
