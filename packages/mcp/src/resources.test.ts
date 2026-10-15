@@ -246,6 +246,8 @@ describe("filters ↔ subgraphs SubgraphFilter validator", () => {
 				return { topic: { field: "uint" } };
 			case "factory":
 				return { from: "other", field: "data.pool" };
+			case "where":
+				return { signer: ["SP1"] };
 			case "contractId":
 				return "SP1.contract";
 			default:
