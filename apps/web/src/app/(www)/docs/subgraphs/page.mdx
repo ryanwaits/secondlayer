@@ -2,41 +2,36 @@
 
 One TypeScript file, and you get a table plus a REST API over it. You don't pick the API shape; if you need your own, use [Index](/docs/index).
 
+<Yields page="subgraphs" />
+
 ## Define a subgraph
 
-One config file: named source filters, a table schema, and one handler per source, keyed by source name.
+A subgraph [names its sources](focus:sources), [declares a table](focus:schema), and [writes one handler per source](focus:handlers). The [first run backfills from startBlock](hover:start); new blocks stream in after. This one reads a pool's reserves map, so anyone can rebuild its rows.
 
-```ts subgraph.config.ts
+```ts subgraphs/pool-reserves.ts figure
 import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
-  name: "sbtc-flows",
-  // !callout[/startBlock/] The first deploy backfills from here.
-  startBlock: 8000000,
-  // !callout[/sources/] Named filters; each name keys a handler.
+  name: "pool-reserves",
+  // !ref[/startBlock/] start
+  startBlock: 1230000,
+  // !ref(1:3) sources
+  // !callout[/map_set/] State writes only, so the rows can be recomputed.
   sources: {
-    transfers: {
-      type: "ft_transfer",
-      assetIdentifier: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token",
-    },
+    reserves: { type: "map_set", contractId: "SP....amm-vault-v2-01", map: "reserves" },
   },
+  // !ref(1:6) schema
   schema: {
-    transfers: {
-      columns: {
-        amount: { type: "uint" },
-        sender: { type: "principal" },
-        recipient: { type: "principal" },
-      },
+    reserves: {
+      columns: { token: { type: "principal" }, balance: { type: "uint" } },
+      uniqueKeys: [["token"]],
     },
   },
+  // !ref(1:5) handlers
   handlers: {
-    transfers: (event, ctx) => {
-      // !callout[/insert/] One write per matched event.
-      ctx.insert("transfers", {
-        amount: event.amount,
-        sender: event.sender,
-        recipient: event.recipient,
-      });
+    reserves: (event, ctx) => {
+      // !callout[/upsert/] Same input, same row, on every run.
+      ctx.upsert("reserves", { token: String(event.key) }, { balance: BigInt(String(event.value)) });
     },
   },
 });
@@ -44,13 +39,44 @@ export default defineSubgraph({
 
 Accumulating a value, reading contract state, and typing a `print` payload each have a rule worth knowing: [Handlers](#handlers).
 
-### Handler context
+## Deploy
+
+Hosted is the default path: one private stack per account, no box to run. Create an `sk-sl_*` key at [`/account/keys`](/account/keys), set the two variables from the [Introduction](/docs#get-started), and deploy (CLI 19.1 or later). The first deploy backfills from `startBlock`; new blocks stream in after.
+
+```text ~/pool-reserves
+$ secondlayer subgraphs deploy subgraphs/pool-reserves.ts
+✓ Subgraph "pool-reserves" created → v1.0.0
+# !mark
+  verification  state · pin 7f3c…a91e
+  unproven      tx attribution of writes: event.tx, _tx_id (needs event proofs)
+```
+
+Set a start block. Without one the subgraph reindexes from genesis, and every matching event and transaction row it reads bills ([what it costs](tip "The first 1M rows a month are free, then $5 per 1M rows. Block headers are always free.")). The `verification` line is the level your sources earn and `pin` hashes what you deployed: [Rows anyone can recompute](#rows-anyone-can-recompute).
+
+## Check it
+
+Recompute the rows on your machine from proven blocks and compare them with what the API serves:
+
+```text ~/pool-reserves exit=0
+$ secondlayer verify subgraph pool-reserves --replay --from 1230000 --to 1231000
+✓ pin       7f3c…a91e  handler, schema and startBlock match the deploy
+✓ blocks    1,001 proven from the checkpoint (2 MARF proofs, then parent links)
+✓ txs       4,812 transactions match their blocks' tx merkle roots
+✓ inputs    1,001 diffs fully named; 37 writes to amm-vault-v2-01
+✓ handlers  37 events, 0 handler errors, deterministic realm
+# !mark
+✓ rows      reserves: 14 equal  digest 9a1f…03be
+```
+
+<Seam page="subgraphs" />
+
+## Handler context
 
 Each handler gets `(event, ctx)`: `ctx.tx` / `ctx.block` for metadata, `ctx.insert` / `update` / `upsert` / `delete` / `increment` for writes, `ctx.findOne` / `findMany` to read rows back.
 
 A `contract_call` source with a `functionName` types `event.input` from the contract's ABI. `secondlayer subgraphs deploy` fetches it from the deployed contract, so you don't paste it. Pass `abi` yourself for wildcard, multi-contract or trait sources, or a local deploy.
 
-### Hoisting the schema
+## Hoisting the schema
 
 Pull `schema` out of the call with `defineSchema()` when a handler grows
 enough to factor a helper, and the helper stays fully typed:
@@ -74,7 +100,7 @@ export default defineSubgraph({ name: "balances", schema, sources, handlers });
 
 With only the definition in scope, `InferContext<typeof def>` gives the same typed `ctx`.
 
-### Indexing a contract set
+## Indexing a contract set
 
 `contractId` takes an array, so a router plus its pools is one source and one
 handler instead of twelve of each:
@@ -105,7 +131,7 @@ events (discovery runs before matching), and the discovered set is rolled
 back on a reorg like any other chain-derived state, so an address announced on
 an orphaned fork stops matching.
 
-### Index by standard, not by address
+## Index by standard, not by address
 
 `trait` resolves to **every contract Secondlayer classifies as that standard**, including ones deployed after you ship:
 
@@ -118,7 +144,7 @@ sources: {
 
 Traits: `sip-009`, `sip-010`, `sip-013`. A reindex backfills each contract from its deploy block and bills the rows it reads. [Find contracts by standard](/docs/index#find-contracts-by-standard) queries the set directly.
 
-### Test before you deploy
+## Test before you deploy
 
 ```bash
 secondlayer subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
@@ -275,13 +301,6 @@ A subgraph whose sources are all state writes (`var_set`, `map_set`, `map_delete
 | `events` | events, prints, contract calls, `map_insert`, or any `ctx.client` read | advice in `verification.reasons`; deploys as before |
 | `none` | `trait` scope, or `backfillMode: "concurrent"` | advice, as above |
 
-```text ~/pool-reserves
-$ secondlayer subgraphs deploy subgraphs/pool-reserves.ts
-✓ Subgraph "pool-reserves" created → v1.0.0
-  verification  state · pin 7f3c…a91e
-  unproven      tx attribution of writes: event.tx, _tx_id (needs event proofs)
-```
-
 | Refused at `state` | Use instead |
 | --- | --- |
 | `Date`, `performance`, timers, `fetch`, `process`, `crypto`, `Intl`, `toLocaleString` | values from `event`, `ctx.block`, `ctx.tx` |
@@ -295,17 +314,7 @@ A `state` subgraph reads its writes from the node's `state_writes` once the inst
 
 #### Check rows
 
-Recompute a `state` subgraph on your machine and compare it with the rows the API serves:
-
-```text ~/pool-reserves exit=0
-$ secondlayer verify subgraph pool-reserves --replay --from 1230000 --to 1231000
-✓ pin       7f3c…a91e  handler, schema and startBlock match the deploy
-✓ blocks    1,001 proven from the checkpoint (2 MARF proofs, then parent links)
-✓ txs       4,812 transactions match their blocks' tx merkle roots
-✓ inputs    1,001 diffs fully named; 37 writes to amm-vault-v2-01
-✓ handlers  37 events, 0 handler errors, deterministic realm
-✓ rows      reserves: 14 equal  digest 9a1f…03be
-```
+Recompute a `state` subgraph and compare it with the served rows, as in [Check it](#check-it). Each link proves:
 
 | Link | Proves |
 | --- | --- |
@@ -318,25 +327,11 @@ $ secondlayer verify subgraph pool-reserves --replay --from 1230000 --to 1231000
 
 `_tx_id` is not compared: which transaction made a write is unproven, as are writes overwritten within one block. A `--from` after `startBlock` is inconclusive (exit `2`) once a handler reads or merges earlier rows (`findOne`, `increment`, a partial upsert). Every read is free: proofs and state writes from `/v1/proofs/writes`, rows from `/v1/subgraphs`. Witnesses are limited to 2 per second, so 1,000 blocks take 8 minutes or more. An instance whose node does not deliver `state_writes` cannot be checked: exit `2`.
 
-## Deploy
-
-Hosted is the default path: one private stack per account, no box to run. Create an `sk-sl_*` key at [`/account/keys`](/account/keys), set the two variables from the [Introduction](/docs#get-started), and deploy (CLI 19.1 or later). The first deploy backfills from `startBlock`; new blocks stream in after.
-
-```text ~/sbtc-flows
-$ secondlayer subgraphs deploy ./subgraph.config.ts --start-block 8000000
-✓ Subgraph "sbtc-flows" created → v1.0.0
-  verification  events · pin 7f3c…a91e · ft_transfer source "transfers" needs event proofs
-  REST:      <SECONDLAYER_API_URL>/v1/subgraphs/sbtc-flows/transfers
-  Watch:     secondlayer subgraphs status sbtc-flows
-```
-
-Set a start block. Without one the subgraph reindexes from genesis, and every matching event and transaction row it reads bills ([what it costs](tip "The first 1M rows a month are free, then $5 per 1M rows. Block headers are always free.")). The `verification` line is the level your sources earn and `pin` hashes what you deployed: [Rows anyone can recompute](#rows-anyone-can-recompute).
-
-### Tip-first deploys
+## Tip-first deploys
 
 `--tip-first` (or `backfillMode: "concurrent"`) goes live at the tip, so rows are queryable in seconds while history backfills. The history fill revisits blocks, so it only takes handlers that write with `insert` or a full-row `upsert`. A handler that calls `update`, `increment`, `findOne` or `findMany` is refused with `TIP_FIRST_NON_REPLAYABLE_HANDLER`; deploy it with the default blocking backfill. The same rule applies to `secondlayer subgraphs backfill`: use `reindex` for a clean rebuild instead.
 
-### Check status
+## Check status
 
 `secondlayer subgraphs status`, with backfill draining while the table already serves reads:
 
@@ -351,7 +346,7 @@ Rows Indexed       4,874
 Table Rows         balances: 4874
 ```
 
-### What runs hosted
+## What runs hosted
 
 | | Hosted |
 | --- | --- |
