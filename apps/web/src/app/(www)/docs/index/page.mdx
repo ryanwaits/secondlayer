@@ -4,54 +4,43 @@ Decoded rows you sweep into your own tables. You write the loop; the decoding, t
 
 1M rows free a month hosted, [no meter on your own box](/docs/self-host#instance-token).
 
+<Yields page="index" />
+
 ## Build your index on it
 
-`consume()` is a checkpointed consumer with automatic reorg rewind: write rows in `onBatch`, return the cursor you committed, and a crash resumes from your checkpoint.
+[Name the event](focus:event), [commit rows and the checkpoint together](focus:save), and [delete from the fork height](focus:reorg) when a reorg lands. A crash resumes from your checkpoint.
 
-```ts index.ts
+```ts index.ts figure
 import { Index } from "@secondlayer/sdk";
 
 const index = new Index();
 await index.events.consume({
+  // !ref event
+  // !pick[/ft_transfer/] event: ft_transfer | stx_transfer | print
   eventType: "ft_transfer",
   fromCursor: await db.loadCheckpoint(), // null on first run
   // !callout[/fromHeight/] First run backfills from genesis.
   fromHeight: 0,
   onBatch: async (events, envelope, ctx) => {
+    // !ref(1:4) save
     await db.transaction(async (tx) => {
-      for (const t of events) await tx.upsertTransfer(t);
+      for (const row of events) await tx.upsert(row);
       // !callout[/saveCheckpoint/] Commits with the rows.
       await tx.saveCheckpoint(ctx.cursor);
     });
     return ctx.cursor;
   },
+  // !ref reorg
   // !callout[/onReorg/] Delete from the fork height, inclusive.
   onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
 });
 ```
 
-Where to run it: [Deploy](/docs/deploy). To have the loop run for you: [Subgraphs](/docs/subgraphs).
+<Pick name="event" default="ft_transfer" />
 
-### Options
+Where to run it: [Deploy](/docs/deploy).
 
-| Option | Effect |
-| --- | --- |
-| `eventType` | A literal narrows the rows: `"ft_transfer"` hands `onBatch` typed `amount`/`sender`, `"print"` hands it `payload.topic`. No discriminant check to write |
-| `contractId` | One id, or an array to follow a whole protocol on one cursor: `["…sbtc-token", "…sbtc-registry"]`, up to 20. Mutually exclusive with `trait` |
-| `txContext: true` | Joins the submitting transaction into each event (`tx_sender`, `tx_type`, …). Same on `walk` and `list`; every row carries its submitting transaction, so no per-event `/v1/index/transactions` call |
-| `finalizedOnly: true` | Holds delivery to rows at or below `tip.finalized_height`; finalized data never reorgs, so `onReorg` is unnecessary |
-| `signal` | Abort checked between batches, never mid-commit: the in-flight batch always commits; see [Deploy](/docs/deploy#handle-sigterm) |
-| `index.contractCalls.consume()` | Same loop for decoded calls; already carries `sender`/`function_name`, so it needs no `txContext` |
-
-### Mirror schema
-
-`secondlayer codegen index` emits the mirror schema so your tables can't drift:
-
-```bash
-secondlayer codegen index --target kysely   # also: prisma, drizzle, json-schema
-```
-
-### Reorgs
+## Reorgs
 
 Read envelopes carry a `reorgs` array: the reorganizations overlapping the page's height range, empty when none.
 
@@ -80,7 +69,45 @@ Both bounds are `<block_height>:<event_index>` cursors tracking decoded-event po
 
 Running balances: invert them in a sink's `onRollback` ([Sinks](/docs/sinks#rollback-is-height-stamped)).
 
-### Progress and health
+## Check it
+
+Every row carries its `block_height`. Prove that block, its transactions and its Bitcoin anchor on your machine. This is the block of the sBTC transfer on [Streams](/docs/streams#read-it-directly):
+
+```text ~/secondlayer exit=0
+$ secondlayer verify block 9210757
+✓ block       9,210,757  c61897739dde0b73ac9c99d146c288ad0d5b728f07df7d728680bc57683c5604
+✓ bitcoin     headers 967,680..971,479, proof-of-work and retargets checked
+✓ burn        height 971,479  000000000000000000006445b9307441f663ae84a9fa66f5a50e4a8dc95b2ff5
+✓ cycle       145, signer set proven forward from checkpoint cycle 144
+✓ signatures  2,947 / 4,000 weight signed, threshold 2,800
+# !mark
+✓ txs         4 transactions match the tx merkle root
+✓ state root  a1a4bfd3784a6650af0e2afa707d256c3272c9ddad66314a212e6951c783d538 matches the witness
+✓ Block 9,210,757 is proven. Trusted: only the checkpoint (Stacks 9,055,251, Bitcoin 967,680).
+```
+
+<Seam page="index" />
+
+## Options
+
+| Option | Effect |
+| --- | --- |
+| `eventType` | A literal narrows the rows: `"ft_transfer"` hands `onBatch` typed `amount`/`sender`, `"print"` hands it `payload.topic`. No discriminant check to write |
+| `contractId` | One id, or an array to follow a whole protocol on one cursor: `["…sbtc-token", "…sbtc-registry"]`, up to 20. Mutually exclusive with `trait` |
+| `txContext: true` | Joins the submitting transaction into each event (`tx_sender`, `tx_type`, …). Same on `walk` and `list`; every row carries its submitting transaction, so no per-event `/v1/index/transactions` call |
+| `finalizedOnly: true` | Holds delivery to rows at or below `tip.finalized_height`; finalized data never reorgs, so `onReorg` is unnecessary |
+| `signal` | Abort checked between batches, never mid-commit: the in-flight batch always commits; see [Deploy](/docs/deploy#handle-sigterm) |
+| `index.contractCalls.consume()` | Same loop for decoded calls; already carries `sender`/`function_name`, so it needs no `txContext` |
+
+## Mirror schema
+
+`secondlayer codegen index` emits the mirror schema so your tables can't drift:
+
+```bash
+secondlayer codegen index --target kysely   # also: prisma, drizzle, json-schema
+```
+
+## Progress and health
 
 `ctx` carries where the sweep has reached, so liveness needs no bookkeeping of its own.
 
@@ -106,7 +133,7 @@ for (const block of canonical) {
 
 To prove a block or transaction rather than compare hashes: [Verify](/docs/verification).
 
-### Cost and history
+## Cost and history
 
 Reads on your own box hit your own Postgres: no meter, no rate limit. Hosted `api.secondlayer.tools` bills `rows.delivered` (1M free per account per month; rates and free block headers in [Keys and billing](/docs/authentication)). `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)). Hosted is keyed; on your own box see [Self-host](/docs/self-host#instance-token).
 
