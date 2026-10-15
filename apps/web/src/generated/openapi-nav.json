@@ -334,6 +334,10 @@
 				"title": "The Bitcoin headers object"
 			},
 			{
+				"anchor": "bitcoin-tx-proof-object",
+				"title": "The Bitcoin transaction proof object"
+			},
+			{
 				"anchor": "block-state-writes-object",
 				"title": "The Block state writes object"
 			},
@@ -357,6 +361,11 @@
 				"anchor": "list-bitcoin-headers",
 				"method": "GET",
 				"title": "Bitcoin block headers"
+			},
+			{
+				"anchor": "get-bitcoin-tx-proof",
+				"method": "GET",
+				"title": "Bitcoin transaction proof"
 			},
 			{
 				"anchor": "get-signed-block",

@@ -1,5 +1,12 @@
 import { RateLimitError, ValidationError } from "@secondlayer/shared/errors";
 import { isPlatformMode } from "@secondlayer/shared/mode";
+import {
+	type BitcoinRpcConfig,
+	BitcoinSourceError,
+	bitcoinRpcSource,
+	blockHash,
+	buildTxProof,
+} from "@secondlayer/stacks/bitcoin";
 import { type Context, Hono, type MiddlewareHandler } from "hono";
 import { getClientIp } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
@@ -30,6 +37,9 @@ import { parseNonNegativeInteger } from "../parse-query.ts";
  *     those routes.
  *   - the Stacks node RPC (`STACKS_NODE_RPC_URL`, the node the API already
  *     reads): signed blocks, epoch 2.x headers and MARF inclusion proofs.
+ *   - a Bitcoin Core node (`BITCOIN_RPC_URL`): a transaction with its merkle
+ *     branch and block header. Unlike the proxied routes this one assembles
+ *     its answer, but the client re-checks every byte of it.
  *
  * Plus one read of the indexer's own `state_writes`: the names of a block's
  * writes, which a client checks against that block's witness.
@@ -65,6 +75,8 @@ export type ProofsRouterOptions = {
 	/** Read per request so the operator's env is authoritative at call time. */
 	sidecarUrl?: () => string | undefined;
 	nodeRpcUrl?: () => string;
+	/** Bitcoin Core RPC for `/bitcoin-tx`; undefined → 503. Read per request. */
+	bitcoinRpc?: () => BitcoinRpcConfig | undefined;
 	/** One canonical block's `state_writes`, in ordinal order. */
 	readBlockWrites?: typeof readBlockStateWrites;
 };
@@ -130,6 +142,17 @@ function hexParam(value: string, name: string, length: number): string {
 	}
 	return bare.toLowerCase();
 }
+
+/** `BITCOIN_RPC_URL` plus basic auth when both credentials are set. */
+function bitcoinRpcFromEnv(): BitcoinRpcConfig | undefined {
+	const url = process.env.BITCOIN_RPC_URL?.trim();
+	if (!url) return undefined;
+	const username = process.env.BITCOIN_RPC_USERNAME;
+	const password = process.env.BITCOIN_RPC_PASSWORD;
+	return username && password ? { url, auth: { username, password } } : { url };
+}
+
+const toHex = (bytes: Uint8Array) => Buffer.from(bytes).toString("hex");
 
 function requiredQuery(c: Context, name: string): string {
 	const value = c.req.query(name);
@@ -239,6 +262,8 @@ export function createProofsRouter(opts: ProofsRouterOptions = {}) {
 		opts.nodeRpcUrl ??
 		(() => process.env.STACKS_NODE_RPC_URL?.trim() || DEFAULT_NODE_RPC_URL);
 
+	const bitcoinRpc = opts.bitcoinRpc ?? bitcoinRpcFromEnv;
+
 	const sidecar = (
 		c: Context,
 		path: string,
@@ -326,6 +351,75 @@ export function createProofsRouter(opts: ProofsRouterOptions = {}) {
 			contentType: "application/json",
 			cache: MUTABLE_CACHE_CONTROL,
 		});
+	});
+
+	router.get("/bitcoin-tx/:txid", limited, async (c) => {
+		validateQueryParams(new URL(c.req.url).searchParams, []);
+		const txid = hash32(c.req.param("txid"), "txid");
+		const config = bitcoinRpc();
+		if (!config) {
+			return errorResponse(
+				c,
+				503,
+				"PROOFS_UNAVAILABLE",
+				"bitcoin tx proofs unavailable on this instance (BITCOIN_RPC_URL is not set)",
+			);
+		}
+		const signal = AbortSignal.any([
+			c.req.raw.signal,
+			AbortSignal.timeout(NODE_TIMEOUT_MS),
+		]);
+		const doFetch = config.fetch ?? fetch;
+		const source = bitcoinRpcSource({
+			...config,
+			fetch: ((input, init) =>
+				doFetch(input, { ...init, signal })) as typeof fetch,
+		});
+		let proof: Awaited<ReturnType<typeof buildTxProof>>;
+		try {
+			proof = await buildTxProof(source, { txid });
+		} catch (err) {
+			// Messages stay generic: transport errors can carry the RPC URL.
+			if (err instanceof BitcoinSourceError && err.code === "not-found") {
+				return errorResponse(
+					c,
+					404,
+					"NOT_FOUND",
+					"no Bitcoin transaction with that txid",
+				);
+			}
+			if (err instanceof BitcoinSourceError && err.code === "unconfirmed") {
+				return errorResponse(
+					c,
+					404,
+					"NOT_FOUND",
+					"transaction is not in a block yet",
+				);
+			}
+			return errorResponse(
+				c,
+				502,
+				"PROOF_SOURCE_ERROR",
+				err instanceof BitcoinSourceError
+					? "could not reach bitcoind"
+					: "bitcoind returned inconsistent data for that transaction",
+			);
+		}
+		// A shallow block can reorg out: short cache only.
+		return c.json(
+			{
+				txid,
+				block_hash: toHex(blockHash(proof.header, { display: true })),
+				block_height: proof.height,
+				header: toHex(proof.header),
+				raw_tx: toHex(proof.rawTx),
+				tx_index: proof.merkle.txIndex,
+				tx_count: proof.merkle.txCount,
+				siblings: proof.merkle.siblings.map(toHex),
+			},
+			200,
+			{ "cache-control": MUTABLE_CACHE_CONTROL },
+		);
 	});
 
 	router.get("/block/height/:height", limited, (c) => {

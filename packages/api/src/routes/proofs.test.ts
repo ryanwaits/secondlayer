@@ -7,6 +7,12 @@ import {
 	expect,
 	test,
 } from "bun:test";
+import {
+	bitcoinTxid,
+	doubleSha256,
+	merkleRoot,
+	reverseBytes,
+} from "@secondlayer/stacks/bitcoin";
 import { Hono } from "hono";
 import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
 import { createApiApp } from "../create-app.ts";
@@ -21,6 +27,8 @@ import {
 	type ProofsRouterOptions,
 	createProofsRouter,
 } from "./proofs.ts";
+
+const toHex = (bytes: Uint8Array) => Buffer.from(bytes).toString("hex");
 
 const ID = "ab".repeat(32);
 const CH = "cd".repeat(20);
@@ -382,6 +390,213 @@ describe("proofs param validation", () => {
 			expect(seen).toEqual([]);
 		});
 	}
+});
+
+describe("bitcoin-tx", () => {
+	// A three-tx block whose header commits to the real merkle root of its txids.
+	const RAW_TX = new Uint8Array(
+		Buffer.from(
+			[
+				"01000000",
+				"01",
+				"11".repeat(32),
+				"00000000",
+				"00",
+				"ffffffff",
+				"01",
+				"1027000000000000",
+				"04",
+				"deadbeef",
+				"00000000",
+			].join(""),
+			"hex",
+		),
+	);
+	const TXID_INTERNAL = bitcoinTxid(RAW_TX);
+	const TXID = toHex(reverseBytes(TXID_INTERNAL));
+	const OTHERS = [new Uint8Array(32).fill(1), new Uint8Array(32).fill(2)];
+	const BLOCK_TXIDS = [OTHERS[0], TXID_INTERNAL, OTHERS[1]] as Uint8Array[];
+	const HEADER = new Uint8Array(80);
+	HEADER.set(merkleRoot(BLOCK_TXIDS), 36);
+	const BLOCK_HASH = toHex(reverseBytes(doubleSha256(HEADER)));
+	const UNKNOWN = "ee".repeat(32);
+	const UNCONFIRMED = "dd".repeat(32);
+
+	const rpcSeen: string[] = [];
+	const bitcoind = Bun.serve({
+		port: 0,
+		hostname: "127.0.0.1",
+		async fetch(req) {
+			const { method, params } = (await req.json()) as {
+				method: string;
+				params: unknown[];
+			};
+			rpcSeen.push(method);
+			const reply = (result: unknown) =>
+				Response.json({ result, error: null, id: "secondlayer" });
+			const txid = params[0];
+			if (method === "getrawtransaction") {
+				if (txid === TXID) {
+					return params[1] === true
+						? reply({ txid, blockhash: BLOCK_HASH })
+						: reply(toHex(RAW_TX));
+				}
+				if (txid === UNCONFIRMED) {
+					return params[1] === true ? reply({ txid }) : reply(toHex(RAW_TX));
+				}
+				return Response.json(
+					{
+						result: null,
+						error: {
+							code: -5,
+							message: "No such mempool or blockchain transaction",
+						},
+					},
+					{ status: 500 },
+				);
+			}
+			if (method === "getblock") {
+				return reply({
+					height: 968461,
+					tx: BLOCK_TXIDS.map((t) => toHex(reverseBytes(t))),
+				});
+			}
+			if (method === "getblockheader") return reply(toHex(HEADER));
+			return new Response("unexpected", { status: 500 });
+		},
+	});
+	afterAll(() => bitcoind.stop(true));
+	beforeEach(() => {
+		rpcSeen.length = 0;
+	});
+
+	const rpc = {
+		bitcoinRpc: () => ({ url: `http://127.0.0.1:${bitcoind.port}` }),
+	};
+
+	test("returns the raw tx, merkle branch and header, short-cached", async () => {
+		const res = await get(
+			`/v1/proofs/bitcoin-tx/0x${TXID.toUpperCase()}`,
+			undefined,
+			rpc,
+		);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("cache-control")).toBe(MUTABLE_CACHE_CONTROL);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body).toEqual({
+			txid: TXID,
+			block_hash: BLOCK_HASH,
+			block_height: 968461,
+			header: toHex(HEADER),
+			raw_tx: toHex(RAW_TX),
+			tx_index: 1,
+			tx_count: 3,
+			siblings: [
+				toHex(OTHERS[0] as Uint8Array),
+				toHex(
+					doubleSha256(
+						new Uint8Array([
+							...(OTHERS[1] as Uint8Array),
+							...(OTHERS[1] as Uint8Array),
+						]),
+					),
+				),
+			],
+		});
+	});
+
+	test("an unknown txid, which bitcoind answers with HTTP 500, is a 404", async () => {
+		const res = await get(`/v1/proofs/bitcoin-tx/${UNKNOWN}`, undefined, rpc);
+		expect(res.status).toBe(404);
+		const body = (await res.json()) as { code: string; error: string };
+		expect(body.code).toBe("NOT_FOUND");
+		expect(body.error).toContain("no Bitcoin transaction");
+	});
+
+	test("a transaction not in a block yet is a 404", async () => {
+		const res = await get(
+			`/v1/proofs/bitcoin-tx/${UNCONFIRMED}`,
+			undefined,
+			rpc,
+		);
+		expect(res.status).toBe(404);
+		expect(((await res.json()) as { error: string }).error).toContain(
+			"not in a block",
+		);
+	});
+
+	test("an unreachable bitcoind is a 502 that does not echo the RPC address", async () => {
+		const res = await get(`/v1/proofs/bitcoin-tx/${TXID}`, undefined, {
+			bitcoinRpc: () => ({ url: "http://127.0.0.1:1", auth: "c2VjcmV0" }),
+		});
+		expect(res.status).toBe(502);
+		const text = await res.text();
+		expect(JSON.parse(text).code).toBe("PROOF_SOURCE_ERROR");
+		expect(text).not.toContain("127.0.0.1");
+		expect(text).not.toContain("c2VjcmV0");
+	});
+
+	test("a bitcoind that returns a tx from another block is a 502", async () => {
+		const lying = Bun.serve({
+			port: 0,
+			hostname: "127.0.0.1",
+			async fetch(req) {
+				const { method, params } = (await req.json()) as {
+					method: string;
+					params: unknown[];
+				};
+				const reply = (result: unknown) =>
+					Response.json({ result, error: null });
+				if (method === "getrawtransaction")
+					return params[1] === true
+						? reply({ blockhash: BLOCK_HASH })
+						: reply(toHex(RAW_TX));
+				if (method === "getblock")
+					return reply({ height: 1, tx: [toHex(new Uint8Array(32).fill(7))] });
+				return reply(toHex(HEADER));
+			},
+		});
+		try {
+			const res = await get(`/v1/proofs/bitcoin-tx/${TXID}`, undefined, {
+				bitcoinRpc: () => ({ url: `http://127.0.0.1:${lying.port}` }),
+			});
+			expect(res.status).toBe(502);
+		} finally {
+			lying.stop(true);
+		}
+	});
+
+	test("without BITCOIN_RPC_URL the route is 503 PROOFS_UNAVAILABLE", async () => {
+		const res = await get(`/v1/proofs/bitcoin-tx/${TXID}`, undefined, {
+			bitcoinRpc: () => undefined,
+		});
+		expect(res.status).toBe(503);
+		const body = (await res.json()) as { code: string; error: string };
+		expect(body.code).toBe("PROOFS_UNAVAILABLE");
+		expect(body.error).toContain("BITCOIN_RPC_URL");
+	});
+
+	for (const path of [
+		`/v1/proofs/bitcoin-tx/${TXID.slice(2)}`,
+		`/v1/proofs/bitcoin-tx/${"zz".repeat(32)}`,
+		`/v1/proofs/bitcoin-tx/${TXID}?extra=1`,
+	]) {
+		test(`refuses ${path} without reaching bitcoind`, async () => {
+			const res = await get(path, undefined, rpc);
+			expect(res.status).toBe(400);
+			expect(((await res.json()) as { code: string }).code).toBe(
+				"VALIDATION_ERROR",
+			);
+			expect(rpcSeen).toEqual([]);
+		});
+	}
+
+	test("hosted anonymous requests carry rate limit headers", async () => {
+		process.env.INSTANCE_MODE = "platform";
+		const res = await get(`/v1/proofs/bitcoin-tx/${TXID}`, undefined, rpc);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("x-ratelimit-limit")).toBe("10");
+	});
 });
 
 describe("proofs on the hosted archive", () => {

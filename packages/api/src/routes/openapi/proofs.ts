@@ -39,13 +39,15 @@ const ERROR_400_PARAM =
 	"A path or query parameter is malformed (`VALIDATION_ERROR`): hashes must be exact-length hex, heights non-negative integers";
 const ERROR_502 =
 	"The node or proof sidecar could not be reached, or answered with an unexpected status (`PROOF_SOURCE_ERROR`)";
+const ERROR_503_BITCOIN =
+	"`PROOFS_UNAVAILABLE`: this instance has no Bitcoin node (`BITCOIN_RPC_URL` unset)";
 const ERROR_503_SIDECAR =
 	"`PROOFS_UNAVAILABLE`: this instance has no proof sidecar (`PROOF_SIDECAR_URL` unset). `PROOF_SOURCE_BUSY`: the sidecar is busy; retry after `Retry-After` seconds";
 
 function responses(
 	success: Record<string, unknown>,
 	notFound: string,
-	opts: { sidecar?: boolean } = {},
+	opts: { sidecar?: boolean; bitcoin?: boolean } = {},
 ): Record<string, unknown> {
 	return {
 		"200": success,
@@ -55,6 +57,7 @@ function responses(
 		"429": jsonError(ERROR_429),
 		"502": jsonError(ERROR_502),
 		...(opts.sidecar ? { "503": jsonError(ERROR_503_SIDECAR) } : {}),
+		...(opts.bitcoin ? { "503": jsonError(ERROR_503_BITCOIN) } : {}),
 	};
 }
 
@@ -155,6 +158,36 @@ export const proofsPaths = {
 				),
 				"The sidecar has no header at `from`",
 				{ sidecar: true },
+			),
+		},
+	},
+	"/v1/proofs/bitcoin-tx/{txid}": {
+		get: {
+			tags: ["proofs"],
+			summary: "Bitcoin transaction proof",
+			"x-nav-title": "Bitcoin transaction",
+			description: `A confirmed Bitcoin transaction with its merkle branch (internal byte order) and block header, from the instance's own Bitcoin node. Recompute the txid from \`raw_tx\`, fold the branch to the header's merkle root, and check the header against a Bitcoin chain you trust, such as a checkpoint plus proof of work. Short-cached: a shallow block can reorg. ${FREE}`,
+			security: READ_SECURITY,
+			parameters: [
+				{
+					...pp(
+						"txid",
+						"The Bitcoin txid, display order: 64 hex characters, `0x` optional.",
+					),
+					schema: {
+						...HASH32,
+						example:
+							"f80a188d012dbb733748db003b987cc98fc4a636cbd071734decb298c1bad80b",
+					},
+				},
+			],
+			responses: responses(
+				json200(
+					ref("BitcoinTxProof"),
+					"The raw transaction, merkle branch and block header",
+				),
+				"No confirmed transaction with that txid",
+				{ bitcoin: true },
 			),
 		},
 	},
@@ -320,6 +353,65 @@ export const proofsSchemas = {
 			headers: [
 				"0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c",
 			],
+		},
+	},
+	BitcoinTxProof: {
+		type: "object",
+		description:
+			"A Bitcoin transaction, the merkle branch to its block's root, and that block's header.",
+		required: [
+			"txid",
+			"block_hash",
+			"block_height",
+			"header",
+			"raw_tx",
+			"tx_index",
+			"tx_count",
+			"siblings",
+		],
+		properties: {
+			txid: { type: "string", description: "The txid, display order, hex." },
+			block_hash: {
+				type: "string",
+				description: "Hash of `header`, display order, hex.",
+			},
+			block_height: {
+				type: "integer",
+				description: "Bitcoin height of the confirming block.",
+			},
+			header: {
+				type: "string",
+				description: "The block's 80-byte header, hex.",
+			},
+			raw_tx: {
+				type: "string",
+				description: "The serialized transaction, witness included, hex.",
+			},
+			tx_index: {
+				type: "integer",
+				description: "Position of the transaction in the block.",
+			},
+			tx_count: {
+				type: "integer",
+				description: "Number of transactions in the block.",
+			},
+			siblings: {
+				type: "array",
+				items: { type: "string" },
+				description:
+					"Merkle branch from the leaf up, internal byte order, hex: `ceil(log2(tx_count))` hashes.",
+			},
+		},
+		example: {
+			txid: "f80a188d012dbb733748db003b987cc98fc4a636cbd071734decb298c1bad80b",
+			block_hash:
+				"0000000000000000000179d46b321695682e26183ee0b1257bb3ea17483be0f9",
+			block_height: 968461,
+			header: "0000003…",
+			raw_tx: "02000000000101…",
+			tx_index: 2156,
+			tx_count: 4371,
+			siblings: ["4c1a…"],
 		},
 	},
 	Epoch2Header: {
