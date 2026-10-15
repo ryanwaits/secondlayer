@@ -23,7 +23,14 @@ The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP c
 }
 ```
 
-A client's JSON `env` can't read your shell, so this block holds the hosted values from the [Introduction](/docs#get-started) literally. On your box, set `SECONDLAYER_API_URL` to `http://127.0.0.1:3800` and `INSTANCE_TOKEN` (from `.env.local`) instead of the key: [Self-host](/docs/self-host#use-these-docs-on-your-box).
+A client's JSON `env` can't read your shell, so this block holds the hosted values from the [Introduction](/docs#get-started) literally.
+
+On your box, set these instead of the key ([Self-host](/docs/self-host#use-these-docs-on-your-box)):
+
+| Variable | Value |
+| --- | --- |
+| `SECONDLAYER_API_URL` | `http://127.0.0.1:3800` |
+| `INSTANCE_TOKEN` | From `.env.local` |
 
 An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional `SECONDLAYER_MCP_SECRET` bearer auth for hosting the server behind a URL.
 
@@ -65,7 +72,12 @@ The `secondlayer` skill teaches an agent the rules for building on Secondlayer: 
 bunx skills add ryanwaits/secondlayer --skill secondlayer -y
 ```
 
-Use the skill when an agent writes code against Secondlayer. Use MCP when it needs live state: your subgraphs, webhooks, chain tips. The skill is static text that can't see your instance, and MCP can, so install both. Source: [`skills/secondlayer`](https://github.com/ryanwaits/secondlayer/tree/main/skills/secondlayer).
+| Use | When |
+| --- | --- |
+| The skill | An agent writes code against Secondlayer |
+| MCP | It needs live state: your subgraphs, webhooks, chain tips |
+
+The skill is static text that can't see your instance, and MCP can, so install both. Source: [`skills/secondlayer`](https://github.com/ryanwaits/secondlayer/tree/main/skills/secondlayer).
 
 export const agent = `
 - Install: 'bunx @secondlayer/mcp' with SECONDLAYER_API_URL and INSTANCE_TOKEN for the instance. For hosted archive and credits tools also set SECONDLAYER_API_KEY.
