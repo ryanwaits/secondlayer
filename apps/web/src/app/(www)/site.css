@@ -371,9 +371,6 @@
 	display: grid;
 	gap: 16px;
 }
-.site .art.stack > .more {
-	justify-self: start;
-}
 .site .art.stack > * {
 	margin-block: 0;
 }
