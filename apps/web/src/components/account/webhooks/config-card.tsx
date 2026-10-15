@@ -80,6 +80,21 @@ const PRINCIPAL_FIELDS = new Set([
 
 const SBTC_TOKEN_SUFFIX = "sbtc-token::sbtc-token";
 
+/** A print `where` filter as text: "signer is SP21…EFFP or SPMP…1TZF and
+ *  cycle is 146". Principal-looking values shorten like other addresses. */
+function formatWhere(value: unknown): string {
+	const where = (value ?? {}) as Record<string, string | readonly string[]>;
+	return Object.entries(where)
+		.map(([key, expected]) => {
+			const values = (Array.isArray(expected) ? expected : [expected]).map(
+				(v) =>
+					/^S[PTMN]/.test(String(v)) ? shortenPrincipal(String(v)) : String(v),
+			);
+			return `${key} is ${values.join(" or ")}`;
+		})
+		.join(" and ");
+}
+
 function n(value: number): string {
 	return value.toLocaleString("en-US");
 }
@@ -126,6 +141,7 @@ export function triggerFieldCondition(
 		};
 	}
 	if (key === "trait") return { op: "implements", text: String(value) };
+	if (key === "where") return { op: "where", text: formatWhere(value) };
 	if (key === "assetIdentifier") {
 		return { op: "is", text: shortenPrincipal(String(value)) };
 	}
@@ -147,6 +163,7 @@ export const SENTENCE_FIELD_ORDER = [
 	"varName",
 	"map",
 	"topic",
+	"where",
 	"lockedAddress",
 	"bitcoinTxid",
 	"sweepTxid",
@@ -184,6 +201,8 @@ function sentencePhrase(
 			return `in map ${value}`;
 		case "topic":
 			return `with topic ${value}`;
+		case "where":
+			return `where ${formatWhere(value)}`;
 		case "lockedAddress":
 			return `locking ${shortenPrincipal(String(value))}`;
 		case "bitcoinTxid":

@@ -108,6 +108,22 @@ describe("triggerSentence", () => {
 		);
 	});
 
+	test("a print where filter reads as its fields, any-of values joined by or", () => {
+		const t = {
+			type: "print_event",
+			contractId: "SP000000000000000000002Q6VF78.pox-5",
+			where: {
+				signer: [
+					"SP21YTSM60CAY6D011EZVEVNKXVW8FVZE198XEFFP.fastpool-1-signer-manager",
+					"SPMPMA1V6P430M8C91QS1G9XJ95S59JS1TZFZ4Q4.fastpool-max500-signer-manager",
+				],
+			},
+		} as ChainTrigger;
+		const sentence = triggerSentence(t);
+		expect(sentence).toContain("where signer is ");
+		expect(sentence).toContain(" or ");
+	});
+
 	test("an unfiltered trigger still reads as a bare noun sentence", () => {
 		const t: ChainTrigger = { type: "stx_transfer" };
 		expect(triggerSentence(t)).toBe("Any STX transfer");
