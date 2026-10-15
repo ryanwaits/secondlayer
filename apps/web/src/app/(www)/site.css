@@ -1420,6 +1420,12 @@
 :is(.site, .writing-article) .chain-sbtc .chain-fg {
 	fill: #ffffff;
 }
+:is(.site, .writing-article) .chain-robinhood .chain-bg {
+	fill: #ccff00;
+}
+:is(.site, .writing-article) .chain-robinhood .chain-fg {
+	fill: #000000;
+}
 :is(.site, .writing-article) .chain-runes .chain-bg {
 	fill: var(--ink);
 }
