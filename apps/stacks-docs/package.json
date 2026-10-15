@@ -6,7 +6,8 @@
 		"dev": "vocs dev",
 		"build": "vocs build",
 		"preview": "vocs preview",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"test": "bun test"
 	},
 	"dependencies": {
 		"vocs": "1.4.1",
