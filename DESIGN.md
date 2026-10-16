@@ -127,6 +127,7 @@ name before writing CSS; an unknown `var(--x)` silently voids the whole declarat
 | `faint` | `--faint` | none; code punctuation, comments, line numbers |
 | `line` | `--line` | `--border` |
 | `pri` / `on-pri` | `--pri` / `--on-pri` | `--accent`, `--accent-contrast`, `--blue`, `--teal` |
+| `pri-tint` / `pri-ink` | `--pri-tint` / `--pri-ink` | none; chosen values only |
 | `hi` / `on-hi` | `--hi` / `--on-hi` | none; yellow fills only |
 | `ok` / `alarm` | `--ok` / `--alarm` | `--green` / `--red` |
 | `verb-*` / `on-verb` | `--verb-get` … `--verb-delete`, `--on-verb`, `--on-verb-post` | none; method pills only |
@@ -445,27 +446,28 @@ a failure. Some glyphs carry none. Only the layers glyph uses the logo's slant.
 - **Secondary** (`.btn-sec`): `line` border, ink text, hover border ink.
 - **Ghost** (`.btn-ghost`): `line` border, transparent, hover border `sub`.
 - **Small** (`.btn-sm`): 34px, pad `0 13px`, 14px. The nav "Start free" uses this size.
+- **Register.** Marketing and docs use the 42px primary. Account pages (`/account/*`) use `.acct-btn … small` (34px, 13px, `0 14px`).
 - Disabled is 50% opacity. Press scales to 0.97 (off under reduced motion).
 - Focus: `:focus-visible` 2px `pri` outline, 2px offset — never animated, never a glow.
 
 ### Choice (pick one value)
-`<Choice>`: a radio fieldset drawn as joined cells in a 1px `line` frame, 4px corner, cells
-`8px 14px`, Geist 13.5px/500 `sub`. The chosen cell is ink fill with paper text; hover turns
+`<Choice>`: a radio fieldset drawn as cells inside one 1px `line` frame: 8px corner, 3px inset,
+2px gaps, 5px cells, no dividers, cells `8px 14px`, Geist 13.5px/500 `sub`. The chosen cell is a pri tint: `--pri-tint` wash, 1px `pri` inset edge, `--pri-ink` text; hover turns
 text ink; focus is a 2px `pri` outline inside the cell. Form fields pass `defaultValue` and
 submit as radios; view switches pass `value` + `onChange`. Three rules hold across Choice,
 Amount picker and Tabs:
-- **A chosen value is ink.** Never `pri`; blue is the action and the current tab.
+- **A chosen value is a blue tint.** A solid `pri` fill stays the action's alone; the current tab keeps its underline.
+- **Typing into a cell** (an Other amount box): the cell gets a 2px `pri` inset edge; the input inside has no ring of its own. The cell turns tint once the value is valid.
 - **The current tab is blue** (see Tabs).
-- **One shape: 4px, joined.** Full-radius pills stay only for inline prose chips (`<Pick>`).
-Narrow rule: a container under 310px stacks into one joined column (dividers move to the
-top edge, labels left-aligned), however many options it has. It is a container query on the
+- **One shape: one framed row (8px frame, 3px inset).** Full-radius pills stay only for inline prose chips (`<Pick>`).
+`fill` spans the column, cells share the width.
+Narrow rule: a container under 310px stacks into one column (labels left-aligned), however many options it has. It is a container query on the
 fieldset; no script measures anything.
 
 ### Amount picker (pick one amount)
 `<AmountPicker>`: same radios as Choice, laid out as a grid of 4px boxes, 52px tall, Geist
 20px/500 tabular, four columns and two under 480px of container width. An optional caption
-sits under the amount in 12px `sub`. Selected is a 1px ink border on a `soft` fill: no
-inset ring, no radio dot, no `pri`, because the blue Buy button sits right under it.
+sits under the amount in 12px `sub`. Selected is the same pri tint as Choice.
 
 ### Tabs
 `.tabbar`: `gap 20px` over a 1px `line` baseline. Inside a code block's bar the gap is 14px, so six tabs and the key chip fit at 1440px; the strip scrolls sideways when it still overflows. A tab has no radius, `sub` at rest, ink on

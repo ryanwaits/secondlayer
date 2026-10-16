@@ -104,7 +104,7 @@ export function AsleepNotice() {
 			action={
 				<button
 					type="button"
-					className="acct-btn solid"
+					className="acct-btn solid small"
 					disabled={waking}
 					onClick={() => {
 						setWaking(true);
@@ -273,7 +273,7 @@ export function WebhooksListBody({
 					tone="stop"
 					title="Deliveries are paused until you add credits"
 					action={
-						<a className="acct-btn solid" href="/account/credits">
+						<a className="acct-btn solid small" href="/account/credits">
 							Add credits
 						</a>
 					}

@@ -16,8 +16,8 @@ export type AmountPickerProps = {
 
 /**
  * Pick one amount. Same radio markup as Choice, laid out as boxes with an
- * optional caption under the amount. Selected is an ink border and soft
- * fill, never blue: the action button under it owns blue.
+ * optional caption under the amount. Selected is a pri tint (wash, 1px pri
+ * edge); the solid pri stays the action button's.
  */
 export function AmountPicker({
 	name,
@@ -30,20 +30,22 @@ export function AmountPicker({
 	return (
 		<fieldset className="amount-picker" aria-labelledby={labelledBy}>
 			{legend && <legend className="choice-legend">{legend}</legend>}
-			<div className="amount-grid">
-				{options.map((o) => (
-					<label key={o.value} className="amount-box">
-						<input
-							type="radio"
-							name={name}
-							value={o.value}
-							checked={value === o.value}
-							onChange={() => onChange(o.value)}
-						/>
-						<span className="amount-main">{o.label}</span>
-						{o.caption && <span className="amount-caption">{o.caption}</span>}
-					</label>
-				))}
+			<div className="amount-wrap">
+				<div className="amount-grid">
+					{options.map((o) => (
+						<label key={o.value} className="amount-box">
+							<input
+								type="radio"
+								name={name}
+								value={o.value}
+								checked={value === o.value}
+								onChange={() => onChange(o.value)}
+							/>
+							<span className="amount-main">{o.label}</span>
+							{o.caption && <span className="amount-caption">{o.caption}</span>}
+						</label>
+					))}
+				</div>
 			</div>
 		</fieldset>
 	);

@@ -718,7 +718,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 							stopped.
 						</p>
 					</div>
-					<a className="acct-btn solid" href="/account/credits">
+					<a className="acct-btn solid small" href="/account/credits">
 						Add credits
 					</a>
 				</output>

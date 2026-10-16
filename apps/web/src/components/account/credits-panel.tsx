@@ -101,7 +101,7 @@ export function CheckoutAction({
 			<div className={wide ? "acct-checkout wide" : "acct-checkout"}>
 				<button
 					type="button"
-					className="acct-btn solid"
+					className="acct-btn solid small"
 					onClick={co.checkout}
 					disabled={co.busy}
 				>

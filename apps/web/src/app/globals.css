@@ -10,6 +10,9 @@
 	--soft: #f5f5f2;
 	--pri: #1f45e0;
 	--on-pri: #ffffff;
+	/* A chosen value: a wash of pri, its edge and text in pri. Never a solid fill; solid pri is the action's. */
+	--pri-tint: color-mix(in srgb, var(--pri) 8%, var(--paper));
+	--pri-ink: var(--pri);
 	--hi: #ffcc00;
 	--on-hi: #111111;
 	--ok: #128a43;
@@ -135,6 +138,8 @@
 		--soft: #252420;
 		--pri: #3a5bff;
 		--on-pri: #ffffff;
+		--pri-tint: color-mix(in srgb, var(--pri) 18%, var(--paper));
+		--pri-ink: #93a5ff;
 		/* On a dark ground the lighter chart steps mix toward ink, not paper. */
 		--ch-b: color-mix(in srgb, var(--pri) 55%, var(--ink));
 		--ch-c: color-mix(in srgb, var(--pri) 35%, var(--ink));
@@ -5348,10 +5353,9 @@ a.acct-strip-link:hover .acct-strip-k {
 }
 
 /* ── Choice: pick one value (components/choice.tsx) ──
- * Joined cells, 4px corner. Selected = ink fill. The fieldset is the size
- * container, so narrow rules need no script. */
-.choice,
-.amount-picker {
+ * Cells in one framed row (8px frame, 3px inset, 5px cells). Selected = pri
+ * tint. The fieldset is the size container, so narrow rules need no script. */
+.choice {
 	margin: 0;
 	padding: 0;
 	border: 0;
@@ -5369,19 +5373,17 @@ a.acct-strip-link:hover .acct-strip-k {
 }
 .choice-row {
 	display: flex;
+	gap: 2px;
 	width: max-content;
 	max-width: 100%;
+	padding: 3px;
 	border: 1px solid var(--line);
-	border-radius: 4px;
-	overflow: hidden;
+	border-radius: 8px;
 }
 .choice-cell {
 	position: relative;
 	display: block;
 	cursor: pointer;
-}
-.choice-cell + .choice-cell {
-	border-left: 1px solid var(--line);
 }
 .choice-cell input {
 	position: absolute;
@@ -5393,6 +5395,7 @@ a.acct-strip-link:hover .acct-strip-k {
 .choice-cell span {
 	display: block;
 	padding: 8px 14px;
+	border-radius: 5px;
 	font: 500 13.5px / 1.25 var(--font-sans-stack);
 	color: var(--sub);
 	white-space: nowrap;
@@ -5405,16 +5408,21 @@ a.acct-strip-link:hover .acct-strip-k {
 	width: auto;
 	container-type: normal;
 }
+.choice.sm .choice-row {
+	padding: 2px;
+	border-radius: 6px;
+}
 .choice.sm .choice-cell span {
 	padding: 5px 10px;
 	font-size: 12.5px;
 }
-.choice-cell:hover span {
+.choice-cell:hover input:not(:checked) + span {
 	color: var(--ink);
 }
 .choice-cell input:checked + span {
-	background: var(--ink);
-	color: var(--paper);
+	background: var(--pri-tint);
+	color: var(--pri-ink);
+	box-shadow: inset 0 0 0 1px var(--pri);
 }
 .choice-cell input:focus-visible + span {
 	outline: 2px solid var(--pri);
@@ -5426,10 +5434,6 @@ a.acct-strip-link:hover .acct-strip-k {
 		flex-direction: column;
 		width: 100%;
 	}
-	.choice-cell + .choice-cell {
-		border-left: 0;
-		border-top: 1px solid var(--line);
-	}
 	.choice-cell span {
 		white-space: normal;
 	}
@@ -5439,13 +5443,18 @@ a.acct-strip-link:hover .acct-strip-k {
 		flex-direction: column;
 		width: 100%;
 	}
-	.choice-row[data-many] .choice-cell + .choice-cell {
-		border-left: 0;
-		border-top: 1px solid var(--line);
-	}
 	.choice-row[data-many] .choice-cell span {
 		white-space: normal;
 	}
+}
+/* Fill: span the column, cells share the width. */
+.choice.fill .choice-row {
+	width: 100%;
+}
+.choice.fill .choice-cell {
+	flex: 1 1 0;
+	min-width: 0;
+	text-align: center;
 }
 @media (prefers-reduced-motion: reduce) {
 	.choice-cell span {
@@ -5454,8 +5463,19 @@ a.acct-strip-link:hover .acct-strip-k {
 }
 
 /* ── Amount picker: pick one amount (components/amount-picker.tsx) ──
- * Boxes, 4px corner. Selected = ink border + soft fill, never blue: the
- * action button under it owns blue. Two columns under 480px of width. */
+ * Boxes, 4px corner. Selected = pri tint (wash, 1px pri edge); the solid pri
+ * stays the action button's. Two columns under 480px of width. */
+.amount-picker {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	min-width: 0;
+	width: 100%;
+}
+.amount-wrap {
+	container-type: inline-size;
+	width: 100%;
+}
 .amount-grid {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5479,8 +5499,12 @@ a.acct-strip-link:hover .acct-strip-k {
 	border-color: var(--sub);
 }
 .amount-box:has(input:checked) {
-	border-color: var(--ink);
-	background: var(--soft);
+	border-color: var(--pri);
+	background: var(--pri-tint);
+	box-shadow: inset 0 0 0 1px var(--pri);
+}
+.amount-box:has(input:checked) .amount-main {
+	color: var(--pri-ink);
 }
 .amount-box:has(input:focus-visible) {
 	outline: 2px solid var(--pri);
@@ -7352,11 +7376,12 @@ button.dash-row {
 	box-shadow: inset 0 -2px 0 var(--pri);
 }
 .bl-cap-in.on {
-	background: var(--ink);
-	color: var(--paper);
+	background: var(--pri-tint);
+	color: var(--pri-ink);
+	box-shadow: inset 0 0 0 1px var(--pri);
 }
 .bl-cap-in.on input {
-	color: var(--paper);
+	color: var(--pri-ink);
 }
 .bl-cap-in.on input::placeholder {
 	color: var(--faint);
