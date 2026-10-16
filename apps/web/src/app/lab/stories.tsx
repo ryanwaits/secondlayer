@@ -687,6 +687,19 @@ const META: Record<StoryId, Meta> = {
 				),
 			},
 			{
+				id: "small",
+				label: "Compact (sm)",
+				render: (key) => (
+					<Choice
+						name={`choice-sm-${key}`}
+						legend="Range"
+						defaultValue="48h"
+						size="sm"
+						options={CHOICE_MANY}
+					/>
+				),
+			},
+			{
 				id: "many",
 				label: "Five options",
 				render: (key) => (

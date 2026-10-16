@@ -10,6 +10,18 @@ const OPTIONS = [
 ];
 
 describe("Choice", () => {
+	test("is not compact by default, and size sm adds the sm class", () => {
+		const plain = renderToStaticMarkup(
+			<Choice name="r" legend="L" options={OPTIONS} />,
+		);
+		expect(plain).toContain('class="choice"');
+		expect(plain).not.toContain("choice sm");
+		const small = renderToStaticMarkup(
+			<Choice name="r" legend="L" options={OPTIONS} size="sm" />,
+		);
+		expect(small).toContain('class="choice sm"');
+	});
+
 	test("renders one radio per option under the field name", () => {
 		const html = renderToStaticMarkup(
 			<Choice name="role" legend="I'm a" options={OPTIONS} />,

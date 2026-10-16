@@ -575,6 +575,7 @@ export function WebhookDetailBody({
 					<div className="wd-actions">
 						<Choice
 							name="wd-range"
+							size="sm"
 							legend="Range"
 							options={RANGE_OPTIONS}
 							value={range}

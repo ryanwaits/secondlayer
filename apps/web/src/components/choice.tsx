@@ -17,6 +17,8 @@ type Mode =
 export type ChoiceProps = {
 	name: string;
 	options: readonly ChoiceOption[];
+	/** `sm` is the compact control for view switches beside a title. */
+	size?: "sm";
 } & Name &
 	Mode;
 
@@ -35,9 +37,13 @@ export function Choice({
 	defaultValue,
 	value,
 	onChange,
+	size,
 }: ChoiceProps): ReactNode {
 	return (
-		<fieldset className="choice" aria-labelledby={labelledBy}>
+		<fieldset
+			className={size ? `choice ${size}` : "choice"}
+			aria-labelledby={labelledBy}
+		>
 			{legend && <legend className="choice-legend">{legend}</legend>}
 			<div className="choice-row" data-many={options.length > 3 || undefined}>
 				{options.map((o) => (

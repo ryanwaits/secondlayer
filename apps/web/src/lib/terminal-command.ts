@@ -13,13 +13,19 @@ function decode(segment: string): string {
 }
 
 /** The CLI command that shows the same thing as an account route; null = no footer. */
-export function commandForPath(pathname: string | null): string | null {
+export function commandForPath(
+	pathname: string | null,
+	nameForId?: (id: string) => string | undefined,
+): string | null {
 	if (!pathname) return null;
 	if (pathname === "/account") return "sl status";
 	if (pathname === "/account/webhooks") return "sl webhooks list";
 	if (pathname === "/account/credits") return "sl credits balance";
 	if (pathname === "/account/keys") return "sl whoami";
 	const detail = /^\/account\/webhooks\/([^/]+)$/.exec(pathname);
-	if (detail) return `sl webhooks doctor ${decode(detail[1])}`;
+	if (detail) {
+		const id = decode(detail[1]);
+		return `sl webhooks doctor ${nameForId?.(id) ?? id}`;
+	}
 	return null;
 }

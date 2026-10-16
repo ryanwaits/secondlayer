@@ -3,6 +3,7 @@
 import { TerminalFooter } from "@/components/dashboard/shell/terminal-footer";
 import { useAuth } from "@/lib/auth";
 import { commandForPath } from "@/lib/terminal-command";
+import { useWebhooksCache } from "@/lib/webhooks-store";
 import { usePathname } from "next/navigation";
 
 /**
@@ -19,7 +20,13 @@ export default function AccountLayout({
 }) {
 	const { account, loading } = useAuth();
 	const pathname = usePathname();
-	const command = commandForPath(pathname);
+	const cache = useWebhooksCache();
+	const command = commandForPath(
+		pathname,
+		(id) =>
+			cache.detail[id]?.data.name ??
+			cache.list?.data.find((w) => w.id === id)?.name,
+	);
 
 	// Signed out is the one case that still blocks: nothing account-specific
 	// ever mounts for a visitor who isn't authenticated. While `loading` is

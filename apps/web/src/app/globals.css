@@ -5878,6 +5878,16 @@ a.acct-strip-link:hover .acct-strip-k {
 	transition: color var(--duration-snappy) var(--ease-snappy), background-color
 		var(--duration-snappy) var(--ease-snappy);
 }
+/* Compact: a view switch beside a title. It sits at its natural width, so it
+ * is not a container and never stacks into a column. */
+.choice.sm {
+	width: auto;
+	container-type: normal;
+}
+.choice.sm .choice-cell span {
+	padding: 5px 10px;
+	font-size: 12.5px;
+}
 .choice-cell:hover span {
 	color: var(--ink);
 }
@@ -7130,12 +7140,6 @@ button.dash-row {
 	flex: none;
 	align-items: center;
 	gap: 12px;
-}
-/* The shared Choice fills its container and stacks past three options in a
-   narrow one; here it sits at its natural width beside the Pause button. */
-.wd-actions .choice {
-	width: auto;
-	container-type: normal;
 }
 .wd-btn {
 	display: inline-flex;

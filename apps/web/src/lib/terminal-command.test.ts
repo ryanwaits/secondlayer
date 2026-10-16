@@ -26,6 +26,16 @@ describe("commandForPath", () => {
 		expect(commandForPath("/account/credits")).toBe("sl credits balance");
 		expect(commandForPath("/account/keys")).toBe("sl whoami");
 	});
+	test("the webhook detail footer uses the name when it is known, else the id", () => {
+		const names: Record<string, string> = { wh_1: "vault-events" };
+		const lookup = (id: string) => names[id];
+		expect(commandForPath("/account/webhooks/wh_1", lookup)).toBe(
+			"sl webhooks doctor vault-events",
+		);
+		expect(commandForPath("/account/webhooks/wh_2", lookup)).toBe(
+			"sl webhooks doctor wh_2",
+		);
+	});
 	test("unknown routes get no footer", () => {
 		expect(commandForPath("/account/foo")).toBeNull();
 		expect(commandForPath(null)).toBeNull();
