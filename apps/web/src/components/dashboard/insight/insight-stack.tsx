@@ -1,7 +1,7 @@
 "use client";
 
 import { type Insight, autoOpenId, rankInsights } from "@/lib/insights";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Legend } from "../charts/legend";
 import { InsightNote } from "./insight-note";
 
@@ -10,7 +10,14 @@ import { InsightNote } from "./insight-note";
  * opens on its own, and only when it is losing events or about to fail. Each
  * note toggles independently.
  */
-export function InsightStack({ insights }: { insights: readonly Insight[] }) {
+export function InsightStack({
+	insights,
+	footer,
+}: {
+	insights: readonly Insight[];
+	/** Rendered at the bottom of each opened card. */
+	footer?: (insight: Insight) => ReactNode;
+}) {
 	const [open, setOpen] = useState<ReadonlySet<string>>(() => {
 		const id = autoOpenId(insights);
 		return new Set(id ? [id] : []);
@@ -46,6 +53,7 @@ export function InsightStack({ insights }: { insights: readonly Insight[] }) {
 					insight={insight}
 					open={open.has(insight.id)}
 					onToggle={() => toggle(insight.id)}
+					footer={footer?.(insight)}
 				/>
 			))}
 		</div>

@@ -78,6 +78,54 @@ describe("InsightNote", () => {
 	});
 });
 
+describe("footer on notes and stacks", () => {
+	test("an open note renders the footer inside its card", () => {
+		const html = renderToStaticMarkup(
+			<InsightNote
+				insight={byRule("tls_expiring")}
+				open
+				onToggle={() => {}}
+				footer="Note footer"
+			/>,
+		);
+		expect(html).toMatch(/class="ins-foot">Note footer</);
+	});
+
+	test("a collapsed note renders no footer", () => {
+		const html = renderToStaticMarkup(
+			<InsightNote
+				insight={byRule("tls_expiring")}
+				open={false}
+				onToggle={() => {}}
+				footer="Note footer"
+			/>,
+		);
+		expect(html).not.toContain("Note footer");
+	});
+
+	test("a stack passes each opened insight to the footer", () => {
+		const html = renderToStaticMarkup(
+			<InsightStack
+				insights={FIXTURE_STACK}
+				footer={(insight) => `Footer for ${insight.rule}`}
+			/>,
+		);
+		expect(html.match(/class="ins-foot"/g)).toHaveLength(1);
+		expect(html).toContain("Footer for receiver_down");
+	});
+
+	test("nothing renders without a footer", () => {
+		const note = renderToStaticMarkup(
+			<InsightNote insight={byRule("tls_expiring")} open onToggle={() => {}} />,
+		);
+		const stack = renderToStaticMarkup(
+			<InsightStack insights={FIXTURE_STACK} />,
+		);
+		expect(note).not.toContain("ins-foot");
+		expect(stack).not.toContain("ins-foot");
+	});
+});
+
 describe("InsightCard", () => {
 	test("says Cause unknown and hides a low-confidence cause", () => {
 		const html = renderToStaticMarkup(

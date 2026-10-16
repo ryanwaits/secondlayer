@@ -1,4 +1,5 @@
 import { type Insight, severityDot } from "@/lib/insights";
+import type { ReactNode } from "react";
 import { InsightCard } from "./insight-card";
 
 /** A collapsed insight: dot, one line, and "Why ›" / "Hide ›". Opens into the card. */
@@ -6,10 +7,13 @@ export function InsightNote({
 	insight,
 	open,
 	onToggle,
+	footer,
 }: {
 	insight: Insight;
 	open: boolean;
 	onToggle: () => void;
+	/** Rendered at the bottom of the opened card. */
+	footer?: ReactNode;
 }) {
 	const panelId = `ins-panel-${insight.id}`;
 	return (
@@ -34,7 +38,7 @@ export function InsightNote({
 			</button>
 			{open ? (
 				<div id={panelId}>
-					<InsightCard insight={insight} />
+					<InsightCard insight={insight} footer={footer} />
 				</div>
 			) : null}
 		</div>
