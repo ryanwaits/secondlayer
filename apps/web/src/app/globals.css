@@ -7067,6 +7067,106 @@ button.dash-row {
 	gap: 16px;
 }
 
+/* New-key flow: a name, then the key once with ways to use it. Hairlines and
+   tokens only; no accent stripes. */
+.nk {
+	display: grid;
+	gap: 12px;
+	max-width: 640px;
+	margin-bottom: 8px;
+	padding: 20px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.nk-label {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--ink);
+}
+.nk-hint {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.45;
+	color: var(--faint);
+}
+.nk-count {
+	font-variant-numeric: tabular-nums;
+}
+.nk-lead {
+	margin: 0;
+	font-size: 14px;
+	color: var(--sub);
+}
+.nk-lead strong {
+	color: var(--ink);
+	font-weight: 500;
+}
+.nk-note {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.45;
+	color: var(--sub);
+}
+.nk-note .dash-dot {
+	transform: translateY(-1px);
+}
+.nk-key {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 12px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--paper);
+}
+.nk-key-name {
+	font-size: 13px;
+	font-weight: 500;
+	max-width: 140px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.nk-key-value {
+	min-width: 0;
+	overflow-x: auto;
+	white-space: nowrap;
+	font: 400 13px / 1.4 var(--font-mono-stack);
+	color: var(--ink);
+}
+.nk-use {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 4px;
+}
+.nk-block {
+	align-items: flex-start;
+}
+.nk-foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	flex-wrap: wrap;
+	padding-top: 12px;
+	border-top: 1px solid var(--line);
+}
+@media (max-width: 520px) {
+	.nk-key {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+	.nk-key-name {
+		grid-column: 1 / -1;
+		max-width: none;
+	}
+}
+
 .ky-row {
 	display: grid;
 	grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.2fr) 132px 100px 90px;

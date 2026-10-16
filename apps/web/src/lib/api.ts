@@ -9,6 +9,8 @@ export class ApiError extends Error {
 	constructor(
 		public status: number,
 		message: string,
+		/** Seconds from the upstream `Retry-After` header, when it sent one. */
+		public retryAfter?: number,
 	) {
 		super(message);
 		this.name = "ApiError";
@@ -80,7 +82,12 @@ export async function apiRequest<T>(
 			const json = JSON.parse(text);
 			message = json.message || json.error || text;
 		} catch {}
-		throw new ApiError(res.status, message);
+		const retryAfter = Number(res.headers.get("retry-after"));
+		throw new ApiError(
+			res.status,
+			message,
+			Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
+		);
 	}
 
 	return res.json() as Promise<T>;

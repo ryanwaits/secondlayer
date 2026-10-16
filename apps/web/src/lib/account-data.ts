@@ -236,6 +236,19 @@ export function clearAccountData(): void {
 	clearInsights();
 }
 
+/** A refused key creation: the status tells the cap (403) from the rate limit (429). */
+export class CreateKeyError extends Error {
+	constructor(
+		message: string,
+		public status: number,
+		/** Seconds until another key can be made, on a 429. */
+		public retryAfter?: number,
+	) {
+		super(message);
+		this.name = "CreateKeyError";
+	}
+}
+
 /** Mint a key. Returns its full value, which is never retrievable again. */
 export async function createKey(name: string): Promise<string> {
 	const res = await fetch("/api/keys", {
@@ -246,9 +259,14 @@ export async function createKey(name: string): Promise<string> {
 	const data = (await res.json().catch(() => ({}))) as {
 		key?: string;
 		error?: string;
+		retryAfter?: number;
 	};
 	if (!res.ok || !data.key)
-		throw new Error(data.error ?? "Couldn't create a key");
+		throw new CreateKeyError(
+			data.error ?? "Couldn't create a key",
+			res.status,
+			data.retryAfter,
+		);
 	await refreshKeys();
 	return data.key;
 }

@@ -14,7 +14,10 @@ function unauthorized() {
 
 function fromError(e: unknown) {
 	if (e instanceof ApiError) {
-		return NextResponse.json({ error: e.message }, { status: e.status });
+		return NextResponse.json(
+			{ error: e.message, retryAfter: e.retryAfter },
+			{ status: e.status },
+		);
 	}
 	return NextResponse.json({ error: "Internal error" }, { status: 500 });
 }
