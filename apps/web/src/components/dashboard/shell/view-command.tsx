@@ -33,7 +33,6 @@ export function ViewCommand({ command }: { command: string }) {
 			aria-label={`Copy the terminal command for this view: ${command}`}
 			onClick={copy}
 		>
-			<span className="dash-cmd-l">In your terminal:</span>
 			<code>{truncateMiddle(command, CHIP_MAX, 22, 10)}</code>
 			<span className="dash-cmd-copy" aria-live="polite">
 				{copied ? "Copied" : "Copy"}
