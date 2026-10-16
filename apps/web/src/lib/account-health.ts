@@ -66,7 +66,12 @@ export function accountProblems(input: HealthInput): Problem[] {
 	const balance = billing ? Number(billing.creditsUsdMicros) : null;
 	const days = daysLeft(billing, burn);
 	const stopped = service?.state === "stopped";
-	const broke = balance !== null && balance <= 0;
+	// $0 only matters once something needs credits: a hosted stack, or spend.
+	// A new account on the free rows has nothing to pay for yet.
+	const needsCredits =
+		(service !== null && service.state !== "none") ||
+		(burn !== null && Number(burn.rateDayUsdMicros) > 0);
+	const broke = balance !== null && balance <= 0 && needsCredits;
 
 	if (broke) {
 		problems.push({

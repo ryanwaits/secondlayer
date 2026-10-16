@@ -89,6 +89,17 @@ describe("accountProblems", () => {
 		expect(problems.map((p) => p.kind)).toEqual(["low_balance"]);
 	});
 
+	test("a new account at zero balance with nothing running or burning is fine", () => {
+		expect(
+			accountProblems({
+				...healthy,
+				billing: billing(0),
+				burn: burn(0),
+				service: stack("none"),
+			}),
+		).toEqual([]);
+	});
+
 	test("a stopped stack at zero balance is one problem, not two", () => {
 		const problems = accountProblems({
 			...healthy,
