@@ -651,7 +651,7 @@ export async function runHandlers(
 			if (abortsBlock(err)) throw err;
 			ctx.rollbackTo(checkpoint);
 			errors++;
-			void recordHandlerError({
+			recordHandlerError({
 				subgraphName: subgraph.name,
 				sourceName,
 				eventType: event?.type ?? null,

@@ -58,71 +58,167 @@ export function topFrame(err: unknown): string | null {
 
 type HandlerErrorRecorder = (input: HandlerErrorInput) => Promise<void>;
 
-async function defaultRecordHandlerError(
-	input: HandlerErrorInput,
-): Promise<void> {
-	const db = getTargetDb();
-	const message = (
-		input.err instanceof Error ? input.err.message : String(input.err)
-	).slice(0, MESSAGE_MAX_CHARS);
-	const frame = topFrame(input.err);
-	const fingerprint = errorFingerprint({
-		sourceName: input.sourceName,
-		eventType: input.eventType,
-		message,
-		frame,
-	});
-
-	await db
-		.insertInto("subgraph_error_groups")
-		.values({
-			subgraph_name: input.subgraphName,
-			fingerprint,
-			source_name: input.sourceName,
-			event_type: input.eventType,
-			message,
-			frame,
-			sample_tx_id: input.txId,
-			sample_block_height: input.blockHeight,
-		})
-		.onConflict((oc) =>
-			oc.columns(["subgraph_name", "fingerprint"]).doUpdateSet({
-				count: sql`subgraph_error_groups.count + 1`,
-				last_seen: sql`now()`,
-				sample_tx_id: input.txId,
-				sample_block_height: input.blockHeight,
-			}),
-		)
-		.execute();
-
-	// Drop the least recently seen groups beyond the cap (same write path).
-	await sql`
-		DELETE FROM subgraph_error_groups
-		WHERE id IN (
-			SELECT id FROM subgraph_error_groups
-			WHERE subgraph_name = ${input.subgraphName}
-			ORDER BY last_seen DESC, id
-			OFFSET ${ERROR_GROUPS_CAP_PER_SUBGRAPH}
-		)
-	`.execute(db);
+interface PendingGroup {
+	subgraphName: string;
+	fingerprint: string;
+	sourceName: string;
+	eventType: string | null;
+	message: string;
+	frame: string | null;
+	count: number;
+	sampleTxId: string;
+	sampleBlockHeight: number;
+	firstSeenAt: Date;
+	lastSeenAt: Date;
 }
 
-let recorder: HandlerErrorRecorder = defaultRecordHandlerError;
+const FLUSH_INTERVAL_MS = 5_000;
+/** Distinct (subgraph, fingerprint) keys held between flushes. */
+const MAX_PENDING_KEYS = 1_000;
 
-/** Test seam — swap the persistence backend without mocking getTargetDb. */
-export function setHandlerErrorRecorder(fn: HandlerErrorRecorder | null): void {
-	recorder = fn ?? defaultRecordHandlerError;
+let pending = new Map<string, PendingGroup>();
+let droppedKeys = 0;
+let flushTimer: ReturnType<typeof setInterval> | null = null;
+
+function startFlusher(): void {
+	if (flushTimer) return;
+	flushTimer = setInterval(() => {
+		void flushHandlerErrors();
+	}, FLUSH_INTERVAL_MS);
+	// Never keep the process alive just to flush diagnostics.
+	flushTimer.unref();
 }
 
 /**
- * Group a handler error by fingerprint on the control plane. Failures are
- * logged, never thrown — a failing handler must not take the block down.
+ * Write the coalesced groups: one upsert per distinct fingerprint (adding the
+ * accumulated count), then one cap-trim per distinct subgraph. Never throws.
  */
-export async function recordHandlerError(
-	input: HandlerErrorInput,
-): Promise<void> {
+export async function flushHandlerErrors(): Promise<void> {
+	if (pending.size === 0 && droppedKeys === 0) return;
+	const batch = pending;
+	const dropped = droppedKeys;
+	pending = new Map();
+	droppedKeys = 0;
+
+	if (dropped > 0) {
+		logger.warn("Handler error groups dropped: too many distinct errors", {
+			dropped,
+			cap: MAX_PENDING_KEYS,
+		});
+	}
+	if (batch.size === 0) return;
+
 	try {
-		await recorder(input);
+		const db = getTargetDb();
+		const subgraphs = new Set<string>();
+		for (const group of batch.values()) {
+			subgraphs.add(group.subgraphName);
+			await db
+				.insertInto("subgraph_error_groups")
+				.values({
+					subgraph_name: group.subgraphName,
+					fingerprint: group.fingerprint,
+					source_name: group.sourceName,
+					event_type: group.eventType,
+					message: group.message,
+					frame: group.frame,
+					count: group.count,
+					sample_tx_id: group.sampleTxId,
+					sample_block_height: group.sampleBlockHeight,
+					first_seen: group.firstSeenAt,
+					last_seen: group.lastSeenAt,
+				})
+				.onConflict((oc) =>
+					oc.columns(["subgraph_name", "fingerprint"]).doUpdateSet({
+						count: sql`subgraph_error_groups.count + ${group.count}`,
+						last_seen: group.lastSeenAt,
+						sample_tx_id: group.sampleTxId,
+						sample_block_height: group.sampleBlockHeight,
+					}),
+				)
+				.execute();
+		}
+
+		// Drop the least recently seen groups beyond the cap, once per subgraph.
+		for (const subgraphName of subgraphs) {
+			await sql`
+				DELETE FROM subgraph_error_groups
+				WHERE id IN (
+					SELECT id FROM subgraph_error_groups
+					WHERE subgraph_name = ${subgraphName}
+					ORDER BY last_seen DESC, id
+					OFFSET ${ERROR_GROUPS_CAP_PER_SUBGRAPH}
+				)
+			`.execute(db);
+		}
+	} catch (err) {
+		logger.warn("Failed to flush handler error groups", {
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
+}
+
+let recorderOverride: HandlerErrorRecorder | null = null;
+
+/** Test seam — receive each error directly instead of coalescing to the DB. */
+export function setHandlerErrorRecorder(fn: HandlerErrorRecorder | null): void {
+	recorderOverride = fn;
+}
+
+/**
+ * Count a handler error against its fingerprint in memory (synchronous, no
+ * DB); a timer flushes the totals. A failing handler can throw on every
+ * event, so this must stay cheap and never throw into the block.
+ */
+export function recordHandlerError(input: HandlerErrorInput): void {
+	try {
+		if (recorderOverride) {
+			recorderOverride(input).catch((err) => {
+				logger.warn("Failed to record handler error group", {
+					subgraph: input.subgraphName,
+					error: err instanceof Error ? err.message : String(err),
+				});
+			});
+			return;
+		}
+
+		const message = (
+			input.err instanceof Error ? input.err.message : String(input.err)
+		).slice(0, MESSAGE_MAX_CHARS);
+		const frame = topFrame(input.err);
+		const fingerprint = errorFingerprint({
+			sourceName: input.sourceName,
+			eventType: input.eventType,
+			message,
+			frame,
+		});
+		const key = `${input.subgraphName}|${fingerprint}`;
+		const now = new Date();
+
+		const existing = pending.get(key);
+		if (existing) {
+			existing.count++;
+			existing.sampleTxId = input.txId;
+			existing.sampleBlockHeight = input.blockHeight;
+			existing.lastSeenAt = now;
+		} else if (pending.size >= MAX_PENDING_KEYS) {
+			droppedKeys++;
+		} else {
+			pending.set(key, {
+				subgraphName: input.subgraphName,
+				fingerprint,
+				sourceName: input.sourceName,
+				eventType: input.eventType,
+				message,
+				frame,
+				count: 1,
+				sampleTxId: input.txId,
+				sampleBlockHeight: input.blockHeight,
+				firstSeenAt: now,
+				lastSeenAt: now,
+			});
+		}
+		startFlusher();
 	} catch (err) {
 		logger.warn("Failed to record handler error group", {
 			subgraph: input.subgraphName,

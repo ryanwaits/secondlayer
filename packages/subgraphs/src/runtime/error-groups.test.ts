@@ -5,6 +5,7 @@ import {
 	ERROR_GROUPS_CAP_PER_SUBGRAPH,
 	type HandlerErrorInput,
 	errorFingerprint,
+	flushHandlerErrors,
 	recordHandlerError,
 	setHandlerErrorRecorder,
 	topFrame,
@@ -184,31 +185,54 @@ describe.skipIf(!HAS_DB)("recordHandlerError (db)", () => {
 	afterEach(cleanup);
 	afterAll(cleanup);
 
-	test("identical errors collapse into one row with a running count", async () => {
-		await recordHandlerError(input("same failure"));
-		await recordHandlerError(input("same failure"));
-		await recordHandlerError(input("same failure"));
-
-		const rows = await getDb()
+	async function groups() {
+		return getDb()
 			.selectFrom("subgraph_error_groups")
 			.selectAll()
 			.where("subgraph_name", "=", subgraphName)
 			.execute();
+	}
+
+	test("1000 identical errors coalesce into one row with count 1000", async () => {
+		for (let i = 0; i < 1000; i++) recordHandlerError(input("same failure"));
+		await flushHandlerErrors();
+
+		const rows = await groups();
+		expect(rows).toHaveLength(1);
+		expect(Number(rows[0]?.count)).toBe(1000);
+	});
+
+	test("a later flush adds to the existing row", async () => {
+		recordHandlerError(input("same failure"));
+		await flushHandlerErrors();
+		recordHandlerError(input("same failure"));
+		recordHandlerError(input("same failure"));
+		await flushHandlerErrors();
+
+		const rows = await groups();
 		expect(rows).toHaveLength(1);
 		expect(Number(rows[0]?.count)).toBe(3);
 	});
 
-	test("groups beyond the cap are trimmed", async () => {
+	test("a different fingerprint gets a separate row", async () => {
+		recordHandlerError(input("first failure"));
+		recordHandlerError(input("second failure"));
+		await flushHandlerErrors();
+
+		const rows = await groups();
+		expect(rows.map((r) => r.message).sort()).toEqual([
+			"first failure",
+			"second failure",
+		]);
+	});
+
+	test("groups beyond the cap are trimmed after a flush", async () => {
 		for (let i = 0; i < ERROR_GROUPS_CAP_PER_SUBGRAPH + 1; i++) {
 			// Distinct source names give distinct fingerprints.
-			await recordHandlerError(input("boom", `source-${i}`));
+			recordHandlerError(input("boom", `source-${i}`));
 		}
+		await flushHandlerErrors();
 
-		const rows = await getDb()
-			.selectFrom("subgraph_error_groups")
-			.select("id")
-			.where("subgraph_name", "=", subgraphName)
-			.execute();
-		expect(rows).toHaveLength(ERROR_GROUPS_CAP_PER_SUBGRAPH);
+		expect(await groups()).toHaveLength(ERROR_GROUPS_CAP_PER_SUBGRAPH);
 	});
 });
