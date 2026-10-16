@@ -92,6 +92,8 @@ CONTROL_TABLES=(
   waitlist_signups
   api_failed_requests
   api_request_log
+  insights
+  insight_mutes
   feedback_tickets
   contact_requests
 )

@@ -283,6 +283,27 @@ describe("handleGatewayRequest", () => {
 		},
 	);
 
+	test("no tenant yet, an insights read → 200 empty list, never provisions", async () => {
+		let provisionCalls = 0;
+		const deps = baseDeps({
+			resolveTenant: async () => undefined,
+			startProvisioning: () => {
+				provisionCalls++;
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({
+				method: "GET",
+				path: "/api/insights?resource=webhook:wh_1",
+				auth: "Bearer sk-sl_good",
+			}),
+		);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ data: [] });
+		expect(provisionCalls).toBe(0);
+	});
+
 	test.each([
 		"/api/subgraphs/my-subgraph",
 		"/v1/subgraphs/my-subgraph/transfers",

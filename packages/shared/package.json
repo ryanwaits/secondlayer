@@ -240,6 +240,18 @@
 		"./classify": {
 			"types": "./dist/src/classify/index.d.ts",
 			"import": "./dist/src/classify/index.js"
+		},
+		"./insights": {
+			"types": "./dist/src/insights/index.d.ts",
+			"import": "./dist/src/insights/index.js"
+		},
+		"./insights/thresholds": {
+			"types": "./dist/src/insights/thresholds.d.ts",
+			"import": "./dist/src/insights/thresholds.js"
+		},
+		"./schemas/insights": {
+			"types": "./dist/src/schemas/insights.d.ts",
+			"import": "./dist/src/schemas/insights.js"
 		}
 	},
 	"files": ["dist", "migrations"],

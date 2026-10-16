@@ -105,6 +105,9 @@ export const TABLE_TO_DB = {
 	api_failed_requests: "target",
 	// ── TARGET: 7-day account read log (dashboard insight evidence) ──
 	api_request_log: "target",
+	// ── TARGET: ranked dashboard insights + "expected" mutes ──
+	insights: "target",
+	insight_mutes: "target",
 	// ── TARGET: hosted problem reports ──
 	feedback_tickets: "target",
 	// ── BOTH ──

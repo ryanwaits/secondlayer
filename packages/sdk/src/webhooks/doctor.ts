@@ -1,3 +1,15 @@
+import {
+	DOWN_MIN_CONSECUTIVE,
+	LAG_MIN_SAMPLES,
+	LAG_THRESHOLD_MS,
+	LAG_WINDOW,
+	RATE_LIMITED_MIN_ATTEMPTS,
+	RATE_LIMITED_MIN_RATIO,
+	REJECTS_MIN_CONSECUTIVE,
+	SLOW_MIN_SAMPLES,
+	SLOW_TIMEOUT_RATIO,
+	SLOW_WINDOW,
+} from "@secondlayer/shared/insights/thresholds";
 import type {
 	DeadRow,
 	DeliveryRow,
@@ -83,18 +95,10 @@ export interface DoctorReport {
 // Named constants, not config. Tune from real data; until then these stay
 // conservative.
 
-const RATE_LIMITED_MIN_ATTEMPTS = 10;
-const RATE_LIMITED_MIN_RATIO = 0.5;
-// Exported: the status pill's "auto-failing" rule reuses this
-// instead of duplicating the number.
-export const DOWN_MIN_CONSECUTIVE = 5;
-const REJECTS_MIN_CONSECUTIVE = 5;
-const SLOW_WINDOW = 20;
-const SLOW_MIN_SAMPLES = 5;
-const SLOW_TIMEOUT_RATIO = 0.5;
-const LAG_WINDOW = 20;
-const LAG_MIN_SAMPLES = 5;
-const LAG_THRESHOLD_MS = 60_000;
+// Thresholds live in shared so the server-side insight rules use the same
+// numbers. `DOWN_MIN_CONSECUTIVE` is re-exported: the status pill's
+// "auto-failing" rule reuses it instead of duplicating the number.
+export { DOWN_MIN_CONSECUTIVE };
 const ERROR_SNIPPET_MAX = 200;
 
 function median(values: number[]): number {

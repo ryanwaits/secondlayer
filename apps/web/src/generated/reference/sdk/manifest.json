@@ -59,7 +59,7 @@
 			"signature": "buildDoctorReport(input: { webhook: WebhookDetail; deliveries: DeliveryRow[]; dead: DeadRow[] }): DoctorReport",
 			"source": {
 				"file": "packages/sdk/src/webhooks/doctor.ts",
-				"line": 392
+				"line": 396
 			}
 		},
 		{
@@ -68,7 +68,7 @@
 			"signature": "buildListIssue(webhook: { status: WebhookStatus; circuitOpenedAt: string | null; lastSuccessAt: string | null }): DoctorIssue | null",
 			"source": {
 				"file": "packages/sdk/src/webhooks/doctor.ts",
-				"line": 490
+				"line": 494
 			}
 		},
 		{
@@ -374,7 +374,7 @@
 			"signature": "isSuccessDelivery(row: DeliveryRow): boolean",
 			"source": {
 				"file": "packages/sdk/src/webhooks/doctor.ts",
-				"line": 19
+				"line": 31
 			}
 		},
 		{

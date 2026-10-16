@@ -1,5 +1,21 @@
 export * from "./subgraphs.ts";
 export {
+	INSIGHT_SEVERITIES,
+	InsightEvidenceSchema,
+	InsightListResponseSchema,
+	InsightResourceKindSchema,
+	InsightSchema,
+	InsightSeveritySchema,
+	SEVERITY_ORDER,
+} from "./insights.ts";
+export type {
+	Insight,
+	InsightEvidence,
+	InsightListResponse,
+	InsightResourceKind,
+	InsightSeverity,
+} from "./insights.ts";
+export {
 	CHAIN_TRIGGER_FIELDS,
 	CHAIN_TRIGGER_TYPES,
 	WEBHOOK_FORMATS,

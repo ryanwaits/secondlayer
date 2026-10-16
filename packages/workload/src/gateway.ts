@@ -5,8 +5,8 @@
  * stack's own `INSTANCE_TOKEN` swapped in. The customer key never reaches a
  * tenant stack.
  *
- * Routes `/api/webhooks*`, `/api/subgraphs*` and `/v1/subgraphs*`: all three
- * get the same request handling, and the path is forwarded unchanged (there is
+ * Routes `/api/webhooks*`, `/api/subgraphs*`, `/v1/subgraphs*` and
+ * `/api/insights*`: all four get the same request handling, and the path is forwarded unchanged (there is
  * no path allowlist here; prod's Caddy decides which prefixes reach this host).
  * Reads never provision a tenant; only a write does.
  */
@@ -336,6 +336,7 @@ const LIST_PATHS = new Set([
 	"/api/webhooks",
 	"/api/subgraphs",
 	"/v1/subgraphs",
+	"/api/insights",
 ]);
 
 /** What a read returns for an account with no tenant: an empty list for a

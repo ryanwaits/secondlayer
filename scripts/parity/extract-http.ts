@@ -33,7 +33,12 @@ interface Item {
 
 /** Mount-table planes, mirroring create-app.ts:
  *  workload = mode !== platform mounts; metered = platform-only mounts. */
-const WORKLOAD_PREFIXES = ["/api/subgraphs", "/api/webhooks", "/api/node"];
+const WORKLOAD_PREFIXES = [
+	"/api/subgraphs",
+	"/api/webhooks",
+	"/api/insights",
+	"/api/node",
+];
 const METERED_PREFIXES = [
 	"/api/keys",
 	"/api/auth",

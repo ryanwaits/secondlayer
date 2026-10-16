@@ -24,6 +24,8 @@ export const SUBGRAPH_CATCHUP_LOCK_KEY = 770_2028;
 /** Advisory lock key for the indexer's observer-journal applier: one
  *  instance applies journaled blocks at a time, in sequence order. */
 export const OBSERVER_APPLY_LOCK_KEY = 770_2029;
+/** Advisory lock key for the dashboard insights evaluator (webhook service). */
+export const INSIGHTS_EVALUATOR_LOCK_KEY = 770_2030;
 
 export type StopFn = () => void | Promise<void>;
 

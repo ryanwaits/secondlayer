@@ -45,7 +45,6 @@ export const DELETED_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/v1/x402/deposit" },
 	{ method: "GET", path: "/v1/x402/balance" },
 	{ method: "GET", path: "/api/wallet" },
-	{ method: "GET", path: "/api/insights" },
 	{ method: "GET", path: "/api/projects" },
 	{ method: "GET", path: "/api/tenants" },
 	{ method: "GET", path: "/api/admin" },
@@ -79,6 +78,7 @@ export const RETAINED_METER_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/api/billing/stripe" },
 	{ method: "GET", path: "/api/keys" },
 	{ method: "GET", path: "/api/accounts/me" },
+	{ method: "GET", path: "/api/accounts/insights" },
 	{ method: "POST", path: "/api/archive/quote" },
 	{ method: "POST", path: "/api/archive/fetch" },
 ] as const;
@@ -108,6 +108,7 @@ export const WORKLOAD_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/v1/subgraphs" },
 	{ method: "POST", path: "/api/subgraphs/bundle" },
 	{ method: "GET", path: "/api/webhooks" },
+	{ method: "GET", path: "/api/insights" },
 	{ method: "GET", path: "/api/node" },
 ] as const;
 
@@ -124,5 +125,6 @@ export const WORKLOAD_OPENAPI_PREFIXES = [
 	"/api/subgraphs",
 	"/v1/subgraphs",
 	"/api/webhooks",
+	"/api/insights",
 	"/api/node",
 ] as const;

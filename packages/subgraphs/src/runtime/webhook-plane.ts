@@ -3,6 +3,7 @@ import { listActiveChainWebhooks } from "@secondlayer/shared/db/queries/webhooks
 import { logger } from "@secondlayer/shared/logger";
 import { handleChainReorg } from "./chain-reorg.ts";
 import { startEmitter } from "./emitter.ts";
+import { startInsightsLoop } from "./insights-loop.ts";
 import { startMeterSocketReporter } from "./meter-socket.ts";
 import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";
 import {
@@ -72,6 +73,10 @@ export async function startWebhookPlane(): Promise<() => Promise<void>> {
 	// WEBHOOK_METER_SOCKET is set (self-host never sets it).
 	const stopMeterSocket = startMeterSocketReporter();
 
+	// Dashboard insights: webhook and subgraph rules, evaluated every minute
+	// on the elected leader. Runs on self-host too.
+	const stopInsights = startInsightsLoop();
+
 	logger.info("Webhook plane ready", { streamsIndex });
 
 	return async () => {
@@ -80,5 +85,6 @@ export async function startWebhookPlane(): Promise<() => Promise<void>> {
 		await stopTriggerEvaluator?.();
 		await stopEmitter();
 		stopMeterSocket();
+		await stopInsights();
 	};
 }

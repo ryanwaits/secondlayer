@@ -6,6 +6,7 @@ import { UpdateProfileRequestSchema } from "@secondlayer/platform/schemas/accoun
 import { getDb } from "@secondlayer/shared/db";
 import { AuthenticationError } from "@secondlayer/shared/errors";
 import { type Context, Hono } from "hono";
+import { createInsightsRoutes } from "./insights.ts";
 
 const app = new Hono();
 
@@ -57,5 +58,13 @@ app.patch("/me", async (c) => {
 		notifyReindexComplete: updated.notify_reindex_complete,
 	});
 });
+
+// ── /insights ─────────────────────────────────────────────────────
+
+// Account-level insights (reads, billing), scoped to the signed-in account.
+app.route(
+	"/insights",
+	createInsightsRoutes((c) => ({ accountId: requireAccountId(c) })),
+);
 
 export default app;

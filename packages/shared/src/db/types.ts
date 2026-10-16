@@ -433,6 +433,37 @@ export interface SubgraphErrorGroupsTable {
 	last_seen: Generated<Date>;
 }
 
+/**
+ * One ranked dashboard insight. `account_id` is NULL on tenant and self-host
+ * databases. `severity` is never "recovered": that is derived on read from
+ * `resolved_at`.
+ */
+export interface InsightsTable {
+	id: Generated<string>;
+	account_id: string | null;
+	resource_kind: string;
+	resource_id: string;
+	rule: string;
+	severity: string;
+	impact: Generated<number>;
+	/** resource, line, meta, lead, body, evidence, handoff, how. */
+	payload: unknown;
+	first_seen_at: Generated<Date>;
+	last_seen_at: Generated<Date>;
+	clear_streak: Generated<number>;
+	resolved_at: Date | null;
+	dismissed_at: Date | null;
+}
+
+/** "Expected": mutes one rule for one resource until removed. */
+export interface InsightMutesTable {
+	account_id: string | null;
+	resource_kind: string;
+	resource_id: string;
+	rule: string;
+	created_at: Generated<Date>;
+}
+
 export interface ProcessedStripeEventsTable {
 	event_id: string;
 	event_type: string;
@@ -1067,6 +1098,8 @@ export interface Database {
 	contact_requests: ContactRequestsTable;
 	api_failed_requests: ApiFailedRequestsTable;
 	api_request_log: ApiRequestLogTable;
+	insights: InsightsTable;
+	insight_mutes: InsightMutesTable;
 	feedback_tickets: FeedbackTicketsTable;
 }
 

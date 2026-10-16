@@ -1,5 +1,6 @@
 import { getEnv, logger } from "@secondlayer/shared";
 import { assertDbSplit } from "@secondlayer/shared/db";
+import { startAccountInsightsCron } from "./jobs/account-insights/cron.ts";
 import { startBalanceAlertCron } from "./jobs/balance-alert.ts";
 import { startCreditsRefillCron } from "./jobs/credits-refill.ts";
 import { startFailedRequestsPurgeCron } from "./jobs/failed-requests-purge.ts";
@@ -21,6 +22,7 @@ async function runWorker() {
 		startFailedRequestsPurgeCron(),
 		startRequestLogPurgeCron(),
 		startFeedbackClassifyCron(),
+		startAccountInsightsCron(),
 	];
 
 	logger.info("Worker ready");

@@ -24,6 +24,7 @@ import chainReadRouter from "./routes/chain-read.ts";
 import contractsRouter from "./routes/contracts.ts";
 import feedbackRouter from "./routes/feedback.ts";
 import indexRouter from "./routes/index.ts";
+import insightsRouter from "./routes/insights.ts";
 import {
 	createInstanceCatalogRouter,
 	renderLocalConsole,
@@ -57,6 +58,8 @@ const WORKLOAD_PATHS = [
 	"/api/subgraphs/*",
 	"/api/webhooks",
 	"/api/webhooks/*",
+	"/api/insights",
+	"/api/insights/*",
 	"/api/node",
 	"/api/node/*",
 ];
@@ -185,6 +188,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 		for (const path of WORKLOAD_PATHS) app.use(path, resourceAuth);
 		app.route("/api/subgraphs", subgraphsRouter);
 		app.route("/api/webhooks", webhooksRouter);
+		app.route("/api/insights", insightsRouter);
 		app.route("/api/node", nodeRouter);
 	}
 

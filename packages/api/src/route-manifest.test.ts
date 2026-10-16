@@ -83,6 +83,16 @@ describe("route manifest", () => {
 		}
 	});
 
+	// Account insights live under /api/accounts, which is mounted only in
+	// platform mode: unauthenticated it answers 401 (mounted, gated), and in
+	// oss it 404s (RETAINED_METER_ROUTE_FIXTURES).
+	test("platform account insights route is mounted and gated", async () => {
+		process.env.INSTANCE_MODE = "platform";
+		const app = createApiApp("platform");
+		const res = await app.request("/api/accounts/insights");
+		expect(res.status).toBe(401);
+	});
+
 	// "archive" aliases "platform" (packages/shared/src/mode.ts) and the alias
 	// must not drift: a declared INSTANCE_MODE=archive must resolve to the
 	// same no-workload behavior as platform.
