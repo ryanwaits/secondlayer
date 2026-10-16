@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 21.2.0
+
+### Minor Changes
+
+- d95acd3: `secondlayer credits usage` shows rows delivered per day (free vs paid) and by source for the last 30 days.
+
 ## 21.1.1
 
 ### Patch Changes
