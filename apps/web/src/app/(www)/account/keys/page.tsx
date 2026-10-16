@@ -1,6 +1,6 @@
 "use client";
 
-import { KeysSection } from "@/components/account/keys-panel";
+import { KeysScreen } from "@/components/account/keys/keys-screen";
 import { takeHandedOverKey } from "@/lib/new-key";
 import { useEffect, useRef, useState } from "react";
 
@@ -15,5 +15,5 @@ export default function AccountKeysPage() {
 		setHandedOver(takeHandedOverKey());
 	}, []);
 
-	return <KeysSection handedOver={handedOver} />;
+	return <KeysScreen handedOver={handedOver} />;
 }

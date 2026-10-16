@@ -2,49 +2,20 @@
 
 import { AmountPicker } from "@/components/amount-picker";
 import {
-	type BalanceAlerts,
 	type Billing,
 	PACKS_USD,
 	type PackUsd,
 	type TopupReturn,
 	formatUsd,
-	refreshAlerts,
 	refreshBilling,
-	refreshCaps,
-	refreshUsage,
 	startCheckout,
 	topupLanded,
-	updateAlerts,
-	updateCap,
 	useAccountData,
 } from "@/lib/account-data";
 import { STACK_FLOOR_USD_PER_MONTH } from "@/lib/prices";
-import { scrollToElement } from "@/lib/scroll";
-import {
-	type BalanceLevel,
-	type HostedStack,
-	ROWS_ALLOWANCE,
-	type ServiceState,
-	type UsageRow,
-	balanceLevel,
-	burnCompositionLabel,
-	currentUtcMonth,
-	formatRows,
-	formatUsdPerHour,
-	monthParam,
-	nextMonthLabel,
-	packDaysLabel,
-	runsOutDate,
-	runwayDays,
-} from "@/lib/usage";
-import { poll } from "@/lib/webhooks-store";
-import NumberFlow from "@number-flow/react";
+import { ROWS_ALLOWANCE, formatRows, packDaysLabel } from "@/lib/usage";
 import { useEffect, useId, useState } from "react";
-import { toast } from "sonner";
-import { HostedStackCard } from "./credits/hosted-stack-card";
-import { SpendCard } from "./credits/spend-card";
 import { FloatingCard } from "./floating-card";
-import { UsageSection, useUsageMonth } from "./usage-panel";
 
 export function BalanceStats({ billing }: { billing: Billing | null }) {
 	return (
@@ -65,7 +36,7 @@ export function BalanceStats({ billing }: { billing: Billing | null }) {
 	);
 }
 
-function PricingNote() {
+export function PricingNote() {
 	return (
 		<p className="acct-pricing">
 			Every account gets{" "}
@@ -84,7 +55,7 @@ function PricingNote() {
 	);
 }
 
-function useCheckout() {
+export function useCheckout() {
 	const [amount, setAmount] = useState<PackUsd>(25);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -140,7 +111,7 @@ export function CreditAmounts({
 }
 
 /** Go to Stripe for the picked amount. Stripe brings the reader back after. */
-function CheckoutAction({
+export function CheckoutAction({
 	co,
 	wide = false,
 }: { co: Checkout; wide?: boolean }) {
@@ -197,7 +168,7 @@ export function CreditsCard({
 	);
 }
 
-type ReturnState =
+export type ReturnState =
 	| { kind: "pending"; amount: number | null }
 	| { kind: "slow" }
 	| { kind: "landed"; amount: number | null }
@@ -210,7 +181,7 @@ const POLL_TRIES = 30;
  * Back from Stripe: Stripe's confirmation reaches our API a few seconds after
  * the redirect, so poll the balance until the top-up shows, then say so.
  */
-function useTopupReturn(ret: TopupReturn | null): ReturnState | null {
+export function useTopupReturn(ret: TopupReturn | null): ReturnState | null {
 	const [st, setSt] = useState<ReturnState | null>(null);
 
 	useEffect(() => {
@@ -241,7 +212,7 @@ function useTopupReturn(ret: TopupReturn | null): ReturnState | null {
 	return st;
 }
 
-function ReturnNotice({
+export function ReturnNotice({
 	st,
 	billing,
 }: {
@@ -290,443 +261,5 @@ function ReturnNotice({
 			</output>
 			<BalanceStats billing={billing} />
 		</div>
-	);
-}
-
-/** The level banner: hidden at `ok`, otherwise the exact copy for `low` /
- *  `crit` / `stopped` (Design step 5.2). Replaces the old
- *  `OutOfCreditsBanner`, whose 402 wording lives on inside the `stopped`
- *  case below. */
-function LevelBanner({
-	level,
-	runway,
-	rateDayUsdMicros,
-	now,
-	service,
-}: {
-	level: BalanceLevel;
-	runway: number;
-	rateDayUsdMicros: number;
-	now: Date;
-	service: HostedStack;
-}) {
-	if (level === "ok") return null;
-
-	let title: string;
-	let body: string;
-	if (level === "stopped") {
-		const stoppedDate = service.lastChargedAt
-			? runsOutDate(new Date(service.lastChargedAt), 0)
-			: null;
-		title = stoppedDate
-			? `Your hosted stack stopped on ${stoppedDate}`
-			: "Your hosted stack stopped";
-		body = `Your balance reached $0. Webhooks aren't delivering (events are held) and subgraphs have stopped indexing. Hosted reads past the free ${formatRows(ROWS_ALLOWANCE)} rows answer 402 insufficient_credits until you top up; free rows return on ${nextMonthLabel(currentUtcMonth(now))}. Add credits and the stack starts again within 5 minutes; subgraphs resume where they left off.`;
-	} else if (level === "crit") {
-		title = "Under 2 days of credit left";
-		body = `At ${formatUsd(rateDayUsdMicros)}/day your balance runs out ${runsOutDate(now, runway)}. Your hosted stack stops then: webhooks stop delivering (events are held) and subgraphs stop indexing until you add credits.`;
-	} else {
-		title = `About ${Math.floor(runway)} days of credit left`;
-		body = `At ${formatUsd(rateDayUsdMicros)}/day your balance runs out around ${runsOutDate(now, runway)}. Add credits before then to keep webhooks delivering.`;
-	}
-
-	return (
-		<output className={`use-banner ${level}`}>
-			<div>
-				<p className="use-banner-t">{title}</p>
-				<p className="use-banner-l">{body}</p>
-			</div>
-			<button
-				type="button"
-				className="acct-btn"
-				onClick={() => {
-					const el = document.getElementById("packs");
-					if (el) scrollToElement(el);
-				}}
-			>
-				Add credits
-			</button>
-		</output>
-	);
-}
-
-/** Cents → USD-micros, matching `isOverMonthlyCreditCap`
- *  (`@secondlayer/platform/billing/prices`) so the page never disagrees with
- *  the 402 `spend_cap_reached` refusal on the read path. */
-const USD_MICROS_PER_CENT = 10_000;
-
-/** Shown once this month's TOTAL spend (memory, storage, webhooks, and
- *  Index/Streams reads — every unit `meter()` debits) reaches the account's
- *  monthly spend cap — the same condition `checkRowsAllowance`
- *  (`packages/api/src/lib/read-credits.ts`) refuses a read on with 402
- *  `spend_cap_reached`. Reads past the free 1M rows pause and the
- *  workload host's poll stops the hosted stack. Same banner style as
- *  `LevelBanner`. */
-function CapBanner({
-	now,
-	monthlyCapCents,
-}: {
-	now: Date;
-	monthlyCapCents: number;
-}) {
-	const resets = nextMonthLabel(currentUtcMonth(now));
-	const cap$ = `$${(monthlyCapCents / 100).toFixed(2)}`;
-	return (
-		<output className="use-banner capped">
-			<div>
-				<p className="use-banner-t">
-					Paused: you reached your monthly spend cap
-				</p>
-				<p className="use-banner-l">
-					You've spent your {cap$} monthly cap. Hosted Index and Streams reads
-					past your free 1M rows are paused, and your hosted stack stops within
-					minutes: webhooks stop delivering and subgraphs stop indexing until{" "}
-					{resets}. Raise your cap to start them again this month.
-				</p>
-			</div>
-			<button
-				type="button"
-				className="acct-btn"
-				onClick={() => {
-					const el = document.getElementById("cap");
-					if (el) scrollToElement(el);
-				}}
-			>
-				Change cap
-			</button>
-		</output>
-	);
-}
-
-/** Balance + level pill + runway bar, Burning now, Runs out (Design step
- *  5.3). */
-function RunwayRow({
-	balanceUsdMicros,
-	level,
-	runway,
-	rateDayUsdMicros,
-	now,
-	service,
-	monthRows,
-}: {
-	balanceUsdMicros: number;
-	level: BalanceLevel;
-	runway: number;
-	rateDayUsdMicros: number;
-	now: Date;
-	service: HostedStack;
-	monthRows: UsageRow[] | undefined;
-}) {
-	const finiteRunway = Number.isFinite(runway);
-	const barPct = finiteRunway
-		? Math.min(100, (Math.min(runway, 30) / 30) * 100)
-		: 100;
-	const pillLabel =
-		level === "stopped"
-			? "Service stopped"
-			: !finiteRunway
-				? "No ongoing charges"
-				: runway >= 1
-					? `About ${Math.floor(runway)} days left`
-					: "Under a day left";
-	const runsOut =
-		level === "stopped"
-			? service.lastChargedAt
-				? runsOutDate(new Date(service.lastChargedAt), 0)
-				: "No ongoing charges"
-			: !finiteRunway
-				? "No ongoing charges"
-				: runsOutDate(now, runway);
-	const runsOutSub =
-		level === "stopped"
-			? "balance reached $0"
-			: finiteRunway
-				? "at today's rate"
-				: "";
-	const running = service.state === "running";
-	const rateSub = running
-		? `${formatUsdPerHour(rateDayUsdMicros)}/hour · ${burnCompositionLabel(true, monthRows)}`
-		: "Nothing runs while stopped";
-
-	return (
-		<section className="use-runway" aria-label="Balance and runway">
-			<div>
-				<span className="use-rk">Balance</span>
-				<span className="use-rv">
-					<NumberFlow
-						value={balanceUsdMicros / 1_000_000}
-						format={{ style: "currency", currency: "USD" }}
-					/>
-				</span>
-				<span className={`use-pill ${level}`}>{pillLabel}</span>
-				<div
-					className={`use-runbar ${level}`}
-					role="img"
-					aria-label={
-						level === "stopped"
-							? "No runway"
-							: `${Math.floor(finiteRunway ? runway : 30)} of 30 days of runway`
-					}
-				>
-					<i style={{ width: `${barPct.toFixed(1)}%` }} />
-				</div>
-			</div>
-			<div>
-				<span className="use-rk">Burning now</span>
-				<span className="use-rv">
-					<NumberFlow
-						value={rateDayUsdMicros / 1_000_000}
-						format={{ style: "currency", currency: "USD" }}
-					/>{" "}
-					<small>/day</small>
-				</span>
-				<span className="use-rs">{rateSub}</span>
-			</div>
-			<div>
-				<span className="use-rk">Runs out</span>
-				<span className="use-rv">{runsOut}</span>
-				{runsOutSub ? <span className="use-rs">{runsOutSub}</span> : null}
-			</div>
-		</section>
-	);
-}
-
-function AlertSwitch({
-	id,
-	checked,
-	onChange,
-	title,
-	sub,
-}: {
-	id: string;
-	checked: boolean;
-	onChange: () => void;
-	title: string;
-	sub: string;
-}) {
-	return (
-		<div className="use-alert-row">
-			<label htmlFor={id}>
-				<span className="t">{title}</span>
-				<span className="s">{sub}</span>
-			</label>
-			<span className="use-switch">
-				<input type="checkbox" id={id} checked={checked} onChange={onChange} />
-				<span />
-			</span>
-		</div>
-	);
-}
-
-const DEFAULT_ALERTS: BalanceAlerts = { notify7d: true, notify2d: true };
-
-/** Whole-dollar `$` input + Save, bound to `GET/PATCH /api/billing/caps`.
- *  Empty input = no cap. The cap counts total monthly spend (memory,
- *  storage, webhooks, and reads — every unit `meter()` debits). Once it is
- *  reached, reads past the free 1M rows answer 402 `spend_cap_reached`
- *  (`checkRowsAllowance`, `packages/api/src/lib/read-credits.ts`) and the
- *  hosted stack stops. */
-function SpendCapRow() {
-	const { caps } = useAccountData();
-	useEffect(() => {
-		refreshCaps();
-	}, []);
-	const [draft, setDraft] = useState<string | null>(null);
-	const [saving, setSaving] = useState(false);
-
-	const savedDollars =
-		caps?.monthlyCapCents != null
-			? String(Math.round(caps.monthlyCapCents / 100))
-			: "";
-	const value = draft ?? savedDollars;
-	const thresholdPct = caps?.alertThresholdPct ?? 80;
-
-	async function save() {
-		const trimmed = value.trim();
-		if (trimmed !== "" && (!/^\d+$/.test(trimmed) || Number(trimmed) < 1)) {
-			toast.error("Enter a whole dollar amount, or leave it empty for no cap");
-			return;
-		}
-		setSaving(true);
-		const monthlyCapCents = trimmed === "" ? null : Number(trimmed) * 100;
-		const result = await updateCap(monthlyCapCents);
-		setSaving(false);
-		setDraft(null);
-		if (!result) toast.error("Couldn't update your spend cap");
-		else
-			toast.success(
-				monthlyCapCents == null ? "Spend cap removed" : "Spend cap saved",
-			);
-	}
-
-	return (
-		<div className="use-alert-row cap" id="cap">
-			<label htmlFor="spend-cap-input">
-				<span className="t">Monthly spend cap</span>
-				<span className="s">
-					Counts everything you spend this month. Once you reach it, hosted
-					reads past your free 1M rows pause and your hosted stack stops, so
-					webhooks stop delivering.
-				</span>
-			</label>
-			<div className="use-cap-fields">
-				<span className="use-cap-prefix">$</span>
-				<input
-					id="spend-cap-input"
-					className="acct-input use-cap-input"
-					type="number"
-					inputMode="numeric"
-					min={1}
-					step={1}
-					placeholder="No cap"
-					value={value}
-					onChange={(e) => setDraft(e.target.value)}
-				/>
-				<button
-					type="button"
-					className="acct-btn small"
-					onClick={save}
-					disabled={saving}
-				>
-					{saving ? "Saving..." : "Save"}
-				</button>
-			</div>
-			<span className="use-cap-note">Alert me at {thresholdPct}%</span>
-		</div>
-	);
-}
-
-/** Two switches, bound to `GET/PUT /api/billing/alerts`. Optimistic: the
- *  switch flips immediately, then reverts with a Sonner toast if the write
- *  fails (Design step 5.7). */
-function BalanceAlertsSection() {
-	const { alerts } = useAccountData();
-	useEffect(() => {
-		refreshAlerts();
-	}, []);
-	const [pending, setPending] = useState<BalanceAlerts | null>(null);
-	const current = pending ?? alerts ?? DEFAULT_ALERTS;
-
-	async function toggle(key: keyof BalanceAlerts) {
-		const next = { ...current, [key]: !current[key] };
-		setPending(next);
-		const result = await updateAlerts({ [key]: next[key] });
-		setPending(null);
-		if (!result) toast.error("Couldn't update that alert");
-	}
-
-	return (
-		<>
-			<h2 className="acct-h2">Balance alerts</h2>
-			<div className="use-alerts">
-				<AlertSwitch
-					id="al-7"
-					checked={current.notify7d}
-					onChange={() => toggle("notify7d")}
-					title="Email me at 7 days left"
-					sub="Based on the last 24 hours of spend"
-				/>
-				<AlertSwitch
-					id="al-2"
-					checked={current.notify2d}
-					onChange={() => toggle("notify2d")}
-					title="Email me at 2 days left"
-					sub="And again if the service stops"
-				/>
-				<SpendCapRow />
-			</div>
-		</>
-	);
-}
-
-/** The credits flow on /account/credits, including the way back from Stripe. */
-export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
-	const { billing, burn, service, usage, caps } = useAccountData();
-	const st = useTopupReturn(ret);
-	const co = useCheckout();
-	const monthState = useUsageMonth();
-
-	useEffect(() => {
-		refreshBilling();
-		refreshCaps();
-	}, []);
-
-	// Every 60s while the tab is visible, refresh the current month's usage —
-	// this is also how `burn`/`service` (always "now") stay live regardless
-	// of which month the switcher above is browsing.
-	useEffect(() => {
-		return poll(async () => {
-			await refreshUsage(monthParam(currentUtcMonth()));
-			return {};
-		}, 60_000);
-	}, []);
-
-	const now = new Date();
-	const balanceUsdMicros = billing ? Number(billing.creditsUsdMicros) : 0;
-	const rateDayUsdMicros = burn ? Number(burn.rateDayUsdMicros) : 0;
-	const serviceState: ServiceState = service?.state ?? "none";
-	// Always "now"'s calendar month, independent of the Usage switcher below —
-	// the runway row's burn composition must not flip when browsing a past
-	// month (Design: "runway/banner/service always reflect now").
-	const currentMonthRows = usage[monthParam(currentUtcMonth(now))];
-	const runway = runwayDays(balanceUsdMicros, rateDayUsdMicros);
-	const level = balanceLevel({
-		serviceState,
-		balanceUsdMicros,
-		runwayDays: runway,
-	});
-	const ready = billing !== null && burn !== null && service !== null;
-	const capped =
-		billing != null &&
-		caps?.monthlyCapCents != null &&
-		Number(billing.spentThisMonthUsdMicros) >=
-			caps.monthlyCapCents * USD_MICROS_PER_CENT;
-
-	return (
-		<>
-			{st ? <ReturnNotice st={st} billing={billing} /> : null}
-			{st?.kind !== "landed" && capped && caps?.monthlyCapCents != null ? (
-				<CapBanner now={now} monthlyCapCents={caps.monthlyCapCents} />
-			) : null}
-			{st?.kind !== "landed" && ready && service ? (
-				<>
-					<LevelBanner
-						level={level}
-						runway={runway}
-						rateDayUsdMicros={rateDayUsdMicros}
-						now={now}
-						service={service}
-					/>
-					<RunwayRow
-						balanceUsdMicros={balanceUsdMicros}
-						level={level}
-						runway={runway}
-						rateDayUsdMicros={rateDayUsdMicros}
-						now={now}
-						service={service}
-						monthRows={currentMonthRows}
-					/>
-				</>
-			) : null}
-			<SpendCard
-				month={monthState.month}
-				rows={monthState.rows}
-				daily={monthState.daily}
-				rateDayUsdMicros={rateDayUsdMicros}
-				serviceState={serviceState}
-			/>
-			{service ? <HostedStackCard service={service} /> : null}
-			<UsageSection monthState={monthState} service={service} />
-			<BalanceAlertsSection />
-			<h2 className="acct-h2">Add credits</h2>
-			<CreditAmounts
-				co={co}
-				wide
-				rateDayUsdMicros={rateDayUsdMicros}
-				stopped={level === "stopped"}
-			/>
-			<CheckoutAction co={co} wide />
-			<PricingNote />
-		</>
 	);
 }

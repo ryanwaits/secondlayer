@@ -1,0 +1,380 @@
+"use client";
+
+import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import {
+	LazyMonoStackedBarChart,
+	LazySpendChart,
+} from "@/components/charts/lazy";
+import { Legend } from "@/components/dashboard/charts/legend";
+import { Meter } from "@/components/dashboard/charts/meter";
+import { InsightStack } from "@/components/dashboard/insight/insight-stack";
+import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
+import {
+	type Billing,
+	type TopupReturn,
+	formatUsd,
+	refreshBilling,
+	refreshCaps,
+	refreshCredits,
+	refreshUsage,
+	updateCap,
+	useAccountData,
+} from "@/lib/account-data";
+import { daysLeft, daysLeftLabel } from "@/lib/account-health";
+import {
+	capDollars,
+	capMeter,
+	costByDay,
+	dollars,
+	freeRowsUsedUpOn,
+	isSentinelUnit,
+	monthProjection,
+} from "@/lib/billing-view";
+import { formatUsdTick, niceMax } from "@/lib/dashboard-charts";
+import type { Insight } from "@/lib/insights";
+import type { CreditAdded } from "@/lib/types";
+import {
+	type Burn,
+	type DailySpend,
+	type HostedStack,
+	type ServiceState,
+	type UsageRow,
+	balanceLevel,
+	currentUtcMonth,
+	deliveredRowsIn,
+	monthLabel,
+	monthParam,
+	monthShortLabel,
+	nextMonthLabel,
+	runwayDays,
+} from "@/lib/usage";
+import { poll } from "@/lib/webhooks-store";
+import { type ReactNode, useEffect, useState } from "react";
+import { toast } from "sonner";
+import {
+	CheckoutAction,
+	CreditAmounts,
+	PricingNote,
+	ReturnNotice,
+	useCheckout,
+	useTopupReturn,
+} from "../credits-panel";
+import { ByUnitTable } from "./by-unit-table";
+import { CreditsAddedTable } from "./credits-added";
+import { EmailAlerts } from "./email-alerts";
+import { SpendCapControl } from "./spend-cap-control";
+
+const MICROS = 1_000_000;
+
+/** Cost series colors, in stack order: the hosted stack, rows, webhook events plus storage. */
+const COST_SERIES = [
+	{ dataKey: "stack", name: "Hosted stack", color: "var(--ch-a)" },
+	{ dataKey: "rows", name: "Rows", color: "var(--ch-b)" },
+	{ dataKey: "events", name: "Webhook events + storage", color: "var(--ch-c)" },
+] as const;
+
+const usdTip = (value: number | string) => dollars(Number(value));
+
+/** The sentence under the balance: what it is, and what to do about it. */
+function Status({
+	billing,
+	burn,
+	service,
+	capUsd,
+	now,
+}: {
+	billing: Billing | null;
+	burn: Burn | null;
+	service: HostedStack | null;
+	capUsd: number | null;
+	now: Date;
+}) {
+	if (!billing) {
+		return <StatusSentence tone="idle">Checking your balance.</StatusSentence>;
+	}
+	const resets = nextMonthLabel(currentUtcMonth(now));
+	const spent = Number(billing.spentThisMonthUsdMicros) / MICROS;
+	if (capUsd != null && spent >= capUsd) {
+		return (
+			<StatusSentence
+				tone="alarm"
+				sub={`Everything resumes on ${resets}, or when you raise the cap.`}
+			>
+				Paused: you reached your ${capUsd.toLocaleString("en-US")} cap.
+			</StatusSentence>
+		);
+	}
+	const balance = Number(billing.creditsUsdMicros);
+	const runway = burn
+		? runwayDays(balance, Number(burn.rateDayUsdMicros))
+		: Number.POSITIVE_INFINITY;
+	const serviceState: ServiceState = service?.state ?? "none";
+	const level = balanceLevel({
+		serviceState,
+		balanceUsdMicros: balance,
+		runwayDays: runway,
+	});
+	const left = daysLeftLabel(daysLeft(billing, burn));
+	const tone = level === "ok" ? "ok" : level === "low" ? "hi" : "alarm";
+	return (
+		<StatusSentence tone={tone}>
+			<span>
+				{formatUsd(billing.creditsUsdMicros)} left
+				{level === "stopped" ? (
+					<span className="bl-pace"> · your hosted stack has stopped</span>
+				) : left ? (
+					<span className="bl-pace"> · {left} at this pace</span>
+				) : null}
+			</span>
+		</StatusSentence>
+	);
+}
+
+export interface BillingBodyProps {
+	now: Date;
+	billing: Billing | null;
+	burn: Burn | null;
+	service: HostedStack | null;
+	/** This month's usage by unit, or undefined until it loads. */
+	usage: UsageRow[] | undefined;
+	daily: DailySpend[] | undefined;
+	/** The spend cap in whole dollars, or null for none. */
+	capUsd: number | null;
+	onCapChange: (next: number | null) => void;
+	credits: CreditAdded[] | null;
+	/** Insights about the account's spend. The insights service fills this later. */
+	insights?: readonly Insight[];
+	/** Shown above the status sentence, such as the way back from Stripe. */
+	notice?: ReactNode;
+	/** Sections under the tables: adding credits and emails. */
+	footer?: ReactNode;
+}
+
+/** Billing: the balance, this month's spend line, the cap, where it goes, and what was added. */
+export function BillingBody({
+	now,
+	billing,
+	burn,
+	service,
+	usage,
+	daily,
+	capUsd,
+	onCapChange,
+	credits,
+	insights = [],
+	notice,
+	footer,
+}: BillingBodyProps) {
+	const month = currentUtcMonth(now);
+	const projection = daily ? monthProjection(daily, now) : null;
+	const spentTotal = billing
+		? Number(billing.spentThisMonthUsdMicros) / MICROS
+		: 0;
+	const projectedTotal = projection
+		? spentTotal +
+			projection.ratePerDay *
+				(projection.daysInMonth - projection.series.length)
+		: spentTotal;
+	const meter = capMeter({
+		capUsd,
+		spentUsd: spentTotal,
+		projectedEndUsd: projectedTotal,
+		deliveredRows: deliveredRowsIn(usage ?? []),
+		usedUpOn: daily ? freeRowsUsedUpOn(daily, now) : null,
+		now,
+	});
+	const sentinelUsd = (usage ?? [])
+		.filter((u) => isSentinelUnit(u.unit))
+		.reduce((sum, u) => sum + Number(u.usdMicros), 0);
+
+	const days = daily ? costByDay(daily, now) : null;
+	const costTop = days
+		? niceMax(Math.max(...days.map((d) => d.stack + d.rows + d.events)) * 1.05)
+		: 1;
+
+	return (
+		<div className="bl-body">
+			{notice}
+			<div className="bl-top">
+				<Status
+					billing={billing}
+					burn={burn}
+					service={service}
+					capUsd={capUsd}
+					now={now}
+				/>
+				<a href="#packs" className="acct-btn solid small">
+					Add credits
+				</a>
+			</div>
+
+			<InsightStack insights={insights} />
+
+			<div className="bl-two">
+				<section className="dash-panel bl-panel" aria-label="Usage this month">
+					<div className="dash-panel-h">
+						<span className="dash-label">Usage this month</span>
+						<Legend
+							items={[
+								{ swatch: "line", label: "Spent" },
+								{ swatch: "dashed", label: "At this pace" },
+							]}
+						/>
+					</div>
+					{projection ? (
+						<div className="dc-chart">
+							<LazySpendChart
+								daily={projection.series}
+								daysInMonth={projection.daysInMonth}
+								monthLabel={monthShortLabel(month)}
+							/>
+						</div>
+					) : (
+						<ChartSkeleton height={150} />
+					)}
+					{sentinelUsd > 0 ? (
+						<span className="bl-note">
+							Sentinel runs ({dollars(sentinelUsd / MICROS)}) are billed per run
+							and aren't in this line.
+						</span>
+					) : null}
+				</section>
+
+				<section className="dash-panel bl-panel" aria-label="Spend cap">
+					<span className="dash-label">Spend cap</span>
+					<SpendCapControl capUsd={capUsd} onChange={onCapChange} />
+					<p className="bl-cap-text">
+						{capUsd == null
+							? "No cap set."
+							: `Capped at $${capUsd.toLocaleString("en-US")} a month.`}{" "}
+						At a cap everything stops, webhooks included, until you add credits
+						or raise it.
+					</p>
+					<Meter
+						used={meter.used}
+						total={meter.total}
+						left={meter.left}
+						right={meter.right}
+						label={meter.label}
+					/>
+				</section>
+			</div>
+
+			<section className="dash-panel bl-panel" aria-label="Where it goes">
+				<div className="dash-panel-h">
+					<span className="dash-label">Where it goes · per day</span>
+					<Legend
+						items={COST_SERIES.map((s) => ({
+							swatch: "square" as const,
+							label: s.name,
+							color: s.color,
+						}))}
+					/>
+				</div>
+				{days ? (
+					<div className="dc-chart">
+						<LazyMonoStackedBarChart
+							data={days}
+							height={150}
+							xAxisDataKey="day"
+							xAxisTicks={[days[0]?.day ?? "", days.at(-1)?.day ?? ""]}
+							xAxisTickFormatter={(v) => String(v)}
+							yAxisTicks={[0, costTop / 2, costTop]}
+							yAxisTickFormatter={formatUsdTick}
+							tooltipFormatter={usdTip}
+							series={COST_SERIES.map((s) => ({ ...s }))}
+						/>
+					</div>
+				) : (
+					<ChartSkeleton height={150} />
+				)}
+			</section>
+
+			<div className="bl-two even">
+				<ByUnitTable
+					usage={usage}
+					monthName={monthLabel(month).split(" ")[0]}
+				/>
+				<CreditsAddedTable credits={credits} />
+			</div>
+
+			{footer}
+		</div>
+	);
+}
+
+/** /account/credits: balance, spend and cap, with the way back from Stripe. */
+export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
+	const { billing, burn, service, usage, daily, caps, credits } =
+		useAccountData();
+	const st = useTopupReturn(ret);
+	const co = useCheckout();
+	const [pendingCap, setPendingCap] = useState<number | null | undefined>();
+	const now = new Date();
+	const month = monthParam(currentUtcMonth(now));
+
+	useEffect(() => {
+		refreshBilling();
+		refreshCaps();
+		refreshCredits();
+	}, []);
+
+	// A landed top-up is a new row in the credits list.
+	const landed = st?.kind === "landed";
+	useEffect(() => {
+		if (landed) refreshCredits();
+	}, [landed]);
+
+	// Every 60s while the tab is visible, refresh the month's usage. This is
+	// also how `burn` and `service` (always "now") stay live.
+	useEffect(() => {
+		return poll(async () => {
+			await refreshUsage(month);
+			return {};
+		}, 60_000);
+	}, [month]);
+
+	const capUsd =
+		pendingCap !== undefined
+			? pendingCap
+			: capDollars(caps?.monthlyCapCents ?? null);
+
+	async function changeCap(next: number | null) {
+		setPendingCap(next);
+		const result = await updateCap(next == null ? null : next * 100);
+		setPendingCap(undefined);
+		if (!result) toast.error("Couldn't update your spend cap");
+	}
+
+	const stopped = service?.state === "stopped";
+	return (
+		<BillingBody
+			now={now}
+			billing={billing}
+			burn={burn}
+			service={service}
+			usage={usage[month]}
+			daily={daily[month]}
+			capUsd={capUsd}
+			onCapChange={changeCap}
+			credits={credits}
+			notice={st ? <ReturnNotice st={st} billing={billing} /> : null}
+			footer={
+				<>
+					<section className="dash-panel bl-panel" aria-label="Add credits">
+						<span className="dash-label">Add credits</span>
+						<CreditAmounts
+							co={co}
+							wide
+							rateDayUsdMicros={burn ? Number(burn.rateDayUsdMicros) : 0}
+							stopped={stopped}
+						/>
+						<CheckoutAction co={co} wide />
+						<PricingNote />
+					</section>
+					<EmailAlerts />
+				</>
+			}
+		/>
+	);
+}

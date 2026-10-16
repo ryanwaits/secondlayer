@@ -1,9 +1,7 @@
 "use client";
 
-import { CreditsSection } from "@/components/account/credits-panel";
-import { AccountHead } from "@/components/account/parts";
+import { BillingScreen } from "@/components/account/billing/billing-screen";
 import { type TopupReturn, takeTopupReturn } from "@/lib/account-data";
-import { ROWS_ALLOWANCE, formatRows } from "@/lib/usage";
 import { useEffect, useRef, useState } from "react";
 
 export default function AccountCreditsPage() {
@@ -17,17 +15,5 @@ export default function AccountCreditsPage() {
 		setRet(takeTopupReturn());
 	}, []);
 
-	return (
-		<>
-			<AccountHead
-				title="Usage and billing"
-				sub={`Prepaid, no subscription. At $0 your hosted stack stops and reads past the free ${formatRows(ROWS_ALLOWANCE)} rows pause.`}
-			>
-				<a href="#packs" className="acct-btn solid small">
-					Add credits
-				</a>
-			</AccountHead>
-			<CreditsSection ret={ret} />
-		</>
-	);
+	return <BillingScreen ret={ret} />;
 }
