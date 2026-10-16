@@ -6,7 +6,7 @@ import {
 	extractSubgraphDefinition,
 	scanHandlerDeterminism,
 } from "@secondlayer/bundler";
-import { getErrorMessage, logger } from "@secondlayer/shared";
+import { bucketHourly, getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb, getSourceDb } from "@secondlayer/shared/db";
 import type { Subgraph, SubgraphOperation } from "@secondlayer/shared/db";
 import {
@@ -1465,6 +1465,7 @@ app.get("/:subgraphName", async (c) => {
 		gapResult,
 		activeOpResult,
 		violationCount,
+		storageRows,
 	] = await Promise.all([
 		Promise.allSettled(
 			schemaEntries.map(([tableName]) =>
@@ -1506,7 +1507,21 @@ app.get("/:subgraphName", async (c) => {
 			.executeTakeFirst()
 			.then((r) => Number(r?.count ?? 0))
 			.catch(() => 0),
+		// Per-table bytes (table + indexes). Best effort: omitted on failure.
+		query(
+			subgraph,
+			"SELECT relname, pg_total_relation_size(relid)::bigint AS bytes FROM pg_stat_user_tables WHERE schemaname = $1",
+			[sn],
+		).catch(() => null),
 	]);
+	const storageByTable = new Map<string, number>();
+	for (const r of storageRows ?? []) {
+		storageByTable.set(String(r.relname), Number(r.bytes));
+	}
+	const totalStorageBytes = [...storageByTable.values()].reduce(
+		(a, b) => a + b,
+		0,
+	);
 
 	for (let i = 0; i < schemaEntries.length; i++) {
 		const [tableName, tableDef] = schemaEntries[i];
@@ -1533,6 +1548,9 @@ app.get("/:subgraphName", async (c) => {
 			endpoint: `/v1/subgraphs/${subgraphName}/${tableName}`,
 			columns,
 			rowCount,
+			...(storageByTable.has(tableName) && {
+				storageBytes: storageByTable.get(tableName),
+			}),
 			example: `/v1/subgraphs/${subgraphName}/${tableName}?_sort=_block_height&_order=desc&_limit=10`,
 			...(tableDef.indexes && { indexes: tableDef.indexes }),
 			...(tableDef.uniqueKeys && { uniqueKeys: tableDef.uniqueKeys }),
@@ -1601,6 +1619,7 @@ app.get("/:subgraphName", async (c) => {
 		},
 		sync,
 		tables,
+		...(storageRows && { storageBytes: totalStorageBytes }),
 		createdAt: subgraph.created_at.toISOString(),
 		updatedAt:
 			live.updated_at?.toISOString() ?? subgraph.updated_at.toISOString(),
@@ -1696,6 +1715,87 @@ app.get("/:subgraphName/gaps", async (c) => {
 			limit,
 			offset,
 		},
+	});
+});
+
+// ── Health history + grouped handler errors ────────────────────────────
+// Declared before `/:subgraphName/:tableName` so neither word is captured
+// as a table name.
+
+const HEALTH_MAX_HOURS = 168;
+
+app.get("/:subgraphName/health", async (c) => {
+	const { subgraphName } = c.req.param();
+	const subgraph = requireSubgraph(subgraphName);
+
+	const raw = c.req.query("hours");
+	const hours = raw === undefined ? 24 : Number(raw);
+	if (!Number.isInteger(hours) || hours < 1 || hours > HEALTH_MAX_HOURS) {
+		return c.json(
+			{
+				error: `hours must be an integer from 1 to ${HEALTH_MAX_HOURS}`,
+				code: "VALIDATION_ERROR",
+			},
+			400,
+		);
+	}
+
+	const now = Date.now();
+	// One extra hour back so the first bucket's delta has a baseline row.
+	const since = new Date(now - (hours + 1) * 3_600_000);
+	const db = getDb();
+	const snapshots = await db
+		.selectFrom("subgraph_health_snapshots")
+		.select([
+			"captured_at",
+			"chain_tip",
+			"last_processed_block",
+			"rows_written_total",
+			"total_errors",
+			"total_processed",
+		])
+		.where("subgraph_id", "=", subgraph.id)
+		.where("captured_at", ">=", since)
+		.orderBy("captured_at", "asc")
+		.execute();
+
+	const buckets = bucketHourly(snapshots, hours, now);
+	return c.json({
+		hours: buckets,
+		errors24h: buckets.slice(-24).reduce((sum, b) => sum + b.errors, 0),
+	});
+});
+
+app.get("/:subgraphName/errors", async (c) => {
+	const { subgraphName } = c.req.param();
+	requireSubgraph(subgraphName);
+
+	const limit = Math.min(
+		Math.max(1, Number.parseInt(c.req.query("limit") ?? "20", 10) || 20),
+		50,
+	);
+
+	const rows = await getDb()
+		.selectFrom("subgraph_error_groups")
+		.selectAll()
+		.where("subgraph_name", "=", subgraphName)
+		.orderBy("count", "desc")
+		.limit(limit)
+		.execute();
+
+	return c.json({
+		data: rows.map((r) => ({
+			message: r.message,
+			frame: r.frame,
+			eventType: r.event_type,
+			sourceName: r.source_name,
+			count: Number(r.count),
+			sampleTxId: r.sample_tx_id,
+			sampleBlockHeight:
+				r.sample_block_height === null ? null : Number(r.sample_block_height),
+			firstSeen: r.first_seen.toISOString(),
+			lastSeen: r.last_seen.toISOString(),
+		})),
 	});
 });
 

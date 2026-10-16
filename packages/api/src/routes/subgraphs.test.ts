@@ -1,6 +1,17 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { getDb, sql } from "@secondlayer/shared/db";
 import type { SubgraphOperation } from "@secondlayer/shared/db";
-import { buildSyncInfo, deriveOperationProgress } from "./subgraphs.ts";
+import {
+	pgSchemaName,
+	registerSubgraph,
+} from "@secondlayer/shared/db/queries/subgraphs";
+import { Hono } from "hono";
+import { errorHandler } from "../middleware/error.ts";
+import subgraphsRouter, {
+	buildSyncInfo,
+	cache,
+	deriveOperationProgress,
+} from "./subgraphs.ts";
 
 const NO_GAPS = { count: 0, totalMissingBlocks: 0, ranges: [] };
 
@@ -203,3 +214,184 @@ describe("deriveOperationProgress", () => {
 		expect(deriveOperationProgress(operation(), 1000, 1000)).toBeNull();
 	});
 });
+
+describe.skipIf(!process.env.DATABASE_URL)(
+	"subgraph health history and error groups routes",
+	() => {
+		const db = getDb();
+		const name = `health-test-${crypto.randomUUID().slice(0, 8)}`;
+		let subgraphId = "";
+
+		function app() {
+			const a = new Hono();
+			a.onError(errorHandler);
+			a.route("/api/subgraphs", subgraphsRouter);
+			return a;
+		}
+
+		beforeAll(async () => {
+			const row = await registerSubgraph(db, {
+				name,
+				version: "1.0.0",
+				definition: {},
+				schemaHash: "h",
+				handlerPath: "/data/subgraphs/x.js",
+			});
+			subgraphId = row.id;
+			const now = Date.now();
+			await db
+				.insertInto("subgraph_health_snapshots")
+				.values([
+					{
+						subgraph_id: subgraphId,
+						total_processed: 10,
+						total_errors: 1,
+						last_processed_block: 90,
+						chain_tip: 100,
+						rows_written_total: 5,
+						storage_bytes: 1024,
+						captured_at: new Date(now - 20 * 60_000),
+					},
+					{
+						subgraph_id: subgraphId,
+						total_processed: 30,
+						total_errors: 4,
+						last_processed_block: 99,
+						chain_tip: 100,
+						rows_written_total: 45,
+						storage_bytes: 2048,
+						captured_at: new Date(now - 10 * 60_000),
+					},
+				])
+				.execute();
+			await db
+				.insertInto("subgraph_error_groups")
+				.values([
+					{
+						subgraph_name: name,
+						fingerprint: "a",
+						source_name: "burns",
+						event_type: "ft_burn",
+						message: "rare",
+						frame: "handlers.ts:1",
+						count: 2,
+						sample_tx_id: null,
+						sample_block_height: null,
+					},
+					{
+						subgraph_name: name,
+						fingerprint: "b",
+						source_name: "burns",
+						event_type: "ft_burn",
+						message: "common",
+						frame: "handlers.ts:42",
+						count: 90,
+						sample_tx_id: "0xabc",
+						sample_block_height: 77,
+					},
+				])
+				.execute();
+			await cache.refresh();
+		});
+
+		afterAll(async () => {
+			await db
+				.deleteFrom("subgraph_error_groups")
+				.where("subgraph_name", "=", name)
+				.execute();
+			// Cascades to subgraph_health_snapshots.
+			await db.deleteFrom("subgraphs").where("name", "=", name).execute();
+		});
+
+		test("404 for an unknown subgraph", async () => {
+			const health = await app().request("/api/subgraphs/nope-xyz/health");
+			const errors = await app().request("/api/subgraphs/nope-xyz/errors");
+			expect(health.status).toBe(404);
+			expect(errors.status).toBe(404);
+		});
+
+		test("health rejects hours outside 1-168", async () => {
+			for (const hours of ["0", "169", "abc", "1.5"]) {
+				const res = await app().request(
+					`/api/subgraphs/${name}/health?hours=${hours}`,
+				);
+				expect(res.status).toBe(400);
+			}
+		});
+
+		test("health returns hourly buckets with lag and deltas", async () => {
+			const res = await app().request(`/api/subgraphs/${name}/health?hours=3`);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as {
+				hours: {
+					hour: string;
+					lagBlocks: number | null;
+					rowsWritten: number;
+					errors: number;
+				}[];
+				errors24h: number;
+			};
+			expect(body.hours).toHaveLength(3);
+			expect(body.hours.some((h) => h.lagBlocks !== null)).toBe(true);
+			expect(body.hours.reduce((sum, h) => sum + h.rowsWritten, 0)).toBe(40);
+			expect(body.errors24h).toBe(3);
+		});
+
+		test("errors are ordered by count with camelCase fields", async () => {
+			const res = await app().request(`/api/subgraphs/${name}/errors`);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as { data: Record<string, unknown>[] };
+			expect(body.data.map((g) => g.message)).toEqual(["common", "rare"]);
+			expect(body.data[0]).toMatchObject({
+				frame: "handlers.ts:42",
+				eventType: "ft_burn",
+				sourceName: "burns",
+				count: 90,
+				sampleTxId: "0xabc",
+				sampleBlockHeight: 77,
+			});
+		});
+
+		test("detail reports per-table and total storage bytes", async () => {
+			const detailName = `storage-test-${crypto.randomUUID().slice(0, 8)}`;
+			const schema = pgSchemaName(detailName);
+			await registerSubgraph(db, {
+				name: detailName,
+				version: "1.0.0",
+				definition: {
+					schema: { things: { columns: { a: { type: "text" } } } },
+				},
+				schemaHash: "h",
+				handlerPath: "/data/subgraphs/x.js",
+			});
+			await sql.raw(`CREATE SCHEMA IF NOT EXISTS "${schema}"`).execute(db);
+			await sql
+				.raw(`CREATE TABLE "${schema}"."things" (a text, _id serial)`)
+				.execute(db);
+			try {
+				await cache.refresh();
+				const res = await app().request(`/api/subgraphs/${detailName}`);
+				expect(res.status).toBe(200);
+				const body = (await res.json()) as {
+					storageBytes?: number;
+					tables: Record<string, { storageBytes?: number }>;
+				};
+				expect(body.tables.things?.storageBytes).toBeGreaterThan(0);
+				expect(body.storageBytes).toBe(body.tables.things?.storageBytes);
+			} finally {
+				await db
+					.deleteFrom("subgraphs")
+					.where("name", "=", detailName)
+					.execute();
+				await sql.raw(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`).execute(db);
+				await cache.refresh();
+			}
+		});
+
+		test("errors limit is applied", async () => {
+			const res = await app().request(`/api/subgraphs/${name}/errors?limit=1`);
+			const body = (await res.json()) as { data: unknown[] };
+			expect(body.data).toHaveLength(1);
+		});
+	},
+);
