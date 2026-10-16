@@ -1,13 +1,17 @@
 "use client";
 
-import { ChartSkeleton } from "@/components/charts/chart-skeleton";
-import { LazyBandBarChart } from "@/components/charts/lazy";
+import { ChartBox } from "@/components/charts/chart-skeleton";
+import {
+	LazyBandBarChart,
+	preloadBandBarChart,
+} from "@/components/charts/lazy";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { Meter } from "@/components/dashboard/charts/meter";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { KeyFirstLine } from "@/components/dashboard/shell/onboarding";
 import { ResourceRow } from "@/components/dashboard/shell/resource-row";
+import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ensureKeys, refreshRows, useAccountData } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
@@ -29,6 +33,7 @@ import {
 	xLabels,
 } from "@/lib/rows";
 import { ROWS_ALLOWANCE, formatRows } from "@/lib/usage";
+import { useFirstSettle } from "@/lib/use-first-settle";
 import { useEffect, useState } from "react";
 import { CliLine } from "../webhooks/shared";
 import { ageShort } from "../webhooks/view";
@@ -197,7 +202,7 @@ export function RowsBody({
 						]}
 					/>
 				</div>
-				<div className="dc-chart">
+				<ChartBox height={170}>
 					<LazyBandBarChart
 						rows={barsRows(bars)}
 						height={170}
@@ -211,7 +216,7 @@ export function RowsBody({
 						seriesNames={{ n: "Free", p: "Paid", f: "Failed" }}
 						emphasis="p"
 					/>
-				</div>
+				</ChartBox>
 			</section>
 
 			<div className="rw-notes">
@@ -243,7 +248,7 @@ export function RowsBody({
 					<span className="dash-label rw-sub-label">
 						Rows per call · 30 days
 					</span>
-					<div className="dc-chart">
+					<ChartBox height={120}>
 						<LazyBandBarChart
 							rows={histogram}
 							height={120}
@@ -253,7 +258,7 @@ export function RowsBody({
 							)}
 							seriesNames={{ n: "Calls", p: "Paid", f: "Failed" }}
 						/>
-					</div>
+					</ChartBox>
 				</section>
 				<ErrorsPanel errors={data.errors} />
 			</div>
@@ -261,10 +266,48 @@ export function RowsBody({
 	);
 }
 
+/** The Rows screen's shape while it loads: real labels, boxes at their final heights. */
+export function RowsSkeleton() {
+	return (
+		<output className="bl-body" aria-busy="true" aria-label="Loading rows">
+			<div className="dash-status-wrap">
+				<h1 className="dash-status">
+					<span className="dash-dot idle" />
+					<Skel width={260} height={22} />
+				</h1>
+				<p className="dash-status-sub">
+					<Skel width={320} />
+				</p>
+			</div>
+			<section className="dash-panel bl-panel">
+				<span className="dash-label">Rows per day</span>
+				<ChartBox height={170} />
+			</section>
+			<div className="bl-two even">
+				<section className="dash-panel bl-panel">
+					<span className="dash-label">Where rows came from · 30 days</span>
+					<Skel width="60%" />
+					<Skel width="60%" />
+					<span className="dash-label rw-sub-label">
+						Rows per call · 30 days
+					</span>
+					<ChartBox height={120} />
+				</section>
+				<section className="dash-panel bl-panel">
+					<span className="dash-label">Your errors · 24h</span>
+					<Skel width="80%" />
+					<Skel width="80%" />
+					<Skel width="80%" />
+				</section>
+			</div>
+		</output>
+	);
+}
+
 /** /account/rows: loads the rows data and shows it. */
 export function RowsSection() {
 	const { rows, keys } = useAccountData();
-	const { data: allInsights } = useInsights();
+	const { data: allInsights, status: insightsStatus } = useInsights();
 	const [failed, setFailed] = useState(false);
 	const now = new Date();
 
@@ -277,11 +320,15 @@ export function RowsSection() {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: load once on mount
 	useEffect(() => {
 		load();
+		preloadBandBarChart();
 		ensureKeys();
 	}, []);
 
 	const status = rows ? "ok" : failed ? "failed" : "not_loaded";
-	if (status === "not_loaded") return <ChartSkeleton height={170} />;
+	const ready = useFirstSettle(
+		failed || (rows !== null && insightsStatus !== "idle"),
+	);
+	if (!ready || status === "not_loaded") return <RowsSkeleton />;
 	return (
 		<RowsBody
 			status={status}

@@ -1,9 +1,11 @@
 "use client";
 
-import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { ChartBox } from "@/components/charts/chart-skeleton";
 import {
 	LazyMonoStackedBarChart,
 	LazySpendChart,
+	preloadMonoStackedBarChart,
+	preloadSpendChart,
 } from "@/components/charts/lazy";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { Meter } from "@/components/dashboard/charts/meter";
@@ -291,17 +293,15 @@ export function BillingBody({
 							]}
 						/>
 					</div>
-					{projection ? (
-						<div className="dc-chart">
+					<ChartBox height={150}>
+						{projection ? (
 							<LazySpendChart
 								daily={projection.series}
 								daysInMonth={projection.daysInMonth}
 								monthLabel={monthShortLabel(month)}
 							/>
-						</div>
-					) : (
-						<ChartSkeleton height={150} />
-					)}
+						) : null}
+					</ChartBox>
 					{sentinelUsd > 0 ? (
 						<span className="bl-note">
 							Sentinel runs ({dollars(sentinelUsd / MICROS)}) are billed per run
@@ -341,8 +341,8 @@ export function BillingBody({
 						}))}
 					/>
 				</div>
-				{days ? (
-					<div className="dc-chart">
+				<ChartBox height={150}>
+					{days ? (
 						<LazyMonoStackedBarChart
 							data={days}
 							height={150}
@@ -354,10 +354,8 @@ export function BillingBody({
 							tooltipFormatter={usdTip}
 							series={COST_SERIES.map((s) => ({ ...s }))}
 						/>
-					</div>
-				) : (
-					<ChartSkeleton height={150} />
-				)}
+					) : null}
+				</ChartBox>
 			</section>
 
 			<div className="bl-two even">
@@ -388,6 +386,8 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 		refreshBilling();
 		refreshCaps();
 		refreshCredits();
+		preloadSpendChart();
+		preloadMonoStackedBarChart();
 	}, []);
 
 	// A landed top-up is a new row in the credits list.

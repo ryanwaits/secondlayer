@@ -6057,6 +6057,11 @@ button.dc-heat-cell:focus-visible {
 .dc-chart {
 	width: 100%;
 }
+/* The lazy-chart loading skeleton sets its own inline height; inside a
+   ChartBox it takes the box's, so swapping skeleton -> chart moves nothing. */
+.dc-chart-box > .wh-skel {
+	height: 100% !important;
+}
 
 /* Insight note row */
 .ins-stack {

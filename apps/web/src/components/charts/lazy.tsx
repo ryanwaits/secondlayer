@@ -40,3 +40,14 @@ export const LazySpendChart = dynamic(
 	() => import("../dashboard/charts/spend-chart").then((m) => m.SpendChart),
 	{ ssr: false, loading: () => <ChartSkeleton height={150} /> },
 );
+
+/** Fetch a chart's chunk now, alongside its data, instead of after the data lands. */
+export function preloadBandBarChart(): void {
+	void import("../dashboard/charts/band-bar-chart");
+}
+export function preloadMonoStackedBarChart(): void {
+	void import("./mono-stacked-bar-chart");
+}
+export function preloadSpendChart(): void {
+	void import("../dashboard/charts/spend-chart");
+}

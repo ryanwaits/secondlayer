@@ -13,7 +13,9 @@ mock.module("next/navigation", () => ({
 	permanentRedirect: () => {},
 }));
 
-const { OverviewRowsRow, RowsBody } = await import("./rows-panel");
+const { OverviewRowsRow, RowsBody, RowsSkeleton } = await import(
+	"./rows-panel"
+);
 type RowsResponse = import("@/lib/rows").RowsResponse;
 
 const NOW = new Date("2026-10-15T12:00:00.000Z");
@@ -237,5 +239,27 @@ describe("RowsBody for a new account", () => {
 		);
 		expect(html).toContain("You need a key first.");
 		expect(html).not.toContain("sl index ft-transfers");
+	});
+});
+
+describe("RowsSkeleton", () => {
+	test("keeps the real labels and chart boxes at their final heights, with no insights slot", () => {
+		const html = renderToStaticMarkup(<RowsSkeleton />);
+		expect(html).toContain('aria-busy="true"');
+		expect(html).toContain("Rows per day");
+		expect(html.match(/dc-chart-box/g)?.length).toBe(2);
+		expect(html).toContain("height:170px");
+		expect(html).toContain("height:120px");
+		expect(html).not.toContain("rw-notes");
+		expect(html).not.toContain("ins-");
+	});
+
+	test("loaded rows draw their charts in the same boxes", () => {
+		const html = renderToStaticMarkup(
+			<RowsBody {...base} status="ok" data={exhausted} />,
+		);
+		expect(html.match(/dc-chart-box/g)?.length).toBe(2);
+		expect(html).toContain("height:170px");
+		expect(html).toContain("height:120px");
 	});
 });

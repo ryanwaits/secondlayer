@@ -187,3 +187,13 @@ describe("BillingBody for a new account", () => {
 		expect(html).toContain("left");
 	});
 });
+
+describe("BillingBody charts", () => {
+	test("both charts hold their final height before the daily data lands", () => {
+		const html = renderToStaticMarkup(
+			<BillingBody {...base} daily={undefined} />,
+		);
+		expect(html.match(/dc-chart-box/g)?.length).toBe(2);
+		expect(html.match(/height:150px/g)?.length).toBeGreaterThanOrEqual(2);
+	});
+});
