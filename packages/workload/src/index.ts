@@ -283,6 +283,8 @@ async function main(): Promise<void> {
 						if (row) ensureMeterSocket(accountId);
 						return row?.state;
 					},
+					stopReason: async (accountId) =>
+						(await getTenant(db, accountId))?.stop_reason ?? null,
 					startProvisioning: (accountId) => {
 						provisionUp(provisionerCfg, accountId)
 							.then(() => ensureMeterSocket(accountId))

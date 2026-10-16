@@ -27,6 +27,7 @@ function baseDeps(overrides: Partial<GatewayDeps> = {}): GatewayDeps {
 		resolveTenant: async () => "running",
 		startProvisioning: () => {},
 		startTenant: () => {},
+		stopReason: async () => null,
 		tenantUpstream: async () => ({
 			baseUrl: "http://127.0.0.1:20001",
 			instanceToken: "tenant-instance-token",
@@ -437,6 +438,70 @@ describe("handleGatewayRequest", () => {
 			expect.objectContaining({ error: "starting" }),
 		);
 		expect(startCalls).toBe(1);
+	});
+
+	describe("idle-stopped stack", () => {
+		function idleDeps(record: unknown[] = []) {
+			const calls = { start: 0 };
+			const deps = baseDeps({
+				resolveTenant: async () => "stopped",
+				stopReason: async () => "idle",
+				startTenant: () => {
+					calls.start++;
+				},
+				recordFailure: (r) => record.push(r),
+			});
+			return { deps, calls };
+		}
+
+		test("a webhooks read answers 503 asleep, starts nothing and records no failure", async () => {
+			const recorded: unknown[] = [];
+			const { deps, calls } = idleDeps(recorded);
+			const res = await handleGatewayRequest(
+				deps,
+				req({ auth: "Bearer sk-sl_good" }),
+			);
+			expect(res.status).toBe(503);
+			expect(res.headers.get("Retry-After")).toBeNull();
+			expect(((await res.json()) as { error: string }).error).toBe("asleep");
+			expect(calls.start).toBe(0);
+			expect(recorded).toHaveLength(0);
+		});
+
+		test("a subgraphs list read answers empty, since idle means no subgraphs", async () => {
+			const { deps, calls } = idleDeps();
+			const res = await handleGatewayRequest(
+				deps,
+				req({ auth: "Bearer sk-sl_good", path: "/api/subgraphs" }),
+			);
+			expect(res.status).toBe(200);
+			expect(await res.json()).toEqual({ data: [] });
+			expect(calls.start).toBe(0);
+		});
+
+		test("a read with ?wake starts it", async () => {
+			const { deps, calls } = idleDeps();
+			const res = await handleGatewayRequest(
+				deps,
+				req({ auth: "Bearer sk-sl_good", path: "/api/webhooks?wake=1" }),
+			);
+			expect(res.status).toBe(503);
+			expect(((await res.json()) as { error: string }).error).toBe("starting");
+			expect(calls.start).toBe(1);
+		});
+
+		test("a write starts it", async () => {
+			const { deps, calls } = idleDeps();
+			await handleGatewayRequest(
+				deps,
+				req({
+					auth: "Bearer sk-sl_good",
+					method: "POST",
+					path: "/api/webhooks/wh_1/resume",
+				}),
+			);
+			expect(calls.start).toBe(1);
+		});
 	});
 
 	test("stopped tenant never reaches here with creditsOk:false — that 402s earlier from introspect", async () => {

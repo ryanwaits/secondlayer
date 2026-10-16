@@ -22,7 +22,7 @@ import {
 	normalizeOrigin,
 	redactQuery,
 } from "@secondlayer/shared/error-envelope";
-import type { TenantState } from "./control-db.ts";
+import type { StopReason, TenantState } from "./control-db.ts";
 import type { FetchLike } from "./fetch-like.ts";
 import type { IntrospectClient } from "./introspect-client.ts";
 
@@ -45,6 +45,9 @@ export interface GatewayDeps {
 	 *  5-minute poll). The caller still gets 503 + Retry-After on THIS
 	 *  request; the stack is usually up well before the retry. */
 	startTenant: (accountId: string) => void;
+	/** Why a `stopped` tenant stopped. Read only for a read against a stopped
+	 *  tenant: an `idle` stack stays asleep for reads (see `asleepRead`). */
+	stopReason: (accountId: string) => Promise<StopReason | null>;
 	/** `127.0.0.1:<api_port>`-shaped base URL for a running tenant's `api`
 	 *  service (review fix: the gateway is a HOST process — it has no
 	 *  compose-network DNS, so this can never be a `tenant-<acct8>-api`
@@ -164,7 +167,8 @@ async function finalize(
 		}
 	}
 
-	if (accountId && status !== 429) {
+	// A rate limit or an asleep stack is not a failed request.
+	if (accountId && status !== 429 && code !== ASLEEP_CODE) {
 		const url = new URL(req.url);
 		try {
 			deps.recordFailure?.({
@@ -271,6 +275,14 @@ async function route(
 			PROVISIONING_RETRY_AFTER_SECONDS,
 		);
 	}
+	if (
+		state === "stopped" &&
+		bucket === "read" &&
+		!url.searchParams.has("wake") &&
+		(await deps.stopReason(introspected.accountId)) === "idle"
+	) {
+		return asleepRead(url.pathname);
+	}
 	if (state === "stopped") {
 		// Review fix 3b: introspect already confirmed creditsOk (checked
 		// above) — a stopped tenant whose balance is fine just hasn't been
@@ -353,6 +365,23 @@ function emptyRead(pathname: string): Response {
 		{ status: 404 },
 	);
 }
+
+/** A read against an idle-stopped stack. Opening the dashboard must not
+ *  restart a billed stack that nothing is using: idle means no subgraphs and
+ *  no active webhooks, so subgraph reads answer as if empty, and the rest
+ *  answer 503 `asleep` with no Retry-After. A write, or a read with `?wake`,
+ *  starts it. */
+function asleepRead(pathname: string): Response {
+	if (
+		pathname.startsWith("/api/subgraphs") ||
+		pathname.startsWith("/v1/subgraphs")
+	) {
+		return emptyRead(pathname);
+	}
+	return Response.json({ error: "asleep", code: ASLEEP_CODE }, { status: 503 });
+}
+
+const ASLEEP_CODE = "STACK_ASLEEP";
 
 function withRetryAfter(res: Response, seconds: number): Response {
 	res.headers.set("Retry-After", String(seconds));
