@@ -8,6 +8,11 @@ import {
 } from "@/components/dashboard/insight/insight-actions";
 import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import {
+	Checklist,
+	type ChecklistStep,
+	PlaceholderRows,
+} from "@/components/dashboard/shell/onboarding";
+import {
 	ResourceRow,
 	ResourceRowHead,
 } from "@/components/dashboard/shell/resource-row";
@@ -26,6 +31,16 @@ import {
 import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
+import {
+	type OnboardingProgress,
+	READ_COMMAND,
+	onboardingProgress,
+} from "@/lib/onboarding";
+import {
+	refreshList as refreshSubgraphs,
+	useSubgraphsCache,
+} from "@/lib/subgraphs-store";
+import { poll as pollSubgraphs } from "@/lib/subgraphs-store";
 import type { ApiKey } from "@/lib/types";
 import {
 	type Burn,
@@ -37,11 +52,13 @@ import {
 	latestMemoryHour,
 	monthLabel,
 	monthParam,
+	nextMonthLabel,
 } from "@/lib/usage";
 import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { overviewKeys } from "../keys/key-view";
+import { type ReactNode, useEffect, useState } from "react";
+import { countedKeys, overviewKeys } from "../keys/key-view";
+import { NewKeyFlow } from "../keys/new-key-flow";
 import { OverviewRowsRow } from "../rows/rows-panel";
 import { OverviewSubgraphsRows } from "../subgraphs/list-screen";
 import {
@@ -49,7 +66,7 @@ import {
 	type WebhookRowModel,
 	useWebhookRows,
 } from "../webhooks/rows";
-import { shortenName } from "../webhooks/shared";
+import { CliLine, shortenName } from "../webhooks/shared";
 import { ageShort, last24 } from "../webhooks/view";
 
 /** The webhook rows refresh this often while the tab is visible. */
@@ -241,10 +258,13 @@ function MonthPanel({
 	billing,
 	burn,
 	deliveredRows,
+	fresh = false,
 }: {
 	billing: Billing | null;
 	burn: Burn | null;
 	deliveredRows: number | null;
+	/** A new account: nothing spent, nothing to pay, the free rows untouched. */
+	fresh?: boolean;
 }) {
 	const runway = daysLeftLabel(daysLeft(billing, burn));
 	return (
@@ -255,31 +275,130 @@ function MonthPanel({
 					Billing ›
 				</Link>
 			</div>
-			<div className="dash-big">
-				{billing ? formatUsd(billing.spentThisMonthUsdMicros) : "–"}{" "}
-				<span>
-					spent
-					{billing
-						? ` · ${formatUsd(billing.creditsUsdMicros)} left${runway ? `, ${runway}` : ""}`
-						: ""}
-				</span>
-			</div>
-			{deliveredRows !== null ? (
-				<Meter
-					used={Math.min(deliveredRows, ROWS_ALLOWANCE)}
-					total={ROWS_ALLOWANCE}
-					label="Free rows used this month"
-					left={`${formatRows(Math.min(deliveredRows, ROWS_ALLOWANCE))} of ${formatRows(ROWS_ALLOWANCE)} free rows used`}
-					right={
-						deliveredRows > ROWS_ALLOWANCE
-							? `${formatRows(deliveredRows - ROWS_ALLOWANCE)} paid`
-							: undefined
-					}
-				/>
-			) : null}
+			{fresh ? (
+				<>
+					<div className="dash-big">
+						$0.00 <span>spent · nothing to pay</span>
+					</div>
+					<Meter
+						used={0}
+						total={ROWS_ALLOWANCE}
+						label="Free rows used this month"
+						left={`0 of ${formatRows(ROWS_ALLOWANCE)} free rows`}
+						right={`resets ${nextMonthLabel(currentUtcMonth())}`}
+					/>
+				</>
+			) : (
+				<>
+					<div className="dash-big">
+						{billing ? formatUsd(billing.spentThisMonthUsdMicros) : "–"}{" "}
+						<span>
+							spent
+							{billing
+								? ` · ${formatUsd(billing.creditsUsdMicros)} left${runway ? `, ${runway}` : ""}`
+								: ""}
+						</span>
+					</div>
+					{deliveredRows !== null ? (
+						<Meter
+							used={Math.min(deliveredRows, ROWS_ALLOWANCE)}
+							total={ROWS_ALLOWANCE}
+							label="Free rows used this month"
+							left={`${formatRows(Math.min(deliveredRows, ROWS_ALLOWANCE))} of ${formatRows(ROWS_ALLOWANCE)} free rows used`}
+							right={
+								deliveredRows > ROWS_ALLOWANCE
+									? `${formatRows(deliveredRows - ROWS_ALLOWANCE)} paid`
+									: undefined
+							}
+						/>
+					) : null}
+				</>
+			)}
 		</section>
 	);
 }
+
+/** Where a new account is, for the Overview's checklist. */
+export interface OverviewOnboarding {
+	progress: OnboardingProgress;
+	/** The key just made, or the newest one, for "<name> is ready". */
+	keyName: string | null;
+	/** The name-a-key flow, while it is open. */
+	flow: ReactNode;
+}
+
+function onboardingSteps({ progress, keyName }: OverviewOnboarding) {
+	const current = !progress.key ? 0 : !progress.read ? 1 : 2;
+	const steps: ChecklistStep[] = [
+		{
+			title: "Make a key",
+			body: progress.key
+				? `${keyName ?? "Your key"} is ready. It's in Keys whenever you need another.`
+				: "One per place it runs: your laptop, CI, an agent.",
+			done: progress.key,
+			current: current === 0,
+		},
+		{
+			title: "Read your first rows",
+			body: "Five sBTC and token transfers, straight from the chain. Rows are free up to 1M a month.",
+			done: progress.read,
+			current: current === 1,
+			extra: <CliLine command={READ_COMMAND} />,
+		},
+		{
+			title: "Get events pushed to you",
+			body: (
+				<>
+					A <Link href="/account/webhooks">webhook</Link> posts them to your
+					server. A <Link href="/account/subgraphs">subgraph</Link> turns them
+					into your own tables.
+				</>
+			),
+			done: progress.push,
+			current: current === 2,
+		},
+	];
+	return steps;
+}
+
+/** The sentence and sub-line over a new account's checklist. */
+function OnboardingSentence({ progress }: { progress: OnboardingProgress }) {
+	if (!progress.key) {
+		return (
+			<StatusSentence
+				tone="idle"
+				sub="The SDK, the CLI and your agents all read with it. The first 1M rows each month are free, no card needed."
+			>
+				Make a key to start.
+			</StatusSentence>
+		);
+	}
+	if (!progress.read) {
+		return (
+			<StatusSentence
+				tone="ok"
+				sub="Your first read shows up under Rows within a minute."
+			>
+				Your key works. Read something with it.
+			</StatusSentence>
+		);
+	}
+	return (
+		<StatusSentence
+			tone="ok"
+			sub="A webhook posts them to your server. A subgraph turns them into your own tables."
+		>
+			Your key is reading. Get events pushed to you next.
+		</StatusSentence>
+	);
+}
+
+const OVERVIEW_PLACEHOLDERS = [
+	{ state: 72, count: 40 },
+	{ state: 58, count: 52 },
+	{ state: 66, count: 34 },
+	{ state: 48, count: 44 },
+];
 
 export interface OverviewBodyProps {
 	/** Null until the webhook list has loaded. */
@@ -296,6 +415,8 @@ export interface OverviewBodyProps {
 	accountInsights?: readonly Insight[];
 	/** The hosted stack stopped because every webhook is paused. */
 	asleep?: boolean;
+	/** A new account's checklist; the normal Overview shows once it is complete. */
+	onboarding?: OverviewOnboarding | null;
 }
 
 /** The Overview: one sentence, a row per resource, and the month. */
@@ -309,7 +430,9 @@ export function OverviewBody({
 	now = new Date(),
 	accountInsights = [],
 	asleep = false,
+	onboarding = null,
 }: OverviewBodyProps) {
+	const guide = onboarding && !onboarding.progress.complete ? onboarding : null;
 	const attention = rows?.filter((r) => r.state.tone === "alarm").length ?? 0;
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
 	const quiet = rows?.filter((r) => r.webhook.lastDeliveryAt === null) ?? [];
@@ -323,7 +446,13 @@ export function OverviewBody({
 
 	return (
 		<>
-			{rows === null && asleep ? (
+			{guide ? (
+				<>
+					<OnboardingSentence progress={guide.progress} />
+					{guide.flow}
+					<Checklist steps={onboardingSteps(guide)} />
+				</>
+			) : rows === null && asleep ? (
 				<StatusSentence
 					tone="idle"
 					sub="Every webhook is paused, so it isn't billed. Wake it from Webhooks."
@@ -349,25 +478,77 @@ export function OverviewBody({
 				</StatusSentence>
 			)}
 
-			<div className="dash-rows">
-				<ResourceRowHead
-					labels={["Resource", "State", "Last 24h", "Count", "Last"]}
+			{guide && !guide.progress.key ? (
+				<PlaceholderRows
+					rows={OVERVIEW_PLACEHOLDERS}
+					note="These fill in as you go."
 				/>
-				{active.map((model) => (
-					<WebhookRow key={model.webhook.id} model={model} />
-				))}
-				<QuietGroup models={quiet} />
-				<OverviewRowsSlot />
-				<OverviewKeysRow keys={keys} now={now} />
-				<StackRow stack={stack} burn={burn} />
-				<OverviewSubgraphsSlot />
-			</div>
+			) : (
+				<div className="dash-rows">
+					<ResourceRowHead
+						labels={["Resource", "State", "Last 24h", "Count", "Last"]}
+					/>
+					{active.map((model) => (
+						<WebhookRow key={model.webhook.id} model={model} />
+					))}
+					<QuietGroup models={quiet} />
+					<OverviewRowsSlot />
+					<OverviewKeysRow keys={keys} now={now} />
+					<StackRow stack={stack} burn={burn} />
+					<OverviewSubgraphsSlot />
+				</div>
+			)}
 
 			<ActionableInsights insights={accountInsights} />
 
-			<MonthPanel billing={billing} burn={burn} deliveredRows={deliveredRows} />
+			<MonthPanel
+				billing={billing}
+				burn={burn}
+				deliveredRows={deliveredRows}
+				fresh={guide !== null && !guide.progress.key}
+			/>
 		</>
 	);
+}
+
+/**
+ * The new-account checklist for the Overview, or null when it does not apply.
+ * The name-a-key flow stays up through the key being made (the keys list
+ * changes under it) until its Done.
+ */
+function useOnboarding({
+	keys,
+	now,
+	pushed,
+	settled,
+}: {
+	keys: ApiKey[] | null;
+	now: Date;
+	pushed: boolean;
+	settled: boolean;
+}): OverviewOnboarding | null {
+	const progress = onboardingProgress(keys, now, pushed);
+	const [flowOpen, setFlowOpen] = useState(false);
+	const [made, setMade] = useState<string | null>(null);
+	// The flow opens the first time we see an account with no key, and stays
+	// open when that changes under it.
+	if (keys !== null && !progress.key && !flowOpen && made === null) {
+		setFlowOpen(true);
+	}
+	if (keys === null || (!settled && progress.key)) return null;
+
+	const newest = countedKeys(keys, now).at(-1);
+	return {
+		progress,
+		keyName: made ?? newest?.name ?? null,
+		flow: flowOpen ? (
+			<NewKeyFlow
+				dismissible={false}
+				onCreated={(_key, name) => setMade(name)}
+				onClose={() => setFlowOpen(false)}
+			/>
+		) : null,
+	};
 }
 
 /** /account: is everything running, what needs you, what it costs. */
@@ -407,6 +588,30 @@ export function OverviewSection() {
 		}, POLL_MS);
 	}, [stackExists]);
 
+	// Subgraphs are listed through the same stack; step three needs to know.
+	useEffect(() => {
+		if (!stackExists) return;
+		return pollSubgraphs(async () => {
+			const res = await refreshSubgraphs();
+			return res.kind === "starting" || res.kind === "rate_limited"
+				? { retryAfterMs: res.retryAfter * 1000 }
+				: {};
+		}, POLL_MS);
+	}, [stackExists]);
+
+	const subgraphs = useSubgraphsCache().list;
+	const now = new Date();
+	const onboarding = useOnboarding({
+		keys,
+		now,
+		pushed: (rows?.length ?? 0) > 0 || (subgraphs?.data.length ?? 0) > 0,
+		// Don't flash the checklist at an account whose webhooks and subgraphs
+		// have not loaded yet.
+		settled:
+			service !== null &&
+			(service.state === "none" || (rows !== null && subgraphs !== undefined)),
+	});
+
 	const monthRows = usage[month];
 	return (
 		<OverviewBody
@@ -419,6 +624,7 @@ export function OverviewSection() {
 			keys={keys}
 			accountInsights={forAccountRules(insights, OVERVIEW_ACCOUNT_RULES)}
 			asleep={asleep}
+			onboarding={onboarding}
 		/>
 	);
 }

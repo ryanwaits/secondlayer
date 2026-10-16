@@ -137,7 +137,8 @@ export function NameStep({
 	initialName?: string;
 	cancelLabel?: string;
 	onSubmit: (name: string) => void;
-	onCancel: () => void;
+	/** Without it the step has no Cancel: the flow is the screen's only job. */
+	onCancel?: () => void;
 }) {
 	const [name, setName] = useState(initialName);
 	const [tried, setTried] = useState(false);
@@ -154,7 +155,7 @@ export function NameStep({
 				onSubmit(name.trim());
 			}}
 			onKeyDown={(e) => {
-				if (e.key === "Escape" && !busy) onCancel();
+				if (e.key === "Escape" && !busy) onCancel?.();
 			}}
 		>
 			<label htmlFor="nk-name" className="nk-label">
@@ -194,14 +195,16 @@ export function NameStep({
 				<button type="submit" className="acct-btn solid small" disabled={busy}>
 					{busy ? "Creating…" : "Create key"}
 				</button>
-				<button
-					type="button"
-					className="acct-btn line small"
-					onClick={onCancel}
-					disabled={busy}
-				>
-					{cancelLabel}
-				</button>
+				{onCancel ? (
+					<button
+						type="button"
+						className="acct-btn line small"
+						onClick={onCancel}
+						disabled={busy}
+					>
+						{cancelLabel}
+					</button>
+				) : null}
 			</div>
 		</form>
 	);
@@ -321,6 +324,7 @@ export function NewKeyFlow({
 	initial,
 	create = createKey,
 	cancelLabel = "Cancel",
+	dismissible = true,
 	onCreated,
 	onClose,
 }: {
@@ -328,6 +332,8 @@ export function NewKeyFlow({
 	initial?: { key: string; name: string } | null;
 	create?: (name: string) => Promise<string>;
 	cancelLabel?: string;
+	/** False when the flow is the screen's only job: no Cancel on the name step. */
+	dismissible?: boolean;
 	/** The key exists; the whole value is still on screen. */
 	onCreated?: (key: string, name: string) => void;
 	/** Done, Close anyway or Cancel. */
@@ -361,7 +367,7 @@ export function NewKeyFlow({
 			error={error}
 			cancelLabel={cancelLabel}
 			onSubmit={submit}
-			onCancel={onClose}
+			onCancel={dismissible ? onClose : undefined}
 		/>
 	);
 }

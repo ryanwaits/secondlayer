@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules } from "@/lib/insights-store";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
+import type { OnboardingProgress } from "@/lib/onboarding";
 import type { ApiKey } from "@/lib/types";
 import { renderToStaticMarkup } from "react-dom/server";
 import { rowModel } from "../webhooks/rows";
@@ -235,5 +236,64 @@ describe("OverviewKeysRow", () => {
 		);
 		expect(html.indexOf("1 key ·")).toBeGreaterThan(-1);
 		expect(html.indexOf("1 key ·")).toBeLessThan(html.indexOf("hosted stack"));
+	});
+});
+
+describe("OverviewBody for a new account", () => {
+	const flow = <form data-testid="name-step">Name it for where it runs</form>;
+	const guide = (
+		progress: Partial<OnboardingProgress>,
+		keyName: string | null = null,
+	) => ({
+		progress: {
+			key: false,
+			read: false,
+			push: false,
+			complete: false,
+			...progress,
+		},
+		keyName,
+		flow,
+	});
+	const html = (onboarding: ReturnType<typeof guide>) =>
+		renderToStaticMarkup(
+			<OverviewBody {...base} rows={[]} onboarding={onboarding} />,
+		);
+
+	test("no key asks for one, shows the name step and the placeholders", () => {
+		const out = html(guide({}));
+		expect(out).toContain("Make a key to start.");
+		expect(out).toContain(
+			"The first 1M rows each month are free, no card needed.",
+		);
+		expect(out).toContain("Name it for where it runs");
+		expect(out).toContain("These fill in as you go.");
+		expect(out).toContain("$0.00");
+		expect(out).toContain("0 of 1M free rows");
+		expect(out).not.toContain("Checking your account.");
+	});
+
+	test("a key that has not read yet checks step one and shows the read command", () => {
+		const out = html(guide({ key: true }, "laptop"));
+		expect(out).toContain("Your key works. Read something with it.");
+		expect(out).toContain(
+			"laptop is ready. It&#x27;s in Keys whenever you need another.",
+		);
+		expect(out).toContain("sl index ft-transfers --limit 5");
+		expect(out).not.toContain("These fill in as you go.");
+	});
+
+	test("step three links its words to the webhook and subgraph tabs", () => {
+		const out = html(guide({}));
+		expect(out).toContain('href="/account/webhooks"');
+		expect(out).toContain('href="/account/subgraphs"');
+	});
+
+	test("a completed checklist gives way to the normal Overview", () => {
+		const out = html(
+			guide({ key: true, read: true, push: true, complete: true }),
+		);
+		expect(out).not.toContain("Your key works");
+		expect(out).toContain("No webhooks yet.");
 	});
 });
