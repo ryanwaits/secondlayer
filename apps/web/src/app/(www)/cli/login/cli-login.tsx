@@ -87,8 +87,8 @@ export function CliLoginCard({
 						</p>
 						<p className="login-sent-desc">Close this tab.</p>
 						<p className="login-disclaimer">
-							Find it under Keys, where you can revoke it any time.{" "}
-							<a href="/account/keys">Open Keys</a>
+							Find it under <a href="/account/keys">Keys</a>, where you can
+							revoke it any time.
 						</p>
 					</div>
 				)}
