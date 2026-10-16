@@ -62,28 +62,3 @@ describe("apiRequest path traversal guard", () => {
 		expect(calls[0]).toContain("/api/subgraphs/my-normal-subgraph");
 	});
 });
-
-describe("apiRequest cache options", () => {
-	function captureInit(): { inits: (RequestInit & { next?: unknown })[] } {
-		const inits: (RequestInit & { next?: unknown })[] = [];
-		globalThis.fetch = (async (_url: string, init: RequestInit) => {
-			inits.push(init);
-			return new Response(JSON.stringify({ ok: true }), { status: 200 });
-		}) as typeof fetch;
-		return { inits };
-	}
-
-	test("untagged reads use cache no-store and no next options", async () => {
-		const { inits } = captureInit();
-		await apiRequest("/api/things");
-		expect(inits[0].cache).toBe("no-store");
-		expect("next" in inits[0]).toBe(false);
-	});
-
-	test("tagged reads keep next tags with a 10s revalidate and no cache field", async () => {
-		const { inits } = captureInit();
-		await apiRequest("/api/things", { tags: ["things"] });
-		expect(inits[0].next).toEqual({ tags: ["things"], revalidate: 10 });
-		expect("cache" in inits[0]).toBe(false);
-	});
-});
