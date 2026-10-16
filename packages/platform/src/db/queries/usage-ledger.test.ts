@@ -12,7 +12,7 @@ import { ROWS_DELIVERED_MONTHLY_ALLOWANCE } from "../../billing/prices.ts";
 import {
 	creditsAdded,
 	hostedStackSnapshot,
-	rowsByKeyLast30d,
+	rowsByKeyDaily,
 	rowsBySource,
 	rowsDaily,
 	rowsHourlyToday,
@@ -147,11 +147,12 @@ describe.skipIf(!HAS_DB)(
 	},
 );
 
-describe.skipIf(!HAS_DB)("rowsByKeyLast30d", () => {
-	test("sums recent attributed reads per key, ignoring old and unattributed rows", async () => {
+describe.skipIf(!HAS_DB)("rowsByKeyDaily", () => {
+	test("gives each key 30 oldest-first days, zero-filled, ignoring old and unattributed rows", async () => {
 		const now = new Date("2026-10-15T12:00:00.000Z");
 		const keyA = crypto.randomUUID();
 		const keyB = crypto.randomUUID();
+		const keyC = crypto.randomUUID();
 		const read = (
 			suffix: string,
 			quantity: number,
@@ -163,21 +164,32 @@ describe.skipIf(!HAS_DB)("rowsByKeyLast30d", () => {
 				unit: "rows.delivered",
 				quantity,
 				source: "test",
-				idempotencyKey: `by-key-${suffix}-${accountId}`,
+				idempotencyKey: `by-key-daily-${suffix}-${accountId}`,
 				occurredAt,
 				apiKeyId,
 			});
-		await read("a1", 10, new Date("2026-10-10T00:00:00.000Z"), keyA);
-		await read("a2", 5, new Date("2026-10-14T00:00:00.000Z"), keyA);
-		// Outside the 30-day window.
-		await read("a-old", 100, new Date("2026-09-01T00:00:00.000Z"), keyA);
+		await read("a1", 10, new Date("2026-10-10T03:00:00.000Z"), keyA);
+		await read("a1b", 4, new Date("2026-10-10T20:00:00.000Z"), keyA);
+		await read("a2", 5, new Date("2026-10-15T01:00:00.000Z"), keyA);
+		// First day of the window: 2026-09-16.
+		await read("b1", 3, new Date("2026-09-16T00:30:00.000Z"), keyB);
+		// Outside the window.
+		await read("a-old", 100, new Date("2026-09-15T23:00:00.000Z"), keyA);
+		await read("c-old", 100, new Date("2026-09-01T00:00:00.000Z"), keyC);
 		// Unattributed: counted for no key.
 		await read("none", 7, new Date("2026-10-12T00:00:00.000Z"), null);
 
-		const totals = await rowsByKeyLast30d(db, accountId, now);
-		expect(totals.get(keyA)).toBe(15);
-		expect(totals.has(keyB)).toBe(false);
-		expect(totals.size).toBe(1);
+		const series = await rowsByKeyDaily(db, accountId, now);
+		const a = series.get(keyA);
+		expect(a).toHaveLength(30);
+		// 2026-10-10 is day 24 of the window, today (10-15) is day 29.
+		expect(a?.[24]).toBe(14);
+		expect(a?.[29]).toBe(5);
+		expect(a?.reduce((x, y) => x + y, 0)).toBe(19);
+		expect(a?.[0]).toBe(0);
+		expect(series.get(keyB)?.[0]).toBe(3);
+		expect(series.has(keyC)).toBe(false);
+		expect(series.size).toBe(2);
 	});
 });
 

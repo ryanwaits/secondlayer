@@ -29,6 +29,8 @@ export interface ApiKey {
 	expiresAt?: string | null;
 	/** Rows delivered with this key in the last 30 days; absent from older API builds. */
 	rows30d?: number;
+	/** Rows delivered per UTC day over the last 30 days, oldest first; absent from older API builds. */
+	rowsDaily?: number[];
 }
 
 /** One top-up or grant from `GET /api/billing/credits`. Mirrors `CreditAdded`

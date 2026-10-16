@@ -378,31 +378,6 @@ export async function hostedStackSnapshot(
 	};
 }
 
-/** Rows delivered per API key over the 30 days before `now`, for the keys
- *  list. Keys with no attributed reads are absent; rows with a NULL key
- *  (older rows, session and internal callers) are not counted. */
-export async function rowsByKeyLast30d(
-	db: Kysely<Database>,
-	accountId: string,
-	now: Date = new Date(),
-): Promise<Map<string, number>> {
-	const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-	const rows = await db
-		.selectFrom("usage_ledger")
-		.select((eb) => ["api_key_id", eb.fn.sum<string>("quantity").as("total")])
-		.where("account_id", "=", accountId)
-		.where("unit", "=", "rows.delivered")
-		.where("api_key_id", "is not", null)
-		.where("occurred_at", ">=", since)
-		.groupBy("api_key_id")
-		.execute();
-	const totals = new Map<string, number>();
-	for (const row of rows) {
-		if (row.api_key_id) totals.set(row.api_key_id, Number(row.total ?? 0));
-	}
-	return totals;
-}
-
 const ROWS_UNIT = "rows.delivered";
 
 /** UTC midnight that opens a window of `days` calendar days ending with
@@ -412,6 +387,51 @@ function windowStart(now: Date, days: number): Date {
 		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) -
 			(days - 1) * 24 * 60 * 60 * 1000,
 	);
+}
+
+/** Rows delivered per API key per UTC day over the trailing `days` days, for
+ *  the keys list. Each key maps to `days` numbers, oldest first, zero where
+ *  it read nothing. Keys with no attributed reads are absent; rows with a NULL
+ *  key (older rows, session and internal callers) are not counted. */
+export async function rowsByKeyDaily(
+	db: Kysely<Database>,
+	accountId: string,
+	now: Date = new Date(),
+	days = 30,
+): Promise<Map<string, number[]>> {
+	const start = windowStart(now, days);
+	const dayExpr = sql`date_trunc('day', occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`;
+	const rows = await db
+		.selectFrom("usage_ledger")
+		.select((eb) => [
+			"api_key_id",
+			sql<Date>`date_trunc('day', occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`.as(
+				"day",
+			),
+			eb.fn.sum<string>("quantity").as("total"),
+		])
+		.where("account_id", "=", accountId)
+		.where("unit", "=", ROWS_UNIT)
+		.where("api_key_id", "is not", null)
+		.where("occurred_at", ">=", start)
+		.where("occurred_at", "<=", now)
+		.groupBy("api_key_id")
+		.groupBy(dayExpr)
+		.execute();
+	const series = new Map<string, number[]>();
+	for (const row of rows) {
+		if (!row.api_key_id) continue;
+		let values = series.get(row.api_key_id);
+		if (!values) {
+			values = new Array<number>(days).fill(0);
+			series.set(row.api_key_id, values);
+		}
+		const index = Math.round(
+			(new Date(row.day).getTime() - start.getTime()) / 86_400_000,
+		);
+		if (index >= 0 && index < days) values[index] = Number(row.total ?? 0);
+	}
+	return series;
 }
 
 export type RowsDay = {
