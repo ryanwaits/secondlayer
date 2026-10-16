@@ -90,6 +90,7 @@ CONTROL_TABLES=(
   waitlists
   waitlist_signups
   api_failed_requests
+  api_request_log
   feedback_tickets
   contact_requests
 )

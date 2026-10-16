@@ -1046,6 +1046,7 @@ export interface Database {
 	waitlist_signups: WaitlistSignupsTable;
 	contact_requests: ContactRequestsTable;
 	api_failed_requests: ApiFailedRequestsTable;
+	api_request_log: ApiRequestLogTable;
 	feedback_tickets: FeedbackTicketsTable;
 }
 
@@ -1425,6 +1426,30 @@ export interface ApiFailedRequestsTable {
 
 export type ApiFailedRequest = Selectable<ApiFailedRequestsTable>;
 export type InsertApiFailedRequest = Insertable<ApiFailedRequestsTable>;
+
+/**
+ * 7-day hosted log of account-attributed Index/Streams reads. Query values
+ * are stored only as hashes; never bodies, headers or tokens.
+ */
+export interface ApiRequestLogTable {
+	id: Generated<string>;
+	request_id: string | null;
+	account_id: string;
+	api_key_id: string | null;
+	method: string;
+	path: string;
+	path_template: string;
+	params_hash: string | null;
+	cursor_hash: string | null;
+	page_size: number | null;
+	rows: number | null;
+	status: number;
+	duration_ms: number;
+	created_at: Generated<Date>;
+}
+
+export type ApiRequestLogRow = Selectable<ApiRequestLogTable>;
+export type InsertApiRequestLogRow = Insertable<ApiRequestLogTable>;
 
 /**
  * Hosted problem report. `attempted` is the server's own copy of the failed

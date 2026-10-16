@@ -1,4 +1,5 @@
 import { insertFailedRequest } from "@secondlayer/platform/db/queries/api-failed-requests";
+import { insertRequestLog } from "@secondlayer/platform/db/queries/api-request-log";
 import { getDb } from "@secondlayer/shared/db";
 import type { InstanceMode } from "@secondlayer/shared/mode";
 import { Hono, type MiddlewareHandler } from "hono";
@@ -11,6 +12,7 @@ import { errorEnvelope } from "./middleware/error-envelope.ts";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
 import { requestId } from "./middleware/request-id.ts";
+import { requestLog } from "./middleware/request-log.ts";
 import accountsRouter from "./routes/accounts.ts";
 import archiveVerifyRouter from "./routes/archive-verify.ts";
 import archiveRouter from "./routes/archive.ts";
@@ -126,6 +128,15 @@ export function createApiApp(mode: InstanceMode): Hono {
 					: undefined,
 		}),
 	);
+	// Hosted: 7-day log of account-attributed Index/Streams reads. A new
+	// account-attributed /v1 read surface must be added here.
+	if (mode === "platform") {
+		const logRead = requestLog({
+			record: (row) => insertRequestLog(getDb(), row),
+		});
+		app.use("/v1/index/*", logRead);
+		app.use("/v1/streams/*", logRead);
+	}
 	app.use("/v1/*", publicCors);
 	// Self-host: the read plane is open on a loopback bind and needs the
 	// instance token past it. Index/Streams/subgraphs enforce this themselves

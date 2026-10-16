@@ -102,6 +102,8 @@ export const TABLE_TO_DB = {
 	contact_requests: "target",
 	// ── TARGET: 24h hosted failed-request record (feedback evidence) ──
 	api_failed_requests: "target",
+	// ── TARGET: 7-day account read log (dashboard insight evidence) ──
+	api_request_log: "target",
 	// ── TARGET: hosted problem reports ──
 	feedback_tickets: "target",
 	// ── BOTH ──

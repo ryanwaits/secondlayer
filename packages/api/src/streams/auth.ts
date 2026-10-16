@@ -26,6 +26,8 @@ export type StreamsEnv = {
 		/** Unset on an anonymous loopback read — Streams has no tenant then. */
 		streamsTenant?: StreamsTenant;
 		streamsTip: StreamsTip;
+		/** Rows in the page just served; read by the request log. */
+		rowsServed?: number;
 		/** Set by the credits gate when a free account is on pay-as-you-go:
 		 *  bypasses retention + rate limit, debited per row read. */
 		credited?: { accountId: string; balance: bigint };

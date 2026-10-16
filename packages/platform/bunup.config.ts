@@ -9,6 +9,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/usage-ledger.ts",
 		"src/db/queries/account-balance-alerts.ts",
 		"src/db/queries/api-failed-requests.ts",
+		"src/db/queries/api-request-log.ts",
 		"src/billing/prices.ts",
 		"src/billing/meter.ts",
 		"src/billing/runway.ts",

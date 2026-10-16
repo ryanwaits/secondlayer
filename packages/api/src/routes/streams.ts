@@ -304,6 +304,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 				readEvents: opts.readBitcoinEvents,
 				readReorgs: readBitcoinReorgs,
 			});
+			c.set("rowsServed", response.events.length);
 			const accountId = c.get("streamsTenant")?.account_id;
 			if (accountId && response.events.length > 0) {
 				await debitStreamsCreditedRead(c, response.events);
@@ -350,6 +351,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 				return c.body(null, 304);
 			}
 		}
+		c.set("rowsServed", response.events.length);
 		const accountId = c.get("streamsTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
 			await debitStreamsCreditedRead(c, response.events);
@@ -436,6 +438,8 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 						: JSON.stringify({ event });
 					await stream.writeSSE({ data, id: event.cursor });
 				}
+				// No rowsServed here: the response returns before batches are written,
+				// so the request log records this request with rows: null.
 				if (response.events.length > 0) {
 					if (accountId) {
 						await debitStreamsCreditedRead(c, response.events);
@@ -535,6 +539,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 						lastEvent.block_height <= tip.finalized_height,
 				),
 			);
+			c.set("rowsServed", result.events.length);
 			const accountId = c.get("streamsTenant")?.account_id;
 			if (accountId) {
 				await debitStreamsCreditedRead(c, result.events);
@@ -571,6 +576,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			"Cache-Control",
 			streamsCacheControl(isFinalizedHeight(lastEvent?.block_height, tip)),
 		);
+		c.set("rowsServed", result.events.length);
 		const accountId = c.get("streamsTenant")?.account_id;
 		if (accountId) {
 			await debitStreamsCreditedRead(c, result.events);
@@ -627,6 +633,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 						firstEvent.block_height <= tip.finalized_height,
 				),
 			);
+			c.set("rowsServed", result.events.length);
 			const accountId = c.get("streamsTenant")?.account_id;
 			if (accountId) {
 				await debitStreamsCreditedRead(c, result.events);
@@ -668,6 +675,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			"Cache-Control",
 			streamsCacheControl(isFinalizedHeight(firstEvent?.block_height, tip)),
 		);
+		c.set("rowsServed", result.events.length);
 		const accountId = c.get("streamsTenant")?.account_id;
 		if (accountId) {
 			await debitStreamsCreditedRead(c, result.events);

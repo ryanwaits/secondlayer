@@ -4,6 +4,7 @@ import { startBalanceAlertCron } from "./jobs/balance-alert.ts";
 import { startCreditsRefillCron } from "./jobs/credits-refill.ts";
 import { startFailedRequestsPurgeCron } from "./jobs/failed-requests-purge.ts";
 import { startFeedbackClassifyCron } from "./jobs/feedback-classify.ts";
+import { startRequestLogPurgeCron } from "./jobs/request-log-purge.ts";
 import { startSpendCapAlertCron } from "./jobs/spend-cap-alert.ts";
 
 let running = true;
@@ -18,6 +19,7 @@ async function runWorker() {
 		startCreditsRefillCron(),
 		startBalanceAlertCron(),
 		startFailedRequestsPurgeCron(),
+		startRequestLogPurgeCron(),
 		startFeedbackClassifyCron(),
 	];
 

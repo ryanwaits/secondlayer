@@ -28,6 +28,8 @@ export type IndexEnv = {
 	Variables: {
 		indexTenant?: IndexTenant;
 		indexTip: IndexTip;
+		/** Rows in the page just served; read by the request log. */
+		rowsServed?: number;
 		/** Set by the credits gate when a free account is on pay-as-you-go:
 		 *  bypasses the free window + rate limit, debited per row read. */
 		credited?: { accountId: string; balance: bigint };

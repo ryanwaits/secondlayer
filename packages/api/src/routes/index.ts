@@ -257,6 +257,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	 * callers and empty pages. Call AFTER the cache check — a 304 must not debit.
 	 */
 	const meterRows = async (c: Context<IndexEnv>, rows: readonly unknown[]) => {
+		c.set("rowsServed", rows.length);
 		if (!isPlatformMode()) return;
 		const accountId = c.get("indexTenant")?.account_id;
 		if (!accountId || rows.length === 0) return;
