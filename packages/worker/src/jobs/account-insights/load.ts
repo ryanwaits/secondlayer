@@ -15,13 +15,14 @@ import type { AccountRuleInput } from "./rules.ts";
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 /** Safety cap on one account's 24 hours of request-log rows. */
-const REQUEST_LOG_MAX_ROWS = 50_000;
+export const REQUEST_LOG_MAX_ROWS = 50_000;
 
 /** Everything the account rules read, for one account. */
 export async function loadAccountInput(
 	db: Kysely<Database>,
 	accountId: string,
 	now: Date = new Date(),
+	requestLogLimit: number = REQUEST_LOG_MAX_ROWS,
 ): Promise<AccountRuleInput> {
 	const since24h = new Date(now.getTime() - DAY_MS);
 	const since1h = new Date(now.getTime() - HOUR_MS);
@@ -48,9 +49,12 @@ export async function loadAccountInput(
 				eb("path_template", "like", "/v1/streams%"),
 			]),
 		)
-		.orderBy("created_at", "asc")
-		.limit(REQUEST_LOG_MAX_ROWS)
+		// Newest first so the limit keeps the recent rows the rules need.
+		.orderBy("created_at", "desc")
+		.limit(requestLogLimit)
 		.execute();
+	// The rules read oldest first.
+	requestRows.reverse();
 
 	const failedRows = await db
 		.selectFrom("api_failed_requests")

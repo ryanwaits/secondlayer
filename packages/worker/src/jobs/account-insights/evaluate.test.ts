@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
 import { listInsights } from "@secondlayer/shared/insights";
 import { evaluateAccountInsights } from "./evaluate.ts";
-import { listActiveAccountIds } from "./load.ts";
+import { listActiveAccountIds, loadAccountInput } from "./load.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const db = HAS_DB ? getDb() : (null as never);
@@ -176,6 +176,18 @@ describe.skipIf(!HAS_DB)("evaluateAccountInsights", () => {
 			.deleteFrom("account_credits")
 			.where("account_id", "=", accountId)
 			.execute();
+	});
+
+	test("a request log over the row limit keeps the newest rows, oldest first", async () => {
+		const accountId = await makeAccount();
+		for (const ago of [50, 40, 30, 20, 10]) {
+			await db
+				.insertInto("api_request_log")
+				.values(logRow(accountId, { created_at: minutesAgo(ago), rows: ago }))
+				.execute();
+		}
+		const input = await loadAccountInput(db, accountId, new Date(), 3);
+		expect(input.requests.map((r) => r.rows)).toEqual([30, 20, 10]);
 	});
 
 	test("lists accounts with recent activity or an open insight, not idle ones", async () => {
