@@ -2,6 +2,7 @@ import { getEnv, logger } from "@secondlayer/shared";
 import { assertDbSplit } from "@secondlayer/shared/db";
 import { startAccountInsightsCron } from "./jobs/account-insights/cron.ts";
 import { startBalanceAlertCron } from "./jobs/balance-alert.ts";
+import { startCliDeviceLoginsPurgeCron } from "./jobs/cli-device-logins-purge.ts";
 import { startCreditsRefillCron } from "./jobs/credits-refill.ts";
 import { startFailedRequestsPurgeCron } from "./jobs/failed-requests-purge.ts";
 import { startFeedbackClassifyCron } from "./jobs/feedback-classify.ts";
@@ -21,6 +22,7 @@ async function runWorker() {
 		startBalanceAlertCron(),
 		startFailedRequestsPurgeCron(),
 		startRequestLogPurgeCron(),
+		startCliDeviceLoginsPurgeCron(),
 		startFeedbackClassifyCron(),
 		startAccountInsightsCron(),
 	];
