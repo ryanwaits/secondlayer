@@ -133,6 +133,12 @@ describe("WebhookDetailBody chart", () => {
 		const html = render({ range: "30d", days: [] });
 		expect(html).toContain("Deliveries per day");
 	});
+
+	test("the 30 day view holds the chart's height while counts load", () => {
+		const html = render({ range: "30d", days: [] });
+		expect(html).not.toContain("Loading the last 30 days");
+		expect(html).toContain("wh-skel");
+	});
 });
 
 describe("WebhookDetailBody listens for", () => {
@@ -185,6 +191,15 @@ describe("WebhookDetailBody deliveries", () => {
 		expect(html).toContain("Thu, Oct 8 · 16:00–17:00 UTC");
 		expect(html).toContain("Clear filter");
 		expect(html).not.toContain("Recent deliveries");
+	});
+
+	test("an hour still loading shows five placeholder rows", () => {
+		const html = render({
+			hour: { label: "Thu, Oct 8 · 16:00–17:00 UTC" },
+			hourDeliveries: null,
+		});
+		const body = html.slice(html.indexOf("<tbody"), html.indexOf("</tbody>"));
+		expect(body.split("wh-skel").length - 1).toBe(5);
 	});
 
 	test("an hour with nothing kept says so", () => {

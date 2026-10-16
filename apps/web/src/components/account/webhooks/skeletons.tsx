@@ -59,7 +59,7 @@ export function WebhookDetailSkeleton({
 		<output className="wd-skel" aria-label="Loading webhook" aria-busy="true">
 			{hideHead ? null : <Skel width={240} height={28} />}
 			<div className="wd-facts">
-				{Array.from({ length: 5 }).map((_, i) => (
+				{Array.from({ length: 6 }).map((_, i) => (
 					// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton cells
 					<Skel key={i} width={92} height={36} />
 				))}

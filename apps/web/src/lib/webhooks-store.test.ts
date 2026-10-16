@@ -6,8 +6,10 @@ import type {
 } from "@secondlayer/sdk";
 import { clearRequestCache } from "./request-cache";
 import {
+	MAX_WINDOWS,
 	clearWebhooksData,
 	poll,
+	refreshDeliveriesWindow,
 	refreshDetail,
 	refreshList,
 	webhooksSnapshot,
@@ -206,6 +208,26 @@ describe("refreshDetail", () => {
 		expect(calls.length).toBe(2);
 		expect(res.activity).toBeNull();
 		expect(webhooksSnapshot().activity["wh-3c"]).toBeUndefined();
+	});
+});
+
+describe("refreshDeliveriesWindow", () => {
+	test("keeps the newest windows and drops the oldest past the cap", async () => {
+		globalThis.fetch = (async () =>
+			jsonResponse({ data: [] })) as unknown as typeof fetch;
+		const now = jest.spyOn(Date, "now");
+		for (let i = 0; i <= MAX_WINDOWS; i++) {
+			now.mockReturnValue(1_000 + i);
+			await refreshDeliveriesWindow("w1", {
+				from: `from-${i}`,
+				to: `to-${i}`,
+			});
+		}
+		now.mockRestore();
+		const keys = Object.keys(webhooksSnapshot().deliveriesWindow);
+		expect(keys.length).toBe(MAX_WINDOWS);
+		expect(keys).not.toContain("w1:from-0");
+		expect(keys).toContain(`w1:from-${MAX_WINDOWS}`);
 	});
 });
 

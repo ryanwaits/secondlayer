@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { LazyBandBarChart } from "@/components/charts/lazy";
 import { Choice } from "@/components/choice";
 import { Legend } from "@/components/dashboard/charts/legend";
@@ -10,6 +11,7 @@ import { formatDate } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
 import { type Insight, rankInsights } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
+import { isFresh } from "@/lib/request-cache";
 import {
 	type WebhookActivityDay,
 	hostOf,
@@ -60,6 +62,9 @@ import {
 const DETAIL_POLL_MS = 10_000;
 /** The fast standalone `/activity` poll while events are waiting to send. */
 const ACTIVITY_POLL_MS = 5_000;
+/** Daily counts barely move; an hour window refreshes a little sooner. */
+const DAYS_FRESH_MS = 5 * 60_000;
+const WINDOW_FRESH_MS = 60_000;
 const VISIBLE_GROUPS = 10;
 
 const RANGE_OPTIONS = RANGES.map((value) => ({ value, label: value }));
@@ -341,7 +346,7 @@ function DeliveriesChart({
 				/>
 			</div>
 			{bars.rows.length === 0 ? (
-				<p className="wd-faint">Loading the last 30 days…</p>
+				<ChartSkeleton height={180} />
 			) : (
 				<LazyBandBarChart
 					rows={barsRows(bars.rows, { band: bars.band ?? undefined })}
@@ -404,13 +409,22 @@ function DeliveriesPanel({
 							<th className="r">ms</th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody aria-busy={rows === null}>
 						{rows === null ? (
-							<tr>
-								<td colSpan={5} className="wd-faint wd-empty">
-									Loading…
-								</td>
-							</tr>
+							<>
+								{Array.from({ length: 5 }).map((_, i) => (
+									// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
+									<tr key={i}>
+										<td colSpan={5}>
+											<span
+												className="wh-skel"
+												aria-hidden="true"
+												style={{ display: "block", height: 14 }}
+											/>
+										</td>
+									</tr>
+								))}
+							</>
 						) : groups.length === 0 ? (
 							<tr>
 								<td colSpan={5} className="wd-faint wd-empty">
@@ -644,16 +658,24 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	}, [id]);
 
 	useEffect(() => {
-		if (range === "30d") void refreshDays(id);
+		if (range !== "30d") return;
+		if (
+			webhooksSnapshot().days[id] &&
+			isFresh(`webhooks:days:${id}`, DAYS_FRESH_MS)
+		)
+			return;
+		void refreshDays(id);
 	}, [id, range]);
 
 	const hour = hourWindow(search.get("hour"));
 	const hourFrom = hour?.from;
 	const hourTo = hour?.to;
 	useEffect(() => {
-		if (hourFrom && hourTo) {
-			void refreshDeliveriesWindow(id, { from: hourFrom, to: hourTo });
-		}
+		if (!hourFrom || !hourTo) return;
+		const cached = webhooksSnapshot().deliveriesWindow[`${id}:${hourFrom}`];
+		if (cached && isFresh(`webhooks:window:${id}:${hourFrom}`, WINDOW_FRESH_MS))
+			return;
+		void refreshDeliveriesWindow(id, { from: hourFrom, to: hourTo });
 	}, [id, hourFrom, hourTo]);
 	const hourDeliveries = hourFrom
 		? (cache.deliveriesWindow[`${id}:${hourFrom}`]?.data ?? null)

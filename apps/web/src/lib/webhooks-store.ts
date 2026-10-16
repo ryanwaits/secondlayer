@@ -167,6 +167,9 @@ export function refreshSummary(): Promise<
 	});
 }
 
+/** Hour windows kept per cache; the oldest fall out first. */
+export const MAX_WINDOWS = 20;
+
 /** The deliveries inside one window (an hour from a heat square). */
 export function refreshDeliveriesWindow(
 	id: string,
@@ -176,11 +179,13 @@ export function refreshDeliveriesWindow(
 	return shared(key, async () => {
 		const res = await getDeliveries(id, window);
 		if (res.kind === "ok") {
+			const windows = Object.entries({
+				...current().deliveriesWindow,
+				[`${id}:${window.from}`]: { data: res.data, at: Date.now() },
+			});
+			windows.sort(([, a], [, b]) => (b?.at ?? 0) - (a?.at ?? 0));
 			set({
-				deliveriesWindow: {
-					...current().deliveriesWindow,
-					[`${id}:${window.from}`]: { data: res.data, at: Date.now() },
-				},
+				deliveriesWindow: Object.fromEntries(windows.slice(0, MAX_WINDOWS)),
 			});
 			markFresh(key);
 		}
