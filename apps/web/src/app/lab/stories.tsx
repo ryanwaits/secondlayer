@@ -1038,7 +1038,6 @@ const META: Record<StoryId, Meta> = {
 							<b style={{ fontWeight: 500 }}>secondlayer</b>
 							<DashboardTabs pathname="/account/webhooks" failingWebhooks={1} />
 							<ViewCommand command={LONG_COMMAND} />
-							<kbd className="dash-kbd">⌘K</kbd>
 							<AccountChip
 								account={LAB_ACCOUNT}
 								balance="$29.02"

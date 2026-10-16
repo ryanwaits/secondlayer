@@ -110,12 +110,7 @@ export function MarketingNav() {
 				</>
 			)}
 			<div className="mnav-right">
-				{dash ? (
-					<>
-						{command ? <ViewCommand command={command} /> : null}
-						<kbd className="dash-kbd">⌘K</kbd>
-					</>
-				) : null}
+				{dash && command ? <ViewCommand command={command} /> : null}
 				{!loading && !account ? (
 					<Link
 						href="/signin"

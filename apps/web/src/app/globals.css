@@ -5650,23 +5650,18 @@ a.acct-strip-link:hover .acct-strip-k {
 	color: #fff;
 	text-align: center;
 }
-.dash-kbd {
-	font: 500 11px / 1 var(--font-mono-stack);
-	color: var(--faint);
-	border: 1px solid var(--line);
-	border-radius: 4px;
-	padding: 4px 6px;
-}
 .marketing-nav.is-dash .mnav-right {
 	gap: 14px;
 	margin-left: 14px;
 }
 
-/* The current view's CLI command: a copy bar in the dashboard nav. Click copies. */
+/* The current view's CLI command: a copy bar in the dashboard nav. Click copies.
+ * The wide gap is the old ⌘K chip's slot (chip + nav gap, ~41px), so Copy sits
+ * where the chip was and the bar keeps its left edge. ⌘K still opens the palette. */
 .dash-cmd {
 	display: inline-flex;
 	align-items: center;
-	gap: 10px;
+	gap: 51px;
 	height: 30px;
 	min-width: 0;
 	padding: 0 12px;
@@ -5836,7 +5831,6 @@ a.acct-strip-link:hover .acct-strip-k {
 }
 
 @media (max-width: 900px) {
-	.dash-kbd,
 	.dash-cmd {
 		display: none;
 	}
