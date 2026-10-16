@@ -19,6 +19,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/schemas/index.ts",
 		"src/schemas/subgraphs.ts",
 		"src/schemas/webhooks.ts",
+		"src/schemas/chain-triggers.ts",
 		"src/subgraphs/spec.ts",
 		"src/db/queries/webhooks.ts",
 		"src/types.ts",

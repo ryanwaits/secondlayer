@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+export {
+	CHAIN_TRIGGER_FIELDS,
+	CHAIN_TRIGGER_TYPES,
+} from "./chain-triggers";
+export type { ChainTriggerType } from "./chain-triggers";
+
 export const WEBHOOK_FORMATS = [
 	"standard-webhooks",
 	"inngest",
@@ -115,36 +121,6 @@ export const WebhookFormatSchema: z.ZodType<WebhookFormat> =
 // here (not imported from @secondlayer/subgraphs) to avoid a shared→subgraphs
 // cycle; the evaluator maps these to `SubgraphFilter` at match time. Amounts are
 // non-negative integer strings (uint128 can exceed JS safe-int) or numbers.
-
-export const CHAIN_TRIGGER_TYPES = [
-	"stx_transfer",
-	"stx_mint",
-	"stx_burn",
-	"stx_lock",
-	"ft_transfer",
-	"ft_mint",
-	"ft_burn",
-	"nft_transfer",
-	"nft_mint",
-	"nft_burn",
-	"contract_call",
-	"contract_deploy",
-	"print_event",
-	"nested_contract_call",
-	"var_set",
-	"map_set",
-	"map_insert",
-	"map_delete",
-	"sbtc_deposit",
-	"sbtc_withdrawal_create",
-	"sbtc_withdrawal_accept",
-	"sbtc_withdrawal_reject",
-	"sbtc_withdrawal_swept_confirmed",
-	"rune_etch",
-	"rune_mint",
-	"rune_transfer",
-	"rune_burn",
-] as const;
 
 /** Runes trigger types (plan 060) — matched off `chain=bitcoin` Streams events
  *  (plan 059), not the Stacks Index clock. `rune` is a RuneRef (an id like
@@ -404,22 +380,6 @@ export const ChainTriggersSchema: z.ZodType<ChainTrigger[]> = z
 	.min(1)
 	.max(50);
 
-/**
- * Per-type accepted filter fields for chain triggers, DERIVED from
- * {@link ChainTriggerSchema} so the agent-facing reference can never drift behind
- * the validator. `{ stx_transfer: ["sender","recipient","minAmount","maxAmount"], ... }`.
- */
-export const CHAIN_TRIGGER_FIELDS: Record<string, string[]> =
-	Object.fromEntries(
-		// biome-ignore lint/suspicious/noExplicitAny: zod-internal introspection of this module's own discriminated union
-		((ChainTriggerSchema as any)._zod.def.options as any[]).map((opt) => {
-			const shape = opt._zod.def.shape as Record<string, unknown>;
-			// biome-ignore lint/suspicious/noExplicitAny: literal value lives on the zod-internal def
-			const type = (shape.type as any)._zod.def.values[0] as string;
-			return [type, Object.keys(shape).filter((k) => k !== "type")];
-		}),
-	);
-
 export const CreateWebhookRequestSchema: z.ZodType<ParsedCreateWebhookRequest> =
 	z.object({
 		name,
@@ -462,7 +422,6 @@ export type WebhookStatus = (typeof WEBHOOK_STATUSES)[number];
 export type WebhookKind = "chain";
 export type WebhookFormat = (typeof WEBHOOK_FORMATS)[number];
 
-export type ChainTriggerType = (typeof CHAIN_TRIGGER_TYPES)[number];
 /** Non-negative integer amount over JSON (string for uint128 safety, or number). */
 export type ChainTriggerAmount = string | number;
 

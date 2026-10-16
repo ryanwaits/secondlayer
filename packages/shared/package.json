@@ -73,6 +73,10 @@
 			"types": "./dist/src/subgraphs/spec.d.ts",
 			"import": "./dist/src/subgraphs/spec.js"
 		},
+		"./schemas/chain-triggers": {
+			"types": "./dist/src/schemas/chain-triggers.d.ts",
+			"import": "./dist/src/schemas/chain-triggers.js"
+		},
 		"./schemas/webhooks": {
 			"types": "./dist/src/schemas/webhooks.d.ts",
 			"import": "./dist/src/schemas/webhooks.js"
