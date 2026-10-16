@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
+import { takeRememberedNext } from "@/lib/safe-next";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
@@ -23,7 +24,7 @@ function VerifyContent() {
 
 		try {
 			await verify(token);
-			window.location.href = "/account";
+			window.location.href = takeRememberedNext();
 		} catch (err) {
 			const message = err instanceof Error ? err.message.trim() : "";
 			setError(GENERIC_ERRORS.has(message.toLowerCase()) ? "" : message);

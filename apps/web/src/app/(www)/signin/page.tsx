@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
+import { currentNext, rememberNext } from "@/lib/safe-next";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -16,9 +17,9 @@ export default function SignInPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [verifyError, setVerifyError] = useState<string | null>(null);
 
-	// Already signed in: the account page is where the keys are.
+	// Already signed in: go where `?next=` asked, else the account page.
 	useEffect(() => {
-		if (account) router.replace("/account");
+		if (account) router.replace(currentNext());
 	}, [account, router]);
 
 	const handleInputEsc = useCallback(
@@ -54,6 +55,7 @@ export default function SignInPage() {
 			setStatus("sending");
 			setError(null);
 			try {
+				rememberNext(currentNext());
 				const data = await login(email);
 				if (data.token) setDevToken(data.token);
 				setStatus("sent");
@@ -72,7 +74,8 @@ export default function SignInPage() {
 			setVerifyError(null);
 			try {
 				await verify(code, email);
-				window.location.href = "/account";
+				rememberNext("/account");
+				window.location.href = currentNext();
 			} catch {
 				setVerifyError("Invalid or expired code. Try again.");
 			}

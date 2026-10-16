@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { safeNextPath, signInThen } from "./safe-next";
+import {
+	rememberNext,
+	safeNextPath,
+	signInThen,
+	takeRememberedNext,
+} from "./safe-next";
 
 describe("safeNextPath", () => {
 	test("keeps a same-origin path with its query", () => {
@@ -31,5 +36,30 @@ describe("signInThen", () => {
 		expect(
 			safeNextPath(new URL(href, "http://x").searchParams.get("next")),
 		).toBe("/cli/login?code=WDJB-MJHT");
+	});
+});
+
+describe("remembered return path", () => {
+	const store = new Map<string, string>();
+	globalThis.localStorage = {
+		getItem: (k: string) => store.get(k) ?? null,
+		setItem: (k: string, v: string) => void store.set(k, v),
+		removeItem: (k: string) => void store.delete(k),
+	} as unknown as Storage;
+
+	test("the emailed link returns to the CLI approval page once", () => {
+		rememberNext("/cli/login?code=WDJB-MJHT", 1_000);
+		expect(takeRememberedNext(2_000)).toBe("/cli/login?code=WDJB-MJHT");
+		expect(takeRememberedNext(3_000)).toBe("/account");
+	});
+
+	test("a path older than the email's 15 minutes falls back", () => {
+		rememberNext("/cli/login?code=WDJB-MJHT", 0);
+		expect(takeRememberedNext(16 * 60 * 1000)).toBe("/account");
+	});
+
+	test("a tampered stored path still has to be same-origin", () => {
+		store.set("sl_next", JSON.stringify({ path: "//evil.com", at: 0 }));
+		expect(takeRememberedNext(1)).toBe("/account");
 	});
 });
