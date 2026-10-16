@@ -484,6 +484,13 @@ describe("rateLabel", () => {
 		expect(rateLabel("archive.partition.events", "1")).toBe("$0.15/partition");
 	});
 
+	test("Sentinel units carry their per-unit rate", () => {
+		expect(rateLabel("sentinel.run", "17")).toBe("$1.50/run");
+		expect(rateLabel("sentinel.deep_audit", "1")).toBe("$3/audit");
+		expect(rateLabel("sentinel.monitored_event", "1")).toBe("$15/1M");
+		expect(unitLabel("sentinel.run")[0]).toBe("Sentinel runs");
+	});
+
 	test("rows.delivered is free inside the allowance, $5/1M past it", () => {
 		expect(rateLabel("rows.delivered", "17171")).toBe("free");
 		expect(rateLabel("rows.delivered", String(ROWS_ALLOWANCE + 1))).toBe(

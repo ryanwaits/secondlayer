@@ -35,6 +35,9 @@ const UNIT_LABEL: Record<string, [string, string]> = {
 	"webhook.event": ["Webhook events", "Hosted webhooks, retries free"],
 	"memory.gb_hour": ["Hosted stack memory", "Webhooks and subgraphs"],
 	"storage.gb_day": ["Hosted stack storage", "Webhooks and subgraphs"],
+	"sentinel.run": ["Sentinel runs", "Billed per run"],
+	"sentinel.deep_audit": ["Sentinel deep audits", "Billed per audit"],
+	"sentinel.monitored_event": ["Sentinel monitored events", "Chain events"],
 };
 
 export function unitLabel(unit: string): [string, string] {
@@ -258,6 +261,12 @@ export function rateLabel(unit: string, quantity: string): string {
 			return "$10/1M";
 		case "storage.gb_day":
 			return "$0.25/GB-mo";
+		case "sentinel.run":
+			return "$1.50/run";
+		case "sentinel.deep_audit":
+			return "$3/audit";
+		case "sentinel.monitored_event":
+			return "$15/1M";
 		case "archive.partition":
 			return "$0.05/partition";
 		case "archive.partition.events":

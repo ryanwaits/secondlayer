@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { ApiKey } from "./types";
+import type { ApiKey, CreditAdded } from "./types";
 import {
 	type Burn,
 	type DailySpend,
@@ -53,6 +53,8 @@ type State = {
 	service: HostedStack | null;
 	alerts: BalanceAlerts | null;
 	caps: Caps | null;
+	/** Latest top-ups and grants, newest first. */
+	credits: CreditAdded[] | null;
 };
 
 const EMPTY: State = {
@@ -64,6 +66,7 @@ const EMPTY: State = {
 	service: null,
 	alerts: null,
 	caps: null,
+	credits: null,
 };
 let state: State = EMPTY;
 const listeners = new Set<() => void>();
@@ -162,6 +165,19 @@ export async function refreshCaps(): Promise<Caps | null> {
 		const caps = (await res.json()) as Caps;
 		set({ caps });
 		return caps;
+	} catch {
+		return null;
+	}
+}
+
+/** The signed-in account's latest top-ups and grants. */
+export async function refreshCredits(): Promise<CreditAdded[] | null> {
+	try {
+		const res = await fetch("/api/billing/credits");
+		if (!res.ok) return null;
+		const { credits } = (await res.json()) as { credits: CreditAdded[] };
+		set({ credits });
+		return credits;
 	} catch {
 		return null;
 	}
