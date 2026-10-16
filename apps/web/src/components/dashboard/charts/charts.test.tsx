@@ -2,10 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { ChartTooltip } from "@/components/charts/recharts-tooltip";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Cadence } from "./cadence";
+import { DayStrip } from "./day-strip";
 import { HeatStrip, HeatStripSkeleton } from "./heat-strip";
 import { Legend } from "./legend";
+import { MemoryBand } from "./memory-band";
 import { Meter } from "./meter";
 import { Sparkline } from "./sparkline";
+import { Ticks } from "./ticks";
 
 const NOW = Date.parse("2026-10-15T19:10:00Z");
 const HOURS = Array.from({ length: 168 }, (_, i) => ({
@@ -73,6 +76,72 @@ describe("Meter", () => {
 		expect(
 			renderToStaticMarkup(<Meter used={5} total={0} label="Used" />),
 		).toContain("width:0%");
+	});
+
+	test("shows a paid segment past the free total", () => {
+		const html = renderToStaticMarkup(
+			<Meter used={100} total={100} over={26} label="Rows" />,
+		);
+		expect(html).toContain("dc-meter-over");
+		expect(html).toContain('aria-valuemax="126"');
+	});
+
+	test("has no paid segment without over", () => {
+		const html = renderToStaticMarkup(
+			<Meter used={40} total={100} label="Rows" />,
+		);
+		expect(html).not.toContain("dc-meter-over");
+		expect(html).toContain('aria-valuemax="100"');
+	});
+});
+
+describe("Ticks", () => {
+	test("draws one blue tick per delivering hour and red where any failed", () => {
+		const html = renderToStaticMarkup(
+			<Ticks
+				delivered={[0, 2, 0, 1, 3]}
+				failed={[0, 0, 0, 0, 1]}
+				title="Deliveries"
+			/>,
+		);
+		expect(html.match(/dc-fill-a"/g)).toHaveLength(2);
+		expect(html.match(/dc-fill-alarm/g)).toHaveLength(1);
+	});
+
+	test("draws only the baseline for no deliveries", () => {
+		const html = renderToStaticMarkup(
+			<Ticks delivered={[0, 0, 0]} title="Deliveries" />,
+		);
+		expect(html).toContain("dc-tick-base");
+		expect(html).not.toContain("<rect");
+	});
+});
+
+describe("DayStrip", () => {
+	test("fills days with reads and draws empty days as short marks", () => {
+		const html = renderToStaticMarkup(
+			<DayStrip days={[0, 3, 0, 1]} title="Reads" />,
+		);
+		expect(html.match(/dc-fill-a"/g)).toHaveLength(2);
+		expect(html.match(/dc-day-empty/g)).toHaveLength(2);
+	});
+});
+
+describe("MemoryBand", () => {
+	test("draws the size line when capacity is known", () => {
+		const html = renderToStaticMarkup(
+			<MemoryBand points={[1, 2, 3]} capacity={4} title="Memory" />,
+		);
+		expect(html).toContain("dc-cap-line");
+		expect(html).toContain(`class="dc-stroke-a"`);
+	});
+
+	test("turns the line red when stopped", () => {
+		const html = renderToStaticMarkup(
+			<MemoryBand points={[1, 2, 0]} capacity={4} stopped title="Memory" />,
+		);
+		expect(html).toContain("dc-stroke-alarm");
+		expect(html).not.toContain(`class="dc-stroke-a"`);
 	});
 });
 

@@ -5898,6 +5898,21 @@ a.acct-strip-link:hover .acct-strip-k {
 	fill: none;
 	stroke: var(--ch-a);
 }
+.dc-stroke-alarm {
+	fill: none;
+	stroke: var(--alarm);
+}
+.dc-tick-base {
+	stroke: var(--line);
+	stroke-width: 1;
+}
+.dc-day-empty {
+	fill: var(--line);
+}
+.dc-cap-line {
+	stroke: var(--faint);
+	stroke-dasharray: 2 3;
+}
 
 /* Meter */
 .dc-meter {
@@ -5915,6 +5930,17 @@ a.acct-strip-link:hover .acct-strip-k {
 	position: absolute;
 	inset: 0 auto 0 0;
 	background: var(--ch-a);
+	border-radius: 999px;
+}
+.dc-meter-bar.has-over {
+	display: flex;
+	gap: 2px;
+}
+.dc-meter-bar.has-over > .dc-meter-fill {
+	position: static;
+}
+.dc-meter-over {
+	background: var(--ch-mark);
 	border-radius: 999px;
 }
 .dc-meter-captions {

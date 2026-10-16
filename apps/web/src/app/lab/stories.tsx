@@ -9,11 +9,14 @@ import { CodeTabs } from "@/components/code/code-tabs";
 import { BandBarChart } from "@/components/dashboard/charts/band-bar-chart";
 import { Cadence } from "@/components/dashboard/charts/cadence";
 import { ContextLineChart } from "@/components/dashboard/charts/context-line-chart";
+import { DayStrip } from "@/components/dashboard/charts/day-strip";
 import { HeatStrip } from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
+import { MemoryBand } from "@/components/dashboard/charts/memory-band";
 import { Meter } from "@/components/dashboard/charts/meter";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { SpendChart } from "@/components/dashboard/charts/spend-chart";
+import { Ticks } from "@/components/dashboard/charts/ticks";
 import { HandoffBlock } from "@/components/dashboard/insight/handoff-block";
 import {
 	ActionableInsights,
@@ -1429,9 +1432,82 @@ const META: Record<StoryId, Meta> = {
 			"apps/web/src/components/dashboard/charts/cadence.tsx",
 			"apps/web/src/components/dashboard/charts/meter.tsx",
 			"apps/web/src/components/dashboard/charts/legend.tsx",
+			"apps/web/src/components/dashboard/charts/ticks.tsx",
+			"apps/web/src/components/dashboard/charts/day-strip.tsx",
+			"apps/web/src/components/dashboard/charts/memory-band.tsx",
 		],
-		rule: "Word-scale figures: a trend, block cadence, a quota meter and the legend swatches.",
+		rule: "Word-scale figures: a trend, block cadence, a quota meter and the legend swatches, plus a shape per kind: delivery ticks, a day strip and a memory band.",
 		variants: [
+			{
+				id: "ticks",
+				label: "Delivery ticks, one failure",
+				render: () => (
+					<Ticks
+						delivered={[
+							0, 3, 5, 0, 2, 4, 6, 1, 0, 0, 2, 3, 5, 4, 0, 1, 2, 3, 0, 4, 6, 2,
+							1, 3,
+						]}
+						failed={[
+							0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+							0, 0,
+						]}
+						title="Deliveries, last 24 hours"
+					/>
+				),
+			},
+			{
+				id: "day-strip",
+				label: "Key reads, 24 days",
+				render: () => (
+					<DayStrip
+						days={[
+							0, 0, 2, 5, 0, 0, 1, 3, 4, 0, 0, 0, 6, 2, 1, 0, 3, 5, 4, 0, 2, 7,
+							3, 1,
+						]}
+						title="Days with key reads, last 24 days"
+					/>
+				),
+			},
+			{
+				id: "memory-band",
+				label: "Hosted stack memory under its size",
+				render: () => (
+					<MemoryBand
+						points={[
+							1.1, 1.2, 1.2, 1.4, 1.6, 1.5, 1.7, 1.9, 1.8, 2.0, 2.1, 2.0, 2.2,
+							2.4, 2.3, 2.5, 2.6, 2.5, 2.7, 2.8, 2.7, 2.9, 3.0, 3.1,
+						]}
+						capacity={4}
+						title="Memory, last 24 hours, against a 4 GB size"
+					/>
+				),
+			},
+			{
+				id: "memory-band-stopped",
+				label: "Hosted stack memory, stopped",
+				render: () => (
+					<MemoryBand
+						points={[2.1, 2.2, 2.4, 2.8, 3.4, 3.9, 4, 4, 0, 0, 0, 0]}
+						capacity={4}
+						stopped
+						title="Memory, last 12 hours, stack stopped"
+					/>
+				),
+			},
+			{
+				id: "meter-over",
+				label: "Meter with paid rows",
+				render: () => (
+					<Meter
+						used={1_000_000}
+						total={1_000_000}
+						over={260_000}
+						label="Rows this month"
+						left="1.26M rows"
+						right="260k paid"
+					/>
+				),
+			},
 			{
 				id: "spark",
 				label: "Sparkline, failures ticked",
