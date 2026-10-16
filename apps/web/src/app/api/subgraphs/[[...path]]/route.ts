@@ -1,5 +1,7 @@
 import { PLATFORM_API_URL, getSessionFromRequest } from "@/lib/api";
+import { upstreamAgent } from "@/lib/upstream-agent";
 import { NextResponse } from "next/server";
+import type { Agent } from "undici";
 
 /**
  * Read-only proxy to the signed-in account's hosted subgraphs. The dashboard
@@ -84,6 +86,7 @@ export async function GET(
 		);
 	}
 
+	const started = performance.now();
 	try {
 		const upstream = await fetch(
 			`${PLATFORM_API_URL}${target.path}${forwardedSearch(req)}`,
@@ -92,7 +95,9 @@ export async function GET(
 				headers: { Authorization: `Bearer ${sessionToken}` },
 				cache: "no-store",
 				...(target.stream ? { signal: req.signal } : {}),
-			},
+				// Why: reuse warm connections to the API; undici's default drops idle ones after 4 s.
+				dispatcher: upstreamAgent,
+			} as RequestInit & { dispatcher: Agent },
 		);
 
 		if (target.stream && upstream.ok && upstream.body) {
@@ -112,7 +117,9 @@ export async function GET(
 		} catch {
 			payload = null;
 		}
-		const headers: Record<string, string> = {};
+		const headers: Record<string, string> = {
+			"Server-Timing": `upstream;dur=${(performance.now() - started).toFixed(1)}`,
+		};
 		const retryAfter = upstream.headers.get("Retry-After");
 		if (retryAfter) headers["Retry-After"] = retryAfter;
 		return NextResponse.json(payload, { status: upstream.status, headers });

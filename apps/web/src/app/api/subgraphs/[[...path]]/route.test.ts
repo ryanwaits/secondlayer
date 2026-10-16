@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { upstreamAgent } from "@/lib/upstream-agent";
 
 const originalFetch = globalThis.fetch;
 
@@ -214,5 +215,24 @@ describe("subgraphs dashboard proxy", () => {
 		const { GET } = await import("./route");
 		const res = await GET(req(), ctx([]));
 		expect(res.status).toBe(502);
+	});
+
+	test("forwards upstream through the shared keep-alive agent", async () => {
+		const calls = stubFetch(ok);
+		const { GET } = await import("./route");
+		await GET(req(), ctx([]));
+		const init = calls[0]?.init as
+			| (RequestInit & { dispatcher?: unknown })
+			| undefined;
+		expect(init?.dispatcher).toBe(upstreamAgent);
+	});
+
+	test("reports upstream time in Server-Timing", async () => {
+		const _calls = stubFetch(ok);
+		const { GET } = await import("./route");
+		const res = await GET(req(), ctx([]));
+		expect(res.headers.get("Server-Timing")).toMatch(
+			/^upstream;dur=\d+(\.\d)?$/,
+		);
 	});
 });

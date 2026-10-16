@@ -1,5 +1,7 @@
 import { PLATFORM_API_URL, getSessionFromRequest } from "@/lib/api";
+import { upstreamAgent } from "@/lib/upstream-agent";
 import { NextResponse } from "next/server";
+import type { Agent } from "undici";
 
 /**
  * Proxy to the hosted webhooks API for the signed-in account's dashboard. The
@@ -122,6 +124,7 @@ async function handle(
 			? `/api/webhooks/${segments.join("/")}`
 			: "/api/webhooks";
 
+	const started = performance.now();
 	try {
 		const upstream = await fetch(
 			`${PLATFORM_API_URL}${upstreamPath}${search}`,
@@ -130,7 +133,9 @@ async function handle(
 				headers,
 				body,
 				cache: "no-store",
-			},
+				// Why: reuse warm connections to the API; undici's default drops idle ones after 4 s.
+				dispatcher: upstreamAgent,
+			} as RequestInit & { dispatcher: Agent },
 		);
 
 		let payload: unknown = null;
@@ -140,7 +145,9 @@ async function handle(
 			payload = null;
 		}
 
-		const responseHeaders: Record<string, string> = {};
+		const responseHeaders: Record<string, string> = {
+			"Server-Timing": `upstream;dur=${(performance.now() - started).toFixed(1)}`,
+		};
 		const retryAfter = upstream.headers.get("Retry-After");
 		if (retryAfter) responseHeaders["Retry-After"] = retryAfter;
 
