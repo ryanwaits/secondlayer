@@ -7,6 +7,7 @@ import {
 import {
 	dim,
 	formatKeyValue,
+	formatTable,
 	error as logError,
 	output,
 	success,
@@ -25,6 +26,74 @@ interface BillingStatusResponse {
 		packUsd: number | null;
 		lastAt: string | null;
 	};
+}
+
+/** The slice of `GET /api/billing/rows` this command prints. */
+interface RowsUsageResponse {
+	allowance: {
+		monthly: number;
+		usedThisMonth: number;
+		exhaustedOn: string | null;
+	};
+	daily: {
+		date: string;
+		source: string;
+		rows: number;
+		freeRows: number;
+		paidRows: number;
+	}[];
+	bySource: { source: string; rows: number; calls: number }[];
+}
+
+export type RowsUsageDay = {
+	date: string;
+	rows: number;
+	free: number;
+	paid: number;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** One line per UTC day for the last `days` days ending with `now`'s day,
+ *  oldest first, sources summed and quiet days zero-filled. */
+export function rowsUsageDays(
+	daily: RowsUsageResponse["daily"],
+	days: number,
+	now: Date,
+): RowsUsageDay[] {
+	const byDate = new Map<string, RowsUsageDay>();
+	for (const d of daily) {
+		const day = byDate.get(d.date) ?? {
+			date: d.date,
+			rows: 0,
+			free: 0,
+			paid: 0,
+		};
+		day.rows += d.rows;
+		day.free += d.freeRows;
+		day.paid += d.paidRows;
+		byDate.set(d.date, day);
+	}
+	const today = Date.UTC(
+		now.getUTCFullYear(),
+		now.getUTCMonth(),
+		now.getUTCDate(),
+	);
+	return Array.from({ length: days }, (_, i) => {
+		const date = new Date(today - (days - 1 - i) * DAY_MS)
+			.toISOString()
+			.slice(0, 10);
+		return byDate.get(date) ?? { date, rows: 0, free: 0, paid: 0 };
+	});
+}
+
+function parseDays(raw: string): number {
+	const n = Number(raw);
+	if (!Number.isInteger(n) || n < 1 || n > 30) {
+		logError("--days must be a whole number from 1 to 30");
+		process.exit(1);
+	}
+	return n;
 }
 
 function parsePack(raw: string): number {
@@ -112,6 +181,55 @@ async function runBalance(opts: { json?: boolean }): Promise<void> {
 	});
 }
 
+async function runUsage(opts: {
+	days: string;
+	json?: boolean;
+}): Promise<void> {
+	const days = parseDays(opts.days);
+	let res: RowsUsageResponse;
+	try {
+		res = await httpArchiveOps<RowsUsageResponse>("/api/billing/rows");
+	} catch (err) {
+		if (err instanceof CliHttpError) {
+			logError(err.message);
+			process.exit(1);
+		}
+		throw err;
+	}
+	output({
+		json: opts.json,
+		data: res,
+		human: () => {
+			const n = (v: number) => v.toLocaleString("en-US");
+			const lines = rowsUsageDays(res.daily, days, new Date());
+			console.log(
+				formatTable(
+					["Date", "Rows", "Free", "Paid"],
+					lines.map((d) => [d.date, n(d.rows), n(d.free), n(d.paid)]),
+				),
+			);
+			console.log();
+			const { allowance } = res;
+			const pairs: [string, string][] = [
+				[
+					"This month",
+					`${n(allowance.usedThisMonth)} rows, ${n(allowance.monthly)} free${
+						allowance.exhaustedOn ? ` (used up ${allowance.exhaustedOn})` : ""
+					}`,
+				],
+			];
+			for (const source of res.bySource) {
+				const name = source.source === "streams" ? "Streams" : "Index";
+				pairs.push([
+					name,
+					`${n(source.rows)} rows, ${n(source.calls)} calls, 30 days`,
+				]);
+			}
+			console.log(formatKeyValue(pairs));
+		},
+	});
+}
+
 export function registerCreditsCommand(program: Command): void {
 	const credits = program
 		.command("credits")
@@ -132,6 +250,13 @@ export function registerCreditsCommand(program: Command): void {
 		.description("Show prepaid archive credit balance")
 		.option("--json", "Output as JSON")
 		.action((opts: { json?: boolean }) => runBalance(opts));
+
+	credits
+		.command("usage")
+		.description("Rows delivered per day: free vs paid, by source")
+		.option("--days <n>", "Days to show (max 30)", "30")
+		.option("--json", "Output as JSON")
+		.action((opts: { days: string; json?: boolean }) => runUsage(opts));
 
 	credits
 		.command("refill")
