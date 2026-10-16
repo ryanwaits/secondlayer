@@ -249,6 +249,20 @@ tip. A name a `!callout` points at gets no automatic tip anywhere in its fence, 
 with a `!callout`, `!mark`, `!error`, `!pick`, `!diff` or `!tip`, or a trailing comment,
 gets none: the author already explained it. Output (`text`) is never tipped.
 
+**Peeks borrow a section.** A prose link in a guide to another docs page opens what it points
+at in a hairline frame under its block, so the sentence never moves: a `section` link shows
+the heading's section, a `page` link the page's lede, an `api` link the endpoint's route,
+summary and parameters (never the request and response column). The bar names it (page /
+section) and holds Save, Open page → (`pri`) and ×. The body clamps at about ten lines with
+"Show all", and counts what is left (examples, tables, lists); a body that fits is shown whole.
+One frame at a time; a second click on the link, `Esc` or a page change closes it. With focus
+in the frame, `S` saves and `O` opens. ⌘, Ctrl, Shift and middle clicks keep the real link.
+A link that cannot be fetched just navigates. A frame is a scope of its own, instant, with
+no shadow because it sits in the flow. Guides only; the build tags the links (`data-link`).
+
+Three jobs, three surfaces: tips explain a name, peeks borrow a section, the trail holds
+your place.
+
 **Output reads itself.** In `text` blocks a line takes its color from what it says:
 `⚠`, `✗` and `error` lines are `alarm`, `✓` lines `ok`, ALL-CAPS header rows `faint`, the
 rest `sub`; a `$ ` line is a prompt and shell tokens (`lib/code/output.ts`).
@@ -532,8 +546,16 @@ Back. Back restores the exact scroll offset and lights the sentence: the link in
 its row in `soft` (a lit reference), until the next click.
 - One slot, newest wins; it survives navigation within the tab.
 - Guides only; reference, API and changelog pages, blog and `/p/*` never get it.
-- Only links the build tags `data-link="jump"` (same-page `#` links) set it; sidebar and outline
+- Only links the build tags `data-link="jump"` (same-page `#` links) set it, and a peek's
+  Open page → or a link inside its frame (which leave the sentence); sidebar and outline
   links are navigation, not prose.
+
+**Saved** sits right of Back after a hairline `line` divider (shown only with both):
+`Saved 2`, count in Geist Mono. Save in a peek keeps the section in `localStorage`
+(`sl.docs.saved`): deduped by link, newest last, 50 at most. Saved opens a list above the bar,
+newest first, one row per item: title (500), page (`sub`), "from <heading>" (`faint`), and a ×
+to remove. A row opens its page and leaves a Back to the heading you were under. `Esc` or an
+outside click closes the list. The bar is hidden when it has neither a Back nor any Saved.
 
 ### Nav
 Wordmark + dropdown labels (16px/400, chevron 12px) + text links + button pair. Dropdowns open
