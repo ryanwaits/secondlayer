@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { clearInsights } from "./insights-store";
 import type { RowsResponse } from "./rows";
 import type { ApiKey, CreditAdded } from "./types";
 import {
@@ -232,6 +233,7 @@ export async function refreshKeys(): Promise<void> {
 export function clearAccountData(): void {
 	set(EMPTY);
 	clearWebhooksData();
+	clearInsights();
 }
 
 /** Mint a key. Returns its full value, which is never retrievable again. */

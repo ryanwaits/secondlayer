@@ -2,9 +2,11 @@
 
 import { TerminalFooter } from "@/components/dashboard/shell/terminal-footer";
 import { useAuth } from "@/lib/auth";
+import { startInsightsPolling } from "@/lib/insights-store";
 import { commandForPath } from "@/lib/terminal-command";
 import { useWebhooksCache } from "@/lib/webhooks-store";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 /**
  * The account pages frame. The tabs and the chain heartbeat live in the top
@@ -21,6 +23,9 @@ export default function AccountLayout({
 	const { account, loading } = useAuth();
 	const pathname = usePathname();
 	const cache = useWebhooksCache();
+	const signedIn = Boolean(account);
+	// One shared feed of ranked insights for every screen under /account.
+	useEffect(() => (signedIn ? startInsightsPolling() : undefined), [signedIn]);
 	const command = commandForPath(
 		pathname,
 		(id) =>
