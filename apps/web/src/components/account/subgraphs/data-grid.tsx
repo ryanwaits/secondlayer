@@ -352,6 +352,9 @@ export function DataGrid({
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [reload, setReload] = useState(0);
+	// Block height of the newest row on the page read; the stream replays from
+	// it, so rows written between that read and the connect are not missed.
+	const [since, setSince] = useState<string | null>(null);
 	const [openKey, setOpenKey] = useState<string | null>(null);
 	const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
 	const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
@@ -375,6 +378,10 @@ export function DataGrid({
 				setError(null);
 				setRows(res.data.rows);
 				setNextCursor(res.data.next_cursor);
+				const newest = res.data.rows[0]?._block_height;
+				setSince(
+					newest === undefined || newest === null ? null : String(newest),
+				);
 			} else {
 				setError(failureText(res));
 			}
@@ -385,7 +392,9 @@ export function DataGrid({
 	}, [name, table, query, reload]);
 
 	const liveReady = live && rows !== null && error === null;
-	const streamQuery = filterParams(filters).toString();
+	const streamParams = filterParams(filters);
+	if (since !== null) streamParams.set("since", since);
+	const streamQuery = streamParams.toString();
 	useEffect(() => {
 		if (!liveReady || typeof EventSource === "undefined") return;
 		let source: EventSource | null = null;

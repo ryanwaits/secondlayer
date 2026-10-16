@@ -165,6 +165,20 @@ describe("subgraphs dashboard proxy", () => {
 		expect(calls[0]?.init?.signal).toBeDefined();
 	});
 
+	test("the stream forwards since with the filters", async () => {
+		const calls = stubFetch(() => new Response("", { status: 200 }));
+		const { GET } = await import("./route");
+		await GET(
+			req("/x/rows/t/stream?kind=burn&since=9218411"),
+			ctx(["x", "rows", "t", "stream"]),
+		);
+		expect(
+			calls[0]?.url.endsWith(
+				"/v1/subgraphs/x/t/stream?kind=burn&since=9218411",
+			),
+		).toBe(true);
+	});
+
 	test("a failed stream returns the upstream JSON error, not an event stream", async () => {
 		stubFetch(
 			() =>
