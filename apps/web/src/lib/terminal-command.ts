@@ -19,6 +19,7 @@ export function commandForPath(
 ): string | null {
 	if (!pathname) return null;
 	if (pathname === "/account") return "sl status";
+	if (pathname === "/account/rows") return "sl credits usage";
 	if (pathname === "/account/webhooks") return "sl webhooks list";
 	if (pathname === "/account/credits") return "sl credits balance";
 	if (pathname === "/account/keys") return "sl whoami";

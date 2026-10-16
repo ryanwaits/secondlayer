@@ -14,6 +14,7 @@ import {
 	formatUsd,
 	refreshBilling,
 	refreshCaps,
+	refreshRows,
 	refreshUsage,
 	useAccountData,
 } from "@/lib/account-data";
@@ -32,6 +33,7 @@ import {
 import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { OverviewRowsRow } from "../rows/rows-panel";
 import {
 	StateCell,
 	type WebhookRowModel,
@@ -42,9 +44,18 @@ import { ageShort, last24 } from "../webhooks/view";
 /** The webhook rows refresh this often while the tab is visible. */
 const POLL_MS = 30_000;
 
-/** Rows (Index and Streams reads) get their own row here. Filled by the Rows screen. */
+/** Rows (Index and Streams reads) get their own row here, once their data has loaded. */
 export function OverviewRowsSlot() {
-	return null;
+	const { rows } = useAccountData();
+	useEffect(
+		() =>
+			poll(async () => {
+				await refreshRows();
+				return {};
+			}, 60_000),
+		[],
+	);
+	return rows ? <OverviewRowsRow data={rows} now={new Date()} /> : null;
 }
 
 /** Subgraphs get their own row here. Filled by the Subgraphs screen. */

@@ -112,7 +112,7 @@ describe("OverviewBody", () => {
 		expect(html).toContain("$6.21");
 	});
 
-	test("the rows and subgraphs slots render nothing until their screens fill them", () => {
+	test("the rows slot renders nothing until its data loads, and the subgraphs slot until its screen fills it", () => {
 		expect(renderToStaticMarkup(<OverviewRowsSlot />)).toBe("");
 		expect(renderToStaticMarkup(<OverviewSubgraphsSlot />)).toBe("");
 	});

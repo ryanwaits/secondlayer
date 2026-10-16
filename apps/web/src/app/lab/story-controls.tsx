@@ -1,5 +1,6 @@
 "use client";
 
+import { RowsBody } from "@/components/account/rows/rows-panel";
 import { TitleRow } from "@/components/account/webhooks/detail-panel";
 import { type AmountOption, AmountPicker } from "@/components/amount-picker";
 import { MonoStackedBarChart } from "@/components/charts/mono-stacked-bar-chart";
@@ -7,6 +8,7 @@ import { Choice } from "@/components/choice";
 import { HeatStrip } from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { Logo } from "@/components/logo";
+import type { RowsDay, RowsResponse } from "@/lib/rows";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -436,6 +438,112 @@ export function WebhookHeaderDemo({
 				setSaved(next);
 				return true;
 			}}
+		/>
+	);
+}
+
+const ROWS_STORY_NOW = new Date("2026-10-15T12:00:00.000Z");
+
+/** Made-up reads for the Rows story: a month that runs out of free rows on Oct 6, or one that never does. */
+function rowsStoryData(exhausted: boolean): RowsResponse {
+	const today = Date.UTC(2026, 9, 15);
+	const daily: RowsDay[] = [];
+	let monthRows = 0;
+	let exhaustedOn: string | null = null;
+	for (let i = 0; i < 30; i++) {
+		const date = new Date(today - (29 - i) * 86_400_000)
+			.toISOString()
+			.slice(0, 10);
+		const wobble = (i * 37) % 9;
+		let freeRows = 14_000 + wobble * 3_000;
+		let paidRows = 0;
+		if (exhausted && date >= "2026-10-01") {
+			if (date < "2026-10-06") freeRows = 150_000;
+			else if (date === "2026-10-06") {
+				freeRows = 250_000;
+				paidRows = 400_000;
+			} else {
+				freeRows = 0;
+				paidRows = 30_000 + wobble * 6_000;
+			}
+		}
+		const rows = freeRows + paidRows;
+		if (date >= "2026-10-01") {
+			if (!exhaustedOn && monthRows + rows >= 1_000_000) exhaustedOn = date;
+			monthRows += rows;
+		}
+		daily.push({
+			date,
+			source: "index",
+			rows,
+			freeRows,
+			paidRows,
+			calls: Math.ceil(rows / 400),
+			paidUsdMicros: String(paidRows * 5),
+		});
+	}
+	const paidRows = daily.reduce(
+		(sum, d) => (d.date >= "2026-10-01" ? sum + d.paidRows : sum),
+		0,
+	);
+	return {
+		allowance: {
+			monthly: 1_000_000,
+			usedThisMonth: monthRows,
+			exhaustedOn,
+			paidRowsThisMonth: paidRows,
+			paidUsdMicrosThisMonth: String(paidRows * 5),
+			resetsOn: "2026-11-01",
+		},
+		daily,
+		hourlyToday: [],
+		bySource: [
+			{ source: "index", rows: 1_240_000, calls: 3_100 },
+			{ source: "streams", rows: 310, calls: 8 },
+		],
+		histogram: [
+			{ bucket: "1-9", calls: 1_900, rows: 5_000 },
+			{ bucket: "10-99", calls: 420, rows: 18_000 },
+			{ bucket: "100-499", calls: 260, rows: 70_000 },
+			{ bucket: "500-999", calls: 60, rows: 45_000 },
+			{ bucket: "1000+", calls: 480, rows: 480_000 },
+		],
+		errors: exhausted
+			? [
+					{
+						status: 404,
+						code: "NOT_FOUND",
+						path: `/v1/proofs/tx/${"ab12".repeat(16)}`,
+						count: 12,
+						last: "2026-10-15T09:00:00.000Z",
+					},
+					{
+						status: 400,
+						code: "BAD_REQUEST",
+						path: "/v1/index/events",
+						count: 5,
+						last: "2026-10-15T08:00:00.000Z",
+					},
+					{
+						status: 500,
+						code: "INTERNAL",
+						path: "/v1/index/events",
+						count: 2,
+						last: "2026-10-15T07:00:00.000Z",
+					},
+				]
+			: [],
+	};
+}
+
+/** The Rows screen: `onRetry` is a function, which a server page cannot pass. */
+export function RowsDemo({ exhausted }: { exhausted: boolean }) {
+	return (
+		<RowsBody
+			status="ok"
+			data={rowsStoryData(exhausted)}
+			now={ROWS_STORY_NOW}
+			onRetry={() => {}}
 		/>
 	);
 }

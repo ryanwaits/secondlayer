@@ -6974,6 +6974,61 @@ button.dash-row {
 	color: var(--faint);
 }
 
+/* Rows screen */
+.rw-kv {
+	display: grid;
+	gap: 6px;
+	margin: 0;
+	font-size: 13px;
+}
+.rw-kv > div {
+	display: flex;
+	justify-content: space-between;
+	gap: 16px;
+}
+.rw-kv dt {
+	color: var(--sub);
+}
+.rw-kv dd {
+	margin: 0;
+	font: 400 13px / 1.4 var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+.rw-sub-label {
+	margin-top: 22px;
+}
+.rw-path {
+	max-width: 260px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.rw-ours {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin: 0;
+	font-size: 13.5px;
+}
+.rw-ours-note {
+	display: block;
+	margin-top: 2px;
+	font-size: 12.5px;
+}
+.rw-ours .dash-dot {
+	position: relative;
+	top: -1px;
+}
+.rw-notes {
+	display: grid;
+	border-top: 1px solid var(--line);
+}
+.rw-failed {
+	display: grid;
+	justify-items: start;
+	gap: 16px;
+}
+
 .ky-row {
 	display: grid;
 	grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.2fr) 132px 100px 90px;

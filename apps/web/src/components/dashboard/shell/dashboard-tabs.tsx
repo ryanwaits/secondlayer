@@ -4,7 +4,7 @@ export type DashboardTab = { href: string; label: string; ready: boolean };
 
 export const DASHBOARD_TABS: DashboardTab[] = [
 	{ href: "/account", label: "Overview", ready: true },
-	{ href: "/account/rows", label: "Rows", ready: false },
+	{ href: "/account/rows", label: "Rows", ready: true },
 	{ href: "/account/webhooks", label: "Webhooks", ready: true },
 	{ href: "/account/subgraphs", label: "Subgraphs", ready: false },
 	{ href: "/account/credits", label: "Billing", ready: true },

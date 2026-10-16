@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import type { RowsResponse } from "./rows";
 import type { ApiKey, CreditAdded } from "./types";
 import {
 	type Burn,
@@ -55,6 +56,8 @@ type State = {
 	caps: Caps | null;
 	/** Latest top-ups and grants, newest first. */
 	credits: CreditAdded[] | null;
+	/** Rows delivered: allowance, per day, sources, call sizes, errors. */
+	rows: RowsResponse | null;
 };
 
 const EMPTY: State = {
@@ -67,6 +70,7 @@ const EMPTY: State = {
 	alerts: null,
 	caps: null,
 	credits: null,
+	rows: null,
 };
 let state: State = EMPTY;
 const listeners = new Set<() => void>();
@@ -178,6 +182,21 @@ export async function refreshCredits(): Promise<CreditAdded[] | null> {
 		const { credits } = (await res.json()) as { credits: CreditAdded[] };
 		set({ credits });
 		return credits;
+	} catch {
+		return null;
+	}
+}
+
+/** Rows delivered for the signed-in account. Keeps the last good data on a
+ *  failed refresh and returns null, so the caller can tell a first-load
+ *  failure from a stale refresh. */
+export async function refreshRows(): Promise<RowsResponse | null> {
+	try {
+		const res = await fetch("/api/billing/rows");
+		if (!res.ok) return null;
+		const rows = (await res.json()) as RowsResponse;
+		set({ rows });
+		return rows;
 	} catch {
 		return null;
 	}

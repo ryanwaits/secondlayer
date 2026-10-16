@@ -19,6 +19,7 @@ describe("truncateMiddle", () => {
 describe("commandForPath", () => {
 	test("maps each account route to its CLI command", () => {
 		expect(commandForPath("/account")).toBe("sl status");
+		expect(commandForPath("/account/rows")).toBe("sl credits usage");
 		expect(commandForPath("/account/webhooks")).toBe("sl webhooks list");
 		expect(commandForPath("/account/webhooks/wh_1")).toBe(
 			"sl webhooks doctor wh_1",

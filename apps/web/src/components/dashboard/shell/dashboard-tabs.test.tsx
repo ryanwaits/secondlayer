@@ -13,7 +13,7 @@ describe("DashboardTabs", () => {
 
 	test("omits tabs that are not ready", () => {
 		const html = renderToStaticMarkup(<DashboardTabs pathname="/account" />);
-		expect(html).not.toContain("/account/rows");
+		expect(html).toContain("/account/rows");
 		expect(html).not.toContain("/account/subgraphs");
 		expect(html).not.toContain("/account/keys");
 	});

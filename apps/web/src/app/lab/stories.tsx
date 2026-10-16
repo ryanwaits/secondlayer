@@ -34,6 +34,7 @@ import type { CSSProperties, ReactNode } from "react";
 import {
 	AmountDemo,
 	HeatStripDemo,
+	RowsDemo,
 	StackedCostDemo,
 	WebhookHeaderDemo,
 } from "./story-controls";
@@ -1530,6 +1531,39 @@ const META: Record<StoryId, Meta> = {
 			},
 		],
 		usage: "<InsightStack insights={insights} />",
+	},
+	"account-rows": {
+		src: [
+			"apps/web/src/components/account/rows/rows-panel.tsx",
+			"apps/web/src/lib/rows.ts",
+		],
+		rule: "One sentence about the free 1M, rows per day with the used-up mark, where rows came from, call sizes, and your own errors.",
+		stack: true,
+		variants: [
+			{
+				id: "exhausted",
+				label: "Free 1M used up",
+				render: () => <RowsDemo exhausted />,
+			},
+			{
+				id: "under-allowance",
+				label: "Under the allowance",
+				render: () => <RowsDemo exhausted={false} />,
+			},
+		],
+		usage: "<RowsSection />",
+		props: [
+			{
+				name: "status",
+				type: '"not_loaded" | "failed" | "ok"',
+				note: "Failed shows the error with Retry; never a blank panel.",
+			},
+			{
+				name: "insights",
+				type: "Insight[]",
+				note: "Notes under the chart. Empty renders nothing.",
+			},
+		],
 	},
 	handoff: {
 		src: ["apps/web/src/components/dashboard/insight/handoff-block.tsx"],
