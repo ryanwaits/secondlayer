@@ -400,6 +400,7 @@ One mechanism owns the page: **scroll-position opacity**.
   `design/reference/xai-build/xai-scroll-sequence.webm` and `still-transition.png` for the
   captured behavior mid-swap.
 - Header transitions at 200ms. Hovers are color/border/opacity at 150–200ms ease-out.
+- The docs Trail bar appears and disappears instantly; its hover is the 150ms color shift.
 - Everything else is instant. `prefers-reduced-motion`: copy blocks render at full opacity,
   transitions off.
 
@@ -521,6 +522,18 @@ https://claude.ai/artifact/CbWRAKbBjUox3fqZGufXvP.
   to four paths. No script.
 All four read `docs/products.ts`; blocks sit as direct children of the article so the scope
 runtime still finds each `##` section.
+
+### Trail (docs Back bar)
+A prose link in a docs guide that scrolls its own sentence off screen leaves a **Back** at the
+bottom of the reading column: `← Back to <heading>`, one 40px bar, `paper` with a 1px `line`
+hairline and 8px radius. It carries the dropdown shadow allowance (one soft shadow) because it
+floats over the text. It appears instantly and clears when you scroll back to the link or press
+Back. Back restores the exact scroll offset and lights the sentence: the link in `hi`/`on-hi`,
+its row in `soft` (a lit reference), until the next click.
+- One slot, newest wins; it survives navigation within the tab.
+- Guides only; reference, API and changelog pages, blog and `/p/*` never get it.
+- Only links the build tags `data-link="jump"` (same-page `#` links) set it; sidebar and outline
+  links are navigation, not prose.
 
 ### Nav
 Wordmark + dropdown labels (16px/400, chevron 12px) + text links + button pair. Dropdowns open
