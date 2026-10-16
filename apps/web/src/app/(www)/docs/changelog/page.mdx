@@ -96,6 +96,10 @@ Pass an `abi` on a map or variable write source and name the map or variable, an
 
 ## CLI — October 2026
 
+### One login for your account
+
+`sl login` and `sl logout` always sign you in and out of your Secondlayer account, and `--credits` is gone. One account and one credit balance cover rows, your hosted stack and archive fetches, so there's nothing separate to sign in to. A browser login opens a session, like `sl login --email`, rather than saving an API key, so the Keys tab only lists keys you made.
+
 ### `sl login` opens your browser
 
 `sl login` shows a short code and opens secondlayer.tools. Approve it there while you're signed in and the CLI is signed in on that machine until `sl logout`. Signing in never makes an API key, so the Keys tab only holds the keys you made for reading data. `sl login --email` keeps the emailed-code sign-in for a machine with no browser, and `--with-token` still reads a key from stdin.
