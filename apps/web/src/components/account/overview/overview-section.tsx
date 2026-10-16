@@ -67,7 +67,6 @@ function WebhookRow({ model }: { model: WebhookRowModel }) {
 				name={webhook.name}
 				nameTitle={webhook.name}
 				tone={state.tone}
-				kind={webhook.managedBy ? `named by ${webhook.managedBy}` : undefined}
 				state={
 					<StateCell
 						model={model}

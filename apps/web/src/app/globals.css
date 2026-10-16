@@ -6906,6 +6906,7 @@ button.dash-row {
 }
 .dash-panel {
 	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	gap: 14px;
 	align-content: start;
 	min-width: 0;
@@ -7063,6 +7064,7 @@ button.dash-row {
 }
 .wd-title {
 	display: grid;
+	flex: 1 1 280px;
 	gap: 6px;
 	min-width: 0;
 }
@@ -7080,6 +7082,10 @@ button.dash-row {
 	overflow-wrap: anywhere;
 }
 .wd-rename {
+	padding: 0;
+	border: 0;
+	background: none;
+	cursor: pointer;
 	font: 400 13px / 1 var(--font-sans-stack);
 	letter-spacing: 0;
 	color: var(--pri);
@@ -7103,6 +7109,7 @@ button.dash-row {
 	color: var(--ink);
 }
 .wd-rename-hint {
+	max-width: 64ch;
 	font-size: 12.5px;
 	color: var(--faint);
 }
@@ -7120,8 +7127,15 @@ button.dash-row {
 }
 .wd-actions {
 	display: flex;
+	flex: none;
 	align-items: center;
 	gap: 12px;
+}
+/* The shared Choice fills its container and stacks past three options in a
+   narrow one; here it sits at its natural width beside the Pause button. */
+.wd-actions .choice {
+	width: auto;
+	container-type: normal;
 }
 .wd-btn {
 	display: inline-flex;
@@ -7264,6 +7278,8 @@ button.dash-row {
 }
 .wd-more {
 	justify-self: start;
+	padding: 0;
+	border: 0;
 	font-size: 13px;
 	color: var(--pri);
 	background: none;
@@ -7304,6 +7320,9 @@ button.dash-row {
 	grid-template-columns: auto 1fr;
 	gap: 2px 14px;
 	margin: 0;
+}
+.wd-trigger dl > div {
+	display: contents;
 }
 .wd-trigger dt {
 	color: var(--faint);

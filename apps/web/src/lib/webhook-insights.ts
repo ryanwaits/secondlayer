@@ -105,7 +105,7 @@ function lede(
 		case "last_error":
 			return `The last delivery failed: ${issue.detail ?? "unknown error"}.`;
 		case "circuit":
-			return `Your receiver failed ${webhook.circuitFailures} times in a row, so deliveries are paused briefly between tries.`;
+			return `It failed ${webhook.circuitFailures} deliveries in a row, so sending pauses briefly between tries.`;
 		case "dead_letters":
 			return `${deadCount} event${deadCount === 1 ? "" : "s"} exhausted every retry. They stay in the failed list until you requeue them.`;
 		case "receiver_rate_limited":
@@ -123,9 +123,35 @@ function lede(
 	}
 }
 
+/** What we saw, worded for the user's agent (not the reader of the card). */
+function promptSummary(issue: Pick<DoctorIssue, "code" | "detail">): string {
+	switch (issue.code) {
+		case "warning":
+			return `It can't fire yet: ${issue.detail ?? "the instance reported a problem"}.`;
+		case "last_error":
+			return `Its last delivery failed: ${issue.detail ?? "unknown error"}.`;
+		case "circuit":
+			return "The receiver failed many deliveries in a row, so the circuit breaker is open.";
+		case "dead_letters":
+			return "Some events exhausted every retry and are waiting in the failed list.";
+		case "receiver_rate_limited":
+			return "The receiver is answering many deliveries with 429.";
+		case "receiver_down":
+			return "The receiver looks down: the latest deliveries all failed with a 5xx or no response.";
+		case "receiver_rejects":
+			return "The receiver is rejecting deliveries with 4xx responses.";
+		case "receiver_slow":
+			return "The receiver is slow to respond, close to the webhook's timeout.";
+		case "delivery_lag":
+			return "Deliveries are arriving well after their block.";
+		default:
+			return `${PRIMARY_TITLE[issue.code]}.`;
+	}
+}
+
 /** Plain text for the user's coding agent: what we saw, never a code change. */
 export function handoffPrompt(
-	issue: Pick<DoctorIssue, "code" | "evidence" | "fix">,
+	issue: Pick<DoctorIssue, "code" | "detail" | "evidence" | "fix">,
 	webhook: Pick<WebhookDetail, "name" | "url">,
 ): string {
 	const host = hostOf(webhook.url);
@@ -135,14 +161,16 @@ export function handoffPrompt(
 		.join("; ");
 	const parts = [
 		`My Secondlayer webhook "${webhook.name}" delivers to ${host}.`,
-		`${PRIMARY_TITLE[issue.code]}${window ? `, going by ${window}` : ""}.`,
-		facts ? `What we saw: ${facts}.` : "",
+		promptSummary(issue),
+		facts
+			? `What we saw${window ? `, going by ${window}` : ""}: ${facts}.`
+			: "",
 		issue.fix?.text ?? "",
 	];
 	return parts.filter(Boolean).join(" ");
 }
 
-/** Delivered per hour for the last 24 hours, with the hours that had failures marked. */
+/** Attempts per hour for the last 24 hours, with the hours that had failures marked. */
 function recentHoursEvidence(
 	activity: WebhookActivity | null,
 ): InsightEvidence | null {
@@ -150,10 +178,18 @@ function recentHoursEvidence(
 	if (!hours.some((h) => h.failed > 0)) return null;
 	return {
 		kind: "series",
-		title: "Deliveries per hour, last 24h",
+		title: "Delivery attempts per hour, last 24h",
 		series: [
-			{ name: "Delivered", role: "a", points: hours.map((h) => h.delivered) },
-			{ name: "Failed", role: "mark", points: hours.map((h) => h.failed) },
+			{
+				name: "Attempts",
+				role: "a",
+				points: hours.map((h) => h.delivered + h.failed),
+			},
+			{
+				name: "Hours with failures",
+				role: "mark",
+				points: hours.map((h) => h.failed),
+			},
 		],
 		labels: [
 			[0, "-24h"],
