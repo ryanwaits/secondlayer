@@ -12417,6 +12417,36 @@
 			}
 		},
 		{
+			"path": "/api/insights",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Ranked findings about this instance's webhooks and subgraphs: losing events first, then about to fail, then costing money, then recently recovered.",
+				"route": "/docs/api/webhooks",
+				"anchor": "list-insights"
+			}
+		},
+		{
+			"path": "/api/insights/{id}/dismiss",
+			"method": "POST",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Hides this incident.",
+				"route": "/docs/api/webhooks",
+				"anchor": "dismiss-insight"
+			}
+		},
+		{
+			"path": "/api/insights/{id}/expected",
+			"method": "POST",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Mutes this rule for this resource, including future incidents, until you remove the mute.",
+				"route": "/docs/api/webhooks",
+				"anchor": "mark-insight-expected"
+			}
+		},
+		{
 			"path": "/api/node/contracts/{contract_id}/abi",
 			"method": "GET",
 			"tip": {

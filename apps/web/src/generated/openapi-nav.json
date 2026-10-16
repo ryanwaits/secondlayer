@@ -687,6 +687,26 @@
 				"anchor": "replay-webhook",
 				"method": "POST",
 				"title": "Replay a block range"
+			},
+			{
+				"anchor": "list-insights",
+				"method": "GET",
+				"title": "List insights"
+			},
+			{
+				"anchor": "dismiss-insight",
+				"method": "POST",
+				"title": "Dismiss an insight"
+			},
+			{
+				"anchor": "mark-insight-expected",
+				"method": "POST",
+				"title": "Mark an insight expected"
+			},
+			{
+				"anchor": "unmark-insight-expected",
+				"method": "DELETE",
+				"title": "Unmark an insight as expected"
 			}
 		]
 	},

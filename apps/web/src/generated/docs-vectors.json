@@ -549,6 +549,12 @@
 			"q": "/QCwvgbnBRbvAFDE+qoNB/NK5MPZJuPsQyX/9DkS18zw9xPArgX1Cv4w7yrlEjnE8PtDmPxaA+0aJT0CBCUQzuwOSB9WaR7EGrTZyI7f3veB0NOv+f4L+NzXEVwFODno7iMRFvO5v74iO/v2MgcJGgno4PonA87rsesh+/kyyu1GuQUX491C3i4RKA3+CfgzGkILAHuJ/vjt1SoZJ+ng6AQnwwYZtjvoZx46IvPz8lYRIefcB/s8AT3p7/rR+sH2/Cmwsvw4SfbY6P73AagRBfXuheEbF9/Y7+cbE+1BBrEMzkUc0AwNRxPb9RBmFNww7fPsSvko+em2A+a8SAwe+A=="
 		},
 		{
+			"id": "docs:/docs/api/webhooks#dismiss-insight",
+			"hash": "b16bc348e73ea1f0",
+			"scale": 0.0018896536535013598,
+			"q": "z/n5x/7TC+8zOhX08/jgGwwzBBb/+OotGfEB/jcY7gbQ7x2t8/ww9B8o/BPtHva7CghutBhbGjXs/zv0GjMH/scJEwkiKxIhAeb618LL1vbP9PTV8SkiHeLQGCMLGyIC8h4a6O/52fIGNATm9QgtG9MD6iMHOeck0+Yi2AwI7Bks4wwR99UeFjL1DeXsAtwrEun683+zvNwS5/UZ8P3R6d4X8ykNzxnkFyUZMOvs5AERLAjpBDEQJSz5GAzWA97/6PjQBPQ1MwX3vRjnRt0m69TWyxMM/dgP+OL9EdccDeUT4OkUtAUs7BHY3g4sFQf2/gXwCAUA9vPhAtnZHw8I8A=="
+		},
+		{
 			"id": "docs:/docs/api/webhooks#get-webhook",
 			"hash": "011495c7d61732a9",
 			"scale": 0.0016009223970275825,
@@ -561,6 +567,12 @@
 			"q": "6CoVwRzvIe8HHSEC4uMRCP48/efkE+TsNxb8+UbC6AX58lG31g7/CuI89/sCySX58/x/49Q54NrrOyTxAwjADQQSLAE6MAP//O3yAMfODQ399gLU0UEQHyu7PhsIBxz3ygIMCQ313uIuGxbx+RtM8RvQE6M3CALx4ukuz/hG3wMOswsO2Ooh8u3/9yDU5wQCJyQK2F2nAc/pFh0BD/LxDsUfy/sBvGn/UNMKFPINGeEO5wIB+94wzSX84DbOzNf08wvT2vILPP3l2f4s7Y8i+vj2xR/SKwAREr3eGfMY++H+/+3J0/LTMCXhEPwnEBYBFgsTHwsL/Ljd1bvtRBUKBA=="
 		},
 		{
+			"id": "docs:/docs/api/webhooks#list-insights",
+			"hash": "4a0fdea318ea63bd",
+			"scale": 0.0017007761987805658,
+			"q": "1wvyyQ3ENNwOHSzq5/v35QE54PDzAQYbDP786G8E2QX8A0eg1gY0/ws4+vbxAQfjBgt1tOpMCw/tJBwGLjzvFLfcTwQsPw785uLS3svFA+7d+eYB1hkNE/nHPDwVGxrh2Pr2/wfY68gILwzv5fYpDu4H8vEsAtby1Nkhxd0w+RAjvwkZ+PYlKBXq8w7bAdEDICH25n+R79j3SO4d2ALt6M4O2hH01DjVMeYCIfYf7vDqHP0T3zIh/RPfBR/bxuUV3yLLx/cdTeba3Oo4KK4k498EyNoaFwIvFuAMFhQH99YABOH2tes2IyDg+RFLIv36HujtIBv1+PPu6MHdLiUFxg=="
+		},
+		{
 			"id": "docs:/docs/api/webhooks#list-webhook-deliveries",
 			"hash": "cb764adf160d46f9",
 			"scale": 0.0013579701025124558,
@@ -571,6 +583,12 @@
 			"hash": "c1424e804127828f",
 			"scale": 0.0015532407656343409,
 			"q": "1R/KyAbCIczi/UDR9PwW2OJH/NfRJev+KRgG8mYS0fQXBkiX3/kbCgM4FvfyDjzf4flY3ORs/uHxUkAaLDnmC93WWPlMXwLtAr7Q0L/WHP7f0uL/4RAaEOnCLUULBhfW1/zPDBDN6LghKQDtFPtC/fnk4dco4uTTy+0t19dA8fswshAn5f8kCwIV+Bfp498PIkAE62KBC9LrJAsV5/HM6dsY5f3s7EbZVdcCHvQgGPT+BfML5/8V1DLVAB3S5t/8+y7YwAwwUPTb5eVA/o8g8/kQqNj5LPwmDtn5GQ4F/trq/g70yfYlQivZ6xRWK/cnDuTzHCDs6dPm8L/aPx8K3A=="
+		},
+		{
+			"id": "docs:/docs/api/webhooks#mark-insight-expected",
+			"hash": "276bcb8a755eca16",
+			"scale": 0.0013018802835311504,
+			"q": "zBADtQzqUtImRivZ+9ytLg4WweT07vE0HADxH2JJ3+/SFUuixekeICEf78bw9cPEKR9/hg58QfrsBRoBMzEyLcfTLf1OUTlO7c/mCfKyyjPHJOkmyi0m4/KmQjf7P9sb9AboDcDuuqwnazTZ8NcdM+keyiYDMLXlzPPz2sQIC/sK1wwG27UTKlz97tH7BN72Sefv+3rClNEBQfYwyO3k78/+0TQQpEA8DfgMCfPu6dEYR90PHy4LNh/6RuC02vfrxgGaxPBjKuwc2uf2SLk3AeHdmPkP+NvMG8rQ/+/6NNUJ5bkMq/Ff9w7nyjRsExj/F7P3O/AE/+zg98u8YxvHvw=="
 		},
 		{
 			"id": "docs:/docs/api/webhooks#pause-webhook",
@@ -607,6 +625,12 @@
 			"hash": "cab2a9370d90baad",
 			"scale": 0.0017093842272943186,
 			"q": "7gvZrhPYFfsNAzTVGfj+FRov6vL39P0jQQsLPUIp9NPQ4BnJ7ADqCRkV/gIU+gDEEgYt8RNk9+0IEzseIRb09gb2RBYhVBUs8fPt5b3p8BH0+vX0+TwZE/OpOUkfWekY/A8L/fPix8MWPufQP9cJMybUyQcWGMXuyP742dM278JIAA1D+dgWFh0/4grlmucdRRwR/Ryi6dABBgEKJ/e/7+QE+wMh7gcVD/0fLQIG9g0i/eAL9QD8JyXbHfLs/t4HGvi96xNRNRsX8fDiOKj/7MzegeLpH/2vD7zYBwgWFdUaw/sL9PIcKdvCBhEfEBYeBOzt9vzx8d3dSefN+hD65w=="
+		},
+		{
+			"id": "docs:/docs/api/webhooks#unmark-insight-expected",
+			"hash": "ddc8c24c6a40b380",
+			"scale": 0.0018397839366870426,
+			"q": "+en6xSXoKAklNzPrAtvuGQEH3/zy9vgDEgLxCycD9e/ODRbTw+cCCwEo7fTv+uDzBiJPgRpYMRIAER3oIR4q/+rhHxxRPTomH+/g/73Y4BqpBN/12REk9ezkEkUbHhT5Bxr9E+3a4c8JQCvvCfoQEv/96wIPJdb50uHs7P73Dw4b4hb41fAiGVME9gDuFgj+GBEO9mrC0e7z9hAx4e/39toCwxr2vzATGhsAExba2x8lQeIJBSYiHzENKf+6AO//0BDEzsw7FvcM6hv8PeIqIAr1u+8rGeX56+v5FvATFNX/8wYAvwonCQ3i9UkyEfT9CenqPOAe7uzpAPPbZ+Dk8g=="
 		},
 		{
 			"id": "docs:/docs/api/webhooks#update-webhook",
@@ -1198,9 +1222,9 @@
 		},
 		{
 			"id": "docs:/docs/sdk-reference",
-			"hash": "3244166976ce754e",
-			"scale": 0.0015829820986782584,
-			"q": "xg6H1OrFEfIHC0I+Ilb7LQqsAfTl9vjoIQ77AjD08KHN8SXq6R0SOAEHChXuuhf63dQLBCUpHCfjCNYx1Rn+LtfYPgoPDLEr+vmvywX5wOUZ1dn9+yAcGvACDdbzFeK9A//s9RDuH/fm5usVFRYWzwX5GpvjKwO7JNXf7vAFNiRCDfnlIuo7Cw056gfg1ecKIPXz5OMAERqB2Tf14veP+sW5P+Wpu0LFCBc8OiXx/ArzAQ4YGfPq/hDqz8na+dcV/hTA0wf+BvDa19pJ4rEG+T8hxBDVJlQ5AP0h9jhUHNkPPCDB4D8NE9JW0AEa6wXfDyb+CynI/8EPDM5J+gIAFQ=="
+			"hash": "14c987659bf3deb1",
+			"scale": 0.0015639898601235707,
+			"q": "xQKB1tHYA+4I+lQuNVT/KRC89uPwBtrcKwD7ESb08I/I8yvo7SYZOA0WCxrpywf4598OATcqFTXgFtE92BQJMMraTAMYCLUo9Pa0xRH0ztkT19n4/CYdGPL0ENX+J+fB/QsDAhH0Jf/n0OwTDRcazvj9E5jtJwfLMN3P6OsCMylJBuz0HOVVExAy+Abjyu79Fe0D9tsGDROC6xwG5POC7tK9JPuh1jjFBxE9NCj9/gXxEBEgGPrx8hbwv8fY8OYU/zG22AUPBOvC3Ng95bgF+FIowQjFID4xBQQJ7DNTG9wWPA/E4koPCd1X4wIm6wPyACD+/yqtAcsS+OFHCA8TGg=="
 		},
 		{
 			"id": "docs:/docs/sdk-reference/archive",

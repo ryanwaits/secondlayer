@@ -364,6 +364,237 @@ const TRIGGER_FIELD_NAMES = [
 	...new Set(Object.values(PUBLIC_TRIGGER_FIELDS).flat()),
 ];
 
+// ── Insights (`src/routes/insights.ts`) ──
+
+const INSIGHT_ID_PARAM = pp(
+	"id",
+	"Insight id (UUID), as returned by the insights list.",
+);
+
+const INSIGHT_NOT_FOUND = jsonError("No insight with this id");
+
+const EXAMPLE_INSIGHT = {
+	id: "9b0f6f1e-3c1a-4f55-8d64-0c2f7a5e1b30",
+	rule: "receiver_down",
+	severity: "losing",
+	impact: 214,
+	resource: { kind: "webhook", id: EXAMPLE_ID, name: "sbtc-moves" },
+	line: "sbtc-moves has failed 12 deliveries in a row",
+	meta: "since 16:06 UTC",
+	lead: "Your receiver is down, not us.",
+	body: "hooks.example.dev returns HTTP 502 on every delivery since 16:06 UTC. 214 deliveries queued to retry.",
+	evidence: [
+		{
+			kind: "shapes",
+			title: "What the receiver sent back",
+			shapes: [{ code: "502", body: "Bad Gateway", count: 12, isNew: true }],
+		},
+	],
+	handoff: {
+		prompt:
+			'My Secondlayer webhook "sbtc-moves" has been failing since 16:06 UTC. The receiver hooks.example.dev returns HTTP 502 on every delivery. Check the service behind hooks.example.dev. Then run sl webhooks doctor sbtc-moves.',
+		commands: ["sl webhooks doctor sbtc-moves"],
+	},
+	how: {
+		detector:
+			"the newest 5 or more delivery attempts are 5xx or got no response",
+		facts: [["consecutive failures", "12"]],
+	},
+	createdAt: "2026-10-15T16:07:00.000Z",
+	resolvedAt: null,
+};
+
+const INSIGHT_SCHEMA = {
+	type: "object",
+	description:
+		"One ranked finding about a webhook, subgraph or the account. Code detects it and computes every number; `handoff.prompt` is plain text for a coding agent and never contains code.",
+	required: [
+		"id",
+		"rule",
+		"severity",
+		"impact",
+		"resource",
+		"line",
+		"lead",
+		"body",
+		"evidence",
+		"handoff",
+		"how",
+		"createdAt",
+	],
+	properties: {
+		id: { type: "string", description: "Insight id (UUID)." },
+		rule: {
+			type: "string",
+			description:
+				"Detector that fired, such as `receiver_down` or `subgraph_lag`. One open insight per resource and rule.",
+		},
+		severity: {
+			type: "string",
+			enum: ["losing", "will_fail", "costs", "recovered"],
+			description:
+				"`losing` is dropping events now, `will_fail` is about to, `costs` is spending money for nothing, `recovered` was resolved in the last 24 hours.",
+		},
+		impact: {
+			type: "number",
+			description:
+				"Events, rows or dollars affected. Breaks ties inside a severity.",
+		},
+		resource: {
+			type: "object",
+			description:
+				"What the insight is about. A subgraph's `id` and `name` are both its name; account insights use `id` `account`.",
+			required: ["kind", "id", "name"],
+			properties: {
+				kind: { type: "string", enum: ["webhook", "subgraph", "account"] },
+				id: { type: "string" },
+				name: { type: "string" },
+			},
+		},
+		line: { type: "string", description: "The collapsed row, bold part." },
+		meta: { type: "string", description: "The collapsed row, muted part." },
+		lead: {
+			type: "string",
+			description: "First sentence of the expanded card.",
+		},
+		body: {
+			type: "string",
+			description: "One to three plain sentences after `lead`. No code.",
+		},
+		evidence: {
+			type: "array",
+			description:
+				"One or two blocks to draw, each with a `kind` of `series`, `table`, `shapes` or `timeline`.",
+			items: { type: "object", additionalProperties: true },
+		},
+		handoff: {
+			type: "object",
+			description:
+				"A prompt for the developer's coding agent and the `sl` commands that act on our side.",
+			required: ["prompt", "commands"],
+			properties: {
+				prompt: { type: "string" },
+				commands: { type: "array", items: { type: "string" } },
+			},
+		},
+		how: {
+			type: "object",
+			description:
+				"How the detector decided: its rule in one sentence, the raw facts, and an optional model-labelled cause shown only at confidence 0.85 or higher.",
+			required: ["detector", "facts"],
+			properties: {
+				detector: { type: "string" },
+				facts: {
+					type: "array",
+					items: { type: "array", items: { type: "string" } },
+				},
+				label: {
+					type: "object",
+					properties: {
+						cause: { type: "string" },
+						confidence: { type: "number" },
+					},
+				},
+			},
+		},
+		createdAt: {
+			type: "string",
+			format: "date-time",
+			description: "When the incident first fired.",
+		},
+		resolvedAt: {
+			type: ["string", "null"],
+			format: "date-time",
+			description: "When it cleared, for `recovered` insights.",
+		},
+	},
+	example: EXAMPLE_INSIGHT,
+};
+
+const insightsPaths = {
+	"/api/insights": {
+		get: {
+			tags: ["webhooks"],
+			summary: "List insights",
+			"x-nav-title": "List insights",
+			description:
+				"Ranked findings about this instance's webhooks and subgraphs: losing events first, then about to fail, then costing money, then recently recovered. Dismissed and expected insights are left out.",
+			security: WRITE_SECURITY,
+			parameters: [
+				qp(
+					"resource",
+					"string",
+					false,
+					"Only one resource, as `<kind>:<id>`, such as `webhook:<id>` or `subgraph:<name>`.",
+				),
+			],
+			responses: apiReadResponses({
+				"200": json200(
+					{
+						type: "object",
+						required: ["data"],
+						properties: {
+							data: {
+								type: "array",
+								items: INSIGHT_SCHEMA,
+								description: "Insights in rank order.",
+							},
+						},
+						example: { data: [EXAMPLE_INSIGHT] },
+					},
+					"Insights in rank order",
+				),
+				"400": jsonError(
+					"`resource` is not `<kind>:<id>` (`VALIDATION_ERROR`)",
+				),
+			}),
+		},
+	},
+	"/api/insights/{id}/dismiss": {
+		post: {
+			tags: ["webhooks"],
+			summary: "Dismiss an insight",
+			"x-nav-title": "Dismiss",
+			description:
+				"Hides this incident. If the same rule fires again after it clears, the new incident shows. Takes no body.",
+			security: WRITE_SECURITY,
+			parameters: [INSIGHT_ID_PARAM],
+			responses: writeResponses({
+				"200": json200(OK_SCHEMA, "Dismissed"),
+				"404": INSIGHT_NOT_FOUND,
+			}),
+		},
+	},
+	"/api/insights/{id}/expected": {
+		post: {
+			tags: ["webhooks"],
+			summary: "Mark an insight expected",
+			"x-nav-title": "Mark expected",
+			description:
+				"Mutes this rule for this resource, including future incidents, until you remove the mute. Takes no body.",
+			security: WRITE_SECURITY,
+			parameters: [INSIGHT_ID_PARAM],
+			responses: writeResponses({
+				"200": json200(OK_SCHEMA, "Muted"),
+				"404": INSIGHT_NOT_FOUND,
+			}),
+		},
+		delete: {
+			tags: ["webhooks"],
+			summary: "Unmark an insight as expected",
+			"x-nav-title": "Unmark expected",
+			description:
+				"Removes the mute for this rule and resource, so it shows again whenever it fires.",
+			security: WRITE_SECURITY,
+			parameters: [INSIGHT_ID_PARAM],
+			responses: writeResponses({
+				"200": json200(OK_SCHEMA, "Unmuted"),
+				"404": INSIGHT_NOT_FOUND,
+			}),
+		},
+	},
+};
+
 export const webhooksPaths = {
 	"/api/webhooks": {
 		get: {
@@ -678,6 +909,7 @@ export const webhooksPaths = {
 			}),
 		},
 	},
+	...insightsPaths,
 };
 
 /** Resource schemas for these responses, merged into `components.schemas`. */

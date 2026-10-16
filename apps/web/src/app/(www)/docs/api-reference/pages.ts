@@ -205,6 +205,11 @@ export const API_PAGES: ApiPage[] = [
 					"/api/webhooks/{id}/replay",
 				],
 			},
+			{
+				title: "Insights",
+				summary: "Ranked findings about your webhooks and subgraphs.",
+				paths: ["/api/insights", "/api/insights/*"],
+			},
 		],
 	},
 	{
