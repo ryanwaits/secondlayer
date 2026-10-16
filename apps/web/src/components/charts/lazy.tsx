@@ -22,38 +22,6 @@ export const LazyMonoAreaLineChart = dynamic(
 	{ ssr: false, loading: () => <ChartSkeleton height={144} /> },
 );
 
-export const LazyLivelineWaitingChart = dynamic(
-	() =>
-		import("../account/webhooks/charts/liveline-waiting-chart").then(
-			(m) => m.LivelineWaitingChart,
-		),
-	{ ssr: false, loading: () => <ChartSkeleton height={70} /> },
-);
-
-export const LazyMonoShareBarChart = dynamic(
-	() =>
-		import("../account/webhooks/charts/mono-share-bar-chart").then(
-			(m) => m.MonoShareBarChart,
-		),
-	{ ssr: false, loading: () => <ChartSkeleton height={90} /> },
-);
-
-export const LazyMonoHistogramChart = dynamic(
-	() =>
-		import("../account/webhooks/charts/mono-histogram-chart").then(
-			(m) => m.MonoHistogramChart,
-		),
-	{ ssr: false, loading: () => <ChartSkeleton height={100} /> },
-);
-
-export const LazyMonoLagLineChart = dynamic(
-	() =>
-		import("../account/webhooks/charts/mono-lag-line-chart").then(
-			(m) => m.MonoLagLineChart,
-		),
-	{ ssr: false, loading: () => <ChartSkeleton height={80} /> },
-);
-
 export const LazyBandBarChart = dynamic(
 	() =>
 		import("../dashboard/charts/band-bar-chart").then((m) => m.BandBarChart),

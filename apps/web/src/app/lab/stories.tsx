@@ -31,7 +31,12 @@ import { ButtonLink, Eyebrow, StatusDot } from "@/components/site";
 import { barsRows } from "@/lib/dashboard-charts";
 import { FIXTURE_INSIGHTS, FIXTURE_STACK } from "@/lib/insights.fixtures";
 import type { CSSProperties, ReactNode } from "react";
-import { AmountDemo, HeatStripDemo, StackedCostDemo } from "./story-controls";
+import {
+	AmountDemo,
+	HeatStripDemo,
+	StackedCostDemo,
+	WebhookHeaderDemo,
+} from "./story-controls";
 import { STORY_INDEX, type StoryId } from "./tree";
 
 export type StoryVariant = {
@@ -1180,6 +1185,32 @@ const META: Record<StoryId, Meta> = {
 			},
 		],
 		usage: `<ResourceRow href={href} name={name} tone="ok" state="Delivering" count="1,204" age="4m" />`,
+	},
+	"webhook-header": {
+		src: ["apps/web/src/components/account/webhooks/detail-panel.tsx"],
+		rule: "A webhook's name is a label you can rename here. A name another product finds it by is locked.",
+		variants: [
+			{
+				id: "own",
+				label: "Renamable",
+				render: () => (
+					<WebhookHeaderDemo name="sbtc-deposits" managedBy={null} />
+				),
+			},
+			{
+				id: "managed",
+				label: "Named by Sentinel",
+				render: () => (
+					<WebhookHeaderDemo
+						name="sentinel:example-watch"
+						managedBy="Sentinel"
+					/>
+				),
+			},
+		],
+		usage: `<TitleRow name={name} tone="ok" managedBy={webhook.managedBy} onRename={rename} />`,
+		dos: ["Hover the name to reveal Rename; Enter saves, Esc cancels."],
+		donts: ["Offer Rename when `managedBy` is set."],
 	},
 	"charts-bars": {
 		src: [

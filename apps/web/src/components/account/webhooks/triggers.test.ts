@@ -15,7 +15,7 @@ import {
 	triggerVolume,
 	unfilteredTriggers,
 	unsetTriggerFields,
-} from "./config-card";
+} from "./triggers";
 
 describe("TRIGGER_NOUN coverage", () => {
 	test("names every chain-trigger type — `Record<ChainTriggerType, string>` already makes a missing one a compile error, this is the runtime belt", () => {

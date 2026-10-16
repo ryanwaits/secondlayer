@@ -16,6 +16,7 @@ export const STORY_INDEX = [
 	{ id: "terminal-footer", group: "Dashboard", title: "Terminal footer" },
 	{ id: "breadcrumb", group: "Dashboard", title: "Breadcrumb" },
 	{ id: "resource-row", group: "Dashboard", title: "Resource row" },
+	{ id: "webhook-header", group: "Dashboard", title: "Webhook header" },
 	{ id: "charts-bars", group: "Dashboard", title: "Bars and band" },
 	{ id: "charts-heat", group: "Dashboard", title: "Heat strip" },
 	{ id: "charts-lines", group: "Dashboard", title: "Context lines" },

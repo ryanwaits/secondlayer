@@ -1,15 +1,14 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { DeliveryRow } from "@secondlayer/sdk";
 import {
-	dismissInsight,
 	formatRelative,
+	getActivity,
+	getActivitySummary,
 	getDeliveries,
-	hasShownToast,
 	hostOf,
-	isInsightDismissed,
 	listWebhooks,
-	markToastShown,
 	normalizeDeliveryRow,
+	renameWebhook,
 	resultForStatus,
 } from "./webhooks-data";
 
@@ -106,54 +105,6 @@ describe("formatRelative", () => {
 	});
 });
 
-class FakeLocalStorage {
-	private store = new Map<string, string>();
-	getItem(key: string): string | null {
-		return this.store.has(key) ? (this.store.get(key) as string) : null;
-	}
-	setItem(key: string, value: string): void {
-		this.store.set(key, value);
-	}
-}
-
-describe("insight memory (toast-once and dismiss)", () => {
-	const originalLocalStorage = (globalThis as { localStorage?: unknown })
-		.localStorage;
-
-	afterEach(() => {
-		(globalThis as { localStorage?: unknown }).localStorage =
-			originalLocalStorage;
-	});
-
-	test("a toast is remembered per (webhook, rule), independent of other rules/webhooks", () => {
-		(globalThis as { localStorage?: unknown }).localStorage =
-			new FakeLocalStorage();
-		expect(hasShownToast("wh-1", "circuit")).toBe(false);
-		markToastShown("wh-1", "circuit");
-		expect(hasShownToast("wh-1", "circuit")).toBe(true);
-		expect(hasShownToast("wh-1", "paused")).toBe(false);
-		expect(hasShownToast("wh-2", "circuit")).toBe(false);
-	});
-
-	test("a dismissal is remembered per (webhook, rule)", () => {
-		(globalThis as { localStorage?: unknown }).localStorage =
-			new FakeLocalStorage();
-		expect(isInsightDismissed("wh-1", "paused")).toBe(false);
-		dismissInsight("wh-1", "paused");
-		expect(isInsightDismissed("wh-1", "paused")).toBe(true);
-	});
-
-	test("never throws with no localStorage, and just reports 'not shown/dismissed'", () => {
-		(globalThis as { localStorage?: unknown }).localStorage = undefined;
-		expect(() => hasShownToast("wh-1", "circuit")).not.toThrow();
-		expect(hasShownToast("wh-1", "circuit")).toBe(false);
-		expect(() => markToastShown("wh-1", "circuit")).not.toThrow();
-		expect(() => isInsightDismissed("wh-1", "paused")).not.toThrow();
-		expect(isInsightDismissed("wh-1", "paused")).toBe(false);
-		expect(() => dismissInsight("wh-1", "paused")).not.toThrow();
-	});
-});
-
 describe("hostOf", () => {
 	test("extracts the host from a webhook URL", () => {
 		expect(hostOf("https://hooks.pool.example/stacks/payouts")).toBe(
@@ -220,5 +171,71 @@ describe("getDeliveries", () => {
 		if (res.kind === "ok") {
 			expect(res.data[0]?.blockTime).toBe(null);
 		}
+	});
+});
+
+describe("getDeliveries window", () => {
+	test("sends the from and to bounds as query params", async () => {
+		const calls = stubFetch(
+			() => new Response(JSON.stringify({ data: [] }), { status: 200 }),
+		);
+		await getDeliveries("wh_1", {
+			from: "2026-10-08T16:00:00.000Z",
+			to: "2026-10-08T17:00:00.000Z",
+		});
+		const url = new URL(calls[0]?.url ?? "", "http://x");
+		expect(url.pathname).toBe("/api/webhooks/wh_1/deliveries");
+		expect(url.searchParams.get("from")).toBe("2026-10-08T16:00:00.000Z");
+		expect(url.searchParams.get("to")).toBe("2026-10-08T17:00:00.000Z");
+	});
+});
+
+describe("getActivity", () => {
+	test("asks for 30 days only when told to", async () => {
+		const calls = stubFetch(() => new Response("{}", { status: 200 }));
+		await getActivity("wh_1");
+		await getActivity("wh_1", { days: 30 });
+		expect(calls[0]?.url).toBe("/api/webhooks/wh_1/activity");
+		expect(calls[1]?.url).toBe("/api/webhooks/wh_1/activity?days=30");
+	});
+});
+
+describe("getActivitySummary", () => {
+	test("a 404 (no hosted stack yet) reads as no activity", async () => {
+		stubFetch(() => new Response("{}", { status: 404 }));
+		expect(await getActivitySummary()).toEqual({
+			kind: "ok",
+			data: { hours: [], webhooks: [] },
+		});
+	});
+
+	test("passes the summary through on success", async () => {
+		const body = { hours: ["2026-10-08T00:00:00.000Z"], webhooks: [] };
+		stubFetch(() => new Response(JSON.stringify(body), { status: 200 }));
+		expect(await getActivitySummary()).toEqual({ kind: "ok", data: body });
+	});
+});
+
+describe("renameWebhook", () => {
+	test("PATCHes only the name", async () => {
+		const calls = stubFetch(
+			() => new Response(JSON.stringify({ id: "wh_1" }), { status: 200 }),
+		);
+		await renameWebhook("wh_1", "vault-events");
+		expect(calls[0]?.init?.method).toBe("PATCH");
+		expect(calls[0]?.init?.body).toBe(JSON.stringify({ name: "vault-events" }));
+	});
+
+	test("a 409 comes back as an error with the API's text", async () => {
+		stubFetch(
+			() =>
+				new Response(JSON.stringify({ error: "Name already in use" }), {
+					status: 409,
+				}),
+		);
+		expect(await renameWebhook("wh_1", "vault-events")).toEqual({
+			kind: "error",
+			message: "Name already in use",
+		});
 	});
 });

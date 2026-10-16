@@ -1,46 +1,18 @@
 "use client";
 
 import { CopyButton } from "@/components/copy-button";
-import type {
-	ChainTrigger,
-	WebhookFormat,
-	WebhookStatus,
-} from "@secondlayer/sdk";
+import type { WebhookStatus } from "@secondlayer/sdk";
 // Subpath import, not the main `@secondlayer/sdk` barrel: that barrel's
 // runtime code (unlike a `type` import, which is erased) drags in
-// `@secondlayer/shared`'s DB layer — and `postgres`, a Node-only driver —
+// `@secondlayer/shared`'s DB layer, and `postgres`, a Node-only driver,
 // into this client component's bundle.
 import {
 	DOWN_MIN_CONSECUTIVE,
 	type DoctorIssue,
 } from "@secondlayer/sdk/webhooks/doctor";
-import { useEffect, useState } from "react";
 
-/** Small pieces shared by the webhooks list and detail pages: the status
- *  pill, the "Fires on" trigger line, and the CLI command box. Kept here
- *  instead of duplicated so a status label or a trigger's formatting only
- *  has one place to fix. */
-
-/** "Standard Webhooks, signed with your secret", etc. — the config card's
- *  Delivery tab and (until plan 070) the old Settings block. */
-export const FORMAT_LABEL: Record<WebhookFormat, string> = {
-	"standard-webhooks": "Standard Webhooks, signed with your secret",
-	inngest: "Inngest event",
-	trigger: "Trigger.dev event",
-	cloudflare: "Cloudflare Queues message",
-	cloudevents: "CloudEvents envelope",
-	raw: "Raw JSON payload",
-};
-
-export const STATUS_LABEL: Record<WebhookStatus, string> = {
-	active: "Delivering",
-	paused: "Paused",
-	error: "Failing",
-};
-
-export function StatusPill({ status }: { status: WebhookStatus }) {
-	return <span className={`wh-pill ${status}`}>{STATUS_LABEL[status]}</span>;
-}
+/** Small pieces the webhook screens, the nav and the account-health rules
+ *  share: the status a webhook shows, an event cell, and the CLI command box. */
 
 /** The three codes a failing receiver can carry as the primary issue — a
  *  down receiver still reads "Delivering" if the pill only looked at
@@ -122,52 +94,6 @@ export function formatEventCell(
 	return eventIndex === null ? short : `${short} #${eventIndex}`;
 }
 
-function formatTriggerFieldValue(key: string, value: unknown): string {
-	if (
-		(key === "minAmount" || key === "maxAmount") &&
-		(typeof value === "string" || typeof value === "number")
-	) {
-		return `${(Number(value) / 1_000_000).toLocaleString("en-US")} STX`;
-	}
-	return typeof value === "string" ? shortenPrincipal(value) : String(value);
-}
-
-/** One chain trigger, e.g. `stx_transfer  sender SP21…8XEF  minAmount 1 STX`. */
-export function TriggerLine({ trigger }: { trigger: ChainTrigger }) {
-	const fields = Object.entries(trigger).filter(([key]) => key !== "type");
-	return (
-		<span className="wh-trig">
-			<b>{trigger.type}</b>
-			{fields.map(([key, value]) => (
-				<span key={key}>
-					<span className="wh-trig-k">{key}</span>{" "}
-					{formatTriggerFieldValue(key, value)}
-				</span>
-			))}
-		</span>
-	);
-}
-
-/** The "Fires on" cell/fact: the webhook's triggers. `WebhookSummary` (the
- *  list endpoint) carries no `triggers` — only `WebhookDetail` does — so a
- *  list row falls back to a plain label instead of fabricating trigger
- *  detail. */
-export function FiresOn({ triggers }: { triggers?: ChainTrigger[] | null }) {
-	if (triggers && triggers.length > 0) {
-		return (
-			<span className="wh-trig-list">
-				{triggers.map((t, i) => (
-					// Triggers have no stable id of their own; position is fine, the
-					// list never reorders under the reader.
-					// biome-ignore lint/suspicious/noArrayIndexKey: triggers are static per webhook
-					<TriggerLine key={i} trigger={t} />
-				))}
-			</span>
-		);
-	}
-	return <span className="acct-muted">Chain trigger</span>;
-}
-
 /** `$ <command>` in a dark box with a copy button, for the commands the web
  *  points at instead of doing itself (create, update). */
 export function CliLine({ command }: { command: string }) {
@@ -177,89 +103,6 @@ export function CliLine({ command }: { command: string }) {
 				<span className="wh-cli-p">$</span> {command}
 			</code>
 			<CopyButton code={command} inline label="Copy" />
-		</div>
-	);
-}
-
-// ── Syntax-highlighted code panels — shared by the delivery card
-// (payload/response/headers) and the config card (JSON tab) ──────────────
-
-export function prettyJson(value: unknown): string {
-	return JSON.stringify(value, null, 2);
-}
-
-function bytes(n: number): string {
-	return n >= 1024 ? `${(n / 1024).toFixed(1)} KB` : `${n} B`;
-}
-
-function byteLength(s: string): number {
-	return new TextEncoder().encode(s).length;
-}
-
-function HighlightedCode({
-	code,
-	lang,
-}: { code: string; lang: "json" | "html" }) {
-	const [html, setHtml] = useState<string | null>(null);
-
-	useEffect(() => {
-		let stopped = false;
-		import("@/lib/highlight-client").then(({ highlightClient }) =>
-			highlightClient(code, lang).then((h) => {
-				if (!stopped) setHtml(h);
-			}),
-		);
-		return () => {
-			stopped = true;
-		};
-	}, [code, lang]);
-
-	if (!html) return <pre>{code}</pre>;
-	// biome-ignore lint/security/noDangerouslySetInnerHtml: server-rendered-style syntax highlighting, same pattern as the docs' `highlight()`
-	return <div dangerouslySetInnerHTML={{ __html: html }} />;
-}
-
-/** A labeled, highlighted code block with byte count and a Copy button — the
- *  delivery card's Payload/Response/Headers tabs and the config card's JSON
- *  tab all render through this one component. */
-export function CodePanel({
-	label,
-	code,
-	lang,
-	emptyText,
-	loading,
-}: {
-	label: string;
-	code: string | null;
-	lang: "json" | "html";
-	emptyText: string;
-	/** The data hasn't loaded yet — distinct from a real empty state, which
-	 *  says something specific ("payload no longer kept"). */
-	loading?: boolean;
-}) {
-	if (loading) {
-		return (
-			<div className="wh-code">
-				<p className="wh-code-empty">Loading…</p>
-			</div>
-		);
-	}
-	if (code === null || code.length === 0) {
-		return (
-			<div className="wh-code">
-				<p className="wh-code-empty">{emptyText}</p>
-			</div>
-		);
-	}
-	return (
-		<div className="wh-code">
-			<div className="wh-code-head">
-				<span>
-					{label} · {bytes(byteLength(code))}
-				</span>
-				<CopyButton code={code} label="Copy" />
-			</div>
-			<HighlightedCode code={code} lang={lang} />
 		</div>
 	);
 }

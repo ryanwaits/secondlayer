@@ -1,78 +1,80 @@
 "use client";
 
-import { LazyMonoStackedBarChart } from "@/components/charts/lazy";
+import { LazyBandBarChart } from "@/components/charts/lazy";
+import { Choice } from "@/components/choice";
+import { Legend } from "@/components/dashboard/charts/legend";
+import { InsightNote } from "@/components/dashboard/insight/insight-note";
+import { InsightStack } from "@/components/dashboard/insight/insight-stack";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
+import { dotClass } from "@/components/dashboard/shell/status-sentence";
+import { formatDate } from "@/lib/account-data";
+import { barsRows } from "@/lib/dashboard-charts";
+import { autoOpenId, rankInsights } from "@/lib/insights";
+import type { Insight } from "@/lib/insights";
+import { insightsForWebhook, outageStartIndex } from "@/lib/webhook-insights";
 import {
-	activityHeaderSummary,
-	catchUpCopy,
-	catchUpState,
-} from "@/lib/webhook-graphs";
-import {
-	deleteWebhook,
-	formatRelative,
+	type WebhookActivityDay,
+	hostOf,
 	pauseWebhook,
-	requeue,
+	renameWebhook,
 	resumeWebhook,
-	rotateSecret,
-	testWebhook,
 } from "@/lib/webhooks-data";
 import type { WebhooksResult } from "@/lib/webhooks-data";
 import {
+	applyWebhook,
 	poll,
 	refreshActivity,
+	refreshDays,
+	refreshDeliveriesWindow,
 	refreshDetail,
 	useWebhooksCache,
 	webhooksSnapshot,
 } from "@/lib/webhooks-store";
-import NumberFlow from "@number-flow/react";
-import type { DeadRow, DeliveryRow } from "@secondlayer/sdk";
-import {
-	buildDoctorReport,
-	isSuccessDelivery,
-} from "@secondlayer/sdk/webhooks/doctor";
+import type {
+	DeliveryRow,
+	WebhookActivity,
+	WebhookDetail,
+} from "@secondlayer/sdk";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ConfigCard, ConfigRow, ConfigSummaryLine } from "./config-card";
-import { DeliveryCard } from "./delivery-card";
-import { DiagnosisPanel } from "./diagnosis";
-import { AttemptRibbon } from "./ribbon";
-import { StatusPill, displayStatus, formatEventCell } from "./shared";
+import { AttemptTimeline } from "./attempt-timeline";
+import { displayStatus, formatEventCell } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
+import { TriggersBox } from "./triggers";
+import {
+	RANGES,
+	type Range,
+	deliveryStats,
+	groupAttempts,
+	hourWindow,
+	isOk,
+	rangeBars,
+	utcClock,
+	utcStamp,
+} from "./view";
 
 /** How often the detail bundle (webhook, deliveries, dead, activity)
- *  refreshes together while the tab is visible — plan 073. */
+ *  refreshes together while the tab is visible. */
 const DETAIL_POLL_MS = 10_000;
-/** The fast standalone `/activity` poll while a receiver is down or events
- *  are backed up — otherwise activity just rides the slower bundle above. */
+/** The fast standalone `/activity` poll while events are waiting to send. */
 const ACTIVITY_POLL_MS = 5_000;
+const VISIBLE_GROUPS = 10;
 
-/** A one-line, user-facing reason for anything short of `{ kind: "ok" }` —
- *  shared by every action's error path and its matching toast, so the two
- *  never say different things. */
+const RANGE_OPTIONS = RANGES.map((value) => ({ value, label: value }));
+
+/** A one-line, user-facing reason for anything short of `{ kind: "ok" }`. */
 function describeFailure(
 	res: Exclude<WebhooksResult<unknown>, { kind: "ok" }>,
 ): string {
 	if (res.kind === "rate_limited") {
-		return `Too many requests — try again in ${res.retryAfter}s.`;
+		return `Too many requests. Try again in ${res.retryAfter}s.`;
 	}
 	if (res.kind === "starting") return "Your hosted stack is still starting.";
 	if (res.kind === "no_credits") return "Add credits to do that.";
 	if (res.kind === "not_found") return "That webhook wasn't found.";
 	return res.message;
-}
-
-/** Response time, oldest → newest, over the deliveries the page already
- *  fetched — moved here (from the deleted `chart.tsx`) since only the
- *  "Median response" stat still needs it. */
-function medianOkDurationMs(rows: DeliveryRow[]): number {
-	const durations = rows
-		.filter(isSuccessDelivery)
-		.map((r) => r.durationMs ?? 0)
-		.sort((a, b) => a - b);
-	if (durations.length === 0) return 0;
-	return durations[Math.floor(durations.length / 2)] ?? 0;
 }
 
 type DetailNotice =
@@ -82,210 +84,612 @@ type DetailNotice =
 	| { kind: "error"; message: string };
 
 /**
- * Fires the whole detail bundle (webhook, deliveries, dead, activity) in
- * parallel through `refreshDetail` on mount, then again every
- * `DETAIL_POLL_MS` while the tab is visible — none of the four waits on the
- * webhook object first.
- *
- * A non-ok webhook result becomes this page's notice only when nothing is
- * cached yet for it; once a webhook has loaded once, a later starting/
- * no-credits/error result just keeps retrying quietly behind the
- * last-known page (stale-while-revalidate). `not_found` is the one
- * exception — it always wins, since a genuinely deleted webhook shouldn't
- * keep showing stale content.
+ * Fires the whole detail bundle in parallel on mount, then again every
+ * `DETAIL_POLL_MS` while the tab is visible. A non-ok webhook result becomes
+ * this page's notice only when nothing is cached yet for it; once a webhook
+ * has loaded, later failures keep retrying behind the last-known page.
+ * `not_found` always wins, since a deleted webhook shouldn't keep showing.
  */
-function useWebhookDetailPoll(
+function useDetailPoll(
 	id: string,
-	skipActivityRef: { current: boolean },
-): {
-	notice: DetailNotice | null;
-	reload: () => void;
-} {
+	fastActivityRef: { current: boolean },
+): DetailNotice | null {
 	const [notice, setNotice] = useState<DetailNotice | null>(null);
 
 	useEffect(() => {
 		setNotice(null);
 		return poll(async () => {
-			// While the fast activity-only poll below is doing the work, this
-			// bundle skips that one read — otherwise both intervals fetch
-			// `/activity` on the same tick.
 			const res = await refreshDetail(id, {
-				activity: !skipActivityRef.current,
+				activity: !fastActivityRef.current,
 			});
 			const hasCached = webhooksSnapshot().detail[id] !== undefined;
-			if (res.webhook.kind === "ok") {
+			const webhook = res.webhook;
+			if (webhook.kind === "ok") {
 				setNotice(null);
 				return {};
 			}
-			if (res.webhook.kind === "not_found") {
+			if (webhook.kind === "not_found") {
 				setNotice({ kind: "not_found" });
 				return {};
 			}
-			if (res.webhook.kind === "starting") {
+			if (webhook.kind === "rate_limited") {
+				return { retryAfterMs: webhook.retryAfter * 1000 };
+			}
+			if (webhook.kind === "starting") {
 				if (!hasCached) setNotice({ kind: "starting" });
-				return { retryAfterMs: res.webhook.retryAfter * 1000 };
+				return { retryAfterMs: webhook.retryAfter * 1000 };
 			}
-			if (res.webhook.kind === "rate_limited") {
-				return { retryAfterMs: res.webhook.retryAfter * 1000 };
-			}
-			if (res.webhook.kind === "no_credits") {
+			if (webhook.kind === "no_credits") {
 				if (!hasCached) setNotice({ kind: "no_credits" });
 				return {};
 			}
-			if (!hasCached) {
-				setNotice({ kind: "error", message: res.webhook.message });
-			}
+			if (!hasCached) setNotice({ kind: "error", message: webhook.message });
 			return {};
 		}, DETAIL_POLL_MS);
-		// `skipActivityRef` is a stable ref object from the caller — listed for
-		// the linter, but its `.current` mutations never need to restart this
-		// effect (the poll tick reads it fresh on every call).
-	}, [id, skipActivityRef]);
+	}, [id, fastActivityRef]);
 
-	return { notice, reload: () => void refreshDetail(id) };
+	return notice;
 }
 
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
+// ── Title row ────────────────────────────────────────────────────────────
+
+type Tone = "ok" | "alarm" | "hi" | "idle";
+
+function toneFor(webhook: WebhookDetail, insights: readonly Insight[]): Tone {
+	const status = displayStatus(webhook);
+	if (status === "paused") return "idle";
+	if (status === "error" || insights.some((i) => i.severity === "losing")) {
+		return "alarm";
+	}
+	if (insights.some((i) => i.severity === "will_fail")) return "hi";
+	return "ok";
 }
 
-/** One `/activity` poll, kept client-side for the session — the catch-up
- *  bar's rate and the `receiver_down` graph's live line both read this. */
-interface WaitingPoll {
-	t: number;
-	waiting: number;
+export function TitleRow({
+	name,
+	tone,
+	managedBy,
+	onRename,
+}: {
+	name: string;
+	tone: Tone;
+	managedBy: string | null;
+	/** Resolves true when the new name was saved. */
+	onRename: (name: string) => Promise<boolean>;
+}) {
+	const [editing, setEditing] = useState(false);
+	const [draft, setDraft] = useState(name);
+	const [saving, setSaving] = useState(false);
+	// Enter and Escape unmount the input, which can also fire blur; this keeps
+	// that blur from saving a second time (or saving a cancelled edit).
+	const skipBlur = useRef(false);
+
+	const start = () => {
+		skipBlur.current = false;
+		setDraft(name);
+		setEditing(true);
+	};
+	const cancel = () => {
+		skipBlur.current = true;
+		setEditing(false);
+	};
+	const save = async () => {
+		const next = draft.trim();
+		setEditing(false);
+		if (!next || next === name) return;
+		setSaving(true);
+		await onRename(next);
+		setSaving(false);
+	};
+
+	return (
+		<div className="wd-title">
+			<h1>
+				<span className={dotClass(tone)} />
+				{editing ? (
+					<input
+						className="wd-rename-input"
+						value={draft}
+						maxLength={128}
+						aria-label="Webhook name"
+						spellCheck={false}
+						autoFocus
+						onChange={(event) => setDraft(event.target.value)}
+						onFocus={(event) => event.currentTarget.select()}
+						onKeyDown={(event) => {
+							if (event.key === "Enter") {
+								event.preventDefault();
+								skipBlur.current = true;
+								void save();
+							} else if (event.key === "Escape") {
+								event.preventDefault();
+								cancel();
+							}
+						}}
+						onBlur={() => {
+							if (skipBlur.current) {
+								skipBlur.current = false;
+								return;
+							}
+							void save();
+						}}
+					/>
+				) : (
+					<span className="wd-name">{saving ? draft.trim() : name}</span>
+				)}
+				{managedBy ? (
+					<span
+						className="wd-chip-own"
+						title={`${managedBy} finds this webhook by its name, so rename it there`}
+					>
+						named by {managedBy}
+					</span>
+				) : editing ? null : (
+					<button type="button" className="wd-rename" onClick={start}>
+						Rename
+					</button>
+				)}
+			</h1>
+			{editing ? (
+				<span className="wd-rename-hint">
+					Enter to save, Esc to cancel. Only the label changes: the ID, filter
+					and deliveries stay. Scripts that use the old name need the new one.
+				</span>
+			) : null}
+		</div>
+	);
 }
 
-const WAITING_HISTORY_LIMIT = 180; // ~15 minutes at the 5s poll cadence
+// ── Facts ────────────────────────────────────────────────────────────────
+
+const sumOf = (values: readonly number[]) => values.reduce((a, b) => a + b, 0);
+
+function Facts({
+	webhook,
+	activity,
+	deliveries,
+}: {
+	webhook: WebhookDetail;
+	activity: WebhookActivity | null;
+	deliveries: readonly DeliveryRow[];
+}) {
+	const stats = deliveryStats(deliveries);
+	const fact = (label: string, value: string) => (
+		<div key={label}>
+			{label}
+			<b>{value}</b>
+		</div>
+	);
+	return (
+		<div className="wd-facts">
+			{fact(
+				"Delivered · 7d",
+				activity
+					? sumOf(activity.hours.map((h) => h.delivered)).toLocaleString(
+							"en-US",
+						)
+					: "–",
+			)}
+			{fact(
+				"Gave up · 7d",
+				activity
+					? sumOf(activity.hours.map((h) => h.gaveUp)).toLocaleString("en-US")
+					: "–",
+			)}
+			{fact("Retried · last 100", stats.retried.toLocaleString("en-US"))}
+			{fact(
+				"p50 / p95 · last 100",
+				stats.p50 === null || stats.p95 === null
+					? "–"
+					: `${stats.p50.toLocaleString("en-US")} / ${stats.p95.toLocaleString("en-US")} ms`,
+			)}
+			{fact("Receiver", hostOf(webhook.url))}
+			{fact("Created", formatDate(webhook.createdAt))}
+		</div>
+	);
+}
+
+// ── Insights ─────────────────────────────────────────────────────────────
+
+/** One insight is a note with no stack header; two or more are the ranked stack. */
+function Insights({ insights }: { insights: readonly Insight[] }) {
+	if (insights.length >= 2) return <InsightStack insights={insights} />;
+	const only = insights[0];
+	if (!only) return null;
+	return <SingleInsight insight={only} />;
+}
+
+function SingleInsight({ insight }: { insight: Insight }) {
+	const [open, setOpen] = useState(autoOpenId([insight]) !== null);
+	return (
+		<div className="ins-stack">
+			<InsightNote
+				insight={insight}
+				open={open}
+				onToggle={() => setOpen((v) => !v)}
+			/>
+		</div>
+	);
+}
+
+// ── Chart ────────────────────────────────────────────────────────────────
+
+const BAND_NOTE =
+	'No "usual range" band: under 1 event an hour is too little to call anything unusual. The band shows up once there\'s enough volume.';
+
+function DeliveriesChart({
+	activity,
+	days,
+	range,
+	losing,
+}: {
+	activity: WebhookActivity;
+	days: readonly WebhookActivityDay[] | undefined;
+	range: Range;
+	/** A losing insight is on the page, so mark where the outage began. */
+	losing: boolean;
+}) {
+	const bars = rangeBars(range, activity, days);
+	const hourly = range !== "30d";
+	const outage = losing ? outageStartIndex(activity.hours) : null;
+	const outageHour = outage === null ? undefined : activity.hours[outage]?.hour;
+	const markIndex = outage === null ? -1 : outage - bars.offset;
+	const mark =
+		hourly && outageHour && markIndex >= 0
+			? { index: markIndex, label: `Failures start ${utcClock(outageHour)}` }
+			: undefined;
+	const showBandNote = range !== "7d" && hourly && !activity.usualByHourOfDay;
+	return (
+		<section className="dash-panel" aria-label="Deliveries">
+			<div className="dash-panel-h">
+				<span className="dash-label">
+					Deliveries per {hourly ? "hour" : "day"}
+				</span>
+				<Legend
+					items={[
+						{
+							swatch: "square",
+							label: "Delivered",
+							color: "var(--ch-a)",
+						},
+						{ swatch: "square", label: "Failed" },
+						...(bars.band
+							? [{ swatch: "band" as const, label: "Usual for this hour" }]
+							: []),
+					]}
+				/>
+			</div>
+			{bars.rows.length === 0 ? (
+				<p className="wd-faint">Loading the last 30 days…</p>
+			) : (
+				<LazyBandBarChart
+					rows={barsRows(bars.rows, { band: bars.band ?? undefined })}
+					height={180}
+					xLabels={bars.labels}
+					mark={mark}
+					seriesNames={{ n: "Delivered", p: "", f: "Failed" }}
+				/>
+			)}
+			{showBandNote ? <span className="wd-faint">{BAND_NOTE}</span> : null}
+		</section>
+	);
+}
+
+// ── Deliveries ───────────────────────────────────────────────────────────
+
+function DeliveriesPanel({
+	rows,
+	hour,
+	onClearHour,
+}: {
+	/** Null while the hour's window is still loading. */
+	rows: readonly DeliveryRow[] | null;
+	hour: { label: string } | null;
+	onClearHour: () => void;
+}) {
+	const [open, setOpen] = useState<string | null>(null);
+	const [showAll, setShowAll] = useState(false);
+	const groups = groupAttempts(rows ?? []);
+	const shown = showAll ? groups : groups.slice(0, VISIBLE_GROUPS);
+	return (
+		<section className="dash-panel" id="wd-deliveries" aria-label="Deliveries">
+			<div className="dash-panel-h">
+				<span className="wd-panel-title">
+					<span className="dash-label">
+						{hour ? "Deliveries" : "Recent deliveries"}
+					</span>
+					{hour ? (
+						<button
+							type="button"
+							className="wd-fchip"
+							aria-label={`Clear filter ${hour.label}`}
+							onClick={onClearHour}
+						>
+							{hour.label} <i>×</i>
+						</button>
+					) : null}
+				</span>
+				<span className="wd-faint">click a row for its attempts</span>
+			</div>
+			<div className="wd-tbl-wrap">
+				<table className="wd-tbl">
+					<thead>
+						<tr>
+							<th>Time (UTC)</th>
+							<th>Event</th>
+							<th>Status</th>
+							<th>Attempts</th>
+							<th className="r">ms</th>
+						</tr>
+					</thead>
+					<tbody>
+						{rows === null ? (
+							<tr>
+								<td colSpan={5} className="wd-faint wd-empty">
+									Loading…
+								</td>
+							</tr>
+						) : groups.length === 0 ? (
+							<tr>
+								<td colSpan={5} className="wd-faint wd-empty">
+									{hour
+										? "No deliveries kept for this hour. Deliveries are kept 30 days."
+										: "No deliveries yet."}
+								</td>
+							</tr>
+						) : null}
+						{shown.map(({ key, attempts, latest }) => (
+							<DeliveryRowView
+								key={key}
+								attempts={attempts}
+								latest={latest}
+								open={open === key}
+								onToggle={() => setOpen(open === key ? null : key)}
+							/>
+						))}
+					</tbody>
+				</table>
+			</div>
+			{groups.length > VISIBLE_GROUPS ? (
+				<button
+					type="button"
+					className="wd-more"
+					onClick={() => setShowAll((v) => !v)}
+				>
+					{showAll ? "Show fewer" : `Show all ${groups.length}`}
+				</button>
+			) : null}
+		</section>
+	);
+}
+
+function DeliveryRowView({
+	attempts,
+	latest,
+	open,
+	onToggle,
+}: {
+	attempts: DeliveryRow[];
+	latest: DeliveryRow;
+	open: boolean;
+	onToggle: () => void;
+}) {
+	return (
+		<>
+			<tr
+				className="click"
+				tabIndex={0}
+				aria-expanded={open}
+				onClick={onToggle}
+				onKeyDown={(event) => {
+					if (event.key === "Enter" || event.key === " ") {
+						event.preventDefault();
+						onToggle();
+					}
+				}}
+			>
+				<td>{utcStamp(latest.dispatchedAt)}</td>
+				<td>{formatEventCell(latest.txId, latest.eventIndex)}</td>
+				<td className={isOk(latest) ? "good" : "bad"}>
+					{latest.statusCode ?? "none"}
+				</td>
+				<td>
+					<span
+						className="wd-att"
+						role="img"
+						aria-label={`${attempts.length} ${attempts.length === 1 ? "attempt" : "attempts"}`}
+					>
+						{attempts.map((a) => (
+							<i key={a.id} className={isOk(a) ? "" : "f"} />
+						))}
+					</span>
+				</td>
+				<td className="r">
+					{latest.durationMs === null
+						? "–"
+						: latest.durationMs.toLocaleString("en-US")}
+				</td>
+			</tr>
+			{open ? (
+				<tr className="exp">
+					<td colSpan={5}>
+						<AttemptTimeline attempts={attempts} />
+					</td>
+				</tr>
+			) : null}
+		</>
+	);
+}
+
+// ── The page ─────────────────────────────────────────────────────────────
+
+export interface WebhookDetailBodyProps {
+	webhook: WebhookDetail;
+	deliveries: DeliveryRow[];
+	activity: WebhookActivity | null;
+	days: WebhookActivityDay[] | undefined;
+	insights: Insight[];
+	range: Range;
+	onRange: (range: Range) => void;
+	/** The hour a heat square opened, when `?hour=` is set. */
+	hour: { label: string } | null;
+	/** Deliveries inside that hour; null while loading. */
+	hourDeliveries: DeliveryRow[] | null;
+	onClearHour: () => void;
+	pauseBusy: boolean;
+	onTogglePause: () => void;
+	onRename: (name: string) => Promise<boolean>;
+}
+
+export function WebhookDetailBody({
+	webhook,
+	deliveries,
+	activity,
+	days,
+	insights,
+	range,
+	onRange,
+	hour,
+	hourDeliveries,
+	onClearHour,
+	pauseBusy,
+	onTogglePause,
+	onRename,
+}: WebhookDetailBodyProps) {
+	const ranked = rankInsights(insights);
+	const quiet = deliveries.length === 0 && !hour;
+	return (
+		<>
+			<Breadcrumb
+				parent={{ href: "/account/webhooks", label: "Webhooks" }}
+				current={webhook.name}
+			/>
+			<header className="wd-head">
+				<div className="wd-top">
+					<TitleRow
+						name={webhook.name}
+						tone={toneFor(webhook, ranked)}
+						managedBy={webhook.managedBy}
+						onRename={onRename}
+					/>
+					<div className="wd-actions">
+						<Choice
+							name="wd-range"
+							legend="Range"
+							options={RANGE_OPTIONS}
+							value={range}
+							onChange={(value) => onRange(value as Range)}
+						/>
+						<button
+							type="button"
+							className="wd-btn"
+							onClick={onTogglePause}
+							disabled={pauseBusy}
+						>
+							{webhook.status === "paused" ? "Resume" : "Pause"}
+						</button>
+					</div>
+				</div>
+				<Facts webhook={webhook} activity={activity} deliveries={deliveries} />
+			</header>
+
+			<Insights insights={ranked} />
+
+			{activity && !quiet ? (
+				<DeliveriesChart
+					activity={activity}
+					days={days}
+					range={range}
+					losing={ranked.some((i) => i.severity === "losing")}
+				/>
+			) : null}
+
+			<div className="wd-two">
+				<section className="dash-panel" aria-label="Listens for">
+					<span className="dash-label">Listens for</span>
+					<TriggersBox triggers={webhook.triggers} activity={activity} />
+					<span className="wd-faint">
+						Defined in code. Filters can't change in place: create a new webhook
+						with the SDK, then delete this one.
+					</span>
+				</section>
+				{quiet ? (
+					<p className="wd-faint">
+						No deliveries yet. This webhook delivers on the first matching event
+						on chain.
+					</p>
+				) : (
+					<DeliveriesPanel
+						rows={hour ? hourDeliveries : deliveries}
+						hour={hour}
+						onClearHour={onClearHour}
+					/>
+				)}
+			</div>
+		</>
+	);
+}
 
 export function WebhookDetailSection({ id }: { id: string }) {
 	const router = useRouter();
+	const pathname = usePathname();
+	const search = useSearchParams();
 	const cache = useWebhooksCache();
-	// Shared with the fast activity poll below: true while that poll is the
-	// one actually fetching activity, so the 10s bundle above can skip it.
-	// Set for real once `activity`/`primary` are known further down; reading
-	// it inside a poll tick always sees this render's latest value.
-	const pollActiveRef = useRef(false);
-	const { notice, reload } = useWebhookDetailPoll(id, pollActiveRef);
+	const fastActivity = useRef(false);
+	const notice = useDetailPoll(id, fastActivity);
 
 	const webhook = cache.detail[id]?.data ?? null;
 	const deliveries = cache.deliveries[id]?.data ?? null;
 	const dead = cache.dead[id]?.data ?? null;
-	const activityEntry = cache.activity[id];
-	const activity = activityEntry?.data ?? null;
-	// The header (name, status, id) the list page already fetched — shown at
-	// once while this page's own `GET /:id` is still in flight.
+	const activity = cache.activity[id]?.data ?? null;
 	const listSummary = cache.list?.data.find((w) => w.id === id) ?? null;
 
-	const [tab, setTab] = useState<"deliveries" | "failed">("deliveries");
+	const insights =
+		insightsForWebhook({ webhook, deliveries, dead, activity }) ?? [];
+	const outage = activity ? outageStartIndex(activity.hours) : null;
+	const [pickedRange, setPickedRange] = useState<Range | null>(null);
+	// A page that opens on an outage starts on the 48h view that shows it.
+	const range: Range = pickedRange ?? (outage === null ? "7d" : "48h");
 
-	const [waitingHistory, setWaitingHistory] = useState<WaitingPoll[]>([]);
-	const [peakWaiting, setPeakWaiting] = useState(0);
-	const sawNoCreditsRef = useRef(false);
-	// The last activity fetch already folded into `waitingHistory` — an
-	// `at` timestamp, not the data itself, since a poll can legitimately
-	// repeat the same waiting count.
-	const lastActivityAtRef = useRef<number | null>(null);
-
-	const [showAllDeliveries, setShowAllDeliveries] = useState(false);
-	const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null);
-	// The config card's open tab, `null` when closed. One `FloatingCard` shows
-	// at a time — opening this closes an open delivery card and vice versa.
-	const [configTab, setConfigTab] = useState<
-		"fires" | "delivery" | "json" | null
-	>(null);
-	const openConfig = (tab: "fires" | "delivery" | "json") => {
-		setConfigTab(tab);
-		setOpenDeliveryId(null);
-	};
-
-	const [testBusy, setTestBusy] = useState(false);
-	const [testResult, setTestResult] = useState<{
-		ok: boolean;
-		text: string;
-	} | null>(null);
 	const [pauseBusy, setPauseBusy] = useState(false);
-	const [actionError, setActionError] = useState<string | null>(null);
 
-	const [rotating, setRotating] = useState<"idle" | "confirm" | "revealed">(
-		"idle",
-	);
-	const [rotateBusy, setRotateBusy] = useState(false);
-	const [newSecret, setNewSecret] = useState<string | null>(null);
-	const [copiedSecret, setCopiedSecret] = useState(false);
-
-	const [deleting, setDeleting] = useState(false);
-	const [deleteName, setDeleteName] = useState("");
-	const [deleteBusy, setDeleteBusy] = useState(false);
-	const [deleteError, setDeleteError] = useState<string | null>(null);
-
-	const [resend, setResend] = useState<{ done: number; total: number } | null>(
-		null,
-	);
-	const resendStop = useRef(false);
-	// Rows requeued locally, hidden immediately instead of waiting out the
-	// next poll — the cache itself is only ever written by a fetch.
-	const [locallyResent, setLocallyResent] = useState<ReadonlySet<string>>(
-		new Set(),
-	);
-
-	useEffect(() => {
-		if (!activityEntry) return;
-		if (lastActivityAtRef.current === activityEntry.at) return;
-		lastActivityAtRef.current = activityEntry.at;
-		const data = activityEntry.data;
-		setPeakWaiting((prev) => Math.max(prev, data.waiting));
-		setWaitingHistory((prev) =>
-			[...prev, { t: activityEntry.at, waiting: data.waiting }].slice(
-				-WAITING_HISTORY_LIMIT,
-			),
-		);
-	}, [activityEntry]);
-
-	useEffect(() => {
-		if (notice?.kind === "no_credits") sawNoCreditsRef.current = true;
-	}, [notice]);
-
-	const rows = deliveries ?? [];
-	const deadRows = (dead ?? []).filter((r) => !locallyResent.has(r.id));
-	// Gated on deliveries *and* dead having loaded at least once (they can be
-	// cached from an earlier visit) — otherwise an empty `rows`/`deadRows`
-	// reads as "no deliveries yet" before the real logs ever arrive.
-	const report =
-		webhook && deliveries !== null && dead !== null
-			? buildDoctorReport({
-					webhook,
-					deliveries: rows,
-					dead: deadRows,
-				})
-			: null;
-	const primary = report?.primary ?? null;
-
-	// Kept current every render so the polling effects (which must stay
-	// mounted for the page's whole life, not restart on every state change)
-	// always see this render's answer to "should the fast poll be running".
-	pollActiveRef.current =
-		activity !== null && activity.waiting > 0
-			? true
-			: primary?.code === "receiver_down";
-
-	// The fast standalone poll: only actually calls out while catching up or
-	// down. Otherwise it just idles — activity still refreshes every
-	// `DETAIL_POLL_MS` as part of the bundle above.
+	fastActivity.current = (activity?.waiting ?? 0) > 0;
 	useEffect(() => {
 		return poll(async () => {
-			if (!pollActiveRef.current) return {};
-			await refreshActivity(id);
+			if (fastActivity.current) await refreshActivity(id);
 			return {};
 		}, ACTIVITY_POLL_MS);
 	}, [id]);
 
-	const lastTwoPolls = waitingHistory.slice(-2);
-	const isCatchingUp =
-		activity !== null &&
-		activity.waiting >= 100 &&
-		lastTwoPolls.length === 2 &&
-		(lastTwoPolls[1]?.waiting ?? 0) < (lastTwoPolls[0]?.waiting ?? 0);
+	useEffect(() => {
+		if (range === "30d") void refreshDays(id);
+	}, [id, range]);
+
+	const hour = hourWindow(search.get("hour"));
+	const hourFrom = hour?.from;
+	const hourTo = hour?.to;
+	useEffect(() => {
+		if (hourFrom && hourTo) {
+			void refreshDeliveriesWindow(id, { from: hourFrom, to: hourTo });
+		}
+	}, [id, hourFrom, hourTo]);
+	const hourDeliveries = hourFrom
+		? (cache.deliveriesWindow[`${id}:${hourFrom}`]?.data ?? null)
+		: null;
+
+	// Bring the deliveries into view once, when the page opens on an hour.
+	const scrolledTo = useRef<string | null>(null);
+	useEffect(() => {
+		if (!hourFrom || hourDeliveries === null) return;
+		if (scrolledTo.current === hourFrom) return;
+		scrolledTo.current = hourFrom;
+		document.getElementById("wd-deliveries")?.scrollIntoView({
+			block: "start",
+			behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+				? "auto"
+				: "smooth",
+		});
+	}, [hourFrom, hourDeliveries]);
 
 	if (notice?.kind === "not_found") {
 		return (
@@ -296,8 +700,8 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		);
 	}
 
-	if (!webhook) {
-		if (notice?.kind === "no_credits") {
+	if (!webhook || !deliveries) {
+		if (!webhook && notice?.kind === "no_credits") {
 			return (
 				<output className="wh-notice stop">
 					<div>
@@ -315,8 +719,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 				</output>
 			);
 		}
-
-		if (notice?.kind === "starting") {
+		if (!webhook && notice?.kind === "starting") {
 			return (
 				<output className="wh-notice wait">
 					<div>
@@ -331,717 +734,73 @@ export function WebhookDetailSection({ id }: { id: string }) {
 				</output>
 			);
 		}
-
-		if (notice?.kind === "error") {
+		if (!webhook && notice?.kind === "error") {
 			return <p className="acct-error">{notice.message}</p>;
 		}
-
+		const name = webhook?.name ?? listSummary?.name;
 		return (
 			<>
-				{listSummary ? (
+				{name ? (
 					<>
 						<Breadcrumb
 							parent={{ href: "/account/webhooks", label: "Webhooks" }}
-							current={listSummary.name}
+							current={name}
 						/>
-						<div className="wh-h1-row">
-							<h1 className="acct-h1">{listSummary.name}</h1>
-							<StatusPill status={displayStatus(listSummary)} />
+						<div className="wd-title">
+							<h1>
+								<span className="wd-name">{name}</span>
+							</h1>
 						</div>
 					</>
 				) : null}
-				<WebhookDetailSkeleton hideHead={listSummary !== null} />
+				<WebhookDetailSkeleton hideHead={name !== undefined} />
 			</>
 		);
-	}
-
-	// The webhook itself loaded, but its logs haven't (or a race lost one of
-	// them) — hold the skeleton rather than render stats and tables off an
-	// empty `rows`/`deadRows` that would misreport as "nothing here".
-	if (!report) {
-		return (
-			<>
-				<Breadcrumb
-					parent={{ href: "/account/webhooks", label: "Webhooks" }}
-					current={webhook.name}
-				/>
-				<div className="wh-h1-row">
-					<h1 className="acct-h1">{webhook.name}</h1>
-					<StatusPill status={displayStatus(webhook)} />
-				</div>
-				<WebhookDetailSkeleton hideHead />
-			</>
-		);
-	}
-
-	async function onTest() {
-		setTestBusy(true);
-		setTestResult(null);
-		const res = await testWebhook(id);
-		setTestBusy(false);
-		if (res.kind === "ok") {
-			const r = res.data;
-			const text = r.ok
-				? `Test delivered: ${r.statusCode ?? "?"} in ${r.durationMs} ms.`
-				: `Test failed: ${r.error ?? "no response"}.`;
-			setTestResult({ ok: r.ok, text });
-			if (r.ok) toast.success("Test event delivered", { description: text });
-			else toast.error("Test event failed", { description: text });
-			reload();
-			return;
-		}
-		const text = describeFailure(res);
-		setTestResult({ ok: false, text });
-		toast.error("Couldn't send a test event", { description: text });
 	}
 
 	async function onTogglePause() {
-		const willResume = webhook?.status === "paused";
+		const resuming = webhook?.status === "paused";
 		setPauseBusy(true);
-		setActionError(null);
-		const res = willResume ? await resumeWebhook(id) : await pauseWebhook(id);
+		const res = resuming ? await resumeWebhook(id) : await pauseWebhook(id);
 		setPauseBusy(false);
 		if (res.kind === "ok") {
-			toast.success(willResume ? "Webhook resumed" : "Webhook paused");
-			reload();
+			applyWebhook(res.data);
+			toast.success(resuming ? "Webhook resumed" : "Webhook paused");
 			return;
 		}
-		const text = describeFailure(res);
-		setActionError(text);
-		toast.error("Couldn't change this webhook", { description: text });
-	}
-
-	async function onRotateConfirm() {
-		setRotateBusy(true);
-		setActionError(null);
-		const res = await rotateSecret(id);
-		setRotateBusy(false);
-		if (res.kind === "ok") {
-			setNewSecret(res.data.signingSecret);
-			setRotating("revealed");
-			toast.success("Signing secret rotated", {
-				description: "The old secret stopped working immediately.",
-			});
-			reload();
-			return;
-		}
-		const text = describeFailure(res);
-		setActionError(text);
-		toast.error("Couldn't rotate the secret", { description: text });
-		setRotating("idle");
-	}
-
-	async function onDeleteConfirm() {
-		if (deleteName.trim() !== webhook?.name) {
-			setDeleteError("Type the webhook's name exactly to confirm.");
-			return;
-		}
-		setDeleteBusy(true);
-		setDeleteError(null);
-		const res = await deleteWebhook(id);
-		setDeleteBusy(false);
-		if (res.kind === "ok") {
-			toast.success("Webhook deleted");
-			router.push("/account/webhooks");
-			return;
-		}
-		const text = describeFailure(res);
-		setDeleteError(text);
-		toast.error("Couldn't delete this webhook", { description: text });
-	}
-
-	async function onResendOne(outboxId: string) {
-		const res = await requeue(id, outboxId);
-		if (res.kind === "ok") {
-			setLocallyResent((prev) => new Set(prev).add(outboxId));
-			toast.success("Event resent");
-			return;
-		}
-		toast.error("Couldn't resend that event", {
+		toast.error("Couldn't change this webhook", {
 			description: describeFailure(res),
 		});
 	}
 
-	async function onResendAll() {
-		const targets = deadRows;
-		if (targets.length === 0) return;
-		resendStop.current = false;
-		const total = targets.length;
-		let done = 0;
-		setResend({ done, total });
-		for (const row of targets) {
-			if (resendStop.current) break;
-			let res = await requeue(id, row.id);
-			if (res.kind === "rate_limited") {
-				await sleep(res.retryAfter * 1000);
-				if (resendStop.current) break;
-				res = await requeue(id, row.id);
-			}
-			if (res.kind === "ok") {
-				done += 1;
-				setLocallyResent((prev) => new Set(prev).add(row.id));
-				setResend({ done, total });
-			}
+	async function onRename(name: string): Promise<boolean> {
+		const res = await renameWebhook(id, name);
+		if (res.kind === "ok") {
+			applyWebhook(res.data);
+			toast.success("Webhook renamed");
+			return true;
 		}
-		setResend(null);
-		if (done > 0) {
-			toast.success(`Resent ${done} of ${total}`, {
-				description: resendStop.current ? "Stopped early." : undefined,
-			});
-		} else if (resendStop.current) {
-			toast("Resend stopped");
-		}
+		toast.error("Couldn't rename this webhook", {
+			description: describeFailure(res),
+		});
+		return false;
 	}
 
-	const okCount = rows.filter(isSuccessDelivery).length;
-	const median = medianOkDurationMs(rows);
-	const deadCount = deadRows.length;
-	const issues = report.issues;
-
-	const visibleDeliveries = showAllDeliveries ? rows : rows.slice(0, 5);
-	const eventsDeliveredThisWindow = activity
-		? activity.hours.reduce((sum, h) => sum + h.delivered, 0)
-		: null;
-
-	const catchUp =
-		isCatchingUp && activity
-			? catchUpState(peakWaiting, activity.waiting, waitingHistory)
-			: null;
-
 	return (
-		<>
-			<Breadcrumb
-				parent={{ href: "/account/webhooks", label: "Webhooks" }}
-				current={webhook.name}
-			/>
-			<div className="wh-head-row">
-				<div className="wh-h1-row">
-					<h1 className="acct-h1">{webhook.name}</h1>
-					<StatusPill status={displayStatus(webhook, primary)} />
-				</div>
-				<div className="wh-actions">
-					<button
-						type="button"
-						className="acct-btn line small"
-						onClick={onTest}
-						disabled={testBusy}
-					>
-						{testBusy ? "Sending..." : "Send test event"}
-					</button>
-					<button
-						type="button"
-						className="acct-btn line small"
-						onClick={onTogglePause}
-						disabled={pauseBusy}
-					>
-						{webhook.status === "paused" ? "Resume" : "Pause"}
-					</button>
-				</div>
-			</div>
-
-			<ConfigSummaryLine
-				webhook={webhook}
-				activity={activity}
-				onOpen={() => openConfig("fires")}
-			/>
-
-			{testResult ? (
-				<p className="wh-result">
-					<span className={testResult.ok ? "ok" : "bad"}>
-						{testResult.text}
-					</span>
-				</p>
-			) : null}
-			{actionError ? <p className="acct-error">{actionError}</p> : null}
-
-			{catchUp ? (
-				<output className="wh-catchup">
-					<p className="wh-catchup-t">
-						<span>
-							{sawNoCreditsRef.current
-								? "Catching up after your top-up"
-								: "Catching up"}
-						</span>
-						<span className="wh-live">live</span>
-					</p>
-					<div className="wh-catchup-bar">
-						<b style={{ width: `${Math.round(catchUp.progress * 100)}%` }} />
-					</div>
-					<p className="wh-catchup-l">{catchUpCopy(catchUp)}</p>
-				</output>
-			) : null}
-
-			<DiagnosisPanel
-				webhook={webhook}
-				issues={issues}
-				primary={primary}
-				deadCount={deadCount}
-				deliveries={rows}
-				activity={activity}
-				waitingHistory={waitingHistory}
-			/>
-
-			<div className="acct-stats">
-				<div className="acct-stat">
-					<span className="acct-stat-k">Delivered, last 7 days</span>
-					<span className="acct-stat-v">
-						{eventsDeliveredThisWindow !== null ? (
-							<NumberFlow value={eventsDeliveredThisWindow} />
-						) : (
-							"–"
-						)}
-					</span>
-				</div>
-				<div className="acct-stat">
-					<span className="acct-stat-k">Ok, last 100 attempts</span>
-					<span className="acct-stat-v">
-						<NumberFlow value={okCount} /> <small>of {rows.length}</small>
-					</span>
-				</div>
-				<div className="acct-stat">
-					<span className="acct-stat-k">Median response</span>
-					<span className="acct-stat-v">
-						<NumberFlow value={median} /> <small>ms</small>
-					</span>
-				</div>
-				<div className="acct-stat">
-					<span className="acct-stat-k">Failed events</span>
-					<span className="acct-stat-v">
-						<NumberFlow value={deadCount} />
-					</span>
-				</div>
-			</div>
-
-			<div className="wh-chart">
-				<div className="wh-chart-top">
-					<span>Events, last 7 days</span>
-					<span className="mono">
-						{activity ? activityHeaderSummary(activity.hours) : "…"}
-					</span>
-				</div>
-				<LazyMonoStackedBarChart
-					data={activity?.hours ?? []}
-					xAxisDataKey="hour"
-					tooltipFormatter={(v) => `${v}`}
-					series={[
-						{
-							dataKey: "delivered",
-							name: "Delivered",
-							color: "var(--fig-bar)",
-						},
-						{
-							dataKey: "waiting",
-							name: "Waiting to send",
-							color: "var(--fig-role-b)",
-						},
-						{ dataKey: "gaveUp", name: "Gave up", color: "var(--fig-alarm)" },
-					]}
-				/>
-				<div className="wh-legend">
-					<span>
-						<i style={{ background: "var(--fig-bar)" }} />
-						delivered
-					</span>
-					<span>
-						<i style={{ background: "var(--fig-role-b)" }} />
-						waiting to send
-					</span>
-					<span>
-						<i style={{ background: "var(--fig-alarm)" }} />
-						gave up after every retry
-					</span>
-					<span>
-						One bar per hour. Each event is one POST and one billed event;
-						retries are free.
-					</span>
-				</div>
-			</div>
-
-			<AttemptRibbon rows={rows} />
-
-			<div className="tabbar" role="tablist">
-				<button
-					type="button"
-					role="tab"
-					aria-selected={tab === "deliveries"}
-					onClick={() => setTab("deliveries")}
-				>
-					Deliveries
-				</button>
-				<button
-					type="button"
-					role="tab"
-					aria-selected={tab === "failed"}
-					onClick={() => setTab("failed")}
-				>
-					Failed events
-					{deadCount > 0 ? <span className="n">{deadCount}</span> : null}
-				</button>
-			</div>
-			<div role="tabpanel">
-				{tab === "deliveries" ? (
-					<DeliveriesTable
-						allRows={rows}
-						visibleRows={visibleDeliveries}
-						showAll={showAllDeliveries}
-						onToggleShowAll={() => {
-							setShowAllDeliveries((v) => !v);
-							setOpenDeliveryId(null);
-						}}
-						openId={openDeliveryId}
-						onOpen={(deliveryId) => {
-							setOpenDeliveryId(deliveryId);
-							setConfigTab(null);
-						}}
-					/>
-				) : (
-					<FailedEventsTable
-						rows={deadRows}
-						resend={resend}
-						onResendOne={onResendOne}
-						onResendAll={onResendAll}
-						onStop={() => {
-							resendStop.current = true;
-						}}
-					/>
-				)}
-			</div>
-
-			<ConfigRow webhook={webhook} onOpen={() => openConfig("fires")} />
-
-			<DeliveryCard
-				webhookId={id}
-				webhookUrl={webhook.url}
-				maxRetries={webhook.maxRetries}
-				rows={visibleDeliveries}
-				openId={openDeliveryId}
-				onClose={() => setOpenDeliveryId(null)}
-				onNavigate={(deliveryId) => setOpenDeliveryId(deliveryId)}
-			/>
-
-			<ConfigCard
-				webhook={configTab !== null ? webhook : null}
-				activity={activity}
-				tab={configTab ?? "fires"}
-				onTabChange={setConfigTab}
-				onClose={() => setConfigTab(null)}
-			/>
-
-			<div className="wh-danger">
-				{rotating === "revealed" && newSecret ? (
-					<div className="acct-result" style={{ flex: 1 }}>
-						<p className="acct-result-title">Your new signing secret</p>
-						<p className="acct-result-line">
-							Copy it now. It isn't stored, so this is the only time it's shown.
-							The old secret stopped working immediately.
-						</p>
-						<div className="acct-copyrow">
-							<code className="acct-field">{newSecret}</code>
-							<button
-								type="button"
-								className="acct-btn line"
-								onClick={() => {
-									navigator.clipboard.writeText(newSecret).catch(() => {});
-									setCopiedSecret(true);
-									toast.success("Signing secret copied");
-									setTimeout(() => setCopiedSecret(false), 1400);
-								}}
-							>
-								{copiedSecret ? "Copied" : "Copy"}
-							</button>
-						</div>
-					</div>
-				) : rotating === "confirm" ? (
-					<div className="acct-revoke-confirm" style={{ flex: 1 }}>
-						<p>
-							<strong>The old secret stops working now.</strong> Rotate?
-						</p>
-						<div className="acct-row-actions">
-							<button
-								type="button"
-								className="acct-btn solid"
-								onClick={onRotateConfirm}
-								disabled={rotateBusy}
-							>
-								{rotateBusy ? "Rotating..." : "Rotate secret"}
-							</button>
-							<button
-								type="button"
-								className="acct-btn line"
-								onClick={() => setRotating("idle")}
-								disabled={rotateBusy}
-							>
-								Cancel
-							</button>
-						</div>
-					</div>
-				) : (
-					<>
-						<p>
-							<strong>Rotate signing secret</strong>
-							<br />
-							The new secret is shown once. The old one stops working
-							immediately.
-						</p>
-						<button
-							type="button"
-							className="acct-btn line small"
-							onClick={() => setRotating("confirm")}
-						>
-							Rotate secret
-						</button>
-					</>
-				)}
-			</div>
-
-			<div className="wh-danger">
-				{deleting ? (
-					<div className="acct-revoke-confirm" style={{ flex: 1 }}>
-						<p>
-							Type <strong>{webhook.name}</strong> to confirm. This stops
-							deliveries and removes its history — it can't be undone.
-						</p>
-						<input
-							className="acct-input"
-							value={deleteName}
-							onChange={(e) => setDeleteName(e.target.value)}
-							placeholder={webhook.name}
-							autoComplete="off"
-						/>
-						{deleteError ? <p className="acct-error">{deleteError}</p> : null}
-						<div className="acct-row-actions">
-							<button
-								type="button"
-								className="acct-btn danger"
-								onClick={onDeleteConfirm}
-								disabled={deleteBusy}
-							>
-								{deleteBusy ? "Deleting..." : "Delete webhook"}
-							</button>
-							<button
-								type="button"
-								className="acct-btn line"
-								onClick={() => {
-									setDeleting(false);
-									setDeleteName("");
-									setDeleteError(null);
-								}}
-								disabled={deleteBusy}
-							>
-								Cancel
-							</button>
-						</div>
-					</div>
-				) : (
-					<>
-						<p>
-							<strong>Delete webhook</strong>
-							<br />
-							Stops deliveries and removes its history. This cannot be undone.
-						</p>
-						<button
-							type="button"
-							className="acct-btn danger"
-							onClick={() => setDeleting(true)}
-						>
-							Delete
-						</button>
-					</>
-				)}
-			</div>
-		</>
-	);
-}
-
-function DeliveriesTable({
-	allRows,
-	visibleRows,
-	showAll,
-	onToggleShowAll,
-	openId,
-	onOpen,
-}: {
-	allRows: DeliveryRow[];
-	visibleRows: DeliveryRow[];
-	showAll: boolean;
-	onToggleShowAll: () => void;
-	openId: string | null;
-	onOpen: (deliveryId: string) => void;
-}) {
-	if (allRows.length === 0) {
-		return (
-			<div className="wh-empty" style={{ marginTop: 12 }}>
-				<p>No deliveries yet.</p>
-			</div>
-		);
-	}
-	return (
-		<>
-			<div className="wh-tbl-wrap" style={{ marginTop: 12 }}>
-				<table className="wh-tbl">
-					<thead>
-						<tr>
-							<th>Sent (UTC)</th>
-							<th>Block</th>
-							<th className="wh-tbl-event">Event</th>
-							<th className="num">Try</th>
-							<th>Response</th>
-							<th className="num">Time</th>
-							<th />
-						</tr>
-					</thead>
-					<tbody>
-						{visibleRows.map((r) => {
-							const ok = r.statusCode !== null && r.statusCode < 300;
-							return (
-								<tr
-									key={r.id}
-									className="link"
-									tabIndex={0}
-									aria-selected={openId === r.id}
-									onClick={() => onOpen(r.id)}
-									onKeyDown={(e) => {
-										if (e.key === "Enter" || e.key === " ") {
-											e.preventDefault();
-											onOpen(r.id);
-										}
-									}}
-								>
-									<td className="m">
-										{r.dispatchedAt.replace("T", " ").slice(0, 19)}
-									</td>
-									<td className="m">
-										{r.blockHeight === null
-											? "–"
-											: r.blockHeight.toLocaleString("en-US")}
-									</td>
-									<td className="m wh-tbl-event">
-										{formatEventCell(r.txId, r.eventIndex)}
-									</td>
-									<td className="num">{r.attempt}</td>
-									<td>
-										<span className={`m ${ok ? "ok" : "bad"}`}>
-											{r.statusCode ?? "no response"}
-										</span>
-										{r.errorMessage ? (
-											<span className="dim"> {r.errorMessage}</span>
-										) : null}
-									</td>
-									<td className="num">
-										{r.durationMs === null ? "–" : `${r.durationMs} ms`}
-									</td>
-									<td className="num">›</td>
-								</tr>
-							);
-						})}
-					</tbody>
-				</table>
-			</div>
-			<div className="wh-tbl-foot">
-				<p className="acct-fine">
-					{showAll
-						? `All ${allRows.length} attempts.`
-						: `Latest ${visibleRows.length} of ${allRows.length}.`}{" "}
-					Retries are free.
-				</p>
-				{allRows.length > 5 ? (
-					<button
-						type="button"
-						className="wh-tbl-foot-link"
-						onClick={onToggleShowAll}
-					>
-						{showAll ? "Show latest 5" : `View all ${allRows.length}`}
-					</button>
-				) : null}
-			</div>
-		</>
-	);
-}
-
-function FailedEventsTable({
-	rows,
-	resend,
-	onResendOne,
-	onResendAll,
-	onStop,
-}: {
-	rows: DeadRow[];
-	resend: { done: number; total: number } | null;
-	onResendOne: (outboxId: string) => void;
-	onResendAll: () => void;
-	onStop: () => void;
-}) {
-	if (rows.length === 0) {
-		return (
-			<div className="wh-empty" style={{ marginTop: 12 }}>
-				<p>
-					No failed events. An event lands here after its last retry fails, and
-					waits for you to resend it.
-				</p>
-			</div>
-		);
-	}
-	return (
-		<>
-			<div className="wh-tbl-wrap" style={{ marginTop: 12 }}>
-				<table className="wh-tbl">
-					<thead>
-						<tr>
-							<th>Block</th>
-							<th>Event</th>
-							<th>Transaction</th>
-							<th>Gave up</th>
-							<th />
-						</tr>
-					</thead>
-					<tbody>
-						{rows.map((d) => (
-							<tr key={d.id}>
-								<td className="m">{d.blockHeight}</td>
-								<td className="m">{d.eventType}</td>
-								<td className="m">{d.txId ?? "–"}</td>
-								<td className="m">
-									{formatRelative(d.failedAt)}{" "}
-									<span className="dim">after {d.attempt}</span>
-								</td>
-								<td className="num">
-									<button
-										type="button"
-										className="acct-btn line small"
-										onClick={() => onResendOne(d.id)}
-									>
-										Resend
-									</button>
-								</td>
-							</tr>
-						))}
-					</tbody>
-				</table>
-			</div>
-			<div className="wh-actions" style={{ marginTop: 10 }}>
-				{resend ? (
-					<>
-						<span className="acct-fine">
-							Resent {resend.done} of {resend.total}
-						</span>
-						<button
-							type="button"
-							className="acct-btn line small"
-							onClick={onStop}
-						>
-							Stop
-						</button>
-					</>
-				) : (
-					<button
-						type="button"
-						className="acct-btn line small"
-						onClick={onResendAll}
-					>
-						Resend all {rows.length}
-					</button>
-				)}
-			</div>
-		</>
+		<WebhookDetailBody
+			webhook={webhook}
+			deliveries={deliveries}
+			activity={activity}
+			days={cache.days[id]?.data}
+			insights={insights}
+			range={range}
+			onRange={setPickedRange}
+			hour={hour}
+			hourDeliveries={hourDeliveries}
+			onClearHour={() => router.replace(pathname, { scroll: false })}
+			pauseBusy={pauseBusy}
+			onTogglePause={onTogglePause}
+			onRename={onRename}
+		/>
 	);
 }

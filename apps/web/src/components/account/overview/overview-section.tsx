@@ -1,17 +1,16 @@
 "use client";
 
-import { KeysCard } from "@/components/account/keys-panel";
+import { Meter } from "@/components/dashboard/charts/meter";
+import { Sparkline } from "@/components/dashboard/charts/sparkline";
+import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import {
-	AccountHead,
-	AcctCard,
-	AttentionList,
-	Dot,
-	StatusStrip,
-	StripCell,
-} from "@/components/account/parts";
-import { countByDisplayStatus } from "@/components/account/webhooks/shared";
+	ResourceRow,
+	ResourceRowHead,
+} from "@/components/dashboard/shell/resource-row";
+import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import {
-	activeKeys,
+	type Billing,
+	formatDate,
 	formatUsd,
 	refreshBilling,
 	refreshCaps,
@@ -19,411 +18,280 @@ import {
 	useAccountData,
 } from "@/lib/account-data";
 import { daysLeft, daysLeftLabel } from "@/lib/account-health";
-import { useAuth } from "@/lib/auth";
-import type { ApiKey } from "@/lib/types";
 import {
+	type Burn,
+	type HostedStack,
 	ROWS_ALLOWANCE,
-	billedAtFloorNote,
 	currentUtcMonth,
 	deliveredRowsIn,
 	formatRows,
-	fractionalDaysRemainingInMonth,
 	latestMemoryHour,
+	monthLabel,
 	monthParam,
-	projectedMonthEndUsdMicros,
-	rateLabel,
-	unitLabel,
 } from "@/lib/usage";
-import { useAccountProblems } from "@/lib/use-account-problems";
-import { formatRelative } from "@/lib/webhooks-data";
-import { poll, refreshList, useWebhooksCache } from "@/lib/webhooks-store";
+import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import {
+	StateCell,
+	type WebhookRowModel,
+	useWebhookRows,
+} from "../webhooks/rows";
+import { ageShort, last24 } from "../webhooks/view";
 
-const CLI_INSTALL = "bun add -g @secondlayer/cli";
-const API_BASE = "https://api.secondlayer.tools";
-const CURL_ONE_LINE = `curl ${API_BASE}/v1/index/ft-transfers?limit=1 -H "Authorization: Bearer $SECONDLAYER_API_KEY"`;
-const RECENT_KEYS = 3;
+/** The webhook rows refresh this often while the tab is visible. */
+const POLL_MS = 30_000;
 
-function sinceLabel(createdAt: string | undefined): string | null {
-	if (!createdAt) return null;
-	const d = new Date(createdAt);
-	if (Number.isNaN(d.getTime())) return null;
-	return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+/** Rows (Index and Streams reads) get their own row here. Filled by the Rows screen. */
+export function OverviewRowsSlot() {
+	return null;
 }
 
-function useCopy(text: string) {
-	const [copied, setCopied] = useState(false);
-	return {
-		copied,
-		copy() {
-			navigator.clipboard.writeText(text).catch(() => {});
-			setCopied(true);
-			setTimeout(() => setCopied(false), 1400);
-		},
-	};
+/** Subgraphs get their own row here. Filled by the Subgraphs screen. */
+export function OverviewSubgraphsSlot() {
+	return null;
 }
 
-const Missing = () => (
-	<span className="acct-missing" role="img" aria-label="Not loaded">
-		—
-	</span>
-);
+const plural = (n: number, one: string, many = `${one}s`) =>
+	`${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 
-function Strip() {
-	const { billing, burn, service, usage } = useAccountData();
-	const { list } = useWebhooksCache();
-	const monthKey = monthParam(currentUtcMonth());
-	const rows = usage[monthKey];
-
-	const days = daysLeft(billing, burn);
-	const spent = billing ? Number(billing.spentThisMonthUsdMicros) : null;
-	const projected =
-		spent !== null && burn
-			? projectedMonthEndUsdMicros(
-					spent,
-					Number(burn.rateDayUsdMicros),
-					fractionalDaysRemainingInMonth(new Date()),
-				)
-			: null;
-	const delivered = rows ? deliveredRowsIn(rows) : null;
-	const pct =
-		delivered === null
-			? null
-			: Math.min(100, (delivered / ROWS_ALLOWANCE) * 100);
-
-	const latest = service ? latestMemoryHour(service.memory24h) : null;
-	const hooks = list?.data ?? null;
-	const failing = hooks ? countByDisplayStatus(hooks, "error") : 0;
-	const lastDelivery = hooks
-		? hooks
-				.map((w) => w.lastDeliveryAt)
-				.filter((t): t is string => t !== null)
-				.sort()
-				.at(-1)
-		: undefined;
-
+function WebhookRow({ model }: { model: WebhookRowModel }) {
+	const [open, setOpen] = useState(false);
+	const { webhook, series, state, insights } = model;
+	const recent = last24(series);
+	const top = insights[0];
 	return (
-		<StatusStrip label="Account status">
-			<StripCell label="Balance" href="/account/credits">
-				<b className="acct-strip-v">
-					{billing ? formatUsd(billing.creditsUsdMicros) : <Missing />}
-				</b>
-				{days !== null && Number.isFinite(days) ? (
-					<span className={`acct-note ${days < 2 ? "bad" : "ok"}`}>
-						<Dot tone={days < 2 ? "bad" : "ok"} />
-						{daysLeftLabel(days)} left
-					</span>
-				) : days !== null ? (
-					<span className="acct-note">No ongoing charges</span>
-				) : null}
-			</StripCell>
-			<StripCell
-				label="This month"
-				href="/account/credits"
-				aside={projected !== null ? `proj. ${formatUsd(projected)}` : null}
+		<div className="dash-row-wrap">
+			<ResourceRow
+				href={`/account/webhooks/${webhook.id}`}
+				name={webhook.name}
+				nameTitle={webhook.name}
+				tone={state.tone}
+				kind={webhook.managedBy ? `named by ${webhook.managedBy}` : undefined}
+				state={
+					<StateCell
+						model={model}
+						open={open}
+						onToggle={() => setOpen((v) => !v)}
+					/>
+				}
+				spark={
+					recent.delivered.length > 0 ? (
+						<Sparkline
+							points={recent.delivered}
+							fails={recent.failed}
+							title={`${webhook.name}, deliveries per hour, last 24 hours`}
+						/>
+					) : null
+				}
+				count={recent.delivered
+					.reduce((a, b) => a + b, 0)
+					.toLocaleString("en-US")}
+				age={ageShort(webhook.lastDeliveryAt)}
+			/>
+			{open && top ? <InsightCard insight={top} /> : null}
+		</div>
+	);
+}
+
+/** Webhooks that have never matched an event: one quiet row that expands. */
+function QuietGroup({ models }: { models: WebhookRowModel[] }) {
+	const [open, setOpen] = useState(false);
+	if (models.length === 0) return null;
+	return (
+		<div className="dash-row-wrap">
+			<button
+				type="button"
+				className="dash-row ov-group"
+				aria-expanded={open}
+				onClick={() => setOpen((v) => !v)}
 			>
-				<b className="acct-strip-v">
-					{spent !== null ? formatUsd(spent) : <Missing />}
-				</b>
-				{pct !== null && delivered !== null ? (
-					<>
-						<div
-							className="acct-bar"
-							role="img"
-							aria-label={`${Math.round(pct)}% of the free ${formatRows(ROWS_ALLOWANCE)} rows used`}
-						>
-							<i style={{ width: `${pct.toFixed(1)}%` }} />
-						</div>
-						<span className="acct-note">
-							{formatRows(Math.min(delivered, ROWS_ALLOWANCE))} of{" "}
-							{formatRows(ROWS_ALLOWANCE)} free rows used
-						</span>
-					</>
-				) : null}
-			</StripCell>
-			<StripCell label="Hosted stack" href="/account/credits">
-				{service ? (
-					service.state === "none" ? (
-						<>
-							<b className="acct-strip-v sm">
-								<Dot tone="off" />
-								Not started
-							</b>
-							<span className="acct-note">Starts with your first webhook</span>
-						</>
-					) : (
-						<>
-							<b className="acct-strip-v sm">
-								<Dot tone={service.state === "running" ? "ok" : "bad"} />
-								{service.state === "running" ? "Running" : "Stopped"}
-							</b>
-							{service.state === "running" && latest ? (
-								<span className="acct-note">
-									{(latest.observedGb ?? latest.billedGb).toFixed(2)} GB
-									{billedAtFloorNote(service.memory24h)}
-								</span>
-							) : null}
-						</>
-					)
-				) : (
-					<b className="acct-strip-v">
-						<Missing />
-					</b>
-				)}
-			</StripCell>
-			<StripCell label="Webhooks" href="/account/webhooks">
-				{hooks ? (
-					<>
-						<b className="acct-strip-v">
-							{hooks.length - failing}{" "}
-							<span className="acct-strip-of">of {hooks.length}</span>
-						</b>
-						<span className={`acct-note${failing > 0 ? " bad" : ""}`}>
-							{failing > 0
-								? `${failing} failing`
-								: hooks.length === 0
-									? "none yet"
-									: "delivering"}
-							{lastDelivery ? ` · last ${formatRelative(lastDelivery)}` : ""}
-						</span>
-					</>
-				) : (
-					<b className="acct-strip-v">
-						<Missing />
-					</b>
-				)}
-			</StripCell>
-		</StatusStrip>
-	);
-}
-
-function RequestCard({ keys }: { keys: ApiKey[] | null }) {
-	const cmd = useCopy(CURL_ONE_LINE);
-	const cli = useCopy(CLI_INSTALL);
-	const active = activeKeys(keys);
-	const steps: {
-		id: string;
-		label: React.ReactNode;
-		done: boolean;
-		action: React.ReactNode;
-	}[] = [
-		{
-			id: "key",
-			label: "Create an API key",
-			done: active.length > 0,
-			action: null,
-		},
-		{
-			id: "request",
-			label: "First request",
-			done: active.some((k) => k.lastUsedAt !== null),
-			action: null,
-		},
-		{
-			id: "cli",
-			label: (
-				<>
-					Install the CLI{" "}
-					<code className="acct-inline-code">{CLI_INSTALL}</code>
-				</>
-			),
-			done: false,
-			action: (
-				<button
-					type="button"
-					className="acct-btn line small"
-					onClick={cli.copy}
-				>
-					{cli.copied ? "Copied" : "Copy"}
-				</button>
-			),
-		},
-		{
-			id: "mcp",
-			label: "Point an agent at the MCP server",
-			done: false,
-			action: (
-				<Link href="/docs/mcp" className="acct-btn line small">
-					Set up
-				</Link>
-			),
-		},
-	];
-	return (
-		<AcctCard
-			title="Make a request"
-			aside={<Link href="/docs/api-reference">API reference →</Link>}
-		>
-			<div className="acct-term">
-				<div className="acct-term-bar">
-					<span>~/app</span>
-					<button type="button" onClick={cmd.copy}>
-						{cmd.copied ? "Copied" : "Copy"}
-					</button>
+				<span className="dash-row-name">
+					<span className="dash-dot idle" />
+					<span>{plural(models.length, "more webhook")}</span>
+				</span>
+				<span className="dash-row-state">Waiting for their first match</span>
+				<span className="dash-row-spark" />
+				<span className="dash-row-v ov-faint">0</span>
+				<span className="dash-row-t ov-faint">{open ? "▴" : "▾"}</span>
+			</button>
+			{open ? (
+				<div className="ov-sub-rows">
+					{models.map(({ webhook }) => (
+						<ResourceRow
+							key={webhook.id}
+							href={`/account/webhooks/${webhook.id}`}
+							name={webhook.name}
+							nameTitle={webhook.name}
+							tone="idle"
+							state={`Waiting since ${formatDate(webhook.createdAt)}`}
+							count="0"
+							age="–"
+						/>
+					))}
 				</div>
-				<pre>
-					<span className="a">❯</span> curl {API_BASE}
-					/v1/index/ft-transfers?limit=1 \{"\n"}
-					{"    "}-H "Authorization: Bearer{" "}
-					<span className="a">$SECONDLAYER_API_KEY</span>"
-				</pre>
-			</div>
-			<ul className="acct-steps" aria-label="Getting started">
-				{steps.map((s) => (
-					<li key={s.id} className={s.done ? "done" : undefined}>
-						<span
-							className={`acct-check${s.done ? " done" : ""}`}
-							aria-hidden="true"
-						>
-							{s.done ? (
-								<svg
-									width="10"
-									height="10"
-									viewBox="0 0 10 10"
-									aria-hidden="true"
-								>
-									<path
-										d="M2 5.2l2 2 4-4.4"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="1.6"
-									/>
-								</svg>
-							) : null}
-						</span>
-						<span>{s.label}</span>
-						{s.done ? <span className="acct-step-done">done</span> : s.action}
-					</li>
-				))}
-			</ul>
-		</AcctCard>
+			) : null}
+		</div>
 	);
 }
 
-function KeysSummary({
-	keys,
-	onCreate,
-}: { keys: ApiKey[] | null; onCreate: () => void }) {
-	const active = activeKeys(keys);
-	const recent = [...active]
-		.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-		.slice(0, RECENT_KEYS);
+function StackRow({
+	stack,
+	burn,
+}: { stack: HostedStack | null; burn: Burn | null }) {
+	if (!stack) return null;
+	const latest = latestMemoryHour(stack.memory24h);
+	if (stack.state === "none") {
+		return (
+			<ResourceRow
+				href="/account/credits"
+				name="hosted stack"
+				tone="idle"
+				state="Not started · starts with your first webhook"
+				age=""
+			/>
+		);
+	}
+	const running = stack.state === "running";
 	return (
-		<AcctCard
-			title="API keys"
-			aside={
-				keys !== null ? (
-					<Link href="/account/keys">All {active.length} →</Link>
+		<ResourceRow
+			href="/account/credits"
+			name="hosted stack"
+			tone={running ? "ok" : "alarm"}
+			state={
+				running
+					? `Running${latest ? ` · ${(latest.observedGb ?? latest.billedGb).toFixed(2)} GB` : ""} · runs your webhooks`
+					: "Stopped · add credits to start it again"
+			}
+			spark={
+				stack.memory24h.length > 1 ? (
+					<Sparkline
+						points={stack.memory24h.map((m) => m.observedGb ?? m.billedGb)}
+						title="Hosted stack memory, last 24 hours"
+					/>
 				) : null
 			}
-		>
-			{keys === null ? (
-				<p className="acct-quiet">Loading keys…</p>
-			) : recent.length === 0 ? (
-				<p className="acct-quiet">No keys yet.</p>
-			) : (
-				<ul className="acct-krows">
-					{recent.map((k) => (
-						<li key={k.id}>
-							<span>
-								{k.name} <span className="acct-kprefix">{k.prefix}…</span>
-							</span>
-							<span className="acct-kwhen">
-								{k.lastUsedAt
-									? `used ${formatRelative(k.lastUsedAt)}`
-									: "never used"}
-							</span>
-						</li>
-					))}
-				</ul>
-			)}
-			<div>
-				<button
-					type="button"
-					className="acct-btn solid small"
-					onClick={onCreate}
-				>
-					Create a key
-				</button>
+			count={burn ? `${formatUsd(burn.rateDayUsdMicros)}/d` : undefined}
+			age=""
+		/>
+	);
+}
+
+function MonthPanel({
+	billing,
+	burn,
+	deliveredRows,
+}: {
+	billing: Billing | null;
+	burn: Burn | null;
+	deliveredRows: number | null;
+}) {
+	const runway = daysLeftLabel(daysLeft(billing, burn));
+	return (
+		<section className="dash-panel" aria-label="This month">
+			<div className="dash-panel-h">
+				<span className="dash-label">{monthLabel(currentUtcMonth())}</span>
+				<Link href="/account/credits" className="dash-link">
+					Billing ›
+				</Link>
 			</div>
-		</AcctCard>
+			<div className="dash-big">
+				{billing ? formatUsd(billing.spentThisMonthUsdMicros) : "–"}{" "}
+				<span>
+					spent
+					{billing
+						? ` · ${formatUsd(billing.creditsUsdMicros)} left${runway ? `, ${runway}` : ""}`
+						: ""}
+				</span>
+			</div>
+			{deliveredRows !== null ? (
+				<Meter
+					used={Math.min(deliveredRows, ROWS_ALLOWANCE)}
+					total={ROWS_ALLOWANCE}
+					label="Free rows used this month"
+					left={`${formatRows(Math.min(deliveredRows, ROWS_ALLOWANCE))} of ${formatRows(ROWS_ALLOWANCE)} free rows used`}
+					right={
+						deliveredRows > ROWS_ALLOWANCE
+							? `${formatRows(deliveredRows - ROWS_ALLOWANCE)} paid`
+							: undefined
+					}
+				/>
+			) : null}
+		</section>
 	);
 }
 
-function AttentionCard({ loaded }: { loaded: boolean }) {
-	const problems = useAccountProblems();
+export interface OverviewBodyProps {
+	/** Null until the webhook list has loaded. */
+	rows: WebhookRowModel[] | null;
+	billing: Billing | null;
+	burn: Burn | null;
+	stack: HostedStack | null;
+	deliveredRows: number | null;
+}
+
+/** The Overview: one sentence, a row per resource, and the month. */
+export function OverviewBody({
+	rows,
+	billing,
+	burn,
+	stack,
+	deliveredRows,
+}: OverviewBodyProps) {
+	const attention = rows?.filter((r) => r.state.tone === "alarm").length ?? 0;
+	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
+	const quiet = rows?.filter((r) => r.webhook.lastDeliveryAt === null) ?? [];
+
+	const sub = [
+		rows ? plural(rows.length, "webhook") : null,
+		billing ? `${formatUsd(billing.creditsUsdMicros)} in credits` : null,
+	]
+		.filter(Boolean)
+		.join(" · ");
+
 	return (
-		<AcctCard title="Needs attention">
-			{!loaded ? (
-				<p className="acct-quiet">Checking…</p>
-			) : problems.length > 0 ? (
-				<AttentionList problems={problems} />
+		<>
+			{rows === null ? (
+				<StatusSentence tone="idle" sub={sub || undefined}>
+					Checking your account.
+				</StatusSentence>
+			) : attention > 0 ? (
+				<StatusSentence tone="alarm" sub={sub}>
+					{plural(attention, "webhook")} {attention === 1 ? "needs" : "need"}{" "}
+					attention.
+				</StatusSentence>
+			) : rows.length === 0 ? (
+				<StatusSentence tone="idle" sub={sub}>
+					No webhooks yet.
+				</StatusSentence>
 			) : (
-				<p className="acct-okline">
-					<Dot tone="ok" />
-					<span>
-						Nothing right now.{" "}
-						<span className="acct-quiet">
-							Low balance, a stopped stack or a failing webhook shows up here
-							first.
-						</span>
-					</span>
-				</p>
+				<StatusSentence tone="ok" sub={sub}>
+					Everything is delivering.
+				</StatusSentence>
 			)}
-		</AcctCard>
+
+			<div className="dash-rows">
+				<ResourceRowHead
+					labels={["Resource", "State", "Last 24h", "Count", "Last"]}
+				/>
+				{active.map((model) => (
+					<WebhookRow key={model.webhook.id} model={model} />
+				))}
+				<QuietGroup models={quiet} />
+				<OverviewRowsSlot />
+				<StackRow stack={stack} burn={burn} />
+				<OverviewSubgraphsSlot />
+			</div>
+
+			<MonthPanel billing={billing} burn={burn} deliveredRows={deliveredRows} />
+		</>
 	);
 }
 
-function MeterCard() {
-	const { usage } = useAccountData();
-	const rows = usage[monthParam(currentUtcMonth())];
-	const body = (rows ?? []).filter((r) => r.unit !== "topup");
-	return (
-		<AcctCard
-			title="This month by meter"
-			aside={<Link href="/account/credits">Usage and billing →</Link>}
-		>
-			{rows === undefined ? (
-				<p className="acct-quiet">Loading usage…</p>
-			) : body.length === 0 ? (
-				<p className="acct-quiet">
-					No usage yet this month. Your first {formatRows(ROWS_ALLOWANCE)} rows
-					are free.
-				</p>
-			) : (
-				<table className="acct-meters">
-					<tbody>
-						{body.map((r) => {
-							const free =
-								r.unit === "rows.delivered"
-									? `first ${formatRows(ROWS_ALLOWANCE)} free`
-									: rateLabel(r.unit, r.quantity) === "free"
-										? "free"
-										: null;
-							return (
-								<tr key={r.unit}>
-									<td>
-										{unitLabel(r.unit)[0]}
-										{free ? <span className="acct-free">{free}</span> : null}
-									</td>
-									<td className="num">{formatUsd(r.usdMicros)}</td>
-								</tr>
-							);
-						})}
-					</tbody>
-				</table>
-			)}
-		</AcctCard>
-	);
-}
-
-/** /account: is everything running, what it costs, what to do next. */
+/** /account: is everything running, what needs you, what it costs. */
 export function OverviewSection() {
-	const { account } = useAuth();
-	const { billing, keys, service, usage } = useAccountData();
-	const problems = useAccountProblems();
-	const [creating, setCreating] = useState(false);
+	const { billing, burn, service, usage } = useAccountData();
+	const { rows } = useWebhookRows();
 	const month = monthParam(currentUtcMonth());
 
 	useEffect(() => {
@@ -441,47 +309,27 @@ export function OverviewSection() {
 	}, [month]);
 
 	// Listing webhooks goes through the account's hosted stack, so only do it
-	// once usage says one exists; otherwise the Webhooks cell stays "—".
+	// once usage says one exists.
 	const stackExists = service !== null && service.state !== "none";
 	useEffect(() => {
 		if (!stackExists) return;
 		return poll(async () => {
-			const res = await refreshList();
-			return res.kind === "starting" || res.kind === "rate_limited"
-				? { retryAfterMs: res.retryAfter * 1000 }
+			const [list] = await Promise.all([refreshList(), refreshSummary()]);
+			return list.kind === "starting" || list.kind === "rate_limited"
+				? { retryAfterMs: list.retryAfter * 1000 }
 				: {};
-		}, 30_000);
+		}, POLL_MS);
 	}, [stackExists]);
 
-	const loaded =
-		billing !== null && service !== null && usage[month] !== undefined;
-	const since = sinceLabel(account?.createdAt);
-
+	const monthRows = usage[month];
 	return (
-		<>
-			<AccountHead
-				title="Overview"
-				sub={`Hosted account${since ? ` · since ${since}` : ""}`}
-			>
-				{loaded ? (
-					<span className="acct-state">
-						<Dot tone={problems.length > 0 ? "bad" : "ok"} />
-						{problems.length === 0
-							? "Everything is running"
-							: `${problems.length} ${problems.length === 1 ? "thing needs" : "things need"} attention`}
-					</span>
-				) : null}
-			</AccountHead>
-			<Strip />
-			<div className="acct-grid2">
-				<RequestCard keys={keys} />
-				<div className="acct-stack">
-					<AttentionCard loaded={loaded} />
-					<KeysSummary keys={keys} onCreate={() => setCreating(true)} />
-				</div>
-			</div>
-			<MeterCard />
-			<KeysCard open={creating} onClose={() => setCreating(false)} />
-		</>
+		<OverviewBody
+			// No hosted stack means no webhooks, so there is nothing to wait for.
+			rows={rows ?? (service?.state === "none" ? [] : null)}
+			billing={billing}
+			burn={burn}
+			stack={service}
+			deliveredRows={monthRows ? deliveredRowsIn(monthRows) : null}
+		/>
 	);
 }

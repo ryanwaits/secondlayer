@@ -1,5 +1,6 @@
 "use client";
 
+import { TitleRow } from "@/components/account/webhooks/detail-panel";
 import { type AmountOption, AmountPicker } from "@/components/amount-picker";
 import { MonoStackedBarChart } from "@/components/charts/mono-stacked-bar-chart";
 import { Choice } from "@/components/choice";
@@ -416,6 +417,25 @@ export function AmountDemo({
 			options={options}
 			value={value}
 			onChange={setValue}
+		/>
+	);
+}
+
+/** The webhook title row: `onRename` is a function, which a server page cannot pass. */
+export function WebhookHeaderDemo({
+	name,
+	managedBy,
+}: { name: string; managedBy: string | null }) {
+	const [saved, setSaved] = useState(name);
+	return (
+		<TitleRow
+			name={saved}
+			tone="ok"
+			managedBy={managedBy}
+			onRename={async (next) => {
+				setSaved(next);
+				return true;
+			}}
 		/>
 	);
 }

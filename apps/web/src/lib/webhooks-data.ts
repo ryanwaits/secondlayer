@@ -1,12 +1,10 @@
 import type {
 	DeadRow,
 	DeliveryRow,
-	RotateSecretResponse,
 	WebhookActivity,
 	WebhookDeliveryDetail,
 	WebhookDetail,
 	WebhookSummary,
-	WebhookTestResult,
 } from "@secondlayer/sdk";
 
 /**
@@ -16,6 +14,17 @@ import type {
  * few outcomes the UI actually branches on, instead of throwing: a starting
  * hosted stack and a zero balance are expected states here, not errors.
  */
+
+/** One UTC day of delivery attempts, from `GET /:id/activity?days=30`. */
+export type WebhookActivityDay = NonNullable<WebhookActivity["days"]>[number];
+
+/** `GET /api/webhooks/activity`: 168 UTC hour starts, oldest first, and each
+ *  webhook's delivered and failed counts aligned to them. The SDK has no
+ *  method or type for this route yet, so the shape is declared here. */
+export interface WebhooksActivitySummary {
+	hours: string[];
+	webhooks: Array<{ id: string; delivered: number[]; failed: number[] }>;
+}
 
 export type WebhooksResult<T> =
 	| { kind: "ok"; data: T }
@@ -93,11 +102,17 @@ export function getWebhook(id: string): Promise<WebhooksResult<WebhookDetail>> {
 	return request<WebhookDetail>(`/${encodeURIComponent(id)}`);
 }
 
+/** Deliveries, newest first. A `window` (ISO `from`/`to`, at most 31 days)
+ *  narrows to one stretch, such as the hour a heat square stands for. */
 export async function getDeliveries(
 	id: string,
+	window?: { from: string; to: string },
 ): Promise<WebhooksResult<DeliveryRow[]>> {
+	const query = window
+		? `?${new URLSearchParams({ from: window.from, to: window.to })}`
+		: "";
 	const res = await requestList<DeliveryRow>(
-		`/${encodeURIComponent(id)}/deliveries`,
+		`/${encodeURIComponent(id)}/deliveries${query}`,
 	);
 	return res.kind === "ok"
 		? { kind: "ok", data: res.data.map(normalizeDeliveryRow) }
@@ -108,10 +123,27 @@ export function getDead(id: string): Promise<WebhooksResult<DeadRow[]>> {
 	return requestList<DeadRow>(`/${encodeURIComponent(id)}/dead`);
 }
 
+/** A week of hourly counts. `days: 30` adds 30 UTC days of daily counts. */
 export function getActivity(
 	id: string,
+	opts?: { days?: 30 },
 ): Promise<WebhooksResult<WebhookActivity>> {
-	return request<WebhookActivity>(`/${encodeURIComponent(id)}/activity`);
+	const query = opts?.days ? `?days=${opts.days}` : "";
+	return request<WebhookActivity>(
+		`/${encodeURIComponent(id)}/activity${query}`,
+	);
+}
+
+/** Hourly delivered and failed counts for every webhook, for the heat strips
+ *  and sparklines. A 404 (no hosted stack yet) reads as no activity, like the
+ *  list endpoint. */
+export async function getActivitySummary(): Promise<
+	WebhooksResult<WebhooksActivitySummary>
+> {
+	const res = await request<WebhooksActivitySummary>("/activity");
+	return res.kind === "not_found"
+		? { kind: "ok", data: { hours: [], webhooks: [] } }
+		: res;
 }
 
 export function getDelivery(
@@ -121,14 +153,6 @@ export function getDelivery(
 	return request<WebhookDeliveryDetail>(
 		`/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(deliveryId)}`,
 	);
-}
-
-export function testWebhook(
-	id: string,
-): Promise<WebhooksResult<WebhookTestResult>> {
-	return request<WebhookTestResult>(`/${encodeURIComponent(id)}/test`, {
-		method: "POST",
-	});
 }
 
 export function pauseWebhook(
@@ -147,30 +171,16 @@ export function resumeWebhook(
 	});
 }
 
-export function rotateSecret(
+/** Rename a webhook. Only the label changes. A 409 (a Sentinel-managed name,
+ *  or a name already in use) comes back as an `error` carrying the API's text. */
+export function renameWebhook(
 	id: string,
-): Promise<WebhooksResult<RotateSecretResponse>> {
-	return request<RotateSecretResponse>(
-		`/${encodeURIComponent(id)}/rotate-secret`,
-		{ method: "POST" },
-	);
-}
-
-export function requeue(
-	id: string,
-	outboxId: string,
-): Promise<WebhooksResult<{ ok: true }>> {
-	return request<{ ok: true }>(
-		`/${encodeURIComponent(id)}/dead/${encodeURIComponent(outboxId)}/requeue`,
-		{ method: "POST" },
-	);
-}
-
-export function deleteWebhook(
-	id: string,
-): Promise<WebhooksResult<{ ok: true }>> {
-	return request<{ ok: true }>(`/${encodeURIComponent(id)}`, {
-		method: "DELETE",
+	name: string,
+): Promise<WebhooksResult<WebhookDetail>> {
+	return request<WebhookDetail>(`/${encodeURIComponent(id)}`, {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ name }),
 	});
 }
 
@@ -191,56 +201,6 @@ export function formatRelative(
 	if (h < 24) return `${h}h ago`;
 	const d = Math.floor(h / 24);
 	return `${d}d ago`;
-}
-
-// ── List-page insight memory (plan 068) ─────────────────────────────
-// Per-viewer, v1 only: a server-side insights table (054) replaces this.
-// Every read/write is try/catch-wrapped — the list page works with no
-// memory at all (private browsing, blocked storage) instead of crashing.
-
-const TOAST_SHOWN_KEY = "sl.webhooks.toastShown";
-const DISMISSED_KEY = "sl.webhooks.dismissed";
-
-function insightKey(webhookId: string, code: string): string {
-	return `${webhookId}:${code}`;
-}
-
-function readInsightSet(key: string): Set<string> {
-	try {
-		const raw = localStorage.getItem(key);
-		return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-	} catch {
-		return new Set();
-	}
-}
-
-function addToInsightSet(key: string, member: string): void {
-	try {
-		const set = readInsightSet(key);
-		set.add(member);
-		localStorage.setItem(key, JSON.stringify([...set]));
-	} catch {
-		// localStorage unavailable — the page still works, it just re-shows
-		// the toast/line next visit.
-	}
-}
-
-/** Has this (webhook, rule) already shown its once-per-session toast? */
-export function hasShownToast(webhookId: string, code: string): boolean {
-	return readInsightSet(TOAST_SHOWN_KEY).has(insightKey(webhookId, code));
-}
-
-export function markToastShown(webhookId: string, code: string): void {
-	addToInsightSet(TOAST_SHOWN_KEY, insightKey(webhookId, code));
-}
-
-/** Has this (webhook, rule) been dismissed from the list line? */
-export function isInsightDismissed(webhookId: string, code: string): boolean {
-	return readInsightSet(DISMISSED_KEY).has(insightKey(webhookId, code));
-}
-
-export function dismissInsight(webhookId: string, code: string): void {
-	addToInsightSet(DISMISSED_KEY, insightKey(webhookId, code));
 }
 
 /** The host part of a webhook's target URL, for the list row sub-line. Falls

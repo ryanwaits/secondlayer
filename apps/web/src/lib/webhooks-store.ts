@@ -10,8 +10,11 @@ import type {
 } from "@secondlayer/sdk";
 import { useSyncExternalStore } from "react";
 import {
+	type WebhookActivityDay,
+	type WebhooksActivitySummary,
 	type WebhooksResult,
 	getActivity,
+	getActivitySummary,
 	getDead,
 	getDeliveries,
 	getDelivery,
@@ -40,6 +43,12 @@ type State = {
 	deliveries: Record<string, CacheEntry<DeliveryRow[]>>;
 	dead: Record<string, CacheEntry<DeadRow[]>>;
 	activity: Record<string, CacheEntry<WebhookActivity>>;
+	/** The 30-day view: 30 UTC days of daily counts, fetched on demand. */
+	days: Record<string, CacheEntry<WebhookActivityDay[]>>;
+	/** Hourly delivered/failed for every webhook (heat strips, sparklines). */
+	summary: CacheEntry<WebhooksActivitySummary>;
+	/** Deliveries for one hour, keyed `${id}:${fromIso}`. */
+	deliveriesWindow: Record<string, CacheEntry<DeliveryRow[]>>;
 	/** Keyed by delivery id, not webhook id — a delivery attempt never
 	 *  changes once it's dispatched, so once one loads here it's good for the
 	 *  life of the tab; nothing ever refetches it. */
@@ -52,6 +61,9 @@ const EMPTY: State = {
 	deliveries: {},
 	dead: {},
 	activity: {},
+	days: {},
+	summary: undefined,
+	deliveriesWindow: {},
 	deliveryDetail: {},
 };
 
@@ -108,6 +120,75 @@ export async function refreshList(): Promise<ListResult> {
 		return { kind: "ok", data: [] };
 	}
 	return res;
+}
+
+/** Hourly activity for every webhook. Same rule as the other refreshers:
+ *  only an ok result writes. */
+export async function refreshSummary(): Promise<
+	WebhooksResult<WebhooksActivitySummary>
+> {
+	const res = await getActivitySummary();
+	if (res.kind === "ok") set({ summary: { data: res.data, at: Date.now() } });
+	return res;
+}
+
+/** The deliveries inside one window (an hour from a heat square). */
+export async function refreshDeliveriesWindow(
+	id: string,
+	window: { from: string; to: string },
+): Promise<WebhooksResult<DeliveryRow[]>> {
+	const res = await getDeliveries(id, window);
+	if (res.kind === "ok") {
+		set({
+			deliveriesWindow: {
+				...state.deliveriesWindow,
+				[`${id}:${window.from}`]: { data: res.data, at: Date.now() },
+			},
+		});
+	}
+	return res;
+}
+
+/** The 30-day daily counts, for the detail's 30d range. */
+export async function refreshDays(
+	id: string,
+): Promise<WebhooksResult<WebhookActivity>> {
+	const res = await getActivity(id, { days: 30 });
+	if (res.kind === "ok" && res.data.days) {
+		set({
+			days: { ...state.days, [id]: { data: res.data.days, at: Date.now() } },
+		});
+	}
+	return res;
+}
+
+/** Put a webhook the API just returned (after a rename, pause or resume) in
+ *  the cache, so the page and the list agree before the next poll. */
+export function applyWebhook(webhook: WebhookDetail): void {
+	const patch: Partial<State> = {
+		detail: {
+			...state.detail,
+			[webhook.id]: { data: webhook, at: Date.now() },
+		},
+	};
+	const list = state.list;
+	if (list) {
+		patch.list = {
+			...list,
+			data: list.data.map((w) =>
+				w.id === webhook.id
+					? {
+							...w,
+							name: webhook.name,
+							status: webhook.status,
+							circuitOpenedAt: webhook.circuitOpenedAt,
+							circuitFailures: webhook.circuitFailures,
+						}
+					: w,
+			),
+		};
+	}
+	set(patch);
 }
 
 export interface DetailFetch {
