@@ -304,7 +304,15 @@ rolling_recreate_api() {
 
 # Restart back-end app services in bulk, then roll the api separately.
 # NEVER touch stacks-node, postgres, hiro-postgres, hiro-api.
-$COMPOSE up -d --no-build --remove-orphans $APP_SERVICES_NO_API
+# decoder and caddy depend on api (service_healthy). Without --no-deps,
+# compose recreates every api replica at once here, before the rolling step,
+# and in-flight reads fail. When api is down (migration path), deps are fine:
+# there is nothing to keep serving yet.
+if [ -n "$($COMPOSE ps -q api 2>/dev/null)" ]; then
+  $COMPOSE up -d --no-build --no-deps --remove-orphans $APP_SERVICES_NO_API
+else
+  $COMPOSE up -d --no-build --remove-orphans $APP_SERVICES_NO_API
+fi
 rolling_recreate_api || { echo "ERROR: api rolling recreate failed"; exit 1; }
 
 # Caddy's Caddyfile is bind-mounted, so `up -d` won't detect file changes
