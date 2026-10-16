@@ -86,6 +86,7 @@ describe("activityHeaderSummary", () => {
 			delivered: 0,
 			waiting: 0,
 			gaveUp: 0,
+			failed: 0,
 			...overrides,
 		};
 	}
@@ -286,12 +287,13 @@ describe("receiverDownWaitingSeries", () => {
 			nextAttemptAt: null,
 			lastSuccessAt: null,
 			byEventType: {},
+			usualByHourOfDay: null,
 			...overrides,
 		};
 	}
 
 	function hour(iso: string, waiting: number) {
-		return { hour: iso, delivered: 0, waiting, gaveUp: 0 };
+		return { hour: iso, delivered: 0, waiting, gaveUp: 0, failed: 0 };
 	}
 
 	test("with no lastSuccessAt, only the live polls show", () => {

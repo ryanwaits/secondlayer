@@ -22,6 +22,8 @@ const webhook: WebhookDetail = {
 	concurrency: 8,
 	circuitFailures: 2,
 	lastError: null,
+	managedBy: null,
+	receiverCertExpiresAt: null,
 	warning: null,
 };
 

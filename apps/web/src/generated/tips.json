@@ -5706,7 +5706,7 @@
 		"sl.webhooks.activity": {
 			"kind": "method",
 			"summary": "Get a webhook's hourly delivery counts for the last 7 days.",
-			"sig": "sl.webhooks.activity(id: string): Promise<WebhookActivity>",
+			"sig": "sl.webhooks.activity(id: string, opts?: { days?: 30 }): Promise<WebhookActivity>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-activity"
 		},
@@ -5734,7 +5734,7 @@
 		"sl.webhooks.deliveries": {
 			"kind": "method",
 			"summary": "The last 100 delivery attempts, newest first.",
-			"sig": "sl.webhooks.deliveries(id: string): Promise<{ data: DeliveryRow[] }>",
+			"sig": "sl.webhooks.deliveries(id: string, window?: { from: string; to: string }): Promise<{ total: number; data: DeliveryRow[] }>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-deliveries"
 		},
@@ -7772,10 +7772,38 @@
 				{
 					"name": "byEventType",
 					"type": "Record<string, number>"
+				},
+				{
+					"name": "usualByHourOfDay",
+					"type": "{ lo: number; hi: number; }[] | null"
+				},
+				{
+					"name": "days",
+					"type": "WebhookActivityDay[]"
 				}
 			],
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "t-WebhookActivity"
+		},
+		"WebhookActivityDay": {
+			"kind": "type",
+			"summary": "One UTC day of delivery attempts (GET /:id/activity?days=30).",
+			"fields": [
+				{
+					"name": "day",
+					"type": "string"
+				},
+				{
+					"name": "delivered",
+					"type": "number"
+				},
+				{
+					"name": "failed",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-WebhookActivityDay"
 		},
 		"WebhookActivityHour": {
 			"kind": "type",
@@ -7795,6 +7823,10 @@
 				},
 				{
 					"name": "gaveUp",
+					"type": "number"
+				},
+				{
+					"name": "failed",
 					"type": "number"
 				}
 			],
@@ -7891,22 +7923,22 @@
 					"type": "string | null"
 				},
 				{
-					"name": "warning",
+					"name": "receiverCertExpiresAt",
 					"type": "string | null"
 				},
 				{
-					"name": "id",
-					"type": "string"
+					"name": "warning",
+					"type": "string | null"
 				}
 			],
-			"more": 11,
+			"more": 13,
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "t-WebhookDetail"
 		},
 		"Webhooks.activity": {
 			"kind": "method",
 			"summary": "Get a webhook's hourly delivery counts for the last 7 days.",
-			"sig": "sl.webhooks.activity(id: string): Promise<WebhookActivity>",
+			"sig": "sl.webhooks.activity(id: string, opts?: { days?: 30 }): Promise<WebhookActivity>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-activity"
 		},
@@ -7934,7 +7966,7 @@
 		"Webhooks.deliveries": {
 			"kind": "method",
 			"summary": "The last 100 delivery attempts, newest first.",
-			"sig": "sl.webhooks.deliveries(id: string): Promise<{ data: DeliveryRow[] }>",
+			"sig": "sl.webhooks.deliveries(id: string, window?: { from: string; to: string }): Promise<{ total: number; data: DeliveryRow[] }>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-deliveries"
 		},
@@ -8045,7 +8077,7 @@
 					"type": "string | null"
 				}
 			],
-			"more": 4,
+			"more": 5,
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "t-WebhookSummary"
 		},

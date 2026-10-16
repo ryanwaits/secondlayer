@@ -32,6 +32,8 @@ const baseDetail: WebhookDetail = {
 	circuitFailures: 0,
 	circuitOpenedAt: null,
 	lastError: null,
+	managedBy: null,
+	receiverCertExpiresAt: null,
 	warning: null,
 };
 

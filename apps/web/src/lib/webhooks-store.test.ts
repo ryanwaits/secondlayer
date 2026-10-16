@@ -44,6 +44,7 @@ function summary(id: string, name: string): WebhookSummary {
 		lastSuccessAt: null,
 		circuitOpenedAt: null,
 		circuitFailures: 0,
+		managedBy: null,
 		createdAt: "2026-01-01T00:00:00.000Z",
 		updatedAt: "2026-01-01T00:00:00.000Z",
 	};
@@ -58,6 +59,7 @@ function detail(id: string, name: string): WebhookDetail {
 		timeoutMs: 10_000,
 		concurrency: 8,
 		lastError: null,
+		receiverCertExpiresAt: null,
 		warning: null,
 	};
 }
@@ -68,6 +70,7 @@ const emptyActivity: WebhookActivity = {
 	nextAttemptAt: null,
 	lastSuccessAt: null,
 	byEventType: {},
+	usualByHourOfDay: null,
 };
 
 /** Routes a fake `/api/webhooks/...` call for one webhook id, and records

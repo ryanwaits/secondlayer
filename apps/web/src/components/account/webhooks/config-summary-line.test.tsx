@@ -22,6 +22,8 @@ const base: WebhookDetail = {
 	concurrency: 4,
 	circuitFailures: 0,
 	lastError: null,
+	managedBy: null,
+	receiverCertExpiresAt: null,
 	warning: null,
 };
 
@@ -34,6 +36,7 @@ const activity: WebhookActivity = {
 		"chain.stx_transfer.apply": 83_923,
 		"chain.ft_transfer.apply": 700,
 	},
+	usualByHourOfDay: null,
 };
 
 function render(webhook: WebhookDetail) {
