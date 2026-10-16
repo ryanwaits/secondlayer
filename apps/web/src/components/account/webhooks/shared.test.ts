@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { DoctorIssue } from "@secondlayer/sdk";
-import { countByDisplayStatus, displayStatus, formatEventCell } from "./shared";
+import {
+	countByDisplayStatus,
+	displayStatus,
+	formatEventCell,
+	shortenName,
+} from "./shared";
 
 function issue(overrides: Partial<DoctorIssue> = {}): DoctorIssue {
 	return { code: "receiver_down", severity: "bad", ...overrides };
@@ -163,5 +168,19 @@ describe("formatEventCell", () => {
 
 	test("event index 0 still shows — it's a real position, not a missing value", () => {
 		expect(formatEventCell("0xabc", 0)).toBe("0xabc #0");
+	});
+});
+
+describe("shortenName", () => {
+	test("shortens every Stacks address in a Sentinel-made name", () => {
+		expect(
+			shortenName(
+				"sentinel:SP1A27KFY4XERQCCRCARCYD1CC5N7M6688BSYADJ7.v0-vault-sbtc:~dea842652e52db77",
+			),
+		).toBe("sentinel:SP1A27…ADJ7.v0-vault-sbtc:~dea842652e52db77");
+	});
+
+	test("leaves a plain name alone", () => {
+		expect(shortenName("sbtc-deposits")).toBe("sbtc-deposits");
 	});
 });

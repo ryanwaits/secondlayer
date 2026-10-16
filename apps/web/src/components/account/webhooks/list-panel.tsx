@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ToneDot, type WebhookRowModel, useWebhookRows } from "./rows";
-import { CliLine } from "./shared";
+import { CliLine, shortenName } from "./shared";
 import { WebhooksListSkeleton } from "./skeletons";
 
 /** The list polls this often while the tab is visible, so new webhooks and
@@ -143,7 +143,7 @@ function WebhookListRow({
 			<Link href={`/account/webhooks/${webhook.id}`} className="wl-main">
 				<span className="dash-row-name">
 					<ToneDot tone={state.tone} />
-					<span title={webhook.name}>{webhook.name}</span>
+					<span title={webhook.name}>{shortenName(webhook.name)}</span>
 					{webhook.managedBy ? (
 						<span
 							className="wl-chip"

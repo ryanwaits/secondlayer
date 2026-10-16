@@ -45,6 +45,16 @@ describe("WebhookDetailBody header", () => {
 		expect(html).not.toContain(">Rename<");
 	});
 
+	test("a long Sentinel name shortens its address in the breadcrumb and title, full name on hover", () => {
+		const name =
+			"sentinel:SP1A27KFY4XERQCCRCARCYD1CC5N7M6688BSYADJ7.v0-vault-sbtc:~dea842652e52db77";
+		const html = render({ webhook: detail({ name, managedBy: "Sentinel" }) });
+		const short = "sentinel:SP1A27…ADJ7.v0-vault-sbtc:~dea842652e52db77";
+		expect(html.split(`>${short}<`).length - 1).toBe(2);
+		expect(html).toContain(`title="${name}"`);
+		expect(html).not.toContain(`>${name}<`);
+	});
+
 	test("the facts name the window they cover", () => {
 		const html = render();
 		for (const label of [

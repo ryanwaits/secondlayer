@@ -82,6 +82,17 @@ export function shortenPrincipal(value: string): string {
 	return dot > 0 ? `${shortAddr}${value.slice(dot)}` : shortAddr;
 }
 
+/** A webhook name with every Stacks address in it shortened, so a
+ *  Sentinel-made name like `sentinel:SP1A27KFY4XERQCCRCARCYD1CC5N7M6688BSYADJ7.v0-vault-sbtc:~dea8…`
+ *  reads `sentinel:SP1A27…ADJ7.v0-vault-sbtc:~dea8…`. Show the full name in a
+ *  `title` beside it. */
+export function shortenName(name: string): string {
+	return name.replace(
+		/\bS[PMTN][0-9A-Z]{26,41}\b/g,
+		(addr) => `${addr.slice(0, 6)}…${addr.slice(-4)}`,
+	);
+}
+
 /** "0x920a…2c77 #408" for the deliveries table's Event column — a short tx
  *  plus its position in that block/tx, or "–" without one (a test delivery,
  *  or an event already compacted out of the outbox). */

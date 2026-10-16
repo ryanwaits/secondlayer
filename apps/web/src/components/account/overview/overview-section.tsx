@@ -46,6 +46,7 @@ import {
 	type WebhookRowModel,
 	useWebhookRows,
 } from "../webhooks/rows";
+import { shortenName } from "../webhooks/shared";
 import { ageShort, last24 } from "../webhooks/view";
 
 /** The webhook rows refresh this often while the tab is visible. */
@@ -92,7 +93,7 @@ function WebhookRow({ model }: { model: WebhookRowModel }) {
 		<div className="dash-row-wrap">
 			<ResourceRow
 				href={`/account/webhooks/${webhook.id}`}
-				name={webhook.name}
+				name={shortenName(webhook.name)}
 				nameTitle={webhook.name}
 				tone={state.tone}
 				state={
@@ -150,7 +151,7 @@ function QuietGroup({ models }: { models: WebhookRowModel[] }) {
 						<ResourceRow
 							key={webhook.id}
 							href={`/account/webhooks/${webhook.id}`}
-							name={webhook.name}
+							name={shortenName(webhook.name)}
 							nameTitle={webhook.name}
 							tone="idle"
 							state={`Waiting since ${formatDate(webhook.createdAt)}`}

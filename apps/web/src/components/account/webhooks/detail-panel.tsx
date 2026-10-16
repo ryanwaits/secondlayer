@@ -39,7 +39,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AttemptTimeline } from "./attempt-timeline";
 import { AsleepNotice } from "./list-panel";
-import { displayStatus, formatEventCell } from "./shared";
+import { displayStatus, formatEventCell, shortenName } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
 import { TriggersBox } from "./triggers";
 import {
@@ -217,7 +217,9 @@ export function TitleRow({
 						}}
 					/>
 				) : (
-					<span className="wd-name">{saving ? draft.trim() : name}</span>
+					<span className="wd-name" title={name}>
+						{shortenName(saving ? draft.trim() : name)}
+					</span>
 				)}
 				{managedBy ? (
 					<span
@@ -542,7 +544,8 @@ export function WebhookDetailBody({
 		<>
 			<Breadcrumb
 				parent={{ href: "/account/webhooks", label: "Webhooks" }}
-				current={webhook.name}
+				current={shortenName(webhook.name)}
+				title={webhook.name}
 			/>
 			<header className="wd-head">
 				<div className="wd-top">
@@ -724,11 +727,14 @@ export function WebhookDetailSection({ id }: { id: string }) {
 					<>
 						<Breadcrumb
 							parent={{ href: "/account/webhooks", label: "Webhooks" }}
-							current={name}
+							current={shortenName(name)}
+							title={name}
 						/>
 						<div className="wd-title">
 							<h1>
-								<span className="wd-name">{name}</span>
+								<span className="wd-name" title={name}>
+									{shortenName(name)}
+								</span>
 							</h1>
 						</div>
 					</>
