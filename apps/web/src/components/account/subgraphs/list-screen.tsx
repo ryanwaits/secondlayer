@@ -9,7 +9,7 @@ import {
 	ResourceRowHead,
 } from "@/components/dashboard/shell/resource-row";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
-import { refreshKeys, useAccountData } from "@/lib/account-data";
+import { ensureKeys, useAccountData } from "@/lib/account-data";
 import type { Insight } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
 import { hasNoKey } from "@/lib/onboarding";
@@ -164,10 +164,10 @@ const healthByName = (
 		Object.entries(health).map(([name, entry]) => [name, entry?.data]),
 	);
 
-/** The Overview's subgraph rows. Quiet until the list has loaded, and
- *  nothing at all when the account has no subgraphs. */
+/** The Overview's subgraph rows, read from the cache the Overview's own
+ *  `useSubgraphsPoll` fills. Quiet until the list has loaded, and nothing at
+ *  all when the account has no subgraphs. */
 export function OverviewSubgraphsRows() {
-	useSubgraphsPoll();
 	const { list, health } = useSubgraphsCache();
 	const { data: insights } = useInsights();
 	if (!list || list.data.length === 0) return null;
@@ -253,7 +253,7 @@ export function SubgraphsListSection() {
 	const { data: insights } = useInsights();
 	const { keys } = useAccountData();
 	useEffect(() => {
-		refreshKeys();
+		ensureKeys();
 	}, []);
 	return (
 		<SubgraphsListBody

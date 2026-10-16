@@ -19,7 +19,14 @@ export default function AccountLayout({
 	const { account, loading } = useAuth();
 	const signedIn = Boolean(account);
 	// One shared feed of ranked insights for every screen under /account.
-	useEffect(() => (signedIn ? startInsightsPolling() : undefined), [signedIn]);
+	// Insights start with the page, like every screen's own reads: a visitor
+	// who turns out to be signed out gets one 401, and the poll stops when
+	// the sign-in card replaces the page.
+	const mayBeSignedIn = loading || signedIn;
+	useEffect(
+		() => (mayBeSignedIn ? startInsightsPolling() : undefined),
+		[mayBeSignedIn],
+	);
 
 	// Signed out is the one case that still blocks: nothing account-specific
 	// ever mounts for a visitor who isn't authenticated. While `loading` is

@@ -36,11 +36,7 @@ import {
 	READ_COMMAND,
 	onboardingProgress,
 } from "@/lib/onboarding";
-import {
-	refreshList as refreshSubgraphs,
-	useSubgraphsCache,
-} from "@/lib/subgraphs-store";
-import { poll as pollSubgraphs } from "@/lib/subgraphs-store";
+import { useSubgraphsCache } from "@/lib/subgraphs-store";
 import type { ApiKey } from "@/lib/types";
 import {
 	type Burn,
@@ -60,7 +56,10 @@ import { type ReactNode, useEffect, useState } from "react";
 import { countedKeys, overviewKeys } from "../keys/key-view";
 import { NewKeyFlow } from "../keys/new-key-flow";
 import { OverviewRowsRow } from "../rows/rows-panel";
-import { OverviewSubgraphsRows } from "../subgraphs/list-screen";
+import {
+	OverviewSubgraphsRows,
+	useSubgraphsPoll,
+} from "../subgraphs/list-screen";
 import {
 	StateCell,
 	type WebhookRowModel,
@@ -93,12 +92,10 @@ export function OverviewRowsSlot() {
 	return rows ? <OverviewRowsRow data={rows} now={new Date()} /> : null;
 }
 
-/** One row per subgraph, once the hosted stack exists (reading subgraphs goes
- *  through it, so nothing is fetched before then). */
+/** One row per subgraph. Empty until the Overview's poll has loaded the list,
+ *  and for an account with no subgraphs. */
 export function OverviewSubgraphsSlot() {
-	const { service } = useAccountData();
-	const stackExists = service !== null && service.state !== "none";
-	return stackExists ? <OverviewSubgraphsRows /> : null;
+	return <OverviewSubgraphsRows />;
 }
 
 /** Your keys: how many, which one read last, and a stale one if there is one. Hidden with no keys of your own. */
@@ -575,12 +572,10 @@ export function OverviewSection() {
 		}, 60_000);
 	}, [month]);
 
-	// Listing webhooks goes through the account's hosted stack, so only do it
-	// once usage says one exists.
-	const stackExists = service !== null && service.state !== "none";
+	// A read never starts or wakes a hosted stack (the gateway answers an
+	// account with no stack with an empty list), so asking right away is free.
 	const [asleep, setAsleep] = useState(false);
 	useEffect(() => {
-		if (!stackExists) return;
 		return poll(async () => {
 			const [list] = await Promise.all([refreshList(), refreshSummary()]);
 			setAsleep(list.kind === "asleep");
@@ -588,18 +583,10 @@ export function OverviewSection() {
 				? { retryAfterMs: list.retryAfter * 1000 }
 				: {};
 		}, POLL_MS);
-	}, [stackExists]);
+	}, []);
 
-	// Subgraphs are listed through the same stack; step three needs to know.
-	useEffect(() => {
-		if (!stackExists) return;
-		return pollSubgraphs(async () => {
-			const res = await refreshSubgraphs();
-			return res.kind === "starting" || res.kind === "rate_limited"
-				? { retryAfterMs: res.retryAfter * 1000 }
-				: {};
-		}, POLL_MS);
-	}, [stackExists]);
+	// The subgraph list and its health, for the checklist and the rows below.
+	useSubgraphsPoll();
 
 	const subgraphs = useSubgraphsCache().list;
 	const now = new Date();
@@ -608,10 +595,8 @@ export function OverviewSection() {
 		now,
 		pushed: (rows?.length ?? 0) > 0 || (subgraphs?.data.length ?? 0) > 0,
 		// Don't flash the checklist at an account whose webhooks and subgraphs
-		// have not loaded yet.
-		settled:
-			service !== null &&
-			(service.state === "none" || (rows !== null && subgraphs !== undefined)),
+		// have not loaded yet. An asleep stack never returns its webhook list.
+		settled: (rows !== null || asleep) && subgraphs !== undefined,
 	});
 
 	const monthRows = usage[month];
