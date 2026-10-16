@@ -23,6 +23,7 @@ import { useEffect, useState } from "react";
 import { ToneDot, type WebhookRowModel, useWebhookRows } from "./rows";
 import { shortenName } from "./shared";
 import { WebhooksListSkeleton } from "./skeletons";
+import { WaitingBlock } from "./waiting";
 
 /** The list polls this often while the tab is visible, so new webhooks and
  *  status changes show up without a reload. */
@@ -300,26 +301,13 @@ export function WebhooksListBody({
 								stripPending={!summaryLoaded}
 							/>
 						))}
-						{quiet.length > 0 ? (
-							<div className="wl-quiet">
-								<span className="dash-row-name">
-									<span className="dash-dot idle" />
-									<span>{quiet.length} waiting for a first match</span>
-								</span>
-								<span className="wl-state">
-									{quiet
-										.map((m) => m.webhook.name.replace(/^sentinel:/, ""))
-										.join(" · ")}
-								</span>
-							</div>
-						) : null}
 					</div>
 					{active.length > 0 ? (
 						<Legend
 							items={[
 								{
 									swatch: "square",
-									label: "Delivered in that hour (darker = more)",
+									label: "Delivered that hour, darker is more",
 									color: "var(--ch-a)",
 								},
 								{ swatch: "square", label: "Failed" },
@@ -330,6 +318,9 @@ export function WebhooksListBody({
 								},
 							]}
 						/>
+					) : null}
+					{quiet.length > 0 ? (
+						<WaitingBlock webhooks={quiet.map((m) => m.webhook)} />
 					) : null}
 				</>
 			) : null}

@@ -22,7 +22,6 @@ import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import {
 	type Billing,
-	formatDate,
 	formatUsd,
 	refreshBilling,
 	refreshCaps,
@@ -69,6 +68,7 @@ import {
 } from "../webhooks/rows";
 import { CliLine, shortenName } from "../webhooks/shared";
 import { ageShort, last24 } from "../webhooks/view";
+import { WaitingGroups } from "../webhooks/waiting";
 import { cellInsights, stoppedForCredits } from "./overview-view";
 import { PlumbingStrip, PlumbingStripSkeleton } from "./plumbing-strip";
 
@@ -176,25 +176,14 @@ function QuietGroup({ models }: { models: WebhookRowModel[] }) {
 					<span className="dash-dot idle" />
 					<span>{plural(models.length, "more webhook")}</span>
 				</span>
-				<span className="dash-row-state">Waiting for their first match</span>
+				<span className="dash-row-state">Waiting for a first match</span>
 				<span className="dash-row-spark" />
 				<span className="dash-row-v ov-faint">0</span>
 				<span className="dash-row-t ov-faint">{open ? "▴" : "▾"}</span>
 			</button>
 			{open ? (
 				<div className="ov-sub-rows">
-					{models.map(({ webhook }) => (
-						<ResourceRow
-							key={webhook.id}
-							href={`/account/webhooks/${webhook.id}`}
-							name={shortenName(webhook.name)}
-							nameTitle={webhook.name}
-							tone="idle"
-							state={`Waiting since ${formatDate(webhook.createdAt)}`}
-							count="0"
-							age="–"
-						/>
-					))}
+					<WaitingGroups webhooks={models.map((m) => m.webhook)} />
 				</div>
 			) : null}
 		</div>

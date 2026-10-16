@@ -73,15 +73,19 @@ describe("WebhooksListBody", () => {
 		expect(html).toContain("Thu, Oct 8");
 	});
 
-	test("webhooks with no match yet fold into one quiet row listing their names", () => {
+	test("webhooks with no match yet sit in a waiting block under the legend, each a link", () => {
 		const html = render({});
-		expect(html).toContain("1 waiting for a first match");
-		expect(html).toContain("vault-admin");
+		expect(html).toContain("Waiting for a first match");
+		expect(html).toContain('<span class="wq-n">1</span>');
+		expect(html).toContain('href="/account/webhooks/wh_waiting"');
+		expect(html.indexOf("Nothing")).toBeLessThan(
+			html.indexOf("Waiting for a first match"),
+		);
 	});
 
 	test("the legend explains the squares", () => {
 		const html = render({});
-		expect(html).toContain("Delivered in that hour (darker = more)");
+		expect(html).toContain("Delivered that hour, darker is more");
 		expect(html).toContain("Failed");
 		expect(html).toContain("Nothing");
 	});

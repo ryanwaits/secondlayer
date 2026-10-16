@@ -127,7 +127,7 @@ describe("OverviewBody", () => {
 	test("webhooks that never matched fold into one quiet group row", () => {
 		const html = render([healthy, quiet]);
 		expect(html).toContain("1 more webhook");
-		expect(html).toContain("Waiting for their first match");
+		expect(html).toContain("Waiting for a first match");
 		expect(html).not.toContain("example-watch");
 	});
 

@@ -6801,17 +6801,104 @@ button.dash-row {
 	border: 1px solid var(--line);
 	border-radius: 999px;
 }
-.wl-quiet {
-	display: grid;
-	grid-template-columns: auto minmax(0, 1fr);
-	gap: 20px;
-	align-items: baseline;
-	padding: 18px 0;
-	border-bottom: 1px solid var(--line);
-	color: var(--sub);
+.wq {
+	padding-top: 24px;
 }
-.wl-quiet .wl-state {
+.wq-h {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+.wq-t {
+	font: 500 15px / 1.3 var(--font-sans-stack);
+	color: var(--ink);
+}
+.wq-n {
+	font: 500 12px / 1 var(--font-mono-stack);
+	color: var(--sub);
+	background: var(--soft);
+	border-radius: 4px;
+	padding: 4px 6px;
+}
+.wq-meta {
+	margin-left: auto;
+	font: 400 12.5px / 1 var(--font-mono-stack);
+	color: var(--faint);
+}
+.wq-sub {
+	margin: 8px 0 16px 19px;
+	font-size: 14px;
+	color: var(--sub);
+	max-width: 620px;
+}
+.wq-g {
+	display: grid;
+	grid-template-columns: 260px minmax(0, 1fr);
+	gap: 10px 24px;
+	padding: 14px 0 14px 19px;
+	border-top: 1px solid var(--line);
+	align-items: baseline;
+}
+.wq-g:last-child {
+	border-bottom: 1px solid var(--line);
+}
+.wq-c {
+	font: 400 13px / 1.4 var(--font-mono-stack);
+	color: var(--ink);
+	min-width: 0;
 	overflow-wrap: anywhere;
+}
+.wq-addr {
+	color: var(--faint);
+}
+.wq-c b {
+	font-weight: 500;
+}
+.wq-c small {
+	display: block;
+	font: 400 12px / 1.4 var(--font-sans-stack);
+	color: var(--faint);
+	margin-top: 3px;
+}
+.wq-fns {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	min-width: 0;
+}
+.wq-fn {
+	font: 400 12.5px / 1 var(--font-mono-stack);
+	color: var(--ink);
+	text-decoration: none;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	padding: 6px 8px;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	transition: color var(--duration-snappy) var(--ease-snappy), border-color
+		var(--duration-snappy) var(--ease-snappy);
+}
+@media (hover: hover) {
+	.wq-fn:hover {
+		color: var(--pri);
+		border-color: var(--pri);
+	}
+}
+@media (max-width: 760px) {
+	.wq-g {
+		grid-template-columns: minmax(0, 1fr);
+		padding-left: 0;
+	}
+	.wq-sub {
+		margin-left: 0;
+	}
+	.wq-meta {
+		margin-left: 0;
+		width: 100%;
+	}
 }
 .wl-empty {
 	display: grid;
