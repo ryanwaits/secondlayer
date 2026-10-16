@@ -7,6 +7,7 @@ import {
 	formatCell,
 	gridColumns,
 	groupDigits,
+	handlerErrors24h,
 	isLive,
 	queryCommand,
 	rowsQuery,
@@ -261,6 +262,15 @@ describe("counts and lag", () => {
 		expect(stateLine(300, 10, 0, "reindexing")).toBe(
 			"Reindexing · 300 blocks left · 10 rows · 0 errors 24h",
 		);
+	});
+
+	test("handler errors in 24h sum the newest 24 hourly buckets", () => {
+		const hours = Array.from({ length: 30 }, (_, i) => ({
+			errors: i < 6 ? 100 : 1,
+		}));
+		expect(handlerErrors24h({ hours })).toBe(24);
+		expect(handlerErrors24h({ hours: [] })).toBe(0);
+		expect(handlerErrors24h(undefined)).toBeNull();
 	});
 
 	test("tone is red for errors, quiet when not active", () => {

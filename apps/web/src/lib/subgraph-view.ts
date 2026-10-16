@@ -242,6 +242,16 @@ export function formatBytes(bytes: number): string {
 	return `${i === 0 ? value : +value.toFixed(value < 10 ? 1 : 0)} ${units[i]}`;
 }
 
+/** Handler errors in the last 24 hours: the sum of the newest 24 hourly
+ *  buckets from `/health`. The one definition both screens, the status dot
+ *  and the sentence use; null until health has loaded. */
+export function handlerErrors24h(
+	health: { hours: readonly { errors: number }[] } | undefined,
+): number | null {
+	if (!health) return null;
+	return health.hours.slice(-24).reduce((sum, h) => sum + h.errors, 0);
+}
+
 export type Tone = "ok" | "alarm" | "hi" | "idle";
 
 /** Red for a failing subgraph or any handler error in 24 hours, a quiet dot

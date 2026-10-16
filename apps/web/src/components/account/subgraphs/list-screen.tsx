@@ -7,7 +7,12 @@ import {
 	ResourceRowHead,
 } from "@/components/dashboard/shell/resource-row";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
-import { groupDigits, stateLine, subgraphTone } from "@/lib/subgraph-view";
+import {
+	groupDigits,
+	handlerErrors24h,
+	stateLine,
+	subgraphTone,
+} from "@/lib/subgraph-view";
 import {
 	type SubgraphHealthData,
 	type SubgraphListItem,
@@ -72,7 +77,7 @@ export function SubgraphRows({
 		<>
 			{items.map((item) => {
 				const h = health[item.name];
-				const errors24h = h ? h.errors24h : null;
+				const errors24h = handlerErrors24h(h);
 				const points = h?.hours.map((hour) => hour.rowsWritten) ?? [];
 				const rows = item.totalRows ?? 0;
 				return (
@@ -156,8 +161,7 @@ export function SubgraphsListBody({
 	if (items.length === 0) return <SubgraphsEmptyState />;
 
 	const failing = items.filter(
-		(s) =>
-			subgraphTone(s.status, health[s.name]?.errors24h ?? null) === "alarm",
+		(s) => subgraphTone(s.status, handlerErrors24h(health[s.name])) === "alarm",
 	).length;
 	const totalRows = items.reduce((sum, s) => sum + (s.totalRows ?? 0), 0);
 	const sub = `${items.length} ${items.length === 1 ? "subgraph" : "subgraphs"} · ${groupDigits(String(totalRows))} rows`;

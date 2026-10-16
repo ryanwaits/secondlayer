@@ -9,6 +9,7 @@ import {
 	blocksLabel,
 	formatBytes,
 	groupDigits,
+	handlerErrors24h,
 	shortCount,
 	subgraphTone,
 } from "@/lib/subgraph-view";
@@ -74,7 +75,7 @@ export function SubgraphDetailBody({
 }: SubgraphDetailBodyProps) {
 	const tables = Object.entries(detail.tables);
 	const current = detail.tables[table];
-	const errors24h = health ? health.errors24h : null;
+	const errors24h = handlerErrors24h(health);
 	const totalRows = tables.reduce((sum, [, t]) => sum + t.rowCount, 0);
 	return (
 		<>
@@ -224,7 +225,7 @@ export function SubgraphDetailSection({ name }: { name: string }) {
 
 	const data = detail[name]?.data;
 	const healthData = health[name]?.data;
-	const hasErrors = (healthData?.errors24h ?? 0) > 0;
+	const hasErrors = (handlerErrors24h(healthData) ?? 0) > 0;
 	useEffect(() => {
 		if (!hasErrors) return;
 		return poll(async () => {
