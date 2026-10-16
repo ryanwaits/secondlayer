@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Skel } from "./skel";
 import { type Tone, dotClass } from "./status-sentence";
 
 export function ResourceRow({
@@ -54,6 +55,30 @@ export function ResourceRowHead({
 			<span>{labels[2]}</span>
 			<span>{labels[3]}</span>
 			<span>{labels[4]}</span>
+		</div>
+	);
+}
+
+/** A row's shape while the Overview's first data is in flight. */
+export function ResourceRowSkeleton() {
+	return (
+		<div className="dash-row" aria-hidden="true">
+			<span className="dash-row-name">
+				<span className="dash-dot idle" />
+				<Skel width="55%" />
+			</span>
+			<span className="dash-row-state">
+				<Skel width="70%" />
+			</span>
+			<span className="dash-row-spark">
+				<Skel width={132} height={30} />
+			</span>
+			<span className="dash-row-v">
+				<Skel width={40} />
+			</span>
+			<span className="dash-row-t">
+				<Skel width={28} />
+			</span>
 		</div>
 	);
 }

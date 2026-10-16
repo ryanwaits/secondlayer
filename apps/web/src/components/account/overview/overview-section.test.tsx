@@ -10,9 +10,11 @@ import { FIXTURE_HOURS, summary } from "../webhooks/webhook.fixtures";
 import {
 	OVERVIEW_ACCOUNT_RULES,
 	OverviewBody,
+	type OverviewFirstWave,
 	OverviewKeysRow,
 	OverviewRowsSlot,
 	OverviewSubgraphsSlot,
+	overviewSettled,
 } from "./overview-section";
 
 const delivered = new Array<number>(168).fill(3);
@@ -295,5 +297,80 @@ describe("OverviewBody for a new account", () => {
 		);
 		expect(out).not.toContain("Your key works");
 		expect(out).toContain("No webhooks yet.");
+	});
+});
+
+describe("Overview first paint", () => {
+	const loaded: OverviewFirstWave = {
+		keys: true,
+		billing: true,
+		service: true,
+		stackState: "running",
+		webhooks: true,
+		asleep: false,
+		subgraphs: true,
+		rows: true,
+		insights: true,
+	};
+
+	test("is settled once everything has loaded", () => {
+		expect(overviewSettled(loaded)).toBe(true);
+	});
+
+	for (const field of [
+		"keys",
+		"billing",
+		"service",
+		"rows",
+		"insights",
+	] as const) {
+		test(`waits for ${field}`, () => {
+			expect(overviewSettled({ ...loaded, [field]: false })).toBe(false);
+			expect(
+				overviewSettled({
+					...loaded,
+					stackState: "none",
+					[field]: false,
+				}),
+			).toBe(false);
+		});
+	}
+
+	test("does not wait for webhooks or subgraphs when there is no hosted stack", () => {
+		expect(
+			overviewSettled({
+				...loaded,
+				stackState: "none",
+				webhooks: false,
+				subgraphs: false,
+			}),
+		).toBe(true);
+	});
+
+	test("waits for webhooks and subgraphs on a running stack", () => {
+		expect(overviewSettled({ ...loaded, webhooks: false })).toBe(false);
+		expect(overviewSettled({ ...loaded, subgraphs: false })).toBe(false);
+	});
+
+	test("an asleep stack counts as its webhooks being known", () => {
+		expect(overviewSettled({ ...loaded, webhooks: false, asleep: true })).toBe(
+			true,
+		);
+	});
+
+	test("while loading it shows only the skeleton rows, with no insights or month panel", () => {
+		const html = renderToStaticMarkup(
+			<OverviewBody
+				{...base}
+				rows={null}
+				loading
+				accountInsights={FIXTURE_INSIGHTS}
+			/>,
+		);
+		expect(html).toContain("Checking your account.");
+		const block = html.slice(html.indexOf("ov-skel"));
+		expect(block.match(/class="dash-row"/g)?.length).toBe(4);
+		expect(html).not.toContain('aria-label="This month"');
+		expect(html).not.toContain("ins-");
 	});
 });

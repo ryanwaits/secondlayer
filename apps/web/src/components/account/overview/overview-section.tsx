@@ -15,7 +15,9 @@ import {
 import {
 	ResourceRow,
 	ResourceRowHead,
+	ResourceRowSkeleton,
 } from "@/components/dashboard/shell/resource-row";
+import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import {
 	type Billing,
@@ -50,6 +52,7 @@ import {
 	monthParam,
 	nextMonthLabel,
 } from "@/lib/usage";
+import { useFirstSettle } from "@/lib/use-first-settle";
 import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
@@ -78,17 +81,11 @@ export const OVERVIEW_ACCOUNT_RULES = [
 	"credits_runway",
 ];
 
-/** Rows (Index and Streams reads) get their own row here, once their data has loaded. */
+/** Rows (Index and Streams reads) get their own row here, once their data has loaded.
+ *  Render-only: `OverviewSection` polls the data, because this slot is not
+ *  mounted while the first-paint skeleton is up. */
 export function OverviewRowsSlot() {
 	const { rows } = useAccountData();
-	useEffect(
-		() =>
-			poll(async () => {
-				await refreshRows();
-				return {};
-			}, 60_000),
-		[],
-	);
 	return rows ? <OverviewRowsRow data={rows} now={new Date()} /> : null;
 }
 
@@ -399,7 +396,35 @@ const OVERVIEW_PLACEHOLDERS = [
 	{ state: 48, count: 44 },
 ];
 
+/** What the Overview's first paint waits for. Each field is whether that data has loaded (or is known not to exist). */
+export interface OverviewFirstWave {
+	keys: boolean;
+	billing: boolean;
+	/** The usage response, which carries the hosted stack state. */
+	service: boolean;
+	/** "none" means no hosted stack: no webhooks or subgraphs to wait for. */
+	stackState: HostedStack["state"] | null;
+	webhooks: boolean;
+	asleep: boolean;
+	subgraphs: boolean;
+	rows: boolean;
+	insights: boolean;
+}
+
+export function overviewSettled(w: OverviewFirstWave): boolean {
+	if (!w.keys || !w.billing || !w.service || !w.rows || !w.insights) {
+		return false;
+	}
+	if (w.stackState === "none") return true;
+	return (w.webhooks || w.asleep) && w.subgraphs;
+}
+
+/** How many placeholder rows the first-paint skeleton shows. */
+const SKELETON_ROWS = 4;
+
 export interface OverviewBodyProps {
+	/** Hold the skeleton: the first data has not landed yet. */
+	loading?: boolean;
 	/** Null until the webhook list has loaded. */
 	rows: WebhookRowModel[] | null;
 	billing: Billing | null;
@@ -430,6 +455,7 @@ export function OverviewBody({
 	accountInsights = [],
 	asleep = false,
 	onboarding = null,
+	loading = false,
 }: OverviewBodyProps) {
 	const guide = onboarding && !onboarding.progress.complete ? onboarding : null;
 	const attention = rows?.filter((r) => r.state.tone === "alarm").length ?? 0;
@@ -442,6 +468,33 @@ export function OverviewBody({
 	]
 		.filter(Boolean)
 		.join(" · ");
+
+	if (loading) {
+		// Nothing renders below the rows block: anything there would be an
+		// existing element that moves when the real rows replace this.
+		return (
+			<>
+				<StatusSentence tone="idle" sub={<Skel width={220} />}>
+					Checking your account.
+				</StatusSentence>
+				<output
+					key="ov-skel"
+					className="dash-rows ov-skel"
+					aria-busy="true"
+					aria-label="Loading your account"
+				>
+					<ResourceRowHead
+						labels={["Resource", "State", "Last 24h", "Count", "Last"]}
+					/>
+					{Array.from({ length: SKELETON_ROWS }).map((_, i) => (
+						// Fixed skeleton row count; position is the identity.
+						// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
+						<ResourceRowSkeleton key={i} />
+					))}
+				</output>
+			</>
+		);
+	}
 
 	return (
 		<>
@@ -483,7 +536,7 @@ export function OverviewBody({
 					note="These fill in as you go."
 				/>
 			) : (
-				<div className="dash-rows">
+				<div key="ov-rows" className="dash-rows">
 					<ResourceRowHead
 						labels={["Resource", "State", "Last 24h", "Count", "Last"]}
 					/>
@@ -552,9 +605,16 @@ function useOnboarding({
 
 /** /account: is everything running, what needs you, what it costs. */
 export function OverviewSection() {
-	const { billing, burn, keys, service, usage } = useAccountData();
+	const {
+		billing,
+		burn,
+		keys,
+		service,
+		usage,
+		rows: rowsData,
+	} = useAccountData();
 	const { rows } = useWebhookRows();
-	const { data: insights } = useInsights();
+	const { data: insights, status: insightsStatus } = useInsights();
 	const month = monthParam(currentUtcMonth());
 
 	useEffect(() => {
@@ -571,6 +631,17 @@ export function OverviewSection() {
 			return {};
 		}, 60_000);
 	}, [month]);
+
+	// The Rows (reads) row's data. Polled here, not in its slot, which is not
+	// mounted while the first-paint skeleton is up.
+	useEffect(
+		() =>
+			poll(async () => {
+				await refreshRows();
+				return {};
+			}, 60_000),
+		[],
+	);
 
 	// A read never starts or wakes a hosted stack (the gateway answers an
 	// account with no stack with an empty list), so asking right away is free.
@@ -599,9 +670,24 @@ export function OverviewSection() {
 		settled: (rows !== null || asleep) && subgraphs !== undefined,
 	});
 
+	const ready = useFirstSettle(
+		overviewSettled({
+			keys: keys !== null,
+			billing: billing !== null,
+			service: service !== null,
+			stackState: service?.state ?? null,
+			webhooks: rows !== null,
+			asleep,
+			subgraphs: subgraphs !== undefined,
+			rows: rowsData !== null,
+			insights: insightsStatus !== "idle",
+		}),
+	);
+
 	const monthRows = usage[month];
 	return (
 		<OverviewBody
+			loading={!ready}
 			// No hosted stack means no webhooks, so there is nothing to wait for.
 			rows={rows ?? (service?.state === "none" ? [] : null)}
 			billing={billing}

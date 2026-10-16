@@ -1664,6 +1664,9 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	max-width: 1040px;
 	margin: 0 auto;
 	padding: 48px 1.5rem 0;
+	/* The footer sits right after the page, so a short loading page must not
+	   leave it in view, or it moves with every row that lands. */
+	min-height: 100dvh;
 }
 .acct-main {
 	min-width: 0;
@@ -5822,6 +5825,11 @@ a.acct-strip-link:hover .acct-strip-k {
 	text-align: right;
 	font: 400 12px / 1 var(--font-mono-stack);
 	color: var(--faint);
+}
+.dash-row-spark {
+	/* Rows whose sparkline arrives in a later fetch (subgraph health) keep
+	   their height. */
+	min-height: 30px;
 }
 .dash-row:hover .dash-row-name > span:not(.dash-dot) {
 	color: var(--pri);
