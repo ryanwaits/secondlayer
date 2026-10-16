@@ -5811,7 +5811,6 @@ a.acct-strip-link:hover .acct-strip-k {
 }
 
 @media (max-width: 900px) {
-	.dash-beat-lbl,
 	.dash-kbd,
 	.dash-cmd {
 		display: none;

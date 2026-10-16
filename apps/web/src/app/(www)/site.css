@@ -1065,6 +1065,10 @@
 	max-width: 22rem;
 	color: var(--sub);
 }
+/* The chain heartbeat, so block status shows on every page. */
+.site-footer-brand .dash-beat {
+	margin-top: 16px;
+}
 .site-footer-tag a {
 	color: inherit;
 	text-decoration: underline;

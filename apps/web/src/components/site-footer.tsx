@@ -1,5 +1,6 @@
 "use client";
 
+import { ChainHeartbeat } from "@/components/dashboard/shell/chain-heartbeat";
 import { Logo } from "@/components/logo";
 import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
@@ -38,7 +39,8 @@ const COLS: { title: string; links: readonly FooterLink[] }[] = [
 	},
 ];
 
-/** Marketing-page footer: brand, tagline, three link columns. Hidden on docs. */
+/** Site footer on every product, auth and dashboard page: brand, tagline,
+ *  the chain heartbeat, three link columns. Hidden on docs. */
 export function SiteFooter() {
 	const pathname = usePathname();
 	if (pathname.startsWith("/docs")) return null;
@@ -64,6 +66,7 @@ export function SiteFooter() {
 							</a>
 							.
 						</p>
+						<ChainHeartbeat />
 					</div>
 					{COLS.map((col) => (
 						<div className="site-footer-col" key={col.title}>
