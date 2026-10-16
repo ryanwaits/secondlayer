@@ -11,6 +11,7 @@ import { getInstanceMode } from "@secondlayer/shared/mode";
 import { Hono } from "hono";
 import { sql } from "kysely";
 import { eventsTotal } from "../lib/events-total.ts";
+import { readNodeTip } from "../lib/node-tip.ts";
 import {
 	type StreamsDumpsFreshness,
 	getStreamsBulkManifest,
@@ -252,6 +253,7 @@ app.get("/public/status", async (c) => {
 		subgraphProcessorHeartbeat,
 		chainIntegrityResult,
 		subgraphProgressResult,
+		nodeTipResult,
 	] = await Promise.allSettled([
 		sql`SELECT 1`.execute(db),
 		getIndexerHealth(),
@@ -269,6 +271,7 @@ app.get("/public/status", async (c) => {
 			.select(({ fn }) => fn.min("last_processed_block").as("min_block"))
 			.where("status", "in", ["active", "reindexing"])
 			.executeTakeFirst(),
+		readNodeTip(),
 	]);
 	// Read before the block below — the processor's verdict depends on it.
 	const streamsTipForProgress: StreamsTip | null =
@@ -394,6 +397,12 @@ app.get("/public/status", async (c) => {
 		api: getApiTelemetrySnapshot(),
 		node: {
 			status: nodeStatusFromStreamsTip(streamsTip),
+			// The node's own view, so a reader can tell a Stacks stall (node level
+			// with `chainTip`, Bitcoin moving) from us falling behind (node ahead).
+			// Null when the node can't be read.
+			...(nodeTipResult.status === "fulfilled" && nodeTipResult.value
+				? nodeTipResult.value
+				: { stacksTip: null, bitcoinTip: null }),
 		},
 		...(mode !== "platform"
 			? { subgraphProcessor: subgraphProcessorDetail }
