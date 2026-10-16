@@ -5668,10 +5668,36 @@ a.acct-strip-link:hover .acct-strip-k {
 .dash-cmd:hover .dash-cmd-copy {
 	color: var(--pri);
 }
-/* The tabs keep their room: the label goes first, then the whole bar. */
-@media (max-width: 1180px) {
-	.dash-cmd-l {
-		display: none;
+/* The tabs keep their room. The bar takes what's left: only its label
+ * gives way (the command is already capped at 34 characters), and under
+ * 900px the bar hides and the tabs scroll. */
+.marketing-nav.is-dash .dash-tabs {
+	flex: 0 0 auto;
+}
+.marketing-nav.is-dash .mnav-right {
+	flex: 1 1 auto;
+	min-width: 0;
+	justify-content: flex-end;
+}
+.dash-cmd {
+	flex: 0 1 auto;
+	overflow: hidden;
+}
+.dash-cmd-l {
+	flex: 0 100 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.dash-cmd code {
+	flex: none;
+}
+.dash-cmd-copy {
+	flex: none;
+}
+@media (max-width: 900px) {
+	.marketing-nav.is-dash .dash-tabs {
+		flex: 1 1 auto;
 	}
 }
 

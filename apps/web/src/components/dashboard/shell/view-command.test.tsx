@@ -15,7 +15,7 @@ describe("ViewCommand", () => {
 	test("short commands show as is", () => {
 		const html = renderToStaticMarkup(<ViewCommand command="sl status" />);
 		expect(html).toContain("<code>sl status</code>");
-		expect(html).toContain("This view in your terminal:");
+		expect(html).toContain("In your terminal:");
 		expect(html).toContain(">Copy<");
 	});
 });
