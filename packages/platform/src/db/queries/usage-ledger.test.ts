@@ -8,10 +8,15 @@ import {
 } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import { grantCredits, meter, recordTopup } from "../../billing/meter.ts";
+import { ROWS_DELIVERED_MONTHLY_ALLOWANCE } from "../../billing/prices.ts";
 import {
 	creditsAdded,
 	hostedStackSnapshot,
 	rowsByKeyLast30d,
+	rowsBySource,
+	rowsDaily,
+	rowsHourlyToday,
+	rowsPerCallHistogram,
 } from "./usage-ledger.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -235,5 +240,115 @@ describe.skipIf(!HAS_DB)("creditsAdded", () => {
 		const credits = await creditsAdded(db, accountId, 2);
 		expect(credits).toHaveLength(2);
 		expect(credits[0]?.occurredAt).toBe("2026-10-03T10:00:00.000Z");
+	});
+});
+
+describe.skipIf(!HAS_DB)("rows screen queries", () => {
+	const now = new Date("2026-10-15T12:00:00.000Z");
+
+	async function page(
+		suffix: string,
+		quantity: number,
+		occurredAt: Date,
+		source = "index",
+		forAccount?: string,
+	) {
+		const id = forAccount ?? accountId;
+		await meter(db, {
+			accountId: id,
+			unit: "rows.delivered",
+			quantity,
+			source,
+			idempotencyKey: `rows-q-${suffix}-${id}`,
+			occurredAt,
+		});
+	}
+
+	test("rowsDaily groups by UTC day and source and splits free from paid per page", async () => {
+		// Exhaust the allowance with one page, then read two more.
+		await page(
+			"exhaust",
+			ROWS_DELIVERED_MONTHLY_ALLOWANCE,
+			new Date("2026-10-06T08:00:00.000Z"),
+		);
+		await page("paid-a", 40, new Date("2026-10-06T23:59:00.000Z"));
+		await page("paid-b", 60, new Date("2026-10-07T00:01:00.000Z"), "streams");
+
+		const days = await rowsDaily(db, accountId, 30, now);
+		expect(days.map((d) => [d.date, d.source])).toEqual([
+			["2026-10-06", "index"],
+			["2026-10-07", "streams"],
+		]);
+		const first = days[0];
+		expect(first?.rows).toBe(ROWS_DELIVERED_MONTHLY_ALLOWANCE + 40);
+		expect(first?.freeRows).toBe(ROWS_DELIVERED_MONTHLY_ALLOWANCE);
+		expect(first?.paidRows).toBe(40);
+		expect(first?.calls).toBe(2);
+		expect(Number(first?.paidUsdMicros)).toBeGreaterThan(0);
+		expect(days[1]?.paidRows).toBe(60);
+		expect(days[1]?.freeRows).toBe(0);
+	});
+
+	test("rowsDaily excludes rows older than the window and other accounts", async () => {
+		const other = await makeAccount();
+		await page("in", 5, new Date("2026-10-14T10:00:00.000Z"));
+		// The 30-day window opens 2026-09-16 00:00 UTC.
+		await page("old", 9, new Date("2026-09-15T23:59:00.000Z"));
+		await page(
+			"other",
+			99,
+			new Date("2026-10-14T10:00:00.000Z"),
+			"index",
+			other,
+		);
+		const days = await rowsDaily(db, accountId, 30, now);
+		expect(days.map((d) => d.rows)).toEqual([5]);
+		await db
+			.deleteFrom("usage_ledger")
+			.where("account_id", "=", other)
+			.execute();
+	});
+
+	test("rowsHourlyToday buckets by UTC hour since midnight only", async () => {
+		await page("h1", 3, new Date("2026-10-15T01:10:00.000Z"));
+		await page("h2", 4, new Date("2026-10-15T01:50:00.000Z"));
+		await page("yesterday", 8, new Date("2026-10-14T23:50:00.000Z"));
+		const hours = await rowsHourlyToday(db, accountId, now);
+		expect(hours).toEqual([
+			{ hour: "2026-10-15T01:00:00.000Z", source: "index", rows: 7, calls: 2 },
+		]);
+	});
+
+	test("rowsPerCallHistogram returns all five buckets, zero-filled", async () => {
+		await page("b1", 1, new Date("2026-10-10T00:00:00.000Z"));
+		await page("b2", 9, new Date("2026-10-10T00:01:00.000Z"));
+		await page("b3", 10, new Date("2026-10-10T00:02:00.000Z"));
+		await page("b4", 499, new Date("2026-10-10T00:03:00.000Z"));
+		await page("b5", 1000, new Date("2026-10-10T00:04:00.000Z"));
+		const bins = await rowsPerCallHistogram(db, accountId, 30, now);
+		expect(bins.map((b) => [b.bucket, b.calls])).toEqual([
+			["1-9", 2],
+			["10-99", 1],
+			["100-499", 1],
+			["500-999", 0],
+			["1000+", 1],
+		]);
+		expect(bins[0]?.rows).toBe(10);
+	});
+
+	test("rowsPerCallHistogram is all zeros for an account with no reads", async () => {
+		const bins = await rowsPerCallHistogram(db, accountId, 30, now);
+		expect(bins).toHaveLength(5);
+		expect(bins.every((b) => b.calls === 0 && b.rows === 0)).toBe(true);
+	});
+
+	test("rowsBySource totals rows and calls per source", async () => {
+		await page("s1", 10, new Date("2026-10-10T00:00:00.000Z"));
+		await page("s2", 20, new Date("2026-10-11T00:00:00.000Z"));
+		await page("s3", 5, new Date("2026-10-11T00:00:00.000Z"), "streams");
+		expect(await rowsBySource(db, accountId, 30, now)).toEqual([
+			{ source: "index", rows: 30, calls: 2 },
+			{ source: "streams", rows: 5, calls: 1 },
+		]);
 	});
 });

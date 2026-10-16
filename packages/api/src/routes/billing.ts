@@ -9,12 +9,14 @@
  *   PATCH /api/billing/caps
  *   GET   /api/billing/usage    this month's usage_ledger, by unit
  *   GET   /api/billing/credits  latest top-ups and grants
+ *   GET   /api/billing/rows     rows delivered: allowance, per day, sources, errors
  *
  * Plan plumbing (/upgrade, /resolve, /cancel, /portal) was removed with the
  * plan/tier retirement — credits are the only paid rail
  * (gate-g-deletion-manifest.md §1).
  */
 
+import { ROWS_DELIVERED_MONTHLY_ALLOWANCE } from "@secondlayer/platform/billing/prices";
 import {
 	getBalanceAlerts,
 	upsertBalanceAlerts,
@@ -33,11 +35,18 @@ import {
 	getAccountById,
 	setStripeCustomerId,
 } from "@secondlayer/platform/db/queries/accounts";
+import { failedRequestsByPath } from "@secondlayer/platform/db/queries/api-failed-requests";
 import {
+	type RowsDay,
 	burnRateUsdMicros,
 	creditsAdded,
 	dailySpendForMonth,
 	hostedStackSnapshot,
+	monthBounds,
+	rowsBySource,
+	rowsDaily,
+	rowsHourlyToday,
+	rowsPerCallHistogram,
 	usageForMonth,
 } from "@secondlayer/platform/db/queries/usage-ledger";
 import { logger } from "@secondlayer/shared";
@@ -454,6 +463,87 @@ app.get("/credits", async (c) => {
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
 	const credits = await creditsAdded(getDb(), accountId);
 	return c.json({ credits });
+});
+
+export type RowsAllowance = {
+	monthly: number;
+	usedThisMonth: number;
+	exhaustedOn: string | null;
+	paidRowsThisMonth: number;
+	paidUsdMicrosThisMonth: string;
+	resetsOn: string;
+};
+
+/** The free-allowance picture for `now`'s UTC month from `rowsDaily` output
+ *  (which may reach back into the previous month; those days are ignored).
+ *  `exhaustedOn` is the first day the running total reaches the allowance. */
+export function rowsAllowance(
+	daily: Pick<RowsDay, "date" | "rows" | "paidRows" | "paidUsdMicros">[],
+	now: Date,
+): RowsAllowance {
+	const { start, end } = monthBounds(now);
+	const monthStart = start.toISOString().slice(0, 10);
+	const perDay = new Map<string, number>();
+	let paidRows = 0;
+	let paidUsd = 0n;
+	for (const day of daily) {
+		if (day.date < monthStart) continue;
+		perDay.set(day.date, (perDay.get(day.date) ?? 0) + day.rows);
+		paidRows += day.paidRows;
+		paidUsd += BigInt(day.paidUsdMicros);
+	}
+	let running = 0;
+	let exhaustedOn: string | null = null;
+	for (const date of [...perDay.keys()].sort()) {
+		running += perDay.get(date) ?? 0;
+		if (exhaustedOn === null && running >= ROWS_DELIVERED_MONTHLY_ALLOWANCE) {
+			exhaustedOn = date;
+		}
+	}
+	return {
+		monthly: ROWS_DELIVERED_MONTHLY_ALLOWANCE,
+		usedThisMonth: running,
+		exhaustedOn,
+		paidRowsThisMonth: paidRows,
+		paidUsdMicrosThisMonth: paidUsd.toString(),
+		resetsOn: end.toISOString().slice(0, 10),
+	};
+}
+
+/**
+ * GET /api/billing/rows
+ *
+ * Rows delivered, for the Rows screen and `sl credits usage`: the free
+ * allowance this month, rows per UTC day and source (30 days), today by hour,
+ * totals per source, calls by rows-per-call bucket, and the caller's own
+ * 4xx/5xx grouped by path (24h). Money is a USD-micros string.
+ */
+app.get("/rows", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const db = getDb();
+	const now = new Date();
+	const [daily, hourlyToday, bySource, histogram, errors] = await Promise.all([
+		rowsDaily(db, accountId, 30, now),
+		rowsHourlyToday(db, accountId, now),
+		rowsBySource(db, accountId, 30, now),
+		rowsPerCallHistogram(db, accountId, 30, now),
+		failedRequestsByPath(
+			db,
+			accountId,
+			new Date(now.getTime() - 24 * 60 * 60 * 1000),
+		),
+	]);
+
+	return c.json({
+		allowance: rowsAllowance(daily, now),
+		daily,
+		hourlyToday,
+		bySource,
+		histogram,
+		errors,
+	});
 });
 
 /**

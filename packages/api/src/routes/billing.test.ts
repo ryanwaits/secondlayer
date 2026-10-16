@@ -1,6 +1,8 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { grantCredits, meter } from "@secondlayer/platform/billing/meter";
+import { ROWS_DELIVERED_MONTHLY_ALLOWANCE } from "@secondlayer/platform/billing/prices";
 import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
+import { insertFailedRequest } from "@secondlayer/platform/db/queries/api-failed-requests";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono, type MiddlewareHandler } from "hono";
 import type Stripe from "stripe";
@@ -10,6 +12,7 @@ import billingRouter, {
 	ensureStripeCustomer,
 	isCreditPack,
 	isResourceMissing,
+	rowsAllowance,
 } from "./billing.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -537,6 +540,152 @@ describe.skipIf(!HAS_DB)("GET /credits", () => {
 					usdMicros: "5000000",
 				},
 			],
+		});
+	});
+});
+
+describe("rowsAllowance", () => {
+	const now = new Date("2026-10-15T12:00:00.000Z");
+	const day = (date: string, rows: number, paidRows = 0) => ({
+		date,
+		rows,
+		paidRows,
+		paidUsdMicros: String(paidRows * 5),
+	});
+
+	test("exhaustedOn is the first day the running total reaches the allowance", () => {
+		const allowance = rowsAllowance(
+			[
+				day("2026-10-02", 600_000),
+				day("2026-10-06", 400_000),
+				day("2026-10-07", 50, 50),
+			],
+			now,
+		);
+		expect(allowance.exhaustedOn).toBe("2026-10-06");
+		expect(allowance.usedThisMonth).toBe(1_000_050);
+		expect(allowance.paidRowsThisMonth).toBe(50);
+		expect(allowance.paidUsdMicrosThisMonth).toBe("250");
+		expect(allowance.resetsOn).toBe("2026-11-01");
+		expect(allowance.monthly).toBe(ROWS_DELIVERED_MONTHLY_ALLOWANCE);
+	});
+
+	test("ignores last month's days and stays null under the allowance", () => {
+		const allowance = rowsAllowance(
+			[day("2026-09-30", 2_000_000, 1_000_000), day("2026-10-03", 10)],
+			now,
+		);
+		expect(allowance.exhaustedOn).toBeNull();
+		expect(allowance.usedThisMonth).toBe(10);
+		expect(allowance.paidRowsThisMonth).toBe(0);
+	});
+});
+
+describe.skipIf(!HAS_DB)("GET /rows", () => {
+	function appFor(accountId?: string) {
+		const a = new Hono();
+		const setAccountId: MiddlewareHandler = async (c, next) => {
+			if (accountId) c.set("accountId", accountId);
+			await next();
+		};
+		a.use("*", setAccountId);
+		a.onError(errorHandler);
+		a.route("/", billingRouter);
+		return a;
+	}
+
+	type RowsBody = {
+		allowance: {
+			usedThisMonth: number;
+			exhaustedOn: string | null;
+			paidRowsThisMonth: number;
+		};
+		daily: Array<{ source: string; rows: number; paidRows: number }>;
+		bySource: Array<{ source: string; rows: number; calls: number }>;
+		histogram: Array<{ bucket: string; calls: number }>;
+		errors: Array<{ status: number; path: string; count: number }>;
+	};
+
+	test("unauthenticated → 401", async () => {
+		const res = await appFor().request("/rows");
+		expect(res.status).toBe(401);
+	});
+
+	test("an account that crossed the allowance reports exhaustedOn and paid rows", async () => {
+		const account = await makeAccount(
+			`billing-rows-over-${Date.now()}@test.invalid`,
+		);
+		await meter(db, {
+			accountId: account.id,
+			unit: "rows.delivered",
+			quantity: ROWS_DELIVERED_MONTHLY_ALLOWANCE,
+			source: "index",
+			idempotencyKey: `rows-route-a-${account.id}`,
+		});
+		await meter(db, {
+			accountId: account.id,
+			unit: "rows.delivered",
+			quantity: 25,
+			source: "streams",
+			idempotencyKey: `rows-route-b-${account.id}`,
+		});
+
+		const res = await appFor(account.id).request("/rows");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as RowsBody;
+		expect(body.allowance.exhaustedOn).toBe(
+			new Date().toISOString().slice(0, 10),
+		);
+		expect(body.allowance.usedThisMonth).toBe(
+			ROWS_DELIVERED_MONTHLY_ALLOWANCE + 25,
+		);
+		expect(body.allowance.paidRowsThisMonth).toBe(25);
+		expect(body.bySource.map((s) => s.source)).toEqual(["index", "streams"]);
+		expect(body.histogram).toHaveLength(5);
+	});
+
+	test("an account under the allowance has exhaustedOn null", async () => {
+		const account = await makeAccount(
+			`billing-rows-under-${Date.now()}@test.invalid`,
+		);
+		await meter(db, {
+			accountId: account.id,
+			unit: "rows.delivered",
+			quantity: 42,
+			source: "index",
+			idempotencyKey: `rows-route-under-${account.id}`,
+		});
+		const res = await appFor(account.id).request("/rows");
+		const body = (await res.json()) as RowsBody;
+		expect(body.allowance.exhaustedOn).toBeNull();
+		expect(body.allowance.usedThisMonth).toBe(42);
+		expect(body.daily[0]?.paidRows).toBe(0);
+	});
+
+	test("includes the account's own failed requests from the last 24h", async () => {
+		const account = await makeAccount(
+			`billing-rows-errors-${Date.now()}@test.invalid`,
+		);
+		for (const n of [1, 2]) {
+			await insertFailedRequest(db, {
+				request_id: `rows-route-err-${n}-${account.id}`,
+				account_id: account.id,
+				method: "GET",
+				path: "/v1/index/ft-transfers",
+				status: 404,
+				code: "NOT_FOUND",
+				message: "nope",
+				query: {},
+				origin: null,
+			});
+		}
+		const res = await appFor(account.id).request("/rows");
+		const body = (await res.json()) as RowsBody;
+		expect(body.errors).toHaveLength(1);
+		expect(body.errors[0]).toMatchObject({
+			status: 404,
+			path: "/v1/index/ft-transfers",
+			count: 2,
 		});
 	});
 });

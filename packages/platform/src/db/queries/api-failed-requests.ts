@@ -50,3 +50,43 @@ export async function purgeFailedRequests(
 		.executeTakeFirst();
 	return Number(res.numDeletedRows);
 }
+
+export type FailedRequestGroup = {
+	status: number;
+	code: string;
+	path: string;
+	count: number;
+	last: string; // ISO
+};
+
+/** The account's failed requests since `since`, grouped by status, code and
+ *  path, most frequent first (top 20). */
+export async function failedRequestsByPath(
+	db: Kysely<Database>,
+	accountId: string,
+	since: Date,
+): Promise<FailedRequestGroup[]> {
+	const rows = await db
+		.selectFrom("api_failed_requests")
+		.select((eb) => [
+			"status",
+			"code",
+			"path",
+			eb.fn.countAll<string>().as("count"),
+			eb.fn.max("created_at").as("last"),
+		])
+		.where("account_id", "=", accountId)
+		.where("created_at", ">=", since)
+		.groupBy(["status", "code", "path"])
+		.orderBy("count", "desc")
+		.orderBy("path")
+		.limit(20)
+		.execute();
+	return rows.map((row) => ({
+		status: row.status,
+		code: row.code,
+		path: row.path,
+		count: Number(row.count),
+		last: new Date(row.last as Date).toISOString(),
+	}));
+}

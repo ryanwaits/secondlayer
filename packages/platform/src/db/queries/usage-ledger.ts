@@ -402,3 +402,196 @@ export async function rowsByKeyLast30d(
 	}
 	return totals;
 }
+
+const ROWS_UNIT = "rows.delivered";
+
+/** UTC midnight that opens a window of `days` calendar days ending with
+ *  `now`'s day (so `days = 30` is today plus the 29 days before it). */
+function windowStart(now: Date, days: number): Date {
+	return new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) -
+			(days - 1) * 24 * 60 * 60 * 1000,
+	);
+}
+
+export type RowsDay = {
+	date: string; // "YYYY-MM-DD", UTC
+	source: string;
+	rows: number;
+	freeRows: number;
+	paidRows: number;
+	calls: number;
+	paidUsdMicros: string;
+};
+
+/** Rows delivered per UTC day × source over the trailing `days` days. The
+ *  free/paid split is per metered page: a page that crossed the allowance
+ *  carries a charge, so all of its rows count as paid (approximate by design). */
+export async function rowsDaily(
+	db: Kysely<Database>,
+	accountId: string,
+	days = 30,
+	now: Date = new Date(),
+): Promise<RowsDay[]> {
+	const dayExpr = sql`date_trunc('day', occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`;
+	const rows = await db
+		.selectFrom("usage_ledger")
+		.select((eb) => [
+			sql<Date>`date_trunc('day', occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`.as(
+				"day",
+			),
+			"source",
+			eb.fn.sum<string>("quantity").as("rows"),
+			sql<string>`coalesce(sum(quantity) filter (where usd_micros = 0), 0)`.as(
+				"free_rows",
+			),
+			eb.fn.countAll<string>().as("calls"),
+			eb.fn.sum<string>("usd_micros").as("paid_usd_micros"),
+		])
+		.where("account_id", "=", accountId)
+		.where("unit", "=", ROWS_UNIT)
+		.where("occurred_at", ">=", windowStart(now, days))
+		.where("occurred_at", "<=", now)
+		.groupBy(dayExpr)
+		.groupBy("source")
+		.orderBy("day")
+		.orderBy("source")
+		.execute();
+	return rows.map((row) => {
+		const total = Number(row.rows ?? 0);
+		const free = Number(row.free_rows ?? 0);
+		return {
+			date: new Date(row.day).toISOString().slice(0, 10),
+			source: row.source,
+			rows: total,
+			freeRows: free,
+			paidRows: total - free,
+			calls: Number(row.calls),
+			paidUsdMicros: row.paid_usd_micros ?? "0",
+		};
+	});
+}
+
+export type RowsHour = {
+	hour: string; // ISO, top of the UTC hour
+	source: string;
+	rows: number;
+	calls: number;
+};
+
+/** Rows delivered per UTC hour × source since UTC midnight of `now`'s day. */
+export async function rowsHourlyToday(
+	db: Kysely<Database>,
+	accountId: string,
+	now: Date = new Date(),
+): Promise<RowsHour[]> {
+	const hourExpr = sql`date_trunc('hour', occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`;
+	const rows = await db
+		.selectFrom("usage_ledger")
+		.select((eb) => [
+			sql<Date>`date_trunc('hour', occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`.as(
+				"hour",
+			),
+			"source",
+			eb.fn.sum<string>("quantity").as("rows"),
+			eb.fn.countAll<string>().as("calls"),
+		])
+		.where("account_id", "=", accountId)
+		.where("unit", "=", ROWS_UNIT)
+		.where("occurred_at", ">=", windowStart(now, 1))
+		.where("occurred_at", "<=", now)
+		.groupBy(hourExpr)
+		.groupBy("source")
+		.orderBy("hour")
+		.orderBy("source")
+		.execute();
+	return rows.map((row) => ({
+		hour: new Date(row.hour).toISOString(),
+		source: row.source,
+		rows: Number(row.rows ?? 0),
+		calls: Number(row.calls),
+	}));
+}
+
+export const ROWS_PER_CALL_BUCKETS = [
+	"1-9",
+	"10-99",
+	"100-499",
+	"500-999",
+	"1000+",
+] as const;
+export type RowsPerCallBucket = (typeof ROWS_PER_CALL_BUCKETS)[number];
+
+export type RowsPerCallBin = {
+	bucket: RowsPerCallBucket;
+	calls: number;
+	rows: number;
+};
+
+/** Metered pages by how many rows each carried, over the trailing `days`
+ *  days. Always returns all five buckets, zero-filled. */
+export async function rowsPerCallHistogram(
+	db: Kysely<Database>,
+	accountId: string,
+	days = 30,
+	now: Date = new Date(),
+): Promise<RowsPerCallBin[]> {
+	const bucketExpr = sql<number>`width_bucket(quantity, ARRAY[10, 100, 500, 1000]::numeric[])`;
+	const rows = await db
+		.selectFrom("usage_ledger")
+		.select((eb) => [
+			bucketExpr.as("bucket"),
+			eb.fn.countAll<string>().as("calls"),
+			eb.fn.sum<string>("quantity").as("rows"),
+		])
+		.where("account_id", "=", accountId)
+		.where("unit", "=", ROWS_UNIT)
+		.where("quantity", ">", 0)
+		.where("occurred_at", ">=", windowStart(now, days))
+		.where("occurred_at", "<=", now)
+		.groupBy(bucketExpr)
+		.execute();
+	const byIndex = new Map(rows.map((row) => [Number(row.bucket), row]));
+	return ROWS_PER_CALL_BUCKETS.map((bucket, index) => {
+		const row = byIndex.get(index);
+		return {
+			bucket,
+			calls: row ? Number(row.calls) : 0,
+			rows: row ? Number(row.rows ?? 0) : 0,
+		};
+	});
+}
+
+export type RowsSourceTotal = {
+	source: string;
+	rows: number;
+	calls: number;
+};
+
+/** Rows and metered pages per source over the trailing `days` days. */
+export async function rowsBySource(
+	db: Kysely<Database>,
+	accountId: string,
+	days = 30,
+	now: Date = new Date(),
+): Promise<RowsSourceTotal[]> {
+	const rows = await db
+		.selectFrom("usage_ledger")
+		.select((eb) => [
+			"source",
+			eb.fn.sum<string>("quantity").as("rows"),
+			eb.fn.countAll<string>().as("calls"),
+		])
+		.where("account_id", "=", accountId)
+		.where("unit", "=", ROWS_UNIT)
+		.where("occurred_at", ">=", windowStart(now, days))
+		.where("occurred_at", "<=", now)
+		.groupBy("source")
+		.orderBy("source")
+		.execute();
+	return rows.map((row) => ({
+		source: row.source,
+		rows: Number(row.rows ?? 0),
+		calls: Number(row.calls),
+	}));
+}

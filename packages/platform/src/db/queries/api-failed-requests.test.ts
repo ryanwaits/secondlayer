@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import {
+	failedRequestsByPath,
 	getFailedRequest,
 	insertFailedRequest,
 	purgeFailedRequests,
@@ -77,5 +78,49 @@ describe.skipIf(!HAS_DB)("api_failed_requests queries", () => {
 		expect(deleted).toBeGreaterThanOrEqual(1);
 		expect(await getFailedRequest(db, acct, `req_old_${acct}`)).toBeNull();
 		expect(await getFailedRequest(db, acct, `req_new_${acct}`)).not.toBeNull();
+	});
+});
+
+describe.skipIf(!HAS_DB)("failedRequestsByPath", () => {
+	test("groups duplicates, respects since, scopes to the account", async () => {
+		const acct = await makeAccount();
+		const other = await makeAccount();
+		const now = Date.now();
+		const recent = new Date(now - 60_000);
+		await insertFailedRequest(db, row(acct, `req_g1_${acct}`, recent));
+		await insertFailedRequest(db, row(acct, `req_g2_${acct}`, recent));
+		await insertFailedRequest(db, {
+			...row(acct, `req_g3_${acct}`, recent),
+			status: 500,
+			code: "INTERNAL",
+			path: "/v1/index/other",
+		});
+		await insertFailedRequest(
+			db,
+			row(acct, `req_g4_${acct}`, new Date(now - 48 * 3_600_000)),
+		);
+		await insertFailedRequest(db, row(other, `req_g5_${other}`, recent));
+
+		const groups = await failedRequestsByPath(
+			db,
+			acct,
+			new Date(now - 24 * 3_600_000),
+		);
+		expect(groups).toEqual([
+			{
+				status: 404,
+				code: "NOT_FOUND",
+				path: "/v1/index/ft-transfers",
+				count: 2,
+				last: recent.toISOString(),
+			},
+			{
+				status: 500,
+				code: "INTERNAL",
+				path: "/v1/index/other",
+				count: 1,
+				last: recent.toISOString(),
+			},
+		]);
 	});
 });
