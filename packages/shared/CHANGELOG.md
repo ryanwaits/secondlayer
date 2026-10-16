@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 13.8.0
+
+### Minor Changes
+
+- 7c0e359: Chain trigger types and per-type fields move to a zod-free `@secondlayer/shared/schemas/chain-triggers` subpath, so `@secondlayer/sdk/webhooks/triggers` no longer pulls zod into browser bundles.
+
 ## 13.7.1
 
 ### Patch Changes

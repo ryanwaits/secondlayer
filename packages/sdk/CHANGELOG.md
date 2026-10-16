@@ -1,5 +1,13 @@
 # @secondlayer/sdk
 
+## 15.3.1
+
+### Patch Changes
+
+- 7c0e359: Chain trigger types and per-type fields move to a zod-free `@secondlayer/shared/schemas/chain-triggers` subpath, so `@secondlayer/sdk/webhooks/triggers` no longer pulls zod into browser bundles.
+- Updated dependencies [7c0e359]
+  - @secondlayer/shared@13.8.0
+
 ## 15.3.0
 
 ### Minor Changes
