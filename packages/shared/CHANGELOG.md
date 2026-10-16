@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 13.7.1
+
+### Patch Changes
+
+- Index `usage_ledger` by account, unit and time, and `api_failed_requests` by account and time, so billing reads touch only matching rows.
+
 ## 13.7.0
 
 ### Minor Changes
