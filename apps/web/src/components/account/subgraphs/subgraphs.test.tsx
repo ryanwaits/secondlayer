@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { GridView, type GridViewProps } from "./data-grid";
 import { SubgraphsEmptyState } from "./empty-state";
@@ -212,6 +213,46 @@ describe("SchemaView", () => {
 
 	test("renders no insight area when there are none", () => {
 		expect(html).not.toContain("insight");
+	});
+});
+
+describe("SubgraphsListBody insights", () => {
+	const handler = FIXTURE_INSIGHTS.find((i) => i.rule === "handler_errors");
+	const health = {
+		"sbtc-deposits": exampleHealth(0),
+		"vault-events": exampleHealth(3),
+	};
+
+	test("a subgraph's worst insight replaces its state line", () => {
+		if (!handler) throw new Error("missing fixture");
+		const named = {
+			...handler,
+			resource: { ...handler.resource, id: "vault-events" },
+		};
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody
+				items={exampleList}
+				health={health}
+				notice={null}
+				insights={[named]}
+			/>,
+		);
+		expect(html).toContain(named.line);
+		expect(html).toContain("Why ›");
+		expect(html).not.toContain("Behind tip 112 blocks");
+	});
+
+	test("an insight about another subgraph changes nothing", () => {
+		if (!handler) throw new Error("missing fixture");
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody
+				items={exampleList}
+				health={health}
+				notice={null}
+				insights={[handler]}
+			/>,
+		);
+		expect(html).not.toContain(handler.line);
 	});
 });
 

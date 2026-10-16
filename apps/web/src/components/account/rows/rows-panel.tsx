@@ -4,13 +4,13 @@ import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { LazyBandBarChart } from "@/components/charts/lazy";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
-import { InsightNote } from "@/components/dashboard/insight/insight-note";
-import { InsightStack } from "@/components/dashboard/insight/insight-stack";
+import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { ResourceRow } from "@/components/dashboard/shell/resource-row";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { refreshRows, useAccountData } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
 import type { Insight } from "@/lib/insights";
+import { forAccountRules, useInsights } from "@/lib/insights-store";
 import {
 	type RowsError,
 	type RowsResponse,
@@ -35,30 +35,14 @@ const SOURCE_LABEL: Record<string, string> = {
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-/** One insight has no list to rank, so it shows as a single toggled note. */
-function SingleInsight({ insight }: { insight: Insight }) {
-	const [open, setOpen] = useState(false);
-	return (
-		<InsightNote
-			insight={insight}
-			open={open}
-			onToggle={() => setOpen((v) => !v)}
-		/>
-	);
-}
-
-/** Insight notes for the account's reads; nothing when there are none. */
-function InsightSlot({ insights }: { insights: readonly Insight[] }) {
-	if (insights.length === 0) return null;
-	if (insights.length === 1 && insights[0]) {
-		return (
-			<div className="rw-notes">
-				<SingleInsight insight={insights[0]} />
-			</div>
-		);
-	}
-	return <InsightStack insights={insights} />;
-}
+/** The account-level rules about reads; the rest belong to Overview and Billing. */
+const ROWS_RULES = [
+	"duplicate_reads",
+	"polling_loop",
+	"backfill",
+	"server_errors",
+	"allowance_exhausted",
+];
 
 function ServerErrors({ errors }: { errors: RowsError[] }) {
 	if (errors.length === 0) return null;
@@ -120,7 +104,7 @@ function ErrorsPanel({ errors }: { errors: RowsError[] }) {
 export interface RowsBodyProps {
 	status: "not_loaded" | "failed" | "ok";
 	data: RowsResponse | null;
-	/** Insights about the account's reads. The insights service fills this later. */
+	/** Insights about the account's reads, ranked by the server. */
 	insights?: readonly Insight[];
 	now: Date;
 	onRetry: () => void;
@@ -182,7 +166,9 @@ export function RowsBody({
 				</div>
 			</section>
 
-			<InsightSlot insights={insights} />
+			<div className="rw-notes">
+				<ActionableInsights insights={insights} />
+			</div>
 
 			<div className="bl-two even">
 				<section
@@ -230,6 +216,7 @@ export function RowsBody({
 /** /account/rows: loads the rows data and shows it. */
 export function RowsSection() {
 	const { rows } = useAccountData();
+	const { data: allInsights } = useInsights();
 	const [failed, setFailed] = useState(false);
 	const now = new Date();
 
@@ -246,7 +233,15 @@ export function RowsSection() {
 
 	const status = rows ? "ok" : failed ? "failed" : "not_loaded";
 	if (status === "not_loaded") return <ChartSkeleton height={170} />;
-	return <RowsBody status={status} data={rows} now={now} onRetry={load} />;
+	return (
+		<RowsBody
+			status={status}
+			data={rows}
+			insights={forAccountRules(allInsights, ROWS_RULES)}
+			now={now}
+			onRetry={load}
+		/>
+	);
 }
 
 /** The Overview's row for Index and Streams reads: this month, today by hour, and when the last read landed. */

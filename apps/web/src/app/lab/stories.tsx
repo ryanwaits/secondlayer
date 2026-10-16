@@ -15,6 +15,10 @@ import { Meter } from "@/components/dashboard/charts/meter";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { SpendChart } from "@/components/dashboard/charts/spend-chart";
 import { HandoffBlock } from "@/components/dashboard/insight/handoff-block";
+import {
+	ActionableInsights,
+	InsightActions,
+} from "@/components/dashboard/insight/insight-actions";
 import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import { InsightStack } from "@/components/dashboard/insight/insight-stack";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
@@ -1489,6 +1493,19 @@ const META: Record<StoryId, Meta> = {
 				render: () => <InsightCard insight={insightFor("receiver_down")} />,
 			},
 			{
+				id: "actions",
+				label: "With dismiss actions",
+				render: () => {
+					const insight = insightFor("receiver_down");
+					return (
+						<InsightCard
+							insight={insight}
+							footer={<InsightActions insight={insight} />}
+						/>
+					);
+				},
+			},
+			{
 				id: "oct8",
 				label: "Cause unknown",
 				render: () => (
@@ -1503,7 +1520,8 @@ const META: Record<StoryId, Meta> = {
 				),
 			},
 		],
-		usage: `<InsightCard insight={insight} footer="Clears itself after 30 minutes." />`,
+		usage:
+			"<InsightCard insight={insight} footer={<InsightActions insight={insight} />} />",
 		donts: [
 			"No code-fix snippets in a card.",
 			"No bare numbers from the model.",
@@ -1513,6 +1531,7 @@ const META: Record<StoryId, Meta> = {
 		src: [
 			"apps/web/src/components/dashboard/insight/insight-stack.tsx",
 			"apps/web/src/components/dashboard/insight/insight-note.tsx",
+			"apps/web/src/components/dashboard/insight/insight-actions.tsx",
 		],
 		rule: "Worst first. Only the top item opens on its own, and only when it is losing events or about to fail.",
 		stack: true,
@@ -1521,6 +1540,11 @@ const META: Record<StoryId, Meta> = {
 				id: "stack",
 				label: "Four insights",
 				render: () => <InsightStack insights={FIXTURE_STACK} />,
+			},
+			{
+				id: "actions",
+				label: "With dismiss actions",
+				render: () => <ActionableInsights insights={FIXTURE_STACK} />,
 			},
 			{
 				id: "quiet",
@@ -1534,7 +1558,7 @@ const META: Record<StoryId, Meta> = {
 				),
 			},
 		],
-		usage: "<InsightStack insights={insights} />",
+		usage: "<ActionableInsights insights={insights} />",
 	},
 	"account-rows": {
 		src: [

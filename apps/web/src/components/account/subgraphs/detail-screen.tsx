@@ -2,9 +2,11 @@
 
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { Choice } from "@/components/choice";
+import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { dotClass } from "@/components/dashboard/shell/status-sentence";
 import type { Insight } from "@/lib/insights";
+import { forResource, useInsights } from "@/lib/insights-store";
 import {
 	blocksLabel,
 	formatBytes,
@@ -56,7 +58,7 @@ export interface SubgraphDetailBodyProps {
 	errors: readonly SubgraphErrorGroup[];
 	table: string;
 	view: SubgraphView;
-	/** Insights for the open table, fed by the insights service. */
+	/** Insights about this subgraph, ranked by the server. */
 	insights?: readonly Insight[];
 	onTable: (table: string) => void;
 	onView: (view: SubgraphView) => void;
@@ -116,6 +118,8 @@ export function SubgraphDetailBody({
 				</div>
 			</header>
 
+			<ActionableInsights insights={insights ?? []} />
+
 			<section className="dash-panel sg-panel" aria-label="Tables">
 				<div className="sg-head">
 					<nav className="sg-tabs" role="tablist" aria-label="Tables">
@@ -153,7 +157,7 @@ export function SubgraphDetailBody({
 							rowCount={current.rowCount}
 						/>
 					) : (
-						<SchemaView table={current} insights={insights} />
+						<SchemaView table={current} />
 					)
 				) : (
 					<p className="wd-faint">This subgraph has no tables yet.</p>
@@ -197,6 +201,7 @@ function NotFound({ name }: { name: string }) {
 /** /account/subgraphs/<name>: loads and refreshes one subgraph. */
 export function SubgraphDetailSection({ name }: { name: string }) {
 	const { detail, health, errors } = useSubgraphsCache();
+	const { data: insights } = useInsights();
 	const [missing, setMissing] = useState(false);
 	const [table, setTable] = useState<string | null>(null);
 	const [view, setView] = useState<SubgraphView>("rows");
@@ -262,6 +267,7 @@ export function SubgraphDetailSection({ name }: { name: string }) {
 			errors={hasErrors ? (errors[name]?.data ?? []) : []}
 			table={selected}
 			view={view}
+			insights={forResource(insights, "subgraph", name)}
 			onTable={setTable}
 			onView={setView}
 		/>

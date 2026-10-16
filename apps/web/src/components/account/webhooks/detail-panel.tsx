@@ -3,15 +3,13 @@
 import { LazyBandBarChart } from "@/components/charts/lazy";
 import { Choice } from "@/components/choice";
 import { Legend } from "@/components/dashboard/charts/legend";
-import { InsightNote } from "@/components/dashboard/insight/insight-note";
-import { InsightStack } from "@/components/dashboard/insight/insight-stack";
+import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { dotClass } from "@/components/dashboard/shell/status-sentence";
 import { formatDate } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
-import { autoOpenId, rankInsights } from "@/lib/insights";
-import type { Insight } from "@/lib/insights";
-import { insightsForWebhook, outageStartIndex } from "@/lib/webhook-insights";
+import { type Insight, rankInsights } from "@/lib/insights";
+import { forResource, useInsights } from "@/lib/insights-store";
 import {
 	type WebhookActivityDay,
 	hostOf,
@@ -50,6 +48,7 @@ import {
 	groupAttempts,
 	hourWindow,
 	isOk,
+	outageStartIndex,
 	rangeBars,
 	utcClock,
 	utcStamp,
@@ -285,29 +284,6 @@ function Facts({
 			)}
 			{fact("Receiver", hostOf(webhook.url))}
 			{fact("Created", formatDate(webhook.createdAt))}
-		</div>
-	);
-}
-
-// ── Insights ─────────────────────────────────────────────────────────────
-
-/** One insight is a note with no stack header; two or more are the ranked stack. */
-function Insights({ insights }: { insights: readonly Insight[] }) {
-	if (insights.length >= 2) return <InsightStack insights={insights} />;
-	const only = insights[0];
-	if (!only) return null;
-	return <SingleInsight insight={only} />;
-}
-
-function SingleInsight({ insight }: { insight: Insight }) {
-	const [open, setOpen] = useState(autoOpenId([insight]) !== null);
-	return (
-		<div className="ins-stack">
-			<InsightNote
-				insight={insight}
-				open={open}
-				onToggle={() => setOpen((v) => !v)}
-			/>
 		</div>
 	);
 }
@@ -594,7 +570,7 @@ export function WebhookDetailBody({
 				<Facts webhook={webhook} activity={activity} deliveries={deliveries} />
 			</header>
 
-			<Insights insights={ranked} />
+			<ActionableInsights insights={ranked} />
 
 			{activity && !quiet ? (
 				<DeliveriesChart
@@ -641,12 +617,10 @@ export function WebhookDetailSection({ id }: { id: string }) {
 
 	const webhook = cache.detail[id]?.data ?? null;
 	const deliveries = cache.deliveries[id]?.data ?? null;
-	const dead = cache.dead[id]?.data ?? null;
 	const activity = cache.activity[id]?.data ?? null;
 	const listSummary = cache.list?.data.find((w) => w.id === id) ?? null;
 
-	const insights =
-		insightsForWebhook({ webhook, deliveries, dead, activity }) ?? [];
+	const insights = forResource(useInsights().data, "webhook", id);
 	const outage = activity ? outageStartIndex(activity.hours) : null;
 	const [pickedRange, setPickedRange] = useState<Range | null>(null);
 	// A page that opens on an outage starts on the 48h view that shows it.

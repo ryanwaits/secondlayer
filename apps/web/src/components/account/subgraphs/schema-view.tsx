@@ -1,10 +1,6 @@
 "use client";
 
-import { InsightNote } from "@/components/dashboard/insight/insight-note";
-import { InsightStack } from "@/components/dashboard/insight/insight-stack";
-import type { Insight } from "@/lib/insights";
 import type { SubgraphTableInfo } from "@/lib/subgraphs-store";
-import { useState } from "react";
 
 /** Columns the platform adds to every table. */
 const SYSTEM_COLUMNS = new Set([
@@ -33,40 +29,8 @@ export function columnNotes(table: SubgraphTableInfo, column: string): string {
 		.join(" · ");
 }
 
-function SingleInsight({ insight }: { insight: Insight }) {
-	const [open, setOpen] = useState(false);
-	return (
-		<InsightNote
-			insight={insight}
-			open={open}
-			onToggle={() => setOpen((v) => !v)}
-		/>
-	);
-}
-
-/** Where the insights service puts notes about a table (such as a missing
- *  index). Renders nothing when there are none. */
-function InsightSlot({ insights }: { insights: readonly Insight[] }) {
-	if (insights.length === 0) return null;
-	const [only] = insights;
-	if (insights.length === 1 && only) {
-		return (
-			<div className="rw-notes">
-				<SingleInsight insight={only} />
-			</div>
-		);
-	}
-	return <InsightStack insights={insights} />;
-}
-
 /** A table's columns: type, whether it is indexed, and notes. */
-export function SchemaView({
-	table,
-	insights = [],
-}: {
-	table: SubgraphTableInfo;
-	insights?: readonly Insight[];
-}) {
+export function SchemaView({ table }: { table: SubgraphTableInfo }) {
 	return (
 		<div className="sg-schema">
 			<div className="sg-grid-wrap">
@@ -107,7 +71,6 @@ export function SchemaView({
 					</tbody>
 				</table>
 			</div>
-			<InsightSlot insights={insights} />
 		</div>
 	);
 }

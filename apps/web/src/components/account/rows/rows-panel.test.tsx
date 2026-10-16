@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 
 // bun's mock.module is process-wide, so stub every export the app imports.
@@ -147,6 +148,17 @@ describe("RowsBody", () => {
 		expect(html).toContain("Resets Nov 1");
 		expect(html).not.toContain("ran out on");
 		expect(html).toContain("No errors from you in the last 24 hours.");
+	});
+
+	test("an insight shows as a note under the chart with its actions when open", () => {
+		const loop = FIXTURE_INSIGHTS.find((i) => i.rule === "duplicate_reads");
+		if (!loop) throw new Error("missing fixture");
+		const html = renderToStaticMarkup(
+			<RowsBody {...base} status="ok" data={exhausted} insights={[loop]} />,
+		);
+		expect(html).toContain(loop.line);
+		expect(html).toContain("Why ›");
+		expect(html).not.toContain("worst first");
 	});
 
 	test("with no insights the insight header markup is absent", () => {

@@ -91,6 +91,12 @@ describe("WebhookDetailBody insights", () => {
 		expect(html).toContain("Hand off to your agent");
 	});
 
+	test("the open card ends in the dismiss actions", () => {
+		const html = render({ insights: [down as never, tls as never] });
+		expect(html.match(/Got it/g)).toHaveLength(1);
+		expect(html).toContain("This is expected");
+	});
+
 	test("no insights shows no insight block", () => {
 		const html = render();
 		expect(html).not.toContain("ins-stack");

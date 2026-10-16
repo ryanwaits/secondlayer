@@ -7,7 +7,7 @@ import {
 } from "@/components/charts/lazy";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { Meter } from "@/components/dashboard/charts/meter";
-import { InsightStack } from "@/components/dashboard/insight/insight-stack";
+import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import {
 	type Billing,
@@ -32,6 +32,7 @@ import {
 } from "@/lib/billing-view";
 import { formatUsdTick, niceMax } from "@/lib/dashboard-charts";
 import type { Insight } from "@/lib/insights";
+import { forAccountRules, useInsights } from "@/lib/insights-store";
 import type { CreditAdded } from "@/lib/types";
 import {
 	type Burn,
@@ -65,6 +66,9 @@ import { EmailAlerts } from "./email-alerts";
 import { SpendCapControl } from "./spend-cap-control";
 
 const MICROS = 1_000_000;
+
+/** The account-level rules about money; the rest belong to Overview and Rows. */
+const BILLING_RULES = ["cap_pace", "credits_runway"];
 
 /** Cost series colors, in stack order: the hosted stack, rows, webhook events plus storage. */
 const COST_SERIES = [
@@ -142,7 +146,7 @@ export interface BillingBodyProps {
 	capUsd: number | null;
 	onCapChange: (next: number | null) => void;
 	credits: CreditAdded[] | null;
-	/** Insights about the account's spend. The insights service fills this later. */
+	/** Insights about the account's spend, ranked by the server. */
 	insights?: readonly Insight[];
 	/** Shown above the status sentence, such as the way back from Stripe. */
 	notice?: ReactNode;
@@ -208,7 +212,7 @@ export function BillingBody({
 				</a>
 			</div>
 
-			<InsightStack insights={insights} />
+			<ActionableInsights insights={insights} />
 
 			<div className="bl-two">
 				<section className="dash-panel bl-panel" aria-label="Usage this month">
@@ -307,6 +311,7 @@ export function BillingBody({
 export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 	const { billing, burn, service, usage, daily, caps, credits } =
 		useAccountData();
+	const { data: allInsights } = useInsights();
 	const st = useTopupReturn(ret);
 	const co = useCheckout();
 	const [pendingCap, setPendingCap] = useState<number | null | undefined>();
@@ -358,6 +363,7 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 			capUsd={capUsd}
 			onCapChange={changeCap}
 			credits={credits}
+			insights={forAccountRules(allInsights, BILLING_RULES)}
 			notice={st ? <ReturnNotice st={st} billing={billing} /> : null}
 			footer={
 				<>

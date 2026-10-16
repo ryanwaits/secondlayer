@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { checkedRadios } from "../../../lib/test-render";
 
@@ -50,6 +51,24 @@ const base = {
 		},
 	],
 };
+
+describe("BillingBody insights", () => {
+	test("an insight sits under the status sentence as a note", () => {
+		const runway = FIXTURE_INSIGHTS.find((i) => i.rule === "duplicate_reads");
+		if (!runway) throw new Error("missing fixture");
+		const html = renderToStaticMarkup(
+			<BillingBody {...base} insights={[runway]} />,
+		);
+		expect(html).toContain(runway.line);
+		expect(html).not.toContain("worst first");
+	});
+
+	test("with no insights nothing renders in the slot", () => {
+		const html = renderToStaticMarkup(<BillingBody {...base} insights={[]} />);
+		expect(html).not.toContain("ins-note");
+		expect(html).not.toContain("ins-stack");
+	});
+});
 
 describe("BillingBody", () => {
 	test("opens with the balance and how long it lasts at this pace", () => {

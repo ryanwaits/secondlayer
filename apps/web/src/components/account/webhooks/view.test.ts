@@ -4,6 +4,7 @@ import {
 	groupAttempts,
 	hourWindow,
 	listRowState,
+	outageStartIndex,
 	rangeBars,
 } from "./view";
 import {
@@ -153,5 +154,22 @@ describe("rangeBars", () => {
 		const month = rangeBars("30d", activity, days);
 		expect(month.rows).toHaveLength(30);
 		expect(month.rows[29]?.n).toBe(29);
+	});
+});
+
+describe("outageStartIndex", () => {
+	const hour = (delivered: number, failed: number) => ({ delivered, failed });
+
+	test("finds where the trailing run of failing hours begins", () => {
+		const hours = [hour(5, 0), hour(4, 1), hour(0, 6), hour(0, 9), hour(0, 3)];
+		expect(outageStartIndex(hours)).toBe(2);
+	});
+
+	test("skips idle hours at the end", () => {
+		expect(outageStartIndex([hour(5, 0), hour(0, 6), hour(0, 0)])).toBe(1);
+	});
+
+	test("null when the newest active hour delivered", () => {
+		expect(outageStartIndex([hour(0, 6), hour(5, 0)])).toBeNull();
 	});
 });

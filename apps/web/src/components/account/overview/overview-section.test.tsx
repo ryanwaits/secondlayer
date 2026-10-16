@@ -42,6 +42,27 @@ const base = {
 const render = (rows: (typeof healthy)[] | null) =>
 	renderToStaticMarkup(<OverviewBody {...base} rows={rows} />);
 
+describe("OverviewBody account insights", () => {
+	const account = FIXTURE_INSIGHTS.find((i) => i.rule === "duplicate_reads");
+
+	test("account insights render as notes under the rows", () => {
+		if (!account) throw new Error("missing fixture");
+		const html = renderToStaticMarkup(
+			<OverviewBody {...base} rows={[healthy]} accountInsights={[account]} />,
+		);
+		expect(html.indexOf(account.line)).toBeGreaterThan(
+			html.indexOf("dash-rows"),
+		);
+	});
+
+	test("no account insights renders no note", () => {
+		const html = renderToStaticMarkup(
+			<OverviewBody {...base} rows={[healthy]} accountInsights={[]} />,
+		);
+		expect(html).not.toContain("ins-note");
+	});
+});
+
 describe("OverviewBody", () => {
 	test("says everything is delivering and draws a row per active webhook", () => {
 		const html = render([healthy, second, quiet]);

@@ -2,6 +2,10 @@
 
 import { Meter } from "@/components/dashboard/charts/meter";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
+import {
+	ActionableInsights,
+	InsightActions,
+} from "@/components/dashboard/insight/insight-actions";
 import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import {
 	ResourceRow,
@@ -19,6 +23,8 @@ import {
 	useAccountData,
 } from "@/lib/account-data";
 import { daysLeft, daysLeftLabel } from "@/lib/account-health";
+import type { Insight } from "@/lib/insights";
+import { forAccountRules, useInsights } from "@/lib/insights-store";
 import {
 	type Burn,
 	type HostedStack,
@@ -44,6 +50,9 @@ import { ageShort, last24 } from "../webhooks/view";
 
 /** The webhook rows refresh this often while the tab is visible. */
 const POLL_MS = 30_000;
+
+/** The account-level rules the Overview shows; the rest belong to Rows. */
+const OVERVIEW_ACCOUNT_RULES = ["server_errors", "cap_pace", "credits_runway"];
 
 /** Rows (Index and Streams reads) get their own row here, once their data has loaded. */
 export function OverviewRowsSlot() {
@@ -103,7 +112,9 @@ function WebhookRow({ model }: { model: WebhookRowModel }) {
 					.toLocaleString("en-US")}
 				age={ageShort(webhook.lastDeliveryAt)}
 			/>
-			{open && top ? <InsightCard insight={top} /> : null}
+			{open && top ? (
+				<InsightCard insight={top} footer={<InsightActions insight={top} />} />
+			) : null}
 		</div>
 	);
 }
@@ -242,6 +253,8 @@ export interface OverviewBodyProps {
 	burn: Burn | null;
 	stack: HostedStack | null;
 	deliveredRows: number | null;
+	/** Account-level insights (read errors, spend cap, credits). */
+	accountInsights?: readonly Insight[];
 }
 
 /** The Overview: one sentence, a row per resource, and the month. */
@@ -251,6 +264,7 @@ export function OverviewBody({
 	burn,
 	stack,
 	deliveredRows,
+	accountInsights = [],
 }: OverviewBodyProps) {
 	const attention = rows?.filter((r) => r.state.tone === "alarm").length ?? 0;
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
@@ -297,6 +311,8 @@ export function OverviewBody({
 				<OverviewSubgraphsSlot />
 			</div>
 
+			<ActionableInsights insights={accountInsights} />
+
 			<MonthPanel billing={billing} burn={burn} deliveredRows={deliveredRows} />
 		</>
 	);
@@ -306,6 +322,7 @@ export function OverviewBody({
 export function OverviewSection() {
 	const { billing, burn, service, usage } = useAccountData();
 	const { rows } = useWebhookRows();
+	const { data: insights } = useInsights();
 	const month = monthParam(currentUtcMonth());
 
 	useEffect(() => {
@@ -344,6 +361,7 @@ export function OverviewSection() {
 			burn={burn}
 			stack={service}
 			deliveredRows={monthRows ? deliveredRowsIn(monthRows) : null}
+			accountInsights={forAccountRules(insights, OVERVIEW_ACCOUNT_RULES)}
 		/>
 	);
 }

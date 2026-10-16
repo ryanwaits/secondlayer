@@ -1,4 +1,3 @@
-import { outageStartIndex } from "@/lib/webhook-insights";
 import { type WebhookActivityDay, formatRelative } from "@/lib/webhooks-data";
 import type {
 	DeliveryRow,
@@ -45,9 +44,30 @@ export function utcClock(iso: string): string {
 }
 
 /**
+ * Index of the first hour of the latest outage in `hours`: the run of hours
+ * with failures and no deliveries that ends at the newest hour that had any
+ * attempt. Null when the newest active hour delivered.
+ */
+export function outageStartIndex(
+	hours: readonly { delivered: number; failed: number }[],
+): number | null {
+	let end = hours.length - 1;
+	while (end >= 0 && hours[end]?.delivered === 0 && hours[end]?.failed === 0) {
+		end--;
+	}
+	let start: number | null = null;
+	for (let i = end; i >= 0; i--) {
+		const hour = hours[i];
+		if (!hour || hour.delivered > 0 || hour.failed === 0) break;
+		start = i;
+	}
+	return start;
+}
+
+/**
  * The one-line state of a webhook from what the list and the hourly summary
  * know: a failing receiver, a pause, a quiet day, or what was delivered.
- * Detector insights need the detail fetch and replace this line when present.
+ * The server's insights replace this line when present.
  */
 export function listRowState(
 	webhook: WebhookSummary,

@@ -2,11 +2,15 @@
 
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
+import { InsightActions } from "@/components/dashboard/insight/insight-actions";
+import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import {
 	ResourceRow,
 	ResourceRowHead,
 } from "@/components/dashboard/shell/resource-row";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
+import type { Insight } from "@/lib/insights";
+import { forResource, useInsights } from "@/lib/insights-store";
 import {
 	groupDigits,
 	handlerErrors24h,
@@ -22,6 +26,7 @@ import {
 	useSubgraphsCache,
 } from "@/lib/subgraphs-store";
 import { useEffect, useState } from "react";
+import { StateCell, insightRowState } from "../webhooks/rows";
 import { ageShort } from "../webhooks/view";
 import { SubgraphsEmptyState } from "./empty-state";
 
@@ -64,48 +69,88 @@ export function useSubgraphsPoll(): ListNotice | null {
 	return notice;
 }
 
-/** One resource row per subgraph: lag, rows and errors, a 24-hour sparkline
- *  of rows written, the row count and how long ago it last wrote. */
+function SubgraphRow({
+	item,
+	health,
+	insights,
+}: {
+	item: SubgraphListItem;
+	health: SubgraphHealthData | undefined;
+	/** Ranked insights about this subgraph. */
+	insights: readonly Insight[];
+}) {
+	const [open, setOpen] = useState(false);
+	const errors24h = handlerErrors24h(health);
+	const points = health?.hours.map((hour) => hour.rowsWritten) ?? [];
+	const rows = item.totalRows ?? 0;
+	const top = insights[0];
+	const insightState = top ? insightRowState(top) : null;
+	const line = stateLine(
+		item.blocksRemaining ?? 0,
+		rows,
+		errors24h,
+		item.status,
+	);
+	return (
+		<div className="dash-row-wrap">
+			<ResourceRow
+				href={`/account/subgraphs/${encodeURIComponent(item.name)}`}
+				name={item.name}
+				nameTitle={item.name}
+				tone={insightState?.tone ?? subgraphTone(item.status, errors24h)}
+				state={
+					insightState ? (
+						<StateCell
+							model={{ state: insightState, insights: [...insights] }}
+							open={open}
+							onToggle={() => setOpen((v) => !v)}
+							noun="subgraph"
+						/>
+					) : (
+						line
+					)
+				}
+				spark={
+					points.length > 1 ? (
+						<Sparkline
+							points={points}
+							title={`${item.name}, rows written per hour, last 24 hours`}
+						/>
+					) : null
+				}
+				count={groupDigits(String(rows))}
+				age={ageShort(item.updatedAt ?? null)}
+			/>
+			{open && top ? (
+				<InsightCard insight={top} footer={<InsightActions insight={top} />} />
+			) : null}
+		</div>
+	);
+}
+
+/** One resource row per subgraph: lag, rows and errors (or its worst
+ *  insight), a 24-hour sparkline of rows written, the row count and how long
+ *  ago it last wrote. */
 export function SubgraphRows({
 	items,
 	health,
+	insights = [],
 }: {
 	items: readonly SubgraphListItem[];
 	health: Record<string, SubgraphHealthData | undefined>;
+	/** Every insight the server holds; each row picks its own by name. */
+	insights?: readonly Insight[];
 }) {
 	return (
 		<>
-			{items.map((item) => {
-				const h = health[item.name];
-				const errors24h = handlerErrors24h(h);
-				const points = h?.hours.map((hour) => hour.rowsWritten) ?? [];
-				const rows = item.totalRows ?? 0;
-				return (
-					<ResourceRow
-						key={item.name}
-						href={`/account/subgraphs/${encodeURIComponent(item.name)}`}
-						name={item.name}
-						nameTitle={item.name}
-						tone={subgraphTone(item.status, errors24h)}
-						state={stateLine(
-							item.blocksRemaining ?? 0,
-							rows,
-							errors24h,
-							item.status,
-						)}
-						spark={
-							points.length > 1 ? (
-								<Sparkline
-									points={points}
-									title={`${item.name}, rows written per hour, last 24 hours`}
-								/>
-							) : null
-						}
-						count={groupDigits(String(rows))}
-						age={ageShort(item.updatedAt ?? null)}
-					/>
-				);
-			})}
+			{items.map((item) => (
+				<SubgraphRow
+					key={item.name}
+					item={item}
+					health={health[item.name]}
+					insights={forResource(insights, "subgraph", item.name)}
+				/>
+			))}
 		</>
 	);
 }
@@ -122,8 +167,15 @@ const healthByName = (
 export function OverviewSubgraphsRows() {
 	useSubgraphsPoll();
 	const { list, health } = useSubgraphsCache();
+	const { data: insights } = useInsights();
 	if (!list || list.data.length === 0) return null;
-	return <SubgraphRows items={list.data} health={healthByName(health)} />;
+	return (
+		<SubgraphRows
+			items={list.data}
+			health={healthByName(health)}
+			insights={insights}
+		/>
+	);
 }
 
 export interface SubgraphsListBodyProps {
@@ -131,12 +183,14 @@ export interface SubgraphsListBodyProps {
 	items: readonly SubgraphListItem[] | null;
 	health: Record<string, SubgraphHealthData | undefined>;
 	notice: ListNotice | null;
+	insights?: readonly Insight[];
 }
 
 export function SubgraphsListBody({
 	items,
 	health,
 	notice,
+	insights = [],
 }: SubgraphsListBodyProps) {
 	if (items === null) {
 		if (notice?.kind === "starting") {
@@ -181,7 +235,7 @@ export function SubgraphsListBody({
 				<ResourceRowHead
 					labels={["Subgraph", "State", "Last 24h", "Rows", "Last"]}
 				/>
-				<SubgraphRows items={items} health={health} />
+				<SubgraphRows items={items} health={health} insights={insights} />
 			</div>
 		</>
 	);
@@ -191,11 +245,13 @@ export function SubgraphsListBody({
 export function SubgraphsListSection() {
 	const notice = useSubgraphsPoll();
 	const { list, health } = useSubgraphsCache();
+	const { data: insights } = useInsights();
 	return (
 		<SubgraphsListBody
 			items={list?.data ?? null}
 			health={healthByName(health)}
 			notice={notice}
+			insights={insights}
 		/>
 	);
 }
