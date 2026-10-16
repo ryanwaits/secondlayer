@@ -43,7 +43,6 @@ import {
 	dailySpendForMonth,
 	hostedStackSnapshot,
 	monthBounds,
-	rowsBySource,
 	rowsDaily,
 	rowsHourlyToday,
 	rowsPerCallHistogram,
@@ -312,17 +311,19 @@ app.get("/status", async (c) => {
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
 
 	const db = getDb();
-	const account = await getAccountById(db, accountId);
+	const [account, refill, credits, spent] = await Promise.all([
+		getAccountById(db, accountId),
+		getCreditRefill(db, accountId),
+		getCredits(db, accountId),
+		getMonthlyCreditsSpend(db, accountId),
+	]);
 	if (!account) return c.json({ error: "Account not found" }, 404);
 
-	const refill = await getCreditRefill(db, accountId);
 	return c.json({
 		stripeCustomerId: account.stripe_customer_id ?? null,
-		creditsUsdMicros: (await getCredits(db, accountId)).toString(),
+		creditsUsdMicros: credits.toString(),
 		// Real PAYG draw-down this month (reads beyond the free window).
-		creditsSpentThisMonthUsdMicros: (
-			await getMonthlyCreditsSpend(db, accountId)
-		).toString(),
+		creditsSpentThisMonthUsdMicros: spent.toString(),
 		refill: {
 			belowUsd:
 				refill.belowUsdMicros != null
@@ -465,6 +466,33 @@ app.get("/credits", async (c) => {
 	return c.json({ credits });
 });
 
+export type RowsSourceTotal = {
+	source: string;
+	rows: number;
+	calls: number;
+};
+
+/** Rows and metered pages per source, folded from `rowsDaily` output (same
+ *  window and filters), ordered by source. */
+export function rowsBySource(
+	daily: Pick<RowsDay, "source" | "rows" | "calls">[],
+): RowsSourceTotal[] {
+	const totals = new Map<string, RowsSourceTotal>();
+	for (const day of daily) {
+		const total = totals.get(day.source) ?? {
+			source: day.source,
+			rows: 0,
+			calls: 0,
+		};
+		total.rows += day.rows;
+		total.calls += day.calls;
+		totals.set(day.source, total);
+	}
+	return [...totals.values()].sort((a, b) =>
+		a.source < b.source ? -1 : a.source > b.source ? 1 : 0,
+	);
+}
+
 export type RowsAllowance = {
 	monthly: number;
 	usedThisMonth: number;
@@ -524,10 +552,9 @@ app.get("/rows", async (c) => {
 
 	const db = getDb();
 	const now = new Date();
-	const [daily, hourlyToday, bySource, histogram, errors] = await Promise.all([
+	const [daily, hourlyToday, histogram, errors] = await Promise.all([
 		rowsDaily(db, accountId, 30, now),
 		rowsHourlyToday(db, accountId, now),
-		rowsBySource(db, accountId, 30, now),
 		rowsPerCallHistogram(db, accountId, 30, now),
 		failedRequestsByPath(
 			db,
@@ -540,7 +567,7 @@ app.get("/rows", async (c) => {
 		allowance: rowsAllowance(daily, now),
 		daily,
 		hourlyToday,
-		bySource,
+		bySource: rowsBySource(daily),
 		histogram,
 		errors,
 	});

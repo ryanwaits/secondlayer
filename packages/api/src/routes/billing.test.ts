@@ -13,6 +13,7 @@ import billingRouter, {
 	isCreditPack,
 	isResourceMissing,
 	rowsAllowance,
+	rowsBySource,
 } from "./billing.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -541,6 +542,37 @@ describe.skipIf(!HAS_DB)("GET /credits", () => {
 				},
 			],
 		});
+	});
+});
+
+describe("rowsBySource", () => {
+	test("sums rows and calls across days per source, ordered by source", () => {
+		const day = (
+			date: string,
+			source: string,
+			rows: number,
+			calls: number,
+		) => ({
+			date,
+			source,
+			rows,
+			calls,
+		});
+		expect(
+			rowsBySource([
+				day("2026-10-10", "streams", 5, 1),
+				day("2026-10-10", "index", 10, 1),
+				day("2026-10-11", "streams", 7, 2),
+				day("2026-10-11", "index", 20, 1),
+			]),
+		).toEqual([
+			{ source: "index", rows: 30, calls: 2 },
+			{ source: "streams", rows: 12, calls: 3 },
+		]);
+	});
+
+	test("is empty with no days", () => {
+		expect(rowsBySource([])).toEqual([]);
 	});
 });
 

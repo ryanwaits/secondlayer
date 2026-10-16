@@ -13,7 +13,6 @@ import {
 	creditsAdded,
 	hostedStackSnapshot,
 	rowsByKeyDaily,
-	rowsBySource,
 	rowsDaily,
 	rowsHourlyToday,
 	rowsPerCallHistogram,
@@ -143,6 +142,37 @@ describe.skipIf(!HAS_DB)(
 			expect(snapshot.memory24h).toHaveLength(2);
 			expect(snapshot.memory24h[0]?.hour).toBe("2026-09-28T10:00:00.000Z");
 			expect(snapshot.memory24h[1]?.hour).toBe("2026-09-28T11:00:00.000Z");
+		});
+
+		test("state is running with a charge in the last 75 minutes, stopped with only older ones, none with no charge", async () => {
+			const now = new Date("2026-09-28T12:00:00.000Z");
+			const charge = (key: string, occurredAt: Date) =>
+				meter(db, {
+					accountId,
+					unit: "memory.gb_hour",
+					quantity: 0.5,
+					observedQuantity: 0.3,
+					source: "test",
+					idempotencyKey: `${key}-${accountId}`,
+					occurredAt,
+				});
+
+			const none = await hostedStackSnapshot(db, accountId, now);
+			expect(none.state).toBe("none");
+			expect(none.lastChargedAt).toBeNull();
+
+			const stoppedAt = new Date("2026-09-25T12:00:00.000Z");
+			await charge("state-old-a", new Date("2026-09-20T12:00:00.000Z"));
+			await charge("state-old-b", stoppedAt);
+			const stopped = await hostedStackSnapshot(db, accountId, now);
+			expect(stopped.state).toBe("stopped");
+			expect(stopped.lastChargedAt).toBe(stoppedAt.toISOString());
+
+			const runningAt = new Date("2026-09-28T11:50:00.000Z");
+			await charge("state-new", runningAt);
+			const running = await hostedStackSnapshot(db, accountId, now);
+			expect(running.state).toBe("running");
+			expect(running.lastChargedAt).toBe(runningAt.toISOString());
 		});
 	},
 );
@@ -352,15 +382,5 @@ describe.skipIf(!HAS_DB)("rows screen queries", () => {
 		const bins = await rowsPerCallHistogram(db, accountId, 30, now);
 		expect(bins).toHaveLength(5);
 		expect(bins.every((b) => b.calls === 0 && b.rows === 0)).toBe(true);
-	});
-
-	test("rowsBySource totals rows and calls per source", async () => {
-		await page("s1", 10, new Date("2026-10-10T00:00:00.000Z"));
-		await page("s2", 20, new Date("2026-10-11T00:00:00.000Z"));
-		await page("s3", 5, new Date("2026-10-11T00:00:00.000Z"), "streams");
-		expect(await rowsBySource(db, accountId, 30, now)).toEqual([
-			{ source: "index", rows: 30, calls: 2 },
-			{ source: "streams", rows: 5, calls: 1 },
-		]);
 	});
 });

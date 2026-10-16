@@ -327,17 +327,16 @@ export async function hostedStackSnapshot(
 	const since75m = new Date(now.getTime() - SERVICE_RUNNING_WINDOW_MS);
 	const since24h = new Date(now.getTime() - MEMORY_24H_WINDOW_MS);
 
-	const rows = await db
+	const last = await db
 		.selectFrom("usage_ledger")
-		.select(["occurred_at", "quantity", "observed_quantity"])
+		.select("occurred_at")
 		.where("account_id", "=", accountId)
 		.where("unit", "=", "memory.gb_hour")
 		.where("occurred_at", ">=", since35d)
 		.where("occurred_at", "<=", now)
-		.orderBy("occurred_at", "asc")
-		.execute();
-
-	const last = rows.at(-1);
+		.orderBy("occurred_at", "desc")
+		.limit(1)
+		.executeTakeFirst();
 	const state: ServiceState = !last
 		? "none"
 		: last.occurred_at >= since75m
@@ -580,38 +579,4 @@ export async function rowsPerCallHistogram(
 			rows: row ? Number(row.rows ?? 0) : 0,
 		};
 	});
-}
-
-export type RowsSourceTotal = {
-	source: string;
-	rows: number;
-	calls: number;
-};
-
-/** Rows and metered pages per source over the trailing `days` days. */
-export async function rowsBySource(
-	db: Kysely<Database>,
-	accountId: string,
-	days = 30,
-	now: Date = new Date(),
-): Promise<RowsSourceTotal[]> {
-	const rows = await db
-		.selectFrom("usage_ledger")
-		.select((eb) => [
-			"source",
-			eb.fn.sum<string>("quantity").as("rows"),
-			eb.fn.countAll<string>().as("calls"),
-		])
-		.where("account_id", "=", accountId)
-		.where("unit", "=", ROWS_UNIT)
-		.where("occurred_at", ">=", windowStart(now, days))
-		.where("occurred_at", "<=", now)
-		.groupBy("source")
-		.orderBy("source")
-		.execute();
-	return rows.map((row) => ({
-		source: row.source,
-		rows: Number(row.rows ?? 0),
-		calls: Number(row.calls),
-	}));
 }

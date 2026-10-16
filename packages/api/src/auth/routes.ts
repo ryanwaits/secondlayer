@@ -106,31 +106,32 @@ app.get("/", requireAuth(), async (c) => {
 	const accountId = (c as any).get("accountId");
 	const db = getDb();
 
-	const keys = await db
-		.selectFrom("api_keys")
-		.select([
-			"id",
-			"key_prefix",
-			"name",
-			"status",
-			"product",
-			"tier",
-			"created_at",
-			"last_used_at",
-			"expires_at",
-		])
-		.where("account_id", "=", accountId)
-		// An expired docs key disappears from the list.
-		.where((eb) =>
-			eb.or([
-				eb("expires_at", "is", null),
-				eb("expires_at", ">", sql<Date>`now()`),
-			]),
-		)
-		.orderBy("created_at", "desc")
-		.execute();
-
-	const daily = await rowsByKeyDaily(db, accountId);
+	const [keys, daily] = await Promise.all([
+		db
+			.selectFrom("api_keys")
+			.select([
+				"id",
+				"key_prefix",
+				"name",
+				"status",
+				"product",
+				"tier",
+				"created_at",
+				"last_used_at",
+				"expires_at",
+			])
+			.where("account_id", "=", accountId)
+			// An expired docs key disappears from the list.
+			.where((eb) =>
+				eb.or([
+					eb("expires_at", "is", null),
+					eb("expires_at", ">", sql<Date>`now()`),
+				]),
+			)
+			.orderBy("created_at", "desc")
+			.execute(),
+		rowsByKeyDaily(db, accountId),
+	]);
 
 	return c.json({
 		keys: keys.map((k: (typeof keys)[number]) => {
