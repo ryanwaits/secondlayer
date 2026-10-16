@@ -7,7 +7,8 @@ import { onControlPlane } from "../src/db/migration-role.ts";
  * workload host first reports a webhook as down, resolved when a later report
  * no longer lists it (recovered or deleted). The partial unique index keeps at
  * most one open incident per webhook, so repeated reports never re-send.
- * `emailed_at` is set after the account's email goes out. There are no
+ * `emailed_at` is set after the account's email goes out;
+ * `email_attempts` bounds retries of a failing send. There are no
  * preference columns on purpose: the alert has no settings.
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
@@ -21,6 +22,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 				failing_since timestamptz NOT NULL,
 				opened_at     timestamptz NOT NULL DEFAULT now(),
 				emailed_at    timestamptz,
+				email_attempts integer NOT NULL DEFAULT 0,
 				resolved_at   timestamptz
 			)
 		`.execute(db);

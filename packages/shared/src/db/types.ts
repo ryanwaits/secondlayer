@@ -1222,6 +1222,7 @@ export interface WebhookIncidentAlertsTable {
 	failing_since: Date;
 	opened_at: Generated<Date>;
 	emailed_at: Date | null;
+	email_attempts: Generated<number>;
 	resolved_at: Date | null;
 }
 

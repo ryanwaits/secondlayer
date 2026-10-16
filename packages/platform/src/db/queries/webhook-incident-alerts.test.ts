@@ -1,8 +1,11 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import {
+	MAX_EMAIL_ATTEMPTS,
+	dueIncidents,
 	markEmailed,
 	purgeResolved,
+	recordAttempts,
 	syncIncidents,
 } from "./webhook-incident-alerts.ts";
 
@@ -85,6 +88,25 @@ describe.skipIf(!HAS_DB)("webhook incident alerts", () => {
 			.where("resolved_at", "is", null)
 			.execute();
 		expect(open.map((r) => r.account_id)).toEqual([one]);
+	});
+
+	test("dueIncidents returns open unsent incidents under the attempt limit", async () => {
+		const acct = await makeAccount();
+		const { opened } = await syncIncidents(
+			db,
+			acct,
+			{ webhookIds: ["a", "b", "c"], down: [item("a"), item("b"), item("c")] },
+			now,
+		);
+		const [a, b, c] = opened;
+		await markEmailed(db, [a?.id as string], now);
+		for (let i = 0; i < MAX_EMAIL_ATTEMPTS; i++) {
+			await recordAttempts(db, [b?.id as string]);
+		}
+		const due = await dueIncidents(db, acct);
+		expect(due.map((r) => r.id)).toEqual([c?.id as string]);
+		const [counted] = await recordAttempts(db, [c?.id as string]);
+		expect(counted?.email_attempts).toBe(1);
 	});
 
 	test("markEmailed stamps rows and purge drops only old resolved ones", async () => {

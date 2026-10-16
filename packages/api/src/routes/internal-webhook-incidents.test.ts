@@ -20,6 +20,8 @@ const originalFetch = globalThis.fetch;
 let prevKey: string | undefined;
 let prevResend: string | undefined;
 let sent: { to: string[]; subject: string; text: string }[];
+/** Number of upcoming Resend calls that fail. */
+let failSends = 0;
 
 beforeEach(() => {
 	prevKey = process.env.WORKLOAD_HOST_KEY;
@@ -27,9 +29,14 @@ beforeEach(() => {
 	process.env.WORKLOAD_HOST_KEY = KEY;
 	process.env.RESEND_API_KEY = "re_test";
 	sent = [];
+	failSends = 0;
 	globalThis.fetch = (async (_url: string, init: RequestInit) => {
 		const payload = JSON.parse(String(init.body));
 		sent.push(payload);
+		if (failSends > 0) {
+			failSends--;
+			return new Response("resend down", { status: 500 });
+		}
 		return new Response(JSON.stringify({ id: "email_1" }), { status: 200 });
 	}) as unknown as typeof fetch;
 });
@@ -166,6 +173,69 @@ describe.skipIf(!HAS_DB)("POST /internal/webhook-incidents", () => {
 			.where("account_id", "=", acct)
 			.execute();
 		expect(stamped.every((r) => r.emailed_at !== null)).toBe(true);
+	});
+
+	test("a failed send is retried on the next report and then marked emailed", async () => {
+		const acct = await makeAccount(`owner-${crypto.randomUUID()}@example.com`);
+		failSends = 1;
+
+		const first = await post(report(acct, ["a"], ["a"]));
+		expect(first.status).toBe(200);
+		expect(sent).toHaveLength(1);
+		const unsent = await db
+			.selectFrom("webhook_incident_alerts")
+			.select(["emailed_at", "email_attempts"])
+			.where("account_id", "=", acct)
+			.executeTakeFirstOrThrow();
+		expect(unsent.emailed_at).toBeNull();
+		expect(unsent.email_attempts).toBe(1);
+
+		await post(report(acct, ["a"], ["a"]));
+		expect(sent).toHaveLength(2);
+		const done = await db
+			.selectFrom("webhook_incident_alerts")
+			.select("emailed_at")
+			.where("account_id", "=", acct)
+			.executeTakeFirstOrThrow();
+		expect(done.emailed_at).not.toBeNull();
+
+		await post(report(acct, ["a"], ["a"]));
+		expect(sent).toHaveLength(2);
+	});
+
+	test("gives up after 5 failed attempts", async () => {
+		const acct = await makeAccount(`owner-${crypto.randomUUID()}@example.com`);
+		failSends = 100;
+		for (let i = 0; i < 8; i++) {
+			await post(report(acct, ["a"], ["a"]));
+		}
+		expect(sent).toHaveLength(5);
+		const row = await db
+			.selectFrom("webhook_incident_alerts")
+			.select(["emailed_at", "email_attempts"])
+			.where("account_id", "=", acct)
+			.executeTakeFirstOrThrow();
+		expect(row.emailed_at).toBeNull();
+		expect(row.email_attempts).toBe(5);
+	});
+
+	test("a retry batches every due incident into one email", async () => {
+		const acct = await makeAccount(`owner-${crypto.randomUUID()}@example.com`);
+		failSends = 1;
+		await post(report(acct, ["a", "b"], ["a"]));
+		await post(report(acct, ["a", "b"], ["a", "b"]));
+		expect(sent).toHaveLength(2);
+		expect(sent[1]?.text).toContain("hook a");
+		expect(sent[1]?.text).toContain("hook b");
+	});
+
+	test("an incident that recovered before the retry is never emailed late", async () => {
+		const acct = await makeAccount(`owner-${crypto.randomUUID()}@example.com`);
+		failSends = 1;
+		await post(report(acct, ["a"], ["a"]));
+		await post(report(acct, ["a"], []));
+		await post(report(acct, ["a"], []));
+		expect(sent).toHaveLength(1);
 	});
 
 	test("an account without an email records the incident and sends nothing", async () => {

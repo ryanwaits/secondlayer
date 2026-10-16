@@ -8,7 +8,10 @@
  * Auth: `WORKLOAD_HOST_KEY` only (not the Sentinel key).
  */
 import {
+	MAX_EMAIL_ATTEMPTS,
+	dueIncidents,
 	markEmailed,
+	recordAttempts,
 	syncIncidents,
 } from "@secondlayer/platform/db/queries/webhook-incident-alerts";
 import { logger } from "@secondlayer/shared";
@@ -82,12 +85,23 @@ app.post("/", async (c) => {
 		observedAt,
 	);
 
-	if (opened.length > 0 && account.email) {
-		const openedIds = new Set(opened.map((r) => r.webhook_id));
-		const email = buildWebhookIncidentEmail(
-			down
-				.filter((d) => openedIds.has(d.id))
-				.map((d) => ({
+	// Everything open and not yet emailed goes out in one email: this tick's new
+	// incidents plus earlier ones whose send failed. Resolved incidents are
+	// never due, so a recovery never produces a late email.
+	if (account.email) {
+		const due = await dueIncidents(db, account.id);
+		const byId = new Map(down.map((d) => [d.id, d]));
+		const items = due.flatMap((row) => {
+			const d = byId.get(row.webhook_id);
+			return d ? [{ row, d }] : [];
+		});
+		if (items.length > 0) {
+			const attempted = await recordAttempts(
+				db,
+				items.map((i) => i.row.id),
+			);
+			const email = buildWebhookIncidentEmail(
+				items.map(({ d }) => ({
 					id: d.id,
 					name: d.name,
 					host: d.host,
@@ -95,17 +109,34 @@ app.post("/", async (c) => {
 					failures: d.failures,
 					lastError: d.lastError,
 				})),
-		);
-		await sendEmail({ to: account.email, ...email });
-		await markEmailed(
-			db,
-			opened.map((r) => r.id),
-			new Date(),
-		);
-		logger.info("webhook_incident.email_sent", {
-			accountId: account.id,
-			count: opened.length,
-		});
+			);
+			try {
+				await sendEmail({ to: account.email, ...email });
+				await markEmailed(
+					db,
+					items.map((i) => i.row.id),
+					new Date(),
+				);
+				logger.info("webhook_incident.email_sent", {
+					accountId: account.id,
+					count: items.length,
+				});
+			} catch (err) {
+				const gaveUp = attempted.some(
+					(r) => r.email_attempts >= MAX_EMAIL_ATTEMPTS,
+				);
+				logger.warn(
+					gaveUp
+						? "webhook_incident.email_gave_up"
+						: "webhook_incident.email_failed",
+					{
+						accountId: account.id,
+						count: items.length,
+						error: err instanceof Error ? err.message : String(err),
+					},
+				);
+			}
+		}
 	}
 
 	return c.json({ opened: opened.length, resolved });

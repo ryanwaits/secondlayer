@@ -69,6 +69,39 @@ export async function syncIncidents(
 	});
 }
 
+/** Send attempts per incident before giving up on a failing email. */
+export const MAX_EMAIL_ATTEMPTS = 5;
+
+/** Open incidents of the account that still need their email: not yet sent
+ *  and under the attempt limit. */
+export async function dueIncidents(
+	db: Kysely<Database>,
+	accountId: string,
+): Promise<WebhookIncidentAlert[]> {
+	return db
+		.selectFrom("webhook_incident_alerts")
+		.selectAll()
+		.where("account_id", "=", accountId)
+		.where("resolved_at", "is", null)
+		.where("emailed_at", "is", null)
+		.where("email_attempts", "<", MAX_EMAIL_ATTEMPTS)
+		.execute();
+}
+
+/** Counts one send attempt on each row; returns the updated rows. */
+export async function recordAttempts(
+	db: Kysely<Database>,
+	ids: string[],
+): Promise<WebhookIncidentAlert[]> {
+	if (ids.length === 0) return [];
+	return db
+		.updateTable("webhook_incident_alerts")
+		.set((eb) => ({ email_attempts: eb("email_attempts", "+", 1) }))
+		.where("id", "in", ids)
+		.returningAll()
+		.execute();
+}
+
 export async function markEmailed(
 	db: Kysely<Database>,
 	ids: string[],
