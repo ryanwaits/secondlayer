@@ -7,13 +7,17 @@ import { loadTarget, prefetch } from "./peek/load";
 import {
 	type BackSlot,
 	type PeekKind,
+	type SavedItem,
 	TRAIL_EVENT,
 	addSaved,
 	isSaved,
+	labelAtTop,
 	labelFor,
 	leavesScreen,
+	listSaved,
 	onScreen,
 	peekBack,
+	removeSaved,
 	setBack,
 	setPendingRestore,
 	takeBack,
@@ -78,20 +82,76 @@ function markLink(linkIndex: number): () => void {
 	};
 }
 
-/** The bar itself: renders nothing without a slot. */
+/** The bar itself: Back and Saved, or nothing when it has neither. */
 export function TrailBar({
 	slot,
+	saved = [],
+	listOpen = false,
 	onBack,
-}: { slot: BackSlot | null; onBack: () => void }) {
-	if (!slot) return null;
+	onToggleSaved = () => {},
+	onOpenSaved = () => {},
+	onRemoveSaved = () => {},
+}: {
+	slot: BackSlot | null;
+	saved?: SavedItem[];
+	listOpen?: boolean;
+	onBack: () => void;
+	onToggleSaved?: () => void;
+	onOpenSaved?: (item: SavedItem) => void;
+	onRemoveSaved?: (href: string) => void;
+}) {
+	if (!slot && !saved.length) return null;
 	return (
 		<section className="docs-trail" aria-label="Your place">
-			<button type="button" className="docs-trail-back" onClick={onBack}>
-				<span aria-hidden="true">←</span>
-				<span className="docs-trail-label">
-					Back to <b>{slot.label}</b>
-				</span>
-			</button>
+			{slot ? (
+				<button type="button" className="docs-trail-back" onClick={onBack}>
+					<span aria-hidden="true">←</span>
+					<span className="docs-trail-label">
+						Back to <b>{slot.label}</b>
+					</span>
+				</button>
+			) : null}
+			{slot && saved.length ? (
+				<span className="docs-trail-sep" aria-hidden="true" />
+			) : null}
+			{saved.length ? (
+				<button
+					type="button"
+					className="docs-trail-saved"
+					aria-expanded={listOpen}
+					onClick={onToggleSaved}
+				>
+					Saved <b>{saved.length}</b>
+				</button>
+			) : null}
+			{listOpen && saved.length ? (
+				<ul className="docs-trail-list" aria-label="Saved sections">
+					{/* Newest first. */}
+					{[...saved].reverse().map((item) => (
+						<li key={item.href} className="docs-trail-row">
+							<button
+								type="button"
+								className="docs-trail-open"
+								onClick={() => onOpenSaved(item)}
+							>
+								<span className="docs-trail-title">{item.title}</span>
+								{item.title !== item.pageTitle ? (
+									<span className="docs-trail-sub">{item.pageTitle}</span>
+								) : null}
+								<span className="docs-trail-from">from {item.from.label}</span>
+							</button>
+							<button
+								type="button"
+								className="docs-trail-remove"
+								aria-label={`Remove ${item.title}`}
+								onClick={() => onRemoveSaved(item.href)}
+							>
+								×
+							</button>
+						</li>
+					))}
+				</ul>
+			) : null}
 		</section>
 	);
 }
@@ -114,15 +174,44 @@ export function DocsTrail() {
 	// The jump's own scrolling starts with the link in view; only a link seen
 	// leaving counts as one the reader can return to by hand.
 	const sawLinkLeave = useRef(false);
+	const [saved, setSaved] = useState<SavedItem[]>([]);
+	const [listOpen, setListOpen] = useState(false);
+	// The key handler outlives renders, so it reads the list's state from here.
+	const listOpenRef = useRef(false);
+	listOpenRef.current = listOpen;
 	const peek = useRef<Peek | null>(null);
 	const peekSerial = useRef(0);
 
 	useEffect(() => {
-		const sync = () => setSlot(peekBack());
+		const sync = () => {
+			setSlot(peekBack());
+			setSaved(listSaved());
+		};
 		sync();
 		window.addEventListener(TRAIL_EVENT, sync);
-		return () => window.removeEventListener(TRAIL_EVENT, sync);
+		// Saved is shared by every tab.
+		window.addEventListener("storage", sync);
+		return () => {
+			window.removeEventListener(TRAIL_EVENT, sync);
+			window.removeEventListener("storage", sync);
+		};
 	}, []);
+
+	// Nothing left to list.
+	useEffect(() => {
+		if (!saved.length) setListOpen(false);
+	}, [saved]);
+
+	// Esc and an outside click close the Saved list.
+	useEffect(() => {
+		if (!listOpen) return;
+		const onPointerDown = (e: PointerEvent) => {
+			if (!(e.target as Element | null)?.closest?.(".docs-trail"))
+				setListOpen(false);
+		};
+		document.addEventListener("pointerdown", onPointerDown);
+		return () => document.removeEventListener("pointerdown", onPointerDown);
+	}, [listOpen]);
 
 	const closePeek = useCallback((refocus: boolean) => {
 		const open = peek.current;
@@ -280,9 +369,14 @@ export function DocsTrail() {
 			setBack(spotOf(link));
 		};
 
-		// Esc closes the frame; S and O act on it while focus is inside it.
+		// Esc closes the Saved list first, then the frame; S and O act on the
+		// frame while focus is inside it.
 		const onKey = (e: KeyboardEvent) => {
 			if (e.metaKey || e.ctrlKey || e.altKey) return;
+			if (e.key === "Escape" && listOpenRef.current) {
+				setListOpen(false);
+				return;
+			}
 			const open = peek.current;
 			if (!open) return;
 			const focus = document.activeElement;
@@ -369,9 +463,30 @@ export function DocsTrail() {
 		router.push(taken.path);
 	};
 
+	// A Saved row opens its page, and the place you left it for is the way Back.
+	const openSaved = (item: SavedItem) => {
+		setBack({
+			path: location.pathname,
+			scrollY: window.scrollY,
+			linkIndex: -1,
+			label: labelAtTop(),
+		});
+		closePeek(false);
+		setListOpen(false);
+		router.push(item.href);
+	};
+
 	return (
 		<div className="docs-trail-dock" aria-live="polite">
-			<TrailBar slot={slot} onBack={goBack} />
+			<TrailBar
+				slot={slot}
+				saved={saved}
+				listOpen={listOpen}
+				onBack={goBack}
+				onToggleSaved={() => setListOpen((open) => !open)}
+				onOpenSaved={openSaved}
+				onRemoveSaved={removeSaved}
+			/>
 		</div>
 	);
 }

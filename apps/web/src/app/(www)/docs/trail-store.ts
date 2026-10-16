@@ -170,6 +170,43 @@ export function labelFor(link: Element): string {
 	);
 }
 
+/**
+ * The text of the last heading whose top has reached `line` (viewport
+ * coordinates, in document order), else null. This is the heading a reader is
+ * under when no link marks the spot.
+ */
+export function headingAbove(
+	headings: { top: number; text: string }[],
+	line: number,
+): string | null {
+	let found: string | null = null;
+	for (const heading of headings) {
+		if (heading.top > line) break;
+		found = heading.text.trim() || found;
+	}
+	return found;
+}
+
+/** The heading above the top of the viewport, else the page title. */
+export function labelAtTop(): string {
+	const article = document.getElementById("docs-article");
+	const paddingTop =
+		Number.parseFloat(
+			getComputedStyle(document.documentElement).scrollPaddingTop,
+		) || 0;
+	const headings = [...(article?.querySelectorAll("h2, h3, h4") ?? [])]
+		.filter((heading) => !heading.closest(".docs-peek"))
+		.map((heading) => ({
+			top: heading.getBoundingClientRect().top,
+			text: heading.textContent ?? "",
+		}));
+	return (
+		headingAbove(headings, paddingTop + 1) ||
+		article?.querySelector(".page-title")?.textContent?.trim() ||
+		"previous place"
+	);
+}
+
 const KINDS: readonly string[] = ["section", "page", "api"];
 
 function isSavedItem(value: unknown): value is SavedItem {

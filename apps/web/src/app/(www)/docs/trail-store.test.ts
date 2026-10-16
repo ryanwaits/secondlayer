@@ -4,6 +4,7 @@ import {
 	type SavedItem,
 	TRAIL_EVENT,
 	addSaved,
+	headingAbove,
 	isSaved,
 	leavesScreen,
 	listSaved,
@@ -148,6 +149,36 @@ describe("storage that throws", () => {
 			// @ts-expect-error restoring the bare test environment
 			globalThis.sessionStorage = undefined;
 		}
+	});
+});
+
+describe("headingAbove", () => {
+	const headings = [
+		{ top: -900, text: "Intro" },
+		{ top: -120, text: " Handler context " },
+		{ top: 340, text: "Reading the chain" },
+	];
+
+	test("names the last heading that has reached the line", () => {
+		expect(headingAbove(headings, 85)).toBe("Handler context");
+		expect(headingAbove(headings, 400)).toBe("Reading the chain");
+	});
+
+	test("is null above the first heading, so the caller falls back to the page title", () => {
+		expect(headingAbove(headings, -1000)).toBeNull();
+		expect(headingAbove([], 85)).toBeNull();
+	});
+
+	test("skips a heading with no text", () => {
+		expect(
+			headingAbove(
+				[
+					{ top: -50, text: "Intro" },
+					{ top: -10, text: "  " },
+				],
+				85,
+			),
+		).toBe("Intro");
 	});
 });
 

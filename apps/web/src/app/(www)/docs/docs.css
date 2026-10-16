@@ -514,6 +514,7 @@ button.docs-nav-item {
 	margin-right: auto;
 }
 .docs-trail {
+	position: relative;
 	display: flex;
 	max-width: calc(100vw - 32px);
 	height: 40px;
@@ -549,12 +550,105 @@ button.docs-nav-item {
 .docs-trail-label b {
 	font-weight: 500;
 }
-.docs-trail-back:hover {
+.docs-trail-back:hover,
+.docs-trail-saved:hover {
 	background: var(--soft);
 }
-.docs-trail-back:focus-visible {
+.docs-trail-back:focus-visible,
+.docs-trail-saved:focus-visible,
+.docs-trail-open:focus-visible,
+.docs-trail-remove:focus-visible {
 	outline: 2px solid var(--pri);
 	outline-offset: 2px;
+}
+/* Saved sits after Back, split by a hairline that only shows with both. */
+.docs-trail-sep {
+	align-self: stretch;
+	width: 1px;
+	margin: 8px 0;
+	background: var(--line);
+}
+.docs-trail-saved {
+	flex: none;
+	padding: 0 14px;
+	border: 0;
+	border-radius: 7px;
+	background: none;
+	color: var(--ink);
+	font: 400 13px / 1 var(--font-sans-stack);
+	cursor: pointer;
+	transition: background-color 150ms ease-out;
+}
+.docs-trail-saved b {
+	margin-left: 4px;
+	font: 500 11.5px / 1 var(--font-mono-stack);
+	color: var(--sub);
+}
+/* The list opens above the bar, centered on it, never wider than the screen. */
+.docs-trail-list {
+	position: absolute;
+	bottom: calc(100% + 8px);
+	left: 50%;
+	transform: translateX(-50%);
+	width: min(360px, calc(100vw - 32px));
+	max-height: min(320px, 50vh);
+	margin: 0;
+	padding: 4px;
+	overflow-y: auto;
+	list-style: none;
+	background: var(--paper);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.docs-trail-row {
+	display: flex;
+	align-items: flex-start;
+	border-radius: 6px;
+}
+.docs-trail-row:hover {
+	background: var(--soft);
+}
+.docs-trail-open {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0 8px;
+	padding: 8px 10px;
+	border: 0;
+	border-radius: 6px;
+	background: none;
+	font: 400 13px / 1.4 var(--font-sans-stack);
+	text-align: left;
+	cursor: pointer;
+}
+.docs-trail-title {
+	font-weight: 500;
+	color: var(--ink);
+}
+.docs-trail-sub {
+	color: var(--sub);
+}
+.docs-trail-from {
+	flex-basis: 100%;
+	color: var(--faint);
+}
+.docs-trail-remove {
+	flex: none;
+	width: 28px;
+	height: 28px;
+	margin: 6px 6px 0 0;
+	border: 0;
+	border-radius: 4px;
+	background: none;
+	color: var(--faint);
+	font: 400 16px / 1 var(--font-sans-stack);
+	cursor: pointer;
+}
+.docs-trail-remove:hover {
+	color: var(--ink);
 }
 /* The sentence a Back returned to: the link in the lit-reference role, its
    row on soft, until the next click. */
