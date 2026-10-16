@@ -6,6 +6,7 @@
  * block is `.wh-skel`: one shimmering tone from existing tokens.
  */
 
+import { HeatStripSkeleton } from "@/components/dashboard/charts/heat-strip";
 import { Skel } from "@/components/dashboard/shell/skel";
 
 export function WebhooksListSkeleton() {
@@ -20,7 +21,9 @@ export function WebhooksListSkeleton() {
 						<Skel width="70%" />
 						<Skel width="30%" height={12} />
 					</div>
-					<Skel width="100%" height={88} />
+					{/* Always 8 days: the server render can't read the clock. During the
+					23:00 UTC hour the real strip has 7, a one-row step once a day. */}
+					<HeatStripSkeleton />
 				</div>
 			))}
 		</output>

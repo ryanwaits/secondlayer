@@ -31,6 +31,8 @@ const waiting = rowModel(
 	[],
 );
 
+const noSeries = rowModel(summary(), undefined, FIXTURE_HOURS, []);
+
 const render = (props: Partial<Parameters<typeof WebhooksListBody>[0]>) =>
 	renderToStaticMarkup(
 		<WebhooksListBody
@@ -101,6 +103,24 @@ describe("WebhooksListBody", () => {
 		const html = render({ rows: null, notice: { kind: "no_credits" } });
 		expect(html).toContain("Deliveries are paused until you add credits");
 		expect(html).toContain('href="/account/credits"');
+	});
+});
+
+describe("WebhooksListBody heat strip placeholder", () => {
+	test("an active row holds its strip's space while the summary is pending", () => {
+		const html = render({ rows: [noSeries], summaryLoaded: false });
+		expect(html).toContain("dc-heat-cell s");
+		expect(html).not.toMatch(/<button[^>]*dc-heat-cell/);
+	});
+
+	test("a waiting webhook never gets a strip", () => {
+		const html = render({ rows: [waiting], summaryLoaded: false });
+		expect(html).not.toContain("dc-heat");
+	});
+
+	test("a loaded summary with no series for the row shows no strip and no placeholder", () => {
+		const html = render({ rows: [noSeries], summaryLoaded: true });
+		expect(html).not.toContain("dc-heat");
 	});
 });
 

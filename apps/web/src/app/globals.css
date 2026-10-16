@@ -6013,6 +6013,10 @@ a.acct-strip-link:hover .acct-strip-k {
 .dc-heat-cell.x {
 	background: transparent;
 }
+/* A loading cell: the skeleton tone, not `--soft` (that means "nothing delivered"). */
+.dc-heat-cell.s {
+	background: color-mix(in srgb, var(--text-main) 6%, transparent);
+}
 button.dc-heat-cell {
 	cursor: pointer;
 	transition: transform 0.1s;

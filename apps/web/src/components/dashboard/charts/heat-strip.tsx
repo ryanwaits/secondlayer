@@ -5,7 +5,7 @@ import {
 	heatGrid,
 	hourWindowLabel,
 } from "@/lib/dashboard-charts";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface Hover {
 	cell: HeatCell;
@@ -34,7 +34,12 @@ export function HeatStrip({
 	label: string;
 }) {
 	const { days } = useMemo(() => heatGrid(hours, now), [hours, now]);
-	const max = Math.max(1, ...hours.map((c) => c.n));
+	const max = useMemo(() => Math.max(1, ...hours.map((c) => c.n)), [hours]);
+	const labels = useMemo(
+		() =>
+			Array.from({ length: hours.length }, (_, i) => hourWindowLabel(i, now)),
+		[hours.length, now],
+	);
 	const [hover, setHover] = useState<Hover | null>(null);
 
 	useEffect(() => {
@@ -44,13 +49,14 @@ export function HeatStrip({
 		return () => window.removeEventListener("scroll", hide, { capture: true });
 	}, [hover]);
 
-	const show = (cell: HeatCell, el: HTMLElement) => {
+	const show = useCallback((cell: HeatCell, el: HTMLElement) => {
 		const rect = el.getBoundingClientRect();
 		setHover({ cell, x: rect.left + rect.width / 2, y: rect.top });
-	};
+	}, []);
 
-	return (
-		<div className="dc-heat-wrap">
+	// Hover only changes the tooltip, so the 168-cell grid is reused.
+	const grid = useMemo(
+		() => (
 			<section className="dc-heat" aria-label={label}>
 				{days.map((day) => (
 					<HeatRow key={day.label}>
@@ -67,7 +73,7 @@ export function HeatStrip({
 								);
 							}
 							const { n, f, index } = cell;
-							const when = hourWindowLabel(index, now);
+							const when = labels[index];
 							const cls = f > 0 ? "f" : n === 0 ? "z" : "";
 							const opacity = (0.25 + 0.75 * Math.sqrt(n / max)).toFixed(2);
 							return (
@@ -97,13 +103,20 @@ export function HeatStrip({
 					))}
 				</HeatRow>
 			</section>
+		),
+		[days, labels, max, onCellClick, show, label],
+	);
+
+	return (
+		<div className="dc-heat-wrap">
+			{grid}
 			{hover ? (
 				<div
 					className="dc-heat-tip"
 					role="tooltip"
 					style={{ left: hover.x, top: hover.y }}
 				>
-					<b>{hourWindowLabel(hover.cell.index, now)}</b>
+					<b>{labels[hover.cell.index]}</b>
 					<div>
 						<span className="dc-tip-num">
 							{hover.cell.n.toLocaleString("en-US")}
@@ -130,4 +143,34 @@ export function HeatStrip({
 /** One grid row. `display: contents` keeps all rows on the one 25-column grid. */
 function HeatRow({ children }: { children: React.ReactNode }) {
 	return <div className="dc-heat-row">{children}</div>;
+}
+
+/** The strip's exact grid while its hours are still loading: same columns,
+ *  same rows, shimmer-toned cells, so the real strip replaces it in place. */
+export function HeatStripSkeleton({ days = 8 }: { days?: number }) {
+	return (
+		<div className="dc-heat-wrap">
+			<div className="dc-heat" aria-hidden="true">
+				{Array.from({ length: days }, (_, d) => (
+					// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
+					<HeatRow key={d}>
+						<span className="dc-heat-day" />
+						{Array.from({ length: 24 }, (_, hr) => (
+							// biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
+							<span key={hr} className="dc-heat-cell s" />
+						))}
+					</HeatRow>
+				))}
+				<HeatRow>
+					<span />
+					{Array.from({ length: 24 }, (_, hr) => (
+						// biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
+						<span key={hr} className="dc-heat-hour">
+							{hr % 6 === 0 ? String(hr).padStart(2, "0") : ""}
+						</span>
+					))}
+				</HeatRow>
+			</div>
+		</div>
+	);
 }

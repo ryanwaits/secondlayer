@@ -1,7 +1,10 @@
 "use client";
 
 import { CopyButton } from "@/components/copy-button";
-import { HeatStrip } from "@/components/dashboard/charts/heat-strip";
+import {
+	HeatStrip,
+	HeatStripSkeleton,
+} from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
 import {
 	KeyFirstLine,
@@ -9,7 +12,10 @@ import {
 } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ensureKeys, useAccountData } from "@/lib/account-data";
+import { heatGrid } from "@/lib/dashboard-charts";
+import { useInsights } from "@/lib/insights-store";
 import { hasNoKey } from "@/lib/onboarding";
+import { useFirstSettle } from "@/lib/use-first-settle";
 import { hostOf } from "@/lib/webhooks-data";
 import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
 import Link from "next/link";
@@ -160,10 +166,13 @@ function WebhookListRow({
 	model,
 	hours,
 	onOpenHour,
+	stripPending,
 }: {
 	model: WebhookRowModel;
 	hours: readonly string[];
 	onOpenHour: (id: string, hourIso: string) => void;
+	/** The hourly summary hasn't landed: hold the strip's space. */
+	stripPending: boolean;
 }) {
 	const { webhook, series, state } = model;
 	const cells = series
@@ -203,9 +212,17 @@ function WebhookListRow({
 						if (hour) onOpenHour(webhook.id, hour);
 					}}
 				/>
+			) : stripPending ? (
+				<HeatStripSkeleton days={pendingStripDays()} />
 			) : null}
 		</div>
 	);
+}
+
+/** Rows only render on the client once data arrives, so the clock is safe. */
+function pendingStripDays(): number {
+	return heatGrid([], Math.floor(Date.now() / HOUR_MS) * HOUR_MS + HOUR_MS / 2)
+		.days.length;
 }
 
 export interface WebhooksListBodyProps {
@@ -216,6 +233,8 @@ export interface WebhooksListBodyProps {
 	onOpenHour: (id: string, hourIso: string) => void;
 	/** The account has no key of its own yet. */
 	noKey?: boolean;
+	/** The hourly summary has loaded. Defaults to true. */
+	summaryLoaded?: boolean;
 }
 
 export function WebhooksListBody({
@@ -224,6 +243,7 @@ export function WebhooksListBody({
 	notice,
 	onOpenHour,
 	noKey = false,
+	summaryLoaded = true,
 }: WebhooksListBodyProps) {
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
 	const quiet = rows?.filter((r) => r.webhook.lastDeliveryAt === null) ?? [];
@@ -278,6 +298,7 @@ export function WebhooksListBody({
 								model={model}
 								hours={hours}
 								onOpenHour={onOpenHour}
+								stripPending={!summaryLoaded}
 							/>
 						))}
 						{quiet.length > 0 ? (
@@ -320,7 +341,12 @@ export function WebhooksListBody({
 export function WebhooksListSection() {
 	const router = useRouter();
 	const notice = useListPoll();
-	const { rows, hours } = useWebhookRows();
+	const { rows, hours, summaryLoaded } = useWebhookRows();
+	const { status: insightsStatus } = useInsights();
+	// One paint for rows and strips together, at most FIRST_SETTLE_MS late.
+	const ready = useFirstSettle(
+		rows !== null && summaryLoaded && insightsStatus !== "idle",
+	);
 	const { keys } = useAccountData();
 	useEffect(() => {
 		ensureKeys();
@@ -328,8 +354,9 @@ export function WebhooksListSection() {
 	return (
 		<WebhooksListBody
 			noKey={hasNoKey(keys, new Date())}
-			rows={rows}
+			rows={ready ? rows : null}
 			hours={hours}
+			summaryLoaded={summaryLoaded}
 			notice={notice}
 			onOpenHour={(id, hourIso) =>
 				router.push(

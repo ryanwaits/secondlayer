@@ -76,15 +76,17 @@ export function heatGrid(
 	return { days };
 }
 
+const DAY_LABEL = new Intl.DateTimeFormat("en-US", {
+	weekday: "short",
+	month: "short",
+	day: "numeric",
+	timeZone: "UTC",
+});
+
 /** "Thu, Oct 8 · 23:00–00:00 UTC" for the hour at `index`. */
 export function hourWindowLabel(index: number, now: number): string {
 	const start = windowStart(now) + index * HOUR;
-	const date = new Date(start).toLocaleDateString("en-US", {
-		weekday: "short",
-		month: "short",
-		day: "numeric",
-		timeZone: "UTC",
-	});
+	const date = DAY_LABEL.format(new Date(start));
 	const clock = (t: number) => new Date(t).toISOString().slice(11, 13);
 	return `${date} · ${clock(start)}:00–${clock(start + HOUR)}:00 UTC`;
 }

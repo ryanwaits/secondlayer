@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { ChartTooltip } from "@/components/charts/recharts-tooltip";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Cadence } from "./cadence";
-import { HeatStrip } from "./heat-strip";
+import { HeatStrip, HeatStripSkeleton } from "./heat-strip";
 import { Legend } from "./legend";
 import { Meter } from "./meter";
 import { Sparkline } from "./sparkline";
@@ -123,5 +123,19 @@ describe("ChartTooltip", () => {
 			/>,
 		);
 		expect(html).not.toContain("wh-chart-tip-label");
+	});
+});
+
+describe("HeatStripSkeleton", () => {
+	test("lays the same grid as the strip, with no buttons", () => {
+		const html = renderToStaticMarkup(<HeatStripSkeleton />);
+		expect(html.match(/class="dc-heat-day"/g)).toHaveLength(8);
+		expect(html.match(/class="dc-heat-cell s"/g)).toHaveLength(192);
+		expect(html).not.toContain("<button");
+	});
+
+	test("takes a day count", () => {
+		const html = renderToStaticMarkup(<HeatStripSkeleton days={7} />);
+		expect(html.match(/class="dc-heat-cell s"/g)).toHaveLength(168);
 	});
 });

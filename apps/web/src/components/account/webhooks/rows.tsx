@@ -63,6 +63,8 @@ export function rowModel(
 export function useWebhookRows(): {
 	rows: WebhookRowModel[] | null;
 	hours: readonly string[];
+	/** The hourly summary has arrived (rows may still lack a series). */
+	summaryLoaded: boolean;
 } {
 	const cache = useWebhooksCache();
 	const { data: insights } = useInsights();
@@ -72,9 +74,12 @@ export function useWebhookRows(): {
 		(cache.summary?.data.webhooks ?? []).map((w) => [w.id, w] as const),
 	);
 
-	if (!list) return { rows: null, hours };
+	const summaryLoaded = cache.summary !== undefined;
+
+	if (!list) return { rows: null, hours, summaryLoaded };
 	return {
 		hours,
+		summaryLoaded,
 		rows: list.map((w) =>
 			rowModel(
 				w,
