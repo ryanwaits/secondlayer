@@ -63,6 +63,7 @@ describe("probeCertExpiry", () => {
 			host: "receiver.example",
 			port: 443,
 			servername: "receiver.example",
+			rejectUnauthorized: false,
 		});
 	});
 
@@ -107,26 +108,32 @@ describe("probeCertExpiry", () => {
 });
 
 describe.skipIf(!process.env.DATABASE_URL)("refreshReceiverCerts", () => {
-	it("stamps the check time on due https webhooks, with a null expiry when the probe is refused", async () => {
+	it("stores the probed expiry and check time on its own due webhook, never touching the network", async () => {
 		process.env.SECONDLAYER_SECRETS_KEY =
 			process.env.SECONDLAYER_SECRETS_KEY ?? "0".repeat(64);
 		const db = getDb();
-		// A literal loopback receiver is refused by the egress guard, so the
-		// probe answers null without touching the network.
+		const host = `cert-refresh-${crypto.randomUUID()}.receiver.example`;
 		const { webhook } = await createWebhook(db, {
 			accountId: "",
 			name: `cert-refresh-${crypto.randomUUID()}`,
 			triggers: [{ type: "stx_transfer" }],
-			url: "https://127.0.0.1/hook",
+			url: `https://${host}/hook`,
 		});
+		const expires = new Date("2027-03-04T05:06:07.000Z");
 		try {
-			await refreshReceiverCerts(db);
+			// Other rows on a shared database may be due too; the fake probe
+			// answers only for this test's host.
+			await refreshReceiverCerts(db, {
+				probe: async (url) => (new URL(url).host === host ? expires : null),
+			});
 			const row = await db
 				.selectFrom("webhooks")
 				.select(["receiver_cert_expires_at", "receiver_cert_checked_at"])
 				.where("id", "=", webhook.id)
 				.executeTakeFirstOrThrow();
-			expect(row.receiver_cert_expires_at).toBeNull();
+			expect(row.receiver_cert_expires_at?.toISOString()).toBe(
+				expires.toISOString(),
+			);
 			expect(row.receiver_cert_checked_at).toBeInstanceOf(Date);
 		} finally {
 			await db.deleteFrom("webhooks").where("id", "=", webhook.id).execute();

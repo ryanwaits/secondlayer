@@ -69,6 +69,9 @@ export async function probeCertExpiry(
 				host,
 				port: Number(parsed.port) || 443,
 				...(isIP(host) ? {} : { servername: host }),
+				// Only the leaf cert is read and no data is sent, so an expired or
+				// self-signed cert must still report its expiry.
+				rejectUnauthorized: false,
 			});
 		} catch {
 			finish(null);
@@ -94,7 +97,9 @@ export async function probeCertExpiry(
  */
 export async function refreshReceiverCerts(
 	db: Kysely<Database>,
+	opts?: { probe?: (url: string) => Promise<Date | null> },
 ): Promise<void> {
+	const probe = opts?.probe ?? probeCertExpiry;
 	const due = await db
 		.selectFrom("webhooks")
 		.select(["id", "url"])
@@ -110,7 +115,7 @@ export async function refreshReceiverCerts(
 				),
 			]),
 		)
-		.orderBy("receiver_cert_checked_at", "asc")
+		.orderBy(sql`receiver_cert_checked_at asc nulls first`)
 		.limit(BATCH_LIMIT)
 		.execute();
 
@@ -128,7 +133,7 @@ export async function refreshReceiverCerts(
 	}
 
 	for (const [origin, { url, ids }] of idsByOrigin) {
-		const expires = await probeCertExpiry(url);
+		const expires = await probe(url);
 		await db
 			.updateTable("webhooks")
 			.set({
