@@ -96,7 +96,7 @@ export function OverviewKeysRow({
 			href="/account/keys"
 			name="keys"
 			tone={view.tone}
-			state={view.state}
+			state={<span title={view.state}>{view.state}</span>}
 			spark={
 				view.spark ? (
 					<Sparkline
