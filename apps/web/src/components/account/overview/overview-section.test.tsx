@@ -2,12 +2,14 @@ import { describe, expect, test } from "bun:test";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules } from "@/lib/insights-store";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
+import type { ApiKey } from "@/lib/types";
 import { renderToStaticMarkup } from "react-dom/server";
 import { rowModel } from "../webhooks/rows";
 import { FIXTURE_HOURS, summary } from "../webhooks/webhook.fixtures";
 import {
 	OVERVIEW_ACCOUNT_RULES,
 	OverviewBody,
+	OverviewKeysRow,
 	OverviewRowsSlot,
 	OverviewSubgraphsSlot,
 } from "./overview-section";
@@ -176,5 +178,62 @@ describe("OverviewBody", () => {
 	test("the rows slot renders nothing until its data loads, and the subgraphs slot until its screen fills it", () => {
 		expect(renderToStaticMarkup(<OverviewRowsSlot />)).toBe("");
 		expect(renderToStaticMarkup(<OverviewSubgraphsSlot />)).toBe("");
+	});
+});
+
+describe("OverviewKeysRow", () => {
+	const NOW = new Date("2026-10-15T12:00:00.000Z");
+	const daysAgo = (n: number) =>
+		new Date(NOW.getTime() - n * 86_400_000).toISOString();
+	const key = (patch: Partial<ApiKey>): ApiKey => ({
+		id: "k",
+		prefix: "sk-sl_abc12345",
+		name: "laptop",
+		status: "active",
+		product: "account",
+		tier: null,
+		createdAt: daysAgo(100),
+		lastUsedAt: daysAgo(0),
+		rowsDaily: new Array<number>(30).fill(5),
+		...patch,
+	});
+	const row = (keys: ApiKey[] | null) =>
+		renderToStaticMarkup(<OverviewKeysRow keys={keys} now={NOW} />);
+
+	test("links to the Keys tab with the count, the last read and a sparkline", () => {
+		const html = row([key({ id: "a" }), key({ id: "b", name: "ci" })]);
+		expect(html).toContain('href="/account/keys"');
+		expect(html).toContain("2 keys · laptop read");
+		expect(html).toContain("dc-svg");
+		expect(html).not.toContain("dash-dot hi");
+	});
+
+	test("a stale key adds a yellow dot and its name", () => {
+		const html = row([
+			key({ id: "a" }),
+			key({ id: "b", name: "old-indexer", lastUsedAt: daysAgo(40) }),
+		]);
+		expect(html).toContain("dash-dot hi");
+		expect(html).toContain("old-indexer unused 40 days");
+	});
+
+	test("hidden until keys load and when there are none of your own", () => {
+		expect(row(null)).toBe("");
+		expect(row([])).toBe("");
+		expect(row([key({ product: "docs" })])).toBe("");
+	});
+
+	test("the Overview draws it before the hosted stack row", () => {
+		const html = renderToStaticMarkup(
+			<OverviewBody
+				{...base}
+				rows={[healthy]}
+				keys={[key({ id: "a" })]}
+				now={NOW}
+				stack={{ state: "none", lastChargedAt: null, memory24h: [] }}
+			/>,
+		);
+		expect(html.indexOf("1 key ·")).toBeGreaterThan(-1);
+		expect(html.indexOf("1 key ·")).toBeLessThan(html.indexOf("hosted stack"));
 	});
 });

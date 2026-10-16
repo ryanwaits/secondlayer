@@ -7,6 +7,7 @@ export const DASHBOARD_TABS: DashboardTab[] = [
 	{ href: "/account/rows", label: "Rows", ready: true },
 	{ href: "/account/webhooks", label: "Webhooks", ready: true },
 	{ href: "/account/subgraphs", label: "Subgraphs", ready: true },
+	{ href: "/account/keys", label: "Keys", ready: true },
 	{ href: "/account/credits", label: "Billing", ready: true },
 ];
 

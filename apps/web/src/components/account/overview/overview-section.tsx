@@ -18,6 +18,7 @@ import {
 	formatUsd,
 	refreshBilling,
 	refreshCaps,
+	refreshKeys,
 	refreshRows,
 	refreshUsage,
 	useAccountData,
@@ -25,6 +26,7 @@ import {
 import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
+import type { ApiKey } from "@/lib/types";
 import {
 	type Burn,
 	type HostedStack,
@@ -39,6 +41,7 @@ import {
 import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { overviewKeys } from "../keys/key-view";
 import { OverviewRowsRow } from "../rows/rows-panel";
 import { OverviewSubgraphsRows } from "../subgraphs/list-screen";
 import {
@@ -79,6 +82,33 @@ export function OverviewSubgraphsSlot() {
 	const { service } = useAccountData();
 	const stackExists = service !== null && service.state !== "none";
 	return stackExists ? <OverviewSubgraphsRows /> : null;
+}
+
+/** Your keys: how many, which one read last, and a stale one if there is one. Hidden with no keys of your own. */
+export function OverviewKeysRow({
+	keys,
+	now,
+}: { keys: ApiKey[] | null; now: Date }) {
+	const view = overviewKeys(keys, now);
+	if (!view) return null;
+	return (
+		<ResourceRow
+			href="/account/keys"
+			name="keys"
+			tone={view.tone}
+			state={view.state}
+			spark={
+				view.spark ? (
+					<Sparkline
+						points={view.spark}
+						title="Rows read with your keys per day, last 24 days"
+					/>
+				) : null
+			}
+			count={view.count}
+			age={view.age}
+		/>
+	);
 }
 
 const plural = (n: number, one: string, many = `${one}s`) =>
@@ -258,6 +288,10 @@ export interface OverviewBodyProps {
 	burn: Burn | null;
 	stack: HostedStack | null;
 	deliveredRows: number | null;
+	/** The account's API keys; null until they have loaded. */
+	keys?: ApiKey[] | null;
+	/** The clock for the keys row; defaults to now. */
+	now?: Date;
 	/** Account-level insights (read errors, spend cap, credits). */
 	accountInsights?: readonly Insight[];
 	/** The hosted stack stopped because every webhook is paused. */
@@ -271,6 +305,8 @@ export function OverviewBody({
 	burn,
 	stack,
 	deliveredRows,
+	keys = null,
+	now = new Date(),
 	accountInsights = [],
 	asleep = false,
 }: OverviewBodyProps) {
@@ -322,6 +358,7 @@ export function OverviewBody({
 				))}
 				<QuietGroup models={quiet} />
 				<OverviewRowsSlot />
+				<OverviewKeysRow keys={keys} now={now} />
 				<StackRow stack={stack} burn={burn} />
 				<OverviewSubgraphsSlot />
 			</div>
@@ -335,7 +372,7 @@ export function OverviewBody({
 
 /** /account: is everything running, what needs you, what it costs. */
 export function OverviewSection() {
-	const { billing, burn, service, usage } = useAccountData();
+	const { billing, burn, keys, service, usage } = useAccountData();
 	const { rows } = useWebhookRows();
 	const { data: insights } = useInsights();
 	const month = monthParam(currentUtcMonth());
@@ -343,6 +380,7 @@ export function OverviewSection() {
 	useEffect(() => {
 		refreshBilling();
 		refreshCaps();
+		refreshKeys();
 	}, []);
 
 	// Every 60s while the tab is visible, as the usage page does; this is
@@ -378,6 +416,7 @@ export function OverviewSection() {
 			burn={burn}
 			stack={service}
 			deliveredRows={monthRows ? deliveredRowsIn(monthRows) : null}
+			keys={keys}
 			accountInsights={forAccountRules(insights, OVERVIEW_ACCOUNT_RULES)}
 			asleep={asleep}
 		/>

@@ -11,11 +11,19 @@ describe("DashboardTabs", () => {
 		expect(html).toMatch(/aria-current="page"[^>]*href="\/account\/webhooks"/);
 	});
 
-	test("shows the Subgraphs tab and nothing for pages that are not tabs", () => {
+	test("Keys sits between Subgraphs and Billing", () => {
 		const html = renderToStaticMarkup(<DashboardTabs pathname="/account" />);
-		expect(html).toContain("/account/rows");
-		expect(html).toContain("/account/subgraphs");
-		expect(html).not.toContain("/account/keys");
+		const at = (href: string) => html.indexOf(`href="${href}"`);
+		expect(at("/account/subgraphs")).toBeGreaterThan(-1);
+		expect(at("/account/keys")).toBeGreaterThan(at("/account/subgraphs"));
+		expect(at("/account/credits")).toBeGreaterThan(at("/account/keys"));
+	});
+
+	test("Keys is current on the Keys page", () => {
+		const html = renderToStaticMarkup(
+			<DashboardTabs pathname="/account/keys" />,
+		);
+		expect(html).toMatch(/aria-current="page"[^>]*href="\/account\/keys"/);
 	});
 
 	test("Subgraphs stays current on a subgraph's own page", () => {
