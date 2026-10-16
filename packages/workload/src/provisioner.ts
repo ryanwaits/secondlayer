@@ -308,6 +308,9 @@ export interface ProvisionerConfig {
 	 *  compose against an undetermined target rather than pass an empty
 	 *  `WORKLOAD_IMAGE_TAG`. */
 	getTargetSha: () => string | null;
+	/** Called after every control-DB write that changes a tenant row, so the
+	 *  gateway's short-lived tenant cache never routes on a stale state. */
+	onTenantChanged?: (accountId: string) => void;
 }
 
 function resolveMintTenantKey(cfg: ProvisionerConfig): MintTenantKey {
@@ -557,6 +560,7 @@ export async function up(
 		accountId,
 		acct8,
 	);
+	cfg.onTenantChanged?.(accountId);
 	if (!inserted) {
 		// Lost the race to another concurrent request for the same account.
 		const row = await getTenant(cfg.db, accountId);
@@ -623,6 +627,7 @@ export async function up(
 	}
 
 	await setTenantState(cfg.db, accountId, "running");
+	cfg.onTenantChanged?.(accountId);
 	await recordTenantRelease(cfg, accountId, targetSha);
 	logger.info("workload.provisioner.up", {
 		accountId,
@@ -697,6 +702,7 @@ async function teardownProvision(
 		});
 	}
 	await deleteTenant(cfg.db, accountId);
+	cfg.onTenantChanged?.(accountId);
 }
 
 /** Boot sweep: a restart mid-`up()` kills the fire-and-forget provision, so
@@ -766,6 +772,7 @@ export async function stop(
 		);
 	}
 	await setTenantState(cfg.db, accountId, "stopped", reason);
+	cfg.onTenantChanged?.(accountId);
 	logger.info("workload.provisioner.stop", { accountId, acct8, reason });
 }
 
@@ -804,6 +811,7 @@ export async function start(
 		);
 	}
 	await setTenantState(cfg.db, accountId, "running");
+	cfg.onTenantChanged?.(accountId);
 	await recordTenantRelease(cfg, accountId, targetSha);
 	logger.info("workload.provisioner.start", {
 		accountId,
@@ -856,6 +864,7 @@ export async function destroy(
 		);
 	}
 	await deleteTenant(cfg.db, accountId);
+	cfg.onTenantChanged?.(accountId);
 	logger.info("workload.provisioner.destroy", { accountId, acct8 });
 }
 

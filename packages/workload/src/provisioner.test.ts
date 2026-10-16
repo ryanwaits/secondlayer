@@ -465,6 +465,22 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await deleteTenant(db, accountId);
 	});
 
+	test("stop() reports the changed tenant so the gateway cache can drop it", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		await up(cfg(), accountId);
+
+		const changed: string[] = [];
+		await stop(
+			{ ...cfg(), onTenantChanged: (id) => changed.push(id) },
+			accountId,
+			"credits",
+		);
+		expect(changed).toEqual([accountId]);
+
+		await deleteTenant(db, accountId);
+	});
+
 	test("a webhook-only tenant's compose calls omit COMPOSE_PROFILES and the processor", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();

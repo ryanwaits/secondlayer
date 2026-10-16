@@ -159,4 +159,55 @@ describe("IntrospectClient", () => {
 		await client.resolve("sk-sl_x");
 		expect(calls).toBe(2);
 	});
+	test("maxEntries bounds the cache and evicts the oldest key first", async () => {
+		let calls = 0;
+		const client = new IntrospectClient({
+			appServerUrl: "https://api.secondlayer.tools",
+			workloadHostKey: "wh-key",
+			maxEntries: 2,
+			fetchImpl: async () => {
+				calls++;
+				return jsonResponse(200, { account_id: "acct_1", credits_ok: true });
+			},
+		});
+		await client.resolve("sk-sl_a");
+		await client.resolve("sk-sl_b");
+		await client.resolve("sk-sl_c");
+		expect(client.size).toBeLessThanOrEqual(2);
+		expect(calls).toBe(3);
+
+		await client.resolve("sk-sl_b"); // still cached
+		expect(calls).toBe(3);
+		await client.resolve("sk-sl_a"); // evicted, refetches
+		expect(calls).toBe(4);
+	});
+
+	test("an expired entry is removed when it is looked up", async () => {
+		let clock = 0;
+		let release: (() => void) | undefined;
+		let hold = false;
+		const client = new IntrospectClient({
+			appServerUrl: "https://api.secondlayer.tools",
+			workloadHostKey: "wh-key",
+			now: () => clock,
+			positiveTtlMs: 1_000,
+			fetchImpl: async () => {
+				if (hold)
+					await new Promise<void>((r) => {
+						release = r;
+					});
+				return jsonResponse(200, { account_id: "acct_1", credits_ok: true });
+			},
+		});
+		await client.resolve("sk-sl_a");
+		expect(client.size).toBe(1);
+
+		clock += 2_000;
+		hold = true;
+		const pending = client.resolve("sk-sl_a");
+		expect(client.size).toBe(0); // dropped before the refetch lands
+		release?.();
+		await pending;
+		expect(client.size).toBe(1);
+	});
 });

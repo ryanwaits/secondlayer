@@ -21,6 +21,8 @@ export interface IntrospectClientConfig {
 	now?: () => number;
 	positiveTtlMs?: number;
 	negativeTtlMs?: number;
+	/** Cache size bound; the oldest entry is evicted past it. Default 10_000. */
+	maxEntries?: number;
 }
 
 interface CacheEntry {
@@ -30,12 +32,17 @@ interface CacheEntry {
 
 const DEFAULT_POSITIVE_TTL_MS = 60_000;
 const DEFAULT_NEGATIVE_TTL_MS = 10_000;
+const DEFAULT_MAX_ENTRIES = 10_000;
 
 export class IntrospectClient {
 	private readonly cache = new Map<string, CacheEntry>();
 	private readonly inflight = new Map<string, Promise<IntrospectResult>>();
 
 	constructor(private readonly cfg: IntrospectClientConfig) {}
+
+	get size(): number {
+		return this.cache.size;
+	}
 
 	/** Drop every cached entry. Test-only / operator-triggered flush. */
 	clearCache(): void {
@@ -46,6 +53,7 @@ export class IntrospectClient {
 		const now = this.cfg.now?.() ?? Date.now();
 		const cached = this.cache.get(presentedKey);
 		if (cached && cached.expiresAt > now) return cached.result;
+		if (cached) this.cache.delete(presentedKey);
 
 		// Coalesce concurrent lookups for the same key into one upstream call —
 		// a burst of requests on a cold cache must not fan out N introspect
@@ -70,8 +78,24 @@ export class IntrospectClient {
 		const ttl = result.ok
 			? (this.cfg.positiveTtlMs ?? DEFAULT_POSITIVE_TTL_MS)
 			: (this.cfg.negativeTtlMs ?? DEFAULT_NEGATIVE_TTL_MS);
+		this.makeRoom(now);
 		this.cache.set(presentedKey, { result, expiresAt: now + ttl });
 		return result;
+	}
+
+	/** Keep the map bounded: at capacity drop expired entries, then the oldest
+	 *  insertion (Map iterates in insertion order). */
+	private makeRoom(now: number): void {
+		const max = this.cfg.maxEntries ?? DEFAULT_MAX_ENTRIES;
+		if (this.cache.size < max) return;
+		for (const [key, entry] of this.cache) {
+			if (entry.expiresAt <= now) this.cache.delete(key);
+		}
+		while (this.cache.size >= max) {
+			const oldest = this.cache.keys().next();
+			if (oldest.done) break;
+			this.cache.delete(oldest.value);
+		}
 	}
 
 	private async fetchUpstream(presentedKey: string): Promise<IntrospectResult> {

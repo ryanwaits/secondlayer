@@ -80,6 +80,7 @@ import {
 	recoverInterruptedProvisions,
 } from "./provisioner.ts";
 import { createRateLimiter } from "./rate-limiter.ts";
+import { TenantCache } from "./tenant-cache.ts";
 import {
 	createTargetShaCache,
 	createUpgradeRunner,
@@ -178,6 +179,17 @@ async function main(): Promise<void> {
 		});
 	}
 
+	const tenantCache = new TenantCache({
+		load: (accountId) => getTenant(db, accountId),
+		readToken: (accountId) => {
+			const acct8 = acct8For(accountId);
+			const contents = readFileSync(join(secretsRoot, acct8, ".env"), "utf8");
+			const match = contents.match(/^INSTANCE_TOKEN=(.+)$/m);
+			if (!match) throw new Error(`no INSTANCE_TOKEN for tenant-${acct8}`);
+			return match[1] ?? "";
+		},
+	});
+
 	const provisionerCfg: ProvisionerConfig = {
 		db,
 		secretsRoot,
@@ -186,6 +198,7 @@ async function main(): Promise<void> {
 		workloadHostKey,
 		backups,
 		getTargetSha: () => targetShaCache.lastGood,
+		onTenantChanged: (accountId) => tenantCache.invalidate(accountId),
 	};
 	const upgradeRunner = createUpgradeRunner(provisionerCfg);
 	const processorDeps = realProcessorWatchDeps(provisionerCfg);
@@ -250,16 +263,11 @@ async function main(): Promise<void> {
 	async function tenantUpstream(
 		accountId: string,
 	): Promise<{ baseUrl: string; instanceToken: string }> {
-		const row = await getTenant(db, accountId);
+		const row = await tenantCache.row(accountId);
 		if (!row) throw new Error(`no tenant row for ${accountId}`);
-		const acct8 = acct8For(accountId);
-		const envPath = join(secretsRoot, acct8, ".env");
-		const contents = readFileSync(envPath, "utf8");
-		const match = contents.match(/^INSTANCE_TOKEN=(.+)$/m);
-		if (!match) throw new Error(`no INSTANCE_TOKEN for tenant-${acct8}`);
 		return {
 			baseUrl: `http://127.0.0.1:${row.api_port}`,
-			instanceToken: match[1] ?? "",
+			instanceToken: tenantCache.token(accountId),
 		};
 	}
 
@@ -279,12 +287,12 @@ async function main(): Promise<void> {
 					introspect,
 					recordFailure: failedRequests.record,
 					resolveTenant: async (accountId) => {
-						const row = await getTenant(db, accountId);
+						const row = await tenantCache.row(accountId);
 						if (row) ensureMeterSocket(accountId);
 						return row?.state;
 					},
 					stopReason: async (accountId) =>
-						(await getTenant(db, accountId))?.stop_reason ?? null,
+						(await tenantCache.row(accountId))?.stop_reason ?? null,
 					startProvisioning: (accountId) => {
 						provisionUp(provisionerCfg, accountId)
 							.then(() => ensureMeterSocket(accountId))
