@@ -566,15 +566,130 @@ button.docs-nav-item {
 	background: var(--soft);
 }
 
+/* ── peek: another page's section, borrowed in place ──
+   A hairline box in the flow under the link's block, so it casts no shadow.
+   It sits inside the article, so the article's prose, code and table styles
+   already apply to the body. Everything appears at once. */
+.docs-peek {
+	margin: 18px 0 0;
+	background: var(--paper);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.docs-peek-bar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 6px 6px 14px;
+	border-bottom: 1px solid var(--line);
+	font-size: 13px;
+}
+.docs-peek-crumb {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--sub);
+}
+.docs-peek-crumb b {
+	font-weight: 500;
+	color: var(--ink);
+}
+.docs-peek-bar button {
+	flex: none;
+	height: 28px;
+	padding: 0 10px;
+	border: 0;
+	border-radius: 4px;
+	background: none;
+	color: var(--ink);
+	font: 400 13px / 1 var(--font-sans-stack);
+	cursor: pointer;
+}
+.docs-peek-bar button:hover {
+	background: var(--soft);
+}
+.docs-peek-bar .docs-peek-open {
+	color: var(--pri);
+}
+.docs-peek-bar button[data-saved] {
+	color: var(--sub);
+}
+.docs-peek-bar button[aria-label="Close"] {
+	width: 28px;
+	padding: 0;
+	font-size: 16px;
+	color: var(--sub);
+}
+.docs-peek-body {
+	padding: 4px 18px 18px;
+}
+.docs-peek-body:empty {
+	min-height: 56px;
+}
+.docs-peek-body.is-clamped {
+	max-height: 248px;
+	overflow: hidden;
+}
+.docs-peek-body > :first-child {
+	margin-top: 14px;
+}
+.docs-peek-body > :last-child {
+	margin-bottom: 0;
+}
+.docs-peek-more {
+	display: block;
+	width: 100%;
+	padding: 12px 18px;
+	border: 0;
+	border-top: 1px solid var(--line);
+	border-radius: 0 0 7px 7px;
+	background: none;
+	color: var(--ink);
+	font: 400 13px / 1.4 var(--font-sans-stack);
+	text-align: left;
+	cursor: pointer;
+}
+.docs-peek-more[hidden] {
+	display: none;
+}
+.docs-peek-more:hover {
+	background: var(--soft);
+}
+.docs-peek-more span {
+	margin-left: 6px;
+	font: 400 11.5px / 1.4 var(--font-mono-stack);
+	color: var(--faint);
+}
+/* A peeked endpoint: the route, its summary and its parameters, no right column. */
+.docs-peek-ep > .apiref-desc {
+	max-width: 64ch;
+	margin: 12px 0 0;
+	line-height: 1.65;
+	color: var(--sub);
+}
+.docs-peek-ep > .apiref-main {
+	margin-top: 20px;
+}
+/* The link a frame belongs to, while it is open. */
+.docs-article a[aria-expanded="true"] {
+	text-decoration-color: var(--ink);
+}
+.docs-article a[aria-expanded="true"] > code {
+	background: var(--ink);
+	color: var(--paper);
+}
+
 /* An API page runs the frame's full width for its two columns. */
-.docs-content:has(.apiref-ep) {
+.docs-content:has(.apiref .apiref-ep) {
 	padding-bottom: 140px;
 }
-.docs-article:has(.apiref-ep),
-.docs-topline:has(+ .docs-article .apiref-ep) {
+.docs-article:has(.apiref .apiref-ep),
+.docs-topline:has(+ .docs-article .apiref .apiref-ep) {
 	max-width: 1112px;
 }
-.docs-article:has(.apiref-ep) > :not(.apiref) {
+.docs-article:has(.apiref .apiref-ep) > :not(.apiref) {
 	max-width: 720px;
 }
 /* A product page's figure takes the frame's width for its notes column;

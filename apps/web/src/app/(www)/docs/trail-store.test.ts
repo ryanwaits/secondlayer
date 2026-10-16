@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
 	type BackSlot,
+	type SavedItem,
 	TRAIL_EVENT,
+	addSaved,
+	isSaved,
 	leavesScreen,
+	listSaved,
 	peekBack,
+	removeSaved,
 	setBack,
 	setPendingRestore,
 	takeBack,
@@ -143,5 +148,104 @@ describe("storage that throws", () => {
 			// @ts-expect-error restoring the bare test environment
 			globalThis.sessionStorage = undefined;
 		}
+	});
+});
+
+describe("saved", () => {
+	const store = new Map<string, string>();
+	const events: string[] = [];
+	let target = new EventTarget();
+
+	const item = (n: number): Omit<SavedItem, "savedAt"> => ({
+		href: `/docs/webhooks#part-${n}`,
+		title: `Part ${n}`,
+		pageTitle: "Webhooks",
+		kind: "section",
+		from: { path: "/docs/subgraphs", label: "Handler context" },
+	});
+
+	beforeEach(() => {
+		target = new EventTarget();
+		store.clear();
+		events.length = 0;
+		globalThis.localStorage = {
+			getItem: (k: string) => store.get(k) ?? null,
+			setItem: (k: string, v: string) => void store.set(k, v),
+			removeItem: (k: string) => void store.delete(k),
+		} as unknown as Storage;
+		globalThis.window = target as unknown as Window & typeof globalThis;
+		target.addEventListener(TRAIL_EVENT, () => events.push(TRAIL_EVENT));
+	});
+
+	afterEach(() => {
+		// @ts-expect-error restoring the bare test environment
+		globalThis.localStorage = undefined;
+		// @ts-expect-error restoring the bare test environment
+		globalThis.window = undefined;
+	});
+
+	test("the newest is last", () => {
+		addSaved(item(1), 100);
+		addSaved(item(2), 200);
+		expect(listSaved().map((saved) => saved.title)).toEqual([
+			"Part 1",
+			"Part 2",
+		]);
+		expect(listSaved()[1].savedAt).toBe(200);
+	});
+
+	test("saving the same href again keeps one, moved to the end", () => {
+		addSaved(item(1), 100);
+		addSaved(item(2), 200);
+		addSaved(item(1), 300);
+		expect(listSaved().map((saved) => saved.title)).toEqual([
+			"Part 2",
+			"Part 1",
+		]);
+	});
+
+	test("past 50 the oldest drops", () => {
+		for (let n = 1; n <= 52; n++) addSaved(item(n), n);
+		const saved = listSaved();
+		expect(saved).toHaveLength(50);
+		expect(saved[0].title).toBe("Part 3");
+		expect(saved[49].title).toBe("Part 52");
+		expect(isSaved("/docs/webhooks#part-1")).toBe(false);
+	});
+
+	test("remove takes one out and every change is announced", () => {
+		addSaved(item(1));
+		addSaved(item(2));
+		removeSaved("/docs/webhooks#part-1");
+		expect(listSaved().map((saved) => saved.title)).toEqual(["Part 2"]);
+		expect(isSaved("/docs/webhooks#part-2")).toBe(true);
+		expect(events).toHaveLength(3);
+	});
+
+	test("something that is not a list reads as empty", () => {
+		store.set("sl.docs.saved", "{not json");
+		expect(listSaved()).toEqual([]);
+		store.set(
+			"sl.docs.saved",
+			JSON.stringify([{ href: "https://evil.com" }, "x"]),
+		);
+		expect(listSaved()).toEqual([]);
+	});
+
+	test("storage that throws changes nothing and throws nothing", () => {
+		globalThis.localStorage = {
+			getItem: () => {
+				throw new Error("blocked");
+			},
+			setItem: () => {
+				throw new Error("blocked");
+			},
+			removeItem: () => {
+				throw new Error("blocked");
+			},
+		} as unknown as Storage;
+		expect(() => addSaved(item(1))).not.toThrow();
+		expect(() => removeSaved("/docs/webhooks#part-1")).not.toThrow();
+		expect(listSaved()).toEqual([]);
 	});
 });
