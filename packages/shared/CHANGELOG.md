@@ -1,5 +1,13 @@
 # @secondlayer/shared
 
+## 13.3.0
+
+### Minor Changes
+
+- 3dfd4cd: New `api_request_log` table: 7 days of account-attributed Index and Streams reads (path template, hashed parameters, page size, rows, status) for dashboard usage insights.
+- cc11e97: `usage_ledger` records the API key behind each metered read (`api_key_id`, null for older rows and non-read units).
+- a12314b: Webhook API: delivery time windows, failed attempts per hour, usual band, 30-day range, list heat data, managed names and receiver certificate expiry.
+
 ## 13.2.1
 
 ### Patch Changes

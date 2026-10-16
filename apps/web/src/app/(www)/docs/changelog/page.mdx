@@ -19,6 +19,18 @@ Your monthly spend cap now stops your hosted stack too, not only reads past the 
 
 ## Webhooks — October 2026
 
+### See the deliveries from one hour
+
+`GET /api/webhooks/:id/deliveries?from=&to=` and `sl.webhooks.deliveries(id, { from, to })` return the attempts in a time window of up to 31 days. Activity now counts failed attempts per hour, includes a usual range for each hour of the day, and takes `?days=30` for daily totals.
+
+### Know when your receiver's certificate expires
+
+We check your https receiver's TLS certificate every few hours and return its expiry as `receiverCertExpiresAt` on the webhook.
+
+### Sentinel webhooks keep their names
+
+Sentinel finds its webhooks by name, so a webhook whose name starts with `sentinel:` can't be renamed. The API answers `409 WEBHOOK_NAME_MANAGED`.
+
 ### Match print fields with where
 
 A `print_event` trigger or subgraph source takes `where`, so you get only the prints that carry your values: your signer on PoX-5, your pool on a DEX. See [Print fields](/docs/webhooks#print-fields).

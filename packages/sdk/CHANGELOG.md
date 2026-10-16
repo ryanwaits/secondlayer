@@ -1,5 +1,19 @@
 # @secondlayer/sdk
 
+## 15.2.0
+
+### Minor Changes
+
+- a12314b: Webhook API: delivery time windows, failed attempts per hour, usual band, 30-day range, list heat data, managed names and receiver certificate expiry.
+
+### Patch Changes
+
+- Updated dependencies [3dfd4cd]
+- Updated dependencies [cc11e97]
+- Updated dependencies [a12314b]
+  - @secondlayer/shared@13.3.0
+  - @secondlayer/subgraphs@7.4.0
+
 ## 15.1.0
 
 ### Minor Changes
