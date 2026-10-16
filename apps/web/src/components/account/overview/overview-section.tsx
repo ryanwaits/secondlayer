@@ -259,6 +259,8 @@ export interface OverviewBodyProps {
 	deliveredRows: number | null;
 	/** Account-level insights (read errors, spend cap, credits). */
 	accountInsights?: readonly Insight[];
+	/** The hosted stack stopped because every webhook is paused. */
+	asleep?: boolean;
 }
 
 /** The Overview: one sentence, a row per resource, and the month. */
@@ -269,6 +271,7 @@ export function OverviewBody({
 	stack,
 	deliveredRows,
 	accountInsights = [],
+	asleep = false,
 }: OverviewBodyProps) {
 	const attention = rows?.filter((r) => r.state.tone === "alarm").length ?? 0;
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
@@ -283,7 +286,14 @@ export function OverviewBody({
 
 	return (
 		<>
-			{rows === null ? (
+			{rows === null && asleep ? (
+				<StatusSentence
+					tone="idle"
+					sub="Every webhook is paused, so it isn't billed. Wake it from Webhooks."
+				>
+					Your hosted stack is asleep.
+				</StatusSentence>
+			) : rows === null ? (
 				<StatusSentence tone="idle" sub={sub || undefined}>
 					Checking your account.
 				</StatusSentence>
@@ -346,10 +356,12 @@ export function OverviewSection() {
 	// Listing webhooks goes through the account's hosted stack, so only do it
 	// once usage says one exists.
 	const stackExists = service !== null && service.state !== "none";
+	const [asleep, setAsleep] = useState(false);
 	useEffect(() => {
 		if (!stackExists) return;
 		return poll(async () => {
 			const [list] = await Promise.all([refreshList(), refreshSummary()]);
+			setAsleep(list.kind === "asleep");
 			return list.kind === "starting" || list.kind === "rate_limited"
 				? { retryAfterMs: list.retryAfter * 1000 }
 				: {};
@@ -366,6 +378,7 @@ export function OverviewSection() {
 			stack={service}
 			deliveredRows={monthRows ? deliveredRowsIn(monthRows) : null}
 			accountInsights={forAccountRules(insights, OVERVIEW_ACCOUNT_RULES)}
+			asleep={asleep}
 		/>
 	);
 }

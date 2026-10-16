@@ -38,6 +38,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AttemptTimeline } from "./attempt-timeline";
+import { AsleepNotice } from "./list-panel";
 import { displayStatus, formatEventCell } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
 import { TriggersBox } from "./triggers";
@@ -72,12 +73,14 @@ function describeFailure(
 	}
 	if (res.kind === "starting") return "Your hosted stack is still starting.";
 	if (res.kind === "no_credits") return "Add credits to do that.";
+	if (res.kind === "asleep") return "Your hosted stack is asleep.";
 	if (res.kind === "not_found") return "That webhook wasn't found.";
 	return res.message;
 }
 
 type DetailNotice =
 	| { kind: "starting" }
+	| { kind: "asleep" }
 	| { kind: "no_credits" }
 	| { kind: "not_found" }
 	| { kind: "error"; message: string };
@@ -118,8 +121,8 @@ function useDetailPoll(
 				if (!hasCached) setNotice({ kind: "starting" });
 				return { retryAfterMs: webhook.retryAfter * 1000 };
 			}
-			if (webhook.kind === "no_credits") {
-				if (!hasCached) setNotice({ kind: "no_credits" });
+			if (webhook.kind === "no_credits" || webhook.kind === "asleep") {
+				if (!hasCached) setNotice({ kind: webhook.kind });
 				return {};
 			}
 			if (!hasCached) setNotice({ kind: "error", message: webhook.message });
@@ -342,10 +345,10 @@ function DeliveriesChart({
 					rows={barsRows(bars.rows, { band: bars.band ?? undefined })}
 					height={180}
 					xLabels={bars.labels}
+					pointLabels={bars.pointLabels}
 					mark={mark}
 					seriesNames={{ n: "Delivered", p: "", f: "Failed" }}
 				/>
-					pointLabels={bars.pointLabels}
 			)}
 			{showBandNote ? <span className="wd-faint">{BAND_NOTE}</span> : null}
 		</section>
@@ -677,6 +680,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	}
 
 	if (!webhook || !deliveries) {
+		if (!webhook && notice?.kind === "asleep") return <AsleepNotice />;
 		if (!webhook && notice?.kind === "no_credits") {
 			return (
 				<output className="wh-notice stop">

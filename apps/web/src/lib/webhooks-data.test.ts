@@ -27,6 +27,9 @@ describe("resultForStatus", () => {
 			retryAfter: 30,
 		});
 	});
+	test("503 asleep → asleep, never a starting retry loop", () => {
+		expect(resultForStatus(503, null, "asleep")).toEqual({ kind: "asleep" });
+	});
 	test("402 → no_credits", () => {
 		expect(resultForStatus(402, null, "")).toEqual({ kind: "no_credits" });
 	});

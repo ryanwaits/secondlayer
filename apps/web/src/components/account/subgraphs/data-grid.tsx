@@ -40,6 +40,7 @@ function failureText(
 	}
 	if (res.kind === "not_found") return "That table wasn't found.";
 	if (res.kind === "no_credits") return "Add credits to read rows.";
+	if (res.kind === "asleep") return "Your hosted stack is asleep.";
 	return res.message;
 }
 

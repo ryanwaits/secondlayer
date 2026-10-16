@@ -18,7 +18,7 @@ const SEGMENT_RE = /^[A-Za-z0-9_-]+$/;
 type Method = "GET" | "POST" | "PATCH";
 
 /** Query params the dashboard reads with; everything else is dropped. */
-const FORWARDED_QUERY = ["from", "to", "days", "_limit", "_offset"];
+const FORWARDED_QUERY = ["from", "to", "days", "_limit", "_offset", "wake"];
 
 const MAX_NAME_LENGTH = 128;
 

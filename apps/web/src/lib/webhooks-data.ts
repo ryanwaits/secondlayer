@@ -28,6 +28,8 @@ export interface WebhooksActivitySummary {
 export type WebhooksResult<T> =
 	| { kind: "ok"; data: T }
 	| { kind: "starting"; retryAfter: number }
+	/** The stack stopped while nothing used it; reads don't restart it. */
+	| { kind: "asleep" }
 	| { kind: "no_credits" }
 	| { kind: "rate_limited"; retryAfter: number }
 	| { kind: "not_found" }
@@ -42,6 +44,7 @@ export function resultForStatus(
 ): WebhooksResult<never> | null {
 	if (status >= 200 && status < 300) return null;
 	const retryAfter = retryAfterHeader ? Number(retryAfterHeader) : 30;
+	if (status === 503 && errorMessage === "asleep") return { kind: "asleep" };
 	if (status === 503) return { kind: "starting", retryAfter };
 	if (status === 402) return { kind: "no_credits" };
 	if (status === 429) return { kind: "rate_limited", retryAfter };
@@ -93,8 +96,11 @@ async function requestList<T>(path: string): Promise<WebhooksResult<T[]>> {
 	return res.kind === "ok" ? { kind: "ok", data: res.data.data } : res;
 }
 
-export function listWebhooks(): Promise<WebhooksResult<WebhookSummary[]>> {
-	return requestList<WebhookSummary>("");
+/** `wake` starts an asleep stack; without it a read leaves the stack asleep. */
+export function listWebhooks(
+	opts: { wake?: boolean } = {},
+): Promise<WebhooksResult<WebhookSummary[]>> {
+	return requestList<WebhookSummary>(opts.wake ? "?wake=1" : "");
 }
 
 export function getWebhook(id: string): Promise<WebhooksResult<WebhookDetail>> {

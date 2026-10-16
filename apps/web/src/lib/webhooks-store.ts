@@ -98,8 +98,10 @@ export type ListResult = Exclude<
 	{ kind: "not_found" }
 >;
 
-export async function refreshList(): Promise<ListResult> {
-	const res = await listWebhooks();
+export async function refreshList(
+	opts: { wake?: boolean } = {},
+): Promise<ListResult> {
+	const res = await listWebhooks(opts);
 	if (res.kind === "ok") {
 		set({ list: { data: res.data, at: Date.now() } });
 		return res;

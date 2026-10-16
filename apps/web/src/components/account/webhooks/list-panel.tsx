@@ -18,6 +18,7 @@ const HOUR_MS = 3_600_000;
 
 type ListNotice =
 	| { kind: "starting" }
+	| { kind: "asleep" }
 	| { kind: "no_credits" }
 	| { kind: "error"; message: string };
 
@@ -40,8 +41,8 @@ function useListPoll(): ListNotice | null {
 			if (res.kind === "rate_limited") {
 				return { retryAfterMs: res.retryAfter * 1000 };
 			}
-			if (res.kind === "no_credits") {
-				setNotice({ kind: "no_credits" });
+			if (res.kind === "no_credits" || res.kind === "asleep") {
+				setNotice({ kind: res.kind });
 				return {};
 			}
 			setNotice({ kind: "error", message: res.message });
@@ -75,6 +76,34 @@ function Notice({
 			</div>
 			{action}
 		</output>
+	);
+}
+
+/** Every webhook is paused, so the stack stopped and stops billing. Waking
+ *  it is the user's call: the next list poll then shows it starting. */
+export function AsleepNotice() {
+	const [waking, setWaking] = useState(false);
+	return (
+		<Notice
+			tone="stop"
+			title="Your hosted stack is asleep"
+			action={
+				<button
+					type="button"
+					className="acct-btn solid"
+					disabled={waking}
+					onClick={() => {
+						setWaking(true);
+						void refreshList({ wake: true });
+					}}
+				>
+					{waking ? "Waking…" : "Wake it"}
+				</button>
+			}
+		>
+			Every webhook is paused, so the stack stopped and isn't billed. Wake it to
+			see your webhooks and resume one. It takes about 30 seconds.
+		</Notice>
 	);
 }
 
@@ -181,6 +210,8 @@ export function WebhooksListBody({
 					webhooks. This takes about 30 seconds.
 				</Notice>
 			) : null}
+
+			{rows === null && notice?.kind === "asleep" ? <AsleepNotice /> : null}
 
 			{rows === null && notice?.kind === "no_credits" ? (
 				<Notice
