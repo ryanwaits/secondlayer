@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { CliHttpError } from "../lib/http.ts";
 import { browserCommand } from "../lib/open-browser.ts";
-import { KEY_LIMIT_MESSAGE, pollDeviceToken } from "./login.ts";
+import { pollDeviceToken } from "./login.ts";
 
 const START = { deviceCode: "dc", interval: 5, expiresIn: 900 };
 
@@ -35,15 +35,19 @@ const pending = () => {
 };
 
 describe("pollDeviceToken", () => {
-	test("waits through pending, then returns the key", async () => {
+	test("waits through pending, then returns the session token", async () => {
 		const account = { id: "a1", email: "ryan@example.com" };
 		const deps = fakeDeps([
 			pending,
 			pending,
-			() => ({ key: "sk-sl_x", account }),
+			() => ({ sessionToken: "ss-sl_x", account }),
 		]);
 		const out = await pollDeviceToken(START, deps);
-		expect(out).toEqual({ kind: "approved", key: "sk-sl_x", account });
+		expect(out).toEqual({
+			kind: "approved",
+			sessionToken: "ss-sl_x",
+			account,
+		});
 		expect(deps.slept).toEqual([5000, 5000, 5000]);
 	});
 
@@ -62,26 +66,6 @@ describe("pollDeviceToken", () => {
 			]),
 		);
 		expect(out).toEqual({ kind: "denied" });
-	});
-
-	test("409 key_limit ends the wait with the revoke-a-key message", async () => {
-		const out = await pollDeviceToken(
-			START,
-			fakeDeps([
-				() => {
-					throw new CliHttpError(
-						409,
-						"HTTP_409",
-						{ error: "key_limit" },
-						"key_limit",
-					);
-				},
-			]),
-		);
-		expect(out).toEqual({ kind: "key_limit" });
-		expect(KEY_LIMIT_MESSAGE).toBe(
-			"You have 50 keys. Revoke one under Keys, then run secondlayer login again.",
-		);
 	});
 
 	test("410 means the code expired", async () => {
@@ -134,7 +118,7 @@ describe("pollDeviceToken", () => {
 		const ok = fakeDeps([
 			flaky,
 			flaky,
-			() => ({ key: "k", account: { id: "a", email: "e" } }),
+			() => ({ sessionToken: "s", account: { id: "a", email: "e" } }),
 		]);
 		expect((await pollDeviceToken(START, ok)).kind).toBe("approved");
 		await expect(pollDeviceToken(START, fakeDeps([flaky]))).rejects.toThrow(

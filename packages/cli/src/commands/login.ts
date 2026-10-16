@@ -121,8 +121,11 @@ interface DeviceStart {
 }
 
 export type DeviceOutcome =
-	| { kind: "key_limit" }
-	| { kind: "approved"; key: string; account: { id: string; email: string } }
+	| {
+			kind: "approved";
+			sessionToken: string;
+			account: { id: string; email: string };
+	  }
 	| { kind: "denied" }
 	| { kind: "expired" };
 
@@ -147,10 +150,14 @@ export async function pollDeviceToken(
 		await deps.sleep(start.interval * 1000);
 		try {
 			const res = await deps.post<{
-				key: string;
+				sessionToken: string;
 				account: { id: string; email: string };
 			}>("/api/cli/device/token", { deviceCode: start.deviceCode });
-			return { kind: "approved", key: res.key, account: res.account };
+			return {
+				kind: "approved",
+				sessionToken: res.sessionToken,
+				account: res.account,
+			};
 		} catch (err) {
 			if (err instanceof CliHttpError) {
 				if (err.status === 428) {
@@ -159,9 +166,6 @@ export async function pollDeviceToken(
 				}
 				if (err.status === 403 && err.body.error === "access_denied") {
 					return { kind: "denied" };
-				}
-				if (err.status === 409 && err.body.error === "key_limit") {
-					return { kind: "key_limit" };
 				}
 				if (err.status === 410) return { kind: "expired" };
 				throw err;
@@ -172,10 +176,7 @@ export async function pollDeviceToken(
 	return { kind: "expired" };
 }
 
-export const KEY_LIMIT_MESSAGE =
-	"You have 50 keys. Revoke one under Keys, then run secondlayer login again.";
-
-/** Machine name shown on the approval page and used as the key's default name. */
+/** Machine name shown on the approval page. */
 function clientName(): string {
 	return hostname().trim().slice(0, 64) || "this machine";
 }
@@ -183,7 +184,8 @@ function clientName(): string {
 /**
  * `secondlayer login` — browser flow, like `gh auth login`. Shows a short code,
  * opens the browser, and polls until the user approves it there. The server
- * mints an API key named for this machine, which is stored as the credential.
+ * opens a session (like `--email`), which `logout` revokes. API keys stay for
+ * reading data; signing in never makes one.
  */
 export async function runDeviceLogin(
 	options: LoginOptions = {},
@@ -231,10 +233,6 @@ export async function runDeviceLogin(
 		logError("Cancelled in the browser.");
 		process.exit(1);
 	}
-	if (outcome.kind === "key_limit") {
-		logError(KEY_LIMIT_MESSAGE);
-		process.exit(1);
-	}
 	if (outcome.kind === "expired") {
 		logError("The code expired. Run secondlayer login again.");
 		process.exit(1);
@@ -242,7 +240,7 @@ export async function runDeviceLogin(
 
 	await writeSession(
 		{
-			token: outcome.key,
+			token: outcome.sessionToken,
 			email: outcome.account.email,
 			accountId: outcome.account.id,
 			expiresAt: sessionExpiry(),
@@ -250,7 +248,7 @@ export async function runDeviceLogin(
 		target,
 	);
 	success(`Logged in as ${outcome.account.email} on ${clientName()}`);
-	info(dim("This machine has its own key. Revoke it under Keys."));
+	info(dim("Run 'secondlayer logout' to sign this machine out."));
 }
 
 /**
