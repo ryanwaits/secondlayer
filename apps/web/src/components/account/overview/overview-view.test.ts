@@ -126,7 +126,7 @@ describe("stackCell", () => {
 	test("stopped is alarm with the add-credits caption", () => {
 		const cell = stackCell(
 			{ state: "stopped", lastChargedAt: null, memory24h },
-			null,
+			burn,
 		);
 		expect(cell).toMatchObject({
 			tone: "alarm",

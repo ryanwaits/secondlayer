@@ -165,7 +165,9 @@ function KeysCellView({ cell }: { cell: KeysCell | null }) {
 					),
 				)}
 			</div>
-			<DayStrip days={cell.days} title="Days any key read, last 24 days" />
+			<div className="ov-cell-chart ov-days">
+				<DayStrip days={cell.days} title="Days any key read, last 24 days" />
+			</div>
 			<p className="ov-cell-s">{cell.caption}</p>
 			{cell.stale ? (
 				<Flag dot="hi">
@@ -202,12 +204,14 @@ function StackCellView({ cell }: { cell: StackCell | null }) {
 						<small>/day</small>
 					</div>
 					{cell.points.length > 1 ? (
-						<MemoryBand
-							points={cell.points}
-							capacity={0}
-							stopped={cell.tone === "alarm"}
-							title="Hosted stack memory, last 24 hours"
-						/>
+						<div className="ov-cell-chart ov-band">
+							<MemoryBand
+								points={cell.points}
+								capacity={0}
+								stopped={cell.tone === "alarm"}
+								title="Hosted stack memory, last 24 hours"
+							/>
+						</div>
 					) : null}
 					<p className="ov-cell-s">{cell.caption}</p>
 				</>
@@ -223,23 +227,25 @@ function CellSkeleton() {
 	return (
 		<>
 			<Skel width="45%" height={20} />
-			<Skel width="70%" />
+			<Skel width="70%" height={18} />
 		</>
 	);
 }
 
-/** The strip's shape while the Overview's first data is in flight, so the swap doesn't move anything below it. */
+/** The strip's shape while the Overview's first data is in flight. Each line
+ *  is as tall as what replaces it (the hosted stack cell, the tallest), so the
+ *  swap doesn't move anything. */
 export function PlumbingStripSkeleton() {
 	return (
 		<div className="ov-strip" aria-hidden="true">
 			{["rows", "keys", "stack"].map((cell) => (
 				<div key={cell} className="ov-cell">
 					<div className="ov-cell-head">
-						<Skel width={90} height={10} />
+						<Skel width={90} height={12} />
 					</div>
 					<Skel width="45%" height={20} />
-					<Skel width="100%" height={30} style={{ display: "block" }} />
-					<Skel width="70%" />
+					<Skel width="100%" height={30} />
+					<Skel width="70%" height={18} />
 				</div>
 			))}
 		</div>

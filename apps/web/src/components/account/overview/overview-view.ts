@@ -150,7 +150,8 @@ export function stackCell(
 		return {
 			tone: "alarm",
 			word: "stopped",
-			perDay: burn ? formatUsd(burn.rateDayUsdMicros) : "$0.00",
+			// Stopped, so nothing is charging, whatever the last 24 hours burned.
+			perDay: "$0.00",
 			gb,
 			points,
 			caption: "Add credits to start it again.",

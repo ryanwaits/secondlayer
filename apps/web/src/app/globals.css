@@ -6514,6 +6514,11 @@ button.dash-row {
 	outline-offset: 2px;
 	border-radius: 2px;
 }
+/* An <output> is inline, which drops the table's top margin: the first-paint
+   skeleton sits at the same place as the table that replaces it. */
+.ov-skel {
+	display: block;
+}
 /* The table has nothing to show for an account with no webhooks or
    subgraphs; drop its margin with it. */
 .ov-table:empty {
@@ -6574,6 +6579,14 @@ button.dash-row {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
+}
+/* The charts keep a fixed height at any cell width, so the strip is the same
+   height as its skeleton. Both stretch sideways. */
+.ov-cell-chart .dc-svg {
+	height: 30px;
+}
+.ov-cell-chart.ov-days .dc-svg {
+	height: 14px;
 }
 .ov-cell-big {
 	font: 500 20px / 1 var(--font-sans-stack);
