@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
 	costByDay,
 	creditDate,
-	freeRowsUsedUpOn,
 	monthProjection,
 	monthSpendSeries,
 	parseCapInput,
@@ -104,24 +103,6 @@ describe("costByDay", () => {
 			rows: 2,
 			events: 0.5,
 		});
-	});
-});
-
-describe("freeRowsUsedUpOn", () => {
-	test("is the first day rows were billed", () => {
-		expect(
-			freeRowsUsedUpOn(
-				[
-					day("2026-10-08", "rows.delivered", 40),
-					day("2026-10-06", "rows.delivered", 10),
-				],
-				NOW,
-			),
-		).toBe("Oct 6");
-	});
-
-	test("is null when no rows were billed", () => {
-		expect(freeRowsUsedUpOn([], NOW)).toBeNull();
 	});
 });
 

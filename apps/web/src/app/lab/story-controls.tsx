@@ -1,5 +1,8 @@
 "use client";
 
+import { BillingBody } from "@/components/account/billing/billing-screen";
+import { LimitsAndEmails } from "@/components/account/billing/limits-and-emails";
+import { AddCredits, useCheckout } from "@/components/account/credits-panel";
 import {
 	EXAMPLE_KEYS,
 	EXAMPLE_KEYS_STALE,
@@ -780,6 +783,97 @@ export function KeysDemo({
 			now={KEYS_EXAMPLE_NOW}
 			onNew={noop}
 			initialOpen={view === "open" ? "a1b2c3d4" : null}
+		/>
+	);
+}
+
+export type BillingDemoState = "normal" | "fresh";
+
+const BILLING_NOW = new Date("2026-10-16T12:00:00.000Z");
+
+function billingDaily() {
+	const out = [];
+	for (let d = 1; d <= 16; d++) {
+		const date = `2026-10-${String(d).padStart(2, "0")}`;
+		out.push({
+			date,
+			unit: "memory.gb_hour",
+			usdMicros: String(90_000 + d * 4_000),
+		});
+		out.push({
+			date,
+			unit: "rows.delivered",
+			usdMicros: String((d % 5) * 11_000),
+		});
+	}
+	return out;
+}
+
+/** The Billing screen on example data: the Add credits panel and the limits are live, so the amount row and the limit field can be tried. */
+export function BillingDemo({ state }: { state: BillingDemoState }) {
+	const co = useCheckout();
+	const fresh = state === "fresh";
+	const billing = fresh
+		? { creditsUsdMicros: "0", spentThisMonthUsdMicros: "0" }
+		: { creditsUsdMicros: "28060000", spentThisMonthUsdMicros: "11340000" };
+	const burn = fresh ? null : { rateDayUsdMicros: "146145", windowHours: 24 };
+	const [capUsd, setCapUsd] = useState<number | null>(fresh ? null : 100);
+	return (
+		<BillingBody
+			now={BILLING_NOW}
+			billing={billing}
+			burn={burn}
+			service={
+				fresh ? null : { state: "running", lastChargedAt: null, memory24h: [] }
+			}
+			usage={
+				fresh
+					? []
+					: [
+							{
+								unit: "rows.delivered",
+								quantity: "2400000",
+								usdMicros: "1400000",
+							},
+							{ unit: "memory.gb_hour", quantity: "310", usdMicros: "8680000" },
+							{
+								unit: "webhook.event",
+								quantity: "126000",
+								usdMicros: "1260000",
+							},
+						]
+			}
+			daily={fresh ? [] : billingDaily()}
+			capUsd={capUsd}
+			onCapChange={setCapUsd}
+			credits={
+				fresh
+					? []
+					: [
+							{
+								occurredAt: "2026-10-09T10:00:00.000Z",
+								kind: "topup",
+								source: "stripe",
+								usdMicros: "25000000",
+							},
+							{
+								occurredAt: "2026-10-01T10:00:00.000Z",
+								kind: "grant",
+								source: "welcome",
+								usdMicros: "5000000",
+							},
+						]
+			}
+			addCredits={
+				<AddCredits co={co} billing={billing} burn={burn} stopped={false} />
+			}
+			settings={
+				<LimitsAndEmails
+					capUsd={capUsd}
+					onCapChange={setCapUsd}
+					spentUsd={Number(billing.spentThisMonthUsdMicros) / 1_000_000}
+				/>
+			}
 		/>
 	);
 }

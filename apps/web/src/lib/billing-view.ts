@@ -102,31 +102,6 @@ export function costByDay(daily: DailySpend[], now: Date): CostDay[] {
 	return out;
 }
 
-/** "Oct 6" for the first UTC day this month that billed rows: free rows cost
- *  nothing, so that is the day the allowance ran out. */
-export function freeRowsUsedUpOn(
-	daily: DailySpend[],
-	now: Date,
-): string | null {
-	const monthPrefix = now.toISOString().slice(0, 7);
-	const dates = daily
-		.filter(
-			(d) =>
-				d.unit === "rows.delivered" &&
-				d.date.startsWith(monthPrefix) &&
-				Number(d.usdMicros) > 0,
-		)
-		.map((d) => d.date)
-		.sort();
-	const first = dates[0];
-	if (!first) return null;
-	return new Date(`${first}T00:00:00.000Z`).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		timeZone: "UTC",
-	});
-}
-
 export interface UnitLine {
 	unit: string;
 	usdMicros: string;

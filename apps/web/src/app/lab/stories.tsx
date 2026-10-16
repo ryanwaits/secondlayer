@@ -48,6 +48,7 @@ import { FIXTURE_INSIGHTS, FIXTURE_STACK } from "@/lib/insights.fixtures";
 import type { CSSProperties, ReactNode } from "react";
 import {
 	AmountDemo,
+	BillingDemo,
 	HeatStripDemo,
 	KeysDemo,
 	OverviewDemo,
@@ -1732,6 +1733,27 @@ const META: Record<StoryId, Meta> = {
 			"Keep placeholder rows faint, hidden from readers and not clickable.",
 		],
 		donts: ["Mint a key for the user. They name it for where it runs."],
+	},
+	billing: {
+		src: [
+			"apps/web/src/components/account/billing/billing-screen.tsx",
+			"apps/web/src/components/account/billing/amount-choice.tsx",
+			"apps/web/src/components/account/billing/limits-and-emails.tsx",
+		],
+		rule: "Adding credits sits beside the usage chart. The spend cap is one Monthly limit field, empty for no limit.",
+		stack: true,
+		variants: [
+			{
+				id: "normal",
+				label: "Balance, burn and a limit",
+				render: () => <BillingDemo state="normal" />,
+			},
+			{
+				id: "fresh",
+				label: "New account",
+				render: () => <BillingDemo state="fresh" />,
+			},
+		],
 	},
 	overview: {
 		src: [

@@ -46,6 +46,12 @@ function AlertSwitch({
 	);
 }
 
+/** What the limit box keeps of what was typed: digits only, so a stray letter
+ *  can never read as "empty" and clear the limit. */
+export function limitDigits(raw: string): string {
+	return raw.replace(/\D/g, "");
+}
+
 /** The monthly limit: one field, empty means no limit. Commits on blur or
  *  Enter; an empty box clears the limit. */
 export function MonthlyLimitRow({
@@ -88,7 +94,7 @@ export function MonthlyLimitRow({
 					autoComplete="off"
 					placeholder="No limit"
 					value={draft ?? capUsd ?? ""}
-					onChange={(e) => setDraft(e.target.value)}
+					onChange={(e) => setDraft(limitDigits(e.target.value))}
 					onBlur={commit}
 					onKeyDown={(e) => {
 						if (e.key === "Enter") {

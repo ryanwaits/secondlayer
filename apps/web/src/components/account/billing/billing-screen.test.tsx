@@ -15,8 +15,8 @@ mock.module("next/navigation", () => ({
 }));
 
 const { BillingBody } = await import("./billing-screen");
-const { AmountChoice } = await import("./amount-choice");
-const { MonthlyLimitRow } = await import("./limits-and-emails");
+const { AmountChoice, otherCellOn } = await import("./amount-choice");
+const { MonthlyLimitRow, limitDigits } = await import("./limits-and-emails");
 const { RunwayLine } = await import("../credits-panel");
 
 const NOW = new Date("2026-10-10T12:00:00.000Z");
@@ -163,7 +163,25 @@ describe("AmountChoice", () => {
 	});
 });
 
+describe("otherCellOn", () => {
+	test("tints only once the typed amount is valid", () => {
+		expect(otherCellOn("3", 25)).toBe(false);
+		expect(otherCellOn("", 150)).toBe(false);
+		expect(otherCellOn("150", 25)).toBe(true);
+	});
+
+	test("untouched, it tints for an amount that is not a pack", () => {
+		expect(otherCellOn(null, 150)).toBe(true);
+		expect(otherCellOn(null, 25)).toBe(false);
+	});
+});
+
 describe("MonthlyLimitRow", () => {
+	test("typed letters never reach the commit, so only an empty box clears the limit", () => {
+		expect(limitDigits("100a")).toBe("100");
+		expect(limitDigits("abc")).toBe("");
+	});
+
 	const render = (capUsd: number | null) =>
 		renderToStaticMarkup(
 			<MonthlyLimitRow capUsd={capUsd} onCapChange={() => {}} spentUsd={4.2} />,

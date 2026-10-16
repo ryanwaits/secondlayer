@@ -5,6 +5,14 @@ import { useId, useState } from "react";
 
 const isPack = (n: number) => (PACKS_USD as readonly number[]).includes(n);
 
+/** Whether the Other cell wears the tint: only once what it holds is an
+ *  amount the top-up route accepts. While a typed amount is invalid the cell
+ *  shows just its focus edge. `draft` is the box's text, null when untouched. */
+export function otherCellOn(draft: string | null, value: number): boolean {
+	if (draft === null) return !isPack(value);
+	return draft !== "" && isTopupUsd(Number(draft));
+}
+
 /**
  * Pick a top-up amount: the four packs, then `$ [Other]` for any whole dollar
  * the top-up route accepts. One joined row that spans its column.
@@ -22,7 +30,7 @@ export function AmountChoice({
 	const [draft, setDraft] = useState<string | null>(null);
 	const typing = draft !== null && draft !== "";
 	const other = draft ?? (isPack(value) ? "" : String(value));
-	const otherOn = typing || (draft === null && !isPack(value));
+	const otherOn = otherCellOn(draft, value);
 
 	function type(raw: string) {
 		const digits = raw.replace(/\D/g, "");
@@ -46,7 +54,7 @@ export function AmountChoice({
 							type="radio"
 							name={name}
 							value={usd}
-							checked={!otherOn && value === usd}
+							checked={!typing && !otherOn && value === usd}
 							onChange={() => {
 								setDraft(null);
 								onChange(usd);
