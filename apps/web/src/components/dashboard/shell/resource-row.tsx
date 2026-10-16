@@ -31,7 +31,8 @@ export function ResourceRow({
 	return (
 		<Link href={href} className="dash-row">
 			<span className="dash-row-name" title={nameTitle}>
-				<span className={dotClass(tone)} />
+				{/* Healthy is the default and shows no dot; the empty slot keeps names aligned. */}
+				<span className={tone === "ok" ? "dash-dot none" : dotClass(tone)} />
 				<span>{name}</span>
 				{kind ? <em>{kind}</em> : null}
 			</span>

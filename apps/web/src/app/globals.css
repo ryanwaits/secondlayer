@@ -5606,6 +5606,11 @@ a.acct-strip-link:hover .acct-strip-k {
 	background: transparent;
 	box-shadow: inset 0 0 0 1.5px var(--faint);
 }
+/* Healthy is the default, so a resource row shows no dot; a dot means
+   something needs you. The slot stays so names line up. */
+.dash-dot.none {
+	background: transparent;
+}
 
 /* Top bar: tabs take the free width, then heartbeat, kbd and the account chip. */
 .dash-tabs {
