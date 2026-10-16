@@ -147,8 +147,8 @@ export function RowsBody({
 					<span className="dash-label">Rows per day</span>
 					<Legend
 						items={[
-							{ swatch: "square", label: "Free", color: "var(--ch-a)" },
-							{ swatch: "square", label: "Paid", color: "var(--ch-b)" },
+							{ swatch: "square", label: "Free", color: "var(--ch-b)" },
+							{ swatch: "square", label: "Paid", color: "var(--ch-a)" },
 						]}
 					/>
 				</div>
@@ -164,6 +164,7 @@ export function RowsBody({
 								: { index: mark, label: "free 1M used up" }
 						}
 						seriesNames={{ n: "Free", p: "Paid", f: "Failed" }}
+						emphasis="p"
 					/>
 				</div>
 			</section>

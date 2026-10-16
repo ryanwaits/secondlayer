@@ -31,7 +31,7 @@ const MARK_FONT_SIZE = 10.5;
 
 /**
  * Stacked bars per category (`n` in `--ch-a`, `p` in `--ch-b`, `f` in
- * `--alarm`) over an optional "usual range" band. Highlighted categories fill
+ * `--alarm`; `emphasis="p"` swaps the two blues) over an optional "usual range" band. Highlighted categories fill
  * `--ch-mark`; an optional mark draws a dashed line with a pill label.
  */
 export function BandBarChart({
@@ -42,6 +42,7 @@ export function BandBarChart({
 	yUnit,
 	mark,
 	seriesNames = { n: "Count", p: "Paid", f: "Failed" },
+	emphasis = "n",
 }: {
 	rows: BarsRow[];
 	height?: number;
@@ -55,7 +56,14 @@ export function BandBarChart({
 	mark?: { index: number; label: string };
 	/** Tooltip names for the `n`, `p` and `f` stacks. */
 	seriesNames?: { n: string; p: string; f: string };
+	/** The stack drawn in the strong blue; the other gets the lighter step.
+	 *  Rows sets `p` so paid usage, not the free allowance, is what stands out. */
+	emphasis?: "n" | "p";
 }) {
+	const tone = {
+		n: emphasis === "n" ? "var(--ch-a)" : "var(--ch-b)",
+		p: emphasis === "p" ? "var(--ch-a)" : "var(--ch-b)",
+	};
 	const hasBand = rows.some((r) => r.bandLow !== null);
 	const top = niceMax(
 		Math.max(
@@ -134,28 +142,22 @@ export function BandBarChart({
 					dataKey="n"
 					name={seriesNames.n}
 					stackId="bars"
-					fill="var(--ch-a)"
+					fill={tone.n}
 					isAnimationActive={false}
 				>
 					{rows.map((r) => (
-						<Cell
-							key={r.i}
-							fill={r.highlighted ? "var(--ch-mark)" : "var(--ch-a)"}
-						/>
+						<Cell key={r.i} fill={r.highlighted ? "var(--ch-mark)" : tone.n} />
 					))}
 				</Bar>
 				<Bar
 					dataKey="p"
 					name={seriesNames.p}
 					stackId="bars"
-					fill="var(--ch-b)"
+					fill={tone.p}
 					isAnimationActive={false}
 				>
 					{rows.map((r) => (
-						<Cell
-							key={r.i}
-							fill={r.highlighted ? "var(--ch-mark)" : "var(--ch-b)"}
-						/>
+						<Cell key={r.i} fill={r.highlighted ? "var(--ch-mark)" : tone.p} />
 					))}
 				</Bar>
 				<Bar
