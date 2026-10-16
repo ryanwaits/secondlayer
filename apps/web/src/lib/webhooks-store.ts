@@ -1,20 +1,19 @@
 "use client";
 
 import type {
-	DeadRow,
 	DeliveryRow,
 	WebhookActivity,
 	WebhookDetail,
 	WebhookSummary,
 } from "@secondlayer/sdk";
 import { useSyncExternalStore } from "react";
+import { markFresh, shared } from "./request-cache";
 import {
 	type WebhookActivityDay,
 	type WebhooksActivitySummary,
 	type WebhooksResult,
 	getActivity,
 	getActivitySummary,
-	getDead,
 	getDeliveries,
 	getWebhook,
 	listWebhooks,
@@ -39,7 +38,6 @@ type State = {
 	list: CacheEntry<WebhookSummary[]>;
 	detail: Record<string, CacheEntry<WebhookDetail>>;
 	deliveries: Record<string, CacheEntry<DeliveryRow[]>>;
-	dead: Record<string, CacheEntry<DeadRow[]>>;
 	activity: Record<string, CacheEntry<WebhookActivity>>;
 	/** The 30-day view: 30 UTC days of daily counts, fetched on demand. */
 	days: Record<string, CacheEntry<WebhookActivityDay[]>>;
@@ -53,7 +51,6 @@ const EMPTY: State = {
 	list: undefined,
 	detail: {},
 	deliveries: {},
-	dead: {},
 	activity: {},
 	days: {},
 	summary: undefined,
@@ -98,59 +95,77 @@ export type ListResult = Exclude<
 	{ kind: "not_found" }
 >;
 
-export async function refreshList(
+export function refreshList(
 	opts: { wake?: boolean } = {},
 ): Promise<ListResult> {
-	const res = await listWebhooks(opts);
-	if (res.kind === "ok") {
-		set({ list: { data: res.data, at: Date.now() } });
+	const key = opts.wake ? "webhooks:list:wake" : "webhooks:list";
+	return shared(key, async () => {
+		const res = await listWebhooks(opts);
+		if (res.kind === "ok") {
+			set({ list: { data: res.data, at: Date.now() } });
+			markFresh(key);
+			return res;
+		}
+		if (res.kind === "not_found") {
+			set({ list: { data: [], at: Date.now() } });
+			markFresh(key);
+			return { kind: "ok", data: [] } as const;
+		}
 		return res;
-	}
-	if (res.kind === "not_found") {
-		set({ list: { data: [], at: Date.now() } });
-		return { kind: "ok", data: [] };
-	}
-	return res;
+	});
 }
 
 /** Hourly activity for every webhook. Same rule as the other refreshers:
  *  only an ok result writes. */
-export async function refreshSummary(): Promise<
+export function refreshSummary(): Promise<
 	WebhooksResult<WebhooksActivitySummary>
 > {
-	const res = await getActivitySummary();
-	if (res.kind === "ok") set({ summary: { data: res.data, at: Date.now() } });
-	return res;
+	return shared("webhooks:summary", async () => {
+		const res = await getActivitySummary();
+		if (res.kind === "ok") {
+			set({ summary: { data: res.data, at: Date.now() } });
+			markFresh("webhooks:summary");
+		}
+		return res;
+	});
 }
 
 /** The deliveries inside one window (an hour from a heat square). */
-export async function refreshDeliveriesWindow(
+export function refreshDeliveriesWindow(
 	id: string,
 	window: { from: string; to: string },
 ): Promise<WebhooksResult<DeliveryRow[]>> {
-	const res = await getDeliveries(id, window);
-	if (res.kind === "ok") {
-		set({
-			deliveriesWindow: {
-				...state.deliveriesWindow,
-				[`${id}:${window.from}`]: { data: res.data, at: Date.now() },
-			},
-		});
-	}
-	return res;
+	const key = `webhooks:window:${id}:${window.from}`;
+	return shared(key, async () => {
+		const res = await getDeliveries(id, window);
+		if (res.kind === "ok") {
+			set({
+				deliveriesWindow: {
+					...state.deliveriesWindow,
+					[`${id}:${window.from}`]: { data: res.data, at: Date.now() },
+				},
+			});
+			markFresh(key);
+		}
+		return res;
+	});
 }
 
 /** The 30-day daily counts, for the detail's 30d range. */
-export async function refreshDays(
+export function refreshDays(
 	id: string,
 ): Promise<WebhooksResult<WebhookActivity>> {
-	const res = await getActivity(id, { days: 30 });
-	if (res.kind === "ok" && res.data.days) {
-		set({
-			days: { ...state.days, [id]: { data: res.data.days, at: Date.now() } },
-		});
-	}
-	return res;
+	const key = `webhooks:days:${id}`;
+	return shared(key, async () => {
+		const res = await getActivity(id, { days: 30 });
+		if (res.kind === "ok" && res.data.days) {
+			set({
+				days: { ...state.days, [id]: { data: res.data.days, at: Date.now() } },
+			});
+			markFresh(key);
+		}
+		return res;
+	});
 }
 
 /** Put a webhook the API just returned (after a rename, pause or resume) in
@@ -185,7 +200,6 @@ export function applyWebhook(webhook: WebhookDetail): void {
 export interface DetailFetch {
 	webhook: WebhooksResult<WebhookDetail>;
 	deliveries: WebhooksResult<DeliveryRow[]>;
-	dead: WebhooksResult<DeadRow[]>;
 	/** `null` when this call was told to skip activity (the caller's own
 	 *  fast poll already has it covered this round). */
 	activity: WebhooksResult<WebhookActivity> | null;
@@ -199,55 +213,64 @@ export interface DetailFetch {
  *  `activity: false` skips that one read entirely — the detail page passes
  *  it while its own faster activity-only poll is already running, so the
  *  two don't both fetch `/activity` on the same tick. */
-export async function refreshDetail(
+export function refreshDetail(
 	id: string,
 	opts: { activity?: boolean } = {},
 ): Promise<DetailFetch> {
 	const includeActivity = opts.activity ?? true;
-	const [webhook, deliveries, dead, activity] = await Promise.all([
-		getWebhook(id),
-		getDeliveries(id),
-		getDead(id),
-		includeActivity ? getActivity(id) : Promise.resolve(null),
-	]);
-	const now = Date.now();
-	const patch: Partial<State> = {};
-	if (webhook.kind === "ok") {
-		patch.detail = { ...state.detail, [id]: { data: webhook.data, at: now } };
-	}
-	if (deliveries.kind === "ok") {
-		patch.deliveries = {
-			...state.deliveries,
-			[id]: { data: deliveries.data, at: now },
-		};
-	}
-	if (dead.kind === "ok") {
-		patch.dead = { ...state.dead, [id]: { data: dead.data, at: now } };
-	}
-	if (activity && activity.kind === "ok") {
-		patch.activity = {
-			...state.activity,
-			[id]: { data: activity.data, at: now },
-		};
-	}
-	if (Object.keys(patch).length > 0) set(patch);
-	return { webhook, deliveries, dead, activity };
+	const key = `webhooks:detail:${id}:${includeActivity}`;
+	return shared(key, async () => {
+		const [webhook, deliveries, activity] = await Promise.all([
+			getWebhook(id),
+			getDeliveries(id),
+			includeActivity ? getActivity(id) : Promise.resolve(null),
+		]);
+		const now = Date.now();
+		const patch: Partial<State> = {};
+		if (webhook.kind === "ok") {
+			patch.detail = { ...state.detail, [id]: { data: webhook.data, at: now } };
+		}
+		if (deliveries.kind === "ok") {
+			patch.deliveries = {
+				...state.deliveries,
+				[id]: { data: deliveries.data, at: now },
+			};
+		}
+		if (activity && activity.kind === "ok") {
+			patch.activity = {
+				...state.activity,
+				[id]: { data: activity.data, at: now },
+			};
+		}
+		if (Object.keys(patch).length > 0) {
+			set(patch);
+			markFresh(key);
+		}
+		return { webhook, deliveries, activity };
+	});
 }
 
 /** The fast standalone `/activity` poll (5s, while a receiver is down or
  *  events are waiting) — refreshes only that one slice, not the whole
- *  detail bundle, so the catch-up view doesn't re-fetch deliveries/dead on
+ *  detail bundle, so the catch-up view doesn't re-fetch deliveries on
  *  every tick. */
-export async function refreshActivity(
+export function refreshActivity(
 	id: string,
 ): Promise<WebhooksResult<WebhookActivity>> {
-	const res = await getActivity(id);
-	if (res.kind === "ok") {
-		set({
-			activity: { ...state.activity, [id]: { data: res.data, at: Date.now() } },
-		});
-	}
-	return res;
+	const key = `webhooks:activity:${id}`;
+	return shared(key, async () => {
+		const res = await getActivity(id);
+		if (res.kind === "ok") {
+			set({
+				activity: {
+					...state.activity,
+					[id]: { data: res.data, at: Date.now() },
+				},
+			});
+			markFresh(key);
+		}
+		return res;
+	});
 }
 
 /**

@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { type Insight, rankInsights } from "./insights";
+import { markFresh, shared } from "./request-cache";
 import { poll } from "./webhooks-store";
 
 /**
@@ -45,18 +46,21 @@ export function clearInsights(): void {
 	set(EMPTY);
 }
 
-export async function refreshInsights(): Promise<void> {
-	try {
-		const res = await fetch("/api/insights");
-		if (!res.ok) {
+export function refreshInsights(): Promise<void> {
+	return shared("insights", async () => {
+		try {
+			const res = await fetch("/api/insights");
+			if (!res.ok) {
+				set({ ...state, status: state.status === "ok" ? "ok" : "error" });
+				return;
+			}
+			const body = (await res.json()) as { data: Insight[] };
+			set({ status: "ok", data: rankInsights(body.data), at: Date.now() });
+			markFresh("insights");
+		} catch {
 			set({ ...state, status: state.status === "ok" ? "ok" : "error" });
-			return;
 		}
-		const body = (await res.json()) as { data: Insight[] };
-		set({ status: "ok", data: rankInsights(body.data), at: Date.now() });
-	} catch {
-		set({ ...state, status: state.status === "ok" ? "ok" : "error" });
-	}
+	});
 }
 
 // ── Selectors (pure) ─────────────────────────────────────────────────────

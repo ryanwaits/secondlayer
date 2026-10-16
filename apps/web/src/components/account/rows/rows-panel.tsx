@@ -9,7 +9,7 @@ import { ActionableInsights } from "@/components/dashboard/insight/insight-actio
 import { KeyFirstLine } from "@/components/dashboard/shell/onboarding";
 import { ResourceRow } from "@/components/dashboard/shell/resource-row";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
-import { refreshKeys, refreshRows, useAccountData } from "@/lib/account-data";
+import { ensureKeys, refreshRows, useAccountData } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
@@ -277,7 +277,7 @@ export function RowsSection() {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: load once on mount
 	useEffect(() => {
 		load();
-		refreshKeys();
+		ensureKeys();
 	}, []);
 
 	const status = rows ? "ok" : failed ? "failed" : "not_loaded";

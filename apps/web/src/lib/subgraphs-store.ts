@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { markFresh, shared } from "./request-cache";
 import { type WebhooksResult, resultForStatus } from "./webhooks-data";
 
 export { poll } from "./webhooks-store";
@@ -170,65 +171,81 @@ const seg = encodeURIComponent;
 
 /** A 404 on the list means the account has no subgraphs (and maybe no stack
  *  yet), so it reads as an empty list, never as `not_found`. */
-export async function refreshList(): Promise<
+export function refreshList(): Promise<
 	Exclude<SubgraphsResult<SubgraphListItem[]>, { kind: "not_found" }>
 > {
-	const res = await request<{ data: SubgraphListItem[] }>("");
-	if (res.kind === "ok") {
-		set({ list: { data: res.data.data, at: Date.now() } });
-		return { kind: "ok", data: res.data.data };
-	}
-	if (res.kind === "not_found") {
-		set({ list: { data: [], at: Date.now() } });
-		return { kind: "ok", data: [] };
-	}
-	return res;
+	return shared("subgraphs:list", async () => {
+		const res = await request<{ data: SubgraphListItem[] }>("");
+		if (res.kind === "ok") {
+			set({ list: { data: res.data.data, at: Date.now() } });
+			markFresh("subgraphs:list");
+			return { kind: "ok", data: res.data.data } as const;
+		}
+		if (res.kind === "not_found") {
+			set({ list: { data: [], at: Date.now() } });
+			markFresh("subgraphs:list");
+			return { kind: "ok", data: [] } as const;
+		}
+		return res;
+	});
 }
 
-export async function refreshDetail(
+export function refreshDetail(
 	name: string,
 ): Promise<SubgraphsResult<SubgraphDetailData>> {
-	const res = await request<SubgraphDetailData>(`/${seg(name)}`);
-	if (res.kind === "ok") {
-		set({
-			detail: { ...state.detail, [name]: { data: res.data, at: Date.now() } },
-		});
-	}
-	return res;
+	const key = `subgraphs:detail:${name}`;
+	return shared(key, async () => {
+		const res = await request<SubgraphDetailData>(`/${seg(name)}`);
+		if (res.kind === "ok") {
+			set({
+				detail: { ...state.detail, [name]: { data: res.data, at: Date.now() } },
+			});
+			markFresh(key);
+		}
+		return res;
+	});
 }
 
 /** Hourly buckets, oldest first, ending with the current hour. */
-export async function refreshHealth(
+export function refreshHealth(
 	name: string,
 	hours = 24,
 ): Promise<SubgraphsResult<SubgraphHealthData>> {
-	const res = await request<SubgraphHealthData>(
-		`/${seg(name)}/health?hours=${hours}`,
-	);
-	if (res.kind === "ok") {
-		set({
-			health: { ...state.health, [name]: { data: res.data, at: Date.now() } },
-		});
-	}
-	return res;
+	const key = `subgraphs:health:${name}:${hours}`;
+	return shared(key, async () => {
+		const res = await request<SubgraphHealthData>(
+			`/${seg(name)}/health?hours=${hours}`,
+		);
+		if (res.kind === "ok") {
+			set({
+				health: { ...state.health, [name]: { data: res.data, at: Date.now() } },
+			});
+			markFresh(key);
+		}
+		return res;
+	});
 }
 
-export async function refreshErrors(
+export function refreshErrors(
 	name: string,
 ): Promise<SubgraphsResult<SubgraphErrorGroup[]>> {
-	const res = await request<{ data: SubgraphErrorGroup[] }>(
-		`/${seg(name)}/errors?limit=20`,
-	);
-	if (res.kind === "ok") {
-		set({
-			errors: {
-				...state.errors,
-				[name]: { data: res.data.data, at: Date.now() },
-			},
-		});
-		return { kind: "ok", data: res.data.data };
-	}
-	return res;
+	const key = `subgraphs:errors:${name}`;
+	return shared(key, async () => {
+		const res = await request<{ data: SubgraphErrorGroup[] }>(
+			`/${seg(name)}/errors?limit=20`,
+		);
+		if (res.kind === "ok") {
+			set({
+				errors: {
+					...state.errors,
+					[name]: { data: res.data.data, at: Date.now() },
+				},
+			});
+			markFresh(key);
+			return { kind: "ok", data: res.data.data } as const;
+		}
+		return res;
+	});
 }
 
 /** One page of a table's rows. Not cached: the grid owns its page state. */

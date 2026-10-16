@@ -6,6 +6,7 @@ import {
 	PACKS_USD,
 	type PackUsd,
 	type TopupReturn,
+	ensureBilling,
 	formatUsd,
 	refreshBilling,
 	startCheckout,
@@ -146,7 +147,7 @@ export function CreditsCard({
 	const { billing, burn } = useAccountData();
 	const co = useCheckout();
 	useEffect(() => {
-		if (open) refreshBilling();
+		if (open) ensureBilling();
 	}, [open]);
 
 	return (

@@ -55,7 +55,7 @@ import {
 	utcStamp,
 } from "./view";
 
-/** How often the detail bundle (webhook, deliveries, dead, activity)
+/** How often the detail bundle (webhook, deliveries, activity)
  *  refreshes together while the tab is visible. */
 const DETAIL_POLL_MS = 10_000;
 /** The fast standalone `/activity` poll while events are waiting to send. */

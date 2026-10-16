@@ -8,7 +8,7 @@ import {
 	PlaceholderRows,
 } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
-import { refreshKeys, useAccountData } from "@/lib/account-data";
+import { ensureKeys, useAccountData } from "@/lib/account-data";
 import { hasNoKey } from "@/lib/onboarding";
 import { hostOf } from "@/lib/webhooks-data";
 import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
@@ -323,7 +323,7 @@ export function WebhooksListSection() {
 	const { rows, hours } = useWebhookRows();
 	const { keys } = useAccountData();
 	useEffect(() => {
-		refreshKeys();
+		ensureKeys();
 	}, []);
 	return (
 		<WebhooksListBody

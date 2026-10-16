@@ -6,8 +6,8 @@ import { ActionableInsights } from "@/components/dashboard/insight/insight-actio
 import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import {
+	ensureKeys,
 	formatDate,
-	refreshKeys,
 	revokeKey,
 	useAccountData,
 } from "@/lib/account-data";
@@ -464,7 +464,7 @@ export function KeysScreen() {
 	const now = new Date();
 
 	useEffect(() => {
-		refreshKeys();
+		ensureKeys();
 	}, []);
 	useEffect(
 		() => () => {

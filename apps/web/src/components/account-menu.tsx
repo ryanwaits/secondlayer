@@ -3,10 +3,10 @@
 import { CreditsCard } from "@/components/account/credits-panel";
 import {
 	clearAccountData,
+	ensureBilling,
+	ensureCaps,
+	ensureUsage,
 	formatUsd,
-	refreshBilling,
-	refreshCaps,
-	refreshUsage,
 	useAccountData,
 } from "@/lib/account-data";
 import type { Account } from "@/lib/types";
@@ -165,14 +165,14 @@ export function AccountMenu({
 	const menuId = useId();
 
 	useEffect(() => {
-		refreshBilling();
+		ensureBilling();
 	}, []);
 
 	const serviceExists = service !== null && service.state !== "none";
 	useEffect(() => {
 		if (!open) return;
-		refreshUsage(monthParam(currentUtcMonth()));
-		refreshCaps();
+		ensureUsage(monthParam(currentUtcMonth()));
+		ensureCaps();
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === "Escape") setOpen(false);
 		};

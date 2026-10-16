@@ -4,6 +4,7 @@ import type {
 	WebhookDetail,
 	WebhookSummary,
 } from "@secondlayer/sdk";
+import { clearRequestCache } from "./request-cache";
 import {
 	clearWebhooksData,
 	poll,
@@ -16,6 +17,7 @@ const originalFetch = globalThis.fetch;
 afterEach(() => {
 	globalThis.fetch = originalFetch;
 	clearWebhooksData();
+	clearRequestCache();
 });
 
 function jsonResponse(
@@ -86,9 +88,6 @@ function stubFetch(webhookId: string) {
 		if (path === `/api/webhooks/${webhookId}/deliveries`) {
 			return jsonResponse({ data: [] });
 		}
-		if (path === `/api/webhooks/${webhookId}/dead`) {
-			return jsonResponse({ data: [] });
-		}
 		if (path === `/api/webhooks/${webhookId}/activity`) {
 			return jsonResponse(emptyActivity);
 		}
@@ -98,6 +97,12 @@ function stubFetch(webhookId: string) {
 }
 
 describe("refreshList", () => {
+	test("concurrent calls share one request", async () => {
+		const calls = stubFetch("wh-share");
+		await Promise.all([refreshList(), refreshList()]);
+		expect(calls.filter((c) => c === "/api/webhooks").length).toBe(1);
+	});
+
 	test("caches the rows on an ok result", async () => {
 		stubFetch("wh-1");
 		const res = await refreshList();
@@ -153,7 +158,7 @@ describe("refreshList", () => {
 });
 
 describe("refreshDetail", () => {
-	test("starts all four reads together, not one after another", async () => {
+	test("starts every detail read together, not one after another", async () => {
 		const starts: string[] = [];
 		globalThis.fetch = (async (url: string) => {
 			starts.push(String(url));
@@ -162,7 +167,6 @@ describe("refreshDetail", () => {
 			await Promise.resolve();
 			if (String(url).endsWith("/deliveries"))
 				return jsonResponse({ data: [] });
-			if (String(url).endsWith("/dead")) return jsonResponse({ data: [] });
 			if (String(url).endsWith("/activity")) return jsonResponse(emptyActivity);
 			return jsonResponse(detail("wh-3", "pool-payouts"));
 		}) as typeof fetch;
@@ -171,7 +175,6 @@ describe("refreshDetail", () => {
 		expect(starts.sort()).toEqual(
 			[
 				"/api/webhooks/wh-3",
-				"/api/webhooks/wh-3/dead",
 				"/api/webhooks/wh-3/deliveries",
 				"/api/webhooks/wh-3/activity",
 			].sort(),
@@ -184,7 +187,6 @@ describe("refreshDetail", () => {
 		const cache = webhooksSnapshot();
 		expect(cache.detail["wh-3b"]?.data.name).toBe("pool-payouts");
 		expect(cache.deliveries["wh-3b"]?.data).toEqual([]);
-		expect(cache.dead["wh-3b"]?.data).toEqual([]);
 		expect(cache.activity["wh-3b"]?.data).toEqual(emptyActivity);
 	});
 
@@ -194,7 +196,6 @@ describe("refreshDetail", () => {
 			const path = String(url);
 			calls.push(path);
 			if (path.endsWith("/deliveries")) return jsonResponse({ data: [] });
-			if (path.endsWith("/dead")) return jsonResponse({ data: [] });
 			if (path.endsWith("/activity")) {
 				throw new Error("activity should not be fetched when excluded");
 			}
@@ -202,7 +203,7 @@ describe("refreshDetail", () => {
 		}) as typeof fetch;
 
 		const res = await refreshDetail("wh-3c", { activity: false });
-		expect(calls.length).toBe(3);
+		expect(calls.length).toBe(2);
 		expect(res.activity).toBeNull();
 		expect(webhooksSnapshot().activity["wh-3c"]).toBeUndefined();
 	});
@@ -220,7 +221,6 @@ describe("clearWebhooksData", () => {
 		expect(cache.list).toBeUndefined();
 		expect(cache.detail).toEqual({});
 		expect(cache.deliveries).toEqual({});
-		expect(cache.dead).toEqual({});
 		expect(cache.activity).toEqual({});
 	});
 });

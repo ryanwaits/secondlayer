@@ -2,7 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import { clearInsights } from "./insights-store";
+import { clearRequestCache, isFresh, markFresh, shared } from "./request-cache";
 import type { RowsResponse } from "./rows";
+import { clearSubgraphsData } from "./subgraphs-store";
 import type { ApiKey, CreditAdded } from "./types";
 import {
 	type Burn,
@@ -94,16 +96,24 @@ export function useAccountData(): State {
 	);
 }
 
-export async function refreshBilling(): Promise<Billing | null> {
-	try {
-		const res = await fetch("/api/billing/status");
-		if (!res.ok) return null;
-		const billing = (await res.json()) as Billing;
-		set({ billing });
-		return billing;
-	} catch {
-		return null;
-	}
+export function refreshBilling(): Promise<Billing | null> {
+	return shared("billing", async () => {
+		try {
+			const res = await fetch("/api/billing/status");
+			if (!res.ok) return null;
+			const billing = (await res.json()) as Billing;
+			set({ billing });
+			markFresh("billing");
+			return billing;
+		} catch {
+			return null;
+		}
+	});
+}
+
+/** For a screen mounting: load billing unless another screen just did. */
+export function ensureBilling(): Promise<unknown> {
+	return isFresh("billing") ? Promise.resolve() : refreshBilling();
 }
 
 /** This account's usage_ledger for one UTC calendar month (`YYYY-MM`),
@@ -113,36 +123,45 @@ export async function refreshBilling(): Promise<Billing | null> {
  *  from can't overwrite whatever month is on screen now — `burn` and
  *  `service` always take the latest response, since they're never
  *  month-scoped. Mirrors `refreshBilling`. */
-export async function refreshUsage(
-	month: string,
-): Promise<UsageResponse | null> {
-	try {
-		const res = await fetch(`/api/billing/usage?month=${month}`);
-		if (!res.ok) return null;
-		const data = (await res.json()) as UsageResponse;
-		set({
-			usage: withUsageMonth(state.usage, month, data.usage),
-			daily: { ...state.daily, [month]: data.daily },
-			burn: data.burn,
-			service: data.service,
-		});
-		return data;
-	} catch {
-		return null;
-	}
+export function refreshUsage(month: string): Promise<UsageResponse | null> {
+	return shared(`usage:${month}`, async () => {
+		try {
+			const res = await fetch(`/api/billing/usage?month=${month}`);
+			if (!res.ok) return null;
+			const data = (await res.json()) as UsageResponse;
+			set({
+				usage: withUsageMonth(state.usage, month, data.usage),
+				daily: { ...state.daily, [month]: data.daily },
+				burn: data.burn,
+				service: data.service,
+			});
+			markFresh(`usage:${month}`);
+			return data;
+		} catch {
+			return null;
+		}
+	});
+}
+
+/** For a screen mounting: load a month's usage unless another screen just did. */
+export function ensureUsage(month: string): Promise<unknown> {
+	return isFresh(`usage:${month}`) ? Promise.resolve() : refreshUsage(month);
 }
 
 /** The signed-in account's balance-alert email preferences. */
-export async function refreshAlerts(): Promise<BalanceAlerts | null> {
-	try {
-		const res = await fetch("/api/billing/alerts");
-		if (!res.ok) return null;
-		const alerts = (await res.json()) as BalanceAlerts;
-		set({ alerts });
-		return alerts;
-	} catch {
-		return null;
-	}
+export function refreshAlerts(): Promise<BalanceAlerts | null> {
+	return shared("alerts", async () => {
+		try {
+			const res = await fetch("/api/billing/alerts");
+			if (!res.ok) return null;
+			const alerts = (await res.json()) as BalanceAlerts;
+			set({ alerts });
+			markFresh("alerts");
+			return alerts;
+		} catch {
+			return null;
+		}
+	});
 }
 
 /** Optimistic PUT: the caller flips the switch immediately, this persists
@@ -163,44 +182,58 @@ export async function updateAlerts(
 }
 
 /** The signed-in account's monthly spend-cap setting. */
-export async function refreshCaps(): Promise<Caps | null> {
-	try {
-		const res = await fetch("/api/billing/caps");
-		if (!res.ok) return null;
-		const caps = (await res.json()) as Caps;
-		set({ caps });
-		return caps;
-	} catch {
-		return null;
-	}
+export function refreshCaps(): Promise<Caps | null> {
+	return shared("caps", async () => {
+		try {
+			const res = await fetch("/api/billing/caps");
+			if (!res.ok) return null;
+			const caps = (await res.json()) as Caps;
+			set({ caps });
+			markFresh("caps");
+			return caps;
+		} catch {
+			return null;
+		}
+	});
+}
+
+/** For a screen mounting: load the cap unless another screen just did. */
+export function ensureCaps(): Promise<unknown> {
+	return isFresh("caps") ? Promise.resolve() : refreshCaps();
 }
 
 /** The signed-in account's latest top-ups and grants. */
-export async function refreshCredits(): Promise<CreditAdded[] | null> {
-	try {
-		const res = await fetch("/api/billing/credits");
-		if (!res.ok) return null;
-		const { credits } = (await res.json()) as { credits: CreditAdded[] };
-		set({ credits });
-		return credits;
-	} catch {
-		return null;
-	}
+export function refreshCredits(): Promise<CreditAdded[] | null> {
+	return shared("credits", async () => {
+		try {
+			const res = await fetch("/api/billing/credits");
+			if (!res.ok) return null;
+			const { credits } = (await res.json()) as { credits: CreditAdded[] };
+			set({ credits });
+			markFresh("credits");
+			return credits;
+		} catch {
+			return null;
+		}
+	});
 }
 
 /** Rows delivered for the signed-in account. Keeps the last good data on a
  *  failed refresh and returns null, so the caller can tell a first-load
  *  failure from a stale refresh. */
-export async function refreshRows(): Promise<RowsResponse | null> {
-	try {
-		const res = await fetch("/api/billing/rows");
-		if (!res.ok) return null;
-		const rows = (await res.json()) as RowsResponse;
-		set({ rows });
-		return rows;
-	} catch {
-		return null;
-	}
+export function refreshRows(): Promise<RowsResponse | null> {
+	return shared("rows", async () => {
+		try {
+			const res = await fetch("/api/billing/rows");
+			if (!res.ok) return null;
+			const rows = (await res.json()) as RowsResponse;
+			set({ rows });
+			markFresh("rows");
+			return rows;
+		} catch {
+			return null;
+		}
+	});
 }
 
 /** Set or clear the monthly spend cap. `monthlyCapCents: null` clears it. */
@@ -218,22 +251,32 @@ export async function updateCap(
 	return caps;
 }
 
-export async function refreshKeys(): Promise<void> {
-	try {
-		const res = await fetch("/api/keys");
-		if (!res.ok) return;
-		const data = (await res.json()) as { keys: ApiKey[] };
-		set({ keys: data.keys });
-	} catch {
-		// Keep what we had; the list retries on the next open.
-	}
+export function refreshKeys(): Promise<void> {
+	return shared("keys", async () => {
+		try {
+			const res = await fetch("/api/keys");
+			if (!res.ok) return;
+			const data = (await res.json()) as { keys: ApiKey[] };
+			set({ keys: data.keys });
+			markFresh("keys");
+		} catch {
+			// Keep what we had; the list retries on the next open.
+		}
+	});
+}
+
+/** For a screen mounting: load keys unless another screen just did. */
+export function ensureKeys(): Promise<void> {
+	return isFresh("keys") ? Promise.resolve() : refreshKeys();
 }
 
 /** Forget everything on sign-out so the next account never sees it. */
 export function clearAccountData(): void {
 	set(EMPTY);
 	clearWebhooksData();
+	clearSubgraphsData();
 	clearInsights();
+	clearRequestCache();
 }
 
 /** A refused key creation: the status tells the cap (403) from the rate limit (429). */

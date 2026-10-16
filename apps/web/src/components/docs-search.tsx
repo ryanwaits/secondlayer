@@ -1,7 +1,7 @@
 "use client";
 
 import apiNav from "@/generated/openapi-nav.json";
-import { refreshKeys, useAccountData } from "@/lib/account-data";
+import { ensureKeys, useAccountData } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import {
 	type CommandItem,
@@ -326,7 +326,7 @@ export function DocsSearch() {
 	function loadAccount() {
 		if (!account || fetchedAccount.current) return;
 		fetchedAccount.current = true;
-		void refreshKeys();
+		void ensureKeys();
 		void refreshList().catch(() => {});
 	}
 
