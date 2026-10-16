@@ -110,6 +110,8 @@ export const OPERATION_IDS: Record<string, string> = {
 	"GET /api/subgraphs/{name}/operations/{operation_id}":
 		"getDeploymentOperation",
 	"GET /api/subgraphs/{name}/gaps": "listDeploymentGaps",
+	"GET /api/subgraphs/{name}/health": "getDeploymentHealth",
+	"GET /api/subgraphs/{name}/errors": "listDeploymentErrors",
 	"GET /api/subgraphs/{name}/violations": "listDeploymentViolations",
 	"GET /api/webhooks": "listWebhooks",
 	"POST /api/webhooks": "createWebhook",

@@ -12307,6 +12307,26 @@
 			}
 		},
 		{
+			"path": "/api/subgraphs/{name}/health",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Hourly buckets from the snapshot the subgraph records every minute: blocks behind the chain tip, rows written, handler errors and events handled.",
+				"route": "/docs/api/subgraphs",
+				"anchor": "get-deployment-health"
+			}
+		},
+		{
+			"path": "/api/subgraphs/{name}/errors",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Handler errors grouped by message and stack frame, most frequent first.",
+				"route": "/docs/api/subgraphs",
+				"anchor": "list-deployment-errors"
+			}
+		},
+		{
 			"path": "/api/subgraphs/{name}/violations",
 			"method": "GET",
 			"tip": {

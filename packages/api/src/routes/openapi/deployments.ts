@@ -639,6 +639,174 @@ export const deploymentsPaths = {
 			}),
 		},
 	},
+	"/api/subgraphs/{name}/health": {
+		get: {
+			tags: ["deployments"],
+			summary: "Get a subgraph's hourly health",
+			"x-nav-title": "Health",
+			description:
+				"Hourly buckets from the snapshot the subgraph records every minute: blocks behind the chain tip, rows written, handler errors and events handled. Snapshots are kept 7 days. Oldest hour first; an hour with no snapshots has `lagBlocks: null` and zero counts.",
+			security: WRITE_SECURITY,
+			parameters: [
+				NAME_PARAM,
+				qp("hours", "integer", false, "Hours to return, 1 to 168. Default 24."),
+			],
+			responses: apiReadResponses({
+				"200": {
+					description: "Hourly health",
+					content: {
+						"application/json": {
+							schema: {
+								type: "object",
+								required: ["hours", "errors24h"],
+								properties: {
+									hours: {
+										type: "array",
+										description: "One bucket per hour, oldest first.",
+										items: {
+											type: "object",
+											required: [
+												"hour",
+												"lagBlocks",
+												"rowsWritten",
+												"errors",
+												"eventsHandled",
+											],
+											properties: {
+												hour: {
+													type: "string",
+													format: "date-time",
+													description: "Start of the UTC hour.",
+												},
+												lagBlocks: {
+													type: ["integer", "null"],
+													description:
+														"Blocks behind the chain tip at the hour's last snapshot. Null when the hour has none.",
+												},
+												rowsWritten: {
+													type: "integer",
+													description: "Rows the handlers wrote in the hour.",
+												},
+												errors: {
+													type: "integer",
+													description: "Handler errors in the hour.",
+												},
+												eventsHandled: {
+													type: "integer",
+													description:
+														"Events the handlers processed in the hour.",
+												},
+											},
+										},
+									},
+									errors24h: {
+										type: "integer",
+										description: "Handler errors across the newest 24 hours.",
+									},
+								},
+								example: {
+									hours: [
+										{
+											hour: "2026-10-16T13:00:00.000Z",
+											lagBlocks: 0,
+											rowsWritten: 1840,
+											errors: 0,
+											eventsHandled: 2213,
+										},
+									],
+									errors24h: 0,
+								},
+							},
+						},
+					},
+				},
+				"400": jsonError(
+					"`hours` is not an integer from 1 to 168 (`VALIDATION_ERROR`)",
+				),
+				"404": NOT_FOUND_SUBGRAPH,
+			}),
+		},
+	},
+	"/api/subgraphs/{name}/errors": {
+		get: {
+			tags: ["deployments"],
+			summary: "List a subgraph's handler errors",
+			"x-nav-title": "Handler errors",
+			description:
+				"Handler errors grouped by message and stack frame, most frequent first. A bug that throws on every event is one group with a count, plus a sample transaction to reproduce it.",
+			security: WRITE_SECURITY,
+			parameters: [
+				NAME_PARAM,
+				qp("limit", "integer", false, "Groups to return, 1 to 50. Default 20."),
+			],
+			responses: apiReadResponses({
+				"200": {
+					description: "Error groups",
+					content: {
+						"application/json": {
+							schema: {
+								type: "object",
+								required: ["data"],
+								properties: {
+									data: {
+										type: "array",
+										description: "Most frequent first.",
+										items: {
+											type: "object",
+											required: [
+												"message",
+												"frame",
+												"eventType",
+												"sourceName",
+												"count",
+												"sampleTxId",
+												"sampleBlockHeight",
+												"firstSeen",
+												"lastSeen",
+											],
+											properties: {
+												message: { type: "string" },
+												frame: {
+													type: ["string", "null"],
+													description:
+														"Top stack frame in the handler, when known.",
+												},
+												eventType: { type: ["string", "null"] },
+												sourceName: { type: ["string", "null"] },
+												count: { type: "integer" },
+												sampleTxId: { type: ["string", "null"] },
+												sampleBlockHeight: { type: ["integer", "null"] },
+												firstSeen: { type: "string", format: "date-time" },
+												lastSeen: { type: "string", format: "date-time" },
+											},
+										},
+									},
+								},
+								example: {
+									data: [
+										{
+											message:
+												"Cannot read properties of undefined (reading 'amount')",
+											frame: "handlers/swap.ts:14:22",
+											eventType: "print",
+											sourceName: "swaps",
+											count: 312,
+											sampleTxId:
+												"0x8d2f6a91c4e07b35d1a8f2e69c0b47d3a5e18f62b9c04d7e3a16f58b2c9d0e41",
+											sampleBlockHeight: 9031477,
+											firstSeen: "2026-10-16T09:02:11.000Z",
+											lastSeen: "2026-10-16T13:41:56.000Z",
+										},
+									],
+								},
+							},
+						},
+					},
+				},
+				"404": NOT_FOUND_SUBGRAPH,
+			}),
+		},
+	},
 	"/api/subgraphs/{name}/violations": {
 		get: {
 			tags: ["deployments"],

@@ -584,6 +584,16 @@
 				"title": "List a subgraph's gaps"
 			},
 			{
+				"anchor": "get-deployment-health",
+				"method": "GET",
+				"title": "Get a subgraph's hourly health"
+			},
+			{
+				"anchor": "list-deployment-errors",
+				"method": "GET",
+				"title": "List a subgraph's handler errors"
+			},
+			{
 				"anchor": "list-deployment-violations",
 				"method": "GET",
 				"title": "List a subgraph's print violations"
