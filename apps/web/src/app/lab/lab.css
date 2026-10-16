@@ -284,8 +284,8 @@ body:has(.lab) .auth-bar {
 .lab-fr[data-mode="dark"] {
 	/* Chart roles: a = the measured series, b/c = lighter steps, mark = what an insight points at (fill only), alarm = failure. Dashboard only. */
 	--ch-a: var(--pri);
-	--ch-b: color-mix(in srgb, var(--pri) 42%, var(--paper));
-	--ch-c: color-mix(in srgb, var(--pri) 24%, var(--paper));
+	--ch-b: color-mix(in srgb, var(--pri) 55%, var(--ink));
+	--ch-c: color-mix(in srgb, var(--pri) 35%, var(--ink));
 	--ch-mark: var(--hi);
 	--on-mark: var(--on-hi);
 	--paper: #1c1b19;

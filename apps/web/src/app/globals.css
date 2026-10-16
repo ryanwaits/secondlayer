@@ -135,6 +135,9 @@
 		--soft: #252420;
 		--pri: #3a5bff;
 		--on-pri: #ffffff;
+		/* On a dark ground the lighter chart steps mix toward ink, not paper. */
+		--ch-b: color-mix(in srgb, var(--pri) 55%, var(--ink));
+		--ch-c: color-mix(in srgb, var(--pri) 35%, var(--ink));
 		--hi: #efc54a;
 		--on-hi: #141414;
 		--ok: #5cc28f;
@@ -1784,11 +1787,12 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	align-items: center;
 	gap: 10px;
 	padding: 10px 12px;
+	border: 1px solid var(--line);
 	border-radius: 8px;
-	background: #151515;
-	color: #d7d1c9;
+	background: var(--paper);
+	color: var(--ink);
 	font-family: var(--font-mono-stack);
-	font-size: 12.5px;
+	font-size: 13px;
 }
 /* The command scrolls on its own, inside the block; the copy button (below)
  * is a fixed-size flex item that never shrinks or scrolls with it, so a long
@@ -1798,22 +1802,21 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	min-width: 0;
 	overflow-x: auto;
 	white-space: pre;
-	font-size: 12.5px;
+	font-size: 13px;
 }
 .wh-cli-p {
-	color: #8d867e;
+	color: var(--faint);
 	margin-right: 4px;
 }
 .wh-cli .copy-button {
 	flex: 0 0 auto;
 	background: none;
-	color: #d7d1c9;
-	border: 1px solid rgba(255, 255, 255, 0.12);
+	color: var(--sub);
+	border: 1px solid var(--line);
 	border-radius: 6px;
 }
 .wh-cli .copy-button:hover {
-	background: rgba(255, 255, 255, 0.06);
-	color: #fff;
+	color: var(--pri);
 }
 
 /* The deliveries table's Event column (short tx + event index) — dropped
