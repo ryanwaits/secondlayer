@@ -7,7 +7,6 @@ import type {
 import {
 	clearWebhooksData,
 	poll,
-	prefetchDetail,
 	refreshDetail,
 	refreshList,
 	webhooksSnapshot,
@@ -206,27 +205,6 @@ describe("refreshDetail", () => {
 		expect(calls.length).toBe(3);
 		expect(res.activity).toBeNull();
 		expect(webhooksSnapshot().activity["wh-3c"]).toBeUndefined();
-	});
-});
-
-describe("prefetchDetail", () => {
-	test("dedupes a second call while the first is still in flight", async () => {
-		const calls = stubFetch("wh-4");
-		prefetchDetail("wh-4");
-		prefetchDetail("wh-4");
-		await new Promise((r) => setTimeout(r, 0));
-		await new Promise((r) => setTimeout(r, 0));
-		const detailCalls = calls.filter((c) => c === "/api/webhooks/wh-4");
-		expect(detailCalls.length).toBe(1);
-	});
-
-	test("skips refetching a cache entry younger than the freshness window", async () => {
-		const calls = stubFetch("wh-5");
-		await refreshDetail("wh-5");
-		const before = calls.length;
-		prefetchDetail("wh-5");
-		await new Promise((r) => setTimeout(r, 0));
-		expect(calls.length).toBe(before);
 	});
 });
 

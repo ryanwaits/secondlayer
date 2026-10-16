@@ -90,10 +90,6 @@ export function clearWebhooksData(): void {
 	for (const l of listeners) l();
 }
 
-/** How long a cached row is worth serving without a fresh call behind it —
- *  `prefetchDetail`'s own dedupe window, not the visible-poll cadence. */
-const FRESH_MS = 10_000;
-
 /** Never resolves `not_found` — the list endpoint's 404 always meant "no
  *  webhooks on this account", so it's folded into an empty `ok` below,
  *  never surfaced as its own kind a caller would have to handle. */
@@ -250,22 +246,6 @@ export async function refreshActivity(
 		});
 	}
 	return res;
-}
-
-const inFlight = new Map<string, Promise<DetailFetch>>();
-
-/** Warm the cache for a row the reader is about to open (a list-row hover or
- *  focus). Deduped against an in-flight request and skipped outright if the
- *  cache is still fresh — a fast pointer sweeping several rows fires at most
- *  one request per row per `FRESH_MS`. */
-export function prefetchDetail(id: string): void {
-	const entry = state.detail[id];
-	if (entry && Date.now() - entry.at < FRESH_MS) return;
-	if (inFlight.has(id)) return;
-	const p = refreshDetail(id).finally(() => {
-		inFlight.delete(id);
-	});
-	inFlight.set(id, p);
 }
 
 /**
