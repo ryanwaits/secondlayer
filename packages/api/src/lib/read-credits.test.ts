@@ -89,6 +89,23 @@ describe.skipIf(!HAS_DB)("meterRowsDelivered (DB)", () => {
 			.execute();
 		expect(rows.length).toBeGreaterThan(0);
 	});
+
+	test("a key id is recorded on the ledger row; the 3-arg call leaves it null", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const keyId = crypto.randomUUID();
+		await meterRowsDelivered(accountId, 3, "test-keyed", keyId);
+		await meterRowsDelivered(accountId, 4, "test-unkeyed");
+		const rows = await db
+			.selectFrom("usage_ledger")
+			.select(["source", "api_key_id"])
+			.where("account_id", "=", accountId)
+			.where("source", "in", ["test-keyed", "test-unkeyed"])
+			.execute();
+		expect(rows.find((r) => r.source === "test-keyed")?.api_key_id).toBe(keyId);
+		expect(
+			rows.find((r) => r.source === "test-unkeyed")?.api_key_id,
+		).toBeNull();
+	});
 });
 
 describe.skipIf(!HAS_DB)(

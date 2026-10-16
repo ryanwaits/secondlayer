@@ -17,6 +17,7 @@ export type StreamsTenant = {
 	tenant_id: string;
 	account_id?: string;
 	tier: StreamsTier;
+	api_key_id?: string;
 	scopes: readonly string[];
 };
 

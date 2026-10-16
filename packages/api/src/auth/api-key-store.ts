@@ -13,6 +13,9 @@ export type ProductTenant<TTier extends ProductTier = ProductTier> = {
 	tenant_id: string;
 	account_id?: string;
 	tier: TTier;
+	/** Set only for DB-backed `sk-sl_` keys; absent for static seed tokens
+	 *  and the self-host instance token. */
+	api_key_id?: string;
 	scopes: readonly string[];
 };
 
@@ -23,6 +26,7 @@ export type ProductTokenStore<TTenant> = {
 export type ProductScope = "streams" | "index" | "sentinel" | "chain-read";
 
 type ApiKeyRecord = {
+	id: string;
 	account_id: string;
 	status: string;
 	tier: ProductTier | null;
@@ -72,7 +76,7 @@ async function lookupAccountApiKey(
 	// found.
 	const row = await db
 		.selectFrom("api_keys")
-		.select(["account_id", "status", "tier"])
+		.select(["id", "account_id", "status", "tier"])
 		.where("key_hash", "=", tokenHash)
 		.where("product", "in", acceptedKeyProducts(product))
 		.where((eb) =>
@@ -85,6 +89,7 @@ async function lookupAccountApiKey(
 
 	if (!row) return null;
 	return {
+		id: row.id,
 		account_id: row.account_id,
 		// DB-backed keys are the single metered tier, except a first-party
 		// `internal` key (only mintable by an internal route, see
@@ -139,6 +144,7 @@ export function createApiKeyTokenStore<TTenant extends ProductTenant>(
 				tenant_id: `account:${key.account_id}`,
 				account_id: key.account_id,
 				tier: key.tier ?? "free",
+				api_key_id: key.id,
 				scopes: [opts.requiredScope],
 			} as unknown as TTenant;
 		},

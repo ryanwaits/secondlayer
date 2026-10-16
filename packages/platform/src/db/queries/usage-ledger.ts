@@ -22,6 +22,8 @@ export type LedgerEntry = {
 	source: string;
 	idempotencyKey: string;
 	occurredAt: Date;
+	/** API key behind the request; null for anything not a keyed read. */
+	apiKeyId?: string | null;
 };
 
 /**
@@ -45,6 +47,7 @@ export async function claimLedgerEntry(
 			usd_micros: entry.usdMicros.toString(),
 			debited: entry.debited,
 			source: entry.source,
+			api_key_id: entry.apiKeyId ?? null,
 			idempotency_key: entry.idempotencyKey,
 			occurred_at: entry.occurredAt,
 		})
@@ -339,4 +342,29 @@ export async function hostedStackSnapshot(
 			observedGb: b.observed_gb != null ? Number(b.observed_gb) : null,
 		})),
 	};
+}
+
+/** Rows delivered per API key over the 30 days before `now`, for the keys
+ *  list. Keys with no attributed reads are absent; rows with a NULL key
+ *  (older rows, session and internal callers) are not counted. */
+export async function rowsByKeyLast30d(
+	db: Kysely<Database>,
+	accountId: string,
+	now: Date = new Date(),
+): Promise<Map<string, number>> {
+	const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+	const rows = await db
+		.selectFrom("usage_ledger")
+		.select((eb) => ["api_key_id", eb.fn.sum<string>("quantity").as("total")])
+		.where("account_id", "=", accountId)
+		.where("unit", "=", "rows.delivered")
+		.where("api_key_id", "is not", null)
+		.where("occurred_at", ">=", since)
+		.groupBy("api_key_id")
+		.execute();
+	const totals = new Map<string, number>();
+	for (const row of rows) {
+		if (row.api_key_id) totals.set(row.api_key_id, Number(row.total ?? 0));
+	}
+	return totals;
 }

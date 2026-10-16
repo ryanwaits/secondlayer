@@ -1,3 +1,4 @@
+import { rowsByKeyLast30d } from "@secondlayer/platform/db/queries/usage-ledger";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { AuthorizationError, RateLimitError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
@@ -112,6 +113,8 @@ app.get("/", requireAuth(), async (c) => {
 		.orderBy("created_at", "desc")
 		.execute();
 
+	const rows30d = await rowsByKeyLast30d(db, accountId);
+
 	return c.json({
 		keys: keys.map((k: (typeof keys)[number]) => ({
 			id: k.id,
@@ -123,6 +126,7 @@ app.get("/", requireAuth(), async (c) => {
 			createdAt: k.created_at.toISOString(),
 			lastUsedAt: k.last_used_at?.toISOString() ?? null,
 			expiresAt: k.expires_at?.toISOString() ?? null,
+			rows30d: rows30d.get(k.id) ?? 0,
 		})),
 	});
 });

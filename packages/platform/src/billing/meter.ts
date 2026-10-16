@@ -55,6 +55,9 @@ export type MeterInput = {
 	 *  is a no-op, not a second charge. */
 	idempotencyKey: string;
 	occurredAt?: Date;
+	/** The API key that made the request, for per-key usage; omit for
+	 *  anything not caused by a keyed read. */
+	apiKeyId?: string | null;
 };
 
 export type MeterResult = {
@@ -154,6 +157,7 @@ export async function meter(
 			source: input.source,
 			idempotencyKey: input.idempotencyKey,
 			occurredAt,
+			apiKeyId: input.apiKeyId ?? null,
 		});
 
 		if (!claimed) {

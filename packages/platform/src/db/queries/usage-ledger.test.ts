@@ -8,7 +8,7 @@ import {
 } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import { meter } from "../../billing/meter.ts";
-import { hostedStackSnapshot } from "./usage-ledger.ts";
+import { hostedStackSnapshot, rowsByKeyLast30d } from "./usage-ledger.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
@@ -137,3 +137,37 @@ describe.skipIf(!HAS_DB)(
 		});
 	},
 );
+
+describe.skipIf(!HAS_DB)("rowsByKeyLast30d", () => {
+	test("sums recent attributed reads per key, ignoring old and unattributed rows", async () => {
+		const now = new Date("2026-10-15T12:00:00.000Z");
+		const keyA = crypto.randomUUID();
+		const keyB = crypto.randomUUID();
+		const read = (
+			suffix: string,
+			quantity: number,
+			occurredAt: Date,
+			apiKeyId: string | null,
+		) =>
+			meter(db, {
+				accountId,
+				unit: "rows.delivered",
+				quantity,
+				source: "test",
+				idempotencyKey: `by-key-${suffix}-${accountId}`,
+				occurredAt,
+				apiKeyId,
+			});
+		await read("a1", 10, new Date("2026-10-10T00:00:00.000Z"), keyA);
+		await read("a2", 5, new Date("2026-10-14T00:00:00.000Z"), keyA);
+		// Outside the 30-day window.
+		await read("a-old", 100, new Date("2026-09-01T00:00:00.000Z"), keyA);
+		// Unattributed: counted for no key.
+		await read("none", 7, new Date("2026-10-12T00:00:00.000Z"), null);
+
+		const totals = await rowsByKeyLast30d(db, accountId, now);
+		expect(totals.get(keyA)).toBe(15);
+		expect(totals.has(keyB)).toBe(false);
+		expect(totals.size).toBe(1);
+	});
+});

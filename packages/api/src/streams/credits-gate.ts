@@ -47,5 +47,10 @@ export async function debitStreamsCreditedRead(
 	const tenant = c.get("streamsTenant");
 	if (!tenant?.account_id || tenant.tier === "internal") return;
 	const accountId = tenant.account_id;
-	await meterRowsDelivered(accountId, rows.length, "streams");
+	await meterRowsDelivered(
+		accountId,
+		rows.length,
+		"streams",
+		tenant.api_key_id ?? null,
+	);
 }

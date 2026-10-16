@@ -76,6 +76,7 @@ export async function meterRowsDelivered(
 	accountId: string,
 	rows: number,
 	source: string,
+	apiKeyId?: string | null,
 ): Promise<void> {
 	if (rows <= 0) return;
 	await meter(getDb(), {
@@ -84,6 +85,7 @@ export async function meterRowsDelivered(
 		quantity: rows,
 		source,
 		idempotencyKey: randomUUID(),
+		apiKeyId: apiKeyId ?? null,
 	});
 }
 

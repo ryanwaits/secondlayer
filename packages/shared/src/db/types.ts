@@ -1135,6 +1135,8 @@ export interface UsageLedgerTable {
 	usd_micros: string | number | bigint;
 	debited: Generated<boolean>;
 	source: string;
+	/** API key behind a metered read; null for non-read units and older rows. */
+	api_key_id: string | null;
 	idempotency_key: string;
 	occurred_at: Generated<Date>;
 	recorded_at: Generated<Date>;

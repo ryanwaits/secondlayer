@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
-import { createApiKeyTokenStore } from "./api-key-store.ts";
+import { type ProductTenant, createApiKeyTokenStore } from "./api-key-store.ts";
 import { hashToken } from "./keys.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -10,7 +10,7 @@ function restoreEnv(key: string, prev: string | undefined): void {
 	else process.env[key] = prev;
 }
 
-const STATIC = new Map([
+const STATIC = new Map<string, ProductTenant>([
 	[
 		"sk-sl_static_seed",
 		{
@@ -251,6 +251,7 @@ describe("createApiKeyTokenStore", () => {
 			requiredScope: "index:read",
 			product: "index",
 			lookupApiKey: async () => ({
+				id: "11111111-1111-4111-8111-111111111111",
 				account_id: "acct_2",
 				status: "active",
 				tier: null,
@@ -260,12 +261,32 @@ describe("createApiKeyTokenStore", () => {
 		expect(tenant?.tier).toBe("free");
 	});
 
+	test("DB-backed key tenant carries api_key_id; static tokens do not", async () => {
+		const keyId = "22222222-2222-4222-8222-222222222222";
+		const store = createApiKeyTokenStore({
+			staticTokens: STATIC,
+			requiredScope: "index:read",
+			product: "index",
+			lookupApiKey: async () => ({
+				id: keyId,
+				account_id: "acct_4",
+				status: "active",
+				tier: "free",
+			}),
+		});
+		const keyed = await store.get("sk-sl_key");
+		expect(keyed?.api_key_id).toBe(keyId);
+		const seeded = await store.get("sk-sl_static_seed");
+		expect(seeded?.api_key_id).toBeUndefined();
+	});
+
 	test("inactive keys are rejected", async () => {
 		const store = createApiKeyTokenStore({
 			staticTokens: new Map(),
 			requiredScope: "index:read",
 			product: "index",
 			lookupApiKey: async () => ({
+				id: "11111111-1111-4111-8111-111111111111",
 				account_id: "acct_3",
 				status: "revoked",
 				tier: "free",

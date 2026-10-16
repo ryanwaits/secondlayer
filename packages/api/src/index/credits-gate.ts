@@ -59,5 +59,10 @@ export async function debitCreditedRead(
 	const tenant = c.get("indexTenant");
 	if (!tenant?.account_id || tenant.tier === "internal") return;
 	const accountId = tenant.account_id;
-	await meterRowsDelivered(accountId, rows.length, "index");
+	await meterRowsDelivered(
+		accountId,
+		rows.length,
+		"index",
+		tenant.api_key_id ?? null,
+	);
 }

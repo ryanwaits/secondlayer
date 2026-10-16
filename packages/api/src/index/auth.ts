@@ -20,6 +20,7 @@ export type IndexTenant = {
 	tenant_id: string;
 	account_id?: string;
 	tier: IndexTier;
+	api_key_id?: string;
 	scopes: readonly string[];
 };
 
