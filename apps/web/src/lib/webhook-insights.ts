@@ -153,6 +153,7 @@ function promptSummary(issue: Pick<DoctorIssue, "code" | "detail">): string {
 export function handoffPrompt(
 	issue: Pick<DoctorIssue, "code" | "detail" | "evidence" | "fix">,
 	webhook: Pick<WebhookDetail, "name" | "url">,
+	context: { since?: string | null; waiting?: number } = {},
 ): string {
 	const host = hostOf(webhook.url);
 	const window = RULE_WINDOW[issue.code];
@@ -162,12 +163,36 @@ export function handoffPrompt(
 	const parts = [
 		`My Secondlayer webhook "${webhook.name}" delivers to ${host}.`,
 		promptSummary(issue),
+		context.since ? `Deliveries have been failing since ${context.since}.` : "",
+		context.waiting
+			? `${context.waiting.toLocaleString("en-US")} events are queued to retry.`
+			: "",
 		facts
 			? `What we saw${window ? `, going by ${window}` : ""}: ${facts}.`
 			: "",
 		issue.fix?.text ?? "",
 	];
 	return parts.filter(Boolean).join(" ");
+}
+
+/** "2026-10-15 16:06 UTC": when the current run of failed attempts began, or null if the newest attempt succeeded. */
+export function failingSince(
+	deliveries: readonly DeliveryRow[],
+): string | null {
+	let earliest: DeliveryRow | null = null;
+	for (const row of deliveries) {
+		if (isSuccessDelivery(row)) break;
+		earliest = row;
+	}
+	return earliest
+		? `${earliest.dispatchedAt.slice(0, 10)} ${earliest.dispatchedAt.slice(11, 16)} UTC`
+		: null;
+}
+
+/** `sl webhooks doctor` always leads; the issue's own fix command follows when it differs. */
+function handoffCommands(name: string, fixCommand?: string): string[] {
+	const doctor = `sl webhooks doctor ${name}`;
+	return fixCommand && fixCommand !== doctor ? [doctor, fixCommand] : [doctor];
 }
 
 /** Attempts per hour for the last 24 hours, with the hours that had failures marked. */
@@ -299,7 +324,7 @@ function certInsight(
 			? `Every delivery to ${host} now fails with a TLS error until a new certificate is installed.`
 			: `After ${date}, every delivery to ${host} fails with a TLS error. Renew it before then.`,
 		evidence: [],
-		handoff: { prompt, commands: [] },
+		handoff: { prompt, commands: handoffCommands(webhook.name) },
 		how: {
 			detector: `Rule tls_cert: fires when the receiver's certificate expires in under ${CERT_WARN_DAYS} days.`,
 			facts: [["expires", webhook.receiverCertExpiresAt]],
@@ -324,8 +349,16 @@ export function insightsFromDoctor(input: {
 	const now = input.now ?? Date.now();
 	const createdAt = new Date(now).toISOString();
 	const series = recentHoursEvidence(activity);
+	const since = failingSince(deliveries);
 	const insights: Insight[] = [];
+	// A tripped breaker is the same outage as a down or rejecting receiver:
+	// one insight, with the breaker's facts folded into it.
+	const absorbed = report.issues.some(
+		(i) => i.code === "receiver_down" || i.code === "receiver_rejects",
+	);
+	const breaker = report.issues.find((i) => i.code === "circuit");
 	for (const issue of report.issues) {
+		if (absorbed && issue.code === "circuit") continue;
 		const severity = severityFor(issue, deliveries);
 		if (!severity) continue;
 		const facts = factsEvidence(issue);
@@ -343,12 +376,33 @@ export function insightsFromDoctor(input: {
 				(e): e is InsightEvidence => e !== null,
 			),
 			handoff: {
-				prompt: handoffPrompt(issue, webhook),
-				commands: issue.fix?.command ? [issue.fix.command] : [],
+				prompt: handoffPrompt(issue, webhook, {
+					since: severity === "losing" ? since : null,
+					waiting: activity?.waiting,
+				}),
+				commands: handoffCommands(webhook.name, issue.fix?.command),
 			},
 			how: {
 				detector: RULE_EXPLANATION[issue.code],
-				facts: (issue.evidence ?? []).map((e) => [e.label, e.value]),
+				facts: [
+					...(issue.evidence ?? []).map((e): [string, string] => [
+						e.label,
+						e.value,
+					]),
+					...(breaker &&
+					(issue.code === "receiver_down" || issue.code === "receiver_rejects")
+						? [
+								...(breaker.evidence ?? []).map((e): [string, string] => [
+									e.label,
+									e.value,
+								]),
+								["breaker failures", String(webhook.circuitFailures)] as [
+									string,
+									string,
+								],
+							]
+						: []),
+				],
 			},
 			createdAt,
 			resolvedAt: null,

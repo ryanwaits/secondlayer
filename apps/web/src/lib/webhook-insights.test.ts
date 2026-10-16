@@ -28,7 +28,12 @@ const webhook = {
 } as unknown as WebhookDetail;
 
 const delivery = (statusCode: number | null): DeliveryRow =>
-	({ id: "d1", attempt: 1, statusCode }) as DeliveryRow;
+	({
+		id: "d1",
+		attempt: 1,
+		statusCode,
+		dispatchedAt: "2026-10-15T11:00:00.000Z",
+	}) as DeliveryRow;
 
 function run(
 	issues: DoctorIssue[],
@@ -107,6 +112,7 @@ describe("handoffPrompt", () => {
 		};
 		const [insight] = run([withCommand]);
 		expect(insight?.handoff.commands).toEqual([
+			"sl webhooks doctor vault-events",
 			"secondlayer webhooks test wh_1",
 		]);
 		expect(insight?.handoff.prompt).not.toContain("secondlayer webhooks test");
@@ -150,5 +156,46 @@ describe("outageStartIndex", () => {
 
 	test("null when the newest active hour delivered", () => {
 		expect(outageStartIndex([hour(0, 6), hour(5, 0)])).toBeNull();
+	});
+});
+
+describe("outage insight", () => {
+	test("a tripped breaker folds into a down receiver: one insight", () => {
+		const insights = run([issue("circuit"), issue("receiver_down")]);
+		expect(insights).toHaveLength(1);
+		expect(insights[0]?.rule).toBe("receiver_down");
+		expect(insights[0]?.how.facts).toContainEqual(["breaker failures", "6"]);
+	});
+
+	test("a breaker with no other cause stays its own insight", () => {
+		expect(run([issue("circuit")])).toHaveLength(1);
+	});
+
+	test("the hand-off says when failures began, the counts and the evidence", () => {
+		const [insight] = insightsFromDoctor({
+			report: { issues: [issue("receiver_down")], deadCount: 0 },
+			webhook,
+			deliveries: [
+				{ ...delivery(502), dispatchedAt: "2026-10-15T16:20:00.000Z" },
+				{ ...delivery(502), dispatchedAt: "2026-10-15T16:06:30.000Z" },
+				{ ...delivery(200), dispatchedAt: "2026-10-15T15:50:00.000Z" },
+			],
+			activity: { waiting: 214, hours: [] } as never,
+			now: NOW,
+		});
+		const prompt = insight?.handoff.prompt ?? "";
+		expect(prompt).toContain("failing since 2026-10-15 16:06 UTC");
+		expect(prompt).toContain("214 events are queued to retry");
+		expect(prompt).toContain("consecutive failures: 5");
+		expect(prompt).not.toContain("`");
+	});
+
+	test("doctor leads the hand-off commands on every insight", () => {
+		const cert = run([], {
+			receiverCertExpiresAt: new Date(NOW + 5 * DAY).toISOString(),
+		});
+		expect(cert[0]?.handoff.commands).toEqual([
+			"sl webhooks doctor vault-events",
+		]);
 	});
 });

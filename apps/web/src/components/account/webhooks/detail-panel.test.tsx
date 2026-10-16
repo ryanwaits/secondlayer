@@ -136,6 +136,17 @@ describe("WebhookDetailBody listens for", () => {
 	});
 });
 
+describe("WebhookDetailBody unfiltered trigger", () => {
+	test("omits the daily volume clause when nothing has matched", () => {
+		const html = render({
+			webhook: detail({ triggers: [{ type: "sbtc_deposit" }] }),
+			activity: activityFor(0),
+		});
+		expect(html).toContain("matches every sBTC deposit on chain.");
+		expect(html).not.toContain("events a day");
+	});
+});
+
 describe("WebhookDetailBody deliveries", () => {
 	const three = [
 		attempt({ id: "a3", attempt: 3, statusCode: 200 }),

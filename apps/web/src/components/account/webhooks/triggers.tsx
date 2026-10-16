@@ -328,8 +328,10 @@ export function TriggersBox({
 						) : (
 							<p className="wd-warn">
 								No filters, so this matches every {TRIGGER_NOUN[trigger.type]}{" "}
-								on chain: about {n(perDay(count))} events a day, each one
-								delivered and billed.
+								on chain
+								{perDay(count) > 0
+									? `: about ${n(perDay(count))} events a day, each one delivered and billed.`
+									: "."}
 							</p>
 						)}
 					</div>
