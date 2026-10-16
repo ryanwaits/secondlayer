@@ -7877,3 +7877,10 @@ button.sg-sort:focus-visible {
 		display: none;
 	}
 }
+.ky-table .ob-ph-wrap {
+	margin-top: 0;
+}
+.wl-empty > *,
+.sg-empty > * {
+	min-width: 0;
+}
