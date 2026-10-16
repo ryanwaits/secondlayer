@@ -349,7 +349,9 @@ const pollingLoop: InsightRule<AccountRuleInput> = {
 const serverErrors: InsightRule<AccountRuleInput> = {
 	id: "server_errors",
 	evaluate(input) {
-		const failures = input.failed5xx;
+		// Usage only: Index/Streams reads under /v1/. Dashboard and account calls
+		// (/api/*) fail for reasons that are ours to fix, not the user's to retry.
+		const failures = input.failed5xx.filter((f) => f.path.startsWith("/v1/"));
 		if (failures.length < SERVER_ERRORS_MIN_5XX) return null;
 
 		const byPath = new Map<string, number>();
@@ -358,6 +360,8 @@ const serverErrors: InsightRule<AccountRuleInput> = {
 		const times = failures.map((f) => f.createdAt.getTime());
 		const first = new Date(Math.min(...times));
 		const last = new Date(Math.max(...times));
+		// One minute reads "at 16:50 UTC"; "16:50 UTC to 16:50 UTC" read as a bug.
+		const sameMinute = utcTime(first) === utcTime(last);
 
 		return {
 			rule: "server_errors",
@@ -365,9 +369,11 @@ const serverErrors: InsightRule<AccountRuleInput> = {
 			impact: failures.length,
 			resource: RESOURCE,
 			line: `${plural(failures.length, "request")} failed on our side`,
-			meta: `${utcTime(first)} to ${utcTime(last)}`,
+			meta: sameMinute
+				? `at ${utcTime(first)}`
+				: `${utcTime(first)} to ${utcTime(last)}`,
 			lead: "Our fault, not yours.",
-			body: `Between ${utcTime(first)} and ${utcTime(last)}, ${failures.length} of your requests got a server error from us. Nothing in your code caused it, and retrying is safe. This clears after an hour without new errors.`,
+			body: `${sameMinute ? `At ${utcTime(first)}, ` : `Between ${utcTime(first)} and ${utcTime(last)}, `}${failures.length} of your requests got a server error from us. Nothing in your code caused it, and retrying is safe. This clears after an hour without new errors.`,
 			evidence: [
 				{
 					kind: "table",
@@ -380,8 +386,11 @@ const serverErrors: InsightRule<AccountRuleInput> = {
 				prompt: handoffPrompt({
 					subject: "My Secondlayer account",
 					observed: [
-						`got ${plural(failures.length, "server error")} (HTTP 5xx) between ${utcTime(first)} and ${utcTime(last)}`,
-						`Most were on ${ranked[0]?.[0] ?? "one path"}`,
+						`got ${plural(failures.length, "server error")} (HTTP 5xx) ${sameMinute ? `at ${utcTime(first)}` : `between ${utcTime(first)} and ${utcTime(last)}`}`,
+						// "Most" is only true when one path has strictly more failures than the next.
+						ranked.length > 1 && ranked[0]?.[1] === ranked[1]?.[1]
+							? `Spread across ${plural(ranked.length, "path")}`
+							: `Most were on ${ranked[0]?.[0] ?? "one path"}`,
 					],
 					lookAt:
 						"This is on Secondlayer's side. Make sure your client retries with backoff, and send the request ids from the error bodies if the errors continue",

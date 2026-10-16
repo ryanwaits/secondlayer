@@ -284,6 +284,58 @@ describe("server_errors", () => {
 			4,
 		]);
 	});
+
+	test("names a single minute with at, not a from-to range", () => {
+		const minute = new Date(Math.floor(at(50).getTime() / MIN) * MIN);
+		const sameMinute = [5, 15, 25].map((seconds, i) => ({
+			path: `/v1/index/path-${i}`,
+			status: 503,
+			createdAt: new Date(minute.getTime() + seconds * 1000),
+		}));
+		const out = fire("server_errors", input({ failed5xx: sameMinute }));
+		expect(out?.meta?.startsWith("at ")).toBe(true);
+		expect(out?.body.startsWith("At ")).toBe(true);
+		expect(out?.handoff.prompt).not.toContain("between");
+		expect(out?.handoff.prompt).not.toContain("UTC to ");
+	});
+
+	test("keeps the from-to range across minutes", () => {
+		const out = fire("server_errors", input({ failed5xx: failures(3) }));
+		expect(out?.meta).toMatch(/^\d\d:\d\d UTC to \d\d:\d\d UTC$/);
+	});
+
+	test("says spread across on a tie instead of most were on", () => {
+		const tie = [
+			"/v1/index/blocks",
+			"/v1/index/ft-transfers",
+			"/v1/streams/events",
+		].map((path, i) => ({ path, status: 503, createdAt: at(50 - i) }));
+		const out = fire("server_errors", input({ failed5xx: tie }));
+		expect(out?.handoff.prompt).toContain("Spread across 3 paths");
+		expect(out?.handoff.prompt).not.toContain("Most were on");
+	});
+
+	test("ignores dashboard and account calls", () => {
+		const dashboard = [
+			"/api/insights",
+			"/api/webhooks",
+			"/api/webhooks/activity",
+		].map((path, i) => ({ path, status: 502, createdAt: at(50 - i) }));
+		expect(fire("server_errors", input({ failed5xx: dashboard }))).toBeNull();
+		const usage = [0, 1].map((i) => ({
+			path: "/v1/index/blocks",
+			status: 503,
+			createdAt: at(40 - i),
+		}));
+		expect(
+			fire("server_errors", input({ failed5xx: [...dashboard, ...usage] })),
+		).toBeNull();
+	});
+
+	test("says most were on when one path leads", () => {
+		const out = fire("server_errors", input({ failed5xx: failures(5) }));
+		expect(out?.handoff.prompt).toContain("Most were on /v1/streams/events");
+	});
 });
 
 describe("allowance_exhausted", () => {
