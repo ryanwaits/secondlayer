@@ -64,15 +64,17 @@ export async function apiRequest<T>(
 		headers.Authorization = `Bearer ${sessionToken}`;
 	}
 
-	const nextOptions: Record<string, unknown> = tags
-		? { tags, revalidate: 10 }
-		: { revalidate: 0 };
+	// Why: Server-Timing showed `next: { revalidate: 0 }` fetches hit a ~+210 ms
+	// cold connection mode that raw `cache: "no-store"` fetches did not.
+	const cacheOptions: RequestInit & { next?: unknown } = tags
+		? { next: { tags, revalidate: 10 } }
+		: { cache: "no-store" };
 
 	const res = await fetch(`${API_URL}${path}`, {
 		method,
 		headers,
 		body: body ? JSON.stringify(body) : undefined,
-		next: nextOptions,
+		...cacheOptions,
 	});
 
 	if (!res.ok) {
