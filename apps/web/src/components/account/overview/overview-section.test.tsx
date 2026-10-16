@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import type { Insight } from "@/lib/insights";
+import { forAccountRules } from "@/lib/insights-store";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { rowModel } from "../webhooks/rows";
 import { FIXTURE_HOURS, summary } from "../webhooks/webhook.fixtures";
 import {
+	OVERVIEW_ACCOUNT_RULES,
 	OverviewBody,
 	OverviewRowsSlot,
 	OverviewSubgraphsSlot,
@@ -43,6 +46,43 @@ const render = (rows: (typeof healthy)[] | null) =>
 	renderToStaticMarkup(<OverviewBody {...base} rows={rows} />);
 
 describe("OverviewBody account insights", () => {
+	const byRule = (rule: string): Insight => {
+		const found = FIXTURE_INSIGHTS.find((i) => i.rule === rule);
+		if (!found) throw new Error(`missing fixture ${rule}`);
+		return found;
+	};
+
+	test("the open note's card is the same insight, and read-loop notes stay off Overview", () => {
+		const cap = byRule("cap_pace");
+		const runway: Insight = {
+			...cap,
+			id: "ins-credits-runway",
+			rule: "credits_runway",
+			impact: 3,
+			line: "Credits run out in 9 days",
+			lead: "Your credits run out before the month does.",
+		};
+		const reads = byRule("duplicate_reads");
+		const shown = forAccountRules([reads, runway, cap], OVERVIEW_ACCOUNT_RULES);
+		expect(shown.map((i) => i.id)).toEqual([cap.id, runway.id]);
+
+		const html = renderToStaticMarkup(
+			<OverviewBody {...base} rows={[healthy]} accountInsights={shown} />,
+		);
+		// Both notes list; only the top one (cap pace) is open, with its own lead.
+		expect(html).toContain(cap.line);
+		expect(html).toContain(runway.line);
+		expect(html.match(/class="ins-card"/g)).toHaveLength(1);
+		expect(html).toContain(cap.lead);
+		expect(html).not.toContain(runway.lead);
+		// The read-loop insight belongs to Rows.
+		expect(html).not.toContain(reads.line);
+		expect(html).not.toContain(reads.lead);
+		// The open card sits right after the cap-pace note line.
+		expect(html.indexOf(cap.lead)).toBeGreaterThan(html.indexOf(cap.line));
+		expect(html.indexOf(cap.lead)).toBeLessThan(html.indexOf(runway.line));
+	});
+
 	const account = FIXTURE_INSIGHTS.find((i) => i.rule === "duplicate_reads");
 
 	test("account insights render as notes under the rows", () => {

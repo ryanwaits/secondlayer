@@ -52,7 +52,11 @@ import { ageShort, last24 } from "../webhooks/view";
 const POLL_MS = 30_000;
 
 /** The account-level rules the Overview shows; the rest belong to Rows. */
-const OVERVIEW_ACCOUNT_RULES = ["server_errors", "cap_pace", "credits_runway"];
+export const OVERVIEW_ACCOUNT_RULES = [
+	"server_errors",
+	"cap_pace",
+	"credits_runway",
+];
 
 /** Rows (Index and Streams reads) get their own row here, once their data has loaded. */
 export function OverviewRowsSlot() {

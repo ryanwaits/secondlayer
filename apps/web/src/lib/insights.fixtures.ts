@@ -460,6 +460,40 @@ export const FIXTURE_INSIGHTS: Insight[] = [
 		},
 		createdAt: "2026-10-15T10:00:00.000Z",
 	},
+	{
+		id: "ins-cap-pace",
+		rule: "cap_pace",
+		severity: "will_fail",
+		impact: 12,
+		resource: { kind: "account", id: "acct-example", name: "Account" },
+		line: "At this pace you hit your $50 cap on Oct 27",
+		meta: "4 days early",
+		lead: "Your spend cap will stop everything before the month ends.",
+		body: "You have spent $31 so far and the last seven days average $2.60 a day. At that pace you reach the $50 cap on Oct 27. At a cap everything stops, webhooks included, until you raise it or add credits.",
+		evidence: [
+			{
+				kind: "table",
+				title: "Spend against the cap",
+				columns: ["", "Amount"],
+				rows: [
+					["Spent this month", "$31.00"],
+					["Last 7 days, per day", "$2.60"],
+					["Cap", "$50.00"],
+				],
+			},
+		],
+		handoff: {
+			prompt:
+				"My Secondlayer account has spent $31 this month against a $50 cap, and the last seven days average $2.60 a day, so the cap is reached on Oct 27. Work out which of my webhooks, subgraphs or reads cost the most this week and whether the cap should be raised.",
+			commands: [],
+		},
+		how: {
+			detector:
+				"spend to date plus the 7-day daily average, projected to the cap",
+			facts: [["projected", "cap reached Oct 27"]],
+		},
+		createdAt: "2026-10-15T09:00:00.000Z",
+	},
 ];
 
 /** The four insights of the ranked-stack story, in no particular order. */
