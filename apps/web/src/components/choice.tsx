@@ -27,7 +27,8 @@ export type ChoiceProps = {
  * submit work without script. Pass `defaultValue` for a form field, or
  * `value` + `onChange` for a view switch. `legend` is the accessible name
  * (visually hidden); `labelledBy` points at a visible label elsewhere.
- * More than three options stack into a column on narrow containers.
+ * More than three options stack into a column on narrow containers (an inner
+ * div is the size container; a fieldset can't be one reliably).
  */
 export function Choice({
 	name,
@@ -45,23 +46,25 @@ export function Choice({
 			aria-labelledby={labelledBy}
 		>
 			{legend && <legend className="choice-legend">{legend}</legend>}
-			<div className="choice-row" data-many={options.length > 3 || undefined}>
-				{options.map((o) => (
-					<label key={o.value} className="choice-cell">
-						<input
-							type="radio"
-							name={name}
-							value={o.value}
-							{...(onChange
-								? {
-										checked: value === o.value,
-										onChange: () => onChange(o.value),
-									}
-								: { defaultChecked: defaultValue === o.value })}
-						/>
-						<span>{o.label}</span>
-					</label>
-				))}
+			<div className="choice-wrap">
+				<div className="choice-row" data-many={options.length > 3 || undefined}>
+					{options.map((o) => (
+						<label key={o.value} className="choice-cell">
+							<input
+								type="radio"
+								name={name}
+								value={o.value}
+								{...(onChange
+									? {
+											checked: value === o.value,
+											onChange: () => onChange(o.value),
+										}
+									: { defaultChecked: defaultValue === o.value })}
+							/>
+							<span>{o.label}</span>
+						</label>
+					))}
+				</div>
 			</div>
 		</fieldset>
 	);

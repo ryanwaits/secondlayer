@@ -22,6 +22,13 @@ describe("Choice", () => {
 		expect(small).toContain('class="choice sm"');
 	});
 
+	test("the size container is a div inside the fieldset, not the fieldset", () => {
+		const html = renderToStaticMarkup(
+			<Choice name="r" legend="L" options={OPTIONS} />,
+		);
+		expect(html).toContain('<div class="choice-wrap"><div class="choice-row"');
+	});
+
 	test("renders one radio per option under the field name", () => {
 		const html = renderToStaticMarkup(
 			<Choice name="role" legend="I'm a" options={OPTIONS} />,

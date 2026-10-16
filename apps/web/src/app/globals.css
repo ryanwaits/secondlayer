@@ -5311,14 +5311,18 @@ a.acct-strip-link:hover .acct-strip-k {
 
 /* ── Choice: pick one value (components/choice.tsx) ──
  * Cells in one framed row (8px frame, 3px inset, 5px cells). Selected = pri
- * tint. The fieldset is the size container, so narrow rules need no script. */
+ * tint. An inner div is the size container (a fieldset can't be one reliably), so
+ * narrow rules need no script. */
 .choice {
 	margin: 0;
 	padding: 0;
 	border: 0;
 	min-width: 0;
 	width: 100%;
+}
+.choice-wrap {
 	container-type: inline-size;
+	width: 100%;
 }
 .choice-legend {
 	position: absolute;
@@ -5363,7 +5367,10 @@ a.acct-strip-link:hover .acct-strip-k {
  * is not a container and never stacks into a column. */
 .choice.sm {
 	width: auto;
+}
+.choice.sm .choice-wrap {
 	container-type: normal;
+	width: auto;
 }
 .choice.sm .choice-row {
 	padding: 2px;

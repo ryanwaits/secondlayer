@@ -495,7 +495,7 @@ body:has(.lab) .auth-bar {
 	color: var(--sub);
 	font: 400 12px / 1 var(--font-mono-stack);
 }
-/* A Choice is a size container, so it has no intrinsic width of its own. */
+/* A Choice holds a size container, so it has no intrinsic width of its own. */
 .lab-toolbar .choice {
 	width: 340px;
 	max-width: 100%;

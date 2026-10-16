@@ -47,34 +47,36 @@ export function AmountChoice({
 	return (
 		<fieldset className="choice fill">
 			<legend className="choice-legend">Amount</legend>
-			<div className="choice-row">
-				{PACKS_USD.map((usd) => (
-					<label key={usd} className="choice-cell">
+			<div className="choice-wrap">
+				<div className="choice-row">
+					{PACKS_USD.map((usd) => (
+						<label key={usd} className="choice-cell">
+							<input
+								type="radio"
+								name={name}
+								value={usd}
+								checked={!typing && !otherOn && value === usd}
+								onChange={() => {
+									setDraft(null);
+									onChange(usd);
+								}}
+							/>
+							<span>${usd}</span>
+						</label>
+					))}
+					<label className={otherOn ? "choice-other on" : "choice-other"}>
+						$
 						<input
-							type="radio"
-							name={name}
-							value={usd}
-							checked={!typing && !otherOn && value === usd}
-							onChange={() => {
-								setDraft(null);
-								onChange(usd);
-							}}
+							type="text"
+							inputMode="numeric"
+							autoComplete="off"
+							placeholder="Other"
+							aria-label="Other amount in dollars"
+							value={other}
+							onChange={(e) => type(e.target.value)}
 						/>
-						<span>${usd}</span>
 					</label>
-				))}
-				<label className={otherOn ? "choice-other on" : "choice-other"}>
-					$
-					<input
-						type="text"
-						inputMode="numeric"
-						autoComplete="off"
-						placeholder="Other"
-						aria-label="Other amount in dollars"
-						value={other}
-						onChange={(e) => type(e.target.value)}
-					/>
-				</label>
+				</div>
 			</div>
 		</fieldset>
 	);
