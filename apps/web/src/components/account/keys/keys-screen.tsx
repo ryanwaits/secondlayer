@@ -3,6 +3,7 @@
 import { LazyBandBarChart } from "@/components/charts/lazy";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
+import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import {
 	formatDate,
@@ -13,6 +14,7 @@ import {
 import { barsRows } from "@/lib/dashboard-charts";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
+import { hasNoKey } from "@/lib/onboarding";
 import { shortCount } from "@/lib/subgraph-view";
 import type { ApiKey } from "@/lib/types";
 import Link from "next/link";
@@ -379,7 +381,7 @@ export function KeysTable({
 				<span className="ky-r">Last read</span>
 			</div>
 			{own.length === 0 && revoked.length === 0 ? (
-				<p className="acct-muted ky-empty">No keys yet.</p>
+				<PlaceholderRows rows={[{ name: "laptop" }, { name: "ci" }]} />
 			) : null}
 			{rows}
 			<MadeForYou keys={grouped.madeForYou} now={now} defaultOpen={madeOpen} />
@@ -477,6 +479,14 @@ export function KeysScreen() {
 		timer.current = setTimeout(() => setFreshPrefix(null), FRESH_MS);
 	}, []);
 
+	// An account with no key is offered the name step straight away.
+	const noKey = hasNoKey(keys, now);
+	const [offered, setOffered] = useState(false);
+	if (noKey && !offered) {
+		setOffered(true);
+		setCreating(true);
+	}
+
 	const existingNames = groupKeys(keys, now)
 		.own.filter((k) => k.product !== "docs")
 		.map((k) => k.name);
@@ -492,6 +502,7 @@ export function KeysScreen() {
 			flow={
 				creating ? (
 					<NewKeyFlow
+						dismissible={!noKey}
 						existingNames={existingNames}
 						onCreated={markFresh}
 						onClose={close}

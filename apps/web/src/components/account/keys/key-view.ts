@@ -172,7 +172,13 @@ export interface KeysSentence {
 /** The Keys screen's one-line answer: are your keys in use, and which are not. */
 export function keysSentence(keys: ApiKey[] | null, now: Date): KeysSentence {
 	const counted = countedKeys(keys, now);
-	if (counted.length === 0) return { tone: "idle", text: "No keys yet." };
+	if (counted.length === 0) {
+		return {
+			tone: "idle",
+			text: "No keys yet.",
+			sub: "A key lets the SDK, the CLI and your agents read your data. Make one per place it runs, so revoking one never breaks the others.",
+		};
+	}
 	const stale = staleKeys(counted, now);
 	if (stale.length === 0) {
 		return {

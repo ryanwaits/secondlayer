@@ -227,3 +227,21 @@ describe("RevokeConfirm", () => {
 		expect(html).toContain("Cancel");
 	});
 });
+
+describe("KeysBody for a new account", () => {
+	test("says why a key and previews the rows that fill in", () => {
+		const html = body([]);
+		expect(html).toContain("No keys yet.");
+		expect(html).toContain(
+			"Make one per place it runs, so revoking one never breaks the others.",
+		);
+		expect(html).toContain("laptop");
+		expect(html).toContain('aria-hidden="true"');
+	});
+
+	test("a docs-only account still has no keys of its own", () => {
+		expect(
+			body([key({ product: "docs", expiresAt: hoursFromNow(5) })]),
+		).toContain("No keys yet.");
+	});
+});
