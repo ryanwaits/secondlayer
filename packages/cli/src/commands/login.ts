@@ -121,6 +121,7 @@ interface DeviceStart {
 }
 
 export type DeviceOutcome =
+	| { kind: "key_limit" }
 	| { kind: "approved"; key: string; account: { id: string; email: string } }
 	| { kind: "denied" }
 	| { kind: "expired" };
@@ -159,6 +160,9 @@ export async function pollDeviceToken(
 				if (err.status === 403 && err.body.error === "access_denied") {
 					return { kind: "denied" };
 				}
+				if (err.status === 409 && err.body.error === "key_limit") {
+					return { kind: "key_limit" };
+				}
 				if (err.status === 410) return { kind: "expired" };
 				throw err;
 			}
@@ -167,6 +171,9 @@ export async function pollDeviceToken(
 	}
 	return { kind: "expired" };
 }
+
+export const KEY_LIMIT_MESSAGE =
+	"You have 50 keys. Revoke one under Keys, then run secondlayer login again.";
 
 /** Machine name shown on the approval page and used as the key's default name. */
 function clientName(): string {
@@ -222,6 +229,10 @@ export async function runDeviceLogin(
 
 	if (outcome.kind === "denied") {
 		logError("Cancelled in the browser.");
+		process.exit(1);
+	}
+	if (outcome.kind === "key_limit") {
+		logError(KEY_LIMIT_MESSAGE);
 		process.exit(1);
 	}
 	if (outcome.kind === "expired") {

@@ -300,7 +300,7 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 		expect(anon.status).toBe(401);
 	});
 
-	test("at the key ceiling the poll fails and no key is minted", async () => {
+	test("at the key ceiling the poll is 409 key_limit, no key is minted, and later polls end", async () => {
 		const account = await makeAccount();
 		const session = await makeSession(account.id);
 		await db
@@ -323,20 +323,22 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 		const d = await start();
 		await post(`/api/cli/device/${d.userCode}/approve`, { name: "m" }, session);
 		const res = await poll(d.deviceCode);
-		expect(res.status).toBe(403);
+		expect(res.status).toBe(409);
+		expect(((await res.json()) as { error: string }).error).toBe("key_limit");
 		const count = await db
 			.selectFrom("api_keys")
 			.select((eb) => eb.fn.countAll<string>().as("n"))
 			.where("account_id", "=", account.id)
 			.executeTakeFirstOrThrow();
 		expect(Number(count.n)).toBe(50);
-		// the attempt stays approved, so freeing a key lets the CLI finish
 		const row = await db
 			.selectFrom("cli_device_logins")
-			.select("status")
+			.select(["status", "consumed_at"])
 			.where("user_code", "=", d.userCode)
 			.executeTakeFirstOrThrow();
-		expect(row.status).toBe("approved");
+		expect(row.status).toBe("denied");
+		expect(row.consumed_at).toBeNull();
+		expect((await poll(d.deviceCode)).status).toBe(403);
 	});
 
 	test("polling does not eat the sign-in limiter's budget", async () => {

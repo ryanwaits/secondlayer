@@ -141,8 +141,8 @@ app.post("/token", async (c) => {
 	if (!row.account_id) return c.json({ error: "expired_token" }, 410);
 	const accountId = row.account_id;
 
-	// One transaction: claim the row, check the ceiling, mint. A failed ceiling
-	// check rolls the claim back so the attempt stays approved.
+	// One transaction: claim the row, check the ceiling, mint. At the ceiling
+	// the attempt is closed (denied) so retries end instead of repeating.
 	const result = await db.transaction().execute(async (trx) => {
 		const claimed = await trx
 			.updateTable("cli_device_logins")
@@ -152,7 +152,18 @@ app.post("/token", async (c) => {
 			.returning("id")
 			.executeTakeFirst();
 		if (!claimed) return null;
-		await assertUnderKeyCeiling(trx, accountId);
+		try {
+			await assertUnderKeyCeiling(trx, accountId);
+		} catch (err) {
+			// Only the ceiling check is caught here, nothing else in the mint.
+			if (!(err instanceof AuthorizationError)) throw err;
+			await trx
+				.updateTable("cli_device_logins")
+				.set({ status: "denied", consumed_at: null })
+				.where("id", "=", row.id)
+				.execute();
+			return "key_limit" as const;
+		}
 		const minted = await mintApiKey(trx, {
 			accountId,
 			name: row.key_name ?? row.client_name,
@@ -166,6 +177,7 @@ app.post("/token", async (c) => {
 			.executeTakeFirstOrThrow();
 		return { key: minted.key, account };
 	});
+	if (result === "key_limit") return c.json({ error: "key_limit" }, 409);
 	// Lost the race to a concurrent poll.
 	if (!result) return c.json({ error: "expired_token" }, 410);
 	return c.json(result);

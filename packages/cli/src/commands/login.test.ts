@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { CliHttpError } from "../lib/http.ts";
 import { browserCommand } from "../lib/open-browser.ts";
-import { pollDeviceToken } from "./login.ts";
+import { KEY_LIMIT_MESSAGE, pollDeviceToken } from "./login.ts";
 
 const START = { deviceCode: "dc", interval: 5, expiresIn: 900 };
 
@@ -62,6 +62,26 @@ describe("pollDeviceToken", () => {
 			]),
 		);
 		expect(out).toEqual({ kind: "denied" });
+	});
+
+	test("409 key_limit ends the wait with the revoke-a-key message", async () => {
+		const out = await pollDeviceToken(
+			START,
+			fakeDeps([
+				() => {
+					throw new CliHttpError(
+						409,
+						"HTTP_409",
+						{ error: "key_limit" },
+						"key_limit",
+					);
+				},
+			]),
+		);
+		expect(out).toEqual({ kind: "key_limit" });
+		expect(KEY_LIMIT_MESSAGE).toBe(
+			"You have 50 keys. Revoke one under Keys, then run secondlayer login again.",
+		);
 	});
 
 	test("410 means the code expired", async () => {
