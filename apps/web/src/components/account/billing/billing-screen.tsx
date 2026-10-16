@@ -38,11 +38,13 @@ import {
 	type Burn,
 	type DailySpend,
 	type HostedStack,
+	ROWS_ALLOWANCE,
 	type ServiceState,
 	type UsageRow,
 	balanceLevel,
 	currentUtcMonth,
 	deliveredRowsIn,
+	formatRows,
 	monthLabel,
 	monthParam,
 	monthShortLabel,
@@ -134,6 +136,49 @@ function Status({
 	);
 }
 
+/** A month with nothing spent and no credits yet: the free 1M and when to add more. */
+function isFreshAccount(billing: Billing | null): boolean {
+	return (
+		billing !== null &&
+		Number(billing.spentThisMonthUsdMicros) === 0 &&
+		Number(billing.creditsUsdMicros) === 0
+	);
+}
+
+function FreshMonth({
+	deliveredRows,
+	now,
+}: { deliveredRows: number; now: Date }) {
+	const free = Math.min(deliveredRows, ROWS_ALLOWANCE);
+	return (
+		<div className="bl-two even">
+			<section className="dash-panel bl-panel" aria-label="Free rows">
+				<span className="dash-label">Free rows</span>
+				<Meter
+					used={free}
+					total={ROWS_ALLOWANCE}
+					label="Free rows used this month"
+					left={`${formatRows(free)} of ${formatRows(ROWS_ALLOWANCE)} free rows`}
+					right={`resets ${nextMonthLabel(currentUtcMonth(now))}`}
+				/>
+				<span className="bl-note">
+					Block headers never count. Nothing is charged until you add credits.
+				</span>
+			</section>
+			<section className="dash-panel bl-panel" aria-label="Credits">
+				<span className="dash-label">Credits</span>
+				<div className="dash-big">$0.00</div>
+				<div className="acct-row-actions">
+					<a href="#packs" className="acct-btn line small">
+						Add credits
+					</a>
+				</div>
+				<span className="bl-note">Only needed past the free 1M.</span>
+			</section>
+		</div>
+	);
+}
+
 export interface BillingBodyProps {
 	now: Date;
 	billing: Billing | null;
@@ -191,10 +236,31 @@ export function BillingBody({
 		.filter((u) => isSentinelUnit(u.unit))
 		.reduce((sum, u) => sum + Number(u.usdMicros), 0);
 
+	const fresh = isFreshAccount(billing);
 	const days = daily ? costByDay(daily, now) : null;
 	const costTop = days
 		? niceMax(Math.max(...days.map((d) => d.stack + d.rows + d.events)) * 1.05)
 		: 1;
+
+	if (fresh) {
+		return (
+			<div className="bl-body">
+				{notice}
+				<StatusSentence
+					tone="idle"
+					sub="The first 1M rows each month are free. Add credits only when you pass them."
+				>
+					$0.00 spent this month.
+				</StatusSentence>
+				<FreshMonth deliveredRows={deliveredRowsIn(usage ?? [])} now={now} />
+				<ByUnitTable
+					usage={usage}
+					monthName={monthLabel(month).split(" ")[0]}
+				/>
+				{footer}
+			</div>
+		);
+	}
 
 	return (
 		<div className="bl-body">

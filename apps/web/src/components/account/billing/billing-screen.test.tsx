@@ -158,3 +158,32 @@ describe("SpendCapControl", () => {
 		expect(checkedRadios(html)).toEqual({});
 	});
 });
+
+describe("BillingBody for a new account", () => {
+	const fresh = {
+		...base,
+		billing: { creditsUsdMicros: "0", spentThisMonthUsdMicros: "0" },
+		burn: null,
+		service: null,
+		usage: [],
+		daily: [],
+	};
+
+	test("$0 spent and no credits explains the free 1M and when to add credits", () => {
+		const html = renderToStaticMarkup(<BillingBody {...fresh} />);
+		expect(html).toContain("$0.00 spent this month.");
+		expect(html).toContain("Add credits only when you pass them.");
+		expect(html).toContain("Block headers never count.");
+		expect(html).toContain("Only needed past the free 1M.");
+		expect(html).toContain("acct-btn line small");
+		expect(html).not.toContain("acct-btn solid small");
+	});
+
+	test("an account with credits keeps the normal screen", () => {
+		const html = renderToStaticMarkup(
+			<BillingBody {...fresh} billing={base.billing} />,
+		);
+		expect(html).not.toContain("$0.00 spent this month.");
+		expect(html).toContain("left");
+	});
+});
