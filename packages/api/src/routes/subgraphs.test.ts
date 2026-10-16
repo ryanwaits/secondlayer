@@ -337,6 +337,38 @@ describe.skipIf(!process.env.DATABASE_URL)(
 			expect(body.errors24h).toBe(3);
 		});
 
+		test("the list carries each subgraph's health on request, matching the single read", async () => {
+			const list = await app().request("/api/subgraphs?health=3");
+			expect(list.status).toBe(200);
+			const { data } = (await list.json()) as {
+				data: { name: string; health?: { hours: unknown[] } }[];
+			};
+			const item = data.find((s) => s.name === name);
+			expect(item?.health?.hours).toHaveLength(3);
+			const single = await app().request(
+				`/api/subgraphs/${name}/health?hours=3`,
+			);
+			expect(item?.health).toEqual(
+				(await single.json()) as { hours: unknown[] },
+			);
+		});
+
+		test("the list has no health key unless asked", async () => {
+			const res = await app().request("/api/subgraphs");
+			const { data } = (await res.json()) as {
+				data: Record<string, unknown>[];
+			};
+			expect(data.length).toBeGreaterThan(0);
+			for (const item of data) expect("health" in item).toBe(false);
+		});
+
+		test("the list rejects a health window outside 1-168", async () => {
+			for (const hours of ["0", "169", "abc", "1.5"]) {
+				const res = await app().request(`/api/subgraphs?health=${hours}`);
+				expect(res.status).toBe(400);
+			}
+		});
+
 		test("errors are ordered by count with camelCase fields", async () => {
 			const res = await app().request(`/api/subgraphs/${name}/errors`);
 			expect(res.status).toBe(200);

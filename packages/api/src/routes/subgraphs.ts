@@ -1103,35 +1103,117 @@ app.delete("/:subgraphName", async (c) => {
 	return c.json({ message: `Subgraph "${subgraphName}" deleted` });
 });
 
+// ── Hourly health, shared by the single read and the list's `?health=` ──
+
+const HEALTH_MAX_HOURS = 168;
+
+const HEALTH_SNAPSHOT_COLUMNS = [
+	"captured_at",
+	"chain_tip",
+	"last_processed_block",
+	"rows_written_total",
+	"total_errors",
+	"total_processed",
+] as const;
+
+/** An integer 1 to `HEALTH_MAX_HOURS`; `fallback` when the param is absent. */
+function parseHealthHours(
+	raw: string | undefined,
+	param: string,
+	fallback = 24,
+):
+	| { ok: true; hours: number }
+	| { ok: false; body: { error: string; code: string } } {
+	const hours = raw === undefined ? fallback : Number(raw);
+	if (!Number.isInteger(hours) || hours < 1 || hours > HEALTH_MAX_HOURS) {
+		return {
+			ok: false,
+			body: {
+				error: `${param} must be an integer from 1 to ${HEALTH_MAX_HOURS}`,
+				code: "VALIDATION_ERROR",
+			},
+		};
+	}
+	return { ok: true, hours };
+}
+
+/** One extra hour back so the first bucket's delta has a baseline row. */
+const healthSince = (hours: number, now: number): Date =>
+	new Date(now - (hours + 1) * 3_600_000);
+
+function summarizeHealth(
+	snapshots: Parameters<typeof bucketHourly>[0],
+	hours: number,
+	now: number,
+) {
+	const buckets = bucketHourly(snapshots, hours, now);
+	return {
+		hours: buckets,
+		errors24h: buckets.slice(-24).reduce((sum, b) => sum + b.errors, 0),
+	};
+}
+
 // ── List all subgraphs ──────────────────────────────────────────────────
 
 app.get("/", async (c) => {
 	const allSubgraphs = cache.getAll();
 
+	// `?health=<hours>` also returns each subgraph's hourly health.
+	const healthParam = c.req.query("health");
+	let healthHours: number | null = null;
+	if (healthParam !== undefined) {
+		const parsed = parseHealthHours(healthParam, "health");
+		if (!parsed.ok) return c.json(parsed.body, 400);
+		healthHours = parsed.hours;
+	}
+	const now = Date.now();
+
 	// Fetch live stats, chain tip, and gap summaries in parallel
 	const db = getDb();
-	const [liveResult, chainTip, gapSummaries] = await Promise.all([
-		db
-			.selectFrom("subgraphs")
-			.select([
-				"id",
-				"start_block",
-				"last_processed_block",
-				"total_processed",
-				"total_errors",
-				"status",
-				"reindex_from_block",
-				"reindex_to_block",
-				"last_error",
-				"last_error_at",
-				"updated_at",
-			])
-			.execute()
-			// biome-ignore lint/suspicious/noExplicitAny: fallback empty array
-			.catch(() => [] as any[]),
-		getChainTip(),
-		getGapSummaryBySubgraph(db).catch(() => []),
-	]);
+	const [liveResult, chainTip, gapSummaries, healthSnapshots] =
+		await Promise.all([
+			db
+				.selectFrom("subgraphs")
+				.select([
+					"id",
+					"start_block",
+					"last_processed_block",
+					"total_processed",
+					"total_errors",
+					"status",
+					"reindex_from_block",
+					"reindex_to_block",
+					"last_error",
+					"last_error_at",
+					"updated_at",
+				])
+				.execute()
+				// biome-ignore lint/suspicious/noExplicitAny: fallback empty array
+				.catch(() => [] as any[]),
+			getChainTip(),
+			getGapSummaryBySubgraph(db).catch(() => []),
+			healthHours === null || allSubgraphs.length === 0
+				? Promise.resolve([])
+				: db
+						.selectFrom("subgraph_health_snapshots")
+						.select(["subgraph_id", ...HEALTH_SNAPSHOT_COLUMNS])
+						.where(
+							"subgraph_id",
+							"in",
+							allSubgraphs.map((v) => v.id),
+						)
+						.where("captured_at", ">=", healthSince(healthHours, now))
+						.orderBy("subgraph_id")
+						.orderBy("captured_at", "asc")
+						.execute(),
+		]);
+
+	const snapshotsById = new Map<string, typeof healthSnapshots>();
+	for (const snap of healthSnapshots) {
+		const group = snapshotsById.get(snap.subgraph_id);
+		if (group) group.push(snap);
+		else snapshotsById.set(snap.subgraph_id, [snap]);
+	}
 
 	const liveStats = new Map<string, (typeof liveResult)[0]>();
 	for (const r of liveResult) liveStats.set(r.id, r);
@@ -1191,6 +1273,15 @@ app.get("/", async (c) => {
 				lastErrorAt: live?.last_error_at?.toISOString() ?? null,
 				updatedAt: (live?.updated_at ?? v.updated_at)?.toISOString() ?? null,
 				createdAt: v.created_at.toISOString(),
+				...(healthHours === null
+					? {}
+					: {
+							health: summarizeHealth(
+								snapshotsById.get(v.id) ?? [],
+								healthHours,
+								now,
+							),
+						}),
 			};
 		}),
 	});
@@ -1722,48 +1813,25 @@ app.get("/:subgraphName/gaps", async (c) => {
 // Declared before `/:subgraphName/:tableName` so neither word is captured
 // as a table name.
 
-const HEALTH_MAX_HOURS = 168;
-
 app.get("/:subgraphName/health", async (c) => {
 	const { subgraphName } = c.req.param();
 	const subgraph = requireSubgraph(subgraphName);
 
-	const raw = c.req.query("hours");
-	const hours = raw === undefined ? 24 : Number(raw);
-	if (!Number.isInteger(hours) || hours < 1 || hours > HEALTH_MAX_HOURS) {
-		return c.json(
-			{
-				error: `hours must be an integer from 1 to ${HEALTH_MAX_HOURS}`,
-				code: "VALIDATION_ERROR",
-			},
-			400,
-		);
-	}
+	const parsed = parseHealthHours(c.req.query("hours"), "hours");
+	if (!parsed.ok) return c.json(parsed.body, 400);
+	const hours = parsed.hours;
 
 	const now = Date.now();
-	// One extra hour back so the first bucket's delta has a baseline row.
-	const since = new Date(now - (hours + 1) * 3_600_000);
 	const db = getDb();
 	const snapshots = await db
 		.selectFrom("subgraph_health_snapshots")
-		.select([
-			"captured_at",
-			"chain_tip",
-			"last_processed_block",
-			"rows_written_total",
-			"total_errors",
-			"total_processed",
-		])
+		.select(HEALTH_SNAPSHOT_COLUMNS)
 		.where("subgraph_id", "=", subgraph.id)
-		.where("captured_at", ">=", since)
+		.where("captured_at", ">=", healthSince(hours, now))
 		.orderBy("captured_at", "asc")
 		.execute();
 
-	const buckets = bucketHourly(snapshots, hours, now);
-	return c.json({
-		hours: buckets,
-		errors24h: buckets.slice(-24).reduce((sum, b) => sum + b.errors, 0),
-	});
+	return c.json(summarizeHealth(snapshots, hours, now));
 });
 
 app.get("/:subgraphName/errors", async (c) => {

@@ -523,6 +523,10 @@
 				"title": "The Subgraph gap object"
 			},
 			{
+				"anchor": "subgraph-health-object",
+				"title": "The Subgraph health object"
+			},
+			{
 				"anchor": "subgraph-violation-object",
 				"title": "The Print validation skip object"
 			}

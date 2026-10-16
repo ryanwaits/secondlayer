@@ -234,6 +234,7 @@ const SCHEMA_TITLES: Record<string, string> = {
 	SubgraphOperationQueued: "Queued operation",
 	SubgraphOperation: "Subgraph operation",
 	SubgraphGap: "Subgraph gap",
+	SubgraphHealth: "Subgraph health",
 	SubgraphViolation: "Print validation skip",
 	WebhookSummary: "Webhook summary",
 	Webhook: "Webhook",

@@ -190,6 +190,14 @@ export const deploymentsPaths = {
 			description:
 				"Every subgraph on this instance with its status, sync progress, row count and open gap count. Row counts come from Postgres table statistics, so they are approximate; the detail read counts exactly.",
 			security: WRITE_SECURITY,
+			parameters: [
+				qp(
+					"health",
+					"integer",
+					false,
+					"Also return each subgraph's hourly health for this many hours, the same shape as the health read. 1 to 168.",
+				),
+			],
 			responses: apiReadResponses({
 				"200": {
 					description: "Every deployed subgraph, unpaginated",
@@ -656,67 +664,7 @@ export const deploymentsPaths = {
 					description: "Hourly health",
 					content: {
 						"application/json": {
-							schema: {
-								type: "object",
-								required: ["hours", "errors24h"],
-								properties: {
-									hours: {
-										type: "array",
-										description: "One bucket per hour, oldest first.",
-										items: {
-											type: "object",
-											required: [
-												"hour",
-												"lagBlocks",
-												"rowsWritten",
-												"errors",
-												"eventsHandled",
-											],
-											properties: {
-												hour: {
-													type: "string",
-													format: "date-time",
-													description: "Start of the UTC hour.",
-												},
-												lagBlocks: {
-													type: ["integer", "null"],
-													description:
-														"Blocks behind the chain tip at the hour's last snapshot. Null when the hour has none.",
-												},
-												rowsWritten: {
-													type: "integer",
-													description: "Rows the handlers wrote in the hour.",
-												},
-												errors: {
-													type: "integer",
-													description: "Handler errors in the hour.",
-												},
-												eventsHandled: {
-													type: "integer",
-													description:
-														"Events the handlers processed in the hour.",
-												},
-											},
-										},
-									},
-									errors24h: {
-										type: "integer",
-										description: "Handler errors across the newest 24 hours.",
-									},
-								},
-								example: {
-									hours: [
-										{
-											hour: "2026-10-16T13:00:00.000Z",
-											lagBlocks: 0,
-											rowsWritten: 1840,
-											errors: 0,
-											eventsHandled: 2213,
-										},
-									],
-									errors24h: 0,
-								},
-							},
+							schema: { $ref: "#/components/schemas/SubgraphHealth" },
 						},
 					},
 				},
@@ -1144,6 +1092,68 @@ export const deploymentsSchemas = {
 			bundleSize: 724,
 		},
 	},
+	SubgraphHealth: {
+		type: "object",
+		description:
+			"Hourly health buckets and the newest 24 hours' handler errors.",
+		required: ["hours", "errors24h"],
+		properties: {
+			hours: {
+				type: "array",
+				description: "One bucket per hour, oldest first.",
+				items: {
+					type: "object",
+					required: [
+						"hour",
+						"lagBlocks",
+						"rowsWritten",
+						"errors",
+						"eventsHandled",
+					],
+					properties: {
+						hour: {
+							type: "string",
+							format: "date-time",
+							description: "Start of the UTC hour.",
+						},
+						lagBlocks: {
+							type: ["integer", "null"],
+							description:
+								"Blocks behind the chain tip at the hour's last snapshot. Null when the hour has none.",
+						},
+						rowsWritten: {
+							type: "integer",
+							description: "Rows the handlers wrote in the hour.",
+						},
+						errors: {
+							type: "integer",
+							description: "Handler errors in the hour.",
+						},
+						eventsHandled: {
+							type: "integer",
+							description: "Events the handlers processed in the hour.",
+						},
+					},
+				},
+			},
+			errors24h: {
+				type: "integer",
+				description: "Handler errors across the newest 24 hours.",
+			},
+		},
+		example: {
+			hours: [
+				{
+					hour: "2026-10-16T13:00:00.000Z",
+					lagBlocks: 0,
+					rowsWritten: 1840,
+					errors: 0,
+					eventsHandled: 2213,
+				},
+			],
+			errors24h: 0,
+		},
+	},
 	DeployedSubgraph: {
 		type: "object",
 		description: "One deployed subgraph, as the list returns it.",
@@ -1242,6 +1252,11 @@ export const deploymentsSchemas = {
 				type: "string",
 				format: "date-time",
 				description: "First deploy.",
+			},
+			health: {
+				$ref: "#/components/schemas/SubgraphHealth",
+				description:
+					"Hourly health, present only when the list is requested with `health`.",
 			},
 		},
 		example: {
