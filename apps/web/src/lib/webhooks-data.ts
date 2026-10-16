@@ -2,7 +2,6 @@ import type {
 	DeadRow,
 	DeliveryRow,
 	WebhookActivity,
-	WebhookDeliveryDetail,
 	WebhookDetail,
 	WebhookSummary,
 } from "@secondlayer/sdk";
@@ -144,15 +143,6 @@ export async function getActivitySummary(): Promise<
 	return res.kind === "not_found"
 		? { kind: "ok", data: { hours: [], webhooks: [] } }
 		: res;
-}
-
-export function getDelivery(
-	id: string,
-	deliveryId: string,
-): Promise<WebhooksResult<WebhookDeliveryDetail>> {
-	return request<WebhookDeliveryDetail>(
-		`/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(deliveryId)}`,
-	);
 }
 
 export function pauseWebhook(

@@ -1,2570 +1,2570 @@
 {
-  "/docs": {
-    "hash": "58978e65b60f2015",
-    "phrasings": [
-      "what is decoded stacks chain data",
-      "stacks blockchain data api backfilled from genesis",
-      "reorg safe stacks indexer",
-      "stacks chain data without running a node",
-      "how to query decoded stacks events",
-      "stacks historical data from genesis block",
-      "keep stacks data current after reorgs",
-      "stacks api for smart contract events"
-    ]
-  },
-  "/docs#create-a-subgraph": {
-    "hash": "7c50ff026ccdbb09",
-    "phrasings": [
-      "generate typed subgraph from contract events",
-      "scaffold subgraph from contract abi",
-      "how to make subgraph from events",
-      "subgraph codegen typescript from contract",
-      "new subgraph project from smart contract",
-      "create typed mappings for contract events"
-    ]
-  },
-  "/docs#deploy": {
-    "hash": "f507606d6bf27c93",
-    "phrasings": [
-      "set startblock before deploying subgraph",
-      "why are my event rows empty after deploy",
-      "startblock setting for indexing transactions",
-      "how to deploy subgraph to hosted service",
-      "deploy fails startblock too early",
-      "billing for events and transactions during indexing"
-    ]
-  },
-  "/docs#get-started": {
-    "hash": "f2c8fd86039a289e",
-    "phrasings": [
-      "first steps to index bitcoin data",
-      "five commands to get first row",
-      "quick start bitcoin indexing tutorial",
-      "how to check rows against bitcoin",
-      "minimal setup to run first query",
-      "fastest way to try subgraph locally",
-      "why is my first row missing"
-    ]
-  },
-  "/docs#install-and-set-your-key": {
-    "hash": "d6de9641558fb907",
-    "phrasings": [
-      "where to put api key environment variable",
-      "how to configure api key for cli",
-      "which environment variables do i need to set",
-      "set key before running any command",
-      "auth token not found error on startup",
-      "missing key error when running commands",
-      "env variables used in example commands"
-    ]
-  },
-  "/docs#query": {
-    "hash": "005d4e6286e8d74a",
-    "phrasings": [
-      "how to query subgraph data graphql",
-      "example graphql query for transactions",
-      "fetch rows from deployed subgraph endpoint",
-      "query endpoint returns no results",
-      "graphql filter syntax for event entities",
-      "pagination in subgraph query results"
-    ]
-  },
-  "/docs#verify": {
-    "hash": "4e996ad881719b65",
-    "phrasings": [
-      "verify indexed block against bitcoin node",
-      "how to prove block hash matches bitcoin",
-      "check my rows come from valid block",
-      "confirm subgraph data matches chain",
-      "block proof verification for bitcoin rows",
-      "is indexed data trustworthy against bitcoin"
-    ]
-  },
-  "/docs#where-do-you-start": {
-    "hash": "d74854d996aa6b9f",
-    "phrasings": [
-      "how to write rows and cursor in one transaction",
-      "rollback to last good block after reorg",
-      "handle chain reorg without losing data",
-      "atomic commit of rows and cursor position",
-      "what to do when reorg happens during indexing",
-      "transaction across database writes and block cursor",
-      "how do i start indexing blocks safely",
-      "reorg causes duplicate rows in database"
-    ]
-  },
-  "/docs/api-reference": {
-    "hash": "2a96923f24479250",
-    "phrasings": [
-      "full list of api endpoints",
-      "api objects and schema reference",
-      "generated openapi docs for api",
-      "where are the api endpoint docs",
-      "browse all api endpoints by job",
-      "openapi specification reference pages",
-      "what endpoints does the api expose",
-      "api reference documentation index"
-    ]
-  },
-  "/docs/api/index": {
-    "hash": "9c5b616f385bd109",
-    "phrasings": [
-      "get decoded rows over http",
-      "index api endpoints list",
-      "query indexed data with get requests",
-      "how to fetch decoded blockchain rows",
-      "v1 index endpoint examples",
-      "http api for decoded events",
-      "retrieve rows without a client library",
-      "which url path to call for index data"
-    ]
-  },
-  "/docs/api/instance": {
-    "hash": "f16c47f41a4d8543",
-    "phrasings": [
-      "self hosted instance api endpoints",
-      "batch read requests on node",
-      "check archive node availability",
-      "discover catalog of available datasets",
-      "node health and discovery api",
-      "batch multiple reads in one call",
-      "self hosted node reads over http",
-      "instance catalog endpoint"
-    ]
-  },
-  "/docs/api/proofs": {
-    "hash": "e2a5397638e43bdf",
-    "phrasings": [
-      "verify api response with signed blocks",
-      "bitcoin anchoring of blocks",
-      "state proof verification api",
-      "check answer without trusting the server",
-      "signed block headers endpoint",
-      "prove data integrity from node",
-      "merkle proof for query results",
-      "how to anchor state to bitcoin"
-    ]
-  },
-  "/docs/api/streams": {
-    "hash": "1ff1b0549226a32d",
-    "phrasings": [
-      "stream events in chain order",
-      "server sent events live tail",
-      "how to subscribe to live blockchain events",
-      "get reorg history for a chain",
-      "raw event feed api",
-      "follow new blocks in real time",
-      "detect chain reorganizations via api",
-      "sse endpoint for streaming events"
-    ]
-  },
-  "/docs/api/subgraphs": {
-    "hash": "ff4540bb96a97c17",
-    "phrasings": [
-      "deploy a subgraph via api",
-      "describe subgraph tables endpoint",
-      "read rows from subgraph tables",
-      "operate subgraph programmatically",
-      "list subgraph schema tables",
-      "manage subgraph deployments api",
-      "how to query my subgraph data",
-      "subgraph management endpoints"
-    ]
-  },
-  "/docs/api/webhooks": {
-    "hash": "173c49fad5c8f027",
-    "phrasings": [
-      "create webhook endpoint for events",
-      "list webhook delivery attempts",
-      "replay missed webhook deliveries",
-      "retry failed webhook calls",
-      "webhook delivery logs api",
-      "recover events receiver missed",
-      "how to register a webhook url",
-      "webhook api for event notifications"
-    ]
-  },
-  "/docs/archive": {
-    "hash": "9c220c1353373bd6",
-    "phrasings": [
-      "signed chain history archive download",
-      "repair diverging chain data from archive",
-      "boot fresh instance from archive file",
-      "check my node against signed archive",
-      "what is the chain archive product",
-      "archive mismatch fix diverged state",
-      "use archive to bootstrap new node",
-      "signed archive digest verification"
-    ]
-  },
-  "/docs/archive#about-the-archive": {
-    "hash": "c8f45c7ea0fca4dc",
-    "phrasings": [
-      "how much does archive cost",
-      "archive pricing per block range",
-      "how much is each archive range worth",
-      "what kind of data is the archive",
-      "archive overview and cost",
-      "what is the archive used for"
-    ]
-  },
-  "/docs/archive#assurance-levels": {
-    "hash": "86503156ca369cb2",
-    "phrasings": [
-      "archive manifest assurance level meaning",
-      "what does assurance level mean per range",
-      "manifest assurance levels for block ranges",
-      "how to read archive manifest levels",
-      "archive range trust level explained",
-      "which assurance level does my range have",
-      "manifest range assurance values list"
-    ]
-  },
-  "/docs/archive#check-it": {
-    "hash": "7cac42d974d496a3",
-    "phrasings": [
-      "how to verify archive digests locally",
-      "archive check read only no writes",
-      "do archive digests leave my machine",
-      "verify archive data without uploading anything",
-      "is archive checking safe to run",
-      "archive digest verification privacy",
-      "check archive integrity on local machine"
-    ]
-  },
-  "/docs/archive#credits": {
-    "hash": "abdca5e43c8b2a8a",
-    "phrasings": [
-      "how much does archive backfill cost",
-      "archive bootstrap billing per partition bundle",
-      "why was my balance charged for reindex",
-      "archive fetch metered pricing",
-      "is archive verification free",
-      "quote archive cost before charge",
-      "reindex credits deducted from balance",
-      "archive partition bundle pricing explained"
-    ]
-  },
-  "/docs/archive#exit-codes": {
-    "hash": "7af098b7675c3121",
-    "phrasings": [
-      "archive exit code 2 meaning",
-      "archive check exit status codes",
-      "exit 0 means success archive check",
-      "script treats unable to check as failure",
-      "archive command exit code list"
-    ]
-  },
-  "/docs/archive#flags": {
-    "hash": "bf48e58556bcf945",
-    "phrasings": [
-      "archive command flags list",
-      "archive cli options reference",
-      "archive dry run flag",
-      "archive command help options",
-      "which flags to pass archive restore"
-    ]
-  },
-  "/docs/archive#from-your-instances-api": {
-    "hash": "22010b1231010687",
-    "phrasings": [
-      "verify archive via instance api",
-      "archive verify endpoint raw identity check",
-      "how to call archive verify on my instance",
-      "read-only archive verification api request body",
-      "instance api verify archive url",
-      "check archive identity from running instance",
-      "post v1 archive verify example",
-      "does archive verify modify anything"
-    ]
-  },
-  "/docs/archive#reading-the-output": {
-    "hash": "932923336829b848",
-    "phrasings": [
-      "archive output exit code meaning",
-      "archive divergence output explained",
-      "what does non zero exit mean archive",
-      "archive check diff ranges not matching",
-      "how to read archive mismatch report",
-      "clean archive run exit 0"
-    ]
-  },
-  "/docs/archive#repair-what-diverges": {
-    "hash": "9d038164fde04478",
-    "phrasings": [
-      "fix archive mismatch with my index",
-      "repair divergent archive partitions",
-      "is archive repair dry run by default",
-      "how to apply archive repair changes",
-      "archive differs from production index fix",
-      "enable writes when repairing archive",
-      "preview archive repair before applying",
-      "archive repair command default behavior"
-    ]
-  },
-  "/docs/archive#restore-a-fresh-instance": {
-    "hash": "c51468db307549e6",
-    "phrasings": [
-      "restore fresh archive instance from digest",
-      "bootstrap archive faster than weeks",
-      "how to bootstrap new node from signed digest",
-      "restore genesis to archive tip",
-      "fresh instance setup takes hours",
-      "verify signed digest before restoring rows"
-    ]
-  },
-  "/docs/archive#targets": {
-    "hash": "d1575164907ed2b0",
-    "phrasings": [
-      "which datasets does archive publish digests for",
-      "archive digests raw datasets only",
-      "archive targets list of datasets",
-      "does archive publish digests for all tables",
-      "three raw datasets archive digest"
-    ]
-  },
-  "/docs/archive#what-the-archive-is": {
-    "hash": "0fbf5b4138ba3668",
-    "phrasings": [
-      "what is the stacks archive parquet",
-      "immutable digest addressed partitions on r2",
-      "archive snapshot from production index source",
-      "repeatable read snapshot stacks index export",
-      "how is the stacks archive published",
-      "parquet partitions stored in cloudflare r2",
-      "archive data format and storage layout"
-    ]
-  },
-  "/docs/archive#which-command": {
-    "hash": "dcfc34252bbcd137",
-    "phrasings": [
-      "which archive command to run first",
-      "archive signed pointer start here",
-      "what command gets latest signed archive pointer",
-      "archive command for signed pointer"
-    ]
-  },
-  "/docs/authentication": {
-    "hash": "c72f78ea18815f94",
-    "phrasings": [
-      "stacks api key account",
-      "hosted stacks index streams webhooks access",
-      "how to get api key stacks",
-      "stacks subgraphs webhooks billing setup",
-      "one key for all stacks services"
-    ]
-  },
-  "/docs/authentication#archive-credits": {
-    "hash": "ac4874c98b7bc2b9",
-    "phrasings": [
-      "how many credits does archive backfill use",
-      "archive bootstrap credit cost",
-      "reindex consumes credits per bundle",
-      "why did my credits drop during backfill",
-      "credits charged for archive bundles",
-      "signed archive draw credits per partition",
-      "bootstrap backfill reindex billing"
-    ]
-  },
-  "/docs/authentication#balance-alerts": {
-    "hash": "f4ac6d80eca091df",
-    "phrasings": [
-      "stacks webhooks stopped delivering zero balance",
-      "subgraph stopped indexing no credits",
-      "stacks events held after balance empty",
-      "low balance alert stacks account",
-      "why did my stacks stack stop"
-    ]
-  },
-  "/docs/authentication#create-it": {
-    "hash": "4fd40e57c792f55b",
-    "phrasings": [
-      "how to create api key",
-      "sign up for stacks api account",
-      "first api key shown once",
-      "lost my api key create new",
-      "generate additional api keys account page",
-      "sign in with email to get key"
-    ]
-  },
-  "/docs/authentication#how-rows-are-counted": {
-    "hash": "76e13e3fa94a268e",
-    "phrasings": [
-      "are block headers billed",
-      "api row counting for billing",
-      "why did i get 402 response",
-      "free block header endpoint",
-      "how events and transactions are counted",
-      "index blocks endpoint cost",
-      "which rows count toward usage"
-    ]
-  },
-  "/docs/authentication#read-with-it": {
-    "hash": "8b5cc919e7990a68",
-    "phrasings": [
-      "api key mainnet example request",
-      "how to call mainnet with api key",
-      "live mainnet page example",
-      "where to find live mainnet data",
-      "example request against mainnet endpoint",
-      "how do i query mainnet with key",
-      "api key usage on live network"
-    ]
-  },
-  "/docs/authentication#set-it": {
-    "hash": "3d0986791fb71a66",
-    "phrasings": [
-      "set api key environment variable",
-      "sdk cli mcp read env variables",
-      "configure api key for cli",
-      "hosted url environment variables setup",
-      "why sdk ignores my api key",
-      "export key for mcp server"
-    ]
-  },
-  "/docs/authentication#spend-cap": {
-    "hash": "1ee6637e21bbe92d",
-    "phrasings": [
-      "how to set monthly spending limit",
-      "api key stopped working after credits used",
-      "stop charges above monthly budget",
-      "where to cap credit spending",
-      "how much did i spend this month",
-      "prevent unexpected billing overages on api",
-      "limit monthly credit usage per account",
-      "why was my api access blocked"
-    ]
-  },
-  "/docs/authentication#webhook-signing-secrets": {
-    "hash": "adfa2750c640a544",
-    "phrasings": [
-      "whsec signing secret per webhook",
-      "where to find webhook secret",
-      "verify webhook signature with whsec",
-      "webhook secret rotation per endpoint",
-      "invalid webhook signature whsec error",
-      "is webhook signing secret shared",
-      "rotate webhook signing secret"
-    ]
-  },
-  "/docs/authentication#what-it-costs": {
-    "hash": "cc8275582233619b",
-    "phrasings": [
-      "stacks api pricing per read",
-      "how much do api reads cost",
-      "live vs history read pricing",
-      "is historical data more expensive",
-      "api billing per request cost"
-    ]
-  },
-  "/docs/authentication#your-key": {
-    "hash": "0d126ce6c5b5ff04",
-    "phrasings": [
-      "where to find my api key",
-      "stacks api key location",
-      "how to get api key for requests",
-      "api key not showing up",
-      "authenticate requests with bearer token",
-      "where is my key stored"
-    ]
-  },
-  "/docs/changelog": {
-    "hash": "037ec9e2ff654ca3",
-    "phrasings": [
-      "secondlayer release notes",
-      "what changed in latest secondlayer version",
-      "secondlayer sdk breaking changes",
-      "secondlayer version history",
-      "secondlayer upgrade notes",
-      "did secondlayer sdk update recently",
-      "secondlayer new features by version",
-      "secondlayer changelog latest release",
-      "secondlayer deprecated features removed"
-    ]
-  },
-  "/docs/cli": {
-    "hash": "c05b0c26bbe00598",
-    "phrasings": [
-      "secondlayer cli deploy subgraphs from terminal",
-      "deploy webhooks to self hosted box",
-      "command line tool for running an instance",
-      "manage hosted subgraphs from command line",
-      "secondlayer terminal commands overview",
-      "run subgraphs and webhooks from one terminal"
-    ]
-  },
-  "/docs/cli#command-map": {
-    "hash": "23d44a27f28753da",
-    "phrasings": [
-      "list all secondlayer cli commands",
-      "secondlayer cli commands reference",
-      "which secondlayer command does what",
-      "secondlayer command not found",
-      "secondlayer cli help top level commands",
-      "where are docs for each cli command",
-      "secondlayer cli overview of subcommands"
-    ]
-  },
-  "/docs/cli#connect": {
-    "hash": "28a966c7c56299d1",
-    "phrasings": [
-      "connect clarinet project to secondlayer",
-      "link clarinet devnet to local indexer",
-      "secondlayer cli connect clarinet project",
-      "how to point devnet events to indexer",
-      "clarinet devnet events observer config"
-    ]
-  },
-  "/docs/cli#frozen-features": {
-    "hash": "03dcc32a126b3361",
-    "phrasings": [
-      "cli features no longer maintained",
-      "which cli commands are deprecated",
-      "cli feature not getting updates",
-      "stable but unsupported cli options",
-      "frozen cli commands meaning",
-      "are some cli features discontinued",
-      "cli commands that won't receive new work"
-    ]
-  },
-  "/docs/cli#generate-typed-contract-clients": {
-    "hash": "53ff4f18be655cba",
-    "phrasings": [
-      "clarity to typescript types generator",
-      "generate typescript client from clarity contract",
-      "typed contract client from clarinet project",
-      "convert clar files to typescript",
-      "generate typed client for deployed contract",
-      "clarinet project typescript bindings",
-      "secondlayer codegen for clarity contracts"
-    ]
-  },
-  "/docs/cli#install": {
-    "hash": "dcfb109263117676",
-    "phrasings": [
-      "how to install secondlayer binary",
-      "sl command alias install",
-      "npm install secondlayer cli",
-      "secondlayer command not found after install",
-      "install secondlayer on mac or linux",
-      "what is the sl shortcut"
-    ]
-  },
-  "/docs/cli#local-chain": {
-    "hash": "cde18af1999abe1c",
-    "phrasings": [
-      "run full stack locally with clarinet devnet",
-      "local postgres indexer api with clarinet",
-      "run subgraph processor locally against devnet",
-      "secondlayer local development environment setup",
-      "docker compose local secondlayer stack",
-      "how to test subgraphs with clarinet locally"
-    ]
-  },
-  "/docs/cli#local-runtime": {
-    "hash": "5be61fe0d1647047",
-    "phrasings": [
-      "write secondlayer keys locally",
-      "restore chain history for local dev",
-      "print observer stanza secondlayer",
-      "secondlayer local dev setup keys",
-      "stacks observer config snippet",
-      "secondlayer local runtime restore history",
-      "generate observer config for local node"
-    ]
-  },
-  "/docs/cli#scaffold-from-a-contract": {
-    "hash": "7146596da57a8631",
-    "phrasings": [
-      "generate types from print events secondlayer",
-      "infer print payload schema from history",
-      "secondlayer scaffold contract print topics",
-      "create starter project from clarity contract",
-      "print event payload shape from indexed data",
-      "secondlayer scaffold from deployed contract",
-      "clarity print topic payload types"
-    ]
-  },
-  "/docs/cli#start-the-devnet": {
-    "hash": "5eb4f32b876df152",
-    "phrasings": [
-      "run local devnet with cli",
-      "secondlayer devnet start command",
-      "local chain auto deploy contracts",
-      "stream blocks to local indexer",
-      "start local stacks devnet",
-      "devnet not deploying my contracts",
-      "how to launch local dev chain"
-    ]
-  },
-  "/docs/deploy": {
-    "hash": "f07348f48302a0a2",
-    "phrasings": [
-      "where to run my consumer in production",
-      "deploy consumer to railway or render",
-      "run consumer on fly io",
-      "same dockerfile for multiple hosts",
-      "host consumer on same box as instance",
-      "deploy consumer near my instance",
-      "best hosting options for consumer process"
-    ]
-  },
-  "/docs/deploy#bind-a-port": {
-    "hash": "9c80a469b09715be",
-    "phrasings": [
-      "railway service marked unhealthy",
-      "render health check failing no response",
-      "fly app unhealthy http port",
-      "container must listen on http port",
-      "why is my deploy health check failing"
-    ]
-  },
-  "/docs/deploy#bring-your-database": {
-    "hash": "9442d41e4f9a99fe",
-    "phrasings": [
-      "connect app to my own postgres database",
-      "database url env var for postgres",
-      "use external postgres instead of bundled database",
-      "why does app use wrong database url",
-      "separate postgres for consumer app setup",
-      "point deployment at existing postgres server"
-    ]
-  },
-  "/docs/deploy#docker-and-ec2": {
-    "hash": "e33d8445c247da9d",
-    "phrasings": [
-      "deploy app to ec2 with docker",
-      "run container on ec2 restart policy",
-      "docker restart policy for worker",
-      "no platform deploy docker vm",
-      "self hosted deployment ec2 container",
-      "keep container running after crash",
-      "deploy secondlayer without platform config",
-      "ec2 docker compose restart always"
-    ]
-  },
-  "/docs/deploy#handle-sigterm": {
-    "hash": "167220316d46c2fd",
-    "phrasings": [
-      "handle sigterm in node app",
-      "abortsignal shutdown on redeploy",
-      "graceful stop on container redeploy",
-      "node process exits on sigterm",
-      "stop worker cleanly before redeploy",
-      "abortcontroller sigterm handler example",
-      "redeploy kills process mid job",
-      "catch sigterm for clean shutdown"
-    ]
-  },
-  "/docs/deploy#make-writes-idempotent": {
-    "hash": "15a8e11a6ac306b0",
-    "phrasings": [
-      "duplicate writes after retry in consumer",
-      "at least once delivery duplicate rows",
-      "make sink writes safe to replay",
-      "handle duplicate messages in database",
-      "why am i getting duplicate records",
-      "idempotent inserts for at least once delivery"
-    ]
-  },
-  "/docs/deploy#pick-a-target": {
-    "hash": "7ceda19c4cf4eb7f",
-    "phrasings": [
-      "instancetoken public bind remote target",
-      "private network between consumer and instance",
-      "choose hosting target for consumer container",
-      "remote deploy cannot reach instance",
-      "railway versus fly for consumer"
-    ]
-  },
-  "/docs/deploy#point-it-at-your-instance": {
-    "hash": "6b6bf0087413d161",
-    "phrasings": [
-      "consumer cannot connect to instance",
-      "set instance url for consumer",
-      "start instance before running consumer",
-      "consumer source configuration instance address",
-      "how to point consumer at instance"
-    ]
-  },
-  "/docs/deploy#what-youre-deploying": {
-    "hash": "268f9c21346b2f2b",
-    "phrasings": [
-      "which files do i need to deploy",
-      "minimum files for container deployment",
-      "dockerfile and config files needed for deploy",
-      "what goes in the deployment bundle",
-      "files required regardless of hosting platform"
-    ]
-  },
-  "/docs/filters-reference": {
-    "hash": "0f3b76dd23a5fd33",
-    "phrasings": [
-      "build chain event filter for ft transfers",
-      "convert event filter to streams params",
-      "reuse same filter for webhook trigger",
-      "ft transfer filter index params",
-      "filter stacks events for subgraph source",
-      "one filter definition for many event destinations",
-      "on ft transfer filter example",
-      "project event filter to streams config"
-    ]
-  },
-  "/docs/index": {
-    "hash": "bf89fe94d3d986ab",
-    "phrasings": [
-      "decoded rows into my own tables",
-      "sweep blockchain data into postgres",
-      "index onchain events into database",
-      "secondlayer indexing product overview",
-      "store decoded contract events locally",
-      "sync onchain data to my tables"
-    ]
-  },
-  "/docs/index#build-your-index-on-it": {
-    "hash": "fa625f93930e5063",
-    "phrasings": [
-      "delete rows after blockchain reorg",
-      "index fork height rollback rows",
-      "handle reorg in index checkpoint",
-      "name event commit rows checkpoint together",
-      "indexer reorg delete from fork height",
-      "how to build index with reorg safety"
-    ]
-  },
-  "/docs/index#check-it": {
-    "hash": "9c49af64031654ae",
-    "phrasings": [
-      "verify indexed row blockheight",
-      "prove block transactions bitcoin anchor locally",
-      "check bitcoin anchor for indexed data",
-      "validate index rows against block",
-      "how to verify row blockheight",
-      "index data proof against bitcoin anchor"
-    ]
-  },
-  "/docs/index#cost-and-history": {
-    "hash": "5d556b2b1a1a2799",
-    "phrasings": [
-      "is self hosted postgres really free to run",
-      "no rate limit on database reads",
-      "how much does it cost to self host",
-      "why are my postgres reads not metered",
-      "does self hosting remove usage limits",
-      "postgres reads without per request billing",
-      "self hosted vs hosted cost comparison",
-      "where do reads go when self hosting"
-    ]
-  },
-  "/docs/index#decoded-protocols": {
-    "hash": "ccefeb452ea8ddb7",
-    "phrasings": [
-      "what contracts are decoded on the index",
-      "shared contract feeds same verbs envelope",
-      "how to query decoded contract events",
-      "index decoded protocol feeds explained",
-      "list of indexed stacks contracts",
-      "decoded event envelope format stacks",
-      "how do i read contract activity feed"
-    ]
-  },
-  "/docs/index#find-contracts-by-standard": {
-    "hash": "dcf5df701b667a47",
-    "phrasings": [
-      "find all sip-010 token contracts",
-      "query contracts implementing nft standard",
-      "list every contract matching a trait",
-      "discover token contracts without address list",
-      "filter contracts by implemented standard",
-      "how to locate all tokens of a standard"
-    ]
-  },
-  "/docs/index#list-walk-consume": {
-    "hash": "0d99047719263c39",
-    "phrasings": [
-      "difference between list walk and consume",
-      "paginate through index feed",
-      "consume feed without missing records",
-      "which verb to use for feeds",
-      "list vs walk api endpoints",
-      "iterate over all index records",
-      "feed endpoints list walk consume usage"
-    ]
-  },
-  "/docs/index#mirror-schema": {
-    "hash": "e0dce5ff2f3b97d1",
-    "phrasings": [
-      "generate typed tables from index schema",
-      "keep local database tables in sync with index",
-      "codegen mirror tables for index data",
-      "prevent schema drift between index and my db",
-      "how to create mirror schema for indexed data",
-      "index tables differ from my postgres schema",
-      "auto generate database schema from index"
-    ]
-  },
-  "/docs/index#options": {
-    "hash": "998c81f130fb13aa",
-    "phrasings": [
-      "index configuration options list",
-      "secondlayer index options parameters",
-      "how to configure index batch size",
-      "indexer consumer settings reference",
-      "available flags for indexer setup",
-      "what options can i set on index"
-    ]
-  },
-  "/docs/index#other-ways-to-read": {
-    "hash": "33857b09bc5f6a1a",
-    "phrasings": [
-      "fetch single page of index results",
-      "one off export of all index rows",
-      "how to dump index data once",
-      "list function for paginated reads",
-      "walk entire feed for export",
-      "alternatives to streaming index data"
-    ]
-  },
-  "/docs/index#plain-http": {
-    "hash": "75210e4e54a1c6a6",
-    "phrasings": [
-      "query database over http without sdk",
-      "call database rest api with curl",
-      "how to run sql queries via http request",
-      "access database from client without driver",
-      "http api to fetch rows from database",
-      "no sdk needed to query data over http",
-      "send sql query using http post",
-      "connect to database from javascript fetch",
-      "querying rows with plain http requests",
-      "use database from any language via http"
-    ]
-  },
-  "/docs/index#pox-5": {
-    "hash": "7bd279be083732ad",
-    "phrasings": [
-      "pox 5 boot contract decoded prints",
-      "sip 045 pox 5 events",
-      "pox 5 per cycle totals",
-      "stacks pox 5 live bitcoin block 960230",
-      "decode pox 5 print events",
-      "pox cycle totals stacking api",
-      "pox 5 boot contract events history"
-    ]
-  },
-  "/docs/index#print-schemas": {
-    "hash": "46fe855ead5c5006",
-    "phrasings": [
-      "clarity print event payload shape",
-      "decode print payloads without abi",
-      "print topic data structure varies",
-      "clarity abi does not cover print events",
-      "typescript types for print event data",
-      "why print event fields differ per topic"
-    ]
-  },
-  "/docs/index#progress-and-health": {
-    "hash": "eb6a10d00afb23a7",
-    "phrasings": [
-      "how to check indexer sweep progress",
-      "monitor index liveness without custom bookkeeping",
-      "how far has the indexer synced",
-      "ctx field last processed height",
-      "health check for blockchain indexer",
-      "track sweep position in context object",
-      "is my index still catching up"
-    ]
-  },
-  "/docs/index#reorgs": {
-    "hash": "132a95e844b84d6f",
-    "phrasings": [
-      "reorgs array in api response",
-      "detect reorg in read envelope",
-      "meaning of reorg field in response",
-      "check if page overlaps reorganization",
-      "empty reorgs array meaning",
-      "block height range reorg detection api",
-      "how to tell data was reorganized"
-    ]
-  },
-  "/docs/index#runes": {
-    "hash": "76ac94afb2864b22",
-    "phrasings": [
-      "list of etched runes catalog",
-      "rune activity log per rune",
-      "runes balances on bitcoin tip",
-      "query bitcoin runes etchings api",
-      "rune balance lookup by address",
-      "runes data using bitcoin tip not stacks"
-    ]
-  },
-  "/docs/index#sbtc": {
-    "hash": "27dbec2fe44a137c",
-    "phrasings": [
-      "sbtc peg in and peg out lifecycle",
-      "sbtc sweep bitcoin confirmation status",
-      "track sbtc deposit to bitcoin confirmation",
-      "decode sbtc peg events",
-      "is sbtc sweep confirmed on bitcoin",
-      "sbtc withdrawal lifecycle states explained"
-    ]
-  },
-  "/docs/index#state-writes": {
-    "hash": "022e59610c54868d",
-    "phrasings": [
-      "contract state changes per block stacks",
-      "which contract writes happened in a block",
-      "list of state writes committed by block",
-      "stacks canonical block state diff order",
-      "how to get contract storage changes per block",
-      "node order contract state writes query",
-      "missing contract state updates for a block"
-    ]
-  },
-  "/docs/mcp": {
-    "hash": "9d891a09fc7ebab3",
-    "phrasings": [
-      "claude code mcp server setup",
-      "connect cursor to secondlayer mcp",
-      "give ai agent access to secondlayer",
-      "secondlayer mcp client live access",
-      "teach claude code secondlayer rules",
-      "model context protocol secondlayer tools"
-    ]
-  },
-  "/docs/mcp#agent-skill": {
-    "hash": "a3a1afa279bc1d2a",
-    "phrasings": [
-      "secondlayer agent skill setup",
-      "teach ai agent to build handlers",
-      "agent reads print schema before handler",
-      "ai coding agent secondlayer rules",
-      "verify mapping writes rows agent",
-      "install secondlayer skill for claude",
-      "agent building on secondlayer best practices",
-      "cursor rules for secondlayer handlers"
-    ]
-  },
-  "/docs/mcp#authentication": {
-    "hash": "30676f273cd967e4",
-    "phrasings": [
-      "mcp token ignored on localhost",
-      "why does mcp reject my bearer token",
-      "secondlayer mcp auth token loopback",
-      "mcp 401 unauthorized local request",
-      "do i need token for local mcp server",
-      "bearer token header mcp server setup"
-    ]
-  },
-  "/docs/mcp#connect": {
-    "hash": "ec00f699af3ee252",
-    "phrasings": [
-      "install secondlayer mcp server",
-      "connect mcp client stdio",
-      "secondlayer mcp npm package",
-      "configure mcp server in claude desktop",
-      "mcp server stdio transport setup",
-      "run secondlayer mcp command",
-      "add secondlayer to mcp config",
-      "mcp server not connecting"
-    ]
-  },
-  "/docs/mcp#notes": {
-    "hash": "b987ac52745de5ab",
-    "phrasings": [
-      "webhook signing secret only shown once",
-      "lost webhook signing secret secondlayer",
-      "webhooks create returns secret once",
-      "regenerate webhook signing secret secondlayer",
-      "where to find webhook secret after creation",
-      "secret not returned again after webhook create"
-    ]
-  },
-  "/docs/mcp#start-here": {
-    "hash": "37aa26cdae219a1c",
-    "phrasings": [
-      "secondlayer context resource first read",
-      "what to read before calling mcp tools",
-      "secondlayer mcp resources list order",
-      "agent starts calling tools without context",
-      "secondlayer context resource usage",
-      "mcp first steps for agents"
-    ]
-  },
-  "/docs/mcp#tools": {
-    "hash": "572c35e9e8d7ad92",
-    "phrasings": [
-      "paginate mcp read results cursor",
-      "reindex backfill replay operation id poll",
-      "mcp operationid status check",
-      "secondlayer deploy returns operation id",
-      "long running mcp tool call polling",
-      "cursor pagination secondlayer list tools"
-    ]
-  },
-  "/docs/rest-api": {
-    "hash": "ffaa5584c972e3ad",
-    "phrasings": [
-      "rest api response envelope shape v1",
-      "same client for index streams subgraphs",
-      "v1 api filter grammar cursor",
-      "one client for all v1 endpoints",
-      "consistent json envelope across endpoints",
-      "v1 rest api conventions overview"
-    ]
-  },
-  "/docs/rest-api#aggregates": {
-    "hash": "2ad8e7de8aa95543",
-    "phrasings": [
-      "how to sum values in subgraph table",
-      "rest endpoint for count and average",
-      "aggregate query over filtered subgraph data",
-      "get min max of a column via api",
-      "does count respect the same filters as list",
-      "scalar aggregate endpoint subgraph rest",
-      "compute totals from subgraph without fetching rows",
-      "aggregate endpoint returns wrong number"
-    ]
-  },
-  "/docs/rest-api#batch-reads": {
-    "hash": "2985a131700df2e6",
-    "phrasings": [
-      "how to send multiple api requests in one call",
-      "batch several reads into single http request",
-      "reduce latency of many rest calls",
-      "post batch endpoint limit of requests",
-      "combine multiple v1 queries in one round trip",
-      "bulk read api requests dashboard latency",
-      "max requests per batch call subgraph api",
-      "run ten queries at once rest"
-    ]
-  },
-  "/docs/rest-api#errors": {
-    "hash": "365b1812c45d783f",
-    "phrasings": [
-      "api error code handling best practice",
-      "why not parse error message text",
-      "branch on error code instead of message",
-      "error codes list rest api",
-      "handle api errors programmatically",
-      "api error response code field"
-    ]
-  },
-  "/docs/rest-api#filtering": {
-    "hash": "301a9e18cb192f6f",
-    "phrasings": [
-      "how to filter subgraph table rows by column",
-      "rest api query filter by field value",
-      "filter results on any column subgraph",
-      "why does my filter return validation error",
-      "subgraph rest filter operators examples",
-      "filter table by multiple columns rest",
-      "column not allowed in filter schema error",
-      "how to query rows matching a condition"
-    ]
-  },
-  "/docs/rest-api#pagination": {
-    "hash": "0a802ab9ea6c04d4",
-    "phrasings": [
-      "use nextcursor for next page",
-      "paginate index and subgraph results",
-      "cursor pagination previous response nextcursor",
-      "how to get next page of results",
-      "api pagination cursor parameter example",
-      "fetch all pages with cursor stacks"
-    ]
-  },
-  "/docs/rest-api#report-a-problem-hosted": {
-    "hash": "fab6a0424bb0c13c",
-    "phrasings": [
-      "secondlayer tools error requestid",
-      "what is requestid in error body",
-      "how to report api problem to support",
-      "hosted api error request id",
-      "include request id in bug report",
-      "secondlayer tools error body missing requestid"
-    ]
-  },
-  "/docs/rest-api#response-envelope": {
-    "hash": "fa0e1b6c7e525199",
-    "phrasings": [
-      "tip finalizedheight meaning burn confirmation",
-      "height index cursor format explained",
-      "finalized height burn confirmation boundary",
-      "api response tip object fields",
-      "cursor string format explained",
-      "stacks api tip finalized height explained"
-    ]
-  },
-  "/docs/rest-api#streaming-sse": {
-    "hash": "f343f1d1fdd2524d",
-    "phrasings": [
-      "server sent events endpoint example",
-      "sse keepalive ping every 20 seconds",
-      "event stream connection closes unexpectedly",
-      "how to consume text event stream",
-      "push rows over long lived connection",
-      "sse ping keepalive timeout",
-      "streaming api over http event-stream content type"
-    ]
-  },
-  "/docs/sdk": {
-    "hash": "ae4cedb7e9db6346",
-    "phrasings": [
-      "typescript sdk for secondlayer api",
-      "avoid manual cursor pagination typescript",
-      "handle chain reorgs in typescript client",
-      "verify signatures with secondlayer sdk",
-      "hosted vs self hosted secondlayer client",
-      "secondlayer npm library usage",
-      "stacks blockchain typescript client library"
-    ]
-  },
-  "/docs/sdk#checkpointed-consumer": {
-    "hash": "c62a7d1746a7bfbf",
-    "phrasings": [
-      "consume events without missing or duplicating",
-      "commit cursor for event consumer",
-      "exactly once event processing with cursor",
-      "secondlayer consume poll cursor checkpoint",
-      "resume consumer after crash without reprocessing",
-      "avoid double processing blockchain events",
-      "save consumer position between restarts"
-    ]
-  },
-  "/docs/sdk#filters": {
-    "hash": "5405be7958a231ed",
-    "phrasings": [
-      "define chain event filter once",
-      "reuse filter across index streams webhooks",
-      "sdk filter shape for subgraphs",
-      "event filter type definition sdk",
-      "filter config for streams and webhooks",
-      "describe contract event filter sdk",
-      "sdk filters not matching events"
-    ]
-  },
-  "/docs/sdk#install": {
-    "hash": "b5c2ba534b219e15",
-    "phrasings": [
-      "secondlayer api url environment variable",
-      "sdk default host configuration",
-      "point client at custom api host",
-      "secondlayer sdk base url env",
-      "secondlayer client wrong host connection error",
-      "install secondlayer sdk and set endpoint",
-      "configure sdk api endpoint for self host"
-    ]
-  },
-  "/docs/sdk#one-client-every-surface": {
-    "hash": "aa7a274ba46ea3cb",
-    "phrasings": [
-      "secondlayer sdk streams raw chain events",
-      "cursor paginated chain events typescript",
-      "replay stacks chain events in order",
-      "sl streams api example",
-      "secondlayer client surfaces overview",
-      "how to fetch ordered chain events",
-      "sdk access to chain event streams"
-    ]
-  },
-  "/docs/sdk#verifying-responses": {
-    "hash": "5860fbcd47c8fb1b",
-    "phrasings": [
-      "how to verify x-signature header sdk",
-      "sdk signature verification fails on sse frames",
-      "validate rest responses createstreamsclient",
-      "check webhook signature in streams sdk",
-      "why are my sse events failing verification",
-      "enable response signature checks apikey client",
-      "x-signature mismatch when reading streams",
-      "verify server responses with api key"
-    ]
-  },
-  "/docs/sdk-reference": {
-    "hash": "584c3433bd4bcb50",
-    "phrasings": [
-      "what methods does the client expose",
-      "list of all client sdk methods",
-      "sdk client method signatures lookup",
-      "how to find available sdk functions",
-      "where is the full sdk api documented",
-      "which client methods can i call",
-      "sdk methods missing from documentation",
-      "browse sdk client api reference",
-      "generated sdk reference from source code"
-    ]
-  },
-  "/docs/sdk-reference/archive": {
-    "hash": "ff4ec9de56f486b9",
-    "phrasings": [
-      "verify archive manifest signature",
-      "load signed archive manifest",
-      "price missing data archive download",
-      "fetch missing blockchain data archive",
-      "check data against manifest",
-      "stacks archive sdk verify data",
-      "how much does archive fetch cost"
-    ]
-  },
-  "/docs/sdk-reference/client": {
-    "hash": "5442c569f357e25c",
-    "phrasings": [
-      "batch reads stacks sdk client",
-      "get account snapshot one call",
-      "how to batch multiple reads",
-      "stacks client fetch account balance all at once",
-      "sdk client configuration options",
-      "batched rpc reads javascript",
-      "single call account state stacks"
-    ]
-  },
-  "/docs/sdk-reference/contracts": {
-    "hash": "90471722847f7d0c",
-    "phrasings": [
-      "find contracts implementing trait",
-      "get contract from registry by id",
-      "sip-010 conforming contracts search",
-      "list contracts matching trait clarity",
-      "lookup clarity contract registry",
-      "stacks contract trait conformance query",
-      "fetch contract source by identifier"
-    ]
-  },
-  "/docs/sdk-reference/errors": {
-    "hash": "8de5375fb44a92ea",
-    "phrasings": [
-      "secondlayer sdk error classes list",
-      "secondlayererror subclasses",
-      "catch errors thrown by secondlayer sdk",
-      "what does secondlayererror mean",
-      "handle sdk exception types",
-      "secondlayer sdk throws error when",
-      "how to check error type in secondlayer",
-      "secondlayer error handling examples"
-    ]
-  },
-  "/docs/sdk-reference/helpers": {
-    "hash": "9c563b35e5a1ee37",
-    "phrasings": [
-      "secondlayer sdk import helper functions",
-      "decode values with secondlayer sdk",
-      "type guard for secondlayer responses",
-      "verify signature with secondlayer sdk",
-      "check proof in secondlayer sdk",
-      "how to consume stream loop secondlayer",
-      "secondlayer sdk decoders and type guards",
-      "which sdk functions are not client methods"
-    ]
-  },
-  "/docs/sdk-reference/index": {
-    "hash": "528414f34c4efba2",
-    "phrasings": [
-      "decoded stacks transfers query",
-      "get sbtc transactions decoded",
-      "query stacks contract call rows",
-      "decoded blocks and transactions api",
-      "runes indexed data stacks",
-      "pox cycle data query",
-      "list stacks events decoded rows"
-    ]
-  },
-  "/docs/sdk-reference/instance": {
-    "hash": "6be0fdaabc9e231f",
-    "phrasings": [
-      "check instance status report",
-      "instance health verdict next steps",
-      "stacks node status sdk",
-      "is my instance healthy",
-      "instance public status endpoint",
-      "what to do if instance unhealthy",
-      "sdk instance status check"
-    ]
-  },
-  "/docs/sdk-reference/streams": {
-    "hash": "f03b536196d2dfc9",
-    "phrasings": [
-      "stream stacks events in order",
-      "checkpoint event loop stacks",
-      "paginate stacks events",
-      "read stacks events page by page",
-      "consume blockchain events sdk",
-      "stacks event stream sdk example",
-      "resume event consumer from checkpoint"
-    ]
-  },
-  "/docs/sdk-reference/subgraphs": {
-    "hash": "c09f9ecfc9809a12",
-    "phrasings": [
-      "deploy stacks subgraph",
-      "read subgraph rows sdk",
-      "monitor subgraph operations",
-      "how to publish a subgraph",
-      "subgraph query results stacks",
-      "check subgraph deployment status",
-      "stacks subgraph sdk example"
-    ]
-  },
-  "/docs/sdk-reference/webhooks": {
-    "hash": "8755a2e9daa2a643",
-    "phrasings": [
-      "create stacks webhook",
-      "webhook delivery history stacks",
-      "replay failed webhook deliveries",
-      "list webhook deliveries api",
-      "stacks webhook sdk example",
-      "retry missed webhook events",
-      "webhooks not firing blockchain events"
-    ]
-  },
-  "/docs/self-host": {
-    "hash": "beff9e48ce825a26",
-    "phrasings": [
-      "run stacks indexer on my postgres",
-      "self host stacks data docker container",
-      "single container postgres indexer setup",
-      "self hosted api without kubernetes cluster",
-      "stacks indexer without message queue",
-      "deploy stacks data on own database"
-    ]
-  },
-  "/docs/self-host#archive-trust-root": {
-    "hash": "9a1520b8b733d798",
-    "phrasings": [
-      "archive manifest signature verification key",
-      "cli rejects archive manifest",
-      "trust root public key secondlayer",
-      "change archive trust key",
-      "manifest signature check failed cli",
-      "how archive manifests get verified"
-    ]
-  },
-  "/docs/self-host#backup": {
-    "hash": "549d7f08d60e270b",
-    "phrasings": [
-      "how to back up secondlayer index",
-      "secondlayer backup encrypted passphrase",
-      "export keys and index from secondlayer",
-      "restore secondlayer from backup file",
-      "secondlayer backup command creates bundle",
-      "encrypt secondlayer keys for backup",
-      "secondlayer backup and restore steps"
-    ]
-  },
-  "/docs/self-host#bitcoin-node": {
-    "hash": "dc47ac0b5105eda9",
-    "phrasings": [
-      "connect secondlayer to my bitcoin core node",
-      "bitcoind rpc setup for self hosted indexer",
-      "do i need a full bitcoin node to self host",
-      "bitcoin node configuration for secondlayer",
-      "run own bitcoin core alongside indexer",
-      "bitcoin node txindex requirement for indexing"
-    ]
-  },
-  "/docs/self-host#check-it": {
-    "hash": "1aee73d19ac177eb",
-    "phrasings": [
-      "verify restored data matches archive",
-      "compare restored node with signed archive",
-      "how to check self host restore worked",
-      "restored database mismatch with archive",
-      "validate self host data integrity",
-      "checksum restored chain against archive",
-      "confirm backup matches signed snapshot",
-      "self host restore verification steps"
-    ]
-  },
-  "/docs/self-host#config": {
-    "hash": "ea60a74b70d1a76c",
-    "phrasings": [
-      "secondlayer required environment variables list",
-      "which env vars are required secondlayer",
-      "secondlayer config non secret settings",
-      "compose derived variable secondlayer config",
-      "six required config values self host"
-    ]
-  },
-  "/docs/self-host#configure": {
-    "hash": "0e876867fbd48119",
-    "phrasings": [
-      "how to configure self host instance",
-      "self host config options list",
-      "where to set env variables self host",
-      "self host settings before first run",
-      "what config values does self host need",
-      "self host configuration missing variable error",
-      "customize self host setup options",
-      "which settings to change for self host"
-    ]
-  },
-  "/docs/self-host#connect-your-node": {
-    "hash": "c158fc54b9483383",
-    "phrasings": [
-      "connect stacks node to secondlayer config toml",
-      "nodemode external setting secondlayer",
-      "send blocks from my node to secondlayer",
-      "stacks node config toml secondlayer entry",
-      "secondlayer not receiving blocks from node"
-    ]
-  },
-  "/docs/self-host#fill-it-with-history": {
-    "hash": "22c44f9025fa5251",
-    "phrasings": [
-      "new node only has recent blocks",
-      "how to backfill chain history self host",
-      "self host missing old transactions",
-      "sync historical data to new instance",
-      "why does new instance show no history",
-      "import past blocks into fresh node",
-      "self host history not syncing from genesis",
-      "populate empty database with past data"
-    ]
-  },
-  "/docs/self-host#floors-enforced-at-start": {
-    "hash": "7b216ecda828c104",
-    "phrasings": [
-      "refuses to boot low memory",
-      "startup check ram disk maxconnections",
-      "secondlayer won't start insufficient resources",
-      "minimum requirements startup error",
-      "why does runtime exit on start"
-    ]
-  },
-  "/docs/self-host#hardware": {
-    "hash": "3cbc0d03799323b5",
-    "phrasings": [
-      "how much ram does secondlayer need",
-      "secondlayer self host system requirements",
-      "size server before syncing secondlayer",
-      "minimum disk space for self hosted indexer",
-      "secondlayer sync slow out of memory",
-      "cpu and storage needed to self host",
-      "what machine specs for running secondlayer"
-    ]
-  },
-  "/docs/self-host#instance-token": {
-    "hash": "fb06dfd331207caa",
-    "phrasings": [
-      "lost instance token self host",
-      "where is instance token stored",
-      "instance token in env local file",
-      "unauthorized error self hosted instance",
-      "reset instance token secondlayer",
-      "what does instance token protect"
-    ]
-  },
-  "/docs/self-host#not-in-the-box": {
-    "hash": "ca6773133ea9498d",
-    "phrasings": [
-      "does self host include multi tenant catalog",
-      "is archive publisher part of the image",
-      "hosted webhooks with account key alternative",
-      "what features are missing from self hosted",
-      "run webhooks without api secondlayer tools",
-      "where to get archive publisher image",
-      "managed subgraphs not available self hosted"
-    ]
-  },
-  "/docs/self-host#pin-a-version": {
-    "hash": "a78cac8b624917cf",
-    "phrasings": [
-      "pin secondlayer docker image version",
-      "docker compose latest tag avoid",
-      "lock self host version tag",
-      "upgrade docker compose to specific version",
-      "docker compose up pulls latest image",
-      "stop auto updating self host image"
-    ]
-  },
-  "/docs/self-host#postgres": {
-    "hash": "7b1a77d393bce4aa",
-    "phrasings": [
-      "postgres max connections setting for secondlayer",
-      "secondlayer too many connections error",
-      "postgresql connection pool size self host",
-      "fatal sorry too many clients already postgres",
-      "secondlayer database connection limit",
-      "max connections postgres minimum value",
-      "postgres config for secondlayer indexer"
-    ]
-  },
-  "/docs/self-host#production": {
-    "hash": "3e5978e69c36a077",
-    "phrasings": [
-      "secondlayer production deployment checklist",
-      "running secondlayer for real traffic setup",
-      "backups and upgrades for secondlayer server",
-      "pin version for production secondlayer docker",
-      "going live with secondlayer and own node"
-    ]
-  },
-  "/docs/self-host#profiles": {
-    "hash": "2ff7c782ea89540b",
-    "phrasings": [
-      "docker compose profiles env setting",
-      "set compose profile in env file",
-      "docker compose ignores my env settings",
-      "env file for docker compose profiles",
-      "enable profile with docker compose self host",
-      "compose command not picking up env"
-    ]
-  },
-  "/docs/self-host#runes": {
-    "hash": "15b3641e8c977836",
-    "phrasings": [
-      "index rune etch mint transfer burn events yourself",
-      "self host rune indexer from block 840000",
-      "run runes api locally same routes as hosted",
-      "runes history since block 840000 self hosted",
-      "how to track rune mints and burns on own server",
-      "local runes indexer same endpoints as cloud"
-    ]
-  },
-  "/docs/self-host#runes-only": {
-    "hash": "752f0804fde23851",
-    "phrasings": [
-      "self host runes without stacks node",
-      "skip stacks node runes indexing only",
-      "run secondlayer without connecting any chain node",
-      "runes only mode no stacks history",
-      "how to fill runes history without connecting nodes",
-      "minimal self host setup runes only"
-    ]
-  },
-  "/docs/self-host#running-other-teams-subgraphs": {
-    "hash": "5e72824275642c63",
-    "phrasings": [
-      "deploy third party subgraph security risk",
-      "run subgraph handler from another team",
-      "subgraph code trust instance permissions",
-      "is untrusted subgraph code safe",
-      "sandbox third party subgraph handlers",
-      "deploy external subgraph into my instance"
-    ]
-  },
-  "/docs/self-host#start": {
-    "hash": "6e22f5dfb97f1823",
-    "phrasings": [
-      "how to start self hosting",
-      "self host init command",
-      "generate instance token and signing keys",
-      "init creates signing keys self host",
-      "first steps running secondlayer locally",
-      "self host setup init step",
-      "what does init do first"
-    ]
-  },
-  "/docs/self-host#start-it": {
-    "hash": "50afd1e6e3ad2176",
-    "phrasings": [
-      "how to start self hosted container",
-      "docker run command for stacks indexer",
-      "first steps self hosting stacks data",
-      "start self hosted instance locally",
-      "launch indexer postgres connection string"
-    ]
-  },
-  "/docs/self-host#stop-it": {
-    "hash": "2d551da360e9514b",
-    "phrasings": [
-      "how to stop secondlayer without losing data",
-      "docker compose down deletes volumes",
-      "stop containers and keep index and keys",
-      "docker compose down v deletes index volume",
-      "safe shutdown secondlayer docker volumes",
-      "does stopping secondlayer wipe the index"
-    ]
-  },
-  "/docs/self-host#upgrade": {
-    "hash": "890827ac60bd8f9f",
-    "phrasings": [
-      "how to update self hosted version",
-      "upgrade to newer commit keep database",
-      "self host upgrade without losing data",
-      "update server to latest commit",
-      "keep existing keys when upgrading",
-      "migrate self hosted instance to new version",
-      "what happens to database on upgrade",
-      "upgrade steps for self hosted deployment"
-    ]
-  },
-  "/docs/self-host#upgrades": {
-    "hash": "1d7fcce30b066578",
-    "phrasings": [
-      "how to upgrade to newer release",
-      "upgrade self hosted version safely",
-      "backup before upgrading secondlayer",
-      "migrate to new release steps",
-      "update secondlayer docker image"
-    ]
-  },
-  "/docs/self-host#upgrades-with-runes": {
-    "hash": "5f21834af326eb66",
-    "phrasings": [
-      "upgrade secondlayer runes database migration takes hours",
-      "schema migration slow on full runes database",
-      "how long does runes database upgrade take",
-      "secondlayer upgrade stuck on migration",
-      "safe upgrade process for runes self host",
-      "runes migration downtime during upgrade"
-    ]
-  },
-  "/docs/self-host#use-these-docs-on-your-box": {
-    "hash": "d15454851dcf6859",
-    "phrasings": [
-      "set secondlayer api url for examples",
-      "doc examples pointing at localhost",
-      "secondlayer api key header example",
-      "env var for api url self host",
-      "run docs examples against my instance",
-      "why do doc examples fail on my server",
-      "api url variable for self hosted examples"
-    ]
-  },
-  "/docs/self-host#verify-and-repair": {
-    "hash": "ed8334ea06a5058e",
-    "phrasings": [
-      "what do verify command exit codes mean",
-      "archive verify flags explained",
-      "repair archive database corrupted data",
-      "how to check archive integrity",
-      "verify returns nonzero exit code",
-      "fix broken archive after verify fails",
-      "repair command flags for archive"
-    ]
-  },
-  "/docs/self-host#what-differs-on-your-box": {
-    "hash": "ab9a726a1bd4744f",
-    "phrasings": [
-      "how is self hosting different from hosted",
-      "what changes running on my own server",
-      "deploy my app to another machine",
-      "self host config differs from cloud",
-      "consumer app deployment on self hosted instance",
-      "self hosted vs managed setup differences",
-      "running secondlayer on a different box"
-    ]
-  },
-  "/docs/self-host#with-runes": {
-    "hash": "c4de7eb6314a72a1",
-    "phrasings": [
-      "add runes tables alongside existing self host data",
-      "enable runes on existing secondlayer self host",
-      "what changes when runes is enabled self hosted",
-      "runes rows added to standard self host schema",
-      "secondlayer runes extension additional tables",
-      "turn on runes indexing in existing install"
-    ]
-  },
-  "/docs/sinks": {
-    "hash": "162cb6b5ba94f40b",
-    "phrasings": [
-      "what is a sink in secondlayer",
-      "where does consume loop write data",
-      "sink destination for indexed events",
-      "choose database target for indexer",
-      "how sinks work with consume loop",
-      "sink concept explained for indexing"
-    ]
-  },
-  "/docs/sinks#health-and-shutdown": {
-    "hash": "6c919063a1d9181f",
-    "phrasings": [
-      "sink health check endpoint",
-      "consumerhealth returns what fields",
-      "does sdk start http server for health",
-      "graceful shutdown of sink consumer",
-      "how to expose sink health status",
-      "sink consumer health monitoring",
-      "stop sink consumer cleanly",
-      "sdk does not start server automatically"
-    ]
-  },
-  "/docs/sinks#keyed-on-the-query-builder-not-the-driver": {
-    "hash": "0050801d8ed29885",
-    "phrasings": [
-      "kysely sink setup with database instance",
-      "kyselysink takes kysely not driver",
-      "how to pass kysely instance to sink",
-      "kysely sink constructor arguments",
-      "sink using query builder vs raw driver",
-      "kysely indexer sink configuration example"
-    ]
-  },
-  "/docs/sinks#resuming": {
-    "hash": "6456dfcd461ed5a5",
-    "phrasings": [
-      "sink resume after restart",
-      "how does sink keep cursor position",
-      "restart sink without arguments",
-      "committed cursor on sink start",
-      "continue indexing after process crash",
-      "sink resume from last block"
-    ]
-  },
-  "/docs/sinks#rollback-is-height-stamped": {
-    "hash": "1bcfe9dc9de768b3",
-    "phrasings": [
-      "sink rollback deletes rows above fork height",
-      "how does sink rollback work with height",
-      "v1 rollback delete rows forkpointheight",
-      "sinks rollback removes data after reorg",
-      "why are rows deleted on sink rollback",
-      "sink reorg rollback deleting too many rows",
-      "rollback height stamp sink tables",
-      "which tables does sink rollback delete from"
-    ]
-  },
-  "/docs/sinks#the-problem-it-removes": {
-    "hash": "5d659fc40a07d0fe",
-    "phrasings": [
-      "why use a sink instead of consumer",
-      "hand rolled indexer consumer boilerplate",
-      "what problem do sinks solve",
-      "checkpoint and rollback handling without sink",
-      "writing a correct blockchain consumer from scratch",
-      "sink benefits over manual indexing code"
-    ]
-  },
-  "/docs/sinks#three-sinks-ship": {
-    "hash": "d3e4516dec217198",
-    "phrasings": [
-      "which database sinks are built in",
-      "custom sink for another database store",
-      "how to test a custom sink",
-      "conformance kit for sink implementations",
-      "sdk sinks supported stores list",
-      "can i use my own datastore with sinks",
-      "sink adapter for mongodb or redis"
-    ]
-  },
-  "/docs/sinks#with-a-sink": {
-    "hash": "8549b7037ff340a2",
-    "phrasings": [
-      "indexer sink transaction ctx.tx usage",
-      "write rows and checkpoint atomically",
-      "sink transaction commit rows checkpoint",
-      "minimal indexer with a sink example",
-      "how to write data in sink handler",
-      "ctx.tx database writes in indexer"
-    ]
-  },
-  "/docs/sinks#write-your-own-sink": {
-    "hash": "478f9db538182e0c",
-    "phrasings": [
-      "how to write custom sink driver",
-      "createsink driver options example",
-      "build own database sink secondlayer",
-      "sink driver dialect implementation",
-      "custom sink transaction handling",
-      "createsink from sdk sinks core",
-      "implement sink for my database",
-      "sink guards and transaction sequences"
-    ]
-  },
-  "/docs/streams": {
-    "hash": "68c476bbfdf83633",
-    "phrasings": [
-      "raw stacks firehose stream docs",
-      "decode stacks events myself",
-      "raw blockchain event stream access",
-      "streams product raw firehose overview",
-      "how to consume unprocessed stacks events",
-      "firehose when to use streams instead of index"
-    ]
-  },
-  "/docs/streams#bitcoin-events-runes": {
-    "hash": "b8ce69a4346791b2",
-    "phrasings": [
-      "runes events cursor on bitcoin chain",
-      "separate cursor for runes events",
-      "how to fetch rune transfers on bitcoin",
-      "bitcoin runes stream returns no events",
-      "chain bitcoin runes event feed",
-      "runes events missing from stream query",
-      "where to get runes activity data"
-    ]
-  },
-  "/docs/streams#build-an-indexer-on-it": {
-    "hash": "4b7ee823c453a349",
-    "phrasings": [
-      "how to write a stacks indexer",
-      "checkpointed event consumer stacks",
-      "handle chain reorgs in indexer",
-      "events.consume example loop",
-      "resume stacks events after restart",
-      "rewind indexer on reorg",
-      "stacks blockchain event stream tutorial",
-      "process stacks events reliably"
-    ]
-  },
-  "/docs/streams#check-it": {
-    "hash": "9b7e6664f79fc073",
-    "phrasings": [
-      "verify ed25519 signature stream frames",
-      "sdk checks frame signatures before onbatch",
-      "pin stream signing key trust",
-      "stream frame signature verification failing",
-      "how to pin ed25519 public key streams",
-      "are stream frames signed"
-    ]
-  },
-  "/docs/streams#cold-history": {
-    "hash": "ca2145c5ac347834",
-    "phrasings": [
-      "events replay backfill from bulk dumps",
-      "stream historical events from genesis",
-      "latestfinalizedcursor manifest tail live",
-      "gap or duplicate at backfill seam",
-      "replay old events then switch to live",
-      "signed bulk dumps stream backfill"
-    ]
-  },
-  "/docs/streams#dumps-and-duckdb": {
-    "hash": "3a05b2d60ca0d62c",
-    "phrasings": [
-      "query parquet dumps with duckdb",
-      "bulk export blockchain events as parquet",
-      "load stream data into duckdb",
-      "duckdb read parquet from dump files",
-      "download historical events as parquet",
-      "parquet format for analytics queries",
-      "export events to parquet for sql"
-    ]
-  },
-  "/docs/streams#filters": {
-    "hash": "3796b31c0fef5a9f",
-    "phrasings": [
-      "one filters object multiple concerns cursor",
-      "follow several streams with one filter",
-      "combine filters on single cursor",
-      "stream filters object example",
-      "filter multiple events one cursor",
-      "stream filter options for several topics"
-    ]
-  },
-  "/docs/streams#from-the-cli": {
-    "hash": "d79d66c0e9a095c8",
-    "phrasings": [
-      "secondlayer cli streams command",
-      "print stream events as json terminal",
-      "read streams from command line",
-      "list secondlayer cli subcommands",
-      "fetch events without writing code",
-      "terminal command to tail stream data"
-    ]
-  },
-  "/docs/streams#index-runes-into-your-own-database": {
-    "hash": "096120a92ca9a81f",
-    "phrasings": [
-      "how to store runes data in my own database",
-      "sync rune events into postgres",
-      "events.consume bitcoin example",
-      "checkpointed indexer for runes bitcoin",
-      "index runes activity into custom db",
-      "consume bitcoin chain events loop",
-      "rune indexer not resuming after restart",
-      "persist stream events to my database"
-    ]
-  },
-  "/docs/streams#per-frame-signatures": {
-    "hash": "0b2a9201d69ce00a",
-    "phrasings": [
-      "verify sse frame signature",
-      "keyid field in event stream frame",
-      "validate signed event payload",
-      "what is sig field in event",
-      "check event signature with keyid",
-      "event frame signature verification example",
-      "authenticate streamed event frames"
-    ]
-  },
-  "/docs/streams#read-it-directly": {
-    "hash": "3787084af705ad31",
-    "phrasings": [
-      "how to poll stream events in a loop",
-      "simple loop to fetch stream events",
-      "stream api call repeatedly example",
-      "read events without a consumer library",
-      "why does my stream loop keep polling",
-      "fetch blockchain events with plain http",
-      "minimal code to pull stream data"
-    ]
-  },
-  "/docs/streams#real-time-firehose-sse": {
-    "hash": "e9358bf3ea2b7148",
-    "phrasings": [
-      "server sent events stream endpoint",
-      "sse endpoint for blockchain events",
-      "stream events over server sent events",
-      "filter params for sse event stream",
-      "realtime events alternative to websocket",
-      "curl sse blockchain events stream",
-      "subscribe to live events via sse"
-    ]
-  },
-  "/docs/streams#reorg-behavior": {
-    "hash": "9e55d15ef2cdfb4a",
-    "phrasings": [
-      "what happens to stream on chain reorg",
-      "stream sends duplicate events after reorg",
-      "reorg redelivers fork block events",
-      "how to handle reorgs in event stream",
-      "events replayed after fork detected",
-      "rewind cursor on blockchain reorganization",
-      "does stream resend block after reorg"
-    ]
-  },
-  "/docs/streams#two-concerns-one-loop": {
-    "hash": "3e736c179a58234a",
-    "phrasings": [
-      "track two event types with one cursor",
-      "filter union of event types in stream",
-      "separate consumers for multiple event types",
-      "one checkpoint for multiple filters",
-      "why stream filters are and-ed together",
-      "sbtc mints and treasury spends together",
-      "multiple filters per consume loop"
-    ]
-  },
-  "/docs/subgraphs": {
-    "hash": "9a73fcd2d2d660e1",
-    "phrasings": [
-      "typescript file to rest api over table",
-      "generate rest api from typescript config",
-      "subgraph table and rest api setup",
-      "easiest way to index chain data",
-      "define subgraph single file typescript",
-      "turn blockchain events into rest endpoint"
-    ]
-  },
-  "/docs/subgraphs#check-it": {
-    "hash": "95e00e4b5cad11e2",
-    "phrasings": [
-      "how to verify subgraph data against the api",
-      "recompute subgraph rows locally and compare",
-      "subgraph api returns different data than my local calculation",
-      "validate indexed rows from proven blocks",
-      "compare subgraph output with recomputed values",
-      "how do i confirm subgraph results are correct",
-      "mismatch between subgraph query results and expected rows",
-      "local verification of subgraph indexing output"
-    ]
-  },
-  "/docs/subgraphs#check-status": {
-    "hash": "29c53c4d898b0dd9",
-    "phrasings": [
-      "subgraph backfill progress check",
-      "is my subgraph still syncing",
-      "table reads during backfill",
-      "how far has indexing reached",
-      "subgraph sync status command",
-      "check whether backfill finished"
-    ]
-  },
-  "/docs/subgraphs#counters-and-balances-use-increment": {
-    "hash": "15d50932283f4727",
-    "phrasings": [
-      "atomic counter update subgraph ctx",
-      "increment balance without race condition",
-      "upsert delta on unique key",
-      "subgraph running totals in one statement",
-      "ctx increment unique keys upsert",
-      "avoid lost updates counting in subgraph"
-    ]
-  },
-  "/docs/subgraphs#define-a-subgraph": {
-    "hash": "059f9b6629a3dcec",
-    "phrasings": [
-      "how to write a subgraph handler",
-      "subgraph declare table and sources",
-      "subgraph sources and handlers setup",
-      "one handler per source subgraph",
-      "subgraph manifest sources example",
-      "subgraph table declaration steps"
-    ]
-  },
-  "/docs/subgraphs#deploy": {
-    "hash": "cc7b2bfb7d6722a0",
-    "phrasings": [
-      "how do i deploy a subgraph",
-      "where to host my subgraph for free",
-      "is hosted subgraph service the default",
-      "subgraph deployment with no infrastructure to run",
-      "how many private subgraphs per account",
-      "deploy subgraph without operating my own node",
-      "what does hosted subgraph deployment include",
-      "hosted vs self hosted subgraph deploy"
-    ]
-  },
-  "/docs/subgraphs#handler-context": {
-    "hash": "994a4fae7b0bb9d2",
-    "phrasings": [
-      "what is context object in subgraph handler",
-      "how to access event data in handler",
-      "subgraph handler not receiving event parameters",
-      "how to get context inside event handler",
-      "where does handler context come from",
-      "subgraph handler arguments explained",
-      "how do i read matched event in subgraph",
-      "accessing context in subgraph mapping function"
-    ]
-  },
-  "/docs/subgraphs#handlers": {
-    "hash": "107b6ef25184c985",
-    "phrasings": [
-      "what does a subgraph handler return",
-      "turn chain event into database rows",
-      "subgraph handler function basics",
-      "how to write event handler subgraph",
-      "handler outputs rows per matched event",
-      "subgraph handler examples"
-    ]
-  },
-  "/docs/subgraphs#hoisting-the-schema": {
-    "hash": "c66ad10bc630ca05",
-    "phrasings": [
-      "defineschema helper typed subgraph",
-      "typed helpers outside handler subgraph",
-      "how to share schema across helper functions",
-      "subgraph schema types not inferred in helpers",
-      "extract table schema into separate file",
-      "typescript types for helper functions subgraph",
-      "defineschema keeps helpers typed"
-    ]
-  },
-  "/docs/subgraphs#index-by-standard-not-by-address": {
-    "hash": "2ad2cdcb8197af07",
-    "phrasings": [
-      "index all sip010 tokens without addresses",
-      "trait filter matches contracts by standard",
-      "subgraph match contracts by trait not address",
-      "catch contracts deployed after subgraph ships",
-      "subgraph index every nft contract",
-      "filter contracts by standard classification"
-    ]
-  },
-  "/docs/subgraphs#indexing-a-contract-set": {
-    "hash": "84cb239f74acf564",
-    "phrasings": [
-      "index multiple contracts with one handler",
-      "subgraph source contractid array",
-      "share one handler across several contracts",
-      "how to index router and pool contracts together",
-      "subgraph multiple contract addresses same handler",
-      "index a fixed list of contracts",
-      "contractid accepts array of addresses",
-      "one data source for many contracts subgraph"
-    ]
-  },
-  "/docs/subgraphs#pages-cursors-and-sorting": {
-    "hash": "11fbe472a3cf94ca",
-    "phrasings": [
-      "paginate subgraph query results",
-      "cursor based pagination subgraph example",
-      "sort subgraph entities by field descending",
-      "subgraph query only returns first 100 results",
-      "how to get next page of subgraph results",
-      "order by and skip in subgraph query",
-      "page through all entities with cursor",
-      "subgraph orderby orderdirection example"
-    ]
-  },
-  "/docs/subgraphs#read-rows": {
-    "hash": "c248ae05a8e377ca",
-    "phrasings": [
-      "how to query rows from a subgraph table",
-      "fetch a single entity by id in subgraph",
-      "subgraph query returns empty list of entities",
-      "get all records from subgraph entity",
-      "subgraph api example query for table data",
-      "why is my subgraph query returning no data",
-      "retrieve entities from subgraph with filters",
-      "subgraph graphql query to list stored items"
-    ]
-  },
-  "/docs/subgraphs#test-before-you-deploy": {
-    "hash": "35c90ddd63fa5e08",
-    "phrasings": [
-      "test subgraph handler against real chain events",
-      "run subgraph locally without deploying",
-      "dry run subgraph handler code",
-      "subgraph testing before deploy",
-      "preview indexed rows before deploying",
-      "local test harness for subgraph handlers"
-    ]
-  },
-  "/docs/subgraphs#tip-first-deploys": {
-    "hash": "0ad7a905ad9419cd",
-    "phrasings": [
-      "serve data while backfill runs",
-      "deploy subgraph live at chain tip",
-      "backfill mode concurrent subgraph",
-      "rows available in seconds during backfill",
-      "skip waiting for history sync",
-      "fast initial deploy subgraph backfill"
-    ]
-  },
-  "/docs/subgraphs#what-runs-hosted": {
-    "hash": "6fa32d1a37b1bdfc",
-    "phrasings": [
-      "why does my processor keep restarting",
-      "subgraph processor restarts out of memory",
-      "where do hosted subgraphs actually run",
-      "processor stalls then restarts what happens",
-      "hosted subgraph memory limit restart loop",
-      "what process runs my subgraph on the host",
-      "subgraph keeps restarting when it runs out of memory",
-      "does hosted processor restart if it stalls"
-    ]
-  },
-  "/docs/subgraphs-reference": {
-    "hash": "05027b1028b7deb4",
-    "phrasings": [
-      "how do i define a subgraph handler",
-      "definesubgraph handler context fields",
-      "read contract state inside a subgraph",
-      "generate typescript types from subgraph schema",
-      "replay subgraph events from block height",
-      "test subgraph handlers locally",
-      "subgraph handler errors during replay",
-      "stacks contract read example in handler"
-    ]
-  },
-  "/docs/verification": {
-    "hash": "9018fad532050cee",
-    "phrasings": [
-      "how to verify blockchain data integrity",
-      "verify chain state without trusting provider",
-      "trustless verification of archive data",
-      "check archive data is correct",
-      "verify node data against checkpoint"
-    ]
-  },
-  "/docs/verification#archive-assurance-levels": {
-    "hash": "c64ba4d1ee6adf1e",
-    "phrasings": [
-      "archive manifest assurance level per range",
-      "what does db reconstructive mean",
-      "which archive ranges are fully verified",
-      "archive manifest levels explained",
-      "how much of chain is reconstructive"
-    ]
-  },
-  "/docs/verification#bitcoin-transactions": {
-    "hash": "acd746842cdb6365",
-    "phrasings": [
-      "how to verify a bitcoin transaction",
-      "verifybitcointx txid merkle root check",
-      "confirm bitcoin tx included in block header",
-      "check merkle proof for bitcoin transaction",
-      "verify bitcoin tx against checkpoint chain",
-      "txid mismatch from raw transaction bytes",
-      "bitcoin spv proof header validation steps",
-      "validate block header against checkpoint chain"
-    ]
-  },
-  "/docs/verification#blocks-below-the-checkpoint": {
-    "hash": "1f05339f4ec6ab6e",
-    "phrasings": [
-      "verify block below checkpoint skips bitcoin",
-      "why signer links missing for old blocks",
-      "verification of blocks before checkpoint",
-      "checkpoint skipped bitcoin link verify",
-      "old block verify fails bitcoin check",
-      "what happens to blocks under checkpoint"
-    ]
-  },
-  "/docs/verification#check-a-block": {
-    "hash": "f53352035715acb8",
-    "phrasings": [
-      "verify a single block state against checkpoint",
-      "command to verify block from checkpoint",
-      "check block links bitcoin to state",
-      "how to verify one block",
-      "validate block state root command line"
-    ]
-  },
-  "/docs/verification#exit-codes-and-cost": {
-    "hash": "4f935d2965a60cc1",
-    "phrasings": [
-      "verify exit codes meaning",
-      "can lying source pass verification",
-      "cost of running verify checks",
-      "verify failed link what to do",
-      "how expensive is block verification",
-      "does verify trust the data source"
-    ]
-  },
-  "/docs/verification#flags": {
-    "hash": "bf48e58556bcf945",
-    "phrasings": [
-      "verify command flags list",
-      "which cli options for verification",
-      "verify command checkpoint flag",
-      "how to set verify output format",
-      "verify options reference"
-    ]
-  },
-  "/docs/verification#in-your-code": {
-    "hash": "b1ddb65ad3131c95",
-    "phrasings": [
-      "verify library api in typescript",
-      "use verification check programmatically in node",
-      "import secondlayer verify package",
-      "call block verification from my code",
-      "verify library example usage",
-      "secondlayer verify npm package code"
-    ]
-  },
-  "/docs/verification#proof-levels": {
-    "hash": "086a8970aeecf612",
-    "phrasings": [
-      "what does a 200 verify response contain",
-      "verify response missing consensus field",
-      "raw transaction and merkle path in verify",
-      "when is consensus returned in proof",
-      "proof levels meaning for verification",
-      "verify output raw header merkle path"
-    ]
-  },
-  "/docs/verification#proofs-api": {
-    "hash": "9b5e7452d04d4d2e",
-    "phrasings": [
-      "free proofs api no api key",
-      "raw proof data endpoint for verify",
-      "is proofs endpoint metered or rate limited",
-      "proofs api endpoint for merkle paths",
-      "fetch raw material for block verification"
-    ]
-  },
-  "/docs/verification#proofs-api-and-limits": {
-    "hash": "72c9b64ad0d4996f",
-    "phrasings": [
-      "http proofs api endpoints for verification",
-      "what cannot be proven yet on chain",
-      "limitations of proof api",
-      "which checks lack proofs currently",
-      "proofs endpoint rate limits and restrictions",
-      "known gaps in transaction proofs",
-      "api for merkle proofs over http",
-      "unsupported proofs in verification api"
-    ]
-  },
-  "/docs/verification#prove-a-transaction": {
-    "hash": "6b01766034414101",
-    "phrasings": [
-      "verifytransactionproof example",
-      "how to prove a transaction is included",
-      "recompute txid and merkle root",
-      "verify transaction inclusion in block",
-      "check signer weight from proof",
-      "transaction proof verification code",
-      "confirm tx in block hash",
-      "validate tx proof with merkle path"
-    ]
-  },
-  "/docs/verification#what-it-does-not-cover-yet": {
-    "hash": "9717279a90ed3c53",
-    "phrasings": [
-      "what verification does not support yet",
-      "secondlayer verify limitations",
-      "known gaps in transaction verification",
-      "unsupported checks in verify tool",
-      "is verify complete for all transactions",
-      "missing features in verification roadmap"
-    ]
-  },
-  "/docs/verification#what-you-can-check": {
-    "hash": "205b2b9ecedd0745",
-    "phrasings": [
-      "what can i verify on the chain",
-      "which layers have verification checks",
-      "how much do i need to trust",
-      "verify chain data trust assumptions",
-      "what each verification step proves",
-      "list of things to check when verifying",
-      "how far does verification go",
-      "chain verification checks overview"
-    ]
-  },
-  "/docs/verify-reference": {
-    "hash": "96b47aeda599eeb8",
-    "phrasings": [
-      "verify stacks block against bitcoin checkpoint",
-      "client side stacks block verification without trusting node",
-      "check stacks transaction inclusion proof",
-      "verify stacks state against anchored checkpoint",
-      "trustless stacks verification in browser",
-      "bitcoin anchored checkpoint verification failed",
-      "how to verify stacks state root",
-      "light client verify stacks transactions"
-    ]
-  },
-  "/docs/webhooks": {
-    "hash": "3bd52fe9b4cd4fe6",
-    "phrasings": [
-      "what is a chain webhook",
-      "signed post to my url on events",
-      "get notified when blockchain event happens",
-      "webhook for stacks chain events",
-      "how do webhooks work for blockchain",
-      "receive http callbacks on chain activity"
-    ]
-  },
-  "/docs/webhooks#account-webhooks": {
-    "hash": "31fb68b02f425675",
-    "phrasings": [
-      "list my hosted account webhooks",
-      "account webhooks endpoint path",
-      "where do i see my webhooks",
-      "hosted account webhook listing api",
-      "get all webhooks for my account",
-      "account webhooks page location"
-    ]
-  },
-  "/docs/webhooks#check-it": {
-    "hash": "9a898831914ca2e1",
-    "phrasings": [
-      "verify webhook ed25519 signature",
-      "how to validate webhook delivery authenticity",
-      "webhook signature verification example",
-      "check webhook payload came from provider",
-      "ed25519 public key webhook signature check",
-      "webhook delivery signature not matching",
-      "test webhook signature in each format",
-      "authenticate incoming webhook requests"
-    ]
-  },
-  "/docs/webhooks#coming-from-chainhook": {
-    "hash": "6a27841240f1dede",
-    "phrasings": [
-      "migrate chainhook predicates to webhooks",
-      "chainhook predicate to trigger mapping",
-      "convert chainhook predicates to create commands",
-      "moving from chainhook to secondlayer webhooks",
-      "chainhook replacement webhook setup",
-      "import existing chainhook predicates agent"
-    ]
-  },
-  "/docs/webhooks#create-a-webhook": {
-    "hash": "91b4263b86562e61",
-    "phrasings": [
-      "how to set up a webhook for contract calls",
-      "webhook fire on token transfers to my url",
-      "register webhook endpoint for transfer events",
-      "configure webhook triggers for specific addresses",
-      "webhook not posting to my url",
-      "how to subscribe to on chain transfers via webhook",
-      "create webhook filter for function calls",
-      "webhook setup steps for blockchain events"
-    ]
-  },
-  "/docs/webhooks#delivery-lag": {
-    "hash": "b401aa50e461b2f6",
-    "phrasings": [
-      "webhook events arriving late",
-      "delay between block and webhook delivery",
-      "webhook delivery latency high",
-      "why are webhooks delayed after block",
-      "events dispatched minutes after block time",
-      "webhook lag over 60 seconds"
-    ]
-  },
-  "/docs/webhooks#from-the-cli": {
-    "hash": "1d1fdf30bca64eae",
-    "phrasings": [
-      "create webhook using command line",
-      "cli webhook trigger json config",
-      "define webhook triggers in json file",
-      "webhook cli json format example",
-      "set up webhook with cli instead of dashboard",
-      "cli command to register webhook triggers",
-      "json payload for webhook triggers from terminal",
-      "automate webhook creation with cli"
-    ]
-  },
-  "/docs/webhooks#hosted-limits": {
-    "hash": "9bf4bbf1e1e60e74",
-    "phrasings": [
-      "webhook hosted plan limits",
-      "api secondlayer tools webhook credits",
-      "webhook prepaid credits pricing",
-      "self hosted webhooks vs hosted",
-      "account key webhook quota",
-      "how many webhook deliveries included"
-    ]
-  },
-  "/docs/webhooks#print-fields": {
-    "hash": "00338fb18e3acc85",
-    "phrasings": [
-      "webhook filter print events by field",
-      "only receive prints matching my values",
-      "busy contract webhook too many events",
-      "filter print events where field equals",
-      "webhook delivers only my rows",
-      "reduce webhook noise from contract prints",
-      "where clause for print event payloads",
-      "get print events for specific user only"
-    ]
-  },
-  "/docs/webhooks#protocol-triggers": {
-    "hash": "10a7620f3509edba",
-    "phrasings": [
-      "sbtc trigger webhook setup",
-      "runes webhook trigger decoded data",
-      "webhook for sbtc events",
-      "how to trigger on runes transactions",
-      "decoded protocol events for webhooks",
-      "index protocols webhook sbtc runes",
-      "webhook not firing for runes activity",
-      "sbtc deposit webhook trigger"
-    ]
-  },
-  "/docs/webhooks#receive-and-verify": {
-    "hash": "96247bf22a790a19",
-    "phrasings": [
-      "how to receive webhook events safely",
-      "handle webhook reorg rollback",
-      "verify webhook body before processing",
-      "undo orphaned blocks from webhook",
-      "webhook receiver example code",
-      "decode webhook delivery body"
-    ]
-  },
-  "/docs/webhooks#receiver-down": {
-    "hash": "5185ec037281345b",
-    "phrasings": [
-      "webhook endpoint returning 500 errors",
-      "webhook receiver not responding timeout",
-      "webhook connection refused on my server",
-      "receiver down consecutive 5xx webhook",
-      "webhook deliveries all failing with 503",
-      "my webhook server is unreachable",
-      "webhook no response from endpoint"
-    ]
-  },
-  "/docs/webhooks#receiver-rate-limited": {
-    "hash": "610aeeaaf759dbbb",
-    "phrasings": [
-      "webhook receiver returning 429 too many requests",
-      "too many 429 responses from my endpoint",
-      "how many 429s trigger rate limit warning",
-      "webhook endpoint rate limit errors",
-      "receiver getting rate limited by webhook sender",
-      "reduce webhook load on my server",
-      "webhook 429 retry backoff behavior"
-    ]
-  },
-  "/docs/webhooks#receiver-rejects": {
-    "hash": "d1d6e4191dbe7fba",
-    "phrasings": [
-      "webhook returning 400 bad request",
-      "receiver rejects webhook with 401 unauthorized",
-      "webhook 403 forbidden from my endpoint",
-      "why does my endpoint reject webhook deliveries",
-      "webhook 404 not found receiver",
-      "4xx errors on webhook endpoint",
-      "webhook receiver keeps refusing requests"
-    ]
-  },
-  "/docs/webhooks#receiver-slow": {
-    "hash": "86af8edf24a40002",
-    "phrasings": [
-      "webhook endpoint response time too slow",
-      "increase webhook timeoutms setting",
-      "slow webhook receiver causing timeouts",
-      "webhook handler taking too long to respond",
-      "median response time webhook receiver",
-      "webhook timeout errors from slow endpoint"
-    ]
-  },
-  "/docs/webhooks#replay": {
-    "hash": "cdb6736ca9541775",
-    "phrasings": [
-      "resend past events to webhook",
-      "redeliver historical webhook events",
-      "replay missed chain events webhook",
-      "backfill webhook with old blocks",
-      "webhook replay for past transactions",
-      "resend failed webhook deliveries",
-      "re-trigger webhook for historical range",
-      "how to replay webhook history"
-    ]
-  },
-  "/docs/webhooks#replay-and-recovery": {
-    "hash": "cccc40387665b256",
-    "phrasings": [
-      "how to replay missed webhook deliveries",
-      "recover webhooks after endpoint downtime",
-      "resend failed webhook events manually",
-      "webhook backfill missing blocks after outage",
-      "retry failed webhook deliveries",
-      "replay webhook events from a block height",
-      "webhook endpoint was down how to recover"
-    ]
-  },
-  "/docs/webhooks#test-delivery": {
-    "hash": "50d1f0648360108e",
-    "phrasings": [
-      "secondlayer webhooks test command",
-      "send test webhook post request",
-      "test my webhook endpoint locally",
-      "webhook test delivery not received",
-      "debug webhook with sample payload",
-      "check webhook logs after test",
-      "cli command to test webhook post",
-      "fake webhook event for testing"
-    ]
-  },
-  "/docs/webhooks#triggers": {
-    "hash": "333d33c2c12eccdc",
-    "phrasings": [
-      "webhook trigger factory example",
-      "create webhook with trigger object",
-      "raw trigger objects for webhooks",
-      "how to define webhook triggers",
-      "webhook trigger configuration syntax",
-      "trigger factories vs raw objects webhook"
-    ]
-  },
-  "/docs/webhooks#triggers-and-limits": {
-    "hash": "5bed2fa3282d6723",
-    "phrasings": [
-      "webhook rate limits and quotas",
-      "what triggers are available for webhooks",
-      "webhook protocol triggers list",
-      "test delivery webhook limits hosted plan",
-      "maximum webhook triggers allowed",
-      "hosted webhook restrictions and caps",
-      "list of supported webhook event types",
-      "webhook test ping delivery behavior"
-    ]
-  },
-  "/docs/webhooks#troubleshooting": {
-    "hash": "f4ce3a9e73f9ed27",
-    "phrasings": [
-      "webhooks doctor command",
-      "webhook deliveries failing what to check",
-      "why is my webhook not working",
-      "diagnose webhook delivery problems",
-      "webhook detail page health rules",
-      "webhook last 100 attempts diagnosis",
-      "secondlayer webhook troubleshooting steps",
-      "webhook health check rules explained"
-    ]
-  },
-  "/docs/webhooks#verify-the-signature": {
-    "hash": "1643f382cbdadc60",
-    "phrasings": [
-      "verify webhook hmac signature",
-      "standard webhooks signature validation",
-      "webhook signature mismatch error",
-      "how to check webhook delivery authenticity",
-      "per webhook hmac secret verification",
-      "validate standard-webhooks headers node",
-      "webhook signature verification code example"
-    ]
-  }
+	"/docs": {
+		"hash": "58978e65b60f2015",
+		"phrasings": [
+			"what is decoded stacks chain data",
+			"stacks blockchain data api backfilled from genesis",
+			"reorg safe stacks indexer",
+			"stacks chain data without running a node",
+			"how to query decoded stacks events",
+			"stacks historical data from genesis block",
+			"keep stacks data current after reorgs",
+			"stacks api for smart contract events"
+		]
+	},
+	"/docs#create-a-subgraph": {
+		"hash": "7c50ff026ccdbb09",
+		"phrasings": [
+			"generate typed subgraph from contract events",
+			"scaffold subgraph from contract abi",
+			"how to make subgraph from events",
+			"subgraph codegen typescript from contract",
+			"new subgraph project from smart contract",
+			"create typed mappings for contract events"
+		]
+	},
+	"/docs#deploy": {
+		"hash": "f507606d6bf27c93",
+		"phrasings": [
+			"set startblock before deploying subgraph",
+			"why are my event rows empty after deploy",
+			"startblock setting for indexing transactions",
+			"how to deploy subgraph to hosted service",
+			"deploy fails startblock too early",
+			"billing for events and transactions during indexing"
+		]
+	},
+	"/docs#get-started": {
+		"hash": "f2c8fd86039a289e",
+		"phrasings": [
+			"first steps to index bitcoin data",
+			"five commands to get first row",
+			"quick start bitcoin indexing tutorial",
+			"how to check rows against bitcoin",
+			"minimal setup to run first query",
+			"fastest way to try subgraph locally",
+			"why is my first row missing"
+		]
+	},
+	"/docs#install-and-set-your-key": {
+		"hash": "d6de9641558fb907",
+		"phrasings": [
+			"where to put api key environment variable",
+			"how to configure api key for cli",
+			"which environment variables do i need to set",
+			"set key before running any command",
+			"auth token not found error on startup",
+			"missing key error when running commands",
+			"env variables used in example commands"
+		]
+	},
+	"/docs#query": {
+		"hash": "005d4e6286e8d74a",
+		"phrasings": [
+			"how to query subgraph data graphql",
+			"example graphql query for transactions",
+			"fetch rows from deployed subgraph endpoint",
+			"query endpoint returns no results",
+			"graphql filter syntax for event entities",
+			"pagination in subgraph query results"
+		]
+	},
+	"/docs#verify": {
+		"hash": "4e996ad881719b65",
+		"phrasings": [
+			"verify indexed block against bitcoin node",
+			"how to prove block hash matches bitcoin",
+			"check my rows come from valid block",
+			"confirm subgraph data matches chain",
+			"block proof verification for bitcoin rows",
+			"is indexed data trustworthy against bitcoin"
+		]
+	},
+	"/docs#where-do-you-start": {
+		"hash": "d74854d996aa6b9f",
+		"phrasings": [
+			"how to write rows and cursor in one transaction",
+			"rollback to last good block after reorg",
+			"handle chain reorg without losing data",
+			"atomic commit of rows and cursor position",
+			"what to do when reorg happens during indexing",
+			"transaction across database writes and block cursor",
+			"how do i start indexing blocks safely",
+			"reorg causes duplicate rows in database"
+		]
+	},
+	"/docs/api-reference": {
+		"hash": "2a96923f24479250",
+		"phrasings": [
+			"full list of api endpoints",
+			"api objects and schema reference",
+			"generated openapi docs for api",
+			"where are the api endpoint docs",
+			"browse all api endpoints by job",
+			"openapi specification reference pages",
+			"what endpoints does the api expose",
+			"api reference documentation index"
+		]
+	},
+	"/docs/api/index": {
+		"hash": "9c5b616f385bd109",
+		"phrasings": [
+			"get decoded rows over http",
+			"index api endpoints list",
+			"query indexed data with get requests",
+			"how to fetch decoded blockchain rows",
+			"v1 index endpoint examples",
+			"http api for decoded events",
+			"retrieve rows without a client library",
+			"which url path to call for index data"
+		]
+	},
+	"/docs/api/instance": {
+		"hash": "f16c47f41a4d8543",
+		"phrasings": [
+			"self hosted instance api endpoints",
+			"batch read requests on node",
+			"check archive node availability",
+			"discover catalog of available datasets",
+			"node health and discovery api",
+			"batch multiple reads in one call",
+			"self hosted node reads over http",
+			"instance catalog endpoint"
+		]
+	},
+	"/docs/api/proofs": {
+		"hash": "e2a5397638e43bdf",
+		"phrasings": [
+			"verify api response with signed blocks",
+			"bitcoin anchoring of blocks",
+			"state proof verification api",
+			"check answer without trusting the server",
+			"signed block headers endpoint",
+			"prove data integrity from node",
+			"merkle proof for query results",
+			"how to anchor state to bitcoin"
+		]
+	},
+	"/docs/api/streams": {
+		"hash": "1ff1b0549226a32d",
+		"phrasings": [
+			"stream events in chain order",
+			"server sent events live tail",
+			"how to subscribe to live blockchain events",
+			"get reorg history for a chain",
+			"raw event feed api",
+			"follow new blocks in real time",
+			"detect chain reorganizations via api",
+			"sse endpoint for streaming events"
+		]
+	},
+	"/docs/api/subgraphs": {
+		"hash": "ff4540bb96a97c17",
+		"phrasings": [
+			"deploy a subgraph via api",
+			"describe subgraph tables endpoint",
+			"read rows from subgraph tables",
+			"operate subgraph programmatically",
+			"list subgraph schema tables",
+			"manage subgraph deployments api",
+			"how to query my subgraph data",
+			"subgraph management endpoints"
+		]
+	},
+	"/docs/api/webhooks": {
+		"hash": "173c49fad5c8f027",
+		"phrasings": [
+			"create webhook endpoint for events",
+			"list webhook delivery attempts",
+			"replay missed webhook deliveries",
+			"retry failed webhook calls",
+			"webhook delivery logs api",
+			"recover events receiver missed",
+			"how to register a webhook url",
+			"webhook api for event notifications"
+		]
+	},
+	"/docs/archive": {
+		"hash": "9c220c1353373bd6",
+		"phrasings": [
+			"signed chain history archive download",
+			"repair diverging chain data from archive",
+			"boot fresh instance from archive file",
+			"check my node against signed archive",
+			"what is the chain archive product",
+			"archive mismatch fix diverged state",
+			"use archive to bootstrap new node",
+			"signed archive digest verification"
+		]
+	},
+	"/docs/archive#about-the-archive": {
+		"hash": "c8f45c7ea0fca4dc",
+		"phrasings": [
+			"how much does archive cost",
+			"archive pricing per block range",
+			"how much is each archive range worth",
+			"what kind of data is the archive",
+			"archive overview and cost",
+			"what is the archive used for"
+		]
+	},
+	"/docs/archive#assurance-levels": {
+		"hash": "86503156ca369cb2",
+		"phrasings": [
+			"archive manifest assurance level meaning",
+			"what does assurance level mean per range",
+			"manifest assurance levels for block ranges",
+			"how to read archive manifest levels",
+			"archive range trust level explained",
+			"which assurance level does my range have",
+			"manifest range assurance values list"
+		]
+	},
+	"/docs/archive#check-it": {
+		"hash": "7cac42d974d496a3",
+		"phrasings": [
+			"how to verify archive digests locally",
+			"archive check read only no writes",
+			"do archive digests leave my machine",
+			"verify archive data without uploading anything",
+			"is archive checking safe to run",
+			"archive digest verification privacy",
+			"check archive integrity on local machine"
+		]
+	},
+	"/docs/archive#credits": {
+		"hash": "abdca5e43c8b2a8a",
+		"phrasings": [
+			"how much does archive backfill cost",
+			"archive bootstrap billing per partition bundle",
+			"why was my balance charged for reindex",
+			"archive fetch metered pricing",
+			"is archive verification free",
+			"quote archive cost before charge",
+			"reindex credits deducted from balance",
+			"archive partition bundle pricing explained"
+		]
+	},
+	"/docs/archive#exit-codes": {
+		"hash": "7af098b7675c3121",
+		"phrasings": [
+			"archive exit code 2 meaning",
+			"archive check exit status codes",
+			"exit 0 means success archive check",
+			"script treats unable to check as failure",
+			"archive command exit code list"
+		]
+	},
+	"/docs/archive#flags": {
+		"hash": "bf48e58556bcf945",
+		"phrasings": [
+			"archive command flags list",
+			"archive cli options reference",
+			"archive dry run flag",
+			"archive command help options",
+			"which flags to pass archive restore"
+		]
+	},
+	"/docs/archive#from-your-instances-api": {
+		"hash": "22010b1231010687",
+		"phrasings": [
+			"verify archive via instance api",
+			"archive verify endpoint raw identity check",
+			"how to call archive verify on my instance",
+			"read-only archive verification api request body",
+			"instance api verify archive url",
+			"check archive identity from running instance",
+			"post v1 archive verify example",
+			"does archive verify modify anything"
+		]
+	},
+	"/docs/archive#reading-the-output": {
+		"hash": "932923336829b848",
+		"phrasings": [
+			"archive output exit code meaning",
+			"archive divergence output explained",
+			"what does non zero exit mean archive",
+			"archive check diff ranges not matching",
+			"how to read archive mismatch report",
+			"clean archive run exit 0"
+		]
+	},
+	"/docs/archive#repair-what-diverges": {
+		"hash": "9d038164fde04478",
+		"phrasings": [
+			"fix archive mismatch with my index",
+			"repair divergent archive partitions",
+			"is archive repair dry run by default",
+			"how to apply archive repair changes",
+			"archive differs from production index fix",
+			"enable writes when repairing archive",
+			"preview archive repair before applying",
+			"archive repair command default behavior"
+		]
+	},
+	"/docs/archive#restore-a-fresh-instance": {
+		"hash": "c51468db307549e6",
+		"phrasings": [
+			"restore fresh archive instance from digest",
+			"bootstrap archive faster than weeks",
+			"how to bootstrap new node from signed digest",
+			"restore genesis to archive tip",
+			"fresh instance setup takes hours",
+			"verify signed digest before restoring rows"
+		]
+	},
+	"/docs/archive#targets": {
+		"hash": "d1575164907ed2b0",
+		"phrasings": [
+			"which datasets does archive publish digests for",
+			"archive digests raw datasets only",
+			"archive targets list of datasets",
+			"does archive publish digests for all tables",
+			"three raw datasets archive digest"
+		]
+	},
+	"/docs/archive#what-the-archive-is": {
+		"hash": "0fbf5b4138ba3668",
+		"phrasings": [
+			"what is the stacks archive parquet",
+			"immutable digest addressed partitions on r2",
+			"archive snapshot from production index source",
+			"repeatable read snapshot stacks index export",
+			"how is the stacks archive published",
+			"parquet partitions stored in cloudflare r2",
+			"archive data format and storage layout"
+		]
+	},
+	"/docs/archive#which-command": {
+		"hash": "dcfc34252bbcd137",
+		"phrasings": [
+			"which archive command to run first",
+			"archive signed pointer start here",
+			"what command gets latest signed archive pointer",
+			"archive command for signed pointer"
+		]
+	},
+	"/docs/authentication": {
+		"hash": "c72f78ea18815f94",
+		"phrasings": [
+			"stacks api key account",
+			"hosted stacks index streams webhooks access",
+			"how to get api key stacks",
+			"stacks subgraphs webhooks billing setup",
+			"one key for all stacks services"
+		]
+	},
+	"/docs/authentication#archive-credits": {
+		"hash": "ac4874c98b7bc2b9",
+		"phrasings": [
+			"how many credits does archive backfill use",
+			"archive bootstrap credit cost",
+			"reindex consumes credits per bundle",
+			"why did my credits drop during backfill",
+			"credits charged for archive bundles",
+			"signed archive draw credits per partition",
+			"bootstrap backfill reindex billing"
+		]
+	},
+	"/docs/authentication#balance-alerts": {
+		"hash": "f4ac6d80eca091df",
+		"phrasings": [
+			"stacks webhooks stopped delivering zero balance",
+			"subgraph stopped indexing no credits",
+			"stacks events held after balance empty",
+			"low balance alert stacks account",
+			"why did my stacks stack stop"
+		]
+	},
+	"/docs/authentication#create-it": {
+		"hash": "4fd40e57c792f55b",
+		"phrasings": [
+			"how to create api key",
+			"sign up for stacks api account",
+			"first api key shown once",
+			"lost my api key create new",
+			"generate additional api keys account page",
+			"sign in with email to get key"
+		]
+	},
+	"/docs/authentication#how-rows-are-counted": {
+		"hash": "76e13e3fa94a268e",
+		"phrasings": [
+			"are block headers billed",
+			"api row counting for billing",
+			"why did i get 402 response",
+			"free block header endpoint",
+			"how events and transactions are counted",
+			"index blocks endpoint cost",
+			"which rows count toward usage"
+		]
+	},
+	"/docs/authentication#read-with-it": {
+		"hash": "8b5cc919e7990a68",
+		"phrasings": [
+			"api key mainnet example request",
+			"how to call mainnet with api key",
+			"live mainnet page example",
+			"where to find live mainnet data",
+			"example request against mainnet endpoint",
+			"how do i query mainnet with key",
+			"api key usage on live network"
+		]
+	},
+	"/docs/authentication#set-it": {
+		"hash": "3d0986791fb71a66",
+		"phrasings": [
+			"set api key environment variable",
+			"sdk cli mcp read env variables",
+			"configure api key for cli",
+			"hosted url environment variables setup",
+			"why sdk ignores my api key",
+			"export key for mcp server"
+		]
+	},
+	"/docs/authentication#spend-cap": {
+		"hash": "1ee6637e21bbe92d",
+		"phrasings": [
+			"how to set monthly spending limit",
+			"api key stopped working after credits used",
+			"stop charges above monthly budget",
+			"where to cap credit spending",
+			"how much did i spend this month",
+			"prevent unexpected billing overages on api",
+			"limit monthly credit usage per account",
+			"why was my api access blocked"
+		]
+	},
+	"/docs/authentication#webhook-signing-secrets": {
+		"hash": "adfa2750c640a544",
+		"phrasings": [
+			"whsec signing secret per webhook",
+			"where to find webhook secret",
+			"verify webhook signature with whsec",
+			"webhook secret rotation per endpoint",
+			"invalid webhook signature whsec error",
+			"is webhook signing secret shared",
+			"rotate webhook signing secret"
+		]
+	},
+	"/docs/authentication#what-it-costs": {
+		"hash": "cc8275582233619b",
+		"phrasings": [
+			"stacks api pricing per read",
+			"how much do api reads cost",
+			"live vs history read pricing",
+			"is historical data more expensive",
+			"api billing per request cost"
+		]
+	},
+	"/docs/authentication#your-key": {
+		"hash": "0d126ce6c5b5ff04",
+		"phrasings": [
+			"where to find my api key",
+			"stacks api key location",
+			"how to get api key for requests",
+			"api key not showing up",
+			"authenticate requests with bearer token",
+			"where is my key stored"
+		]
+	},
+	"/docs/changelog": {
+		"hash": "037ec9e2ff654ca3",
+		"phrasings": [
+			"secondlayer release notes",
+			"what changed in latest secondlayer version",
+			"secondlayer sdk breaking changes",
+			"secondlayer version history",
+			"secondlayer upgrade notes",
+			"did secondlayer sdk update recently",
+			"secondlayer new features by version",
+			"secondlayer changelog latest release",
+			"secondlayer deprecated features removed"
+		]
+	},
+	"/docs/cli": {
+		"hash": "c05b0c26bbe00598",
+		"phrasings": [
+			"secondlayer cli deploy subgraphs from terminal",
+			"deploy webhooks to self hosted box",
+			"command line tool for running an instance",
+			"manage hosted subgraphs from command line",
+			"secondlayer terminal commands overview",
+			"run subgraphs and webhooks from one terminal"
+		]
+	},
+	"/docs/cli#command-map": {
+		"hash": "23d44a27f28753da",
+		"phrasings": [
+			"list all secondlayer cli commands",
+			"secondlayer cli commands reference",
+			"which secondlayer command does what",
+			"secondlayer command not found",
+			"secondlayer cli help top level commands",
+			"where are docs for each cli command",
+			"secondlayer cli overview of subcommands"
+		]
+	},
+	"/docs/cli#connect": {
+		"hash": "28a966c7c56299d1",
+		"phrasings": [
+			"connect clarinet project to secondlayer",
+			"link clarinet devnet to local indexer",
+			"secondlayer cli connect clarinet project",
+			"how to point devnet events to indexer",
+			"clarinet devnet events observer config"
+		]
+	},
+	"/docs/cli#frozen-features": {
+		"hash": "03dcc32a126b3361",
+		"phrasings": [
+			"cli features no longer maintained",
+			"which cli commands are deprecated",
+			"cli feature not getting updates",
+			"stable but unsupported cli options",
+			"frozen cli commands meaning",
+			"are some cli features discontinued",
+			"cli commands that won't receive new work"
+		]
+	},
+	"/docs/cli#generate-typed-contract-clients": {
+		"hash": "53ff4f18be655cba",
+		"phrasings": [
+			"clarity to typescript types generator",
+			"generate typescript client from clarity contract",
+			"typed contract client from clarinet project",
+			"convert clar files to typescript",
+			"generate typed client for deployed contract",
+			"clarinet project typescript bindings",
+			"secondlayer codegen for clarity contracts"
+		]
+	},
+	"/docs/cli#install": {
+		"hash": "dcfb109263117676",
+		"phrasings": [
+			"how to install secondlayer binary",
+			"sl command alias install",
+			"npm install secondlayer cli",
+			"secondlayer command not found after install",
+			"install secondlayer on mac or linux",
+			"what is the sl shortcut"
+		]
+	},
+	"/docs/cli#local-chain": {
+		"hash": "cde18af1999abe1c",
+		"phrasings": [
+			"run full stack locally with clarinet devnet",
+			"local postgres indexer api with clarinet",
+			"run subgraph processor locally against devnet",
+			"secondlayer local development environment setup",
+			"docker compose local secondlayer stack",
+			"how to test subgraphs with clarinet locally"
+		]
+	},
+	"/docs/cli#local-runtime": {
+		"hash": "5be61fe0d1647047",
+		"phrasings": [
+			"write secondlayer keys locally",
+			"restore chain history for local dev",
+			"print observer stanza secondlayer",
+			"secondlayer local dev setup keys",
+			"stacks observer config snippet",
+			"secondlayer local runtime restore history",
+			"generate observer config for local node"
+		]
+	},
+	"/docs/cli#scaffold-from-a-contract": {
+		"hash": "7146596da57a8631",
+		"phrasings": [
+			"generate types from print events secondlayer",
+			"infer print payload schema from history",
+			"secondlayer scaffold contract print topics",
+			"create starter project from clarity contract",
+			"print event payload shape from indexed data",
+			"secondlayer scaffold from deployed contract",
+			"clarity print topic payload types"
+		]
+	},
+	"/docs/cli#start-the-devnet": {
+		"hash": "5eb4f32b876df152",
+		"phrasings": [
+			"run local devnet with cli",
+			"secondlayer devnet start command",
+			"local chain auto deploy contracts",
+			"stream blocks to local indexer",
+			"start local stacks devnet",
+			"devnet not deploying my contracts",
+			"how to launch local dev chain"
+		]
+	},
+	"/docs/deploy": {
+		"hash": "f07348f48302a0a2",
+		"phrasings": [
+			"where to run my consumer in production",
+			"deploy consumer to railway or render",
+			"run consumer on fly io",
+			"same dockerfile for multiple hosts",
+			"host consumer on same box as instance",
+			"deploy consumer near my instance",
+			"best hosting options for consumer process"
+		]
+	},
+	"/docs/deploy#bind-a-port": {
+		"hash": "9c80a469b09715be",
+		"phrasings": [
+			"railway service marked unhealthy",
+			"render health check failing no response",
+			"fly app unhealthy http port",
+			"container must listen on http port",
+			"why is my deploy health check failing"
+		]
+	},
+	"/docs/deploy#bring-your-database": {
+		"hash": "9442d41e4f9a99fe",
+		"phrasings": [
+			"connect app to my own postgres database",
+			"database url env var for postgres",
+			"use external postgres instead of bundled database",
+			"why does app use wrong database url",
+			"separate postgres for consumer app setup",
+			"point deployment at existing postgres server"
+		]
+	},
+	"/docs/deploy#docker-and-ec2": {
+		"hash": "e33d8445c247da9d",
+		"phrasings": [
+			"deploy app to ec2 with docker",
+			"run container on ec2 restart policy",
+			"docker restart policy for worker",
+			"no platform deploy docker vm",
+			"self hosted deployment ec2 container",
+			"keep container running after crash",
+			"deploy secondlayer without platform config",
+			"ec2 docker compose restart always"
+		]
+	},
+	"/docs/deploy#handle-sigterm": {
+		"hash": "167220316d46c2fd",
+		"phrasings": [
+			"handle sigterm in node app",
+			"abortsignal shutdown on redeploy",
+			"graceful stop on container redeploy",
+			"node process exits on sigterm",
+			"stop worker cleanly before redeploy",
+			"abortcontroller sigterm handler example",
+			"redeploy kills process mid job",
+			"catch sigterm for clean shutdown"
+		]
+	},
+	"/docs/deploy#make-writes-idempotent": {
+		"hash": "15a8e11a6ac306b0",
+		"phrasings": [
+			"duplicate writes after retry in consumer",
+			"at least once delivery duplicate rows",
+			"make sink writes safe to replay",
+			"handle duplicate messages in database",
+			"why am i getting duplicate records",
+			"idempotent inserts for at least once delivery"
+		]
+	},
+	"/docs/deploy#pick-a-target": {
+		"hash": "7ceda19c4cf4eb7f",
+		"phrasings": [
+			"instancetoken public bind remote target",
+			"private network between consumer and instance",
+			"choose hosting target for consumer container",
+			"remote deploy cannot reach instance",
+			"railway versus fly for consumer"
+		]
+	},
+	"/docs/deploy#point-it-at-your-instance": {
+		"hash": "6b6bf0087413d161",
+		"phrasings": [
+			"consumer cannot connect to instance",
+			"set instance url for consumer",
+			"start instance before running consumer",
+			"consumer source configuration instance address",
+			"how to point consumer at instance"
+		]
+	},
+	"/docs/deploy#what-youre-deploying": {
+		"hash": "268f9c21346b2f2b",
+		"phrasings": [
+			"which files do i need to deploy",
+			"minimum files for container deployment",
+			"dockerfile and config files needed for deploy",
+			"what goes in the deployment bundle",
+			"files required regardless of hosting platform"
+		]
+	},
+	"/docs/filters-reference": {
+		"hash": "0f3b76dd23a5fd33",
+		"phrasings": [
+			"build chain event filter for ft transfers",
+			"convert event filter to streams params",
+			"reuse same filter for webhook trigger",
+			"ft transfer filter index params",
+			"filter stacks events for subgraph source",
+			"one filter definition for many event destinations",
+			"on ft transfer filter example",
+			"project event filter to streams config"
+		]
+	},
+	"/docs/index": {
+		"hash": "bf89fe94d3d986ab",
+		"phrasings": [
+			"decoded rows into my own tables",
+			"sweep blockchain data into postgres",
+			"index onchain events into database",
+			"secondlayer indexing product overview",
+			"store decoded contract events locally",
+			"sync onchain data to my tables"
+		]
+	},
+	"/docs/index#build-your-index-on-it": {
+		"hash": "fa625f93930e5063",
+		"phrasings": [
+			"delete rows after blockchain reorg",
+			"index fork height rollback rows",
+			"handle reorg in index checkpoint",
+			"name event commit rows checkpoint together",
+			"indexer reorg delete from fork height",
+			"how to build index with reorg safety"
+		]
+	},
+	"/docs/index#check-it": {
+		"hash": "9c49af64031654ae",
+		"phrasings": [
+			"verify indexed row blockheight",
+			"prove block transactions bitcoin anchor locally",
+			"check bitcoin anchor for indexed data",
+			"validate index rows against block",
+			"how to verify row blockheight",
+			"index data proof against bitcoin anchor"
+		]
+	},
+	"/docs/index#cost-and-history": {
+		"hash": "5d556b2b1a1a2799",
+		"phrasings": [
+			"is self hosted postgres really free to run",
+			"no rate limit on database reads",
+			"how much does it cost to self host",
+			"why are my postgres reads not metered",
+			"does self hosting remove usage limits",
+			"postgres reads without per request billing",
+			"self hosted vs hosted cost comparison",
+			"where do reads go when self hosting"
+		]
+	},
+	"/docs/index#decoded-protocols": {
+		"hash": "ccefeb452ea8ddb7",
+		"phrasings": [
+			"what contracts are decoded on the index",
+			"shared contract feeds same verbs envelope",
+			"how to query decoded contract events",
+			"index decoded protocol feeds explained",
+			"list of indexed stacks contracts",
+			"decoded event envelope format stacks",
+			"how do i read contract activity feed"
+		]
+	},
+	"/docs/index#find-contracts-by-standard": {
+		"hash": "dcf5df701b667a47",
+		"phrasings": [
+			"find all sip-010 token contracts",
+			"query contracts implementing nft standard",
+			"list every contract matching a trait",
+			"discover token contracts without address list",
+			"filter contracts by implemented standard",
+			"how to locate all tokens of a standard"
+		]
+	},
+	"/docs/index#list-walk-consume": {
+		"hash": "0d99047719263c39",
+		"phrasings": [
+			"difference between list walk and consume",
+			"paginate through index feed",
+			"consume feed without missing records",
+			"which verb to use for feeds",
+			"list vs walk api endpoints",
+			"iterate over all index records",
+			"feed endpoints list walk consume usage"
+		]
+	},
+	"/docs/index#mirror-schema": {
+		"hash": "e0dce5ff2f3b97d1",
+		"phrasings": [
+			"generate typed tables from index schema",
+			"keep local database tables in sync with index",
+			"codegen mirror tables for index data",
+			"prevent schema drift between index and my db",
+			"how to create mirror schema for indexed data",
+			"index tables differ from my postgres schema",
+			"auto generate database schema from index"
+		]
+	},
+	"/docs/index#options": {
+		"hash": "998c81f130fb13aa",
+		"phrasings": [
+			"index configuration options list",
+			"secondlayer index options parameters",
+			"how to configure index batch size",
+			"indexer consumer settings reference",
+			"available flags for indexer setup",
+			"what options can i set on index"
+		]
+	},
+	"/docs/index#other-ways-to-read": {
+		"hash": "33857b09bc5f6a1a",
+		"phrasings": [
+			"fetch single page of index results",
+			"one off export of all index rows",
+			"how to dump index data once",
+			"list function for paginated reads",
+			"walk entire feed for export",
+			"alternatives to streaming index data"
+		]
+	},
+	"/docs/index#plain-http": {
+		"hash": "75210e4e54a1c6a6",
+		"phrasings": [
+			"query database over http without sdk",
+			"call database rest api with curl",
+			"how to run sql queries via http request",
+			"access database from client without driver",
+			"http api to fetch rows from database",
+			"no sdk needed to query data over http",
+			"send sql query using http post",
+			"connect to database from javascript fetch",
+			"querying rows with plain http requests",
+			"use database from any language via http"
+		]
+	},
+	"/docs/index#pox-5": {
+		"hash": "7bd279be083732ad",
+		"phrasings": [
+			"pox 5 boot contract decoded prints",
+			"sip 045 pox 5 events",
+			"pox 5 per cycle totals",
+			"stacks pox 5 live bitcoin block 960230",
+			"decode pox 5 print events",
+			"pox cycle totals stacking api",
+			"pox 5 boot contract events history"
+		]
+	},
+	"/docs/index#print-schemas": {
+		"hash": "46fe855ead5c5006",
+		"phrasings": [
+			"clarity print event payload shape",
+			"decode print payloads without abi",
+			"print topic data structure varies",
+			"clarity abi does not cover print events",
+			"typescript types for print event data",
+			"why print event fields differ per topic"
+		]
+	},
+	"/docs/index#progress-and-health": {
+		"hash": "eb6a10d00afb23a7",
+		"phrasings": [
+			"how to check indexer sweep progress",
+			"monitor index liveness without custom bookkeeping",
+			"how far has the indexer synced",
+			"ctx field last processed height",
+			"health check for blockchain indexer",
+			"track sweep position in context object",
+			"is my index still catching up"
+		]
+	},
+	"/docs/index#reorgs": {
+		"hash": "132a95e844b84d6f",
+		"phrasings": [
+			"reorgs array in api response",
+			"detect reorg in read envelope",
+			"meaning of reorg field in response",
+			"check if page overlaps reorganization",
+			"empty reorgs array meaning",
+			"block height range reorg detection api",
+			"how to tell data was reorganized"
+		]
+	},
+	"/docs/index#runes": {
+		"hash": "76ac94afb2864b22",
+		"phrasings": [
+			"list of etched runes catalog",
+			"rune activity log per rune",
+			"runes balances on bitcoin tip",
+			"query bitcoin runes etchings api",
+			"rune balance lookup by address",
+			"runes data using bitcoin tip not stacks"
+		]
+	},
+	"/docs/index#sbtc": {
+		"hash": "27dbec2fe44a137c",
+		"phrasings": [
+			"sbtc peg in and peg out lifecycle",
+			"sbtc sweep bitcoin confirmation status",
+			"track sbtc deposit to bitcoin confirmation",
+			"decode sbtc peg events",
+			"is sbtc sweep confirmed on bitcoin",
+			"sbtc withdrawal lifecycle states explained"
+		]
+	},
+	"/docs/index#state-writes": {
+		"hash": "022e59610c54868d",
+		"phrasings": [
+			"contract state changes per block stacks",
+			"which contract writes happened in a block",
+			"list of state writes committed by block",
+			"stacks canonical block state diff order",
+			"how to get contract storage changes per block",
+			"node order contract state writes query",
+			"missing contract state updates for a block"
+		]
+	},
+	"/docs/mcp": {
+		"hash": "9d891a09fc7ebab3",
+		"phrasings": [
+			"claude code mcp server setup",
+			"connect cursor to secondlayer mcp",
+			"give ai agent access to secondlayer",
+			"secondlayer mcp client live access",
+			"teach claude code secondlayer rules",
+			"model context protocol secondlayer tools"
+		]
+	},
+	"/docs/mcp#agent-skill": {
+		"hash": "a3a1afa279bc1d2a",
+		"phrasings": [
+			"secondlayer agent skill setup",
+			"teach ai agent to build handlers",
+			"agent reads print schema before handler",
+			"ai coding agent secondlayer rules",
+			"verify mapping writes rows agent",
+			"install secondlayer skill for claude",
+			"agent building on secondlayer best practices",
+			"cursor rules for secondlayer handlers"
+		]
+	},
+	"/docs/mcp#authentication": {
+		"hash": "30676f273cd967e4",
+		"phrasings": [
+			"mcp token ignored on localhost",
+			"why does mcp reject my bearer token",
+			"secondlayer mcp auth token loopback",
+			"mcp 401 unauthorized local request",
+			"do i need token for local mcp server",
+			"bearer token header mcp server setup"
+		]
+	},
+	"/docs/mcp#connect": {
+		"hash": "ec00f699af3ee252",
+		"phrasings": [
+			"install secondlayer mcp server",
+			"connect mcp client stdio",
+			"secondlayer mcp npm package",
+			"configure mcp server in claude desktop",
+			"mcp server stdio transport setup",
+			"run secondlayer mcp command",
+			"add secondlayer to mcp config",
+			"mcp server not connecting"
+		]
+	},
+	"/docs/mcp#notes": {
+		"hash": "b987ac52745de5ab",
+		"phrasings": [
+			"webhook signing secret only shown once",
+			"lost webhook signing secret secondlayer",
+			"webhooks create returns secret once",
+			"regenerate webhook signing secret secondlayer",
+			"where to find webhook secret after creation",
+			"secret not returned again after webhook create"
+		]
+	},
+	"/docs/mcp#start-here": {
+		"hash": "37aa26cdae219a1c",
+		"phrasings": [
+			"secondlayer context resource first read",
+			"what to read before calling mcp tools",
+			"secondlayer mcp resources list order",
+			"agent starts calling tools without context",
+			"secondlayer context resource usage",
+			"mcp first steps for agents"
+		]
+	},
+	"/docs/mcp#tools": {
+		"hash": "572c35e9e8d7ad92",
+		"phrasings": [
+			"paginate mcp read results cursor",
+			"reindex backfill replay operation id poll",
+			"mcp operationid status check",
+			"secondlayer deploy returns operation id",
+			"long running mcp tool call polling",
+			"cursor pagination secondlayer list tools"
+		]
+	},
+	"/docs/rest-api": {
+		"hash": "ffaa5584c972e3ad",
+		"phrasings": [
+			"rest api response envelope shape v1",
+			"same client for index streams subgraphs",
+			"v1 api filter grammar cursor",
+			"one client for all v1 endpoints",
+			"consistent json envelope across endpoints",
+			"v1 rest api conventions overview"
+		]
+	},
+	"/docs/rest-api#aggregates": {
+		"hash": "2ad8e7de8aa95543",
+		"phrasings": [
+			"how to sum values in subgraph table",
+			"rest endpoint for count and average",
+			"aggregate query over filtered subgraph data",
+			"get min max of a column via api",
+			"does count respect the same filters as list",
+			"scalar aggregate endpoint subgraph rest",
+			"compute totals from subgraph without fetching rows",
+			"aggregate endpoint returns wrong number"
+		]
+	},
+	"/docs/rest-api#batch-reads": {
+		"hash": "2985a131700df2e6",
+		"phrasings": [
+			"how to send multiple api requests in one call",
+			"batch several reads into single http request",
+			"reduce latency of many rest calls",
+			"post batch endpoint limit of requests",
+			"combine multiple v1 queries in one round trip",
+			"bulk read api requests dashboard latency",
+			"max requests per batch call subgraph api",
+			"run ten queries at once rest"
+		]
+	},
+	"/docs/rest-api#errors": {
+		"hash": "365b1812c45d783f",
+		"phrasings": [
+			"api error code handling best practice",
+			"why not parse error message text",
+			"branch on error code instead of message",
+			"error codes list rest api",
+			"handle api errors programmatically",
+			"api error response code field"
+		]
+	},
+	"/docs/rest-api#filtering": {
+		"hash": "301a9e18cb192f6f",
+		"phrasings": [
+			"how to filter subgraph table rows by column",
+			"rest api query filter by field value",
+			"filter results on any column subgraph",
+			"why does my filter return validation error",
+			"subgraph rest filter operators examples",
+			"filter table by multiple columns rest",
+			"column not allowed in filter schema error",
+			"how to query rows matching a condition"
+		]
+	},
+	"/docs/rest-api#pagination": {
+		"hash": "0a802ab9ea6c04d4",
+		"phrasings": [
+			"use nextcursor for next page",
+			"paginate index and subgraph results",
+			"cursor pagination previous response nextcursor",
+			"how to get next page of results",
+			"api pagination cursor parameter example",
+			"fetch all pages with cursor stacks"
+		]
+	},
+	"/docs/rest-api#report-a-problem-hosted": {
+		"hash": "fab6a0424bb0c13c",
+		"phrasings": [
+			"secondlayer tools error requestid",
+			"what is requestid in error body",
+			"how to report api problem to support",
+			"hosted api error request id",
+			"include request id in bug report",
+			"secondlayer tools error body missing requestid"
+		]
+	},
+	"/docs/rest-api#response-envelope": {
+		"hash": "fa0e1b6c7e525199",
+		"phrasings": [
+			"tip finalizedheight meaning burn confirmation",
+			"height index cursor format explained",
+			"finalized height burn confirmation boundary",
+			"api response tip object fields",
+			"cursor string format explained",
+			"stacks api tip finalized height explained"
+		]
+	},
+	"/docs/rest-api#streaming-sse": {
+		"hash": "f343f1d1fdd2524d",
+		"phrasings": [
+			"server sent events endpoint example",
+			"sse keepalive ping every 20 seconds",
+			"event stream connection closes unexpectedly",
+			"how to consume text event stream",
+			"push rows over long lived connection",
+			"sse ping keepalive timeout",
+			"streaming api over http event-stream content type"
+		]
+	},
+	"/docs/sdk": {
+		"hash": "ae4cedb7e9db6346",
+		"phrasings": [
+			"typescript sdk for secondlayer api",
+			"avoid manual cursor pagination typescript",
+			"handle chain reorgs in typescript client",
+			"verify signatures with secondlayer sdk",
+			"hosted vs self hosted secondlayer client",
+			"secondlayer npm library usage",
+			"stacks blockchain typescript client library"
+		]
+	},
+	"/docs/sdk#checkpointed-consumer": {
+		"hash": "c62a7d1746a7bfbf",
+		"phrasings": [
+			"consume events without missing or duplicating",
+			"commit cursor for event consumer",
+			"exactly once event processing with cursor",
+			"secondlayer consume poll cursor checkpoint",
+			"resume consumer after crash without reprocessing",
+			"avoid double processing blockchain events",
+			"save consumer position between restarts"
+		]
+	},
+	"/docs/sdk#filters": {
+		"hash": "5405be7958a231ed",
+		"phrasings": [
+			"define chain event filter once",
+			"reuse filter across index streams webhooks",
+			"sdk filter shape for subgraphs",
+			"event filter type definition sdk",
+			"filter config for streams and webhooks",
+			"describe contract event filter sdk",
+			"sdk filters not matching events"
+		]
+	},
+	"/docs/sdk#install": {
+		"hash": "b5c2ba534b219e15",
+		"phrasings": [
+			"secondlayer api url environment variable",
+			"sdk default host configuration",
+			"point client at custom api host",
+			"secondlayer sdk base url env",
+			"secondlayer client wrong host connection error",
+			"install secondlayer sdk and set endpoint",
+			"configure sdk api endpoint for self host"
+		]
+	},
+	"/docs/sdk#one-client-every-surface": {
+		"hash": "aa7a274ba46ea3cb",
+		"phrasings": [
+			"secondlayer sdk streams raw chain events",
+			"cursor paginated chain events typescript",
+			"replay stacks chain events in order",
+			"sl streams api example",
+			"secondlayer client surfaces overview",
+			"how to fetch ordered chain events",
+			"sdk access to chain event streams"
+		]
+	},
+	"/docs/sdk#verifying-responses": {
+		"hash": "5860fbcd47c8fb1b",
+		"phrasings": [
+			"how to verify x-signature header sdk",
+			"sdk signature verification fails on sse frames",
+			"validate rest responses createstreamsclient",
+			"check webhook signature in streams sdk",
+			"why are my sse events failing verification",
+			"enable response signature checks apikey client",
+			"x-signature mismatch when reading streams",
+			"verify server responses with api key"
+		]
+	},
+	"/docs/sdk-reference": {
+		"hash": "584c3433bd4bcb50",
+		"phrasings": [
+			"what methods does the client expose",
+			"list of all client sdk methods",
+			"sdk client method signatures lookup",
+			"how to find available sdk functions",
+			"where is the full sdk api documented",
+			"which client methods can i call",
+			"sdk methods missing from documentation",
+			"browse sdk client api reference",
+			"generated sdk reference from source code"
+		]
+	},
+	"/docs/sdk-reference/archive": {
+		"hash": "ff4ec9de56f486b9",
+		"phrasings": [
+			"verify archive manifest signature",
+			"load signed archive manifest",
+			"price missing data archive download",
+			"fetch missing blockchain data archive",
+			"check data against manifest",
+			"stacks archive sdk verify data",
+			"how much does archive fetch cost"
+		]
+	},
+	"/docs/sdk-reference/client": {
+		"hash": "5442c569f357e25c",
+		"phrasings": [
+			"batch reads stacks sdk client",
+			"get account snapshot one call",
+			"how to batch multiple reads",
+			"stacks client fetch account balance all at once",
+			"sdk client configuration options",
+			"batched rpc reads javascript",
+			"single call account state stacks"
+		]
+	},
+	"/docs/sdk-reference/contracts": {
+		"hash": "90471722847f7d0c",
+		"phrasings": [
+			"find contracts implementing trait",
+			"get contract from registry by id",
+			"sip-010 conforming contracts search",
+			"list contracts matching trait clarity",
+			"lookup clarity contract registry",
+			"stacks contract trait conformance query",
+			"fetch contract source by identifier"
+		]
+	},
+	"/docs/sdk-reference/errors": {
+		"hash": "8de5375fb44a92ea",
+		"phrasings": [
+			"secondlayer sdk error classes list",
+			"secondlayererror subclasses",
+			"catch errors thrown by secondlayer sdk",
+			"what does secondlayererror mean",
+			"handle sdk exception types",
+			"secondlayer sdk throws error when",
+			"how to check error type in secondlayer",
+			"secondlayer error handling examples"
+		]
+	},
+	"/docs/sdk-reference/helpers": {
+		"hash": "9c563b35e5a1ee37",
+		"phrasings": [
+			"secondlayer sdk import helper functions",
+			"decode values with secondlayer sdk",
+			"type guard for secondlayer responses",
+			"verify signature with secondlayer sdk",
+			"check proof in secondlayer sdk",
+			"how to consume stream loop secondlayer",
+			"secondlayer sdk decoders and type guards",
+			"which sdk functions are not client methods"
+		]
+	},
+	"/docs/sdk-reference/index": {
+		"hash": "528414f34c4efba2",
+		"phrasings": [
+			"decoded stacks transfers query",
+			"get sbtc transactions decoded",
+			"query stacks contract call rows",
+			"decoded blocks and transactions api",
+			"runes indexed data stacks",
+			"pox cycle data query",
+			"list stacks events decoded rows"
+		]
+	},
+	"/docs/sdk-reference/instance": {
+		"hash": "6be0fdaabc9e231f",
+		"phrasings": [
+			"check instance status report",
+			"instance health verdict next steps",
+			"stacks node status sdk",
+			"is my instance healthy",
+			"instance public status endpoint",
+			"what to do if instance unhealthy",
+			"sdk instance status check"
+		]
+	},
+	"/docs/sdk-reference/streams": {
+		"hash": "f03b536196d2dfc9",
+		"phrasings": [
+			"stream stacks events in order",
+			"checkpoint event loop stacks",
+			"paginate stacks events",
+			"read stacks events page by page",
+			"consume blockchain events sdk",
+			"stacks event stream sdk example",
+			"resume event consumer from checkpoint"
+		]
+	},
+	"/docs/sdk-reference/subgraphs": {
+		"hash": "c09f9ecfc9809a12",
+		"phrasings": [
+			"deploy stacks subgraph",
+			"read subgraph rows sdk",
+			"monitor subgraph operations",
+			"how to publish a subgraph",
+			"subgraph query results stacks",
+			"check subgraph deployment status",
+			"stacks subgraph sdk example"
+		]
+	},
+	"/docs/sdk-reference/webhooks": {
+		"hash": "8755a2e9daa2a643",
+		"phrasings": [
+			"create stacks webhook",
+			"webhook delivery history stacks",
+			"replay failed webhook deliveries",
+			"list webhook deliveries api",
+			"stacks webhook sdk example",
+			"retry missed webhook events",
+			"webhooks not firing blockchain events"
+		]
+	},
+	"/docs/self-host": {
+		"hash": "beff9e48ce825a26",
+		"phrasings": [
+			"run stacks indexer on my postgres",
+			"self host stacks data docker container",
+			"single container postgres indexer setup",
+			"self hosted api without kubernetes cluster",
+			"stacks indexer without message queue",
+			"deploy stacks data on own database"
+		]
+	},
+	"/docs/self-host#archive-trust-root": {
+		"hash": "9a1520b8b733d798",
+		"phrasings": [
+			"archive manifest signature verification key",
+			"cli rejects archive manifest",
+			"trust root public key secondlayer",
+			"change archive trust key",
+			"manifest signature check failed cli",
+			"how archive manifests get verified"
+		]
+	},
+	"/docs/self-host#backup": {
+		"hash": "549d7f08d60e270b",
+		"phrasings": [
+			"how to back up secondlayer index",
+			"secondlayer backup encrypted passphrase",
+			"export keys and index from secondlayer",
+			"restore secondlayer from backup file",
+			"secondlayer backup command creates bundle",
+			"encrypt secondlayer keys for backup",
+			"secondlayer backup and restore steps"
+		]
+	},
+	"/docs/self-host#bitcoin-node": {
+		"hash": "dc47ac0b5105eda9",
+		"phrasings": [
+			"connect secondlayer to my bitcoin core node",
+			"bitcoind rpc setup for self hosted indexer",
+			"do i need a full bitcoin node to self host",
+			"bitcoin node configuration for secondlayer",
+			"run own bitcoin core alongside indexer",
+			"bitcoin node txindex requirement for indexing"
+		]
+	},
+	"/docs/self-host#check-it": {
+		"hash": "1aee73d19ac177eb",
+		"phrasings": [
+			"verify restored data matches archive",
+			"compare restored node with signed archive",
+			"how to check self host restore worked",
+			"restored database mismatch with archive",
+			"validate self host data integrity",
+			"checksum restored chain against archive",
+			"confirm backup matches signed snapshot",
+			"self host restore verification steps"
+		]
+	},
+	"/docs/self-host#config": {
+		"hash": "ea60a74b70d1a76c",
+		"phrasings": [
+			"secondlayer required environment variables list",
+			"which env vars are required secondlayer",
+			"secondlayer config non secret settings",
+			"compose derived variable secondlayer config",
+			"six required config values self host"
+		]
+	},
+	"/docs/self-host#configure": {
+		"hash": "0e876867fbd48119",
+		"phrasings": [
+			"how to configure self host instance",
+			"self host config options list",
+			"where to set env variables self host",
+			"self host settings before first run",
+			"what config values does self host need",
+			"self host configuration missing variable error",
+			"customize self host setup options",
+			"which settings to change for self host"
+		]
+	},
+	"/docs/self-host#connect-your-node": {
+		"hash": "c158fc54b9483383",
+		"phrasings": [
+			"connect stacks node to secondlayer config toml",
+			"nodemode external setting secondlayer",
+			"send blocks from my node to secondlayer",
+			"stacks node config toml secondlayer entry",
+			"secondlayer not receiving blocks from node"
+		]
+	},
+	"/docs/self-host#fill-it-with-history": {
+		"hash": "22c44f9025fa5251",
+		"phrasings": [
+			"new node only has recent blocks",
+			"how to backfill chain history self host",
+			"self host missing old transactions",
+			"sync historical data to new instance",
+			"why does new instance show no history",
+			"import past blocks into fresh node",
+			"self host history not syncing from genesis",
+			"populate empty database with past data"
+		]
+	},
+	"/docs/self-host#floors-enforced-at-start": {
+		"hash": "7b216ecda828c104",
+		"phrasings": [
+			"refuses to boot low memory",
+			"startup check ram disk maxconnections",
+			"secondlayer won't start insufficient resources",
+			"minimum requirements startup error",
+			"why does runtime exit on start"
+		]
+	},
+	"/docs/self-host#hardware": {
+		"hash": "3cbc0d03799323b5",
+		"phrasings": [
+			"how much ram does secondlayer need",
+			"secondlayer self host system requirements",
+			"size server before syncing secondlayer",
+			"minimum disk space for self hosted indexer",
+			"secondlayer sync slow out of memory",
+			"cpu and storage needed to self host",
+			"what machine specs for running secondlayer"
+		]
+	},
+	"/docs/self-host#instance-token": {
+		"hash": "fb06dfd331207caa",
+		"phrasings": [
+			"lost instance token self host",
+			"where is instance token stored",
+			"instance token in env local file",
+			"unauthorized error self hosted instance",
+			"reset instance token secondlayer",
+			"what does instance token protect"
+		]
+	},
+	"/docs/self-host#not-in-the-box": {
+		"hash": "ca6773133ea9498d",
+		"phrasings": [
+			"does self host include multi tenant catalog",
+			"is archive publisher part of the image",
+			"hosted webhooks with account key alternative",
+			"what features are missing from self hosted",
+			"run webhooks without api secondlayer tools",
+			"where to get archive publisher image",
+			"managed subgraphs not available self hosted"
+		]
+	},
+	"/docs/self-host#pin-a-version": {
+		"hash": "a78cac8b624917cf",
+		"phrasings": [
+			"pin secondlayer docker image version",
+			"docker compose latest tag avoid",
+			"lock self host version tag",
+			"upgrade docker compose to specific version",
+			"docker compose up pulls latest image",
+			"stop auto updating self host image"
+		]
+	},
+	"/docs/self-host#postgres": {
+		"hash": "7b1a77d393bce4aa",
+		"phrasings": [
+			"postgres max connections setting for secondlayer",
+			"secondlayer too many connections error",
+			"postgresql connection pool size self host",
+			"fatal sorry too many clients already postgres",
+			"secondlayer database connection limit",
+			"max connections postgres minimum value",
+			"postgres config for secondlayer indexer"
+		]
+	},
+	"/docs/self-host#production": {
+		"hash": "3e5978e69c36a077",
+		"phrasings": [
+			"secondlayer production deployment checklist",
+			"running secondlayer for real traffic setup",
+			"backups and upgrades for secondlayer server",
+			"pin version for production secondlayer docker",
+			"going live with secondlayer and own node"
+		]
+	},
+	"/docs/self-host#profiles": {
+		"hash": "2ff7c782ea89540b",
+		"phrasings": [
+			"docker compose profiles env setting",
+			"set compose profile in env file",
+			"docker compose ignores my env settings",
+			"env file for docker compose profiles",
+			"enable profile with docker compose self host",
+			"compose command not picking up env"
+		]
+	},
+	"/docs/self-host#runes": {
+		"hash": "15b3641e8c977836",
+		"phrasings": [
+			"index rune etch mint transfer burn events yourself",
+			"self host rune indexer from block 840000",
+			"run runes api locally same routes as hosted",
+			"runes history since block 840000 self hosted",
+			"how to track rune mints and burns on own server",
+			"local runes indexer same endpoints as cloud"
+		]
+	},
+	"/docs/self-host#runes-only": {
+		"hash": "752f0804fde23851",
+		"phrasings": [
+			"self host runes without stacks node",
+			"skip stacks node runes indexing only",
+			"run secondlayer without connecting any chain node",
+			"runes only mode no stacks history",
+			"how to fill runes history without connecting nodes",
+			"minimal self host setup runes only"
+		]
+	},
+	"/docs/self-host#running-other-teams-subgraphs": {
+		"hash": "5e72824275642c63",
+		"phrasings": [
+			"deploy third party subgraph security risk",
+			"run subgraph handler from another team",
+			"subgraph code trust instance permissions",
+			"is untrusted subgraph code safe",
+			"sandbox third party subgraph handlers",
+			"deploy external subgraph into my instance"
+		]
+	},
+	"/docs/self-host#start": {
+		"hash": "6e22f5dfb97f1823",
+		"phrasings": [
+			"how to start self hosting",
+			"self host init command",
+			"generate instance token and signing keys",
+			"init creates signing keys self host",
+			"first steps running secondlayer locally",
+			"self host setup init step",
+			"what does init do first"
+		]
+	},
+	"/docs/self-host#start-it": {
+		"hash": "50afd1e6e3ad2176",
+		"phrasings": [
+			"how to start self hosted container",
+			"docker run command for stacks indexer",
+			"first steps self hosting stacks data",
+			"start self hosted instance locally",
+			"launch indexer postgres connection string"
+		]
+	},
+	"/docs/self-host#stop-it": {
+		"hash": "2d551da360e9514b",
+		"phrasings": [
+			"how to stop secondlayer without losing data",
+			"docker compose down deletes volumes",
+			"stop containers and keep index and keys",
+			"docker compose down v deletes index volume",
+			"safe shutdown secondlayer docker volumes",
+			"does stopping secondlayer wipe the index"
+		]
+	},
+	"/docs/self-host#upgrade": {
+		"hash": "890827ac60bd8f9f",
+		"phrasings": [
+			"how to update self hosted version",
+			"upgrade to newer commit keep database",
+			"self host upgrade without losing data",
+			"update server to latest commit",
+			"keep existing keys when upgrading",
+			"migrate self hosted instance to new version",
+			"what happens to database on upgrade",
+			"upgrade steps for self hosted deployment"
+		]
+	},
+	"/docs/self-host#upgrades": {
+		"hash": "1d7fcce30b066578",
+		"phrasings": [
+			"how to upgrade to newer release",
+			"upgrade self hosted version safely",
+			"backup before upgrading secondlayer",
+			"migrate to new release steps",
+			"update secondlayer docker image"
+		]
+	},
+	"/docs/self-host#upgrades-with-runes": {
+		"hash": "5f21834af326eb66",
+		"phrasings": [
+			"upgrade secondlayer runes database migration takes hours",
+			"schema migration slow on full runes database",
+			"how long does runes database upgrade take",
+			"secondlayer upgrade stuck on migration",
+			"safe upgrade process for runes self host",
+			"runes migration downtime during upgrade"
+		]
+	},
+	"/docs/self-host#use-these-docs-on-your-box": {
+		"hash": "d15454851dcf6859",
+		"phrasings": [
+			"set secondlayer api url for examples",
+			"doc examples pointing at localhost",
+			"secondlayer api key header example",
+			"env var for api url self host",
+			"run docs examples against my instance",
+			"why do doc examples fail on my server",
+			"api url variable for self hosted examples"
+		]
+	},
+	"/docs/self-host#verify-and-repair": {
+		"hash": "ed8334ea06a5058e",
+		"phrasings": [
+			"what do verify command exit codes mean",
+			"archive verify flags explained",
+			"repair archive database corrupted data",
+			"how to check archive integrity",
+			"verify returns nonzero exit code",
+			"fix broken archive after verify fails",
+			"repair command flags for archive"
+		]
+	},
+	"/docs/self-host#what-differs-on-your-box": {
+		"hash": "ab9a726a1bd4744f",
+		"phrasings": [
+			"how is self hosting different from hosted",
+			"what changes running on my own server",
+			"deploy my app to another machine",
+			"self host config differs from cloud",
+			"consumer app deployment on self hosted instance",
+			"self hosted vs managed setup differences",
+			"running secondlayer on a different box"
+		]
+	},
+	"/docs/self-host#with-runes": {
+		"hash": "c4de7eb6314a72a1",
+		"phrasings": [
+			"add runes tables alongside existing self host data",
+			"enable runes on existing secondlayer self host",
+			"what changes when runes is enabled self hosted",
+			"runes rows added to standard self host schema",
+			"secondlayer runes extension additional tables",
+			"turn on runes indexing in existing install"
+		]
+	},
+	"/docs/sinks": {
+		"hash": "162cb6b5ba94f40b",
+		"phrasings": [
+			"what is a sink in secondlayer",
+			"where does consume loop write data",
+			"sink destination for indexed events",
+			"choose database target for indexer",
+			"how sinks work with consume loop",
+			"sink concept explained for indexing"
+		]
+	},
+	"/docs/sinks#health-and-shutdown": {
+		"hash": "6c919063a1d9181f",
+		"phrasings": [
+			"sink health check endpoint",
+			"consumerhealth returns what fields",
+			"does sdk start http server for health",
+			"graceful shutdown of sink consumer",
+			"how to expose sink health status",
+			"sink consumer health monitoring",
+			"stop sink consumer cleanly",
+			"sdk does not start server automatically"
+		]
+	},
+	"/docs/sinks#keyed-on-the-query-builder-not-the-driver": {
+		"hash": "0050801d8ed29885",
+		"phrasings": [
+			"kysely sink setup with database instance",
+			"kyselysink takes kysely not driver",
+			"how to pass kysely instance to sink",
+			"kysely sink constructor arguments",
+			"sink using query builder vs raw driver",
+			"kysely indexer sink configuration example"
+		]
+	},
+	"/docs/sinks#resuming": {
+		"hash": "6456dfcd461ed5a5",
+		"phrasings": [
+			"sink resume after restart",
+			"how does sink keep cursor position",
+			"restart sink without arguments",
+			"committed cursor on sink start",
+			"continue indexing after process crash",
+			"sink resume from last block"
+		]
+	},
+	"/docs/sinks#rollback-is-height-stamped": {
+		"hash": "1bcfe9dc9de768b3",
+		"phrasings": [
+			"sink rollback deletes rows above fork height",
+			"how does sink rollback work with height",
+			"v1 rollback delete rows forkpointheight",
+			"sinks rollback removes data after reorg",
+			"why are rows deleted on sink rollback",
+			"sink reorg rollback deleting too many rows",
+			"rollback height stamp sink tables",
+			"which tables does sink rollback delete from"
+		]
+	},
+	"/docs/sinks#the-problem-it-removes": {
+		"hash": "5d659fc40a07d0fe",
+		"phrasings": [
+			"why use a sink instead of consumer",
+			"hand rolled indexer consumer boilerplate",
+			"what problem do sinks solve",
+			"checkpoint and rollback handling without sink",
+			"writing a correct blockchain consumer from scratch",
+			"sink benefits over manual indexing code"
+		]
+	},
+	"/docs/sinks#three-sinks-ship": {
+		"hash": "d3e4516dec217198",
+		"phrasings": [
+			"which database sinks are built in",
+			"custom sink for another database store",
+			"how to test a custom sink",
+			"conformance kit for sink implementations",
+			"sdk sinks supported stores list",
+			"can i use my own datastore with sinks",
+			"sink adapter for mongodb or redis"
+		]
+	},
+	"/docs/sinks#with-a-sink": {
+		"hash": "8549b7037ff340a2",
+		"phrasings": [
+			"indexer sink transaction ctx.tx usage",
+			"write rows and checkpoint atomically",
+			"sink transaction commit rows checkpoint",
+			"minimal indexer with a sink example",
+			"how to write data in sink handler",
+			"ctx.tx database writes in indexer"
+		]
+	},
+	"/docs/sinks#write-your-own-sink": {
+		"hash": "478f9db538182e0c",
+		"phrasings": [
+			"how to write custom sink driver",
+			"createsink driver options example",
+			"build own database sink secondlayer",
+			"sink driver dialect implementation",
+			"custom sink transaction handling",
+			"createsink from sdk sinks core",
+			"implement sink for my database",
+			"sink guards and transaction sequences"
+		]
+	},
+	"/docs/streams": {
+		"hash": "68c476bbfdf83633",
+		"phrasings": [
+			"raw stacks firehose stream docs",
+			"decode stacks events myself",
+			"raw blockchain event stream access",
+			"streams product raw firehose overview",
+			"how to consume unprocessed stacks events",
+			"firehose when to use streams instead of index"
+		]
+	},
+	"/docs/streams#bitcoin-events-runes": {
+		"hash": "b8ce69a4346791b2",
+		"phrasings": [
+			"runes events cursor on bitcoin chain",
+			"separate cursor for runes events",
+			"how to fetch rune transfers on bitcoin",
+			"bitcoin runes stream returns no events",
+			"chain bitcoin runes event feed",
+			"runes events missing from stream query",
+			"where to get runes activity data"
+		]
+	},
+	"/docs/streams#build-an-indexer-on-it": {
+		"hash": "4b7ee823c453a349",
+		"phrasings": [
+			"how to write a stacks indexer",
+			"checkpointed event consumer stacks",
+			"handle chain reorgs in indexer",
+			"events.consume example loop",
+			"resume stacks events after restart",
+			"rewind indexer on reorg",
+			"stacks blockchain event stream tutorial",
+			"process stacks events reliably"
+		]
+	},
+	"/docs/streams#check-it": {
+		"hash": "9b7e6664f79fc073",
+		"phrasings": [
+			"verify ed25519 signature stream frames",
+			"sdk checks frame signatures before onbatch",
+			"pin stream signing key trust",
+			"stream frame signature verification failing",
+			"how to pin ed25519 public key streams",
+			"are stream frames signed"
+		]
+	},
+	"/docs/streams#cold-history": {
+		"hash": "ca2145c5ac347834",
+		"phrasings": [
+			"events replay backfill from bulk dumps",
+			"stream historical events from genesis",
+			"latestfinalizedcursor manifest tail live",
+			"gap or duplicate at backfill seam",
+			"replay old events then switch to live",
+			"signed bulk dumps stream backfill"
+		]
+	},
+	"/docs/streams#dumps-and-duckdb": {
+		"hash": "3a05b2d60ca0d62c",
+		"phrasings": [
+			"query parquet dumps with duckdb",
+			"bulk export blockchain events as parquet",
+			"load stream data into duckdb",
+			"duckdb read parquet from dump files",
+			"download historical events as parquet",
+			"parquet format for analytics queries",
+			"export events to parquet for sql"
+		]
+	},
+	"/docs/streams#filters": {
+		"hash": "3796b31c0fef5a9f",
+		"phrasings": [
+			"one filters object multiple concerns cursor",
+			"follow several streams with one filter",
+			"combine filters on single cursor",
+			"stream filters object example",
+			"filter multiple events one cursor",
+			"stream filter options for several topics"
+		]
+	},
+	"/docs/streams#from-the-cli": {
+		"hash": "d79d66c0e9a095c8",
+		"phrasings": [
+			"secondlayer cli streams command",
+			"print stream events as json terminal",
+			"read streams from command line",
+			"list secondlayer cli subcommands",
+			"fetch events without writing code",
+			"terminal command to tail stream data"
+		]
+	},
+	"/docs/streams#index-runes-into-your-own-database": {
+		"hash": "096120a92ca9a81f",
+		"phrasings": [
+			"how to store runes data in my own database",
+			"sync rune events into postgres",
+			"events.consume bitcoin example",
+			"checkpointed indexer for runes bitcoin",
+			"index runes activity into custom db",
+			"consume bitcoin chain events loop",
+			"rune indexer not resuming after restart",
+			"persist stream events to my database"
+		]
+	},
+	"/docs/streams#per-frame-signatures": {
+		"hash": "0b2a9201d69ce00a",
+		"phrasings": [
+			"verify sse frame signature",
+			"keyid field in event stream frame",
+			"validate signed event payload",
+			"what is sig field in event",
+			"check event signature with keyid",
+			"event frame signature verification example",
+			"authenticate streamed event frames"
+		]
+	},
+	"/docs/streams#read-it-directly": {
+		"hash": "3787084af705ad31",
+		"phrasings": [
+			"how to poll stream events in a loop",
+			"simple loop to fetch stream events",
+			"stream api call repeatedly example",
+			"read events without a consumer library",
+			"why does my stream loop keep polling",
+			"fetch blockchain events with plain http",
+			"minimal code to pull stream data"
+		]
+	},
+	"/docs/streams#real-time-firehose-sse": {
+		"hash": "e9358bf3ea2b7148",
+		"phrasings": [
+			"server sent events stream endpoint",
+			"sse endpoint for blockchain events",
+			"stream events over server sent events",
+			"filter params for sse event stream",
+			"realtime events alternative to websocket",
+			"curl sse blockchain events stream",
+			"subscribe to live events via sse"
+		]
+	},
+	"/docs/streams#reorg-behavior": {
+		"hash": "9e55d15ef2cdfb4a",
+		"phrasings": [
+			"what happens to stream on chain reorg",
+			"stream sends duplicate events after reorg",
+			"reorg redelivers fork block events",
+			"how to handle reorgs in event stream",
+			"events replayed after fork detected",
+			"rewind cursor on blockchain reorganization",
+			"does stream resend block after reorg"
+		]
+	},
+	"/docs/streams#two-concerns-one-loop": {
+		"hash": "3e736c179a58234a",
+		"phrasings": [
+			"track two event types with one cursor",
+			"filter union of event types in stream",
+			"separate consumers for multiple event types",
+			"one checkpoint for multiple filters",
+			"why stream filters are and-ed together",
+			"sbtc mints and treasury spends together",
+			"multiple filters per consume loop"
+		]
+	},
+	"/docs/subgraphs": {
+		"hash": "9a73fcd2d2d660e1",
+		"phrasings": [
+			"typescript file to rest api over table",
+			"generate rest api from typescript config",
+			"subgraph table and rest api setup",
+			"easiest way to index chain data",
+			"define subgraph single file typescript",
+			"turn blockchain events into rest endpoint"
+		]
+	},
+	"/docs/subgraphs#check-it": {
+		"hash": "95e00e4b5cad11e2",
+		"phrasings": [
+			"how to verify subgraph data against the api",
+			"recompute subgraph rows locally and compare",
+			"subgraph api returns different data than my local calculation",
+			"validate indexed rows from proven blocks",
+			"compare subgraph output with recomputed values",
+			"how do i confirm subgraph results are correct",
+			"mismatch between subgraph query results and expected rows",
+			"local verification of subgraph indexing output"
+		]
+	},
+	"/docs/subgraphs#check-status": {
+		"hash": "29c53c4d898b0dd9",
+		"phrasings": [
+			"subgraph backfill progress check",
+			"is my subgraph still syncing",
+			"table reads during backfill",
+			"how far has indexing reached",
+			"subgraph sync status command",
+			"check whether backfill finished"
+		]
+	},
+	"/docs/subgraphs#counters-and-balances-use-increment": {
+		"hash": "15d50932283f4727",
+		"phrasings": [
+			"atomic counter update subgraph ctx",
+			"increment balance without race condition",
+			"upsert delta on unique key",
+			"subgraph running totals in one statement",
+			"ctx increment unique keys upsert",
+			"avoid lost updates counting in subgraph"
+		]
+	},
+	"/docs/subgraphs#define-a-subgraph": {
+		"hash": "059f9b6629a3dcec",
+		"phrasings": [
+			"how to write a subgraph handler",
+			"subgraph declare table and sources",
+			"subgraph sources and handlers setup",
+			"one handler per source subgraph",
+			"subgraph manifest sources example",
+			"subgraph table declaration steps"
+		]
+	},
+	"/docs/subgraphs#deploy": {
+		"hash": "cc7b2bfb7d6722a0",
+		"phrasings": [
+			"how do i deploy a subgraph",
+			"where to host my subgraph for free",
+			"is hosted subgraph service the default",
+			"subgraph deployment with no infrastructure to run",
+			"how many private subgraphs per account",
+			"deploy subgraph without operating my own node",
+			"what does hosted subgraph deployment include",
+			"hosted vs self hosted subgraph deploy"
+		]
+	},
+	"/docs/subgraphs#handler-context": {
+		"hash": "994a4fae7b0bb9d2",
+		"phrasings": [
+			"what is context object in subgraph handler",
+			"how to access event data in handler",
+			"subgraph handler not receiving event parameters",
+			"how to get context inside event handler",
+			"where does handler context come from",
+			"subgraph handler arguments explained",
+			"how do i read matched event in subgraph",
+			"accessing context in subgraph mapping function"
+		]
+	},
+	"/docs/subgraphs#handlers": {
+		"hash": "107b6ef25184c985",
+		"phrasings": [
+			"what does a subgraph handler return",
+			"turn chain event into database rows",
+			"subgraph handler function basics",
+			"how to write event handler subgraph",
+			"handler outputs rows per matched event",
+			"subgraph handler examples"
+		]
+	},
+	"/docs/subgraphs#hoisting-the-schema": {
+		"hash": "c66ad10bc630ca05",
+		"phrasings": [
+			"defineschema helper typed subgraph",
+			"typed helpers outside handler subgraph",
+			"how to share schema across helper functions",
+			"subgraph schema types not inferred in helpers",
+			"extract table schema into separate file",
+			"typescript types for helper functions subgraph",
+			"defineschema keeps helpers typed"
+		]
+	},
+	"/docs/subgraphs#index-by-standard-not-by-address": {
+		"hash": "2ad2cdcb8197af07",
+		"phrasings": [
+			"index all sip010 tokens without addresses",
+			"trait filter matches contracts by standard",
+			"subgraph match contracts by trait not address",
+			"catch contracts deployed after subgraph ships",
+			"subgraph index every nft contract",
+			"filter contracts by standard classification"
+		]
+	},
+	"/docs/subgraphs#indexing-a-contract-set": {
+		"hash": "84cb239f74acf564",
+		"phrasings": [
+			"index multiple contracts with one handler",
+			"subgraph source contractid array",
+			"share one handler across several contracts",
+			"how to index router and pool contracts together",
+			"subgraph multiple contract addresses same handler",
+			"index a fixed list of contracts",
+			"contractid accepts array of addresses",
+			"one data source for many contracts subgraph"
+		]
+	},
+	"/docs/subgraphs#pages-cursors-and-sorting": {
+		"hash": "11fbe472a3cf94ca",
+		"phrasings": [
+			"paginate subgraph query results",
+			"cursor based pagination subgraph example",
+			"sort subgraph entities by field descending",
+			"subgraph query only returns first 100 results",
+			"how to get next page of subgraph results",
+			"order by and skip in subgraph query",
+			"page through all entities with cursor",
+			"subgraph orderby orderdirection example"
+		]
+	},
+	"/docs/subgraphs#read-rows": {
+		"hash": "c248ae05a8e377ca",
+		"phrasings": [
+			"how to query rows from a subgraph table",
+			"fetch a single entity by id in subgraph",
+			"subgraph query returns empty list of entities",
+			"get all records from subgraph entity",
+			"subgraph api example query for table data",
+			"why is my subgraph query returning no data",
+			"retrieve entities from subgraph with filters",
+			"subgraph graphql query to list stored items"
+		]
+	},
+	"/docs/subgraphs#test-before-you-deploy": {
+		"hash": "35c90ddd63fa5e08",
+		"phrasings": [
+			"test subgraph handler against real chain events",
+			"run subgraph locally without deploying",
+			"dry run subgraph handler code",
+			"subgraph testing before deploy",
+			"preview indexed rows before deploying",
+			"local test harness for subgraph handlers"
+		]
+	},
+	"/docs/subgraphs#tip-first-deploys": {
+		"hash": "0ad7a905ad9419cd",
+		"phrasings": [
+			"serve data while backfill runs",
+			"deploy subgraph live at chain tip",
+			"backfill mode concurrent subgraph",
+			"rows available in seconds during backfill",
+			"skip waiting for history sync",
+			"fast initial deploy subgraph backfill"
+		]
+	},
+	"/docs/subgraphs#what-runs-hosted": {
+		"hash": "6fa32d1a37b1bdfc",
+		"phrasings": [
+			"why does my processor keep restarting",
+			"subgraph processor restarts out of memory",
+			"where do hosted subgraphs actually run",
+			"processor stalls then restarts what happens",
+			"hosted subgraph memory limit restart loop",
+			"what process runs my subgraph on the host",
+			"subgraph keeps restarting when it runs out of memory",
+			"does hosted processor restart if it stalls"
+		]
+	},
+	"/docs/subgraphs-reference": {
+		"hash": "05027b1028b7deb4",
+		"phrasings": [
+			"how do i define a subgraph handler",
+			"definesubgraph handler context fields",
+			"read contract state inside a subgraph",
+			"generate typescript types from subgraph schema",
+			"replay subgraph events from block height",
+			"test subgraph handlers locally",
+			"subgraph handler errors during replay",
+			"stacks contract read example in handler"
+		]
+	},
+	"/docs/verification": {
+		"hash": "9018fad532050cee",
+		"phrasings": [
+			"how to verify blockchain data integrity",
+			"verify chain state without trusting provider",
+			"trustless verification of archive data",
+			"check archive data is correct",
+			"verify node data against checkpoint"
+		]
+	},
+	"/docs/verification#archive-assurance-levels": {
+		"hash": "c64ba4d1ee6adf1e",
+		"phrasings": [
+			"archive manifest assurance level per range",
+			"what does db reconstructive mean",
+			"which archive ranges are fully verified",
+			"archive manifest levels explained",
+			"how much of chain is reconstructive"
+		]
+	},
+	"/docs/verification#bitcoin-transactions": {
+		"hash": "acd746842cdb6365",
+		"phrasings": [
+			"how to verify a bitcoin transaction",
+			"verifybitcointx txid merkle root check",
+			"confirm bitcoin tx included in block header",
+			"check merkle proof for bitcoin transaction",
+			"verify bitcoin tx against checkpoint chain",
+			"txid mismatch from raw transaction bytes",
+			"bitcoin spv proof header validation steps",
+			"validate block header against checkpoint chain"
+		]
+	},
+	"/docs/verification#blocks-below-the-checkpoint": {
+		"hash": "1f05339f4ec6ab6e",
+		"phrasings": [
+			"verify block below checkpoint skips bitcoin",
+			"why signer links missing for old blocks",
+			"verification of blocks before checkpoint",
+			"checkpoint skipped bitcoin link verify",
+			"old block verify fails bitcoin check",
+			"what happens to blocks under checkpoint"
+		]
+	},
+	"/docs/verification#check-a-block": {
+		"hash": "f53352035715acb8",
+		"phrasings": [
+			"verify a single block state against checkpoint",
+			"command to verify block from checkpoint",
+			"check block links bitcoin to state",
+			"how to verify one block",
+			"validate block state root command line"
+		]
+	},
+	"/docs/verification#exit-codes-and-cost": {
+		"hash": "4f935d2965a60cc1",
+		"phrasings": [
+			"verify exit codes meaning",
+			"can lying source pass verification",
+			"cost of running verify checks",
+			"verify failed link what to do",
+			"how expensive is block verification",
+			"does verify trust the data source"
+		]
+	},
+	"/docs/verification#flags": {
+		"hash": "bf48e58556bcf945",
+		"phrasings": [
+			"verify command flags list",
+			"which cli options for verification",
+			"verify command checkpoint flag",
+			"how to set verify output format",
+			"verify options reference"
+		]
+	},
+	"/docs/verification#in-your-code": {
+		"hash": "b1ddb65ad3131c95",
+		"phrasings": [
+			"verify library api in typescript",
+			"use verification check programmatically in node",
+			"import secondlayer verify package",
+			"call block verification from my code",
+			"verify library example usage",
+			"secondlayer verify npm package code"
+		]
+	},
+	"/docs/verification#proof-levels": {
+		"hash": "086a8970aeecf612",
+		"phrasings": [
+			"what does a 200 verify response contain",
+			"verify response missing consensus field",
+			"raw transaction and merkle path in verify",
+			"when is consensus returned in proof",
+			"proof levels meaning for verification",
+			"verify output raw header merkle path"
+		]
+	},
+	"/docs/verification#proofs-api": {
+		"hash": "9b5e7452d04d4d2e",
+		"phrasings": [
+			"free proofs api no api key",
+			"raw proof data endpoint for verify",
+			"is proofs endpoint metered or rate limited",
+			"proofs api endpoint for merkle paths",
+			"fetch raw material for block verification"
+		]
+	},
+	"/docs/verification#proofs-api-and-limits": {
+		"hash": "72c9b64ad0d4996f",
+		"phrasings": [
+			"http proofs api endpoints for verification",
+			"what cannot be proven yet on chain",
+			"limitations of proof api",
+			"which checks lack proofs currently",
+			"proofs endpoint rate limits and restrictions",
+			"known gaps in transaction proofs",
+			"api for merkle proofs over http",
+			"unsupported proofs in verification api"
+		]
+	},
+	"/docs/verification#prove-a-transaction": {
+		"hash": "6b01766034414101",
+		"phrasings": [
+			"verifytransactionproof example",
+			"how to prove a transaction is included",
+			"recompute txid and merkle root",
+			"verify transaction inclusion in block",
+			"check signer weight from proof",
+			"transaction proof verification code",
+			"confirm tx in block hash",
+			"validate tx proof with merkle path"
+		]
+	},
+	"/docs/verification#what-it-does-not-cover-yet": {
+		"hash": "9717279a90ed3c53",
+		"phrasings": [
+			"what verification does not support yet",
+			"secondlayer verify limitations",
+			"known gaps in transaction verification",
+			"unsupported checks in verify tool",
+			"is verify complete for all transactions",
+			"missing features in verification roadmap"
+		]
+	},
+	"/docs/verification#what-you-can-check": {
+		"hash": "205b2b9ecedd0745",
+		"phrasings": [
+			"what can i verify on the chain",
+			"which layers have verification checks",
+			"how much do i need to trust",
+			"verify chain data trust assumptions",
+			"what each verification step proves",
+			"list of things to check when verifying",
+			"how far does verification go",
+			"chain verification checks overview"
+		]
+	},
+	"/docs/verify-reference": {
+		"hash": "96b47aeda599eeb8",
+		"phrasings": [
+			"verify stacks block against bitcoin checkpoint",
+			"client side stacks block verification without trusting node",
+			"check stacks transaction inclusion proof",
+			"verify stacks state against anchored checkpoint",
+			"trustless stacks verification in browser",
+			"bitcoin anchored checkpoint verification failed",
+			"how to verify stacks state root",
+			"light client verify stacks transactions"
+		]
+	},
+	"/docs/webhooks": {
+		"hash": "3bd52fe9b4cd4fe6",
+		"phrasings": [
+			"what is a chain webhook",
+			"signed post to my url on events",
+			"get notified when blockchain event happens",
+			"webhook for stacks chain events",
+			"how do webhooks work for blockchain",
+			"receive http callbacks on chain activity"
+		]
+	},
+	"/docs/webhooks#account-webhooks": {
+		"hash": "31fb68b02f425675",
+		"phrasings": [
+			"list my hosted account webhooks",
+			"account webhooks endpoint path",
+			"where do i see my webhooks",
+			"hosted account webhook listing api",
+			"get all webhooks for my account",
+			"account webhooks page location"
+		]
+	},
+	"/docs/webhooks#check-it": {
+		"hash": "9a898831914ca2e1",
+		"phrasings": [
+			"verify webhook ed25519 signature",
+			"how to validate webhook delivery authenticity",
+			"webhook signature verification example",
+			"check webhook payload came from provider",
+			"ed25519 public key webhook signature check",
+			"webhook delivery signature not matching",
+			"test webhook signature in each format",
+			"authenticate incoming webhook requests"
+		]
+	},
+	"/docs/webhooks#coming-from-chainhook": {
+		"hash": "6a27841240f1dede",
+		"phrasings": [
+			"migrate chainhook predicates to webhooks",
+			"chainhook predicate to trigger mapping",
+			"convert chainhook predicates to create commands",
+			"moving from chainhook to secondlayer webhooks",
+			"chainhook replacement webhook setup",
+			"import existing chainhook predicates agent"
+		]
+	},
+	"/docs/webhooks#create-a-webhook": {
+		"hash": "91b4263b86562e61",
+		"phrasings": [
+			"how to set up a webhook for contract calls",
+			"webhook fire on token transfers to my url",
+			"register webhook endpoint for transfer events",
+			"configure webhook triggers for specific addresses",
+			"webhook not posting to my url",
+			"how to subscribe to on chain transfers via webhook",
+			"create webhook filter for function calls",
+			"webhook setup steps for blockchain events"
+		]
+	},
+	"/docs/webhooks#delivery-lag": {
+		"hash": "b401aa50e461b2f6",
+		"phrasings": [
+			"webhook events arriving late",
+			"delay between block and webhook delivery",
+			"webhook delivery latency high",
+			"why are webhooks delayed after block",
+			"events dispatched minutes after block time",
+			"webhook lag over 60 seconds"
+		]
+	},
+	"/docs/webhooks#from-the-cli": {
+		"hash": "1d1fdf30bca64eae",
+		"phrasings": [
+			"create webhook using command line",
+			"cli webhook trigger json config",
+			"define webhook triggers in json file",
+			"webhook cli json format example",
+			"set up webhook with cli instead of dashboard",
+			"cli command to register webhook triggers",
+			"json payload for webhook triggers from terminal",
+			"automate webhook creation with cli"
+		]
+	},
+	"/docs/webhooks#hosted-limits": {
+		"hash": "9bf4bbf1e1e60e74",
+		"phrasings": [
+			"webhook hosted plan limits",
+			"api secondlayer tools webhook credits",
+			"webhook prepaid credits pricing",
+			"self hosted webhooks vs hosted",
+			"account key webhook quota",
+			"how many webhook deliveries included"
+		]
+	},
+	"/docs/webhooks#print-fields": {
+		"hash": "00338fb18e3acc85",
+		"phrasings": [
+			"webhook filter print events by field",
+			"only receive prints matching my values",
+			"busy contract webhook too many events",
+			"filter print events where field equals",
+			"webhook delivers only my rows",
+			"reduce webhook noise from contract prints",
+			"where clause for print event payloads",
+			"get print events for specific user only"
+		]
+	},
+	"/docs/webhooks#protocol-triggers": {
+		"hash": "10a7620f3509edba",
+		"phrasings": [
+			"sbtc trigger webhook setup",
+			"runes webhook trigger decoded data",
+			"webhook for sbtc events",
+			"how to trigger on runes transactions",
+			"decoded protocol events for webhooks",
+			"index protocols webhook sbtc runes",
+			"webhook not firing for runes activity",
+			"sbtc deposit webhook trigger"
+		]
+	},
+	"/docs/webhooks#receive-and-verify": {
+		"hash": "96247bf22a790a19",
+		"phrasings": [
+			"how to receive webhook events safely",
+			"handle webhook reorg rollback",
+			"verify webhook body before processing",
+			"undo orphaned blocks from webhook",
+			"webhook receiver example code",
+			"decode webhook delivery body"
+		]
+	},
+	"/docs/webhooks#receiver-down": {
+		"hash": "5185ec037281345b",
+		"phrasings": [
+			"webhook endpoint returning 500 errors",
+			"webhook receiver not responding timeout",
+			"webhook connection refused on my server",
+			"receiver down consecutive 5xx webhook",
+			"webhook deliveries all failing with 503",
+			"my webhook server is unreachable",
+			"webhook no response from endpoint"
+		]
+	},
+	"/docs/webhooks#receiver-rate-limited": {
+		"hash": "610aeeaaf759dbbb",
+		"phrasings": [
+			"webhook receiver returning 429 too many requests",
+			"too many 429 responses from my endpoint",
+			"how many 429s trigger rate limit warning",
+			"webhook endpoint rate limit errors",
+			"receiver getting rate limited by webhook sender",
+			"reduce webhook load on my server",
+			"webhook 429 retry backoff behavior"
+		]
+	},
+	"/docs/webhooks#receiver-rejects": {
+		"hash": "d1d6e4191dbe7fba",
+		"phrasings": [
+			"webhook returning 400 bad request",
+			"receiver rejects webhook with 401 unauthorized",
+			"webhook 403 forbidden from my endpoint",
+			"why does my endpoint reject webhook deliveries",
+			"webhook 404 not found receiver",
+			"4xx errors on webhook endpoint",
+			"webhook receiver keeps refusing requests"
+		]
+	},
+	"/docs/webhooks#receiver-slow": {
+		"hash": "86af8edf24a40002",
+		"phrasings": [
+			"webhook endpoint response time too slow",
+			"increase webhook timeoutms setting",
+			"slow webhook receiver causing timeouts",
+			"webhook handler taking too long to respond",
+			"median response time webhook receiver",
+			"webhook timeout errors from slow endpoint"
+		]
+	},
+	"/docs/webhooks#replay": {
+		"hash": "cdb6736ca9541775",
+		"phrasings": [
+			"resend past events to webhook",
+			"redeliver historical webhook events",
+			"replay missed chain events webhook",
+			"backfill webhook with old blocks",
+			"webhook replay for past transactions",
+			"resend failed webhook deliveries",
+			"re-trigger webhook for historical range",
+			"how to replay webhook history"
+		]
+	},
+	"/docs/webhooks#replay-and-recovery": {
+		"hash": "cccc40387665b256",
+		"phrasings": [
+			"how to replay missed webhook deliveries",
+			"recover webhooks after endpoint downtime",
+			"resend failed webhook events manually",
+			"webhook backfill missing blocks after outage",
+			"retry failed webhook deliveries",
+			"replay webhook events from a block height",
+			"webhook endpoint was down how to recover"
+		]
+	},
+	"/docs/webhooks#test-delivery": {
+		"hash": "50d1f0648360108e",
+		"phrasings": [
+			"secondlayer webhooks test command",
+			"send test webhook post request",
+			"test my webhook endpoint locally",
+			"webhook test delivery not received",
+			"debug webhook with sample payload",
+			"check webhook logs after test",
+			"cli command to test webhook post",
+			"fake webhook event for testing"
+		]
+	},
+	"/docs/webhooks#triggers": {
+		"hash": "333d33c2c12eccdc",
+		"phrasings": [
+			"webhook trigger factory example",
+			"create webhook with trigger object",
+			"raw trigger objects for webhooks",
+			"how to define webhook triggers",
+			"webhook trigger configuration syntax",
+			"trigger factories vs raw objects webhook"
+		]
+	},
+	"/docs/webhooks#triggers-and-limits": {
+		"hash": "5bed2fa3282d6723",
+		"phrasings": [
+			"webhook rate limits and quotas",
+			"what triggers are available for webhooks",
+			"webhook protocol triggers list",
+			"test delivery webhook limits hosted plan",
+			"maximum webhook triggers allowed",
+			"hosted webhook restrictions and caps",
+			"list of supported webhook event types",
+			"webhook test ping delivery behavior"
+		]
+	},
+	"/docs/webhooks#troubleshooting": {
+		"hash": "f4ce3a9e73f9ed27",
+		"phrasings": [
+			"webhooks doctor command",
+			"webhook deliveries failing what to check",
+			"why is my webhook not working",
+			"diagnose webhook delivery problems",
+			"webhook detail page health rules",
+			"webhook last 100 attempts diagnosis",
+			"secondlayer webhook troubleshooting steps",
+			"webhook health check rules explained"
+		]
+	},
+	"/docs/webhooks#verify-the-signature": {
+		"hash": "1643f382cbdadc60",
+		"phrasings": [
+			"verify webhook hmac signature",
+			"standard webhooks signature validation",
+			"webhook signature mismatch error",
+			"how to check webhook delivery authenticity",
+			"per webhook hmac secret verification",
+			"validate standard-webhooks headers node",
+			"webhook signature verification code example"
+		]
+	}
 }

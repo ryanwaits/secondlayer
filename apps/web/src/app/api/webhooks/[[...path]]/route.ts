@@ -37,8 +37,6 @@ function isAllowed(method: Method, segments: string[]): boolean {
 		) {
 			return true;
 		}
-		// one delivery attempt (the delivery card)
-		if (segments.length === 3 && segments[1] === "deliveries") return true;
 		return false;
 	}
 	if (method === "POST") {

@@ -111,17 +111,11 @@
 						"description": "First block height the new fork replaced. Undo rows at or above it."
 					},
 					"old_index_block_hash": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Index block hash of the abandoned tip."
 					},
 					"new_index_block_hash": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Index block hash of the winning tip."
 					},
 					"orphaned_range": {
@@ -238,9 +232,7 @@
 					"openapi": "/v1/openapi.json",
 					"envelope_examples": {
 						"cursor_paginated": {
-							"events": [
-								"..."
-							],
+							"events": ["..."],
 							"next_cursor": "7960000:42",
 							"tip": {
 								"block_height": 7978686,
@@ -263,26 +255,17 @@
 				"title": "Batch response",
 				"type": "object",
 				"description": "The batch results.",
-				"required": [
-					"results"
-				],
+				"required": ["results"],
 				"properties": {
 					"results": {
 						"type": "array",
 						"description": "One entry per request, in order: the item's `path`, the HTTP `status` it got, and its JSON `body`. A path outside the allowed prefixes gets status 400; an item that throws gets status 500 with code `INTERNAL_ERROR`.",
 						"items": {
 							"type": "object",
-							"required": [
-								"path",
-								"status",
-								"body"
-							],
+							"required": ["path", "status", "body"],
 							"properties": {
 								"path": {
-									"type": [
-										"string",
-										"null"
-									],
+									"type": ["string", "null"],
 									"description": "The item's path as sent."
 								},
 								"status": {
@@ -337,21 +320,11 @@
 				"title": "Archive verification",
 				"type": "object",
 				"description": "The outcome of an archive comparison.",
-				"required": [
-					"status",
-					"target",
-					"against",
-					"signature",
-					"ranges"
-				],
+				"required": ["status", "target", "against", "signature", "ranges"],
 				"properties": {
 					"status": {
 						"type": "string",
-						"enum": [
-							"clean",
-							"diverged",
-							"unanchored"
-						],
+						"enum": ["clean", "diverged", "unanchored"],
 						"description": "`clean`: every range matched. `diverged`: at least one did not. `unanchored`: the comparison could not be trusted or run; see `reason`."
 					},
 					"target": {
@@ -394,11 +367,7 @@
 							"properties": {
 								"dataset": {
 									"type": "string",
-									"enum": [
-										"blocks",
-										"transactions",
-										"events"
-									]
+									"enum": ["blocks", "transactions", "events"]
 								},
 								"from_block": {
 									"type": "integer"
@@ -416,16 +385,10 @@
 									]
 								},
 								"expected_digest": {
-									"type": [
-										"string",
-										"null"
-									]
+									"type": ["string", "null"]
 								},
 								"actual_digest": {
-									"type": [
-										"string",
-										"null"
-									]
+									"type": ["string", "null"]
 								}
 							}
 						}
@@ -470,12 +433,7 @@
 				"title": "Subgraph row",
 				"type": "object",
 				"description": "One row of a subgraph table. Every table has the four system columns below; the definition's own columns follow, each as its JSON type: `uint` and `int` (Postgres NUMERIC) as decimal strings, so values past 2^53 stay exact; `text` and `principal` as strings; `boolean` as a boolean; `timestamp` as an ISO 8601 string; `jsonb` as JSON. A `nullable` column can be `null`. `_fields` narrows the set.",
-				"required": [
-					"_id",
-					"_block_height",
-					"_tx_id",
-					"_created_at"
-				],
+				"required": ["_id", "_block_height", "_tx_id", "_created_at"],
 				"properties": {
 					"_id": {
 						"type": "string",
@@ -512,11 +470,7 @@
 			"SubgraphTip": {
 				"type": "object",
 				"description": "How far this subgraph has indexed, against the chain tip.",
-				"required": [
-					"block_height",
-					"subgraph_height",
-					"blocks_behind"
-				],
+				"required": ["block_height", "subgraph_height", "blocks_behind"],
 				"properties": {
 					"block_height": {
 						"type": "integer",
@@ -542,11 +496,7 @@
 				"title": "Subgraph rows page",
 				"type": "object",
 				"description": "One page of rows from `GET /v1/subgraphs/{name}/{table}`.",
-				"required": [
-					"rows",
-					"next_cursor",
-					"tip"
-				],
+				"required": ["rows", "next_cursor", "tip"],
 				"properties": {
 					"rows": {
 						"type": "array",
@@ -556,10 +506,7 @@
 						}
 					},
 					"next_cursor": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Pass back as `cursor` to resume after this page. Set on every page that returned rows, including a short last page; `null` only on an empty page, which means you are caught up. To tail, keep the last cursor you got: `cursor = next_cursor ?? cursor`. Without `_sort` it is the last row's `_id`; with `_sort` it is an opaque token."
 					},
 					"tip": {
@@ -590,9 +537,7 @@
 			"SubgraphRowCount": {
 				"title": "Subgraph row count",
 				"type": "object",
-				"required": [
-					"count"
-				],
+				"required": ["count"],
 				"properties": {
 					"count": {
 						"type": "integer",
@@ -629,20 +574,14 @@
 					"min": {
 						"type": "object",
 						"additionalProperties": {
-							"type": [
-								"string",
-								"null"
-							]
+							"type": ["string", "null"]
 						},
 						"description": "Minimum per `_min` column. `null` over no rows."
 					},
 					"max": {
 						"type": "object",
 						"additionalProperties": {
-							"type": [
-								"string",
-								"null"
-							]
+							"type": ["string", "null"]
 						},
 						"description": "Maximum per `_max` column. `null` over no rows."
 					}
@@ -669,10 +608,7 @@
 						"description": "Subgraph name."
 					},
 					"description": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "The definition's `description`, if it has one."
 					},
 					"status": {
@@ -726,25 +662,17 @@
 					"version": "1.0.0",
 					"created_at": "2026-09-01T12:00:00.000Z",
 					"total_rows": 48138,
-					"sources": [
-						"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token"
-					],
+					"sources": ["SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token"],
 					"last_processed_block": 9048931,
 					"blocks_behind": 0,
-					"tables": [
-						"transfers"
-					],
+					"tables": ["transfers"],
 					"url": "/v1/subgraphs/sbtc-token"
 				}
 			},
 			"SubgraphDirectory": {
 				"title": "Subgraph directory",
 				"type": "object",
-				"required": [
-					"subgraphs",
-					"tip",
-					"envelope"
-				],
+				"required": ["subgraphs", "tip", "envelope"],
 				"properties": {
 					"subgraphs": {
 						"type": "array",
@@ -792,9 +720,7 @@
 							],
 							"last_processed_block": 9048931,
 							"blocks_behind": 0,
-							"tables": [
-								"transfers"
-							],
+							"tables": ["transfers"],
 							"url": "/v1/subgraphs/sbtc-token"
 						}
 					],
@@ -817,10 +743,7 @@
 						"description": "Subgraph name."
 					},
 					"description": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "The definition's `description`, if it has one."
 					},
 					"version": {
@@ -911,19 +834,12 @@
 					"version": "1.0.0",
 					"status": "active",
 					"created_at": "2026-09-01T12:00:00.000Z",
-					"sources": [
-						"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token"
-					],
+					"sources": ["SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token"],
 					"start_block": 0,
 					"tables": {
 						"transfers": {
 							"endpoint": "/v1/subgraphs/sbtc-token/transfers",
-							"columns": [
-								"sender",
-								"recipient",
-								"amount",
-								"asset_identifier"
-							],
+							"columns": ["sender", "recipient", "amount", "asset_identifier"],
 							"column_types": {
 								"sender": "principal",
 								"recipient": "principal",
@@ -1050,10 +966,7 @@
 										"description": "Sort direction (_id keyset).",
 										"schema": {
 											"type": "string",
-											"enum": [
-												"asc",
-												"desc"
-											],
+											"enum": ["asc", "desc"],
 											"default": "asc"
 										}
 									},
@@ -1415,10 +1328,7 @@
 															}
 														},
 														"next_cursor": {
-															"type": [
-																"string",
-																"null"
-															]
+															"type": ["string", "null"]
 														},
 														"tip": {
 															"type": "object",
@@ -1475,10 +1385,7 @@
 										"description": "Sort direction (_id keyset).",
 										"schema": {
 											"type": "string",
-											"enum": [
-												"asc",
-												"desc"
-											],
+											"enum": ["asc", "desc"],
 											"default": "asc"
 										}
 									},
@@ -1837,9 +1744,7 @@
 															"type": "integer"
 														}
 													},
-													"required": [
-														"count"
-													],
+													"required": ["count"],
 													"example": {
 														"count": 48138
 													}
@@ -1917,9 +1822,7 @@
 							"assetIdentifier": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token"
 						}
 					},
-					"x-secondlayer-tables": [
-						"transfers"
-					]
+					"x-secondlayer-tables": ["transfers"]
 				}
 			},
 			"SubgraphAgentSchema": {
@@ -2012,12 +1915,7 @@
 								}
 							},
 							"query": {
-								"parameters": [
-									"_limit",
-									"cursor",
-									"_order",
-									"_fields"
-								],
+								"parameters": ["_limit", "cursor", "_order", "_fields"],
 								"sortable": [],
 								"selectable": [
 									"sender",
@@ -2113,10 +2011,7 @@
 						"description": "Stacks block the row landed in."
 					},
 					"block_time": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "That block's timestamp, ISO 8601 UTC."
 					},
@@ -2150,90 +2045,54 @@
 						"description": "The event type. Decides which columns are set."
 					},
 					"contract_id": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Contract that emitted the event. `null` for STX transfers, mints, burns and locks."
 					},
 					"asset_identifier": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "`<contract>::<asset>`, on ft and nft types."
 					},
 					"sender": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Sending principal. The locked address on `stx_lock`."
 					},
 					"recipient": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Receiving principal."
 					},
 					"amount": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Amount as a decimal string (bigint-safe). microSTX on STX types."
 					},
 					"value": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "NFT id as hex-encoded Clarity, on nft types."
 					},
 					"memo": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Transfer memo, on `stx_transfer`."
 					},
 					"payload": {
 						"description": "Decoded print payload on `print`; `{ unlock_height }` on `stx_lock`."
 					},
 					"tx_sender": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Submitting transaction's sender. Only with `tx_context=true`."
 					},
 					"tx_type": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Submitting transaction's type. Only with `tx_context=true`."
 					},
 					"tx_status": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Submitting transaction's status. Only with `tx_context=true`."
 					},
 					"tx_contract_id": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Contract the submitting transaction called or deployed. Only with `tx_context=true`."
 					},
 					"tx_function_name": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Function the submitting transaction called. Only with `tx_context=true`."
 					}
 				},
@@ -2279,10 +2138,7 @@
 						"description": "Stacks block the row landed in."
 					},
 					"block_time": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "That block's timestamp, ISO 8601 UTC."
 					},
@@ -2300,9 +2156,7 @@
 					},
 					"event_type": {
 						"type": "string",
-						"enum": [
-							"ft_transfer"
-						],
+						"enum": ["ft_transfer"],
 						"description": "Always `ft_transfer`."
 					},
 					"contract_id": {
@@ -2368,10 +2222,7 @@
 						"description": "Stacks block the row landed in."
 					},
 					"block_time": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "That block's timestamp, ISO 8601 UTC."
 					},
@@ -2389,9 +2240,7 @@
 					},
 					"event_type": {
 						"type": "string",
-						"enum": [
-							"nft_transfer"
-						],
+						"enum": ["nft_transfer"],
 						"description": "Always `nft_transfer`."
 					},
 					"contract_id": {
@@ -2457,10 +2306,7 @@
 						"description": "Stacks block the row landed in."
 					},
 					"block_time": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "That block's timestamp, ISO 8601 UTC."
 					},
@@ -2497,10 +2343,7 @@
 						"description": "Decoded result. `null` when there is none."
 					},
 					"result_hex": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "The result as hex-encoded Clarity."
 					}
 				},
@@ -2550,10 +2393,7 @@
 						"description": "Position in the block's write order, from 0. A separate clock from event_index."
 					},
 					"tx_index": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "The writing transaction's index in the block; null for block-level writes."
 					},
 					"key": {
@@ -2565,45 +2405,27 @@
 						"description": "The value written, hex as the node sent it."
 					},
 					"tx_id": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Writing transaction's id. Only with `tx_context=true`; null for block-level writes."
 					},
 					"tx_sender": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Writing transaction's sender. Only with `tx_context=true`."
 					},
 					"tx_type": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Writing transaction's type. Only with `tx_context=true`."
 					},
 					"tx_status": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Writing transaction's status. Only with `tx_context=true`."
 					},
 					"tx_contract_id": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Contract the writing transaction called or deployed. Only with `tx_context=true`."
 					},
 					"tx_function_name": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Function the writing transaction called. Only with `tx_context=true`."
 					}
 				},
@@ -2650,10 +2472,7 @@
 						"description": "The Bitcoin block it anchors to."
 					},
 					"burn_block_hash": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "That Bitcoin block's hash."
 					}
 				},
@@ -2703,24 +2522,15 @@
 						"description": "The Bitcoin block it anchors to."
 					},
 					"burn_block_hash": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "That Bitcoin block's hash."
 					},
 					"index_block_hash": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Nakamoto block id. Pass it as `?tip=` to a node read-only call to pin the read to this block. `null` on rows ingested before it was stored."
 					},
 					"block_time": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "That block's timestamp, ISO 8601 UTC."
 					},
@@ -2753,13 +2563,7 @@
 				"properties": {
 					"type": {
 						"type": "string",
-						"enum": [
-							"stx",
-							"ft",
-							"nft",
-							"staking",
-							"pox"
-						],
+						"enum": ["stx", "ft", "nft", "staking", "pox"],
 						"description": "Post-condition kind."
 					},
 					"principal": {
@@ -2771,10 +2575,7 @@
 						"description": "Wire condition code."
 					},
 					"condition_code_name": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Its name, e.g. `sent_eq`, `not_sent`, `will_perform`. `null` for an unknown code."
 					},
 					"amount": {
@@ -2831,18 +2632,12 @@
 						"description": "Stacks block the row landed in."
 					},
 					"block_time": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "That block's timestamp, ISO 8601 UTC."
 					},
 					"burn_block_height": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "The Bitcoin block its Stacks block anchors to."
 					},
 					"tx_index": {
@@ -2862,49 +2657,25 @@
 						"description": "Sender principal."
 					},
 					"fee": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Fee in microSTX as a decimal string. `null` when the raw bytes do not decode."
 					},
 					"nonce": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Sender nonce as a decimal string."
 					},
 					"sponsored": {
-						"type": [
-							"boolean",
-							"null"
-						],
+						"type": ["boolean", "null"],
 						"description": "Whether a sponsor paid the fee."
 					},
 					"anchor_mode": {
-						"type": [
-							"string",
-							"null"
-						],
-						"enum": [
-							"on_chain_only",
-							"off_chain_only",
-							"any",
-							null
-						],
+						"type": ["string", "null"],
+						"enum": ["on_chain_only", "off_chain_only", "any", null],
 						"description": "Anchor mode from the raw bytes."
 					},
 					"post_condition_mode": {
-						"type": [
-							"string",
-							"null"
-						],
-						"enum": [
-							"allow",
-							"deny",
-							null
-						],
+						"type": ["string", "null"],
+						"enum": ["allow", "deny", null],
 						"description": "Post-condition mode from the raw bytes."
 					},
 					"post_conditions": {
@@ -2937,10 +2708,7 @@
 						"description": "`coinbase` only.",
 						"properties": {
 							"alt_recipient": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "Alternate reward recipient, if set."
 							}
 						}
@@ -2983,10 +2751,7 @@
 								"description": "Decoded result. `null` when there is none."
 							},
 							"result_hex": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "The result as hex-encoded Clarity."
 							}
 						}
@@ -2996,17 +2761,11 @@
 						"description": "`smart_contract` only.",
 						"properties": {
 							"contract_id": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "Deployed contract."
 							},
 							"clarity_version": {
-								"type": [
-									"integer",
-									"null"
-								],
+								"type": ["integer", "null"],
 								"description": "Clarity version, `null` when unversioned."
 							}
 						}
@@ -3084,10 +2843,7 @@
 						"description": "Transaction id, `0x`-prefixed hex."
 					},
 					"received_at": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "When this instance's node first saw it, ISO 8601 UTC."
 					},
@@ -3100,49 +2856,25 @@
 						"description": "Sender principal."
 					},
 					"fee": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Fee in microSTX as a decimal string. `null` when the raw bytes do not decode."
 					},
 					"nonce": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Sender nonce as a decimal string."
 					},
 					"sponsored": {
-						"type": [
-							"boolean",
-							"null"
-						],
+						"type": ["boolean", "null"],
 						"description": "Whether a sponsor paid the fee."
 					},
 					"anchor_mode": {
-						"type": [
-							"string",
-							"null"
-						],
-						"enum": [
-							"on_chain_only",
-							"off_chain_only",
-							"any",
-							null
-						],
+						"type": ["string", "null"],
+						"enum": ["on_chain_only", "off_chain_only", "any", null],
 						"description": "Anchor mode from the raw bytes."
 					},
 					"post_condition_mode": {
-						"type": [
-							"string",
-							"null"
-						],
-						"enum": [
-							"allow",
-							"deny",
-							null
-						],
+						"type": ["string", "null"],
+						"enum": ["allow", "deny", null],
 						"description": "Post-condition mode from the raw bytes."
 					},
 					"post_conditions": {
@@ -3175,10 +2907,7 @@
 						"description": "`coinbase` only.",
 						"properties": {
 							"alt_recipient": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "Alternate reward recipient, if set."
 							}
 						}
@@ -3217,10 +2946,7 @@
 						"description": "`smart_contract` only.",
 						"properties": {
 							"clarity_version": {
-								"type": [
-									"integer",
-									"null"
-								],
+								"type": ["integer", "null"],
 								"description": "Clarity version, `null` when unversioned."
 							}
 						}
@@ -3291,10 +3017,7 @@
 							"properties": {
 								"position": {
 									"type": "string",
-									"enum": [
-										"left",
-										"right"
-									],
+									"enum": ["left", "right"],
 									"description": "Which side the sibling sits on."
 								},
 								"hash": {
@@ -3486,17 +3209,11 @@
 								"description": "Events sampled."
 							},
 							"newest_height": {
-								"type": [
-									"integer",
-									"null"
-								],
+								"type": ["integer", "null"],
 								"description": "Highest block height sampled."
 							},
 							"oldest_height": {
-								"type": [
-									"integer",
-									"null"
-								],
+								"type": ["integer", "null"],
 								"description": "Lowest block height sampled."
 							}
 						}
@@ -3612,11 +3329,7 @@
 				"title": "Index discovery",
 				"type": "object",
 				"description": "Every Index route with the filters it accepts.",
-				"required": [
-					"routes",
-					"auth",
-					"cursor"
-				],
+				"required": ["routes", "auth", "cursor"],
 				"properties": {
 					"routes": {
 						"type": "array",
@@ -3707,10 +3420,7 @@
 						"description": "Stacks block the call landed in."
 					},
 					"block_time": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "That block's timestamp."
 					},
@@ -3735,31 +3445,19 @@
 						"description": "Transaction sender."
 					},
 					"stacker": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Stacker the call acts on, on delegate-side calls. Null on solo `stack-stx`, where `caller` is the stacker."
 					},
 					"delegate_to": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Pool operator, on `delegate-stx`."
 					},
 					"amount_ustx": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "microSTX as a decimal string (bigint-safe): the amount locked, delegated or increased by."
 					},
 					"lock_period": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Cycles locked, or extended by."
 					},
 					"pox_addr": {
@@ -3767,54 +3465,33 @@
 						"description": "Bitcoin reward address. Every field is null when the call names none.",
 						"properties": {
 							"version": {
-								"type": [
-									"integer",
-									"null"
-								],
+								"type": ["integer", "null"],
 								"description": "Bitcoin address type byte."
 							},
 							"hashbytes": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "Address hash bytes, `0x`-prefixed hex."
 							},
 							"btc": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "The same address, encoded."
 							}
 						}
 					},
 					"start_cycle": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "First reward cycle the lock covers."
 					},
 					"end_cycle": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Last reward cycle the lock covers."
 					},
 					"reward_cycle": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Reward cycle named by aggregation and signer-key calls. What `/v1/index/pox/cycles` groups on."
 					},
 					"signer_key": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Signer public key, `0x`-prefixed hex."
 					},
 					"result_ok": {
@@ -3935,10 +3612,7 @@
 						"description": "STX deposited to the protocol reserve from this cycle's distributions."
 					},
 					"rewards_per_token_stx": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Cumulative STX rewards per micro-STX for this cycle. `null` before the first distribution."
 					},
 					"rewards_per_token_bond": {
@@ -4067,10 +3741,7 @@
 						"description": "Stacks block the print landed in."
 					},
 					"block_time": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "That block's timestamp."
 					},
@@ -4112,87 +3783,51 @@
 						"description": "The print topic. Decides which columns are set."
 					},
 					"staker": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Staker principal."
 					},
 					"signer": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Signer-manager contract, on stake-side topics."
 					},
 					"signer_manager": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Signer-manager contract, on claim and grant topics."
 					},
 					"bond_index": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "The bond this event belongs to, on bond topics."
 					},
 					"amount_ustx": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "microSTX as a decimal string (bigint-safe)."
 					},
 					"amount_sats": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Satoshis as a decimal string (bigint-safe)."
 					},
 					"reward_cycle": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Reward cycle the event refers to, on reward and claim topics."
 					},
 					"first_reward_cycle": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "First cycle a stake earns in."
 					},
 					"unlock_cycle": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Cycle the stake unlocks at."
 					},
 					"unlock_burn_height": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Bitcoin block height the stake unlocks at."
 					},
 					"is_l1_lock": {
-						"type": [
-							"boolean",
-							"null"
-						],
+						"type": ["boolean", "null"],
 						"description": "Bond registrations: whether the lockup is on Bitcoin L1."
 					},
 					"signer_key": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Signer public key, on key-grant topics."
 					},
 					"data": {
@@ -4345,10 +3980,7 @@
 						"description": "The name as etched, spacers (`•`) included."
 					},
 					"symbol": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "The etched display symbol, if any."
 					},
 					"divisibility": {
@@ -4388,52 +4020,31 @@
 						"description": "The etch transaction's position in that block."
 					},
 					"terms": {
-						"type": [
-							"object",
-							"null"
-						],
+						"type": ["object", "null"],
 						"description": "Mint terms, or `null` for a premine-only rune that was never mintable.",
 						"properties": {
 							"amount": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "Units minted per mint tx."
 							},
 							"cap": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "Maximum number of mint transactions."
 							},
 							"height_start": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "Absolute start height, if set."
 							},
 							"height_end": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "Absolute end height, if set."
 							},
 							"offset_start": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "Start height relative to the etch, if set."
 							},
 							"offset_end": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "End height relative to the etch, if set."
 							}
 						}
@@ -4496,12 +4107,7 @@
 					},
 					"kind": {
 						"type": "string",
-						"enum": [
-							"rune_etch",
-							"rune_mint",
-							"rune_transfer",
-							"rune_burn"
-						],
+						"enum": ["rune_etch", "rune_mint", "rune_transfer", "rune_burn"],
 						"description": "What happened."
 					},
 					"amount": {
@@ -4509,17 +4115,11 @@
 						"description": "u128 decimal string."
 					},
 					"vout": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "The output the amount landed on, when this event has one."
 					},
 					"address": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "The output's mainnet address. Only ever set on a `rune_transfer` event."
 					},
 					"rune": {
@@ -4549,22 +4149,13 @@
 				"title": "Rune balance",
 				"type": "object",
 				"description": "A rune's balance on one unspent output, with the rune's identity embedded.",
-				"required": [
-					"rune",
-					"address",
-					"txid",
-					"vout",
-					"amount"
-				],
+				"required": ["rune", "address", "txid", "vout", "amount"],
 				"properties": {
 					"rune": {
 						"$ref": "#/components/schemas/RuneRefSummary"
 					},
 					"address": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "The output's mainnet address, or `null` for a non-standard script."
 					},
 					"txid": {
@@ -4598,13 +4189,7 @@
 				"title": "Rune identity",
 				"type": "object",
 				"description": "The rune identity bundle every Runes response embeds, so a client never needs a second lookup just to show a name.",
-				"required": [
-					"id",
-					"name",
-					"spaced_name",
-					"symbol",
-					"divisibility"
-				],
+				"required": ["id", "name", "spaced_name", "symbol", "divisibility"],
 				"properties": {
 					"id": {
 						"type": "string",
@@ -4619,10 +4204,7 @@
 						"description": "As etched, spacers (`•`) included."
 					},
 					"symbol": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "The etched display symbol, if any."
 					},
 					"divisibility": {
@@ -4660,10 +4242,7 @@
 						"description": "Stacks block the print landed in."
 					},
 					"block_time": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "That block's timestamp."
 					},
@@ -4692,136 +4271,79 @@
 						"description": "The print topic."
 					},
 					"request_id": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Withdrawal request id, on withdrawal topics."
 					},
 					"amount": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Sats as a decimal string, on deposits and withdrawal requests."
 					},
 					"sender": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Stacks principal, e.g. the withdrawal requester."
 					},
 					"recipient_btc_version": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Bitcoin address type of the recipient: 0 p2pkh, 1 p2sh, 2 p2sh-p2wpkh, 3 p2sh-p2wsh, 4 p2wpkh, 5 p2wsh, 6 p2tr."
 					},
 					"recipient_btc_hashbytes": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Recipient's hash bytes, `0x`-prefixed hex."
 					},
 					"bitcoin_txid": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Bitcoin txid, `0x`-prefixed hex: the deposit transaction, or the sweep on an accept."
 					},
 					"output_index": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Output within that Bitcoin transaction."
 					},
 					"sweep_txid": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Signers' sweep transaction on Bitcoin."
 					},
 					"burn_hash": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Bitcoin block hash the signers anchored the event to."
 					},
 					"burn_height": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "That Bitcoin block's height."
 					},
 					"signer_bitmap": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Bitmap of the signers' votes, as a decimal string."
 					},
 					"max_fee": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Most the requester will pay in BTC fees, in sats."
 					},
 					"fee": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "BTC fee charged on an accepted withdrawal, in sats."
 					},
 					"governance_contract_type": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Which protocol contract changed, on `update-protocol-contract`."
 					},
 					"governance_new_contract": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "The new contract, on `update-protocol-contract`."
 					},
 					"signer_aggregate_pubkey": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "New aggregate signer key, on `key-rotation`."
 					},
 					"signer_threshold": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "New signature threshold, on `key-rotation`."
 					},
 					"signer_address": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "New signer principal, on `key-rotation`."
 					},
 					"signer_keys_count": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Number of signer keys in the new set, on `key-rotation`."
 					}
 				},
@@ -4875,10 +4397,7 @@
 						"description": "Stacks block the deposit completed in."
 					},
 					"block_time": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "That block's timestamp."
 					},
@@ -4895,45 +4414,27 @@
 						"description": "The event's position in the block. With `block_height`, the cursor."
 					},
 					"amount": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Sats minted, as a decimal string."
 					},
 					"sender": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Stacks principal on the event. Null on mainnet deposits today."
 					},
 					"bitcoin_txid": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "The deposit's Bitcoin txid, `0x`-prefixed hex."
 					},
 					"output_index": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "The deposit output within that Bitcoin transaction."
 					},
 					"recipient_btc_version": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Bitcoin address type of the recipient: 0 p2pkh, 1 p2sh, 2 p2sh-p2wpkh, 3 p2sh-p2wsh, 4 p2wpkh, 5 p2wsh, 6 p2tr."
 					},
 					"recipient_btc_hashbytes": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Recipient's hash bytes, `0x`-prefixed hex."
 					}
 				},
@@ -4974,10 +4475,7 @@
 						"description": "Stacks block the deposit completed in."
 					},
 					"block_time": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "That block's timestamp."
 					},
@@ -4994,52 +4492,32 @@
 						"description": "The event's position in the block. With `block_height`, the cursor."
 					},
 					"amount": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Sats minted, as a decimal string."
 					},
 					"sender": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Stacks principal on the event. Null on mainnet deposits today."
 					},
 					"bitcoin_txid": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "The deposit's Bitcoin txid, `0x`-prefixed hex."
 					},
 					"output_index": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "The deposit output within that Bitcoin transaction."
 					},
 					"recipient_btc_version": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Bitcoin address type of the recipient: 0 p2pkh, 1 p2sh, 2 p2sh-p2wpkh, 3 p2sh-p2wsh, 4 p2wpkh, 5 p2wsh, 6 p2tr."
 					},
 					"recipient_btc_hashbytes": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Recipient's hash bytes, `0x`-prefixed hex."
 					},
 					"status": {
 						"type": "string",
-						"enum": [
-							"COMPLETED"
-						],
+						"enum": ["COMPLETED"],
 						"description": "Always `COMPLETED`: a deposit is a single terminal event."
 					}
 				},
@@ -5063,10 +4541,7 @@
 				"title": "sBTC withdrawal",
 				"type": "object",
 				"description": "A peg-out rolled up to one row per `request_id`: the request, its current status, and the Bitcoin settlement of its sweep.",
-				"required": [
-					"cursor",
-					"request_id"
-				],
+				"required": ["cursor", "request_id"],
 				"properties": {
 					"cursor": {
 						"type": "string",
@@ -5078,90 +4553,53 @@
 					},
 					"status": {
 						"type": "string",
-						"enum": [
-							"REQUESTED",
-							"ACCEPTED",
-							"REJECTED"
-						],
+						"enum": ["REQUESTED", "ACCEPTED", "REJECTED"],
 						"description": "`REQUESTED` until the signers act, then `ACCEPTED` or `REJECTED` from the latest resolution event."
 					},
 					"amount": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Sats requested, as a decimal string."
 					},
 					"sender": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Requester's Stacks principal."
 					},
 					"recipient_btc_version": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Bitcoin address type of the recipient: 0 p2pkh, 1 p2sh, 2 p2sh-p2wpkh, 3 p2sh-p2wsh, 4 p2wpkh, 5 p2wsh, 6 p2tr."
 					},
 					"recipient_btc_hashbytes": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Recipient's hash bytes, `0x`-prefixed hex."
 					},
 					"sweep_txid": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Bitcoin sweep the signers committed to on accept. Null until then."
 					},
 					"settlement_confirmed": {
-						"type": [
-							"boolean",
-							"null"
-						],
+						"type": ["boolean", "null"],
 						"description": "True once the sweep has confirmed on Bitcoin, false while it is pending, null when there is no sweep or it has not been seen yet."
 					},
 					"btc_confirmations": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Bitcoin confirmations on the sweep at the last check."
 					},
 					"btc_block_height": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Bitcoin block the sweep landed in."
 					},
 					"confirmed_at": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "When the sweep reached the confirmation threshold."
 					},
 					"requested_at": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "Block time of the request."
 					},
 					"resolved_at": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "Block time of the accept or reject. Null while requested."
 					}
@@ -5203,39 +4641,23 @@
 					},
 					"status": {
 						"type": "string",
-						"enum": [
-							"REQUESTED",
-							"ACCEPTED",
-							"REJECTED"
-						],
+						"enum": ["REQUESTED", "ACCEPTED", "REJECTED"],
 						"description": "`REQUESTED` until the signers act, then `ACCEPTED` or `REJECTED` from the latest resolution event."
 					},
 					"amount": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Sats requested, as a decimal string."
 					},
 					"sender": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Requester's Stacks principal."
 					},
 					"recipient_btc_version": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Bitcoin address type of the recipient: 0 p2pkh, 1 p2sh, 2 p2sh-p2wpkh, 3 p2sh-p2wsh, 4 p2wpkh, 5 p2wsh, 6 p2tr."
 					},
 					"recipient_btc_hashbytes": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Recipient's hash bytes, `0x`-prefixed hex."
 					},
 					"requested": {
@@ -5246,10 +4668,7 @@
 								"description": "Stacks block of the event."
 							},
 							"block_time": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"format": "date-time",
 								"description": "That block's timestamp."
 							},
@@ -5261,10 +4680,7 @@
 						"description": "The `withdrawal-create` event."
 					},
 					"accepted": {
-						"type": [
-							"object",
-							"null"
-						],
+						"type": ["object", "null"],
 						"description": "The `withdrawal-accept` event, with the sweep it committed to. Null unless accepted.",
 						"properties": {
 							"block_height": {
@@ -5272,10 +4688,7 @@
 								"description": "Stacks block of the event."
 							},
 							"block_time": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"format": "date-time",
 								"description": "That block's timestamp."
 							},
@@ -5284,36 +4697,24 @@
 								"description": "Stacks transaction of the event."
 							},
 							"sweep_txid": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "Bitcoin sweep transaction."
 							},
 							"signer_bitmap": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "Bitmap of the signers' votes, as a decimal string."
 							}
 						}
 					},
 					"rejected": {
-						"type": [
-							"object",
-							"null"
-						],
+						"type": ["object", "null"],
 						"properties": {
 							"block_height": {
 								"type": "integer",
 								"description": "Stacks block of the event."
 							},
 							"block_time": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"format": "date-time",
 								"description": "That block's timestamp."
 							},
@@ -5329,38 +4730,23 @@
 						"description": "Bitcoin settlement of the sweep. Every field is null until the sweep is seen on Bitcoin.",
 						"properties": {
 							"sweep_txid": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"description": "Bitcoin sweep transaction."
 							},
 							"btc_confirmations": {
-								"type": [
-									"integer",
-									"null"
-								],
+								"type": ["integer", "null"],
 								"description": "Confirmations at the last check."
 							},
 							"settlement_confirmed": {
-								"type": [
-									"boolean",
-									"null"
-								],
+								"type": ["boolean", "null"],
 								"description": "True once the sweep reached the confirmation threshold."
 							},
 							"btc_block_height": {
-								"type": [
-									"integer",
-									"null"
-								],
+								"type": ["integer", "null"],
 								"description": "Bitcoin block the sweep landed in."
 							},
 							"confirmed_at": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"format": "date-time",
 								"description": "When the sweep reached the threshold."
 							}
@@ -5440,10 +4826,7 @@
 						"description": "Same figure as `net_peg_flow_sats`."
 					},
 					"sbtc_supply_sats": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Circulating sBTC in sats, read from `sbtc-token` `get-total-supply` on this instance's node. Null when `STACKS_NODE_RPC_URL` is unset or the node does not answer."
 					}
 				},
@@ -5522,10 +4905,7 @@
 						"description": "The event's type."
 					},
 					"contract_id": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Emitting contract for `print`, asset contract for ft/nft events, `null` otherwise."
 					},
 					"payload": {
@@ -5610,17 +4990,11 @@
 						"description": "Seconds since the tip block was produced."
 					},
 					"oldest_seekable_height": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Always `null` — every account reads full history. Rows past the monthly allowance are a paid read, not a blocked one."
 					},
 					"oldest_cursor": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Always `null` — see `oldest_seekable_height`."
 					}
 				},
@@ -5659,10 +5033,7 @@
 						"description": "Bitcoin block it anchors to."
 					},
 					"burn_block_hash": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "That Bitcoin block's hash."
 					},
 					"is_canonical": {
@@ -5725,12 +5096,7 @@
 					},
 					"event_type": {
 						"type": "string",
-						"enum": [
-							"rune_etch",
-							"rune_mint",
-							"rune_transfer",
-							"rune_burn"
-						]
+						"enum": ["rune_etch", "rune_mint", "rune_transfer", "rune_burn"]
 					},
 					"rune_id": {
 						"type": "string",
@@ -5814,11 +5180,7 @@
 			"StreamsBitcoinCanonicalBlock": {
 				"type": "object",
 				"description": "chain=bitcoin canonical block (plan 059). No burn-chain fields.",
-				"required": [
-					"block_height",
-					"block_hash",
-					"is_canonical"
-				],
+				"required": ["block_height", "block_hash", "is_canonical"],
 				"properties": {
 					"block_height": {
 						"type": "integer",
@@ -5953,12 +5315,7 @@
 			"DeploySubgraphRequest": {
 				"type": "object",
 				"description": "A bundled subgraph. `POST /api/subgraphs/bundle` returns every field but `startBlock` and `dryRun`.",
-				"required": [
-					"name",
-					"sources",
-					"schema",
-					"handlerCode"
-				],
+				"required": ["name", "sources", "schema", "handlerCode"],
 				"properties": {
 					"name": {
 						"type": "string",
@@ -6028,12 +5385,7 @@
 			"DeployResult": {
 				"type": "object",
 				"description": "What a deploy did.",
-				"required": [
-					"action",
-					"subgraphId",
-					"version",
-					"message"
-				],
+				"required": ["action", "subgraphId", "version", "message"],
 				"properties": {
 					"action": {
 						"type": "string",
@@ -6122,9 +5474,7 @@
 					"pin": "7f3c0d5e9b21a4c86f0e3d17b5a92c4e8d61f07a3b9c25e4d8f1a06c7b3e5a91e",
 					"verification": {
 						"level": "events",
-						"reasons": [
-							"ft_transfer source \"transfers\" needs event proofs"
-						],
+						"reasons": ["ft_transfer source \"transfers\" needs event proofs"],
 						"unproven": []
 					},
 					"start_block": 8000000,
@@ -6137,19 +5487,11 @@
 			"SubgraphVerification": {
 				"type": "object",
 				"description": "How far the subgraph's rows can be checked without trusting the server. Derived from its sources and a scan of its handler, never configured. `state`: every source is a named state write (`var_set`, `map_*`), provable from block headers; the handler must be deterministic and runs in a locked-down realm. `events`: a source or `ctx.client` read needs re-execution proofs, not served yet. `none`: a source can never be proven as written (trait scope, tip-first).",
-				"required": [
-					"level",
-					"reasons",
-					"unproven"
-				],
+				"required": ["level", "reasons", "unproven"],
 				"properties": {
 					"level": {
 						"type": "string",
-						"enum": [
-							"state",
-							"events",
-							"none"
-						],
+						"enum": ["state", "events", "none"],
 						"description": "A deployed `state` subgraph is verifiable: one with any reason is refused at deploy."
 					},
 					"reasons": {
@@ -6171,17 +5513,11 @@
 			"DeployDryRun": {
 				"type": "object",
 				"description": "The DDL a deploy would run. Nothing was written.",
-				"required": [
-					"dryRun",
-					"schemaName",
-					"statements"
-				],
+				"required": ["dryRun", "schemaName", "statements"],
 				"properties": {
 					"dryRun": {
 						"type": "boolean",
-						"enum": [
-							true
-						],
+						"enum": [true],
 						"description": "Always `true`."
 					},
 					"schemaName": {
@@ -6233,9 +5569,7 @@
 				"properties": {
 					"ok": {
 						"type": "boolean",
-						"enum": [
-							true
-						],
+						"enum": [true],
 						"description": "Always `true`."
 					},
 					"name": {
@@ -6243,10 +5577,7 @@
 						"description": "Name from the definition."
 					},
 					"description": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Description from the definition, if set."
 					},
 					"sources": {
@@ -6329,12 +5660,7 @@
 					},
 					"status": {
 						"type": "string",
-						"enum": [
-							"active",
-							"reindexing",
-							"paused",
-							"error"
-						],
+						"enum": ["active", "reindexing", "paused", "error"],
 						"description": "Processor state."
 					},
 					"lastProcessedBlock": {
@@ -6384,10 +5710,7 @@
 					},
 					"syncMode": {
 						"type": "string",
-						"enum": [
-							"sync",
-							"reindex"
-						],
+						"enum": ["sync", "reindex"],
 						"description": "`reindex` while a reindex walk runs."
 					},
 					"gapCount": {
@@ -6396,32 +5719,20 @@
 					},
 					"integrity": {
 						"type": "string",
-						"enum": [
-							"complete",
-							"gaps_detected"
-						],
+						"enum": ["complete", "gaps_detected"],
 						"description": "`gaps_detected` when any gap is open."
 					},
 					"lastError": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Most recent processing error."
 					},
 					"lastErrorAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "When it happened."
 					},
 					"updatedAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "Last registry update."
 					},
@@ -6439,9 +5750,7 @@
 					"totalProcessed": 48210,
 					"totalRows": 48138,
 					"totalErrors": 0,
-					"tables": [
-						"transfers"
-					],
+					"tables": ["transfers"],
 					"chainTip": 9048712,
 					"sourceChainTip": 9048712,
 					"targetBlock": 9048712,
@@ -6472,20 +5781,12 @@
 				"properties": {
 					"status": {
 						"type": "string",
-						"enum": [
-							"synced",
-							"catching_up",
-							"reindexing",
-							"error"
-						],
+						"enum": ["synced", "catching_up", "reindexing", "error"],
 						"description": "Sync state."
 					},
 					"mode": {
 						"type": "string",
-						"enum": [
-							"sync",
-							"reindex"
-						],
+						"enum": ["sync", "reindex"],
 						"description": "`reindex` while a reindex walk runs."
 					},
 					"startBlock": {
@@ -6531,22 +5832,13 @@
 						"description": "Queued operation only: approximate `position`, `estimatedEvents`, and `estimatedStartSeconds` from recent run times. Each may be null.",
 						"properties": {
 							"position": {
-								"type": [
-									"integer",
-									"null"
-								]
+								"type": ["integer", "null"]
 							},
 							"estimatedEvents": {
-								"type": [
-									"integer",
-									"null"
-								]
+								"type": ["integer", "null"]
 							},
 							"estimatedStartSeconds": {
-								"type": [
-									"integer",
-									"null"
-								]
+								"type": ["integer", "null"]
 							}
 						}
 					},
@@ -6559,10 +5851,7 @@
 						"description": "Running operation: events processed so far."
 					},
 					"etaSeconds": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Running operation: seconds left. `null` for its first 30 seconds."
 					},
 					"gaps": {
@@ -6591,10 +5880,7 @@
 										},
 										"reason": {
 											"type": "string",
-											"enum": [
-												"block_missing",
-												"processing_error"
-											]
+											"enum": ["block_missing", "processing_error"]
 										}
 									}
 								}
@@ -6603,11 +5889,7 @@
 					},
 					"integrity": {
 						"type": "string",
-						"enum": [
-							"complete",
-							"gaps_detected",
-							"history_filling"
-						],
+						"enum": ["complete", "gaps_detected", "history_filling"],
 						"description": "`history_filling` while a tip-first history backfill runs, even with no gaps recorded."
 					}
 				},
@@ -6660,10 +5942,7 @@
 						"description": "Hash of the table schema. Changes when the schema does."
 					},
 					"pin": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Hash of everything that shapes rows: schema hash, bundled handler, startBlock, network, runtime. Null for subgraphs deployed before pins existed."
 					},
 					"verification": {
@@ -6679,12 +5958,7 @@
 					},
 					"status": {
 						"type": "string",
-						"enum": [
-							"active",
-							"reindexing",
-							"paused",
-							"error"
-						],
+						"enum": ["active", "reindexing", "paused", "error"],
 						"description": "Processor state."
 					},
 					"lastProcessedBlock": {
@@ -6700,10 +5974,7 @@
 						"description": "Event sources by name, from the definition."
 					},
 					"definition": {
-						"type": [
-							"object",
-							"null"
-						],
+						"type": ["object", "null"],
 						"description": "The stored definition: `name`, `description`, `startBlock`, `sources`, `schema`."
 					},
 					"health": {
@@ -6720,16 +5991,10 @@
 								"type": "number"
 							},
 							"lastError": {
-								"type": [
-									"string",
-									"null"
-								]
+								"type": ["string", "null"]
 							},
 							"lastErrorAt": {
-								"type": [
-									"string",
-									"null"
-								],
+								"type": ["string", "null"],
 								"format": "date-time"
 							},
 							"emptyMapping": {
@@ -6765,9 +6030,7 @@
 					"pin": "7f3c0d5e9b21a4c86f0e3d17b5a92c4e8d61f07a3b9c25e4d8f1a06c7b3e5a91e",
 					"verification": {
 						"level": "events",
-						"reasons": [
-							"ft_transfer source \"transfers\" needs event proofs"
-						],
+						"reasons": ["ft_transfer source \"transfers\" needs event proofs"],
 						"unproven": []
 					},
 					"status": "active",
@@ -6886,10 +6149,7 @@
 						"description": "First block. For a reindex, the subgraph's start block."
 					},
 					"toBlock": {
-						"type": [
-							"integer",
-							"string"
-						],
+						"type": ["integer", "string"],
 						"description": "Last block. For a reindex, the string `\"chain tip\"`: it runs to whatever the tip is when it gets there."
 					},
 					"operationId": {
@@ -6899,9 +6159,7 @@
 					},
 					"status": {
 						"type": "string",
-						"enum": [
-							"queued"
-						],
+						"enum": ["queued"],
 						"description": "Always `queued`."
 					}
 				},
@@ -6939,78 +6197,45 @@
 					},
 					"kind": {
 						"type": "string",
-						"enum": [
-							"reindex",
-							"backfill"
-						],
+						"enum": ["reindex", "backfill"],
 						"description": "`reindex` drops and rebuilds; `backfill` re-runs a range in place."
 					},
 					"status": {
 						"type": "string",
-						"enum": [
-							"queued",
-							"running",
-							"completed",
-							"failed",
-							"cancelled"
-						],
+						"enum": ["queued", "running", "completed", "failed", "cancelled"],
 						"description": "`queued` until a processor claims it. `completed`, `failed` and `cancelled` are final."
 					},
 					"weight": {
 						"type": "string",
-						"enum": [
-							"light",
-							"heavy"
-						],
+						"enum": ["light", "heavy"],
 						"description": "`light` for contract-scoped sources, `heavy` for broad ones. The processor limits how many heavy operations run at once."
 					},
 					"fromBlock": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "First block. `null` on a reindex queued from `/reindex`, which starts at the subgraph's start block."
 					},
 					"toBlock": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Last block. `null` means the chain tip."
 					},
 					"processedBlocks": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Blocks covered. Set when the operation finishes."
 					},
 					"cursorBlock": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Backfills only: last committed block. A requeued backfill resumes after it."
 					},
 					"estimatedEvents": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Events expected, computed at enqueue for contract-scoped sources."
 					},
 					"processedEvents": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Events processed so far."
 					},
 					"progress": {
-						"type": [
-							"number",
-							"null"
-						],
+						"type": ["number", "null"],
 						"minimum": 0,
 						"maximum": 1,
 						"description": "Fraction done, 0 to 1, from events when estimated, else blocks. `null` before any progress is reported."
@@ -7020,25 +6245,16 @@
 						"description": "Queued only: approximate 1-based position. Show it as `~N`."
 					},
 					"error": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Why it failed."
 					},
 					"startedAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "When a processor claimed it."
 					},
 					"finishedAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "When it reached a final status."
 					},
@@ -7100,10 +6316,7 @@
 					},
 					"reason": {
 						"type": "string",
-						"enum": [
-							"block_missing",
-							"processing_error"
-						],
+						"enum": ["block_missing", "processing_error"],
 						"description": "`block_missing`: the block was not in the index. `processing_error`: a handler threw."
 					},
 					"detectedAt": {
@@ -7112,10 +6325,7 @@
 						"description": "When it was recorded."
 					},
 					"resolvedAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "When a later walk covered it. `null` while open."
 					}
@@ -7221,18 +6431,12 @@
 					},
 					"status": {
 						"type": "string",
-						"enum": [
-							"active",
-							"paused",
-							"error"
-						],
+						"enum": ["active", "paused", "error"],
 						"description": "`active` delivers. `paused` holds new events in the outbox until resumed; the circuit breaker also pauses a webhook after 20 straight failures. `error` is reserved; nothing sets it today."
 					},
 					"kind": {
 						"type": "string",
-						"enum": [
-							"chain"
-						],
+						"enum": ["chain"],
 						"description": "Always `chain`: webhooks fire on raw chain events matched by `triggers`."
 					},
 					"format": {
@@ -7252,26 +6456,17 @@
 						"description": "Delivery target."
 					},
 					"lastDeliveryAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "Last delivery attempt, successful or not."
 					},
 					"lastSuccessAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "Last delivery the target answered with a 2xx."
 					},
 					"circuitOpenedAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "When the circuit breaker paused this webhook. Cleared on resume."
 					},
@@ -7280,10 +6475,7 @@
 						"description": "Consecutive failed deliveries; a success resets it. The circuit opens at 20; resume resets it."
 					},
 					"managedBy": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Product that owns this webhook's name, derived from a reserved name prefix (for example `sentinel:` is Sentinel). When set, renaming returns 409 `WEBHOOK_NAME_MANAGED`. `null` for ordinary webhooks."
 					},
 					"createdAt": {
@@ -7352,18 +6544,12 @@
 					},
 					"status": {
 						"type": "string",
-						"enum": [
-							"active",
-							"paused",
-							"error"
-						],
+						"enum": ["active", "paused", "error"],
 						"description": "`active` delivers. `paused` holds new events in the outbox until resumed; the circuit breaker also pauses a webhook after 20 straight failures. `error` is reserved; nothing sets it today."
 					},
 					"kind": {
 						"type": "string",
-						"enum": [
-							"chain"
-						],
+						"enum": ["chain"],
 						"description": "Always `chain`: webhooks fire on raw chain events matched by `triggers`."
 					},
 					"format": {
@@ -7383,26 +6569,17 @@
 						"description": "Delivery target."
 					},
 					"lastDeliveryAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "Last delivery attempt, successful or not."
 					},
 					"lastSuccessAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "Last delivery the target answered with a 2xx."
 					},
 					"circuitOpenedAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "When the circuit breaker paused this webhook. Cleared on resume."
 					},
@@ -7411,10 +6588,7 @@
 						"description": "Consecutive failed deliveries; a success resets it. The circuit opens at 20; resume resets it."
 					},
 					"managedBy": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Product that owns this webhook's name, derived from a reserved name prefix (for example `sentinel:` is Sentinel). When set, renaming returns 409 `WEBHOOK_NAME_MANAGED`. `null` for ordinary webhooks."
 					},
 					"createdAt": {
@@ -7436,20 +6610,12 @@
 					},
 					"auth": {
 						"type": "object",
-						"required": [
-							"type",
-							"headerNames",
-							"hasSecret"
-						],
+						"required": ["type", "headerNames", "hasSecret"],
 						"description": "Receiver credentials, redacted — set with `authConfig` on create or update, but never returned. `authConfig` is write-only.",
 						"properties": {
 							"type": {
 								"type": "string",
-								"enum": [
-									"bearer",
-									"basic",
-									"none"
-								],
+								"enum": ["bearer", "basic", "none"],
 								"description": "Auth scheme the receiver expects."
 							},
 							"headerNames": {
@@ -7484,25 +6650,16 @@
 						"description": "Deliveries in flight at once for this webhook. Default 4."
 					},
 					"lastError": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Error from the last failed delivery."
 					},
 					"receiverCertExpiresAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "When the receiver's TLS certificate expires, from a periodic probe. `null` for http receivers, unreachable hosts, and webhooks not probed yet."
 					},
 					"warning": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Set when this instance's chain-trigger evaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the webhook will never fire until that's fixed. `null` otherwise."
 					}
 				},
@@ -7548,10 +6705,7 @@
 				"title": "Webhook with its signing secret",
 				"type": "object",
 				"description": "Returned by create and rotate-secret only. The one place the signing secret appears.",
-				"required": [
-					"webhook",
-					"signingSecret"
-				],
+				"required": ["webhook", "signingSecret"],
 				"properties": {
 					"webhook": {
 						"$ref": "#/components/schemas/Webhook"
@@ -7605,9 +6759,7 @@
 			"ChainTrigger": {
 				"type": "object",
 				"description": "One chain event to match. `type` picks the event; the other fields narrow it. Each type accepts only its own fields, and anything else is refused with a 400. Omitted fields match everything.",
-				"required": [
-					"type"
-				],
+				"required": ["type"],
 				"properties": {
 					"type": {
 						"type": "string",
@@ -7742,11 +6894,7 @@
 			"CreateWebhookRequest": {
 				"type": "object",
 				"description": "Webhooks fire on chain events: send the `triggers` to match.",
-				"required": [
-					"name",
-					"url",
-					"triggers"
-				],
+				"required": ["name", "url", "triggers"],
 				"properties": {
 					"name": {
 						"type": "string",
@@ -7879,10 +7027,7 @@
 			"ReplayWebhookRequest": {
 				"type": "object",
 				"description": "Block range to replay, inclusive.",
-				"required": [
-					"fromBlock",
-					"toBlock"
-				],
+				"required": ["fromBlock", "toBlock"],
 				"properties": {
 					"fromBlock": {
 						"type": "integer",
@@ -7910,11 +7055,7 @@
 				"title": "Webhook replay",
 				"type": "object",
 				"description": "What a replay queued.",
-				"required": [
-					"replayId",
-					"enqueuedCount",
-					"scannedCount"
-				],
+				"required": ["replayId", "enqueuedCount", "scannedCount"],
 				"properties": {
 					"replayId": {
 						"type": "string",
@@ -7939,30 +7080,18 @@
 				"title": "Webhook test result",
 				"type": "object",
 				"description": "Outcome of one test delivery.",
-				"required": [
-					"ok",
-					"statusCode",
-					"error",
-					"durationMs",
-					"deliveryId"
-				],
+				"required": ["ok", "statusCode", "error", "durationMs", "deliveryId"],
 				"properties": {
 					"ok": {
 						"type": "boolean",
 						"description": "`true` when the target answered 2xx."
 					},
 					"statusCode": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "HTTP status. `null` when no response came back."
 					},
 					"error": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Why the delivery failed. `null` on success."
 					},
 					"durationMs": {
@@ -8014,46 +7143,28 @@
 						"description": "Which try this was for its event, from 1."
 					},
 					"statusCode": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "HTTP status. `null` when no response came back."
 					},
 					"blockHeight": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Block of the delivered event. `null` for test deliveries and for events already compacted out of the outbox."
 					},
 					"blockTime": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "When the delivered event's block was produced. `null` for test deliveries, events already compacted out of the outbox, and rows written before this column existed."
 					},
 					"errorMessage": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Why the attempt failed. `null` on success."
 					},
 					"durationMs": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Round trip in milliseconds."
 					},
 					"responseBody": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Start of the target's response body."
 					},
 					"dispatchedAt": {
@@ -8108,10 +7219,7 @@
 						"description": "Block the event came from."
 					},
 					"txId": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "Transaction behind the event, when there is one."
 					},
 					"payload": {
@@ -8120,10 +7228,7 @@
 						"description": "The event body that failed to deliver."
 					},
 					"failedAt": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"format": "date-time",
 						"description": "When the last attempt failed."
 					},
@@ -8390,9 +7495,7 @@
 					"raw_tx": "02000000000101…",
 					"tx_index": 2156,
 					"tx_count": 4371,
-					"siblings": [
-						"4c1a…"
-					]
+					"siblings": ["4c1a…"]
 				}
 			},
 			"Epoch2Header": {
@@ -8422,10 +7525,7 @@
 				"title": "Block state writes",
 				"type": "object",
 				"description": "One block's MARF writes, whole, in write order.",
-				"required": [
-					"block_height",
-					"state_writes"
-				],
+				"required": ["block_height", "state_writes"],
 				"properties": {
 					"block_height": {
 						"type": "integer",
@@ -8436,22 +7536,14 @@
 						"description": "Every write of the block, ordinal 0 first.",
 						"items": {
 							"type": "object",
-							"required": [
-								"ordinal",
-								"tx_index",
-								"key",
-								"value_hex"
-							],
+							"required": ["ordinal", "tx_index", "key", "value_hex"],
 							"properties": {
 								"ordinal": {
 									"type": "integer",
 									"description": "Position in the block's write order, from 0."
 								},
 								"tx_index": {
-									"type": [
-										"integer",
-										"null"
-									],
+									"type": ["integer", "null"],
 									"description": "The writing transaction's index in the block; null for block-level writes."
 								},
 								"key": {
@@ -8504,11 +7596,7 @@
 				"properties": {
 					"mode": {
 						"type": "string",
-						"enum": [
-							"oss",
-							"platform",
-							"archive"
-						],
+						"enum": ["oss", "platform", "archive"],
 						"description": "The mode the operator declared in `INSTANCE_MODE`."
 					},
 					"features": {
@@ -8545,11 +7633,7 @@
 				"properties": {
 					"mode": {
 						"type": "string",
-						"enum": [
-							"oss",
-							"platform",
-							"archive"
-						],
+						"enum": ["oss", "platform", "archive"],
 						"description": "The mode the operator declared in `INSTANCE_MODE`."
 					},
 					"network": {
@@ -8557,10 +7641,7 @@
 						"description": "`mainnet`, `testnet` or `devnet`."
 					},
 					"instance_id": {
-						"type": [
-							"string",
-							"null"
-						],
+						"type": ["string", "null"],
 						"description": "This instance's id, or `null` before first boot."
 					},
 					"features": {
@@ -8568,10 +7649,7 @@
 						"description": "Same manifest as `/v1/instance/features`."
 					},
 					"scope": {
-						"type": [
-							"object",
-							"null"
-						],
+						"type": ["object", "null"],
 						"description": "The history this instance claims: `start_height`, optional `target_height`, and how it was acquired (`bootstrap.source` is `archive`, `genesis` or `import`, with the archive manifest digest when restored). `null` on an instance older than the scope table."
 					},
 					"subgraphs": {
@@ -8592,17 +7670,11 @@
 								},
 								"status": {
 									"type": "string",
-									"enum": [
-										"active",
-										"paused",
-										"error"
-									]
+									"enum": ["active", "paused", "error"]
 								},
 								"kind": {
 									"type": "string",
-									"enum": [
-										"chain"
-									]
+									"enum": ["chain"]
 								}
 							}
 						}
@@ -8663,17 +7735,11 @@
 						"description": "Seconds since the API process started."
 					},
 					"db_size_bytes": {
-						"type": [
-							"integer",
-							"null"
-						],
+						"type": ["integer", "null"],
 						"description": "Postgres database size, or `null` if it can't be read."
 					},
 					"deliveries_24h": {
-						"type": [
-							"object",
-							"null"
-						],
+						"type": ["object", "null"],
 						"description": "Webhook deliveries in the last 24 hours: `total`, `failed` (no status or 400+), and `dlq` (events currently dead-lettered)."
 					},
 					"rows_series": {
@@ -8752,9 +7818,7 @@
 		"/v1": {
 			"get": {
 				"operationId": "discoverSurfaces",
-				"tags": [
-					"general"
-				],
+				"tags": ["general"],
 				"summary": "Surface discovery",
 				"x-nav-title": "Surfaces",
 				"description": "Lists the public read surfaces on this instance, where this document lives, the list envelope shape, and the cursor format. A starting point for an agent that has only the base URL.",
@@ -8791,9 +7855,7 @@
 		"/v1/batch": {
 			"post": {
 				"operationId": "batchRead",
-				"tags": [
-					"general"
-				],
+				"tags": ["general"],
 				"summary": "Batch public reads",
 				"x-nav-title": "Batch reads",
 				"description": "Up to 10 GET reads under `/v1/index/`, `/v1/subgraphs`, `/v1/streams/` and `/v1/contracts` in one round trip. Items run in parallel through the full app, so auth, rate limits and retention apply per item; the request's `Authorization` header is forwarded to every item. Results come back in request order, each with its own HTTP status and JSON body. A refused or failed item does not fail the batch.",
@@ -8809,9 +7871,7 @@
 						"application/json": {
 							"schema": {
 								"type": "object",
-								"required": [
-									"requests"
-								],
+								"required": ["requests"],
 								"properties": {
 									"requests": {
 										"type": "array",
@@ -8820,9 +7880,7 @@
 										"description": "The reads to run, 1 to 10.",
 										"items": {
 											"type": "object",
-											"required": [
-												"path"
-											],
+											"required": ["path"],
 											"properties": {
 												"path": {
 													"type": "string",
@@ -8831,11 +7889,7 @@
 												"params": {
 													"type": "object",
 													"additionalProperties": {
-														"type": [
-															"string",
-															"number",
-															"boolean"
-														]
+														"type": ["string", "number", "boolean"]
 													},
 													"description": "Query parameters, appended to `path` as a query string."
 												}
@@ -8897,9 +7951,7 @@
 		"/v1/archive/verify": {
 			"post": {
 				"operationId": "verifyArchive",
-				"tags": [
-					"archive"
-				],
+				"tags": ["archive"],
 				"summary": "Verify this instance against a signed archive",
 				"x-nav-title": "Verify against archive",
 				"description": "Compares identity digests of this instance's blocks, transactions and events against the range digests in a signed archive manifest. Read-only: the instance fetches the manifest, nothing is uploaded. Semantic replay (`--deep`) is CLI only. Without `from_block` or `to_block`, a manifest with more than 40 matching ranges is refused with 400. A missing key, an unreachable manifest, a failed signature or no matching digests answer 200 `unanchored` with a `reason`, never `clean`.",
@@ -8915,9 +7967,7 @@
 						"application/json": {
 							"schema": {
 								"type": "object",
-								"required": [
-									"against"
-								],
+								"required": ["against"],
 								"properties": {
 									"against": {
 										"type": "string",
@@ -8996,9 +8046,7 @@
 		"/v1/openapi.json": {
 			"get": {
 				"operationId": "getOpenApiSpec",
-				"tags": [
-					"general"
-				],
+				"tags": ["general"],
 				"summary": "This document",
 				"x-nav-title": "OpenAPI document",
 				"description": "The OpenAPI 3.1 description of this instance, as JSON. It describes the instance's own mode: a self-hosted instance includes the `/api` write plane, the hosted archive leaves it out.",
@@ -9089,9 +8137,7 @@
 		"/v1/subgraphs": {
 			"get": {
 				"operationId": "listSubgraphs",
-				"tags": [
-					"subgraphs"
-				],
+				"tags": ["subgraphs"],
 				"summary": "List the subgraphs this instance serves",
 				"x-nav-title": "List subgraphs",
 				"description": "Every subgraph deployed on this instance, with its tables, sync position, and approximate row count. Hosted: your account's subgraphs, then every public one. The anonymous list is cached for 30 seconds and carries an `ETag`; send `If-None-Match` for a 304.",
@@ -9141,9 +8187,7 @@
 		"/v1/subgraphs/{name}": {
 			"get": {
 				"operationId": "getSubgraph",
-				"tags": [
-					"subgraphs"
-				],
+				"tags": ["subgraphs"],
 				"summary": "Get one subgraph's tables, columns, and sync tip",
 				"x-nav-title": "Subgraph schema",
 				"description": "Metadata for one subgraph: each table's read endpoint and declared columns, how far indexing has reached, and links to its generated docs. `columns` lists only the definition's columns; the system columns `_id`, `_block_height`, `_tx_id` and `_created_at` exist on every table too.",
@@ -9211,9 +8255,7 @@
 		"/v1/subgraphs/{name}/openapi.json": {
 			"get": {
 				"operationId": "getSubgraphOpenApiSpec",
-				"tags": [
-					"subgraphs"
-				],
+				"tags": ["subgraphs"],
 				"summary": "Get a subgraph's OpenAPI document",
 				"x-nav-title": "OpenAPI document",
 				"description": "An OpenAPI 3.1 document generated from the subgraph's definition: one list path and one count path per table, a row schema per table, and the column filters each table accepts. Feed it to a client generator.",
@@ -9290,9 +8332,7 @@
 		"/v1/subgraphs/{name}/schema.json": {
 			"get": {
 				"operationId": "getSubgraphSchema",
-				"tags": [
-					"subgraphs"
-				],
+				"tags": ["subgraphs"],
 				"summary": "Get a subgraph's agent schema",
 				"x-nav-title": "Agent schema",
 				"description": "A compact JSON description of the subgraph for agents and tools: per table, its endpoints, exact row count, columns, the query params and filters it accepts, and example requests.",
@@ -9369,9 +8409,7 @@
 		"/v1/subgraphs/{name}/docs.md": {
 			"get": {
 				"operationId": "getSubgraphDocs",
-				"tags": [
-					"subgraphs"
-				],
+				"tags": ["subgraphs"],
 				"summary": "Get a subgraph's markdown docs",
 				"x-nav-title": "Markdown docs",
 				"description": "The agent schema rendered as markdown: a section per table with its endpoints, row count, column table, query params, filters, and a curl example. Served as `text/markdown`.",
@@ -9449,9 +8487,7 @@
 		"/v1/subgraphs/{name}/{table}": {
 			"get": {
 				"operationId": "listSubgraphRows",
-				"tags": [
-					"subgraphs"
-				],
+				"tags": ["subgraphs"],
 				"summary": "List a table's rows",
 				"x-nav-title": "List rows",
 				"description": "Rows from one subgraph table, keyset-paginated. By default pages walk `_id`; `_sort` walks one column instead, with `_id` as the tiebreaker. `next_cursor` is set on every page that returned rows and is `null` only on an empty page: pass it back as `cursor` to continue, or tail new rows with `cursor = next_cursor ?? cursor`. `_offset` is refused (400): deep OFFSET scans hurt on big tables. `_limit` defaults to 50.",
@@ -9517,10 +8553,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"enum": [
-								"asc",
-								"desc"
-							],
+							"enum": ["asc", "desc"],
 							"default": "asc"
 						},
 						"description": "Direction of the `_sort` column, or of `_id` without `_sort`. Anything but `asc` or `desc` is 400."
@@ -9619,9 +8652,7 @@
 		"/v1/subgraphs/{name}/{table}/count": {
 			"get": {
 				"operationId": "countSubgraphRows",
-				"tags": [
-					"subgraphs"
-				],
+				"tags": ["subgraphs"],
 				"summary": "Count a table's rows",
 				"x-nav-title": "Count rows",
 				"description": "How many rows match the filters. Takes the same column filters and `_search` as the row list.",
@@ -9656,10 +8687,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"enum": [
-								"exact",
-								"estimate"
-							],
+							"enum": ["exact", "estimate"],
 							"default": "exact"
 						},
 						"description": "`exact` runs COUNT(*). `estimate` reads the planner's row estimate instead, with no table scan, but only when there are no filters and no `_search`; otherwise it counts exactly. The estimate can be -1 before the table's first ANALYZE."
@@ -9749,9 +8777,7 @@
 		"/v1/subgraphs/{name}/{table}/aggregate": {
 			"get": {
 				"operationId": "aggregateSubgraphRows",
-				"tags": [
-					"subgraphs"
-				],
+				"tags": ["subgraphs"],
 				"summary": "Aggregate a table's rows",
 				"x-nav-title": "Aggregate rows",
 				"description": "Scalar aggregates over the rows that match the filters: count, distinct counts, and sum, min and max of numeric columns. With no aggregate param it returns `{ \"count\": n }`. Up to 32 aggregate columns per request. Takes the same column filters and `_search` as the row list.",
@@ -9910,9 +8936,7 @@
 		"/v1/subgraphs/{name}/{table}/stream": {
 			"get": {
 				"operationId": "tailSubgraphRows",
-				"tags": [
-					"subgraphs"
-				],
+				"tags": ["subgraphs"],
 				"summary": "Stream a table's new rows over SSE",
 				"x-nav-title": "Stream rows",
 				"description": "Server-Sent Events of rows as they are indexed. Starts at the table's newest row and sends only rows after it; `since` replays from a block height first, then keeps tailing. The server polls every 1.5 seconds, sends each matching row in `_id` order, and sends a `ping` event after 20 idle seconds. Column filters and `_search` apply; `_limit`, `_sort`, `_order` and `_fields` are checked but have no effect, and rows always come back whole. Nothing is stored between connections, and `Last-Event-ID` is not read: to resume, reconnect with `since`.",
@@ -10037,9 +9061,7 @@
 		"/v1/subgraphs/{name}/{table}/{id}": {
 			"get": {
 				"operationId": "getSubgraphRow",
-				"tags": [
-					"subgraphs"
-				],
+				"tags": ["subgraphs"],
 				"summary": "Get one row by id",
 				"x-nav-title": "Row by ID",
 				"description": "One row by its `_id`, wrapped as `{ data }`. An id that isn't an integer, or no row with it, is a 404.",
@@ -10143,9 +9165,7 @@
 		"/v1/index": {
 			"get": {
 				"operationId": "discoverIndex",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Index discovery",
 				"x-nav-title": "Discovery",
 				"description": "Lists every Index route with its accepted filters, plus the per-`event_type` column and filter vocabulary for `/v1/index/events`. Open: it runs before auth, so it never needs a token.",
@@ -10172,9 +9192,7 @@
 		"/v1/index/events": {
 			"get": {
 				"operationId": "listEvents",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Decoded events by event_type",
 				"x-nav-title": "Events",
 				"description": "One `event_type` per request, oldest first. Which filters and `fields` apply depends on the type; anything a type does not accept is refused.",
@@ -10271,11 +9289,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"enum": [
-								"sip-009",
-								"sip-010",
-								"sip-013"
-							]
+							"enum": ["sip-009", "sip-010", "sip-013"]
 						},
 						"description": "Only contracts that declare or implement this SIP standard, resolved as of the page's `to_height`. Mutually exclusive with `contract_id`."
 					},
@@ -10341,11 +9355,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"events",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["events", "next_cursor", "tip"],
 									"properties": {
 										"events": {
 											"type": "array",
@@ -10354,10 +9364,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -10412,9 +9419,7 @@
 		"/v1/index/ft-transfers": {
 			"get": {
 				"operationId": "listFtTransfers",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Fungible token transfers",
 				"x-nav-title": "FT transfers",
 				"description": "Same rows as `/v1/index/events?event_type=ft_transfer`, oldest first, with a typed row. Filters combine with AND.",
@@ -10518,11 +9523,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"events",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["events", "next_cursor", "tip"],
 									"properties": {
 										"events": {
 											"type": "array",
@@ -10531,10 +9532,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -10589,9 +9587,7 @@
 		"/v1/index/nft-transfers": {
 			"get": {
 				"operationId": "listNftTransfers",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "NFT transfers",
 				"x-nav-title": "NFT transfers",
 				"description": "Same rows as `/v1/index/events?event_type=nft_transfer`, oldest first, with a typed row. Filters combine with AND.",
@@ -10695,11 +9691,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"events",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["events", "next_cursor", "tip"],
 									"properties": {
 										"events": {
 											"type": "array",
@@ -10708,10 +9700,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -10766,9 +9755,7 @@
 		"/v1/index/contract-calls": {
 			"get": {
 				"operationId": "listContractCalls",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Decoded contract-call transactions",
 				"x-nav-title": "Contract calls",
 				"description": "Top-level `contract_call` transactions in canonical blocks, oldest first, with arguments and result decoded. Failed calls are included; check `status`. The cursor is `<block_height>:<tx_index>`. `reorgs` covers every height on the page.",
@@ -10834,11 +9821,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"enum": [
-								"sip-009",
-								"sip-010",
-								"sip-013"
-							]
+							"enum": ["sip-009", "sip-010", "sip-013"]
 						},
 						"description": "Only contracts that declare or implement this SIP standard, resolved as of the page's `to_height`. Mutually exclusive with `contract_id`."
 					},
@@ -10868,11 +9851,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"contract_calls",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["contract_calls", "next_cursor", "tip"],
 									"properties": {
 										"contract_calls": {
 											"type": "array",
@@ -10881,10 +9860,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -10939,9 +9915,7 @@
 		"/v1/index/canonical": {
 			"get": {
 				"operationId": "listCanonicalBlocks",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Canonical block-hash map",
 				"x-nav-title": "Canonical hashes",
 				"description": "One row per height on the canonical chain, oldest first. Orphaned blocks never appear, so you can check your own chain against it. Lean by design; `/v1/index/blocks` is the full block. Not metered.",
@@ -11000,11 +9974,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"canonical",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["canonical", "next_cursor", "tip"],
 									"properties": {
 										"canonical": {
 											"type": "array",
@@ -11013,10 +9983,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -11064,9 +10031,7 @@
 		"/v1/index/state-writes": {
 			"get": {
 				"operationId": "listStateWrites",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "State writes",
 				"x-nav-title": "State writes",
 				"description": "The exact MARF writes each canonical block committed, in the node's write order: every changed leaf of the block's state trie, named. Oldest first; the cursor is `<block_height>:<ordinal>`. `block_height` reads one block. Present only from the height this instance's node subscribed to the `state_writes` observer key, with no earlier history. The window follows the ingest tip. `reorgs` overlaps by height.",
@@ -11152,11 +10117,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"state_writes",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["state_writes", "next_cursor", "tip"],
 									"properties": {
 										"state_writes": {
 											"type": "array",
@@ -11165,10 +10126,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -11223,9 +10181,7 @@
 		"/v1/index/blocks": {
 			"get": {
 				"operationId": "listBlocks",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Canonical blocks",
 				"x-nav-title": "Blocks",
 				"description": "Canonical blocks, oldest first. The cursor is `<block_height>:0`. The window follows the ingest tip, so it can run ahead of the decoded `tip.block_height`.",
@@ -11293,11 +10249,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"blocks",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["blocks", "next_cursor", "tip"],
 									"properties": {
 										"blocks": {
 											"type": "array",
@@ -11306,10 +10258,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -11357,9 +10306,7 @@
 		"/v1/index/blocks/{height_or_hash}": {
 			"get": {
 				"operationId": "getBlock",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Block by height or hash",
 				"x-nav-title": "Block by height or hash",
 				"description": "A height returns the canonical block there. A hash returns that block whether or not it is canonical, so check `canonical` to spot an orphan. Not metered.",
@@ -11388,10 +10335,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"block",
-										"tip"
-									],
+									"required": ["block", "tip"],
 									"properties": {
 										"block": {
 											"$ref": "#/components/schemas/Block"
@@ -11459,9 +10403,7 @@
 		"/v1/index/transactions": {
 			"get": {
 				"operationId": "listTransactions",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Full transaction documents",
 				"x-nav-title": "Transactions",
 				"description": "Transactions in canonical blocks, oldest first, with fee, nonce, post-conditions and payload detail decoded from the raw bytes. Filters combine with AND. The cursor is `<block_height>:<tx_index>`. `reorgs` covers every height on the page.",
@@ -11556,11 +10498,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"transactions",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["transactions", "next_cursor", "tip"],
 									"properties": {
 										"transactions": {
 											"type": "array",
@@ -11569,10 +10507,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -11627,9 +10562,7 @@
 		"/v1/index/transactions/{tx_id}": {
 			"get": {
 				"operationId": "getTransaction",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Transaction by tx_id",
 				"x-nav-title": "Transaction by ID",
 				"description": "One transaction document, only if it sits in a canonical block. A transaction still pending is at `/v1/index/mempool/{tx_id}`. Not metered.",
@@ -11657,10 +10590,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"transaction",
-										"tip"
-									],
+									"required": ["transaction", "tip"],
 									"properties": {
 										"transaction": {
 											"$ref": "#/components/schemas/Transaction"
@@ -11761,9 +10691,7 @@
 		"/v1/index/transactions/{tx_id}/proof": {
 			"get": {
 				"operationId": "getTransactionProof",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Transaction inclusion proof",
 				"x-nav-title": "Inclusion proof",
 				"description": "What you need to check, without trusting this API, that a transaction is in a signed Nakamoto block: the raw tx, the raw block header, and the tx merkle path. `consensus` adds the cycle's signer set when the node can resolve it. The SDK's `verifyTransactionProof` runs every check. The instance must reach its Stacks node. Immutable once served.",
@@ -11841,9 +10769,7 @@
 		"/v1/index/mempool": {
 			"get": {
 				"operationId": "listMempoolTransactions",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Pending transactions",
 				"x-nav-title": "Pending transactions",
 				"description": "Pending transactions this instance's node has seen since the observer connected, in arrival order. A single-node, go-forward view: the backlog from before the observer connected is never replayed. Confirmed transactions leave the list. No height window. Never cached.",
@@ -11920,11 +10846,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"mempool",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["mempool", "next_cursor", "tip"],
 									"properties": {
 										"mempool": {
 											"type": "array",
@@ -11933,10 +10855,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's opaque cursor. Pass it back as `cursor` to continue. `null` when the page is empty.",
 											"example": "bToyNjg4Mjc0"
 										},
@@ -11984,9 +10903,7 @@
 		"/v1/index/mempool/{tx_id}": {
 			"get": {
 				"operationId": "getMempoolTransaction",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Pending transaction by tx_id",
 				"x-nav-title": "Pending by ID",
 				"description": "One pending transaction. It 404s once the transaction confirms (read it from `/v1/index/transactions/{tx_id}`) or drops. Never cached.",
@@ -12014,10 +10931,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"transaction",
-										"tip"
-									],
+									"required": ["transaction", "tip"],
 									"properties": {
 										"transaction": {
 											"$ref": "#/components/schemas/MempoolTransaction"
@@ -12092,9 +11006,7 @@
 		"/v1/index/contracts/{contract_id}/print-schema": {
 			"get": {
 				"operationId": "getPrintSchema",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Print payload schemas for a contract",
 				"x-nav-title": "Print schemas",
 				"description": "Infers the shape of a contract's `print` payloads from its canonical print events, grouped by the tuple's `topic` field. Reads the newest 1500 and oldest 500 events, so fields the contract stopped emitting still show. Takes no query parameters. Held in memory for 5 minutes per contract. Not metered.",
@@ -12163,9 +11075,7 @@
 		"/v1/index/stacking": {
 			"get": {
 				"operationId": "listPox4Stacking",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "PoX-4 stacking actions",
 				"x-nav-title": "PoX-4 stacking",
 				"description": "Decoded PoX-4 contract calls (`stack-stx`, `delegate-stx`, `stack-aggregation-commit-indexed`, …), one row per call, oldest first. Pages on `<block_height>:<tx_index>`. With no cursor or `from_height`, the read covers the last day. PoX-4 stopped at the epoch 4.0 fork, so read history with `from_height` and use `/v1/index/pox5/events` for what came after.",
@@ -12251,11 +11161,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"stacking",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["stacking", "next_cursor", "tip"],
 									"properties": {
 										"stacking": {
 											"type": "array",
@@ -12264,10 +11170,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -12336,9 +11239,7 @@
 		"/v1/index/pox/cycles": {
 			"get": {
 				"operationId": "listPox4Cycles",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Reward cycles of the current PoX (PoX-5)",
 				"x-nav-title": "Reward cycles",
 				"description": "One row per pox-5 reward cycle, descending, exact to the node: total stacked, reward-eligible STX, bond sats, sBTC custodied, rewards allocated/claimed, and cumulative rewards-per-token. Without a cursor, your list starts at the next reward cycle (the current one plus one) and goes back in time. Pass a higher `cursor` to reach cycles further in the future, which PoX-5 bonds can lock many cycles ahead. `pox_version` marks the era; at the next PoX fork this endpoint follows the chain and reports the new PoX instead. PoX-4 history is final and not served here; rebuild it from `/v1/index/stacking` on a self-hosted instance. Frozen cycles cache for an hour; the still-open current cycle caches briefly.",
@@ -12378,12 +11279,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"pox_version",
-										"cycles",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["pox_version", "cycles", "next_cursor", "tip"],
 									"properties": {
 										"pox_version": {
 											"type": "integer",
@@ -12397,10 +11293,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"integer",
-												"null"
-											],
+											"type": ["integer", "null"],
 											"description": "The last cycle on this page when more remain. Pass it back as `cursor`. `null` on the last page.",
 											"example": 141
 										},
@@ -12455,9 +11348,7 @@
 		"/v1/index/pox/cycles/{reward_cycle}": {
 			"get": {
 				"operationId": "getPox4Cycle",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "A PoX-5 reward cycle by cycle number",
 				"x-nav-title": "Reward cycle",
 				"description": "One pox-5 reward cycle, the same shape as a row of `/v1/index/pox/cycles` plus its per-signer breakdown. 404 when the cycle doesn't exist yet. A cycle number below 141 (pox-5's first) 404s with a note that PoX-4 cycles are final and not served here.",
@@ -12487,11 +11378,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"pox_version",
-										"cycle",
-										"tip"
-									],
+									"required": ["pox_version", "cycle", "tip"],
 									"properties": {
 										"pox_version": {
 											"type": "integer",
@@ -12506,9 +11393,7 @@
 												},
 												{
 													"type": "object",
-													"required": [
-														"signers"
-													],
+													"required": ["signers"],
 													"properties": {
 														"signers": {
 															"type": "array",
@@ -12627,9 +11512,7 @@
 		"/v1/index/pox5/events": {
 			"get": {
 				"operationId": "listPox5Events",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Decoded PoX-5 boot-contract events",
 				"x-nav-title": "PoX-5 events",
 				"description": "Decoded print log of the pox-5 boot contract (SIP-045 Bitcoin Staking) — all 19 topics (stake, stake-update, register-signer, unstake, claim-rewards, etc.), one row per print. Starts at the epoch 4.0 hard fork, where /v1/index/stacking's pox-4 feed ends.",
@@ -12783,11 +11666,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"events",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["events", "next_cursor", "tip"],
 									"properties": {
 										"events": {
 											"type": "array",
@@ -12796,10 +11675,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -12861,9 +11737,7 @@
 		"/v1/index/runes": {
 			"get": {
 				"operationId": "listRunes",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Rune catalog",
 				"x-nav-title": "Rune catalog",
 				"description": "Every etched rune, with the identity bundle (id, name, spaced_name, symbol, divisibility) every Runes response carries plus its computed supply, mint/burn counters and mint terms. `search` prefix-matches the name (spacers and case ignored); `sort` is etch order (`number`, default) or busiest-first (`mints`).",
@@ -12889,10 +11763,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"enum": [
-								"number",
-								"mints"
-							],
+							"enum": ["number", "mints"],
 							"default": "number"
 						},
 						"description": "`number` (etch order, oldest first — default) or `mints` (busiest first)."
@@ -12917,12 +11788,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"runes",
-										"next_cursor",
-										"tip",
-										"reorgs"
-									],
+									"required": ["runes", "next_cursor", "tip", "reorgs"],
 									"properties": {
 										"runes": {
 											"type": "array",
@@ -12931,10 +11797,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; an empty page means you are at the end."
 										},
 										"tip": {
@@ -12999,9 +11862,7 @@
 		"/v1/index/runes/{rune}": {
 			"get": {
 				"operationId": "getRune",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "A single rune's entry",
 				"x-nav-title": "One rune",
 				"description": "One rune's full entry by id or name, with computed `supply` (`premine + mints × terms.amount`). 404 when no rune matches.",
@@ -13030,10 +11891,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"rune",
-										"tip"
-									],
+									"required": ["rune", "tip"],
 									"properties": {
 										"rune": {
 											"$ref": "#/components/schemas/RuneEntry"
@@ -13123,9 +11981,7 @@
 		"/v1/index/runes/activity": {
 			"get": {
 				"operationId": "listRuneActivity",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Rune etches, mints, transfers and burns",
 				"x-nav-title": "Rune activity",
 				"description": "Every rune-moving event — etch, mint, transfer, burn — filterable by rune/address/kind/txid and cursor-paginated. Returns events[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>, same shape as every other decoded-event feed.",
@@ -13222,12 +12078,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"events",
-										"next_cursor",
-										"tip",
-										"reorgs"
-									],
+									"required": ["events", "next_cursor", "tip", "reorgs"],
 									"properties": {
 										"events": {
 											"type": "array",
@@ -13236,10 +12087,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; an empty page means you are at the end."
 										},
 										"tip": {
@@ -13304,9 +12152,7 @@
 		"/v1/index/runes/balances": {
 			"get": {
 				"operationId": "listRuneBalances",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Rune balances by address or outpoint",
 				"x-nav-title": "Rune balances",
 				"description": "Current per-outpoint rune balances. Exactly one of `address` or `outpoint` is required; `rune` narrows either to one rune. Returns balances[], next_cursor, tip.",
@@ -13366,12 +12212,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"balances",
-										"next_cursor",
-										"tip",
-										"reorgs"
-									],
+									"required": ["balances", "next_cursor", "tip", "reorgs"],
 									"properties": {
 										"balances": {
 											"type": "array",
@@ -13380,10 +12221,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; an empty page means you are at the end."
 										},
 										"tip": {
@@ -13448,9 +12286,7 @@
 		"/v1/index/sbtc/events": {
 			"get": {
 				"operationId": "listSbtcEvents",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Decoded sBTC peg events",
 				"x-nav-title": "Peg events",
 				"description": "Every decoded `sbtc-registry` print, all topics, one row per event, oldest first: deposits, withdrawal create/accept/reject, signer key rotations and protocol-contract updates. With no cursor or `from_height`, the read covers the last day.",
@@ -13563,11 +12399,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"events",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["events", "next_cursor", "tip"],
 									"properties": {
 										"events": {
 											"type": "array",
@@ -13576,10 +12408,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -13648,9 +12477,7 @@
 		"/v1/index/sbtc/deposits": {
 			"get": {
 				"operationId": "listSbtcDeposits",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "Completed sBTC deposits",
 				"x-nav-title": "Deposits",
 				"description": "Completed deposits, one row per `completed-deposit` event, oldest first. The event fires once the signers have swept the BTC in, so every row is final on the peg side. With no cursor or `from_height`, the read covers the last day.",
@@ -13745,11 +12572,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"deposits",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["deposits", "next_cursor", "tip"],
 									"properties": {
 										"deposits": {
 											"type": "array",
@@ -13758,10 +12581,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -13830,9 +12650,7 @@
 		"/v1/index/sbtc/deposits/{bitcoin_txid}": {
 			"get": {
 				"operationId": "getSbtcDeposit",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "sBTC peg-in by Bitcoin txid",
 				"x-nav-title": "Deposit by Bitcoin txid",
 				"description": "One completed deposit, looked up by the Bitcoin txid of the deposit. Past finality it is cached for good and answers `If-None-Match` with 304.",
@@ -13861,10 +12679,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"deposit",
-										"tip"
-									],
+									"required": ["deposit", "tip"],
 									"properties": {
 										"deposit": {
 											"$ref": "#/components/schemas/SbtcDepositDetail"
@@ -13946,9 +12761,7 @@
 		"/v1/index/sbtc/withdrawals": {
 			"get": {
 				"operationId": "listSbtcWithdrawals",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "sBTC withdrawals, one per request",
 				"x-nav-title": "Withdrawals",
 				"description": "Withdrawals, one row per `request_id`, ordered by when they were requested. Each row carries its current status from the latest accept or reject, the BTC sweep the signers committed to, and that sweep's Bitcoin settlement. The height window and cursor apply to the request event. Status can change after a row is final, so pages are never long-cached.",
@@ -14014,11 +12827,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"enum": [
-								"REQUESTED",
-								"ACCEPTED",
-								"REJECTED"
-							]
+							"enum": ["REQUESTED", "ACCEPTED", "REJECTED"]
 						},
 						"description": "Current lifecycle status."
 					},
@@ -14077,11 +12886,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"withdrawals",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["withdrawals", "next_cursor", "tip"],
 									"properties": {
 										"withdrawals": {
 											"type": "array",
@@ -14090,10 +12895,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -14159,9 +12961,7 @@
 		"/v1/index/sbtc/withdrawals/{request_id}": {
 			"get": {
 				"operationId": "getSbtcWithdrawal",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "sBTC peg-out lifecycle by request_id",
 				"x-nav-title": "Withdrawal by request",
 				"description": "One withdrawal's full lifecycle: the request, the accept or reject, and the Bitcoin settlement of its sweep. Once it is accepted or rejected and past finality, it is cached for good and answers `If-None-Match` with 304.",
@@ -14191,10 +12991,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"withdrawal",
-										"tip"
-									],
+									"required": ["withdrawal", "tip"],
 									"properties": {
 										"withdrawal": {
 											"$ref": "#/components/schemas/SbtcWithdrawalLifecycle"
@@ -14300,9 +13097,7 @@
 		"/v1/index/sbtc/summary": {
 			"get": {
 				"operationId": "getSbtcSummary",
-				"tags": [
-					"index"
-				],
+				"tags": ["index"],
 				"summary": "sBTC peg summary scoreboard",
 				"x-nav-title": "Peg summary",
 				"description": "All-time totals for the whole bridge: deposit and withdrawal counts, net peg flow, and circulating sBTC supply read from `sbtc-token` on this instance's node. Takes no parameters.",
@@ -14320,10 +13115,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"summary",
-										"tip"
-									],
+									"required": ["summary", "tip"],
 									"properties": {
 										"summary": {
 											"$ref": "#/components/schemas/SbtcSummary"
@@ -14390,9 +13182,7 @@
 		"/v1/streams": {
 			"get": {
 				"operationId": "discoverStreams",
-				"tags": [
-					"streams"
-				],
+				"tags": ["streams"],
 				"summary": "Streams discovery",
 				"x-nav-title": "Discovery",
 				"description": "Lists the Streams routes, the event types and filters `/v1/streams/events` accepts, and the cursor format. Served ahead of Streams auth, so it never needs a credential.",
@@ -14419,9 +13209,7 @@
 		"/v1/streams/events": {
 			"get": {
 				"operationId": "listStreamEvents",
-				"tags": [
-					"streams"
-				],
+				"tags": ["streams"],
 				"summary": "Raw event firehose",
 				"x-nav-title": "Event firehose",
 				"description": "Canonical chain events in chain order: block height, then transaction position, then event position. Pages are capped at the tip minus a 2-block reorg margin. With no cursor or `from_height`, the read starts 1000 blocks behind the tip. An empty filtered page still returns a `next_cursor` past `to_height`, so a consumer never stalls. Pages at or below `tip.finalized_height` are immutable: they carry an `ETag` and answer `If-None-Match` with 304.",
@@ -14438,10 +13226,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"enum": [
-								"stacks",
-								"bitcoin"
-							],
+							"enum": ["stacks", "bitcoin"],
 							"default": "stacks"
 						},
 						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
@@ -14646,11 +13431,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"events",
-										"next_cursor",
-										"tip"
-									],
+									"required": ["events", "next_cursor", "tip"],
 									"properties": {
 										"events": {
 											"type": "array",
@@ -14659,10 +13440,7 @@
 											}
 										},
 										"next_cursor": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
@@ -14750,9 +13528,7 @@
 		"/v1/streams/events/stream": {
 			"get": {
 				"operationId": "tailStreamEvents",
-				"tags": [
-					"streams"
-				],
+				"tags": ["streams"],
 				"summary": "Tail the event firehose over SSE",
 				"x-nav-title": "Tail over SSE",
 				"description": "Server-sent events over the same read as `/v1/streams/events`, with the same parameters. The server polls every 1.5 seconds by default (`STREAMS_SSE_POLL_MS`) and writes one frame per event: `id` is the event's cursor and `data` is `{ \"event\": <StreamsEvent> }`, or `{ \"event\", \"sig\", \"key_id\" }` with an ed25519 signature over the event's JSON when the instance has a signing key. After 20 seconds with no events it writes `event: ping` with empty data; ignore it. With no `cursor`, `from_cursor` or `from_height`, the tail starts at the current tip minus the reorg margin. `Last-Event-ID` is not read; to resume after a disconnect, reconnect with `from_cursor` set to the last `id` you processed.",
@@ -14769,10 +13545,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"enum": [
-								"stacks",
-								"bitcoin"
-							],
+							"enum": ["stacks", "bitcoin"],
 							"default": "stacks"
 						},
 						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
@@ -15018,9 +13791,7 @@
 		"/v1/streams/reorgs": {
 			"get": {
 				"operationId": "listReorgs",
-				"tags": [
-					"streams"
-				],
+				"tags": ["streams"],
 				"summary": "Chain reorg history",
 				"x-nav-title": "Reorg history",
 				"description": "Reorgs the indexer recorded, oldest first. Page forward by passing `next_since` back as `since`.",
@@ -15037,10 +13808,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"enum": [
-								"stacks",
-								"bitcoin"
-							],
+							"enum": ["stacks", "bitcoin"],
 							"default": "stacks"
 						},
 						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
@@ -15089,10 +13857,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"reorgs",
-										"next_since"
-									],
+									"required": ["reorgs", "next_since"],
 									"properties": {
 										"reorgs": {
 											"type": "array",
@@ -15114,10 +13879,7 @@
 											}
 										},
 										"next_since": {
-											"type": [
-												"string",
-												"null"
-											],
+											"type": ["string", "null"],
 											"description": "`<detected_at>~<id>` of the last reorg. Pass it as `since` to continue. `null` when the page is empty."
 										}
 									},
@@ -15178,9 +13940,7 @@
 		"/v1/streams/canonical/{height}": {
 			"get": {
 				"operationId": "getStreamsCanonicalBlock",
-				"tags": [
-					"streams"
-				],
+				"tags": ["streams"],
 				"summary": "Canonical block by height",
 				"x-nav-title": "Canonical block",
 				"description": "The canonical Stacks block at one height and the Bitcoin block it anchors to. Finalized heights are cached for good and answer `If-None-Match` with 304; the `ETag` is the block hash.",
@@ -15197,10 +13957,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"enum": [
-								"stacks",
-								"bitcoin"
-							],
+							"enum": ["stacks", "bitcoin"],
 							"default": "stacks"
 						},
 						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
@@ -15297,9 +14054,7 @@
 		"/v1/streams/tip": {
 			"get": {
 				"operationId": "getTip",
-				"tags": [
-					"streams"
-				],
+				"tags": ["streams"],
 				"summary": "Current chain tip",
 				"x-nav-title": "Chain tip",
 				"description": "The newest canonical block this instance has indexed, the finality boundary, and how far back this caller can seek. Never cached.",
@@ -15316,10 +14071,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"enum": [
-								"stacks",
-								"bitcoin"
-							],
+							"enum": ["stacks", "bitcoin"],
 							"default": "stacks"
 						},
 						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
@@ -15386,9 +14138,7 @@
 		"/v1/proofs/witness/{index_block_hash}": {
 			"get": {
 				"operationId": "getStateWitness",
-				"tags": [
-					"proofs"
-				],
+				"tags": ["proofs"],
 				"summary": "State witness for a block",
 				"x-nav-title": "State witness",
 				"description": "The block's MARF state witness (wire v3) from the proof sidecar: the trie nodes the block wrote, ancestor roots, and the names of every write. Recompute the root and compare it with the header's `state_index_root`; every changed leaf is a named write, a carried value, or an internal key, so a hidden write fails. Extracted on demand, so it has its own lower rate limit. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
@@ -15503,9 +14253,7 @@
 		"/v1/proofs/burn/{consensus_hash}": {
 			"get": {
 				"operationId": "getBurnBlockProof",
-				"tags": [
-					"proofs"
-				],
+				"tags": ["proofs"],
 				"summary": "Burn block behind a consensus hash",
 				"x-nav-title": "Burn block",
 				"description": "The sortition preimage that hashes to a block header's `consensus_hash` (RIPEMD160(SHA256(preimage))). Bytes 4..36 of the preimage are the Bitcoin block hash, which pins the header's burn height against Bitcoin proof of work. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
@@ -15605,9 +14353,7 @@
 		"/v1/proofs/bitcoin-headers": {
 			"get": {
 				"operationId": "listBitcoinHeaders",
-				"tags": [
-					"proofs"
-				],
+				"tags": ["proofs"],
 				"summary": "Bitcoin block headers",
 				"x-nav-title": "Bitcoin headers",
 				"description": "Raw 80-byte Bitcoin headers from `from`, at most 2016 (one difficulty period) per call. Check proof of work and linkage yourself from a checkpoint you trust. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
@@ -15716,9 +14462,7 @@
 		"/v1/proofs/bitcoin-tx/{txid}": {
 			"get": {
 				"operationId": "getBitcoinTxProof",
-				"tags": [
-					"proofs"
-				],
+				"tags": ["proofs"],
 				"summary": "Bitcoin transaction proof",
 				"x-nav-title": "Bitcoin transaction",
 				"description": "A confirmed Bitcoin transaction with its merkle branch (internal byte order) and block header, from the instance's own Bitcoin node. Recompute the txid from `raw_tx`, fold the branch to the header's merkle root, and check the header against a Bitcoin chain you trust, such as a checkpoint plus proof of work. Short-cached: a shallow block can reorg. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
@@ -15818,9 +14562,7 @@
 		"/v1/proofs/block/{index_block_hash}": {
 			"get": {
 				"operationId": "getSignedBlock",
-				"tags": [
-					"proofs"
-				],
+				"tags": ["proofs"],
 				"summary": "Signed block by id",
 				"x-nav-title": "Block by ID",
 				"description": "The consensus-serialized Nakamoto block from the Stacks node (`/v3/blocks/{id}`): header with signer signatures, then transactions. Recompute the block id from the header and check the signatures against the cycle's signer set. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
@@ -15911,9 +14653,7 @@
 		"/v1/proofs/block/height/{height}": {
 			"get": {
 				"operationId": "getSignedBlockByHeight",
-				"tags": [
-					"proofs"
-				],
+				"tags": ["proofs"],
 				"summary": "Signed block by height",
 				"x-nav-title": "Block by height",
 				"description": "The node's block at a Stacks height (`/v3/blocks/height/{height}`), same bytes as the by-id route. Near the tip the block at a height can change, so this is short-cached; prefer the by-id route once you know the id. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
@@ -16004,9 +14744,7 @@
 		"/v1/proofs/epoch2-header/{index_block_hash}": {
 			"get": {
 				"operationId": "getEpoch2Header",
-				"tags": [
-					"proofs"
-				],
+				"tags": ["proofs"],
 				"summary": "Epoch 2.x block header by id",
 				"x-nav-title": "Epoch 2.x header",
 				"description": "A pre-Nakamoto block's header from the Stacks node (`/v2/headers/1?tip={id}`), as the node's one-element array: `header` (consensus-serialized StacksBlockHeader, hex), `consensus_hash` and `parent_block_id`. The id is sha512/256(sha512/256(header) || consensus_hash): recompute it, then check state against the header's `state_index_root`. Nakamoto blocks are a 404 here; use the block route. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
@@ -16106,9 +14844,7 @@
 		"/v1/proofs/writes/{height}": {
 			"get": {
 				"operationId": "getBlockStateWrites",
-				"tags": [
-					"proofs"
-				],
+				"tags": ["proofs"],
 				"summary": "State writes of a block",
 				"x-nav-title": "Block writes",
 				"description": "Every MARF write the canonical block at `height` committed, in the node's write order, from this instance's indexed `state_writes`: the names a verifier needs to label each written leaf of the block's witness. A write the witness does not hold, or a leaf no write names, fails that check, so the rows are checked, not trusted. 404 when the instance has no writes for the block (its node did not subscribe to `state_writes` at that height); verifiers then report the diff unnamed. Near the tip the block at a height can change, so this is short-cached. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
@@ -16198,9 +14934,7 @@
 		"/v1/proofs/marf/{path}": {
 			"get": {
 				"operationId": "getMarfProof",
-				"tags": [
-					"proofs"
-				],
+				"tags": ["proofs"],
 				"summary": "MARF inclusion proof",
 				"x-nav-title": "MARF proof",
 				"description": "A value and its MARF inclusion proof as of block `tip`, from the node (`/v2/clarity/marf/{path}?proof=1`). Keys the node cannot serve because they hold no stored value string, such as the MARF's own `__MARF_BLOCK_HEIGHT_TO_HASH::<height>`, are proven by the proof sidecar from the MARF itself: same proof bytes, and `data` is the raw 40-byte leaf value. Fold the proof to a root and compare it with `tip`'s `state_index_root`. Inclusion only: a missing key is a 404, not a proof of absence. Free and keyless: never metered, no account needed. Hosted limits: 10 requests per second per IP (1 for witnesses), or 20 (2) per account with a key. Bytes are passed through unchanged; verify them, do not trust them.",
@@ -16301,9 +15035,7 @@
 		"/api/subgraphs": {
 			"get": {
 				"operationId": "listDeployments",
-				"tags": [
-					"deployments"
-				],
+				"tags": ["deployments"],
 				"summary": "List deployed subgraphs",
 				"x-nav-title": "List deployments",
 				"description": "Every subgraph on this instance with its status, sync progress, row count and open gap count. Row counts come from Postgres table statistics, so they are approximate; the detail read counts exactly.",
@@ -16319,9 +15051,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"data"
-									],
+									"required": ["data"],
 									"properties": {
 										"data": {
 											"type": "array",
@@ -16341,9 +15071,7 @@
 												"totalProcessed": 48210,
 												"totalRows": 48138,
 												"totalErrors": 0,
-												"tables": [
-													"transfers"
-												],
+												"tables": ["transfers"],
 												"chainTip": 9048712,
 												"sourceChainTip": 9048712,
 												"targetBlock": 9048712,
@@ -16377,9 +15105,7 @@
 			},
 			"post": {
 				"operationId": "deploySubgraph",
-				"tags": [
-					"deployments"
-				],
+				"tags": ["deployments"],
 				"summary": "Deploy or redeploy a subgraph",
 				"x-nav-title": "Deploy",
 				"description": "Takes bundled handler code (see `/api/subgraphs/bundle`) plus the schema and sources extracted from it. The server reads the definition from the bundle without running it, validates it, lints print fields, then applies the schema. A new subgraph, or a breaking schema change, queues a reindex and returns its `operationId`. Redeploying the same name updates in place; `action` says what happened. With `dryRun` it returns the DDL plan and writes nothing.",
@@ -16492,9 +15218,7 @@
 		"/api/subgraphs/bundle": {
 			"post": {
 				"operationId": "bundleSubgraph",
-				"tags": [
-					"deployments"
-				],
+				"tags": ["deployments"],
 				"summary": "Bundle subgraph source into deployable handler code",
 				"x-nav-title": "Bundle source",
 				"description": "Compiles a TypeScript subgraph module on the server and returns the bundle plus the metadata read from it, ready to POST to `/api/subgraphs`. Deploys nothing. The CLI and MCP bundle locally; this is for callers that cannot run esbuild.",
@@ -16509,9 +15233,7 @@
 						"application/json": {
 							"schema": {
 								"type": "object",
-								"required": [
-									"code"
-								],
+								"required": ["code"],
 								"properties": {
 									"code": {
 										"type": "string",
@@ -16582,9 +15304,7 @@
 		"/api/subgraphs/{name}": {
 			"get": {
 				"operationId": "getDeployment",
-				"tags": [
-					"deployments"
-				],
+				"tags": ["deployments"],
 				"summary": "Get a deployed subgraph",
 				"x-nav-title": "Get a deployment",
 				"description": "Definition, health, sync progress and per-table columns and exact row counts. While a reindex or backfill is active, `sync` carries its queue position, event progress and ETA.",
@@ -16639,9 +15359,7 @@
 			},
 			"delete": {
 				"operationId": "deleteDeployment",
-				"tags": [
-					"deployments"
-				],
+				"tags": ["deployments"],
 				"summary": "Delete a subgraph",
 				"x-nav-title": "Delete",
 				"description": "Requests cancellation of any queued or running operation, waits up to 30 seconds for the processor to release it, then drops the Postgres schema and the registry row. Irreversible.",
@@ -16677,9 +15395,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"message"
-									],
+									"required": ["message"],
 									"properties": {
 										"message": {
 											"type": "string",
@@ -16739,9 +15455,7 @@
 		"/api/subgraphs/{name}/reindex": {
 			"post": {
 				"operationId": "reindexDeployment",
-				"tags": [
-					"deployments"
-				],
+				"tags": ["deployments"],
 				"summary": "Queue a full reindex",
 				"x-nav-title": "Reindex",
 				"description": "Drops the subgraph's tables and rebuilds them from its start block to the chain tip. Takes no body. A `fromBlock`/`toBlock` is refused with 400 `REINDEX_RANGE_NOT_SUPPORTED` rather than ignored, since a ranged walk would destroy everything outside the range; use `backfill` for a range. Poll the returned `operationId`.",
@@ -16835,9 +15549,7 @@
 		"/api/subgraphs/{name}/backfill": {
 			"post": {
 				"operationId": "backfillDeployment",
-				"tags": [
-					"deployments"
-				],
+				"tags": ["deployments"],
 				"summary": "Queue a backfill over a block range",
 				"x-nav-title": "Backfill",
 				"description": "Re-runs handlers over `fromBlock` to `toBlock`, inclusive, without dropping data. A backfill that overlaps an earlier failed or cancelled one resumes from its last committed block. Refused when the handlers apply deltas (`ctx.increment`, `ctx.update`) or read-modify-write rows (`ctx.findOne`, `ctx.findMany`), which would double-count blocks already processed; reindex those instead.",
@@ -16863,10 +15575,7 @@
 						"application/json": {
 							"schema": {
 								"type": "object",
-								"required": [
-									"fromBlock",
-									"toBlock"
-								],
+								"required": ["fromBlock", "toBlock"],
 								"properties": {
 									"fromBlock": {
 										"type": "integer",
@@ -16971,9 +15680,7 @@
 		"/api/subgraphs/{name}/stop": {
 			"post": {
 				"operationId": "stopDeployment",
-				"tags": [
-					"deployments"
-				],
+				"tags": ["deployments"],
 				"summary": "Stop the active reindex or backfill",
 				"x-nav-title": "Stop",
 				"description": "Takes no body. Flags the queued or running operation for cancellation; the processor stops it at its next checkpoint and marks it `cancelled`. A stopped backfill resumes from its checkpoint when the same range is queued again.",
@@ -17000,11 +15707,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"message",
-										"operationId",
-										"status"
-									],
+									"required": ["message", "operationId", "status"],
 									"properties": {
 										"message": {
 											"type": "string",
@@ -17017,9 +15720,7 @@
 										},
 										"status": {
 											"type": "string",
-											"enum": [
-												"cancel_requested"
-											],
+											"enum": ["cancel_requested"],
 											"description": "Always `cancel_requested`. Poll the operation until its status is `cancelled`."
 										}
 									},
@@ -17078,9 +15779,7 @@
 		"/api/subgraphs/{name}/operations": {
 			"get": {
 				"operationId": "listDeploymentOperations",
-				"tags": [
-					"deployments"
-				],
+				"tags": ["deployments"],
 				"summary": "List a subgraph's operations",
 				"x-nav-title": "List operations",
 				"description": "The 20 most recent reindex and backfill operations, newest first, with progress. Queued ones carry an approximate `queuePosition`.",
@@ -17107,9 +15806,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"operations"
-									],
+									"required": ["operations"],
 									"properties": {
 										"operations": {
 											"type": "array",
@@ -17149,9 +15846,7 @@
 		"/api/subgraphs/{name}/operations/{operation_id}": {
 			"get": {
 				"operationId": "getDeploymentOperation",
-				"tags": [
-					"deployments"
-				],
+				"tags": ["deployments"],
 				"summary": "Get an operation",
 				"x-nav-title": "Get an operation",
 				"description": "One reindex or backfill by id. Poll it after a deploy, reindex or backfill until `status` is `completed`, `failed` or `cancelled`.",
@@ -17217,9 +15912,7 @@
 		"/api/subgraphs/{name}/gaps": {
 			"get": {
 				"operationId": "listDeploymentGaps",
-				"tags": [
-					"deployments"
-				],
+				"tags": ["deployments"],
 				"summary": "List a subgraph's gaps",
 				"x-nav-title": "Gaps",
 				"description": "Block ranges the subgraph failed to process, ordered by start height. Open gaps only by default.",
@@ -17262,10 +15955,7 @@
 						"required": false,
 						"schema": {
 							"type": "string",
-							"enum": [
-								"true",
-								"all"
-							]
+							"enum": ["true", "all"]
 						},
 						"description": "`true` or `all` include resolved gaps with the open ones. Omit for open gaps only."
 					}
@@ -17277,10 +15967,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"data",
-										"meta"
-									],
+									"required": ["data", "meta"],
 									"properties": {
 										"data": {
 											"type": "array",
@@ -17356,9 +16043,7 @@
 		"/api/subgraphs/{name}/violations": {
 			"get": {
 				"operationId": "listDeploymentViolations",
-				"tags": [
-					"deployments"
-				],
+				"tags": ["deployments"],
 				"summary": "List a subgraph's print violations",
 				"x-nav-title": "Print violations",
 				"description": "Print events a handler skipped because the payload did not match the source's declared `prints` schema, newest first. The instance keeps the last 100 per subgraph.",
@@ -17394,10 +16079,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"data",
-										"meta"
-									],
+									"required": ["data", "meta"],
 									"properties": {
 										"data": {
 											"type": "array",
@@ -17472,9 +16154,7 @@
 		"/api/webhooks": {
 			"get": {
 				"operationId": "listWebhooks",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "List webhooks",
 				"x-nav-title": "List webhooks",
 				"description": "Every webhook on this instance, newest first, with status and last delivery times. Paged by offset.",
@@ -17510,9 +16190,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"data"
-									],
+									"required": ["data"],
 									"properties": {
 										"data": {
 											"type": "array",
@@ -17559,9 +16237,7 @@
 			},
 			"post": {
 				"operationId": "createWebhook",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "Create a webhook",
 				"x-nav-title": "Create",
 				"description": "Takes `triggers` and starts at the chain tip, with no backfill. The response carries the signing secret. This is the only time it is returned, so store it now; `rotate-secret` issues a new one.",
@@ -17647,9 +16323,7 @@
 		"/api/webhooks/{id}": {
 			"get": {
 				"operationId": "getWebhook",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "Get a webhook",
 				"x-nav-title": "Get",
 				"description": "Full config and delivery health for one webhook. Never includes the signing secret.",
@@ -17704,9 +16378,7 @@
 			},
 			"patch": {
 				"operationId": "updateWebhook",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "Update a webhook",
 				"x-nav-title": "Update",
 				"description": "Change any subset of fields; at least one is required. `triggers` are fixed at create: to change them, create a new webhook.",
@@ -17791,9 +16463,7 @@
 			},
 			"delete": {
 				"operationId": "deleteWebhook",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "Delete a webhook",
 				"x-nav-title": "Delete",
 				"description": "Removes the webhook. Nothing more is delivered to its URL. Cannot be undone.",
@@ -17820,9 +16490,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"ok"
-									],
+									"required": ["ok"],
 									"properties": {
 										"ok": {
 											"type": "boolean",
@@ -17882,9 +16550,7 @@
 		"/api/webhooks/{id}/pause": {
 			"post": {
 				"operationId": "pauseWebhook",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "Pause a webhook",
 				"x-nav-title": "Pause",
 				"description": "Sets `status` to `paused`. Matched events keep queueing and deliver on resume. Takes no body.",
@@ -17961,9 +16627,7 @@
 		"/api/webhooks/{id}/resume": {
 			"post": {
 				"operationId": "resumeWebhook",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "Resume a webhook",
 				"x-nav-title": "Resume",
 				"description": "Sets `status` to `active` and resets the circuit breaker (`circuitFailures`, `circuitOpenedAt`). Queued events start delivering. Takes no body.",
@@ -18040,9 +16704,7 @@
 		"/api/webhooks/{id}/rotate-secret": {
 			"post": {
 				"operationId": "rotateWebhookSecret",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "Rotate the signing secret",
 				"x-nav-title": "Rotate secret",
 				"description": "Issues a new signing secret and returns it, once. Deliveries signed with the old secret stop verifying immediately, so update your receiver right away. Takes no body.",
@@ -18119,9 +16781,7 @@
 		"/api/webhooks/{id}/test": {
 			"post": {
 				"operationId": "testWebhook",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "Send a test delivery",
 				"x-nav-title": "Send a test",
 				"description": "Posts one sample event, built and signed in the webhook's format, to its URL through the SSRF guard, and logs it under deliveries. The body has `data.test: true`, so receivers can tell it from a live event. Works while paused. Takes no body.",
@@ -18198,9 +16858,7 @@
 		"/api/webhooks/{id}/deliveries": {
 			"get": {
 				"operationId": "listWebhookDeliveries",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "List delivery attempts",
 				"x-nav-title": "Delivery attempts",
 				"description": "The last 100 delivery attempts, newest first, including test deliveries. `total` counts every attempt ever logged for the webhook. With `from` and `to`, only attempts dispatched in that window; `total` counts the window.",
@@ -18245,10 +16903,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"total",
-										"data"
-									],
+									"required": ["total", "data"],
 									"properties": {
 										"total": {
 											"type": "integer",
@@ -18309,9 +16964,7 @@
 		"/api/webhooks/{id}/dead": {
 			"get": {
 				"operationId": "listDeadWebhookEvents",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "List dead-lettered events",
 				"x-nav-title": "Dead events",
 				"description": "Events that used up `maxRetries` without a 2xx, newest failure first, up to 100. Requeue one to try it again.",
@@ -18338,9 +16991,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"data"
-									],
+									"required": ["data"],
 									"properties": {
 										"data": {
 											"type": "array",
@@ -18413,9 +17064,7 @@
 		"/api/webhooks/{id}/dead/{outbox_id}/requeue": {
 			"post": {
 				"operationId": "requeueDeadWebhookEvent",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "Requeue a dead event",
 				"x-nav-title": "Requeue",
 				"description": "Moves one dead event back to pending with its attempt count reset. It delivers at live priority, even if it came from a replay. Takes no body.",
@@ -18451,9 +17100,7 @@
 							"application/json": {
 								"schema": {
 									"type": "object",
-									"required": [
-										"ok"
-									],
+									"required": ["ok"],
 									"properties": {
 										"ok": {
 											"type": "boolean",
@@ -18513,9 +17160,7 @@
 		"/api/webhooks/{id}/replay": {
 			"post": {
 				"operationId": "replayWebhook",
-				"tags": [
-					"webhooks"
-				],
+				"tags": ["webhooks"],
 				"summary": "Replay a block range",
 				"x-nav-title": "Replay",
 				"description": "Queues historical events in a block range for redelivery, capped at 100,000 blocks. Replays are idempotent: the same range yields the same `replayId` and delivers nothing twice unless `force` is set. They drain through a 10% share of the outbox so live traffic keeps priority, and never move the live cursor. Replays deliver the normal `chain.<type>.apply` envelope.",
@@ -18612,9 +17257,7 @@
 		"/api/node/contracts/{contract_id}/abi": {
 			"get": {
 				"operationId": "getContractAbi",
-				"tags": [
-					"node"
-				],
+				"tags": ["node"],
 				"summary": "Contract ABI from the local Stacks node",
 				"x-nav-title": "Contract ABI",
 				"description": "Fetches the contract's interface from the Stacks node this instance follows (`/v2/contracts/interface`) and returns it unchanged. Nothing is cached. Self-hosted only; needs the instance token whenever one is set.",
@@ -18682,9 +17325,7 @@
 		"/v1/instance": {
 			"get": {
 				"operationId": "getInstance",
-				"tags": [
-					"instance"
-				],
+				"tags": ["instance"],
 				"summary": "Local instance catalog",
 				"x-nav-title": "Catalog",
 				"description": "What this instance is and holds: its mode and network, the feature manifest, the history it claims, and the subgraphs and webhooks deployed on it. No signup or pricing, ever.",
@@ -18731,9 +17372,7 @@
 		"/v1/instance/features": {
 			"get": {
 				"operationId": "getInstanceFeatures",
-				"tags": [
-					"instance"
-				],
+				"tags": ["instance"],
 				"summary": "Default feature manifest",
 				"x-nav-title": "Features",
 				"description": "Which modules this instance runs, including which protocol decoders are on.",
@@ -18780,9 +17419,7 @@
 		"/v1/instance/metrics": {
 			"get": {
 				"operationId": "getInstanceMetrics",
-				"tags": [
-					"instance"
-				],
+				"tags": ["instance"],
 				"summary": "Operational vitals",
 				"x-nav-title": "Vitals",
 				"description": "Process uptime, database size, the last 24 hours of webhook delivery outcomes, and rows processed per hour. A value that can't be measured comes back `null` instead of failing the request.",
