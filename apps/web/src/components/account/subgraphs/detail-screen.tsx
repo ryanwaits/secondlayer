@@ -40,9 +40,11 @@ import { SchemaView } from "./schema-view";
 const DETAIL_POLL_MS = 10_000;
 const HEALTH_POLL_MS = 60_000;
 
-/** Fact cells `SubgraphDetailBody` renders, and about a 10-row grid's height. */
+/** Fact cells `SubgraphDetailBody` renders, and the settled page's measured
+ *  panel heights at 1440 px (tabs plus a 10-row grid; two health panels). */
 const SKELETON_FACTS = 5;
-const GRID_SKELETON_HEIGHT = 440;
+const PANEL_SKELETON_HEIGHT = 545;
+const HEALTH_SKELETON_HEIGHT = 206;
 
 export type SubgraphView = "rows" | "schema";
 
@@ -187,22 +189,45 @@ export function SubgraphDetailBody({
 	);
 }
 
-/** Stands in for the facts row, the table grid and the two health panels. */
-function DetailSkeleton() {
+/** Stands in for the whole page: breadcrumb, title, facts, the tables panel
+ *  and the two health panels, built from the same wrappers and sized to what
+ *  a settled page measures (10-row grid at 1440 px), so nothing moves when
+ *  the real content lands. */
+function DetailSkeleton({ name }: { name: string }) {
 	return (
-		<output aria-label="Loading subgraph" aria-busy="true">
-			<div className="wd-facts">
-				{Array.from({ length: SKELETON_FACTS }).map((_, i) => (
-					// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton cells
-					<Skel key={i} width={92} height={36} />
-				))}
-			</div>
-			<ChartSkeleton height={GRID_SKELETON_HEIGHT} />
+		<>
+			<Breadcrumb
+				parent={{ href: "/account/subgraphs", label: "Subgraphs" }}
+				current={name}
+			/>
+			<header className="wd-head">
+				<div className="wd-top">
+					<div className="wd-title">
+						<h1>
+							<span className={dotClass("idle")} />
+							<span className="wd-name">{name}</span>
+						</h1>
+					</div>
+				</div>
+				<div className="wd-facts">
+					{Array.from({ length: SKELETON_FACTS }).map((_, i) => (
+						// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton cells
+						<Skel key={i} width={92} height={41} />
+					))}
+				</div>
+			</header>
+			<section
+				className="dash-panel sg-panel"
+				aria-label="Loading tables"
+				aria-busy="true"
+			>
+				<ChartSkeleton height={PANEL_SKELETON_HEIGHT} />
+			</section>
 			<div className="bl-two even sg-health">
-				<ChartSkeleton height={150} />
-				<ChartSkeleton height={150} />
+				<ChartSkeleton height={HEALTH_SKELETON_HEIGHT} />
+				<ChartSkeleton height={HEALTH_SKELETON_HEIGHT} />
 			</div>
-		</output>
+		</>
 	);
 }
 
@@ -275,20 +300,7 @@ export function SubgraphDetailSection({ name }: { name: string }) {
 
 	if (!data) {
 		if (missing) return <NotFound name={name} />;
-		return (
-			<>
-				<Breadcrumb
-					parent={{ href: "/account/subgraphs", label: "Subgraphs" }}
-					current={name}
-				/>
-				<div className="wd-title">
-					<h1>
-						<span className="wd-name">{name}</span>
-					</h1>
-				</div>
-				<DetailSkeleton />
-			</>
-		);
+		return <DetailSkeleton name={name} />;
 	}
 
 	const tableNames = Object.keys(data.tables);
