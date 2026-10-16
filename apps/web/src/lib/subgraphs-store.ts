@@ -201,6 +201,13 @@ async function request<T>(path: string): Promise<SubgraphsResult<T>> {
 
 const seg = encodeURIComponent;
 
+/** Hours of health the list poll asks for. */
+export const LIST_HEALTH_HOURS = 24;
+
+/** The request-cache key for a list read; each query shape has its own. */
+export const listKey = (health?: number): string =>
+	health ? `subgraphs:list:h${health}` : "subgraphs:list";
+
 /** A 404 on the list means the account has no subgraphs (and maybe no stack
  *  yet), so it reads as an empty list, never as `not_found`. With `health`,
  *  the response also carries each subgraph's hourly health for that many
@@ -210,7 +217,8 @@ export function refreshList(
 ): Promise<
 	Exclude<SubgraphsResult<SubgraphListItem[]>, { kind: "not_found" }>
 > {
-	return shared("subgraphs:list", async () => {
+	const key = listKey(options.health);
+	return shared(key, async () => {
 		const query = options.health ? `?health=${options.health}` : "";
 		const res = await request<{ data: SubgraphListItem[] }>(query);
 		if (res.kind === "ok") {
@@ -224,18 +232,33 @@ export function refreshList(
 				list: { data: res.data.data, at },
 				health: { ...current().health, ...fromList },
 			});
-			markFresh("subgraphs:list");
+			markFresh(key);
 			for (const name of Object.keys(fromList))
 				markFresh(`subgraphs:health:${name}:${options.health}`);
 			return { kind: "ok", data: res.data.data } as const;
 		}
 		if (res.kind === "not_found") {
 			set({ list: { data: [], at: Date.now() } });
-			markFresh("subgraphs:list");
+			markFresh(key);
 			return { kind: "ok", data: [] } as const;
 		}
 		return res;
 	});
+}
+
+/** One list read that also brings every subgraph's 24-hour health. A tenant
+ *  still on an older image ignores `?health=`, so those items fall back to a
+ *  health read each; drop the fallback once every tenant has rolled. */
+export async function refreshListAndHealth() {
+	const res = await refreshList({ health: LIST_HEALTH_HOURS });
+	if (res.kind === "ok") {
+		await Promise.all(
+			res.data
+				.filter((s) => s.health === undefined)
+				.map((s) => refreshHealth(s.name, LIST_HEALTH_HOURS)),
+		);
+	}
+	return res;
 }
 
 export function refreshDetail(

@@ -71,6 +71,15 @@ describe("dashboard warm-up", () => {
 		expect(count("/api/keys")).toBe(1);
 	});
 
+	test("warming subgraphs asks for the list with its health in one request", async () => {
+		mockFetch();
+		warmTab("/account/subgraphs");
+		await settle();
+		expect(urls.filter((u) => u.startsWith("/api/subgraphs"))).toEqual([
+			"/api/subgraphs?health=24",
+		]);
+	});
+
 	test("a slice read moments ago is not read again", async () => {
 		mockFetch();
 		warmTab("/account/keys");

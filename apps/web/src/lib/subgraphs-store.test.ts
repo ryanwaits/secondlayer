@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { refreshListAndHealth } from "@/components/account/subgraphs/list-screen";
 import {
 	clearSubgraphsData,
 	fetchRows,
@@ -8,6 +7,7 @@ import {
 	refreshErrors,
 	refreshHealth,
 	refreshList,
+	refreshListAndHealth,
 	rememberFirstPage,
 	streamUrl,
 	subgraphsSnapshot,
@@ -207,5 +207,13 @@ describe("list with health", () => {
 			"/api/subgraphs/b/health?hours=24",
 		]);
 		expect(Object.keys(subgraphsSnapshot().health).sort()).toEqual(["a", "b"]);
+	});
+});
+
+describe("list dedupe", () => {
+	test("a plain list and a list with health in flight together make two requests", async () => {
+		const urls = stub(json({ data: [] }));
+		await Promise.all([refreshList(), refreshList({ health: 24 })]);
+		expect(urls.sort()).toEqual(["/api/subgraphs", "/api/subgraphs?health=24"]);
 	});
 });

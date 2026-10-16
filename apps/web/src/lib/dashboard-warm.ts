@@ -12,8 +12,9 @@ import {
 } from "./account-data";
 import { isFresh } from "./request-cache";
 import {
-	refreshHealth,
-	refreshList as refreshSubgraphs,
+	LIST_HEALTH_HOURS,
+	listKey,
+	refreshListAndHealth,
 } from "./subgraphs-store";
 import { currentUtcMonth, monthParam } from "./usage";
 import {
@@ -32,15 +33,7 @@ function load(key: string, refresh: () => Promise<unknown>): void {
 }
 
 function warmSubgraphs(): void {
-	if (isFresh("subgraphs:list", WARM_MAX_AGE_MS)) return;
-	refreshSubgraphs()
-		.then((res) => {
-			if (res.kind !== "ok") return;
-			for (const s of res.data) {
-				load(`subgraphs:health:${s.name}:24`, () => refreshHealth(s.name));
-			}
-		})
-		.catch(() => {});
+	load(listKey(LIST_HEALTH_HOURS), refreshListAndHealth);
 }
 
 const TABS: Record<string, () => void> = {
