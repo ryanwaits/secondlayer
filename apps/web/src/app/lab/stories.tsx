@@ -25,6 +25,10 @@ import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { HeartbeatView } from "@/components/dashboard/shell/chain-heartbeat";
 import { DashboardTabs } from "@/components/dashboard/shell/dashboard-tabs";
 import {
+	KeyFirstLine,
+	PlaceholderRows,
+} from "@/components/dashboard/shell/onboarding";
+import {
 	ResourceRow,
 	ResourceRowHead,
 } from "@/components/dashboard/shell/resource-row";
@@ -42,7 +46,9 @@ import {
 	AmountDemo,
 	HeatStripDemo,
 	KeysDemo,
+	OverviewOnboardingDemo,
 	RowsDemo,
+	RowsEmptyDemo,
 	StackedCostDemo,
 	SubgraphGridDemo,
 	WebhookHeaderDemo,
@@ -1587,6 +1593,68 @@ const META: Record<StoryId, Meta> = {
 			},
 		],
 	},
+	"account-onboarding": {
+		src: [
+			"apps/web/src/components/dashboard/shell/onboarding.tsx",
+			"apps/web/src/components/account/overview/overview-section.tsx",
+			"apps/web/src/components/account/rows/rows-panel.tsx",
+		],
+		rule: "A new account has one job: make a key. Every empty screen points at it, then a three-step list walks to the first read and the first push.",
+		stack: true,
+		variants: [
+			{
+				id: "overview-no-key",
+				label: "Overview, no key",
+				render: () => <OverviewOnboardingDemo stage="no-key" />,
+			},
+			{
+				id: "overview-key-made",
+				label: "Overview, key made",
+				render: () => <OverviewOnboardingDemo stage="key-made" />,
+			},
+			{
+				id: "overview-reading",
+				label: "Overview, first read done",
+				render: () => <OverviewOnboardingDemo stage="reading" />,
+			},
+			{
+				id: "key-first",
+				label: "Key-first line",
+				render: () => <KeyFirstLine />,
+			},
+			{
+				id: "placeholders",
+				label: "Placeholder rows",
+				render: () => (
+					<PlaceholderRows
+						rows={[{ name: "laptop" }, { state: 55, count: 45 }]}
+						note="These fill in as you go."
+					/>
+				),
+			},
+			{
+				id: "rows-no-key",
+				label: "Rows, no key",
+				render: () => <RowsEmptyDemo noKey />,
+			},
+			{
+				id: "rows-key",
+				label: "Rows, key made",
+				render: () => <RowsEmptyDemo noKey={false} />,
+			},
+			{
+				id: "subgraphs-no-key",
+				label: "Subgraphs, no key",
+				render: () => <SubgraphsEmptyState noKey />,
+			},
+		],
+		usage: "<KeyFirstLine />",
+		dos: [
+			"Show the key-first line only while the account has no key of its own.",
+			"Keep placeholder rows faint, hidden from readers and not clickable.",
+		],
+		donts: ["Mint a key for the user. They name it for where it runs."],
+	},
 	"account-keys": {
 		src: [
 			"apps/web/src/components/account/keys/keys-screen.tsx",
@@ -1625,6 +1693,11 @@ const META: Record<StoryId, Meta> = {
 				id: "reveal",
 				label: "Reveal step",
 				render: () => <KeysDemo view="reveal" />,
+			},
+			{
+				id: "empty",
+				label: "No keys yet",
+				render: () => <KeysDemo view="empty" />,
 			},
 		],
 		usage: "<NewKeyFlow existingNames={names} onClose={close} />",

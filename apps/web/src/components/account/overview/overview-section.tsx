@@ -327,7 +327,7 @@ export interface OverviewOnboarding {
 	flow: ReactNode;
 }
 
-function onboardingSteps({ progress, keyName }: OverviewOnboarding) {
+export function onboardingSteps({ progress, keyName }: OverviewOnboarding) {
 	const current = !progress.key ? 0 : !progress.read ? 1 : 2;
 	const steps: ChecklistStep[] = [
 		{
@@ -362,7 +362,9 @@ function onboardingSteps({ progress, keyName }: OverviewOnboarding) {
 }
 
 /** The sentence and sub-line over a new account's checklist. */
-function OnboardingSentence({ progress }: { progress: OnboardingProgress }) {
+export function OnboardingSentence({
+	progress,
+}: { progress: OnboardingProgress }) {
 	if (!progress.key) {
 		return (
 			<StatusSentence

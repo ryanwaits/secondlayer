@@ -317,7 +317,7 @@ export function RevealStep({
 /**
  * Make a key: name it, then see it once with ways to use it. Callbacks in, no
  * routing, so the Keys tab and onboarding can both host it. `initial` opens
- * on the reveal for a key that already exists (sign-in hands one over).
+ * on the reveal for a key that already exists.
  */
 export function NewKeyFlow({
 	existingNames = [],

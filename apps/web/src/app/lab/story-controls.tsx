@@ -8,6 +8,10 @@ import {
 } from "@/components/account/keys/key.fixtures";
 import { KeysBody } from "@/components/account/keys/keys-screen";
 import { NameStep, RevealStep } from "@/components/account/keys/new-key-flow";
+import {
+	OnboardingSentence,
+	onboardingSteps,
+} from "@/components/account/overview/overview-section";
 import { RowsBody } from "@/components/account/rows/rows-panel";
 import { GridView } from "@/components/account/subgraphs/data-grid";
 import {
@@ -21,6 +25,10 @@ import { MonoStackedBarChart } from "@/components/charts/mono-stacked-bar-chart"
 import { Choice } from "@/components/choice";
 import { HeatStrip } from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
+import {
+	Checklist,
+	PlaceholderRows,
+} from "@/components/dashboard/shell/onboarding";
 import { Logo } from "@/components/logo";
 import type { RowsDay, RowsResponse } from "@/lib/rows";
 import {
@@ -620,13 +628,79 @@ export function RowsDemo({ exhausted }: { exhausted: boolean }) {
 	);
 }
 
+/** A new account's empty Rows screen, with and without a key. */
+export function RowsEmptyDemo({ noKey }: { noKey: boolean }) {
+	const data = rowsStoryData(false);
+	return (
+		<RowsBody
+			status="ok"
+			data={{
+				...data,
+				allowance: { ...data.allowance, usedThisMonth: 0 },
+				daily: [],
+				hourlyToday: [],
+				bySource: [],
+				errors: [],
+			}}
+			now={ROWS_STORY_NOW}
+			onRetry={() => {}}
+			noKey={noKey}
+		/>
+	);
+}
+
+/** The Overview's new-account checklist at each stage. */
+export function OverviewOnboardingDemo({
+	stage,
+}: { stage: "no-key" | "key-made" | "reading" }) {
+	const progress = {
+		key: stage !== "no-key",
+		read: stage === "reading",
+		push: false,
+		complete: false,
+	};
+	const model = { progress, keyName: "laptop", flow: null };
+	return (
+		<>
+			<OnboardingSentence progress={progress} />
+			<Checklist steps={onboardingSteps(model)} />
+			{stage === "no-key" ? (
+				<PlaceholderRows
+					rows={[
+						{ state: 72, count: 40 },
+						{ state: 58, count: 52 },
+					]}
+					note="These fill in as you go."
+				/>
+			) : null}
+		</>
+	);
+}
+
 /** The Keys screen and the create flow: callbacks are functions, which a server page cannot pass. */
 export function KeysDemo({
 	view,
 }: {
-	view: "all-in-use" | "stale" | "open" | "name" | "name-repeat" | "reveal";
+	view:
+		| "all-in-use"
+		| "stale"
+		| "open"
+		| "name"
+		| "name-repeat"
+		| "reveal"
+		| "empty";
 }) {
 	const noop = () => {};
+	if (view === "empty") {
+		return (
+			<KeysBody
+				keys={[]}
+				now={KEYS_EXAMPLE_NOW}
+				onNew={noop}
+				flow={<NameStep onSubmit={noop} />}
+			/>
+		);
+	}
 	if (view === "name" || view === "name-repeat") {
 		return (
 			<NameStep
