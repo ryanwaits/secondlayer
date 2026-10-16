@@ -44,13 +44,19 @@ export function ResourceRow({
 	);
 }
 
+/** The five column labels of a resource table. */
+export type ResourceRowLabels = [string, string, string, string, string];
+
 export function ResourceRowHead({
 	labels,
+	className,
 }: {
-	labels: [string, string, string, string, string];
+	labels: ResourceRowLabels;
+	/** Extra class, for a second header further down the same table. */
+	className?: string;
 }) {
 	return (
-		<div className="dash-row-head">
+		<div className={className ? `dash-row-head ${className}` : "dash-row-head"}>
 			<span>{labels[0]}</span>
 			<span>{labels[1]}</span>
 			<span>{labels[2]}</span>

@@ -7,6 +7,7 @@ import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import {
 	ResourceRow,
 	ResourceRowHead,
+	type ResourceRowLabels,
 } from "@/components/dashboard/shell/resource-row";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ensureKeys, useAccountData } from "@/lib/account-data";
@@ -130,19 +131,25 @@ function SubgraphRow({
 
 /** One resource row per subgraph: lag, rows and errors (or its worst
  *  insight), a 24-hour sparkline of rows written, the row count and how long
- *  ago it last wrote. */
+ *  ago it last wrote. `head` puts a column header of its own above them, for
+ *  a table that has other rows above (the Overview's webhooks). */
 export function SubgraphRows({
 	items,
 	health,
 	insights = [],
+	head,
 }: {
 	items: readonly SubgraphListItem[];
 	health: Record<string, SubgraphHealthData | undefined>;
 	/** Every insight the server holds; each row picks its own by name. */
 	insights?: readonly Insight[];
+	head?: ResourceRowLabels;
 }) {
 	return (
 		<>
+			{head ? (
+				<ResourceRowHead labels={head} className="ov-group-head" />
+			) : null}
 			{items.map((item) => (
 				<SubgraphRow
 					key={item.name}
@@ -165,7 +172,7 @@ const healthByName = (
 /** The Overview's subgraph rows, read from the cache the Overview's own
  *  `useSubgraphsPoll` fills. Quiet until the list has loaded, and nothing at
  *  all when the account has no subgraphs. */
-export function OverviewSubgraphsRows() {
+export function OverviewSubgraphsRows({ head }: { head?: ResourceRowLabels }) {
 	const { list, health } = useSubgraphsCache();
 	const { data: insights } = useInsights();
 	if (!list || list.data.length === 0) return null;
@@ -174,6 +181,7 @@ export function OverviewSubgraphsRows() {
 			items={list.data}
 			health={healthByName(health)}
 			insights={insights}
+			head={head}
 		/>
 	);
 }
