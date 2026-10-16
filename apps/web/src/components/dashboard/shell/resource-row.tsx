@@ -71,7 +71,7 @@ export function ResourceRowSkeleton() {
 				<Skel width="70%" />
 			</span>
 			<span className="dash-row-spark">
-				<Skel width={132} height={30} />
+				<Skel width={132} height={30} style={{ display: "block" }} />
 			</span>
 			<span className="dash-row-v">
 				<Skel width={40} />
