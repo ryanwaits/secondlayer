@@ -55,9 +55,9 @@ describe("AccountMenuPanel", () => {
 		<AccountMenuPanel balance="$29.62" monthLabel="October" spent="$6.21" />,
 	);
 
-	test("rows read Balance, the month, Keys, Billing in order", () => {
-		const order = ["Balance", "October", "Keys", "Billing"].map((w) =>
-			panel.indexOf(w),
+	test("rows read Balance, the month, Dashboard, Keys, Billing in order", () => {
+		const order = ["Balance", "October", "Dashboard", "Keys", "Billing"].map(
+			(w) => panel.indexOf(w),
 		);
 		expect(order.every((i) => i >= 0)).toBe(true);
 		expect([...order].sort((x, y) => x - y)).toEqual(order);
@@ -65,7 +65,8 @@ describe("AccountMenuPanel", () => {
 		expect(panel).toContain("$6.21");
 	});
 
-	test("links Keys and Billing, with no Open account or Webhooks row", () => {
+	test("links Dashboard, Keys and Billing, with no Open account or Webhooks row", () => {
+		expect(panel).toContain('href="/account"');
 		expect(panel).toContain('href="/account/keys"');
 		expect(panel).toContain('href="/account/credits"');
 		expect(panel).not.toContain('href="/account/webhooks"');

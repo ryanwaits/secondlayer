@@ -83,7 +83,9 @@ export function AccountChip({
 	);
 }
 
-/** Balance and this month's spend, then Keys and Billing, then the money and exit actions. */
+/** Balance and this month's spend, then Dashboard, Keys and Billing, then the
+ *  money and exit actions. Dashboard is the way in from product and docs pages,
+ *  whose nav has no dashboard tabs. */
 export function AccountMenuPanel({
 	id,
 	balance,
@@ -114,6 +116,9 @@ export function AccountMenuPanel({
 					<small>{spent ?? "—"}</small>
 				</div>
 				<div className="acct-menu-sep" />
+				<Link href="/account" className="acct-menu-row" onClick={onNavigate}>
+					Dashboard
+				</Link>
 				<Link
 					href="/account/keys"
 					className="acct-menu-row"

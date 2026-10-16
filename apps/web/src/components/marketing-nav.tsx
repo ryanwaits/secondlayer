@@ -191,10 +191,7 @@ export function MarketingNav() {
 								</div>
 							</div>
 							{dash ? (
-								[
-									...DASHBOARD_TABS.filter((t) => t.ready),
-									{ href: "/account/keys", label: "Keys" },
-								].map((t) => (
+								DASHBOARD_TABS.filter((t) => t.ready).map((t) => (
 									<Link
 										key={t.href}
 										href={t.href}
@@ -205,7 +202,7 @@ export function MarketingNav() {
 								))
 							) : (
 								<Link href="/account" className="acct-btn solid full">
-									Open account
+									Dashboard
 								</Link>
 							)}
 							<Link href="/account/credits" className="acct-btn line full">
