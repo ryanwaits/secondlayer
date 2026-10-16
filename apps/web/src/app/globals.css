@@ -5650,29 +5650,6 @@ a.acct-strip-link:hover .acct-strip-k {
 	color: #fff;
 	text-align: center;
 }
-.dash-beat {
-	display: flex;
-	align-items: center;
-	gap: 7px;
-	font: 400 12px / 1 var(--font-mono-stack);
-	color: var(--sub);
-	white-space: nowrap;
-}
-.dash-beat b {
-	font-weight: 500;
-	color: var(--ink);
-}
-.dash-dot.pulse {
-	animation: dash-beat 0.9s ease-out;
-}
-@keyframes dash-beat {
-	0% {
-		box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent);
-	}
-	100% {
-		box-shadow: 0 0 0 7px transparent;
-	}
-}
 .dash-kbd {
 	font: 500 11px / 1 var(--font-mono-stack);
 	color: var(--faint);
@@ -5875,7 +5852,6 @@ a.acct-strip-link:hover .acct-strip-k {
 	}
 }
 @media (max-width: 560px) {
-	.dash-beat,
 	.marketing-nav.is-dash .marketing-nav-brand span {
 		display: none;
 	}

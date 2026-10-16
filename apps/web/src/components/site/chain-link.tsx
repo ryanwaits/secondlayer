@@ -31,7 +31,8 @@ export function ChainLink({
 	);
 }
 
-function ChainMark({ chain }: { chain: Chain }) {
+/** A chain's mark alone, in its brand colors (the `.chain-*` rules in site.css). */
+export function ChainMark({ chain }: { chain: Chain }) {
 	const { size, shapes } = MARKS[chain];
 	return (
 		<span className={`chain-mark chain-${chain}`}>

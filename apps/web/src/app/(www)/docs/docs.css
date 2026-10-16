@@ -513,6 +513,13 @@ button.docs-nav-item {
 	margin-left: max(0px, calc((100% - 1112px) / 2));
 	margin-right: auto;
 }
+/* Under 1280px the reading column reaches the chain status pill in the
+   bottom-right corner, so the trail rides one row above it. */
+@media (max-width: 1280px) {
+	.docs-trail-dock {
+		bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+	}
+}
 .docs-trail {
 	position: relative;
 	display: flex;

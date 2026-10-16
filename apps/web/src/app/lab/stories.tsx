@@ -22,7 +22,6 @@ import {
 import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import { InsightStack } from "@/components/dashboard/insight/insight-stack";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
-import { HeartbeatView } from "@/components/dashboard/shell/chain-heartbeat";
 import { DashboardTabs } from "@/components/dashboard/shell/dashboard-tabs";
 import {
 	KeyFirstLine,
@@ -39,6 +38,8 @@ import {
 import { ViewCommand } from "@/components/dashboard/shell/view-command";
 import { Callout } from "@/components/docs/callout";
 import { ButtonLink, Eyebrow, StatusDot } from "@/components/site";
+import { ChainStatusView } from "@/components/site/chain-status";
+import { type ChainTip, EMPTY_TIP } from "@/lib/chain-tip";
 import { barsRows } from "@/lib/dashboard-charts";
 import { FIXTURE_INSIGHTS, FIXTURE_STACK } from "@/lib/insights.fixtures";
 import type { CSSProperties, ReactNode } from "react";
@@ -280,8 +281,24 @@ const FACTS = [
 
 type Meta = Omit<Story, keyof (typeof STORY_INDEX)[number]>;
 
-/** A fixed clock so the heartbeat renders the same on server and client. */
+/** A fixed clock so time-based views render the same on server and client. */
 const NOW = 1_800_000_000_000;
+
+const LAB_TIP: ChainTip = {
+	...EMPTY_TIP,
+	height: 9_226_704,
+	avgBlockSec: 6,
+	bitcoin: 971_739,
+	anchor: 971_739,
+	nodeTip: 9_226_704,
+	okAt: NOW,
+};
+/** The pill in place (not fixed) with its tooltip open, so every state reads at once. */
+const statusRow = (tip: ChainTip) => (
+	<div className="lab-cs">
+		<ChainStatusView tip={tip} now={NOW} />
+	</div>
+);
 
 const SHELL_ROWS: { name: string; tone: Tone; state: string; count: string }[] =
 	Array.from({ length: 40 }, (_, i) => ({
@@ -1069,54 +1086,39 @@ const META: Record<StoryId, Meta> = {
 <ViewCommand command={commandForPath(pathname)} />`,
 		donts: ["Rows change text color on hover, never background."],
 	},
-	heartbeat: {
-		src: ["apps/web/src/components/dashboard/shell/chain-heartbeat.tsx"],
-		rule: "The dot pulses once per new block. Age prints only when the chain looks stale.",
+	"chain-status": {
+		src: ["apps/web/src/components/site/chain-status.tsx"],
+		rule: "Fixed bottom-right on every page. Each mark rings once per block; down adds what stopped and whose it is. Shown here in place, tooltip open.",
 		variants: [
 			{
-				id: "fresh",
-				label: "Fresh",
-				render: () =>
-					row(
-						<HeartbeatView
-							height={9_219_695}
-							seenAt={NOW - 5_000}
-							avgBlockSec={9}
-							beat={3}
-							now={NOW}
-						/>,
-					),
+				id: "live",
+				label: "Live",
+				render: () => statusRow({ ...LAB_TIP, seenAt: NOW - 4_000 }),
 			},
 			{
-				id: "stale",
-				label: "Stale, 90 s",
+				id: "stalled",
+				label: "Stacks stalled",
 				render: () =>
-					row(
-						<HeartbeatView
-							height={9_219_695}
-							seenAt={NOW - 90_000}
-							avgBlockSec={9}
-							beat={3}
-							now={NOW}
-						/>,
-					),
+					statusRow({
+						...LAB_TIP,
+						seenAt: NOW - 14 * 60_000,
+						bitcoin: 971_741,
+					}),
 			},
 			{
-				id: "down",
-				label: "Down, 15 min",
+				id: "behind",
+				label: "We're behind",
 				render: () =>
-					row(
-						<HeartbeatView
-							height={9_219_695}
-							seenAt={NOW - 15 * 60_000}
-							avgBlockSec={null}
-							beat={3}
-							now={NOW}
-						/>,
-					),
+					statusRow({ ...LAB_TIP, seenAt: NOW - 30_000, nodeTip: 9_226_746 }),
+			},
+			{
+				id: "unreachable",
+				label: "Can't reach us",
+				render: () =>
+					statusRow({ ...LAB_TIP, failures: 2, okAt: NOW - 120_000 }),
 			},
 		],
-		usage: "<ChainHeartbeat />",
+		usage: "<ChainStatus />",
 	},
 	"view-command": {
 		src: ["apps/web/src/components/dashboard/shell/view-command.tsx"],

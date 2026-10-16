@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { EMPTY_TIP, nextTip, readTip, staleness } from "./chain-tip";
+import {
+	type ChainTip,
+	EMPTY_TIP,
+	chainState,
+	foldRead,
+	nextTip,
+	readTip,
+} from "./chain-tip";
 
 describe("nextTip", () => {
 	test("first read seeds seenAt from lag_seconds without a beat", () => {
@@ -31,25 +38,104 @@ describe("nextTip", () => {
 	});
 });
 
-describe("staleness", () => {
-	const tip = nextTip(EMPTY_TIP, 1, 0, 0);
-	test("fresh, stale and down boundaries", () => {
-		expect(staleness(tip, 59_000).level).toBe("fresh");
-		expect(staleness(tip, 61_000).level).toBe("stale");
-		expect(staleness(tip, 601_000).level).toBe("down");
+const read = (over: Partial<Parameters<typeof foldRead>[1]> = {}) => ({
+	height: 100,
+	lagSeconds: 0,
+	anchor: 900,
+	nodeTip: 100,
+	bitcoin: 900,
+	...over,
+});
+
+describe("foldRead", () => {
+	test("a good read clears failures and stamps the time", () => {
+		const t = foldRead({ ...EMPTY_TIP, failures: 3 }, read(), 5_000);
+		expect(t.failures).toBe(0);
+		expect(t.okAt).toBe(5_000);
+		expect(t.nodeTip).toBe(100);
+	});
+
+	test("Bitcoin beats only when its height changes after the first read", () => {
+		let t = foldRead(EMPTY_TIP, read(), 0);
+		expect(t.bitcoinBeat).toBe(0);
+		expect(t.bitcoinSeenAt).toBeNull();
+		t = foldRead(t, read({ bitcoin: 901 }), 60_000);
+		expect(t.bitcoinBeat).toBe(1);
+		expect(t.bitcoinSeenAt).toBe(60_000);
+		expect(foldRead(t, read({ bitcoin: 901 }), 65_000).bitcoinBeat).toBe(1);
+	});
+});
+
+describe("chainState", () => {
+	const live: ChainTip = foldRead(EMPTY_TIP, read(), 0);
+
+	test("blocks arriving and the node level is live", () => {
+		expect(chainState(live, 179_000)).toEqual({ kind: "live" });
+	});
+
+	test("no block for 3 minutes with the node level is a Stacks stall", () => {
+		const t = { ...live, bitcoin: 902 };
+		expect(chainState(t, 14 * 60_000)).toEqual({
+			kind: "stalled",
+			minutes: 14,
+			bitcoinSince: 2,
+		});
+	});
+
+	test("the node 10 or more blocks ahead of our index is us, before any stall", () => {
+		expect(chainState({ ...live, nodeTip: 109 }, 0).kind).toBe("live");
+		expect(chainState({ ...live, nodeTip: 142 }, 20 * 60_000)).toEqual({
+			kind: "behind",
+			blocks: 42,
+		});
+	});
+
+	test("two failed reads in a row is unreachable, whatever the heights say", () => {
+		expect(chainState({ ...live, failures: 1 }, 0).kind).toBe("live");
+		expect(chainState({ ...live, failures: 2, nodeTip: 142 }, 0).kind).toBe(
+			"unreachable",
+		);
+	});
+
+	test("without the node's view, a stall still shows and Bitcoin since is unknown", () => {
+		const t = { ...live, nodeTip: null, anchor: null };
+		expect(chainState(t, 4 * 60_000)).toEqual({
+			kind: "stalled",
+			minutes: 4,
+			bitcoinSince: null,
+		});
 	});
 });
 
 describe("readTip", () => {
-	test("reads height and lag", () => {
+	test("reads our tip, the anchor, and the node's view", () => {
 		expect(
-			readTip({ streams: { tip: { block_height: 5, lag_seconds: 3 } } }),
-		).toEqual({ height: 5, lagSeconds: 3 });
+			readTip({
+				streams: {
+					tip: { block_height: 5, lag_seconds: 3, burn_block_height: 900 },
+				},
+				node: { status: "ok", stacksTip: 6, bitcoinTip: 901 },
+			}),
+		).toEqual({
+			height: 5,
+			lagSeconds: 3,
+			anchor: 900,
+			nodeTip: 6,
+			bitcoin: 901,
+		});
 	});
-	test("tolerates missing lag and rejects a bad height", () => {
-		expect(readTip({ streams: { tip: { block_height: 5 } } })?.lagSeconds).toBe(
-			null,
-		);
+
+	test("without the node's view, Bitcoin falls back to the anchor", () => {
+		const r = readTip({
+			streams: { tip: { block_height: 5, burn_block_height: 900 } },
+			node: { status: "ok", stacksTip: null, bitcoinTip: null },
+		});
+		expect(r?.bitcoin).toBe(900);
+		expect(r?.nodeTip).toBeNull();
+		expect(r?.lagSeconds).toBeNull();
+	});
+
+	test("rejects a bad height", () => {
 		expect(readTip({ streams: { tip: { block_height: "x" } } })).toBeNull();
 		expect(readTip(null)).toBeNull();
 	});

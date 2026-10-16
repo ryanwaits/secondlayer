@@ -682,3 +682,19 @@ body:has(.lab) .auth-bar {
 	color: var(--sub);
 	line-height: 1.5;
 }
+
+/* Chain status in place: not fixed to the viewport, tooltip open above it. */
+.lab-cs {
+	position: relative;
+	display: flex;
+	justify-content: flex-end;
+	padding-top: 220px;
+}
+.lab-cs .chain-status {
+	position: relative;
+	right: auto;
+	bottom: auto;
+}
+.lab-cs .cstat-tip {
+	display: block;
+}
