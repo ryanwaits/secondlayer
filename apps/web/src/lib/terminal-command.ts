@@ -21,6 +21,7 @@ export function commandForPath(
 	if (pathname === "/account") return "sl status";
 	if (pathname === "/account/rows") return "sl credits usage";
 	if (pathname === "/account/webhooks") return "sl webhooks list";
+	if (pathname === "/account/subgraphs") return "sl subgraphs list";
 	if (pathname === "/account/credits") return "sl credits balance";
 	if (pathname === "/account/keys") return "sl whoami";
 	const detail = /^\/account\/webhooks\/([^/]+)$/.exec(pathname);
@@ -28,5 +29,7 @@ export function commandForPath(
 		const id = decode(detail[1]);
 		return `sl webhooks doctor ${nameForId?.(id) ?? id}`;
 	}
+	const subgraph = /^\/account\/subgraphs\/([^/]+)$/.exec(pathname);
+	if (subgraph) return `sl subgraphs status ${decode(subgraph[1])}`;
 	return null;
 }

@@ -11,11 +11,18 @@ describe("DashboardTabs", () => {
 		expect(html).toMatch(/aria-current="page"[^>]*href="\/account\/webhooks"/);
 	});
 
-	test("omits tabs that are not ready", () => {
+	test("shows the Subgraphs tab and nothing for pages that are not tabs", () => {
 		const html = renderToStaticMarkup(<DashboardTabs pathname="/account" />);
 		expect(html).toContain("/account/rows");
-		expect(html).not.toContain("/account/subgraphs");
+		expect(html).toContain("/account/subgraphs");
 		expect(html).not.toContain("/account/keys");
+	});
+
+	test("Subgraphs stays current on a subgraph's own page", () => {
+		const html = renderToStaticMarkup(
+			<DashboardTabs pathname="/account/subgraphs/vault-events" />,
+		);
+		expect(html).toMatch(/aria-current="page"[^>]*href="\/account\/subgraphs"/);
 	});
 
 	test("Overview matches only exactly /account", () => {

@@ -37,6 +37,12 @@ describe("commandForPath", () => {
 			"sl webhooks doctor wh_2",
 		);
 	});
+	test("the subgraph list and detail map to the CLI", () => {
+		expect(commandForPath("/account/subgraphs")).toBe("sl subgraphs list");
+		expect(commandForPath("/account/subgraphs/vault-events")).toBe(
+			"sl subgraphs status vault-events",
+		);
+	});
 	test("unknown routes get no footer", () => {
 		expect(commandForPath("/account/foo")).toBeNull();
 		expect(commandForPath(null)).toBeNull();

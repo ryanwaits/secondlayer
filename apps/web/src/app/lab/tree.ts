@@ -27,6 +27,7 @@ export const STORY_INDEX = [
 	{ id: "insight-stack", group: "Dashboard", title: "Insight stack" },
 	{ id: "handoff", group: "Dashboard", title: "Hand off" },
 	{ id: "callout", group: "Content", title: "Callout" },
+	{ id: "subgraph-grid", group: "Content", title: "Subgraph grid" },
 	{ id: "eyebrow-facts", group: "Content", title: "Eyebrow, facts, status" },
 ] as const;
 

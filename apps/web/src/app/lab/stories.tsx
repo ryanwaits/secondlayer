@@ -1,5 +1,8 @@
 import { RELAYER_READ, TWIN_MINT } from "@/app/robinhood/samples";
 import { AccountChip, AccountMenuPanel } from "@/components/account-menu";
+import { SubgraphsEmptyState } from "@/components/account/subgraphs/empty-state";
+import { SchemaView } from "@/components/account/subgraphs/schema-view";
+import { exampleDetail } from "@/components/account/subgraphs/subgraph.fixtures";
 import { Choice } from "@/components/choice";
 import { Code } from "@/components/code/code";
 import { CodeTabs } from "@/components/code/code-tabs";
@@ -36,6 +39,7 @@ import {
 	HeatStripDemo,
 	RowsDemo,
 	StackedCostDemo,
+	SubgraphGridDemo,
 	WebhookHeaderDemo,
 } from "./story-controls";
 import { STORY_INDEX, type StoryId } from "./tree";
@@ -1564,6 +1568,60 @@ const META: Record<StoryId, Meta> = {
 				note: "Notes under the chart. Empty renders nothing.",
 			},
 		],
+	},
+	"subgraph-grid": {
+		src: [
+			"apps/web/src/components/account/subgraphs/data-grid.tsx",
+			"apps/web/src/components/account/subgraphs/row-panel.tsx",
+			"apps/web/src/components/account/subgraphs/schema-view.tsx",
+			"apps/web/src/lib/subgraph-view.ts",
+		],
+		rule: "Every row keeps the block and transaction it came from. Hover changes text color, never a background; yellow is only the new-row dot.",
+		stack: true,
+		variants: [
+			{
+				id: "rows",
+				label: "Rows",
+				render: () => <SubgraphGridDemo />,
+			},
+			{
+				id: "open-row",
+				label: "Open row",
+				render: () => <SubgraphGridDemo openFirst />,
+			},
+			{
+				id: "schema",
+				label: "Schema",
+				render: () =>
+					exampleDetail.tables.transfers ? (
+						<SchemaView table={exampleDetail.tables.transfers} />
+					) : null,
+			},
+			{
+				id: "empty",
+				label: "Empty state",
+				render: () => <SubgraphsEmptyState />,
+			},
+		],
+		usage:
+			'<DataGrid name="sbtc-deposits" table="transfers" columns={columns} rowCount={n} />',
+		props: [
+			{
+				name: "columns",
+				type: "Record<string, { type: string }>",
+				note: "From the subgraph detail. Order and hidden system columns are derived.",
+			},
+			{
+				name: "key",
+				type: "string",
+				note: "Mount with a key per subgraph and table so a switch starts clean.",
+			},
+		],
+		dos: [
+			"Format digit strings, never Number: values can pass 2^53.",
+			"Close the live stream on unmount, sort, filter, page and hidden tabs.",
+		],
+		donts: ["Offer Filter on _id, _created_at or jsonb values."],
 	},
 	handoff: {
 		src: ["apps/web/src/components/dashboard/insight/handoff-block.tsx"],

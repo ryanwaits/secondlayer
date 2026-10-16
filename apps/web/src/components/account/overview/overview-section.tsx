@@ -34,6 +34,7 @@ import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { OverviewRowsRow } from "../rows/rows-panel";
+import { OverviewSubgraphsRows } from "../subgraphs/list-screen";
 import {
 	StateCell,
 	type WebhookRowModel,
@@ -58,9 +59,12 @@ export function OverviewRowsSlot() {
 	return rows ? <OverviewRowsRow data={rows} now={new Date()} /> : null;
 }
 
-/** Subgraphs get their own row here. Filled by the Subgraphs screen. */
+/** One row per subgraph, once the hosted stack exists (reading subgraphs goes
+ *  through it, so nothing is fetched before then). */
 export function OverviewSubgraphsSlot() {
-	return null;
+	const { service } = useAccountData();
+	const stackExists = service !== null && service.state !== "none";
+	return stackExists ? <OverviewSubgraphsRows /> : null;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) =>
