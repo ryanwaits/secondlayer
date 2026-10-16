@@ -75,6 +75,7 @@ const EXAMPLE_SUMMARY = {
 	lastSuccessAt: "2026-09-22T14:03:11.402Z",
 	circuitOpenedAt: null,
 	circuitFailures: 0,
+	managedBy: null,
 	createdAt: "2026-09-20T09:12:45.118Z",
 	updatedAt: "2026-09-20T09:12:45.118Z",
 };
@@ -87,6 +88,7 @@ const EXAMPLE_DETAIL = {
 	timeoutMs: 10000,
 	concurrency: 4,
 	lastError: null,
+	receiverCertExpiresAt: "2026-12-25T22:56:35.000Z",
 	warning: null,
 };
 
@@ -181,6 +183,11 @@ const SUMMARY_PROPERTIES = {
 		description:
 			"Consecutive failed deliveries; a success resets it. The circuit opens at 20; resume resets it.",
 	},
+	managedBy: {
+		type: ["string", "null"],
+		description:
+			"Product that owns this webhook's name, derived from a reserved name prefix (for example `sentinel:` is Sentinel). When set, renaming returns 409 `WEBHOOK_NAME_MANAGED`. `null` for ordinary webhooks.",
+	},
 	createdAt: {
 		type: "string",
 		format: "date-time",
@@ -265,6 +272,12 @@ const DETAIL_PROPERTIES = {
 	lastError: {
 		type: ["string", "null"],
 		description: "Error from the last failed delivery.",
+	},
+	receiverCertExpiresAt: {
+		type: ["string", "null"],
+		format: "date-time",
+		description:
+			"When the receiver's TLS certificate expires, from a periodic probe. `null` for http receivers, unreachable hosts, and webhooks not probed yet.",
 	},
 	warning: {
 		type: ["string", "null"],
@@ -529,9 +542,23 @@ export const webhooksPaths = {
 			summary: "List delivery attempts",
 			"x-nav-title": "Delivery attempts",
 			description:
-				"The last 100 delivery attempts, newest first, including test deliveries. `total` counts every attempt ever logged for the webhook.",
+				"The last 100 delivery attempts, newest first, including test deliveries. `total` counts every attempt ever logged for the webhook. With `from` and `to`, only attempts dispatched in that window; `total` counts the window.",
 			security: WRITE_SECURITY,
-			parameters: [ID_PARAM],
+			parameters: [
+				ID_PARAM,
+				qp(
+					"from",
+					"string",
+					false,
+					"Window start, inclusive, ISO 8601. Needs `to`; at most 31 days before it.",
+				),
+				qp(
+					"to",
+					"string",
+					false,
+					"Window end, exclusive, ISO 8601. Needs `from`.",
+				),
+			],
 			responses: apiReadResponses({
 				"200": json200(
 					{

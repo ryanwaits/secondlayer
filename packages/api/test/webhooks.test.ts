@@ -3,7 +3,10 @@ import { getDb } from "@secondlayer/shared/db";
 import type { InsertWebhookOutbox } from "@secondlayer/shared/db";
 import { __setReplayInFlightForTest } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
-import webhooksRouter from "../src/routes/webhooks.ts";
+import webhooksRouter, {
+	percentileNearestRank,
+	usualBand,
+} from "../src/routes/webhooks.ts";
 
 const SKIP = !process.env.DATABASE_URL;
 const ACCOUNT_ID = "a5e10000-0000-4000-8000-000000000009";
@@ -910,6 +913,359 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		);
 		expect(res.status).toBe(404);
 	});
+
+	// ── managed names ────────────────────────────────────────────────
+
+	function patchName(id: string, name: string) {
+		return app.request(`/webhooks/${id}`, {
+			method: "PATCH",
+			body: JSON.stringify({ name }),
+		});
+	}
+
+	test("renaming a plain webhook returns the new name", async () => {
+		const id = await createTestWebhook("rename-plain");
+		const res = await patchName(id, "rename-plain-2");
+		expect(res.status).toBe(200);
+		expect(await res.json()).toMatchObject({
+			name: "rename-plain-2",
+			managedBy: null,
+		});
+	});
+
+	test("renaming a sentinel-owned webhook is refused", async () => {
+		const id = await createTestWebhook("sentinel:SP1.vault:set-admin");
+		const res = await patchName(id, "my-own-name");
+		expect(res.status).toBe(409);
+		expect(await res.json()).toMatchObject({ code: "WEBHOOK_NAME_MANAGED" });
+	});
+
+	test("renaming a plain webhook into the sentinel prefix is refused", async () => {
+		const id = await createTestWebhook("rename-into-sentinel");
+		const res = await patchName(id, "sentinel:x");
+		expect(res.status).toBe(409);
+		expect(await res.json()).toMatchObject({ code: "WEBHOOK_NAME_MANAGED" });
+	});
+
+	test("renaming onto an existing name is refused", async () => {
+		await createTestWebhook("rename-taken");
+		const id = await createTestWebhook("rename-wants-taken");
+		const res = await patchName(id, "rename-taken");
+		expect(res.status).toBe(409);
+		expect(await res.json()).toMatchObject({
+			error: 'Webhook "rename-taken" already exists',
+		});
+	});
+
+	test("patching only the url of a sentinel-owned webhook still works", async () => {
+		const id = await createTestWebhook("sentinel:SP2.vault:url-only");
+		const res = await app.request(`/webhooks/${id}`, {
+			method: "PATCH",
+			body: JSON.stringify({ url: "https://example.com/moved" }),
+		});
+		expect(res.status).toBe(200);
+		expect(await res.json()).toMatchObject({
+			url: "https://example.com/moved",
+			managedBy: "Sentinel",
+		});
+	});
+
+	test("list and detail carry managedBy", async () => {
+		const id = await createTestWebhook("sentinel:SP3.vault:listed");
+		const list = (await (await app.request("/webhooks")).json()) as {
+			data: { id: string; managedBy: string | null }[];
+		};
+		expect(list.data.find((w) => w.id === id)?.managedBy).toBe("Sentinel");
+		const detail = (await (await app.request(`/webhooks/${id}`)).json()) as {
+			managedBy: string | null;
+		};
+		expect(detail.managedBy).toBe("Sentinel");
+	});
+
+	test("detail reports the receiver certificate expiry once probed", async () => {
+		const id = await createTestWebhook("cert-expiry");
+		const before = (await (await app.request(`/webhooks/${id}`)).json()) as {
+			receiverCertExpiresAt: string | null;
+		};
+		expect(before.receiverCertExpiresAt).toBeNull();
+		const expires = new Date("2027-01-02T03:04:05.000Z");
+		await getDb()
+			.updateTable("webhooks")
+			.set({ receiver_cert_expires_at: expires })
+			.where("id", "=", id)
+			.execute();
+		const after = (await (await app.request(`/webhooks/${id}`)).json()) as {
+			receiverCertExpiresAt: string | null;
+		};
+		expect(after.receiverCertExpiresAt).toBe(expires.toISOString());
+	});
+
+	// ── delivery windows ─────────────────────────────────────────────
+
+	function currentHourStart(): Date {
+		return new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000);
+	}
+
+	test("deliveries with a window return only attempts dispatched inside it", async () => {
+		const id = await createTestWebhook("deliveries-window");
+		const h = currentHourStart().getTime() - 5 * 3_600_000;
+		await getDb()
+			.insertInto("webhook_deliveries")
+			.values(
+				[2, 1, 0].map((back) => ({
+					webhook_id: id,
+					outbox_id: null,
+					attempt: 1,
+					status_code: 200,
+					dispatched_at: new Date(h - back * 3_600_000 + 60_000),
+				})),
+			)
+			.execute();
+		const from = new Date(h - 3_600_000).toISOString();
+		const to = new Date(h).toISOString();
+		const res = await app.request(
+			`/webhooks/${id}/deliveries?from=${from}&to=${to}`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			total: number;
+			data: { dispatchedAt: string }[];
+		};
+		expect(body.total).toBe(1);
+		expect(body.data).toHaveLength(1);
+		expect(body.data[0]?.dispatchedAt).toBe(
+			new Date(h - 3_600_000 + 60_000).toISOString(),
+		);
+
+		const all = (await (
+			await app.request(`/webhooks/${id}/deliveries`)
+		).json()) as { total: number };
+		expect(all.total).toBe(3);
+	});
+
+	test("deliveries reject a malformed, reversed, half-open or oversized window", async () => {
+		const id = await createTestWebhook("deliveries-bad-window");
+		const t = "2026-10-01T00:00:00.000Z";
+		const cases = [
+			"from=nope&to=nope",
+			`from=${t}`,
+			`from=${t}&to=2026-09-30T00:00:00.000Z`,
+			`from=${t}&to=2026-11-15T00:00:00.000Z`,
+		];
+		for (const qs of cases) {
+			const res = await app.request(`/webhooks/${id}/deliveries?${qs}`);
+			expect(res.status).toBe(400);
+			expect(await res.json()).toMatchObject({ code: "INVALID_WINDOW" });
+		}
+	});
+
+	// ── activity: failed attempts, band, 30 days ─────────────────────
+
+	type ActivityBody = {
+		hours: { hour: string; delivered: number; failed: number }[];
+		usualByHourOfDay: { lo: number; hi: number }[] | null;
+		days?: { day: string; delivered: number; failed: number }[];
+	};
+
+	test("activity counts failed attempts per hour next to outbox-based delivered", async () => {
+		const id = await createTestWebhook("activity-failed");
+		const hour = new Date(currentHourStart().getTime() - 2 * 3_600_000);
+		const at = new Date(hour.getTime() + 60_000);
+		await getDb()
+			.insertInto("webhook_outbox")
+			.values(
+				outboxRow({
+					webhook_id: id,
+					dedup_key: "activity-failed-delivered",
+					status: "delivered",
+					created_at: hour,
+				}),
+			)
+			.execute();
+		await getDb()
+			.insertInto("webhook_deliveries")
+			.values([
+				{
+					webhook_id: id,
+					outbox_id: null,
+					attempt: 1,
+					status_code: 503,
+					dispatched_at: at,
+				},
+				{
+					webhook_id: id,
+					outbox_id: null,
+					attempt: 2,
+					status_code: null,
+					dispatched_at: at,
+				},
+				{
+					webhook_id: id,
+					outbox_id: null,
+					attempt: 3,
+					status_code: 200,
+					dispatched_at: at,
+				},
+			])
+			.execute();
+		const activity = (await (
+			await app.request(`/webhooks/${id}/activity`)
+		).json()) as ActivityBody;
+		const bucket = activity.hours.find((h) => h.hour === hour.toISOString());
+		expect(bucket).toMatchObject({ delivered: 1, failed: 2 });
+		expect(activity.days).toBeUndefined();
+	});
+
+	test("activity hides the usual band at low volume", async () => {
+		const id = await createTestWebhook("activity-band-low");
+		await getDb()
+			.insertInto("webhook_deliveries")
+			.values({
+				webhook_id: id,
+				outbox_id: null,
+				attempt: 1,
+				status_code: 200,
+				dispatched_at: new Date(currentHourStart().getTime() - 3_600_000),
+			})
+			.execute();
+		const activity = (await (
+			await app.request(`/webhooks/${id}/activity`)
+		).json()) as ActivityBody;
+		expect(activity.usualByHourOfDay).toBeNull();
+	});
+
+	test("activity reports a steady 2-per-hour history as lo=hi=2 at every hour of day", async () => {
+		const id = await createTestWebhook("activity-band-steady");
+		const end = currentHourStart().getTime();
+		const rows = [];
+		for (let back = 1; back <= 28 * 24; back++) {
+			for (const offset of [60_000, 120_000]) {
+				rows.push({
+					webhook_id: id,
+					outbox_id: null,
+					attempt: 1,
+					status_code: 200,
+					dispatched_at: new Date(end - back * 3_600_000 + offset),
+				});
+			}
+		}
+		await getDb().insertInto("webhook_deliveries").values(rows).execute();
+		const started = performance.now();
+		const res = await app.request(`/webhooks/${id}/activity`);
+		const elapsedMs = performance.now() - started;
+		console.log(
+			`[plan-244] activity (with 28d band) took ${elapsedMs.toFixed(0)} ms`,
+		);
+		const activity = (await res.json()) as ActivityBody;
+		expect(activity.usualByHourOfDay).toHaveLength(24);
+		for (const band of activity.usualByHourOfDay ?? []) {
+			expect(band).toEqual({ lo: 2, hi: 2 });
+		}
+	});
+
+	test("activity days=30 returns 30 zero-filled UTC days with attempts bucketed", async () => {
+		const id = await createTestWebhook("activity-days");
+		const empty = (await (
+			await app.request(`/webhooks/${id}/activity?days=30`)
+		).json()) as ActivityBody;
+		expect(empty.days).toHaveLength(30);
+		expect(empty.days?.every((d) => d.delivered === 0 && d.failed === 0)).toBe(
+			true,
+		);
+		const todayKey = new Date().toISOString().slice(0, 10);
+		expect(empty.days?.[29]?.day).toBe(todayKey);
+
+		await getDb()
+			.insertInto("webhook_deliveries")
+			.values([
+				{ webhook_id: id, outbox_id: null, attempt: 1, status_code: 200 },
+				{ webhook_id: id, outbox_id: null, attempt: 1, status_code: 500 },
+			])
+			.execute();
+		const filled = (await (
+			await app.request(`/webhooks/${id}/activity?days=30`)
+		).json()) as ActivityBody;
+		expect(filled.days?.[29]).toEqual({
+			day: todayKey,
+			delivered: 1,
+			failed: 1,
+		});
+	});
+
+	test("activity rejects a days value other than 30", async () => {
+		const id = await createTestWebhook("activity-days-bad");
+		const res = await app.request(`/webhooks/${id}/activity?days=7`);
+		expect(res.status).toBe(400);
+		expect(await res.json()).toMatchObject({ code: "INVALID_DAYS" });
+	});
+
+	// ── list-wide heat data ──────────────────────────────────────────
+
+	type HeatBody = {
+		hours: string[];
+		webhooks: { id: string; delivered: number[]; failed: number[] }[];
+	};
+
+	test("list activity aligns each webhook's counts to the 168 hours and zero-fills the rest", async () => {
+		const busy = await createTestWebhook("heat-busy");
+		const quiet = await createTestWebhook("heat-quiet");
+		const hour = new Date(currentHourStart().getTime() - 3 * 3_600_000);
+		const at = new Date(hour.getTime() + 60_000);
+		await getDb()
+			.insertInto("webhook_deliveries")
+			.values([
+				{
+					webhook_id: busy,
+					outbox_id: null,
+					attempt: 1,
+					status_code: 200,
+					dispatched_at: at,
+				},
+				{
+					webhook_id: busy,
+					outbox_id: null,
+					attempt: 1,
+					status_code: 200,
+					dispatched_at: at,
+				},
+				{
+					webhook_id: busy,
+					outbox_id: null,
+					attempt: 1,
+					status_code: 502,
+					dispatched_at: at,
+				},
+			])
+			.execute();
+		const res = await app.request("/webhooks/activity");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as HeatBody;
+		expect(body.hours).toHaveLength(168);
+		const index = body.hours.indexOf(hour.toISOString());
+		expect(index).toBe(164);
+		const busyRow = body.webhooks.find((w) => w.id === busy);
+		expect(busyRow?.delivered).toHaveLength(168);
+		expect(busyRow?.delivered[index]).toBe(2);
+		expect(busyRow?.failed[index]).toBe(1);
+		const quietRow = body.webhooks.find((w) => w.id === quiet);
+		expect(quietRow?.delivered.every((n) => n === 0)).toBe(true);
+		expect(quietRow?.failed.every((n) => n === 0)).toBe(true);
+	});
+
+	test("list activity leaves out another account's webhooks", async () => {
+		const mine = await createTestWebhook("heat-mine");
+		const theirs = await createTestWebhook("heat-theirs");
+		await getDb()
+			.updateTable("webhooks")
+			.set({ account_id: "a5e10000-0000-4000-8000-0000000000ff" })
+			.where("id", "=", theirs)
+			.execute();
+		const body = (await (
+			await app.request("/webhooks/activity")
+		).json()) as HeatBody;
+		expect(body.webhooks.some((w) => w.id === mine)).toBe(true);
+		expect(body.webhooks.some((w) => w.id === theirs)).toBe(false);
+	});
 });
 
 describe.skipIf(SKIP)("Webhooks API pagination", () => {
@@ -1062,5 +1418,23 @@ describe("webhook mount paths", () => {
 		const current = await app.request("/api/webhooks");
 		expect(legacy.status).toBe(404);
 		expect([200, 401]).toContain(current.status);
+	});
+});
+
+describe("usual band maths", () => {
+	test("nearest-rank percentile picks the ranked sample", () => {
+		const values = [5, 1, 9, 3, 7, 2, 8, 4, 10, 6];
+		expect(percentileNearestRank(values, 0.1)).toBe(1);
+		expect(percentileNearestRank(values, 0.5)).toBe(5);
+		expect(percentileNearestRank(values, 0.9)).toBe(9);
+		expect(percentileNearestRank([], 0.9)).toBe(0);
+	});
+
+	test("the band ignores the current partial hour and hides when the median is below one", () => {
+		const now = new Date("2026-10-15T12:34:00.000Z");
+		const counts = new Map<string, number>();
+		// Only the partial current hour has traffic: still no band.
+		counts.set("2026-10-15T12:00:00.000Z", 50);
+		expect(usualBand(counts, now)).toBeNull();
 	});
 });

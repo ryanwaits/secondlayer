@@ -6,6 +6,7 @@ import {
 	CreateWebhookRequestSchema,
 	ReplayWebhookRequestSchema,
 	UpdateWebhookRequestSchema,
+	managedByForName,
 	trigger,
 	webhookMaxRetriesCeiling,
 	webhookTimeoutMsCeiling,
@@ -372,5 +373,19 @@ describe("delivery cap ceilings", () => {
 	it("ignores a non-numeric env override and falls back to the default", () => {
 		process.env.WEBHOOK_MAX_RETRIES_CEILING = "not-a-number";
 		expect(webhookMaxRetriesCeiling()).toBe(100);
+	});
+});
+
+describe("managedByForName", () => {
+	it("names the owner of a reserved prefix", () => {
+		expect(managedByForName("sentinel:SP123.vault:set-admin")).toBe("Sentinel");
+	});
+
+	it("leaves ordinary names unmanaged", () => {
+		expect(managedByForName("sbtc-deposits")).toBeNull();
+	});
+
+	it("matches the prefix case-sensitively", () => {
+		expect(managedByForName("Sentinel:x")).toBeNull();
 	});
 });

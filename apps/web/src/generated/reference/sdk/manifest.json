@@ -999,6 +999,7 @@
 		"VmStreamsEvent": "/docs/sdk-reference/streams#t-VmStreamsEvent",
 		"VmStreamsEventOf": "/docs/sdk-reference/streams#t-VmStreamsEventOf",
 		"WebhookActivity": "/docs/sdk-reference/webhooks#t-WebhookActivity",
+		"WebhookActivityDay": "/docs/sdk-reference/webhooks#t-WebhookActivityDay",
 		"WebhookActivityHour": "/docs/sdk-reference/webhooks#t-WebhookActivityHour",
 		"WebhookAuth": "/docs/sdk-reference/webhooks#t-WebhookAuth",
 		"WebhookDeliveryDetail": "/docs/sdk-reference/webhooks#t-WebhookDeliveryDetail",

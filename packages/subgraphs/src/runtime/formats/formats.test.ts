@@ -30,6 +30,8 @@ function sub(overrides: Partial<Webhook>): Webhook {
 		last_delivery_at: null,
 		last_success_at: null,
 		last_error: null,
+		receiver_cert_expires_at: null,
+		receiver_cert_checked_at: null,
 		created_at: FIXED_CREATED_AT,
 		updated_at: FIXED_CREATED_AT,
 		...overrides,

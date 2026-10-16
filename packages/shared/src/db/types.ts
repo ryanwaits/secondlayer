@@ -1267,6 +1267,9 @@ export interface WebhooksTable {
 	last_delivery_at: Date | null;
 	last_success_at: Date | null;
 	last_error: string | null;
+	/** Receiver TLS leaf certificate expiry, from the emitter's periodic probe. */
+	receiver_cert_expires_at: Date | null;
+	receiver_cert_checked_at: Date | null;
 	created_at: Generated<Date>;
 	updated_at: Generated<Date>;
 }

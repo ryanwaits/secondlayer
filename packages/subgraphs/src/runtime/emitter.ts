@@ -17,6 +17,7 @@ import {
 import { type Kysely, sql } from "kysely";
 import { buildForFormat } from "./formats/index.ts";
 import { recordDelivery } from "./meter-socket.ts";
+import { refreshReceiverCerts } from "./receiver-cert.ts";
 
 /**
  * Webhook emitter — drains `webhook_outbox` and POSTs deliveries.
@@ -214,7 +215,10 @@ function isPrivateEgress(url: string): boolean {
 	return isPrivateIp(host);
 }
 
-function allowPrivateEgress(): boolean {
+/** How often the emitter re-probes receivers' TLS certificates. */
+const RECEIVER_CERT_INTERVAL_MS = 30 * 60_000;
+
+export function allowPrivateEgress(): boolean {
 	return process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS === "true";
 }
 
@@ -1143,6 +1147,16 @@ export async function startEmitter(
 		);
 	}, retentionIntervalMs);
 
+	// Receiver TLS expiry probe: Bun's fetch can't read peer certificates.
+	const receiverCerts = setInterval(() => {
+		if (!state.running) return;
+		void refreshReceiverCerts(db).catch((err) =>
+			logger.error("[emitter] receiver cert refresh failed", {
+				error: err instanceof Error ? err.message : String(err),
+			}),
+		);
+	}, RECEIVER_CERT_INTERVAL_MS);
+
 	return async () => {
 		// No new claims start (`runClaimLoop`'s own check) and no new
 		// dispatches start (`pumpSub`'s own check) from this point on — the
@@ -1150,6 +1164,7 @@ export async function startEmitter(
 		state.running = false;
 		clearInterval(poll);
 		clearInterval(retention);
+		clearInterval(receiverCerts);
 		await stopNew();
 		await stopChanged();
 

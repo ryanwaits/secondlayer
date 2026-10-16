@@ -89,6 +89,20 @@ const webhookUrl = z
 
 const name = z.string().trim().min(1).max(128);
 
+/** Webhook names another first-party product owns and looks up by name.
+ *  Renaming one breaks that product's reconcile, so the API refuses it and
+ *  the dashboard shows the owner instead of Rename. Prefix -> display name. */
+export const MANAGED_NAME_PREFIXES: Readonly<Record<string, string>> = {
+	"sentinel:": "Sentinel",
+};
+
+export function managedByForName(name: string): string | null {
+	for (const [prefix, owner] of Object.entries(MANAGED_NAME_PREFIXES)) {
+		if (name.startsWith(prefix)) return owner;
+	}
+	return null;
+}
+
 export const WebhookStatusSchema: z.ZodType<WebhookStatus> =
 	z.enum(WEBHOOK_STATUSES);
 export const WebhookFormatSchema: z.ZodType<WebhookFormat> =
@@ -756,6 +770,9 @@ export interface WebhookSummary {
 	 *  summary so the list can show a failing receiver per row without a
 	 *  per-row fetch. */
 	circuitFailures: number;
+	/** Owning product, derived from the name prefix (`MANAGED_NAME_PREFIXES`).
+	 *  When non-null the API refuses to rename the webhook. */
+	managedBy: string | null;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -782,6 +799,10 @@ export interface WebhookDetail extends WebhookSummary {
 	timeoutMs: number;
 	concurrency: number;
 	lastError: string | null;
+	/** When the receiver's TLS certificate expires, from the periodic probe.
+	 *  Null for http receivers, refused or unreachable hosts, and webhooks not
+	 *  probed yet. */
+	receiverCertExpiresAt: string | null;
 	/** Set when this instance's chain-trigger
 	 *  evaluator isn't running (`SUBGRAPH_SOURCE` != `streams-index`) — the
 	 *  webhook will never fire until that's fixed. Null otherwise. Surfaced
@@ -837,6 +858,10 @@ export interface WebhookActivityHour {
 	delivered: number;
 	waiting: number;
 	gaveUp: number;
+	/** Failed attempts in the hour (no response or non-2xx), from
+	 *  `webhook_deliveries`. Attempts, not events: a retried-then-delivered
+	 *  event counts here but is `delivered` above. */
+	failed: number;
 }
 
 /** A week of hourly delivery counts and what is waiting now. */
@@ -850,6 +875,30 @@ export interface WebhookActivity {
 	/** 7-day counts per `event_type` (same 168-hour window as `hours`), e.g.
 	 *  `chain.stx_transfer.apply` — the config card's per-trigger volume. */
 	byEventType: Record<string, number>;
+	/** Typical delivered attempts for each UTC hour of day (p10 and p90 of the
+	 *  last 28 days, from `webhook_deliveries`). Null at low volume, where
+	 *  "usual" is not meaningful. */
+	usualByHourOfDay: Array<{ lo: number; hi: number }> | null;
+	/** Present with `?days=30`: 30 UTC days, oldest first, from
+	 *  `webhook_deliveries` (2xx is delivered, everything else failed). */
+	days?: WebhookActivityDay[];
+}
+
+/** One UTC day of delivery attempts (`GET /:id/activity?days=30`). */
+export interface WebhookActivityDay {
+	/** YYYY-MM-DD, UTC. */
+	day: string;
+	delivered: number;
+	failed: number;
+}
+
+/** Heat data for every webhook on the account (`GET /api/webhooks/activity`),
+ *  from `webhook_deliveries` attempts. */
+export interface WebhooksActivitySummary {
+	/** 168 ISO UTC hour starts, oldest first. */
+	hours: string[];
+	/** Arrays are aligned to `hours` and zero-filled. */
+	webhooks: Array<{ id: string; delivered: number[]; failed: number[] }>;
 }
 
 /**

@@ -12,7 +12,7 @@ import type {
 	WebhookSummary,
 	WebhookTestResult,
 } from "@secondlayer/shared/schemas/webhooks";
-import { BaseClient, seg } from "../base.ts";
+import { BaseClient, buildQuery, seg } from "../base.ts";
 
 export type {
 	ChainTrigger,
@@ -140,23 +140,30 @@ export class Webhooks extends BaseClient {
 		);
 	}
 
-	/** The last 100 delivery attempts, newest first. The server caps the window;
-	 *  there is nothing to page. */
-	async deliveries(id: string): Promise<{ data: DeliveryRow[] }> {
-		return this.request<{ data: DeliveryRow[] }>(
+	/** The last 100 delivery attempts, newest first. The server caps the
+	 *  result; there is nothing to page. Pass `window` (ISO timestamps, at most
+	 *  31 days wide) to read only the attempts dispatched in `[from, to)`, for
+	 *  example one hour of the heat strip; `total` then counts that window. */
+	async deliveries(
+		id: string,
+		window?: { from: string; to: string },
+	): Promise<{ total: number; data: DeliveryRow[] }> {
+		return this.request<{ total: number; data: DeliveryRow[] }>(
 			"GET",
-			`/api/webhooks/${seg(id)}/deliveries`,
+			`/api/webhooks/${seg(id)}/deliveries${buildQuery({ from: window?.from, to: window?.to })}`,
 		);
 	}
 
 	/** Get a webhook's hourly delivery counts for the last 7 days.
 	 *
 	 *  Each hour has delivered, waiting, and gave-up counts, plus the current
-	 *  queue depth. This is the events chart on the detail page. */
-	async activity(id: string): Promise<WebhookActivity> {
+	 *  queue depth, failed attempts per hour, and the usual band. Pass
+	 *  `{ days: 30 }` to also get 30 daily totals. This is the events chart on
+	 *  the detail page. */
+	async activity(id: string, opts?: { days?: 30 }): Promise<WebhookActivity> {
 		return this.request<WebhookActivity>(
 			"GET",
-			`/api/webhooks/${seg(id)}/activity`,
+			`/api/webhooks/${seg(id)}/activity${buildQuery({ days: opts?.days })}`,
 		);
 	}
 

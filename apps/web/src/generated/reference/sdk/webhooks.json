@@ -280,10 +280,10 @@
 			"id": "deliveries",
 			"path": "sl.webhooks.deliveries",
 			"summary": "The last 100 delivery attempts, newest first.",
-			"description": "The last 100 delivery attempts, newest first. The server caps the window;\nthere is nothing to page.",
+			"description": "The last 100 delivery attempts, newest first. The server caps the\nresult; there is nothing to page. Pass `window` (ISO timestamps, at most\n31 days wide) to read only the attempts dispatched in `[from, to)`, for\nexample one hour of the heat strip; `total` then counts that window.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 145
+				"line": 147
 			},
 			"rest": "GET /api/webhooks/{id}/deliveries",
 			"overloads": [
@@ -296,10 +296,16 @@
 							"type": "string",
 							"required": true,
 							"description": ""
+						},
+						{
+							"name": "window",
+							"type": "{ from: string; to: string }",
+							"required": false,
+							"description": ""
 						}
 					],
 					"returns": {
-						"type": "Promise<{ data: DeliveryRow[] }>",
+						"type": "Promise<{ total: number; data: DeliveryRow[] }>",
 						"description": ""
 					}
 				}
@@ -310,10 +316,10 @@
 			"id": "activity",
 			"path": "sl.webhooks.activity",
 			"summary": "Get a webhook's hourly delivery counts for the last 7 days.",
-			"description": "Get a webhook's hourly delivery counts for the last 7 days.\n\nEach hour has delivered, waiting, and gave-up counts, plus the current\nqueue depth. This is the events chart on the detail page.",
+			"description": "Get a webhook's hourly delivery counts for the last 7 days.\n\nEach hour has delivered, waiting, and gave-up counts, plus the current\nqueue depth, failed attempts per hour, and the usual band. Pass\n`{ days: 30 }` to also get 30 daily totals. This is the events chart on\nthe detail page.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 156
+				"line": 163
 			},
 			"rest": "GET /api/webhooks/{id}/activity",
 			"overloads": [
@@ -325,6 +331,12 @@
 							"name": "id",
 							"type": "string",
 							"required": true,
+							"description": ""
+						},
+						{
+							"name": "opts",
+							"type": "{ days?: 30 }",
+							"required": false,
 							"description": ""
 						}
 					],
@@ -343,7 +355,7 @@
 			"description": "Get one delivery attempt with its payload and response.\n\nIncludes the outbox context (payload, response headers). This is the\ndelivery card on the detail page.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 167
+				"line": 174
 			},
 			"rest": "GET /api/webhooks/{id}/deliveries/{deliveryId}",
 			"overloads": [
@@ -379,7 +391,7 @@
 			"description": "Re-deliver historical events over an existing webhook.\n\nPass `fromBlock` and `toBlock`; the range is capped at 100,000 blocks. A replay is historical only and never moves the live cursor. It is idempotent: the same range twice is a no-op, so pass any string as `force` to re-deliver it. Replays carry `is_replay` and use the standard `chain.{type}.apply` envelope. Resolves to `replayId`, `enqueuedCount`, and `scannedCount`. A second replay while one is running is a 409. `sbtc_withdrawal_swept_confirmed` is forward-only and never replayed. Hosted accounts get 5 replays an hour.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 182
+				"line": 189
 			},
 			"rest": "POST /api/webhooks/{id}/replay",
 			"overloads": [
@@ -420,7 +432,7 @@
 			"description": "List the events a webhook gave up delivering.\n\nReturns up to 100 dead-lettered events, newest failure first. Each row's `id` is what `requeue` takes.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 198
+				"line": 205
 			},
 			"rest": "GET /api/webhooks/{id}/dead",
 			"overloads": [
@@ -450,7 +462,7 @@
 			"description": "Push one dead-lettered event back onto the delivery queue. `outboxId` is\nthe `id` of a row from `dead`.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 207
+				"line": 214
 			},
 			"rest": "POST /api/webhooks/{id}/dead/{outboxId}/requeue",
 			"overloads": [
@@ -824,6 +836,42 @@
 					"type": "Record<string, number>",
 					"required": true,
 					"description": "7-day counts per `event_type` (same 168-hour window as `hours`), e.g.\n`chain.stx_transfer.apply` — the config card's per-trigger volume."
+				},
+				{
+					"name": "usualByHourOfDay",
+					"type": "{ lo: number; hi: number; }[] | null",
+					"required": true,
+					"description": "Typical delivered attempts for each UTC hour of day (p10 and p90 of the\nlast 28 days, from `webhook_deliveries`). Null at low volume, where\n\"usual\" is not meaningful."
+				},
+				{
+					"name": "days",
+					"type": "WebhookActivityDay[]",
+					"required": false,
+					"description": "Present with `?days=30`: 30 UTC days, oldest first, from\n`webhook_deliveries` (2xx is delivered, everything else failed)."
+				}
+			]
+		},
+		{
+			"name": "WebhookActivityDay",
+			"summary": "One UTC day of delivery attempts (`GET /:id/activity?days=30`).",
+			"fields": [
+				{
+					"name": "day",
+					"type": "string",
+					"required": true,
+					"description": "YYYY-MM-DD, UTC."
+				},
+				{
+					"name": "delivered",
+					"type": "number",
+					"required": true,
+					"description": ""
+				},
+				{
+					"name": "failed",
+					"type": "number",
+					"required": true,
+					"description": ""
 				}
 			]
 		},
@@ -854,6 +902,12 @@
 					"type": "number",
 					"required": true,
 					"description": ""
+				},
+				{
+					"name": "failed",
+					"type": "number",
+					"required": true,
+					"description": "Failed attempts in the hour (no response or non-2xx), from\n`webhook_deliveries`. Attempts, not events: a retried-then-delivered\nevent counts here but is `delivered` above."
 				}
 			]
 		},
@@ -1024,6 +1078,12 @@
 					"description": ""
 				},
 				{
+					"name": "receiverCertExpiresAt",
+					"type": "string | null",
+					"required": true,
+					"description": "When the receiver's TLS certificate expires, from the periodic probe.\nNull for http receivers, refused or unreachable hosts, and webhooks not\nprobed yet."
+				},
+				{
 					"name": "warning",
 					"type": "string | null",
 					"required": true,
@@ -1088,6 +1148,12 @@
 					"type": "number",
 					"required": true,
 					"description": "Consecutive failed deliveries (reset to 0 on a success). On the\nsummary so the list can show a failing receiver per row without a\nper-row fetch."
+				},
+				{
+					"name": "managedBy",
+					"type": "string | null",
+					"required": true,
+					"description": "Owning product, derived from the name prefix (`MANAGED_NAME_PREFIXES`).\nWhen non-null the API refuses to rename the webhook."
 				},
 				{
 					"name": "createdAt",
@@ -1166,6 +1232,12 @@
 					"type": "number",
 					"required": true,
 					"description": "Consecutive failed deliveries (reset to 0 on a success). On the\nsummary so the list can show a failing receiver per row without a\nper-row fetch."
+				},
+				{
+					"name": "managedBy",
+					"type": "string | null",
+					"required": true,
+					"description": "Owning product, derived from the name prefix (`MANAGED_NAME_PREFIXES`).\nWhen non-null the API refuses to rename the webhook."
 				},
 				{
 					"name": "createdAt",
