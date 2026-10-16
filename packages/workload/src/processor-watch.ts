@@ -128,7 +128,7 @@ function processorContainer(acct8: string): string {
 	return `tenant-${acct8}-subgraph-processor-1`;
 }
 
-function tenantEndpoint(
+export function tenantEndpoint(
 	cfg: ProvisionerConfig,
 	tenant: TenantRow,
 ): TenantEndpoint | null {

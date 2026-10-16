@@ -32,6 +32,10 @@
 			"types": "./dist/db/queries/api-failed-requests.d.ts",
 			"import": "./dist/db/queries/api-failed-requests.js"
 		},
+		"./db/queries/webhook-incident-alerts": {
+			"types": "./dist/db/queries/webhook-incident-alerts.d.ts",
+			"import": "./dist/db/queries/webhook-incident-alerts.js"
+		},
 		"./db/queries/api-request-log": {
 			"types": "./dist/db/queries/api-request-log.d.ts",
 			"import": "./dist/db/queries/api-request-log.js"

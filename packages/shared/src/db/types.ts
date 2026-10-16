@@ -1092,6 +1092,7 @@ export interface Database {
 	archive_fetches: ArchiveFetchesTable;
 	usage_ledger: UsageLedgerTable;
 	account_balance_alerts: AccountBalanceAlertsTable;
+	webhook_incident_alerts: WebhookIncidentAlertsTable;
 	sentinel_accounts: SentinelAccountsTable;
 	waitlists: WaitlistsTable;
 	waitlist_signups: WaitlistSignupsTable;
@@ -1210,6 +1211,21 @@ export interface AccountBalanceAlertsTable {
 	sent_2d_at: Date | null;
 	sent_stopped_at: Date | null;
 }
+
+/** Debounce state for the webhook-down email: one row per incident, open
+ *  while `resolved_at` is null. No preference columns by design. */
+export interface WebhookIncidentAlertsTable {
+	id: Generated<string>;
+	account_id: string;
+	webhook_id: string;
+	webhook_name: string;
+	failing_since: Date;
+	opened_at: Generated<Date>;
+	emailed_at: Date | null;
+	resolved_at: Date | null;
+}
+
+export type WebhookIncidentAlert = Selectable<WebhookIncidentAlertsTable>;
 
 /** Accounts Sentinel's service key may touch: created by Sentinel, or the
  *  owner opted in. */

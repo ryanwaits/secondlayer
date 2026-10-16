@@ -87,6 +87,7 @@ CONTROL_TABLES=(
   archive_fetches
   usage_ledger
   account_balance_alerts
+  webhook_incident_alerts
   sentinel_accounts
   waitlists
   waitlist_signups

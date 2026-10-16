@@ -85,12 +85,14 @@ import {
 	createUpgradeRunner,
 	resolveTargetSha,
 } from "./upgrade.ts";
+import { createWebhookIncidentWatch } from "./webhook-incident-watch.ts";
 
 const METER_FLUSH_INTERVAL_MS = 60_000;
 const MEMORY_SAMPLE_INTERVAL_MS = 60_000;
 const MEMORY_FLUSH_INTERVAL_MS = 60 * 60_000; // hourly (Design)
 const STORAGE_SAMPLE_INTERVAL_MS = 24 * 60 * 60_000; // daily (Design)
 const CREDITS_POLL_INTERVAL_MS = 5 * 60_000; // Design: "every 5 min"
+const WEBHOOK_INCIDENT_INTERVAL_MS = 60_000;
 const BACKUP_INTERVAL_MS = 24 * 60 * 60_000; // nightly pg_dump per tenant
 const SHUTDOWN_FLUSH_TIMEOUT_MS = 5_000;
 /** Longest shutdown waits for an in-flight tenant upgrade round: one
@@ -540,6 +542,21 @@ async function main(): Promise<void> {
 		});
 	}, CREDITS_POLL_INTERVAL_MS);
 
+	// Webhook outage emails: read each tenant's webhooks over loopback and
+	// report to the platform, which debounces and sends. Tenants never hold
+	// the workload host key.
+	const checkWebhookIncidents = createWebhookIncidentWatch(provisionerCfg, {
+		appServerUrl,
+		workloadHostKey,
+	});
+	const webhookIncidentLoop = setInterval(() => {
+		checkWebhookIncidents().catch((err) => {
+			logger.error("workload.webhook_incidents.tick_failed", {
+				error: err instanceof Error ? err.message : String(err),
+			});
+		});
+	}, WEBHOOK_INCIDENT_INTERVAL_MS);
+
 	let shuttingDown = false;
 	const shutdown = async () => {
 		if (shuttingDown) return; // a second SIGINT/SIGTERM must not re-enter the flush
@@ -551,6 +568,7 @@ async function main(): Promise<void> {
 		clearInterval(storageLoop);
 		clearInterval(backupLoop);
 		clearInterval(creditsPollLoop);
+		clearInterval(webhookIncidentLoop);
 		await stopFailedRequests();
 		// Before anything else stops: a tenant upgrade round is a child
 		// `docker compose up`; letting it finish avoids a half-recreated stack.

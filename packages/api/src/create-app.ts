@@ -35,6 +35,7 @@ import internalIntrospectRouter from "./routes/internal-introspect.ts";
 import internalMetersRouter from "./routes/internal-meters.ts";
 import internalSentinelRouter from "./routes/internal-sentinel.ts";
 import internalTenantKeyRouter from "./routes/internal-tenant-key.ts";
+import internalWebhookIncidentsRouter from "./routes/internal-webhook-incidents.ts";
 import nodeRouter from "./routes/node.ts";
 import openApiRouter from "./routes/openapi.ts";
 import proofsRouter from "./routes/proofs.ts";
@@ -211,6 +212,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 		// workload host, not an account.
 		app.route("/internal/meters", internalMetersRouter);
 		app.route("/internal/failed-requests", internalFailedRequestsRouter);
+		app.route("/internal/webhook-incidents", internalWebhookIncidentsRouter);
 		app.route("/internal/keys/introspect", internalIntrospectRouter);
 		app.route("/internal/keys/tenant", internalTenantKeyRouter);
 		app.route("/internal/accounts/credits", internalAccountsCreditsRouter);
