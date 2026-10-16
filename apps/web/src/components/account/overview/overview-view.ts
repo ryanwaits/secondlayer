@@ -114,10 +114,33 @@ export function keysCell(keys: ApiKey[] | null, now: Date): KeysCell | null {
 	};
 }
 
+/** What the hosted stack cell needs to know beyond the stack itself. */
+export interface StackContext {
+	/** Every webhook is paused, so the stack was put to sleep on purpose. */
+	asleep: boolean;
+	/** Credits left in USD micros; null until billing has loaded. */
+	creditsUsdMicros: string | null;
+}
+
+/**
+ * True when the stack stopped because the credits ran out, which needs the
+ * reader. A stack stopped on purpose (asleep) or with credits left does not.
+ */
+export function stoppedForCredits(
+	stack: HostedStack,
+	{ asleep, creditsUsdMicros }: StackContext,
+): boolean {
+	return (
+		stack.state === "stopped" &&
+		!asleep &&
+		(creditsUsdMicros === null || Number(creditsUsdMicros) <= 0)
+	);
+}
+
 export interface StackCell {
-	/** ok shows no dot; alarm is stopped; idle is not started. */
+	/** ok shows no dot; alarm is out of credits; idle is asleep or not started. */
 	tone: "ok" | "alarm" | "idle";
-	word: "running" | "stopped" | "not started";
+	word: "running" | "stopped" | "asleep" | "not started";
 	/** Cost per day ("$0.33"), or null while the burn rate has not loaded. */
 	perDay: string | null;
 	/** Latest memory in GB, two decimals, or null before any hour is recorded. */
@@ -131,6 +154,7 @@ export interface StackCell {
 export function stackCell(
 	stack: HostedStack | null,
 	burn: Burn | null,
+	context: StackContext,
 ): StackCell | null {
 	if (!stack) return null;
 	const latest = latestMemoryHour(stack.memory24h);
@@ -147,15 +171,24 @@ export function stackCell(
 		};
 	}
 	if (stack.state === "stopped") {
-		return {
-			tone: "alarm",
-			word: "stopped",
-			// Stopped, so nothing is charging, whatever the last 24 hours burned.
-			perDay: "$0.00",
-			gb,
-			points,
-			caption: "Add credits to start it again.",
-		};
+		// Stopped, so nothing is charging, whatever the last 24 hours burned.
+		return stoppedForCredits(stack, context)
+			? {
+					tone: "alarm",
+					word: "stopped",
+					perDay: "$0.00",
+					gb,
+					points,
+					caption: "Add credits to start it again.",
+				}
+			: {
+					tone: "idle",
+					word: "asleep",
+					perDay: "$0.00",
+					gb,
+					points,
+					caption: "Every webhook is paused, so it isn't billed.",
+				};
 	}
 	return {
 		tone: "ok",

@@ -69,7 +69,7 @@ import {
 } from "../webhooks/rows";
 import { CliLine, shortenName } from "../webhooks/shared";
 import { ageShort, last24 } from "../webhooks/view";
-import { cellInsights } from "./overview-view";
+import { cellInsights, stoppedForCredits } from "./overview-view";
 import { PlumbingStrip, PlumbingStripSkeleton } from "./plumbing-strip";
 
 /** The webhook rows refresh this often while the tab is visible. */
@@ -405,9 +405,12 @@ export function OverviewBody({
 	// Credits ran out and the hosted stack stopped. The webhooks aren't at
 	// fault, so their rows go idle instead of red.
 	const creditsOut =
-		stack?.state === "stopped" &&
+		stack !== null &&
 		billing !== null &&
-		Number(billing.creditsUsdMicros) <= 0;
+		stoppedForCredits(stack, {
+			asleep,
+			creditsUsdMicros: billing.creditsUsdMicros,
+		});
 	const { rest: moneyInsights } = cellInsights(accountInsights);
 
 	const sub = [
@@ -512,6 +515,8 @@ export function OverviewBody({
 						burn={burn}
 						now={now}
 						insights={accountInsights}
+						asleep={asleep}
+						creditsUsdMicros={billing?.creditsUsdMicros ?? null}
 					/>
 				</>
 			)}

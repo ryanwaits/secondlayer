@@ -691,6 +691,7 @@ export type OverviewDemoState =
 	| "today"
 	| "webhook-failing"
 	| "stack-stopped"
+	| "asleep"
 	| "with-subgraph"
 	| "no-keys"
 	| "our-errors"
@@ -709,6 +710,11 @@ export function OverviewDemo({ state }: { state: OverviewDemoState }) {
 		"stack-stopped": exampleOverview(now, {
 			stack: exampleStack("stopped", now),
 			billing: { creditsUsdMicros: "0", spentThisMonthUsdMicros: "1910000" },
+		}),
+		asleep: exampleOverview(now, {
+			rows: null,
+			asleep: true,
+			stack: exampleStack("stopped", now),
 		}),
 		"with-subgraph": exampleOverview(now, {
 			subgraphs: (

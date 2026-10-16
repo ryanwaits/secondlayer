@@ -422,6 +422,24 @@ describe("OverviewBody table and strip", () => {
 		expect(table).not.toContain("Delivered ");
 	});
 
+	test("an asleep account shows no red dot in the strip", () => {
+		const html = render({
+			rows: null,
+			asleep: true,
+			stack: exampleStack("stopped", NOW),
+			billing: credits("28090000"),
+		});
+		const { sentence, strip } = parts(html);
+		expect(sentence).toContain("Your hosted stack is asleep.");
+		expect(strip).toContain("asleep");
+		expect(strip).toContain(
+			"Every webhook is paused, so it isn&#x27;t billed.",
+		);
+		expect(strip).toContain("dash-dot idle");
+		expect(strip).not.toContain("dash-dot alarm");
+		expect(strip).not.toContain("dc-stroke-alarm");
+	});
+
 	test("a stopped stack with credits left is not called out of credits", () => {
 		const html = render({ stack: exampleStack("stopped", NOW) });
 		expect(html).not.toContain("Your hosted stack stopped.");

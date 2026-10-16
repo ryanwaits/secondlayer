@@ -265,6 +265,8 @@ export function PlumbingStrip({
 	burn,
 	now,
 	insights,
+	asleep,
+	creditsUsdMicros,
 }: {
 	rows: RowsResponse | null;
 	keys: ApiKey[] | null;
@@ -272,6 +274,10 @@ export function PlumbingStrip({
 	burn: Burn | null;
 	now: Date;
 	insights: readonly Insight[];
+	/** Every webhook is paused. */
+	asleep: boolean;
+	/** Credits left in USD micros; null until billing has loaded. */
+	creditsUsdMicros: string | null;
 }) {
 	const forRows = cellInsights(insights).rows;
 	const top = forRows[0];
@@ -291,7 +297,9 @@ export function PlumbingStrip({
 					}
 				/>
 				<KeysCellView cell={keysCell(keys, now)} />
-				<StackCellView cell={stackCell(stack, burn)} />
+				<StackCellView
+					cell={stackCell(stack, burn, { asleep, creditsUsdMicros })}
+				/>
 			</section>
 			{top && open ? (
 				<div className="ov-strip-card" id={`ins-panel-${top.id}`}>

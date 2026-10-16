@@ -107,11 +107,13 @@ describe("stackCell", () => {
 		{ hour: "2026-10-15T11:00:00Z", billedGb: 0.25, observedGb: null },
 	];
 	const burn = { rateDayUsdMicros: "330000", windowHours: 24 };
+	const awake = { asleep: false, creditsUsdMicros: "28090000" };
 
 	test("running shows cost per day and memory", () => {
 		const cell = stackCell(
 			{ state: "running", lastChargedAt: null, memory24h },
 			burn,
+			awake,
 		);
 		expect(cell).toMatchObject({
 			tone: "ok",
@@ -127,6 +129,7 @@ describe("stackCell", () => {
 		const cell = stackCell(
 			{ state: "stopped", lastChargedAt: null, memory24h },
 			burn,
+			{ asleep: false, creditsUsdMicros: "0" },
 		);
 		expect(cell).toMatchObject({
 			tone: "alarm",
@@ -136,10 +139,41 @@ describe("stackCell", () => {
 		});
 	});
 
+	test("a paused stack is asleep, not an alarm", () => {
+		const stopped = {
+			state: "stopped",
+			lastChargedAt: null,
+			memory24h,
+		} as const;
+		const expected = {
+			tone: "idle",
+			word: "asleep",
+			perDay: "$0.00",
+			caption: "Every webhook is paused, so it isn't billed.",
+		};
+		// Asleep wins even with no credits; credits left also means it was not starved.
+		expect(
+			stackCell(stopped, burn, { asleep: true, creditsUsdMicros: "0" }),
+		).toMatchObject(expected);
+		expect(
+			stackCell(stopped, burn, { asleep: false, creditsUsdMicros: "5000000" }),
+		).toMatchObject(expected);
+	});
+
+	test("stopped with billing not loaded yet is still an alarm", () => {
+		const cell = stackCell(
+			{ state: "stopped", lastChargedAt: null, memory24h },
+			burn,
+			{ asleep: false, creditsUsdMicros: null },
+		);
+		expect(cell?.tone).toBe("alarm");
+	});
+
 	test("none is idle and not started", () => {
 		const cell = stackCell(
 			{ state: "none", lastChargedAt: null, memory24h: [] },
 			burn,
+			awake,
 		);
 		expect(cell).toMatchObject({
 			tone: "idle",
@@ -151,7 +185,7 @@ describe("stackCell", () => {
 	});
 
 	test("is null until the usage response loads", () => {
-		expect(stackCell(null, burn)).toBeNull();
+		expect(stackCell(null, burn, awake)).toBeNull();
 	});
 });
 

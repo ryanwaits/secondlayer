@@ -1758,6 +1758,11 @@ const META: Record<StoryId, Meta> = {
 				render: () => <OverviewDemo state="stack-stopped" />,
 			},
 			{
+				id: "asleep",
+				label: "Asleep, every webhook paused",
+				render: () => <OverviewDemo state="asleep" />,
+			},
+			{
 				id: "with-subgraph",
 				label: "With a subgraph",
 				render: () => <OverviewDemo state="with-subgraph" />,
