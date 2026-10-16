@@ -1,3 +1,6 @@
+import type { Agent } from "undici";
+import { upstreamAgent } from "./upstream-agent";
+
 export const PLATFORM_API_URL =
 	process.env.SECONDLAYER_API_URL ||
 	(process.env.NODE_ENV === "production"
@@ -73,7 +76,9 @@ export async function apiRequest<T>(
 		headers,
 		body: body ? JSON.stringify(body) : undefined,
 		next: nextOptions,
-	});
+		// Why: reuse warm connections to the API; undici's default drops idle ones after 4 s.
+		dispatcher: upstreamAgent,
+	} as RequestInit & { dispatcher: Agent });
 
 	if (!res.ok) {
 		const text = await res.text();

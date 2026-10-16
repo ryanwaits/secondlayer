@@ -34,7 +34,7 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.13.16",
+      "version": "0.13.17",
       "dependencies": {
         "@mdx-js/loader": "^3.1.1",
         "@mdx-js/react": "^3.1.1",
@@ -54,6 +54,7 @@
         "remark-gfm": "^4.0.1",
         "shiki": "4.0.2",
         "sonner": "^2.0.8",
+        "undici": "6.29.1",
       },
       "devDependencies": {
         "@secondlayer/shared": "workspace:*",
@@ -66,7 +67,7 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.56.4",
+      "version": "1.56.8",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@aws-sdk/s3-request-presigner": "3.1042.0",
@@ -116,7 +117,7 @@
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "21.2.0",
+      "version": "22.0.0",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -196,7 +197,7 @@
     },
     "packages/platform": {
       "name": "@secondlayer/platform",
-      "version": "0.8.4",
+      "version": "0.8.8",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.17",
@@ -222,9 +223,9 @@
     },
     "packages/sdk": {
       "name": "@secondlayer/sdk",
-      "version": "15.3.0",
+      "version": "15.3.1",
       "dependencies": {
-        "@secondlayer/shared": "^13.5.0",
+        "@secondlayer/shared": "^13.8.0",
         "@secondlayer/stacks": "^6.4.0",
         "@secondlayer/subgraphs": "^7.6.0",
       },
@@ -249,7 +250,7 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "13.5.0",
+      "version": "13.8.0",
       "dependencies": {
         "@secondlayer/stacks": "^6.4.1",
         "kysely": "0.28.17",
@@ -328,7 +329,7 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.4.15",
+      "version": "1.4.19",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
         "@secondlayer/shared": "^13.5.0",
@@ -343,7 +344,7 @@
     },
     "packages/workload": {
       "name": "@secondlayer/workload",
-      "version": "0.2.4",
+      "version": "0.2.8",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
         "@secondlayer/shared": "^13.5.0",
@@ -2715,7 +2716,7 @@
 
     "ufo": ["ufo@1.6.4", "", {}, "sha512-JFNbkD1Svwe0KvGi8GOeLcP4kAWQ609twvCdcHxq1oSL8svv39ZuSvajcD8B+5D0eL4+s1Is2D/O6KN3qcTeRA=="],
 
-    "undici": ["undici@7.29.1", "", {}, "sha512-RYONW2MeafgYlkVOKYKkA/Ag7BmXqgIWCa8t1m0JcxrQg9pI9lEqRhAOruOBCbAohOa/gkCF+iPi9hrgvTzu6Q=="],
+    "undici": ["undici@6.29.1", "", {}, "sha512-EvRlUt/QqAEvXdQeRMYUfwOQsfzpDztykrG2owGEE/rBOBoYv9uF39ZzsNDh4lTFHhTr2XOZjKkYgueD12ZmGA=="],
 
     "undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
 
@@ -2822,6 +2823,8 @@
     "zod-to-json-schema": ["zod-to-json-schema@3.25.1", "", { "peerDependencies": { "zod": "^3.25 || ^4" } }, "sha512-pM/SU9d3YAggzi6MtR4h7ruuQlqKtad8e9S0fmxcMi+ueAK5Korys/aWcV9LIIHTVbj01NdzxcnXSN+O74ZIVA=="],
 
     "zwitch": ["zwitch@2.0.4", "", {}, "sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A=="],
+
+    "@ai-sdk/provider-utils/undici": ["undici@7.29.1", "", {}, "sha512-RYONW2MeafgYlkVOKYKkA/Ag7BmXqgIWCa8t1m0JcxrQg9pI9lEqRhAOruOBCbAohOa/gkCF+iPi9hrgvTzu6Q=="],
 
     "@antfu/install-pkg/package-manager-detector": ["package-manager-detector@1.8.0", "", {}, "sha512-yQA4H19AmPEoMUeavPMDIe1higySl/gH/yaQrkT/s07Qp+7pp2hYz30N3z2l5BkjVkF9Ow6o0wjJamm2y7Sn0A=="],
 
