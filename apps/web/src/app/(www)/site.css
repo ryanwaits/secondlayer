@@ -3063,6 +3063,42 @@
 	font-weight: 400;
 	color: var(--sub);
 }
+/* Phones: each meter stacks into one block (name, what it counts, price,
+   what else to know) instead of a four-column table scrolled sideways. */
+@media (max-width: 720px) {
+	.site.pricing .meters-t {
+		min-width: 0;
+	}
+	.site.pricing .meters-t thead {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+	.site.pricing .meters-t tr {
+		display: grid;
+		gap: 8px;
+		padding: 16px 18px;
+		border-bottom: 1px solid var(--line);
+	}
+	.site.pricing .meters-t tr:last-child {
+		border-bottom: 0;
+	}
+	.site.pricing .meters-t td {
+		display: block;
+		padding: 0;
+		border-bottom: 0;
+	}
+	.site.pricing .meters-t .what {
+		max-width: none;
+	}
+	.site.pricing .meters-t .price,
+	.site.pricing .meters-t td:first-child {
+		white-space: normal;
+	}
+}
 
 .site.pricing .est {
 	display: grid;
