@@ -1,7 +1,6 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
-import { handOverNewKey } from "@/lib/new-key";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -19,7 +18,7 @@ export default function SignInPage() {
 
 	// Already signed in: the account page is where the keys are.
 	useEffect(() => {
-		if (account) router.replace("/account/keys");
+		if (account) router.replace("/account");
 	}, [account, router]);
 
 	const handleInputEsc = useCallback(
@@ -72,9 +71,8 @@ export default function SignInPage() {
 			if (code.length !== 6) return;
 			setVerifyError(null);
 			try {
-				const { apiKey } = await verify(code, email);
-				handOverNewKey(apiKey);
-				window.location.href = "/account/keys";
+				await verify(code, email);
+				window.location.href = "/account";
 			} catch {
 				setVerifyError("Invalid or expired code. Try again.");
 			}

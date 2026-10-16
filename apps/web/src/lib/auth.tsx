@@ -16,10 +16,7 @@ interface AuthCtx {
 	account: Account | null;
 	loading: boolean;
 	login(email: string): Promise<{ token?: string; code?: string }>;
-	verify(
-		tokenOrCode: string,
-		email?: string,
-	): Promise<{ account: Account; apiKey?: string }>;
+	verify(tokenOrCode: string, email?: string): Promise<{ account: Account }>;
 	logout(): Promise<void>;
 	refresh(): Promise<void>;
 }
@@ -84,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			email: account.email,
 			...(account.displayName ? { name: account.displayName } : {}),
 		});
-		return { account, apiKey: data.apiKey };
+		return { account };
 	}, []);
 
 	const logout = useCallback(async () => {

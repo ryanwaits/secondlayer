@@ -453,16 +453,14 @@ export function KeysBody({
 const KEY_RULES = ["key_unused"];
 
 /** /account/keys: every key on the account, and a new one when you need it. */
-export function KeysScreen({ handedOver }: { handedOver: string | null }) {
+export function KeysScreen() {
 	const { keys } = useAccountData();
 	const { data: allInsights } = useInsights();
 	const [creating, setCreating] = useState(false);
-	const [handed, setHanded] = useState<string | null>(handedOver);
 	const [freshPrefix, setFreshPrefix] = useState<string | null>(null);
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const now = new Date();
 
-	useEffect(() => setHanded(handedOver), [handedOver]);
 	useEffect(() => {
 		refreshKeys();
 	}, []);
@@ -479,18 +477,10 @@ export function KeysScreen({ handedOver }: { handedOver: string | null }) {
 		timer.current = setTimeout(() => setFreshPrefix(null), FRESH_MS);
 	}, []);
 
-	// A key handed over at sign-in opens straight on its reveal.
-	useEffect(() => {
-		if (handed) markFresh(handed);
-	}, [handed, markFresh]);
-
 	const existingNames = groupKeys(keys, now)
 		.own.filter((k) => k.product !== "docs")
 		.map((k) => k.name);
-	const close = () => {
-		setCreating(false);
-		setHanded(null);
-	};
+	const close = () => setCreating(false);
 
 	return (
 		<KeysBody
@@ -500,12 +490,7 @@ export function KeysScreen({ handedOver }: { handedOver: string | null }) {
 			freshPrefix={freshPrefix}
 			onNew={() => setCreating(true)}
 			flow={
-				handed ? (
-					<NewKeyFlow
-						initial={{ key: handed, name: "New key" }}
-						onClose={close}
-					/>
-				) : creating ? (
+				creating ? (
 					<NewKeyFlow
 						existingNames={existingNames}
 						onCreated={markFresh}

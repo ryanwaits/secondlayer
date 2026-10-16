@@ -1,5 +1,5 @@
 import { ApiError, apiRequest } from "@/lib/api";
-import type { Account, ApiKey } from "@/lib/types";
+import type { Account } from "@/lib/types";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -11,29 +11,6 @@ export async function POST(req: Request) {
 		);
 
 		const { sessionToken, account } = data;
-
-		// Check if user has existing keys; if not, auto-create first key
-		let apiKey: string | undefined;
-		try {
-			const { keys } = await apiRequest<{ keys: ApiKey[] }>("/api/keys", {
-				sessionToken,
-			});
-			if ((keys ?? []).length === 0) {
-				const newKey = await apiRequest<{ key: string }>("/api/keys", {
-					method: "POST",
-					body: { name: "Default" },
-					sessionToken,
-				});
-				apiKey = newKey.key;
-			}
-		} catch (e) {
-			// Non-critical — user can create keys later, but a silent failure
-			// here previously masked every account never getting a default key.
-			console.error("Default API key mint failed during verify", {
-				accountId: account.id,
-				error: e instanceof Error ? e.message : String(e),
-			});
-		}
 
 		const isProduction = process.env.NODE_ENV === "production";
 		const cookieDomain = process.env.SESSION_COOKIE_DOMAIN;
@@ -48,7 +25,7 @@ export async function POST(req: Request) {
 			...(isProduction ? ["Secure"] : []),
 		].join("; ");
 
-		const res = NextResponse.json({ account, apiKey });
+		const res = NextResponse.json({ account });
 		res.headers.set("Set-Cookie", cookie);
 		return res;
 	} catch (e) {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
-import { handOverNewKey } from "@/lib/new-key";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
@@ -23,9 +22,8 @@ function VerifyContent() {
 		attempted.current = true;
 
 		try {
-			const { apiKey } = await verify(token);
-			handOverNewKey(apiKey);
-			window.location.href = "/account/keys";
+			await verify(token);
+			window.location.href = "/account";
 		} catch (err) {
 			const message = err instanceof Error ? err.message.trim() : "";
 			setError(GENERIC_ERRORS.has(message.toLowerCase()) ? "" : message);
