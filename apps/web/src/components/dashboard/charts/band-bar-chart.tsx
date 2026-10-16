@@ -1,7 +1,12 @@
 "use client";
 
 import { ChartTooltip } from "@/components/charts/recharts-tooltip";
-import { type BarsRow, formatAxis, niceMax } from "@/lib/dashboard-charts";
+import {
+	type BarsRow,
+	formatAxis,
+	markPillWidth,
+	niceMax,
+} from "@/lib/dashboard-charts";
 import {
 	Area,
 	Bar,
@@ -21,6 +26,8 @@ import {
 // ComposedChart `Area` pair for the "usual range" band, token-only colors,
 // and the shared ChartTooltip. Animation stays off on every series because
 // recharts' enter transition corrupts `var()` fills.
+
+const MARK_FONT_SIZE = 10.5;
 
 /**
  * Stacked bars per category (`n` in `--ch-a`, `p` in `--ch-b`, `f` in
@@ -161,7 +168,7 @@ export function BandBarChart({
 						label={(props: { viewBox?: { x: number; y: number } }) => {
 							const vb = props.viewBox;
 							if (!vb) return <g />;
-							const width = mark.label.length * 6.3 + 10;
+							const width = markPillWidth(mark.label, MARK_FONT_SIZE);
 							return (
 								<g>
 									<rect
@@ -175,7 +182,8 @@ export function BandBarChart({
 									<text
 										x={vb.x + 9}
 										y={vb.y - 9}
-										fontSize={10.5}
+										fontSize={MARK_FONT_SIZE}
+										fontFamily="var(--font-mono-stack)"
 										fill="var(--on-mark)"
 									>
 										{mark.label}

@@ -5,6 +5,7 @@ import {
 	formatUsdTick,
 	heatGrid,
 	hourWindowLabel,
+	markPillWidth,
 	niceMax,
 	spendProjection,
 } from "./dashboard-charts";
@@ -120,5 +121,17 @@ describe("barsRows", () => {
 	});
 	test("leaves the band null when none is given", () => {
 		expect(barsRows([{ n: 1 }])[0]?.bandLow).toBeNull();
+	});
+});
+
+describe("markPillWidth", () => {
+	test("hugs the text: 0.6em per glyph plus 5px each side", () => {
+		expect(markPillWidth("Failures start 10:00")).toBe(
+			Math.ceil(20 * 10.5 * 0.6 + 10),
+		);
+	});
+
+	test("follows the font size and padding", () => {
+		expect(markPillWidth("abcd", 10, 4)).toBe(32);
 	});
 });

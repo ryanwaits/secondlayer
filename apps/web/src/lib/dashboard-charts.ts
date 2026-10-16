@@ -140,3 +140,12 @@ export function barsRows(
 		};
 	});
 }
+
+/** Width of the chart mark pill: a mono glyph is about 0.6em wide, plus padding on each side. */
+export function markPillWidth(
+	label: string,
+	fontSize = 10.5,
+	padding = 5,
+): number {
+	return Math.ceil(label.length * fontSize * 0.6 + padding * 2);
+}
