@@ -497,6 +497,75 @@ button.docs-nav-item {
 	justify-content: flex-end;
 	gap: 16px;
 }
+/* ── trail: Back to the sentence a jump left behind ──
+   The dock has no height, so it takes no layout space; sticky pins it to the
+   bottom of the viewport and it shares the article's frame, which centers the
+   bar on the reading column with no measuring. It sits under tips (60). Like
+   the dropdowns it carries one soft shadow, and like them it appears at once. */
+.docs-trail-dock {
+	position: sticky;
+	bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+	z-index: 40;
+	display: flex;
+	justify-content: center;
+	height: 0;
+	max-width: 720px;
+	margin-left: max(0px, calc((100% - 1112px) / 2));
+	margin-right: auto;
+}
+.docs-trail {
+	display: flex;
+	max-width: calc(100vw - 32px);
+	height: 40px;
+	transform: translateY(-100%);
+	background: var(--paper);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.docs-trail-back {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	padding: 0 14px;
+	border: 0;
+	border-radius: 7px;
+	background: none;
+	color: var(--ink);
+	font: 400 13px / 1 var(--font-sans-stack);
+	cursor: pointer;
+	transition: background-color 150ms ease-out;
+}
+.docs-trail-back > span:first-child {
+	color: var(--sub);
+}
+.docs-trail-label {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.docs-trail-label b {
+	font-weight: 500;
+}
+.docs-trail-back:hover {
+	background: var(--soft);
+}
+.docs-trail-back:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+/* The sentence a Back returned to: the link in the lit-reference role, its
+   row on soft, until the next click. */
+.docs-article a.docs-lit {
+	background: var(--hi);
+	color: var(--on-hi);
+}
+.docs-lit-row {
+	background: var(--soft);
+}
+
 /* An API page runs the frame's full width for its two columns. */
 .docs-content:has(.apiref-ep) {
 	padding-bottom: 140px;

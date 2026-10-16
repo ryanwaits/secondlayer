@@ -9,6 +9,7 @@ import { DocsSidebar } from "./docs-sidebar";
 import { DocsView } from "./docs-view";
 import "./docs.css";
 import { DocsScrollTop } from "./scroll-top";
+import { DocsTrail } from "./trail";
 
 // The docs index's share card. Every other docs page has its own
 // opengraph-image.png beside it (bun run og), which overrides this; no
@@ -43,6 +44,7 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
 				<DocsSidebar />
 				<main className="docs-content">
 					<DocsView>{children}</DocsView>
+					<DocsTrail />
 				</main>
 				<footer className="docs-foot">
 					<div className="docs-foot-in">
