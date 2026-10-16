@@ -3,9 +3,8 @@ import { AuthorizationError, NotFoundError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { z } from "zod";
 import { getClientIp } from "../auth/http.ts";
-import { hashToken } from "../auth/keys.ts";
+import { generateSessionToken, hashToken } from "../auth/keys.ts";
 import { requireAuth } from "../auth/middleware.ts";
-import { assertUnderKeyCeiling, mintApiKey } from "../auth/mint.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 /**
@@ -28,7 +27,6 @@ const CreateSchema = z.object({
 	clientName: z.string().trim().min(1).max(64),
 });
 const TokenSchema = z.object({ deviceCode: z.string().min(1).max(256) });
-const ApproveSchema = z.object({ name: z.string().trim().min(1).max(64) });
 
 export function generateUserCode(): string {
 	const chars: string[] = [];
@@ -141,8 +139,9 @@ app.post("/token", async (c) => {
 	if (!row.account_id) return c.json({ error: "expired_token" }, 410);
 	const accountId = row.account_id;
 
-	// One transaction: claim the row, check the ceiling, mint. At the ceiling
-	// the attempt is closed (denied) so retries end instead of repeating.
+	// One transaction: claim the row, then open a session for the account.
+	// Signing in makes a session (expires, revoked by `logout`), never an API
+	// key: keys are for reading data and live on the Keys tab.
 	const result = await db.transaction().execute(async (trx) => {
 		const claimed = await trx
 			.updateTable("cli_device_logins")
@@ -152,35 +151,28 @@ app.post("/token", async (c) => {
 			.returning("id")
 			.executeTakeFirst();
 		if (!claimed) return null;
-		try {
-			await assertUnderKeyCeiling(trx, accountId);
-		} catch (err) {
-			// Only the ceiling check is caught here, nothing else in the mint.
-			if (!(err instanceof AuthorizationError)) throw err;
-			await trx
-				.updateTable("cli_device_logins")
-				.set({ status: "denied", consumed_at: null })
-				.where("id", "=", row.id)
-				.execute();
-			return "key_limit" as const;
-		}
-		const minted = await mintApiKey(trx, {
-			accountId,
-			name: row.key_name ?? row.client_name,
-			product: "account",
-			ip: getClientIp(c),
-		});
+		const { raw, hash, prefix } = generateSessionToken();
+		await trx
+			.insertInto("sessions")
+			.values({
+				token_hash: hash,
+				token_prefix: prefix,
+				account_id: accountId,
+				ip_address: getClientIp(c),
+			})
+			.execute();
 		const account = await trx
 			.selectFrom("accounts")
 			.select(["id", "email"])
 			.where("id", "=", accountId)
 			.executeTakeFirstOrThrow();
-		return { key: minted.key, account };
+		return { sessionToken: raw, account };
 	});
-	if (result === "key_limit") return c.json({ error: "key_limit" }, 409);
 	// Lost the race to a concurrent poll.
 	if (!result) return c.json({ error: "expired_token" }, 410);
-	return c.json(result);
+	// `key` repeats the session token for CLI 21.3.0, which reads that field
+	// and stores it as its bearer; a session token works wherever it did.
+	return c.json({ ...result, key: result.sessionToken });
 });
 
 // What the approval page shows (session)
@@ -226,11 +218,9 @@ async function settle(
 
 app.post("/:userCode/approve", requireAuth(), async (c) => {
 	const accountId = requireSession(c);
-	const { name } = ApproveSchema.parse(await readJson(c));
 	const ok = await settle(parseUserCode(c.req.param("userCode")), {
 		status: "approved",
 		account_id: accountId,
-		key_name: name,
 		approved_at: new Date(),
 	});
 	if (!ok) {

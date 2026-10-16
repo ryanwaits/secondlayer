@@ -167,14 +167,14 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 		expect((await poll("0".repeat(64))).status).toBe(410);
 	});
 
-	test("approve then poll mints a named key that authenticates, once", async () => {
+	test("approve then poll opens a session that authenticates, once, and makes no API key", async () => {
 		const account = await makeAccount();
 		const session = await makeSession(account.id);
 		const d = await start("ryans-macbook");
 
 		const approve = await post(
 			`/api/cli/device/${d.userCode}/approve`,
-			{ name: "ryans-macbook" },
+			{},
 			session,
 		);
 		expect(approve.status).toBe(200);
@@ -182,48 +182,35 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 		const res = await poll(d.deviceCode);
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
+			sessionToken: string;
 			key: string;
 			account: { id: string; email: string };
 		};
 		expect(body.account).toEqual({ id: account.id, email: account.email });
+		expect(body.sessionToken.startsWith("ss-sl_")).toBe(true);
+		// CLI 21.3.0 reads `key`; it carries the same session token.
+		expect(body.key).toBe(body.sessionToken);
 
 		const row = await db
-			.selectFrom("api_keys")
-			.select(["name", "product", "account_id"])
-			.where("key_hash", "=", hashToken(body.key))
+			.selectFrom("sessions")
+			.select(["account_id", "revoked_at"])
+			.where("token_hash", "=", hashToken(body.sessionToken))
 			.executeTakeFirstOrThrow();
-		expect(row).toEqual({
-			name: "ryans-macbook",
-			product: "account",
-			account_id: account.id,
-		});
+		expect(row).toEqual({ account_id: account.id, revoked_at: null });
+
+		const keys = await db
+			.selectFrom("api_keys")
+			.select((eb) => eb.fn.countAll<string>().as("n"))
+			.where("account_id", "=", account.id)
+			.executeTakeFirstOrThrow();
+		expect(Number(keys.n)).toBe(0);
 
 		const me = await app.request("/api/accounts/me", {
-			headers: { authorization: `Bearer ${body.key}` },
+			headers: { authorization: `Bearer ${body.sessionToken}` },
 		});
 		expect(me.status).toBe(200);
 
 		expect((await poll(d.deviceCode)).status).toBe(410);
-	});
-
-	test("the approved name is the key name", async () => {
-		const account = await makeAccount();
-		const session = await makeSession(account.id);
-		const d = await start("ryans-macbook");
-		await post(
-			`/api/cli/device/${d.userCode}/approve`,
-			{ name: "work laptop" },
-			session,
-		);
-		const { key } = (await (await poll(d.deviceCode)).json()) as {
-			key: string;
-		};
-		const row = await db
-			.selectFrom("api_keys")
-			.select("name")
-			.where("key_hash", "=", hashToken(key))
-			.executeTakeFirstOrThrow();
-		expect(row.name).toBe("work laptop");
 	});
 
 	test("deny makes the next poll 403", async () => {
@@ -243,7 +230,7 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 		const account = await makeAccount();
 		const session = await makeSession(account.id);
 		const d = await start();
-		await post(`/api/cli/device/${d.userCode}/approve`, { name: "m" }, session);
+		await post(`/api/cli/device/${d.userCode}/approve`, {}, session);
 		await db
 			.updateTable("cli_device_logins")
 			.set({ expires_at: new Date(Date.now() - 1000) })
@@ -252,7 +239,7 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 		expect((await poll(d.deviceCode)).status).toBe(410);
 		const approve = await post(
 			`/api/cli/device/${d.userCode}/approve`,
-			{ name: "m" },
+			{},
 			session,
 		);
 		expect(approve.status).toBe(404);
@@ -262,11 +249,7 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 		const account = await makeAccount();
 		const apiKey = await makeAccountKey(account.id);
 		const d = await start();
-		const res = await post(
-			`/api/cli/device/${d.userCode}/approve`,
-			{ name: "m" },
-			apiKey,
-		);
+		const res = await post(`/api/cli/device/${d.userCode}/approve`, {}, apiKey);
 		expect(res.status).toBe(403);
 		expect((await poll(d.deviceCode)).status).toBe(428);
 	});
@@ -276,8 +259,8 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 		const session = await makeSession(account.id);
 		const d = await start();
 		const url = `/api/cli/device/${d.userCode}/approve`;
-		expect((await post(url, { name: "m" }, session)).status).toBe(200);
-		expect((await post(url, { name: "m" }, session)).status).toBe(409);
+		expect((await post(url, {}, session)).status).toBe(200);
+		expect((await post(url, {}, session)).status).toBe(409);
 	});
 
 	test("the approval page reads the attempt with a session only", async () => {
@@ -298,47 +281,6 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 		expect(missing.status).toBe(404);
 		const anon = await app.request(`/api/cli/device/${d.userCode}`);
 		expect(anon.status).toBe(401);
-	});
-
-	test("at the key ceiling the poll is 409 key_limit, no key is minted, and later polls end", async () => {
-		const account = await makeAccount();
-		const session = await makeSession(account.id);
-		await db
-			.insertInto("api_keys")
-			.values(
-				Array.from({ length: 50 }, () => {
-					const raw = `sk-sl_ceiling_${crypto.randomUUID()}`;
-					return {
-						key_hash: hashToken(raw),
-						key_prefix: raw.slice(0, 14),
-						account_id: account.id,
-						ip_address: "test",
-						product: "account",
-						tier: "free",
-						status: "active" as const,
-					};
-				}),
-			)
-			.execute();
-		const d = await start();
-		await post(`/api/cli/device/${d.userCode}/approve`, { name: "m" }, session);
-		const res = await poll(d.deviceCode);
-		expect(res.status).toBe(409);
-		expect(((await res.json()) as { error: string }).error).toBe("key_limit");
-		const count = await db
-			.selectFrom("api_keys")
-			.select((eb) => eb.fn.countAll<string>().as("n"))
-			.where("account_id", "=", account.id)
-			.executeTakeFirstOrThrow();
-		expect(Number(count.n)).toBe(50);
-		const row = await db
-			.selectFrom("cli_device_logins")
-			.select(["status", "consumed_at"])
-			.where("user_code", "=", d.userCode)
-			.executeTakeFirstOrThrow();
-		expect(row.status).toBe("denied");
-		expect(row.consumed_at).toBeNull();
-		expect((await poll(d.deviceCode)).status).toBe(403);
 	});
 
 	test("polling does not eat the sign-in limiter's budget", async () => {
