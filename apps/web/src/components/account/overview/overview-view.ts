@@ -118,7 +118,7 @@ export interface StackCell {
 	/** ok shows no dot; alarm is stopped; idle is not started. */
 	tone: "ok" | "alarm" | "idle";
 	word: "running" | "stopped" | "not started";
-	/** Cost per day ("$0.33"), or null with nothing to charge. */
+	/** Cost per day ("$0.33"), or null while the burn rate has not loaded. */
 	perDay: string | null;
 	/** Latest memory in GB, two decimals, or null before any hour is recorded. */
 	gb: string | null;
@@ -140,7 +140,7 @@ export function stackCell(
 		return {
 			tone: "idle",
 			word: "not started",
-			perDay: null,
+			perDay: "$0.00",
 			gb: null,
 			points: [],
 			caption: "Starts with your first webhook.",

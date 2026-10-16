@@ -6514,6 +6514,177 @@ button.dash-row {
 	outline-offset: 2px;
 	border-radius: 2px;
 }
+/* The table has nothing to show for an account with no webhooks or
+   subgraphs; drop its margin with it. */
+.ov-table:empty {
+	display: none;
+}
+/* The subgraphs' own header, a beat below the last webhook row. */
+.ov-group-head {
+	padding-top: 24px;
+}
+.ov-table > .ov-group-head:first-child {
+	padding-top: 0;
+}
+
+/* The strip under the table: what powers the webhooks and subgraphs. One
+   hairline box, cells split by hairlines; nothing changes on hover but the
+   label's text color. */
+.ov-strip {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	margin-top: 28px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.ov-cell {
+	display: grid;
+	gap: 10px;
+	align-content: start;
+	min-width: 0;
+	padding: 16px 18px;
+}
+.ov-cell + .ov-cell {
+	border-left: 1px solid var(--line);
+}
+.ov-cell-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+}
+.ov-cell-link {
+	color: var(--faint);
+	text-decoration: none;
+	transition: color 0.12s;
+}
+.ov-cell-link:hover {
+	color: var(--pri);
+}
+.ov-cell-link:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+.ov-cell-aside {
+	font: 400 12px / 1 var(--font-mono-stack);
+	color: var(--faint);
+}
+.ov-cell-state {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+.ov-cell-big {
+	font: 500 20px / 1 var(--font-sans-stack);
+	letter-spacing: -0.01em;
+	font-variant-numeric: tabular-nums;
+}
+.ov-cell-big small {
+	margin-left: 4px;
+	font: 400 13px / 1 var(--font-sans-stack);
+	letter-spacing: 0;
+	color: var(--sub);
+}
+.ov-cell-big.bad {
+	color: var(--alarm);
+}
+.ov-cell-empty .ov-cell-big {
+	color: var(--faint);
+}
+.ov-cell-keys {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 10px;
+	min-width: 0;
+}
+.ov-cell-keys code,
+.ov-cell code {
+	font: 400 12.5px / 1.3 var(--font-mono-stack);
+	color: var(--ink);
+	overflow-wrap: anywhere;
+}
+.ov-cell-s {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.4;
+	color: var(--sub);
+}
+
+/* A cell's one-line flag: the insight it carries, or a stale key. */
+.ov-flag {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px;
+	padding-top: 10px;
+	border-top: 1px solid var(--line);
+	font-size: 13px;
+	line-height: 1.4;
+	color: var(--sub);
+}
+.ov-flag .ins-dot {
+	transform: translateY(-1px);
+}
+.ov-flag-line b {
+	font-weight: 400;
+}
+.ov-flag-line.bad b {
+	color: var(--alarm);
+}
+.ov-flag-line a {
+	color: inherit;
+	text-decoration: none;
+}
+.ov-flag-line a:hover {
+	color: var(--ink);
+}
+.ov-flag-why {
+	all: unset;
+	cursor: pointer;
+	font-size: 13px;
+	color: var(--pri);
+}
+.ov-flag-why:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+/* The flagged insight's card, under the strip, with a notch at the Rows cell. */
+.ov-strip-card {
+	position: relative;
+	margin-top: 12px;
+}
+.ov-strip-card::before {
+	content: "";
+	position: absolute;
+	z-index: 1;
+	top: -6px;
+	left: 40px;
+	width: 10px;
+	height: 10px;
+	background: var(--paper);
+	border-left: 1px solid var(--line);
+	border-top: 1px solid var(--line);
+	transform: rotate(45deg);
+}
+@media (max-width: 720px) {
+	.ov-strip {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.ov-cell + .ov-cell {
+		border-left: 0;
+		border-top: 1px solid var(--line);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.ov-cell-link {
+		transition: none;
+	}
+}
+
 .dash-panel {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);

@@ -1,7 +1,7 @@
 "use client";
 
 import { Meter } from "@/components/dashboard/charts/meter";
-import { Sparkline } from "@/components/dashboard/charts/sparkline";
+import { Ticks } from "@/components/dashboard/charts/ticks";
 import {
 	ActionableInsights,
 	InsightActions,
@@ -15,6 +15,7 @@ import {
 import {
 	ResourceRow,
 	ResourceRowHead,
+	type ResourceRowLabels,
 	ResourceRowSkeleton,
 } from "@/components/dashboard/shell/resource-row";
 import { Skel } from "@/components/dashboard/shell/skel";
@@ -38,6 +39,7 @@ import {
 	READ_COMMAND,
 	onboardingProgress,
 } from "@/lib/onboarding";
+import type { RowsResponse } from "@/lib/rows";
 import { useSubgraphsCache } from "@/lib/subgraphs-store";
 import type { ApiKey } from "@/lib/types";
 import {
@@ -45,9 +47,7 @@ import {
 	type HostedStack,
 	ROWS_ALLOWANCE,
 	currentUtcMonth,
-	deliveredRowsIn,
 	formatRows,
-	latestMemoryHour,
 	monthLabel,
 	monthParam,
 	nextMonthLabel,
@@ -56,9 +56,8 @@ import { useFirstSettle } from "@/lib/use-first-settle";
 import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
-import { countedKeys, overviewKeys } from "../keys/key-view";
+import { countedKeys } from "../keys/key-view";
 import { NewKeyFlow } from "../keys/new-key-flow";
-import { OverviewRowsRow } from "../rows/rows-panel";
 import {
 	OverviewSubgraphsRows,
 	useSubgraphsPoll,
@@ -70,6 +69,8 @@ import {
 } from "../webhooks/rows";
 import { CliLine, shortenName } from "../webhooks/shared";
 import { ageShort, last24 } from "../webhooks/view";
+import { cellInsights } from "./overview-view";
+import { PlumbingStrip, PlumbingStripSkeleton } from "./plumbing-strip";
 
 /** The webhook rows refresh this often while the tab is visible. */
 const POLL_MS = 30_000;
@@ -81,51 +82,41 @@ export const OVERVIEW_ACCOUNT_RULES = [
 	"credits_runway",
 ];
 
-/** Rows (Index and Streams reads) get their own row here, once their data has loaded.
- *  Render-only: `OverviewSection` polls the data, because this slot is not
- *  mounted while the first-paint skeleton is up. */
-export function OverviewRowsSlot() {
-	const { rows } = useAccountData();
-	return rows ? <OverviewRowsRow data={rows} now={new Date()} /> : null;
-}
+/** The column labels over the webhook rows; they name the unit the numbers count. */
+export const WEBHOOK_HEAD: ResourceRowLabels = [
+	"Webhooks",
+	"State",
+	"Deliveries, 24h",
+	"Sent, 24h",
+	"Last",
+];
 
-/** One row per subgraph. Empty until the Overview's poll has loaded the list,
- *  and for an account with no subgraphs. */
+/** The subgraph rows' own header: they count rows written, not deliveries. */
+export const SUBGRAPH_HEAD: ResourceRowLabels = [
+	"Subgraphs",
+	"State",
+	"Rows written, 24h",
+	"Rows",
+	"Last",
+];
+
+/** One row per subgraph, under their own header. Empty until the Overview's
+ *  poll has loaded the list, and for an account with no subgraphs. */
 export function OverviewSubgraphsSlot() {
-	return <OverviewSubgraphsRows />;
-}
-
-/** Your keys: how many, which one read last, and a stale one if there is one. Hidden with no keys of your own. */
-export function OverviewKeysRow({
-	keys,
-	now,
-}: { keys: ApiKey[] | null; now: Date }) {
-	const view = overviewKeys(keys, now);
-	if (!view) return null;
-	return (
-		<ResourceRow
-			href="/account/keys"
-			name="keys"
-			tone={view.tone}
-			state={<span title={view.state}>{view.state}</span>}
-			spark={
-				view.spark ? (
-					<Sparkline
-						points={view.spark}
-						title="Rows read with your keys per day, last 24 days"
-					/>
-				) : null
-			}
-			count={view.count}
-			age={view.age}
-		/>
-	);
+	return <OverviewSubgraphsRows head={SUBGRAPH_HEAD} />;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) =>
 	`${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 
-function WebhookRow({ model }: { model: WebhookRowModel }) {
+function WebhookRow({
+	model,
+	stopped = false,
+}: {
+	model: WebhookRowModel;
+	/** The hosted stack is stopped: nothing is delivering, and the webhook isn't at fault. */
+	stopped?: boolean;
+}) {
 	const [open, setOpen] = useState(false);
 	const { webhook, series, state, insights } = model;
 	const recent = last24(series);
@@ -136,19 +127,23 @@ function WebhookRow({ model }: { model: WebhookRowModel }) {
 				href={`/account/webhooks/${webhook.id}`}
 				name={shortenName(webhook.name)}
 				nameTitle={webhook.name}
-				tone={state.tone}
+				tone={stopped ? "idle" : state.tone}
 				state={
-					<StateCell
-						model={model}
-						open={open}
-						onToggle={() => setOpen((v) => !v)}
-					/>
+					stopped ? (
+						"Not delivering, stack stopped"
+					) : (
+						<StateCell
+							model={model}
+							open={open}
+							onToggle={() => setOpen((v) => !v)}
+						/>
+					)
 				}
 				spark={
 					recent.delivered.length > 0 ? (
-						<Sparkline
-							points={recent.delivered}
-							fails={recent.failed}
+						<Ticks
+							delivered={recent.delivered}
+							failed={recent.failed}
 							title={`${webhook.name}, deliveries per hour, last 24 hours`}
 						/>
 					) : null
@@ -206,57 +201,13 @@ function QuietGroup({ models }: { models: WebhookRowModel[] }) {
 	);
 }
 
-function StackRow({
-	stack,
-	burn,
-}: { stack: HostedStack | null; burn: Burn | null }) {
-	if (!stack) return null;
-	const latest = latestMemoryHour(stack.memory24h);
-	if (stack.state === "none") {
-		return (
-			<ResourceRow
-				href="/account/credits"
-				name="hosted stack"
-				tone="idle"
-				state="Not started · starts with your first webhook"
-				age=""
-			/>
-		);
-	}
-	const running = stack.state === "running";
-	return (
-		<ResourceRow
-			href="/account/credits"
-			name="hosted stack"
-			tone={running ? "ok" : "alarm"}
-			state={
-				running
-					? `Running${latest ? ` · ${(latest.observedGb ?? latest.billedGb).toFixed(2)} GB` : ""} · runs your webhooks`
-					: "Stopped · add credits to start it again"
-			}
-			spark={
-				stack.memory24h.length > 1 ? (
-					<Sparkline
-						points={stack.memory24h.map((m) => m.observedGb ?? m.billedGb)}
-						title="Hosted stack memory, last 24 hours"
-					/>
-				) : null
-			}
-			count={burn ? `${formatUsd(burn.rateDayUsdMicros)}/d` : undefined}
-			age=""
-		/>
-	);
-}
-
 function MonthPanel({
 	billing,
 	burn,
-	deliveredRows,
 	fresh = false,
 }: {
 	billing: Billing | null;
 	burn: Burn | null;
-	deliveredRows: number | null;
 	/** A new account: nothing spent, nothing to pay, the free rows untouched. */
 	fresh?: boolean;
 }) {
@@ -283,30 +234,16 @@ function MonthPanel({
 					/>
 				</>
 			) : (
-				<>
-					<div className="dash-big">
-						{billing ? formatUsd(billing.spentThisMonthUsdMicros) : "–"}{" "}
-						<span>
-							spent
-							{billing
-								? ` · ${formatUsd(billing.creditsUsdMicros)} left${runway ? `, ${runway}` : ""}`
-								: ""}
-						</span>
-					</div>
-					{deliveredRows !== null ? (
-						<Meter
-							used={Math.min(deliveredRows, ROWS_ALLOWANCE)}
-							total={ROWS_ALLOWANCE}
-							label="Free rows used this month"
-							left={`${formatRows(Math.min(deliveredRows, ROWS_ALLOWANCE))} of ${formatRows(ROWS_ALLOWANCE)} free rows used`}
-							right={
-								deliveredRows > ROWS_ALLOWANCE
-									? `${formatRows(deliveredRows - ROWS_ALLOWANCE)} paid`
-									: undefined
-							}
-						/>
-					) : null}
-				</>
+				// The strip's Rows cell carries the meter; this panel is the money.
+				<div className="dash-big">
+					{billing ? formatUsd(billing.spentThisMonthUsdMicros) : "–"}{" "}
+					<span>
+						spent
+						{billing
+							? ` · ${formatUsd(billing.creditsUsdMicros)} left${runway ? `, ${runway}` : ""}`
+							: ""}
+					</span>
+				</div>
 			)}
 		</section>
 	);
@@ -420,7 +357,7 @@ export function overviewSettled(w: OverviewFirstWave): boolean {
 }
 
 /** How many placeholder rows the first-paint skeleton shows. */
-const SKELETON_ROWS = 4;
+const SKELETON_ROWS = 3;
 
 export interface OverviewBodyProps {
 	/** Hold the skeleton: the first data has not landed yet. */
@@ -430,7 +367,10 @@ export interface OverviewBodyProps {
 	billing: Billing | null;
 	burn: Burn | null;
 	stack: HostedStack | null;
-	deliveredRows: number | null;
+	/** This month's reads (the Rows cell); null until they have loaded. */
+	readUsage?: RowsResponse | null;
+	/** The subgraph rows under their own header; defaults to the ones the Overview's poll loads. */
+	subgraphs?: ReactNode;
 	/** The account's API keys; null until they have loaded. */
 	keys?: ApiKey[] | null;
 	/** The clock for the keys row; defaults to now. */
@@ -443,13 +383,14 @@ export interface OverviewBodyProps {
 	onboarding?: OverviewOnboarding | null;
 }
 
-/** The Overview: one sentence, a row per resource, and the month. */
+/** The Overview: one sentence, a row per webhook and subgraph, the strip under them, and the month. */
 export function OverviewBody({
 	rows,
 	billing,
 	burn,
 	stack,
-	deliveredRows,
+	readUsage = null,
+	subgraphs = <OverviewSubgraphsSlot />,
 	keys = null,
 	now = new Date(),
 	accountInsights = [],
@@ -461,6 +402,13 @@ export function OverviewBody({
 	const attention = rows?.filter((r) => r.state.tone === "alarm").length ?? 0;
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
 	const quiet = rows?.filter((r) => r.webhook.lastDeliveryAt === null) ?? [];
+	// Credits ran out and the hosted stack stopped. The webhooks aren't at
+	// fault, so their rows go idle instead of red.
+	const creditsOut =
+		stack?.state === "stopped" &&
+		billing !== null &&
+		Number(billing.creditsUsdMicros) <= 0;
+	const { rest: moneyInsights } = cellInsights(accountInsights);
 
 	const sub = [
 		rows ? plural(rows.length, "webhook") : null,
@@ -470,8 +418,8 @@ export function OverviewBody({
 		.join(" · ");
 
 	if (loading) {
-		// Nothing renders below the rows block: anything there would be an
-		// existing element that moves when the real rows replace this.
+		// Nothing renders below the strip: anything there would be an
+		// existing element that moves when the real ones replace this.
 		return (
 			<>
 				<StatusSentence tone="idle" sub={<Skel width={220} />}>
@@ -483,15 +431,14 @@ export function OverviewBody({
 					aria-busy="true"
 					aria-label="Loading your account"
 				>
-					<ResourceRowHead
-						labels={["Resource", "State", "Last 24h", "Count", "Last"]}
-					/>
+					<ResourceRowHead labels={WEBHOOK_HEAD} />
 					{Array.from({ length: SKELETON_ROWS }).map((_, i) => (
 						// Fixed skeleton row count; position is the identity.
 						// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
 						<ResourceRowSkeleton key={i} />
 					))}
 				</output>
+				<PlumbingStripSkeleton />
 			</>
 		);
 	}
@@ -504,6 +451,13 @@ export function OverviewBody({
 					{guide.flow}
 					<Checklist steps={onboardingSteps(guide)} />
 				</>
+			) : creditsOut ? (
+				<StatusSentence
+					tone="alarm"
+					sub="Credits ran out, so webhooks aren't delivering. Add credits to start it again."
+				>
+					Your hosted stack stopped.
+				</StatusSentence>
 			) : rows === null && asleep ? (
 				<StatusSentence
 					tone="idle"
@@ -536,27 +490,37 @@ export function OverviewBody({
 					note="These fill in as you go."
 				/>
 			) : (
-				<div key="ov-rows" className="dash-rows">
-					<ResourceRowHead
-						labels={["Resource", "State", "Last 24h", "Count", "Last"]}
+				<>
+					<div key="ov-rows" className="dash-rows ov-table">
+						{active.length + quiet.length > 0 ? (
+							<ResourceRowHead labels={WEBHOOK_HEAD} />
+						) : null}
+						{active.map((model) => (
+							<WebhookRow
+								key={model.webhook.id}
+								model={model}
+								stopped={creditsOut}
+							/>
+						))}
+						<QuietGroup models={quiet} />
+						{subgraphs}
+					</div>
+					<PlumbingStrip
+						rows={readUsage}
+						keys={keys}
+						stack={stack}
+						burn={burn}
+						now={now}
+						insights={accountInsights}
 					/>
-					{active.map((model) => (
-						<WebhookRow key={model.webhook.id} model={model} />
-					))}
-					<QuietGroup models={quiet} />
-					<OverviewRowsSlot />
-					<OverviewKeysRow keys={keys} now={now} />
-					<StackRow stack={stack} burn={burn} />
-					<OverviewSubgraphsSlot />
-				</div>
+				</>
 			)}
 
-			<ActionableInsights insights={accountInsights} />
+			<ActionableInsights insights={moneyInsights} />
 
 			<MonthPanel
 				billing={billing}
 				burn={burn}
-				deliveredRows={deliveredRows}
 				fresh={guide !== null && !guide.progress.key}
 			/>
 		</>
@@ -605,14 +569,7 @@ function useOnboarding({
 
 /** /account: is everything running, what needs you, what it costs. */
 export function OverviewSection() {
-	const {
-		billing,
-		burn,
-		keys,
-		service,
-		usage,
-		rows: rowsData,
-	} = useAccountData();
+	const { billing, burn, keys, service, rows: rowsData } = useAccountData();
 	const { rows } = useWebhookRows();
 	const { data: insights, status: insightsStatus } = useInsights();
 	const month = monthParam(currentUtcMonth());
@@ -684,7 +641,6 @@ export function OverviewSection() {
 		}),
 	);
 
-	const monthRows = usage[month];
 	return (
 		<OverviewBody
 			loading={!ready}
@@ -693,7 +649,7 @@ export function OverviewSection() {
 			billing={billing}
 			burn={burn}
 			stack={service}
-			deliveredRows={monthRows ? deliveredRowsIn(monthRows) : null}
+			readUsage={rowsData}
 			keys={keys}
 			accountInsights={forAccountRules(insights, OVERVIEW_ACCOUNT_RULES)}
 			asleep={asleep}

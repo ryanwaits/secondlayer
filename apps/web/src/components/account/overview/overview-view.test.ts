@@ -144,7 +144,7 @@ describe("stackCell", () => {
 		expect(cell).toMatchObject({
 			tone: "idle",
 			word: "not started",
-			perDay: null,
+			perDay: "$0.00",
 			points: [],
 			caption: "Starts with your first webhook.",
 		});
