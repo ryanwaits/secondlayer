@@ -2,7 +2,6 @@
 
 import { AccountAvatar, AccountMenu } from "@/components/account-menu";
 import { countByDisplayStatus } from "@/components/account/webhooks/shared";
-import { ChainHeartbeat } from "@/components/dashboard/shell/chain-heartbeat";
 import {
 	DASHBOARD_TABS,
 	DashboardTabs,
@@ -114,7 +113,6 @@ export function MarketingNav() {
 				{dash ? (
 					<>
 						{command ? <ViewCommand command={command} /> : null}
-						<ChainHeartbeat />
 						<kbd className="dash-kbd">⌘K</kbd>
 					</>
 				) : null}

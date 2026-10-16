@@ -5656,19 +5656,19 @@ a.acct-strip-link:hover .acct-strip-k {
 	margin-left: 14px;
 }
 
-/* The current view's CLI command: a chip in the dashboard bar. Click copies. */
+/* The current view's CLI command: a copy bar in the dashboard nav. Click copies. */
 .dash-cmd {
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	height: 26px;
-	max-width: 280px;
-	padding: 0 8px;
+	gap: 10px;
+	height: 30px;
+	min-width: 0;
+	padding: 0 12px;
 	border: 1px solid var(--line);
 	border-radius: 4px;
 	background: none;
 	font: 400 12px / 1 var(--font-mono-stack);
-	color: var(--sub);
+	color: var(--faint);
 	cursor: pointer;
 	white-space: nowrap;
 }
@@ -5676,13 +5676,19 @@ a.acct-strip-link:hover .acct-strip-k {
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	color: var(--sub);
 }
-.dash-cmd-p {
-	color: var(--faint);
+.dash-cmd-copy {
+	transition: color 0.12s;
 }
-.dash-cmd:hover,
-.dash-cmd:hover .dash-cmd-p {
+.dash-cmd:hover .dash-cmd-copy {
 	color: var(--pri);
+}
+/* The tabs keep their room: the label goes first, then the whole bar. */
+@media (max-width: 1180px) {
+	.dash-cmd-l {
+		display: none;
+	}
 }
 
 /* Breadcrumb */
@@ -5807,7 +5813,7 @@ a.acct-strip-link:hover .acct-strip-k {
 @media (max-width: 900px) {
 	.dash-beat-lbl,
 	.dash-kbd,
-	.dash-cmd code {
+	.dash-cmd {
 		display: none;
 	}
 	.dash-row-head,

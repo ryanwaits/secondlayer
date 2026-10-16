@@ -984,7 +984,7 @@ const META: Record<StoryId, Meta> = {
 			"apps/web/src/components/dashboard/shell/view-command.tsx",
 			"apps/web/src/components/marketing-nav.tsx",
 		],
-		rule: "Tabs and the chain heartbeat in the bar, one sentence of status, rows that never grow a background, and the view's CLI command as a chip in the bar.",
+		rule: "Tabs and the view's CLI command in the bar, one sentence of status, and rows that never grow a background.",
 		stack: true,
 		variants: [
 			{
@@ -1014,13 +1014,6 @@ const META: Record<StoryId, Meta> = {
 							<b style={{ fontWeight: 500 }}>secondlayer</b>
 							<DashboardTabs pathname="/account/webhooks" failingWebhooks={1} />
 							<ViewCommand command={LONG_COMMAND} />
-							<HeartbeatView
-								height={9_219_695}
-								seenAt={NOW - 5_000}
-								avgBlockSec={9}
-								beat={3}
-								now={NOW}
-							/>
 							<kbd className="dash-kbd">⌘K</kbd>
 							<AccountChip
 								account={LAB_ACCOUNT}
