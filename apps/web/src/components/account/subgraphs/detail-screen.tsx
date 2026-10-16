@@ -4,6 +4,7 @@ import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { Choice } from "@/components/choice";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
+import { Skel } from "@/components/dashboard/shell/skel";
 import { dotClass } from "@/components/dashboard/shell/status-sentence";
 import type { Insight } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
@@ -20,6 +21,7 @@ import {
 	type SubgraphErrorGroup,
 	type SubgraphHealthData,
 	poll,
+	prefetchFirstPage,
 	refreshDetail,
 	refreshErrors,
 	refreshHealth,
@@ -27,7 +29,7 @@ import {
 } from "@/lib/subgraphs-store";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { DataGrid } from "./data-grid";
+import { DataGrid, firstPageQuery } from "./data-grid";
 import {
 	BlocksBehindPanel,
 	HandlerErrorsPanel,
@@ -37,6 +39,10 @@ import { SchemaView } from "./schema-view";
 
 const DETAIL_POLL_MS = 10_000;
 const HEALTH_POLL_MS = 60_000;
+
+/** Fact cells `SubgraphDetailBody` renders, and about a 10-row grid's height. */
+const SKELETON_FACTS = 5;
+const GRID_SKELETON_HEIGHT = 440;
 
 export type SubgraphView = "rows" | "schema";
 
@@ -181,6 +187,25 @@ export function SubgraphDetailBody({
 	);
 }
 
+/** Stands in for the facts row, the table grid and the two health panels. */
+function DetailSkeleton() {
+	return (
+		<output aria-label="Loading subgraph" aria-busy="true">
+			<div className="wd-facts">
+				{Array.from({ length: SKELETON_FACTS }).map((_, i) => (
+					// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton cells
+					<Skel key={i} width={92} height={36} />
+				))}
+			</div>
+			<ChartSkeleton height={GRID_SKELETON_HEIGHT} />
+			<div className="bl-two even sg-health">
+				<ChartSkeleton height={150} />
+				<ChartSkeleton height={150} />
+			</div>
+		</output>
+	);
+}
+
 function NotFound({ name }: { name: string }) {
 	return (
 		<>
@@ -200,11 +225,19 @@ function NotFound({ name }: { name: string }) {
 
 /** /account/subgraphs/<name>: loads and refreshes one subgraph. */
 export function SubgraphDetailSection({ name }: { name: string }) {
-	const { detail, health, errors } = useSubgraphsCache();
+	const { list, detail, health, errors } = useSubgraphsCache();
 	const { data: insights } = useInsights();
 	const [missing, setMissing] = useState(false);
 	const [table, setTable] = useState<string | null>(null);
 	const [view, setView] = useState<SubgraphView>("rows");
+
+	// The list already knows the table names, so the grid's rows can load
+	// beside the detail instead of after it. Never guess a table name.
+	const firstTable = list?.data.find((s) => s.name === name)?.tables[0];
+	// biome-ignore lint/correctness/useExhaustiveDependencies: once per subgraph, not per list refresh
+	useEffect(() => {
+		if (firstTable) void prefetchFirstPage(name, firstTable, firstPageQuery());
+	}, [name]);
 
 	useEffect(
 		() =>
@@ -231,13 +264,14 @@ export function SubgraphDetailSection({ name }: { name: string }) {
 	const data = detail[name]?.data;
 	const healthData = health[name]?.data;
 	const hasErrors = (handlerErrors24h(healthData) ?? 0) > 0;
-	useEffect(() => {
-		if (!hasErrors) return;
-		return poll(async () => {
-			await refreshErrors(name);
-			return {};
-		}, HEALTH_POLL_MS);
-	}, [name, hasErrors]);
+	useEffect(
+		() =>
+			poll(async () => {
+				await refreshErrors(name);
+				return {};
+			}, HEALTH_POLL_MS),
+		[name],
+	);
 
 	if (!data) {
 		if (missing) return <NotFound name={name} />;
@@ -252,7 +286,7 @@ export function SubgraphDetailSection({ name }: { name: string }) {
 						<span className="wd-name">{name}</span>
 					</h1>
 				</div>
-				<ChartSkeleton height={240} />
+				<DetailSkeleton />
 			</>
 		);
 	}

@@ -324,3 +324,29 @@ describe("SubgraphsEmptyState for a new account", () => {
 		);
 	});
 });
+
+describe("SubgraphsListBody before health lands", () => {
+	test("says it is checking rather than claiming everything is indexing", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody items={exampleList} health={{}} notice={null} />,
+		);
+		expect(html).toContain("Checking your subgraphs.");
+		expect(html).not.toContain("Everything is indexing.");
+		expect(html).toContain('href="/account/subgraphs/sbtc-deposits"');
+	});
+
+	test("with health in, a subgraph with errors gets the attention sentence", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody
+				items={exampleList}
+				health={{
+					"sbtc-deposits": exampleHealth(0),
+					"vault-events": exampleHealth(3),
+				}}
+				notice={null}
+			/>,
+		);
+		expect(html).not.toContain("Checking your subgraphs.");
+		expect(html).toContain("1 subgraph needs attention.");
+	});
+});

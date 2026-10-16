@@ -219,6 +219,7 @@ export function SubgraphsListBody({
 	}
 	if (items.length === 0) return <SubgraphsEmptyState noKey={noKey} />;
 
+	const healthReady = items.every((s) => health[s.name] !== undefined);
 	const failing = items.filter(
 		(s) => subgraphTone(s.status, handlerErrors24h(health[s.name])) === "alarm",
 	).length;
@@ -226,7 +227,11 @@ export function SubgraphsListBody({
 	const sub = `${items.length} ${items.length === 1 ? "subgraph" : "subgraphs"} · ${groupDigits(String(totalRows))} rows`;
 	return (
 		<>
-			{failing > 0 ? (
+			{!healthReady ? (
+				<StatusSentence tone="idle" sub={sub}>
+					Checking your subgraphs.
+				</StatusSentence>
+			) : failing > 0 ? (
 				<StatusSentence tone="alarm" sub={sub}>
 					{failing} {failing === 1 ? "subgraph needs" : "subgraphs need"}{" "}
 					attention.

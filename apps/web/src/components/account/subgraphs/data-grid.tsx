@@ -20,7 +20,10 @@ import {
 	type SubgraphColumn,
 	type SubgraphsResult,
 	fetchRows,
+	firstPageKey,
+	rememberFirstPage,
 	streamUrl,
+	subgraphsSnapshot,
 } from "@/lib/subgraphs-store";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CopyAction } from "./copy-action";
@@ -43,6 +46,22 @@ function failureText(
 	if (res.kind === "asleep") return "Your hosted stack is asleep.";
 	return res.message;
 }
+
+/** The query for a grid's newest page: default sort, no filters, no cursor.
+ *  The prefetch and the grid both build theirs here so the strings match. */
+export const firstPageQuery = (): string =>
+	rowsQuery({
+		sort: DEFAULT_SORT.column,
+		order: DEFAULT_SORT.order,
+		filters: [],
+		cursor: null,
+	});
+
+/** Block height of the newest row on a page; the stream replays from it. */
+const newestHeight = (rows: Row[]): string | null => {
+	const newest = rows[0]?._block_height;
+	return newest === undefined || newest === null ? null : String(newest);
+};
 
 const rowKey = (row: Row, index: number) => String(row._id ?? index);
 
@@ -348,14 +367,22 @@ export function DataGrid({
 	const [filters, setFilters] = useState<TableFilter[]>([]);
 	const [cursor, setCursor] = useState<string | null>(null);
 	const [page, setPage] = useState(1);
-	const [rows, setRows] = useState<Row[] | null>(null);
-	const [nextCursor, setNextCursor] = useState<string | null>(null);
+	// A revisit paints its last first page at once; the fetch below still runs.
+	const [seed] = useState(
+		() => subgraphsSnapshot().firstPage[firstPageKey(name, table)]?.data,
+	);
+	const [rows, setRows] = useState<Row[] | null>(seed?.rows ?? null);
+	const [nextCursor, setNextCursor] = useState<string | null>(
+		seed?.next_cursor ?? null,
+	);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [reload, setReload] = useState(0);
 	// Block height of the newest row on the page read; the stream replays from
 	// it, so rows written between that read and the connect are not missed.
-	const [since, setSince] = useState<string | null>(null);
+	const [since, setSince] = useState<string | null>(
+		seed ? newestHeight(seed.rows) : null,
+	);
 	const [openKey, setOpenKey] = useState<string | null>(null);
 	const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
 	const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
@@ -379,10 +406,10 @@ export function DataGrid({
 				setError(null);
 				setRows(res.data.rows);
 				setNextCursor(res.data.next_cursor);
-				const newest = res.data.rows[0]?._block_height;
-				setSince(
-					newest === undefined || newest === null ? null : String(newest),
-				);
+				setSince(newestHeight(res.data.rows));
+				if (query === firstPageQuery()) {
+					rememberFirstPage(name, table, res.data);
+				}
 			} else {
 				setError(failureText(res));
 			}

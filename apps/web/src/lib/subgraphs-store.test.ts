@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
 	clearSubgraphsData,
 	fetchRows,
+	prefetchFirstPage,
 	refreshDetail,
 	refreshErrors,
 	refreshHealth,
 	refreshList,
+	rememberFirstPage,
 	streamUrl,
 	subgraphsSnapshot,
 } from "./subgraphs-store";
@@ -146,5 +148,28 @@ describe("this tab's saved copy", () => {
 		expect(subgraphsSnapshot().list?.data[0]?.name).toBe("sbtc-deposits");
 		clearSubgraphsData();
 		expect(storage.has("sl:dash:v1:subgraphs")).toBe(false);
+	});
+});
+
+describe("first-page cache", () => {
+	const page = { rows: [{ _id: 1, _block_height: 9 }], next_cursor: null };
+
+	test("prefetching a first page stores its rows", async () => {
+		stub(json(page));
+		await prefetchFirstPage("a", "t", "_limit=50");
+		expect(subgraphsSnapshot().firstPage["a/t"]?.data.rows).toEqual(page.rows);
+	});
+
+	test("remembering 21 pages keeps the newest 20", () => {
+		for (let i = 0; i < 21; i++) rememberFirstPage(`s${i}`, "t", page);
+		const keys = Object.keys(subgraphsSnapshot().firstPage);
+		expect(keys).toHaveLength(20);
+		expect(keys).toContain("s20/t");
+	});
+
+	test("signing out empties the remembered pages", () => {
+		rememberFirstPage("a", "t", page);
+		clearSubgraphsData();
+		expect(subgraphsSnapshot().firstPage).toEqual({});
 	});
 });
