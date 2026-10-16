@@ -7,10 +7,8 @@ import {
 } from "@/components/charts/lazy";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { Meter } from "@/components/dashboard/charts/meter";
-import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { KeyFirstLine } from "@/components/dashboard/shell/onboarding";
-import { ResourceRow } from "@/components/dashboard/shell/resource-row";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ensureKeys, refreshRows, useAccountData } from "@/lib/account-data";
@@ -24,7 +22,6 @@ import {
 	clientErrors,
 	dailyBars,
 	errorSummary,
-	hourlyPoints,
 	markIndex,
 	serverErrors,
 	shortDate,
@@ -36,7 +33,6 @@ import { ROWS_ALLOWANCE, formatRows } from "@/lib/usage";
 import { useFirstSettle } from "@/lib/use-first-settle";
 import { useEffect, useState } from "react";
 import { CliLine } from "../webhooks/shared";
-import { ageShort } from "../webhooks/view";
 
 const SOURCE_LABEL: Record<string, string> = {
 	index: "Index",
@@ -337,34 +333,6 @@ export function RowsSection() {
 			now={now}
 			onRetry={load}
 			noKey={hasNoKey(keys, now)}
-		/>
-	);
-}
-
-/** The Overview's row for Index and Streams reads: this month, today by hour, and when the last read landed. */
-export function OverviewRowsRow({
-	data,
-	now,
-}: { data: RowsResponse; now: Date }) {
-	const { allowance } = data;
-	const today = hourlyPoints(data.hourlyToday, now);
-	const todayRows = today.reduce((sum, v) => sum + v, 0);
-	const lastHour = data.hourlyToday.at(-1)?.hour ?? null;
-	return (
-		<ResourceRow
-			href="/account/rows"
-			name="rows"
-			tone="ok"
-			state={`${formatRows(allowance.usedThisMonth)} this month${
-				allowance.exhaustedOn ? " · free 1M used up" : ""
-			}`}
-			spark={
-				today.length > 1 ? (
-					<Sparkline points={today} title="Rows delivered today, by hour" />
-				) : null
-			}
-			count={formatRows(todayRows)}
-			age={ageShort(lastHour)}
 		/>
 	);
 }

@@ -13,9 +13,7 @@ mock.module("next/navigation", () => ({
 	permanentRedirect: () => {},
 }));
 
-const { OverviewRowsRow, RowsBody, RowsSkeleton } = await import(
-	"./rows-panel"
-);
+const { RowsBody, RowsSkeleton } = await import("./rows-panel");
 type RowsResponse = import("@/lib/rows").RowsResponse;
 
 const NOW = new Date("2026-10-15T12:00:00.000Z");
@@ -169,47 +167,6 @@ describe("RowsBody", () => {
 		);
 		expect(html).not.toContain("ins-stack");
 		expect(html).not.toContain("ins-note");
-	});
-});
-
-describe("OverviewRowsRow", () => {
-	test("links to the Rows screen with this month, today's rows and a sparkline", () => {
-		const html = renderToStaticMarkup(
-			<OverviewRowsRow
-				now={NOW}
-				data={{
-					...exhausted,
-					hourlyToday: [
-						{
-							hour: "2026-10-15T01:00:00.000Z",
-							source: "index",
-							rows: 40,
-							calls: 2,
-						},
-						{
-							hour: "2026-10-15T09:00:00.000Z",
-							source: "index",
-							rows: 60,
-							calls: 3,
-						},
-					],
-				}}
-			/>,
-		);
-		expect(html).toContain('href="/account/rows"');
-		expect(html).toContain("1.2M this month");
-		expect(html).toContain("free 1M used up");
-		expect(html).toContain("<svg");
-		expect(html).toContain(">100<");
-	});
-
-	test("with no reads today it shows zero and no age", () => {
-		const html = renderToStaticMarkup(
-			<OverviewRowsRow now={NOW} data={under} />,
-		);
-		expect(html).toContain("250,000 this month");
-		expect(html).not.toContain("free 1M used up");
-		expect(html).toContain(">0<");
 	});
 });
 
