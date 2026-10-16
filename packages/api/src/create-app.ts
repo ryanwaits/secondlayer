@@ -21,6 +21,7 @@ import { createBatchRouter } from "./routes/batch.ts";
 import webhooksStripeRouter from "./routes/billing-stripe.ts";
 import billingRouter from "./routes/billing.ts";
 import chainReadRouter from "./routes/chain-read.ts";
+import cliDeviceRouter from "./routes/cli-device.ts";
 import contractsRouter from "./routes/contracts.ts";
 import feedbackRouter from "./routes/feedback.ts";
 import indexRouter from "./routes/index.ts";
@@ -173,6 +174,10 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/api/keys", keysRouter);
 		app.use("/api/auth/*", ipRateLimit(10));
 		app.route("/api/auth", authRouter);
+		// Own path and limiter: the CLI polls every few seconds, which the
+		// 10/min `/api/auth/*` limit would trip.
+		app.use("/api/cli/device/*", ipRateLimit(30, "cli-device"));
+		app.route("/api/cli/device", cliDeviceRouter);
 		app.route("/api/billing/stripe", webhooksStripeRouter);
 		app.use("/api/public/credits/*", ipRateLimit(20));
 		app.route("/api/public/credits", publicCreditsRouter);
