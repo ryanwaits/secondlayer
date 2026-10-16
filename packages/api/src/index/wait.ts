@@ -50,6 +50,27 @@ export function parseWaitSeconds(
 let wakeBus: WakeBus | null = null;
 let starting: Promise<void> | null = null;
 
+// A draining replica answers its long-polls with "nothing new yet" so the
+// client re-polls the next replica instead of getting a 500 when the process
+// closes the database under it. `drainWaiters` holds the wake function of every
+// pending `waitForIndexTipAdvance` so shutdown can end them all at once.
+let draining = false;
+const drainWaiters = new Set<() => void>();
+
+/** Stop holding long-polls: wake every pending waiter now and make every later
+ *  `longPollIndex` return its current result without waiting. Called once on
+ *  shutdown, before the server stops. */
+export function drainLongPolls(): void {
+	draining = true;
+	for (const wake of [...drainWaiters]) wake();
+}
+
+/** Test-only: undo `drainLongPolls` so later tests wait normally again. */
+export function resetDrainForTests(): void {
+	draining = false;
+	drainWaiters.clear();
+}
+
 /**
  * Start (once per process) the LISTEN backing every pending long-poll. Safe
  * to call more than once — only the first call opens a connection. Degrades
@@ -111,7 +132,7 @@ export async function waitForIndexTipAdvance(
 	seconds: number | undefined,
 	sinceGeneration?: number,
 ): Promise<void> {
-	if (!seconds || seconds <= 0) return;
+	if (!seconds || seconds <= 0 || draining) return;
 	if (
 		sinceGeneration !== undefined &&
 		wakeBus &&
@@ -126,9 +147,11 @@ export async function waitForIndexTipAdvance(
 			if (done) return;
 			done = true;
 			clearTimeout(timer);
+			drainWaiters.delete(finish);
 			resolve();
 		};
 		const timer = setTimeout(finish, ms);
+		drainWaiters.add(finish);
 		(wakeBus?.wait() ?? new Promise<void>(() => {})).then(finish);
 	});
 }
@@ -156,9 +179,12 @@ export async function longPollIndex<T>(opts: {
 	if (totalMs <= 0) return result;
 
 	const deadline = Date.now() + totalMs;
-	while (opts.isEmpty(result) && Date.now() < deadline) {
+	while (!draining && opts.isEmpty(result) && Date.now() < deadline) {
 		const remainingSeconds = (deadline - Date.now()) / 1000;
 		await waitForIndexTipAdvance(remainingSeconds, generation);
+		// Draining: return the empty-but-valid result we already have rather than
+		// start another read while the process is shutting down.
+		if (draining) break;
 		generation = currentIndexTipGeneration();
 		result = await opts.build();
 	}

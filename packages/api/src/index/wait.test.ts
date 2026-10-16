@@ -1,9 +1,11 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterEach, beforeAll, describe, expect, test } from "bun:test";
 import { notify } from "@secondlayer/shared/queue/listener";
 import {
 	currentIndexTipGeneration,
+	drainLongPolls,
 	longPollIndex,
 	parseWaitSeconds,
+	resetDrainForTests,
 	startIndexTipWakeListener,
 	waitForIndexTipAdvance,
 } from "./wait.ts";
@@ -172,5 +174,29 @@ describe("startIndexTipWakeListener degrades safely", () => {
 				connectionString: "postgres://bad-host-does-not-resolve:5432/nope",
 			}),
 		).not.toThrow();
+	});
+});
+
+describe("drainLongPolls", () => {
+	afterEach(() => resetDrainForTests());
+
+	test("draining returns the current empty result at once instead of waiting", async () => {
+		let calls = 0;
+		const start = Date.now();
+		const pending = longPollIndex({
+			waitSeconds: 20,
+			isEmpty: () => true,
+			build: async () => {
+				calls++;
+				return { rows: [] as number[] };
+			},
+		});
+		// Let the poll reach its wait before the replica starts shutting down.
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		drainLongPolls();
+		const result = await pending;
+		expect(result.rows).toEqual([]);
+		expect(calls).toBe(1);
+		expect(Date.now() - start).toBeLessThan(200);
 	});
 });

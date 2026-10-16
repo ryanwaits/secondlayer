@@ -3,7 +3,7 @@ import { assertDbSplit, closeDb } from "@secondlayer/shared/db";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { createApiApp } from "./create-app.ts";
 import { startIndexTipInvalidationListener } from "./index/tip.ts";
-import { startIndexTipWakeListener } from "./index/wait.ts";
+import { drainLongPolls, startIndexTipWakeListener } from "./index/wait.ts";
 import {
 	assertInstanceBindAuth,
 	resolveInstanceToken,
@@ -110,12 +110,20 @@ const server = Bun.serve({
 	idleTimeout: 90,
 });
 
+let stopping = false;
 const shutdown = async () => {
+	if (stopping) return;
+	stopping = true;
 	logger.info("Shutting down API service...");
 
+	// Stop taking new requests and let in-flight ones finish before closing the
+	// database; closing it first turned every in-flight request (and every 20s
+	// long-poll) into a 500 on each deploy. Long-polls are told to answer now,
+	// otherwise they would hold stop() open past the container's grace period.
+	drainLongPolls();
+	await server.stop();
 	await stopSubgraphCache();
 	await closeDb();
-	server.stop();
 	logger.info("API service stopped");
 	process.exit(0);
 };

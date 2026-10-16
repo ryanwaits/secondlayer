@@ -200,6 +200,9 @@ services:
       - "3800"
     deploy:
       replicas: ${API_REPLICAS:-1}
+    # In-flight requests get time to finish on stop (Docker's 10s default
+    # SIGKILLs a slow read mid-response).
+    stop_grace_period: 30s
     depends_on:
       migrate:
         condition: service_completed_successfully
