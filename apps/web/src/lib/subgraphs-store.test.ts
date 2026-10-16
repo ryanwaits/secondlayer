@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
 	clearSubgraphsData,
 	fetchRows,
@@ -97,5 +97,54 @@ describe("subgraphs store", () => {
 		expect(streamUrl("vault-events", "transfers", "")).toBe(
 			"/api/subgraphs/vault-events/rows/transfers/stream",
 		);
+	});
+});
+
+const storage = new Map<string, string>();
+
+function installStorage() {
+	storage.clear();
+	globalThis.sessionStorage = {
+		getItem: (k: string) => storage.get(k) ?? null,
+		setItem: (k: string, v: string) => void storage.set(k, v),
+		removeItem: (k: string) => void storage.delete(k),
+		key: (i: number) => [...storage.keys()][i] ?? null,
+		get length() {
+			return storage.size;
+		},
+	} as unknown as Storage;
+	globalThis.window = {} as Window & typeof globalThis;
+}
+
+function removeStorage() {
+	// @ts-expect-error restoring the bare test environment
+	globalThis.sessionStorage = undefined;
+	// @ts-expect-error restoring the bare test environment
+	globalThis.window = undefined;
+}
+
+function envelope(data: unknown): string {
+	return JSON.stringify({ owner: null, savedAt: Date.now(), data });
+}
+
+describe("this tab's saved copy", () => {
+	beforeEach(installStorage);
+	afterEach(removeStorage);
+
+	test("a successful list refresh is saved for a reload", async () => {
+		stub(json({ data: [{ name: "sbtc-deposits" }] }));
+		await refreshList();
+		expect(storage.get("sl:dash:v1:subgraphs")).toContain("sbtc-deposits");
+	});
+
+	test("a reload reads the saved copy and clearing removes it", () => {
+		clearSubgraphsData(); // resets the store as a fresh page load would
+		storage.set(
+			"sl:dash:v1:subgraphs",
+			envelope({ list: { data: [{ name: "sbtc-deposits" }], at: 1 } }),
+		);
+		expect(subgraphsSnapshot().list?.data[0]?.name).toBe("sbtc-deposits");
+		clearSubgraphsData();
+		expect(storage.has("sl:dash:v1:subgraphs")).toBe(false);
 	});
 });

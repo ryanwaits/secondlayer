@@ -1,5 +1,7 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
+	accountSnapshot,
+	adoptCacheOwner,
 	clearAccountData,
 	ensureKeys,
 	refreshBilling,
@@ -64,5 +66,90 @@ describe("clearAccountData", () => {
 		expect(subgraphsSnapshot().list?.data.length).toBe(1);
 		clearAccountData();
 		expect(subgraphsSnapshot().list).toBeUndefined();
+	});
+});
+
+const storage = new Map<string, string>();
+
+function installStorage() {
+	storage.clear();
+	globalThis.sessionStorage = {
+		getItem: (k: string) => storage.get(k) ?? null,
+		setItem: (k: string, v: string) => void storage.set(k, v),
+		removeItem: (k: string) => void storage.delete(k),
+		key: (i: number) => [...storage.keys()][i] ?? null,
+		get length() {
+			return storage.size;
+		},
+	} as unknown as Storage;
+	globalThis.window = {} as Window & typeof globalThis;
+}
+
+function removeStorage() {
+	// @ts-expect-error restoring the bare test environment
+	globalThis.sessionStorage = undefined;
+	// @ts-expect-error restoring the bare test environment
+	globalThis.window = undefined;
+}
+
+function envelope(data: unknown): string {
+	return JSON.stringify({ owner: null, savedAt: Date.now(), data });
+}
+
+describe("this tab's saved copy", () => {
+	beforeEach(installStorage);
+	afterEach(removeStorage);
+
+	test("a successful refresh is saved for a reload", async () => {
+		stub(() => jsonResponse({ keys: [] }));
+		await refreshKeys();
+		expect(storage.get("sl:dash:v1:account")).toContain('"keys":[]');
+	});
+
+	test("a reload reads the saved copy and clearing removes it", () => {
+		clearAccountData(); // resets the store as a fresh page load would
+		storage.set(
+			"sl:dash:v1:account",
+			envelope({
+				billing: { creditsUsdMicros: "5", spentThisMonthUsdMicros: "0" },
+			}),
+		);
+		expect(accountSnapshot().billing?.creditsUsdMicros).toBe("5");
+		clearAccountData();
+		expect(storage.has("sl:dash:v1:account")).toBe(false);
+	});
+});
+
+describe("adoptCacheOwner", () => {
+	beforeEach(installStorage);
+	afterEach(removeStorage);
+
+	async function seed() {
+		stub(() => jsonResponse({ keys: [] }));
+		await refreshKeys();
+	}
+
+	test("a different account empties the store and its saved copy", async () => {
+		adoptCacheOwner("a");
+		await seed();
+		expect(accountSnapshot().keys).toEqual([]);
+		adoptCacheOwner("b");
+		expect(accountSnapshot().keys).toBeNull();
+		expect(storage.has("sl:dash:v1:account")).toBe(false);
+	});
+
+	test("a signed-out answer with an owner set clears", async () => {
+		adoptCacheOwner("a");
+		await seed();
+		adoptCacheOwner(null);
+		expect(accountSnapshot().keys).toBeNull();
+		expect(storage.has("sl:dash:v1:owner")).toBe(false);
+	});
+
+	test("the same account twice keeps the data", async () => {
+		adoptCacheOwner("a");
+		await seed();
+		adoptCacheOwner("a");
+		expect(accountSnapshot().keys).toEqual([]);
 	});
 });

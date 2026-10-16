@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { markFresh, shared } from "./request-cache";
+import { loadSnapshot, removeSnapshot, saveSnapshot } from "./session-cache";
 import { type WebhooksResult, resultForStatus } from "./webhooks-data";
 
 export { poll } from "./webhooks-store";
@@ -112,11 +113,27 @@ type State = {
 
 const EMPTY: State = { list: undefined, detail: {}, health: {}, errors: {} };
 
+const NAME = "subgraphs";
+type Persisted = Pick<State, "list" | "health">;
 let state: State = EMPTY;
+let hydrated = false;
 const listeners = new Set<() => void>();
 
+/** The first client read pulls this tab's last copy, if any. */
+function current(): State {
+	if (!hydrated && typeof window !== "undefined") {
+		hydrated = true;
+		const saved = loadSnapshot<Persisted>(NAME);
+		if (saved) state = { ...EMPTY, ...saved };
+	}
+	return state;
+}
+
 function set(patch: Partial<State>) {
-	state = { ...state, ...patch };
+	const prev = current();
+	state = { ...prev, ...patch };
+	if (prev.list !== state.list || prev.health !== state.health)
+		saveSnapshot(NAME, { list: state.list, health: state.health });
 	for (const l of listeners) l();
 }
 
@@ -126,7 +143,7 @@ function subscribe(l: () => void) {
 }
 
 export function subgraphsSnapshot(): State {
-	return state;
+	return current();
 }
 
 export function useSubgraphsCache(): State {
@@ -136,6 +153,8 @@ export function useSubgraphsCache(): State {
 /** Forget every cached subgraph on sign-out. */
 export function clearSubgraphsData(): void {
 	state = EMPTY;
+	hydrated = false;
+	removeSnapshot(NAME);
 	for (const l of listeners) l();
 }
 
@@ -198,7 +217,10 @@ export function refreshDetail(
 		const res = await request<SubgraphDetailData>(`/${seg(name)}`);
 		if (res.kind === "ok") {
 			set({
-				detail: { ...state.detail, [name]: { data: res.data, at: Date.now() } },
+				detail: {
+					...current().detail,
+					[name]: { data: res.data, at: Date.now() },
+				},
 			});
 			markFresh(key);
 		}
@@ -218,7 +240,10 @@ export function refreshHealth(
 		);
 		if (res.kind === "ok") {
 			set({
-				health: { ...state.health, [name]: { data: res.data, at: Date.now() } },
+				health: {
+					...current().health,
+					[name]: { data: res.data, at: Date.now() },
+				},
 			});
 			markFresh(key);
 		}
@@ -237,7 +262,7 @@ export function refreshErrors(
 		if (res.kind === "ok") {
 			set({
 				errors: {
-					...state.errors,
+					...current().errors,
 					[name]: { data: res.data.data, at: Date.now() },
 				},
 			});

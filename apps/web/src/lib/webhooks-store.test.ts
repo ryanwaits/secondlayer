@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import type {
 	WebhookActivity,
 	WebhookDetail,
@@ -355,5 +355,82 @@ describe("poll", () => {
 		await advance(1000);
 		expect(runs.length).toBe(3);
 		stop();
+	});
+});
+
+const storage = new Map<string, string>();
+
+function installStorage() {
+	storage.clear();
+	globalThis.sessionStorage = {
+		getItem: (k: string) => storage.get(k) ?? null,
+		setItem: (k: string, v: string) => void storage.set(k, v),
+		removeItem: (k: string) => void storage.delete(k),
+		key: (i: number) => [...storage.keys()][i] ?? null,
+		get length() {
+			return storage.size;
+		},
+	} as unknown as Storage;
+	globalThis.window = {} as Window & typeof globalThis;
+}
+
+function removeStorage() {
+	// @ts-expect-error restoring the bare test environment
+	globalThis.sessionStorage = undefined;
+	// @ts-expect-error restoring the bare test environment
+	globalThis.window = undefined;
+}
+
+function envelope(data: unknown): string {
+	return JSON.stringify({ owner: null, savedAt: Date.now(), data });
+}
+
+describe("this tab's saved copy", () => {
+	beforeEach(installStorage);
+	afterEach(removeStorage);
+
+	test("a successful list refresh is saved for a reload", async () => {
+		globalThis.fetch = (async () =>
+			jsonResponse({
+				data: [summary("w1", "one")],
+			})) as unknown as typeof fetch;
+		await refreshList();
+		expect(storage.get("sl:dash:v1:webhooks")).toContain('"w1"');
+	});
+
+	test("a reload reads the saved copy and clearing removes it", () => {
+		clearWebhooksData(); // resets the store as a fresh page load would
+		storage.set(
+			"sl:dash:v1:webhooks",
+			envelope({ list: { data: [summary("w1", "one")], at: 1 } }),
+		);
+		expect(webhooksSnapshot().list?.data[0]?.id).toBe("w1");
+		clearWebhooksData();
+		expect(storage.has("sl:dash:v1:webhooks")).toBe(false);
+	});
+
+	test("a detail refresh does not write storage", async () => {
+		globalThis.fetch = (async (url: string) => {
+			if (String(url).includes("/activity")) return jsonResponse(emptyActivity);
+			if (String(url).includes("/deliveries"))
+				return jsonResponse({ data: [] });
+			return jsonResponse(detail("w1", "one"));
+		}) as unknown as typeof fetch;
+		await refreshDetail("w1");
+		expect(storage.has("sl:dash:v1:webhooks")).toBe(false);
+	});
+
+	test("a receiver url is stored as its origin only", async () => {
+		const secret = "https://hooks.slack.com/services/T0/B0/s3cr3t?token=x";
+		globalThis.fetch = (async () =>
+			jsonResponse({
+				data: [{ ...summary("w1", "one"), url: secret }],
+			})) as unknown as typeof fetch;
+		await refreshList();
+		const stored = storage.get("sl:dash:v1:webhooks") ?? "";
+		expect(stored).toContain('"https://hooks.slack.com"');
+		expect(stored).not.toContain("s3cr3t");
+		expect(stored).not.toContain("token=");
+		expect(webhooksSnapshot().list?.data[0]?.url).toBe(secret);
 	});
 });

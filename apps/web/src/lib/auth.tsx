@@ -8,6 +8,7 @@ import {
 	useEffect,
 	useState,
 } from "react";
+import { adoptCacheOwner } from "./account-data";
 import { identify, reset } from "./analytics";
 import type { Account } from "./types";
 import { marketingUrl } from "./urls";
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			const data = await res.json();
 			const account = data.account ?? null;
 			setAccount(account);
+			adoptCacheOwner(account?.id ?? null);
 			if (account) {
 				identify(account.id, {
 					email: account.email,
@@ -77,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		const data = await res.json();
 		const account = data.account as Account;
 		setAccount(account);
+		adoptCacheOwner(account.id);
 		identify(account.id, {
 			email: account.email,
 			...(account.displayName ? { name: account.displayName } : {}),

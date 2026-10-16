@@ -8,6 +8,7 @@ import type {
 } from "@secondlayer/sdk";
 import { useSyncExternalStore } from "react";
 import { markFresh, shared } from "./request-cache";
+import { loadSnapshot, removeSnapshot, saveSnapshot } from "./session-cache";
 import {
 	type WebhookActivityDay,
 	type WebhooksActivitySummary,
@@ -57,11 +58,45 @@ const EMPTY: State = {
 	deliveriesWindow: {},
 };
 
+const NAME = "webhooks";
+type Persisted = Pick<State, "list" | "summary">;
 let state: State = EMPTY;
+let hydrated = false;
 const listeners = new Set<() => void>();
 
+/** Receiver URLs can carry a secret in their path or query, and the list only
+ *  shows the host, so a stored copy keeps the origin and nothing more. */
+function originOf(url: string): string {
+	try {
+		return new URL(url).origin;
+	} catch {
+		return "";
+	}
+}
+
+function pick(from: State): Persisted {
+	const list = from.list && {
+		...from.list,
+		data: from.list.data.map((w) => ({ ...w, url: originOf(w.url) })),
+	};
+	return { list, summary: from.summary };
+}
+
+/** The first client read pulls this tab's last copy, if any. */
+function current(): State {
+	if (!hydrated && typeof window !== "undefined") {
+		hydrated = true;
+		const saved = loadSnapshot<Persisted>(NAME);
+		if (saved) state = { ...EMPTY, ...saved };
+	}
+	return state;
+}
+
 function set(patch: Partial<State>) {
-	state = { ...state, ...patch };
+	const prev = current();
+	state = { ...prev, ...patch };
+	if (prev.list !== state.list || prev.summary !== state.summary)
+		saveSnapshot(NAME, pick(state));
 	for (const l of listeners) l();
 }
 
@@ -74,7 +109,7 @@ function subscribe(l: () => void) {
  *  hands React, and what a refresher or a test reads without a component
  *  around it. */
 export function webhooksSnapshot(): State {
-	return state;
+	return current();
 }
 
 export function useWebhooksCache(): State {
@@ -84,6 +119,8 @@ export function useWebhooksCache(): State {
 /** Forget every cached row on sign-out, same path as `clearAccountData`. */
 export function clearWebhooksData(): void {
 	state = EMPTY;
+	hydrated = false;
+	removeSnapshot(NAME);
 	for (const l of listeners) l();
 }
 
@@ -141,7 +178,7 @@ export function refreshDeliveriesWindow(
 		if (res.kind === "ok") {
 			set({
 				deliveriesWindow: {
-					...state.deliveriesWindow,
+					...current().deliveriesWindow,
 					[`${id}:${window.from}`]: { data: res.data, at: Date.now() },
 				},
 			});
@@ -160,7 +197,10 @@ export function refreshDays(
 		const res = await getActivity(id, { days: 30 });
 		if (res.kind === "ok" && res.data.days) {
 			set({
-				days: { ...state.days, [id]: { data: res.data.days, at: Date.now() } },
+				days: {
+					...current().days,
+					[id]: { data: res.data.days, at: Date.now() },
+				},
 			});
 			markFresh(key);
 		}
@@ -173,11 +213,11 @@ export function refreshDays(
 export function applyWebhook(webhook: WebhookDetail): void {
 	const patch: Partial<State> = {
 		detail: {
-			...state.detail,
+			...current().detail,
 			[webhook.id]: { data: webhook, at: Date.now() },
 		},
 	};
-	const list = state.list;
+	const list = current().list;
 	if (list) {
 		patch.list = {
 			...list,
@@ -228,17 +268,20 @@ export function refreshDetail(
 		const now = Date.now();
 		const patch: Partial<State> = {};
 		if (webhook.kind === "ok") {
-			patch.detail = { ...state.detail, [id]: { data: webhook.data, at: now } };
+			patch.detail = {
+				...current().detail,
+				[id]: { data: webhook.data, at: now },
+			};
 		}
 		if (deliveries.kind === "ok") {
 			patch.deliveries = {
-				...state.deliveries,
+				...current().deliveries,
 				[id]: { data: deliveries.data, at: now },
 			};
 		}
 		if (activity && activity.kind === "ok") {
 			patch.activity = {
-				...state.activity,
+				...current().activity,
 				[id]: { data: activity.data, at: now },
 			};
 		}
@@ -263,7 +306,7 @@ export function refreshActivity(
 		if (res.kind === "ok") {
 			set({
 				activity: {
-					...state.activity,
+					...current().activity,
 					[id]: { data: res.data, at: Date.now() },
 				},
 			});

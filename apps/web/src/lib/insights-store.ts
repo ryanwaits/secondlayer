@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { type Insight, rankInsights } from "./insights";
 import { markFresh, shared } from "./request-cache";
+import { loadSnapshot, removeSnapshot, saveSnapshot } from "./session-cache";
 import { poll } from "./webhooks-store";
 
 /**
@@ -19,11 +20,25 @@ type State = {
 };
 
 const EMPTY: State = { status: "idle", data: [], at: 0 };
+const NAME = "insights";
 let state: State = EMPTY;
+let hydrated = false;
 const listeners = new Set<() => void>();
 
+/** The first client read pulls this tab's last copy, if any. */
+function current(): State {
+	if (!hydrated && typeof window !== "undefined") {
+		hydrated = true;
+		const saved = loadSnapshot<State>(NAME);
+		if (saved?.status === "ok") state = saved;
+	}
+	return state;
+}
+
 function set(next: State) {
+	current();
 	state = next;
+	if (next.status === "ok") saveSnapshot(NAME, next);
 	for (const l of listeners) l();
 }
 
@@ -34,7 +49,7 @@ function subscribe(l: () => void) {
 
 /** A plain (non-hook) read of the current state, for refreshers and tests. */
 export function insightsSnapshot(): State {
-	return state;
+	return current();
 }
 
 export function useInsights(): State {
@@ -43,7 +58,10 @@ export function useInsights(): State {
 
 /** Forget everything on sign-out so the next account never sees it. */
 export function clearInsights(): void {
-	set(EMPTY);
+	state = EMPTY;
+	hydrated = false;
+	removeSnapshot(NAME);
+	for (const l of listeners) l();
 }
 
 export function refreshInsights(): Promise<void> {
@@ -51,14 +69,17 @@ export function refreshInsights(): Promise<void> {
 		try {
 			const res = await fetch("/api/insights");
 			if (!res.ok) {
-				set({ ...state, status: state.status === "ok" ? "ok" : "error" });
+				set({
+					...current(),
+					status: current().status === "ok" ? "ok" : "error",
+				});
 				return;
 			}
 			const body = (await res.json()) as { data: Insight[] };
 			set({ status: "ok", data: rankInsights(body.data), at: Date.now() });
 			markFresh("insights");
 		} catch {
-			set({ ...state, status: state.status === "ok" ? "ok" : "error" });
+			set({ ...current(), status: current().status === "ok" ? "ok" : "error" });
 		}
 	});
 }
@@ -111,9 +132,9 @@ async function removeThenCall(
 	id: string,
 	action: "dismiss" | "expected",
 ): Promise<boolean> {
-	const removed = state.data.find((i) => i.id === id);
+	const removed = current().data.find((i) => i.id === id);
 	if (!removed) return false;
-	set({ ...state, data: state.data.filter((i) => i.id !== id) });
+	set({ ...current(), data: current().data.filter((i) => i.id !== id) });
 	try {
 		const res = await fetch(
 			`/api/insights/${encodeURIComponent(id)}/${action}`,
@@ -125,7 +146,7 @@ async function removeThenCall(
 	} catch {
 		// Falls through to the rollback.
 	}
-	set({ ...state, data: rankInsights([...state.data, removed]) });
+	set({ ...current(), data: rankInsights([...current().data, removed]) });
 	void refreshInsights();
 	return false;
 }

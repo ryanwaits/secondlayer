@@ -4,6 +4,13 @@ import { useSyncExternalStore } from "react";
 import { clearInsights } from "./insights-store";
 import { clearRequestCache, isFresh, markFresh, shared } from "./request-cache";
 import type { RowsResponse } from "./rows";
+import {
+	clearSnapshots,
+	currentOwner,
+	loadSnapshot,
+	saveSnapshot,
+	setOwner,
+} from "./session-cache";
 import { clearSubgraphsData } from "./subgraphs-store";
 import type { ApiKey, CreditAdded } from "./types";
 import {
@@ -75,11 +82,26 @@ const EMPTY: State = {
 	credits: null,
 	rows: null,
 };
+const NAME = "account";
 let state: State = EMPTY;
+let hydrated = false;
 const listeners = new Set<() => void>();
 
+/** The first client read pulls this tab's last copy, if any. */
+function current(): State {
+	if (!hydrated && typeof window !== "undefined") {
+		hydrated = true;
+		const saved = loadSnapshot<Partial<State>>(NAME);
+		if (saved) state = { ...EMPTY, ...saved };
+	}
+	return state;
+}
+
 function set(patch: Partial<State>) {
-	state = { ...state, ...patch };
+	const prev = current();
+	state = { ...prev, ...patch };
+	if ((Object.keys(EMPTY) as (keyof State)[]).some((k) => prev[k] !== state[k]))
+		saveSnapshot(NAME, state);
 	for (const l of listeners) l();
 }
 
@@ -88,12 +110,13 @@ function subscribe(l: () => void) {
 	return () => listeners.delete(l);
 }
 
+/** A plain (non-hook) read of the current state, for refreshers and tests. */
+export function accountSnapshot(): State {
+	return current();
+}
+
 export function useAccountData(): State {
-	return useSyncExternalStore(
-		subscribe,
-		() => state,
-		() => EMPTY,
-	);
+	return useSyncExternalStore(subscribe, accountSnapshot, () => EMPTY);
 }
 
 export function refreshBilling(): Promise<Billing | null> {
@@ -130,8 +153,8 @@ export function refreshUsage(month: string): Promise<UsageResponse | null> {
 			if (!res.ok) return null;
 			const data = (await res.json()) as UsageResponse;
 			set({
-				usage: withUsageMonth(state.usage, month, data.usage),
-				daily: { ...state.daily, [month]: data.daily },
+				usage: withUsageMonth(current().usage, month, data.usage),
+				daily: { ...current().daily, [month]: data.daily },
 				burn: data.burn,
 				service: data.service,
 			});
@@ -272,11 +295,26 @@ export function ensureKeys(): Promise<void> {
 
 /** Forget everything on sign-out so the next account never sees it. */
 export function clearAccountData(): void {
-	set(EMPTY);
+	state = EMPTY;
+	hydrated = false;
+	for (const l of listeners) l();
+	clearSnapshots();
 	clearWebhooksData();
 	clearSubgraphsData();
 	clearInsights();
 	clearRequestCache();
+}
+
+/** The cache is this tab's copy for one account: a signed-out answer or a
+ *  different account empties it before anything else reads it. */
+export function adoptCacheOwner(accountId: string | null): void {
+	const owner = currentOwner();
+	if (accountId === null) {
+		if (owner !== null) clearAccountData();
+		return;
+	}
+	if (owner !== null && owner !== accountId) clearAccountData();
+	setOwner(accountId);
 }
 
 /** A refused key creation: the status tells the cap (403) from the rate limit (429). */
@@ -346,7 +384,7 @@ export async function startCheckout(amount: PackUsd): Promise<void> {
 		throw new Error(data.error ?? "Couldn't start checkout");
 	const pending: PendingTopup = {
 		amount,
-		beforeMicros: state.billing?.creditsUsdMicros ?? null,
+		beforeMicros: current().billing?.creditsUsdMicros ?? null,
 	};
 	try {
 		sessionStorage.setItem(TOPUP_STORAGE, JSON.stringify(pending));

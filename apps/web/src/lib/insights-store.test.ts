@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
 	clearInsights,
 	dismiss,
@@ -136,5 +136,60 @@ describe("store", () => {
 		await refreshInsights();
 		clearInsights();
 		expect(insightsSnapshot().data).toEqual([]);
+	});
+});
+
+const storage = new Map<string, string>();
+
+function installStorage() {
+	storage.clear();
+	globalThis.sessionStorage = {
+		getItem: (k: string) => storage.get(k) ?? null,
+		setItem: (k: string, v: string) => void storage.set(k, v),
+		removeItem: (k: string) => void storage.delete(k),
+		key: (i: number) => [...storage.keys()][i] ?? null,
+		get length() {
+			return storage.size;
+		},
+	} as unknown as Storage;
+	globalThis.window = {} as Window & typeof globalThis;
+}
+
+function removeStorage() {
+	// @ts-expect-error restoring the bare test environment
+	globalThis.sessionStorage = undefined;
+	// @ts-expect-error restoring the bare test environment
+	globalThis.window = undefined;
+}
+
+function envelope(data: unknown): string {
+	return JSON.stringify({ owner: null, savedAt: Date.now(), data });
+}
+
+describe("this tab's saved copy", () => {
+	beforeEach(installStorage);
+	afterEach(removeStorage);
+
+	test("a successful refresh is saved for a reload", async () => {
+		stubFetch(() => list());
+		await refreshInsights();
+		expect(storage.get("sl:dash:v1:insights")).toContain('"status":"ok"');
+	});
+
+	test("a failed first refresh saves nothing", async () => {
+		stubFetch(() => new Response("{}", { status: 500 }));
+		await refreshInsights();
+		expect(storage.has("sl:dash:v1:insights")).toBe(false);
+	});
+
+	test("a reload reads the saved copy and clearing removes it", () => {
+		clearInsights(); // resets the store as a fresh page load would
+		storage.set(
+			"sl:dash:v1:insights",
+			envelope({ status: "ok", data: FIXTURE_INSIGHTS, at: 1 }),
+		);
+		expect(insightsSnapshot().data.length).toBe(FIXTURE_INSIGHTS.length);
+		clearInsights();
+		expect(storage.has("sl:dash:v1:insights")).toBe(false);
 	});
 });
