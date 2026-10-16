@@ -77,7 +77,7 @@ signature  verified
   restore from archive ~2.3 hours
 ```
 
-The official archive quotes a price in [archive credits](/docs/authentication#archive-credits) before it fetches. Verify is free.
+The official archive quotes a price in [credits](/docs/authentication#archive-fetches) before it fetches. Verify is free.
 
 ### Check it
 
@@ -169,7 +169,7 @@ Node on another host:
 
 <Callout type="warning" title="Signer on the same node">
 
-Use `signer-shared`, so a stalled Secondlayer can't hold up the signer. Tradeoff: a missed block stays a gap until `secondlayer repair` pays [archive credits](/docs/authentication#archive-credits) to fetch it.
+Use `signer-shared`, so a stalled Secondlayer can't hold up the signer. Tradeoff: a missed block stays a gap until `secondlayer repair` pays [credits](/docs/authentication#archive-fetches) to fetch it.
 
 </Callout>
 
@@ -232,7 +232,7 @@ Compose requires the token, for two reasons:
 | Subgraph sources | Any. Hosted takes event filters, `contract_call` and `contract_deploy` |
 | Typed ORM schemas | `secondlayer codegen subgraph` needs direct Postgres, so it is self-host only |
 | Handler RPC calls | Set `STACKS_NODE_RPC_URL` on the subgraph processor, pointing at the node you already run |
-| History below your bootstrap floor | A metered [archive backfill](/docs/authentication#archive-credits) |
+| History below your bootstrap floor | A metered [archive backfill](/docs/authentication#archive-fetches) |
 | Webhook limits | Any `max_retries` and `timeout_ms`, no rate limits, egress as your network allows |
 | Proof routes | Witness, burn and Bitcoin-header routes answer `503 PROOFS_UNAVAILABLE` until `PROOF_SIDECAR_URL` points at a proof sidecar. The Bitcoin transaction route reads the bundled bitcoind (full-node profile, `txindex=1`) or the node at `BITCOIN_RPC_URL`, and answers `502 PROOF_SOURCE_ERROR` when it can't reach one |
 | Error reports | No `/v1/feedback`. Error bodies link to a GitHub issue instead |
@@ -464,10 +464,10 @@ To roll back, pin X again. A migrated schema stays migrated, so roll back the im
 
 export const agent = `
 - Start: 'git clone https://github.com/ryanwaits/secondlayer', 'cd secondlayer/docker/oss', 'cp .env.example .env' (set POSTGRES_PASSWORD), 'secondlayer init --network mainnet' (writes .env.local), 'cat .env.local >> .env', 'docker compose pull', 'docker compose up -d', then 'curl http://127.0.0.1:3800/health'. If health never answers, 'docker compose logs secondlayer' names the refusal (usually a disk or RAM floor; SECONDLAYER_ALLOW_UNDERSIZED=true in .env overrides). There is no 'secondlayer setup' or 'secondlayer uninstall'.
-- History: export DATABASE_URL=postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer, then 'secondlayer bootstrap --against https://archive.secondlayer.tools/latest.json' (quotes archive credits first) and 'secondlayer verify all --against <same>'. For an external node, 'secondlayer observer --mode indexer' prints the Config.toml stanza.
+- History: export DATABASE_URL=postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer, then 'secondlayer bootstrap --against https://archive.secondlayer.tools/latest.json' (quotes the price in credits first) and 'secondlayer verify all --against <same>'. For an external node, 'secondlayer observer --mode indexer' prints the Config.toml stanza.
 - Profiles and version live in .env: COMPOSE_PROFILES=full-node|bitcoin (comma-separated), SECONDLAYER_VERSION=<short commit> (default latest).
 - Point the docs examples at the box: export SECONDLAYER_API_URL=http://127.0.0.1:3800. Loopback reads need no key; writes and any read past loopback send 'Authorization: Bearer $INSTANCE_TOKEN' (the CLI and SDK send it).
-- Leave SECONDLAYER_API_KEY alone: it is the hosted account key that archive credits read.
+- Leave SECONDLAYER_API_KEY alone: it is the hosted account key that credits and archive fetches read.
 - Published images: 'ghcr.io/ryanwaits/secondlayer-runtime' and 'secondlayer-bitcoin', tagged by short commit; compose pulls them. 'docker compose up -d --build' builds the checkout instead.
 - Genesis sync needs a Stacks node that is itself syncing from genesis (an already-synced node only sends new blocks). Start with TIP_FOLLOWER_ENABLED=false, track 'curl http://localhost:3700/health | jq .block_height' against the chain tip, re-enable the tip follower, run 'secondlayer verify all --against <manifest>', then deploy with SECONDLAYER_API_URL=http://127.0.0.1:3800.
 - Backup: 'secondlayer backup --out ./backups/$(date +%F)' with --passphrase or SECONDLAYER_BACKUP_PASSPHRASE. The bundle carries INSTANCE_TOKEN, SECONDLAYER_SECRETS_KEY and STREAMS_SIGNING_PRIVATE_KEY, so store it apart from Postgres backups. Restore: 'secondlayer restore --from <dir>' is a dry run; --apply writes; confirm with 'secondlayer verify all --against <manifest>'.

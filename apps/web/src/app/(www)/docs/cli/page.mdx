@@ -20,7 +20,7 @@ Every top-level `secondlayer` command, with the page that owns it.
 | `init` | Write the instance token and keys to `.env.local` | [Local runtime](#local-runtime) |
 | `bootstrap` | Restore chain history from a verified archive | [Local runtime](#local-runtime) |
 | `observer` | Print the node's `events_observer` stanza | [Self-host](/docs/self-host#connect-your-node) |
-| `login` / `logout` | Sign in through your browser; `logout` signs the machine out (`--email` for an emailed code, `--with-token` to read a key from stdin, `--credits` for archive credits) | [Keys and billing](/docs/authentication#archive-credits) |
+| `login` / `logout` | Sign in through your browser; `logout` signs the machine out (`--email` for an emailed code, `--with-token` to read a key from stdin) | [Keys and billing](/docs/authentication#archive-fetches) |
 | `whoami` | Show the instance and account targets | [Keys and billing](/docs/authentication) |
 | `subgraphs` | Create, deploy, query, reindex, and backfill subgraphs | [Subgraphs](/docs/subgraphs) |
 | `webhooks` | Create, test, pause, replay, and inspect webhook deliveries | [Webhooks](/docs/webhooks) |
@@ -35,7 +35,7 @@ Every top-level `secondlayer` command, with the page that owns it.
 | `verify` | Compare local data to a signed archive; prove one block; replay a subgraph | [Verify](/docs/verification) |
 | `repair` | Replace local data that diverges from a signed archive | [Verified archive](/docs/archive) |
 | `archive` | Price, fetch, verify, and repair against the hosted archive | [Verified archive](/docs/archive) |
-| `credits` | Buy, check, and auto-refill archive credits | [Keys and billing](/docs/authentication#archive-credits) |
+| `credits` | Buy, check, and auto-refill your credits | [Keys and billing](/docs/authentication#archive-fetches) |
 | `backup` | Write a restorable bundle of the index and keys | [Self-host](/docs/self-host#backup) |
 | `restore` | Restore an instance from a backup bundle | [Self-host](/docs/self-host#backup) |
 | `uninstall` | Stop the stack; the index and keys survive | [Self-host](/docs/self-host#stop-it) |
@@ -90,7 +90,7 @@ secondlayer observer --mode indexer
 
 <Callout type="note" title="Signer-shared nodes skip retries">
 
-A block the node fails to deliver stays a gap. `secondlayer repair` fetches it from the archive with [archive credits](/docs/authentication#archive-credits). The full stanza: [Connect your node](/docs/self-host#connect-your-node).
+A block the node fails to deliver stays a gap. `secondlayer repair` fetches it from the archive with [credits](/docs/authentication#archive-fetches). The full stanza: [Connect your node](/docs/self-host#connect-your-node).
 
 </Callout>
 

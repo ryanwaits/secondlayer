@@ -143,7 +143,7 @@ To prove a block or transaction rather than compare hashes: [Verify](/docs/verif
 
 - Self-hosted: reads hit your Postgres, with no meter and no rate limit. Auth is in [Self-host](/docs/self-host#instance-token).
 - Hosted `api.secondlayer.tools`: keyed, and bills `rows.delivered`. 1M free per account per month; rates and free block headers in [Keys and billing](/docs/authentication).
-- History: `from_height=0` reaches whatever your instance holds. Restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)).
+- History: `from_height=0` reaches whatever your instance holds. Restoring more from the signed archive is metered ([credits](/docs/authentication#archive-fetches)).
 
 ## Other ways to read
 
