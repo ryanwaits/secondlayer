@@ -23,6 +23,7 @@ import {
 	agoShort,
 	dayLabels,
 	groupKeys,
+	hasStaleOwnKey,
 	keyFlags,
 	keyForLabel,
 	keyWhy,
@@ -486,6 +487,10 @@ export function KeysScreen() {
 		setCreating(true);
 	}
 
+	// The unused-key note is re-checked every 5 minutes; once no listed key is
+	// stale (say, it was just revoked) it would only be out of date.
+	const staleOwnKey = hasStaleOwnKey(keys, now);
+
 	const existingNames = groupKeys(keys, now)
 		.own.filter((k) => k.product !== "docs")
 		.map((k) => k.name);
@@ -494,7 +499,7 @@ export function KeysScreen() {
 	return (
 		<KeysBody
 			keys={keys}
-			insights={forAccountRules(allInsights, KEY_RULES)}
+			insights={staleOwnKey ? forAccountRules(allInsights, KEY_RULES) : []}
 			now={now}
 			freshPrefix={freshPrefix}
 			onNew={() => setCreating(true)}

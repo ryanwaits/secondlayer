@@ -3,6 +3,7 @@ import type { ApiKey } from "@/lib/types";
 import {
 	dayLabels,
 	groupKeys,
+	hasStaleOwnKey,
 	keyFlags,
 	keyForLabel,
 	keysSentence,
@@ -194,5 +195,25 @@ describe("sumDaily and dayLabels", () => {
 		expect(labels).toHaveLength(30);
 		expect(labels.at(-1)).toBe("Oct 15");
 		expect(labels[0]).toBe("Sep 16");
+	});
+});
+
+describe("hasStaleOwnKey", () => {
+	test("a key unused 40 days keeps the unused-key note", () => {
+		expect(hasStaleOwnKey([key({ lastUsedAt: daysAgo(40) })], NOW)).toBe(true);
+	});
+
+	test("once that key is revoked and gone from the list, the note hides", () => {
+		expect(hasStaleOwnKey([key({ lastUsedAt: daysAgo(1) })], NOW)).toBe(false);
+		expect(hasStaleOwnKey([], NOW)).toBe(false);
+	});
+
+	test("an idle key made for you never counts", () => {
+		expect(
+			hasStaleOwnKey(
+				[key({ product: "sentinel", lastUsedAt: daysAgo(90) })],
+				NOW,
+			),
+		).toBe(false);
 	});
 });

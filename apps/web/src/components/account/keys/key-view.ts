@@ -239,3 +239,12 @@ export function overviewKeys(
 		age: last ? agoShort(last.lastUsedAt, now) : "–",
 	};
 }
+
+/** True when a key you can revoke has been unused 30+ days. The Keys tab
+ *  shows the unused-key note only then, so a just-revoked key's note
+ *  doesn't linger until the next insight check. */
+export function hasStaleOwnKey(keys: ApiKey[] | null, now: Date): boolean {
+	return groupKeys(keys, now).own.some(
+		(k) => k.product !== "docs" && keyFlags(k, now).staleDays !== undefined,
+	);
+}
