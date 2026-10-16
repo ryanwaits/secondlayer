@@ -5,6 +5,10 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 
 ## Accounts — October 2026
 
+### Insights tell you what's wrong, worst first
+
+We now check your webhooks, subgraphs and reads every few minutes and record what needs attention: a receiver that's down, a certificate about to expire, a handler that keeps throwing, a polling loop, spend on pace to hit your cap. `GET /api/insights` returns them ranked, worst first, each with the evidence and a plain-text prompt you can hand to your own agent. `POST /api/insights/:id/dismiss` hides one, and `POST /api/insights/:id/expected` stops it coming back for that resource. `sl webhooks doctor` uses the same thresholds.
+
 ### Webhook-only stacks cost $5 a month
 
 A hosted stack with no subgraphs no longer runs the process that executes subgraph handlers, so it uses less memory and bills less. Webhooks only: $5/mo minimum while your stack runs. With subgraphs: $10/mo minimum. Your first subgraph deploy moves the stack to the $10 minimum, and deleting your last one moves it back. See [What it costs](/docs/authentication#what-it-costs).

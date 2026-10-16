@@ -1,5 +1,17 @@
 # @secondlayer/sdk
 
+## 15.3.0
+
+### Minor Changes
+
+- ee9a561: Ranked insights for webhooks, subgraphs and the account: a shared `Insight` schema and rules, the `insights` and `insight_mutes` tables, and a leader-elected evaluator in the webhook service. The webhook doctor thresholds now live in `@secondlayer/shared/insights/thresholds`, so the CLI doctor and the server rules share one set of numbers.
+
+### Patch Changes
+
+- Updated dependencies [ee9a561]
+  - @secondlayer/shared@13.5.0
+  - @secondlayer/subgraphs@7.6.0
+
 ## 15.2.0
 
 ### Minor Changes
