@@ -1,3 +1,6 @@
+"use client";
+
+import { warmTab } from "@/lib/dashboard-warm";
 import Link from "next/link";
 
 export type DashboardTab = { href: string; label: string; ready: boolean };
@@ -31,6 +34,8 @@ export function DashboardTabs({
 				<Link
 					key={t.href}
 					href={t.href}
+					onPointerEnter={() => warmTab(t.href)}
+					onFocus={() => warmTab(t.href)}
 					aria-current={isCurrent(pathname, t.href) ? "page" : undefined}
 				>
 					{t.label}

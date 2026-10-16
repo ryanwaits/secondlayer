@@ -1,8 +1,10 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
+import { warmDashboard } from "@/lib/dashboard-warm";
 import { startInsightsPolling } from "@/lib/insights-store";
-import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 /**
  * The account pages frame. The tabs, the chain heartbeat and the current
@@ -27,6 +29,22 @@ export default function AccountLayout({
 		() => (mayBeSignedIn ? startInsightsPolling() : undefined),
 		[mayBeSignedIn],
 	);
+
+	// Once signed in, fill the other tabs' stores when the browser is idle so
+	// the current page's own reads go first. Once per page load.
+	const pathname = usePathname();
+	const pathnameRef = useRef(pathname);
+	pathnameRef.current = pathname;
+	useEffect(() => {
+		if (!signedIn) return;
+		const warm = () => warmDashboard(pathnameRef.current);
+		if (typeof requestIdleCallback === "function") {
+			const id = requestIdleCallback(warm, { timeout: 2000 });
+			return () => cancelIdleCallback(id);
+		}
+		const id = setTimeout(warm, 1500);
+		return () => clearTimeout(id);
+	}, [signedIn]);
 
 	// Signed out is the one case that still blocks: nothing account-specific
 	// ever mounts for a visitor who isn't authenticated. While `loading` is
