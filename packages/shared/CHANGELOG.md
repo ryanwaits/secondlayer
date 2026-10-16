@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 13.7.0
+
+### Minor Changes
+
+- Kysely types for `cli_device_logins`, the table behind browser sign-in for the CLI, and `KEY_UNUSED_DAYS`, the threshold for the unused-key insight.
+
 ## 13.6.0
 
 ### Minor Changes

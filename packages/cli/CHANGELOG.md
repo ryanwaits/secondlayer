@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 21.3.0
+
+### Minor Changes
+
+- c655fd2: `login` signs in through your browser: it shows a short code, opens secondlayer.tools, and saves an API key named after the machine once you approve. `login --email` keeps the emailed-code sign-in.
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/shared@13.7.0
+
 ## 21.2.0
 
 ### Minor Changes

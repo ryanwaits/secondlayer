@@ -5,6 +5,10 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 
 ## Accounts — October 2026
 
+### Keys get their own tab
+
+Keys is a tab in your dashboard now. Each key shows the rows it read over 30 days, and a key you made that hasn't read anything in 30 days gets a note so you can revoke it. A new key is shown once, with how to use it from the CLI, your environment, the SDK or an agent. An account holds up to 50 active keys, and you can make 20 an hour. Your first key is one you name; sign-in no longer makes one called "Default".
+
 ### Insights tell you what's wrong, worst first
 
 We now check your webhooks, subgraphs and reads every few minutes and record what needs attention: a receiver that's down, a certificate about to expire, a handler that keeps throwing, a polling loop, spend on pace to hit your cap. `GET /api/insights` returns them ranked, worst first, each with the evidence and a plain-text prompt you can hand to your own agent. `POST /api/insights/:id/dismiss` hides one, and `POST /api/insights/:id/expected` stops it coming back for that resource. `sl webhooks doctor` uses the same thresholds.
