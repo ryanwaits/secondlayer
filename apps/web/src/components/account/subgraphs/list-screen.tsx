@@ -35,13 +35,29 @@ import { SubgraphsEmptyState } from "./empty-state";
 /** The list and each subgraph's 24-hour health refresh this often while the
  *  tab is visible. */
 const LIST_POLL_MS = 30_000;
+const HEALTH_HOURS = 24;
 
 export type ListNotice =
 	| { kind: "starting" }
 	| { kind: "error"; message: string };
 
-/** Polls the list and, for each subgraph, its hourly health. A notice shows
- *  only while there is nothing cached to display. */
+/** One list read that also brings every subgraph's 24-hour health. A tenant
+ *  still on an older image ignores `?health=`, so those items fall back to a
+ *  health read each; drop the fallback once every tenant has rolled. */
+export async function refreshListAndHealth() {
+	const res = await refreshList({ health: HEALTH_HOURS });
+	if (res.kind === "ok") {
+		await Promise.all(
+			res.data
+				.filter((s) => s.health === undefined)
+				.map((s) => refreshHealth(s.name, HEALTH_HOURS)),
+		);
+	}
+	return res;
+}
+
+/** Polls the list and its hourly health. A notice shows only while there is
+ *  nothing cached to display. */
 export function useSubgraphsPoll(): ListNotice | null {
 	const [notice, setNotice] = useState<ListNotice | null>(null);
 	useEffect(

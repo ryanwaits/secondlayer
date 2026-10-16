@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { refreshListAndHealth } from "@/components/account/subgraphs/list-screen";
 import {
 	clearSubgraphsData,
 	fetchRows,
@@ -171,5 +172,40 @@ describe("first-page cache", () => {
 		rememberFirstPage("a", "t", page);
 		clearSubgraphsData();
 		expect(subgraphsSnapshot().firstPage).toEqual({});
+	});
+});
+
+describe("list with health", () => {
+	const hours = [
+		{ hour: "h", lagBlocks: 0, rowsWritten: 4, errors: 0, eventsHandled: 4 },
+	];
+
+	test("a list carrying health fills the health slice with no health request", async () => {
+		const urls = stub(
+			json({ data: [{ name: "a", health: { hours, errors24h: 0 } }] }),
+		);
+		const res = await refreshListAndHealth();
+		expect(res.kind).toBe("ok");
+		expect(urls).toEqual(["/api/subgraphs?health=24"]);
+		expect(subgraphsSnapshot().health.a?.data.hours).toEqual(hours);
+	});
+
+	test("a list without health costs one health request per subgraph", async () => {
+		const urls: string[] = [];
+		globalThis.fetch = (async (url: string) => {
+			urls.push(String(url));
+			return json(
+				String(url).includes("/health")
+					? { hours, errors24h: 0 }
+					: { data: [{ name: "a" }, { name: "b" }] },
+			);
+		}) as typeof fetch;
+		await refreshListAndHealth();
+		expect(urls).toEqual([
+			"/api/subgraphs?health=24",
+			"/api/subgraphs/a/health?hours=24",
+			"/api/subgraphs/b/health?hours=24",
+		]);
+		expect(Object.keys(subgraphsSnapshot().health).sort()).toEqual(["a", "b"]);
 	});
 });

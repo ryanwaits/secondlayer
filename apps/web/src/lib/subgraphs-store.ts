@@ -30,6 +30,8 @@ export interface SubgraphListItem {
 	lastError?: string | null;
 	updatedAt?: string | null;
 	createdAt: string;
+	/** Present when the list was requested with `?health=`. */
+	health?: SubgraphHealthData;
 }
 
 export interface SubgraphColumn {
@@ -200,15 +202,31 @@ async function request<T>(path: string): Promise<SubgraphsResult<T>> {
 const seg = encodeURIComponent;
 
 /** A 404 on the list means the account has no subgraphs (and maybe no stack
- *  yet), so it reads as an empty list, never as `not_found`. */
-export function refreshList(): Promise<
+ *  yet), so it reads as an empty list, never as `not_found`. With `health`,
+ *  the response also carries each subgraph's hourly health for that many
+ *  hours; it lands in the health slice in the same write as the list. */
+export function refreshList(
+	options: { health?: number } = {},
+): Promise<
 	Exclude<SubgraphsResult<SubgraphListItem[]>, { kind: "not_found" }>
 > {
 	return shared("subgraphs:list", async () => {
-		const res = await request<{ data: SubgraphListItem[] }>("");
+		const query = options.health ? `?health=${options.health}` : "";
+		const res = await request<{ data: SubgraphListItem[] }>(query);
 		if (res.kind === "ok") {
-			set({ list: { data: res.data.data, at: Date.now() } });
+			const at = Date.now();
+			const fromList = Object.fromEntries(
+				res.data.data.flatMap((s) =>
+					s.health ? [[s.name, { data: s.health, at }]] : [],
+				),
+			);
+			set({
+				list: { data: res.data.data, at },
+				health: { ...current().health, ...fromList },
+			});
 			markFresh("subgraphs:list");
+			for (const name of Object.keys(fromList))
+				markFresh(`subgraphs:health:${name}:${options.health}`);
 			return { kind: "ok", data: res.data.data } as const;
 		}
 		if (res.kind === "not_found") {
