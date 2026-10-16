@@ -98,7 +98,7 @@ Pass an `abi` on a map or variable write source and name the map or variable, an
 
 ### `sl login` opens your browser
 
-`sl login` shows a short code and opens secondlayer.tools. Approve it there while you're signed in and the CLI saves an API key named after your machine. Each machine gets its own key on the Keys tab, so you can revoke one without touching the others. `sl login --email` keeps the emailed-code sign-in for a machine with no browser, and `--with-token` still reads a key from stdin.
+`sl login` shows a short code and opens secondlayer.tools. Approve it there while you're signed in and the CLI is signed in on that machine until `sl logout`. Signing in never makes an API key, so the Keys tab only holds the keys you made for reading data. `sl login --email` keeps the emailed-code sign-in for a machine with no browser, and `--with-token` still reads a key from stdin.
 
 ### See your rows by day
 

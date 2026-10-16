@@ -16,19 +16,15 @@ type View =
 export function CliLoginCard({
 	view,
 	code,
-	name,
 	busy,
 	error,
-	onName,
 	onApprove,
 	onCancel,
 }: {
 	view: View;
 	code: string;
-	name: string;
 	busy: boolean;
 	error: string | null;
-	onName(value: string): void;
 	onApprove(): void;
 	onCancel(): void;
 }) {
@@ -45,29 +41,14 @@ export function CliLoginCard({
 						<span className="login-eyebrow">Command line</span>
 						<h1 className="login-title">Approve sl on {view.clientName}?</h1>
 						<p className="cli-login-lead">
-							This makes an API key for that machine. It reads with your account
-							and is billed to it.
+							This signs sl in with your account on that machine, until you run{" "}
+							<code>sl logout</code> there. Check the code matches your
+							terminal.
 						</p>
 						<span className="login-label">Code in your terminal</span>
 						<p className="cli-login-code">{code}</p>
-						<label className="login-label" htmlFor="key-name">
-							Key name
-						</label>
-						<input
-							id="key-name"
-							className="login-input"
-							value={name}
-							maxLength={64}
-							onChange={(e) => onName(e.target.value)}
-							autoComplete="off"
-							spellCheck={false}
-						/>
 						{error && <p className="login-error">{error}</p>}
-						<button
-							type="submit"
-							className="login-submit"
-							disabled={busy || !name.trim()}
-						>
+						<button type="submit" className="login-submit" disabled={busy}>
 							{busy ? "Approving..." : "Approve"}
 						</button>
 						<button
@@ -86,16 +67,12 @@ export function CliLoginCard({
 							You're signed in on {view.clientName}.
 						</p>
 						<p className="login-sent-desc">Close this tab.</p>
-						<p className="login-disclaimer">
-							Find it under <a href="/account/keys">Keys</a>, where you can
-							revoke it any time.
-						</p>
 					</div>
 				)}
 				{view.kind === "cancelled" && (
 					<div className="login-sent">
 						<p className="login-sent-title">Cancelled.</p>
-						<p className="login-sent-desc">Nothing was made.</p>
+						<p className="login-sent-desc">sl stays signed out.</p>
 					</div>
 				)}
 				{view.kind === "expired" && (
@@ -116,7 +93,6 @@ export function CliLogin() {
 	const router = useRouter();
 	const code = (useSearchParams().get("code") ?? "").toUpperCase();
 	const [view, setView] = useState<View>({ kind: "loading" });
-	const [name, setName] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -147,7 +123,6 @@ export function CliLogin() {
 					setView({ kind: "expired" });
 					return;
 				}
-				setName(attempt.clientName);
 				setView({ kind: "review", clientName: attempt.clientName });
 			} catch {
 				if (live) setView({ kind: "expired" });
@@ -169,7 +144,7 @@ export function CliLogin() {
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify(action === "approve" ? { name } : {}),
+						body: "{}",
 					},
 				);
 				if (res.status === 404 || res.status === 409) {
@@ -188,17 +163,15 @@ export function CliLogin() {
 				setBusy(false);
 			}
 		},
-		[code, name, view],
+		[code, view],
 	);
 
 	return (
 		<CliLoginCard
 			view={view}
 			code={code}
-			name={name}
 			busy={busy}
 			error={error}
-			onName={setName}
 			onApprove={() => answer("approve")}
 			onCancel={() => answer("deny")}
 		/>
