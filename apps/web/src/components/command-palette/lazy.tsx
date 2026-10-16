@@ -20,7 +20,7 @@ const CommandPalette = dynamic(
  * eating the request leaves nothing to read either.
  *
  * A positive `command-palette` flag would therefore have to treat "off" as
- * "hide", which deletes the palette for every crawler, uptime check, E2E run
+ * "hide", which deletes the palette for every search bot, uptime check, E2E run
  * and blocked user. Inverted, all of those degrade to the palette working, and
  * only a deliberate flip of `disable-command-palette` turns it off.
  *
