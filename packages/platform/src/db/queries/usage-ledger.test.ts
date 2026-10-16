@@ -7,8 +7,12 @@ import {
 	test,
 } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
-import { meter } from "../../billing/meter.ts";
-import { hostedStackSnapshot, rowsByKeyLast30d } from "./usage-ledger.ts";
+import { grantCredits, meter, recordTopup } from "../../billing/meter.ts";
+import {
+	creditsAdded,
+	hostedStackSnapshot,
+	rowsByKeyLast30d,
+} from "./usage-ledger.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
@@ -169,5 +173,67 @@ describe.skipIf(!HAS_DB)("rowsByKeyLast30d", () => {
 		expect(totals.get(keyA)).toBe(15);
 		expect(totals.has(keyB)).toBe(false);
 		expect(totals.size).toBe(1);
+	});
+});
+
+describe.skipIf(!HAS_DB)("creditsAdded", () => {
+	test("returns top-ups and grants newest first with positive amounts", async () => {
+		await recordTopup(db, {
+			accountId,
+			usdMicros: 25_000_000n,
+			source: "stripe",
+			idempotencyKey: `credits-topup-${accountId}`,
+			occurredAt: new Date("2026-10-02T10:00:00.000Z"),
+		});
+		await grantCredits(db, {
+			accountId,
+			usdMicros: 5_000_000n,
+			source: "sentinel:starter",
+			idempotencyKey: `credits-grant-${accountId}`,
+			occurredAt: new Date("2026-10-09T10:00:00.000Z"),
+		});
+
+		const credits = await creditsAdded(db, accountId);
+		expect(credits).toEqual([
+			{
+				occurredAt: "2026-10-09T10:00:00.000Z",
+				kind: "grant",
+				source: "sentinel:starter",
+				usdMicros: "5000000",
+			},
+			{
+				occurredAt: "2026-10-02T10:00:00.000Z",
+				kind: "topup",
+				source: "stripe",
+				usdMicros: "25000000",
+			},
+		]);
+	});
+
+	test("never returns a regular charge", async () => {
+		await meter(db, {
+			accountId,
+			unit: "rows.delivered",
+			quantity: 10,
+			source: "test",
+			idempotencyKey: `credits-charge-${accountId}`,
+			occurredAt: new Date("2026-10-03T10:00:00.000Z"),
+		});
+		expect(await creditsAdded(db, accountId)).toEqual([]);
+	});
+
+	test("honors the limit", async () => {
+		for (let i = 0; i < 3; i++) {
+			await grantCredits(db, {
+				accountId,
+				usdMicros: 1_000_000n,
+				source: "test",
+				idempotencyKey: `credits-limit-${i}-${accountId}`,
+				occurredAt: new Date(`2026-10-0${i + 1}T10:00:00.000Z`),
+			});
+		}
+		const credits = await creditsAdded(db, accountId, 2);
+		expect(credits).toHaveLength(2);
+		expect(credits[0]?.occurredAt).toBe("2026-10-03T10:00:00.000Z");
 	});
 });

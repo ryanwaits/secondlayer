@@ -214,6 +214,40 @@ export async function dailySpendForMonth(
 	}));
 }
 
+export type CreditAdded = {
+	occurredAt: string; // ISO
+	kind: "topup" | "grant";
+	source: string;
+	usdMicros: string; // positive amount credited
+};
+
+/** The account's most recent top-ups and grants, newest first: the billing
+ *  page's "Credits added" table. Stored with negative `usd_micros` (money in);
+ *  returned positive. */
+export async function creditsAdded(
+	db: Kysely<Database>,
+	accountId: string,
+	limit = 20,
+): Promise<CreditAdded[]> {
+	const rows = await db
+		.selectFrom("usage_ledger")
+		.select(["occurred_at", "unit", "source", "usd_micros"])
+		.where("account_id", "=", accountId)
+		.where("unit", "in", ["topup", "grant"])
+		.orderBy("occurred_at", "desc")
+		.limit(limit)
+		.execute();
+	return rows.map((row) => {
+		const micros = BigInt(row.usd_micros);
+		return {
+			occurredAt: new Date(row.occurred_at).toISOString(),
+			kind: row.unit === "grant" ? "grant" : "topup",
+			source: row.source,
+			usdMicros: (micros < 0n ? -micros : micros).toString(),
+		};
+	});
+}
+
 /** Sum of positive `usd_micros` across every unit in the trailing 24h — the
  *  "burning now" rate. Always relative to `now`, independent of whatever
  *  month the usage table is browsing. */

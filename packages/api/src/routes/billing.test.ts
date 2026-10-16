@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { meter } from "@secondlayer/platform/billing/meter";
+import { grantCredits, meter } from "@secondlayer/platform/billing/meter";
 import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono, type MiddlewareHandler } from "hono";
@@ -494,5 +494,49 @@ describe.skipIf(!HAS_DB)("GET/PUT /alerts", () => {
 			body: JSON.stringify({ notify2d: "yes" }),
 		});
 		expect(res.status).toBe(400);
+	});
+});
+
+describe.skipIf(!HAS_DB)("GET /credits", () => {
+	function appFor(accountId?: string) {
+		const a = new Hono();
+		const setAccountId: MiddlewareHandler = async (c, next) => {
+			if (accountId) c.set("accountId", accountId);
+			await next();
+		};
+		a.use("*", setAccountId);
+		a.onError(errorHandler);
+		a.route("/", billingRouter);
+		return a;
+	}
+
+	test("unauthenticated → 401", async () => {
+		const res = await appFor().request("/credits");
+		expect(res.status).toBe(401);
+	});
+
+	test("lists a grant with a positive amount", async () => {
+		const account = await makeAccount(
+			`billing-credits-grant-${Date.now()}@test.invalid`,
+		);
+		await grantCredits(db, {
+			accountId: account.id,
+			usdMicros: 5_000_000n,
+			source: "sentinel:starter",
+			idempotencyKey: `credits-route-${account.id}`,
+			occurredAt: new Date("2026-10-09T10:00:00.000Z"),
+		});
+		const res = await appFor(account.id).request("/credits");
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			credits: [
+				{
+					occurredAt: "2026-10-09T10:00:00.000Z",
+					kind: "grant",
+					source: "sentinel:starter",
+					usdMicros: "5000000",
+				},
+			],
+		});
 	});
 });

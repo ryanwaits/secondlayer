@@ -8,6 +8,7 @@
  *   GET   /api/billing/caps     monthly spend cap + alert threshold
  *   PATCH /api/billing/caps
  *   GET   /api/billing/usage    this month's usage_ledger, by unit
+ *   GET   /api/billing/credits  latest top-ups and grants
  *
  * Plan plumbing (/upgrade, /resolve, /cancel, /portal) was removed with the
  * plan/tier retirement — credits are the only paid rail
@@ -34,6 +35,7 @@ import {
 } from "@secondlayer/platform/db/queries/accounts";
 import {
 	burnRateUsdMicros,
+	creditsAdded,
 	dailySpendForMonth,
 	hostedStackSnapshot,
 	usageForMonth,
@@ -439,6 +441,19 @@ app.get("/usage", async (c) => {
 		burn: { rateDayUsdMicros: rateDayUsdMicros.toString(), windowHours: 24 },
 		service,
 	});
+});
+
+/**
+ * GET /api/billing/credits
+ *
+ * The account's latest top-ups and grants, newest first: the billing page's
+ * "Credits added" table. Amounts are positive USD-micros strings.
+ */
+app.get("/credits", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+	const credits = await creditsAdded(getDb(), accountId);
+	return c.json({ credits });
 });
 
 /**
