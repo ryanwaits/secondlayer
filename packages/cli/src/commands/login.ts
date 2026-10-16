@@ -1,7 +1,10 @@
+import { hostname } from "node:os";
+import { createInterface } from "node:readline";
 import { confirm, input } from "@inquirer/prompts";
 import type { Command } from "commander";
 import { resolveApiUrl, resolveArchiveOpsUrl } from "../lib/api-url.ts";
 import { CliHttpError, httpAt } from "../lib/http.ts";
+import { openBrowser } from "../lib/open-browser.ts";
 import { dim, info, error as logError, success } from "../lib/output.ts";
 import { readSession, writeSession } from "../lib/session.ts";
 
@@ -76,7 +79,172 @@ async function runTokenLogin(opts: LoginOptions): Promise<void> {
 }
 
 /**
- * `secondlayer login` — magic-link email flow.
+ * The "already logged in" check shared by both flows. False means stop: the
+ * caller has already said why.
+ */
+async function shouldContinueLogin(
+	target: string,
+	options: LoginOptions,
+): Promise<boolean> {
+	if (options.force) return true;
+	const existing = await readSession(target);
+	if (!existing) return true;
+	info(`Already logged in as ${existing.email} (${target}).`);
+	const hint =
+		"Run 'secondlayer logout' first, or re-run with --force to switch accounts.";
+	if (!process.stdin.isTTY) {
+		info(dim(hint));
+		return false;
+	}
+	try {
+		const proceed = await confirm({
+			message: "Log in as a different user?",
+			default: false,
+		});
+		if (!proceed) {
+			info(dim("Run 'secondlayer logout' to sign out."));
+			return false;
+		}
+	} catch {
+		info(dim(hint));
+		return false;
+	}
+	return true;
+}
+
+interface DeviceStart {
+	deviceCode: string;
+	userCode: string;
+	verificationUrl: string;
+	interval: number;
+	expiresIn: number;
+}
+
+export type DeviceOutcome =
+	| { kind: "approved"; key: string; account: { id: string; email: string } }
+	| { kind: "denied" }
+	| { kind: "expired" };
+
+interface PollDeps {
+	post: <T>(path: string, body: unknown) => Promise<T>;
+	sleep: (ms: number) => Promise<void>;
+	now: () => number;
+}
+
+/**
+ * Poll the token endpoint until the browser answers. 428 = still waiting,
+ * 403 = cancelled in the browser, 410 = the code is gone. A flaky network
+ * retries a few times before giving up.
+ */
+export async function pollDeviceToken(
+	start: Pick<DeviceStart, "deviceCode" | "interval" | "expiresIn">,
+	deps: PollDeps,
+): Promise<DeviceOutcome> {
+	const deadline = deps.now() + start.expiresIn * 1000;
+	let failures = 0;
+	while (deps.now() < deadline) {
+		await deps.sleep(start.interval * 1000);
+		try {
+			const res = await deps.post<{
+				key: string;
+				account: { id: string; email: string };
+			}>("/api/cli/device/token", { deviceCode: start.deviceCode });
+			return { kind: "approved", key: res.key, account: res.account };
+		} catch (err) {
+			if (err instanceof CliHttpError) {
+				if (err.status === 428) {
+					failures = 0;
+					continue;
+				}
+				if (err.status === 403 && err.body.error === "access_denied") {
+					return { kind: "denied" };
+				}
+				if (err.status === 410) return { kind: "expired" };
+				throw err;
+			}
+			if (++failures >= 3) throw err;
+		}
+	}
+	return { kind: "expired" };
+}
+
+/** Machine name shown on the approval page and used as the key's default name. */
+function clientName(): string {
+	return hostname().trim().slice(0, 64) || "this machine";
+}
+
+/**
+ * `secondlayer login` — browser flow, like `gh auth login`. Shows a short code,
+ * opens the browser, and polls until the user approves it there. The server
+ * mints an API key named for this machine, which is stored as the credential.
+ */
+export async function runDeviceLogin(
+	options: LoginOptions = {},
+): Promise<void> {
+	const target = loginTarget(options);
+	if (!(await shouldContinueLogin(target, options))) return;
+
+	let start: DeviceStart;
+	try {
+		start = await httpAt<DeviceStart>(target, "/api/cli/device", {
+			method: "POST",
+			body: { clientName: clientName() },
+		});
+	} catch (err) {
+		logError(err instanceof Error ? err.message : String(err));
+		process.exit(1);
+	}
+
+	info(`First copy your one-time code: ${start.userCode}`);
+	const readline = process.stdin.isTTY
+		? createInterface({ input: process.stdin })
+		: null;
+	if (readline) {
+		info("Press Enter to open secondlayer.tools in your browser...");
+		readline.once("line", () => openBrowser(start.verificationUrl));
+	}
+	info(dim(`Or open ${start.verificationUrl}`));
+	info(dim("Waiting for you to approve in the browser..."));
+
+	let outcome: DeviceOutcome;
+	try {
+		outcome = await pollDeviceToken(start, {
+			post: (path, body) => httpAt(target, path, { method: "POST", body }),
+			sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+			now: Date.now,
+		});
+	} catch (err) {
+		readline?.close();
+		logError(err instanceof Error ? err.message : String(err));
+		process.exit(1);
+	}
+	readline?.close();
+
+	if (outcome.kind === "denied") {
+		logError("Cancelled in the browser.");
+		process.exit(1);
+	}
+	if (outcome.kind === "expired") {
+		logError("The code expired. Run secondlayer login again.");
+		process.exit(1);
+	}
+
+	await writeSession(
+		{
+			token: outcome.key,
+			email: outcome.account.email,
+			accountId: outcome.account.id,
+			expiresAt: sessionExpiry(),
+		},
+		target,
+	);
+	success(`Logged in as ${outcome.account.email} on ${clientName()}`);
+	info(dim("This machine has its own key. Revoke it under Keys."));
+}
+
+/**
+ * `secondlayer login --email` — magic-link email flow, for machines with no
+ * browser at hand.
  *
  * Flow: email → POST /api/auth/magic-link → prompt 6-digit code → POST
  * /api/auth/verify → write session. Server auto-extends session on every
@@ -84,37 +252,7 @@ async function runTokenLogin(opts: LoginOptions): Promise<void> {
  */
 export async function runLoginFlow(options: LoginOptions = {}): Promise<void> {
 	const target = loginTarget(options);
-	if (!options.force) {
-		const existing = await readSession(target);
-		if (existing) {
-			info(`Already logged in as ${existing.email} (${target}).`);
-			if (!process.stdin.isTTY) {
-				info(
-					dim(
-						"Run 'secondlayer logout' first, or re-run with --force to switch accounts.",
-					),
-				);
-				return;
-			}
-			try {
-				const proceed = await confirm({
-					message: "Log in as a different user?",
-					default: false,
-				});
-				if (!proceed) {
-					info(dim("Run 'secondlayer logout' to sign out."));
-					return;
-				}
-			} catch {
-				info(
-					dim(
-						"Run 'secondlayer logout' first, or re-run with --force to switch accounts.",
-					),
-				);
-				return;
-			}
-		}
-	}
+	if (!(await shouldContinueLogin(target, options))) return;
 
 	const email = await input({
 		message: "Email",
@@ -187,8 +325,12 @@ export async function runLoginFlow(options: LoginOptions = {}): Promise<void> {
 export function registerLoginCommand(program: Command): void {
 	program
 		.command("login")
-		.description("Log in to Secondlayer (magic-link email)")
+		.description("Log in to Secondlayer through your browser")
 		.option("--force", "Skip the already-logged-in check and re-run the flow")
+		.option(
+			"--email",
+			"Sign in with an emailed 6-digit code instead of a browser",
+		)
 		.option("--with-token", "Read an API key from stdin (non-interactive)")
 		.option(
 			"--credits",
@@ -198,13 +340,22 @@ export function registerLoginCommand(program: Command): void {
 			"after",
 			`
 Examples:
+  $ secondlayer login
+  $ secondlayer login --email
   $ secondlayer login --credits
   $ echo "$SECONDLAYER_API_KEY" | secondlayer login --with-token`,
 		)
 		.action(
-			(opts: { force?: boolean; withToken?: boolean; credits?: boolean }) =>
+			(opts: {
+				force?: boolean;
+				email?: boolean;
+				withToken?: boolean;
+				credits?: boolean;
+			}) =>
 				opts.withToken
 					? runTokenLogin({ credits: opts.credits })
-					: runLoginFlow({ force: opts.force, credits: opts.credits }),
+					: opts.email
+						? runLoginFlow({ force: opts.force, credits: opts.credits })
+						: runDeviceLogin({ force: opts.force, credits: opts.credits }),
 		);
 }
