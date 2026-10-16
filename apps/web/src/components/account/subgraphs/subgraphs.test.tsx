@@ -311,3 +311,16 @@ describe("HandlerErrorsPanel", () => {
 		expect(html).toBe("");
 	});
 });
+
+describe("SubgraphsEmptyState for a new account", () => {
+	test("the key-first line sits above the deploy command, only without a key", () => {
+		const without = renderToStaticMarkup(<SubgraphsEmptyState noKey />);
+		expect(without).toContain("You need a key first.");
+		expect(without.indexOf("You need a key first.")).toBeLessThan(
+			without.indexOf("sl subgraphs deploy"),
+		);
+		expect(renderToStaticMarkup(<SubgraphsEmptyState />)).not.toContain(
+			"You need a key first.",
+		);
+	});
+});

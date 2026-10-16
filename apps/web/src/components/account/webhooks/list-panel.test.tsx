@@ -103,3 +103,20 @@ describe("WebhooksListBody", () => {
 		expect(html).toContain('href="/account/credits"');
 	});
 });
+
+describe("WebhooksListBody for a new account", () => {
+	test("the empty state shows the create call and a guide link", () => {
+		const html = render({ rows: [] });
+		expect(html).toContain("A webhook posts chain events to your server");
+		expect(html).toContain("sl.webhooks.create");
+		expect(html).toContain("Webhooks guide");
+		expect(html).toContain("aria-hidden");
+	});
+
+	test("the key-first line shows only while there is no key", () => {
+		expect(render({ rows: [], noKey: true })).toContain(
+			"You need a key first.",
+		);
+		expect(render({ rows: [] })).not.toContain("You need a key first.");
+	});
+});

@@ -210,3 +210,32 @@ describe("OverviewRowsRow", () => {
 		expect(html).toContain(">0<");
 	});
 });
+
+describe("RowsBody for a new account", () => {
+	const unused: RowsResponse = {
+		...under,
+		allowance: { ...under.allowance, usedThisMonth: 0 },
+		daily: [],
+		bySource: [],
+		errors: [],
+	};
+
+	test("says nothing was read and shows the empty chart and the free meter", () => {
+		const html = renderToStaticMarkup(
+			<RowsBody {...base} status="ok" data={unused} />,
+		);
+		expect(html).toContain("No reads yet.");
+		expect(html).toContain("Your first read shows up here");
+		expect(html).toContain("0 of 1M free rows");
+		expect(html).toContain("sl index ft-transfers --limit 5");
+		expect(html).not.toContain("You need a key first.");
+	});
+
+	test("asks for a key first when there is none", () => {
+		const html = renderToStaticMarkup(
+			<RowsBody {...base} status="ok" data={unused} noKey />,
+		);
+		expect(html).toContain("You need a key first.");
+		expect(html).not.toContain("sl index ft-transfers");
+	});
+});

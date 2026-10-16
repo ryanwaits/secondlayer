@@ -1,14 +1,22 @@
 "use client";
 
+import { CopyButton } from "@/components/copy-button";
 import { HeatStrip } from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
+import {
+	KeyFirstLine,
+	PlaceholderRows,
+} from "@/components/dashboard/shell/onboarding";
+import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
+import { refreshKeys, useAccountData } from "@/lib/account-data";
+import { hasNoKey } from "@/lib/onboarding";
 import { hostOf } from "@/lib/webhooks-data";
 import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ToneDot, type WebhookRowModel, useWebhookRows } from "./rows";
-import { CliLine, shortenName } from "./shared";
+import { shortenName } from "./shared";
 import { WebhooksListSkeleton } from "./skeletons";
 
 /** The list polls this often while the tab is visible, so new webhooks and
@@ -107,19 +115,43 @@ export function AsleepNotice() {
 	);
 }
 
-function EmptyState() {
+/** The create call from the webhooks guide: the filter lives in your code. */
+const CREATE_EXAMPLE = `import { trigger } from "@secondlayer/sdk";
+
+await sl.webhooks.create({
+  name: "amm-swaps",
+  url: "https://my-app.com/webhook",
+  triggers: [
+    trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" }),
+    trigger.ftTransfer({ trait: "sip-010", minAmount: "1000000" }),
+  ],
+});`;
+
+function EmptyState({ noKey }: { noKey: boolean }) {
 	return (
 		<div className="wl-empty">
+			<StatusSentence tone="idle">No webhooks yet.</StatusSentence>
 			<p>
-				No webhooks yet. You create one with the SDK, and it starts delivering
-				from the next block.
+				A webhook posts chain events to your server the block they land. You
+				create one with the SDK, so the filter lives in your code and your
+				reviews.
 			</p>
+			{noKey ? <KeyFirstLine /> : null}
+			<div className="wh-cli nk-block">
+				<code className="wh-cli-code">{CREATE_EXAMPLE}</code>
+				<CopyButton code={CREATE_EXAMPLE} inline label="Copy" />
+			</div>
 			<p>
 				<Link href="/docs/webhooks" className="dash-link">
-					Webhooks in the docs ›
+					Webhooks guide ›
 				</Link>
 			</p>
-			<CliLine command="sl webhooks list" />
+			<PlaceholderRows
+				rows={[
+					{ state: 66, count: 40 },
+					{ state: 52, count: 48 },
+				]}
+			/>
 		</div>
 	);
 }
@@ -182,6 +214,8 @@ export interface WebhooksListBodyProps {
 	hours: readonly string[];
 	notice: ListNotice | null;
 	onOpenHour: (id: string, hourIso: string) => void;
+	/** The account has no key of its own yet. */
+	noKey?: boolean;
 }
 
 export function WebhooksListBody({
@@ -189,6 +223,7 @@ export function WebhooksListBody({
 	hours,
 	notice,
 	onOpenHour,
+	noKey = false,
 }: WebhooksListBodyProps) {
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
 	const quiet = rows?.filter((r) => r.webhook.lastDeliveryAt === null) ?? [];
@@ -232,7 +267,7 @@ export function WebhooksListBody({
 				<p className="acct-error">{notice.message}</p>
 			) : null}
 
-			{rows !== null && rows.length === 0 ? <EmptyState /> : null}
+			{rows !== null && rows.length === 0 ? <EmptyState noKey={noKey} /> : null}
 
 			{rows !== null && rows.length > 0 ? (
 				<>
@@ -286,8 +321,13 @@ export function WebhooksListSection() {
 	const router = useRouter();
 	const notice = useListPoll();
 	const { rows, hours } = useWebhookRows();
+	const { keys } = useAccountData();
+	useEffect(() => {
+		refreshKeys();
+	}, []);
 	return (
 		<WebhooksListBody
+			noKey={hasNoKey(keys, new Date())}
 			rows={rows}
 			hours={hours}
 			notice={notice}

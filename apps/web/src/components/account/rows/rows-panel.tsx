@@ -3,14 +3,17 @@
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { LazyBandBarChart } from "@/components/charts/lazy";
 import { Legend } from "@/components/dashboard/charts/legend";
+import { Meter } from "@/components/dashboard/charts/meter";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
+import { KeyFirstLine } from "@/components/dashboard/shell/onboarding";
 import { ResourceRow } from "@/components/dashboard/shell/resource-row";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
-import { refreshRows, useAccountData } from "@/lib/account-data";
+import { refreshKeys, refreshRows, useAccountData } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
+import { READ_COMMAND, hasNoKey } from "@/lib/onboarding";
 import {
 	type RowsError,
 	type RowsResponse,
@@ -25,8 +28,9 @@ import {
 	statusCopy,
 	xLabels,
 } from "@/lib/rows";
-import { formatRows } from "@/lib/usage";
+import { ROWS_ALLOWANCE, formatRows } from "@/lib/usage";
 import { useEffect, useState } from "react";
+import { CliLine } from "../webhooks/shared";
 import { ageShort } from "../webhooks/view";
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -109,6 +113,44 @@ export interface RowsBodyProps {
 	insights?: readonly Insight[];
 	now: Date;
 	onRetry: () => void;
+	/** The account has no key of its own yet: the empty screen asks for one first. */
+	noKey?: boolean;
+}
+
+/** Nothing read this month and nothing on record. */
+const isUnused = (data: RowsResponse) =>
+	data.allowance.usedThisMonth === 0 && data.daily.length === 0;
+
+/** A new account's Rows: what will show up here, and the one step to get it. */
+function EmptyRows({
+	data,
+	noKey,
+}: {
+	data: RowsResponse;
+	noKey: boolean;
+}) {
+	return (
+		<div className="bl-body">
+			<StatusSentence
+				tone="idle"
+				sub="Every row you read shows up here by day, with what it cost. The first 1M each month are free."
+			>
+				No reads yet.
+			</StatusSentence>
+			{noKey ? <KeyFirstLine /> : <CliLine command={READ_COMMAND} />}
+			<section className="dash-panel bl-panel" aria-label="Rows per day">
+				<span className="dash-label">Rows per day</span>
+				<div className="ob-chart-empty">Your first read shows up here</div>
+				<Meter
+					used={0}
+					total={ROWS_ALLOWANCE}
+					label="Free rows used this month"
+					left={`0 of ${formatRows(ROWS_ALLOWANCE)} free rows`}
+					right={`resets ${shortDate(data.allowance.resetsOn)}`}
+				/>
+			</section>
+		</div>
+	);
 }
 
 /** Rows: the free allowance, rows per day, where they came from, call sizes and your errors. */
@@ -118,6 +160,7 @@ export function RowsBody({
 	insights = [],
 	now,
 	onRetry,
+	noKey = false,
 }: RowsBodyProps) {
 	if (status === "not_loaded" || (status === "ok" && !data)) return null;
 	if (status === "failed" || !data) {
@@ -130,6 +173,8 @@ export function RowsBody({
 			</div>
 		);
 	}
+
+	if (isUnused(data)) return <EmptyRows data={data} noKey={noKey} />;
 
 	const { allowance } = data;
 	const copy = statusCopy(allowance);
@@ -218,7 +263,7 @@ export function RowsBody({
 
 /** /account/rows: loads the rows data and shows it. */
 export function RowsSection() {
-	const { rows } = useAccountData();
+	const { rows, keys } = useAccountData();
 	const { data: allInsights } = useInsights();
 	const [failed, setFailed] = useState(false);
 	const now = new Date();
@@ -232,6 +277,7 @@ export function RowsSection() {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: load once on mount
 	useEffect(() => {
 		load();
+		refreshKeys();
 	}, []);
 
 	const status = rows ? "ok" : failed ? "failed" : "not_loaded";
@@ -243,6 +289,7 @@ export function RowsSection() {
 			insights={forAccountRules(allInsights, ROWS_RULES)}
 			now={now}
 			onRetry={load}
+			noKey={hasNoKey(keys, now)}
 		/>
 	);
 }

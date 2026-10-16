@@ -9,8 +9,10 @@ import {
 	ResourceRowHead,
 } from "@/components/dashboard/shell/resource-row";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
+import { refreshKeys, useAccountData } from "@/lib/account-data";
 import type { Insight } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
+import { hasNoKey } from "@/lib/onboarding";
 import {
 	groupDigits,
 	handlerErrors24h,
@@ -184,6 +186,8 @@ export interface SubgraphsListBodyProps {
 	health: Record<string, SubgraphHealthData | undefined>;
 	notice: ListNotice | null;
 	insights?: readonly Insight[];
+	/** The account has no key of its own yet. */
+	noKey?: boolean;
 }
 
 export function SubgraphsListBody({
@@ -191,6 +195,7 @@ export function SubgraphsListBody({
 	health,
 	notice,
 	insights = [],
+	noKey = false,
 }: SubgraphsListBodyProps) {
 	if (items === null) {
 		if (notice?.kind === "starting") {
@@ -212,7 +217,7 @@ export function SubgraphsListBody({
 		}
 		return <ChartSkeleton height={120} />;
 	}
-	if (items.length === 0) return <SubgraphsEmptyState />;
+	if (items.length === 0) return <SubgraphsEmptyState noKey={noKey} />;
 
 	const failing = items.filter(
 		(s) => subgraphTone(s.status, handlerErrors24h(health[s.name])) === "alarm",
@@ -246,8 +251,13 @@ export function SubgraphsListSection() {
 	const notice = useSubgraphsPoll();
 	const { list, health } = useSubgraphsCache();
 	const { data: insights } = useInsights();
+	const { keys } = useAccountData();
+	useEffect(() => {
+		refreshKeys();
+	}, []);
 	return (
 		<SubgraphsListBody
+			noKey={hasNoKey(keys, new Date())}
 			items={list?.data ?? null}
 			health={healthByName(health)}
 			notice={notice}
