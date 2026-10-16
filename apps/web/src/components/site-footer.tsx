@@ -38,12 +38,10 @@ const COLS: { title: string; links: readonly FooterLink[] }[] = [
 	},
 ];
 
-/** Marketing-page footer: brand, tagline, three link columns. Hidden on docs
- *  and on the dashboard, whose sticky terminal footer ends the page. */
+/** Marketing-page footer: brand, tagline, three link columns. Hidden on docs. */
 export function SiteFooter() {
 	const pathname = usePathname();
 	if (pathname.startsWith("/docs")) return null;
-	if (pathname === "/account" || pathname.startsWith("/account/")) return null;
 
 	return (
 		<footer className="site-footer">

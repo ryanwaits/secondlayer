@@ -32,7 +32,7 @@ import {
 	StatusSentence,
 	type Tone,
 } from "@/components/dashboard/shell/status-sentence";
-import { TerminalFooter } from "@/components/dashboard/shell/terminal-footer";
+import { ViewCommand } from "@/components/dashboard/shell/view-command";
 import { Callout } from "@/components/docs/callout";
 import { ButtonLink, Eyebrow, StatusDot } from "@/components/site";
 import { barsRows } from "@/lib/dashboard-charts";
@@ -981,10 +981,10 @@ const META: Record<StoryId, Meta> = {
 	"dashboard-shell": {
 		src: [
 			"apps/web/src/components/dashboard/shell/dashboard-tabs.tsx",
-			"apps/web/src/components/dashboard/shell/terminal-footer.tsx",
+			"apps/web/src/components/dashboard/shell/view-command.tsx",
 			"apps/web/src/components/marketing-nav.tsx",
 		],
-		rule: "Tabs and the chain heartbeat in the bar, one sentence of status, rows that never grow a background, and the CLI command in a sticky footer.",
+		rule: "Tabs and the chain heartbeat in the bar, one sentence of status, rows that never grow a background, and the view's CLI command as a chip in the bar.",
 		stack: true,
 		variants: [
 			{
@@ -1013,6 +1013,7 @@ const META: Record<StoryId, Meta> = {
 						>
 							<b style={{ fontWeight: 500 }}>secondlayer</b>
 							<DashboardTabs pathname="/account/webhooks" failingWebhooks={1} />
+							<ViewCommand command={LONG_COMMAND} />
 							<HeartbeatView
 								height={9_219_695}
 								seenAt={NOW - 5_000}
@@ -1060,13 +1061,12 @@ const META: Record<StoryId, Meta> = {
 								))}
 							</div>
 						</div>
-						<TerminalFooter command={LONG_COMMAND} />
 					</div>
 				),
 			},
 		],
 		usage: `<DashboardTabs pathname={pathname} failingWebhooks={1} />
-<TerminalFooter command={commandForPath(pathname)} />`,
+<ViewCommand command={commandForPath(pathname)} />`,
 		donts: ["Rows change text color on hover, never background."],
 	},
 	heartbeat: {
@@ -1118,22 +1118,22 @@ const META: Record<StoryId, Meta> = {
 		],
 		usage: "<ChainHeartbeat />",
 	},
-	"terminal-footer": {
-		src: ["apps/web/src/components/dashboard/shell/terminal-footer.tsx"],
-		rule: "Names the CLI command for this view. Long commands truncate in the middle; Copy takes the whole thing.",
+	"view-command": {
+		src: ["apps/web/src/components/dashboard/shell/view-command.tsx"],
+		rule: "Names the CLI command for this view, in the bar. Long commands truncate in the middle; a click copies the whole thing.",
 		variants: [
 			{
 				id: "short",
 				label: "Short",
-				render: () => <TerminalFooter command="sl webhooks list" />,
+				render: () => <ViewCommand command="sl webhooks list" />,
 			},
 			{
 				id: "long",
 				label: "Long",
-				render: () => <TerminalFooter command={LONG_COMMAND} />,
+				render: () => <ViewCommand command={LONG_COMMAND} />,
 			},
 		],
-		usage: '<TerminalFooter command="sl webhooks list" />',
+		usage: '<ViewCommand command="sl webhooks list" />',
 	},
 	breadcrumb: {
 		src: ["apps/web/src/components/dashboard/shell/breadcrumb.tsx"],

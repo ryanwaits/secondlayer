@@ -13,7 +13,7 @@ export const STORY_INDEX = [
 	{ id: "account-menu", group: "Controls", title: "Account menu" },
 	{ id: "dashboard-shell", group: "Dashboard", title: "Dashboard shell" },
 	{ id: "heartbeat", group: "Dashboard", title: "Chain heartbeat" },
-	{ id: "terminal-footer", group: "Dashboard", title: "Terminal footer" },
+	{ id: "view-command", group: "Dashboard", title: "View command" },
 	{ id: "breadcrumb", group: "Dashboard", title: "Breadcrumb" },
 	{ id: "resource-row", group: "Dashboard", title: "Resource row" },
 	{ id: "webhook-header", group: "Dashboard", title: "Webhook header" },

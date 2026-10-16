@@ -7,6 +7,7 @@ import {
 	DASHBOARD_TABS,
 	DashboardTabs,
 } from "@/components/dashboard/shell/dashboard-tabs";
+import { ViewCommand } from "@/components/dashboard/shell/view-command";
 import { Logo } from "@/components/logo";
 import { ProductsMenu } from "@/components/products-menu";
 import {
@@ -16,6 +17,7 @@ import {
 } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import { PRODUCTS, SITE_LINKS, isActive } from "@/lib/site";
+import { commandForPath } from "@/lib/terminal-command";
 import { useWebhooksCache } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -39,7 +41,7 @@ export function MarketingNav() {
 	const pathname = usePathname();
 	const { account, loading, logout } = useAuth();
 	const { billing } = useAccountData();
-	const { list } = useWebhooksCache();
+	const { list, detail } = useWebhooksCache();
 	const [open, setOpen] = useState(false);
 
 	// Close the sheet on navigation; Escape closes it and scroll locks while
@@ -71,6 +73,13 @@ export function MarketingNav() {
 	const failingWebhooks = list
 		? countByDisplayStatus(list.data, "error")
 		: undefined;
+	const command = dash
+		? commandForPath(
+				pathname,
+				(id) =>
+					detail[id]?.data.name ?? list?.data.find((w) => w.id === id)?.name,
+			)
+		: null;
 
 	return (
 		<nav
@@ -104,6 +113,7 @@ export function MarketingNav() {
 			<div className="mnav-right">
 				{dash ? (
 					<>
+						{command ? <ViewCommand command={command} /> : null}
 						<ChainHeartbeat />
 						<kbd className="dash-kbd">⌘K</kbd>
 					</>

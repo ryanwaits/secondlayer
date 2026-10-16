@@ -1631,25 +1631,17 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 }
 
 /* The account pages: one centered column; the tabs and the terminal footer live outside it. */
-/* The dashboard runs edge to edge like an app: the top bar and the terminal
- * footer span the window, the body centers at 1040px, and the footer sits at
- * the bottom of the window even on a short page. */
 .acct-page {
-	display: flex;
-	flex-direction: column;
-	min-height: calc(100vh - 64px);
-	min-height: calc(100dvh - 64px);
+	max-width: 1040px;
+	margin: 0 auto;
+	padding: 48px 1.5rem 0;
 }
 .acct-main {
-	flex: 1 0 auto;
-	box-sizing: border-box;
-	width: min(100%, calc(1040px + 2 * clamp(16px, 4vw, 52px)));
-	margin: 0 auto;
 	min-width: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
-	padding: 44px clamp(16px, 4vw, 52px) 64px;
+	padding-bottom: 64px;
 }
 
 .mono {
@@ -5659,54 +5651,37 @@ a.acct-strip-link:hover .acct-strip-k {
 	border-radius: 4px;
 	padding: 4px 6px;
 }
-.marketing-nav.is-dash {
-	padding: 0 20px;
-}
-@media (max-width: 560px) {
-	.marketing-nav.is-dash {
-		padding: 0 16px;
-	}
-}
 .marketing-nav.is-dash .mnav-right {
 	gap: 14px;
 	margin-left: 14px;
 }
 
-/* Sticky terminal footer */
-.dash-foot {
-	position: sticky;
-	bottom: 0;
-	z-index: 4;
-	display: flex;
+/* The current view's CLI command: a chip in the dashboard bar. Click copies. */
+.dash-cmd {
+	display: inline-flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 12px 20px;
-	border-top: 1px solid var(--line);
-	background: var(--paper);
-	font: 400 12px / 1.4 var(--font-mono-stack);
-	color: var(--faint);
+	gap: 6px;
+	height: 26px;
+	max-width: 280px;
+	padding: 0 8px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	background: none;
+	font: 400 12px / 1 var(--font-mono-stack);
+	color: var(--sub);
+	cursor: pointer;
+	white-space: nowrap;
 }
-.dash-foot > span {
-	flex: 1 1 auto;
+.dash-cmd code {
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	white-space: nowrap;
 }
-.dash-foot code {
-	color: var(--sub);
-}
-.dash-foot-copy {
-	flex: none;
-	padding: 0;
-	border: 0;
-	background: none;
-	font: inherit;
+.dash-cmd-p {
 	color: var(--faint);
-	cursor: pointer;
 }
-.dash-foot-copy:hover {
+.dash-cmd:hover,
+.dash-cmd:hover .dash-cmd-p {
 	color: var(--pri);
 }
 
@@ -5831,7 +5806,8 @@ a.acct-strip-link:hover .acct-strip-k {
 
 @media (max-width: 900px) {
 	.dash-beat-lbl,
-	.dash-kbd {
+	.dash-kbd,
+	.dash-cmd code {
 		display: none;
 	}
 	.dash-row-head,

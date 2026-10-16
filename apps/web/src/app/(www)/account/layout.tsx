@@ -1,17 +1,13 @@
 "use client";
 
-import { TerminalFooter } from "@/components/dashboard/shell/terminal-footer";
 import { useAuth } from "@/lib/auth";
 import { startInsightsPolling } from "@/lib/insights-store";
-import { commandForPath } from "@/lib/terminal-command";
-import { useWebhooksCache } from "@/lib/webhooks-store";
-import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 /**
- * The account pages frame. The tabs and the chain heartbeat live in the top
- * bar (MarketingNav renders them on /account), Keys lives in the account
- * menu, and a sticky footer names the CLI command for the current view. The
+ * The account pages frame. The tabs, the chain heartbeat and the current
+ * view's CLI command live in the top bar (MarketingNav renders them on
+ * /account), and Keys lives in the account menu. The
  * keys and credits flows also open as sheets from that menu; these pages are
  * the home for them, and where Stripe returns a top-up.
  */
@@ -21,17 +17,9 @@ export default function AccountLayout({
 	children: React.ReactNode;
 }) {
 	const { account, loading } = useAuth();
-	const pathname = usePathname();
-	const cache = useWebhooksCache();
 	const signedIn = Boolean(account);
 	// One shared feed of ranked insights for every screen under /account.
 	useEffect(() => (signedIn ? startInsightsPolling() : undefined), [signedIn]);
-	const command = commandForPath(
-		pathname,
-		(id) =>
-			cache.detail[id]?.data.name ??
-			cache.list?.data.find((w) => w.id === id)?.name,
-	);
 
 	// Signed out is the one case that still blocks: nothing account-specific
 	// ever mounts for a visitor who isn't authenticated. While `loading` is
@@ -59,7 +47,6 @@ export default function AccountLayout({
 	return (
 		<div className="acct-page">
 			<main className="acct-main">{children}</main>
-			{command ? <TerminalFooter command={command} /> : null}
 		</div>
 	);
 }
