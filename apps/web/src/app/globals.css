@@ -1631,17 +1631,25 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 }
 
 /* The account pages: one centered column; the tabs and the terminal footer live outside it. */
+/* The dashboard runs edge to edge like an app: the top bar and the terminal
+ * footer span the window, the body centers at 1040px, and the footer sits at
+ * the bottom of the window even on a short page. */
 .acct-page {
-	max-width: 1040px;
-	margin: 0 auto;
-	padding: 48px 1.5rem 0;
+	display: flex;
+	flex-direction: column;
+	min-height: calc(100vh - 64px);
+	min-height: calc(100dvh - 64px);
 }
 .acct-main {
+	flex: 1 0 auto;
+	box-sizing: border-box;
+	width: min(100%, calc(1040px + 2 * clamp(16px, 4vw, 52px)));
+	margin: 0 auto;
 	min-width: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
-	padding-bottom: 64px;
+	padding: 44px clamp(16px, 4vw, 52px) 64px;
 }
 
 .mono {
@@ -5650,6 +5658,14 @@ a.acct-strip-link:hover .acct-strip-k {
 	border: 1px solid var(--line);
 	border-radius: 4px;
 	padding: 4px 6px;
+}
+.marketing-nav.is-dash {
+	padding: 0 20px;
+}
+@media (max-width: 560px) {
+	.marketing-nav.is-dash {
+		padding: 0 16px;
+	}
 }
 .marketing-nav.is-dash .mnav-right {
 	gap: 14px;
