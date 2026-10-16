@@ -1015,6 +1015,51 @@ a mark {
 	text-decoration-color: var(--accent);
 }
 
+/* CLI sign-in approval: the terminal's code, large, to match by eye. */
+.cli-login-lead {
+	margin: -0.5rem 0 1.25rem;
+	font-size: 14px;
+	line-height: 1.5;
+	color: var(--text-muted);
+}
+
+.cli-login-code {
+	margin: 0 0 1.25rem;
+	padding: 14px 16px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	text-align: center;
+	font-family: var(--font-mono-stack);
+	font-size: 28px;
+	font-weight: 560;
+	letter-spacing: 0.12em;
+	color: var(--text-main);
+}
+
+.cli-login-cancel {
+	display: block;
+	width: 100%;
+	margin-top: 8px;
+	height: 38px;
+	font-family: var(--font-sans-stack);
+	font-size: 14px;
+	color: var(--text-muted);
+	background: none;
+	border: 0;
+	cursor: pointer;
+}
+
+@media (hover: hover) {
+	.cli-login-cancel:hover {
+		color: var(--text-main);
+	}
+}
+
+.cli-login-cancel:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
 /* Account: the nav chip and menu, the keys/credits sheets, and the
    /account/keys + /account/credits pages. One set of parts serves all three.
    Fresh results (a new key, credits added) and the no-credits warning share
