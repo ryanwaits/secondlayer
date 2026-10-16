@@ -13,7 +13,6 @@ import {
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ensureKeys, useAccountData } from "@/lib/account-data";
 import { heatGrid } from "@/lib/dashboard-charts";
-import { useInsights } from "@/lib/insights-store";
 import { hasNoKey } from "@/lib/onboarding";
 import { useFirstSettle } from "@/lib/use-first-settle";
 import { hostOf } from "@/lib/webhooks-data";
@@ -342,11 +341,11 @@ export function WebhooksListSection() {
 	const router = useRouter();
 	const notice = useListPoll();
 	const { rows, hours, summaryLoaded } = useWebhookRows();
-	const { status: insightsStatus } = useInsights();
-	// One paint for rows and strips together, at most FIRST_SETTLE_MS late.
-	const ready = useFirstSettle(
-		rows !== null && summaryLoaded && insightsStatus !== "idle",
-	);
+	// Only the list defines the layout, so rows paint when it lands, at most
+	// FIRST_SETTLE_MS late. The strip holds its space with HeatStripSkeleton and
+	// the state line says "Counting…", so nothing moves when the summary or
+	// insights arrive.
+	const ready = useFirstSettle(rows !== null);
 	const { keys } = useAccountData();
 	useEffect(() => {
 		ensureKeys();

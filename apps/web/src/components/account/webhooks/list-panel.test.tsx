@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { Insight } from "@/lib/insights";
 import { renderToStaticMarkup } from "react-dom/server";
 import { WebhooksListBody } from "./list-panel";
 import { rowModel } from "./rows";
@@ -121,6 +122,50 @@ describe("WebhooksListBody heat strip placeholder", () => {
 	test("a loaded summary with no series for the row shows no strip and no placeholder", () => {
 		const html = render({ rows: [noSeries], summaryLoaded: true });
 		expect(html).not.toContain("dc-heat");
+	});
+});
+
+describe("WebhooksListBody while the summary is pending", () => {
+	const pending = rowModel(summary(), undefined, [], [], false);
+
+	test("a row with no series says Counting… and never claims a quiet day", () => {
+		const html = render({ rows: [pending], summaryLoaded: false });
+		expect(html).toContain("Counting…");
+		expect(html).not.toContain("Nothing in the last 24h");
+	});
+
+	test("a paused row still says Paused", () => {
+		const paused = rowModel(
+			summary({ status: "paused" }),
+			undefined,
+			[],
+			[],
+			false,
+		);
+		const html = render({ rows: [paused], summaryLoaded: false });
+		expect(html).toContain("Paused");
+		expect(html).not.toContain("Counting…");
+	});
+
+	test("an insight line wins over Counting…", () => {
+		const insight = {
+			id: "i1",
+			rule: "r",
+			severity: "losing",
+			impact: 1,
+			resource: { kind: "webhook", id: summary().id, name: "n" },
+			line: "Receiver is rejecting every delivery",
+			lead: "",
+			body: "",
+			evidence: [],
+			handoff: { prompt: "", commands: [] },
+			how: { detector: "d", facts: [] },
+			createdAt: "2026-10-16T00:00:00Z",
+		} as Insight;
+		const row = rowModel(summary(), undefined, [], [insight], false);
+		const html = render({ rows: [row], summaryLoaded: false });
+		expect(html).toContain("Receiver is rejecting every delivery");
+		expect(html).not.toContain("Counting…");
 	});
 });
 

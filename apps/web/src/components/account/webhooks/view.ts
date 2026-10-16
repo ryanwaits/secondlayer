@@ -67,12 +67,15 @@ export function outageStartIndex(
 /**
  * The one-line state of a webhook from what the list and the hourly summary
  * know: a failing receiver, a pause, a quiet day, or what was delivered.
- * The server's insights replace this line when present.
+ * The server's insights replace this line when present. While the hourly
+ * summary is `pending`, a row with nothing else to say reads "Counting…"
+ * instead of claiming a quiet day it cannot know about.
  */
 export function listRowState(
 	webhook: WebhookSummary,
 	series: HourlySeries | undefined,
 	hours: readonly string[],
+	pending = false,
 ): RowState {
 	const recent = last24(series);
 	const delivered = sum(recent.delivered);
@@ -109,6 +112,8 @@ export function listRowState(
 			bad: true,
 		};
 	}
+	if (pending && !series)
+		return { tone: "idle", text: "Counting…", bad: false };
 	if (delivered === 0 && failed === 0) {
 		return {
 			tone: "ok",

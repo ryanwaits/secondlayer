@@ -50,12 +50,13 @@ export function rowModel(
 	series: HourlySeries | undefined,
 	hours: readonly string[],
 	insights: readonly Insight[],
+	summaryLoaded = true,
 ): WebhookRowModel {
 	const ranked = rankInsights(insights);
 	const top = ranked[0];
 	const state: RowState = top
 		? insightRowState(top)
-		: listRowState(webhook, series, hours);
+		: listRowState(webhook, series, hours, !summaryLoaded);
 	return { webhook, series, state, insights: ranked };
 }
 
@@ -86,6 +87,7 @@ export function useWebhookRows(): {
 				seriesById.get(w.id),
 				hours,
 				forResource(insights, "webhook", w.id),
+				summaryLoaded,
 			),
 		),
 	};
