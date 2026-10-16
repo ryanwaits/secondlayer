@@ -25,9 +25,11 @@ export const DEFAULT_MINT_TIER = "free";
 export const INTERNAL_MINT_TIER = "internal";
 
 /**
- * Cap on active (non-revoked) keys per account. A backstop against key-spray
- * via the agent-reachable mint endpoint; the per-IP rate limit is the first
- * line of defence. Revoked keys don't count. Env-overridable.
+ * Cap on active (non-revoked) keys per account, enforced by
+ * `assertUnderKeyCeiling` in POST /api/keys and the sentinel mint. A backstop
+ * against key-spray via the agent-reachable mint endpoint; POST /api/keys
+ * also rate-limits creates per account (routes.ts). Revoked and docs keys
+ * don't count. Env-overridable.
  */
 const MAX_ACTIVE_KEYS = Number.parseInt(
 	process.env.API_KEYS_MAX_ACTIVE_PER_ACCOUNT ?? "50",

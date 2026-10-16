@@ -8,6 +8,7 @@ import { requireAuth } from "./middleware.ts";
 import {
 	DOCS_KEY_DAILY_LIMIT,
 	assertCanMint,
+	assertUnderKeyCeiling,
 	mintApiKey,
 	mintDocsKey,
 	resolveMintProduct,
@@ -21,6 +22,9 @@ export const CreateKeySchema = z.object({
 	name: z.string().max(255).optional(),
 	product: z.enum(["account"]).default("account"),
 });
+
+const KEY_CREATE_LIMIT = 20;
+const KEY_CREATE_WINDOW_MS = 60 * 60 * 1000;
 
 const app = new Hono();
 
@@ -39,7 +43,20 @@ app.post("/", requireAuth(), async (c) => {
 	};
 	assertCanMint(caller);
 
-	const minted = await mintApiKey(getDb(), {
+	const db = getDb();
+	await assertUnderKeyCeiling(db, accountId);
+	const limit = await getRateLimitStore().check(
+		`key-create:${accountId}`,
+		KEY_CREATE_LIMIT,
+		KEY_CREATE_WINDOW_MS,
+		{ failClosed: true },
+	);
+	if (!limit.allowed) {
+		c.header("Retry-After", String(limit.retryAfter));
+		throw new RateLimitError("Too many new keys. Try again later.");
+	}
+
+	const minted = await mintApiKey(db, {
 		accountId,
 		name: parsed.name,
 		product: resolveMintProduct(caller, parsed.product),

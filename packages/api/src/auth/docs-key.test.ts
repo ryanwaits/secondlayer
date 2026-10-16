@@ -351,3 +351,68 @@ describe.skipIf(!HAS_DB)("docs key authority", () => {
 		expect((await list()).some((k) => k.product === "docs")).toBe(false);
 	});
 });
+
+function createKey(token: string) {
+	return app.request("/api/keys", {
+		method: "POST",
+		headers: {
+			authorization: `Bearer ${token}`,
+			"content-type": "application/json",
+		},
+		body: JSON.stringify({ name: "laptop" }),
+	});
+}
+
+async function insertKeys(
+	accountId: string,
+	count: number,
+	product: "account" | "docs",
+) {
+	await db
+		.insertInto("api_keys")
+		.values(
+			Array.from({ length: count }, () => {
+				const raw = `sk-sl_cap_${crypto.randomUUID()}`;
+				return {
+					key_hash: hashToken(raw),
+					key_prefix: raw.slice(0, 14),
+					account_id: accountId,
+					ip_address: "test",
+					product,
+					tier: "free",
+					status: "active" as const,
+				};
+			}),
+		)
+		.execute();
+}
+
+describe.skipIf(!HAS_DB)("account key creation limits", () => {
+	test("the 51st active key is refused and docs keys do not count", async () => {
+		const accountId = await makeAccount();
+		const session = await makeSession(accountId);
+		await insertKeys(accountId, 1, "docs");
+		await insertKeys(accountId, 49, "account");
+		expect((await createKey(session)).status).toBe(201);
+		const refused = await createKey(session);
+		expect(refused.status).toBe(403);
+		const active = await db
+			.selectFrom("api_keys")
+			.select("id")
+			.where("account_id", "=", accountId)
+			.where("product", "=", "account")
+			.execute();
+		expect(active).toHaveLength(50);
+	});
+
+	test("the 21st key created within an hour gets a 429 with Retry-After", async () => {
+		const accountId = await makeAccount();
+		const session = await makeSession(accountId);
+		for (let i = 0; i < 20; i++) {
+			expect((await createKey(session)).status).toBe(201);
+		}
+		const limited = await createKey(session);
+		expect(limited.status).toBe(429);
+		expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
+	});
+});
