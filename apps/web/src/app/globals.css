@@ -7072,9 +7072,13 @@ button.dash-row {
 	position: relative;
 	top: -1px;
 }
+/* A list of notes under the chart: each note keeps its bottom hairline and
+ * none above the first, as the mock draws it. */
 .rw-notes {
 	display: grid;
-	border-top: 1px solid var(--line);
+}
+.rw-notes .ins-stack > .ins-note:first-of-type {
+	border-top: 0;
 }
 .rw-failed {
 	display: grid;
