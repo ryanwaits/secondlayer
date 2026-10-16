@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 13.6.0
+
+### Minor Changes
+
+- 13958c2: Kysely types for the `webhook_incident_alerts` table, which debounces the email an account owner gets when a webhook stays down.
+
 ## 13.5.0
 
 ### Minor Changes

@@ -23,6 +23,10 @@ Your monthly spend cap now stops your hosted stack too, not only reads past the 
 
 ## Webhooks — October 2026
 
+### One email when a webhook is down
+
+If a hosted webhook fails 5 deliveries in a row and nothing gets through for 15 minutes, we email the account owner once. Several webhooks down at the same time arrive in one email. Deliveries keep retrying while it's down, and you get no further email until it recovers and goes down again.
+
 ### See the deliveries from one hour
 
 `GET /api/webhooks/:id/deliveries?from=&to=` and `sl.webhooks.deliveries(id, { from, to })` return the attempts in a time window of up to 31 days. Activity now counts failed attempts per hour, includes a usual range for each hour of the day, and takes `?days=30` for daily totals.
