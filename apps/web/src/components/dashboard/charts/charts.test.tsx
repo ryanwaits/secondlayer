@@ -136,6 +136,18 @@ describe("MemoryBand", () => {
 		expect(html).toContain(`class="dc-stroke-a"`);
 	});
 
+	test("leaves headroom above a steady line when the size is unknown", () => {
+		const html = renderToStaticMarkup(
+			<MemoryBand points={[0.2, 0.2, 0.2]} capacity={0} title="Memory" />,
+		);
+		expect(html).not.toContain("dc-cap-line");
+		// The stroke path starts "M0.0 <y>"; the height is 30, so mid-height is 15.
+		const y = Number(
+			/class="dc-stroke-a"[^>]* d="M[\d.]+ ([\d.]+)/.exec(html)?.[1],
+		);
+		expect(y).toBeGreaterThan(30 / 3);
+	});
+
 	test("turns the line red when stopped", () => {
 		const html = renderToStaticMarkup(
 			<MemoryBand points={[1, 2, 0]} capacity={4} stopped title="Memory" />,

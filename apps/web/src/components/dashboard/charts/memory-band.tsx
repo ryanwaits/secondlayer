@@ -1,7 +1,8 @@
 /**
  * Memory against its ceiling: a `--ch-a` line over a faint area, scaled to the
- * stack's size and drawn under a dashed size line. Turns `--alarm` when the
- * stack is stopped. Plain SVG so it renders on the server.
+ * stack's size and drawn under a dashed size line (with no known size, to
+ * twice its peak). Turns `--alarm` when the stack is stopped. Plain SVG so it
+ * renders on the server.
  */
 export function MemoryBand({
 	points,
@@ -21,7 +22,10 @@ export function MemoryBand({
 	stopped?: boolean;
 }) {
 	const known = capacity > 0;
-	const scale = known ? capacity : Math.max(...points, 0.01);
+	// With no known size the band can't be scaled to a ceiling. Leave headroom
+	// above the peak so a steady line sits mid-height; pinned to the top it
+	// would read as "full".
+	const scale = known ? capacity : Math.max(...points, 0.01) * 2;
 	const top = 2;
 	const bottom = height - 2;
 	const step = width / (points.length - 1 || 1);
