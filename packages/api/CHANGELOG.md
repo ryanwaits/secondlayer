@@ -1,5 +1,14 @@
 # @secondlayer/api
 
+## 1.56.3
+
+### Patch Changes
+
+- Updated dependencies [61466da]
+  - @secondlayer/shared@13.4.0
+  - @secondlayer/subgraphs@7.5.0
+  - @secondlayer/platform@0.8.3
+
 ## 1.56.2
 
 ### Patch Changes

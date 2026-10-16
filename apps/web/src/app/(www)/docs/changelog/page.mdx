@@ -51,6 +51,10 @@ Before, `topic` was ignored on webhooks and you received every print from the co
 
 ## Subgraphs — October 2026
 
+### Health history and grouped handler errors
+
+Your subgraph records a snapshot every minute: blocks behind the chain tip, rows written and storage, kept for 7 days. `GET /api/subgraphs/:name/health` returns it in hourly buckets. Handler errors are grouped by cause, so a bug that throws on every event shows up as one entry with a count. `GET /api/subgraphs/:name/errors` lists the groups, most frequent first.
+
 ### Contract reads now work in hosted subgraphs
 
 `readContractAt` and `ctx.client` work in hosted handlers with no setup, pinned to the block being processed like on your own box.

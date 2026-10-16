@@ -1,5 +1,16 @@
 # @secondlayer/subgraphs
 
+## 7.5.0
+
+### Minor Changes
+
+- 61466da: Subgraphs record a per-minute health snapshot (lag, rows written, storage; 7-day retention) and group handler errors by fingerprint.
+
+### Patch Changes
+
+- Updated dependencies [61466da]
+  - @secondlayer/shared@13.4.0
+
 ## 7.4.0
 
 ### Minor Changes
