@@ -1093,6 +1093,7 @@ export interface Database {
 	usage_ledger: UsageLedgerTable;
 	account_balance_alerts: AccountBalanceAlertsTable;
 	webhook_incident_alerts: WebhookIncidentAlertsTable;
+	cli_device_logins: CliDeviceLoginsTable;
 	sentinel_accounts: SentinelAccountsTable;
 	waitlists: WaitlistsTable;
 	waitlist_signups: WaitlistSignupsTable;
@@ -1227,6 +1228,30 @@ export interface WebhookIncidentAlertsTable {
 }
 
 export type WebhookIncidentAlert = Selectable<WebhookIncidentAlertsTable>;
+
+export type CliDeviceLoginStatus =
+	| "pending"
+	| "approved"
+	| "denied"
+	| "consumed";
+
+/** One browser sign-in attempt from `sl login`. Only the hash of the CLI's
+ *  device code is stored; the key is minted when the CLI polls after approval. */
+export interface CliDeviceLoginsTable {
+	id: Generated<string>;
+	device_code_hash: string;
+	user_code: string;
+	client_name: string;
+	status: Generated<CliDeviceLoginStatus>;
+	account_id: string | null;
+	key_name: string | null;
+	created_at: Generated<Date>;
+	expires_at: Date;
+	approved_at: Date | null;
+	consumed_at: Date | null;
+}
+
+export type CliDeviceLogin = Selectable<CliDeviceLoginsTable>;
 
 /** Accounts Sentinel's service key may touch: created by Sentinel, or the
  *  owner opted in. */
