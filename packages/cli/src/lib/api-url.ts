@@ -22,7 +22,7 @@ export function resolveApiUrl(): string {
 	).replace(/\/+$/, "");
 }
 
-/** Merchant API that sells archive credits. Not the operator's loopback box. */
+/** Your hosted account's API (credits, archive fetches, login). Not the operator's loopback box. */
 export function resolveArchiveOpsUrl(): string {
 	return (process.env.SL_CREDITS_API_URL ?? ARCHIVE_OPS_API_URL).replace(
 		/\/+$/,

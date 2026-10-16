@@ -137,7 +137,7 @@ async function runBuy(opts: {
 			console.log(res.url);
 			console.log(
 				dim(
-					"After payment: set SECONDLAYER_API_KEY (or run `secondlayer login --credits`), then run `secondlayer credits balance`",
+					"After payment: set SECONDLAYER_API_KEY (or run `secondlayer login`), then run `secondlayer credits balance`",
 				),
 			);
 		},
@@ -233,11 +233,11 @@ async function runUsage(opts: {
 export function registerCreditsCommand(program: Command): void {
 	const credits = program
 		.command("credits")
-		.description("Buy and check archive credits");
+		.description("Buy and check your credits");
 
 	credits
 		.command("buy")
-		.description("Open a one-time Stripe checkout for archive credits")
+		.description("Open a one-time Stripe checkout for credits")
 		.requiredOption("--email <email>", "Receipt email; becomes the account")
 		.option("--pack <usd>", `One of ${PACKS.join(", ")}`, "25")
 		.option("--json", "Output as JSON")

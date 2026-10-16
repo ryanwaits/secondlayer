@@ -146,7 +146,7 @@ describe("quoteArchiveFetch", () => {
 		});
 	});
 
-	test("a merchant 401 through the real HTTP seam tells the reader to run the credits login, so bootstrap exits refused with the fix on screen", async () => {
+	test("a merchant 401 through the real HTTP seam tells the reader to run secondlayer login, so bootstrap exits refused with the fix on screen", async () => {
 		const server = Bun.serve({
 			port: 0,
 			fetch: () =>
@@ -172,7 +172,7 @@ describe("quoteArchiveFetch", () => {
 			if (result.kind !== "not_authed") return;
 			expect(result.message).toContain(ARCHIVE_AUTH_HINT);
 			expect(result.message).toContain("SECONDLAYER_API_KEY");
-			expect(result.message).toContain("login --credits");
+			expect(result.message).toContain("`secondlayer login`");
 		} finally {
 			server.stop(true);
 			await rm(home, { recursive: true, force: true });
@@ -439,7 +439,7 @@ describe("quote/insufficient message formatting", () => {
 			}),
 		);
 		expect(message).toBe(
-			"Insufficient archive credits: quote $44.00, balance $10.00, short $34.00. Buy more with `secondlayer credits buy`.",
+			"Insufficient credits: quote $44.00, balance $10.00, short $34.00. Buy more with `secondlayer credits buy`.",
 		);
 	});
 });

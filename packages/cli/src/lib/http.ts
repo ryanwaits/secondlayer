@@ -140,12 +140,12 @@ export async function httpArchiveOpsAnon<T>(
 	return httpAt<T>(resolveArchiveOpsUrl(), path, opts);
 }
 
-/** Remedy for every archive credits auth failure: the account key first, the login as the alternative. */
+/** Remedy for every account auth failure: the account key first, the login as the alternative. */
 export const ARCHIVE_AUTH_HINT =
-	"Set SECONDLAYER_API_KEY to your account key (sk-sl_…, from /account/keys), or run `secondlayer login --credits`.";
+	"Set SECONDLAYER_API_KEY to your account key (sk-sl_…, from /account/keys), or run `secondlayer login`.";
 
 /**
- * Credentials the archive credits merchant can validate: `sk-sl_` API keys
+ * Credentials your hosted account can validate: `sk-sl_` API keys
  * and `ss-sl_` session tokens. An instance token is random hex minted by
  * `secondlayer init` for the operator's own box; the merchant cannot check it
  * and it must never leave the machine.
@@ -160,7 +160,7 @@ export type ArchiveOpsBearer = {
 };
 
 /**
- * Bearer for archive credits calls: the login session for the merchant URL
+ * Bearer for hosted account calls (credits, archive fetches): the login session
  * first, then an env key only when it is an archive credential. The
  * operator's `INSTANCE_TOKEN` is the common case for a self-hoster and is
  * ignored here on purpose.
@@ -187,7 +187,7 @@ export async function resolveArchiveOpsBearer(): Promise<ArchiveOpsBearer> {
 
 function ignoredEnvKeyNote(ignored: boolean): string {
 	return ignored
-		? " INSTANCE_TOKEN was ignored: it unlocks this instance, not archive credits."
+		? " INSTANCE_TOKEN was ignored: it unlocks this instance, not your account."
 		: "";
 }
 
@@ -201,7 +201,7 @@ export async function httpArchiveOps<T>(
 			401,
 			"SESSION_EXPIRED",
 			{ error: "Not logged in" },
-			`Archive credits need an account key. ${ARCHIVE_AUTH_HINT}${ignoredEnvKeyNote(ignoredEnvKey)}`,
+			`This needs your Secondlayer account. ${ARCHIVE_AUTH_HINT}${ignoredEnvKeyNote(ignoredEnvKey)}`,
 		);
 	}
 	try {
@@ -215,7 +215,7 @@ export async function httpArchiveOps<T>(
 				401,
 				err.code,
 				err.body,
-				`Archive credits rejected the credential (${err.message}). ${ARCHIVE_AUTH_HINT}${ignoredEnvKeyNote(ignoredEnvKey)}`,
+				`Your account rejected the credential (${err.message}). ${ARCHIVE_AUTH_HINT}${ignoredEnvKeyNote(ignoredEnvKey)}`,
 			);
 		}
 		throw err;

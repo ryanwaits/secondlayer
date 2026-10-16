@@ -141,7 +141,7 @@ export function formatInsufficientMessage(quote: ArchiveQuote): string {
 		1_000_000
 	).toFixed(2);
 	const balanceUsd = (quote.balanceUsdMicros / 1_000_000).toFixed(2);
-	return `Insufficient archive credits: quote $${quote.usd}, balance $${balanceUsd}, short $${shortfallUsd}. Buy more with \`${BUY_CREDITS_COMMAND}\`.`;
+	return `Insufficient credits: quote $${quote.usd}, balance $${balanceUsd}, short $${shortfallUsd}. Buy more with \`${BUY_CREDITS_COMMAND}\`.`;
 }
 
 /** Only reachable against a misconfigured host (R2 env unset server-side). */

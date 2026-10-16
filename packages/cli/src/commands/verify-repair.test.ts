@@ -670,7 +670,7 @@ describe("archive fetch gate — case 3: insufficient balance exits before any /
 		const message = formatInsufficientMessage(result.quote);
 		expect(message).toContain("secondlayer credits buy");
 		expect(message).toBe(
-			"Insufficient archive credits: quote $0.15, balance $0.01, short $0.14. Buy more with `secondlayer credits buy`.",
+			"Insufficient credits: quote $0.15, balance $0.01, short $0.14. Buy more with `secondlayer credits buy`.",
 		);
 
 		// The whole point: only the free quote ran. No gate was ever built, so

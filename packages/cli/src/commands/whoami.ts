@@ -27,7 +27,7 @@ export type WhoamiResult = {
 
 /**
  * Instance + merchant targets. Merchant identity is best-effort: a missing
- * credits login does not fail the command (self-host default is instance-only).
+ * login does not fail the command (self-host default is instance-only).
  */
 export async function runWhoami(): Promise<WhoamiResult> {
 	const instanceUrl = resolveApiUrl();

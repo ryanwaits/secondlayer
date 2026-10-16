@@ -8,8 +8,8 @@ import { ARCHIVE_OPS_API_URL, LOCAL_API_URL } from "../src/lib/api-url";
 import { readSession, writeSession } from "../src/lib/session";
 
 /**
- * Sessions are stored one per API URL. `logout --credits` must revoke and
- * drop the credits slot and leave the instance slot alone, and vice versa.
+ * Sessions are stored one per API URL. `logout` revokes and drops your hosted
+ * account's session; a slot stored under another URL is left alone.
  */
 
 const ENV = [
@@ -66,31 +66,19 @@ afterEach(async () => {
 });
 
 describe("logout", () => {
-	it("--credits revokes the credits session on the merchant and keeps the instance login", async () => {
-		const creditsUrl = process.env.SL_CREDITS_API_URL as string;
-		await writeSession(session("ss-sl_credits"), creditsUrl);
-		await writeSession(session("ss-sl_instance"), LOCAL_API_URL);
-
-		await runLogout({ credits: true });
-
-		expect(revoked).toEqual(["ss-sl_credits"]);
-		expect(await readSession(creditsUrl)).toBeNull();
-		expect((await readSession(LOCAL_API_URL))?.token).toBe("ss-sl_instance");
-	});
-
-	it("without --credits only touches the instance slot, so a credits login survives", async () => {
-		const creditsUrl = process.env.SL_CREDITS_API_URL as string;
-		await writeSession(session("ss-sl_credits"), creditsUrl);
+	it("revokes your account session on the server and leaves other slots alone", async () => {
+		const accountUrl = process.env.SL_CREDITS_API_URL as string;
+		await writeSession(session("ss-sl_account"), accountUrl);
 		await writeSession(session("ss-sl_instance"), LOCAL_API_URL);
 
 		await runLogout();
 
-		expect(revoked).toEqual([]);
-		expect(await readSession(LOCAL_API_URL)).toBeNull();
-		expect((await readSession(creditsUrl))?.token).toBe("ss-sl_credits");
+		expect(revoked).toEqual(["ss-sl_account"]);
+		expect(await readSession(accountUrl)).toBeNull();
+		expect((await readSession(LOCAL_API_URL))?.token).toBe("ss-sl_instance");
 	});
 
-	it("--credits clears the slot locally even when the merchant refuses the revoke", async () => {
+	it("clears the session locally even when the server refuses the revoke", async () => {
 		server.stop(true);
 		server = Bun.serve({
 			port: 0,
@@ -100,12 +88,12 @@ describe("logout", () => {
 		const creditsUrl = process.env.SL_CREDITS_API_URL;
 		await writeSession(session("ss-sl_credits"), creditsUrl);
 
-		await runLogout({ credits: true });
+		await runLogout();
 
 		expect(await readSession(creditsUrl)).toBeNull();
 	});
 
-	it("an old flat session file is read as the credits login, so logout --credits clears it", async () => {
+	it("an old flat session file is read as the account login", async () => {
 		const { writeFile, mkdir } = await import("node:fs/promises");
 		await mkdir(join(home, ".secondlayer"), { recursive: true });
 		await writeFile(

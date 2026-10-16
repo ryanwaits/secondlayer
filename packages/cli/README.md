@@ -15,8 +15,8 @@ secondlayer --version
 Default API is `http://127.0.0.1:3800`. Override with `SECONDLAYER_API_URL`.
 
 Writes against a published bind use `INSTANCE_TOKEN` from `secondlayer init`.
-Loopback reads need no token. Hosted API and archive credits use
-`SECONDLAYER_API_KEY` (`sk-sl_*`).
+Loopback reads need no token. Your hosted account (credits, archive fetches)
+uses `secondlayer login` or `SECONDLAYER_API_KEY` (`sk-sl_*`).
 
 ```bash
 export SECONDLAYER_API_URL=http://127.0.0.1:3800

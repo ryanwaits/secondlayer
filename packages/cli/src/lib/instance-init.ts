@@ -23,7 +23,7 @@ export type InstanceEnv = {
 	ALLOW_UNSIGNED_WEBHOOKS: "false";
 	/** Lead instance URL name. */
 	SECONDLAYER_API_URL: string;
-	/** Hosted account key for archive credits — only when the operator already
+	/** Hosted account key (credits, archive fetches) — only when the operator already
 	 *  had a `sk-sl_*` / `ss-sl_*` in the file. Never the instance hex. */
 	SECONDLAYER_API_KEY?: string;
 	/** The key `bootstrap`, `verify`, and `repair` check archive manifests
@@ -159,7 +159,7 @@ export function renderInstanceEnv(env: InstanceEnv): string {
 	];
 	if (env.SECONDLAYER_API_KEY) {
 		lines.push(
-			"# Hosted account key for archive credits (sk-sl_*).",
+			"# Hosted account key for credits and archive fetches (sk-sl_*).",
 			`SECONDLAYER_API_KEY=${env.SECONDLAYER_API_KEY}`,
 		);
 	}

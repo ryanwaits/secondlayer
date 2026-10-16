@@ -2,7 +2,7 @@ import { hostname } from "node:os";
 import { createInterface } from "node:readline";
 import { confirm, input } from "@inquirer/prompts";
 import type { Command } from "commander";
-import { resolveApiUrl, resolveArchiveOpsUrl } from "../lib/api-url.ts";
+import { resolveArchiveOpsUrl } from "../lib/api-url.ts";
 import { CliHttpError, httpAt } from "../lib/http.ts";
 import { openBrowser } from "../lib/open-browser.ts";
 import { dim, info, error as logError, success } from "../lib/output.ts";
@@ -21,16 +21,15 @@ async function readStdin(): Promise<string> {
 
 export interface LoginOptions {
 	force?: boolean;
-	/**
-	 * Log in to the archive credits merchant instead of the instance API.
-	 * Sessions are stored per URL, so this never touches the instance login.
-	 */
-	credits?: boolean;
 }
 
-/** Which server a login talks to, and the session slot it writes. */
-export function loginTarget(opts: LoginOptions): string {
-	return opts.credits ? resolveArchiveOpsUrl() : resolveApiUrl();
+/**
+ * The server a login talks to and the session slot it writes: always your
+ * hosted Secondlayer account. A self-host instance has no accounts (it uses
+ * `INSTANCE_TOKEN`), so there is nothing to sign in to there.
+ */
+export function loginTarget(): string {
+	return resolveArchiveOpsUrl();
 }
 
 /**
@@ -38,7 +37,7 @@ export function loginTarget(opts: LoginOptions): string {
  * account endpoint, and persist it as the stored credential. For CI/headless
  * use, e.g. `echo "$SECONDLAYER_API_KEY" | secondlayer login --with-token`.
  */
-async function runTokenLogin(opts: LoginOptions): Promise<void> {
+async function runTokenLogin(): Promise<void> {
 	const token = await readStdin();
 	if (!token) {
 		logError(
@@ -47,7 +46,7 @@ async function runTokenLogin(opts: LoginOptions): Promise<void> {
 		process.exit(1);
 	}
 
-	const target = loginTarget(opts);
+	const target = loginTarget();
 	let account: { id: string; email: string };
 	try {
 		account = await httpAt<{ id: string; email: string }>(
@@ -190,7 +189,7 @@ function clientName(): string {
 export async function runDeviceLogin(
 	options: LoginOptions = {},
 ): Promise<void> {
-	const target = loginTarget(options);
+	const target = loginTarget();
 	if (!(await shouldContinueLogin(target, options))) return;
 
 	let start: DeviceStart;
@@ -260,7 +259,7 @@ export async function runDeviceLogin(
  * subsequent request (sliding window), so no refresh logic here.
  */
 export async function runLoginFlow(options: LoginOptions = {}): Promise<void> {
-	const target = loginTarget(options);
+	const target = loginTarget();
 	if (!(await shouldContinueLogin(target, options))) return;
 
 	const email = await input({
@@ -314,13 +313,7 @@ export async function runLoginFlow(options: LoginOptions = {}): Promise<void> {
 			target,
 		);
 		success(`Logged in as ${verified.account.email}`);
-		info(
-			dim(
-				options.credits
-					? "Run 'secondlayer credits balance' to see your archive credits."
-					: "Run 'secondlayer whoami' to see your account status.",
-			),
-		);
+		info(dim("Run 'secondlayer whoami' to see your account status."));
 	} catch (err) {
 		if (err instanceof CliHttpError) {
 			logError(err.message);
@@ -341,30 +334,20 @@ export function registerLoginCommand(program: Command): void {
 			"Sign in with an emailed 6-digit code instead of a browser",
 		)
 		.option("--with-token", "Read an API key from stdin (non-interactive)")
-		.option(
-			"--credits",
-			"Log in to the archive credits account used by bootstrap, repair, and credits",
-		)
 		.addHelpText(
 			"after",
 			`
 Examples:
   $ secondlayer login
   $ secondlayer login --email
-  $ secondlayer login --credits
   $ echo "$SECONDLAYER_API_KEY" | secondlayer login --with-token`,
 		)
 		.action(
-			(opts: {
-				force?: boolean;
-				email?: boolean;
-				withToken?: boolean;
-				credits?: boolean;
-			}) =>
+			(opts: { force?: boolean; email?: boolean; withToken?: boolean }) =>
 				opts.withToken
-					? runTokenLogin({ credits: opts.credits })
+					? runTokenLogin()
 					: opts.email
-						? runLoginFlow({ force: opts.force, credits: opts.credits })
-						: runDeviceLogin({ force: opts.force, credits: opts.credits }),
+						? runLoginFlow({ force: opts.force })
+						: runDeviceLogin({ force: opts.force }),
 		);
 }
