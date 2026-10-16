@@ -20,6 +20,7 @@ export const STORY_INDEX = [
 	{ id: "account-rows", group: "Dashboard", title: "Rows screen" },
 	{ id: "account-keys", group: "Dashboard", title: "Keys screen" },
 	{ id: "account-onboarding", group: "Dashboard", title: "New account" },
+	{ id: "overview", group: "Dashboard", title: "Overview" },
 	{ id: "charts-bars", group: "Dashboard", title: "Bars and band" },
 	{ id: "charts-heat", group: "Dashboard", title: "Heat strip" },
 	{ id: "charts-lines", group: "Dashboard", title: "Context lines" },

@@ -10,10 +10,20 @@ import { KeysBody } from "@/components/account/keys/keys-screen";
 import { NameStep, RevealStep } from "@/components/account/keys/new-key-flow";
 import {
 	OnboardingSentence,
+	OverviewBody,
+	SUBGRAPH_HEAD,
 	onboardingSteps,
 } from "@/components/account/overview/overview-section";
+import {
+	exampleOverview,
+	exampleStack,
+	exampleSubgraph,
+	exampleWebhooks,
+	serverErrorsInsight,
+} from "@/components/account/overview/overview.fixtures";
 import { RowsBody } from "@/components/account/rows/rows-panel";
 import { GridView } from "@/components/account/subgraphs/data-grid";
+import { SubgraphRows } from "@/components/account/subgraphs/list-screen";
 import {
 	EXAMPLE_NOW,
 	exampleColumns,
@@ -675,6 +685,50 @@ export function OverviewOnboardingDemo({
 			) : null}
 		</>
 	);
+}
+
+export type OverviewDemoState =
+	| "today"
+	| "webhook-failing"
+	| "stack-stopped"
+	| "with-subgraph"
+	| "no-keys"
+	| "our-errors"
+	| "our-errors-recovered"
+	| "loading";
+
+/** The whole Overview on example data, one variant per state it has to get right. */
+export function OverviewDemo({ state }: { state: OverviewDemoState }) {
+	const [now] = useState(() => new Date());
+	const subgraph = exampleSubgraph(now);
+	const props = {
+		today: exampleOverview(now),
+		"webhook-failing": exampleOverview(now, {
+			rows: exampleWebhooks(now, { failing: true }),
+		}),
+		"stack-stopped": exampleOverview(now, {
+			stack: exampleStack("stopped", now),
+			billing: { creditsUsdMicros: "0", spentThisMonthUsdMicros: "1910000" },
+		}),
+		"with-subgraph": exampleOverview(now, {
+			subgraphs: (
+				<SubgraphRows
+					items={[subgraph.item]}
+					health={{ [subgraph.item.name]: subgraph.health }}
+					head={SUBGRAPH_HEAD}
+				/>
+			),
+		}),
+		"no-keys": exampleOverview(now, { keys: [] }),
+		"our-errors": exampleOverview(now, {
+			accountInsights: [serverErrorsInsight()],
+		}),
+		"our-errors-recovered": exampleOverview(now, {
+			accountInsights: [serverErrorsInsight(true)],
+		}),
+		loading: exampleOverview(now, { loading: true }),
+	}[state];
+	return <OverviewBody {...props} />;
 }
 
 /** The Keys screen and the create flow: callbacks are functions, which a server page cannot pass. */

@@ -50,6 +50,7 @@ import {
 	AmountDemo,
 	HeatStripDemo,
 	KeysDemo,
+	OverviewDemo,
 	OverviewOnboardingDemo,
 	RowsDemo,
 	RowsEmptyDemo,
@@ -1731,6 +1732,65 @@ const META: Record<StoryId, Meta> = {
 			"Keep placeholder rows faint, hidden from readers and not clickable.",
 		],
 		donts: ["Mint a key for the user. They name it for where it runs."],
+	},
+	overview: {
+		src: [
+			"apps/web/src/components/account/overview/overview-section.tsx",
+			"apps/web/src/components/account/overview/plumbing-strip.tsx",
+			"apps/web/src/components/account/overview/overview-view.ts",
+		],
+		rule: "Is my data arriving? The table holds what sends you data and can break; rows, keys and the hosted stack sit in a strip below, each drawn in its own shape. A dot means something needs you.",
+		stack: true,
+		variants: [
+			{
+				id: "today",
+				label: "Everything delivering",
+				render: () => <OverviewDemo state="today" />,
+			},
+			{
+				id: "webhook-failing",
+				label: "A webhook failing",
+				render: () => <OverviewDemo state="webhook-failing" />,
+			},
+			{
+				id: "stack-stopped",
+				label: "Hosted stack stopped",
+				render: () => <OverviewDemo state="stack-stopped" />,
+			},
+			{
+				id: "with-subgraph",
+				label: "With a subgraph",
+				render: () => <OverviewDemo state="with-subgraph" />,
+			},
+			{
+				id: "no-keys",
+				label: "No keys yet",
+				render: () => <OverviewDemo state="no-keys" />,
+			},
+			{
+				id: "our-errors",
+				label: "Our errors, active",
+				render: () => <OverviewDemo state="our-errors" />,
+			},
+			{
+				id: "our-errors-recovered",
+				label: "Our errors, recovered",
+				render: () => <OverviewDemo state="our-errors-recovered" />,
+			},
+			{
+				id: "loading",
+				label: "First paint",
+				render: () => <OverviewDemo state="loading" />,
+			},
+		],
+		usage: "<OverviewSection />",
+		dos: [
+			"Show a dot only for a state that needs attention; healthy rows and cells show none.",
+			"Put an insight in the cell it is about, with its card under the strip.",
+		],
+		donts: [
+			"Turn webhook rows red when the hosted stack stopped: they are not at fault.",
+		],
 	},
 	"account-keys": {
 		src: [
