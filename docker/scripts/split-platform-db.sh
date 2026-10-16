@@ -88,6 +88,7 @@ CONTROL_TABLES=(
   usage_ledger
   account_balance_alerts
   webhook_incident_alerts
+  cli_device_logins
   sentinel_accounts
   waitlists
   waitlist_signups
