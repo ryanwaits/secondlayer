@@ -38,6 +38,7 @@ export function BandBarChart({
 	rows,
 	height = 180,
 	xLabels,
+	pointLabels,
 	yUnit,
 	mark,
 	seriesNames = { n: "Count", p: "Paid", f: "Failed" },
@@ -46,6 +47,8 @@ export function BandBarChart({
 	height?: number;
 	/** `[index, label]` pairs; only these categories get an x tick. */
 	xLabels: [number, string][];
+	/** Tooltip heading per point, such as "Thu 14:00 UTC". Falls back to the x tick. */
+	pointLabels?: readonly string[];
 	/** Suffix for y labels (such as "ms"). Omit for compact counts (1.2k). */
 	yUnit?: string;
 	/** A dashed vertical line at a category, with a `--ch-mark` pill. */
@@ -97,7 +100,9 @@ export function BandBarChart({
 				/>
 				<Tooltip
 					content={<ChartTooltip />}
-					labelFormatter={(i) => labelAt.get(i as number) ?? ""}
+					labelFormatter={(i) =>
+						pointLabels?.[i as number] ?? labelAt.get(i as number) ?? ""
+					}
 					cursor={{ fill: "var(--faint)", opacity: 0.08 }}
 				/>
 				{hasBand ? (

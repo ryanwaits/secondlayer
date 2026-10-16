@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { ChartTooltip } from "@/components/charts/recharts-tooltip";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Cadence } from "./cadence";
 import { HeatStrip } from "./heat-strip";
@@ -93,5 +94,34 @@ describe("Cadence and Legend", () => {
 		);
 		expect(html).toContain("Matched on chain");
 		expect(html).toContain("dc-sw-dashed");
+	});
+});
+
+describe("ChartTooltip", () => {
+	const payload = [{ name: "Rows written", value: 1200, dataKey: "value" }];
+
+	test("heads the tooltip with the formatted label, not the raw index", () => {
+		const html = renderToStaticMarkup(
+			<ChartTooltip
+				active
+				payload={payload}
+				label={11}
+				labelFormatter={(i) => `${String(i).padStart(2, "0")}:00 UTC`}
+			/>,
+		);
+		expect(html).toContain("11:00 UTC");
+		expect(html).not.toContain(">11<");
+	});
+
+	test("drops the heading when the formatter returns nothing", () => {
+		const html = renderToStaticMarkup(
+			<ChartTooltip
+				active
+				payload={payload}
+				label={3}
+				labelFormatter={() => ""}
+			/>,
+		);
+		expect(html).not.toContain("wh-chart-tip-label");
 	});
 });

@@ -143,6 +143,13 @@ describe("rangeBars", () => {
 		expect(bars.band?.[0]).toEqual([firstHour, firstHour + 10]);
 	});
 
+	test("every hourly bar gets a weekday and UTC clock tooltip heading", () => {
+		const activity = activityFor(5);
+		const bars = rangeBars("48h", activity, undefined);
+		expect(bars.pointLabels).toHaveLength(48);
+		expect(bars.pointLabels[0]).toMatch(/^[A-Z][a-z]{2} \d{2}:00 UTC$/);
+	});
+
 	test("7d has no band, and 30d reads the daily counts", () => {
 		const activity = activityFor(5);
 		expect(rangeBars("7d", activity, undefined).band).toBeNull();
@@ -154,6 +161,7 @@ describe("rangeBars", () => {
 		const month = rangeBars("30d", activity, days);
 		expect(month.rows).toHaveLength(30);
 		expect(month.rows[29]?.n).toBe(29);
+		expect(month.pointLabels[0]).toBe("Sep 1");
 	});
 });
 

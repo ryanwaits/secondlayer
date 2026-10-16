@@ -345,6 +345,7 @@ function DeliveriesChart({
 					mark={mark}
 					seriesNames={{ n: "Delivered", p: "", f: "Failed" }}
 				/>
+					pointLabels={bars.pointLabels}
 			)}
 			{showBandNote ? <span className="wd-faint">{BAND_NOTE}</span> : null}
 		</section>

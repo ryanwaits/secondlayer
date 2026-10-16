@@ -20,6 +20,7 @@ import {
 	hourlyPoints,
 	markIndex,
 	serverErrors,
+	shortDate,
 	shortenPath,
 	statusCopy,
 	xLabels,
@@ -156,6 +157,7 @@ export function RowsBody({
 						rows={barsRows(bars)}
 						height={170}
 						xLabels={xLabels(bars, allowance.exhaustedOn)}
+						pointLabels={bars.map((d) => shortDate(d.date))}
 						mark={
 							mark === null
 								? undefined

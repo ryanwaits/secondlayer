@@ -145,6 +145,8 @@ export interface RangeBars {
 	/** `[lo, hi]` per bar, only for the hourly ranges that fit a usual range. */
 	band: [number, number][] | null;
 	labels: [number, string][];
+	/** Tooltip heading per bar: "Thu 14:00 UTC", or "Oct 6" for days. */
+	pointLabels: string[];
 	/** Index of the first plotted hour within the 168-hour array. */
 	offset: number;
 }
@@ -175,6 +177,9 @@ export function rangeBars(
 				(last - i) % 5 === 0
 					? [[i, MONTH_DAY.format(new Date(`${d.day}T00:00:00Z`))]]
 					: [],
+			),
+			pointLabels: list.map((d) =>
+				MONTH_DAY.format(new Date(`${d.day}T00:00:00Z`)),
 			),
 			offset: 0,
 		};
@@ -214,6 +219,9 @@ export function rangeBars(
 		rows: hours.map((h) => ({ n: h.delivered, f: h.failed })),
 		band,
 		labels,
+		pointLabels: hours.map(
+			(h) => `${WEEKDAY.format(new Date(h.hour))} ${utcClock(h.hour)} UTC`,
+		),
 		offset,
 	};
 }

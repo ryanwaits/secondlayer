@@ -27,6 +27,7 @@ export function ContextLineChart({
 	valueName,
 	height = 130,
 	xLabels,
+	pointLabels,
 	yUnit,
 }: {
 	context: readonly number[];
@@ -36,6 +37,8 @@ export function ContextLineChart({
 	height?: number;
 	/** `[index, label]` pairs; only these points get an x tick. */
 	xLabels: [number, string][];
+	/** Tooltip heading per point, such as "Thu 14:00 UTC". Falls back to the x tick. */
+	pointLabels?: readonly string[];
 	/** Suffix for y labels (such as "s"). Omit for compact counts (1.2k). */
 	yUnit?: string;
 }) {
@@ -81,7 +84,9 @@ export function ContextLineChart({
 				/>
 				<Tooltip
 					content={<ChartTooltip />}
-					labelFormatter={(i) => labelAt.get(i as number) ?? ""}
+					labelFormatter={(i) =>
+						pointLabels?.[i as number] ?? labelAt.get(i as number) ?? ""
+					}
 					cursor={{ stroke: "var(--faint)", strokeWidth: 1 }}
 				/>
 				<Line

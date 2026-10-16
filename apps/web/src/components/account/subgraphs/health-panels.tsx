@@ -11,6 +11,7 @@ import type {
 	SubgraphHealthHour,
 } from "@/lib/subgraphs-store";
 import { formatRelative } from "@/lib/webhooks-data";
+import { utcClock } from "../webhooks/view";
 
 const DAY_MS = 86_400_000;
 
@@ -23,6 +24,13 @@ export function hourLabels(count: number): [number, string][] {
 		[middle, `-${count - 1 - middle}h`],
 		[count - 1, "now"],
 	];
+}
+
+/** Tooltip heading per hourly point: "14:00 UTC". */
+export function hourPointLabels(
+	hours: readonly SubgraphHealthHour[],
+): string[] {
+	return hours.map((h) => `${utcClock(h.hour)} UTC`);
 }
 
 /** Blocks behind the tip, per hour. Under two blocks counts as live. */
@@ -39,6 +47,7 @@ export function BlocksBehindPanel({
 						rows={barsRows(hours.map((h) => ({ n: h.lagBlocks ?? 0 })))}
 						height={150}
 						xLabels={hourLabels(hours.length)}
+						pointLabels={hourPointLabels(hours)}
 						seriesNames={{ n: "Blocks behind", p: "", f: "" }}
 					/>
 				</div>
@@ -67,6 +76,7 @@ export function RowsWrittenPanel({
 						valueName="Rows written"
 						height={150}
 						xLabels={hourLabels(hours.length)}
+						pointLabels={hourPointLabels(hours)}
 					/>
 				</div>
 			) : (

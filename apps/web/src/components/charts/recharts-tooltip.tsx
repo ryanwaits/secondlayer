@@ -20,8 +20,10 @@ interface TooltipPayloadItem {
 export interface ChartTooltipContentProps {
 	active?: boolean;
 	payload?: TooltipPayloadItem[];
-	label?: string;
+	label?: string | number;
 	formatter?: (value: number | string, name: string) => ReactNode;
+	/** Passed through by recharts from `<Tooltip labelFormatter>`. */
+	labelFormatter?: (label: string | number) => ReactNode;
 }
 
 export function ChartTooltip({
@@ -29,12 +31,17 @@ export function ChartTooltip({
 	payload,
 	label,
 	formatter,
+	labelFormatter,
 }: ChartTooltipContentProps) {
 	if (!active || !payload || payload.length === 0) return null;
+	const heading =
+		label === undefined ? null : labelFormatter ? labelFormatter(label) : label;
 
 	return (
 		<div className="wh-chart-tip">
-			{label ? <div className="wh-chart-tip-label">{label}</div> : null}
+			{heading || heading === 0 ? (
+				<div className="wh-chart-tip-label">{heading}</div>
+			) : null}
 			<div className="wh-chart-tip-rows">
 				{payload.map((item) => {
 					const color = item.color ?? item.fill ?? "var(--fig-role-a)";
