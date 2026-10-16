@@ -415,6 +415,7 @@ One mechanism owns the page: **scroll-position opacity**.
   captured behavior mid-swap.
 - Header transitions at 200ms. Hovers are color/border/opacity at 150–200ms ease-out.
 - The docs Trail bar appears and disappears instantly; its hover is the 150ms color shift.
+- The chain status pill: its heights roll with NumberFlow and each chain mark rings once per new block (0.9s); reduced motion drops both.
 - Everything else is instant. `prefers-reduced-motion`: copy blocks render at full opacity,
   transitions off.
 
@@ -556,6 +557,22 @@ its row in `soft` (a lit reference), until the next click.
 newest first, one row per item: title (500), page (`sub`), "from <heading>" (`faint`), and a ×
 to remove. A row opens its page and leaves a Back to the heading you were under. `Esc` or an
 outside click closes the list. The bar is hidden when it has neither a Back nor any Saved.
+
+### Chain status (bottom-right pill)
+`<ChainStatus />` (`components/site/chain-status.tsx`), fixed bottom-right on every site and
+docs page; the footer carries no heartbeat. One row: the Stacks mark and height, then the
+Bitcoin mark and height (the node's own Bitcoin view, so it keeps moving through a Stacks
+stall). Brand colors stay on the marks; heights are Geist Mono 500 `ink`, tabular. 8px card,
+`line` hairline, the float shadow; the cursor stays the arrow.
+- **Live** or **down**, no stale state. Down adds a cause segment with an `alarm` dot:
+  "Stacks stalled · 14m" (no block for 3 min while our node is level), "We're N blocks behind"
+  (the node 10+ blocks ahead of our index), "Can't reach Secondlayer" (two failed polls). What
+  stopped turns gray and holds.
+- The tooltip (hover or focus, never a link) gives the details. Down tooltips name the owner
+  above the title (`Stacks network`, `Secondlayer`, `Us or your connection`) and end with what
+  it means for your data; the live tooltip has no title.
+- Phones: a down pill drops the Bitcoin segment. Under 1280px the docs trail rides one row
+  above the pill; toasts sit above it too.
 
 ### Nav
 Wordmark + dropdown labels (16px/400, chevron 12px) + text links + button pair. Dropdowns open
