@@ -113,7 +113,7 @@ describe("handoffPrompt", () => {
 		const [insight] = run([withCommand]);
 		expect(insight?.handoff.commands).toEqual([
 			"sl webhooks doctor vault-events",
-			"secondlayer webhooks test wh_1",
+			"sl webhooks test wh_1",
 		]);
 		expect(insight?.handoff.prompt).not.toContain("secondlayer webhooks test");
 	});
@@ -197,5 +197,32 @@ describe("outage insight", () => {
 		expect(cert[0]?.handoff.commands).toEqual([
 			"sl webhooks doctor vault-events",
 		]);
+	});
+});
+
+describe("last_error folding", () => {
+	test("a down receiver absorbs the last-error issue: one insight", () => {
+		const insights = run([issue("last_error"), issue("receiver_down")], {
+			lastError: "502 Bad Gateway",
+		});
+		expect(insights).toHaveLength(1);
+		expect(insights[0]?.rule).toBe("receiver_down");
+	});
+
+	test("last_error stays its own insight when no outage insight exists", () => {
+		expect(run([issue("last_error")])).toHaveLength(1);
+	});
+
+	test("our CLI commands read as sl, with the doctor's argument kept", () => {
+		const [insight] = run([
+			{
+				...issue("receiver_slow"),
+				fix: {
+					text: "Speed it up.",
+					command: "secondlayer webhooks test wh_1",
+				},
+			},
+		]);
+		expect(insight?.handoff.commands[1]).toBe("sl webhooks test wh_1");
 	});
 });

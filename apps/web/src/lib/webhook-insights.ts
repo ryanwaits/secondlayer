@@ -189,10 +189,28 @@ export function failingSince(
 		: null;
 }
 
+/** The facts of an issue folded into an outage insight: the breaker's failure count, the last error. */
+function foldedFacts(
+	folded: readonly DoctorIssue[],
+	webhook: WebhookDetail,
+): [string, string][] {
+	return folded.flatMap((i): [string, string][] => {
+		if (i.code === "circuit") {
+			return [
+				...(i.evidence ?? []).map((e): [string, string] => [e.label, e.value]),
+				["breaker failures", String(webhook.circuitFailures)],
+			];
+		}
+		return i.detail ? [["last error", i.detail]] : [];
+	});
+}
+
 /** `sl webhooks doctor` always leads; the issue's own fix command follows when it differs. */
 function handoffCommands(name: string, fixCommand?: string): string[] {
 	const doctor = `sl webhooks doctor ${name}`;
-	return fixCommand && fixCommand !== doctor ? [doctor, fixCommand] : [doctor];
+	// Both binaries exist; show one name for ours.
+	const fix = fixCommand?.replace(/^secondlayer /, "sl ");
+	return fix && fix !== doctor ? [doctor, fix] : [doctor];
 }
 
 /** Attempts per hour for the last 24 hours, with the hours that had failures marked. */
@@ -356,9 +374,13 @@ export function insightsFromDoctor(input: {
 	const absorbed = report.issues.some(
 		(i) => i.code === "receiver_down" || i.code === "receiver_rejects",
 	);
-	const breaker = report.issues.find((i) => i.code === "circuit");
+	const folded = report.issues.filter(
+		(i) => i.code === "circuit" || i.code === "last_error",
+	);
 	for (const issue of report.issues) {
-		if (absorbed && issue.code === "circuit") continue;
+		if (absorbed && (issue.code === "circuit" || issue.code === "last_error")) {
+			continue;
+		}
 		const severity = severityFor(issue, deliveries);
 		if (!severity) continue;
 		const facts = factsEvidence(issue);
@@ -389,18 +411,9 @@ export function insightsFromDoctor(input: {
 						e.label,
 						e.value,
 					]),
-					...(breaker &&
-					(issue.code === "receiver_down" || issue.code === "receiver_rejects")
-						? [
-								...(breaker.evidence ?? []).map((e): [string, string] => [
-									e.label,
-									e.value,
-								]),
-								["breaker failures", String(webhook.circuitFailures)] as [
-									string,
-									string,
-								],
-							]
+					...(issue.code === "receiver_down" ||
+					issue.code === "receiver_rejects"
+						? foldedFacts(folded, webhook)
 						: []),
 				],
 			},
