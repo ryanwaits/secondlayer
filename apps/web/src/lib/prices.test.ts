@@ -70,6 +70,10 @@ describe("web price mirror matches the platform table", () => {
 		).text();
 		expect(billing).toMatch(/CREDIT_PACKS_USD = \[10, 25, 50, 100\] as const;/);
 		expect(web.CREDIT_PACKS_USD).toEqual([10, 25, 50, 100]);
+		expect(billing).toMatch(/TOPUP_MIN_USD = 5;/);
+		expect(billing).toMatch(/TOPUP_MAX_USD = 1000;/);
+		expect(web.TOPUP_MIN_USD).toBe(5);
+		expect(web.TOPUP_MAX_USD).toBe(1000);
 	});
 });
 
