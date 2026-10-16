@@ -74,6 +74,7 @@ export const TABLE_TO_DB = {
 	api_keys: "target",
 	sessions: "target",
 	magic_links: "target",
+	cli_device_logins: "target",
 	account_spend_caps: "target",
 	processed_stripe_events: "target",
 	// ── TARGET: webhooks ──
