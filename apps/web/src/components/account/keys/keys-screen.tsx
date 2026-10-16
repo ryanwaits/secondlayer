@@ -278,7 +278,6 @@ function MadeForYou({
 					{keys.length} {keys.length === 1 ? "key" : "keys"} made for you ·
 					can't be revoked here
 				</span>
-				<span aria-hidden="true">{open ? "▴" : "▾"}</span>
 			</button>
 			{open
 				? keys.map((k) => (
