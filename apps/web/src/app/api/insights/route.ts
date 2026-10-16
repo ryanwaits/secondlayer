@@ -31,10 +31,28 @@ async function fetchSide(
 	}
 }
 
+const ms = (n: number) => n.toFixed(1);
+
+/** Times one half so Server-Timing shows which side paid for a cold connection. */
+async function timed<T>(run: () => Promise<T>): Promise<[T, number]> {
+	const start = performance.now();
+	const result = await run();
+	return [result, performance.now() - start];
+}
+
 export async function GET(req: Request) {
+	const started = performance.now();
 	const sessionToken = getSessionFromRequest(req);
 	if (!sessionToken) {
-		return NextResponse.json({ error: "Sign in first" }, { status: 401 });
+		return NextResponse.json(
+			{ error: "Sign in first" },
+			{
+				status: 401,
+				headers: {
+					"Server-Timing": `total;dur=${ms(performance.now() - started)}`,
+				},
+			},
+		);
 	}
 
 	const resource = new URL(req.url).searchParams.get("resource");
@@ -42,13 +60,20 @@ export async function GET(req: Request) {
 		? `/api/insights?resource=${encodeURIComponent(resource)}`
 		: "/api/insights";
 
-	const [stack, account] = await Promise.all([
-		fetchSide(stackPath, "t", sessionToken),
-		fetchSide("/api/accounts/insights", "a", sessionToken),
+	const [[stack, stackMs], [account, accountMs]] = await Promise.all([
+		timed(() => fetchSide(stackPath, "t", sessionToken)),
+		timed(() => fetchSide("/api/accounts/insights", "a", sessionToken)),
 	]);
 
-	return NextResponse.json({
-		data: rankInsights([...stack.data, ...account.data]),
-		sources: { stack: stack.source, account: account.source },
-	});
+	return NextResponse.json(
+		{
+			data: rankInsights([...stack.data, ...account.data]),
+			sources: { stack: stack.source, account: account.source },
+		},
+		{
+			headers: {
+				"Server-Timing": `stack;dur=${ms(stackMs)}, account;dur=${ms(accountMs)}, total;dur=${ms(performance.now() - started)}`,
+			},
+		},
+	);
 }

@@ -10,6 +10,7 @@ type Caps = {
 
 /** The signed-in account's monthly spend-cap setting. */
 export async function GET(req: Request) {
+	const started = performance.now();
 	const sessionToken = getSessionFromRequest(req);
 	if (!sessionToken) {
 		return NextResponse.json({ error: "Sign in first" }, { status: 401 });
@@ -18,7 +19,13 @@ export async function GET(req: Request) {
 		const caps = await apiRequest<Caps>("/api/billing/caps", {
 			sessionToken,
 		});
-		return NextResponse.json(caps);
+		const upstream = performance.now() - started;
+		// Single-call control for the insights timings: one upstream read, no fan-out.
+		return NextResponse.json(caps, {
+			headers: {
+				"Server-Timing": `upstream;dur=${upstream.toFixed(1)}, total;dur=${upstream.toFixed(1)}`,
+			},
+		});
 	} catch (e) {
 		if (e instanceof ApiError) {
 			return NextResponse.json({ error: e.message }, { status: e.status });

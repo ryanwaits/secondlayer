@@ -40,6 +40,15 @@ describe("insights merge route", () => {
 		expect(urls).toEqual([]);
 	});
 
+	test("reports per-side and total upstream timings in Server-Timing", async () => {
+		stubFetch(() => json({ data: [] }));
+		const { GET } = await import("./route");
+		const res = await GET(req());
+		expect(res.headers.get("Server-Timing")).toMatch(
+			/^stack;dur=[\d.]+, account;dur=[\d.]+, total;dur=[\d.]+$/,
+		);
+	});
+
 	test("merges both sides, prefixes ids, ranks worst first", async () => {
 		stubFetch((url) =>
 			url.includes("/api/accounts/insights")
