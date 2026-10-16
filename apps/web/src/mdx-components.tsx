@@ -13,7 +13,7 @@ import { Yields } from "@/components/docs/yields";
 import { parseFenceOptions } from "@/lib/code/annotations";
 import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { AnchorHTMLAttributes, ReactNode } from "react";
 
 /** Fenced code block: MDX renders <pre><code class="language-x" data-meta="…">…</code></pre>.
  *  Pull the language, the fence options (remark-code-meta) and the source off
@@ -41,12 +41,15 @@ function MdxCode({ children }: { children?: ReactNode }) {
 /** Internal links use next/link; external open in a new tab. Styling comes
  *  from `.docs-article a` (mirrors marketing `.prose a`). `hover:name` and
  *  `focus:name` are not links: they point at a `!ref` in the same section.
- *  `[text](tip "words")` is not a link either: it explains a word in place. */
+ *  `[text](tip "words")` is not a link either: it explains a word in place.
+ *  The rest props carry `data-link` / `data-peek-kind` (remark-docs-links) to
+ *  the DOM, where the docs trail reads them. */
 function MdxLink({
 	href = "",
 	title,
 	children,
-}: { href?: string; title?: string; children?: ReactNode }) {
+	...rest
+}: AnchorHTMLAttributes<HTMLAnchorElement>) {
 	if (href.startsWith("hover:"))
 		return <Mention name={href.slice("hover:".length)}>{children}</Mention>;
 	if (href.startsWith("focus:"))
@@ -55,7 +58,11 @@ function MdxLink({
 	if (href.startsWith("tip:"))
 		throw new Error(`tip: links were replaced by [text](tip "words"): ${href}`);
 	if (href.startsWith("/") || href.startsWith("#")) {
-		return <Link href={href}>{children}</Link>;
+		return (
+			<Link href={href} {...rest}>
+				{children}
+			</Link>
+		);
 	}
 	return (
 		<a href={href} target="_blank" rel="noreferrer">

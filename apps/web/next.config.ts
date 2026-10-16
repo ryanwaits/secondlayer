@@ -441,6 +441,7 @@ const withMDX = createMDX({
 			[resolve(process.cwd(), "src/lib/remark-code-meta.mjs")],
 			[resolve(process.cwd(), "src/lib/remark-code-tips.mjs")],
 			[resolve(process.cwd(), "src/lib/remark-new-marks.mjs")],
+			[resolve(process.cwd(), "src/lib/remark-docs-links.mjs")],
 		],
 		rehypePlugins: [["rehype-slug"]],
 	},
