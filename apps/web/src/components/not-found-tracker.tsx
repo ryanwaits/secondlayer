@@ -1,7 +1,7 @@
 "use client";
 
+import { capture } from "@/lib/analytics";
 import { usePathname } from "next/navigation";
-import posthog from "posthog-js";
 import { useEffect } from "react";
 
 /**
@@ -20,7 +20,7 @@ export function NotFoundTracker({ boundary }: { boundary: string }) {
 	const pathname = usePathname();
 
 	useEffect(() => {
-		posthog.capture("page_not_found", {
+		capture("page_not_found", {
 			path: pathname,
 			boundary,
 			referrer: document.referrer || null,

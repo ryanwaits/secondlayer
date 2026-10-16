@@ -1,7 +1,7 @@
 "use client";
 
+import { isFeatureEnabled, onFeatureFlags } from "@/lib/analytics";
 import dynamic from "next/dynamic";
-import posthog from "posthog-js";
 import { useEffect, useState } from "react";
 
 const CommandPalette = dynamic(
@@ -33,8 +33,8 @@ export function LazyCommandPalette() {
 	useEffect(() => {
 		// Fires on the first flags response and on every later refresh.
 		// Returns its own unsubscribe, which is the effect cleanup.
-		return posthog.onFeatureFlags(() => {
-			setHidden(posthog.isFeatureEnabled("disable-command-palette") === true);
+		return onFeatureFlags(() => {
+			setHidden(isFeatureEnabled("disable-command-palette") === true);
 		});
 	}, []);
 

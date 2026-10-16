@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import posthog from "posthog-js";
 import {
 	createContext,
 	useCallback,
@@ -9,6 +8,7 @@ import {
 	useEffect,
 	useState,
 } from "react";
+import { identify, reset } from "./analytics";
 import type { Account } from "./types";
 import { marketingUrl } from "./urls";
 
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			const account = data.account ?? null;
 			setAccount(account);
 			if (account) {
-				posthog.identify(account.id, {
+				identify(account.id, {
 					email: account.email,
 					...(account.displayName ? { name: account.displayName } : {}),
 				});
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		const data = await res.json();
 		const account = data.account as Account;
 		setAccount(account);
-		posthog.identify(account.id, {
+		identify(account.id, {
 			email: account.email,
 			...(account.displayName ? { name: account.displayName } : {}),
 		});
@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 	const logout = useCallback(async () => {
 		await fetch("/api/auth/logout", { method: "POST" });
-		posthog.reset();
+		reset();
 		router.push("/");
 		router.refresh();
 		setAccount(null);
