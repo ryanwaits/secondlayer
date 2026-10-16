@@ -25,10 +25,8 @@ import {
 import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import {
 	capDollars,
-	capMeter,
 	costByDay,
 	dollars,
-	freeRowsUsedUpOn,
 	isSentinelUnit,
 	monthProjection,
 } from "@/lib/billing-view";
@@ -57,17 +55,15 @@ import { poll } from "@/lib/webhooks-store";
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-	CheckoutAction,
-	CreditAmounts,
+	AddCredits,
 	ReturnNotice,
 	useCheckout,
 	useTopupReturn,
 } from "../credits-panel";
 import { ByUnitTable } from "./by-unit-table";
 import { CreditsAddedTable } from "./credits-added";
-import { EmailAlerts } from "./email-alerts";
+import { LimitsAndEmails } from "./limits-and-emails";
 import { RatesTable } from "./rates-table";
-import { SpendCapControl } from "./spend-cap-control";
 
 const MICROS = 1_000_000;
 
@@ -147,37 +143,39 @@ function isFreshAccount(billing: Billing | null): boolean {
 	);
 }
 
-function FreshMonth({
+/** The Add credits section: the page's anchor for "add credits" links. */
+function CreditsSection({ children }: { children: ReactNode }) {
+	return (
+		<section
+			className="dash-panel bl-panel"
+			aria-label="Add credits"
+			id="packs"
+		>
+			<span className="dash-label">Add credits</span>
+			{children}
+		</section>
+	);
+}
+
+function FreeRows({
 	deliveredRows,
 	now,
 }: { deliveredRows: number; now: Date }) {
 	const free = Math.min(deliveredRows, ROWS_ALLOWANCE);
 	return (
-		<div className="bl-two even">
-			<section className="dash-panel bl-panel" aria-label="Free rows">
-				<span className="dash-label">Free rows</span>
-				<Meter
-					used={free}
-					total={ROWS_ALLOWANCE}
-					label="Free rows used this month"
-					left={`${formatRows(free)} of ${formatRows(ROWS_ALLOWANCE)} free rows`}
-					right={`resets ${nextMonthLabel(currentUtcMonth(now))}`}
-				/>
-				<span className="bl-note">
-					Block headers never count. Nothing is charged until you add credits.
-				</span>
-			</section>
-			<section className="dash-panel bl-panel" aria-label="Credits">
-				<span className="dash-label">Credits</span>
-				<div className="dash-big">$0.00</div>
-				<div className="acct-row-actions">
-					<a href="#packs" className="acct-btn line small">
-						Add credits
-					</a>
-				</div>
-				<span className="bl-note">Only needed past the free 1M.</span>
-			</section>
-		</div>
+		<section className="dash-panel bl-panel" aria-label="Free rows">
+			<span className="dash-label">Free rows</span>
+			<Meter
+				used={free}
+				total={ROWS_ALLOWANCE}
+				label="Free rows used this month"
+				left={`${formatRows(free)} of ${formatRows(ROWS_ALLOWANCE)} free rows`}
+				right={`resets ${nextMonthLabel(currentUtcMonth(now))}`}
+			/>
+			<span className="bl-note">
+				Block headers never count. Nothing is charged until you add credits.
+			</span>
+		</section>
 	);
 }
 
@@ -197,11 +195,13 @@ export interface BillingBodyProps {
 	insights?: readonly Insight[];
 	/** Shown above the status sentence, such as the way back from Stripe. */
 	notice?: ReactNode;
-	/** Sections under the tables: adding credits and emails. */
-	footer?: ReactNode;
+	/** The Add credits panel's contents, beside the usage chart. */
+	addCredits: ReactNode;
+	/** The limit and email settings, beside the rates table. */
+	settings: ReactNode;
 }
 
-/** Billing: the balance, this month's spend line, the cap, where it goes, and what was added. */
+/** Billing: the balance, this month's spend line, adding credits, where it goes, and what was added. */
 export function BillingBody({
 	now,
 	billing,
@@ -214,26 +214,14 @@ export function BillingBody({
 	credits,
 	insights = [],
 	notice,
-	footer,
+	addCredits,
+	settings,
 }: BillingBodyProps) {
 	const month = currentUtcMonth(now);
 	const projection = daily ? monthProjection(daily, now) : null;
 	const spentTotal = billing
 		? Number(billing.spentThisMonthUsdMicros) / MICROS
 		: 0;
-	const projectedTotal = projection
-		? spentTotal +
-			projection.ratePerDay *
-				(projection.daysInMonth - projection.series.length)
-		: spentTotal;
-	const meter = capMeter({
-		capUsd,
-		spentUsd: spentTotal,
-		projectedEndUsd: projectedTotal,
-		deliveredRows: deliveredRowsIn(usage ?? []),
-		usedUpOn: daily ? freeRowsUsedUpOn(daily, now) : null,
-		now,
-	});
 	const sentinelUsd = (usage ?? [])
 		.filter((u) => isSentinelUnit(u.unit))
 		.reduce((sum, u) => sum + Number(u.usdMicros), 0);
@@ -254,12 +242,18 @@ export function BillingBody({
 				>
 					$0.00 spent this month.
 				</StatusSentence>
-				<FreshMonth deliveredRows={deliveredRowsIn(usage ?? [])} now={now} />
+				<div className="bl-two even">
+					<FreeRows deliveredRows={deliveredRowsIn(usage ?? [])} now={now} />
+					<CreditsSection>{addCredits}</CreditsSection>
+				</div>
 				<ByUnitTable
 					usage={usage}
 					monthName={monthLabel(month).split(" ")[0]}
 				/>
-				{footer}
+				<div className="bl-two even">
+					{settings}
+					<RatesTable />
+				</div>
 			</div>
 		);
 	}
@@ -275,9 +269,6 @@ export function BillingBody({
 					capUsd={capUsd}
 					now={now}
 				/>
-				<a href="#packs" className="acct-btn solid small">
-					Add credits
-				</a>
 			</div>
 
 			<ActionableInsights insights={insights} />
@@ -310,24 +301,7 @@ export function BillingBody({
 					) : null}
 				</section>
 
-				<section className="dash-panel bl-panel" aria-label="Spend cap">
-					<span className="dash-label">Spend cap</span>
-					<SpendCapControl capUsd={capUsd} onChange={onCapChange} />
-					<p className="bl-cap-text">
-						{capUsd == null
-							? "No cap set."
-							: `Capped at $${capUsd.toLocaleString("en-US")} a month.`}{" "}
-						At a cap everything stops, webhooks included, until you add credits
-						or raise it.
-					</p>
-					<Meter
-						used={meter.used}
-						total={meter.total}
-						left={meter.left}
-						right={meter.right}
-						label={meter.label}
-					/>
-				</section>
+				<CreditsSection>{addCredits}</CreditsSection>
 			</div>
 
 			<section className="dash-panel bl-panel" aria-label="Where it goes">
@@ -366,12 +340,15 @@ export function BillingBody({
 				<CreditsAddedTable credits={credits} />
 			</div>
 
-			{footer}
+			<div className="bl-two even">
+				{settings}
+				<RatesTable />
+			</div>
 		</div>
 	);
 }
 
-/** /account/credits: balance, spend and cap, with the way back from Stripe. */
+/** /account/credits: balance, spend and limits, with the way back from Stripe. */
 export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 	const { billing, burn, service, usage, daily, caps, credits } =
 		useAccountData();
@@ -431,21 +408,17 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 			credits={credits}
 			insights={forAccountRules(allInsights, BILLING_RULES)}
 			notice={st ? <ReturnNotice st={st} billing={billing} /> : null}
-			footer={
-				<>
-					<section className="dash-panel bl-panel" aria-label="Add credits">
-						<span className="dash-label">Add credits</span>
-						<CreditAmounts
-							co={co}
-							wide
-							rateDayUsdMicros={burn ? Number(burn.rateDayUsdMicros) : 0}
-							stopped={stopped}
-						/>
-						<CheckoutAction co={co} wide />
-						<RatesTable />
-					</section>
-					<EmailAlerts />
-				</>
+			addCredits={
+				<AddCredits co={co} billing={billing} burn={burn} stopped={stopped} />
+			}
+			settings={
+				<LimitsAndEmails
+					capUsd={capUsd}
+					onCapChange={changeCap}
+					spentUsd={
+						billing ? Number(billing.spentThisMonthUsdMicros) / MICROS : 0
+					}
+				/>
 			}
 		/>
 	);

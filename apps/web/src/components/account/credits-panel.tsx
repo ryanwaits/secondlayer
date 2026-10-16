@@ -1,9 +1,7 @@
 "use client";
 
-import { AmountPicker } from "@/components/amount-picker";
 import {
 	type Billing,
-	PACKS_USD,
 	type TopupReturn,
 	ensureBilling,
 	formatUsd,
@@ -12,8 +10,10 @@ import {
 	topupLanded,
 	useAccountData,
 } from "@/lib/account-data";
-import { ROWS_ALLOWANCE, formatRows, packDaysLabel } from "@/lib/usage";
-import { useEffect, useId, useState } from "react";
+import { TOPUP_MAX_USD, TOPUP_MIN_USD } from "@/lib/prices";
+import { type Burn, runsOutMonth } from "@/lib/usage";
+import { useEffect, useState } from "react";
+import { AmountChoice } from "./billing/amount-choice";
 import { RatesTable } from "./billing/rates-table";
 import { FloatingCard } from "./floating-card";
 
@@ -38,9 +38,16 @@ export function BalanceStats({ billing }: { billing: Billing | null }) {
 
 export function useCheckout() {
 	const [amount, setAmount] = useState<number>(25);
+	const [valid, setValid] = useState(true);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	/** A valid amount, or null while the Other box holds something invalid. */
+	function choose(next: number | null) {
+		setValid(next !== null);
+		if (next !== null) setAmount(next);
+	}
 	async function checkout() {
+		if (!valid) return;
 		setBusy(true);
 		setError(null);
 		try {
@@ -50,66 +57,111 @@ export function useCheckout() {
 			setBusy(false);
 		}
 	}
-	return { amount, setAmount, busy, error, checkout };
+	return { amount, valid, choose, busy, error, checkout };
 }
 
 type Checkout = ReturnType<typeof useCheckout>;
 
-/** The four amounts the API sells, as one radio group. `rateDayUsdMicros`
- *  and `stopped` drive each pack's "about N days at this rate" /
- *  "starts your service again" sub-label (Design step 8). */
-export function CreditAmounts({
-	co,
-	wide = false,
-	rateDayUsdMicros = 0,
-	stopped = false,
+/** What the picked amount does to the balance, and when it runs out. */
+export function RunwayLine({
+	amount,
+	valid,
+	balanceUsdMicros,
+	rateDayUsdMicros,
+	stopped,
+	now,
 }: {
-	co: Checkout;
-	wide?: boolean;
-	rateDayUsdMicros?: number;
-	stopped?: boolean;
+	amount: number;
+	valid: boolean;
+	balanceUsdMicros: number;
+	rateDayUsdMicros: number;
+	stopped: boolean;
+	now: Date;
 }) {
-	// Its own radio group: the page and the card can both be on screen.
-	const group = useId();
+	if (!valid) {
+		return (
+			<p className="bl-runway err">
+				Pick a whole-dollar amount from ${TOPUP_MIN_USD} to $
+				{TOPUP_MAX_USD.toLocaleString("en-US")}.
+			</p>
+		);
+	}
+	const after = balanceUsdMicros + amount * 1e6;
+	const goesTo = `Balance goes to ${formatUsd(after)}`;
+	if (stopped)
+		return (
+			<p className="bl-runway">{goesTo}, and your hosted stack starts again.</p>
+		);
+	const month = runsOutMonth(after, rateDayUsdMicros, now);
+	if (month === null) return <p className="bl-runway">{goesTo}.</p>;
 	return (
-		<div id={wide ? "packs" : undefined}>
-			<AmountPicker
-				name={group}
-				legend="Amount"
-				options={PACKS_USD.map((usd) => ({
-					value: String(usd),
-					label: `$${usd}`,
-					caption: packDaysLabel(usd, rateDayUsdMicros, stopped),
-				}))}
-				value={String(co.amount)}
-				onChange={(v) => {
-					const usd = PACKS_USD.find((p) => String(p) === v);
-					if (usd) co.setAmount(usd);
-				}}
-			/>
-		</div>
+		<p className="bl-runway">
+			{goesTo}, which lasts until about <b>{month}</b>.
+		</p>
 	);
 }
 
 /** Go to Stripe for the picked amount. Stripe brings the reader back after. */
-export function CheckoutAction({
-	co,
-	wide = false,
-}: { co: Checkout; wide?: boolean }) {
+export function CheckoutAction({ co }: { co: Checkout }) {
 	return (
 		<>
-			<div className={wide ? "acct-checkout wide" : "acct-checkout"}>
+			<div className="acct-checkout">
 				<button
 					type="button"
 					className="acct-btn solid small"
 					onClick={co.checkout}
-					disabled={co.busy}
+					disabled={co.busy || !co.valid}
 				>
-					{co.busy ? "Opening checkout..." : `Add $${co.amount} with Stripe`}
+					{co.busy
+						? "Opening checkout..."
+						: co.valid
+							? `Add $${co.amount} with Stripe`
+							: "Add credits with Stripe"}
 				</button>
 				<p className="acct-fine">One-time payment. Nothing auto-renews.</p>
 			</div>
 			{co.error ? <p className="acct-error">{co.error}</p> : null}
+		</>
+	);
+}
+
+/** Pick an amount, see where it takes the balance, then off to Stripe. One
+ *  panel for the billing page and the account menu's sheet. */
+export function AddCredits({
+	co,
+	billing,
+	burn,
+	stopped,
+}: {
+	co: Checkout;
+	billing: Billing | null;
+	burn: Burn | null;
+	stopped: boolean;
+}) {
+	const rate = burn ? Number(burn.rateDayUsdMicros) : 0;
+	return (
+		<>
+			<AmountChoice value={co.amount} onChange={co.choose} />
+			{billing ? (
+				<RunwayLine
+					amount={co.amount}
+					valid={co.valid}
+					balanceUsdMicros={Number(billing.creditsUsdMicros)}
+					rateDayUsdMicros={rate}
+					stopped={stopped}
+					now={new Date()}
+				/>
+			) : null}
+			<CheckoutAction co={co} />
+			{burn && rate > 0 ? (
+				<p className="bl-est">
+					<span className="dash-label">Estimate</span>
+					<span>
+						From your last {burn.windowHours} hours of spend,{" "}
+						<code>{formatUsd(rate)}</code> a day. A busier stretch ends sooner.
+					</span>
+				</p>
+			) : null}
 		</>
 	);
 }
@@ -124,7 +176,7 @@ export function CreditsCard({
 	onClose: () => void;
 	email: string;
 }) {
-	const { billing, burn } = useAccountData();
+	const { billing, burn, service } = useAccountData();
 	const co = useCheckout();
 	useEffect(() => {
 		if (open) ensureBilling();
@@ -137,12 +189,13 @@ export function CreditsCard({
 			expandHref="/account/credits"
 			title="Add credits"
 			subtitle={`Credits go to ${email}`}
-			footer={<CheckoutAction co={co} />}
 		>
 			<BalanceStats billing={billing} />
-			<CreditAmounts
+			<AddCredits
 				co={co}
-				rateDayUsdMicros={burn ? Number(burn.rateDayUsdMicros) : 0}
+				billing={billing}
+				burn={burn}
+				stopped={service?.state === "stopped"}
 			/>
 			<RatesTable />
 		</FloatingCard>

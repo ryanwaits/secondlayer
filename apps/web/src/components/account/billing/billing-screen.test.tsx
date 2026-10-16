@@ -15,7 +15,9 @@ mock.module("next/navigation", () => ({
 }));
 
 const { BillingBody } = await import("./billing-screen");
-const { SpendCapControl } = await import("./spend-cap-control");
+const { AmountChoice } = await import("./amount-choice");
+const { MonthlyLimitRow } = await import("./limits-and-emails");
+const { RunwayLine } = await import("../credits-panel");
 
 const NOW = new Date("2026-10-10T12:00:00.000Z");
 
@@ -36,6 +38,8 @@ const base = {
 	],
 	capUsd: null,
 	onCapChange: () => {},
+	addCredits: <p>credits-slot</p>,
+	settings: <p>settings-slot</p>,
 	credits: [
 		{
 			occurredAt: "2026-10-09T10:00:00.000Z",
@@ -75,7 +79,22 @@ describe("BillingBody", () => {
 		const html = renderToStaticMarkup(<BillingBody {...base} />);
 		expect(html).toContain("$12.50 left");
 		expect(html).toContain("about 50 days at this pace");
-		expect(html).toContain('href="#packs"');
+		expect(html).not.toContain('href="#packs"');
+	});
+
+	test("adding credits sits in its own section, the anchor the low-balance banner scrolls to", () => {
+		const html = renderToStaticMarkup(<BillingBody {...base} />);
+		expect(html).toMatch(/aria-label="Add credits" id="packs"/);
+		expect(html).toContain("credits-slot");
+		expect(html.indexOf("Usage this month")).toBeLessThan(
+			html.indexOf('id="packs"'),
+		);
+	});
+
+	test("limits and emails sit beside how you're billed", () => {
+		const html = renderToStaticMarkup(<BillingBody {...base} />);
+		expect(html).toContain("settings-slot");
+		expect(html).toContain("How you&#x27;re billed");
 	});
 
 	test("says the hosted stack stopped when it has", () => {
@@ -117,45 +136,85 @@ describe("BillingBody", () => {
 		expect(html.indexOf("10-09")).toBeLessThan(html.indexOf("10-02"));
 		expect(html).toContain("Top-up");
 	});
-
-	test("with no cap it describes none and shows the free rows meter", () => {
-		const html = renderToStaticMarkup(<BillingBody {...base} />);
-		expect(html).toContain("No cap set.");
-		expect(html).toContain("Free rows · 900,000 of 1M used");
-		expect(html).toContain("resets Nov 1");
-	});
-
-	test("with a cap it says so and meters spend against it", () => {
-		const html = renderToStaticMarkup(<BillingBody {...base} capUsd={40} />);
-		expect(html).toContain("Capped at $40 a month.");
-		expect(html).toContain("$4.20 of $40 this month");
-	});
 });
 
-describe("SpendCapControl", () => {
-	const render = (capUsd: number | null) =>
-		renderToStaticMarkup(
-			<SpendCapControl capUsd={capUsd} onChange={() => {}} />,
-		);
+describe("AmountChoice", () => {
+	const render = (value: number) =>
+		renderToStaticMarkup(<AmountChoice value={value} onChange={() => {}} />);
 
-	test("offers four presets, an Other box and None, with None chosen when there is no cap", () => {
-		const html = render(null);
-		for (const label of ["$10", "$25", "$50", "$100", "None"]) {
+	test("offers the four packs and an Other box, with no None", () => {
+		const html = render(25);
+		for (const label of ["$10", "$25", "$50", "$100"]) {
 			expect(html).toContain(`<span>${label}</span>`);
 		}
 		expect(html).toContain('placeholder="Other"');
-		expect(Object.values(checkedRadios(html))).toEqual(["none"]);
+		expect(html).not.toContain("None");
 	});
 
-	test("a $25 cap chooses the $25 segment", () => {
+	test("a pack value checks that pack", () => {
 		expect(Object.values(checkedRadios(render(25)))).toEqual(["25"]);
 	});
 
-	test("a custom cap fills the Other box and chooses it, leaving every radio unchecked", () => {
-		const html = render(40);
-		expect(html).toContain('class="bl-cap-in on"');
-		expect(html).toContain('value="40"');
+	test("a custom amount fills the Other box and leaves every radio unchecked", () => {
+		const html = render(150);
+		expect(html).toContain('class="choice-other on"');
+		expect(html).toContain('value="150"');
 		expect(checkedRadios(html)).toEqual({});
+	});
+});
+
+describe("MonthlyLimitRow", () => {
+	const render = (capUsd: number | null) =>
+		renderToStaticMarkup(
+			<MonthlyLimitRow capUsd={capUsd} onCapChange={() => {}} spentUsd={4.2} />,
+		);
+
+	test("with no limit the field is empty and the balance is the ceiling", () => {
+		const html = render(null);
+		expect(html).toContain('placeholder="No limit"');
+		expect(html).toContain("None set. Your balance is the only ceiling.");
+	});
+
+	test("with a limit the field holds it and the line says what pauses", () => {
+		const html = render(100);
+		expect(html).toContain('value="100"');
+		expect(html).toContain("Everything pauses past $100 in a month");
+		expect(html).toContain("$4.20 so far this month");
+	});
+});
+
+describe("RunwayLine", () => {
+	const line = (over: Partial<Parameters<typeof RunwayLine>[0]> = {}) =>
+		renderToStaticMarkup(
+			<RunwayLine
+				amount={25}
+				valid
+				balanceUsdMicros={28_060_000}
+				rateDayUsdMicros={146_100}
+				stopped={false}
+				now={NOW}
+				{...over}
+			/>,
+		);
+
+	test("a burning balance names the month it lasts until", () => {
+		const html = line();
+		expect(html).toContain("Balance goes to $53.06, which lasts until about");
+		expect(html).toContain("<b>Oct 2027</b>");
+	});
+
+	test("no burn just says where the balance goes", () => {
+		expect(line({ rateDayUsdMicros: 0 })).toContain("Balance goes to $53.06.");
+	});
+
+	test("an invalid Other amount states the range", () => {
+		expect(line({ valid: false })).toContain(
+			"Pick a whole-dollar amount from $5 to $1,000.",
+		);
+	});
+
+	test("a stopped stack says it starts again", () => {
+		expect(line({ stopped: true })).toContain("starts again");
 	});
 });
 
@@ -174,9 +233,18 @@ describe("BillingBody for a new account", () => {
 		expect(html).toContain("$0.00 spent this month.");
 		expect(html).toContain("Add credits only when you pass them.");
 		expect(html).toContain("Block headers never count.");
-		expect(html).toContain("Only needed past the free 1M.");
-		expect(html).toContain("acct-btn line small");
-		expect(html).not.toContain("acct-btn solid small");
+		expect(html).not.toContain("Only needed past the free 1M.");
+		expect(html).not.toContain('href="#packs"');
+	});
+
+	test("the Add credits section sits beside Free rows, and both layouts list the rates", () => {
+		const html = renderToStaticMarkup(<BillingBody {...fresh} />);
+		expect(html).toMatch(/aria-label="Add credits" id="packs"/);
+		expect(html.indexOf('aria-label="Free rows"')).toBeLessThan(
+			html.indexOf('id="packs"'),
+		);
+		expect(html).toContain("How you&#x27;re billed");
+		expect(html).toContain("settings-slot");
 	});
 
 	test("an account with credits keeps the normal screen", () => {

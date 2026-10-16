@@ -145,19 +145,21 @@ export function daysInUtcMonth(m: Month): number {
 	return new Date(Date.UTC(m.year, m.month + 1, 0)).getUTCDate();
 }
 
-/** A credit pack's runway at the current burn rate: "about N days at this
- *  rate" / "over a year at this rate" / "starts your service again" when
- *  the hosted stack is stopped (Design step 8). */
-export function packDaysLabel(
-	packUsd: number,
+/** "Oct 2027": the UTC month a balance runs out at `rateDayUsdMicros` a day
+ *  from `now`, or null when nothing burns. */
+export function runsOutMonth(
+	balanceUsdMicros: number,
 	rateDayUsdMicros: number,
-	stopped: boolean,
-): string {
-	if (stopped) return "starts your service again";
-	if (rateDayUsdMicros <= 0) return "over a year at this rate";
-	const days = Math.floor((packUsd * 1_000_000) / rateDayUsdMicros);
-	if (days >= 365) return "over a year at this rate";
-	return `about ${days} day${days === 1 ? "" : "s"} at this rate`;
+	now: Date,
+): string | null {
+	const days = runwayDays(balanceUsdMicros, rateDayUsdMicros);
+	if (!Number.isFinite(days)) return null;
+	const out = new Date(now.getTime() + days * 86_400_000);
+	return out.toLocaleDateString("en-US", {
+		timeZone: "UTC",
+		month: "short",
+		year: "numeric",
+	});
 }
 
 /** The most recent hour in `service.memory24h` (rows are chronological,

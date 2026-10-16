@@ -1452,15 +1452,10 @@ a.acct-menu-row:hover {
 }
 .acct-checkout {
 	display: flex;
-	flex-direction: column;
-	gap: 10px;
-}
-.acct-checkout.wide {
-	flex-direction: row;
 	align-items: center;
 	gap: 16px;
 }
-.acct-checkout.wide .acct-fine {
+.acct-checkout .acct-fine {
 	text-align: left;
 }
 .acct-pending {
@@ -1641,14 +1636,6 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 .acct-card-row .acct-fine {
 	text-align: left;
 }
-.acct-card-foot .acct-checkout {
-	flex-direction: row;
-	align-items: center;
-	gap: 14px;
-}
-.acct-card-foot .acct-checkout .acct-fine {
-	text-align: left;
-}
 
 /* The account pages: one centered column; the tabs and the terminal footer live outside it. */
 .acct-page {
@@ -1672,32 +1659,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	font-variant-numeric: tabular-nums;
 }
 
-/* Email alert switches on Billing */
-.use-alerts {
-	display: flex;
-	flex-direction: column;
-	gap: 0;
-	border: 1px solid var(--border);
-	border-radius: 8px;
-}
-.use-alert-row {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 11px 14px;
-}
-.use-alert-row + .use-alert-row {
-	border-top: 1px solid var(--border);
-}
-.use-alert-row .t {
-	font-size: 13px;
-}
-.use-alert-row .s {
-	display: block;
-	font-size: 12px;
-	color: var(--text-muted);
-}
+/* Switches on Billing */
 .use-switch {
 	position: relative;
 	flex: none;
@@ -1731,7 +1693,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	transition: transform 0.15s;
 }
 .use-switch input:checked + span {
-	background: var(--text-main);
+	background: var(--pri);
 }
 .use-switch input:checked + span::after {
 	transform: translateX(14px);
@@ -1743,11 +1705,6 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 .use-switch input:disabled + span {
 	opacity: 0.5;
 	cursor: default;
-}
-.use-alert-row.cap {
-	flex-direction: column;
-	align-items: stretch;
-	gap: 8px;
 }
 
 /* /account/webhooks — list and detail. Reuses acct-stats/
@@ -2002,7 +1959,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	padding: 0;
 }
 @media (max-width: 760px) {
-	.acct-checkout.wide {
+	.acct-checkout {
 		flex-direction: column;
 		align-items: stretch;
 	}
@@ -5456,6 +5413,47 @@ a.acct-strip-link:hover .acct-strip-k {
 	min-width: 0;
 	text-align: center;
 }
+.choice-other {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex: 1.5 1 0;
+	min-width: 0;
+	padding: 0 11px;
+	border-radius: 5px;
+	box-shadow: inset 0 0 0 1px var(--line);
+	font: 500 13.5px / 1.25 var(--font-sans-stack);
+	color: var(--faint);
+	cursor: text;
+}
+.choice-other input {
+	width: 100%;
+	min-width: 0;
+	padding: 8px 0;
+	font: inherit;
+	font-variant-numeric: tabular-nums;
+	color: var(--ink);
+	background: none;
+	border: 0;
+	outline: 0;
+}
+.choice-other input::placeholder {
+	color: var(--sub);
+}
+.choice-other:has(input:focus) {
+	box-shadow: inset 0 0 0 2px var(--pri);
+}
+.choice-other.on {
+	background: var(--pri-tint);
+	color: var(--pri-ink);
+	box-shadow: inset 0 0 0 1px var(--pri);
+}
+.choice-other.on input {
+	color: var(--pri-ink);
+}
+.choice-other.on:has(input:focus) {
+	box-shadow: inset 0 0 0 2px var(--pri);
+}
 @media (prefers-reduced-motion: reduce) {
 	.choice-cell span {
 		transition: none;
@@ -7334,57 +7332,98 @@ button.dash-row {
 .bl-total td {
 	color: var(--ink);
 }
-.bl-cap-text {
+.bl-runway {
 	margin: 0;
-	font-size: 13.5px;
+	font-size: 15px;
 	color: var(--sub);
 }
-.choice.bl-cap {
-	width: auto;
-	container-type: normal;
-	justify-self: start;
+.bl-runway b {
+	color: var(--ink);
+	font-weight: 500;
+	white-space: nowrap;
 }
-.bl-cap-in {
+.bl-runway.err {
+	color: var(--alarm);
+}
+.bl-est {
+	display: flex;
+	gap: 10px;
+	align-items: baseline;
+	margin: 0;
+	padding-top: 12px;
+	border-top: 1px solid var(--line);
+	font-size: 12.5px;
+	color: var(--sub);
+}
+.bl-settings {
+	display: grid;
+}
+.bl-set-row {
 	display: flex;
 	align-items: center;
-	gap: 2px;
-	padding: 0 10px 0 14px;
-	border-left: 1px solid var(--line);
-	font: 500 13.5px / 1.25 var(--font-sans-stack);
-	color: var(--faint);
-	cursor: text;
-	transition: color var(--duration-snappy) var(--ease-snappy), background-color
-		var(--duration-snappy) var(--ease-snappy);
+	justify-content: space-between;
+	gap: 24px;
+	min-height: 68px;
+	padding-block: 12px;
+	border-top: 1px solid var(--line);
 }
-.bl-cap-in + .choice-cell {
-	border-left: 1px solid var(--line);
+.bl-set-row:last-child {
+	border-bottom: 1px solid var(--line);
 }
-.bl-cap-in input {
-	width: 56px;
-	padding: 8px 0;
-	font: inherit;
-	font-variant-numeric: tabular-nums;
+.bl-set-row label {
+	min-width: 0;
+}
+.bl-set-row .t {
+	display: block;
+	font-size: 15px;
 	color: var(--ink);
-	background: none;
-	border: 0;
-	outline: 0;
 }
-.bl-cap-in input::placeholder {
+.bl-set-row .s {
+	display: block;
+	font-size: 13px;
 	color: var(--sub);
 }
-.bl-cap-in:focus-within {
-	box-shadow: inset 0 -2px 0 var(--pri);
+.bl-field {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	width: 132px;
+	height: 36px;
+	padding: 0 11px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	font: 500 14px / 1 var(--font-mono-stack);
+	color: var(--faint);
+	cursor: text;
+	flex: none;
 }
-.bl-cap-in.on {
-	background: var(--pri-tint);
-	color: var(--pri-ink);
+.bl-field:hover {
+	border-color: var(--sub);
+}
+.bl-field:has(input:focus) {
+	border-color: var(--pri);
 	box-shadow: inset 0 0 0 1px var(--pri);
 }
-.bl-cap-in.on input {
-	color: var(--pri-ink);
+.bl-field input {
+	width: 100%;
+	min-width: 0;
+	border: 0;
+	padding: 0;
+	background: none;
+	font: inherit;
+	color: var(--ink);
+	outline: none;
 }
-.bl-cap-in.on input::placeholder {
-	color: var(--faint);
+.bl-field input::placeholder {
+	color: var(--sub);
+	font-family: var(--font-sans-stack);
+	font-weight: 400;
+}
+.bl-switch-slot {
+	width: 132px;
+	display: flex;
+	justify-content: flex-end;
+	flex: none;
 }
 
 /* Rows screen */
@@ -7766,12 +7805,6 @@ button.ky-click:focus-visible,
 		gap: 24px;
 	}
 }
-@media (prefers-reduced-motion: reduce) {
-	.bl-cap-in {
-		transition: none;
-	}
-}
-
 /* ── Subgraphs: empty state, data grid, row panel, schema ── */
 .sg-empty {
 	display: grid;

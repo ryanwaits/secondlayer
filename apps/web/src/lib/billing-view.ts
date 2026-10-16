@@ -1,6 +1,6 @@
 /**
  * Pure view helpers for the Billing screen: the spend line and its
- * projection, the per-day cost split, the spend cap's meter and the by-unit
+ * projection, the per-day cost split, the by-unit
  * table. No React, no fetch. Money stays in USD-micros strings until a value
  * is shaped for display or a chart.
  */
@@ -16,9 +16,6 @@ import {
 	formatRows,
 	nextMonthLabel,
 } from "./usage";
-
-/** The cap presets, in whole dollars. */
-export const CAP_PRESETS_USD = [10, 25, 50, 100] as const;
 
 const MICROS = 1_000_000;
 
@@ -43,16 +40,6 @@ export function parseCapInput(text: string): number | null {
 /** A cap in cents back to whole dollars for the control, or `null`. */
 export function capDollars(monthlyCapCents: number | null): number | null {
 	return monthlyCapCents == null ? null : Math.round(monthlyCapCents / 100);
-}
-
-/** Which segment of the cap control is chosen. */
-export type CapChoice = "none" | "other" | `${number}`;
-
-export function capChoice(capUsd: number | null): CapChoice {
-	if (capUsd == null) return "none";
-	return (CAP_PRESETS_USD as readonly number[]).includes(capUsd)
-		? (String(capUsd) as CapChoice)
-		: "other";
 }
 
 /** Daily spend in USD for each UTC day of `now`'s month through `now`'s day,
@@ -138,52 +125,6 @@ export function freeRowsUsedUpOn(
 		day: "numeric",
 		timeZone: "UTC",
 	});
-}
-
-export interface CapMeterView {
-	used: number;
-	total: number;
-	left: string;
-	right: string;
-	label: string;
-}
-
-/** The meter under the cap sentence. With a cap: this month's spend against
- *  it. Without: the free rows. */
-export function capMeter(opts: {
-	capUsd: number | null;
-	spentUsd: number;
-	projectedEndUsd: number;
-	deliveredRows: number;
-	usedUpOn: string | null;
-	now: Date;
-}): CapMeterView {
-	const resets = nextMonthLabel(currentUtcMonth(opts.now));
-	if (opts.capUsd != null) {
-		const right =
-			opts.spentUsd >= opts.capUsd
-				? "cap reached"
-				: opts.projectedEndUsd > opts.capUsd
-					? `hits the cap before ${resets}`
-					: `${dollars(opts.projectedEndUsd)} at this pace`;
-		return {
-			used: opts.spentUsd,
-			total: opts.capUsd,
-			left: `${dollars(opts.spentUsd)} of $${opts.capUsd.toLocaleString("en-US")} this month`,
-			right,
-			label: "Spend this month against your cap",
-		};
-	}
-	const exhausted = opts.deliveredRows >= ROWS_ALLOWANCE;
-	return {
-		used: Math.min(opts.deliveredRows, ROWS_ALLOWANCE),
-		total: ROWS_ALLOWANCE,
-		left: exhausted
-			? `Free rows · used up${opts.usedUpOn ? ` ${opts.usedUpOn}` : ""}`
-			: `Free rows · ${formatRows(opts.deliveredRows)} of ${formatRows(ROWS_ALLOWANCE)} used`,
-		right: `resets ${resets}`,
-		label: "Free rows used this month",
-	};
 }
 
 export interface UnitLine {

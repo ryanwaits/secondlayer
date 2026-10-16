@@ -1,7 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-	capChoice,
-	capMeter,
 	costByDay,
 	creditDate,
 	freeRowsUsedUpOn,
@@ -127,45 +125,6 @@ describe("freeRowsUsedUpOn", () => {
 	});
 });
 
-describe("capMeter", () => {
-	const base = {
-		spentUsd: 6.21,
-		projectedEndUsd: 12.28,
-		deliveredRows: 0,
-		usedUpOn: null,
-		now: NOW,
-	};
-
-	test("a cap above the projection reads spend against it", () => {
-		const m = capMeter({ ...base, capUsd: 40 });
-		expect(m.left).toBe("$6.21 of $40 this month");
-		expect(m.right).toBe("$12.28 at this pace");
-		expect(m.total).toBe(40);
-	});
-
-	test("a projection over the cap says when it hits", () => {
-		const m = capMeter({ ...base, capUsd: 10 });
-		expect(m.right).toBe("hits the cap before Nov 1");
-	});
-
-	test("no cap shows the free rows used up", () => {
-		const m = capMeter({
-			...base,
-			capUsd: null,
-			deliveredRows: 3_000_000,
-			usedUpOn: "Oct 6",
-		});
-		expect(m.left).toBe("Free rows · used up Oct 6");
-		expect(m.right).toBe("resets Nov 1");
-		expect(m.used).toBe(1_000_000);
-	});
-
-	test("no cap with rows left shows how many are used", () => {
-		const m = capMeter({ ...base, capUsd: null, deliveredRows: 250_000 });
-		expect(m.left).toBe("Free rows · 250,000 of 1M used");
-	});
-});
-
 describe("parseCapInput", () => {
 	test("accepts whole dollars above zero", () => {
 		expect(parseCapInput("40")).toBe(40);
@@ -178,14 +137,6 @@ describe("parseCapInput", () => {
 		expect(parseCapInput("12.5")).toBeNull();
 		expect(parseCapInput("")).toBeNull();
 		expect(parseCapInput("-5")).toBeNull();
-	});
-});
-
-describe("capChoice", () => {
-	test("maps a cap to its segment", () => {
-		expect(capChoice(null)).toBe("none");
-		expect(capChoice(25)).toBe("25");
-		expect(capChoice(40)).toBe("other");
 	});
 });
 

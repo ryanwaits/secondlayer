@@ -11,8 +11,8 @@ import {
 	monthLabel,
 	monthParam,
 	nextMonthLabel,
-	packDaysLabel,
 	rateLabel,
+	runsOutMonth,
 	runwayDays,
 	unitLabel,
 	withUsageMonth,
@@ -254,26 +254,19 @@ describe("daysInUtcMonth", () => {
 	});
 });
 
-describe("packDaysLabel", () => {
-	test("stopped always says the pack restarts the service", () => {
-		expect(packDaysLabel(25, 350_000, true)).toBe("starts your service again");
-		expect(packDaysLabel(25, 0, true)).toBe("starts your service again");
+describe("runsOutMonth", () => {
+	const now = new Date("2026-10-16T12:00:00Z");
+
+	test("names the UTC month the balance runs out", () => {
+		expect(runsOutMonth(53_060_000, 146_100, now)).toBe("Oct 2027");
 	});
 
-	test("about N days at a real rate", () => {
-		// $25 pack at $0.35/day (350,000µ$) → floor(25,000,000/350,000) = 71 days.
-		expect(packDaysLabel(25, 350_000, false)).toBe(
-			"about 71 days at this rate",
-		);
+	test("null when nothing burns", () => {
+		expect(runsOutMonth(53_060_000, 0, now)).toBeNull();
 	});
 
-	test("over a year once the pack would outlast 365 days", () => {
-		// $100 pack at $0.10/day → 1000 days.
-		expect(packDaysLabel(100, 100_000, false)).toBe("over a year at this rate");
-	});
-
-	test("no burn at all (not stopped) reads as a very long runway", () => {
-		expect(packDaysLabel(25, 0, false)).toBe("over a year at this rate");
+	test("an empty balance runs out this month", () => {
+		expect(runsOutMonth(0, 146_100, now)).toBe("Oct 2026");
 	});
 });
 
