@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { clearInsights } from "./insights-store";
+import { TOPUP_MAX_USD, TOPUP_MIN_USD } from "./prices";
 import { clearRequestCache, isFresh, markFresh, shared } from "./request-cache";
 import type { RowsResponse } from "./rows";
 import {
@@ -32,6 +33,11 @@ import { clearWebhooksData } from "./webhooks-store";
 /** Credit packs the API sells (`CREDIT_PACKS_USD` in packages/api). */
 export const PACKS_USD = [10, 25, 50, 100] as const;
 export type PackUsd = (typeof PACKS_USD)[number];
+
+/** A whole-dollar amount the top-up route accepts. */
+export function isTopupUsd(n: number): boolean {
+	return Number.isInteger(n) && n >= TOPUP_MIN_USD && n <= TOPUP_MAX_USD;
+}
 
 export type Billing = {
 	creditsUsdMicros: string;
@@ -370,7 +376,7 @@ type PendingTopup = { amount: number; beforeMicros: string | null };
  * the return trip, so the credits page can tell "still confirming" from
  * "landed" without the API reporting individual top-ups.
  */
-export async function startCheckout(amount: PackUsd): Promise<void> {
+export async function startCheckout(amount: number): Promise<void> {
 	const res = await fetch("/api/billing/topup", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },

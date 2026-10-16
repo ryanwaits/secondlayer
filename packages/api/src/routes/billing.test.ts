@@ -11,6 +11,7 @@ import billingRouter, {
 	type StripeClient,
 	ensureStripeCustomer,
 	isCreditPack,
+	isTopupUsd,
 	isResourceMissing,
 	rowsAllowance,
 	rowsBySource,
@@ -79,6 +80,17 @@ describe("isCreditPack", () => {
 		expect(isCreditPack(10)).toBe(true);
 		expect(isCreditPack(25)).toBe(true);
 		expect(isCreditPack(7)).toBe(false);
+	});
+});
+
+describe("isTopupUsd", () => {
+	test("accepts any whole dollar from 5 to 1000", () => {
+		for (const n of [5, 25, 150, 1000]) expect(isTopupUsd(n)).toBe(true);
+	});
+
+	test("rejects out-of-range, fractional and non-number amounts", () => {
+		for (const n of [4, 1001, 12.5, "25", Number.NaN, null])
+			expect(isTopupUsd(n)).toBe(false);
 	});
 });
 

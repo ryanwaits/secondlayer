@@ -27,6 +27,10 @@ export const FREE_REPAIR_PARTITIONS_PER_MONTH = 18;
 /** Prepaid credit packs, in dollars (`CREDIT_PACKS_USD` in the API). */
 export const CREDIT_PACKS_USD = [10, 25, 50, 100] as const;
 
+/** Any whole-dollar top-up in this range (`TOPUP_MIN_USD` / `TOPUP_MAX_USD` in the API). */
+export const TOPUP_MIN_USD = 5;
+export const TOPUP_MAX_USD = 1000;
+
 /** Months are 730 hours (`HOURS_PER_MONTH` in the platform table). */
 export const HOURS_PER_MONTH = 730;
 

@@ -4,6 +4,7 @@ import {
 	adoptCacheOwner,
 	clearAccountData,
 	ensureKeys,
+	isTopupUsd,
 	refreshBilling,
 	refreshKeys,
 } from "./account-data";
@@ -151,5 +152,15 @@ describe("adoptCacheOwner", () => {
 		await seed();
 		adoptCacheOwner("a");
 		expect(accountSnapshot().keys).toEqual([]);
+	});
+});
+
+describe("isTopupUsd", () => {
+	test("accepts whole dollars from 5 to 1000 only", () => {
+		expect(isTopupUsd(4)).toBe(false);
+		expect(isTopupUsd(5)).toBe(true);
+		expect(isTopupUsd(1000)).toBe(true);
+		expect(isTopupUsd(1000.5)).toBe(false);
+		expect(isTopupUsd(1001)).toBe(false);
 	});
 });

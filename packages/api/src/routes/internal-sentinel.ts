@@ -60,12 +60,12 @@ import { lookupSession } from "../auth/session.ts";
 import { getStripeOrNull } from "../lib/stripe.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import {
-	SENTINEL_TOPUP_MAX_USD,
-	SENTINEL_TOPUP_MIN_USD,
 	type StripeClient,
+	TOPUP_MAX_USD,
+	TOPUP_MIN_USD,
 	applyMonthlyCap,
 	createCreditsCheckoutSession,
-	isSentinelTopupUsd,
+	isTopupUsd,
 	parseRefillInput,
 } from "./billing.ts";
 import { bearerToken, sentinelServiceKeyMatches } from "./internal-meters.ts";
@@ -500,9 +500,9 @@ export function createInternalSentinelRouter(
 		const accountId = requireString(body, "accountId");
 		// `amountUsd`: any whole-dollar top-up in range; `packUsd` is the older name for the same field.
 		const usd = body.amountUsd ?? body.packUsd;
-		if (!isSentinelTopupUsd(usd)) {
+		if (!isTopupUsd(usd)) {
 			throw new ValidationError(
-				`amountUsd must be a whole number from ${SENTINEL_TOPUP_MIN_USD} to ${SENTINEL_TOPUP_MAX_USD}`,
+				`amountUsd must be a whole number from ${TOPUP_MIN_USD} to ${TOPUP_MAX_USD}`,
 			);
 		}
 		const successUrl = buildReturnUrl(body.returnPath, "success");

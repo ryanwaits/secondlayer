@@ -66,16 +66,16 @@ export function isCreditPack(n: number): n is CreditPackUsd {
 	return (CREDIT_PACKS_USD as readonly number[]).includes(n);
 }
 
-/** A Sentinel top-up: any whole-dollar amount in this range (the packs are inside it). Below $5 the
- *  card fee takes too large a share. */
-export const SENTINEL_TOPUP_MIN_USD = 5;
-export const SENTINEL_TOPUP_MAX_USD = 1000;
-export function isSentinelTopupUsd(n: unknown): n is number {
+/** A top-up: any whole-dollar amount in this range (the packs are inside it). Below $5 the card fee
+ *  takes too large a share. Shared by the signed-in `/topup` route and Sentinel's `/checkout`. */
+export const TOPUP_MIN_USD = 5;
+export const TOPUP_MAX_USD = 1000;
+export function isTopupUsd(n: unknown): n is number {
 	return (
 		typeof n === "number" &&
 		Number.isInteger(n) &&
-		n >= SENTINEL_TOPUP_MIN_USD &&
-		n <= SENTINEL_TOPUP_MAX_USD
+		n >= TOPUP_MIN_USD &&
+		n <= TOPUP_MAX_USD
 	);
 }
 
@@ -253,7 +253,7 @@ export async function createCreditsCheckoutSession(opts: {
 }
 
 /**
- * POST /api/billing/topup   body: { amount: 10 | 25 | 50 | 100 }
+ * POST /api/billing/topup   body: { amount: whole dollars, 5–1000 }
  *
  * One-time prepaid dev-credit top-up. Returns a Stripe Checkout Session URL in
  * `mode: "payment"` (one-shot Checkout, not a recurring price) with an inline price for the chosen
@@ -268,13 +268,15 @@ app.post("/topup", async (c) => {
 		throw new InvalidJSONError();
 	})) as { amount?: unknown };
 
-	const usd = typeof body.amount === "number" ? body.amount : Number.NaN;
-	if (!isCreditPack(usd)) {
+	if (!isTopupUsd(body.amount)) {
 		return c.json(
-			{ error: `amount must be one of ${CREDIT_PACKS_USD.join(", ")} (USD)` },
+			{
+				error: `amount must be a whole number of dollars from ${TOPUP_MIN_USD} to ${TOPUP_MAX_USD}`,
+			},
 			400,
 		);
 	}
+	const usd = body.amount;
 
 	const stripe = getStripeOrNull();
 	if (!stripe) {

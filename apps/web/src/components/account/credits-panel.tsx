@@ -4,7 +4,6 @@ import { AmountPicker } from "@/components/amount-picker";
 import {
 	type Billing,
 	PACKS_USD,
-	type PackUsd,
 	type TopupReturn,
 	ensureBilling,
 	formatUsd,
@@ -38,7 +37,7 @@ export function BalanceStats({ billing }: { billing: Billing | null }) {
 }
 
 export function useCheckout() {
-	const [amount, setAmount] = useState<PackUsd>(25);
+	const [amount, setAmount] = useState<number>(25);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	async function checkout() {
