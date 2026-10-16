@@ -13,9 +13,9 @@ import {
 	topupLanded,
 	useAccountData,
 } from "@/lib/account-data";
-import { STACK_FLOOR_USD_PER_MONTH } from "@/lib/prices";
 import { ROWS_ALLOWANCE, formatRows, packDaysLabel } from "@/lib/usage";
 import { useEffect, useId, useState } from "react";
+import { RatesTable } from "./billing/rates-table";
 import { FloatingCard } from "./floating-card";
 
 export function BalanceStats({ billing }: { billing: Billing | null }) {
@@ -34,25 +34,6 @@ export function BalanceStats({ billing }: { billing: Billing | null }) {
 				</span>
 			</div>
 		</div>
-	);
-}
-
-export function PricingNote() {
-	return (
-		<p className="acct-pricing">
-			Every account gets{" "}
-			<strong>{formatRows(ROWS_ALLOWANCE)} rows free each month</strong>, live
-			or history. After that, <strong>$5 per 1M rows</strong>, then $2 per 1M
-			past $50 in a month. Block headers are free, and so are reads of your own
-			subgraph tables. Your hosted stack runs webhooks and subgraphs: memory at
-			$0.028 per GB-hour, plus storage. Webhooks only:{" "}
-			<strong>${STACK_FLOOR_USD_PER_MONTH.webhooks}/mo minimum</strong> while
-			your stack runs. With subgraphs:{" "}
-			<strong>${STACK_FLOOR_USD_PER_MONTH.subgraphs}/mo minimum</strong>. Pause
-			or delete every webhook and subgraph and it stops within minutes. Webhook
-			events are <strong>$10 per 1M</strong> (retries free). Self-hosted
-			instances are never metered.
-		</p>
 	);
 }
 
@@ -164,7 +145,7 @@ export function CreditsCard({
 				co={co}
 				rateDayUsdMicros={burn ? Number(burn.rateDayUsdMicros) : 0}
 			/>
-			<PricingNote />
+			<RatesTable />
 		</FloatingCard>
 	);
 }

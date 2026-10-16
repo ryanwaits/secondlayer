@@ -59,7 +59,6 @@ import { toast } from "sonner";
 import {
 	CheckoutAction,
 	CreditAmounts,
-	PricingNote,
 	ReturnNotice,
 	useCheckout,
 	useTopupReturn,
@@ -67,6 +66,7 @@ import {
 import { ByUnitTable } from "./by-unit-table";
 import { CreditsAddedTable } from "./credits-added";
 import { EmailAlerts } from "./email-alerts";
+import { RatesTable } from "./rates-table";
 import { SpendCapControl } from "./spend-cap-control";
 
 const MICROS = 1_000_000;
@@ -442,7 +442,7 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 							stopped={stopped}
 						/>
 						<CheckoutAction co={co} wide />
-						<PricingNote />
+						<RatesTable />
 					</section>
 					<EmailAlerts />
 				</>

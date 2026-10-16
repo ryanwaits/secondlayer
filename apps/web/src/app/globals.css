@@ -1406,20 +1406,6 @@ a.acct-menu-row:hover {
 	font-size: 13px;
 	color: var(--alarm);
 }
-.acct-pricing {
-	margin: 0;
-	padding: 12px 14px;
-	border-radius: 8px;
-	background: color-mix(in srgb, var(--text-main) 3%, transparent);
-	font-size: 12.5px;
-	line-height: 1.5;
-	color: var(--text-muted);
-}
-.acct-pricing strong {
-	color: var(--text-main);
-	font-weight: 500;
-}
-
 .acct-revoke-confirm {
 	display: flex;
 	flex-direction: column;
@@ -1759,7 +1745,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	gap: 8px;
 }
 
-/* /account/webhooks — list and detail. Reuses acct-stats/acct-pricing/
+/* /account/webhooks — list and detail. Reuses acct-stats/
    acct-btn/acct-revoke-confirm/acct-input/acct-error from above; these are
    the pieces that are actually new. */
 .wh-notice {
@@ -7199,6 +7185,37 @@ button.dash-row {
 .bl-note {
 	font-size: 12.5px;
 	color: var(--faint);
+}
+.bl-rates {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.bl-rates table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12.5px;
+	line-height: 1.5;
+}
+.bl-rates th,
+.bl-rates td {
+	padding: 8px 0;
+	border-top: 1px solid var(--line);
+	text-align: left;
+	vertical-align: top;
+}
+.bl-rates th {
+	padding-right: 16px;
+	white-space: nowrap;
+	font-weight: 500;
+	color: var(--ink);
+}
+.bl-rates td {
+	color: var(--sub);
+}
+.bl-rates code {
+	font-family: var(--font-mono-stack);
+	color: var(--ink);
 }
 .bl-faint {
 	color: var(--faint);
