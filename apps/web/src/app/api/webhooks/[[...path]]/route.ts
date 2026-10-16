@@ -2,10 +2,11 @@ import { PLATFORM_API_URL, getSessionFromRequest } from "@/lib/api";
 import { NextResponse } from "next/server";
 
 /**
- * Proxy to the hosted webhooks API for the signed-in account's dashboard —
- * watch and fix only. Create, update and replay never go through here (the
- * founder rule: the web never creates or edits a webhook); an allowlist
- * enforces that at the route level, not just in the UI.
+ * Proxy to the hosted webhooks API for the signed-in account's dashboard. The
+ * dashboard reads, pauses and resumes, and renames (a name-only PATCH).
+ * Create, edit, replay, requeue, test, rotate and delete happen in the
+ * CLI/SDK and never go through here; an allowlist enforces that at the route
+ * level, not just in the UI.
  *
  * Forwards with `fetch` directly (not `apiRequest`, which drops response
  * headers) so a `503`'s `Retry-After` reaches the client — the list/detail
@@ -14,7 +15,12 @@ import { NextResponse } from "next/server";
 
 const SEGMENT_RE = /^[A-Za-z0-9_-]+$/;
 
-type Method = "GET" | "POST" | "DELETE";
+type Method = "GET" | "POST" | "PATCH";
+
+/** Query params the dashboard reads with; everything else is dropped. */
+const FORWARDED_QUERY = ["from", "to", "days", "_limit", "_offset"];
+
+const MAX_NAME_LENGTH = 128;
 
 /** Matches an allowed (method, path-shape) pair. `segments` excludes the
  *  leading `/api/webhooks`. Anything not matched here is refused with 405,
@@ -36,25 +42,12 @@ function isAllowed(method: Method, segments: string[]): boolean {
 		return false;
 	}
 	if (method === "POST") {
-		if (
+		return (
 			segments.length === 2 &&
-			(segments[1] === "test" ||
-				segments[1] === "pause" ||
-				segments[1] === "resume" ||
-				segments[1] === "rotate-secret")
-		) {
-			return true;
-		}
-		if (
-			segments.length === 4 &&
-			segments[1] === "dead" &&
-			segments[3] === "requeue"
-		) {
-			return true;
-		}
-		return false;
+			(segments[1] === "pause" || segments[1] === "resume")
+		);
 	}
-	// DELETE
+	// PATCH: rename one webhook
 	return segments.length === 1;
 }
 
@@ -67,6 +60,21 @@ function notAvailable() {
 		{ error: "Not available from the dashboard" },
 		{ status: 405 },
 	);
+}
+
+/** The trimmed name when the body is exactly `{ name }` with a 1-128 character string; else null. */
+function nameOnlyBody(body: unknown): string | null {
+	if (typeof body !== "object" || body === null || Array.isArray(body)) {
+		return null;
+	}
+	const keys = Object.keys(body);
+	if (keys.length !== 1 || keys[0] !== "name") return null;
+	const name = (body as { name: unknown }).name;
+	if (typeof name !== "string") return null;
+	const trimmed = name.trim();
+	return trimmed.length >= 1 && trimmed.length <= MAX_NAME_LENGTH
+		? trimmed
+		: null;
 }
 
 function badSegment() {
@@ -87,30 +95,61 @@ async function handle(
 	}
 	if (!isAllowed(method, segments)) return notAvailable();
 
+	const headers: Record<string, string> = {
+		Authorization: `Bearer ${sessionToken}`,
+	};
+	let body: string | undefined;
+	if (method === "PATCH") {
+		let parsed: unknown;
+		try {
+			parsed = await req.json();
+		} catch {
+			return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+		}
+		const name = nameOnlyBody(parsed);
+		if (name === null) return notAvailable();
+		body = JSON.stringify({ name });
+		headers["Content-Type"] = "application/json";
+	}
+
+	const incoming = new URL(req.url).searchParams;
+	const query = new URLSearchParams();
+	for (const key of FORWARDED_QUERY) {
+		const value = incoming.get(key);
+		if (value !== null) query.set(key, value);
+	}
+	const search = query.size > 0 ? `?${query}` : "";
 	const upstreamPath =
 		segments.length > 0
 			? `/api/webhooks/${segments.join("/")}`
 			: "/api/webhooks";
 
 	try {
-		const upstream = await fetch(`${PLATFORM_API_URL}${upstreamPath}`, {
-			method,
-			headers: { Authorization: `Bearer ${sessionToken}` },
-			cache: "no-store",
-		});
+		const upstream = await fetch(
+			`${PLATFORM_API_URL}${upstreamPath}${search}`,
+			{
+				method,
+				headers,
+				body,
+				cache: "no-store",
+			},
+		);
 
-		let body: unknown = null;
+		let payload: unknown = null;
 		try {
-			body = await upstream.json();
+			payload = await upstream.json();
 		} catch {
-			body = null;
+			payload = null;
 		}
 
-		const headers: Record<string, string> = {};
+		const responseHeaders: Record<string, string> = {};
 		const retryAfter = upstream.headers.get("Retry-After");
-		if (retryAfter) headers["Retry-After"] = retryAfter;
+		if (retryAfter) responseHeaders["Retry-After"] = retryAfter;
 
-		return NextResponse.json(body, { status: upstream.status, headers });
+		return NextResponse.json(payload, {
+			status: upstream.status,
+			headers: responseHeaders,
+		});
 	} catch {
 		return NextResponse.json(
 			{ error: "upstream_unavailable" },
@@ -135,10 +174,10 @@ export async function POST(
 	return handle(req, "POST", path);
 }
 
-export async function DELETE(
+export async function PATCH(
 	req: Request,
 	context: { params: Promise<{ path?: string[] }> },
 ) {
 	const { path } = await context.params;
-	return handle(req, "DELETE", path);
+	return handle(req, "PATCH", path);
 }

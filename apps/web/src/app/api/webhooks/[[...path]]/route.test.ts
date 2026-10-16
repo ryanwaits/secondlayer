@@ -56,9 +56,75 @@ describe("webhooks dashboard proxy", () => {
 		expect(calls.length).toBe(0);
 	});
 
-	test("PATCH is not exported — updates never go through the dashboard", async () => {
-		const mod = await import("./route");
-		expect((mod as Record<string, unknown>).PATCH).toBeUndefined();
+	function patchReq(body: unknown): Request {
+		return new Request("http://localhost/api/webhooks/wh_1", {
+			method: "PATCH",
+			headers: { cookie: "sl_session=tok", "content-type": "application/json" },
+			body: JSON.stringify(body),
+		});
+	}
+
+	test("PATCH :id with only a name is forwarded with that body and a JSON content type", async () => {
+		const { calls } = stubFetch(
+			() => new Response(JSON.stringify({ id: "wh_1" }), { status: 200 }),
+		);
+		const { PATCH } = await import("./route");
+		const res = await PATCH(
+			patchReq({ name: " vault-events " }),
+			ctx(["wh_1"]),
+		);
+		expect(res.status).toBe(200);
+		expect(calls[0]?.init?.method).toBe("PATCH");
+		expect(calls[0]?.init?.body).toBe(JSON.stringify({ name: "vault-events" }));
+		expect(new Headers(calls[0]?.init?.headers).get("Content-Type")).toBe(
+			"application/json",
+		);
+	});
+
+	test("PATCH with any key besides name → 405, no fetch", async () => {
+		const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
+		const { PATCH } = await import("./route");
+		const res = await PATCH(
+			patchReq({ name: "vault-events", url: "https://hooks.example.dev" }),
+			ctx(["wh_1"]),
+		);
+		expect(res.status).toBe(405);
+		expect(calls.length).toBe(0);
+	});
+
+	test("PATCH with an empty or overlong name → 405, no fetch", async () => {
+		const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
+		const { PATCH } = await import("./route");
+		for (const name of ["   ", "x".repeat(129), 7]) {
+			const res = await PATCH(patchReq({ name }), ctx(["wh_1"]));
+			expect(res.status).toBe(405);
+		}
+		expect(calls.length).toBe(0);
+	});
+
+	test("PATCH on the list path → 405, no fetch", async () => {
+		const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
+		const { PATCH } = await import("./route");
+		const res = await PATCH(patchReq({ name: "vault-events" }), ctx([]));
+		expect(res.status).toBe(405);
+		expect(calls.length).toBe(0);
+	});
+
+	test("query string: from/to/days are forwarded, unknown params are dropped", async () => {
+		const { calls } = stubFetch(
+			() => new Response(JSON.stringify({ data: [] }), { status: 200 }),
+		);
+		const { GET } = await import("./route");
+		const request = new Request(
+			"http://localhost/api/webhooks/wh_1/deliveries?from=2026-10-08T16:00:00Z&to=2026-10-08T17:00:00Z&days=30&evil=1",
+			{ headers: { cookie: "sl_session=tok" } },
+		);
+		await GET(request, ctx(["wh_1", "deliveries"]));
+		const url = new URL(calls[0]?.url ?? "");
+		expect(url.searchParams.get("from")).toBe("2026-10-08T16:00:00Z");
+		expect(url.searchParams.get("to")).toBe("2026-10-08T17:00:00Z");
+		expect(url.searchParams.get("days")).toBe("30");
+		expect(url.searchParams.has("evil")).toBe(false);
 	});
 
 	test("GET :id/deliveries forwards the right upstream URL with the session as a Bearer token", async () => {
@@ -133,33 +199,44 @@ describe("webhooks dashboard proxy", () => {
 		expect(calls.length).toBe(0);
 	});
 
-	test("DELETE :id is allowed", async () => {
-		const { calls } = stubFetch(
-			() => new Response(JSON.stringify({ ok: true }), { status: 200 }),
-		);
-		const { DELETE } = await import("./route");
-		const res = await DELETE(
-			req({ method: "DELETE", cookie: "sl_session=tok" }),
-			ctx(["wh_1"]),
-		);
-		expect(res.status).toBe(200);
-		expect(calls[0]?.url.endsWith("/api/webhooks/wh_1")).toBe(true);
+	test("DELETE :id is not available → 405, no fetch", async () => {
+		const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
+		const mod = await import("./route");
+		expect((mod as Record<string, unknown>).DELETE).toBeUndefined();
+		expect(calls.length).toBe(0);
 	});
 
-	test("POST :id/dead/:outboxId/requeue is allowed", async () => {
-		const { calls } = stubFetch(
-			() => new Response(JSON.stringify({ ok: true }), { status: 200 }),
-		);
-		const { POST } = await import("./route");
-		const res = await POST(
-			req({ method: "POST", cookie: "sl_session=tok" }),
-			ctx(["wh_1", "dead", "ob_1", "requeue"]),
-		);
-		expect(res.status).toBe(200);
-		expect(calls[0]?.url.endsWith("/api/webhooks/wh_1/dead/ob_1/requeue")).toBe(
-			true,
-		);
-	});
+	for (const path of [
+		["wh_1", "test"],
+		["wh_1", "rotate-secret"],
+		["wh_1", "dead", "ob_1", "requeue"],
+	]) {
+		test(`POST ${path.slice(1).join("/")} is not available → 405, no fetch`, async () => {
+			const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
+			const { POST } = await import("./route");
+			const res = await POST(
+				req({ method: "POST", cookie: "sl_session=tok" }),
+				ctx(path),
+			);
+			expect(res.status).toBe(405);
+			expect(calls.length).toBe(0);
+		});
+	}
+
+	for (const action of ["pause", "resume"]) {
+		test(`POST :id/${action} is allowed`, async () => {
+			const { calls } = stubFetch(
+				() => new Response(JSON.stringify({ id: "wh_1" }), { status: 200 }),
+			);
+			const { POST } = await import("./route");
+			const res = await POST(
+				req({ method: "POST", cookie: "sl_session=tok" }),
+				ctx(["wh_1", action]),
+			);
+			expect(res.status).toBe(200);
+			expect(calls[0]?.url.endsWith(`/api/webhooks/wh_1/${action}`)).toBe(true);
+		});
+	}
 
 	test("POST :id/replay is not in the allowlist → 405, no fetch", async () => {
 		const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
