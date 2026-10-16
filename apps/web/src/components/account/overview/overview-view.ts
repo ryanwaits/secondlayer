@@ -138,9 +138,9 @@ export function stoppedForCredits(
 }
 
 export interface StackCell {
-	/** ok shows no dot; alarm is out of credits; idle is asleep or not started. */
+	/** ok shows no dot; alarm is out of credits; idle is asleep, starting or not started. */
 	tone: "ok" | "alarm" | "idle";
-	word: "running" | "stopped" | "asleep" | "not started";
+	word: "running" | "stopped" | "asleep" | "starting" | "not started";
 	/** Cost per day ("$0.33"), or null while the burn rate has not loaded. */
 	perDay: string | null;
 	/** Latest memory in GB, two decimals, or null before any hour is recorded. */
@@ -172,23 +172,37 @@ export function stackCell(
 	}
 	if (stack.state === "stopped") {
 		// Stopped, so nothing is charging, whatever the last 24 hours burned.
-		return stoppedForCredits(stack, context)
-			? {
-					tone: "alarm",
-					word: "stopped",
-					perDay: "$0.00",
-					gb,
-					points,
-					caption: "Add credits to start it again.",
-				}
-			: {
-					tone: "idle",
-					word: "asleep",
-					perDay: "$0.00",
-					gb,
-					points,
-					caption: "Every webhook is paused, so it isn't billed.",
-				};
+		if (stoppedForCredits(stack, context)) {
+			return {
+				tone: "alarm",
+				word: "stopped",
+				perDay: "$0.00",
+				gb,
+				points,
+				caption: "Add credits to start it again.",
+			};
+		}
+		if (context.asleep) {
+			return {
+				tone: "idle",
+				word: "asleep",
+				perDay: "$0.00",
+				gb,
+				points,
+				caption: "Every webhook is paused, so it isn't billed.",
+			};
+		}
+		// Credits are there and webhooks aren't paused: the 5-minute credits
+		// poll (or the next request) restarts it, and this state can also lag a
+		// restart that already happened, since it is read from hourly billing.
+		return {
+			tone: "idle",
+			word: "starting",
+			perDay: "$0.00",
+			gb,
+			points,
+			caption: "Starts again on its own within a few minutes.",
+		};
 	}
 	return {
 		tone: "ok",

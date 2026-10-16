@@ -151,13 +151,24 @@ describe("stackCell", () => {
 			perDay: "$0.00",
 			caption: "Every webhook is paused, so it isn't billed.",
 		};
-		// Asleep wins even with no credits; credits left also means it was not starved.
+		// Asleep wins even with no credits.
 		expect(
 			stackCell(stopped, burn, { asleep: true, creditsUsdMicros: "0" }),
 		).toMatchObject(expected);
-		expect(
-			stackCell(stopped, burn, { asleep: false, creditsUsdMicros: "5000000" }),
-		).toMatchObject(expected);
+	});
+
+	test("stopped with credits and webhooks not paused is starting again, not asleep", () => {
+		const cell = stackCell(
+			{ state: "stopped", lastChargedAt: null, memory24h },
+			burn,
+			{ asleep: false, creditsUsdMicros: "5000000" },
+		);
+		expect(cell).toMatchObject({
+			tone: "idle",
+			word: "starting",
+			perDay: "$0.00",
+			caption: "Starts again on its own within a few minutes.",
+		});
 	});
 
 	test("stopped with billing not loaded yet is still an alarm", () => {
