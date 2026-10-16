@@ -1,5 +1,13 @@
 "use client";
 
+import {
+	EXAMPLE_KEYS,
+	EXAMPLE_KEYS_STALE,
+	EXAMPLE_NEW_KEY,
+	KEYS_EXAMPLE_NOW,
+} from "@/components/account/keys/key.fixtures";
+import { KeysBody } from "@/components/account/keys/keys-screen";
+import { NameStep, RevealStep } from "@/components/account/keys/new-key-flow";
 import { RowsBody } from "@/components/account/rows/rows-panel";
 import { GridView } from "@/components/account/subgraphs/data-grid";
 import {
@@ -608,6 +616,36 @@ export function RowsDemo({ exhausted }: { exhausted: boolean }) {
 			data={rowsStoryData(exhausted)}
 			now={ROWS_STORY_NOW}
 			onRetry={() => {}}
+		/>
+	);
+}
+
+/** The Keys screen and the create flow: callbacks are functions, which a server page cannot pass. */
+export function KeysDemo({
+	view,
+}: {
+	view: "all-in-use" | "stale" | "open" | "name" | "name-repeat" | "reveal";
+}) {
+	const noop = () => {};
+	if (view === "name" || view === "name-repeat") {
+		return (
+			<NameStep
+				initialName={view === "name-repeat" ? "ci" : ""}
+				existingNames={["prod-indexer", "ci", "laptop"]}
+				onSubmit={noop}
+				onCancel={noop}
+			/>
+		);
+	}
+	if (view === "reveal") {
+		return <RevealStep value={EXAMPLE_NEW_KEY} name="laptop" onDone={noop} />;
+	}
+	return (
+		<KeysBody
+			keys={view === "stale" ? EXAMPLE_KEYS_STALE : EXAMPLE_KEYS}
+			now={KEYS_EXAMPLE_NOW}
+			onNew={noop}
+			initialOpen={view === "open" ? "a1b2c3d4" : null}
 		/>
 	);
 }

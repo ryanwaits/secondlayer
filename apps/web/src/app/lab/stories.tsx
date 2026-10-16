@@ -41,6 +41,7 @@ import type { CSSProperties, ReactNode } from "react";
 import {
 	AmountDemo,
 	HeatStripDemo,
+	KeysDemo,
 	RowsDemo,
 	StackedCostDemo,
 	SubgraphGridDemo,
@@ -1583,6 +1584,60 @@ const META: Record<StoryId, Meta> = {
 				name: "insights",
 				type: "Insight[]",
 				note: "Notes under the chart. Empty renders nothing.",
+			},
+		],
+	},
+	"account-keys": {
+		src: [
+			"apps/web/src/components/account/keys/keys-screen.tsx",
+			"apps/web/src/components/account/keys/new-key-flow.tsx",
+			"apps/web/src/components/account/keys/key-view.ts",
+		],
+		rule: "One row per key with the rows it read; a quiet key is named with the days. A new key is shown once, with four ways to use it.",
+		stack: true,
+		variants: [
+			{
+				id: "all-in-use",
+				label: "All in use",
+				render: () => <KeysDemo view="all-in-use" />,
+			},
+			{
+				id: "stale",
+				label: "A key went quiet",
+				render: () => <KeysDemo view="stale" />,
+			},
+			{
+				id: "open",
+				label: "Open row",
+				render: () => <KeysDemo view="open" />,
+			},
+			{
+				id: "name",
+				label: "Name step",
+				render: () => <KeysDemo view="name" />,
+			},
+			{
+				id: "name-repeat",
+				label: "Name already used",
+				render: () => <KeysDemo view="name-repeat" />,
+			},
+			{
+				id: "reveal",
+				label: "Reveal step",
+				render: () => <KeysDemo view="reveal" />,
+			},
+		],
+		usage: "<NewKeyFlow existingNames={names} onClose={close} />",
+		props: [
+			{
+				name: "initial",
+				type: "{ key: string; name: string }",
+				note: "Opens on the reveal for a key that already exists.",
+			},
+			{
+				name: "create",
+				type: "(name: string) => Promise<string>",
+				note: "Defaults to the account API. A 403 reads as the key cap, a 429 as the rate limit.",
 			},
 		],
 	},

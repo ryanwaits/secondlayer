@@ -18,6 +18,7 @@ export const STORY_INDEX = [
 	{ id: "resource-row", group: "Dashboard", title: "Resource row" },
 	{ id: "webhook-header", group: "Dashboard", title: "Webhook header" },
 	{ id: "account-rows", group: "Dashboard", title: "Rows screen" },
+	{ id: "account-keys", group: "Dashboard", title: "Keys screen" },
 	{ id: "charts-bars", group: "Dashboard", title: "Bars and band" },
 	{ id: "charts-heat", group: "Dashboard", title: "Heat strip" },
 	{ id: "charts-lines", group: "Dashboard", title: "Context lines" },
