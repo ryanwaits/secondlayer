@@ -60,6 +60,8 @@ export interface GatewayDeps {
 	 *  The deploy itself never needs it. */
 	onSubgraphDeployed?: (accountId: string) => void;
 	fetchImpl?: FetchLike;
+	/** Wait between upstream retries; injectable so tests don't sleep. */
+	sleep?: (ms: number) => Promise<void>;
 	rateLimit?: RateLimiter;
 	/** Git sha this process started from, served at `/healthz` so the
 	 *  self-upgrade script can confirm a restart landed. Read once at boot;
@@ -107,6 +109,12 @@ export function classifyRequest(
 }
 
 const PROVISIONING_RETRY_AFTER_SECONDS = 30;
+
+// Reads retry a refused or reset upstream connection with backoff
+// 250ms, 500ms, 1s, 1s, ... until this much time has been spent waiting.
+const UPSTREAM_RETRY_FIRST_DELAY_MS = 250;
+const UPSTREAM_RETRY_MAX_DELAY_MS = 1000;
+const UPSTREAM_RETRY_BUDGET_MS = 10_000;
 
 /** Gateway entry: one request id end to end (a valid incoming
  *  `X-Request-Id` is reused, else minted), forwarded upstream and set on every
@@ -315,14 +323,36 @@ async function route(
 	forwardHeaders.delete("host");
 	forwardHeaders.set("x-request-id", requestId);
 
+	const isRead = req.method === "GET" || req.method === "HEAD";
+	const sleep = deps.sleep ?? ((ms: number) => Bun.sleep(ms));
+	let attempts = 0;
 	try {
-		const upstreamRes = await doFetch(forwardUrl.toString(), {
-			method: req.method,
-			headers: forwardHeaders,
-			body:
-				req.method === "GET" || req.method === "HEAD" ? undefined : req.body,
-			duplex: req.body ? "half" : undefined,
-		});
+		let upstreamRes: Response;
+		// A tenant upgrade swaps the stack's single API container for a few
+		// seconds (connection refused). Reads wait it out instead of failing;
+		// writes are never retried (the body may be consumed, and they are not
+		// idempotent).
+		for (let slept = 0; ; ) {
+			attempts++;
+			try {
+				upstreamRes = await doFetch(forwardUrl.toString(), {
+					method: req.method,
+					headers: forwardHeaders,
+					body: isRead ? undefined : req.body,
+					duplex: req.body ? "half" : undefined,
+				});
+				break;
+			} catch (err) {
+				if (!isRead || slept >= UPSTREAM_RETRY_BUDGET_MS) throw err;
+				const delay = Math.min(
+					UPSTREAM_RETRY_MAX_DELAY_MS,
+					UPSTREAM_RETRY_FIRST_DELAY_MS * 2 ** (attempts - 1),
+					UPSTREAM_RETRY_BUDGET_MS - slept,
+				);
+				await sleep(delay);
+				slept += delay;
+			}
+		}
 		if (
 			upstreamRes.ok &&
 			req.method === "POST" &&
@@ -338,6 +368,7 @@ async function route(
 		logger.error("workload.gateway.upstream_error", {
 			accountId: introspected.accountId,
 			requestId,
+			attempts,
 			error: err instanceof Error ? err.message : String(err),
 		});
 		return Response.json({ error: "upstream_unavailable" }, { status: 502 });

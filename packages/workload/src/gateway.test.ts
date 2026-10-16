@@ -33,6 +33,7 @@ function baseDeps(overrides: Partial<GatewayDeps> = {}): GatewayDeps {
 			instanceToken: "tenant-instance-token",
 		}),
 		fetchImpl: async () => new Response("ok", { status: 200 }),
+		sleep: async () => {},
 		...overrides,
 	};
 }
@@ -593,6 +594,57 @@ describe("handleGatewayRequest", () => {
 			req({ auth: "Bearer sk-sl_good" }),
 		);
 		expect(res.status).toBe(502);
+	});
+
+	test("a read retries through a stack swap and succeeds", async () => {
+		let calls = 0;
+		const deps = baseDeps({
+			fetchImpl: async () => {
+				calls++;
+				if (calls <= 2) throw new Error("ECONNREFUSED");
+				return new Response("ok", { status: 200 });
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({ auth: "Bearer sk-sl_good" }),
+		);
+		expect(res.status).toBe(200);
+		expect(calls).toBe(3);
+	});
+
+	test("a write is never retried", async () => {
+		let calls = 0;
+		const deps = baseDeps({
+			fetchImpl: async () => {
+				calls++;
+				throw new Error("ECONNREFUSED");
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({ method: "POST", auth: "Bearer sk-sl_good" }),
+		);
+		expect(res.status).toBe(502);
+		expect(calls).toBe(1);
+	});
+
+	test("a read gives up with 502 after the retry budget", async () => {
+		let slept = 0;
+		const deps = baseDeps({
+			fetchImpl: async () => {
+				throw new Error("ECONNREFUSED");
+			},
+			sleep: async (ms) => {
+				slept += ms;
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({ auth: "Bearer sk-sl_good" }),
+		);
+		expect(res.status).toBe(502);
+		expect(slept).toBeGreaterThanOrEqual(10_000);
 	});
 });
 
